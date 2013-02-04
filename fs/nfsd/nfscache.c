@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/highmem.h>
+#include <net/checksum.h>
 
 #include "nfsd.h"
 #include "cache.h"
@@ -130,6 +131,7 @@ int nfsd_reply_cache_init(void)
 	INIT_LIST_HEAD(&lru_head);
 	max_drc_entries = nfsd_cache_size_limit();
 	num_drc_entries = 0;
+
 	return 0;
 out_nomem:
 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
@@ -238,12 +240,45 @@ nfsd_reply_cache_shrink(struct shrinker *shrink, struct shrink_control *sc)
 }
 
 /*
+ * Walk an xdr_buf and get a CRC for at most the first RC_CSUMLEN bytes
+ */
+static __wsum
+nfsd_cache_csum(struct svc_rqst *rqstp)
+{
+	int idx;
+	unsigned int base;
+	__wsum csum;
+	struct xdr_buf *buf = &rqstp->rq_arg;
+	const unsigned char *p = buf->head[0].iov_base;
+	size_t csum_len = min_t(size_t, buf->head[0].iov_len + buf->page_len,
+				RC_CSUMLEN);
+	size_t len = min(buf->head[0].iov_len, csum_len);
+
+	/* rq_arg.head first */
+	csum = csum_partial(p, len, 0);
+	csum_len -= len;
+
+	/* Continue into page array */
+	idx = buf->page_base / PAGE_SIZE;
+	base = buf->page_base & ~PAGE_MASK;
+	while (csum_len) {
+		p = page_address(buf->pages[idx]) + base;
+		len = min(PAGE_SIZE - base, csum_len);
+		csum = csum_partial(p, len, csum);
+		csum_len -= len;
+		base = 0;
+		++idx;
+	}
+	return csum;
+}
+
+/*
  * Search the request hash for an entry that matches the given rqstp.
  * Must be called with cache_lock held. Returns the found entry or
  * NULL on failure.
  */
 static struct svc_cacherep *
-nfsd_cache_search(struct svc_rqst *rqstp)
+nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
 {
 	struct svc_cacherep	*rp;
 	struct hlist_node	*hn;
@@ -257,6 +292,7 @@ nfsd_cache_search(struct svc_rqst *rqstp)
 	hlist_for_each_entry(rp, hn, rh, c_hash) {
 		if (xid == rp->c_xid && proc == rp->c_proc &&
 		    proto == rp->c_prot && vers == rp->c_vers &&
+		    rqstp->rq_arg.len == rp->c_len && csum == rp->c_csum &&
 		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
 		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr))
 			return rp;
@@ -277,6 +313,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	u32			proto =  rqstp->rq_prot,
 				vers = rqstp->rq_vers,
 				proc = rqstp->rq_proc;
+	__wsum			csum;
 	unsigned long		age;
 	int type = rqstp->rq_cachetype;
 	int rtn;
@@ -287,10 +324,12 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		return RC_DOIT;
 	}
 
+	csum = nfsd_cache_csum(rqstp);
+
 	spin_lock(&cache_lock);
 	rtn = RC_DOIT;
 
-	rp = nfsd_cache_search(rqstp);
+	rp = nfsd_cache_search(rqstp, csum);
 	if (rp)
 		goto found_entry;
 
@@ -318,7 +357,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	 * Must search again just in case someone inserted one
 	 * after we dropped the lock above.
 	 */
-	found = nfsd_cache_search(rqstp);
+	found = nfsd_cache_search(rqstp, csum);
 	if (found) {
 		nfsd_reply_cache_free_locked(rp);
 		rp = found;
@@ -344,6 +383,8 @@ setup_entry:
 	rpc_set_port((struct sockaddr *)&rp->c_addr, rpc_get_port(svc_addr(rqstp)));
 	rp->c_prot = proto;
 	rp->c_vers = vers;
+	rp->c_len = rqstp->rq_arg.len;
+	rp->c_csum = csum;
 
 	hash_refile(rp);
 	lru_put_end(rp);

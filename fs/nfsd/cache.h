@@ -29,6 +29,8 @@ struct svc_cacherep {
 	u32			c_prot;
 	u32			c_proc;
 	u32			c_vers;
+	unsigned int		c_len;
+	__wsum			c_csum;
 	unsigned long		c_timestamp;
 	union {
 		struct kvec	u_vec;
@@ -72,6 +74,9 @@ enum {
 
 /* Cache entries expire after this time period */
 #define RC_EXPIRE		(120 * HZ)
+
+/* Checksum this amount of the request */
+#define RC_CSUMLEN		(256U)
 
 int	nfsd_reply_cache_init(void);
 void	nfsd_reply_cache_shutdown(void);
