@@ -450,21 +450,15 @@ static inline bool need_SSR(struct f2fs_sb_info *sbi)
 	return (free_sections(sbi) < overprovision_sections(sbi));
 }
 
-static inline int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return DIRTY_I(sbi)->v_ops->get_victim(sbi,
-				&(curseg)->next_segno, BG_GC, type, SSR);
-}
-
-static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi)
+static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 {
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
+
 	if (sbi->por_doing)
 		return false;
 
-	return (free_sections(sbi) <= (node_secs + 2 * dent_secs +
+	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
 						reserved_sections(sbi)));
 }
 

@@ -22,15 +22,6 @@
 /* Search max. number of dirty segments to select a victim segment */
 #define MAX_VICTIM_SEARCH	20
 
-enum {
-	GC_NONE = 0,
-	GC_ERROR,
-	GC_OK,
-	GC_NEXT,
-	GC_BLOCKED,
-	GC_DONE,
-};
-
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
 	wait_queue_head_t gc_wait_queue_head;
@@ -102,11 +93,4 @@ static inline int is_idle(struct f2fs_sb_info *sbi)
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct request_list *rl = &q->root_rl;
 	return !(rl->count[BLK_RW_SYNC]) && !(rl->count[BLK_RW_ASYNC]);
-}
-
-static inline bool should_do_checkpoint(struct f2fs_sb_info *sbi)
-{
-	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
-	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
-	return free_sections(sbi) <= (node_secs + 2 * dent_secs + 2);
 }

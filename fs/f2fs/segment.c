@@ -29,7 +29,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi)
 	 * We should do GC or end up with checkpoint, if there are so many dirty
 	 * dir/node pages without enough free segments.
 	 */
-	if (has_not_enough_free_secs(sbi)) {
+	if (has_not_enough_free_secs(sbi, 0)) {
 		mutex_lock(&sbi->gc_mutex);
 		f2fs_gc(sbi);
 	}
@@ -308,7 +308,7 @@ static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi,
 	 * If there is not enough reserved sections,
 	 * we should not reuse prefree segments.
 	 */
-	if (has_not_enough_free_secs(sbi))
+	if (has_not_enough_free_secs(sbi, 0))
 		return NULL_SEGNO;
 
 	/*
@@ -534,6 +534,23 @@ static void change_curseg(struct f2fs_sb_info *sbi, int type, bool reuse)
 		memcpy(curseg->sum_blk, sum_node, SUM_ENTRY_SIZE);
 		f2fs_put_page(sum_page, 1);
 	}
+}
+
+static int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+	const struct victim_selection *v_ops = DIRTY_I(sbi)->v_ops;
+
+	if (IS_NODESEG(type) || !has_not_enough_free_secs(sbi, 0))
+		return v_ops->get_victim(sbi,
+				&(curseg)->next_segno, BG_GC, type, SSR);
+
+	/* For data segments, let's do SSR more intensively */
+	for (; type >= CURSEG_HOT_DATA; type--)
+		if (v_ops->get_victim(sbi, &(curseg)->next_segno,
+						BG_GC, type, SSR))
+			return 1;
+	return 0;
 }
 
 /*

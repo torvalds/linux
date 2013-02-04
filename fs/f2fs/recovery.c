@@ -373,5 +373,5 @@ void recover_fsync_data(struct f2fs_sb_info *sbi)
 out:
 	destroy_fsync_dnodes(sbi, &inode_list);
 	kmem_cache_destroy(fsync_entry_slab);
-	write_checkpoint(sbi, false, false);
+	write_checkpoint(sbi, false);
 }

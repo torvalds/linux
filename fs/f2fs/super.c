@@ -112,7 +112,7 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
-	write_checkpoint(sbi, false, true);
+	write_checkpoint(sbi, true);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
@@ -136,7 +136,7 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 		return 0;
 
 	if (sync)
-		write_checkpoint(sbi, false, false);
+		write_checkpoint(sbi, false);
 	else
 		f2fs_balance_fs(sbi);
 

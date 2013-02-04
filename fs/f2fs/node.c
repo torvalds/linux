@@ -1135,7 +1135,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	/* First check balancing cached NAT entries */
 	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK)) {
-		write_checkpoint(sbi, false, false);
+		write_checkpoint(sbi, false);
 		return 0;
 	}
 

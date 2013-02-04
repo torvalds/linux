@@ -539,7 +539,7 @@ retry:
 /*
  * Freeze all the FS-operations for checkpoint.
  */
-void block_operations(struct f2fs_sb_info *sbi)
+static void block_operations(struct f2fs_sb_info *sbi)
 {
 	int t;
 	struct writeback_control wbc = {
@@ -722,15 +722,13 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 /*
  * We guarantee that this checkpoint procedure should not fail.
  */
-void write_checkpoint(struct f2fs_sb_info *sbi, bool blocked, bool is_umount)
+void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	unsigned long long ckpt_ver;
 
-	if (!blocked) {
-		mutex_lock(&sbi->cp_mutex);
-		block_operations(sbi);
-	}
+	mutex_lock(&sbi->cp_mutex);
+	block_operations(sbi);
 
 	f2fs_submit_bio(sbi, DATA, true);
 	f2fs_submit_bio(sbi, NODE, true);
