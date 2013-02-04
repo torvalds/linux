@@ -644,31 +644,32 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/* Single-shot analog output routine */
-
 static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
-	int d;
-	unsigned int chan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
 	if (devpriv->stop)
 		return -EIO;
 
-	chan = CR_CHAN(insn->chanspec);
-	d = data[0];
-	d &= 0x0fff;
-	d ^= 0x0800;		/* Flip the sign */
-	d |= chan << 12;
-
 	/* Make sure D/A update mode is direct update */
 	outb(0, dev->iobase + DAQP_AUX);
 
-	outw(d, dev->iobase + DAQP_DA);
+	for (i = 0; i > insn->n; i++) {
+		val = data[0];
+		val &= 0x0fff;
+		val ^= 0x0800;		/* Flip the sign */
+		val |= (chan << 12);
 
-	return 1;
+		outw(val, dev->iobase + DAQP_DA);
+	}
+
+	return insn->n;
 }
 
 static int daqp_di_insn_bits(struct comedi_device *dev,
