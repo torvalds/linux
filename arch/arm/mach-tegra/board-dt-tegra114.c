@@ -19,7 +19,6 @@
 #include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 
 #include "board.h"
 #include "common.h"
@@ -39,7 +38,6 @@ DT_MACHINE_START(TEGRA114_DT, "NVIDIA Tegra114 (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
 	.init_early	= tegra30_init_early,
 	.init_irq	= tegra_dt_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_time	= clocksource_of_init,
 	.init_machine	= tegra114_dt_init,
 	.init_late	= tegra_init_late,
