@@ -58,9 +58,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include "comedi_fc.h"
 
-/* Maximum number of separate DAQP devices we'll allow */
-#define MAX_DEV         4
-
 struct daqp_private {
 	int stop;
 
