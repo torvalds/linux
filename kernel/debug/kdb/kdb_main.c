@@ -681,6 +681,10 @@ static int kdb_defcmd(int argc, const char **argv)
 	}
 	if (argc != 3)
 		return KDB_ARGCOUNT;
+	if (in_dbg_master()) {
+		kdb_printf("Command only available during kdb_init()\n");
+		return KDB_NOTIMP;
+	}
 	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
 			     GFP_KDB);
 	if (!defcmd_set)
@@ -2796,8 +2800,8 @@ static void __init kdb_inittab(void)
 	  "Stack traceback", 1, KDB_REPEAT_NONE);
 	kdb_register_repeat("btp", kdb_bt, "<pid>",
 	  "Display stack for process <pid>", 0, KDB_REPEAT_NONE);
-	kdb_register_repeat("bta", kdb_bt, "[DRSTCZEUIMA]",
-	  "Display stack all processes", 0, KDB_REPEAT_NONE);
+	kdb_register_repeat("bta", kdb_bt, "[D|R|S|T|C|Z|E|U|I|M|A]",
+	  "Backtrace all processes matching state flag", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("btc", kdb_bt, "",
 	  "Backtrace current process on each cpu", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("btt", kdb_bt, "<vaddr>",
