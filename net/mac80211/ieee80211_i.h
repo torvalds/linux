@@ -958,14 +958,7 @@ struct ieee80211_local {
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head skb_queue_unreliable;
 
-	/*
-	 * Internal FIFO queue which is shared between multiple rx path
-	 * stages. Its main task is to provide a serialization mechanism,
-	 * so all rx handlers can enjoy having exclusive access to their
-	 * private data structures.
-	 */
-	struct sk_buff_head rx_skb_queue;
-	bool running_rx_handler;	/* protected by rx_skb_queue.lock */
+	spinlock_t rx_path_lock;
 
 	/* Station data */
 	/*
