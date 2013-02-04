@@ -61,6 +61,9 @@
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
+#if defined(CONFIG_MT6229)
+#include <linux/mt6229.h>
+#endif
 #if defined(CONFIG_GPS_RK)
 #include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
 #endif
@@ -308,6 +311,46 @@ static struct sensor_platform_data akm8975_info =
 	}
 };
 
+#endif
+
+#if defined(CONFIG_MT6229)
+static int mt6229_io_init(void)
+{
+      #if 0
+	rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
+      k30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
+	rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
+	rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
+	rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
+	rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
+      #endif
+	 return 0;
+}
+
+static int mt6229_io_deinit(void)
+{
+	
+	return 0;
+}
+ 
+struct rk29_mt6229_data rk29_mt6229_info = {
+	.io_init = mt6229_io_init,
+  	.io_deinit = mt6229_io_deinit,
+	.modem_power_en = RK30_PIN0_PC6,
+	.bp_power = RK30_PIN2_PD5,
+	.modem_usb_en = RK30_PIN0_PC7,
+	.modem_uart_en = RK30_PIN2_PD4,
+	.bp_wakeup_ap = RK30_PIN0_PC5,
+	.ap_ready = RK30_PIN0_PC4,
+
+};
+struct platform_device rk29_device_mt6229 = {	
+        .name = "mt6229",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &rk29_mt6229_info,
+	}    	
+    };
 #endif
 
 #if defined(CONFIG_GYRO_L3G4200D)
@@ -1114,6 +1157,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MT5931_MT6622
 	&device_mt6622,
 #endif
+#if defined(CONFIG_MT6229)
+	&rk29_device_mt6229,
+#endif
+
 };
 
 
