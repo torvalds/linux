@@ -15,6 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/falloc.h>
 #include <linux/types.h>
+#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/mount.h>
 
@@ -634,6 +635,23 @@ out:
 	}
 }
 
+#ifdef CONFIG_COMPAT
+long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case F2FS_IOC32_GETFLAGS:
+		cmd = F2FS_IOC_GETFLAGS;
+		break;
+	case F2FS_IOC32_SETFLAGS:
+		cmd = F2FS_IOC_SETFLAGS;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return f2fs_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
+}
+#endif
+
 const struct file_operations f2fs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -645,6 +663,9 @@ const struct file_operations f2fs_file_operations = {
 	.fsync		= f2fs_sync_file,
 	.fallocate	= f2fs_fallocate,
 	.unlocked_ioctl	= f2fs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= f2fs_compat_ioctl,
+#endif
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 };
