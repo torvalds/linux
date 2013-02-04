@@ -580,7 +580,7 @@ static void lp8788_irq_unregister(struct platform_device *pdev,
 	}
 }
 
-static void lp8788_setup_adc_channel(const char *consumer_name,
+static void lp8788_setup_adc_channel(struct device *dev,
 				struct lp8788_charger *pchg)
 {
 	struct lp8788_charger_platform_data *pdata = pchg->pdata;
@@ -590,11 +590,11 @@ static void lp8788_setup_adc_channel(const char *consumer_name,
 		return;
 
 	/* ADC channel for battery voltage */
-	chan = iio_channel_get(consumer_name, pdata->adc_vbatt);
+	chan = iio_channel_get(dev, pdata->adc_vbatt);
 	pchg->chan[LP8788_VBATT] = IS_ERR(chan) ? NULL : chan;
 
 	/* ADC channel for battery temperature */
-	chan = iio_channel_get(consumer_name, pdata->adc_batt_temp);
+	chan = iio_channel_get(dev, pdata->adc_batt_temp);
 	pchg->chan[LP8788_BATT_TEMP] = IS_ERR(chan) ? NULL : chan;
 }
 
@@ -704,7 +704,7 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	lp8788_setup_adc_channel(pdev->name, pchg);
+	lp8788_setup_adc_channel(&pdev->dev, pchg);
 
 	ret = lp8788_psy_register(pdev, pchg);
 	if (ret)

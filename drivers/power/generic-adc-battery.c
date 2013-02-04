@@ -287,8 +287,8 @@ static int gab_probe(struct platform_device *pdev)
 	 * based on the channel supported by consumer device.
 	 */
 	for (chan = 0; chan < ARRAY_SIZE(gab_chan_name); chan++) {
-		adc_bat->channel[chan] = iio_channel_get(dev_name(&pdev->dev),
-						gab_chan_name[chan]);
+		adc_bat->channel[chan] = iio_channel_get(&pdev->dev,
+							 gab_chan_name[chan]);
 		if (IS_ERR(adc_bat->channel[chan])) {
 			ret = PTR_ERR(adc_bat->channel[chan]);
 		} else {
