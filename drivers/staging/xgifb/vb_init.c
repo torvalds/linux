@@ -439,25 +439,18 @@ static void XGINew_SetDRAMDefaultRegister340(
 	xgifb_reg_set(P3d4, 0x69, pVBInfo->CR40[6][pVBInfo->ram_type]);
 	xgifb_reg_set(P3d4, 0x6A, pVBInfo->CR40[7][pVBInfo->ram_type]);
 
-	for (i = 0; i < 4; i++) {
-		/* CR6B DQS fine tune delay */
-		temp = (pVBInfo->ram_type <= 2) ? 0xaa : 0x00;
-		XGI_SetDRAM_Helper(P3d4, temp, 0, 0x6B, 2, 0xF0, 0x10);
-	}
+	/* CR6B DQS fine tune delay */
+	temp = (pVBInfo->ram_type <= 2) ? 0xaa : 0x00;
+	XGI_SetDRAM_Helper(P3d4, temp, 0, 0x6B, 2, 0xF0, 0x10);
 
-	for (i = 0; i < 4; i++) {
-		/* CR6E DQM fine tune delay */
-		XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6E, 2, 0xF0, 0x10);
-	}
+	/* CR6E DQM fine tune delay */
+	XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6E, 2, 0xF0, 0x10);
 
 	temp3 = 0;
 	for (k = 0; k < 4; k++) {
 		/* CR6E_D[1:0] select channel */
 		xgifb_reg_and_or(P3d4, 0x6E, 0xFC, temp3);
-		for (i = 0; i < 8; i++) {
-			/* CR6F DQ fine tune delay */
-			XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6F, 0, 0xF8, 0x08);
-		}
+		XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6F, 0, 0xF8, 0x08);
 		temp3 += 0x01;
 	}
 
