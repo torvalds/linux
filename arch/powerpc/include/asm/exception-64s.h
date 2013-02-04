@@ -199,10 +199,14 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
+	BEGIN_FTR_SECTION_NESTED(947)					\
+	ld	r10,area+EX_CFAR(r13);					\
+	std	r10,HSTATE_CFAR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947);		\
 	ld	r10,area+EX_R10(r13);					\
-	stw	r9,HSTATE_SCRATCH1(r13);			\
+	stw	r9,HSTATE_SCRATCH1(r13);				\
 	ld	r9,area+EX_R9(r13);					\
-	std	r12,HSTATE_SCRATCH0(r13);			\
+	std	r12,HSTATE_SCRATCH0(r13);				\
 	li	r12,n;							\
 	b	kvmppc_interrupt
 
