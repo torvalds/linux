@@ -3042,12 +3042,15 @@ void dasd_generic_remove(struct ccw_device *cdev)
 	cdev->handler = NULL;
 
 	device = dasd_device_from_cdev(cdev);
-	if (IS_ERR(device))
+	if (IS_ERR(device)) {
+		dasd_remove_sysfs_files(cdev);
 		return;
+	}
 	if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags) &&
 	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
 		/* Already doing offline processing */
 		dasd_put_device(device);
+		dasd_remove_sysfs_files(cdev);
 		return;
 	}
 	/*
