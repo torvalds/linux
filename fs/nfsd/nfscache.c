@@ -98,6 +98,14 @@ nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 	kmem_cache_free(drc_slab, rp);
 }
 
+static void
+nfsd_reply_cache_free(struct svc_cacherep *rp)
+{
+	spin_lock(&cache_lock);
+	nfsd_reply_cache_free_locked(rp);
+	spin_unlock(&cache_lock);
+}
+
 int nfsd_reply_cache_init(void)
 {
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
@@ -182,8 +190,7 @@ nfsd_cache_search(struct svc_rqst *rqstp)
 
 	rh = &cache_hash[request_hash(xid)];
 	hlist_for_each_entry(rp, hn, rh, c_hash) {
-		if (rp->c_state != RC_UNUSED &&
-		    xid == rp->c_xid && proc == rp->c_proc &&
+		if (xid == rp->c_xid && proc == rp->c_proc &&
 		    proto == rp->c_prot && vers == rp->c_vers &&
 		    !nfsd_cache_entry_expired(rp) &&
 		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
@@ -353,7 +360,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 
 	/* Don't cache excessive amounts of data and XDR failures */
 	if (!statp || len > (256 >> 2)) {
-		rp->c_state = RC_UNUSED;
+		nfsd_reply_cache_free(rp);
 		return;
 	}
 
@@ -367,12 +374,15 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 		cachv = &rp->c_replvec;
 		cachv->iov_base = kmalloc(len << 2, GFP_KERNEL);
 		if (!cachv->iov_base) {
-			rp->c_state = RC_UNUSED;
+			nfsd_reply_cache_free(rp);
 			return;
 		}
 		cachv->iov_len = len << 2;
 		memcpy(cachv->iov_base, statp, len << 2);
 		break;
+	case RC_NOCACHE:
+		nfsd_reply_cache_free(rp);
+		return;
 	}
 	spin_lock(&cache_lock);
 	lru_put_end(rp);
