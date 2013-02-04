@@ -2442,11 +2442,15 @@ static int kdb_help(int argc, const char **argv)
 	kdb_printf("-----------------------------"
 		   "-----------------------------\n");
 	for_each_kdbcmd(kt, i) {
-		if (kt->cmd_name)
-			kdb_printf("%-15.15s %-20.20s %s\n", kt->cmd_name,
-				   kt->cmd_usage, kt->cmd_help);
+		char *space = "";
 		if (KDB_FLAG(CMD_INTERRUPT))
 			return 0;
+		if (!kt->cmd_name)
+			continue;
+		if (strlen(kt->cmd_usage) > 20)
+			space = "\n                                    ";
+		kdb_printf("%-15.15s %-20s%s%s\n", kt->cmd_name,
+			   kt->cmd_usage, space, kt->cmd_help);
 	}
 	return 0;
 }
