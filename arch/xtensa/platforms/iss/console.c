@@ -56,13 +56,13 @@ static void rs_poll(unsigned long);
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	tty->port = &serial_port;
-	spin_lock(&timer_lock);
+	spin_lock_bh(&timer_lock);
 	if (tty->count == 1) {
 		setup_timer(&serial_timer, rs_poll,
 				(unsigned long)&serial_port);
 		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
 	}
-	spin_unlock(&timer_lock);
+	spin_unlock_bh(&timer_lock);
 
 	return 0;
 }
