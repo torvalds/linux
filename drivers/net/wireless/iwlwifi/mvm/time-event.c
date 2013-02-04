@@ -76,6 +76,15 @@
 #define TU_TO_JIFFIES(_tu)	(usecs_to_jiffies((_tu) * 1024))
 #define MSEC_TO_TU(_msec)	(_msec*1000/1024)
 
+/* For ROC use a TE type which has priority high enough to be scheduled when
+ * there is a concurrent BSS or GO/AP. Currently, use a TE type that has
+ * priority similar to the TE priority used for action scans by the FW.
+ * TODO: This needs to be changed, based on the reason for the ROC, i.e., use
+ * TE_P2P_DEVICE_DISCOVERABLE for remain on channel without mgmt skb, and use
+ * TE_P2P_DEVICE_ACTION_SCAN
+ */
+#define IWL_MVM_ROC_TE_TYPE TE_P2P_DEVICE_ACTION_SCAN
+
 void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 			   struct iwl_mvm_time_event_data *te_data)
 {
@@ -436,7 +445,7 @@ static bool iwl_mvm_roc_te_notif(struct iwl_notif_wait_data *notif_wait,
 	u32 mac_id_n_color = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
 
 	/* until we do something else */
-	WARN_ON(te_data->id != TE_P2P_DEVICE_DISCOVERABLE);
+	WARN_ON(te_data->id != IWL_MVM_ROC_TE_TYPE);
 
 	switch (pkt->hdr.cmd) {
 	case TIME_EVENT_CMD:
@@ -483,7 +492,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);
 	time_cmd.id_and_color =
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
-	time_cmd.id = cpu_to_le32(TE_P2P_DEVICE_DISCOVERABLE);
+	time_cmd.id = cpu_to_le32(IWL_MVM_ROC_TE_TYPE);
 
 	time_cmd.apply_time = cpu_to_le32(0);
 	time_cmd.dep_policy = cpu_to_le32(TE_INDEPENDENT);
@@ -492,7 +501,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.interval = cpu_to_le32(1);
 
 	/*
-	 * TE_P2P_DEVICE_DISCOVERABLE can have lower priority than other events
+	 * IWL_MVM_ROC_TE_TYPE can have lower priority than other events
 	 * that are being scheduled by the driver/fw, and thus it might not be
 	 * scheduled. To improve the chances of it being scheduled, allow it to
 	 * be fragmented.
