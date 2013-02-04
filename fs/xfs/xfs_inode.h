@@ -419,6 +419,7 @@ static inline void xfs_iflock(struct xfs_inode *ip)
 static inline void xfs_ifunlock(struct xfs_inode *ip)
 {
 	xfs_iflags_clear(ip, XFS_IFLOCK);
+	smp_mb();
 	wake_up_bit(&ip->i_flags, __XFS_IFLOCK_BIT);
 }
 
