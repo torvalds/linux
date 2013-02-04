@@ -255,6 +255,27 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void daqp_ai_set_one_scanlist_entry(struct comedi_device *dev,
+					   unsigned int chanspec,
+					   int start)
+{
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned int val;
+
+	val = DAQP_SCANLIST_CHANNEL(chan) | DAQP_SCANLIST_GAIN(range);
+
+	if (aref == AREF_DIFF)
+		val |= DAQP_SCANLIST_DIFFERENTIAL;
+
+	if (start)
+		val |= DAQP_SCANLIST_START;
+
+	outb(val & 0xff, dev->iobase + DAQP_SCANLIST);
+	outb((val >> 8) & 0xff, dev->iobase + DAQP_SCANLIST);
+}
+
 /* One-shot analog data acquisition routine */
 
 static int daqp_ai_insn_read(struct comedi_device *dev,
@@ -278,18 +299,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
 
 	/* Program one scan list entry */
-
-	v = DAQP_SCANLIST_CHANNEL(CR_CHAN(insn->chanspec))
-	    | DAQP_SCANLIST_GAIN(CR_RANGE(insn->chanspec));
-
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
-		v |= DAQP_SCANLIST_DIFFERENTIAL;
-
-
-	v |= DAQP_SCANLIST_START;
-
-	outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
-	outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+	daqp_ai_set_one_scanlist_entry(dev, insn->chanspec, 1);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
@@ -501,24 +511,10 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Program scan list */
-
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		int start = (i == 0 || scanlist_start_on_every_entry);
 
-		int chanspec = cmd->chanlist[i];
-
-		/* Program one scan list entry */
-
-		v = DAQP_SCANLIST_CHANNEL(CR_CHAN(chanspec))
-		    | DAQP_SCANLIST_GAIN(CR_RANGE(chanspec));
-
-		if (CR_AREF(chanspec) == AREF_DIFF)
-			v |= DAQP_SCANLIST_DIFFERENTIAL;
-
-		if (i == 0 || scanlist_start_on_every_entry)
-			v |= DAQP_SCANLIST_START;
-
-		outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
-		outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+		daqp_ai_set_one_scanlist_entry(dev, cmd->chanlist[i], start);
 	}
 
 	/* Now it's time to program the FIFO threshold, basically the
