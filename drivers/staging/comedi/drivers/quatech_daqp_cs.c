@@ -671,11 +671,10 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-/* Digital input routine */
-
-static int daqp_di_insn_read(struct comedi_device *dev,
+static int daqp_di_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
 
@@ -684,7 +683,7 @@ static int daqp_di_insn_read(struct comedi_device *dev,
 
 	data[0] = inb(dev->iobase + DAQP_DIGITAL_IO);
 
-	return 1;
+	return insn->n;
 }
 
 /* Digital output routine */
@@ -758,7 +757,8 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 1;
-	s->insn_read	= daqp_di_insn_read;
+	s->maxdata	= 1;
+	s->insn_bits	= daqp_di_insn_bits;
 
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
