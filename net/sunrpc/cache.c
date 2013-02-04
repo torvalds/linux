@@ -750,6 +750,18 @@ struct cache_reader {
 	int			offset;	/* if non-0, we have a refcnt on next request */
 };
 
+static int cache_request(struct cache_detail *detail,
+			       struct cache_request *crq)
+{
+	char *bp = crq->buf;
+	int len = PAGE_SIZE;
+
+	detail->cache_request(detail, crq->item, &bp, &len);
+	if (len < 0)
+		return -EAGAIN;
+	return PAGE_SIZE - len;
+}
+
 static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 			  loff_t *ppos, struct cache_detail *cd)
 {
@@ -783,6 +795,13 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 	if (rp->offset == 0)
 		rq->readers++;
 	spin_unlock(&queue_lock);
+
+	if (rq->len == 0) {
+		err = cache_request(cd, rq);
+		if (err < 0)
+			goto out;
+		rq->len = err;
+	}
 
 	if (rp->offset == 0 && !test_bit(CACHE_PENDING, &rq->item->flags)) {
 		err = -EAGAIN;
@@ -1145,8 +1164,6 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 
 	char *buf;
 	struct cache_request *crq;
-	char *bp;
-	int len;
 
 	if (!detail->cache_request)
 		return -EINVAL;
@@ -1166,19 +1183,10 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 		return -EAGAIN;
 	}
 
-	bp = buf; len = PAGE_SIZE;
-
-	detail->cache_request(detail, h, &bp, &len);
-
-	if (len < 0) {
-		kfree(buf);
-		kfree(crq);
-		return -EAGAIN;
-	}
 	crq->q.reader = 0;
 	crq->item = cache_get(h);
 	crq->buf = buf;
-	crq->len = PAGE_SIZE - len;
+	crq->len = 0;
 	crq->readers = 0;
 	spin_lock(&queue_lock);
 	list_add_tail(&crq->q.list, &detail->queue);
