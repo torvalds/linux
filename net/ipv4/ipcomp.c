@@ -163,6 +163,7 @@ static const struct net_protocol ipcomp4_protocol = {
 	.handler	=	xfrm4_rcv,
 	.err_handler	=	ipcomp4_err,
 	.no_policy	=	1,
+	.netns_ok	=	1,
 };
 
 static int __init ipcomp4_init(void)
