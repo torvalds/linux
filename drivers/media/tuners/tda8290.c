@@ -233,7 +233,8 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 	}
 
 
-	tda8290_i2c_bridge(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 
 	if (fe->ops.tuner_ops.set_analog_params)
 		fe->ops.tuner_ops.set_analog_params(fe, params);
@@ -302,7 +303,8 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 		}
 	}
 
-	tda8290_i2c_bridge(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 	tuner_i2c_xfer_send(&priv->i2c_props, if_agc_set, 2);
 }
 
@@ -424,7 +426,8 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 	tuner_i2c_xfer_send(&priv->i2c_props, blanking_mode, 2);
 	msleep(20);
 
-	tda8295_i2c_bridge(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 
 	if (fe->ops.tuner_ops.set_analog_params)
 		fe->ops.tuner_ops.set_analog_params(fe, params);
@@ -437,7 +440,8 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 	else
 		tuner_dbg("tda8295 not locked, no signal?\n");
 
-	tda8295_i2c_bridge(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 }
 
 /*---------------------------------------------------------------------*/
@@ -465,11 +469,13 @@ static void tda8290_standby(struct dvb_frontend *fe)
 	unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0, .buf=cb1, .len = 2};
 
-	tda8290_i2c_bridge(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 	if (priv->ver & TDA8275A)
 		cb1[1] = 0x90;
 	i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8290_i2c_bridge(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 	tuner_i2c_xfer_send(&priv->i2c_props, tda8290_agc_tri, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, tda8290_standby, 2);
 }
@@ -537,9 +543,11 @@ static void tda8290_init_tuner(struct dvb_frontend *fe)
 	if (priv->ver & TDA8275A)
 		msg.buf = tda8275a_init;
 
-	tda8290_i2c_bridge(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8290_i2c_bridge(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 }
 
 /*---------------------------------------------------------------------*/
@@ -565,19 +573,13 @@ static struct tda18271_config tda829x_tda18271_config = {
 static int tda829x_find_tuner(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
-	struct analog_demod_ops *analog_ops = &fe->ops.analog_ops;
 	int i, ret, tuners_found;
 	u32 tuner_addrs;
 	u8 data;
 	struct i2c_msg msg = { .flags = I2C_M_RD, .buf = &data, .len = 1 };
 
-	if (!analog_ops->i2c_gate_ctrl) {
-		printk(KERN_ERR "tda8290: no gate control were provided!\n");
-
-		return -EINVAL;
-	}
-
-	analog_ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 
 	/* probe for tuner chip */
 	tuners_found = 0;
@@ -595,7 +597,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	   give a response now
 	 */
 
-	analog_ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 
 	if (tuners_found > 1)
 		for (i = 0; i < tuners_found; i++) {
@@ -618,12 +621,14 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	priv->tda827x_addr = tuner_addrs;
 	msg.addr = tuner_addrs;
 
-	analog_ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
 
 	if (ret != 1) {
 		tuner_warn("tuner access failed!\n");
-		analog_ops->i2c_gate_ctrl(fe, 0);
+		if (fe->ops.analog_ops.i2c_gate_ctrl)
+			fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 		return -EREMOTEIO;
 	}
 
@@ -648,7 +653,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.sleep)
 		fe->ops.tuner_ops.sleep(fe);
 
-	analog_ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.analog_ops.i2c_gate_ctrl)
+		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
 
 	return 0;
 }
@@ -754,6 +760,9 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 		memcpy(&fe->ops.analog_ops, &tda8295_ops,
 		       sizeof(struct analog_demod_ops));
 	}
+
+	if (cfg && cfg->no_i2c_gate)
+		fe->ops.analog_ops.i2c_gate_ctrl = NULL;
 
 	if (!(cfg) || (TDA829X_PROBE_TUNER == cfg->probe_tuner)) {
 		tda8295_power(fe, 1);

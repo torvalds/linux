@@ -26,6 +26,7 @@ struct tda829x_config {
 	unsigned int probe_tuner:1;
 #define TDA829X_PROBE_TUNER 0
 #define TDA829X_DONT_PROBE  1
+	unsigned int no_i2c_gate:1;
 };
 
 #if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA8290)
