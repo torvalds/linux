@@ -580,19 +580,11 @@ static int gfar_parse_group(struct device_node *np,
 	u32 *queue_mask;
 	int i;
 
-	if (priv->mode == MQ_MG_MODE) {
-		for (i = 0; i < GFAR_NUM_IRQS; i++) {
-			grp->irqinfo[i] = kzalloc(sizeof(struct gfar_irqinfo),
-						  GFP_KERNEL);
-			if (!grp->irqinfo[i])
-				return -ENOMEM;
-		}
-	} else {
-		grp->irqinfo[GFAR_TX] = kzalloc(sizeof(struct gfar_irqinfo),
-						GFP_KERNEL);
-		if (!grp->irqinfo[GFAR_TX])
+	for (i = 0; i < GFAR_NUM_IRQS; i++) {
+		grp->irqinfo[i] = kzalloc(sizeof(struct gfar_irqinfo),
+					  GFP_KERNEL);
+		if (!grp->irqinfo[i])
 			return -ENOMEM;
-		grp->irqinfo[GFAR_RX] = grp->irqinfo[GFAR_ER] = NULL;
 	}
 
 	grp->regs = of_iomap(np, 0);
