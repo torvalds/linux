@@ -46,48 +46,6 @@
 #include "musb_core.h"
 
 
-/* MUSB PERIPHERAL status 3-mar-2006:
- *
- * - EP0 seems solid.  It passes both USBCV and usbtest control cases.
- *   Minor glitches:
- *
- *     + remote wakeup to Linux hosts work, but saw USBCV failures;
- *       in one test run (operator error?)
- *     + endpoint halt tests -- in both usbtest and usbcv -- seem
- *       to break when dma is enabled ... is something wrongly
- *       clearing SENDSTALL?
- *
- * - Mass storage behaved ok when last tested.  Network traffic patterns
- *   (with lots of short transfers etc) need retesting; they turn up the
- *   worst cases of the DMA, since short packets are typical but are not
- *   required.
- *
- * - TX/IN
- *     + both pio and dma behave in with network and g_zero tests
- *     + no cppi throughput issues other than no-hw-queueing
- *     + failed with FLAT_REG (DaVinci)
- *     + seems to behave with double buffering, PIO -and- CPPI
- *     + with gadgetfs + AIO, requests got lost?
- *
- * - RX/OUT
- *     + both pio and dma behave in with network and g_zero tests
- *     + dma is slow in typical case (short_not_ok is clear)
- *     + double buffering ok with PIO
- *     + double buffering *FAILS* with CPPI, wrong data bytes sometimes
- *     + request lossage observed with gadgetfs
- *
- * - ISO not tested ... might work, but only weakly isochronous
- *
- * - Gadget driver disabling of softconnect during bind() is ignored; so
- *   drivers can't hold off host requests until userspace is ready.
- *   (Workaround:  they can turn it off later.)
- *
- * - PORTABILITY (assumes PIO works):
- *     + DaVinci, basically works with cppi dma
- *     + OMAP 2430, ditto with mentor dma
- *     + TUSB 6010, platform-specific dma in the works
- */
-
 /* ----------------------------------------------------------------------- */
 
 #define is_buffer_mapped(req) (is_dma_capable() && \
@@ -274,41 +232,6 @@ static inline int max_ep_writesize(struct musb *musb, struct musb_ep *ep)
 	else
 		return ep->packet_sz;
 }
-
-
-#ifdef CONFIG_USB_INVENTRA_DMA
-
-/* Peripheral tx (IN) using Mentor DMA works as follows:
-	Only mode 0 is used for transfers <= wPktSize,
-	mode 1 is used for larger transfers,
-
-	One of the following happens:
-	- Host sends IN token which causes an endpoint interrupt
-		-> TxAvail
-			-> if DMA is currently busy, exit.
-			-> if queue is non-empty, txstate().
-
-	- Request is queued by the gadget driver.
-		-> if queue was previously empty, txstate()
-
-	txstate()
-		-> start
-		  /\	-> setup DMA
-		  |     (data is transferred to the FIFO, then sent out when
-		  |	IN token(s) are recd from Host.
-		  |		-> DMA interrupt on completion
-		  |		   calls TxAvail.
-		  |		      -> stop DMA, ~DMAENAB,
-		  |		      -> set TxPktRdy for last short pkt or zlp
-		  |		      -> Complete Request
-		  |		      -> Continue next request (call txstate)
-		  |___________________________________|
-
- * Non-Mentor DMA engines can of course work differently, such as by
- * upleveling from irq-per-packet to irq-per-buffer.
- */
-
-#endif
 
 /*
  * An endpoint is transmitting data. This can be called either from
@@ -615,37 +538,6 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 }
 
 /* ------------------------------------------------------------ */
-
-#ifdef CONFIG_USB_INVENTRA_DMA
-
-/* Peripheral rx (OUT) using Mentor DMA works as follows:
-	- Only mode 0 is used.
-
-	- Request is queued by the gadget class driver.
-		-> if queue was previously empty, rxstate()
-
-	- Host sends OUT token which causes an endpoint interrupt
-	  /\      -> RxReady
-	  |	      -> if request queued, call rxstate
-	  |		/\	-> setup DMA
-	  |		|	     -> DMA interrupt on completion
-	  |		|		-> RxReady
-	  |		|		      -> stop DMA
-	  |		|		      -> ack the read
-	  |		|		      -> if data recd = max expected
-	  |		|				by the request, or host
-	  |		|				sent a short packet,
-	  |		|				complete the request,
-	  |		|				and start the next one.
-	  |		|_____________________________________|
-	  |					 else just wait for the host
-	  |					    to send the next OUT token.
-	  |__________________________________________________|
-
- * Non-Mentor DMA engines can of course work differently.
- */
-
-#endif
 
 /*
  * Context: controller locked, IRQs blocked, endpoint selected
