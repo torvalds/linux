@@ -477,16 +477,11 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void das16cs_detach(struct comedi_device *dev)
-{
-	comedi_pcmcia_disable(dev);
-}
-
 static struct comedi_driver driver_das16cs = {
 	.driver_name	= "cb_das16_cs",
 	.module		= THIS_MODULE,
 	.auto_attach	= das16cs_auto_attach,
-	.detach		= das16cs_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
