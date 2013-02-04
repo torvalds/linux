@@ -382,7 +382,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 		index = fls(size - 1);
 
 #ifdef CONFIG_ZONE_DMA
-	if (unlikely((flags & SLAB_CACHE_DMA)))
+	if (unlikely((flags & GFP_DMA)))
 		return kmalloc_dma_caches[index];
 
 #endif
