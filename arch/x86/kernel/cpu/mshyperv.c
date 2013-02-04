@@ -30,6 +30,13 @@ static bool __init ms_hyperv_platform(void)
 	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return false;
 
+	/*
+	 * Xen emulates Hyper-V to support enlightened Windows.
+	 * Check to see first if we are on a Xen Hypervisor.
+	 */
+	if (xen_cpuid_base())
+		return false;
+
 	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS,
 	      &eax, &hyp_signature[0], &hyp_signature[1], &hyp_signature[2]);
 
