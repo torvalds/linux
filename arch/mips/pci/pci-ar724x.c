@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
-#include <asm/mach-ath79/pci.h>
 
 #define AR724X_PCI_REG_RESET		0x18
 #define AR724X_PCI_REG_INT_STATUS	0x4c
@@ -274,37 +273,6 @@ static void ar724x_pci_irq_init(int irq)
 					 handle_level_irq);
 
 	irq_set_chained_handler(irq, ar724x_pci_irq_handler);
-}
-
-int ar724x_pcibios_init(int irq)
-{
-	int ret;
-
-	ret = -ENOMEM;
-
-	ar724x_pci_devcfg_base = ioremap(AR724X_PCI_CFG_BASE,
-					 AR724X_PCI_CFG_SIZE);
-	if (ar724x_pci_devcfg_base == NULL)
-		goto err;
-
-	ar724x_pci_ctrl_base = ioremap(AR724X_PCI_CTRL_BASE,
-				       AR724X_PCI_CTRL_SIZE);
-	if (ar724x_pci_ctrl_base == NULL)
-		goto err_unmap_devcfg;
-
-	ar724x_pci_link_up = ar724x_pci_check_link();
-	if (!ar724x_pci_link_up)
-		pr_warn("ar724x: PCIe link is down\n");
-
-	ar724x_pci_irq_init(irq);
-	register_pci_controller(&ar724x_pci_controller);
-
-	return PCIBIOS_SUCCESSFUL;
-
-err_unmap_devcfg:
-	iounmap(ar724x_pci_devcfg_base);
-err:
-	return ret;
 }
 
 static int ar724x_pci_probe(struct platform_device *pdev)

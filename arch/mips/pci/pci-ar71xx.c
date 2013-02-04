@@ -23,7 +23,6 @@
 
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79.h>
-#include <asm/mach-ath79/pci.h>
 
 #define AR71XX_PCI_REG_CRP_AD_CBE	0x00
 #define AR71XX_PCI_REG_CRP_WRDATA	0x04
@@ -333,31 +332,6 @@ static void ar71xx_pci_reset(void)
 	__raw_writel(AR71XX_PCI_WIN7_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN7);
 
 	mdelay(100);
-}
-
-__init int ar71xx_pcibios_init(void)
-{
-	u32 t;
-
-	ar71xx_pcicfg_base = ioremap(AR71XX_PCI_CFG_BASE, AR71XX_PCI_CFG_SIZE);
-	if (ar71xx_pcicfg_base == NULL)
-		return -ENOMEM;
-
-	ar71xx_pci_reset();
-
-	/* setup COMMAND register */
-	t = PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
-	  | PCI_COMMAND_PARITY | PCI_COMMAND_SERR | PCI_COMMAND_FAST_BACK;
-	ar71xx_pci_local_write(PCI_COMMAND, 4, t);
-
-	/* clear bus errors */
-	ar71xx_pci_check_error(1);
-
-	ar71xx_pci_irq_init(ATH79_CPU_IRQ_IP2);
-
-	register_pci_controller(&ar71xx_pci_controller);
-
-	return 0;
 }
 
 static int ar71xx_pci_probe(struct platform_device *pdev)
