@@ -49,11 +49,6 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
-		f2fs_balance_fs(sbi);
-
-		if (!test_opt(sbi, BG_GC))
-			continue;
-
 		/*
 		 * [GC triggering condition]
 		 * 0. GC is not conducted currently.
@@ -96,6 +91,8 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_gc_kthread *gc_th;
 
+	if (!test_opt(sbi, BG_GC))
+		return 0;
 	gc_th = kmalloc(sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
 	if (!gc_th)
 		return -ENOMEM;
