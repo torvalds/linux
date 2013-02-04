@@ -144,6 +144,7 @@
 			      0 1 0x04
 			      0 41 0x04
 			      0 42 0x04>;
+		clocks = <&tegra_car 5>;
 	};
 
 	tegra_car: clock {
@@ -303,6 +304,7 @@
 		compatible = "nvidia,tegra20-rtc";
 		reg = <0x7000e000 0x100>;
 		interrupts = <0 2 0x04>;
+		clocks = <&tegra_car 4>;
 	};
 
 	i2c@7000c000 {
