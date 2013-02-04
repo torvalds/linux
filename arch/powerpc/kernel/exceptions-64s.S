@@ -817,26 +817,16 @@ vsx_unavailable_relon_pSeries_1:
 	. = 0x4f40
 	b	vsx_unavailable_relon_pSeries
 
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5200, 0x1202, cbe_system_error)
-#endif /* CONFIG_CBE_RAS */
 	STD_RELON_EXCEPTION_PSERIES(0x5300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_PPC_DENORMALISATION
 	. = 0x5500
 	b	denorm_exception_hv
 #endif
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5600, 0x1602, cbe_maintenance)
-#else
 #ifdef CONFIG_HVC_SCOM
 	STD_RELON_EXCEPTION_HV(0x5600, 0x1600, maintence_interrupt)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1600)
 #endif /* CONFIG_HVC_SCOM */
-#endif /* CONFIG_CBE_RAS */
 	STD_RELON_EXCEPTION_PSERIES(0x5700, 0x1700, altivec_assist)
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5800, 0x1802, cbe_thermal)
-#endif /* CONFIG_CBE_RAS */
 
 	/* Other future vectors */
 	.align	7
