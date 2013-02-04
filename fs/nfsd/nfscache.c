@@ -129,6 +129,7 @@ void nfsd_reply_cache_shutdown(void)
 static void
 lru_put_end(struct svc_cacherep *rp)
 {
+	rp->c_timestamp = jiffies;
 	list_move_tail(&rp->c_lru, &lru_head);
 }
 
@@ -245,9 +246,9 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rpc_set_port((struct sockaddr *)&rp->c_addr, rpc_get_port(svc_addr(rqstp)));
 	rp->c_prot = proto;
 	rp->c_vers = vers;
-	rp->c_timestamp = jiffies;
 
 	hash_refile(rp);
+	lru_put_end(rp);
 
 	/* release any buffer */
 	if (rp->c_type == RC_REPLBUFF) {
@@ -262,7 +263,6 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 found_entry:
 	/* We found a matching entry which is either in progress or done. */
 	age = jiffies - rp->c_timestamp;
-	rp->c_timestamp = jiffies;
 	lru_put_end(rp);
 
 	rtn = RC_DROPIT;
@@ -354,7 +354,6 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 	rp->c_secure = rqstp->rq_secure;
 	rp->c_type = cachetype;
 	rp->c_state = RC_DONE;
-	rp->c_timestamp = jiffies;
 	spin_unlock(&cache_lock);
 	return;
 }
