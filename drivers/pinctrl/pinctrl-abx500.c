@@ -275,8 +275,7 @@ static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 			 * To solve this quandry, we have placed the read-in values
 			 * into the cluster information table.
 			 */
-			hwirq = gpio + cluster->to_irq;
-
+			hwirq = gpio - cluster->start + cluster->to_irq;
 			return irq_create_mapping(pct->parent->domain, hwirq);
 		}
 	}

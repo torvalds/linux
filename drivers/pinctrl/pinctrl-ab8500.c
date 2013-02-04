@@ -456,9 +456,9 @@ struct alternate_functions ab8500_alternate_functions[AB8500_GPIO_MAX_NUMBER + 1
  *	GPIO36 to GPIO41
  */
 struct abx500_gpio_irq_cluster ab8500_gpio_irq_cluster[] = {
-	GPIO_IRQ_CLUSTER(6,  13, 34),
-	GPIO_IRQ_CLUSTER(24, 25, 24),
-	GPIO_IRQ_CLUSTER(36, 41, 14),
+	GPIO_IRQ_CLUSTER(6,  13, AB8500_INT_GPIO6R),
+	GPIO_IRQ_CLUSTER(24, 25, AB8500_INT_GPIO24R),
+	GPIO_IRQ_CLUSTER(36, 41, AB8500_INT_GPIO36R),
 };
 
 static struct abx500_pinctrl_soc_data ab8500_soc = {
