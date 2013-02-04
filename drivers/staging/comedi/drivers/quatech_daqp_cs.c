@@ -686,20 +686,28 @@ static int daqp_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* Digital output routine */
-
-static int daqp_do_insn_write(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+static int daqp_do_insn_bits(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
 	if (devpriv->stop)
 		return -EIO;
 
-	outw(data[0] & 0xf, dev->iobase + DAQP_DIGITAL_IO);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	return 1;
+		outb(s->state, dev->iobase + DAQP_DIGITAL_IO);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
 }
 
 static int daqp_auto_attach(struct comedi_device *dev,
@@ -764,8 +772,8 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 1;
-	s->len_chanlist	= 1;
-	s->insn_write	= daqp_do_insn_write;
+	s->maxdata	= 1;
+	s->insn_bits	= daqp_do_insn_bits;
 
 	return 0;
 }
