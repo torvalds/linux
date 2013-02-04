@@ -1294,7 +1294,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 
 	dev->vdev = stk_v4l_data;
 	dev->vdev.debug = debug;
-	dev->vdev.parent = &dev->interface->dev;
+	dev->vdev.v4l2_dev = &dev->v4l2_dev;
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)
 		STK_ERROR("v4l registration failed\n");
@@ -1322,6 +1322,12 @@ static int stk_camera_probe(struct usb_interface *interface,
 	if (dev == NULL) {
 		STK_ERROR("Out of memory !\n");
 		return -ENOMEM;
+	}
+	err = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
+	if (err < 0) {
+		dev_err(&udev->dev, "couldn't register v4l2_device\n");
+		kfree(dev);
+		return err;
 	}
 
 	spin_lock_init(&dev->spinlock);
@@ -1383,6 +1389,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	return 0;
 
 error:
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
 }
@@ -1400,6 +1407,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 		 video_device_node_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 }
 
 #ifdef CONFIG_PM

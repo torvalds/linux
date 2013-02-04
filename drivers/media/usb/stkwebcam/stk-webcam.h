@@ -23,6 +23,7 @@
 #define STKWEBCAM_H
 
 #include <linux/usb.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 
 #define DRIVER_VERSION		"v0.0.1"
@@ -91,6 +92,7 @@ struct regval {
 };
 
 struct stk_camera {
+	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
 	struct usb_device *udev;
 	struct usb_interface *interface;
