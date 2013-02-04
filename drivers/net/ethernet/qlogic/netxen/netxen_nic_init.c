@@ -201,7 +201,6 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct net_device *netdev = adapter->netdev;
-	struct pci_dev *pdev = adapter->pdev;
 
 	tx_ring = kzalloc(sizeof(struct nx_host_tx_ring), GFP_KERNEL);
 	if (tx_ring == NULL)

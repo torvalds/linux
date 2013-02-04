@@ -1346,7 +1346,6 @@ EXPORT_SYMBOL(i2400m_unknown_barker);
 int i2400m_rx_setup(struct i2400m *i2400m)
 {
 	int result = 0;
-	struct device *dev = i2400m_dev(i2400m);
 
 	i2400m->rx_reorder = i2400m_rx_reorder_disabled? 0 : 1;
 	if (i2400m->rx_reorder) {
