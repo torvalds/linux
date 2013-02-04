@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/nsproxy.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <asm/uaccess.h>
 
 #include "state.h"

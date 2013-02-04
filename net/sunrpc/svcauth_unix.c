@@ -6,6 +6,7 @@
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/svcauth.h>
 #include <linux/sunrpc/gss_api.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/hash.h>
@@ -17,7 +18,6 @@
 #include <linux/user_namespace.h>
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
-#include <linux/sunrpc/clnt.h>
 
 #include "netns.h"
 

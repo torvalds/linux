@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/dns_resolver.h>
 #include "dns_resolve.h"
 
@@ -42,6 +43,7 @@ EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 #include <linux/seq_file.h>
 #include <linux/inet.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/svcauth.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>

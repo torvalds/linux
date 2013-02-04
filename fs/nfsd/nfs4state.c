@@ -40,7 +40,7 @@
 #include <linux/pagemap.h>
 #include <linux/ratelimit.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include "xdr4.h"
 #include "vfs.h"
 #include "current_stateid.h"

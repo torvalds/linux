@@ -6,6 +6,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_idmap.h>
 #include <linux/nfs_mount.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/bc_xprt.h>

@@ -9,7 +9,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/highmem.h>
 
 #include "nfsd.h"

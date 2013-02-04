@@ -10,7 +10,7 @@
 
 #include <linux/sunrpc/svcsock.h>
 #include <linux/lockd/lockd.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/gss_krb5_enctypes.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
