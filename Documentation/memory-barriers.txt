@@ -1685,6 +1685,7 @@ explicit lock operations, described later).  These include:
 
 	xchg();
 	cmpxchg();
+	atomic_xchg();
 	atomic_cmpxchg();
 	atomic_inc_return();
 	atomic_dec_return();
