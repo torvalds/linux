@@ -99,6 +99,7 @@ struct stk_camera {
 	struct usb_interface *interface;
 	int webcam_model;
 	struct file *owner;
+	int first_init;
 
 	u8 isoc_ep;
 
