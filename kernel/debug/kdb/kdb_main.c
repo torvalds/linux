@@ -2362,69 +2362,6 @@ static int kdb_pid(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_ll - This function implements the 'll' command which follows a
- *	linked list and executes an arbitrary command for each
- *	element.
- */
-static int kdb_ll(int argc, const char **argv)
-{
-	int diag = 0;
-	unsigned long addr;
-	long offset = 0;
-	unsigned long va;
-	unsigned long linkoffset;
-	int nextarg;
-	const char *command;
-
-	if (argc != 3)
-		return KDB_ARGCOUNT;
-
-	nextarg = 1;
-	diag = kdbgetaddrarg(argc, argv, &nextarg, &addr, &offset, NULL);
-	if (diag)
-		return diag;
-
-	diag = kdbgetularg(argv[2], &linkoffset);
-	if (diag)
-		return diag;
-
-	/*
-	 * Using the starting address as
-	 * the first element in the list, and assuming that
-	 * the list ends with a null pointer.
-	 */
-
-	va = addr;
-	command = kdb_strdup(argv[3], GFP_KDB);
-	if (!command) {
-		kdb_printf("%s: cannot duplicate command\n", __func__);
-		return 0;
-	}
-	/* Recursive use of kdb_parse, do not use argv after this point */
-	argv = NULL;
-
-	while (va) {
-		char buf[80];
-
-		if (KDB_FLAG(CMD_INTERRUPT))
-			goto out;
-
-		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
-		diag = kdb_parse(buf);
-		if (diag)
-			goto out;
-
-		addr = va + linkoffset;
-		if (kdb_getword(&va, addr, sizeof(va)))
-			goto out;
-	}
-
-out:
-	kfree(command);
-	return diag;
-}
-
 static int kdb_kgdb(int argc, const char **argv)
 {
 	return KDB_CMD_KGDB;
@@ -2866,8 +2803,6 @@ static void __init kdb_inittab(void)
 	kdb_register_repeat("btt", kdb_bt, "<vaddr>",
 	  "Backtrace process given its struct task address", 0,
 			    KDB_REPEAT_NONE);
-	kdb_register_repeat("ll", kdb_ll, "<first-element> <linkoffset> <cmd>",
-	  "Execute cmd for each element in linked list", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("env", kdb_env, "",
 	  "Show environment variables", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("set", kdb_set, "",
