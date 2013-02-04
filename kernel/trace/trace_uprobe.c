@@ -486,7 +486,7 @@ static const struct file_operations uprobe_profile_ops = {
 };
 
 /* uprobe handler */
-static void uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
+static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 {
 	struct uprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
@@ -504,7 +504,7 @@ static void uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
 						  size, irq_flags, pc);
 	if (!event)
-		return;
+		return 0;
 
 	entry = ring_buffer_event_data(event);
 	entry->ip = instruction_pointer(task_pt_regs(current));
@@ -514,6 +514,8 @@ static void uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
 		trace_buffer_unlock_commit(buffer, event, irq_flags, pc);
+
+	return 0;
 }
 
 /* Event entry printers */
@@ -721,7 +723,7 @@ static bool uprobe_perf_filter(struct uprobe_consumer *uc,
 }
 
 /* uprobe profile handler */
-static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
+static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 {
 	struct ftrace_event_call *call = &tu->call;
 	struct uprobe_trace_entry_head *entry;
@@ -730,11 +732,14 @@ static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	int size, __size, i;
 	int rctx;
 
+	if (!uprobe_perf_filter(&tu->consumer, 0, current->mm))
+		return UPROBE_HANDLER_REMOVE;
+
 	__size = sizeof(*entry) + tu->size;
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
-		return;
+		return 0;
 
 	preempt_disable();
 
@@ -752,6 +757,7 @@ static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 
  out:
 	preempt_enable();
+	return 0;
 }
 #endif	/* CONFIG_PERF_EVENTS */
 
@@ -792,18 +798,19 @@ int trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type, 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 {
 	struct trace_uprobe *tu;
+	int ret = 0;
 
 	tu = container_of(con, struct trace_uprobe, consumer);
 	tu->nhit++;
 
 	if (tu->flags & TP_FLAG_TRACE)
-		uprobe_trace_func(tu, regs);
+		ret |= uprobe_trace_func(tu, regs);
 
 #ifdef CONFIG_PERF_EVENTS
 	if (tu->flags & TP_FLAG_PROFILE)
-		uprobe_perf_func(tu, regs);
+		ret |= uprobe_perf_func(tu, regs);
 #endif
-	return 0;
+	return ret;
 }
 
 static struct trace_event_functions uprobe_funcs = {
