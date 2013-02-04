@@ -50,7 +50,7 @@
 #define EX_PPR		88	/* SMT thread status register (priority) */
 
 #ifdef CONFIG_RELOCATABLE
-#define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
+#define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label);					\
@@ -61,13 +61,15 @@
 	blr;
 #else
 /* If not relocatable, we can jump directly -- and save messing with LR */
-#define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
+#define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
 	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
 	li	r10,MSR_RI;						\
 	mtmsrd 	r10,1;			/* Set RI (EE=0) */		\
 	b	label;
 #endif
+#define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
+	__EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
 
 /*
  * As EXCEPTION_PROLOG_PSERIES(), except we've already got relocation on
@@ -75,6 +77,7 @@
  * case EXCEPTION_RELON_PROLOG_PSERIES_1 will be using lr.
  */
 #define EXCEPTION_RELON_PROLOG_PSERIES(area, label, h, extra, vec)	\
+	EXCEPTION_PROLOG_0(area);					\
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
 	EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)
 
@@ -135,25 +138,32 @@ BEGIN_FTR_SECTION_NESTED(942)						\
 END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,0,942)  /*non P7*/		
 
 /*
- * Save PPR in paca whenever some register is available to use.
- * Then increase the priority.
+ * Get an SPR into a register if the CPU has the given feature
  */
-#define HMT_MEDIUM_PPR_SAVE(area, ra)					\
+#define OPT_GET_SPR(ra, spr, ftr)					\
 BEGIN_FTR_SECTION_NESTED(943)						\
-	mfspr	ra,SPRN_PPR;						\
-	std	ra,area+EX_PPR(r13);					\
-	HMT_MEDIUM;							\
-END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,943) 
+	mfspr	ra,spr;							\
+END_FTR_SECTION_NESTED(ftr,ftr,943)
 
-#define __EXCEPTION_PROLOG_1(area, extra, vec)				\
+/*
+ * Save a register to the PACA if the CPU has the given feature
+ */
+#define OPT_SAVE_REG_TO_PACA(offset, ra, ftr)				\
+BEGIN_FTR_SECTION_NESTED(943)						\
+	std	ra,offset(r13);						\
+END_FTR_SECTION_NESTED(ftr,ftr,943)
+
+#define EXCEPTION_PROLOG_0(area)					\
 	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 */			\
-	HMT_MEDIUM_PPR_SAVE(area, r9);					\
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);			\
+	HMT_MEDIUM;							\
 	std	r10,area+EX_R10(r13);	/* save r10 - r12 */		\
-	BEGIN_FTR_SECTION_NESTED(66);					\
-	mfspr	r10,SPRN_CFAR;						\
-	std	r10,area+EX_CFAR(r13);					\
-	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		\
+	OPT_GET_SPR(r10, SPRN_CFAR, CPU_FTR_CFAR)
+
+#define __EXCEPTION_PROLOG_1(area, extra, vec)				\
+	OPT_SAVE_REG_TO_PACA(area+EX_PPR, r9, CPU_FTR_HAS_PPR);		\
+	OPT_SAVE_REG_TO_PACA(area+EX_CFAR, r10, CPU_FTR_CFAR);		\
 	SAVE_LR(r10, area);						\
 	mfcr	r9;							\
 	extra(vec);							\
@@ -178,6 +188,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,943)
 	__EXCEPTION_PROLOG_PSERIES_1(label, h)
 
 #define EXCEPTION_PROLOG_PSERIES(area, label, h, extra, vec)		\
+	EXCEPTION_PROLOG_0(area);					\
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
 	EXCEPTION_PROLOG_PSERIES_1(label, h);
 
@@ -312,6 +323,13 @@ label##_pSeries:					\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_STD, KVMTEST_PR, vec)
 
+/* Version of above for when we have to branch out-of-line */
+#define STD_EXCEPTION_PSERIES_OOL(vec, label)			\
+	.globl label##_pSeries;					\
+label##_pSeries:						\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_STD)
+
 #define STD_EXCEPTION_HV(loc, vec, label)		\
 	. = loc;					\
 	.globl label##_hv;				\
@@ -320,6 +338,13 @@ label##_hv:						\
 	SET_SCRATCH0(r13);	/* save r13 */			\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_HV, KVMTEST, vec)
+
+/* Version of above for when we have to branch out-of-line */
+#define STD_EXCEPTION_HV_OOL(vec, label)		\
+	.globl label##_hv;				\
+label##_hv:						\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, vec);	\
+	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_HV)
 
 #define STD_RELON_EXCEPTION_PSERIES(loc, vec, label)	\
 	. = loc;					\
@@ -331,6 +356,12 @@ label##_relon_pSeries:					\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
 				       EXC_STD, KVMTEST_PR, vec)
 
+#define STD_RELON_EXCEPTION_PSERIES_OOL(vec, label)		\
+	.globl label##_relon_pSeries;				\
+label##_relon_pSeries:						\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, EXC_STD)
+
 #define STD_RELON_EXCEPTION_HV(loc, vec, label)		\
 	. = loc;					\
 	.globl label##_relon_hv;			\
@@ -340,6 +371,12 @@ label##_relon_hv:					\
 	SET_SCRATCH0(r13);	/* save r13 */		\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
 				       EXC_HV, KVMTEST, vec)
+
+#define STD_RELON_EXCEPTION_HV_OOL(vec, label)			\
+	.globl label##_relon_hv;				\
+label##_relon_hv:						\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, vec);		\
+	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, EXC_HV)
 
 /* This associate vector numbers with bits in paca->irq_happened */
 #define SOFTEN_VALUE_0x500	PACA_IRQ_EE
@@ -375,8 +412,10 @@ label##_relon_hv:					\
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	HMT_MEDIUM_PPR_DISCARD;						\
 	SET_SCRATCH0(r13);    /* save r13 */				\
-	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);		\
+	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
+	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);			\
 	EXCEPTION_PROLOG_PSERIES_1(label##_common, h);
+
 #define _MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	__MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)
 
@@ -394,9 +433,16 @@ label##_hv:								\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
 				    EXC_HV, SOFTEN_TEST_HV)
 
+#define MASKABLE_EXCEPTION_HV_OOL(vec, label)				\
+	.globl label##_hv;						\
+label##_hv:								\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_HV, vec);		\
+	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_HV);
+
 #define __MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)	\
 	HMT_MEDIUM_PPR_DISCARD;						\
 	SET_SCRATCH0(r13);    /* save r13 */				\
+	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
 	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);		\
 	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, h);
 #define _MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)	\
@@ -415,6 +461,12 @@ label##_relon_pSeries:							\
 label##_relon_hv:							\
 	_MASKABLE_RELON_EXCEPTION_PSERIES(vec, label,			\
 					  EXC_HV, SOFTEN_NOTEST_HV)
+
+#define MASKABLE_RELON_EXCEPTION_HV_OOL(vec, label)			\
+	.globl label##_relon_hv;					\
+label##_relon_hv:							\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_NOTEST_HV, vec);		\
+	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_HV);
 
 /*
  * Our exception common code can be passed various "additions"
