@@ -130,6 +130,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int cpu = (unsigned long) v - 1;
 
+#ifdef CONFIG_SMP
+	if (!cpu_online(cpu))
+		return 0;
+#endif
+
 	seq_printf(m, "processor\t: %d\n", cpu);
 	seq_printf(m, "model name\t: Hexagon Virtual Machine\n");
 	seq_printf(m, "BogoMips\t: %lu.%02lu\n",
