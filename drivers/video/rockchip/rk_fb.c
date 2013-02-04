@@ -724,11 +724,12 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 #endif
 	
 	sprintf(name, "lcdc%d",lcdc_id);
-	for(i = 0; i < inf->num_lcdc; i++)  //find the driver the display device connected to
+	for(i = 0; i < inf->num_lcdc; i++)  //find the driver for the extend display device
 	{
-		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND)
 		{
 			dev_drv = inf->lcdc_dev_drv[i];
+			printk("hdmi connect to lcdc%d\n",dev_drv->id);
 			break;
 		}
 	}
@@ -741,11 +742,11 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	}
 
 	
-	if((lcdc_id == 0) || (inf->num_lcdc == 1))
+	if(inf->num_lcdc == 1)
 	{
 		info = inf->fb[0];
 	}
-	else if((lcdc_id == 1)&&(inf->num_lcdc == 2))
+	else if(inf->num_lcdc == 2)
 	{
 		info = inf->fb[dev_drv->num_layer]; //the main fb of lcdc1
 	}
@@ -889,7 +890,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
-		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND)
 		{
 			dev_drv = inf->lcdc_dev_drv[i];
 			break;
@@ -903,11 +904,11 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 		
 	}
 
-	if((lcdc_id == 0) || (inf->num_lcdc == 1))
+	if(inf->num_lcdc == 1)
 	{
 		info = inf->fb[0];
 	}
-	else if( (inf->num_lcdc == 2)&&(lcdc_id == 1))
+	else if(inf->num_lcdc == 2)
 	{
 		info = inf->fb[dev_drv->num_layer];
 	}
