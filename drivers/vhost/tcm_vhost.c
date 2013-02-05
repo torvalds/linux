@@ -59,8 +59,14 @@ enum {
 	VHOST_SCSI_VQ_IO = 2,
 };
 
+#define VHOST_SCSI_MAX_TARGET 256
+
 struct vhost_scsi {
-	struct tcm_vhost_tpg *vs_tpg;	/* Protected by vhost_scsi->dev.mutex */
+	/* Protected by vhost_scsi->dev.mutex */
+	struct tcm_vhost_tpg *vs_tpg[VHOST_SCSI_MAX_TARGET];
+	char vs_vhost_wwpn[TRANSPORT_IQN_LEN];
+	bool vs_endpoint;
+
 	struct vhost_dev dev;
 	struct vhost_virtqueue vqs[3];
 
@@ -564,10 +570,10 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
 	u32 exp_data_len, data_first, data_num, data_direction;
 	unsigned out, in, i;
 	int head, ret;
+	u8 target;
 
 	/* Must use ioctl VHOST_SCSI_SET_ENDPOINT */
-	tv_tpg = vs->vs_tpg;
-	if (unlikely(!tv_tpg))
+	if (unlikely(!vs->vs_endpoint))
 		return;
 
 	mutex_lock(&vq->mutex);
@@ -633,6 +639,28 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
 		if (unlikely(ret)) {
 			vq_err(vq, "Faulted on virtio_scsi_cmd_req\n");
 			break;
+		}
+
+		/* Extract the tpgt */
+		target = v_req.lun[1];
+		tv_tpg = vs->vs_tpg[target];
+
+		/* Target does not exist, fail the request */
+		if (unlikely(!tv_tpg)) {
+			struct virtio_scsi_cmd_resp __user *resp;
+			struct virtio_scsi_cmd_resp rsp;
+
+			memset(&rsp, 0, sizeof(rsp));
+			rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
+			resp = vq->iov[out].iov_base;
+			ret = __copy_to_user(resp, &rsp, sizeof(rsp));
+			if (!ret)
+				vhost_add_used_and_signal(&vs->dev,
+						&vs->vqs[2], head, 0);
+			else
+				pr_err("Faulted on virtio_scsi_cmd_resp\n");
+
+			continue;
 		}
 
 		exp_data_len = 0;
@@ -743,7 +771,8 @@ static int vhost_scsi_set_endpoint(
 {
 	struct tcm_vhost_tport *tv_tport;
 	struct tcm_vhost_tpg *tv_tpg;
-	int index;
+	bool match = false;
+	int index, ret;
 
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
@@ -754,7 +783,6 @@ static int vhost_scsi_set_endpoint(
 			return -EFAULT;
 		}
 	}
-	mutex_unlock(&vs->dev.mutex);
 
 	mutex_lock(&tcm_vhost_mutex);
 	list_for_each_entry(tv_tpg, &tcm_vhost_list, tv_tpg_list) {
@@ -769,30 +797,33 @@ static int vhost_scsi_set_endpoint(
 		}
 		tv_tport = tv_tpg->tport;
 
-		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn) &&
-		    (tv_tpg->tport_tpgt == t->vhost_tpgt)) {
-			tv_tpg->tv_tpg_vhost_count++;
-			mutex_unlock(&tv_tpg->tv_tpg_mutex);
-			mutex_unlock(&tcm_vhost_mutex);
-
-			mutex_lock(&vs->dev.mutex);
-			if (vs->vs_tpg) {
-				mutex_unlock(&vs->dev.mutex);
-				mutex_lock(&tv_tpg->tv_tpg_mutex);
-				tv_tpg->tv_tpg_vhost_count--;
+		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
+			if (vs->vs_tpg[tv_tpg->tport_tpgt]) {
 				mutex_unlock(&tv_tpg->tv_tpg_mutex);
+				mutex_unlock(&tcm_vhost_mutex);
+				mutex_unlock(&vs->dev.mutex);
 				return -EEXIST;
 			}
-
-			vs->vs_tpg = tv_tpg;
+			tv_tpg->tv_tpg_vhost_count++;
+			vs->vs_tpg[tv_tpg->tport_tpgt] = tv_tpg;
 			smp_mb__after_atomic_inc();
-			mutex_unlock(&vs->dev.mutex);
-			return 0;
+			match = true;
 		}
 		mutex_unlock(&tv_tpg->tv_tpg_mutex);
 	}
 	mutex_unlock(&tcm_vhost_mutex);
-	return -EINVAL;
+
+	if (match) {
+		memcpy(vs->vs_vhost_wwpn, t->vhost_wwpn,
+		       sizeof(vs->vs_vhost_wwpn));
+		vs->vs_endpoint = true;
+		ret = 0;
+	} else {
+		ret = -EEXIST;
+	}
+
+	mutex_unlock(&vs->dev.mutex);
+	return ret;
 }
 
 static int vhost_scsi_clear_endpoint(
@@ -801,7 +832,8 @@ static int vhost_scsi_clear_endpoint(
 {
 	struct tcm_vhost_tport *tv_tport;
 	struct tcm_vhost_tpg *tv_tpg;
-	int index, ret;
+	int index, ret, i;
+	u8 target;
 
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
@@ -811,27 +843,32 @@ static int vhost_scsi_clear_endpoint(
 			goto err;
 		}
 	}
+	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
+		target = i;
 
-	if (!vs->vs_tpg) {
-		ret = -ENODEV;
-		goto err;
-	}
-	tv_tpg = vs->vs_tpg;
-	tv_tport = tv_tpg->tport;
+		tv_tpg = vs->vs_tpg[target];
+		if (!tv_tpg)
+			continue;
 
-	if (strcmp(tv_tport->tport_name, t->vhost_wwpn) ||
-	    (tv_tpg->tport_tpgt != t->vhost_tpgt)) {
-		pr_warn("tv_tport->tport_name: %s, tv_tpg->tport_tpgt: %hu"
-			" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
-			tv_tport->tport_name, tv_tpg->tport_tpgt,
-			t->vhost_wwpn, t->vhost_tpgt);
-		ret = -EINVAL;
-		goto err;
+		tv_tport = tv_tpg->tport;
+		if (!tv_tport) {
+			ret = -ENODEV;
+			goto err;
+		}
+
+		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
+			pr_warn("tv_tport->tport_name: %s, tv_tpg->tport_tpgt: %hu"
+				" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
+				tv_tport->tport_name, tv_tpg->tport_tpgt,
+				t->vhost_wwpn, t->vhost_tpgt);
+			ret = -EINVAL;
+			goto err;
+		}
+		tv_tpg->tv_tpg_vhost_count--;
+		vs->vs_tpg[target] = NULL;
+		vs->vs_endpoint = false;
 	}
-	tv_tpg->tv_tpg_vhost_count--;
-	vs->vs_tpg = NULL;
 	mutex_unlock(&vs->dev.mutex);
-
 	return 0;
 
 err:
@@ -866,16 +903,12 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 static int vhost_scsi_release(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *s = f->private_data;
+	struct vhost_scsi_target t;
 
-	if (s->vs_tpg && s->vs_tpg->tport) {
-		struct vhost_scsi_target backend;
-
-		memcpy(backend.vhost_wwpn, s->vs_tpg->tport->tport_name,
-				sizeof(backend.vhost_wwpn));
-		backend.vhost_tpgt = s->vs_tpg->tport_tpgt;
-		vhost_scsi_clear_endpoint(s, &backend);
-	}
-
+	mutex_lock(&s->dev.mutex);
+	memcpy(t.vhost_wwpn, s->vs_vhost_wwpn, sizeof(t.vhost_wwpn));
+	mutex_unlock(&s->dev.mutex);
+	vhost_scsi_clear_endpoint(s, &t);
 	vhost_dev_stop(&s->dev);
 	vhost_dev_cleanup(&s->dev, false);
 	kfree(s);

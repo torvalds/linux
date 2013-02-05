@@ -93,9 +93,11 @@ struct tcm_vhost_tport {
  *
  * ABI Rev 0: July 2012 version starting point for v3.6-rc merge candidate +
  *            RFC-v2 vhost-scsi userspace.  Add GET_ABI_VERSION ioctl usage
+ * ABI Rev 1: January 2013. Ignore vhost_tpgt filed in struct vhost_scsi_target.
+ *            All the targets under vhost_wwpn can be seen and used by guset.
  */
 
-#define VHOST_SCSI_ABI_VERSION	0
+#define VHOST_SCSI_ABI_VERSION	1
 
 struct vhost_scsi_target {
 	int abi_version;
