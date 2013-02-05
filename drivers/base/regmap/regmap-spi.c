@@ -86,6 +86,8 @@ static struct regmap_async *regmap_spi_async_alloc(void)
 	struct regmap_async_spi *async_spi;
 
 	async_spi = kzalloc(sizeof(*async_spi), GFP_KERNEL);
+	if (!async_spi)
+		return NULL;
 
 	return &async_spi->core;
 }
