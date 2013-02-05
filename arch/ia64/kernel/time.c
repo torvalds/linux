@@ -77,7 +77,7 @@ static struct clocksource clocksource_itc = {
 };
 static struct clocksource *itc_clocksource;
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 
 #include <linux/kernel_stat.h>
 
@@ -136,13 +136,14 @@ void vtime_account_system(struct task_struct *tsk)
 
 	account_system_time(tsk, 0, delta, delta);
 }
+EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
 	account_idle_time(vtime_delta(tsk));
 }
 
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static irqreturn_t
 timer_interrupt (int irq, void *dev_id)

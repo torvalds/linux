@@ -281,7 +281,7 @@ static struct notifier_block pci_dn_reconfig_nb = {
 
 struct kmem_cache *dtl_cache;
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
  * Allocate space for the dispatch trace log for all possible cpus
  * and register the buffers with the hypervisor.  This is used for
@@ -332,12 +332,12 @@ static int alloc_dispatch_logs(void)
 
 	return 0;
 }
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 static inline int alloc_dispatch_logs(void)
 {
 	return 0;
 }
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static int alloc_dispatch_log_kmem_cache(void)
 {

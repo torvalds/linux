@@ -1,24 +1,11 @@
 #include <linux/context_tracking.h>
+#include <linux/kvm_host.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
-#include <linux/percpu.h>
 #include <linux/hardirq.h>
+#include <linux/export.h>
 
-struct context_tracking {
-	/*
-	 * When active is false, hooks are not set to
-	 * minimize overhead: TIF flags are cleared
-	 * and calls to user_enter/exit are ignored. This
-	 * may be further optimized using static keys.
-	 */
-	bool active;
-	enum {
-		IN_KERNEL = 0,
-		IN_USER,
-	} state;
-};
-
-static DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
+DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 #ifdef CONFIG_CONTEXT_TRACKING_FORCE
 	.active = true,
 #endif
@@ -44,8 +31,9 @@ void user_enter(void)
 	local_irq_save(flags);
 	if (__this_cpu_read(context_tracking.active) &&
 	    __this_cpu_read(context_tracking.state) != IN_USER) {
-		__this_cpu_write(context_tracking.state, IN_USER);
+		vtime_user_enter(current);
 		rcu_user_enter();
+		__this_cpu_write(context_tracking.state, IN_USER);
 	}
 	local_irq_restore(flags);
 }
@@ -67,11 +55,30 @@ void user_exit(void)
 
 	local_irq_save(flags);
 	if (__this_cpu_read(context_tracking.state) == IN_USER) {
-		__this_cpu_write(context_tracking.state, IN_KERNEL);
 		rcu_user_exit();
+		vtime_user_exit(current);
+		__this_cpu_write(context_tracking.state, IN_KERNEL);
 	}
 	local_irq_restore(flags);
 }
+
+void guest_enter(void)
+{
+	if (vtime_accounting_enabled())
+		vtime_guest_enter(current);
+	else
+		__guest_enter();
+}
+EXPORT_SYMBOL_GPL(guest_enter);
+
+void guest_exit(void)
+{
+	if (vtime_accounting_enabled())
+		vtime_guest_exit(current);
+	else
+		__guest_exit();
+}
+EXPORT_SYMBOL_GPL(guest_exit);
 
 void context_tracking_task_switch(struct task_struct *prev,
 			     struct task_struct *next)

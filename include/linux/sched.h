@@ -1369,6 +1369,15 @@ struct task_struct {
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	struct cputime prev_cputime;
 #endif
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+	seqlock_t vtime_seqlock;
+	unsigned long long vtime_snap;
+	enum {
+		VTIME_SLEEPING = 0,
+		VTIME_USER,
+		VTIME_SYS,
+	} vtime_snap_whence;
+#endif
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	struct timespec start_time; 		/* monotonic time */
 	struct timespec real_start_time;	/* boot based time */
@@ -1793,6 +1802,37 @@ static inline void put_task_struct(struct task_struct *t)
 		__put_task_struct(t);
 }
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+extern void task_cputime(struct task_struct *t,
+			 cputime_t *utime, cputime_t *stime);
+extern void task_cputime_scaled(struct task_struct *t,
+				cputime_t *utimescaled, cputime_t *stimescaled);
+extern cputime_t task_gtime(struct task_struct *t);
+#else
+static inline void task_cputime(struct task_struct *t,
+				cputime_t *utime, cputime_t *stime)
+{
+	if (utime)
+		*utime = t->utime;
+	if (stime)
+		*stime = t->stime;
+}
+
+static inline void task_cputime_scaled(struct task_struct *t,
+				       cputime_t *utimescaled,
+				       cputime_t *stimescaled)
+{
+	if (utimescaled)
+		*utimescaled = t->utimescaled;
+	if (stimescaled)
+		*stimescaled = t->stimescaled;
+}
+
+static inline cputime_t task_gtime(struct task_struct *t)
+{
+	return t->gtime;
+}
+#endif
 extern void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 

@@ -899,6 +899,7 @@ static void apm_cpu_idle(void)
 	static int use_apm_idle; /* = 0 */
 	static unsigned int last_jiffies; /* = 0 */
 	static unsigned int last_stime; /* = 0 */
+	cputime_t stime;
 
 	int apm_idle_done = 0;
 	unsigned int jiffies_since_last_check = jiffies - last_jiffies;
@@ -906,22 +907,22 @@ static void apm_cpu_idle(void)
 
 	WARN_ONCE(1, "deprecated apm_cpu_idle will be deleted in 2012");
 recalc:
+	task_cputime(current, NULL, &stime);
 	if (jiffies_since_last_check > IDLE_CALC_LIMIT) {
 		use_apm_idle = 0;
-		last_jiffies = jiffies;
-		last_stime = current->stime;
 	} else if (jiffies_since_last_check > idle_period) {
 		unsigned int idle_percentage;
 
-		idle_percentage = current->stime - last_stime;
+		idle_percentage = stime - last_stime;
 		idle_percentage *= 100;
 		idle_percentage /= jiffies_since_last_check;
 		use_apm_idle = (idle_percentage > idle_threshold);
 		if (apm_info.forbid_idle)
 			use_apm_idle = 0;
-		last_jiffies = jiffies;
-		last_stime = current->stime;
 	}
+
+	last_jiffies = jiffies;
+	last_stime = stime;
 
 	bucket = IDLE_LEAKY_MAX;
 
