@@ -162,11 +162,6 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 	rcu_read_lock();
 	ies = rcu_dereference(bss->ies);
-	if (WARN_ON(!ies)) {
-		/* should never happen */
-		rcu_read_unlock();
-		return -EINVAL;
-	}
 	beacon_ie = kmemdup(ies->data, ies->len, GFP_ATOMIC);
 	beacon_ie_len = ies->len;
 	rcu_read_unlock();

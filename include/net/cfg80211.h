@@ -1287,10 +1287,10 @@ struct cfg80211_bss_ies {
  * @tsf: timestamp of last received update
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
- * @ies: the information elements (Note that there
- *	is no guarantee that these are well-formed!); this is a pointer to
- *	either the beacon_ies or proberesp_ies depending on whether Probe
- *	Response frame has been received
+ * @ies: the information elements (Note that there is no guarantee that these
+ *	are well-formed!); this is a pointer to either the beacon_ies or
+ *	proberesp_ies depending on whether Probe Response frame has been
+ *	received. It is always non-%NULL.
  * @beacon_ies: the information elements from the last Beacon frame
  *	(implementation note: if @hidden_beacon_bss is set this struct doesn't
  *	own the beacon_ies, but they're just pointers to the ones from the

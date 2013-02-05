@@ -1293,15 +1293,10 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 
 	rcu_read_lock();
 	ies = rcu_dereference(bss->pub.ies);
-	if (ies) {
-		rem = ies->len;
-		ie = ies->data;
-	} else {
-		rem = 0;
-		ie = NULL;
-	}
+	rem = ies->len;
+	ie = ies->data;
 
-	while (ies && rem >= 2) {
+	while (rem >= 2) {
 		/* invalid data */
 		if (ie[1] > rem - 2)
 			break;
