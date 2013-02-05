@@ -1392,14 +1392,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 	btrfs_dev_replace_unlock(&root->fs_info->dev_replace);
 
-	if ((all_avail & (BTRFS_BLOCK_GROUP_RAID5 |
-			  BTRFS_BLOCK_GROUP_RAID6) && num_devices <= 3)) {
-		printk(KERN_ERR "btrfs: unable to go below three devices "
-		       "on raid5 or raid6\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
 		printk(KERN_ERR "btrfs: unable to go below four devices "
 		       "on raid10\n");
