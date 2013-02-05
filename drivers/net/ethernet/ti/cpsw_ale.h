@@ -69,6 +69,10 @@ enum cpsw_ale_port_state {
 #define ALE_SUPER			BIT(2)
 #define ALE_VLAN			BIT(3)
 
+#define ALE_PORT_HOST			BIT(0)
+#define ALE_PORT_1			BIT(1)
+#define ALE_PORT_2			BIT(2)
+
 #define ALE_MCAST_FWD			0
 #define ALE_MCAST_BLOCK_LEARN_FWD	1
 #define ALE_MCAST_FWD_LEARN		2

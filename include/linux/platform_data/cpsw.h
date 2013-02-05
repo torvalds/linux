@@ -35,6 +35,7 @@ struct cpsw_platform_data {
 	u32	bd_ram_size;  /*buffer descriptor ram size */
 	u32	rx_descs;	/* Number of Rx Descriptios */
 	u32	mac_control;	/* Mac control register */
+	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
 };
 
 #endif /* __CPSW_H__ */

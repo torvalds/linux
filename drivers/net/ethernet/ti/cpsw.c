@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
+#include <linux/if_vlan.h>
 
 #include <linux/platform_data/cpsw.h>
 
@@ -117,6 +118,9 @@ do {								\
 #define RX_PRIORITY_MAPPING	0x76543210
 #define TX_PRIORITY_MAPPING	0x33221100
 #define CPDMA_TX_PRIORITY_MAP	0x76543210
+
+#define CPSW_VLAN_AWARE		BIT(1)
+#define CPSW_ALE_VLAN_AWARE	1
 
 #define cpsw_enable_irq(priv)	\
 	do {			\
@@ -607,14 +611,40 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	}
 }
 
+static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
+{
+	const int vlan = priv->data.default_vlan;
+	const int port = priv->host_port;
+	u32 reg;
+	int i;
+
+	reg = (priv->version == CPSW_VERSION_1) ? CPSW1_PORT_VLAN :
+	       CPSW2_PORT_VLAN;
+
+	writel(vlan, &priv->host_port_regs->port_vlan);
+
+	for (i = 0; i < 2; i++)
+		slave_write(priv->slaves + i, vlan, reg);
+
+	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS << port,
+			  ALE_ALL_PORTS << port, ALE_ALL_PORTS << port,
+			  (ALE_PORT_1 | ALE_PORT_2) << port);
+}
+
 static void cpsw_init_host_port(struct cpsw_priv *priv)
 {
+	u32 control_reg;
+
 	/* soft reset the controller and initialize ale */
 	soft_reset("cpsw", &priv->regs->soft_reset);
 	cpsw_ale_start(priv->ale);
 
 	/* switch to vlan unaware mode */
-	cpsw_ale_control_set(priv->ale, 0, ALE_VLAN_AWARE, 0);
+	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE,
+			     CPSW_ALE_VLAN_AWARE);
+	control_reg = readl(&priv->regs->control);
+	control_reg |= CPSW_VLAN_AWARE;
+	writel(control_reg, &priv->regs->control);
 
 	/* setup host port priority mapping */
 	__raw_writel(CPDMA_TX_PRIORITY_MAP,
@@ -649,6 +679,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* initialize host and slave ports */
 	cpsw_init_host_port(priv);
 	for_each_slave(priv, cpsw_slave_open, priv);
+
+	/* Add default VLAN */
+	cpsw_add_default_vlan(priv);
 
 	/* setup tx dma to fixed prio and zero offset */
 	cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
@@ -933,6 +966,73 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 }
 #endif
 
+static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
+				unsigned short vid)
+{
+	int ret;
+
+	ret = cpsw_ale_add_vlan(priv->ale, vid,
+				ALE_ALL_PORTS << priv->host_port,
+				0, ALE_ALL_PORTS << priv->host_port,
+				(ALE_PORT_1 | ALE_PORT_2) << priv->host_port);
+	if (ret != 0)
+		return ret;
+
+	ret = cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
+				 priv->host_port, ALE_VLAN, vid);
+	if (ret != 0)
+		goto clean_vid;
+
+	ret = cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
+				 ALE_ALL_PORTS << priv->host_port,
+				 ALE_VLAN, vid, 0);
+	if (ret != 0)
+		goto clean_vlan_ucast;
+	return 0;
+
+clean_vlan_ucast:
+	cpsw_ale_del_ucast(priv->ale, priv->mac_addr,
+			    priv->host_port, ALE_VLAN, vid);
+clean_vid:
+	cpsw_ale_del_vlan(priv->ale, vid, 0);
+	return ret;
+}
+
+static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
+		unsigned short vid)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	if (vid == priv->data.default_vlan)
+		return 0;
+
+	dev_info(priv->dev, "Adding vlanid %d to vlan filter\n", vid);
+	return cpsw_add_vlan_ale_entry(priv, vid);
+}
+
+static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
+		unsigned short vid)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int ret;
+
+	if (vid == priv->data.default_vlan)
+		return 0;
+
+	dev_info(priv->dev, "removing vlanid %d from vlan filter\n", vid);
+	ret = cpsw_ale_del_vlan(priv->ale, vid, 0);
+	if (ret != 0)
+		return ret;
+
+	ret = cpsw_ale_del_ucast(priv->ale, priv->mac_addr,
+				 priv->host_port, ALE_VLAN, vid);
+	if (ret != 0)
+		return ret;
+
+	return cpsw_ale_del_mcast(priv->ale, priv->ndev->broadcast,
+				  0, ALE_VLAN, vid);
+}
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
@@ -947,6 +1047,8 @@ static const struct net_device_ops cpsw_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
+	.ndo_vlan_rx_add_vid	= cpsw_ndo_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
 };
 
 static void cpsw_get_drvinfo(struct net_device *ndev,
@@ -1354,7 +1456,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		k++;
 	}
 
-	ndev->flags |= IFF_ALLMULTI;	/* see cpsw_ndo_change_rx_flags() */
+	ndev->features |= NETIF_F_HW_VLAN_FILTER;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &cpsw_ethtool_ops);
