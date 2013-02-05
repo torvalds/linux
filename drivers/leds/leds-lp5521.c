@@ -687,6 +687,13 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
+static void lp5521_reset_device(struct lp5521_chip *chip)
+{
+	struct i2c_client *client = chip->client;
+
+	lp5521_write(client, LP5521_REG_RESET, 0xff);
+}
+
 static int lp5521_init_device(struct lp5521_chip *chip)
 {
 	struct lp5521_platform_data *pdata = chip->pdata;
@@ -707,7 +714,8 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
-	lp5521_write(client, LP5521_REG_RESET, 0xff);
+	lp5521_reset_device(chip);
+
 	usleep_range(10000, 20000); /*
 				     * Exact value is not available. 10 - 20ms
 				     * appears to be enough for reset.

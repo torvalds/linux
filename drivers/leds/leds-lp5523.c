@@ -946,6 +946,13 @@ static void lp5523_unregister_leds(struct lp5523_chip *chip)
 	}
 }
 
+static void lp5523_reset_device(struct lp5523_chip *chip)
+{
+	struct i2c_client *client = chip->client;
+
+	lp5523_write(client, LP5523_REG_RESET, 0xff);
+}
+
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct lp5523_platform_data *pdata = chip->pdata;
@@ -965,7 +972,8 @@ static int lp5523_init_device(struct lp5523_chip *chip)
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
-	lp5523_write(client, LP5523_REG_RESET, 0xff);
+	lp5523_reset_device(chip);
+
 	usleep_range(10000, 20000); /*
 				     * Exact value is not available. 10 - 20ms
 				     * appears to be enough for reset.
