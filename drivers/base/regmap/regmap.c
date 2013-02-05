@@ -1655,6 +1655,7 @@ int regmap_async_complete(struct regmap *map)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regmap_async_complete);
 
 /**
  * regmap_register_patch: Register and apply register updates to be applied
