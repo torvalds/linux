@@ -301,7 +301,7 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 	struct sk_buff *segs, *nskb;
 	int err;
 
-	segs = skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM);
+	segs = __skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM, false);
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
