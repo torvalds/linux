@@ -269,27 +269,6 @@ static inline int is_imx21_uart(struct imx_port *sport)
 }
 
 /*
- * Save and restore functions for UCR1, UCR2 and UCR3 registers
- */
-static void imx_port_ucrs_save(struct uart_port *port,
-			       struct imx_port_ucrs *ucr)
-{
-	/* save control registers */
-	ucr->ucr1 = readl(port->membase + UCR1);
-	ucr->ucr2 = readl(port->membase + UCR2);
-	ucr->ucr3 = readl(port->membase + UCR3);
-}
-
-static void imx_port_ucrs_restore(struct uart_port *port,
-				  struct imx_port_ucrs *ucr)
-{
-	/* restore control registers */
-	writel(ucr->ucr1, port->membase + UCR1);
-	writel(ucr->ucr2, port->membase + UCR2);
-	writel(ucr->ucr3, port->membase + UCR3);
-}
-
-/*
  * Handle any change of modem status signal since we were last called.
  */
 static void imx_mctrl_check(struct imx_port *sport)
@@ -1103,6 +1082,27 @@ imx_verify_port(struct uart_port *port, struct serial_struct *ser)
 }
 
 #if defined(CONFIG_CONSOLE_POLL)
+/*
+ * Save and restore functions for UCR1, UCR2 and UCR3 registers
+ */
+static void imx_port_ucrs_save(struct uart_port *port,
+			       struct imx_port_ucrs *ucr)
+{
+	/* save control registers */
+	ucr->ucr1 = readl(port->membase + UCR1);
+	ucr->ucr2 = readl(port->membase + UCR2);
+	ucr->ucr3 = readl(port->membase + UCR3);
+}
+
+static void imx_port_ucrs_restore(struct uart_port *port,
+				  struct imx_port_ucrs *ucr)
+{
+	/* restore control registers */
+	writel(ucr->ucr1, port->membase + UCR1);
+	writel(ucr->ucr2, port->membase + UCR2);
+	writel(ucr->ucr3, port->membase + UCR3);
+}
+
 static int imx_poll_get_char(struct uart_port *port)
 {
 	struct imx_port_ucrs old_ucr;
