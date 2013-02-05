@@ -773,18 +773,6 @@ static void lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
 /*--------------------------------------------------------------*/
 /*			Probe, Attach, Remove			*/
 /*--------------------------------------------------------------*/
-static int __init lp5523_init_engine(struct lp5523_engine *engine, int id)
-{
-	if (id < 1 || id > LP5523_ENGINES)
-		return -1;
-	engine->id = id;
-	engine->engine_mask = LP5523_ENG_MASK_BASE >> SHIFT_MASK(id);
-	engine->prog_page = id - 1;
-	engine->mux_page = id + 2;
-
-	return 0;
-}
-
 static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			   int chan, struct lp5523_platform_data *pdata,
 			   const char *chip_name)
@@ -884,26 +872,6 @@ static void lp5523_unregister_leds(struct lp5523_chip *chip)
 	}
 }
 
-static void lp5523_deinit_device(struct lp5523_chip *chip);
-static int lp5523_init_device(struct lp5523_chip *chip)
-{
-	struct i2c_client *client = chip->client;
-	struct lp55xx_chip *temp;
-	int ret;
-
-	ret = lp5523_post_init_device(temp);
-	if (ret < 0) {
-		dev_err(&client->dev, "error configuring chip\n");
-		goto err_config;
-	}
-
-	return 0;
-
-err_config:
-	lp5523_deinit_device(chip);
-	return ret;
-}
-
 static void lp5523_deinit_device(struct lp5523_chip *chip)
 {
 	struct lp5523_platform_data *pdata = chip->pdata;
@@ -931,7 +899,7 @@ static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5523_chip		*old_chip = NULL;
-	int ret, i;
+	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = client->dev.platform_data;
@@ -958,20 +926,11 @@ static int lp5523_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, led);
 
-	ret = lp5523_init_device(old_chip);
+	ret = lp55xx_init_device(chip);
 	if (ret)
 		goto err_init;
 
 	dev_info(&client->dev, "%s Programmable led chip found\n", id->name);
-
-	/* Initialize engines */
-	for (i = 0; i < ARRAY_SIZE(old_chip->engines); i++) {
-		ret = lp5523_init_engine(&old_chip->engines[i], i + 1);
-		if (ret) {
-			dev_err(&client->dev, "error initializing engine\n");
-			goto fail1;
-		}
-	}
 
 	ret = lp5523_register_leds(old_chip, id->name);
 	if (ret)
@@ -985,7 +944,6 @@ static int lp5523_probe(struct i2c_client *client,
 	return ret;
 fail2:
 	lp5523_unregister_leds(old_chip);
-fail1:
 	lp5523_deinit_device(old_chip);
 err_init:
 	return ret;

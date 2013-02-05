@@ -689,26 +689,6 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static void lp5521_deinit_device(struct lp5521_chip *chip);
-static int lp5521_init_device(struct lp5521_chip *chip)
-{
-	struct i2c_client *client = chip->client;
-	struct lp55xx_chip *temp;
-	int ret;
-
-	ret = lp5521_post_init_device(temp);
-	if (ret < 0) {
-		dev_err(&client->dev, "error configuring chip\n");
-		goto err_config;
-	}
-
-	return 0;
-
-err_config:
-	lp5521_deinit_device(chip);
-	return ret;
-}
-
 static void lp5521_deinit_device(struct lp5521_chip *chip)
 {
 	struct lp5521_platform_data *pdata = chip->pdata;
@@ -860,7 +840,7 @@ static int lp5521_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, led);
 
-	ret = lp5521_init_device(old_chip);
+	ret = lp55xx_init_device(chip);
 	if (ret)
 		goto err_init;
 

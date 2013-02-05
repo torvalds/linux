@@ -144,9 +144,18 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 
 	/* chip specific initialization */
 	ret = lp55xx_post_init_device(chip);
+	if (ret) {
+		dev_err(dev, "post init device err: %d\n", ret);
+		goto err_post_init;
+	}
 
 	return 0;
 
+err_post_init:
+	if (pdata->enable)
+		pdata->enable(0);
+	if (pdata->release_resources)
+		pdata->release_resources();
 err:
 	return ret;
 }
