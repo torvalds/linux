@@ -536,7 +536,7 @@ static struct platform_device audio_device = {
 	.id		= -1,
 };
 
-void __init omap_twl4030_audio_init(char *card_name,
+void omap_twl4030_audio_init(char *card_name,
 				    struct omap_tw4030_pdata *pdata)
 {
 	if (!pdata)
@@ -549,7 +549,7 @@ void __init omap_twl4030_audio_init(char *card_name,
 }
 
 #else /* SOC_OMAP_TWL4030 */
-void __init omap_twl4030_audio_init(char *card_name,
+void omap_twl4030_audio_init(char *card_name,
 				    struct omap_tw4030_pdata *pdata)
 {
 	return;
