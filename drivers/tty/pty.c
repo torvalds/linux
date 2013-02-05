@@ -413,7 +413,6 @@ static void pty_unix98_shutdown(struct tty_struct *tty)
 
 static void pty_cleanup(struct tty_struct *tty)
 {
-	tty->port->itty = NULL;
 	tty_port_put(tty->port);
 }
 
