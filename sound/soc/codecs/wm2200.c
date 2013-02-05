@@ -2212,6 +2212,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	struct wm2200_priv *wm2200;
 	unsigned int reg;
 	int ret, i;
+	int val;
 
 	wm2200 = devm_kzalloc(&i2c->dev, sizeof(struct wm2200_priv),
 			      GFP_KERNEL);
@@ -2360,6 +2361,36 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < 6; i++) {
 		regmap_write(wm2200->regmap, WM2200_AUDIO_IF_1_10 + i, i);
 		regmap_write(wm2200->regmap, WM2200_AUDIO_IF_1_16 + i, i);
+	}
+
+	for (i = 0; i < WM2200_MAX_MICBIAS; i++) {
+		if (!wm2200->pdata.micbias[i].mb_lvl &&
+		    !wm2200->pdata.micbias[i].bypass)
+			continue;
+
+		/* Apply default for bypass mode */
+		if (!wm2200->pdata.micbias[i].mb_lvl)
+			wm2200->pdata.micbias[i].mb_lvl
+					= WM2200_MBIAS_LVL_1V5;
+
+		val = (wm2200->pdata.micbias[i].mb_lvl -1)
+					<< WM2200_MICB1_LVL_SHIFT;
+
+		if (wm2200->pdata.micbias[i].discharge)
+			val |= WM2200_MICB1_DISCH;
+
+		if (wm2200->pdata.micbias[i].fast_start)
+			val |= WM2200_MICB1_RATE;
+
+		if (wm2200->pdata.micbias[i].bypass)
+			val |= WM2200_MICB1_MODE;
+
+		regmap_update_bits(wm2200->regmap,
+				   WM2200_MIC_BIAS_CTRL_1 + i,
+				   WM2200_MICB1_LVL_MASK |
+				   WM2200_MICB1_DISCH |
+				   WM2200_MICB1_MODE |
+				   WM2200_MICB1_RATE, val);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm2200->pdata.in_mode); i++) {
