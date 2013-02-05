@@ -134,6 +134,13 @@ static inline void lp5521_wait_enable_done(void)
 	usleep_range(500, 600);
 }
 
+static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
+{
+	led->led_current = led_current;
+	lp55xx_write(led->chip, LP5521_REG_LED_CURRENT_BASE + led->chan_nr,
+		led_current);
+}
+
 static inline struct lp5521_led *cdev_to_led(struct led_classdev *cdev)
 {
 	return container_of(cdev, struct lp5521_led, cdev);
@@ -227,13 +234,6 @@ static int lp5521_load_program(struct lp5521_engine *eng, const u8 *pattern)
 				pattern);
 
 	return lp5521_write(client, LP5521_REG_OP_MODE, mode);
-}
-
-static int lp5521_set_led_current(struct lp5521_chip *chip, int led, u8 curr)
-{
-	return lp5521_write(chip->client,
-		    LP5521_REG_LED_CURRENT_BASE + chip->leds[led].chan_nr,
-		    curr);
 }
 
 static int lp5521_post_init_device(struct lp55xx_chip *chip)
@@ -462,54 +462,6 @@ store_mode(1)
 store_mode(2)
 store_mode(3)
 
-static ssize_t show_max_current(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct lp5521_led *led = cdev_to_led(led_cdev);
-
-	return sprintf(buf, "%d\n", led->max_current);
-}
-
-static ssize_t show_current(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct lp5521_led *led = cdev_to_led(led_cdev);
-
-	return sprintf(buf, "%d\n", led->led_current);
-}
-
-static ssize_t store_current(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t len)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct lp5521_led *led = cdev_to_led(led_cdev);
-	struct lp5521_chip *chip = led_to_lp5521(led);
-	ssize_t ret;
-	unsigned long curr;
-
-	if (kstrtoul(buf, 0, &curr))
-		return -EINVAL;
-
-	if (curr > led->max_current)
-		return -EINVAL;
-
-	mutex_lock(&chip->lock);
-	ret = lp5521_set_led_current(chip, led->id, curr);
-	mutex_unlock(&chip->lock);
-
-	if (ret < 0)
-		return ret;
-
-	led->led_current = (u8)curr;
-
-	return len;
-}
-
 static ssize_t lp5521_selftest(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -615,18 +567,7 @@ static ssize_t store_led_pattern(struct device *dev,
 	return len;
 }
 
-/* led class device attributes */
-static DEVICE_ATTR(led_current, S_IRUGO | S_IWUSR, show_current, store_current);
-static DEVICE_ATTR(max_current, S_IRUGO , show_max_current, NULL);
-
-static struct attribute *lp5521_led_attributes[] = {
-	&dev_attr_led_current.attr,
-	&dev_attr_max_current.attr,
-	NULL,
-};
-
 static struct attribute_group lp5521_led_attribute_group = {
-	.attrs = lp5521_led_attributes
 };
 
 /* device attributes */
@@ -700,6 +641,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
 	.brightness_work_fn = lp5521_led_brightness_work,
+	.set_led_current    = lp5521_set_led_current,
 };
 
 static int lp5521_probe(struct i2c_client *client,

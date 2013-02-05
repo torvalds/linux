@@ -25,6 +25,11 @@ static struct lp55xx_led *cdev_to_lp55xx_led(struct led_classdev *cdev)
 	return container_of(cdev, struct lp55xx_led, cdev);
 }
 
+static struct lp55xx_led *dev_to_lp55xx_led(struct device *dev)
+{
+	return cdev_to_lp55xx_led(dev_get_drvdata(dev));
+}
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_device_config *cfg = chip->cfg;
@@ -68,7 +73,55 @@ static int lp55xx_post_init_device(struct lp55xx_chip *chip)
 	return cfg->post_init_device(chip);
 }
 
+static ssize_t lp55xx_show_current(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
+
+	return sprintf(buf, "%d\n", led->led_current);
+}
+
+static ssize_t lp55xx_store_current(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t len)
+{
+	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
+	struct lp55xx_chip *chip = led->chip;
+	unsigned long curr;
+
+	if (kstrtoul(buf, 0, &curr))
+		return -EINVAL;
+
+	if (curr > led->max_current)
+		return -EINVAL;
+
+	if (!chip->cfg->set_led_current)
+		return len;
+
+	mutex_lock(&chip->lock);
+	chip->cfg->set_led_current(led, (u8)curr);
+	mutex_unlock(&chip->lock);
+
+	return len;
+}
+
+static ssize_t lp55xx_show_max_current(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
+
+	return sprintf(buf, "%d\n", led->max_current);
+}
+
+static DEVICE_ATTR(led_current, S_IRUGO | S_IWUSR, lp55xx_show_current,
+		lp55xx_store_current);
+static DEVICE_ATTR(max_current, S_IRUGO , lp55xx_show_max_current, NULL);
+
 static struct attribute *lp55xx_led_attributes[] = {
+	&dev_attr_led_current.attr,
+	&dev_attr_max_current.attr,
 	NULL,
 };
 
