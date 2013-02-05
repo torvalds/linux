@@ -23,6 +23,7 @@
 #endif
 
 #define _UASM_ISA_CLASSIC	0
+#define _UASM_ISA_MICROMIPS	1
 
 #ifndef UASM_ISA
 #define UASM_ISA	_UASM_ISA_CLASSIC
@@ -31,6 +32,9 @@
 #if (UASM_ISA == _UASM_ISA_CLASSIC)
 #define ISAOPC(op)	uasm_i##op
 #define ISAFUNC(x)	x
+#elif (UASM_ISA == _UASM_ISA_MICROMIPS)
+#define ISAOPC(op)	MM_uasm_i##op
+#define ISAFUNC(x)	MM_##x
 #else
 #error Unsupported micro-assembler ISA!!!
 #endif
