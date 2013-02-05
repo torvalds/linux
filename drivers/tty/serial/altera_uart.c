@@ -637,11 +637,9 @@ static int __init altera_uart_init(void)
 	if (rc)
 		return rc;
 	rc = platform_driver_register(&altera_uart_platform_driver);
-	if (rc) {
+	if (rc)
 		uart_unregister_driver(&altera_uart_driver);
-		return rc;
-	}
-	return 0;
+	return rc;
 }
 
 static void __exit altera_uart_exit(void)
