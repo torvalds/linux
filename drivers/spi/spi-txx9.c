@@ -335,7 +335,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
-static int __init txx9spi_probe(struct platform_device *dev)
+static int txx9spi_probe(struct platform_device *dev)
 {
 	struct spi_master *master;
 	struct txx9spi *c;
@@ -430,7 +430,7 @@ exit:
 	return ret;
 }
 
-static int __exit txx9spi_remove(struct platform_device *dev)
+static int txx9spi_remove(struct platform_device *dev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(dev));
 	struct txx9spi *c = spi_master_get_devdata(master);
@@ -448,7 +448,7 @@ static int __exit txx9spi_remove(struct platform_device *dev)
 MODULE_ALIAS("platform:spi_txx9");
 
 static struct platform_driver txx9spi_driver = {
-	.remove = __exit_p(txx9spi_remove),
+	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
 		.owner = THIS_MODULE,

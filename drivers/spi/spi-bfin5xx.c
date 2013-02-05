@@ -1273,7 +1273,7 @@ static int bfin_spi_destroy_queue(struct bfin_spi_master_data *drv_data)
 	return 0;
 }
 
-static int __init bfin_spi_probe(struct platform_device *pdev)
+static int bfin_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
