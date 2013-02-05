@@ -176,10 +176,6 @@ done:
 	return status;
 }
 
-static void __init tegra_smp_init_cpus(void)
-{
-}
-
 static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* Always mark the boot CPU (CPU0) as initialized. */
@@ -190,7 +186,6 @@ static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 struct smp_operations tegra_smp_ops __initdata = {
-	.smp_init_cpus		= tegra_smp_init_cpus,
 	.smp_prepare_cpus	= tegra_smp_prepare_cpus,
 	.smp_secondary_init	= tegra_secondary_init,
 	.smp_boot_secondary	= tegra_boot_secondary,
