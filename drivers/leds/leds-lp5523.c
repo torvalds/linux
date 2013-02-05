@@ -34,6 +34,9 @@
 #include <linux/leds-lp5523.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/platform_data/leds-lp55xx.h>
+
+#include "leds-lp55xx-common.h"
 
 #define LP5523_REG_ENABLE		0x00
 #define LP5523_REG_OP_MODE		0x01
@@ -1010,27 +1013,32 @@ static void lp5523_deinit_device(struct lp5523_chip *chip)
 static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct lp5523_chip		*old_chip;
-	struct lp5523_platform_data	*old_pdata;
+	struct lp5523_chip		*old_chip = NULL;
 	int ret, i;
+	struct lp55xx_chip *chip;
+	struct lp55xx_led *led;
+	struct lp55xx_platform_data *pdata = client->dev.platform_data;
 
-	old_chip = devm_kzalloc(&client->dev, sizeof(*old_chip), GFP_KERNEL);
-	if (!old_chip)
-		return -ENOMEM;
-
-	i2c_set_clientdata(client, old_chip);
-	old_chip->client = client;
-
-	old_pdata = client->dev.platform_data;
-
-	if (!old_pdata) {
+	if (!pdata) {
 		dev_err(&client->dev, "no platform data\n");
 		return -EINVAL;
 	}
 
-	mutex_init(&old_chip->lock);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 
-	old_chip->pdata   = old_pdata;
+	led = devm_kzalloc(&client->dev,
+			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
+
+	chip->cl = client;
+	chip->pdata = pdata;
+
+	mutex_init(&chip->lock);
+
+	i2c_set_clientdata(client, led);
 
 	ret = lp5523_init_device(old_chip);
 	if (ret)
