@@ -137,15 +137,11 @@ static int mac802154_header_create(struct sk_buff *skb,
 	struct ieee802154_addr dev_addr;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	int pos = 2;
-	u8 *head;
+	u8 head[MAC802154_FRAME_HARD_HEADER_LEN];
 	u16 fc;
 
 	if (!daddr)
 		return -EINVAL;
-
-	head = kzalloc(MAC802154_FRAME_HARD_HEADER_LEN, GFP_KERNEL);
-	if (head == NULL)
-		return -ENOMEM;
 
 	head[pos++] = mac_cb(skb)->seq; /* DSN/BSN */
 	fc = mac_cb_type(skb);
@@ -210,7 +206,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 	head[1] = fc >> 8;
 
 	memcpy(skb_push(skb, pos), head, pos);
-	kfree(head);
 
 	return pos;
 }
