@@ -52,14 +52,13 @@ struct gpio_desc {
 /* flag symbols are bit numbers */
 #define FLAG_REQUESTED	0
 #define FLAG_IS_OUT	1
-#define FLAG_RESERVED	2
-#define FLAG_EXPORT	3	/* protected by sysfs_lock */
-#define FLAG_SYSFS	4	/* exported via /sys/class/gpio/control */
-#define FLAG_TRIG_FALL	5	/* trigger on falling edge */
-#define FLAG_TRIG_RISE	6	/* trigger on rising edge */
-#define FLAG_ACTIVE_LOW	7	/* sysfs value has active low */
-#define FLAG_OPEN_DRAIN	8	/* Gpio is open drain type */
-#define FLAG_OPEN_SOURCE 9	/* Gpio is open source type */
+#define FLAG_EXPORT	2	/* protected by sysfs_lock */
+#define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
+#define FLAG_TRIG_FALL	4	/* trigger on falling edge */
+#define FLAG_TRIG_RISE	5	/* trigger on rising edge */
+#define FLAG_ACTIVE_LOW	6	/* sysfs value has active low */
+#define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
+#define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
 
 #define ID_SHIFT	16	/* add new flags before this one */
 
@@ -132,7 +131,7 @@ static int gpiochip_find_base(int ngpio)
 		struct gpio_desc *desc = &gpio_desc[i];
 		struct gpio_chip *chip = desc->chip;
 
-		if (!chip && !test_bit(FLAG_RESERVED, &desc->flags)) {
+		if (!chip) {
 			spare++;
 			if (spare == ngpio) {
 				base = i;
@@ -148,47 +147,6 @@ static int gpiochip_find_base(int ngpio)
 	if (gpio_is_valid(base))
 		pr_debug("%s: found new base at %d\n", __func__, base);
 	return base;
-}
-
-/**
- * gpiochip_reserve() - reserve range of gpios to use with platform code only
- * @start: starting gpio number
- * @ngpio: number of gpios to reserve
- * Context: platform init, potentially before irqs or kmalloc will work
- *
- * Returns a negative errno if any gpio within the range is already reserved
- * or registered, else returns zero as a success code.  Use this function
- * to mark a range of gpios as unavailable for dynamic gpio number allocation,
- * for example because its driver support is not yet loaded.
- */
-int __init gpiochip_reserve(int start, int ngpio)
-{
-	int ret = 0;
-	unsigned long flags;
-	int i;
-
-	if (!gpio_is_valid(start) || !gpio_is_valid(start + ngpio - 1))
-		return -EINVAL;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	for (i = start; i < start + ngpio; i++) {
-		struct gpio_desc *desc = &gpio_desc[i];
-
-		if (desc->chip || test_bit(FLAG_RESERVED, &desc->flags)) {
-			ret = -EBUSY;
-			goto err;
-		}
-
-		set_bit(FLAG_RESERVED, &desc->flags);
-	}
-
-	pr_debug("%s: reserved gpios from %d to %d\n",
-		 __func__, start, start + ngpio - 1);
-err:
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return ret;
 }
 
 /* caller ensures gpio is valid and requested, chip->get_direction may sleep  */
@@ -254,13 +212,14 @@ static ssize_t gpio_direction_show(struct device *dev,
 
 	mutex_lock(&sysfs_lock);
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags))
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
 		status = -EIO;
-	else
+	} else {
 		gpio_get_direction(gpio);
 		status = sprintf(buf, "%s\n",
 			test_bit(FLAG_IS_OUT, &desc->flags)
 				? "out" : "in");
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status;
