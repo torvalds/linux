@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/mcpm.h>
 #include <asm/proc-fns.h>
@@ -115,6 +116,8 @@ static void tc2_pm_power_down(void)
 		skip_wfi = true;
 	} else
 		BUG();
+
+	gic_cpu_if_down();
 
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&tc2_pm_lock);
