@@ -83,11 +83,15 @@ struct zram_stats {
 	u32 bad_compress;	/* % of pages with compression ratio>=75% */
 };
 
-struct zram {
-	struct zs_pool *mem_pool;
+struct zram_meta {
 	void *compress_workmem;
 	void *compress_buffer;
 	struct table *table;
+	struct zs_pool *mem_pool;
+};
+
+struct zram {
+	struct zram_meta *meta;
 	spinlock_t stat64_lock;	/* protect 64-bit stats */
 	struct rw_semaphore lock; /* protect compression buffers and table
 				   * against concurrent read and writes */
@@ -111,7 +115,9 @@ unsigned int zram_get_num_devices(void);
 extern struct attribute_group zram_disk_attr_group;
 #endif
 
-extern int zram_init_device(struct zram *zram);
 extern void zram_reset_device(struct zram *zram);
+extern struct zram_meta *zram_meta_alloc(u64 disksize);
+extern void zram_meta_free(struct zram_meta *meta);
+extern void zram_init_device(struct zram *zram, struct zram_meta *meta);
 
 #endif
