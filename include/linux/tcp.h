@@ -246,7 +246,6 @@ struct tcp_sock {
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
 	u32	tso_deferred;
-	u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;

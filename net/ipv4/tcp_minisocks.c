@@ -446,7 +446,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		 */
 		newtp->snd_cwnd = TCP_INIT_CWND;
 		newtp->snd_cwnd_cnt = 0;
-		newtp->bytes_acked = 0;
 
 		newtp->frto_counter = 0;
 		newtp->frto_highmark = 0;
