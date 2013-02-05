@@ -197,6 +197,14 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 	return 0;
 }
 
+static struct attribute *lp55xx_engine_attributes[] = {
+	NULL,
+};
+
+static const struct attribute_group lp55xx_engine_attr_group = {
+	.attrs = lp55xx_engine_attributes,
+};
+
 int lp55xx_write(struct lp55xx_chip *chip, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(chip->cl, reg, val);
@@ -364,6 +372,14 @@ void lp55xx_unregister_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 	}
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_leds);
+
+int lp55xx_register_sysfs(struct lp55xx_chip *chip)
+{
+	struct device *dev = &chip->cl->dev;
+
+	return sysfs_create_group(&dev->kobj, &lp55xx_engine_attr_group);
+}
+EXPORT_SYMBOL_GPL(lp55xx_register_sysfs);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");
