@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/platform_data/leds-lp55xx.h>
+#include <linux/firmware.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -101,12 +102,28 @@
 /* Reset register value */
 #define LP5521_RESET			0xFF
 
-struct lp5521_engine {
-	int		id;
-	u8		mode;
-	u8		prog_page;
-	u8		engine_mask;
-};
+/* Program Memory Operations */
+#define LP5521_MODE_R_M			0x30	/* Operation Mode Register */
+#define LP5521_MODE_G_M			0x0C
+#define LP5521_MODE_B_M			0x03
+#define LP5521_LOAD_R			0x10
+#define LP5521_LOAD_G			0x04
+#define LP5521_LOAD_B			0x01
+
+#define LP5521_R_IS_LOADING(mode)	\
+	((mode & LP5521_MODE_R_M) == LP5521_LOAD_R)
+#define LP5521_G_IS_LOADING(mode)	\
+	((mode & LP5521_MODE_G_M) == LP5521_LOAD_G)
+#define LP5521_B_IS_LOADING(mode)	\
+	((mode & LP5521_MODE_B_M) == LP5521_LOAD_B)
+
+#define LP5521_EXEC_R_M			0x30	/* Enable Register */
+#define LP5521_EXEC_G_M			0x0C
+#define LP5521_EXEC_B_M			0x03
+#define LP5521_EXEC_M			0x3F
+#define LP5521_RUN_R			0x20
+#define LP5521_RUN_G			0x08
+#define LP5521_RUN_B			0x02
 
 struct lp5521_led {
 	int			id;
@@ -122,11 +139,16 @@ struct lp5521_chip {
 	struct lp5521_platform_data *pdata;
 	struct mutex		lock; /* Serialize control */
 	struct i2c_client	*client;
-	struct lp5521_engine	engines[LP5521_MAX_ENGINES];
 	struct lp5521_led	leds[LP5521_MAX_LEDS];
 	u8			num_channels;
 	u8			num_leds;
 };
+
+static inline void lp5521_wait_opmode_done(void)
+{
+	/* operation mode change needs to be longer than 153 us */
+	usleep_range(200, 300);
+}
 
 static inline void lp5521_wait_enable_done(void)
 {
@@ -139,23 +161,6 @@ static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
 	led->led_current = led_current;
 	lp55xx_write(led->chip, LP5521_REG_LED_CURRENT_BASE + led->chan_nr,
 		led_current);
-}
-
-static inline struct lp5521_led *cdev_to_led(struct led_classdev *cdev)
-{
-	return container_of(cdev, struct lp5521_led, cdev);
-}
-
-static inline struct lp5521_chip *engine_to_lp5521(struct lp5521_engine *engine)
-{
-	return container_of(engine, struct lp5521_chip,
-			    engines[engine->id - 1]);
-}
-
-static inline struct lp5521_chip *led_to_lp5521(struct lp5521_led *led)
-{
-	return container_of(led, struct lp5521_chip,
-			    leds[led->id]);
 }
 
 static inline int lp5521_write(struct i2c_client *client, u8 reg, u8 value)
@@ -175,65 +180,153 @@ static int lp5521_read(struct i2c_client *client, u8 reg, u8 *buf)
 	return 0;
 }
 
-static int lp5521_set_engine_mode(struct lp5521_engine *engine, u8 mode)
+static void lp5521_load_engine(struct lp55xx_chip *chip)
 {
-	struct lp5521_chip *chip = engine_to_lp5521(engine);
-	struct i2c_client *client = chip->client;
-	int ret;
-	u8 engine_state;
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 mask[] = {
+		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
+		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
+		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
+	};
 
-	/* Only transition between RUN and DIRECT mode are handled here */
-	if (mode == LP5521_CMD_LOAD)
-		return 0;
+	u8 val[] = {
+		[LP55XX_ENGINE_1] = LP5521_LOAD_R,
+		[LP55XX_ENGINE_2] = LP5521_LOAD_G,
+		[LP55XX_ENGINE_3] = LP5521_LOAD_B,
+	};
 
-	if (mode == LP5521_CMD_DISABLED)
-		mode = LP5521_CMD_DIRECT;
+	lp55xx_update_bits(chip, LP5521_REG_OP_MODE, mask[idx], val[idx]);
 
-	ret = lp5521_read(client, LP5521_REG_OP_MODE, &engine_state);
-	if (ret < 0)
-		return ret;
-
-	/* set mode only for this engine */
-	engine_state &= ~(engine->engine_mask);
-	mode &= engine->engine_mask;
-	engine_state |= mode;
-	return lp5521_write(client, LP5521_REG_OP_MODE, engine_state);
+	lp5521_wait_opmode_done();
 }
 
-static int lp5521_load_program(struct lp5521_engine *eng, const u8 *pattern)
+static void lp5521_stop_engine(struct lp55xx_chip *chip)
 {
-	struct lp5521_chip *chip = engine_to_lp5521(eng);
-	struct i2c_client *client = chip->client;
+	lp55xx_write(chip, LP5521_REG_OP_MODE, 0);
+	lp5521_wait_opmode_done();
+}
+
+static void lp5521_run_engine(struct lp55xx_chip *chip, bool start)
+{
 	int ret;
-	int addr;
 	u8 mode;
+	u8 exec;
 
-	/* move current engine to direct mode and remember the state */
-	ret = lp5521_set_engine_mode(eng, LP5521_CMD_DIRECT);
+	/* stop engine */
+	if (!start) {
+		lp5521_stop_engine(chip);
+		lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
+		lp5521_wait_opmode_done();
+		return;
+	}
+
+	/*
+	 * To run the engine,
+	 * operation mode and enable register should updated at the same time
+	 */
+
+	ret = lp55xx_read(chip, LP5521_REG_OP_MODE, &mode);
 	if (ret)
-		return ret;
+		return;
 
-	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
-	usleep_range(1000, 2000);
-	ret = lp5521_read(client, LP5521_REG_OP_MODE, &mode);
+	ret = lp55xx_read(chip, LP5521_REG_ENABLE, &exec);
 	if (ret)
-		return ret;
+		return;
 
-	/* For loading, all the engines to load mode */
-	lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
-	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
-	usleep_range(1000, 2000);
-	lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_LOAD);
-	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
-	usleep_range(1000, 2000);
+	/* change operation mode to RUN only when each engine is loading */
+	if (LP5521_R_IS_LOADING(mode)) {
+		mode = (mode & ~LP5521_MODE_R_M) | LP5521_RUN_R;
+		exec = (exec & ~LP5521_EXEC_R_M) | LP5521_RUN_R;
+	}
 
-	addr = LP5521_PROG_MEM_BASE + eng->prog_page * LP5521_PROG_MEM_SIZE;
-	i2c_smbus_write_i2c_block_data(client,
-				addr,
-				LP5521_PROG_MEM_SIZE,
-				pattern);
+	if (LP5521_G_IS_LOADING(mode)) {
+		mode = (mode & ~LP5521_MODE_G_M) | LP5521_RUN_G;
+		exec = (exec & ~LP5521_EXEC_G_M) | LP5521_RUN_G;
+	}
 
-	return lp5521_write(client, LP5521_REG_OP_MODE, mode);
+	if (LP5521_B_IS_LOADING(mode)) {
+		mode = (mode & ~LP5521_MODE_B_M) | LP5521_RUN_B;
+		exec = (exec & ~LP5521_EXEC_B_M) | LP5521_RUN_B;
+	}
+
+	lp55xx_write(chip, LP5521_REG_OP_MODE, mode);
+	lp5521_wait_opmode_done();
+
+	lp55xx_update_bits(chip, LP5521_REG_ENABLE, LP5521_EXEC_M, exec);
+	lp5521_wait_enable_done();
+}
+
+static int lp5521_update_program_memory(struct lp55xx_chip *chip,
+					const u8 *data, size_t size)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 pattern[LP5521_PROGRAM_LENGTH] = {0};
+	u8 addr[] = {
+		[LP55XX_ENGINE_1] = LP5521_REG_R_PROG_MEM,
+		[LP55XX_ENGINE_2] = LP5521_REG_G_PROG_MEM,
+		[LP55XX_ENGINE_3] = LP5521_REG_B_PROG_MEM,
+	};
+	unsigned cmd;
+	char c[3];
+	int program_size;
+	int nrchars;
+	int offset = 0;
+	int ret;
+	int i;
+
+	/* clear program memory before updating */
+	for (i = 0; i < LP5521_PROGRAM_LENGTH; i++)
+		lp55xx_write(chip, addr[idx] + i, 0);
+
+	i = 0;
+	while ((offset < size - 1) && (i < LP5521_PROGRAM_LENGTH)) {
+		/* separate sscanfs because length is working only for %s */
+		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
+		if (ret != 1)
+			goto err;
+
+		ret = sscanf(c, "%2x", &cmd);
+		if (ret != 1)
+			goto err;
+
+		pattern[i] = (u8)cmd;
+		offset += nrchars;
+		i++;
+	}
+
+	/* Each instruction is 16bit long. Check that length is even */
+	if (i % 2)
+		goto err;
+
+	program_size = i;
+	for (i = 0; i < program_size; i++)
+		lp55xx_write(chip, addr[idx] + i, pattern[i]);
+
+	return 0;
+
+err:
+	dev_err(&chip->cl->dev, "wrong pattern format\n");
+	return -EINVAL;
+}
+
+static void lp5521_firmware_loaded(struct lp55xx_chip *chip)
+{
+	const struct firmware *fw = chip->fw;
+
+	if (fw->size > LP5521_PROGRAM_LENGTH) {
+		dev_err(&chip->cl->dev, "firmware data size overflow: %zu\n",
+			fw->size);
+		return;
+	}
+
+	/*
+	 * Program momery sequence
+	 *  1) set engine mode to "LOAD"
+	 *  2) write firmware data into program memory
+	 */
+
+	lp5521_load_engine(chip);
+	lp5521_update_program_memory(chip, fw->data, fw->size);
 }
 
 static int lp5521_post_init_device(struct lp55xx_chip *chip)
@@ -312,155 +405,6 @@ static void lp5521_led_brightness_work(struct work_struct *work)
 		led->brightness);
 	mutex_unlock(&chip->lock);
 }
-
-/* Set engine mode and create appropriate sysfs attributes, if required. */
-static int lp5521_set_mode(struct lp5521_engine *engine, u8 mode)
-{
-	int ret = 0;
-
-	/* if in that mode already do nothing, except for run */
-	if (mode == engine->mode && mode != LP5521_CMD_RUN)
-		return 0;
-
-	if (mode == LP5521_CMD_RUN) {
-		ret = lp5521_set_engine_mode(engine, LP5521_CMD_RUN);
-	} else if (mode == LP5521_CMD_LOAD) {
-		lp5521_set_engine_mode(engine, LP5521_CMD_DISABLED);
-		lp5521_set_engine_mode(engine, LP5521_CMD_LOAD);
-	} else if (mode == LP5521_CMD_DISABLED) {
-		lp5521_set_engine_mode(engine, LP5521_CMD_DISABLED);
-	}
-
-	engine->mode = mode;
-
-	return ret;
-}
-
-static int lp5521_do_store_load(struct lp5521_engine *engine,
-				const char *buf, size_t len)
-{
-	struct lp5521_chip *chip = engine_to_lp5521(engine);
-	struct i2c_client *client = chip->client;
-	int  ret, nrchars, offset = 0, i = 0;
-	char c[3];
-	unsigned cmd;
-	u8 pattern[LP5521_PROGRAM_LENGTH] = {0};
-
-	while ((offset < len - 1) && (i < LP5521_PROGRAM_LENGTH)) {
-		/* separate sscanfs because length is working only for %s */
-		ret = sscanf(buf + offset, "%2s%n ", c, &nrchars);
-		if (ret != 2)
-			goto fail;
-		ret = sscanf(c, "%2x", &cmd);
-		if (ret != 1)
-			goto fail;
-		pattern[i] = (u8)cmd;
-
-		offset += nrchars;
-		i++;
-	}
-
-	/* Each instruction is 16bit long. Check that length is even */
-	if (i % 2)
-		goto fail;
-
-	mutex_lock(&chip->lock);
-	if (engine->mode == LP5521_CMD_LOAD)
-		ret = lp5521_load_program(engine, pattern);
-	else
-		ret = -EINVAL;
-	mutex_unlock(&chip->lock);
-
-	if (ret) {
-		dev_err(&client->dev, "failed loading pattern\n");
-		return ret;
-	}
-
-	return len;
-fail:
-	dev_err(&client->dev, "wrong pattern format\n");
-	return -EINVAL;
-}
-
-static ssize_t store_engine_load(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t len, int nr)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
-	return lp5521_do_store_load(&chip->engines[nr - 1], buf, len);
-}
-
-#define store_load(nr)							\
-static ssize_t store_engine##nr##_load(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     const char *buf, size_t len)	\
-{									\
-	return store_engine_load(dev, attr, buf, len, nr);		\
-}
-store_load(1)
-store_load(2)
-store_load(3)
-
-static ssize_t show_engine_mode(struct device *dev,
-				struct device_attribute *attr,
-				char *buf, int nr)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
-	switch (chip->engines[nr - 1].mode) {
-	case LP5521_CMD_RUN:
-		return sprintf(buf, "run\n");
-	case LP5521_CMD_LOAD:
-		return sprintf(buf, "load\n");
-	case LP5521_CMD_DISABLED:
-		return sprintf(buf, "disabled\n");
-	default:
-		return sprintf(buf, "disabled\n");
-	}
-}
-
-#define show_mode(nr)							\
-static ssize_t show_engine##nr##_mode(struct device *dev,		\
-				    struct device_attribute *attr,	\
-				    char *buf)				\
-{									\
-	return show_engine_mode(dev, attr, buf, nr);			\
-}
-show_mode(1)
-show_mode(2)
-show_mode(3)
-
-static ssize_t store_engine_mode(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t len, int nr)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
-	struct lp5521_engine *engine = &chip->engines[nr - 1];
-	mutex_lock(&chip->lock);
-
-	if (!strncmp(buf, "run", 3))
-		lp5521_set_mode(engine, LP5521_CMD_RUN);
-	else if (!strncmp(buf, "load", 4))
-		lp5521_set_mode(engine, LP5521_CMD_LOAD);
-	else if (!strncmp(buf, "disabled", 8))
-		lp5521_set_mode(engine, LP5521_CMD_DISABLED);
-
-	mutex_unlock(&chip->lock);
-	return len;
-}
-
-#define store_mode(nr)							\
-static ssize_t store_engine##nr##_mode(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     const char *buf, size_t len)	\
-{									\
-	return store_engine_mode(dev, attr, buf, len, nr);		\
-}
-store_mode(1)
-store_mode(2)
-store_mode(3)
 
 static ssize_t lp5521_selftest(struct device *dev,
 			       struct device_attribute *attr,
@@ -550,45 +494,11 @@ static void lp5521_run_led_pattern(int mode, struct lp5521_chip *chip)
 	}
 }
 
-static ssize_t store_led_pattern(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t len)
-{
-	struct lp5521_chip *chip = i2c_get_clientdata(to_i2c_client(dev));
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	lp5521_run_led_pattern(val, chip);
-
-	return len;
-}
-
 /* device attributes */
-static DEVICE_ATTR(engine1_mode, S_IRUGO | S_IWUSR,
-		   show_engine1_mode, store_engine1_mode);
-static DEVICE_ATTR(engine2_mode, S_IRUGO | S_IWUSR,
-		   show_engine2_mode, store_engine2_mode);
-static DEVICE_ATTR(engine3_mode, S_IRUGO | S_IWUSR,
-		   show_engine3_mode, store_engine3_mode);
-static DEVICE_ATTR(engine1_load, S_IWUSR, NULL, store_engine1_load);
-static DEVICE_ATTR(engine2_load, S_IWUSR, NULL, store_engine2_load);
-static DEVICE_ATTR(engine3_load, S_IWUSR, NULL, store_engine3_load);
 static DEVICE_ATTR(selftest, S_IRUGO, lp5521_selftest, NULL);
-static DEVICE_ATTR(led_pattern, S_IWUSR, NULL, store_led_pattern);
 
 static struct attribute *lp5521_attributes[] = {
-	&dev_attr_engine1_mode.attr,
-	&dev_attr_engine2_mode.attr,
-	&dev_attr_engine3_mode.attr,
 	&dev_attr_selftest.attr,
-	&dev_attr_engine1_load.attr,
-	&dev_attr_engine2_load.attr,
-	&dev_attr_engine3_load.attr,
-	&dev_attr_led_pattern.attr,
 	NULL
 };
 
@@ -623,6 +533,8 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.post_init_device   = lp5521_post_init_device,
 	.brightness_work_fn = lp5521_led_brightness_work,
 	.set_led_current    = lp5521_set_led_current,
+	.firmware_cb        = lp5521_firmware_loaded,
+	.run_engine         = lp5521_run_engine,
 };
 
 static int lp5521_probe(struct i2c_client *client,
