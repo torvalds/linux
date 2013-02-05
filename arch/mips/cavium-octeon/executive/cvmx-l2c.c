@@ -30,6 +30,7 @@
  * measurement, and debugging facilities.
  */
 
+#include <linux/compiler.h>
 #include <linux/irqflags.h>
 #include <asm/octeon/cvmx.h>
 #include <asm/octeon/cvmx-l2c.h>
@@ -285,22 +286,22 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
  */
 static void fault_in(uint64_t addr, int len)
 {
-	volatile char *ptr;
-	volatile char dummy;
+	char *ptr;
+
 	/*
 	 * Adjust addr and length so we get all cache lines even for
 	 * small ranges spanning two cache lines.
 	 */
 	len += addr & CVMX_CACHE_LINE_MASK;
 	addr &= ~CVMX_CACHE_LINE_MASK;
-	ptr = (volatile char *)cvmx_phys_to_ptr(addr);
+	ptr = cvmx_phys_to_ptr(addr);
 	/*
 	 * Invalidate L1 cache to make sure all loads result in data
 	 * being in L2.
 	 */
 	CVMX_DCACHE_INVALIDATE;
 	while (len > 0) {
-		dummy += *ptr;
+		ACCESS_ONCE(*ptr);
 		len -= CVMX_CACHE_LINE_SIZE;
 		ptr += CVMX_CACHE_LINE_SIZE;
 	}
