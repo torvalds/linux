@@ -1378,7 +1378,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 		return NULL;
 
 	/* DEP support only */
-	*skb_put(skb, 1) |= PN533_INIT_TARGET_DEP;
+	*skb_put(skb, 1) = PN533_INIT_TARGET_DEP;
 
 	/* MIFARE params */
 	memcpy(skb_put(skb, 6), mifare_params, 6);
