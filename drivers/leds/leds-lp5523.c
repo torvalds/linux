@@ -484,18 +484,6 @@ static const struct attribute_group lp5523_group = {
 	.attrs = lp5523_attributes,
 };
 
-static int lp5523_register_sysfs(struct i2c_client *client)
-{
-	struct device *dev = &client->dev;
-	int ret;
-
-	ret = sysfs_create_group(&dev->kobj, &lp5523_group);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static void lp5523_unregister_sysfs(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -519,6 +507,7 @@ static struct lp55xx_device_config lp5523_cfg = {
 	.set_led_current    = lp5523_set_led_current,
 	.firmware_cb        = lp5523_firmware_loaded,
 	.run_engine         = lp5523_run_engine,
+	.dev_attr_group     = &lp5523_group,
 };
 
 static int lp5523_probe(struct i2c_client *client,
@@ -561,13 +550,15 @@ static int lp5523_probe(struct i2c_client *client,
 	if (ret)
 		goto err_register_leds;
 
-	ret = lp5523_register_sysfs(client);
+	ret = lp55xx_register_sysfs(chip);
 	if (ret) {
 		dev_err(&client->dev, "registering sysfs failed\n");
-		goto fail2;
+		goto err_register_sysfs;
 	}
-	return ret;
-fail2:
+
+	return 0;
+
+err_register_sysfs:
 	lp55xx_unregister_leds(led, chip);
 err_register_leds:
 	lp55xx_deinit_device(chip);
