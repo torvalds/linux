@@ -129,5 +129,6 @@ extern void lp55xx_unregister_leds(struct lp55xx_led *led,
 
 /* common device attributes functions */
 extern int lp55xx_register_sysfs(struct lp55xx_chip *chip);
+extern void lp55xx_unregister_sysfs(struct lp55xx_chip *chip);
 
 #endif /* _LEDS_LP55XX_COMMON_H */
