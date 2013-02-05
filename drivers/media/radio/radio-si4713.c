@@ -250,6 +250,7 @@ static struct video_device radio_si4713_vdev_template = {
 	.name			= "radio-si4713",
 	.release		= video_device_release,
 	.ioctl_ops		= &radio_si4713_ioctl_ops,
+	.vfl_dir		= VFL_DIR_TX,
 };
 
 /* Platform driver interface */
