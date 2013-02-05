@@ -1839,7 +1839,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	}
 
 	s = comedi_read_subdevice(info);
-	if (s) {
+	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
 		    comedi_buf_read_n_available(s->async) > 0)
@@ -1847,7 +1847,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	}
 
 	s = comedi_write_subdevice(info);
-	if (s) {
+	if (s && s->async) {
 		unsigned int bps = bytes_per_sample(s->async->subdevice);
 
 		poll_wait(file, &s->async->wait_head, wait);
@@ -1882,7 +1882,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	}
 
 	s = comedi_write_subdevice(info);
-	if (!s)
+	if (!s || !s->async)
 		return -EIO;
 
 	async = s->async;
@@ -1977,7 +1977,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	}
 
 	s = comedi_read_subdevice(info);
-	if (!s)
+	if (!s || !s->async)
 		return -EIO;
 
 	async = s->async;
