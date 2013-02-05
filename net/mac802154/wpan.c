@@ -41,7 +41,7 @@ static inline int mac802154_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 		return -EINVAL;
 
 	*val = skb->data[0];
-	 skb_pull(skb, 1);
+	skb_pull(skb, 1);
 
 	return 0;
 }
