@@ -124,7 +124,7 @@ extern ssize_t power_events_sysfs_show(struct device *dev,
  * POWER CPU specification.
  */
 #define	EVENT_VAR(_id, _suffix)		event_attr_##_id##_suffix
-#define	EVENT_PTR(_id, _suffix)		&EVENT_VAR(_id, _suffix)
+#define	EVENT_PTR(_id, _suffix)		&EVENT_VAR(_id, _suffix).attr.attr
 
 #define	EVENT_ATTR(_name, _id, _suffix)					\
 	PMU_EVENT_ATTR(_name, EVENT_VAR(_id, _suffix), PME_PM_##_id,	\
