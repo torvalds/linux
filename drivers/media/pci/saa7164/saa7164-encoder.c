@@ -1298,6 +1298,7 @@ static int saa7164_g_chip_ident(struct file *file, void *fh,
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 static int saa7164_g_register(struct file *file, void *fh,
 			      struct v4l2_dbg_register *reg)
 {
@@ -1323,6 +1324,7 @@ static int saa7164_s_register(struct file *file, void *fh,
 
 	return 0;
 }
+#endif
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
