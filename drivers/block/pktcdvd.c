@@ -2433,7 +2433,7 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 		cloned_bio->bi_bdev = pd->bdev;
 		cloned_bio->bi_private = psd;
 		cloned_bio->bi_end_io = pkt_end_io_read_cloned;
-		pd->stats.secs_r += bio->bi_size >> 9;
+		pd->stats.secs_r += bio_sectors(bio);
 		pkt_queue_bio(pd, cloned_bio);
 		return;
 	}
