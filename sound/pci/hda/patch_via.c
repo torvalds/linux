@@ -217,8 +217,7 @@ static void vt1708_update_hp_work(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	if (spec->codec_type != VT1708 || !spec->gen.autocfg.hp_outs)
 		return;
-	if (spec->vt1708_jack_detect &&
-	    (spec->gen.active_streams || hp_detect_with_aa(codec))) {
+	if (spec->vt1708_jack_detect) {
 		if (!spec->hp_work_active) {
 			codec->jackpoll_interval = msecs_to_jiffies(100);
 			snd_hda_codec_write(codec, 0x1, 0, 0xf81, 0);
