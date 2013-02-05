@@ -121,9 +121,9 @@ static inline bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
 }
 #endif
 
-static int __cpuinit tegra30_idle_lp2(struct cpuidle_device *dev,
-				      struct cpuidle_driver *drv,
-				      int index)
+static int tegra30_idle_lp2(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv,
+			    int index)
 {
 	u32 cpu = is_smp() ? cpu_logical_map(dev->cpu) : dev->cpu;
 	bool entered_lp2 = false;

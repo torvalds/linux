@@ -36,6 +36,7 @@
 #include "apbio.h"
 #include "sleep.h"
 #include "pm.h"
+#include "reset.h"
 
 /*
  * Storage for debug-macro.S's state.
@@ -131,6 +132,7 @@ static void __init tegra_init_cache(void)
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void __init tegra20_init_early(void)
 {
+	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra2_init_clocks();
@@ -144,6 +146,7 @@ void __init tegra20_init_early(void)
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 void __init tegra30_init_early(void)
 {
+	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra30_init_clocks();
