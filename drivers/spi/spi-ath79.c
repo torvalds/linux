@@ -308,9 +308,15 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void ath79_spi_shutdown(struct platform_device *pdev)
+{
+	ath79_spi_remove(pdev);
+}
+
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
 	.remove		= ath79_spi_remove,
+	.shutdown	= ath79_spi_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
