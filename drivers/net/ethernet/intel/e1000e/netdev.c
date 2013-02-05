@@ -86,18 +86,6 @@ struct e1000_reg_info {
 	char *name;
 };
 
-#define E1000_RDFH	0x02410	/* Rx Data FIFO Head - RW */
-#define E1000_RDFT	0x02418	/* Rx Data FIFO Tail - RW */
-#define E1000_RDFHS	0x02420	/* Rx Data FIFO Head Saved - RW */
-#define E1000_RDFTS	0x02428	/* Rx Data FIFO Tail Saved - RW */
-#define E1000_RDFPC	0x02430	/* Rx Data FIFO Packet Count - RW */
-
-#define E1000_TDFH	0x03410	/* Tx Data FIFO Head - RW */
-#define E1000_TDFT	0x03418	/* Tx Data FIFO Tail - RW */
-#define E1000_TDFHS	0x03420	/* Tx Data FIFO Head Saved - RW */
-#define E1000_TDFTS	0x03428	/* Tx Data FIFO Tail Saved - RW */
-#define E1000_TDFPC	0x03430	/* Tx Data FIFO Packet Count - RW */
-
 static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 
 	/* General Registers */
