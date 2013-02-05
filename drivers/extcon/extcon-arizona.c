@@ -53,6 +53,8 @@ struct arizona_extcon_info {
 	bool micd_reva;
 	bool micd_clamp;
 
+	struct delayed_work hpdet_work;
+
 	bool hpdet_active;
 
 	int num_hpdet_res;
@@ -640,7 +642,7 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 	dev_dbg(arizona->dev, "Starting identification via HPDET\n");
 
 	/* Make sure we keep the device enabled during the measurement */
-	pm_runtime_get(info->dev);
+	pm_runtime_get_sync(info->dev);
 
 	info->hpdet_active = true;
 
@@ -813,6 +815,17 @@ handled:
 	return IRQ_HANDLED;
 }
 
+static void arizona_hpdet_work(struct work_struct *work)
+{
+	struct arizona_extcon_info *info = container_of(work,
+							struct arizona_extcon_info,
+							hpdet_work.work);
+
+	mutex_lock(&info->lock);
+	arizona_start_hpdet_acc_id(info);
+	mutex_unlock(&info->lock);
+}
+
 static irqreturn_t arizona_jackdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
@@ -821,6 +834,8 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	int ret, i;
 
 	pm_runtime_get_sync(info->dev);
+
+	cancel_delayed_work_sync(&info->hpdet_work);
 
 	mutex_lock(&info->lock);
 
@@ -857,7 +872,8 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 			arizona_start_mic(info);
 		} else {
-			arizona_start_hpdet_acc_id(info);
+			schedule_delayed_work(&info->hpdet_work,
+					      msecs_to_jiffies(250));
 		}
 
 		regmap_update_bits(arizona->regmap,
@@ -927,6 +943,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	info->arizona = arizona;
 	info->dev = &pdev->dev;
+	INIT_DELAYED_WORK(&info->hpdet_work, arizona_hpdet_work);
 	platform_set_drvdata(pdev, info);
 
 	switch (arizona->type) {
@@ -1173,6 +1190,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	arizona_free_irq(arizona, ARIZONA_IRQ_MICDET, info);
 	arizona_free_irq(arizona, jack_irq_rise, info);
 	arizona_free_irq(arizona, jack_irq_fall, info);
+	cancel_delayed_work_sync(&info->hpdet_work);
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);
