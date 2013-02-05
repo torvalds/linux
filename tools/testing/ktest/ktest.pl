@@ -1212,11 +1212,16 @@ sub reboot {
     }
 
     if (defined($time)) {
-	if (wait_for_monitor($time, $reboot_success_line)) {
+	# Look for the good kernel to boot
+	if (wait_for_monitor($time, "Linux version")) {
 	    # reboot got stuck?
 	    doprint "Reboot did not finish. Forcing power cycle\n";
 	    run_command "$power_cycle";
 	}
+
+	# Still need to wait for the reboot to finish
+	wait_for_monitor($time, $reboot_success_line);
+
 	end_monitor;
     }
 }
