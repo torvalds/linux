@@ -2242,6 +2242,7 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
 	if (lockend <= lockstart)
 		lockend = lockstart + root->sectorsize;
 
+	lockend--;
 	len = lockend - lockstart + 1;
 
 	len = max_t(u64, len, root->sectorsize);
@@ -2308,9 +2309,12 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
 					}
 				}
 
-				*offset = start;
-				free_extent_map(em);
-				break;
+				if (!test_bit(EXTENT_FLAG_PREALLOC,
+					      &em->flags)) {
+					*offset = start;
+					free_extent_map(em);
+					break;
+				}
 			}
 		}
 
