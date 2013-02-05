@@ -401,6 +401,8 @@ static u8 abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 	bool alt_bit2;
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
 	struct alternate_functions af = pct->soc->alternate_functions[gpio];
+	/* on ABx5xx, there is no GPIO0, so adjust the offset */
+	unsigned offset = gpio - 1;
 
 	/*
 	 * if gpiosel_bit is set to unused,
@@ -410,7 +412,7 @@ static u8 abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 		return ABX500_DEFAULT;
 
 	/* read GpioSelx register */
-	abx500_gpio_get_bit(chip, AB8500_GPIO_SEL1_REG + (gpio / 8),
+	abx500_gpio_get_bit(chip, AB8500_GPIO_SEL1_REG + (offset / 8),
 			af.gpiosel_bit, &bit_mode);
 	mode = bit_mode;
 
