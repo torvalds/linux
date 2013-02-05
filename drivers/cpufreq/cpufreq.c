@@ -1059,7 +1059,9 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 	cpus = cpumask_weight(data->cpus);
 	cpumask_clear_cpu(cpu, data->cpus);
 
-	if (unlikely((cpu == data->cpu) && (cpus > 1))) {
+	if (cpu != data->cpu) {
+		sysfs_remove_link(&dev->kobj, "cpufreq");
+	} else if (cpus > 1) {
 		/* first sibling now owns the new sysfs dir */
 		cpu_dev = get_cpu_device(cpumask_first(data->cpus));
 		sysfs_remove_link(&cpu_dev->kobj, "cpufreq");
@@ -1084,7 +1086,6 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 	pr_debug("%s: removing link, cpu: %d\n", __func__, cpu);
 	cpufreq_cpu_put(data);
 	unlock_policy_rwsem_write(cpu);
-	sysfs_remove_link(&dev->kobj, "cpufreq");
 
 	/* If cpu is last user of policy, free policy */
 	if (cpus == 1) {
