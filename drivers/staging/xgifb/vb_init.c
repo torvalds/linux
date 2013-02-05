@@ -440,7 +440,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	xgifb_reg_set(P3d4, 0x6A, pVBInfo->CR40[7][pVBInfo->ram_type]);
 
 	/* CR6B DQS fine tune delay */
-	temp = (pVBInfo->ram_type <= 2) ? 0xaa : 0x00;
+	temp = 0xaa;
 	XGI_SetDRAM_Helper(P3d4, temp, 0, 0x6B, 2, 0xF0, 0x10);
 
 	/* CR6E DQM fine tune delay */
