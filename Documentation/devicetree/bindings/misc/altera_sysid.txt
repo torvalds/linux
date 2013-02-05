@@ -1,0 +1,18 @@
+Altera Sysid IP core driver
+
+Required properties:
+- compatible: altr,sysid-1.0
+
+Optional properties:
+- id:  A unique 32-bit value that is based on the contents of the system.
+- timestamp: A unique 32-bit value that is based on the system generation time.
+
+Example:
+
+sysid_qsys: sysid@0x10000 {
+	compatible = "altr,sysid-1.0";
+	reg = < 0x10000 0x00000008 >;
+	id = < 1 >;
+	timestamp = < 1359538782 >;
+};
+
