@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/module.h>
@@ -197,7 +198,123 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 	return 0;
 }
 
+static void lp55xx_firmware_loaded(const struct firmware *fw, void *context)
+{
+	struct lp55xx_chip *chip = context;
+	struct device *dev = &chip->cl->dev;
+
+	if (!fw) {
+		dev_err(dev, "firmware request failed\n");
+		goto out;
+	}
+
+	/* handling firmware data is chip dependent */
+	mutex_lock(&chip->lock);
+
+	chip->fw = fw;
+	if (chip->cfg->firmware_cb)
+		chip->cfg->firmware_cb(chip);
+
+	mutex_unlock(&chip->lock);
+
+out:
+	/* firmware should be released for other channel use */
+	release_firmware(chip->fw);
+}
+
+static int lp55xx_request_firmware(struct lp55xx_chip *chip)
+{
+	const char *name = chip->cl->name;
+	struct device *dev = &chip->cl->dev;
+
+	return request_firmware_nowait(THIS_MODULE, true, name, dev,
+				GFP_KERNEL, chip, lp55xx_firmware_loaded);
+}
+
+static ssize_t lp55xx_show_engine_select(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+
+	return sprintf(buf, "%d\n", chip->engine_idx);
+}
+
+static ssize_t lp55xx_store_engine_select(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t len)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	unsigned long val;
+	int ret;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	/* select the engine to be run */
+
+	switch (val) {
+	case LP55XX_ENGINE_1:
+	case LP55XX_ENGINE_2:
+	case LP55XX_ENGINE_3:
+		mutex_lock(&chip->lock);
+		chip->engine_idx = val;
+		ret = lp55xx_request_firmware(chip);
+		mutex_unlock(&chip->lock);
+		break;
+	default:
+		dev_err(dev, "%lu: invalid engine index. (1, 2, 3)\n", val);
+		return -EINVAL;
+	}
+
+	if (ret) {
+		dev_err(dev, "request firmware err: %d\n", ret);
+		return ret;
+	}
+
+	return len;
+}
+
+static inline void lp55xx_run_engine(struct lp55xx_chip *chip, bool start)
+{
+	if (chip->cfg->run_engine)
+		chip->cfg->run_engine(chip, start);
+}
+
+static ssize_t lp55xx_store_engine_run(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t len)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	/* run or stop the selected engine */
+
+	if (val <= 0) {
+		lp55xx_run_engine(chip, false);
+		return len;
+	}
+
+	mutex_lock(&chip->lock);
+	lp55xx_run_engine(chip, true);
+	mutex_unlock(&chip->lock);
+
+	return len;
+}
+
+static DEVICE_ATTR(select_engine, S_IRUGO | S_IWUSR,
+		   lp55xx_show_engine_select, lp55xx_store_engine_select);
+static DEVICE_ATTR(run_engine, S_IWUSR, NULL, lp55xx_store_engine_run);
+
 static struct attribute *lp55xx_engine_attributes[] = {
+	&dev_attr_select_engine.attr,
+	&dev_attr_run_engine.attr,
 	NULL,
 };
 

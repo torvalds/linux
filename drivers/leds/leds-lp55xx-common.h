@@ -15,6 +15,13 @@
 #ifndef _LEDS_LP55XX_COMMON_H
 #define _LEDS_LP55XX_COMMON_H
 
+enum lp55xx_engine_index {
+	LP55XX_ENGINE_INVALID,
+	LP55XX_ENGINE_1,
+	LP55XX_ENGINE_2,
+	LP55XX_ENGINE_3,
+};
+
 struct lp55xx_led;
 struct lp55xx_chip;
 
@@ -36,6 +43,8 @@ struct lp55xx_reg {
  * @post_init_device   : Chip specific initialization code
  * @brightness_work_fn : Brightness work function
  * @set_led_current    : LED current set function
+ * @firmware_cb        : Call function when the firmware is loaded
+ * @run_engine         : Run internal engine for pattern
  */
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
@@ -50,6 +59,12 @@ struct lp55xx_device_config {
 
 	/* current setting function */
 	void (*set_led_current) (struct lp55xx_led *led, u8 led_current);
+
+	/* access program memory when the firmware is loaded */
+	void (*firmware_cb)(struct lp55xx_chip *chip);
+
+	/* used for running firmware LED patterns */
+	void (*run_engine) (struct lp55xx_chip *chip, bool start);
 };
 
 /*
@@ -59,6 +74,8 @@ struct lp55xx_device_config {
  * @lock       : Lock for user-space interface
  * @num_leds   : Number of registered LEDs
  * @cfg        : Device specific configuration data
+ * @engine_idx : Selected engine number
+ * @fw         : Firmware data for running a LED pattern
  */
 struct lp55xx_chip {
 	struct i2c_client *cl;
@@ -66,6 +83,8 @@ struct lp55xx_chip {
 	struct mutex lock;	/* lock for user-space interface */
 	int num_leds;
 	struct lp55xx_device_config *cfg;
+	enum lp55xx_engine_index engine_idx;
+	const struct firmware *fw;
 };
 
 /*
