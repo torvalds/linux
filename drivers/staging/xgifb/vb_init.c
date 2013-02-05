@@ -430,7 +430,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		struct xgi_hw_device_info *HwDeviceExtension,
 		unsigned long Port, struct vb_device_info *pVBInfo)
 {
-	unsigned char temp, temp1, temp2, temp3, i, j, k;
+	unsigned char temp, temp1, temp2, temp3, j, k;
 
 	unsigned long P3d4 = Port, P3c4 = Port - 0x10;
 
