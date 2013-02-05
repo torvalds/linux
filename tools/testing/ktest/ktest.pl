@@ -1212,12 +1212,20 @@ sub reboot {
     }
 
     if (defined($time)) {
+
+	# We only want to get to the new kernel, don't fail
+	# if we stumble over a call trace.
+	my $save_ignore_errors = $ignore_errors;
+	$ignore_errors = 1;
+
 	# Look for the good kernel to boot
 	if (wait_for_monitor($time, "Linux version")) {
 	    # reboot got stuck?
 	    doprint "Reboot did not finish. Forcing power cycle\n";
 	    run_command "$power_cycle";
 	}
+
+	$ignore_errors = $save_ignore_errors;
 
 	# Still need to wait for the reboot to finish
 	wait_for_monitor($time, $reboot_success_line);
