@@ -77,6 +77,12 @@ config ARM_EXYNOS5250_CPUFREQ
 	  This adds the CPUFreq driver for Samsung EXYNOS5250
 	  SoC.
 
+config ARM_KIRKWOOD_CPUFREQ
+	def_bool ARCH_KIRKWOOD && OF
+	help
+	  This adds the CPUFreq driver for Marvell Kirkwood
+	  SoCs.
+
 config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6Q cpufreq support"
 	depends on SOC_IMX6Q
