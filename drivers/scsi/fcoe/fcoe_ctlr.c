@@ -1291,8 +1291,16 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
-	if (!fcf || !lport->port_id)
+	if (!fcf || !lport->port_id) {
+		/*
+		 * We are yet to select best FCF, but we got CVL in the
+		 * meantime. reset the ctlr and let it rediscover the FCF
+		 */
+		mutex_lock(&fip->ctlr_mutex);
+		fcoe_ctlr_reset(fip);
+		mutex_unlock(&fip->ctlr_mutex);
 		return;
+	}
 
 	/*
 	 * mask of required descriptors.  Validating each one clears its bit.
