@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 376971 2013-01-03 14:06:06Z $
+ * $Id: wl_cfg80211.c 381665 2013-01-29 02:34:22Z $
  */
 
 #include <typedefs.h>
@@ -331,8 +331,10 @@ static u32 wl_get_ielen(struct wl_priv *wl);
 
 static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *dev);
 static void wl_free_wdev(struct wl_priv *wl);
+#ifdef CONFIG_CFG80211_INTERNAL_REGDB
 static int
 wl_cfg80211_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+#endif /* CONFIG_CFG80211_INTERNAL_REGDB */
 
 static s32 wl_inform_bss(struct wl_priv *wl);
 static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi, u8 is_roam_done);
@@ -3922,8 +3924,10 @@ wl_cfg80211_af_searching_channel(struct wl_priv *wl, struct net_device *dev)
 			wait_for_completion_timeout(&wl->act_frm_scan,
 				msecs_to_jiffies(MAX_WAIT_TIME));
 		}
-		if (!wl_get_drv_status(wl, FINDING_COMMON_CHANNEL, dev))
+		if ((wl->afx_hdl->peer_chan != WL_INVALID) ||
+			!(wl_get_drv_status(wl, FINDING_COMMON_CHANNEL, dev)))
 			break;
+
 		wl->afx_hdl->retry++;
 
 		WL_AF_TX_KEEP_PRI_CONNECTION_VSDB(wl);
@@ -4189,14 +4193,16 @@ wl_cfg80211_send_action_frame(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 		}
 
+		wl_clr_drv_status(wl, SCANNING, wl->afx_hdl->dev);
+		/*
+		 * Abort scan even for VSDB scenarios. Scan gets aborted in firmware
+		 * but after the check of piggyback algorithm.
+		 * To take care of current piggback algo, lets abort the scan here itself.
+		 */
+		wl_notify_escan_complete(wl, dev, true, true);
 		/* Suspend P2P discovery's search-listen to prevent it from
 		 * starting a scan or changing the channel.
 		 */
-		wl_clr_drv_status(wl, SCANNING, wl->afx_hdl->dev);
-/* Do not abort scan for VSDB. Scan will be aborted in firmware if necessary */
-#ifndef WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
-		wl_notify_escan_complete(wl, dev, true, true);
-#endif /* not WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
 		wl_cfgp2p_discover_enable_search(wl, false);
 
 		/* update channel */
@@ -4275,6 +4281,7 @@ exit:
 	return ack;
 }
 
+#define MAX_NUM_OF_ASSOCIATED_DEV	64
 static s32
 wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 	struct ieee80211_channel *channel, bool offchan,
@@ -4344,6 +4351,20 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 		} else if (ieee80211_is_disassoc(mgmt->frame_control) ||
 			ieee80211_is_deauth(mgmt->frame_control)) {
+			char mac_buf[MAX_NUM_OF_ASSOCIATED_DEV *
+				sizeof(struct ether_addr) + sizeof(uint)] = {0};
+			int num_associated = 0;
+			struct maclist *assoc_maclist = (struct maclist *)mac_buf;
+			if (!bcmp((const uint8 *)BSSID_BROADCAST,
+				(const struct ether_addr *)mgmt->da, ETHER_ADDR_LEN)) {
+				assoc_maclist->count = MAX_NUM_OF_ASSOCIATED_DEV;
+				err = wldev_ioctl(ndev, WLC_GET_ASSOCLIST,
+					assoc_maclist, sizeof(mac_buf), false);
+				if (err < 0)
+					WL_ERR(("WLC_GET_ASSOCLIST error %d\n", err));
+				else
+					num_associated = assoc_maclist->count;
+			}
 			memcpy(scb_val.ea.octet, mgmt->da, ETH_ALEN);
 			scb_val.val = mgmt->u.disassoc.reason_code;
 			err = wldev_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON, &scb_val,
@@ -4353,7 +4374,9 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 			WL_DBG(("Disconnect STA : %s scb_val.val %d\n",
 				bcm_ether_ntoa((const struct ether_addr *)mgmt->da, eabuf),
 				scb_val.val));
-			wl_delay(400);
+			if (num_associated) {
+				wl_delay(400);
+			}
 			cfg80211_mgmt_tx_status(ndev, *cookie, buf, len, true, GFP_KERNEL);
 			goto exit;
 
@@ -5104,19 +5127,13 @@ exit:
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
 s32
-wl_cfg80211_parse_set_ies(
+wl_cfg80211_parse_ap_ies(
 	struct net_device *dev,
 	struct cfg80211_beacon_data *info,
-	struct parsed_ies *ies,
-	u32 dev_role,
-	s32 bssidx)
+	struct parsed_ies *ies)
 {
-	struct wl_priv *wl = wlcfg_drv_priv;
 	struct parsed_ies prb_ies;
 	s32 err = BCME_OK;
-
-	memset(ies, 0, sizeof(struct parsed_ies));
-	memset(&prb_ies, 0, sizeof(struct parsed_ies));
 
 	/* Parse Beacon IEs */
 	if (wl_cfg80211_parse_ies((u8 *)info->tail,
@@ -5125,6 +5142,27 @@ wl_cfg80211_parse_set_ies(
 		err = -EINVAL;
 		goto fail;
 	}
+
+	/* Parse Probe Response IEs */
+	if (wl_cfg80211_parse_ies((u8 *)info->proberesp_ies,
+		info->proberesp_ies_len, &prb_ies) < 0) {
+		WL_ERR(("PROBE RESP get IEs failed \n"));
+		err = -EINVAL;
+	}
+
+fail:
+
+	return err;
+}
+
+s32
+wl_cfg80211_set_ies(
+	struct net_device *dev,
+	struct cfg80211_beacon_data *info,
+	s32 bssidx)
+{
+	struct wl_priv *wl = wlcfg_drv_priv;
+	s32 err = BCME_OK;
 
 	/* Set Beacon IEs to FW */
 	if ((err = wl_cfgp2p_set_management_ie(wl, dev, bssidx,
@@ -5135,14 +5173,6 @@ wl_cfg80211_parse_set_ies(
 		WL_DBG(("Applied Vndr IEs for Beacon \n"));
 	}
 
-	/* Parse Probe Response IEs */
-	if (wl_cfg80211_parse_ies((u8 *)info->proberesp_ies,
-		info->proberesp_ies_len, &prb_ies) < 0) {
-		WL_ERR(("PRB RESP get IEs failed \n"));
-		err = -EINVAL;
-		goto fail;
-	}
-
 	/* Set Probe Response IEs to FW */
 	if ((err = wl_cfgp2p_set_management_ie(wl, dev, bssidx,
 		VNDR_IE_PRBRSP_FLAG, (u8 *)info->proberesp_ies,
@@ -5151,8 +5181,6 @@ wl_cfg80211_parse_set_ies(
 	} else {
 		WL_DBG(("Applied Vndr IEs for Probe Resp \n"));
 	}
-
-fail:
 
 	return err;
 }
@@ -5236,6 +5264,10 @@ wl_cfg80211_del_station(
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	scb_val_t scb_val;
 	s8 eabuf[ETHER_ADDR_STR_LEN];
+	char mac_buf[MAX_NUM_OF_ASSOCIATED_DEV *
+		sizeof(struct ether_addr) + sizeof(uint)] = {0};
+	struct maclist *assoc_maclist = (struct maclist *)mac_buf;
+	int num_associated = 0, err;
 
 	WL_DBG(("Entry\n"));
 	if (mac_addr == NULL) {
@@ -5259,15 +5291,25 @@ wl_cfg80211_del_station(
 		}
 	}
 
+	assoc_maclist->count = MAX_NUM_OF_ASSOCIATED_DEV;
+	err = wldev_ioctl(ndev, WLC_GET_ASSOCLIST,
+		assoc_maclist, sizeof(mac_buf), false);
+	if (err < 0)
+		WL_ERR(("WLC_GET_ASSOCLIST error %d\n", err));
+	else
+		num_associated = assoc_maclist->count;
+
 	memcpy(scb_val.ea.octet, mac_addr, ETHER_ADDR_LEN);
 	scb_val.val = DOT11_RC_DEAUTH_LEAVING;
-	if (wldev_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON, &scb_val,
-		sizeof(scb_val_t), true))
-		WL_ERR(("WLC_SCB_DEAUTHENTICATE_FOR_REASON failed\n"));
+	err = wldev_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON, &scb_val,
+		sizeof(scb_val_t), true);
+	if (err < 0)
+		WL_ERR(("WLC_SCB_DEAUTHENTICATE_FOR_REASON err %d\n", err));
 	WL_DBG(("Disconnect STA : %s scb_val.val %d\n",
 		bcm_ether_ntoa((const struct ether_addr *)mac_addr, eabuf),
 		scb_val.val));
-	wl_delay(400);
+	if (num_associated)
+		wl_delay(400);
 	return 0;
 }
 
@@ -5309,9 +5351,8 @@ wl_cfg80211_start_ap(
 		goto fail;
 	}
 
-	/* Set IEs to FW */
-	if ((err = wl_cfg80211_parse_set_ies(dev, &info->beacon,
-		&ies, dev_role, bssidx) < 0)) {
+	/* Parse IEs */
+	if ((err = wl_cfg80211_parse_ap_ies(dev, &info->beacon, &ies) < 0)) {
 		WL_ERR(("Set IEs failed \n"));
 		goto fail;
 	}
@@ -5330,6 +5371,10 @@ wl_cfg80211_start_ap(
 	}
 
 	WL_DBG(("** AP/GO Created **\n"));
+
+	/* Set IEs to FW */
+	if ((err = wl_cfg80211_set_ies(dev, &info->beacon, bssidx) < 0))
+		WL_ERR(("Set IEs failed \n"));
 
 fail:
 	if (err) {
@@ -5430,9 +5475,14 @@ wl_cfg80211_change_beacon(
 		dev_role = NL80211_IFTYPE_P2P_GO;
 	}
 
+	/* Parse IEs */
+	if ((err = wl_cfg80211_parse_ap_ies(dev, info, &ies) < 0)) {
+		WL_ERR(("Parse IEs failed \n"));
+		goto fail;
+	}
+
 	/* Set IEs to FW */
-	if ((err = wl_cfg80211_parse_set_ies(dev, info,
-		&ies, dev_role, bssidx) < 0)) {
+	if ((err = wl_cfg80211_set_ies(dev, info, bssidx) < 0)) {
 		WL_ERR(("Set IEs failed \n"));
 		goto fail;
 	}
@@ -5733,6 +5783,11 @@ s32 wl_mode_to_nl80211_iftype(s32 mode)
 	return err;
 }
 
+/*  	Kernel Network Support->Wireless->Regulatory rules database
+	options should be enabled and regulatory  CRDA regdb table populated in Kernel
+	for proper country reg notification
+*/
+#ifdef CONFIG_CFG80211_INTERNAL_REGDB
 static int
 wl_cfg80211_reg_notifier(
 	struct wiphy *wiphy,
@@ -5749,20 +5804,30 @@ wl_cfg80211_reg_notifier(
 	WL_DBG(("ccode: %c%c Initiator: %d\n",
 		request->alpha2[0], request->alpha2[1], request->initiator));
 
-	/* We support only REGDOM_SET_BY_USER as of now */
-	if (request->initiator != NL80211_REGDOM_SET_BY_USER) {
-		WL_ERR(("reg_notifier for intiator:%d not supported \n",
+	/* We support only REGDOM_SET_BY_USER and by
+	     NL80211_REGDOM_SET_BY_COUNTRY_IE (11d) right now
+	*/
+	if ((request->initiator != NL80211_REGDOM_SET_BY_USER) &&
+		(request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE)) {
+		WL_ERR(("reg_notifier for intiator:%d not supported : set default\n",
 			request->initiator));
-		return -ENOTSUPP;
+		/* in case of no supported country by regdb
+		     lets driver setup platform default Locale
+		*/
 	}
 
+	WL_ERR(("Set country code %c%c from %s\n",
+		request->alpha2[0], request->alpha2[1],
+		((request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) ? " 11d AP" : "User")));
+
 	if ((ret = wldev_set_country(wl_to_prmry_ndev(wl), request->alpha2,
-		false)) < 0) {
+		false, (request->initiator == NL80211_REGDOM_SET_BY_USER ? true : false))) < 0) {
 		WL_ERR(("set country Failed :%d\n", ret));
 	}
 
 	return ret;
 }
+#endif /* CONFIG_CFG80211_INTERNAL_REGDB */
 
 static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev)
 {
@@ -5833,7 +5898,9 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	wdev->wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME;
 #endif
 
+#ifdef CONFIG_CFG80211_INTERNAL_REGDB
 	wdev->wiphy->reg_notifier = wl_cfg80211_reg_notifier;
+#endif /* CONFIG_CFG80211_INTERNAL_REGDB */
 
 	WL_DBG(("Registering custom regulatory)\n"));
 	wdev->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
@@ -7760,7 +7827,7 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 			p2p_dev_addr = wl_cfgp2p_retreive_p2p_dev_addr(bi, bi_length);
 			if (p2p_dev_addr && !memcmp(p2p_dev_addr,
 				wl->afx_hdl->tx_dst_addr.octet, ETHER_ADDR_LEN)) {
-				s32 channel = CHSPEC_CHANNEL(
+				s32 channel = wf_chspec_ctlchan(
 					wl_chspec_driver_to_host(bi->chanspec));
 				WL_DBG(("ACTION FRAME SCAN : Peer " MACDBG " found, channel : %d\n",
 					MAC2STRDBG(wl->afx_hdl->tx_dst_addr.octet), channel));

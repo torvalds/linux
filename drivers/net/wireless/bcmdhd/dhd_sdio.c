@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 377078 2013-01-04 01:16:17Z $
+ * $Id: dhd_sdio.c 378263 2013-01-11 03:03:05Z $
  */
 
 #include <typedefs.h>
@@ -4167,7 +4167,7 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	while (ready != enable && !dhd_timeout_expired(&tmo))
 	        ready = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IORDY, NULL);
 
-	DHD_INFO(("%s: enable 0x%02x, ready 0x%02x (waited %uus)\n",
+	DHD_ERROR(("%s: enable 0x%02x, ready 0x%02x (waited %uus)\n",
 	          __FUNCTION__, enable, ready, tmo.elapsed));
 
 

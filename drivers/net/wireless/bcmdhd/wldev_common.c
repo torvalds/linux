@@ -335,7 +335,7 @@ int wldev_set_band(
 }
 
 int wldev_set_country(
-	struct net_device *dev, char *country_code, bool notify)
+	struct net_device *dev, char *country_code, bool notify, bool user_enforced)
 {
 	int error = -1;
 	wl_country_t cspec = {{0}, 0, {0}};
@@ -345,20 +345,26 @@ int wldev_set_country(
 	if (!country_code)
 		return error;
 
-	error = wldev_iovar_getbuf(dev, "country", &cspec, sizeof(cspec),
-		smbuf, sizeof(smbuf), NULL);
-	if (error < 0)
+	bzero(&scbval, sizeof(scb_val_t));
+	error = wldev_iovar_getbuf(dev, "country", NULL, 0, &cspec, sizeof(cspec), NULL);
+	if (error < 0) {
 		WLDEV_ERROR(("%s: get country failed = %d\n", __FUNCTION__, error));
+		return error;
+	}
 
 	if ((error < 0) ||
-	    (strncmp(country_code, smbuf, WLC_CNTRY_BUF_SZ) != 0)) {
-		bzero(&scbval, sizeof(scb_val_t));
-		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), true);
-		if (error < 0) {
-			WLDEV_ERROR(("%s: set country failed due to Disassoc error %d\n",
-				__FUNCTION__, error));
-			return error;
+	    (strncmp(country_code, cspec.ccode, WLC_CNTRY_BUF_SZ) != 0)) {
+
+		if (user_enforced) {
+			bzero(&scbval, sizeof(scb_val_t));
+			error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), true);
+			if (error < 0) {
+				WLDEV_ERROR(("%s: set country failed due to Disassoc error %d\n",
+					__FUNCTION__, error));
+				return error;
+			}
 		}
+
 		cspec.rev = -1;
 		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
 		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
