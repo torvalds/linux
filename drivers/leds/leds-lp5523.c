@@ -936,6 +936,16 @@ static int lp5523_register_leds(struct lp5523_chip *chip, const char *name)
 	return 0;
 }
 
+static void lp5523_unregister_leds(struct lp5523_chip *chip)
+{
+	int i;
+
+	for (i = 0; i < chip->num_leds; i++) {
+		led_classdev_unregister(&chip->leds[i].cdev);
+		flush_work(&chip->leds[i].brightness_work);
+	}
+}
+
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct lp5523_platform_data *pdata = chip->pdata;
@@ -1029,10 +1039,7 @@ static int lp5523_probe(struct i2c_client *client,
 	}
 	return ret;
 fail2:
-	for (i = 0; i < chip->num_leds; i++) {
-		led_classdev_unregister(&chip->leds[i].cdev);
-		flush_work(&chip->leds[i].brightness_work);
-	}
+	lp5523_unregister_leds(chip);
 fail1:
 	lp5523_deinit_device(chip);
 	return ret;
@@ -1041,17 +1048,13 @@ fail1:
 static int lp5523_remove(struct i2c_client *client)
 {
 	struct lp5523_chip *chip = i2c_get_clientdata(client);
-	int i;
 
 	/* Disable engine mode */
 	lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_DISABLED);
 
 	lp5523_unregister_sysfs(client);
 
-	for (i = 0; i < chip->num_leds; i++) {
-		led_classdev_unregister(&chip->leds[i].cdev);
-		flush_work(&chip->leds[i].brightness_work);
-	}
+	lp5523_unregister_leds(chip);
 
 	lp5523_deinit_device(chip);
 	return 0;

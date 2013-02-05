@@ -837,12 +837,22 @@ static int lp5521_register_leds(struct lp5521_chip *chip)
 	return 0;
 }
 
+static void lp5521_unregister_leds(struct lp5521_chip *chip)
+{
+	int i;
+
+	for (i = 0; i < chip->num_leds; i++) {
+		led_classdev_unregister(&chip->leds[i].cdev);
+		cancel_work_sync(&chip->leds[i].brightness_work);
+	}
+}
+
 static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5521_chip		*chip;
 	struct lp5521_platform_data	*pdata;
-	int ret, i;
+	int ret;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -885,10 +895,7 @@ static int lp5521_probe(struct i2c_client *client,
 	}
 	return ret;
 fail2:
-	for (i = 0; i < chip->num_leds; i++) {
-		led_classdev_unregister(&chip->leds[i].cdev);
-		cancel_work_sync(&chip->leds[i].brightness_work);
-	}
+	lp5521_unregister_leds(chip);
 fail1:
 	lp5521_deinit_device(chip);
 	return ret;
@@ -897,15 +904,11 @@ fail1:
 static int lp5521_remove(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
-	int i;
 
 	lp5521_run_led_pattern(PATTERN_OFF, chip);
 	lp5521_unregister_sysfs(client);
 
-	for (i = 0; i < chip->num_leds; i++) {
-		led_classdev_unregister(&chip->leds[i].cdev);
-		cancel_work_sync(&chip->leds[i].brightness_work);
-	}
+	lp5521_unregister_leds(chip);
 
 	lp5521_deinit_device(chip);
 	return 0;
