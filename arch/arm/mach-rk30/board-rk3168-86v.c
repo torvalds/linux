@@ -1796,9 +1796,9 @@ static void rk30_pm_power_off(void)
 	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
 #endif
 #if defined(CONFIG_REGULATOR_ACT8846)
-       if (pmic_is_act8846()) {
+       if (pmic_is_tps65910()) {
                printk("enter dcdet===========\n");
-               if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
+               if((gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)||(gpio_get_value (RK30_PIN0_PA7) == GPIO_HIGH))
                {
                        printk("enter restart===========\n");
                        arm_pm_restart(0, NULL);
