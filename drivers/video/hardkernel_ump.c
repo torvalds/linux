@@ -69,6 +69,11 @@ static int _disp_get_ump_secure_id(struct fb_info *info, unsigned long arg, int 
 
 	ump_memory_description.addr = info->fix.smem_start + (buf_len * buf);
 	ump_memory_description.size = info->fix.smem_len;
+	                                
+	if(buf > 0) { 
+		ump_memory_description.addr += (buf_len * (buf - 1));
+		ump_memory_description.size = buf_len;
+	} 
 	
 	ump_wrapped_buffer = ump_dd_handle_create_from_phys_blocks(&ump_memory_description, 1);
 
