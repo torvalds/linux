@@ -34,6 +34,9 @@
 #include "flowctrl.h"
 #include "sleep.h"
 
+#define CLK_RESET_CCLK_BURST	0x20
+#define CLK_RESET_CCLK_DIVIDER  0x24
+
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PM_SLEEP)
 /*
  * tegra_disable_clean_inv_dcache
@@ -110,4 +113,20 @@ ENTRY(tegra_shut_off_mmu)
 	mov	pc, r0
 ENDPROC(tegra_shut_off_mmu)
 	.popsection
+
+/*
+ * tegra_switch_cpu_to_pllp
+ *
+ * In LP2 the normal cpu clock pllx will be turned off. Switch the CPU to pllp
+ */
+ENTRY(tegra_switch_cpu_to_pllp)
+	/* in LP2 idle (SDRAM active), set the CPU burst policy to PLLP */
+	mov32	r5, TEGRA_CLK_RESET_BASE
+	mov	r0, #(2 << 28)			@ burst policy = run mode
+	orr	r0, r0, #(4 << 4)		@ use PLLP in run mode burst
+	str	r0, [r5, #CLK_RESET_CCLK_BURST]
+	mov	r0, #0
+	str	r0, [r5, #CLK_RESET_CCLK_DIVIDER]
+	mov	pc, lr
+ENDPROC(tegra_switch_cpu_to_pllp)
 #endif
