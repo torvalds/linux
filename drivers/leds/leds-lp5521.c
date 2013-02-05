@@ -125,6 +125,12 @@ struct lp5521_chip {
 	u8			num_leds;
 };
 
+static inline void lp5521_wait_enable_done(void)
+{
+	/* it takes more 488 us to update ENABLE register */
+	usleep_range(500, 600);
+}
+
 static inline struct lp5521_led *cdev_to_led(struct led_classdev *cdev)
 {
 	return container_of(cdev, struct lp5521_led, cdev);
@@ -229,43 +235,56 @@ static int lp5521_set_led_current(struct lp5521_chip *chip, int led, u8 curr)
 		    curr);
 }
 
-static void lp5521_init_engine(struct lp5521_chip *chip)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(chip->engines); i++) {
-		chip->engines[i].id = i + 1;
-		chip->engines[i].engine_mask = LP5521_ENG_MASK_BASE >> (i * 2);
-		chip->engines[i].prog_page = i;
-	}
-}
-
 static int lp5521_configure(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int ret;
 	u8 cfg;
+	u8 val;
 
-	lp5521_init_engine(chip);
+	/*
+	 * Make sure that the chip is reset by reading back the r channel
+	 * current reg. This is dummy read is required on some platforms -
+	 * otherwise further access to the R G B channels in the
+	 * LP5521_REG_ENABLE register will not have any effect - strange!
+	 */
+	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &val);
+	if (ret) {
+		dev_err(&client->dev, "error in resetting chip\n");
+		return ret;
+	}
+	if (val != LP5521_REG_R_CURR_DEFAULT) {
+		dev_err(&client->dev,
+			"unexpected data in register (expected 0x%x got 0x%x)\n",
+			LP5521_REG_R_CURR_DEFAULT, val);
+		ret = -EINVAL;
+		return ret;
+	}
+	usleep_range(10000, 20000);
 
 	/* Set all PWMs to direct control mode */
 	ret = lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
 
 	cfg = chip->pdata->update_config ?
 		: (LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT);
-	ret |= lp5521_write(client, LP5521_REG_CONFIG, cfg);
+	ret = lp5521_write(client, LP5521_REG_CONFIG, cfg);
+	if (ret)
+		return ret;
 
 	/* Initialize all channels PWM to zero -> leds off */
-	ret |= lp5521_write(client, LP5521_REG_R_PWM, 0);
-	ret |= lp5521_write(client, LP5521_REG_G_PWM, 0);
-	ret |= lp5521_write(client, LP5521_REG_B_PWM, 0);
+	lp5521_write(client, LP5521_REG_R_PWM, 0);
+	lp5521_write(client, LP5521_REG_G_PWM, 0);
+	lp5521_write(client, LP5521_REG_B_PWM, 0);
 
 	/* Set engines are set to run state when OP_MODE enables engines */
-	ret |= lp5521_write(client, LP5521_REG_ENABLE,
+	ret = lp5521_write(client, LP5521_REG_ENABLE,
 			LP5521_ENABLE_RUN_PROGRAM);
-	/* enable takes 500us. 1 - 2 ms leaves some margin */
-	usleep_range(1000, 2000);
+	if (ret)
+		return ret;
 
-	return ret;
+	lp5521_wait_enable_done();
+
+	return 0;
 }
 
 static int lp5521_run_selftest(struct lp5521_chip *chip, char *buf)
@@ -703,7 +722,6 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 	struct lp5521_platform_data *pdata = chip->pdata;
 	struct i2c_client *client = chip->client;
 	int ret;
-	u8 buf;
 
 	if (pdata->setup_resources) {
 		ret = pdata->setup_resources();
@@ -724,26 +742,6 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 				     * Exact value is not available. 10 - 20ms
 				     * appears to be enough for reset.
 				     */
-
-	/*
-	 * Make sure that the chip is reset by reading back the r channel
-	 * current reg. This is dummy read is required on some platforms -
-	 * otherwise further access to the R G B channels in the
-	 * LP5521_REG_ENABLE register will not have any effect - strange!
-	 */
-	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &buf);
-	if (ret) {
-		dev_err(&client->dev, "error in resetting chip\n");
-		return ret;
-	}
-	if (buf != LP5521_REG_R_CURR_DEFAULT) {
-		dev_err(&client->dev,
-			"unexpected data in register (expected 0x%x got 0x%x)\n",
-			LP5521_REG_R_CURR_DEFAULT, buf);
-		ret = -EINVAL;
-		return ret;
-	}
-	usleep_range(10000, 20000);
 
 	ret = lp5521_detect(client);
 	if (ret) {
