@@ -64,7 +64,6 @@ static long __validate_layout(struct ceph_mds_client *mdsc,
 static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
-	struct inode *parent_inode;
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
@@ -121,9 +120,7 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		cpu_to_le32(l.object_size);
 	req->r_args.setlayout.layout.fl_pg_pool = cpu_to_le32(l.data_pool);
 
-	parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);
-	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
-	iput(parent_inode);
+	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	ceph_mdsc_put_request(req);
 	return err;
 }
