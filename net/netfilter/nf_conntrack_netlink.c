@@ -1256,13 +1256,13 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 	if (!parse_nat_setup) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
-		nfnl_unlock();
+		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
 		if (request_module("nf-nat") < 0) {
-			nfnl_lock();
+			nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 			rcu_read_lock();
 			return -EOPNOTSUPP;
 		}
-		nfnl_lock();
+		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 		rcu_read_lock();
 		if (nfnetlink_parse_nat_setup_hook)
 			return -EAGAIN;
@@ -1274,13 +1274,13 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 	if (err == -EAGAIN) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
-		nfnl_unlock();
+		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
 		if (request_module("nf-nat-%u", nf_ct_l3num(ct)) < 0) {
-			nfnl_lock();
+			nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 			rcu_read_lock();
 			return -EOPNOTSUPP;
 		}
-		nfnl_lock();
+		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 		rcu_read_lock();
 #else
 		err = -EOPNOTSUPP;
