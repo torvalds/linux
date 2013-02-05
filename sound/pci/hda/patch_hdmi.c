@@ -714,9 +714,10 @@ static void hdmi_setup_fake_chmap(unsigned char *map, int ca)
 
 static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 				       hda_nid_t pin_nid, bool non_pcm, int ca,
-				       int channels, unsigned char *map)
+				       int channels, unsigned char *map,
+				       bool chmap_set)
 {
-	if (!non_pcm && map) {
+	if (!non_pcm && chmap_set) {
 		hdmi_manual_setup_channel_mapping(codec, pin_nid,
 						  channels, map);
 	} else {
@@ -905,7 +906,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
 			    pin_nid,
 			    channels);
 		hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
-					   channels, per_pin->chmap);
+					   channels, per_pin->chmap,
+					   per_pin->chmap_set);
 		hdmi_stop_infoframe_trans(codec, pin_nid);
 		hdmi_fill_audio_infoframe(codec, pin_nid,
 					    ai.bytes, sizeof(ai));
@@ -915,7 +917,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
 		 * accordingly */
 		if (per_pin->non_pcm != non_pcm)
 			hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
-						   channels, per_pin->chmap);
+						   channels, per_pin->chmap,
+						   per_pin->chmap_set);
 	}
 
 	per_pin->non_pcm = non_pcm;

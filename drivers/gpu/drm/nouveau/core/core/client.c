@@ -66,10 +66,8 @@ nouveau_client_create_(const char *name, u64 devname, const char *cfg,
 
 	ret = nouveau_handle_create(nv_object(client), ~0, ~0,
 				    nv_object(client), &client->root);
-	if (ret) {
-		nouveau_namedb_destroy(&client->base);
+	if (ret)
 		return ret;
-	}
 
 	/* prevent init/fini being called, os in in charge of this */
 	atomic_set(&nv_object(client)->usecount, 2);
