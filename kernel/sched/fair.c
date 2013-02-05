@@ -104,10 +104,16 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
-
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_wakeup_granularity = sysctl_sched_wakeup_granularity_custom;
+unsigned int normalized_sysctl_sched_wakeup_granularity = normalized_sysctl_sched_wakeup_granularity_custom;
+const_debug unsigned int sysctl_sched_migration_cost = sysctl_sched_migration_cost_custom;
+#endif
+
 
 /*
  * The exponential sliding  window over which load is averaged for shares
@@ -127,7 +133,12 @@ unsigned int __read_mostly sysctl_sched_shares_window = 10000000UL;
  *
  * default: 5 msec, units: microseconds
   */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_cfs_bandwidth_slice = 5000UL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_cfs_bandwidth_slice = sysctl_sched_cfs_bandwidth_slice_custom;
+
+#endif
 #endif
 
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
