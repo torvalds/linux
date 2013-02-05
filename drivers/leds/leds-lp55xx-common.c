@@ -30,6 +30,29 @@ static void lp55xx_reset_device(struct lp55xx_chip *chip)
 	lp55xx_write(chip, addr, val);
 }
 
+static int lp55xx_detect_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+	u8 addr = cfg->enable.addr;
+	u8 val  = cfg->enable.val;
+	int ret;
+
+	ret = lp55xx_write(chip, addr, val);
+	if (ret)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	ret = lp55xx_read(chip, addr, &val);
+	if (ret)
+		return ret;
+
+	if (val != cfg->enable.val)
+		return -ENODEV;
+
+	return 0;
+}
+
 int lp55xx_write(struct lp55xx_chip *chip, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(chip->cl, reg, val);
@@ -102,6 +125,12 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	 * appears to be enough for reset.
 	 */
 	usleep_range(10000, 20000);
+
+	ret = lp55xx_detect_device(chip);
+	if (ret) {
+		dev_err(dev, "device detection err: %d\n", ret);
+		goto err;
+	}
 
 err:
 	return ret;

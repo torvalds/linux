@@ -181,23 +181,6 @@ static int lp5523_read(struct i2c_client *client, u8 reg, u8 *buf)
 	return 0;
 }
 
-static int lp5523_detect(struct i2c_client *client)
-{
-	int ret;
-	u8 buf;
-
-	ret = lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
-	if (ret)
-		return ret;
-	ret = lp5523_read(client, LP5523_REG_ENABLE, &buf);
-	if (ret)
-		return ret;
-	if (buf == 0x40)
-		return 0;
-	else
-		return -ENODEV;
-}
-
 static int lp5523_configure(struct i2c_client *client)
 {
 	int ret = 0;
@@ -907,10 +890,6 @@ static int lp5523_init_device(struct lp5523_chip *chip)
 	struct i2c_client *client = chip->client;
 	int ret;
 
-	ret = lp5523_detect(client);
-	if (ret)
-		goto err;
-
 	ret = lp5523_configure(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
@@ -921,7 +900,6 @@ static int lp5523_init_device(struct lp5523_chip *chip)
 
 err_config:
 	lp5523_deinit_device(chip);
-err:
 	return ret;
 }
 
@@ -940,6 +918,10 @@ static struct lp55xx_device_config lp5523_cfg = {
 	.reset = {
 		.addr = LP5523_REG_RESET,
 		.val  = LP5523_RESET,
+	},
+	.enable = {
+		.addr = LP5523_REG_ENABLE,
+		.val  = LP5523_ENABLE,
 	},
 };
 

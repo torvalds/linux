@@ -328,26 +328,6 @@ static void lp5521_led_brightness_work(struct work_struct *work)
 	mutex_unlock(&chip->lock);
 }
 
-/* Detect the chip by setting its ENABLE register and reading it back. */
-static int lp5521_detect(struct i2c_client *client)
-{
-	int ret;
-	u8 buf;
-
-	ret = lp5521_write(client, LP5521_REG_ENABLE, LP5521_ENABLE_DEFAULT);
-	if (ret)
-		return ret;
-	/* enable takes 500us. 1 - 2 ms leaves some margin */
-	usleep_range(1000, 2000);
-	ret = lp5521_read(client, LP5521_REG_ENABLE, &buf);
-	if (ret)
-		return ret;
-	if (buf != LP5521_ENABLE_DEFAULT)
-		return -ENODEV;
-
-	return 0;
-}
-
 /* Set engine mode and create appropriate sysfs attributes, if required. */
 static int lp5521_set_mode(struct lp5521_engine *engine, u8 mode)
 {
@@ -718,12 +698,6 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 	struct i2c_client *client = chip->client;
 	int ret;
 
-	ret = lp5521_detect(client);
-	if (ret) {
-		dev_err(&client->dev, "Chip not found\n");
-		goto err;
-	}
-
 	ret = lp5521_configure(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
@@ -734,7 +708,6 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 
 err_config:
 	lp5521_deinit_device(chip);
-err:
 	return ret;
 }
 
@@ -850,6 +823,10 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.reset = {
 		.addr = LP5521_REG_RESET,
 		.val  = LP5521_RESET,
+	},
+	.enable = {
+		.addr = LP5521_REG_ENABLE,
+		.val  = LP5521_ENABLE_DEFAULT,
 	},
 };
 

@@ -31,9 +31,11 @@ struct lp55xx_reg {
 /*
  * struct lp55xx_device_config
  * @reset              : Chip specific reset command
+ * @enable             : Chip specific enable command
  */
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
+	const struct lp55xx_reg enable;
 };
 
 /*
