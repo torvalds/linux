@@ -133,6 +133,19 @@ void kfree(const void *);
 void kzfree(const void *);
 size_t ksize(const void *);
 
+/*
+ * Some archs want to perform DMA into kmalloc caches and need a guaranteed
+ * alignment larger than the alignment of a 64-bit integer.
+ * Setting ARCH_KMALLOC_MINALIGN in arch headers allows that.
+ */
+#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
+#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
+#define KMALLOC_SHIFT_LOW ilog2(ARCH_DMA_MINALIGN)
+#else
+#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+#endif
+
 #ifdef CONFIG_SLOB
 /*
  * Common fields provided in kmem_cache by all slab allocators
@@ -179,7 +192,9 @@ struct kmem_cache {
 #define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? \
 				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
 #define KMALLOC_SHIFT_MAX	KMALLOC_SHIFT_HIGH
+#ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	5
+#endif
 #else
 /*
  * SLUB allocates up to order 2 pages directly and otherwise
@@ -187,7 +202,9 @@ struct kmem_cache {
  */
 #define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
 #define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
+#ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	3
+#endif
 #endif
 
 /* Maximum allocatable size */
@@ -200,9 +217,7 @@ struct kmem_cache {
 /*
  * Kmalloc subsystem.
  */
-#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
-#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
-#else
+#ifndef KMALLOC_MIN_SIZE
 #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
 #endif
 
@@ -288,17 +303,6 @@ static __always_inline int kmalloc_size(int n)
 	return 0;
 }
 #endif /* !CONFIG_SLOB */
-
-/*
- * Some archs want to perform DMA into kmalloc caches and need a guaranteed
- * alignment larger than the alignment of a 64-bit integer.
- * Setting ARCH_KMALLOC_MINALIGN in arch headers allows that.
- */
-#ifdef ARCH_DMA_MINALIGN
-#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
-#else
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
-#endif
 
 /*
  * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
