@@ -20,6 +20,16 @@
 
 #include "leds-lp55xx-common.h"
 
+static void lp55xx_reset_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+	u8 addr = cfg->reset.addr;
+	u8 val  = cfg->reset.val;
+
+	/* no error checking here because no ACK from the device after reset */
+	lp55xx_write(chip, addr, val);
+}
+
 int lp55xx_write(struct lp55xx_chip *chip, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(chip->cl, reg, val);
@@ -58,14 +68,16 @@ EXPORT_SYMBOL_GPL(lp55xx_update_bits);
 int lp55xx_init_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata;
+	struct lp55xx_device_config *cfg;
 	struct device *dev = &chip->cl->dev;
 	int ret = 0;
 
 	WARN_ON(!chip);
 
 	pdata = chip->pdata;
+	cfg = chip->cfg;
 
-	if (!pdata)
+	if (!pdata || !cfg)
 		return -EINVAL;
 
 	if (pdata->setup_resources) {
@@ -82,6 +94,14 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		pdata->enable(1);
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
+
+	lp55xx_reset_device(chip);
+
+	/*
+	 * Exact value is not available. 10 - 20ms
+	 * appears to be enough for reset.
+	 */
+	usleep_range(10000, 20000);
 
 err:
 	return ret;

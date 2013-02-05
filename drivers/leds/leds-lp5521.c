@@ -98,6 +98,9 @@
 /* Pattern Mode */
 #define PATTERN_OFF	0
 
+/* Reset register value */
+#define LP5521_RESET			0xFF
+
 struct lp5521_engine {
 	int		id;
 	u8		mode;
@@ -709,25 +712,11 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static void lp5521_reset_device(struct lp5521_chip *chip)
-{
-	struct i2c_client *client = chip->client;
-
-	lp5521_write(client, LP5521_REG_RESET, 0xff);
-}
-
 static void lp5521_deinit_device(struct lp5521_chip *chip);
 static int lp5521_init_device(struct lp5521_chip *chip)
 {
 	struct i2c_client *client = chip->client;
 	int ret;
-
-	lp5521_reset_device(chip);
-
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
 
 	ret = lp5521_detect(client);
 	if (ret) {
@@ -856,6 +845,14 @@ static void lp5521_unregister_leds(struct lp5521_chip *chip)
 	}
 }
 
+/* Chip specific configurations */
+static struct lp55xx_device_config lp5521_cfg = {
+	.reset = {
+		.addr = LP5521_REG_RESET,
+		.val  = LP5521_RESET,
+	},
+};
+
 static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -881,6 +878,7 @@ static int lp5521_probe(struct i2c_client *client,
 
 	chip->cl = client;
 	chip->pdata = pdata;
+	chip->cfg = &lp5521_cfg;
 
 	mutex_init(&chip->lock);
 

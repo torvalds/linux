@@ -19,17 +19,37 @@ struct lp55xx_led;
 struct lp55xx_chip;
 
 /*
+ * struct lp55xx_reg
+ * @addr : Register address
+ * @val  : Register value
+ */
+struct lp55xx_reg {
+	u8 addr;
+	u8 val;
+};
+
+/*
+ * struct lp55xx_device_config
+ * @reset              : Chip specific reset command
+ */
+struct lp55xx_device_config {
+	const struct lp55xx_reg reset;
+};
+
+/*
  * struct lp55xx_chip
  * @cl         : I2C communication for access registers
  * @pdata      : Platform specific data
  * @lock       : Lock for user-space interface
  * @num_leds   : Number of registered LEDs
+ * @cfg        : Device specific configuration data
  */
 struct lp55xx_chip {
 	struct i2c_client *cl;
 	struct lp55xx_platform_data *pdata;
 	struct mutex lock;	/* lock for user-space interface */
 	int num_leds;
+	struct lp55xx_device_config *cfg;
 };
 
 /*

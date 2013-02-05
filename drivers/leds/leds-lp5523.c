@@ -87,6 +87,7 @@
 #define LP5523_AUTO_CLK			0x02
 #define LP5523_EN_LEDTEST		0x80
 #define LP5523_LEDTEST_DONE		0x80
+#define LP5523_RESET			0xFF
 
 #define LP5523_DEFAULT_CURRENT		50 /* microAmps */
 #define LP5523_PROGRAM_LENGTH		32 /* in bytes */
@@ -900,25 +901,12 @@ static void lp5523_unregister_leds(struct lp5523_chip *chip)
 	}
 }
 
-static void lp5523_reset_device(struct lp5523_chip *chip)
-{
-	struct i2c_client *client = chip->client;
-
-	lp5523_write(client, LP5523_REG_RESET, 0xff);
-}
-
 static void lp5523_deinit_device(struct lp5523_chip *chip);
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct i2c_client *client = chip->client;
 	int ret;
 
-	lp5523_reset_device(chip);
-
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
 	ret = lp5523_detect(client);
 	if (ret)
 		goto err;
@@ -947,6 +935,14 @@ static void lp5523_deinit_device(struct lp5523_chip *chip)
 		pdata->release_resources();
 }
 
+/* Chip specific configurations */
+static struct lp55xx_device_config lp5523_cfg = {
+	.reset = {
+		.addr = LP5523_REG_RESET,
+		.val  = LP5523_RESET,
+	},
+};
+
 static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -972,6 +968,7 @@ static int lp5523_probe(struct i2c_client *client,
 
 	chip->cl = client;
 	chip->pdata = pdata;
+	chip->cfg = &lp5523_cfg;
 
 	mutex_init(&chip->lock);
 
