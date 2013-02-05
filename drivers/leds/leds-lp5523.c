@@ -910,22 +910,8 @@ static void lp5523_reset_device(struct lp5523_chip *chip)
 static void lp5523_deinit_device(struct lp5523_chip *chip);
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
-	struct lp5523_platform_data *pdata = chip->pdata;
 	struct i2c_client *client = chip->client;
 	int ret;
-
-	if (pdata->setup_resources) {
-		ret = pdata->setup_resources();
-		if (ret < 0)
-			return ret;
-	}
-
-	if (pdata->enable) {
-		pdata->enable(0);
-		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		pdata->enable(1);
-		usleep_range(1000, 2000); /* 500us abs min. */
-	}
 
 	lp5523_reset_device(chip);
 
