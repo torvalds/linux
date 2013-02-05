@@ -178,17 +178,6 @@ static int lp5523_write(struct i2c_client *client, u8 reg, u8 value)
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static int lp5523_read(struct i2c_client *client, u8 reg, u8 *buf)
-{
-	s32 ret = i2c_smbus_read_byte_data(client, reg);
-
-	if (ret < 0)
-		return ret;
-
-	*buf = ret;
-	return 0;
-}
-
 static int lp5523_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
@@ -376,35 +365,35 @@ static ssize_t lp5523_selftest(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lp5523_chip *chip = i2c_get_clientdata(client);
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	struct lp55xx_platform_data *pdata = chip->pdata;
 	int i, ret, pos = 0;
-	int led = 0;
 	u8 status, adc, vdd;
 
 	mutex_lock(&chip->lock);
 
-	ret = lp5523_read(chip->client, LP5523_REG_STATUS, &status);
+	ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 	if (ret < 0)
 		goto fail;
 
 	/* Check that ext clock is really in use if requested */
-	if ((chip->pdata) && (chip->pdata->clock_mode == LP5523_CLOCK_EXT))
+	if (pdata->clock_mode == LP55XX_CLOCK_EXT) {
 		if  ((status & LP5523_EXT_CLK_USED) == 0)
 			goto fail;
+	}
 
 	/* Measure VDD (i.e. VBAT) first (channel 16 corresponds to VDD) */
-	lp5523_write(chip->client, LP5523_REG_LED_TEST_CTRL,
-				    LP5523_EN_LEDTEST | 16);
+	lp55xx_write(chip, LP5523_REG_LED_TEST_CTRL, LP5523_EN_LEDTEST | 16);
 	usleep_range(3000, 6000); /* ADC conversion time is typically 2.7 ms */
-	ret = lp5523_read(chip->client, LP5523_REG_STATUS, &status);
+	ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 	if (ret < 0)
 		goto fail;
 
 	if (!(status & LP5523_LEDTEST_DONE))
 		usleep_range(3000, 6000); /* Was not ready. Wait little bit */
 
-	ret = lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &vdd);
+	ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &vdd);
 	if (ret < 0)
 		goto fail;
 
@@ -412,41 +401,39 @@ static ssize_t lp5523_selftest(struct device *dev,
 
 	for (i = 0; i < LP5523_MAX_LEDS; i++) {
 		/* Skip non-existing channels */
-		if (chip->pdata->led_config[i].led_current == 0)
+		if (pdata->led_config[i].led_current == 0)
 			continue;
 
 		/* Set default current */
-		lp5523_write(chip->client,
-			LP5523_REG_LED_CURRENT_BASE + i,
-			chip->pdata->led_config[i].led_current);
+		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + i,
+			pdata->led_config[i].led_current);
 
-		lp5523_write(chip->client, LP5523_REG_LED_PWM_BASE + i, 0xff);
+		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + i, 0xff);
 		/* let current stabilize 2 - 4ms before measurements start */
 		usleep_range(2000, 4000);
-		lp5523_write(chip->client,
-			     LP5523_REG_LED_TEST_CTRL,
+		lp55xx_write(chip, LP5523_REG_LED_TEST_CTRL,
 			     LP5523_EN_LEDTEST | i);
 		/* ADC conversion time is 2.7 ms typically */
 		usleep_range(3000, 6000);
-		ret = lp5523_read(chip->client, LP5523_REG_STATUS, &status);
+		ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 		if (ret < 0)
 			goto fail;
 
 		if (!(status & LP5523_LEDTEST_DONE))
 			usleep_range(3000, 6000);/* Was not ready. Wait. */
-		ret = lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &adc);
+
+		ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &adc);
 		if (ret < 0)
 			goto fail;
 
 		if (adc >= vdd || adc < LP5523_ADC_SHORTCIRC_LIM)
 			pos += sprintf(buf + pos, "LED %d FAIL\n", i);
 
-		lp5523_write(chip->client, LP5523_REG_LED_PWM_BASE + i, 0x00);
+		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + i, 0x00);
 
 		/* Restore current */
-		lp5523_write(chip->client,
-			LP5523_REG_LED_CURRENT_BASE + i,
-			chip->leds[led].led_current);
+		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + i,
+			led->led_current);
 		led++;
 	}
 	if (pos == 0)

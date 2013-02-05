@@ -168,18 +168,6 @@ static inline int lp5521_write(struct i2c_client *client, u8 reg, u8 value)
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static int lp5521_read(struct i2c_client *client, u8 reg, u8 *buf)
-{
-	s32 ret;
-
-	ret = i2c_smbus_read_byte_data(client, reg);
-	if (ret < 0)
-		return ret;
-
-	*buf = ret;
-	return 0;
-}
-
 static void lp5521_load_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -378,19 +366,23 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 	return 0;
 }
 
-static int lp5521_run_selftest(struct lp5521_chip *chip, char *buf)
+static int lp5521_run_selftest(struct lp55xx_chip *chip, char *buf)
 {
+	struct lp55xx_platform_data *pdata = chip->pdata;
 	int ret;
 	u8 status;
 
-	ret = lp5521_read(chip->client, LP5521_REG_STATUS, &status);
+	ret = lp55xx_read(chip, LP5521_REG_STATUS, &status);
 	if (ret < 0)
 		return ret;
 
+	if (pdata->clock_mode != LP55XX_CLOCK_EXT)
+		return 0;
+
 	/* Check that ext clock is really in use if requested */
-	if (chip->pdata && chip->pdata->clock_mode == LP5521_CLOCK_EXT)
-		if  ((status & LP5521_EXT_CLK_USED) == 0)
-			return -EIO;
+	if  ((status & LP5521_EXT_CLK_USED) == 0)
+		return -EIO;
+
 	return 0;
 }
 
@@ -410,8 +402,8 @@ static ssize_t lp5521_selftest(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
 	int ret;
 
 	mutex_lock(&chip->lock);
