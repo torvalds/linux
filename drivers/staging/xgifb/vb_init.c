@@ -131,22 +131,6 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x30,
 		      XGI340_ECLKData[pVBInfo->ram_type].SR30);
-
-	/* When XG42 ECLK = MCLK = 207MHz, Set SR32 D[1:0] = 10b */
-	/* Modify SR32 value, when MCLK=207MHZ, ELCK=250MHz,
-	 * Set SR32 D[1:0] = 10b */
-	if (HwDeviceExtension->jChipType == XG42) {
-		if ((pVBInfo->MCLKData[pVBInfo->ram_type].SR28 == 0x1C) &&
-		    (pVBInfo->MCLKData[pVBInfo->ram_type].SR29 == 0x01) &&
-		    (((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
-		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
-		     ((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
-		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
-			xgifb_reg_set(pVBInfo->P3c4,
-				      0x32,
-				      ((unsigned char) xgifb_reg_get(
-					  pVBInfo->P3c4, 0x32) & 0xFC) | 0x02);
-	}
 }
 
 static void XGINew_DDRII_Bootup_XG27(
