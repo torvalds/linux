@@ -1355,19 +1355,18 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
+				set_bit(NFS_DELEGATED_STATE, &state->flags);
 				nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
+				err = -EAGAIN;
 				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
+				set_bit(NFS_DELEGATED_STATE, &state->flags);
 			case -NFS4ERR_EXPIRED:
 				/* Don't recall a delegation if it was lost */
 				nfs4_schedule_lease_recovery(server->nfs_client);
+				err = -EAGAIN;
 				goto out;
-			case -ERESTARTSYS:
-				/*
-				 * The show must go on: exit, but mark the
-				 * stateid as needing recovery.
-				 */
 			case -NFS4ERR_DELEG_REVOKED:
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
@@ -1378,6 +1377,7 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 				err = 0;
 				goto out;
 		}
+		set_bit(NFS_DELEGATED_STATE, &state->flags);
 		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 out:
@@ -4957,24 +4957,22 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 			case 0:
 			case -ESTALE:
 				goto out;
-			case -NFS4ERR_EXPIRED:
-				nfs4_schedule_stateid_recovery(server, state);
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
+				set_bit(NFS_DELEGATED_STATE, &state->flags);
+			case -NFS4ERR_EXPIRED:
 				nfs4_schedule_lease_recovery(server->nfs_client);
+				err = -EAGAIN;
 				goto out;
 			case -NFS4ERR_BADSESSION:
 			case -NFS4ERR_BADSLOT:
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
+				set_bit(NFS_DELEGATED_STATE, &state->flags);
 				nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
+				err = -EAGAIN;
 				goto out;
-			case -ERESTARTSYS:
-				/*
-				 * The show must go on: exit, but mark the
-				 * stateid as needing recovery.
-				 */
 			case -NFS4ERR_DELEG_REVOKED:
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
@@ -4987,9 +4985,8 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				err = 0;
 				goto out;
-			case -NFS4ERR_DELAY:
-				break;
 		}
+		set_bit(NFS_DELEGATED_STATE, &state->flags);
 		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 out:
