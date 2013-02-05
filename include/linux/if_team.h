@@ -186,6 +186,7 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool user_carrier_enabled;
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];

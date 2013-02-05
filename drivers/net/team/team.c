@@ -508,6 +508,7 @@ static bool team_is_mode_set(struct team *team)
 
 static void team_set_no_mode(struct team *team)
 {
+	team->user_carrier_enabled = false;
 	team->mode = &__team_no_mode;
 }
 
@@ -1710,6 +1711,10 @@ static netdev_features_t team_fix_features(struct net_device *dev,
 
 static int team_change_carrier(struct net_device *dev, bool new_carrier)
 {
+	struct team *team = netdev_priv(dev);
+
+	team->user_carrier_enabled = true;
+
 	if (new_carrier)
 		netif_carrier_on(dev);
 	else
@@ -2572,6 +2577,9 @@ static void __team_carrier_check(struct team *team)
 {
 	struct team_port *port;
 	bool team_linkup;
+
+	if (team->user_carrier_enabled)
+		return;
 
 	team_linkup = false;
 	list_for_each_entry(port, &team->port_list, list) {
