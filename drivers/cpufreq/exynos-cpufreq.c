@@ -69,9 +69,10 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 	int ret = 0;
 
 	freqs.old = policy->cur;
+	freqs.new = target_freq;
 	freqs.cpu = policy->cpu;
 
-	if (target_freq == freqs.old)
+	if (freqs.new == freqs.old)
 		goto out;
 
 	/*
@@ -159,6 +160,7 @@ static int exynos_target(struct cpufreq_policy *policy,
 {
 	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
 	unsigned int index;
+	unsigned int new_freq;
 	int ret = 0;
 
 	mutex_lock(&cpufreq_lock);
@@ -172,9 +174,9 @@ static int exynos_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	freqs.new = freq_table[index].frequency;
+	new_freq = freq_table[index].frequency;
 
-	ret = exynos_cpufreq_scale(freqs.new);
+	ret = exynos_cpufreq_scale(new_freq);
 
 out:
 	mutex_unlock(&cpufreq_lock);
