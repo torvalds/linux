@@ -353,6 +353,22 @@ err_init_led:
 }
 EXPORT_SYMBOL_GPL(lp55xx_register_leds);
 
+void lp55xx_unregister_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
+{
+	int i;
+	struct lp55xx_led *each;
+	struct kobject *kobj;
+
+	for (i = 0; i < chip->num_leds; i++) {
+		each = led + i;
+		kobj = &led->cdev.dev->kobj;
+		sysfs_remove_group(kobj, &lp55xx_led_attr_group);
+		led_classdev_unregister(&each->cdev);
+		flush_work(&each->brightness_work);
+	}
+}
+EXPORT_SYMBOL_GPL(lp55xx_unregister_leds);
+
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");
 MODULE_LICENSE("GPL");

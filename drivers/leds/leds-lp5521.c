@@ -567,9 +567,6 @@ static ssize_t store_led_pattern(struct device *dev,
 	return len;
 }
 
-static struct attribute_group lp5521_led_attribute_group = {
-};
-
 /* device attributes */
 static DEVICE_ATTR(engine1_mode, S_IRUGO | S_IWUSR,
 		   show_engine1_mode, store_engine1_mode);
@@ -607,25 +604,9 @@ static int lp5521_register_sysfs(struct i2c_client *client)
 
 static void lp5521_unregister_sysfs(struct i2c_client *client)
 {
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
-	int i;
 
 	sysfs_remove_group(&dev->kobj, &lp5521_group);
-
-	for (i = 0; i < chip->num_leds; i++)
-		sysfs_remove_group(&chip->leds[i].cdev.dev->kobj,
-				&lp5521_led_attribute_group);
-}
-
-static void lp5521_unregister_leds(struct lp5521_chip *chip)
-{
-	int i;
-
-	for (i = 0; i < chip->num_leds; i++) {
-		led_classdev_unregister(&chip->leds[i].cdev);
-		cancel_work_sync(&chip->leds[i].brightness_work);
-	}
 }
 
 /* Chip specific configurations */
@@ -647,7 +628,6 @@ static struct lp55xx_device_config lp5521_cfg = {
 static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct lp5521_chip		*old_chip = NULL;
 	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
@@ -692,7 +672,7 @@ static int lp5521_probe(struct i2c_client *client,
 	}
 	return ret;
 fail2:
-	lp5521_unregister_leds(old_chip);
+	lp55xx_unregister_leds(led, chip);
 err_register_leds:
 	lp55xx_deinit_device(chip);
 err_init:
@@ -708,7 +688,7 @@ static int lp5521_remove(struct i2c_client *client)
 	lp5521_run_led_pattern(PATTERN_OFF, old_chip);
 	lp5521_unregister_sysfs(client);
 
-	lp5521_unregister_leds(old_chip);
+	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);
 
 	return 0;
