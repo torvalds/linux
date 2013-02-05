@@ -687,6 +687,59 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
+static int lp5521_init_device(struct lp5521_chip *chip)
+{
+	struct lp5521_platform_data *pdata = chip->pdata;
+	struct i2c_client *client = chip->client;
+	int ret;
+	u8 buf;
+
+	if (pdata->setup_resources) {
+		ret = pdata->setup_resources();
+		if (ret < 0)
+			return ret;
+	}
+
+	if (pdata->enable) {
+		pdata->enable(0);
+		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
+		pdata->enable(1);
+		usleep_range(1000, 2000); /* 500us abs min. */
+	}
+
+	lp5521_write(client, LP5521_REG_RESET, 0xff);
+	usleep_range(10000, 20000); /*
+				     * Exact value is not available. 10 - 20ms
+				     * appears to be enough for reset.
+				     */
+
+	/*
+	 * Make sure that the chip is reset by reading back the r channel
+	 * current reg. This is dummy read is required on some platforms -
+	 * otherwise further access to the R G B channels in the
+	 * LP5521_REG_ENABLE register will not have any effect - strange!
+	 */
+	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &buf);
+	if (ret) {
+		dev_err(&client->dev, "error in resetting chip\n");
+		return ret;
+	}
+	if (buf != LP5521_REG_R_CURR_DEFAULT) {
+		dev_err(&client->dev,
+			"unexpected data in register (expected 0x%x got 0x%x)\n",
+			LP5521_REG_R_CURR_DEFAULT, buf);
+		ret = -EINVAL;
+		return ret;
+	}
+	usleep_range(10000, 20000);
+
+	ret = lp5521_detect(client);
+	if (ret)
+		dev_err(&client->dev, "Chip not found\n");
+
+	return ret;
+}
+
 static int lp5521_init_led(struct lp5521_led *led,
 				struct i2c_client *client,
 				int chan, struct lp5521_platform_data *pdata)
@@ -742,7 +795,6 @@ static int lp5521_probe(struct i2c_client *client,
 	struct lp5521_chip		*chip;
 	struct lp5521_platform_data	*pdata;
 	int ret, i, led;
-	u8 buf;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -762,51 +814,9 @@ static int lp5521_probe(struct i2c_client *client,
 
 	chip->pdata   = pdata;
 
-	if (pdata->setup_resources) {
-		ret = pdata->setup_resources();
-		if (ret < 0)
-			return ret;
-	}
-
-	if (pdata->enable) {
-		pdata->enable(0);
-		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		pdata->enable(1);
-		usleep_range(1000, 2000); /* 500us abs min. */
-	}
-
-	lp5521_write(client, LP5521_REG_RESET, 0xff);
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
-
-	/*
-	 * Make sure that the chip is reset by reading back the r channel
-	 * current reg. This is dummy read is required on some platforms -
-	 * otherwise further access to the R G B channels in the
-	 * LP5521_REG_ENABLE register will not have any effect - strange!
-	 */
-	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &buf);
-	if (ret) {
-		dev_err(&client->dev, "error in resetting chip\n");
-		goto fail2;
-	}
-	if (buf != LP5521_REG_R_CURR_DEFAULT) {
-		dev_err(&client->dev,
-			"unexpected data in register (expected 0x%x got 0x%x)\n",
-			LP5521_REG_R_CURR_DEFAULT, buf);
-		ret = -EINVAL;
-		goto fail2;
-	}
-	usleep_range(10000, 20000);
-
-	ret = lp5521_detect(client);
-
-	if (ret) {
-		dev_err(&client->dev, "Chip not found\n");
-		goto fail2;
-	}
+	ret = lp5521_init_device(chip);
+	if (ret)
+		goto fail1;
 
 	dev_info(&client->dev, "%s programmable led chip found\n", id->name);
 

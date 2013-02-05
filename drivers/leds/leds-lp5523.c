@@ -896,6 +896,33 @@ static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
 	return 0;
 }
 
+static int lp5523_init_device(struct lp5523_chip *chip)
+{
+	struct lp5523_platform_data *pdata = chip->pdata;
+	struct i2c_client *client = chip->client;
+	int ret;
+
+	if (pdata->setup_resources) {
+		ret = pdata->setup_resources();
+		if (ret < 0)
+			return ret;
+	}
+
+	if (pdata->enable) {
+		pdata->enable(0);
+		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
+		pdata->enable(1);
+		usleep_range(1000, 2000); /* 500us abs min. */
+	}
+
+	lp5523_write(client, LP5523_REG_RESET, 0xff);
+	usleep_range(10000, 20000); /*
+				     * Exact value is not available. 10 - 20ms
+				     * appears to be enough for reset.
+				     */
+	return lp5523_detect(client);
+}
+
 static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -921,25 +948,7 @@ static int lp5523_probe(struct i2c_client *client,
 
 	chip->pdata   = pdata;
 
-	if (pdata->setup_resources) {
-		ret = pdata->setup_resources();
-		if (ret < 0)
-			return ret;
-	}
-
-	if (pdata->enable) {
-		pdata->enable(0);
-		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		pdata->enable(1);
-		usleep_range(1000, 2000); /* 500us abs min. */
-	}
-
-	lp5523_write(client, LP5523_REG_RESET, 0xff);
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
-	ret = lp5523_detect(client);
+	ret = lp5523_init_device(chip);
 	if (ret)
 		goto fail1;
 
