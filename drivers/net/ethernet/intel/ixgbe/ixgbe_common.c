@@ -1125,7 +1125,7 @@ s32 ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 	}
 
 	for (i = 0; i < words; i++) {
-		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) +
+		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) |
 		       IXGBE_EEPROM_RW_REG_START;
 
 		IXGBE_WRITE_REG(hw, IXGBE_EERD, eerd);
