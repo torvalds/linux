@@ -1,0 +1,122 @@
+/*
+ * Samsung's Exynos5250 based Arndale board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos5250.dtsi"
+
+/ {
+	model = "Insignal Arndale evaluation board based on EXYNOS5250";
+	compatible = "insignal,arndale", "samsung,exynos5250";
+
+	memory {
+		reg = <0x40000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttySAC2,115200";
+	};
+
+	i2c@12C60000 {
+		status = "disabled";
+	};
+
+	i2c@12C70000 {
+		status = "disabled";
+	};
+
+	i2c@12C80000 {
+		status = "disabled";
+	};
+
+	i2c@12C90000 {
+		status = "disabled";
+	};
+
+	i2c@12CA0000 {
+		status = "disabled";
+	};
+
+	i2c@12CB0000 {
+		status = "disabled";
+	};
+
+	i2c@12CC0000 {
+		status = "disabled";
+	};
+
+	i2c@12CD0000 {
+		status = "disabled";
+	};
+
+	i2c@121D0000 {
+		status = "disabled";
+	};
+
+	dwmmc_0: dwmmc0@12200000 {
+		num-slots = <1>;
+		supports-highspeed;
+		broken-cd;
+		fifo-depth = <0x80>;
+		card-detect-delay = <200>;
+		samsung,dw-mshc-ciu-div = <3>;
+		samsung,dw-mshc-sdr-timing = <2 3>;
+		samsung,dw-mshc-ddr-timing = <1 2>;
+
+		slot@0 {
+			reg = <0>;
+			bus-width = <8>;
+			gpios = <&gpc0 0 2 0 3>, <&gpc0 1 2 0 3>,
+				<&gpc0 3 2 3 3>, <&gpc0 4 2 3 3>,
+				<&gpc0 5 2 3 3>, <&gpc0 6 2 3 3>,
+				<&gpc1 0 2 3 3>, <&gpc1 1 2 3 3>,
+				<&gpc1 2 2 3 3>, <&gpc1 3 2 3 3>;
+		};
+	};
+
+	dwmmc_1: dwmmc1@12210000 {
+		status = "disabled";
+	};
+
+	dwmmc_2: dwmmc2@12220000 {
+		num-slots = <1>;
+		supports-highspeed;
+		fifo-depth = <0x80>;
+		card-detect-delay = <200>;
+		samsung,dw-mshc-ciu-div = <3>;
+		samsung,dw-mshc-sdr-timing = <2 3>;
+		samsung,dw-mshc-ddr-timing = <1 2>;
+
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			samsung,cd-pinmux-gpio = <&gpc3 2 2 3 3>;
+			gpios = <&gpc3 0 2 0 3>, <&gpc3 1 2 0 3>,
+				<&gpc3 3 2 3 3>, <&gpc3 4 2 3 3>,
+				<&gpc3 5 2 3 3>, <&gpc3 6 2 3 3>;
+		};
+	};
+
+	dwmmc_3: dwmmc3@12230000 {
+		status = "disabled";
+	};
+
+	spi_0: spi@12d20000 {
+		status = "disabled";
+	};
+
+	spi_1: spi@12d30000 {
+		status = "disabled";
+	};
+
+	spi_2: spi@12d40000 {
+		status = "disabled";
+	};
+};
