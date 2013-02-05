@@ -21,7 +21,6 @@ extern void mx25_map_io(void);
 extern void mx27_map_io(void);
 extern void mx31_map_io(void);
 extern void mx35_map_io(void);
-extern void mx50_map_io(void);
 extern void mx51_map_io(void);
 extern void mx53_map_io(void);
 extern void imx1_init_early(void);
@@ -30,7 +29,6 @@ extern void imx25_init_early(void);
 extern void imx27_init_early(void);
 extern void imx31_init_early(void);
 extern void imx35_init_early(void);
-extern void imx50_init_early(void);
 extern void imx51_init_early(void);
 extern void imx53_init_early(void);
 extern void mxc_init_irq(void __iomem *);
@@ -41,7 +39,6 @@ extern void mx25_init_irq(void);
 extern void mx27_init_irq(void);
 extern void mx31_init_irq(void);
 extern void mx35_init_irq(void);
-extern void mx50_init_irq(void);
 extern void mx51_init_irq(void);
 extern void mx53_init_irq(void);
 extern void imx1_soc_init(void);
@@ -50,7 +47,6 @@ extern void imx25_soc_init(void);
 extern void imx27_soc_init(void);
 extern void imx31_soc_init(void);
 extern void imx35_soc_init(void);
-extern void imx50_soc_init(void);
 extern void imx51_soc_init(void);
 extern void imx51_init_late(void);
 extern void imx53_init_late(void);
@@ -109,26 +105,22 @@ void tzic_handle_irq(struct pt_regs *);
 #define imx27_handle_irq avic_handle_irq
 #define imx31_handle_irq avic_handle_irq
 #define imx35_handle_irq avic_handle_irq
-#define imx50_handle_irq tzic_handle_irq
 #define imx51_handle_irq tzic_handle_irq
 #define imx53_handle_irq tzic_handle_irq
 
 extern void imx_enable_cpu(int cpu, bool enable);
 extern void imx_set_cpu_jump(int cpu, void *jump_addr);
-#ifdef CONFIG_DEBUG_LL
-extern void imx_lluart_map_io(void);
-#else
-static inline void imx_lluart_map_io(void) {}
-#endif
 extern void v7_cpu_resume(void);
 extern u32 *pl310_get_save_ptr(void);
 #ifdef CONFIG_SMP
 extern void v7_secondary_startup(void);
 extern void imx_scu_map_io(void);
 extern void imx_smp_prepare(void);
+extern void imx_scu_standby_enable(void);
 #else
 static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
+static inline void imx_scu_standby_enable(void) {}
 #endif
 extern void imx_enable_cpu(int cpu, bool enable);
 extern void imx_set_cpu_jump(int cpu, void *jump_addr);
@@ -138,7 +130,7 @@ extern void imx_gpc_init(void);
 extern void imx_gpc_pre_suspend(void);
 extern void imx_gpc_post_resume(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
-extern void imx6q_clock_map_io(void);
+extern void imx6q_set_chicken_bit(void);
 
 extern void imx_cpu_die(unsigned int cpu);
 extern int imx_cpu_kill(unsigned int cpu);

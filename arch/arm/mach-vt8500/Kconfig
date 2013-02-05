@@ -1,13 +1,34 @@
 config ARCH_VT8500
-	bool "VIA/WonderMedia 85xx" if ARCH_MULTI_V5
-	default ARCH_VT8500_SINGLE
+	bool
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select VT8500_TIMER
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
+
+config ARCH_WM8505
+	bool "VIA/Wondermedia 85xx and WM8650"
+ 	depends on ARCH_MULTI_V5
+ 	select ARCH_VT8500
+ 	select CPU_ARM926T
+ 	help
+
+config ARCH_WM8750
+	bool "WonderMedia WM8750"
+	depends on ARCH_MULTI_V6
+	select ARCH_VT8500
+	select CPU_V6
+	help
+	  Support for WonderMedia WM8750 System-on-Chip.
+
+config ARCH_WM8850
+	bool "WonderMedia WM8850"
+	depends on ARCH_MULTI_V7
+	select ARCH_VT8500
+	select CPU_V7
+	help
+	  Support for WonderMedia WM8850 System-on-Chip.

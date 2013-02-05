@@ -18,24 +18,9 @@
 #include "common.h"
 #include "mx31.h"
 
-static const struct of_dev_auxdata imx31_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART1_BASE_ADDR,
-			"imx21-uart.0", NULL),
-	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART2_BASE_ADDR,
-			"imx21-uart.1", NULL),
-	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART3_BASE_ADDR,
-			"imx21-uart.2", NULL),
-	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART4_BASE_ADDR,
-			"imx21-uart.3", NULL),
-	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART5_BASE_ADDR,
-			"imx21-uart.4", NULL),
-	{ /* sentinel */ }
-};
-
 static void __init imx31_dt_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     imx31_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *imx31_dt_board_compat[] __initdata = {

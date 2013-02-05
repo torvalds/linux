@@ -4,11 +4,12 @@ comment "NVIDIA Tegra options"
 
 config ARCH_TEGRA_2x_SOC
 	bool "Enable support for Tegra20 family"
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_720789
-	select ARM_ERRATA_742230
+	select ARM_ERRATA_742230 if SMP
 	select ARM_ERRATA_751472
-	select ARM_ERRATA_754327
+	select ARM_ERRATA_754327 if SMP
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
 	select CPU_FREQ_TABLE if CPU_FREQ
@@ -43,6 +44,18 @@ config ARCH_TEGRA_3x_SOC
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
+
+config ARCH_TEGRA_114_SOC
+	bool "Enable support for Tegra114 family"
+	select ARM_GIC
+	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
+	select ARM_ARCH_TIMER
+	select PINCTRL
+	select PINCTRL_TEGRA114
+	help
+	  Support for NVIDIA Tegra T114 processor family, based on the
+	  ARM CortexA15MP CPU
 
 config TEGRA_PCI
 	bool "PCI Express support"

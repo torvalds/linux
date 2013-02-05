@@ -39,4 +39,10 @@ config CPU_IDLE_CALXEDA
 	help
 	  Select this to enable cpuidle on Calxeda processors.
 
+config CPU_IDLE_KIRKWOOD
+	bool "CPU Idle Driver for Kirkwood processors"
+	depends on ARCH_KIRKWOOD
+	help
+	  Select this to enable cpuidle on Kirkwood processors.
+
 endif

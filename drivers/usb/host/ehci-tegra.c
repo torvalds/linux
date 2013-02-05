@@ -2,7 +2,7 @@
  * EHCI-compliant USB host controller driver for NVIDIA Tegra SoCs
  *
  * Copyright (C) 2010 Google, Inc.
- * Copyright (C) 2009 NVIDIA Corporation
+ * Copyright (C) 2009 - 2013 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,12 +26,17 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
 
 #define TEGRA_USB_BASE			0xC5000000
 #define TEGRA_USB2_BASE			0xC5004000
 #define TEGRA_USB3_BASE			0xC5008000
+
+/* PORTSC registers */
+#define TEGRA_USB_PORTSC1			0x184
+#define TEGRA_USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
+#define TEGRA_USB_PORTSC1_PHCD	(1 << 23)
 
 #define TEGRA_USB_DMA_ALIGN 32
 
@@ -39,10 +44,10 @@ struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
-	struct clk *emc_clk;
 	struct usb_phy *transceiver;
 	int host_resumed;
 	int port_resuming;
+	bool needs_double_reset;
 	enum tegra_usb_phy_port_speed port_speed;
 };
 
@@ -50,9 +55,8 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
-	clk_prepare_enable(tegra->emc_clk);
 	clk_prepare_enable(tegra->clk);
-	usb_phy_set_suspend(&tegra->phy->u_phy, 0);
+	usb_phy_set_suspend(hcd->phy, 0);
 	tegra->host_resumed = 1;
 }
 
@@ -61,9 +65,8 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd)
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
 	tegra->host_resumed = 0;
-	usb_phy_set_suspend(&tegra->phy->u_phy, 1);
+	usb_phy_set_suspend(hcd->phy, 1);
 	clk_disable_unprepare(tegra->clk);
-	clk_disable_unprepare(tegra->emc_clk);
 }
 
 static int tegra_ehci_internal_port_reset(
@@ -156,7 +159,7 @@ static int tegra_ehci_hub_control(
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND)) {
 			/* Resume completed, re-enable disconnect detection */
 			tegra->port_resuming = 0;
-			tegra_usb_phy_postresume(tegra->phy);
+			tegra_usb_phy_postresume(hcd->phy);
 		}
 	}
 
@@ -184,7 +187,7 @@ static int tegra_ehci_hub_control(
 	}
 
 	/* For USB1 port we need to issue Port Reset twice internally */
-	if (tegra->phy->instance == 0 &&
+	if (tegra->needs_double_reset &&
 	   (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_RESET)) {
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		return tegra_ehci_internal_port_reset(ehci, status_reg);
@@ -209,7 +212,7 @@ static int tegra_ehci_hub_control(
 			goto done;
 
 		/* Disable disconnect detection during port resume */
-		tegra_usb_phy_preresume(tegra->phy);
+		tegra_usb_phy_preresume(hcd->phy);
 
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
 
@@ -473,7 +476,7 @@ static int controller_resume(struct device *dev)
 	}
 
 	/* Force the phy to keep data lines in suspend state */
-	tegra_ehci_phy_restore_start(tegra->phy, tegra->port_speed);
+	tegra_ehci_phy_restore_start(hcd->phy, tegra->port_speed);
 
 	/* Enable host mode */
 	tdi_reset(ehci);
@@ -540,17 +543,17 @@ static int controller_resume(struct device *dev)
 		}
 	}
 
-	tegra_ehci_phy_restore_end(tegra->phy);
+	tegra_ehci_phy_restore_end(hcd->phy);
 	goto done;
 
  restart:
 	if (tegra->port_speed <= TEGRA_USB_PHY_PORT_SPEED_HIGH)
-		tegra_ehci_phy_restore_end(tegra->phy);
+		tegra_ehci_phy_restore_end(hcd->phy);
 
 	tegra_ehci_restart(hcd);
 
  done:
-	tegra_usb_phy_preresume(tegra->phy);
+	tegra_usb_phy_preresume(hcd->phy);
 	tegra->port_resuming = 1;
 	return 0;
 }
@@ -604,6 +607,37 @@ static const struct dev_pm_ops tegra_ehci_pm_ops = {
 
 #endif
 
+/* Bits of PORTSC1, which will get cleared by writing 1 into them */
+#define TEGRA_PORTSC1_RWC_BITS (PORT_CSC | PORT_PEC | PORT_OCC)
+
+void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
+{
+	unsigned long val;
+	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
+	void __iomem *base = hcd->regs;
+
+	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+	val &= ~TEGRA_USB_PORTSC1_PTS(3);
+	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
+	writel(val, base + TEGRA_USB_PORTSC1);
+}
+EXPORT_SYMBOL_GPL(tegra_ehci_set_pts);
+
+void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
+{
+	unsigned long val;
+	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
+	void __iomem *base = hcd->regs;
+
+	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+	if (enable)
+		val |= TEGRA_USB_PORTSC1_PHCD;
+	else
+		val &= ~TEGRA_USB_PORTSC1_PHCD;
+	writel(val, base + TEGRA_USB_PORTSC1);
+}
+EXPORT_SYMBOL_GPL(tegra_ehci_set_phcd);
+
 static u64 tegra_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int tegra_ehci_probe(struct platform_device *pdev)
@@ -615,6 +649,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	int err = 0;
 	int irq;
 	int instance = pdev->id;
+	struct usb_phy *u_phy;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -656,15 +691,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_clk;
 
-	tegra->emc_clk = devm_clk_get(&pdev->dev, "emc");
-	if (IS_ERR(tegra->emc_clk)) {
-		dev_err(&pdev->dev, "Can't get emc clock\n");
-		err = PTR_ERR(tegra->emc_clk);
-		goto fail_emc_clk;
-	}
-
-	clk_prepare_enable(tegra->emc_clk);
-	clk_set_rate(tegra->emc_clk, 400000000);
+	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
+		"nvidia,needs-double-reset");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -712,9 +740,19 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	usb_phy_init(&tegra->phy->u_phy);
+	hcd->phy = u_phy = &tegra->phy->u_phy;
+	usb_phy_init(hcd->phy);
 
-	err = usb_phy_set_suspend(&tegra->phy->u_phy, 0);
+	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
+			     GFP_KERNEL);
+	if (!u_phy->otg) {
+		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
+		err = -ENOMEM;
+		goto fail_io;
+	}
+	u_phy->otg->host = hcd_to_bus(hcd);
+
+	err = usb_phy_set_suspend(hcd->phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
 		goto fail;
@@ -760,10 +798,8 @@ fail:
 	if (!IS_ERR_OR_NULL(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
 #endif
-	usb_phy_shutdown(&tegra->phy->u_phy);
+	usb_phy_shutdown(hcd->phy);
 fail_io:
-	clk_disable_unprepare(tegra->emc_clk);
-fail_emc_clk:
 	clk_disable_unprepare(tegra->clk);
 fail_clk:
 	usb_put_hcd(hcd);
@@ -784,14 +820,11 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 		otg_set_host(tegra->transceiver->otg, NULL);
 #endif
 
+	usb_phy_shutdown(hcd->phy);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
 
-	usb_phy_shutdown(&tegra->phy->u_phy);
-
 	clk_disable_unprepare(tegra->clk);
-
-	clk_disable_unprepare(tegra->emc_clk);
 
 	return 0;
 }

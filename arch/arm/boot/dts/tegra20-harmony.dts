@@ -432,6 +432,10 @@
 		status = "okay";
 	};
 
+	usb-phy@c5004400 {
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
+
 	sdhci@c8000200 {
 		status = "okay";
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */

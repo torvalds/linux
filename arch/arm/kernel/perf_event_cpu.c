@@ -147,7 +147,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->free_irq	= cpu_pmu_free_irq;
 
 	/* Ensure the PMU has sane values out of reset. */
-	if (cpu_pmu && cpu_pmu->reset)
+	if (cpu_pmu->reset)
 		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
 }
 
@@ -201,48 +201,46 @@ static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 static int probe_current_pmu(struct arm_pmu *pmu)
 {
 	int cpu = get_cpu();
-	unsigned long cpuid = read_cpuid_id();
-	unsigned long implementor = (cpuid & 0xFF000000) >> 24;
-	unsigned long part_number = (cpuid & 0xFFF0);
+	unsigned long implementor = read_cpuid_implementor();
+	unsigned long part_number = read_cpuid_part_number();
 	int ret = -ENODEV;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
 	/* ARM Ltd CPUs. */
-	if (0x41 == implementor) {
+	if (implementor == ARM_CPU_IMP_ARM) {
 		switch (part_number) {
-		case 0xB360:	/* ARM1136 */
-		case 0xB560:	/* ARM1156 */
-		case 0xB760:	/* ARM1176 */
+		case ARM_CPU_PART_ARM1136:
+		case ARM_CPU_PART_ARM1156:
+		case ARM_CPU_PART_ARM1176:
 			ret = armv6pmu_init(pmu);
 			break;
-		case 0xB020:	/* ARM11mpcore */
+		case ARM_CPU_PART_ARM11MPCORE:
 			ret = armv6mpcore_pmu_init(pmu);
 			break;
-		case 0xC080:	/* Cortex-A8 */
+		case ARM_CPU_PART_CORTEX_A8:
 			ret = armv7_a8_pmu_init(pmu);
 			break;
-		case 0xC090:	/* Cortex-A9 */
+		case ARM_CPU_PART_CORTEX_A9:
 			ret = armv7_a9_pmu_init(pmu);
 			break;
-		case 0xC050:	/* Cortex-A5 */
+		case ARM_CPU_PART_CORTEX_A5:
 			ret = armv7_a5_pmu_init(pmu);
 			break;
-		case 0xC0F0:	/* Cortex-A15 */
+		case ARM_CPU_PART_CORTEX_A15:
 			ret = armv7_a15_pmu_init(pmu);
 			break;
-		case 0xC070:	/* Cortex-A7 */
+		case ARM_CPU_PART_CORTEX_A7:
 			ret = armv7_a7_pmu_init(pmu);
 			break;
 		}
 	/* Intel CPUs [xscale]. */
-	} else if (0x69 == implementor) {
-		part_number = (cpuid >> 13) & 0x7;
-		switch (part_number) {
-		case 1:
+	} else if (implementor == ARM_CPU_IMP_INTEL) {
+		switch (xscale_cpu_arch_version()) {
+		case ARM_CPU_XSCALE_ARCH_V1:
 			ret = xscale1pmu_init(pmu);
 			break;
-		case 2:
+		case ARM_CPU_XSCALE_ARCH_V2:
 			ret = xscale2pmu_init(pmu);
 			break;
 		}
@@ -279,17 +277,22 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (ret) {
-		pr_info("failed to register PMU devices!");
-		kfree(pmu);
-		return ret;
+		pr_info("failed to probe PMU!");
+		goto out_free;
 	}
 
 	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
-	armpmu_register(cpu_pmu, PERF_TYPE_RAW);
+	ret = armpmu_register(cpu_pmu, PERF_TYPE_RAW);
 
-	return 0;
+	if (!ret)
+		return 0;
+
+out_free:
+	pr_info("failed to register PMU devices!");
+	kfree(pmu);
+	return ret;
 }
 
 static struct platform_driver cpu_pmu_driver = {

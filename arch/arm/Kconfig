@@ -393,6 +393,7 @@ config ARCH_GEMINI
 config ARCH_SIRF
 	bool "CSR SiRF"
 	select ARCH_REQUIRE_GPIOLIB
+	select AUTO_ZRELADDR
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
@@ -642,6 +643,7 @@ config ARCH_TEGRA
 	select ARCH_HAS_CPUFREQ
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select CLKSRC_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
@@ -950,22 +952,6 @@ config ARCH_OMAP
 	select HAVE_CLK
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
-
-config ARCH_VT8500_SINGLE
-	bool "VIA/WonderMedia 85xx"
-	select ARCH_HAS_CPUFREQ
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select COMMON_CLK
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
-	select HAVE_CLK
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 
 endchoice
 

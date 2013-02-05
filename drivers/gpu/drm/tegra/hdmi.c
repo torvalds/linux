@@ -14,8 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #include "hdmi.h"
 #include "drm.h"

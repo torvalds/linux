@@ -11,7 +11,6 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#include <mach/clk.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma-iommu.h>
 
