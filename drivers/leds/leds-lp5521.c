@@ -39,18 +39,9 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5521_PROGRAM_LENGTH		32	/* in bytes */
-
-#define LP5521_MAX_LEDS			3	/* Maximum number of LEDs */
-#define LP5521_MAX_ENGINES		3	/* Maximum number of engines */
-
-#define LP5521_ENG_MASK_BASE		0x30	/* 00110000 */
-#define LP5521_ENG_STATUS_MASK		0x07	/* 00000111 */
-
-#define LP5521_CMD_LOAD			0x15	/* 00010101 */
-#define LP5521_CMD_RUN			0x2a	/* 00101010 */
-#define LP5521_CMD_DIRECT		0x3f	/* 00111111 */
-#define LP5521_CMD_DISABLED		0x00	/* 00000000 */
+#define LP5521_PROGRAM_LENGTH		32
+#define LP5521_MAX_LEDS			3
+#define LP5521_CMD_DIRECT		0x3F
 
 /* Registers */
 #define LP5521_REG_ENABLE		0x00
@@ -62,22 +53,14 @@
 #define LP5521_REG_G_CURRENT		0x06
 #define LP5521_REG_B_CURRENT		0x07
 #define LP5521_REG_CONFIG		0x08
-#define LP5521_REG_R_CHANNEL_PC		0x09
-#define LP5521_REG_G_CHANNEL_PC		0x0A
-#define LP5521_REG_B_CHANNEL_PC		0x0B
 #define LP5521_REG_STATUS		0x0C
 #define LP5521_REG_RESET		0x0D
-#define LP5521_REG_GPO			0x0E
 #define LP5521_REG_R_PROG_MEM		0x10
 #define LP5521_REG_G_PROG_MEM		0x30
 #define LP5521_REG_B_PROG_MEM		0x50
 
-#define LP5521_PROG_MEM_BASE		LP5521_REG_R_PROG_MEM
-#define LP5521_PROG_MEM_SIZE		0x20
-
 /* Base register to set LED current */
 #define LP5521_REG_LED_CURRENT_BASE	LP5521_REG_R_CURRENT
-
 /* Base register to set the brightness */
 #define LP5521_REG_LED_PWM_BASE		LP5521_REG_R_PWM
 
@@ -95,9 +78,6 @@
 
 /* default R channel current register value */
 #define LP5521_REG_R_CURR_DEFAULT	0xAF
-
-/* Pattern Mode */
-#define PATTERN_OFF	0
 
 /* Reset register value */
 #define LP5521_RESET			0xFF
