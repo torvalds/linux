@@ -2,8 +2,10 @@
  * lp5523.c - LP5523 LED Driver
  *
  * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2012 Texas Instruments
  *
  * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ *          Milo(Woogyom) Kim <milo.kim@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -510,5 +512,6 @@ static struct i2c_driver lp5523_driver = {
 module_i2c_driver(lp5523_driver);
 
 MODULE_AUTHOR("Mathias Nyman <mathias.nyman@nokia.com>");
+MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP5523 LED engine");
 MODULE_LICENSE("GPL");
