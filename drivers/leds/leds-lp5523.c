@@ -1010,44 +1010,44 @@ static void lp5523_deinit_device(struct lp5523_chip *chip)
 static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct lp5523_chip		*chip;
-	struct lp5523_platform_data	*pdata;
+	struct lp5523_chip		*old_chip;
+	struct lp5523_platform_data	*old_pdata;
 	int ret, i;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
+	old_chip = devm_kzalloc(&client->dev, sizeof(*old_chip), GFP_KERNEL);
+	if (!old_chip)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, chip);
-	chip->client = client;
+	i2c_set_clientdata(client, old_chip);
+	old_chip->client = client;
 
-	pdata = client->dev.platform_data;
+	old_pdata = client->dev.platform_data;
 
-	if (!pdata) {
+	if (!old_pdata) {
 		dev_err(&client->dev, "no platform data\n");
 		return -EINVAL;
 	}
 
-	mutex_init(&chip->lock);
+	mutex_init(&old_chip->lock);
 
-	chip->pdata   = pdata;
+	old_chip->pdata   = old_pdata;
 
-	ret = lp5523_init_device(chip);
+	ret = lp5523_init_device(old_chip);
 	if (ret)
 		goto err_init;
 
 	dev_info(&client->dev, "%s Programmable led chip found\n", id->name);
 
 	/* Initialize engines */
-	for (i = 0; i < ARRAY_SIZE(chip->engines); i++) {
-		ret = lp5523_init_engine(&chip->engines[i], i + 1);
+	for (i = 0; i < ARRAY_SIZE(old_chip->engines); i++) {
+		ret = lp5523_init_engine(&old_chip->engines[i], i + 1);
 		if (ret) {
 			dev_err(&client->dev, "error initializing engine\n");
 			goto fail1;
 		}
 	}
 
-	ret = lp5523_register_leds(chip, id->name);
+	ret = lp5523_register_leds(old_chip, id->name);
 	if (ret)
 		goto fail2;
 
@@ -1058,25 +1058,25 @@ static int lp5523_probe(struct i2c_client *client,
 	}
 	return ret;
 fail2:
-	lp5523_unregister_leds(chip);
+	lp5523_unregister_leds(old_chip);
 fail1:
-	lp5523_deinit_device(chip);
+	lp5523_deinit_device(old_chip);
 err_init:
 	return ret;
 }
 
 static int lp5523_remove(struct i2c_client *client)
 {
-	struct lp5523_chip *chip = i2c_get_clientdata(client);
+	struct lp5523_chip *old_chip = i2c_get_clientdata(client);
 
 	/* Disable engine mode */
 	lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_DISABLED);
 
 	lp5523_unregister_sysfs(client);
 
-	lp5523_unregister_leds(chip);
+	lp5523_unregister_leds(old_chip);
 
-	lp5523_deinit_device(chip);
+	lp5523_deinit_device(old_chip);
 	return 0;
 }
 

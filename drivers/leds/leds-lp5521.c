@@ -872,35 +872,35 @@ static void lp5521_unregister_leds(struct lp5521_chip *chip)
 static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct lp5521_chip		*chip;
-	struct lp5521_platform_data	*pdata;
+	struct lp5521_chip		*old_chip;
+	struct lp5521_platform_data	*old_pdata;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
+	old_chip = devm_kzalloc(&client->dev, sizeof(*old_chip), GFP_KERNEL);
+	if (!old_chip)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, chip);
-	chip->client = client;
+	i2c_set_clientdata(client, old_chip);
+	old_chip->client = client;
 
-	pdata = client->dev.platform_data;
+	old_pdata = client->dev.platform_data;
 
-	if (!pdata) {
+	if (!old_pdata) {
 		dev_err(&client->dev, "no platform data\n");
 		return -EINVAL;
 	}
 
-	mutex_init(&chip->lock);
+	mutex_init(&old_chip->lock);
 
-	chip->pdata   = pdata;
+	old_chip->pdata   = old_pdata;
 
-	ret = lp5521_init_device(chip);
+	ret = lp5521_init_device(old_chip);
 	if (ret)
 		goto err_init;
 
 	dev_info(&client->dev, "%s programmable led chip found\n", id->name);
 
-	ret = lp5521_register_leds(chip);
+	ret = lp5521_register_leds(old_chip);
 	if (ret)
 		goto fail2;
 
@@ -911,22 +911,22 @@ static int lp5521_probe(struct i2c_client *client,
 	}
 	return ret;
 fail2:
-	lp5521_unregister_leds(chip);
-	lp5521_deinit_device(chip);
+	lp5521_unregister_leds(old_chip);
+	lp5521_deinit_device(old_chip);
 err_init:
 	return ret;
 }
 
 static int lp5521_remove(struct i2c_client *client)
 {
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
+	struct lp5521_chip *old_chip = i2c_get_clientdata(client);
 
-	lp5521_run_led_pattern(PATTERN_OFF, chip);
+	lp5521_run_led_pattern(PATTERN_OFF, old_chip);
 	lp5521_unregister_sysfs(client);
 
-	lp5521_unregister_leds(chip);
+	lp5521_unregister_leds(old_chip);
 
-	lp5521_deinit_device(chip);
+	lp5521_deinit_device(old_chip);
 	return 0;
 }
 
