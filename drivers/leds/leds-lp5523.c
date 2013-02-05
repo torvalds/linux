@@ -173,11 +173,6 @@ static void lp5523_set_led_current(struct lp55xx_led *led, u8 led_current)
 		led_current);
 }
 
-static int lp5523_write(struct i2c_client *client, u8 reg, u8 value)
-{
-	return i2c_smbus_write_byte_data(client, reg, value);
-}
-
 static int lp5523_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
@@ -471,13 +466,6 @@ static const struct attribute_group lp5523_group = {
 	.attrs = lp5523_attributes,
 };
 
-static void lp5523_unregister_sysfs(struct i2c_client *client)
-{
-	struct device *dev = &client->dev;
-
-	sysfs_remove_group(&dev->kobj, &lp5523_group);
-}
-
 /* Chip specific configurations */
 static struct lp55xx_device_config lp5523_cfg = {
 	.reset = {
@@ -558,11 +546,8 @@ static int lp5523_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	/* Disable engine mode */
-	lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_DISABLED);
-
-	lp5523_unregister_sysfs(client);
-
+	lp5523_stop_engine(chip);
+	lp55xx_unregister_sysfs(chip);
 	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);
 
