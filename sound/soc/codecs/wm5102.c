@@ -36,6 +36,9 @@
 struct wm5102_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
+
+	unsigned int spk_ena:2;
+	unsigned int spk_ena_pending:1;
 };
 
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
@@ -787,6 +790,47 @@ ARIZONA_MIXER_CONTROLS("AIF3TX1", ARIZONA_AIF3TX1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("AIF3TX2", ARIZONA_AIF3TX2MIX_INPUT_1_SOURCE),
 };
 
+static int wm5102_spk_ev(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol,
+			 int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(codec);
+
+	if (arizona->rev < 1)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (!wm5102->spk_ena) {
+			snd_soc_write(codec, 0x4f5, 0x25a);
+			wm5102->spk_ena_pending = true;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		if (wm5102->spk_ena_pending) {
+			msleep(75);
+			snd_soc_write(codec, 0x4f5, 0xda);
+			wm5102->spk_ena_pending = false;
+			wm5102->spk_ena++;
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		wm5102->spk_ena--;
+		if (!wm5102->spk_ena)
+			snd_soc_write(codec, 0x4f5, 0x25a);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (!wm5102->spk_ena)
+			snd_soc_write(codec, 0x4f5, 0x0da);
+		break;
+	}
+
+	return 0;
+}
+
+
 ARIZONA_MIXER_ENUMS(EQ1, ARIZONA_EQ1MIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(EQ2, ARIZONA_EQ2MIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(EQ3, ARIZONA_EQ3MIX_INPUT_1_SOURCE);
@@ -852,8 +896,7 @@ static const unsigned int wm5102_aec_loopback_values[] = {
 
 static const struct soc_enum wm5102_aec_loopback =
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
-			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT,
-			      ARIZONA_AEC_LOOPBACK_SRC_MASK,
+			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
 			      ARRAY_SIZE(wm5102_aec_loopback_texts),
 			      wm5102_aec_loopback_texts,
 			      wm5102_aec_loopback_values);
@@ -1034,10 +1077,10 @@ SND_SOC_DAPM_PGA_E("OUT3L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT3L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT4L", ARIZONA_OUTPUT_ENABLES_1,
-		   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
+		   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, wm5102_spk_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT4R", ARIZONA_OUTPUT_ENABLES_1,
-		   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
+		   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, wm5102_spk_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT5L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT5L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,

@@ -32,7 +32,6 @@
 
 #include <mach/hardware.h>
 #include <mach/map.h>
-#include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
@@ -446,7 +445,7 @@ static struct samsung_gpio_cfg s3c24xx_gpiocfg_banka = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_ARCH_EXYNOS5)
+#if defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_SOC_EXYNOS5250)
 static struct samsung_gpio_cfg exynos_gpio_cfg = {
 	.set_pull	= exynos_gpio_setpull,
 	.get_pull	= exynos_gpio_getpull,
@@ -2446,7 +2445,7 @@ static struct samsung_gpio_chip exynos4_gpios_3[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_1[] = {
 	{
 		.chip	= {
@@ -2614,7 +2613,7 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_2[] = {
 	{
 		.chip	= {
@@ -2675,7 +2674,7 @@ static struct samsung_gpio_chip exynos5_gpios_2[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_3[] = {
 	{
 		.chip	= {
@@ -2711,7 +2710,7 @@ static struct samsung_gpio_chip exynos5_gpios_3[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_4[] = {
 	{
 		.chip	= {
@@ -3010,7 +3009,7 @@ static __init int samsung_gpiolib_init(void)
 	int i, nr_chips;
 	int group = 0;
 
-#ifdef CONFIG_PINCTRL_SAMSUNG
+#if defined(CONFIG_PINCTRL_EXYNOS) || defined(CONFIG_PINCTRL_EXYNOS5440)
 	/*
 	* This gpio driver includes support for device tree support and there
 	* are platforms using it. In order to maintain compatibility with those
@@ -3026,6 +3025,7 @@ static __init int samsung_gpiolib_init(void)
 	static const struct of_device_id exynos_pinctrl_ids[] = {
 		{ .compatible = "samsung,pinctrl-exynos4210", },
 		{ .compatible = "samsung,pinctrl-exynos4x12", },
+		{ .compatible = "samsung,pinctrl-exynos5440", },
 	};
 	for_each_matching_node(pctrl_np, exynos_pinctrl_ids)
 		if (pctrl_np && of_device_is_available(pctrl_np))

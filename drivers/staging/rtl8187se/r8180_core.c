@@ -937,7 +937,8 @@ short alloc_rx_desc_ring(struct net_device *dev, u16 bufsize, int count)
 
 		dma_tmp = pci_map_single(pdev, buf, bufsize * sizeof(u8),
 					 PCI_DMA_FROMDEVICE);
-
+		if (pci_dma_mapping_error(pdev, dma_tmp))
+			return -1;
 		if (-1 == buffer_add(&(priv->rxbuffer), buf, dma_tmp,
 			   &(priv->rxbufferhead))) {
 			DMESGE("Unable to allocate mem RX buf");

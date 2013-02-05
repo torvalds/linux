@@ -164,15 +164,11 @@ static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
 	struct device_node *np;
 
 	for_each_matching_node(np, match) {
-		if (!of_device_is_available(np)) {
-			of_node_put(np);
+		if (!of_device_is_available(np))
 			continue;
-		}
 
-		if (property && !of_get_property(np, property, NULL)) {
-			of_node_put(np);
+		if (property && !of_get_property(np, property, NULL))
 			continue;
-		}
 
 		of_add_property(np, &device_disabled);
 		return np;

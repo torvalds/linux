@@ -21,6 +21,7 @@
 #include <asm/e820.h>
 #include <asm/page_types.h>
 #include <asm/setup.h>
+#include <asm/bootparam.h>
 #include "boot.h"
 #include "voffset.h"
 #include "zoffset.h"
@@ -255,6 +256,9 @@ section_table:
 	# header, from the old boot sector.
 
 	.section ".header", "a"
+	.globl	sentinel
+sentinel:	.byte 0xff, 0xff        /* Used to detect broken loaders */
+
 	.globl	hdr
 hdr:
 setup_sects:	.byte 0			/* Filled in by build.c */
@@ -279,7 +283,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x020b		# header version number (>= 0x0105)
+		.word	0x020c		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -297,13 +301,7 @@ type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
 
 # flags, unused bits must be zero (RFU) bit within loadflags
 loadflags:
-LOADED_HIGH	= 1			# If set, the kernel is loaded high
-CAN_USE_HEAP	= 0x80			# If set, the loader also has set
-					# heap_end_ptr to tell how much
-					# space behind setup.S can be used for
-					# heap purposes.
-					# Only the loader knows what is free
-		.byte	LOADED_HIGH
+		.byte	LOADED_HIGH	# The kernel is to be loaded high
 
 setup_move_size: .word  0x8000		# size to move, when setup is not
 					# loaded at 0x90000. We will move setup
@@ -369,7 +367,23 @@ relocatable_kernel:    .byte 1
 relocatable_kernel:    .byte 0
 #endif
 min_alignment:		.byte MIN_KERNEL_ALIGN_LG2	# minimum alignment
-pad3:			.word 0
+
+xloadflags:
+#ifdef CONFIG_X86_64
+# define XLF0 XLF_KERNEL_64			/* 64-bit kernel */
+#else
+# define XLF0 0
+#endif
+#ifdef CONFIG_EFI_STUB
+# ifdef CONFIG_X86_64
+#  define XLF23 XLF_EFI_HANDOVER_64		/* 64-bit EFI handover ok */
+# else
+#  define XLF23 XLF_EFI_HANDOVER_32		/* 32-bit EFI handover ok */
+# endif
+#else
+# define XLF23 0
+#endif
+			.word XLF0 | XLF23
 
 cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
                                                 #added with boot protocol
@@ -397,8 +411,13 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 #define INIT_SIZE VO_INIT_SIZE
 #endif
 init_size:		.long INIT_SIZE		# kernel initialization size
-handover_offset:	.long 0x30		# offset to the handover
+handover_offset:
+#ifdef CONFIG_EFI_STUB
+  			.long 0x30		# offset to the handover
 						# protocol entry point
+#else
+			.long 0
+#endif
 
 # End of setup header #####################################################
 

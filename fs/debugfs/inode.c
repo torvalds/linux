@@ -176,7 +176,7 @@ static int debugfs_parse_options(char *data, struct debugfs_mount_opts *opts)
 			opts->uid = uid;
 			break;
 		case Opt_gid:
-			if (match_octal(&args[0], &option))
+			if (match_int(&args[0], &option))
 				return -EINVAL;
 			gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(gid))

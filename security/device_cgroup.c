@@ -215,7 +215,9 @@ static void devcgroup_css_free(struct cgroup *cgroup)
 	struct dev_cgroup *dev_cgroup;
 
 	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	mutex_lock(&devcgroup_mutex);
 	dev_exception_clean(dev_cgroup);
+	mutex_unlock(&devcgroup_mutex);
 	kfree(dev_cgroup);
 }
 

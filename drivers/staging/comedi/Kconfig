@@ -444,6 +444,7 @@ config COMEDI_ADQ12B
 
 config COMEDI_NI_AT_A2150
 	tristate "NI AT-A2150 ISA card support"
+	select COMEDI_FC
 	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for National Instruments AT-A2150 cards

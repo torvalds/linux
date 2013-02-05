@@ -10,6 +10,7 @@
 #include <linux/bootmem.h>
 #include <linux/cpuset.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -42,6 +43,7 @@ static struct mask_info socket_info;
 static struct mask_info book_info;
 
 struct cpu_topology_s390 cpu_topology[NR_CPUS];
+EXPORT_SYMBOL_GPL(cpu_topology);
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {

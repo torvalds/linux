@@ -294,6 +294,8 @@ stack_panic:
 	.align 2
 .L_init_thread_union:
 	.long	init_thread_union
+.L_ebss:
+	.long	__bss_stop
 .Lpanic:
 	.long	panic
 .Lpanic_s:

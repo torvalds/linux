@@ -24,7 +24,8 @@
 /*
  * Software defined PTE bits definition.
  */
-#define PTE_VALID		(_AT(pteval_t, 1) << 0)	/* pte_present() check */
+#define PTE_VALID		(_AT(pteval_t, 1) << 0)
+#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 1)	/* only when !PTE_VALID */
 #define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
@@ -60,9 +61,12 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 
 extern pgprot_t pgprot_default;
 
-#define _MOD_PROT(p, b)	__pgprot(pgprot_val(p) | (b))
+#define __pgprot_modify(prot,mask,bits) \
+	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
-#define PAGE_NONE		_MOD_PROT(pgprot_default, PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
+#define _MOD_PROT(p, b)		__pgprot_modify(p, 0, b)
+
+#define PAGE_NONE		__pgprot_modify(pgprot_default, PTE_TYPE_MASK, PTE_PROT_NONE)
 #define PAGE_SHARED		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
 #define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN)
 #define PAGE_COPY		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
@@ -72,7 +76,7 @@ extern pgprot_t pgprot_default;
 #define PAGE_KERNEL		_MOD_PROT(pgprot_default, PTE_PXN | PTE_UXN | PTE_DIRTY)
 #define PAGE_KERNEL_EXEC	_MOD_PROT(pgprot_default, PTE_UXN | PTE_DIRTY)
 
-#define __PAGE_NONE		__pgprot(_PAGE_DEFAULT | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
+#define __PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE)
 #define __PAGE_SHARED		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
 #define __PAGE_SHARED_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
 #define __PAGE_COPY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
@@ -125,16 +129,15 @@ extern struct page *empty_zero_page;
 /*
  * The following only work if pte_present(). Undefined behaviour otherwise.
  */
-#define pte_present(pte)	(pte_val(pte) & PTE_VALID)
+#define pte_present(pte)	(pte_val(pte) & (PTE_VALID | PTE_PROT_NONE))
 #define pte_dirty(pte)		(pte_val(pte) & PTE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & PTE_AF)
 #define pte_special(pte)	(pte_val(pte) & PTE_SPECIAL)
 #define pte_write(pte)		(!(pte_val(pte) & PTE_RDONLY))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
-#define pte_present_exec_user(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_USER | PTE_UXN)) == \
-	 (PTE_VALID | PTE_USER))
+#define pte_valid_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
 
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
@@ -157,10 +160,13 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_present_exec_user(pte))
-		__sync_icache_dcache(pte, addr);
-	if (!pte_dirty(pte))
-		pte = pte_wrprotect(pte);
+	if (pte_valid_user(pte)) {
+		if (pte_exec(pte))
+			__sync_icache_dcache(pte, addr);
+		if (!pte_dirty(pte))
+			pte = pte_wrprotect(pte);
+	}
+
 	set_pte(ptep, pte);
 }
 
@@ -169,9 +175,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
  */
 #define pte_huge(pte)		((pte_val(pte) & PTE_TYPE_MASK) == PTE_TYPE_HUGEPAGE)
 #define pte_mkhuge(pte)		(__pte((pte_val(pte) & ~PTE_TYPE_MASK) | PTE_TYPE_HUGEPAGE))
-
-#define __pgprot_modify(prot,mask,bits)		\
-	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
 #define __HAVE_ARCH_PTE_SPECIAL
 
@@ -264,7 +267,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY;
+	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
+			      PTE_PROT_NONE | PTE_VALID;
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }
