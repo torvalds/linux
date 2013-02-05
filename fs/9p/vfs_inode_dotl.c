@@ -186,7 +186,6 @@ static int v9fs_mapped_dotl_flags(int flags)
 		{ O_CREAT,	P9_DOTL_CREATE },
 		{ O_EXCL,	P9_DOTL_EXCL },
 		{ O_NOCTTY,	P9_DOTL_NOCTTY },
-		{ O_TRUNC,	P9_DOTL_TRUNC },
 		{ O_APPEND,	P9_DOTL_APPEND },
 		{ O_NONBLOCK,	P9_DOTL_NONBLOCK },
 		{ O_DSYNC,	P9_DOTL_DSYNC },
