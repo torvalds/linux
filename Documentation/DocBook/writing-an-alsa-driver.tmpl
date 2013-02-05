@@ -3250,18 +3250,19 @@ struct _snd_pcm_runtime {
 	  <title>Example of Hardware Constraints for Channels</title>
 	  <programlisting>
 <![CDATA[
-  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
+  static int hw_rule_channels_by_format(struct snd_pcm_hw_params *params,
                                         struct snd_pcm_hw_rule *rule)
   {
           struct snd_interval *c = hw_param_interval(params,
-                SNDRV_PCM_HW_PARAM_CHANNELS);
+                        SNDRV_PCM_HW_PARAM_CHANNELS);
           struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          struct snd_mask fmt;
+          struct snd_interval ch;
 
-          snd_mask_any(&fmt);    /* Init the struct */
-          if (c->min < 2) {
-                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
-                  return snd_mask_refine(f, &fmt);
+          snd_interval_any(&ch);
+          if (f->bits[0] == SNDRV_PCM_FMTBIT_S16_LE) {
+                  ch.min = ch.max = 1;
+                  ch.integer = 1;
+                  return snd_interval_refine(c, &ch);
           }
           return 0;
   }
@@ -3285,27 +3286,27 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The rule function is called when an application sets the number of
-        channels. But an application can set the format before the number of
-        channels. Thus you also need to define the inverse rule:
+        The rule function is called when an application sets the PCM
+	format, and it refines the number of channels accordingly.
+        But an application may set the number of channels before
+	setting the format. Thus you also need to define the inverse rule:
 
        <example>
-	 <title>Example of Hardware Constraints for Channels</title>
+	 <title>Example of Hardware Constraints for Formats</title>
 	 <programlisting>
 <![CDATA[
-  static int hw_rule_channels_by_format(struct snd_pcm_hw_params *params,
+  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
                                         struct snd_pcm_hw_rule *rule)
   {
           struct snd_interval *c = hw_param_interval(params,
-                        SNDRV_PCM_HW_PARAM_CHANNELS);
+                SNDRV_PCM_HW_PARAM_CHANNELS);
           struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          struct snd_interval ch;
+          struct snd_mask fmt;
 
-          snd_interval_any(&ch);
-          if (f->bits[0] == SNDRV_PCM_FMTBIT_S16_LE) {
-                  ch.min = ch.max = 1;
-                  ch.integer = 1;
-                  return snd_interval_refine(c, &ch);
+          snd_mask_any(&fmt);    /* Init the struct */
+          if (c->min < 2) {
+                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
+                  return snd_mask_refine(f, &fmt);
           }
           return 0;
   }
