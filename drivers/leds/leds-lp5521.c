@@ -799,12 +799,50 @@ static int lp5521_init_led(struct lp5521_led *led,
 	return 0;
 }
 
+static int lp5521_register_leds(struct lp5521_chip *chip)
+{
+	struct lp5521_platform_data *pdata = chip->pdata;
+	struct i2c_client *client = chip->client;
+	int i;
+	int led;
+	int ret;
+
+	/* Initialize leds */
+	chip->num_channels = pdata->num_channels;
+	chip->num_leds = 0;
+	led = 0;
+	for (i = 0; i < pdata->num_channels; i++) {
+		/* Do not initialize channels that are not connected */
+		if (pdata->led_config[i].led_current == 0)
+			continue;
+
+		ret = lp5521_init_led(&chip->leds[led], client, i, pdata);
+		if (ret) {
+			dev_err(&client->dev, "error initializing leds\n");
+			return ret;
+		}
+		chip->num_leds++;
+
+		chip->leds[led].id = led;
+		/* Set initial LED current */
+		lp5521_set_led_current(chip, led,
+				chip->leds[led].led_current);
+
+		INIT_WORK(&(chip->leds[led].brightness_work),
+			lp5521_led_brightness_work);
+
+		led++;
+	}
+
+	return 0;
+}
+
 static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5521_chip		*chip;
 	struct lp5521_platform_data	*pdata;
-	int ret, i, led;
+	int ret, i;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -836,32 +874,9 @@ static int lp5521_probe(struct i2c_client *client,
 		goto fail1;
 	}
 
-	/* Initialize leds */
-	chip->num_channels = pdata->num_channels;
-	chip->num_leds = 0;
-	led = 0;
-	for (i = 0; i < pdata->num_channels; i++) {
-		/* Do not initialize channels that are not connected */
-		if (pdata->led_config[i].led_current == 0)
-			continue;
-
-		ret = lp5521_init_led(&chip->leds[led], client, i, pdata);
-		if (ret) {
-			dev_err(&client->dev, "error initializing leds\n");
-			goto fail2;
-		}
-		chip->num_leds++;
-
-		chip->leds[led].id = led;
-		/* Set initial LED current */
-		lp5521_set_led_current(chip, led,
-				chip->leds[led].led_current);
-
-		INIT_WORK(&(chip->leds[led].brightness_work),
-			lp5521_led_brightness_work);
-
-		led++;
-	}
+	ret = lp5521_register_leds(chip);
+	if (ret)
+		goto fail2;
 
 	ret = lp5521_register_sysfs(client);
 	if (ret) {

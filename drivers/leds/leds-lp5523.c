@@ -896,6 +896,46 @@ static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
 	return 0;
 }
 
+static int lp5523_register_leds(struct lp5523_chip *chip, const char *name)
+{
+	struct lp5523_platform_data *pdata = chip->pdata;
+	struct i2c_client *client = chip->client;
+	int i;
+	int led;
+	int ret;
+
+	/* Initialize leds */
+	chip->num_channels = pdata->num_channels;
+	chip->num_leds = 0;
+	led = 0;
+	for (i = 0; i < pdata->num_channels; i++) {
+		/* Do not initialize channels that are not connected */
+		if (pdata->led_config[i].led_current == 0)
+			continue;
+
+		INIT_WORK(&chip->leds[led].brightness_work,
+			lp5523_led_brightness_work);
+
+		ret = lp5523_init_led(&chip->leds[led], &client->dev, i, pdata,
+				name);
+		if (ret) {
+			dev_err(&client->dev, "error initializing leds\n");
+			return ret;
+		}
+		chip->num_leds++;
+
+		chip->leds[led].id = led;
+		/* Set LED current */
+		lp5523_write(client,
+			  LP5523_REG_LED_CURRENT_BASE + chip->leds[led].chan_nr,
+			  chip->leds[led].led_current);
+
+		led++;
+	}
+
+	return 0;
+}
+
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct lp5523_platform_data *pdata = chip->pdata;
@@ -938,7 +978,7 @@ static int lp5523_probe(struct i2c_client *client,
 {
 	struct lp5523_chip		*chip;
 	struct lp5523_platform_data	*pdata;
-	int ret, i, led;
+	int ret, i;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -978,34 +1018,9 @@ static int lp5523_probe(struct i2c_client *client,
 		goto fail1;
 	}
 
-	/* Initialize leds */
-	chip->num_channels = pdata->num_channels;
-	chip->num_leds = 0;
-	led = 0;
-	for (i = 0; i < pdata->num_channels; i++) {
-		/* Do not initialize channels that are not connected */
-		if (pdata->led_config[i].led_current == 0)
-			continue;
-
-		INIT_WORK(&chip->leds[led].brightness_work,
-			lp5523_led_brightness_work);
-
-		ret = lp5523_init_led(&chip->leds[led], &client->dev, i, pdata,
-				id->name);
-		if (ret) {
-			dev_err(&client->dev, "error initializing leds\n");
-			goto fail2;
-		}
-		chip->num_leds++;
-
-		chip->leds[led].id = led;
-		/* Set LED current */
-		lp5523_write(client,
-			  LP5523_REG_LED_CURRENT_BASE + chip->leds[led].chan_nr,
-			  chip->leds[led].led_current);
-
-		led++;
-	}
+	ret = lp5523_register_leds(chip, id->name);
+	if (ret)
+		goto fail2;
 
 	ret = lp5523_register_sysfs(client);
 	if (ret) {
