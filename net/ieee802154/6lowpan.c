@@ -377,17 +377,14 @@ static int lowpan_header_create(struct sk_buff *skb,
 	struct ipv6hdr *hdr;
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
-	u8 *head;
+	u8 head[100];
 	struct ieee802154_addr sa, da;
 
+	/* TODO:
+	 * if this package isn't ipv6 one, where should it be routed?
+	 */
 	if (type != ETH_P_IPV6)
 		return 0;
-		/* TODO:
-		 * if this package isn't ipv6 one, where should it be routed?
-		 */
-	head = kzalloc(100, GFP_KERNEL);
-	if (head == NULL)
-		return -ENOMEM;
 
 	hdr = ipv6_hdr(skb);
 	hc06_ptr = head + 2;
@@ -560,8 +557,6 @@ static int lowpan_header_create(struct sk_buff *skb,
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
 	memcpy(skb_push(skb, hc06_ptr - head), head, hc06_ptr - head);
-
-	kfree(head);
 
 	lowpan_raw_dump_table(__func__, "raw skb data dump", skb->data,
 				skb->len);
