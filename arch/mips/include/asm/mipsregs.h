@@ -623,6 +623,24 @@
 #ifndef __ASSEMBLY__
 
 /*
+ * Macros for handling the ISA mode bit for microMIPS.
+ */
+#define get_isa16_mode(x)		((x) & 0x1)
+#define msk_isa16_mode(x)		((x) & ~0x1)
+#define set_isa16_mode(x)		do { (x) |= 0x1; } while(0)
+
+/*
+ * microMIPS instructions can be 16-bit or 32-bit in length. This
+ * returns a 1 if the instruction is 16-bit and a 0 if 32-bit.
+ */
+static inline int mm_insn_16bit(u16 insn)
+{
+	u16 opcode = (insn >> 10) & 0x7;
+
+	return (opcode >= 1 && opcode <= 3) ? 1 : 0;
+}
+
+/*
  * Functions to access the R10000 performance counters.	 These are basically
  * mfc0 and mtc0 instructions from and to coprocessor register with a 5-bit
  * performance counter number encoded into bits 1 ... 5 of the instruction.
