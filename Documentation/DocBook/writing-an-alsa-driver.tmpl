@@ -3278,8 +3278,8 @@ struct _snd_pcm_runtime {
 	 <programlisting>
 <![CDATA[
   snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      hw_rule_channels_by_format, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      -1);
+                      hw_rule_channels_by_format, NULL,
+                      SNDRV_PCM_HW_PARAM_FORMAT, -1);
 ]]>
           </programlisting>
         </informalexample>
@@ -3321,8 +3321,8 @@ struct _snd_pcm_runtime {
 	 <programlisting>
 <![CDATA[
   snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      hw_rule_format_by_channels, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      -1);
+                      hw_rule_format_by_channels, NULL,
+                      SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 ]]>
           </programlisting>
         </informalexample>
