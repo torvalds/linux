@@ -115,7 +115,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_WANT_MONITOR_VIF |
 		    IEEE80211_HW_SUPPORTS_PS |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_AMPDU_AGGREGATION;
+		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_TIMING_BEACON_ONLY;
 
 	hw->queues = IWL_FIRST_AMPDU_QUEUE;
 	hw->offchannel_tx_hw_queue = IWL_OFFCHANNEL_QUEUE;
