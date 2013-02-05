@@ -4,6 +4,14 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
+	aliases {
+		serial0 = &uarta;
+		serial1 = &uartb;
+		serial2 = &uartc;
+		serial3 = &uartd;
+		serial4 = &uarte;
+	};
+
 	host1x {
 		compatible = "nvidia,tegra20-host1x", "simple-bus";
 		reg = <0x50000000 0x00024000>;
@@ -112,21 +120,21 @@
 		interrupts = <1 13 0x304>;
 	};
 
-	cache-controller@50043000 {
-		compatible = "arm,pl310-cache";
-		reg = <0x50043000 0x1000>;
-		arm,data-latency = <5 5 2>;
-		arm,tag-latency = <4 4 2>;
-		cache-unified;
-		cache-level = <2>;
-	};
-
 	intc: interrupt-controller {
 		compatible = "arm,cortex-a9-gic";
 		reg = <0x50041000 0x1000
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+	};
+
+	cache-controller {
+		compatible = "arm,pl310-cache";
+		reg = <0x50043000 0x1000>;
+		arm,data-latency = <5 5 2>;
+		arm,tag-latency = <4 4 2>;
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	timer@60005000 {
@@ -199,6 +207,15 @@
 		compatible = "nvidia,tegra20-das";
 		reg = <0x70000c00 0x80>;
 	};
+	
+	tegra_ac97: ac97 {
+		compatible = "nvidia,tegra20-ac97";
+		reg = <0x70002000 0x200>;
+		interrupts = <0 81 0x04>;
+		nvidia,dma-request-selector = <&apbdma 12>;
+		clocks = <&tegra_car 3>;
+		status = "disabled";
+	};
 
 	tegra_i2s1: i2s@70002800 {
 		compatible = "nvidia,tegra20-i2s";
@@ -218,47 +235,64 @@
 		status = "disabled";
 	};
 
-	serial@70006000 {
+	/*
+	 * There are two serial driver i.e. 8250 based simple serial
+	 * driver and APB DMA based serial driver for higher baudrate
+	 * and performace. To enable the 8250 based driver, the compatible
+	 * is "nvidia,tegra20-uart" and to enable the APB DMA based serial
+	 * driver, the comptible is "nvidia,tegra20-hsuart".
+	 */
+	uarta: serial@70006000 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 36 0x04>;
+		clock-frequency = <216000000>;
+		nvidia,dma-request-selector = <&apbdma 8>;
 		clocks = <&tegra_car 6>;
 		status = "disabled";
 	};
 
-	serial@70006040 {
+	uartb: serial@70006040 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 37 0x04>;
+		clock-frequency = <216000000>;
+		nvidia,dma-request-selector = <&apbdma 9>;
 		clocks = <&tegra_car 96>;
 		status = "disabled";
 	};
 
-	serial@70006200 {
+	uartc: serial@70006200 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 46 0x04>;
+		clock-frequency = <216000000>;
+		nvidia,dma-request-selector = <&apbdma 10>;
 		clocks = <&tegra_car 55>;
 		status = "disabled";
 	};
 
-	serial@70006300 {
+	uartd: serial@70006300 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 90 0x04>;
+		clock-frequency = <216000000>;
+		nvidia,dma-request-selector = <&apbdma 19>;
 		clocks = <&tegra_car 65>;
 		status = "disabled";
 	};
 
-	serial@70006400 {
+	uarte: serial@70006400 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 91 0x04>;
+		clock-frequency = <216000000>;
+		nvidia,dma-request-selector = <&apbdma 20>;
 		clocks = <&tegra_car 66>;
 		status = "disabled";
 	};
@@ -375,6 +409,14 @@
 		status = "disabled";
 	};
 
+	kbc {
+		compatible = "nvidia,tegra20-kbc";
+		reg = <0x7000e200 0x100>;
+		interrupts = <0 85 0x04>;
+		clocks = <&tegra_car 36>;
+		status = "disabled";
+	};
+
 	pmc {
 		compatible = "nvidia,tegra20-pmc";
 		reg = <0x7000e400 0x400>;
@@ -387,7 +429,7 @@
 		interrupts = <0 77 0x04>;
 	};
 
-	gart {
+	iommu {
 		compatible = "nvidia,tegra20-gart";
 		reg = <0x7000f024 0x00000018	/* controller registers */
 		       0x58000000 0x02000000>;	/* GART aperture */

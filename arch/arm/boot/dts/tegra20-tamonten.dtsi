@@ -276,7 +276,6 @@
 	};
 
 	serial@70006300 {
-		clock-frequency = <216000000>;
 		status = "okay";
 	};
 
