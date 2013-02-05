@@ -1027,7 +1027,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 static bool
 brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 {
-	bool morepending = false;
 	struct bcma_device *core;
 	struct tx_status txstatus, *txs;
 	u32 s1, s2;
@@ -1041,23 +1040,20 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	txs = &txstatus;
 	core = wlc_hw->d11core;
 	*fatal = false;
-	s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
-	while (!(*fatal)
-	       && (s1 & TXS_V)) {
-		/* !give others some time to run! */
-		if (n >= max_tx_num) {
-			morepending = true;
-			break;
-		}
 
+	while (n < max_tx_num) {
+		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
 		if (s1 == 0xffffffff) {
 			brcms_err(core, "wl%d: %s: dead chip\n", wlc_hw->unit,
 				  __func__);
 			*fatal = true;
 			return false;
 		}
-		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
+		/* only process when valid */
+		if (!(s1 & TXS_V))
+			break;
 
+		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
 		txs->status = s1 & TXS_STATUS_MASK;
 		txs->frameid = (s1 & TXS_FID_MASK) >> TXS_FID_SHIFT;
 		txs->sequence = s2 & TXS_SEQ_MASK;
@@ -1065,15 +1061,12 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 		txs->lasttxtime = 0;
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
-
-		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
+		if (*fatal == true)
+			return false;
 		n++;
 	}
 
-	if (*fatal)
-		return false;
-
-	return morepending;
+	return n >= max_tx_num;
 }
 
 static void brcms_c_tbtt(struct brcms_c_info *wlc)
