@@ -345,7 +345,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 		/* program multicast address list into ALE register */
 		netdev_for_each_mc_addr(ha, ndev) {
 			cpsw_ale_add_mcast(priv->ale, (u8 *)ha->addr,
-				ALE_ALL_PORTS << priv->host_port, 0, 0);
+				ALE_ALL_PORTS << priv->host_port, 0, 0, 0);
 		}
 	}
 }
@@ -592,7 +592,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave_port = cpsw_get_slave_port(priv, slave->slave_num);
 
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
-			   1 << slave_port, 0, ALE_MCAST_FWD_2);
+			   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
 	slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
 				 &cpsw_adjust_link, slave->data->phy_if);
@@ -624,9 +624,9 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	cpsw_ale_control_set(priv->ale, priv->host_port,
 			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
-	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port, 0);
+	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port, 0, 0);
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
-			   1 << priv->host_port, 0, ALE_MCAST_FWD_2);
+			   1 << priv->host_port, 0, 0, ALE_MCAST_FWD_2);
 }
 
 static int cpsw_ndo_open(struct net_device *ndev)

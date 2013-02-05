@@ -64,8 +64,10 @@ enum cpsw_ale_port_state {
 };
 
 /* ALE unicast entry flags - passed into cpsw_ale_add_ucast() */
-#define ALE_SECURE			1
-#define ALE_BLOCKED			2
+#define ALE_SECURE			BIT(0)
+#define ALE_BLOCKED			BIT(1)
+#define ALE_SUPER			BIT(2)
+#define ALE_VLAN			BIT(3)
 
 #define ALE_MCAST_FWD			0
 #define ALE_MCAST_BLOCK_LEARN_FWD	1
@@ -81,11 +83,17 @@ void cpsw_ale_stop(struct cpsw_ale *ale);
 int cpsw_ale_set_ageout(struct cpsw_ale *ale, int ageout);
 int cpsw_ale_flush(struct cpsw_ale *ale, int port_mask);
 int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask);
-int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port, int flags);
-int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port);
+int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
+		       int flags, u16 vid);
+int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port,
+		       int flags, u16 vid);
 int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
-			int super, int mcast_state);
-int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask);
+		       int flags, u16 vid, int mcast_state);
+int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
+		       int flags, u16 vid);
+int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
+			int reg_mcast, int unreg_mcast);
+int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port);
 
 int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
