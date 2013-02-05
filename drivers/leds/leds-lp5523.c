@@ -199,77 +199,28 @@ static int lp5523_detect(struct i2c_client *client)
 
 static int lp5523_configure(struct i2c_client *client)
 {
-	struct lp5523_chip *chip = i2c_get_clientdata(client);
 	int ret = 0;
-	u8 status;
 
-	/* one pattern per engine setting led mux start and stop addresses */
-	static const u8 pattern[][LP5523_PROGRAM_LENGTH] =  {
-		{ 0x9c, 0x30, 0x9c, 0xb0, 0x9d, 0x80, 0xd8, 0x00, 0},
-		{ 0x9c, 0x40, 0x9c, 0xc0, 0x9d, 0x80, 0xd8, 0x00, 0},
-		{ 0x9c, 0x50, 0x9c, 0xd0, 0x9d, 0x80, 0xd8, 0x00, 0},
-	};
+	ret = lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
+	if (ret)
+		return ret;
 
-	ret |= lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
 	/* Chip startup time is 500 us, 1 - 2 ms gives some margin */
 	usleep_range(1000, 2000);
 
-	ret |= lp5523_write(client, LP5523_REG_CONFIG,
+	ret = lp5523_write(client, LP5523_REG_CONFIG,
 			    LP5523_AUTO_INC | LP5523_PWR_SAVE |
 			    LP5523_CP_AUTO | LP5523_AUTO_CLK |
 			    LP5523_PWM_PWR_SAVE);
-
-	/* turn on all leds */
-	ret |= lp5523_write(client, LP5523_REG_ENABLE_LEDS_MSB, 0x01);
-	ret |= lp5523_write(client, LP5523_REG_ENABLE_LEDS_LSB, 0xff);
-
-	/* hardcode 32 bytes of memory for each engine from program memory */
-	ret |= lp5523_write(client, LP5523_REG_CH1_PROG_START, 0x00);
-	ret |= lp5523_write(client, LP5523_REG_CH2_PROG_START, 0x10);
-	ret |= lp5523_write(client, LP5523_REG_CH3_PROG_START, 0x20);
-
-	/* write led mux address space for each channel */
-	ret |= lp5523_load_program(&chip->engines[0], pattern[0]);
-	ret |= lp5523_load_program(&chip->engines[1], pattern[1]);
-	ret |= lp5523_load_program(&chip->engines[2], pattern[2]);
-
-	if (ret) {
-		dev_err(&client->dev, "could not load mux programs\n");
-		return -1;
-	}
-
-	/* set all engines exec state and mode to run 00101010 */
-	ret |= lp5523_write(client, LP5523_REG_ENABLE,
-			    (LP5523_CMD_RUN | LP5523_ENABLE));
-
-	ret |= lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_RUN);
-
-	if (ret) {
-		dev_err(&client->dev, "could not start mux programs\n");
-		return -1;
-	}
-
-	/* Let the programs run for couple of ms and check the engine status */
-	usleep_range(3000, 6000);
-	ret = lp5523_read(client, LP5523_REG_STATUS, &status);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
-	status &= LP5523_ENG_STATUS_MASK;
+	/* turn on all leds */
+	ret = lp5523_write(client, LP5523_REG_ENABLE_LEDS_MSB, 0x01);
+	if (ret)
+		return ret;
 
-	if (status == LP5523_ENG_STATUS_MASK) {
-		dev_dbg(&client->dev, "all engines configured\n");
-	} else {
-		dev_info(&client->dev, "status == %x\n", status);
-		dev_err(&client->dev, "cound not configure LED engine\n");
-		return -1;
-	}
-
-	dev_info(&client->dev, "disabling engines\n");
-
-	ret |= lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_DISABLED);
-
-	return ret;
+	return lp5523_write(client, LP5523_REG_ENABLE_LEDS_LSB, 0xff);
 }
 
 static int lp5523_set_engine_mode(struct lp5523_engine *engine, u8 mode)
