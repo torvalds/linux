@@ -1116,7 +1116,8 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(mvm_sta->vif != vif))
 		return -EINVAL;
 
-	key_flags = cpu_to_le16(keyconf->keyidx & STA_KEY_FLG_KEYID_MSK);
+	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
+				 STA_KEY_FLG_KEYID_MSK);
 	key_flags |= cpu_to_le16(STA_KEY_FLG_NO_ENC | STA_KEY_FLG_WEP_KEY_MAP);
 	key_flags |= cpu_to_le16(STA_KEY_NOT_VALID);
 
