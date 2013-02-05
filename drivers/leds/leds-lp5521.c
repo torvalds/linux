@@ -689,16 +689,6 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static void lp5521_deinit_device(struct lp5521_chip *chip)
-{
-	struct lp5521_platform_data *pdata = chip->pdata;
-
-	if (pdata->enable)
-		pdata->enable(0);
-	if (pdata->release_resources)
-		pdata->release_resources();
-}
-
 static int lp5521_init_led(struct lp5521_led *led,
 				struct i2c_client *client,
 				int chan, struct lp5521_platform_data *pdata)
@@ -858,7 +848,7 @@ static int lp5521_probe(struct i2c_client *client,
 	return ret;
 fail2:
 	lp5521_unregister_leds(old_chip);
-	lp5521_deinit_device(old_chip);
+	lp55xx_deinit_device(chip);
 err_init:
 	return ret;
 }
@@ -866,13 +856,15 @@ err_init:
 static int lp5521_remove(struct i2c_client *client)
 {
 	struct lp5521_chip *old_chip = i2c_get_clientdata(client);
+	struct lp55xx_led *led = i2c_get_clientdata(client);
+	struct lp55xx_chip *chip = led->chip;
 
 	lp5521_run_led_pattern(PATTERN_OFF, old_chip);
 	lp5521_unregister_sysfs(client);
 
 	lp5521_unregister_leds(old_chip);
+	lp55xx_deinit_device(chip);
 
-	lp5521_deinit_device(old_chip);
 	return 0;
 }
 

@@ -84,7 +84,8 @@ extern int lp55xx_read(struct lp55xx_chip *chip, u8 reg, u8 *val);
 extern int lp55xx_update_bits(struct lp55xx_chip *chip, u8 reg,
 			u8 mask, u8 val);
 
-/* common device init functions */
+/* common device init/deinit functions */
 extern int lp55xx_init_device(struct lp55xx_chip *chip);
+extern void lp55xx_deinit_device(struct lp55xx_chip *chip);
 
 #endif /* _LEDS_LP55XX_COMMON_H */

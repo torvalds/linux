@@ -152,14 +152,23 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	return 0;
 
 err_post_init:
-	if (pdata->enable)
-		pdata->enable(0);
-	if (pdata->release_resources)
-		pdata->release_resources();
+	lp55xx_deinit_device(chip);
 err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lp55xx_init_device);
+
+void lp55xx_deinit_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (pdata->enable)
+		pdata->enable(0);
+
+	if (pdata->release_resources)
+		pdata->release_resources();
+}
+EXPORT_SYMBOL_GPL(lp55xx_deinit_device);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");
