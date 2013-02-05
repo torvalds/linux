@@ -1080,8 +1080,6 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!bitmap)
 			return 1;
 		map->s_uspace.s_bitmap = bitmap;
-		bitmap->s_extLength = le32_to_cpu(
-				phd->unallocSpaceBitmap.extLength);
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->unallocSpaceBitmap.extPosition);
 		map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_BITMAP;
@@ -1116,8 +1114,6 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!bitmap)
 			return 1;
 		map->s_fspace.s_bitmap = bitmap;
-		bitmap->s_extLength = le32_to_cpu(
-				phd->freedSpaceBitmap.extLength);
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->freedSpaceBitmap.extPosition);
 		map->s_partition_flags |= UDF_PART_FLAG_FREED_BITMAP;
