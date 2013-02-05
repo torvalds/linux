@@ -528,7 +528,9 @@ void ceph_mdsc_release_request(struct kref *kref)
 		iput(req->r_target_inode);
 	if (req->r_dentry)
 		dput(req->r_dentry);
-	if (req->r_old_dentry) {
+	if (req->r_old_dentry)
+		dput(req->r_old_dentry);
+	if (req->r_old_dentry_dir) {
 		/*
 		 * track (and drop pins for) r_old_dentry_dir
 		 * separately, since r_old_dentry's d_parent may have
@@ -537,7 +539,6 @@ void ceph_mdsc_release_request(struct kref *kref)
 		 */
 		ceph_put_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
-		dput(req->r_old_dentry);
 		iput(req->r_old_dentry_dir);
 	}
 	kfree(req->r_path1);
@@ -2053,7 +2054,7 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
 	if (req->r_locked_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
-	if (req->r_old_dentry)
+	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
 
