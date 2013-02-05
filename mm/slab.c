@@ -2306,8 +2306,9 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 	}
 #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
 	if (size >= kmalloc_size(INDEX_NODE + 1)
-	    && cachep->object_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
-		cachep->obj_offset += PAGE_SIZE - ALIGN(size, align);
+	    && cachep->object_size > cache_line_size()
+	    && ALIGN(size, cachep->align) < PAGE_SIZE) {
+		cachep->obj_offset += PAGE_SIZE - ALIGN(size, cachep->align);
 		size = PAGE_SIZE;
 	}
 #endif
@@ -4377,7 +4378,7 @@ static int leaks_show(struct seq_file *m, void *p)
 	struct slab *slabp;
 	struct kmem_cache_node *n;
 	const char *name;
-	unsigned long *n = m->private;
+	unsigned long *x = m->private;
 	int node;
 	int i;
 
@@ -4388,7 +4389,7 @@ static int leaks_show(struct seq_file *m, void *p)
 
 	/* OK, we can do it */
 
-	n[1] = 0;
+	x[1] = 0;
 
 	for_each_online_node(node) {
 		n = cachep->node[node];
@@ -4399,32 +4400,32 @@ static int leaks_show(struct seq_file *m, void *p)
 		spin_lock_irq(&n->list_lock);
 
 		list_for_each_entry(slabp, &n->slabs_full, list)
-			handle_slab(n, cachep, slabp);
+			handle_slab(x, cachep, slabp);
 		list_for_each_entry(slabp, &n->slabs_partial, list)
-			handle_slab(n, cachep, slabp);
+			handle_slab(x, cachep, slabp);
 		spin_unlock_irq(&n->list_lock);
 	}
 	name = cachep->name;
-	if (n[0] == n[1]) {
+	if (x[0] == x[1]) {
 		/* Increase the buffer size */
 		mutex_unlock(&slab_mutex);
-		m->private = kzalloc(n[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
+		m->private = kzalloc(x[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
 		if (!m->private) {
 			/* Too bad, we are really out */
-			m->private = n;
+			m->private = x;
 			mutex_lock(&slab_mutex);
 			return -ENOMEM;
 		}
-		*(unsigned long *)m->private = n[0] * 2;
-		kfree(n);
+		*(unsigned long *)m->private = x[0] * 2;
+		kfree(x);
 		mutex_lock(&slab_mutex);
 		/* Now make sure this entry will be retried */
 		m->count = m->size;
 		return 0;
 	}
-	for (i = 0; i < n[1]; i++) {
-		seq_printf(m, "%s: %lu ", name, n[2*i+3]);
-		show_symbol(m, n[2*i+2]);
+	for (i = 0; i < x[1]; i++) {
+		seq_printf(m, "%s: %lu ", name, x[2*i+3]);
+		show_symbol(m, x[2*i+2]);
 		seq_putc(m, '\n');
 	}
 
