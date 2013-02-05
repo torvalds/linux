@@ -1266,11 +1266,13 @@ enum cfg80211_signal_type {
 
 /**
  * struct cfg80211_bss_ie_data - BSS entry IE data
+ * @tsf: TSF contained in the frame that carried these IEs
  * @rcu_head: internal use, for freeing
  * @len: length of the IEs
  * @data: IE data
  */
 struct cfg80211_bss_ies {
+	u64 tsf;
 	struct rcu_head rcu_head;
 	int len;
 	u8 data[];
@@ -1284,7 +1286,6 @@ struct cfg80211_bss_ies {
  *
  * @channel: channel this BSS is on
  * @bssid: BSSID of the BSS
- * @tsf: timestamp of last received update
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
  * @ies: the information elements (Note that there is no guarantee that these
@@ -1304,8 +1305,6 @@ struct cfg80211_bss_ies {
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
-	u64 tsf;
-
 	struct ieee80211_channel *channel;
 
 	const struct cfg80211_bss_ies __rcu *ies;

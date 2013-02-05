@@ -695,7 +695,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 
 	if (found) {
 		found->pub.beacon_interval = tmp->pub.beacon_interval;
-		found->pub.tsf = tmp->pub.tsf;
 		found->pub.signal = tmp->pub.signal;
 		found->pub.capability = tmp->pub.capability;
 		found->ts = tmp->ts;
@@ -880,7 +879,6 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	memcpy(tmp.pub.bssid, bssid, ETH_ALEN);
 	tmp.pub.channel = channel;
 	tmp.pub.signal = signal;
-	tmp.pub.tsf = tsf;
 	tmp.pub.beacon_interval = beacon_interval;
 	tmp.pub.capability = capability;
 	/*
@@ -895,6 +893,7 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
+	ies->tsf = tsf;
 	memcpy(ies->data, ie, ielen);
 
 	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
@@ -951,6 +950,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
+	ies->tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
 	memcpy(ies->data, mgmt->u.probe_resp.variable, ielen);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control))
@@ -962,7 +962,6 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	memcpy(tmp.pub.bssid, mgmt->bssid, ETH_ALEN);
 	tmp.pub.channel = channel;
 	tmp.pub.signal = signal;
-	tmp.pub.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
 	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
 	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 
@@ -1409,7 +1408,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 	if (buf) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, "tsf=%016llx", (unsigned long long)(bss->pub.tsf));
+		sprintf(buf, "tsf=%016llx", (unsigned long long)(ies->tsf));
 		iwe.u.data.length = strlen(buf);
 		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 						  &iwe, buf);

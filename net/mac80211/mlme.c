@@ -3667,6 +3667,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
 		struct ieee80211_supported_band *sband;
+		const struct cfg80211_bss_ies *ies;
 
 		sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -3710,7 +3711,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 		/* set timing information */
 		sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
-		sdata->vif.bss_conf.sync_tsf = cbss->tsf;
+		rcu_read_lock();
+		ies = rcu_dereference(cbss->ies);
+		sdata->vif.bss_conf.sync_tsf = ies->tsf;
+		rcu_read_unlock();
 		sdata->vif.bss_conf.sync_device_ts = bss->device_ts;
 
 		/* tell driver about BSSID, basic rates and timing */

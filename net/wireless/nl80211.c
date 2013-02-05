@@ -4997,6 +4997,7 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	const struct cfg80211_bss_ies *ies;
 	void *hdr;
 	struct nlattr *bss;
+	bool tsf = false;
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -5020,22 +5021,24 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 
 	rcu_read_lock();
 	ies = rcu_dereference(res->ies);
-	if (ies && ies->len && nla_put(msg, NL80211_BSS_INFORMATION_ELEMENTS,
-				       ies->len, ies->data)) {
-		rcu_read_unlock();
-		goto nla_put_failure;
+	if (ies) {
+		if (nla_put_u64(msg, NL80211_BSS_TSF, ies->tsf))
+			goto fail_unlock_rcu;
+		tsf = true;
+		if (ies->len && nla_put(msg, NL80211_BSS_INFORMATION_ELEMENTS,
+					ies->len, ies->data))
+			goto fail_unlock_rcu;
 	}
 	ies = rcu_dereference(res->beacon_ies);
-	if (ies && ies->len && nla_put(msg, NL80211_BSS_BEACON_IES,
-				       ies->len, ies->data)) {
-		rcu_read_unlock();
-		goto nla_put_failure;
+	if (ies) {
+		if (!tsf && nla_put_u64(msg, NL80211_BSS_TSF, ies->tsf))
+			goto fail_unlock_rcu;
+		if (ies->len && nla_put(msg, NL80211_BSS_BEACON_IES,
+					ies->len, ies->data))
+			goto fail_unlock_rcu;
 	}
 	rcu_read_unlock();
 
-	if (res->tsf &&
-	    nla_put_u64(msg, NL80211_BSS_TSF, res->tsf))
-		goto nla_put_failure;
 	if (res->beacon_interval &&
 	    nla_put_u16(msg, NL80211_BSS_BEACON_INTERVAL, res->beacon_interval))
 		goto nla_put_failure;
@@ -5080,6 +5083,8 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 
 	return genlmsg_end(msg, hdr);
 
+ fail_unlock_rcu:
+	rcu_read_unlock();
  nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;

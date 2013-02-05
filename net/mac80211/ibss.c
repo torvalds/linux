@@ -242,6 +242,8 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	u32 basic_rates;
 	int i, j;
 	u16 beacon_int = cbss->beacon_interval;
+	const struct cfg80211_bss_ies *ies;
+	u64 tsf;
 
 	lockdep_assert_held(&sdata->u.ibss.mtx);
 
@@ -265,13 +267,17 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	rcu_read_lock();
+	ies = rcu_dereference(cbss->ies);
+	tsf = ies->tsf;
+	rcu_read_unlock();
+
 	__ieee80211_sta_join_ibss(sdata, cbss->bssid,
 				  beacon_int,
 				  cbss->channel,
 				  basic_rates,
 				  cbss->capability,
-				  cbss->tsf,
-				  false);
+				  tsf, false);
 }
 
 static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
@@ -535,8 +541,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	cbss = container_of((void *)bss, struct cfg80211_bss, priv);
 
-	/* was just updated in ieee80211_bss_info_update */
-	beacon_timestamp = cbss->tsf;
+	/* same for beacon and probe response */
+	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 
 	/* check if we need to merge IBSS */
 
