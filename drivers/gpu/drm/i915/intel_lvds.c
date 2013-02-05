@@ -547,13 +547,14 @@ static const struct dmi_system_id intel_no_modeset_on_lid[] = {
 };
 
 /*
- * Lid events. Note the use of 'modeset_on_lid':
- *  - we set it on lid close, and reset it on open
+ * Lid events. Note the use of 'modeset':
+ *  - we set it to MODESET_ON_LID_OPEN on lid close,
+ *    and set it to MODESET_DONE on open
  *  - we use it as a "only once" bit (ie we ignore
- *    duplicate events where it was already properly
- *    set/reset)
- *  - the suspend/resume paths will also set it to
- *    zero, since they restore the mode ("lid open").
+ *    duplicate events where it was already properly set)
+ *  - the suspend/resume paths will set it to
+ *    MODESET_SUSPENDED and ignore the lid open event,
+ *    because they restore the mode ("lid open").
  */
 static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 			    void *unused)
@@ -567,6 +568,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return NOTIFY_OK;
 
+	mutex_lock(&dev_priv->modeset_restore_lock);
+	if (dev_priv->modeset_restore == MODESET_SUSPENDED)
+		goto exit;
 	/*
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.
@@ -575,21 +579,24 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))
-		return NOTIFY_OK;
+		goto exit;
 	if (!acpi_lid_open()) {
-		dev_priv->modeset_on_lid = 1;
-		return NOTIFY_OK;
+		/* do modeset on next lid open event */
+		dev_priv->modeset_restore = MODESET_ON_LID_OPEN;
+		goto exit;
 	}
 
-	if (!dev_priv->modeset_on_lid)
-		return NOTIFY_OK;
-
-	dev_priv->modeset_on_lid = 0;
+	if (dev_priv->modeset_restore == MODESET_DONE)
+		goto exit;
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, true);
 	drm_modeset_unlock_all(dev);
 
+	dev_priv->modeset_restore = MODESET_DONE;
+
+exit:
+	mutex_unlock(&dev_priv->modeset_restore_lock);
 	return NOTIFY_OK;
 }
 

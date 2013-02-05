@@ -846,6 +846,12 @@ struct i915_gpu_error {
 	unsigned int stop_rings;
 };
 
+enum modeset_restore {
+	MODESET_ON_LID_OPEN,
+	MODESET_DONE,
+	MODESET_SUSPENDED,
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -967,8 +973,8 @@ typedef struct drm_i915_private {
 
 	unsigned long quirks;
 
-	/* Register state */
-	bool modeset_on_lid;
+	enum modeset_restore modeset_restore;
+	struct mutex modeset_restore_lock;
 
 	struct i915_gtt gtt;
 
