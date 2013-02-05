@@ -63,6 +63,12 @@ static int lp55xx_post_init_device(struct lp55xx_chip *chip)
 	return cfg->post_init_device(chip);
 }
 
+static int lp55xx_init_led(struct lp55xx_led *led,
+			struct lp55xx_chip *chip, int chan)
+{
+	return 0;
+}
+
 int lp55xx_write(struct lp55xx_chip *chip, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(chip->cl, reg, val);
@@ -169,6 +175,55 @@ void lp55xx_deinit_device(struct lp55xx_chip *chip)
 		pdata->release_resources();
 }
 EXPORT_SYMBOL_GPL(lp55xx_deinit_device);
+
+int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
+{
+	struct lp55xx_platform_data *pdata = chip->pdata;
+	struct lp55xx_device_config *cfg = chip->cfg;
+	int num_channels = pdata->num_channels;
+	struct lp55xx_led *each;
+	u8 led_current;
+	int ret;
+	int i;
+
+	if (!cfg->brightness_work_fn) {
+		dev_err(&chip->cl->dev, "empty brightness configuration\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_channels; i++) {
+
+		/* do not initialize channels that are not connected */
+		if (pdata->led_config[i].led_current == 0)
+			continue;
+
+		led_current = pdata->led_config[i].led_current;
+		each = led + i;
+		ret = lp55xx_init_led(each, chip, i);
+		if (ret)
+			goto err_init_led;
+
+		INIT_WORK(&each->brightness_work, cfg->brightness_work_fn);
+
+		chip->num_leds++;
+		each->chip = chip;
+
+		/* setting led current at each channel */
+		if (cfg->set_led_current)
+			cfg->set_led_current(each, led_current);
+	}
+
+	return 0;
+
+err_init_led:
+	for (i = 0; i < chip->num_leds; i++) {
+		each = led + i;
+		led_classdev_unregister(&each->cdev);
+		flush_work(&each->brightness_work);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_register_leds);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");

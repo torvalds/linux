@@ -33,6 +33,8 @@ struct lp55xx_reg {
  * @reset              : Chip specific reset command
  * @enable             : Chip specific enable command
  * @post_init_device   : Chip specific initialization code
+ * @brightness_work_fn : Brightness work function
+ * @set_led_current    : LED current set function
  */
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
@@ -40,6 +42,12 @@ struct lp55xx_device_config {
 
 	/* define if the device has specific initialization process */
 	int (*post_init_device) (struct lp55xx_chip *chip);
+
+	/* access brightness register */
+	void (*brightness_work_fn)(struct work_struct *work);
+
+	/* current setting function */
+	void (*set_led_current) (struct lp55xx_led *led, u8 led_current);
 };
 
 /*
@@ -88,4 +96,7 @@ extern int lp55xx_update_bits(struct lp55xx_chip *chip, u8 reg,
 extern int lp55xx_init_device(struct lp55xx_chip *chip);
 extern void lp55xx_deinit_device(struct lp55xx_chip *chip);
 
+/* common LED class device functions */
+extern int lp55xx_register_leds(struct lp55xx_led *led,
+				struct lp55xx_chip *chip);
 #endif /* _LEDS_LP55XX_COMMON_H */

@@ -738,44 +738,6 @@ static int lp5521_init_led(struct lp5521_led *led,
 	return 0;
 }
 
-static int lp5521_register_leds(struct lp5521_chip *chip)
-{
-	struct lp5521_platform_data *pdata = chip->pdata;
-	struct i2c_client *client = chip->client;
-	int i;
-	int led;
-	int ret;
-
-	/* Initialize leds */
-	chip->num_channels = pdata->num_channels;
-	chip->num_leds = 0;
-	led = 0;
-	for (i = 0; i < pdata->num_channels; i++) {
-		/* Do not initialize channels that are not connected */
-		if (pdata->led_config[i].led_current == 0)
-			continue;
-
-		ret = lp5521_init_led(&chip->leds[led], client, i, pdata);
-		if (ret) {
-			dev_err(&client->dev, "error initializing leds\n");
-			return ret;
-		}
-		chip->num_leds++;
-
-		chip->leds[led].id = led;
-		/* Set initial LED current */
-		lp5521_set_led_current(chip, led,
-				chip->leds[led].led_current);
-
-		INIT_WORK(&(chip->leds[led].brightness_work),
-			lp5521_led_brightness_work);
-
-		led++;
-	}
-
-	return 0;
-}
-
 static void lp5521_unregister_leds(struct lp5521_chip *chip)
 {
 	int i;
@@ -836,9 +798,9 @@ static int lp5521_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "%s programmable led chip found\n", id->name);
 
-	ret = lp5521_register_leds(old_chip);
+	ret = lp55xx_register_leds(led, chip);
 	if (ret)
-		goto fail2;
+		goto err_register_leds;
 
 	ret = lp5521_register_sysfs(client);
 	if (ret) {
@@ -848,6 +810,7 @@ static int lp5521_probe(struct i2c_client *client,
 	return ret;
 fail2:
 	lp5521_unregister_leds(old_chip);
+err_register_leds:
 	lp55xx_deinit_device(chip);
 err_init:
 	return ret;
