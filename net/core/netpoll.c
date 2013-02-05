@@ -47,6 +47,8 @@ static struct sk_buff_head skb_pool;
 
 static atomic_t trapped;
 
+static struct srcu_struct netpoll_srcu;
+
 #define USEC_PER_POLL	50
 #define NETPOLL_RX_ENABLED  1
 #define NETPOLL_RX_DROP     2
@@ -199,6 +201,13 @@ static void netpoll_poll_dev(struct net_device *dev)
 	const struct net_device_ops *ops;
 	struct netpoll_info *ni = rcu_dereference_bh(dev->npinfo);
 
+	/* Don't do any rx activity if the dev_lock mutex is held
+	 * the dev_open/close paths use this to block netpoll activity
+	 * while changing device state
+	 */
+	if (!mutex_trylock(&dev->npinfo->dev_lock))
+		return;
+
 	if (!dev || !netif_running(dev))
 		return;
 
@@ -210,6 +219,8 @@ static void netpoll_poll_dev(struct net_device *dev)
 	ops->ndo_poll_controller(dev);
 
 	poll_napi(dev);
+
+	mutex_unlock(&dev->npinfo->dev_lock);
 
 	if (dev->flags & IFF_SLAVE) {
 		if (ni) {
@@ -230,6 +241,31 @@ static void netpoll_poll_dev(struct net_device *dev)
 
 	zap_completion_queue();
 }
+
+int netpoll_rx_disable(struct net_device *dev)
+{
+	struct netpoll_info *ni;
+	int idx;
+	might_sleep();
+	idx = srcu_read_lock(&netpoll_srcu);
+	ni = srcu_dereference(dev->npinfo, &netpoll_srcu);
+	if (ni)
+		mutex_lock(&ni->dev_lock);
+	srcu_read_unlock(&netpoll_srcu, idx);
+	return 0;
+}
+EXPORT_SYMBOL(netpoll_rx_disable);
+
+void netpoll_rx_enable(struct net_device *dev)
+{
+	struct netpoll_info *ni;
+	rcu_read_lock();
+	ni = rcu_dereference(dev->npinfo);
+	if (ni)
+		mutex_unlock(&ni->dev_lock);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(netpoll_rx_enable);
 
 static void refill_skbs(void)
 {
@@ -1004,6 +1040,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 		INIT_LIST_HEAD(&npinfo->rx_np);
 
 		spin_lock_init(&npinfo->rx_lock);
+		mutex_init(&npinfo->dev_lock);
 		skb_queue_head_init(&npinfo->neigh_tx);
 		skb_queue_head_init(&npinfo->txq);
 		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
@@ -1169,6 +1206,7 @@ EXPORT_SYMBOL(netpoll_setup);
 static int __init netpoll_init(void)
 {
 	skb_queue_head_init(&skb_pool);
+	init_srcu_struct(&netpoll_srcu);
 	return 0;
 }
 core_initcall(netpoll_init);
@@ -1207,6 +1245,8 @@ void __netpoll_cleanup(struct netpoll *np)
 			npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
+
+	synchronize_srcu(&netpoll_srcu);
 
 	if (atomic_dec_and_test(&npinfo->refcnt)) {
 		const struct net_device_ops *ops;

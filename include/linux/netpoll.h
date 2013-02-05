@@ -38,8 +38,9 @@ struct netpoll {
 struct netpoll_info {
 	atomic_t refcnt;
 
-	int rx_flags;
+	unsigned long rx_flags;
 	spinlock_t rx_lock;
+	struct mutex dev_lock;
 	struct list_head rx_np; /* netpolls that registered an rx_hook */
 
 	struct sk_buff_head neigh_tx; /* list of neigh requests to reply to */
@@ -50,6 +51,14 @@ struct netpoll_info {
 	struct netpoll *netpoll;
 	struct rcu_head rcu;
 };
+
+#ifdef CONFIG_NETPOLL
+extern int netpoll_rx_disable(struct net_device *dev);
+extern void netpoll_rx_enable(struct net_device *dev);
+#else
+static inline int netpoll_rx_disable(struct net_device *dev) { return 0; }
+static inline void netpoll_rx_enable(struct net_device *dev) { return; }
+#endif
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len);
 void netpoll_print_options(struct netpoll *np);

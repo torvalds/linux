@@ -1266,6 +1266,14 @@ static int __dev_open(struct net_device *dev)
 	if (!netif_device_present(dev))
 		return -ENODEV;
 
+	/* Block netpoll from trying to do any rx path servicing.
+	 * If we don't do this there is a chance ndo_poll_controller
+	 * or ndo_poll may be running while we open the device
+	 */
+	ret = netpoll_rx_disable(dev);
+	if (ret)
+		return ret;
+
 	ret = call_netdevice_notifiers(NETDEV_PRE_UP, dev);
 	ret = notifier_to_errno(ret);
 	if (ret)
@@ -1278,6 +1286,8 @@ static int __dev_open(struct net_device *dev)
 
 	if (!ret && ops->ndo_open)
 		ret = ops->ndo_open(dev);
+
+	netpoll_rx_enable(dev);
 
 	if (ret)
 		clear_bit(__LINK_STATE_START, &dev->state);
@@ -1370,9 +1380,16 @@ static int __dev_close(struct net_device *dev)
 	int retval;
 	LIST_HEAD(single);
 
+	/* Temporarily disable netpoll until the interface is down */
+	retval = netpoll_rx_disable(dev);
+	if (retval)
+		return retval;
+
 	list_add(&dev->unreg_list, &single);
 	retval = __dev_close_many(&single);
 	list_del(&single);
+
+	netpoll_rx_enable(dev);
 	return retval;
 }
 
@@ -1408,14 +1425,22 @@ static int dev_close_many(struct list_head *head)
  */
 int dev_close(struct net_device *dev)
 {
+	int ret = 0;
 	if (dev->flags & IFF_UP) {
 		LIST_HEAD(single);
+
+		/* Block netpoll rx while the interface is going down */
+		ret = netpoll_rx_disable(dev);
+		if (ret)
+			return ret;
 
 		list_add(&dev->unreg_list, &single);
 		dev_close_many(&single);
 		list_del(&single);
+
+		netpoll_rx_enable(dev);
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(dev_close);
 
