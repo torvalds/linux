@@ -394,12 +394,12 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 	if ((mode & FMODE_WRITE) && rbd_dev->mapping.read_only)
 		return -EROFS;
 
-	spin_lock(&rbd_dev->lock);
+	spin_lock_irq(&rbd_dev->lock);
 	if (test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags))
 		removing = true;
 	else
 		rbd_dev->open_count++;
-	spin_unlock(&rbd_dev->lock);
+	spin_unlock_irq(&rbd_dev->lock);
 	if (removing)
 		return -ENOENT;
 
@@ -416,9 +416,9 @@ static int rbd_release(struct gendisk *disk, fmode_t mode)
 	struct rbd_device *rbd_dev = disk->private_data;
 	unsigned long open_count_before;
 
-	spin_lock(&rbd_dev->lock);
+	spin_lock_irq(&rbd_dev->lock);
 	open_count_before = rbd_dev->open_count--;
-	spin_unlock(&rbd_dev->lock);
+	spin_unlock_irq(&rbd_dev->lock);
 	rbd_assert(open_count_before > 0);
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
@@ -4099,12 +4099,12 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		goto done;
 	}
 
-	spin_lock(&rbd_dev->lock);
+	spin_lock_irq(&rbd_dev->lock);
 	if (rbd_dev->open_count)
 		ret = -EBUSY;
 	else
 		set_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
-	spin_unlock(&rbd_dev->lock);
+	spin_unlock_irq(&rbd_dev->lock);
 	if (ret < 0)
 		goto done;
 
