@@ -146,6 +146,9 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
 				struct victim_sel_policy *p)
 {
+	/* SSR allocates in a segment unit */
+	if (p->alloc_mode == SSR)
+		return 1 << sbi->log_blocks_per_seg;
 	if (p->gc_mode == GC_GREEDY)
 		return (1 << sbi->log_blocks_per_seg) * p->ofs_unit;
 	else if (p->gc_mode == GC_CB)
