@@ -205,12 +205,19 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX28.
 
-	config DEBUG_IMX31_IMX35_UART
-		bool "i.MX31 and i.MX35 Debug UART"
-		depends on SOC_IMX31 || SOC_IMX35
+	config DEBUG_IMX31_UART
+		bool "i.MX31 Debug UART"
+		depends on SOC_IMX31
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX31 or i.MX35.
+		  on i.MX31.
+
+	config DEBUG_IMX35_UART
+		bool "i.MX35 Debug UART"
+		depends on SOC_IMX35
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX35.
 
 	config DEBUG_IMX51_UART
 		bool "i.MX51 Debug UART"
@@ -471,11 +478,16 @@ choice
 
 endchoice
 
-config DEBUG_IMX6Q_UART_PORT
-	int "i.MX6Q Debug UART Port (1-5)" if DEBUG_IMX6Q_UART
-	range 1 5
+config DEBUG_IMX_UART_PORT
+	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \
+						DEBUG_IMX25_UART || \
+						DEBUG_IMX21_IMX27_UART || \
+						DEBUG_IMX31_UART || \
+						DEBUG_IMX35_UART || \
+						DEBUG_IMX51_UART || \
+						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX6Q_UART
 	default 1
-	depends on SOC_IMX6Q
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
@@ -516,7 +528,8 @@ config DEBUG_LL_INCLUDE
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \
 				 DEBUG_IMX21_IMX27_UART || \
-				 DEBUG_IMX31_IMX35_UART || \
+				 DEBUG_IMX31_UART || \
+				 DEBUG_IMX35_UART || \
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
