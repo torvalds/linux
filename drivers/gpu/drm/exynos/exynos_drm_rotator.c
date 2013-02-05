@@ -734,7 +734,7 @@ static int rotator_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct rot_limit_table rot_limit_tbl = {
+static struct rot_limit_table rot_limit_tbl = {
 	.ycbcr420_2p = {
 		.min_w = 32,
 		.min_h = 32,
@@ -751,7 +751,7 @@ struct rot_limit_table rot_limit_tbl = {
 	},
 };
 
-struct platform_device_id rotator_driver_ids[] = {
+static struct platform_device_id rotator_driver_ids[] = {
 	{
 		.name		= "exynos-rot",
 		.driver_data	= (unsigned long)&rot_limit_tbl,

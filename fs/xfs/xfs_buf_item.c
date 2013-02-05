@@ -652,7 +652,10 @@ xfs_buf_item_unlock(
 
 	/*
 	 * If the buf item isn't tracking any data, free it, otherwise drop the
-	 * reference we hold to it.
+	 * reference we hold to it. If we are aborting the transaction, this may
+	 * be the only reference to the buf item, so we free it anyway
+	 * regardless of whether it is dirty or not. A dirty abort implies a
+	 * shutdown, anyway.
 	 */
 	clean = 1;
 	for (i = 0; i < bip->bli_format_count; i++) {
@@ -664,7 +667,12 @@ xfs_buf_item_unlock(
 	}
 	if (clean)
 		xfs_buf_item_relse(bp);
-	else
+	else if (aborted) {
+		if (atomic_dec_and_test(&bip->bli_refcount)) {
+			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
+			xfs_buf_item_relse(bp);
+		}
+	} else
 		atomic_dec(&bip->bli_refcount);
 
 	if (!hold)
