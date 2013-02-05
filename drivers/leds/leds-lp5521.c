@@ -125,25 +125,6 @@
 #define LP5521_RUN_G			0x08
 #define LP5521_RUN_B			0x02
 
-struct lp5521_led {
-	int			id;
-	u8			chan_nr;
-	u8			led_current;
-	u8			max_current;
-	struct led_classdev	cdev;
-	struct work_struct	brightness_work;
-	u8			brightness;
-};
-
-struct lp5521_chip {
-	struct lp5521_platform_data *pdata;
-	struct mutex		lock; /* Serialize control */
-	struct i2c_client	*client;
-	struct lp5521_led	leds[LP5521_MAX_LEDS];
-	u8			num_channels;
-	u8			num_leds;
-};
-
 static inline void lp5521_wait_opmode_done(void)
 {
 	/* operation mode change needs to be longer than 153 us */
@@ -161,11 +142,6 @@ static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
 	led->led_current = led_current;
 	lp55xx_write(led->chip, LP5521_REG_LED_CURRENT_BASE + led->chan_nr,
 		led_current);
-}
-
-static inline int lp5521_write(struct i2c_client *client, u8 reg, u8 value)
-{
-	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 static void lp5521_load_engine(struct lp55xx_chip *chip)
@@ -410,14 +386,6 @@ static ssize_t lp5521_selftest(struct device *dev,
 	ret = lp5521_run_selftest(chip, buf);
 	mutex_unlock(&chip->lock);
 	return sprintf(buf, "%s\n", ret ? "FAIL" : "OK");
-}
-
-static inline struct lp5521_led_pattern *lp5521_get_pattern
-					(struct lp5521_chip *chip, u8 offset)
-{
-	struct lp5521_led_pattern *ptn;
-	ptn = chip->pdata->patterns + (offset - 1);
-	return ptn;
 }
 
 /* device attributes */

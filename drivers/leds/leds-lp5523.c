@@ -142,25 +142,6 @@ enum lp5523_chip_id {
 	LP55231,
 };
 
-struct lp5523_led {
-	int			id;
-	u8			chan_nr;
-	u8			led_current;
-	u8			max_current;
-	struct led_classdev     cdev;
-	struct work_struct	brightness_work;
-	u8			brightness;
-};
-
-struct lp5523_chip {
-	struct mutex		lock; /* Serialize control */
-	struct i2c_client	*client;
-	struct lp5523_led	leds[LP5523_MAX_LEDS];
-	struct lp5523_platform_data *pdata;
-	u8			num_channels;
-	u8			num_leds;
-};
-
 static inline void lp5523_wait_opmode_done(void)
 {
 	usleep_range(1000, 2000);
