@@ -15,6 +15,7 @@
 
 struct iio_dev;
 struct iio_chan_spec;
+struct device;
 
 /**
  * struct iio_channel - everything needed for a consumer to use a channel
@@ -48,14 +49,14 @@ void iio_channel_release(struct iio_channel *chan);
 
 /**
  * iio_channel_get_all() - get all channels associated with a client
- * @name:		name of consumer device.
+ * @dev:		Pointer to consumer device.
  *
  * Returns an array of iio_channel structures terminated with one with
  * null iio_dev pointer.
  * This function is used by fairly generic consumers to get all the
  * channels registered as having this consumer.
  */
-struct iio_channel *iio_channel_get_all(const char *name);
+struct iio_channel *iio_channel_get_all(struct device *dev);
 
 /**
  * iio_channel_release_all() - reverse iio_channel_get_all
@@ -66,7 +67,7 @@ void iio_channel_release_all(struct iio_channel *chan);
 struct iio_cb_buffer;
 /**
  * iio_channel_get_all_cb() - register callback for triggered capture
- * @name:		Name of client device.
+ * @dev:		Pointer to client device.
  * @cb:			Callback function.
  * @private:		Private data passed to callback.
  *
@@ -74,7 +75,7 @@ struct iio_cb_buffer;
  * So if the channels requested come from different devices this will
  * fail.
  */
-struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
+struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 					     int (*cb)(u8 *data,
 						       void *private),
 					     void *private);

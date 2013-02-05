@@ -7,3 +7,4 @@
 #
 
 obj-y += hid-sensors/
+obj-y += st_sensors/

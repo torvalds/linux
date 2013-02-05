@@ -21,45 +21,110 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#include "adxrs450.h"
+#define ADXRS450_STARTUP_DELAY	50 /* ms */
+
+/* The MSB for the spi commands */
+#define ADXRS450_SENSOR_DATA    (0x20 << 24)
+#define ADXRS450_WRITE_DATA	(0x40 << 24)
+#define ADXRS450_READ_DATA	(0x80 << 24)
+
+#define ADXRS450_RATE1	0x00	/* Rate Registers */
+#define ADXRS450_TEMP1	0x02	/* Temperature Registers */
+#define ADXRS450_LOCST1	0x04	/* Low CST Memory Registers */
+#define ADXRS450_HICST1	0x06	/* High CST Memory Registers */
+#define ADXRS450_QUAD1	0x08	/* Quad Memory Registers */
+#define ADXRS450_FAULT1	0x0A	/* Fault Registers */
+#define ADXRS450_PID1	0x0C	/* Part ID Register 1 */
+#define ADXRS450_SNH	0x0E	/* Serial Number Registers, 4 bytes */
+#define ADXRS450_SNL	0x10
+#define ADXRS450_DNC1	0x12	/* Dynamic Null Correction Registers */
+/* Check bits */
+#define ADXRS450_P	0x01
+#define ADXRS450_CHK	0x02
+#define ADXRS450_CST	0x04
+#define ADXRS450_PWR	0x08
+#define ADXRS450_POR	0x10
+#define ADXRS450_NVM	0x20
+#define ADXRS450_Q	0x40
+#define ADXRS450_PLL	0x80
+#define ADXRS450_UV	0x100
+#define ADXRS450_OV	0x200
+#define ADXRS450_AMP	0x400
+#define ADXRS450_FAIL	0x800
+
+#define ADXRS450_WRERR_MASK	(0x7 << 29)
+
+#define ADXRS450_MAX_RX 4
+#define ADXRS450_MAX_TX 4
+
+#define ADXRS450_GET_ST(a)	((a >> 26) & 0x3)
+
+enum {
+	ID_ADXRS450,
+	ID_ADXRS453,
+};
+
+/**
+ * struct adxrs450_state - device instance specific data
+ * @us:			actual spi_device
+ * @buf_lock:		mutex to protect tx and rx
+ * @tx:			transmit buffer
+ * @rx:			receive buffer
+ **/
+struct adxrs450_state {
+	struct spi_device	*us;
+	struct mutex		buf_lock;
+	__be32			tx ____cacheline_aligned;
+	__be32			rx;
+
+};
 
 /**
  * adxrs450_spi_read_reg_16() - read 2 bytes from a register pair
- * @dev: device associated with child of actual iio_dev
- * @reg_address: the address of the lower of the two registers,which should be an even address,
- * Second register's address is reg_address + 1.
+ * @indio_dev: device associated with child of actual iio_dev
+ * @reg_address: the address of the lower of the two registers, which should be
+ *	an even address, the second register's address is reg_address + 1.
  * @val: somewhere to pass back the value read
  **/
 static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
 				    u8 reg_address,
 				    u16 *val)
 {
+	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
+	u32 tx;
 	int ret;
+	struct spi_transfer xfers[] = {
+		{
+			.tx_buf = &st->tx,
+			.bits_per_word = 8,
+			.len = sizeof(st->tx),
+			.cs_change = 1,
+		}, {
+			.rx_buf = &st->rx,
+			.bits_per_word = 8,
+			.len = sizeof(st->rx),
+		},
+	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_READ_DATA | (reg_address >> 7);
-	st->tx[1] = reg_address << 1;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	tx = ADXRS450_READ_DATA | (reg_address << 17);
 
-	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
-		st->tx[3]  |= ADXRS450_P;
+	if (!(hweight32(tx) & 1))
+		tx |= ADXRS450_P;
 
-	ret = spi_write(st->us, st->tx, 4);
-	if (ret) {
-		dev_err(&st->us->dev, "problem while reading 16 bit register 0x%02x\n",
-			reg_address);
-		goto error_ret;
-	}
-	ret = spi_read(st->us, st->rx, 4);
+	st->tx = cpu_to_be32(tx);
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
+	ret = spi_sync(st->us, &msg);
 	if (ret) {
 		dev_err(&st->us->dev, "problem while reading 16 bit register 0x%02x\n",
 				reg_address);
 		goto error_ret;
 	}
 
-	*val = (be32_to_cpu(*(u32 *)st->rx) >> 5) & 0xFFFF;
+	*val = (be32_to_cpu(st->rx) >> 5) & 0xFFFF;
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -68,9 +133,9 @@ error_ret:
 
 /**
  * adxrs450_spi_write_reg_16() - write 2 bytes data to a register pair
- * @dev: device associated with child of actual actual iio_dev
- * @reg_address: the address of the lower of the two registers,which should be an even address,
- * Second register's address is reg_address + 1.
+ * @indio_dev: device associated with child of actual actual iio_dev
+ * @reg_address: the address of the lower of the two registers,which should be
+ *	an even address, the second register's address is reg_address + 1.
  * @val: value to be written.
  **/
 static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
@@ -78,55 +143,61 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
 				     u16 val)
 {
 	struct adxrs450_state *st = iio_priv(indio_dev);
+	u32 tx;
 	int ret;
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_WRITE_DATA | reg_address >> 7;
-	st->tx[1] = reg_address << 1 | val >> 15;
-	st->tx[2] = val >> 7;
-	st->tx[3] = val << 1;
+	tx = ADXRS450_WRITE_DATA | (reg_address << 17) | (val << 1);
 
-	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
-		st->tx[3] |= ADXRS450_P;
+	if (!(hweight32(tx) & 1))
+		tx |= ADXRS450_P;
 
-	ret = spi_write(st->us, st->tx, 4);
+	st->tx = cpu_to_be32(tx);
+	ret = spi_write(st->us, &st->tx, sizeof(st->tx));
 	if (ret)
 		dev_err(&st->us->dev, "problem while writing 16 bit register 0x%02x\n",
 			reg_address);
-	msleep(1); /* enforce sequential transfer delay 0.1ms */
+	usleep_range(100, 1000); /* enforce sequential transfer delay 0.1ms */
 	mutex_unlock(&st->buf_lock);
 	return ret;
 }
 
 /**
  * adxrs450_spi_sensor_data() - read 2 bytes sensor data
- * @dev: device associated with child of actual iio_dev
+ * @indio_dev: device associated with child of actual iio_dev
  * @val: somewhere to pass back the value read
  **/
 static int adxrs450_spi_sensor_data(struct iio_dev *indio_dev, s16 *val)
 {
+	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
 	int ret;
+	struct spi_transfer xfers[] = {
+		{
+			.tx_buf = &st->tx,
+			.bits_per_word = 8,
+			.len = sizeof(st->tx),
+			.cs_change = 1,
+		}, {
+			.rx_buf = &st->rx,
+			.bits_per_word = 8,
+			.len = sizeof(st->rx),
+		},
+	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_SENSOR_DATA;
-	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	st->tx = cpu_to_be32(ADXRS450_SENSOR_DATA);
 
-	ret = spi_write(st->us, st->tx, 4);
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
+	ret = spi_sync(st->us, &msg);
 	if (ret) {
 		dev_err(&st->us->dev, "Problem while reading sensor data\n");
 		goto error_ret;
 	}
 
-	ret = spi_read(st->us, st->rx, 4);
-	if (ret) {
-		dev_err(&st->us->dev, "Problem while reading sensor data\n");
-		goto error_ret;
-	}
-
-	*val = (be32_to_cpu(*(u32 *)st->rx) >> 10) & 0xFFFF;
+	*val = (be32_to_cpu(st->rx) >> 10) & 0xFFFF;
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -137,26 +208,26 @@ error_ret:
  * adxrs450_spi_initial() - use for initializing procedure.
  * @st: device instance specific data
  * @val: somewhere to pass back the value read
+ * @chk: Whether to perform fault check
  **/
 static int adxrs450_spi_initial(struct adxrs450_state *st,
 		u32 *val, char chk)
 {
 	struct spi_message msg;
 	int ret;
+	u32 tx;
 	struct spi_transfer xfers = {
-		.tx_buf = st->tx,
-		.rx_buf = st->rx,
+		.tx_buf = &st->tx,
+		.rx_buf = &st->rx,
 		.bits_per_word = 8,
-		.len = 4,
+		.len = sizeof(st->tx),
 	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_SENSOR_DATA;
-	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	tx = ADXRS450_SENSOR_DATA;
 	if (chk)
-		st->tx[3] |= (ADXRS450_CHK | ADXRS450_P);
+		tx |= (ADXRS450_CHK | ADXRS450_P);
+	st->tx = cpu_to_be32(tx);
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers, &msg);
 	ret = spi_sync(st->us, &msg);
@@ -165,7 +236,7 @@ static int adxrs450_spi_initial(struct adxrs450_state *st,
 		goto error_ret;
 	}
 
-	*val = be32_to_cpu(*(u32 *)st->rx);
+	*val = be32_to_cpu(st->rx);
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -185,8 +256,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (t != 0x01)
-		dev_warn(&st->us->dev, "The initial power on response "
-			 "is not correct! Restart without reset?\n");
+		dev_warn(&st->us->dev, "The initial power on response is not correct! Restart without reset?\n");
 
 	msleep(ADXRS450_STARTUP_DELAY);
 	ret = adxrs450_spi_initial(st, &t, 0);
@@ -217,20 +287,6 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 		dev_err(&st->us->dev, "The device is not in normal status!\n");
 		return -EINVAL;
 	}
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_PID1, &data);
-	if (ret)
-		return ret;
-	dev_info(&st->us->dev, "The Part ID is 0x%x\n", data);
-
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_SNL, &data);
-	if (ret)
-		return ret;
-	t = data;
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_SNH, &data);
-	if (ret)
-		return ret;
-	t |= data << 16;
-	dev_info(&st->us->dev, "The Serial Number is 0x%x\n", t);
 
 	return 0;
 }
@@ -244,9 +300,10 @@ static int adxrs450_write_raw(struct iio_dev *indio_dev,
 	int ret;
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
+		if (val < -0x400 || val >= 0x400)
+			return -EINVAL;
 		ret = adxrs450_spi_write_reg_16(indio_dev,
-						ADXRS450_DNC1,
-						val & 0x3FF);
+						ADXRS450_DNC1, val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -312,7 +369,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_DNC1, &t);
 		if (ret)
 			break;
-		*val = t;
+		*val = sign_extend32(t, 9);
 		ret = IIO_VAL_INT;
 		break;
 	default:
