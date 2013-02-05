@@ -206,6 +206,15 @@ static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
 	return __raw_readl(dev->mmio_base + reg);
 }
 
+#ifdef CONFIG_ARCH_PXA
 struct ssp_device *pxa_ssp_request(int port, const char *label);
 void pxa_ssp_free(struct ssp_device *);
+#else
+static inline struct ssp_device *pxa_ssp_request(int port, const char *label)
+{
+	return NULL;
+}
+static inline void pxa_ssp_free(struct ssp_device *ssp) {}
+#endif
+
 #endif

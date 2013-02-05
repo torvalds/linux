@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -47,7 +48,7 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 
 #define DMA_INT_MASK		(DCSR_ENDINTR | DCSR_STARTINTR | DCSR_BUSERR)
 #define RESET_DMA_CHANNEL	(DCSR_NODESC | DMA_INT_MASK)
-#define IS_DMA_ALIGNED(x)	((((u32)(x)) & 0x07) == 0)
+#define IS_DMA_ALIGNED(x)	IS_ALIGNED((unsigned long)(x), DMA_ALIGNMENT)
 #define MAX_DMA_LEN		8191
 #define DMA_ALIGNMENT		8
 
@@ -85,9 +86,6 @@ DEFINE_SSP_REG(SSPSP, 0x2c)
 #define DONE_STATE ((void*)2)
 #define ERROR_STATE ((void*)-1)
 
-#define QUEUE_RUNNING 0
-#define QUEUE_STOPPED 1
-
 struct driver_data {
 	/* Driver model hookup */
 	struct platform_device *pdev;
@@ -117,13 +115,8 @@ struct driver_data {
 	u32 clear_sr;
 	u32 mask_sr;
 
-	/* Driver message queue */
-	struct workqueue_struct	*workqueue;
-	struct work_struct pump_messages;
-	spinlock_t lock;
-	struct list_head queue;
-	int busy;
-	int run;
+	/* Maximun clock rate */
+	unsigned long max_clk_rate;
 
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
@@ -172,8 +165,6 @@ struct chip_data {
 	int (*read)(struct driver_data *drv_data);
 	void (*cs_control)(u32 command);
 };
-
-static void pump_messages(struct work_struct *work);
 
 static void cs_assert(struct driver_data *drv_data)
 {
@@ -444,15 +435,11 @@ static void unmap_dma_buffers(struct driver_data *drv_data)
 static void giveback(struct driver_data *drv_data)
 {
 	struct spi_transfer* last_transfer;
-	unsigned long flags;
 	struct spi_message *msg;
 
-	spin_lock_irqsave(&drv_data->lock, flags);
 	msg = drv_data->cur_msg;
 	drv_data->cur_msg = NULL;
 	drv_data->cur_transfer = NULL;
-	queue_work(drv_data->workqueue, &drv_data->pump_messages);
-	spin_unlock_irqrestore(&drv_data->lock, flags);
 
 	last_transfer = list_entry(msg->transfers.prev,
 					struct spi_transfer,
@@ -481,13 +468,7 @@ static void giveback(struct driver_data *drv_data)
 		 */
 
 		/* get a pointer to the next message, if any */
-		spin_lock_irqsave(&drv_data->lock, flags);
-		if (list_empty(&drv_data->queue))
-			next_msg = NULL;
-		else
-			next_msg = list_entry(drv_data->queue.next,
-					struct spi_message, queue);
-		spin_unlock_irqrestore(&drv_data->lock, flags);
+		next_msg = spi_get_next_queued_message(drv_data->master);
 
 		/* see if the next and current messages point
 		 * to the same chip
@@ -498,10 +479,7 @@ static void giveback(struct driver_data *drv_data)
 			cs_deassert(drv_data);
 	}
 
-	msg->state = NULL;
-	if (msg->complete)
-		msg->complete(msg->context);
-
+	spi_finalize_current_message(drv_data->master);
 	drv_data->cur_chip = NULL;
 }
 
@@ -917,9 +895,12 @@ static int set_dma_burst_and_threshold(struct chip_data *chip,
 	return retval;
 }
 
-static unsigned int ssp_get_clk_div(struct ssp_device *ssp, int rate)
+static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 {
-	unsigned long ssp_clk = clk_get_rate(ssp->clk);
+	unsigned long ssp_clk = drv_data->max_clk_rate;
+	const struct ssp_device *ssp = drv_data->ssp;
+
+	rate = min_t(int, ssp_clk, rate);
 
 	if (ssp->type == PXA25x_SSP || ssp->type == CE4100_SSP)
 		return ((ssp_clk / (2 * rate) - 1) & 0xff) << 8;
@@ -934,7 +915,6 @@ static void pump_transfers(unsigned long data)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip = NULL;
-	struct ssp_device *ssp = drv_data->ssp;
 	void __iomem *reg = drv_data->ioaddr;
 	u32 clk_div = 0;
 	u8 bits = 0;
@@ -1031,7 +1011,7 @@ static void pump_transfers(unsigned long data)
 		if (transfer->bits_per_word)
 			bits = transfer->bits_per_word;
 
-		clk_div = ssp_get_clk_div(ssp, speed);
+		clk_div = ssp_get_clk_div(drv_data, speed);
 
 		if (bits <= 8) {
 			drv_data->n_bytes = 1;
@@ -1176,31 +1156,12 @@ static void pump_transfers(unsigned long data)
 	write_SSCR1(cr1, reg);
 }
 
-static void pump_messages(struct work_struct *work)
+static int pxa2xx_spi_transfer_one_message(struct spi_master *master,
+					   struct spi_message *msg)
 {
-	struct driver_data *drv_data =
-		container_of(work, struct driver_data, pump_messages);
-	unsigned long flags;
+	struct driver_data *drv_data = spi_master_get_devdata(master);
 
-	/* Lock queue and check for queue work */
-	spin_lock_irqsave(&drv_data->lock, flags);
-	if (list_empty(&drv_data->queue) || drv_data->run == QUEUE_STOPPED) {
-		drv_data->busy = 0;
-		spin_unlock_irqrestore(&drv_data->lock, flags);
-		return;
-	}
-
-	/* Make sure we are not already running a message */
-	if (drv_data->cur_msg) {
-		spin_unlock_irqrestore(&drv_data->lock, flags);
-		return;
-	}
-
-	/* Extract head of queue */
-	drv_data->cur_msg = list_entry(drv_data->queue.next,
-					struct spi_message, queue);
-	list_del_init(&drv_data->cur_msg->queue);
-
+	drv_data->cur_msg = msg;
 	/* Initial message state*/
 	drv_data->cur_msg->state = START_STATE;
 	drv_data->cur_transfer = list_entry(drv_data->cur_msg->transfers.next,
@@ -1213,34 +1174,6 @@ static void pump_messages(struct work_struct *work)
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
-
-	drv_data->busy = 1;
-	spin_unlock_irqrestore(&drv_data->lock, flags);
-}
-
-static int transfer(struct spi_device *spi, struct spi_message *msg)
-{
-	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	spin_lock_irqsave(&drv_data->lock, flags);
-
-	if (drv_data->run == QUEUE_STOPPED) {
-		spin_unlock_irqrestore(&drv_data->lock, flags);
-		return -ESHUTDOWN;
-	}
-
-	msg->actual_length = 0;
-	msg->status = -EINPROGRESS;
-	msg->state = START_STATE;
-
-	list_add_tail(&msg->queue, &drv_data->queue);
-
-	if (drv_data->run == QUEUE_RUNNING && !drv_data->busy)
-		queue_work(drv_data->workqueue, &drv_data->pump_messages);
-
-	spin_unlock_irqrestore(&drv_data->lock, flags);
-
 	return 0;
 }
 
@@ -1287,7 +1220,6 @@ static int setup(struct spi_device *spi)
 	struct pxa2xx_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
-	struct ssp_device *ssp = drv_data->ssp;
 	unsigned int clk_div;
 	uint tx_thres = TX_THRESH_DFLT;
 	uint rx_thres = RX_THRESH_DFLT;
@@ -1369,7 +1301,7 @@ static int setup(struct spi_device *spi)
 		}
 	}
 
-	clk_div = ssp_get_clk_div(ssp, spi->max_speed_hz);
+	clk_div = ssp_get_clk_div(drv_data, spi->max_speed_hz);
 	chip->speed_hz = spi->max_speed_hz;
 
 	chip->cr0 = clk_div
@@ -1385,12 +1317,12 @@ static int setup(struct spi_device *spi)
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (!pxa25x_ssp_comp(drv_data))
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-			clk_get_rate(ssp->clk)
+			drv_data->max_clk_rate
 				/ (1 + ((chip->cr0 & SSCR0_SCR(0xfff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 	else
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-			clk_get_rate(ssp->clk) / 2
+			drv_data->max_clk_rate / 2
 				/ (1 + ((chip->cr0 & SSCR0_SCR(0x0ff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 
@@ -1438,94 +1370,6 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
-static int init_queue(struct driver_data *drv_data)
-{
-	INIT_LIST_HEAD(&drv_data->queue);
-	spin_lock_init(&drv_data->lock);
-
-	drv_data->run = QUEUE_STOPPED;
-	drv_data->busy = 0;
-
-	tasklet_init(&drv_data->pump_transfers,
-			pump_transfers,	(unsigned long)drv_data);
-
-	INIT_WORK(&drv_data->pump_messages, pump_messages);
-	drv_data->workqueue = create_singlethread_workqueue(
-				dev_name(drv_data->master->dev.parent));
-	if (drv_data->workqueue == NULL)
-		return -EBUSY;
-
-	return 0;
-}
-
-static int start_queue(struct driver_data *drv_data)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&drv_data->lock, flags);
-
-	if (drv_data->run == QUEUE_RUNNING || drv_data->busy) {
-		spin_unlock_irqrestore(&drv_data->lock, flags);
-		return -EBUSY;
-	}
-
-	drv_data->run = QUEUE_RUNNING;
-	drv_data->cur_msg = NULL;
-	drv_data->cur_transfer = NULL;
-	drv_data->cur_chip = NULL;
-	spin_unlock_irqrestore(&drv_data->lock, flags);
-
-	queue_work(drv_data->workqueue, &drv_data->pump_messages);
-
-	return 0;
-}
-
-static int stop_queue(struct driver_data *drv_data)
-{
-	unsigned long flags;
-	unsigned limit = 500;
-	int status = 0;
-
-	spin_lock_irqsave(&drv_data->lock, flags);
-
-	/* This is a bit lame, but is optimized for the common execution path.
-	 * A wait_queue on the drv_data->busy could be used, but then the common
-	 * execution path (pump_messages) would be required to call wake_up or
-	 * friends on every SPI message. Do this instead */
-	drv_data->run = QUEUE_STOPPED;
-	while ((!list_empty(&drv_data->queue) || drv_data->busy) && limit--) {
-		spin_unlock_irqrestore(&drv_data->lock, flags);
-		msleep(10);
-		spin_lock_irqsave(&drv_data->lock, flags);
-	}
-
-	if (!list_empty(&drv_data->queue) || drv_data->busy)
-		status = -EBUSY;
-
-	spin_unlock_irqrestore(&drv_data->lock, flags);
-
-	return status;
-}
-
-static int destroy_queue(struct driver_data *drv_data)
-{
-	int status;
-
-	status = stop_queue(drv_data);
-	/* we are unloading the module or failing to load (only two calls
-	 * to this routine), and neither call can handle a return value.
-	 * However, destroy_workqueue calls flush_workqueue, and that will
-	 * block until all work is done.  If the reason that stop_queue
-	 * timed out is that the work will never finish, then it does no
-	 * good to call destroy_workqueue, so return anyway. */
-	if (status != 0)
-		return status;
-
-	destroy_workqueue(drv_data->workqueue);
-
-	return 0;
-}
-
 static int pxa2xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1535,11 +1379,18 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	struct ssp_device *ssp;
 	int status;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
+	if (!platform_info) {
+		dev_err(&pdev->dev, "missing platform data\n");
+		return -ENODEV;
+	}
 
 	ssp = pxa_ssp_request(pdev->id, pdev->name);
-	if (ssp == NULL) {
-		dev_err(&pdev->dev, "failed to request SSP%d\n", pdev->id);
+	if (!ssp)
+		ssp = &platform_info->ssp;
+
+	if (!ssp->mmio_base) {
+		dev_err(&pdev->dev, "failed to get ssp\n");
 		return -ENODEV;
 	}
 
@@ -1561,16 +1412,15 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	master->bus_num = pdev->id;
+	master->bus_num = ssp->port_id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->dma_alignment = DMA_ALIGNMENT;
 	master->cleanup = cleanup;
 	master->setup = setup;
-	master->transfer = transfer;
+	master->transfer_one_message = pxa2xx_spi_transfer_one_message;
 
 	drv_data->ssp_type = ssp->type;
-	drv_data->null_dma_buf = (u32 *)ALIGN((u32)(drv_data +
-						sizeof(struct driver_data)), 8);
+	drv_data->null_dma_buf = (u32 *)PTR_ALIGN(&drv_data[1], DMA_ALIGNMENT);
 
 	drv_data->ioaddr = ssp->mmio_base;
 	drv_data->ssdr_physical = ssp->phys_base + SSDR;
@@ -1625,7 +1475,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Enable SOC clock */
-	clk_enable(ssp->clk);
+	clk_prepare_enable(ssp->clk);
+
+	drv_data->max_clk_rate = clk_get_rate(ssp->clk);
 
 	/* Load default SSP configuration */
 	write_SSCR0(0, drv_data->ioaddr);
@@ -1640,33 +1492,21 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		write_SSTO(0, drv_data->ioaddr);
 	write_SSPSP(0, drv_data->ioaddr);
 
-	/* Initial and start queue */
-	status = init_queue(drv_data);
-	if (status != 0) {
-		dev_err(&pdev->dev, "problem initializing queue\n");
-		goto out_error_clock_enabled;
-	}
-	status = start_queue(drv_data);
-	if (status != 0) {
-		dev_err(&pdev->dev, "problem starting queue\n");
-		goto out_error_clock_enabled;
-	}
+	tasklet_init(&drv_data->pump_transfers, pump_transfers,
+		     (unsigned long)drv_data);
 
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
 	status = spi_register_master(master);
 	if (status != 0) {
 		dev_err(&pdev->dev, "problem registering spi master\n");
-		goto out_error_queue_alloc;
+		goto out_error_clock_enabled;
 	}
 
 	return status;
 
-out_error_queue_alloc:
-	destroy_queue(drv_data);
-
 out_error_clock_enabled:
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 out_error_dma_alloc:
 	if (drv_data->tx_channel != -1)
@@ -1687,29 +1527,14 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 {
 	struct driver_data *drv_data = platform_get_drvdata(pdev);
 	struct ssp_device *ssp;
-	int status = 0;
 
 	if (!drv_data)
 		return 0;
 	ssp = drv_data->ssp;
 
-	/* Remove the queue */
-	status = destroy_queue(drv_data);
-	if (status != 0)
-		/* the kernel does not check the return status of this
-		 * this routine (mod->exit, within the kernel).  Therefore
-		 * nothing is gained by returning from here, the module is
-		 * going away regardless, and we should not leave any more
-		 * resources allocated than necessary.  We cannot free the
-		 * message memory in drv_data->queue, but we can release the
-		 * resources below.  I think the kernel should honor -EBUSY
-		 * returns but... */
-		dev_err(&pdev->dev, "pxa2xx_spi_remove: workqueue will not "
-			"complete, message memory not freed\n");
-
 	/* Disable the SSP at the peripheral and SOC level */
 	write_SSCR0(0, drv_data->ioaddr);
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 	/* Release DMA */
 	if (drv_data->master_info->enable_dma) {
@@ -1749,11 +1574,11 @@ static int pxa2xx_spi_suspend(struct device *dev)
 	struct ssp_device *ssp = drv_data->ssp;
 	int status = 0;
 
-	status = stop_queue(drv_data);
+	status = spi_master_suspend(drv_data->master);
 	if (status != 0)
 		return status;
 	write_SSCR0(0, drv_data->ioaddr);
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 	return 0;
 }
@@ -1772,10 +1597,10 @@ static int pxa2xx_spi_resume(struct device *dev)
 			DRCMR_MAPVLD | drv_data->tx_channel;
 
 	/* Enable the SSP clock */
-	clk_enable(ssp->clk);
+	clk_prepare_enable(ssp->clk);
 
 	/* Start the queue running */
-	status = start_queue(drv_data);
+	status = spi_master_resume(drv_data->master);
 	if (status != 0) {
 		dev_err(dev, "problem starting queue (%d)\n", status);
 		return status;

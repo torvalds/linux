@@ -299,7 +299,7 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on (ARCH_PXA || (X86_32 && PCI)) && EXPERIMENTAL
+	depends on ARCH_PXA || PCI
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
@@ -307,7 +307,7 @@ config SPI_PXA2XX
 	  additional documentation can be found a Documentation/spi/pxa2xx.
 
 config SPI_PXA2XX_PCI
-	def_bool SPI_PXA2XX && X86_32 && PCI
+	def_tristate SPI_PXA2XX && PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"

@@ -28,6 +28,9 @@ struct pxa2xx_spi_master {
 	u32 clock_enable;
 	u16 num_chipselect;
 	u8 enable_dma;
+
+	/* For non-PXA arches */
+	struct ssp_device ssp;
 };
 
 /* spi_board_info.controller_data for SPI slave devices,
@@ -128,24 +131,6 @@ static inline int pxa_request_dma(char *name,
 
 static inline void pxa_free_dma(int dma_ch)
 {
-}
-
-/*
- * The CE4100 does not have the clk framework implemented and SPI clock can
- * not be switched on/off or the divider changed.
- */
-static inline void clk_disable(struct clk *clk)
-{
-}
-
-static inline int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-
-static inline unsigned long clk_get_rate(struct clk *clk)
-{
-	return 3686400;
 }
 
 #endif
