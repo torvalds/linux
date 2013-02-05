@@ -694,6 +694,7 @@ static void lp5521_reset_device(struct lp5521_chip *chip)
 	lp5521_write(client, LP5521_REG_RESET, 0xff);
 }
 
+static void lp5521_deinit_device(struct lp5521_chip *chip);
 static int lp5521_init_device(struct lp5521_chip *chip)
 {
 	struct lp5521_platform_data *pdata = chip->pdata;
@@ -742,9 +743,22 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 	usleep_range(10000, 20000);
 
 	ret = lp5521_detect(client);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "Chip not found\n");
+		goto err;
+	}
 
+	ret = lp5521_configure(client);
+	if (ret < 0) {
+		dev_err(&client->dev, "error configuring chip\n");
+		goto err_config;
+	}
+
+	return 0;
+
+err_config:
+	lp5521_deinit_device(chip);
+err:
 	return ret;
 }
 
@@ -882,15 +896,9 @@ static int lp5521_probe(struct i2c_client *client,
 
 	ret = lp5521_init_device(chip);
 	if (ret)
-		goto fail1;
+		goto err_init;
 
 	dev_info(&client->dev, "%s programmable led chip found\n", id->name);
-
-	ret = lp5521_configure(client);
-	if (ret < 0) {
-		dev_err(&client->dev, "error configuring chip\n");
-		goto fail1;
-	}
 
 	ret = lp5521_register_leds(chip);
 	if (ret)
@@ -904,8 +912,8 @@ static int lp5521_probe(struct i2c_client *client,
 	return ret;
 fail2:
 	lp5521_unregister_leds(chip);
-fail1:
 	lp5521_deinit_device(chip);
+err_init:
 	return ret;
 }
 

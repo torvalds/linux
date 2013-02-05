@@ -953,6 +953,7 @@ static void lp5523_reset_device(struct lp5523_chip *chip)
 	lp5523_write(client, LP5523_REG_RESET, 0xff);
 }
 
+static void lp5523_deinit_device(struct lp5523_chip *chip);
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct lp5523_platform_data *pdata = chip->pdata;
@@ -978,7 +979,22 @@ static int lp5523_init_device(struct lp5523_chip *chip)
 				     * Exact value is not available. 10 - 20ms
 				     * appears to be enough for reset.
 				     */
-	return lp5523_detect(client);
+	ret = lp5523_detect(client);
+	if (ret)
+		goto err;
+
+	ret = lp5523_configure(client);
+	if (ret < 0) {
+		dev_err(&client->dev, "error configuring chip\n");
+		goto err_config;
+	}
+
+	return 0;
+
+err_config:
+	lp5523_deinit_device(chip);
+err:
+	return ret;
 }
 
 static void lp5523_deinit_device(struct lp5523_chip *chip)
@@ -1018,7 +1034,7 @@ static int lp5523_probe(struct i2c_client *client,
 
 	ret = lp5523_init_device(chip);
 	if (ret)
-		goto fail1;
+		goto err_init;
 
 	dev_info(&client->dev, "%s Programmable led chip found\n", id->name);
 
@@ -1029,11 +1045,6 @@ static int lp5523_probe(struct i2c_client *client,
 			dev_err(&client->dev, "error initializing engine\n");
 			goto fail1;
 		}
-	}
-	ret = lp5523_configure(client);
-	if (ret < 0) {
-		dev_err(&client->dev, "error configuring chip\n");
-		goto fail1;
 	}
 
 	ret = lp5523_register_leds(chip, id->name);
@@ -1050,6 +1061,7 @@ fail2:
 	lp5523_unregister_leds(chip);
 fail1:
 	lp5523_deinit_device(chip);
+err_init:
 	return ret;
 }
 
