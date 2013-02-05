@@ -54,9 +54,18 @@
 #define BM_CLPCR_MASK_SCU_IDLE		(0x1 << 26)
 #define BM_CLPCR_MASK_L2CC_IDLE		(0x1 << 27)
 
+#define CGPR				0x64
+#define BM_CGPR_CHICKEN_BIT		(0x1 << 17)
+
 static void __iomem *ccm_base;
 
-void __init imx6q_clock_map_io(void) { }
+void imx6q_set_chicken_bit(void)
+{
+	u32 val = readl_relaxed(ccm_base + CGPR);
+
+	val |= BM_CGPR_CHICKEN_BIT;
+	writel_relaxed(val, ccm_base + CGPR);
+}
 
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 {
@@ -68,6 +77,7 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		break;
 	case WAIT_UNCLOCKED:
 		val |= 0x1 << BP_CLPCR_LPM;
+		val |= BM_CLPCR_ARM_CLK_DIS_ON_LPM;
 		break;
 	case STOP_POWER_ON:
 		val |= 0x2 << BP_CLPCR_LPM;
