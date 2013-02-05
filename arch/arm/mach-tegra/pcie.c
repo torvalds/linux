@@ -33,11 +33,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/sizes.h>
 #include <asm/mach/pci.h>
 
-#include <mach/clk.h>
 #include <mach/powergate.h>
 
 #include "board.h"

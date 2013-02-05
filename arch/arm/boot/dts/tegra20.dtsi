@@ -9,6 +9,7 @@
 		reg = <0x50000000 0x00024000>;
 		interrupts = <0 65 0x04   /* mpcore syncpt */
 			      0 67 0x04>; /* mpcore general */
+		clocks = <&tegra_car 28>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -19,41 +20,49 @@
 			compatible = "nvidia,tegra20-mpe";
 			reg = <0x54040000 0x00040000>;
 			interrupts = <0 68 0x04>;
+			clocks = <&tegra_car 60>;
 		};
 
 		vi {
 			compatible = "nvidia,tegra20-vi";
 			reg = <0x54080000 0x00040000>;
 			interrupts = <0 69 0x04>;
+			clocks = <&tegra_car 100>;
 		};
 
 		epp {
 			compatible = "nvidia,tegra20-epp";
 			reg = <0x540c0000 0x00040000>;
 			interrupts = <0 70 0x04>;
+			clocks = <&tegra_car 19>;
 		};
 
 		isp {
 			compatible = "nvidia,tegra20-isp";
 			reg = <0x54100000 0x00040000>;
 			interrupts = <0 71 0x04>;
+			clocks = <&tegra_car 23>;
 		};
 
 		gr2d {
 			compatible = "nvidia,tegra20-gr2d";
 			reg = <0x54140000 0x00040000>;
 			interrupts = <0 72 0x04>;
+			clocks = <&tegra_car 21>;
 		};
 
 		gr3d {
 			compatible = "nvidia,tegra20-gr3d";
 			reg = <0x54180000 0x00040000>;
+			clocks = <&tegra_car 24>;
 		};
 
 		dc@54200000 {
 			compatible = "nvidia,tegra20-dc";
 			reg = <0x54200000 0x00040000>;
 			interrupts = <0 73 0x04>;
+			clocks = <&tegra_car 27>, <&tegra_car 121>;
+			clock-names = "disp1", "parent";
 
 			rgb {
 				status = "disabled";
@@ -64,6 +73,8 @@
 			compatible = "nvidia,tegra20-dc";
 			reg = <0x54240000 0x00040000>;
 			interrupts = <0 74 0x04>;
+			clocks = <&tegra_car 26>, <&tegra_car 121>;
+			clock-names = "disp2", "parent";
 
 			rgb {
 				status = "disabled";
@@ -74,6 +85,8 @@
 			compatible = "nvidia,tegra20-hdmi";
 			reg = <0x54280000 0x00040000>;
 			interrupts = <0 75 0x04>;
+			clocks = <&tegra_car 51>, <&tegra_car 117>;
+			clock-names = "hdmi", "parent";
 			status = "disabled";
 		};
 
@@ -81,12 +94,14 @@
 			compatible = "nvidia,tegra20-tvo";
 			reg = <0x542c0000 0x00040000>;
 			interrupts = <0 76 0x04>;
+			clocks = <&tegra_car 102>;
 			status = "disabled";
 		};
 
 		dsi {
 			compatible = "nvidia,tegra20-dsi";
 			reg = <0x54300000 0x00040000>;
+			clocks = <&tegra_car 48>;
 			status = "disabled";
 		};
 	};
@@ -123,6 +138,12 @@
 			      0 42 0x04>;
 	};
 
+	tegra_car: clock {
+		compatible = "nvidia,tegra20-car";
+		reg = <0x60006000 0x1000>;
+		#clock-cells = <1>;
+	};
+
 	apbdma: dma {
 		compatible = "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1200>;
@@ -142,6 +163,7 @@
 			      0 117 0x04
 			      0 118 0x04
 			      0 119 0x04>;
+		clocks = <&tegra_car 34>;
 	};
 
 	ahb {
@@ -183,6 +205,7 @@
 		reg = <0x70002800 0x200>;
 		interrupts = <0 13 0x04>;
 		nvidia,dma-request-selector = <&apbdma 2>;
+		clocks = <&tegra_car 11>;
 		status = "disabled";
 	};
 
@@ -191,6 +214,7 @@
 		reg = <0x70002a00 0x200>;
 		interrupts = <0 3 0x04>;
 		nvidia,dma-request-selector = <&apbdma 1>;
+		clocks = <&tegra_car 18>;
 		status = "disabled";
 	};
 
@@ -199,6 +223,7 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 36 0x04>;
+		clocks = <&tegra_car 6>;
 		status = "disabled";
 	};
 
@@ -207,6 +232,7 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 37 0x04>;
+		clocks = <&tegra_car 96>;
 		status = "disabled";
 	};
 
@@ -215,6 +241,7 @@
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 46 0x04>;
+		clocks = <&tegra_car 55>;
 		status = "disabled";
 	};
 
@@ -223,6 +250,7 @@
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 90 0x04>;
+		clocks = <&tegra_car 65>;
 		status = "disabled";
 	};
 
@@ -231,6 +259,7 @@
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 91 0x04>;
+		clocks = <&tegra_car 66>;
 		status = "disabled";
 	};
 
@@ -238,6 +267,7 @@
 		compatible = "nvidia,tegra20-pwm";
 		reg = <0x7000a000 0x100>;
 		#pwm-cells = <2>;
+		clocks = <&tegra_car 17>;
 	};
 
 	rtc {
@@ -252,6 +282,8 @@
 		interrupts = <0 38 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 12>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
 		status = "disabled";
 	};
 
@@ -262,6 +294,7 @@
 		nvidia,dma-request-selector = <&apbdma 11>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 43>;
 		status = "disabled";
 	};
 
@@ -271,6 +304,8 @@
 		interrupts = <0 84 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 54>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
 		status = "disabled";
 	};
 
@@ -280,6 +315,8 @@
 		interrupts = <0 92 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 67>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
 		status = "disabled";
 	};
 
@@ -289,6 +326,8 @@
 		interrupts = <0 53 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 47>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
 		status = "disabled";
 	};
 
@@ -299,6 +338,7 @@
 		nvidia,dma-request-selector = <&apbdma 15>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 41>;
 		status = "disabled";
 	};
 
@@ -309,6 +349,7 @@
 		nvidia,dma-request-selector = <&apbdma 16>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 44>;
 		status = "disabled";
 	};
 
@@ -319,6 +360,7 @@
 		nvidia,dma-request-selector = <&apbdma 17>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 46>;
 		status = "disabled";
 	};
 
@@ -329,6 +371,7 @@
 		nvidia,dma-request-selector = <&apbdma 18>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&tegra_car 68>;
 		status = "disabled";
 	};
 
@@ -363,6 +406,7 @@
 		interrupts = <0 20 0x04>;
 		phy_type = "utmi";
 		nvidia,has-legacy-mode;
+		clocks = <&tegra_car 22>;
 		status = "disabled";
 	};
 
@@ -371,6 +415,7 @@
 		reg = <0xc5004000 0x4000>;
 		interrupts = <0 21 0x04>;
 		phy_type = "ulpi";
+		clocks = <&tegra_car 58>;
 		status = "disabled";
 	};
 
@@ -379,6 +424,7 @@
 		reg = <0xc5008000 0x4000>;
 		interrupts = <0 97 0x04>;
 		phy_type = "utmi";
+		clocks = <&tegra_car 59>;
 		status = "disabled";
 	};
 
@@ -386,6 +432,7 @@
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000000 0x200>;
 		interrupts = <0 14 0x04>;
+		clocks = <&tegra_car 14>;
 		status = "disabled";
 	};
 
@@ -393,6 +440,7 @@
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000200 0x200>;
 		interrupts = <0 15 0x04>;
+		clocks = <&tegra_car 9>;
 		status = "disabled";
 	};
 
@@ -400,6 +448,7 @@
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000400 0x200>;
 		interrupts = <0 19 0x04>;
+		clocks = <&tegra_car 69>;
 		status = "disabled";
 	};
 
@@ -407,6 +456,7 @@
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000600 0x200>;
 		interrupts = <0 31 0x04>;
+		clocks = <&tegra_car 15>;
 		status = "disabled";
 	};
 

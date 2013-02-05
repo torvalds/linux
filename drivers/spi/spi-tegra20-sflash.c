@@ -34,7 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-tegra.h>
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #define SPI_COMMAND				0x000
 #define SPI_GO					BIT(30)
@@ -525,7 +525,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		goto exit_free_master;
 	}
 
-	tsd->clk = devm_clk_get(&pdev->dev, "spi");
+	tsd->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tsd->clk)) {
 		dev_err(&pdev->dev, "can not get clock\n");
 		ret = PTR_ERR(tsd->clk);

@@ -24,6 +24,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
@@ -36,7 +37,6 @@
 #include "reset.h"
 #include "flowctrl.h"
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 #define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
 
@@ -148,7 +148,7 @@ static void suspend_cpu_complex(void)
 	save_cpu_arch_register();
 }
 
-void __cpuinit tegra_clear_cpu_in_lp2(int phy_cpu_id)
+void tegra_clear_cpu_in_lp2(int phy_cpu_id)
 {
 	u32 *cpu_in_lp2 = tegra_cpu_lp2_mask;
 
@@ -160,7 +160,7 @@ void __cpuinit tegra_clear_cpu_in_lp2(int phy_cpu_id)
 	spin_unlock(&tegra_lp2_lock);
 }
 
-bool __cpuinit tegra_set_cpu_in_lp2(int phy_cpu_id)
+bool tegra_set_cpu_in_lp2(int phy_cpu_id)
 {
 	bool last_cpu = false;
 	cpumask_t *cpu_lp2_mask = tegra_cpu_lp2_mask;

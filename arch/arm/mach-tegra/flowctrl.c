@@ -26,14 +26,14 @@
 #include "flowctrl.h"
 #include "iomap.h"
 
-u8 flowctrl_offset_halt_cpu[] = {
+static u8 flowctrl_offset_halt_cpu[] = {
 	FLOW_CTRL_HALT_CPU0_EVENTS,
 	FLOW_CTRL_HALT_CPU1_EVENTS,
 	FLOW_CTRL_HALT_CPU1_EVENTS + 8,
 	FLOW_CTRL_HALT_CPU1_EVENTS + 16,
 };
 
-u8 flowctrl_offset_cpu_csr[] = {
+static u8 flowctrl_offset_cpu_csr[] = {
 	FLOW_CTRL_CPU0_CSR,
 	FLOW_CTRL_CPU1_CSR,
 	FLOW_CTRL_CPU1_CSR + 8,

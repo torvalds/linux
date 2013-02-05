@@ -1,6 +1,4 @@
 /*
- * arch/arch/mach-tegra/timer.c
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
@@ -32,8 +30,6 @@
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
-
-#include "board.h"
 
 #define RTC_SECONDS            0x08
 #define RTC_SHADOW_SECONDS     0x0c
@@ -168,7 +164,7 @@ static const struct of_device_id rtc_match[] __initconst = {
 	{}
 };
 
-void __init tegra_init_timer(void)
+static void __init tegra20_init_timer(void)
 {
 	struct device_node *np;
 	struct clk *clk;
@@ -183,7 +179,7 @@ void __init tegra_init_timer(void)
 
 	timer_reg_base = of_iomap(np, 0);
 	if (!timer_reg_base) {
-		pr_err("Can't map timer registers");
+		pr_err("Can't map timer registers\n");
 		BUG();
 	}
 
@@ -268,6 +264,7 @@ void __init tegra_init_timer(void)
 #endif
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
+CLOCKSOURCE_OF_DECLARE(tegra20, "nvidia,tegra20-timer", tegra20_init_timer);
 
 #ifdef CONFIG_PM
 static u32 usec_config;
