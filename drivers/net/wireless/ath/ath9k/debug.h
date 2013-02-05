@@ -216,7 +216,6 @@ struct ath_tx_stats {
  * @rx_oom_err:  No. of frames dropped due to OOM issues.
  * @rx_rate_err:  No. of frames dropped due to rate errors.
  * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
- * @rx_drop_rxflush: No. of frames dropped due to RX-FLUSH.
  * @rx_beacons:  No. of beacons received.
  * @rx_frags:  No. of rx-fragements received.
  */
@@ -235,7 +234,6 @@ struct ath_rx_stats {
 	u32 rx_oom_err;
 	u32 rx_rate_err;
 	u32 rx_too_many_frags_err;
-	u32 rx_drop_rxflush;
 	u32 rx_beacons;
 	u32 rx_frags;
 };

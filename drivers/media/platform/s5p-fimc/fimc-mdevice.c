@@ -593,7 +593,7 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 {
 	struct media_entity *source, *sink;
 	unsigned int flags = MEDIA_LNK_FL_ENABLED;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < FIMC_LITE_MAX_DEVS; i++) {
 		struct fimc_lite *fimc = fmd->fimc_lite[i];

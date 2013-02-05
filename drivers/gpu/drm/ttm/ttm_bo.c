@@ -434,6 +434,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 			bo->mem = tmp_mem;
 			bdev->driver->move_notify(bo, mem);
 			bo->mem = *mem;
+			*mem = tmp_mem;
 		}
 
 		goto out_err;

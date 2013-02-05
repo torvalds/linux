@@ -162,30 +162,39 @@ static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
 #if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
 static struct lp5523_led_config rx51_lp5523_led_config[] = {
 	{
+		.name		= "lp5523:kb1",
 		.chan_nr	= 0,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:kb2",
 		.chan_nr	= 1,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:kb3",
 		.chan_nr	= 2,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:kb4",
 		.chan_nr	= 3,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:b",
 		.chan_nr	= 4,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:g",
 		.chan_nr	= 5,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:r",
 		.chan_nr	= 6,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:kb5",
 		.chan_nr	= 7,
 		.led_current	= 50,
 	}, {
+		.name		= "lp5523:kb6",
 		.chan_nr	= 8,
 		.led_current	= 50,
 	}
@@ -1253,6 +1262,16 @@ static void __init rx51_init_lirc(void)
 }
 #endif
 
+static struct platform_device madc_hwmon = {
+	.name	= "twl4030_madc_hwmon",
+	.id	= -1,
+};
+
+static void __init rx51_init_twl4030_hwmon(void)
+{
+	platform_device_register(&madc_hwmon);
+}
+
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
@@ -1272,5 +1291,6 @@ void __init rx51_peripherals_init(void)
 		omap_hsmmc_init(mmc);
 
 	rx51_charger_init();
+	rx51_init_twl4030_hwmon();
 }
 

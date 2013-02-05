@@ -165,12 +165,6 @@ config MACH_OMAP_H4
 	select OMAP_DEBUG_DEVICES
 	select OMAP_PACKAGE_ZAF
 
-config MACH_OMAP_APOLLON
-	bool "OMAP 2420 Apollon board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_PACKAGE_ZAC
-
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
 	depends on SOC_OMAP2430

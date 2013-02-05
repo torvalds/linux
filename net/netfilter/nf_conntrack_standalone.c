@@ -575,6 +575,7 @@ static int __init nf_conntrack_standalone_init(void)
 static void __exit nf_conntrack_standalone_fini(void)
 {
 	unregister_pernet_subsys(&nf_conntrack_net_ops);
+	nf_conntrack_cleanup_end();
 }
 
 module_init(nf_conntrack_standalone_init);

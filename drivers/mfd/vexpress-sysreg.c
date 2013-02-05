@@ -313,18 +313,10 @@ static void vexpress_sysreg_config_complete(unsigned long data)
 }
 
 
-void __init vexpress_sysreg_early_init(void __iomem *base)
+void __init vexpress_sysreg_setup(struct device_node *node)
 {
-	struct device_node *node = of_find_compatible_node(NULL, NULL,
-			"arm,vexpress-sysreg");
-
-	if (node)
-		base = of_iomap(node, 0);
-
-	if (WARN_ON(!base))
+	if (WARN_ON(!vexpress_sysreg_base))
 		return;
-
-	vexpress_sysreg_base = base;
 
 	if (readl(vexpress_sysreg_base + SYS_MISC) & SYS_MISC_MASTERSITE)
 		vexpress_master_site = VEXPRESS_SITE_DB2;
@@ -336,9 +328,23 @@ void __init vexpress_sysreg_early_init(void __iomem *base)
 	WARN_ON(!vexpress_sysreg_config_bridge);
 }
 
+void __init vexpress_sysreg_early_init(void __iomem *base)
+{
+	vexpress_sysreg_base = base;
+	vexpress_sysreg_setup(NULL);
+}
+
 void __init vexpress_sysreg_of_early_init(void)
 {
-	vexpress_sysreg_early_init(NULL);
+	struct device_node *node = of_find_compatible_node(NULL, NULL,
+			"arm,vexpress-sysreg");
+
+	if (node) {
+		vexpress_sysreg_base = of_iomap(node, 0);
+		vexpress_sysreg_setup(node);
+	} else {
+		pr_info("vexpress-sysreg: No Device Tree node found.");
+	}
 }
 
 
@@ -426,9 +432,11 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	if (!vexpress_sysreg_base)
+	if (!vexpress_sysreg_base) {
 		vexpress_sysreg_base = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
+		vexpress_sysreg_setup(pdev->dev.of_node);
+	}
 
 	if (!vexpress_sysreg_base) {
 		dev_err(&pdev->dev, "Failed to obtain base address!\n");

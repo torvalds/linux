@@ -3,6 +3,7 @@ include include/uapi/asm-generic/Kbuild.asm
 
 header-y += auxvec.h
 header-y += bitsperlong.h
+header-y += break.h
 header-y += byteorder.h
 header-y += cachectl.h
 header-y += errno.h

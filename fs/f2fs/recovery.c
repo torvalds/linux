@@ -67,7 +67,7 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 		kunmap(page);
 		f2fs_put_page(page, 0);
 	} else {
-		f2fs_add_link(&dent, inode);
+		err = f2fs_add_link(&dent, inode);
 	}
 	iput(dir);
 out:
@@ -151,7 +151,6 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 				goto out;
 			}
 
-			INIT_LIST_HEAD(&entry->list);
 			list_add_tail(&entry->list, head);
 			entry->blkaddr = blkaddr;
 		}
@@ -174,10 +173,9 @@ out:
 static void destroy_fsync_dnodes(struct f2fs_sb_info *sbi,
 					struct list_head *head)
 {
-	struct list_head *this;
-	struct fsync_inode_entry *entry;
-	list_for_each(this, head) {
-		entry = list_entry(this, struct fsync_inode_entry, list);
+	struct fsync_inode_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, head, list) {
 		iput(entry->inode);
 		list_del(&entry->list);
 		kmem_cache_free(fsync_entry_slab, entry);
