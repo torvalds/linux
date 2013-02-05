@@ -169,8 +169,3 @@ static inline void arch_decomp_setup(void)
 		DEBUG_LL_AM33XX(1, am335xevm);
 	} while (0);
 }
-
-/*
- * nothing to do
- */
-#define arch_decomp_wdog()

@@ -72,8 +72,3 @@ static inline void arch_decomp_setup(void)
 		uart_is_pxa = 0;
 	}
 }
-
-/*
- * nothing to do
- */
-#define arch_decomp_wdog()
