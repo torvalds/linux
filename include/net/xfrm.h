@@ -501,6 +501,12 @@ struct xfrm_policy_walk {
 	u32 seq;
 };
 
+struct xfrm_policy_queue {
+	struct sk_buff_head	hold_queue;
+	struct timer_list	hold_timer;
+	unsigned long		timeout;
+};
+
 struct xfrm_policy {
 #ifdef CONFIG_NET_NS
 	struct net		*xp_net;
@@ -522,6 +528,7 @@ struct xfrm_policy {
 	struct xfrm_lifetime_cfg lft;
 	struct xfrm_lifetime_cur curlft;
 	struct xfrm_policy_walk_entry walk;
+	struct xfrm_policy_queue polq;
 	u8			type;
 	u8			action;
 	u8			flags;

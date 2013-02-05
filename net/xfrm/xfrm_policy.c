@@ -35,6 +35,10 @@
 
 #include "xfrm_hash.h"
 
+#define XFRM_QUEUE_TMO_MIN ((unsigned)(HZ/10))
+#define XFRM_QUEUE_TMO_MAX ((unsigned)(60*HZ))
+#define XFRM_MAX_QUEUE_LEN	100
+
 DEFINE_MUTEX(xfrm_cfg_mutex);
 EXPORT_SYMBOL(xfrm_cfg_mutex);
 
@@ -51,7 +55,7 @@ static struct kmem_cache *xfrm_dst_cache __read_mostly;
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
 static int xfrm_bundle_ok(struct xfrm_dst *xdst);
-
+static void xfrm_policy_queue_process(unsigned long arg);
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
@@ -287,8 +291,11 @@ struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp)
 		INIT_HLIST_NODE(&policy->byidx);
 		rwlock_init(&policy->lock);
 		atomic_set(&policy->refcnt, 1);
+		skb_queue_head_init(&policy->polq.hold_queue);
 		setup_timer(&policy->timer, xfrm_policy_timer,
 				(unsigned long)policy);
+		setup_timer(&policy->polq.hold_timer, xfrm_policy_queue_process,
+			    (unsigned long)policy);
 		policy->flo.ops = &xfrm_policy_fc_ops;
 	}
 	return policy;
@@ -309,6 +316,16 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 }
 EXPORT_SYMBOL(xfrm_policy_destroy);
 
+static void xfrm_queue_purge(struct sk_buff_head *list)
+{
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(list)) != NULL) {
+		dev_put(skb->dev);
+		kfree_skb(skb);
+	}
+}
+
 /* Rule must be locked. Release descentant resources, announce
  * entry dead. The rule must be unlinked from lists to the moment.
  */
@@ -318,6 +335,9 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 	policy->walk.dead = 1;
 
 	atomic_inc(&policy->genid);
+
+	del_timer(&policy->polq.hold_timer);
+	xfrm_queue_purge(&policy->polq.hold_queue);
 
 	if (del_timer(&policy->timer))
 		xfrm_pol_put(policy);
@@ -562,6 +582,31 @@ static inline int selector_cmp(struct xfrm_selector *s1, struct xfrm_selector *s
 	return 0;
 }
 
+static void xfrm_policy_requeue(struct xfrm_policy *old,
+				struct xfrm_policy *new)
+{
+	struct xfrm_policy_queue *pq = &old->polq;
+	struct sk_buff_head list;
+
+	__skb_queue_head_init(&list);
+
+	spin_lock_bh(&pq->hold_queue.lock);
+	skb_queue_splice_init(&pq->hold_queue, &list);
+	del_timer(&pq->hold_timer);
+	spin_unlock_bh(&pq->hold_queue.lock);
+
+	if (skb_queue_empty(&list))
+		return;
+
+	pq = &new->polq;
+
+	spin_lock_bh(&pq->hold_queue.lock);
+	skb_queue_splice(&list, &pq->hold_queue);
+	pq->timeout = XFRM_QUEUE_TMO_MIN;
+	mod_timer(&pq->hold_timer, jiffies);
+	spin_unlock_bh(&pq->hold_queue.lock);
+}
+
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 {
 	struct net *net = xp_net(policy);
@@ -603,8 +648,10 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	net->xfrm.policy_count[dir]++;
 	atomic_inc(&flow_cache_genid);
 	rt_genid_bump(net);
-	if (delpol)
+	if (delpol) {
+		xfrm_policy_requeue(delpol, policy);
 		__xfrm_policy_unlink(delpol, dir);
+	}
 	policy->index = delpol ? delpol->index : xfrm_gen_index(net, dir);
 	hlist_add_head(&policy->byidx, net->xfrm.policy_byidx+idx_hash(net, policy->index));
 	policy->curlft.add_time = get_seconds();
@@ -1115,11 +1162,15 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 		pol->index = xfrm_gen_index(net, XFRM_POLICY_MAX+dir);
 		__xfrm_policy_link(pol, XFRM_POLICY_MAX+dir);
 	}
-	if (old_pol)
+	if (old_pol) {
+		if (pol)
+			xfrm_policy_requeue(old_pol, pol);
+
 		/* Unlinking succeeds always. This is the only function
 		 * allowed to delete or replace socket policy.
 		 */
 		__xfrm_policy_unlink(old_pol, XFRM_POLICY_MAX+dir);
+	}
 	write_unlock_bh(&xfrm_policy_lock);
 
 	if (old_pol) {
@@ -1310,6 +1361,8 @@ static struct flow_cache_object *xfrm_bundle_flo_get(struct flow_cache_object *f
 		 * It means we need to try again resolving. */
 		if (xdst->num_xfrms > 0)
 			return NULL;
+	} else if (dst->flags & DST_XFRM_QUEUE) {
+		return NULL;
 	} else {
 		/* Real bundle */
 		if (stale_bundle(dst))
@@ -1673,6 +1726,171 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	return xdst;
 }
 
+static void xfrm_policy_queue_process(unsigned long arg)
+{
+	int err = 0;
+	struct sk_buff *skb;
+	struct sock *sk;
+	struct dst_entry *dst;
+	struct net_device *dev;
+	struct xfrm_policy *pol = (struct xfrm_policy *)arg;
+	struct xfrm_policy_queue *pq = &pol->polq;
+	struct flowi fl;
+	struct sk_buff_head list;
+
+	spin_lock(&pq->hold_queue.lock);
+	skb = skb_peek(&pq->hold_queue);
+	dst = skb_dst(skb);
+	sk = skb->sk;
+	xfrm_decode_session(skb, &fl, dst->ops->family);
+	spin_unlock(&pq->hold_queue.lock);
+
+	dst_hold(dst->path);
+	dst = xfrm_lookup(xp_net(pol), dst->path, &fl,
+			  sk, 0);
+	if (IS_ERR(dst))
+		goto purge_queue;
+
+	if (dst->flags & DST_XFRM_QUEUE) {
+		dst_release(dst);
+
+		if (pq->timeout >= XFRM_QUEUE_TMO_MAX)
+			goto purge_queue;
+
+		pq->timeout = pq->timeout << 1;
+		mod_timer(&pq->hold_timer, jiffies + pq->timeout);
+		return;
+	}
+
+	dst_release(dst);
+
+	__skb_queue_head_init(&list);
+
+	spin_lock(&pq->hold_queue.lock);
+	pq->timeout = 0;
+	skb_queue_splice_init(&pq->hold_queue, &list);
+	spin_unlock(&pq->hold_queue.lock);
+
+	while (!skb_queue_empty(&list)) {
+		skb = __skb_dequeue(&list);
+
+		xfrm_decode_session(skb, &fl, skb_dst(skb)->ops->family);
+		dst_hold(skb_dst(skb)->path);
+		dst = xfrm_lookup(xp_net(pol), skb_dst(skb)->path,
+				  &fl, skb->sk, 0);
+		if (IS_ERR(dst)) {
+			dev_put(skb->dev);
+			kfree_skb(skb);
+			continue;
+		}
+
+		nf_reset(skb);
+		skb_dst_drop(skb);
+		skb_dst_set(skb, dst);
+
+		dev = skb->dev;
+		err = dst_output(skb);
+		dev_put(dev);
+	}
+
+	return;
+
+purge_queue:
+	pq->timeout = 0;
+	xfrm_queue_purge(&pq->hold_queue);
+}
+
+static int xdst_queue_output(struct sk_buff *skb)
+{
+	unsigned long sched_next;
+	struct dst_entry *dst = skb_dst(skb);
+	struct xfrm_dst *xdst = (struct xfrm_dst *) dst;
+	struct xfrm_policy_queue *pq = &xdst->pols[0]->polq;
+
+	if (pq->hold_queue.qlen > XFRM_MAX_QUEUE_LEN) {
+		kfree_skb(skb);
+		return -EAGAIN;
+	}
+
+	skb_dst_force(skb);
+	dev_hold(skb->dev);
+
+	spin_lock_bh(&pq->hold_queue.lock);
+
+	if (!pq->timeout)
+		pq->timeout = XFRM_QUEUE_TMO_MIN;
+
+	sched_next = jiffies + pq->timeout;
+
+	if (del_timer(&pq->hold_timer)) {
+		if (time_before(pq->hold_timer.expires, sched_next))
+			sched_next = pq->hold_timer.expires;
+	}
+
+	__skb_queue_tail(&pq->hold_queue, skb);
+	mod_timer(&pq->hold_timer, sched_next);
+
+	spin_unlock_bh(&pq->hold_queue.lock);
+
+	return 0;
+}
+
+static struct xfrm_dst *xfrm_create_dummy_bundle(struct net *net,
+						 struct dst_entry *dst,
+						 const struct flowi *fl,
+						 int num_xfrms,
+						 u16 family)
+{
+	int err;
+	struct net_device *dev;
+	struct dst_entry *dst1;
+	struct xfrm_dst *xdst;
+
+	xdst = xfrm_alloc_dst(net, family);
+	if (IS_ERR(xdst))
+		return xdst;
+
+	if (net->xfrm.sysctl_larval_drop || num_xfrms <= 0 ||
+	    (fl->flowi_flags & FLOWI_FLAG_CAN_SLEEP))
+		return xdst;
+
+	dst1 = &xdst->u.dst;
+	dst_hold(dst);
+	xdst->route = dst;
+
+	dst_copy_metrics(dst1, dst);
+
+	dst1->obsolete = DST_OBSOLETE_FORCE_CHK;
+	dst1->flags |= DST_HOST | DST_XFRM_QUEUE;
+	dst1->lastuse = jiffies;
+
+	dst1->input = dst_discard;
+	dst1->output = xdst_queue_output;
+
+	dst_hold(dst);
+	dst1->child = dst;
+	dst1->path = dst;
+
+	xfrm_init_path((struct xfrm_dst *)dst1, dst, 0);
+
+	err = -ENODEV;
+	dev = dst->dev;
+	if (!dev)
+		goto free_dst;
+
+	err = xfrm_fill_dst(xdst, dev, fl);
+	if (err)
+		goto free_dst;
+
+out:
+	return xdst;
+
+free_dst:
+	dst_release(dst1);
+	xdst = ERR_PTR(err);
+	goto out;
+}
+
 static struct flow_cache_object *
 xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 		   struct flow_cache_object *oldflo, void *ctx)
@@ -1751,7 +1969,7 @@ make_dummy_bundle:
 	/* We found policies, but there's no bundles to instantiate:
 	 * either because the policy blocks, has no transformations or
 	 * we could not build template (no xfrm_states).*/
-	xdst = xfrm_alloc_dst(net, family);
+	xdst = xfrm_create_dummy_bundle(net, dst_orig, fl, num_xfrms, family);
 	if (IS_ERR(xdst)) {
 		xfrm_pols_put(pols, num_pols);
 		return ERR_CAST(xdst);
@@ -2358,6 +2576,9 @@ static int xfrm_bundle_ok(struct xfrm_dst *first)
 	if (!dst_check(dst->path, ((struct xfrm_dst *)dst)->path_cookie) ||
 	    (dst->dev && !netif_running(dst->dev)))
 		return 0;
+
+	if (dst->flags & DST_XFRM_QUEUE)
+		return 1;
 
 	last = NULL;
 
