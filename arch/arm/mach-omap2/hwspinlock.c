@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/hwspinlock.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
