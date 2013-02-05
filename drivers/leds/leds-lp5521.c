@@ -20,22 +20,15 @@
  * 02110-1301 USA
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/i2c.h>
-#include <linux/mutex.h>
-#include <linux/gpio.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/ctype.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
-#include <linux/leds.h>
-#include <linux/leds-lp5521.h>
-#include <linux/workqueue.h>
-#include <linux/slab.h>
-#include <linux/platform_data/leds-lp55xx.h>
 #include <linux/firmware.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/leds.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/platform_data/leds-lp55xx.h>
+#include <linux/slab.h>
 
 #include "leds-lp55xx-common.h"
 
