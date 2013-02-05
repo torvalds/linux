@@ -32,10 +32,14 @@ struct lp55xx_reg {
  * struct lp55xx_device_config
  * @reset              : Chip specific reset command
  * @enable             : Chip specific enable command
+ * @post_init_device   : Chip specific initialization code
  */
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
 	const struct lp55xx_reg enable;
+
+	/* define if the device has specific initialization process */
+	int (*post_init_device) (struct lp55xx_chip *chip);
 };
 
 /*

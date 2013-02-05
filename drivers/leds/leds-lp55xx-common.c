@@ -53,6 +53,16 @@ static int lp55xx_detect_device(struct lp55xx_chip *chip)
 	return 0;
 }
 
+static int lp55xx_post_init_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+
+	if (!cfg->post_init_device)
+		return 0;
+
+	return cfg->post_init_device(chip);
+}
+
 int lp55xx_write(struct lp55xx_chip *chip, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(chip->cl, reg, val);
@@ -131,6 +141,11 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		dev_err(dev, "device detection err: %d\n", ret);
 		goto err;
 	}
+
+	/* chip specific initialization */
+	ret = lp55xx_post_init_device(chip);
+
+	return 0;
 
 err:
 	return ret;

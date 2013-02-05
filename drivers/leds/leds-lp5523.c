@@ -181,18 +181,18 @@ static int lp5523_read(struct i2c_client *client, u8 reg, u8 *buf)
 	return 0;
 }
 
-static int lp5523_configure(struct i2c_client *client)
+static int lp5523_post_init_device(struct lp55xx_chip *chip)
 {
-	int ret = 0;
+	int ret;
 
-	ret = lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
+	ret = lp55xx_write(chip, LP5523_REG_ENABLE, LP5523_ENABLE);
 	if (ret)
 		return ret;
 
 	/* Chip startup time is 500 us, 1 - 2 ms gives some margin */
 	usleep_range(1000, 2000);
 
-	ret = lp5523_write(client, LP5523_REG_CONFIG,
+	ret = lp55xx_write(chip, LP5523_REG_CONFIG,
 			    LP5523_AUTO_INC | LP5523_PWR_SAVE |
 			    LP5523_CP_AUTO | LP5523_AUTO_CLK |
 			    LP5523_PWM_PWR_SAVE);
@@ -200,11 +200,11 @@ static int lp5523_configure(struct i2c_client *client)
 		return ret;
 
 	/* turn on all leds */
-	ret = lp5523_write(client, LP5523_REG_ENABLE_LEDS_MSB, 0x01);
+	ret = lp55xx_write(chip, LP5523_REG_ENABLE_LEDS_MSB, 0x01);
 	if (ret)
 		return ret;
 
-	return lp5523_write(client, LP5523_REG_ENABLE_LEDS_LSB, 0xff);
+	return lp55xx_write(chip, LP5523_REG_ENABLE_LEDS_LSB, 0xff);
 }
 
 static int lp5523_set_engine_mode(struct lp5523_engine *engine, u8 mode)
@@ -888,9 +888,10 @@ static void lp5523_deinit_device(struct lp5523_chip *chip);
 static int lp5523_init_device(struct lp5523_chip *chip)
 {
 	struct i2c_client *client = chip->client;
+	struct lp55xx_chip *temp;
 	int ret;
 
-	ret = lp5523_configure(client);
+	ret = lp5523_post_init_device(temp);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
 		goto err_config;
@@ -923,6 +924,7 @@ static struct lp55xx_device_config lp5523_cfg = {
 		.addr = LP5523_REG_ENABLE,
 		.val  = LP5523_ENABLE,
 	},
+	.post_init_device   = lp5523_post_init_device,
 };
 
 static int lp5523_probe(struct i2c_client *client,

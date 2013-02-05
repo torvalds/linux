@@ -238,11 +238,9 @@ static int lp5521_set_led_current(struct lp5521_chip *chip, int led, u8 curr)
 		    curr);
 }
 
-static int lp5521_configure(struct i2c_client *client)
+static int lp5521_post_init_device(struct lp55xx_chip *chip)
 {
-	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int ret;
-	u8 cfg;
 	u8 val;
 
 	/*
@@ -251,13 +249,13 @@ static int lp5521_configure(struct i2c_client *client)
 	 * otherwise further access to the R G B channels in the
 	 * LP5521_REG_ENABLE register will not have any effect - strange!
 	 */
-	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &val);
+	ret = lp55xx_read(chip, LP5521_REG_R_CURRENT, &val);
 	if (ret) {
-		dev_err(&client->dev, "error in resetting chip\n");
+		dev_err(&chip->cl->dev, "error in resetting chip\n");
 		return ret;
 	}
 	if (val != LP5521_REG_R_CURR_DEFAULT) {
-		dev_err(&client->dev,
+		dev_err(&chip->cl->dev,
 			"unexpected data in register (expected 0x%x got 0x%x)\n",
 			LP5521_REG_R_CURR_DEFAULT, val);
 		ret = -EINVAL;
@@ -266,22 +264,21 @@ static int lp5521_configure(struct i2c_client *client)
 	usleep_range(10000, 20000);
 
 	/* Set all PWMs to direct control mode */
-	ret = lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
+	ret = lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
 
-	cfg = chip->pdata->update_config ?
+	val = chip->pdata->update_config ?
 		: (LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT);
-	ret = lp5521_write(client, LP5521_REG_CONFIG, cfg);
+	ret = lp55xx_write(chip, LP5521_REG_CONFIG, val);
 	if (ret)
 		return ret;
 
 	/* Initialize all channels PWM to zero -> leds off */
-	lp5521_write(client, LP5521_REG_R_PWM, 0);
-	lp5521_write(client, LP5521_REG_G_PWM, 0);
-	lp5521_write(client, LP5521_REG_B_PWM, 0);
+	lp55xx_write(chip, LP5521_REG_R_PWM, 0);
+	lp55xx_write(chip, LP5521_REG_G_PWM, 0);
+	lp55xx_write(chip, LP5521_REG_B_PWM, 0);
 
 	/* Set engines are set to run state when OP_MODE enables engines */
-	ret = lp5521_write(client, LP5521_REG_ENABLE,
-			LP5521_ENABLE_RUN_PROGRAM);
+	ret = lp55xx_write(chip, LP5521_REG_ENABLE, LP5521_ENABLE_RUN_PROGRAM);
 	if (ret)
 		return ret;
 
@@ -696,9 +693,10 @@ static void lp5521_deinit_device(struct lp5521_chip *chip);
 static int lp5521_init_device(struct lp5521_chip *chip)
 {
 	struct i2c_client *client = chip->client;
+	struct lp55xx_chip *temp;
 	int ret;
 
-	ret = lp5521_configure(client);
+	ret = lp5521_post_init_device(temp);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
 		goto err_config;
@@ -828,6 +826,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 		.addr = LP5521_REG_ENABLE,
 		.val  = LP5521_ENABLE_DEFAULT,
 	},
+	.post_init_device   = lp5521_post_init_device,
 };
 
 static int lp5521_probe(struct i2c_client *client,
