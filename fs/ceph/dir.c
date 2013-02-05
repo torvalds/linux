@@ -911,10 +911,11 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_RENAME, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+	ihold(old_dir);
 	req->r_dentry = dget(new_dentry);
 	req->r_num_caps = 2;
 	req->r_old_dentry = dget(old_dentry);
-	req->r_old_dentry_dir = ceph_get_dentry_parent_inode(old_dentry);
+	req->r_old_dentry_dir = old_dir;
 	req->r_locked_dir = new_dir;
 	req->r_old_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_old_dentry_unless = CEPH_CAP_FILE_EXCL;
