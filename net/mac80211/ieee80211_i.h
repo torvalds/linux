@@ -86,7 +86,7 @@ struct ieee80211_fragment_entry {
 
 
 struct ieee80211_bss {
-	u32 device_ts;
+	u32 device_ts_beacon, device_ts_presp;
 
 	bool wmm_used;
 	bool uapsd_supported;

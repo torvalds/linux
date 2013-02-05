@@ -80,7 +80,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	bss = (void *)cbss->priv;
 
-	bss->device_ts = rx_status->device_timestamp;
+	if (beacon)
+		bss->device_ts_beacon = rx_status->device_timestamp;
+	else
+		bss->device_ts_presp = rx_status->device_timestamp;
 
 	if (elems->parse_error) {
 		if (beacon)

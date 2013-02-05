@@ -277,9 +277,16 @@ enum ieee80211_rssi_event {
  *	valid in station mode only if after the driver was notified
  *	with the %BSS_CHANGED_DTIM_PERIOD flag, will be non-zero then.
  * @sync_tsf: last beacon's/probe response's TSF timestamp (could be old
- *	as it may have been received during scanning long ago)
+ *	as it may have been received during scanning long ago). If the
+ *	HW flag %IEEE80211_HW_TIMING_BEACON_ONLY is set, then this can
+ *	only come from a beacon, but might not become valid until after
+ *	association when a beacon is received (which is notified with the
+ *	%BSS_CHANGED_DTIM flag.)
  * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
  *	the driver/device can use this to calculate synchronisation
+ *	(see @sync_tsf)
+ * @sync_dtim_count: Only valid when %IEEE80211_HW_TIMING_BEACON_ONLY
+ *	is requested, see @sync_tsf/@sync_device_ts.
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -331,6 +338,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 sync_tsf;
 	u32 sync_device_ts;
+	u8 sync_dtim_count;
 	u32 basic_rates;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
@@ -1371,6 +1379,9 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF: Use the P2P Device address for any
  *	P2P Interface. This will be honoured even if more than one interface
  *	is supported.
+ *
+ * @IEEE80211_HW_TIMING_BEACON_ONLY: Use sync timing from beacon frames
+ *	only, to allow getting TBTT of a DTIM beacon.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1399,6 +1410,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
 	IEEE80211_HW_SCAN_WHILE_IDLE			= 1<<24,
 	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
+	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 };
 
 /**

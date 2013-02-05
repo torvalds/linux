@@ -2567,6 +2567,17 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 		ifmgd->assoc_data->have_beacon = true;
 		ifmgd->assoc_data->need_beacon = false;
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf =
+				le64_to_cpu(mgmt->u.beacon.timestamp);
+			sdata->vif.bss_conf.sync_device_ts =
+				rx_status->device_timestamp;
+			if (elems.tim)
+				sdata->vif.bss_conf.sync_dtim_count =
+					elems.tim->dtim_count;
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
 		/* continue assoc process */
 		ifmgd->assoc_data->timeout = jiffies;
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
@@ -2725,7 +2736,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If we haven't had a beacon before, tell the driver about the
-	 * DTIM period now.
+	 * DTIM period (and beacon timing if desired) now.
 	 */
 	if (!bss_conf->dtim_period) {
 		/* a few bogus AP send dtim_period = 0 or no TIM IE */
@@ -2733,6 +2744,19 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
 		else
 			bss_conf->dtim_period = 1;
+
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf =
+				le64_to_cpu(mgmt->u.beacon.timestamp);
+			sdata->vif.bss_conf.sync_device_ts =
+				rx_status->device_timestamp;
+			if (elems.tim)
+				sdata->vif.bss_conf.sync_dtim_count =
+					elems.tim->dtim_count;
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
+
 		changed |= BSS_CHANGED_DTIM_PERIOD;
 	}
 
@@ -3712,10 +3736,33 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		/* set timing information */
 		sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
 		rcu_read_lock();
-		ies = rcu_dereference(cbss->ies);
-		sdata->vif.bss_conf.sync_tsf = ies->tsf;
+		ies = rcu_dereference(cbss->beacon_ies);
+		if (ies) {
+			const u8 *tim_ie;
+
+			sdata->vif.bss_conf.sync_tsf = ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_beacon;
+			tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
+						  ies->data, ies->len);
+			if (tim_ie && tim_ie[1] >= 2)
+				sdata->vif.bss_conf.sync_dtim_count = tim_ie[2];
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		} else if (!(local->hw.flags &
+					IEEE80211_HW_TIMING_BEACON_ONLY)) {
+			ies = rcu_dereference(cbss->proberesp_ies);
+			/* must be non-NULL since beacon IEs were NULL */
+			sdata->vif.bss_conf.sync_tsf = ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_presp;
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+		} else {
+			sdata->vif.bss_conf.sync_tsf = 0;
+			sdata->vif.bss_conf.sync_device_ts = 0;
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
 		rcu_read_unlock();
-		sdata->vif.bss_conf.sync_device_ts = bss->device_ts;
 
 		/* tell driver about BSSID, basic rates and timing */
 		ieee80211_bss_info_change_notify(sdata,
@@ -4041,13 +4088,23 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
 						    beacon_ies->data,
 						    beacon_ies->len);
+		u8 dtim_count = 0;
+
 		if (tim_ie && tim_ie[1] >= sizeof(struct ieee80211_tim_ie)) {
 			const struct ieee80211_tim_ie *tim;
 			tim = (void *)(tim_ie + 2);
 			ifmgd->dtim_period = tim->dtim_period;
+			dtim_count = tim->dtim_count;
 		}
 		assoc_data->have_beacon = true;
 		assoc_data->timeout = jiffies;
+
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf = beacon_ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_beacon;
+			sdata->vif.bss_conf.sync_dtim_count = dtim_count;
+		}
 	} else {
 		assoc_data->timeout = jiffies;
 	}

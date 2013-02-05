@@ -340,6 +340,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u16, assoc_cap)
 		__field(u64, sync_tsf)
 		__field(u32, sync_device_ts)
+		__field(u8, sync_dtim_count)
 		__field(u32, basic_rates)
 		__array(int, mcast_rate, IEEE80211_NUM_BANDS)
 		__field(u16, ht_operation_mode)
@@ -379,6 +380,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->assoc_cap = info->assoc_capability;
 		__entry->sync_tsf = info->sync_tsf;
 		__entry->sync_device_ts = info->sync_device_ts;
+		__entry->sync_dtim_count = info->sync_dtim_count;
 		__entry->basic_rates = info->basic_rates;
 		memcpy(__entry->mcast_rate, info->mcast_rate,
 		       sizeof(__entry->mcast_rate));
