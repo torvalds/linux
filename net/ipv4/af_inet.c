@@ -263,21 +263,6 @@ void build_ehash_secret(void)
 }
 EXPORT_SYMBOL(build_ehash_secret);
 
-static inline int inet_netns_ok(struct net *net, __u8 protocol)
-{
-	const struct net_protocol *ipprot;
-
-	if (net_eq(net, &init_net))
-		return 1;
-
-	ipprot = rcu_dereference(inet_protos[protocol]);
-	if (ipprot == NULL) {
-		/* raw IP is OK */
-		return 1;
-	}
-	return ipprot->netns_ok;
-}
-
 /*
  *	Create an inet socket.
  */
@@ -348,10 +333,6 @@ lookup_protocol:
 	err = -EPERM;
 	if (sock->type == SOCK_RAW && !kern &&
 	    !ns_capable(net->user_ns, CAP_NET_RAW))
-		goto out_rcu_unlock;
-
-	err = -EAFNOSUPPORT;
-	if (!inet_netns_ok(net, protocol))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
