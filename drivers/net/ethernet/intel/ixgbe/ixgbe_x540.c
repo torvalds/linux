@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -878,6 +878,7 @@ static struct ixgbe_phy_operations phy_ops_X540 = {
 	.setup_link_speed       = &ixgbe_setup_phy_link_speed_generic,
 	.read_i2c_byte          = &ixgbe_read_i2c_byte_generic,
 	.write_i2c_byte         = &ixgbe_write_i2c_byte_generic,
+	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_generic,
 	.read_i2c_eeprom        = &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp         = &ixgbe_tn_check_overtemp,

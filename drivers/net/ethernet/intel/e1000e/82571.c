@@ -44,21 +44,6 @@
 
 #include "e1000.h"
 
-#define ID_LED_RESERVED_F746 0xF746
-#define ID_LED_DEFAULT_82573 ((ID_LED_DEF1_DEF2 << 12) | \
-			      (ID_LED_OFF1_ON2  <<  8) | \
-			      (ID_LED_DEF1_DEF2 <<  4) | \
-			      (ID_LED_DEF1_DEF2))
-
-#define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
-#define AN_RETRY_COUNT          5 /* Autoneg Retry Count value */
-#define E1000_BASE1000T_STATUS          10
-#define E1000_IDLE_ERROR_COUNT_MASK     0xFF
-#define E1000_RECEIVE_ERROR_COUNTER     21
-#define E1000_RECEIVE_ERROR_MAX         0xFFFF
-
-#define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
-
 static s32 e1000_get_phy_id_82571(struct e1000_hw *hw);
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw);
 static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw);
@@ -1549,7 +1534,6 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
-
 		/* Receiver is synchronized with no invalid bits.  */
 		switch (mac->serdes_link_state) {
 		case e1000_serdes_link_autoneg_complete:

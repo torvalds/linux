@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -449,7 +449,6 @@ static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u8 rval = 0;
 
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		switch (tcid) {
@@ -460,14 +459,14 @@ static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 			*num = adapter->dcb_cfg.num_tcs.pfc_tcs;
 			break;
 		default:
-			rval = -EINVAL;
+			return -EINVAL;
 			break;
 		}
 	} else {
-		rval = -EINVAL;
+		return -EINVAL;
 	}
 
-	return rval;
+	return 0;
 }
 
 static int ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)

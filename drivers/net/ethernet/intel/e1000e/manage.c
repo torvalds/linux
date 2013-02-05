@@ -28,19 +28,6 @@
 
 #include "e1000.h"
 
-enum e1000_mng_mode {
-	e1000_mng_mode_none = 0,
-	e1000_mng_mode_asf,
-	e1000_mng_mode_pt,
-	e1000_mng_mode_ipmi,
-	e1000_mng_mode_host_if_only
-};
-
-#define E1000_FACTPS_MNGCG		0x20000000
-
-/* Intel(R) Active Management Technology signature */
-#define E1000_IAMT_SIGNATURE		0x544D4149
-
 /**
  *  e1000_calculate_checksum - Calculate checksum for buffer
  *  @buffer: pointer to EEPROM
