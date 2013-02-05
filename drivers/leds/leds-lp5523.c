@@ -923,6 +923,16 @@ static int lp5523_init_device(struct lp5523_chip *chip)
 	return lp5523_detect(client);
 }
 
+static void lp5523_deinit_device(struct lp5523_chip *chip)
+{
+	struct lp5523_platform_data *pdata = chip->pdata;
+
+	if (pdata->enable)
+		pdata->enable(0);
+	if (pdata->release_resources)
+		pdata->release_resources();
+}
+
 static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1009,10 +1019,7 @@ fail2:
 		flush_work(&chip->leds[i].brightness_work);
 	}
 fail1:
-	if (pdata->enable)
-		pdata->enable(0);
-	if (pdata->release_resources)
-		pdata->release_resources();
+	lp5523_deinit_device(chip);
 	return ret;
 }
 
@@ -1031,10 +1038,7 @@ static int lp5523_remove(struct i2c_client *client)
 		flush_work(&chip->leds[i].brightness_work);
 	}
 
-	if (chip->pdata->enable)
-		chip->pdata->enable(0);
-	if (chip->pdata->release_resources)
-		chip->pdata->release_resources();
+	lp5523_deinit_device(chip);
 	return 0;
 }
 

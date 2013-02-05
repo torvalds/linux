@@ -740,6 +740,16 @@ static int lp5521_init_device(struct lp5521_chip *chip)
 	return ret;
 }
 
+static void lp5521_deinit_device(struct lp5521_chip *chip)
+{
+	struct lp5521_platform_data *pdata = chip->pdata;
+
+	if (pdata->enable)
+		pdata->enable(0);
+	if (pdata->release_resources)
+		pdata->release_resources();
+}
+
 static int lp5521_init_led(struct lp5521_led *led,
 				struct i2c_client *client,
 				int chan, struct lp5521_platform_data *pdata)
@@ -865,10 +875,7 @@ fail2:
 		cancel_work_sync(&chip->leds[i].brightness_work);
 	}
 fail1:
-	if (pdata->enable)
-		pdata->enable(0);
-	if (pdata->release_resources)
-		pdata->release_resources();
+	lp5521_deinit_device(chip);
 	return ret;
 }
 
@@ -885,10 +892,7 @@ static int lp5521_remove(struct i2c_client *client)
 		cancel_work_sync(&chip->leds[i].brightness_work);
 	}
 
-	if (chip->pdata->enable)
-		chip->pdata->enable(0);
-	if (chip->pdata->release_resources)
-		chip->pdata->release_resources();
+	lp5521_deinit_device(chip);
 	return 0;
 }
 
