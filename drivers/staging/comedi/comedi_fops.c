@@ -58,11 +58,6 @@ MODULE_PARM_DESC(comedi_debug,
 		);
 #endif
 
-bool comedi_autoconfig = true;
-module_param(comedi_autoconfig, bool, S_IRUGO);
-MODULE_PARM_DESC(comedi_autoconfig,
-		 "enable drivers to auto-configure comedi devices (default 1)");
-
 static int comedi_num_legacy_minors;
 module_param(comedi_num_legacy_minors, int, S_IRUGO);
 MODULE_PARM_DESC(comedi_num_legacy_minors,
@@ -2436,14 +2431,6 @@ static int __init comedi_init(void)
 		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;
 	}
-
-	/*
-	 * comedi is unusable if both comedi_autoconfig and
-	 * comedi_num_legacy_minors are zero, so we might as well adjust the
-	 * defaults in that case
-	 */
-	if (!comedi_autoconfig && comedi_num_legacy_minors == 0)
-		comedi_num_legacy_minors = 16;
 
 	memset(comedi_file_info_table, 0,
 	       sizeof(struct comedi_file_info *) * COMEDI_NUM_MINORS);

@@ -21,7 +21,6 @@ unsigned int comedi_buf_write_n_allocated(struct comedi_async *async);
 
 extern unsigned int comedi_default_buf_size_kb;
 extern unsigned int comedi_default_buf_maxsize_kb;
-extern bool comedi_autoconfig;
 
 /* drivers.c */
 

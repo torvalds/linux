@@ -410,9 +410,6 @@ int comedi_auto_config(struct device *hardware_device,
 	struct comedi_device *comedi_dev;
 	int ret;
 
-	if (!comedi_autoconfig)
-		return 0;
-
 	if (!driver->auto_attach) {
 		dev_warn(hardware_device,
 			 "BUG! comedi driver '%s' has no auto_attach handler\n",
