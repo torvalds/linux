@@ -56,6 +56,7 @@ struct arizona_extcon_info {
 	struct delayed_work hpdet_work;
 
 	bool hpdet_active;
+	bool hpdet_done;
 
 	int num_hpdet_res;
 	unsigned int hpdet_res[3];
@@ -394,7 +395,6 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 {
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
-	int ret;
 
 	/*
 	 * If we're using HPDET for accessory identification we need
@@ -463,13 +463,7 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 		    (id_gpio && info->hpdet_res[2] > 10)) {
 			dev_dbg(arizona->dev, "Detected mic\n");
 			info->mic = true;
-			ret = extcon_set_cable_state_(&info->edev,
-						      ARIZONA_CABLE_MICROPHONE,
-						      true);
-			if (ret != 0) {
-				dev_err(arizona->dev,
-					"Failed to report mic: %d\n", ret);
-			}
+			info->detecting = true;
 		} else {
 			dev_dbg(arizona->dev, "Detected headphone\n");
 		}
@@ -586,6 +580,8 @@ done:
 		info->hpdet_active = false;
 	}
 
+	info->hpdet_done = true;
+
 out:
 	mutex_unlock(&info->lock);
 
@@ -596,6 +592,9 @@ static void arizona_identify_headphone(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 	int ret;
+
+	if (info->hpdet_done)
+		return;
 
 	dev_dbg(arizona->dev, "Starting HPDET\n");
 
@@ -923,6 +922,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		for (i = 0; i < ARRAY_SIZE(info->hpdet_res); i++)
 			info->hpdet_res[i] = 0;
 		info->mic = false;
+		info->hpdet_done = false;
 
 		for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
 			input_report_key(info->input,
