@@ -633,6 +633,7 @@ static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
 
 static bool __init snb_gfx_workaround_needed(void)
 {
+#ifdef CONFIG_PCI
 	int i;
 	u16 vendor, devid;
 	static const u16 snb_ids[] = {
@@ -657,6 +658,7 @@ static bool __init snb_gfx_workaround_needed(void)
 	for (i = 0; i < ARRAY_SIZE(snb_ids); i++)
 		if (devid == snb_ids[i])
 			return true;
+#endif
 
 	return false;
 }
