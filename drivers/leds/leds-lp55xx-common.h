@@ -45,6 +45,7 @@ struct lp55xx_reg {
  * @set_led_current    : LED current set function
  * @firmware_cb        : Call function when the firmware is loaded
  * @run_engine         : Run internal engine for pattern
+ * @dev_attr_group     : Device specific attributes
  */
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
@@ -65,6 +66,9 @@ struct lp55xx_device_config {
 
 	/* used for running firmware LED patterns */
 	void (*run_engine) (struct lp55xx_chip *chip, bool start);
+
+	/* additional device specific attributes */
+	const struct attribute_group *dev_attr_group;
 };
 
 /*

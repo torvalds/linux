@@ -493,8 +493,19 @@ EXPORT_SYMBOL_GPL(lp55xx_unregister_leds);
 int lp55xx_register_sysfs(struct lp55xx_chip *chip)
 {
 	struct device *dev = &chip->cl->dev;
+	struct lp55xx_device_config *cfg = chip->cfg;
+	int ret;
 
-	return sysfs_create_group(&dev->kobj, &lp55xx_engine_attr_group);
+	if (!cfg->run_engine || !cfg->firmware_cb)
+		goto dev_specific_attrs;
+
+	ret = sysfs_create_group(&dev->kobj, &lp55xx_engine_attr_group);
+	if (ret)
+		return ret;
+
+dev_specific_attrs:
+	return cfg->dev_attr_group ?
+		sysfs_create_group(&dev->kobj, cfg->dev_attr_group) : 0;
 }
 EXPORT_SYMBOL_GPL(lp55xx_register_sysfs);
 
