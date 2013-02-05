@@ -196,7 +196,7 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	struct crypto_dump_info info;
 	int err;
 
-	if (!p->cru_driver_name)
+	if (!p->cru_driver_name[0])
 		return -EINVAL;
 
 	alg = crypto_alg_match(p, 1);
