@@ -16,6 +16,10 @@
 #define sysctl_sched_min_granularity_custom 300000ULL;
 #define normalized_sysctl_sched_min_granularity_custom 300000ULL;
 #define sched_nr_latency_custom 10
+#define sysctl_sched_wakeup_granularity_custom 500000UL;
+#define normalized_sysctl_sched_wakeup_granularity_custom 500000UL;
+#define sysctl_sched_migration_cost_custom 250000UL;
+#define sysctl_sched_cfs_bandwidth_slice_custom 3000UL;
 #endif
 
 /* MM Related */
