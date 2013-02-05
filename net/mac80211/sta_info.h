@@ -333,7 +333,8 @@ struct sta_info {
 	unsigned long driver_buffered_tids;
 
 	/* Updated from RX path only, no locking requirements */
-	unsigned long rx_packets, rx_bytes;
+	unsigned long rx_packets;
+	u64 rx_bytes;
 	unsigned long wep_weak_iv_count;
 	unsigned long last_rx;
 	long last_connected;
@@ -353,9 +354,9 @@ struct sta_info {
 	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
-	unsigned long tx_fragments;
+	u32 tx_fragments;
+	u64 tx_packets[IEEE80211_NUM_ACS];
+	u64 tx_bytes[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_rate last_tx_rate;
 	int last_rx_rate_idx;
 	u32 last_rx_rate_flag;

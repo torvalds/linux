@@ -445,12 +445,14 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct timespec uptime;
+	u64 packets = 0;
+	int ac;
 
 	sinfo->generation = sdata->local->sta_generation;
 
 	sinfo->filled = STATION_INFO_INACTIVE_TIME |
-			STATION_INFO_RX_BYTES |
-			STATION_INFO_TX_BYTES |
+			STATION_INFO_RX_BYTES64 |
+			STATION_INFO_TX_BYTES64 |
 			STATION_INFO_RX_PACKETS |
 			STATION_INFO_TX_PACKETS |
 			STATION_INFO_TX_RETRIES |
@@ -467,10 +469,14 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
+	sinfo->tx_bytes = 0;
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		sinfo->tx_bytes += sta->tx_bytes[ac];
+		packets += sta->tx_packets[ac];
+	}
+	sinfo->tx_packets = packets;
 	sinfo->rx_bytes = sta->rx_bytes;
-	sinfo->tx_bytes = sta->tx_bytes;
 	sinfo->rx_packets = sta->rx_packets;
-	sinfo->tx_packets = sta->tx_packets;
 	sinfo->tx_retries = sta->tx_retry_count;
 	sinfo->tx_failed = sta->tx_retry_failed;
 	sinfo->rx_dropped_misc = sta->rx_dropped;
@@ -598,8 +604,8 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 		data[i++] += sta->rx_fragments;		\
 		data[i++] += sta->rx_dropped;		\
 							\
-		data[i++] += sta->tx_packets;		\
-		data[i++] += sta->tx_bytes;		\
+		data[i++] += sinfo.tx_packets;		\
+		data[i++] += sinfo.tx_bytes;		\
 		data[i++] += sta->tx_fragments;		\
 		data[i++] += sta->tx_filtered_count;	\
 		data[i++] += sta->tx_retry_failed;	\
@@ -621,13 +627,14 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 		if (!(sta && !WARN_ON(sta->sdata->dev != dev)))
 			goto do_survey;
 
+		sinfo.filled = 0;
+		sta_set_sinfo(sta, &sinfo);
+
 		i = 0;
 		ADD_STA_STATS(sta);
 
 		data[i++] = sta->sta_state;
 
-		sinfo.filled = 0;
-		sta_set_sinfo(sta, &sinfo);
 
 		if (sinfo.filled & STATION_INFO_TX_BITRATE)
 			data[i] = 100000 *
