@@ -4813,8 +4813,10 @@ static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *reques
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
+	struct nfs4_state_owner *sp = state->owner;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	unsigned char fl_flags = request->fl_flags;
+	unsigned int seq;
 	int status = -ENOLCK;
 
 	if ((fl_flags & FL_POSIX) &&
@@ -4836,9 +4838,16 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 		status = do_vfs_lock(request->fl_file, request);
 		goto out_unlock;
 	}
+	seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
+	up_read(&nfsi->rwsem);
 	status = _nfs4_do_setlk(state, cmd, request, NFS_LOCK_NEW);
 	if (status != 0)
+		goto out;
+	down_read(&nfsi->rwsem);
+	if (read_seqcount_retry(&sp->so_reclaim_seqcount, seq)) {
+		status = -NFS4ERR_DELAY;
 		goto out_unlock;
+	}
 	/* Note: we always want to sleep here! */
 	request->fl_flags = fl_flags | FL_SLEEP;
 	if (do_vfs_lock(request->fl_file, request) < 0)
