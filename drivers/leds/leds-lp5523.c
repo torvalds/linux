@@ -94,7 +94,7 @@
 #define LP5523_PROGRAM_PAGES		6
 #define LP5523_ADC_SHORTCIRC_LIM	80
 
-#define LP5523_LEDS			9
+#define LP5523_MAX_LEDS			9
 #define LP5523_ENGINES			3
 
 #define LP5523_ENG_MASK_BASE		0x30 /* 00110000 */
@@ -136,7 +136,7 @@ struct lp5523_chip {
 	struct mutex		lock; /* Serialize control */
 	struct i2c_client	*client;
 	struct lp5523_engine	engines[LP5523_ENGINES];
-	struct lp5523_led	leds[LP5523_LEDS];
+	struct lp5523_led	leds[LP5523_MAX_LEDS];
 	struct lp5523_platform_data *pdata;
 	u8			num_channels;
 	u8			num_leds;
@@ -285,7 +285,7 @@ static int lp5523_mux_parse(const char *buf, u16 *mux, size_t len)
 	int i;
 	u16 tmp_mux = 0;
 
-	len = min_t(int, len, LP5523_LEDS);
+	len = min_t(int, len, LP5523_MAX_LEDS);
 	for (i = 0; i < len; i++) {
 		switch (buf[i]) {
 		case '1':
@@ -308,7 +308,7 @@ static int lp5523_mux_parse(const char *buf, u16 *mux, size_t len)
 static void lp5523_mux_to_array(u16 led_mux, char *array)
 {
 	int i, pos = 0;
-	for (i = 0; i < LP5523_LEDS; i++)
+	for (i = 0; i < LP5523_MAX_LEDS; i++)
 		pos += sprintf(array + pos, "%x", LED_ACTIVE(led_mux, i));
 
 	array[pos] = '\0';
@@ -324,7 +324,7 @@ static ssize_t show_engine_leds(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lp5523_chip *chip = i2c_get_clientdata(client);
-	char mux[LP5523_LEDS + 1];
+	char mux[LP5523_MAX_LEDS + 1];
 
 	lp5523_mux_to_array(chip->engines[nr - 1].led_mux, mux);
 
@@ -417,7 +417,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 
 	vdd--;	/* There may be some fluctuation in measurement */
 
-	for (i = 0; i < LP5523_LEDS; i++) {
+	for (i = 0; i < LP5523_MAX_LEDS; i++) {
 		/* Skip non-existing channels */
 		if (chip->pdata->led_config[i].led_current == 0)
 			continue;
@@ -773,55 +773,6 @@ static void lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
 /*--------------------------------------------------------------*/
 /*			Probe, Attach, Remove			*/
 /*--------------------------------------------------------------*/
-static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
-			   int chan, struct lp5523_platform_data *pdata,
-			   const char *chip_name)
-{
-	char name[32];
-	int res;
-
-	if (chan >= LP5523_LEDS)
-		return -EINVAL;
-
-	if (pdata->led_config[chan].led_current) {
-		led->led_current = pdata->led_config[chan].led_current;
-		led->max_current = pdata->led_config[chan].max_current;
-		led->chan_nr = pdata->led_config[chan].chan_nr;
-
-		if (led->chan_nr >= LP5523_LEDS) {
-			dev_err(dev, "Use channel numbers between 0 and %d\n",
-				LP5523_LEDS - 1);
-			return -EINVAL;
-		}
-
-		if (pdata->led_config[chan].name) {
-			led->cdev.name = pdata->led_config[chan].name;
-		} else {
-			snprintf(name, sizeof(name), "%s:channel%d",
-				pdata->label ? : chip_name, chan);
-			led->cdev.name = name;
-		}
-
-		led->cdev.brightness_set = lp5523_set_brightness;
-		res = led_classdev_register(dev, &led->cdev);
-		if (res < 0) {
-			dev_err(dev, "couldn't register led on channel %d\n",
-				chan);
-			return res;
-		}
-		res = sysfs_create_group(&led->cdev.dev->kobj,
-				&lp5523_led_attribute_group);
-		if (res < 0) {
-			dev_err(dev, "couldn't register current attribute\n");
-			led_classdev_unregister(&led->cdev);
-			return res;
-		}
-	} else {
-		led->led_current = 0;
-	}
-	return 0;
-}
-
 static void lp5523_unregister_leds(struct lp5523_chip *chip)
 {
 	int i;
@@ -842,6 +793,7 @@ static struct lp55xx_device_config lp5523_cfg = {
 		.addr = LP5523_REG_ENABLE,
 		.val  = LP5523_ENABLE,
 	},
+	.max_channel  = LP5523_MAX_LEDS,
 	.post_init_device   = lp5523_post_init_device,
 };
 

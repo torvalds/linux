@@ -63,9 +63,75 @@ static int lp55xx_post_init_device(struct lp55xx_chip *chip)
 	return cfg->post_init_device(chip);
 }
 
+static struct attribute *lp55xx_led_attributes[] = {
+	NULL,
+};
+
+static struct attribute_group lp55xx_led_attr_group = {
+	.attrs = lp55xx_led_attributes
+};
+
+static void lp55xx_set_brightness(struct led_classdev *cdev,
+			     enum led_brightness brightness)
+{
+}
+
 static int lp55xx_init_led(struct lp55xx_led *led,
 			struct lp55xx_chip *chip, int chan)
 {
+	struct lp55xx_platform_data *pdata = chip->pdata;
+	struct lp55xx_device_config *cfg = chip->cfg;
+	struct device *dev = &chip->cl->dev;
+	char name[32];
+	int ret;
+	int max_channel = cfg->max_channel;
+
+	if (chan >= max_channel) {
+		dev_err(dev, "invalid channel: %d / %d\n", chan, max_channel);
+		return -EINVAL;
+	}
+
+	if (pdata->led_config[chan].led_current == 0)
+		return 0;
+
+	led->led_current = pdata->led_config[chan].led_current;
+	led->max_current = pdata->led_config[chan].max_current;
+	led->chan_nr = pdata->led_config[chan].chan_nr;
+
+	if (led->chan_nr >= max_channel) {
+		dev_err(dev, "Use channel numbers between 0 and %d\n",
+			max_channel - 1);
+		return -EINVAL;
+	}
+
+	led->cdev.brightness_set = lp55xx_set_brightness;
+
+	if (pdata->led_config[chan].name) {
+		led->cdev.name = pdata->led_config[chan].name;
+	} else {
+		snprintf(name, sizeof(name), "%s:channel%d",
+			pdata->label ? : chip->cl->name, chan);
+		led->cdev.name = name;
+	}
+
+	/*
+	 * register led class device for each channel and
+	 * add device attributes
+	 */
+
+	ret = led_classdev_register(dev, &led->cdev);
+	if (ret) {
+		dev_err(dev, "led register err: %d\n", ret);
+		return ret;
+	}
+
+	ret = sysfs_create_group(&led->cdev.dev->kobj, &lp55xx_led_attr_group);
+	if (ret) {
+		dev_err(dev, "led sysfs err: %d\n", ret);
+		led_classdev_unregister(&led->cdev);
+		return ret;
+	}
+
 	return 0;
 }
 

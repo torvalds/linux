@@ -689,55 +689,6 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static int lp5521_init_led(struct lp5521_led *led,
-				struct i2c_client *client,
-				int chan, struct lp5521_platform_data *pdata)
-{
-	struct device *dev = &client->dev;
-	char name[32];
-	int res;
-
-	if (chan >= LP5521_MAX_LEDS)
-		return -EINVAL;
-
-	if (pdata->led_config[chan].led_current == 0)
-		return 0;
-
-	led->led_current = pdata->led_config[chan].led_current;
-	led->max_current = pdata->led_config[chan].max_current;
-	led->chan_nr = pdata->led_config[chan].chan_nr;
-
-	if (led->chan_nr >= LP5521_MAX_LEDS) {
-		dev_err(dev, "Use channel numbers between 0 and %d\n",
-			LP5521_MAX_LEDS - 1);
-		return -EINVAL;
-	}
-
-	led->cdev.brightness_set = lp5521_set_brightness;
-	if (pdata->led_config[chan].name) {
-		led->cdev.name = pdata->led_config[chan].name;
-	} else {
-		snprintf(name, sizeof(name), "%s:channel%d",
-			pdata->label ?: client->name, chan);
-		led->cdev.name = name;
-	}
-
-	res = led_classdev_register(dev, &led->cdev);
-	if (res < 0) {
-		dev_err(dev, "couldn't register led on channel %d\n", chan);
-		return res;
-	}
-
-	res = sysfs_create_group(&led->cdev.dev->kobj,
-			&lp5521_led_attribute_group);
-	if (res < 0) {
-		dev_err(dev, "couldn't register current attribute\n");
-		led_classdev_unregister(&led->cdev);
-		return res;
-	}
-	return 0;
-}
-
 static void lp5521_unregister_leds(struct lp5521_chip *chip)
 {
 	int i;
@@ -758,6 +709,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 		.addr = LP5521_REG_ENABLE,
 		.val  = LP5521_ENABLE_DEFAULT,
 	},
+	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
 };
 

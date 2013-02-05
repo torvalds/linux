@@ -32,6 +32,7 @@ struct lp55xx_reg {
  * struct lp55xx_device_config
  * @reset              : Chip specific reset command
  * @enable             : Chip specific enable command
+ * @max_channel        : Maximum number of channels
  * @post_init_device   : Chip specific initialization code
  * @brightness_work_fn : Brightness work function
  * @set_led_current    : LED current set function
@@ -39,6 +40,7 @@ struct lp55xx_reg {
 struct lp55xx_device_config {
 	const struct lp55xx_reg reset;
 	const struct lp55xx_reg enable;
+	const int max_channel;
 
 	/* define if the device has specific initialization process */
 	int (*post_init_device) (struct lp55xx_chip *chip);
