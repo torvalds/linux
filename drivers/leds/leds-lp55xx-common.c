@@ -20,6 +20,11 @@
 
 #include "leds-lp55xx-common.h"
 
+static struct lp55xx_led *cdev_to_lp55xx_led(struct led_classdev *cdev)
+{
+	return container_of(cdev, struct lp55xx_led, cdev);
+}
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_device_config *cfg = chip->cfg;
@@ -74,6 +79,10 @@ static struct attribute_group lp55xx_led_attr_group = {
 static void lp55xx_set_brightness(struct led_classdev *cdev,
 			     enum led_brightness brightness)
 {
+	struct lp55xx_led *led = cdev_to_lp55xx_led(cdev);
+
+	led->brightness = (u8)brightness;
+	schedule_work(&led->brightness_work);
 }
 
 static int lp55xx_init_led(struct lp55xx_led *led,

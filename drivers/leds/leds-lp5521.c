@@ -151,8 +151,6 @@ static inline struct lp5521_chip *led_to_lp5521(struct lp5521_led *led)
 			    leds[led->id]);
 }
 
-static void lp5521_led_brightness_work(struct work_struct *work);
-
 static inline int lp5521_write(struct i2c_client *client, u8 reg, u8 value)
 {
 	return i2c_smbus_write_byte_data(client, reg, value);
@@ -303,24 +301,14 @@ static int lp5521_run_selftest(struct lp5521_chip *chip, char *buf)
 	return 0;
 }
 
-static void lp5521_set_brightness(struct led_classdev *cdev,
-			     enum led_brightness brightness)
-{
-	struct lp5521_led *led = cdev_to_led(cdev);
-	led->brightness = (u8)brightness;
-	schedule_work(&led->brightness_work);
-}
-
 static void lp5521_led_brightness_work(struct work_struct *work)
 {
-	struct lp5521_led *led = container_of(work,
-					      struct lp5521_led,
+	struct lp55xx_led *led = container_of(work, struct lp55xx_led,
 					      brightness_work);
-	struct lp5521_chip *chip = led_to_lp5521(led);
-	struct i2c_client *client = chip->client;
+	struct lp55xx_chip *chip = led->chip;
 
 	mutex_lock(&chip->lock);
-	lp5521_write(client, LP5521_REG_LED_PWM_BASE + led->chan_nr,
+	lp55xx_write(chip, LP5521_REG_LED_PWM_BASE + led->chan_nr,
 		led->brightness);
 	mutex_unlock(&chip->lock);
 }
@@ -711,6 +699,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 	},
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
+	.brightness_work_fn = lp5521_led_brightness_work,
 };
 
 static int lp5521_probe(struct i2c_client *client,

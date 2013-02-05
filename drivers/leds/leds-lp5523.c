@@ -163,8 +163,6 @@ static void lp5523_set_mode(struct lp5523_engine *engine, u8 mode);
 static int lp5523_set_engine_mode(struct lp5523_engine *engine, u8 mode);
 static int lp5523_load_program(struct lp5523_engine *engine, const u8 *pattern);
 
-static void lp5523_led_brightness_work(struct work_struct *work);
-
 static int lp5523_write(struct i2c_client *client, u8 reg, u8 value)
 {
 	return i2c_smbus_write_byte_data(client, reg, value);
@@ -468,29 +466,15 @@ release_lock:
 	return pos;
 }
 
-static void lp5523_set_brightness(struct led_classdev *cdev,
-			     enum led_brightness brightness)
-{
-	struct lp5523_led *led = cdev_to_led(cdev);
-
-	led->brightness = (u8)brightness;
-
-	schedule_work(&led->brightness_work);
-}
-
 static void lp5523_led_brightness_work(struct work_struct *work)
 {
-	struct lp5523_led *led = container_of(work,
-					      struct lp5523_led,
+	struct lp55xx_led *led = container_of(work, struct lp55xx_led,
 					      brightness_work);
-	struct lp5523_chip *chip = led_to_lp5523(led);
-	struct i2c_client *client = chip->client;
+	struct lp55xx_chip *chip = led->chip;
 
 	mutex_lock(&chip->lock);
-
-	lp5523_write(client, LP5523_REG_LED_PWM_BASE + led->chan_nr,
+	lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + led->chan_nr,
 		     led->brightness);
-
 	mutex_unlock(&chip->lock);
 }
 
@@ -795,6 +779,7 @@ static struct lp55xx_device_config lp5523_cfg = {
 	},
 	.max_channel  = LP5523_MAX_LEDS,
 	.post_init_device   = lp5523_post_init_device,
+	.brightness_work_fn = lp5523_led_brightness_work,
 };
 
 static int lp5523_probe(struct i2c_client *client,
