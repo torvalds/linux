@@ -64,4 +64,24 @@ extern struct smp_operations exynos_smp_ops;
 
 extern void exynos_cpu_die(unsigned int cpu);
 
+/* PMU(Power Management Unit) support */
+
+#define PMU_TABLE_END	NULL
+
+enum sys_powerdown {
+	SYS_AFTR,
+	SYS_LPA,
+	SYS_SLEEP,
+	NUM_SYS_POWERDOWN,
+};
+
+extern unsigned long l2x0_regs_phys;
+struct exynos_pmu_conf {
+	void __iomem *reg;
+	unsigned int val[NUM_SYS_POWERDOWN];
+};
+
+extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
+extern void s3c_cpu_resume(void);
+
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */

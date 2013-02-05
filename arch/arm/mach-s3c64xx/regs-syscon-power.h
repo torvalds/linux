@@ -1,5 +1,4 @@
-/* arch/arm/plat-s3c64xx/include/plat/regs-syscon-power.h
- *
+/*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *      http://armlinux.simtec.co.uk/
@@ -12,8 +11,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __PLAT_S3C64XX_REGS_SYSCON_POWER_H
-#define __PLAT_S3C64XX_REGS_SYSCON_POWER_H __FILE__
+#ifndef __MACH_S3C64XX_REGS_SYSCON_POWER_H
+#define __MACH_S3C64XX_REGS_SYSCON_POWER_H __FILE__
 
 #define S3C64XX_PWR_CFG				S3C_SYSREG(0x804)
 
@@ -113,4 +112,4 @@
 #define S3C64XX_INFORM2				S3C_SYSREG(0xA08)
 #define S3C64XX_INFORM3				S3C_SYSREG(0xA0C)
 
-#endif /* __PLAT_S3C64XX_REGS_SYSCON_POWER_H */
+#endif /* __MACH_S3C64XX_REGS_SYSCON_POWER_H */

@@ -1,5 +1,4 @@
-/* arch/arm/plat-s3c64xx/include/plat/regs-modem.h
- *
+/*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *      http://armlinux.simtec.co.uk/
@@ -12,10 +11,10 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __PLAT_S3C64XX_REGS_MODEM_H
-#define __PLAT_S3C64XX_REGS_MODEM_H __FILE__
+#ifndef __MACH_S3C64XX_REGS_MODEM_H
+#define __MACH_S3C64XX_REGS_MODEM_H __FILE__
 
-#define S3C64XX_MODEMREG(x)	(S3C64XX_VA_MODEM + (x))
+#define S3C64XX_MODEMREG(x)			(S3C64XX_VA_MODEM + (x))
 
 #define S3C64XX_MODEM_INT2AP			S3C64XX_MODEMREG(0x0)
 #define S3C64XX_MODEM_INT2MODEM			S3C64XX_MODEMREG(0x4)
@@ -28,4 +27,4 @@
 #define MIFPCON_INT2M_LEVEL			(1 << 4)
 #define MIFPCON_LCD_BYPASS			(1 << 3)
 
-#endif /* __PLAT_S3C64XX_REGS_MODEM_H */
+#endif /* __MACH_S3C64XX_REGS_MODEM_H */

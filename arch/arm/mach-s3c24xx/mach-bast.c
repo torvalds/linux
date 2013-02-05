@@ -24,48 +24,42 @@
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
-
-#include <net/ax88796.h>
-
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
-
-#include <mach/bast-map.h>
-#include <mach/bast-irq.h>
-#include <mach/bast-cpld.h>
-
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-//#include <asm/debug-ll.h>
-#include <plat/regs-serial.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
-#include <mach/regs-lcd.h>
-
-#include <linux/platform_data/hwmon-s3c.h>
-#include <linux/platform_data/mtd-nand-s3c2410.h>
-#include <linux/platform_data/i2c-s3c2410.h>
-#include <mach/fb.h>
+#include <linux/serial_8250.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <linux/serial_8250.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
+#include <linux/platform_data/hwmon-s3c.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+
+#include <net/ax88796.h>
+
+#include <asm/irq.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/mach/irq.h>
+#include <asm/mach-types.h>
+
+#include <mach/fb.h>
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
+#include <mach/regs-mem.h>
 
 #include <plat/clock.h>
-#include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/devs.h>
 #include <plat/gpio-cfg.h>
-#include <linux/platform_data/asoc-s3c24xx_simtec.h>
+#include <plat/regs-serial.h>
 
-#include "simtec.h"
+#include "bast.h"
 #include "common.h"
+#include "simtec.h"
 
 #define COPYRIGHT ", Copyright 2004-2008 Simtec Electronics"
 
@@ -312,7 +306,7 @@ static struct s3c2410_platform_nand __initdata bast_nand_info = {
 static struct resource bast_dm9k_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS5 + BAST_PA_DM9000, 4),
 	[1] = DEFINE_RES_MEM(S3C2410_CS5 + BAST_PA_DM9000 + 0x40, 0x40),
-	[2] = DEFINE_RES_NAMED(IRQ_DM9000 , 1, NULL, IORESOURCE_IRQ \
+	[2] = DEFINE_RES_NAMED(BAST_IRQ_DM9000 , 1, NULL, IORESOURCE_IRQ \
 					| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
@@ -343,7 +337,7 @@ static struct platform_device bast_device_dm9k = {
 static struct plat_serial8250_port bast_sio_data[] = {
 	[0] = {
 		.mapbase	= SERIAL_BASE + 0x2f8,
-		.irq		= IRQ_PCSERIAL1,
+		.irq		= BAST_IRQ_PCSERIAL1,
 		.flags		= SERIAL_FLAGS,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -351,7 +345,7 @@ static struct plat_serial8250_port bast_sio_data[] = {
 	},
 	[1] = {
 		.mapbase	= SERIAL_BASE + 0x3f8,
-		.irq		= IRQ_PCSERIAL2,
+		.irq		= BAST_IRQ_PCSERIAL2,
 		.flags		= SERIAL_FLAGS,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -390,7 +384,7 @@ static struct ax_plat_data bast_asix_platdata = {
 static struct resource bast_asix_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS5 + BAST_PA_ASIXNET, 0x18 * 0x20),
 	[1] = DEFINE_RES_MEM(S3C2410_CS5 + BAST_PA_ASIXNET + (0x1f * 0x20), 1),
-	[2] = DEFINE_RES_IRQ(IRQ_ASIX),
+	[2] = DEFINE_RES_IRQ(BAST_IRQ_ASIX),
 };
 
 static struct platform_device bast_device_asix = {

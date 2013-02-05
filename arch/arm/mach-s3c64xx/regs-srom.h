@@ -1,5 +1,4 @@
-/* arch/arm/plat-s3c64xx/include/plat/regs-srom.h
- *
+/*
  * Copyright 2009 Andy Green <andy@warmcat.com>
  *
  * S3C64XX SROM definitions
@@ -9,8 +8,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __PLAT_REGS_SROM_H
-#define __PLAT_REGS_SROM_H __FILE__
+#ifndef __MACH_S3C64XX_REGS_SROM_H
+#define __MACH_S3C64XX_REGS_SROM_H __FILE__
 
 #define S3C64XX_SROMREG(x)	(S3C_VA_MEM + (x))
 
@@ -29,7 +28,7 @@
 #define S3C64XX_SROM_BW__DATAWIDTH__SHIFT	0
 #define S3C64XX_SROM_BW__WAITENABLE__SHIFT	2
 #define S3C64XX_SROM_BW__BYTEENABLE__SHIFT	3
-#define S3C64XX_SROM_BW__CS_MASK 0xf
+#define S3C64XX_SROM_BW__CS_MASK		0xf
 
 #define S3C64XX_SROM_BW__NCS0__SHIFT	0
 #define S3C64XX_SROM_BW__NCS1__SHIFT	4
@@ -56,4 +55,4 @@
 #define S3C64XX_SROM_BCX__TACS__SHIFT	28
 #define S3C64XX_SROM_BCX__TACS__MASK	0xf
 
-#endif /* _PLAT_REGS_SROM_H */
+#endif /* __MACH_S3C64XX_REGS_SROM_H */

@@ -37,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/i2c.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/regs-serial.h>
@@ -55,6 +54,7 @@
 #include <plat/sdhci.h>
 
 #include "common.h"
+#include "i2c.h"
 
 #define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\

@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-exynos/include/mach/cpufreq.h
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *

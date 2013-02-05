@@ -20,8 +20,8 @@
 
 #include <mach/map.h>
 
-#include <mach/regs-sys.h>
-#include <mach/regs-syscon-power.h>
+#include "regs-sys.h"
+#include "regs-syscon-power.h"
 
 static int s3c64xx_enter_idle(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv,

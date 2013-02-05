@@ -1,20 +1,30 @@
-/* arch/arm/mach-s3c2410/include/mach/h1940-latch.h
+/*
+ * Copyright 2006 Ben Dooks <ben-linux@fluff.org>
  *
  * Copyright (c) 2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- *  iPAQ H1940 series - latch definitions
+ * iPAQ H1940 series definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_H1940_LATCH_H
-#define __ASM_ARCH_H1940_LATCH_H
+#ifndef __MACH_S3C24XX_H1940_H
+#define __MACH_S3C24XX_H1940_H __FILE__
 
-#include <asm/gpio.h>
+#define H1940_SUSPEND_CHECKSUM		(0x30003ff8)
+#define H1940_SUSPEND_RESUMEAT		(0x30081000)
+#define H1940_SUSPEND_CHECK		(0x30080000)
+
+extern void h1940_pm_return(void);
+extern int h1940_led_blink_set(unsigned gpio, int state,
+			       unsigned long *delay_on,
+			       unsigned long *delay_off);
+
+#include <linux/gpio.h>
 
 #define H1940_LATCH_GPIO(x)		(S3C_GPIO_END + (x))
 
@@ -40,4 +50,4 @@
 #define H1940_LATCH_LED_GREEN		H1940_LATCH_GPIO(14)
 #define H1940_LATCH_LED_FLASH		H1940_LATCH_GPIO(15)
 
-#endif /* __ASM_ARCH_H1940_LATCH_H */
+#endif /* __MACH_S3C24XX_H1940_H */

@@ -39,7 +39,6 @@
 #include <mach/regs-lcd.h>
 #include <mach/regs-s3c2443-clock.h>
 
-#include <mach/idle.h>
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 

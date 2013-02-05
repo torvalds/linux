@@ -21,7 +21,8 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
-#include <mach/regs-audss.h>
+
+#define EXYNOS4_AUDSS_INT_MEM	(0x03000000)
 
 static int exynos4_cfg_i2s(struct platform_device *pdev)
 {

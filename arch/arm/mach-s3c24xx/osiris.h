@@ -1,9 +1,9 @@
-/* arch/arm/mach-s3c2410/include/mach/osiris-map.h
- *
+/*
  * Copyright 2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/
  *	Ben Dooks <ben@simtec.co.uk>
  *
+ * OSIRIS - CPLD control constants
  * OSIRIS - Memory map definitions
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,10 +11,21 @@
  * published by the Free Software Foundation.
 */
 
-/* needs arch/map.h including with this */
+#ifndef __MACH_S3C24XX_OSIRIS_H
+#define __MACH_S3C24XX_OSIRIS_H __FILE__
 
-#ifndef __ASM_ARCH_OSIRISMAP_H
-#define __ASM_ARCH_OSIRISMAP_H
+/* CTRL0 - NAND WP control */
+
+#define OSIRIS_CTRL0_NANDSEL		(0x3)
+#define OSIRIS_CTRL0_BOOT_INT		(1<<3)
+#define OSIRIS_CTRL0_PCMCIA		(1<<4)
+#define OSIRIS_CTRL0_FIX8		(1<<5)
+#define OSIRIS_CTRL0_PCMCIA_nWAIT	(1<<6)
+#define OSIRIS_CTRL0_PCMCIA_nIOIS16	(1<<7)
+
+#define OSIRIS_CTRL1_FIX8		(1<<0)
+
+#define OSIRIS_ID_REVMASK		(0x7)
 
 /* start peripherals off after the S3C2410 */
 
@@ -39,4 +50,4 @@
 #define OSIRIS_VA_IDREG		OSIRIS_IOADDR(0x00700000)
 #define OSIRIS_PA_IDREG		(OSIRIS_PA_CPLD + (7<<23))
 
-#endif /* __ASM_ARCH_OSIRISMAP_H */
+#endif /* __MACH_S3C24XX_OSIRIS_H */

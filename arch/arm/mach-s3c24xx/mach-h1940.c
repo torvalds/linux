@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/mach-h1940.c
- *
+/*
  * Copyright (c) 2003-2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
@@ -37,40 +36,36 @@
 #include <linux/mmc/host.h>
 #include <linux/export.h>
 
+#include <asm/irq.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-#include <plat/regs-serial.h>
-#include <mach/regs-lcd.h>
-#include <mach/regs-clock.h>
-
-#include <mach/regs-gpio.h>
-#include <mach/gpio-fns.h>
-#include <mach/gpio-nrs.h>
-
-#include <mach/h1940.h>
-#include <mach/h1940-latch.h>
-#include <mach/fb.h>
-#include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-
-#include <plat/gpio-cfg.h>
-#include <plat/clock.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
-#include <plat/pll.h>
-#include <plat/pm.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include <sound/uda1380.h>
 
+#include <mach/fb.h>
+#include <mach/hardware.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
+
+#include <plat/clock.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/gpio-cfg.h>
+#include <plat/pll.h>
+#include <plat/pm.h>
+#include <plat/regs-serial.h>
+
+
 #include "common.h"
+#include "h1940.h"
 
 #define H1940_LATCH		((void __force __iomem *)0xF8000000)
 

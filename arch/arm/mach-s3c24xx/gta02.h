@@ -1,5 +1,13 @@
-#ifndef _GTA02_H
-#define _GTA02_H
+/*
+ * GTA02 header
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+#ifndef __MACH_S3C24XX_GTA02_H
+#define __MACH_S3C24XX_GTA02_H __FILE__
 
 #include <mach/regs-gpio.h>
 
@@ -12,4 +20,4 @@
 
 #define GTA02_IRQ_PCF50633	IRQ_EINT9
 
-#endif /* _GTA02_H */
+#endif /* __MACH_S3C24XX_GTA02_H */

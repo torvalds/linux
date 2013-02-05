@@ -38,7 +38,6 @@
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
-#include <plat/gpio-fns.h>
 #include <plat/pm.h>
 
 int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,

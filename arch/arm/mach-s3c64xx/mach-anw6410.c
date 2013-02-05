@@ -49,9 +49,9 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 
 #include "common.h"
+#include "regs-modem.h"
 
 /* DM9000 */
 #define ANW6410_PA_DM9000	(0x18000000)

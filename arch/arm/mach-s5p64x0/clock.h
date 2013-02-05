@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s5p64x0/include/mach/s5p64x0-clock.h
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -10,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_CLOCK_H
-#define __ASM_ARCH_CLOCK_H __FILE__
+#ifndef __MACH_S5P64X0_CLOCK_H
+#define __MACH_S5P64X0_CLOCK_H __FILE__
 
 #include <linux/clk.h>
 
@@ -36,4 +35,4 @@ extern int s5p64x0_mem_ctrl(struct clk *clk, int enable);
 
 extern int s5p64x0_clk48m_ctrl(struct clk *clk, int enable);
 
-#endif /* __ASM_ARCH_CLOCK_H */
+#endif /* __MACH_S5P64X0_CLOCK_H */
