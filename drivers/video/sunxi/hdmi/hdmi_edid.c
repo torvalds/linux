@@ -291,38 +291,41 @@ Parse_DTD_Block(__u8 *pbuf)
 
 	/* Pick the first mode with a width which is a multiple of 8 and
 	   a supported pixel-clock */
-	if (Device_Support_VIC[HDMI_EDID] == 0 && !(sizex & 7) &&
-	    disp_get_pll_freq(pclk, &dummy, &dummy) == 0) {
-		pr_info("Using above mode as preferred EDID mode\n");
-		video_timing[video_timing_edid].PCLK = pclk;
-		video_timing[video_timing_edid].AVI_PR = 0;
-		video_timing[video_timing_edid].INPUTX = sizex;
-		video_timing[video_timing_edid].INPUTY = sizey;
-		video_timing[video_timing_edid].HT = HT;
-		video_timing[video_timing_edid].HBP = Hblanking - Hsync_offset;
-		video_timing[video_timing_edid].HFP = Hsync_offset;
-		video_timing[video_timing_edid].HPSW = Hsync_pulsew;
-		video_timing[video_timing_edid].VT = VT;
-		video_timing[video_timing_edid].VBP = Vblanking - Vsync_offset;
-		video_timing[video_timing_edid].VFP = Vsync_offset;
-		video_timing[video_timing_edid].VPSW = Vsync_pulsew;
-		video_timing[video_timing_edid].I = (pbuf[17] & 0x80) >> 7;
-		if (video_timing[video_timing_edid].I) {
-			video_timing[video_timing_edid].INPUTY *= 2;
-			video_timing[video_timing_edid].VT *= 2;
+	if (Device_Support_VIC[HDMI_EDID] || (sizex & 7))
+		return 0;
 
-			/* Should VT be VT * 2 + 1, or VT * 2 ? */
-			frame_rate = (frame_rate + 1) / 2;
-			if ((HT * (VT * 2 + 1) * frame_rate) == pclk)
-				video_timing[video_timing_edid].VT++;
+	if (disp_get_pll_freq(pclk, &dummy, &dummy) != 0)
+		return 0;
 
-			pr_info("Interlaced VT %d\n",
-				video_timing[video_timing_edid].VT);
-		}
-		video_timing[video_timing_edid].HSYNC = Hsync;
-		video_timing[video_timing_edid].VSYNC = Vsync;
-		Device_Support_VIC[HDMI_EDID] = 1;
+	pr_info("Using above mode as preferred EDID mode\n");
+	video_timing[video_timing_edid].PCLK = pclk;
+	video_timing[video_timing_edid].AVI_PR = 0;
+	video_timing[video_timing_edid].INPUTX = sizex;
+	video_timing[video_timing_edid].INPUTY = sizey;
+	video_timing[video_timing_edid].HT = HT;
+	video_timing[video_timing_edid].HBP = Hblanking - Hsync_offset;
+	video_timing[video_timing_edid].HFP = Hsync_offset;
+	video_timing[video_timing_edid].HPSW = Hsync_pulsew;
+	video_timing[video_timing_edid].VT = VT;
+	video_timing[video_timing_edid].VBP = Vblanking - Vsync_offset;
+	video_timing[video_timing_edid].VFP = Vsync_offset;
+	video_timing[video_timing_edid].VPSW = Vsync_pulsew;
+	video_timing[video_timing_edid].I = (pbuf[17] & 0x80) >> 7;
+	if (video_timing[video_timing_edid].I) {
+		video_timing[video_timing_edid].INPUTY *= 2;
+		video_timing[video_timing_edid].VT *= 2;
+
+		/* Should VT be VT * 2 + 1, or VT * 2 ? */
+		frame_rate = (frame_rate + 1) / 2;
+		if ((HT * (VT * 2 + 1) * frame_rate) == pclk)
+			video_timing[video_timing_edid].VT++;
+
+		pr_info("Interlaced VT %d\n",
+			video_timing[video_timing_edid].VT);
 	}
+	video_timing[video_timing_edid].HSYNC = Hsync;
+	video_timing[video_timing_edid].VSYNC = Vsync;
+	Device_Support_VIC[HDMI_EDID] = 1;
 
 	return 0;
 }
