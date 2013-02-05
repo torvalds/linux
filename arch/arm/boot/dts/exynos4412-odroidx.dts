@@ -68,6 +68,10 @@
 		regulator-boot-on;
 	};
 
+	rtc@10070000 {
+		status = "okay";
+	};
+
 	sdhci@12530000 {
 		bus-width = <4>;
 		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
