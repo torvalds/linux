@@ -109,5 +109,17 @@
 		usb@d0052000 {
 			status = "okay";
 		};
+
+		spi0: spi@d0010600 {
+			status = "okay";
+
+			spi-flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "m25p64";
+				reg = <0>; /* Chip select 0 */
+				spi-max-frequency = <20000000>;
+			};
+		};
 	};
 };
