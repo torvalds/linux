@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@ static unsigned int get_lightest_loaded_cpu_n(void)
 static void runnables_work_func(struct work_struct *work)
 {
 	unsigned int cpu = nr_cpu_ids;
-	int action, state;
+	int action;
 
 	mutex_lock(&runnables_lock);
 	if (runnables_state != RUNNING) {
