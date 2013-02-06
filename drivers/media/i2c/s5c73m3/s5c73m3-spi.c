@@ -111,7 +111,7 @@ int s5c73m3_spi_read(struct s5c73m3 *state, void *addr,
 	return 0;
 }
 
-static int __devinit s5c73m3_spi_probe(struct spi_device *spi)
+static int s5c73m3_spi_probe(struct spi_device *spi)
 {
 	int r;
 	struct s5c73m3 *state = container_of(spi->dev.driver, struct s5c73m3,
@@ -132,7 +132,7 @@ static int __devinit s5c73m3_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit s5c73m3_spi_remove(struct spi_device *spi)
+static int s5c73m3_spi_remove(struct spi_device *spi)
 {
 	return 0;
 }
@@ -141,7 +141,7 @@ int s5c73m3_register_spi_driver(struct s5c73m3 *state)
 {
 	struct spi_driver *spidrv = &state->spidrv;
 
-	spidrv->remove = __devexit_p(s5c73m3_spi_remove);
+	spidrv->remove = s5c73m3_spi_remove;
 	spidrv->probe = s5c73m3_spi_probe;
 	spidrv->driver.name = S5C73M3_SPI_DRV_NAME;
 	spidrv->driver.bus = &spi_bus_type;

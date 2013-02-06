@@ -1561,8 +1561,8 @@ static int s5c73m3_configure_gpios(struct s5c73m3 *state,
 	return 0;
 }
 
-static int __devinit s5c73m3_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int s5c73m3_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	const struct s5c73m3_platform_data *pdata = client->dev.platform_data;
@@ -1666,7 +1666,7 @@ out_err1:
 	return ret;
 }
 
-static int __devexit s5c73m3_remove(struct i2c_client *client)
+static int s5c73m3_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct s5c73m3 *state = sensor_sd_to_s5c73m3(sd);
@@ -1693,7 +1693,7 @@ static struct i2c_driver s5c73m3_i2c_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= s5c73m3_probe,
-	.remove		= __devexit_p(s5c73m3_remove),
+	.remove		= s5c73m3_remove,
 	.id_table	= s5c73m3_id,
 };
 
