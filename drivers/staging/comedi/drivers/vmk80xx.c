@@ -210,7 +210,6 @@ struct vmk80xx_private {
 	unsigned char *usb_rx_buf;
 	unsigned char *usb_tx_buf;
 	unsigned long flags;
-	int probed;
 	int attached;
 };
 
@@ -529,8 +528,6 @@ static int rudimentary_check(struct vmk80xx_private *devpriv, int dir)
 {
 	if (!devpriv)
 		return -EFAULT;
-	if (!devpriv->probed)
-		return -ENODEV;
 	if (!devpriv->attached)
 		return -ENODEV;
 	if (dir & DIR_IN) {
@@ -1299,7 +1296,7 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 
 	mutex_lock(&glb_mutex);
 	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (vmb[i].probed && vmb[i].intf == intf)
+		if (vmb[i].intf == intf)
 			break;
 	if (i == VMK80XX_MAX_BOARDS)
 		ret = -ENODEV;
@@ -1361,7 +1358,7 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	mutex_lock(&glb_mutex);
 
 	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (!vmb[i].probed)
+		if (!vmb[i].intf)
 			break;
 
 	if (i == VMK80XX_MAX_BOARDS) {
@@ -1408,8 +1405,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	if (boardinfo->model == VMK8055_MODEL)
 		vmk80xx_reset_device(devpriv);
-
-	devpriv->probed = 1;
 
 	mutex_unlock(&glb_mutex);
 
