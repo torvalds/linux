@@ -204,7 +204,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	int ret = 0, size;
 	struct device *dev = &pdev->dev;
 
-	wdt_clk = clk_get(dev, NULL);
+	wdt_clk = devm_clk_get(dev, NULL);
 	if (WARN_ON(IS_ERR(wdt_clk)))
 		return PTR_ERR(wdt_clk);
 
@@ -257,7 +257,6 @@ static int davinci_wdt_remove(struct platform_device *pdev)
 	}
 
 	clk_disable_unprepare(wdt_clk);
-	clk_put(wdt_clk);
 
 	return 0;
 }
