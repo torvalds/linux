@@ -37,6 +37,7 @@
 #include <asm/io.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
 #include <media/rc-core.h>
@@ -215,6 +216,9 @@ struct bttv_crop {
 };
 
 struct bttv_fh {
+	/* This must be the first field in this struct */
+	struct v4l2_fh		 fh;
+
 	struct bttv              *btv;
 	int resources;
 #ifdef VIDIOC_G_PRIORITY

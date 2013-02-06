@@ -49,6 +49,7 @@
 #include "bttvp.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/tvaudio.h>
 #include <media/msp3400.h>
@@ -2999,34 +3000,43 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 	struct bttv_fh *fh = file->private_data;
 	struct bttv_buffer *buf;
 	enum v4l2_field field;
-	unsigned int rc = POLLERR;
+	unsigned int rc = 0;
+	unsigned long req_events = poll_requested_events(wait);
+
+	if (v4l2_event_pending(&fh->fh))
+		rc = POLLPRI;
+	else if (req_events & POLLPRI)
+		poll_wait(file, &fh->fh.wait, wait);
+
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return rc;
 
 	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type) {
 		if (!check_alloc_btres_lock(fh->btv,fh,RESOURCE_VBI))
-			return POLLERR;
-		return videobuf_poll_stream(file, &fh->vbi, wait);
+			return rc | POLLERR;
+		return rc | videobuf_poll_stream(file, &fh->vbi, wait);
 	}
 
 	if (check_btres(fh,RESOURCE_VIDEO_STREAM)) {
 		/* streaming capture */
 		if (list_empty(&fh->cap.stream))
-			goto err;
+			return rc | POLLERR;
 		buf = list_entry(fh->cap.stream.next,struct bttv_buffer,vb.stream);
 	} else {
 		/* read() capture */
 		if (NULL == fh->cap.read_buf) {
 			/* need to capture a new frame */
 			if (locked_btres(fh->btv,RESOURCE_VIDEO_STREAM))
-				goto err;
+				return rc | POLLERR;
 			fh->cap.read_buf = videobuf_sg_alloc(fh->cap.msize);
 			if (NULL == fh->cap.read_buf)
-				goto err;
+				return rc | POLLERR;
 			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
 			field = videobuf_next_field(&fh->cap);
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,field)) {
 				kfree (fh->cap.read_buf);
 				fh->cap.read_buf = NULL;
-				goto err;
+				return rc | POLLERR;
 			}
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
@@ -3037,10 +3047,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &buf->vb.done, wait);
 	if (buf->vb.state == VIDEOBUF_DONE ||
 	    buf->vb.state == VIDEOBUF_ERROR)
-		rc =  POLLIN|POLLRDNORM;
-	else
-		rc = 0;
-err:
+		rc = rc | POLLIN|POLLRDNORM;
 	return rc;
 }
 
@@ -3073,6 +3080,7 @@ static int bttv_open(struct file *file)
 	file->private_data = fh;
 
 	*fh = btv->init;
+	v4l2_fh_init(&fh->fh, vdev);
 
 	fh->type = type;
 	fh->ov.setup_ok = 0;
@@ -3112,6 +3120,7 @@ static int bttv_open(struct file *file)
 	bttv_vbi_fmt_reset(&fh->vbi_fmt, btv->tvnorm);
 
 	bttv_field_count(btv);
+	v4l2_fh_add(&fh->fh);
 	return 0;
 }
 
@@ -3149,7 +3158,6 @@ static int bttv_release(struct file *file)
 	videobuf_mmap_free(&fh->vbi);
 	v4l2_prio_close(&btv->prio, fh->prio);
 	file->private_data = NULL;
-	kfree(fh);
 
 	btv->users--;
 	bttv_field_count(btv);
@@ -3157,6 +3165,9 @@ static int bttv_release(struct file *file)
 	if (!btv->users)
 		audio_mute(btv, btv->mute);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
+	kfree(fh);
 	return 0;
 }
 
@@ -3222,6 +3233,8 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_s_frequency             = bttv_s_frequency,
 	.vidioc_log_status		= bttv_log_status,
 	.vidioc_querystd		= bttv_querystd,
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 	.vidioc_g_chip_ident		= bttv_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= bttv_g_register,
@@ -3334,10 +3347,17 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
+	unsigned long req_events = poll_requested_events(wait);
 	struct saa6588_command cmd;
+	unsigned int res = 0;
+
+	if (v4l2_event_pending(&fh->fh))
+		res = POLLPRI;
+	else if (req_events & POLLPRI)
+		poll_wait(file, &fh->fh.wait, wait);
 	cmd.instance = file;
 	cmd.event_list = wait;
-	cmd.result = -ENODEV;
+	cmd.result = res;
 	bttv_call_all(btv, core, ioctl, SAA6588_CMD_POLL, &cmd);
 
 	return cmd.result;
@@ -3360,6 +3380,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner         = radio_s_tuner,
 	.vidioc_g_frequency     = bttv_g_frequency,
 	.vidioc_s_frequency     = bttv_s_frequency,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device radio_template = {
