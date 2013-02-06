@@ -126,6 +126,14 @@ config EXYNOS_THERMAL_EMUL
 	  device directory to support emulation mode. With emulation mode sysfs
 	  node, you can manually input temperature to TMU for simulation purpose.
 
+config DOVE_THERMAL
+	tristate "Temperature sensor on Marvell Dove SoCs"
+	depends on ARCH_DOVE
+	depends on OF
+	help
+	  Support for the Dove thermal sensor driver in the Linux thermal
+	  framework.
+
 config DB8500_THERMAL
 	bool "DB8500 thermal management"
 	depends on ARCH_U8500
