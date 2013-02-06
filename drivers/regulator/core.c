@@ -2185,8 +2185,11 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 			best_val = rdev->desc->ops->list_voltage(rdev, ret);
 			if (min_uV <= best_val && max_uV >= best_val) {
 				selector = ret;
-				ret = rdev->desc->ops->set_voltage_sel(rdev,
-								       ret);
+				if (old_selector == selector)
+					ret = 0;
+				else
+					ret = rdev->desc->ops->set_voltage_sel(
+								rdev, ret);
 			} else {
 				ret = -EINVAL;
 			}
@@ -2197,7 +2200,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
 	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
-	    rdev->desc->ops->set_voltage_time_sel) {
+	    old_selector != selector && rdev->desc->ops->set_voltage_time_sel) {
 
 		delay = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
