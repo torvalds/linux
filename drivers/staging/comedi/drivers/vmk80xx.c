@@ -1172,6 +1172,25 @@ static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
 	return 0;
 }
 
+static int vmk80xx_alloc_usb_buffers(struct vmk80xx_private *devpriv)
+{
+	size_t size;
+
+	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
+	devpriv->usb_rx_buf = kmalloc(size, GFP_KERNEL);
+	if (!devpriv->usb_rx_buf)
+		return -ENOMEM;
+
+	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	devpriv->usb_tx_buf = kmalloc(size, GFP_KERNEL);
+	if (!devpriv->usb_tx_buf) {
+		kfree(devpriv->usb_rx_buf);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int vmk80xx_attach_common(struct comedi_device *dev,
 				 struct vmk80xx_private *devpriv)
 {
@@ -1333,7 +1352,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 {
 	const struct vmk80xx_board *boardinfo;
 	struct vmk80xx_private *devpriv;
-	size_t size;
 	int ret;
 	int i;
 
@@ -1359,19 +1377,10 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 		return ret;
 	}
 
-	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
-	devpriv->usb_rx_buf = kmalloc(size, GFP_KERNEL);
-	if (!devpriv->usb_rx_buf) {
+	ret = vmk80xx_alloc_usb_buffers(devpriv);
+	if (ret) {
 		mutex_unlock(&glb_mutex);
-		return -ENOMEM;
-	}
-
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
-	devpriv->usb_tx_buf = kmalloc(size, GFP_KERNEL);
-	if (!devpriv->usb_tx_buf) {
-		kfree(devpriv->usb_rx_buf);
-		mutex_unlock(&glb_mutex);
-		return -ENOMEM;
+		return ret;
 	}
 
 	devpriv->usb = interface_to_usbdev(intf);
