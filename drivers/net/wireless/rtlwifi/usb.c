@@ -937,7 +937,8 @@ static struct rtl_intf_ops rtl_usb_ops = {
 };
 
 int rtl_usb_probe(struct usb_interface *intf,
-			const struct usb_device_id *id)
+		  const struct usb_device_id *id,
+		  struct rtl_hal_cfg *rtl_hal_cfg)
 {
 	int err;
 	struct ieee80211_hw *hw = NULL;
@@ -972,7 +973,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, hw);
 	/* init cfg & intf_ops */
 	rtlpriv->rtlhal.interface = INTF_USB;
-	rtlpriv->cfg = (struct rtl_hal_cfg *)(id->driver_info);
+	rtlpriv->cfg = rtl_hal_cfg;
 	rtlpriv->intf_ops = &rtl_usb_ops;
 	rtl_dbgp_flag_init(hw);
 	/* Init IO handler */
