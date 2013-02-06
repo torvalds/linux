@@ -116,12 +116,11 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
 		cpu_dai->playback_active--;
 		codec_dai->playback_active--;
+		snd_soc_dai_digital_mute(codec_dai, 1);
 	} else {
 		cpu_dai->capture_active--;
 		codec_dai->capture_active--;
 	}
-
-	snd_soc_dai_digital_mute(codec_dai, 1);
 
 	cpu_dai->active--;
 	codec_dai->active--;
@@ -179,10 +178,16 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 			goto out;
 	}
 
-	if (cmd == SNDRV_PCM_TRIGGER_START)
-		snd_soc_dai_digital_mute(codec_dai, 0);
-	else if (cmd == SNDRV_PCM_TRIGGER_STOP)
-		snd_soc_dai_digital_mute(codec_dai, 1);
+	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+			snd_soc_dai_digital_mute(codec_dai, 0);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+			snd_soc_dai_digital_mute(codec_dai, 1);
+			break;
+		}
+	}
 
 out:
 	mutex_unlock(&rtd->pcm_mutex);
