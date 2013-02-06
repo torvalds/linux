@@ -2506,6 +2506,7 @@ static int bttv_g_fmt_vid_cap(struct file *file, void *priv,
 				fh->width, fh->height);
 	f->fmt.pix.field        = fh->cap.field;
 	f->fmt.pix.pixelformat  = fh->fmt->fourcc;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
 }
@@ -2577,6 +2578,7 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 	/* update data for the application */
 	f->fmt.pix.field = field;
 	pix_format_set_size(&f->fmt.pix, fmt, width, height);
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
 }
