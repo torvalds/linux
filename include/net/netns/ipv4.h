@@ -22,6 +22,7 @@ struct netns_ipv4 {
 	struct ctl_table_header	*frags_hdr;
 	struct ctl_table_header	*ipv4_hdr;
 	struct ctl_table_header *route_hdr;
+	struct ctl_table_header *xfrm4_hdr;
 #endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;

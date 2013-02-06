@@ -262,7 +262,51 @@ static struct ctl_table xfrm4_policy_table[] = {
 	{ }
 };
 
-static struct ctl_table_header *sysctl_hdr;
+static int __net_init xfrm4_net_init(struct net *net)
+{
+	struct ctl_table *table;
+	struct ctl_table_header *hdr;
+
+	table = xfrm4_policy_table;
+	if (!net_eq(net, &init_net)) {
+		table = kmemdup(table, sizeof(xfrm4_policy_table), GFP_KERNEL);
+		if (!table)
+			goto err_alloc;
+
+		table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
+	}
+
+	hdr = register_net_sysctl(net, "net/ipv4", table);
+	if (!hdr)
+		goto err_reg;
+
+	net->ipv4.xfrm4_hdr = hdr;
+	return 0;
+
+err_reg:
+	if (!net_eq(net, &init_net))
+		kfree(table);
+err_alloc:
+	return -ENOMEM;
+}
+
+static void __net_exit xfrm4_net_exit(struct net *net)
+{
+	struct ctl_table *table;
+
+	if (net->ipv4.xfrm4_hdr == NULL)
+		return;
+
+	table = net->ipv4.xfrm4_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->ipv4.xfrm4_hdr);
+	if (!net_eq(net, &init_net))
+		kfree(table);
+}
+
+static struct pernet_operations __net_initdata xfrm4_net_ops = {
+	.init	= xfrm4_net_init,
+	.exit	= xfrm4_net_exit,
+};
 #endif
 
 static void __init xfrm4_policy_init(void)
@@ -277,8 +321,7 @@ void __init xfrm4_init(void)
 	xfrm4_state_init();
 	xfrm4_policy_init();
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv4",
-					 xfrm4_policy_table);
+	register_pernet_subsys(&xfrm4_net_ops);
 #endif
 }
 
