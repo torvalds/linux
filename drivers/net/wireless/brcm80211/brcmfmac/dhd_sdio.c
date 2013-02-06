@@ -1096,7 +1096,6 @@ static int brcmf_sdio_hdparser(struct brcmf_sdio *bus, u8 *header,
 	if (len > MAX_RX_DATASZ && rd->channel != SDPCM_CONTROL_CHANNEL &&
 	    type != BRCMF_SDIO_FT_SUPER) {
 		brcmf_err("HW header length too long\n");
-		bus->sdiodev->bus_if->dstats.rx_errors++;
 		bus->sdcnt.rx_toolong++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		rd->len = 0;
@@ -1298,7 +1297,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		if (errcode < 0) {
 			brcmf_err("glom read of %d bytes failed: %d\n",
 				  dlen, errcode);
-			bus->sdiodev->bus_if->dstats.rx_errors++;
 
 			sdio_claim_host(bus->sdiodev->func[1]);
 			if (bus->glomerr++ < 3) {
@@ -1478,7 +1476,6 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	if ((rdlen + BRCMF_FIRSTREAD) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_err("%d-byte control read exceeds %d-byte buffer\n",
 			  rdlen, bus->sdiodev->bus_if->maxctl);
-		bus->sdiodev->bus_if->dstats.rx_errors++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
 	}
@@ -1486,7 +1483,6 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	if ((len - doff) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_err("%d-byte ctl frame (%d-byte ctl data) exceeds %d-byte limit\n",
 			  len, len - doff, bus->sdiodev->bus_if->maxctl);
-		bus->sdiodev->bus_if->dstats.rx_errors++;
 		bus->sdcnt.rx_toolong++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
@@ -1634,7 +1630,6 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
 			brcmf_err("brcmu_pkt_buf_get_skb failed\n");
-			bus->sdiodev->bus_if->dstats.rx_dropped++;
 			brcmf_sdbrcm_rxfail(bus, false,
 					    RETRYCHAN(rd->channel));
 			sdio_release_host(bus->sdiodev->func[1]);
@@ -1652,7 +1647,6 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 			brcmf_err("read %d bytes from channel %d failed: %d\n",
 				  rd->len, rd->channel, sdret);
 			brcmu_pkt_buf_free_skb(pkt);
-			bus->sdiodev->bus_if->dstats.rx_errors++;
 			sdio_claim_host(bus->sdiodev->func[1]);
 			brcmf_sdbrcm_rxfail(bus, true,
 					    RETRYCHAN(rd->channel));
@@ -1940,10 +1934,6 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 		datalen = pkt->len - SDPCM_HDRLEN;
 
 		ret = brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_DATA_CHANNEL, true);
-		if (ret)
-			bus->sdiodev->bus_if->dstats.tx_errors++;
-		else
-			bus->sdiodev->bus_if->dstats.tx_bytes += datalen;
 
 		/* In poll mode, need to check for other events */
 		if (!bus->intr && cnt) {

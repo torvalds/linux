@@ -226,10 +226,12 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	ret =  brcmf_bus_txdata(drvr->bus_if, skb);
 
 done:
-	if (ret)
-		drvr->bus_if->dstats.tx_dropped++;
-	else
-		drvr->bus_if->dstats.tx_packets++;
+	if (ret) {
+		ifp->stats.tx_dropped++;
+	} else {
+		ifp->stats.tx_packets++;
+		ifp->stats.tx_bytes += skb->len;
+	}
 
 	/* Return ok: we always eat the packet */
 	return NETDEV_TX_OK;
@@ -270,12 +272,13 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 	skb_queue_walk_safe(skb_list, skb, pnext) {
 		skb_unlink(skb, skb_list);
 
-		/* process and remove protocol-specific header
-		 */
+		/* process and remove protocol-specific header */
 		ret = brcmf_proto_hdrpull(drvr, &ifidx, skb);
-		if (ret < 0) {
-			if (ret != -ENODATA)
-				bus_if->dstats.rx_errors++;
+		ifp = drvr->iflist[ifidx];
+
+		if (ret || !ifp || !ifp->ndev) {
+			if ((ret != -ENODATA) && ifp)
+				ifp->stats.rx_errors++;
 			brcmu_pkt_buf_free_skb(skb);
 			continue;
 		}
@@ -295,21 +298,11 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 		eth = skb->data;
 		len = skb->len;
 
-		ifp = drvr->iflist[ifidx];
-		if (ifp == NULL)
-			ifp = drvr->iflist[0];
-
-		if (!ifp || !ifp->ndev ||
-		    ifp->ndev->reg_state != NETREG_REGISTERED) {
-			brcmu_pkt_buf_free_skb(skb);
-			continue;
-		}
-
 		skb->dev = ifp->ndev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if (skb->pkt_type == PACKET_MULTICAST)
-			bus_if->dstats.multicast++;
+			ifp->stats.multicast++;
 
 		skb->data = eth;
 		skb->len = len;
@@ -325,8 +318,13 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 			ifp->ndev->last_rx = jiffies;
 		}
 
-		bus_if->dstats.rx_bytes += skb->len;
-		bus_if->dstats.rx_packets++;	/* Local count */
+		if (!(ifp->ndev->flags & IFF_UP)) {
+			brcmu_pkt_buf_free_skb(skb);
+			continue;
+		}
+
+		ifp->stats.rx_bytes += skb->len;
+		ifp->stats.rx_packets++;
 
 		if (in_interrupt())
 			netif_rx(skb);
@@ -352,34 +350,27 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 
 	brcmf_proto_hdrpull(drvr, &ifidx, txp);
 
+	ifp = drvr->iflist[ifidx];
+	if (!ifp)
+		return;
+
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);
 
 	if (type == ETH_P_PAE) {
-		ifp = drvr->iflist[ifidx];
 		atomic_dec(&ifp->pend_8021x_cnt);
 		if (waitqueue_active(&ifp->pend_8021x_wait))
 			wake_up(&ifp->pend_8021x_wait);
 	}
+	if (!success)
+		ifp->stats.tx_errors++;
 }
 
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_bus *bus_if = ifp->drvr->bus_if;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	/* Copy dongle stats to net device stats */
-	ifp->stats.rx_packets = bus_if->dstats.rx_packets;
-	ifp->stats.tx_packets = bus_if->dstats.tx_packets;
-	ifp->stats.rx_bytes = bus_if->dstats.rx_bytes;
-	ifp->stats.tx_bytes = bus_if->dstats.tx_bytes;
-	ifp->stats.rx_errors = bus_if->dstats.rx_errors;
-	ifp->stats.tx_errors = bus_if->dstats.tx_errors;
-	ifp->stats.rx_dropped = bus_if->dstats.rx_dropped;
-	ifp->stats.tx_dropped = bus_if->dstats.tx_dropped;
-	ifp->stats.multicast = bus_if->dstats.multicast;
 
 	return &ifp->stats;
 }

@@ -24,18 +24,6 @@ enum brcmf_bus_state {
 	BRCMF_BUS_DATA		/* Ready for frame transfers */
 };
 
-struct dngl_stats {
-	unsigned long rx_packets;	/* total packets received */
-	unsigned long tx_packets;	/* total packets transmitted */
-	unsigned long rx_bytes;	/* total bytes received */
-	unsigned long tx_bytes;	/* total bytes transmitted */
-	unsigned long rx_errors;	/* bad packets received */
-	unsigned long tx_errors;	/* packet transmit problems */
-	unsigned long rx_dropped;	/* packets dropped by dongle */
-	unsigned long tx_dropped;	/* packets dropped by dongle */
-	unsigned long multicast;	/* multicast packets received */
-};
-
 struct brcmf_bus_dcmd {
 	char *name;
 	char *param;
@@ -87,7 +75,6 @@ struct brcmf_bus {
 	enum brcmf_bus_state state;
 	uint maxctl;
 	unsigned long tx_realloc;
-	struct dngl_stats dstats;
 	u8 align;
 	struct list_head dcmd_list;
 

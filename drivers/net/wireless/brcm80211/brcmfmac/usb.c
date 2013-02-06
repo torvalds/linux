@@ -421,10 +421,6 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 	brcmf_dbg(USB, "Enter, urb->status=%d, skb=%p\n", urb->status,
 		  req->skb);
 	brcmf_usb_del_fromq(devinfo, req);
-	if (urb->status == 0)
-		devinfo->bus_pub.bus->dstats.tx_packets++;
-	else
-		devinfo->bus_pub.bus->dstats.tx_errors++;
 
 	brcmf_txcomplete(devinfo->dev, req->skb, urb->status == 0);
 
@@ -451,10 +447,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	req->skb = NULL;
 
 	/* zero lenght packets indicate usb "failure". Do not refill */
-	if (urb->status == 0 && urb->actual_length) {
-		devinfo->bus_pub.bus->dstats.rx_packets++;
-	} else {
-		devinfo->bus_pub.bus->dstats.rx_errors++;
+	if (urb->status != 0 || !urb->actual_length) {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
 		return;
