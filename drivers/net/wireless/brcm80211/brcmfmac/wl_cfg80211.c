@@ -3994,38 +3994,32 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 			       struct net_device *ndev,
 			       const struct brcmf_event_msg *e, void *data)
 {
-	s32 err = 0;
+	static int generation;
 	u32 event = e->event_code;
 	u32 reason = e->reason;
-	u32 len = e->datalen;
-	static int generation;
-
 	struct station_info sinfo;
 
 	brcmf_dbg(CONN, "event %d, reason %d\n", event, reason);
-	memset(&sinfo, 0, sizeof(sinfo));
 
-	sinfo.filled = 0;
 	if (((event == BRCMF_E_ASSOC_IND) || (event == BRCMF_E_REASSOC_IND)) &&
-	    reason == BRCMF_E_STATUS_SUCCESS) {
+	    (reason == BRCMF_E_STATUS_SUCCESS)) {
+		memset(&sinfo, 0, sizeof(sinfo));
 		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
 		if (!data) {
 			brcmf_err("No IEs present in ASSOC/REASSOC_IND");
 			return -EINVAL;
 		}
 		sinfo.assoc_req_ies = data;
-		sinfo.assoc_req_ies_len = len;
+		sinfo.assoc_req_ies_len = e->datalen;
 		generation++;
 		sinfo.generation = generation;
-		cfg80211_new_sta(ndev, e->addr, &sinfo, GFP_ATOMIC);
+		cfg80211_new_sta(ndev, e->addr, &sinfo, GFP_KERNEL);
 	} else if ((event == BRCMF_E_DISASSOC_IND) ||
 		   (event == BRCMF_E_DEAUTH_IND) ||
 		   (event == BRCMF_E_DEAUTH)) {
-		generation++;
-		sinfo.generation = generation;
-		cfg80211_del_sta(ndev, e->addr, GFP_ATOMIC);
+		cfg80211_del_sta(ndev, e->addr, GFP_KERNEL);
 	}
-	return err;
+	return 0;
 }
 
 static s32
