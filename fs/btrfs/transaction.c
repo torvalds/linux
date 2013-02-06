@@ -333,12 +333,14 @@ start_transaction(struct btrfs_root *root, u64 num_items, int type,
 					  &root->fs_info->trans_block_rsv,
 					  num_bytes, flush);
 		if (ret)
-			return ERR_PTR(ret);
+			goto reserve_fail;
 	}
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
-	if (!h)
-		return ERR_PTR(-ENOMEM);
+	if (!h) {
+		ret = -ENOMEM;
+		goto alloc_fail;
+	}
 
 	/*
 	 * If we are JOIN_NOLOCK we're already committing a transaction and
@@ -365,11 +367,7 @@ again:
 	if (ret < 0) {
 		/* We must get the transaction if we are JOIN_NOLOCK. */
 		BUG_ON(type == TRANS_JOIN_NOLOCK);
-
-		if (type < TRANS_JOIN_NOLOCK)
-			sb_end_intwrite(root->fs_info->sb);
-		kmem_cache_free(btrfs_trans_handle_cachep, h);
-		return ERR_PTR(ret);
+		goto join_fail;
 	}
 
 	cur_trans = root->fs_info->running_transaction;
@@ -410,6 +408,19 @@ got_it:
 	if (!current->journal_info && type != TRANS_USERSPACE)
 		current->journal_info = h;
 	return h;
+
+join_fail:
+	if (type < TRANS_JOIN_NOLOCK)
+		sb_end_intwrite(root->fs_info->sb);
+	kmem_cache_free(btrfs_trans_handle_cachep, h);
+alloc_fail:
+	if (num_bytes)
+		btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
+					num_bytes);
+reserve_fail:
+	if (qgroup_reserved)
+		btrfs_qgroup_free(root, qgroup_reserved);
+	return ERR_PTR(ret);
 }
 
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
@@ -1468,7 +1479,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		goto cleanup_transaction;
 	}
 
-	if (cur_trans->aborted) {
+	/* Stop the commit early if ->aborted is set */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
 		ret = cur_trans->aborted;
 		goto cleanup_transaction;
 	}
@@ -1574,6 +1586,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	wait_event(cur_trans->writer_wait,
 		   atomic_read(&cur_trans->num_writers) == 1);
 
+	/* ->aborted might be set after the previous check, so check it */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
+		ret = cur_trans->aborted;
+		goto cleanup_transaction;
+	}
 	/*
 	 * the reloc mutex makes sure that we stop
 	 * the balancing code from coming in and moving
@@ -1652,6 +1669,17 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	ret = commit_cowonly_roots(trans, root);
 	if (ret) {
+		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
+		goto cleanup_transaction;
+	}
+
+	/*
+	 * The tasks which save the space cache and inode cache may also
+	 * update ->aborted, check it.
+	 */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
+		ret = cur_trans->aborted;
 		mutex_unlock(&root->fs_info->tree_log_mutex);
 		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;

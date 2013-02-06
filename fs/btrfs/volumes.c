@@ -1431,7 +1431,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		}
 	} else {
 		ret = btrfs_get_bdev_and_sb(device_path,
-					    FMODE_READ | FMODE_EXCL,
+					    FMODE_WRITE | FMODE_EXCL,
 					    root->fs_info->bdev_holder, 0,
 					    &bdev, &bh);
 		if (ret)
@@ -2615,7 +2615,14 @@ static int chunk_usage_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
 	cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 	chunk_used = btrfs_block_group_used(&cache->item);
 
-	user_thresh = div_factor_fine(cache->key.offset, bargs->usage);
+	if (bargs->usage == 0)
+		user_thresh = 0;
+	else if (bargs->usage > 100)
+		user_thresh = cache->key.offset;
+	else
+		user_thresh = div_factor_fine(cache->key.offset,
+					      bargs->usage);
+
 	if (chunk_used < user_thresh)
 		ret = 0;
 
@@ -2960,6 +2967,8 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	unset_balance_control(fs_info);
 	ret = del_balance_item(fs_info->tree_root);
 	BUG_ON(ret);
+
+	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
 
 void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
@@ -3139,8 +3148,10 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 out:
 	if (bctl->flags & BTRFS_BALANCE_RESUME)
 		__cancel_balance(fs_info);
-	else
+	else {
 		kfree(bctl);
+		atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	}
 	return ret;
 }
 
@@ -3157,7 +3168,6 @@ static int balance_kthread(void *data)
 		ret = btrfs_balance(fs_info->balance_ctl, NULL);
 	}
 
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
 
@@ -3180,7 +3190,6 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 		return 0;
 	}
 
-	WARN_ON(atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1));
 	tsk = kthread_run(balance_kthread, fs_info, "btrfs-balance");
 	if (IS_ERR(tsk))
 		return PTR_ERR(tsk);
@@ -3233,6 +3242,8 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	btrfs_disk_balance_args_to_cpu(&bctl->meta, &disk_bargs);
 	btrfs_balance_sys(leaf, item, &disk_bargs);
 	btrfs_disk_balance_args_to_cpu(&bctl->sys, &disk_bargs);
+
+	WARN_ON(atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1));
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
@@ -3497,7 +3508,7 @@ struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	{ 1, 1, 2, 2, 2, 2 /* raid1 */ },
 	{ 1, 2, 1, 1, 1, 2 /* dup */ },
 	{ 1, 1, 0, 2, 1, 1 /* raid0 */ },
-	{ 1, 1, 0, 1, 1, 1 /* single */ },
+	{ 1, 1, 1, 1, 1, 1 /* single */ },
 };
 
 static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
