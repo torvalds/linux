@@ -297,6 +297,7 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	 * probably a safe assumption but might be better to check based on
 	 * sidtype.
 	 */
+	BUILD_BUG_ON(sizeof(uid_t) != sizeof(gid_t));
 	if (sidkey->datalen != sizeof(uid_t)) {
 		rc = -EIO;
 		cFYI(1, "%s: Downcall contained malformed key "
