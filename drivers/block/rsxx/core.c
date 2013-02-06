@@ -319,7 +319,7 @@ static int rsxx_compatibility_check(struct rsxx_cardinfo *card)
 	return 0;
 }
 
-static int __devinit rsxx_pci_probe(struct pci_dev *dev,
+static int rsxx_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	struct rsxx_cardinfo *card;
@@ -510,7 +510,7 @@ failed_ida_get:
 	return st;
 }
 
-static void __devexit rsxx_pci_remove(struct pci_dev *dev)
+static void rsxx_pci_remove(struct pci_dev *dev)
 {
 	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
 	unsigned long flags;
@@ -608,7 +608,7 @@ static struct pci_driver rsxx_pci_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= rsxx_pci_ids,
 	.probe		= rsxx_pci_probe,
-	.remove		= __devexit_p(rsxx_pci_remove),
+	.remove		= rsxx_pci_remove,
 	.suspend	= rsxx_pci_suspend,
 	.shutdown	= rsxx_pci_shutdown,
 };
