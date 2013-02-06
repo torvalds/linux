@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/s3c2440-cpufreq.c
- *
+/*
  * Copyright (c) 2006-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -310,5 +309,4 @@ static int s3c2442_cpufreq_init(void)
 {
 	return subsys_interface_register(&s3c2442_cpufreq_interface);
 }
-
 subsys_initcall(s3c2442_cpufreq_init);

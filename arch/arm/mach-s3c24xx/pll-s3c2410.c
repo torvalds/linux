@@ -1,5 +1,4 @@
-/* arch/arm/mach-s3c2410/pll.c
- *
+/*
  * Copyright (c) 2006-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -82,7 +81,6 @@ static int __init s3c2410_pll_init(void)
 	return subsys_interface_register(&s3c2410_plls_interface);
 
 }
-
 arch_initcall(s3c2410_pll_init);
 
 static struct subsys_interface s3c2410a_plls_interface = {
@@ -95,5 +93,4 @@ static int __init s3c2410a_pll_init(void)
 {
 	return subsys_interface_register(&s3c2410a_plls_interface);
 }
-
 arch_initcall(s3c2410a_pll_init);
