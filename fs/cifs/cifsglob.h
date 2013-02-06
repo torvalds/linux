@@ -930,7 +930,7 @@ struct cifsFileInfo {
 	struct list_head tlist;	/* pointer to next fid owned by tcon */
 	struct list_head flist;	/* next fid (file instance) for this inode */
 	struct cifs_fid_locks *llist;	/* brlocks held by this fid */
-	unsigned int uid;	/* allows finding which FileInfo structure */
+	kuid_t uid;		/* allows finding which FileInfo structure */
 	__u32 pid;		/* process id who opened file */
 	struct cifs_fid fid;	/* file id from remote */
 	/* BB add lock scope info here if needed */ ;
