@@ -114,7 +114,7 @@ struct mxs_lradc_of_config {
 	const char * const	*irq_name;
 };
 
-static const struct mxs_lradc_of_config const mxs_lradc_of_config[] = {
+static const struct mxs_lradc_of_config mxs_lradc_of_config[] = {
 	[IMX23_LRADC] = {
 		.irq_count	= ARRAY_SIZE(mx23_lradc_irq_names),
 		.irq_name	= mx23_lradc_irq_names,
