@@ -27,6 +27,7 @@
 #include <linux/notifier.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
@@ -570,6 +571,25 @@ static int bL_switcher_halve_cpus(void)
 	return 0;
 }
 
+static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
+{
+	trace_cpu_migrate_current(get_ns(), read_mpidr());
+}
+
+static int bL_switcher_trace_trigger(void)
+{
+	int ret;
+
+	preempt_disable();
+
+	bL_switcher_trace_trigger_cpu(NULL);
+	ret = smp_call_function(bL_switcher_trace_trigger_cpu, NULL, true);
+
+	preempt_enable();
+
+	return ret;
+}
+
 static int bL_switcher_enable(void)
 {
 	int cpu, ret;
@@ -591,6 +611,8 @@ static int bL_switcher_enable(void)
 	ret = bL_switcher_halve_cpus();
 	if (ret)
 		goto error;
+
+	bL_switcher_trace_trigger();
 
 	for_each_online_cpu(cpu) {
 		struct bL_thread *t = &bL_threads[cpu];
@@ -676,6 +698,8 @@ static void bL_switcher_disable(void)
 	}
 
 	bL_switcher_restore_cpus();
+	bL_switcher_trace_trigger();
+
 	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
 
 out:
@@ -709,11 +733,23 @@ static ssize_t bL_switcher_active_store(struct kobject *kobj,
 	return (ret >= 0) ? count : ret;
 }
 
+static ssize_t bL_switcher_trace_trigger_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret = bL_switcher_trace_trigger();
+
+	return ret ? ret : count;
+}
+
 static struct kobj_attribute bL_switcher_active_attr =
 	__ATTR(active, 0644, bL_switcher_active_show, bL_switcher_active_store);
 
+static struct kobj_attribute bL_switcher_trace_trigger_attr =
+	__ATTR(trace_trigger, 0200, NULL, bL_switcher_trace_trigger_store);
+
 static struct attribute *bL_switcher_attrs[] = {
 	&bL_switcher_active_attr.attr,
+	&bL_switcher_trace_trigger_attr.attr,
 	NULL,
 };
 

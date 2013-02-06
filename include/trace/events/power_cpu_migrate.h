@@ -42,6 +42,7 @@ DECLARE_EVENT_CLASS(cpu_migrate,
 
 __define_cpu_migrate_event(begin);
 __define_cpu_migrate_event(finish);
+__define_cpu_migrate_event(current);
 
 #undef __define_cpu_migrate
 #undef __cpu_migrate_proto
