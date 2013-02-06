@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_INTEGRITY) += integrity.o
 obj-$(CONFIG_INTEGRITY_SIGNATURE) += digsig.o
+obj-$(CONFIG_INTEGRITY_ASYMMETRIC_KEYS) += digsig_asymmetric.o
 
 integrity-y := iint.o
 

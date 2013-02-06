@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/integrity.h>
 #include <crypto/sha.h>
+#include <linux/key.h>
 
 /* iint action cache flags */
 #define IMA_MEASURE		0x00000001
@@ -100,6 +101,17 @@ static inline int integrity_digsig_verify(const unsigned int id,
 }
 
 #endif /* CONFIG_INTEGRITY_SIGNATURE */
+
+#ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
+int asymmetric_verify(struct key *keyring, const char *sig,
+		      int siglen, const char *data, int datalen);
+#else
+static inline int asymmetric_verify(struct key *keyring, const char *sig,
+				    int siglen, const char *data, int datalen)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /* set during initialization */
 extern int iint_initialized;
