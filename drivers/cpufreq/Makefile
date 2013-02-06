@@ -40,6 +40,7 @@ obj-$(CONFIG_X86_SPEEDSTEP_SMI)		+= speedstep-smi.o
 obj-$(CONFIG_X86_SPEEDSTEP_CENTRINO)	+= speedstep-centrino.o
 obj-$(CONFIG_X86_P4_CLOCKMOD)		+= p4-clockmod.o
 obj-$(CONFIG_X86_CPUFREQ_NFORCE2)	+= cpufreq-nforce2.o
+obj-$(CONFIG_X86_INTEL_PSTATE)		+= intel_pstate.o
 
 ##################################################################################
 # ARM SoC drivers
