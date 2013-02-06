@@ -1210,6 +1210,7 @@ static const struct net_device_ops bgmac_netdev_ops = {
 	.ndo_stop		= bgmac_stop,
 	.ndo_start_xmit		= bgmac_start_xmit,
 	.ndo_set_mac_address	= bgmac_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl           = bgmac_ioctl,
 };
 
