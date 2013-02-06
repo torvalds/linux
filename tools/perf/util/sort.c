@@ -570,6 +570,11 @@ int setup_sorting(void)
 	char *tmp, *tok, *str = strdup(sort_order);
 	int ret = 0;
 
+	if (str == NULL) {
+		error("Not enough memory to setup sort keys");
+		return -ENOMEM;
+	}
+
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		ret = sort_dimension__add(tok);
