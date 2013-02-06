@@ -211,6 +211,58 @@ struct mei_cl {
 	struct mei_cl_cb *read_cb;
 };
 
+/** struct mei_hw_ops
+ *
+ * @host_set_ready   - notify FW that host side is ready
+ * @host_is_ready    - query for host readiness
+
+ * @hw_is_ready      - query if hw is ready
+ * @hw_reset         - reset hw
+ * @hw_config        - configure hw
+
+ * @intr_clear       - clear pending interrupts
+ * @intr_enable      - enable interrupts
+ * @intr_disable     - disable interrupts
+
+ * @hbuf_free_slots  - query for write buffer empty slots
+ * @hbuf_is_ready    - query if write buffer is empty
+ * @hbuf_max_len     - query for write buffer max len
+
+ * @write            - write a message to FW
+
+ * @rdbuf_full_slots - query how many slots are filled
+
+ * @read_hdr         - get first 4 bytes (header)
+ * @read             - read a buffer from the FW
+ */
+struct mei_hw_ops {
+
+	void (*host_set_ready) (struct mei_device *dev);
+	bool (*host_is_ready) (struct mei_device *dev);
+
+	bool (*hw_is_ready) (struct mei_device *dev);
+	void (*hw_reset) (struct mei_device *dev, bool enable);
+	void (*hw_config) (struct mei_device *dev);
+
+	void (*intr_clear) (struct mei_device *dev);
+	void (*intr_enable) (struct mei_device *dev);
+	void (*intr_disable) (struct mei_device *dev);
+
+	int (*hbuf_free_slots) (struct mei_device *dev);
+	bool (*hbuf_is_ready) (struct mei_device *dev);
+	size_t (*hbuf_max_len) (const struct mei_device *dev);
+
+	int (*write)(struct mei_device *dev,
+		     struct mei_msg_hdr *hdr,
+		     unsigned char *buf);
+
+	int (*rdbuf_full_slots)(struct mei_device *dev);
+
+	u32 (*read_hdr)(const struct mei_device *dev);
+	int (*read) (struct mei_device *dev,
+		     unsigned char *buf, unsigned long len);
+};
+
 /**
  * struct mei_device -  MEI private device struct
  * @mem_addr - mem mapped base register address
@@ -306,6 +358,8 @@ struct mei_device {
 	bool iamthif_canceled;
 
 	struct work_struct init_work;
+
+	const struct mei_hw_ops *ops;
 	char hw[0] __aligned(sizeof(void *));
 };
 
@@ -376,26 +430,84 @@ void mei_watchdog_register(struct mei_device *dev);
  */
 void mei_watchdog_unregister(struct mei_device *dev);
 
-
 /*
  * Register Access Function
  */
 
-void mei_hw_config(struct mei_device *dev);
-void mei_hw_reset(struct mei_device *dev, bool intr_enable);
-u32 mei_mecbrw_read(const struct mei_device *dev);
+static inline void mei_hw_config(struct mei_device *dev)
+{
+	dev->ops->hw_config(dev);
+}
+static inline void mei_hw_reset(struct mei_device *dev, bool enable)
+{
+	dev->ops->hw_reset(dev, enable);
+}
 
+static inline void mei_clear_interrupts(struct mei_device *dev)
+{
+	dev->ops->intr_clear(dev);
+}
 
+static inline void mei_enable_interrupts(struct mei_device *dev)
+{
+	dev->ops->intr_enable(dev);
+}
 
-void mei_clear_interrupts(struct mei_device *dev);
-void mei_enable_interrupts(struct mei_device *dev);
-void mei_disable_interrupts(struct mei_device *dev);
+static inline void mei_disable_interrupts(struct mei_device *dev)
+{
+	dev->ops->intr_disable(dev);
+}
 
-void mei_host_set_ready(struct mei_device *dev);
-bool mei_host_is_ready(struct mei_device *dev);
-bool mei_me_is_ready(struct mei_device *dev);
+static inline void mei_host_set_ready(struct mei_device *dev)
+{
+	dev->ops->host_set_ready(dev);
+}
+static inline bool mei_host_is_ready(struct mei_device *dev)
+{
+	return dev->ops->host_is_ready(dev);
+}
+static inline bool mei_hw_is_ready(struct mei_device *dev)
+{
+	return dev->ops->hw_is_ready(dev);
+}
 
+static inline bool mei_hbuf_is_ready(struct mei_device *dev)
+{
+	return dev->ops->hbuf_is_ready(dev);
+}
 
+static inline int mei_hbuf_empty_slots(struct mei_device *dev)
+{
+	return dev->ops->hbuf_free_slots(dev);
+}
+
+static inline size_t mei_hbuf_max_len(const struct mei_device *dev)
+{
+	return dev->ops->hbuf_max_len(dev);
+}
+
+static inline int mei_write_message(struct mei_device *dev,
+			struct mei_msg_hdr *hdr,
+			unsigned char *buf)
+{
+	return dev->ops->write(dev, hdr, buf);
+}
+
+static inline u32 mei_read_hdr(const struct mei_device *dev)
+{
+	return dev->ops->read_hdr(dev);
+}
+
+static inline void mei_read_slots(struct mei_device *dev,
+		     unsigned char *buf, unsigned long len)
+{
+	dev->ops->read(dev, buf, len);
+}
+
+static inline int mei_count_full_read_slots(struct mei_device *dev)
+{
+	return dev->ops->rdbuf_full_slots(dev);
+}
 
 int mei_register(struct device *dev);
 void mei_deregister(void);

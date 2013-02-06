@@ -36,29 +36,10 @@ struct mei_me_hw {
 
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
 
-void mei_read_slots(struct mei_device *dev,
-		     unsigned char *buffer,
-		     unsigned long buffer_length);
-
-int mei_write_message(struct mei_device *dev,
-			struct mei_msg_hdr *header,
-			unsigned char *buf);
-
-bool mei_hbuf_is_empty(struct mei_device *dev);
-
-int mei_hbuf_empty_slots(struct mei_device *dev);
-
-static inline size_t mei_hbuf_max_data(const struct mei_device *dev)
-{
-	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
-}
-
 /* get slots (dwords) from a message length + header (bytes) */
 static inline unsigned char mei_data2slots(size_t length)
 {
 	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
 }
-
-int mei_count_full_read_slots(struct mei_device *dev);
 
 #endif /* _MEI_INTERFACE_H_ */

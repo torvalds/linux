@@ -300,8 +300,8 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (ret && dev->mei_host_buffer_is_empty) {
 		ret = 0;
 		dev->mei_host_buffer_is_empty = false;
-		if (cb->request_buffer.size > mei_hbuf_max_data(dev)) {
-			mei_hdr.length = mei_hbuf_max_data(dev);
+		if (cb->request_buffer.size > mei_hbuf_max_len(dev)) {
+			mei_hdr.length = mei_hbuf_max_len(dev);
 			mei_hdr.msg_complete = 0;
 		} else {
 			mei_hdr.length = cb->request_buffer.size;
@@ -583,7 +583,7 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_stall_timer = MEI_IAMTHIF_STALL_TIMER;
-	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
+	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
 	return 0;
 }
 

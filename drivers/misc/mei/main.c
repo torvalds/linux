@@ -462,8 +462,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	}
 
 	dev->mei_host_buffer_is_empty = false;
-	if (length >  mei_hbuf_max_data(dev)) {
-		mei_hdr.length = mei_hbuf_max_data(dev);
+	if (length >  mei_hbuf_max_len(dev)) {
+		mei_hdr.length = mei_hbuf_max_len(dev);
 		mei_hdr.msg_complete = 0;
 	} else {
 		mei_hdr.length = length;
@@ -765,4 +765,5 @@ void mei_deregister(void)
 	mei_misc_device.parent = NULL;
 }
 
+MODULE_LICENSE("GPL v2");
 

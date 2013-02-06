@@ -329,7 +329,7 @@ static int mei_irq_thread_read_handler(struct mei_cl_cb *cmpl_list,
 	int ret = 0;
 
 	if (!dev->rd_msg_hdr) {
-		dev->rd_msg_hdr = mei_mecbrw_read(dev);
+		dev->rd_msg_hdr = mei_read_hdr(dev);
 		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
 		(*slots)--;
 		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
@@ -430,7 +430,7 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 	s32 slots;
 	int ret;
 
-	if (!mei_hbuf_is_empty(dev)) {
+	if (!mei_hbuf_is_ready(dev)) {
 		dev_dbg(&dev->pdev->dev, "host buffer is not empty.\n");
 		return 0;
 	}
@@ -698,7 +698,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 		mei_clear_interrupts(dev);
 
 	/* check if ME wants a reset */
-	if (!mei_me_is_ready(dev) &&
+	if (!mei_hw_is_ready(dev) &&
 	    dev->dev_state != MEI_DEV_RESETING &&
 	    dev->dev_state != MEI_DEV_INITIALIZING) {
 		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
@@ -709,7 +709,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
-		if (mei_me_is_ready(dev)) {
+		if (mei_hw_is_ready(dev)) {
 			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
 
 			mei_host_set_ready(dev);
@@ -743,7 +743,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	rets = mei_irq_thread_write_handler(dev, &complete_list);
 end:
 	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
-	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
+	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
 
 	bus_message_received = false;
 	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {

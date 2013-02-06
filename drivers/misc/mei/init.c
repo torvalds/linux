@@ -104,7 +104,7 @@ int mei_hw_init(struct mei_device *dev)
 		goto err;
 	}
 
-	if (!mei_me_is_ready(dev)) {
+	if (!mei_hw_is_ready(dev)) {
 		dev_err(&dev->pdev->dev, "ME is not ready.\n");
 		goto err;
 	}
