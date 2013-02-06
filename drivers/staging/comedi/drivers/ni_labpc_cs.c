@@ -87,15 +87,6 @@ static const struct labpc_board_struct labpc_cs_boards[] = {
 	},
 };
 
-static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int labpc_auto_attach(struct comedi_device *dev,
 			     unsigned long context)
 {
@@ -106,20 +97,15 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	/* The ni_labpc driver needs the board_ptr */
 	dev->board_ptr = &labpc_cs_boards[0];
 
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
-			      CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, NULL);
-	if (ret)
-		return ret;
-
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = pcmcia_enable_device(link);
+	link->config_flags |= CONF_AUTO_SET_IO |
+			      CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
+	ret = comedi_pcmcia_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = link->resource[0]->start;
+
+	if (!link->irq)
+		return -EINVAL;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -131,11 +117,8 @@ static int labpc_auto_attach(struct comedi_device *dev,
 
 static void labpc_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
 	labpc_common_detach(dev);
-	if (dev->iobase)
-		pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_labpc_cs = {
