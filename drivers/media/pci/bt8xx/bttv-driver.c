@@ -1706,11 +1706,7 @@ static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
 	unsigned int i;
-	int err;
-
-	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (err)
-		goto err;
+	int err = 0;
 
 	for (i = 0; i < BTTV_TVNORMS; i++)
 		if (*id & bttv_tvnorms[i].v4l2_id)
@@ -1793,11 +1789,6 @@ static int bttv_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
-	int err;
-
-	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (err)
-		return err;
 
 	if (i >= bttv_tvcards[btv->c.type].video_inputs)
 		return -EINVAL;
@@ -1811,14 +1802,9 @@ static int bttv_s_tuner(struct file *file, void *priv,
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
-	int err;
 
 	if (t->index)
 		return -EINVAL;
-
-	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (err)
-		return err;
 
 	bttv_call_all(btv, tuner, s_tuner, t);
 
@@ -1862,14 +1848,10 @@ static int bttv_s_frequency(struct file *file, void *priv,
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
-	int err;
 
 	if (f->tuner)
 		return -EINVAL;
 
-	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (err)
-		return err;
 	bttv_set_frequency(btv, f);
 	return 0;
 }
@@ -2808,28 +2790,6 @@ static int bttv_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_g_priority(struct file *file, void *f, enum v4l2_priority *p)
-{
-	struct bttv_fh *fh = f;
-	struct bttv *btv = fh->btv;
-
-	*p = v4l2_prio_max(&btv->prio);
-
-	return 0;
-}
-
-static int bttv_s_priority(struct file *file, void *f,
-					enum v4l2_priority prio)
-{
-	struct bttv_fh *fh = f;
-	struct bttv *btv = fh->btv;
-	int	rc;
-
-	rc = v4l2_prio_change(&btv->prio, &fh->prio, prio);
-
-	return rc;
-}
-
 static int bttv_cropcap(struct file *file, void *priv,
 				struct v4l2_cropcap *cap)
 {
@@ -2882,11 +2842,6 @@ static int bttv_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
 	/* Make sure tvnorm, vbi_end and the current cropping
 	   parameters remain consistent until we're done. Note
 	   read() may change vbi_end in check_alloc_btres_lock(). */
-	retval = v4l2_prio_check(&btv->prio, fh->prio);
-	if (0 != retval) {
-		return retval;
-	}
-
 	retval = -EBUSY;
 
 	if (locked_btres(fh->btv, VIDEO_RESOURCES)) {
@@ -3085,8 +3040,6 @@ static int bttv_open(struct file *file)
 	fh->type = type;
 	fh->ov.setup_ok = 0;
 
-	v4l2_prio_open(&btv->prio, &fh->prio);
-
 	videobuf_queue_sg_init(&fh->cap, &bttv_video_qops,
 			    &btv->c.pci->dev, &btv->s_lock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -3156,7 +3109,6 @@ static int bttv_release(struct file *file)
 
 	videobuf_mmap_free(&fh->cap);
 	videobuf_mmap_free(&fh->vbi);
-	v4l2_prio_close(&btv->prio, fh->prio);
 	file->private_data = NULL;
 
 	btv->users--;
@@ -3226,8 +3178,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_g_fbuf                  = bttv_g_fbuf,
 	.vidioc_s_fbuf                  = bttv_s_fbuf,
 	.vidioc_overlay                 = bttv_overlay,
-	.vidioc_g_priority              = bttv_g_priority,
-	.vidioc_s_priority              = bttv_s_priority,
 	.vidioc_g_parm                  = bttv_g_parm,
 	.vidioc_g_frequency             = bttv_g_frequency,
 	.vidioc_s_frequency             = bttv_s_frequency,
@@ -3268,13 +3218,13 @@ static int radio_open(struct file *file)
 		return -ENOMEM;
 	file->private_data = fh;
 	*fh = btv->init;
-
-	v4l2_prio_open(&btv->prio, &fh->prio);
+	v4l2_fh_init(&fh->fh, vdev);
 
 	btv->radio_user++;
 
 	bttv_call_all(btv, tuner, s_radio);
 	audio_input(btv,TVAUDIO_INPUT_RADIO);
+	v4l2_fh_add(&fh->fh);
 
 	return 0;
 }
@@ -3285,8 +3235,9 @@ static int radio_release(struct file *file)
 	struct bttv *btv = fh->btv;
 	struct saa6588_command cmd;
 
-	v4l2_prio_close(&btv->prio, fh->prio);
 	file->private_data = NULL;
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 
 	btv->radio_user--;
@@ -3948,6 +3899,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = bttv_debug;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	video_set_drvdata(vfd, btv);
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
@@ -4086,7 +4038,6 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	INIT_LIST_HEAD(&btv->c.subs);
 	INIT_LIST_HEAD(&btv->capture);
 	INIT_LIST_HEAD(&btv->vcapture);
-	v4l2_prio_init(&btv->prio);
 
 	init_timer(&btv->timeout);
 	btv->timeout.function = bttv_irq_timeout;

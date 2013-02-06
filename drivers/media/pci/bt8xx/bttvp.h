@@ -221,9 +221,6 @@ struct bttv_fh {
 
 	struct bttv              *btv;
 	int resources;
-#ifdef VIDIOC_G_PRIORITY
-	enum v4l2_priority       prio;
-#endif
 	enum v4l2_buf_type       type;
 
 	/* video capture */
@@ -420,9 +417,6 @@ struct bttv {
 	spinlock_t s_lock;
 	struct mutex lock;
 	int resources;
-#ifdef VIDIOC_G_PRIORITY
-	struct v4l2_prio_state prio;
-#endif
 
 	/* video state */
 	unsigned int input;
