@@ -266,8 +266,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	struct key *sidkey;
 	char *sidstr;
 	const struct cred *saved_cred;
-	uid_t fuid = cifs_sb->mnt_uid;
-	gid_t fgid = cifs_sb->mnt_gid;
+	kuid_t fuid = cifs_sb->mnt_uid;
+	kgid_t fgid = cifs_sb->mnt_gid;
 
 	/*
 	 * If we have too many subauthorities, then something is really wrong.
@@ -306,10 +306,21 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 		goto out_key_put;
 	}
 
-	if (sidtype == SIDOWNER)
-		memcpy(&fuid, &sidkey->payload.value, sizeof(uid_t));
-	else
-		memcpy(&fgid, &sidkey->payload.value, sizeof(gid_t));
+	if (sidtype == SIDOWNER) {
+		kuid_t uid;
+		uid_t id;
+		memcpy(&id, &sidkey->payload.value, sizeof(uid_t));
+		uid = make_kuid(&init_user_ns, id);
+		if (uid_valid(uid))
+			fuid = uid;
+	} else {
+		kgid_t gid;
+		gid_t id;
+		memcpy(&id, &sidkey->payload.value, sizeof(gid_t));
+		gid = make_kgid(&init_user_ns, id);
+		if (gid_valid(gid))
+			fgid = gid;
+	}
 
 out_key_put:
 	key_put(sidkey);
@@ -776,7 +787,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 
 /* Convert permission bits from mode to equivalent CIFS ACL */
 static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
-	__u32 secdesclen, __u64 nmode, uid_t uid, gid_t gid, int *aclflag)
+	__u32 secdesclen, __u64 nmode, kuid_t uid, kgid_t gid, int *aclflag)
 {
 	int rc = 0;
 	__u32 dacloffset;
@@ -808,17 +819,19 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 		*aclflag = CIFS_ACL_DACL;
 	} else {
 		memcpy(pnntsd, pntsd, secdesclen);
-		if (uid != NO_CHANGE_32) { /* chown */
+		if (uid_valid(uid)) { /* chown */
+			uid_t id;
 			owner_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
 					le32_to_cpu(pnntsd->osidoffset));
 			nowner_sid_ptr = kmalloc(sizeof(struct cifs_sid),
 								GFP_KERNEL);
 			if (!nowner_sid_ptr)
 				return -ENOMEM;
-			rc = id_to_sid(uid, SIDOWNER, nowner_sid_ptr);
+			id = from_kuid(&init_user_ns, uid);
+			rc = id_to_sid(id, SIDOWNER, nowner_sid_ptr);
 			if (rc) {
 				cFYI(1, "%s: Mapping error %d for owner id %d",
-						__func__, rc, uid);
+						__func__, rc, id);
 				kfree(nowner_sid_ptr);
 				return rc;
 			}
@@ -826,17 +839,19 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 			kfree(nowner_sid_ptr);
 			*aclflag = CIFS_ACL_OWNER;
 		}
-		if (gid != NO_CHANGE_32) { /* chgrp */
+		if (gid_valid(gid)) { /* chgrp */
+			gid_t id;
 			group_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
 					le32_to_cpu(pnntsd->gsidoffset));
 			ngroup_sid_ptr = kmalloc(sizeof(struct cifs_sid),
 								GFP_KERNEL);
 			if (!ngroup_sid_ptr)
 				return -ENOMEM;
-			rc = id_to_sid(gid, SIDGROUP, ngroup_sid_ptr);
+			id = from_kgid(&init_user_ns, gid);
+			rc = id_to_sid(id, SIDGROUP, ngroup_sid_ptr);
 			if (rc) {
 				cFYI(1, "%s: Mapping error %d for group id %d",
-						__func__, rc, gid);
+						__func__, rc, id);
 				kfree(ngroup_sid_ptr);
 				return rc;
 			}
@@ -1004,7 +1019,7 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 /* Convert mode bits to an ACL so we can update the ACL on the server */
 int
 id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
-			uid_t uid, gid_t gid)
+			kuid_t uid, kgid_t gid)
 {
 	int rc = 0;
 	int aclflag = CIFS_ACL_DACL; /* default flag to set */
