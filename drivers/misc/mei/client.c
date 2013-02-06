@@ -676,3 +676,54 @@ err:
 	return rets;
 }
 
+/**
+ * mei_cl_all_disconnect - disconnect forcefully all connected clients
+ *
+ * @dev - mei device
+ */
+
+void mei_cl_all_disconnect(struct mei_device *dev)
+{
+	struct mei_cl *cl, *next;
+
+	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+		cl->state = MEI_FILE_DISCONNECTED;
+		cl->mei_flow_ctrl_creds = 0;
+		cl->read_cb = NULL;
+		cl->timer_count = 0;
+	}
+}
+
+
+/**
+ * mei_cl_all_read_wakeup  - wake up all readings so they can be interrupted
+ *
+ * @dev  - mei device
+ */
+void mei_cl_all_read_wakeup(struct mei_device *dev)
+{
+	struct mei_cl *cl, *next;
+	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+		if (waitqueue_active(&cl->rx_wait)) {
+			dev_dbg(&dev->pdev->dev, "Waking up client!\n");
+			wake_up_interruptible(&cl->rx_wait);
+		}
+	}
+}
+
+/**
+ * mei_cl_all_write_clear - clear all pending writes
+
+ * @dev - mei device
+ */
+void mei_cl_all_write_clear(struct mei_device *dev)
+{
+	struct mei_cl_cb *cb, *next;
+
+	list_for_each_entry_safe(cb, next, &dev->write_list.list, list) {
+		list_del(&cb->list);
+		mei_io_cb_free(cb);
+	}
+}
+
+

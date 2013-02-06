@@ -135,10 +135,6 @@ err:
  */
 void mei_reset(struct mei_device *dev, int interrupts_enabled)
 {
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
 	bool unexpected;
 
 	if (dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET)
@@ -157,13 +153,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		    dev->dev_state != MEI_DEV_POWER_DOWN)
 			dev->dev_state = MEI_DEV_RESETING;
 
-		list_for_each_entry_safe(cl_pos,
-				cl_next, &dev->file_list, link) {
-			cl_pos->state = MEI_FILE_DISCONNECTED;
-			cl_pos->mei_flow_ctrl_creds = 0;
-			cl_pos->read_cb = NULL;
-			cl_pos->timer_count = 0;
-		}
+		mei_cl_all_disconnect(dev);
+
 		/* remove entry if already in list */
 		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
 		mei_cl_unlink(&dev->wd_cl);
@@ -185,18 +176,11 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
 			 mei_dev_state_str(dev->dev_state));
 
-	/* Wake up all readings so they can be interrupted */
-	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
-		if (waitqueue_active(&cl_pos->rx_wait)) {
-			dev_dbg(&dev->pdev->dev, "Waking up client!\n");
-			wake_up_interruptible(&cl_pos->rx_wait);
-		}
-	}
+	/* wake up all readings so they can be interrupted */
+	mei_cl_all_read_wakeup(dev);
+
 	/* remove all waiting requests */
-	list_for_each_entry_safe(cb_pos, cb_next, &dev->write_list.list, list) {
-		list_del(&cb_pos->list);
-		mei_io_cb_free(cb_pos);
-	}
+	mei_cl_all_write_clear(dev);
 }
 
 
