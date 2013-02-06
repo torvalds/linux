@@ -28,10 +28,10 @@
  *
  * returns register value (u32)
  */
-static inline u32 mei_reg_read(const struct mei_device *dev,
+static inline u32 mei_reg_read(const struct mei_me_hw *hw,
 			       unsigned long offset)
 {
-	return ioread32(dev->mem_addr + offset);
+	return ioread32(hw->mem_addr + offset);
 }
 
 
@@ -42,10 +42,10 @@ static inline u32 mei_reg_read(const struct mei_device *dev,
  * @offset: offset from which to write the data
  * @value: register value to write (u32)
  */
-static inline void mei_reg_write(const struct mei_device *dev,
+static inline void mei_reg_write(const struct mei_me_hw *hw,
 				 unsigned long offset, u32 value)
 {
-	iowrite32(value, dev->mem_addr + offset);
+	iowrite32(value, hw->mem_addr + offset);
 }
 
 /**
@@ -58,7 +58,7 @@ static inline void mei_reg_write(const struct mei_device *dev,
  */
 u32 mei_mecbrw_read(const struct mei_device *dev)
 {
-	return mei_reg_read(dev, ME_CB_RW);
+	return mei_reg_read(to_me_hw(dev), ME_CB_RW);
 }
 /**
  * mei_mecsr_read - Reads 32bit data from the ME CSR
@@ -67,9 +67,9 @@ u32 mei_mecbrw_read(const struct mei_device *dev)
  *
  * returns ME_CSR_HA register value (u32)
  */
-static inline u32 mei_mecsr_read(const struct mei_device *dev)
+static inline u32 mei_mecsr_read(const struct mei_me_hw *hw)
 {
-	return mei_reg_read(dev, ME_CSR_HA);
+	return mei_reg_read(hw, ME_CSR_HA);
 }
 
 /**
@@ -79,9 +79,9 @@ static inline u32 mei_mecsr_read(const struct mei_device *dev)
  *
  * returns H_CSR register value (u32)
  */
-static inline u32 mei_hcsr_read(const struct mei_device *dev)
+static inline u32 mei_hcsr_read(const struct mei_me_hw *hw)
 {
-	return mei_reg_read(dev, H_CSR);
+	return mei_reg_read(hw, H_CSR);
 }
 
 /**
@@ -90,10 +90,10 @@ static inline u32 mei_hcsr_read(const struct mei_device *dev)
  *
  * @dev: the device structure
  */
-static inline void mei_hcsr_set(struct mei_device *dev, u32 hcsr)
+static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 {
 	hcsr &= ~H_IS;
-	mei_reg_write(dev, H_CSR, hcsr);
+	mei_reg_write(hw, H_CSR, hcsr);
 }
 
 
@@ -104,7 +104,7 @@ static inline void mei_hcsr_set(struct mei_device *dev, u32 hcsr)
  */
 void mei_hw_config(struct mei_device *dev)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	u32 hcsr = mei_hcsr_read(to_me_hw(dev));
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
 }
@@ -115,9 +115,10 @@ void mei_hw_config(struct mei_device *dev)
  */
 void mei_clear_interrupts(struct mei_device *dev)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 	if ((hcsr & H_IS) == H_IS)
-		mei_reg_write(dev, H_CSR, hcsr);
+		mei_reg_write(hw, H_CSR, hcsr);
 }
 
 /**
@@ -127,9 +128,10 @@ void mei_clear_interrupts(struct mei_device *dev)
  */
 void mei_enable_interrupts(struct mei_device *dev)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 	hcsr |= H_IE;
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set(hw, hcsr);
 }
 
 /**
@@ -139,9 +141,10 @@ void mei_enable_interrupts(struct mei_device *dev)
  */
 void mei_disable_interrupts(struct mei_device *dev)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 	hcsr  &= ~H_IE;
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set(hw, hcsr);
 }
 
 /**
@@ -152,7 +155,8 @@ void mei_disable_interrupts(struct mei_device *dev)
  */
 void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 
 	dev_dbg(&dev->pdev->dev, "before reset HCSR = 0x%08x.\n", hcsr);
 
@@ -163,14 +167,14 @@ void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 	else
 		hcsr &= ~H_IE;
 
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set(hw, hcsr);
 
-	hcsr = mei_hcsr_read(dev) | H_IG;
+	hcsr = mei_hcsr_read(hw) | H_IG;
 	hcsr &= ~H_RST;
 
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set(hw, hcsr);
 
-	hcsr = mei_hcsr_read(dev);
+	hcsr = mei_hcsr_read(hw);
 
 	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", hcsr);
 }
@@ -184,8 +188,9 @@ void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 
 void mei_host_set_ready(struct mei_device *dev)
 {
-	dev->host_hw_state |= H_IE | H_IG | H_RDY;
-	mei_hcsr_set(dev, dev->host_hw_state);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	hw->host_hw_state |= H_IE | H_IG | H_RDY;
+	mei_hcsr_set(hw, hw->host_hw_state);
 }
 /**
  * mei_host_is_ready - check whether the host has turned ready
@@ -195,8 +200,9 @@ void mei_host_set_ready(struct mei_device *dev)
  */
 bool mei_host_is_ready(struct mei_device *dev)
 {
-	dev->host_hw_state = mei_hcsr_read(dev);
-	return (dev->host_hw_state & H_RDY) == H_RDY;
+	struct mei_me_hw *hw = to_me_hw(dev);
+	hw->host_hw_state = mei_hcsr_read(hw);
+	return (hw->host_hw_state & H_RDY) == H_RDY;
 }
 
 /**
@@ -207,8 +213,9 @@ bool mei_host_is_ready(struct mei_device *dev)
  */
 bool mei_me_is_ready(struct mei_device *dev)
 {
-	dev->me_hw_state = mei_mecsr_read(dev);
-	return (dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
+	struct mei_me_hw *hw = to_me_hw(dev);
+	hw->me_hw_state = mei_mecsr_read(hw);
+	return (hw->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
 }
 
 /**
@@ -222,13 +229,14 @@ bool mei_me_is_ready(struct mei_device *dev)
 irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
 {
 	struct mei_device *dev = (struct mei_device *) dev_id;
-	u32 csr_reg = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 csr_reg = mei_hcsr_read(hw);
 
 	if ((csr_reg & H_IS) != H_IS)
 		return IRQ_NONE;
 
 	/* clear H_IS bit in H_CSR */
-	mei_reg_write(dev, H_CSR, csr_reg);
+	mei_reg_write(hw, H_CSR, csr_reg);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -242,12 +250,13 @@ irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
  */
 static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	char read_ptr, write_ptr;
 
-	dev->host_hw_state = mei_hcsr_read(dev);
+	hw->host_hw_state = mei_hcsr_read(hw);
 
-	read_ptr = (char) ((dev->host_hw_state & H_CBRP) >> 8);
-	write_ptr = (char) ((dev->host_hw_state & H_CBWP) >> 16);
+	read_ptr = (char) ((hw->host_hw_state & H_CBRP) >> 8);
+	write_ptr = (char) ((hw->host_hw_state & H_CBWP) >> 16);
 
 	return (unsigned char) (write_ptr - read_ptr);
 }
@@ -297,6 +306,7 @@ int mei_hbuf_empty_slots(struct mei_device *dev)
 int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 		      unsigned char *buf)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned long rem, dw_cnt;
 	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
@@ -313,20 +323,20 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 	if (empty_slots < 0 || dw_cnt > empty_slots)
 		return -EIO;
 
-	mei_reg_write(dev, H_CB_WW, *((u32 *) header));
+	mei_reg_write(hw, H_CB_WW, *((u32 *) header));
 
 	for (i = 0; i < length / 4; i++)
-		mei_reg_write(dev, H_CB_WW, reg_buf[i]);
+		mei_reg_write(hw, H_CB_WW, reg_buf[i]);
 
 	rem = length & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
 		memcpy(&reg, &buf[length - rem], rem);
-		mei_reg_write(dev, H_CB_WW, reg);
+		mei_reg_write(hw, H_CB_WW, reg);
 	}
 
-	hcsr = mei_hcsr_read(dev) | H_IG;
-	mei_hcsr_set(dev, hcsr);
+	hcsr = mei_hcsr_read(hw) | H_IG;
+	mei_hcsr_set(hw, hcsr);
 	if (!mei_me_is_ready(dev))
 		return -EIO;
 
@@ -342,13 +352,14 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
  */
 int mei_count_full_read_slots(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	char read_ptr, write_ptr;
 	unsigned char buffer_depth, filled_slots;
 
-	dev->me_hw_state = mei_mecsr_read(dev);
-	buffer_depth = (unsigned char)((dev->me_hw_state & ME_CBD_HRA) >> 24);
-	read_ptr = (char) ((dev->me_hw_state & ME_CBRP_HRA) >> 8);
-	write_ptr = (char) ((dev->me_hw_state & ME_CBWP_HRA) >> 16);
+	hw->me_hw_state = mei_mecsr_read(hw);
+	buffer_depth = (unsigned char)((hw->me_hw_state & ME_CBD_HRA) >> 24);
+	read_ptr = (char) ((hw->me_hw_state & ME_CBRP_HRA) >> 8);
+	write_ptr = (char) ((hw->me_hw_state & ME_CBWP_HRA) >> 16);
 	filled_slots = (unsigned char) (write_ptr - read_ptr);
 
 	/* check for overflow */
@@ -369,6 +380,7 @@ int mei_count_full_read_slots(struct mei_device *dev)
 void mei_read_slots(struct mei_device *dev, unsigned char *buffer,
 		    unsigned long buffer_length)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 *reg_buf = (u32 *)buffer;
 	u32 hcsr;
 
@@ -380,7 +392,36 @@ void mei_read_slots(struct mei_device *dev, unsigned char *buffer,
 		memcpy(reg_buf, &reg, buffer_length);
 	}
 
-	hcsr = mei_hcsr_read(dev) | H_IG;
-	mei_hcsr_set(dev, hcsr);
+	hcsr = mei_hcsr_read(hw) | H_IG;
+	mei_hcsr_set(hw, hcsr);
 }
 
+/**
+ * init_mei_device - allocates and initializes the mei device structure
+ *
+ * @pdev: The pci device structure
+ *
+ * returns The mei_device_device pointer on success, NULL on failure.
+ */
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
+{
+	struct mei_device *dev;
+
+	dev = kzalloc(sizeof(struct mei_device) +
+			 sizeof(struct mei_me_hw), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	mei_device_init(dev);
+
+	INIT_LIST_HEAD(&dev->wd_cl.link);
+	INIT_LIST_HEAD(&dev->iamthif_cl.link);
+	mei_io_list_init(&dev->amthif_cmd_list);
+	mei_io_list_init(&dev->amthif_rd_complete_list);
+
+	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
+	INIT_WORK(&dev->init_work, mei_host_client_init);
+
+	dev->pdev = pdev;
+	return dev;
+}

@@ -21,8 +21,20 @@
 
 #include <linux/mei.h>
 #include "mei_dev.h"
+#include "client.h"
 
+struct mei_me_hw {
+	void __iomem *mem_addr;
+	/*
+	 * hw states of host and fw(ME)
+	 */
+	u32 host_hw_state;
+	u32 me_hw_state;
+};
 
+#define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
+
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
 
 void mei_read_slots(struct mei_device *dev,
 		     unsigned char *buffer,

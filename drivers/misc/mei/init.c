@@ -42,28 +42,10 @@ const char *mei_dev_state_str(int state)
 #undef MEI_DEV_STATE
 }
 
-
-
-
-/**
- * init_mei_device - allocates and initializes the mei device structure
- *
- * @pdev: The pci device structure
- *
- * returns The mei_device_device pointer on success, NULL on failure.
- */
-struct mei_device *mei_device_init(struct pci_dev *pdev)
+void mei_device_init(struct mei_device *dev)
 {
-	struct mei_device *dev;
-
-	dev = kzalloc(sizeof(struct mei_device), GFP_KERNEL);
-	if (!dev)
-		return NULL;
-
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
-	INIT_LIST_HEAD(&dev->wd_cl.link);
-	INIT_LIST_HEAD(&dev->iamthif_cl.link);
 	mutex_init(&dev->device_lock);
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
@@ -74,14 +56,6 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 	mei_io_list_init(&dev->write_waiting_list);
 	mei_io_list_init(&dev->ctrl_wr_list);
 	mei_io_list_init(&dev->ctrl_rd_list);
-	mei_io_list_init(&dev->amthif_cmd_list);
-	mei_io_list_init(&dev->amthif_rd_complete_list);
-
-	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
-	INIT_WORK(&dev->init_work, mei_host_client_init);
-
-	dev->pdev = pdev;
-	return dev;
 }
 
 /**

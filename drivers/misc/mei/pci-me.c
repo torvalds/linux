@@ -90,7 +90,6 @@ MODULE_DEVICE_TABLE(pci, mei_pci_tbl);
 
 static DEFINE_MUTEX(mei_mutex);
 
-
 /**
  * mei_quirk_probe - probe for devices that doesn't valid ME interface
  * @pdev: PCI device structure
@@ -120,10 +119,10 @@ static bool mei_quirk_probe(struct pci_dev *pdev,
  *
  * returns 0 on success, <0 on failure.
  */
-static int mei_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct mei_device *dev;
+	struct mei_me_hw *hw;
 	int err;
 
 	mutex_lock(&mei_mutex);
@@ -152,14 +151,15 @@ static int mei_probe(struct pci_dev *pdev,
 		goto disable_device;
 	}
 	/* allocates and initializes the mei dev structure */
-	dev = mei_device_init(pdev);
+	dev = mei_me_dev_init(pdev);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;
 	}
+	hw = to_me_hw(dev);
 	/* mapping  IO device memory */
-	dev->mem_addr = pci_iomap(pdev, 0, 0);
-	if (!dev->mem_addr) {
+	hw->mem_addr = pci_iomap(pdev, 0, 0);
+	if (!hw->mem_addr) {
 		dev_err(&pdev->dev, "mapping I/O device memory failure.\n");
 		err = -ENOMEM;
 		goto free_device;
@@ -212,7 +212,7 @@ release_irq:
 	free_irq(pdev->irq, dev);
 disable_msi:
 	pci_disable_msi(pdev);
-	pci_iounmap(pdev, dev->mem_addr);
+	pci_iounmap(pdev, hw->mem_addr);
 free_device:
 	kfree(dev);
 release_regions:
@@ -236,6 +236,7 @@ end:
 static void mei_remove(struct pci_dev *pdev)
 {
 	struct mei_device *dev;
+	struct mei_me_hw *hw;
 
 	if (mei_pdev != pdev)
 		return;
@@ -243,6 +244,8 @@ static void mei_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 	if (!dev)
 		return;
+
+	hw = to_me_hw(dev);
 
 	mutex_lock(&dev->device_lock);
 
@@ -289,8 +292,8 @@ static void mei_remove(struct pci_dev *pdev)
 	pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	if (dev->mem_addr)
-		pci_iounmap(pdev, dev->mem_addr);
+	if (hw->mem_addr)
+		pci_iounmap(pdev, hw->mem_addr);
 
 	kfree(dev);
 

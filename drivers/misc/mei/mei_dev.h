@@ -235,18 +235,13 @@ struct mei_device {
 	struct list_head file_list;
 	long open_handle_count;
 
-	void __iomem *mem_addr;
 	/*
 	 * lock for the device
 	 */
 	struct mutex device_lock; /* device lock */
 	struct delayed_work timer_work;	/* MEI timer delayed work (timeouts) */
 	bool recvd_msg;
-	/*
-	 * hw states of host and fw(ME)
-	 */
-	u32 host_hw_state;
-	u32 me_hw_state;
+
 	u8  hbuf_depth;
 	/*
 	 * waiting queue for receive message from FW
@@ -311,6 +306,7 @@ struct mei_device {
 	bool iamthif_canceled;
 
 	struct work_struct init_work;
+	char hw[0] __aligned(sizeof(void *));
 };
 
 static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
@@ -322,7 +318,7 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
 /*
  * mei init function prototypes
  */
-struct mei_device *mei_device_init(struct pci_dev *pdev);
+void mei_device_init(struct mei_device *dev);
 void mei_reset(struct mei_device *dev, int interrupts);
 int mei_hw_init(struct mei_device *dev);
 
