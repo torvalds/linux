@@ -69,7 +69,7 @@
 
 #undef STMMAC_XMIT_DEBUG
 /*#define STMMAC_XMIT_DEBUG*/
-#ifdef STMMAC_TX_DEBUG
+#ifdef STMMAC_XMIT_DEBUG
 #define TX_DBG(fmt, args...)  printk(fmt, ## args)
 #else
 #define TX_DBG(fmt, args...)  do { } while (0)
