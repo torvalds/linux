@@ -381,9 +381,12 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip)
 static int thermal_zone_get_temp(struct thermal_zone_device *tz,
 				unsigned long *temp)
 {
-	int ret = 0, count;
+	int ret = 0;
+#ifdef CONFIG_THERMAL_EMULATION
+	int count;
 	unsigned long crit_temp = -1UL;
 	enum thermal_trip_type type;
+#endif
 
 	mutex_lock(&tz->lock);
 
