@@ -47,7 +47,8 @@ static struct cpufreq_governor cpufreq_gov_ondemand;
 static struct od_dbs_tuners od_tuners = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
-	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
+	.adj_up_threshold = DEF_FREQUENCY_UP_THRESHOLD -
+			    DEF_FREQUENCY_DOWN_DIFFERENTIAL,
 	.ignore_nice = 0,
 	.powersave_bias = 0,
 };
@@ -192,11 +193,9 @@ static void od_check_cpu(int cpu, unsigned int load_freq)
 	 * support the current CPU usage without triggering the up policy. To be
 	 * safe, we focus 10 points under the threshold.
 	 */
-	if (load_freq < (od_tuners.up_threshold - od_tuners.down_differential) *
-			policy->cur) {
+	if (load_freq < od_tuners.adj_up_threshold * policy->cur) {
 		unsigned int freq_next;
-		freq_next = load_freq / (od_tuners.up_threshold -
-				od_tuners.down_differential);
+		freq_next = load_freq / od_tuners.adj_up_threshold;
 
 		/* No longer fully busy, reset rate_mult */
 		dbs_info->rate_mult = 1;
@@ -359,6 +358,10 @@ static ssize_t store_up_threshold(struct kobject *a, struct attribute *b,
 			input < MIN_FREQUENCY_UP_THRESHOLD) {
 		return -EINVAL;
 	}
+	/* Calculate the new adj_up_threshold */
+	od_tuners.adj_up_threshold += input;
+	od_tuners.adj_up_threshold -= od_tuners.up_threshold;
+
 	od_tuners.up_threshold = input;
 	return count;
 }
@@ -515,7 +518,8 @@ static int __init cpufreq_gov_dbs_init(void)
 	if (idle_time != -1ULL) {
 		/* Idle micro accounting is supported. Use finer thresholds */
 		od_tuners.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
-		od_tuners.down_differential = MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
+		od_tuners.adj_up_threshold = MICRO_FREQUENCY_UP_THRESHOLD -
+					     MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
 		/*
 		 * In nohz/micro accounting case we set the minimum frequency
 		 * not depending on HZ, but fixed (very low). The deferred
