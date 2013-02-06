@@ -1267,7 +1267,7 @@ static inline int __init lowpan_netlink_init(void)
 	return rtnl_link_register(&lowpan_link_ops);
 }
 
-static inline void __init lowpan_netlink_fini(void)
+static inline void lowpan_netlink_fini(void)
 {
 	rtnl_link_unregister(&lowpan_link_ops);
 }
