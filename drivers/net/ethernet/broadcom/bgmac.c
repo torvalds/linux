@@ -771,6 +771,16 @@ static void bgmac_write_mac_address(struct bgmac *bgmac, u8 *addr)
 	bgmac_write(bgmac, BGMAC_MACADDR_LOW, tmp);
 }
 
+static void bgmac_set_rx_mode(struct net_device *net_dev)
+{
+	struct bgmac *bgmac = netdev_priv(net_dev);
+
+	if (net_dev->flags & IFF_PROMISC)
+		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_PROM, false);
+	else
+		bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_PROM, 0, false);
+}
+
 #if 0 /* We don't use that regs yet */
 static void bgmac_chip_stats_update(struct bgmac *bgmac)
 {
@@ -1024,10 +1034,7 @@ static void bgmac_chip_init(struct bgmac *bgmac, bool full_init)
 	/* Enable 802.3x tx flow control (honor received PAUSE frames) */
 	bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_RPI, 0, true);
 
-	if (bgmac->net_dev->flags & IFF_PROMISC)
-		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_PROM, false);
-	else
-		bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_PROM, 0, false);
+	bgmac_set_rx_mode(bgmac->net_dev);
 
 	bgmac_write_mac_address(bgmac, bgmac->net_dev->dev_addr);
 
@@ -1209,6 +1216,7 @@ static const struct net_device_ops bgmac_netdev_ops = {
 	.ndo_open		= bgmac_open,
 	.ndo_stop		= bgmac_stop,
 	.ndo_start_xmit		= bgmac_start_xmit,
+	.ndo_set_rx_mode	= bgmac_set_rx_mode,
 	.ndo_set_mac_address	= bgmac_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl           = bgmac_ioctl,
