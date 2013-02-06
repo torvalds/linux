@@ -146,6 +146,11 @@ enum v4l2_colorfx {
  * of controls. We reserve 16 controls for this driver. */
 #define V4L2_CID_USER_MEYE_BASE			(V4L2_CID_USER_BASE + 0x1000)
 
+/* The base for the bttv driver controls.
+ * We reserve 32 controls for this driver. */
+#define V4L2_CID_USER_BTTV_BASE			(V4L2_CID_USER_BASE + 0x1010)
+
+
 /* MPEG-class control IDs */
 
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)

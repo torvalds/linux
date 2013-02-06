@@ -3554,8 +3554,9 @@ void bttv_init_card2(struct bttv *btv)
 			I2C_CLIENT_END
 		};
 
-		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tda7432", 0, addrs))
+		btv->sd_tda7432 = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tda7432", 0, addrs);
+		if (btv->sd_tda7432)
 			return;
 	}
 

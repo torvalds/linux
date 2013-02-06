@@ -33,9 +33,10 @@
 #include <linux/input.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <linux/device.h>
 #include <asm/io.h>
 #include <media/v4l2-common.h>
-#include <linux/device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
 #include <media/rc-core.h>
@@ -393,11 +394,16 @@ struct bttv {
 	wait_queue_head_t          i2c_queue;
 	struct v4l2_subdev 	  *sd_msp34xx;
 	struct v4l2_subdev 	  *sd_tvaudio;
+	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */
 	struct video_device *video_dev;
 	struct video_device *radio_dev;
 	struct video_device *vbi_dev;
+
+	/* controls */
+	struct v4l2_ctrl_handler   ctrl_handler;
+	struct v4l2_ctrl_handler   radio_ctrl_handler;
 
 	/* infrared remote */
 	int has_remote;
@@ -426,17 +432,9 @@ struct bttv {
 
 	/* various options */
 	int opt_combfilter;
-	int opt_lumafilter;
 	int opt_automute;
-	int opt_chroma_agc;
-	int opt_color_killer;
-	int opt_adc_crush;
 	int opt_vcr_hack;
-	int opt_whitecrush_upper;
-	int opt_whitecrush_lower;
 	int opt_uv_ratio;
-	int opt_full_luma_range;
-	int opt_coring;
 
 	/* radio data/state */
 	int has_radio;
