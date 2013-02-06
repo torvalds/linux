@@ -116,11 +116,12 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
 		cpu_dai->playback_active--;
 		codec_dai->playback_active--;
-		snd_soc_dai_digital_mute(codec_dai, 1);
 	} else {
 		cpu_dai->capture_active--;
 		codec_dai->capture_active--;
 	}
+
+	snd_soc_dai_digital_mute(codec_dai, 1, cstream->direction);
 
 	cpu_dai->active--;
 	codec_dai->active--;
@@ -178,15 +179,13 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 			goto out;
 	}
 
-	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-			snd_soc_dai_digital_mute(codec_dai, 0);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-			snd_soc_dai_digital_mute(codec_dai, 1);
-			break;
-		}
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		snd_soc_dai_digital_mute(codec_dai, 0, cstream->direction);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+		snd_soc_dai_digital_mute(codec_dai, 1, cstream->direction);
+		break;
 	}
 
 out:
