@@ -9,6 +9,15 @@
 
 if ARCH_S3C24XX
 
+config PLAT_S3C24XX
+	def_bool y
+	select ARCH_REQUIRE_GPIOLIB
+	select NO_IOPORT
+	select S3C_DEV_NAND
+	select IRQ_DOMAIN
+	help
+	  Base platform code for any Samsung S3C24XX device
+
 menu "SAMSUNG S3C24XX SoCs Support"
 
 comment "S3C24XX SoCs"
@@ -83,6 +92,17 @@ config CPU_S3C2443
 
 # common code
 
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors which
+	  is currently includes the S3C2410, S3C2440, S3C2442.
+
+config S3C24XX_DCLK
+	bool
+	help
+	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
+
 config S3C24XX_SMDK
 	bool
 	help
@@ -111,6 +131,22 @@ config S3C24XX_SETUP_TS
 	help
 	  Compile in platform device definition for Samsung TouchScreen.
 
+config S3C24XX_DMA
+	bool "S3C2410 DMA support"
+	depends on ARCH_S3C24XX
+	select S3C_DMA
+	help
+	  S3C2410 DMA support. This is needed for drivers like sound which
+	  use the S3C2410's DMA system to move data to and from the
+	  peripheral blocks.
+
+config S3C2410_DMA_DEBUG
+	bool "S3C2410 DMA support debug"
+	depends on ARCH_S3C24XX && S3C2410_DMA
+	help
+	  Enable debugging output for the DMA code. This option sends info
+	  to the kernel log, at priority KERN_DEBUG.
+
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
@@ -122,6 +158,74 @@ config S3C2410_PM
 	bool
 	help
 	  Power Management code common to S3C2410 and better
+
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
+# gpio configurations
+
+config S3C24XX_GPIO_EXTRA
+	int
+	default 128 if S3C24XX_GPIO_EXTRA128
+	default 64 if S3C24XX_GPIO_EXTRA64
+	default 16 if ARCH_H1940
+	default 0
+
+config S3C24XX_GPIO_EXTRA64
+	bool
+	help
+	  Add an extra 64 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+config S3C24XX_GPIO_EXTRA128
+	bool
+	help
+	  Add an extra 128 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+# cpu frequency items common between s3c2410 and s3c2440/s3c2442
+
+config S3C2410_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select io timing code that is common to the s3c2410
+	  and s3c2440/s3c2442 cpu frequency support.
+
+config S3C2410_CPUFREQ_UTILS
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select timing code that is common to the s3c2410
+	  and s3c2440/s3c244 cpu frequency support.
+
+# cpu frequency support common to s3c2412, s3c2413 and s3c2442
+
+config S3C2412_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2412 || CPU_S3C2443)
+	help
+	  Intel node to select io timing code that is common to the s3c2412
+	  and the s3c2443.
 
 # cpu-specific sections
 

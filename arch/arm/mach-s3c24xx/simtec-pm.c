@@ -28,11 +28,12 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
 
 #include <asm/mach-types.h>
 
 #include <plat/pm.h>
+
+#include "regs-mem.h"
 
 #define COPYRIGHT ", Copyright 2005 Simtec Electronics"
 

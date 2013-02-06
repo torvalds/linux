@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/s3c2410-cpufreq-utils.c
- *
+/*
  * Copyright (c) 2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -17,10 +16,11 @@
 #include <linux/io.h>
 
 #include <mach/map.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu-freq-core.h>
+
+#include "regs-mem.h"
 
 /**
  * s3c2410_cpufreq_setrefresh - set SDRAM refresh value

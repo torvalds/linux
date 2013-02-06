@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/s3c2412-iotiming.c
- *
+/*
  * Copyright (c) 2006-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -28,11 +27,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/regs-s3c2412-mem.h>
-
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
 #include <plat/clock.h>
+
+#include "s3c2412.h"
 
 #define print_ns(x) ((x) / 10), ((x) % 10)
 
