@@ -1214,12 +1214,26 @@ static void vmk80xx_detach(struct comedi_device *dev)
 {
 	struct vmk80xx_usb *usb = dev->private;
 
-	if (usb) {
-		down(&usb->limit_sem);
-		dev->private = NULL;
-		usb->attached = 0;
-		up(&usb->limit_sem);
-	}
+	if (!usb)
+		return;
+
+	mutex_lock(&glb_mutex);
+	down(&usb->limit_sem);
+
+	dev->private = NULL;
+
+	usb->attached = 0;
+	usb->probed = 0;
+	usb_set_intfdata(usb->intf, NULL);
+
+	usb_kill_anchored_urbs(&usb->rx_anchor);
+	usb_kill_anchored_urbs(&usb->tx_anchor);
+
+	kfree(usb->usb_rx_buf);
+	kfree(usb->usb_tx_buf);
+
+	up(&usb->limit_sem);
+	mutex_unlock(&glb_mutex);
 }
 
 static struct comedi_driver vmk80xx_driver = {
@@ -1382,30 +1396,7 @@ error:
 
 static void vmk80xx_usb_disconnect(struct usb_interface *intf)
 {
-	struct vmk80xx_usb *dev = usb_get_intfdata(intf);
-
-	if (!dev)
-		return;
-
 	comedi_usb_auto_unconfig(intf);
-
-	mutex_lock(&glb_mutex);
-	down(&dev->limit_sem);
-
-	dev->probed = 0;
-	usb_set_intfdata(dev->intf, NULL);
-
-	usb_kill_anchored_urbs(&dev->rx_anchor);
-	usb_kill_anchored_urbs(&dev->tx_anchor);
-
-	kfree(dev->usb_rx_buf);
-	kfree(dev->usb_tx_buf);
-
-	dev_info(&intf->dev, "board #%d [%s] now detached\n",
-		 dev->count, dev->board.name);
-
-	up(&dev->limit_sem);
-	mutex_unlock(&glb_mutex);
 }
 
 static const struct usb_device_id vmk80xx_usb_id_table[] = {
