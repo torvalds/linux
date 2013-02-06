@@ -418,7 +418,7 @@ struct bttv {
 	unsigned int input;
 	unsigned int audio;
 	unsigned int mute;
-	unsigned long freq;
+	unsigned long tv_freq;
 	unsigned int tvnorm;
 	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
@@ -442,6 +442,7 @@ struct bttv {
 	int has_radio;
 	int radio_user;
 	int radio_uses_msp_demodulator;
+	unsigned long radio_freq;
 
 	/* miro/pinnacle + Aimslab VHX
 	   philips matchbox (tea5757 radio tuner) support */

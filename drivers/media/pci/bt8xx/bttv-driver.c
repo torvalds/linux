@@ -2007,8 +2007,25 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	if (f->tuner)
 		return -EINVAL;
 
-	f->frequency = btv->freq;
+	f->frequency = f->type == V4L2_TUNER_RADIO ?
+				btv->radio_freq : btv->tv_freq;
+
 	return 0;
+}
+
+static void bttv_set_frequency(struct bttv *btv, struct v4l2_frequency *f)
+{
+	bttv_call_all(btv, tuner, s_frequency, f);
+	/* s_frequency may clamp the frequency, so get the actual
+	   frequency before assigning radio/tv_freq. */
+	bttv_call_all(btv, tuner, g_frequency, f);
+	if (f->type == V4L2_TUNER_RADIO) {
+		btv->radio_freq = f->frequency;
+		if (btv->has_matchbox)
+			tea5757_set_freq(btv, btv->radio_freq);
+	} else {
+		btv->tv_freq = f->frequency;
+	}
 }
 
 static int bttv_s_frequency(struct file *file, void *priv,
@@ -2024,11 +2041,7 @@ static int bttv_s_frequency(struct file *file, void *priv,
 	err = v4l2_prio_check(&btv->prio, fh->prio);
 	if (err)
 		return err;
-
-	btv->freq = f->frequency;
-	bttv_call_all(btv, tuner, s_frequency, f);
-	if (btv->has_matchbox && btv->radio_user)
-		tea5757_set_freq(btv, btv->freq);
+	bttv_set_frequency(btv, f);
 	return 0;
 }
 
@@ -4235,6 +4248,11 @@ static void pci_set_command(struct pci_dev *dev)
 
 static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 {
+	struct v4l2_frequency init_freq = {
+		.tuner = 0,
+		.type = V4L2_TUNER_ANALOG_TV,
+		.frequency = 980,
+	};
 	int result;
 	unsigned char lat;
 	struct bttv *btv;
@@ -4375,6 +4393,10 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	/* some card-specific stuff (needs working i2c) */
 	bttv_init_card2(btv);
 	bttv_init_tuner(btv);
+	if (btv->tuner_type != TUNER_ABSENT) {
+		bttv_set_frequency(btv, &init_freq);
+		btv->radio_freq = 90500 * 16; /* 90.5Mhz default */
+	}
 	init_irqreg(btv);
 
 	/* register video4linux + input */
