@@ -161,6 +161,27 @@
 			status = "disabled";
 		};
 
+		spi0: spi@d0010600 {
+			compatible = "marvell,orion-spi";
+			reg = <0xd0010600 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <30>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@d0010680 {
+			compatible = "marvell,orion-spi";
+			reg = <0xd0010680 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <92>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
 	};
 };
 
