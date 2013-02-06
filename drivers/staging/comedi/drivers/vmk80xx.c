@@ -212,7 +212,6 @@ struct vmk80xx_private {
 	unsigned long flags;
 	int probed;
 	int attached;
-	int count;
 };
 
 static struct vmk80xx_private vmb[VMK80XX_MAX_BOARDS];
@@ -1285,8 +1284,6 @@ static int vmk80xx_attach_common(struct comedi_device *dev,
 	}
 
 	devpriv->attached = 1;
-	dev_info(dev->class_dev, "vmk80xx: board #%d [%s] attached\n",
-		 devpriv->count, boardinfo->name);
 
 	up(&devpriv->limit_sem);
 
@@ -1369,7 +1366,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	devpriv = &vmb[i];
 
 	memset(devpriv, 0x00, sizeof(*devpriv));
-	devpriv->count = i;
 
 	ret = vmk80xx_find_usb_endpoints(devpriv, intf);
 	if (ret) {
@@ -1414,9 +1410,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 		vmk80xx_reset_device(devpriv);
 
 	devpriv->probed = 1;
-
-	dev_info(&intf->dev, "board #%d [%s] now attached\n",
-		 devpriv->count, boardinfo->name);
 
 	mutex_unlock(&glb_mutex);
 
