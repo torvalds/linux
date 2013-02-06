@@ -1792,7 +1792,6 @@ EXPORT_SYMBOL(ieee80211_ap_probereq_get);
 static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_local *local = sdata->local;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	mutex_lock(&ifmgd->mtx);
@@ -1812,10 +1811,6 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	 * but that's not a problem.
 	 */
 	cfg80211_send_deauth(sdata->dev, frame_buf, IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_beacon_connection_loss_work(struct work_struct *work)
@@ -2048,10 +2043,6 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
 
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
-
 	return RX_MGMT_CFG80211_DEAUTH;
 }
 
@@ -2078,10 +2069,6 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 		   mgmt->sa, reason_code);
 
 	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
-
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
 
 	return RX_MGMT_CFG80211_DISASSOC;
 }
@@ -2839,7 +2826,6 @@ static void ieee80211_sta_timer(unsigned long data)
 static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 					  u8 *bssid, u8 reason, bool tx)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
@@ -2852,10 +2838,6 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	 * but that's not a problem.
 	 */
 	cfg80211_send_deauth(sdata->dev, frame_buf, IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 
 	mutex_lock(&ifmgd->mtx);
 }
@@ -3127,10 +3109,6 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	}
 
 	mutex_unlock(&ifmgd->mtx);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_sta_bcn_mon_timer(unsigned long data)
@@ -3644,10 +3622,6 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 	}
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
-
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
@@ -4138,10 +4112,6 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&ifmgd->mtx);
 
  out:
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
-
 	if (sent_frame)
 		__cfg80211_send_deauth(sdata->dev, frame_buf,
 				       IEEE80211_DEAUTH_FRAME_LEN);
@@ -4181,10 +4151,6 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	__cfg80211_send_disassoc(sdata->dev, frame_buf,
 				 IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
 
 	return 0;
 }

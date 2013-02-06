@@ -91,6 +91,10 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
+
 	return ctx;
 }
 
@@ -110,6 +114,10 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 
 	list_del_rcu(&ctx->list);
 	kfree_rcu(ctx, rcu_head);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 }
 
 static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -128,6 +136,8 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount++;
 
 	ieee80211_recalc_txpower(sdata);
+	sdata->vif.bss_conf.idle = false;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	return 0;
 }
@@ -174,6 +184,9 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 
 	ctx->refcount--;
 	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
+
+	sdata->vif.bss_conf.idle = true;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 

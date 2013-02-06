@@ -1108,10 +1108,6 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	mutex_unlock(&sdata->u.ibss.mtx);
 
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
-
 	/*
 	 * 802.11n-2009 9.13.3.1: In an IBSS, the HT Protection field is
 	 * reserved, but an HT STA shall protect HT transmissions as though
@@ -1208,10 +1204,6 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.ibss.timer);
 
 	mutex_unlock(&sdata->u.ibss.mtx);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
 
 	return 0;
 }
