@@ -2968,9 +2968,8 @@ static int brcmf_cfg80211_testmode(struct wiphy *wiphy, void *data, int len)
 }
 #endif
 
-static s32 brcmf_configure_opensecurity(struct net_device *ndev, s32 bssidx)
+static s32 brcmf_configure_opensecurity(struct brcmf_if *ifp)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 
 	/* set auth */
@@ -3433,7 +3432,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_tlv *rsn_ie;
 	struct brcmf_vs_tlv *wpa_ie;
 	struct brcmf_join_params join_params;
-	s32 bssidx = 0;
 
 	brcmf_dbg(TRACE, "channel_type=%d, beacon_interval=%d, dtim_period=%d,\n",
 		  cfg80211_get_chandef_type(&settings->chandef),
@@ -3507,7 +3505,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	} else {
 		brcmf_dbg(TRACE, "No WPA(2) IEs found\n");
-		brcmf_configure_opensecurity(ndev, bssidx);
+		brcmf_configure_opensecurity(ifp);
 	}
 	/* Set Beacon IEs to FW */
 	err = brcmf_vif_set_mgmt_ie(ndev_to_vif(ndev),
