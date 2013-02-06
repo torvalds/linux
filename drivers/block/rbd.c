@@ -2048,6 +2048,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	struct ceph_osd_client *osdc;
 	struct page **pages = NULL;
 	u32 page_count;
+	size_t size;
 	int ret;
 
 	page_count = (u32) calc_pages_for(offset, length);
@@ -2084,7 +2085,10 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	ret = obj_request->result;
 	if (ret < 0)
 		goto out;
-	ret = ceph_copy_from_page_vector(pages, buf, 0, obj_request->xferred);
+
+	rbd_assert(obj_request->xferred <= (u64) SIZE_MAX);
+	size = (size_t) obj_request->xferred;
+	ret = ceph_copy_from_page_vector(pages, buf, 0, size);
 	if (version)
 		*version = obj_request->version;
 out:
