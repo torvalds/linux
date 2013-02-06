@@ -64,6 +64,8 @@ struct brcmf_bus_ops {
  * @dstats: dongle-based statistical data.
  * @align: alignment requirement for the bus.
  * @dcmd_list: bus/device specific dongle initialization commands.
+ * @chip: device identifier of the dongle chip.
+ * @chiprev: revision of the dongle chip.
  */
 struct brcmf_bus {
 	union {
@@ -76,6 +78,8 @@ struct brcmf_bus {
 	uint maxctl;
 	unsigned long tx_realloc;
 	u8 align;
+	u32 chip;
+	u32 chiprev;
 	struct list_head dcmd_list;
 
 	struct brcmf_bus_ops *ops;

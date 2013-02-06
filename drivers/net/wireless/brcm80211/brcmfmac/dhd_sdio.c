@@ -3927,6 +3927,8 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	/* Assign bus interface call back */
 	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;
 	bus->sdiodev->bus_if->ops = &brcmf_sdio_bus_ops;
+	bus->sdiodev->bus_if->chip = bus->ci->chip;
+	bus->sdiodev->bus_if->chiprev = bus->ci->chiprev;
 
 	/* Attach to the brcmf/OS/network interface */
 	ret = brcmf_attach(SDPCM_RESERVE, bus->sdiodev->dev);
