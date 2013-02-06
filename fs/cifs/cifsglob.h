@@ -1245,8 +1245,8 @@ struct cifs_fattr {
 	u64		cf_eof;
 	u64		cf_bytes;
 	u64		cf_createtime;
-	uid_t		cf_uid;
-	gid_t		cf_gid;
+	kuid_t		cf_uid;
+	kgid_t		cf_gid;
 	umode_t		cf_mode;
 	dev_t		cf_rdev;
 	unsigned int	cf_nlink;

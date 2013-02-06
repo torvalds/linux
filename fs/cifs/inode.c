@@ -247,15 +247,21 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 	fattr->cf_uid = cifs_sb->mnt_uid;
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)) {
 		u64 id = le64_to_cpu(info->Uid);
-		if (id < ((uid_t)-1))
-			fattr->cf_uid = id;
+		if (id < ((uid_t)-1)) {
+			kuid_t uid = make_kuid(&init_user_ns, id);
+			if (uid_valid(uid))
+				fattr->cf_uid = uid;
+		}
 	}
 	
 	fattr->cf_gid = cifs_sb->mnt_gid;
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)) {
 		u64 id = le64_to_cpu(info->Gid);
-		if (id < ((gid_t)-1))
-			fattr->cf_gid = id;
+		if (id < ((gid_t)-1)) {
+			kgid_t gid = make_kgid(&init_user_ns, id);
+			if (gid_valid(gid))
+				fattr->cf_gid = gid;
+		}
 	}
 
 	fattr->cf_nlink = le64_to_cpu(info->Nlinks);
