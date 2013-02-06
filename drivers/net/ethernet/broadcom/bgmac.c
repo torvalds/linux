@@ -889,8 +889,10 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			sw_type = et_swtype;
 		} else if (ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == 9) {
 			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
-		} else if (0) {
-			/* TODO */
+		} else if ((ci->id != BCMA_CHIP_ID_BCM53572 && ci->pkg == 10) ||
+			   (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == 9)) {
+			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
+				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
 		}
 		bcma_chipco_chipctl_maskset(cc, 1,
 					    ~(BGMAC_CHIPCTL_1_IF_TYPE_MASK |
