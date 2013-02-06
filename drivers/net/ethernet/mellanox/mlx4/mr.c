@@ -654,6 +654,101 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_write_mtt);
 
+int mlx4_mw_alloc(struct mlx4_dev *dev, u32 pd, enum mlx4_mw_type type,
+		  struct mlx4_mw *mw)
+{
+	u32 index;
+
+	if ((type == MLX4_MW_TYPE_1 &&
+	     !(dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW)) ||
+	     (type == MLX4_MW_TYPE_2 &&
+	     !(dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)))
+		return -ENOTSUPP;
+
+	index = mlx4_mpt_reserve(dev);
+	if (index == -1)
+		return -ENOMEM;
+
+	mw->key	    = hw_index_to_key(index);
+	mw->pd      = pd;
+	mw->type    = type;
+	mw->enabled = MLX4_MPT_DISABLED;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_mw_alloc);
+
+int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_mpt_entry *mpt_entry;
+	int err;
+
+	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mw->key));
+	if (err)
+		return err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox)) {
+		err = PTR_ERR(mailbox);
+		goto err_table;
+	}
+	mpt_entry = mailbox->buf;
+
+	memset(mpt_entry, 0, sizeof(*mpt_entry));
+
+	/* Note that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
+	 * off, thus creating a memory window and not a memory region.
+	 */
+	mpt_entry->key	       = cpu_to_be32(key_to_hw_index(mw->key));
+	mpt_entry->pd_flags    = cpu_to_be32(mw->pd);
+	if (mw->type == MLX4_MW_TYPE_2) {
+		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_FREE);
+		mpt_entry->qpn       = cpu_to_be32(MLX4_MPT_QP_FLAG_BOUND_QP);
+		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_EN_INV);
+	}
+
+	err = mlx4_SW2HW_MPT(dev, mailbox,
+			     key_to_hw_index(mw->key) &
+			     (dev->caps.num_mpts - 1));
+	if (err) {
+		mlx4_warn(dev, "SW2HW_MPT failed (%d)\n", err);
+		goto err_cmd;
+	}
+	mw->enabled = MLX4_MPT_EN_HW;
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return 0;
+
+err_cmd:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+err_table:
+	mlx4_mpt_free_icm(dev, key_to_hw_index(mw->key));
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_mw_enable);
+
+void mlx4_mw_free(struct mlx4_dev *dev, struct mlx4_mw *mw)
+{
+	int err;
+
+	if (mw->enabled == MLX4_MPT_EN_HW) {
+		err = mlx4_HW2SW_MPT(dev, NULL,
+				     key_to_hw_index(mw->key) &
+				     (dev->caps.num_mpts - 1));
+		if (err)
+			mlx4_warn(dev, "xxx HW2SW_MPT failed (%d)\n", err);
+
+		mw->enabled = MLX4_MPT_EN_SW;
+	}
+	if (mw->enabled)
+		mlx4_mpt_free_icm(dev, key_to_hw_index(mw->key));
+	mlx4_mpt_release(dev, key_to_hw_index(mw->key));
+}
+EXPORT_SYMBOL_GPL(mlx4_mw_free);
+
 int mlx4_init_mr_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
