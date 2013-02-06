@@ -161,7 +161,7 @@ struct vmk80xx_board {
 	const struct comedi_lrange *range;
 	int ai_nchans;
 	unsigned int ai_maxdata;
-	__u8 ao_chans;
+	int ao_nchans;
 	__u8 di_chans;
 	__le16 cnt_bits;
 	__u8 pwm_chans;
@@ -175,7 +175,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.range		= &vmk8055_range,
 		.ai_nchans	= 2,
 		.ai_maxdata	= 0x00ff,
-		.ao_chans	= 2,
+		.ao_nchans	= 2,
 		.di_chans	= 6,
 		.cnt_bits	= 16,
 		.pwm_chans	= 0,
@@ -187,7 +187,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.range		= &vmk8061_range,
 		.ai_nchans	= 8,
 		.ai_maxdata	= 0x03ff,
-		.ao_chans	= 8,
+		.ao_nchans	= 8,
 		.di_chans	= 8,
 		.cnt_bits	= 0,
 		.pwm_chans	= 1,
@@ -585,9 +585,10 @@ static int vmk80xx_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -629,9 +630,10 @@ static int vmk80xx_ao_winsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_ao_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -1204,15 +1206,15 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 
 	/* Analog output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = boardinfo->ao_chans;
-	s->maxdata = 0x00ff;
-	s->range_table = boardinfo->range;
-	s->insn_write = vmk80xx_ao_winsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND;
+	s->n_chan	= boardinfo->ao_nchans;
+	s->maxdata	= 0x00ff;
+	s->range_table	= boardinfo->range;
+	s->insn_write	= vmk80xx_ao_insn_write;
 	if (devpriv->model == VMK8061_MODEL) {
-		s->subdev_flags |= SDF_READABLE;
-		s->insn_read = vmk80xx_ao_rinsn;
+		s->subdev_flags	|= SDF_READABLE;
+		s->insn_read	= vmk80xx_ao_insn_read;
 	}
 
 	/* Digital input subdevice */
