@@ -1476,21 +1476,25 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_ordered_operations(root, 0);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
-		goto cleanup_transaction;
+		btrfs_end_transaction(trans, root);
+		return ret;
 	}
 
 	/* Stop the commit early if ->aborted is set */
 	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
 		ret = cur_trans->aborted;
-		goto cleanup_transaction;
+		btrfs_end_transaction(trans, root);
+		return ret;
 	}
 
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
 	 */
 	ret = btrfs_run_delayed_refs(trans, root, 0);
-	if (ret)
-		goto cleanup_transaction;
+	if (ret) {
+		btrfs_end_transaction(trans, root);
+		return ret;
+	}
 
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
@@ -1507,8 +1511,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		btrfs_create_pending_block_groups(trans, root);
 
 	ret = btrfs_run_delayed_refs(trans, root, 0);
-	if (ret)
-		goto cleanup_transaction;
+	if (ret) {
+		btrfs_end_transaction(trans, root);
+		return ret;
+	}
 
 	spin_lock(&cur_trans->commit_lock);
 	if (cur_trans->in_commit) {
