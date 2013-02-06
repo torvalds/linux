@@ -159,8 +159,8 @@ struct vmk80xx_board {
 	const char *name;
 	enum vmk80xx_model model;
 	const struct comedi_lrange *range;
-	__u8 ai_chans;
-	__le16 ai_bits;
+	int ai_nchans;
+	unsigned int ai_maxdata;
 	__u8 ao_chans;
 	__u8 di_chans;
 	__le16 cnt_bits;
@@ -173,8 +173,8 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.name		= "K8055 (VM110)",
 		.model		= VMK8055_MODEL,
 		.range		= &vmk8055_range,
-		.ai_chans	= 2,
-		.ai_bits	= 8,
+		.ai_nchans	= 2,
+		.ai_maxdata	= 0x00ff,
 		.ao_chans	= 2,
 		.di_chans	= 6,
 		.cnt_bits	= 16,
@@ -185,8 +185,8 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.name		= "K8061 (VM140)",
 		.model		= VMK8061_MODEL,
 		.range		= &vmk8061_range,
-		.ai_chans	= 8,
-		.ai_bits	= 10,
+		.ai_nchans	= 8,
+		.ai_maxdata	= 0x03ff,
 		.ao_chans	= 8,
 		.di_chans	= 8,
 		.cnt_bits	= 0,
@@ -533,9 +533,10 @@ static int rudimentary_check(struct vmk80xx_private *devpriv, int dir)
 	return 0;
 }
 
-static int vmk80xx_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -1194,12 +1195,12 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 
 	/* Analog input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = boardinfo->ai_chans;
-	s->maxdata = (1 << boardinfo->ai_bits) - 1;
-	s->range_table = boardinfo->range;
-	s->insn_read = vmk80xx_ai_rinsn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= boardinfo->ai_nchans;
+	s->maxdata	= boardinfo->ai_maxdata;
+	s->range_table	= boardinfo->range;
+	s->insn_read	= vmk80xx_ai_insn_read;
 
 	/* Analog output subdevice */
 	s = &dev->subdevices[1];
