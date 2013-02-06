@@ -565,23 +565,25 @@ int sort_dimension__add(const char *tok)
 	return -ESRCH;
 }
 
-void setup_sorting(const char * const usagestr[], const struct option *opts)
+int setup_sorting(void)
 {
 	char *tmp, *tok, *str = strdup(sort_order);
+	int ret = 0;
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		int ret = sort_dimension__add(tok);
+		ret = sort_dimension__add(tok);
 		if (ret == -EINVAL) {
 			error("Invalid --sort key: `%s'", tok);
-			usage_with_options(usagestr, opts);
+			break;
 		} else if (ret == -ESRCH) {
 			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(usagestr, opts);
+			break;
 		}
 	}
 
 	free(str);
+	return ret;
 }
 
 void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,

@@ -309,7 +309,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol__init() < 0)
 		return -1;
 
-	setup_sorting(annotate_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(annotate_usage, options);
 
 	if (argc) {
 		/*

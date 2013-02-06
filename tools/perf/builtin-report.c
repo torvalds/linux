@@ -751,7 +751,8 @@ repeat:
 
 	}
 
-	setup_sorting(report_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(report_usage, options);
 
 	/*
 	 * Only in the newt browser we are doing integrated annotation,

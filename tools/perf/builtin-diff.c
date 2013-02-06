@@ -605,7 +605,9 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	ui_init();
 
-	setup_sorting(diff_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(diff_usage, options);
+
 	setup_pager();
 
 	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", NULL);

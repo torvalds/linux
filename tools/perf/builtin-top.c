@@ -1129,7 +1129,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (sort_order == default_sort_order)
 		sort_order = "dso,symbol";
 
-	setup_sorting(top_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(top_usage, options);
 
 	if (top.use_stdio)
 		use_browser = 0;
