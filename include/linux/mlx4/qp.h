@@ -304,12 +304,10 @@ struct mlx4_wqe_fmr_ext_seg {
 };
 
 struct mlx4_wqe_local_inval_seg {
-	__be32			flags;
-	u32			reserved1;
+	u64			reserved1;
 	__be32			mem_key;
-	u32			reserved2[2];
-	__be32			guest_id;
-	__be64			pa;
+	u32			reserved2;
+	u64			reserved3[2];
 };
 
 struct mlx4_wqe_raddr_seg {

@@ -1983,10 +1983,8 @@ static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 
 static void set_local_inv_seg(struct mlx4_wqe_local_inval_seg *iseg, u32 rkey)
 {
-	iseg->flags	= 0;
-	iseg->mem_key	= cpu_to_be32(rkey);
-	iseg->guest_id	= 0;
-	iseg->pa	= 0;
+	memset(iseg, 0, sizeof(*iseg));
+	iseg->mem_key = cpu_to_be32(rkey);
 }
 
 static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
