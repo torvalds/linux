@@ -218,6 +218,8 @@ struct fuse_file_lock {
  * FUSE_FLOCK_LOCKS: remote locking for BSD style file locks
  * FUSE_HAS_IOCTL_DIR: kernel supports ioctl on directories
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
+ * FUSE_DO_READDIRPLUS: do READDIRPLUS (READDIR+LOOKUP in one)
+ * FUSE_READDIRPLUS_AUTO: adaptive readdirplus
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -233,6 +235,7 @@ struct fuse_file_lock {
 #define FUSE_HAS_IOCTL_DIR	(1 << 11)
 #define FUSE_AUTO_INVAL_DATA	(1 << 12)
 #define FUSE_DO_READDIRPLUS	(1 << 13)
+#define FUSE_READDIRPLUS_AUTO	(1 << 14)
 
 /**
  * CUSE INIT request/reply flags

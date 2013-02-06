@@ -21,6 +21,8 @@ static bool fuse_use_readdirplus(struct inode *dir, struct file *filp)
 
 	if (!fc->do_readdirplus)
 		return false;
+	if (!fc->readdirplus_auto)
+		return true;
 	if (test_and_clear_bit(FUSE_I_ADVISE_RDPLUS, &fi->state))
 		return true;
 	if (filp->f_pos == 0)

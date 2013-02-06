@@ -514,8 +514,11 @@ struct fuse_conn {
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
 
-	/** Does the filesystem support readdir-plus? */
+	/** Does the filesystem support readdirplus? */
 	unsigned do_readdirplus:1;
+
+	/** Does the filesystem want adaptive readdirplus? */
+	unsigned readdirplus_auto:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
