@@ -1803,7 +1803,7 @@ static int tvaudio_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 	vt->audmode = chip->audmode;
 	vt->rxsubchans = desc->getrxsubchans(chip);
-	vt->capability = V4L2_TUNER_CAP_STEREO |
+	vt->capability |= V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 
 	return 0;
