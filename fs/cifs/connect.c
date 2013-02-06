@@ -987,6 +987,41 @@ static int get_option_ul(substring_t args[], unsigned long *option)
 	return rc;
 }
 
+static int get_option_uid(substring_t args[], kuid_t *result)
+{
+	unsigned long value;
+	kuid_t uid;
+	int rc;
+
+	rc = get_option_ul(args, &value);
+	if (rc)
+		return rc;
+
+	uid = make_kuid(current_user_ns(), value);
+	if (!uid_valid(uid))
+		return -EINVAL;
+
+	*result = uid;
+	return 0;
+}
+
+static int get_option_gid(substring_t args[], kgid_t *result)
+{
+	unsigned long value;
+	kgid_t gid;
+	int rc;
+
+	rc = get_option_ul(args, &value);
+	if (rc)
+		return rc;
+
+	gid = make_kgid(current_user_ns(), value);
+	if (!gid_valid(gid))
+		return -EINVAL;
+
+	*result = gid;
+	return 0;
+}
 
 static int cifs_parse_security_flavors(char *value,
 				       struct smb_vol *vol)
@@ -1424,47 +1459,42 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 		/* Numeric Values */
 		case Opt_backupuid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->backupuid)) {
 				cERROR(1, "%s: Invalid backupuid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->backupuid = option;
 			vol->backupuid_specified = true;
 			break;
 		case Opt_backupgid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_gid(args, &vol->backupgid)) {
 				cERROR(1, "%s: Invalid backupgid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->backupgid = option;
 			vol->backupgid_specified = true;
 			break;
 		case Opt_uid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->linux_uid)) {
 				cERROR(1, "%s: Invalid uid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->linux_uid = option;
 			uid_specified = true;
 			break;
 		case Opt_cruid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->cred_uid)) {
 				cERROR(1, "%s: Invalid cruid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->cred_uid = option;
 			break;
 		case Opt_gid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_gid(args, &vol->linux_gid)) {
 				cERROR(1, "%s: Invalid gid value",
 						__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->linux_gid = option;
 			gid_specified = true;
 			break;
 		case Opt_file_mode:

@@ -399,11 +399,11 @@ struct smb_vol {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
-	uid_t cred_uid;
-	uid_t linux_uid;
-	gid_t linux_gid;
-	uid_t backupuid;
-	gid_t backupgid;
+	kuid_t cred_uid;
+	kuid_t linux_uid;
+	kgid_t linux_gid;
+	kuid_t backupuid;
+	kgid_t backupgid;
 	umode_t file_mode;
 	umode_t dir_mode;
 	unsigned secFlg;
