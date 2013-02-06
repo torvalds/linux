@@ -2702,13 +2702,6 @@ static struct resource omap44xx_usb_phy_and_pll_addrs[] = {
 		.end		= 0x4a0ae000,
 		.flags		= IORESOURCE_MEM,
 	},
-	{
-		/* XXX: Remove this once control module driver is in place */
-		.name		= "ctrl_dev",
-		.start		= 0x4a002300,
-		.end		= 0x4a002303,
-		.flags		= IORESOURCE_MEM,
-	},
 	{ }
 };
 
@@ -6154,12 +6147,6 @@ static struct omap_hwmod_addr_space omap44xx_usb_otg_hs_addrs[] = {
 	{
 		.pa_start	= 0x4a0ab000,
 		.pa_end		= 0x4a0ab7ff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
-		/* XXX: Remove this once control module driver is in place */
-		.pa_start	= 0x4a00233c,
-		.pa_end		= 0x4a00233f,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
