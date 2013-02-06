@@ -1323,8 +1323,6 @@ static void vmk80xx_detach(struct comedi_device *dev)
 
 	dev->private = NULL;
 
-	devpriv->attached = 0;
-	devpriv->probed = 0;
 	usb_set_intfdata(devpriv->intf, NULL);
 
 	usb_kill_anchored_urbs(&devpriv->rx_anchor);
@@ -1334,6 +1332,14 @@ static void vmk80xx_detach(struct comedi_device *dev)
 	kfree(devpriv->usb_tx_buf);
 
 	up(&devpriv->limit_sem);
+
+	/*
+	 * Since 'devpriv' points to an element of the static vmb array
+	 * we can't kfree it. Instead memset it to all '0' so subsequent
+	 * usb probes don't find any garbage in it.
+	 */
+	memset(devpriv, 0x00, sizeof(*devpriv));
+
 	mutex_unlock(&glb_mutex);
 }
 
@@ -1359,25 +1365,19 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 			break;
 
 	if (i == VMK80XX_MAX_BOARDS) {
-		mutex_unlock(&glb_mutex);
-		return -EMFILE;
+		ret = -EMFILE;
+		goto fail;
 	}
 
 	devpriv = &vmb[i];
 
-	memset(devpriv, 0x00, sizeof(*devpriv));
-
 	ret = vmk80xx_find_usb_endpoints(devpriv, intf);
-	if (ret) {
-		mutex_unlock(&glb_mutex);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	ret = vmk80xx_alloc_usb_buffers(devpriv);
-	if (ret) {
-		mutex_unlock(&glb_mutex);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	devpriv->usb = interface_to_usbdev(intf);
 	devpriv->intf = intf;
@@ -1416,6 +1416,17 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	comedi_usb_auto_config(intf, &vmk80xx_driver);
 
 	return 0;
+
+error:
+	/*
+	 * Since 'devpriv' points to an element of the static vmb array
+	 * we can't kfree it. Instead memset it to all '0' so subsequent
+	 * usb probes don't find any garbage in it.
+	 */
+	memset(devpriv, 0x00, sizeof(*devpriv));
+fail:
+	mutex_unlock(&glb_mutex);
+	return ret;
 }
 
 static const struct usb_device_id vmk80xx_usb_id_table[] = {
