@@ -23,7 +23,12 @@
 #define __ARM_KVM_H__
 
 #define KVM_SPSR_EL1	0
-#define KVM_NR_SPSR	1
+#define KVM_SPSR_SVC	KVM_SPSR_EL1
+#define KVM_SPSR_ABT	1
+#define KVM_SPSR_UND	2
+#define KVM_SPSR_IRQ	3
+#define KVM_SPSR_FIQ	4
+#define KVM_NR_SPSR	5
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
