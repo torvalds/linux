@@ -45,15 +45,6 @@ the PCMCIA interface.
 
 #include "8255.h"
 
-static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				    void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int dio24_auto_attach(struct comedi_device *dev,
 			     unsigned long context)
 {
@@ -63,15 +54,8 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 	dev->board_name = dev->driver->driver_name;
 
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
-			       CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, dio24_pcmcia_config_loop, NULL);
-	if (ret)
-		return ret;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
+	link->config_flags |= CONF_AUTO_SET_IO;
+	ret = comedi_pcmcia_enable(dev);
 		return ret;
 	dev->iobase = link->resource[0]->start;
 
@@ -90,12 +74,9 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, &dev->subdevices[0]);
-	if (dev->iobase)
-		pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_dio24 = {
