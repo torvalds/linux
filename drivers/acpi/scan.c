@@ -1553,25 +1553,41 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	return AE_OK;
 }
 
-static int acpi_scan_attach_handler(struct acpi_device *device)
+static int acpi_scan_do_attach_handler(struct acpi_device *device, char *id)
 {
 	struct acpi_scan_handler *handler;
-	int ret = 0;
 
 	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node) {
-		const struct acpi_device_id *id;
+		const struct acpi_device_id *devid;
 
-		id = __acpi_match_device(device, handler->ids);
-		if (!id)
-			continue;
+		for (devid = handler->ids; devid->id[0]; devid++) {
+			int ret;
 
-		ret = handler->attach(device, id);
-		if (ret > 0) {
-			device->handler = handler;
-			break;
-		} else if (ret < 0) {
-			break;
+			if (strcmp((char *)devid->id, id))
+				continue;
+
+			ret = handler->attach(device, devid);
+			if (ret > 0) {
+				device->handler = handler;
+				return ret;
+			} else if (ret < 0) {
+				return ret;
+			}
 		}
+	}
+	return 0;
+}
+
+static int acpi_scan_attach_handler(struct acpi_device *device)
+{
+	struct acpi_hardware_id *hwid;
+	int ret = 0;
+
+	list_for_each_entry(hwid, &device->pnp.ids, list) {
+		ret = acpi_scan_do_attach_handler(device, hwid->id);
+		if (ret)
+			break;
+
 	}
 	return ret;
 }
