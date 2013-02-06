@@ -2734,10 +2734,6 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 	}
 
 	uport->icount.dcd++;
-#ifdef CONFIG_HARD_PPS
-	if ((uport->flags & UPF_HARDPPS_CD) && status)
-		hardpps();
-#endif
 
 	if (port->flags & ASYNC_CHECK_CD) {
 		if (status)
