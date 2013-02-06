@@ -164,9 +164,8 @@ static const struct of_device_id rtc_match[] __initconst = {
 	{}
 };
 
-static void __init tegra20_init_timer(void)
+static void __init tegra20_init_timer(struct device_node *np)
 {
-	struct device_node *np;
 	struct clk *clk;
 	unsigned long rate;
 	int ret;

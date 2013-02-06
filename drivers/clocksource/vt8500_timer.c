@@ -129,22 +129,10 @@ static struct irqaction irq = {
 	.dev_id  = &clockevent,
 };
 
-static struct of_device_id vt8500_timer_ids[] = {
-	{ .compatible = "via,vt8500-timer" },
-	{ }
-};
-
-static void __init vt8500_timer_init(void)
+static void __init vt8500_timer_init(struct device_node *np)
 {
-	struct device_node *np;
 	int timer_irq;
 
-	np = of_find_matching_node(NULL, vt8500_timer_ids);
-	if (!np) {
-		pr_err("%s: Timer description missing from Device Tree\n",
-								__func__);
-		return;
-	}
 	regbase = of_iomap(np, 0);
 	if (!regbase) {
 		pr_err("%s: Missing iobase description in Device Tree\n",
