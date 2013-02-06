@@ -210,7 +210,6 @@ struct vmk80xx_private {
 	unsigned char *usb_rx_buf;
 	unsigned char *usb_tx_buf;
 	unsigned long flags;
-	int attached;
 };
 
 static struct vmk80xx_private vmb[VMK80XX_MAX_BOARDS];
@@ -528,8 +527,6 @@ static int rudimentary_check(struct vmk80xx_private *devpriv, int dir)
 {
 	if (!devpriv)
 		return -EFAULT;
-	if (!devpriv->attached)
-		return -ENODEV;
 	if (dir & DIR_IN) {
 		if (test_bit(TRANS_IN_BUSY, &devpriv->flags))
 			return -EBUSY;
@@ -1280,8 +1277,6 @@ static int vmk80xx_attach_common(struct comedi_device *dev,
 		s->insn_write = vmk80xx_pwm_winsn;
 	}
 
-	devpriv->attached = 1;
-
 	up(&devpriv->limit_sem);
 
 	return 0;
@@ -1300,8 +1295,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 			break;
 	if (i == VMK80XX_MAX_BOARDS)
 		ret = -ENODEV;
-	else if (vmb[i].attached)
-		ret = -EBUSY;
 	else
 		ret = vmk80xx_attach_common(dev, &vmb[i]);
 	mutex_unlock(&glb_mutex);
