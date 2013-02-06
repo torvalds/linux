@@ -761,6 +761,16 @@ static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 	udelay(2);
 }
 
+static void bgmac_write_mac_address(struct bgmac *bgmac, u8 *addr)
+{
+	u32 tmp;
+
+	tmp = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
+	bgmac_write(bgmac, BGMAC_MACADDR_HIGH, tmp);
+	tmp = (addr[4] << 8) | addr[5];
+	bgmac_write(bgmac, BGMAC_MACADDR_LOW, tmp);
+}
+
 #if 0 /* We don't use that regs yet */
 static void bgmac_chip_stats_update(struct bgmac *bgmac)
 {
@@ -1006,8 +1016,6 @@ static void bgmac_enable(struct bgmac *bgmac)
 static void bgmac_chip_init(struct bgmac *bgmac, bool full_init)
 {
 	struct bgmac_dma_ring *ring;
-	u8 *mac = bgmac->net_dev->dev_addr;
-	u32 tmp;
 	int i;
 
 	/* 1 interrupt per received frame */
@@ -1021,11 +1029,7 @@ static void bgmac_chip_init(struct bgmac *bgmac, bool full_init)
 	else
 		bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_PROM, 0, false);
 
-	/* Set MAC addr */
-	tmp = (mac[0] << 24) | (mac[1] << 16) | (mac[2] << 8) | mac[3];
-	bgmac_write(bgmac, BGMAC_MACADDR_HIGH, tmp);
-	tmp = (mac[4] << 8) | mac[5];
-	bgmac_write(bgmac, BGMAC_MACADDR_LOW, tmp);
+	bgmac_write_mac_address(bgmac, bgmac->net_dev->dev_addr);
 
 	if (bgmac->loopback)
 		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_ML, true);
@@ -1162,6 +1166,19 @@ static netdev_tx_t bgmac_start_xmit(struct sk_buff *skb,
 	return bgmac_dma_tx_add(bgmac, ring, skb);
 }
 
+static int bgmac_set_mac_address(struct net_device *net_dev, void *addr)
+{
+	struct bgmac *bgmac = netdev_priv(net_dev);
+	int ret;
+
+	ret = eth_prepare_mac_addr_change(net_dev, addr);
+	if (ret < 0)
+		return ret;
+	bgmac_write_mac_address(bgmac, (u8 *)addr);
+	eth_commit_mac_addr_change(net_dev, addr);
+	return 0;
+}
+
 static int bgmac_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
@@ -1192,7 +1209,7 @@ static const struct net_device_ops bgmac_netdev_ops = {
 	.ndo_open		= bgmac_open,
 	.ndo_stop		= bgmac_stop,
 	.ndo_start_xmit		= bgmac_start_xmit,
-	.ndo_set_mac_address	= eth_mac_addr, /* generic, sets dev_addr */
+	.ndo_set_mac_address	= bgmac_set_mac_address,
 	.ndo_do_ioctl           = bgmac_ioctl,
 };
 
