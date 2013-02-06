@@ -104,7 +104,7 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	unsigned long flags;
 	int inc;
 
-	inc = 1000000000 / clk_get_rate(fep->clk_ptp);
+	inc = 1000000000 / fep->cycle_speed;
 
 	/* grab the ptp lock */
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
@@ -362,6 +362,8 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	fep->ptp_caps.gettime = fec_ptp_gettime;
 	fep->ptp_caps.settime = fec_ptp_settime;
 	fep->ptp_caps.enable = fec_ptp_enable;
+
+	fep->cycle_speed = clk_get_rate(fep->clk_ptp);
 
 	spin_lock_init(&fep->tmreg_lock);
 
