@@ -214,7 +214,7 @@ static u32 __mesh_plink_deactivate(struct sta_info *sta)
  *
  * All mesh paths with this peer as next hop will be flushed
  */
-void mesh_plink_deactivate(struct sta_info *sta)
+u32 mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u32 changed;
@@ -227,7 +227,7 @@ void mesh_plink_deactivate(struct sta_info *sta)
 			    sta->reason);
 	spin_unlock_bh(&sta->lock);
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	return changed;
 }
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
@@ -593,6 +593,10 @@ static void mesh_plink_timer(unsigned long data)
 void mesh_plink_quiesce(struct sta_info *sta)
 {
 	if (!ieee80211_vif_is_mesh(&sta->sdata->vif))
+		return;
+
+	/* no kernel mesh sta timers have been initialized */
+	if (sta->sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
 		return;
 
 	if (del_timer_sync(&sta->plink_timer))

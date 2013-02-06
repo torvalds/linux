@@ -288,12 +288,13 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
-void mesh_plink_deactivate(struct sta_info *sta);
+u32 mesh_plink_deactivate(struct sta_info *sta);
 int mesh_plink_open(struct sta_info *sta);
 void mesh_plink_block(struct sta_info *sta);
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_mgmt *mgmt, size_t len,
 			 struct ieee80211_rx_status *rx_status);
+void mesh_sta_cleanup(struct sta_info *sta);
 
 /* Private interfaces */
 /* Mesh tables */
