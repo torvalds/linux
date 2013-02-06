@@ -719,7 +719,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on USB_HID
+	depends on USB_HID && GENERIC_HARDIRQS
 	select MFD_CORE
 	default n
 	-- help---
