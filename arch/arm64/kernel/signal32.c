@@ -76,7 +76,7 @@ struct compat_sigcontext {
 
 struct compat_ucontext {
 	compat_ulong_t			uc_flags;
-	struct compat_ucontext		*uc_link;
+	compat_uptr_t			uc_link;
 	compat_stack_t			uc_stack;
 	struct compat_sigcontext	uc_mcontext;
 	compat_sigset_t			uc_sigmask;
@@ -703,7 +703,7 @@ int compat_setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	err |= copy_siginfo_to_user32(&frame->info, info);
 
 	__put_user_error(0, &frame->sig.uc.uc_flags, err);
-	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
+	__put_user_error(0, &frame->sig.uc.uc_link, err);
 
 	memset(&stack, 0, sizeof(stack));
 	stack.ss_sp = (compat_uptr_t)current->sas_ss_sp;
