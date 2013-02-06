@@ -149,8 +149,6 @@ static const struct ni_board_struct ni_boards[] = {
 
 #define IRQ_POLARITY 1
 
-#define NI_E_IRQ_FLAGS		IRQF_SHARED
-
 struct ni_private {
 
 	struct pcmcia_device *link;
@@ -257,12 +255,9 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = request_irq(link->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-			  dev->board_name, dev);
-	if (ret < 0)
+	link->priv = dev;
+	ret = pcmcia_request_irq(link, ni_E_interrupt);
+	if (ret)
 		return ret;
 	dev->irq = link->irq;
 
@@ -282,8 +277,6 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 static void mio_cs_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	comedi_pcmcia_disable(dev);
 }
 
