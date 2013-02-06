@@ -94,8 +94,9 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	struct musb *musb = ux500_channel->controller->private_data;
 
 	dev_dbg(musb->controller,
-		"packet_sz=%d, mode=%d, dma_addr=0x%x, len=%d is_tx=%d\n",
-		packet_sz, mode, dma_addr, len, ux500_channel->is_tx);
+		"packet_sz=%d, mode=%d, dma_addr=0x%llu, len=%d is_tx=%d\n",
+		packet_sz, mode, (unsigned long long) dma_addr,
+		len, ux500_channel->is_tx);
 
 	ux500_channel->cur_len = len;
 
@@ -192,7 +193,7 @@ static int ux500_dma_is_compatible(struct dma_channel *channel,
 		u16 maxpacket, void *buf, u32 length)
 {
 	if ((maxpacket & 0x3)		||
-		((int)buf & 0x3)	||
+		((unsigned long int) buf & 0x3)	||
 		(length < 512)		||
 		(length & 0x3))
 		return false;
