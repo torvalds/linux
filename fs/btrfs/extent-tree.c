@@ -3677,6 +3677,7 @@ static int can_overcommit(struct btrfs_root *root,
 	u64 rsv_size = 0;
 	u64 avail;
 	u64 used;
+	u64 to_add;
 
 	used = space_info->bytes_used + space_info->bytes_reserved +
 		space_info->bytes_pinned + space_info->bytes_readonly;
@@ -3710,17 +3711,25 @@ static int can_overcommit(struct btrfs_root *root,
 		       BTRFS_BLOCK_GROUP_RAID10))
 		avail >>= 1;
 
+	to_add = space_info->total_bytes;
+
 	/*
 	 * If we aren't flushing all things, let us overcommit up to
 	 * 1/2th of the space. If we can flush, don't let us overcommit
 	 * too much, let it overcommit up to 1/8 of the space.
 	 */
 	if (flush == BTRFS_RESERVE_FLUSH_ALL)
-		avail >>= 3;
+		to_add >>= 3;
 	else
-		avail >>= 1;
+		to_add >>= 1;
 
-	if (used + bytes < space_info->total_bytes + avail)
+	/*
+	 * Limit the overcommit to the amount of free space we could possibly
+	 * allocate for chunks.
+	 */
+	to_add = min(avail, to_add);
+
+	if (used + bytes < space_info->total_bytes + to_add)
 		return 1;
 	return 0;
 }
