@@ -487,8 +487,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		 */
 		struct cifs_unix_set_info_args args = {
 			.mode	= inode->i_mode,
-			.uid	= NO_CHANGE_64,
-			.gid	= NO_CHANGE_64,
+			.uid	= INVALID_UID, /* no change */
+			.gid	= INVALID_GID, /* no change */
 			.ctime	= NO_CHANGE_64,
 			.atime	= NO_CHANGE_64,
 			.mtime	= NO_CHANGE_64,

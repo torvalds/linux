@@ -1249,14 +1249,14 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 			.device	= 0,
 		};
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = (__u64)current_fsuid();
+			args.uid = current_fsuid();
 			if (parent->i_mode & S_ISGID)
-				args.gid = (__u64)parent->i_gid;
+				args.gid = parent->i_gid;
 			else
-				args.gid = (__u64)current_fsgid();
+				args.gid = current_fsgid();
 		} else {
-			args.uid = NO_CHANGE_64;
-			args.gid = NO_CHANGE_64;
+			args.uid = INVALID_UID; /* no change */
+			args.gid = INVALID_GID; /* no change */
 		}
 		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 				       cifs_sb->local_nls,
@@ -2017,12 +2017,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (attrs->ia_valid & ATTR_UID)
 		args->uid = attrs->ia_uid;
 	else
-		args->uid = NO_CHANGE_64;
+		args->uid = INVALID_UID; /* no change */
 
 	if (attrs->ia_valid & ATTR_GID)
 		args->gid = attrs->ia_gid;
 	else
-		args->gid = NO_CHANGE_64;
+		args->gid = INVALID_GID; /* no change */
 
 	if (attrs->ia_valid & ATTR_ATIME)
 		args->atime = cifs_UnixTimeToNT(attrs->ia_atime);

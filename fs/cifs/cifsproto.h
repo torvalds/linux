@@ -305,8 +305,8 @@ struct cifs_unix_set_info_args {
 	__u64	atime;
 	__u64	mtime;
 	__u64	mode;
-	__u64	uid;
-	__u64	gid;
+	kuid_t	uid;
+	kgid_t	gid;
 	dev_t	device;
 };
 
