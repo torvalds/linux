@@ -170,12 +170,12 @@ static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_dev_msi_enabled(pdev))
 		err = request_threaded_irq(pdev->irq,
 			NULL,
-			mei_interrupt_thread_handler,
+			mei_me_irq_thread_handler,
 			IRQF_ONESHOT, KBUILD_MODNAME, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
-			mei_interrupt_quick_handler,
-			mei_interrupt_thread_handler,
+			mei_me_irq_quick_handler,
+			mei_me_irq_thread_handler,
 			IRQF_SHARED, KBUILD_MODNAME, dev);
 
 	if (err) {
@@ -348,12 +348,12 @@ static int mei_pci_resume(struct device *device)
 	if (pci_dev_msi_enabled(pdev))
 		err = request_threaded_irq(pdev->irq,
 			NULL,
-			mei_interrupt_thread_handler,
+			mei_me_irq_thread_handler,
 			IRQF_ONESHOT, KBUILD_MODNAME, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
-			mei_interrupt_quick_handler,
-			mei_interrupt_thread_handler,
+			mei_me_irq_quick_handler,
+			mei_me_irq_thread_handler,
 			IRQF_SHARED, KBUILD_MODNAME, dev);
 
 	if (err) {

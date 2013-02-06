@@ -379,9 +379,14 @@ int mei_hw_init(struct mei_device *dev);
 /*
  *  MEI interrupt functions prototype
  */
-irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id);
-irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id);
+
 void mei_timer(struct work_struct *work);
+int mei_irq_read_handler(struct mei_device *dev,
+		struct mei_cl_cb *cmpl_list, s32 *slots);
+
+int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
+
+void mei_irq_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb_pos);
 
 /*
  * AMTHIF - AMT Host Interface Functions

@@ -42,4 +42,7 @@ static inline unsigned char mei_data2slots(size_t length)
 	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
 }
 
+irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id);
+irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id);
+
 #endif /* _MEI_INTERFACE_H_ */

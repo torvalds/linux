@@ -30,12 +30,12 @@
 
 
 /**
- * _mei_cmpl - processes completed operation.
+ * mei_complete_handler - processes completed operation.
  *
  * @cl: private data of the file object.
  * @cb_pos: callback block.
  */
-static void _mei_cmpl(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
+void mei_irq_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
 {
 	if (cb_pos->fop_type == MEI_FOP_WRITE) {
 		mei_io_cb_free(cb_pos);
@@ -313,15 +313,14 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
  * mei_irq_thread_read_handler - bottom half read routine after ISR to
  * handle the read processing.
  *
- * @cmpl_list: An instance of our list structure
  * @dev: the device structure
+ * @cmpl_list: An instance of our list structure
  * @slots: slots to read.
  *
  * returns 0 on success, <0 on failure.
  */
-static int mei_irq_thread_read_handler(struct mei_cl_cb *cmpl_list,
-		struct mei_device *dev,
-		s32 *slots)
+int mei_irq_read_handler(struct mei_device *dev,
+		struct mei_cl_cb *cmpl_list, s32 *slots)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct mei_cl *cl_pos = NULL;
@@ -412,15 +411,15 @@ end:
 
 
 /**
- * mei_irq_thread_write_handler - bottom half write routine after
- * ISR to handle the write processing.
+ * mei_irq_write_handler -  dispatch write requests
+ *  after irq received
  *
  * @dev: the device structure
  * @cmpl_list: An instance of our list structure
  *
  * returns 0 on success, <0 on failure.
  */
-static int mei_irq_thread_write_handler(struct mei_device *dev,
+int mei_irq_write_handler(struct mei_device *dev,
 				struct mei_cl_cb *cmpl_list)
 {
 
@@ -666,112 +665,3 @@ out:
 	mutex_unlock(&dev->device_lock);
 }
 
-/**
- *  mei_interrupt_thread_handler - function called after ISR to handle the interrupt
- * processing.
- *
- * @irq: The irq number
- * @dev_id: pointer to the device structure
- *
- * returns irqreturn_t
- *
- */
-irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
-{
-	struct mei_device *dev = (struct mei_device *) dev_id;
-	struct mei_cl_cb complete_list;
-	struct mei_cl_cb *cb_pos = NULL, *cb_next = NULL;
-	struct mei_cl *cl;
-	s32 slots;
-	int rets;
-	bool  bus_message_received;
-
-
-	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
-	/* initialize our complete list */
-	mutex_lock(&dev->device_lock);
-	mei_io_list_init(&complete_list);
-
-	/* Ack the interrupt here
-	 * In case of MSI we don't go through the quick handler */
-	if (pci_dev_msi_enabled(dev->pdev))
-		mei_clear_interrupts(dev);
-
-	/* check if ME wants a reset */
-	if (!mei_hw_is_ready(dev) &&
-	    dev->dev_state != MEI_DEV_RESETING &&
-	    dev->dev_state != MEI_DEV_INITIALIZING) {
-		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
-		mei_reset(dev, 1);
-		mutex_unlock(&dev->device_lock);
-		return IRQ_HANDLED;
-	}
-
-	/*  check if we need to start the dev */
-	if (!mei_host_is_ready(dev)) {
-		if (mei_hw_is_ready(dev)) {
-			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
-
-			mei_host_set_ready(dev);
-
-			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
-			/* link is established * start sending messages.  */
-
-			dev->dev_state = MEI_DEV_INIT_CLIENTS;
-
-			mei_hbm_start_req(dev);
-			mutex_unlock(&dev->device_lock);
-			return IRQ_HANDLED;
-		} else {
-			dev_dbg(&dev->pdev->dev, "FW not ready.\n");
-			mutex_unlock(&dev->device_lock);
-			return IRQ_HANDLED;
-		}
-	}
-	/* check slots available for reading */
-	slots = mei_count_full_read_slots(dev);
-	while (slots > 0) {
-		/* we have urgent data to send so break the read */
-		if (dev->wr_ext_msg.hdr.length)
-			break;
-		dev_dbg(&dev->pdev->dev, "slots =%08x\n", slots);
-		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_handler.\n");
-		rets = mei_irq_thread_read_handler(&complete_list, dev, &slots);
-		if (rets)
-			goto end;
-	}
-	rets = mei_irq_thread_write_handler(dev, &complete_list);
-end:
-	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
-	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
-
-	bus_message_received = false;
-	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {
-		dev_dbg(&dev->pdev->dev, "received waiting bus message\n");
-		bus_message_received = true;
-	}
-	mutex_unlock(&dev->device_lock);
-	if (bus_message_received) {
-		dev_dbg(&dev->pdev->dev, "wake up dev->wait_recvd_msg\n");
-		wake_up_interruptible(&dev->wait_recvd_msg);
-		bus_message_received = false;
-	}
-	if (list_empty(&complete_list.list))
-		return IRQ_HANDLED;
-
-
-	list_for_each_entry_safe(cb_pos, cb_next, &complete_list.list, list) {
-		cl = cb_pos->cl;
-		list_del(&cb_pos->list);
-		if (cl) {
-			if (cl != &dev->iamthif_cl) {
-				dev_dbg(&dev->pdev->dev, "completing call back.\n");
-				_mei_cmpl(cl, cb_pos);
-				cb_pos = NULL;
-			} else if (cl == &dev->iamthif_cl) {
-				mei_amthif_complete(dev, cb_pos);
-			}
-		}
-	}
-	return IRQ_HANDLED;
-}

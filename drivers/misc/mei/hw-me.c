@@ -15,10 +15,15 @@
  */
 
 #include <linux/pci.h>
-#include <linux/mei.h>
+
+#include <linux/kthread.h>
+#include <linux/interrupt.h>
 
 #include "mei_dev.h"
 #include "hw-me.h"
+
+#include "hbm.h"
+
 
 /**
  * mei_reg_read - Reads 32bit data from the mei device
@@ -218,29 +223,6 @@ static bool mei_me_hw_is_ready(struct mei_device *dev)
 }
 
 /**
- * mei_interrupt_quick_handler - The ISR of the MEI device
- *
- * @irq: The irq number
- * @dev_id: pointer to the device structure
- *
- * returns irqreturn_t
- */
-irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
-{
-	struct mei_device *dev = (struct mei_device *) dev_id;
-	struct mei_me_hw *hw = to_me_hw(dev);
-	u32 csr_reg = mei_hcsr_read(hw);
-
-	if ((csr_reg & H_IS) != H_IS)
-		return IRQ_NONE;
-
-	/* clear H_IS bit in H_CSR */
-	mei_reg_write(hw, H_CSR, csr_reg);
-
-	return IRQ_WAKE_THREAD;
-}
-
-/**
  * mei_hbuf_filled_slots - gets number of device filled buffer slots
  *
  * @dev: the device structure
@@ -403,6 +385,139 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 	return 0;
 }
 
+/**
+ * mei_me_irq_quick_handler - The ISR of the MEI device
+ *
+ * @irq: The irq number
+ * @dev_id: pointer to the device structure
+ *
+ * returns irqreturn_t
+ */
+
+irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
+{
+	struct mei_device *dev = (struct mei_device *) dev_id;
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 csr_reg = mei_hcsr_read(hw);
+
+	if ((csr_reg & H_IS) != H_IS)
+		return IRQ_NONE;
+
+	/* clear H_IS bit in H_CSR */
+	mei_reg_write(hw, H_CSR, csr_reg);
+
+	return IRQ_WAKE_THREAD;
+}
+
+/**
+ * mei_me_irq_thread_handler - function called after ISR to handle the interrupt
+ * processing.
+ *
+ * @irq: The irq number
+ * @dev_id: pointer to the device structure
+ *
+ * returns irqreturn_t
+ *
+ */
+irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
+{
+	struct mei_device *dev = (struct mei_device *) dev_id;
+	struct mei_cl_cb complete_list;
+	struct mei_cl_cb *cb_pos = NULL, *cb_next = NULL;
+	struct mei_cl *cl;
+	s32 slots;
+	int rets;
+	bool  bus_message_received;
+
+
+	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
+	/* initialize our complete list */
+	mutex_lock(&dev->device_lock);
+	mei_io_list_init(&complete_list);
+
+	/* Ack the interrupt here
+	 * In case of MSI we don't go through the quick handler */
+	if (pci_dev_msi_enabled(dev->pdev))
+		mei_clear_interrupts(dev);
+
+	/* check if ME wants a reset */
+	if (!mei_hw_is_ready(dev) &&
+	    dev->dev_state != MEI_DEV_RESETING &&
+	    dev->dev_state != MEI_DEV_INITIALIZING) {
+		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
+		mei_reset(dev, 1);
+		mutex_unlock(&dev->device_lock);
+		return IRQ_HANDLED;
+	}
+
+	/*  check if we need to start the dev */
+	if (!mei_host_is_ready(dev)) {
+		if (mei_hw_is_ready(dev)) {
+			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
+
+			mei_host_set_ready(dev);
+
+			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
+			/* link is established * start sending messages.  */
+
+			dev->dev_state = MEI_DEV_INIT_CLIENTS;
+
+			mei_hbm_start_req(dev);
+			mutex_unlock(&dev->device_lock);
+			return IRQ_HANDLED;
+		} else {
+			dev_dbg(&dev->pdev->dev, "FW not ready.\n");
+			mutex_unlock(&dev->device_lock);
+			return IRQ_HANDLED;
+		}
+	}
+	/* check slots available for reading */
+	slots = mei_count_full_read_slots(dev);
+	while (slots > 0) {
+		/* we have urgent data to send so break the read */
+		if (dev->wr_ext_msg.hdr.length)
+			break;
+		dev_dbg(&dev->pdev->dev, "slots =%08x\n", slots);
+		dev_dbg(&dev->pdev->dev, "call mei_irq_read_handler.\n");
+		rets = mei_irq_read_handler(dev, &complete_list, &slots);
+		if (rets)
+			goto end;
+	}
+	rets = mei_irq_write_handler(dev, &complete_list);
+end:
+	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
+	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
+
+	bus_message_received = false;
+	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {
+		dev_dbg(&dev->pdev->dev, "received waiting bus message\n");
+		bus_message_received = true;
+	}
+	mutex_unlock(&dev->device_lock);
+	if (bus_message_received) {
+		dev_dbg(&dev->pdev->dev, "wake up dev->wait_recvd_msg\n");
+		wake_up_interruptible(&dev->wait_recvd_msg);
+		bus_message_received = false;
+	}
+	if (list_empty(&complete_list.list))
+		return IRQ_HANDLED;
+
+
+	list_for_each_entry_safe(cb_pos, cb_next, &complete_list.list, list) {
+		cl = cb_pos->cl;
+		list_del(&cb_pos->list);
+		if (cl) {
+			if (cl != &dev->iamthif_cl) {
+				dev_dbg(&dev->pdev->dev, "completing call back.\n");
+				mei_irq_complete_handler(cl, cb_pos);
+				cb_pos = NULL;
+			} else if (cl == &dev->iamthif_cl) {
+				mei_amthif_complete(dev, cb_pos);
+			}
+		}
+	}
+	return IRQ_HANDLED;
+}
 static const struct mei_hw_ops mei_me_hw_ops = {
 
 	.host_set_ready = mei_me_host_set_ready,
@@ -458,3 +573,4 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
 	dev->pdev = pdev;
 	return dev;
 }
+
