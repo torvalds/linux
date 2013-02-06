@@ -123,18 +123,6 @@ enum {
 #define URB_RCV_FLAG            (1 << 0)
 #define URB_SND_FLAG            (1 << 1)
 
-#ifdef CONFIG_COMEDI_DEBUG
-static int dbgcm = 1;
-#else
-static int dbgcm;
-#endif
-
-#define dbgcm(fmt, arg...)                     \
-do {                                           \
-	if (dbgcm)                             \
-		printk(KERN_DEBUG fmt, ##arg); \
-} while (0)
-
 enum vmk80xx_model {
 	VMK8055_MODEL,
 	VMK8061_MODEL
@@ -212,12 +200,6 @@ static void vmk80xx_tx_callback(struct urb *urb)
 {
 	struct vmk80xx_private *devpriv = urb->context;
 	unsigned long *flags = &devpriv->flags;
-	int stat = urb->status;
-
-	if (stat && !(stat == -ENOENT
-		      || stat == -ECONNRESET || stat == -ESHUTDOWN))
-		dbgcm("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
-		      __func__, stat);
 
 	if (!test_bit(TRANS_OUT_BUSY, flags))
 		return;
@@ -241,26 +223,16 @@ static void vmk80xx_rx_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		break;
 	default:
-		dbgcm("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
-		      __func__, stat);
-		goto resubmit;
+		/* Try to resubmit the urb */
+		if (test_bit(TRANS_IN_RUNNING, flags) && devpriv->intf) {
+			usb_anchor_urb(urb, &devpriv->rx_anchor);
+
+			if (usb_submit_urb(urb, GFP_KERNEL))
+				usb_unanchor_urb(urb);
+		}
+		break;
 	}
 
-	goto exit;
-resubmit:
-	if (test_bit(TRANS_IN_RUNNING, flags) && devpriv->intf) {
-		usb_anchor_urb(urb, &devpriv->rx_anchor);
-
-		if (!usb_submit_urb(urb, GFP_KERNEL))
-			goto exit;
-
-		dev_err(&urb->dev->dev,
-			"comedi#: vmk80xx: %s - submit urb failed\n",
-			__func__);
-
-		usb_unanchor_urb(urb);
-	}
-exit:
 	clear_bit(TRANS_IN_BUSY, flags);
 
 	wake_up_interruptible(&devpriv->read_wait);
@@ -1187,8 +1159,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 		if (vmk80xx_check_data_link(devpriv)) {
 			vmk80xx_read_eeprom(devpriv, IC6_VERSION);
 			dev_info(&intf->dev, "%s\n", devpriv->fw.ic6_vers);
-		} else {
-			dbgcm("comedi#: vmk80xx: no conn. to CPU\n");
 		}
 	}
 
