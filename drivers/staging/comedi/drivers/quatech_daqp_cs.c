@@ -723,7 +723,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
-	ret = comedi_pcmcia_enable(dev);
+	ret = comedi_pcmcia_enable(dev, NULL);
 	if (ret)
 		return ret;
 	dev->iobase = link->resource[0]->start;
