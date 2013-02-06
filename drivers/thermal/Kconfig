@@ -101,6 +101,14 @@ config RCAR_THERMAL
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
 	  thermal framework
 
+config KIRKWOOD_THERMAL
+	tristate "Temperature sensor on Marvell Kirkwood SoCs"
+	depends on ARCH_KIRKWOOD
+	depends on OF
+	help
+	  Support for the Kirkwood thermal sensor driver into the Linux thermal
+	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
+
 config EXYNOS_THERMAL
 	tristate "Temperature sensor on Samsung EXYNOS"
 	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
