@@ -31,6 +31,9 @@
 unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr32(const struct kvm_vcpu *vcpu);
 
+bool kvm_condition_valid32(const struct kvm_vcpu *vcpu);
+void kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr);
+
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -57,12 +60,18 @@ static inline bool vcpu_mode_is_32bit(const struct kvm_vcpu *vcpu)
 
 static inline bool kvm_condition_valid(const struct kvm_vcpu *vcpu)
 {
-	return true;	/* No conditionals on arm64 */
+	if (vcpu_mode_is_32bit(vcpu))
+		return kvm_condition_valid32(vcpu);
+
+	return true;
 }
 
 static inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
 {
-	*vcpu_pc(vcpu) += 4;
+	if (vcpu_mode_is_32bit(vcpu))
+		kvm_skip_instr32(vcpu, is_wide_instr);
+	else
+		*vcpu_pc(vcpu) += 4;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
