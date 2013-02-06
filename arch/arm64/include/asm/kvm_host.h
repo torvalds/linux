@@ -84,7 +84,10 @@ struct kvm_vcpu_fault_info {
 
 struct kvm_cpu_context {
 	struct kvm_regs	gp_regs;
-	u64 sys_regs[NR_SYS_REGS];
+	union {
+		u64 sys_regs[NR_SYS_REGS];
+		u32 cp15[NR_CP15_REGS];
+	};
 };
 
 typedef struct kvm_cpu_context kvm_cpu_context_t;

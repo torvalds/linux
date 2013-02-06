@@ -42,7 +42,43 @@
 #define	TPIDR_EL1	18	/* Thread ID, Privileged */
 #define	AMAIR_EL1	19	/* Aux Memory Attribute Indirection Register */
 #define	CNTKCTL_EL1	20	/* Timer Control Register (EL1) */
-#define	NR_SYS_REGS	21
+/* 32bit specific registers. Keep them at the end of the range */
+#define	DACR32_EL2	21	/* Domain Access Control Register */
+#define	IFSR32_EL2	22	/* Instruction Fault Status Register */
+#define	FPEXC32_EL2	23	/* Floating-Point Exception Control Register */
+#define	DBGVCR32_EL2	24	/* Debug Vector Catch Register */
+#define	TEECR32_EL1	25	/* ThumbEE Configuration Register */
+#define	TEEHBR32_EL1	26	/* ThumbEE Handler Base Register */
+#define	NR_SYS_REGS	27
+
+/* 32bit mapping */
+#define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
+#define c0_CSSELR	(CSSELR_EL1 * 2)/* Cache Size Selection Register */
+#define c1_SCTLR	(SCTLR_EL1 * 2)	/* System Control Register */
+#define c1_ACTLR	(ACTLR_EL1 * 2)	/* Auxiliary Control Register */
+#define c1_CPACR	(CPACR_EL1 * 2)	/* Coprocessor Access Control */
+#define c2_TTBR0	(TTBR0_EL1 * 2)	/* Translation Table Base Register 0 */
+#define c2_TTBR0_high	(c2_TTBR0 + 1)	/* TTBR0 top 32 bits */
+#define c2_TTBR1	(TTBR1_EL1 * 2)	/* Translation Table Base Register 1 */
+#define c2_TTBR1_high	(c2_TTBR1 + 1)	/* TTBR1 top 32 bits */
+#define c2_TTBCR	(TCR_EL1 * 2)	/* Translation Table Base Control R. */
+#define c3_DACR		(DACR32_EL2 * 2)/* Domain Access Control Register */
+#define c5_DFSR		(ESR_EL1 * 2)	/* Data Fault Status Register */
+#define c5_IFSR		(IFSR32_EL2 * 2)/* Instruction Fault Status Register */
+#define c5_ADFSR	(AFSR0_EL1 * 2)	/* Auxiliary Data Fault Status R */
+#define c5_AIFSR	(AFSR1_EL1 * 2)	/* Auxiliary Instr Fault Status R */
+#define c6_DFAR		(FAR_EL1 * 2)	/* Data Fault Address Register */
+#define c6_IFAR		(c6_DFAR + 1)	/* Instruction Fault Address Register */
+#define c10_PRRR	(MAIR_EL1 * 2)	/* Primary Region Remap Register */
+#define c10_NMRR	(c10_PRRR + 1)	/* Normal Memory Remap Register */
+#define c12_VBAR	(VBAR_EL1 * 2)	/* Vector Base Address Register */
+#define c13_CID		(CONTEXTIDR_EL1 * 2)	/* Context ID Register */
+#define c13_TID_URW	(TPIDR_EL0 * 2)	/* Thread ID, User R/W */
+#define c13_TID_URO	(TPIDRRO_EL0 * 2)/* Thread ID, User R/O */
+#define c13_TID_PRIV	(TPIDR_EL1 * 2)	/* Thread ID, Privileged */
+#define c10_AMAIR	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
+#define NR_CP15_REGS	(NR_SYS_REGS * 2)
 
 #define ARM_EXCEPTION_IRQ	  0
 #define ARM_EXCEPTION_TRAP	  1
