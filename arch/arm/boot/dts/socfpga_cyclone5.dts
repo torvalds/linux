@@ -136,6 +136,65 @@
 					};
 				};
 		};
+
+		leds {
+			compatible = "gpio-leds";
+			fpga0 {
+				label = "fpga_led0";
+				gpios = <&agpio0 0 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			fpga1 {
+				label = "fpga_led1";
+				gpios = <&agpio0 1 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			fpga2 {
+				label = "fpga_led2";
+				gpios = <&agpio0 2 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			fpga3 {
+				label = "fpga_led3";
+				gpios = <&agpio0 3 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			hps0 {
+				label = "hps_led0";
+				gpios = <&gpio1 15 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			hps1 {
+				label = "hps_led1";
+				gpios = <&gpio1 14 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			hps2 {
+				label = "hps_led2";
+				gpios = <&gpio1 13 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+
+			hps3 {
+				label = "hps_led3";
+				gpios = <&gpio1 12 1>;
+				linux,default-trigger = "gpio";
+				default-state = "on";
+			};
+		};
 	};
 };
 
