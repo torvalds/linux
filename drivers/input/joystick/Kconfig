@@ -132,8 +132,6 @@ config JOYSTICK_TMDC
 
 source "drivers/input/joystick/iforce/Kconfig"
 
-if TTY
-
 config JOYSTICK_WARRIOR
 	tristate "Logitech WingMan Warrior joystick"
 	select SERIO
@@ -206,8 +204,6 @@ config JOYSTICK_ZHENHUA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zhenhua.
-
-endif # TTY
 
 config JOYSTICK_DB9
 	tristate "Multisystem, Sega Genesis, Saturn joysticks and gamepads"

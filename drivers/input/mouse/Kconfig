@@ -14,7 +14,6 @@ if INPUT_MOUSE
 
 config MOUSE_PS2
 	tristate "PS/2 mouse"
-	depends on TTY
 	default y
 	select SERIO
 	select SERIO_LIBPS2
@@ -139,7 +138,6 @@ config MOUSE_PS2_OLPC
 
 config MOUSE_SERIAL
 	tristate "Serial mouse"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you have a serial (RS-232, COM port) mouse connected
@@ -264,7 +262,6 @@ config MOUSE_RISCPC
 
 config MOUSE_VSXXXAA
 	tristate "DEC VSXXX-AA/GA mouse and VSXXX-AB tablet"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y (or M) if you want to use a DEC VSXXX-AA (hockey

@@ -69,7 +69,6 @@ config KEYBOARD_ATARI
 config KEYBOARD_ATKBD
 	tristate "AT keyboard" if EXPERT || !X86
 	default y
-	depends on TTY
 	select SERIO
 	select SERIO_LIBPS2
 	select SERIO_I8042 if X86
@@ -154,7 +153,6 @@ config KEYBOARD_BFIN
 
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you want to use a LK201 or LK401 style serial
@@ -270,7 +268,7 @@ config KEYBOARD_HIL_OLD
 
 config KEYBOARD_HIL
 	tristate "HP HIL keyboard/pointer support"
-	depends on (GSC || HP300) && TTY
+	depends on GSC || HP300
 	default y
 	select HP_SDC
 	select HIL_MLC
@@ -402,7 +400,6 @@ config KEYBOARD_IMX
 
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you have a Newton keyboard on a serial port.
@@ -482,8 +479,6 @@ config KEYBOARD_SAMSUNG
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.
 
-if TTY
-
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
 	select SERIO
@@ -505,8 +500,6 @@ config KEYBOARD_SUNKBD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sunkbd.
-
-endif # TTY
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
@@ -604,7 +597,6 @@ config KEYBOARD_TWL4030
 
 config KEYBOARD_XTKBD
 	tristate "XT keyboard"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you want to use the old IBM PC/XT keyboard (or

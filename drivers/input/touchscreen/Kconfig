@@ -192,8 +192,6 @@ config TOUCHSCREEN_DA9052
 	  To compile this driver as a module, choose M here: the
 	  module will be called da9052_tsi.
 
-if TTY
-
 config TOUCHSCREEN_DYNAPRO
 	tristate "Dynapro serial touchscreen"
 	select SERIO
@@ -218,8 +216,6 @@ config TOUCHSCREEN_HAMPSHIRE
 	  To compile this driver as a module, choose M here: the
 	  module will be called hampshire.
 
-endif # TTY
-
 config TOUCHSCREEN_EETI
 	tristate "EETI touchscreen panel support"
 	depends on I2C
@@ -241,7 +237,6 @@ config TOUCHSCREEN_EGALAX
 
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you have the Fujitsu touchscreen (such as one
@@ -280,8 +275,6 @@ config TOUCHSCREEN_S3C2410
 	  To compile this driver as a module, choose M here: the
 	  module will be called s3c2410_ts.
 
-if TTY
-
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
 	select SERIO
@@ -317,8 +310,6 @@ config TOUCHSCREEN_WACOM_W8001
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
-
-endif # TTY
 
 config TOUCHSCREEN_WACOM_I2C
 	tristate "Wacom Tablet support (I2C)"
@@ -378,8 +369,6 @@ config TOUCHSCREEN_MMS114
 	  To compile this driver as a module, choose M here: the
 	  module will be called mms114.
 
-if TTY
-
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
 	select SERIO
@@ -403,8 +392,6 @@ config TOUCHSCREEN_INEXIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called inexio.
-
-endif # TTY
 
 config TOUCHSCREEN_INTEL_MID
 	tristate "Intel MID platform resistive touchscreen"
@@ -463,7 +450,6 @@ config TOUCHSCREEN_HTCPEN
 
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
-	depends on TTY
 	select SERIO
 	help
 	  Say Y here if you have a Penmount serial touchscreen connected to
@@ -507,8 +493,6 @@ config TOUCHSCREEN_TNETV107X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tnetv107x-ts.
 
-if TTY
-
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
 	select SERIO
@@ -532,8 +516,6 @@ config TOUCHSCREEN_TOUCHWIN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchwin.
-
-endif # TTY
 
 config TOUCHSCREEN_TI_AM335X_TSC
 	tristate "TI Touchscreen Interface"
@@ -808,8 +790,6 @@ config TOUCHSCREEN_USB_EASYTOUCH
 	  Say Y here if you have an EasyTouch USB Touch controller.
 	  If unsure, say N.
 
-if TTY
-
 config TOUCHSCREEN_TOUCHIT213
 	tristate "Sahara TouchIT-213 touchscreen"
 	select SERIO
@@ -832,8 +812,6 @@ config TOUCHSCREEN_TSC_SERIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc40.
-
-endif # TTY
 
 config TOUCHSCREEN_TSC2005
         tristate "TSC2005 based touchscreens"

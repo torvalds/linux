@@ -4,7 +4,6 @@
 config SERIO
 	tristate "Serial I/O support" if EXPERT || !X86
 	default y
-	depends on TTY
 	help
 	  Say Yes here if you have any input device that uses serial I/O to
 	  communicate with the system. This includes the
@@ -37,6 +36,7 @@ config SERIO_I8042
 config SERIO_SERPORT
 	tristate "Serial port line discipline"
 	default y
+	depends on TTY
 	help
 	  Say Y here if you plan to use an input device (mouse, joystick,
 	  tablet, 6dof) that communicates over the RS232 serial (COM) port.
