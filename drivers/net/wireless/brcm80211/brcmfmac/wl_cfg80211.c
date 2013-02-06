@@ -1365,9 +1365,28 @@ brcmf_set_sharedkey(struct net_device *ndev,
 	return err;
 }
 
+static
+enum nl80211_auth_type brcmf_war_auth_type(struct brcmf_if *ifp,
+					   enum nl80211_auth_type type)
+{
+	u32 ci;
+	if (type == NL80211_AUTHTYPE_AUTOMATIC) {
+		/* shift to ignore chip revision */
+		ci = brcmf_get_chip_info(ifp) >> 4;
+		switch (ci) {
+		case 43236:
+			brcmf_dbg(CONN, "43236 WAR: use OPEN instead of AUTO\n");
+			return NL80211_AUTHTYPE_OPEN_SYSTEM;
+		default:
+			break;
+		}
+	}
+	return type;
+}
+
 static s32
 brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
-		    struct cfg80211_connect_params *sme)
+		       struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -1410,6 +1429,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto done;
 	}
 
+	sme->auth_type = brcmf_war_auth_type(ifp, sme->auth_type);
 	err = brcmf_set_auth_type(ndev, sme);
 	if (err) {
 		brcmf_err("wl_set_auth_type failed (%d)\n", err);
