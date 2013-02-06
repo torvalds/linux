@@ -351,6 +351,10 @@ static const struct usb_device_id products[] = {
 		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 57),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* HUAWEI_INTERFACE_NDIS_CONTROL_QUALCOMM */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x69),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 
 	/* 2. Combined interface devices matching on class+protocol */
 	{	/* Huawei E367 and possibly others in "Windows mode" */
@@ -359,6 +363,14 @@ static const struct usb_device_id products[] = {
 	},
 	{	/* Huawei E392, E398 and possibly others in "Windows mode" */
 		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 17),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* HUAWEI_NDIS_SINGLE_INTERFACE_VDF */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x37),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* HUAWEI_INTERFACE_NDIS_HW_QUALCOMM */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x67),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* Pantech UML290, P4200 and more */
