@@ -1609,7 +1609,6 @@ static int fec_enet_init(struct net_device *ndev)
 	}
 
 	spin_lock_init(&fep->hw_lock);
-	spin_lock_init(&fep->tmreg_lock);
 
 	fep->netdev = ndev;
 
@@ -1841,6 +1840,9 @@ fec_probe(struct platform_device *pdev)
 
 	fec_reset_phy(pdev);
 
+	if (fep->bufdesc_ex)
+		fec_ptp_init(ndev, pdev);
+
 	ret = fec_enet_init(ndev);
 	if (ret)
 		goto failed_init;
@@ -1855,9 +1857,6 @@ fec_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret)
 		goto failed_register;
-
-	if (fep->bufdesc_ex)
-		fec_ptp_init(ndev, pdev);
 
 	return 0;
 
