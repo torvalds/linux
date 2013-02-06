@@ -251,19 +251,14 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
-	if (ret)
-		return ret;
-
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = pcmcia_enable_device(link);
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev, mio_pcmcia_config_loop);
 	if (ret)
 		return ret;
 	dev->iobase = link->resource[0]->start;
+
+	if (!link->irq)
+		return -EINVAL;
 
 	ret = request_irq(link->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
 			  dev->board_name, dev);
@@ -286,13 +281,10 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 
 static void mio_cs_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
 	mio_common_detach(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_ni_mio_cs = {
