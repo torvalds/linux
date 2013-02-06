@@ -1155,14 +1155,26 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta, u32 iv32,
 			     u16 *phase1key)
 {
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta;
 	u8 sta_id = iwl_mvm_get_key_sta_id(vif, sta);
 
-	if (sta_id == IWL_INVALID_STATION)
+	if (WARN_ON_ONCE(sta_id == IWL_INVALID_STATION))
 		return;
 
+	rcu_read_lock();
+
+	if (!sta) {
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+		if (WARN_ON(IS_ERR_OR_NULL(sta))) {
+			rcu_read_unlock();
+			return;
+		}
+	}
+
+	mvm_sta = (void *)sta->drv_priv;
 	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
 			     iv32, phase1key, CMD_ASYNC);
+	rcu_read_unlock();
 }
 
 void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm, int sta_id)
