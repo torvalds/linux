@@ -445,6 +445,7 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 
 static int vmk80xx_read_packet(struct vmk80xx_usb *dev)
 {
+	const struct vmk80xx_board *boardinfo = dev->board;
 	struct urb *urb;
 	int retval;
 
@@ -458,7 +459,7 @@ static int vmk80xx_read_packet(struct vmk80xx_usb *dev)
 						       &dev->flags)))
 			return -ERESTART;
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		vmk80xx_do_bulk_msg(dev);
 
 		return 0;
@@ -491,6 +492,7 @@ exit:
 
 static int vmk80xx_write_packet(struct vmk80xx_usb *dev, int cmd)
 {
+	const struct vmk80xx_board *boardinfo = dev->board;
 	struct urb *urb;
 	int retval;
 
@@ -503,7 +505,7 @@ static int vmk80xx_write_packet(struct vmk80xx_usb *dev, int cmd)
 						       &dev->flags)))
 			return -ERESTART;
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		dev->usb_tx_buf[0] = cmd;
 		vmk80xx_do_bulk_msg(dev);
 
@@ -563,6 +565,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	int reg[2];
@@ -575,7 +578,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
-	switch (dev->board->model) {
+	switch (boardinfo->model) {
 	case VMK8055_MODEL:
 		if (!chan)
 			reg[0] = VMK8055_AI1_REG;
@@ -595,7 +598,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		if (dev->board->model == VMK8055_MODEL) {
+		if (boardinfo->model == VMK8055_MODEL) {
 			data[n] = dev->usb_rx_buf[reg[0]];
 			continue;
 		}
@@ -614,6 +617,7 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	int cmd;
@@ -627,7 +631,7 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
-	switch (dev->board->model) {
+	switch (boardinfo->model) {
 	case VMK8055_MODEL:
 		cmd = VMK8055_CMD_WRT_AD;
 		if (!chan)
@@ -690,6 +694,7 @@ static int vmk80xx_di_bits(struct comedi_device *cdev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned char *rx_buf;
 	int reg;
@@ -703,7 +708,7 @@ static int vmk80xx_di_bits(struct comedi_device *cdev,
 
 	rx_buf = dev->usb_rx_buf;
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		reg = VMK8061_DI_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
 	} else {
@@ -713,7 +718,7 @@ static int vmk80xx_di_bits(struct comedi_device *cdev,
 	retval = vmk80xx_read_packet(dev);
 
 	if (!retval) {
-		if (dev->board->model == VMK8055_MODEL)
+		if (boardinfo->model == VMK8055_MODEL)
 			data[1] = (((rx_buf[reg] >> 4) & 0x03) |
 				  ((rx_buf[reg] << 2) & 0x04) |
 				  ((rx_buf[reg] >> 3) & 0x18));
@@ -732,6 +737,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *rx_buf;
@@ -748,7 +754,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 
 	rx_buf = dev->usb_rx_buf;
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		reg = VMK8061_DI_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
 	} else {
@@ -758,7 +764,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		if (dev->board->model == VMK8055_MODEL)
+		if (boardinfo->model == VMK8055_MODEL)
 			inp = (((rx_buf[reg] >> 4) & 0x03) |
 			       ((rx_buf[reg] << 2) & 0x04) |
 			       ((rx_buf[reg] >> 3) & 0x18));
@@ -777,6 +783,7 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *tx_buf;
@@ -794,7 +801,7 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 	tx_buf = dev->usb_tx_buf;
 
 	for (n = 0; n < insn->n; n++) {
-		if (dev->board->model == VMK8055_MODEL) {
+		if (boardinfo->model == VMK8055_MODEL) {
 			reg = VMK8055_DO_REG;
 			cmd = VMK8055_CMD_WRT_AD;
 			if (data[n] == 1)
@@ -857,6 +864,7 @@ static int vmk80xx_do_bits(struct comedi_device *cdev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned char *rx_buf, *tx_buf;
 	int dir, reg, cmd;
@@ -867,7 +875,7 @@ static int vmk80xx_do_bits(struct comedi_device *cdev,
 	if (data[0])
 		dir |= DIR_OUT;
 
-	if (dev->board->model == VMK8061_MODEL)
+	if (boardinfo->model == VMK8061_MODEL)
 		dir |= DIR_IN;
 
 	retval = rudimentary_check(dev, dir);
@@ -880,7 +888,7 @@ static int vmk80xx_do_bits(struct comedi_device *cdev,
 	tx_buf = dev->usb_tx_buf;
 
 	if (data[0]) {
-		if (dev->board->model == VMK8055_MODEL) {
+		if (boardinfo->model == VMK8055_MODEL) {
 			reg = VMK8055_DO_REG;
 			cmd = VMK8055_CMD_WRT_AD;
 		} else { /* VMK8061_MODEL */
@@ -897,7 +905,7 @@ static int vmk80xx_do_bits(struct comedi_device *cdev,
 			goto out;
 	}
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		reg = VMK8061_DO_REG;
 		tx_buf[0] = VMK8061_CMD_RD_DO;
 
@@ -922,6 +930,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	int reg[2];
@@ -934,7 +943,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
-	switch (dev->board->model) {
+	switch (boardinfo->model) {
 	case VMK8055_MODEL:
 		if (!chan)
 			reg[0] = VMK8055_CNT1_REG;
@@ -953,7 +962,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		if (dev->board->model == VMK8055_MODEL)
+		if (boardinfo->model == VMK8055_MODEL)
 			data[n] = dev->usb_rx_buf[reg[0]];
 		else /* VMK8061_MODEL */
 			data[n] = dev->usb_rx_buf[reg[0] * (chan + 1) + 1]
@@ -969,6 +978,7 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned int insn_cmd;
 	int chan;
@@ -988,7 +998,7 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 
 	chan = CR_CHAN(insn->chanspec);
 
-	if (dev->board->model == VMK8055_MODEL) {
+	if (boardinfo->model == VMK8055_MODEL) {
 		if (!chan) {
 			cmd = VMK8055_CMD_RST_CNT1;
 			reg = VMK8055_CNT1_REG;
@@ -1141,14 +1151,19 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 static int vmk80xx_attach_common(struct comedi_device *cdev,
 				 struct vmk80xx_usb *dev)
 {
+	const struct vmk80xx_board *boardinfo;
 	int n_subd;
 	struct comedi_subdevice *s;
 	int ret;
 
 	down(&dev->limit_sem);
-	cdev->board_name = dev->board->name;
+
+	boardinfo = dev->board;
+	cdev->board_ptr = boardinfo;
+	cdev->board_name = boardinfo->name;
 	cdev->private = dev;
-	if (dev->board->model == VMK8055_MODEL)
+
+	if (boardinfo->model == VMK8055_MODEL)
 		n_subd = 5;
 	else
 		n_subd = 6;
@@ -1157,72 +1172,81 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 		up(&dev->limit_sem);
 		return ret;
 	}
+
 	/* Analog input subdevice */
 	s = &cdev->subdevices[VMK80XX_SUBD_AI];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = dev->board->ai_chans;
-	s->maxdata = (1 << dev->board->ai_bits) - 1;
-	s->range_table = dev->board->range;
+	s->n_chan = boardinfo->ai_chans;
+	s->maxdata = (1 << boardinfo->ai_bits) - 1;
+	s->range_table = boardinfo->range;
 	s->insn_read = vmk80xx_ai_rinsn;
+
 	/* Analog output subdevice */
 	s = &cdev->subdevices[VMK80XX_SUBD_AO];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = dev->board->ao_chans;
-	s->maxdata = (1 << dev->board->ao_bits) - 1;
-	s->range_table = dev->board->range;
+	s->n_chan = boardinfo->ao_chans;
+	s->maxdata = (1 << boardinfo->ao_bits) - 1;
+	s->range_table = boardinfo->range;
 	s->insn_write = vmk80xx_ao_winsn;
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		s->subdev_flags |= SDF_READABLE;
 		s->insn_read = vmk80xx_ao_rinsn;
 	}
+
 	/* Digital input subdevice */
 	s = &cdev->subdevices[VMK80XX_SUBD_DI];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = dev->board->di_chans;
+	s->n_chan = boardinfo->di_chans;
 	s->maxdata = 1;
 	s->insn_read = vmk80xx_di_rinsn;
 	s->insn_bits = vmk80xx_di_bits;
+
 	/* Digital output subdevice */
 	s = &cdev->subdevices[VMK80XX_SUBD_DO];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = dev->board->do_chans;
+	s->n_chan = boardinfo->do_chans;
 	s->maxdata = 1;
 	s->insn_write = vmk80xx_do_winsn;
 	s->insn_bits = vmk80xx_do_bits;
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		s->subdev_flags |= SDF_READABLE;
 		s->insn_read = vmk80xx_do_rinsn;
 	}
+
 	/* Counter subdevice */
 	s = &cdev->subdevices[VMK80XX_SUBD_CNT];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = dev->board->cnt_chans;
+	s->n_chan = boardinfo->cnt_chans;
 	s->insn_read = vmk80xx_cnt_rinsn;
 	s->insn_config = vmk80xx_cnt_cinsn;
-	if (dev->board->model == VMK8055_MODEL) {
+	if (boardinfo->model == VMK8055_MODEL) {
 		s->subdev_flags |= SDF_WRITEABLE;
-		s->maxdata = (1 << dev->board->cnt_bits) - 1;
+		s->maxdata = (1 << boardinfo->cnt_bits) - 1;
 		s->insn_write = vmk80xx_cnt_winsn;
 	}
+
 	/* PWM subdevice */
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		s = &cdev->subdevices[VMK80XX_SUBD_PWM];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-		s->n_chan = dev->board->pwm_chans;
-		s->maxdata = (1 << dev->board->pwm_bits) - 1;
+		s->n_chan = boardinfo->pwm_chans;
+		s->maxdata = (1 << boardinfo->pwm_bits) - 1;
 		s->insn_read = vmk80xx_pwm_rinsn;
 		s->insn_write = vmk80xx_pwm_winsn;
 	}
+
 	dev->attached = 1;
 	dev_info(cdev->class_dev, "vmk80xx: board #%d [%s] attached\n",
-		 dev->count, dev->board->name);
+		 dev->count, boardinfo->name);
+
 	up(&dev->limit_sem);
+
 	return 0;
 }
 
@@ -1283,6 +1307,7 @@ static struct comedi_driver vmk80xx_driver = {
 static int vmk80xx_usb_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id)
 {
+	const struct vmk80xx_board *boardinfo;
 	int i;
 	struct vmk80xx_usb *dev;
 	struct usb_host_interface *iface_desc;
@@ -1363,9 +1388,10 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, dev);
 
-	dev->board = &vmk80xx_boardinfo[id->driver_info];
+	boardinfo = &vmk80xx_boardinfo[id->driver_info];
+	dev->board = boardinfo;
 
-	if (dev->board->model == VMK8061_MODEL) {
+	if (boardinfo->model == VMK8061_MODEL) {
 		vmk80xx_read_eeprom(dev, IC3_VERSION);
 		dev_info(&intf->dev, "%s\n", dev->fw.ic3_vers);
 
@@ -1377,13 +1403,13 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 		}
 	}
 
-	if (dev->board->model == VMK8055_MODEL)
+	if (boardinfo->model == VMK8055_MODEL)
 		vmk80xx_reset_device(dev);
 
 	dev->probed = 1;
 
 	dev_info(&intf->dev, "board #%d [%s] now attached\n",
-		 dev->count, dev->board->name);
+		 dev->count, boardinfo->name);
 
 	mutex_unlock(&glb_mutex);
 
