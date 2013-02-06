@@ -256,9 +256,8 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct amd_nb *nb = cpuc->amd_nb;
-	struct perf_event *old = NULL;
-	int max = x86_pmu.num_counters;
-	int i, j, k = -1;
+	struct perf_event *old;
+	int idx, new = -1;
 
 	/*
 	 * if not NB event or no NB, then no constraints
@@ -276,48 +275,33 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 	 * because of successive calls to x86_schedule_events() from
 	 * hw_perf_group_sched_in() without hw_perf_enable()
 	 */
-	for (i = 0; i < max; i++) {
-		/*
-		 * keep track of first free slot
-		 */
-		if (k == -1 && !nb->owners[i])
-			k = i;
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		if (new == -1 || hwc->idx == idx)
+			/* assign free slot, prefer hwc->idx */
+			old = cmpxchg(nb->owners + idx, NULL, event);
+		else if (nb->owners[idx] == event)
+			/* event already present */
+			old = event;
+		else
+			continue;
+
+		if (old && old != event)
+			continue;
+
+		/* reassign to this slot */
+		if (new != -1)
+			cmpxchg(nb->owners + new, event, NULL);
+		new = idx;
 
 		/* already present, reuse */
-		if (nb->owners[i] == event)
-			goto done;
-	}
-	/*
-	 * not present, so grab a new slot
-	 * starting either at:
-	 */
-	if (hwc->idx != -1) {
-		/* previous assignment */
-		i = hwc->idx;
-	} else if (k != -1) {
-		/* start from free slot found */
-		i = k;
-	} else {
-		/*
-		 * event not found, no slot found in
-		 * first pass, try again from the
-		 * beginning
-		 */
-		i = 0;
-	}
-	j = i;
-	do {
-		old = cmpxchg(nb->owners+i, NULL, event);
-		if (!old)
+		if (old == event)
 			break;
-		if (++i == max)
-			i = 0;
-	} while (i != j);
-done:
-	if (!old)
-		return &nb->event_constraints[i];
+	}
 
-	return &emptyconstraint;
+	if (new == -1)
+		return &emptyconstraint;
+
+	return &nb->event_constraints[new];
 }
 
 static struct amd_nb *amd_alloc_nb(int cpu)
