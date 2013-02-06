@@ -100,6 +100,7 @@ brcmf_fil_cmd_int_set(struct brcmf_if *ifp, u32 cmd, u32 data)
 	__le32 data_le = cpu_to_le32(data);
 
 	mutex_lock(&ifp->drvr->proto_block);
+	brcmf_dbg(FIL, "cmd=%d, value=%d\n", cmd, data);
 	err = brcmf_fil_cmd_data(ifp, cmd, &data_le, sizeof(data_le), true);
 	mutex_unlock(&ifp->drvr->proto_block);
 
@@ -116,6 +117,7 @@ brcmf_fil_cmd_int_get(struct brcmf_if *ifp, u32 cmd, u32 *data)
 	err = brcmf_fil_cmd_data(ifp, cmd, &data_le, sizeof(data_le), false);
 	mutex_unlock(&ifp->drvr->proto_block);
 	*data = le32_to_cpu(data_le);
+	brcmf_dbg(FIL, "cmd=%d, value=%d\n", cmd, *data);
 
 	return err;
 }
