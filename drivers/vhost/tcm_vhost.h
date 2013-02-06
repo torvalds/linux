@@ -23,6 +23,8 @@ struct tcm_vhost_cmd {
 	struct virtio_scsi_cmd_resp __user *tvc_resp;
 	/* Pointer to vhost_scsi for our device */
 	struct vhost_scsi *tvc_vhost;
+	/* Pointer to vhost_virtqueue for the cmd */
+	struct vhost_virtqueue *tvc_vq;
 	/* Pointer to vhost nexus memory */
 	struct tcm_vhost_nexus *tvc_nexus;
 	/* The TCM I/O descriptor that is accessed via container_of() */
