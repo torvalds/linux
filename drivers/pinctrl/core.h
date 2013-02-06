@@ -155,6 +155,18 @@ struct pin_desc {
 #endif
 };
 
+/**
+ * struct pinctrl_maps - a list item containing part of the mapping table
+ * @node: mapping table list node
+ * @maps: array of mapping table entries
+ * @num_maps: the number of entries in @maps
+ */
+struct pinctrl_maps {
+	struct list_head node;
+	struct pinctrl_map const *maps;
+	unsigned num_maps;
+};
+
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
 const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin);
@@ -176,3 +188,10 @@ extern int pinctrl_force_default(struct pinctrl_dev *pctldev);
 
 extern struct mutex pinctrl_mutex;
 extern struct list_head pinctrldev_list;
+extern struct list_head pinctrl_maps;
+
+#define for_each_maps(_maps_node_, _i_, _map_) \
+	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
+		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
+			_i_ < _maps_node_->num_maps; \
+			_i_++, _map_ = &_maps_node_->maps[_i_])

@@ -32,17 +32,6 @@
 #include "pinmux.h"
 #include "pinconf.h"
 
-/**
- * struct pinctrl_maps - a list item containing part of the mapping table
- * @node: mapping table list node
- * @maps: array of mapping table entries
- * @num_maps: the number of entries in @maps
- */
-struct pinctrl_maps {
-	struct list_head node;
-	struct pinctrl_map const *maps;
-	unsigned num_maps;
-};
 
 static bool pinctrl_dummy_state;
 
@@ -56,13 +45,8 @@ LIST_HEAD(pinctrldev_list);
 static LIST_HEAD(pinctrl_list);
 
 /* List of pinctrl maps (struct pinctrl_maps) */
-static LIST_HEAD(pinctrl_maps);
+LIST_HEAD(pinctrl_maps);
 
-#define for_each_maps(_maps_node_, _i_, _map_) \
-	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
-		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
-			_i_ < _maps_node_->num_maps; \
-			_i_++, _map_ = &_maps_node_->maps[_i_])
 
 /**
  * pinctrl_provide_dummies() - indicate if pinctrl provides dummy state support
