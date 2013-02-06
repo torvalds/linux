@@ -162,12 +162,7 @@ struct vmk80xx_board {
 	__u8 ai_chans;
 	__le16 ai_bits;
 	__u8 ao_chans;
-	__le16 ao_bits;
 	__u8 di_chans;
-	__le16 di_bits;
-	__u8 do_chans;
-	__le16 do_bits;
-	__u8 cnt_chans;
 	__le16 cnt_bits;
 	__u8 pwm_chans;
 	__le16 pwm_bits;
@@ -181,12 +176,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_chans	= 2,
 		.ai_bits	= 8,
 		.ao_chans	= 2,
-		.ao_bits	= 8,
 		.di_chans	= 6,
-		.di_bits	= 1,
-		.do_chans	= 8,
-		.do_bits	= 1,
-		.cnt_chans	= 2,
 		.cnt_bits	= 16,
 		.pwm_chans	= 0,
 		.pwm_bits	= 0,
@@ -198,12 +188,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_chans	= 8,
 		.ai_bits	= 10,
 		.ao_chans	= 8,
-		.ao_bits	= 8,
 		.di_chans	= 8,
-		.di_bits	= 1,
-		.do_chans	= 8,
-		.do_bits	= 1,
-		.cnt_chans	= 2,
 		.cnt_bits	= 0,
 		.pwm_chans	= 1,
 		.pwm_bits	= 10,
@@ -1187,7 +1172,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = boardinfo->ao_chans;
-	s->maxdata = (1 << boardinfo->ao_bits) - 1;
+	s->maxdata = 0x00ff;
 	s->range_table = boardinfo->range;
 	s->insn_write = vmk80xx_ao_winsn;
 	if (boardinfo->model == VMK8061_MODEL) {
@@ -1208,7 +1193,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s = &cdev->subdevices[VMK80XX_SUBD_DO];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = boardinfo->do_chans;
+	s->n_chan = 8;
 	s->maxdata = 1;
 	s->insn_write = vmk80xx_do_winsn;
 	s->insn_bits = vmk80xx_do_bits;
@@ -1221,7 +1206,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s = &cdev->subdevices[VMK80XX_SUBD_CNT];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = boardinfo->cnt_chans;
+	s->n_chan = 2;
 	s->insn_read = vmk80xx_cnt_rinsn;
 	s->insn_config = vmk80xx_cnt_cinsn;
 	if (boardinfo->model == VMK8055_MODEL) {
