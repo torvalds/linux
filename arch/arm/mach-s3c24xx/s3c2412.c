@@ -47,6 +47,7 @@
 #include <plat/regs-spi.h>
 #include <plat/s3c2412.h>
 
+#include "common.h"
 #include "regs-dsc.h"
 
 #define S3C2412_SWRST			(S3C24XX_VA_CLKPWR + 0x30)
@@ -245,8 +246,8 @@ int __init s3c2412_init(void)
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2412_pm_syscore_ops);
-#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
+#endif
 
 	return device_register(&s3c2412_dev);
 }
