@@ -552,6 +552,7 @@ static int rk_fb_set_par(struct fb_info *info)
 					par2->xact = par->xact;
 					par2->yact = par->yact;
 					par2->format = par->format;
+					par2->xvir = par->xvir;
 					info2->var.nonstd &= 0xffffff00;
 					info2->var.nonstd |= data_format;
 					dev_drv1->set_par(dev_drv1,layer_id);
