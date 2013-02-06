@@ -393,8 +393,8 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		return -ENOMEM;
 
 	cb->fop_type = MEI_FOP_CLOSE;
-	if (dev->mei_host_buffer_is_empty) {
-		dev->mei_host_buffer_is_empty = false;
+	if (dev->hbuf_is_ready) {
+		dev->hbuf_is_ready = false;
 		if (mei_hbm_cl_disconnect_req(dev, cl)) {
 			rets = -ENODEV;
 			dev_err(&dev->pdev->dev, "failed to disconnect.\n");
@@ -496,9 +496,8 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 
 	cb->fop_type = MEI_FOP_IOCTL;
 
-	if (dev->mei_host_buffer_is_empty &&
-	    !mei_cl_is_other_connecting(cl)) {
-		dev->mei_host_buffer_is_empty = false;
+	if (dev->hbuf_is_ready && !mei_cl_is_other_connecting(cl)) {
+		dev->hbuf_is_ready = false;
 
 		if (mei_hbm_cl_connect_req(dev, cl)) {
 			rets = -ENODEV;
@@ -661,8 +660,8 @@ int mei_cl_read_start(struct mei_cl *cl)
 
 	cb->fop_type = MEI_FOP_READ;
 	cl->read_cb = cb;
-	if (dev->mei_host_buffer_is_empty) {
-		dev->mei_host_buffer_is_empty = false;
+	if (dev->hbuf_is_ready) {
+		dev->hbuf_is_ready = false;
 		if (mei_hbm_cl_flow_control_req(dev, cl)) {
 			rets = -ENODEV;
 			goto err;

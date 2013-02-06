@@ -297,9 +297,9 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (ret < 0)
 		return ret;
 
-	if (ret && dev->mei_host_buffer_is_empty) {
+	if (ret && dev->hbuf_is_ready) {
 		ret = 0;
-		dev->mei_host_buffer_is_empty = false;
+		dev->hbuf_is_ready = false;
 		if (cb->request_buffer.size > mei_hbuf_max_len(dev)) {
 			mei_hdr.length = mei_hbuf_max_len(dev);
 			mei_hdr.msg_complete = 0;
@@ -330,7 +330,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			list_add_tail(&cb->list, &dev->write_list.list);
 		}
 	} else {
-		if (!(dev->mei_host_buffer_is_empty))
+		if (!dev->hbuf_is_ready)
 			dev_dbg(&dev->pdev->dev, "host buffer is not empty");
 
 		dev_dbg(&dev->pdev->dev, "No flow control credentials, so add iamthif cb to write list.\n");
@@ -583,7 +583,7 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_stall_timer = MEI_IAMTHIF_STALL_TIMER;
-	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
+	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 	return 0;
 }
 

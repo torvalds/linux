@@ -265,9 +265,13 @@ struct mei_hw_ops {
 
 /**
  * struct mei_device -  MEI private device struct
+
  * @mem_addr - mem mapped base register address
- * @hbuf_depth - depth of host(write) buffer
- * @wr_ext_msg - buffer for hbm control responses (set in read cycle)
+
+ * @hbuf_depth - depth of hardware host/write buffer is slots
+ * @hbuf_is_ready - query if the host host/write buffer is ready
+ * @wr_msg - the buffer for hbm control messages
+ * @wr_ext_msg - the buffer for hbm control responses (set in read cycle)
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
@@ -294,7 +298,6 @@ struct mei_device {
 	struct delayed_work timer_work;	/* MEI timer delayed work (timeouts) */
 	bool recvd_msg;
 
-	u8  hbuf_depth;
 	/*
 	 * waiting queue for receive message from FW
 	 */
@@ -310,6 +313,10 @@ struct mei_device {
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
 	u32 rd_msg_hdr;
+
+	/* write buffer */
+	u8 hbuf_depth;
+	bool hbuf_is_ready;
 
 	/* used for control messages */
 	struct {
@@ -330,7 +337,6 @@ struct mei_device {
 	u8 me_clients_num;
 	u8 me_client_presentation_num;
 	u8 me_client_index;
-	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
 	enum mei_wd_states wd_state;

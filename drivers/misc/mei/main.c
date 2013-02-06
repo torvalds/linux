@@ -454,14 +454,14 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	if (rets < 0)
 		goto err;
 
-	if (rets == 0 || dev->mei_host_buffer_is_empty == false) {
+	if (rets == 0 || !dev->hbuf_is_ready) {
 		write_cb->buf_idx = 0;
 		mei_hdr.msg_complete = 0;
 		cl->writing_state = MEI_WRITING;
 		goto out;
 	}
 
-	dev->mei_host_buffer_is_empty = false;
+	dev->hbuf_is_ready = false;
 	if (length >  mei_hbuf_max_len(dev)) {
 		mei_hdr.length = mei_hbuf_max_len(dev);
 		mei_hdr.msg_complete = 0;

@@ -486,7 +486,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	rets = mei_irq_write_handler(dev, &complete_list);
 end:
 	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
-	dev->mei_host_buffer_is_empty = mei_hbuf_is_ready(dev);
+	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 
 	bus_message_received = false;
 	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {

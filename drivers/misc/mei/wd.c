@@ -157,9 +157,9 @@ int mei_wd_stop(struct mei_device *dev)
 	if (ret < 0)
 		goto out;
 
-	if (ret && dev->mei_host_buffer_is_empty) {
+	if (ret && dev->hbuf_is_ready) {
 		ret = 0;
-		dev->mei_host_buffer_is_empty = false;
+		dev->hbuf_is_ready = false;
 
 		if (!mei_wd_send(dev)) {
 			ret = mei_cl_flow_ctrl_reduce(&dev->wd_cl);
@@ -282,10 +282,9 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 	dev->wd_state = MEI_WD_RUNNING;
 
 	/* Check if we can send the ping to HW*/
-	if (dev->mei_host_buffer_is_empty &&
-	    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
+	if (dev->hbuf_is_ready && mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
 
-		dev->mei_host_buffer_is_empty = false;
+		dev->hbuf_is_ready = false;
 		dev_dbg(&dev->pdev->dev, "wd: sending ping\n");
 
 		if (mei_wd_send(dev)) {
