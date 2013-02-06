@@ -60,6 +60,8 @@
 #define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
 #define MLX4_FS_NUM_MCG			(1 << 17)
 
+#define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
+
 enum {
 	MLX4_FS_L2_HASH = 0,
 	MLX4_FS_L2_L3_L4_HASH,
