@@ -1984,25 +1984,17 @@ static int bttv_s_tuner(struct file *file, void *priv,
 	struct bttv *btv = fh->btv;
 	int err;
 
-	if (unlikely(0 != t->index))
+	if (t->index)
 		return -EINVAL;
 
-	if (unlikely(btv->tuner_type == TUNER_ABSENT)) {
-		err = -EINVAL;
-		goto err;
-	}
-
 	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (unlikely(err))
-		goto err;
+	if (err)
+		return err;
 
 	bttv_call_all(btv, tuner, s_tuner, t);
 
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 1);
-
-err:
-
 	return 0;
 }
 
@@ -2012,9 +2004,10 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
 
-	f->type = btv->radio_user ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-	f->frequency = btv->freq;
+	if (f->tuner)
+		return -EINVAL;
 
+	f->frequency = btv->freq;
 	return 0;
 }
 
@@ -2025,24 +2018,17 @@ static int bttv_s_frequency(struct file *file, void *priv,
 	struct bttv *btv = fh->btv;
 	int err;
 
-	if (unlikely(f->tuner != 0))
+	if (f->tuner)
 		return -EINVAL;
 
 	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (unlikely(err))
-		goto err;
+	if (err)
+		return err;
 
-	if (unlikely(f->type != (btv->radio_user
-		? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV))) {
-		err = -EINVAL;
-		goto err;
-	}
 	btv->freq = f->frequency;
 	bttv_call_all(btv, tuner, s_frequency, f);
 	if (btv->has_matchbox && btv->radio_user)
 		tea5757_set_freq(btv, btv->freq);
-err:
-
 	return 0;
 }
 
@@ -2983,8 +2969,6 @@ static int bttv_g_tuner(struct file *file, void *priv,
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
-	if (btv->tuner_type == TUNER_ABSENT)
-		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
 
@@ -3486,8 +3470,6 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
-	if (btv->tuner_type == TUNER_ABSENT)
-		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
 	strcpy(t->name, "Radio");
@@ -4131,7 +4113,7 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 
 
 /* ----------------------------------------------------------------------- */
-/* initialitation                                                          */
+/* initialization                                                          */
 
 static struct video_device *vdev_init(struct bttv *btv,
 				      const struct video_device *template,
@@ -4150,6 +4132,12 @@ static struct video_device *vdev_init(struct bttv *btv,
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
 		 type_name, bttv_tvcards[btv->c.type].name);
+	if (btv->tuner_type == TUNER_ABSENT) {
+		v4l2_disable_ioctl(vfd, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
+	}
 	return vfd;
 }
 
