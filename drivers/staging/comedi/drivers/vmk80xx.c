@@ -133,12 +133,11 @@ struct firmware_version {
 	unsigned char ic6_vers[32];	/* CPU */
 };
 
-static const struct comedi_lrange vmk8055_range = {
-	1, {UNI_RANGE(5)}
-};
-
 static const struct comedi_lrange vmk8061_range = {
-	2, {UNI_RANGE(5), UNI_RANGE(10)}
+	2, {
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 struct vmk80xx_board {
@@ -158,7 +157,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 	[DEVICE_VMK8055] = {
 		.name		= "K8055 (VM110)",
 		.model		= VMK8055_MODEL,
-		.range		= &vmk8055_range,
+		.range		= &range_unipolar5,
 		.ai_nchans	= 2,
 		.ai_maxdata	= 0x00ff,
 		.ao_nchans	= 2,
