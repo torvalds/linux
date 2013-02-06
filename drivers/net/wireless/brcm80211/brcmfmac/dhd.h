@@ -552,5 +552,6 @@ extern int brcmf_net_attach(struct brcmf_if *ifp);
 extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
 				     s32 bssidx, char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
+extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_H_ */

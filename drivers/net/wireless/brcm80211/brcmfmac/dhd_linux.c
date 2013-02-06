@@ -895,6 +895,16 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return !err;
 }
 
+/*
+ * return chip id and rev of the device encoded in u32.
+ */
+u32 brcmf_get_chip_info(struct brcmf_if *ifp)
+{
+	struct brcmf_bus *bus = ifp->drvr->bus_if;
+
+	return bus->chip << 4 | bus->chiprev;
+}
+
 static void brcmf_driver_init(struct work_struct *work)
 {
 	brcmf_debugfs_init();
