@@ -195,7 +195,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 	},
 };
 
-struct vmk80xx_usb {
+struct vmk80xx_private {
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	struct usb_endpoint_descriptor *ep_rx;
@@ -215,13 +215,13 @@ struct vmk80xx_usb {
 	int count;
 };
 
-static struct vmk80xx_usb vmb[VMK80XX_MAX_BOARDS];
+static struct vmk80xx_private vmb[VMK80XX_MAX_BOARDS];
 
 static DEFINE_MUTEX(glb_mutex);
 
 static void vmk80xx_tx_callback(struct urb *urb)
 {
-	struct vmk80xx_usb *dev = urb->context;
+	struct vmk80xx_private *dev = urb->context;
 	int stat = urb->status;
 
 	if (stat && !(stat == -ENOENT
@@ -239,7 +239,7 @@ static void vmk80xx_tx_callback(struct urb *urb)
 
 static void vmk80xx_rx_callback(struct urb *urb)
 {
-	struct vmk80xx_usb *dev = urb->context;
+	struct vmk80xx_private *dev = urb->context;
 	int stat = urb->status;
 
 	switch (stat) {
@@ -275,7 +275,7 @@ exit:
 	wake_up_interruptible(&dev->read_wait);
 }
 
-static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
+static int vmk80xx_check_data_link(struct vmk80xx_private *dev)
 {
 	unsigned int tx_pipe;
 	unsigned int rx_pipe;
@@ -298,7 +298,7 @@ static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 	return (int)rx[1];
 }
 
-static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
+static void vmk80xx_read_eeprom(struct vmk80xx_private *dev, int flag)
 {
 	unsigned int tx_pipe;
 	unsigned int rx_pipe;
@@ -326,7 +326,7 @@ static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
 		strncpy(dev->fw.ic6_vers, rx + 25, 24);
 }
 
-static int vmk80xx_reset_device(struct vmk80xx_usb *dev)
+static int vmk80xx_reset_device(struct vmk80xx_private *dev)
 {
 	struct urb *urb;
 	unsigned int tx_pipe;
@@ -361,7 +361,7 @@ static int vmk80xx_reset_device(struct vmk80xx_usb *dev)
 
 static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 {
-	struct vmk80xx_usb *dev = urb->context;
+	struct vmk80xx_private *dev = urb->context;
 	__u8 rx_addr;
 	__u8 tx_addr;
 	unsigned int pipe;
@@ -389,7 +389,7 @@ static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 	usb_fill_int_urb(urb, dev->udev, pipe, buf, size, callback, dev, ival);
 }
 
-static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
+static void vmk80xx_do_bulk_msg(struct vmk80xx_private *dev)
 {
 	__u8 tx_addr;
 	__u8 rx_addr;
@@ -419,7 +419,7 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 	clear_bit(TRANS_IN_BUSY, &dev->flags);
 }
 
-static int vmk80xx_read_packet(struct vmk80xx_usb *dev)
+static int vmk80xx_read_packet(struct vmk80xx_private *dev)
 {
 	const struct vmk80xx_board *boardinfo = dev->board;
 	struct urb *urb;
@@ -466,7 +466,7 @@ exit:
 	return retval;
 }
 
-static int vmk80xx_write_packet(struct vmk80xx_usb *dev, int cmd)
+static int vmk80xx_write_packet(struct vmk80xx_private *dev, int cmd)
 {
 	const struct vmk80xx_board *boardinfo = dev->board;
 	struct urb *urb;
@@ -517,7 +517,7 @@ exit:
 #define DIR_IN  1
 #define DIR_OUT 2
 
-static int rudimentary_check(struct vmk80xx_usb *dev, int dir)
+static int rudimentary_check(struct vmk80xx_private *dev, int dir)
 {
 	if (!dev)
 		return -EFAULT;
@@ -542,7 +542,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	int reg[2];
 	int n;
@@ -594,7 +594,7 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	int cmd;
 	int reg;
@@ -638,7 +638,7 @@ static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	int reg;
 	int n;
@@ -671,7 +671,7 @@ static int vmk80xx_di_bits(struct comedi_device *cdev,
 			   struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	unsigned char *rx_buf;
 	int reg;
 	int retval;
@@ -714,7 +714,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	unsigned char *rx_buf;
 	int reg;
@@ -760,7 +760,7 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	unsigned char *tx_buf;
 	int reg;
@@ -808,7 +808,7 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	int reg;
 	int n;
@@ -841,7 +841,7 @@ static int vmk80xx_do_bits(struct comedi_device *cdev,
 			   struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	unsigned char *rx_buf, *tx_buf;
 	int dir, reg, cmd;
 	int retval;
@@ -907,7 +907,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int chan;
 	int reg[2];
 	int n;
@@ -955,7 +955,7 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(cdev);
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	unsigned int insn_cmd;
 	int chan;
 	int cmd;
@@ -1001,7 +1001,7 @@ static int vmk80xx_cnt_winsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	unsigned long debtime;
 	unsigned long val;
 	int chan;
@@ -1048,7 +1048,7 @@ static int vmk80xx_pwm_rinsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	int reg[2];
 	int n;
 
@@ -1079,7 +1079,7 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *dev = cdev->private;
+	struct vmk80xx_private *dev = cdev->private;
 	unsigned char *tx_buf;
 	int reg[2];
 	int cmd;
@@ -1125,7 +1125,7 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 }
 
 static int vmk80xx_attach_common(struct comedi_device *cdev,
-				 struct vmk80xx_usb *dev)
+				 struct vmk80xx_private *dev)
 {
 	const struct vmk80xx_board *boardinfo;
 	int n_subd;
@@ -1249,7 +1249,7 @@ static int vmk80xx_auto_attach(struct comedi_device *cdev,
 
 static void vmk80xx_detach(struct comedi_device *dev)
 {
-	struct vmk80xx_usb *usb = dev->private;
+	struct vmk80xx_private *usb = dev->private;
 
 	if (!usb)
 		return;
@@ -1285,7 +1285,7 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 {
 	const struct vmk80xx_board *boardinfo;
 	int i;
-	struct vmk80xx_usb *dev;
+	struct vmk80xx_private *dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *ep_desc;
 	size_t size;
@@ -1303,7 +1303,7 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	dev = &vmb[i];
 
-	memset(dev, 0x00, sizeof(struct vmk80xx_usb));
+	memset(dev, 0x00, sizeof(*dev));
 	dev->count = i;
 
 	iface_desc = intf->cur_altsetting;
