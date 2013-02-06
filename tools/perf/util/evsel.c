@@ -1391,7 +1391,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 	bool first = true;
 	int printed = 0;
 
-	if (symbol_conf.event_group) {
+	if (details->event_group) {
 		struct perf_evsel *pos;
 
 		if (!perf_evsel__is_group_leader(evsel))

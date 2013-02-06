@@ -254,6 +254,7 @@ static inline bool perf_evsel__is_group_leader(const struct perf_evsel *evsel)
 struct perf_attr_details {
 	bool freq;
 	bool verbose;
+	bool event_group;
 };
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,
