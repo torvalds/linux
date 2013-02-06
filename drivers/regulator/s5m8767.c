@@ -536,9 +536,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
 	}
 
 	/* count the number of regulators to be supported in pmic */
-	pdata->num_regulators = 0;
-	for_each_child_of_node(regulators_np, reg_np)
-		pdata->num_regulators++;
+	pdata->num_regulators = of_get_child_count(regulators_np);
 
 	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
