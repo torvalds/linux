@@ -1,0 +1,52 @@
+CPU cooling api's How To
+===================================
+
+Written by Amit Daniel Kachhap <amit.kachhap at linaro.org>
+
+Updated: 13 Dec 2011
+
+Copyright (c)  2011 Samsung Electronics Co., Ltd(http://www.samsung.com)
+
+0. Introduction
+
+The generic cpu cooling(freq clipping, cpuhotplug) provides
+registration/unregistration api's to the user. The binding of the cooling
+devices to the trip types is left for the user. The registration api's returns
+the cooling device pointer.
+
+1. cpufreq cooling api's
+
+1.1 cpufreq registration api's
+1.1.1 struct thermal_cooling_device *cpufreq_cooling_register(
+	struct freq_pctg_table *tab_ptr, unsigned int tab_size,
+	const struct cpumask *mask_val)
+
+    This interface function registers the cpufreq cooling device with the name
+	"thermal-cpufreq".
+
+    tab_ptr: The table containing the percentage of frequency to be clipped for
+    each cooling state.
+	.freq_clip_pctg[NR_CPUS]:Percentage of frequency to be clipped for each
+	 cpu.
+	.polling_interval: polling interval for this cooling state.
+    tab_size: the total number of cooling state.
+    mask_val: all the allowed cpu's where frequency clipping can happen.
+
+1.1.2 void cpufreq_cooling_unregister(void)
+
+    This interface function unregisters the "thermal-cpufreq" cooling device.
+
+
+1.2 cpuhotplug registration api's
+
+1.2.1 struct thermal_cooling_device *cpuhotplug_cooling_register(
+	const struct cpumask *mask_val)
+
+    This interface function registers the cpuhotplug cooling device with the name
+	"thermal-cpuhotplug".
+
+    mask_val: all the allowed cpu's which can be hotplugged out.
+
+1.1.2 void cpuhotplug_cooling_unregister(void)
+
+    This interface function unregisters the "thermal-cpuhotplug" cooling device.

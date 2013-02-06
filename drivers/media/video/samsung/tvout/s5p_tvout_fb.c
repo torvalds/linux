@@ -38,6 +38,10 @@
 	_IOW('F', 214, struct s5ptvfb_user_plane_alpha)
 #define S5PTVFB_WIN_SET_CHROMA	\
 	_IOW('F', 215, struct s5ptvfb_user_chroma)
+#define S5PTVFB_WAITFORVSYNC \
+	_IO('F', 32)
+#define S5PTVFB_SET_VSYNC_INT \
+	_IOW('F', 216, u32)
 #define S5PTVFB_WIN_SET_ADDR	\
 	_IOW('F', 219, u32)
 #define S5PTVFB_SCALING	\
@@ -116,6 +120,13 @@ static struct s5ptvfb_lcd lcd = {
 		.inv_vden = 0,
 	},
 };
+
+static int s5p_tvout_fb_wait_for_vsync(void)
+{
+	sleep_on_timeout(&s5ptv_wq, HZ / 10);
+
+	return 0;
+}
 
 static inline unsigned int s5p_tvout_fb_chan_to_field(unsigned int chan,
 						struct fb_bitfield bf)
@@ -292,7 +303,7 @@ static int s5p_tvout_fb_blank(int blank_mode, struct fb_info *fb)
 
 	tvout_dbg("change blank mode\n");
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_lock();
 #endif
 	switch (fb->node) {
@@ -325,12 +336,12 @@ static int s5p_tvout_fb_blank(int blank_mode, struct fb_info *fb)
 		goto err_fb_blank;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_unlock();
 #endif
 	return 1;
 err_fb_blank:
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_unlock();
 #endif
 	return -1;
@@ -345,7 +356,7 @@ static int s5p_tvout_fb_set_par(struct fb_info *fb)
 
 	tvout_dbg("[fb%d] set_par\n", win->id);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_lock();
 #endif
 	if (!fb->fix.smem_start) {
@@ -379,7 +390,7 @@ static int s5p_tvout_fb_set_par(struct fb_info *fb)
 	s5p_mixer_ctrl_set_src_win_pos(layer, src_x, src_y, w, h);
 	s5p_mixer_ctrl_set_alpha_blending(layer, win->alpha.mode,
 				win->alpha.value);
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_unlock();
 #endif
 	return 0;
@@ -461,7 +472,7 @@ static int s5p_tvout_fb_ioctl(struct fb_info *fb, unsigned int cmd,
 	} p;
 
 	tvout_dbg("\n");
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_lock();
 #endif
 	switch (fb->node) {
@@ -514,7 +525,12 @@ static int s5p_tvout_fb_ioctl(struct fb_info *fb, unsigned int cmd,
 			s5p_mixer_ctrl_set_chroma_key(layer, win->chroma);
 		}
 		break;
-
+	case S5PTVFB_SET_VSYNC_INT:
+		s5p_mixer_ctrl_set_vsync_interrupt((int)argp);
+		break;
+	case S5PTVFB_WAITFORVSYNC:
+		s5p_tvout_fb_wait_for_vsync();
+		break;
 	case S5PTVFB_WIN_SET_ADDR:
 #if defined(CONFIG_S5P_SYSMMU_TV) && defined(CONFIG_UMP_VCM_ALLOC)
 		fb->fix.smem_start = ump_dd_dev_virtual_get_from_secure_id(
@@ -536,13 +552,13 @@ static int s5p_tvout_fb_ioctl(struct fb_info *fb, unsigned int cmd,
 			s5p_mixer_ctrl_scaling(layer, p.user_scaling);
 		break;
 	}
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_unlock();
 #endif
 
 	return 0;
 err_fb_ioctl:
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CLOCK_GATING_ON_EARLY_SUSPEND)
 	s5p_tvout_mutex_unlock();
 #endif
 	return -1;

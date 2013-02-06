@@ -24,6 +24,10 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+#if defined(CONFIG_MACH_Q1_BD)
+#include <mach/sec_debug.h>
+#endif
+
 #include "fault.h"
 
 /*
@@ -162,6 +166,29 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	do_exit(SIGKILL);
 }
 
+#if defined(CONFIG_MACH_Q1_BD)
+/*
+ * This function can be used while current pointer is invalid.
+ */
+static void
+__do_kernel_fault_safe(struct mm_struct *mm, unsigned long addr,
+		unsigned int fsr, struct pt_regs *regs)
+{
+	static char buf[64] = "__do_kernel_fault_safe";
+
+	printk(KERN_ALERT
+		"Unable to handle kernel %s at virtual address %08lx\n",
+		(addr < PAGE_SIZE) ? "NULL pointer dereference" :
+		"paging request", addr);
+
+	printk(KERN_ALERT "current is %p\n", current);
+
+	__show_regs(regs);
+
+	sec_debug_panic_handler_safe(buf);
+}
+#endif
+
 /*
  * Something tried to access memory that isn't in our memory map..
  * User mode accesses just cause a SIGSEGV
@@ -285,7 +312,17 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		return 0;
 
 	tsk = current;
-	mm  = tsk->mm;
+#if defined(CONFIG_MACH_Q1_BD)
+	/*
+	 * If current pointer is NULL, infinite abort can occur.
+	 * It make us get correct debug information in the situation.
+	 */
+	if (!tsk) {
+		__do_kernel_fault_safe(NULL, addr, fsr, regs);
+		return 0;
+	}
+#endif
+	mm = tsk->mm;
 
 	/*
 	 * If we're in an interrupt or have no user

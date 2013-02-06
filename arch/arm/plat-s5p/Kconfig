@@ -45,8 +45,9 @@ config S5P_HRT
 
 config S5P_SYSTEM_MMU
 	bool "System MMU for Exynos families"
-	depends on ARCH_EXYNOS
-	select IOMMU_API
+	depends on ARCH_EXYNOS4
+	select IOMMU_EXYNOS4_API
+	select IOVMM
 	help
 	  Say Y here if you want to enable System MMU
 
@@ -73,7 +74,11 @@ config S5P_SYSTEM_MMU_WA5250ERR
 
 	  If unsure, n here.
 
-config IOMMU_API
+config IOVMM
+	bool
+	select GENERIC_ALLOCATOR
+
+config IOMMU_EXYNOS4_API
 	bool
 
 config S3C_DEV_FIMC
@@ -144,7 +149,7 @@ config S5P_DEV_DP
 	  Compile in platform device definitions for DP controller
 
 config S5P_DEV_TVOUT
-	bool
+	bool "enable S5P_DEV_TVOUT"
 	depends on VIDEO_TVOUT
 	default y
 	help
@@ -215,7 +220,7 @@ config S5P_DEV_USB_SWITCH
 
 config S5P_SETUP_MIPIPHY
 	bool
-	depends on (VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS_MIPI_CSIS)
+	depends on (VIDEO_S5P_MIPI_CSIS || S5P_MIPI_DSI2 || VIDEO_EXYNOS_MIPI_CSIS)
 	default y
 	help
 	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
@@ -225,6 +230,11 @@ config S5P_MEM_CMA
 	select CMA
 	help
 	  Use CMA(Contiguous memory allocator) to reserve machine specific memory.
+
+config S5P_DEV_THERMAL
+	bool
+	help
+	  Compile in platform device definitions for THERMAL management unit.
 
 config S5P_DEV_ACE
 	bool
@@ -238,6 +248,22 @@ config S5P_DEV_MIPI_DSI
 	help
 	  Compile in platform device definitions for MIPI_DSI
 
+config S5P_DEV_DSIM02
+	bool
+	help
+	  Compile in platform device definitions for MIPI-DSIM channel 0
+
+config S5P_DEV_DSIM12
+	bool
+	help
+	  Compile in platform device definitions for MIPI-DSIM channel 1
+
+config S5P_BTS
+	bool "S5P BTS driver"
+	default n
+	help
+	  Use Bus Traffic Shaper Driver
+
 config S5P_DEV_MIPI_DSIM
 	bool
 	depends on FB_MIPI_DSIM
@@ -245,3 +271,9 @@ config S5P_DEV_MIPI_DSIM
 	help
 	  Compile in platform device definitions for MIPI_DSIM
 	  to support mainlile style fimd
+
+config S3C_DEV_TSI
+	boolean "DEV TSI"
+        default n
+	---help---
+	  Compile in platform device definitions for S3C_DEV_TSI controller

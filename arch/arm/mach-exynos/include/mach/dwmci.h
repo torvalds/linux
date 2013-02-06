@@ -15,6 +15,6 @@
 
 #include <linux/mmc/dw_mmc.h>
 
-extern void exynos_dwmci_set_platdata(struct dw_mci_board *pd);
+extern void exynos_dwmci_set_platdata(struct dw_mci_board *pd, u32 slot_id);
 
 #endif /* __ASM_ARM_ARCH_DWMCI_H */

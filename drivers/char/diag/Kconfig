@@ -1,0 +1,42 @@
+menu "Diag Support"
+
+config DIAG_CHAR
+	tristate "char driver interface and diag forwarding to/from modem"
+	default n
+#	depends on USB_G_ANDROID || USB_FUNCTION_DIAG || USB_QCOM_MAEMO
+#	depends on ARCH_MSM
+	help
+	 Char driver interface for diag user space and diag-forwarding to modem ARM and back.
+	 This enables diagchar for maemo usb gadget or android usb gadget based on config selected.
+endmenu
+
+menu "DIAG traffic over USB"
+
+config DIAG_OVER_USB
+	bool "Enable DIAG traffic to go over USB"
+#	depends on ARCH_MSM
+	depends on USB_QCOM_DIAG_BRIDGE
+	default y
+	help
+	 This feature helps segregate code required for DIAG traffic to go over USB.
+endmenu
+
+menu "SDIO support for DIAG"
+
+config DIAG_SDIO_PIPE
+	depends on MSM_SDIO_AL
+	default y
+	bool "Enable 9K DIAG traffic over SDIO"
+	help
+	 SDIO Transport Layer for DIAG Router
+endmenu
+
+menu "HSIC support for DIAG"
+
+config DIAG_HSIC_PIPE
+	depends on USB_QCOM_DIAG_BRIDGE
+	default y
+	bool "Enable 9K DIAG traffic over HSIC"
+	help
+	 HSIC Transport Layer for DIAG Router
+endmenu

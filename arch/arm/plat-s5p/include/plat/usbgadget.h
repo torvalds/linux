@@ -14,6 +14,14 @@
 struct s5p_usbgadget_platdata {
 	int (*phy_init)(struct platform_device *pdev, int type);
 	int (*phy_exit)(struct platform_device *pdev, int type);
+
+#ifdef CONFIG_USB_S3C_OTG_HOST
+	irqreturn_t (*udc_irq)(int irq, void *_dev);
+#endif
+	/* Value of USB PHY tune register */
+	unsigned int		phy_tune;
+	/* Mask of USB PHY tune register */
+	unsigned int		phy_tune_mask;
 };
 
 extern void s5p_usbgadget_set_platdata(struct s5p_usbgadget_platdata *pd);

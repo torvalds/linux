@@ -129,6 +129,7 @@ static struct irq_chip s5p_irq_eint = {
 	.irq_mask	= s5p_irq_eint_mask,
 	.irq_unmask	= s5p_irq_eint_unmask,
 	.irq_mask_ack	= s5p_irq_eint_maskack,
+	.irq_disable	= s5p_irq_eint_maskack,
 	.irq_ack	= s5p_irq_eint_ack,
 	.irq_set_type	= s5p_irq_eint_set_type,
 #ifdef CONFIG_PM
@@ -144,11 +145,12 @@ static struct irq_chip s5p_irq_eint = {
  *
  * Each EINT pend/mask registers handle eight of them.
  */
-static inline void s5p_irq_demux_eint(unsigned int start)
+static inline u32 s5p_irq_demux_eint(unsigned int start)
 {
 	u32 status = __raw_readl(S5P_EINT_PEND(EINT_REG_NR(start)));
 	u32 mask = __raw_readl(S5P_EINT_MASK(EINT_REG_NR(start)));
 	unsigned int irq;
+	u32 action = 0;
 
 	status &= ~mask;
 	status &= 0xff;
@@ -157,13 +159,21 @@ static inline void s5p_irq_demux_eint(unsigned int start)
 		irq = fls(status) - 1;
 		generic_handle_irq(irq + start);
 		status &= ~(1 << irq);
+		++action;
 	}
+
+	return action;
 }
 
 static void s5p_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 {
-	s5p_irq_demux_eint(IRQ_EINT(16));
-	s5p_irq_demux_eint(IRQ_EINT(24));
+	u32 a16_23, a24_31;
+
+	a16_23 = s5p_irq_demux_eint(IRQ_EINT(16));
+	a24_31 = s5p_irq_demux_eint(IRQ_EINT(24));
+
+	if (!a16_23 && !a24_31)
+		do_bad_IRQ(irq, desc);
 }
 
 static inline void s5p_irq_vic_eint_mask(struct irq_data *data)

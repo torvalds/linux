@@ -19,4 +19,7 @@ struct s3c_dma_params {
 	int dma_size;			/* Size of the DMA transfer */
 };
 
+#ifdef CONFIG_SND_SOC_SAMSUNG_USE_DMA_WRAPPER
+extern struct snd_soc_platform_driver samsung_asoc_platform;
+#endif
 #endif

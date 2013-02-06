@@ -147,6 +147,8 @@ static struct s5p_vp_ctrl_private_data s5p_vp_ctrl_private = {
 	.running			= false
 };
 
+extern int s5p_vp_get_top_field_address(u32* top_y_addr, u32* top_c_addr);
+
 static u8 s5p_vp_ctrl_get_src_scan_mode(void)
 {
 	struct s5p_vp_ctrl_plane *src_plane = &s5p_vp_ctrl_private.src_plane;
@@ -216,6 +218,18 @@ static void s5p_vp_ctrl_set_src_dst_win(
 		src_win.w, src_win.h, dst_win.w, dst_win.h, ipc);
 }
 
+int s5p_vp_ctrl_get_src_addr(u32* top_y_addr, u32* top_c_addr)
+{
+	if (s5p_vp_ctrl_private.running)
+		s5p_vp_get_top_field_address(top_y_addr, top_c_addr);
+	else {
+		*top_y_addr = 0;
+		*top_c_addr = 0;
+	}
+
+	return 0;
+}
+
 static int s5p_vp_ctrl_set_src_addr(
 		u32 top_y_addr, u32 top_c_addr,
 		u32 img_w, enum s5p_vp_src_color color_t)
@@ -265,7 +279,7 @@ static int s5p_vp_ctrl_set_reg(void)
 	struct s5p_vp_ctrl_pp_param *pp_param = &s5p_vp_ctrl_private.pp_param;
 	struct s5p_vp_ctrl_op_mode *op_mode = &s5p_vp_ctrl_private.op_mode;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 	} else
@@ -348,7 +362,7 @@ static int s5p_vp_ctrl_set_reg(void)
 
 static void s5p_vp_ctrl_internal_stop(void)
 {
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 	} else
@@ -365,12 +379,16 @@ static void s5p_vp_ctrl_clock(bool on)
 		s5p_tvout_pm_runtime_get();
 #endif
 		clk_enable(s5p_vp_ctrl_private.clk.ptr);
+		// Restore vp_base address
+		s5p_vp_init(s5p_vp_ctrl_private.reg_mem.base);
 
 	} else {
 		clk_disable(s5p_vp_ctrl_private.clk.ptr);
 #ifdef CONFIG_ARCH_EXYNOS4
 		s5p_tvout_pm_runtime_put();
 #endif
+		// Set vp_base to NULL
+		s5p_vp_init(NULL);
 	}
 }
 
@@ -391,7 +409,7 @@ void s5p_vp_ctrl_set_src_plane(
 	src_plane->w		= width;
 	src_plane->h		= height;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -416,7 +434,7 @@ void s5p_vp_ctrl_set_src_win(u32 left, u32 top, u32 width, u32 height)
 	src_win->w = width;
 	src_win->h = height;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -448,7 +466,7 @@ void s5p_vp_ctrl_set_dest_win(u32 left, u32 top, u32 width, u32 height)
 	dst_win->y = top;
 	dst_win->w = width;
 	dst_win->h = height;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -475,7 +493,7 @@ void s5p_vp_ctrl_set_dest_win(u32 left, u32 top, u32 width, u32 height)
 void s5p_vp_ctrl_set_dest_win_alpha_val(u32 alpha)
 {
 	s5p_vp_ctrl_private.mixer_param.alpha = alpha;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -487,7 +505,7 @@ void s5p_vp_ctrl_set_dest_win_alpha_val(u32 alpha)
 void s5p_vp_ctrl_set_dest_win_blend(bool enable)
 {
 	s5p_vp_ctrl_private.mixer_param.blend = enable;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -500,7 +518,7 @@ void s5p_vp_ctrl_set_dest_win_blend(bool enable)
 void s5p_vp_ctrl_set_dest_win_priority(u32 prio)
 {
 	s5p_vp_ctrl_private.mixer_param.prio = prio;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 	if (suspend_status) {
 		tvout_dbg("driver is suspend_status\n");
 		return;
@@ -513,18 +531,18 @@ void s5p_vp_ctrl_stop(void)
 {
 	if (s5p_vp_ctrl_private.running) {
 		s5p_vp_ctrl_internal_stop();
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	if (suspend_status) {
-		tvout_dbg("driver is suspend_status\n");
-	} else
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
+		if (suspend_status) {
+			tvout_dbg("driver is suspend_status\n");
+		} else
 #endif
-	{
-		s5p_vp_ctrl_clock(0);
-	}
+		{
+			s5p_vp_ctrl_clock(0);
+		}
 
 		s5p_vp_ctrl_private.running = false;
-#if defined(CONFIG_BUSFREQ)
-	exynos4_busfreq_lock_free(DVFS_LOCK_ID_TV);
+#if defined(CONFIG_BUSFREQ) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+		exynos4_busfreq_lock_free(DVFS_LOCK_ID_TV);
 #endif
 	}
 }
@@ -629,13 +647,13 @@ int s5p_vp_ctrl_start(void)
 	if (s5p_vp_ctrl_private.running)
 		s5p_vp_ctrl_internal_stop();
 	else {
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 		if (suspend_status) {
 			tvout_dbg("driver is suspend_status\n");
 		} else
 #endif
 		{
-#if defined(CONFIG_BUSFREQ)
+#if defined(CONFIG_BUSFREQ) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
 			if ((disp == TVOUT_1080P_60) || (disp == TVOUT_1080P_59)
 					|| (disp == TVOUT_1080P_50)) {
 				if (exynos4_busfreq_lock(DVFS_LOCK_ID_TV, BUS_L0))

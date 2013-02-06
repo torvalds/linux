@@ -111,6 +111,17 @@ static void exynos4_mct_write(unsigned int value, void *addr)
 			return;
 		}
 
+	/* Workaround: Try again if fail */
+	__raw_writel(value, addr);
+
+	printk(KERN_ERR "[%s]value=%d addr=0x%X\n", __func__, value, (u32)addr);
+
+	for (i = 0; i < loops_per_jiffy / 1000 * HZ; i++)
+		if (__raw_readl(stat_addr) & mask) {
+			__raw_writel(mask, stat_addr);
+			return;
+		}
+
 	panic("MCT hangs after writing %d (addr:0x%08x)\n", value, (u32)addr);
 }
 
@@ -462,7 +473,8 @@ static void __init exynos4_timer_resources(void)
 
 static void __init exynos4_timer_init(void)
 {
-	if (soc_is_exynos4210())
+	if (soc_is_exynos4210() ||
+	    (soc_is_exynos5250() && samsung_rev() >= EXYNOS5250_REV_1_0))
 		mct_int_type = MCT_INT_SPI;
 	else
 		mct_int_type = MCT_INT_PPI;

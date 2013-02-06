@@ -75,8 +75,7 @@ static inline int __down_write_trylock(struct rw_semaphore *sem)
 	int tmp;
 
 	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
-			RWSEM_ACTIVE_WRITE_BIAS);
-
+		      RWSEM_ACTIVE_WRITE_BIAS);
 	return tmp == RWSEM_UNLOCKED_VALUE;
 }
 
@@ -98,7 +97,7 @@ static inline void __up_read(struct rw_semaphore *sem)
 static inline void __up_write(struct rw_semaphore *sem)
 {
 	if (atomic_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
-					(atomic_t *)(&sem->count)) < 0)
+			      (atomic_t *)(&sem->count)) < 0)
 		rwsem_wake(sem);
 }
 

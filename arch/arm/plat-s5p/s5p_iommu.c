@@ -22,7 +22,7 @@
 
 #include <asm/cacheflush.h>
 
-#include <plat/sysmmu.h>
+#include <plat/s5p-sysmmu.h>
 
 #ifdef CONFIG_S5P_SYSTEM_MMU_DEBUG
 #define DEBUG /* for dev_dbg() */
@@ -76,7 +76,7 @@
 struct s5p_iommu_domain {
 	struct device *dev;
 	unsigned long *pgtable;
-	spinlock_t lock;
+	struct mutex lock;
 };
 
 /* slab cache for level 2 page tables */
@@ -107,7 +107,7 @@ static int s5p_iommu_domain_init(struct iommu_domain *domain)
 	memset(priv->pgtable, 0, S5P_LV1TABLE_ENTRIES * sizeof(unsigned long));
 	pgtable_flush(priv->pgtable, priv->pgtable + S5P_LV1TABLE_ENTRIES);
 
-	spin_lock_init(&priv->lock);
+	mutex_init(&priv->lock);
 
 	domain->priv = priv;
 	pr_debug("%s: Allocated IOMMU domain %p with pgtable @ %#lx\n",
@@ -124,11 +124,60 @@ static void s5p_iommu_domain_destroy(struct iommu_domain *domain)
 	domain->priv = NULL;
 }
 
+#ifdef CONFIG_DRM_EXYNOS_IOMMU
 static int s5p_iommu_attach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	int ret;
-	unsigned long flags;
+	struct s5p_iommu_domain *s5p_domain = domain->priv;
+	struct sysmmu_drvdata *data = NULL;
+
+	mutex_lock(&s5p_domain->lock);
+
+	/*
+	 * get sysmmu_drvdata to dev.
+	 * owner device was set to sysmmu->platform_data at machine code.
+	 */
+	data = get_sysmmu_data(dev, data);
+	if (!data)
+		return -EFAULT;
+
+	mutex_unlock(&s5p_domain->lock);
+
+	ret = s5p_sysmmu_enable(dev, virt_to_phys(s5p_domain->pgtable));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void s5p_iommu_detach_device(struct iommu_domain *domain,
+				    struct device *dev)
+{
+	struct sysmmu_drvdata *data = NULL;
+	struct s5p_iommu_domain *s5p_domain = domain->priv;
+
+	mutex_lock(&s5p_domain->lock);
+
+	/*
+	 * get sysmmu_drvdata to dev.
+	 * owner device was set to sysmmu->platform_data at machine code.
+	 */
+	data = get_sysmmu_data(dev, data);
+	if (!data) {
+		dev_err(dev, "failed to detach device.\n");
+		return;
+	}
+
+	s5p_sysmmu_disable(dev);
+
+	mutex_unlock(&s5p_domain->lock);
+}
+#else
+static int s5p_iommu_attach_device(struct iommu_domain *domain,
+				   struct device *dev)
+{
+	int ret;
 	struct s5p_iommu_domain *s5p_domain = domain->priv;
 
 	if (s5p_domain->dev) {
@@ -142,9 +191,9 @@ static int s5p_iommu_attach_device(struct iommu_domain *domain,
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&s5p_domain->lock, flags);
+	mutex_lock(&s5p_domain->lock);
 	s5p_domain->dev = dev;
-	spin_unlock_irqrestore(&s5p_domain->lock, flags);
+	mutex_unlock(&s5p_domain->lock);
 
 	return 0;
 }
@@ -153,12 +202,11 @@ static void s5p_iommu_detach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
 	struct s5p_iommu_domain *s5p_domain = domain->priv;
-	unsigned long flags;
 
-	spin_lock_irqsave(&s5p_domain->lock, flags);
+	mutex_lock(&s5p_domain->lock);
 
 	if (s5p_domain->dev == dev) {
-		spin_unlock_irqrestore(&s5p_domain->lock, flags);
+		mutex_unlock(&s5p_domain->lock);
 
 		s5p_sysmmu_disable(s5p_domain->dev);
 
@@ -166,10 +214,11 @@ static void s5p_iommu_detach_device(struct iommu_domain *domain,
 	} else {
 		pr_debug("%s: %s is not attached to domain of pgtable @ %#lx\n",
 			__func__, dev_name(dev), __pa(s5p_domain->pgtable));
-		spin_unlock_irqrestore(&s5p_domain->lock, flags);
+		mutex_unlock(&s5p_domain->lock);
 	}
 
 }
+#endif
 
 static bool section_available(struct iommu_domain *domain,
 			      unsigned long *lv1entry)
@@ -239,13 +288,12 @@ static int s5p_iommu_map(struct iommu_domain *domain, unsigned long iova,
 {
 	struct s5p_iommu_domain *s5p_domain = domain->priv;
 	unsigned long *start_entry, *entry, *end_entry;
-	unsigned long flags;
 	int num_entry;
 	int ret = 0;
 
 	BUG_ON(s5p_domain->pgtable== NULL);
 
-	spin_lock_irqsave(&s5p_domain->lock, flags);
+	mutex_lock(&s5p_domain->lock);
 
 	start_entry = entry = s5p_domain->pgtable + (iova >> S5P_SECTION_SHIFT);
 
@@ -282,7 +330,7 @@ static int s5p_iommu_map(struct iommu_domain *domain, unsigned long iova,
 			goto nomem_error;
 		}
 
-		pgtable_flush(entry, entry + S5P_LV2TABLE_ENTRIES);
+		pgtable_flush(l2table, l2table + S5P_LV2TABLE_ENTRIES);
 
 		MAKE_LV2TABLE_ENTRY(*entry, virt_to_phys(l2table));
 		pgtable_flush(entry, entry + 1);
@@ -330,6 +378,7 @@ static int s5p_iommu_map(struct iommu_domain *domain, unsigned long iova,
 			pr_err("%s: Failed to allocate small page entry"
 					" for IOVA %#lx.\n", __func__, iova);
 			ret = -EADDRINUSE;
+
 			goto mapping_error;
 		}
 	}
@@ -346,22 +395,24 @@ mapping_error:
 
 nomem_error:
 mapping_done:
-	spin_unlock_irqrestore(&s5p_domain->lock, flags);
+	mutex_unlock(&s5p_domain->lock);
 
 	return ret;
 }
 
+#ifdef CONFIG_DRM_EXYNOS_IOMMU
 static int s5p_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 			   int gfp_order)
 {
 	struct s5p_iommu_domain *s5p_domain = domain->priv;
+	struct sysmmu_drvdata *data;
+	struct list_head *sysmmu_list, *pos;
 	unsigned long *entry;
 	int num_entry;
-	unsigned long flags;
 
 	BUG_ON(s5p_domain->pgtable == NULL);
 
-	spin_lock_irqsave(&s5p_domain->lock, flags);
+	mutex_lock(&s5p_domain->lock);
 
 	entry = s5p_domain->pgtable + (iova >> S5P_SECTION_SHIFT);
 
@@ -396,13 +447,97 @@ static int s5p_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 		}
 	}
 
-	spin_unlock_irqrestore(&s5p_domain->lock, flags);
+	sysmmu_list = get_sysmmu_list();
+
+	/*
+	 * invalidate tlb entries to iova(device address) to each iommu
+	 * registered in sysmmu_list.
+	 *
+	 * P.S. a device using iommu was set to data->owner at machine code
+	 * and enabled iommu was added in sysmmu_list at sysmmu probe
+	 */
+	list_for_each(pos, sysmmu_list) {
+		unsigned int page_size, count;
+
+		/*
+		 * get entry count and page size to device address space
+		 * mapped with iommu page table and invalidate each entry.
+		 */
+		if (gfp_order >= S5P_SECTION_ORDER) {
+			count = 1 << (gfp_order - S5P_SECTION_ORDER);
+			page_size = S5P_SECTION_SIZE;
+		} else if (gfp_order >= S5P_LPAGE_ORDER) {
+			count = 1 << (gfp_order - S5P_LPAGE_ORDER);
+			page_size = S5P_LPAGE_SIZE;
+		} else {
+			count = 1 << (gfp_order - S5P_SPAGE_ORDER);
+			page_size = S5P_SPAGE_SIZE;
+		}
+
+		data = list_entry(pos, struct sysmmu_drvdata, node);
+		if (data)
+			s5p_sysmmu_tlb_invalidate_entry(data->owner, iova,
+							count, page_size);
+	}
+
+	mutex_unlock(&s5p_domain->lock);
+
+	return 0;
+}
+#else
+
+static int s5p_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+			   int gfp_order)
+{
+	struct s5p_iommu_domain *s5p_domain = domain->priv;
+	unsigned long *entry;
+	int num_entry;
+
+	BUG_ON(s5p_domain->pgtable == NULL);
+
+	mutex_lock(&s5p_domain->lock);
+
+	entry = s5p_domain->pgtable + (iova >> S5P_SECTION_SHIFT);
+
+	if (gfp_order >= S5P_SECTION_ORDER) {
+		num_entry = 1 << (gfp_order - S5P_SECTION_ORDER);
+		while (num_entry--) {
+			if (S5P_SECTION_LV1_ENTRY(*entry)) {
+				MAKE_FAULT_ENTRY(*entry);
+			} else if (S5P_PAGE_LV1_ENTRY(*entry)) {
+				unsigned long *lv2beg, *lv2end;
+				lv2beg = phys_to_virt(
+						*entry & S5P_LV2TABLE_MASK);
+				lv2end = lv2beg + S5P_LV2TABLE_ENTRIES;
+				while (lv2beg != lv2end) {
+					MAKE_FAULT_ENTRY(*lv2beg);
+					lv2beg++;
+				}
+			}
+			entry++;
+		}
+	} else {
+		entry = GET_LV2ENTRY(*entry, iova);
+
+		BUG_ON(S5P_LPAGE_LV2_ENTRY(*entry) &&
+						(gfp_order < S5P_LPAGE_ORDER));
+
+		num_entry = 1 << gfp_order;
+
+		while (num_entry--) {
+			MAKE_FAULT_ENTRY(*entry);
+			entry++;
+		}
+	}
+
+	mutex_unlock(&s5p_domain->lock);
 
 	if (s5p_domain->dev)
 		s5p_sysmmu_tlb_invalidate(s5p_domain->dev);
 
 	return 0;
 }
+#endif
 
 static phys_addr_t s5p_iommu_iova_to_phys(struct iommu_domain *domain,
 					  unsigned long iova)
@@ -451,7 +586,7 @@ static struct iommu_ops s5p_iommu_ops = {
 
 static int __init s5p_iommu_init(void)
 {
-	l2table_cachep = kmem_cache_create("SysMMU_Lv2_Tables",
+	l2table_cachep = kmem_cache_create("SysMMU Lv2 Tables",
 				S5P_LV2TABLE_SIZE, S5P_LV2TABLE_SIZE, 0, NULL);
 	if (!l2table_cachep)
 		return -ENOMEM;

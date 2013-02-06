@@ -15,6 +15,17 @@ config PLAT_SAMSUNG
 
 if PLAT_SAMSUNG
 
+# vmalloc area and io map configurations
+
+comment "Base Address for SFR mapping"
+
+config S3C_ADDR_BASE
+	hex "S3C Base Address for SFR mapping"
+	default 0xF6000000
+	help
+	  This value will be base address for S3C SFR mapping and
+	  VMALLC_END should be less or euqal to this value.
+
 # boot configurations
 
 comment "Boot options"

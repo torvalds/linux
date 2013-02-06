@@ -1,0 +1,21 @@
+#
+# BARCODE_EMUL
+#
+menuconfig BARCODE_EMUL
+	bool "Barcode emulator driver only for the barcode emulation"
+	help
+	  This option doesn't affect the kernel.
+
+	  If unsure, say N.
+
+choice
+	prompt "Control type"
+	depends on BARCODE_EMUL
+	default BARCODE_EMUL_ICE4
+
+config BARCODE_EMUL_ICE4
+	bool "ICE4 barcode emulator"
+
+endchoice
+
+

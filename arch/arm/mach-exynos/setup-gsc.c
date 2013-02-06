@@ -15,9 +15,28 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <plat/clock.h>
+#include <plat/devs.h>
 #include <mach/regs-clock.h>
 #include <mach/map.h>
 #include <media/exynos_gscaler.h>
+
+void __init exynos5_gsc_set_pdev_name(int id, char *name)
+{
+	switch (id) {
+	case 0:
+		exynos5_device_gsc0.name = name;
+		break;
+	case 1:
+		exynos5_device_gsc1.name = name;
+		break;
+	case 2:
+		exynos5_device_gsc2.name = name;
+		break;
+	case 3:
+		exynos5_device_gsc3.name = name;
+		break;
+	}
+}
 
 int __init exynos5_gsc_set_parent_clock(const char *child, const char *parent)
 {

@@ -184,8 +184,8 @@ trip_point_[0-*]_temp
 
 trip_point_[0-*]_type
 	Strings which indicate the type of the trip point.
-	E.g. it can be one of critical, hot, passive, active[0-*] for ACPI
-	thermal zone.
+	E.g. it can be one of critical, hot, passive, active[0-1],
+	state-active[0-*] for ACPI thermal zone.
 	RO, Optional
 
 cdev[0-*]

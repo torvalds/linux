@@ -22,6 +22,7 @@
 #define S5P_MXR_INT_STATUS			(0x000C)
 #define S5P_MXR_LAYER_CFG			(0x0010)
 #define S5P_MXR_VIDEO_CFG			(0x0014)
+#define S5P_MXR_VIDEO_LIMITER_PARA_CFG		(0x0018)
 #define S5P_MXR_GRAPHIC0_CFG			(0x0020)
 #define S5P_MXR_GRAPHIC0_BASE			(0x0024)
 #define S5P_MXR_GRAPHIC0_SPAN			(0x0028)
@@ -49,6 +50,7 @@
 #define S5P_MXR_CFG_S				(0x2004)
 #define S5P_MXR_LAYER_CFG_S			(0x2010)
 #define S5P_MXR_VIDEO_CFG_S			(0x2014)
+#define S5P_MXR_VIDEO_LIMITER_PARA_CFG_S	(0x2018)
 #define S5P_MXR_GRAPHIC0_CFG_S			(0x2020)
 #define S5P_MXR_GRAPHIC0_BASE_S			(0x2024)
 #define S5P_MXR_GRAPHIC0_SPAN_S			(0x2028)
@@ -100,6 +102,7 @@
 #define S5P_MXR_CFG_PAL				(1 << 1)
 #define S5P_MXR_CFG_SD				(0 << 0)
 #define S5P_MXR_CFG_HD				(1 << 0)
+#define S5P_MXR_CFG_RGB_FORMAT_MASK		(0xFF << 9)
 
 /* MIXER_INT_EN */
 #define S5P_MXR_INT_EN_VSYNC_ENABLE		(1 << 11)
@@ -135,6 +138,8 @@
 #define S5P_MXR_LAYER_CFG_VID_PRIORITY_INFO(x)	((x) & (0xF << 0))
 
 /* MIXER_VIDEO_CFG */
+#define S5P_MXR_VIDEO_CFG_LIMITER_DIS		(0 << 17)
+#define S5P_MXR_VIDEO_CFG_LIMITER_EN		(1 << 17)
 #define S5P_MXR_VIDEO_CFG_BLEND_DIS		(0 << 16)
 #define S5P_MXR_VIDEO_CFG_BLEND_EN		(1 << 16)
 #define S5P_MXR_VIDEO_CFG_ALPHA_MASK		(0xFF)
@@ -142,6 +147,10 @@
 #define S5P_MXR_VIDEO_CFG_ALPHA_VALUE_CLR(x)	((x) & (~(0xFF << 0)))
 
 /* MIXER_VIDEO_LIMITER_PARA_CFG */
+#define S5P_MXR_VIDEO_LIMITER_PARA_Y_UPPER(x)   (((x) & 0xFF) << 24)
+#define S5P_MXR_VIDEO_LIMITER_PARA_Y_LOWER(x)   (((x) & 0xFF) << 16)
+#define S5P_MXR_VIDEO_LIMITER_PARA_C_UPPER(x)   (((x) & 0xFF) << 8)
+#define S5P_MXR_VIDEO_LIMITER_PARA_C_LOWER(x)   (((x) & 0xFF) << 0)
 
 /* MIXER_GRAPHIC0_CFG */
 /* MIXER_GRAPHIC1_CFG */

@@ -198,4 +198,48 @@ enum exynos4212_gpio_number {
 #define EXYNOS4XXX_GPIO_END	(EXYNOS4212_GPIO_END > EXYNOS4210_GPIO_END ? \
 				 EXYNOS4212_GPIO_END : EXYNOS4210_GPIO_END)
 #define EXYNOS4_GPIO_END	EXYNOS4XXX_GPIO_END
+
+/* define the number of gpios we need to the one after the GPZ() range */
+#define ARCH_NR_GPIOS		(EXYNOS4XXX_GPIO_END +			\
+				CONFIG_SAMSUNG_GPIO_EXTRA)
+
+#include <asm-generic/gpio.h>
+#if defined(CONFIG_MACH_MIDAS) || defined(CONFIG_MACH_SLP_MIDAS) \
+				|| defined(CONFIG_MACH_SLP_PQ) \
+				|| defined(CONFIG_MACH_SLP_PQ_LTE)\
+				|| defined(CONFIG_MACH_SLP_T0_LTE)
+#include "gpio-midas.h"
+#endif
+
+#if defined(CONFIG_MACH_ODROID_4X12)
+#include "gpio-odroid.h"
+#endif
+
+#if defined(CONFIG_MACH_SLP_NAPLES)
+#include "gpio-naples.h"
+#endif
+
+#if defined(CONFIG_MACH_U1) || defined(CONFIG_MACH_TRATS)
+#include "gpio-u1.h"
+#endif
+
+#if defined(CONFIG_MACH_Q1_BD)
+#include "gpio-q1.h"
+#endif
+
+#if defined(CONFIG_MACH_P2)
+#include "gpio-p2.h"
+#endif
+
+#if defined(CONFIG_MACH_P4)
+#include "gpio-p4.h"
+#endif
+
+#if defined(CONFIG_MACH_P8)
+#include "gpio-p8.h"
+#endif
+
+#if defined(CONFIG_MACH_P8LTE)
+#include "gpio-p8lte.h"
+#endif
 #endif /* __ASM_ARCH_GPIO_EXYNOS4_H */

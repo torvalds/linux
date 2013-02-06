@@ -11,6 +11,7 @@
  */
 #include <linux/i2c.h>
 #include <linux/io.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 
@@ -21,10 +22,14 @@
 
 #undef tvout_dbg
 
-#ifdef CONFIG_HDCP_DEBUG
-#define tvout_dbg(fmt, ...)					\
-		printk(KERN_INFO "\t\t[HDCP] %s(): " fmt,	\
-			__func__, ##__VA_ARGS__)
+#ifdef CONFIG_TVOUT_DEBUG
+#define tvout_dbg(fmt, ...)						\
+do {									\
+	if (unlikely(tvout_dbg_flag & (1 << DBG_FLAG_HDCP))) {		\
+		printk(KERN_INFO "\t\t[HDCP] %s(): " fmt,		\
+			__func__, ##__VA_ARGS__);			\
+	}								\
+} while (0)
 #else
 #define tvout_dbg(fmt, ...)
 #endif
@@ -153,8 +158,9 @@ static int s5p_ddc_read(u8 reg, int bytes, u8 *dest)
 	};
 
 	do {
-		if (!s5p_hdmi_reg_get_hpd_status() ||
-		    s5p_hdmi_ctrl_status() == false || on_stop_process)
+		if (s5p_hdmi_ctrl_status() == false ||
+		    !s5p_hdmi_reg_get_hpd_status() ||
+		    on_stop_process)
 			goto ddc_read_err;
 
 		ret = i2c_transfer(i2c->adapter, msg, 2);
@@ -193,8 +199,9 @@ static int s5p_ddc_write(u8 reg, int bytes, u8 *src)
 	memcpy(&msg[1], src, bytes);
 
 	do {
-		if (!s5p_hdmi_reg_get_hpd_status() ||
-		    s5p_hdmi_ctrl_status() == false || on_stop_process)
+		if (s5p_hdmi_ctrl_status() == false ||
+		    !s5p_hdmi_reg_get_hpd_status() ||
+		    on_stop_process)
 			goto ddc_write_err;
 
 		ret = i2c_master_send(i2c, msg, bytes + 1);
@@ -218,16 +225,51 @@ ddc_write_err:
 	return -1;
 }
 
+static ssize_t sysfs_hdcp_ddc_i2c_num_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	int size;
+	int ddc_i2c_num = ddc_port->adapter->nr;
+
+	pr_info("%s() ddc_i2c_num : %d\n",
+			__func__, ddc_i2c_num);
+	size = sprintf(buf, "DDC %d\n", ddc_i2c_num);
+
+	return size;
+}
+
+static CLASS_ATTR(ddc_i2c_num, 0664 , sysfs_hdcp_ddc_i2c_num_show, NULL);
+
 static int __devinit s5p_ddc_probe(struct i2c_client *client,
 			const struct i2c_device_id *dev_id)
 {
 	int ret = 0;
+	struct class *sec_hdcp;
 
 	ddc_port = client;
 
+	sec_hdcp = class_create(THIS_MODULE, "hdcp");
+	if (IS_ERR(sec_hdcp)) {
+		pr_err("Failed to create class(sec_hdcp)!\n");
+		ret = -ENOMEM;
+		goto err_exit1;
+	}
+
+	ret = class_create_file(sec_hdcp, &class_attr_ddc_i2c_num);
+	if (ret) {
+		pr_err("Failed to create device file in sysfs entries!\n");
+		ret = -ENOMEM;
+		goto err_exit2;
+	}
+
 	dev_info(&client->adapter->dev, "attached s5p_ddc "
 		"into i2c adapter successfully\n");
+	return ret;
 
+err_exit2:
+	class_destroy(sec_hdcp);
+
+err_exit1:
 	return ret;
 }
 
@@ -337,7 +379,9 @@ static int s5p_hdcp_read_bcaps(void)
 	if (s5p_ddc_read(HDCP_Bcaps, BCAPS_SIZE, &bcaps) < 0)
 		goto bcaps_read_err;
 
-	if (!s5p_hdmi_reg_get_hpd_status() || s5p_hdmi_ctrl_status() == false || on_stop_process)
+	if (s5p_hdmi_ctrl_status() == false ||
+		!s5p_hdmi_reg_get_hpd_status() ||
+		on_stop_process)
 		goto bcaps_read_err;
 
 	writeb(bcaps, hdmi_base + S5P_HDMI_HDCP_BCAPS);
@@ -388,8 +432,8 @@ static int s5p_hdcp_read_bksv(void)
 
 		}
 
-		if (!s5p_hdmi_reg_get_hpd_status() ||
-		    s5p_hdmi_ctrl_status() == false || on_stop_process)
+		if (s5p_hdmi_ctrl_status() == false ||
+		    !s5p_hdmi_reg_get_hpd_status() || on_stop_process)
 			goto bksv_read_err;
 
 		if ((zero == 20) && (one == 20)) {
@@ -416,9 +460,11 @@ bksv_read_err:
 
 static int s5p_hdcp_read_ri(void)
 {
+	static unsigned long int cnt;
 	u8 ri[2] = {0, 0};
 	u8 rj[2] = {0, 0};
 
+	cnt++;
 	ri[0] = readb(hdmi_base + S5P_HDMI_HDCP_Ri_0);
 	ri[1] = readb(hdmi_base + S5P_HDMI_HDCP_Ri_1);
 
@@ -450,7 +496,11 @@ static int s5p_hdcp_read_ri(void)
 compare_err:
 	hdcp_info.event		= HDCP_EVENT_STOP;
 	hdcp_info.auth_status	= NOT_AUTHENTICATED;
-	tvout_err("read ri : failed - missmatch\n");
+	tvout_err("read ri : failed - missmatch "
+			"Rx(ddc) rj[0]:0x%02x, rj[1]:0x%02x "
+			"Tx(register) ri[0]:0x%02x, ri[1]:0x%02x "
+			"cnt = %lu\n",
+			rj[0], rj[1], ri[0], ri[1], cnt);
 	msleep(10);
 	return -1;
 }
@@ -483,8 +533,9 @@ static void s5p_hdcp_reset_auth(void)
 	u8 reg;
 	unsigned long spin_flags;
 
-	if (!s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)
+	if (s5p_hdmi_ctrl_status() == false ||
+		!s5p_hdmi_reg_get_hpd_status() ||
+		on_stop_process)
 		return;
 	spin_lock_irqsave(&hdcp_info.reset_lock, spin_flags);
 
@@ -604,21 +655,22 @@ static int s5p_hdmi_check_repeater(void)
 
 		bcaps = readb(hdmi_base + S5P_HDMI_HDCP_BCAPS);
 
-		if (bcaps & KSV_FIFO_READY) {
-			tvout_dbg("repeater : ksv fifo not ready");
-			tvout_dbg(", retries : %d\n", cnt);
+		if (bcaps & KSV_FIFO_READY)
 			break;
-		}
 
 		msleep(KSV_FIFO_CHK_DELAY);
 
 		cnt++;
 	} while (cnt < KSV_FIFO_RETRY_CNT);
 
-	if (cnt == KSV_FIFO_RETRY_CNT)
+	if (cnt == KSV_FIFO_RETRY_CNT) {
+		tvout_dbg("repeater : ksv fifo not ready, timeout error");
+		tvout_dbg(", retries : %d\n", cnt);
 		return REPEATER_TIMEOUT_ERROR;
+	}
 
 	tvout_dbg("repeater : ksv fifo ready\n");
+	tvout_dbg(", retries : %d\n", cnt);
 
 
 	if (s5p_ddc_read(HDCP_BStatus, BSTATUS_SIZE, status) < 0)
@@ -747,7 +799,9 @@ int s5p_hdcp_stop(void)
 
 	return 0;
 }
-
+#ifdef CONFIG_SAMSUNG_MHL_9290
+extern void sii9234_tmds_reset(void);
+#endif
 int s5p_hdcp_start(void)
 {
 	u32  sfr_val;
@@ -776,7 +830,9 @@ int s5p_hdcp_start(void)
 	s5p_hdmi_reg_intc_enable(HDMI_IRQ_HDCP, 1);
 
 	hdcp_info.hdcp_enable = 1;
-
+#ifdef CONFIG_SAMSUNG_MHL_9290
+	sii9234_tmds_reset();
+#endif
 	return 0;
 }
 
@@ -785,6 +841,8 @@ static int s5p_hdcp_bksv(void)
 	tvout_dbg("bksv start : start\n");
 
 	hdcp_info.auth_status = RECEIVER_READ_READY;
+
+	msleep(100);
 
 	if (s5p_hdcp_read_bcaps() < 0)
 		goto bksv_start_err;
@@ -815,8 +873,8 @@ static int s5p_hdcp_second_auth(void)
 	if (!hdcp_info.hdcp_enable)
 		goto second_auth_err;
 
-	if (!s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)
+	if (s5p_hdmi_ctrl_status() == false ||
+	    !s5p_hdmi_reg_get_hpd_status() || on_stop_process)
 		goto second_auth_err;
 
 	ret = s5p_hdmi_check_repeater();
@@ -843,8 +901,8 @@ static int s5p_hdcp_write_aksv(void)
 		tvout_dbg("aksv start : bksv is not ready\n");
 		goto aksv_write_err;
 	}
-	if (!s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)
+	if (s5p_hdmi_ctrl_status() == false ||
+	    !s5p_hdmi_reg_get_hpd_status() || on_stop_process)
 		goto aksv_write_err;
 
 	if (s5p_hdcp_write_key(AN_SZ, S5P_HDMI_HDCP_An_0_0, HDCP_An) < 0)
@@ -879,8 +937,8 @@ static int s5p_hdcp_check_ri(void)
 		goto check_ri_err;
 	}
 
-	if (!s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)
+	if (s5p_hdmi_ctrl_status() == false ||
+	    !s5p_hdmi_reg_get_hpd_status() || on_stop_process)
 		goto check_ri_err;
 
 	if (s5p_hdcp_read_ri() < 0)
@@ -905,9 +963,12 @@ check_ri_err:
 
 static void s5p_hdcp_work(void *arg)
 {
-	if (!hdcp_info.hdcp_enable || !s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)
+	s5p_tvout_mutex_lock();
+	if (!hdcp_info.hdcp_enable || s5p_hdmi_ctrl_status() == false ||
+	    !s5p_hdmi_reg_get_hpd_status() || on_stop_process) {
+		s5p_tvout_mutex_unlock();
 		return;
+	}
 
 	if (hdcp_info.event & HDCP_EVENT_READ_BKSV_START) {
 		if (s5p_hdcp_bksv() < 0)
@@ -936,13 +997,16 @@ static void s5p_hdcp_work(void *arg)
 		else
 			hdcp_info.event &= ~HDCP_EVENT_CHECK_RI_START;
 	}
+	s5p_tvout_mutex_unlock();
 	return;
 work_err:
-	if (!hdcp_info.hdcp_enable || !s5p_hdmi_reg_get_hpd_status() ||
-	    s5p_hdmi_ctrl_status() == false || on_stop_process)	{
+	if (!hdcp_info.hdcp_enable || s5p_hdmi_ctrl_status() == false ||
+	    !s5p_hdmi_reg_get_hpd_status() || on_stop_process)	{
+		s5p_tvout_mutex_unlock();
 		return;
 	}
 	s5p_hdcp_reset_auth();
+	s5p_tvout_mutex_unlock();
 }
 
 irqreturn_t s5p_hdcp_irq_handler(int irq, void *dev_id)
@@ -955,10 +1019,12 @@ irqreturn_t s5p_hdcp_irq_handler(int irq, void *dev_id)
 	if (s5p_hdmi_ctrl_status() == false) {
 		hdcp_info.event		= HDCP_EVENT_STOP;
 		hdcp_info.auth_status	= NOT_AUTHENTICATED;
+		tvout_dbg("[WARNING] s5p_hdmi_ctrl_status fail\n");
 		return IRQ_HANDLED;
 	}
 
 	flag = readb(hdmi_base + S5P_HDMI_SYS_STATUS);
+	tvout_dbg("flag = 0x%x\n", flag);
 
 	if (flag & S5P_HDMI_WTFORACTIVERX_INT_OCC) {
 		event |= HDCP_EVENT_READ_BKSV_START;
@@ -993,8 +1059,8 @@ irqreturn_t s5p_hdcp_irq_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (hdcp_info.hdcp_enable && s5p_hdmi_reg_get_hpd_status() &&
-	    s5p_hdmi_ctrl_status() == true && !on_stop_process) {
+	if (hdcp_info.hdcp_enable && s5p_hdmi_ctrl_status() == true &&
+	    s5p_hdmi_reg_get_hpd_status() && !on_stop_process) {
 		hdcp_info.event |= event;
 		queue_work_on(0, hdcp_wq, &hdcp_info.work);
 	} else {
@@ -1067,4 +1133,9 @@ int s5p_hdcp_encrypt_stop(bool on)
 	spin_unlock_irqrestore(&hdcp_info.reset_lock, spin_flags);
 
 	return 0;
+}
+
+void s5p_hdcp_flush_work(void)
+{
+	flush_workqueue(hdcp_wq);
 }

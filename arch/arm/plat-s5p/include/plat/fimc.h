@@ -51,8 +51,8 @@ enum fimc_cam_index {
 	CAMERA_PAR_B	= 1,
 	CAMERA_CSI_C	= 2,
 	CAMERA_CSI_D	= 3,
-	CAMERA_WB 	= 4,
-	CAMERA_WB_B 	= 5,
+	CAMERA_WB	= 4,
+	CAMERA_WB_B	= 5,
 	CAMERA_PATTERN	= 6,
 };
 
@@ -75,11 +75,13 @@ struct s3c_platform_camera {
 	u32				pixelformat;	/* default fourcc */
 
 	int				i2c_busnum;
+	int				(*get_i2c_busnum)(void);
 	struct i2c_board_info		*info;
 	struct v4l2_subdev		*sd;
 
 	const char			srclk_name[16];	/* source of mclk name */
 	const char			clk_name[16];	/* mclk name */
+	const char*			(*get_clk_name)(void);	/* mclk name */
 	u32				clk_rate;	/* mclk ratio */
 	struct clk			*clk;		/* mclk */
 	int				line_length;	/* max length */
@@ -141,5 +143,11 @@ extern void s3c_fimc3_cfg_gpio(struct platform_device *pdev);
 /* platform specific clock functions */
 extern int s3c_fimc_clk_on(struct platform_device *pdev, struct clk **clk);
 extern int s3c_fimc_clk_off(struct platform_device *pdev, struct clk **clk);
+
+#ifdef CONFIG_DRM_EXYNOS_FIMD_WB
+#include <linux/notifier.h>
+extern int fimc_register_client(struct notifier_block *nb);
+extern int fimc_unregister_client(struct notifier_block *nb);
+#endif
 
 #endif /*__ASM_PLAT_FIMC_H */

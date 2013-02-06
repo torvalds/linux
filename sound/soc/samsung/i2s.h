@@ -99,6 +99,8 @@
 #define MOD_BLC_24BIT		(2 << 13)
 #define MOD_BLC_MASK		(3 << 13)
 
+#define MOD_RCLK_I2SCLK	(1<<10)
+#define MOD_RCLK_PCLK		(0<<10)
 #define MOD_IMS_SYSMUX		(1 << 10)
 #define MOD_SLAVE		(1 << 11)
 #define MOD_TXONLY		(0 << 8)
@@ -123,6 +125,8 @@
 #define MOD_BCLK_MASK		(3 << 1)
 #define MOD_8BIT		(1 << 0)
 
+#define MOD_CDCLK_IN		(1<<12)
+#define MOD_CDCLK_OUT		(0<<12)
 #define MOD_CDCLKCON		(1 << 12)
 
 #define PSR_PSREN		(1 << 15)

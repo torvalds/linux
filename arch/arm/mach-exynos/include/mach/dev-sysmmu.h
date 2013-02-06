@@ -43,6 +43,7 @@ extern struct platform_device SYSMMU_PLATDEV(is_fd);
 extern struct platform_device SYSMMU_PLATDEV(is_cpu);
 extern struct platform_device SYSMMU_PLATDEV(flite0);
 extern struct platform_device SYSMMU_PLATDEV(flite1);
+extern struct platform_device SYSMMU_PLATDEV(flite2);
 
 #ifdef CONFIG_ARCH_EXYNOS4
 extern struct platform_device SYSMMU_PLATDEV(fimc0);
@@ -50,6 +51,10 @@ extern struct platform_device SYSMMU_PLATDEV(fimc1);
 extern struct platform_device SYSMMU_PLATDEV(fimc2);
 extern struct platform_device SYSMMU_PLATDEV(fimc3);
 extern struct platform_device SYSMMU_PLATDEV(g2d_acp);
+extern struct platform_device SYSMMU_PLATDEV(gps);
+extern struct platform_device SYSMMU_PLATDEV(lite0);
+extern struct platform_device SYSMMU_PLATDEV(lite1);
+extern struct platform_device SYSMMU_PLATDEV(ispcx);
 extern struct platform_device SYSMMU_PLATDEV(fimd0);
 #endif
 

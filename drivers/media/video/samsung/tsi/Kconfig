@@ -1,0 +1,19 @@
+#
+# Configuration for rotator
+#
+
+config VIDEO_TSI
+	bool "Samsung Transport Stream Interface"
+	depends on VIDEO_SAMSUNG && (CPU_EXYNOS4210 || CPU_S5PC100 || CPU_S5PC110 || CPU_S5PV210 || CPU_S5PV310)
+	default n
+	---help---
+	  This is a Transport Stream Interface for Samsung  S5PC110.
+
+config VIDEO_TSI_DEBUG
+	bool "print TSI debug message"
+	depends on VIDEO_TSI
+	default n
+config TSI_LIST_DEBUG
+	bool "print TSI list debug message"
+	depends on VIDEO_TSI
+	default n

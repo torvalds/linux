@@ -1,6 +1,7 @@
 # S3c24XX Platform Support
 snd-soc-s3c24xx-objs := dma.o
 snd-soc-idma-objs := idma.o
+snd-soc-dma-wrapper-objs := dma-wrapper.o
 snd-soc-s3c24xx-i2s-objs := s3c24xx-i2s.o
 snd-soc-s3c2412-i2s-objs := s3c2412-i2s.o
 snd-soc-ac97-objs := ac97.o
@@ -20,6 +21,7 @@ obj-$(CONFIG_SND_SAMSUNG_PCM) += snd-soc-pcm.o
 obj-$(CONFIG_SND_SAMSUNG_I2S) += snd-soc-i2s.o
 obj-$(CONFIG_SND_SAMSUNG_I2S) += snd-soc-audss.o
 obj-$(CONFIG_SND_SAMSUNG_I2S) += snd-soc-idma.o
+obj-$(CONFIG_SND_SOC_SAMSUNG_USE_DMA_WRAPPER) += snd-soc-dma-wrapper.o
 
 # S3C24XX Machine Support
 snd-soc-jive-wm8750-objs := jive_wm8750.o

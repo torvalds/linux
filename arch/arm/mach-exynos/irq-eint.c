@@ -99,6 +99,10 @@ static int exynos_irq_eint_set_type(struct irq_data *data, unsigned int type)
 		newvalue = S5P_IRQ_TYPE_LEVEL_HIGH;
 		break;
 
+	case IRQ_TYPE_NONE:
+		printk(KERN_DEBUG "None irq type\n");
+		break;
+
 	default:
 		printk(KERN_ERR "No such irq type %d", type);
 		return -EINVAL;
@@ -144,6 +148,7 @@ static struct irq_chip exynos_irq_eint = {
 	.irq_mask	= exynos_irq_eint_mask,
 	.irq_unmask	= exynos_irq_eint_unmask,
 	.irq_mask_ack	= exynos_irq_eint_maskack,
+	.irq_disable	= exynos_irq_eint_maskack,
 	.irq_ack	= exynos_irq_eint_ack,
 	.irq_set_type	= exynos_irq_eint_set_type,
 #ifdef CONFIG_PM
@@ -159,12 +164,13 @@ static struct irq_chip exynos_irq_eint = {
  *
  * Each EINT pend/mask registers handle eight of them.
  */
-static inline void exynos_irq_demux_eint(unsigned int start)
+static inline u32 exynos_irq_demux_eint(unsigned int start)
 {
 	unsigned int irq;
 
 	u32 status = __raw_readl(S5P_EINT_PEND(EINT_REG_NR(start)));
 	u32 mask = __raw_readl(S5P_EINT_MASK(EINT_REG_NR(start)));
+	u32 action = 0;
 
 	status &= ~mask;
 	status &= 0xff;
@@ -173,17 +179,24 @@ static inline void exynos_irq_demux_eint(unsigned int start)
 		irq = fls(status) - 1;
 		generic_handle_irq(irq + start);
 		status &= ~(1 << irq);
+		++action;
 	}
+
+	return action;
 }
 
 static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_get_chip(irq);
+	u32 a16_23, a24_31;
 
 	chained_irq_enter(chip, desc);
-	exynos_irq_demux_eint(IRQ_EINT(16));
-	exynos_irq_demux_eint(IRQ_EINT(24));
+	a16_23 = exynos_irq_demux_eint(IRQ_EINT(16));
+	a24_31 = exynos_irq_demux_eint(IRQ_EINT(24));
 	chained_irq_exit(chip, desc);
+
+	if (!a16_23 && !a24_31)
+		do_bad_IRQ(irq, desc);
 }
 
 static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)

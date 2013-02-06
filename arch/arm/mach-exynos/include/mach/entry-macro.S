@@ -65,6 +65,13 @@
 
 		ldr     \irqstat, [\base, #GIC_CPU_INTACK] /* bits 12-10 = src CPU, 9-0 = int # */
 
+#if defined (CONFIG_ARCH_EXYNOS4)
+		/* workaround for gic lockup */
+		add   \base, \base, #0x10000
+		ldr   \tmp, [\base, #GIC_DIST_PRI]
+		str   \tmp, [\base, #GIC_DIST_PRI]
+		sub   \base, \base, #0x10000
+#endif
 		ldr	\tmp, =1021
 
 		bic     \irqnr, \irqstat, #0x1c00

@@ -76,6 +76,9 @@ ENTRY(exynos4_enter_lp)
 	mov	r1, #0
 	mov	r2, #0
 	mov	r3, #0
+#ifdef REQUIRES_SEC
+	.arch_extension sec
+#endif
 	smc	0
 #else
 	dsb
@@ -98,10 +101,13 @@ resume_with_mmu:
 	mov	r1, #1
 	mov	r2, #0
 	mov	r3, #0
+#ifdef REQUIRES_SEC
+	.arch_extension sec
+#endif
 	smc	0
 #else
 	mov	r0, #1
-	ldr	r1, =0xF8600000
+	ldr	r1, =S5P_VA_L2CC
 	str	r0, [r1, #0x100]
 #endif
 #endif
@@ -112,6 +118,9 @@ resume_with_mmu:
 	ldr	r2, [r0], #4
 	ldr	r0, =SMC_CMD_C15RESUME
 	mov	r3, #0
+#ifdef REQUIRES_SEC
+	.arch_extension sec
+#endif
 	smc	0
 #else
 	ldr	r1, [r0], #4
@@ -150,6 +159,11 @@ l2x0_save:
 	.word	0
 	.word	0
 
+	.global scu_save
+scu_save:
+	.word	0
+	.word	0
+
 	/*
 	 * exynos4_idle_resume
 	 *
@@ -163,10 +177,13 @@ l2x0_save:
 ENTRY(exynos4_idle_resume)
 	/* SCU enable */
 	ldr	r1, =0x10500000
-	ldr	r0, [r1]
-	orr	r0, r0, #1
-	orr	r0, r0, #(1 << 5)
-	str	r0, [r1]
+	adr	r0, scu_save
+
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+
+	str	r5, [r1, #0x30]
+	str	r6, [r1]
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Restore register value for L2X0 */
@@ -183,6 +200,9 @@ ENTRY(exynos4_idle_resume)
 
 	ldr	r0, =SMC_CMD_L2X0SETUP1
 
+#ifdef REQUIRES_SEC
+	.arch_extension sec
+#endif
 	smc	0
 
 	ldr	r0, =SMC_CMD_L2X0SETUP2
@@ -190,6 +210,9 @@ ENTRY(exynos4_idle_resume)
 	ldr	r2, =0x7C470001
 	ldr	r3, =0xC200FFFF
 
+#ifdef REQUIRES_SEC
+	.arch_extension sec
+#endif
 	smc	0
 #else
 	ldr	r0, =EXYNOS4_PA_L2CC

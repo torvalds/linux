@@ -1748,6 +1748,19 @@ void device_shutdown(void)
 		pm_runtime_get_noresume(dev);
 		pm_runtime_barrier(dev);
 
+#if defined(CONFIG_MACH_Q1_BD) || defined(CONFIG_MACH_PX) || defined(CONFIG_MACH_MIDAS)
+		/* Temporary log to analyze a problem during shutdown */
+		if (dev->bus && dev->bus->shutdown) {
+			dev_info(dev, "shutdown +: %pF\n", dev->bus->shutdown);
+			dev->bus->shutdown(dev);
+			dev_info(dev, "shutdown -\n");
+		} else if (dev->driver && dev->driver->shutdown) {
+			dev_info(dev, "shutdown +: %pF\n",
+						dev->driver->shutdown);
+			dev->driver->shutdown(dev);
+			dev_info(dev, "shutdown -\n");
+		}
+#else
 		if (dev->bus && dev->bus->shutdown) {
 			dev_dbg(dev, "shutdown\n");
 			dev->bus->shutdown(dev);
@@ -1755,6 +1768,7 @@ void device_shutdown(void)
 			dev_dbg(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
+#endif
 		put_device(dev);
 
 		spin_lock(&devices_kset->list_lock);

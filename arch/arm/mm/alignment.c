@@ -824,8 +824,10 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	case 0x08000000:	/* ldm or stm, or thumb-2 32bit instruction */
 		if (thumb2_32b)
 			handler = do_alignment_t32_to_handler(&instr, regs, &offset);
-		else
+		else {
 			handler = do_alignment_ldmstm;
+            offset.un = 0;
+        }
 		break;
 
 	default:
@@ -914,7 +916,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  */
 static int __init alignment_init(void)
 {
-#ifdef CONFIG_PROC_FS
+#if defined(CONFIG_PROC_FS) && !defined(CONFIG_FAST_RESUME)
 	struct proc_dir_entry *res;
 
 	res = proc_create("cpu/alignment", S_IWUSR | S_IRUGO, NULL,
@@ -956,5 +958,8 @@ static int __init alignment_init(void)
 
 	return 0;
 }
-
+#ifdef CONFIG_FAST_RESUME
+beforeresume_initcall(alignment_init);
+#else
 fs_initcall(alignment_init);
+#endif

@@ -58,32 +58,35 @@
 #define _USE_EOS_TIMEOUT_		/* Timeout option for EOS */
 
 #if (defined CONFIG_ARCH_EXYNOS4)
-	#define _IMEM_MAX_		(64 * 1024)		/* 64KBytes */
-	#define _DMEM_MAX_		(128 * 1024)		/* 128KBytes */
-	#define _IBUF_SIZE_		(128 * 1024)		/* 128KBytes in DRAM */
+	#define _IMEM_MAX_		(64 * 1024)	/* 64KBytes */
+	#define _DMEM_MAX_		(128 * 1024)	/* 128KBytes */
+	#define _IBUF_SIZE_		(128 * 1024)	/* 128KBytes in DRAM */
 	#define _WBUF_SIZE_		(_IBUF_SIZE_ * 6)	/* in DRAM */
 	#define _SBUF_SIZE_		(_IBUF_SIZE_ * 6)	/* in DRAM */
-	#define _FWBUF_SIZE_		(4 * 1024)		/* 4KBytes in F/W */
+	#define _FWBUF_SIZE_		(4 * 1024)	/* 4KBytes in F/W */
 
-#ifdef CONFIG_CPU_EXYNOS4210                           		/* Orion */
-	#define _IRAM_SIZE_             (128 * 1024)    	/* Total size in IRAM */
-	#define _IMEM_OFFSET_           (0x00400)       	/* 1KB offset ok */
-	#define _OBUF_SIZE_AB_          (0x04000)       	/* 9Frames */
-	#define _OBUF0_OFFSET_AB_       (0x10000)
-        #define _OBUF1_OFFSET_AB_       (_OBUF_SIZE_AB_ + _OBUF0_OFFSET_AB_)
-        #define _OBUF_SIZE_C_           (4608 * 2)      	/* 2Frames */
-        #define _OBUF0_OFFSET_C_        (0x19800)
-        #define _OBUF1_OFFSET_C_        (0x1CC00)
+#ifdef CONFIG_CPU_EXYNOS4210				/* Orion */
+	#define _IRAM_SIZE_		(128 * 1024)	/* Total size in IRAM */
+	#define _IMEM_OFFSET_		(0x00400)	/* 1KB offset ok */
+
+	#define _OBUF_SIZE_AB_		(0x04000)	/* 9Frames */
+	#define _OBUF0_OFFSET_AB_	(0x10000)
+	#define _OBUF1_OFFSET_AB_	(_OBUF0_OFFSET_AB_ + _OBUF_SIZE_AB_)
+	#define _OBUF_SIZE_C_		(4608 * 2)	/* 2Frames */
+	#define _OBUF0_OFFSET_C_	(0x19800)
+	#define _OBUF1_OFFSET_C_	(0x1CC00)
 #else							/* Pegasus */
-	#define _IRAM_SIZE_             (256 * 1024)	/* Total size in IRAM */
-	#define _IMEM_OFFSET_           (0x20400)       /* Dummy, not used */
-	#define _OBUF_SIZE_AB_          (0x04000)       /* 9Frames */
-	#define _OBUF0_OFFSET_AB_       (0x31000)
-	#define _OBUF1_OFFSET_AB_       (_OBUF_SIZE_AB_ + _OBUF0_OFFSET_AB_)
-	#define _OBUF_SIZE_C_           (4608 * 2)      /* 2Frames */
-	#define _OBUF0_OFFSET_C_        (0x39800)
-	#define _OBUF1_OFFSET_C_        (0x3CC00)
+	#define _IRAM_SIZE_		(256 * 1024)	/* Total size in IRAM */
+	#define _IMEM_OFFSET_		(0x20400)	/* Dummy, not used */
+
+	#define _OBUF_SIZE_AB_		(0x04000)	/* 9Frames */
+	#define _OBUF0_OFFSET_AB_	(0x31000)
+	#define _OBUF1_OFFSET_AB_	(_OBUF_SIZE_AB_ + _OBUF0_OFFSET_AB_)
+	#define _OBUF_SIZE_C_		(4608 * 2)	/* 2Frames */
+	#define _OBUF0_OFFSET_C_	(0x39800)
+	#define _OBUF1_OFFSET_C_	(0x3CC00)
 #endif
+
 	#define _VLIW_SIZE_		(128 * 1024)	/* 128KBytes */
 	#define _DATA_SIZE_		(128 * 1024)	/* 128KBytes */
 	#define _CGA_SIZE_		(36 * 1024)	/* 36KBytes */
@@ -1685,7 +1688,7 @@ void srp_early_suspend(struct early_suspend *h)
 	s5pdbg("early_suspend\n");
 
 	srp.early_suspend_entered = 1;
-	if (srp.is_running) {
+	if (srp.is_opened) {
 		if (srp.pcm_dump_cnt > 0)
 			srp_set_pcm_dump(0);
 	}
@@ -1697,7 +1700,7 @@ void srp_late_resume(struct early_suspend *h)
 
 	srp.early_suspend_entered = 0;
 
-	if (srp.is_running) {
+	if (srp.is_opened) {
 		if (srp.pcm_dump_cnt > 0)
 			srp_set_pcm_dump(1);
 	}
@@ -1826,7 +1829,7 @@ static int __init srp_probe(struct platform_device *pdev)
 	return 0;
 
 err7:
-	misc_deregister(&srp_miscdev);	
+	misc_deregister(&srp_miscdev);
 err6:
 	srp_remove_fw_buff();
 err5:

@@ -18,9 +18,10 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-pmu.h>
+#include <mach/pmu.h>
 #include <mach/cpufreq.h>
 #include <mach/asv.h>
+#include <mach/sec_debug.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -43,7 +44,7 @@ struct cpufreq_clkdiv {
 	unsigned int	clkdiv1;
 };
 
-static unsigned int exynos4x12_volt_table[CPUFREQ_LEVEL_END];
+unsigned int exynos4x12_volt_table[CPUFREQ_LEVEL_END];
 
 #if defined(CONFIG_BOARD_ODROID_X2) || defined(CONFIG_BOARD_ODROID_Q2) || defined(CONFIG_BOARD_ODROID_U2)
 	static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
@@ -362,7 +363,7 @@ static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
 
 	/* APLL FOUT L4: 1600MHz */
 	((200<<16)|(3<<8)|(0x0)),
-	        
+
 	/* APLL FOUT L5: 1500MHz */
 	((250<<16)|(4<<8)|(0x0)),
 
@@ -621,6 +622,11 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 {
 	unsigned int tmp;
 
+	sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
+			"%s: old_index=%d, new_index=%d(%ps)",
+			__func__, old_index, new_index,
+			__builtin_return_address(0));
+
 	if (old_index > new_index) {
 		if (exynos4x12_volt_table[new_index] >= 950000 &&
 				need_dynamic_ema)
@@ -684,6 +690,24 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 }
 
 /* Get maximum cpufreq index of chip */
+static unsigned int get_max_cpufreq_idx(void)
+{
+	unsigned int index;
+
+	/* exynos4x12 prime supports 1.6GHz */
+	if (samsung_rev() >= EXYNOS4412_REV_2_0)
+		index = L0;
+	else {
+	/* exynos4x12 supports only 1.4GHz and 1.1GHz */
+		if (exynos_armclk_max != 1400000)
+			index = L6;
+		else
+			index = L2;
+	}
+
+	return index;
+}
+
 static void __init set_volt_table(void)
 {
 	unsigned int i, tmp;
@@ -752,6 +776,21 @@ static void __init set_volt_table(void)
 		}
 	}
 }
+
+/*
+ * The values of the table is not correct.
+ * Copied from C210 as prototype assuming that unmapping 512KiB
+ * requires 128 DMA operations.
+ */
+#ifdef CONFIG_SLP
+static struct dvfs_qos_info exynos4x12_dma_lat_qos[] = {
+	{ 118,	200000, L18 },
+	{ 40,	500000, L15 },
+	{ 24,	800000, L12 },
+	{ 16,	1000000, L10 },
+	{},
+};
+#endif
 
 int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 {
@@ -835,8 +874,40 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	info->pm_lock_idx = L5;
-	info->pll_safe_idx = L7;
+#ifdef CONFIG_SLP
+	/* S-Boot at 20120406 uses L7 at bootup */
+	/* L7 original / 800MHz is L10 in new table - af */
+	info->pm_lock_idx = L10;
+
+	/*
+	 * However, the bootup frequency might get changed anytime.
+	 * Thus, we'd like to get the value at bootup time.
+	 */
+	rate = clk_get_rate(cpu_clk) / 1000;
+	for (i = 0; exynos4x12_freq_table[i].frequency != CPUFREQ_TABLE_END;
+	     i++) {
+		if (exynos4x12_freq_table[i].frequency == rate) {
+			info->pm_lock_idx = exynos4x12_freq_table[i].index;
+			break;
+		}
+	}
+	pr_info("Bootup CPU Frequency = [%d] %dMHz\n", info->pm_lock_idx,
+		rate / 1000);
+#else
+	info->pm_lock_idx = L8;
+#endif
+	/*
+	 * ARM clock source will be changed APLL to MPLL temporary
+	 * in exynos4x12_set_frequency.
+	 * To support MPLL, vdd_arm is supplied to voltage at frequency
+	 * higher than MPLL.
+	 * So, pll_safe_idx set to value based on MPLL clock.(800MHz or 880MHz)
+	 */
+	if (samsung_rev() >= EXYNOS4412_REV_2_0)
+		info->pll_safe_idx = L9;
+	else
+		info->pll_safe_idx = L10;
+
 	info->max_support_idx = max_support_idx;
 	info->min_support_idx = min_support_idx;
 	info->cpu_clk = cpu_clk;
@@ -844,6 +915,9 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	info->freq_table = exynos4x12_freq_table;
 	info->set_freq = exynos4x12_set_frequency;
 	info->need_apll_change = exynos4x12_pms_change;
+#ifdef CONFIG_SLP
+	info->cpu_dma_latency = exynos4x12_dma_lat_qos;
+#endif
 
 #ifdef ENABLE_CLKOUT
 	tmp = __raw_readl(EXYNOS4_CLKOUT_CMU_CPU);
@@ -855,7 +929,7 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	tmp &= ~0xf00;
 	tmp |= 0x900;
 	__raw_writel(tmp, S5P_PMU_DEBUG);
-
+	//exynos4_pmu_xclkout_set(1, XCLKOUT_CMU_CPU);
 #endif
 
 	return 0;

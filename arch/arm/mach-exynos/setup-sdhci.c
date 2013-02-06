@@ -20,6 +20,7 @@
 #include <linux/mmc/host.h>
 
 #include <plat/regs-sdhci.h>
+#include <plat/sdhci.h>
 
 /* clock sources for the mmc bus clock, order as for the ctrl2[5..4] */
 
@@ -34,6 +35,7 @@ void exynos4_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
 				  struct mmc_ios *ios, struct mmc_card *card)
 {
 	u32 ctrl2, ctrl3;
+	struct s3c_sdhci_platdata *pdata = dev->dev.platform_data;
 
 	/* don't need to alter anything according to card-type */
 
@@ -54,6 +56,19 @@ void exynos4_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
 		  S3C_SDHCI_CTRL2_DFCNT_NONE |
 		  S3C_SDHCI_CTRL2_ENCLKOUTHOLD);
 
+#if defined(CONFIG_MACH_M0) || defined(CONFIG_MACH_C1_USA_ATT) || \
+	defined(CONFIG_MACH_T0) || defined(CONFIG_MACH_M3)
+	/* set 2ns delay for TX. This setting is just for wifi sdio i/f of
+	   M0 and his brother projects. */
+	if (pdata->pm_flags == S3C_SDHCI_PM_IGNORE_SUSPEND_RESUME &&
+		(ios->clock >= 25 * 1000000)) {
+		/* to distinguish tflash and sdio i/f, it checks pm_flags's
+		   value. This way only can be applied to Braodcom
+		   wifi module. */
+		ctrl2 |= S3C_SDHCI_CTRL2_ENFBCLKTX;
+	}
+#endif
+
 	/* Tx and Rx feedback clock delay control */
 
 	if (ios->clock < 25 * 1000000)
@@ -61,13 +76,11 @@ void exynos4_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
 			 S3C_SDHCI_CTRL3_FCSEL2 |
 			 S3C_SDHCI_CTRL3_FCSEL1 |
 			 S3C_SDHCI_CTRL3_FCSEL0);
-	else {
-		ctrl2 |= S3C_SDHCI_CTRL2_ENFBCLKTX;
+	else
 		ctrl3 = (S3C_SDHCI_CTRL3_FCSEL3 |
 			 S3C_SDHCI_CTRL3_FCSEL2 |
 			 S3C_SDHCI_CTRL3_FCSEL1 |
 			 S3C_SDHCI_CTRL3_FCSEL0);
-	}
 
 	writel(ctrl2, r + S3C_SDHCI_CONTROL2);
 	writel(ctrl3, r + S3C_SDHCI_CONTROL3);

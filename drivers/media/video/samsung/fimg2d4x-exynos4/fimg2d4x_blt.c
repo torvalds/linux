@@ -17,7 +17,7 @@
 #include <linux/atomic.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
-#include <plat/sysmmu.h>
+#include <plat/s5p-sysmmu.h>
 #ifdef CONFIG_PM_RUNTIME
 #include <plat/devs.h>
 #include <linux/pm_runtime.h>

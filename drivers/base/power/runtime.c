@@ -965,6 +965,9 @@ int pm_runtime_barrier(struct device *dev)
 {
 	int retval = 0;
 
+#ifdef CONFIG_MDM_HSIC_PM
+	wake_up_all(&dev->power.wait_queue);
+#endif
 	pm_runtime_get_noresume(dev);
 	spin_lock_irq(&dev->power.lock);
 

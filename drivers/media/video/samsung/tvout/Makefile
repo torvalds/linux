@@ -18,15 +18,10 @@ obj-$(CONFIG_VIDEO_TVOUT) :=	s5p_tvout.o		\
 				s5p_tvout_common_lib.o	\
 				s5p_mixer_ctrl.o	\
 				s5p_vp_ctrl.o		\
-				s5p_tvif_ctrl.o		\
-				hw_if/mixer.o		\
-				hw_if/vp.o		\
-				hw_if/hdmi.o		\
-				hw_if/hdcp.o
-
-obj-$(CONFIG_ANALOG_TVENC) +=	hw_if/sdo.o
+				s5p_tvif_ctrl.o
 
 obj-$(CONFIG_HDMI_HPD) +=	s5p_tvout_hpd.o
 
-obj-$(CONFIG_HDMI_CEC) +=	s5p_tvout_cec.o	\
-				hw_if/cec.o
+obj-$(CONFIG_HDMI_CEC) +=	s5p_tvout_cec.o
+
+obj-$(CONFIG_VIDEO_TVOUT) += hw_if/

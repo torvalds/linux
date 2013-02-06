@@ -1,0 +1,168 @@
+menuconfig POWER_SUPPLY
+	tristate "Power supply class support"
+	help
+	  Say Y here to enable power supply class support. This allows
+	  power supply (batteries, AC, USB) monitoring by userspace
+	  via sysfs and uevent (if available) and/or APM kernel interface
+	  (if selected below).
+
+if POWER_SUPPLY
+
+config BATTERY_SEC
+	tristate "SAMSUNG battery driver"
+	depends on ARCH_S5PV310
+	help
+	  Say Y to enable samsung battery driver for devices with S5PV310 chip.
+
+config MAX8997_CHARGER
+	tristate "MAX8997 battery charger support"
+	depends on MFD_MAX8997
+	help
+	  Say Y here to enable support for the battery charger in the Maxim
+	  MAX8997 PMIC.
+
+config BATTERY_MAX17043_FUELGAUGE
+	tristate "Maxim MAX17043 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17043 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17043 is configured
+	  to operate with a single lithium cell
+
+config BATTERY_MAX17042_FUELGAUGE
+	tristate "Maxim MAX17042 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17042 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17042 is configured
+	  to operate with a single lithium cell
+
+config BATTERY_MAX17047_FUELGAUGE
+	tristate "Maxim MAX17047 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17047 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17047 is configured
+	  to operate with a single lithium cell
+
+config BATTERY_SMB136_CHARGER
+	tristate "SMB136 battery charger support"
+	depends on I2C
+	help
+	  Say Y here to enable support for the SMB136 charger
+
+config BATTERY_MAX77693_CHARGER
+	tristate "MAX77693 battery charger support"
+	depends on MFD_MAX77693 && I2C
+	help
+	  Say Y here to enable support for the MAX77693 charger
+
+config BATTERY_WPC_CHARGER
+	tristate "wireless charger support"
+	depends on BATTERY_MAX77693_CHARGER
+	help
+	  Say Y here to enable support for the MAX77693 charger
+
+config BATTERY_SAMSUNG_P1X
+	tristate "samsung battery driver for P1x"
+	help
+	 Say Y to include support for samsung battery driver for P1x.
+
+
+# Fuel Gauge
+
+config FUELGAUGE_DUMMY
+	tristate "dummy fuel gauge driver"
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support for dummy fuel gauge driver.
+
+config FUELGAUGE_MAX17042
+	tristate "MAX17042 fuel gauge driver"
+	depends on BATTERY_SAMSUNG_P1X
+	help
+	 Say Y to include support for MAXIM MAX17042 fuel gauge driver.
+
+config FUELGAUGE_MAX17042_VOLTAGE_TRACKING
+	tristate "use MAX17042 fuel gauge only as voltage tracking"
+	depends on FUELGAUGE_MAX17042
+	help
+	 Say Y to use MAX17042 fuel gauge only as voltage tracking.
+
+config FUELGAUGE_MAX17042_COULOMB_COUNTING
+	tristate "use MAX17042 fuel gauge as coulomb counting (including voltage tracking)"
+	depends on FUELGAUGE_MAX17042
+	help
+	 Say Y to use MAX17042 fuel gauge as coulomb counting (including voltage tracking).
+
+
+config FUELGAUGE_MAX17048
+	tristate "MAX17048 fuel gauge driver"
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support for MAXIM MAX17048 fuel gauge driver.
+
+config FUELGAUGE_MAX17050
+	tristate "MAX17050 fuel gauge driver"
+	default n
+	depends on BATTERY_SAMSUNG_P1X
+	help
+	 Say Y to include support
+	 for MAXIM MAX17047 or MAX17050 fuel gauge driver.
+	 This fuel-gauge can be used in voltage-tracking mode
+	 or coulomb-counting mode.
+
+config FUELGAUGE_MAX17050_VOLTAGE_TRACKING
+	tristate "use MAX17050 fuel gauge only as voltage tracking"
+	default n
+	depends on FUELGAUGE_MAX17050
+	help
+	 Say Y to use MAX17050 fuel gauge
+	 only as voltage tracking.
+	 This mode is for target that consumes low current
+	 like smart-phone.
+
+config FUELGAUGE_MAX17050_COULOMB_COUNTING
+	tristate "use MAX17050 fuel gauge as coulomb counting (including voltage tracking)"
+	default n
+	depends on FUELGAUGE_MAX17050
+	help
+	 Say Y to use MAX17050 fuel gauge
+	 as coulomb counting (including voltage tracking).
+	 This mode is for target that consumes high current
+	 like tablet.
+
+
+# Charger
+
+config CHARGER_DUMMY
+	tristate "dummy charger driver"
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support for dummy charger driver.
+
+config CHARGER_MAX8903
+	tristate "MAX8903 charger driver"
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support for MAXIM MAX8903 charger driver.
+
+config CHARGER_SMB328
+	tristate "SMB328 charger driver"
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support for Summit SMB328 charger driver.
+
+config CHARGER_BQ24190
+	tristate "BQ24190 charger driver"
+	depends on BATTERY_SAMSUNG_P1X
+	help
+	 Say Y to include support for TI BQ24190 charger driver.
+
+config CHARGER_BQ24191
+	tristate "BQ24191 charger driver"
+	depends on BATTERY_SAMSUNG_P1X
+	help
+	 Say Y to include support for TI BQ24191 charger driver.
+
+endif # POWER_SUPPLY

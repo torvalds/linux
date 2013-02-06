@@ -192,6 +192,8 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "passive\n");
 	case THERMAL_TRIP_ACTIVE:
 		return sprintf(buf, "active\n");
+	case THERMAL_TRIP_STATE_ACTIVE:
+		return sprintf(buf, "state-active\n");
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -835,7 +837,7 @@ struct thermal_cooling_device *thermal_cooling_device_register(
 	struct thermal_zone_device *pos;
 	int result;
 
-	if (strlen(type) >= THERMAL_NAME_LENGTH)
+	if (!type || strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
 
 	if (!ops || !ops->get_max_state || !ops->get_cur_state ||
@@ -955,7 +957,7 @@ EXPORT_SYMBOL(thermal_cooling_device_unregister);
 void thermal_zone_device_update(struct thermal_zone_device *tz)
 {
 	int count, ret = 0;
-	long temp, trip_temp;
+	long temp, trip_temp, max_state, last_trip_change = 0;
 	enum thermal_trip_type trip_type;
 	struct thermal_cooling_device_instance *instance;
 	struct thermal_cooling_device *cdev;
@@ -1004,6 +1006,29 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					cdev->ops->set_cur_state(cdev, 1);
 				else
 					cdev->ops->set_cur_state(cdev, 0);
+			}
+			break;
+		case THERMAL_TRIP_STATE_ACTIVE:
+			list_for_each_entry(instance, &tz->cooling_devices,
+					    node) {
+				if (instance->trip != count)
+					continue;
+
+				if (temp <= last_trip_change)
+					continue;
+
+				cdev = instance->cdev;
+				cdev->ops->get_max_state(cdev, &max_state);
+
+				if ((temp >= trip_temp) &&
+						((count + 1) <= max_state))
+					cdev->ops->set_cur_state(cdev,
+								count + 1);
+				else if ((temp < trip_temp) &&
+							(count <= max_state))
+					cdev->ops->set_cur_state(cdev, count);
+
+				last_trip_change = trip_temp;
 			}
 			break;
 		case THERMAL_TRIP_PASSIVE:
@@ -1061,7 +1086,7 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	int count;
 	int passive = 0;
 
-	if (strlen(type) >= THERMAL_NAME_LENGTH)
+	if (!type || strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
 
 	if (trips > THERMAL_MAX_TRIPS || trips < 0)

@@ -1274,7 +1274,7 @@ get_rq:
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
 	    bio_flagged(bio, BIO_CPU_AFFINE)) {
-		req->cpu = get_cpu();
+		req->cpu = blk_cpu_to_group(get_cpu());
 		put_cpu();
 	}
 

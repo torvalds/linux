@@ -42,6 +42,34 @@ static int exynos_dwmci_init(u32 slot_id, irq_handler_t handler, void *data)
 	} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
 		host->pdata->sdr_timing = 0x00010001;
 		host->pdata->ddr_timing = 0x00010002;
+	} else if (soc_is_exynos5250()) {
+		if (samsung_rev() >= EXYNOS5250_REV_1_0) {
+			switch (host->pdev->id) {
+			case 0:
+				host->pdata->sdr_timing = 0x03020001;
+				host->pdata->ddr_timing = 0x03030002;
+				break;
+			case 1:
+				host->pdata->sdr_timing = 0x03020001;
+				host->pdata->ddr_timing = 0x03030002;
+				break;
+			case 2:
+				host->pdata->sdr_timing = 0x03020001;
+				host->pdata->ddr_timing = 0x03030002;
+				break;
+			case 3:
+				host->pdata->sdr_timing = 0x03020001;
+				host->pdata->ddr_timing = 0x03030002;
+				break;
+			default:
+				host->pdata->sdr_timing = 0x03020001;
+				host->pdata->ddr_timing = 0x03030002;
+				break;
+			}
+		} else {
+			host->pdata->sdr_timing = 0x00010000;
+			host->pdata->ddr_timing = 0x00010000;
+		}
 	}
 #ifdef CONFIG_SLP
 	host->pdata->sdr_timing = 0x00020001;
@@ -158,13 +186,40 @@ EXYNOS_DWMCI_PLATFORM_DEVICE(1)
 EXYNOS_DWMCI_PLATFORM_DEVICE(2)
 EXYNOS_DWMCI_PLATFORM_DEVICE(3)
 
-void __init exynos_dwmci_set_platdata(struct dw_mci_board *pd)
+void __init exynos_dwmci_set_platdata(struct dw_mci_board *pd, u32 slot_id)
 {
 	struct dw_mci_board *npd = NULL;
 
 	if ((soc_is_exynos4210()) ||
 		soc_is_exynos4212() || soc_is_exynos4412()) {
-		npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board), &exynos_device_dwmci);
+		npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board),
+			&exynos_device_dwmci);
+	} else if (soc_is_exynos5250()) {
+		if (slot_id == 0) {
+			if (samsung_rev() < EXYNOS5250_REV_1_0) {
+				exynos_device_dwmci0.resource[0].start =
+					EXYNOS_PA_DWMCI;
+				exynos_device_dwmci0.resource[0].end =
+					EXYNOS_PA_DWMCI + SZ_4K - 1;
+				exynos_device_dwmci0.resource[1].start =
+					IRQ_DWMCI;
+				exynos_device_dwmci0.resource[1].end =
+					IRQ_DWMCI;
+			}
+			npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board),
+				&exynos_device_dwmci0);
+		} else if (slot_id == 1) {
+			npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board),
+				&exynos_device_dwmci1);
+		} else if (slot_id == 2) {
+			npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board),
+				&exynos_device_dwmci2);
+		} else if (slot_id == 3) {
+			npd = s3c_set_platdata(pd, sizeof(struct dw_mci_board),
+				&exynos_device_dwmci3);
+		} else {
+			pr_err("This channel %d Cannot support.\n", slot_id);
+		}
 	} else {
 		printk("dwmci platform data support only exynos4/5!\n");
 #ifdef CONFIG_SLP
@@ -174,10 +229,10 @@ void __init exynos_dwmci_set_platdata(struct dw_mci_board *pd)
 	}
 
 	if (npd) {
-	if (!npd->init)
-		npd->init = exynos_dwmci_init;
-	if (!npd->get_bus_wd)
-		npd->get_bus_wd = exynos_dwmci_get_bus_wd;
+		if (!npd->init)
+			npd->init = exynos_dwmci_init;
+		if (!npd->get_bus_wd)
+			npd->get_bus_wd = exynos_dwmci_get_bus_wd;
 		if (!npd->set_io_timing)
 			npd->set_io_timing = exynos_dwmci_set_io_timing;
 	}

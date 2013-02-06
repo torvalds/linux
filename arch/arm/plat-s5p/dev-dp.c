@@ -14,6 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <video/s5p-dp.h>
 #include <mach/map.h>
 #include <plat/devs.h>
 #include <plat/dp.h>

@@ -58,6 +58,9 @@ struct mipi_ddi_platform_data {
 	unsigned int reset_delay;
 	unsigned int power_on_delay;
 	unsigned int power_off_delay;
+#if defined(CONFIG_S5P_DSIM_SWITCHABLE_DUAL_LCD)
+	unsigned int lcd_sel_pin;
+#endif	/* CONFIG_S5P_DSIM_SWITCHABLE_DUAL_LCD */
 };
 
 #endif /* _MIPI_DDI_H */

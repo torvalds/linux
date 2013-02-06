@@ -15,7 +15,9 @@
 #include <mach/irqs.h>
 #include <mach/map.h>
 
+#include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/hdmi.h>
 #include <plat/tvout.h>
 
 /* HDMI interface */
@@ -29,11 +31,13 @@ static struct resource s5p_hdmi_resources[] = {
 		.start	= IRQ_TVOUT_HPD,
 		.end	= IRQ_TVOUT_HPD,
 		.flags	= IORESOURCE_IRQ,
+		.name	= "external_irq"
 	},
 	[2] = {
 		.start	= IRQ_HDMI,
 		.end	= IRQ_HDMI,
 		.flags	= IORESOURCE_IRQ,
+		.name	= "internal_irq"
 	},
 };
 
@@ -44,6 +48,24 @@ struct platform_device s5p_device_hdmi = {
 	.resource	= s5p_hdmi_resources,
 };
 EXPORT_SYMBOL(s5p_device_hdmi);
+
+void __init s5p_hdmi_set_platdata(struct s5p_hdmi_platdata *pd)
+{
+	struct s5p_hdmi_platdata *npd;
+
+	npd = s3c_set_platdata(pd, sizeof(struct s5p_hdmi_platdata),
+			&s5p_device_hdmi);
+	if (!npd)
+		return;
+
+	if (soc_is_s5pv210() || soc_is_exynos4210())
+		npd->is_v13 = true;
+
+	if (!npd->cfg_hpd)
+		npd->cfg_hpd = s5p_hdmi_cfg_hpd;
+	if (!npd->get_hpd)
+		npd->get_hpd = s5p_hdmi_get_hpd;
+}
 
 /* MIXER */
 #if defined(CONFIG_ARCH_EXYNOS4)

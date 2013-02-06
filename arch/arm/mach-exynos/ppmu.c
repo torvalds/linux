@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/math64.h>
+#include <linux/device.h>
 
 #include <plat/cpu.h>
 
@@ -26,6 +27,7 @@
 static LIST_HEAD(ppmu_list);
 
 unsigned long long ppmu_load[PPMU_END];
+unsigned long long ppmu_load_detail[2][PPMU_END];
 
 void exynos4_ppmu_reset(struct exynos4_ppmu_hw *ppmu)
 {
@@ -83,6 +85,8 @@ unsigned long long exynos4_ppmu_update(struct exynos4_ppmu_hw *ppmu, int ch)
 	if (total > ppmu->ccnt)
 		total = ppmu->ccnt;
 
+	ppmu_load_detail[0][ppmu->id] = total * ppmu->weight;
+	ppmu_load_detail[1][ppmu->id] = ppmu->ccnt;
 	return div64_u64((total * ppmu->weight * 100), ppmu->ccnt);
 }
 

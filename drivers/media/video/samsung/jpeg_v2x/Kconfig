@@ -10,3 +10,20 @@ config VIDEO_JPEG_V2X
 	select V4L2_MEM2MEM_DEV
 	---help---
 	  This is a Samsung JPEG H/W driver for V2.x
+choice
+	prompt "JPEG V2X VERSION"
+	default S5P_JPEG_V2_1
+	depends on VIDEO_JPEG_V2X
+	---help---
+	  Select version of JPEG driver
+
+config JPEG_V2_1
+	bool "JPEG 2.1"
+	---help---
+	  Use JPEG 2.1 Pegasus/Gaia evt 0.0
+
+config JPEG_V2_2
+	bool "JPEG 2.2"
+	---help---
+	  Use JPEG 2.2 Gaia evt 1.0
+endchoice

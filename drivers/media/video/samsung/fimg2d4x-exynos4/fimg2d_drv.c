@@ -29,7 +29,7 @@
 #include <asm/cacheflush.h>
 #include <plat/cpu.h>
 #include <plat/fimg2d.h>
-#include <plat/sysmmu.h>
+#include <plat/s5p-sysmmu.h>
 #include <mach/dev.h>
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>

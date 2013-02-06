@@ -33,6 +33,9 @@
 
 #include <plat/cpu.h>
 #include <plat/exynos4.h>
+#ifdef CONFIG_SEC_WATCHDOG_RESET
+#include <plat/regs-watchdog.h>
+#endif
 
 extern void exynos_secondary_startup(void);
 extern unsigned int gic_bank_offset;
@@ -65,7 +68,7 @@ static void write_pen_release(int val)
 
 static void __iomem *scu_base_addr(void)
 {
-	if (soc_is_exynos5250())
+	if (soc_is_exynos5210() || soc_is_exynos5250())
 		return 0;
 
 	return (void __iomem *)(S5P_VA_SCU);
@@ -79,6 +82,10 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 				 (gic_bank_offset * cpu);
 	void __iomem *cpu_base = S5P_VA_GIC_CPU +
 				(gic_bank_offset * cpu);
+
+	/* Enable the full line of zero */
+	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412())
+		enable_cache_foz();
 
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -131,28 +138,13 @@ static int exynos_power_up_cpu(unsigned int cpu)
 	return 0;
 }
 
-#ifdef CONFIG_CACHE_L2X0
-static void enable_foz(void)
-{
-	u32 val;
-
-	asm volatile(
-	"mrc p15, 0, %0, c1, c0, 1\n"
-	"orr %0, %0, #(1 << 3)\n"
-	: "=r" (val));
-
-#ifdef CONFIG_ARM_TRUSTZONE
-	exynos_smc(SMC_CMD_REG, SMC_REG_ID_CP15(1, 0, 0, 1), val, 0);
-#else
-	asm volatile("mcr p15, 0, %0, c1, c0, 1" : : "r" (val));
-#endif
-}
-#endif
-
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	int ret;
+#ifdef CONFIG_SEC_WATCHDOG_RESET
+	unsigned int tmp_wtcon;
+#endif
 
 	/*
 	 * Set synchronisation state between this boot processor
@@ -160,21 +152,15 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	spin_lock(&boot_lock);
 
+#ifdef CONFIG_SEC_WATCHDOG_RESET
+	tmp_wtcon = __raw_readl(S3C2410_WTCON);
+#endif
+
 	ret = exynos_power_up_cpu(cpu);
 	if (ret) {
 		spin_unlock(&boot_lock);
 		return ret;
 	}
-
-	/*
-	* Enable write full line for zeros mode
-	*/
-#ifdef CONFIG_CACHE_L2X0
-	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412()) {
-		enable_foz();
-		smp_call_function((void (*)(void *))enable_foz, NULL, 0);
-	}
-#endif
 
 	/*
 	 * The secondary processor is waiting to be released from
@@ -195,15 +181,15 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	while (time_before(jiffies, timeout)) {
 		smp_rmb();
 
+		__raw_writel(BSYM(virt_to_phys(exynos_secondary_startup)),
+			cpu_boot_info[cpu].boot_base);
+
 #ifdef CONFIG_ARM_TRUSTZONE
 		if (soc_is_exynos4412())
 			exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
 		else
 			exynos_smc(SMC_CMD_CPU1BOOT, 0, 0, 0);
 #endif
-		__raw_writel(BSYM(virt_to_phys(exynos_secondary_startup)),
-			     cpu_boot_info[cpu].boot_base);
-
 		smp_send_reschedule(cpu);
 
 		if (pen_release == -1)
@@ -211,6 +197,10 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		udelay(10);
 	}
+
+#ifdef CONFIG_SEC_WATCHDOG_RESET
+	__raw_writel(tmp_wtcon, S3C2410_WTCON);
+#endif
 
 	/*
 	 * now the secondary core is starting up let it run its

@@ -13,6 +13,7 @@
 #ifndef __ASM_ARCH_REGS_PMU5_H
 #define __ASM_ARCH_REGS_PMU5_H __FILE__
 
+#include "regs-pmu-5210.h"
 #include "regs-pmu-5250.h"
 
 #define S5P_PMUREG(x)						(S5P_VA_PMU + (x))
@@ -72,6 +73,8 @@
 #define EXYNOS5_EINT_WAKEUP_MASK				S5P_PMUREG(0x0604)
 #define EXYNOS5_WAKEUP_MASK					S5P_PMUREG(0x0608)
 
+#define EXYNOS5_DEFAULT_WAKEUP_MACK				(0xF << 16)
+#define EXYNOS5_MASK_EINT					(1 << 0)
 #define EXYNOS5_MASK_RTC_ALARM					(1 << 1)
 #define EXYNOS5_MASK_RTC_TICK					(1 << 2)
 #define EXYNOS5_MASK_KEY					(1 << 5)
@@ -109,6 +112,14 @@
 #define EXYNOS5_MTCADC_PHY_CONTROL				S5P_PMUREG(0x071C)
 #define EXYNOS5_DPTX_PHY_CONTROL				S5P_PMUREG(0x0720)
 #define EXYNOS5_SATA_PHY_CONTROL				S5P_PMUREG(0x0724)
+
+#define EXYNOS5_ABB_INT						S5P_PMUREG(0x0780)
+#define EXYNOS5_ABB_ARM						S5P_PMUREG(0x0784)
+#define EXYNOS5_ABB_G3D						S5P_PMUREG(0x0788)
+#define EXYNOS5_ABB_MIF						S5P_PMUREG(0x078C)
+
+#define EXYNOS5_ABB_MEMBER(_member)				EXYNOS5_##_member
+
 #define EXYNOS5_INFORM0						S5P_PMUREG(0x0800)
 #define EXYNOS5_INFORM1						S5P_PMUREG(0x0804)
 #define EXYNOS5_INFORM2						S5P_PMUREG(0x0808)

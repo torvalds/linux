@@ -15,7 +15,7 @@ at hand.
 
 Smack consists of three major components:
     - The kernel
-    - A start-up script and a few modified applications
+    - Basic utilities, which are helpful but not required
     - Configuration data
 
 The kernel component of Smack is implemented as a Linux
@@ -23,37 +23,28 @@ Security Modules (LSM) module. It requires netlabel and
 works best with file systems that support extended attributes,
 although xattr support is not strictly required.
 It is safe to run a Smack kernel under a "vanilla" distribution.
+
 Smack kernels use the CIPSO IP option. Some network
 configurations are intolerant of IP options and can impede
 access to systems that use them as Smack does.
 
-The startup script etc-init.d-smack should be installed
-in /etc/init.d/smack and should be invoked early in the
-start-up process. On Fedora rc5.d/S02smack is recommended.
-This script ensures that certain devices have the correct
-Smack attributes and loads the Smack configuration if
-any is defined. This script invokes two programs that
-ensure configuration data is properly formatted. These
-programs are /usr/sbin/smackload and /usr/sin/smackcipso.
-The system will run just fine without these programs,
-but it will be difficult to set access rules properly.
+The current git repositories for Smack user space are:
 
-A version of "ls" that provides a "-M" option to display
-Smack labels on long listing is available.
+	git@gitorious.org:meego-platform-security/smackutil.git
+	git@gitorious.org:meego-platform-security/libsmack.git
 
-A hacked version of sshd that allows network logins by users
-with specific Smack labels is available. This version does
-not work for scp. You must set the /etc/ssh/sshd_config
-line:
-   UsePrivilegeSeparation no
+These should make and install on most modern distributions.
+There are three commands included in smackutil:
 
-The format of /etc/smack/usr is:
-
-   username smack
+smackload  - properly formats data for writing to /smack/load
+smackcipso - properly formats data for writing to /smack/cipso
+chsmack    - display or set Smack extended attribute values
 
 In keeping with the intent of Smack, configuration data is
 minimal and not strictly required. The most important
 configuration step is mounting the smackfs pseudo filesystem.
+If smackutil is installed the startup script will take care
+of this, but it can be manually as well.
 
 Add this line to /etc/fstab:
 
@@ -61,19 +52,162 @@ Add this line to /etc/fstab:
 
 and create the /smack directory for mounting.
 
-Smack uses extended attributes (xattrs) to store file labels.
-The command to set a Smack label on a file is:
+Smack uses extended attributes (xattrs) to store labels on filesystem
+objects. The attributes are stored in the extended attribute security
+name space. A process must have CAP_MAC_ADMIN to change any of these
+attributes.
+
+The extended attributes that Smack uses are:
+
+SMACK64
+	Used to make access control decisions. In almost all cases
+	the label given to a new filesystem object will be the label
+	of the process that created it.
+SMACK64EXEC
+	The Smack label of a process that execs a program file with
+	this attribute set will run with this attribute's value.
+SMACK64MMAP
+	Don't allow the file to be mmapped by a process whose Smack
+	label does not allow all of the access permitted to a process
+	with the label contained in this attribute. This is a very
+	specific use case for shared libraries.
+SMACK64TRANSMUTE
+	Can only have the value "TRUE". If this attribute is present
+	on a directory when an object is created in the directory and
+	the Smack rule (more below) that permitted the write access
+	to the directory includes the transmute ("t") mode the object
+	gets the label of the directory instead of the label of the
+	creating process. If the object being created is a directory
+	the SMACK64TRANSMUTE attribute is set as well.
+SMACK64IPIN
+	This attribute is only available on file descriptors for sockets.
+	Use the Smack label in this attribute for access control
+	decisions on packets being delivered to this socket.
+SMACK64IPOUT
+	This attribute is only available on file descriptors for sockets.
+	Use the Smack label in this attribute for access control
+	decisions on packets coming from this socket.
+
+There are multiple ways to set a Smack label on a file:
 
     # attr -S -s SMACK64 -V "value" path
+    # chsmack -a value path
 
-NOTE: Smack labels are limited to 23 characters. The attr command
-      does not enforce this restriction and can be used to set
-      invalid Smack labels on files.
+A process can see the smack label it is running with by
+reading /proc/self/attr/current. A process with CAP_MAC_ADMIN
+can set the process smack by writing there.
 
-If you don't do anything special all users will get the floor ("_")
-label when they log in. If you do want to log in via the hacked ssh
-at other labels use the attr command to set the smack value on the
-home directory and its contents.
+Most Smack configuration is accomplished by writing to files
+in the smackfs filesystem. This pseudo-filesystem is usually
+mounted on /smack.
+
+access
+	This interface reports whether a subject with the specified
+	Smack label has a particular access to an object with a
+	specified Smack label. Write a fixed format access rule to
+	this file. The next read will indicate whether the access
+	would be permitted. The text will be either "1" indicating
+	access, or "0" indicating denial.
+access2
+	This interface reports whether a subject with the specified
+	Smack label has a particular access to an object with a
+	specified Smack label. Write a long format access rule to
+	this file. The next read will indicate whether the access
+	would be permitted. The text will be either "1" indicating
+	access, or "0" indicating denial.
+ambient
+	This contains the Smack label applied to unlabeled network
+	packets.
+change-rule
+	This interface allows modification of existing access control rules.
+	The format accepted on write is:
+		"%s %s %s %s"
+	where the first string is the subject label, the second the
+	object label, the third the access to allow and the fourth the
+	access to deny. The access strings may contain only the characters
+	"rwxat-". If a rule for a given subject and object exists it will be
+	modified by enabling the permissions in the third string and disabling
+	those in the fourth string. If there is no such rule it will be
+	created using the access specified in the third and the fourth strings.
+cipso
+	This interface allows a specific CIPSO header to be assigned
+	to a Smack label. The format accepted on write is:
+		"%24s%4d%4d"["%4d"]...
+	The first string is a fixed Smack label. The first number is
+	the level to use. The second number is the number of categories.
+	The following numbers are the categories.
+	"level-3-cats-5-19          3   2   5  19"
+cipso2
+	This interface allows a specific CIPSO header to be assigned
+	to a Smack label. The format accepted on write is:
+	"%s%4d%4d"["%4d"]...
+	The first string is a long Smack label. The first number is
+	the level to use. The second number is the number of categories.
+	The following numbers are the categories.
+	"level-3-cats-5-19   3   2   5  19"
+direct
+	This contains the CIPSO level used for Smack direct label
+	representation in network packets.
+doi
+	This contains the CIPSO domain of interpretation used in
+	network packets.
+load
+	This interface allows access control rules in addition to
+	the system defined rules to be specified. The format accepted
+	on write is:
+		"%24s%24s%5s"
+	where the first string is the subject label, the second the
+	object label, and the third the requested access. The access
+	string may contain only the characters "rwxat-", and specifies
+	which sort of access is allowed. The "-" is a placeholder for
+	permissions that are not allowed. The string "r-x--" would
+	specify read and execute access. Labels are limited to 23
+	characters in length.
+load2
+	This interface allows access control rules in addition to
+	the system defined rules to be specified. The format accepted
+	on write is:
+		"%s %s %s"
+	where the first string is the subject label, the second the
+	object label, and the third the requested access. The access
+	string may contain only the characters "rwxat-", and specifies
+	which sort of access is allowed. The "-" is a placeholder for
+	permissions that are not allowed. The string "r-x--" would
+	specify read and execute access.
+load-self
+	This interface allows process specific access rules to be
+	defined. These rules are only consulted if access would
+	otherwise be permitted, and are intended to provide additional
+	restrictions on the process. The format is the same as for
+	the load interface.
+load-self2
+	This interface allows process specific access rules to be
+	defined. These rules are only consulted if access would
+	otherwise be permitted, and are intended to provide additional
+	restrictions on the process. The format is the same as for
+	the load2 interface.
+logging
+	This contains the Smack logging state.
+mapped
+	This contains the CIPSO level used for Smack mapped label
+	representation in network packets.
+netlabel
+	This interface allows specific internet addresses to be
+	treated as single label hosts. Packets are sent to single
+	label hosts without CIPSO headers, but only from processes
+	that have Smack write access to the host label. All packets
+	received from single label hosts are given the specified
+	label. The format accepted on write is:
+		"%d.%d.%d.%d label" or "%d.%d.%d.%d/%d label".
+onlycap
+	This contains the label processes must have for CAP_MAC_ADMIN
+	and CAP_MAC_OVERRIDE to be effective. If this file is empty
+	these capabilities are effective at for processes with any
+	label. The value is set by writing the desired label to the
+	file or cleared by writing "-" to the file.
+revoke-subject
+	Writing a Smack label here sets the access to '-' for all access
+	rules with that subject label.
 
 You can add access rules in /etc/smack/accesses. They take the form:
 
@@ -82,10 +216,6 @@ You can add access rules in /etc/smack/accesses. They take the form:
 access is a combination of the letters rwxa which specify the
 kind of access permitted a subject with subjectlabel on an
 object with objectlabel. If there is no rule no access is allowed.
-
-A process can see the smack label it is running with by
-reading /proc/self/attr/current. A privileged process can
-set the process smack by writing there.
 
 Look for additional programs on http://schaufler-ca.com
 
@@ -186,7 +316,7 @@ team. Smack labels are unstructured, case sensitive, and the only operation
 ever performed on them is comparison for equality. Smack labels cannot
 contain unprintable characters, the "/" (slash), the "\" (backslash), the "'"
 (quote) and '"' (double-quote) characters.
-Smack labels cannot begin with a '-', which is reserved for special options.
+Smack labels cannot begin with a '-'. This is reserved for special options.
 
 There are some predefined labels:
 
@@ -194,7 +324,7 @@ There are some predefined labels:
 	^ 	Pronounced "hat", a single circumflex character.
 	* 	Pronounced "star", a single asterisk character.
 	? 	Pronounced "huh", a single question mark character.
-	@ 	Pronounced "Internet", a single at sign character.
+	@ 	Pronounced "web", a single at sign character.
 
 Every task on a Smack system is assigned a label. System tasks, such as
 init(8) and systems daemons, are run with the floor ("_") label. User tasks
@@ -246,13 +376,14 @@ The format of an access rule is:
 
 Where subject-label is the Smack label of the task, object-label is the Smack
 label of the thing being accessed, and access is a string specifying the sort
-of access allowed. The Smack labels are limited to 23 characters. The access
-specification is searched for letters that describe access modes:
+of access allowed. The access specification is searched for letters that
+describe access modes:
 
 	a: indicates that append access should be granted.
 	r: indicates that read access should be granted.
 	w: indicates that write access should be granted.
 	x: indicates that execute access should be granted.
+	t: indicates that the rule requests transmutation.
 
 Uppercase values for the specification letters are allowed as well.
 Access mode specifications can be in any order. Examples of acceptable rules
@@ -273,7 +404,7 @@ Examples of unacceptable rules are:
 
 Spaces are not allowed in labels. Since a subject always has access to files
 with the same label specifying a rule for that case is pointless. Only
-valid letters (rwxaRWXA) and the dash ('-') character are allowed in
+valid letters (rwxatRWXAT) and the dash ('-') character are allowed in
 access specifications. The dash is a placeholder, so "a-r" is the same
 as "ar". A lone dash is used to specify that no access should be allowed.
 
@@ -296,6 +427,13 @@ directory. It is possible that a user may be able to see that a file exists
 but not any of its attributes by the circumstance of having read access to the
 containing directory but not to the differently labeled file. This is an
 artifact of the file name being data in the directory, not a part of the file.
+
+If a directory is marked as transmuting (SMACK64TRANSMUTE=TRUE) and the
+access rule that allows a process to create an object in that directory
+includes 't' access the label assigned to the new object will be that
+of the directory, not the creating process. This makes it much easier
+for two processes with different labels to share data without granting
+access to all of their files.
 
 IPC objects, message queues, semaphore sets, and memory segments exist in flat
 namespaces and access requests are only required to match the object in

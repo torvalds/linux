@@ -803,4 +803,8 @@ static int __init blk_settings_init(void)
 	blk_max_pfn = max_pfn - 1;
 	return 0;
 }
+#ifdef CONFIG_FAST_RESUME
+beforeresume_initcall(blk_settings_init);
+#else
 subsys_initcall(blk_settings_init);
+#endif

@@ -1760,7 +1760,7 @@ static void __init odroid_machine_init(void)
 	samsung_bl_set(&odroid_bl_gpio_info, &odroid_bl_data);
 
 #ifdef CONFIG_EXYNOS4_DEV_DWMCI
-	exynos_dwmci_set_platdata(&exynos_dwmci_pdata);
+	exynos_dwmci_set_platdata(&exynos_dwmci_pdata, 0);
 #endif
 
 #ifdef CONFIG_VIDEO_EXYNOS_FIMC_IS

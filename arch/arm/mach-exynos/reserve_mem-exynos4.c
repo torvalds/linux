@@ -49,6 +49,28 @@ struct s5p_media_device media_devs[] = {
 	},
 #endif
 
+#if defined(CONFIG_MACH_U1) || defined(CONFIG_MACH_TRATS)
+#ifdef CONFIG_ANDROID_PMEM_MEMSIZE_PMEM
+	{
+		.id = S5P_MDEV_PMEM,
+		.name = "pmem",
+		.bank = 0,
+		.memsize = CONFIG_ANDROID_PMEM_MEMSIZE_PMEM * SZ_1K,
+		.paddr = 0,
+	},
+#endif
+
+#ifdef CONFIG_ANDROID_PMEM_MEMSIZE_PMEM_GPU1
+	{
+		.id = S5P_MDEV_PMEM_GPU1,
+		.name = "pmem_gpu1",
+		.bank = 0,
+		.memsize = CONFIG_ANDROID_PMEM_MEMSIZE_PMEM_GPU1 * SZ_1K,
+		.paddr = 0,
+	},
+#endif
+#endif
+
 #ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC0
 	{
 		.id = S5P_MDEV_FIMC0,
@@ -105,6 +127,16 @@ struct s5p_media_device media_devs[] = {
 		.name = "fimg2d",
 		.bank = 0,
 		.memsize = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMG2D * SZ_1K,
+		.paddr = 0,
+	},
+#endif
+
+#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_TVOUT
+	{
+		.id = S5P_MDEV_TVOUT,
+		.name = "tvout",
+		.bank = 0,
+		.memsize = CONFIG_VIDEO_SAMSUNG_MEMSIZE_TVOUT * SZ_1K,
 		.paddr = 0,
 	},
 #endif

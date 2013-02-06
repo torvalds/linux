@@ -71,6 +71,15 @@
 	str1w \ptr, \reg8, \abort
 	.endm
 
+	.macro cpy8w dst src reg1 reg2 abort
+	.irp    offset, #0, #8, #16, #24
+	ldrd    \reg1, \reg2, [\src, \offset]
+	str1w \dst, \reg1, \abort
+	str1w \dst, \reg2, \abort
+	.endr
+	add	\src, \src, #32
+	.endm
+
 	.macro str1b ptr reg cond=al abort
 	strusr	\reg, \ptr, 1, \cond, abort=\abort
 	.endm

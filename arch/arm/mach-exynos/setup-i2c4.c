@@ -19,6 +19,10 @@ struct platform_device; /* don't need the contents */
 
 void s3c_i2c4_cfg_gpio(struct platform_device *dev)
 {
+#if defined(CONFIG_MACH_U1_NA_USCC)
+s3c_gpio_cfgall_range(EXYNOS4_GPB(0), 1,
+		S3C_GPIO_OUTPUT, S3C_GPIO_PULL_NONE);
+#else
 	if (soc_is_exynos4210())
 		s3c_gpio_cfgall_range(EXYNOS4_GPB(2), 2,
 			S3C_GPIO_SFN(3), S3C_GPIO_PULL_UP);
@@ -28,4 +32,5 @@ void s3c_i2c4_cfg_gpio(struct platform_device *dev)
 	else
 		s3c_gpio_cfgall_range(EXYNOS5_GPA2(0), 2,
 			S3C_GPIO_SFN(3), S3C_GPIO_PULL_UP);
+#endif
 }

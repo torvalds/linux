@@ -40,6 +40,15 @@
 	stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
 	.endm
 
+	.macro cpy8w dst src reg1 reg2 abort
+	.irp    offset, #0, #8, #16, #24
+	ldrd    \reg1, \reg2, [\src, \offset]
+	strd    \reg1, \reg2, [\dst, \offset]
+	.endr
+	add	\src, \src, #32
+	add	\dst, \dst, #32
+	.endm
+
 	.macro str1b ptr reg cond=al abort
 	str\cond\()b \reg, [\ptr], #1
 	.endm

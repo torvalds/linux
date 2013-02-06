@@ -40,10 +40,21 @@
 
 #define S3C_MEM_GET_PADDR		_IOWR(MEM_IOCTL_MAGIC, 320, struct s3c_mem_alloc)
 
+#ifdef CONFIG_VIDEO_SAMSUNG_USE_DMA_MEM
+#define S3C_MEM_CMA_ALLOC		\
+			_IOWR(MEM_IOCTL_MAGIC, 321, struct s3c_mem_alloc)
+#define S3C_MEM_CMA_FREE		\
+			_IOWR(MEM_IOCTL_MAGIC, 322, struct s3c_mem_alloc)
+#endif
+
 #define MEM_ALLOC			1
 #define MEM_ALLOC_SHARE			2
 #define MEM_ALLOC_CACHEABLE		3
 #define MEM_ALLOC_CACHEABLE_SHARE	4
+
+#ifdef CONFIG_VIDEO_SAMSUNG_USE_DMA_MEM
+#define MEM_CMA_ALLOC	5
+#endif
 
 #define S3C_MEM_MINOR  			13
 #undef USE_DMA_ALLOC
@@ -57,13 +68,18 @@ static DEFINE_MUTEX(mem_share_free_lock);
 static DEFINE_MUTEX(mem_cacheable_alloc_lock);
 static DEFINE_MUTEX(mem_cacheable_share_alloc_lock);
 
+#ifdef CONFIG_VIDEO_SAMSUNG_USE_DMA_MEM
+static DEFINE_MUTEX(mem_open_lock);
+static DEFINE_MUTEX(mem_release_lock);
+#endif
+
 struct s3c_mem_alloc {
-	int		size;
-	unsigned int 	vir_addr;
-	unsigned int 	phy_addr;
+	int size;
+	unsigned int vir_addr;
+	unsigned int phy_addr;
 
 #ifdef USE_DMA_ALLOC
-	unsigned int	kvir_addr;
+	unsigned int kvir_addr;
 #endif
 };
 
@@ -71,4 +87,16 @@ struct s3c_mem_alloc {
 #define s3c_dma_init() s3c_dma_mem_init()
 #else
 #define s3c_dma_init() do { } while (0)
+#endif
+
+#ifdef CONFIG_VIDEO_SAMSUNG_USE_DMA_MEM
+#define S3C_MEM_CMA_MAX_CTX_BUF 3
+extern int s3c_mem_open(struct inode *inode, struct file *filp);
+extern int s3c_mem_release(struct inode *inode, struct file *filp);
+
+struct s3c_dev_info {
+	struct s3c_mem_alloc s_cur_mem_info[S3C_MEM_CMA_MAX_CTX_BUF];
+	int s3c_mem_ctx_buf_num;
+};
+
 #endif

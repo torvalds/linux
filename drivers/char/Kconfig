@@ -64,6 +64,8 @@ config SGI_MBCS
 
 source "drivers/tty/serial/Kconfig"
 
+source "drivers/char/diag/Kconfig"
+
 config TTY_PRINTK
 	bool "TTY driver to output user messages via printk"
 	depends on EXPERT

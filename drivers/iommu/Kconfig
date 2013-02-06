@@ -1,0 +1,161 @@
+# IOMMU_API always gets selected by whoever wants it.
+config IOMMU_API
+	bool
+
+menuconfig IOMMU_SUPPORT
+	bool "IOMMU Hardware Support"
+	default y
+	---help---
+	  Say Y here if you want to compile device drivers for IO Memory
+	  Management Units into the kernel. These devices usually allow to
+	  remap DMA requests and/or remap interrupts from other devices on the
+	  system.
+
+if IOMMU_SUPPORT
+
+# MSM IOMMU support
+config MSM_IOMMU
+	bool "MSM IOMMU Support"
+	depends on ARCH_MSM8X60 || ARCH_MSM8960
+	select IOMMU_API
+	help
+	  Support for the IOMMUs found on certain Qualcomm SOCs.
+	  These IOMMUs allow virtualization of the address space used by most
+	  cores within the multimedia subsystem.
+
+	  If unsure, say N here.
+
+config IOMMU_PGTABLES_L2
+	def_bool y
+	depends on MSM_IOMMU && MMU && SMP && CPU_DCACHE_DISABLE=n
+
+# AMD IOMMU support
+config AMD_IOMMU
+	bool "AMD IOMMU support"
+	select SWIOTLB
+	select PCI_MSI
+	select PCI_ATS
+	select PCI_PRI
+	select PCI_PASID
+	select IOMMU_API
+	depends on X86_64 && PCI && ACPI
+	---help---
+	  With this option you can enable support for AMD IOMMU hardware in
+	  your system. An IOMMU is a hardware component which provides
+	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
+	  can isolate the the DMA memory of different devices and protect the
+	  system from misbehaving device drivers or hardware.
+
+	  You can find out if your system has an AMD IOMMU if you look into
+	  your BIOS for an option to enable it or if you have an IVRS ACPI
+	  table.
+
+config AMD_IOMMU_STATS
+	bool "Export AMD IOMMU statistics to debugfs"
+	depends on AMD_IOMMU
+	select DEBUG_FS
+	---help---
+	  This option enables code in the AMD IOMMU driver to collect various
+	  statistics about whats happening in the driver and exports that
+	  information to userspace via debugfs.
+	  If unsure, say N.
+
+config AMD_IOMMU_V2
+	tristate "AMD IOMMU Version 2 driver (EXPERIMENTAL)"
+	depends on AMD_IOMMU && PROFILING && EXPERIMENTAL
+	select MMU_NOTIFIER
+	---help---
+	  This option enables support for the AMD IOMMUv2 features of the IOMMU
+	  hardware. Select this option if you want to use devices that support
+	  the the PCI PRI and PASID interface.
+
+# Intel IOMMU support
+config DMAR_TABLE
+	bool
+
+config INTEL_IOMMU
+	bool "Support for Intel IOMMU using DMA Remapping Devices"
+	depends on PCI_MSI && ACPI && (X86 || IA64_GENERIC)
+	select IOMMU_API
+	select DMAR_TABLE
+	help
+	  DMA remapping (DMAR) devices support enables independent address
+	  translations for Direct Memory Access (DMA) from devices.
+	  These DMA remapping devices are reported via ACPI tables
+	  and include PCI device scope covered by these DMA
+	  remapping devices.
+
+config INTEL_IOMMU_DEFAULT_ON
+	def_bool y
+	prompt "Enable Intel DMA Remapping Devices by default"
+	depends on INTEL_IOMMU
+	help
+	  Selecting this option will enable a DMAR device at boot time if
+	  one is found. If this option is not selected, DMAR support can
+	  be enabled by passing intel_iommu=on to the kernel.
+
+config INTEL_IOMMU_BROKEN_GFX_WA
+	bool "Workaround broken graphics drivers (going away soon)"
+	depends on INTEL_IOMMU && BROKEN && X86
+	---help---
+	  Current Graphics drivers tend to use physical address
+	  for DMA and avoid using DMA APIs. Setting this config
+	  option permits the IOMMU driver to set a unity map for
+	  all the OS-visible memory. Hence the driver can continue
+	  to use physical addresses for DMA, at least until this
+	  option is removed in the 2.6.32 kernel.
+
+config INTEL_IOMMU_FLOPPY_WA
+	def_bool y
+	depends on INTEL_IOMMU && X86
+	---help---
+	  Floppy disk drivers are known to bypass DMA API calls
+	  thereby failing to work when IOMMU is enabled. This
+	  workaround will setup a 1:1 mapping for the first
+	  16MiB to make floppy (an ISA device) work.
+
+config IRQ_REMAP
+	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	select DMAR_TABLE
+	---help---
+	  Supports Interrupt remapping for IO-APIC and MSI devices.
+	  To use x2apic mode in the CPU's which support x2APIC enhancements or
+	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
+config EXYNOS_IOMMU
+	bool "Exynos IOMMU Support"
+	depends on ARCH_EXYNOS && EXYNOS_DEV_SYSMMU
+	select IOMMU_API
+	help
+	  Support for the IOMMU(System MMU) of Samsung Exynos application
+	  processor family. This enables H/W multimedia accellerators to see
+	  non-linear physical memory chunks as a linear memory in their
+	  address spaces
+
+	  If unsure, say N here.
+config EXYNOS_IOVMM
+	bool "IO Virtual Memory Manager for Exynos IOMMUs"
+	select GENERIC_ALLOCATOR
+	depends on EXYNOS_IOMMU
+	default y
+	help
+	  Supporting the users of Exynos IOMMU for allocating and mapping
+	  an IO virtual memory region with a physical memory region
+	  and managing the allocated virtual memory regions.
+
+config EXYNOS_IOVMM_ALIGN64K
+	bool "Let I/O memory region 64KB aligned"
+	default y
+	depends on EXYNOS_IOVMM && ARCH_EXYNOS5
+
+config EXYNOS_IOMMU_DEBUG
+	bool "Debugging log for Exynos IOMMU"
+	depends on EXYNOS_IOMMU
+	help
+	  Select this to see the detailed log message that shows what
+	  happens in the IOMMU driver
+
+	  Say N unless you need kernel log message for IOMMU debugging
+
+endif # IOMMU_SUPPORT

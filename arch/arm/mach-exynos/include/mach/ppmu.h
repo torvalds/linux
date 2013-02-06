@@ -83,6 +83,7 @@ enum exynos4_ppmu {
 };
 
 extern unsigned long long ppmu_load[PPMU_END];
+extern unsigned long long ppmu_load_detail[2][PPMU_END];
 
 struct exynos4_ppmu_hw {
 	struct list_head node;
@@ -92,6 +93,7 @@ struct exynos4_ppmu_hw {
 	unsigned int weight;
 	int usage;
 	int id;
+	unsigned int flags;
 	struct device *dev;
 	unsigned int count[NUMBER_OF_COUNTER];
 };

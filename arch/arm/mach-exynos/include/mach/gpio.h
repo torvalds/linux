@@ -16,6 +16,9 @@
 #include "gpio-exynos4.h"
 #include "gpio-exynos5.h"
 
+extern void (*exynos4_sleep_gpio_table_set)(void);
+extern void (*exynos5_sleep_gpio_table_set)(void);
+
 #if defined(CONFIG_ARCH_EXYNOS4)
 #define S3C_GPIO_END		EXYNOS4_GPIO_END
 #define ARCH_NR_GPIOS		(EXYNOS4XXX_GPIO_END +	\
@@ -27,6 +30,13 @@
 #else
 #error "ARCH_EXYNOS* is not defined"
 #endif
+
+#define GPIO_LEVEL_LOW		0
+#define GPIO_LEVEL_HIGH		1
+#define GPIO_LEVEL_NONE		2
+
+#define GPIO_INPUT		0
+#define GPIO_OUTPUT		1
 
 #include <asm-generic/gpio.h>
 

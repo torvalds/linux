@@ -101,7 +101,11 @@
    S5P_GPIOINT_GROUP_COUNT chips, each with total number of
    S5P_GPIOINT_GROUP_SIZE pins/irqs. Each GPIOINT group can be assiged
    to any gpio chip with the s5p_register_gpio_interrupt() function */
+#if defined(CONFIG_MACH_MIDAS) || defined(MACH_ODROID_4X12)
+#define S5P_GPIOINT_GROUP_COUNT 5
+#else
 #define S5P_GPIOINT_GROUP_COUNT 4
+#endif
 #define S5P_GPIOINT_GROUP_SIZE	8
 #define S5P_GPIOINT_COUNT	(S5P_GPIOINT_GROUP_COUNT * S5P_GPIOINT_GROUP_SIZE)
 

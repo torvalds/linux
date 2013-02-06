@@ -1,0 +1,34 @@
+#
+# mhl drivers configuration
+#
+
+menu "Mhl(sii9244) device support"
+
+
+config SAMSUNG_MHL
+        bool "Enable Sii9244 MHL Chip Driver"
+        default n
+        ---help---
+          support Sii9244 MHL Chip Driver
+
+
+config SAMSUNG_USE_11PIN_CONNECTOR
+	bool "11pin micro-usb connector support"
+	default n
+	---help---
+	  use 11pin micro usb connector instead of 5pin
+
+config SAMSUNG_SMARTDOCK
+	bool "smartdock support"
+	default n
+
+config SAMSUNG_WORKAROUND_HPD_GLANCE
+	bool "To avoid some effect of MHL's HPD glitch"
+	depends on (SAMSUNG_MHL || MHL_SII9234) && (CPU_EXYNOS4210 || CPU_EXYNOS4212 || CPU_EXYNOS4412)
+	default y
+
+config SAMSUNG_MHL_UNPOWERED
+	bool "Use source vbus for mhl dongle if no external power"
+	depends on (SAMSUNG_MHL || MHL_SII9234)
+	default n
+endmenu

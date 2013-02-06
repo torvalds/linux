@@ -14,8 +14,8 @@
 #define __JPEG_MEM_H__
 
 // JYSHIN for google demo 20101014
-#define MAX_JPEG_WIDTH		1600
-#define MAX_JPEG_HEIGHT		1200
+#define MAX_JPEG_WIDTH		3264
+#define MAX_JPEG_HEIGHT		2448
 
 //#define MAX_JPEG_WIDTH	3072
 //#define MAX_JPEG_HEIGHT	2048

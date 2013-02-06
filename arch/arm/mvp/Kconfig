@@ -1,0 +1,24 @@
+config VMWARE_MVP
+       bool "Build VMware Mobile Virtualization Platform modules"
+       select MODULES
+       select MODULE_UNLOAD
+       select SYSFS
+       select NAMESPACES
+       select NET_NS
+       select INET
+       select IPV6
+       select TUN
+       select NETFILTER
+       help
+	 Say Y here to enable the building of kernel modules
+	 for VMware's Mobile Virtualization Platform
+
+config VMWARE_MVP_DEBUG
+       bool "Enable debug for VMware Mobile Virtualization Platform modules"
+       depends on VMWARE_MVP
+       select IKCONFIG
+       select IKCONFIG_PROC
+       help
+	 Say Y here to enable debug on kernel modules
+	 for VMware's Mobile Virtualization Platform.
+	 This should be enabled for eng or userdebug builds.

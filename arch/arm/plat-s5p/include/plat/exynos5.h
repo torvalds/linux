@@ -18,7 +18,7 @@ extern void exynos_common_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 extern void exynos5_register_clocks(void);
 extern void exynos5_setup_clocks(void);
 
-#if defined(CONFIG_CPU_EXYNOS5250)
+#if defined(CONFIG_CPU_EXYNOS5210) || defined(CONFIG_CPU_EXYNOS5250)
 
 extern  int exynos5_init(void);
 extern void exynos5_init_irq(void);

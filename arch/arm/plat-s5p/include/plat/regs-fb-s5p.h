@@ -146,7 +146,8 @@
 #define S3C_BLENDEQ3		(0x024C)	/* Window 3 blending equation control */
 #define S3C_BLENDEQ4		(0x0250)	/* Window 4 blending equation control */
 #define S3C_BLENDCON		(0x0260)	/* Blending control */
-
+#define S3C_DUALRGB		(0x027C)	/* DUALRGB INTERFACE SETTING REGISTER */
+#define S3C_SHD_WIN_BASE	(0x4000)	/* Shadow Window control reg Base */
 /*
  * Bit Definitions
 */
@@ -192,7 +193,7 @@
 /* VIDCON1 */
 #define S3C_VIDCON1_FIXVCLK_VCLK_HOLD		(0 << 9)
 #define S3C_VIDCON1_FIXVCLK_VCLK_RUN		(1 << 9)
-#define S3C_VIDCON1_FIXVCLK_VCLK_RUN_VDEN_DIS	(2 << 9)
+#define S3C_VIDCON1_FIXVCLK_VCLK_RUN_VDEN_DIS	(3 << 9)
 #define S3C_VIDCON1_FIXVCLK_MASK		(3 << 9)
 #define S3C_VIDCON1_IVCLK_FALLING_EDGE		(0 << 7)
 #define S3C_VIDCON1_IVCLK_RISING_EDGE		(1 << 7)
@@ -411,5 +412,11 @@
 
 /* WxKEYCON1 (1~4) */
 #define S3C_KEYCON1_COLVAL(x)			(((x) & 0xffffff) << 0)
+
+/* DUALRGB */
+#define S3C_DUALRGB_BYPASS_SINGLE	(0 << 0)
+#define S3C_DUALRGB_BYPASS_DUAL	(1 << 0)
+#define S3C_DUALRGB_MIE_DUAL		(2 << 0)
+#define S3C_DUALRGB_MDNIE		(3 << 0)
 
 #endif /* __ASM_PLAT_REGS_FB_S5P_H */

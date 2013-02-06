@@ -58,6 +58,7 @@ struct busfreq_data {
 	unsigned int (*get_table_index) (struct opp *opp);
 	void (*busfreq_prepare) (unsigned int index);
 	void (*busfreq_post) (unsigned int index);
+	void (*set_qos) (unsigned int index);
 	void (*busfreq_suspend) (void);
 	void (*busfreq_resume) (void);
 };
@@ -112,6 +113,7 @@ unsigned int exynos4x12_get_table_index(struct opp *opp);
 struct opp *exynos4x12_monitor(struct busfreq_data *data);
 void exynos4x12_prepare(unsigned int index);
 void exynos4x12_post(unsigned int index);
+void exynos4x12_set_qos(unsigned int index);
 void exynos4x12_suspend(void);
 void exynos4x12_resume(void);
 #endif

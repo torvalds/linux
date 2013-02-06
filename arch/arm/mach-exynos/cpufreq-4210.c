@@ -20,6 +20,7 @@
 #include <mach/regs-clock.h>
 #include <mach/cpufreq.h>
 #include <mach/asv.h>
+#include <mach/sec_debug.h>
 
 #include <plat/clock.h>
 
@@ -141,10 +142,10 @@ static const unsigned int asv_voltage_A[CPUFREQ_LEVEL_END][8] = {
 	 * @200  :
 	 */
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 1350000, 1350000, 1300000, 1275000, 1250000, 1250000, 1200000, 1175000 },
-	{ 1300000, 1250000, 1200000, 1175000, 1150000, 1150000, 1100000, 1075000 },
-	{ 1200000, 1150000, 1100000, 1075000, 1050000, 1050000, 1000000, 975000 },
-	{ 1100000, 1050000, 1000000, 975000, 975000, 975000, 925000, 925000 },
+	{ 1350000, 1350000, 1300000, 1275000, 1250000, 1225000, 1200000, 1175000 },
+	{ 1300000, 1250000, 1200000, 1175000, 1150000, 1125000, 1100000, 1075000 },
+	{ 1200000, 1150000, 1100000, 1075000, 1050000, 1025000, 1000000, 975000 },
+	{ 1100000, 1050000, 1000000, 975000, 975000, 950000, 925000, 925000 },
 	{ 1050000, 1000000, 975000, 950000, 950000, 925000, 925000, 925000 },
 
 };
@@ -252,6 +253,11 @@ static void exynos4210_set_frequency(unsigned int old_index,
 {
 	unsigned int tmp;
 
+	sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
+			"%s: old_index=%d, new_index=%d(%ps)",
+			__func__, old_index, new_index,
+			__builtin_return_address(0));
+
 	if (old_index > new_index) {
 		if (!exynos4210_pms_change(old_index, new_index)) {
 			/* 1. Change the system clock divider values */
@@ -301,8 +307,13 @@ static void __init set_volt_table(void)
 
 	switch (tmp  & (SUPPORT_FREQ_MASK << SUPPORT_FREQ_SHIFT)) {
 	case SUPPORT_1400MHZ:
+#if defined(CONFIG_EXYNOS4210_1200MHZ_SUPPORT)
+		for_1200 = true;
+		max_support_idx = L1;
+#else
 		for_1400 = true;
 		max_support_idx = L0;
+#endif
 		break;
 	case SUPPORT_1200MHZ:
 		for_1200 = true;
@@ -343,6 +354,27 @@ static void __init set_volt_table(void)
 	}
 }
 
+#if defined(CONFIG_REGULATOR_MAX8997)
+extern void max8997_set_arm_voltage_table(int *voltage_table, int arr_size);
+
+static void exynos4210_cpufreq_set_pmic_vol_table(void)
+{
+	int vol_table[CPUFREQ_LEVEL_END];
+	int i;
+
+	for (i = 0; i < CPUFREQ_LEVEL_END; i++)
+		vol_table[i] = exynos4210_volt_table[i];
+
+	max8997_set_arm_voltage_table(vol_table, CPUFREQ_LEVEL_END);
+}
+#else
+static void exynos4210_cpufreq_set_pmic_vol_table(void)
+{
+	/*Do Nothing*/
+}
+#endif /* CONFIG_MACH_U1 */
+
+
 int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 {
 	int i;
@@ -350,6 +382,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	unsigned long rate;
 
 	set_volt_table();
+	exynos4210_cpufreq_set_pmic_vol_table();
 
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -392,7 +425,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	info->pm_lock_idx = L2;
+	info->pm_lock_idx = L3;
 	info->pll_safe_idx = L2;
 	info->max_support_idx = max_support_idx;
 	info->min_support_idx = min_support_idx;

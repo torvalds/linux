@@ -9,6 +9,9 @@
 
 #include <asm-generic/dma-coherent.h>
 #include <asm/memory.h>
+#ifdef CONFIG_DMA_CMA
+#include <linux/dma-contiguous.h>
+#endif
 
 #ifdef __arch_page_to_dma
 #error Please update to __arch_pfn_to_dma
@@ -171,6 +174,21 @@ static inline void dma_free_noncoherent(struct device *dev, size_t size,
 		void *cpu_addr, dma_addr_t handle)
 {
 }
+
+#ifdef CONFIG_DMA_CMA
+static inline int dma_prepare_alloc_coherent(struct device *dev, size_t size)
+{
+	int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	int align = get_order(PAGE_ALIGN(size));
+
+	return dma_prepare_alloc_from_contiguous(dev, count, align);
+}
+#else
+static inline int dma_prepare_alloc_coherent(struct device *dev, size_t size)
+{
+	return 0;
+}
+#endif
 
 /**
  * dma_alloc_coherent - allocate consistent memory for DMA

@@ -33,7 +33,10 @@ void *jpeg_cma_init(struct jpeg_dev *dev)
 	return vb2_cma_phys_init(&dev->plat_dev->dev, NULL, SZ_8K, false);
 }
 
-void jpeg_cma_resume(void *alloc_ctx) {}
+int jpeg_cma_resume(void *alloc_ctx)
+{
+	return 1;
+}
 void jpeg_cma_suspend(void *alloc_ctx) {}
 
 const struct jpeg_vb2 jpeg_vb2_cma = {
@@ -47,28 +50,30 @@ const struct jpeg_vb2 jpeg_vb2_cma = {
 	.set_cacheable	= vb2_cma_phys_set_cacheable,
 };
 #elif defined(CONFIG_VIDEOBUF2_ION)
-void *jpeg_ion_init(struct jpeg_dev *dev)
+static void *jpeg_ion_init(struct jpeg_dev *dev)
 {
-	struct vb2_ion vb2_ion;
-	struct vb2_drv vb2_drv = {0, };
-	vb2_ion.dev = &dev->plat_dev->dev;
-	vb2_ion.name = JPEG_ION_NAME;
-	vb2_ion.contig = false;
-	vb2_ion.cacheable = false;
-	vb2_ion.align = SZ_8K;
+	return vb2_ion_create_context(&dev->plat_dev->dev, SZ_8K,
+					VB2ION_CTX_VMCONTIG | VB2ION_CTX_IOMMU);
+}
 
-	vb2_drv.use_mmu = true;
-	return vb2_ion_init(&vb2_ion, &vb2_drv);
+static unsigned long jpeg_vb2_plane_addr(struct vb2_buffer *vb, u32 plane_no)
+{
+	void *cookie = vb2_plane_cookie(vb, plane_no);
+	dma_addr_t dva = 0;
+
+	WARN_ON(vb2_ion_dma_address(cookie, &dva) != 0);
+
+	return dva;
 }
 
 const struct jpeg_vb2 jpeg_vb2_ion = {
 	.ops		= &vb2_ion_memops,
 	.init		= jpeg_ion_init,
-	.cleanup	= vb2_ion_cleanup,
-	.plane_addr	= vb2_ion_plane_dvaddr,
-	.resume		= vb2_ion_resume,
-	.suspend	= vb2_ion_suspend,
+	.cleanup	= vb2_ion_destroy_context,
+	.plane_addr	= jpeg_vb2_plane_addr,
+	.resume		= vb2_ion_attach_iommu,
+	.suspend	= vb2_ion_detach_iommu,
 	.cache_flush	= vb2_ion_cache_flush,
-	.set_cacheable	= vb2_ion_set_cacheable,
+	.set_cacheable	= vb2_ion_set_cached,
 };
 #endif

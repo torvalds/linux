@@ -62,10 +62,10 @@ static struct asv_judge_table exynos4210_single_1200_limit[] = {
 
 static int exynos4210_check_vdd_arm(void)
 {
+#if defined(CONFIG_REGULATOR)
 	struct regulator *arm_regulator;
 	int ret;
 
-#if defined(CONFIG_REGULATOR)
 	arm_regulator = regulator_get(NULL, "vdd_arm");
 	if (IS_ERR(arm_regulator)) {
 		pr_err("%s failed to get resource %s\n", __func__, "vdd_arm");
@@ -90,12 +90,95 @@ static int exynos4210_check_vdd_arm(void)
 #endif
 	return 0;
 }
+static int  exynos4210_hpm_clk_enable(void) 
+{
+        struct clk *clk_iec;
+        struct clk *clk_apc;
+        struct clk *clk_hpm;
+
+        /* IEC clock gate enable */
+        clk_iec = clk_get(NULL, "iec");
+        if (IS_ERR(clk_iec)) {
+                printk(KERN_ERR"ASV : IEM IEC clock get error\n");
+                return -EINVAL;
+        }
+        clk_enable(clk_iec);
+
+        /* APC clock gate enable */
+        clk_apc = clk_get(NULL, "apc");
+        if (IS_ERR(clk_apc)) {
+                printk(KERN_ERR"ASV : IEM APC clock get error\n");
+                return -EINVAL;
+        }
+        clk_enable(clk_apc);
+
+        /* hpm clock gate enalbe */
+        clk_hpm = clk_get(NULL, "hpm");
+        if (IS_ERR(clk_hpm)) {
+                printk(KERN_ERR"ASV : HPM clock get error\n");
+                return -EINVAL;
+        }
+        clk_enable(clk_hpm);
+	return 0;
+}
+
+
+static int exynos4210_hpm_clk_disble(void)
+{
+        struct clk *clk_iec;
+        struct clk *clk_apc;
+        struct clk *clk_hpm;
+
+        /* IEC clock gate enable */
+        clk_iec = clk_get(NULL, "iec");
+        if (IS_ERR(clk_iec)) {
+                printk(KERN_ERR"ASV : IEM IEC clock get error\n");
+                return -EINVAL;
+        }
+        clk_disable(clk_iec);
+
+        /* APC clock gate enable */
+        clk_apc = clk_get(NULL, "apc");
+        if (IS_ERR(clk_apc)) {
+                printk(KERN_ERR"ASV : IEM APC clock get error\n");
+                return -EINVAL;
+        }
+        clk_disable(clk_apc);
+
+        /* hpm clock gate enalbe */
+        clk_hpm = clk_get(NULL, "hpm");
+        if (IS_ERR(clk_hpm)) {
+                printk(KERN_ERR"ASV : HPM clock get error\n");
+                return -EINVAL;
+        }
+        clk_disable(clk_hpm);
+	return 0;
+}
+
 
 static int exynos4210_asv_pre_clock_init(void)
 {
 	struct clk *clk_hpm;
 	struct clk *clk_copy;
 	struct clk *clk_parent;
+	unsigned int tmp;
+
+	if(exynos4210_hpm_clk_enable())
+		return -EINVAL;
+
+	/* Change Divider - CPU1 */
+	tmp = __raw_readl(EXYNOS4_CLKDIV_CPU1);
+	tmp &= ~((0x7 << EXYNOS4_CLKDIV_CPU1_HPM_SHIFT) |
+		(0x7 << EXYNOS4_CLKDIV_CPU1_COPY_SHIFT));
+	tmp |= ((0x0 << EXYNOS4_CLKDIV_CPU1_HPM_SHIFT) |
+		(0x3 << EXYNOS4_CLKDIV_CPU1_COPY_SHIFT));
+	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU1);
+
+	/* HPM SCLKMPLL */
+	tmp = __raw_readl(EXYNOS4_CLKSRC_CPU);
+	tmp &= ~(0x1 << EXYNOS4_CLKSRC_CPU_MUXHPM_SHIFT);
+	tmp |= 0x1 << EXYNOS4_CLKSRC_CPU_MUXHPM_SHIFT;
+	__raw_writel(tmp, EXYNOS4_CLKSRC_CPU);
 
 	/* PWI clock setting */
 	clk_copy = clk_get(NULL, "sclk_pwi");
@@ -128,7 +211,7 @@ static int exynos4210_asv_pre_clock_init(void)
 	} else {
 		clk_parent = clk_get(NULL, "mout_mpll");
 		if (IS_ERR(clk_parent)) {
-			pr_info("EXYNOS4210: ASV: MOUT_APLL clock get error\n");
+			pr_info("EXYNOS4210: ASV: MOUT_MPLL clock get error\n");
 			clk_put(clk_copy);
 			return -EINVAL;
 		}
@@ -266,15 +349,24 @@ static int exynos4210_get_hpm(struct samsung_asv *asv_info)
 	}
 
 	hpm_delay /= LOOP_CNT;
-
+	hpm_delay --;
 	/* Store result of hpm value */
 	asv_info->hpm_result = hpm_delay;
 
+	pr_info("EXYNOS4: HPM value = %d\n", hpm_delay);
+
+	/* HPM SCLKAPLL */
+	tmp = __raw_readl(EXYNOS4_CLKSRC_CPU);
+	tmp &= ~(0x1 << EXYNOS4_CLKSRC_CPU_MUXHPM_SHIFT);
+	tmp |= 0x0 << EXYNOS4_CLKSRC_CPU_MUXHPM_SHIFT;
+	__raw_writel(tmp, EXYNOS4_CLKSRC_CPU);
+
+	if(exynos4210_hpm_clk_disble())
+		return -EPERM;
 	return 0;
 
 err:
 	iounmap(iem_base);
-
 	return -EPERM;
 }
 
@@ -292,6 +384,7 @@ static int exynos4210_get_ids(struct samsung_asv *asv_info)
 	asv_info->ids_result = ((pkg_id_val >> asv_info->ids_offset) &
 							asv_info->ids_mask);
 
+	pr_info("EXYNOS4: IDS value = %d\n", asv_info->ids_result);
 	return 0;
 }
 

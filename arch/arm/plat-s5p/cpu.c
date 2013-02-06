@@ -36,6 +36,7 @@ static const char name_s5pv210[] = "S5PV210/S5PC110";
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
 static const char name_exynos4412[] = "EXYNOS4412";
+static const char name_exynos5210[] = "EXYNOS5210";
 static const char name_exynos5250[] = "EXYNOS5250";
 
 static struct cpu_table cpu_ids[] __initdata = {
@@ -96,6 +97,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init		= exynos4_init,
 		.name		= name_exynos4412,
 
+	}, {
+		.idcode         = EXYNOS5210_CPU_ID,
+		.idmask         = EXYNOS_CPU_MASK,
+		.map_io         = exynos5_map_io,
+		.init_clocks    = exynos5_init_clocks,
+		.init_uarts     = exynos5_init_uarts,
+		.init           = exynos5_init,
+		.name           = name_exynos5210,
 	}, {
 		.idcode         = EXYNOS5250_CPU_ID,
 		.idmask         = EXYNOS_CPU_MASK,

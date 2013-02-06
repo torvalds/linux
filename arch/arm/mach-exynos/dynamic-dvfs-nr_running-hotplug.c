@@ -19,6 +19,10 @@
 #include <linux/suspend.h>
 #include <linux/io.h>
 
+#ifdef CONFIG_SLP
+#include <linux/platform_device.h>
+#endif
+
 #include <plat/cpu.h>
 
 static unsigned int total_num_target_freq;
@@ -35,6 +39,9 @@ static unsigned int freq_min = -1UL;		/* min frequency of the dedicated dvfs tab
 static unsigned int freq_in_trg;		/* frequency hotplug in trigger */
 static unsigned int freq_out_trg;		/* frequency hotplug out trigger */
 static unsigned int can_hotplug;
+#ifdef CONFIG_SLP
+static unsigned int user_lock;			/* Enable/Disable hotplug */
+#endif
 
 static void exynos4_integrated_dvfs_hotplug(unsigned int freq_old,
 					unsigned int freq_new)
@@ -188,7 +195,10 @@ static int hotplug_pm_transition(struct notifier_block *nb,
 		break;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		can_hotplug = 1;
+#ifdef CONFIG_SLP
+		if (!user_lock)
+#endif
+			can_hotplug = 1;
 		break;
 	}
 
@@ -198,6 +208,54 @@ static int hotplug_pm_transition(struct notifier_block *nb,
 static struct notifier_block pm_hotplug = {
 	.notifier_call = hotplug_pm_transition,
 };
+
+#ifdef CONFIG_SLP
+static ssize_t user_lock_show(struct device *dev,
+	 struct device_attribute *attr,	char *buf)
+{
+	return sprintf(buf, "%u\n", user_lock);
+}
+
+static ssize_t user_lock_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+
+	ret = sscanf(buf, "%u", &user_lock);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (user_lock)
+		can_hotplug = 0;
+	else
+		can_hotplug = 1;
+
+	return count;
+}
+static DEVICE_ATTR(user_lock, 0644, user_lock_show, user_lock_store);
+
+static int sysfs_pm_hotplug_create(struct device *dev)
+{
+	int ret;
+
+	ret = device_create_file(dev, &dev_attr_user_lock);
+
+	if (ret)
+		device_remove_file(dev, &dev_attr_user_lock);
+
+	return ret;
+}
+
+static void sysfs_pm_hotplug_remove(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_user_lock);
+}
+
+static struct platform_device exynos_pm_hotplug_device = {
+	.name   = "exynos-dynamic-cpu-hotplug",
+	.id     = -1,
+};
+#endif
 
 /*
  * Note : This function should be called after intialization of CPUFreq
@@ -209,6 +267,10 @@ static int __init exynos4_integrated_dvfs_hotplug_init(void)
 	int i;
 	struct cpufreq_frequency_table *table;
 	unsigned int freq;
+
+#ifdef CONFIG_SLP
+	int ret;
+#endif
 
 	total_num_target_freq = 0;
 	ctn_freq_in_trg_cnt = 0;
@@ -238,6 +300,18 @@ static int __init exynos4_integrated_dvfs_hotplug_init(void)
 	}
 
 	printk(KERN_INFO "%s, max(%d),min(%d)\n", __func__, freq_max, freq_min);
+
+#ifdef CONFIG_SLP
+	ret = platform_device_register(&exynos_pm_hotplug_device);
+	if (ret) {
+		printk(KERN_ERR "failed register pd\n");
+		return ret;
+	}
+
+	ret = sysfs_pm_hotplug_create(&exynos_pm_hotplug_device.dev);
+	if (ret)
+		printk(KERN_ERR "failed at(%d)\n", __LINE__);
+#endif
 
 	register_pm_notifier(&pm_hotplug);
 

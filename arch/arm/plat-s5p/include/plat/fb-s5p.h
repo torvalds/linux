@@ -43,37 +43,7 @@ struct s3c_platform_fb {
 	int		default_win;
 	int		swap;
 	void		*lcd;
-#ifdef CONFIG_FB_S5P_MIPI_DSIM
-	unsigned int	sub_lcd_enabled;
-	unsigned int	machine_is_cypress;
-	unsigned int	machine_is_p1p2;
-	unsigned int	mdnie_is_enabled;
-	unsigned int	mipi_is_enabled;
-	unsigned int	interface_mode;
-
-	void		*single_lcd;
-	void		*dual_lcd;
-
-	void		(*set_display_path)(unsigned int mode);
-	int		(*reset_lcd)(void);
-
-	/* variables and interface for mDNIe */
-	char		mdnie_clk_name[20];
-	void		*mdnie_clk;
-	unsigned int	mdnie_phy_base;
-	unsigned int	ielcd_phy_base;
-	void __iomem	*mdnie_mmio_base;
-	void __iomem	*ielcd_mmio_base;
-	unsigned char	mdnie_mode;
-
-	void		(*set_mdnie_clock)(void *mdnie_clk, unsigned char enable);
-	void		(*init_mdnie)(unsigned int mdnie_base,
-				unsigned int hsize, unsigned int vsize);
-	void		(*mdnie_set_mode)(unsigned int mdnie_base, unsigned char mode);
-
-	void		(*start_ielcd_logic)(unsigned int ielcd_base);
-	void		(*init_ielcd)(unsigned int ielcd_base, void *l, void *c);
-#endif
+	void		(*set_display_path)(void);
 	void		(*cfg_gpio)(struct platform_device *dev);
 	int		(*backlight_on)(struct platform_device *dev);
 	int		(*backlight_off)(struct platform_device *dev);
@@ -86,6 +56,7 @@ struct s3c_platform_fb {
 extern void s3cfb_set_platdata(struct s3c_platform_fb *fimd);
 
 /* defined by architecture to configure gpio */
+extern void s3cfb_set_display_path(void);
 extern void s3cfb_cfg_gpio(struct platform_device *pdev);
 extern int s3cfb_backlight_on(struct platform_device *pdev);
 extern int s3cfb_backlight_off(struct platform_device *pdev);

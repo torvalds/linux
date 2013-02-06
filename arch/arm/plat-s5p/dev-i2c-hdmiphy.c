@@ -48,14 +48,12 @@ EXPORT_SYMBOL(s5p_device_i2c_hdmiphy);
 
 void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
 {
-	struct s3c2410_platform_i2c *npd;
-
 	if (!pd) {
 		pd = &default_i2c_data;
 		pd->bus_num = S5P_IIC_HDMIPHY_BUS_NUM;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+	s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
 			       &s5p_device_i2c_hdmiphy);
 }
 EXPORT_SYMBOL(s5p_i2c_hdmiphy_set_platdata);

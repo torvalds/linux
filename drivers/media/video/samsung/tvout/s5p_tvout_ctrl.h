@@ -29,7 +29,8 @@
 extern void s5p_mixer_ctrl_init_fb_addr_phy(enum s5p_mixer_layer layer,
 		dma_addr_t fb_addr);
 extern void s5p_mixer_ctrl_init_grp_layer(enum s5p_mixer_layer layer);
-extern int s5p_mixer_ctrl_set_pixel_format(enum s5p_mixer_layer layer, u32 bpp, u32 trans_len);
+extern int s5p_mixer_ctrl_set_pixel_format(
+	enum s5p_mixer_layer layer, u32 bpp, u32 trans_len);
 extern int s5p_mixer_ctrl_enable_layer(enum s5p_mixer_layer layer);
 extern int s5p_mixer_ctrl_disable_layer(enum s5p_mixer_layer layer);
 extern int s5p_mixer_ctrl_set_priority(enum s5p_mixer_layer layer, u32 prio);
@@ -50,6 +51,9 @@ extern int s5p_mixer_ctrl_scaling(enum s5p_mixer_layer,
 		struct s5ptvfb_user_scaling scaling);
 extern int s5p_mixer_ctrl_mux_clk(struct clk *ptr);
 extern void s5p_mixer_ctrl_set_int_enable(bool en);
+extern void s5p_mixer_ctrl_set_vsync_interrupt(bool en);
+extern bool s5p_mixer_ctrl_get_vsync_interrupt(void);
+extern void s5p_mixer_ctrl_disable_vsync_interrupt(void);
 extern void s5p_mixer_ctrl_clear_pend_all(void);
 extern void s5p_mixer_ctrl_stop(void);
 extern void s5p_mixer_ctrl_internal_start(void);
@@ -60,12 +64,21 @@ extern void s5p_mixer_ctrl_destructor(void);
 extern void s5p_mixer_ctrl_suspend(void);
 extern void s5p_mixer_ctrl_resume(void);
 
+/* Interrupt for Vsync */
+typedef struct {
+	wait_queue_head_t	wq;
+	unsigned int		wq_count;
+} s5p_tv_irq;
+
+extern wait_queue_head_t s5ptv_wq;
 
 /****************************************
  * for TV interface control class
  ***************************************/
 extern int s5p_tvif_ctrl_set_audio(bool en);
 extern void s5p_tvif_audio_channel(int channel);
+extern void s5p_tvif_q_color_range(int range);
+extern int s5p_tvif_get_q_range(void);
 extern int s5p_tvif_ctrl_set_av_mute(bool en);
 extern int s5p_tvif_ctrl_get_std_if(
 		enum s5p_tvout_disp_mode *std, enum s5p_tvout_o_mode *inf);
@@ -84,6 +97,10 @@ extern void s5p_hdmi_ctrl_set_hdcp(bool en);
 
 extern int s5p_hpd_set_hdmiint(void);
 extern int s5p_hpd_set_eint(void);
+
+#ifdef CONFIG_HDMI_EARJACK_MUTE
+extern void s5p_hdmi_ctrl_set_audio(bool en);
+#endif
 
 /****************************************
  * for VP control class

@@ -1660,7 +1660,10 @@ static void __exit exit_cgroup_blkio(void)
 {
 	cgroup_unload_subsys(&blkio_subsys);
 }
-
+#ifdef CONFIG_FAST_RESUME
+beforeresume_initcall(init_cgroup_blkio);
+#else
 module_init(init_cgroup_blkio);
+#endif
 module_exit(exit_cgroup_blkio);
 MODULE_LICENSE("GPL");

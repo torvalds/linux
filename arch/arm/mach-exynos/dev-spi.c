@@ -96,6 +96,9 @@ static int exynos_spi_cfg_gpio(struct platform_device *pdev)
 	case 0:
 		s3c_gpio_cfgpin(EXYNOS4_GPB(0), S3C_GPIO_SFN(2));
 		s3c_gpio_cfgpin(EXYNOS4_GPB(2), S3C_GPIO_SFN(2));
+#ifdef CONFIG_SEC_MODEM_P8LTE
+		s3c_gpio_cfgpin(EXYNOS4_GPB(1), S3C_GPIO_SFN(2));
+#endif
 		s3c_gpio_cfgpin(EXYNOS4_GPB(3), S3C_GPIO_SFN(2));
 		s3c_gpio_setpull(EXYNOS4_GPB(0), S3C_GPIO_PULL_UP);
 		s3c_gpio_setpull(EXYNOS4_GPB(2), S3C_GPIO_PULL_UP);

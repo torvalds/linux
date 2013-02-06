@@ -118,6 +118,11 @@ config CPU_FREQ_DEFAULT_GOV_ADAPTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'adaptive' governor for latency-sensitive workloads and demanding
 	  performance.
+
+config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
+	bool "pegasusq"
+	select CPU_FREQ_GOV_PEGASUSQ
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -174,6 +179,28 @@ config CPU_FREQ_GOV_ONDEMAND
 	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_ONDEMAND_FLEXRATE
+	bool "flexrate interface for 'ondemand' cpufreq policy governor"
+	depends on CPU_FREQ_GOV_ONDEMAND
+	help
+	  Flexrate for 'ondemand' governor provides an interface to request
+	  faster polling temporarily. This is to let it react quickly to
+	  load changes when there is high probablity of load increase
+	  in short time. For example, when a user event occurs, we have
+	  use this interface. It does not increase the frequency
+	  unconditionally; however, it allows ondemand to react fast
+	  by temporarily decreasing sampling rate. Flexrate provides both
+	  sysfs interface and in-kernel interface.
+
+config CPU_FREQ_GOV_ONDEMAND_FLEXRATE_MAX_DURATION
+	int "flexrate's maximum duration of sampling rate override"
+	range 5 500
+	depends on CPU_FREQ_GOV_ONDEMAND_FLEXRATE
+	default "100"
+	help
+	  The maximum number of ondemand sampling whose rate is
+	  overriden by Flexrate for ondemand.
 
 config CPU_FREQ_GOV_INTERACTIVE
 	tristate "'interactive' cpufreq policy governor"
@@ -235,6 +262,25 @@ config CPU_FREQ_GOV_ADAPTIVE
 	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_PEGASUSQ
+	tristate "'pegasusq' cpufreq policy governor"
+
+config SLP_CHECK_CPU_LOAD
+        bool "check load and frequency of cpu"
+	depends on CPU_FREQ_GOV_SLP
+
+config SLP_GOV_DYNAMIC_PARAMS
+        bool "check SLP GOV. Dynamic Params feature"
+	depends on CPU_FREQ_GOV_SLP
+
+config CPU_FREQ_DVFS_MONITOR
+	bool "dvfs monitor"
+	depends on CPU_FREQ
+	help
+	  This option adds a proc node for dvfs monitoring.
+	  /proc/dvfs_mon
+
 
 menu "x86 CPU frequency scaling drivers"
 depends on X86

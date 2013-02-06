@@ -147,6 +147,26 @@ outer_cache_ops:
 	}
 }
 
+static void exynos_mem_paddr_cache_clean(dma_addr_t start, size_t length)
+{
+	if (length > (size_t) L2_FLUSH_ALL) {
+		flush_cache_all();		/* L1 */
+		smp_call_function((smp_call_func_t)__cpuc_flush_kern_all, NULL, 1);
+		outer_clean_all();		/* L2 */
+	} else if (length > (size_t) L1_FLUSH_ALL) {
+		dma_addr_t end = start + length - 1;
+
+		flush_cache_all();		/* L1 */
+		smp_call_function((smp_call_func_t)__cpuc_flush_kern_all, NULL, 1);
+		outer_clean_range(start, end);  /* L2 */
+	} else {
+		dma_addr_t end = start + length - 1;
+
+		dmac_flush_range(phys_to_virt(start), phys_to_virt(end));
+		outer_clean_range(start, end);	/* L2 */
+	}
+}
+
 long exynos_mem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -191,6 +211,19 @@ long exynos_mem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		cache_maint_phys(range.start, range.length, EM_CLEAN);
 		break;
 	}
+	case EXYNOS_MEM_SET_PHYADDR:
+	{
+		struct exynos_mem *mem = filp->private_data;
+		int phyaddr;
+		if (get_user(phyaddr, (u32 __user *)arg)) {
+			pr_err("[%s:%d] err: EXYNOS_MEM_SET_PHYADDR\n",
+				__func__, __LINE__);
+			return -EFAULT;
+		}
+		mem->phybase = phyaddr >> PAGE_SHIFT;
+
+		break;
+	}
 
 	default:
 		pr_err("[%s:%d] error command\n", __func__, __LINE__);
@@ -219,8 +252,8 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct exynos_mem *mem = (struct exynos_mem *)filp->private_data;
 	bool cacheable = mem->cacheable;
-	dma_addr_t start = vma->vm_pgoff << PAGE_SHIFT;
-	u32 pfn = vma->vm_pgoff;
+	dma_addr_t start = 0;
+	u32 pfn = 0;
 	u32 size = vma->vm_end - vma->vm_start;
 
 	if (vma->vm_pgoff) {
@@ -238,7 +271,7 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	if (!cacheable)
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_ops = &exynos_mem_ops;

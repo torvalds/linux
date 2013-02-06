@@ -41,6 +41,8 @@
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
 
+#include <mach/sec_debug.h>
+
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
@@ -118,13 +120,20 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 */
 	ret = boot_secondary(cpu, idle);
 	if (ret == 0) {
+		unsigned long timeout;
 
 		/*
 		 * CPU was successfully started, wait for it
 		 * to come online or time out.
 		 */
-		wait_for_completion_timeout(&cpu_running,
-				 msecs_to_jiffies(1000));
+		timeout = jiffies + HZ;
+		while (time_before(jiffies, timeout)) {
+			if (cpu_online(cpu))
+				break;
+
+			udelay(10);
+			barrier();
+		}
 
 		if (!cpu_online(cpu)) {
 			pr_crit("CPU%u: failed to come online\n", cpu);
@@ -320,17 +329,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 */
 	platform_secondary_init(cpu);
 
-	/*
-	 * Enable local interrupts.
-	 */
 	notify_cpu_starting(cpu);
-	local_irq_enable();
-	local_fiq_enable();
-
-	/*
-	 * Setup the percpu timer for this CPU.
-	 */
-	percpu_timer_setup();
 
 	if (skip_secondary_calibrate())
 		calibrate_delay();
@@ -340,12 +339,17 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
 	 * the CPU migration code to notice that the CPU is online
-	 * before we continue. - which happens after __cpu_up returns.
+	 * before we continue.
 	 */
 	set_cpu_online(cpu, true);
-	complete(&cpu_running);
-	while (!cpu_active(cpu))
-		cpu_relax();
+
+	/*
+	 * Setup the percpu timer for this CPU.
+	 */
+	percpu_timer_setup();
+
+	local_irq_enable();
+	local_fiq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -480,10 +484,13 @@ asmlinkage void __exception_irq_entry do_local_timer(struct pt_regs *regs)
 
 	if (local_timer_ack()) {
 		__inc_irq_stat(cpu, local_timer_irqs);
+		sec_debug_irq_log(0, do_local_timer, 1);
 		irq_enter();
 		ipi_timer();
 		irq_exit();
-	}
+		sec_debug_irq_log(0, do_local_timer, 2);
+	} else
+		sec_debug_irq_log(0, do_local_timer, 3);
 
 	set_irq_regs(old_regs);
 }
@@ -575,6 +582,9 @@ static void ipi_cpu_stop(unsigned int cpu)
 	local_fiq_disable();
 	local_irq_disable();
 
+	flush_cache_all();
+	local_flush_tlb_all();
+
 	while (1)
 		cpu_relax();
 }
@@ -642,6 +652,8 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 	if (ipinr >= IPI_TIMER && ipinr < IPI_TIMER + NR_IPI)
 		__inc_irq_stat(cpu, ipi_irqs[ipinr - IPI_TIMER]);
 
+	sec_debug_irq_log(ipinr, do_IPI, 1);
+
 	switch (ipinr) {
 	case IPI_TIMER:
 		irq_enter();
@@ -680,6 +692,9 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 		       cpu, ipinr);
 		break;
 	}
+
+	sec_debug_irq_log(ipinr, do_IPI, 2);
+
 	set_irq_regs(old_regs);
 }
 

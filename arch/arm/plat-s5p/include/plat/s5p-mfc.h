@@ -15,11 +15,12 @@
 
 #include <linux/platform_device.h>
 
-#define MFC_PARENT_CLK_NAME	"mout_mfc0"
-#define MFC_CLKNAME		"sclk_mfc"
-#define MFC_GATE_CLK_NAME	"mfc"
+struct s5p_mfc_platdata {
+	int clock_rate;
+};
 
 extern unsigned int mfc_clk_rate;
+void s5p_mfc_set_platdata(struct s5p_mfc_platdata *pd);
 void s5p_mfc_setname(struct platform_device *pdev,char *name);
 
 int exynos4_mfc_setup_clock(struct device *dev,

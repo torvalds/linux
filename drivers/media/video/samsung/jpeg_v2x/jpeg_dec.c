@@ -119,20 +119,6 @@ static struct jpeg_fmt formats[] = {
 		.memplanes	= 1,
 		.types		= M2M_CAPTURE,
 	}, {
-		.name		= "YUV 4:2:2 packed, CrYCbY",
-		.fourcc		= V4L2_PIX_FMT_VYUY,
-		.depth		= {16},
-		.color		= CRYCBY_422_1P,
-		.memplanes	= 1,
-		.types		= M2M_CAPTURE,
-	}, {
-		.name		= "YUV 4:2:2 packed, CbYCrY",
-		.fourcc		= V4L2_PIX_FMT_UYVY,
-		.depth		= {16},
-		.color		= CRYCBY_422_1P,
-		.memplanes	= 1,
-		.types		= M2M_CAPTURE,
-	}, {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= {16},
@@ -168,10 +154,17 @@ static struct jpeg_fmt formats[] = {
 		.memplanes	= 2,
 		.types		= M2M_CAPTURE,
 	}, {
-		.name		= "YUV 4:2:0 contiguous 3-planar, Y/Cr/Cb",
+		.name		= "YUV 4:2:0 contiguous 3-planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= {8, 2, 2},
 		.color		= YCBCR_420_3P,
+		.memplanes	= 3,
+		.types		= M2M_CAPTURE,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 3-planar, Y/Cr/Cb",
+		.fourcc		= V4L2_PIX_FMT_YVU420,
+		.depth		= {8, 2, 2},
+		.color		= YCRCB_420_3P,
 		.memplanes	= 3,
 		.types		= M2M_CAPTURE,
 	}, {
@@ -182,6 +175,30 @@ static struct jpeg_fmt formats[] = {
 		.memplanes	= 1,
 		.types		= M2M_CAPTURE,
 	},
+#ifdef CONFIG_JPEG_V2_2
+	{
+		.name		= "YUV 4:2:2 packed, CrYCbY",
+		.fourcc		= V4L2_PIX_FMT_VYUY,
+		.depth		= {16},
+		.color		= CRYCBY_422_1P,
+		.memplanes	= 1,
+		.types		= M2M_CAPTURE,
+	}, {
+		.name		= "YUV 4:2:2 packed, CbYCrY",
+		.fourcc		= V4L2_PIX_FMT_UYVY,
+		.depth		= {16},
+		.color		= CRYCBY_422_1P,
+		.memplanes	= 1,
+		.types		= M2M_CAPTURE,
+	}, {
+		.name		= "XBGR-8-8-8-8, 32 bpp",
+		.fourcc		= V4L2_PIX_FMT_BGR32,
+		.depth		= {32},
+		.color		= BGR_888,
+		.memplanes	= 1,
+		.types		= M2M_CAPTURE,
+	},
+#endif
 };
 
 static struct jpeg_fmt *find_format(struct v4l2_format *f)

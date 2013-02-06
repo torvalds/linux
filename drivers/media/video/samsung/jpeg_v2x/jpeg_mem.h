@@ -33,7 +33,12 @@ extern const struct jpeg_vb2 jpeg_vb2_cma;
 extern const struct jpeg_vb2 jpeg_vb2_ion;
 #endif
 
+#if defined(CONFIG_MACH_GC1)
+#define MAX_JPEG_WIDTH	4608
+#define MAX_JPEG_HEIGHT	3456
+#else
 #define MAX_JPEG_WIDTH	3264
 #define MAX_JPEG_HEIGHT	2448
+#endif
 
 #endif /* __JPEG_MEM_H__ */

@@ -1,0 +1,296 @@
+choice
+	prompt "Target Locale"
+	default TARGET_LOCALE_EUR
+
+config TARGET_LOCALE_EUR
+	bool "Europe Open"
+
+config TARGET_LOCALE_LTN
+	bool "Latin"
+
+config TARGET_LOCALE_KOR
+	bool "Kor"
+
+config TARGET_LOCALE_NAATT_TEMP
+	bool "NAGSM"
+
+config TARGET_LOCALE_P2EUR_TEMP
+	bool "P2EUR"
+
+config TARGET_LOCALE_P2TMO_TEMP
+	bool "P2TMO"
+
+config TARGET_LOCALE_NA
+	bool "NA"
+
+config TARGET_LOCALE_EUR_U1_NFC
+	bool "Europe Open NFC"
+
+config TARGET_LOCALE_NTT
+	bool "JPN DCM"
+
+config TARGET_LOCALE_JPN
+	bool "JPN"
+
+config TARGET_LOCALE_CHN
+	bool "CHN"
+
+config TARGET_LOCALE_USA
+	bool "USA"
+
+endchoice
+
+choice
+	prompt "C1 USA Target Carrier"
+	depends on MACH_C1 && (TARGET_LOCALE_EUR || TARGET_LOCALE_USA)
+	default MACH_C1_USA_ATT
+
+config MACH_C1_USA_ATT
+	bool "ATT"
+
+config MACH_C1_USA_VZW
+	bool "VZW"
+endchoice
+
+choice
+	prompt "M3 Target Carrier"
+	depends on MACH_M3 && (TARGET_LOCALE_USA || TARGET_LOCALE_JPN)
+	default MACH_M3_USA_TMO
+
+config MACH_M3_USA_TMO
+	bool "M3 T-Mobile (Stretto)"
+
+config MACH_M3_JPN_DCM
+	bool "M3 JPN DCM"
+endchoice
+
+choice
+	prompt "T0 Target"
+	depends on MACH_T0 && \
+		(TARGET_LOCALE_EUR || TARGET_LOCALE_USA || TARGET_LOCALE_KOR || TARGET_LOCALE_JPN || TARGET_LOCALE_CHN)
+	default MACH_T0_EUR_OPEN
+
+config MACH_T0_USA_ATT
+	bool "ATT"
+
+config MACH_T0_USA_TMO
+	bool "TMO"
+
+config MACH_T0_USA_VZW
+	bool "VZW"
+
+config MACH_T0_USA_SPR
+	bool "SPR"
+
+config MACH_T0_USA_USCC
+	bool "USCC"
+
+config MACH_T0_EUR_LTE
+	bool "EUR LTE"
+
+config MACH_T0_EUR_OPEN
+	bool "EUR OPEN"
+
+config MACH_T0_KOR_SKT
+	bool "SKT"
+
+config MACH_T0_KOR_KT
+	bool "KT"
+
+config MACH_T0_KOR_LGT
+	bool "LG U+"
+
+config MACH_T0_JPN_LTE_DCM
+	bool "JPN LTE DCM T0"
+
+config MACH_T0_CHN_OPEN
+	bool "CHN OPEN"
+
+config MACH_T0_CHN_CU
+	bool "CHN CU"
+
+config MACH_T0_CHN_CU_DUOS
+	bool "CHN CU DUOS"
+
+config MACH_T0_CHN_OPEN_DUOS
+	bool "CHN OPEN DUOS"
+
+config MACH_T0_CHN_CMCC
+	bool "CHN CMCC"
+
+config MACH_T0_CHN_CTC
+	bool "CHN CTC"
+
+endchoice
+
+choice
+	prompt "U1 KOR Target Carrier"
+	depends on MACH_U1 && TARGET_LOCALE_KOR
+	default MACH_U1_KOR_SKT
+
+config MACH_U1_KOR_SKT
+	bool "SKT"
+
+config MACH_U1_KOR_KT
+	bool "KT"
+
+config MACH_U1_KOR_LGT
+	bool "LG U+"
+endchoice
+
+choice
+	prompt "C1 KOR Target Carrier"
+	depends on MACH_C1 && TARGET_LOCALE_KOR
+	default MACH_C1_KOR_SKT
+
+config MACH_C1_KOR_SKT
+	bool "SKT"
+
+config MACH_C1_KOR_KT
+	bool "KT"
+
+config MACH_C1_KOR_LGT
+	bool "LG U+"
+endchoice
+
+choice
+	prompt "M0 KOR Target Carrier"
+	depends on MACH_M0 && TARGET_LOCALE_KOR
+	default MACH_M0_KOR_SKT
+
+config MACH_M0_KOR_SKT
+	bool "SKT"
+
+config MACH_M0_KOR_KT
+	bool "KT"
+
+config MACH_M0_KOR_LGT
+	bool "LG U+"
+endchoice
+
+choice
+	prompt "CAMERA LTE KOR Target Carrier"
+	depends on MACH_GC1 && TARGET_LOCALE_KOR
+	default MACH_GC1_KOR_SKT
+
+config MACH_GC1_KOR_SKT
+	bool "SKT"
+
+config MACH_GC1_KOR_KT
+	bool "KT"
+
+config MACH_GC1_KOR_LGT
+	bool "LG U+"
+endchoice
+
+choice
+	prompt "S USA Target Carrier"
+	depends on MACH_GC1 && TARGET_LOCALE_USA
+	default MACH_GC1_USA_ATT
+
+config MACH_GC1_USA_ATT
+	bool "S USA ATT Board"
+
+config MACH_GC1_USA_VZW
+	bool "S USA VZW Board"
+endchoice
+
+choice
+        prompt "P4 LTE USA Target Carrier"
+        depends on MACH_P4NOTE && TARGET_LOCALE_USA
+        default MACH_P4NOTE_USA_ANY
+
+config MACH_P4NOTELTE_USA_VZW
+        bool "P4NOTE LTE USA VZW"
+
+config MACH_P4NOTELTE_USA_ATT
+        bool "P4NOTE LTE USA ATT"
+
+config MACH_P4NOTELTE_USA_TMO
+        bool "P4NOTE LTE USA TMO"
+
+config MACH_P4NOTELTE_USA_SPR
+        bool "P4NOTE LTE USA SPR"
+
+config MACH_P4NOTELTE_USA_ANY
+        bool "P4NOTE LTE USA ANY"
+
+endchoice
+
+choice
+	prompt "P4 KOR Target Carrier"
+	depends on MACH_P4NOTE && TARGET_LOCALE_KOR
+	default MACH_P4NOTE_KOR_ANY
+
+config MACH_P4NOTE_KOR_ANY
+	bool "P4NOTE KOR OPEN Board"
+
+config MACH_P4NOTE_KOR_SKT
+	bool "P4NOTE KOR SKT Board"
+
+config MACH_P4NOTE_KOR_KT
+	bool "P4NOTE KOR KT Board"
+
+config MACH_P4NOTELTE_KOR_SKT
+	bool "P4NOTELTE KOR SKT Board"
+
+config MACH_P4NOTELTE_KOR_KT
+	bool "P4NOTELTE KOR KT Board"
+
+config MACH_P4NOTELTE_KOR_LGT
+	bool "P4NOTELTE KOR LGT Board"
+endchoice
+
+choice
+	prompt "M0 Chinese Target Carrier"
+	depends on (MACH_M0 || MACH_GRANDE) && TARGET_LOCALE_CHN
+
+config MACH_M0_CMCC
+	bool "M0 CHN CMCC board"
+
+config MACH_M0_CHNOPEN
+	bool "M0 CHN OPEN board"
+
+config MACH_M0_HKTW
+	bool "M0 CHN HKTW board"
+
+config MACH_M0_CTC
+	bool "M0 CHN CTC board"
+endchoice
+
+choice
+	prompt "Q1 Chinese Target Carrier"
+	depends on MACH_U1 && TARGET_LOCALE_CHN
+
+config MACH_Q1_CMCC_BD
+	bool "Q1 CHN CMCC board"
+endchoice
+
+choice
+	prompt "BAFFIN KOR Target Carrier"
+	depends on MACH_BAFFIN && TARGET_LOCALE_KOR
+	default MACH_BAFFIN_KOR_SKT
+
+config MACH_BAFFIN_KOR_SKT
+	bool "SKT"
+
+config MACH_BAFFIN_KOR_KT
+	bool "KT"
+
+config MACH_BAFFIN_KOR_LGT
+	bool "LG U+"
+
+config MACH_SUPERIOR_KOR_SKT
+	bool "SUPERIOR SKT"
+endchoice
+
+menu "M0 CTC based models"
+	depends on MACH_M0_CTC && TARGET_LOCALE_CHN
+
+config MACH_M0_GRANDECTC
+	bool "M0 CHN GRANDE CTC board"
+
+config MACH_M0_DUOSCTC
+	bool "M0 CHN DUOS CTC board"
+
+endmenu

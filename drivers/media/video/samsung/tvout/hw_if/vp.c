@@ -447,6 +447,14 @@ int s5p_vp_set_top_field_address(u32 top_y_addr, u32 top_c_addr)
 	return 0;
 }
 
+int s5p_vp_get_top_field_address(u32* top_y_addr, u32* top_c_addr)
+{
+	*top_y_addr = readl(vp_base + S5P_VP_TOP_Y_PTR);
+	*top_c_addr = readl(vp_base + S5P_VP_TOP_C_PTR);
+
+	return 0;
+}
+
 int s5p_vp_set_bottom_field_address(
 		u32 bottom_y_addr, u32 bottom_c_addr)
 {

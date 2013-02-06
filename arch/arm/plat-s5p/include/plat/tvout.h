@@ -15,10 +15,24 @@
 
 struct platform_device;
 
+#ifdef CONFIG_HDMI_TX_STRENGTH
+struct s5p_tx_tuning {
+	u8 tx_ch;
+	u8 *tx_val;
+};
+
+struct s5p_platform_tvout {
+	struct s5p_tx_tuning *tx_tune;
+};
+#endif
+
 struct s5p_platform_hpd {
 	void	(*int_src_hdmi_hpd)(struct platform_device *pdev);
 	void	(*int_src_ext_hpd)(struct platform_device *pdev);
 	int	(*read_gpio)(struct platform_device *pdev);
+#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
+	void	(*ext_ic_control)(bool ic_on);
+#endif
 };
 
 extern void s5p_hdmi_hpd_set_platdata(struct s5p_platform_hpd *pd);
@@ -37,6 +51,11 @@ struct s5p_platform_cec {
 };
 
 extern void s5p_hdmi_cec_set_platdata(struct s5p_platform_cec *pd);
+
+
+#ifdef CONFIG_HDMI_TX_STRENGTH
+extern void s5p_hdmi_tvout_set_platdata(struct s5p_platform_tvout *pd);
+#endif
 
 /* defined by architecture to configure gpio */
 extern void s5p_cec_cfg_gpio(struct platform_device *pdev);

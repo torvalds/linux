@@ -13,6 +13,11 @@
 #ifndef _SRP_ALP_REG_H_
 #define _SRP_ALP_REG_H_
 
+#define SRP_IRAM_BASE		(0x02020000)
+#define SRP_DMEM_BASE		(0x03000000)
+#define SRP_ASSCLK_BASE		(0x03810000)
+#define SRP_COMMBOX_BASE	(0x03820000)
+
 /* Commbox Offset */
 #define SRP_CONT		(0x0000)
 #define SRP_CFGR		(0x0004)
@@ -45,6 +50,7 @@
 #define SRP_INTREN			(0x0180)
 #define SRP_INTRMASK			(0x0184)
 #define SRP_INTRSRC			(0x0188)
+#define SRP_INTRIRQ			(0x0308)
 
 /*
  * SRP Configuration register
@@ -133,11 +139,14 @@
 /* For Suspend/Resume */
 #define SRP_POWER_MODE_MASK		(0xFFFF)
 #define SRP_POWER_MODE_TRIGGER		(0x1)
+#define SRP_SW_RESET_TRIGGER		(0x1 << 2)
 #define SRP_SUSPENED_CHECKED		(0x1 << 1)
+#define SRP_SW_RESET_DONE		(0x1 << 3)
 /* INTREN */
 #define SRP_INTR_EN			(0x1)
 #define SRP_INTR_DI			(0x0)
 /* INTRMASK */
+#define SRP_INTR_MASK			(0x7F)
 #define SRP_ARM_INTR_MASK		(0x1 << 6)
 #define SRP_DMA_INTR_MASK		(0x1 << 5)
 #define SRP_TMR_INTR_MASK		(0x1F << 0)
@@ -146,4 +155,7 @@
 #define SRP_ARM_INTR_SRC		(0x1 << 6)
 #define SRP_DMA_INTR_SRC		(0x1 << 5)
 #define SRP_TMR_INTR_SRC		(0x1F << 0)
+/* INTRIRQ */
+#define SRP_INTRIRQ_MASK		(0xFFFF << 0)
+#define SRP_INTRIRQ_CONF		(0x100 << 0)
 #endif

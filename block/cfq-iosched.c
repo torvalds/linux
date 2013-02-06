@@ -4288,7 +4288,11 @@ static void __exit cfq_exit(void)
 	cfq_slab_kill();
 }
 
+#ifdef CONFIG_FAST_RESUME
+beforeresume_initcall(cfq_init);
+#else
 module_init(cfq_init);
+#endif
 module_exit(cfq_exit);
 
 MODULE_AUTHOR("Jens Axboe");

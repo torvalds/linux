@@ -42,6 +42,7 @@ enum thermal_trip_type {
 	THERMAL_TRIP_PASSIVE,
 	THERMAL_TRIP_HOT,
 	THERMAL_TRIP_CRITICAL,
+	THERMAL_TRIP_STATE_ACTIVE,
 };
 
 struct thermal_zone_device_ops {
