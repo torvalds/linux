@@ -449,7 +449,8 @@ int test__hists_link(void)
 		goto out;
 
 	/* default sort order (comm,dso,sym) will be used */
-	setup_sorting(NULL, NULL);
+	if (setup_sorting() < 0)
+		goto out;
 
 	machines__init(&machines);
 

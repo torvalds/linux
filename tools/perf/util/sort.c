@@ -160,9 +160,10 @@ struct sort_entry sort_dso = {
 
 /* --sort symbol */
 
-static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r,
-			      u64 ip_l, u64 ip_r)
+static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 {
+	u64 ip_l, ip_r;
+
 	if (!sym_l || !sym_r)
 		return cmp_null(sym_l, sym_r);
 
@@ -178,21 +179,10 @@ static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r,
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	u64 ip_l, ip_r;
-
 	if (!left->ms.sym && !right->ms.sym)
 		return right->level - left->level;
 
-	if (!left->ms.sym || !right->ms.sym)
-		return cmp_null(left->ms.sym, right->ms.sym);
-
-	if (left->ms.sym == right->ms.sym)
-		return 0;
-
-	ip_l = left->ms.sym->start;
-	ip_r = right->ms.sym->start;
-
-	return _sort__sym_cmp(left->ms.sym, right->ms.sym, ip_l, ip_r);
+	return _sort__sym_cmp(left->ms.sym, right->ms.sym);
 }
 
 static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
@@ -383,8 +373,7 @@ sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!from_l->sym && !from_r->sym)
 		return right->level - left->level;
 
-	return _sort__sym_cmp(from_l->sym, from_r->sym, from_l->addr,
-			     from_r->addr);
+	return _sort__sym_cmp(from_l->sym, from_r->sym);
 }
 
 static int64_t
@@ -396,7 +385,7 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!to_l->sym && !to_r->sym)
 		return right->level - left->level;
 
-	return _sort__sym_cmp(to_l->sym, to_r->sym, to_l->addr, to_r->addr);
+	return _sort__sym_cmp(to_l->sym, to_r->sym);
 }
 
 static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
@@ -576,23 +565,30 @@ int sort_dimension__add(const char *tok)
 	return -ESRCH;
 }
 
-void setup_sorting(const char * const usagestr[], const struct option *opts)
+int setup_sorting(void)
 {
 	char *tmp, *tok, *str = strdup(sort_order);
+	int ret = 0;
+
+	if (str == NULL) {
+		error("Not enough memory to setup sort keys");
+		return -ENOMEM;
+	}
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		int ret = sort_dimension__add(tok);
+		ret = sort_dimension__add(tok);
 		if (ret == -EINVAL) {
 			error("Invalid --sort key: `%s'", tok);
-			usage_with_options(usagestr, opts);
+			break;
 		} else if (ret == -ESRCH) {
 			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(usagestr, opts);
+			break;
 		}
 	}
 
 	free(str);
+	return ret;
 }
 
 void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,

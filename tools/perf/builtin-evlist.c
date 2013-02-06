@@ -39,7 +39,7 @@ int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('F', "freq", &details.freq, "Show the sample frequency"),
 	OPT_BOOLEAN('v', "verbose", &details.verbose,
 		    "Show all event attr details"),
-	OPT_BOOLEAN('g', "group", &symbol_conf.event_group,
+	OPT_BOOLEAN('g', "group", &details.event_group,
 		    "Show event group information"),
 	OPT_END()
 	};
@@ -52,7 +52,7 @@ int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc)
 		usage_with_options(evlist_usage, options);
 
-	if (symbol_conf.event_group && (details.verbose || details.freq)) {
+	if (details.event_group && (details.verbose || details.freq)) {
 		pr_err("--group option is not compatible with other options\n");
 		usage_with_options(evlist_usage, options);
 	}

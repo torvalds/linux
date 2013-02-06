@@ -9,18 +9,24 @@
 
 typedef int (*hpp_snprint_fn)(char *buf, size_t size, const char *fmt, ...);
 
-static int __hpp__percent_fmt(struct perf_hpp *hpp, struct hist_entry *he,
-			      u64 (*get_field)(struct hist_entry *),
-			      const char *fmt, hpp_snprint_fn print_fn)
+static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+		      u64 (*get_field)(struct hist_entry *),
+		      const char *fmt, hpp_snprint_fn print_fn,
+		      bool fmt_percent)
 {
 	int ret;
-	double percent = 0.0;
 	struct hists *hists = he->hists;
 
-	if (hists->stats.total_period)
-		percent = 100.0 * get_field(he) / hists->stats.total_period;
+	if (fmt_percent) {
+		double percent = 0.0;
 
-	ret = print_fn(hpp->buf, hpp->size, fmt, percent);
+		if (hists->stats.total_period)
+			percent = 100.0 * get_field(he) /
+				  hists->stats.total_period;
+
+		ret = print_fn(hpp->buf, hpp->size, fmt, percent);
+	} else
+		ret = print_fn(hpp->buf, hpp->size, fmt, get_field(he));
 
 	if (symbol_conf.event_group) {
 		int prev_idx, idx_delta;
@@ -49,11 +55,15 @@ static int __hpp__percent_fmt(struct perf_hpp *hpp, struct hist_entry *he,
 				 * have no sample
 				 */
 				ret += print_fn(hpp->buf + ret, hpp->size - ret,
-						fmt, 0.0);
+						fmt, 0);
 			}
 
-			ret += print_fn(hpp->buf + ret, hpp->size - ret,
-					fmt, 100.0 * period / total);
+			if (fmt_percent)
+				ret += print_fn(hpp->buf + ret, hpp->size - ret,
+						fmt, 100.0 * period / total);
+			else
+				ret += print_fn(hpp->buf + ret, hpp->size - ret,
+						fmt, period);
 
 			prev_idx = perf_evsel__group_idx(evsel);
 		}
@@ -65,22 +75,11 @@ static int __hpp__percent_fmt(struct perf_hpp *hpp, struct hist_entry *he,
 			 * zero-fill group members at last which have no sample
 			 */
 			ret += print_fn(hpp->buf + ret, hpp->size - ret,
-					fmt, 0.0);
+					fmt, 0);
 		}
 	}
 	return ret;
 }
-
-static int __hpp__raw_fmt(struct perf_hpp *hpp, struct hist_entry *he,
-			  u64 (*get_field)(struct hist_entry *),
-			  const char *fmt, hpp_snprint_fn print_fn)
-{
-	int ret;
-
-	ret = print_fn(hpp->buf, hpp->size, fmt, get_field(he));
-	return ret;
-}
-
 
 #define __HPP_HEADER_FN(_type, _str, _min_width, _unit_width) 		\
 static int hpp__header_##_type(struct perf_hpp *hpp)			\
@@ -116,16 +115,16 @@ static u64 he_get_##_field(struct hist_entry *he)				\
 										\
 static int hpp__color_##_type(struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	return __hpp__percent_fmt(hpp, he, he_get_##_field, " %6.2f%%",		\
-				  (hpp_snprint_fn)percent_color_snprintf); 	\
+	return __hpp__fmt(hpp, he, he_get_##_field, " %6.2f%%",			\
+			  (hpp_snprint_fn)percent_color_snprintf, true);	\
 }
 
 #define __HPP_ENTRY_PERCENT_FN(_type, _field)					\
 static int hpp__entry_##_type(struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	const char *fmt = symbol_conf.field_sep ? " %.2f" : " %6.2f%%";		\
-	return __hpp__percent_fmt(hpp, he, he_get_##_field, fmt,		\
-				  scnprintf);					\
+	return __hpp__fmt(hpp, he, he_get_##_field, fmt,			\
+			  scnprintf, true);					\
 }
 
 #define __HPP_ENTRY_RAW_FN(_type, _field)					\
@@ -137,7 +136,7 @@ static u64 he_get_raw_##_field(struct hist_entry *he)				\
 static int hpp__entry_##_type(struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	const char *fmt = symbol_conf.field_sep ? " %"PRIu64 : " %11"PRIu64;	\
-	return __hpp__raw_fmt(hpp, he, he_get_raw_##_field, fmt, scnprintf);	\
+	return __hpp__fmt(hpp, he, he_get_raw_##_field, fmt, scnprintf, false);	\
 }
 
 #define HPP_PERCENT_FNS(_type, _str, _field, _min_width, _unit_width)	\
