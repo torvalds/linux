@@ -76,12 +76,9 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id ixgbevf_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
-	board_82599_vf},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
-	board_X540_vf},
-
+static DEFINE_PCI_DEVICE_TABLE(ixgbevf_pci_tbl) = {
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
 	/* required last entry */
 	{0, }
 };
