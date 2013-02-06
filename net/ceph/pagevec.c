@@ -12,7 +12,7 @@
 /*
  * build a vector of user pages
  */
-struct page **ceph_get_direct_page_vector(const char __user *data,
+struct page **ceph_get_direct_page_vector(const void __user *data,
 					  int num_pages, bool write_page)
 {
 	struct page **pages;
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(ceph_alloc_page_vector);
  * copy user data into a page vector
  */
 int ceph_copy_user_to_page_vector(struct page **pages,
-					 const char __user *data,
+					 const void __user *data,
 					 loff_t off, size_t len)
 {
 	int i = 0;
@@ -119,7 +119,7 @@ int ceph_copy_user_to_page_vector(struct page **pages,
 EXPORT_SYMBOL(ceph_copy_user_to_page_vector);
 
 int ceph_copy_to_page_vector(struct page **pages,
-				    const char *data,
+				    const void *data,
 				    loff_t off, size_t len)
 {
 	int i = 0;
@@ -143,7 +143,7 @@ int ceph_copy_to_page_vector(struct page **pages,
 EXPORT_SYMBOL(ceph_copy_to_page_vector);
 
 int ceph_copy_from_page_vector(struct page **pages,
-				    char *data,
+				    void *data,
 				    loff_t off, size_t len)
 {
 	int i = 0;
@@ -170,7 +170,7 @@ EXPORT_SYMBOL(ceph_copy_from_page_vector);
  * copy user data from a page vector into a user pointer
  */
 int ceph_copy_page_vector_to_user(struct page **pages,
-					 char __user *data,
+					 void __user *data,
 					 loff_t off, size_t len)
 {
 	int i = 0;
