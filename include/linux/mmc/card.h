@@ -310,6 +310,11 @@ static inline void mmc_part_add(struct mmc_card *card, unsigned int size,
 	card->nr_parts++;
 }
 
+static inline bool mmc_large_sector(struct mmc_card *card)
+{
+	return card->ext_csd.data_sector_size == 4096;
+}
+
 /*
  *  The world is not perfect and supplies us with broken mmc/sdio devices.
  *  For at least some of these bugs we need a work-around.
