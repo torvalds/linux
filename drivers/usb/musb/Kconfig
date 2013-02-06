@@ -34,10 +34,12 @@ choice
 config USB_MUSB_DAVINCI
 	tristate "DaVinci"
 	depends on ARCH_DAVINCI_DMx
+	depends on BROKEN
 
 config USB_MUSB_DA8XX
 	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
+	depends on BROKEN
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
