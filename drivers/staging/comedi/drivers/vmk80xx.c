@@ -38,19 +38,6 @@ Supports:
  - counter
  - pwm
 */
-/*
-Changelog:
-
-0.8.81	-3-  code completely rewritten (adjust driver logic)
-0.8.81  -2-  full support for K8061
-0.8.81  -1-  fix some mistaken among others the number of
-	     supported boards and I/O handling
-
-0.7.76  -4-  renamed to vmk80xx
-0.7.76  -3-  detect K8061 (only theoretically supported)
-0.7.76  -2-  code completely rewritten (adjust driver logic)
-0.7.76  -1-  support for digital and counter subdevice
-*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
