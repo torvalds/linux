@@ -440,7 +440,8 @@ struct pcmcia_device;
 
 struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *);
 
-int comedi_pcmcia_enable(struct comedi_device *);
+int comedi_pcmcia_enable(struct comedi_device *,
+			 int (*conf_check)(struct pcmcia_device *, void *));
 void comedi_pcmcia_disable(struct comedi_device *);
 
 int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);

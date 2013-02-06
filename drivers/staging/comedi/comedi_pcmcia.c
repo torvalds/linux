@@ -49,12 +49,14 @@ static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
 /**
  * comedi_pcmcia_enable() - Request the regions and enable the PCMCIA device.
  * @dev: comedi_device struct
+ * @conf_check: optional callback to check the pcmcia_device configuration
  *
  * The comedi PCMCIA driver needs to set the link->config_flags, as
  * appropriate for that driver, before calling this function in order
  * to allow pcmcia_loop_config() to do its internal autoconfiguration.
  */
-int comedi_pcmcia_enable(struct comedi_device *dev)
+int comedi_pcmcia_enable(struct comedi_device *dev,
+			 int (*conf_check)(struct pcmcia_device *, void *))
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	int ret;
@@ -62,7 +64,10 @@ int comedi_pcmcia_enable(struct comedi_device *dev)
 	if (!link)
 		return -ENODEV;
 
-	ret = pcmcia_loop_config(link, comedi_pcmcia_conf_check, NULL);
+	if (!conf_check)
+		conf_check = comedi_pcmcia_conf_check;
+
+	ret = pcmcia_loop_config(link, conf_check, NULL);
 	if (ret)
 		return ret;
 

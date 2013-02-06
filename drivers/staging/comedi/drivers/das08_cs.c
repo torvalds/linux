@@ -81,7 +81,7 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = &das08_cs_boards[0];
 
 	link->config_flags |= CONF_AUTO_SET_IO;
-	ret = comedi_pcmcia_enable(dev);
+	ret = comedi_pcmcia_enable(dev, NULL);
 	if (ret)
 		return ret;
 	iobase = link->resource[0]->start;
