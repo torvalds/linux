@@ -113,8 +113,6 @@ enum {
 #define VMK8061_CMD_RD_AO       0x0f
 #define VMK8061_CMD_RD_PWM      0x10
 
-#define VMK80XX_MAX_BOARDS      COMEDI_NUM_BOARD_MINORS
-
 #define TRANS_OUT_BUSY          1
 #define TRANS_IN_BUSY           2
 #define TRANS_IN_RUNNING        3
