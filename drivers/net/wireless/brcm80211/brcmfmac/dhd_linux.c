@@ -567,8 +567,6 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	atomic_set(&drvr->pend_8021x_cnt, 0);
 
-	memcpy(ndev->dev_addr, drvr->mac, ETH_ALEN);
-
 	/* Get current TOE mode from dongle */
 	if (brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_ol) >= 0
 	    && (toe_ol & TOE_TX_CSUM_OL) != 0)
