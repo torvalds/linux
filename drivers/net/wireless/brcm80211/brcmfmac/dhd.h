@@ -489,9 +489,6 @@ struct brcmf_pub {
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	atomic_t pend_8021x_cnt;
-	wait_queue_head_t pend_8021x_wait;
-
 	struct brcmf_fweh_info fweh;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
@@ -518,6 +515,8 @@ struct brcmf_cfg80211_vif;
  * @idx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
+ * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
+ * @pend_8021x_wait: used for signalling change in count.
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
@@ -529,6 +528,8 @@ struct brcmf_if {
 	int idx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
+	atomic_t pend_8021x_cnt;
+	wait_queue_head_t pend_8021x_wait;
 };
 
 
