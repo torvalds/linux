@@ -1890,8 +1890,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	if (ret < 0)
 		goto out;
 	ret = 0;
-	(void) ceph_copy_from_page_vector(pages, inbound, 0,
-					obj_request->xferred);
+	ceph_copy_from_page_vector(pages, inbound, 0, obj_request->xferred);
 	if (version)
 		*version = obj_request->version;
 out:
@@ -2089,7 +2088,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 
 	rbd_assert(obj_request->xferred <= (u64) SIZE_MAX);
 	size = (size_t) obj_request->xferred;
-	(void) ceph_copy_from_page_vector(pages, buf, 0, size);
+	ceph_copy_from_page_vector(pages, buf, 0, size);
 	rbd_assert(size <= (size_t) INT_MAX);
 	ret = (int) size;
 	if (version)
