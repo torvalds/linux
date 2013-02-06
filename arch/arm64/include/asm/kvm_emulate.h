@@ -28,6 +28,9 @@
 #include <asm/kvm_mmio.h>
 #include <asm/ptrace.h>
 
+unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
+unsigned long *vcpu_spsr32(const struct kvm_vcpu *vcpu);
+
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -49,7 +52,7 @@ static inline unsigned long *vcpu_cpsr(const struct kvm_vcpu *vcpu)
 
 static inline bool vcpu_mode_is_32bit(const struct kvm_vcpu *vcpu)
 {
-	return false;	/* 32bit? Bahhh... */
+	return !!(*vcpu_cpsr(vcpu) & PSR_MODE32_BIT);
 }
 
 static inline bool kvm_condition_valid(const struct kvm_vcpu *vcpu)
@@ -64,22 +67,32 @@ static inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 {
+	*vcpu_cpsr(vcpu) |= COMPAT_PSR_T_BIT;
 }
 
 static inline unsigned long *vcpu_reg(const struct kvm_vcpu *vcpu, u8 reg_num)
 {
+	if (vcpu_mode_is_32bit(vcpu))
+		return vcpu_reg32(vcpu, reg_num);
+
 	return (unsigned long *)&vcpu_gp_regs(vcpu)->regs.regs[reg_num];
 }
 
 /* Get vcpu SPSR for current mode */
 static inline unsigned long *vcpu_spsr(const struct kvm_vcpu *vcpu)
 {
+	if (vcpu_mode_is_32bit(vcpu))
+		return vcpu_spsr32(vcpu);
+
 	return (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
 }
 
 static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
 {
 	u32 mode = *vcpu_cpsr(vcpu) & PSR_MODE_MASK;
+
+	if (vcpu_mode_is_32bit(vcpu))
+		return mode > COMPAT_PSR_MODE_USR;
 
 	return mode != PSR_MODE_EL0t;
 }
