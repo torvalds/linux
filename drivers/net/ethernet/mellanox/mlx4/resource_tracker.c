@@ -1231,14 +1231,14 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 
 	switch (op) {
 	case RES_OP_RESERVE:
-		index = __mlx4_mr_reserve(dev);
+		index = __mlx4_mpt_reserve(dev);
 		if (index == -1)
 			break;
 		id = index & mpt_mask(dev);
 
 		err = add_res_range(dev, slave, id, 1, RES_MPT, index);
 		if (err) {
-			__mlx4_mr_release(dev, index);
+			__mlx4_mpt_release(dev, index);
 			break;
 		}
 		set_param_l(out_param, index);
@@ -1251,7 +1251,7 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		err = __mlx4_mr_alloc_icm(dev, mpt->key);
+		err = __mlx4_mpt_alloc_icm(dev, mpt->key);
 		if (err) {
 			res_abort_move(dev, slave, RES_MPT, id);
 			return err;
@@ -1586,7 +1586,7 @@ static int mpt_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		err = rem_res_range(dev, slave, id, 1, RES_MPT, 0);
 		if (err)
 			break;
-		__mlx4_mr_release(dev, index);
+		__mlx4_mpt_release(dev, index);
 		break;
 	case RES_OP_MAP_ICM:
 			index = get_param_l(&in_param);
@@ -1596,7 +1596,7 @@ static int mpt_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 			if (err)
 				return err;
 
-			__mlx4_mr_free_icm(dev, mpt->key);
+			__mlx4_mpt_free_icm(dev, mpt->key);
 			res_end_move(dev, slave, RES_MPT, id);
 			return err;
 		break;
@@ -3480,7 +3480,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 			while (state != 0) {
 				switch (state) {
 				case RES_MPT_RESERVED:
-					__mlx4_mr_release(dev, mpt->key);
+					__mlx4_mpt_release(dev, mpt->key);
 					spin_lock_irq(mlx4_tlock(dev));
 					rb_erase(&mpt->com.node,
 						 &tracker->res_tree[RES_MPT]);
@@ -3491,7 +3491,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 					break;
 
 				case RES_MPT_MAPPED:
-					__mlx4_mr_free_icm(dev, mpt->key);
+					__mlx4_mpt_free_icm(dev, mpt->key);
 					state = RES_MPT_RESERVED;
 					break;
 
