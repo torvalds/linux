@@ -1216,10 +1216,28 @@ static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
 	return wait_for_completion_interruptible(&obj_request->completion);
 }
 
+static void obj_request_done_init(struct rbd_obj_request *obj_request)
+{
+	atomic_set(&obj_request->done, 0);
+	smp_wmb();
+}
+
+static void obj_request_done_set(struct rbd_obj_request *obj_request)
+{
+	atomic_set(&obj_request->done, 1);
+	smp_wmb();
+}
+
+static bool obj_request_done_test(struct rbd_obj_request *obj_request)
+{
+	smp_rmb();
+	return atomic_read(&obj_request->done) != 0;
+}
+
 static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request,
 				struct ceph_osd_op *op)
 {
-	atomic_set(&obj_request->done, 1);
+	obj_request_done_set(obj_request);
 }
 
 static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
@@ -1249,14 +1267,14 @@ static void rbd_osd_read_callback(struct rbd_obj_request *obj_request,
 		xferred = obj_request->length;
 	}
 	obj_request->xferred = xferred;
-	atomic_set(&obj_request->done, 1);
+	obj_request_done_set(obj_request);
 }
 
 static void rbd_osd_write_callback(struct rbd_obj_request *obj_request,
 				struct ceph_osd_op *op)
 {
 	obj_request->xferred = le64_to_cpu(op->extent.length);
-	atomic_set(&obj_request->done, 1);
+	obj_request_done_set(obj_request);
 }
 
 static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
@@ -1300,7 +1318,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 		break;
 	}
 
-	if (atomic_read(&obj_request->done))
+	if (obj_request_done_test(obj_request))
 		rbd_obj_request_complete(obj_request);
 }
 
@@ -1407,7 +1425,7 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
-	atomic_set(&obj_request->done, 0);
+	obj_request_done_init(obj_request);
 	init_completion(&obj_request->completion);
 	kref_init(&obj_request->kref);
 
@@ -1611,7 +1629,7 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 		rbd_assert(more);
 		rbd_assert(which < img_request->obj_request_count);
 
-		if (!atomic_read(&obj_request->done))
+		if (!obj_request_done_test(obj_request))
 			break;
 
 		rbd_assert(obj_request->xferred <= (u64) UINT_MAX);
