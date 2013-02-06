@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 
 #include <linux/platform_device.h>
 #include <media/v4l2-mem2mem.h>
@@ -695,11 +696,14 @@ static struct v4l2_m2m_ops g2d_m2m_ops = {
 	.unlock		= g2d_unlock,
 };
 
+static const struct of_device_id exynos_g2d_match[];
+
 static int g2d_probe(struct platform_device *pdev)
 {
 	struct g2d_dev *dev;
 	struct video_device *vfd;
 	struct resource *res;
+	const struct of_device_id *of_id;
 	int ret = 0;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -794,7 +798,17 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
-	dev->variant = g2d_get_drv_data(pdev);
+
+	if (!pdev->dev.of_node) {
+		dev->variant = g2d_get_drv_data(pdev);
+	} else {
+		of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+		if (!of_id) {
+			ret = -ENODEV;
+			goto unreg_video_dev;
+		}
+		dev->variant = (struct g2d_variant *)of_id->data;
+	}
 
 	return 0;
 
@@ -835,12 +849,24 @@ static int g2d_remove(struct platform_device *pdev)
 }
 
 static struct g2d_variant g2d_drvdata_v3x = {
-	.hw_rev = TYPE_G2D_3X,
+	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exynos4210 */
 };
 
 static struct g2d_variant g2d_drvdata_v4x = {
 	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exynos4X12 and Exynos5 */
 };
+
+static const struct of_device_id exynos_g2d_match[] = {
+	{
+		.compatible = "samsung,s5pv210-g2d",
+		.data = &g2d_drvdata_v3x,
+	}, {
+		.compatible = "samsung,exynos4212-g2d",
+		.data = &g2d_drvdata_v4x,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
 static struct platform_device_id g2d_driver_ids[] = {
 	{
@@ -861,6 +887,7 @@ static struct platform_driver g2d_pdrv = {
 	.driver		= {
 		.name = G2D_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = exynos_g2d_match,
 	},
 };
 
