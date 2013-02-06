@@ -162,7 +162,7 @@ struct vmk80xx_board {
 	int ai_nchans;
 	unsigned int ai_maxdata;
 	int ao_nchans;
-	__u8 di_chans;
+	int di_nchans;
 	__le16 cnt_bits;
 	__u8 pwm_chans;
 	__le16 pwm_bits;
@@ -176,7 +176,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_nchans	= 2,
 		.ai_maxdata	= 0x00ff,
 		.ao_nchans	= 2,
-		.di_chans	= 6,
+		.di_nchans	= 6,
 		.cnt_bits	= 16,
 		.pwm_chans	= 0,
 		.pwm_bits	= 0,
@@ -188,7 +188,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_nchans	= 8,
 		.ai_maxdata	= 0x03ff,
 		.ao_nchans	= 8,
-		.di_chans	= 8,
+		.di_nchans	= 8,
 		.cnt_bits	= 0,
 		.pwm_chans	= 1,
 		.pwm_bits	= 10,
@@ -663,9 +663,10 @@ static int vmk80xx_ao_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_di_bits(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_di_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned char *rx_buf;
@@ -705,9 +706,10 @@ static int vmk80xx_di_bits(struct comedi_device *dev,
 	return retval;
 }
 
-static int vmk80xx_di_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_di_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -1219,12 +1221,13 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 
 	/* Digital input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = boardinfo->di_chans;
-	s->maxdata = 1;
-	s->insn_read = vmk80xx_di_rinsn;
-	s->insn_bits = vmk80xx_di_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= boardinfo->di_nchans;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_read	= vmk80xx_di_insn_read;
+	s->insn_bits	= vmk80xx_di_insn_bits;
 
 	/* Digital output subdevice */
 	s = &dev->subdevices[3];
