@@ -2769,6 +2769,7 @@ static int bttv_g_fbuf(struct file *file, void *f,
 
 	*fb = btv->fbuf;
 	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
+	fb->flags = V4L2_FBUF_FLAG_PRIMARY;
 	if (fh->ovfmt)
 		fb->fmt.pixelformat  = fh->ovfmt->fourcc;
 	return 0;
