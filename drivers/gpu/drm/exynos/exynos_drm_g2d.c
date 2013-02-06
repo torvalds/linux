@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-attrs.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -1240,6 +1241,14 @@ static int g2d_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos_g2d_match[] = {
+	{ .compatible = "samsung,exynos5250-g2d" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+#endif
+
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
@@ -1247,5 +1256,6 @@ struct platform_driver g2d_driver = {
 		.name	= "s5p-g2d",
 		.owner	= THIS_MODULE,
 		.pm	= &g2d_pm_ops,
+		.of_match_table = of_match_ptr(exynos_g2d_match),
 	},
 };
