@@ -281,6 +281,7 @@ config USB_S3C_HSOTG
 config USB_IMX
 	tristate "Freescale i.MX1 USB Peripheral Controller"
 	depends on ARCH_MXC
+	depends on BROKEN
 	help
 	   Freescale's i.MX1 includes an integrated full speed
 	   USB 1.1 device controller.
