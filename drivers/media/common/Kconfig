@@ -12,6 +12,10 @@ config VIDEO_BTCX
 	depends on PCI
 	tristate
 
+config VIDEO_TVEEPROM
+	tristate
+	depends on I2C
+
 source "drivers/media/common/b2c2/Kconfig"
 source "drivers/media/common/saa7146/Kconfig"
 source "drivers/media/common/siano/Kconfig"

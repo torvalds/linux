@@ -1,12 +1,4 @@
 #
-# Generic video config states
-#
-
-config VIDEO_TVEEPROM
-	tristate
-	depends on I2C
-
-#
 # Multimedia Video device configuration
 #
 
