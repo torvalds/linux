@@ -837,7 +837,7 @@ struct cifs_tcon {
  */
 struct tcon_link {
 	struct rb_node		tl_rbnode;
-	uid_t			tl_uid;
+	kuid_t			tl_uid;
 	unsigned long		tl_flags;
 #define TCON_LINK_MASTER	0
 #define TCON_LINK_PENDING	1

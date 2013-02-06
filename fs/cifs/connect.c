@@ -3919,7 +3919,7 @@ cifs_set_vol_auth(struct smb_vol *vol, struct cifs_ses *ses)
 }
 
 static struct cifs_tcon *
-cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
+cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 {
 	int rc;
 	struct cifs_tcon *master_tcon = cifs_sb_master_tcon(cifs_sb);
@@ -3989,7 +3989,7 @@ cifs_sb_tcon_pending_wait(void *unused)
 
 /* find and return a tlink with given uid */
 static struct tcon_link *
-tlink_rb_search(struct rb_root *root, uid_t uid)
+tlink_rb_search(struct rb_root *root, kuid_t uid)
 {
 	struct rb_node *node = root->rb_node;
 	struct tcon_link *tlink;
@@ -3997,9 +3997,9 @@ tlink_rb_search(struct rb_root *root, uid_t uid)
 	while (node) {
 		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
 
-		if (tlink->tl_uid > uid)
+		if (uid_gt(tlink->tl_uid, uid))
 			node = node->rb_left;
-		else if (tlink->tl_uid < uid)
+		else if (uid_lt(tlink->tl_uid, uid))
 			node = node->rb_right;
 		else
 			return tlink;
@@ -4018,7 +4018,7 @@ tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
 		tlink = rb_entry(*new, struct tcon_link, tl_rbnode);
 		parent = *new;
 
-		if (tlink->tl_uid > new_tlink->tl_uid)
+		if (uid_gt(tlink->tl_uid, new_tlink->tl_uid))
 			new = &((*new)->rb_left);
 		else
 			new = &((*new)->rb_right);
@@ -4048,7 +4048,7 @@ struct tcon_link *
 cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 {
 	int ret;
-	uid_t fsuid = current_fsuid();
+	kuid_t fsuid = current_fsuid();
 	struct tcon_link *tlink, *newtlink;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
