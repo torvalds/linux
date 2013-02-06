@@ -22,6 +22,7 @@ if NET_CADENCE
 
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
+	depends on GENERIC_HARDIRQS
 	select NET_CORE
 	select MACB
 	---help---
