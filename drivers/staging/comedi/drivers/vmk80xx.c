@@ -1394,11 +1394,6 @@ error:
 	return -ENODEV;
 }
 
-static void vmk80xx_usb_disconnect(struct usb_interface *intf)
-{
-	comedi_usb_auto_unconfig(intf);
-}
-
 static const struct usb_device_id vmk80xx_usb_id_table[] = {
 	{ USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055 },
 	{ USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055 },
@@ -1416,13 +1411,11 @@ static const struct usb_device_id vmk80xx_usb_id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, vmk80xx_usb_id_table);
 
-/* TODO: Add support for suspend, resume, pre_reset,
- * post_reset and flush */
 static struct usb_driver vmk80xx_usb_driver = {
 	.name		= "vmk80xx",
-	.probe		= vmk80xx_usb_probe,
-	.disconnect	= vmk80xx_usb_disconnect,
 	.id_table	= vmk80xx_usb_id_table,
+	.probe		= vmk80xx_usb_probe,
+	.disconnect	= comedi_usb_auto_unconfig,
 };
 module_comedi_usb_driver(vmk80xx_driver, vmk80xx_usb_driver);
 
