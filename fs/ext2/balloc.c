@@ -1239,10 +1239,6 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 
 	*errp = -ENOSPC;
 	sb = inode->i_sb;
-	if (!sb) {
-		printk("ext2_new_blocks: nonexistent device");
-		return 0;
-	}
 
 	/*
 	 * Check quota for allocation of this block.
