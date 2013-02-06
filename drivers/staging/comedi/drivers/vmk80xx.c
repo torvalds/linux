@@ -212,10 +212,6 @@ struct vmk80xx_private {
 	unsigned long flags;
 };
 
-static struct vmk80xx_private vmb[VMK80XX_MAX_BOARDS];
-
-static DEFINE_MUTEX(glb_mutex);
-
 static void vmk80xx_tx_callback(struct urb *urb)
 {
 	struct vmk80xx_private *devpriv = urb->context;
@@ -1131,9 +1127,10 @@ static int vmk80xx_pwm_winsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
-				      struct usb_interface *intf)
+static int vmk80xx_find_usb_endpoints(struct comedi_device *dev)
 {
+	struct vmk80xx_private *devpriv = dev->private;
+	struct usb_interface *intf = devpriv->intf;
 	struct usb_host_interface *iface_desc = intf->cur_altsetting;
 	struct usb_endpoint_descriptor *ep_desc;
 	int i;
@@ -1165,8 +1162,9 @@ static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
 	return 0;
 }
 
-static int vmk80xx_alloc_usb_buffers(struct vmk80xx_private *devpriv)
+static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 {
+	struct vmk80xx_private *devpriv = dev->private;
 	size_t size;
 
 	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
@@ -1184,20 +1182,15 @@ static int vmk80xx_alloc_usb_buffers(struct vmk80xx_private *devpriv)
 	return 0;
 }
 
-static int vmk80xx_attach_common(struct comedi_device *dev,
-				 struct vmk80xx_private *devpriv)
+static int vmk80xx_attach_common(struct comedi_device *dev)
 {
-	const struct vmk80xx_board *boardinfo;
-	int n_subd;
+	const struct vmk80xx_board *boardinfo = comedi_board(dev);
+	struct vmk80xx_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
+	int n_subd;
 	int ret;
 
 	down(&devpriv->limit_sem);
-
-	boardinfo = devpriv->board;
-	dev->board_ptr = boardinfo;
-	dev->board_name = boardinfo->name;
-	dev->private = devpriv;
 
 	if (boardinfo->model == VMK8055_MODEL)
 		n_subd = 5;
@@ -1283,94 +1276,33 @@ static int vmk80xx_attach_common(struct comedi_device *dev,
 }
 
 static int vmk80xx_auto_attach(struct comedi_device *dev,
-			       unsigned long context_unused)
+			       unsigned long context)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	int i;
-	int ret;
-
-	mutex_lock(&glb_mutex);
-	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (vmb[i].intf == intf)
-			break;
-	if (i == VMK80XX_MAX_BOARDS)
-		ret = -ENODEV;
-	else
-		ret = vmk80xx_attach_common(dev, &vmb[i]);
-	mutex_unlock(&glb_mutex);
-	return ret;
-}
-
-static void vmk80xx_detach(struct comedi_device *dev)
-{
-	struct vmk80xx_private *devpriv = dev->private;
-
-	if (!devpriv)
-		return;
-
-	mutex_lock(&glb_mutex);
-	down(&devpriv->limit_sem);
-
-	dev->private = NULL;
-
-	usb_set_intfdata(devpriv->intf, NULL);
-
-	usb_kill_anchored_urbs(&devpriv->rx_anchor);
-	usb_kill_anchored_urbs(&devpriv->tx_anchor);
-
-	kfree(devpriv->usb_rx_buf);
-	kfree(devpriv->usb_tx_buf);
-
-	up(&devpriv->limit_sem);
-
-	/*
-	 * Since 'devpriv' points to an element of the static vmb array
-	 * we can't kfree it. Instead memset it to all '0' so subsequent
-	 * usb probes don't find any garbage in it.
-	 */
-	memset(devpriv, 0x00, sizeof(*devpriv));
-
-	mutex_unlock(&glb_mutex);
-}
-
-static struct comedi_driver vmk80xx_driver = {
-	.module		= THIS_MODULE,
-	.driver_name	= "vmk80xx",
-	.auto_attach	= vmk80xx_auto_attach,
-	.detach		= vmk80xx_detach,
-};
-
-static int vmk80xx_usb_probe(struct usb_interface *intf,
-			     const struct usb_device_id *id)
-{
 	const struct vmk80xx_board *boardinfo;
 	struct vmk80xx_private *devpriv;
 	int ret;
-	int i;
 
-	mutex_lock(&glb_mutex);
+	boardinfo = &vmk80xx_boardinfo[context];
+	dev->board_ptr = boardinfo;
+	dev->board_name = boardinfo->name;
 
-	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (!vmb[i].intf)
-			break;
-
-	if (i == VMK80XX_MAX_BOARDS) {
-		ret = -EMFILE;
-		goto fail;
-	}
-
-	devpriv = &vmb[i];
-
-	ret = vmk80xx_find_usb_endpoints(devpriv, intf);
-	if (ret)
-		goto error;
-
-	ret = vmk80xx_alloc_usb_buffers(devpriv);
-	if (ret)
-		goto error;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	devpriv->usb = interface_to_usbdev(intf);
 	devpriv->intf = intf;
+	devpriv->board = boardinfo;
+
+	ret = vmk80xx_find_usb_endpoints(dev);
+	if (ret)
+		return ret;
+
+	ret = vmk80xx_alloc_usb_buffers(dev);
+	if (ret)
+		return ret;
 
 	sema_init(&devpriv->limit_sem, 8);
 	init_waitqueue_head(&devpriv->read_wait);
@@ -1380,9 +1312,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	init_usb_anchor(&devpriv->tx_anchor);
 
 	usb_set_intfdata(intf, devpriv);
-
-	boardinfo = &vmk80xx_boardinfo[id->driver_info];
-	devpriv->board = boardinfo;
 
 	if (boardinfo->model == VMK8061_MODEL) {
 		vmk80xx_read_eeprom(devpriv, IC3_VERSION);
@@ -1399,22 +1328,40 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	if (boardinfo->model == VMK8055_MODEL)
 		vmk80xx_reset_device(devpriv);
 
-	mutex_unlock(&glb_mutex);
+	return vmk80xx_attach_common(dev);
+}
 
-	comedi_usb_auto_config(intf, &vmk80xx_driver, id->driver_info);
+static void vmk80xx_detach(struct comedi_device *dev)
+{
+	struct vmk80xx_private *devpriv = dev->private;
 
-	return 0;
+	if (!devpriv)
+		return;
 
-error:
-	/*
-	 * Since 'devpriv' points to an element of the static vmb array
-	 * we can't kfree it. Instead memset it to all '0' so subsequent
-	 * usb probes don't find any garbage in it.
-	 */
-	memset(devpriv, 0x00, sizeof(*devpriv));
-fail:
-	mutex_unlock(&glb_mutex);
-	return ret;
+	down(&devpriv->limit_sem);
+
+	usb_set_intfdata(devpriv->intf, NULL);
+
+	usb_kill_anchored_urbs(&devpriv->rx_anchor);
+	usb_kill_anchored_urbs(&devpriv->tx_anchor);
+
+	kfree(devpriv->usb_rx_buf);
+	kfree(devpriv->usb_tx_buf);
+
+	up(&devpriv->limit_sem);
+}
+
+static struct comedi_driver vmk80xx_driver = {
+	.module		= THIS_MODULE,
+	.driver_name	= "vmk80xx",
+	.auto_attach	= vmk80xx_auto_attach,
+	.detach		= vmk80xx_detach,
+};
+
+static int vmk80xx_usb_probe(struct usb_interface *intf,
+			     const struct usb_device_id *id)
+{
+	return comedi_usb_auto_config(intf, &vmk80xx_driver, id->driver_info);
 }
 
 static const struct usb_device_id vmk80xx_usb_id_table[] = {
