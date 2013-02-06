@@ -1189,26 +1189,6 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	return 0;
 }
 
-/* called for COMEDI_DEVCONFIG ioctl for board_name "vmk80xx" */
-static int vmk80xx_attach(struct comedi_device *cdev,
-			  struct comedi_devconfig *it)
-{
-	int i;
-	int ret;
-
-	mutex_lock(&glb_mutex);
-	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (vmb[i].probed && !vmb[i].attached)
-			break;
-	if (i == VMK80XX_MAX_BOARDS)
-		ret = -ENODEV;
-	else
-		ret = vmk80xx_attach_common(cdev, &vmb[i]);
-	mutex_unlock(&glb_mutex);
-	return ret;
-}
-
-/* called via comedi_usb_auto_config() */
 static int vmk80xx_auto_attach(struct comedi_device *cdev,
 			       unsigned long context_unused)
 {
@@ -1245,9 +1225,8 @@ static void vmk80xx_detach(struct comedi_device *dev)
 static struct comedi_driver vmk80xx_driver = {
 	.module		= THIS_MODULE,
 	.driver_name	= "vmk80xx",
-	.attach		= vmk80xx_attach,
-	.detach		= vmk80xx_detach,
 	.auto_attach	= vmk80xx_auto_attach,
+	.detach		= vmk80xx_detach,
 };
 
 static int vmk80xx_usb_probe(struct usb_interface *intf,
