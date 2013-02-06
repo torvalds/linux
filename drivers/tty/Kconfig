@@ -406,4 +406,17 @@ config GOLDFISH_TTY
 	help
 	  Console and system TTY driver for the Goldfish virtual platform.
 
+config DA_TTY
+	bool "DA TTY"
+	depends on METAG_DA
+	select SERIAL_NONSTANDARD
+	help
+	  This enables a TTY on a Dash channel.
+
+config DA_CONSOLE
+	bool "DA Console"
+	depends on DA_TTY
+	help
+	  This enables a console on a Dash channel.
+
 endif # TTY
