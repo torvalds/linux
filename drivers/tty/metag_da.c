@@ -147,9 +147,8 @@ static int chancall(int in_bios_function, int in_channel,
 /*
  * Attempts to fetch count bytes from channel and returns actual count.
  */
-static int fetch_data(struct tty_struct *tty)
+static int fetch_data(unsigned int channel)
 {
-	unsigned int channel = tty->index;
 	struct dashtty_port *dport = &dashtty_ports[channel];
 	int received = 0;
 
@@ -180,31 +179,31 @@ unlock:
 }
 
 /**
- * find_channel_to_poll() - Returns kref to the next channel tty to poll.
- * Returns:	The TTY of the next channel to poll, or NULL if no TTY needs
- *		polling. Release with tty_kref_put().
+ * find_channel_to_poll() - Returns number of the next channel to poll.
+ * Returns:	The number of the next channel to poll, or -1 if none need
+ *		polling.
  */
-static struct tty_struct *find_channel_to_poll(void)
+static int find_channel_to_poll(void)
 {
 	static int last_polled_channel;
 	int last = last_polled_channel;
 	int chan;
-	struct tty_struct *tty = NULL;
+	struct dashtty_port *dport;
 
 	for (chan = last + 1; ; ++chan) {
 		if (chan >= NUM_TTY_CHANNELS)
 			chan = 0;
 
-		tty = tty_port_tty_get(&dashtty_ports[chan].port);
-		if (tty) {
+		dport = &dashtty_ports[chan];
+		if (dport->rx_buf) {
 			last_polled_channel = chan;
-			return tty;
+			return chan;
 		}
 
 		if (chan == last)
 			break;
 	}
-	return tty;
+	return -1;
 }
 
 /**
@@ -302,19 +301,17 @@ static int put_data(void *arg)
  */
 static void dashtty_timer(unsigned long ignored)
 {
-	struct tty_struct *tty;
+	int channel;
 
 	/* If there are no ports open do nothing and don't poll again. */
 	if (!atomic_read(&num_channels_need_poll))
 		return;
 
-	tty = find_channel_to_poll();
+	channel = find_channel_to_poll();
 
 	/* Did we find a channel to poll? */
-	if (tty) {
-		fetch_data(tty);
-		tty_kref_put(tty);
-	}
+	if (channel >= 0)
+		fetch_data(channel);
 
 	mod_timer_pinned(&poll_timer, jiffies + DA_TTY_POLL);
 }
