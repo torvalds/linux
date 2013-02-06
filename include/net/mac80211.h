@@ -1363,10 +1363,6 @@ struct ieee80211_tx_control {
  *	setup strictly in HW. mac80211 should not attempt to do this in
  *	software.
  *
- * @IEEE80211_HW_SCAN_WHILE_IDLE: The device can do hw scan while
- *	being idle (i.e. mac80211 doesn't have to go idle-off during the
- *	the scan).
- *
  * @IEEE80211_HW_WANT_MONITOR_VIF: The driver would like to be informed of
  *	a virtual monitor interface when monitor interfaces are the only
  *	active interfaces.
@@ -1408,7 +1404,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
-	IEEE80211_HW_SCAN_WHILE_IDLE			= 1<<24,
 	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
 	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 };

@@ -151,12 +151,8 @@ static u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		}
 	}
 
-	sdata = rcu_dereference_protected(local->scan_sdata,
-					  lockdep_is_held(&local->mtx));
-	if (sdata && !(local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)) {
-		scanning = true;
-		sdata->vif.bss_conf.idle = false;
-	}
+	scanning = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
+		   test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
