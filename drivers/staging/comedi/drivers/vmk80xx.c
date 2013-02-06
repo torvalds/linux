@@ -163,7 +163,7 @@ struct vmk80xx_board {
 	unsigned int ai_maxdata;
 	int ao_nchans;
 	int di_nchans;
-	__le16 cnt_bits;
+	unsigned int cnt_maxdata;
 	__u8 pwm_chans;
 	__le16 pwm_bits;
 };
@@ -177,7 +177,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_maxdata	= 0x00ff,
 		.ao_nchans	= 2,
 		.di_nchans	= 6,
-		.cnt_bits	= 16,
+		.cnt_maxdata	= 0xffff,
 		.pwm_chans	= 0,
 		.pwm_bits	= 0,
 	},
@@ -189,7 +189,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_maxdata	= 0x03ff,
 		.ao_nchans	= 8,
 		.di_nchans	= 8,
-		.cnt_bits	= 0,
+		.cnt_maxdata	= 0,	/* unknown, device is not writeable */
 		.pwm_chans	= 1,
 		.pwm_bits	= 10,
 	},
@@ -900,9 +900,10 @@ out:
 	return retval;
 }
 
-static int vmk80xx_cnt_rinsn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_cnt_insn_read(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -947,9 +948,10 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_cnt_cinsn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_cnt_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned int insn_cmd;
@@ -993,9 +995,10 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_cnt_winsn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_cnt_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned long debtime;
@@ -1248,15 +1251,15 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 
 	/* Counter subdevice */
 	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 2;
-	s->insn_read = vmk80xx_cnt_rinsn;
-	s->insn_config = vmk80xx_cnt_cinsn;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 2;
+	s->maxdata	= boardinfo->cnt_maxdata;
+	s->insn_read	= vmk80xx_cnt_insn_read;
+	s->insn_config	= vmk80xx_cnt_insn_config;
 	if (devpriv->model == VMK8055_MODEL) {
-		s->subdev_flags |= SDF_WRITEABLE;
-		s->maxdata = (1 << boardinfo->cnt_bits) - 1;
-		s->insn_write = vmk80xx_cnt_winsn;
+		s->subdev_flags	|= SDF_WRITEABLE;
+		s->insn_write	= vmk80xx_cnt_insn_write;
 	}
 
 	/* PWM subdevice */
