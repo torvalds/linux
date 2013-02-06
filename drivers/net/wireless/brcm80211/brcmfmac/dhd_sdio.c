@@ -1962,8 +1962,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if (bus->sdiodev->bus_if->drvr_up &&
-	    (bus->sdiodev->bus_if->state == BRCMF_BUS_DATA) &&
+	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
 		bus->txoff = false;
 		brcmf_txflowblock(bus->sdiodev->dev, false);
@@ -3307,9 +3306,6 @@ err:
 static int brcmf_sdbrcm_download_nvram(struct brcmf_sdio *bus)
 {
 	int ret;
-
-	if (bus->sdiodev->bus_if->drvr_up)
-		return -EISCONN;
 
 	ret = request_firmware(&bus->firmware, BRCMF_SDIO_NV_NAME,
 			       &bus->sdiodev->func[2]->dev);

@@ -452,13 +452,7 @@ static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
 			sprintf(info.driver, "dhd");
 			strcpy(info.version, BRCMF_VERSION_STR);
 		}
-
-		/* otherwise, require dongle to be up */
-		else if (!drvr->bus_if->drvr_up) {
-			brcmf_err("dongle is not up\n");
-			return -ENODEV;
-		}
-		/* finally, report dongle driver type */
+		/* report dongle driver type */
 		else
 			sprintf(info.driver, "wl");
 
@@ -545,18 +539,11 @@ static int brcmf_netdev_ioctl_entry(struct net_device *ndev, struct ifreq *ifr,
 
 static int brcmf_netdev_stop(struct net_device *ndev)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_pub *drvr = ifp->drvr;
-
 	brcmf_dbg(TRACE, "Enter\n");
-
-	if (drvr->bus_if->drvr_up == 0)
-		return 0;
 
 	brcmf_cfg80211_down(ndev);
 
 	/* Set state and stop OS transmissions */
-	drvr->bus_if->drvr_up = false;
 	netif_stop_queue(ndev);
 
 	return 0;
@@ -591,7 +578,6 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	/* Allow transmit calls */
 	netif_start_queue(ndev);
-	drvr->bus_if->drvr_up = true;
 	if (brcmf_cfg80211_up(ndev)) {
 		brcmf_err("failed to bring up cfg80211\n");
 		return -1;
