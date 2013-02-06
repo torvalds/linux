@@ -2530,6 +2530,7 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 	struct bttv *btv = fh->btv;
 	enum v4l2_field field;
 	__s32 width, height;
+	__s32 height2;
 	int rc;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
@@ -2538,30 +2539,25 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 
 	field = f->fmt.pix.field;
 
-	if (V4L2_FIELD_ANY == field) {
-		__s32 height2;
-
-		height2 = btv->crop[!!fh->do_crop].rect.height >> 1;
-		field = (f->fmt.pix.height > height2)
-			? V4L2_FIELD_INTERLACED
-			: V4L2_FIELD_BOTTOM;
-	}
-
-	if (V4L2_FIELD_SEQ_BT == field)
-		field = V4L2_FIELD_SEQ_TB;
-
 	switch (field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
 	case V4L2_FIELD_ALTERNATE:
 	case V4L2_FIELD_INTERLACED:
 		break;
+	case V4L2_FIELD_SEQ_BT:
 	case V4L2_FIELD_SEQ_TB:
-		if (fmt->flags & FORMAT_FLAGS_PLANAR)
-			return -EINVAL;
+		if (!(fmt->flags & FORMAT_FLAGS_PLANAR)) {
+			field = V4L2_FIELD_SEQ_TB;
+			break;
+		}
+		/* fall through */
+	default: /* FIELD_ANY case */
+		height2 = btv->crop[!!fh->do_crop].rect.height >> 1;
+		field = (f->fmt.pix.height > height2)
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_BOTTOM;
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	width = f->fmt.pix.width;
