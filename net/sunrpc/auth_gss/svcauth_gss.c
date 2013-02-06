@@ -817,12 +817,16 @@ read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
  *	The server uses base of head iovec as read pointer, while the
  *	client uses separate pointer. */
 static int
-unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
+unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 {
 	int stat = -EINVAL;
 	u32 integ_len, maj_stat;
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
+
+	/* Did we already verify the signature on the original pass through? */
+	if (rqstp->rq_deferred)
+		return 0;
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
@@ -846,6 +850,8 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 		goto out;
 	if (svc_getnl(&buf->head[0]) != seq)
 		goto out;
+	/* trim off the mic at the end before returning */
+	xdr_buf_trim(buf, mic.len + 4);
 	stat = 0;
 out:
 	kfree(mic.data);
@@ -1190,7 +1196,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			if (unwrap_integ_data(&rqstp->rq_arg,
+			if (unwrap_integ_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
 			break;
