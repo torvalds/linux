@@ -132,6 +132,47 @@ static u64 amd_pmu_event_map(int hw_event)
 	return amd_perfmon_event_map[hw_event];
 }
 
+/*
+ * Previously calculated offsets
+ */
+static unsigned int event_offsets[X86_PMC_IDX_MAX] __read_mostly;
+static unsigned int count_offsets[X86_PMC_IDX_MAX] __read_mostly;
+
+/*
+ * Legacy CPUs:
+ *   4 counters starting at 0xc0010000 each offset by 1
+ *
+ * CPUs with core performance counter extensions:
+ *   6 counters starting at 0xc0010200 each offset by 2
+ */
+static inline int amd_pmu_addr_offset(int index, bool eventsel)
+{
+	int offset;
+
+	if (!index)
+		return index;
+
+	if (eventsel)
+		offset = event_offsets[index];
+	else
+		offset = count_offsets[index];
+
+	if (offset)
+		return offset;
+
+	if (!cpu_has_perfctr_core)
+		offset = index;
+	else
+		offset = index << 1;
+
+	if (eventsel)
+		event_offsets[index] = offset;
+	else
+		count_offsets[index] = offset;
+
+	return offset;
+}
+
 static int amd_pmu_hw_config(struct perf_event *event)
 {
 	int ret;
@@ -578,6 +619,7 @@ static __initconst const struct x86_pmu amd_pmu = {
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_K7_EVNTSEL0,
 	.perfctr		= MSR_K7_PERFCTR0,
+	.addr_offset            = amd_pmu_addr_offset,
 	.event_map		= amd_pmu_event_map,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
 	.num_counters		= AMD64_NUM_COUNTERS,

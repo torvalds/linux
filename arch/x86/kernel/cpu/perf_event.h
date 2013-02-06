@@ -325,6 +325,7 @@ struct x86_pmu {
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
 	unsigned	perfctr;
+	int		(*addr_offset)(int index, bool eventsel);
 	u64		(*event_map)(int);
 	int		max_events;
 	int		num_counters;
@@ -446,28 +447,16 @@ extern u64 __read_mostly hw_cache_extra_regs
 
 u64 x86_perf_event_update(struct perf_event *event);
 
-static inline int x86_pmu_addr_offset(int index)
-{
-	int offset;
-
-	/* offset = X86_FEATURE_PERFCTR_CORE ? index << 1 : index */
-	alternative_io(ASM_NOP2,
-		       "shll $1, %%eax",
-		       X86_FEATURE_PERFCTR_CORE,
-		       "=a" (offset),
-		       "a"  (index));
-
-	return offset;
-}
-
 static inline unsigned int x86_pmu_config_addr(int index)
 {
-	return x86_pmu.eventsel + x86_pmu_addr_offset(index);
+	return x86_pmu.eventsel + (x86_pmu.addr_offset ?
+				   x86_pmu.addr_offset(index, true) : index);
 }
 
 static inline unsigned int x86_pmu_event_addr(int index)
 {
-	return x86_pmu.perfctr + x86_pmu_addr_offset(index);
+	return x86_pmu.perfctr + (x86_pmu.addr_offset ?
+				  x86_pmu.addr_offset(index, false) : index);
 }
 
 int x86_setup_perfctr(struct perf_event *event);
