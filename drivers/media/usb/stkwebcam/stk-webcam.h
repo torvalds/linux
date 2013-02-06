@@ -118,6 +118,7 @@ struct stk_camera {
 
 	int frame_size;
 	/* Streaming buffers */
+	int reading;
 	unsigned int n_sbufs;
 	struct stk_sio_buffer *sio_bufs;
 	struct list_head sio_avail;

@@ -654,7 +654,7 @@ static ssize_t stk_read(struct file *fp, char __user *buf,
 
 	if (!is_present(dev))
 		return -EIO;
-	if (dev->owner && dev->owner != fp)
+	if (dev->owner && (!dev->reading || dev->owner != fp))
 		return -EBUSY;
 	dev->owner = fp;
 	if (!is_streaming(dev)) {
@@ -662,6 +662,7 @@ static ssize_t stk_read(struct file *fp, char __user *buf,
 			|| stk_allocate_buffers(dev, 3)
 			|| stk_start_stream(dev))
 			return -ENOMEM;
+		dev->reading = 1;
 		spin_lock_irqsave(&dev->spinlock, flags);
 		for (i = 0; i < dev->n_sbufs; i++) {
 			list_add_tail(&dev->sio_bufs[i].list, &dev->sio_avail);
