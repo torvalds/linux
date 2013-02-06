@@ -30,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/pfn.h>
+#include <linux/sizes.h>
 #include <linux/platform_data/usb-musb-ux500.h>
 #include "musb_core.h"
 

@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/usb/nop-usb-xceiv.h>
 #include <linux/platform_data/usb-omap.h>
+#include <linux/sizes.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>
