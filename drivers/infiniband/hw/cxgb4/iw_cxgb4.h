@@ -866,7 +866,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
 					int page_list_len);
 struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
