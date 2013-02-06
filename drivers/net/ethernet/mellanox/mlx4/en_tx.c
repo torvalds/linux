@@ -294,6 +294,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 		cnt++;
 	}
 
+	netdev_tx_reset_queue(ring->tx_queue);
+
 	if (cnt)
 		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
 
