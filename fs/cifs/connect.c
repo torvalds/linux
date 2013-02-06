@@ -2271,7 +2271,7 @@ static int match_session(struct cifs_ses *ses, struct smb_vol *vol)
 {
 	switch (ses->server->secType) {
 	case Kerberos:
-		if (vol->cred_uid != ses->cred_uid)
+		if (!uid_eq(vol->cred_uid, ses->cred_uid))
 			return 0;
 		break;
 	default:
