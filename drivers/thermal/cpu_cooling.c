@@ -118,8 +118,8 @@ static int is_cpufreq_valid(int cpu)
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
  * @cpu: cpu for which frequency is fetched.
- * @level: level of frequency of the CPU
- *	e.g level=1 --> 1st MAX FREQ, LEVEL=2 ---> 2nd MAX FREQ, .... etc
+ * @level: level of frequency, equals cooling state of cpu cooling device
+ *	e.g level=0 --> 1st MAX FREQ, level=1 ---> 2nd MAX FREQ, .... etc
  */
 static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 {
