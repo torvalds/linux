@@ -613,7 +613,6 @@ static struct map_desc ap_io_desc_atag[] __initdata = {
 static void __init ap_map_io_atag(void)
 {
 	iotable_init(ap_io_desc_atag, ARRAY_SIZE(ap_io_desc_atag));
-	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
 	ap_map_io();
 }
 
@@ -685,6 +684,7 @@ static void __init ap_init(void)
 
 	platform_device_register(&cfi_flash_device);
 
+	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
