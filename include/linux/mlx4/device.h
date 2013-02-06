@@ -801,7 +801,7 @@ u64 mlx4_mtt_addr(struct mlx4_dev *dev, struct mlx4_mtt *mtt);
 
 int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 		  int npages, int page_shift, struct mlx4_mr *mr);
-void mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr);
+int mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr);
 int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr);
 int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   int start_index, int npages, u64 *page_list);

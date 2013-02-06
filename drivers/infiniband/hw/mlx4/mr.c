@@ -68,7 +68,7 @@ struct ib_mr *mlx4_ib_get_dma_mr(struct ib_pd *pd, int acc)
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
 
 err_free:
 	kfree(mr);
@@ -163,7 +163,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
 
 err_umem:
 	ib_umem_release(mr->umem);
@@ -177,8 +177,11 @@ err_free:
 int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
+	int ret;
 
-	mlx4_mr_free(to_mdev(ibmr->device)->dev, &mr->mmr);
+	ret = mlx4_mr_free(to_mdev(ibmr->device)->dev, &mr->mmr);
+	if (ret)
+		return ret;
 	if (mr->umem)
 		ib_umem_release(mr->umem);
 	kfree(mr);
@@ -212,7 +215,7 @@ struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(dev->dev, &mr->mmr);
+	(void) mlx4_mr_free(dev->dev, &mr->mmr);
 
 err_free:
 	kfree(mr);
@@ -291,7 +294,7 @@ struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,
 	return &fmr->ibfmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
 
 err_free:
 	kfree(fmr);

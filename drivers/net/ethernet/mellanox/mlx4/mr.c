@@ -442,7 +442,7 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_alloc);
 
-static void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
+static int mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
 	int err;
 
@@ -450,20 +450,31 @@ static void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 		err = mlx4_HW2SW_MPT(dev, NULL,
 				     key_to_hw_index(mr->key) &
 				     (dev->caps.num_mpts - 1));
-		if (err)
-			mlx4_warn(dev, "xxx HW2SW_MPT failed (%d)\n", err);
+		if (err) {
+			mlx4_warn(dev, "HW2SW_MPT failed (%d),", err);
+			mlx4_warn(dev, "MR has MWs bound to it.\n");
+			return err;
+		}
 
 		mr->enabled = MLX4_MPT_EN_SW;
 	}
 	mlx4_mtt_cleanup(dev, &mr->mtt);
+
+	return 0;
 }
 
-void mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr)
+int mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
-	mlx4_mr_free_reserved(dev, mr);
+	int ret;
+
+	ret = mlx4_mr_free_reserved(dev, mr);
+	if (ret)
+		return ret;
 	if (mr->enabled)
 		mlx4_mpt_free_icm(dev, key_to_hw_index(mr->key));
 	mlx4_mpt_release(dev, key_to_hw_index(mr->key));
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_free);
 
@@ -831,7 +842,7 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 	return 0;
 
 err_free:
-	mlx4_mr_free(dev, &fmr->mr);
+	(void) mlx4_mr_free(dev, &fmr->mr);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_alloc);
@@ -888,10 +899,14 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_unmap);
 
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 {
+	int ret;
+
 	if (fmr->maps)
 		return -EBUSY;
 
-	mlx4_mr_free(dev, &fmr->mr);
+	ret = mlx4_mr_free(dev, &fmr->mr);
+	if (ret)
+		return ret;
 	fmr->mr.enabled = MLX4_MPT_DISABLED;
 
 	return 0;
