@@ -60,14 +60,14 @@ in1_max			Maximum input voltage.
 in1_min_alarm		Input voltage low alarm.
 in1_max_alarm		Input voltage high alarm.
 
-in2_label		"vout1"
-in2_input		Measured output voltage.
-in2_average		Average measured output voltage.
-in2_min			Minimum output voltage.
-in2_min_alarm		Output voltage low alarm.
+in2_label		"vmon"
+in2_input		Measured voltage on VAUX pin
 
-in3_label		"vout2"
-in3_input		Measured voltage on vaux pin
+in3_label		"vout1"
+in3_input		Measured output voltage.
+in3_average		Average measured output voltage.
+in3_min			Minimum output voltage.
+in3_min_alarm		Output voltage low alarm.
 
 curr1_label		"iin"
 curr1_input		Measured input current.
