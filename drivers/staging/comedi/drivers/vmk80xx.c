@@ -195,15 +195,6 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 	},
 };
 
-enum {
-	VMK80XX_SUBD_AI,
-	VMK80XX_SUBD_AO,
-	VMK80XX_SUBD_DI,
-	VMK80XX_SUBD_DO,
-	VMK80XX_SUBD_CNT,
-	VMK80XX_SUBD_PWM,
-};
-
 struct vmk80xx_usb {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -1159,7 +1150,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	}
 
 	/* Analog input subdevice */
-	s = &cdev->subdevices[VMK80XX_SUBD_AI];
+	s = &cdev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = boardinfo->ai_chans;
@@ -1168,7 +1159,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s->insn_read = vmk80xx_ai_rinsn;
 
 	/* Analog output subdevice */
-	s = &cdev->subdevices[VMK80XX_SUBD_AO];
+	s = &cdev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = boardinfo->ao_chans;
@@ -1181,7 +1172,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	}
 
 	/* Digital input subdevice */
-	s = &cdev->subdevices[VMK80XX_SUBD_DI];
+	s = &cdev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = boardinfo->di_chans;
@@ -1190,7 +1181,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s->insn_bits = vmk80xx_di_bits;
 
 	/* Digital output subdevice */
-	s = &cdev->subdevices[VMK80XX_SUBD_DO];
+	s = &cdev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = 8;
@@ -1203,7 +1194,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	}
 
 	/* Counter subdevice */
-	s = &cdev->subdevices[VMK80XX_SUBD_CNT];
+	s = &cdev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 2;
@@ -1217,7 +1208,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 
 	/* PWM subdevice */
 	if (boardinfo->model == VMK8061_MODEL) {
-		s = &cdev->subdevices[VMK80XX_SUBD_PWM];
+		s = &cdev->subdevices[5];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
 		s->n_chan = boardinfo->pwm_chans;
