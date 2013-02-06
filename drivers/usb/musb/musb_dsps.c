@@ -597,14 +597,13 @@ err0:
 
 static int dsps_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	const struct dsps_musb_wrapper *wrp;
 	struct dsps_glue *glue;
 	struct resource *iomem;
 	int ret, i;
 
-	match = of_match_node(musb_dsps_of_match, np);
+	match = of_match_node(musb_dsps_of_match, pdev->dev.of_node);
 	if (!match) {
 		dev_err(&pdev->dev, "fail to get matching of_match struct\n");
 		ret = -EINVAL;
