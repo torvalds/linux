@@ -1191,7 +1191,7 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		smmu->rege[i] = smmu->regs[i] + resource_size(res) - 1;
 	}
 	/* Same as "mc" 1st regiter block start address */
-	smmu->regbase = (void __iomem *)((u32)smmu->regs[0] & ~PAGE_MASK);
+	smmu->regbase = (void __iomem *)((u32)smmu->regs[0] & PAGE_MASK);
 
 	err = of_get_dma_window(dev->of_node, NULL, 0, NULL, &base, &size);
 	if (err)
