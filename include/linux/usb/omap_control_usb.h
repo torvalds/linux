@@ -70,7 +70,7 @@ extern void omap_control_usb3_phy_power(struct device *dev, bool on);
 extern void omap_control_usb_set_mode(struct device *dev,
 	enum omap_control_usb_mode mode);
 #else
-static inline struct device *omap_get_control_dev()
+static inline struct device *omap_get_control_dev(void)
 {
 	return ERR_PTR(-ENODEV);
 }
