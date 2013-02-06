@@ -244,15 +244,19 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 		break;
 	}
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
-		fattr->cf_uid = cifs_sb->mnt_uid;
-	else
-		fattr->cf_uid = le64_to_cpu(info->Uid);
-
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
-		fattr->cf_gid = cifs_sb->mnt_gid;
-	else
-		fattr->cf_gid = le64_to_cpu(info->Gid);
+	fattr->cf_uid = cifs_sb->mnt_uid;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)) {
+		u64 id = le64_to_cpu(info->Uid);
+		if (id < ((uid_t)-1))
+			fattr->cf_uid = id;
+	}
+	
+	fattr->cf_gid = cifs_sb->mnt_gid;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)) {
+		u64 id = le64_to_cpu(info->Gid);
+		if (id < ((gid_t)-1))
+			fattr->cf_gid = id;
+	}
 
 	fattr->cf_nlink = le64_to_cpu(info->Nlinks);
 }
