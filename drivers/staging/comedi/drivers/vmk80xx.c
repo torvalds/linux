@@ -704,52 +704,6 @@ static int vmk80xx_di_insn_bits(struct comedi_device *dev,
 	return retval;
 }
 
-static int vmk80xx_di_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	struct vmk80xx_private *devpriv = dev->private;
-	int chan;
-	unsigned char *rx_buf;
-	int reg;
-	int inp;
-	int n;
-
-	n = rudimentary_check(devpriv, DIR_IN);
-	if (n)
-		return n;
-
-	down(&devpriv->limit_sem);
-	chan = CR_CHAN(insn->chanspec);
-
-	rx_buf = devpriv->usb_rx_buf;
-
-	if (devpriv->model == VMK8061_MODEL) {
-		reg = VMK8061_DI_REG;
-		devpriv->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
-	} else {
-		reg = VMK8055_DI_REG;
-	}
-	for (n = 0; n < insn->n; n++) {
-		if (vmk80xx_read_packet(devpriv))
-			break;
-
-		if (devpriv->model == VMK8055_MODEL)
-			inp = (((rx_buf[reg] >> 4) & 0x03) |
-			       ((rx_buf[reg] << 2) & 0x04) |
-			       ((rx_buf[reg] >> 3) & 0x18));
-		else
-			inp = rx_buf[reg];
-
-		data[n] = (inp >> chan) & 1;
-	}
-
-	up(&devpriv->limit_sem);
-
-	return n;
-}
-
 static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -1150,7 +1104,6 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 	s->n_chan	= boardinfo->di_nchans;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_read	= vmk80xx_di_insn_read;
 	s->insn_bits	= vmk80xx_di_insn_bits;
 
 	/* Digital output subdevice */
