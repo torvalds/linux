@@ -97,5 +97,17 @@
 			phy = <&phy3>;
 			phy-mode = "rgmii-id";
 		};
+
+		spi0: spi@d0010600 {
+			status = "okay";
+
+			spi-flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "n25q128a13";
+				reg = <0>; /* Chip select 0 */
+				spi-max-frequency = <108000000>;
+			};
+		};
 	};
 };
