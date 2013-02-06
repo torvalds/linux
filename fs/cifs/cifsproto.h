@@ -46,7 +46,8 @@ extern void _free_xid(unsigned int);
 ({								\
 	unsigned int __xid = _get_xid();				\
 	cFYI(1, "CIFS VFS: in %s as Xid: %u with uid: %d",	\
-	     __func__, __xid, current_fsuid());			\
+	     __func__, __xid,					\
+	     from_kuid(&init_user_ns, current_fsuid()));	\
 	__xid;							\
 })
 
