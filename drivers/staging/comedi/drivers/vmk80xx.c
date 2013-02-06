@@ -752,9 +752,10 @@ static int vmk80xx_di_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_do_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_do_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -800,9 +801,10 @@ static int vmk80xx_do_winsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_do_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_do_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	int chan;
@@ -832,9 +834,10 @@ static int vmk80xx_do_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_do_bits(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned char *rx_buf, *tx_buf;
@@ -1231,15 +1234,16 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 
 	/* Digital output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->insn_write = vmk80xx_do_winsn;
-	s->insn_bits = vmk80xx_do_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_write	= vmk80xx_do_insn_write;
+	s->insn_bits	= vmk80xx_do_insn_bits;
 	if (devpriv->model == VMK8061_MODEL) {
-		s->subdev_flags |= SDF_READABLE;
-		s->insn_read = vmk80xx_do_rinsn;
+		s->subdev_flags	|= SDF_READABLE;
+		s->insn_read	= vmk80xx_do_insn_read;
 	}
 
 	/* Counter subdevice */
