@@ -1796,6 +1796,26 @@ static int mr_get_mtt_size(struct mlx4_mpt_entry *mpt)
 	return be32_to_cpu(mpt->mtt_sz);
 }
 
+static u32 mr_get_pd(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->pd_flags) & 0x00ffffff;
+}
+
+static int mr_is_fmr(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->pd_flags) & MLX4_MPT_PD_FLAG_FAST_REG;
+}
+
+static int mr_is_bind_enabled(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->flags) & MLX4_MPT_FLAG_BIND_ENABLE;
+}
+
+static int mr_is_region(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->flags) & MLX4_MPT_FLAG_REGION;
+}
+
 static int qp_get_mtt_addr(struct mlx4_qp_context *qpc)
 {
 	return be32_to_cpu(qpc->mtt_base_addr_l) & 0xfffffff8;
@@ -1856,11 +1876,40 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	int mtt_base = mr_get_mtt_addr(inbox->buf) / dev->caps.mtt_entry_sz;
 	int phys;
 	int id;
+	u32 pd;
+	int pd_slave;
 
 	id = index & mpt_mask(dev);
 	err = mr_res_start_move_to(dev, slave, id, RES_MPT_HW, &mpt);
 	if (err)
 		return err;
+
+	/* Disable memory windows for VFs. */
+	if (!mr_is_region(inbox->buf)) {
+		err = -EPERM;
+		goto ex_abort;
+	}
+
+	/* Make sure that the PD bits related to the slave id are zeros. */
+	pd = mr_get_pd(inbox->buf);
+	pd_slave = (pd >> 17) & 0x7f;
+	if (pd_slave != 0 && pd_slave != slave) {
+		err = -EPERM;
+		goto ex_abort;
+	}
+
+	if (mr_is_fmr(inbox->buf)) {
+		/* FMR and Bind Enable are forbidden in slave devices. */
+		if (mr_is_bind_enabled(inbox->buf)) {
+			err = -EPERM;
+			goto ex_abort;
+		}
+		/* FMR and Memory Windows are also forbidden. */
+		if (!mr_is_region(inbox->buf)) {
+			err = -EPERM;
+			goto ex_abort;
+		}
+	}
 
 	phys = mr_phys_mpt(inbox->buf);
 	if (!phys) {

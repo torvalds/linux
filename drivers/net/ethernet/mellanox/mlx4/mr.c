@@ -44,20 +44,6 @@
 #include "mlx4.h"
 #include "icm.h"
 
-#define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
-#define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)
-#define MLX4_MPT_FLAG_MIO	    (1 << 17)
-#define MLX4_MPT_FLAG_BIND_ENABLE   (1 << 15)
-#define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
-#define MLX4_MPT_FLAG_REGION	    (1 <<  8)
-
-#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
-#define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
-#define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
-
-#define MLX4_MPT_STATUS_SW		0xF0
-#define MLX4_MPT_STATUS_HW		0x00
-
 static u32 mlx4_buddy_alloc(struct mlx4_buddy *buddy, int order)
 {
 	int o;

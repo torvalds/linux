@@ -268,6 +268,22 @@ struct mlx4_icm_table {
 	struct mlx4_icm	      **icm;
 };
 
+#define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
+#define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)
+#define MLX4_MPT_FLAG_MIO	    (1 << 17)
+#define MLX4_MPT_FLAG_BIND_ENABLE   (1 << 15)
+#define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
+#define MLX4_MPT_FLAG_REGION	    (1 <<  8)
+
+#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
+#define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
+#define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
+
+#define MLX4_MPT_QP_FLAG_BOUND_QP   (1 << 7)
+
+#define MLX4_MPT_STATUS_SW		0xF0
+#define MLX4_MPT_STATUS_HW		0x00
+
 /*
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
  */

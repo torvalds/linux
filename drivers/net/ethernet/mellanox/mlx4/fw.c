@@ -757,21 +757,30 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	u64	flags;
 	int	err = 0;
 	u8	field;
+	u32	bmme_flags;
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
 			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		return err;
 
-	/* add port mng change event capability unconditionally to slaves */
+	/* add port mng change event capability and disable mw type 1
+	 * unconditionally to slaves
+	 */
 	MLX4_GET(flags, outbox->buf, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 	flags |= MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV;
+	flags &= ~MLX4_DEV_CAP_FLAG_MEM_WINDOW;
 	MLX4_PUT(outbox->buf, flags, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 
 	/* For guests, report Blueflame disabled */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
+
+	/* For guests, disable mw type 2 */
+	MLX4_GET(bmme_flags, outbox, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
+	bmme_flags &= ~MLX4_BMME_FLAG_TYPE_2_WIN;
+	MLX4_PUT(outbox->buf, bmme_flags, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 
 	return 0;
 }
