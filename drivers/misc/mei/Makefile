@@ -11,3 +11,4 @@ mei-objs += main.o
 mei-objs += amthif.o
 mei-objs += wd.o
 mei-objs += client.o
+mei-objs += pci-me.o
