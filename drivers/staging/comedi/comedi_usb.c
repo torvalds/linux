@@ -38,13 +38,15 @@ EXPORT_SYMBOL_GPL(comedi_to_usb_interface);
  * comedi_usb_auto_config() - Configure/probe a comedi USB driver.
  * @intf: usb_interface struct
  * @driver: comedi_driver struct
+ * @context: driver specific data, passed to comedi_auto_config()
  *
  * Typically called from the usb_driver (*probe) function.
  */
 int comedi_usb_auto_config(struct usb_interface *intf,
-			   struct comedi_driver *driver)
+			   struct comedi_driver *driver,
+			   unsigned long context)
 {
-	return comedi_auto_config(&intf->dev, driver, 0);
+	return comedi_auto_config(&intf->dev, driver, context);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 

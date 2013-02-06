@@ -1490,7 +1490,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 		goto out;
 	}
 
-	comedi_usb_auto_config(uinterf, &usbduxfast_driver);
+	comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
  out:
 	release_firmware(fw);
 }

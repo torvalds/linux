@@ -1401,7 +1401,7 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
-	comedi_usb_auto_config(intf, &vmk80xx_driver);
+	comedi_usb_auto_config(intf, &vmk80xx_driver, id->driver_info);
 
 	return 0;
 
