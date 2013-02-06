@@ -1011,7 +1011,7 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 	return 0;
 }
 
-static int vmk80xx_attach_common(struct comedi_device *dev)
+static int vmk80xx_init_subdevices(struct comedi_device *dev)
 {
 	const struct vmk80xx_board *boardinfo = comedi_board(dev);
 	struct vmk80xx_private *devpriv = dev->private;
@@ -1151,7 +1151,7 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	if (devpriv->model == VMK8055_MODEL)
 		vmk80xx_reset_device(devpriv);
 
-	return vmk80xx_attach_common(dev);
+	return vmk80xx_init_subdevices(dev);
 }
 
 static void vmk80xx_detach(struct comedi_device *dev)
