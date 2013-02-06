@@ -1716,11 +1716,21 @@ static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
 		goto err;
 	}
 
+	btv->std = *id;
 	set_tvnorm(btv, i);
 
 err:
 
 	return err;
+}
+
+static int bttv_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct bttv_fh *fh  = priv;
+	struct bttv *btv = fh->btv;
+
+	*id = btv->std;
+	return 0;
 }
 
 static int bttv_querystd(struct file *file, void *f, v4l2_std_id *id)
@@ -3166,6 +3176,7 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_qbuf                    = bttv_qbuf,
 	.vidioc_dqbuf                   = bttv_dqbuf,
 	.vidioc_s_std                   = bttv_s_std,
+	.vidioc_g_std                   = bttv_g_std,
 	.vidioc_enum_input              = bttv_enum_input,
 	.vidioc_g_input                 = bttv_g_input,
 	.vidioc_s_input                 = bttv_s_input,
@@ -3196,7 +3207,6 @@ static struct video_device bttv_video_template = {
 	.fops         = &bttv_fops,
 	.ioctl_ops    = &bttv_ioctl_ops,
 	.tvnorms      = BTTV_NORMS,
-	.current_norm = V4L2_STD_PAL,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -4192,6 +4202,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 		bttv_set_frequency(btv, &init_freq);
 		btv->radio_freq = 90500 * 16; /* 90.5Mhz default */
 	}
+	btv->std = V4L2_STD_PAL;
 	init_irqreg(btv);
 	v4l2_ctrl_handler_setup(hdl);
 

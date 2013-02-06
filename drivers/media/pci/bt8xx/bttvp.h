@@ -424,6 +424,7 @@ struct bttv {
 	unsigned int mute;
 	unsigned long tv_freq;
 	unsigned int tvnorm;
+	v4l2_std_id std;
 	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
 	unsigned int field_count;
