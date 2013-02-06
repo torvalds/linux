@@ -2,10 +2,6 @@
 # Generic video config states
 #
 
-config VIDEO_BTCX
-	depends on PCI
-	tristate
-
 config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
