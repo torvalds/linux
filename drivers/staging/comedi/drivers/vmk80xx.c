@@ -164,8 +164,8 @@ struct vmk80xx_board {
 	int ao_nchans;
 	int di_nchans;
 	unsigned int cnt_maxdata;
-	__u8 pwm_chans;
-	__le16 pwm_bits;
+	int pwm_nchans;
+	unsigned int pwm_maxdata;
 };
 
 static const struct vmk80xx_board vmk80xx_boardinfo[] = {
@@ -178,8 +178,6 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ao_nchans	= 2,
 		.di_nchans	= 6,
 		.cnt_maxdata	= 0xffff,
-		.pwm_chans	= 0,
-		.pwm_bits	= 0,
 	},
 	[DEVICE_VMK8061] = {
 		.name		= "K8061 (VM140)",
@@ -190,8 +188,8 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ao_nchans	= 8,
 		.di_nchans	= 8,
 		.cnt_maxdata	= 0,	/* unknown, device is not writeable */
-		.pwm_chans	= 1,
-		.pwm_bits	= 10,
+		.pwm_nchans	= 1,
+		.pwm_maxdata	= 0x03ff,
 	},
 };
 
@@ -1043,9 +1041,10 @@ static int vmk80xx_cnt_insn_write(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_pwm_rinsn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_pwm_insn_read(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned char *tx_buf;
@@ -1079,9 +1078,10 @@ static int vmk80xx_pwm_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int vmk80xx_pwm_winsn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_pwm_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned char *tx_buf;
@@ -1265,12 +1265,12 @@ static int vmk80xx_attach_common(struct comedi_device *dev)
 	/* PWM subdevice */
 	if (devpriv->model == VMK8061_MODEL) {
 		s = &dev->subdevices[5];
-		s->type = COMEDI_SUBD_PWM;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-		s->n_chan = boardinfo->pwm_chans;
-		s->maxdata = (1 << boardinfo->pwm_bits) - 1;
-		s->insn_read = vmk80xx_pwm_rinsn;
-		s->insn_write = vmk80xx_pwm_winsn;
+		s->type		= COMEDI_SUBD_PWM;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->n_chan	= boardinfo->pwm_nchans;
+		s->maxdata	= boardinfo->pwm_maxdata;
+		s->insn_read	= vmk80xx_pwm_insn_read;
+		s->insn_write	= vmk80xx_pwm_insn_write;
 	}
 
 	up(&devpriv->limit_sem);
