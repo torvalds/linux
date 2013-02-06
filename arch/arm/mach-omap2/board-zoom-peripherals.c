@@ -20,6 +20,7 @@
 #include <linux/wl12xx.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -298,6 +299,7 @@ void __init zoom_peripherals_init(void)
 	omap_hsmmc_init(mmc);
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
