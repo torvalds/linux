@@ -316,7 +316,19 @@ rd_execute_rw(struct se_cmd *cmd)
 		void *rd_addr;
 
 		sg_miter_next(&m);
+		if (!(u32)m.length) {
+			pr_debug("RD[%u]: invalid sgl %p len %zu\n",
+				 dev->rd_dev_id, m.addr, m.length);
+			sg_miter_stop(&m);
+			return TCM_INCORRECT_AMOUNT_OF_DATA;
+		}
 		len = min((u32)m.length, src_len);
+		if (len > rd_size) {
+			pr_debug("RD[%u]: size underrun page %d offset %d "
+				 "size %d\n", dev->rd_dev_id,
+				 rd_page, rd_offset, rd_size);
+			len = rd_size;
+		}
 		m.consumed = len;
 
 		rd_addr = sg_virt(rd_sg) + rd_offset;
