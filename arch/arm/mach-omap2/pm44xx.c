@@ -203,6 +203,32 @@ static inline int omap4_init_static_deps(void)
 }
 
 /**
+ * omap5_dra7_init_static_deps - Init static clkdm dependencies on OMAP5 and
+ *				 DRA7
+ *
+ * The dynamic dependency between MPUSS -> EMIF is broken and has
+ * not worked as expected. The hardware recommendation is to
+ * enable static dependencies for these to avoid system
+ * lock ups or random crashes.
+ */
+static inline int omap5_dra7_init_static_deps(void)
+{
+	struct clockdomain *mpuss_clkdm, *emif_clkdm;
+	int ret;
+
+	mpuss_clkdm = clkdm_lookup("mpu_clkdm");
+	emif_clkdm = clkdm_lookup("emif_clkdm");
+	if (!mpuss_clkdm || !emif_clkdm)
+		return -EINVAL;
+
+	ret = clkdm_add_wkdep(mpuss_clkdm, emif_clkdm);
+	if (ret)
+		pr_err("Failed to add MPUSS -> EMIF wakeup dependency\n");
+
+	return ret;
+}
+
+/**
  * omap4_pm_init_early - Does early initialization necessary for OMAP4+ devices
  *
  * Initializes basic stuff for power management functionality.
@@ -239,10 +265,14 @@ int __init omap4_pm_init(void)
 		goto err2;
 	}
 
-	if (cpu_is_omap44xx()) {
+	if (cpu_is_omap44xx())
 		ret = omap4_init_static_deps();
-		if (ret)
-			goto err2;
+	else if (soc_is_omap54xx() || soc_is_dra7xx())
+		ret = omap5_dra7_init_static_deps();
+
+	if (ret) {
+		pr_err("Failed to initialise static dependencies.\n");
+		goto err2;
 	}
 
 	ret = omap4_mpuss_init();
