@@ -1138,6 +1138,40 @@ static int vmk80xx_pwm_winsn(struct comedi_device *dev,
 	return n;
 }
 
+static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
+				      struct usb_interface *intf)
+{
+	struct usb_host_interface *iface_desc = intf->cur_altsetting;
+	struct usb_endpoint_descriptor *ep_desc;
+	int i;
+
+	if (iface_desc->desc.bNumEndpoints != 2)
+		return -ENODEV;
+
+	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
+		ep_desc = &iface_desc->endpoint[i].desc;
+
+		if (usb_endpoint_is_int_in(ep_desc) ||
+		    usb_endpoint_is_bulk_in(ep_desc)) {
+			if (!devpriv->ep_rx)
+				devpriv->ep_rx = ep_desc;
+			continue;
+		}
+
+		if (usb_endpoint_is_int_out(ep_desc) ||
+		    usb_endpoint_is_bulk_out(ep_desc)) {
+			if (!devpriv->ep_tx)
+				devpriv->ep_tx = ep_desc;
+			continue;
+		}
+	}
+
+	if (!devpriv->ep_rx || !devpriv->ep_tx)
+		return -ENODEV;
+
+	return 0;
+}
+
 static int vmk80xx_attach_common(struct comedi_device *dev,
 				 struct vmk80xx_private *devpriv)
 {
@@ -1299,9 +1333,8 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 {
 	const struct vmk80xx_board *boardinfo;
 	struct vmk80xx_private *devpriv;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *ep_desc;
 	size_t size;
+	int ret;
 	int i;
 
 	mutex_lock(&glb_mutex);
@@ -1320,36 +1353,11 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	memset(devpriv, 0x00, sizeof(*devpriv));
 	devpriv->count = i;
 
-	iface_desc = intf->cur_altsetting;
-	if (iface_desc->desc.bNumEndpoints != 2)
-		goto error;
-
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		ep_desc = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(ep_desc)) {
-			devpriv->ep_rx = ep_desc;
-			continue;
-		}
-
-		if (usb_endpoint_is_int_out(ep_desc)) {
-			devpriv->ep_tx = ep_desc;
-			continue;
-		}
-
-		if (usb_endpoint_is_bulk_in(ep_desc)) {
-			devpriv->ep_rx = ep_desc;
-			continue;
-		}
-
-		if (usb_endpoint_is_bulk_out(ep_desc)) {
-			devpriv->ep_tx = ep_desc;
-			continue;
-		}
+	ret = vmk80xx_find_usb_endpoints(devpriv, intf);
+	if (ret) {
+		mutex_unlock(&glb_mutex);
+		return ret;
 	}
-
-	if (!devpriv->ep_rx || !devpriv->ep_tx)
-		goto error;
 
 	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
 	devpriv->usb_rx_buf = kmalloc(size, GFP_KERNEL);
@@ -1406,10 +1414,6 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 	comedi_usb_auto_config(intf, &vmk80xx_driver);
 
 	return 0;
-error:
-	mutex_unlock(&glb_mutex);
-
-	return -ENODEV;
 }
 
 static const struct usb_device_id vmk80xx_usb_id_table[] = {
