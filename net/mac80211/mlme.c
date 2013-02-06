@@ -951,39 +951,6 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
-		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
-		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
-
-	local->disable_dynamic_ps = false;
-	conf->dynamic_ps_timeout = local->dynamic_ps_user_timeout;
-}
-EXPORT_SYMBOL(ieee80211_enable_dyn_ps);
-
-void ieee80211_disable_dyn_ps(struct ieee80211_vif *vif)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
-		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
-		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
-
-	local->disable_dynamic_ps = true;
-	conf->dynamic_ps_timeout = 0;
-	del_timer_sync(&local->dynamic_ps_timer);
-	ieee80211_queue_work(&local->hw,
-			     &local->dynamic_ps_enable_work);
-}
-EXPORT_SYMBOL(ieee80211_disable_dyn_ps);
-
 /* powersave */
 static void ieee80211_enable_ps(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
@@ -1086,7 +1053,6 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	}
 
 	if (count == 1 && ieee80211_powersave_allowed(found)) {
-		struct ieee80211_conf *conf = &local->hw.conf;
 		s32 beaconint_us;
 
 		if (latency < 0)
@@ -1110,10 +1076,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 			else
 				timeout = 100;
 		}
-		local->dynamic_ps_user_timeout = timeout;
-		if (!local->disable_dynamic_ps)
-			conf->dynamic_ps_timeout =
-				local->dynamic_ps_user_timeout;
+		local->hw.conf.dynamic_ps_timeout = timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
@@ -1183,8 +1146,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (!local->disable_dynamic_ps &&
-	    local->hw.conf.dynamic_ps_timeout > 0) {
+	if (local->hw.conf.dynamic_ps_timeout > 0) {
 		/* don't enter PS if TX frames are pending */
 		if (drv_tx_frames_pending(local)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +

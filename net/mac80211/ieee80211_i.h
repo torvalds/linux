@@ -1099,8 +1099,6 @@ struct ieee80211_local {
 	 * this will override whatever chosen by mac80211 internally.
 	 */
 	int dynamic_ps_forced_timeout;
-	int dynamic_ps_user_timeout;
-	bool disable_dynamic_ps;
 
 	int user_power_level; /* in dBm, for all interfaces */
 
