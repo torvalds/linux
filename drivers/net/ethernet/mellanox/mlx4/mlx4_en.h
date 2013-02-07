@@ -439,7 +439,8 @@ enum {
 	 */
 	MLX4_EN_FLAG_ENABLE_HW_LOOPBACK	= (1 << 2),
 	/* whether we need to drop packets that hardware loopback-ed */
-	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3)
+	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3),
+	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4)
 };
 
 #define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)
