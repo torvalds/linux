@@ -518,6 +518,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 	nfs4_init_seqid_counter(&sp->so_seqid);
 	atomic_set(&sp->so_count, 1);
 	INIT_LIST_HEAD(&sp->so_lru);
+	seqcount_init(&sp->so_reclaim_seqcount);
 	return sp;
 }
 
@@ -1390,8 +1391,9 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 	 * recovering after a network partition or a reboot from a
 	 * server that doesn't support a grace period.
 	 */
-restart:
 	spin_lock(&sp->so_lock);
+	write_seqcount_begin(&sp->so_reclaim_seqcount);
+restart:
 	list_for_each_entry(state, &sp->so_states, open_states) {
 		if (!test_and_clear_bit(ops->state_flag_bit, &state->flags))
 			continue;
@@ -1412,6 +1414,7 @@ restart:
 				}
 				spin_unlock(&state->state_lock);
 				nfs4_put_open_state(state);
+				spin_lock(&sp->so_lock);
 				goto restart;
 			}
 		}
@@ -1449,12 +1452,17 @@ restart:
 				goto out_err;
 		}
 		nfs4_put_open_state(state);
+		spin_lock(&sp->so_lock);
 		goto restart;
 	}
+	write_seqcount_end(&sp->so_reclaim_seqcount);
 	spin_unlock(&sp->so_lock);
 	return 0;
 out_err:
 	nfs4_put_open_state(state);
+	spin_lock(&sp->so_lock);
+	write_seqcount_end(&sp->so_reclaim_seqcount);
+	spin_unlock(&sp->so_lock);
 	return status;
 }
 

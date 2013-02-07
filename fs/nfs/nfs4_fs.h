@@ -13,6 +13,8 @@
 
 #define NFS4_MAX_LOOP_ON_RECOVER (10)
 
+#include <linux/seqlock.h>
+
 struct idmap;
 
 enum nfs4_client_state {
@@ -90,6 +92,7 @@ struct nfs4_state_owner {
 	unsigned long	     so_flags;
 	struct list_head     so_states;
 	struct nfs_seqid_counter so_seqid;
+	seqcount_t	     so_reclaim_seqcount;
 };
 
 enum {
