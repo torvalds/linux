@@ -959,8 +959,6 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 	struct em28xx      *dev = fh->dev;
 	int                rc;
 
-	if (dev->board.is_webcam)
-		return -ENOTTY;
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
@@ -976,8 +974,6 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 	struct em28xx      *dev = fh->dev;
 	int                rc;
 
-	if (dev->board.is_webcam)
-		return -ENOTTY;
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
@@ -994,8 +990,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	struct v4l2_format f;
 	int                rc;
 
-	if (dev->board.is_webcam)
-		return -ENOTTY;
 	if (*norm == dev->norm)
 		return 0;
 	rc = check_dev(dev);
@@ -1898,6 +1892,13 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	}
 	dev->vdev->queue = &dev->vb_vidq;
 	dev->vdev->queue->lock = &dev->vb_queue_lock;
+
+	/* disable inapplicable ioctls */
+	if (dev->board.is_webcam) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_QUERYSTD);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_STD);
+	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
