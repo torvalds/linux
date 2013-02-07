@@ -802,10 +802,10 @@ static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 
 	switch (intel_dig_port->port) {
 	case PORT_B:
-		bit = HDMIB_HOTPLUG_LIVE_STATUS;
+		bit = PORTB_HOTPLUG_LIVE_STATUS;
 		break;
 	case PORT_C:
-		bit = HDMIC_HOTPLUG_LIVE_STATUS;
+		bit = PORTC_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		bit = 0;
@@ -1022,15 +1022,15 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	switch (port) {
 	case PORT_B:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
-		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_C:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
-		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_D:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
-		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_A:
 		/* Internal port only for eDP. */

@@ -2302,13 +2302,13 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 
 	switch (intel_dig_port->port) {
 	case PORT_B:
-		bit = DPB_HOTPLUG_LIVE_STATUS;
+		bit = PORTB_HOTPLUG_LIVE_STATUS;
 		break;
 	case PORT_C:
-		bit = DPC_HOTPLUG_LIVE_STATUS;
+		bit = PORTC_HOTPLUG_LIVE_STATUS;
 		break;
 	case PORT_D:
-		bit = DPD_HOTPLUG_LIVE_STATUS;
+		bit = PORTD_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		return connector_status_unknown;
@@ -2838,15 +2838,15 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		name = "DPDDC-A";
 		break;
 	case PORT_B:
-		dev_priv->hotplug_supported_mask |= DPB_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
 		name = "DPDDC-B";
 		break;
 	case PORT_C:
-		dev_priv->hotplug_supported_mask |= DPC_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
 		name = "DPDDC-C";
 		break;
 	case PORT_D:
-		dev_priv->hotplug_supported_mask |= DPD_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
 		name = "DPDDC-D";
 		break;
 	default:

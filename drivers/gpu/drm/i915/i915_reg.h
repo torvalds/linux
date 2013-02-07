@@ -1625,12 +1625,9 @@
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		(dev_priv->info->display_mmio_offset + 0x61110)
-#define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
-#define   DPB_HOTPLUG_INT_EN			(1 << 29)
-#define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
-#define   DPC_HOTPLUG_INT_EN			(1 << 28)
-#define   HDMID_HOTPLUG_INT_EN			(1 << 27)
-#define   DPD_HOTPLUG_INT_EN			(1 << 27)
+#define   PORTB_HOTPLUG_INT_EN			(1 << 29)
+#define   PORTC_HOTPLUG_INT_EN			(1 << 28)
+#define   PORTD_HOTPLUG_INT_EN			(1 << 27)
 #define   SDVOB_HOTPLUG_INT_EN			(1 << 26)
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
@@ -1653,19 +1650,12 @@
 
 #define PORT_HOTPLUG_STAT	(dev_priv->info->display_mmio_offset + 0x61114)
 /* HDMI/DP bits are gen4+ */
-#define   DPB_HOTPLUG_LIVE_STATUS               (1 << 29)
-#define   DPC_HOTPLUG_LIVE_STATUS               (1 << 28)
-#define   DPD_HOTPLUG_LIVE_STATUS               (1 << 27)
-#define   DPD_HOTPLUG_INT_STATUS		(3 << 21)
-#define   DPC_HOTPLUG_INT_STATUS		(3 << 19)
-#define   DPB_HOTPLUG_INT_STATUS		(3 << 17)
-/* HDMI bits are shared with the DP bits */
-#define   HDMIB_HOTPLUG_LIVE_STATUS             (1 << 29)
-#define   HDMIC_HOTPLUG_LIVE_STATUS             (1 << 28)
-#define   HDMID_HOTPLUG_LIVE_STATUS             (1 << 27)
-#define   HDMID_HOTPLUG_INT_STATUS		(3 << 21)
-#define   HDMIC_HOTPLUG_INT_STATUS		(3 << 19)
-#define   HDMIB_HOTPLUG_INT_STATUS		(3 << 17)
+#define   PORTB_HOTPLUG_LIVE_STATUS               (1 << 29)
+#define   PORTC_HOTPLUG_LIVE_STATUS               (1 << 28)
+#define   PORTD_HOTPLUG_LIVE_STATUS               (1 << 27)
+#define   PORTD_HOTPLUG_INT_STATUS		(3 << 21)
+#define   PORTC_HOTPLUG_INT_STATUS		(3 << 19)
+#define   PORTB_HOTPLUG_INT_STATUS		(3 << 17)
 /* CRT/TV common between gen3+ */
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)

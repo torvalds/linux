@@ -2137,12 +2137,12 @@ static void valleyview_hpd_irq_setup(struct drm_device *dev)
 	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
 	/* Note HDMI and DP share bits */
-	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMID_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTB_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTC_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTD_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTD_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
 		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
@@ -2408,12 +2408,12 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 	if (I915_HAS_HOTPLUG(dev)) {
 		hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
-		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMID_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & PORTB_HOTPLUG_INT_STATUS)
+			hotplug_en |= PORTB_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & PORTC_HOTPLUG_INT_STATUS)
+			hotplug_en |= PORTC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & PORTD_HOTPLUG_INT_STATUS)
+			hotplug_en |= PORTD_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
 			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
@@ -2642,12 +2642,12 @@ static void i965_hpd_irq_setup(struct drm_device *dev)
 
 	/* Note HDMI and DP share hotplug bits */
 	hotplug_en = 0;
-	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-		hotplug_en |= HDMID_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTB_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTC_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & PORTD_HOTPLUG_INT_STATUS)
+		hotplug_en |= PORTD_HOTPLUG_INT_EN;
 	if (IS_G4X(dev)) {
 		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_G4X)
 			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
