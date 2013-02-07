@@ -42,6 +42,7 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec)
 {
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	snd_array_init(&spec->paths, sizeof(struct nid_path), 8);
+	snd_array_init(&spec->loopback_list, sizeof(struct hda_amp_list), 8);
 	mutex_init(&spec->pcm_mutex);
 	return 0;
 }
@@ -82,6 +83,7 @@ void snd_hda_gen_spec_free(struct hda_gen_spec *spec)
 		return;
 	free_kctls(spec);
 	snd_array_free(&spec->paths);
+	snd_array_free(&spec->loopback_list);
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_spec_free);
 
@@ -2484,18 +2486,18 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
  */
 
 /* add the powersave loopback-list entry */
-static void add_loopback_list(struct hda_gen_spec *spec, hda_nid_t mix, int idx)
+static int add_loopback_list(struct hda_gen_spec *spec, hda_nid_t mix, int idx)
 {
 	struct hda_amp_list *list;
 
-	if (spec->num_loopbacks >= ARRAY_SIZE(spec->loopback_list) - 1)
-		return;
-	list = spec->loopback_list + spec->num_loopbacks;
+	list = snd_array_new(&spec->loopback_list);
+	if (!list)
+		return -ENOMEM;
 	list->nid = mix;
 	list->dir = HDA_INPUT;
 	list->idx = idx;
-	spec->num_loopbacks++;
-	spec->loopback.amplist = spec->loopback_list;
+	spec->loopback.amplist = spec->loopback_list.list;
+	return 0;
 }
 
 /* create input playback/capture controls for the given pin */
@@ -2536,7 +2538,9 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 	}
 
 	path->active = true;
-	add_loopback_list(spec, mix_nid, idx);
+	err = add_loopback_list(spec, mix_nid, idx);
+	if (err < 0)
+		return err;
 
 	if (spec->mixer_nid != spec->mixer_merge_nid &&
 	    !spec->loopback_merge_path) {

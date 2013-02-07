@@ -355,10 +355,12 @@ static bool is_aa_path_mute(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct hda_amp_list *p;
-	int i, ch, v;
+	int ch, v;
 
-	for (i = 0; i < spec->gen.num_loopbacks; i++) {
-		p = &spec->gen.loopback_list[i];
+	p = spec->gen.loopback.amplist;
+	if (!p)
+		return true;
+	for (; p->nid; p++) {
 		for (ch = 0; ch < 2; ch++) {
 			v = snd_hda_codec_amp_read(codec, p->nid, ch, p->dir,
 						   p->idx);

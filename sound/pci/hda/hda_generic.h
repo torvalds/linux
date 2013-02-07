@@ -228,8 +228,7 @@ struct hda_gen_spec {
 	struct hda_vmaster_mute_hook vmaster_mute;
 
 	struct hda_loopback_check loopback;
-	int num_loopbacks;
-	struct hda_amp_list loopback_list[8];
+	struct snd_array loopback_list;
 
 	/* multi-io */
 	int multi_ios;
