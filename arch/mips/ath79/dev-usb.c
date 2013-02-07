@@ -111,7 +111,7 @@ static void __init ath79_usb_setup(void)
 	platform_device_register(&ath79_ohci_device);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR71XX_EHCI_BASE,
-				AR71XX_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR71XX_EHCI_SIZE, ATH79_CPU_IRQ(3));
 	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v1;
 	platform_device_register(&ath79_ehci_device);
 }
@@ -136,7 +136,7 @@ static void __init ar7240_usb_setup(void)
 	iounmap(usb_ctrl_base);
 
 	ath79_usb_init_resource(ath79_ohci_resources, AR7240_OHCI_BASE,
-				AR7240_OHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR7240_OHCI_SIZE, ATH79_CPU_IRQ(3));
 	platform_device_register(&ath79_ohci_device);
 }
 
@@ -152,7 +152,7 @@ static void __init ar724x_usb_setup(void)
 	mdelay(10);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR724X_EHCI_BASE,
-				AR724X_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR724X_EHCI_SIZE, ATH79_CPU_IRQ(3));
 	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
@@ -169,7 +169,7 @@ static void __init ar913x_usb_setup(void)
 	mdelay(10);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR913X_EHCI_BASE,
-				AR913X_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR913X_EHCI_SIZE, ATH79_CPU_IRQ(3));
 	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
@@ -186,7 +186,7 @@ static void __init ar933x_usb_setup(void)
 	mdelay(10);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR933X_EHCI_BASE,
-				AR933X_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR933X_EHCI_SIZE, ATH79_CPU_IRQ(3));
 	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
@@ -212,7 +212,7 @@ static void __init ar934x_usb_setup(void)
 	udelay(1000);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR934X_EHCI_BASE,
-				AR934X_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+				AR934X_EHCI_SIZE, ATH79_CPU_IRQ(3));
 	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }

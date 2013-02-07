@@ -127,8 +127,8 @@ ath79_register_pci_ar71xx(void)
 	res[0].end = AR71XX_PCI_CFG_BASE + AR71XX_PCI_CFG_SIZE - 1;
 
 	res[1].flags = IORESOURCE_IRQ;
-	res[1].start = ATH79_CPU_IRQ_IP2;
-	res[1].end = ATH79_CPU_IRQ_IP2;
+	res[1].start = ATH79_CPU_IRQ(2);
+	res[1].end = ATH79_CPU_IRQ(2);
 
 	res[2].name = "io_base";
 	res[2].flags = IORESOURCE_IO;
@@ -208,7 +208,7 @@ int __init ath79_register_pci(void)
 						 AR724X_PCI_MEM_BASE,
 						 AR724X_PCI_MEM_SIZE,
 						 0,
-						 ATH79_CPU_IRQ_IP2);
+						 ATH79_CPU_IRQ(2));
 	} else if (soc_is_ar9342() ||
 		   soc_is_ar9344()) {
 		u32 bootstrap;

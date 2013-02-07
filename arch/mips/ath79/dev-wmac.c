@@ -55,8 +55,8 @@ static void __init ar913x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR913X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1;
-	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
-	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ(2);
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ(2);
 }
 
 
@@ -83,8 +83,8 @@ static void __init ar933x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR933X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR933X_WMAC_BASE + AR933X_WMAC_SIZE - 1;
-	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
-	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ(2);
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ(2);
 
 	t = ath79_reset_rr(AR933X_RESET_REG_BOOTSTRAP);
 	if (t & AR933X_BOOTSTRAP_REF_CLK_40)

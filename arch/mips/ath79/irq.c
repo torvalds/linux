@@ -114,7 +114,7 @@ static void __init ath79_misc_irq_init(void)
 					 handle_level_irq);
 	}
 
-	irq_set_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
+	irq_set_chained_handler(ATH79_CPU_IRQ(6), ath79_misc_irq_handler);
 }
 
 static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
@@ -147,7 +147,7 @@ static void ar934x_ip2_irq_init(void)
 		irq_set_chip_and_handler(i, &dummy_irq_chip,
 					 handle_level_irq);
 
-	irq_set_chained_handler(ATH79_CPU_IRQ_IP2, ar934x_ip2_irq_dispatch);
+	irq_set_chained_handler(ATH79_CPU_IRQ(2), ar934x_ip2_irq_dispatch);
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -157,22 +157,22 @@ asmlinkage void plat_irq_dispatch(void)
 	pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(ATH79_CPU_IRQ_TIMER);
+		do_IRQ(ATH79_CPU_IRQ(7));
 
 	else if (pending & STATUSF_IP2)
 		ath79_ip2_handler();
 
 	else if (pending & STATUSF_IP4)
-		do_IRQ(ATH79_CPU_IRQ_GE0);
+		do_IRQ(ATH79_CPU_IRQ(4));
 
 	else if (pending & STATUSF_IP5)
-		do_IRQ(ATH79_CPU_IRQ_GE1);
+		do_IRQ(ATH79_CPU_IRQ(5));
 
 	else if (pending & STATUSF_IP3)
 		ath79_ip3_handler();
 
 	else if (pending & STATUSF_IP6)
-		do_IRQ(ATH79_CPU_IRQ_MISC);
+		do_IRQ(ATH79_CPU_IRQ(6));
 
 	else
 		spurious_interrupt();
@@ -188,60 +188,60 @@ asmlinkage void plat_irq_dispatch(void)
 static void ar71xx_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_PCI);
-	do_IRQ(ATH79_CPU_IRQ_IP2);
+	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
 static void ar724x_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR724X_DDR_REG_FLUSH_PCIE);
-	do_IRQ(ATH79_CPU_IRQ_IP2);
+	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
 static void ar913x_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR913X_DDR_REG_FLUSH_WMAC);
-	do_IRQ(ATH79_CPU_IRQ_IP2);
+	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
 static void ar933x_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR933X_DDR_REG_FLUSH_WMAC);
-	do_IRQ(ATH79_CPU_IRQ_IP2);
+	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
 static void ar934x_ip2_handler(void)
 {
-	do_IRQ(ATH79_CPU_IRQ_IP2);
+	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
 static void ar71xx_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ_USB);
+	do_IRQ(ATH79_CPU_IRQ(3));
 }
 
 static void ar724x_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR724X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ_USB);
+	do_IRQ(ATH79_CPU_IRQ(3));
 }
 
 static void ar913x_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR913X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ_USB);
+	do_IRQ(ATH79_CPU_IRQ(3));
 }
 
 static void ar933x_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR933X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ_USB);
+	do_IRQ(ATH79_CPU_IRQ(3));
 }
 
 static void ar934x_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ_USB);
+	do_IRQ(ATH79_CPU_IRQ(3));
 }
 
 void __init arch_init_irq(void)
