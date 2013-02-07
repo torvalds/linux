@@ -1189,8 +1189,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	uif = udev->actconfig->interface[dev->current_pcb_config.
 		       hs_config_info[0].interface_info.video_index + 1];
 
-	dev->video_mode.end_point_addr = le16_to_cpu(uif->altsetting[0].
-			endpoint[isoc_pipe].desc.bEndpointAddress);
+	dev->video_mode.end_point_addr = uif->altsetting[0].
+			endpoint[isoc_pipe].desc.bEndpointAddress;
 
 	dev->video_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1223,8 +1223,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       vanc_index + 1];
 
 	dev->vbi_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->vbi_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1258,8 +1258,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       hanc_index + 1];
 
 	dev->sliced_cc_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1294,8 +1294,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 					       ts1_index + 1];
 
 		dev->ts1_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
-				desc.bEndpointAddress);
+		    uif->altsetting[0].endpoint[isoc_pipe].
+				desc.bEndpointAddress;
 
 		dev->ts1_mode.num_alt = uif->num_altsetting;
 		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",

@@ -2221,7 +2221,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 
 	switch (mode) {
 	case POLARIS_AVMODE_ENXTERNAL_AV:
@@ -2442,7 +2442,7 @@ int cx231xx_power_suspend(struct cx231xx *dev)
 	if (status > 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp &= (~PWR_MODE_MASK);
 
 	value[0] = (u8) tmp;
@@ -2470,7 +2470,7 @@ int cx231xx_start_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp |= ep_mask;
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);
@@ -2495,7 +2495,7 @@ int cx231xx_stop_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp &= (~ep_mask);
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);

@@ -704,8 +704,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 					    audio_index + 1];
 
 	adev->end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	adev->num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
