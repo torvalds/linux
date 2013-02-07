@@ -123,15 +123,28 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	int ret;
 
 	switch (reg) {
+	case PMBUS_VOUT_UV_WARN_LIMIT:
+	case PMBUS_OT_FAULT_LIMIT:
+	case PMBUS_OT_WARN_LIMIT:
+	case PMBUS_VIN_UV_WARN_LIMIT:
+	case PMBUS_VIN_OV_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
+		ret = pmbus_write_word_data(client, 0, reg, word);
+		pmbus_clear_cache(client);
+		break;
 	case PMBUS_IIN_OC_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_IIN_OC_WARN_LIMIT,
 					    word);
+		pmbus_clear_cache(client);
 		break;
 	case PMBUS_PIN_OP_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_PIN_OP_WARN_LIMIT,
 					    word);
+		pmbus_clear_cache(client);
 		break;
 	case PMBUS_VIRT_RESET_PIN_HISTORY:
 		ret = pmbus_write_byte(client, 0, LM25066_CLEAR_PIN_PEAK);
