@@ -568,8 +568,11 @@ do_more:
 	}
 error_return:
 	brelse(bitmap_bh);
-	release_blocks(sb, freed);
-	dquot_free_block_nodirty(inode, freed);
+	if (freed) {
+		release_blocks(sb, freed);
+		dquot_free_block_nodirty(inode, freed);
+		mark_inode_dirty(inode);
+	}
 }
 
 /**
@@ -1412,9 +1415,11 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
-	dquot_free_block_nodirty(inode, *count-num);
-	mark_inode_dirty(inode);
-	*count = num;
+	if (num < *count) {
+		dquot_free_block_nodirty(inode, *count-num);
+		mark_inode_dirty(inode);
+		*count = num;
+	}
 	return ret_block;
 
 io_error:
