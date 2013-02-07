@@ -464,8 +464,7 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 		memcpy(priv->prev_mac, priv->dev->dev_addr,
 		       sizeof(priv->prev_mac));
 	} else
-		en_dbg(HW, priv, "Port is down while "
-				 "registering mac, exiting...\n");
+		en_dbg(HW, priv, "Port is down while registering mac, exiting...\n");
 
 	mutex_unlock(&mdev->state_lock);
 }
@@ -572,13 +571,11 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
-		en_dbg(HW, priv, "Card is not up, "
-				 "ignoring multicast change.\n");
+		en_dbg(HW, priv, "Card is not up, ignoring multicast change.\n");
 		goto out;
 	}
 	if (!priv->port_up) {
-		en_dbg(HW, priv, "Port is down, "
-				 "ignoring  multicast change.\n");
+		en_dbg(HW, priv, "Port is down, ignoring  multicast change.\n");
 		goto out;
 	}
 
@@ -648,8 +645,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 						  0, MLX4_MCAST_DISABLE);
 			if (err)
-				en_err(priv, "Failed disabling "
-					     "multicast filter\n");
+				en_err(priv, "Failed disabling multicast filter\n");
 
 			/* Disable port VLAN filter */
 			err = mlx4_SET_VLAN_FLTR(mdev->dev, priv);
@@ -885,9 +881,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
 	priv->tx_frames = MLX4_EN_TX_COAL_PKTS;
 	priv->tx_usecs = MLX4_EN_TX_COAL_TIME;
-	en_dbg(INTR, priv, "Default coalesing params for mtu:%d - "
-			   "rx_frames:%d rx_usecs:%d\n",
-		 priv->dev->mtu, priv->rx_frames, priv->rx_usecs);
+	en_dbg(INTR, priv, "Default coalesing params for mtu:%d - rx_frames:%d rx_usecs:%d\n",
+	       priv->dev->mtu, priv->rx_frames, priv->rx_usecs);
 
 	/* Setup cq moderation params */
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -968,8 +963,8 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 			cq->moder_time = moder_time;
 			err = mlx4_en_set_cq_moder(priv, cq);
 			if (err)
-				en_err(priv, "Failed modifying moderation "
-					     "for cq:%d\n", ring);
+				en_err(priv, "Failed modifying moderation for cq:%d\n",
+				       ring);
 		}
 		priv->last_moder_packets[ring] = rx_packets;
 		priv->last_moder_bytes[ring] = rx_bytes;
@@ -1151,8 +1146,8 @@ int mlx4_en_start_port(struct net_device *dev)
 				    priv->prof->rx_pause,
 				    priv->prof->rx_ppp);
 	if (err) {
-		en_err(priv, "Failed setting port general configurations "
-			     "for port %d, with error %d\n", priv->port, err);
+		en_err(priv, "Failed setting port general configurations for port %d, with error %d\n",
+		       priv->port, err);
 		goto tx_err;
 	}
 	/* Set default qp number */
