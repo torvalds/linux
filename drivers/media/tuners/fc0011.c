@@ -247,8 +247,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 		fa += 8;
 	}
 	if (fp > 0x1F) {
-		fp &= 0x1F;
-		fa &= 0xF;
+		fp = 0x1F;
+		fa = 0xF;
 	}
 	if (fa >= fp) {
 		dev_warn(&priv->i2c->dev,
