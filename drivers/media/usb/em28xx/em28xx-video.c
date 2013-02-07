@@ -1130,9 +1130,6 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh    = priv;
 	struct em28xx      *dev   = fh->dev;
 
-	if (!dev->audio_mode.has_audio)
-		return -EINVAL;
-
 	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
 		strcpy(a->name, "Television");
@@ -1172,10 +1169,6 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-
-
-	if (!dev->audio_mode.has_audio)
-		return -EINVAL;
 
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1905,6 +1898,10 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_FREQUENCY);
 	}
+	if (!dev->audio_mode.has_audio) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_AUDIO);
+	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
@@ -1929,6 +1926,10 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_TUNER);
 			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_FREQUENCY);
 			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_FREQUENCY);
+		}
+		if (!dev->audio_mode.has_audio) {
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_AUDIO);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_AUDIO);
 		}
 
 		/* register v4l2 vbi video_device */
