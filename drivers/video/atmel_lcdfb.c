@@ -193,14 +193,17 @@ static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
+static unsigned long compute_hozval(struct atmel_lcdfb_info *sinfo,
+							unsigned long xres)
 {
+	unsigned long lcdcon2;
 	unsigned long value;
 
 	if (!(cpu_is_at91sam9261() || cpu_is_at91sam9g10()
 		|| cpu_is_at32ap7000()))
 		return xres;
 
+	lcdcon2 = lcdc_readl(sinfo, ATMEL_LCDC_LCDCON2);
 	value = xres;
 	if ((lcdcon2 & ATMEL_LCDC_DISTYPE) != ATMEL_LCDC_DISTYPE_TFT) {
 		/* STN display */
@@ -591,8 +594,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	lcdc_writel(sinfo, ATMEL_LCDC_TIM2, value);
 
 	/* Horizontal value (aka line size) */
-	hozval_linesz = compute_hozval(info->var.xres,
-					lcdc_readl(sinfo, ATMEL_LCDC_LCDCON2));
+	hozval_linesz = compute_hozval(sinfo, info->var.xres);
 
 	/* Display size */
 	value = (hozval_linesz - 1) << ATMEL_LCDC_HOZVAL_OFFSET;
