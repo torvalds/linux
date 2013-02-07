@@ -52,6 +52,7 @@ struct ar71xx_pci_controller {
 	void __iomem *cfg_base;
 	spinlock_t lock;
 	int irq;
+	int irq_base;
 	struct pci_controller pci_ctrl;
 	struct resource io_res;
 	struct resource mem_res;
@@ -238,23 +239,26 @@ static struct pci_ops ar71xx_pci_ops = {
 
 static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
+	struct ar71xx_pci_controller *apc;
 	void __iomem *base = ath79_reset_base;
 	u32 pending;
+
+	apc = irq_get_handler_data(irq);
 
 	pending = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_STATUS) &
 		  __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 
 	if (pending & AR71XX_PCI_INT_DEV0)
-		generic_handle_irq(ATH79_PCI_IRQ(0));
+		generic_handle_irq(apc->irq_base + 0);
 
 	else if (pending & AR71XX_PCI_INT_DEV1)
-		generic_handle_irq(ATH79_PCI_IRQ(1));
+		generic_handle_irq(apc->irq_base + 1);
 
 	else if (pending & AR71XX_PCI_INT_DEV2)
-		generic_handle_irq(ATH79_PCI_IRQ(2));
+		generic_handle_irq(apc->irq_base + 2);
 
 	else if (pending & AR71XX_PCI_INT_CORE)
-		generic_handle_irq(ATH79_PCI_IRQ(4));
+		generic_handle_irq(apc->irq_base + 4);
 
 	else
 		spurious_interrupt();
@@ -262,9 +266,13 @@ static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 static void ar71xx_pci_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq = d->irq - ATH79_PCI_IRQ_BASE;
+	struct ar71xx_pci_controller *apc;
+	unsigned int irq;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
+
+	apc = irq_data_get_irq_chip_data(d);
+	irq = d->irq - apc->irq_base;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 	__raw_writel(t | (1 << irq), base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -275,9 +283,13 @@ static void ar71xx_pci_irq_unmask(struct irq_data *d)
 
 static void ar71xx_pci_irq_mask(struct irq_data *d)
 {
-	unsigned int irq = d->irq - ATH79_PCI_IRQ_BASE;
+	struct ar71xx_pci_controller *apc;
+	unsigned int irq;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
+
+	apc = irq_data_get_irq_chip_data(d);
+	irq = d->irq - apc->irq_base;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 	__raw_writel(t & ~(1 << irq), base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -303,11 +315,15 @@ static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 
 	BUILD_BUG_ON(ATH79_PCI_IRQ_COUNT < AR71XX_PCI_IRQ_COUNT);
 
-	for (i = ATH79_PCI_IRQ_BASE;
-	     i < ATH79_PCI_IRQ_BASE + AR71XX_PCI_IRQ_COUNT; i++)
+	apc->irq_base = ATH79_PCI_IRQ_BASE;
+	for (i = apc->irq_base;
+	     i < apc->irq_base + AR71XX_PCI_IRQ_COUNT; i++) {
 		irq_set_chip_and_handler(i, &ar71xx_pci_irq_chip,
 					 handle_level_irq);
+		irq_set_chip_data(i, apc);
+	}
 
+	irq_set_handler_data(apc->irq, apc);
 	irq_set_chained_handler(apc->irq, ar71xx_pci_irq_handler);
 }
 
