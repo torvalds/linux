@@ -521,6 +521,7 @@ struct mlx4_en_priv {
 	bool wol;
 	struct device *ddev;
 	int base_tx_qpn;
+	struct radix_tree_root mac_tree;
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
@@ -538,6 +539,11 @@ struct mlx4_en_priv {
 enum mlx4_en_wol {
 	MLX4_EN_WOL_MAGIC = (1ULL << 61),
 	MLX4_EN_WOL_ENABLED = (1ULL << 62),
+};
+
+struct mlx4_mac_entry {
+	unsigned char mac[ETH_ALEN + 2];
+	u64 reg_id;
 };
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
