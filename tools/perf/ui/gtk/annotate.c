@@ -60,6 +60,30 @@ static int perf_gtk__get_offset(char *buf, size_t size, struct symbol *sym,
 	return scnprintf(buf, size, "%"PRIx64, start + dl->offset);
 }
 
+static int perf_gtk__get_line(char *buf, size_t size, struct disasm_line *dl)
+{
+	int ret = 0;
+	char *line = g_markup_escape_text(dl->line, -1);
+	const char *markup = "<span fgcolor='gray'>";
+
+	strcpy(buf, "");
+
+	if (!line)
+		return 0;
+
+	if (dl->offset != (s64) -1)
+		markup = NULL;
+
+	if (markup)
+		ret += scnprintf(buf, size, "%s", markup);
+	ret += scnprintf(buf + ret, size - ret, "%s", line);
+	if (markup)
+		ret += scnprintf(buf + ret, size - ret, "</span>");
+
+	g_free(line);
+	return ret;
+}
+
 static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 				struct map *map, int evidx,
 				struct hist_browser_timer *hbt __maybe_unused)
@@ -93,8 +117,7 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 
 	for (i = 0; i < MAX_ANN_COLS; i++) {
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
-					-1, col_names[i], renderer,
-					i == ANN_COL__PERCENT ? "markup" : "text",
+					-1, col_names[i], renderer, "markup",
 					i, NULL);
 	}
 
@@ -110,7 +133,8 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 			gtk_list_store_set(store, &iter, ANN_COL__PERCENT, s, -1);
 		if (perf_gtk__get_offset(s, sizeof(s), sym, map, pos))
 			gtk_list_store_set(store, &iter, ANN_COL__OFFSET, s, -1);
-		gtk_list_store_set(store, &iter, ANN_COL__LINE, pos->line, -1);
+		if (perf_gtk__get_line(s, sizeof(s), pos))
+			gtk_list_store_set(store, &iter, ANN_COL__LINE, s, -1);
 	}
 
 	gtk_container_add(GTK_CONTAINER(window), view);
