@@ -265,7 +265,7 @@ void __init arch_init_irq(void)
 		BUG();
 	}
 
-	cp0_perfcount_irq = ATH79_MISC_IRQ_PERFC;
+	cp0_perfcount_irq = ATH79_MISC_IRQ(5);
 	mips_cpu_irq_init();
 	ath79_misc_irq_init();
 

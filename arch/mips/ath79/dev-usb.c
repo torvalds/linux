@@ -107,7 +107,7 @@ static void __init ath79_usb_setup(void)
 	mdelay(900);
 
 	ath79_usb_init_resource(ath79_ohci_resources, AR71XX_OHCI_BASE,
-				AR71XX_OHCI_SIZE, ATH79_MISC_IRQ_OHCI);
+				AR71XX_OHCI_SIZE, ATH79_MISC_IRQ(6));
 	platform_device_register(&ath79_ohci_device);
 
 	ath79_usb_init_resource(ath79_ehci_resources, AR71XX_EHCI_BASE,
