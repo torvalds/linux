@@ -519,6 +519,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 	atomic_set(&sp->so_count, 1);
 	INIT_LIST_HEAD(&sp->so_lru);
 	seqcount_init(&sp->so_reclaim_seqcount);
+	mutex_init(&sp->so_delegreturn_mutex);
 	return sp;
 }
 
