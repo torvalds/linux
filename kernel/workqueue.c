@@ -1107,31 +1107,27 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 	 * item is currently queued on that pool.
 	 */
 	cwq = get_work_cwq(work);
-	if (cwq) {
-		if (cwq->pool == pool) {
-			debug_work_deactivate(work);
+	if (cwq && cwq->pool == pool) {
+		debug_work_deactivate(work);
 
-			/*
-			 * A delayed work item cannot be grabbed directly
-			 * because it might have linked NO_COLOR work items
-			 * which, if left on the delayed_list, will confuse
-			 * cwq->nr_active management later on and cause
-			 * stall.  Make sure the work item is activated
-			 * before grabbing.
-			 */
-			if (*work_data_bits(work) & WORK_STRUCT_DELAYED)
-				cwq_activate_delayed_work(work);
+		/*
+		 * A delayed work item cannot be grabbed directly because
+		 * it might have linked NO_COLOR work items which, if left
+		 * on the delayed_list, will confuse cwq->nr_active
+		 * management later on and cause stall.  Make sure the work
+		 * item is activated before grabbing.
+		 */
+		if (*work_data_bits(work) & WORK_STRUCT_DELAYED)
+			cwq_activate_delayed_work(work);
 
-			list_del_init(&work->entry);
-			cwq_dec_nr_in_flight(get_work_cwq(work),
-				get_work_color(work));
+		list_del_init(&work->entry);
+		cwq_dec_nr_in_flight(get_work_cwq(work), get_work_color(work));
 
-			/* work->data points to cwq iff queued, point to pool */
-			set_work_pool_and_keep_pending(work, pool->id);
+		/* work->data points to cwq iff queued, point to pool */
+		set_work_pool_and_keep_pending(work, pool->id);
 
-			spin_unlock(&pool->lock);
-			return 1;
-		}
+		spin_unlock(&pool->lock);
+		return 1;
 	}
 	spin_unlock(&pool->lock);
 fail:
