@@ -426,6 +426,9 @@ static void macvlan_set_mac_lists(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			__set_bit(mc_hash(ha->addr), filter);
 		}
+
+		__set_bit(mc_hash(dev->broadcast), filter);
+
 		bitmap_copy(vlan->mc_filter, filter, MACVLAN_MC_FILTER_SZ);
 	}
 	dev_uc_sync(vlan->lowerdev, dev);
