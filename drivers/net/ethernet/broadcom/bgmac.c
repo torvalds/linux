@@ -1318,6 +1318,12 @@ static int bgmac_probe(struct bcma_device *core)
 		return -ENOTSUPP;
 	}
 
+	if (!is_valid_ether_addr(mac)) {
+		dev_err(&core->dev, "Invalid MAC addr: %pM\n", mac);
+		eth_random_addr(mac);
+		dev_warn(&core->dev, "Using random MAC: %pM\n", mac);
+	}
+
 	/* Allocation and references */
 	net_dev = alloc_etherdev(sizeof(*bgmac));
 	if (!net_dev)
