@@ -6864,9 +6864,8 @@ F:	drivers/clocksource
 
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
-M:	Kang Yong <kangyong@telegent.com>
-M:	Zhang Xiaobing <xbzhang@telegent.com>
-S:	Supported
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+S:	Odd Fixes
 F:	drivers/media/usb/tlg2300
 
 SC1200 WDT DRIVER
