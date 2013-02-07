@@ -268,8 +268,9 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 				qpp = &q->next)
 			if (q == qp) {
 				atomic_dec(&qp->refcount);
-				*qpp = qp->next;
-				rcu_assign_pointer(qp->next, NULL);
+				rcu_assign_pointer(*qpp,
+					rcu_dereference_protected(qp->next,
+					 lockdep_is_held(&dev->qpt_lock)));
 				break;
 			}
 	}
