@@ -130,7 +130,8 @@ extern  int      gpio_exit(void);
 *
 ************************************************************************************************************
 */
-extern  unsigned gpio_request                 (user_gpio_set_t *gpio_list,                                                              unsigned group_count_max               );
+extern unsigned sunxi_gpio_request_array(user_gpio_set_t *gpio_list,
+					 unsigned group_count_max);
 extern  unsigned gpio_request_ex(char *main_name, const char *sub_name);  //设备申请GPIO函数扩展接口
 /*
 ************************************************************************************************************

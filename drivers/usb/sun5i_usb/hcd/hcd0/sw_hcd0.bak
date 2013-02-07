@@ -309,7 +309,8 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
 		return 0;
 	}
 
-	sw_hcd_io->Drv_vbus_Handle = gpio_request(&sw_hcd_io->drv_vbus_gpio_set, 1);
+	sw_hcd_io->Drv_vbus_Handle =
+		sunxi_gpio_request_array(&sw_hcd_io->drv_vbus_gpio_set, 1);
 	if(sw_hcd_io->Drv_vbus_Handle == 0){
 		DMSG_PANIC("ERR: gpio_request failed\n");
 		return 0;

@@ -129,7 +129,7 @@ __s32 gpio_exit(void)		    //gpio退出函数接口
 *
 ************************************************************************************************************
 */
-u32 gpio_request(user_gpio_set_t *gpio_list, __u32 group_count_max)  //设备申请GPIO函数接口
+u32 sunxi_gpio_request_array(user_gpio_set_t *gpio_list, __u32 group_count_max)
 {
 	char               *user_gpio_buf;                                        //按照char类型申请
 	system_gpio_set_t  *user_gpio_set, *tmp_sys_gpio_data;					  //user_gpio_set将是申请内存的句柄
@@ -353,7 +353,8 @@ u32 gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPIO�
         		return EGPIO_FAIL;
     		}
 		if(!script_parser_mainkey_get_gpio_cfg(main_name,gpio_list,gpio_count)){
-    			gpio_handle = gpio_request(gpio_list, gpio_count);
+			gpio_handle = sunxi_gpio_request_array(gpio_list,
+								gpio_count);
     			CSP_OSAL_FREE(gpio_list);
 		}else{
 			return EGPIO_FAIL;
@@ -362,7 +363,7 @@ u32 gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPIO�
     		if(script_parser_fetch((char *)main_name, (char *)sub_name, (int *)&one_gpio, (sizeof(user_gpio_set_t) >> 2)) < 0){
             		return EGPIO_FAIL;
         	}
-        	gpio_handle = gpio_request(&one_gpio, 1);
+		gpio_handle = sunxi_gpio_request_array(&one_gpio, 1);
     	}
 
     	return gpio_handle;

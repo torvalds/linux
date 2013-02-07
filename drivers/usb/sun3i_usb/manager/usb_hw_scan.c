@@ -621,7 +621,7 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 					switch(port_info->id.group_type){
 						case GPIO_GROUP_TYPE_PIO:
 							/* request gpio */
-							scan_info->id_hdle = gpio_request(&port_info->id.gpio_set, 1);
+							scan_info->id_hdle = sunxi_gpio_request_array(&port_info->id.gpio_set, 1);
 							if(scan_info->id_hdle == 0){
 								DMSG_PANIC("ERR: id gpio_request failed\n");
 								ret = -1;
@@ -651,7 +651,7 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 					switch(port_info->det_vbus.group_type){
 						case GPIO_GROUP_TYPE_PIO:
 							/* request gpio */
-							scan_info->det_vbus_hdle = gpio_request(&port_info->det_vbus.gpio_set, 1);
+							scan_info->det_vbus_hdle = sunxi_gpio_request_array(&port_info->det_vbus.gpio_set, 1);
 							if(scan_info->det_vbus_hdle == 0){
 								DMSG_PANIC("ERR: det_vbus gpio_request failed\n");
 								ret = -1;
