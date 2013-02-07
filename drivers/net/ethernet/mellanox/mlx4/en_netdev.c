@@ -591,7 +591,7 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 }
 
 static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
-			       unsigned char *new_mac)
+			       unsigned char *new_mac, unsigned char *prev_mac)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_dev *dev = mdev->dev;
@@ -657,7 +657,7 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 	if (priv->port_up) {
 		/* Remove old MAC and insert the new one */
 		err = mlx4_en_replace_mac(priv, priv->base_qpn,
-					  priv->dev->dev_addr);
+					  priv->dev->dev_addr, priv->prev_mac);
 		if (err)
 			en_err(priv, "Failed changing HW MAC address\n");
 		memcpy(priv->prev_mac, priv->dev->dev_addr,
