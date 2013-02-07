@@ -627,6 +627,8 @@ static int acpi_device_probe(struct device * dev)
 			if (ret) {
 				if (acpi_drv->ops.remove)
 					acpi_drv->ops.remove(acpi_dev);
+				acpi_dev->driver = NULL;
+				acpi_dev->driver_data = NULL;
 				return ret;
 			}
 		}
