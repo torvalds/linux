@@ -1899,6 +1899,12 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_STD);
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_STD);
 	}
+	if (dev->tuner_type == TUNER_ABSENT) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_FREQUENCY);
+	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
@@ -1916,6 +1922,14 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 		dev->vbi_dev->queue = &dev->vb_vbiq;
 		dev->vbi_dev->queue->lock = &dev->vb_vbi_queue_lock;
+
+		/* disable inapplicable ioctls */
+		if (dev->tuner_type == TUNER_ABSENT) {
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_TUNER);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_TUNER);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_FREQUENCY);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_FREQUENCY);
+		}
 
 		/* register v4l2 vbi video_device */
 		ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
