@@ -127,10 +127,18 @@ static int macvlan_broadcast_one(struct sk_buff *skb,
 	return vlan->receive(skb);
 }
 
-static unsigned int mc_hash(const unsigned char *addr)
+static u32 macvlan_hash_mix(const struct macvlan_dev *vlan)
+{
+	return (u32)(((unsigned long)vlan) >> L1_CACHE_SHIFT);
+}
+
+
+static unsigned int mc_hash(const struct macvlan_dev *vlan,
+			    const unsigned char *addr)
 {
 	u32 val = __get_unaligned_cpu32(addr + 2);
 
+	val ^= macvlan_hash_mix(vlan);
 	return hash_32(val, MACVLAN_MC_FILTER_BITS);
 }
 
@@ -145,7 +153,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	struct sk_buff *nskb;
 	unsigned int i;
 	int err;
-	unsigned int hash = mc_hash(eth->h_dest);
+	unsigned int hash;
 
 	if (skb->protocol == htons(ETH_P_PAUSE))
 		return;
@@ -155,6 +163,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 			if (vlan->dev == src || !(vlan->mode & mode))
 				continue;
 
+			hash = mc_hash(vlan, eth->h_dest);
 			if (!test_bit(hash, vlan->mc_filter))
 				continue;
 			nskb = skb_clone(skb, GFP_ATOMIC);
@@ -424,10 +433,10 @@ static void macvlan_set_mac_lists(struct net_device *dev)
 
 		bitmap_zero(filter, MACVLAN_MC_FILTER_SZ);
 		netdev_for_each_mc_addr(ha, dev) {
-			__set_bit(mc_hash(ha->addr), filter);
+			__set_bit(mc_hash(vlan, ha->addr), filter);
 		}
 
-		__set_bit(mc_hash(dev->broadcast), filter);
+		__set_bit(mc_hash(vlan, dev->broadcast), filter);
 
 		bitmap_copy(vlan->mc_filter, filter, MACVLAN_MC_FILTER_SZ);
 	}
