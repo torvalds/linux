@@ -1024,9 +1024,6 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	struct em28xx      *dev = fh->dev;
 	int rc = 0;
 
-	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	if (dev->board.is_webcam)
 		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0,
@@ -1043,9 +1040,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-
-	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	return v4l2_device_call_until_err(&dev->v4l2_dev, 0, video, s_parm, p);
