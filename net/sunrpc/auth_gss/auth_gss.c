@@ -247,8 +247,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 		__func__, ctx->gc_expiry, now, timeout);
 	return q;
 err:
-	dprintk("RPC:       %s returns %ld gc_expiry %lu now %lu timeout %u\n",
-		__func__, -PTR_ERR(p), ctx->gc_expiry, now, timeout);
+	dprintk("RPC:       %s returns error %ld\n", __func__, -PTR_ERR(p));
 	return p;
 }
 
