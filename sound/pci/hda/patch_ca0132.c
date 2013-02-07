@@ -3312,25 +3312,22 @@ static bool ca0132_is_vnode_effective(struct hda_codec *codec,
 {
 	struct ca0132_spec *spec = codec->spec;
 	hda_nid_t nid;
-	bool effective = false;
 
 	switch (vnid) {
 	case VNID_SPK:
 		nid = spec->shared_out_nid;
-		effective = true;
 		break;
 	case VNID_MIC:
 		nid = spec->shared_mic_nid;
-		effective = true;
 		break;
 	default:
-		break;
+		return false;
 	}
 
-	if (effective && shared_nid)
+	if (shared_nid)
 		*shared_nid = nid;
 
-	return effective;
+	return true;
 }
 
 /*
@@ -4346,6 +4343,9 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
+#ifndef CONFIG_SND_HDA_CODEC_CA0132_DSP
+	return; /* NOP */
+#endif
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 
 	if (spec->dsp_state == DSP_DOWNLOAD_INIT) {
@@ -4530,9 +4530,7 @@ static int ca0132_init(struct hda_codec *codec)
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
-#ifdef CONFIG_SND_HDA_CODEC_CA0132_DSP
 	ca0132_download_dsp(codec);
-#endif
 	ca0132_refresh_widget_caps(codec);
 	ca0132_setup_defaults(codec);
 	ca0132_init_analog_mic2(codec);
