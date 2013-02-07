@@ -821,15 +821,13 @@ static int __init atmel_lcdfb_init_fbinfo(struct atmel_lcdfb_info *sinfo)
 
 static void atmel_lcdfb_start_clock(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->bus_clk)
-		clk_enable(sinfo->bus_clk);
+	clk_enable(sinfo->bus_clk);
 	clk_enable(sinfo->lcdc_clk);
 }
 
 static void atmel_lcdfb_stop_clock(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->bus_clk)
-		clk_disable(sinfo->bus_clk);
+	clk_disable(sinfo->bus_clk);
 	clk_disable(sinfo->lcdc_clk);
 }
 
@@ -888,13 +886,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
-	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()
-	 || cpu_is_at32ap7000()) {
-		sinfo->bus_clk = clk_get(dev, "hck1");
-		if (IS_ERR(sinfo->bus_clk)) {
-			ret = PTR_ERR(sinfo->bus_clk);
-			goto free_info;
-		}
+	sinfo->bus_clk = clk_get(dev, "hclk");
+	if (IS_ERR(sinfo->bus_clk)) {
+		ret = PTR_ERR(sinfo->bus_clk);
+		goto free_info;
 	}
 	sinfo->lcdc_clk = clk_get(dev, "lcdc_clk");
 	if (IS_ERR(sinfo->lcdc_clk)) {
@@ -1055,8 +1050,7 @@ stop_clk:
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
 put_bus_clk:
-	if (sinfo->bus_clk)
-		clk_put(sinfo->bus_clk);
+	clk_put(sinfo->bus_clk);
 free_info:
 	framebuffer_release(info);
 out:
@@ -1081,8 +1075,7 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	unregister_framebuffer(info);
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
-	if (sinfo->bus_clk)
-		clk_put(sinfo->bus_clk);
+	clk_put(sinfo->bus_clk);
 	fb_dealloc_cmap(&info->cmap);
 	free_irq(sinfo->irq_base, info);
 	iounmap(sinfo->mmio);
