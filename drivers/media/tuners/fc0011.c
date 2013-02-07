@@ -220,6 +220,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 
 	/* Calc XIN. The PLL reference frequency is 18 MHz. */
 	xdiv = fvco / 18000;
+	WARN_ON(xdiv > 0xFF);
 	frac = fvco - xdiv * 18000;
 	frac = (frac << 15) / 18000;
 	if (frac >= 16384)
@@ -346,6 +347,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	vco_cal &= FC11_VCOCAL_VALUEMASK;
 
 	switch (vco_sel) {
+	default:
+		WARN_ON(1);
 	case 0:
 		if (vco_cal < 8) {
 			regs[FC11_REG_VCOSEL] &= ~(FC11_VCOSEL_1 | FC11_VCOSEL_2);
@@ -427,7 +430,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	err = fc0011_writereg(priv, FC11_REG_RCCAL, regs[FC11_REG_RCCAL]);
 	if (err)
 		return err;
-	err = fc0011_writereg(priv, FC11_REG_16, 0xB);
+	regs[FC11_REG_16] = 0xB;
+	err = fc0011_writereg(priv, FC11_REG_16, regs[FC11_REG_16]);
 	if (err)
 		return err;
 
