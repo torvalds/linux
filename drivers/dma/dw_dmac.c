@@ -1899,6 +1899,11 @@ static const struct of_device_id dw_dma_id_table[] = {
 MODULE_DEVICE_TABLE(of, dw_dma_id_table);
 #endif
 
+static const struct platform_device_id dw_dma_ids[] = {
+	{ "INTL9C60", 0 },
+	{ }
+};
+
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
 	.remove		= dw_remove,
@@ -1908,6 +1913,7 @@ static struct platform_driver dw_driver = {
 		.pm	= &dw_dev_pm_ops,
 		.of_match_table = of_match_ptr(dw_dma_id_table),
 	},
+	.id_table	= dw_dma_ids,
 };
 
 static int __init dw_init(void)
