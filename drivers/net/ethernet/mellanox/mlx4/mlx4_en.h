@@ -442,6 +442,9 @@ enum {
 	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3)
 };
 
+#define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)
+#define MLX4_EN_MAC_HASH_IDX 5
+
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -521,7 +524,7 @@ struct mlx4_en_priv {
 	bool wol;
 	struct device *ddev;
 	int base_tx_qpn;
-	struct radix_tree_root mac_tree;
+	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
@@ -542,8 +545,10 @@ enum mlx4_en_wol {
 };
 
 struct mlx4_mac_entry {
+	struct hlist_node hlist;
 	unsigned char mac[ETH_ALEN + 2];
 	u64 reg_id;
+	struct rcu_head rcu;
 };
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)

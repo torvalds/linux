@@ -615,10 +615,25 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			ethh = (struct ethhdr *)(page_address(frags[0].page) +
 						 frags[0].offset);
 
-			/* Drop the packet, since HW loopback-ed it */
-			if (ether_addr_equal_64bits(dev->dev_addr,
-						    ethh->h_source))
-				goto next;
+			if (is_multicast_ether_addr(ethh->h_dest)) {
+				struct mlx4_mac_entry *entry;
+				struct hlist_node *n;
+				struct hlist_head *bucket;
+				unsigned int mac_hash;
+
+				/* Drop the packet, since HW loopback-ed it */
+				mac_hash = ethh->h_source[MLX4_EN_MAC_HASH_IDX];
+				bucket = &priv->mac_hash[mac_hash];
+				rcu_read_lock();
+				hlist_for_each_entry_rcu(entry, n, bucket, hlist) {
+					if (ether_addr_equal_64bits(entry->mac,
+								    ethh->h_source)) {
+						rcu_read_unlock();
+						goto next;
+					}
+				}
+				rcu_read_unlock();
+			}
 		}
 
 		/*
