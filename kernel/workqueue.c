@@ -611,9 +611,13 @@ static struct worker_pool *get_work_pool(struct work_struct *work)
  */
 static int get_work_pool_id(struct work_struct *work)
 {
-	struct worker_pool *pool = get_work_pool(work);
+	unsigned long data = atomic_long_read(&work->data);
 
-	return pool ? pool->id : WORK_OFFQ_POOL_NONE;
+	if (data & WORK_STRUCT_CWQ)
+		return ((struct cpu_workqueue_struct *)
+			(data & WORK_STRUCT_WQ_DATA_MASK))->pool->id;
+
+	return data >> WORK_OFFQ_POOL_SHIFT;
 }
 
 static void mark_work_canceling(struct work_struct *work)
