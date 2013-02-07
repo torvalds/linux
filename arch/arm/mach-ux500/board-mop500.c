@@ -215,7 +215,7 @@ static struct platform_device snowball_sbnet_dev = {
 	},
 };
 
-static struct ab8500_platform_data ab8500_platdata = {
+struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator_reg_init = ab8500_regulator_reg_init,
 	.num_regulator_reg_init	= ARRAY_SIZE(ab8500_regulator_reg_init),
@@ -651,6 +651,7 @@ static void __init mop500_init_machine(void)
 	int i2c0_devs;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
 	mop500_pinmaps_init();
@@ -685,6 +686,7 @@ static void __init snowball_init_machine(void)
 	struct device *parent = NULL;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	snowball_pinmaps_init();
 	parent = u8500_init_devices(&ab8500_platdata);
 
@@ -710,6 +712,7 @@ static void __init hrefv60_init_machine(void)
 	int i2c0_devs;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	/*
 	 * The HREFv60 board removed a GPIO expander and routed
 	 * all these GPIO pins to the internal GPIO controller
