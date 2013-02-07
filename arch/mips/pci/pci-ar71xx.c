@@ -53,6 +53,8 @@ struct ar71xx_pci_controller {
 	spinlock_t lock;
 	int irq;
 	struct pci_controller pci_ctrl;
+	struct resource io_res;
+	struct resource mem_res;
 };
 
 /* Byte lane enable bits */
@@ -234,20 +236,6 @@ static struct pci_ops ar71xx_pci_ops = {
 	.write	= ar71xx_pci_write_config,
 };
 
-static struct resource ar71xx_pci_io_resource = {
-	.name		= "PCI IO space",
-	.start		= 0,
-	.end		= 0,
-	.flags		= IORESOURCE_IO,
-};
-
-static struct resource ar71xx_pci_mem_resource = {
-	.name		= "PCI memory space",
-	.start		= AR71XX_PCI_MEM_BASE,
-	.end		= AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1,
-	.flags		= IORESOURCE_MEM
-};
-
 static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	void __iomem *base = ath79_reset_base;
@@ -370,6 +358,26 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	if (apc->irq < 0)
 		return -EINVAL;
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "io_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->io_res.parent = res;
+	apc->io_res.name = "PCI IO space";
+	apc->io_res.start = res->start;
+	apc->io_res.end = res->end;
+	apc->io_res.flags = IORESOURCE_IO;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mem_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->mem_res.parent = res;
+	apc->mem_res.name = "PCI memory space";
+	apc->mem_res.start = res->start;
+	apc->mem_res.end = res->end;
+	apc->mem_res.flags = IORESOURCE_MEM;
+
 	ar71xx_pci_reset();
 
 	/* setup COMMAND register */
@@ -383,8 +391,8 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	ar71xx_pci_irq_init(apc);
 
 	apc->pci_ctrl.pci_ops = &ar71xx_pci_ops;
-	apc->pci_ctrl.mem_resource = &ar71xx_pci_mem_resource;
-	apc->pci_ctrl.io_resource = &ar71xx_pci_io_resource;
+	apc->pci_ctrl.mem_resource = &apc->mem_res;
+	apc->pci_ctrl.io_resource = &apc->io_res;
 
 	register_pci_controller(&apc->pci_ctrl);
 

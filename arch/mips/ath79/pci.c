@@ -117,7 +117,7 @@ static struct platform_device *
 ath79_register_pci_ar71xx(void)
 {
 	struct platform_device *pdev;
-	struct resource res[2];
+	struct resource res[4];
 
 	memset(res, 0, sizeof(res));
 
@@ -129,6 +129,16 @@ ath79_register_pci_ar71xx(void)
 	res[1].flags = IORESOURCE_IRQ;
 	res[1].start = ATH79_CPU_IRQ_IP2;
 	res[1].end = ATH79_CPU_IRQ_IP2;
+
+	res[2].name = "io_base";
+	res[2].flags = IORESOURCE_IO;
+	res[2].start = 0;
+	res[2].end = 0;
+
+	res[3].name = "mem_base";
+	res[3].flags = IORESOURCE_MEM;
+	res[3].start = AR71XX_PCI_MEM_BASE;
+	res[3].end = AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1;
 
 	pdev = platform_device_register_simple("ar71xx-pci", -1,
 					       res, ARRAY_SIZE(res));
