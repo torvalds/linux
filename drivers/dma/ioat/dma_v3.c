@@ -342,61 +342,22 @@ static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 	__ioat2_restart_chan(ioat);
 }
 
-static void ioat3_timer_event(unsigned long data)
+static void check_active(struct ioat2_dma_chan *ioat)
 {
-	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
-	if (test_bit(IOAT_COMPLETION_PENDING, &chan->state)) {
-		dma_addr_t phys_complete;
-		u64 status;
+	if (ioat2_ring_active(ioat)) {
+		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+		return;
+	}
 
-		status = ioat_chansts(chan);
-
-		/* when halted due to errors check for channel
-		 * programming errors before advancing the completion state
-		 */
-		if (is_ioat_halted(status)) {
-			u32 chanerr;
-
-			chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
-			dev_err(to_dev(chan), "%s: Channel halted (%x)\n",
-				__func__, chanerr);
-			if (test_bit(IOAT_RUN, &chan->state))
-				BUG_ON(is_ioat_bug(chanerr));
-			else /* we never got off the ground */
-				return;
-		}
-
-		/* if we haven't made progress and we have already
-		 * acknowledged a pending completion once, then be more
-		 * forceful with a restart
-		 */
-		spin_lock_bh(&chan->cleanup_lock);
-		if (ioat_cleanup_preamble(chan, &phys_complete))
-			__cleanup(ioat, phys_complete);
-		else if (test_bit(IOAT_COMPLETION_ACK, &chan->state)) {
-			spin_lock_bh(&ioat->prep_lock);
-			ioat3_restart_channel(ioat);
-			spin_unlock_bh(&ioat->prep_lock);
-		} else {
-			set_bit(IOAT_COMPLETION_ACK, &chan->state);
-			mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
-		}
-		spin_unlock_bh(&chan->cleanup_lock);
-	} else {
-		u16 active;
-
+	if (test_and_clear_bit(IOAT_CHAN_ACTIVE, &chan->state))
+		mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
+	else if (ioat->alloc_order > ioat_get_alloc_order()) {
 		/* if the ring is idle, empty, and oversized try to step
 		 * down the size
 		 */
-		spin_lock_bh(&chan->cleanup_lock);
-		spin_lock_bh(&ioat->prep_lock);
-		active = ioat2_ring_active(ioat);
-		if (active == 0 && ioat->alloc_order > ioat_get_alloc_order())
-			reshape_ring(ioat, ioat->alloc_order-1);
-		spin_unlock_bh(&ioat->prep_lock);
-		spin_unlock_bh(&chan->cleanup_lock);
+		reshape_ring(ioat, ioat->alloc_order - 1);
 
 		/* keep shrinking until we get back to our minimum
 		 * default size
@@ -404,6 +365,60 @@ static void ioat3_timer_event(unsigned long data)
 		if (ioat->alloc_order > ioat_get_alloc_order())
 			mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
 	}
+
+}
+
+void ioat3_timer_event(unsigned long data)
+{
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
+	struct ioat_chan_common *chan = &ioat->base;
+	dma_addr_t phys_complete;
+	u64 status;
+
+	status = ioat_chansts(chan);
+
+	/* when halted due to errors check for channel
+	 * programming errors before advancing the completion state
+	 */
+	if (is_ioat_halted(status)) {
+		u32 chanerr;
+
+		chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+		dev_err(to_dev(chan), "%s: Channel halted (%x)\n",
+			__func__, chanerr);
+		if (test_bit(IOAT_RUN, &chan->state))
+			BUG_ON(is_ioat_bug(chanerr));
+		else /* we never got off the ground */
+			return;
+	}
+
+	/* if we haven't made progress and we have already
+	 * acknowledged a pending completion once, then be more
+	 * forceful with a restart
+	 */
+	spin_lock_bh(&chan->cleanup_lock);
+	if (ioat_cleanup_preamble(chan, &phys_complete))
+		__cleanup(ioat, phys_complete);
+	else if (test_bit(IOAT_COMPLETION_ACK, &chan->state)) {
+		spin_lock_bh(&ioat->prep_lock);
+		ioat3_restart_channel(ioat);
+		spin_unlock_bh(&ioat->prep_lock);
+		spin_unlock_bh(&chan->cleanup_lock);
+		return;
+	} else {
+		set_bit(IOAT_COMPLETION_ACK, &chan->state);
+		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+	}
+
+
+	if (ioat2_ring_active(ioat))
+		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+	else {
+		spin_lock_bh(&ioat->prep_lock);
+		check_active(ioat);
+		spin_unlock_bh(&ioat->prep_lock);
+	}
+	spin_unlock_bh(&chan->cleanup_lock);
 }
 
 static enum dma_status
