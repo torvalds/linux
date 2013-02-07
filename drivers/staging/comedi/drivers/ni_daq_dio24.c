@@ -56,6 +56,7 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 	link->config_flags |= CONF_AUTO_SET_IO;
 	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
 		return ret;
 	dev->iobase = link->resource[0]->start;
 
