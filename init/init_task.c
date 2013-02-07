@@ -2,6 +2,7 @@
 #include <linux/export.h>
 #include <linux/mqueue.h>
 #include <linux/sched.h>
+#include <linux/sched/sysctl.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>

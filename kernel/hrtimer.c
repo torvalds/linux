@@ -44,6 +44,7 @@
 #include <linux/err.h>
 #include <linux/debugobjects.h>
 #include <linux/sched.h>
+#include <linux/sched/sysctl.h>
 #include <linux/timer.h>
 
 #include <asm/uaccess.h>
