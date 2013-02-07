@@ -2711,13 +2711,13 @@ fail_cleaner:
 	 * kthreads
 	 */
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
-	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
 fail_block_groups:
 	btrfs_free_block_groups(fs_info);
 
 fail_tree_roots:
 	free_root_pointers(fs_info, 1);
+	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
 fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->generic_worker);
@@ -2738,7 +2738,6 @@ fail_alloc:
 fail_iput:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
-	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
 fail_delalloc_bytes:
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
