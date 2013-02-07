@@ -3588,8 +3588,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			vht_oper = NULL;
 			sdata_info(sdata,
 				   "AP advertised VHT without HT, disabling both\n");
-			sdata->flags |= IEEE80211_STA_DISABLE_HT;
-			sdata->flags |= IEEE80211_STA_DISABLE_VHT;
+			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 		}
 	}
 
