@@ -847,7 +847,7 @@ static void iio_dev_release(struct device *device)
 	kfree(indio_dev);
 }
 
-static struct device_type iio_dev_type = {
+struct device_type iio_device_type = {
 	.name = "iio_device",
 	.release = iio_dev_release,
 };
@@ -869,7 +869,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 
 	if (dev) {
 		dev->dev.groups = dev->groups;
-		dev->dev.type = &iio_dev_type;
+		dev->dev.type = &iio_device_type;
 		dev->dev.bus = &iio_bus_type;
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
@@ -959,6 +959,10 @@ static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 int iio_device_register(struct iio_dev *indio_dev)
 {
 	int ret;
+
+	/* If the calling driver did not initialize of_node, do it here */
+	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
+		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
 
 	/* configure elements for the chrdev */
 	indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);

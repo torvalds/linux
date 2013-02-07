@@ -18,6 +18,7 @@
 struct iio_chan_spec;
 struct iio_dev;
 
+extern struct device_type iio_device_type;
 
 int __iio_add_chan_devattr(const char *postfix,
 			   struct iio_chan_spec const *chan,
