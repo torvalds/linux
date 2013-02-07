@@ -581,6 +581,11 @@ struct transaction_s
 	unsigned long		t_start;
 
 	/*
+	 * When commit was requested
+	 */
+	unsigned long		t_requested;
+
+	/*
 	 * Checkpointing stats [j_checkpoint_sem]
 	 */
 	struct transaction_chp_stats_s t_chp_stats;
@@ -637,6 +642,7 @@ struct transaction_s
 
 struct transaction_run_stats_s {
 	unsigned long		rs_wait;
+	unsigned long		rs_request_delay;
 	unsigned long		rs_running;
 	unsigned long		rs_locked;
 	unsigned long		rs_flushing;
@@ -649,6 +655,7 @@ struct transaction_run_stats_s {
 
 struct transaction_stats_s {
 	unsigned long		ts_tid;
+	unsigned long		ts_requested;
 	struct transaction_run_stats_s run;
 };
 

@@ -100,6 +100,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	journal->j_running_transaction = transaction;
 	transaction->t_max_wait = 0;
 	transaction->t_start = jiffies;
+	transaction->t_requested = 0;
 
 	return transaction;
 }
