@@ -247,11 +247,13 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 					     dbs_data->gov_dbs_timer);
 		}
 
-		rc = sysfs_create_group(cpufreq_global_kobject,
-				dbs_data->attr_group);
-		if (rc) {
-			mutex_unlock(&dbs_data->mutex);
-			return rc;
+		if (!policy->governor->initialized) {
+			rc = sysfs_create_group(cpufreq_global_kobject,
+					dbs_data->attr_group);
+			if (rc) {
+				mutex_unlock(&dbs_data->mutex);
+				return rc;
+			}
 		}
 
 		/*
@@ -262,13 +264,15 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 			cs_dbs_info->down_skip = 0;
 			cs_dbs_info->enable = 1;
 			cs_dbs_info->requested_freq = policy->cur;
-			cpufreq_register_notifier(cs_ops->notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
 
-			if (!policy->governor->initialized)
+			if (!policy->governor->initialized) {
+				cpufreq_register_notifier(cs_ops->notifier_block,
+						CPUFREQ_TRANSITION_NOTIFIER);
+
 				dbs_data->min_sampling_rate =
 					MIN_SAMPLING_RATE_RATIO *
 					jiffies_to_usecs(10);
+			}
 		} else {
 			od_dbs_info->rate_mult = 1;
 			od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
@@ -311,11 +315,13 @@ unlock:
 		mutex_lock(&dbs_data->mutex);
 		mutex_destroy(&cpu_cdbs->timer_mutex);
 
-		sysfs_remove_group(cpufreq_global_kobject,
-				dbs_data->attr_group);
-		if (dbs_data->governor == GOV_CONSERVATIVE)
-			cpufreq_unregister_notifier(cs_ops->notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
+		if (policy->governor->initialized == 1) {
+			sysfs_remove_group(cpufreq_global_kobject,
+					dbs_data->attr_group);
+			if (dbs_data->governor == GOV_CONSERVATIVE)
+				cpufreq_unregister_notifier(cs_ops->notifier_block,
+						CPUFREQ_TRANSITION_NOTIFIER);
+		}
 		mutex_unlock(&dbs_data->mutex);
 
 		break;
