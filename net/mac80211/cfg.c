@@ -1257,8 +1257,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->vht_capa)
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-						    params->vht_capa,
-						    &sta->sta.vht_cap);
+						    params->vht_capa, sta);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH

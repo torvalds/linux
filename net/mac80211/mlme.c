@@ -2217,8 +2217,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	if (elems.vht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-						    elems.vht_cap_elem,
-						    &sta->sta.vht_cap);
+						    elems.vht_cap_elem, sta);
 
 	rate_control_rate_init(sta);
 

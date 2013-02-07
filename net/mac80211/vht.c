@@ -15,12 +15,14 @@
 void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_supported_band *sband,
 					 struct ieee80211_vht_cap *vht_cap_ie,
-					 struct ieee80211_sta_vht_cap *vht_cap)
+					 struct sta_info *sta)
 {
-	if (WARN_ON_ONCE(!vht_cap))
-		return;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 
 	memset(vht_cap, 0, sizeof(*vht_cap));
+
+	if (!sta->sta.ht_cap.ht_supported)
+		return;
 
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
 		return;
