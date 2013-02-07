@@ -1068,6 +1068,7 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 			       unsigned long *flags)
 {
 	struct worker_pool *pool;
+	struct cpu_workqueue_struct *cwq;
 
 	local_irq_save(*flags);
 
@@ -1097,14 +1098,17 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 		goto fail;
 
 	spin_lock(&pool->lock);
-	if (!list_empty(&work->entry)) {
-		/*
-		 * This work is queued, but perhaps we locked the wrong
-		 * pool.  In that case we must see the new value after
-		 * rmb(), see insert_work()->wmb().
-		 */
-		smp_rmb();
-		if (pool == get_work_pool(work)) {
+	/*
+	 * work->data is guaranteed to point to cwq only while the work
+	 * item is queued on cwq->wq, and both updating work->data to point
+	 * to cwq on queueing and to pool on dequeueing are done under
+	 * cwq->pool->lock.  This in turn guarantees that, if work->data
+	 * points to cwq which is associated with a locked pool, the work
+	 * item is currently queued on that pool.
+	 */
+	cwq = get_work_cwq(work);
+	if (cwq) {
+		if (cwq->pool == pool) {
 			debug_work_deactivate(work);
 
 			/*
@@ -1159,13 +1163,6 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 
 	/* we own @work, set data and link */
 	set_work_cwq(work, cwq, extra_flags);
-
-	/*
-	 * Ensure that we get the right work->data if we see the
-	 * result of list_add() below, see try_to_grab_pending().
-	 */
-	smp_wmb();
-
 	list_add_tail(&work->entry, head);
 
 	/*
@@ -2799,15 +2796,10 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr)
 		return false;
 
 	spin_lock_irq(&pool->lock);
-	if (!list_empty(&work->entry)) {
-		/*
-		 * See the comment near try_to_grab_pending()->smp_rmb().
-		 * If it was re-queued to a different pool under us, we
-		 * are not going to wait.
-		 */
-		smp_rmb();
-		cwq = get_work_cwq(work);
-		if (unlikely(!cwq || pool != cwq->pool))
+	/* see the comment in try_to_grab_pending() with the same code */
+	cwq = get_work_cwq(work);
+	if (cwq) {
+		if (unlikely(cwq->pool != pool))
 			goto already_gone;
 	} else {
 		worker = find_worker_executing_work(pool, work);
