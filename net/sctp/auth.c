@@ -209,11 +209,9 @@ static struct sctp_auth_bytes *sctp_auth_make_key_vector(
 
 	len = random_len + hmacs_len + chunks_len;
 
-	new = kmalloc(sizeof(struct sctp_auth_bytes) + len, gfp);
+	new = sctp_auth_create_key(len, gfp);
 	if (!new)
 		return NULL;
-
-	new->len = len;
 
 	memcpy(new->data, random, random_len);
 	offset += random_len;
@@ -353,8 +351,8 @@ static struct sctp_auth_bytes *sctp_auth_asoc_create_secret(
 	secret = sctp_auth_asoc_set_secret(ep_key, first_vector, last_vector,
 					    gfp);
 out:
-	kfree(local_key_vector);
-	kfree(peer_key_vector);
+	sctp_auth_key_put(local_key_vector);
+	sctp_auth_key_put(peer_key_vector);
 
 	return secret;
 }
