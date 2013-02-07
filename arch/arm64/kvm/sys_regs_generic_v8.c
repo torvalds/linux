@@ -59,10 +59,20 @@ static const struct sys_reg_desc genericv8_sys_regs[] = {
 	  access_actlr, reset_actlr, ACTLR_EL1 },
 };
 
+static const struct sys_reg_desc genericv8_cp15_regs[] = {
+	/* ACTLR */
+	{ Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b001),
+	  access_actlr },
+};
+
 static struct kvm_sys_reg_target_table genericv8_target_table = {
 	.table64 = {
 		.table = genericv8_sys_regs,
 		.num = ARRAY_SIZE(genericv8_sys_regs),
+	},
+	.table32 = {
+		.table = genericv8_cp15_regs,
+		.num = ARRAY_SIZE(genericv8_cp15_regs),
 	},
 };
 
