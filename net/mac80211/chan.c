@@ -9,7 +9,7 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-static void ieee80211_change_chandef(struct ieee80211_local *local,
+static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
 				     const struct cfg80211_chan_def *chandef)
 {
@@ -49,7 +49,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 		if (!compat)
 			continue;
 
-		ieee80211_change_chandef(local, ctx, compat);
+		ieee80211_change_chanctx(local, ctx, compat);
 
 		return ctx;
 	}
@@ -175,7 +175,7 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	if (WARN_ON_ONCE(!compat))
 		return;
 
-	ieee80211_change_chandef(local, ctx, compat);
+	ieee80211_change_chanctx(local, ctx, compat);
 }
 
 static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
