@@ -1530,6 +1530,8 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 	memcpy(info, data, sizeof(struct atmel_lcdfb_info));
 	info->default_monspecs = monspecs;
 
+	pdev->name = "at32ap-lcdfb";
+
 	platform_device_register(pdev);
 	return pdev;
 

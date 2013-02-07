@@ -981,7 +981,6 @@ static struct resource lcdc_resources[] = {
 };
 
 static struct platform_device at91_lcdc_device = {
-	.name		= "atmel_lcdfb",
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &lcdc_dmamask,
@@ -996,6 +995,11 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 {
 	if (!data)
 		return;
+
+	if (cpu_is_at91sam9g45es())
+		at91_lcdc_device.name = "at91sam9g45es-lcdfb";
+	else
+		at91_lcdc_device.name = "at91sam9g45-lcdfb";
 
 	at91_set_A_periph(AT91_PIN_PE0, 0);	/* LCDDPWR */
 
