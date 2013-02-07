@@ -126,31 +126,52 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
 			 struct hist_browser_timer *hbt)
 {
-	GtkWidget *vbox;
-	GtkWidget *notebook;
-	GtkWidget *infobar;
-	GtkWidget *statbar;
 	GtkWidget *window;
+	GtkWidget *notebook;
 	GtkWidget *scrolled_window;
 	GtkWidget *tab_label;
 
-	signal(SIGSEGV, perf_gtk__signal);
-	signal(SIGFPE,  perf_gtk__signal);
-	signal(SIGINT,  perf_gtk__signal);
-	signal(SIGQUIT, perf_gtk__signal);
-	signal(SIGTERM, perf_gtk__signal);
+	if (perf_gtk__is_active_context(pgctx)) {
+		window = pgctx->main_window;
+		notebook = pgctx->notebook;
+	} else {
+		GtkWidget *vbox;
+		GtkWidget *infobar;
+		GtkWidget *statbar;
 
-	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title(GTK_WINDOW(window), "perf annotate");
+		signal(SIGSEGV, perf_gtk__signal);
+		signal(SIGFPE,  perf_gtk__signal);
+		signal(SIGINT,  perf_gtk__signal);
+		signal(SIGQUIT, perf_gtk__signal);
+		signal(SIGTERM, perf_gtk__signal);
 
-	g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
+		window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_title(GTK_WINDOW(window), "perf annotate");
 
-	pgctx = perf_gtk__activate_context(window);
-	if (!pgctx)
-		return -1;
+		g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
 
-	vbox = gtk_vbox_new(FALSE, 0);
-	notebook = gtk_notebook_new();
+		pgctx = perf_gtk__activate_context(window);
+		if (!pgctx)
+			return -1;
+
+		vbox = gtk_vbox_new(FALSE, 0);
+		notebook = gtk_notebook_new();
+		pgctx->notebook = notebook;
+
+		gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+
+		infobar = perf_gtk__setup_info_bar();
+		if (infobar) {
+			gtk_box_pack_start(GTK_BOX(vbox), infobar,
+					   FALSE, FALSE, 0);
+		}
+
+		statbar = perf_gtk__setup_statusbar();
+		gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);
+
+		gtk_container_add(GTK_CONTAINER(window), vbox);
+	}
+
 	scrolled_window = gtk_scrolled_window_new(NULL, NULL);
 	tab_label = gtk_label_new(sym->name);
 
@@ -160,19 +181,19 @@ int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window,
 				 tab_label);
-	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
-
-	infobar = perf_gtk__setup_info_bar();
-	if (infobar)
-		gtk_box_pack_start(GTK_BOX(vbox), infobar, FALSE, FALSE, 0);
-
-	statbar = perf_gtk__setup_statusbar();
-	gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);
-
-	gtk_container_add(GTK_CONTAINER(window), vbox);
 
 	perf_gtk__annotate_symbol(scrolled_window, sym, map, evidx, hbt);
+	return 0;
+}
 
+void perf_gtk__show_annotations(void)
+{
+	GtkWidget *window;
+
+	if (!perf_gtk__is_active_context(pgctx))
+		return;
+
+	window = pgctx->main_window;
 	gtk_widget_show_all(window);
 
 	perf_gtk__resize_window(window);
@@ -181,5 +202,4 @@ int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
 	gtk_main();
 
 	perf_gtk__deactivate_context(&pgctx);
-	return 0;
 }

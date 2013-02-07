@@ -164,6 +164,8 @@ static inline int hist_entry__gtk_annotate(struct hist_entry *he, int evidx,
 {
 	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evidx, hbt);
 }
+
+void perf_gtk__show_annotations(void);
 #else
 static inline int hist_entry__gtk_annotate(struct hist_entry *he __maybe_unused,
 					   int evidx __maybe_unused,
@@ -172,6 +174,8 @@ static inline int hist_entry__gtk_annotate(struct hist_entry *he __maybe_unused,
 {
 	return 0;
 }
+
+static inline void perf_gtk__show_annotations(void) {}
 #endif
 
 extern const char	*disassembler_style;

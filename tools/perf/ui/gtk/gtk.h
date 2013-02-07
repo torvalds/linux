@@ -10,6 +10,7 @@
 
 struct perf_gtk_context {
 	GtkWidget *main_window;
+	GtkWidget *notebook;
 
 #ifdef HAVE_GTK_INFO_BAR
 	GtkWidget *info_bar;
