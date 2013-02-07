@@ -4748,7 +4748,8 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	spin_lock(&BTRFS_I(inode)->lock);
 	dropped = drop_outstanding_extent(inode);
 
-	to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+	if (num_bytes)
+		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
 	spin_unlock(&BTRFS_I(inode)->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);

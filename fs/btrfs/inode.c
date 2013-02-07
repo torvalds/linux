@@ -6059,16 +6059,15 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	u64 len = bh_result->b_size;
 	struct btrfs_trans_handle *trans;
 	int unlock_bits = EXTENT_LOCKED;
-	int ret;
+	int ret = 0;
 
 	if (create) {
-		ret = btrfs_delalloc_reserve_space(inode, len);
-		if (ret)
-			return ret;
+		spin_lock(&BTRFS_I(inode)->lock);
+		BTRFS_I(inode)->outstanding_extents++;
+		spin_unlock(&BTRFS_I(inode)->lock);
 		unlock_bits |= EXTENT_DELALLOC | EXTENT_DIRTY;
-	} else {
+	} else
 		len = min_t(u64, len, root->sectorsize);
-	}
 
 	lockstart = start;
 	lockend = start + len - 1;
@@ -6079,14 +6078,6 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	 */
 	if (lock_extent_direct(inode, lockstart, lockend, &cached_state, create))
 		return -ENOTBLK;
-
-	if (create) {
-		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
-				     lockend, EXTENT_DELALLOC, NULL,
-				     &cached_state, GFP_NOFS);
-		if (ret)
-			goto unlock_err;
-	}
 
 	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 	if (IS_ERR(em)) {
@@ -6119,7 +6110,6 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	if (!create && (em->block_start == EXTENT_MAP_HOLE ||
 			test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
 		free_extent_map(em);
-		ret = 0;
 		goto unlock_err;
 	}
 
@@ -6217,6 +6207,11 @@ unlock:
 		 */
 		if (start + len > i_size_read(inode))
 			i_size_write(inode, start + len);
+
+		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+				     lockstart + len - 1, EXTENT_DELALLOC, NULL,
+				     &cached_state, GFP_NOFS);
+		BUG_ON(ret);
 	}
 
 	/*
@@ -6225,24 +6220,9 @@ unlock:
 	 * aren't using if there is any left over space.
 	 */
 	if (lockstart < lockend) {
-		if (create && len < lockend - lockstart) {
-			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
-					 lockstart + len - 1,
-					 unlock_bits | EXTENT_DEFRAG, 1, 0,
-					 &cached_state, GFP_NOFS);
-			/*
-			 * Beside unlock, we also need to cleanup reserved space
-			 * for the left range by attaching EXTENT_DO_ACCOUNTING.
-			 */
-			clear_extent_bit(&BTRFS_I(inode)->io_tree,
-					 lockstart + len, lockend,
-					 unlock_bits | EXTENT_DO_ACCOUNTING |
-					 EXTENT_DEFRAG, 1, 0, NULL, GFP_NOFS);
-		} else {
-			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
-					 lockend, unlock_bits, 1, 0,
-					 &cached_state, GFP_NOFS);
-		}
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+				 lockend, unlock_bits, 1, 0,
+				 &cached_state, GFP_NOFS);
 	} else {
 		free_extent_state(cached_state);
 	}
@@ -6252,9 +6232,6 @@ unlock:
 	return 0;
 
 unlock_err:
-	if (create)
-		unlock_bits |= EXTENT_DO_ACCOUNTING;
-
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			 unlock_bits, 1, 0, &cached_state, GFP_NOFS);
 	return ret;
@@ -6692,15 +6669,39 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+	size_t count = 0;
+	ssize_t ret;
 
 	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iov,
 			    offset, nr_segs))
 		return 0;
 
-	return __blockdev_direct_IO(rw, iocb, inode,
-		   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
-		   iov, offset, nr_segs, btrfs_get_blocks_direct, NULL,
-		   btrfs_submit_direct, 0);
+	if (rw & WRITE) {
+		count = iov_length(iov, nr_segs);
+		ret = btrfs_delalloc_reserve_space(inode, count);
+		if (ret)
+			return ret;
+	}
+
+	ret = __blockdev_direct_IO(rw, iocb, inode,
+			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
+			iov, offset, nr_segs, btrfs_get_blocks_direct, NULL,
+			btrfs_submit_direct, 0);
+
+	if (rw & WRITE) {
+		if (ret < 0 && ret != -EIOCBQUEUED)
+			btrfs_delalloc_release_space(inode, count);
+		else if (ret > 0 && (size_t)ret < count) {
+			spin_lock(&BTRFS_I(inode)->lock);
+			BTRFS_I(inode)->outstanding_extents++;
+			spin_unlock(&BTRFS_I(inode)->lock);
+			btrfs_delalloc_release_space(inode,
+						     count - (size_t)ret);
+		}
+		btrfs_delalloc_release_metadata(inode, 0);
+	}
+
+	return ret;
 }
 
 #define BTRFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC)
