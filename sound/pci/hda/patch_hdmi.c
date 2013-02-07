@@ -64,6 +64,9 @@ struct hdmi_spec_per_cvt {
 	unsigned int maxbps;
 };
 
+/* max. connections to a widget */
+#define HDA_MAX_CONNECTIONS	32
+
 struct hdmi_spec_per_pin {
 	hda_nid_t pin_nid;
 	int num_mux_nids;

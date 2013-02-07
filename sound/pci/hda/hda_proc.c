@@ -22,6 +22,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -623,7 +624,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_hda_param_read(codec, nid,
 					   AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
-		hda_nid_t conn[HDA_MAX_CONNECTIONS];
+		hda_nid_t *conn = NULL;
 		int conn_len = 0;
 
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
@@ -660,9 +661,18 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_type == AC_WID_VOL_KNB)
 			wid_caps |= AC_WCAP_CONN_LIST;
 
-		if (wid_caps & AC_WCAP_CONN_LIST)
-			conn_len = snd_hda_get_raw_connections(codec, nid, conn,
-							   HDA_MAX_CONNECTIONS);
+		if (wid_caps & AC_WCAP_CONN_LIST) {
+			conn_len = snd_hda_get_num_raw_conns(codec, nid);
+			if (conn_len > 0) {
+				conn = kmalloc(sizeof(hda_nid_t) * conn_len,
+					       GFP_KERNEL);
+				if (!conn)
+					return;
+				if (snd_hda_get_raw_connections(codec, nid, conn,
+								conn_len) < 0)
+					conn_len = 0;
+			}
+		}
 
 		if (wid_caps & AC_WCAP_IN_AMP) {
 			snd_iprintf(buffer, "  Amp-In caps: ");
@@ -735,6 +745,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 		if (codec->proc_widget_hook)
 			codec->proc_widget_hook(buffer, codec, nid);
+
+		kfree(conn);
 	}
 	snd_hda_power_down(codec);
 }

@@ -551,9 +551,6 @@ enum {
 	AC_JACK_PORT_BOTH,
 };
 
-/* max. connections to a widget */
-#define HDA_MAX_CONNECTIONS	32
-
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
@@ -958,6 +955,7 @@ snd_hda_get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_get_connections(codec, nid, NULL, 0);
 }
+int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
 int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,

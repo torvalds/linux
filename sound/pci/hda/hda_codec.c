@@ -382,13 +382,23 @@ static void remove_conn_list(struct hda_codec *codec)
 /* read the connection and add to the cache */
 static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 {
-	hda_nid_t list[HDA_MAX_CONNECTIONS];
+	hda_nid_t list[32];
+	hda_nid_t *result = list;
 	int len;
 
 	len = snd_hda_get_raw_connections(codec, nid, list, ARRAY_SIZE(list));
-	if (len < 0)
-		return len;
-	return snd_hda_override_conn_list(codec, nid, len, list);
+	if (len == -ENOSPC) {
+		len = snd_hda_get_num_raw_conns(codec, nid);
+		result = kmalloc(sizeof(hda_nid_t) * len, GFP_KERNEL);
+		if (!result)
+			return -ENOMEM;
+		len = snd_hda_get_raw_connections(codec, nid, result, len);
+	}
+	if (len >= 0)
+		len = snd_hda_override_conn_list(codec, nid, len, result);
+	if (result != list)
+		kfree(result);
+	return len;
 }
 
 /**
@@ -466,6 +476,27 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_connections);
 
+/* return CONNLIST_LEN parameter of the given widget */
+static unsigned int get_num_conns(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int wcaps = get_wcaps(codec, nid);
+	unsigned int parm;
+
+	if (!(wcaps & AC_WCAP_CONN_LIST) &&
+	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB)
+		return 0;
+
+	parm = snd_hda_param_read(codec, nid, AC_PAR_CONNLIST_LEN);
+	if (parm == -1)
+		parm = 0;
+	return parm;
+}
+
+int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid)
+{
+	return get_num_conns(codec, nid) & AC_CLIST_LENGTH;
+}
+
 /**
  * snd_hda_get_raw_connections - copy connection list without cache
  * @codec: the HDA codec
@@ -483,19 +514,16 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int parm;
 	int i, conn_len, conns;
 	unsigned int shift, num_elems, mask;
-	unsigned int wcaps;
 	hda_nid_t prev_nid;
 	int null_count = 0;
 
 	if (snd_BUG_ON(!conn_list || max_conns <= 0))
 		return -EINVAL;
 
-	wcaps = get_wcaps(codec, nid);
-	if (!(wcaps & AC_WCAP_CONN_LIST) &&
-	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB)
+	parm = get_num_conns(codec, nid);
+	if (!parm)
 		return 0;
 
-	parm = snd_hda_param_read(codec, nid, AC_PAR_CONNLIST_LEN);
 	if (parm & AC_CLIST_LONG) {
 		/* long form */
 		shift = 16;
@@ -552,21 +580,13 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 				continue;
 			}
 			for (n = prev_nid + 1; n <= val; n++) {
-				if (conns >= max_conns) {
-					snd_printk(KERN_ERR "hda_codec: "
-						   "Too many connections %d for NID 0x%x\n",
-						   conns, nid);
-					return -EINVAL;
-				}
+				if (conns >= max_conns)
+					return -ENOSPC;
 				conn_list[conns++] = n;
 			}
 		} else {
-			if (conns >= max_conns) {
-				snd_printk(KERN_ERR "hda_codec: "
-					   "Too many connections %d for NID 0x%x\n",
-					   conns, nid);
-				return -EINVAL;
-			}
+			if (conns >= max_conns)
+				return -ENOSPC;
 			conn_list[conns++] = val;
 		}
 		prev_nid = val;
