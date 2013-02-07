@@ -9,12 +9,12 @@
  *
  */
 
+#include "bcm47xxnflash.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcm47xxnflash.h"
 
 /* Broadcom uses 1'000'000 but it seems to be too many. Tests on WNDR4500 has
  * shown 164 retries as maxiumum. */
