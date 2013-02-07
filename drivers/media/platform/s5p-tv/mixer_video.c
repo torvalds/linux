@@ -19,6 +19,7 @@
 #include <linux/videodev2.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/timer.h>
 #include <media/videobuf2-dma-contig.h>
 
