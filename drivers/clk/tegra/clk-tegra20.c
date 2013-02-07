@@ -194,6 +194,7 @@ static void __iomem *clk_base;
 static void __iomem *pmc_base;
 
 static DEFINE_SPINLOCK(pll_div_lock);
+static DEFINE_SPINLOCK(sysrate_lock);
 
 #define TEGRA_INIT_DATA_MUX(_name, _con_id, _dev_id, _parents, _offset,	\
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
@@ -768,19 +769,21 @@ static void tegra20_super_clk_init(void)
 
 	/* HCLK */
 	clk = clk_register_divider(NULL, "hclk_div", "sclk", 0,
-				   clk_base + CLK_SYSTEM_RATE, 4, 2, 0, NULL);
+				   clk_base + CLK_SYSTEM_RATE, 4, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "hclk", "hclk_div", CLK_SET_RATE_PARENT,
 				clk_base + CLK_SYSTEM_RATE, 7,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "hclk", NULL);
 	clks[hclk] = clk;
 
 	/* PCLK */
 	clk = clk_register_divider(NULL, "pclk_div", "hclk", 0,
-				   clk_base + CLK_SYSTEM_RATE, 0, 2, 0, NULL);
+				   clk_base + CLK_SYSTEM_RATE, 0, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "pclk", "pclk_div", CLK_SET_RATE_PARENT,
 				clk_base + CLK_SYSTEM_RATE, 3,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "pclk", NULL);
 	clks[pclk] = clk;
 
