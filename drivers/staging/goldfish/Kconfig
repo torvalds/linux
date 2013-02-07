@@ -7,6 +7,7 @@ config GOLDFISH_AUDIO
 config MTD_GOLDFISH_NAND
 	tristate "Goldfish NAND device"
 	depends on GOLDFISH
+	depends on MTD
 	help
 	  Drives the emulated NAND flash device on the Google Goldfish
 	  Android virtual device.
