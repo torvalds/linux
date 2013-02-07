@@ -3529,8 +3529,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 */
 	ret = ieee80211_vif_use_channel(sdata, &chandef,
 					IEEE80211_CHANCTX_SHARED);
-	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
+	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
 		ifmgd->flags |= chandef_downgrade(&chandef);
+		ret = ieee80211_vif_use_channel(sdata, &chandef,
+						IEEE80211_CHANCTX_SHARED);
+	}
 	return ret;
 }
 
