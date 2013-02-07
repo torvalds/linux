@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/smpboot.h>
+#include <linux/sched/rt.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
