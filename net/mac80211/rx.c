@@ -2410,25 +2410,20 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
 			struct ieee80211_supported_band *sband;
 			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
-			bool old_40mhz, new_40mhz;
+			enum ieee80211_sta_rx_bandwidth new_bw;
 
 			/* If it doesn't support 40 MHz it can't change ... */
-			if (!rx->sta->supports_40mhz)
+			if (!(rx->sta->sta.ht_cap.cap &
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 				goto handled;
 
-			old_40mhz = rx->sta->sta.ht_cap.cap &
-					IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-			new_40mhz = chanwidth == IEEE80211_HT_CHANWIDTH_ANY;
-
-			if (old_40mhz == new_40mhz)
-				goto handled;
-
-			if (new_40mhz)
-				rx->sta->sta.ht_cap.cap |=
-					IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			if (chanwidth == IEEE80211_HT_CHANWIDTH_20MHZ)
+				new_bw = IEEE80211_STA_RX_BW_20;
 			else
-				rx->sta->sta.ht_cap.cap &=
-					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				new_bw = ieee80211_sta_cur_vht_bw(rx->sta);
+
+			if (rx->sta->sta.bandwidth == new_bw)
+				goto handled;
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 

@@ -219,19 +219,20 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, bssid);
 
-	WARN_ON_ONCE(!sta);
+	if (WARN_ON_ONCE(!sta)) {
+		mutex_unlock(&local->sta_mtx);
+		return changed;
+	}
 
-	if (sta && !sta->supports_40mhz)
+	if (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 		disable_40 = true;
 
-	if (sta && (!reconfig ||
-		    (disable_40 != !(sta->sta.ht_cap.cap &
-					IEEE80211_HT_CAP_SUP_WIDTH_20_40)))) {
-
+	if (!reconfig ||
+	    disable_40 != (sta->sta.bandwidth < IEEE80211_STA_RX_BW_40)) {
 		if (disable_40)
-			sta->sta.ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
 		else
-			sta->sta.ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 
 		rate_control_rate_update(local, sband, sta,
 					 IEEE80211_RC_BW_CHANGED);
@@ -2210,10 +2211,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	if (elems.ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-				elems.ht_cap_elem, &sta->sta.ht_cap);
-
-	sta->supports_40mhz =
-		sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+						  elems.ht_cap_elem, sta);
 
 	if (elems.vht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,

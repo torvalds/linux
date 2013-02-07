@@ -848,8 +848,6 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		IEEE80211_HT_CAP_SM_PS_SHIFT;
 
 	for (i = 0; i < ARRAY_SIZE(mi->groups); i++) {
-		u16 req = 0;
-
 		mi->groups[i].supported = 0;
 		if (i == MINSTREL_CCK_GROUP) {
 			minstrel_ht_update_cck(mp, mi, sband, sta);
@@ -857,16 +855,17 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		}
 
 		if (minstrel_mcs_groups[i].flags & IEEE80211_TX_RC_SHORT_GI) {
-			if (minstrel_mcs_groups[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-				req |= IEEE80211_HT_CAP_SGI_40;
-			else
-				req |= IEEE80211_HT_CAP_SGI_20;
+			if (minstrel_mcs_groups[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
+				if (!(sta_cap & IEEE80211_HT_CAP_SGI_40))
+					continue;
+			} else {
+				if (!(sta_cap & IEEE80211_HT_CAP_SGI_20))
+					continue;
+			}
 		}
 
-		if (minstrel_mcs_groups[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			req |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-
-		if ((sta_cap & req) != req)
+		if (minstrel_mcs_groups[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH &&
+		    sta->bandwidth < IEEE80211_STA_RX_BW_40)
 			continue;
 
 		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */

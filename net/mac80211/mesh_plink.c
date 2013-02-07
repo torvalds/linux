@@ -373,8 +373,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	if (elems->ht_cap_elem &&
 	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  elems->ht_cap_elem,
-						  &sta->sta.ht_cap);
+						  elems->ht_cap_elem, sta);
 	else
 		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
 
@@ -383,8 +382,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 
 		if (!(elems->ht_operation->ht_param &
 		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
-			sta->sta.ht_cap.cap &=
-					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
 		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
 					     elems->ht_operation, &chandef);
 		if (sta->ch_width != chandef.width)

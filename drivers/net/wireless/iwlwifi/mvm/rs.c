@@ -1209,23 +1209,9 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	return new_rate;
 }
 
-static bool iwl_is_ht40_tx_allowed(struct iwl_mvm *mvm,
-			    struct ieee80211_sta_ht_cap *ht_cap)
+static bool iwl_is_ht40_tx_allowed(struct ieee80211_sta *sta)
 {
-	/*
-	 * Remainder of this function checks ht_cap, but if it's
-	 * NULL then we can do HT40 (special case for RXON)
-	 */
-	if (!ht_cap)
-		return true;
-
-	if (!ht_cap->ht_supported)
-		return false;
-
-	if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-		return false;
-
-	return true;
+	return sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 }
 
 /*
@@ -1258,7 +1244,7 @@ static int rs_switch_to_mimo2(struct iwl_mvm *mvm,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (iwl_is_ht40_tx_allowed(mvm, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(sta))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1311,7 +1297,7 @@ static int rs_switch_to_mimo3(struct iwl_mvm *mvm,
 	tbl->max_search = IWL_MAX_11N_MIMO3_SEARCH;
 	rate_mask = lq_sta->active_mimo3_rate;
 
-	if (iwl_is_ht40_tx_allowed(mvm, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(sta))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1356,7 +1342,7 @@ static int rs_switch_to_siso(struct iwl_mvm *mvm,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (iwl_is_ht40_tx_allowed(mvm, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(sta))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;

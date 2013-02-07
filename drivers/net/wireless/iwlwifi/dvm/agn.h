@@ -338,7 +338,7 @@ int iwl_sta_update_ht(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
-			    struct ieee80211_sta_ht_cap *ht_cap);
+			    struct ieee80211_sta *sta);
 
 static inline int iwl_sta_id(struct ieee80211_sta *sta)
 {

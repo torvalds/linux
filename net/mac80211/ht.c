@@ -37,6 +37,9 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	u8 *smask = (u8 *)(&sdata->u.mgd.ht_capa_mask.mcs.rx_mask);
 	int i;
 
+	if (!ht_cap->ht_supported)
+		return;
+
 	if (sdata->vif.type != NL80211_IFTYPE_STATION) {
 		/* AP interfaces call this code when adding new stations,
 		 * so just silently ignore non station interfaces.
@@ -89,22 +92,23 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 }
 
 
-void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
+bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_supported_band *sband,
 				       struct ieee80211_ht_cap *ht_cap_ie,
-				       struct ieee80211_sta_ht_cap *ht_cap)
+				       struct sta_info *sta)
 {
+	struct ieee80211_sta_ht_cap ht_cap;
 	u8 ampdu_info, tx_mcs_set_cap;
 	int i, max_tx_streams;
+	bool changed;
+	enum ieee80211_sta_rx_bandwidth bw;
 
-	BUG_ON(!ht_cap);
-
-	memset(ht_cap, 0, sizeof(*ht_cap));
+	memset(&ht_cap, 0, sizeof(ht_cap));
 
 	if (!ht_cap_ie || !sband->ht_cap.ht_supported)
-		return;
+		goto apply;
 
-	ht_cap->ht_supported = true;
+	ht_cap.ht_supported = true;
 
 	/*
 	 * The bits listed in this expression should be
@@ -112,7 +116,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	 * advertises more then we can't use those thus
 	 * we mask them out.
 	 */
-	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) &
+	ht_cap.cap = le16_to_cpu(ht_cap_ie->cap_info) &
 		(sband->ht_cap.cap |
 		 ~(IEEE80211_HT_CAP_LDPC_CODING |
 		   IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
@@ -121,44 +125,30 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		   IEEE80211_HT_CAP_SGI_40 |
 		   IEEE80211_HT_CAP_DSSSCCK40));
 
-	/* Unset 40 MHz if we're not using a 40 MHz channel */
-	switch (sdata->vif.bss_conf.chandef.width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-		ht_cap->cap &= ~IEEE80211_HT_CAP_SGI_40;
-		ht_cap->cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-	case NL80211_CHAN_WIDTH_80:
-	case NL80211_CHAN_WIDTH_80P80:
-	case NL80211_CHAN_WIDTH_160:
-		break;
-	}
-
 	/*
 	 * The STBC bits are asymmetric -- if we don't have
 	 * TX then mask out the peer's RX and vice versa.
 	 */
 	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_TX_STBC))
-		ht_cap->cap &= ~IEEE80211_HT_CAP_RX_STBC;
+		ht_cap.cap &= ~IEEE80211_HT_CAP_RX_STBC;
 	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC))
-		ht_cap->cap &= ~IEEE80211_HT_CAP_TX_STBC;
+		ht_cap.cap &= ~IEEE80211_HT_CAP_TX_STBC;
 
 	ampdu_info = ht_cap_ie->ampdu_params_info;
-	ht_cap->ampdu_factor =
+	ht_cap.ampdu_factor =
 		ampdu_info & IEEE80211_HT_AMPDU_PARM_FACTOR;
-	ht_cap->ampdu_density =
+	ht_cap.ampdu_density =
 		(ampdu_info & IEEE80211_HT_AMPDU_PARM_DENSITY) >> 2;
 
 	/* own MCS TX capabilities */
 	tx_mcs_set_cap = sband->ht_cap.mcs.tx_params;
 
 	/* Copy peer MCS TX capabilities, the driver might need them. */
-	ht_cap->mcs.tx_params = ht_cap_ie->mcs.tx_params;
+	ht_cap.mcs.tx_params = ht_cap_ie->mcs.tx_params;
 
 	/* can we TX with MCS rates? */
 	if (!(tx_mcs_set_cap & IEEE80211_HT_MCS_TX_DEFINED))
-		return;
+		goto apply;
 
 	/* Counting from 0, therefore +1 */
 	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_RX_DIFF)
@@ -176,25 +166,53 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	 * - remainder are multiple spatial streams using unequal modulation
 	 */
 	for (i = 0; i < max_tx_streams; i++)
-		ht_cap->mcs.rx_mask[i] =
+		ht_cap.mcs.rx_mask[i] =
 			sband->ht_cap.mcs.rx_mask[i] & ht_cap_ie->mcs.rx_mask[i];
 
 	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION)
 		for (i = IEEE80211_HT_MCS_UNEQUAL_MODULATION_START_BYTE;
 		     i < IEEE80211_HT_MCS_MASK_LEN; i++)
-			ht_cap->mcs.rx_mask[i] =
+			ht_cap.mcs.rx_mask[i] =
 				sband->ht_cap.mcs.rx_mask[i] &
 					ht_cap_ie->mcs.rx_mask[i];
 
 	/* handle MCS rate 32 too */
 	if (sband->ht_cap.mcs.rx_mask[32/8] & ht_cap_ie->mcs.rx_mask[32/8] & 1)
-		ht_cap->mcs.rx_mask[32/8] |= 1;
+		ht_cap.mcs.rx_mask[32/8] |= 1;
 
+ apply:
 	/*
 	 * If user has specified capability over-rides, take care
 	 * of that here.
 	 */
-	ieee80211_apply_htcap_overrides(sdata, ht_cap);
+	ieee80211_apply_htcap_overrides(sdata, &ht_cap);
+
+	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
+
+	memcpy(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
+
+	switch (sdata->vif.bss_conf.chandef.width) {
+	default:
+		WARN_ON_ONCE(1);
+		/* fall through */
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		bw = IEEE80211_STA_RX_BW_20;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		bw = ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
+		break;
+	}
+
+	if (bw != sta->sta.bandwidth)
+		changed = true;
+	sta->sta.bandwidth = bw;
+
+	return changed;
 }
 
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,

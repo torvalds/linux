@@ -173,7 +173,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
-			    struct ieee80211_sta_ht_cap *ht_cap)
+			    struct ieee80211_sta *sta)
 {
 	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
 		return false;
@@ -183,20 +183,11 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 		return false;
 #endif
 
-	/*
-	 * Remainder of this function checks ht_cap, but if it's
-	 * NULL then we can do HT40 (special case for RXON)
-	 */
-	if (!ht_cap)
+	/* special case for RXON */
+	if (!sta)
 		return true;
 
-	if (!ht_cap->ht_supported)
-		return false;
-
-	if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-		return false;
-
-	return true;
+	return sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 }
 
 static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
@@ -246,7 +237,7 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	*flags |= cpu_to_le32(
 		(u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, sta))
 		*flags |= STA_FLG_HT40_EN_MSK;
 }
 
