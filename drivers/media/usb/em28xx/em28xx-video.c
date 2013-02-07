@@ -1204,19 +1204,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int em28xx_reg_len(int reg)
-{
-	switch (reg) {
-	case EM28XX_R40_AC97LSB:
-	case EM28XX_R30_HSCALELOW:
-	case EM28XX_R32_VSCALELOW:
-		return 2;
-	default:
-		return 1;
-	}
-}
-
 static int vidioc_g_chip_ident(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_ident *chip)
 {
@@ -1239,6 +1226,18 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int em28xx_reg_len(int reg)
+{
+	switch (reg) {
+	case EM28XX_R40_AC97LSB:
+	case EM28XX_R30_HSCALELOW:
+	case EM28XX_R32_VSCALELOW:
+		return 2;
+	default:
+		return 1;
+	}
+}
 
 static int vidioc_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
@@ -1662,10 +1661,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency         = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
-	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #endif
 };
 
