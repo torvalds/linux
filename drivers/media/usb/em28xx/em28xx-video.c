@@ -1044,9 +1044,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
-	if (!dev->board.is_webcam)
-		return -ENOTTY;
-
 	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
@@ -1891,6 +1888,8 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_QUERYSTD);
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_STD);
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_STD);
+	} else {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_PARM);
 	}
 	if (dev->tuner_type == TUNER_ABSENT) {
 		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_TUNER);
