@@ -175,6 +175,7 @@ static int ecw2cw(int ecw)
 }
 
 static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
+				  struct sta_info *sta,
 				  struct ieee80211_ht_operation *ht_oper,
 				  const u8 *bssid, bool reconfig)
 {
@@ -182,10 +183,12 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
-	struct sta_info *sta;
 	u32 changed = 0;
 	u16 ht_opmode;
 	bool disable_40 = false;
+
+	if (WARN_ON_ONCE(!sta))
+		return 0;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
@@ -216,28 +219,19 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	if (!(ht_oper->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
 		disable_40 = true;
 
-	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get(sdata, bssid);
-
-	if (WARN_ON_ONCE(!sta)) {
-		mutex_unlock(&local->sta_mtx);
-		return changed;
-	}
-
 	if (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 		disable_40 = true;
 
-	if (!reconfig ||
-	    disable_40 != (sta->sta.bandwidth < IEEE80211_STA_RX_BW_40)) {
+	if (disable_40 != (sta->sta.bandwidth < IEEE80211_STA_RX_BW_40)) {
 		if (disable_40)
 			sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
 		else
 			sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 
-		rate_control_rate_update(local, sband, sta,
-					 IEEE80211_RC_BW_CHANGED);
+		if (reconfig)
+			rate_control_rate_update(local, sband, sta,
+						 IEEE80211_RC_BW_CHANGED);
 	}
-	mutex_unlock(&local->sta_mtx);
 
 	ht_opmode = le16_to_cpu(ht_oper->operation_mode);
 
@@ -2217,6 +2211,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    elems.vht_cap_elem, sta);
 
+	if (elems.ht_operation && elems.wmm_param &&
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+		changed |= ieee80211_config_ht_tx(sdata, sta,
+						  elems.ht_operation,
+						  cbss->bssid, false);
+
 	rate_control_rate_init(sta);
 
 	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
@@ -2253,11 +2253,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	else
 		ieee80211_set_wmm_default(sdata, false);
 	changed |= BSS_CHANGED_QOS;
-
-	if (elems.ht_operation && elems.wmm_param &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
-		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
-						  cbss->bssid, false);
 
 	/* set AID and assoc capability,
 	 * ieee80211_set_associated() will tell the driver */
@@ -2734,10 +2729,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			erp_valid, erp_value);
 
 
+	mutex_lock(&local->sta_mtx);
 	if (elems.ht_cap_elem && elems.ht_operation && elems.wmm_param &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
-		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
+		changed |= ieee80211_config_ht_tx(sdata,
+						  sta_info_get(sdata, bssid),
+						  elems.ht_operation,
 						  bssid, true);
+	mutex_unlock(&local->sta_mtx);
 
 	if (elems.country_elem && elems.pwr_constr_elem &&
 	    mgmt->u.probe_resp.capab_info &
