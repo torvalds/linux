@@ -2538,6 +2538,8 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				goto out;
 
 			ret = btrfs_truncate(inode);
+			if (ret)
+				btrfs_orphan_del(NULL, inode);
 		} else {
 			nr_unlink++;
 		}
