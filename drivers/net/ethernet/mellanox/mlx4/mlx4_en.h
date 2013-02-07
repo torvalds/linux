@@ -504,7 +504,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_cq *tx_cq;
 	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
 	struct mlx4_qp drop_qp;
-	struct work_struct mcast_task;
+	struct work_struct rx_mode_task;
 	struct work_struct mac_task;
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
