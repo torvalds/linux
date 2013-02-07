@@ -2383,7 +2383,7 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 		s->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
 
-	return i;
+	return 0;
 }
 
 void comedi_free_subdevice_minor(struct comedi_subdevice *s)
