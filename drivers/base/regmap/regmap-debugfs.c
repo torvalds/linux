@@ -185,7 +185,7 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos + 1 + map->debugfs_tot_len >= count)
+			if (buf_pos + map->debugfs_tot_len > count)
 				break;
 
 			/* Format the register */
