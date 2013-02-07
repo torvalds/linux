@@ -1339,10 +1339,9 @@ EXPORT_SYMBOL_GPL(queue_work);
 void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
-	struct cpu_workqueue_struct *cwq = get_work_cwq(&dwork->work);
 
 	/* should have been called from irqsafe timer with irq already off */
-	__queue_work(dwork->cpu, cwq->wq, &dwork->work);
+	__queue_work(dwork->cpu, dwork->wq, &dwork->work);
 }
 EXPORT_SYMBOL_GPL(delayed_work_timer_fn);
 
@@ -1351,7 +1350,6 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 {
 	struct timer_list *timer = &dwork->timer;
 	struct work_struct *work = &dwork->work;
-	unsigned int lcpu;
 
 	WARN_ON_ONCE(timer->function != delayed_work_timer_fn ||
 		     timer->data != (unsigned long)dwork);
@@ -1371,30 +1369,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 
 	timer_stats_timer_set_start_info(&dwork->timer);
 
-	/*
-	 * This stores cwq for the moment, for the timer_fn.  Note that the
-	 * work's pool is preserved to allow reentrance detection for
-	 * delayed works.
-	 */
-	if (!(wq->flags & WQ_UNBOUND)) {
-		struct worker_pool *pool = get_work_pool(work);
-
-		/*
-		 * If we cannot get the last pool from @work directly,
-		 * select the last CPU such that it avoids unnecessarily
-		 * triggering non-reentrancy check in __queue_work().
-		 */
-		lcpu = cpu;
-		if (pool)
-			lcpu = pool->cpu;
-		if (lcpu == WORK_CPU_UNBOUND)
-			lcpu = raw_smp_processor_id();
-	} else {
-		lcpu = WORK_CPU_UNBOUND;
-	}
-
-	set_work_cwq(work, get_cwq(lcpu, wq), 0);
-
+	dwork->wq = wq;
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
 
@@ -2944,8 +2919,7 @@ bool flush_delayed_work(struct delayed_work *dwork)
 {
 	local_irq_disable();
 	if (del_timer_sync(&dwork->timer))
-		__queue_work(dwork->cpu,
-			     get_work_cwq(&dwork->work)->wq, &dwork->work);
+		__queue_work(dwork->cpu, dwork->wq, &dwork->work);
 	local_irq_enable();
 	return flush_work(&dwork->work);
 }
