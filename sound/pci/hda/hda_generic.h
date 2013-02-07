@@ -226,11 +226,10 @@ struct hda_gen_spec {
 	hda_nid_t vmaster_nid;
 	unsigned int vmaster_tlv[4];
 	struct hda_vmaster_mute_hook vmaster_mute;
-#ifdef CONFIG_PM
+
 	struct hda_loopback_check loopback;
 	int num_loopbacks;
 	struct hda_amp_list loopback_list[8];
-#endif
 
 	/* multi-io */
 	int multi_ios;

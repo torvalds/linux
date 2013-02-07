@@ -2483,7 +2483,6 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
  * Parse input paths
  */
 
-#ifdef CONFIG_PM
 /* add the powersave loopback-list entry */
 static void add_loopback_list(struct hda_gen_spec *spec, hda_nid_t mix, int idx)
 {
@@ -2498,9 +2497,6 @@ static void add_loopback_list(struct hda_gen_spec *spec, hda_nid_t mix, int idx)
 	spec->num_loopbacks++;
 	spec->loopback.amplist = spec->loopback_list;
 }
-#else
-#define add_loopback_list(spec, mix, idx) /* NOP */
-#endif
 
 /* create input playback/capture controls for the given pin */
 static int new_analog_input(struct hda_codec *codec, int input_idx,
