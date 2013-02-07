@@ -1455,14 +1455,14 @@ __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 		if (list_empty(&fh->vb_vidq.stream))
 			return res | POLLERR;
 		buf = list_entry(fh->vb_vidq.stream.next, struct tm6000_buffer, vb.stream);
+		poll_wait(file, &buf->vb.done, wait);
+		if (buf->vb.state == VIDEOBUF_DONE ||
+		    buf->vb.state == VIDEOBUF_ERROR)
+			return res | POLLIN | POLLRDNORM;
 	} else if (req_events & (POLLIN | POLLRDNORM)) {
 		/* read() capture */
 		return res | videobuf_poll_stream(file, &fh->vb_vidq, wait);
 	}
-	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == VIDEOBUF_DONE ||
-	    buf->vb.state == VIDEOBUF_ERROR)
-		return res | POLLIN | POLLRDNORM;
 	return res;
 }
 
