@@ -156,7 +156,7 @@ static int goldfish_nand_read_oob(struct mtd_info *mtd, loff_t ofs,
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_read_oob: invalid read, start %llx, len %x, ooblen %x, dev_size %llx, write_size %x\n",
+	pr_err("goldfish_nand_read_oob: invalid read, start %llx, len %zx, ooblen %zx, dev_size %llx, write_size %x\n",
 		ofs, ops->len, ops->ooblen, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
@@ -188,7 +188,7 @@ static int goldfish_nand_write_oob(struct mtd_info *mtd, loff_t ofs,
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_write_oob: invalid write, start %llx, len %x, ooblen %x, dev_size %llx, write_size %x\n",
+	pr_err("goldfish_nand_write_oob: invalid write, start %llx, len %zx, ooblen %zx, dev_size %llx, write_size %x\n",
 		ofs, ops->len, ops->ooblen, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
@@ -212,7 +212,7 @@ static int goldfish_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_read: invalid read, start %llx, len %x, dev_size %llx, write_size %x\n",
+	pr_err("goldfish_nand_read: invalid read, start %llx, len %zx, dev_size %llx, write_size %x\n",
 		from, len, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
@@ -236,7 +236,7 @@ static int goldfish_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_write: invalid write, start %llx, len %x, dev_size %llx, write_size %x\n",
+	pr_err("goldfish_nand_write: invalid write, start %llx, len %zx, dev_size %llx, write_size %x\n",
 		to, len, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
