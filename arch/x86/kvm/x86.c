@@ -6897,32 +6897,27 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				bool user_alloc)
 {
 	int npages = memslot->npages;
-	int map_flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	/* Prevent internal slot pages from being moved by fork()/COW. */
-	if (memslot->id >= KVM_USER_MEM_SLOTS)
-		map_flags = MAP_SHARED | MAP_ANONYMOUS;
-
-	/*To keep backward compatibility with older userspace,
-	 *x86 needs to handle !user_alloc case.
+	/*
+	 * Only private memory slots need to be mapped here since
+	 * KVM_SET_MEMORY_REGION ioctl is no longer supported.
 	 */
-	if (!user_alloc) {
-		if (npages && !old.npages) {
-			unsigned long userspace_addr;
+	if ((memslot->id >= KVM_USER_MEM_SLOTS) && npages && !old.npages) {
+		unsigned long userspace_addr;
 
-			userspace_addr = vm_mmap(NULL, 0,
-						 npages * PAGE_SIZE,
-						 PROT_READ | PROT_WRITE,
-						 map_flags,
-						 0);
+		/*
+		 * MAP_SHARED to prevent internal slot pages from being moved
+		 * by fork()/COW.
+		 */
+		userspace_addr = vm_mmap(NULL, 0, npages * PAGE_SIZE,
+					 PROT_READ | PROT_WRITE,
+					 MAP_SHARED | MAP_ANONYMOUS, 0);
 
-			if (IS_ERR((void *)userspace_addr))
-				return PTR_ERR((void *)userspace_addr);
+		if (IS_ERR((void *)userspace_addr))
+			return PTR_ERR((void *)userspace_addr);
 
-			memslot->userspace_addr = userspace_addr;
-		}
+		memslot->userspace_addr = userspace_addr;
 	}
-
 
 	return 0;
 }
@@ -6935,7 +6930,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 	int nr_mmu_pages = 0, npages = mem->memory_size >> PAGE_SHIFT;
 
-	if (!user_alloc && !old.user_alloc && old.npages && !npages) {
+	if ((mem->slot >= KVM_USER_MEM_SLOTS) && old.npages && !npages) {
 		int ret;
 
 		ret = vm_munmap(old.userspace_addr,

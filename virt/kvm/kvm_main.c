@@ -839,7 +839,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	r = -ENOMEM;
 	if (change == KVM_MR_CREATE) {
-		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
 
 		if (kvm_arch_create_memslot(&new, npages))
