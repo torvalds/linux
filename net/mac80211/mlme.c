@@ -3589,16 +3589,22 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
 	    sband->ht_cap.ht_supported) {
-		const u8 *ht_oper_ie;
+		const u8 *ht_oper_ie, *ht_cap;
 
 		ht_oper_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_OPERATION);
 		if (ht_oper_ie && ht_oper_ie[1] >= sizeof(*ht_oper))
 			ht_oper = (void *)(ht_oper_ie + 2);
+
+		ht_cap = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_CAPABILITY);
+		if (!ht_cap || ht_cap[1] < sizeof(struct ieee80211_ht_cap)) {
+			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+			ht_oper = NULL;
+		}
 	}
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
 	    sband->vht_cap.vht_supported) {
-		const u8 *vht_oper_ie;
+		const u8 *vht_oper_ie, *vht_cap;
 
 		vht_oper_ie = ieee80211_bss_get_ie(cbss,
 						   WLAN_EID_VHT_OPERATION);
@@ -3610,6 +3616,12 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				   "AP advertised VHT without HT, disabling both\n");
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+		}
+
+		vht_cap = ieee80211_bss_get_ie(cbss, WLAN_EID_VHT_CAPABILITY);
+		if (!vht_cap || vht_cap[1] < sizeof(struct ieee80211_vht_cap)) {
+			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+			vht_oper = NULL;
 		}
 	}
 
