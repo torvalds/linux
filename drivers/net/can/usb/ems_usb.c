@@ -1019,10 +1019,8 @@ static int ems_usb_probe(struct usb_interface *intf,
 
 	dev->tx_msg_buffer = kzalloc(CPC_HEADER_SIZE +
 				     sizeof(struct ems_cpc_msg), GFP_KERNEL);
-	if (!dev->tx_msg_buffer) {
-		dev_err(&intf->dev, "Couldn't alloc Tx buffer\n");
+	if (!dev->tx_msg_buffer)
 		goto cleanup_intr_in_buffer;
-	}
 
 	usb_set_intfdata(intf, dev);
 

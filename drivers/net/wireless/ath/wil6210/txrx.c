@@ -74,8 +74,6 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	vring->swtail = 0;
 	vring->ctx = kzalloc(vring->size * sizeof(vring->ctx[0]), GFP_KERNEL);
 	if (!vring->ctx) {
-		wil_err(wil, "vring_alloc [%d] failed to alloc ctx mem\n",
-			vring->size);
 		vring->va = NULL;
 		return -ENOMEM;
 	}

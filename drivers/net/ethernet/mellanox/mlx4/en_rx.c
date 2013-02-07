@@ -852,11 +852,9 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	struct mlx4_qp_context *context;
 	int err = 0;
 
-	context = kmalloc(sizeof *context , GFP_KERNEL);
-	if (!context) {
-		en_err(priv, "Failed to allocate qp context\n");
+	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
 		return -ENOMEM;
-	}
 
 	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
 	if (err) {

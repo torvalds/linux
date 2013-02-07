@@ -1445,10 +1445,9 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 
 	if (bus->rxblen)
 		buf = vzalloc(bus->rxblen);
-	if (!buf) {
-		brcmf_err("no memory for control frame\n");
+	if (!buf)
 		goto done;
-	}
+
 	rbuf = bus->rxbuf;
 	pad = ((unsigned long)rbuf % BRCMF_SDALIGN);
 	if (pad)

@@ -354,11 +354,10 @@ brcmf_usbdev_qinit(struct list_head *q, int qsize)
 	int i;
 	struct brcmf_usbreq *req, *reqs;
 
-	reqs = kzalloc(sizeof(struct brcmf_usbreq) * qsize, GFP_ATOMIC);
-	if (reqs == NULL) {
-		brcmf_err("fail to allocate memory!\n");
+	reqs = kcalloc(qsize, sizeof(struct brcmf_usbreq), GFP_ATOMIC);
+	if (reqs == NULL)
 		return NULL;
-	}
+
 	req = reqs;
 
 	for (i = 0; i < qsize; i++) {

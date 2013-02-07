@@ -149,11 +149,9 @@ static int get_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
 	DECLARE_WAITQUEUE(wait, current);
 
 	buffer = kmalloc(size, GFP_KERNEL);
-	if (!buffer) {
-		netif_warn(pegasus, drv, pegasus->net,
-			   "out of memory in %s\n", __func__);
+	if (!buffer)
 		return -ENOMEM;
-	}
+
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (pegasus->flags & ETH_REGS_CHANGED)

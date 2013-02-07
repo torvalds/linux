@@ -277,14 +277,12 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 	/* Setup the skbuff rings */
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
-		tx_queue->tx_skbuff = kmalloc(sizeof(*tx_queue->tx_skbuff) *
-					      tx_queue->tx_ring_size,
-					      GFP_KERNEL);
-		if (!tx_queue->tx_skbuff) {
-			netif_err(priv, ifup, ndev,
-				  "Could not allocate tx_skbuff\n");
+		tx_queue->tx_skbuff =
+			kmalloc_array(tx_queue->tx_ring_size,
+				      sizeof(*tx_queue->tx_skbuff),
+				      GFP_KERNEL);
+		if (!tx_queue->tx_skbuff)
 			goto cleanup;
-		}
 
 		for (k = 0; k < tx_queue->tx_ring_size; k++)
 			tx_queue->tx_skbuff[k] = NULL;
@@ -292,15 +290,12 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		rx_queue->rx_skbuff = kmalloc(sizeof(*rx_queue->rx_skbuff) *
-					      rx_queue->rx_ring_size,
-					      GFP_KERNEL);
-
-		if (!rx_queue->rx_skbuff) {
-			netif_err(priv, ifup, ndev,
-				  "Could not allocate rx_skbuff\n");
+		rx_queue->rx_skbuff =
+			kmalloc_array(rx_queue->rx_ring_size,
+				      sizeof(*rx_queue->rx_skbuff),
+				      GFP_KERNEL);
+		if (!rx_queue->rx_skbuff)
 			goto cleanup;
-		}
 
 		for (j = 0; j < rx_queue->rx_ring_size; j++)
 			rx_queue->rx_skbuff[j] = NULL;

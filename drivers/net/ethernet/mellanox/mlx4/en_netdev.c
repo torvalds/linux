@@ -708,7 +708,6 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 	netdev_for_each_mc_addr(ha, dev) {
 		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
 		if (!tmp) {
-			en_err(priv, "failed to allocate multicast list\n");
 			mlx4_en_clear_list(dev);
 			return;
 		}
@@ -752,14 +751,12 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 			}
 		}
 		if (!found) {
-			new_mc = kmalloc(sizeof(struct mlx4_en_mc_list),
+			new_mc = kmemdup(src_tmp,
+					 sizeof(struct mlx4_en_mc_list),
 					 GFP_KERNEL);
-			if (!new_mc) {
-				en_err(priv, "Failed to allocate current multicast list\n");
+			if (!new_mc)
 				return;
-			}
-			memcpy(new_mc, src_tmp,
-			       sizeof(struct mlx4_en_mc_list));
+
 			new_mc->action = MCLIST_ADD;
 			list_add_tail(&new_mc->list, dst);
 		}

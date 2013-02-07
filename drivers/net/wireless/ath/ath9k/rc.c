@@ -1452,17 +1452,7 @@ static void ath_rate_free(void *priv)
 
 static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
-	struct ath_softc *sc = priv;
-	struct ath_rate_priv *rate_priv;
-
-	rate_priv = kzalloc(sizeof(struct ath_rate_priv), gfp);
-	if (!rate_priv) {
-		ath_err(ath9k_hw_common(sc->sc_ah),
-			"Unable to allocate private rc structure\n");
-		return NULL;
-	}
-
-	return rate_priv;
+	return kzalloc(sizeof(struct ath_rate_priv), gfp);
 }
 
 static void ath_rate_free_sta(void *priv, struct ieee80211_sta *sta,

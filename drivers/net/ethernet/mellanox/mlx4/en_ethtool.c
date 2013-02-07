@@ -741,7 +741,6 @@ static int add_ip_rule(struct mlx4_en_priv *priv,
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
 	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
 	if (!spec_l2 || !spec_l3) {
-		en_err(priv, "Fail to alloc ethtool rule.\n");
 		err = -ENOMEM;
 		goto free_spec;
 	}
@@ -782,7 +781,6 @@ static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
 	spec_l4 = kzalloc(sizeof(*spec_l4), GFP_KERNEL);
 	if (!spec_l2 || !spec_l3 || !spec_l4) {
-		en_err(priv, "Fail to alloc ethtool rule.\n");
 		err = -ENOMEM;
 		goto free_spec;
 	}
