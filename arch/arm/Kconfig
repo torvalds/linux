@@ -640,6 +640,7 @@ config ARCH_LPC32XX
 config ARCH_TEGRA
 	bool "NVIDIA Tegra"
 	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_OF

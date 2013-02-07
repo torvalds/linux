@@ -5,7 +5,6 @@ comment "NVIDIA Tegra options"
 config ARCH_TEGRA_2x_SOC
 	bool "Enable support for Tegra20 family"
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_742230 if SMP
 	select ARM_ERRATA_751472
@@ -27,7 +26,6 @@ config ARCH_TEGRA_2x_SOC
 
 config ARCH_TEGRA_3x_SOC
 	bool "Enable support for Tegra30 family"
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_743622
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
