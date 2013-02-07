@@ -45,10 +45,10 @@ config ARCH_TEGRA_3x_SOC
 
 config ARCH_TEGRA_114_SOC
 	bool "Enable support for Tegra114 family"
-	select ARM_GIC
-	select CPU_V7
-	select ARM_L1_CACHE_SHIFT_6
 	select ARM_ARCH_TIMER
+	select ARM_GIC
+	select ARM_L1_CACHE_SHIFT_6
+	select CPU_V7
 	select PINCTRL
 	select PINCTRL_TEGRA114
 	help
