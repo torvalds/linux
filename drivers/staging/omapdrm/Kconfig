@@ -3,8 +3,8 @@ config DRM_OMAP
 	tristate "OMAP DRM"
 	depends on DRM && !CONFIG_FB_OMAP2
 	depends on ARCH_OMAP2PLUS || ARCH_MULTIPLATFORM
+	depends on OMAP2_DSS
 	select DRM_KMS_HELPER
-	select OMAP2_DSS
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
