@@ -65,13 +65,13 @@ static DEFINE_SPINLOCK(ip6_fl_lock);
 static DEFINE_SPINLOCK(ip6_sk_fl_lock);
 
 #define for_each_fl_rcu(hash, fl)				\
-	for (fl = rcu_dereference(fl_ht[(hash)]);		\
+	for (fl = rcu_dereference_bh(fl_ht[(hash)]);		\
 	     fl != NULL;					\
-	     fl = rcu_dereference(fl->next))
+	     fl = rcu_dereference_bh(fl->next))
 #define for_each_fl_continue_rcu(fl)				\
-	for (fl = rcu_dereference(fl->next);			\
+	for (fl = rcu_dereference_bh(fl->next);			\
 	     fl != NULL;					\
-	     fl = rcu_dereference(fl->next))
+	     fl = rcu_dereference_bh(fl->next))
 
 #define for_each_sk_fl_rcu(np, sfl)				\
 	for (sfl = rcu_dereference_bh(np->ipv6_fl_list);	\
