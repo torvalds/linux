@@ -162,6 +162,9 @@ nouveau-y += core/subdev/vm/nv41.o
 nouveau-y += core/subdev/vm/nv44.o
 nouveau-y += core/subdev/vm/nv50.o
 nouveau-y += core/subdev/vm/nvc0.o
+nouveau-y += core/subdev/volt/base.o
+nouveau-y += core/subdev/volt/gpio.o
+nouveau-y += core/subdev/volt/nv40.o
 
 nouveau-y += core/engine/falcon.o
 nouveau-y += core/engine/xtensa.o
