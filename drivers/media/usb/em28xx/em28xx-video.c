@@ -799,15 +799,6 @@ const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
 	.s_ctrl = em28xx_s_ctrl,
 };
 
-static int check_dev(struct em28xx *dev)
-{
-	if (dev->disconnected) {
-		em28xx_errdev("v4l2 ioctl: device not present\n");
-		return -ENODEV;
-	}
-	return 0;
-}
-
 static void get_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
@@ -957,11 +948,6 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	*norm = dev->norm;
 
@@ -972,11 +958,6 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, querystd, norm);
 
@@ -988,13 +969,9 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 	struct v4l2_format f;
-	int                rc;
 
 	if (*norm == dev->norm)
 		return 0;
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
@@ -1101,11 +1078,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (i >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1180,11 +1152,6 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1200,11 +1167,6 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1231,11 +1193,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != f->tuner)
 		return -EINVAL;
