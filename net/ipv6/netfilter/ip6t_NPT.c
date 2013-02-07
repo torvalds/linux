@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_ipv6/ip6t_NPT.h>
@@ -18,9 +19,18 @@ static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 {
 	struct ip6t_npt_tginfo *npt = par->targinfo;
 	__wsum src_sum = 0, dst_sum = 0;
+	struct in6_addr pfx;
 	unsigned int i;
 
 	if (npt->src_pfx_len > 64 || npt->dst_pfx_len > 64)
+		return -EINVAL;
+
+	/* Ensure that LSB of prefix is zero */
+	ipv6_addr_prefix(&pfx, &npt->src_pfx.in6, npt->src_pfx_len);
+	if (!ipv6_addr_equal(&pfx, &npt->src_pfx.in6))
+		return -EINVAL;
+	ipv6_addr_prefix(&pfx, &npt->dst_pfx.in6, npt->dst_pfx_len);
+	if (!ipv6_addr_equal(&pfx, &npt->dst_pfx.in6))
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(npt->src_pfx.in6.s6_addr16); i++) {
