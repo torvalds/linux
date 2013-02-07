@@ -97,14 +97,6 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 	int i;
 	char s[512];
 
-	if (map->dso->annotate_warned)
-		return -1;
-
-	if (symbol__annotate(sym, map, 0) < 0) {
-		ui__error("%s", ui_helpline__current);
-		return -1;
-	}
-
 	notes = symbol__annotation(sym);
 
 	for (i = 0; i < MAX_ANN_COLS; i++) {
@@ -154,6 +146,14 @@ int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
 	GtkWidget *notebook;
 	GtkWidget *scrolled_window;
 	GtkWidget *tab_label;
+
+	if (map->dso->annotate_warned)
+		return -1;
+
+	if (symbol__annotate(sym, map, 0) < 0) {
+		ui__error("%s", ui_helpline__current);
+		return -1;
+	}
 
 	if (perf_gtk__is_active_context(pgctx)) {
 		window = pgctx->main_window;
