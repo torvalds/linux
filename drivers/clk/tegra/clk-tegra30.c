@@ -1250,16 +1250,16 @@ static void __init tegra30_pmc_clk_init(void)
 
 }
 
-const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-				 "pll_p_cclkg", "pll_p_out4_cclkg",
-				 "pll_p_out3_cclkg", "unused", "pll_x" };
-const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-				  "pll_p_cclklp", "pll_p_out4_cclklp",
-				  "pll_p_out3_cclklp", "unused", "pll_x",
-				  "pll_x_out0" };
-const char *sclk_parents[] = { "clk_m", "pll_c_out1", "pll_p_out4",
-			       "pll_p_out3", "pll_p_out2", "unused",
-			       "clk_32k", "pll_m_out1" };
+static const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
+					"pll_p_cclkg", "pll_p_out4_cclkg",
+					"pll_p_out3_cclkg", "unused", "pll_x" };
+static const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
+					 "pll_p_cclklp", "pll_p_out4_cclklp",
+					 "pll_p_out3_cclklp", "unused", "pll_x",
+					 "pll_x_out0" };
+static const char *sclk_parents[] = { "clk_m", "pll_c_out1", "pll_p_out4",
+				      "pll_p_out3", "pll_p_out2", "unused",
+				      "clk_32k", "pll_m_out1" };
 
 static void __init tegra30_super_clk_init(void)
 {
