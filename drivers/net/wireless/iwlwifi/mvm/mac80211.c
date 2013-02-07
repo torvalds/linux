@@ -105,7 +105,7 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
-	int num_mac, ret;
+	int num_mac, ret, i;
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
@@ -156,11 +156,15 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
 	hw->wiphy->addresses = mvm->addresses;
 	hw->wiphy->n_addresses = 1;
-	num_mac = mvm->nvm_data->n_hw_addrs;
-	if (num_mac > 1) {
-		memcpy(mvm->addresses[1].addr, mvm->addresses[0].addr,
+
+	/* Extract additional MAC addresses if available */
+	num_mac = (mvm->nvm_data->n_hw_addrs > 1) ?
+		min(IWL_MVM_MAX_ADDRESSES, mvm->nvm_data->n_hw_addrs) : 1;
+
+	for (i = 1; i < num_mac; i++) {
+		memcpy(mvm->addresses[i].addr, mvm->addresses[i-1].addr,
 		       ETH_ALEN);
-		mvm->addresses[1].addr[5]++;
+		mvm->addresses[i].addr[5]++;
 		hw->wiphy->n_addresses++;
 	}
 

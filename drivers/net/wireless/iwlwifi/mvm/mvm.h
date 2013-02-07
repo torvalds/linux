@@ -79,7 +79,7 @@
 #include "fw-api.h"
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
-#define IWL_MVM_MAX_ADDRESSES		2
+#define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
 
