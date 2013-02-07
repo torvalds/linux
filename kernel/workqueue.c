@@ -1193,8 +1193,6 @@ static bool is_chained_work(struct workqueue_struct *wq)
 static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
-	bool highpri = wq->flags & WQ_HIGHPRI;
-	struct worker_pool *pool;
 	struct cpu_workqueue_struct *cwq;
 	struct list_head *worklist;
 	unsigned int work_flags;
@@ -1215,7 +1213,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	    WARN_ON_ONCE(!is_chained_work(wq)))
 		return;
 
-	/* determine pool to use */
+	/* determine the cwq to use */
 	if (!(wq->flags & WQ_UNBOUND)) {
 		struct worker_pool *last_pool;
 
@@ -1228,37 +1226,36 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 		 * work needs to be queued on that cpu to guarantee
 		 * non-reentrancy.
 		 */
-		pool = get_std_worker_pool(cpu, highpri);
+		cwq = get_cwq(cpu, wq);
 		last_pool = get_work_pool(work);
 
-		if (last_pool && last_pool != pool) {
+		if (last_pool && last_pool != cwq->pool) {
 			struct worker *worker;
 
 			spin_lock(&last_pool->lock);
 
 			worker = find_worker_executing_work(last_pool, work);
 
-			if (worker && worker->current_cwq->wq == wq)
-				pool = last_pool;
-			else {
+			if (worker && worker->current_cwq->wq == wq) {
+				cwq = get_cwq(last_pool->cpu, wq);
+			} else {
 				/* meh... not running there, queue here */
 				spin_unlock(&last_pool->lock);
-				spin_lock(&pool->lock);
+				spin_lock(&cwq->pool->lock);
 			}
 		} else {
-			spin_lock(&pool->lock);
+			spin_lock(&cwq->pool->lock);
 		}
 	} else {
-		pool = get_std_worker_pool(WORK_CPU_UNBOUND, highpri);
-		spin_lock(&pool->lock);
+		cwq = get_cwq(WORK_CPU_UNBOUND, wq);
+		spin_lock(&cwq->pool->lock);
 	}
 
-	/* pool determined, get cwq and queue */
-	cwq = get_cwq(pool->cpu, wq);
+	/* cwq determined, queue */
 	trace_workqueue_queue_work(req_cpu, cwq, work);
 
 	if (WARN_ON(!list_empty(&work->entry))) {
-		spin_unlock(&pool->lock);
+		spin_unlock(&cwq->pool->lock);
 		return;
 	}
 
@@ -1276,7 +1273,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 
 	insert_work(cwq, work, worklist, work_flags);
 
-	spin_unlock(&pool->lock);
+	spin_unlock(&cwq->pool->lock);
 }
 
 /**
