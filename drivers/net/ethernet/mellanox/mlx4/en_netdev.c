@@ -132,17 +132,14 @@ static void mlx4_en_filter_work(struct work_struct *work)
 		.priority = MLX4_DOMAIN_RFS,
 	};
 	int rc;
-	__be64 mac;
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	list_add_tail(&spec_eth.list, &rule.list);
 	list_add_tail(&spec_ip.list, &rule.list);
 	list_add_tail(&spec_tcp.list, &rule.list);
 
-	mac = cpu_to_be64((priv->mac & MLX4_MAC_MASK) << 16);
-
 	rule.qpn = priv->rss_map.qps[filter->rxq_index].qpn;
-	memcpy(spec_eth.eth.dst_mac, &mac, ETH_ALEN);
+	memcpy(spec_eth.eth.dst_mac, priv->dev->dev_addr, ETH_ALEN);
 	memcpy(spec_eth.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
 
 	filter->activated = 0;
@@ -413,6 +410,16 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
+static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
+{
+	unsigned int i;
+	for (i = ETH_ALEN - 1; i; --i) {
+		dst_mac[i] = src_mac & 0xff;
+		src_mac >>= 8;
+	}
+	memset(&dst_mac[ETH_ALEN], 0, 2);
+}
+
 u64 mlx4_en_mac_to_u64(u8 *addr)
 {
 	u64 mac = 0;
@@ -435,7 +442,6 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
-	priv->mac = mlx4_en_mac_to_u64(dev->dev_addr);
 	queue_work(mdev->workqueue, &priv->mac_task);
 	return 0;
 }
@@ -450,10 +456,13 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		/* Remove old MAC and insert the new one */
+		u64 mac = mlx4_en_mac_to_u64(priv->dev->dev_addr);
 		err = mlx4_replace_mac(mdev->dev, priv->port,
-				       priv->base_qpn, priv->mac);
+				       priv->base_qpn, mac);
 		if (err)
 			en_err(priv, "Failed changing HW MAC address\n");
+		memcpy(priv->prev_mac, priv->dev->dev_addr,
+		       sizeof(priv->prev_mac));
 	} else
 		en_dbg(HW, priv, "Port is down while "
 				 "registering mac, exiting...\n");
@@ -1031,6 +1040,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	int i;
 	int j;
 	u8 mc_list[16] = {0};
+	u64 mac = mlx4_en_mac_to_u64(dev->dev_addr);
 
 	if (priv->port_up) {
 		en_dbg(DRV, priv, "start port called while port already up\n");
@@ -1078,7 +1088,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Set qp number */
 	en_dbg(DRV, priv, "Getting qp number for port %d\n", priv->port);
 	err = mlx4_get_eth_qp(mdev->dev, priv->port,
-				priv->mac, &priv->base_qpn);
+			      mac, &priv->base_qpn);
 	if (err) {
 		en_err(priv, "Failed getting eth qp\n");
 		goto cq_err;
@@ -1191,7 +1201,7 @@ tx_err:
 rss_err:
 	mlx4_en_release_rss_steer(priv);
 mac_err:
-	mlx4_put_eth_qp(mdev->dev, priv->port, priv->mac, priv->base_qpn);
+	mlx4_put_eth_qp(mdev->dev, priv->port, mac, priv->base_qpn);
 cq_err:
 	while (rx_index--)
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[rx_index]);
@@ -1210,6 +1220,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	struct ethtool_flow_id *flow, *tmp_flow;
 	int i;
 	u8 mc_list[16] = {0};
+	u64 mac = mlx4_en_mac_to_u64(dev->dev_addr);
 
 	if (!priv->port_up) {
 		en_dbg(DRV, priv, "stop port called while port already down\n");
@@ -1290,7 +1301,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	mlx4_en_release_rss_steer(priv);
 
 	/* Unregister Mac address for the port */
-	mlx4_put_eth_qp(mdev->dev, priv->port, priv->mac, priv->base_qpn);
+	mlx4_put_eth_qp(mdev->dev, priv->port, mac, priv->base_qpn);
 	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN))
 		mdev->mac_removed[priv->port] = 1;
 
@@ -1597,7 +1608,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 {
 	struct net_device *dev;
 	struct mlx4_en_priv *priv;
-	int i;
 	int err;
 
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
@@ -1658,13 +1668,18 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	/* Query for default mac and max mtu */
 	priv->max_mtu = mdev->dev->caps.eth_mtu_cap[priv->port];
-	priv->mac = mdev->dev->caps.def_mac[priv->port];
-	if (ILLEGAL_MAC(priv->mac)) {
-		en_err(priv, "Port: %d, invalid mac burned: 0x%llx, quiting\n",
-			 priv->port, priv->mac);
+
+	/* Set default MAC */
+	dev->addr_len = ETH_ALEN;
+	mlx4_en_u64_to_mac(dev->dev_addr, mdev->dev->caps.def_mac[priv->port]);
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		en_err(priv, "Port: %d, invalid mac burned: %pM, quiting\n",
+		       priv->port, dev->dev_addr);
 		err = -EINVAL;
 		goto out;
 	}
+
+	memcpy(priv->prev_mac, dev->dev_addr, sizeof(priv->prev_mac));
 
 	priv->stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
 					  DS_SIZE * MLX4_EN_MAX_RX_FRAGS);
@@ -1695,11 +1710,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
-
-	/* Set defualt MAC */
-	dev->addr_len = ETH_ALEN;
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[ETH_ALEN - 1 - i] = (u8) (priv->mac >> (8 * i));
 
 	/*
 	 * Set driver features

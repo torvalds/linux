@@ -198,7 +198,6 @@ enum cq_type {
  */
 #define ROUNDUP_LOG2(x)		ilog2(roundup_pow_of_two(x))
 #define XNOR(x, y)		(!(x) == !(y))
-#define ILLEGAL_MAC(addr)	(addr == 0xffffffffffffULL || addr == 0x0)
 
 
 struct mlx4_en_tx_info {
@@ -483,7 +482,7 @@ struct mlx4_en_priv {
 	int registered;
 	int allocated;
 	int stride;
-	u64 mac;
+	unsigned char prev_mac[ETH_ALEN + 2];
 	int mac_index;
 	unsigned max_mtu;
 	int base_qpn;

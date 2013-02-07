@@ -606,7 +606,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (priv->flags & MLX4_EN_FLAG_RX_FILTER_NEEDED) {
 			struct ethhdr *ethh;
 			dma_addr_t dma;
-			u64 s_mac;
 			/* Get pointer to first fragment since we haven't
 			 * skb yet and cast it to ethhdr struct
 			 */
@@ -617,8 +616,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						 frags[0].offset);
 
 			/* Drop the packet, since HW loopback-ed it */
-			s_mac = mlx4_en_mac_to_u64(ethh->h_source);
-			if (s_mac == priv->mac)
+			if (ether_addr_equal_64bits(dev->dev_addr,
+						    ethh->h_source))
 				goto next;
 		}
 
