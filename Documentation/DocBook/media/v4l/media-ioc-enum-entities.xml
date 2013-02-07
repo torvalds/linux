@@ -272,6 +272,16 @@
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_LENS</constant></entry>
 	    <entry>Lens controller</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_DECODER</constant></entry>
+	    <entry>Video decoder, the basic function of the video decoder is to
+	    accept analogue video from a wide variety of sources such as
+	    broadcast, DVD players, cameras and video cassette recorders, in
+	    either NTSC, PAL or HD format and still occasionally SECAM, separate
+	    it into its component parts, luminance and chrominance, and output
+	    it in some digital video standard, with appropriate embedded timing
+	    signals.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
