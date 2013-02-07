@@ -813,12 +813,12 @@ int em28xx_resolution_set(struct em28xx *dev)
 /* Set USB alternate setting for analog video */
 int em28xx_set_alternate(struct em28xx *dev)
 {
-	int errCode, prev_alt = dev->alt;
+	int errCode;
 	int i;
 	unsigned int min_pkt_size = dev->width * 2 + 4;
 
 	/* NOTE: for isoc transfers, only alt settings > 0 are allowed
-		 for bulk transfers, use alt=0 as default value */
+		 bulk transfers seem to work only with alt=0 ! */
 	dev->alt = 0;
 	if ((alt > 0) && (alt < dev->num_alt)) {
 		em28xx_coredbg("alternate forced to %d\n", dev->alt);
@@ -849,25 +849,26 @@ int em28xx_set_alternate(struct em28xx *dev)
 	}
 
 set_alt:
-	if (dev->alt != prev_alt) {
-		if (dev->analog_xfer_bulk) {
-			dev->max_pkt_size = 512; /* USB 2.0 spec */
-			dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
-		} else { /* isoc */
-			em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
-				       min_pkt_size, dev->alt);
-			dev->max_pkt_size =
-					  dev->alt_max_pkt_size_isoc[dev->alt];
-			dev->packet_multiplier = EM28XX_NUM_ISOC_PACKETS;
-		}
-		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
-			       dev->alt, dev->max_pkt_size);
-		errCode = usb_set_interface(dev->udev, 0, dev->alt);
-		if (errCode < 0) {
-			em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
-					dev->alt, errCode);
-			return errCode;
-		}
+	/* NOTE: for bulk transfers, we need to call usb_set_interface()
+	 * even if the previous settings were the same. Otherwise streaming
+	 * fails with all urbs having status = -EOVERFLOW ! */
+	if (dev->analog_xfer_bulk) {
+		dev->max_pkt_size = 512; /* USB 2.0 spec */
+		dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
+	} else { /* isoc */
+		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
+			       min_pkt_size, dev->alt);
+		dev->max_pkt_size =
+				  dev->alt_max_pkt_size_isoc[dev->alt];
+		dev->packet_multiplier = EM28XX_NUM_ISOC_PACKETS;
+	}
+	em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
+		       dev->alt, dev->max_pkt_size);
+	errCode = usb_set_interface(dev->udev, 0, dev->alt);
+	if (errCode < 0) {
+		em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
+			      dev->alt, errCode);
+		return errCode;
 	}
 	return 0;
 }
