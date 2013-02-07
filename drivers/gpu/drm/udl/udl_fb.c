@@ -22,9 +22,9 @@
 
 #include "drm_fb_helper.h"
 
-#define DL_DEFIO_WRITE_DELAY    5 /* fb_deferred_io.delay in jiffies */
+#define DL_DEFIO_WRITE_DELAY    (HZ/20) /* fb_deferred_io.delay in jiffies */
 
-static int fb_defio = 1;  /* Optionally enable experimental fb_defio mmap support */
+static int fb_defio = 0;  /* Optionally enable experimental fb_defio mmap support */
 static int fb_bpp = 16;
 
 module_param(fb_bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
