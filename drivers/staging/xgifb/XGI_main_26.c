@@ -209,6 +209,7 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->P3c0 = BaseAddr + 0x10;
 	XGI_Pr->P3ce = BaseAddr + 0x1e;
 	XGI_Pr->P3c2 = BaseAddr + 0x12;
+	XGI_Pr->P3cc = BaseAddr + 0x1c;
 	XGI_Pr->P3ca = BaseAddr + 0x1a;
 	XGI_Pr->P3c6 = BaseAddr + 0x16;
 	XGI_Pr->P3c7 = BaseAddr + 0x17;
