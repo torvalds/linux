@@ -258,7 +258,7 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 		if (sw & 2)
 			return WORK_CPU_UNBOUND;
 	}
-	return WORK_CPU_NONE;
+	return WORK_CPU_END;
 }
 
 static inline int __next_cwq_cpu(int cpu, const struct cpumask *mask,
@@ -282,17 +282,17 @@ static inline int __next_cwq_cpu(int cpu, const struct cpumask *mask,
  */
 #define for_each_wq_cpu(cpu)						\
 	for ((cpu) = __next_wq_cpu(-1, cpu_possible_mask, 3);		\
-	     (cpu) < WORK_CPU_NONE;					\
+	     (cpu) < WORK_CPU_END;					\
 	     (cpu) = __next_wq_cpu((cpu), cpu_possible_mask, 3))
 
 #define for_each_online_wq_cpu(cpu)					\
 	for ((cpu) = __next_wq_cpu(-1, cpu_online_mask, 3);		\
-	     (cpu) < WORK_CPU_NONE;					\
+	     (cpu) < WORK_CPU_END;					\
 	     (cpu) = __next_wq_cpu((cpu), cpu_online_mask, 3))
 
 #define for_each_cwq_cpu(cpu, wq)					\
 	for ((cpu) = __next_cwq_cpu(-1, cpu_possible_mask, (wq));	\
-	     (cpu) < WORK_CPU_NONE;					\
+	     (cpu) < WORK_CPU_END;					\
 	     (cpu) = __next_cwq_cpu((cpu), cpu_possible_mask, (wq)))
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
@@ -3796,7 +3796,7 @@ static int __init init_workqueues(void)
 
 	/* make sure we have enough bits for OFFQ pool ID */
 	BUILD_BUG_ON((1LU << (BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT)) <
-		     WORK_CPU_LAST * NR_STD_WORKER_POOLS);
+		     WORK_CPU_END * NR_STD_WORKER_POOLS);
 
 	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
 	hotcpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
