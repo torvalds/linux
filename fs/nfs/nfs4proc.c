@@ -1848,6 +1848,43 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata, struct
 		sattr->ia_valid |= ATTR_MTIME;
 }
 
+static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
+		fmode_t fmode,
+		int flags,
+		struct nfs4_state **res)
+{
+	struct nfs4_state_owner *sp = opendata->owner;
+	struct nfs_server *server = sp->so_server;
+	struct nfs4_state *state;
+	unsigned int seq;
+	int ret;
+
+	seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
+
+	ret = _nfs4_proc_open(opendata);
+	if (ret != 0)
+		goto out;
+
+	state = nfs4_opendata_to_nfs4_state(opendata);
+	ret = PTR_ERR(state);
+	if (IS_ERR(state))
+		goto out;
+	if (server->caps & NFS_CAP_POSIX_LOCK)
+		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
+
+	ret = nfs4_opendata_access(sp->so_cred, opendata, state, fmode, flags);
+	if (ret != 0)
+		goto out;
+
+	if (read_seqcount_retry(&sp->so_reclaim_seqcount, seq)) {
+		nfs4_schedule_stateid_recovery(server, state);
+		nfs4_wait_clnt_recover(server->nfs_client);
+	}
+	*res = state;
+out:
+	return ret;
+}
+
 /*
  * Returns a referenced nfs4_state
  */
@@ -1892,18 +1929,7 @@ static int _nfs4_do_open(struct inode *dir,
 	if (dentry->d_inode != NULL)
 		opendata->state = nfs4_get_open_state(dentry->d_inode, sp);
 
-	status = _nfs4_proc_open(opendata);
-	if (status != 0)
-		goto err_opendata_put;
-
-	state = nfs4_opendata_to_nfs4_state(opendata);
-	status = PTR_ERR(state);
-	if (IS_ERR(state))
-		goto err_opendata_put;
-	if (server->caps & NFS_CAP_POSIX_LOCK)
-		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
-
-	status = nfs4_opendata_access(cred, opendata, state, fmode, flags);
+	status = _nfs4_open_and_get_state(opendata, fmode, flags, &state);
 	if (status != 0)
 		goto err_opendata_put;
 
