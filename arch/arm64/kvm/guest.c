@@ -99,6 +99,12 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (off == KVM_REG_ARM_CORE_REG(regs.pstate)) {
 		u32 mode = (*(u32 *)valp) & COMPAT_PSR_MODE_MASK;
 		switch (mode) {
+		case COMPAT_PSR_MODE_USR:
+		case COMPAT_PSR_MODE_FIQ:
+		case COMPAT_PSR_MODE_IRQ:
+		case COMPAT_PSR_MODE_SVC:
+		case COMPAT_PSR_MODE_ABT:
+		case COMPAT_PSR_MODE_UND:
 		case PSR_MODE_EL0t:
 		case PSR_MODE_EL1t:
 		case PSR_MODE_EL1h:

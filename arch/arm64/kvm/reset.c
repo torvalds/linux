@@ -38,16 +38,32 @@ static const struct kvm_regs default_regs_reset = {
 			PSR_F_BIT | PSR_D_BIT),
 };
 
+static const struct kvm_regs default_regs_reset32 = {
+	.regs.pstate = (COMPAT_PSR_MODE_SVC | COMPAT_PSR_A_BIT |
+			COMPAT_PSR_I_BIT | COMPAT_PSR_F_BIT),
+};
+
 static const struct kvm_irq_level default_vtimer_irq = {
 	.irq	= 27,
 	.level	= 1,
 };
+
+static bool cpu_has_32bit_el1(void)
+{
+	u64 pfr0;
+
+	pfr0 = read_cpuid(ID_AA64PFR0_EL1);
+	return !!(pfr0 & 0x20);
+}
 
 int kvm_arch_dev_ioctl_check_extension(long ext)
 {
 	int r;
 
 	switch (ext) {
+	case KVM_CAP_ARM_EL1_32BIT:
+		r = cpu_has_32bit_el1();
+		break;
 	default:
 		r = 0;
 	}
@@ -70,7 +86,15 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	switch (vcpu->arch.target) {
 	default:
-		cpu_reset = &default_regs_reset;
+		if (test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features)) {
+			if (!cpu_has_32bit_el1())
+				return -EINVAL;
+			cpu_reset = &default_regs_reset32;
+			vcpu->arch.hcr_el2 &= ~HCR_RW;
+		} else {
+			cpu_reset = &default_regs_reset;
+		}
+
 		cpu_vtimer_irq = &default_vtimer_irq;
 		break;
 	}
