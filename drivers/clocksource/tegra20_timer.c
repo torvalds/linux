@@ -218,9 +218,6 @@ static void __init tegra20_init_timer(struct device_node *np)
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_config_and_register(&tegra_clockevent, 1000000,
 					0x1, 0x1fffffff);
-#ifdef CONFIG_HAVE_ARM_TWD
-	twd_local_timer_of_register();
-#endif
 }
 CLOCKSOURCE_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
 

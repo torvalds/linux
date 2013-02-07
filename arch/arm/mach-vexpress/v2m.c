@@ -5,6 +5,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/clocksource.h>
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
@@ -25,7 +26,6 @@
 #include <asm/arch_timer.h>
 #include <asm/mach-types.h>
 #include <asm/sizes.h>
-#include <asm/smp_twd.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -435,6 +435,7 @@ static void __init v2m_dt_timer_init(void)
 
 	vexpress_clk_of_init();
 
+	clocksource_of_init();
 	do {
 		node = of_find_compatible_node(node, NULL, "arm,sp804");
 	} while (node && vexpress_get_site_by_node(node) != VEXPRESS_SITE_MB);
@@ -445,8 +446,7 @@ static void __init v2m_dt_timer_init(void)
 				irq_of_parse_and_map(node, 0));
 	}
 
-	if (arch_timer_of_register() != 0)
-		twd_local_timer_of_register();
+	arch_timer_of_register();
 
 	if (arch_timer_sched_clock_init() != 0)
 		versatile_sched_clock_init(vexpress_get_24mhz_clock_base(),
