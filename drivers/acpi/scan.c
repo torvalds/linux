@@ -203,7 +203,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		return -EINVAL;
 	}
 #ifndef FORCE_EJECT
-	if (acpi_device->driver == NULL) {
+	if (!acpi_device->driver && !acpi_device->handler) {
 		ret = -ENODEV;
 		goto err;
 	}
