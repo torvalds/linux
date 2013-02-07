@@ -44,6 +44,7 @@
 #include <linux/prefetch.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/ssb/ssb_driver_gige.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
@@ -263,6 +264,7 @@ static DEFINE_PCI_DEVICE_TABLE(tg3_pci_tbl) = {
 			TG3_DRV_DATA_FLAG_5705_10_100},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5721)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5722)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5750)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5751)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5751M)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5751F),
@@ -573,7 +575,9 @@ static void _tw32_flush(struct tg3 *tp, u32 off, u32 val, u32 usec_wait)
 static inline void tw32_mailbox_flush(struct tg3 *tp, u32 off, u32 val)
 {
 	tp->write32_mbox(tp, off, val);
-	if (!tg3_flag(tp, MBOX_WRITE_REORDER) && !tg3_flag(tp, ICH_WORKAROUND))
+	if (tg3_flag(tp, FLUSH_POSTED_WRITES) ||
+	    (!tg3_flag(tp, MBOX_WRITE_REORDER) &&
+	     !tg3_flag(tp, ICH_WORKAROUND)))
 		tp->read32_mbox(tp, off);
 }
 
@@ -583,7 +587,8 @@ static void tg3_write32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 	writel(val, mbox);
 	if (tg3_flag(tp, TXD_MBOX_HWBUG))
 		writel(val, mbox);
-	if (tg3_flag(tp, MBOX_WRITE_REORDER))
+	if (tg3_flag(tp, MBOX_WRITE_REORDER) ||
+	    tg3_flag(tp, FLUSH_POSTED_WRITES))
 		readl(mbox);
 }
 
@@ -1792,6 +1797,11 @@ static int tg3_poll_fw(struct tg3 *tp)
 {
 	int i;
 	u32 val;
+
+	if (tg3_flag(tp, IS_SSB_CORE)) {
+		/* We don't use firmware. */
+		return 0;
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		/* Wait up to 20ms for init done. */
@@ -3465,6 +3475,13 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 		tw32_f(offset + CPU_MODE,  CPU_MODE_HALT);
 		udelay(10);
 	} else {
+		/*
+		 * There is only an Rx CPU for the 5750 derivative in the
+		 * BCM4785.
+		 */
+		if (tg3_flag(tp, IS_SSB_CORE))
+			return 0;
+
 		for (i = 0; i < 10000; i++) {
 			tw32(offset + CPU_STATE, 0xffffffff);
 			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
@@ -3932,8 +3949,9 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	tg3_frob_aux_power(tp, true);
 
 	/* Workaround for unstable PLL clock */
-	if ((GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_AX) ||
-	    (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_BX)) {
+	if ((!tg3_flag(tp, IS_SSB_CORE)) &&
+	    ((GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_AX) ||
+	     (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_BX))) {
 		u32 val = tr32(0x7d00);
 
 		val &= ~((1 << 16) | (1 << 4) | (1 << 2) | (1 << 1) | 1);
@@ -4454,6 +4472,15 @@ relink:
 	if (current_link_up == 0 || (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
 		tg3_phy_copper_begin(tp);
 
+		if (tg3_flag(tp, ROBOSWITCH)) {
+			current_link_up = 1;
+			/* FIXME: when BCM5325 switch is used use 100 MBit/s */
+			current_speed = SPEED_1000;
+			current_duplex = DUPLEX_FULL;
+			tp->link_config.active_speed = current_speed;
+			tp->link_config.active_duplex = current_duplex;
+		}
+
 		tg3_readphy(tp, MII_BMSR, &bmsr);
 		if ((!tg3_readphy(tp, MII_BMSR, &bmsr) && (bmsr & BMSR_LSTATUS)) ||
 		    (tp->mac_mode & MAC_MODE_PORT_INT_LPBACK))
@@ -4471,6 +4498,26 @@ relink:
 		tp->mac_mode |= MAC_MODE_PORT_MODE_MII;
 	else
 		tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
+
+	/* In order for the 5750 core in BCM4785 chip to work properly
+	 * in RGMII mode, the Led Control Register must be set up.
+	 */
+	if (tg3_flag(tp, RGMII_MODE)) {
+		u32 led_ctrl = tr32(MAC_LED_CTRL);
+		led_ctrl &= ~(LED_CTRL_1000MBPS_ON | LED_CTRL_100MBPS_ON);
+
+		if (tp->link_config.active_speed == SPEED_10)
+			led_ctrl |= LED_CTRL_LNKLED_OVERRIDE;
+		else if (tp->link_config.active_speed == SPEED_100)
+			led_ctrl |= (LED_CTRL_LNKLED_OVERRIDE |
+				     LED_CTRL_100MBPS_ON);
+		else if (tp->link_config.active_speed == SPEED_1000)
+			led_ctrl |= (LED_CTRL_LNKLED_OVERRIDE |
+				     LED_CTRL_1000MBPS_ON);
+
+		tw32(MAC_LED_CTRL, led_ctrl);
+		udelay(40);
+	}
 
 	tp->mac_mode &= ~MAC_MODE_HALF_DUPLEX;
 	if (tp->link_config.active_duplex == DUPLEX_HALF)
@@ -8449,6 +8496,16 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32(0x5000, 0x400);
 	}
 
+	if (tg3_flag(tp, IS_SSB_CORE)) {
+		/*
+		 * BCM4785: In order to avoid repercussions from using
+		 * potentially defective internal ROM, stop the Rx RISC CPU,
+		 * which is not required.
+		 */
+		tg3_stop_fw(tp);
+		tg3_halt_cpu(tp, RX_CPU_BASE);
+	}
+
 	tw32(GRC_MODE, tp->grc_mode);
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A0) {
@@ -10106,6 +10163,11 @@ static void tg3_timer(unsigned long __opaque)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
 	    tg3_flag(tp, 57765_CLASS))
 		tg3_chk_missed_msi(tp);
+
+	if (tg3_flag(tp, FLUSH_POSTED_WRITES)) {
+		/* BCM4785: Flush posted writes from GbE to host memory. */
+		tr32(HOSTCC_MODE);
+	}
 
 	if (!tg3_flag(tp, TAGGED_STATUS)) {
 		/* All of this garbage is because when using non-tagged
@@ -13879,6 +13941,14 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 /* Chips other than 5700/5701 use the NVRAM for fetching info. */
 static void tg3_nvram_init(struct tg3 *tp)
 {
+	if (tg3_flag(tp, IS_SSB_CORE)) {
+		/* No NVRAM and EEPROM on the SSB Broadcom GigE core. */
+		tg3_flag_clear(tp, NVRAM);
+		tg3_flag_clear(tp, NVRAM_BUFFERED);
+		tg3_flag_set(tp, NO_NVRAM);
+		return;
+	}
+
 	tw32_f(GRC_EEPROM_ADDR,
 	     (EEPROM_ADDR_FSM_RESET |
 	      (EEPROM_DEFAULT_CLOCK_PERIOD <<
@@ -14405,10 +14475,19 @@ static int tg3_phy_probe(struct tg3 *tp)
 			 * subsys device table.
 			 */
 			p = tg3_lookup_by_subsys(tp);
-			if (!p)
+			if (p) {
+				tp->phy_id = p->phy_id;
+			} else if (!tg3_flag(tp, IS_SSB_CORE)) {
+				/* For now we saw the IDs 0xbc050cd0,
+				 * 0xbc050f80 and 0xbc050c30 on devices
+				 * connected to an BCM4785 and there are
+				 * probably more. Just assume that the phy is
+				 * supported when it is connected to a SSB core
+				 * for now.
+				 */
 				return -ENODEV;
+			}
 
-			tp->phy_id = p->phy_id;
 			if (!tp->phy_id ||
 			    tp->phy_id == TG3_PHY_ID_BCM8002)
 				tp->phy_flags |= TG3_PHYFLG_PHY_SERDES;
@@ -15484,6 +15563,11 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 				     TG3_CPMU_STATUS_FSHFT_5719;
 	}
 
+	if (tg3_flag(tp, FLUSH_POSTED_WRITES)) {
+		tp->write32_tx_mbox = tg3_write_flush_reg32;
+		tp->write32_rx_mbox = tg3_write_flush_reg32;
+	}
+
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_IS_NIC flag must be
 	 * determined before calling tg3_set_power_state() so that
@@ -15820,11 +15904,18 @@ static int tg3_get_device_address(struct tg3 *tp)
 	struct net_device *dev = tp->dev;
 	u32 hi, lo, mac_offset;
 	int addr_ok = 0;
+	int err;
 
 #ifdef CONFIG_SPARC
 	if (!tg3_get_macaddr_sparc(tp))
 		return 0;
 #endif
+
+	if (tg3_flag(tp, IS_SSB_CORE)) {
+		err = ssb_gige_get_macaddr(tp->pdev, &dev->dev_addr[0]);
+		if (!err && is_valid_ether_addr(&dev->dev_addr[0]))
+			return 0;
+	}
 
 	mac_offset = 0x7c;
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
@@ -16185,6 +16276,8 @@ static int tg3_test_dma(struct tg3 *tp)
 			tp->dma_rwctrl |= 0x001b000f;
 		}
 	}
+	if (tg3_flag(tp, ONE_DMA_AT_ONCE))
+		tp->dma_rwctrl |= DMA_RWCTRL_ONE_DMA;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704)
@@ -16529,6 +16622,18 @@ static int tg3_init_one(struct pci_dev *pdev,
 		tp->msg_enable = tg3_debug;
 	else
 		tp->msg_enable = TG3_DEF_MSG_ENABLE;
+
+	if (pdev_is_ssb_gige_core(pdev)) {
+		tg3_flag_set(tp, IS_SSB_CORE);
+		if (ssb_gige_must_flush_posted_writes(pdev))
+			tg3_flag_set(tp, FLUSH_POSTED_WRITES);
+		if (ssb_gige_one_dma_at_once(pdev))
+			tg3_flag_set(tp, ONE_DMA_AT_ONCE);
+		if (ssb_gige_have_roboswitch(pdev))
+			tg3_flag_set(tp, ROBOSWITCH);
+		if (ssb_gige_is_rgmii(pdev))
+			tg3_flag_set(tp, RGMII_MODE);
+	}
 
 	/* The word/byte swap controls here control register access byte
 	 * swapping.  DMA data byte swapping is controlled in the GRC_MODE
