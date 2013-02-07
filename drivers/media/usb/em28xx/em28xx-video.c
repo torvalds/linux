@@ -1480,35 +1480,6 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
-				struct v4l2_format *format)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-
-	format->fmt.vbi.samples_per_line = dev->vbi_width;
-	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	format->fmt.vbi.offset = 0;
-	format->fmt.vbi.flags = 0;
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
-	format->fmt.vbi.count[0] = dev->vbi_height;
-	format->fmt.vbi.count[1] = dev->vbi_height;
-	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
-
-	/* Varies by video standard (NTSC, PAL, etc.) */
-	if (dev->norm & V4L2_STD_525_60) {
-		/* NTSC */
-		format->fmt.vbi.start[0] = 10;
-		format->fmt.vbi.start[1] = 273;
-	} else if (dev->norm & V4L2_STD_625_50) {
-		/* PAL */
-		format->fmt.vbi.start[0] = 6;
-		format->fmt.vbi.start[1] = 318;
-	}
-
-	return 0;
-}
-
 /* ----------------------------------------------------------- */
 /* RADIO ESPECIFIC IOCTLS                                      */
 /* ----------------------------------------------------------- */
@@ -1707,7 +1678,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap     = vidioc_g_fmt_vbi_cap,
-	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
+	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_enum_framesizes     = vidioc_enum_framesizes,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
