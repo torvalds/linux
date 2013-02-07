@@ -1237,6 +1237,11 @@ struct seq_list {
 	u64 seq;
 };
 
+enum btrfs_orphan_cleanup_state {
+	ORPHAN_CLEANUP_STARTED	= 1,
+	ORPHAN_CLEANUP_DONE	= 2,
+};
+
 /* fs_info */
 struct reloc_control;
 struct btrfs_device;

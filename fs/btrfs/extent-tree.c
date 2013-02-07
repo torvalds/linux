@@ -102,6 +102,8 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 			    int dump_block_groups);
 static int btrfs_update_reserved_bytes(struct btrfs_block_group_cache *cache,
 				       u64 num_bytes, int reserve);
+static int block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv,
+			       u64 num_bytes);
 
 static noinline int
 block_group_cache_done(struct btrfs_block_group_cache *cache)
@@ -4099,6 +4101,15 @@ again:
 		goto again;
 
 out:
+	if (ret == -ENOSPC &&
+	    unlikely(root->orphan_cleanup_state == ORPHAN_CLEANUP_STARTED)) {
+		struct btrfs_block_rsv *global_rsv =
+			&root->fs_info->global_block_rsv;
+
+		if (block_rsv != global_rsv &&
+		    !block_rsv_use_bytes(global_rsv, orig_bytes))
+			ret = 0;
+	}
 	if (flushing) {
 		spin_lock(&space_info->lock);
 		space_info->flush = 0;
