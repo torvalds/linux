@@ -95,6 +95,28 @@ int en_print(const char *level, const struct mlx4_en_priv *priv,
 	return i;
 }
 
+void mlx4_en_update_loopback_state(struct net_device *dev,
+				   netdev_features_t features)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
+			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
+
+	/* Drop the packet if SRIOV is not enabled
+	 * and not performing the selftest or flb disabled
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) &&
+	    !(features & NETIF_F_LOOPBACK) && !priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_RX_FILTER_NEEDED;
+
+	/* Set dmac in Tx WQE if we are in SRIOV mode or if loopback selftest
+	 * is requested
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
+}
+
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;

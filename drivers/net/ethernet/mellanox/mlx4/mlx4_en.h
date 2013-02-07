@@ -432,6 +432,17 @@ struct ethtool_flow_id {
 	u64 id;
 };
 
+enum {
+	MLX4_EN_FLAG_PROMISC		= (1 << 0),
+	MLX4_EN_FLAG_MC_PROMISC		= (1 << 1),
+	/* whether we need to enable hardware loopback by putting dmac
+	 * in Tx WQE
+	 */
+	MLX4_EN_FLAG_ENABLE_HW_LOOPBACK	= (1 << 2),
+	/* whether we need to drop packets that hardware loopback-ed */
+	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3)
+};
+
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -481,8 +492,6 @@ struct mlx4_en_priv {
 	struct mlx4_en_rss_map rss_map;
 	__be32 ctrl_flags;
 	u32 flags;
-#define MLX4_EN_FLAG_PROMISC	0x1
-#define MLX4_EN_FLAG_MC_PROMISC	0x2
 	u8 num_tx_rings_p_up;
 	u32 tx_ring_num;
 	u32 rx_ring_num;
@@ -533,6 +542,9 @@ enum mlx4_en_wol {
 };
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
+
+void mlx4_en_update_loopback_state(struct net_device *dev,
+				   netdev_features_t features);
 
 void mlx4_en_destroy_netdev(struct net_device *dev);
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,

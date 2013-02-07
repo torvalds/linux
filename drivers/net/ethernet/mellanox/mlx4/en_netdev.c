@@ -1563,6 +1563,8 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		priv->ctrl_flags &=
 			cpu_to_be32(~MLX4_WQE_CTRL_FORCE_LOOPBACK);
 
+	mlx4_en_update_loopback_state(netdev, features);
+
 	return 0;
 
 }
@@ -1730,6 +1732,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	en_warn(priv, "Using %d TX rings\n", prof->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
+
+	mlx4_en_update_loopback_state(priv->dev, priv->dev->features);
 
 	/* Configure port */
 	mlx4_en_calc_rx_buf(dev);
