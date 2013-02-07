@@ -375,6 +375,55 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
+				   const struct cfg80211_chan_def *chandef,
+				   u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	if (cfg80211_chandef_identical(chandef, &sdata->vif.bss_conf.chandef)) {
+		ret = 0;
+		goto out;
+	}
+
+	if (chandef->width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (!cfg80211_chandef_compatible(&conf->def, chandef)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+
+	*changed |= BSS_CHANGED_BANDWIDTH;
+	ret = 0;
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 {
 	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));

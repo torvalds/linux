@@ -215,6 +215,9 @@ struct ieee80211_chanctx_conf {
  *	changed (currently only in P2P client mode, GO mode will be later)
  * @BSS_CHANGED_DTIM_PERIOD: the DTIM period value was changed (set when
  *	it becomes valid, managed mode only)
+ * @BSS_CHANGED_BANDWIDTH: The bandwidth used by this interface changed,
+ *	note that this is only called when it changes after the channel
+ *	context had been assigned.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -238,6 +241,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_TXPOWER		= 1<<18,
 	BSS_CHANGED_P2P_PS		= 1<<19,
 	BSS_CHANGED_DTIM_PERIOD		= 1<<20,
+	BSS_CHANGED_BANDWIDTH		= 1<<21,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };

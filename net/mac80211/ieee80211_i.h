@@ -1613,6 +1613,10 @@ int __must_check
 ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 			  const struct cfg80211_chan_def *chandef,
 			  enum ieee80211_chanctx_mode mode);
+int __must_check
+ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
+			       const struct cfg80211_chan_def *chandef,
+			       u32 *changed);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
