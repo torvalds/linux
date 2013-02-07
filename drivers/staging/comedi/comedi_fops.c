@@ -2372,7 +2372,7 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_MINORS) {
 		kfree(info);
-		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
+		pr_err("comedi: error: ran out of minor numbers for subdevice files.\n");
 		return -EBUSY;
 	}
 	s->minor = i;
