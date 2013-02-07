@@ -2459,7 +2459,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
 
 			ieee80211_vht_handle_opmode(rx->sdata, rx->sta,
-						    opmode, status->band);
+						    opmode, status->band,
+						    false);
 			goto handled;
 		}
 		default:

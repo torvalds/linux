@@ -141,7 +141,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
-				 enum ieee80211_band band)
+				 enum ieee80211_band band, bool nss_only)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -164,6 +164,9 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 		changed |= IEEE80211_RC_NSS_CHANGED;
 	}
 
+	if (nss_only)
+		goto change;
+
 	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
 		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
@@ -185,6 +188,7 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 		changed |= IEEE80211_RC_NSS_CHANGED;
 	}
 
+ change:
 	if (changed)
 		rate_control_rate_update(local, sband, sta, changed);
 }

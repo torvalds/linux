@@ -2217,6 +2217,21 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						  elems.ht_operation,
 						  cbss->bssid, false);
 
+	/*
+	 * If an operating mode notification IE is present, override the
+	 * NSS calculation (that would be done in rate_control_rate_init())
+	 * and use the # of streams from that element.
+	 */
+	if (elems.opmode_notif &&
+	    !(*elems.opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)) {
+		u8 nss;
+
+		nss = *elems.opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
+		nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
+		nss += 1;
+		sta->sta.rx_nss = nss;
+	}
+
 	rate_control_rate_init(sta);
 
 	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
@@ -2489,6 +2504,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
+	struct sta_info *sta;
 	u32 changed = 0;
 	bool erp_valid;
 	u8 erp_value = 0;
@@ -2728,14 +2744,18 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			le16_to_cpu(mgmt->u.beacon.capab_info),
 			erp_valid, erp_value);
 
-
 	mutex_lock(&local->sta_mtx);
+	sta = sta_info_get(sdata, bssid);
+
 	if (elems.ht_cap_elem && elems.ht_operation && elems.wmm_param &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
-		changed |= ieee80211_config_ht_tx(sdata,
-						  sta_info_get(sdata, bssid),
+		changed |= ieee80211_config_ht_tx(sdata, sta,
 						  elems.ht_operation,
 						  bssid, true);
+
+	if (sta && elems.opmode_notif)
+		ieee80211_vht_handle_opmode(sdata, sta, *elems.opmode_notif,
+					    rx_status->band, true);
 	mutex_unlock(&local->sta_mtx);
 
 	if (elems.country_elem && elems.pwr_constr_elem &&
