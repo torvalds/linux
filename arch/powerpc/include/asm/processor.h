@@ -257,6 +257,9 @@ struct thread_struct {
 	int		dscr_inherit;
 	unsigned long	ppr;	/* used to save/restore SMT priority */
 #endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	unsigned long	tar;
+#endif
 };
 
 #define ARCH_MIN_TASKALIGN 16

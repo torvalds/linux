@@ -448,6 +448,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
 	std	r23,_CCR(r1)
 	std	r1,KSP(r3)	/* Set old stack pointer */
 
+#ifdef CONFIG_PPC_BOOK3S_64
+BEGIN_FTR_SECTION
+	/*
+	 * Back up the TAR across context switches.  Note that the TAR is not
+	 * available for use in the kernel.  (To provide this, the TAR should
+	 * be backed up/restored on exception entry/exit instead, and be in
+	 * pt_regs.  FIXME, this should be in pt_regs anyway (for debug).)
+	 */
+	mfspr	r0,SPRN_TAR
+	std	r0,THREAD_TAR(r3)
+END_FTR_SECTION_IFSET(CPU_FTR_BCTAR)
+#endif
+
 #ifdef CONFIG_SMP
 	/* We need a sync somewhere here to make sure that if the
 	 * previous task gets rescheduled on another CPU, it sees all
@@ -529,6 +542,13 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 
 	mr	r1,r8		/* start using new stack pointer */
 	std	r7,PACAKSAVE(r13)
+
+#ifdef CONFIG_PPC_BOOK3S_64
+BEGIN_FTR_SECTION
+	ld	r0,THREAD_TAR(r4)
+	mtspr	SPRN_TAR,r0
+END_FTR_SECTION_IFSET(CPU_FTR_BCTAR)
+#endif
 
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
