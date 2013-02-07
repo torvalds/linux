@@ -1920,6 +1920,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 		dev->vbi_dev->queue->lock = &dev->vb_vbi_queue_lock;
 
 		/* disable inapplicable ioctls */
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_PARM);
 		if (dev->tuner_type == TUNER_ABSENT) {
 			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_TUNER);
 			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_TUNER);
