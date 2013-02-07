@@ -171,7 +171,7 @@ static void LCD_vcc_on(__u32 sel)
 	gpio_list.drv_level = 0;
 	gpio_list.data = 1;
 
-	hdl = gpio_request(&gpio_list, 1);
+	hdl = sunxi_gpio_request_array(&gpio_list, 1);
 	gpio_release(hdl, 2);
 }
 
@@ -187,7 +187,7 @@ static void LCD_vcc_off(__u32 sel)
 	gpio_list.drv_level = 0;
 	gpio_list.data = 0;
 
-	hdl = gpio_request(&gpio_list, 1);
+	hdl = sunxi_gpio_request_array(&gpio_list, 1);
 	gpio_release(hdl, 2);
 }
 

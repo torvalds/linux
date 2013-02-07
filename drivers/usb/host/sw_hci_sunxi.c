@@ -425,7 +425,7 @@ static u32 alloc_pin(user_gpio_set_t *gpio_list)
 {
 	u32 pin_handle = 0;
 
-	pin_handle = gpio_request(gpio_list, 1);
+	pin_handle = sunxi_gpio_request_array(gpio_list, 1);
 	if (pin_handle == 0) {
 		DMSG_PANIC("ERR: gpio_request failed\n");
 		return 0;

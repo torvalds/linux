@@ -110,7 +110,8 @@ extern int script_parser_mainkey_get_gpio_cfg(char *main_name, void *gpio_cfg, i
 /* gpio operations */
 extern int gpio_init(void);
 extern int gpio_exit(void);
-extern unsigned gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max);
+extern unsigned sunxi_gpio_request_array(user_gpio_set_t *gpio_list,
+					 unsigned group_count_max);
 extern unsigned gpio_request_ex(char *main_name, const char *sub_name);
 extern int gpio_release(unsigned p_handler, int if_release_to_default_status);
 extern int gpio_get_all_pin_status(unsigned p_handler, user_gpio_set_t *gpio_status, unsigned gpio_count_max, unsigned if_get_from_hardware);

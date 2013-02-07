@@ -54,7 +54,7 @@ __hdle OSAL_GPIO_Request(user_gpio_set_t *gpio_list, __u32 group_count_max)
 			return 0;
 	} else
 #endif
-		return gpio_request(gpio_list, group_count_max);
+		return sunxi_gpio_request_array(gpio_list, group_count_max);
 }
 
 __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name)
