@@ -183,8 +183,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	unsigned int i, vco_retries;
 	u32 freq = p->frequency / 1000;
 	u32 bandwidth = p->bandwidth_hz / 1000;
-	u32 fvco, xin, xdiv, xdivr;
-	u16 frac;
+	u32 fvco, xin, frac, xdiv, xdivr;
 	u8 fa, fp, vco_sel, vco_cal;
 	u8 regs[FC11_NR_REGS] = { };
 
@@ -227,12 +226,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 		frac += 32786;
 	if (!frac)
 		xin = 0;
-	else if (frac < 511)
-		xin = 512;
-	else if (frac < 65026)
-		xin = frac;
 	else
-		xin = 65024;
+		xin = clamp_t(u32, frac, 512, 65024);
 	regs[FC11_REG_XINHI] = xin >> 8;
 	regs[FC11_REG_XINLO] = xin;
 
