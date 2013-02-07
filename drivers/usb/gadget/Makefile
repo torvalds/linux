@@ -36,9 +36,10 @@ obj-$(CONFIG_USB_FUSB300)	+= fusb300_udc.o
 obj-$(CONFIG_USB_MV_U3D)	+= mv_u3d_core.o
 
 # USB Functions
-obj-$(CONFIG_USB_F_ACM)		+= f_acm.o
-f_ss_lb-y			:= f_loopback.o f_sourcesink.o
-obj-$(CONFIG_USB_F_SS_LB)	+= f_ss_lb.o
+usb_f_acm-y			:= f_acm.o
+obj-$(CONFIG_USB_F_ACM)		+= usb_f_acm.o
+usb_f_ss_lb-y			:= f_loopback.o f_sourcesink.o
+obj-$(CONFIG_USB_F_SS_LB)	+= usb_f_ss_lb.o
 obj-$(CONFIG_USB_U_SERIAL)	+= u_serial.o
 
 #
