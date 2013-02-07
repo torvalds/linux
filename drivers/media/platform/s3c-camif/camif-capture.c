@@ -934,11 +934,18 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 		vp->owner = NULL;
 
 	ret = vb2_reqbufs(&vp->vb_queue, rb);
-	if (!ret) {
-		vp->reqbufs_count = rb->count;
-		if (vp->owner == NULL && rb->count > 0)
-			vp->owner = priv;
+	if (ret < 0)
+		return ret;
+
+	if (rb->count && rb->count < CAMIF_REQ_BUFS_MIN) {
+		rb->count = 0;
+		vb2_reqbufs(&vp->vb_queue, rb);
+		ret = -ENOMEM;
 	}
+
+	vp->reqbufs_count = rb->count;
+	if (vp->owner == NULL && rb->count > 0)
+		vp->owner = priv;
 
 	return ret;
 }
