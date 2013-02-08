@@ -5054,7 +5054,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	return rval;
 }
 
-#define QLA_FW_URL "ftp://ftp.qlogic.com/outgoing/linux/firmware/"
+#define QLA_FW_URL "http://ldriver.qlogic.com/firmware/"
 
 int
 qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
