@@ -51,7 +51,6 @@ struct intel_lvds_encoder {
 
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
-	bool pfit_dirty;
 	bool is_dual_link;
 	u32 reg;
 
@@ -151,6 +150,29 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	I915_WRITE(lvds_encoder->reg, temp);
 }
 
+static void intel_pre_enable_lvds(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_lvds_encoder *enc = to_lvds_encoder(&encoder->base);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_SPLIT(dev) || !enc->pfit_control)
+		return;
+
+	/*
+	 * Enable automatic panel scaling so that non-native modes
+	 * fill the screen.  The panel fitter should only be
+	 * adjusted whilst the pipe is disabled, according to
+	 * register description and PRM.
+	 */
+	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+		      enc->pfit_control,
+		      enc->pfit_pgm_ratios);
+
+	I915_WRITE(PFIT_PGM_RATIOS, enc->pfit_pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, enc->pfit_control);
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -171,22 +193,6 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	}
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
-
-	if (lvds_encoder->pfit_dirty) {
-		/*
-		 * Enable automatic panel scaling so that non-native modes
-		 * fill the screen.  The panel fitter should only be
-		 * adjusted whilst the pipe is disabled, according to
-		 * register description and PRM.
-		 */
-		DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-			      lvds_encoder->pfit_control,
-			      lvds_encoder->pfit_pgm_ratios);
-
-		I915_WRITE(PFIT_PGM_RATIOS, lvds_encoder->pfit_pgm_ratios);
-		I915_WRITE(PFIT_CONTROL, lvds_encoder->pfit_control);
-		lvds_encoder->pfit_dirty = false;
-	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 	POSTING_READ(lvds_encoder->reg);
@@ -216,11 +222,6 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
-
-	if (lvds_encoder->pfit_control) {
-		I915_WRITE(PFIT_CONTROL, 0);
-		lvds_encoder->pfit_dirty = true;
-	}
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_encoder->reg);
@@ -461,7 +462,6 @@ out:
 	    pfit_pgm_ratios != lvds_encoder->pfit_pgm_ratios) {
 		lvds_encoder->pfit_control = pfit_control;
 		lvds_encoder->pfit_pgm_ratios = pfit_pgm_ratios;
-		lvds_encoder->pfit_dirty = true;
 	}
 	dev_priv->lvds_border_bits = border;
 
@@ -1101,6 +1101,7 @@ bool intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
+	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
