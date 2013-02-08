@@ -6,8 +6,8 @@
  * Copyright (C) 1995, 2003 by Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
  */
-#ifndef __ASM_BREAK_H
-#define __ASM_BREAK_H
+#ifndef __UAPI_ASM_BREAK_H
+#define __UAPI_ASM_BREAK_H
 
 /*
  * The following break codes are or were in use for specific purposes in
@@ -26,4 +26,4 @@
 #define BRK_KPROBE_SSTEPBP 516	/* Kprobe single step software implementation */
 #define BRK_MULOVF	1023	/* Multiply overflow */
 
-#endif /* __ASM_BREAK_H */
+#endif /* __UAPI_ASM_BREAK_H */
