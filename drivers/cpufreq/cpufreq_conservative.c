@@ -25,7 +25,7 @@
 
 #include "cpufreq_governor.h"
 
-/* Conservative governor macors */
+/* Conservative governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
@@ -144,7 +144,7 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 
 	/*
 	 * we only care if our internally tracked freq moves outside the 'valid'
-	 * ranges of freqency available to us otherwise we do not change it
+	 * ranges of frequency available to us otherwise we do not change it
 	*/
 	if (dbs_info->requested_freq > policy->max
 			|| dbs_info->requested_freq < policy->min)
