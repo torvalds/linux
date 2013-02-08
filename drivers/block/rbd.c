@@ -226,11 +226,11 @@ struct rbd_img_request {
 };
 
 #define for_each_obj_request(ireq, oreq) \
-	list_for_each_entry(oreq, &ireq->obj_requests, links)
+	list_for_each_entry(oreq, &(ireq)->obj_requests, links)
 #define for_each_obj_request_from(ireq, oreq) \
-	list_for_each_entry_from(oreq, &ireq->obj_requests, links)
+	list_for_each_entry_from(oreq, &(ireq)->obj_requests, links)
 #define for_each_obj_request_safe(ireq, oreq, n) \
-	list_for_each_entry_safe_reverse(oreq, n, &ireq->obj_requests, links)
+	list_for_each_entry_safe_reverse(oreq, n, &(ireq)->obj_requests, links)
 
 struct rbd_snap {
 	struct	device		dev;
