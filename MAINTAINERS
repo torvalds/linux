@@ -6325,7 +6325,7 @@ S:	Maintained
 T:	git git://git.infradead.org/users/cbou/linux-pstore.git
 F:	fs/pstore/
 F:	include/linux/pstore*
-F:	drivers/firmware/efivars.c
+F:	drivers/firmware/efi/efi-pstore.c
 F:	drivers/acpi/apei/erst.c
 
 PTP HARDWARE CLOCK SUPPORT

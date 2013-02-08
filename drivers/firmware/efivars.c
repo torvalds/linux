@@ -78,7 +78,6 @@
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/pstore.h>
 #include <linux/ctype.h>
 
 #include <linux/fs.h>
@@ -95,15 +94,9 @@ MODULE_DESCRIPTION("sysfs interface to EFI Variables");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(EFIVARS_VERSION);
 
-#define DUMP_NAME_LEN 52
-
 static LIST_HEAD(efivarfs_list);
-static LIST_HEAD(efivar_sysfs_list);
-
-static bool efivars_pstore_disable =
-	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
-
-module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
+LIST_HEAD(efivar_sysfs_list);
+EXPORT_SYMBOL_GPL(efivar_sysfs_list);
 
 struct efivar_attribute {
 	struct attribute attr;
@@ -113,11 +106,6 @@ struct efivar_attribute {
 
 /* Private pointer to registered efivars */
 static struct efivars *__efivars;
-
-#define PSTORE_EFI_ATTRIBUTES \
-	(EFI_VARIABLE_NON_VOLATILE | \
-	 EFI_VARIABLE_BOOTSERVICE_ACCESS | \
-	 EFI_VARIABLE_RUNTIME_ACCESS)
 
 static struct kset *efivars_kset;
 
@@ -147,34 +135,6 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var);
 static void efivar_update_sysfs_entries(struct work_struct *);
 static DECLARE_WORK(efivar_work, efivar_update_sysfs_entries);
 static bool efivar_wq_enabled = true;
-
-/*
- * Return the number of bytes is the length of this string
- * Note: this is NOT the same as the number of unicode characters
- */
-static inline unsigned long
-utf16_strsize(efi_char16_t *data, unsigned long maxlength)
-{
-	return utf16_strnlen(data, maxlength/sizeof(efi_char16_t)) * sizeof(efi_char16_t);
-}
-
-static inline int
-utf16_strncmp(const efi_char16_t *a, const efi_char16_t *b, size_t len)
-{
-	while (1) {
-		if (len == 0)
-			return 0;
-		if (*a < *b)
-			return -1;
-		if (*a > *b)
-			return 1;
-		if (*a == 0) /* implies *b == 0 */
-			return 0;
-		a++;
-		b++;
-		len--;
-	}
-}
 
 static bool
 validate_device_path(struct efi_variable *var, int match, u8 *buffer,
@@ -597,12 +557,6 @@ static struct kobj_type efivar_ktype = {
 	.sysfs_ops = &efivar_attr_ops,
 	.default_attrs = def_attrs,
 };
-
-static inline void
-efivar_unregister(struct efivar_entry *var)
-{
-	kobject_put(&var->kobj);
-}
 
 static int efivarfs_file_open(struct inode *inode, struct file *file)
 {
@@ -1129,220 +1083,6 @@ static const struct inode_operations efivarfs_dir_inode_operations = {
 	.unlink = efivarfs_unlink,
 	.create = efivarfs_create,
 };
-
-#ifdef CONFIG_EFI_VARS_PSTORE
-
-static int efi_pstore_open(struct pstore_info *psi)
-{
-	efivar_entry_iter_begin();
-	psi->data = NULL;
-	return 0;
-}
-
-static int efi_pstore_close(struct pstore_info *psi)
-{
-	efivar_entry_iter_end();
-	psi->data = NULL;
-	return 0;
-}
-
-struct pstore_read_data {
-	u64 *id;
-	enum pstore_type_id *type;
-	int *count;
-	struct timespec *timespec;
-	char **buf;
-};
-
-static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
-{
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	struct pstore_read_data *cb_data = data;
-	char name[DUMP_NAME_LEN];
-	int i;
-	int cnt;
-	unsigned int part;
-	unsigned long time, size;
-
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
-		return 0;
-
-	for (i = 0; i < DUMP_NAME_LEN; i++)
-		name[i] = entry->var.VariableName[i];
-
-	if (sscanf(name, "dump-type%u-%u-%d-%lu",
-		   cb_data->type, &part, &cnt, &time) == 4) {
-		*cb_data->id = part;
-		*cb_data->count = cnt;
-		cb_data->timespec->tv_sec = time;
-		cb_data->timespec->tv_nsec = 0;
-	} else if (sscanf(name, "dump-type%u-%u-%lu",
-			  cb_data->type, &part, &time) == 3) {
-		/*
-		 * Check if an old format,
-		 * which doesn't support holding
-		 * multiple logs, remains.
-		 */
-		*cb_data->id = part;
-		*cb_data->count = 0;
-		cb_data->timespec->tv_sec = time;
-		cb_data->timespec->tv_nsec = 0;
-	} else
-		return 0;
-
-	__efivar_entry_size(entry, &size);
-	*cb_data->buf = kmalloc(size, GFP_KERNEL);
-	if (*cb_data->buf == NULL)
-		return -ENOMEM;
-	memcpy(*cb_data->buf, entry->var.Data, size);
-	return size;
-}
-
-static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
-			       int *count, struct timespec *timespec,
-			       char **buf, struct pstore_info *psi)
-{
-	struct pstore_read_data data;
-
-	data.id = id;
-	data.type = type;
-	data.count = count;
-	data.timespec = timespec;
-	data.buf = buf;
-
-	return __efivar_entry_iter(efi_pstore_read_func, &efivar_sysfs_list, &data,
-				   (struct efivar_entry **)&psi->data);
-}
-
-static int efi_pstore_write(enum pstore_type_id type,
-		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, size_t size,
-		struct pstore_info *psi)
-{
-	char name[DUMP_NAME_LEN];
-	efi_char16_t efi_name[DUMP_NAME_LEN];
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	int i, ret = 0;
-
-	sprintf(name, "dump-type%u-%u-%d-%lu", type, part, count,
-		get_seconds());
-
-	for (i = 0; i < DUMP_NAME_LEN; i++)
-		efi_name[i] = name[i];
-
-	ret = efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
-				    !pstore_cannot_block_path(reason),
-				    size, psi->buf);
-
-	if (reason == KMSG_DUMP_OOPS && efivar_wq_enabled)
-		schedule_work(&efivar_work);
-
-	*id = part;
-	return ret;
-};
-
-struct pstore_erase_data {
-	u64 id;
-	enum pstore_type_id type;
-	int count;
-	struct timespec time;
-	efi_char16_t *name;
-};
-
-/*
- * Clean up an entry with the same name
- */
-static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
-{
-	struct pstore_erase_data *ed = data;
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	efi_char16_t efi_name_old[DUMP_NAME_LEN];
-	efi_char16_t *efi_name = ed->name;
-	unsigned long utf16_len = utf16_strlen(ed->name);
-	char name_old[DUMP_NAME_LEN];
-	int i;
-
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
-		return 0;
-
-	if (utf16_strncmp(entry->var.VariableName,
-			  efi_name, (size_t)utf16_len)) {
-		/*
-		 * Check if an old format, which doesn't support
-		 * holding multiple logs, remains.
-		 */
-		sprintf(name_old, "dump-type%u-%u-%lu", ed->type,
-			(unsigned int)ed->id, ed->time.tv_sec);
-
-		for (i = 0; i < DUMP_NAME_LEN; i++)
-			efi_name_old[i] = name_old[i];
-
-		if (utf16_strncmp(entry->var.VariableName, efi_name_old,
-				  utf16_strlen(efi_name_old)))
-			return 0;
-	}
-
-	/* found */
-	__efivar_entry_delete(entry);
-	return 1;
-}
-
-static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
-			    struct timespec time, struct pstore_info *psi)
-{
-	struct pstore_erase_data edata;
-	struct efivar_entry *entry;
-	char name[DUMP_NAME_LEN];
-	efi_char16_t efi_name[DUMP_NAME_LEN];
-	int found, i;
-
-	sprintf(name, "dump-type%u-%u-%d-%lu", type, (unsigned int)id, count,
-		time.tv_sec);
-
-	for (i = 0; i < DUMP_NAME_LEN; i++)
-		efi_name[i] = name[i];
-
-	edata.id = id;
-	edata.type = type;
-	edata.count = count;
-	edata.time = time;
-	edata.name = efi_name;
-
-	efivar_entry_iter_begin();
-	found = __efivar_entry_iter(efi_pstore_erase_func, &efivar_sysfs_list, &edata, &entry);
-	efivar_entry_iter_end();
-
-	if (found)
-		efivar_unregister(entry);
-
-	return 0;
-}
-
-static struct pstore_info efi_pstore_info = {
-	.owner		= THIS_MODULE,
-	.name		= "efi",
-	.open		= efi_pstore_open,
-	.close		= efi_pstore_close,
-	.read		= efi_pstore_read,
-	.write		= efi_pstore_write,
-	.erase		= efi_pstore_erase,
-};
-
-static void efivar_pstore_register(void)
-{
-	efi_pstore_info.buf = kmalloc(4096, GFP_KERNEL);
-	if (efi_pstore_info.buf) {
-		efi_pstore_info.bufsize = 1024;
-		spin_lock_init(&efi_pstore_info.buf_lock);
-		pstore_register(&efi_pstore_info);
-	}
-}
-#else
-static void efivar_pstore_register(void)
-{
-	return;
-}
-#endif
 
 static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
@@ -2397,6 +2137,16 @@ struct kobject *efivars_kobject(void)
 EXPORT_SYMBOL_GPL(efivars_kobject);
 
 /**
+ * efivar_run_worker - schedule the efivar worker thread
+ */
+void efivar_run_worker(void)
+{
+	if (efivar_wq_enabled)
+		schedule_work(&efivar_work);
+}
+EXPORT_SYMBOL_GPL(efivar_run_worker);
+
+/**
  * efivars_register - register an efivars
  * @efivars: efivars to register
  * @ops: efivars operations
@@ -2413,9 +2163,6 @@ int efivars_register(struct efivars *efivars,
 	efivars->kobject = kobject;
 
 	__efivars = efivars;
-
-	if (!efivars_pstore_disable)
-		efivar_pstore_register();
 
 	register_filesystem(&efivarfs_type);
 

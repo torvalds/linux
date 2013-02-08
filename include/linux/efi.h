@@ -744,6 +744,34 @@ utf16_strlen(efi_char16_t *s)
 
 #if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
 /*
+ * Return the number of bytes is the length of this string
+ * Note: this is NOT the same as the number of unicode characters
+ */
+static inline unsigned long
+utf16_strsize(efi_char16_t *data, unsigned long maxlength)
+{
+	return utf16_strnlen(data, maxlength/sizeof(efi_char16_t)) * sizeof(efi_char16_t);
+}
+
+static inline int
+utf16_strncmp(const efi_char16_t *a, const efi_char16_t *b, size_t len)
+{
+	while (1) {
+		if (len == 0)
+			return 0;
+		if (*a < *b)
+			return -1;
+		if (*a > *b)
+			return 1;
+		if (*a == 0) /* implies *b == 0 */
+			return 0;
+		a++;
+		b++;
+		len--;
+	}
+}
+
+/*
  * EFI Variable support.
  *
  * Different firmware drivers can expose their EFI-like variables using
@@ -795,6 +823,14 @@ struct efivar_entry {
 	struct kobject kobj;
 };
 
+extern struct list_head efivar_sysfs_list;
+
+static inline void
+efivar_unregister(struct efivar_entry *var)
+{
+	kobject_put(&var->kobj);
+}
+
 int efivars_register(struct efivars *efivars,
 		     const struct efivar_operations *ops,
 		     struct kobject *kobject);
@@ -835,6 +871,8 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 				       struct list_head *head, bool remove);
 
 bool efivar_validate(struct efi_variable *var, u8 *data, unsigned long len);
+
+void efivar_run_worker(void);
 
 int efivars_sysfs_init(void);
 
