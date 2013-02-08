@@ -1053,6 +1053,7 @@ static ssize_t bonding_store_primary(struct device *d,
 		pr_info("%s: Setting primary slave to None.\n",
 			bond->dev->name);
 		bond->primary_slave = NULL;
+		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
 	}
