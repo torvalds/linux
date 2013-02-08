@@ -32,6 +32,7 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -276,6 +277,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 }
+
+static int __init arm64_of_clk_init(void)
+{
+	of_clk_init(NULL);
+	return 0;
+}
+arch_initcall(arm64_of_clk_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 
