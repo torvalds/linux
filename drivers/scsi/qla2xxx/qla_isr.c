@@ -491,6 +491,8 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 	if (mb[1] & IDC_DEVICE_STATE_CHANGE) {
 		ql_log(ql_log_info, vha, 0x506a,
 		    "IDC Device-State changed = 0x%x.\n", mb[4]);
+		if (ha->flags.nic_core_reset_owner)
+			return;
 		qla83xx_schedule_work(vha, MBA_IDC_AEN);
 	}
 }
