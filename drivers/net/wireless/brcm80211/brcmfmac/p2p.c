@@ -739,7 +739,7 @@ static int brcmf_p2p_request_p2p_if(struct brcmf_if *ifp, u8 ea[ETH_ALEN],
 
 	/* fill the firmware request */
 	memcpy(if_request.addr, ea, ETH_ALEN);
-	if_request.type = iftype;
+	if_request.type = cpu_to_le16((u16)iftype);
 	if_request.chspec = cpu_to_le16(chanspec);
 
 	err = brcmf_fil_iovar_data_set(ifp, "p2p_ifadd", &if_request,
@@ -747,11 +747,6 @@ static int brcmf_p2p_request_p2p_if(struct brcmf_if *ifp, u8 ea[ETH_ALEN],
 	if (err)
 		return err;
 
-	if (iftype == BRCMF_FIL_P2P_IF_GO) {
-		/* set station timeout for p2p */
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCB_TIMEOUT,
-					    BRCMF_SCB_TIMEOUT_VALUE);
-	}
 	return err;
 }
 
@@ -814,11 +809,15 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	}
 
 	vif = brcmf_alloc_vif(cfg, type, false);
+	if (IS_ERR(vif))
+		return (struct wireless_dev *)vif;
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
 
 	err = brcmf_p2p_request_p2p_if(ifp, cfg->p2p.int_addr, iftype);
-	if (err)
+	if (err) {
+		brcmf_cfg80211_arm_vif_event(cfg, NULL);
 		goto fail;
+	}
 
 	/* wait for firmware event */
 	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_ADD,
@@ -835,10 +834,19 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	if (!ifp) {
 		brcmf_err("no if pointer provided\n");
 		err = -ENOENT;
+		goto fail;
 	}
 
 	strncpy(ifp->ndev->name, name, sizeof(ifp->ndev->name) - 1);
 	brcmf_cfg80211_vif_complete(cfg);
+	cfg->p2p.bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = vif;
+	/* Disable firmware roaming for P2P interface  */
+	brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
+	if (iftype == BRCMF_FIL_P2P_IF_GO) {
+		/* set station timeout for p2p */
+		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCB_TIMEOUT,
+				      BRCMF_SCB_TIMEOUT_VALUE);
+	}
 	return &ifp->vif->wdev;
 
 fail:
@@ -883,18 +891,25 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	}
 
 	if (wait_for_disable)
-		wait_for_completion_timeout(&cfg->vif_disabled, 500);
+		wait_for_completion_timeout(&cfg->vif_disabled,
+					    msecs_to_jiffies(500));
 
 	brcmf_vif_clear_mgmt_ies(vif);
 
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
 	err = brcmf_p2p_release_p2p_if(vif);
-	if (!err)
+	if (!err) {
 		/* wait for firmware event */
 		err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
 							    jiffie_timeout);
+		if (!err)
+			err = -EIO;
+		else
+			err = 0;
+	}
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	brcmf_free_vif(vif);
+	cfg->p2p.bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
 
 	return err;
 }

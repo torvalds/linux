@@ -29,7 +29,7 @@ enum brcmf_fil_p2p_if_types {
 
 struct brcmf_fil_p2p_if_le {
 	u8 addr[ETH_ALEN];
-	enum brcmf_fil_p2p_if_types type;
+	__le16 type;
 	__le16 chspec;
 };
 
