@@ -3742,7 +3742,7 @@ brcmf_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 	if (reg)
 		vif->mgmt_rx_reg |= BIT(mgmt_type);
 	else
-		vif->mgmt_rx_reg |= ~BIT(mgmt_type);
+		vif->mgmt_rx_reg &= ~BIT(mgmt_type);
 }
 
 
