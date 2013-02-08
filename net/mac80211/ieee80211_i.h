@@ -722,6 +722,9 @@ struct ieee80211_sub_if_data {
 	int user_power_level; /* in dBm */
 	int ap_power_level; /* in dBm */
 
+	bool radar_required;
+	struct delayed_work dfs_cac_timer_work;
+
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for
@@ -941,6 +944,10 @@ struct ieee80211_local {
 
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
+
+	/* DFS/radar detection is enabled */
+	bool radar_detect_enabled;
+	struct work_struct radar_detected_work;
 
 	/* number of RX chains the hardware has */
 	u8 rx_chains;
@@ -1606,6 +1613,13 @@ void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
+void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
+				    struct ieee80211_chanctx *chanctx);
+
+void ieee80211_dfs_cac_timer(unsigned long data);
+void ieee80211_dfs_cac_timer_work(struct work_struct *work);
+void ieee80211_dfs_cac_cancel(struct ieee80211_local *local);
+void ieee80211_dfs_radar_detected_work(struct work_struct *work);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

@@ -2133,3 +2133,49 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 	return ts;
 }
+
+void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
+
+		if (sdata->wdev.cac_started) {
+			ieee80211_vif_release_channel(sdata);
+			cfg80211_cac_event(sdata->dev,
+					   NL80211_RADAR_CAC_ABORTED,
+					   GFP_KERNEL);
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+}
+
+void ieee80211_dfs_radar_detected_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, radar_detected_work);
+	struct cfg80211_chan_def chandef;
+
+	ieee80211_dfs_cac_cancel(local);
+
+	if (local->use_chanctx)
+		/* currently not handled */
+		WARN_ON(1);
+	else {
+		cfg80211_chandef_create(&chandef, local->hw.conf.channel,
+					local->hw.conf.channel_type);
+		cfg80211_radar_event(local->hw.wiphy, &chandef, GFP_KERNEL);
+	}
+}
+
+void ieee80211_radar_detected(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_radar_detected(local);
+
+	ieee80211_queue_work(hw, &local->radar_detected_work);
+}
+EXPORT_SYMBOL(ieee80211_radar_detected);
