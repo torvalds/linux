@@ -60,9 +60,9 @@ extern void check_wait(void);
 extern asmlinkage void r4k_wait(void);
 extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
-extern asmlinkage void handle_tlbm(void);
-extern asmlinkage void handle_tlbl(void);
-extern asmlinkage void handle_tlbs(void);
+extern u32 handle_tlbl[];
+extern u32 handle_tlbs[];
+extern u32 handle_tlbm[];
 extern asmlinkage void handle_adel(void);
 extern asmlinkage void handle_ades(void);
 extern asmlinkage void handle_ibe(void);
@@ -1410,7 +1410,7 @@ void __init *set_except_vector(int n, void *addr)
 	return (void *)old_handler;
 }
 
-static asmlinkage void do_default_vi(void)
+static void do_default_vi(void)
 {
 	show_regs(get_irq_regs());
 	panic("Caught unexpected vectored interrupt.");
