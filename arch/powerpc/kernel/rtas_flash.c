@@ -790,6 +790,11 @@ static void __exit rtas_flash_cleanup(void)
 {
 	rtas_flash_term_hook = NULL;
 
+	if (rtas_firmware_flash_list) {
+		free_flash_list(rtas_firmware_flash_list);
+		rtas_firmware_flash_list = NULL;
+	}
+
 	if (flash_block_cache)
 		kmem_cache_destroy(flash_block_cache);
 
