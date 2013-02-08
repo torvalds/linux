@@ -1871,9 +1871,6 @@ static int cx231xx_v4l2_open(struct file *filp)
 	v4l2_fh_init(&fh->fh, vdev);
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
-		dev->width = norm_maxw(dev);
-		dev->height = norm_maxh(dev);
-
 		/* Power up in Analog TV mode */
 		if (dev->board.external_av)
 			cx231xx_set_power_mode(dev,
