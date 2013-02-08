@@ -300,6 +300,9 @@ static bool brcmf_p2p_is_gas_action(void *frame, u32 frame_len)
  *
  * Print information about the p2p action frame
  */
+
+#ifdef DEBUG
+
 static void brcmf_p2p_print_actframe(bool tx, void *frame, u32 frame_len)
 {
 	struct brcmf_p2p_pub_act_frame *pact_frm;
@@ -403,6 +406,14 @@ static void brcmf_p2p_print_actframe(bool tx, void *frame, u32 frame_len)
 		}
 	}
 }
+
+#else
+
+static void brcmf_p2p_print_actframe(bool tx, void *frame, u32 frame_len)
+{
+}
+
+#endif
 
 /**
  * brcmf_p2p_set_firmware() - prepare firmware for peer-to-peer operation.
