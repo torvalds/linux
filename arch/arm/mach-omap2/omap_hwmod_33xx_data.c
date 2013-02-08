@@ -262,7 +262,8 @@ static struct omap_hwmod am33xx_wkup_m3_hwmod = {
 	.name		= "wkup_m3",
 	.class		= &am33xx_wkup_m3_hwmod_class,
 	.clkdm_name	= "l4_wkup_aon_clkdm",
-	.flags		= HWMOD_INIT_NO_RESET,	/* Keep hardreset asserted */
+	/* Keep hardreset asserted */
+	.flags		= HWMOD_INIT_NO_RESET | HWMOD_NO_IDLEST,
 	.mpu_irqs	= am33xx_wkup_m3_irqs,
 	.main_clk	= "dpll_core_m4_div2_ck",
 	.prcm		= {
