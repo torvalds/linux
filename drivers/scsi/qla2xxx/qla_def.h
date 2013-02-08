@@ -814,6 +814,7 @@ typedef struct {
 #define MBC_HOST_MEMORY_COPY		0x53	/* Host Memory Copy. */
 #define MBC_SEND_RNFT_ELS		0x5e	/* Send RNFT ELS request */
 #define MBC_GET_LINK_PRIV_STATS		0x6d	/* Get link & private data. */
+#define MBC_LINK_INITIALIZATION		0x72	/* Do link initialization. */
 #define MBC_SET_VENDOR_ID		0x76	/* Set Vendor ID. */
 #define MBC_PORT_RESET			0x120	/* Port Reset */
 #define MBC_SET_PORT_CONFIG		0x122	/* Set port configuration */
