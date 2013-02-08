@@ -768,8 +768,8 @@ typedef struct {
 #define MBC_PORT_LOGOUT			0x56	/* Port Logout request */
 #define MBC_SEND_RNID_ELS		0x57	/* Send RNID ELS request */
 #define MBC_SET_RNID_PARAMS		0x59	/* Set RNID parameters */
-#define MBC_GET_RNID_PARAMS		0x5a	/* Data Rate */
-#define MBC_DATA_RATE			0x5d	/* Get RNID parameters */
+#define MBC_GET_RNID_PARAMS		0x5a	/* Get RNID parameters */
+#define MBC_DATA_RATE			0x5d	/* Data Rate */
 #define MBC_INITIALIZE_FIRMWARE		0x60	/* Initialize firmware */
 #define MBC_INITIATE_LIP		0x62	/* Initiate Loop */
 						/* Initialization Procedure */
