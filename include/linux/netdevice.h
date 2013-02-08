@@ -1290,6 +1290,8 @@ struct net_device {
 	};
 	/* GARP */
 	struct garp_port __rcu	*garp_port;
+	/* MRP */
+	struct mrp_port __rcu	*mrp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
