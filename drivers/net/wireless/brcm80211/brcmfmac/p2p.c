@@ -691,15 +691,17 @@ void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp)
  *
  * @cfg: driver private data for cfg80211 interface.
  */
-void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg)
+void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
+		      struct brcmf_cfg80211_vif *vif)
 {
 	struct brcmf_p2p_info *p2p;
 
 	p2p = &cfg->p2p;
 
 	p2p->cfg = cfg;
-	brcmf_p2p_set_firmware(p2p);
+	p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = vif;
 	brcmf_p2p_generate_bss_mac(p2p);
+	brcmf_p2p_set_firmware(p2p);
 }
 
 /**

@@ -39,4 +39,9 @@ struct brcmf_fil_chan_info_le {
 	__le32 scan_channel;
 };
 
+struct brcmf_fil_bss_enable_le {
+	__le32 bsscfg_idx;
+	__le32 enable;
+};
+
 #endif /* FWIL_TYPES_H_ */

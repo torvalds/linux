@@ -102,7 +102,8 @@ struct brcmf_p2p_info {
 	struct ieee80211_channel remain_on_channel;
 };
 
-void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg);
+void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
+		      struct brcmf_cfg80211_vif *vif);
 void brcmf_p2p_detach(struct brcmf_p2p_info *p2p);
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 				       enum nl80211_iftype type, u32 *flags,
