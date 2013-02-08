@@ -123,5 +123,8 @@ int brcmf_p2p_notify_listen_complete(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *e,
 				     void *data);
 void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp);
+int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
+				     const struct brcmf_event_msg *e,
+				     void *data);
 
 #endif /* WL_CFGP2P_H_ */

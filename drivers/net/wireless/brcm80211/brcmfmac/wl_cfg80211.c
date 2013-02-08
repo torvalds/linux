@@ -4701,6 +4701,8 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_notify_rx_mgmt_p2p_probereq);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_P2P_DISC_LISTEN_COMPLETE,
 			    brcmf_p2p_notify_listen_complete);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_RX,
+			    brcmf_p2p_notify_action_frame_rx);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
