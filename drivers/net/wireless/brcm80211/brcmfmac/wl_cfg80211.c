@@ -4163,10 +4163,14 @@ static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 
 static const struct ieee80211_iface_limit brcmf_iface_limits[] = {
 	{
-		.max = 1,
+		.max = 2,
 		.types = BIT(NL80211_IFTYPE_STATION) |
 			 BIT(NL80211_IFTYPE_ADHOC) |
 			 BIT(NL80211_IFTYPE_AP)
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
 	},
 	{
 		.max = 1,
@@ -4176,7 +4180,7 @@ static const struct ieee80211_iface_limit brcmf_iface_limits[] = {
 };
 static const struct ieee80211_iface_combination brcmf_iface_combos[] = {
 	{
-		 .max_interfaces = BRCMF_IFACE_MAX_CNT - 1,
+		 .max_interfaces = BRCMF_IFACE_MAX_CNT,
 		 .num_different_channels = 1, /* no multi-channel for now */
 		 .n_limits = ARRAY_SIZE(brcmf_iface_limits),
 		 .limits = brcmf_iface_limits
@@ -4225,7 +4229,8 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
-				 BIT(NL80211_IFTYPE_P2P_GO);
+				 BIT(NL80211_IFTYPE_P2P_GO) |
+				 BIT(NL80211_IFTYPE_P2P_DEVICE);
 	wiphy->iface_combinations = brcmf_iface_combos;
 	wiphy->n_iface_combinations = ARRAY_SIZE(brcmf_iface_combos);
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &__wl_band_2ghz;

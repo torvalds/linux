@@ -1320,7 +1320,7 @@ s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg)
 	p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = pri_ifp->vif;
 
 	if (p2p_ifp) {
-		p2p_vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION,
+		p2p_vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_P2P_DEVICE,
 					  false);
 		if (IS_ERR(p2p_vif)) {
 			brcmf_err("could not create discovery vif\n");
