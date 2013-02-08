@@ -69,7 +69,6 @@ static unsigned long wdt_status;
 #define WDT_REGION_INITED 2
 #define WDT_DEVICE_INITED 3
 
-static struct resource	*wdt_mem;
 static void __iomem	*wdt_base;
 struct clk		*wdt_clk;
 
@@ -201,8 +200,9 @@ static struct miscdevice davinci_wdt_miscdev = {
 
 static int davinci_wdt_probe(struct platform_device *pdev)
 {
-	int ret = 0, size;
+	int ret = 0;
 	struct device *dev = &pdev->dev;
+	struct resource  *wdt_mem;
 
 	wdt_clk = devm_clk_get(dev, NULL);
 	if (WARN_ON(IS_ERR(wdt_clk)))
@@ -221,41 +221,25 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	size = resource_size(wdt_mem);
-	if (!request_mem_region(wdt_mem->start, size, pdev->name)) {
-		dev_err(dev, "failed to get memory region\n");
-		return -ENOENT;
-	}
-
-	wdt_base = ioremap(wdt_mem->start, size);
+	wdt_base = devm_request_and_ioremap(dev, wdt_mem);
 	if (!wdt_base) {
-		dev_err(dev, "failed to map memory region\n");
-		release_mem_region(wdt_mem->start, size);
-		wdt_mem = NULL;
-		return -ENOMEM;
+		dev_err(dev, "ioremap failed\n");
+		return -EADDRNOTAVAIL;
 	}
 
 	ret = misc_register(&davinci_wdt_miscdev);
 	if (ret < 0) {
 		dev_err(dev, "cannot register misc device\n");
-		release_mem_region(wdt_mem->start, size);
-		wdt_mem = NULL;
 	} else {
 		set_bit(WDT_DEVICE_INITED, &wdt_status);
 	}
 
-	iounmap(wdt_base);
 	return ret;
 }
 
 static int davinci_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&davinci_wdt_miscdev);
-	if (wdt_mem) {
-		release_mem_region(wdt_mem->start, resource_size(wdt_mem));
-		wdt_mem = NULL;
-	}
-
 	clk_disable_unprepare(wdt_clk);
 
 	return 0;
