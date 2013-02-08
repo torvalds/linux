@@ -50,6 +50,7 @@
 #include "nouveau_abi16.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
+#include "nouveau_debugfs.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -666,6 +667,11 @@ driver = {
 	.preclose = nouveau_drm_preclose,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
+
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = nouveau_debugfs_init,
+	.debugfs_cleanup = nouveau_debugfs_takedown,
+#endif
 
 	.irq_preinstall = nouveau_irq_preinstall,
 	.irq_postinstall = nouveau_irq_postinstall,
