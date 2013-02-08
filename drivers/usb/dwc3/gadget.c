@@ -1469,6 +1469,32 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 	return ret;
 }
 
+static void dwc3_gadget_enable_irq(struct dwc3 *dwc)
+{
+	u32			reg;
+
+	/* Enable all but Start and End of Frame IRQs */
+	reg = (DWC3_DEVTEN_VNDRDEVTSTRCVEDEN |
+			DWC3_DEVTEN_EVNTOVERFLOWEN |
+			DWC3_DEVTEN_CMDCMPLTEN |
+			DWC3_DEVTEN_ERRTICERREN |
+			DWC3_DEVTEN_WKUPEVTEN |
+			DWC3_DEVTEN_ULSTCNGEN |
+			DWC3_DEVTEN_CONNECTDONEEN |
+			DWC3_DEVTEN_USBRSTEN |
+			DWC3_DEVTEN_DISCONNEVTEN);
+
+	dwc3_writel(dwc->regs, DWC3_DEVTEN, reg);
+}
+
+static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
+{
+	/* mask all interrupts */
+	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
+}
+
+static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
+
 static int dwc3_gadget_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
@@ -1476,6 +1502,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	struct dwc3_ep		*dep;
 	unsigned long		flags;
 	int			ret = 0;
+	int			irq;
 	u32			reg;
 
 	spin_lock_irqsave(&dwc->lock, flags);
@@ -1536,6 +1563,17 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 
+	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
+	ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED,
+			"dwc3", dwc);
+	if (ret) {
+		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
+				irq, ret);
+		goto err1;
+	}
+
+	dwc3_gadget_enable_irq(dwc);
+
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
@@ -1554,8 +1592,13 @@ static int dwc3_gadget_stop(struct usb_gadget *g,
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
+	int			irq;
 
 	spin_lock_irqsave(&dwc->lock, flags);
+
+	dwc3_gadget_disable_irq(dwc);
+	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
+	free_irq(irq, dwc);
 
 	__dwc3_gadget_ep_disable(dwc->eps[0]);
 	__dwc3_gadget_ep_disable(dwc->eps[1]);
@@ -2454,7 +2497,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 {
 	u32					reg;
 	int					ret;
-	int					irq;
 
 	dwc->ctrl_req = dma_alloc_coherent(dwc->dev, sizeof(*dwc->ctrl_req),
 			&dwc->ctrl_req_addr, GFP_KERNEL);
@@ -2510,33 +2552,11 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	if (ret)
 		goto err4;
 
-	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-
-	ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED,
-			"dwc3", dwc);
-	if (ret) {
-		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
-				irq, ret);
-		goto err5;
-	}
-
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg |= DWC3_DCFG_LPM_CAP;
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
 
-	/* Enable all but Start and End of Frame IRQs */
-	reg = (DWC3_DEVTEN_VNDRDEVTSTRCVEDEN |
-			DWC3_DEVTEN_EVNTOVERFLOWEN |
-			DWC3_DEVTEN_CMDCMPLTEN |
-			DWC3_DEVTEN_ERRTICERREN |
-			DWC3_DEVTEN_WKUPEVTEN |
-			DWC3_DEVTEN_ULSTCNGEN |
-			DWC3_DEVTEN_CONNECTDONEEN |
-			DWC3_DEVTEN_USBRSTEN |
-			DWC3_DEVTEN_DISCONNEVTEN);
-	dwc3_writel(dwc->regs, DWC3_DEVTEN, reg);
-
-	/* automatic phy suspend only on recent versions */
+	/* Enable USB2 LPM and automatic phy suspend only on recent versions */
 	if (dwc->revision >= DWC3_REVISION_194A) {
 		dwc3_gadget_usb2_phy_suspend(dwc, false);
 		dwc3_gadget_usb3_phy_suspend(dwc, false);
@@ -2545,14 +2565,10 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	ret = usb_add_gadget_udc(dwc->dev, &dwc->gadget);
 	if (ret) {
 		dev_err(dwc->dev, "failed to register udc\n");
-		goto err6;
+		goto err5;
 	}
 
 	return 0;
-
-err6:
-	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
-	free_irq(irq, dwc);
 
 err5:
 	dwc3_gadget_free_endpoints(dwc);
@@ -2578,13 +2594,7 @@ err0:
 
 void dwc3_gadget_exit(struct dwc3 *dwc)
 {
-	int			irq;
-
 	usb_del_gadget_udc(&dwc->gadget);
-	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-
-	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
-	free_irq(irq, dwc);
 
 	dwc3_gadget_free_endpoints(dwc);
 
