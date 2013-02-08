@@ -2028,7 +2028,7 @@ wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf, int
 		}
 
 		if ((legacy_ps != -1) && ((legacy_ps == PM_MAX) || (legacy_ps == PM_OFF))) {
-#if !defined(SUPPORT_PM2_ONLY)
+#if defined(SUPPORT_PM2_ONLY)
 			if (legacy_ps == PM_MAX)
 				legacy_ps = PM_FAST;
 #endif /* SUPPORT_PM2_ONLY */
