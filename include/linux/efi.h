@@ -742,7 +742,6 @@ utf16_strlen(efi_char16_t *s)
 	return utf16_strnlen(s, ~0UL);
 }
 
-#if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
 /*
  * Return the number of bytes is the length of this string
  * Note: this is NOT the same as the number of unicode characters
@@ -872,8 +871,10 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 
 bool efivar_validate(struct efi_variable *var, u8 *data, unsigned long len);
 
+extern struct work_struct efivar_work;
 void efivar_run_worker(void);
 
+#if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
 int efivars_sysfs_init(void);
 
 #endif /* CONFIG_EFI_VARS */
