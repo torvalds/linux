@@ -3888,6 +3888,12 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 		/* we don't support swapfiles, so vmtruncate shouldn't fail */
 		truncate_setsize(inode, newsize);
+
+		/* Disable nonlocked read DIO to avoid the end less truncate */
+		btrfs_inode_block_unlocked_dio(inode);
+		inode_dio_wait(inode);
+		btrfs_inode_resume_unlocked_dio(inode);
+
 		ret = btrfs_truncate(inode);
 		if (ret && inode->i_nlink)
 			btrfs_orphan_del(NULL, inode);
@@ -6670,6 +6676,8 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	size_t count = 0;
+	int flags = 0;
+	bool wakeup = false;
 	ssize_t ret;
 
 	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iov,
@@ -6681,13 +6689,22 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		ret = btrfs_delalloc_reserve_space(inode, count);
 		if (ret)
 			return ret;
+	} else {
+		atomic_inc(&inode->i_dio_count);
+		smp_mb__after_atomic_inc();
+		if (unlikely(test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
+				      &BTRFS_I(inode)->runtime_flags))) {
+			inode_dio_done(inode);
+			flags = DIO_LOCKING | DIO_SKIP_HOLES;
+		} else {
+			wakeup = true;
+		}
 	}
 
 	ret = __blockdev_direct_IO(rw, iocb, inode,
 			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
 			iov, offset, nr_segs, btrfs_get_blocks_direct, NULL,
-			btrfs_submit_direct, 0);
-
+			btrfs_submit_direct, flags);
 	if (rw & WRITE) {
 		if (ret < 0 && ret != -EIOCBQUEUED)
 			btrfs_delalloc_release_space(inode, count);
@@ -6700,6 +6717,8 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		}
 		btrfs_delalloc_release_metadata(inode, 0);
 	}
+	if (wakeup)
+		inode_dio_done(inode);
 
 	return ret;
 }
