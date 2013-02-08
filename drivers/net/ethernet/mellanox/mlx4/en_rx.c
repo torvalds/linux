@@ -563,9 +563,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	unsigned int length;
 	int polled = 0;
 	int ip_summed;
-	struct ethhdr *ethh;
-	dma_addr_t dma;
-	u64 s_mac;
 	int factor = priv->cqe_factor;
 
 	if (!priv->port_up)
@@ -603,21 +600,41 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
-		/* Get pointer to first fragment since we haven't skb yet and
-		 * cast it to ethhdr struct */
-		dma = be64_to_cpu(rx_desc->data[0].addr);
-		dma_sync_single_for_cpu(priv->ddev, dma, sizeof(*ethh),
-					DMA_FROM_DEVICE);
-		ethh = (struct ethhdr *)(page_address(frags[0].page) +
-					 frags[0].offset);
-		s_mac = mlx4_en_mac_to_u64(ethh->h_source);
+		/* Check if we need to drop the packet if SRIOV is not enabled
+		 * and not performing the selftest or flb disabled
+		 */
+		if (priv->flags & MLX4_EN_FLAG_RX_FILTER_NEEDED) {
+			struct ethhdr *ethh;
+			dma_addr_t dma;
+			/* Get pointer to first fragment since we haven't
+			 * skb yet and cast it to ethhdr struct
+			 */
+			dma = be64_to_cpu(rx_desc->data[0].addr);
+			dma_sync_single_for_cpu(priv->ddev, dma, sizeof(*ethh),
+						DMA_FROM_DEVICE);
+			ethh = (struct ethhdr *)(page_address(frags[0].page) +
+						 frags[0].offset);
 
-		/* If source MAC is equal to our own MAC and not performing
-		 * the selftest or flb disabled - drop the packet */
-		if (s_mac == priv->mac &&
-		    !((dev->features & NETIF_F_LOOPBACK) ||
-		      priv->validate_loopback))
-			goto next;
+			if (is_multicast_ether_addr(ethh->h_dest)) {
+				struct mlx4_mac_entry *entry;
+				struct hlist_node *n;
+				struct hlist_head *bucket;
+				unsigned int mac_hash;
+
+				/* Drop the packet, since HW loopback-ed it */
+				mac_hash = ethh->h_source[MLX4_EN_MAC_HASH_IDX];
+				bucket = &priv->mac_hash[mac_hash];
+				rcu_read_lock();
+				hlist_for_each_entry_rcu(entry, n, bucket, hlist) {
+					if (ether_addr_equal_64bits(entry->mac,
+								    ethh->h_source)) {
+						rcu_read_unlock();
+						goto next;
+					}
+				}
+				rcu_read_unlock();
+			}
+		}
 
 		/*
 		 * Packet is OK - process it.

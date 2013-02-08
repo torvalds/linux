@@ -712,16 +712,13 @@ static int mlx4_en_ethtool_add_mac_rule_by_ipv4(struct mlx4_en_priv *priv,
 						__be32 ipv4_dst)
 {
 #ifdef CONFIG_INET
-	__be64 be_mac = 0;
 	unsigned char mac[ETH_ALEN];
 
 	if (!ipv4_is_multicast(ipv4_dst)) {
-		if (cmd->fs.flow_type & FLOW_MAC_EXT) {
+		if (cmd->fs.flow_type & FLOW_MAC_EXT)
 			memcpy(&mac, cmd->fs.h_ext.h_dest, ETH_ALEN);
-		} else {
-			be_mac = cpu_to_be64((priv->mac & MLX4_MAC_MASK) << 16);
-			memcpy(&mac, &be_mac, ETH_ALEN);
-		}
+		else
+			memcpy(&mac, priv->dev->dev_addr, ETH_ALEN);
 	} else {
 		ip_eth_mc_map(ipv4_dst, mac);
 	}
