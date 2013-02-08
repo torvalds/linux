@@ -1746,7 +1746,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 
 	if (beacon)
 		mlme_dbg_ratelimited(sdata,
-				     "detected beacon loss from AP - sending probe request\n");
+				     "detected beacon loss from AP - probing\n");
 
 	ieee80211_cqm_rssi_notify(&sdata->vif,
 		NL80211_CQM_RSSI_BEACON_LOSS_EVENT, GFP_KERNEL);
@@ -2641,7 +2641,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->flags & IEEE80211_STA_BEACON_POLL) {
 		mlme_dbg_ratelimited(sdata,
-				     "cancelling probereq poll due to a received beacon\n");
+				     "cancelling AP probe due to a received beacon\n");
 		mutex_lock(&local->mtx);
 		ifmgd->flags &= ~IEEE80211_STA_BEACON_POLL;
 		ieee80211_run_deferred_scan(local);
