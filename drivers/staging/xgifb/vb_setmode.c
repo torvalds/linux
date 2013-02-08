@@ -2526,36 +2526,34 @@ static void XGI_GetCRT2ResInfo(unsigned short ModeNo,
 	if (!(pVBInfo->VBInfo & SetCRT2ToLCD))
 		goto exit;
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if (pVBInfo->LCDResInfo == Panel_1600x1200) {
-			if (!(pVBInfo->LCDInfo & XGI_LCDVESATiming)) {
-				if (yres == 1024)
-					yres = 1056;
-			}
+	if (pVBInfo->LCDResInfo == Panel_1600x1200) {
+		if (!(pVBInfo->LCDInfo & XGI_LCDVESATiming)) {
+			if (yres == 1024)
+				yres = 1056;
 		}
+	}
 
-		if (pVBInfo->LCDResInfo == Panel_1280x1024) {
-			if (yres == 400)
-				yres = 405;
-			else if (yres == 350)
-				yres = 360;
+	if (pVBInfo->LCDResInfo == Panel_1280x1024) {
+		if (yres == 400)
+			yres = 405;
+		else if (yres == 350)
+			yres = 360;
 
-			if (pVBInfo->LCDInfo & XGI_LCDVESATiming) {
-				if (yres == 360)
-					yres = 375;
-			}
+		if (pVBInfo->LCDInfo & XGI_LCDVESATiming) {
+			if (yres == 360)
+				yres = 375;
 		}
+	}
 
-		if (pVBInfo->LCDResInfo == Panel_1024x768) {
-			if (!(pVBInfo->LCDInfo & XGI_LCDVESATiming)) {
-				if (!(pVBInfo->LCDInfo & LCDNonExpanding)) {
-					if (yres == 350)
-						yres = 357;
-					else if (yres == 400)
-						yres = 420;
-					else if (yres == 480)
-						yres = 525;
-				}
+	if (pVBInfo->LCDResInfo == Panel_1024x768) {
+		if (!(pVBInfo->LCDInfo & XGI_LCDVESATiming)) {
+			if (!(pVBInfo->LCDInfo & LCDNonExpanding)) {
+				if (yres == 350)
+					yres = 357;
+				else if (yres == 400)
+					yres = 420;
+				else if (yres == 480)
+					yres = 525;
 			}
 		}
 	}
