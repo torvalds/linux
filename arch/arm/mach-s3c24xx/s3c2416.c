@@ -50,7 +50,6 @@
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
-#include <plat/s3c2416.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/sdhci.h>

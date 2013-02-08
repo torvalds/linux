@@ -41,12 +41,11 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <mach/fb.h>
 
-#include <plat/s3c2410.h>
-#include <plat/s3c2412.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
+#include "common.h"
 #include "common-smdk.h"
 
 static struct map_desc smdk2413_iodesc[] __initdata = {

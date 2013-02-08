@@ -48,7 +48,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <linux/platform_data/mmc-s3cmci.h>
-#include <plat/s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include "common.h"

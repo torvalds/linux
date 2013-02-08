@@ -42,7 +42,6 @@
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/s3c2416.h>
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
@@ -54,6 +53,7 @@
 
 #include <plat/fb.h>
 
+#include "common.h"
 #include "common-smdk.h"
 
 static struct map_desc smdk2416_iodesc[] __initdata = {
