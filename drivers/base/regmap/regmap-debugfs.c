@@ -81,6 +81,8 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	struct regmap_debugfs_off_cache *c = NULL;
 	loff_t p = 0;
 	unsigned int i, ret;
+	unsigned int fpos_offset;
+	unsigned int reg_offset;
 
 	/*
 	 * If we don't have a cache build one so we don't have to do a
@@ -93,6 +95,9 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			    regmap_precious(map, i)) {
 				if (c) {
 					c->max = p - 1;
+					fpos_offset = c->max - c->min;
+					reg_offset = fpos_offset / map->debugfs_tot_len;
+					c->max_reg = c->base_reg + reg_offset;
 					list_add_tail(&c->list,
 						      &map->debugfs_off_cache);
 					c = NULL;
@@ -119,6 +124,9 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	/* Close the last entry off if we didn't scan beyond it */
 	if (c) {
 		c->max = p - 1;
+		fpos_offset = c->max - c->min;
+		reg_offset = fpos_offset / map->debugfs_tot_len;
+		c->max_reg = c->base_reg + reg_offset;
 		list_add_tail(&c->list,
 			      &map->debugfs_off_cache);
 	}

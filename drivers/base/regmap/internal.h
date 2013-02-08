@@ -25,6 +25,7 @@ struct regmap_debugfs_off_cache {
 	off_t min;
 	off_t max;
 	unsigned int base_reg;
+	unsigned int max_reg;
 };
 
 struct regmap_format {
