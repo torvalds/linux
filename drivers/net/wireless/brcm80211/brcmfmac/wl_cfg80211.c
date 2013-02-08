@@ -673,6 +673,18 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 		infra = 0;
 		break;
 	case NL80211_IFTYPE_STATION:
+		/* Ignore change for p2p IF. Unclear why supplicant does this */
+		if ((vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT) ||
+		    (vif->wdev.iftype == NL80211_IFTYPE_P2P_GO)) {
+			brcmf_dbg(TRACE, "Ignoring cmd for p2p if\n");
+			/* WAR: It is unexpected to get a change of VIF for P2P
+			 * IF, but it happens. The request can not be handled
+			 * but returning EPERM causes a crash. Returning 0
+			 * without setting ieee80211_ptr->iftype causes trace
+			 * (WARN_ON) but it works with wpa_supplicant
+			 */
+			return 0;
+		}
 		vif->mode = WL_MODE_BSS;
 		infra = 1;
 		break;
