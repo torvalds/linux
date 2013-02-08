@@ -498,5 +498,6 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				struct net_device *ndev,
 				bool aborted, bool fw_abort);
 void brcmf_set_mpc(struct net_device *ndev, int mpc);
+void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 
 #endif				/* _wl_cfg80211_h_ */

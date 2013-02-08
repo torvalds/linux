@@ -20,6 +20,10 @@
 
 #include <linux/if_ether.h>
 
+
+#define BRCMF_FIL_ACTION_FRAME_SIZE	1800
+
+
 enum brcmf_fil_p2p_if_types {
 	BRCMF_FIL_P2P_IF_CLIENT,
 	BRCMF_FIL_P2P_IF_GO,
@@ -37,6 +41,21 @@ struct brcmf_fil_chan_info_le {
 	__le32 hw_channel;
 	__le32 target_channel;
 	__le32 scan_channel;
+};
+
+struct brcmf_fil_action_frame_le {
+	u8	da[ETH_ALEN];
+	__le16	len;
+	__le32	packet_id;
+	u8	data[BRCMF_FIL_ACTION_FRAME_SIZE];
+};
+
+struct brcmf_fil_af_params_le {
+	__le32					channel;
+	__le32					dwell_time;
+	u8					bssid[ETH_ALEN];
+	u8					pad[2];
+	struct brcmf_fil_action_frame_le	action_frame;
 };
 
 struct brcmf_fil_bss_enable_le {

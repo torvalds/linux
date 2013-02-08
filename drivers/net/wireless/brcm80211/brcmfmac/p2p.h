@@ -89,6 +89,8 @@ enum brcmf_p2p_status {
  * @ssid: ssid for P2P GO.
  * @listen_channel: channel for @WL_P2P_DISC_ST_LISTEN discover state.
  * @remain_on_channel: contains copy of struct used by cfg80211.
+ * @next_af_subtype: expected action frame subtype.
+ * @send_af_done: indication that action frame tx is complete.
  */
 struct brcmf_p2p_info {
 	struct brcmf_cfg80211_info *cfg;
@@ -100,6 +102,8 @@ struct brcmf_p2p_info {
 	struct brcmf_ssid ssid;
 	u8 listen_channel;
 	struct ieee80211_channel remain_on_channel;
+	u8 next_af_subtype;
+	struct completion send_af_done;
 };
 
 void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
@@ -126,5 +130,11 @@ void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp);
 int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *e,
 				     void *data);
+int brcmf_p2p_notify_action_tx_complete(struct brcmf_if *ifp,
+					const struct brcmf_event_msg *e,
+					void *data);
+bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
+				 struct net_device *ndev,
+				 struct brcmf_fil_af_params_le *af_params);
 
 #endif /* WL_CFGP2P_H_ */

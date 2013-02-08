@@ -2494,7 +2494,7 @@ update_bss_info_out:
 	return err;
 }
 
-static void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg)
+void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg)
 {
 	struct escan_info *escan = &cfg->escan_info;
 
@@ -3949,6 +3949,10 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	s32 err = 0;
 	s32 ie_offset;
 	s32 ie_len;
+	struct brcmf_fil_action_frame_le *action_frame;
+	struct brcmf_fil_af_params_le *af_params;
+	bool ack;
+	s32 chan_nr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3986,11 +3990,44 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					    ie_len);
 		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true,
 					GFP_KERNEL);
+	} else if (ieee80211_is_action(mgmt->frame_control)) {
+		af_params = kzalloc(sizeof(*af_params), GFP_KERNEL);
+		if (af_params == NULL) {
+			brcmf_err("unable to allocate frame\n");
+			err = -ENOMEM;
+			goto exit;
+		}
+		action_frame = &af_params->action_frame;
+		/* Add the packet Id */
+		action_frame->packet_id = cpu_to_le32(*cookie);
+		/* Add BSSID */
+		memcpy(&action_frame->da[0], &mgmt->da[0], ETH_ALEN);
+		memcpy(&af_params->bssid[0], &mgmt->bssid[0], ETH_ALEN);
+		/* Add the length exepted for 802.11 header  */
+		action_frame->len = cpu_to_le16(len - DOT11_MGMT_HDR_LEN);
+		/* Add the channel */
+		chan_nr = ieee80211_frequency_to_channel(chan->center_freq);
+		af_params->channel = cpu_to_le32(chan_nr);
+
+		memcpy(action_frame->data, &buf[DOT11_MGMT_HDR_LEN],
+		       le16_to_cpu(action_frame->len));
+
+		brcmf_dbg(TRACE, "Action frame, cookie=%lld, len=%d, freq=%d\n",
+			  *cookie, le16_to_cpu(action_frame->len),
+			  chan->center_freq);
+
+		ack = brcmf_p2p_send_action_frame(cfg, wdev->netdev,
+						  af_params);
+
+		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, ack,
+					GFP_KERNEL);
+		kfree(af_params);
 	} else {
 		brcmf_dbg(TRACE, "Unhandled, fc=%04x!!\n", mgmt->frame_control);
 		brcmf_dbg_hex_dump(true, buf, len, "payload, len=%Zu\n", len);
 	}
 
+exit:
 	return err;
 }
 
@@ -4703,6 +4740,8 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_p2p_notify_listen_complete);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_RX,
 			    brcmf_p2p_notify_action_frame_rx);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_COMPLETE,
+			    brcmf_p2p_notify_action_tx_complete);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
