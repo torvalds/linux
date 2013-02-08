@@ -827,6 +827,26 @@ static int brcmf_p2p_request_p2p_if(struct brcmf_if *ifp, u8 ea[ETH_ALEN],
 	return err;
 }
 
+static int brcmf_p2p_disable_p2p_if(struct brcmf_cfg80211_vif *vif)
+{
+	struct brcmf_cfg80211_info *cfg = wdev_to_cfg(&vif->wdev);
+	struct net_device *pri_ndev = cfg_to_ndev(cfg);
+	struct brcmf_if *ifp = netdev_priv(pri_ndev);
+	u8 *addr = vif->wdev.netdev->dev_addr;
+
+	return brcmf_fil_iovar_data_set(ifp, "p2p_ifdis", addr, ETH_ALEN);
+}
+
+static int brcmf_p2p_release_p2p_if(struct brcmf_cfg80211_vif *vif)
+{
+	struct brcmf_cfg80211_info *cfg = wdev_to_cfg(&vif->wdev);
+	struct net_device *pri_ndev = cfg_to_ndev(cfg);
+	struct brcmf_if *ifp = netdev_priv(pri_ndev);
+	u8 *addr = vif->wdev.netdev->dev_addr;
+
+	return brcmf_fil_iovar_data_set(ifp, "p2p_ifdel", addr, ETH_ALEN);
+}
+
 /**
  * brcmf_p2p_add_vif() - create a new P2P virtual interface.
  *
@@ -910,23 +930,43 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_cfg80211_vif *vif;
+	unsigned long jiffie_timeout = msecs_to_jiffies(1500);
+	bool wait_for_disable = false;
 	int err;
 
+	brcmf_dbg(TRACE, "delete P2P vif\n");
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 
-	if (brcmf_cfg80211_vif_event_armed(cfg))
-		return -EBUSY;
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+		if (test_bit(BRCMF_VIF_STATUS_DISCONNECTING, &vif->sme_state))
+			wait_for_disable = true;
+		break;
+
+	case NL80211_IFTYPE_P2P_GO:
+		if (!brcmf_p2p_disable_p2p_if(vif))
+			wait_for_disable = true;
+		break;
+
+	case NL80211_IFTYPE_P2P_DEVICE:
+	default:
+		return -ENOTSUPP;
+		break;
+	}
+
+	if (wait_for_disable)
+		wait_for_completion_timeout(&cfg->vif_disabled, 500);
+
+	brcmf_vif_clear_mgmt_ies(vif);
 
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
-	/* wait for firmware event */
-	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
-						    msecs_to_jiffies(1500));
+	err = brcmf_p2p_release_p2p_if(vif);
+	if (!err)
+		/* wait for firmware event */
+		err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
+							    jiffie_timeout);
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
-	if (wdev->netdev)
-		brcmf_dbg(INFO, "deleting vif \"%s\"\n", wdev->netdev->name);
-	else
-		brcmf_dbg(INFO, "deleting vif \"wdev-%u\"\n",
-			  wdev->identifier);
-	brcmf_err("enter - not supported yet\n");
-	return -EOPNOTSUPP;
+	brcmf_free_vif(vif);
+
+	return err;
 }

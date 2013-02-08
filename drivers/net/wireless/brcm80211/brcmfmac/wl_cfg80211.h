@@ -148,6 +148,7 @@ struct brcmf_cfg80211_profile {
  * @BRCMF_VIF_STATUS_READY: ready for operation.
  * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
  * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
+ * @BRCMF_VIF_STATUS_DISCONNECTING: disconnect/disable in progress.
  * @BRCMF_VIF_STATUS_AP_CREATING: interface configured for AP operation.
  * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
  */
@@ -155,6 +156,7 @@ enum brcmf_vif_status {
 	BRCMF_VIF_STATUS_READY,
 	BRCMF_VIF_STATUS_CONNECTING,
 	BRCMF_VIF_STATUS_CONNECTED,
+	BRCMF_VIF_STATUS_DISCONNECTING,
 	BRCMF_VIF_STATUS_AP_CREATING,
 	BRCMF_VIF_STATUS_AP_CREATED
 };
@@ -405,6 +407,7 @@ struct brcmf_cfg80211_info {
 	struct list_head vif_list;
 	u8 vif_cnt;
 	struct brcmf_cfg80211_vif_event vif_event;
+	struct completion vif_disabled;
 };
 
 /**
@@ -479,6 +482,7 @@ void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
+s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
 struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct ieee80211_channel *ch);
 u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);

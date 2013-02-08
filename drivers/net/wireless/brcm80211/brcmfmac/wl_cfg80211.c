@@ -445,9 +445,103 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	}
 }
 
+static void brcmf_set_mpc(struct net_device *ndev, int mpc)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	s32 err = 0;
+
+	if (check_vif_up(ifp->vif)) {
+		err = brcmf_fil_iovar_int_set(ifp, "mpc", mpc);
+		if (err) {
+			brcmf_err("fail to set mpc\n");
+			return;
+		}
+		brcmf_dbg(INFO, "MPC : %d\n", mpc);
+	}
+}
+
+static s32
+brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
+			    struct net_device *ndev,
+			    bool aborted, bool fw_abort)
+{
+	struct brcmf_scan_params_le params_le;
+	struct cfg80211_scan_request *scan_request;
+	s32 err = 0;
+
+	brcmf_dbg(SCAN, "Enter\n");
+
+	/* clear scan request, because the FW abort can cause a second call */
+	/* to this functon and might cause a double cfg80211_scan_done      */
+	scan_request = cfg->scan_request;
+	cfg->scan_request = NULL;
+
+	if (timer_pending(&cfg->escan_timeout))
+		del_timer_sync(&cfg->escan_timeout);
+
+	if (fw_abort) {
+		/* Do a scan abort to stop the driver's scan engine */
+		brcmf_dbg(SCAN, "ABORT scan in firmware\n");
+		memset(&params_le, 0, sizeof(params_le));
+		memset(params_le.bssid, 0xFF, ETH_ALEN);
+		params_le.bss_type = DOT11_BSSTYPE_ANY;
+		params_le.scan_type = 0;
+		params_le.channel_num = cpu_to_le32(1);
+		params_le.nprobes = cpu_to_le32(1);
+		params_le.active_time = cpu_to_le32(-1);
+		params_le.passive_time = cpu_to_le32(-1);
+		params_le.home_time = cpu_to_le32(-1);
+		/* Scan is aborted by setting channel_list[0] to -1 */
+		params_le.channel_list[0] = cpu_to_le16(-1);
+		/* E-Scan (or anyother type) can be aborted by SCAN */
+		err = brcmf_fil_cmd_data_set(netdev_priv(ndev), BRCMF_C_SCAN,
+					     &params_le, sizeof(params_le));
+		if (err)
+			brcmf_err("Scan abort  failed\n");
+	}
+	/*
+	 * e-scan can be initiated by scheduled scan
+	 * which takes precedence.
+	 */
+	if (cfg->sched_escan) {
+		brcmf_dbg(SCAN, "scheduled scan completed\n");
+		cfg->sched_escan = false;
+		if (!aborted)
+			cfg80211_sched_scan_results(cfg_to_wiphy(cfg));
+		brcmf_set_mpc(ndev, 1);
+	} else if (scan_request) {
+		brcmf_dbg(SCAN, "ESCAN Completed scan: %s\n",
+			  aborted ? "Aborted" : "Done");
+		cfg80211_scan_done(scan_request, aborted);
+		brcmf_set_mpc(ndev, 1);
+	}
+	if (!test_and_clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
+		brcmf_err("Scan complete while device not scanning\n");
+		return -EPERM;
+	}
+
+	return err;
+}
+
 static
 int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
+	struct net_device *ndev = wdev->netdev;
+
+	/* vif event pending in firmware */
+	if (brcmf_cfg80211_vif_event_armed(cfg))
+		return -EBUSY;
+
+	if (ndev) {
+		if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status) &&
+		    cfg->escan_info.ndev == ndev)
+			brcmf_notify_escan_complete(cfg, ndev, true,
+						    true);
+
+		brcmf_fil_iovar_int_set(netdev_priv(ndev), "mpc", 1);
+	}
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_STATION:
@@ -523,21 +617,6 @@ done:
 	brcmf_dbg(TRACE, "Exit\n");
 
 	return err;
-}
-
-static void brcmf_set_mpc(struct net_device *ndev, int mpc)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	s32 err = 0;
-
-	if (check_vif_up(ifp->vif)) {
-		err = brcmf_fil_iovar_int_set(ifp, "mpc", mpc);
-		if (err) {
-			brcmf_err("fail to set mpc\n");
-			return;
-		}
-		brcmf_dbg(INFO, "MPC : %d\n", mpc);
-	}
 }
 
 static void brcmf_escan_prep(struct brcmf_scan_params_le *params_le,
@@ -617,69 +696,6 @@ static void brcmf_escan_prep(struct brcmf_scan_params_le *params_le,
 	params_le->channel_num =
 		cpu_to_le32((n_ssids << BRCMF_SCAN_PARAMS_NSSID_SHIFT) |
 			(n_channels & BRCMF_SCAN_PARAMS_COUNT_MASK));
-}
-
-static s32
-brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
-			    struct net_device *ndev,
-			    bool aborted, bool fw_abort)
-{
-	struct brcmf_scan_params_le params_le;
-	struct cfg80211_scan_request *scan_request;
-	s32 err = 0;
-
-	brcmf_dbg(SCAN, "Enter\n");
-
-	/* clear scan request, because the FW abort can cause a second call */
-	/* to this functon and might cause a double cfg80211_scan_done      */
-	scan_request = cfg->scan_request;
-	cfg->scan_request = NULL;
-
-	if (timer_pending(&cfg->escan_timeout))
-		del_timer_sync(&cfg->escan_timeout);
-
-	if (fw_abort) {
-		/* Do a scan abort to stop the driver's scan engine */
-		brcmf_dbg(SCAN, "ABORT scan in firmware\n");
-		memset(&params_le, 0, sizeof(params_le));
-		memset(params_le.bssid, 0xFF, ETH_ALEN);
-		params_le.bss_type = DOT11_BSSTYPE_ANY;
-		params_le.scan_type = 0;
-		params_le.channel_num = cpu_to_le32(1);
-		params_le.nprobes = cpu_to_le32(1);
-		params_le.active_time = cpu_to_le32(-1);
-		params_le.passive_time = cpu_to_le32(-1);
-		params_le.home_time = cpu_to_le32(-1);
-		/* Scan is aborted by setting channel_list[0] to -1 */
-		params_le.channel_list[0] = cpu_to_le16(-1);
-		/* E-Scan (or anyother type) can be aborted by SCAN */
-		err = brcmf_fil_cmd_data_set(netdev_priv(ndev), BRCMF_C_SCAN,
-					     &params_le, sizeof(params_le));
-		if (err)
-			brcmf_err("Scan abort  failed\n");
-	}
-	/*
-	 * e-scan can be initiated by scheduled scan
-	 * which takes precedence.
-	 */
-	if (cfg->sched_escan) {
-		brcmf_dbg(SCAN, "scheduled scan completed\n");
-		cfg->sched_escan = false;
-		if (!aborted)
-			cfg80211_sched_scan_results(cfg_to_wiphy(cfg));
-		brcmf_set_mpc(ndev, 1);
-	} else if (scan_request) {
-		brcmf_dbg(SCAN, "ESCAN Completed scan: %s\n",
-			  aborted ? "Aborted" : "Done");
-		cfg80211_scan_done(scan_request, aborted);
-		brcmf_set_mpc(ndev, 1);
-	}
-	if (!test_and_clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
-		brcmf_err("Scan complete while device not scanning\n");
-		return -EPERM;
-	}
-
-	return err;
 }
 
 static s32
@@ -3474,6 +3490,22 @@ exit:
 	return err;
 }
 
+s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif)
+{
+	s32 pktflags[] = {
+		BRCMF_VNDR_IE_PRBREQ_FLAG,
+		BRCMF_VNDR_IE_PRBRSP_FLAG,
+		BRCMF_VNDR_IE_BEACON_FLAG
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pktflags); i++)
+		brcmf_vif_set_mgmt_ie(vif, pktflags[i], NULL, 0);
+
+	memset(&vif->saved_ie, 0, sizeof(vif->saved_ie));
+	return 0;
+}
+
 static s32
 brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			struct cfg80211_ap_settings *settings)
@@ -4260,6 +4292,12 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 	struct station_info sinfo;
 
 	brcmf_dbg(CONN, "event %d, reason %d\n", event, reason);
+	if (event == BRCMF_E_LINK && reason == BRCMF_E_REASON_LINK_BSSCFG_DIS &&
+	    ndev != cfg_to_ndev(cfg)) {
+		brcmf_dbg(CONN, "AP mode link down\n");
+		complete(&cfg->vif_disabled);
+		return 0;
+	}
 
 	if (((event == BRCMF_E_ASSOC_IND) || (event == BRCMF_E_REASSOC_IND)) &&
 	    (reason == BRCMF_E_STATUS_SUCCESS)) {
@@ -4316,6 +4354,8 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 		}
 		brcmf_link_down(ifp->vif);
 		brcmf_init_prof(ndev_to_prof(ndev));
+		if (ndev != cfg_to_ndev(cfg))
+			complete(&cfg->vif_disabled);
 	} else if (brcmf_is_nonetwork(cfg, e)) {
 		if (brcmf_is_ibssmode(ifp->vif))
 			clear_bit(BRCMF_VIF_STATUS_CONNECTING,
@@ -4401,7 +4441,6 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 
 	case BRCMF_E_IF_DEL:
 		ifp->vif = NULL;
-		brcmf_free_vif(vif);
 		mutex_unlock(&event->vif_event_lock);
 		/* event may not be upon user request */
 		if (brcmf_cfg80211_vif_event_armed(cfg))
@@ -4507,7 +4546,7 @@ static s32 wl_init_priv(struct brcmf_cfg80211_info *cfg)
 	mutex_init(&cfg->usr_sync);
 	brcmf_init_escan(cfg);
 	brcmf_init_conf(cfg->conf);
-
+	init_completion(&cfg->vif_disabled);
 	return err;
 }
 
