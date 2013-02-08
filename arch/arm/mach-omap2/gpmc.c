@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_mtd.h>
 #include <linux/of_device.h>
 #include <linux/mtd/nand.h>
@@ -497,6 +498,37 @@ static int gpmc_cs_delete_mem(int cs)
 	spin_unlock(&gpmc_mem_lock);
 
 	return r;
+}
+
+/**
+ * gpmc_cs_remap - remaps a chip-select physical base address
+ * @cs:		chip-select to remap
+ * @base:	physical base address to re-map chip-select to
+ *
+ * Re-maps a chip-select to a new physical base address specified by
+ * "base". Returns 0 on success and appropriate negative error code
+ * on failure.
+ */
+static int gpmc_cs_remap(int cs, u32 base)
+{
+	int ret;
+	u32 old_base, size;
+
+	if (cs > GPMC_CS_NUM)
+		return -ENODEV;
+	gpmc_cs_get_memconf(cs, &old_base, &size);
+	if (base == old_base)
+		return 0;
+	gpmc_cs_disable_mem(cs);
+	ret = gpmc_cs_delete_mem(cs);
+	if (ret < 0)
+		return ret;
+	ret = gpmc_cs_insert_mem(cs, base, size);
+	if (ret < 0)
+		return ret;
+	gpmc_cs_enable_mem(cs, base, size);
+
+	return 0;
 }
 
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
@@ -1386,6 +1418,80 @@ static int gpmc_probe_onenand_child(struct platform_device *pdev,
 }
 #endif
 
+/**
+ * gpmc_probe_nor_child - configures the gpmc for a nor device
+ * @pdev:	pointer to gpmc platform device
+ * @child:	pointer to device-tree node for nor device
+ *
+ * Allocates and configures a GPMC chip-select for a NOR flash device.
+ * Returns 0 on success and appropriate negative error code on failure.
+ */
+static int gpmc_probe_nor_child(struct platform_device *pdev,
+				struct device_node *child)
+{
+	struct gpmc_settings gpmc_s;
+	struct gpmc_timings gpmc_t;
+	struct resource res;
+	unsigned long base;
+	int ret, cs;
+
+	if (of_property_read_u32(child, "reg", &cs) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(child, 0, &res) < 0) {
+		dev_err(&pdev->dev, "%s has malformed 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	ret = gpmc_cs_request(cs, resource_size(&res), &base);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
+		return ret;
+	}
+
+	/*
+	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
+	 * location in the gpmc address space. When booting with
+	 * device-tree we want the NOR flash to be mapped to the
+	 * location specified in the device-tree blob. So remap the
+	 * CS to this location. Once DT migration is complete should
+	 * just make gpmc_cs_request() map a specific address.
+	 */
+	ret = gpmc_cs_remap(cs, res.start);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot remap GPMC CS %d to 0x%x\n",
+			cs, res.start);
+		goto err;
+	}
+
+	gpmc_read_settings_dt(child, &gpmc_s);
+
+	ret = of_property_read_u32(child, "bank-width", &gpmc_s.device_width);
+	if (ret < 0)
+		goto err;
+
+	ret = gpmc_cs_program_settings(cs, &gpmc_s);
+	if (ret < 0)
+		goto err;
+
+	gpmc_read_timings_dt(child, &gpmc_t);
+	gpmc_cs_set_timings(cs, &gpmc_t);
+
+	if (of_platform_device_create(child, NULL, &pdev->dev))
+		return 0;
+
+	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+
+err:
+	gpmc_cs_free(cs);
+
+	return ret;
+}
+
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
 	int ret;
@@ -1418,6 +1524,15 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	for_each_node_by_name(child, "nor") {
+		ret = gpmc_probe_nor_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 #else
