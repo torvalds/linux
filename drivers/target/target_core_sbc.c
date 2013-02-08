@@ -486,7 +486,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		 */
 		if (cmd->t_task_lba || sectors) {
 			if (sbc_check_valid_sectors(cmd) < 0)
-				return TCM_INVALID_CDB_FIELD;
+				return TCM_ADDRESS_OUT_OF_RANGE;
 		}
 		cmd->execute_cmd = ops->execute_sync_cache;
 		break;
