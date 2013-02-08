@@ -865,53 +865,42 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 	/* si+Ext_ResInfo */
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if (pVBInfo->VBInfo &
-		    (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) { /*301b*/
-			if (pVBInfo->LCDResInfo != Panel_1024x768)
-				/* LCDXlat2VCLK */
-				VCLKIndex = VCLK108_2_315 + 5;
-			else
-				VCLKIndex = VCLK65_315 + 2; /* LCDXlat1VCLK */
-		} else if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
-			if (pVBInfo->SetFlag & RPLLDIV2XO)
-				VCLKIndex = TVCLKBASE_315_25 + HiTVVCLKDIV2;
-			else
-				VCLKIndex = TVCLKBASE_315_25 + HiTVVCLK;
+	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) { /*301b*/
+		if (pVBInfo->LCDResInfo != Panel_1024x768)
+			/* LCDXlat2VCLK */
+			VCLKIndex = VCLK108_2_315 + 5;
+		else
+			VCLKIndex = VCLK65_315 + 2; /* LCDXlat1VCLK */
+	} else if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
+		if (pVBInfo->SetFlag & RPLLDIV2XO)
+			VCLKIndex = TVCLKBASE_315_25 + HiTVVCLKDIV2;
+		else
+			VCLKIndex = TVCLKBASE_315_25 + HiTVVCLK;
 
-			if (pVBInfo->SetFlag & TVSimuMode) {
-				if (modeflag & Charx8Dot) {
-					VCLKIndex = TVCLKBASE_315_25 +
-							HiTVSimuVCLK;
-				} else {
-					VCLKIndex = TVCLKBASE_315_25 +
-							HiTVTextVCLK;
-				}
+		if (pVBInfo->SetFlag & TVSimuMode) {
+			if (modeflag & Charx8Dot) {
+				VCLKIndex = TVCLKBASE_315_25 + HiTVSimuVCLK;
+			} else {
+				VCLKIndex = TVCLKBASE_315_25 + HiTVTextVCLK;
 			}
-
-			/* 301lv */
-			if (pVBInfo->VBType & VB_SIS301LV) {
-				if (pVBInfo->SetFlag & RPLLDIV2XO)
-					VCLKIndex = YPbPr525iVCLK_2;
-				else
-					VCLKIndex = YPbPr525iVCLK;
-			}
-		} else if (pVBInfo->VBInfo & SetCRT2ToTV) {
-			if (pVBInfo->SetFlag & RPLLDIV2XO)
-				VCLKIndex = TVCLKBASE_315_25 + TVVCLKDIV2;
-			else
-				VCLKIndex = TVCLKBASE_315_25 + TVVCLK;
-		} else { /* for CRT2 */
-			/* di+Ext_CRTVCLK */
-			VCLKIndex = XGI330_RefIndex[RefreshRateTableIndex].
-								Ext_CRTVCLK;
-			VCLKIndex &= IndexMask;
 		}
-	} else if ((pVBInfo->LCDResInfo == Panel_800x600) ||
-		   (pVBInfo->LCDResInfo == Panel_320x480)) { /* LVDS */
-		VCLKIndex = VCLK40; /* LVDSXlat1VCLK */
-	} else {
-		VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK, LVDSXlat3VCLK */
+
+		/* 301lv */
+		if (pVBInfo->VBType & VB_SIS301LV) {
+			if (pVBInfo->SetFlag & RPLLDIV2XO)
+				VCLKIndex = YPbPr525iVCLK_2;
+			else
+				VCLKIndex = YPbPr525iVCLK;
+		}
+	} else if (pVBInfo->VBInfo & SetCRT2ToTV) {
+		if (pVBInfo->SetFlag & RPLLDIV2XO)
+			VCLKIndex = TVCLKBASE_315_25 + TVVCLKDIV2;
+		else
+			VCLKIndex = TVCLKBASE_315_25 + TVVCLK;
+	} else { /* for CRT2 */
+		/* di+Ext_CRTVCLK */
+		VCLKIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
+		VCLKIndex &= IndexMask;
 	}
 
 	return VCLKIndex;
