@@ -535,7 +535,7 @@ struct mac_address {
  * struct cfg80211_acl_data - Access control list data
  *
  * @acl_policy: ACL policy to be applied on the station's
-	entry specified by mac_addr
+ *	entry specified by mac_addr
  * @n_acl_entries: Number of MAC address entries passed
  * @mac_addrs: List of MAC addresses of stations to be used for ACL
  */
@@ -666,6 +666,8 @@ struct station_parameters {
  * @STATION_INFO_INACTIVE_TIME: @inactive_time filled
  * @STATION_INFO_RX_BYTES: @rx_bytes filled
  * @STATION_INFO_TX_BYTES: @tx_bytes filled
+ * @STATION_INFO_RX_BYTES64: @rx_bytes filled with 64-bit value
+ * @STATION_INFO_TX_BYTES64: @tx_bytes filled with 64-bit value
  * @STATION_INFO_LLID: @llid filled
  * @STATION_INFO_PLID: @plid filled
  * @STATION_INFO_PLINK_STATE: @plink_state filled
@@ -674,8 +676,6 @@ struct station_parameters {
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
  * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
- * @STATION_INFO_RX_PACKETS64: @rx_packets filled with 64-bit value
- * @STATION_INFO_TX_PACKETS64: @tx_packets filled with 64-bit value
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
  * @STATION_INFO_TX_FAILED: @tx_failed filled
  * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
@@ -1226,6 +1226,7 @@ struct cfg80211_match_set {
  * @n_match_sets: number of match sets
  * @wiphy: the wiphy this was for
  * @dev: the interface
+ * @scan_start: start time of the scheduled scan
  * @channels: channels to scan
  * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
  */
@@ -1404,6 +1405,8 @@ struct cfg80211_assoc_request {
  * @ie: Extra IEs to add to Deauthentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the deauthentication
+ * @local_state_change: if set, change local state only and
+ *	do not set a deauth frame
  */
 struct cfg80211_deauth_request {
 	const u8 *bssid;
@@ -2629,7 +2632,6 @@ struct cfg80211_cached_keys;
  *	the user-set AP, monitor and WDS channel
  * @preset_chan: (private) Used by the internal configuration code to
  *	track the channel to be used for AP later
- * @preset_chantype: (private) the corresponding channel type
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
  * @ssid_len: (private) Used by the internal configuration code

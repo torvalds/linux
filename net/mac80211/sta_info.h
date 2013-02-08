@@ -298,6 +298,7 @@ struct sta_ampdu_mlme {
  * @beacon_loss_count: number of times beacon loss has triggered
  * @supports_40mhz: tracks whether the station advertised 40 MHz support
  *	as we overwrite its HT parameters with the currently used value
+ * @rcu_head: RCU head used for freeing this station struct
  */
 struct sta_info {
 	/* General information, mostly static */
