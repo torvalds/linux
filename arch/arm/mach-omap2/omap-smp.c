@@ -83,6 +83,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 {
 	static struct clockdomain *cpu1_clkdm;
 	static bool booted;
+	static struct powerdomain *cpu1_pwrdm;
 	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
@@ -102,8 +103,10 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	else
 		__raw_writel(0x20, base + OMAP_AUX_CORE_BOOT_0);
 
-	if (!cpu1_clkdm)
+	if (!cpu1_clkdm && !cpu1_pwrdm) {
 		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
+		cpu1_pwrdm = pwrdm_lookup("cpu1_pwrdm");
+	}
 
 	/*
 	 * The SGI(Software Generated Interrupts) are not wakeup capable
@@ -116,7 +119,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	 * Section :
 	 *	4.3.4.2 Power States of CPU0 and CPU1
 	 */
-	if (booted) {
+	if (booted && cpu1_pwrdm && cpu1_clkdm) {
 		/*
 		 * GIC distributor control register has changed between
 		 * CortexA9 r1pX and r2pX. The Control Register secure
@@ -137,7 +140,12 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 			gic_dist_disable();
 		}
 
+		/*
+		 * Ensure that CPU power state is set to ON to avoid CPU
+		 * powerdomain transition on wfi
+		 */
 		clkdm_wakeup(cpu1_clkdm);
+		omap_set_pwrdm_state(cpu1_pwrdm, PWRDM_POWER_ON);
 		clkdm_allow_idle(cpu1_clkdm);
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD)) {
