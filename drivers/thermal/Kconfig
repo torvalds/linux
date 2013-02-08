@@ -29,14 +29,14 @@ choice
 
 config THERMAL_DEFAULT_GOV_STEP_WISE
 	bool "step_wise"
-	select STEP_WISE
+	select THERMAL_GOV_STEP_WISE
 	help
 	  Use the step_wise governor as default. This throttles the
 	  devices one step at a time.
 
 config THERMAL_DEFAULT_GOV_FAIR_SHARE
 	bool "fair_share"
-	select FAIR_SHARE
+	select THERMAL_GOV_FAIR_SHARE
 	help
 	  Use the fair_share governor as default. This throttles the
 	  devices based on their 'contribution' to a zone. The
@@ -44,24 +44,24 @@ config THERMAL_DEFAULT_GOV_FAIR_SHARE
 
 config THERMAL_DEFAULT_GOV_USER_SPACE
 	bool "user_space"
-	select USER_SPACE
+	select THERMAL_GOV_USER_SPACE
 	help
 	  Select this if you want to let the user space manage the
 	  lpatform thermals.
 
 endchoice
 
-config FAIR_SHARE
+config THERMAL_GOV_FAIR_SHARE
 	bool "Fair-share thermal governor"
 	help
 	  Enable this to manage platform thermals using fair-share governor.
 
-config STEP_WISE
+config THERMAL_GOV_STEP_WISE
 	bool "Step_wise thermal governor"
 	help
 	  Enable this to manage platform thermals using a simple linear
 
-config USER_SPACE
+config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
 	help
 	  Enable this to let the user space manage the platform thermals.
