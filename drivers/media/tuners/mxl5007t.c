@@ -531,6 +531,10 @@ static int mxl5007t_tuner_init(struct mxl5007t_state *state,
 	struct reg_pair_t *init_regs;
 	int ret;
 
+	ret = mxl5007t_soft_reset(state);
+	if (mxl_fail(ret))
+		goto fail;
+
 	/* calculate initialization reg array */
 	init_regs = mxl5007t_calc_init_regs(state, mode);
 
@@ -896,20 +900,7 @@ struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 		/* existing tuner instance */
 		break;
 	}
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	ret = mxl5007t_soft_reset(state);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	if (mxl_fail(ret))
-		goto fail;
-
 	fe->tuner_priv = state;
-
 	mutex_unlock(&mxl5007t_list_mutex);
 
 	memcpy(&fe->ops.tuner_ops, &mxl5007t_tuner_ops,
