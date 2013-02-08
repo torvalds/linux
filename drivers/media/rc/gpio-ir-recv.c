@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <media/rc-core.h>
@@ -29,6 +30,45 @@ struct gpio_rc_dev {
 	int gpio_nr;
 	bool active_low;
 };
+
+#ifdef CONFIG_OF
+/*
+ * Translate OpenFirmware node properties into platform_data
+ */
+static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
+				  struct gpio_ir_recv_platform_data *pdata)
+{
+	struct device_node *np = dev->of_node;
+	enum of_gpio_flags flags;
+	int gpio;
+
+	gpio = of_get_gpio_flags(np, 0, &flags);
+	if (gpio < 0) {
+		if (gpio != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get gpio flags (%d)\n", gpio);
+		return gpio;
+	}
+
+	pdata->gpio_nr = gpio;
+	pdata->active_low = (flags & OF_GPIO_ACTIVE_LOW);
+	/* probe() takes care of map_name == NULL or allowed_protos == 0 */
+	pdata->map_name = of_get_property(np, "linux,rc-map-name", NULL);
+	pdata->allowed_protos = 0;
+
+	return 0;
+}
+
+static struct of_device_id gpio_ir_recv_of_match[] = {
+	{ .compatible = "gpio-ir-receiver", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, gpio_ir_recv_of_match);
+
+#else /* !CONFIG_OF */
+
+#define gpio_ir_recv_get_devtree_pdata(dev, pdata)	(-ENOSYS)
+
+#endif
 
 static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 {
@@ -65,6 +105,17 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	const struct gpio_ir_recv_platform_data *pdata =
 					pdev->dev.platform_data;
 	int rc;
+
+	if (pdev->dev.of_node) {
+		struct gpio_ir_recv_platform_data *dtpdata =
+			devm_kzalloc(&pdev->dev, sizeof(*dtpdata), GFP_KERNEL);
+		if (!dtpdata)
+			return -ENOMEM;
+		rc = gpio_ir_recv_get_devtree_pdata(&pdev->dev, dtpdata);
+		if (rc)
+			return rc;
+		pdata = dtpdata;
+	}
 
 	if (!pdata)
 		return -EINVAL;
@@ -191,6 +242,7 @@ static struct platform_driver gpio_ir_recv_driver = {
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
 		.owner  = THIS_MODULE,
+		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,
 #endif
