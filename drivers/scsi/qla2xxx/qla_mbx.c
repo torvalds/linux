@@ -3141,6 +3141,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *vp;
 	unsigned long   flags;
+	int found;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b6,
 	    "Entered %s.\n", __func__);
@@ -3176,13 +3177,17 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			return;
 		}
 
+		found = 0;
 		spin_lock_irqsave(&ha->vport_slock, flags);
-		list_for_each_entry(vp, &ha->vp_list, list)
-			if (vp_idx == vp->vp_idx)
+		list_for_each_entry(vp, &ha->vp_list, list) {
+			if (vp_idx == vp->vp_idx) {
+				found = 1;
 				break;
+			}
+		}
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 
-		if (!vp)
+		if (!found)
 			return;
 
 		vp->d_id.b.domain = rptid_entry->port_id[2];
