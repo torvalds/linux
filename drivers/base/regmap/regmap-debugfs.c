@@ -139,15 +139,17 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	WARN_ON(list_empty(&map->debugfs_off_cache));
 	ret = base;
 
-	/* Find the relevant block */
+	/* Find the relevant block:offset */
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
 		if (from >= c->min && from <= c->max) {
-			*pos = c->min;
-			return c->base_reg;
+			fpos_offset = from - c->min;
+			reg_offset = fpos_offset / map->debugfs_tot_len;
+			*pos = c->min + (reg_offset * map->debugfs_tot_len);
+			return c->base_reg + reg_offset;
 		}
 
-		*pos = c->min;
-		ret = c->base_reg;
+		*pos = c->max;
+		ret = c->max_reg;
 	}
 
 	return ret;
