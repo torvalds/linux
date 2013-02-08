@@ -638,7 +638,7 @@ static inline void save_screen(struct vc_data *vc)
  *	Redrawing of screen
  */
 
-static void clear_buffer_attributes(struct vc_data *vc)
+void clear_buffer_attributes(struct vc_data *vc)
 {
 	unsigned short *p = (unsigned short *)vc->vc_origin;
 	int count = vc->vc_screenbuf_size / 2;

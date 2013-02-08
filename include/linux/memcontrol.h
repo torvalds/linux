@@ -429,7 +429,7 @@ extern int memcg_limited_groups_array_size;
  * the slab_mutex must be held when looping through those caches
  */
 #define for_each_memcg_cache_index(_idx)	\
-	for ((_idx) = 0; i < memcg_limited_groups_array_size; (_idx)++)
+	for ((_idx) = 0; (_idx) < memcg_limited_groups_array_size; (_idx)++)
 
 static inline bool memcg_kmem_enabled(void)
 {
