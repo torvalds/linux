@@ -3094,8 +3094,9 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	s32 pm;
 	s32 err = 0;
 	struct wl_priv *wl = wiphy_priv(wiphy);
+#if !defined(SUPPORT_PM2_ONLY)
 	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
-
+#endif
 	CHECK_SYS_UP(wl);
 
 	WL_DBG(("Enter : power save %s\n", (enabled ? "enable" : "disable")));
@@ -3103,7 +3104,11 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	}
 
+#if !defined(SUPPORT_PM2_ONLY)
 	pm = enabled ? ((dhd->in_suspend) ? PM_MAX : PM_FAST) : PM_OFF;
+#else
+	pm = enabled ? PM_FAST : PM_OFF;
+#endif
 	pm = htod32(pm);
 	err = wldev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm), true);
 	if (unlikely(err)) {
