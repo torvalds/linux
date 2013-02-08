@@ -842,7 +842,8 @@ void brcmf_dev_reset(struct device *dev)
 	if (drvr == NULL)
 		return;
 
-	brcmf_fil_cmd_int_set(drvr->iflist[0], BRCMF_C_TERMINATED, 1);
+	if (drvr->iflist[0])
+		brcmf_fil_cmd_int_set(drvr->iflist[0], BRCMF_C_TERMINATED, 1);
 }
 
 void brcmf_detach(struct device *dev)
