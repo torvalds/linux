@@ -716,7 +716,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	if (ifp) {
 		brcmf_err("ERROR: netdev:%s already exists\n",
 			  ifp->ndev->name);
-		if (bssidx) {
+		if (ifidx) {
 			netif_stop_queue(ifp->ndev);
 			unregister_netdev(ifp->ndev);
 			free_netdev(ifp->ndev);
