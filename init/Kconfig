@@ -332,7 +332,7 @@ config VIRT_CPU_ACCOUNTING
 choice
 	prompt "Cputime accounting"
 	default TICK_CPU_ACCOUNTING if !PPC64
-	default VIRT_CPU_ACCOUNTING if PPC64
+	default VIRT_CPU_ACCOUNTING_NATIVE if PPC64
 
 # Kind of a stub config for the pure tick based cputime accounting
 config TICK_CPU_ACCOUNTING
