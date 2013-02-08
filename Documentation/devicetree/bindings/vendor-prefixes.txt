@@ -14,6 +14,7 @@ bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
 cavium	Cavium, Inc.
 chrp	Common Hardware Reference Platform
+cirrus	Cirrus Logic, Inc.
 cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 denx	Denx Software Engineering
@@ -42,6 +43,7 @@ powervr	PowerVR (deprecated, use img)
 qcom	Qualcomm, Inc.
 ramtron	Ramtron International
 realtek Realtek Semiconductor Corp.
+renesas	Renesas Electronics Corporation
 samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
@@ -52,6 +54,7 @@ snps 	Synopsys, Inc.
 st	STMicroelectronics
 stericsson	ST-Ericsson
 ti	Texas Instruments
+toshiba	Toshiba Corporation
 via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
