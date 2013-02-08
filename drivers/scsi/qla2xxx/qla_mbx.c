@@ -4446,7 +4446,11 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp, uint16_t *frac)
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1018,
 	    "Done %s.\n", __func__);
+	return rval;
 fail:
+	ql_log(ql_log_warn, vha, 0x1150,
+	    "Thermal not supported by this card "
+	    "(ignoring further requests).\n");
 	return rval;
 }
 
