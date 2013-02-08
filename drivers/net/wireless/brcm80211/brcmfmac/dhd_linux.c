@@ -599,10 +599,11 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
 
-int brcmf_net_attach(struct brcmf_if *ifp)
+int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct net_device *ndev;
+	s32 err;
 
 	brcmf_dbg(TRACE, "Enter, idx=%d mac=%pM\n", ifp->bssidx,
 		  ifp->mac_addr);
@@ -623,7 +624,11 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 
-	if (register_netdev(ndev) != 0) {
+	if (rtnl_locked)
+		err = register_netdevice(ndev);
+	else
+		err = register_netdev(ndev);
+	if (err != 0) {
 		brcmf_err("couldn't register the net device\n");
 		goto fail;
 	}
@@ -876,7 +881,7 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		goto fail;
 
-	ret = brcmf_net_attach(ifp);
+	ret = brcmf_net_attach(ifp, false);
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);

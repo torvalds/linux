@@ -200,7 +200,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 			return;
 
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
-			err = brcmf_net_attach(ifp);
+			err = brcmf_net_attach(ifp, false);
 	}
 
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);

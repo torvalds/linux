@@ -4668,7 +4668,7 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 
 		/* waiting process need to set the netdev name */
 		wait_for_completion(&event->vif_complete);
-		return brcmf_net_attach(ifp);
+		return brcmf_net_attach(ifp, true);
 
 	case BRCMF_E_IF_DEL:
 		ifp->vif = NULL;

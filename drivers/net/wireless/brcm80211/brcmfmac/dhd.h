@@ -585,7 +585,7 @@ extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 			       struct sk_buff *rxp);
 
-extern int brcmf_net_attach(struct brcmf_if *ifp);
+extern int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx,
 				     s32 ifidx, char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
