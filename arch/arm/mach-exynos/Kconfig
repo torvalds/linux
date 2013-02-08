@@ -410,6 +410,7 @@ config MACH_EXYNOS4_DT
 	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
 	select PINCTRL
 	select PINCTRL_EXYNOS
+	select S5P_DEV_MFC
 	select USE_OF
 	help
 	  Machine support for Samsung Exynos4 machine with device tree enabled.
