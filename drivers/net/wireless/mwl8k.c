@@ -285,6 +285,9 @@ struct mwl8k_priv {
 	char *fw_pref;
 	char *fw_alt;
 	struct completion firmware_loading_complete;
+
+	/* bitmap of running BSSes */
+	u32 running_bsses;
 };
 
 #define MAX_WEP_KEY_LEN         13
@@ -2156,6 +2159,8 @@ static void mwl8k_fw_unlock(struct ieee80211_hw *hw)
 	}
 }
 
+static void mwl8k_enable_bsses(struct ieee80211_hw *hw, bool enable,
+			       u32 bitmap);
 
 /*
  * Command processing.
@@ -2174,6 +2179,34 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	int rc;
 	unsigned long timeout = 0;
 	u8 buf[32];
+	u32 bitmap = 0;
+
+	wiphy_dbg(hw->wiphy, "Posting %s [%d]\n",
+		  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)), cmd->macid);
+
+	/* Before posting firmware commands that could change the hardware
+	 * characteristics, make sure that all BSSes are stopped temporary.
+	 * Enable these stopped BSSes after completion of the commands
+	 */
+
+	rc = mwl8k_fw_lock(hw);
+	if (rc)
+		return rc;
+
+	if (priv->ap_fw && priv->running_bsses) {
+		switch (le16_to_cpu(cmd->code)) {
+		case MWL8K_CMD_SET_RF_CHANNEL:
+		case MWL8K_CMD_RADIO_CONTROL:
+		case MWL8K_CMD_RF_TX_POWER:
+		case MWL8K_CMD_TX_POWER:
+		case MWL8K_CMD_RF_ANTENNA:
+		case MWL8K_CMD_RTS_THRESHOLD:
+		case MWL8K_CMD_MIMO_CONFIG:
+			bitmap = priv->running_bsses;
+			mwl8k_enable_bsses(hw, false, bitmap);
+			break;
+		}
+	}
 
 	cmd->result = (__force __le16) 0xffff;
 	dma_size = le16_to_cpu(cmd->length);
@@ -2181,13 +2214,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 				  PCI_DMA_BIDIRECTIONAL);
 	if (pci_dma_mapping_error(priv->pdev, dma_addr))
 		return -ENOMEM;
-
-	rc = mwl8k_fw_lock(hw);
-	if (rc) {
-		pci_unmap_single(priv->pdev, dma_addr, dma_size,
-						PCI_DMA_BIDIRECTIONAL);
-		return rc;
-	}
 
 	priv->hostcmd_wait = &cmd_wait;
 	iowrite32(dma_addr, regs + MWL8K_HIU_GEN_PTR);
@@ -2201,7 +2227,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 	priv->hostcmd_wait = NULL;
 
-	mwl8k_fw_unlock(hw);
 
 	pci_unmap_single(priv->pdev, dma_addr, dma_size,
 					PCI_DMA_BIDIRECTIONAL);
@@ -2227,6 +2252,11 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 						    buf, sizeof(buf)),
 				     ms);
 	}
+
+	if (bitmap)
+		mwl8k_enable_bsses(hw, true, bitmap);
+
+	mwl8k_fw_unlock(hw);
 
 	return rc;
 }
@@ -2489,7 +2519,7 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 		priv->hw_rev = cmd->hw_rev;
 		mwl8k_set_caps(hw, le32_to_cpu(cmd->caps));
 		priv->ap_macids_supported = 0x000000ff;
-		priv->sta_macids_supported = 0x00000000;
+		priv->sta_macids_supported = 0x00000100;
 		priv->num_ampdu_queues = le32_to_cpu(cmd->num_of_ampdu_queues);
 		if (priv->num_ampdu_queues > MWL8K_MAX_AMPDU_QUEUES) {
 			wiphy_warn(hw->wiphy, "fw reported %d ampdu queues"
@@ -3508,7 +3538,10 @@ static int mwl8k_cmd_update_mac_addr(struct ieee80211_hw *hw,
 	mac_type = MWL8K_MAC_TYPE_PRIMARY_AP;
 	if (vif != NULL && vif->type == NL80211_IFTYPE_STATION) {
 		if (mwl8k_vif->macid + 1 == ffs(priv->sta_macids_supported))
-			mac_type = MWL8K_MAC_TYPE_PRIMARY_CLIENT;
+			if (priv->ap_fw)
+				mac_type = MWL8K_MAC_TYPE_SECONDARY_CLIENT;
+			else
+				mac_type = MWL8K_MAC_TYPE_PRIMARY_CLIENT;
 		else
 			mac_type = MWL8K_MAC_TYPE_SECONDARY_CLIENT;
 	} else if (vif != NULL && vif->type == NL80211_IFTYPE_AP) {
@@ -3680,7 +3713,15 @@ static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif, int enable)
 {
 	struct mwl8k_cmd_bss_start *cmd;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+	struct mwl8k_priv *priv = hw->priv;
 	int rc;
+
+	if (enable && (priv->running_bsses & (1 << mwl8k_vif->macid)))
+		return 0;
+
+	if (!enable && !(priv->running_bsses & (1 << mwl8k_vif->macid)))
+		return 0;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
@@ -3693,9 +3734,31 @@ static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 	kfree(cmd);
 
+	if (!rc) {
+		if (enable)
+			priv->running_bsses |= (1 << mwl8k_vif->macid);
+		else
+			priv->running_bsses &= ~(1 << mwl8k_vif->macid);
+	}
 	return rc;
 }
 
+static void mwl8k_enable_bsses(struct ieee80211_hw *hw, bool enable, u32 bitmap)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_vif *mwl8k_vif, *tmp_vif;
+	struct ieee80211_vif *vif;
+
+	list_for_each_entry_safe(mwl8k_vif, tmp_vif, &priv->vif_list, list) {
+		vif = mwl8k_vif->vif;
+
+		if (!(bitmap & (1 << mwl8k_vif->macid)))
+			continue;
+
+		if (vif->type == NL80211_IFTYPE_AP)
+			mwl8k_cmd_bss_start(hw, vif, enable);
+	}
+}
 /*
  * CMD_BASTREAM.
  */
@@ -4202,8 +4265,9 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 	u8 encr_type;
 	u8 *addr;
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+	struct mwl8k_priv *priv = hw->priv;
 
-	if (vif->type == NL80211_IFTYPE_STATION)
+	if (vif->type == NL80211_IFTYPE_STATION && !priv->ap_fw)
 		return -EOPNOTSUPP;
 
 	if (sta == NULL)
@@ -4609,12 +4673,18 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (priv->ap_fw && di->fw_image_sta) {
-			/* we must load the sta fw to meet this request */
-			if (!list_empty(&priv->vif_list))
-				return -EBUSY;
-			rc = mwl8k_reload_firmware(hw, di->fw_image_sta);
-			if (rc)
-				return rc;
+			if (!list_empty(&priv->vif_list)) {
+				wiphy_warn(hw->wiphy, "AP interface is running.\n"
+					   "Adding STA interface for WDS");
+			} else {
+				/* we must load the sta fw to
+				 * meet this request.
+				 */
+				rc = mwl8k_reload_firmware(hw,
+							   di->fw_image_sta);
+				if (rc)
+					return rc;
+			}
 		}
 		macids_supported = priv->sta_macids_supported;
 		break;
@@ -4638,7 +4708,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	/* Set the mac address.  */
 	mwl8k_cmd_set_mac_addr(hw, vif, vif->addr);
 
-	if (priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_cmd_set_new_stn_add_self(hw, vif);
 
 	priv->macids_used |= 1 << mwl8k_vif->macid;
@@ -4663,7 +4733,7 @@ static void mwl8k_remove_interface(struct ieee80211_hw *hw,
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
 
-	if (priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_cmd_set_new_stn_del(hw, vif, vif->addr);
 
 	mwl8k_cmd_del_mac_addr(hw, vif, vif->addr);
@@ -4737,9 +4807,11 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	if (rc)
 		goto out;
 
-	rc = mwl8k_cmd_set_rf_channel(hw, conf);
-	if (rc)
-		goto out;
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		rc = mwl8k_cmd_set_rf_channel(hw, conf);
+		if (rc)
+			goto out;
+	}
 
 	if (conf->power_level > 18)
 		conf->power_level = 18;
@@ -4752,12 +4824,6 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 				goto out;
 		}
 
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
-		if (rc)
-			wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
-		if (rc)
-			wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
 
 	} else {
 		rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
@@ -4815,7 +4881,8 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		rcu_read_unlock();
 	}
 
-	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc) {
+	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
+	    !priv->ap_fw) {
 		rc = mwl8k_cmd_set_rate(hw, vif, ap_legacy_rates, ap_mcs_rates);
 		if (rc)
 			goto out;
@@ -4823,6 +4890,25 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		rc = mwl8k_cmd_use_fixed_rate_sta(hw);
 		if (rc)
 			goto out;
+	} else {
+		if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
+		    priv->ap_fw) {
+			int idx;
+			int rate;
+
+			/* Use AP firmware specific rate command.
+			 */
+			idx = ffs(vif->bss_conf.basic_rates);
+			if (idx)
+				idx--;
+
+			if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+				rate = mwl8k_rates_24[idx].hw_value;
+			else
+				rate = mwl8k_rates_50[idx].hw_value;
+
+			mwl8k_cmd_use_fixed_rate_ap(hw, rate, rate);
+		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -4832,13 +4918,13 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			goto out;
 	}
 
-	if (changed & BSS_CHANGED_ERP_SLOT) {
+	if ((changed & BSS_CHANGED_ERP_SLOT) && !priv->ap_fw)  {
 		rc = mwl8k_cmd_set_slot(hw, vif->bss_conf.use_short_slot);
 		if (rc)
 			goto out;
 	}
 
-	if (vif->bss_conf.assoc &&
+	if (vif->bss_conf.assoc && !priv->ap_fw &&
 	    (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_ERP_CTS_PROT |
 			BSS_CHANGED_HT))) {
 		rc = mwl8k_cmd_set_aid(hw, vif, ap_legacy_rates);
@@ -4918,11 +5004,9 @@ static void
 mwl8k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mwl8k_priv *priv = hw->priv;
-
-	if (!priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_STATION)
 		mwl8k_bss_info_changed_sta(hw, vif, info, changed);
-	else
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_bss_info_changed_ap(hw, vif, info, changed);
 }
 
@@ -5647,6 +5731,15 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		goto err_free_irq;
 	}
 
+	/* Configure Antennas */
+	rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
+	if (rc)
+		wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
+	rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+	if (rc)
+		wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
+
+
 	/* Disable interrupts */
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 	free_irq(priv->pdev->irq, hw);
@@ -5734,6 +5827,7 @@ fail:
 
 static const struct ieee80211_iface_limit ap_if_limits[] = {
 	{ .max = 8,	.types = BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_STATION) },
 };
 
 static const struct ieee80211_iface_combination ap_if_comb = {
@@ -5826,6 +5920,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	if (priv->ap_macids_supported || priv->device_info->fw_image_ap) {
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
 		hw->wiphy->iface_combinations = &ap_if_comb;
 		hw->wiphy->n_iface_combinations = 1;
 	}
@@ -5947,6 +6042,8 @@ static int mwl8k_probe(struct pci_dev *pdev,
 		goto err_stop_firmware;
 
 	priv->hw_restart_in_progress = false;
+
+	priv->running_bsses = 0;
 
 	return rc;
 

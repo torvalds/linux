@@ -332,7 +332,7 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 			u8 *buffer, u32 pkt_len, u32 port)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	int ret = -1;
+	int ret;
 	u8 blk_mode =
 		(port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE : BLOCK_MODE;
 	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
@@ -350,8 +350,7 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 
 	sdio_claim_host(card->func);
 
-	if (!sdio_writesb(card->func, ioport, buffer, blk_cnt * blk_size))
-		ret = 0;
+	ret = sdio_writesb(card->func, ioport, buffer, blk_cnt * blk_size);
 
 	sdio_release_host(card->func);
 
@@ -365,7 +364,7 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
 				  u32 len, u32 port, u8 claim)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	int ret = -1;
+	int ret;
 	u8 blk_mode = (port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE
 		       : BLOCK_MODE;
 	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
@@ -376,8 +375,7 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
 	if (claim)
 		sdio_claim_host(card->func);
 
-	if (!sdio_readsb(card->func, buffer, ioport, blk_cnt * blk_size))
-		ret = 0;
+	ret = sdio_readsb(card->func, buffer, ioport, blk_cnt * blk_size);
 
 	if (claim)
 		sdio_release_host(card->func);

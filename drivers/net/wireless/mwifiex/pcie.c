@@ -846,8 +846,8 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 
 		card->tx_buf_list[wrdoneidx] = NULL;
 		card->txbd_ring[wrdoneidx]->paddr = 0;
-		card->rxbd_ring[wrdoneidx]->len = 0;
-		card->rxbd_ring[wrdoneidx]->flags = 0;
+		card->txbd_ring[wrdoneidx]->len = 0;
+		card->txbd_ring[wrdoneidx]->flags = 0;
 		card->txbd_rdptr++;
 
 		if ((card->txbd_rdptr & MWIFIEX_TXBD_MASK) == num_tx_buffs)
@@ -1985,6 +1985,7 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	card->pci_mmap = pci_iomap(pdev, 0, 0);
 	if (!card->pci_mmap) {
 		dev_err(adapter->dev, "iomap(0) error\n");
+		ret = -EIO;
 		goto err_iomap0;
 	}
 	ret = pci_request_region(pdev, 2, DRV_NAME);
@@ -1995,6 +1996,7 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	card->pci_mmap1 = pci_iomap(pdev, 2, 0);
 	if (!card->pci_mmap1) {
 		dev_err(adapter->dev, "iomap(2) error\n");
+		ret = -EIO;
 		goto err_iomap2;
 	}
 

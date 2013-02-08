@@ -319,6 +319,8 @@ struct ath_rx {
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
 	struct sk_buff *frag;
+
+	u32 ampdu_ref;
 };
 
 int ath_startrecv(struct ath_softc *sc);
@@ -754,6 +756,7 @@ struct ath_softc {
 	/* relay(fs) channel for spectral scan */
 	struct rchan *rfs_chan_spec_scan;
 	enum spectral_mode spectral_mode;
+	struct ath_spec_scan spec_config;
 	int scanning;
 
 #ifdef CONFIG_PM_SLEEP
@@ -863,31 +866,31 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
  * interface.
  */
 enum ath_fft_sample_type {
-	ATH_FFT_SAMPLE_HT20 = 0,
+	ATH_FFT_SAMPLE_HT20 = 1,
 };
 
 struct fft_sample_tlv {
 	u8 type;	/* see ath_fft_sample */
-	u16 length;
+	__be16 length;
 	/* type dependent data follows */
 } __packed;
 
 struct fft_sample_ht20 {
 	struct fft_sample_tlv tlv;
 
-	u8 __alignment;
+	u8 max_exp;
 
-	u16 freq;
+	__be16 freq;
 	s8 rssi;
 	s8 noise;
 
-	u16 max_magnitude;
+	__be16 max_magnitude;
 	u8 max_index;
 	u8 bitmap_weight;
 
-	u64 tsf;
+	__be64 tsf;
 
-	u16 data[SPECTRAL_HT20_NUM_BINS];
+	u8 data[SPECTRAL_HT20_NUM_BINS];
 } __packed;
 
 void ath9k_tasklet(unsigned long data);

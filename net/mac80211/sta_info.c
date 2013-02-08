@@ -380,11 +380,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
-#ifdef CONFIG_MAC80211_MESH
-	sta->plink_state = NL80211_PLINK_LISTEN;
-	init_timer(&sta->plink_timer);
-#endif
-
 	return sta;
 }
 

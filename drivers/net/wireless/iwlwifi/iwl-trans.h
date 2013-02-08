@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,11 +193,11 @@ struct iwl_rx_packet {
  * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
  */
 enum CMD_MODE {
-	CMD_SYNC = 0,
-	CMD_ASYNC = BIT(0),
-	CMD_WANT_SKB = BIT(1),
-	CMD_WANT_HCMD = BIT(2),
-	CMD_ON_DEMAND = BIT(3),
+	CMD_SYNC		= 0,
+	CMD_ASYNC		= BIT(0),
+	CMD_WANT_SKB		= BIT(1),
+	CMD_WANT_HCMD		= BIT(2),
+	CMD_ON_DEMAND		= BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -274,6 +274,7 @@ struct iwl_rx_cmd_buffer {
 	struct page *_page;
 	int _offset;
 	bool _page_stolen;
+	u32 _rx_page_order;
 	unsigned int truesize;
 };
 
@@ -292,6 +293,11 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 	r->_page_stolen = true;
 	get_page(r->_page);
 	return r->_page;
+}
+
+static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
+{
+	__free_pages(r->_page, r->_rx_page_order);
 }
 
 #define MAX_NO_RECLAIM_CMDS	6
@@ -410,8 +416,12 @@ struct iwl_trans;
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
  * @set_pmi: set the power pmi state
- * @grab_nic_access: wake the NIC to be able to access non-HBUS regs
- * @release_nic_access: let the NIC go to sleep
+ * @grab_nic_access: wake the NIC to be able to access non-HBUS regs.
+ *	Sleeping is not allowed between grab_nic_access and
+ *	release_nic_access.
+ * @release_nic_access: let the NIC go to sleep. The "flags" parameter
+ *	must be the same one that was sent before to the grab_nic_access.
+ * @set_bits_mask - set SRAM register according to value and mask.
  */
 struct iwl_trans_ops {
 
@@ -454,8 +464,12 @@ struct iwl_trans_ops {
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
-	bool (*grab_nic_access)(struct iwl_trans *trans, bool silent);
-	void (*release_nic_access)(struct iwl_trans *trans);
+	bool (*grab_nic_access)(struct iwl_trans *trans, bool silent,
+				unsigned long *flags);
+	void (*release_nic_access)(struct iwl_trans *trans,
+				   unsigned long *flags);
+	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
+			      u32 value);
 };
 
 /**
@@ -475,7 +489,6 @@ enum iwl_trans_state {
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @cfg - pointer to the configuration
- * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
  * @hw_id: a u32 with the ID of the device / subdevice.
  *	Set during transport allocation.
@@ -496,7 +509,6 @@ struct iwl_trans {
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg *cfg;
 	enum iwl_trans_state state;
-	spinlock_t reg_lock;
 
 	struct device *dev;
 	u32 hw_rev;
@@ -756,14 +768,20 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 	trans->ops->set_pmi(trans, state);
 }
 
-#define iwl_trans_grab_nic_access(trans, silent)	\
+static inline void
+iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
+{
+	trans->ops->set_bits_mask(trans, reg, mask, value);
+}
+
+#define iwl_trans_grab_nic_access(trans, silent, flags)	\
 	__cond_lock(nic_access,				\
-		    likely((trans)->ops->grab_nic_access(trans, silent)))
+		    likely((trans)->ops->grab_nic_access(trans, silent, flags)))
 
 static inline void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans)
+iwl_trans_release_nic_access(struct iwl_trans *trans, unsigned long *flags)
 {
-	trans->ops->release_nic_access(trans);
+	trans->ops->release_nic_access(trans, flags);
 	__release(nic_access);
 }
 

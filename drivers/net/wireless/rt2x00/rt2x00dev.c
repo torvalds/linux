@@ -1236,7 +1236,8 @@ static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
 	 */
 	if_limit = &rt2x00dev->if_limits_ap;
 	if_limit->max = rt2x00dev->ops->max_ap_intf;
-	if_limit->types = BIT(NL80211_IFTYPE_AP);
+	if_limit->types = BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_MESH_POINT);
 
 	/*
 	 * Build up AP interface combinations structure.
@@ -1446,7 +1447,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 #ifdef CONFIG_PM
 int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 {
-	NOTICE(rt2x00dev, "Going to sleep.\n");
+	DEBUG(rt2x00dev, "Going to sleep.\n");
 
 	/*
 	 * Prevent mac80211 from accessing driver while suspended.
@@ -1486,7 +1487,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_suspend);
 
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 {
-	NOTICE(rt2x00dev, "Waking up.\n");
+	DEBUG(rt2x00dev, "Waking up.\n");
 
 	/*
 	 * Restore/enable extra components.

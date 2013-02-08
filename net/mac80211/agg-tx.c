@@ -296,7 +296,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				       IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
 				       &sta->sta, tid, NULL, 0);
 		WARN_ON_ONCE(ret);
-		goto remove_tid_tx;
+		return 0;
 	}
 
 	if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
@@ -354,12 +354,15 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		 */
 	}
 
-	if (reason == AGG_STOP_DESTROY_STA) {
- remove_tid_tx:
-		spin_lock_bh(&sta->lock);
-		ieee80211_remove_tid_tx(sta, tid);
-		spin_unlock_bh(&sta->lock);
-	}
+	/*
+	 * In the case of AGG_STOP_DESTROY_STA, the driver won't
+	 * necessarily call ieee80211_stop_tx_ba_cb(), so this may
+	 * seem like we can leave the tid_tx data pending forever.
+	 * This is true, in a way, but "forever" is only until the
+	 * station struct is actually destroyed. In the meantime,
+	 * leaving it around ensures that we don't transmit packets
+	 * to the driver on this TID which might confuse it.
+	 */
 
 	return 0;
 }
@@ -387,12 +390,13 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
 		rcu_read_unlock();
 		ht_dbg(sta->sdata,
-		       "timer expired on tid %d but we are not (or no longer) expecting addBA response there\n",
-		       tid);
+		       "timer expired on %pM tid %d but we are not (or no longer) expecting addBA response there\n",
+		       sta->sta.addr, tid);
 		return;
 	}
 
-	ht_dbg(sta->sdata, "addBA response timer expired on tid %d\n", tid);
+	ht_dbg(sta->sdata, "addBA response timer expired on %pM tid %d\n",
+	       sta->sta.addr, tid);
 
 	ieee80211_stop_tx_ba_session(&sta->sta, tid);
 	rcu_read_unlock();
@@ -429,7 +433,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 			       &sta->sta, tid, &start_seq_num, 0);
 	if (ret) {
 		ht_dbg(sdata,
-		       "BA request denied - HW unavailable for tid %d\n", tid);
+		       "BA request denied - HW unavailable for %pM tid %d\n",
+		       sta->sta.addr, tid);
 		spin_lock_bh(&sta->lock);
 		ieee80211_agg_splice_packets(sdata, tid_tx, tid);
 		ieee80211_assign_tid_tx(sta, tid, NULL);
@@ -442,7 +447,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 
 	/* activate the timer for the recipient's addBA response */
 	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
-	ht_dbg(sdata, "activated addBA response timer on tid %d\n", tid);
+	ht_dbg(sdata, "activated addBA response timer on %pM tid %d\n",
+	       sta->sta.addr, tid);
 
 	spin_lock_bh(&sta->lock);
 	sta->ampdu_mlme.last_addba_req_time[tid] = jiffies;
@@ -489,7 +495,8 @@ static void sta_tx_agg_session_timer_expired(unsigned long data)
 
 	rcu_read_unlock();
 
-	ht_dbg(sta->sdata, "tx session timer expired on tid %d\n", (u16)*ptid);
+	ht_dbg(sta->sdata, "tx session timer expired on %pM tid %d\n",
+	       sta->sta.addr, (u16)*ptid);
 
 	ieee80211_stop_tx_ba_session(&sta->sta, *ptid);
 }
@@ -525,7 +532,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 		ht_dbg(sdata,
-		       "BA sessions blocked - Denying BA session request\n");
+		       "BA sessions blocked - Denying BA session request %pM tid %d\n",
+		       sta->sta.addr, tid);
 		return -EINVAL;
 	}
 
@@ -566,8 +574,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    time_before(jiffies, sta->ampdu_mlme.last_addba_req_time[tid] +
 			HT_AGG_RETRIES_PERIOD)) {
 		ht_dbg(sdata,
-		       "BA request denied - waiting a grace period after %d failed requests on tid %u\n",
-		       sta->ampdu_mlme.addba_req_num[tid], tid);
+		       "BA request denied - waiting a grace period after %d failed requests on %pM tid %u\n",
+		       sta->ampdu_mlme.addba_req_num[tid], sta->sta.addr, tid);
 		ret = -EBUSY;
 		goto err_unlock_sta;
 	}
@@ -576,8 +584,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	/* check if the TID is not in aggregation flow already */
 	if (tid_tx || sta->ampdu_mlme.tid_start_tx[tid]) {
 		ht_dbg(sdata,
-		       "BA request denied - session is not idle on tid %u\n",
-		       tid);
+		       "BA request denied - session is not idle on %pM tid %u\n",
+		       sta->sta.addr, tid);
 		ret = -EAGAIN;
 		goto err_unlock_sta;
 	}
@@ -632,7 +640,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
-	ht_dbg(sta->sdata, "Aggregation is on for tid %d\n", tid);
+	ht_dbg(sta->sdata, "Aggregation is on for %pM tid %d\n",
+	       sta->sta.addr, tid);
 
 	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
@@ -802,7 +811,9 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
 	if (!tid_tx || !test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
-		ht_dbg(sdata, "unexpected callback to A-MPDU stop\n");
+		ht_dbg(sdata,
+		       "unexpected callback to A-MPDU stop for %pM tid %d\n",
+		       sta->sta.addr, tid);
 		goto unlock_sta;
 	}
 
@@ -861,13 +872,15 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		goto out;
 
 	if (mgmt->u.action.u.addba_resp.dialog_token != tid_tx->dialog_token) {
-		ht_dbg(sta->sdata, "wrong addBA response token, tid %d\n", tid);
+		ht_dbg(sta->sdata, "wrong addBA response token, %pM tid %d\n",
+		       sta->sta.addr, tid);
 		goto out;
 	}
 
 	del_timer_sync(&tid_tx->addba_resp_timer);
 
-	ht_dbg(sta->sdata, "switched off addBA timer for tid %d\n", tid);
+	ht_dbg(sta->sdata, "switched off addBA timer for %pM tid %d\n",
+	       sta->sta.addr, tid);
 
 	/*
 	 * addba_resp_timer may have fired before we got here, and
@@ -877,8 +890,8 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	if (test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state) ||
 	    test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		ht_dbg(sta->sdata,
-		       "got addBA resp for tid %d but we already gave up\n",
-		       tid);
+		       "got addBA resp for %pM tid %d but we already gave up\n",
+		       sta->sta.addr, tid);
 		goto out;
 	}
 

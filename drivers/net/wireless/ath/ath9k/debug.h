@@ -219,6 +219,7 @@ struct ath_tx_stats {
  * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
  * @rx_beacons:  No. of beacons received.
  * @rx_frags:  No. of rx-fragements received.
+ * @rx_spectral: No of spectral packets received.
  */
 struct ath_rx_stats {
 	u32 rx_pkts_all;
@@ -237,6 +238,7 @@ struct ath_rx_stats {
 	u32 rx_too_many_frags_err;
 	u32 rx_beacons;
 	u32 rx_frags;
+	u32 rx_spectral;
 };
 
 struct ath_stats {

@@ -47,6 +47,7 @@ int bcma_sprom_get(struct bcma_bus *bus);
 /* driver_chipcommon.c */
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
+extern struct platform_device bcma_pflash_dev;
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_pmu.c */
