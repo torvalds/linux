@@ -1994,40 +1994,28 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x38);
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if (pVBInfo->VBType &
-		    (VB_SIS302B |
-		     VB_SIS301LV |
-		     VB_SIS302LV |
-		     VB_XGI301C)) {
-			if (temp & EnableDualEdge) {
-				tempbx |= SetCRT2ToDualEdge;
-				if (temp & SetToLCDA)
-					tempbx |= XGI_SetCRT2ToLCDA;
-			}
+	if (pVBInfo->VBType & (VB_SIS302B | VB_SIS301LV | VB_SIS302LV |
+			       VB_XGI301C)) {
+		if (temp & EnableDualEdge) {
+			tempbx |= SetCRT2ToDualEdge;
+			if (temp & SetToLCDA)
+				tempbx |= XGI_SetCRT2ToLCDA;
 		}
 	}
 
 	if (pVBInfo->IF_DEF_YPbPr == 1) {
-		if (((pVBInfo->IF_DEF_LVDS == 0) &&
-		     ((pVBInfo->VBType & VB_SIS301LV) ||
-		      (pVBInfo->VBType & VB_SIS302LV) ||
-		      (pVBInfo->VBType & VB_XGI301C)))) {
+		if (pVBInfo->VBType & (VB_SIS301LV|VB_SIS302LV|VB_XGI301C)) {
 			if (temp & SetYPbPr) {
 				if (pVBInfo->IF_DEF_HiVision == 1) {
-					/* shampoo add for new
-					 * scratch */
-					temp = xgifb_reg_get(
-						pVBInfo->P3d4,
-						0x35);
+					/* shampoo add for new scratch */
+					temp = xgifb_reg_get(pVBInfo->P3d4,
+							     0x35);
 					temp &= YPbPrMode;
 					tempbx |= SetCRT2ToHiVision;
 
 					if (temp != YPbPrMode1080i) {
-						tempbx &=
-							(~SetCRT2ToHiVision);
-						tempbx |=
-							SetCRT2ToYPbPr525750;
+						tempbx &= (~SetCRT2ToHiVision);
+						tempbx |= SetCRT2ToYPbPr525750;
 					}
 				}
 			}
@@ -2036,19 +2024,15 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	tempax = push; /* restore CR31 */
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if (pVBInfo->IF_DEF_YPbPr == 1) {
-			if (pVBInfo->IF_DEF_HiVision == 1)
-				temp = 0x09FC;
-			else
-				temp = 0x097C;
-		} else if (pVBInfo->IF_DEF_HiVision == 1) {
-			temp = 0x01FC;
-		} else {
-			temp = 0x017C;
-		}
-	} else { /* 3rd party chip */
-		temp = SetCRT2ToLCD;
+	if (pVBInfo->IF_DEF_YPbPr == 1) {
+		if (pVBInfo->IF_DEF_HiVision == 1)
+			temp = 0x09FC;
+		else
+			temp = 0x097C;
+	} else if (pVBInfo->IF_DEF_HiVision == 1) {
+		temp = 0x01FC;
+	} else {
+		temp = 0x017C;
 	}
 
 	if (!(tempbx & temp)) {
@@ -2059,14 +2043,11 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (!(pVBInfo->VBType & VB_NoLCD)) {
 		if (tempbx & XGI_SetCRT2ToLCDA) {
 			if (tempbx & SetSimuScanMode)
-				tempbx &= (~(SetCRT2ToLCD |
-					     SetCRT2ToRAMDAC |
+				tempbx &= (~(SetCRT2ToLCD | SetCRT2ToRAMDAC |
 					     SwitchCRT2));
 			else
-				tempbx &= (~(SetCRT2ToLCD |
-					     SetCRT2ToRAMDAC |
-					     SetCRT2ToTV |
-					     SwitchCRT2));
+				tempbx &= (~(SetCRT2ToLCD | SetCRT2ToRAMDAC |
+					     SetCRT2ToTV | SwitchCRT2));
 		}
 	}
 
@@ -2075,49 +2056,38 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (!(tempbx & (SwitchCRT2 | SetSimuScanMode))) {
 		if (pVBInfo->IF_DEF_CRT2Monitor == 1) {
 			if (tempbx & SetCRT2ToRAMDAC) {
-				tempbx &= (0xFF00 |
-					   SetCRT2ToRAMDAC |
-					   SwitchCRT2 |
-					   SetSimuScanMode);
+				tempbx &= (0xFF00 | SetCRT2ToRAMDAC |
+					   SwitchCRT2 | SetSimuScanMode);
 				tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 			}
 		} else {
-			tempbx &= (~(SetCRT2ToRAMDAC |
-				     SetCRT2ToLCD |
+			tempbx &= (~(SetCRT2ToRAMDAC | SetCRT2ToLCD |
 				     SetCRT2ToTV));
 		}
 	}
 
 	if (!(pVBInfo->VBType & VB_NoLCD)) {
 		if (tempbx & SetCRT2ToLCD) {
-			tempbx &= (0xFF00 |
-				   SetCRT2ToLCD |
-				   SwitchCRT2 |
+			tempbx &= (0xFF00 | SetCRT2ToLCD | SwitchCRT2 |
 				   SetSimuScanMode);
 			tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 		}
 	}
 
 	if (tempbx & SetCRT2ToSCART) {
-		tempbx &= (0xFF00 |
-			   SetCRT2ToSCART |
-			   SwitchCRT2 |
+		tempbx &= (0xFF00 | SetCRT2ToSCART | SwitchCRT2 |
 			   SetSimuScanMode);
 		tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 	}
 
 	if (pVBInfo->IF_DEF_YPbPr == 1) {
 		if (tempbx & SetCRT2ToYPbPr525750)
-			tempbx &= (0xFF00 |
-				   SwitchCRT2 |
-				   SetSimuScanMode);
+			tempbx &= (0xFF00 | SwitchCRT2 | SetSimuScanMode);
 	}
 
 	if (pVBInfo->IF_DEF_HiVision == 1) {
 		if (tempbx & SetCRT2ToHiVision)
-			tempbx &= (0xFF00 |
-				   SetCRT2ToHiVision |
-				   SwitchCRT2 |
+			tempbx &= (0xFF00 | SetCRT2ToHiVision | SwitchCRT2 |
 				   SetSimuScanMode);
 	}
 
@@ -2127,19 +2097,15 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 
 	if (!(tempbx & DisableCRT2Display)) {
-		if ((!(tempbx & DriverMode)) ||
-		    (!(modeflag & CRT2Mode))) {
+		if ((!(tempbx & DriverMode)) || (!(modeflag & CRT2Mode))) {
 			if (!(tempbx & XGI_SetCRT2ToLCDA))
-				tempbx |= (SetInSlaveMode |
-					   SetSimuScanMode);
+				tempbx |= (SetInSlaveMode | SetSimuScanMode);
 		}
 
 		/* LCD+TV can't support in slave mode
 		 * (Force LCDA+TV->LCDB) */
-		if ((tempbx & SetInSlaveMode) &&
-		    (tempbx & XGI_SetCRT2ToLCDA)) {
-			tempbx ^= (SetCRT2ToLCD |
-				   XGI_SetCRT2ToLCDA |
+		if ((tempbx & SetInSlaveMode) && (tempbx & XGI_SetCRT2ToLCDA)) {
+			tempbx ^= (SetCRT2ToLCD | XGI_SetCRT2ToLCDA |
 				   SetCRT2ToDualEdge);
 			pVBInfo->SetFlag |= ReserveTVOption;
 		}
