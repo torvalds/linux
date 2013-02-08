@@ -337,7 +337,6 @@ struct brcmf_pno_scanresults_le {
 struct brcmf_cfg80211_vif_event {
 	wait_queue_head_t vif_wq;
 	struct mutex vif_event_lock;
-	struct completion vif_complete;
 	u8 action;
 	struct brcmf_cfg80211_vif *vif;
 };
@@ -493,7 +492,6 @@ void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
 int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 					  u8 action, ulong timeout);
-void brcmf_cfg80211_vif_complete(struct brcmf_cfg80211_info *info);
 s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				struct net_device *ndev,
 				bool aborted, bool fw_abort);

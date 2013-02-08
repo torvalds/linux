@@ -4665,10 +4665,7 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
 		mutex_unlock(&event->vif_event_lock);
 		wake_up(&event->vif_wq);
-
-		/* waiting process need to set the netdev name */
-		wait_for_completion(&event->vif_complete);
-		return brcmf_net_attach(ifp, true);
+		return 0;
 
 	case BRCMF_E_IF_DEL:
 		ifp->vif = NULL;
@@ -4800,7 +4797,6 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
 {
 	init_waitqueue_head(&event->vif_wq);
-	init_completion(&event->vif_complete);
 	mutex_init(&event->vif_event_lock);
 }
 
@@ -5154,7 +5150,3 @@ int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 				  vif_event_equals(event, action), timeout);
 }
 
-void brcmf_cfg80211_vif_complete(struct brcmf_cfg80211_info *cfg)
-{
-	complete(&cfg->vif_event.vif_complete);
-}
