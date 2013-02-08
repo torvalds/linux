@@ -54,7 +54,7 @@
 
 #include <plat/fb.h>
 
-#include <plat/common-smdk.h>
+#include "common-smdk.h"
 
 static struct map_desc smdk2416_iodesc[] __initdata = {
 	/* ISA IO Space map (memory space selected by A24) */
