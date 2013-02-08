@@ -172,7 +172,7 @@ enum brcmf_vif_status {
  * @beacon_ie_len: IE info length for beacon frame.
  */
 struct vif_saved_ie {
-	u8  probe_req_ie[VNDR_IES_BUF_LEN];
+	u8  probe_req_ie[IE_MAX_LEN];
 	u8  probe_res_ie[IE_MAX_LEN];
 	u8  beacon_ie[IE_MAX_LEN];
 	u8  assoc_req_ie[IE_MAX_LEN];
