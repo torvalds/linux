@@ -95,6 +95,8 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp->nr_vlan_devs--;
 
+	if (vlan->flags & VLAN_FLAG_MVRP)
+		vlan_mvrp_request_leave(dev);
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_leave(dev);
 
@@ -107,8 +109,10 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	netdev_upper_dev_unlink(real_dev, dev);
 
-	if (grp->nr_vlan_devs == 0)
+	if (grp->nr_vlan_devs == 0) {
+		vlan_mvrp_uninit_applicant(real_dev);
 		vlan_gvrp_uninit_applicant(real_dev);
+	}
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
@@ -151,15 +155,18 @@ int register_vlan_dev(struct net_device *dev)
 		err = vlan_gvrp_init_applicant(real_dev);
 		if (err < 0)
 			goto out_vid_del;
+		err = vlan_mvrp_init_applicant(real_dev);
+		if (err < 0)
+			goto out_uninit_gvrp;
 	}
 
 	err = vlan_group_prealloc_vid(grp, vlan_id);
 	if (err < 0)
-		goto out_uninit_applicant;
+		goto out_uninit_mvrp;
 
 	err = netdev_upper_dev_link(real_dev, dev);
 	if (err)
-		goto out_uninit_applicant;
+		goto out_uninit_mvrp;
 
 	err = register_netdevice(dev);
 	if (err < 0)
@@ -181,7 +188,10 @@ int register_vlan_dev(struct net_device *dev)
 
 out_upper_dev_unlink:
 	netdev_upper_dev_unlink(real_dev, dev);
-out_uninit_applicant:
+out_uninit_mvrp:
+	if (grp->nr_vlan_devs == 0)
+		vlan_mvrp_uninit_applicant(real_dev);
+out_uninit_gvrp:
 	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
 out_vid_del:
@@ -655,13 +665,19 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err3;
 
-	err = vlan_netlink_init();
+	err = vlan_mvrp_init();
 	if (err < 0)
 		goto err4;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err5;
 
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
+err5:
+	vlan_mvrp_uninit();
 err4:
 	vlan_gvrp_uninit();
 err3:
@@ -682,6 +698,7 @@ static void __exit vlan_cleanup_module(void)
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
+	vlan_mvrp_uninit();
 	vlan_gvrp_uninit();
 }
 
