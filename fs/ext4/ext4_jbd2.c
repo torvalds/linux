@@ -6,6 +6,107 @@
 
 #include <trace/events/ext4.h>
 
+/* Just increment the non-pointer handle value */
+static handle_t *ext4_get_nojournal(void)
+{
+	handle_t *handle = current->journal_info;
+	unsigned long ref_cnt = (unsigned long)handle;
+
+	BUG_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
+
+	ref_cnt++;
+	handle = (handle_t *)ref_cnt;
+
+	current->journal_info = handle;
+	return handle;
+}
+
+
+/* Decrement the non-pointer handle value */
+static void ext4_put_nojournal(handle_t *handle)
+{
+	unsigned long ref_cnt = (unsigned long)handle;
+
+	BUG_ON(ref_cnt == 0);
+
+	ref_cnt--;
+	handle = (handle_t *)ref_cnt;
+
+	current->journal_info = handle;
+}
+
+/*
+ * Wrappers for jbd2_journal_start/end.
+ */
+handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
+{
+	journal_t *journal;
+
+	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
+	if (sb->s_flags & MS_RDONLY)
+		return ERR_PTR(-EROFS);
+
+	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
+	journal = EXT4_SB(sb)->s_journal;
+	if (!journal)
+		return ext4_get_nojournal();
+	/*
+	 * Special case here: if the journal has aborted behind our
+	 * backs (eg. EIO in the commit thread), then we still need to
+	 * take the FS itself readonly cleanly.
+	 */
+	if (is_journal_aborted(journal)) {
+		ext4_abort(sb, "Detected aborted journal");
+		return ERR_PTR(-EROFS);
+	}
+	return jbd2_journal_start(journal, nblocks);
+}
+
+int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
+{
+	struct super_block *sb;
+	int err;
+	int rc;
+
+	if (!ext4_handle_valid(handle)) {
+		ext4_put_nojournal(handle);
+		return 0;
+	}
+	sb = handle->h_transaction->t_journal->j_private;
+	err = handle->h_err;
+	rc = jbd2_journal_stop(handle);
+
+	if (!err)
+		err = rc;
+	if (err)
+		__ext4_std_error(sb, where, line, err);
+	return err;
+}
+
+void ext4_journal_abort_handle(const char *caller, unsigned int line,
+			       const char *err_fn, struct buffer_head *bh,
+			       handle_t *handle, int err)
+{
+	char nbuf[16];
+	const char *errstr = ext4_decode_error(NULL, err, nbuf);
+
+	BUG_ON(!ext4_handle_valid(handle));
+
+	if (bh)
+		BUFFER_TRACE(bh, "abort");
+
+	if (!handle->h_err)
+		handle->h_err = err;
+
+	if (is_handle_aborted(handle))
+		return;
+
+	printk(KERN_ERR "EXT4-fs: %s:%d: aborting transaction: %s in %s\n",
+	       caller, line, errstr, err_fn);
+
+	jbd2_journal_abort_handle(handle);
+}
+
 int __ext4_journal_get_write_access(const char *where, unsigned int line,
 				    handle_t *handle, struct buffer_head *bh)
 {
