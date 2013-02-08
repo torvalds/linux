@@ -523,6 +523,34 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 	}
 }
 
+unsigned long compute_balloon_floor(void)
+{
+	unsigned long min_pages;
+#define MB2PAGES(mb) ((mb) << (20 - PAGE_SHIFT))
+	/* Simple continuous piecewiese linear function:
+	 *  max MiB -> min MiB  gradient
+	 *       0         0
+	 *      16        16
+	 *      32        24
+	 *     128        72    (1/2)
+	 *     512       168    (1/4)
+	 *    2048       360    (1/8)
+	 *    8192       552    (1/32)
+	 *   32768      1320
+	 *  131072      4392
+	 */
+	if (totalram_pages < MB2PAGES(128))
+		min_pages = MB2PAGES(8) + (totalram_pages >> 1);
+	else if (totalram_pages < MB2PAGES(512))
+		min_pages = MB2PAGES(40) + (totalram_pages >> 2);
+	else if (totalram_pages < MB2PAGES(2048))
+		min_pages = MB2PAGES(104) + (totalram_pages >> 3);
+	else
+		min_pages = MB2PAGES(296) + (totalram_pages >> 5);
+#undef MB2PAGES
+	return min_pages;
+}
+
 /*
  * Post our status as it relates memory pressure to the
  * host. Host expects the guests to post this status
@@ -552,9 +580,14 @@ static void post_status(struct hv_dynmem_device *dm)
 	 * The host expects the guest to report free memory.
 	 * Further, the host expects the pressure information to
 	 * include the ballooned out pages.
+	 * For a given amount of memory that we are managing, we
+	 * need to compute a floor below which we should not balloon.
+	 * Compute this and add it to the pressure report.
 	 */
 	status.num_avail = val.freeram;
-	status.num_committed = vm_memory_committed() + dm->num_pages_ballooned;
+	status.num_committed = vm_memory_committed() +
+				dm->num_pages_ballooned +
+				compute_balloon_floor();
 
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
