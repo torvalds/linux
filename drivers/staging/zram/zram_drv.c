@@ -464,7 +464,7 @@ error:
 	bio_io_error(bio);
 }
 
-void __zram_reset_device(struct zram *zram)
+static void __zram_reset_device(struct zram *zram)
 {
 	size_t index;
 	struct zram_meta *meta;
