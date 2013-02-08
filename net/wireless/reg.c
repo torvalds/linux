@@ -884,6 +884,9 @@ static void handle_channel(struct wiphy *wiphy,
 		return;
 	}
 
+	chan->dfs_state = NL80211_DFS_USABLE;
+	chan->dfs_state_entered = jiffies;
+
 	chan->beacon_found = false;
 	chan->flags = flags | bw_flags | map_regdom_flags(reg_rule->flags);
 	chan->max_antenna_gain =

@@ -987,3 +987,123 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
 }
 EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
+
+void cfg80211_dfs_channels_update_work(struct work_struct *work)
+{
+	struct delayed_work *delayed_work;
+	struct cfg80211_registered_device *rdev;
+	struct cfg80211_chan_def chandef;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *c;
+	struct wiphy *wiphy;
+	bool check_again = false;
+	unsigned long timeout, next_time = 0;
+	int bandid, i;
+
+	delayed_work = container_of(work, struct delayed_work, work);
+	rdev = container_of(delayed_work, struct cfg80211_registered_device,
+			    dfs_update_channels_wk);
+	wiphy = &rdev->wiphy;
+
+	mutex_lock(&cfg80211_mutex);
+	for (bandid = 0; bandid < IEEE80211_NUM_BANDS; bandid++) {
+		sband = wiphy->bands[bandid];
+		if (!sband)
+			continue;
+
+		for (i = 0; i < sband->n_channels; i++) {
+			c = &sband->channels[i];
+
+			if (c->dfs_state != NL80211_DFS_UNAVAILABLE)
+				continue;
+
+			timeout = c->dfs_state_entered +
+				  IEEE80211_DFS_MIN_NOP_TIME_MS;
+
+			if (time_after_eq(jiffies, timeout)) {
+				c->dfs_state = NL80211_DFS_USABLE;
+				cfg80211_chandef_create(&chandef, c,
+							NL80211_CHAN_NO_HT);
+
+				nl80211_radar_notify(rdev, &chandef,
+						     NL80211_RADAR_NOP_FINISHED,
+						     NULL, GFP_ATOMIC);
+				continue;
+			}
+
+			if (!check_again)
+				next_time = timeout - jiffies;
+			else
+				next_time = min(next_time, timeout - jiffies);
+			check_again = true;
+		}
+	}
+	mutex_unlock(&cfg80211_mutex);
+
+	/* reschedule if there are other channels waiting to be cleared again */
+	if (check_again)
+		queue_delayed_work(cfg80211_wq, &rdev->dfs_update_channels_wk,
+				   next_time);
+}
+
+
+void cfg80211_radar_event(struct wiphy *wiphy,
+			  struct cfg80211_chan_def *chandef,
+			  gfp_t gfp)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	unsigned long timeout;
+
+	trace_cfg80211_radar_event(wiphy, chandef);
+
+	/* only set the chandef supplied channel to unavailable, in
+	 * case the radar is detected on only one of multiple channels
+	 * spanned by the chandef.
+	 */
+	cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_UNAVAILABLE);
+
+	timeout = msecs_to_jiffies(IEEE80211_DFS_MIN_NOP_TIME_MS);
+	queue_delayed_work(cfg80211_wq, &rdev->dfs_update_channels_wk,
+			   timeout);
+
+	nl80211_radar_notify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
+}
+EXPORT_SYMBOL(cfg80211_radar_event);
+
+void cfg80211_cac_event(struct net_device *netdev,
+			enum nl80211_radar_event event, gfp_t gfp)
+{
+	struct wireless_dev *wdev = netdev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_chan_def chandef;
+	unsigned long timeout;
+
+	trace_cfg80211_cac_event(netdev, event);
+
+	if (WARN_ON(!wdev->cac_started))
+		return;
+
+	if (WARN_ON(!wdev->channel))
+		return;
+
+	cfg80211_chandef_create(&chandef, wdev->channel, NL80211_CHAN_NO_HT);
+
+	switch (event) {
+	case NL80211_RADAR_CAC_FINISHED:
+		timeout = wdev->cac_start_time +
+			  msecs_to_jiffies(IEEE80211_DFS_MIN_CAC_TIME_MS);
+		WARN_ON(!time_after_eq(jiffies, timeout));
+		cfg80211_set_dfs_state(wiphy, &chandef, NL80211_DFS_AVAILABLE);
+		break;
+	case NL80211_RADAR_CAC_ABORTED:
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+	wdev->cac_started = false;
+
+	nl80211_radar_notify(rdev, &chandef, event, netdev, gfp);
+}
+EXPORT_SYMBOL(cfg80211_cac_event);

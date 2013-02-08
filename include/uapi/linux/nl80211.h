@@ -603,6 +603,14 @@
  *	command is used in AP/P2P GO mode. Driver has to make sure to clear its
  *	ACL list during %NL80211_CMD_STOP_AP.
  *
+ * @NL80211_CMD_RADAR_DETECT: Start a Channel availability check (CAC). Once
+ *	a radar is detected or the channel availability scan (CAC) has finished
+ *	or was aborted, or a radar was detected, usermode will be notified with
+ *	this event. This command is also used to notify userspace about radars
+ *	while operating on this channel.
+ *	%NL80211_ATTR_RADAR_EVENT is used to inform about the type of the
+ *	event.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -754,6 +762,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_MCAST_RATE,
 
 	NL80211_CMD_SET_MAC_ACL,
+
+	NL80211_CMD_RADAR_DETECT,
 
 	/* add new commands above here */
 
@@ -1342,6 +1352,9 @@ enum nl80211_commands {
  *	number of MAC addresses that a device can support for MAC
  *	ACL.
  *
+ * @NL80211_ATTR_RADAR_EVENT: Type of radar event for notification to userspace,
+ *	contains a value of enum nl80211_radar_event (u32).
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1619,6 +1632,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_MAC_ADDRS,
 
 	NL80211_ATTR_MAC_ACL_MAX,
+
+	NL80211_ATTR_RADAR_EVENT,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2022,6 +2037,10 @@ enum nl80211_band_attr {
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX_TX_POWER: Maximum transmission power in mBm
  *	(100 * dBm).
+ * @NL80211_FREQUENCY_ATTR_DFS_STATE: current state for DFS
+ *	(enum nl80211_dfs_state)
+ * @NL80211_FREQUENCY_ATTR_DFS_TIME: time in miliseconds for how long
+ *	this channel is in this DFS state.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -2034,6 +2053,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_IBSS,
 	NL80211_FREQUENCY_ATTR_RADAR,
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
+	NL80211_FREQUENCY_ATTR_DFS_STATE,
+	NL80211_FREQUENCY_ATTR_DFS_TIME,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -3487,6 +3508,46 @@ enum nl80211_scan_flags {
 enum nl80211_acl_policy {
 	NL80211_ACL_POLICY_ACCEPT_UNLESS_LISTED,
 	NL80211_ACL_POLICY_DENY_UNLESS_LISTED,
+};
+
+/**
+ * enum nl80211_radar_event - type of radar event for DFS operation
+ *
+ * Type of event to be used with NL80211_ATTR_RADAR_EVENT to inform userspace
+ * about detected radars or success of the channel available check (CAC)
+ *
+ * @NL80211_RADAR_DETECTED: A radar pattern has been detected. The channel is
+ *	now unusable.
+ * @NL80211_RADAR_CAC_FINISHED: Channel Availability Check has been finished,
+ *	the channel is now available.
+ * @NL80211_RADAR_CAC_ABORTED: Channel Availability Check has been aborted, no
+ *	change to the channel status.
+ * @NL80211_RADAR_NOP_FINISHED: The Non-Occupancy Period for this channel is
+ *	over, channel becomes usable.
+ */
+enum nl80211_radar_event {
+	NL80211_RADAR_DETECTED,
+	NL80211_RADAR_CAC_FINISHED,
+	NL80211_RADAR_CAC_ABORTED,
+	NL80211_RADAR_NOP_FINISHED,
+};
+
+/**
+ * enum nl80211_dfs_state - DFS states for channels
+ *
+ * Channel states used by the DFS code.
+ *
+ * @IEEE80211_DFS_USABLE: The channel can be used, but channel availability
+ *	check (CAC) must be performed before using it for AP or IBSS.
+ * @IEEE80211_DFS_UNAVAILABLE: A radar has been detected on this channel, it
+ *	is therefore marked as not available.
+ * @IEEE80211_DFS_AVAILABLE: The channel has been CAC checked and is available.
+ */
+
+enum nl80211_dfs_state {
+	NL80211_DFS_USABLE,
+	NL80211_DFS_UNAVAILABLE,
+	NL80211_DFS_AVAILABLE,
 };
 
 #endif /* __LINUX_NL80211_H */
