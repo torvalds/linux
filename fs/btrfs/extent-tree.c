@@ -6408,12 +6408,14 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 	if (!ret)
 		return block_rsv;
 	if (ret && !block_rsv->failfast) {
-		static DEFINE_RATELIMIT_STATE(_rs,
-				DEFAULT_RATELIMIT_INTERVAL,
-				/*DEFAULT_RATELIMIT_BURST*/ 2);
-		if (__ratelimit(&_rs))
-			WARN(1, KERN_DEBUG "btrfs: block rsv returned %d\n",
-			     ret);
+		if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+			static DEFINE_RATELIMIT_STATE(_rs,
+					DEFAULT_RATELIMIT_INTERVAL * 10,
+					/*DEFAULT_RATELIMIT_BURST*/ 1);
+			if (__ratelimit(&_rs))
+				WARN(1, KERN_DEBUG
+					"btrfs: block rsv returned %d\n", ret);
+		}
 		ret = reserve_metadata_bytes(root, block_rsv, blocksize,
 					     BTRFS_RESERVE_NO_FLUSH);
 		if (!ret) {
@@ -7730,11 +7732,13 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		space_info = list_entry(info->space_info.next,
 					struct btrfs_space_info,
 					list);
-		if (space_info->bytes_pinned > 0 ||
-		    space_info->bytes_reserved > 0 ||
-		    space_info->bytes_may_use > 0) {
-			WARN_ON(1);
-			dump_space_info(space_info, 0, 0);
+		if (btrfs_test_opt(info->tree_root, ENOSPC_DEBUG)) {
+			if (space_info->bytes_pinned > 0 ||
+			    space_info->bytes_reserved > 0 ||
+			    space_info->bytes_may_use > 0) {
+				WARN_ON(1);
+				dump_space_info(space_info, 0, 0);
+			}
 		}
 		list_del(&space_info->list);
 		kfree(space_info);
