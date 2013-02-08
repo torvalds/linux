@@ -132,12 +132,10 @@ static int brcmf_p2p_set_firmware(struct brcmf_p2p_info *p2p)
  */
 static void brcmf_p2p_generate_bss_mac(struct brcmf_p2p_info *p2p)
 {
-	struct net_device *ndev = cfg_to_ndev(p2p->cfg);
-
 	/* Generate the P2P Device Address.  This consists of the device's
 	 * primary MAC address with the locally administered bit set.
 	 */
-	memcpy(p2p->dev_addr, ndev->dev_addr, ETH_ALEN);
+	memcpy(p2p->dev_addr, p2p->cfg->pub->mac, ETH_ALEN);
 	p2p->dev_addr[0] |= 0x02;
 
 	/* Generate the P2P Interface Address.  If the discovery and connection
