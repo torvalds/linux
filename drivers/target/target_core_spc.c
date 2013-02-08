@@ -1000,6 +1000,14 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	int ret = 0;
 	int i;
 
+	if (!cmd->data_length) {
+		target_complete_cmd(cmd, GOOD);
+		return 0;
+	}
+
+	if (cmd->data_length < off + 2)
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
+
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1024,6 +1032,11 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	goto out;
 
 check_contents:
+	if (cmd->data_length < off + length) {
+		ret = TCM_PARAMETER_LIST_LENGTH_ERROR;
+		goto out;
+	}
+
 	if (memcmp(buf + off, tbuf, length))
 		ret = TCM_INVALID_PARAMETER_LIST;
 
