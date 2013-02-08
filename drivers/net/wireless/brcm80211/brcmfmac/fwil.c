@@ -45,9 +45,10 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	if (data != NULL)
 		len = min_t(uint, len, BRCMF_DCMD_MAXLEN);
 	if (set)
-		err = brcmf_proto_cdc_set_dcmd(drvr, ifp->idx, cmd, data, len);
+		err = brcmf_proto_cdc_set_dcmd(drvr, ifp->ifidx, cmd, data,
+					       len);
 	else
-		err = brcmf_proto_cdc_query_dcmd(drvr, ifp->idx, cmd, data,
+		err = brcmf_proto_cdc_query_dcmd(drvr, ifp->ifidx, cmd, data,
 						 len);
 
 	if (err >= 0)

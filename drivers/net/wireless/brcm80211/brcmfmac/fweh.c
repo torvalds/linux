@@ -189,12 +189,12 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		return;
 	}
 
-	ifp = drvr->iflist[ifevent->ifidx];
+	ifp = drvr->iflist[ifevent->bssidx];
 
 	if (ifevent->action == BRCMF_E_IF_ADD) {
 		brcmf_dbg(EVENT, "adding %s (%pM)\n", emsg->ifname,
 			  emsg->addr);
-		ifp = brcmf_add_if(drvr, ifevent->ifidx, ifevent->bssidx,
+		ifp = brcmf_add_if(drvr, ifevent->bssidx, ifevent->ifidx,
 				   emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
@@ -206,7 +206,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
 	if (ifevent->action == BRCMF_E_IF_DEL)
-		brcmf_del_if(drvr, ifevent->ifidx);
+		brcmf_del_if(drvr, ifevent->bssidx);
 }
 
 /**
@@ -250,8 +250,6 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 	drvr = container_of(fweh, struct brcmf_pub, fweh);
 
 	while ((event = brcmf_fweh_dequeue_event(fweh))) {
-		ifp = drvr->iflist[event->ifidx];
-
 		brcmf_dbg(EVENT, "event %s (%u) ifidx %u bsscfg %u addr %pM\n",
 			  brcmf_fweh_event_name(event->code), event->code,
 			  event->emsg.ifidx, event->emsg.bsscfgidx,
@@ -283,6 +281,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			goto event_free;
 		}
 
+		ifp = drvr->iflist[emsg.bsscfgidx];
 		err = brcmf_fweh_call_event_handler(ifp, event->code, &emsg,
 						    event->data);
 		if (err) {

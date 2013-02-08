@@ -512,7 +512,7 @@ struct brcmf_cfg80211_vif;
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
- * @idx: interface index in device firmware.
+ * @ifidx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
  * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
@@ -525,7 +525,7 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
-	int idx;
+	int ifidx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
@@ -549,9 +549,9 @@ extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 			       struct sk_buff *rxp);
 
 extern int brcmf_net_attach(struct brcmf_if *ifp);
-extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
-				     s32 bssidx, char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
+extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx,
+				     s32 ifidx, char *name, u8 *mac_addr);
+extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
 extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_H_ */

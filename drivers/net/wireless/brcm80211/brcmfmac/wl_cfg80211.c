@@ -3546,6 +3546,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	if (err < 0) {
 		brcmf_err("BRCMF_C_UP error (%d)\n", err);
 		goto exit;
+		brcmf_fil_iovar_int_set(ifp, "apsta", 0);
 	}
 
 	memset(&join_params, 0, sizeof(join_params));
@@ -4242,6 +4243,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 cfg80211_attach_out:
 	brcmf_free_vif(vif);
+	wiphy_free(wiphy);
 	return NULL;
 }
 
