@@ -6677,28 +6677,36 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 	size_t count = 0;
 	int flags = 0;
-	bool wakeup = false;
+	bool wakeup = true;
+	bool relock = false;
 	ssize_t ret;
 
 	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iov,
 			    offset, nr_segs))
 		return 0;
 
+	atomic_inc(&inode->i_dio_count);
+	smp_mb__after_atomic_inc();
+
 	if (rw & WRITE) {
 		count = iov_length(iov, nr_segs);
+		/*
+		 * If the write DIO is beyond the EOF, we need update
+		 * the isize, but it is protected by i_mutex. So we can
+		 * not unlock the i_mutex at this case.
+		 */
+		if (offset + count <= inode->i_size) {
+			mutex_unlock(&inode->i_mutex);
+			relock = true;
+		}
 		ret = btrfs_delalloc_reserve_space(inode, count);
 		if (ret)
-			return ret;
-	} else {
-		atomic_inc(&inode->i_dio_count);
-		smp_mb__after_atomic_inc();
-		if (unlikely(test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
-				      &BTRFS_I(inode)->runtime_flags))) {
-			inode_dio_done(inode);
-			flags = DIO_LOCKING | DIO_SKIP_HOLES;
-		} else {
-			wakeup = true;
-		}
+			goto out;
+	} else if (unlikely(test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
+				     &BTRFS_I(inode)->runtime_flags))) {
+		inode_dio_done(inode);
+		flags = DIO_LOCKING | DIO_SKIP_HOLES;
+		wakeup = false;
 	}
 
 	ret = __blockdev_direct_IO(rw, iocb, inode,
@@ -6717,8 +6725,11 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		}
 		btrfs_delalloc_release_metadata(inode, 0);
 	}
+out:
 	if (wakeup)
 		inode_dio_done(inode);
+	if (relock)
+		mutex_lock(&inode->i_mutex);
 
 	return ret;
 }
