@@ -708,6 +708,25 @@ int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card)
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_card_power_off);
 
+int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card)
+{
+	unsigned int cd_mask[] = {
+		[RTSX_SD_CARD] = SD_EXIST,
+		[RTSX_MS_CARD] = MS_EXIST
+	};
+
+	if (!pcr->ms_pmos) {
+		/* When using single PMOS, accessing card is not permitted
+		 * if the existing card is not the designated one.
+		 */
+		if (pcr->card_exist & (~cd_mask[card]))
+			return -EIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_card_exclusive_check);
+
 int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 {
 	if (pcr->ops->switch_output_voltage)
@@ -784,6 +803,9 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 			card_inserted = pcr->ops->cd_deglitch(pcr);
 
 		card_detect = card_inserted | card_removed;
+
+		pcr->card_exist |= card_inserted;
+		pcr->card_exist &= ~card_removed;
 	}
 
 	mutex_unlock(&pcr->pcr_mutex);
@@ -975,6 +997,14 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 		if (err < 0)
 			return err;
 	}
+
+	/* No CD interrupt if probing driver with card inserted.
+	 * So we need to initialize pcr->card_exist here.
+	 */
+	if (pcr->ops->cd_deglitch)
+		pcr->card_exist = pcr->ops->cd_deglitch(pcr);
+	else
+		pcr->card_exist = rtsx_pci_readl(pcr, RTSX_BIPR) & CARD_EXIST;
 
 	return 0;
 }

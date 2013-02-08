@@ -426,6 +426,9 @@ static void rtsx_pci_ms_request(struct memstick_host *msh)
 
 	dev_dbg(ms_dev(host), "--> %s\n", __func__);
 
+	if (rtsx_pci_card_exclusive_check(host->pcr, RTSX_MS_CARD))
+		return;
+
 	schedule_work(&host->handle_req);
 }
 
@@ -440,6 +443,10 @@ static int rtsx_pci_ms_set_param(struct memstick_host *msh,
 
 	dev_dbg(ms_dev(host), "%s: param = %d, value = %d\n",
 			__func__, param, value);
+
+	err = rtsx_pci_card_exclusive_check(host->pcr, RTSX_MS_CARD);
+	if (err)
+		return err;
 
 	switch (param) {
 	case MEMSTICK_POWER:

@@ -740,6 +740,7 @@ struct rtsx_pcr {
 
 	unsigned int			card_inserted;
 	unsigned int			card_removed;
+	unsigned int			card_exist;
 
 	struct delayed_work		carddet_work;
 	struct delayed_work		idle_work;
@@ -804,6 +805,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk);
 int rtsx_pci_card_power_on(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card);
+int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage);
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr);
 void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
