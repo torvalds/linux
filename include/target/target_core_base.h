@@ -195,6 +195,7 @@ enum tcm_sense_reason_table {
 	TCM_RESERVATION_CONFLICT		= R(0x10),
 	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
 	TCM_OUT_OF_RESOURCES			= R(0x12),
+	TCM_PARAMETER_LIST_LENGTH_ERROR		= R(0x13),
 #undef R
 };
 

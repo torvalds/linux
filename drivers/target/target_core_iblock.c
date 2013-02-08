@@ -391,10 +391,19 @@ iblock_execute_unmap(struct se_cmd *cmd)
 	sense_reason_t ret = 0;
 	int dl, bd_dl, err;
 
+	/* We never set ANC_SUP */
+	if (cmd->t_task_cdb[1])
+		return TCM_INVALID_CDB_FIELD;
+
+	if (cmd->data_length == 0) {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+		return 0;
+	}
+
 	if (cmd->data_length < 8) {
 		pr_warn("UNMAP parameter list length %u too small\n",
 			cmd->data_length);
-		return TCM_INVALID_PARAMETER_LIST;
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
 	}
 
 	buf = transport_kmap_data_sg(cmd);
