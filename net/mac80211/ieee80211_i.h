@@ -1605,6 +1605,8 @@ ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 			  enum ieee80211_chanctx_mode mode);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
+void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
+					 bool clear);
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
