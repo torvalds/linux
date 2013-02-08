@@ -33,8 +33,11 @@
 #define THERMAL_MAX_TRIPS	12
 #define THERMAL_NAME_LENGTH	20
 
+/* invalid cooling state */
+#define THERMAL_CSTATE_INVALID -1UL
+
 /* No upper/lower limit requirement */
-#define THERMAL_NO_LIMIT	-1UL
+#define THERMAL_NO_LIMIT	THERMAL_CSTATE_INVALID
 
 /* Unit conversion macros */
 #define KELVIN_TO_CELSIUS(t)	(long)(((long)t-2732 >= 0) ?	\

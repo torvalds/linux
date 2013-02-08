@@ -196,6 +196,17 @@ static int get_property(unsigned int cpu, unsigned long input,
 	return -EINVAL;
 }
 
+unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
+{
+	unsigned int val;
+
+	if (get_property(cpu, (unsigned long)freq, &val, GET_LEVEL))
+		return THERMAL_CSTATE_INVALID;
+	return (unsigned long)val;
+}
+
+EXPORT_SYMBOL(cpufreq_cooling_get_level);
+
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
  * @cpu: cpu for which frequency is fetched.

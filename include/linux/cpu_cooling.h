@@ -42,6 +42,8 @@ struct thermal_cooling_device *cpufreq_cooling_register(
  * @cdev: thermal cooling device pointer.
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
+
+unsigned long cpufreq_cooling_get_level(unsigned int, unsigned int);
 #else /* !CONFIG_CPU_THERMAL */
 static inline struct thermal_cooling_device *cpufreq_cooling_register(
 	const struct cpumask *clip_cpus)
@@ -52,6 +54,11 @@ static inline void cpufreq_cooling_unregister(
 		struct thermal_cooling_device *cdev)
 {
 	return;
+}
+static inline unsigned long cpufreq_cooling_get_level(unsigned int,
+						 unsigned int)
+{
+	return THERMAL_CSTATE_INVALID;
 }
 #endif	/* CONFIG_CPU_THERMAL */
 

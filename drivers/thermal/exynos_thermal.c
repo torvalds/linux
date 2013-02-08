@@ -242,26 +242,6 @@ static int exynos_get_crit_temp(struct thermal_zone_device *thermal,
 	return ret;
 }
 
-static int exynos_get_frequency_level(unsigned int cpu, unsigned int freq)
-{
-	int i = 0, ret = -EINVAL;
-	struct cpufreq_frequency_table *table = NULL;
-#ifdef CONFIG_CPU_FREQ
-	table = cpufreq_frequency_get_table(cpu);
-#endif
-	if (!table)
-		return ret;
-
-	while (table[i].frequency != CPUFREQ_TABLE_END) {
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-		if (table[i].frequency == freq)
-			return i;
-		i++;
-	}
-	return ret;
-}
-
 /* Bind callback functions for thermal zone */
 static int exynos_bind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
@@ -288,8 +268,8 @@ static int exynos_bind(struct thermal_zone_device *thermal,
 	/* Bind the thermal zone to the cpufreq cooling device */
 	for (i = 0; i < tab_size; i++) {
 		clip_data = (struct freq_clip_table *)&(tab_ptr[i]);
-		level = exynos_get_frequency_level(0, clip_data->freq_clip_max);
-		if (level < 0)
+		level = cpufreq_cooling_get_level(0, clip_data->freq_clip_max);
+		if (level == THERMAL_CSTATE_INVALID)
 			return 0;
 		switch (GET_ZONE(i)) {
 		case MONITOR_ZONE:
