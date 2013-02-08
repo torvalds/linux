@@ -1467,10 +1467,10 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
-struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
+struct via_display_timing var_to_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres)
 {
-	struct display_timing timing;
+	struct via_display_timing timing;
 	u16 dx = (var->xres - cxres) / 2, dy = (var->yres - cyres) / 2;
 
 	timing.hor_addr = cxres;
@@ -1491,7 +1491,7 @@ struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
 void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres, int iga)
 {
-	struct display_timing crt_reg = var_to_timing(var,
+	struct via_display_timing crt_reg = var_to_timing(var,
 		cxres ? cxres : var->xres, cyres ? cyres : var->yres);
 
 	if (iga == IGA1)

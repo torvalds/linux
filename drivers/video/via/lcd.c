@@ -549,7 +549,7 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
-	struct display_timing timing;
+	struct via_display_timing timing;
 	struct fb_var_screeninfo panel_var;
 	const struct fb_videomode *mode_crt_table, *panel_crt_table;
 
