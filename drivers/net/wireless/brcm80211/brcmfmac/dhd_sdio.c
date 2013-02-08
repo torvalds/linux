@@ -2699,6 +2699,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	 * address of sdpcm_shared structure
 	 */
 	sdio_claim_host(bus->sdiodev->func[1]);
+	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 	rv = brcmf_sdbrcm_membytes(bus, false, shaddr,
 				   (u8 *)&addr_le, 4);
 	sdio_release_host(bus->sdiodev->func[1]);
