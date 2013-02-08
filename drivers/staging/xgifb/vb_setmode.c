@@ -2137,10 +2137,8 @@ static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 				   TVSetNTSCJ |
 				   TVSetPAL);
 
-		if (pVBInfo->IF_DEF_LVDS == 0) {
-			if (pVBInfo->VBInfo & SetCRT2ToSCART)
-				tempbx |= TVSetPAL;
-		}
+		if (pVBInfo->VBInfo & SetCRT2ToSCART)
+			tempbx |= TVSetPAL;
 
 		if (pVBInfo->IF_DEF_YPbPr == 1) {
 			if (pVBInfo->VBInfo & SetCRT2ToYPbPr525750) {
@@ -2162,33 +2160,26 @@ static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 				tempbx = tempbx | TVSetHiVision | TVSetPAL;
 		}
 
-		if (pVBInfo->IF_DEF_LVDS == 0) { /* shampoo */
-			if ((pVBInfo->VBInfo & SetInSlaveMode) &&
-			    (!(pVBInfo->VBInfo & SetNotSimuMode)))
-				tempbx |= TVSimuMode;
+		if ((pVBInfo->VBInfo & SetInSlaveMode) &&
+		    (!(pVBInfo->VBInfo & SetNotSimuMode)))
+			tempbx |= TVSimuMode;
 
-			if (!(tempbx & TVSetPAL) &&
-			    (modeflag > 13) &&
-			    (resinfo == 8)) /* NTSC 1024x768, */
-				tempbx |= NTSC1024x768;
+		if (!(tempbx & TVSetPAL) && (modeflag > 13) && (resinfo == 8))
+			/* NTSC 1024x768, */
+			tempbx |= NTSC1024x768;
 
-			tempbx |= RPLLDIV2XO;
+		tempbx |= RPLLDIV2XO;
 
-			if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
-				if (pVBInfo->VBInfo & SetInSlaveMode)
-					tempbx &= (~RPLLDIV2XO);
-			} else if (tempbx &
-				    (TVSetYPbPr525p | TVSetYPbPr750p)) {
-					tempbx &= (~RPLLDIV2XO);
-			} else if (!(pVBInfo->VBType &
-					 (VB_SIS301B |
-					  VB_SIS302B |
-					  VB_SIS301LV |
-					  VB_SIS302LV |
-					  VB_XGI301C))) {
-				if (tempbx & TVSimuMode)
-					tempbx &= (~RPLLDIV2XO);
-			}
+		if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
+			if (pVBInfo->VBInfo & SetInSlaveMode)
+				tempbx &= (~RPLLDIV2XO);
+		} else if (tempbx & (TVSetYPbPr525p | TVSetYPbPr750p)) {
+			tempbx &= (~RPLLDIV2XO);
+		} else if (!(pVBInfo->VBType & (VB_SIS301B | VB_SIS302B |
+						VB_SIS301LV | VB_SIS302LV |
+						VB_XGI301C))) {
+			if (tempbx & TVSimuMode)
+				tempbx &= (~RPLLDIV2XO);
 		}
 	}
 	pVBInfo->TVInfo = tempbx;
