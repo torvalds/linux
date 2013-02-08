@@ -1848,9 +1848,6 @@ typedef struct fc_port {
 	uint8_t scan_state;
 } fc_port_t;
 
-#define QLA_FCPORT_SCAN_NONE	0
-#define QLA_FCPORT_SCAN_FOUND	1
-
 /*
  * Fibre channel port/lun states.
  */
