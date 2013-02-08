@@ -913,6 +913,47 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 
 
 /**
+ * brcmf_p2p_discover_listen() - set firmware to discover listen state.
+ *
+ * @p2p: p2p device.
+ * @freq: center frequency for discover listen.
+ * #@duration: time in ms to stay on channel.
+ *
+ */
+static s32
+brcmf_p2p_discover_listen(struct brcmf_p2p_info *p2p,
+			  struct ieee80211_channel *channel, u32 duration)
+{
+	struct brcmf_cfg80211_vif *vif;
+	s32 err = 0;
+	u16 chanspec;
+
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	if (!vif) {
+		brcmf_err("Discovery is not set, so we have nothing to do\n");
+		err = -EPERM;
+		goto exit;
+	}
+
+	if (test_bit(BRCMF_P2P_STATUS_DISCOVER_LISTEN, &p2p->status)) {
+		brcmf_err("Previous LISTEN is not completed yet\n");
+		/* WAR: prevent cookie mismatch in wpa_supplicant return OK */
+		goto exit;
+	}
+
+	chanspec = channel_to_chanspec(channel);
+	err = brcmf_p2p_set_discover_state(vif->ifp, WL_P2P_DISC_ST_LISTEN,
+					   chanspec, (u16)duration);
+	if (!err) {
+		set_bit(BRCMF_P2P_STATUS_DISCOVER_LISTEN, &p2p->status);
+		p2p->remain_on_channel_cookie++;
+	}
+exit:
+	return err;
+}
+
+
+/**
  * brcmf_p2p_remain_on_channel() - put device on channel and stay there.
  *
  * @wiphy: wiphy device.
@@ -926,30 +967,21 @@ int brcmf_p2p_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
-	struct brcmf_cfg80211_vif *vif;
 	s32 err;
-	u16 chanspec;
 
 	brcmf_dbg(TRACE, "Enter, channel: %d, duration ms (%d)\n",
 		  ieee80211_frequency_to_channel(channel->center_freq),
 		  duration);
 
-	*cookie = 0;
 	err = brcmf_p2p_enable_discovery(p2p);
 	if (err)
 		goto exit;
-
-	chanspec = channel_to_chanspec(channel);
-	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-	err = brcmf_p2p_set_discover_state(vif->ifp, WL_P2P_DISC_ST_LISTEN,
-					   chanspec, (u16)duration);
+	err = brcmf_p2p_discover_listen(p2p, channel, duration);
 	if (err)
 		goto exit;
 
-	memcpy(&p2p->remain_on_channel, channel,
-	       sizeof(p2p->remain_on_channel));
-
-	set_bit(BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL, &p2p->status);
+	memcpy(&p2p->remain_on_channel, channel, sizeof(*channel));
+	*cookie = p2p->remain_on_channel_cookie;
 
 exit:
 	cfg80211_ready_on_channel(wdev, *cookie, channel, duration, GFP_KERNEL);
@@ -973,9 +1005,10 @@ int brcmf_p2p_notify_listen_complete(struct brcmf_if *ifp,
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
 
 	brcmf_dbg(TRACE, "Enter\n");
-	if (test_and_clear_bit(BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL,
+	if (test_and_clear_bit(BRCMF_P2P_STATUS_DISCOVER_LISTEN,
 			       &p2p->status))
-		cfg80211_remain_on_channel_expired(&ifp->vif->wdev, 0,
+		cfg80211_remain_on_channel_expired(&ifp->vif->wdev,
+						   p2p->remain_on_channel_cookie,
 						   &p2p->remain_on_channel,
 						   GFP_KERNEL);
 	return 0;

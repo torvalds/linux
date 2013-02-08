@@ -63,7 +63,7 @@ struct p2p_bss {
  * @BRCMF_P2P_STATUS_ACTION_TX_COMPLETED: action frame tx completed.
  * @BRCMF_P2P_STATUS_ACTION_TX_NOACK: action frame tx not acked.
  * @BRCMF_P2P_STATUS_GO_NEG_PHASE: P2P GO negotiation ongoing.
- * @BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL: P2P listen, remaining on channel.
+ * @BRCMF_P2P_STATUS_DISCOVER_LISTEN: P2P listen, remaining on channel.
  */
 enum brcmf_p2p_status {
 	BRCMF_P2P_STATUS_IF_ADD = 0,
@@ -74,7 +74,7 @@ enum brcmf_p2p_status {
 	BRCMF_P2P_STATUS_ACTION_TX_COMPLETED,
 	BRCMF_P2P_STATUS_ACTION_TX_NOACK,
 	BRCMF_P2P_STATUS_GO_NEG_PHASE,
-	BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL
+	BRCMF_P2P_STATUS_DISCOVER_LISTEN
 };
 
 /**
@@ -89,6 +89,7 @@ enum brcmf_p2p_status {
  * @ssid: ssid for P2P GO.
  * @listen_channel: channel for @WL_P2P_DISC_ST_LISTEN discover state.
  * @remain_on_channel: contains copy of struct used by cfg80211.
+ * @remain_on_channel_cookie: cookie counter for remain on channel cmd
  * @next_af_subtype: expected action frame subtype.
  * @send_af_done: indication that action frame tx is complete.
  */
@@ -102,6 +103,7 @@ struct brcmf_p2p_info {
 	struct brcmf_ssid ssid;
 	u8 listen_channel;
 	struct ieee80211_channel remain_on_channel;
+	u32 remain_on_channel_cookie;
 	u8 next_af_subtype;
 	struct completion send_af_done;
 };
