@@ -601,10 +601,8 @@ brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		cfg80211_scan_done(scan_request, aborted);
 		brcmf_set_mpc(ndev, 1);
 	}
-	if (!test_and_clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
-		brcmf_err("Scan complete while device not scanning\n");
-		return -EPERM;
-	}
+	if (!test_and_clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
+		brcmf_dbg(SCAN, "Scan complete, probably P2P scan\n");
 
 	return err;
 }
@@ -2525,8 +2523,7 @@ static void brcmf_cfg80211_escan_timeout_worker(struct work_struct *work)
 			container_of(work, struct brcmf_cfg80211_info,
 				     escan_timeout_work);
 
-	brcmf_notify_escan_complete(cfg,
-		cfg->escan_info.ndev, true, true);
+	brcmf_notify_escan_complete(cfg, cfg->escan_info.ndev, true, true);
 }
 
 static void brcmf_escan_timeout(unsigned long data)
@@ -2603,17 +2600,20 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 			brcmf_err("Invalid escan result (NULL pointer)\n");
 			goto exit;
 		}
-		if (!cfg->scan_request) {
-			brcmf_dbg(SCAN, "result without cfg80211 request\n");
-			goto exit;
-		}
-
 		if (le16_to_cpu(escan_result_le->bss_count) != 1) {
 			brcmf_err("Invalid bss_count %d: ignoring\n",
 				  escan_result_le->bss_count);
 			goto exit;
 		}
 		bss_info_le = &escan_result_le->bss_info_le;
+
+		if (brcmf_p2p_scan_finding_common_channel(cfg, bss_info_le))
+			goto exit;
+
+		if (!cfg->scan_request) {
+			brcmf_dbg(SCAN, "result without cfg80211 request\n");
+			goto exit;
+		}
 
 		bi_length = le32_to_cpu(bss_info_le->length);
 		if (bi_length != (le32_to_cpu(escan_result_le->buflen) -
@@ -2653,6 +2653,8 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 		list->count++;
 	} else {
 		cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
+		if (brcmf_p2p_scan_finding_common_channel(cfg, NULL))
+			goto exit;
 		if (cfg->scan_request) {
 			cfg->bss_list = (struct brcmf_scan_results *)
 				cfg->escan_info.escan_buf;
@@ -2661,7 +2663,8 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 			brcmf_notify_escan_complete(cfg, ndev, aborted,
 						    false);
 		} else
-			brcmf_err("Unexpected scan result 0x%x\n", status);
+			brcmf_dbg(SCAN, "Ignored scan complete result 0x%x\n",
+				  status);
 	}
 exit:
 	return err;
@@ -4038,50 +4041,6 @@ exit:
 	return err;
 }
 
-static s32 brcmf_notify_rx_mgmt_p2p_probereq(struct brcmf_if *ifp,
-					     const struct brcmf_event_msg *e,
-					     void *data)
-{
-	struct wireless_dev *wdev;
-	struct brcmf_cfg80211_vif *vif = ifp->vif;
-	struct brcmf_rx_mgmt_data *rxframe = (struct brcmf_rx_mgmt_data *)data;
-	u16 chanspec = be16_to_cpu(rxframe->chanspec);
-	u8 *mgmt_frame;
-	u32 mgmt_frame_len;
-	s32 freq;
-	u16 mgmt_type;
-
-	brcmf_dbg(INFO,
-		  "Enter: event %d reason %d\n", e->event_code, e->reason);
-
-	/* Firmware sends us two proberesponses for each idx one. At the */
-	/* moment anything but bsscfgidx 0 is passed up to supplicant    */
-	if (e->bsscfgidx == 0)
-		return 0;
-
-	/* Check if wpa_supplicant has registered for this frame */
-	brcmf_dbg(INFO, "vif->mgmt_rx_reg %04x\n", vif->mgmt_rx_reg);
-	mgmt_type = (IEEE80211_STYPE_PROBE_REQ & IEEE80211_FCTL_STYPE) >> 4;
-	if ((vif->mgmt_rx_reg & BIT(mgmt_type)) == 0)
-		return 0;
-
-	mgmt_frame = (u8 *)(rxframe + 1);
-	mgmt_frame_len = e->datalen - sizeof(*rxframe);
-	freq = ieee80211_channel_to_frequency(CHSPEC_CHANNEL(chanspec),
-					      CHSPEC_IS2G(chanspec) ?
-					      IEEE80211_BAND_2GHZ :
-					      IEEE80211_BAND_5GHZ);
-	wdev = ifp->ndev->ieee80211_ptr;
-	cfg80211_rx_mgmt(wdev, freq, 0, mgmt_frame, mgmt_frame_len, GFP_ATOMIC);
-
-	brcmf_dbg(INFO,
-		  "mgmt_frame_len (%d) , e->datalen (%d), chanspec (%04x), freq (%d)\n",
-		  mgmt_frame_len, e->datalen, chanspec, freq);
-
-	return 0;
-}
-
-
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -4240,6 +4199,7 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	wiphy->cipher_suites = __wl_cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
 	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
+			WIPHY_FLAG_OFFCHAN_TX |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
@@ -4721,12 +4681,14 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 	brcmf_fweh_register(cfg->pub, BRCMF_E_IF,
 			    brcmf_notify_vif_event);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_P2P_PROBEREQ_MSG,
-			    brcmf_notify_rx_mgmt_p2p_probereq);
+			    brcmf_p2p_notify_rx_mgmt_p2p_probereq);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_P2P_DISC_LISTEN_COMPLETE,
 			    brcmf_p2p_notify_listen_complete);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_RX,
 			    brcmf_p2p_notify_action_frame_rx);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_COMPLETE,
+			    brcmf_p2p_notify_action_tx_complete);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_OFF_CHAN_COMPLETE,
 			    brcmf_p2p_notify_action_tx_complete);
 }
 

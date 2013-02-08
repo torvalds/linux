@@ -58,6 +58,10 @@ struct p2p_bss {
  * @BRCMF_P2P_STATUS_ACTION_TX_NOACK: action frame tx not acked.
  * @BRCMF_P2P_STATUS_GO_NEG_PHASE: P2P GO negotiation ongoing.
  * @BRCMF_P2P_STATUS_DISCOVER_LISTEN: P2P listen, remaining on channel.
+ * @BRCMF_P2P_STATUS_SENDING_ACT_FRAME: In the process of sending action frame.
+ * @BRCMF_P2P_STATUS_WAITING_NEXT_AF_LISTEN: extra listen time for af tx.
+ * @BRCMF_P2P_STATUS_WAITING_NEXT_ACT_FRAME: waiting for action frame response.
+ * @BRCMF_P2P_STATUS_FINDING_COMMON_CHANNEL: search channel for AF active.
  */
 enum brcmf_p2p_status {
 	BRCMF_P2P_STATUS_ENABLED,
@@ -69,7 +73,34 @@ enum brcmf_p2p_status {
 	BRCMF_P2P_STATUS_ACTION_TX_COMPLETED,
 	BRCMF_P2P_STATUS_ACTION_TX_NOACK,
 	BRCMF_P2P_STATUS_GO_NEG_PHASE,
-	BRCMF_P2P_STATUS_DISCOVER_LISTEN
+	BRCMF_P2P_STATUS_DISCOVER_LISTEN,
+	BRCMF_P2P_STATUS_SENDING_ACT_FRAME,
+	BRCMF_P2P_STATUS_WAITING_NEXT_AF_LISTEN,
+	BRCMF_P2P_STATUS_WAITING_NEXT_ACT_FRAME,
+	BRCMF_P2P_STATUS_FINDING_COMMON_CHANNEL
+};
+
+/**
+ * struct afx_hdl - action frame off channel storage.
+ *
+ * @afx_work: worker thread for searching channel
+ * @act_frm_scan: thread synchronizing struct.
+ * @is_active: channel searching active.
+ * @peer_chan: current channel.
+ * @is_listen: sets mode for afx worker.
+ * @my_listen_chan: this peers listen channel.
+ * @peer_listen_chan: remote peers listen channel.
+ * @tx_dst_addr: mac address where tx af should be sent to.
+ */
+struct afx_hdl {
+	struct work_struct afx_work;
+	struct completion act_frm_scan;
+	bool is_active;
+	s32 peer_chan;
+	bool is_listen;
+	u16 my_listen_chan;
+	u16 peer_listen_chan;
+	u8 tx_dst_addr[ETH_ALEN];
 };
 
 /**
@@ -87,6 +118,12 @@ enum brcmf_p2p_status {
  * @remain_on_channel_cookie: cookie counter for remain on channel cmd
  * @next_af_subtype: expected action frame subtype.
  * @send_af_done: indication that action frame tx is complete.
+ * @afx_hdl: action frame search handler info.
+ * @af_sent_channel: channel action frame is sent.
+ * @af_tx_sent_jiffies: jiffies time when af tx was transmitted.
+ * @wait_next_af: thread synchronizing struct.
+ * @gon_req_action: about to send go negotiation requets frame.
+ * @block_gon_req_tx: drop tx go negotiation requets frame.
  */
 struct brcmf_p2p_info {
 	struct brcmf_cfg80211_info *cfg;
@@ -101,6 +138,12 @@ struct brcmf_p2p_info {
 	u32 remain_on_channel_cookie;
 	u8 next_af_subtype;
 	struct completion send_af_done;
+	struct afx_hdl afx_hdl;
+	u32 af_sent_channel;
+	unsigned long af_tx_sent_jiffies;
+	struct completion wait_next_af;
+	bool gon_req_action;
+	bool block_gon_req_tx;
 };
 
 s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg);
@@ -132,5 +175,9 @@ int brcmf_p2p_notify_action_tx_complete(struct brcmf_if *ifp,
 bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 				 struct net_device *ndev,
 				 struct brcmf_fil_af_params_le *af_params);
-
+bool brcmf_p2p_scan_finding_common_channel(struct brcmf_cfg80211_info *cfg,
+					   struct brcmf_bss_info_le *bi);
+s32 brcmf_p2p_notify_rx_mgmt_p2p_probereq(struct brcmf_if *ifp,
+					  const struct brcmf_event_msg *e,
+					  void *data);
 #endif /* WL_CFGP2P_H_ */
