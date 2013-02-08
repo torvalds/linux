@@ -2701,7 +2701,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	sdio_claim_host(bus->sdiodev->func[1]);
 	rv = brcmf_sdbrcm_membytes(bus, false, shaddr,
 				   (u8 *)&addr_le, 4);
-	sdio_claim_host(bus->sdiodev->func[1]);
+	sdio_release_host(bus->sdiodev->func[1]);
 	if (rv < 0)
 		return rv;
 
