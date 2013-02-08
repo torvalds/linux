@@ -935,6 +935,7 @@ int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		      struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
+int snd_hda_codec_update_widgets(struct hda_codec *codec);
 
 /*
  * low level functions

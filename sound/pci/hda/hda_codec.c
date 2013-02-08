@@ -1441,6 +1441,30 @@ int snd_hda_codec_new(struct hda_bus *bus,
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_new);
 
+int snd_hda_codec_update_widgets(struct hda_codec *codec)
+{
+	hda_nid_t fg;
+	int err;
+
+	/* Assume the function group node does not change,
+	 * only the widget nodes may change.
+	 */
+	kfree(codec->wcaps);
+	fg = codec->afg ? codec->afg : codec->mfg;
+	err = read_widget_caps(codec, fg);
+	if (err < 0) {
+		snd_printk(KERN_ERR "hda_codec: cannot malloc\n");
+		return err;
+	}
+
+	snd_array_free(&codec->init_pins);
+	err = read_pin_defaults(codec);
+
+	return err;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_update_widgets);
+
+
 /**
  * snd_hda_codec_configure - (Re-)configure the HD-audio codec
  * @codec: the HDA codec
