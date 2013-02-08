@@ -383,6 +383,12 @@
 							<0 25 0x1 0x2	/* PA25 periph A with multi drive */
 							 0 26 0x1 0x2>;	/* PA26 periph A with multi drive */
 					};
+
+					pinctrl_twi_gpio: twi_gpio-0 {
+						atmel,pins =
+							<0 25 0x0 0x2	/* PA25 GPIO with multi drive */
+							 0 26 0x0 0x2>;	/* PA26 GPIO with multi drive */
+					};
 				};
 
 				pioA: gpio@fffff400 {
@@ -520,6 +526,8 @@
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_twi_gpio>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
