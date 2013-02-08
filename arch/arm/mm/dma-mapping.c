@@ -1292,11 +1292,11 @@ err_mapping:
 	return NULL;
 }
 
-static void __iommu_free_atomic(struct device *dev, struct page **pages,
+static void __iommu_free_atomic(struct device *dev, void *cpu_addr,
 				dma_addr_t handle, size_t size)
 {
 	__iommu_remove_mapping(dev, handle, size);
-	__free_from_pool(page_address(pages[0]), size);
+	__free_from_pool(cpu_addr, size);
 }
 
 static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
@@ -1379,7 +1379,7 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	}
 
 	if (__in_atomic_pool(cpu_addr, size)) {
-		__iommu_free_atomic(dev, pages, handle, size);
+		__iommu_free_atomic(dev, cpu_addr, handle, size);
 		return;
 	}
 
