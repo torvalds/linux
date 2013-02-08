@@ -985,13 +985,21 @@ skip_rio:
 		    mb[1], mb[2], mb[3]);
 		break;
 	case MBA_IDC_NOTIFY:
-		/* See if we need to quiesce any I/O */
-		if (IS_QLA8031(vha->hw))
-			if ((mb[2] & 0x7fff) == MBC_PORT_RESET ||
-			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) {
+		if (IS_QLA8031(vha->hw)) {
+			mb[4] = RD_REG_WORD(&reg24->mailbox4);
+			if (((mb[2] & 0x7fff) == MBC_PORT_RESET ||
+			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) &&
+			    (mb[4] & INTERNAL_LOOPBACK_MASK) != 0) {
 				set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
+				/*
+				 * Extend loop down timer since port is active.
+				 */
+				if (atomic_read(&vha->loop_state) == LOOP_DOWN)
+					atomic_set(&vha->loop_down_timer,
+					    LOOP_DOWN_TIME);
 				qla2xxx_wake_dpc(vha);
 			}
+		}
 	case MBA_IDC_COMPLETE:
 	case MBA_IDC_TIME_EXT:
 		if (IS_QLA81XX(vha->hw) || IS_QLA8031(vha->hw))

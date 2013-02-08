@@ -531,66 +531,11 @@ done_unmap_sg:
 done:
 	return rval;
 }
-/*
- * Set the port configuration to enable the internal or external loopback
- * depending on the loopback mode.
- */
-static inline int
-qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
-	uint16_t *new_config, uint16_t mode)
-{
-	int ret = 0;
-	int rval = 0;
-	struct qla_hw_data *ha = vha->hw;
-
-	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
-		goto done_set_internal;
-
-	if (mode == INTERNAL_LOOPBACK)
-		new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
-	else if (mode == EXTERNAL_LOOPBACK)
-		new_config[0] = config[0] | (ENABLE_EXTERNAL_LOOPBACK << 1);
-	ql_dbg(ql_dbg_user, vha, 0x70be,
-	     "new_config[0]=%02x\n", (new_config[0] & INTERNAL_LOOPBACK_MASK));
-
-	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3);
-
-	ha->notify_dcbx_comp = 1;
-	ret = qla81xx_set_port_config(vha, new_config);
-	if (ret != QLA_SUCCESS) {
-		ql_log(ql_log_warn, vha, 0x7021,
-		    "set port config failed.\n");
-		ha->notify_dcbx_comp = 0;
-		rval = -EINVAL;
-		goto done_set_internal;
-	}
-
-	/* Wait for DCBX complete event */
-	if (!wait_for_completion_timeout(&ha->dcbx_comp, (20 * HZ))) {
-		ql_dbg(ql_dbg_user, vha, 0x7022,
-		    "State change notification not received.\n");
-		rval = -EINVAL;
-	} else {
-		if (ha->flags.idc_compl_status) {
-			ql_dbg(ql_dbg_user, vha, 0x70c3,
-			    "Bad status in IDC Completion AEN\n");
-			rval = -EINVAL;
-			ha->flags.idc_compl_status = 0;
-		} else
-			ql_dbg(ql_dbg_user, vha, 0x7023,
-			    "State change received.\n");
-	}
-
-	ha->notify_dcbx_comp = 0;
-
-done_set_internal:
-	return rval;
-}
 
 /* Disable loopback mode */
 static inline int
 qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
-    int wait)
+			    int wait)
 {
 	int ret = 0;
 	int rval = 0;
@@ -635,6 +580,71 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		ha->notify_dcbx_comp = 0;
 	}
 done_reset_internal:
+	return rval;
+}
+
+/*
+ * Set the port configuration to enable the internal or external loopback
+ * depending on the loopback mode.
+ */
+static inline int
+qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
+	uint16_t *new_config, uint16_t mode)
+{
+	int ret = 0;
+	int rval = 0;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
+		goto done_set_internal;
+
+	if (mode == INTERNAL_LOOPBACK)
+		new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
+	else if (mode == EXTERNAL_LOOPBACK)
+		new_config[0] = config[0] | (ENABLE_EXTERNAL_LOOPBACK << 1);
+	ql_dbg(ql_dbg_user, vha, 0x70be,
+	     "new_config[0]=%02x\n", (new_config[0] & INTERNAL_LOOPBACK_MASK));
+
+	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3);
+
+	ha->notify_dcbx_comp = 1;
+	ret = qla81xx_set_port_config(vha, new_config);
+	if (ret != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0x7021,
+		    "set port config failed.\n");
+		ha->notify_dcbx_comp = 0;
+		rval = -EINVAL;
+		goto done_set_internal;
+	}
+
+	/* Wait for DCBX complete event */
+	if (!wait_for_completion_timeout(&ha->dcbx_comp, (20 * HZ))) {
+		ql_dbg(ql_dbg_user, vha, 0x7022,
+		    "State change notification not received.\n");
+		ret = qla81xx_reset_loopback_mode(vha, new_config, 0);
+		/*
+		 * If the reset of the loopback mode doesn't work take a FCoE
+		 * dump and reset the chip.
+		 */
+		if (ret) {
+			ha->isp_ops->fw_dump(vha, 0);
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		}
+		rval = -EINVAL;
+	} else {
+		if (ha->flags.idc_compl_status) {
+			ql_dbg(ql_dbg_user, vha, 0x70c3,
+			    "Bad status in IDC Completion AEN\n");
+			rval = -EINVAL;
+			ha->flags.idc_compl_status = 0;
+		} else
+			ql_dbg(ql_dbg_user, vha, 0x7023,
+			    "State change received.\n");
+	}
+
+	ha->notify_dcbx_comp = 0;
+
+done_set_internal:
 	return rval;
 }
 
@@ -781,11 +791,24 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 			rval = qla2x00_loopback_test(vha, &elreq, response);
 
 			if (new_config[0]) {
+				int ret;
+
 				/* Revert back to original port config
 				 * Also clear internal loopback
 				 */
-				qla81xx_reset_loopback_mode(vha,
+				ret = qla81xx_reset_loopback_mode(vha,
 				    new_config, 0);
+				if (ret) {
+					/*
+					 * If the reset of the loopback mode
+					 * doesn't work take FCoE dump and then
+					 * reset the chip.
+					 */
+					ha->isp_ops->fw_dump(vha, 0);
+					set_bit(ISP_ABORT_NEEDED,
+					    &vha->dpc_flags);
+				}
+
 			}
 
 			if (response[0] == MBS_COMMAND_ERROR &&
