@@ -96,6 +96,7 @@ config DRM_RADEON
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
