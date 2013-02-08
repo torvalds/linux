@@ -91,11 +91,6 @@ struct brcmf_p2p_scan_le {
 	};
 };
 
-static struct brcmf_cfg80211_vif *p2p_discover_vif(struct brcmf_p2p_info *p2p)
-{
-	return p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-}
-
 /**
  * brcmf_p2p_set_firmware() - prepare firmware for peer-to-peer operation.
  *
@@ -191,34 +186,6 @@ static s32 brcmf_p2p_set_discover_state(struct brcmf_if *ifp, u8 state,
 	discover_state.dwell = cpu_to_le16(listen_ms);
 	ret = brcmf_fil_bsscfg_data_set(ifp, "p2p_state", &discover_state,
 					sizeof(discover_state));
-	return ret;
-}
-
-/**
- * brcmf_p2p_discover_disable_search() - reset discover state.
- *
- * @p2p: P2P specific data.
- *
- * Reset the discover state to @WL_P2P_DISC_ST_SCAN. Returns 0 on success.
- */
-static s32 brcmf_p2p_discover_disable_search(struct brcmf_p2p_info *p2p)
-{
-	struct brcmf_cfg80211_vif *vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-	struct brcmf_p2p_disc_st_le discovery_mode;
-	int ret;
-
-	/*
-	 * vif presence indicates discovery is initialized.
-	 */
-	if (!vif)
-		return -ENODEV;
-
-	ret = brcmf_fil_bsscfg_data_get(vif->ifp, "p2p_state",
-					&discovery_mode,
-					sizeof(discovery_mode));
-	if (!ret && discovery_mode.state != WL_P2P_DISC_ST_SCAN)
-		ret = brcmf_p2p_set_discover_state(vif->ifp,
-						  WL_P2P_DISC_ST_SCAN, 0, 0);
 	return ret;
 }
 
@@ -376,32 +343,6 @@ exit:
 }
 
 /**
- * brcmf_p2p_configure_probereq() - Configure probe request data.
- *
- * @p2p: P2P specific data.
- * @ie: buffer containing information elements.
- * @ie_len: length of @ie buffer.
- *
- */
-static int brcmf_p2p_configure_probereq(struct brcmf_p2p_info *p2p,
-					const u8 *ie, u32 ie_len)
-{
-	struct brcmf_cfg80211_vif *vif;
-	s32 err = 0;
-
-	brcmf_dbg(TRACE, "enter\n");
-	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-
-	err = brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_PRBREQ_FLAG,
-				    ie, ie_len);
-
-	if (err < 0)
-		brcmf_err("set probreq ie occurs error %d\n", err);
-
-	return err;
-}
-
-/*
  * brcmf_p2p_escan() - initiate a P2P scan.
  *
  * @p2p: P2P specific data.
@@ -621,12 +562,14 @@ exit:
  *
  * @wiphy: wiphy device.
  * @request: scan request from cfg80211.
+ * @vif: vif on which scan request is to be executed.
  *
  * Prepare the scan appropriately for type of scan requested. Overrides the
  * escan .run() callback for peer-to-peer scanning.
  */
 int brcmf_p2p_scan_prep(struct wiphy *wiphy,
-			struct cfg80211_scan_request *request)
+			struct cfg80211_scan_request *request,
+			struct brcmf_cfg80211_vif *vif)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
@@ -644,31 +587,16 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 		brcmf_dbg(INFO, "P2P: GO_NEG_PHASE status cleared\n");
 
 		err = brcmf_p2p_enable_discovery(p2p);
-		if (err == 0)
-			err = brcmf_p2p_configure_probereq(p2p, request->ie,
-							   request->ie_len);
+		if (err)
+			return err;
 
-		/*
-		 * override .run_escan() callback.
-		 */
+		vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+
+		/* override .run_escan() callback. */
 		cfg->escan_info.run = brcmf_p2p_run_escan;
-	} else {
-		/*
-		 * legacy scan trigger
-		 * So, we have to disable p2p discovery if p2p discovery is on
-		 */
-		(void)brcmf_p2p_discover_disable_search(p2p);
-
-		/*
-		 * clear p2p vendor ies for probe request set by
-		 * previous p2p related scan(s).
-		 */
-		if (p2p_discover_vif(p2p))
-			err = brcmf_vif_set_mgmt_ie(p2p_discover_vif(p2p),
-						    BRCMF_VNDR_IE_PRBREQ_FLAG,
-						    request->ie,
-						    request->ie_len);
 	}
+	err = brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_PRBREQ_FLAG,
+				    request->ie, request->ie_len);
 	return err;
 }
 

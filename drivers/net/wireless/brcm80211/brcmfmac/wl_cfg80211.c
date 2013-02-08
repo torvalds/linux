@@ -805,6 +805,12 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct net_device *ndev,
 		return -EAGAIN;
 	}
 
+	/* If scan req comes for p2p0, send it over primary I/F */
+	if (ifp->vif == cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif) {
+		ifp = cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+		ndev = ifp->ndev;
+	}
+
 	/* Arm scan timeout timer */
 	mod_timer(&cfg->escan_timeout, jiffies +
 			WL_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
@@ -824,7 +830,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct net_device *ndev,
 	set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 	if (escan_req) {
 		cfg->escan_info.run = brcmf_run_escan;
-		err = brcmf_p2p_scan_prep(wiphy, request);
+		err = brcmf_p2p_scan_prep(wiphy, request, ifp->vif);
 		if (err)
 			goto scan_out;
 
