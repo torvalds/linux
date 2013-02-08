@@ -428,6 +428,10 @@
 	ENTRY_SAME(syncfs)
 	ENTRY_SAME(setns)
 	ENTRY_COMP(sendmmsg)
+	ENTRY_COMP(process_vm_readv)	/* 330 */
+	ENTRY_COMP(process_vm_writev)
+	ENTRY_SAME(kcmp)
+	ENTRY_SAME(finit_module)
 
 	/* Nothing yet */
 
