@@ -39,6 +39,7 @@
 #include <asm/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -1029,6 +1030,49 @@ static int register_root_hub(struct usb_hcd *hcd)
 	return retval;
 }
 
+/*
+ * usb_hcd_start_port_resume - a root-hub port is sending a resume signal
+ * @bus: the bus which the root hub belongs to
+ * @portnum: the port which is being resumed
+ *
+ * HCDs should call this function when they know that a resume signal is
+ * being sent to a root-hub port.  The root hub will be prevented from
+ * going into autosuspend until usb_hcd_end_port_resume() is called.
+ *
+ * The bus's private lock must be held by the caller.
+ */
+void usb_hcd_start_port_resume(struct usb_bus *bus, int portnum)
+{
+	unsigned bit = 1 << portnum;
+
+	if (!(bus->resuming_ports & bit)) {
+		bus->resuming_ports |= bit;
+		pm_runtime_get_noresume(&bus->root_hub->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_hcd_start_port_resume);
+
+/*
+ * usb_hcd_end_port_resume - a root-hub port has stopped sending a resume signal
+ * @bus: the bus which the root hub belongs to
+ * @portnum: the port which is being resumed
+ *
+ * HCDs should call this function when they know that a resume signal has
+ * stopped being sent to a root-hub port.  The root hub will be allowed to
+ * autosuspend again.
+ *
+ * The bus's private lock must be held by the caller.
+ */
+void usb_hcd_end_port_resume(struct usb_bus *bus, int portnum)
+{
+	unsigned bit = 1 << portnum;
+
+	if (bus->resuming_ports & bit) {
+		bus->resuming_ports &= ~bit;
+		pm_runtime_put_noidle(&bus->root_hub->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_hcd_end_port_resume);
 
 /*-------------------------------------------------------------------------*/
 
