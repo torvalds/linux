@@ -1924,7 +1924,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
  * This register is the same on all known PCH chips.
  */
 
-static void ironlake_enable_pch_hotplug(struct drm_device *dev)
+static void ibx_enable_hotplug(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32	hotplug;
@@ -1937,6 +1937,28 @@ static void ironlake_enable_pch_hotplug(struct drm_device *dev)
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
+static void ibx_irq_postinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 mask;
+
+	if (HAS_PCH_IBX(dev))
+		mask = SDE_HOTPLUG_MASK |
+		       SDE_GMBUS |
+		       SDE_AUX_MASK;
+	else
+		mask = SDE_HOTPLUG_MASK_CPT |
+		       SDE_GMBUS_CPT |
+		       SDE_AUX_MASK_CPT;
+
+	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
+	I915_WRITE(SDEIMR, ~mask);
+	I915_WRITE(SDEIER, mask);
+	POSTING_READ(SDEIER);
+
+	ibx_enable_hotplug(dev);
+}
+
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1945,8 +1967,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
 			   DE_AUX_CHANNEL_A;
 	u32 render_irqs;
-	u32 hotplug_mask;
-	u32 pch_irq_mask;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -1974,30 +1994,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
-	if (HAS_PCH_CPT(dev)) {
-		hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
-				SDE_PORTB_HOTPLUG_CPT |
-				SDE_PORTC_HOTPLUG_CPT |
-				SDE_PORTD_HOTPLUG_CPT |
-				SDE_GMBUS_CPT |
-				SDE_AUX_MASK_CPT);
-	} else {
-		hotplug_mask = (SDE_CRT_HOTPLUG |
-				SDE_PORTB_HOTPLUG |
-				SDE_PORTC_HOTPLUG |
-				SDE_PORTD_HOTPLUG |
-				SDE_GMBUS |
-				SDE_AUX_MASK);
-	}
-
-	pch_irq_mask = ~hotplug_mask;
-
-	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
-	I915_WRITE(SDEIMR, pch_irq_mask);
-	I915_WRITE(SDEIER, hotplug_mask);
-	POSTING_READ(SDEIER);
-
-	ironlake_enable_pch_hotplug(dev);
+	ibx_irq_postinstall(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
 		/* Clear & enable PCU event interrupts */
@@ -2020,8 +2017,6 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		DE_PLANEA_FLIP_DONE_IVB |
 		DE_AUX_CHANNEL_A_IVB;
 	u32 render_irqs;
-	u32 hotplug_mask;
-	u32 pch_irq_mask;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -2045,20 +2040,7 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
-	hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
-			SDE_PORTB_HOTPLUG_CPT |
-			SDE_PORTC_HOTPLUG_CPT |
-			SDE_PORTD_HOTPLUG_CPT |
-			SDE_GMBUS_CPT |
-			SDE_AUX_MASK_CPT);
-	pch_irq_mask = ~hotplug_mask;
-
-	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
-	I915_WRITE(SDEIMR, pch_irq_mask);
-	I915_WRITE(SDEIER, hotplug_mask);
-	POSTING_READ(SDEIER);
-
-	ironlake_enable_pch_hotplug(dev);
+	ibx_irq_postinstall(dev);
 
 	return 0;
 }
