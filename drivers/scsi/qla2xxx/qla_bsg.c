@@ -790,6 +790,26 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 			command_sent = INT_DEF_LB_LOOPBACK_CMD;
 			rval = qla2x00_loopback_test(vha, &elreq, response);
 
+			if (response[0] == MBS_COMMAND_ERROR &&
+					response[1] == MBS_LB_RESET) {
+				ql_log(ql_log_warn, vha, 0x7029,
+				    "MBX command error, Aborting ISP.\n");
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				qla2xxx_wake_dpc(vha);
+				qla2x00_wait_for_chip_reset(vha);
+				/* Also reset the MPI */
+				if (IS_QLA81XX(ha)) {
+					if (qla81xx_restart_mpi_firmware(vha) !=
+					    QLA_SUCCESS) {
+						ql_log(ql_log_warn, vha, 0x702a,
+						    "MPI reset failed.\n");
+					}
+				}
+
+				rval = -EIO;
+				goto done_free_dma_rsp;
+			}
+
 			if (new_config[0]) {
 				int ret;
 
@@ -811,25 +831,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 			}
 
-			if (response[0] == MBS_COMMAND_ERROR &&
-					response[1] == MBS_LB_RESET) {
-				ql_log(ql_log_warn, vha, 0x7029,
-				    "MBX command error, Aborting ISP.\n");
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-				qla2xxx_wake_dpc(vha);
-				qla2x00_wait_for_chip_reset(vha);
-				/* Also reset the MPI */
-				if (IS_QLA81XX(ha)) {
-					if (qla81xx_restart_mpi_firmware(vha) !=
-					    QLA_SUCCESS) {
-						ql_log(ql_log_warn, vha, 0x702a,
-						    "MPI reset failed.\n");
-					}
-				}
-
-				rval = -EIO;
-				goto done_free_dma_rsp;
-			}
 		} else {
 			type = "FC_BSG_HST_VENDOR_LOOPBACK";
 			ql_dbg(ql_dbg_user, vha, 0x702b,
