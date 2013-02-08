@@ -97,10 +97,15 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
 #ifdef CONFIG_BCMA_DRIVER_GPIO
 /* driver_gpio.c */
 int bcma_gpio_init(struct bcma_drv_cc *cc);
+int bcma_gpio_unregister(struct bcma_drv_cc *cc);
 #else
 static inline int bcma_gpio_init(struct bcma_drv_cc *cc)
 {
 	return -ENOTSUPP;
+}
+static inline int bcma_gpio_unregister(struct bcma_drv_cc *cc)
+{
+	return 0;
 }
 #endif /* CONFIG_BCMA_DRIVER_GPIO */
 

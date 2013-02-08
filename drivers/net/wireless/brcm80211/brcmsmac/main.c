@@ -7510,25 +7510,16 @@ int brcms_c_get_curband(struct brcms_c_info *wlc)
 	return wlc->band->bandunit;
 }
 
-void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
+bool brcms_c_tx_flush_completed(struct brcms_c_info *wlc)
 {
-	int timeout = 20;
 	int i;
 
 	/* Kick DMA to send any pending AMPDU */
 	for (i = 0; i < ARRAY_SIZE(wlc->hw->di); i++)
 		if (wlc->hw->di[i])
-			dma_txflush(wlc->hw->di[i]);
+			dma_kick_tx(wlc->hw->di[i]);
 
-	/* wait for queue and DMA fifos to run dry */
-	while (brcms_txpktpendtot(wlc) > 0) {
-		brcms_msleep(wlc->wl, 1);
-
-		if (--timeout == 0)
-			break;
-	}
-
-	WARN_ON_ONCE(timeout == 0);
+	return !brcms_txpktpendtot(wlc);
 }
 
 void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval)

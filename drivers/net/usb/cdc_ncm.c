@@ -1215,6 +1215,9 @@ static const struct usb_device_id cdc_devs[] = {
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, 0xff, 0x02, 0x46),
 	  .driver_info = (unsigned long)&wwan_info,
 	},
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, 0xff, 0x02, 0x76),
+	  .driver_info = (unsigned long)&wwan_info,
+	},
 
 	/* Infineon(now Intel) HSPA Modem platform */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1519, 0x0443,

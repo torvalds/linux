@@ -958,7 +958,7 @@ static netdev_tx_t ip6gre_tunnel_xmit(struct sk_buff *skb,
 	int ret;
 
 	if (!ip6_tnl_xmit_ctl(t))
-		return -1;
+		goto tx_err;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):

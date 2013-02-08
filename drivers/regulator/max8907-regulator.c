@@ -237,8 +237,7 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators,
-				 max8907_matches,
+	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
