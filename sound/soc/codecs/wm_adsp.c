@@ -711,6 +711,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
 	struct wm_adsp_buf *buf;
+	int tmp;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
@@ -842,7 +843,12 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			}
 		}
 
-		pos += le32_to_cpu(blk->len) + sizeof(*blk);
+		tmp = le32_to_cpu(blk->len) % 4;
+		if (tmp)
+			pos += le32_to_cpu(blk->len) + (4 - tmp) + sizeof(*blk);
+		else
+			pos += le32_to_cpu(blk->len) + sizeof(*blk);
+
 		blocks++;
 	}
 
