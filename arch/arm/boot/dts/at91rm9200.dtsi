@@ -29,6 +29,7 @@
 		gpio3 = &pioD;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
 		ssc0 = &ssc0;
 		ssc1 = &ssc1;
 		ssc2 = &ssc2;
@@ -89,6 +90,17 @@
 				compatible = "atmel,at91rm9200-tcb";
 				reg = <0xfffa4000 0x100>;
 				interrupts = <20 4 0 21 4 0 22 4 0>;
+			};
+
+			i2c0: i2c@fffb8000 {
+				compatible = "atmel,at91rm9200-i2c";
+				reg = <0xfffb8000 0x4000>;
+				interrupts = <12 4 6>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_twi>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
 			};
 
 			mmc0: mmc@fffb4000 {
@@ -362,6 +374,14 @@
 							<1 15 0x1 0x0	/* PB15 periph A */
 							 1 16 0x1 0x0	/* PB16 periph A */
 							 1 17 0x1 0x0>;	/* PB17 periph A */
+					};
+				};
+
+				twi {
+					pinctrl_twi: twi-0 {
+						atmel,pins =
+							<0 25 0x1 0x2	/* PA25 periph A with multi drive */
+							 0 26 0x1 0x2>;	/* PA26 periph A with multi drive */
 					};
 				};
 
