@@ -414,10 +414,17 @@ struct dm_info_msg {
 
 static bool hot_add;
 static bool do_hot_add;
+/*
+ * Delay reporting memory pressure by
+ * the specified number of seconds.
+ */
+static uint pressure_report_delay = 30;
 
 module_param(hot_add, bool, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(hot_add, "If set attempt memory hot_add");
 
+module_param(pressure_report_delay, uint, (S_IRUGO | S_IWUSR));
+MODULE_PARM_DESC(pressure_report_delay, "Delay in secs in reporting pressure");
 static atomic_t trans_id = ATOMIC_INIT(0);
 
 static int dm_ring_size = (5 * PAGE_SIZE);
@@ -531,6 +538,10 @@ static void post_status(struct hv_dynmem_device *dm)
 	struct dm_status status;
 	struct sysinfo val;
 
+	if (pressure_report_delay > 0) {
+		--pressure_report_delay;
+		return;
+	}
 	si_meminfo(&val);
 	memset(&status, 0, sizeof(struct dm_status));
 	status.hdr.type = DM_STATUS_REPORT;
@@ -551,8 +562,6 @@ static void post_status(struct hv_dynmem_device *dm)
 				VM_PKT_DATA_INBAND, 0);
 
 }
-
-
 
 static void free_balloon_pages(struct hv_dynmem_device *dm,
 			 union dm_mem_page_range *range_array)
