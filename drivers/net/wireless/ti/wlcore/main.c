@@ -2162,7 +2162,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	return 0;
 }
 
-static bool wl12xx_init_fw(struct wl1271 *wl)
+static int wl12xx_init_fw(struct wl1271 *wl)
 {
 	int retries = WL1271_BOOT_RETRIES;
 	bool booted = false;
@@ -2228,7 +2228,7 @@ power_off:
 
 	wl->state = WLCORE_STATE_ON;
 out:
-	return booted;
+	return ret;
 }
 
 static bool wl12xx_dev_role_started(struct wl12xx_vif *wlvif)
@@ -2371,7 +2371,6 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	struct vif_counter_data vif_count;
 	int ret = 0;
 	u8 role_type;
-	bool booted = false;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
@@ -2432,11 +2431,9 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		 */
 		memcpy(wl->addresses[0].addr, vif->addr, ETH_ALEN);
 
-		booted = wl12xx_init_fw(wl);
-		if (!booted) {
-			ret = -EINVAL;
+		ret = wl12xx_init_fw(wl);
+		if (ret < 0)
 			goto out;
-		}
 	}
 
 	ret = wl12xx_cmd_role_enable(wl, vif->addr,
@@ -5966,7 +5963,8 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 {
 	struct wl1271 *wl = context;
 	struct platform_device *pdev = wl->pdev;
-	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
+	struct wlcore_platdev_data *pdev_data = pdev->dev.platform_data;
+	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 	unsigned long irqflags;
 	int ret;
 
@@ -5995,8 +5993,7 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 
 	wl->irq = platform_get_irq(pdev, 0);
 	wl->platform_quirks = pdata->platform_quirks;
-	wl->set_power = pdata->set_power;
-	wl->if_ops = pdata->ops;
+	wl->if_ops = pdev_data->if_ops;
 
 	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
 		irqflags = IRQF_TRIGGER_RISING;

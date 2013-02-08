@@ -510,10 +510,12 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.hlid = wlvif->sta.hlid;
 	cmd->sta.session = wl->session_ids[wlvif->sta.hlid];
 	/*
-	 * We don't have the correct remote rates in this stage. the rates
-	 * will be reconfigured later, after authorization.
+	 * We don't have the correct remote rates in this stage.  The
+	 * rates will be reconfigured later, after association, if the
+	 * firmware supports ACX_PEER_CAP.  Otherwise, there's nothing
+	 * we can do, so use all supported_rates here.
 	 */
-	cmd->sta.remote_rates = cpu_to_le32(wlvif->rate_set);
+	cmd->sta.remote_rates = cpu_to_le32(supported_rates);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
