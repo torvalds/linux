@@ -1303,7 +1303,7 @@ F:	include/linux/dmaengine.h
 F:	include/linux/async_tx.h
 
 AT24 EEPROM DRIVER
-M:	Wolfram Sang <w.sang@pengutronix.de>
+M:	Wolfram Sang <wsa@the-dreams.de>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/misc/eeprom/at24.c
@@ -3757,12 +3757,11 @@ S:	Maintained
 F:	drivers/i2c/i2c-stub.c
 
 I2C SUBSYSTEM
-M:	Wolfram Sang <w.sang@pengutronix.de>
+M:	Wolfram Sang <wsa@the-dreams.de>
 M:	"Ben Dooks (embedded platforms)" <ben-linux@fluff.org>
 L:	linux-i2c@vger.kernel.org
 W:	http://i2c.wiki.kernel.org/
-T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
-T:	git git://git.pengutronix.de/git/wsa/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux.git
 S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
@@ -5777,15 +5776,6 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/muxes/i2c-mux-pca9541.c
-
-PCA9564/PCA9665 I2C BUS DRIVER
-M:	Wolfram Sang <w.sang@pengutronix.de>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	drivers/i2c/algos/i2c-algo-pca.c
-F:	drivers/i2c/busses/i2c-pca-*
-F:	include/linux/i2c-algo-pca.h
-F:	include/linux/i2c-pca-platform.h
 
 PCDP - PRIMARY CONSOLE AND DEBUG PORT
 M:	Khalid Aziz <khalid@gonehiking.org>
