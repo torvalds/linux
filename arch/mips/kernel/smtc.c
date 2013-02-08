@@ -41,6 +41,7 @@
 #include <asm/addrspace.h>
 #include <asm/smtc.h>
 #include <asm/smtc_proc.h>
+#include <asm/setup.h>
 
 /*
  * SMTC Kernel needs to manipulate low-level CPU interrupt mask
