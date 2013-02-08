@@ -226,6 +226,7 @@ config MACH_QT2410
 config ARCH_SMDK2410
 	bool "SMDK2410/A9M2410"
 	select S3C24XX_SMDK
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the SMDK2410 or the derived module A9M2410
 	  <http://www.fsforth.de>
