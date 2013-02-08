@@ -198,6 +198,13 @@ done:
 }
 
 static inline void
+qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+{
+	mempool_free(sp, vha->hw->srb_mempool);
+	QLA_VHA_MARK_NOT_BUSY(vha);
+}
+
+static inline void
 qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 {
 	init_timer(&sp->u.iocb_cmd.timer);

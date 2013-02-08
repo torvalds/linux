@@ -27,7 +27,7 @@ void
 qla2x00_bsg_sp_free(void *data, void *ptr)
 {
 	srb_t *sp = (srb_t *)ptr;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
 	struct qla_hw_data *ha = vha->hw;
 
@@ -40,7 +40,7 @@ qla2x00_bsg_sp_free(void *data, void *ptr)
 	if (sp->type == SRB_CT_CMD ||
 	    sp->type == SRB_ELS_CMD_HST)
 		kfree(sp->fcport);
-	mempool_free(sp, vha->hw->srb_mempool);
+	qla2x00_rel_sp(vha, sp);
 }
 
 int
@@ -368,7 +368,7 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x700e,
 		    "qla2x00_start_sp failed = %d\n", rval);
-		mempool_free(sp, ha->srb_mempool);
+		qla2x00_rel_sp(vha, sp);
 		rval = -EIO;
 		goto done_unmap_sg;
 	}
@@ -515,7 +515,7 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7017,
 		    "qla2x00_start_sp failed=%d.\n", rval);
-		mempool_free(sp, ha->srb_mempool);
+		qla2x00_rel_sp(vha, sp);
 		rval = -EIO;
 		goto done_free_fcport;
 	}
@@ -1995,6 +1995,6 @@ done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
 		kfree(sp->fcport);
-	mempool_free(sp, ha->srb_mempool);
+	qla2x00_rel_sp(vha, sp);
 	return 0;
 }

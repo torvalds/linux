@@ -630,7 +630,7 @@ qla2x00_sp_free_dma(void *vha, void *ptr)
 	}
 
 	CMD_SP(cmd) = NULL;
-	mempool_free(sp, ha->srb_mempool);
+	qla2x00_rel_sp(sp->fcport->vha, sp);
 }
 
 static void
@@ -718,7 +718,7 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		goto qc24_target_busy;
 	}
 
-	sp = qla2x00_get_sp(base_vha, fcport, GFP_ATOMIC);
+	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp) {
 		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
 		goto qc24_host_busy;

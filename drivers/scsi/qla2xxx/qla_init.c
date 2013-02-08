@@ -70,9 +70,7 @@ qla2x00_sp_free(void *data, void *ptr)
 	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
 
 	del_timer(&iocb->timer);
-	mempool_free(sp, vha->hw->srb_mempool);
-
-	QLA_VHA_MARK_NOT_BUSY(vha);
+	qla2x00_rel_sp(vha, sp);
 }
 
 /* Asynchronous Login/Logout Routines -------------------------------------- */
