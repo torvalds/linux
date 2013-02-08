@@ -2721,10 +2721,8 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	}
 
 	/* Read hndrte_shared structure */
-	sdio_claim_host(bus->sdiodev->func[1]);
 	rv = brcmf_sdbrcm_membytes(bus, false, addr, (u8 *)&sh_le,
 				   sizeof(struct sdpcm_shared_le));
-	sdio_release_host(bus->sdiodev->func[1]);
 	if (rv < 0)
 		return rv;
 
@@ -2826,14 +2824,12 @@ static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
 	if ((sh->flags & SDPCM_SHARED_TRAP) == 0)
 		return 0;
 
-	sdio_claim_host(bus->sdiodev->func[1]);
 	error = brcmf_sdbrcm_membytes(bus, false, sh->trap_addr, (u8 *)&tr,
 				      sizeof(struct brcmf_trap_info));
 	if (error < 0)
 		return error;
 
 	nbytes = brcmf_sdio_dump_console(bus, sh, data, count);
-	sdio_release_host(bus->sdiodev->func[1]);
 	if (nbytes < 0)
 		return nbytes;
 
