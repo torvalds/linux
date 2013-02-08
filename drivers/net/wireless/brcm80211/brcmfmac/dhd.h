@@ -452,6 +452,19 @@ struct brcmf_sta_info_le {
 	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
 };
 
+/*
+ * WLC_E_PROBRESP_MSG
+ * WLC_E_P2P_PROBREQ_MSG
+ * WLC_E_ACTION_FRAME_RX
+ */
+struct brcmf_rx_mgmt_data {
+	__be16	version;
+	__be16	chanspec;
+	__be32	rssi;
+	__be32	mactime;
+	__be32	rate;
+};
+
 /* Bus independent dongle command */
 struct brcmf_dcmd {
 	uint cmd;		/* common dongle cmd definition */

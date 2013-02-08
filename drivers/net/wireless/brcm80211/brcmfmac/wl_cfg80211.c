@@ -3359,6 +3359,11 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			mgmt_ie_len = &saved_ie->probe_req_ie_len;
 			mgmt_ie_buf_len = sizeof(saved_ie->probe_req_ie);
 			break;
+		case BRCMF_VNDR_IE_PRBRSP_FLAG:
+			mgmt_ie_buf = saved_ie->probe_res_ie;
+			mgmt_ie_len = &saved_ie->probe_res_ie_len;
+			mgmt_ie_buf_len = sizeof(saved_ie->probe_res_ie);
+			break;
 		default:
 			err = -EPERM;
 			brcmf_err("not suitable type\n");
@@ -3674,6 +3679,150 @@ brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
 	return err;
 }
 
+
+static void
+brcmf_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
+				   struct wireless_dev *wdev,
+				   u16 frame_type, bool reg)
+{
+	struct brcmf_if *ifp = netdev_priv(wdev->netdev);
+	struct brcmf_cfg80211_vif *vif = ifp->vif;
+	u16 mgmt_type;
+
+	brcmf_dbg(TRACE, "Enter, frame_type %04x, reg=%d\n", frame_type, reg);
+
+	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
+	if (reg)
+		vif->mgmt_rx_reg |= BIT(mgmt_type);
+	else
+		vif->mgmt_rx_reg |= ~BIT(mgmt_type);
+}
+
+
+static int
+brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+		       struct ieee80211_channel *chan, bool offchan,
+		       unsigned int wait, const u8 *buf, size_t len,
+		       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	const struct ieee80211_mgmt *mgmt;
+	struct brcmf_cfg80211_vif *vif;
+	s32 err = 0;
+	s32 ie_offset;
+	s32 ie_len;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	*cookie = 0;
+
+	mgmt = (const struct ieee80211_mgmt *)buf;
+
+	if (ieee80211_is_mgmt(mgmt->frame_control)) {
+		if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+			/* Right now the only reason to get a probe response */
+			/* is for p2p listen response from wpa_supplicant.   */
+			/* Unfortunately the wpa_supplicant sends it on the  */
+			/* primary ndev, while dongle wants it on the p2p    */
+			/* vif. Since this is only reason for a probe        */
+			/* response to be sent, the vif is taken from cfg.   */
+			/* If ever desired to send proberesp for non p2p     */
+			/* response then data should be checked for          */
+			/* "DIRECT-". Note in future supplicant will take    */
+			/* dedicated p2p wdev to do this and then this 'hack'*/
+			/* is not needed anymore.                            */
+			ie_offset =  DOT11_MGMT_HDR_LEN +
+				     DOT11_BCN_PRB_FIXED_LEN;
+			ie_len = len - ie_offset;
+
+			vif = cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+			if (vif == NULL) {
+				brcmf_err("No p2p device available for probe response\n");
+				err = -ENODEV;
+				goto exit;
+			}
+			err = brcmf_vif_set_mgmt_ie(vif,
+						    BRCMF_VNDR_IE_PRBRSP_FLAG,
+						    &buf[ie_offset],
+						    ie_len);
+			cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true,
+						GFP_KERNEL);
+			goto exit;
+		}
+	}
+	brcmf_dbg(TRACE, "Unhandled, is_mgmt %d, fc=%04x!!!!!\n",
+		  ieee80211_is_mgmt(mgmt->frame_control), mgmt->frame_control);
+exit:
+	return err;
+}
+
+
+static int
+brcmf_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					u64 cookie)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_cfg80211_vif *vif;
+	int err = 0;
+
+	brcmf_dbg(TRACE, "Enter p2p listen cancel\n");
+
+	vif = cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	if (vif == NULL) {
+		brcmf_err("No p2p device available for probe response\n");
+		err = -ENODEV;
+		goto exit;
+	}
+	brcmf_p2p_cancel_remain_on_channel(vif->ifp);
+exit:
+	return err;
+}
+
+static s32 brcmf_notify_rx_mgmt_p2p_probereq(struct brcmf_if *ifp,
+					     const struct brcmf_event_msg *e,
+					     void *data)
+{
+	struct wireless_dev *wdev;
+	struct brcmf_cfg80211_vif *vif = ifp->vif;
+	struct brcmf_rx_mgmt_data *rxframe = (struct brcmf_rx_mgmt_data *)data;
+	u16 chanspec = be16_to_cpu(rxframe->chanspec);
+	u8 *mgmt_frame;
+	u32 mgmt_frame_len;
+	s32 freq;
+	u16 mgmt_type;
+
+	brcmf_dbg(INFO,
+		  "Enter: event %d reason %d\n", e->event_code, e->reason);
+
+	/* Firmware sends us two proberesponses for each idx one. At the */
+	/* moment only bsscfgidx 0 is passed up to supplicant            */
+	if (e->bsscfgidx)
+		return 0;
+
+	/* Check if wpa_supplicant has registered for this frame */
+	brcmf_dbg(INFO, "vif->mgmt_rx_reg %04x\n", vif->mgmt_rx_reg);
+	mgmt_type = (IEEE80211_STYPE_PROBE_REQ & IEEE80211_FCTL_STYPE) >> 4;
+	if ((vif->mgmt_rx_reg & BIT(mgmt_type)) == 0)
+		return 0;
+
+	mgmt_frame = (u8 *)(rxframe + 1);
+	mgmt_frame_len = e->datalen - sizeof(*rxframe);
+	freq = ieee80211_channel_to_frequency(CHSPEC_CHANNEL(chanspec),
+					      CHSPEC_IS2G(chanspec) ?
+					      IEEE80211_BAND_2GHZ :
+					      IEEE80211_BAND_5GHZ);
+	wdev = ifp->ndev->ieee80211_ptr;
+	cfg80211_rx_mgmt(wdev, freq, 0, mgmt_frame, mgmt_frame_len, GFP_ATOMIC);
+
+	brcmf_dbg(INFO,
+		  "mgmt_frame_len (%d) , e->datalen (%d), chanspec (%04x), freq (%d)\n",
+		  mgmt_frame_len, e->datalen, chanspec, freq);
+
+	return 0;
+}
+
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -3703,6 +3852,10 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.del_station = brcmf_cfg80211_del_station,
 	.sched_scan_start = brcmf_cfg80211_sched_scan_start,
 	.sched_scan_stop = brcmf_cfg80211_sched_scan_stop,
+	.mgmt_frame_register = brcmf_cfg80211_mgmt_frame_register,
+	.mgmt_tx = brcmf_cfg80211_mgmt_tx,
+	.remain_on_channel = brcmf_p2p_remain_on_channel,
+	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
 #ifdef CONFIG_NL80211_TESTMODE
 	.testmode_cmd = brcmf_cfg80211_testmode
 #endif
@@ -3765,6 +3918,30 @@ static const struct ieee80211_iface_combination brcmf_iface_combos[] = {
 	}
 };
 
+static const struct ieee80211_txrx_stypes
+brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
+	[NL80211_IFTYPE_STATION] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+	[NL80211_IFTYPE_P2P_CLIENT] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+	[NL80211_IFTYPE_P2P_GO] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_DISASSOC >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4) |
+		      BIT(IEEE80211_STYPE_DEAUTH >> 4) |
+		      BIT(IEEE80211_STYPE_ACTION >> 4)
+	}
+};
+
 static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 {
 	struct wiphy *wiphy;
@@ -3797,10 +3974,10 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->cipher_suites = __wl_cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
-	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;	/* enable power
-								 * save mode
-								 * by default
-								 */
+	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
+			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->mgmt_stypes = brcmf_txrx_stypes;
+	wiphy->max_remain_on_channel_duration = 5000;
 	brcmf_wiphy_pno_params(wiphy);
 	err = wiphy_register(wiphy);
 	if (err < 0) {
@@ -4271,6 +4448,10 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_notify_sched_scan_results);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_IF,
 			    brcmf_notify_vif_event);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_P2P_PROBEREQ_MSG,
+			    brcmf_notify_rx_mgmt_p2p_probereq);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_P2P_DISC_LISTEN_COMPLETE,
+			    brcmf_p2p_notify_listen_complete);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)

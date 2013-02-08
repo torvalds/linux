@@ -318,11 +318,6 @@ static s32 brcmf_p2p_deinit_discovery(struct brcmf_p2p_info *p2p)
 	brcmf_dbg(TRACE, "enter\n");
 
 	bss_dev = &p2p->bss_idx[P2PAPI_BSSCFG_DEVICE];
-	if (bss_dev->vif == NULL) {
-		brcmf_err("do nothing, not initialized\n");
-		return -EINVAL;
-	}
-
 	ifp = bss_dev->vif->ifp;
 
 	/* Set the discovery state to SCAN */
@@ -348,8 +343,7 @@ static s32 brcmf_p2p_deinit_discovery(struct brcmf_p2p_info *p2p)
  *
  * Initializes the discovery device and configure the virtual interface.
  */
-static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p,
-				      const u8 *ie, u32 ie_len)
+static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p)
 {
 	struct brcmf_cfg80211_vif *vif;
 	s32 ret = 0;
@@ -357,9 +351,8 @@ static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p,
 	brcmf_dbg(TRACE, "enter\n");
 	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
 	if (vif) {
-		brcmf_dbg(INFO,
-			  "DISCOVERY init already done, just process IE\n");
-		goto set_ie;
+		brcmf_dbg(INFO, "DISCOVERY init already done\n");
+		goto exit;
 	}
 
 	ret = brcmf_p2p_init_discovery(p2p);
@@ -380,18 +373,34 @@ static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p,
 	if (ret < 0)
 		brcmf_err("wsec error %d\n", ret);
 
-set_ie:
-	if (ie_len) {
-		ret = brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_PRBREQ_FLAG,
-					    ie, ie_len);
-
-		if (ret < 0) {
-			brcmf_err("set probreq ie occurs error %d\n", ret);
-			goto exit;
-		}
-	}
 exit:
 	return ret;
+}
+
+/**
+ * brcmf_p2p_configure_probereq() - Configure probe request data.
+ *
+ * @p2p: P2P specific data.
+ * @ie: buffer containing information elements.
+ * @ie_len: length of @ie buffer.
+ *
+ */
+static int brcmf_p2p_configure_probereq(struct brcmf_p2p_info *p2p,
+					const u8 *ie, u32 ie_len)
+{
+	struct brcmf_cfg80211_vif *vif;
+	s32 err = 0;
+
+	brcmf_dbg(TRACE, "enter\n");
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+
+	err = brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_PRBREQ_FLAG,
+				    ie, ie_len);
+
+	if (err < 0)
+		brcmf_err("set probreq ie occurs error %d\n", err);
+
+	return err;
 }
 
 /*
@@ -420,9 +429,6 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 	struct brcmf_scan_params_le *sparams;
 	struct brcmf_ssid ssid;
 
-	/* add padding if uneven */
-	if (num_chans % 2)
-		memsize += sizeof(__le16);
 	memsize += num_chans * sizeof(__le16);
 	memblk = kzalloc(memsize, GFP_KERNEL);
 	if (!memblk)
@@ -639,8 +645,10 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 		clear_bit(BRCMF_P2P_STATUS_GO_NEG_PHASE, &p2p->status);
 		brcmf_dbg(INFO, "P2P: GO_NEG_PHASE status cleared\n");
 
-		err = brcmf_p2p_enable_discovery(p2p, request->ie,
-						 request->ie_len);
+		err = brcmf_p2p_enable_discovery(p2p);
+		if (err == 0)
+			err = brcmf_p2p_configure_probereq(p2p, request->ie,
+							   request->ie_len);
 
 		/*
 		 * override .run_escan() callback.
@@ -666,6 +674,92 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 	return err;
 }
 
+
+/**
+ * brcmf_p2p_remain_on_channel() - put device on channel and stay there.
+ *
+ * @wiphy: wiphy device.
+ * @channel: channel to stay on.
+ * @duration: time in ms to remain on channel.
+ *
+ */
+int brcmf_p2p_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+				struct ieee80211_channel *channel,
+				unsigned int duration, u64 *cookie)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_p2p_info *p2p = &cfg->p2p;
+	struct brcmf_cfg80211_vif *vif;
+	s32 err;
+	u16 chanspec;
+
+	brcmf_dbg(TRACE, "Enter, channel: %d, duration ms (%d)\n",
+		  ieee80211_frequency_to_channel(channel->center_freq),
+		  duration);
+
+	*cookie = 0;
+	err = brcmf_p2p_enable_discovery(p2p);
+	if (err)
+		goto exit;
+
+	chanspec = channel_to_chanspec(channel);
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	err = brcmf_p2p_set_discover_state(vif->ifp, WL_P2P_DISC_ST_LISTEN,
+					   chanspec, (u16)duration);
+	if (err)
+		goto exit;
+
+	memcpy(&p2p->remain_on_channel, channel,
+	       sizeof(p2p->remain_on_channel));
+
+	set_bit(BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL, &p2p->status);
+
+exit:
+	cfg80211_ready_on_channel(wdev, *cookie, channel, duration, GFP_KERNEL);
+	return err;
+}
+
+
+/**
+ * brcmf_p2p_notify_listen_complete() - p2p listen has completed.
+ *
+ * @ifp: interfac control.
+ * @e: event message. Not used, to make it usable for fweh event dispatcher.
+ * @data: payload of message. Not used.
+ *
+ */
+int brcmf_p2p_notify_listen_complete(struct brcmf_if *ifp,
+				     const struct brcmf_event_msg *e,
+				     void *data)
+{
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct brcmf_p2p_info *p2p = &cfg->p2p;
+
+	brcmf_dbg(TRACE, "Enter\n");
+	if (test_and_clear_bit(BRCMF_P2P_STATUS_REMAIN_ON_CHANNEL,
+			       &p2p->status))
+		cfg80211_remain_on_channel_expired(&ifp->vif->wdev, 0,
+						   &p2p->remain_on_channel,
+						   GFP_KERNEL);
+	return 0;
+}
+
+
+/**
+ * brcmf_p2p_cancel_remain_on_channel() - cancel p2p listen state.
+ *
+ * @ifp: interfac control.
+ *
+ */
+void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp)
+{
+	if (!ifp)
+		return;
+	brcmf_p2p_set_discover_state(ifp, WL_P2P_DISC_ST_SCAN, 0, 0);
+	brcmf_p2p_notify_listen_complete(ifp, NULL, NULL);
+}
+
+
 /**
  * brcmf_p2p_attach() - attach for P2P.
  *
@@ -689,7 +783,11 @@ void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg)
  */
 void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 {
-	brcmf_p2p_deinit_discovery(p2p);
+	if (p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif != NULL) {
+		brcmf_p2p_cancel_remain_on_channel(
+			p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif->ifp);
+		brcmf_p2p_deinit_discovery(p2p);
+	}
 	/* just set it all to zero */
 	memset(p2p, 0, sizeof(*p2p));
 }

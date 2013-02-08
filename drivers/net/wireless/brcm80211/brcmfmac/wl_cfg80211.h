@@ -189,6 +189,7 @@ struct vif_saved_ie {
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
  * @list: linked list.
+ * @mgmt_rx_reg: registered rx mgmt frame types.
  */
 struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
@@ -200,6 +201,7 @@ struct brcmf_cfg80211_vif {
 	bool pm_block;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
+	u16 mgmt_rx_reg;
 };
 
 /* association inform */
