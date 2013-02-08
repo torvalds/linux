@@ -2240,21 +2240,18 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 
 	tempax = pVBInfo->LCDCapList[LCDIdIndex].LCD_Capability;
 
-	if (pVBInfo->IF_DEF_LVDS == 0) { /* shampoo */
-		if (((pVBInfo->VBType & VB_SIS302LV) || (pVBInfo->VBType
-				& VB_XGI301C)) && (tempax & XGI_LCDDualLink)) {
-			tempbx |= SetLCDDualLink;
-		}
+	if (((pVBInfo->VBType & VB_SIS302LV) ||
+	     (pVBInfo->VBType & VB_XGI301C)) && (tempax & XGI_LCDDualLink))
+		tempbx |= SetLCDDualLink;
 
-		if ((pVBInfo->LCDResInfo == Panel_1400x1050) && (pVBInfo->VBInfo
-				& SetCRT2ToLCD) && (resinfo == 9) &&
-				(!(tempbx & EnableScalingLCD)))
-			/*
-			 * set to center in 1280x1024 LCDB
-			 * for Panel_1400x1050
-			 */
-			tempbx |= SetLCDtoNonExpanding;
-	}
+	if ((pVBInfo->LCDResInfo == Panel_1400x1050) &&
+	    (pVBInfo->VBInfo & SetCRT2ToLCD) && (resinfo == 9) &&
+	    (!(tempbx & EnableScalingLCD)))
+		/*
+		 * set to center in 1280x1024 LCDB
+		 * for Panel_1400x1050
+		 */
+		tempbx |= SetLCDtoNonExpanding;
 
 	if (pVBInfo->VBInfo & SetInSlaveMode) {
 		if (pVBInfo->VBInfo & SetNotSimuMode)
