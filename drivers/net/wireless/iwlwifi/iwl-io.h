@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -51,12 +51,15 @@ static inline u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 	return val;
 }
 
-void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask);
-void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask);
-void __iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask);
-void __iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask);
+static inline void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, mask);
+}
 
-void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value);
+static inline void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, 0);
+}
 
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -35,54 +35,6 @@
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
-void __iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	iwl_write32(trans, reg, iwl_read32(trans, reg) | mask);
-}
-
-void __iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	iwl_write32(trans, reg, iwl_read32(trans, reg) & ~mask);
-}
-
-void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	__iwl_set_bit(trans, reg, mask);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_set_bit);
-
-void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	__iwl_clear_bit(trans, reg, mask);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_clear_bit);
-
-void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
-{
-	unsigned long flags;
-	u32 v;
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	WARN_ON_ONCE(value & ~mask);
-#endif
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	v = iwl_read32(trans, reg);
-	v &= ~mask;
-	v |= value;
-	iwl_write32(trans, reg, v);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_set_bits_mask);
-
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout)
 {
@@ -103,13 +55,10 @@ u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
 {
 	u32 value = 0x5a5a5a5a;
 	unsigned long flags;
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		value = iwl_read32(trans, reg);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 
 	return value;
 }
@@ -119,12 +68,10 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		iwl_write32(trans, reg, value);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(iwl_write_direct32);
 
@@ -162,12 +109,10 @@ u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 	unsigned long flags;
 	u32 val = 0x5a5a5a5a;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		val = __iwl_read_prph(trans, ofs);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 	return val;
 }
 EXPORT_SYMBOL_GPL(iwl_read_prph);
@@ -176,12 +121,10 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		__iwl_write_prph(trans, ofs, val);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(iwl_write_prph);
 
@@ -189,13 +132,11 @@ void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		__iwl_write_prph(trans, ofs,
 				 __iwl_read_prph(trans, ofs) | mask);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(iwl_set_bits_prph);
 
@@ -204,13 +145,11 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		__iwl_write_prph(trans, ofs,
 				 (__iwl_read_prph(trans, ofs) & mask) | bits);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(iwl_set_bits_mask_prph);
 
@@ -219,12 +158,10 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		val = __iwl_read_prph(trans, ofs);
 		__iwl_write_prph(trans, ofs, (val & ~mask));
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(iwl_clear_bits_prph);

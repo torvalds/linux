@@ -672,7 +672,7 @@ static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
 		dev_err(adapter->dev, "usb_bulk_msg for tx failed: %d\n", ret);
-		ret = -1;
+		return ret;
 	}
 
 	*len = actual_length;
@@ -691,7 +691,7 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
 		dev_err(adapter->dev, "usb_bulk_msg for rx failed: %d\n", ret);
-		ret = -1;
+		return ret;
 	}
 
 	*len = actual_length;

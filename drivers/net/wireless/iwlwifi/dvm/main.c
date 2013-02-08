@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -353,11 +353,8 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&priv->trans->reg_lock, reg_flags);
-	if (!iwl_trans_grab_nic_access(priv->trans, false)) {
-		spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
+	if (!iwl_trans_grab_nic_access(priv->trans, false, &reg_flags))
 		return;
-	}
 
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, ptr);
@@ -388,8 +385,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		}
 	}
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(priv->trans);
-	spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
+	iwl_trans_release_nic_access(priv->trans, &reg_flags);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -1717,9 +1713,8 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&trans->reg_lock, reg_flags);
-	if (!iwl_trans_grab_nic_access(trans, false))
-		goto out_unlock;
+	if (!iwl_trans_grab_nic_access(trans, false, &reg_flags))
+		return pos;
 
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
@@ -1757,9 +1752,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(trans);
-out_unlock:
-	spin_unlock_irqrestore(&trans->reg_lock, reg_flags);
+	iwl_trans_release_nic_access(trans, &reg_flags);
 	return pos;
 }
 
@@ -1991,13 +1984,13 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
 	/* SKU Control */
-	iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
-			  (CSR_HW_REV_STEP(priv->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
-			  (CSR_HW_REV_DASH(priv->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
+				(CSR_HW_REV_STEP(priv->trans->hw_rev) <<
+					CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
+				(CSR_HW_REV_DASH(priv->trans->hw_rev) <<
+					CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {
@@ -2009,10 +2002,11 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 			priv->nvm_data->radio_cfg_dash <<
 				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
 
-		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
+		iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH,
+					reg_val);
 
 		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
 			 priv->nvm_data->radio_cfg_type,

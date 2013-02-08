@@ -542,9 +542,8 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
-		brcms_err(core, "%s: arp filtering: enabled %s, count %d"
-			  " (implement)\n", __func__, info->arp_filter_enabled ?
-			  "true" : "false", info->arp_addr_cnt);
+		brcms_err(core, "%s: arp filtering: %d addresses"
+			  " (implement)\n", __func__, info->arp_addr_cnt);
 	}
 
 	if (changed & BSS_CHANGED_QOS) {

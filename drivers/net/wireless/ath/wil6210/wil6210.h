@@ -36,8 +36,6 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_TX_QUEUES (4)
-
 #define WIL6210_RX_RING_SIZE (128)
 #define WIL6210_TX_RING_SIZE (128)
 #define WIL6210_MAX_TX_RINGS (24)
@@ -101,8 +99,7 @@ struct RGF_ICR {
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
-	#define BIT_DMA_EP_MISC_ICR_FW_INT0	BIT(28)
-	#define BIT_DMA_EP_MISC_ICR_FW_INT1	BIT(29)
+	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
 /* Interrupt moderation control */
 #define RGF_DMA_ITR_CNT_TRSH		(0x881c5c)
@@ -121,8 +118,9 @@ struct RGF_ICR {
 #define SW_INT_MBOX BIT_USER_USER_ICR_SW_INT_2
 
 /* ISR register bits */
-#define ISR_MISC_FW_READY BIT_DMA_EP_MISC_ICR_FW_INT0
-#define ISR_MISC_MBOX_EVT BIT_DMA_EP_MISC_ICR_FW_INT1
+#define ISR_MISC_FW_READY	BIT_DMA_EP_MISC_ICR_FW_INT(0)
+#define ISR_MISC_MBOX_EVT	BIT_DMA_EP_MISC_ICR_FW_INT(1)
+#define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
 /* Hardware definitions end */
 
@@ -272,17 +270,18 @@ struct wil6210_priv {
 #define wil_info(wil, fmt, arg...) netdev_info(wil_to_ndev(wil), fmt, ##arg)
 #define wil_err(wil, fmt, arg...) netdev_err(wil_to_ndev(wil), fmt, ##arg)
 
-#define wil_dbg_IRQ(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
-#define wil_dbg_TXRX(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
-#define wil_dbg_WMI(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
+#define wil_dbg_irq(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
+#define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
+#define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
+#define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
 
-#define wil_hex_dump_TXRX(prefix_str, prefix_type, rowsize,	\
+#define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
 			  wil_print_hex_dump_debug("DBG[TXRX]" prefix_str,\
 					 prefix_type, rowsize,	\
 					 groupsize, buf, len, ascii)
 
-#define wil_hex_dump_WMI(prefix_str, prefix_type, rowsize,	\
+#define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)		\
 			 wil_print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
@@ -328,6 +327,7 @@ int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
 		       const void *mac_addr, int key_len, const void *key);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
+int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);

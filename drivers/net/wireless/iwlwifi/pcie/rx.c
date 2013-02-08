@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -594,6 +594,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		int index, cmd_index, err, len;
 		struct iwl_rx_cmd_buffer rxcb = {
 			._offset = offset,
+			._rx_page_order = trans_pcie->rx_page_order,
 			._page = rxb->page,
 			._page_stolen = false,
 			.truesize = max_len,

@@ -53,7 +53,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	}
 	wil->n_msi = use_msi;
 	if (wil->n_msi) {
-		wil_dbg(wil, "Setup %d MSI interrupts\n", use_msi);
+		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
 		rc = pci_enable_msi_block(pdev, wil->n_msi);
 		if (rc && (wil->n_msi == 3)) {
 			wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
@@ -65,7 +65,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 			wil->n_msi = 0;
 		}
 	} else {
-		wil_dbg(wil, "MSI interrupts disabled, use INTx\n");
+		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
 	}
 
 	rc = wil6210_init_irq(wil, pdev->irq);

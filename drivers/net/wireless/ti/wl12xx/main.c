@@ -38,6 +38,8 @@
 #include "reg.h"
 #include "cmd.h"
 #include "acx.h"
+#include "scan.h"
+#include "event.h"
 #include "debugfs.h"
 
 static char *fref_param;
@@ -208,6 +210,8 @@ static struct wlcore_conf wl12xx_conf = {
 		.tmpl_short_retry_limit      = 10,
 		.tmpl_long_retry_limit       = 10,
 		.tx_watchdog_timeout         = 5000,
+		.slow_link_thold             = 3,
+		.fast_link_thold             = 10,
 	},
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
@@ -265,8 +269,10 @@ static struct wlcore_conf wl12xx_conf = {
 	.scan = {
 		.min_dwell_time_active        = 7500,
 		.max_dwell_time_active        = 30000,
-		.min_dwell_time_passive       = 100000,
-		.max_dwell_time_passive       = 100000,
+		.min_dwell_time_active_long   = 25000,
+		.max_dwell_time_active_long   = 50000,
+		.dwell_time_passive           = 100000,
+		.dwell_time_dfs               = 150000,
 		.num_probe_reqs               = 2,
 		.split_scan_timeout           = 50000,
 	},
@@ -367,6 +373,10 @@ static struct wlcore_conf wl12xx_conf = {
 		.quiet_time                 = 4,
 		.increase_time              = 1,
 		.window_size                = 16,
+	},
+	.recovery = {
+		.bug_on_recovery	    = 0,
+		.no_recovery		    = 0,
 	},
 };
 
@@ -601,9 +611,9 @@ static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
 	int ret;
 
-	if (wl->chip.id != CHIP_ID_1283_PG20) {
+	if (wl->chip.id != CHIP_ID_128X_PG20) {
 		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
-		struct wl127x_rx_mem_pool_addr rx_mem_addr;
+		struct wl12xx_priv *priv = wl->priv;
 
 		/*
 		 * Choose the block we want to read
@@ -612,13 +622,13 @@ static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 		 */
 		u32 mem_block = rx_desc & RX_MEM_BLOCK_MASK;
 
-		rx_mem_addr.addr = (mem_block << 8) +
+		priv->rx_mem_addr->addr = (mem_block << 8) +
 			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
 
-		rx_mem_addr.addr_extra = rx_mem_addr.addr + 4;
+		priv->rx_mem_addr->addr_extra = priv->rx_mem_addr->addr + 4;
 
-		ret = wlcore_write(wl, WL1271_SLV_REG_DATA, &rx_mem_addr,
-				   sizeof(rx_mem_addr), false);
+		ret = wlcore_write(wl, WL1271_SLV_REG_DATA, priv->rx_mem_addr,
+				   sizeof(*priv->rx_mem_addr), false);
 		if (ret < 0)
 			return ret;
 	}
@@ -631,13 +641,15 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 	int ret = 0;
 
 	switch (wl->chip.id) {
-	case CHIP_ID_1271_PG10:
+	case CHIP_ID_127X_PG10:
 		wl1271_warning("chip id 0x%x (1271 PG10) support is obsolete",
 			       wl->chip.id);
 
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
 			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
-			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE |
+			      WLCORE_QUIRK_START_STA_FAILS |
+			      WLCORE_QUIRK_AP_ZERO_SESSION_ID;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
 		memcpy(&wl->conf.mem, &wl12xx_default_priv_conf.mem_wl127x,
@@ -646,18 +658,22 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
-		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
-				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
-				      WL127X_MINOR_VER);
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER,
+			      WL127X_IFTYPE_SR_VER,  WL127X_MAJOR_SR_VER,
+			      WL127X_SUBTYPE_SR_VER, WL127X_MINOR_SR_VER,
+			      WL127X_IFTYPE_MR_VER,  WL127X_MAJOR_MR_VER,
+			      WL127X_SUBTYPE_MR_VER, WL127X_MINOR_MR_VER);
 		break;
 
-	case CHIP_ID_1271_PG20:
+	case CHIP_ID_127X_PG20:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
 
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
 			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
-			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE |
+			      WLCORE_QUIRK_START_STA_FAILS |
+			      WLCORE_QUIRK_AP_ZERO_SESSION_ID;
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
@@ -667,12 +683,14 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
-		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
-				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
-				      WL127X_MINOR_VER);
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER,
+			      WL127X_IFTYPE_SR_VER,  WL127X_MAJOR_SR_VER,
+			      WL127X_SUBTYPE_SR_VER, WL127X_MINOR_SR_VER,
+			      WL127X_IFTYPE_MR_VER,  WL127X_MAJOR_MR_VER,
+			      WL127X_SUBTYPE_MR_VER, WL127X_MINOR_MR_VER);
 		break;
 
-	case CHIP_ID_1283_PG20:
+	case CHIP_ID_128X_PG20:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
 			     wl->chip.id);
 		wl->plt_fw_name = WL128X_PLT_FW_NAME;
@@ -682,19 +700,29 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* wl128x requires TX blocksize alignment */
 		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
-			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE |
+			      WLCORE_QUIRK_START_STA_FAILS |
+			      WLCORE_QUIRK_AP_ZERO_SESSION_ID;
 
-		wlcore_set_min_fw_ver(wl, WL128X_CHIP_VER, WL128X_IFTYPE_VER,
-				      WL128X_MAJOR_VER, WL128X_SUBTYPE_VER,
-				      WL128X_MINOR_VER);
+		wlcore_set_min_fw_ver(wl, WL128X_CHIP_VER,
+			      WL128X_IFTYPE_SR_VER,  WL128X_MAJOR_SR_VER,
+			      WL128X_SUBTYPE_SR_VER, WL128X_MINOR_SR_VER,
+			      WL128X_IFTYPE_MR_VER,  WL128X_MAJOR_MR_VER,
+			      WL128X_SUBTYPE_MR_VER, WL128X_MINOR_MR_VER);
 		break;
-	case CHIP_ID_1283_PG10:
+	case CHIP_ID_128X_PG10:
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		ret = -ENODEV;
 		goto out;
 	}
 
+	/* common settings */
+	wl->scan_templ_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4_LEGACY;
+	wl->scan_templ_id_5 = CMD_TEMPL_APP_PROBE_REQ_5_LEGACY;
+	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
+	wl->sched_scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
+	wl->max_channels_5 = WL12XX_MAX_CHANNELS_5GHZ;
 out:
 	return ret;
 }
@@ -1067,7 +1095,7 @@ static int wl12xx_pre_boot(struct wl1271 *wl)
 	u32 clk;
 	int selected_clock = -1;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		ret = wl128x_boot_clk(wl, &selected_clock);
 		if (ret < 0)
 			goto out;
@@ -1098,7 +1126,7 @@ static int wl12xx_pre_boot(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_BOOT, "clk2 0x%x", clk);
 
-	if (wl->chip.id == CHIP_ID_1283_PG20)
+	if (wl->chip.id == CHIP_ID_128X_PG20)
 		clk |= ((selected_clock & 0x3) << 1) << 4;
 	else
 		clk |= (priv->ref_clock << 1) << 4;
@@ -1152,7 +1180,7 @@ static int wl12xx_pre_upload(struct wl1271 *wl)
 	/* WL1271: The reference driver skips steps 7 to 10 (jumps directly
 	 * to upload_fw) */
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		ret = wl12xx_top_reg_write(wl, SDIO_IO_DS, HCI_IO_DS_6MA);
 		if (ret < 0)
 			goto out;
@@ -1219,6 +1247,23 @@ static int wl12xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
+	wl->event_mask = BSS_LOSE_EVENT_ID |
+		REGAINED_BSS_EVENT_ID |
+		SCAN_COMPLETE_EVENT_ID |
+		ROLE_STOP_COMPLETE_EVENT_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID |
+		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
+		SOFT_GEMINI_SENSE_EVENT_ID |
+		PERIODIC_SCAN_REPORT_EVENT_ID |
+		PERIODIC_SCAN_COMPLETE_EVENT_ID |
+		DUMMY_PACKET_EVENT_ID |
+		PEER_REMOVE_COMPLETE_EVENT_ID |
+		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
+		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
+		INACTIVE_STA_EVENT_ID |
+		MAX_TX_RETRY_EVENT_ID |
+		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
+
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
@@ -1261,7 +1306,7 @@ static void
 wl12xx_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 			  u32 blks, u32 spare_blks)
 {
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		desc->wl128x_mem.total_mem_blocks = blks;
 	} else {
 		desc->wl127x_mem.extra_blocks = spare_blks;
@@ -1275,7 +1320,7 @@ wl12xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 {
 	u32 aligned_len = wlcore_calc_packet_alignment(wl, skb->len);
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		desc->wl128x_mem.extra_bytes = aligned_len - skb->len;
 		desc->length = cpu_to_le16(aligned_len >> 2);
 
@@ -1339,7 +1384,7 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
 
 		ret = wl128x_cmd_general_parms(wl);
@@ -1394,22 +1439,6 @@ static u32 wl12xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 	return wlvif->rate_set;
 }
 
-static int wl12xx_identify_fw(struct wl1271 *wl)
-{
-	unsigned int *fw_ver = wl->chip.fw_ver;
-
-	/* Only new station firmwares support routing fw logs to the host */
-	if ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
-	    (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_FWLOG_STA_MIN))
-		wl->quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
-
-	/* This feature is not yet supported for AP mode */
-	if (fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP)
-		wl->quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
-
-	return 0;
-}
-
 static void wl12xx_conf_init(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
@@ -1426,7 +1455,7 @@ static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 	bool supported = false;
 	u8 major, minor;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
+	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		major = WL128X_PG_GET_MAJOR(wl->hw_pg_ver);
 		minor = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
 
@@ -1482,7 +1511,7 @@ static int wl12xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 	u16 die_info;
 	int ret;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20)
+	if (wl->chip.id == CHIP_ID_128X_PG20)
 		ret = wl12xx_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1,
 					  &die_info);
 	else
@@ -1589,16 +1618,46 @@ static int wl12xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	return wlcore_set_key(wl, cmd, vif, sta, key_conf);
 }
 
+static int wl12xx_set_peer_cap(struct wl1271 *wl,
+			       struct ieee80211_sta_ht_cap *ht_cap,
+			       bool allow_ht_operation,
+			       u32 rate_set, u8 hlid)
+{
+	return wl1271_acx_set_ht_capabilities(wl, ht_cap, allow_ht_operation,
+					      hlid);
+}
+
+static bool wl12xx_lnk_high_prio(struct wl1271 *wl, u8 hlid,
+				 struct wl1271_link *lnk)
+{
+	u8 thold;
+
+	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+		thold = wl->conf.tx.fast_link_thold;
+	else
+		thold = wl->conf.tx.slow_link_thold;
+
+	return lnk->allocated_pkts < thold;
+}
+
+static bool wl12xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
+				struct wl1271_link *lnk)
+{
+	/* any link is good for low priority */
+	return true;
+}
+
 static int wl12xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl12xx_ops = {
 	.setup			= wl12xx_setup,
 	.identify_chip		= wl12xx_identify_chip,
-	.identify_fw		= wl12xx_identify_fw,
 	.boot			= wl12xx_boot,
 	.plt_init		= wl12xx_plt_init,
 	.trigger_cmd		= wl12xx_trigger_cmd,
 	.ack_event		= wl12xx_ack_event,
+	.wait_for_event		= wl12xx_wait_for_event,
+	.process_mailbox_events	= wl12xx_process_mailbox_events,
 	.calc_tx_blocks		= wl12xx_calc_tx_blocks,
 	.set_tx_desc_blocks	= wl12xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len	= wl12xx_set_tx_desc_data_len,
@@ -1615,9 +1674,17 @@ static struct wlcore_ops wl12xx_ops = {
 	.set_rx_csum		= NULL,
 	.ap_get_mimo_wide_rate_mask = NULL,
 	.debugfs_init		= wl12xx_debugfs_add_files,
+	.scan_start		= wl12xx_scan_start,
+	.scan_stop		= wl12xx_scan_stop,
+	.sched_scan_start	= wl12xx_sched_scan_start,
+	.sched_scan_stop	= wl12xx_scan_sched_scan_stop,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
 	.set_key		= wl12xx_set_key,
+	.channel_switch		= wl12xx_cmd_channel_switch,
 	.pre_pkt_send		= NULL,
+	.set_peer_cap		= wl12xx_set_peer_cap,
+	.lnk_high_prio		= wl12xx_lnk_high_prio,
+	.lnk_low_prio		= wl12xx_lnk_low_prio,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
@@ -1641,6 +1708,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = WL12XX_NUM_TX_DESCRIPTORS;
 	wl->num_rx_desc = WL12XX_NUM_RX_DESCRIPTORS;
+	wl->num_channels = 1;
 	wl->num_mac_addr = WL12XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
@@ -1693,6 +1761,10 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
 	}
 
+	priv->rx_mem_addr = kmalloc(sizeof(*priv->rx_mem_addr), GFP_KERNEL);
+	if (!priv->rx_mem_addr)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -1703,7 +1775,8 @@ static int wl12xx_probe(struct platform_device *pdev)
 	int ret;
 
 	hw = wlcore_alloc_hw(sizeof(struct wl12xx_priv),
-			     WL12XX_AGGR_BUFFER_SIZE);
+			     WL12XX_AGGR_BUFFER_SIZE,
+			     sizeof(struct wl12xx_event_mailbox));
 	if (IS_ERR(hw)) {
 		wl1271_error("can't allocate hw");
 		ret = PTR_ERR(hw);
@@ -1725,6 +1798,21 @@ out:
 	return ret;
 }
 
+static int wl12xx_remove(struct platform_device *pdev)
+{
+	struct wl1271 *wl = platform_get_drvdata(pdev);
+	struct wl12xx_priv *priv;
+
+	if (!wl)
+		goto out;
+	priv = wl->priv;
+
+	kfree(priv->rx_mem_addr);
+
+out:
+	return wlcore_remove(pdev);
+}
+
 static const struct platform_device_id wl12xx_id_table[] = {
 	{ "wl12xx", 0 },
 	{  } /* Terminating Entry */
@@ -1733,7 +1821,7 @@ MODULE_DEVICE_TABLE(platform, wl12xx_id_table);
 
 static struct platform_driver wl12xx_driver = {
 	.probe		= wl12xx_probe,
-	.remove		= wlcore_remove,
+	.remove		= wl12xx_remove,
 	.id_table	= wl12xx_id_table,
 	.driver = {
 		.name	= "wl12xx_driver",

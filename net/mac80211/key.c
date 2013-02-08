@@ -204,8 +204,11 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	if (idx >= 0 && idx < NUM_DEFAULT_KEYS)
 		key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
 
-	if (uni)
+	if (uni) {
 		rcu_assign_pointer(sdata->default_unicast_key, key);
+		drv_set_default_unicast_key(sdata->local, sdata, idx);
+	}
+
 	if (multi)
 		rcu_assign_pointer(sdata->default_multicast_key, key);
 

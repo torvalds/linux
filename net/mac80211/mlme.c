@@ -1465,10 +1465,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		bss_info_changed |= BSS_CHANGED_CQM;
 
 	/* Enable ARP filtering */
-	if (bss_conf->arp_filter_enabled != sdata->arp_filter_state) {
-		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+	if (bss_conf->arp_addr_cnt)
 		bss_info_changed |= BSS_CHANGED_ARP_FILTER;
-	}
 
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
@@ -1489,7 +1487,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
 	u32 changed = 0;
 
 	ASSERT_MGD_MTX(ifmgd);
@@ -1520,14 +1517,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
-
-	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get(sdata, ifmgd->bssid);
-	if (sta) {
-		set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-		ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
-	}
-	mutex_unlock(&local->sta_mtx);
 
 	/*
 	 * if we want to get out of ps before disassoc (why?) we have
@@ -1582,10 +1571,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	/* Disable ARP filtering */
-	if (sdata->vif.bss_conf.arp_filter_enabled) {
-		sdata->vif.bss_conf.arp_filter_enabled = false;
+	if (sdata->vif.bss_conf.arp_addr_cnt)
 		changed |= BSS_CHANGED_ARP_FILTER;
-	}
 
 	sdata->vif.bss_conf.qos = false;
 	changed |= BSS_CHANGED_QOS;
@@ -2608,12 +2595,12 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		if (sig > ifmgd->rssi_max_thold &&
 		    (last_sig <= ifmgd->rssi_min_thold || last_sig == 0)) {
 			ifmgd->last_ave_beacon_signal = sig;
-			drv_rssi_callback(local, RSSI_EVENT_HIGH);
+			drv_rssi_callback(local, sdata, RSSI_EVENT_HIGH);
 		} else if (sig < ifmgd->rssi_min_thold &&
 			   (last_sig >= ifmgd->rssi_max_thold ||
 			   last_sig == 0)) {
 			ifmgd->last_ave_beacon_signal = sig;
-			drv_rssi_callback(local, RSSI_EVENT_LOW);
+			drv_rssi_callback(local, sdata, RSSI_EVENT_LOW);
 		}
 	}
 
@@ -3169,23 +3156,22 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (!ifmgd->associated)
+	mutex_lock(&ifmgd->mtx);
+	if (!ifmgd->associated) {
+		mutex_unlock(&ifmgd->mtx);
 		return;
+	}
 
 	if (sdata->flags & IEEE80211_SDATA_DISCONNECT_RESUME) {
 		sdata->flags &= ~IEEE80211_SDATA_DISCONNECT_RESUME;
-		mutex_lock(&ifmgd->mtx);
-		if (ifmgd->associated) {
-			mlme_dbg(sdata,
-				 "driver requested disconnect after resume\n");
-			ieee80211_sta_connection_lost(sdata,
-				ifmgd->associated->bssid,
-				WLAN_REASON_UNSPECIFIED);
-			mutex_unlock(&ifmgd->mtx);
-			return;
-		}
+		mlme_dbg(sdata, "driver requested disconnect after resume\n");
+		ieee80211_sta_connection_lost(sdata,
+					      ifmgd->associated->bssid,
+					      WLAN_REASON_UNSPECIFIED);
 		mutex_unlock(&ifmgd->mtx);
+		return;
 	}
+	mutex_unlock(&ifmgd->mtx);
 
 	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
 		add_timer(&ifmgd->timer);

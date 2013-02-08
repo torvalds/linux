@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,33 @@
 #include "iwl-prph.h"
 #include "iwl-agn-hw.h"
 #include "internal.h"
+
+static void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
+						  u32 reg, u32 mask, u32 value)
+{
+	u32 v;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	WARN_ON_ONCE(value & ~mask);
+#endif
+
+	v = iwl_read32(trans, reg);
+	v &= ~mask;
+	v |= value;
+	iwl_write32(trans, reg, v);
+}
+
+static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
+					      u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
+}
+
+static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
+					    u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
+}
 
 static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 {
@@ -779,15 +806,16 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
+static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
+						unsigned long *flags)
 {
 	int ret;
-
-	lockdep_assert_held(&trans->reg_lock);
+	struct iwl_trans_pcie *pcie_trans = IWL_TRANS_GET_PCIE_TRANS(trans);
+	spin_lock_irqsave(&pcie_trans->reg_lock, *flags);
 
 	/* this bit wakes up the NIC */
-	__iwl_set_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
+				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/*
 	 * These bits say the device is running, and should keep running for
@@ -819,18 +847,34 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 			WARN_ONCE(1,
 				  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
 				  val);
+			spin_unlock_irqrestore(&pcie_trans->reg_lock, *flags);
 			return false;
 		}
 	}
 
+	/*
+	 * Fool sparse by faking we release the lock - sparse will
+	 * track nic_access anyway.
+	 */
+	__release(&pcie_trans->reg_lock);
 	return true;
 }
 
-static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
+static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
+					      unsigned long *flags)
 {
-	lockdep_assert_held(&trans->reg_lock);
-	__iwl_clear_bit(trans, CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	struct iwl_trans_pcie *pcie_trans = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&pcie_trans->reg_lock);
+
+	/*
+	 * Fool sparse by faking we acquiring the lock - sparse will
+	 * track nic_access anyway.
+	 */
+	__acquire(&pcie_trans->reg_lock);
+
+	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -838,6 +882,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
 	mmiowb();
+	spin_unlock_irqrestore(&pcie_trans->reg_lock, *flags);
 }
 
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
@@ -847,16 +892,14 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 	int offs, ret = 0;
 	u32 *vals = buf;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	} else {
 		ret = -EBUSY;
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 	return ret;
 }
 
@@ -867,17 +910,15 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	int offs, ret = 0;
 	u32 *vals = buf;
 
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (iwl_trans_grab_nic_access(trans, false)) {
+	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
 				    vals ? vals[offs] : 0);
-		iwl_trans_release_nic_access(trans);
+		iwl_trans_release_nic_access(trans, &flags);
 	} else {
 		ret = -EBUSY;
 	}
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
 	return ret;
 }
 
@@ -950,6 +991,17 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 	}
 
 	return ret;
+}
+
+static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
+					 u32 mask, u32 value)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+
+	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
+	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 }
 
 static const char *get_fh_string(int cmd)
@@ -1405,7 +1457,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.configure = iwl_trans_pcie_configure,
 	.set_pmi = iwl_trans_pcie_set_pmi,
 	.grab_nic_access = iwl_trans_pcie_grab_nic_access,
-	.release_nic_access = iwl_trans_pcie_release_nic_access
+	.release_nic_access = iwl_trans_pcie_release_nic_access,
+	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
@@ -1429,6 +1482,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans->cfg = cfg;
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans_pcie->irq_lock);
+	spin_lock_init(&trans_pcie->reg_lock);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
 	/* W/A - seems to solve weird behavior. We need to remove this if we
@@ -1495,7 +1549,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
-	spin_lock_init(&trans->reg_lock);
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));

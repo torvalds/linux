@@ -23,6 +23,7 @@
 #include <linux/inetdevice.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
+#include <net/addrconf.h>
 
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -349,29 +350,52 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	/* Copy the addresses to the bss_conf list */
 	ifa = idev->ifa_list;
-	while (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN && ifa) {
-		bss_conf->arp_addr_list[c] = ifa->ifa_address;
+	while (ifa) {
+		if (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN)
+			bss_conf->arp_addr_list[c] = ifa->ifa_address;
 		ifa = ifa->ifa_next;
 		c++;
 	}
 
-	/* If not all addresses fit the list, disable filtering */
-	if (ifa) {
-		sdata->arp_filter_state = false;
-		c = 0;
-	} else {
-		sdata->arp_filter_state = true;
-	}
 	bss_conf->arp_addr_cnt = c;
 
 	/* Configure driver only if associated (which also implies it is up) */
-	if (ifmgd->associated) {
-		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+	if (ifmgd->associated)
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_ARP_FILTER);
-	}
 
 	mutex_unlock(&ifmgd->mtx);
+
+	return NOTIFY_DONE;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_IPV6)
+static int ieee80211_ifa6_changed(struct notifier_block *nb,
+				  unsigned long data, void *arg)
+{
+	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)arg;
+	struct inet6_dev *idev = ifa->idev;
+	struct net_device *ndev = ifa->idev->dev;
+	struct ieee80211_local *local =
+		container_of(nb, struct ieee80211_local, ifa6_notifier);
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct ieee80211_sub_if_data *sdata;
+
+	/* Make sure it's our interface that got changed */
+	if (!wdev || wdev->wiphy != local->hw.wiphy)
+		return NOTIFY_DONE;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
+
+	/*
+	 * For now only support station mode. This is mostly because
+	 * doing AP would have to handle AP_VLAN in some way ...
+	 */
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return NOTIFY_DONE;
+
+	drv_ipv6_addr_change(local, sdata, idev);
 
 	return NOTIFY_DONE;
 }
@@ -985,12 +1009,25 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_ifa;
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6)
+	local->ifa6_notifier.notifier_call = ieee80211_ifa6_changed;
+	result = register_inet6addr_notifier(&local->ifa6_notifier);
+	if (result)
+		goto fail_ifa6;
+#endif
+
 	netif_napi_add(&local->napi_dev, &local->napi, ieee80211_napi_poll,
 			local->hw.napi_weight);
 
 	return 0;
 
+#if IS_ENABLED(CONFIG_IPV6)
+ fail_ifa6:
 #ifdef CONFIG_INET
+	unregister_inetaddr_notifier(&local->ifa_notifier);
+#endif
+#endif
+#if defined(CONFIG_INET) || defined(CONFIG_IPV6)
  fail_ifa:
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
@@ -1025,6 +1062,9 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 			       &local->network_latency_notifier);
 #ifdef CONFIG_INET
 	unregister_inetaddr_notifier(&local->ifa_notifier);
+#endif
+#if IS_ENABLED(CONFIG_IPV6)
+	unregister_inet6addr_notifier(&local->ifa6_notifier);
 #endif
 
 	rtnl_lock();
