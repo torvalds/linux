@@ -12,17 +12,15 @@
 #ifndef __ARCH_ARM_MACH_S3C24XX_COMMON_H
 #define __ARCH_ARM_MACH_S3C24XX_COMMON_H __FILE__
 
-#ifdef CONFIG_CPU_S3C2410
+struct s3c2410_uartcfg;
 
+#ifdef CONFIG_CPU_S3C2410
 extern  int s3c2410_init(void);
 extern  int s3c2410a_init(void);
-
 extern void s3c2410_map_io(void);
-
 extern void s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
 extern void s3c2410_init_clocks(int xtal);
-
+extern void s3c2410_restart(char mode, const char *cmd);
 #else
 #define s3c2410_init_clocks NULL
 #define s3c2410_init_uarts NULL
@@ -32,61 +30,41 @@ extern void s3c2410_init_clocks(int xtal);
 #endif
 
 #ifdef CONFIG_CPU_S3C2412
-
 extern  int s3c2412_init(void);
-
 extern void s3c2412_map_io(void);
-
 extern void s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
 extern void s3c2412_init_clocks(int xtal);
-
 extern  int s3c2412_baseclk_add(void);
-
 extern void s3c2412_restart(char mode, const char *cmd);
 #else
 #define s3c2412_init_clocks NULL
 #define s3c2412_init_uarts NULL
 #define s3c2412_map_io NULL
 #define s3c2412_init NULL
-#define s3c2412_restart NULL
 #endif
 
 #ifdef CONFIG_CPU_S3C2416
-
-struct s3c2410_uartcfg;
-
 extern  int s3c2416_init(void);
-
 extern void s3c2416_map_io(void);
-
 extern void s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
 extern void s3c2416_init_clocks(int xtal);
-
 extern  int s3c2416_baseclk_add(void);
-
 extern void s3c2416_restart(char mode, const char *cmd);
-
 extern void s3c2416_init_irq(void);
-extern struct syscore_ops s3c2416_irq_syscore_ops;
 
+extern struct syscore_ops s3c2416_irq_syscore_ops;
 #else
 #define s3c2416_init_clocks NULL
 #define s3c2416_init_uarts NULL
 #define s3c2416_map_io NULL
 #define s3c2416_init NULL
-#define s3c2416_restart NULL
 #endif
 
 #if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
-
 extern void s3c244x_map_io(void);
-
 extern void s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
 extern void s3c244x_init_clocks(int xtal);
-
+extern void s3c244x_restart(char mode, const char *cmd);
 #else
 #define s3c244x_init_clocks NULL
 #define s3c244x_init_uarts NULL
@@ -94,7 +72,6 @@ extern void s3c244x_init_clocks(int xtal);
 
 #ifdef CONFIG_CPU_S3C2440
 extern  int s3c2440_init(void);
-
 extern void s3c2440_map_io(void);
 #else
 #define s3c2440_init NULL
@@ -103,7 +80,6 @@ extern void s3c2440_map_io(void);
 
 #ifdef CONFIG_CPU_S3C2442
 extern  int s3c2442_init(void);
-
 extern void s3c2442_map_io(void);
 #else
 #define s3c2442_init NULL
@@ -111,32 +87,19 @@ extern void s3c2442_map_io(void);
 #endif
 
 #ifdef CONFIG_CPU_S3C2443
-
-struct s3c2410_uartcfg;
-
 extern  int s3c2443_init(void);
-
 extern void s3c2443_map_io(void);
-
 extern void s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
 extern void s3c2443_init_clocks(int xtal);
-
 extern  int s3c2443_baseclk_add(void);
-
 extern void s3c2443_restart(char mode, const char *cmd);
-
 extern void s3c2443_init_irq(void);
 #else
 #define s3c2443_init_clocks NULL
 #define s3c2443_init_uarts NULL
 #define s3c2443_map_io NULL
 #define s3c2443_init NULL
-#define s3c2443_restart NULL
 #endif
-
-void s3c2410_restart(char mode, const char *cmd);
-void s3c244x_restart(char mode, const char *cmd);
 
 extern struct syscore_ops s3c24xx_irq_syscore_ops;
 
