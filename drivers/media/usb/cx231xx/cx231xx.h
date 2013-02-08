@@ -845,8 +845,6 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 /* Gpio related functions */
 int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val,
 			  u8 len, u8 request, u8 direction);
-int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
-int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
 int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value);
 int cx231xx_set_gpio_direction(struct cx231xx *dev, int pin_number,
 			       int pin_value);
