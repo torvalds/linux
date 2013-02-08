@@ -4065,6 +4065,8 @@ qla83xx_force_lock_recovery(scsi_qla_host_t *base_vha)
 	uint32_t idc_lck_rcvry_stage_mask = 0x3;
 	uint32_t idc_lck_rcvry_owner_mask = 0x3c;
 	struct qla_hw_data *ha = base_vha->hw;
+	ql_dbg(ql_dbg_p3p, base_vha, 0xb086,
+	    "Trying force recovery of the IDC lock.\n");
 
 	rval = qla83xx_rd_reg(base_vha, QLA83XX_IDC_LOCK_RECOVERY, &data);
 	if (rval)
@@ -4156,6 +4158,7 @@ qla83xx_idc_lock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 {
 	uint16_t options = (requester_id << 15) | BIT_6;
 	uint32_t data;
+	uint32_t lock_owner;
 	struct qla_hw_data *ha = base_vha->hw;
 
 	/* IDC-lock implementation using driver-lock/lock-id remote registers */
@@ -4167,8 +4170,11 @@ retry_lock:
 			qla83xx_wr_reg(base_vha, QLA83XX_DRIVER_LOCKID,
 			    ha->portnum);
 		} else {
+			qla83xx_rd_reg(base_vha, QLA83XX_DRIVER_LOCKID,
+			    &lock_owner);
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb063,
-			    "Failed to acquire IDC lock. retrying...\n");
+			    "Failed to acquire IDC lock, acquired by %d, "
+			    "retrying...\n", lock_owner);
 
 			/* Retry/Perform IDC-Lock recovery */
 			if (qla83xx_idc_lock_recovery(base_vha)

@@ -36,7 +36,7 @@
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb084       | 0xb002,0xb024  |
+ * | ISP82XX Specific             |       0xb086       | 0xb002,0xb024  |
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
  * | Target Mode		  |	  0xe070       |		|
