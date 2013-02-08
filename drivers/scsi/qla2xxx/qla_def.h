@@ -2882,7 +2882,13 @@ struct qla_hw_data {
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 	struct completion dcbx_comp;	/* For set port config notification */
+	struct completion lb_portup_comp; /* Used to wait for link up during
+					   * loopback */
+#define DCBX_COMP_TIMEOUT	20
+#define LB_PORTUP_COMP_TIMEOUT	10
+
 	int notify_dcbx_comp;
+	int notify_lb_portup_comp;
 	struct mutex selflogin_lock;
 
 	/* Basic firmware related information. */

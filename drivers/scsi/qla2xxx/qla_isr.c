@@ -1032,6 +1032,9 @@ skip_rio:
 			}
 		}
 	case MBA_IDC_COMPLETE:
+		if (ha->notify_lb_portup_comp)
+			complete(&ha->lb_portup_comp);
+		/* Fallthru */
 	case MBA_IDC_TIME_EXT:
 		if (IS_QLA81XX(vha->hw) || IS_QLA8031(vha->hw))
 			qla81xx_idc_event(vha, mb[0], mb[1]);

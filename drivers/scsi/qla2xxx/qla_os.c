@@ -2465,6 +2465,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	complete(&ha->mbx_cmd_comp);
 	init_completion(&ha->mbx_intr_comp);
 	init_completion(&ha->dcbx_comp);
+	init_completion(&ha->lb_portup_comp);
 
 	set_bit(0, (unsigned long *) ha->vp_idx_map);
 
