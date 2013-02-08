@@ -992,6 +992,12 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PINNED_BATCHES:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_EXEC_NO_RELOC:
+		value = 1;
+		break;
+	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
+		value = 1;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1070,7 +1076,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
 	dev_priv->dri1.gfx_hws_cpu_addr =
-		ioremap_wc(dev_priv->mm.gtt_base_addr + hws->addr, 4096);
+		ioremap_wc(dev_priv->gtt.mappable_base + hws->addr, 4096);
 	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
@@ -1420,9 +1426,9 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return;
 
-	ap->ranges[0].base = dev_priv->mm.gtt->gma_bus_addr;
-	ap->ranges[0].size =
-		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	ap->ranges[0].base = dev_priv->gtt.mappable_base;
+	ap->ranges[0].size = dev_priv->gtt.mappable_end - dev_priv->gtt.start;
+
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 
@@ -1536,18 +1542,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_gmch;
 	}
 
-	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-	dev_priv->mm.gtt_base_addr = dev_priv->mm.gtt->gma_bus_addr;
+	aperture_size = dev_priv->gtt.mappable_end;
 
-	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev_priv->mm.gtt_base_addr,
+	dev_priv->gtt.mappable =
+		io_mapping_create_wc(dev_priv->gtt.mappable_base,
 				     aperture_size);
-	if (dev_priv->mm.gtt_mapping == NULL) {
+	if (dev_priv->gtt.mappable == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
+	i915_mtrr_setup(dev_priv, dev_priv->gtt.mappable_base,
 			aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
@@ -1600,7 +1605,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		pci_enable_msi(dev->pdev);
 
 	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->error_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
 	spin_lock_init(&dev_priv->rps.lock);
 	mutex_init(&dev_priv->dpio_lock);
 
@@ -1652,15 +1657,15 @@ out_gem_unload:
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->mm.gtt_base_addr,
+			 dev_priv->gtt.mappable_base,
 			 aperture_size);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
-	io_mapping_free(dev_priv->mm.gtt_mapping);
+	io_mapping_free(dev_priv->gtt.mappable);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_gmch:
-	i915_gem_gtt_fini(dev);
+	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
@@ -1690,11 +1695,11 @@ int i915_driver_unload(struct drm_device *dev)
 	/* Cancel the retire work handler, which should be idle now. */
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
-	io_mapping_free(dev_priv->mm.gtt_mapping);
+	io_mapping_free(dev_priv->gtt.mappable);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->mm.gtt_base_addr,
-			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE);
+			 dev_priv->gtt.mappable_base,
+			 dev_priv->gtt.mappable_end);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 
@@ -1720,8 +1725,8 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	/* Free error state after interrupts are fully disabled. */
-	del_timer_sync(&dev_priv->hangcheck_timer);
-	cancel_work_sync(&dev_priv->error_work);
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
+	cancel_work_sync(&dev_priv->gpu_error.work);
 	i915_destroy_error_state(dev);
 
 	if (dev->pdev->msi_enabled)

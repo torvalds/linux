@@ -1214,9 +1214,15 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	reg = PIPECONF(cpu_transcoder);
-	val = I915_READ(reg);
-	cur_state = !!(val & PIPECONF_ENABLE);
+	if (IS_HASWELL(dev_priv->dev) && cpu_transcoder != TRANSCODER_EDP &&
+	    !(I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_ENABLE)) {
+		cur_state = false;
+	} else {
+		reg = PIPECONF(cpu_transcoder);
+		val = I915_READ(reg);
+		cur_state = !!(val & PIPECONF_ENABLE);
+	}
+
 	WARN(cur_state != state,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
@@ -2220,8 +2226,10 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
 
+	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
+
 	wait_event(dev_priv->pending_flip_queue,
-		   atomic_read(&dev_priv->mm.wedged) ||
+		   i915_reset_in_progress(&dev_priv->gpu_error) ||
 		   atomic_read(&obj->pending_flip) == 0);
 
 	/* Big Hammer, we also need to ensure that any pending
@@ -2869,7 +2877,7 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	unsigned long flags;
 	bool pending;
 
-	if (atomic_read(&dev_priv->mm.wedged))
+	if (i915_reset_in_progress(&dev_priv->gpu_error))
 		return false;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -2886,6 +2894,8 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 
 	if (crtc->fb == NULL)
 		return;
+
+	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
 
 	wait_event(dev_priv->pending_flip_queue,
 		   !intel_crtc_has_pending_flip(crtc));
@@ -3717,10 +3727,12 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	/* crtc should still be enabled when we disable it. */
 	WARN_ON(!crtc->enabled);
 
+	intel_crtc->eld_vld = false;
 	dev_priv->display.crtc_disable(crtc);
 	intel_crtc_update_sarea(crtc, false);
 	dev_priv->display.off(crtc);
@@ -4867,6 +4879,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	if (!has_vga)
 		return;
 
+	mutex_lock(&dev_priv->dpio_lock);
+
 	/* XXX: Rip out SDV support once Haswell ships for real. */
 	if (IS_HASWELL(dev) && (dev->pci_device & 0xFF00) == 0x0C00)
 		is_sdv = true;
@@ -5009,6 +5023,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
 	tmp |= SBI_DBUFF0_ENABLE;
 	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 /*
@@ -5091,6 +5107,11 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 		val |= PIPECONF_INTERLACED_ILK;
 	else
 		val |= PIPECONF_PROGRESSIVE;
+
+	if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		val |= PIPECONF_COLOR_RANGE_SELECT;
+	else
+		val &= ~PIPECONF_COLOR_RANGE_SELECT;
 
 	I915_WRITE(PIPECONF(pipe), val);
 	POSTING_READ(PIPECONF(pipe));
@@ -5586,6 +5607,35 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	return fdi_config_ok ? ret : -EINVAL;
 }
 
+static void haswell_modeset_global_resources(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool enable = false;
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		if (crtc->pipe != PIPE_A && crtc->base.enabled)
+			enable = true;
+		/* XXX: Should check for edp transcoder here, but thanks to init
+		 * sequence that's not yet available. Just in case desktop eDP
+		 * on PORT D is possible on haswell, too. */
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->type != INTEL_OUTPUT_EDP &&
+		    encoder->connectors_active)
+			enable = true;
+	}
+
+	/* Even the eDP panel fitter is outside the always-on well. */
+	if (dev_priv->pch_pf_size)
+		enable = true;
+
+	intel_set_power_well(dev, enable);
+}
+
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 				 struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode,
@@ -5617,11 +5667,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 		num_connectors++;
 	}
-
-	if (is_cpu_edp)
-		intel_crtc->cpu_transcoder = TRANSCODER_EDP;
-	else
-		intel_crtc->cpu_transcoder = pipe;
 
 	/* We are not sure yet this won't happen. */
 	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
@@ -5686,6 +5731,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int ret;
+
+	if (IS_HASWELL(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
+		intel_crtc->cpu_transcoder = TRANSCODER_EDP;
+	else
+		intel_crtc->cpu_transcoder = pipe;
 
 	drm_vblank_pre_modeset(dev, pipe);
 
@@ -5783,6 +5833,7 @@ static void haswell_write_eld(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
 	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t eldv;
 	uint32_t i;
 	int len;
@@ -5824,6 +5875,7 @@ static void haswell_write_eld(struct drm_connector *connector,
 	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
 
 	eldv = AUDIO_ELD_VALID_A << (pipe * 4);
+	intel_crtc->eld_vld = true;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
 		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
@@ -6717,6 +6769,17 @@ void intel_mark_busy(struct drm_device *dev)
 
 void intel_mark_idle(struct drm_device *dev)
 {
+	struct drm_crtc *crtc;
+
+	if (!i915_powersave)
+		return;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (!crtc->fb)
+			continue;
+
+		intel_decrease_pllclock(crtc);
+	}
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
@@ -6733,23 +6796,6 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
 
 		if (to_intel_framebuffer(crtc->fb)->obj == obj)
 			intel_increase_pllclock(crtc);
-	}
-}
-
-void intel_mark_fb_idle(struct drm_i915_gem_object *obj)
-{
-	struct drm_device *dev = obj->base.dev;
-	struct drm_crtc *crtc;
-
-	if (!i915_powersave)
-		return;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
-			continue;
-
-		if (to_intel_framebuffer(crtc->fb)->obj == obj)
-			intel_decrease_pllclock(crtc);
 	}
 }
 
@@ -6833,7 +6879,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	obj = work->old_fb_obj;
 
-	wake_up(&dev_priv->pending_flip_queue);
+	wake_up_all(&dev_priv->pending_flip_queue);
 
 	queue_work(dev_priv->wq, &work->work);
 
@@ -8219,23 +8265,18 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
-		int found;
-
 		/* Check for built-in panel first. Shares lanes with HDMI on SDVOC */
-		if (I915_READ(DP_C) & DP_DETECTED)
-			intel_dp_init(dev, DP_C, PORT_C);
+		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
+			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 
-		if (I915_READ(SDVOB) & PORT_DETECTED) {
-			/* SDVOB multiplex with HDMIB */
-			found = intel_sdvo_init(dev, SDVOB, true);
-			if (!found)
-				intel_hdmi_init(dev, SDVOB, PORT_B);
-			if (!found && (I915_READ(DP_B) & DP_DETECTED))
-				intel_dp_init(dev, DP_B, PORT_B);
+		if (I915_READ(VLV_DISPLAY_BASE + SDVOB) & PORT_DETECTED) {
+			intel_hdmi_init(dev, VLV_DISPLAY_BASE + SDVOB, PORT_B);
+			if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED)
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 		}
 
-		if (I915_READ(SDVOC) & PORT_DETECTED)
-			intel_hdmi_init(dev, SDVOC, PORT_C);
+		if (I915_READ(VLV_DISPLAY_BASE + SDVOC) & PORT_DETECTED)
+			intel_hdmi_init(dev, VLV_DISPLAY_BASE + SDVOC, PORT_C);
 
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
@@ -8495,6 +8536,8 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
+			dev_priv->display.modeset_global_resources =
+				haswell_modeset_global_resources;
 		}
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
@@ -8617,6 +8660,15 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer Aspire 5734Z must invert backlight brightness */
 	{ 0x2a42, 0x1025, 0x0459, quirk_invert_brightness },
+
+	/* Acer/eMachines G725 */
+	{ 0x2a42, 0x1025, 0x0210, quirk_invert_brightness },
+
+	/* Acer/eMachines e725 */
+	{ 0x2a42, 0x1025, 0x0212, quirk_invert_brightness },
+
+	/* Acer/Packard Bell NCL20 */
+	{ 0x2a42, 0x1025, 0x034b, quirk_invert_brightness },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -8645,12 +8697,7 @@ static void i915_disable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u8 sr1;
-	u32 vga_reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		vga_reg = CPU_VGACNTRL;
-	else
-		vga_reg = VGACNTRL;
+	u32 vga_reg = i915_vgacntrl_reg(dev);
 
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
 	outb(SR01, VGA_SR_INDEX);
@@ -8665,10 +8712,7 @@ static void i915_disable_vga(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
-	/* We attempt to init the necessary power wells early in the initialization
-	 * time, so the subsystems that expect power to be enabled can work.
-	 */
-	intel_init_power_wells(dev);
+	intel_init_power_well(dev);
 
 	intel_prepare_ddi(dev);
 
@@ -8710,7 +8754,7 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	}
-	dev->mode_config.fb_base = dev_priv->mm.gtt_base_addr;
+	dev->mode_config.fb_base = dev_priv->gtt.mappable_base;
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
@@ -8912,20 +8956,14 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
-static void i915_redisable_vga(struct drm_device *dev)
+void i915_redisable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 vga_reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		vga_reg = CPU_VGACNTRL;
-	else
-		vga_reg = VGACNTRL;
+	u32 vga_reg = i915_vgacntrl_reg(dev);
 
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		I915_WRITE(vga_reg, VGA_DISP_DISABLE);
-		POSTING_READ(vga_reg);
+		i915_disable_vga(dev);
 	}
 }
 

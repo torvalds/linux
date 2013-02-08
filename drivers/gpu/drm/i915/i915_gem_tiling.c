@@ -272,18 +272,7 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 			return false;
 	}
 
-	/*
-	 * Previous chips need to be aligned to the size of the smallest
-	 * fence register that can contain the object.
-	 */
-	if (INTEL_INFO(obj->base.dev)->gen == 3)
-		size = 1024*1024;
-	else
-		size = 512*1024;
-
-	while (size < obj->base.size)
-		size <<= 1;
-
+	size = i915_gem_get_gtt_size(obj->base.dev, obj->base.size, tiling_mode);
 	if (obj->gtt_space->size != size)
 		return false;
 
@@ -368,15 +357,15 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 		obj->map_and_fenceable =
 			obj->gtt_space == NULL ||
-			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
+			(obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
 			u32 unfenced_alignment =
-				i915_gem_get_unfenced_gtt_alignment(dev,
-								    obj->base.size,
-								    args->tiling_mode);
+				i915_gem_get_gtt_alignment(dev, obj->base.size,
+							    args->tiling_mode,
+							    false);
 			if (obj->gtt_offset & (unfenced_alignment - 1))
 				ret = i915_gem_object_unbind(obj);
 		}

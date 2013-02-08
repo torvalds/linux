@@ -80,7 +80,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	if (mappable)
 		drm_mm_init_scan_with_range(&dev_priv->mm.gtt_space,
 					    min_size, alignment, cache_level,
-					    0, dev_priv->mm.gtt_mappable_end);
+					    0, dev_priv->gtt.mappable_end);
 	else
 		drm_mm_init_scan(&dev_priv->mm.gtt_space,
 				 min_size, alignment, cache_level);

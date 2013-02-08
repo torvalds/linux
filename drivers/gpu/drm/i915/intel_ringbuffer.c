@@ -1203,7 +1203,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 		goto err_unpin;
 
 	ring->virtual_start =
-		ioremap_wc(dev_priv->mm.gtt->gma_bus_addr + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
 			   ring->size);
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
@@ -1222,8 +1222,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->effective_size = ring->size;
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
-
-	intel_ring_init_seqno(ring, dev_priv->last_seqno);
 
 	return 0;
 
@@ -1371,7 +1369,8 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 
 		msleep(1);
 
-		ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+					   dev_priv->mm.interruptible);
 		if (ret)
 			return ret;
 	} while (!time_after(jiffies, end));
@@ -1460,7 +1459,8 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	int ret;
 
-	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+				   dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
@@ -1491,7 +1491,7 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
 	ring->tail &= ring->size - 1;
-	if (dev_priv->stop_rings & intel_ring_flag(ring))
+	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
 		return;
 	ring->write_tail(ring, ring->tail);
 }

@@ -276,6 +276,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
+	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
@@ -285,6 +286,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
+	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
@@ -467,6 +469,8 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_set_power_well(dev, true);
 
 	drm_kms_helper_poll_disable(dev);
 
@@ -779,9 +783,9 @@ int intel_gpu_reset(struct drm_device *dev)
 	}
 
 	/* Also reset the gpu hangman. */
-	if (dev_priv->stop_rings) {
+	if (dev_priv->gpu_error.stop_rings) {
 		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->stop_rings = 0;
+		dev_priv->gpu_error.stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_ERROR("Reset not implemented, but ignoring "
 				  "error for simulated gpu hangs\n");
@@ -820,12 +824,12 @@ int i915_reset(struct drm_device *dev)
 	i915_gem_reset(dev);
 
 	ret = -ENODEV;
-	if (get_seconds() - dev_priv->last_gpu_reset < 5)
+	if (get_seconds() - dev_priv->gpu_error.last_reset < 5)
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
 	else
 		ret = intel_gpu_reset(dev);
 
-	dev_priv->last_gpu_reset = get_seconds();
+	dev_priv->gpu_error.last_reset = get_seconds();
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
@@ -1115,102 +1119,6 @@ MODULE_LICENSE("GPL and additional rights");
 	((HAS_FORCE_WAKE((dev_priv)->dev)) && \
 	 ((reg) < 0x40000) &&            \
 	 ((reg) != FORCEWAKE))
-
-static bool IS_DISPLAYREG(u32 reg)
-{
-	/*
-	 * This should make it easier to transition modules over to the
-	 * new register block scheme, since we can do it incrementally.
-	 */
-	if (reg >= VLV_DISPLAY_BASE)
-		return false;
-
-	if (reg >= RENDER_RING_BASE &&
-	    reg < RENDER_RING_BASE + 0xff)
-		return false;
-	if (reg >= GEN6_BSD_RING_BASE &&
-	    reg < GEN6_BSD_RING_BASE + 0xff)
-		return false;
-	if (reg >= BLT_RING_BASE &&
-	    reg < BLT_RING_BASE + 0xff)
-		return false;
-
-	if (reg == PGTBL_ER)
-		return false;
-
-	if (reg >= IPEIR_I965 &&
-	    reg < HWSTAM)
-		return false;
-
-	if (reg == MI_MODE)
-		return false;
-
-	if (reg == GFX_MODE_GEN7)
-		return false;
-
-	if (reg == RENDER_HWS_PGA_GEN7 ||
-	    reg == BSD_HWS_PGA_GEN7 ||
-	    reg == BLT_HWS_PGA_GEN7)
-		return false;
-
-	if (reg == GEN6_BSD_SLEEP_PSMI_CONTROL ||
-	    reg == GEN6_BSD_RNCID)
-		return false;
-
-	if (reg == GEN6_BLITTER_ECOSKPD)
-		return false;
-
-	if (reg >= 0x4000c &&
-	    reg <= 0x4002c)
-		return false;
-
-	if (reg >= 0x4f000 &&
-	    reg <= 0x4f08f)
-		return false;
-
-	if (reg >= 0x4f100 &&
-	    reg <= 0x4f11f)
-		return false;
-
-	if (reg >= VLV_MASTER_IER &&
-	    reg <= GEN6_PMIER)
-		return false;
-
-	if (reg >= FENCE_REG_SANDYBRIDGE_0 &&
-	    reg < (FENCE_REG_SANDYBRIDGE_0 + (16*8)))
-		return false;
-
-	if (reg >= VLV_IIR_RW &&
-	    reg <= VLV_ISR)
-		return false;
-
-	if (reg == FORCEWAKE_VLV ||
-	    reg == FORCEWAKE_ACK_VLV)
-		return false;
-
-	if (reg == GEN6_GDRST)
-		return false;
-
-	switch (reg) {
-	case _3D_CHICKEN3:
-	case IVB_CHICKEN3:
-	case GEN7_COMMON_SLICE_CHICKEN1:
-	case GEN7_L3CNTLREG1:
-	case GEN7_L3_CHICKEN_MODE_REGISTER:
-	case GEN7_ROW_CHICKEN2:
-	case GEN7_L3SQCREG4:
-	case GEN7_SQ_CHICKEN_MBCUNIT_CONFIG:
-	case GEN7_HALF_SLICE_CHICKEN1:
-	case GEN6_MBCTL:
-	case GEN6_UCGCTL2:
-		return false;
-	default:
-		break;
-	}
-
-	return true;
-}
-
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
 {
@@ -1234,8 +1142,6 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_put(dev_priv); \
 		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
-	} else if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
-		val = read##y(dev_priv->regs + reg + 0x180000);		\
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \
@@ -1262,11 +1168,7 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
 		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
 	} \
-	if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
-		write##y(val, dev_priv->regs + reg + 0x180000);		\
-	} else {							\
-		write##y(val, dev_priv->regs + reg);			\
-	}								\
+	write##y(val, dev_priv->regs + reg); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \

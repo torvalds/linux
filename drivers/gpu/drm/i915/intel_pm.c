@@ -3687,6 +3687,10 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
 
+	/* WaVSRefCountFullforceMissDisable */
+	if (IS_HASWELL(dev_priv->dev))
+		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
+
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
 
@@ -4050,35 +4054,57 @@ void intel_init_clock_gating(struct drm_device *dev)
 	dev_priv->display.init_clock_gating(dev);
 }
 
-/* Starting with Haswell, we have different power wells for
- * different parts of the GPU. This attempts to enable them all.
- */
-void intel_init_power_wells(struct drm_device *dev)
+void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long power_wells[] = {
-		HSW_PWR_WELL_CTL1,
-		HSW_PWR_WELL_CTL2,
-		HSW_PWR_WELL_CTL4
-	};
-	int i;
+	bool is_enabled, enable_requested;
+	uint32_t tmp;
 
 	if (!IS_HASWELL(dev))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
+	is_enabled = tmp & HSW_PWR_WELL_STATE;
+	enable_requested = tmp & HSW_PWR_WELL_ENABLE;
 
-	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
-		int well = I915_READ(power_wells[i]);
+	if (enable) {
+		if (!enable_requested)
+			I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE);
 
-		if ((well & HSW_PWR_WELL_STATE) == 0) {
-			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
-			if (wait_for((I915_READ(power_wells[i]) & HSW_PWR_WELL_STATE), 20))
-				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+		if (!is_enabled) {
+			DRM_DEBUG_KMS("Enabling power well\n");
+			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
+				      HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Timeout enabling power well\n");
+		}
+	} else {
+		if (enable_requested) {
+			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 		}
 	}
+}
 
-	mutex_unlock(&dev->struct_mutex);
+/*
+ * Starting with Haswell, we have a "Power Down Well" that can be turned off
+ * when not needed anymore. We have 4 registers that can request the power well
+ * to be enabled, and it will only be disabled if none of the registers is
+ * requesting it to be enabled.
+ */
+void intel_init_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	/* For now, we need the power well to be always enabled. */
+	intel_set_power_well(dev, true);
+
+	/* We're taking over the BIOS, so clear any requests made by it since
+	 * the driver is in charge now. */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
+		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
 
 /* Set up chip specific power management-related functions */

@@ -135,14 +135,13 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unpin;
 	}
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	info->apertures->ranges[0].size =
-		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	info->apertures->ranges[0].size = dev_priv->gtt.mappable_end;
 
 	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->mm.gtt_base_addr + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
 			   size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
@@ -306,7 +305,8 @@ void intel_fb_restore_mode(struct drm_device *dev)
 
 	/* Be sure to shut off any planes that may be active */
 	list_for_each_entry(plane, &config->plane_list, head)
-		plane->funcs->disable_plane(plane);
+		if (plane->enabled)
+			plane->funcs->disable_plane(plane);
 
 	drm_modeset_unlock_all(dev);
 }

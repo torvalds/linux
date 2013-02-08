@@ -258,8 +258,9 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "%u fault mappable objects, %zu bytes\n",
 		   count, size);
 
-	seq_printf(m, "%zu [%zu] gtt total\n",
-		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
+	seq_printf(m, "%zu [%lu] gtt total\n",
+		   dev_priv->gtt.total,
+		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -813,11 +814,11 @@ static int i915_error_state_open(struct inode *inode, struct file *file)
 
 	error_priv->dev = dev;
 
-	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	error_priv->error = dev_priv->first_error;
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error_priv->error = dev_priv->gpu_error.first_error;
 	if (error_priv->error)
 		kref_get(&error_priv->error->ref);
-	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
 	return single_open(file, i915_error_state, error_priv);
 }
@@ -956,7 +957,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		u32 rpstat;
+		u32 rpstat, cagf;
 		u32 rpupei, rpcurup, rpprevup;
 		u32 rpdownei, rpcurdown, rpprevdown;
 		int max_freq;
@@ -975,6 +976,11 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
+		if (IS_HASWELL(dev))
+			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
+		else
+			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
+		cagf *= GT_FREQUENCY_MULTIPLIER;
 
 		gen6_gt_force_wake_put(dev_priv);
 		mutex_unlock(&dev->struct_mutex);
@@ -987,8 +993,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
-		seq_printf(m, "CAGF: %dMHz\n", ((rpstat & GEN6_CAGF_MASK) >>
-						GEN6_CAGF_SHIFT) * GT_FREQUENCY_MULTIPLIER);
+		seq_printf(m, "CAGF: %dMHz\n", cagf);
 		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
 			   GEN6_CURICONT_MASK);
 		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
@@ -1674,7 +1679,7 @@ i915_wedged_read(struct file *filp,
 
 	len = snprintf(buf, sizeof(buf),
 		       "wedged :  %d\n",
-		       atomic_read(&dev_priv->mm.wedged));
+		       atomic_read(&dev_priv->gpu_error.reset_counter));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1729,7 +1734,7 @@ i915_ring_stop_read(struct file *filp,
 	int len;
 
 	len = snprintf(buf, sizeof(buf),
-		       "0x%08x\n", dev_priv->stop_rings);
+		       "0x%08x\n", dev_priv->gpu_error.stop_rings);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1765,7 +1770,7 @@ i915_ring_stop_write(struct file *filp,
 	if (ret)
 		return ret;
 
-	dev_priv->stop_rings = val;
+	dev_priv->gpu_error.stop_rings = val;
 	mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
@@ -1776,6 +1781,102 @@ static const struct file_operations i915_ring_stop_fops = {
 	.open = simple_open,
 	.read = i915_ring_stop_read,
 	.write = i915_ring_stop_write,
+	.llseek = default_llseek,
+};
+
+#define DROP_UNBOUND 0x1
+#define DROP_BOUND 0x2
+#define DROP_RETIRE 0x4
+#define DROP_ACTIVE 0x8
+#define DROP_ALL (DROP_UNBOUND | \
+		  DROP_BOUND | \
+		  DROP_RETIRE | \
+		  DROP_ACTIVE)
+static ssize_t
+i915_drop_caches_read(struct file *filp,
+		      char __user *ubuf,
+		      size_t max,
+		      loff_t *ppos)
+{
+	char buf[20];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", DROP_ALL);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_drop_caches_write(struct file *filp,
+		       const char __user *ubuf,
+		       size_t cnt,
+		       loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj, *next;
+	char buf[20];
+	int val = 0, ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Dropping caches: 0x%08x\n", val);
+
+	/* No need to check and wait for gpu resets, only libdrm auto-restarts
+	 * on ioctls on -EAGAIN. */
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (val & DROP_ACTIVE) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			goto unlock;
+	}
+
+	if (val & (DROP_RETIRE | DROP_ACTIVE))
+		i915_gem_retire_requests(dev);
+
+	if (val & DROP_BOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.inactive_list, mm_list)
+			if (obj->pin_count == 0) {
+				ret = i915_gem_object_unbind(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+	if (val & DROP_UNBOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+			if (obj->pages_pin_count == 0) {
+				ret = i915_gem_object_put_pages(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret ?: cnt;
+}
+
+static const struct file_operations i915_drop_caches_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_drop_caches_read,
+	.write = i915_drop_caches_write,
 	.llseek = default_llseek,
 };
 
@@ -2176,6 +2277,12 @@ int i915_debugfs_init(struct drm_minor *minor)
 		return ret;
 
 	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_gem_drop_caches",
+				  &i915_drop_caches_fops);
+	if (ret)
+		return ret;
+
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
 				  "i915_error_state",
 				  &i915_error_state_fops);
 	if (ret)
@@ -2205,6 +2312,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_min_freq_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_cache_sharing_fops,
+				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_drop_caches_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
 				 1, minor);

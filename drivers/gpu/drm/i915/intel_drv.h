@@ -109,6 +109,11 @@
  * timings in the mode to prevent the crtc fixup from overwriting them.
  * Currently only lvds needs that. */
 #define INTEL_MODE_CRTC_TIMINGS_SET (0x20)
+/*
+ * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
+ * to be used.
+ */
+#define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
 
 static inline void
 intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
@@ -206,6 +211,7 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
+	bool eld_vld;
 	bool primary_disabled; /* is the crtc obscured by a plane? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
@@ -284,6 +290,9 @@ struct cxsr_latency {
 #define DIP_LEN_AVI     13
 #define DIP_AVI_PR_1    0
 #define DIP_AVI_PR_2    1
+#define DIP_AVI_RGB_QUANT_RANGE_DEFAULT	(0 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_LIMITED	(1 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_FULL	(2 << 2)
 
 #define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
@@ -338,9 +347,11 @@ struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
 	uint32_t color_range;
+	bool color_range_auto;
 	bool has_hdmi_sink;
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
+	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				struct dip_infoframe *frame);
 	void (*set_infoframes)(struct drm_encoder *encoder,
@@ -357,6 +368,7 @@ struct intel_dp {
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
+	bool color_range_auto;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
@@ -440,9 +452,8 @@ extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_mark_busy(struct drm_device *dev);
-extern void intel_mark_idle(struct drm_device *dev);
 extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
-extern void intel_mark_fb_idle(struct drm_i915_gem_object *obj);
+extern void intel_mark_idle(struct drm_device *dev);
 extern bool intel_lvds_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
@@ -655,7 +666,8 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
-extern void intel_init_power_wells(struct drm_device *dev);
+extern void intel_init_power_well(struct drm_device *dev);
+extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
