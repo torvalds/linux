@@ -50,6 +50,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	u32 sprctl, sprscale = 0;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	bool scaling_was_enabled = dev_priv->sprite_scaling_enabled;
 
 	sprctl = I915_READ(SPRCTL(pipe));
 
@@ -103,19 +104,15 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	 * when scaling is disabled.
 	 */
 	if (crtc_w != src_w || crtc_h != src_h) {
-		if (!dev_priv->sprite_scaling_enabled) {
-			dev_priv->sprite_scaling_enabled = true;
+		dev_priv->sprite_scaling_enabled |= 1 << pipe;
+
+		if (!scaling_was_enabled) {
 			intel_update_watermarks(dev);
 			intel_wait_for_vblank(dev, pipe);
 		}
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
-	} else {
-		if (dev_priv->sprite_scaling_enabled) {
-			dev_priv->sprite_scaling_enabled = false;
-			/* potentially re-enable LP watermarks */
-			intel_update_watermarks(dev);
-		}
-	}
+	} else
+		dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
@@ -141,6 +138,10 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	I915_WRITE(SPRCTL(pipe), sprctl);
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
+
+	/* potentially re-enable LP watermarks */
+	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
+		intel_update_watermarks(dev);
 }
 
 static void
@@ -150,6 +151,7 @@ ivb_disable_plane(struct drm_plane *plane)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
+	bool scaling_was_enabled = dev_priv->sprite_scaling_enabled;
 
 	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
 	/* Can't leave the scaler enabled... */
@@ -159,8 +161,11 @@ ivb_disable_plane(struct drm_plane *plane)
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
 
-	dev_priv->sprite_scaling_enabled = false;
-	intel_update_watermarks(dev);
+	dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
+
+	/* potentially re-enable LP watermarks */
+	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
+		intel_update_watermarks(dev);
 }
 
 static int
