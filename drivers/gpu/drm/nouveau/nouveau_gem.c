@@ -318,6 +318,7 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	uint32_t sequence;
 	int trycnt = 0;
 	int ret, i;
+	struct nouveau_bo *res_bo = NULL;
 
 	sequence = atomic_add_return(1, &drm->ttm.validate_sequence);
 retry:
@@ -338,6 +339,11 @@ retry:
 			return -ENOENT;
 		}
 		nvbo = gem->driver_private;
+		if (nvbo == res_bo) {
+			res_bo = NULL;
+			drm_gem_object_unreference_unlocked(gem);
+			continue;
+		}
 
 		if (nvbo->reserved_by && nvbo->reserved_by == file_priv) {
 			NV_ERROR(drm, "multiple instances of buffer %d on "
@@ -350,15 +356,19 @@ retry:
 		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, sequence);
 		if (ret) {
 			validate_fini(op, NULL);
-			if (unlikely(ret == -EAGAIN))
-				ret = ttm_bo_wait_unreserved(&nvbo->bo, true);
-			drm_gem_object_unreference_unlocked(gem);
+			if (unlikely(ret == -EAGAIN)) {
+				sequence = atomic_add_return(1, &drm->ttm.validate_sequence);
+				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
+							      sequence);
+				if (!ret)
+					res_bo = nvbo;
+			}
 			if (unlikely(ret)) {
+				drm_gem_object_unreference_unlocked(gem);
 				if (ret != -ERESTARTSYS)
 					NV_ERROR(drm, "fail reserve\n");
 				return ret;
 			}
-			goto retry;
 		}
 
 		b->user_priv = (uint64_t)(unsigned long)nvbo;
@@ -380,6 +390,8 @@ retry:
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}
+		if (nvbo == res_bo)
+			goto retry;
 	}
 
 	return 0;
