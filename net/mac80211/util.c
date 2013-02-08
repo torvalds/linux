@@ -805,6 +805,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->peering = pos;
 			elems->peering_len = elen;
 			break;
+		case WLAN_EID_MESH_AWAKE_WINDOW:
+			if (elen >= 2)
+				elems->awake_window = (void *)pos;
+			break;
 		case WLAN_EID_PREQ:
 			elems->preq = pos;
 			elems->preq_len = elen;
@@ -1030,7 +1034,8 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 u8 *extra, size_t extra_len, const u8 *da,
-			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx)
+			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx,
+			 u32 tx_flags)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -1063,7 +1068,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(err);
 	}
 
-	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
+					tx_flags;
 	ieee80211_tx_skb(sdata, skb);
 }
 
@@ -1277,7 +1283,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed, bool no_cck,
+			      u32 ratemask, bool directed, u32 tx_flags,
 			      struct ieee80211_channel *channel, bool scan)
 {
 	struct sk_buff *skb;
@@ -1286,9 +1292,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 					ssid, ssid_len,
 					ie, ie_len, directed);
 	if (skb) {
-		if (no_cck)
-			IEEE80211_SKB_CB(skb)->flags |=
-				IEEE80211_TX_CTL_NO_CCK_RATE;
+		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
 		if (scan)
 			ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
 		else
@@ -1538,6 +1542,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			changed |= BSS_CHANGED_ASSOC |
 				   BSS_CHANGED_ARP_FILTER |
 				   BSS_CHANGED_PS;
+
+			if (sdata->u.mgd.dtim_period)
+				changed |= BSS_CHANGED_DTIM_PERIOD;
+
 			mutex_lock(&sdata->u.mgd.mtx);
 			ieee80211_bss_info_change_notify(sdata, changed);
 			mutex_unlock(&sdata->u.mgd.mtx);

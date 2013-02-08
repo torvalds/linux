@@ -672,8 +672,10 @@ struct station_parameters {
  * @STATION_INFO_SIGNAL: @signal filled
  * @STATION_INFO_TX_BITRATE: @txrate fields are filled
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
- * @STATION_INFO_RX_PACKETS: @rx_packets filled
- * @STATION_INFO_TX_PACKETS: @tx_packets filled
+ * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
+ * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
+ * @STATION_INFO_RX_PACKETS64: @rx_packets filled with 64-bit value
+ * @STATION_INFO_TX_PACKETS64: @tx_packets filled with 64-bit value
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
  * @STATION_INFO_TX_FAILED: @tx_failed filled
  * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
@@ -714,6 +716,8 @@ enum station_info_flags {
 	STATION_INFO_LOCAL_PM		= 1<<21,
 	STATION_INFO_PEER_PM		= 1<<22,
 	STATION_INFO_NONPEER_PM		= 1<<23,
+	STATION_INFO_RX_BYTES64		= 1<<24,
+	STATION_INFO_TX_BYTES64		= 1<<25,
 };
 
 /**
@@ -835,8 +839,8 @@ struct station_info {
 	u32 filled;
 	u32 connected_time;
 	u32 inactive_time;
-	u32 rx_bytes;
-	u32 tx_bytes;
+	u64 rx_bytes;
+	u64 tx_bytes;
 	u16 llid;
 	u16 plid;
 	u8 plink_state;
@@ -1289,7 +1293,6 @@ struct cfg80211_bss_ies {
  * @beacon_ies: the information elements from the last Beacon frame
  * @proberesp_ies: the information elements from the last Probe Response frame
  * @signal: signal strength value (type depends on the wiphy's signal_type)
- * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -1300,8 +1303,6 @@ struct cfg80211_bss {
 	const struct cfg80211_bss_ies __rcu *ies;
 	const struct cfg80211_bss_ies __rcu *beacon_ies;
 	const struct cfg80211_bss_ies __rcu *proberesp_ies;
-
-	void (*free_priv)(struct cfg80211_bss *bss);
 
 	s32 signal;
 
@@ -1594,6 +1595,32 @@ struct cfg80211_wowlan {
 	     rfkill_release;
 	struct cfg80211_wowlan_trig_pkt_pattern *patterns;
 	int n_patterns;
+};
+
+/**
+ * struct cfg80211_wowlan_wakeup - wakeup report
+ * @disconnect: woke up by getting disconnected
+ * @magic_pkt: woke up by receiving magic packet
+ * @gtk_rekey_failure: woke up by GTK rekey failure
+ * @eap_identity_req: woke up by EAP identity request packet
+ * @four_way_handshake: woke up by 4-way handshake
+ * @rfkill_release: woke up by rfkill being released
+ * @pattern_idx: pattern that caused wakeup, -1 if not due to pattern
+ * @packet_present_len: copied wakeup packet data
+ * @packet_len: original wakeup packet length
+ * @packet: The packet causing the wakeup, if any.
+ * @packet_80211:  For pattern match, magic packet and other data
+ *	frame triggers an 802.3 frame should be reported, for
+ *	disconnect due to deauth 802.11 frame. This indicates which
+ *	it is.
+ */
+struct cfg80211_wowlan_wakeup {
+	bool disconnect, magic_pkt, gtk_rekey_failure,
+	     eap_identity_req, four_way_handshake,
+	     rfkill_release, packet_80211;
+	s32 pattern_idx;
+	u32 packet_present_len, packet_len;
+	const void *packet;
 };
 
 /**
@@ -3137,10 +3164,6 @@ cfg80211_get_ibss(struct wiphy *wiphy,
 				WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
 }
 
-struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       const u8 *meshid, size_t meshidlen,
-				       const u8 *meshcfg);
 /**
  * cfg80211_ref_bss - reference BSS struct
  * @bss: the BSS struct to reference
@@ -3851,6 +3874,21 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev);
 int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 			  enum ieee80211_p2p_attr_id attr,
 			  u8 *buf, unsigned int bufsize);
+
+/**
+ * cfg80211_report_wowlan_wakeup - report wakeup from WoWLAN
+ * @wdev: the wireless device reporting the wakeup
+ * @wakeup: the wakeup report
+ * @gfp: allocation flags
+ *
+ * This function reports that the given device woke up. If it
+ * caused the wakeup, report the reason(s), otherwise you may
+ * pass %NULL as the @wakeup parameter to advertise that something
+ * else caused the wakeup.
+ */
+void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
+				   struct cfg80211_wowlan_wakeup *wakeup,
+				   gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

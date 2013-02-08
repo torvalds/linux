@@ -151,6 +151,11 @@
 /* Mesh Control 802.11s */
 #define IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT  0x0100
 
+/* Mesh Power Save Level */
+#define IEEE80211_QOS_CTL_MESH_PS_LEVEL		0x0200
+/* Mesh Receiver Service Period Initiated */
+#define IEEE80211_QOS_CTL_RSPI			0x0400
+
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
 #define IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK	0x0f
@@ -675,11 +680,14 @@ struct ieee80211_meshconf_ie {
  * @IEEE80211_MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
  * @IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure
  *	is ongoing
+ * @IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL: STA is in deep sleep mode or has
+ *	neighbors in deep sleep mode
  */
 enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS		= 0x01,
 	IEEE80211_MESHCONF_CAPAB_FORWARDING		= 0x08,
 	IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING		= 0x20,
+	IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL	= 0x40,
 };
 
 /**
