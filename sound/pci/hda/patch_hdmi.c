@@ -84,6 +84,7 @@ struct hdmi_spec_per_pin {
 struct hdmi_spec {
 	int num_cvts;
 	struct hdmi_spec_per_cvt cvts[MAX_HDMI_CVTS];
+	hda_nid_t cvt_nids[MAX_HDMI_CVTS];
 
 	int num_pins;
 	struct hdmi_spec_per_pin pins[MAX_HDMI_PINS];
@@ -1197,6 +1198,9 @@ static void hdmi_repoll_eld(struct work_struct *work)
 	hdmi_present_sense(per_pin, per_pin->repoll_count);
 }
 
+static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
+					     hda_nid_t nid);
+
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1215,6 +1219,9 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 
 	if (snd_BUG_ON(spec->num_pins >= MAX_HDMI_PINS))
 		return -E2BIG;
+
+	if (codec->vendor_id == 0x80862807)
+		intel_haswell_fixup_connect_list(codec, pin_nid);
 
 	pin_idx = spec->num_pins;
 	per_pin = &spec->pins[pin_idx];
@@ -1263,7 +1270,7 @@ static int hdmi_add_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
 	if (err < 0)
 		return err;
 
-	spec->num_cvts++;
+	spec->cvt_nids[spec->num_cvts++] = cvt_nid;
 
 	return 0;
 }
@@ -1691,27 +1698,22 @@ static const struct hda_codec_ops generic_hdmi_patch_ops = {
 	.unsol_event		= hdmi_unsol_event,
 };
 
-static void intel_haswell_fixup_connect_list(struct hda_codec *codec)
+
+static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
+					     hda_nid_t nid)
 {
-	unsigned int vendor_param;
-	hda_nid_t list[3] = {0x2, 0x3, 0x4};
+	struct hdmi_spec *spec = codec->spec;
+	hda_nid_t conns[4];
+	int nconns;
 
-	vendor_param = snd_hda_codec_read(codec, 0x08, 0, 0xf81, 0);
-	if (vendor_param == -1 || vendor_param & 0x02)
+	nconns = snd_hda_get_connections(codec, nid, conns, ARRAY_SIZE(conns));
+	if (nconns == spec->num_cvts &&
+	    !memcmp(conns, spec->cvt_nids, spec->num_cvts * sizeof(hda_nid_t)))
 		return;
 
-	/* enable DP1.2 mode */
-	vendor_param |= 0x02;
-	snd_hda_codec_read(codec, 0x08, 0, 0x781, vendor_param);
-
-	vendor_param = snd_hda_codec_read(codec, 0x08, 0, 0xf81, 0);
-	if (vendor_param == -1 || !(vendor_param & 0x02))
-		return;
-
-	/* override 3 pins connection list */
-	snd_hda_override_conn_list(codec, 0x05, 3, list);
-	snd_hda_override_conn_list(codec, 0x06, 3, list);
-	snd_hda_override_conn_list(codec, 0x07, 3, list);
+	/* override pins connection list */
+	snd_printdd("hdmi: haswell: override pin connection 0x%x\n", nid);
+	snd_hda_override_conn_list(codec, nid, spec->num_cvts, spec->cvt_nids);
 }
 
 #define INTEL_VENDOR_NID 0x08
@@ -1741,6 +1743,22 @@ static void intel_haswell_enable_all_pins(struct hda_codec *codec,
 	snd_hda_codec_update_widgets(codec);
 	return;
 }
+
+static void intel_haswell_fixup_enable_dp12(struct hda_codec *codec)
+{
+	unsigned int vendor_param;
+
+	vendor_param = snd_hda_codec_read(codec, INTEL_VENDOR_NID, 0,
+				INTEL_GET_VENDOR_VERB, 0);
+	if (vendor_param == -1 || vendor_param & INTEL_EN_DP12)
+		return;
+
+	/* enable DP1.2 mode */
+	vendor_param |= INTEL_EN_DP12;
+	snd_hda_codec_write_cache(codec, INTEL_VENDOR_NID, 0,
+				INTEL_SET_VENDOR_VERB, vendor_param);
+}
+
 
 
 /* available models for fixup */
@@ -1780,7 +1798,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	if (codec->vendor_id == 0x80862807)
-		intel_haswell_fixup_connect_list(codec);
+		intel_haswell_fixup_enable_dp12(codec);
 
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;
