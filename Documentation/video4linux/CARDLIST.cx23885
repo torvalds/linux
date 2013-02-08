@@ -36,3 +36,5 @@
  35 -> TeVii S471                                          [d471:9022]
  36 -> Hauppauge WinTV-HVR1255                             [0070:2259]
  37 -> Prof Revolution DVB-S2 8000                         [8000:3034]
+ 38 -> Hauppauge WinTV-HVR4400                             [0070:c108,0070:c138,0070:c12a,0070:c1f8]
+ 39 -> AVerTV Hybrid Express Slim HC81R                    [1461:d939]
