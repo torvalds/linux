@@ -754,6 +754,11 @@ static int target_fabric_port_link(
 		return -EFAULT;
 	}
 
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("se_device not configured yet, cannot port link\n");
+		return -ENODEV;
+	}
+
 	tpg_ci = &lun_ci->ci_parent->ci_group->cg_item;
 	se_tpg = container_of(to_config_group(tpg_ci),
 				struct se_portal_group, tpg_group);

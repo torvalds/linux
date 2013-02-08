@@ -521,6 +521,8 @@
 #define GEN7_ERR_INT	0x44040
 #define   ERR_INT_MMIO_UNCLAIMED (1<<13)
 
+#define DERRMR		0x44050
+
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
  * the enables for writing to the corresponding low bit.
@@ -540,6 +542,7 @@
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 12)
+# define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
 
 #define GEN6_GT_MODE	0x20d0
 #define   GEN6_GT_MODE_HI				(1 << 9)

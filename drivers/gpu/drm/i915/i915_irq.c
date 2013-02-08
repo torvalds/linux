@@ -1228,6 +1228,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
 	error->head[ring->id] = I915_READ_HEAD(ring);
 	error->tail[ring->id] = I915_READ_TAIL(ring);
+	error->ctl[ring->id] = I915_READ_CTL(ring);
 
 	error->cpu_ring_head[ring->id] = ring->head;
 	error->cpu_ring_tail[ring->id] = ring->tail;
@@ -1322,6 +1323,16 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->ier = I915_READ16(IER);
 	else
 		error->ier = I915_READ(IER);
+
+	if (INTEL_INFO(dev)->gen >= 6)
+		error->derrmr = I915_READ(DERRMR);
+
+	if (IS_VALLEYVIEW(dev))
+		error->forcewake = I915_READ(FORCEWAKE_VLV);
+	else if (INTEL_INFO(dev)->gen >= 7)
+		error->forcewake = I915_READ(FORCEWAKE_MT);
+	else if (INTEL_INFO(dev)->gen == 6)
+		error->forcewake = I915_READ(FORCEWAKE);
 
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));

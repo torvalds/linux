@@ -1216,7 +1216,7 @@ void cayman_dma_stop(struct radeon_device *rdev)
 int cayman_dma_resume(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
-	u32 rb_cntl, dma_cntl;
+	u32 rb_cntl, dma_cntl, ib_cntl;
 	u32 rb_bufsz;
 	u32 reg_offset, wb_offset;
 	int i, r;
@@ -1265,7 +1265,11 @@ int cayman_dma_resume(struct radeon_device *rdev)
 		WREG32(DMA_RB_BASE + reg_offset, ring->gpu_addr >> 8);
 
 		/* enable DMA IBs */
-		WREG32(DMA_IB_CNTL + reg_offset, DMA_IB_ENABLE | CMD_VMID_FORCE);
+		ib_cntl = DMA_IB_ENABLE | CMD_VMID_FORCE;
+#ifdef __BIG_ENDIAN
+		ib_cntl |= DMA_IB_SWAP_ENABLE;
+#endif
+		WREG32(DMA_IB_CNTL + reg_offset, ib_cntl);
 
 		dma_cntl = RREG32(DMA_CNTL + reg_offset);
 		dma_cntl &= ~CTXEMPTY_INT_ENABLE;
@@ -1408,6 +1412,12 @@ static void cayman_gpu_soft_reset_dma(struct radeon_device *rdev)
 static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 {
 	struct evergreen_mc_save save;
+
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE);
+
+	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
+		reset_mask &= ~RADEON_RESET_DMA;
 
 	if (reset_mask == 0)
 		return 0;
