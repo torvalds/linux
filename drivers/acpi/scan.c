@@ -202,12 +202,10 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	if ((!count) || (buf[0] != '1')) {
 		return -EINVAL;
 	}
-#ifndef FORCE_EJECT
 	if (!acpi_device->driver && !acpi_device->handler) {
 		ret = -ENODEV;
 		goto err;
 	}
-#endif
 	status = acpi_get_type(acpi_device->handle, &type);
 	if (ACPI_FAILURE(status) || (!acpi_device->flags.ejectable)) {
 		ret = -ENODEV;
