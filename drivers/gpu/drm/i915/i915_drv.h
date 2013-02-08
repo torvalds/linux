@@ -399,7 +399,8 @@ struct i915_gtt {
 
 	/* global gtt ops */
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
-			  size_t *stolen);
+			  size_t *stolen, phys_addr_t *mappable_base,
+			  unsigned long *mappable_end);
 	void (*gtt_remove)(struct drm_device *dev);
 	void (*gtt_clear_range)(struct drm_device *dev,
 				unsigned int first_entry,
