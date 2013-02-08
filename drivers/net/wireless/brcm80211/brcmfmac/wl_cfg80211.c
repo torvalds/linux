@@ -3895,12 +3895,7 @@ brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
 				     &scbval, sizeof(scbval));
 	if (err)
 		brcmf_err("SCB_DEAUTHENTICATE_FOR_REASON failed %d\n", err);
-	/*
-	 * Wait for the deauth event to come, supplicant will do the
-	 * delete iface immediately and we will have problem in sending
-	 * deauth frame if we delete the bss in firmware
-	 */
-	brcmf_delay(400);
+
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
 }
