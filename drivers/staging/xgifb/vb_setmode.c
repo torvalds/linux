@@ -4863,16 +4863,6 @@ static void XGI_SetDelayComp(struct vb_device_info *pVBInfo)
 			}
 			xgifb_reg_set(pVBInfo->Part1Port, 0x2D, tempah);
 		}
-	} else if (pVBInfo->IF_DEF_LVDS == 1) {
-		tempbl = 0;
-		tempbh = 0;
-		if (pVBInfo->VBInfo & SetCRT2ToLCD) {
-			tempah = XGI301LCDDelay;
-			tempah &= 0x0f;
-			tempah = tempah << 4;
-			xgifb_reg_and_or(pVBInfo->Part1Port, 0x2D, 0x0f,
-					tempah);
-		}
 	}
 }
 
