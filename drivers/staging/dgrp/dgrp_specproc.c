@@ -102,7 +102,7 @@ static struct file_operations info_proc_file_ops = {
 	.open	 = info_proc_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static struct file_operations nodeinfo_proc_file_ops = {
