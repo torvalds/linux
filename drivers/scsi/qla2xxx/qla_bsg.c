@@ -746,6 +746,14 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				goto done_free_dma_rsp;
 			}
 
+			if ((config[0] & INTERNAL_LOOPBACK_MASK) != 0) {
+				ql_dbg(ql_dbg_user, vha, 0x70c4,
+				    "Loopback operation already in "
+				    "progress.\n");
+				rval = -EAGAIN;
+				goto done_free_dma_rsp;
+			}
+
 			ql_dbg(ql_dbg_user, vha, 0x70c0,
 			    "elreq.options=%04x\n", elreq.options);
 
