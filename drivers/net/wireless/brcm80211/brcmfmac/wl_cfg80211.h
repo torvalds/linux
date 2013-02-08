@@ -175,9 +175,11 @@ struct vif_saved_ie {
 	u8  probe_req_ie[VNDR_IES_BUF_LEN];
 	u8  probe_res_ie[IE_MAX_LEN];
 	u8  beacon_ie[IE_MAX_LEN];
+	u8  assoc_req_ie[IE_MAX_LEN];
 	u32 probe_req_ie_len;
 	u32 probe_res_ie_len;
 	u32 beacon_ie_len;
+	u32 assoc_req_ie_len;
 };
 
 /**
