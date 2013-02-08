@@ -320,6 +320,23 @@ struct brcmf_pno_scanresults_le {
 };
 
 /**
+ * struct brcmf_cfg80211_vif_event - virtual interface event information.
+ *
+ * @vif_wq: waitqueue awaiting interface event from firmware.
+ * @vif_event_lock: protects other members in this structure.
+ * @vif_complete: completion for net attach.
+ * @action: either add, change, or delete.
+ * @vif: virtual interface object related to the event.
+ */
+struct brcmf_cfg80211_vif_event {
+	wait_queue_head_t vif_wq;
+	struct mutex vif_event_lock;
+	struct completion vif_complete;
+	u8 action;
+	struct brcmf_cfg80211_vif *vif;
+};
+
+/**
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
  * @wiphy: wiphy object for cfg80211 interface.
@@ -352,6 +369,7 @@ struct brcmf_pno_scanresults_le {
  * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
+ * @vif_event: vif event signalling.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -384,6 +402,7 @@ struct brcmf_cfg80211_info {
 	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
 	u8 vif_cnt;
+	struct brcmf_cfg80211_vif_event vif_event;
 };
 
 /**
@@ -452,7 +471,6 @@ s32 brcmf_cfg80211_up(struct net_device *ndev);
 s32 brcmf_cfg80211_down(struct net_device *ndev);
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
-					   struct net_device *netdev,
 					   enum nl80211_iftype type,
 					   bool pm_block);
 void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
@@ -462,5 +480,11 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct ieee80211_channel *ch);
 u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);
+void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
+				  struct brcmf_cfg80211_vif *vif);
+bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
+int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
+					  u8 action, ulong timeout);
+void brcmf_cfg80211_vif_complete(struct brcmf_cfg80211_info *info);
 
 #endif				/* _wl_cfg80211_h_ */

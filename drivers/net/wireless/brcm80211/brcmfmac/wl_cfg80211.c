@@ -3812,7 +3812,6 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 }
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
-					   struct net_device *netdev,
 					   enum nl80211_iftype type,
 					   bool pm_block)
 {
@@ -3828,14 +3827,7 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 		return ERR_PTR(-ENOMEM);
 
 	vif->wdev.wiphy = cfg->wiphy;
-	vif->wdev.netdev = netdev;
 	vif->wdev.iftype = type;
-
-	if (netdev) {
-		vif->ifp = netdev_priv(netdev);
-		netdev->ieee80211_ptr = &vif->wdev;
-		SET_NETDEV_DEV(netdev, wiphy_dev(cfg->wiphy));
-	}
 
 	vif->mode = brcmf_nl80211_iftype_to_mode(type);
 	vif->pm_block = pm_block;
@@ -4195,6 +4187,57 @@ brcmf_notify_mic_status(struct brcmf_if *ifp,
 	return 0;
 }
 
+static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
+				  const struct brcmf_event_msg *e, void *data)
+{
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct brcmf_if_event *ifevent = (struct brcmf_if_event *)data;
+	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
+	struct brcmf_cfg80211_vif *vif;
+
+	brcmf_dbg(TRACE, "Enter: action %u flags %u ifidx %u bsscfg %u\n",
+		  ifevent->action, ifevent->flags, ifevent->ifidx,
+		  ifevent->bssidx);
+
+
+	mutex_lock(&event->vif_event_lock);
+	event->action = ifevent->action;
+	vif = event->vif;
+
+	switch (ifevent->action) {
+	case BRCMF_E_IF_ADD:
+		/* waiting process may have timed out */
+		if (!cfg->vif_event.vif)
+			return -EBADF;
+
+		ifp->vif = vif;
+		vif->ifp = ifp;
+		vif->wdev.netdev = ifp->ndev;
+		ifp->ndev->ieee80211_ptr = &vif->wdev;
+		SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
+		mutex_unlock(&event->vif_event_lock);
+		wake_up(&event->vif_wq);
+
+		/* waiting process need to set the netdev name */
+		wait_for_completion(&event->vif_complete);
+		return brcmf_net_attach(ifp);
+
+	case BRCMF_E_IF_DEL:
+		ifp->vif = NULL;
+		brcmf_free_vif(vif);
+		mutex_unlock(&event->vif_event_lock);
+		/* event may not be upon user request */
+		if (brcmf_cfg80211_vif_event_armed(cfg))
+			wake_up(&event->vif_wq);
+		return 0;
+
+	default:
+		mutex_unlock(&event->vif_event_lock);
+		break;
+	}
+	return -EINVAL;
+}
+
 static void brcmf_init_conf(struct brcmf_cfg80211_conf *conf)
 {
 	conf->frag_threshold = (u32)-1;
@@ -4226,6 +4269,8 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_notify_connect_status);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
 			    brcmf_notify_sched_scan_results);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_IF,
+			    brcmf_notify_vif_event);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -4292,6 +4337,13 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 	brcmf_deinit_priv_mem(cfg);
 }
 
+static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
+{
+	init_waitqueue_head(&event->vif_wq);
+	init_completion(&event->vif_complete);
+	mutex_init(&event->vif_event_lock);
+}
+
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 						  struct device *busdev)
 {
@@ -4315,13 +4367,19 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	cfg = wiphy_priv(wiphy);
 	cfg->wiphy = wiphy;
 	cfg->pub = drvr;
+	init_vif_event(&cfg->vif_event);
 	INIT_LIST_HEAD(&cfg->vif_list);
 
-	vif = brcmf_alloc_vif(cfg, ndev, NL80211_IFTYPE_STATION, false);
+	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION, false);
 	if (IS_ERR(vif)) {
 		wiphy_free(wiphy);
 		return NULL;
 	}
+
+	vif->ifp = ifp;
+	vif->wdev.netdev = ndev;
+	ndev->ieee80211_ptr = &vif->wdev;
+	SET_NETDEV_DEV(ndev, wiphy_dev(cfg->wiphy));
 
 	err = wl_init_priv(cfg);
 	if (err) {
@@ -4584,4 +4642,51 @@ u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state)
 			result++;
 	}
 	return result;
+}
+
+static inline bool vif_event_equals(struct brcmf_cfg80211_vif_event *event,
+				    u8 action)
+{
+	u8 evt_action;
+
+	mutex_lock(&event->vif_event_lock);
+	evt_action = event->action;
+	mutex_unlock(&event->vif_event_lock);
+	return evt_action == action;
+}
+
+void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
+				  struct brcmf_cfg80211_vif *vif)
+{
+	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
+
+	mutex_lock(&event->vif_event_lock);
+	event->vif = vif;
+	event->action = 0;
+	mutex_unlock(&event->vif_event_lock);
+}
+
+bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg)
+{
+	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
+	bool armed;
+
+	mutex_lock(&event->vif_event_lock);
+	armed = event->vif != NULL;
+	mutex_unlock(&event->vif_event_lock);
+
+	return armed;
+}
+int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
+					  u8 action, ulong timeout)
+{
+	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
+
+	return wait_event_timeout(event->vif_wq,
+				  vif_event_equals(event, action), timeout);
+}
+
+void brcmf_cfg80211_vif_complete(struct brcmf_cfg80211_info *cfg)
+{
+	complete(&cfg->vif_event.vif_complete);
 }

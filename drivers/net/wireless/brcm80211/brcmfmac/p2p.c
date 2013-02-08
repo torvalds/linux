@@ -23,6 +23,7 @@
 #include <dhd.h>
 #include <dhd_dbg.h>
 #include "fwil.h"
+#include "fwil_types.h"
 #include "p2p.h"
 #include "wl_cfg80211.h"
 
@@ -44,6 +45,8 @@
 #define SOCIAL_CHAN_3		11
 #define SOCIAL_CHAN_CNT		3
 #define AF_PEER_SEARCH_CNT	2
+
+#define BRCMF_SCB_TIMEOUT_VALUE	20
 
 /**
  * struct brcmf_p2p_disc_st_le - set discovery state in firmware.
@@ -285,7 +288,7 @@ static s32 brcmf_p2p_init_discovery(struct brcmf_p2p_info *p2p)
 	}
 
 	/* create a vif for it */
-	vif = brcmf_alloc_vif(p2p->cfg, NULL, NL80211_IFTYPE_P2P_DEVICE, false);
+	vif = brcmf_alloc_vif(p2p->cfg, NL80211_IFTYPE_P2P_DEVICE, false);
 	if (IS_ERR(vif)) {
 		brcmf_err("could not create discovery vif\n");
 		kfree(ifp);
@@ -691,6 +694,43 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 	memset(p2p, 0, sizeof(*p2p));
 }
 
+static int brcmf_p2p_request_p2p_if(struct brcmf_if *ifp, u8 ea[ETH_ALEN],
+				    enum brcmf_fil_p2p_if_types iftype)
+{
+	struct brcmf_fil_p2p_if_le if_request;
+	struct brcmf_fil_chan_info_le ci;
+	u16 chanspec = 11 & WL_CHANSPEC_CHAN_MASK;
+	int err;
+
+	/* we need a default channel */
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_CHANNEL, &ci, sizeof(ci));
+	if (!err) {
+		chanspec = le32_to_cpu(ci.hw_channel) & WL_CHANSPEC_CHAN_MASK;
+		if (chanspec < CH_MAX_2G_CHANNEL)
+			chanspec |= WL_CHANSPEC_BAND_2G;
+		else
+			chanspec |= WL_CHANSPEC_BAND_5G;
+	}
+	chanspec |= WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE;
+
+	/* fill the firmware request */
+	memcpy(if_request.addr, ea, ETH_ALEN);
+	if_request.type = iftype;
+	if_request.chspec = cpu_to_le16(chanspec);
+
+	err = brcmf_fil_iovar_data_set(ifp, "p2p_ifadd", &if_request,
+				       sizeof(if_request));
+	if (err)
+		return err;
+
+	if (iftype == BRCMF_FIL_P2P_IF_GO) {
+		/* set station timeout for p2p */
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCB_TIMEOUT,
+					    BRCMF_SCB_TIMEOUT_VALUE);
+	}
+	return err;
+}
+
 /**
  * brcmf_p2p_add_vif() - create a new P2P virtual interface.
  *
@@ -699,16 +739,67 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
  * @type: nl80211 interface type.
  * @flags: TBD
  * @params: TBD
- *
- * TODO: not yet supported.
  */
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 				       enum nl80211_iftype type, u32 *flags,
 				       struct vif_params *params)
 {
-	brcmf_err("enter - not supported yet\n");
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct brcmf_cfg80211_vif *vif;
+	enum brcmf_fil_p2p_if_types iftype;
+	enum wl_mode mode;
+	int err;
+
+	if (brcmf_cfg80211_vif_event_armed(cfg))
+		return ERR_PTR(-EBUSY);
+
 	brcmf_dbg(INFO, "adding vif \"%s\" (type=%d)\n", name, type);
-	return ERR_PTR(-EOPNOTSUPP);
+
+	switch (type) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+		iftype = BRCMF_FIL_P2P_IF_CLIENT;
+		mode = WL_MODE_BSS;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		iftype = BRCMF_FIL_P2P_IF_GO;
+		mode = WL_MODE_AP;
+		break;
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	vif = brcmf_alloc_vif(cfg, type, false);
+	brcmf_cfg80211_arm_vif_event(cfg, vif);
+
+	err = brcmf_p2p_request_p2p_if(ifp, cfg->p2p.int_addr, iftype);
+	if (err)
+		goto fail;
+
+	/* wait for firmware event */
+	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_ADD,
+						    msecs_to_jiffies(1500));
+	brcmf_cfg80211_arm_vif_event(cfg, NULL);
+	if (!err) {
+		brcmf_err("timeout occurred\n");
+		err = -EIO;
+		goto fail;
+	}
+
+	/* interface created in firmware */
+	ifp = vif->ifp;
+	if (!ifp) {
+		brcmf_err("no if pointer provided\n");
+		err = -ENOENT;
+	}
+
+	strncpy(ifp->ndev->name, name, sizeof(ifp->ndev->name) - 1);
+	brcmf_cfg80211_vif_complete(cfg);
+	return &ifp->vif->wdev;
+
+fail:
+	brcmf_free_vif(vif);
+	return ERR_PTR(err);
 }
 
 /**
@@ -721,9 +812,20 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
  */
 int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_cfg80211_vif *vif;
+	int err;
 
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+
+	if (brcmf_cfg80211_vif_event_armed(cfg))
+		return -EBUSY;
+
+	brcmf_cfg80211_arm_vif_event(cfg, vif);
+	/* wait for firmware event */
+	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
+						    msecs_to_jiffies(1500));
+	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (wdev->netdev)
 		brcmf_dbg(INFO, "deleting vif \"%s\"\n", wdev->netdev->name);
 	else
