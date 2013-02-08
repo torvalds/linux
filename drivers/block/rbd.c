@@ -1148,6 +1148,8 @@ struct ceph_osd_req_op *rbd_osd_req_op_create(u16 opcode, ...)
 		if (opcode == CEPH_OSD_OP_WRITE)
 			op->payload_len = op->extent.length;
 		break;
+	case CEPH_OSD_OP_STAT:
+		break;
 	case CEPH_OSD_OP_CALL:
 		/* rbd_osd_req_op_create(CALL, class, method, data, datalen) */
 		op->cls.class_name = va_arg(args, char *);
@@ -1277,6 +1279,16 @@ static void rbd_osd_write_callback(struct rbd_obj_request *obj_request,
 	obj_request_done_set(obj_request);
 }
 
+/*
+ * For a simple stat call there's nothing to do.  We'll do more if
+ * this is part of a write sequence for a layered image.
+ */
+static void rbd_osd_stat_callback(struct rbd_obj_request *obj_request,
+				struct ceph_osd_op *op)
+{
+	obj_request_done_set(obj_request);
+}
+
 static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 				struct ceph_msg *msg)
 {
@@ -1306,6 +1318,9 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 		break;
 	case CEPH_OSD_OP_WRITE:
 		rbd_osd_write_callback(obj_request, op);
+		break;
+	case CEPH_OSD_OP_STAT:
+		rbd_osd_stat_callback(obj_request, op);
 		break;
 	case CEPH_OSD_OP_CALL:
 	case CEPH_OSD_OP_NOTIFY_ACK:

@@ -220,6 +220,8 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 	dst->op = cpu_to_le16(src->op);
 
 	switch (src->op) {
+	case CEPH_OSD_OP_STAT:
+		break;
 	case CEPH_OSD_OP_READ:
 	case CEPH_OSD_OP_WRITE:
 		dst->extent.offset =
@@ -255,7 +257,6 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 		pr_err("unrecognized osd opcode %d\n", dst->op);
 		WARN_ON(1);
 		break;
-	case CEPH_OSD_OP_STAT:
 	case CEPH_OSD_OP_MAPEXT:
 	case CEPH_OSD_OP_MASKTRUNC:
 	case CEPH_OSD_OP_SPARSE_READ:
