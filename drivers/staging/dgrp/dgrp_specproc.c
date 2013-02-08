@@ -81,25 +81,26 @@ static struct dgrp_proc_entry dgrp_mon_table[];
 static struct dgrp_proc_entry dgrp_ports_table[];
 static struct dgrp_proc_entry dgrp_dpa_table[];
 
-static ssize_t config_proc_write(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos);
+static ssize_t dgrp_config_proc_write(struct file *file,
+				      const char __user *buffer,
+				      size_t count, loff_t *pos);
 
-static int nodeinfo_proc_open(struct inode *inode, struct file *file);
-static int info_proc_open(struct inode *inode, struct file *file);
-static int config_proc_open(struct inode *inode, struct file *file);
+static int dgrp_nodeinfo_proc_open(struct inode *inode, struct file *file);
+static int dgrp_info_proc_open(struct inode *inode, struct file *file);
+static int dgrp_config_proc_open(struct inode *inode, struct file *file);
 
 static struct file_operations config_proc_file_ops = {
 	.owner	 = THIS_MODULE,
-	.open	 = config_proc_open,
+	.open	 = dgrp_config_proc_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = seq_release,
-	.write   = config_proc_write
+	.write   = dgrp_config_proc_write,
 };
 
 static struct file_operations info_proc_file_ops = {
 	.owner	 = THIS_MODULE,
-	.open	 = info_proc_open,
+	.open	 = dgrp_info_proc_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = single_release,
@@ -107,7 +108,7 @@ static struct file_operations info_proc_file_ops = {
 
 static struct file_operations nodeinfo_proc_file_ops = {
 	.owner	 = THIS_MODULE,
-	.open	 = nodeinfo_proc_open,
+	.open	 = dgrp_nodeinfo_proc_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = seq_release,
@@ -405,21 +406,21 @@ done:
 	return 0;
 }
 
-static void *config_proc_start(struct seq_file *m, loff_t *pos)
+static void *dgrp_config_proc_start(struct seq_file *m, loff_t *pos)
 {
 	return seq_list_start_head(&nd_struct_list, *pos);
 }
 
-static void *config_proc_next(struct seq_file *p, void *v, loff_t *pos)
+static void *dgrp_config_proc_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	return seq_list_next(v, &nd_struct_list, pos);
 }
 
-static void config_proc_stop(struct seq_file *m, void *v)
+static void dgrp_config_proc_stop(struct seq_file *m, void *v)
 {
 }
 
-static int config_proc_show(struct seq_file *m, void *v)
+static int dgrp_config_proc_show(struct seq_file *m, void *v)
 {
 	struct nd_struct *nd;
 	char tmp_id[4];
@@ -445,13 +446,13 @@ static int config_proc_show(struct seq_file *m, void *v)
 }
 
 static const struct seq_operations proc_config_ops = {
-	.start = config_proc_start,
-	.next  = config_proc_next,
-	.stop  = config_proc_stop,
-	.show  = config_proc_show
+	.start = dgrp_config_proc_start,
+	.next  = dgrp_config_proc_next,
+	.stop  = dgrp_config_proc_stop,
+	.show  = dgrp_config_proc_show,
 };
 
-static int config_proc_open(struct inode *inode, struct file *file)
+static int dgrp_config_proc_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &proc_config_ops);
 }
@@ -462,8 +463,9 @@ static int config_proc_open(struct inode *inode, struct file *file)
  *  write) is treated as an independent request.  See the "parse"
  *  description for more details.
  */
-static ssize_t config_proc_write(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
+static ssize_t dgrp_config_proc_write(struct file *file,
+				      const char __user *buffer,
+				      size_t count, loff_t *pos)
 {
 	ssize_t retval;
 	char *inbuf, *sp;
@@ -627,7 +629,7 @@ static int parse_write_config(char *buf)
 	return retval;
 }
 
-static int info_proc_show(struct seq_file *m, void *v)
+static int dgrp_info_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "version: %s\n", DIGI_VERSION);
 	seq_puts(m, "register_with_sysfs: 1\n");
@@ -637,27 +639,27 @@ static int info_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int info_proc_open(struct inode *inode, struct file *file)
+static int dgrp_info_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, info_proc_show, NULL);
+	return single_open(file, dgrp_info_proc_show, NULL);
 }
 
 
-static void *nodeinfo_start(struct seq_file *m, loff_t *pos)
+static void *dgrp_nodeinfo_start(struct seq_file *m, loff_t *pos)
 {
 	return seq_list_start_head(&nd_struct_list, *pos);
 }
 
-static void *nodeinfo_next(struct seq_file *p, void *v, loff_t *pos)
+static void *dgrp_nodeinfo_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	return seq_list_next(v, &nd_struct_list, pos);
 }
 
-static void nodeinfo_stop(struct seq_file *m, void *v)
+static void dgrp_nodeinfo_stop(struct seq_file *m, void *v)
 {
 }
 
-static int nodeinfo_show(struct seq_file *m, void *v)
+static int dgrp_nodeinfo_show(struct seq_file *m, void *v)
 {
 	struct nd_struct *nd;
 	char hwver[8];
@@ -699,13 +701,13 @@ static int nodeinfo_show(struct seq_file *m, void *v)
 
 
 static const struct seq_operations nodeinfo_ops = {
-	.start = nodeinfo_start,
-	.next  = nodeinfo_next,
-	.stop  = nodeinfo_stop,
-	.show  = nodeinfo_show
+	.start = dgrp_nodeinfo_start,
+	.next  = dgrp_nodeinfo_next,
+	.stop  = dgrp_nodeinfo_stop,
+	.show  = dgrp_nodeinfo_show,
 };
 
-static int nodeinfo_proc_open(struct inode *inode, struct file *file)
+static int dgrp_nodeinfo_proc_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &nodeinfo_ops);
 }
