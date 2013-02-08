@@ -718,24 +718,105 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 	memset(p2p, 0, sizeof(*p2p));
 }
 
-static int brcmf_p2p_request_p2p_if(struct brcmf_if *ifp, u8 ea[ETH_ALEN],
+/**
+ * brcmf_p2p_get_current_chanspec() - Get current operation channel.
+ *
+ * @p2p: P2P specific data.
+ * @chanspec: chanspec to be returned.
+ */
+static void brcmf_p2p_get_current_chanspec(struct brcmf_p2p_info *p2p,
+					   u16 *chanspec)
+{
+	struct brcmf_if *ifp;
+	struct brcmf_fil_chan_info_le ci;
+	s32 err;
+
+	ifp = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+
+	*chanspec = 11 & WL_CHANSPEC_CHAN_MASK;
+
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_CHANNEL, &ci, sizeof(ci));
+	if (!err) {
+		*chanspec = le32_to_cpu(ci.hw_channel) & WL_CHANSPEC_CHAN_MASK;
+		if (*chanspec < CH_MAX_2G_CHANNEL)
+			*chanspec |= WL_CHANSPEC_BAND_2G;
+		else
+			*chanspec |= WL_CHANSPEC_BAND_5G;
+	}
+	*chanspec |= WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE;
+}
+
+/**
+ * Change a P2P Role.
+ * Parameters:
+ * @mac: MAC address of the BSS to change a role
+ * Returns 0 if success.
+ */
+int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,
+		       enum brcmf_fil_p2p_if_types if_type)
+{
+	struct brcmf_p2p_info *p2p = &cfg->p2p;
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_fil_p2p_if_le if_request;
+	s32 err;
+	u16 chanspec;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	if (!vif) {
+		brcmf_err("vif for P2PAPI_BSSCFG_PRIMARY does not exist\n");
+		return -EPERM;
+	}
+	brcmf_notify_escan_complete(cfg, vif->ifp->ndev, true, true);
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif;
+	if (!vif) {
+		brcmf_err("vif for P2PAPI_BSSCFG_CONNECTION does not exist\n");
+		return -EPERM;
+	}
+	brcmf_set_mpc(vif->ifp->ndev, 0);
+
+	/* In concurrency case, STA may be already associated in a particular */
+	/* channel. so retrieve the current channel of primary interface and  */
+	/* then start the virtual interface on that.                          */
+	brcmf_p2p_get_current_chanspec(p2p, &chanspec);
+
+	if_request.type = cpu_to_le16((u16)if_type);
+	if_request.chspec = cpu_to_le16(chanspec);
+	memcpy(if_request.addr, p2p->int_addr, sizeof(if_request.addr));
+
+	brcmf_cfg80211_arm_vif_event(cfg, vif);
+	err = brcmf_fil_iovar_data_set(vif->ifp, "p2p_ifupd", &if_request,
+				       sizeof(if_request));
+	if (err) {
+		brcmf_err("p2p_ifupd FAILED, err=%d\n", err);
+		brcmf_cfg80211_arm_vif_event(cfg, NULL);
+		return err;
+	}
+	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_CHANGE,
+						    msecs_to_jiffies(1500));
+	brcmf_cfg80211_arm_vif_event(cfg, NULL);
+	if (!err)  {
+		brcmf_err("No BRCMF_E_IF_CHANGE event received\n");
+		return -EIO;
+	}
+
+	err = brcmf_fil_cmd_int_set(vif->ifp, BRCMF_C_SET_SCB_TIMEOUT,
+				    BRCMF_SCB_TIMEOUT_VALUE);
+
+	return err;
+}
+
+static int brcmf_p2p_request_p2p_if(struct brcmf_p2p_info *p2p,
+				    struct brcmf_if *ifp, u8 ea[ETH_ALEN],
 				    enum brcmf_fil_p2p_if_types iftype)
 {
 	struct brcmf_fil_p2p_if_le if_request;
-	struct brcmf_fil_chan_info_le ci;
-	u16 chanspec = 11 & WL_CHANSPEC_CHAN_MASK;
 	int err;
+	u16 chanspec;
 
 	/* we need a default channel */
-	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_CHANNEL, &ci, sizeof(ci));
-	if (!err) {
-		chanspec = le32_to_cpu(ci.hw_channel) & WL_CHANSPEC_CHAN_MASK;
-		if (chanspec < CH_MAX_2G_CHANNEL)
-			chanspec |= WL_CHANSPEC_BAND_2G;
-		else
-			chanspec |= WL_CHANSPEC_BAND_5G;
-	}
-	chanspec |= WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE;
+	brcmf_p2p_get_current_chanspec(p2p, &chanspec);
 
 	/* fill the firmware request */
 	memcpy(if_request.addr, ea, ETH_ALEN);
@@ -813,7 +894,8 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 		return (struct wireless_dev *)vif;
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
 
-	err = brcmf_p2p_request_p2p_if(ifp, cfg->p2p.int_addr, iftype);
+	err = brcmf_p2p_request_p2p_if(&cfg->p2p, ifp, cfg->p2p.int_addr,
+				       iftype);
 	if (err) {
 		brcmf_cfg80211_arm_vif_event(cfg, NULL);
 		goto fail;

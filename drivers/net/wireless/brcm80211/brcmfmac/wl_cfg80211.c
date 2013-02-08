@@ -26,6 +26,7 @@
 #include <brcmu_wifi.h>
 #include "dhd.h"
 #include "dhd_dbg.h"
+#include "fwil_types.h"
 #include "p2p.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
@@ -445,7 +446,7 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	}
 }
 
-static void brcmf_set_mpc(struct net_device *ndev, int mpc)
+void brcmf_set_mpc(struct net_device *ndev, int mpc)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
@@ -460,7 +461,7 @@ static void brcmf_set_mpc(struct net_device *ndev, int mpc)
 	}
 }
 
-static s32
+s32
 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 			    struct net_device *ndev,
 			    bool aborted, bool fw_abort)
@@ -567,6 +568,7 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			 enum nl80211_iftype type, u32 *flags,
 			 struct vif_params *params)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_vif *vif = ifp->vif;
 	s32 infra = 0;
@@ -590,6 +592,7 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 		infra = 1;
 		break;
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
 		vif->mode = WL_MODE_AP;
 		ap = 1;
 		break;
@@ -599,8 +602,14 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (ap) {
-		set_bit(BRCMF_VIF_STATUS_AP_CREATING, &vif->sme_state);
-		brcmf_dbg(INFO, "IF Type = AP\n");
+		if (type == NL80211_IFTYPE_P2P_GO) {
+			brcmf_dbg(INFO, "IF Type = P2P GO\n");
+			err = brcmf_p2p_ifchange(cfg, BRCMF_FIL_P2P_IF_GO);
+		}
+		if (!err) {
+			set_bit(BRCMF_VIF_STATUS_AP_CREATING, &vif->sme_state);
+			brcmf_dbg(INFO, "IF Type = AP\n");
+		}
 	} else {
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_INFRA, infra);
 		if (err) {
@@ -4422,7 +4431,6 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		  ifevent->action, ifevent->flags, ifevent->ifidx,
 		  ifevent->bssidx);
 
-
 	mutex_lock(&event->vif_event_lock);
 	event->action = ifevent->action;
 	vif = event->vif;
@@ -4451,6 +4459,11 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		/* event may not be upon user request */
 		if (brcmf_cfg80211_vif_event_armed(cfg))
 			wake_up(&event->vif_wq);
+		return 0;
+
+	case BRCMF_E_IF_CHANGE:
+		mutex_unlock(&event->vif_event_lock);
+		wake_up(&event->vif_wq);
 		return 0;
 
 	default:

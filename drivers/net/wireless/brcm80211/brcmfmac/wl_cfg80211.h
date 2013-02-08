@@ -492,5 +492,9 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
 int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 					  u8 action, ulong timeout);
 void brcmf_cfg80211_vif_complete(struct brcmf_cfg80211_info *info);
+s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
+				struct net_device *ndev,
+				bool aborted, bool fw_abort);
+void brcmf_set_mpc(struct net_device *ndev, int mpc);
 
 #endif				/* _wl_cfg80211_h_ */
