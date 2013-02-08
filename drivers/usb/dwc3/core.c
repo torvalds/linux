@@ -337,12 +337,6 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
-	ret = dwc3_event_buffers_setup(dwc);
-	if (ret) {
-		dev_err(dwc->dev, "failed to setup event buffers\n");
-		goto err0;
-	}
-
 	return 0;
 
 err0:
@@ -351,8 +345,6 @@ err0:
 
 static void dwc3_core_exit(struct dwc3 *dwc)
 {
-	dwc3_event_buffers_cleanup(dwc);
-
 	usb_phy_shutdown(dwc->usb2_phy);
 	usb_phy_shutdown(dwc->usb3_phy);
 }
@@ -480,6 +472,12 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
+	ret = dwc3_event_buffers_setup(dwc);
+	if (ret) {
+		dev_err(dwc->dev, "failed to setup event buffers\n");
+		goto err1;
+	}
+
 	mode = DWC3_MODE(dwc->hwparams.hwparams0);
 
 	switch (mode) {
@@ -488,7 +486,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
 			dev_err(dev, "failed to initialize gadget\n");
-			goto err1;
+			goto err2;
 		}
 		break;
 	case DWC3_MODE_HOST:
@@ -496,7 +494,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = dwc3_host_init(dwc);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
-			goto err1;
+			goto err2;
 		}
 		break;
 	case DWC3_MODE_DRD:
@@ -504,32 +502,32 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = dwc3_host_init(dwc);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
-			goto err1;
+			goto err2;
 		}
 
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
 			dev_err(dev, "failed to initialize gadget\n");
-			goto err1;
+			goto err2;
 		}
 		break;
 	default:
 		dev_err(dev, "Unsupported mode of operation %d\n", mode);
-		goto err1;
+		goto err2;
 	}
 	dwc->mode = mode;
 
 	ret = dwc3_debugfs_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize debugfs\n");
-		goto err2;
+		goto err3;
 	}
 
 	pm_runtime_allow(dev);
 
 	return 0;
 
-err2:
+err3:
 	switch (mode) {
 	case DWC3_MODE_DEVICE:
 		dwc3_gadget_exit(dwc);
@@ -545,6 +543,9 @@ err2:
 		/* do nothing */
 		break;
 	}
+
+err2:
+	dwc3_event_buffers_cleanup(dwc);
 
 err1:
 	dwc3_core_exit(dwc);
@@ -583,6 +584,7 @@ static int dwc3_remove(struct platform_device *pdev)
 		break;
 	}
 
+	dwc3_event_buffers_cleanup(dwc);
 	dwc3_free_event_buffers(dwc);
 	dwc3_core_exit(dwc);
 
