@@ -1305,14 +1305,14 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	}
 
 	if (ha->flags.enable_lip_full_login && !IS_CNA_CAPABLE(ha)) {
+		atomic_set(&vha->loop_state, LOOP_DOWN);
+		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+		qla2x00_mark_all_devices_lost(vha, 0);
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
 			ql_dbg(ql_dbg_taskm, vha, 0x802d,
 			    "full_login_lip=%d.\n", ret);
 		}
-		atomic_set(&vha->loop_state, LOOP_DOWN);
-		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-		qla2x00_mark_all_devices_lost(vha, 0);
 	}
 
 	if (ha->flags.enable_lip_reset) {
