@@ -3924,6 +3924,39 @@ qla2x00_set_driver_version(scsi_qla_host_t *vha, char *version)
 	return rval;
 }
 
+static int
+qla2x00_read_asic_temperature(scsi_qla_host_t *vha, uint16_t *temp)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1159,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_GET_RNID_PARAMS;
+	mcp->mb[1] = RNID_TYPE_ASIC_TEMP << 8;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	*temp = mcp->mb[1];
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x115a,
+		    "Failed=%x mb[0]=%x,%x.\n", rval, mcp->mb[0], mcp->mb[1]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x115b,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
 int
 qla2x00_read_sfp(scsi_qla_host_t *vha, dma_addr_t sfp_dma, uint8_t *sfp,
 	uint16_t dev, uint16_t off, uint16_t len, uint16_t opt)
@@ -4526,42 +4559,45 @@ qla24xx_set_fcp_prio(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t priority,
 }
 
 int
-qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp, uint16_t *frac)
+qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 {
-	int rval;
-	uint8_t byte;
+	int rval = QLA_FUNCTION_FAILED;
 	struct qla_hw_data *ha = vha->hw;
+	uint8_t byte;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10ca,
 	    "Entered %s.\n", __func__);
 
-	/* Integer part */
-	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x01, 1,
-		BIT_13|BIT_12|BIT_0);
-	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c9, "Failed=%x.\n", rval);
-		ha->flags.thermal_supported = 0;
-		goto fail;
-	}
-	*temp = byte;
+	if (ha->thermal_support & THERMAL_SUPPORT_I2C) {
+		rval = qla2x00_read_sfp(vha, 0, &byte,
+		    0x98, 0x1, 1, BIT_13|BIT_12|BIT_0);
+		*temp = byte;
+		if (rval == QLA_SUCCESS)
+			goto done;
 
-	/* Fraction part */
-	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x10, 1,
-		BIT_13|BIT_12|BIT_0);
-	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_mbx, vha, 0x1019, "Failed=%x.\n", rval);
-		ha->flags.thermal_supported = 0;
-		goto fail;
+		ql_log(ql_log_warn, vha, 0x10c9,
+		    "Thermal not supported by I2C.\n");
+		ha->thermal_support &= ~THERMAL_SUPPORT_I2C;
 	}
-	*frac = (byte >> 6) * 25;
 
-	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1018,
-	    "Done %s.\n", __func__);
-	return rval;
-fail:
+	if (ha->thermal_support & THERMAL_SUPPORT_ISP) {
+		rval = qla2x00_read_asic_temperature(vha, temp);
+		if (rval == QLA_SUCCESS)
+			goto done;
+
+		ql_log(ql_log_warn, vha, 0x1019,
+		    "Thermal not supported by ISP.\n");
+		ha->thermal_support &= ~THERMAL_SUPPORT_ISP;
+	}
+
 	ql_log(ql_log_warn, vha, 0x1150,
 	    "Thermal not supported by this card "
 	    "(ignoring further requests).\n");
+	return  rval;
+
+done:
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1018,
+	    "Done %s.\n", __func__);
 	return rval;
 }
 
