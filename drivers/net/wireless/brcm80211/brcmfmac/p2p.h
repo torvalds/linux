@@ -66,7 +66,8 @@ struct p2p_bss {
  * @BRCMF_P2P_STATUS_DISCOVER_LISTEN: P2P listen, remaining on channel.
  */
 enum brcmf_p2p_status {
-	BRCMF_P2P_STATUS_IF_ADD = 0,
+	BRCMF_P2P_STATUS_ENABLED,
+	BRCMF_P2P_STATUS_IF_ADD,
 	BRCMF_P2P_STATUS_IF_DEL,
 	BRCMF_P2P_STATUS_IF_DELETING,
 	BRCMF_P2P_STATUS_IF_CHANGING,
@@ -108,8 +109,7 @@ struct brcmf_p2p_info {
 	struct completion send_af_done;
 };
 
-void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
-		      struct brcmf_cfg80211_vif *vif);
+s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg);
 void brcmf_p2p_detach(struct brcmf_p2p_info *p2p);
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 				       enum nl80211_iftype type, u32 *flags,

@@ -4857,10 +4857,18 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("Failed to init iwm_priv (%d)\n", err);
 		goto cfg80211_attach_out;
 	}
-	brcmf_p2p_attach(cfg, vif);
-
 	ifp->vif = vif;
+
+	err = brcmf_p2p_attach(cfg);
+	if (err) {
+		brcmf_err("P2P initilisation failed (%d)\n", err);
+		goto cfg80211_p2p_attach_out;
+	}
+
 	return cfg;
+
+cfg80211_p2p_attach_out:
+	wl_deinit_priv(cfg);
 
 cfg80211_attach_out:
 	brcmf_free_vif(vif);

@@ -42,6 +42,12 @@ MODULE_LICENSE("Dual BSD/GPL");
 int brcmf_msg_level;
 module_param(brcmf_msg_level, int, 0);
 
+/* P2P0 enable */
+static int brcmf_p2p_enable;
+#ifdef CONFIG_BRCMDBG
+module_param_named(p2pon, brcmf_p2p_enable, int, 0);
+MODULE_PARM_DESC(p2pon, "enable p2p management functionality");
+#endif
 
 char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 {
@@ -593,16 +599,6 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
 
-static const struct net_device_ops brcmf_netdev_ops_virt = {
-	.ndo_open = brcmf_cfg80211_up,
-	.ndo_stop = brcmf_cfg80211_down,
-	.ndo_get_stats = brcmf_netdev_get_stats,
-	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
-	.ndo_start_xmit = brcmf_netdev_start_xmit,
-	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
-	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
-};
-
 int brcmf_net_attach(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -613,10 +609,7 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 	ndev = ifp->ndev;
 
 	/* set appropriate operations */
-	if (!ifp->bssidx)
-		ndev->netdev_ops = &brcmf_netdev_ops_pri;
-	else
-		ndev->netdev_ops = &brcmf_netdev_ops_virt;
+	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
 	ndev->hard_header_len = ETH_HLEN + drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
@@ -626,6 +619,9 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 
 	/* set the mac address */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+
+	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
+	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 
 	if (register_netdev(ndev) != 0) {
 		brcmf_err("couldn't register the net device\n");
@@ -638,6 +634,69 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 
 fail:
 	ndev->netdev_ops = NULL;
+	return -EBADE;
+}
+
+static int brcmf_net_p2p_open(struct net_device *ndev)
+{
+	brcmf_dbg(TRACE, "Enter\n");
+
+	return brcmf_cfg80211_up(ndev);
+}
+
+static int brcmf_net_p2p_stop(struct net_device *ndev)
+{
+	brcmf_dbg(TRACE, "Enter\n");
+
+	return brcmf_cfg80211_down(ndev);
+}
+
+static int brcmf_net_p2p_do_ioctl(struct net_device *ndev,
+				  struct ifreq *ifr, int cmd)
+{
+	brcmf_dbg(TRACE, "Enter\n");
+	return 0;
+}
+
+static netdev_tx_t brcmf_net_p2p_start_xmit(struct sk_buff *skb,
+					    struct net_device *ndev)
+{
+	if (skb)
+		dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
+}
+
+static const struct net_device_ops brcmf_netdev_ops_p2p = {
+	.ndo_open = brcmf_net_p2p_open,
+	.ndo_stop = brcmf_net_p2p_stop,
+	.ndo_do_ioctl = brcmf_net_p2p_do_ioctl,
+	.ndo_start_xmit = brcmf_net_p2p_start_xmit
+};
+
+static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
+{
+	struct net_device *ndev;
+
+	brcmf_dbg(TRACE, "Enter, idx=%d mac=%pM\n", ifp->bssidx,
+		  ifp->mac_addr);
+	ndev = ifp->ndev;
+
+	ndev->netdev_ops = &brcmf_netdev_ops_p2p;
+
+	/* set the mac address */
+	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+
+	if (register_netdev(ndev) != 0) {
+		brcmf_err("couldn't register the p2p net device\n");
+		goto fail;
+	}
+
+	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
+
+	return 0;
+
+fail:
 	return -EBADE;
 }
 
@@ -682,8 +741,6 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	ifp->ifidx = ifidx;
 	ifp->bssidx = bssidx;
 
-	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
-	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 
 	init_waitqueue_head(&ifp->pend_8021x_wait);
 
@@ -717,8 +774,10 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 			netif_stop_queue(ifp->ndev);
 		}
 
-		cancel_work_sync(&ifp->setmacaddr_work);
-		cancel_work_sync(&ifp->multicast_work);
+		if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
+			cancel_work_sync(&ifp->setmacaddr_work);
+			cancel_work_sync(&ifp->multicast_work);
+		}
 
 		unregister_netdev(ifp->ndev);
 		drvr->iflist[bssidx] = NULL;
@@ -776,6 +835,7 @@ int brcmf_bus_start(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_if *ifp;
+	struct brcmf_if *p2p_ifp;
 
 	brcmf_dbg(TRACE, "\n");
 
@@ -790,6 +850,13 @@ int brcmf_bus_start(struct device *dev)
 	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
+
+	if (brcmf_p2p_enable)
+		p2p_ifp = brcmf_add_if(drvr, 1, 0, "p2p%d", NULL);
+	else
+		p2p_ifp = NULL;
+	if (IS_ERR(p2p_ifp))
+		p2p_ifp = NULL;
 
 	/* signal bus ready */
 	bus_if->state = BRCMF_BUS_DATA;
@@ -817,8 +884,14 @@ fail:
 			brcmf_cfg80211_detach(drvr->config);
 		free_netdev(ifp->ndev);
 		drvr->iflist[0] = NULL;
+		if (p2p_ifp) {
+			free_netdev(p2p_ifp->ndev);
+			drvr->iflist[1] = NULL;
+		}
 		return ret;
 	}
+	if ((brcmf_p2p_enable) && (p2p_ifp))
+		brcmf_net_p2p_attach(p2p_ifp);
 
 	return 0;
 }

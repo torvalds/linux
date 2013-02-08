@@ -407,22 +407,21 @@ static void brcmf_p2p_print_actframe(bool tx, void *frame, u32 frame_len)
 /**
  * brcmf_p2p_set_firmware() - prepare firmware for peer-to-peer operation.
  *
- * @p2p: P2P specific data.
+ * @ifp: ifp to use for iovars (primary).
+ * @p2p_mac: mac address to configure for p2p_da_override
  */
-static int brcmf_p2p_set_firmware(struct brcmf_p2p_info *p2p)
+static int brcmf_p2p_set_firmware(struct brcmf_if *ifp, u8 *p2p_mac)
 {
-	struct net_device *ndev = cfg_to_ndev(p2p->cfg);
-	u8 null_eth_addr[] = { 0, 0, 0, 0, 0, 0 };
 	s32 ret = 0;
 
-	brcmf_fil_iovar_int_set(netdev_priv(ndev), "apsta", 1);
+	brcmf_fil_iovar_int_set(ifp, "apsta", 1);
 
 	/* In case of COB type, firmware has default mac address
 	 * After Initializing firmware, we have to set current mac address to
 	 * firmware for P2P device address
 	 */
-	ret = brcmf_fil_iovar_data_set(netdev_priv(ndev), "p2p_da_override",
-				       null_eth_addr, sizeof(null_eth_addr));
+	ret = brcmf_fil_iovar_data_set(ifp, "p2p_da_override", p2p_mac,
+				       ETH_ALEN);
 	if (ret)
 		brcmf_err("failed to update device address ret %d\n", ret);
 
@@ -440,11 +439,15 @@ static int brcmf_p2p_set_firmware(struct brcmf_p2p_info *p2p)
  */
 static void brcmf_p2p_generate_bss_mac(struct brcmf_p2p_info *p2p)
 {
+	struct brcmf_if *pri_ifp = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+	struct brcmf_if *p2p_ifp = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif->ifp;
+
 	/* Generate the P2P Device Address.  This consists of the device's
 	 * primary MAC address with the locally administered bit set.
 	 */
-	memcpy(p2p->dev_addr, p2p->cfg->pub->mac, ETH_ALEN);
+	memcpy(p2p->dev_addr, pri_ifp->mac_addr, ETH_ALEN);
 	p2p->dev_addr[0] |= 0x02;
+	memcpy(p2p_ifp->mac_addr, p2p->dev_addr, ETH_ALEN);
 
 	/* Generate the P2P Interface Address.  If the discovery and connection
 	 * BSSCFGs need to simultaneously co-exist, then this address must be
@@ -503,111 +506,25 @@ static s32 brcmf_p2p_set_discover_state(struct brcmf_if *ifp, u8 state,
 }
 
 /**
- * brcmf_p2p_init_discovery() - enable discovery in the firmware.
- *
- * @p2p: P2P specific data.
- *
- * Configures the firmware to allow P2P peer discovery. Creates the
- * virtual interface and consequently the P2P device for it.
- */
-static s32 brcmf_p2p_init_discovery(struct brcmf_p2p_info *p2p)
-{
-	struct net_device *ndev = cfg_to_ndev(p2p->cfg);
-	struct brcmf_cfg80211_vif *vif;
-	struct brcmf_if *ifp;
-	struct p2p_bss *bss_dev;
-	s32 index;
-	s32 ret;
-
-	brcmf_dbg(TRACE, "enter\n");
-
-	bss_dev = &p2p->bss_idx[P2PAPI_BSSCFG_DEVICE];
-	if (bss_dev->vif != NULL) {
-		brcmf_dbg(INFO, "do nothing, already initialized\n");
-		return 0;
-	}
-
-	/* Enable P2P Discovery in the firmware */
-	ret = brcmf_fil_iovar_int_set(netdev_priv(ndev), "p2p_disc", 1);
-	if (ret < 0) {
-		brcmf_err("set discover error\n");
-		return ret;
-	}
-
-	/* obtain bsscfg index for P2P discovery */
-	ret = brcmf_fil_iovar_int_get(netdev_priv(ndev), "p2p_dev", &index);
-	if (ret < 0) {
-		brcmf_err("retrieving discover bsscfg index failed\n");
-		return ret;
-	}
-
-	/*
-	 * need brcmf_if for setting the discovery state.
-	 */
-	ifp = kzalloc(sizeof(*vif->ifp), GFP_KERNEL);
-	if (!ifp) {
-		brcmf_err("could not create discovery if\n");
-		return -ENOMEM;
-	}
-
-	/* set required fields */
-	ifp->drvr = p2p->cfg->pub;
-	ifp->ifidx = 0;
-	ifp->bssidx = index;
-
-	/* Set the initial discovery state to SCAN */
-	ret = brcmf_p2p_set_discover_state(ifp, WL_P2P_DISC_ST_SCAN, 0, 0);
-
-	if (ret != 0) {
-		brcmf_err("unable to set WL_P2P_DISC_ST_SCAN\n");
-		(void)brcmf_fil_iovar_int_set(netdev_priv(ndev), "p2p_disc", 0);
-		kfree(ifp);
-		return ret;
-	}
-
-	/* create a vif for it */
-	vif = brcmf_alloc_vif(p2p->cfg, NL80211_IFTYPE_P2P_DEVICE, false);
-	if (IS_ERR(vif)) {
-		brcmf_err("could not create discovery vif\n");
-		kfree(ifp);
-		return PTR_ERR(vif);
-	}
-
-	vif->ifp = ifp;
-	ifp->vif = vif;
-	bss_dev->vif = vif;
-
-	return 0;
-}
-
-/**
  * brcmf_p2p_deinit_discovery() - disable P2P device discovery.
  *
  * @p2p: P2P specific data.
  *
- * Resets the discovery state and disables it in firmware. The virtual
- * interface and P2P device are freed.
+ * Resets the discovery state and disables it in firmware.
  */
 static s32 brcmf_p2p_deinit_discovery(struct brcmf_p2p_info *p2p)
 {
-	struct net_device *ndev = cfg_to_ndev(p2p->cfg);
-	struct brcmf_if *ifp;
-	struct p2p_bss *bss_dev;
+	struct brcmf_cfg80211_vif *vif;
+
 	brcmf_dbg(TRACE, "enter\n");
 
-	bss_dev = &p2p->bss_idx[P2PAPI_BSSCFG_DEVICE];
-	ifp = bss_dev->vif->ifp;
-
 	/* Set the discovery state to SCAN */
-	(void)brcmf_p2p_set_discover_state(ifp, WL_P2P_DISC_ST_SCAN, 0, 0);
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	(void)brcmf_p2p_set_discover_state(vif->ifp, WL_P2P_DISC_ST_SCAN, 0, 0);
 
 	/* Disable P2P discovery in the firmware */
-	(void)brcmf_fil_iovar_int_set(netdev_priv(ndev), "p2p_disc", 0);
-
-	/* remove discovery interface */
-	brcmf_free_vif(bss_dev->vif);
-	bss_dev->vif = NULL;
-	kfree(ifp);
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	(void)brcmf_fil_iovar_int_set(vif->ifp, "p2p_disc", 0);
 
 	return 0;
 }
@@ -626,18 +543,30 @@ static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p)
 
 	brcmf_dbg(TRACE, "enter\n");
 	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-	if (vif) {
-		brcmf_dbg(INFO, "DISCOVERY init already done\n");
+	if (!vif) {
+		brcmf_err("P2P config device not available\n");
+		ret = -EPERM;
 		goto exit;
 	}
 
-	ret = brcmf_p2p_init_discovery(p2p);
+	if (test_bit(BRCMF_P2P_STATUS_ENABLED, &p2p->status)) {
+		brcmf_dbg(INFO, "P2P config device already configured\n");
+		goto exit;
+	}
+
+	/* Re-initialize P2P Discovery in the firmware */
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	ret = brcmf_fil_iovar_int_set(vif->ifp, "p2p_disc", 1);
 	if (ret < 0) {
-		brcmf_err("init discovery error %d\n", ret);
+		brcmf_err("set p2p_disc error\n");
 		goto exit;
 	}
-
 	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	ret = brcmf_p2p_set_discover_state(vif->ifp, WL_P2P_DISC_ST_SCAN, 0, 0);
+	if (ret < 0) {
+		brcmf_err("unable to set WL_P2P_DISC_ST_SCAN\n");
+		goto exit;
+	}
 
 	/*
 	 * Set wsec to any non-zero value in the discovery bsscfg
@@ -646,9 +575,12 @@ static int brcmf_p2p_enable_discovery(struct brcmf_p2p_info *p2p)
 	 * initiate WPS with us if this bit is not set.
 	 */
 	ret = brcmf_fil_bsscfg_int_set(vif->ifp, "wsec", AES_ENABLED);
-	if (ret < 0)
+	if (ret < 0) {
 		brcmf_err("wsec error %d\n", ret);
+		goto exit;
+	}
 
+	set_bit(BRCMF_P2P_STATUS_ENABLED, &p2p->status);
 exit:
 	return ret;
 }
@@ -1356,19 +1288,74 @@ exit:
  *
  * @cfg: driver private data for cfg80211 interface.
  */
-void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
-		      struct brcmf_cfg80211_vif *vif)
+s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg)
 {
+	struct brcmf_if *pri_ifp;
+	struct brcmf_if *p2p_ifp;
+	struct brcmf_cfg80211_vif *p2p_vif;
 	struct brcmf_p2p_info *p2p;
+	struct brcmf_pub *drvr;
+	s32 bssidx;
+	s32 err = 0;
 
 	p2p = &cfg->p2p;
-
 	p2p->cfg = cfg;
-	p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = vif;
-	brcmf_p2p_generate_bss_mac(p2p);
-	brcmf_p2p_set_firmware(p2p);
-	init_completion(&p2p->send_af_done);
+
+	drvr = cfg->pub;
+
+	pri_ifp = drvr->iflist[0];
+	p2p_ifp = drvr->iflist[1];
+
+	p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = pri_ifp->vif;
+
+	if (p2p_ifp) {
+		p2p_vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION,
+					  false);
+		if (IS_ERR(p2p_vif)) {
+			brcmf_err("could not create discovery vif\n");
+			err = -ENOMEM;
+			goto exit;
+		}
+
+		p2p_vif->ifp = p2p_ifp;
+		p2p_ifp->vif = p2p_vif;
+		p2p_vif->wdev.netdev = p2p_ifp->ndev;
+		p2p_ifp->ndev->ieee80211_ptr = &p2p_vif->wdev;
+		SET_NETDEV_DEV(p2p_ifp->ndev, wiphy_dev(cfg->wiphy));
+
+		p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = p2p_vif;
+
+		brcmf_p2p_generate_bss_mac(p2p);
+		brcmf_p2p_set_firmware(pri_ifp, p2p->dev_addr);
+
+		/* Initialize P2P Discovery in the firmware */
+		err = brcmf_fil_iovar_int_set(pri_ifp, "p2p_disc", 1);
+		if (err < 0) {
+			brcmf_err("set p2p_disc error\n");
+			brcmf_free_vif(p2p_vif);
+			goto exit;
+		}
+		/* obtain bsscfg index for P2P discovery */
+		err = brcmf_fil_iovar_int_get(pri_ifp, "p2p_dev", &bssidx);
+		if (err < 0) {
+			brcmf_err("retrieving discover bsscfg index failed\n");
+			brcmf_free_vif(p2p_vif);
+			goto exit;
+		}
+		/* Verify that firmware uses same bssidx as driver !! */
+		if (p2p_ifp->bssidx != bssidx) {
+			brcmf_err("Incorrect bssidx=%d, compared to p2p_ifp->bssidx=%d\n",
+				  bssidx, p2p_ifp->bssidx);
+			brcmf_free_vif(p2p_vif);
+			goto exit;
+		}
+
+		init_completion(&p2p->send_af_done);
+	}
+exit:
+	return err;
 }
+
 
 /**
  * brcmf_p2p_detach() - detach P2P.
@@ -1377,10 +1364,15 @@ void brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg,
  */
 void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 {
-	if (p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif != NULL) {
-		brcmf_p2p_cancel_remain_on_channel(
-			p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif->ifp);
+	struct brcmf_cfg80211_vif *vif;
+
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	if (vif != NULL) {
+		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
+		/* remove discovery interface */
+		brcmf_free_vif(vif);
+		p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
 	}
 	/* just set it all to zero */
 	memset(p2p, 0, sizeof(*p2p));
