@@ -1388,9 +1388,7 @@ struct qla_flt_header {
 #define FLT_REG_FCP_PRIO_0	0x87
 #define FLT_REG_FCP_PRIO_1	0x88
 #define FLT_REG_FCOE_FW		0xA4
-#define FLT_REG_FCOE_VPD_0	0xA9
 #define FLT_REG_FCOE_NVRAM_0	0xAA
-#define FLT_REG_FCOE_VPD_1	0xAB
 #define FLT_REG_FCOE_NVRAM_1	0xAC
 
 struct qla_flt_region {
