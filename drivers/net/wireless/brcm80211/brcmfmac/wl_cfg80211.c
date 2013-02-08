@@ -3997,7 +3997,7 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	if (cfg->vif_cnt == BRCMF_IFACE_MAX_CNT)
 		return ERR_PTR(-ENOSPC);
 
-	brcmf_dbg(TRACE, "allocating virtual interface (size=%d)\n",
+	brcmf_dbg(TRACE, "allocating virtual interface (size=%zu)\n",
 		  sizeof(*vif));
 	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
 	if (!vif)
