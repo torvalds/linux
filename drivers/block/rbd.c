@@ -1603,6 +1603,34 @@ static void rbd_img_request_destroy(struct kref *kref)
 	kfree(img_request);
 }
 
+static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
+{
+	struct rbd_img_request *img_request = obj_request->img_request;
+	unsigned int xferred;
+	int result;
+
+	rbd_assert(!img_request_child_test(img_request));
+	rbd_assert(img_request->rq != NULL);
+
+	rbd_assert(obj_request->xferred <= (u64)UINT_MAX);
+	xferred = (unsigned int)obj_request->xferred;
+	result = obj_request->result;
+	if (result) {
+		struct rbd_device *rbd_dev = img_request->rbd_dev;
+
+		rbd_warn(rbd_dev, "%s %llx at %llx (%llx)\n",
+			img_request_write_test(img_request) ? "write" : "read",
+			obj_request->length, obj_request->img_offset,
+			obj_request->offset);
+		rbd_warn(rbd_dev, "  result %d xferred %x\n",
+			result, xferred);
+		if (!img_request->result)
+			img_request->result = result;
+	}
+
+	return blk_end_request(img_request->rq, result, xferred);
+}
+
 static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
@@ -1613,9 +1641,6 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 	rbd_assert(img_request != NULL);
-	rbd_assert(!img_request_child_test(img_request))
-	rbd_assert(img_request->rq != NULL);
-
 	rbd_assert(img_request->obj_request_count > 0);
 	rbd_assert(which != BAD_WHICH);
 	rbd_assert(which < img_request->obj_request_count);
@@ -1626,33 +1651,12 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 		goto out;
 
 	for_each_obj_request_from(img_request, obj_request) {
-		unsigned int xferred;
-		int result;
-
 		rbd_assert(more);
 		rbd_assert(which < img_request->obj_request_count);
 
 		if (!obj_request_done_test(obj_request))
 			break;
-
-		rbd_assert(obj_request->xferred <= (u64)UINT_MAX);
-		xferred = (unsigned int)obj_request->xferred;
-		result = obj_request->result;
-		if (result) {
-			struct rbd_device *rbd_dev = img_request->rbd_dev;
-
-			rbd_warn(rbd_dev, "%s %llx at %llx (%llx)\n",
-				img_request_write_test(img_request) ? "write"
-								    : "read",
-				obj_request->length, obj_request->img_offset,
-				obj_request->offset);
-			rbd_warn(rbd_dev, "  result %d xferred %x\n",
-				result, xferred);
-			if (!img_request->result)
-				img_request->result = result;
-		}
-
-		more = blk_end_request(img_request->rq, result, xferred);
+		more = rbd_img_obj_end_request(obj_request);
 		which++;
 	}
 
