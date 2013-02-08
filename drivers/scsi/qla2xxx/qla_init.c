@@ -3368,8 +3368,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 	int		first_dev, last_dev;
 	port_id_t	wrap = {}, nxt_d_id;
 	struct qla_hw_data *ha = vha->hw;
-	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
-	struct scsi_qla_host *tvp;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	rval = QLA_SUCCESS;
 
@@ -3482,22 +3481,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			continue;
 
 		/* Bypass virtual ports of the same host. */
-		found = 0;
-		if (ha->num_vhosts) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&ha->vport_slock, flags);
-			list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
-				if (new_fcport->d_id.b24 == vp->d_id.b24) {
-					found = 1;
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-			if (found)
-				continue;
-		}
+		if (qla2x00_is_a_vp_did(vha, new_fcport->d_id.b24))
+			continue;
 
 		/* Bypass if same domain and area of adapter. */
 		if (((new_fcport->d_id.b24 & 0xffff00) ==
