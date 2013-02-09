@@ -141,11 +141,22 @@ static unsigned long reserved_start;
 static unsigned long reserved_max;
 
 #ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-void __init sunxi_mali_core_fixup(struct tag *t, char **cmdline,
+void __init sunxi_mali_core_fixup(struct tag *tags, char **cmdline,
 				  struct meminfo *mi)
 {
+	struct tag *t;
 	u32 bank = 0;
-	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
+
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag != ATAG_CMDLINE)
+			continue;
+		if (strstr(t->u.cmdline.cmdline, "sunxi_no_mali_mem_reserve"))
+			return;
+	}
+
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag != ATAG_MEM)
+			continue;
 		if (bank) {
 			mi->nr_banks++;
 			mi->bank[bank].start = t->u.mem.start;
