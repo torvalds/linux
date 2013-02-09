@@ -951,16 +951,17 @@ static int igb_request_msix(struct igb_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
-	int i, err = 0, vector = 0;
+	int i, err = 0, vector = 0, free_vector = 0;
 
 	err = request_irq(adapter->msix_entries[vector].vector,
 	                  igb_msix_other, 0, netdev->name, adapter);
 	if (err)
-		goto out;
-	vector++;
+		goto err_out;
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		struct igb_q_vector *q_vector = adapter->q_vector[i];
+
+		vector++;
 
 		q_vector->itr_register = hw->hw_addr + E1000_EITR(vector);
 
@@ -980,13 +981,22 @@ static int igb_request_msix(struct igb_adapter *adapter)
 		                  igb_msix_ring, 0, q_vector->name,
 		                  q_vector);
 		if (err)
-			goto out;
-		vector++;
+			goto err_free;
 	}
 
 	igb_configure_msix(adapter);
 	return 0;
-out:
+
+err_free:
+	/* free already assigned IRQs */
+	free_irq(adapter->msix_entries[free_vector++].vector, adapter);
+
+	vector--;
+	for (i = 0; i < vector; i++) {
+		free_irq(adapter->msix_entries[free_vector++].vector,
+			 adapter->q_vector[i]);
+	}
+err_out:
 	return err;
 }
 

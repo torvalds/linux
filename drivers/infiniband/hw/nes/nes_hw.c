@@ -75,7 +75,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 static void process_critical_error(struct nes_device *nesdev);
 static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
-static void nes_terminate_timeout(unsigned long context);
 static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
@@ -3522,7 +3521,7 @@ static void nes_terminate_received(struct nes_device *nesdev,
 }
 
 /* Timeout routine in case terminate fails to complete */
-static void nes_terminate_timeout(unsigned long context)
+void nes_terminate_timeout(unsigned long context)
 {
 	struct nes_qp *nesqp = (struct nes_qp *)(unsigned long)context;
 
@@ -3532,11 +3531,7 @@ static void nes_terminate_timeout(unsigned long context)
 /* Set a timer in case hw cannot complete the terminate sequence */
 static void nes_terminate_start_timer(struct nes_qp *nesqp)
 {
-	init_timer(&nesqp->terminate_timer);
-	nesqp->terminate_timer.function = nes_terminate_timeout;
-	nesqp->terminate_timer.expires = jiffies + HZ;
-	nesqp->terminate_timer.data = (unsigned long)nesqp;
-	add_timer(&nesqp->terminate_timer);
+	mod_timer(&nesqp->terminate_timer, (jiffies + HZ));
 }
 
 /**

@@ -1533,8 +1533,12 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				 * crtc virtual pixel clock.
 				 */
 				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
-					if (ASIC_IS_DCE5(rdev) || rdev->clock.dp_extclk)
+					if (rdev->clock.dp_extclk)
 						return ATOM_PPLL_INVALID;
+					else if (ASIC_IS_DCE6(rdev))
+						return ATOM_PPLL0;
+					else if (ASIC_IS_DCE5(rdev))
+						return ATOM_DCPLL;
 				}
 			}
 		}

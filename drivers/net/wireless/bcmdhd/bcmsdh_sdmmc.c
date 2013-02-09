@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 347640 2012-07-27 11:53:21Z $
+ * $Id: bcmsdh_sdmmc.c 379078 2013-01-16 00:41:36Z $
  */
 #include <typedefs.h>
 
@@ -62,12 +62,13 @@ extern int sdio_reset_comm(struct mmc_card *card);
 
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
 
-uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
-#if defined(SDIO_F2_BLKSIZE)
-uint sd_f2_blocksize = SDIO_F2_BLKSIZE;
-#else
-uint sd_f2_blocksize = 512;		/* Default blocksize */
+#define DEFAULT_SDIO_F2_BLKSIZE		512
+#ifndef CUSTOM_SDIO_F2_BLKSIZE
+#define CUSTOM_SDIO_F2_BLKSIZE		DEFAULT_SDIO_F2_BLKSIZE
 #endif
+
+uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
+uint sd_f2_blocksize = CUSTOM_SDIO_F2_BLKSIZE;
 uint sd_divisor = 2;			/* Default 48MHz/2 = 24MHz */
 
 uint sd_power = 1;		/* Default to SD Slot powered ON */
@@ -81,6 +82,7 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 #define DMA_ALIGN_MASK	0x03
+#define MMC_SDIO_ABORT_RETRY_LIMIT 5
 
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr, int regsize, uint32 *data);
 
@@ -248,9 +250,9 @@ sdioh_enable_func_intr(void)
 			return SDIOH_API_RC_FAIL;
 		}
 
-		/* Enable F1 and F2 interrupts, set master enable */
-		reg |= (INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN | INTR_CTL_MASTER_EN);
-
+		/* Enable F1 and F2 interrupts, clear master enable */
+		reg &= ~INTR_CTL_MASTER_EN;
+		reg |= (INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN);
 		sdio_writeb(gInstance->func[0], reg, SDIOD_CCCR_INTEN, &err);
 		sdio_release_host(gInstance->func[0]);
 
@@ -778,7 +780,9 @@ extern SDIOH_API_RC
 sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *byte)
 {
 	int err_ret;
-
+#if defined(MMC_SDIO_ABORT)
+	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
 
 	DHD_PM_RESUME_WAIT(sdioh_request_byte_wait);
@@ -812,16 +816,20 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 #if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
 			else if (regaddr == SDIOD_CCCR_IOABORT) {
-				if (gInstance->func[func]) {
-					sdio_claim_host(gInstance->func[func]);
-					/*
-					* this sdio_f0_writeb() can be replaced with another api
-					* depending upon MMC driver change.
-					* As of this time, this is temporaray one
-					*/
-					sdio_writeb(gInstance->func[func],
-						*byte, regaddr, &err_ret);
-					sdio_release_host(gInstance->func[func]);
+				while (sdio_abort_retry--) {
+					if (gInstance->func[func]) {
+						sdio_claim_host(gInstance->func[func]);
+						/*
+						* this sdio_f0_writeb() can be replaced with
+						* another api depending upon MMC driver change.
+						* As of this time, this is temporaray one
+						*/
+						sdio_writeb(gInstance->func[func],
+							*byte, regaddr, &err_ret);
+						sdio_release_host(gInstance->func[func]);
+					}
+					if (!err_ret)
+						break;
 				}
 			}
 #endif /* MMC_SDIO_ABORT */
@@ -870,6 +878,9 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
                                    uint32 *word, uint nbytes)
 {
 	int err_ret = SDIOH_API_RC_FAIL;
+#if defined(MMC_SDIO_ABORT)
+	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 
 	if (func == 0) {
 		sd_err(("%s: Only CMD52 allowed to F0.\n", __FUNCTION__));
@@ -884,7 +895,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
 
-	if(rw) { /* CMD52 Write */
+	if(rw) { /* CMD53 Write */
 		if (nbytes == 4) {
 			sdio_writel(gInstance->func[func], *word, addr, &err_ret);
 		} else if (nbytes == 2) {
@@ -906,8 +917,29 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	sdio_release_host(gInstance->func[func]);
 
 	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to %s word, Err: 0x%08x",
+#if defined(MMC_SDIO_ABORT)
+		/* Any error on CMD53 transaction should abort that function using function 0. */
+		while (sdio_abort_retry--) {
+			if (gInstance->func[0]) {
+				sdio_claim_host(gInstance->func[0]);
+				/*
+				* this sdio_f0_writeb() can be replaced with another api
+				* depending upon MMC driver change.
+				* As of this time, this is temporaray one
+				*/
+				sdio_writeb(gInstance->func[0],
+					func, SDIOD_CCCR_IOABORT, &err_ret);
+				sdio_release_host(gInstance->func[0]);
+			}
+			if (!err_ret)
+				break;
+		}
+		if (err_ret)
+#endif /* MMC_SDIO_ABORT */
+		{
+		sd_err(("bcmsdh_sdmmc: Failed to %s word, Err: 0x%08x\n",
 		                        rw ? "Write" : "Read", err_ret));
+		}
 	}
 
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
@@ -923,6 +955,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	void *pnext, *pprev;
 	uint ttl_len, dma_len, lft_len, xfred_len, pkt_len;
 	uint blk_num;
+	int blk_size;
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
@@ -938,12 +971,13 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext))
 		ttl_len += PKTLEN(sd->osh, pnext);
 
-	if (!sd->use_rxchain || ttl_len <= sd->client_block_size[func]) {
+	blk_size = sd->client_block_size[func];
+	if (!sd->use_rxchain || ttl_len <= blk_size) {
 		blk_num = 0;
 		dma_len = 0;
 	} else {
-		blk_num = ttl_len / sd->client_block_size[func];
-		dma_len = blk_num * sd->client_block_size[func];
+		blk_num = ttl_len / blk_size;
+		dma_len = blk_num * blk_size;
 	}
 	lft_len = ttl_len - dma_len;
 
@@ -984,7 +1018,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 		mmc_dat.sg = sd->sg_list;
 		mmc_dat.sg_len = SGCount;
-		mmc_dat.blksz = sd->client_block_size[func];
+		mmc_dat.blksz = blk_size;
 		mmc_dat.blocks = blk_num;
 		mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
 
@@ -1040,8 +1074,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 			 */
 			if (write == 0 || pkt_len < 32)
 				pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
-			else if (pkt_len % DHD_SDALIGN)
-				pkt_len += DHD_SDALIGN - (pkt_len % DHD_SDALIGN);
+			else if (pkt_len % blk_size)
+				pkt_len += blk_size - (pkt_len % blk_size);
 
 #ifdef CONFIG_MMC_MSM7X00A
 			if ((pkt_len % 64) == 32) {

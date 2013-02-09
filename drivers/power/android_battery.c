@@ -201,28 +201,39 @@ static void android_bat_get_temp(struct android_bat_data *battery)
 	if (battery->pdata->get_temperature)
 		battery->pdata->get_temperature(&batt_temp);
 
-	if (batt_temp >= battery->pdata->temp_high_threshold) {
-		if (health != POWER_SUPPLY_HEALTH_OVERHEAT &&
+	if (battery->charge_source != CHARGE_SOURCE_NONE) {
+		if (batt_temp >= battery->pdata->temp_high_threshold) {
+			if (health != POWER_SUPPLY_HEALTH_OVERHEAT &&
 				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
-			pr_info("battery overheat (%d>=%d), charging unavailable\n",
-				batt_temp, battery->pdata->temp_high_threshold);
-			battery->batt_health = POWER_SUPPLY_HEALTH_OVERHEAT;
-		}
-	} else if (batt_temp <= battery->pdata->temp_high_recovery &&
+				pr_info("battery overheat (%d>=%d), " \
+					"charging unavailable\n",
+					batt_temp,
+					battery->pdata->temp_high_threshold);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_OVERHEAT;
+			}
+		} else if (batt_temp <= battery->pdata->temp_high_recovery &&
 			batt_temp >= battery->pdata->temp_low_recovery) {
-		if (health == POWER_SUPPLY_HEALTH_OVERHEAT ||
+			if (health == POWER_SUPPLY_HEALTH_OVERHEAT ||
 				health == POWER_SUPPLY_HEALTH_COLD) {
-			pr_info("battery recovery (%d,%d~%d), charging available\n",
-				batt_temp, battery->pdata->temp_low_recovery,
-				battery->pdata->temp_high_recovery);
-			battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
-		}
-	} else if (batt_temp <= battery->pdata->temp_low_threshold) {
-		if (health != POWER_SUPPLY_HEALTH_COLD &&
+				pr_info("battery recovery (%d,%d~%d),"	\
+					"charging available\n",
+					batt_temp,
+					battery->pdata->temp_low_recovery,
+					battery->pdata->temp_high_recovery);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_GOOD;
+			}
+		} else if (batt_temp <= battery->pdata->temp_low_threshold) {
+			if (health != POWER_SUPPLY_HEALTH_COLD &&
 				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
-			pr_info("battery cold (%d <= %d), charging unavailable\n",
-				batt_temp, battery->pdata->temp_low_threshold);
-			battery->batt_health = POWER_SUPPLY_HEALTH_COLD;
+				pr_info("battery cold (%d <= %d),"	\
+					"charging unavailable\n",
+					batt_temp,
+					battery->pdata->temp_low_threshold);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_COLD;
+			}
 		}
 	}
 
@@ -401,15 +412,24 @@ static void android_bat_charger_work(struct work_struct *work)
 	case CHARGE_SOURCE_AC:
 		/*
 		 * If charging status indicates a charger was already
-		 * connected prior to this and a non-charging status is
-		 * set, leave the status alone.
+		 * connected prior to this and the status is something
+		 * other than charging ("full" or "not-charging"), leave
+		 * the status alone.
 		 */
 		if (battery->charging_status ==
 		    POWER_SUPPLY_STATUS_DISCHARGING ||
-		    battery->charging_status == POWER_SUPPLY_STATUS_UNKNOWN) {
+		    battery->charging_status == POWER_SUPPLY_STATUS_UNKNOWN)
 			battery->charging_status = POWER_SUPPLY_STATUS_CHARGING;
+
+		/*
+		 * Don't re-enable charging if the battery is full and we
+		 * are not actively re-charging it, or if "not-charging"
+		 * status is set.
+		 */
+		if (!((battery->charging_status == POWER_SUPPLY_STATUS_FULL
+		       && !battery->recharging) || battery->charging_status ==
+		      POWER_SUPPLY_STATUS_NOT_CHARGING))
 			android_bat_enable_charging(battery, true);
-		}
 
 		break;
 	default:
@@ -627,7 +647,7 @@ static __devinit int android_bat_probe(struct platform_device *pdev)
 	}
 
 	battery->monitor_wqueue =
-		create_singlethread_workqueue(dev_name(&pdev->dev));
+		alloc_workqueue(dev_name(&pdev->dev), WQ_FREEZABLE, 1);
 	if (!battery->monitor_wqueue) {
 		dev_err(battery->dev, "%s: fail to create workqueue\n",
 				__func__);

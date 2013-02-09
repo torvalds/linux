@@ -20,7 +20,7 @@
 #include "../kernel/entry-header.S"
 
 ENTRY(do_vfp)
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
 	add	r11, r4, #1		@ increment it
 	str	r11, [r10, #TI_PREEMPT]
@@ -34,7 +34,7 @@ ENTRY(do_vfp)
 ENDPROC(do_vfp)
 
 ENTRY(vfp_null_entry)
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	get_thread_info	r10
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
 	sub	r11, r4, #1		@ decrement it
@@ -52,7 +52,7 @@ ENDPROC(vfp_null_entry)
 
 	__INIT
 ENTRY(vfp_testing_entry)
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	get_thread_info	r10
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
 	sub	r11, r4, #1		@ decrement it

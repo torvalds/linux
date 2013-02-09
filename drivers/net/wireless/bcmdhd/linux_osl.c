@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 355147 2012-09-05 15:03:49Z $
+ * $Id: linux_osl.c 373382 2012-12-07 07:59:52Z $
  */
 
 #define LINUX_PORT
@@ -35,17 +35,13 @@
 #include <linux/delay.h>
 #include <pcicfg.h>
 
-#ifdef BCMASSERT_LOG
-#include <bcm_assert_log.h>
-#endif
-
 
 #include <linux/fs.h>
 
 #define PCI_CFG_RETRY 		10
 
-#define OS_HANDLE_MAGIC		0x1234abcd	
-#define BCM_MEM_FILENAME_LEN 	24		
+#define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognize osh */
+#define BCM_MEM_FILENAME_LEN 	24		/* Mem. filename length */
 
 #ifdef CONFIG_DHD_USE_STATIC_BUF
 #define DHD_SKB_HDRSIZE 		336
@@ -1013,19 +1009,17 @@ osl_assert(const char *exp, const char *file, int line)
 	const char *basename;
 
 	basename = strrchr(file, '/');
-	
+	/* skip the '/' */
 	if (basename)
 		basename++;
 
 	if (!basename)
 		basename = file;
 
-#ifdef BCMASSERT_LOG
 	snprintf(tempbuf, 64, "\"%s\": file \"%s\", line %d\n",
 		exp, basename, line);
 
-	bcm_assert_log(tempbuf);
-#endif 
+	printk("%s", tempbuf);
 
 
 }

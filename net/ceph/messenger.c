@@ -506,6 +506,7 @@ static void reset_connection(struct ceph_connection *con)
 {
 	/* reset connection, out_queue, msg_ and connect_seq */
 	/* discard existing out_queue and msg_seq */
+	dout("reset_connection %p\n", con);
 	ceph_msg_remove_list(&con->out_queue);
 	ceph_msg_remove_list(&con->out_sent);
 
@@ -561,7 +562,7 @@ void ceph_con_open(struct ceph_connection *con,
 	mutex_lock(&con->mutex);
 	dout("con_open %p %s\n", con, ceph_pr_addr(&addr->in_addr));
 
-	BUG_ON(con->state != CON_STATE_CLOSED);
+	WARN_ON(con->state != CON_STATE_CLOSED);
 	con->state = CON_STATE_PREOPEN;
 
 	con->peer_name.type = (__u8) entity_type;
@@ -1502,13 +1503,6 @@ static int process_banner(struct ceph_connection *con)
 	return 0;
 }
 
-static void fail_protocol(struct ceph_connection *con)
-{
-	reset_connection(con);
-	BUG_ON(con->state != CON_STATE_NEGOTIATING);
-	con->state = CON_STATE_CLOSED;
-}
-
 static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = con->msgr->supported_features;
@@ -1526,7 +1520,7 @@ static int process_connect(struct ceph_connection *con)
 		       ceph_pr_addr(&con->peer_addr.in_addr),
 		       sup_feat, server_feat, server_feat & ~sup_feat);
 		con->error_msg = "missing required protocol features";
-		fail_protocol(con);
+		reset_connection(con);
 		return -1;
 
 	case CEPH_MSGR_TAG_BADPROTOVER:
@@ -1537,7 +1531,7 @@ static int process_connect(struct ceph_connection *con)
 		       le32_to_cpu(con->out_connect.protocol_version),
 		       le32_to_cpu(con->in_reply.protocol_version));
 		con->error_msg = "protocol version mismatch";
-		fail_protocol(con);
+		reset_connection(con);
 		return -1;
 
 	case CEPH_MSGR_TAG_BADAUTHORIZER:
@@ -1627,11 +1621,11 @@ static int process_connect(struct ceph_connection *con)
 			       ceph_pr_addr(&con->peer_addr.in_addr),
 			       req_feat, server_feat, req_feat & ~server_feat);
 			con->error_msg = "missing required protocol features";
-			fail_protocol(con);
+			reset_connection(con);
 			return -1;
 		}
 
-		BUG_ON(con->state != CON_STATE_NEGOTIATING);
+		WARN_ON(con->state != CON_STATE_NEGOTIATING);
 		con->state = CON_STATE_OPEN;
 
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
@@ -2128,7 +2122,6 @@ more:
 		if (ret < 0)
 			goto out;
 
-		BUG_ON(con->state != CON_STATE_CONNECTING);
 		con->state = CON_STATE_NEGOTIATING;
 
 		/*
@@ -2156,7 +2149,7 @@ more:
 		goto more;
 	}
 
-	BUG_ON(con->state != CON_STATE_OPEN);
+	WARN_ON(con->state != CON_STATE_OPEN);
 
 	if (con->in_base_pos < 0) {
 		/*
@@ -2258,6 +2251,35 @@ static void queue_con(struct ceph_connection *con)
 	}
 }
 
+static bool con_sock_closed(struct ceph_connection *con)
+{
+	if (!test_and_clear_bit(CON_FLAG_SOCK_CLOSED, &con->flags))
+		return false;
+
+#define CASE(x)								\
+	case CON_STATE_ ## x:						\
+		con->error_msg = "socket closed (con state " #x ")";	\
+		break;
+
+	switch (con->state) {
+	CASE(CLOSED);
+	CASE(PREOPEN);
+	CASE(CONNECTING);
+	CASE(NEGOTIATING);
+	CASE(OPEN);
+	CASE(STANDBY);
+	default:
+		pr_warning("%s con %p unrecognized state %lu\n",
+			__func__, con, con->state);
+		con->error_msg = "unrecognized con state";
+		BUG();
+		break;
+	}
+#undef CASE
+
+	return true;
+}
+
 /*
  * Do some work on a connection.  Drop a connection ref when we're done.
  */
@@ -2269,24 +2291,8 @@ static void con_work(struct work_struct *work)
 
 	mutex_lock(&con->mutex);
 restart:
-	if (test_and_clear_bit(CON_FLAG_SOCK_CLOSED, &con->flags)) {
-		switch (con->state) {
-		case CON_STATE_CONNECTING:
-			con->error_msg = "connection failed";
-			break;
-		case CON_STATE_NEGOTIATING:
-			con->error_msg = "negotiation failed";
-			break;
-		case CON_STATE_OPEN:
-			con->error_msg = "socket closed";
-			break;
-		default:
-			dout("unrecognized con state %d\n", (int)con->state);
-			con->error_msg = "unrecognized con state";
-			BUG();
-		}
+	if (con_sock_closed(con))
 		goto fault;
-	}
 
 	if (test_and_clear_bit(CON_FLAG_BACKOFF, &con->flags)) {
 		dout("con_work %p backing off\n", con);
@@ -2352,12 +2358,12 @@ fault:
 static void ceph_fault(struct ceph_connection *con)
 	__releases(con->mutex)
 {
-	pr_err("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
+	pr_warning("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
 	       ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
 
-	BUG_ON(con->state != CON_STATE_CONNECTING &&
+	WARN_ON(con->state != CON_STATE_CONNECTING &&
 	       con->state != CON_STATE_NEGOTIATING &&
 	       con->state != CON_STATE_OPEN);
 
