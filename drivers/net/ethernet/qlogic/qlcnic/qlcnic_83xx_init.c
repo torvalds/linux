@@ -585,6 +585,9 @@ static int qlcnic_83xx_idc_check_fan_failure(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 {
+	/* register for NIC IDC AEN Events */
+	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+
 	qlcnic_83xx_enable_mbx_intrpt(adapter);
 	if ((adapter->flags & QLCNIC_MSIX_ENABLED)) {
 		if (qlcnic_83xx_config_intrpt(adapter, 1)) {
@@ -2025,6 +2028,9 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter)
 	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
 	qlcnic_83xx_clear_function_resources(adapter);
 
+	/* register for NIC IDC AEN Events */
+	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+
 	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
 		qlcnic_83xx_read_flash_mfg_id(adapter);
 
@@ -2040,9 +2046,6 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter)
 		return -EIO;
 
 	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
-
-	/* register for NIC IDC AEN Events */
-	qlcnic_83xx_register_nic_idc_func(adapter, 1);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);

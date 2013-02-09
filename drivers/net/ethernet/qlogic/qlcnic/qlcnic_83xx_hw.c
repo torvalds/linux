@@ -1239,10 +1239,10 @@ void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *adapter,
 
 	if (enable) {
 		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INIT_NIC_FUNC);
-		cmd.req.arg[1] = 1 | BIT_0;
+		cmd.req.arg[1] = BIT_0 | BIT_31;
 	} else {
 		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_STOP_NIC_FUNC);
-		cmd.req.arg[1] = 0 | BIT_0;
+		cmd.req.arg[1] = BIT_0 | BIT_31;
 	}
 	status = qlcnic_issue_cmd(adapter, &cmd);
 	if (status)
