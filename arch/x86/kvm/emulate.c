@@ -480,6 +480,15 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	ON64(FOP1E(op##q, rax))	\
 	FOP_END
 
+/* 1-operand, using src2 (for MUL/DIV r/m) */
+#define FASTOP1SRC2(op, name) \
+	FOP_START(name) \
+	FOP1E(op, cl) \
+	FOP1E(op, cx) \
+	FOP1E(op, ecx) \
+	ON64(FOP1E(op, rcx)) \
+	FOP_END
+
 #define FOP2E(op,  dst, src)	   \
 	FOP_ALIGN #op " %" #src ", %" #dst " \n\t" FOP_RET
 
@@ -995,6 +1004,9 @@ FASTOP2(sub);
 FASTOP2(xor);
 FASTOP2(cmp);
 FASTOP2(test);
+
+FASTOP1SRC2(mul, mul_ex);
+FASTOP1SRC2(imul, imul_ex);
 
 FASTOP3WCL(shld);
 FASTOP3WCL(shrd);
@@ -2116,22 +2128,6 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->_eip = 0;
 	memcpy(&ctxt->_eip, ctxt->src.valptr, ctxt->op_bytes);
-	return X86EMUL_CONTINUE;
-}
-
-static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
-{
-	u8 ex = 0;
-
-	emulate_1op_rax_rdx(ctxt, "mul", ex);
-	return X86EMUL_CONTINUE;
-}
-
-static int em_imul_ex(struct x86_emulate_ctxt *ctxt)
-{
-	u8 ex = 0;
-
-	emulate_1op_rax_rdx(ctxt, "imul", ex);
 	return X86EMUL_CONTINUE;
 }
 
@@ -3736,8 +3732,8 @@ static const struct opcode group3[] = {
 	F(DstMem | SrcImm | NoWrite, em_test),
 	F(DstMem | SrcNone | Lock, em_not),
 	F(DstMem | SrcNone | Lock, em_neg),
-	I(DstXacc | Src2Mem, em_mul_ex),
-	I(DstXacc | Src2Mem, em_imul_ex),
+	F(DstXacc | Src2Mem, em_mul_ex),
+	F(DstXacc | Src2Mem, em_imul_ex),
 	I(DstXacc | Src2Mem, em_div_ex),
 	I(DstXacc | Src2Mem, em_idiv_ex),
 };
@@ -4572,7 +4568,8 @@ static void fetch_possible_mmx_operand(struct x86_emulate_ctxt *ctxt,
 static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 {
 	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
-	fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
+	if (!(ctxt->d & ByteOp))
+		fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
 	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
 	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags)
 	: "c"(ctxt->src2.val), [fastop]"S"(fop));
