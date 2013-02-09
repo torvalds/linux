@@ -20,7 +20,6 @@
 #ifndef __KERNEL__
 #include "jfs_compat.h"
 #define JBD2_DEBUG
-#define jfs_debug jbd_debug
 #else
 
 #include <linux/types.h>
@@ -57,7 +56,7 @@
  * CONFIG_JBD2_DEBUG is on.
  */
 #define JBD2_EXPENSIVE_CHECKING
-extern u8 jbd2_journal_enable_debug;
+extern ushort jbd2_journal_enable_debug;
 
 #define jbd_debug(n, f, a...)						\
 	do {								\
