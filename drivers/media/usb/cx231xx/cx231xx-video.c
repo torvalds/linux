@@ -1356,10 +1356,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	if (f->tuner)
 		return -EINVAL;
 
-	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->ctl_freq;
-
-	call_all(dev, tuner, g_frequency, f);
 
 	return 0;
 }
@@ -1383,16 +1380,12 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (0 != f->tuner)
 		return -EINVAL;
 
-	if (unlikely(0 == fh->radio && f->type != V4L2_TUNER_ANALOG_TV))
-		return -EINVAL;
-	if (unlikely(1 == fh->radio && f->type != V4L2_TUNER_RADIO))
-		return -EINVAL;
-
 	/* set pre channel change settings in DIF first */
 	rc = cx231xx_tuner_pre_channel_change(dev);
 
-	dev->ctl_freq = f->frequency;
 	call_all(dev, tuner, s_frequency, f);
+	call_all(dev, tuner, g_frequency, f);
+	dev->ctl_freq = f->frequency;
 
 	/* set post channel change settings in DIF first */
 	rc = cx231xx_tuner_post_channel_change(dev);
