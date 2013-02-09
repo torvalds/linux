@@ -110,6 +110,22 @@
 #define EXT4_MAXQUOTAS_INIT_BLOCKS(sb) (MAXQUOTAS*EXT4_QUOTA_INIT_BLOCKS(sb))
 #define EXT4_MAXQUOTAS_DEL_BLOCKS(sb) (MAXQUOTAS*EXT4_QUOTA_DEL_BLOCKS(sb))
 
+/*
+ * Ext4 handle operation types -- for logging purposes
+ */
+#define EXT4_HT_MISC             0
+#define EXT4_HT_INODE            1
+#define EXT4_HT_WRITE_PAGE       2
+#define EXT4_HT_MAP_BLOCKS       3
+#define EXT4_HT_DIR              4
+#define EXT4_HT_TRUNCATE         5
+#define EXT4_HT_QUOTA            6
+#define EXT4_HT_RESIZE           7
+#define EXT4_HT_MIGRATE          8
+#define EXT4_HT_MOVE_EXTENTS     9
+#define EXT4_HT_XATTR           10
+#define EXT4_HT_MAX             11
+
 /**
  *   struct ext4_journal_cb_entry - Base structure for callback information.
  *
@@ -234,7 +250,8 @@ int __ext4_handle_dirty_super(const char *where, unsigned int line,
 #define ext4_handle_dirty_super(handle, sb) \
 	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb))
 
-handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
+handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
+				  int type, int nblocks);
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);
 
 #define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
@@ -268,9 +285,17 @@ static inline int ext4_handle_has_enough_credits(handle_t *handle, int needed)
 	return 1;
 }
 
-static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)
+#define ext4_journal_start_sb(sb, type, nblocks)			\
+	__ext4_journal_start_sb((sb), __LINE__, (type), (nblocks))
+
+#define ext4_journal_start(inode, type, nblocks)			\
+	__ext4_journal_start((inode), __LINE__, (type), (nblocks))
+
+static inline handle_t *__ext4_journal_start(struct inode *inode,
+					     unsigned int line, int type,
+					     int nblocks)
 {
-	return ext4_journal_start_sb(inode->i_sb, nblocks);
+	return __ext4_journal_start_sb(inode->i_sb, line, type, nblocks);
 }
 
 #define ext4_journal_stop(handle) \

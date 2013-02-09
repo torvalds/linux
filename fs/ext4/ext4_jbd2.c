@@ -38,7 +38,8 @@ static void ext4_put_nojournal(handle_t *handle)
 /*
  * Wrappers for jbd2_journal_start/end.
  */
-handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
+handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
+				  int type, int nblocks)
 {
 	journal_t *journal;
 
@@ -59,7 +60,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 		ext4_abort(sb, "Detected aborted journal");
 		return ERR_PTR(-EROFS);
 	}
-	return jbd2_journal_start(journal, nblocks);
+	return jbd2__journal_start(journal, nblocks, GFP_NOFS, type, line);
 }
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)

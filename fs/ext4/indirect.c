@@ -791,7 +791,7 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 
 		if (final_size > inode->i_size) {
 			/* Credits for sb + inode write */
-			handle = ext4_journal_start(inode, 2);
+			handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
 			if (IS_ERR(handle)) {
 				ret = PTR_ERR(handle);
 				goto out;
@@ -851,7 +851,7 @@ locked:
 		int err;
 
 		/* Credits for sb + inode write */
-		handle = ext4_journal_start(inode, 2);
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
 		if (IS_ERR(handle)) {
 			/* This is really bad luck. We've written the data
 			 * but cannot extend i_size. Bail out and pretend
@@ -950,7 +950,8 @@ static handle_t *start_transaction(struct inode *inode)
 {
 	handle_t *result;
 
-	result = ext4_journal_start(inode, ext4_blocks_for_truncate(inode));
+	result = ext4_journal_start(inode, EXT4_HT_TRUNCATE,
+				    ext4_blocks_for_truncate(inode));
 	if (!IS_ERR(result))
 		return result;
 

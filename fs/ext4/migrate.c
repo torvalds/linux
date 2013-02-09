@@ -456,7 +456,7 @@ int ext4_ext_migrate(struct inode *inode)
 		 */
 		return retval;
 
-	handle = ext4_journal_start(inode,
+	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE,
 					EXT4_DATA_TRANS_BLOCKS(inode->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
 					EXT4_MAXQUOTAS_INIT_BLOCKS(inode->i_sb)
@@ -507,7 +507,7 @@ int ext4_ext_migrate(struct inode *inode)
 	ext4_set_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	up_read((&EXT4_I(inode)->i_data_sem));
 
-	handle = ext4_journal_start(inode, 1);
+	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
 	if (IS_ERR(handle)) {
 		/*
 		 * It is impossible to update on-disk structures without

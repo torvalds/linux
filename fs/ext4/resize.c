@@ -466,7 +466,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 	meta_bg = EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG);
 
 	/* This transaction may be extended/restarted along the way */
-	handle = ext4_journal_start_sb(sb, EXT4_MAX_TRANS_DATA);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, EXT4_MAX_TRANS_DATA);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1031,7 +1031,7 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 	handle_t *handle;
 	int err = 0, err2;
 
-	handle = ext4_journal_start_sb(sb, EXT4_MAX_TRANS_DATA);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, EXT4_MAX_TRANS_DATA);
 	if (IS_ERR(handle)) {
 		group = 1;
 		err = PTR_ERR(handle);
@@ -1412,7 +1412,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 	 * modify each of the reserved GDT dindirect blocks.
 	 */
 	credit = flex_gd->count * 4 + reserved_gdb;
-	handle = ext4_journal_start_sb(sb, credit);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, credit);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		goto exit;
@@ -1624,7 +1624,7 @@ static int ext4_group_extend_no_check(struct super_block *sb,
 	/* We will update the superblock, one block bitmap, and
 	 * one group descriptor via ext4_group_add_blocks().
 	 */
-	handle = ext4_journal_start_sb(sb, 3);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, 3);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		ext4_warning(sb, "error %d on journal start", err);
@@ -1788,7 +1788,7 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 		credits += 3;	/* block bitmap, bg descriptor, resize inode */
 	}
 
-	handle = ext4_journal_start_sb(sb, credits);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 

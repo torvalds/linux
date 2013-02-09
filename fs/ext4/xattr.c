@@ -1175,7 +1175,7 @@ retry:
 	if (ext4_has_inline_data(inode))
 		credits += ext4_writepage_trans_blocks(inode) + 1;
 
-	handle = ext4_journal_start(inode, credits);
+	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
 	} else {

@@ -104,7 +104,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		} else if (oldflags & EXT4_EOFBLOCKS_FL)
 			ext4_truncate(inode);
 
-		handle = ext4_journal_start(inode, 1);
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
 			goto flags_out;
@@ -173,7 +173,7 @@ flags_out:
 		}
 
 		mutex_lock(&inode->i_mutex);
-		handle = ext4_journal_start(inode, 1);
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
 			goto unlock_out;

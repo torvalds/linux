@@ -2262,9 +2262,10 @@ static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	dquot_initialize(dir);
 
 retry:
-	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+		(EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
+		 EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
+		 EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb)));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2298,9 +2299,10 @@ static int ext4_mknod(struct inode *dir, struct dentry *dentry,
 	dquot_initialize(dir);
 
 retry:
-	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+		(EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
+		 EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
+		 EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb)));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2414,9 +2416,10 @@ static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	dquot_initialize(dir);
 
 retry:
-	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+		(EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
+		 EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
+		 EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb)));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2729,7 +2732,8 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	dquot_initialize(dir);
 	dquot_initialize(dentry->d_inode);
 
-	handle = ext4_journal_start(dir, EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2791,7 +2795,8 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	dquot_initialize(dir);
 	dquot_initialize(dentry->d_inode);
 
-	handle = ext4_journal_start(dir, EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2870,7 +2875,7 @@ static int ext4_symlink(struct inode *dir,
 			  EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb);
 	}
 retry:
-	handle = ext4_journal_start(dir, credits);
+	handle = ext4_journal_start(dir, EXT4_HT_DIR, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2908,7 +2913,7 @@ retry:
 		 * Now inode is being linked into dir (EXT4_DATA_TRANS_BLOCKS
 		 * + EXT4_INDEX_EXTRA_TRANS_BLOCKS), inode is also modified
 		 */
-		handle = ext4_journal_start(dir,
+		handle = ext4_journal_start(dir, EXT4_HT_DIR,
 				EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 				EXT4_INDEX_EXTRA_TRANS_BLOCKS + 1);
 		if (IS_ERR(handle)) {
@@ -2955,8 +2960,9 @@ static int ext4_link(struct dentry *old_dentry,
 	dquot_initialize(dir);
 
 retry:
-	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-					EXT4_INDEX_EXTRA_TRANS_BLOCKS);
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+		(EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
+		 EXT4_INDEX_EXTRA_TRANS_BLOCKS));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -3039,9 +3045,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * in separate transaction */
 	if (new_dentry->d_inode)
 		dquot_initialize(new_dentry->d_inode);
-	handle = ext4_journal_start(old_dir, 2 *
-					EXT4_DATA_TRANS_BLOCKS(old_dir->i_sb) +
-					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 2);
+	handle = ext4_journal_start(old_dir, EXT4_HT_DIR,
+		(2 * EXT4_DATA_TRANS_BLOCKS(old_dir->i_sb) +
+		 EXT4_INDEX_EXTRA_TRANS_BLOCKS + 2));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 

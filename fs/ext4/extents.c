@@ -2656,7 +2656,7 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
 	ext_debug("truncate since %u to %u\n", start, end);
 
 	/* probably first extent we're gonna free will be last in block */
-	handle = ext4_journal_start(inode, depth + 1);
+	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, depth + 1);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -4287,7 +4287,7 @@ void ext4_ext_truncate(struct inode *inode)
 	 * probably first extent we're gonna free will be last in block
 	 */
 	err = ext4_writepage_trans_blocks(inode);
-	handle = ext4_journal_start(inode, err);
+	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, err);
 	if (IS_ERR(handle))
 		return;
 
@@ -4454,7 +4454,8 @@ retry:
 	while (ret >= 0 && ret < max_blocks) {
 		map.m_lblk = map.m_lblk + ret;
 		map.m_len = max_blocks = max_blocks - ret;
-		handle = ext4_journal_start(inode, credits);
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
+					    credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			break;
@@ -4532,7 +4533,7 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 	while (ret >= 0 && ret < max_blocks) {
 		map.m_lblk += ret;
 		map.m_len = (max_blocks -= ret);
-		handle = ext4_journal_start(inode, credits);
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			break;
@@ -4710,7 +4711,7 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 	inode_dio_wait(inode);
 
 	credits = ext4_writepage_trans_blocks(inode);
-	handle = ext4_journal_start(inode, credits);
+	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, credits);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		goto out_dio;
