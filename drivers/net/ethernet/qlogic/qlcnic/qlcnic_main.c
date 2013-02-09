@@ -455,12 +455,13 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 
 			if (num_msix) {
 				dev_info(&pdev->dev,
-					 "Trying %d MSI-X interrupt vectors\n",
+					 "Trying to allocate %d MSI-X interrupt vectors\n",
 					 num_msix);
 				goto enable_msix;
 			}
 		} else {
-			dev_info(&pdev->dev, "Failed to get %d vectors\n",
+			dev_info(&pdev->dev,
+				 "Unable to allocate %d MSI-X interrupt vectors\n",
 				 num_msix);
 		}
 	}
