@@ -2725,25 +2725,17 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode;
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de;
-	handle_t *handle;
+	handle_t *handle = NULL;
 
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
 	dquot_initialize(dir);
 	dquot_initialize(dentry->d_inode);
 
-	handle = ext4_journal_start(dir, EXT4_HT_DIR,
-				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
-
 	retval = -ENOENT;
 	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
 	if (!bh)
 		goto end_rmdir;
-
-	if (IS_DIRSYNC(dir))
-		ext4_handle_sync(handle);
 
 	inode = dentry->d_inode;
 
@@ -2754,6 +2746,17 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	retval = -ENOTEMPTY;
 	if (!empty_dir(inode))
 		goto end_rmdir;
+
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
+	if (IS_ERR(handle)) {
+		retval = PTR_ERR(handle);
+		handle = NULL;
+		goto end_rmdir;
+	}
+
+	if (IS_DIRSYNC(dir))
+		ext4_handle_sync(handle);
 
 	retval = ext4_delete_entry(handle, dir, de, bh);
 	if (retval)
@@ -2776,8 +2779,9 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	ext4_mark_inode_dirty(handle, dir);
 
 end_rmdir:
-	ext4_journal_stop(handle);
 	brelse(bh);
+	if (handle)
+		ext4_journal_stop(handle);
 	return retval;
 }
 
