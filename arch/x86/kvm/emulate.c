@@ -183,6 +183,7 @@
  * src:    rdx        (in/out)
  * src2:   rcx        (in)
  * flags:  rflags     (in/out)
+ * ex:     rsi        (in:fastop pointer, out:zero if exception)
  *
  * Moreover, they are all exactly FASTOP_SIZE bytes long, so functions for
  * different operand sizes can be reached by calculation, rather than a jump
@@ -470,7 +471,10 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 #define FOPNOP() FOP_ALIGN FOP_RET
 
 #define FOP1E(op,  dst) \
-	FOP_ALIGN #op " %" #dst " \n\t" FOP_RET
+	FOP_ALIGN "10: " #op " %" #dst " \n\t" FOP_RET
+
+#define FOP1EEX(op,  dst) \
+	FOP1E(op, dst) _ASM_EXTABLE(10b, kvm_fastop_exception)
 
 #define FASTOP1(op) \
 	FOP_START(op) \
@@ -487,6 +491,15 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	FOP1E(op, cx) \
 	FOP1E(op, ecx) \
 	ON64(FOP1E(op, rcx)) \
+	FOP_END
+
+/* 1-operand, using src2 (for MUL/DIV r/m), with exceptions */
+#define FASTOP1SRC2EX(op, name) \
+	FOP_START(name) \
+	FOP1EEX(op, cl) \
+	FOP1EEX(op, cx) \
+	FOP1EEX(op, ecx) \
+	ON64(FOP1EEX(op, rcx)) \
 	FOP_END
 
 #define FOP2E(op,  dst, src)	   \
@@ -532,6 +545,9 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 
 /* Special case for SETcc - 1 instruction per cc */
 #define FOP_SETCC(op) ".align 4; " #op " %al; ret \n\t"
+
+asm(".global kvm_fastop_exception \n"
+    "kvm_fastop_exception: xor %esi, %esi; ret");
 
 FOP_START(setcc)
 FOP_SETCC(seto)
@@ -1007,6 +1023,8 @@ FASTOP2(test);
 
 FASTOP1SRC2(mul, mul_ex);
 FASTOP1SRC2(imul, imul_ex);
+FASTOP1SRC2EX(div, div_ex);
+FASTOP1SRC2EX(idiv, idiv_ex);
 
 FASTOP3WCL(shld);
 FASTOP3WCL(shrd);
@@ -2128,26 +2146,6 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->_eip = 0;
 	memcpy(&ctxt->_eip, ctxt->src.valptr, ctxt->op_bytes);
-	return X86EMUL_CONTINUE;
-}
-
-static int em_div_ex(struct x86_emulate_ctxt *ctxt)
-{
-	u8 de = 0;
-
-	emulate_1op_rax_rdx(ctxt, "div", de);
-	if (de)
-		return emulate_de(ctxt);
-	return X86EMUL_CONTINUE;
-}
-
-static int em_idiv_ex(struct x86_emulate_ctxt *ctxt)
-{
-	u8 de = 0;
-
-	emulate_1op_rax_rdx(ctxt, "idiv", de);
-	if (de)
-		return emulate_de(ctxt);
 	return X86EMUL_CONTINUE;
 }
 
@@ -3734,8 +3732,8 @@ static const struct opcode group3[] = {
 	F(DstMem | SrcNone | Lock, em_neg),
 	F(DstXacc | Src2Mem, em_mul_ex),
 	F(DstXacc | Src2Mem, em_imul_ex),
-	I(DstXacc | Src2Mem, em_div_ex),
-	I(DstXacc | Src2Mem, em_idiv_ex),
+	F(DstXacc | Src2Mem, em_div_ex),
+	F(DstXacc | Src2Mem, em_idiv_ex),
 };
 
 static const struct opcode group4[] = {
@@ -4571,9 +4569,12 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 	if (!(ctxt->d & ByteOp))
 		fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
 	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
-	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags)
-	: "c"(ctxt->src2.val), [fastop]"S"(fop));
+	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags),
+	      [fastop]"+S"(fop)
+	    : "c"(ctxt->src2.val));
 	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);
+	if (!fop) /* exception is returned in fop variable */
+		return emulate_de(ctxt);
 	return X86EMUL_CONTINUE;
 }
 
