@@ -428,6 +428,7 @@ int qlcnic_83xx_test_link(struct qlcnic_adapter *);
 int qlcnic_83xx_reg_test(struct qlcnic_adapter *);
 int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *);
 int qlcnic_83xx_get_registers(struct qlcnic_adapter *, u32 *);
+int qlcnic_83xx_loopback_test(struct net_device *, u8);
 int qlcnic_83xx_interrupt_test(struct qlcnic_adapter *,
 			       struct qlcnic_cmd_args *);
 int qlcnic_83xx_flash_test(struct qlcnic_adapter *);

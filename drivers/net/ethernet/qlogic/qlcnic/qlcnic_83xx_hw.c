@@ -257,8 +257,6 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.config_intr_coal		= qlcnic_83xx_config_intr_coal,
 	.config_rss			= qlcnic_83xx_config_rss,
 	.config_hw_lro			= qlcnic_83xx_config_hw_lro,
-	.config_loopback		= qlcnic_83xx_set_lb_mode,
-	.clear_loopback			= qlcnic_83xx_clear_lb_mode,
 	.config_promisc_mode		= qlcnic_83xx_nic_set_promisc,
 	.change_l2_filter		= qlcnic_83xx_change_l2_filter,
 	.get_board_info			= qlcnic_83xx_get_port_info,
@@ -1118,6 +1116,100 @@ out:
 	return err;
 }
 
+static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_host_sds_ring *sds_ring;
+	struct qlcnic_host_rds_ring *rds_ring;
+	u8 ring;
+	int ret;
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev))
+		__qlcnic_down(adapter, netdev);
+
+	qlcnic_detach(adapter);
+
+	adapter->max_sds_rings = 1;
+	adapter->ahw->diag_test = test;
+	adapter->ahw->linkup = 0;
+
+	ret = qlcnic_attach(adapter);
+	if (ret) {
+		netif_device_attach(netdev);
+		return ret;
+	}
+
+	ret = qlcnic_fw_create_ctx(adapter);
+	if (ret) {
+		qlcnic_detach(adapter);
+		netif_device_attach(netdev);
+		return ret;
+	}
+
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &adapter->recv_ctx->rds_rings[ring];
+		qlcnic_post_rx_buffers(adapter, rds_ring, ring);
+	}
+
+	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
+		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			sds_ring = &adapter->recv_ctx->sds_rings[ring];
+			qlcnic_83xx_enable_intr(adapter, sds_ring);
+		}
+	}
+
+	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
+		/* disable and free mailbox interrupt */
+		qlcnic_83xx_free_mbx_intr(adapter);
+		adapter->ahw->loopback_state = 0;
+		adapter->ahw->hw_ops->setup_link_event(adapter, 1);
+	}
+
+	set_bit(__QLCNIC_DEV_UP, &adapter->state);
+	return 0;
+}
+
+static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
+					int max_sds_rings)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_host_sds_ring *sds_ring;
+	int ring, err;
+
+	clear_bit(__QLCNIC_DEV_UP, &adapter->state);
+	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
+		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			sds_ring = &adapter->recv_ctx->sds_rings[ring];
+			writel(1, sds_ring->crb_intr_mask);
+		}
+	}
+
+	qlcnic_fw_destroy_ctx(adapter);
+	qlcnic_detach(adapter);
+
+	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
+		err = qlcnic_83xx_setup_mbx_intr(adapter);
+		if (err) {
+			dev_err(&adapter->pdev->dev,
+				"%s: failed to setup mbx interrupt\n",
+				__func__);
+			goto out;
+		}
+	}
+	adapter->ahw->diag_test = 0;
+	adapter->max_sds_rings = max_sds_rings;
+
+	if (qlcnic_attach(adapter))
+		goto out;
+
+	if (netif_running(netdev))
+		__qlcnic_up(adapter, netdev);
+out:
+	netif_device_attach(netdev);
+}
+
 int qlcnic_83xx_config_led(struct qlcnic_adapter *adapter, u32 state,
 			   u32 beacon)
 {
@@ -1263,6 +1355,57 @@ int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 	qlcnic_free_mbx_args(&cmd);
 
 	return err;
+}
+
+int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int ret = 0, loop = 0, max_sds_rings = adapter->max_sds_rings;
+
+	QLCDB(adapter, DRV, "%s loopback test in progress\n",
+	      mode == QLCNIC_ILB_MODE ? "internal" : "external");
+	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		dev_warn(&adapter->pdev->dev,
+			 "Loopback test not supported for non privilege function\n");
+		return ret;
+	}
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EBUSY;
+
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
+	if (ret)
+		goto fail_diag_alloc;
+
+	ret = qlcnic_83xx_set_lb_mode(adapter, mode);
+	if (ret)
+		goto free_diag_res;
+
+	/* Poll for link up event before running traffic */
+	do {
+		msleep(500);
+		qlcnic_83xx_process_aen(adapter);
+		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
+			dev_info(&adapter->pdev->dev,
+				 "Firmware didn't sent link up event to loopback request\n");
+			ret = -QLCNIC_FW_NOT_RESPOND;
+			qlcnic_83xx_clear_lb_mode(adapter, mode);
+			goto free_diag_res;
+		}
+	} while ((adapter->ahw->linkup && ahw->has_link_events) != 1);
+
+	ret = qlcnic_do_lb_test(adapter, mode);
+
+	qlcnic_83xx_clear_lb_mode(adapter, mode);
+
+free_diag_res:
+	qlcnic_83xx_diag_free_res(netdev, max_sds_rings);
+
+fail_diag_alloc:
+	adapter->max_sds_rings = max_sds_rings;
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return ret;
 }
 
 int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)

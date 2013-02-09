@@ -1503,10 +1503,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			if (qlcnic_83xx_check(adapter))
-				writel(1, sds_ring->crb_intr_mask);
-			else
-				qlcnic_disable_int(sds_ring);
+			qlcnic_disable_int(sds_ring);
 		}
 	}
 
@@ -1599,10 +1596,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			if (qlcnic_82xx_check(adapter))
-				qlcnic_enable_int(sds_ring);
-			else
-				qlcnic_83xx_enable_intr(adapter, sds_ring);
+			qlcnic_enable_int(sds_ring);
 		}
 	}
 
