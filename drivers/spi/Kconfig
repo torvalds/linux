@@ -297,9 +297,20 @@ config SPI_PPC4xx
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
 
+config SPI_PXA2XX_PXADMA
+	bool "PXA2xx SSP legacy PXA DMA API support"
+	depends on SPI_PXA2XX && ARCH_PXA
+	help
+	  Enable PXA private legacy DMA API support. Note that this is
+	  deprecated in favor of generic DMA engine API.
+
+config SPI_PXA2XX_DMA
+	def_bool y
+	depends on SPI_PXA2XX && !SPI_PXA2XX_PXADMA
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA || PCI
+	depends on ARCH_PXA || PCI || ACPI
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
