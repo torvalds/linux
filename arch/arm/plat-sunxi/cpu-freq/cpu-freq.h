@@ -40,8 +40,12 @@
 #endif
 
 
+/* Absolute minimum and maximum */
 #define SUN4I_CPUFREQ_MAX       (1008000000)    /* config the maximum frequency of sun4i core */
 #define SUN4I_CPUFREQ_MIN       (60000000)      /* config the minimum frequency of sun4i core */
+/* Defaults limits for the scaling governor */
+#define SUN4I_SCALING_MIN	(CONFIG_SUNXI_SCALING_MIN * 1000000)
+#define SUN4I_SCALING_MAX	(1008000000)
 #define SUN4I_FREQTRANS_LATENCY (2000000)       /* config the transition latency, based on ns */
 
 struct sun4i_clk_div_t {
