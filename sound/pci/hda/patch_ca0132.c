@@ -783,7 +783,7 @@ static int chipio_send(struct hda_codec *codec,
 		       unsigned int data)
 {
 	unsigned int res;
-	int retry = 50;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	/* send bits of data specified by reg */
 	do {
@@ -791,7 +791,9 @@ static int chipio_send(struct hda_codec *codec,
 					 reg, data);
 		if (res == VENDOR_STATUS_CHIPIO_OK)
 			return 0;
-	} while (--retry);
+		msleep(20);
+	} while (time_before(jiffies, timeout));
+
 	return -EIO;
 }
 
@@ -1057,14 +1059,15 @@ static int dspio_send(struct hda_codec *codec, unsigned int reg,
 		      unsigned int data)
 {
 	int res;
-	int retry = 50;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	/* send bits of data specified by reg to dsp */
 	do {
 		res = snd_hda_codec_read(codec, WIDGET_DSP_CTRL, 0, reg, data);
 		if ((res >= 0) && (res != VENDOR_STATUS_DSPIO_BUSY))
 			return res;
-	} while (--retry);
+		msleep(20);
+	} while (time_before(jiffies, timeout));
 
 	return -EIO;
 }
@@ -1296,7 +1299,6 @@ static int dspio_send_scp_message(struct hda_codec *codec,
 				  unsigned int *bytes_returned)
 {
 	struct ca0132_spec *spec = codec->spec;
-	int retry;
 	int status = -1;
 	unsigned int scp_send_size = 0;
 	unsigned int total_size;
@@ -1343,13 +1345,13 @@ static int dspio_send_scp_message(struct hda_codec *codec,
 	}
 
 	if (waiting_for_resp) {
+		unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 		memset(return_buf, 0, return_buf_size);
-		retry = 50;
 		do {
 			msleep(20);
-		} while (spec->wait_scp && (--retry != 0));
+		} while (spec->wait_scp && time_before(jiffies, timeout));
 		waiting_for_resp = false;
-		if (retry != 0) {
+		if (!spec->wait_scp) {
 			ret_msg = (struct scp_msg *)return_buf;
 			memcpy(&ret_msg->hdr, &spec->scp_resp_header, 4);
 			memcpy(&ret_msg->data, spec->scp_resp_data,
@@ -2242,7 +2244,8 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 	u32 chip_addx_remainder;
 	unsigned int run_size_words;
 	const struct dsp_image_seg *hci_write = NULL;
-	int retry;
+	unsigned long timeout;
+	bool dma_active;
 
 	if (fls == NULL)
 		return -EINVAL;
@@ -2360,11 +2363,17 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 			status = dspxfr_hci_write(codec, hci_write);
 			hci_write = NULL;
 		}
-		retry = 5000;
-		while (dsp_is_dma_active(codec, dma_chan)) {
-			if (--retry <= 0)
+
+		timeout = jiffies + msecs_to_jiffies(2000);
+		do {
+			dma_active = dsp_is_dma_active(codec, dma_chan);
+			if (!dma_active)
 				break;
-		}
+			msleep(20);
+		} while (time_before(jiffies, timeout));
+		if (dma_active)
+			break;
+
 		snd_printdd(KERN_INFO "+++++ DMA complete");
 		dma_set_state(dma_engine, DMA_STATE_STOP);
 		dma_reset(dma_engine);
@@ -2616,15 +2625,15 @@ static bool dspload_is_loaded(struct hda_codec *codec)
 
 static bool dspload_wait_loaded(struct hda_codec *codec)
 {
-	int retry = 100;
+	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
 
 	do {
-		msleep(20);
 		if (dspload_is_loaded(codec)) {
 			pr_info("ca0132 DOWNLOAD OK :-) DSP IS RUNNING.\n");
 			return true;
 		}
-	} while (--retry);
+		msleep(20);
+	} while (time_before(jiffies, timeout));
 
 	pr_err("ca0132 DOWNLOAD FAILED!!! DSP IS NOT RUNNING.\n");
 	return false;
