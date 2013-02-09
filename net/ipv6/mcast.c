@@ -661,6 +661,10 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	struct net_device *dev = mc->idev->dev;
 	char buf[MAX_ADDR_LEN];
 
+	if (IPV6_ADDR_MC_SCOPE(&mc->mca_addr) <
+	    IPV6_ADDR_SCOPE_LINKLOCAL)
+		return;
+
 	spin_lock_bh(&mc->mca_lock);
 	if (!(mc->mca_flags&MAF_LOADED)) {
 		mc->mca_flags |= MAF_LOADED;
@@ -686,6 +690,10 @@ static void igmp6_group_dropped(struct ifmcaddr6 *mc)
 {
 	struct net_device *dev = mc->idev->dev;
 	char buf[MAX_ADDR_LEN];
+
+	if (IPV6_ADDR_MC_SCOPE(&mc->mca_addr) <
+	    IPV6_ADDR_SCOPE_LINKLOCAL)
+		return;
 
 	spin_lock_bh(&mc->mca_lock);
 	if (mc->mca_flags&MAF_LOADED) {
