@@ -170,6 +170,12 @@ parser_disp_init_para(__disp_init_t *init_para)
 		return -1;
 	}
 	init_para->b_init = value;
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (init_para->b_init && fb_size == 0) {
+		pr_warn("0 bytes reserved for fb mem, disabling display\n");
+		init_para->b_init = 0;
+	}
+#endif
 
 	if (script_parser_fetch("disp_init", "disp_mode", &value, 1) < 0) {
 		__wrn("fetch script data disp_init.disp_mode fail\n");
@@ -483,6 +489,8 @@ static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 	}
 #else
 	g_fbi.malloc_screen_base[fb_id] = disp_malloc(info->fix.smem_len);
+	if (g_fbi.malloc_screen_base[fb_id] == NULL)
+		return -ENOMEM;
 	info->fix.smem_start = (unsigned long)
 					__pa(g_fbi.malloc_screen_base[fb_id]);
 	info->screen_base = ioremap_wc(info->fix.smem_start,

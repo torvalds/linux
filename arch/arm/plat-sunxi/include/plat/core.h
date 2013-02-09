@@ -18,7 +18,7 @@
 #define _SUNXI_CORE_H
 
 #define pr_reserve_info(L, START, SIZE) \
-	pr_info("\t" L " : 0x%08x - 0x%08x  (%4d %s)\n", \
+	pr_info("\t%s : 0x%08x - 0x%08x  (%4d %s)\n", L, \
 		(u32)(START), (u32)((START) + (SIZE) - 1), \
 		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
 		(SIZE) < SZ_1M ? "kB" : "MB")
