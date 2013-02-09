@@ -95,7 +95,7 @@ static u32 dn_neigh_hash(const void *pkey,
 
 struct neigh_table dn_neigh_table = {
 	.family =			PF_DECnet,
-	.entry_size =			sizeof(struct dn_neigh),
+	.entry_size =			NEIGH_ENTRY_SIZE(sizeof(struct dn_neigh)),
 	.key_len =			sizeof(__le16),
 	.hash =				dn_neigh_hash,
 	.constructor =			dn_neigh_construct,
