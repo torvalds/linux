@@ -50,6 +50,7 @@
  *	document number TBD : Panther Point
  *	document number TBD : Lynx Point
  *	document number TBD : Lynx Point-LP
+ *	document number TBD : Wellsburg
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -205,6 +206,7 @@ enum lpc_chipsets {
 	LPC_PPT,	/* Panther Point */
 	LPC_LPT,	/* Lynx Point */
 	LPC_LPT_LP,	/* Lynx Point-LP */
+	LPC_WBG,	/* Wellsburg */
 };
 
 struct lpc_ich_info lpc_chipset_info[] = {
@@ -485,6 +487,10 @@ struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Lynx Point_LP",
 		.iTCO_version = 2,
 	},
+	[LPC_WBG] = {
+		.name = "Wellsburg",
+		.iTCO_version = 2,
+	},
 };
 
 /*
@@ -666,6 +672,38 @@ static DEFINE_PCI_DEVICE_TABLE(lpc_ich_ids) = {
 	{ PCI_VDEVICE(INTEL, 0x9c45), LPC_LPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9c46), LPC_LPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9c47), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x8d40), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d41), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d42), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d43), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d44), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d45), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d46), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d47), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d48), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d49), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4a), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4b), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4c), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4d), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4e), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d4f), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d50), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d51), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d52), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d53), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d54), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d55), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d56), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d57), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d58), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d59), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5a), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5b), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5c), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5d), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5e), LPC_WBG},
+	{ PCI_VDEVICE(INTEL, 0x8d5f), LPC_WBG},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
