@@ -61,6 +61,8 @@
 #define OpMem8            26ull  /* 8-bit zero extended memory operand */
 #define OpImm64           27ull  /* Sign extended 16/32/64-bit immediate */
 #define OpXLat            28ull  /* memory at BX/EBX/RBX + zero-extended AL */
+#define OpAccLo           29ull  /* Low part of extended acc (AX/AX/EAX/RAX) */
+#define OpAccHi           30ull  /* High part of extended acc (-/DX/EDX/RDX) */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -86,6 +88,7 @@
 #define DstMem64    (OpMem64 << DstShift)
 #define DstImmUByte (OpImmUByte << DstShift)
 #define DstDX       (OpDX << DstShift)
+#define DstAccLo    (OpAccLo << DstShift)
 #define DstMask     (OpMask << DstShift)
 /* Source operand type. */
 #define SrcShift    6
@@ -108,6 +111,7 @@
 #define SrcImm64    (OpImm64 << SrcShift)
 #define SrcDX       (OpDX << SrcShift)
 #define SrcMem8     (OpMem8 << SrcShift)
+#define SrcAccHi    (OpAccHi << SrcShift)
 #define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
 #define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
@@ -156,6 +160,8 @@
 #define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
+
+#define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -4163,6 +4169,24 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
+		fetch_register_operand(op);
+		op->orig_val = op->val;
+		break;
+	case OpAccLo:
+		op->type = OP_REG;
+		op->bytes = (ctxt->d & ByteOp) ? 2 : ctxt->op_bytes;
+		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
+		fetch_register_operand(op);
+		op->orig_val = op->val;
+		break;
+	case OpAccHi:
+		if (ctxt->d & ByteOp) {
+			op->type = OP_NONE;
+			break;
+		}
+		op->type = OP_REG;
+		op->bytes = ctxt->op_bytes;
+		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RDX);
 		fetch_register_operand(op);
 		op->orig_val = op->val;
 		break;
