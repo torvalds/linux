@@ -59,12 +59,6 @@
 #define EXT4_META_TRANS_BLOCKS(sb)	(EXT4_XATTR_TRANS_BLOCKS + \
 					EXT4_MAXQUOTAS_TRANS_BLOCKS(sb))
 
-/* Delete operations potentially hit one directory's namespace plus an
- * entire inode, plus arbitrary amounts of bitmap/indirection data.  Be
- * generous.  We can grow the delete transaction later if necessary. */
-
-#define EXT4_DELETE_TRANS_BLOCKS(sb)	(2 * EXT4_DATA_TRANS_BLOCKS(sb) + 64)
-
 /* Define an arbitrary limit for the amount of data we will anticipate
  * writing to any given transaction.  For unbounded transactions such as
  * write(2) and truncate(2) we can write more than this, but we always
