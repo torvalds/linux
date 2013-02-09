@@ -142,6 +142,7 @@
 /* Source 2 operand type */
 #define Src2Shift   (31)
 #define Src2None    (OpNone << Src2Shift)
+#define Src2Mem     (OpMem << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
 #define Src2ImmByte (OpImmByte << Src2Shift)
 #define Src2One     (OpOne << Src2Shift)
@@ -548,8 +549,8 @@ FOP_END;
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
 	do {								\
 		unsigned long _tmp;					\
-		ulong *rax = reg_rmw((ctxt), VCPU_REGS_RAX);		\
-		ulong *rdx = reg_rmw((ctxt), VCPU_REGS_RDX);		\
+		ulong *rax = &ctxt->dst.val;				\
+		ulong *rdx = &ctxt->src.val;				\
 									\
 		__asm__ __volatile__ (					\
 			_PRE_EFLAGS("0", "5", "1")			\
@@ -564,7 +565,7 @@ FOP_END;
 			_ASM_EXTABLE(1b, 3b)				\
 			: "=m" ((ctxt)->eflags), "=&r" (_tmp),		\
 			  "+a" (*rax), "+d" (*rdx), "+qm"(_ex)		\
-			: "i" (EFLAGS_MASK), "m" ((ctxt)->src.val));	\
+			: "i" (EFLAGS_MASK), "m" ((ctxt)->src2.val));	\
 	} while (0)
 
 /* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
@@ -3735,10 +3736,10 @@ static const struct opcode group3[] = {
 	F(DstMem | SrcImm | NoWrite, em_test),
 	F(DstMem | SrcNone | Lock, em_not),
 	F(DstMem | SrcNone | Lock, em_neg),
-	I(SrcMem, em_mul_ex),
-	I(SrcMem, em_imul_ex),
-	I(SrcMem, em_div_ex),
-	I(SrcMem, em_idiv_ex),
+	I(DstXacc | Src2Mem, em_mul_ex),
+	I(DstXacc | Src2Mem, em_imul_ex),
+	I(DstXacc | Src2Mem, em_div_ex),
+	I(DstXacc | Src2Mem, em_idiv_ex),
 };
 
 static const struct opcode group4[] = {
