@@ -75,27 +75,6 @@
 #define MWIFIEX_BD_FLAG_ROLLOVER_IND			BIT(7)
 #define MWIFIEX_BD_FLAG_FIRST_DESC			BIT(0)
 #define MWIFIEX_BD_FLAG_LAST_DESC			BIT(1)
-#define REG_CMD_ADDR_LO					PCIE_SCRATCH_0_REG
-#define REG_CMD_ADDR_HI					PCIE_SCRATCH_1_REG
-#define REG_CMD_SIZE					PCIE_SCRATCH_2_REG
-
-#define REG_CMDRSP_ADDR_LO				PCIE_SCRATCH_4_REG
-#define REG_CMDRSP_ADDR_HI				PCIE_SCRATCH_5_REG
-
-/* TX buffer description read pointer */
-#define REG_TXBD_RDPTR					PCIE_SCRATCH_6_REG
-/* TX buffer description write pointer */
-#define REG_TXBD_WRPTR					PCIE_SCRATCH_7_REG
-/* RX buffer description read pointer */
-#define REG_RXBD_RDPTR					PCIE_SCRATCH_8_REG
-/* RX buffer description write pointer */
-#define REG_RXBD_WRPTR					PCIE_SCRATCH_9_REG
-/* Event buffer description read pointer */
-#define REG_EVTBD_RDPTR					PCIE_SCRATCH_10_REG
-/* Event buffer description write pointer */
-#define REG_EVTBD_WRPTR					PCIE_SCRATCH_11_REG
-/* Driver ready signature write pointer */
-#define REG_DRV_READY					PCIE_SCRATCH_12_REG
 
 /* Max retry number of command write */
 #define MAX_WRITE_IOMEM_RETRY				2
@@ -103,6 +82,78 @@
 #define MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD		256
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
+
+struct mwifiex_pcie_card_reg {
+	u16 cmd_addr_lo;
+	u16 cmd_addr_hi;
+	u16 fw_status;
+	u16 cmd_size;
+	u16 cmdrsp_addr_lo;
+	u16 cmdrsp_addr_hi;
+	u16 tx_rdptr;
+	u16 tx_wrptr;
+	u16 rx_rdptr;
+	u16 rx_wrptr;
+	u16 evt_rdptr;
+	u16 evt_wrptr;
+	u16 drv_rdy;
+	u16 tx_start_ptr;
+	u32 tx_mask;
+	u32 tx_wrap_mask;
+	u32 rx_mask;
+	u32 rx_wrap_mask;
+	u32 tx_rollover_ind;
+	u32 rx_rollover_ind;
+	u32 evt_rollover_ind;
+	u8 ring_flag_sop;
+	u8 ring_flag_eop;
+	u8 ring_flag_xs_sop;
+	u8 ring_flag_xs_eop;
+	u32 ring_tx_start_ptr;
+	u8 pfu_enabled;
+};
+
+static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
+	.cmd_addr_lo = PCIE_SCRATCH_0_REG,
+	.cmd_addr_hi = PCIE_SCRATCH_1_REG,
+	.cmd_size = PCIE_SCRATCH_2_REG,
+	.fw_status = PCIE_SCRATCH_3_REG,
+	.cmdrsp_addr_lo = PCIE_SCRATCH_4_REG,
+	.cmdrsp_addr_hi = PCIE_SCRATCH_5_REG,
+	.tx_rdptr = PCIE_SCRATCH_6_REG,
+	.tx_wrptr = PCIE_SCRATCH_7_REG,
+	.rx_rdptr = PCIE_SCRATCH_8_REG,
+	.rx_wrptr = PCIE_SCRATCH_9_REG,
+	.evt_rdptr = PCIE_SCRATCH_10_REG,
+	.evt_wrptr = PCIE_SCRATCH_11_REG,
+	.drv_rdy = PCIE_SCRATCH_12_REG,
+	.tx_start_ptr = 0,
+	.tx_mask = MWIFIEX_TXBD_MASK,
+	.tx_wrap_mask = 0,
+	.rx_mask = MWIFIEX_RXBD_MASK,
+	.rx_wrap_mask = 0,
+	.tx_rollover_ind = MWIFIEX_BD_FLAG_ROLLOVER_IND,
+	.rx_rollover_ind = MWIFIEX_BD_FLAG_ROLLOVER_IND,
+	.evt_rollover_ind = MWIFIEX_BD_FLAG_ROLLOVER_IND,
+	.ring_flag_sop = 0,
+	.ring_flag_eop = 0,
+	.ring_flag_xs_sop = 0,
+	.ring_flag_xs_eop = 0,
+	.ring_tx_start_ptr = 0,
+	.pfu_enabled = 0,
+};
+
+struct mwifiex_pcie_device {
+	const char *firmware;
+	const struct mwifiex_pcie_card_reg *reg;
+	u16 blksz_fw_dl;
+};
+
+static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
+	.firmware       = PCIE8766_DEFAULT_FW_NAME,
+	.reg            = &mwifiex_reg_8766,
+	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+};
 
 struct mwifiex_pcie_buf_desc {
 	u64 paddr;
@@ -113,6 +164,7 @@ struct mwifiex_pcie_buf_desc {
 struct pcie_service_card {
 	struct pci_dev *dev;
 	struct mwifiex_adapter *adapter;
+	struct mwifiex_pcie_device pcie;
 
 	u8 txbd_flush;
 	u32 txbd_wrptr;
@@ -150,10 +202,11 @@ struct pcie_service_card {
 static inline int
 mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 {
-	if (((card->txbd_wrptr & MWIFIEX_TXBD_MASK) ==
-			(rdptr & MWIFIEX_TXBD_MASK)) &&
-	    ((card->txbd_wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) !=
-			(rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND)))
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
+	if (((card->txbd_wrptr & reg->tx_mask) == (rdptr & reg->tx_mask)) &&
+	    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+			(rdptr & reg->tx_rollover_ind)))
 		return 1;
 
 	return 0;
@@ -162,10 +215,12 @@ mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 static inline int
 mwifiex_pcie_txbd_not_full(struct pcie_service_card *card)
 {
-	if (((card->txbd_wrptr & MWIFIEX_TXBD_MASK) !=
-	     (card->txbd_rdptr & MWIFIEX_TXBD_MASK)) ||
-	    ((card->txbd_wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) !=
-	     (card->txbd_rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND)))
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
+	if (((card->txbd_wrptr & reg->tx_mask) !=
+	     (card->txbd_rdptr & reg->tx_mask)) ||
+	    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+	     (card->txbd_rdptr & reg->tx_rollover_ind)))
 		return 1;
 
 	return 0;
