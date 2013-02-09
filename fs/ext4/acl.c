@@ -325,7 +325,7 @@ ext4_acl_chmod(struct inode *inode)
 		return error;
 retry:
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR,
-			EXT4_DATA_TRANS_BLOCKS(inode->i_sb));
+				    ext4_jbd2_credits_xattr(inode));
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
 		ext4_std_error(inode->i_sb, error);
@@ -423,7 +423,7 @@ ext4_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
 
 retry:
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR,
-				    EXT4_DATA_TRANS_BLOCKS(inode->i_sb));
+				    ext4_jbd2_credits_xattr(inode));
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
 		goto release_and_out;

@@ -1165,16 +1165,9 @@ ext4_xattr_set(struct inode *inode, int name_index, const char *name,
 {
 	handle_t *handle;
 	int error, retries = 0;
-	int credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb);
+	int credits = ext4_jbd2_credits_xattr(inode);
 
 retry:
-	/*
-	 * In case of inline data, we may push out the data to a block,
-	 * So reserve the journal space first.
-	 */
-	if (ext4_has_inline_data(inode))
-		credits += ext4_writepage_trans_blocks(inode) + 1;
-
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
