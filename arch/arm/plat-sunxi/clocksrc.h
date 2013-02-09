@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun4i/clock/aw_clocksrc.h
+ * arch/arm/plat-sunxi/clocksrc.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
