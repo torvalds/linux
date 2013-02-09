@@ -179,8 +179,8 @@
 /*
  * fastop functions have a special calling convention:
  *
- * dst:    [rdx]:rax  (in/out)
- * src:    rbx        (in/out)
+ * dst:    rax        (in/out)
+ * src:    rdx        (in/out)
  * src2:   rcx        (in)
  * flags:  rflags     (in/out)
  *
@@ -485,19 +485,19 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 
 #define FASTOP2(op) \
 	FOP_START(op) \
-	FOP2E(op##b, al, bl) \
-	FOP2E(op##w, ax, bx) \
-	FOP2E(op##l, eax, ebx) \
-	ON64(FOP2E(op##q, rax, rbx)) \
+	FOP2E(op##b, al, dl) \
+	FOP2E(op##w, ax, dx) \
+	FOP2E(op##l, eax, edx) \
+	ON64(FOP2E(op##q, rax, rdx)) \
 	FOP_END
 
 /* 2 operand, word only */
 #define FASTOP2W(op) \
 	FOP_START(op) \
 	FOPNOP() \
-	FOP2E(op##w, ax, bx) \
-	FOP2E(op##l, eax, ebx) \
-	ON64(FOP2E(op##q, rax, rbx)) \
+	FOP2E(op##w, ax, dx) \
+	FOP2E(op##l, eax, edx) \
+	ON64(FOP2E(op##q, rax, rdx)) \
 	FOP_END
 
 /* 2 operand, src is CL */
@@ -516,9 +516,9 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 #define FASTOP3WCL(op) \
 	FOP_START(op) \
 	FOPNOP() \
-	FOP3E(op##w, ax, bx, cl) \
-	FOP3E(op##l, eax, ebx, cl) \
-	ON64(FOP3E(op##q, rax, rbx, cl)) \
+	FOP3E(op##w, ax, dx, cl) \
+	FOP3E(op##l, eax, edx, cl) \
+	ON64(FOP3E(op##q, rax, rdx, cl)) \
 	FOP_END
 
 /* Special case for SETcc - 1 instruction per cc */
@@ -4574,7 +4574,7 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
 	fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
 	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
-	    : "+a"(ctxt->dst.val), "+b"(ctxt->src.val), [flags]"+D"(flags)
+	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags)
 	: "c"(ctxt->src2.val), [fastop]"S"(fop));
 	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);
 	return X86EMUL_CONTINUE;
