@@ -1235,6 +1235,10 @@
 #define   MAD_DIMM_A_SIZE_SHIFT		0
 #define   MAD_DIMM_A_SIZE_MASK		(0xff << MAD_DIMM_A_SIZE_SHIFT)
 
+/** snb MCH registers for priority tuning */
+#define MCH_SSKPD			(MCHBAR_MIRROR_BASE_SNB + 0x5d10)
+#define   MCH_SSKPD_WM0_MASK		0x3f
+#define   MCH_SSKPD_WM0_VAL		0xc
 
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
