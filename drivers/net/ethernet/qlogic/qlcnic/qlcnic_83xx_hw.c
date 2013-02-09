@@ -1436,13 +1436,15 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 		return status;
 	}
 
-	/* Wait until firmware send IDC Completion AEN */
+	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(300);
+		qlcnic_83xx_process_aen(adapter);
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
 			dev_err(&adapter->pdev->dev,
 				"FW did not generate IDC completion AEN\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
+			qlcnic_83xx_clear_lb_mode(adapter, mode);
 			return -EIO;
 		}
 	} while (test_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status));
@@ -1474,9 +1476,10 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 		return status;
 	}
 
-	/* Wait until firmware send IDC Completion AEN */
+	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(300);
+		qlcnic_83xx_process_aen(adapter);
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
 			dev_err(&adapter->pdev->dev,
 				"Firmware didn't sent IDC completion AEN\n");
