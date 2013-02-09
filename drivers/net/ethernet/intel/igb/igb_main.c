@@ -4434,13 +4434,6 @@ static void igb_tx_olinfo_status(struct igb_ring *tx_ring,
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
 
-/*
- * The largest size we can write to the descriptor is 65535.  In order to
- * maintain a power of two alignment we have to limit ourselves to 32K.
- */
-#define IGB_MAX_TXD_PWR	15
-#define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
-
 static void igb_tx_map(struct igb_ring *tx_ring,
 		       struct igb_tx_buffer *first,
 		       const u8 hdr_len)
@@ -4609,15 +4602,25 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	struct igb_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
+	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 	__be16 protocol = vlan_get_protocol(skb);
 	u8 hdr_len = 0;
 
-	/* need: 1 descriptor per page,
+	/* need: 1 descriptor per page * PAGE_SIZE/IGB_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_headlen/IGB_MAX_DATA_PER_TXD,
 	 *       + 2 desc gap to keep tail from touching head,
-	 *       + 1 desc for skb->data,
 	 *       + 1 desc for context descriptor,
-	 * otherwise try next time */
-	if (igb_maybe_stop_tx(tx_ring, skb_shinfo(skb)->nr_frags + 4)) {
+	 * otherwise try next time
+	 */
+	if (NETDEV_FRAG_PAGE_MAX_SIZE > IGB_MAX_DATA_PER_TXD) {
+		unsigned short f;
+		for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
+			count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+	} else {
+		count += skb_shinfo(skb)->nr_frags;
+	}
+
+	if (igb_maybe_stop_tx(tx_ring, count + 3)) {
 		/* this is a hard error */
 		return NETDEV_TX_BUSY;
 	}
@@ -4659,7 +4662,7 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	igb_tx_map(tx_ring, first, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
-	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
+	igb_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
 
@@ -6063,9 +6066,10 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		}
 	}
 
+#define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets &&
 		     netif_carrier_ok(tx_ring->netdev) &&
-		     igb_desc_unused(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
+		     igb_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD)) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
