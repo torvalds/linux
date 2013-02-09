@@ -29,6 +29,11 @@
 #include    "main.h"
 
 #define PCIE8766_DEFAULT_FW_NAME "mrvl/pcie8766_uapsta.bin"
+#define PCIE8897_DEFAULT_FW_NAME "mrvl/pcie8897_uapsta.bin"
+
+#define PCIE_VENDOR_ID_MARVELL              (0x11ab)
+#define PCIE_DEVICE_ID_MARVELL_88W8766P		(0x2b30)
+#define PCIE_DEVICE_ID_MARVELL_88W8897		(0x2b38)
 
 /* Constants for Buffer Descriptor (BD) rings */
 #define MWIFIEX_MAX_TXRX_BD			0x20
@@ -57,6 +62,8 @@
 #define PCIE_SCRATCH_10_REG				0xCE8
 #define PCIE_SCRATCH_11_REG				0xCEC
 #define PCIE_SCRATCH_12_REG				0xCF0
+#define PCIE_RD_DATA_PTR_Q0_Q1                          0xC08C
+#define PCIE_WR_DATA_PTR_Q0_Q1                          0xC05C
 
 #define CPU_INTR_DNLD_RDY				BIT(0)
 #define CPU_INTR_DOOR_BELL				BIT(1)
@@ -75,6 +82,14 @@
 #define MWIFIEX_BD_FLAG_ROLLOVER_IND			BIT(7)
 #define MWIFIEX_BD_FLAG_FIRST_DESC			BIT(0)
 #define MWIFIEX_BD_FLAG_LAST_DESC			BIT(1)
+#define MWIFIEX_BD_FLAG_SOP				BIT(0)
+#define MWIFIEX_BD_FLAG_EOP				BIT(1)
+#define MWIFIEX_BD_FLAG_XS_SOP				BIT(2)
+#define MWIFIEX_BD_FLAG_XS_EOP				BIT(3)
+#define MWIFIEX_BD_FLAG_EVT_ROLLOVER_IND		BIT(7)
+#define MWIFIEX_BD_FLAG_RX_ROLLOVER_IND			BIT(10)
+#define MWIFIEX_BD_FLAG_TX_START_PTR			BIT(16)
+#define MWIFIEX_BD_FLAG_TX_ROLLOVER_IND			BIT(26)
 
 /* Max retry number of command write */
 #define MAX_WRITE_IOMEM_RETRY				2
@@ -143,6 +158,36 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
 	.pfu_enabled = 0,
 };
 
+static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
+	.cmd_addr_lo = PCIE_SCRATCH_0_REG,
+	.cmd_addr_hi = PCIE_SCRATCH_1_REG,
+	.cmd_size = PCIE_SCRATCH_2_REG,
+	.fw_status = PCIE_SCRATCH_3_REG,
+	.cmdrsp_addr_lo = PCIE_SCRATCH_4_REG,
+	.cmdrsp_addr_hi = PCIE_SCRATCH_5_REG,
+	.tx_rdptr = PCIE_RD_DATA_PTR_Q0_Q1,
+	.tx_wrptr = PCIE_WR_DATA_PTR_Q0_Q1,
+	.rx_rdptr = PCIE_WR_DATA_PTR_Q0_Q1,
+	.rx_wrptr = PCIE_RD_DATA_PTR_Q0_Q1,
+	.evt_rdptr = PCIE_SCRATCH_10_REG,
+	.evt_wrptr = PCIE_SCRATCH_11_REG,
+	.drv_rdy = PCIE_SCRATCH_12_REG,
+	.tx_start_ptr = 16,
+	.tx_mask = 0x03FF0000,
+	.tx_wrap_mask = 0x07FF0000,
+	.rx_mask = 0x000003FF,
+	.rx_wrap_mask = 0x000007FF,
+	.tx_rollover_ind = MWIFIEX_BD_FLAG_TX_ROLLOVER_IND,
+	.rx_rollover_ind = MWIFIEX_BD_FLAG_RX_ROLLOVER_IND,
+	.evt_rollover_ind = MWIFIEX_BD_FLAG_EVT_ROLLOVER_IND,
+	.ring_flag_sop = MWIFIEX_BD_FLAG_SOP,
+	.ring_flag_eop = MWIFIEX_BD_FLAG_EOP,
+	.ring_flag_xs_sop = MWIFIEX_BD_FLAG_XS_SOP,
+	.ring_flag_xs_eop = MWIFIEX_BD_FLAG_XS_EOP,
+	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
+	.pfu_enabled = 1,
+};
+
 struct mwifiex_pcie_device {
 	const char *firmware;
 	const struct mwifiex_pcie_card_reg *reg;
@@ -152,6 +197,12 @@ struct mwifiex_pcie_device {
 static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.firmware       = PCIE8766_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8766,
+	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+};
+
+static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
+	.firmware       = PCIE8897_DEFAULT_FW_NAME,
+	.reg            = &mwifiex_reg_8897,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 };
 
@@ -165,6 +216,15 @@ struct mwifiex_pcie_buf_desc {
 	u64 paddr;
 	u16 len;
 	u16 flags;
+} __packed;
+
+struct mwifiex_pfu_buf_desc {
+	u16 flags;
+	u16 offset;
+	u16 frag_len;
+	u16 len;
+	u64 paddr;
+	u32 reserved;
 } __packed;
 
 struct pcie_service_card {
@@ -210,10 +270,22 @@ mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 {
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	if (((card->txbd_wrptr & reg->tx_mask) == (rdptr & reg->tx_mask)) &&
-	    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+	switch (card->dev->device) {
+	case PCIE_DEVICE_ID_MARVELL_88W8766P:
+		if (((card->txbd_wrptr & reg->tx_mask) ==
+		     (rdptr & reg->tx_mask)) &&
+		    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+		     (rdptr & reg->tx_rollover_ind)))
+			return 1;
+		break;
+	case PCIE_DEVICE_ID_MARVELL_88W8897:
+		if (((card->txbd_wrptr & reg->tx_mask) ==
+		     (rdptr & reg->tx_mask)) &&
+		    ((card->txbd_wrptr & reg->tx_rollover_ind) ==
 			(rdptr & reg->tx_rollover_ind)))
-		return 1;
+			return 1;
+		break;
+	}
 
 	return 0;
 }
@@ -223,11 +295,22 @@ mwifiex_pcie_txbd_not_full(struct pcie_service_card *card)
 {
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	if (((card->txbd_wrptr & reg->tx_mask) !=
-	     (card->txbd_rdptr & reg->tx_mask)) ||
-	    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
-	     (card->txbd_rdptr & reg->tx_rollover_ind)))
-		return 1;
+	switch (card->dev->device) {
+	case PCIE_DEVICE_ID_MARVELL_88W8766P:
+		if (((card->txbd_wrptr & reg->tx_mask) !=
+		     (card->txbd_rdptr & reg->tx_mask)) ||
+		    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+		     (card->txbd_rdptr & reg->tx_rollover_ind)))
+			return 1;
+		break;
+	case PCIE_DEVICE_ID_MARVELL_88W8897:
+		if (((card->txbd_wrptr & reg->tx_mask) !=
+		     (card->txbd_rdptr & reg->tx_mask)) ||
+		    ((card->txbd_wrptr & reg->tx_rollover_ind) ==
+		     (card->txbd_rdptr & reg->tx_rollover_ind)))
+			return 1;
+		break;
+	}
 
 	return 0;
 }
