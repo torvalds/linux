@@ -3786,4 +3786,11 @@ static inline int is_fstree(u64 rootid)
 		return 1;
 	return 0;
 }
+
+static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
+{
+	return signal_pending(current);
+}
+
+
 #endif

@@ -984,6 +984,12 @@ int btrfs_defrag_root(struct btrfs_root *root)
 
 		if (btrfs_fs_closing(root->fs_info) || ret != -EAGAIN)
 			break;
+
+		if (btrfs_defrag_cancelled(root->fs_info)) {
+			printk(KERN_DEBUG "btrfs: defrag_root cancelled\n");
+			ret = -EAGAIN;
+			break;
+		}
 	}
 	root->defrag_running = 0;
 	return ret;
