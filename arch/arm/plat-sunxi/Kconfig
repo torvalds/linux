@@ -23,4 +23,14 @@ config MACH_SUN5I
 	depends on ARCH_SUN5I
 	default y
 
+config SUNXI_SCALING_MIN
+	int "Minimum clockspeed for the cpu governor"
+	default "60"
+	help
+	  The (default) minimum clockspeed the cpu scaling governor may use,
+	  the lowest the sunxi cpu core can go is 60 MHz, which is quite slow,
+	  so you may wish to set a somewhat higher minimum speed. 408 Mhz is
+	  the last speed at the lowest voltage setting and as such is a good
+	  value to use.
+
 endmenu

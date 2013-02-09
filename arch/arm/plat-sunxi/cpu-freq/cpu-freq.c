@@ -491,20 +491,22 @@ static unsigned int sun4i_cpufreq_get(unsigned int cpu)
 */
 static int sun4i_cpufreq_init(struct cpufreq_policy *policy)
 {
-    CPUFREQ_DBG(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
+	CPUFREQ_DBG(KERN_INFO "%s: initialize policy %p\n", __func__, policy);
 
-    if (policy->cpu != 0)
-        return -EINVAL;
+	if (policy->cpu != 0)
+		return -EINVAL;
 
-    policy->cur = sun4i_cpufreq_get(0);
-    policy->min = policy->cpuinfo.min_freq = SUN4I_CPUFREQ_MIN / 1000;
-    policy->max = policy->cpuinfo.max_freq = SUN4I_CPUFREQ_MAX / 1000;
-    policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
+	policy->cur = sun4i_cpufreq_get(0);
+	policy->min = SUN4I_SCALING_MIN / 1000;
+	policy->max = SUN4I_SCALING_MAX / 1000;
+	policy->cpuinfo.min_freq = SUN4I_CPUFREQ_MIN / 1000;
+	policy->cpuinfo.max_freq = SUN4I_CPUFREQ_MAX / 1000;
+	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
-    /* feed the latency information from the cpu driver */
-    policy->cpuinfo.transition_latency = SUN4I_FREQTRANS_LATENCY;
+	/* feed the latency information from the cpu driver */
+	policy->cpuinfo.transition_latency = SUN4I_FREQTRANS_LATENCY;
 
-    return 0;
+	return 0;
 }
 
 
