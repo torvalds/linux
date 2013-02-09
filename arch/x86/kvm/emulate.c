@@ -285,173 +285,16 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 }
 
 /*
- * Instruction emulation:
- * Most instructions are emulated directly via a fragment of inline assembly
- * code. This allows us to save/restore EFLAGS and thus very easily pick up
- * any modified flags.
- */
-
-#if defined(CONFIG_X86_64)
-#define _LO32 "k"		/* force 32-bit operand */
-#define _STK  "%%rsp"		/* stack pointer */
-#elif defined(__i386__)
-#define _LO32 ""		/* force 32-bit operand */
-#define _STK  "%%esp"		/* stack pointer */
-#endif
-
-/*
  * These EFLAGS bits are restored from saved value during emulation, and
  * any changes are written back to the saved value after emulation.
  */
 #define EFLAGS_MASK (EFLG_OF|EFLG_SF|EFLG_ZF|EFLG_AF|EFLG_PF|EFLG_CF)
-
-/* Before executing instruction: restore necessary bits in EFLAGS. */
-#define _PRE_EFLAGS(_sav, _msk, _tmp)					\
-	/* EFLAGS = (_sav & _msk) | (EFLAGS & ~_msk); _sav &= ~_msk; */ \
-	"movl %"_sav",%"_LO32 _tmp"; "                                  \
-	"push %"_tmp"; "                                                \
-	"push %"_tmp"; "                                                \
-	"movl %"_msk",%"_LO32 _tmp"; "                                  \
-	"andl %"_LO32 _tmp",("_STK"); "                                 \
-	"pushf; "                                                       \
-	"notl %"_LO32 _tmp"; "                                          \
-	"andl %"_LO32 _tmp",("_STK"); "                                 \
-	"andl %"_LO32 _tmp","__stringify(BITS_PER_LONG/4)"("_STK"); "	\
-	"pop  %"_tmp"; "                                                \
-	"orl  %"_LO32 _tmp",("_STK"); "                                 \
-	"popf; "                                                        \
-	"pop  %"_sav"; "
-
-/* After executing instruction: write-back necessary bits in EFLAGS. */
-#define _POST_EFLAGS(_sav, _msk, _tmp) \
-	/* _sav |= EFLAGS & _msk; */		\
-	"pushf; "				\
-	"pop  %"_tmp"; "			\
-	"andl %"_msk",%"_LO32 _tmp"; "		\
-	"orl  %"_LO32 _tmp",%"_sav"; "
 
 #ifdef CONFIG_X86_64
 #define ON64(x) x
 #else
 #define ON64(x)
 #endif
-
-#define ____emulate_2op(ctxt, _op, _x, _y, _suffix, _dsttype)	\
-	do {								\
-		__asm__ __volatile__ (					\
-			_PRE_EFLAGS("0", "4", "2")			\
-			_op _suffix " %"_x"3,%1; "			\
-			_POST_EFLAGS("0", "4", "2")			\
-			: "=m" ((ctxt)->eflags),			\
-			  "+q" (*(_dsttype*)&(ctxt)->dst.val),		\
-			  "=&r" (_tmp)					\
-			: _y ((ctxt)->src.val), "i" (EFLAGS_MASK));	\
-	} while (0)
-
-
-/* Raw emulation: instruction has two explicit operands. */
-#define __emulate_2op_nobyte(ctxt,_op,_wx,_wy,_lx,_ly,_qx,_qy)		\
-	do {								\
-		unsigned long _tmp;					\
-									\
-		switch ((ctxt)->dst.bytes) {				\
-		case 2:							\
-			____emulate_2op(ctxt,_op,_wx,_wy,"w",u16);	\
-			break;						\
-		case 4:							\
-			____emulate_2op(ctxt,_op,_lx,_ly,"l",u32);	\
-			break;						\
-		case 8:							\
-			ON64(____emulate_2op(ctxt,_op,_qx,_qy,"q",u64)); \
-			break;						\
-		}							\
-	} while (0)
-
-#define __emulate_2op(ctxt,_op,_bx,_by,_wx,_wy,_lx,_ly,_qx,_qy)		     \
-	do {								     \
-		unsigned long _tmp;					     \
-		switch ((ctxt)->dst.bytes) {				     \
-		case 1:							     \
-			____emulate_2op(ctxt,_op,_bx,_by,"b",u8);	     \
-			break;						     \
-		default:						     \
-			__emulate_2op_nobyte(ctxt, _op,			     \
-					     _wx, _wy, _lx, _ly, _qx, _qy);  \
-			break;						     \
-		}							     \
-	} while (0)
-
-/* Source operand is byte-sized and may be restricted to just %cl. */
-#define emulate_2op_SrcB(ctxt, _op)					\
-	__emulate_2op(ctxt, _op, "b", "c", "b", "c", "b", "c", "b", "c")
-
-/* Source operand is byte, word, long or quad sized. */
-#define emulate_2op_SrcV(ctxt, _op)					\
-	__emulate_2op(ctxt, _op, "b", "q", "w", "r", _LO32, "r", "", "r")
-
-/* Source operand is word, long or quad sized. */
-#define emulate_2op_SrcV_nobyte(ctxt, _op)				\
-	__emulate_2op_nobyte(ctxt, _op, "w", "r", _LO32, "r", "", "r")
-
-/* Instruction has three operands and one operand is stored in ECX register */
-#define __emulate_2op_cl(ctxt, _op, _suffix, _type)		\
-	do {								\
-		unsigned long _tmp;					\
-		_type _clv  = (ctxt)->src2.val;				\
-		_type _srcv = (ctxt)->src.val;				\
-		_type _dstv = (ctxt)->dst.val;				\
-									\
-		__asm__ __volatile__ (					\
-			_PRE_EFLAGS("0", "5", "2")			\
-			_op _suffix " %4,%1 \n"				\
-			_POST_EFLAGS("0", "5", "2")			\
-			: "=m" ((ctxt)->eflags), "+r" (_dstv), "=&r" (_tmp) \
-			: "c" (_clv) , "r" (_srcv), "i" (EFLAGS_MASK)	\
-			);						\
-									\
-		(ctxt)->src2.val  = (unsigned long) _clv;		\
-		(ctxt)->src2.val = (unsigned long) _srcv;		\
-		(ctxt)->dst.val = (unsigned long) _dstv;		\
-	} while (0)
-
-#define emulate_2op_cl(ctxt, _op)					\
-	do {								\
-		switch ((ctxt)->dst.bytes) {				\
-		case 2:							\
-			__emulate_2op_cl(ctxt, _op, "w", u16);		\
-			break;						\
-		case 4:							\
-			__emulate_2op_cl(ctxt, _op, "l", u32);		\
-			break;						\
-		case 8:							\
-			ON64(__emulate_2op_cl(ctxt, _op, "q", ulong));	\
-			break;						\
-		}							\
-	} while (0)
-
-#define __emulate_1op(ctxt, _op, _suffix)				\
-	do {								\
-		unsigned long _tmp;					\
-									\
-		__asm__ __volatile__ (					\
-			_PRE_EFLAGS("0", "3", "2")			\
-			_op _suffix " %1; "				\
-			_POST_EFLAGS("0", "3", "2")			\
-			: "=m" ((ctxt)->eflags), "+m" ((ctxt)->dst.val), \
-			  "=&r" (_tmp)					\
-			: "i" (EFLAGS_MASK));				\
-	} while (0)
-
-/* Instruction has only one explicit operand (no source operand). */
-#define emulate_1op(ctxt, _op)						\
-	do {								\
-		switch ((ctxt)->dst.bytes) {				\
-		case 1:	__emulate_1op(ctxt, _op, "b"); break;		\
-		case 2:	__emulate_1op(ctxt, _op, "w"); break;		\
-		case 4:	__emulate_1op(ctxt, _op, "l"); break;		\
-		case 8:	ON64(__emulate_1op(ctxt, _op, "q")); break;	\
-		}							\
-	} while (0)
 
 static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 
@@ -570,47 +413,6 @@ FOP_END;
 
 FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
 FOP_END;
-
-#define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
-	do {								\
-		unsigned long _tmp;					\
-		ulong *rax = &ctxt->dst.val;				\
-		ulong *rdx = &ctxt->src.val;				\
-									\
-		__asm__ __volatile__ (					\
-			_PRE_EFLAGS("0", "5", "1")			\
-			"1: \n\t"					\
-			_op _suffix " %6; "				\
-			"2: \n\t"					\
-			_POST_EFLAGS("0", "5", "1")			\
-			".pushsection .fixup,\"ax\" \n\t"		\
-			"3: movb $1, %4 \n\t"				\
-			"jmp 2b \n\t"					\
-			".popsection \n\t"				\
-			_ASM_EXTABLE(1b, 3b)				\
-			: "=m" ((ctxt)->eflags), "=&r" (_tmp),		\
-			  "+a" (*rax), "+d" (*rdx), "+qm"(_ex)		\
-			: "i" (EFLAGS_MASK), "m" ((ctxt)->src2.val));	\
-	} while (0)
-
-/* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
-#define emulate_1op_rax_rdx(ctxt, _op, _ex)	\
-	do {								\
-		switch((ctxt)->src.bytes) {				\
-		case 1:							\
-			__emulate_1op_rax_rdx(ctxt, _op, "b", _ex);	\
-			break;						\
-		case 2:							\
-			__emulate_1op_rax_rdx(ctxt, _op, "w", _ex);	\
-			break;						\
-		case 4:							\
-			__emulate_1op_rax_rdx(ctxt, _op, "l", _ex);	\
-			break;						\
-		case 8: ON64(						\
-			__emulate_1op_rax_rdx(ctxt, _op, "q", _ex));	\
-			break;						\
-		}							\
-	} while (0)
 
 static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 				    enum x86_intercept intercept,
