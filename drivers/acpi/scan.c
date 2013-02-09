@@ -125,12 +125,6 @@ void acpi_bus_hot_remove_device(void *context)
 	/* Device node has been released. */
 	device = NULL;
 
-	/* power off device */
-	status = acpi_evaluate_object(handle, "_PS3", NULL, NULL);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		printk(KERN_WARNING PREFIX
-				"Power-off device failed\n");
-
 	if (ACPI_SUCCESS(acpi_get_handle(handle, "_LCK", &temp))) {
 		arg_list.count = 1;
 		arg_list.pointer = &arg;
@@ -780,10 +774,11 @@ static void acpi_device_unregister(struct acpi_device *device)
 
 	device_del(&device->dev);
 	/*
-	 * Drop the reference counts of all power resources the device depends
-	 * on and turn off the ones that have no more references.
+	 * Transition the device to D3cold to drop the reference counts of all
+	 * power resources the device depends on and turn off the ones that have
+	 * no more references.
 	 */
-	acpi_power_transition(device, ACPI_STATE_D3_COLD);
+	acpi_device_set_power(device, ACPI_STATE_D3_COLD);
 	put_device(&device->dev);
 }
 
