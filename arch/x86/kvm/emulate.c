@@ -155,6 +155,7 @@
 #define Avx         ((u64)1 << 43)  /* Advanced Vector Extensions */
 #define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
+#define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -1723,45 +1724,42 @@ static void write_register_operand(struct operand *op)
 	}
 }
 
-static int writeback(struct x86_emulate_ctxt *ctxt)
+static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
 {
 	int rc;
 
-	if (ctxt->d & NoWrite)
-		return X86EMUL_CONTINUE;
-
-	switch (ctxt->dst.type) {
+	switch (op->type) {
 	case OP_REG:
-		write_register_operand(&ctxt->dst);
+		write_register_operand(op);
 		break;
 	case OP_MEM:
 		if (ctxt->lock_prefix)
 			rc = segmented_cmpxchg(ctxt,
-					       ctxt->dst.addr.mem,
-					       &ctxt->dst.orig_val,
-					       &ctxt->dst.val,
-					       ctxt->dst.bytes);
+					       op->addr.mem,
+					       &op->orig_val,
+					       &op->val,
+					       op->bytes);
 		else
 			rc = segmented_write(ctxt,
-					     ctxt->dst.addr.mem,
-					     &ctxt->dst.val,
-					     ctxt->dst.bytes);
+					     op->addr.mem,
+					     &op->val,
+					     op->bytes);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
 	case OP_MEM_STR:
 		rc = segmented_write(ctxt,
-				ctxt->dst.addr.mem,
-				ctxt->dst.data,
-				ctxt->dst.bytes * ctxt->dst.count);
+				op->addr.mem,
+				op->data,
+				op->bytes * op->count);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
 	case OP_XMM:
-		write_sse_reg(ctxt, &ctxt->dst.vec_val, ctxt->dst.addr.xmm);
+		write_sse_reg(ctxt, &op->vec_val, op->addr.xmm);
 		break;
 	case OP_MM:
-		write_mmx_reg(ctxt, &ctxt->dst.mm_val, ctxt->dst.addr.mm);
+		write_mmx_reg(ctxt, &op->mm_val, op->addr.mm);
 		break;
 	case OP_NONE:
 		/* no writeback */
@@ -4769,9 +4767,17 @@ special_insn:
 		goto done;
 
 writeback:
-	rc = writeback(ctxt);
-	if (rc != X86EMUL_CONTINUE)
-		goto done;
+	if (!(ctxt->d & NoWrite)) {
+		rc = writeback(ctxt, &ctxt->dst);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	}
+	if (ctxt->d & SrcWrite) {
+		BUG_ON(ctxt->src.type == OP_MEM || ctxt->src.type == OP_MEM_STR);
+		rc = writeback(ctxt, &ctxt->src);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	}
 
 	/*
 	 * restore dst type in case the decoding will be reused
