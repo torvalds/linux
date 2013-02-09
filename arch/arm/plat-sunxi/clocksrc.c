@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun5i/clock/ccmu/aw_clocksrc.c
+ * arch/arm/plat-sunxi/clocksrc.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -31,7 +31,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include "aw_clocksrc.h"
+#include "clocksrc.h"
 
 #undef CLKSRC_DBG
 #undef CLKSRC_ERR
