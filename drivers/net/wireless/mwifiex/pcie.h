@@ -155,6 +155,12 @@ static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 };
 
+struct mwifiex_evt_buf_desc {
+	u64 paddr;
+	u16 len;
+	u16 flags;
+} __packed;
+
 struct mwifiex_pcie_buf_desc {
 	u64 paddr;
 	u16 len;
@@ -172,7 +178,7 @@ struct pcie_service_card {
 	u32 txbd_ring_size;
 	u8 *txbd_ring_vbase;
 	dma_addr_t txbd_ring_pbase;
-	struct mwifiex_pcie_buf_desc *txbd_ring[MWIFIEX_MAX_TXRX_BD];
+	void *txbd_ring[MWIFIEX_MAX_TXRX_BD];
 	struct sk_buff *tx_buf_list[MWIFIEX_MAX_TXRX_BD];
 
 	u32 rxbd_wrptr;
@@ -180,7 +186,7 @@ struct pcie_service_card {
 	u32 rxbd_ring_size;
 	u8 *rxbd_ring_vbase;
 	dma_addr_t rxbd_ring_pbase;
-	struct mwifiex_pcie_buf_desc *rxbd_ring[MWIFIEX_MAX_TXRX_BD];
+	void *rxbd_ring[MWIFIEX_MAX_TXRX_BD];
 	struct sk_buff *rx_buf_list[MWIFIEX_MAX_TXRX_BD];
 
 	u32 evtbd_wrptr;
@@ -188,7 +194,7 @@ struct pcie_service_card {
 	u32 evtbd_ring_size;
 	u8 *evtbd_ring_vbase;
 	dma_addr_t evtbd_ring_pbase;
-	struct mwifiex_pcie_buf_desc *evtbd_ring[MWIFIEX_MAX_EVT_BD];
+	void *evtbd_ring[MWIFIEX_MAX_EVT_BD];
 	struct sk_buff *evt_buf_list[MWIFIEX_MAX_EVT_BD];
 
 	struct sk_buff *cmd_buf;

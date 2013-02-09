@@ -444,7 +444,7 @@ static int mwifiex_init_rxq_ring(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_init_evt_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_evt_buf_desc *desc;
 	struct sk_buff *skb;
 	dma_addr_t buf_pa;
 	int i;
@@ -474,7 +474,6 @@ static int mwifiex_pcie_init_evt_ring(struct mwifiex_adapter *adapter)
 		card->evt_buf_list[i] = skb;
 		card->evtbd_ring[i] = (void *)(card->evtbd_ring_vbase +
 				      (sizeof(*desc) * i));
-
 		desc = card->evtbd_ring[i];
 		desc->paddr = buf_pa;
 		desc->len = (u16)skb->len;
@@ -540,7 +539,7 @@ static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
 static void mwifiex_cleanup_evt_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_evt_buf_desc *desc;
 	struct sk_buff *skb;
 	int i;
 
@@ -695,7 +694,7 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 	card->evtbd_wrptr = 0;
 	card->evtbd_rdptr = reg->evt_rollover_ind;
 
-	card->evtbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
+	card->evtbd_ring_size = sizeof(struct mwifiex_evt_buf_desc) *
 							MWIFIEX_MAX_EVT_BD;
 	dev_dbg(adapter->dev, "info: evtbd_ring: Allocating %d bytes\n",
 		card->evtbd_ring_size);
@@ -880,6 +879,7 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 	struct sk_buff *skb;
 	dma_addr_t buf_pa;
 	u32 wrdoneidx, rdptr, unmap_count = 0;
+	struct mwifiex_pcie_buf_desc *desc;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
@@ -922,9 +922,8 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 		}
 
 		card->tx_buf_list[wrdoneidx] = NULL;
-		card->txbd_ring[wrdoneidx]->paddr = 0;
-		card->txbd_ring[wrdoneidx]->len = 0;
-		card->txbd_ring[wrdoneidx]->flags = 0;
+		desc = card->txbd_ring[wrdoneidx];
+		memset(desc, 0, sizeof(*desc));
 		card->txbd_rdptr++;
 
 		if ((card->txbd_rdptr & reg->tx_mask) == num_tx_buffs)
@@ -964,6 +963,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	u32 wrindx;
 	int ret;
 	dma_addr_t buf_pa;
+	struct mwifiex_pcie_buf_desc *desc;
 	__le16 *tmp;
 
 	if (!(skb->data && skb->len)) {
@@ -994,10 +994,11 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		wrindx = card->txbd_wrptr & reg->tx_mask;
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
 		card->tx_buf_list[wrindx] = skb;
-		card->txbd_ring[wrindx]->paddr = buf_pa;
-		card->txbd_ring[wrindx]->len = (u16)skb->len;
-		card->txbd_ring[wrindx]->flags = MWIFIEX_BD_FLAG_FIRST_DESC |
-						MWIFIEX_BD_FLAG_LAST_DESC;
+		desc = card->txbd_ring[wrindx];
+		desc->paddr = buf_pa;
+		desc->len = (u16)skb->len;
+		desc->flags = MWIFIEX_BD_FLAG_FIRST_DESC |
+			      MWIFIEX_BD_FLAG_LAST_DESC;
 
 		if ((++card->txbd_wrptr & reg->tx_mask) ==
 							MWIFIEX_MAX_TXRX_BD)
@@ -1049,9 +1050,7 @@ done_unmap:
 	MWIFIEX_SKB_PACB(skb, &buf_pa);
 	pci_unmap_single(card->dev, buf_pa, skb->len, PCI_DMA_TODEVICE);
 	card->tx_buf_list[wrindx] = NULL;
-	card->txbd_ring[wrindx]->paddr = 0;
-	card->txbd_ring[wrindx]->len = 0;
-	card->txbd_ring[wrindx]->flags = 0;
+	memset(desc, 0, sizeof(*desc));
 	return ret;
 }
 
@@ -1067,6 +1066,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 	dma_addr_t buf_pa;
 	int ret = 0;
 	struct sk_buff *skb_tmp = NULL;
+	struct mwifiex_pcie_buf_desc *desc;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
@@ -1126,9 +1126,10 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 			"RECV DATA: Attach new sk_buff %p at rxbd_rdidx=%d\n",
 			skb_tmp, rd_index);
 		card->rx_buf_list[rd_index] = skb_tmp;
-		card->rxbd_ring[rd_index]->paddr = buf_pa;
-		card->rxbd_ring[rd_index]->len = skb_tmp->len;
-		card->rxbd_ring[rd_index]->flags = 0;
+		desc = card->rxbd_ring[rd_index];
+		desc->paddr = buf_pa;
+		desc->len = skb_tmp->len;
+		desc->flags = 0;
 
 		if ((++card->rxbd_rdptr & reg->rx_mask) ==
 							MWIFIEX_MAX_TXRX_BD) {
@@ -1471,6 +1472,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 	u32 rdptr = card->evtbd_rdptr & MWIFIEX_EVTBD_MASK;
 	u32 wrptr, event;
 	dma_addr_t buf_pa;
+	struct mwifiex_evt_buf_desc *desc;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
@@ -1512,9 +1514,8 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		/* Take the pointer and set it to event pointer in adapter
 		   and will return back after event handling callback */
 		card->evt_buf_list[rdptr] = NULL;
-		card->evtbd_ring[rdptr]->paddr = 0;
-		card->evtbd_ring[rdptr]->len = 0;
-		card->evtbd_ring[rdptr]->flags = 0;
+		desc = card->evtbd_ring[rdptr];
+		memset(desc, 0, sizeof(*desc));
 
 		event = *(u32 *) &skb_cmd->data[INTF_HEADER_LEN];
 		adapter->event_cause = event;
@@ -1555,6 +1556,7 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	u32 rdptr = card->evtbd_rdptr & MWIFIEX_EVTBD_MASK;
 	u32 wrptr;
 	dma_addr_t buf_pa;
+	struct mwifiex_evt_buf_desc *desc;
 
 	if (!skb)
 		return 0;
@@ -1581,9 +1583,10 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
 		card->evt_buf_list[rdptr] = skb;
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
-		card->evtbd_ring[rdptr]->paddr = buf_pa;
-		card->evtbd_ring[rdptr]->len = (u16)skb->len;
-		card->evtbd_ring[rdptr]->flags = 0;
+		desc = card->evtbd_ring[rdptr];
+		desc->paddr = buf_pa;
+		desc->len = (u16)skb->len;
+		desc->flags = 0;
 		skb = NULL;
 	} else {
 		dev_dbg(adapter->dev,
