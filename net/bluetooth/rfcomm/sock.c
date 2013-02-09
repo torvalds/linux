@@ -485,7 +485,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 	long timeo;
 	int err = 0;
 
-	lock_sock(sk);
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 	if (sk->sk_type != SOCK_STREAM) {
 		err = -EINVAL;
@@ -522,7 +522,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
+		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);

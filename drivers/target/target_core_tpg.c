@@ -677,6 +677,7 @@ int core_tpg_register(
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
 		lun = se_tpg->tpg_lun_list[i];
 		lun->unpacked_lun = i;
+		lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 		lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 		atomic_set(&lun->lun_acl_count, 0);
 		init_completion(&lun->lun_shutdown_comp);

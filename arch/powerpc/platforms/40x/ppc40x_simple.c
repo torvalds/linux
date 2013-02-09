@@ -57,7 +57,8 @@ static const char *board[] __initdata = {
 	"amcc,makalu",
 	"apm,klondike",
 	"est,hotfoot",
-	"plathome,obs600"
+	"plathome,obs600",
+	NULL
 };
 
 static int __init ppc40x_probe(void)

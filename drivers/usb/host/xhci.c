@@ -480,7 +480,7 @@ static bool compliance_mode_recovery_timer_quirk_check(void)
 	if (strstr(dmi_product_name, "Z420") ||
 			strstr(dmi_product_name, "Z620") ||
 			strstr(dmi_product_name, "Z820") ||
-			strstr(dmi_product_name, "Z1"))
+			strstr(dmi_product_name, "Z1 Workstation"))
 		return true;
 
 	return false;
@@ -880,6 +880,11 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
 
+	/* Don't poll the roothubs on bus suspend. */
+	xhci_dbg(xhci, "%s: stopping port polling.\n", __func__);
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	del_timer_sync(&hcd->rh_timer);
+
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
@@ -1063,6 +1068,11 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	 */
 	if (xhci->quirks & XHCI_COMP_MODE_QUIRK)
 		compliance_mode_recovery_timer_init(xhci);
+
+	/* Re-enable port polling. */
+	xhci_dbg(xhci, "%s: starting port polling.\n", __func__);
+	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	usb_hcd_poll_rh_status(hcd);
 
 	return retval;
 }
@@ -2253,7 +2263,7 @@ static bool xhci_is_async_ep(unsigned int ep_type)
 
 static bool xhci_is_sync_in_ep(unsigned int ep_type)
 {
-	return (ep_type == ISOC_IN_EP || ep_type != INT_IN_EP);
+	return (ep_type == ISOC_IN_EP || ep_type == INT_IN_EP);
 }
 
 static unsigned int xhci_get_ss_bw_consumed(struct xhci_bw_info *ep_bw)

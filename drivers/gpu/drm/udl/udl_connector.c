@@ -22,12 +22,16 @@
 static u8 *udl_get_edid(struct udl_device *udl)
 {
 	u8 *block;
-	char rbuf[3];
+	char *rbuf;
 	int ret, i;
 
 	block = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (block == NULL)
 		return NULL;
+
+	rbuf = kmalloc(2, GFP_KERNEL);
+	if (rbuf == NULL)
+		goto error;
 
 	for (i = 0; i < EDID_LENGTH; i++) {
 		ret = usb_control_msg(udl->ddev->usbdev,
@@ -36,16 +40,17 @@ static u8 *udl_get_edid(struct udl_device *udl)
 				      HZ);
 		if (ret < 1) {
 			DRM_ERROR("Read EDID byte %d failed err %x\n", i, ret);
-			i--;
 			goto error;
 		}
 		block[i] = rbuf[1];
 	}
 
+	kfree(rbuf);
 	return block;
 
 error:
 	kfree(block);
+	kfree(rbuf);
 	return NULL;
 }
 
@@ -58,6 +63,14 @@ static int udl_get_modes(struct drm_connector *connector)
 	edid = (struct edid *)udl_get_edid(udl);
 
 	connector->display_info.raw_edid = (char *)edid;
+
+	/*
+	 * We only read the main block, but if the monitor reports extension
+	 * blocks then the drm edid code expects them to be present, so patch
+	 * the extension count to 0.
+	 */
+	edid->checksum += edid->extensions;
+	edid->extensions = 0;
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);

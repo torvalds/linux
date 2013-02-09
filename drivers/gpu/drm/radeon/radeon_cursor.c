@@ -238,7 +238,8 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		y = 0;
 	}
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	/* fixed on DCE6 and newer */
+	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE6(rdev)) {
 		int i = 0;
 		struct drm_crtc *crtc_p;
 

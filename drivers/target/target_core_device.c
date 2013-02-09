@@ -1665,6 +1665,7 @@ int core_dev_setup_virtual_lun0(void)
 		ret = PTR_ERR(dev);
 		goto out;
 	}
+	dev->dev_link_magic = SE_DEV_LINK_MAGIC;
 	se_dev->se_dev_ptr = dev;
 	g_lun0_dev = dev;
 
