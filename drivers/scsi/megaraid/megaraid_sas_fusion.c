@@ -1206,7 +1206,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 				MPI2_SCSIIO_EEDPFLAGS_INSERT_OP;
 		}
 		io_request->Control |= (0x4 << 26);
-		io_request->EEDPBlockSize = MEGASAS_EEDPBLOCKSIZE;
+		io_request->EEDPBlockSize = scp->device->sector_size;
 	} else {
 		/* Some drives don't support 16/12 byte CDB's, convert to 10 */
 		if (((cdb_len == 12) || (cdb_len == 16)) &&
