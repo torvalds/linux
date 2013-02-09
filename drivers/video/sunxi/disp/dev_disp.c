@@ -313,13 +313,30 @@ __s32 DRV_DISP_Exit(void)
 static int
 disp_mem_request(int sel, __u32 size)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = 0;
 	struct page *page;
 
 	if (g_disp_mm[sel].info_base != NULL)
 		return -EINVAL;
 
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size) {
+		void *ret = disp_malloc(size);
+		if (ret) {
+			g_disp_mm[sel].info_base = ret;
+			g_disp_mm[sel].mem_start =
+				virt_to_phys(g_disp_mm[sel].info_base);
+			memset(g_disp_mm[sel].info_base, 0, size);
+			__inf("pa=0x%08lx va=0x%p size:0x%x\n",
+			      g_disp_mm[sel].mem_start,
+			      g_disp_mm[sel].info_base, size);
+			return 0;
+		} else {
+			__wrn("disp_malloc fail!\n");
+			return -ENOMEM;
+		}
+	}
+#endif
 	g_disp_mm[sel].mem_len = size;
 	map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
 
@@ -342,50 +359,25 @@ disp_mem_request(int sel, __u32 size)
 		__wrn("alloc_pages fail!\n");
 		return -ENOMEM;
 	}
-#else
-	void *ret;
-
-	ret = disp_malloc(size);
-	if (ret) {
-		g_disp_mm[sel].info_base = ret;
-		g_disp_mm[sel].mem_start =
-			virt_to_phys(g_disp_mm[sel].info_base);
-		memset(g_disp_mm[sel].info_base, 0, size);
-		__inf("pa=0x%08lx va=0x%p size:0x%x\n",
-		      g_disp_mm[sel].mem_start, g_disp_mm[sel].info_base, size);
-
-		return 0;
-	} else {
-		__wrn("disp_malloc fail!\n");
-		return -ENOMEM;
-	}
-#endif
-
 }
 
 static int
 disp_mem_release(int sel)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
-	unsigned page_size = map_size;
 
-	if (g_disp_mm[sel].info_base == 0)
-		return -EINVAL;
-
-	free_pages((unsigned long)(g_disp_mm[sel].info_base),
-		   get_order(page_size));
-	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
-#else
 	if (g_disp_mm[sel].info_base == NULL)
 		return -EINVAL;
 
-	disp_free((void *)g_disp_mm[sel].info_base);
-	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size)
+		disp_free((void *)g_disp_mm[sel].info_base);
+	else
 #endif
-
+		free_pages((unsigned long)(g_disp_mm[sel].info_base),
+			   get_order(map_size));
+	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
 	return 0;
-
 }
 
 int disp_mmap(struct file *filp, struct vm_area_struct *vma)

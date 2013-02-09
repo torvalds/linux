@@ -170,12 +170,6 @@ parser_disp_init_para(__disp_init_t *init_para)
 		return -1;
 	}
 	init_para->b_init = value;
-#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
-	if (init_para->b_init && fb_size == 0) {
-		pr_warn("0 bytes reserved for fb mem, disabling display\n");
-		init_para->b_init = 0;
-	}
-#endif
 
 	if (script_parser_fetch("disp_init", "disp_mode", &value, 1) < 0) {
 		__wrn("fetch script data disp_init.disp_mode fail\n");
@@ -471,10 +465,13 @@ fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 
 static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 	struct page *page;
 
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size)
+		goto use_reserved_mem;
+#endif
 	page = alloc_pages(GFP_KERNEL, get_order(map_size));
 	if (page != NULL) {
 		info->screen_base = page_address(page);
@@ -487,7 +484,8 @@ static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 		__wrn("alloc_pages fail!\n");
 		return -ENOMEM;
 	}
-#else
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+use_reserved_mem:
 	g_fbi.malloc_screen_base[fb_id] = disp_malloc(info->fix.smem_len);
 	if (g_fbi.malloc_screen_base[fb_id] == NULL)
 		return -ENOMEM;
@@ -513,20 +511,22 @@ static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 
 static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
-
-	free_pages((unsigned long)info->screen_base, get_order(map_size));
-#else
-	if ((void *)info->screen_base != g_fbi.malloc_screen_base[fb_id]) {
-		__inf("Fb_unmap_video_memory: fb_id=%d, iounmap(%p)\n",
-						fb_id, info->screen_base);
-		iounmap(info->screen_base);
-	}
-	__inf("Fb_unmap_video_memory: fb_id=%d, disp_free(%p)\n",
-			fb_id, g_fbi.malloc_screen_base[fb_id]);
-	disp_free(g_fbi.malloc_screen_base[fb_id]);
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size) {
+		if ((void *)info->screen_base !=
+					g_fbi.malloc_screen_base[fb_id]) {
+			__inf("Fb_unmap_video_memory: fb_id=%d, iounmap(%p)\n",
+				fb_id, info->screen_base);
+			iounmap(info->screen_base);
+		}
+		__inf("Fb_unmap_video_memory: fb_id=%d, disp_free(%p)\n",
+				fb_id, g_fbi.malloc_screen_base[fb_id]);
+		disp_free(g_fbi.malloc_screen_base[fb_id]);
+	} else
 #endif
+		free_pages((unsigned long)info->screen_base,
+			   get_order(map_size));
 }
 
 /*
