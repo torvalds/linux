@@ -2744,25 +2744,37 @@ int qlcnic_83xx_get_registers(struct qlcnic_adapter *adapter, u32 *regs_buff)
 	return i;
 }
 
-int qlcnic_83xx_interrupt_test(struct qlcnic_adapter *adapter,
-			       struct qlcnic_cmd_args *cmd)
+int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 {
-	u8 val;
-	int ret;
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_cmd_args cmd;
 	u32 data;
 	u16 intrpt_id, id;
+	u8 val;
+	int ret, max_sds_rings = adapter->max_sds_rings;
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EIO;
+
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST);
+	if (ret)
+		goto fail_diag_irq;
+
+	ahw->diag_cnt = 0;
+	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INTRPT_TEST);
 
 	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		intrpt_id = adapter->ahw->intr_tbl[0].id;
+		intrpt_id = ahw->intr_tbl[0].id;
 	else
-		intrpt_id = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_ID);
+		intrpt_id = QLCRDX(ahw, QLCNIC_DEF_INT_ID);
 
-	cmd->req.arg[1] = 1;
-	cmd->req.arg[2] = intrpt_id;
-	cmd->req.arg[3] = BIT_0;
+	cmd.req.arg[1] = 1;
+	cmd.req.arg[2] = intrpt_id;
+	cmd.req.arg[3] = BIT_0;
 
-	ret = qlcnic_issue_cmd(adapter, cmd);
-	data = cmd->rsp.arg[2];
+	ret = qlcnic_issue_cmd(adapter, &cmd);
+	data = cmd.rsp.arg[2];
 	id = LSW(data);
 	val = LSB(MSW(data));
 	if (id != intrpt_id)
@@ -2770,9 +2782,21 @@ int qlcnic_83xx_interrupt_test(struct qlcnic_adapter *adapter,
 			 "Interrupt generated: 0x%x, requested:0x%x\n",
 			 id, intrpt_id);
 	if (val)
-		dev_info(&adapter->pdev->dev,
+		dev_err(&adapter->pdev->dev,
 			 "Interrupt test error: 0x%x\n", val);
+	if (ret)
+		goto done;
 
+	msleep(20);
+	ret = !ahw->diag_cnt;
+
+done:
+	qlcnic_free_mbx_args(&cmd);
+	qlcnic_83xx_diag_free_res(netdev, max_sds_rings);
+
+fail_diag_irq:
+	adapter->max_sds_rings = max_sds_rings;
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return ret;
 }
 

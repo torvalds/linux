@@ -823,38 +823,36 @@ static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 static int qlcnic_irq_test(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int max_sds_rings = adapter->max_sds_rings;
-	int ret;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
+	int ret, max_sds_rings = adapter->max_sds_rings;
+
+	if (qlcnic_83xx_check(adapter))
+		return qlcnic_83xx_interrupt_test(netdev);
 
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
 	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST);
 	if (ret)
-		goto clear_it;
+		goto clear_diag_irq;
 
-	adapter->ahw->diag_cnt = 0;
+	ahw->diag_cnt = 0;
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INTRPT_TEST);
 
-	if (qlcnic_83xx_check(adapter)) {
-		ret = qlcnic_83xx_interrupt_test(adapter, &cmd);
-	} else {
-		cmd.req.arg[1] = adapter->ahw->pci_func;
-		ret = qlcnic_issue_cmd(adapter, &cmd);
-	}
-
+	cmd.req.arg[1] = ahw->pci_func;
+	ret = qlcnic_issue_cmd(adapter, &cmd);
 	if (ret)
 		goto done;
 
 	usleep_range(1000, 12000);
-	ret = !adapter->ahw->diag_cnt;
+	ret = !ahw->diag_cnt;
 
 done:
 	qlcnic_free_mbx_args(&cmd);
 	qlcnic_diag_free_res(netdev, max_sds_rings);
 
-clear_it:
+clear_diag_irq:
 	adapter->max_sds_rings = max_sds_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return ret;
