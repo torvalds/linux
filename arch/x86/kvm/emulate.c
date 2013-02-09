@@ -853,6 +853,8 @@ FASTOP2W(bts);
 FASTOP2W(btr);
 FASTOP2W(btc);
 
+FASTOP2(xadd);
+
 static u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
@@ -3861,7 +3863,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstReg | SrcMem | ModRM, em_bsf), F(DstReg | SrcMem | ModRM, em_bsr),
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xC7 */
-	D2bv(DstMem | SrcReg | ModRM | Lock),
+	F2bv(DstMem | SrcReg | ModRM | SrcWrite | Lock, em_xadd),
 	N, D(DstMem | SrcReg | ModRM | Mov),
 	N, N, N, GD(0, &group9),
 	/* 0xC8 - 0xCF */
@@ -4697,12 +4699,6 @@ twobyte_insn:
 		ctxt->dst.bytes = ctxt->op_bytes;
 		ctxt->dst.val = (ctxt->src.bytes == 1) ? (s8) ctxt->src.val :
 							(s16) ctxt->src.val;
-		break;
-	case 0xc0 ... 0xc1:	/* xadd */
-		fastop(ctxt, em_add);
-		/* Write back the register source. */
-		ctxt->src.val = ctxt->dst.orig_val;
-		write_register_operand(&ctxt->src);
 		break;
 	case 0xc3:		/* movnti */
 		ctxt->dst.bytes = ctxt->op_bytes;
