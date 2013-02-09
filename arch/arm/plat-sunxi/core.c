@@ -135,6 +135,14 @@ int sunxi_pr_chip_id()
 	return (chip_id != 0);
 }
 
+/*
+ * Only reserve certain important memory blocks if there are actually
+ * drivers which use them.
+ */
+static int reserved_mali_mem;
+static unsigned long reserved_start;
+static unsigned long reserved_max;
+
 #ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
 static u32 DRAMC_get_dram_size(void)
 {
@@ -219,7 +227,7 @@ void __init sunxi_core_fixup(struct machine_desc *desc,
 				pr_err("MALI: not enough memory in first bank to make reserve.\n");
 			} else {
 				mi->bank[0].size = SZ_1M * (512 - 64);
-
+				reserved_mali_mem = 1;
 				size -= 512;
 				if (size) {
 					bank++;
@@ -258,10 +266,6 @@ void __init sw_core_map_io(void)
 	sunxi_pr_chip_id();
 }
 
-/* Only reserve certain important memory blocks if there are actually
- * drivers which use them.
- */
-
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 /* The FB block is used by:
  *
@@ -269,81 +273,68 @@ void __init sw_core_map_io(void)
  *
  * fb_start, fb_size are used in a vast number of other places but for
  * for platform-specific drivers, so we don't have to worry about them.
- *
- * The block will only be allocated if the disp_init/disp_init_enabled
- * script key is set.
  */
 
-unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
+unsigned long fb_start;
 unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
 EXPORT_SYMBOL(fb_size);
 
-static void __init reserve_fb(void)
+static int __init reserve_fb_param(char *s)
 {
-	memblock_reserve(fb_start, fb_size);
-	pr_reserve_info("LCD ", fb_start, fb_size);
+	unsigned long size;
+	if (kstrtoul(s, 0, &size) == 0)
+		fb_size = size * SZ_1M;
+	return 0;
 }
-
-#else
-static void __init reserve_fb(void) {}
+early_param("sunxi_fb_mem_reserve", reserve_fb_param);
 #endif
 
 #if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
 /* The G2D block is used by:
  *
  * - the G2D engine, drivers/char/sun4i_g2d
- *
- * The block will only be allocated if the g2d_para/g2d_used
- * script key is set.
  */
 
-unsigned long g2d_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_128M);
+unsigned long g2d_start;
 unsigned long g2d_size = SZ_1M * 16;
 EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
 
-static void __init reserve_g2d(void)
+static int __init reserve_g2d_param(char *s)
 {
-	memblock_reserve(g2d_start, g2d_size);
-	pr_reserve_info("G2D ", g2d_start, g2d_size);
+	unsigned long size;
+	if (kstrtoul(s, 0, &size) == 0)
+		g2d_size = size * SZ_1M;
+	return 0;
 }
-#else
-static void __init reserve_g2d(void) {}
+early_param("sunxi_g2d_mem_reserve", reserve_g2d_param);
 #endif
 
 #if defined CONFIG_VIDEO_DECODER_SUN4I || \
-    defined CONFIG_VIDEO_DECODER_SUN4I_MODULE || \
-    defined CONFIG_VIDEO_DECODER_SUN5I || \
-    defined CONFIG_VIDEO_DECODER_SUN5I_MODULE
+	defined CONFIG_VIDEO_DECODER_SUN4I_MODULE || \
+	defined CONFIG_VIDEO_DECODER_SUN5I || \
+	defined CONFIG_VIDEO_DECODER_SUN5I_MODULE
 /* The VE block is used by:
  *
  * - the Cedar video engine, drivers/media/video/sun4i
- *
- * ve_start, ve_size are also used by the contiguous-DMA module in
- * drivers/media/video/videobuf-dma-contig.c, but that's SH-specific
- * so we don't have to worry about it here.
  */
 
-unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
+#define RESERVE_VE_MEM 1
+
+unsigned long ve_start;
 unsigned long ve_size = (SZ_64M + SZ_16M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 
-static void __init reserve_ve(void)
+static int __init reserve_ve_param(char *s)
 {
-    /* The users of the VE block aren't enabled via script flags, so if their
-     * driver gets compiled in we have to unconditionally reserve memory for
-     * them.
-     */
-	memblock_reserve(ve_start, SZ_64M);
-	memblock_reserve(ve_start + SZ_64M, SZ_16M);
-
-	pr_reserve_info("VE  ", ve_start, ve_size);
+	unsigned long size;
+	if (kstrtoul(s, 0, &size) == 0)
+		ve_size = size * SZ_1M;
+	return 0;
 }
-
-#else
-static void __init reserve_ve(void) {}
+early_param("sunxi_ve_mem_reserve", reserve_ve_param);
 #endif
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
@@ -367,13 +358,58 @@ static void reserve_sys(void)
 	pr_reserve_info("SYS ", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 }
 
+#if defined RESERVE_VE_MEM || defined CONFIG_SUN4I_G2D || \
+	defined CONFIG_SUN4I_G2D_MODULE || defined CONFIG_FB_SUNXI_RESERVED_MEM
+static void reserve_mem(unsigned long *start, unsigned long *size,
+			const char *desc)
+{
+	if (*size == 0) {
+		*start = 0;
+		return;
+	}
+
+	if ((reserved_start + *size) > reserved_max) {
+		pr_warn("Not enough memory to reserve memory for %s\n", desc);
+		*start = 0;
+		*size = 0;
+		return;
+	}
+	*start = reserved_start;
+	memblock_reserve(*start, *size);
+	pr_reserve_info(desc, *start, *size);
+	reserved_start += *size;
+}
+#endif
+
 static void __init sw_core_reserve(void)
 {
 	pr_info("Memory Reserved:\n");
 	reserve_sys();
-	reserve_ve();
-	reserve_g2d();
-	reserve_fb();
+	/* 0 - 64M is used by reserve_sys */
+	reserved_start = meminfo.bank[0].start + SZ_64M;
+	reserved_max   = meminfo.bank[0].start + meminfo.bank[0].size;
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (reserved_mali_mem) {
+		/* The stupid mali blob expects the fb at a fixed address :( */
+		fb_start = meminfo.bank[0].start + SZ_512M - SZ_64M - SZ_32M;
+		if (fb_start < reserved_max)
+			reserved_max = fb_start;
+	}
+#endif
+#ifdef RESERVE_VE_MEM
+	reserve_mem(&ve_start, &ve_size, "VE  ");
+#endif
+#if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+	reserve_mem(&g2d_start, &g2d_size, "G2D ");
+#endif
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (reserved_mali_mem) {
+		/* Give the mali blob the fb at its expected address */
+		reserved_start = fb_start;
+		reserved_max   = meminfo.bank[0].start + meminfo.bank[0].size;
+	}
+	reserve_mem(&fb_start, &fb_size, "LCD ");
+#endif
 	reserve_ramconsole();
 }
 
