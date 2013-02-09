@@ -29,6 +29,7 @@
 #include <mach/irqs.h>
 #include <linux/power_supply.h>
 #include <linux/mfd/axp-mfd.h>
+#include <plat/sys_config.h>
 
 #include "axp-cfg.h"
 
@@ -74,9 +75,14 @@ static struct platform_device virt[]={
 
 
 
- static int __init virtual_init(void)
+static int __init virtual_init(void)
 {
-	int j,ret;
+	int j, ret, used = 0;
+
+	ret = script_parser_fetch("pmu_para", "pmu_used", &used, sizeof(int));
+	if (ret || !used)
+		return -ENODEV;
+
 	for (j = 0; j < ARRAY_SIZE(virt); j++){
  		ret =  platform_device_register(&virt[j]);
   		if (ret)
