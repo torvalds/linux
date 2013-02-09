@@ -1079,7 +1079,11 @@ static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	      var->bits_per_pixel);
 
 	for (sel = 0; sel < 2; sel++) {
-		if (g_fbi.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
+		if (!(((sel == 0) &&
+		       (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)) ||
+		      ((sel == 1) &&
+		       (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) ||
+		    g_fbi.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
 			continue;
 
 		/* Check that pll is found */
