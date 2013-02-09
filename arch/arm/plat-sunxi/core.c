@@ -177,14 +177,21 @@ static u32 DRAMC_get_dram_size(void)
 #endif
 
 void __init sunxi_core_fixup(struct machine_desc *desc,
-			     struct tag *t, char **cmdline,
+			     struct tag *tags, char **cmdline,
 			     struct meminfo *mi)
 {
+	struct tag *t;
 #ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
 	u32 size = DRAMC_get_dram_size();
 
 	pr_info("Total Detected Memory: %uMB (via Allwinner's Hack)\n", size);
 #ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag != ATAG_CMDLINE)
+			continue;
+		if (strstr(t->u.cmdline.cmdline, "sunxi_no_mali_mem_reserve"))
+			goto single_bank;
+	}
 	if (size < 512) {
 		pr_err("MALI: not enough memory to make reserve.\n");
 		/* fallback to single bank will full size */
@@ -204,6 +211,7 @@ void __init sunxi_core_fixup(struct machine_desc *desc,
 		pr_reserve_info("MALI", PLAT_PHYS_OFFSET + SZ_512M - SZ_64M, SZ_64M);
 		return;
 	}
+single_bank:
 #endif
 	mi->nr_banks = 1;
 	mi->bank[0].start = 0x40000000;
@@ -212,7 +220,16 @@ void __init sunxi_core_fixup(struct machine_desc *desc,
 #else /* !CONFIG_SUNXI_IGNORE_ATAG_MEM */
 #ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
 	u32 bank = 0;
-	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag != ATAG_CMDLINE)
+			continue;
+		if (strstr(t->u.cmdline.cmdline, "sunxi_no_mali_mem_reserve"))
+			return;
+	}
+
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag != ATAG_MEM)
+			continue;
 		if (bank) {
 			mi->nr_banks++;
 			mi->bank[bank].start = t->u.mem.start;
