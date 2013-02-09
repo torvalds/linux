@@ -1575,8 +1575,41 @@ static struct port_info {
 	EXTERNAL_PORT(0x0582, 0x004d, 0, "%s MIDI"),
 	EXTERNAL_PORT(0x0582, 0x004d, 1, "%s 1"),
 	EXTERNAL_PORT(0x0582, 0x004d, 2, "%s 2"),
+	/* BOSS GT-PRO */
+	CONTROL_PORT(0x0582, 0x0089, 0, "%s Control"),
 	/* Edirol UM-3EX */
 	CONTROL_PORT(0x0582, 0x009a, 3, "%s Control"),
+	/* Roland VG-99 */
+	CONTROL_PORT(0x0582, 0x00b2, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x00b2, 1, "%s MIDI"),
+	/* Cakewalk Sonar V-Studio 100 */
+	EXTERNAL_PORT(0x0582, 0x00eb, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x00eb, 1, "%s Control"),
+	/* Roland VB-99 */
+	CONTROL_PORT(0x0582, 0x0102, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0102, 1, "%s MIDI"),
+	/* Roland A-PRO */
+	EXTERNAL_PORT(0x0582, 0x010f, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x010f, 1, "%s 1"),
+	CONTROL_PORT(0x0582, 0x010f, 2, "%s 2"),
+	/* Roland SD-50 */
+	ROLAND_SYNTH_PORT(0x0582, 0x0114, 0, "%s Synth", 128),
+	EXTERNAL_PORT(0x0582, 0x0114, 1, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0114, 2, "%s Control"),
+	/* Roland OCTA-CAPTURE */
+	EXTERNAL_PORT(0x0582, 0x0120, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0120, 1, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0121, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0121, 1, "%s Control"),
+	/* Roland SPD-SX */
+	CONTROL_PORT(0x0582, 0x0145, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0145, 1, "%s MIDI"),
+	/* Roland A-Series */
+	CONTROL_PORT(0x0582, 0x0156, 0, "%s Keyboard"),
+	EXTERNAL_PORT(0x0582, 0x0156, 1, "%s MIDI"),
+	/* Roland INTEGRA-7 */
+	ROLAND_SYNTH_PORT(0x0582, 0x015b, 0, "%s Synth", 128),
+	CONTROL_PORT(0x0582, 0x015b, 1, "%s Control"),
 	/* M-Audio MidiSport 8x8 */
 	CONTROL_PORT(0x0763, 0x1031, 8, "%s Control"),
 	CONTROL_PORT(0x0763, 0x1033, 8, "%s Control"),
