@@ -1219,10 +1219,15 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0b05, 0x1760) },
 	{ USB_DEVICE(0x0b05, 0x1761) },
 	{ USB_DEVICE(0x0b05, 0x1790) },
+	{ USB_DEVICE(0x0b05, 0x17a7) },
 	/* AzureWave */
 	{ USB_DEVICE(0x13d3, 0x3262) },
 	{ USB_DEVICE(0x13d3, 0x3284) },
 	{ USB_DEVICE(0x13d3, 0x3322) },
+	{ USB_DEVICE(0x13d3, 0x3340) },
+	{ USB_DEVICE(0x13d3, 0x3399) },
+	{ USB_DEVICE(0x13d3, 0x3400) },
+	{ USB_DEVICE(0x13d3, 0x3401) },
 	/* Belkin */
 	{ USB_DEVICE(0x050d, 0x1003) },
 	/* Buffalo */
@@ -1237,10 +1242,15 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c0b) },
 	/* Encore */
 	{ USB_DEVICE(0x203d, 0x14a1) },
+	/* EnGenius */
+	{ USB_DEVICE(0x1740, 0x0600) },
+	{ USB_DEVICE(0x1740, 0x0602) },
 	/* Gemtek */
 	{ USB_DEVICE(0x15a9, 0x0010) },
 	/* Gigabyte */
 	{ USB_DEVICE(0x1044, 0x800c) },
+	/* Hercules */
+	{ USB_DEVICE(0x06f8, 0xe036) },
 	/* Huawei */
 	{ USB_DEVICE(0x148f, 0xf101) },
 	/* I-O DATA */
@@ -1267,11 +1277,17 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0df6, 0x004a) },
 	{ USB_DEVICE(0x0df6, 0x004d) },
 	{ USB_DEVICE(0x0df6, 0x0053) },
+	{ USB_DEVICE(0x0df6, 0x0069) },
+	{ USB_DEVICE(0x0df6, 0x006f) },
 	/* SMC */
 	{ USB_DEVICE(0x083a, 0xa512) },
 	{ USB_DEVICE(0x083a, 0xc522) },
 	{ USB_DEVICE(0x083a, 0xd522) },
 	{ USB_DEVICE(0x083a, 0xf511) },
+	/* Sweex */
+	{ USB_DEVICE(0x177f, 0x0254) },
+	/* TP-LINK */
+	{ USB_DEVICE(0xf201, 0x5370) },
 #endif
 	{ 0, }
 };
