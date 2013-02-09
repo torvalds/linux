@@ -2787,21 +2787,13 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode;
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de;
-	handle_t *handle;
+	handle_t *handle = NULL;
 
 	trace_ext4_unlink_enter(dir, dentry);
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	dquot_initialize(dir);
 	dquot_initialize(dentry->d_inode);
-
-	handle = ext4_journal_start(dir, EXT4_HT_DIR,
-				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
-
-	if (IS_DIRSYNC(dir))
-		ext4_handle_sync(handle);
 
 	retval = -ENOENT;
 	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
@@ -2813,6 +2805,17 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	retval = -EIO;
 	if (le32_to_cpu(de->inode) != inode->i_ino)
 		goto end_unlink;
+
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+				    EXT4_DELETE_TRANS_BLOCKS(dir->i_sb));
+	if (IS_ERR(handle)) {
+		retval = PTR_ERR(handle);
+		handle = NULL;
+		goto end_unlink;
+	}
+
+	if (IS_DIRSYNC(dir))
+		ext4_handle_sync(handle);
 
 	if (!inode->i_nlink) {
 		ext4_warning(inode->i_sb,
@@ -2834,8 +2837,9 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	retval = 0;
 
 end_unlink:
-	ext4_journal_stop(handle);
 	brelse(bh);
+	if (handle)
+		ext4_journal_stop(handle);
 	trace_ext4_unlink_exit(dentry, retval);
 	return retval;
 }
