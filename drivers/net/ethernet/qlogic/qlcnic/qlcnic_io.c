@@ -1553,6 +1553,24 @@ skip:
 	return count;
 }
 
+static void qlcnic_83xx_poll_process_aen(struct qlcnic_adapter *adapter)
+{
+	unsigned long flags;
+	u32 mask, resp, event;
+
+	spin_lock_irqsave(&adapter->ahw->mbx_lock, flags);
+	resp = QLCRDX(adapter->ahw, QLCNIC_FW_MBX_CTRL);
+	if (!(resp & QLCNIC_SET_OWNER))
+		goto out;
+	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
+	if (event &  QLCNIC_MBX_ASYNC_EVENT)
+		qlcnic_83xx_process_aen(adapter);
+out:
+	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
+	writel(0, adapter->ahw->pci_base0 + mask);
+	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
+}
+
 static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 {
 	int tx_complete;
@@ -1567,7 +1585,7 @@ static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 	tx_ring = adapter->tx_ring;
 
 	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-		qlcnic_83xx_process_aen(adapter);
+		qlcnic_83xx_poll_process_aen(adapter);
 
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);

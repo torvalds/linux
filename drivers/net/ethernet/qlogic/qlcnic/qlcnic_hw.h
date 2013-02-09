@@ -135,6 +135,7 @@ struct qlcnic_mailbox_metadata {
 
 #define QLCNIC_MBX_RSP_OK	1
 #define QLCNIC_MBX_PORT_RSP_OK	0x1a
+#define QLCNIC_MBX_ASYNC_EVENT	BIT_15
 
 struct qlcnic_pci_info;
 struct qlcnic_info;

@@ -137,9 +137,6 @@ struct qlc_83xx_reset {
 #define QLC_83XX_IDC_MINOR_VERSION			0
 #define QLC_83XX_IDC_FLASH_PARAM_ADDR			0x3e8020
 
-/* Mailbox process AEN count */
-#define QLC_83XX_MBX_AEN_CNT 5
-
 struct qlcnic_adapter;
 struct qlc_83xx_idc {
 	int (*state_entry) (struct qlcnic_adapter *);
@@ -155,6 +152,12 @@ struct qlc_83xx_idc {
 	u8		quiesce_req;
 	char		**name;
 };
+
+#define QLCNIC_MBX_RSP(reg)		LSW(reg)
+#define QLCNIC_MBX_NUM_REGS(reg)	(MSW(reg) & 0x1FF)
+#define QLCNIC_MBX_STATUS(reg)		(((reg) >> 25) & 0x7F)
+#define QLCNIC_MBX_HOST(ahw, i)	((ahw)->pci_base0 + ((i) * 4))
+#define QLCNIC_MBX_FW(ahw, i)		((ahw)->pci_base0 + 0x800 + ((i) * 4))
 
 /* Mailbox process AEN count */
 #define QLC_83XX_IDC_COMP_AEN			3

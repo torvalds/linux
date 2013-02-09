@@ -12,13 +12,6 @@
 #include <linux/interrupt.h>
 
 #define QLCNIC_MAX_TX_QUEUES		1
-
-#define QLCNIC_MBX_RSP(reg)		LSW(reg)
-#define QLCNIC_MBX_NUM_REGS(reg)	(MSW(reg) & 0x1FF)
-#define QLCNIC_MBX_STATUS(reg)		(((reg) >> 25) & 0x7F)
-#define QLCNIC_MBX_HOST(ahw, i)	((ahw)->pci_base0 + ((i) * 4))
-#define QLCNIC_MBX_FW(ahw, i)		((ahw)->pci_base0 + 0x800 + ((i) * 4))
-
 #define RSS_HASHTYPE_IP_TCP		0x3
 
 /* status descriptor mailbox data
@@ -696,7 +689,7 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	int i;
 	u16 opcode;
 	u8 mbx_err_code, mac_cmd_rcode;
-	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd, temp, fw[8];
+	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	opcode = LSW(cmd->req.arg[0]);
@@ -738,42 +731,8 @@ poll:
 	opcode = QLCNIC_MBX_RSP(fw_data);
 
 	if (rsp != QLCNIC_RCODE_TIMEOUT) {
-		if (opcode == QLCNIC_MBX_LINK_EVENT) {
-			for (i = 0; i < rsp_num; i++) {
-				temp = readl(QLCNIC_MBX_FW(ahw, i));
-				fw[i] = temp;
-			}
-			qlcnic_83xx_handle_link_aen(adapter, fw);
-			/* clear fw mbx control register */
-			QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
-			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
-			if (mbx_val)
-				goto poll;
-		} else if (opcode == QLCNIC_MBX_COMP_EVENT) {
-			for (i = 0; i < rsp_num; i++) {
-				temp = readl(QLCNIC_MBX_FW(ahw, i));
-				fw[i] = temp;
-			}
-			qlcnic_83xx_handle_idc_comp_aen(adapter, fw);
-			/* clear fw mbx control register */
-			QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
-			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
-			if (mbx_val)
-				goto poll;
-		} else if (opcode == QLCNIC_MBX_REQUEST_EVENT) {
-			/* IDC Request Notification */
-			for (i = 0; i < rsp_num; i++) {
-				temp = readl(QLCNIC_MBX_FW(ahw, i));
-				fw[i] = temp;
-			}
-			for (i = 0; i < QLC_83XX_MBX_AEN_CNT; i++) {
-				temp = QLCNIC_MBX_RSP(fw[i]);
-				adapter->ahw->mbox_aen[i] = temp;
-			}
-			queue_delayed_work(adapter->qlcnic_wq,
-					   &adapter->idc_aen_work, 0);
-			/* clear fw mbx control register */
-			QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
+		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
+			qlcnic_83xx_process_aen(adapter);
 			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 			if (mbx_val)
 				goto poll;
@@ -875,19 +834,9 @@ static void qlcnic_83xx_handle_idc_comp_aen(struct qlcnic_adapter *adapter,
 
 void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 {
-	u32 mask, resp, event[QLC_83XX_MBX_AEN_CNT];
+	u32 event[QLC_83XX_MBX_AEN_CNT];
 	int i;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-
-	if (!spin_trylock(&ahw->mbx_lock)) {
-		mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
-		writel(0, adapter->ahw->pci_base0 + mask);
-		return;
-	}
-	resp = QLCRDX(ahw, QLCNIC_FW_MBX_CTRL);
-
-	if (!(resp & QLCNIC_SET_OWNER))
-		goto out;
 
 	for (i = 0; i < QLC_83XX_MBX_AEN_CNT; i++)
 		event[i] = readl(QLCNIC_MBX_FW(ahw, i));
@@ -923,10 +872,6 @@ void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 	}
 
 	QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
-out:
-	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
-	writel(0, adapter->ahw->pci_base0 + mask);
-	spin_unlock(&ahw->mbx_lock);
 }
 
 static int qlcnic_83xx_add_rings(struct qlcnic_adapter *adapter)
@@ -1620,7 +1565,21 @@ static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,
 irqreturn_t qlcnic_83xx_handle_aen(int irq, void *data)
 {
 	struct qlcnic_adapter *adapter = data;
-	qlcnic_83xx_process_aen(adapter);
+	unsigned long flags;
+	u32 mask, resp, event;
+
+	spin_lock_irqsave(&adapter->ahw->mbx_lock, flags);
+	resp = QLCRDX(adapter->ahw, QLCNIC_FW_MBX_CTRL);
+	if (!(resp & QLCNIC_SET_OWNER))
+		goto out;
+	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
+	if (event &  QLCNIC_MBX_ASYNC_EVENT)
+		qlcnic_83xx_process_aen(adapter);
+out:
+	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
+	writel(0, adapter->ahw->pci_base0 + mask);
+	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
+
 	return IRQ_HANDLED;
 }
 
