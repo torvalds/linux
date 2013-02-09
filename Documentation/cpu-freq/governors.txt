@@ -198,56 +198,73 @@ default value of '20' it means that if the CPU usage needs to be below
 
 The CPUfreq governor "interactive" is designed for latency-sensitive,
 interactive workloads. This governor sets the CPU speed depending on
-usage, similar to "ondemand" and "conservative" governors.  However,
-the governor is more aggressive about scaling the CPU speed up in
-response to CPU-intensive activity.
-
-Sampling the CPU load every X ms can lead to under-powering the CPU
-for X ms, leading to dropped frames, stuttering UI, etc.  Instead of
-sampling the cpu at a specified rate, the interactive governor will
-check whether to scale the cpu frequency up soon after coming out of
-idle.  When the cpu comes out of idle, a timer is configured to fire
-within 1-2 ticks.  If the cpu is very busy between exiting idle and
-when the timer fires then we assume the cpu is underpowered and ramp
-to MAX speed.
-
-If the cpu was not sufficiently busy to immediately ramp to MAX speed,
-then governor evaluates the cpu load since the last speed adjustment,
-choosing the highest value between that longer-term load or the
-short-term load since idle exit to determine the cpu speed to ramp to.
+usage, similar to "ondemand" and "conservative" governors, but with a
+different set of configurable behaviors.
 
 The tuneable values for this governor are:
 
+target_loads: CPU load values used to adjust speed to influence the
+current CPU load toward that value.  In general, the lower the target
+load, the more often the governor will raise CPU speeds to bring load
+below the target.  The format is a single target load, optionally
+followed by pairs of CPU speeds and CPU loads to target at or above
+those speeds.  Colons can be used between the speeds and associated
+target loads for readability.  For example:
+
+   85 1000000:90 1700000:99
+
+targets CPU load 85% below speed 1GHz, 90% at or above 1GHz, until
+1.7GHz and above, at which load 99% is targeted.  If speeds are
+specified these must appear in ascending order.  Higher target load
+values are typically specified for higher speeds, that is, target load
+values also usually appear in an ascending order. The default is
+target load 90% for all speeds.
+
 min_sample_time: The minimum amount of time to spend at the current
-frequency before ramping down. This is to ensure that the governor has
-seen enough historic cpu load data to determine the appropriate
-workload.  Default is 80000 uS.
+frequency before ramping down. Default is 80000 uS.
 
 hispeed_freq: An intermediate "hi speed" at which to initially ramp
 when CPU load hits the value specified in go_hispeed_load.  If load
 stays high for the amount of time specified in above_hispeed_delay,
-then speed may be bumped higher.  Default is maximum speed.
+then speed may be bumped higher.  Default is the maximum speed
+allowed by the policy at governor initialization time.
 
-go_hispeed_load: The CPU load at which to ramp to the intermediate "hi
-speed".  Default is 85%.
+go_hispeed_load: The CPU load at which to ramp to hispeed_freq.
+Default is 99%.
 
-above_hispeed_delay: Once speed is set to hispeed_freq, wait for this
-long before bumping speed higher in response to continued high load.
+above_hispeed_delay: When speed is at or above hispeed_freq, wait for
+this long before raising speed in response to continued high load.
 Default is 20000 uS.
 
-timer_rate: Sample rate for reevaluating cpu load when the system is
-not idle.  Default is 20000 uS.
+timer_rate: Sample rate for reevaluating CPU load when the CPU is not
+idle.  A deferrable timer is used, such that the CPU will not be woken
+from idle to service this timer until something else needs to run.
+(The maximum time to allow deferring this timer when not running at
+minimum speed is configurable via timer_slack.)  Default is 20000 uS.
 
-input_boost: If non-zero, boost speed of all CPUs to hispeed_freq on
-touchscreen activity.  Default is 0.
+timer_slack: Maximum additional time to defer handling the governor
+sampling timer beyond timer_rate when running at speeds above the
+minimum.  For platforms that consume additional power at idle when
+CPUs are running at speeds greater than minimum, this places an upper
+bound on how long the timer will be deferred prior to re-evaluating
+load and dropping speed.  For example, if timer_rate is 20000uS and
+timer_slack is 10000uS then timers will be deferred for up to 30msec
+when not at lowest speed.  A value of -1 means defer timers
+indefinitely at all speeds.  Default is 80000 uS.
 
 boost: If non-zero, immediately boost speed of all CPUs to at least
 hispeed_freq until zero is written to this attribute.  If zero, allow
 CPU speeds to drop below hispeed_freq according to load as usual.
+Default is zero.
 
-boostpulse: Immediately boost speed of all CPUs to hispeed_freq for
-min_sample_time, after which speeds are allowed to drop below
+boostpulse: On each write, immediately boost speed of all CPUs to
+hispeed_freq for at least the period of time specified by
+boostpulse_duration, after which speeds are allowed to drop below
 hispeed_freq according to load as usual.
+
+boostpulse_duration: Length of time to hold CPU speed at hispeed_freq
+on a write to boostpulse, before allowing speed to drop according to
+load as usual.  Default is 80000 uS.
 
 
 3. The Governor Interface in the CPUfreq Core

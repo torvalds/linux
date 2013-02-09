@@ -28,7 +28,7 @@
 
 static unsigned int high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO |
 					    __GFP_NOWARN | __GFP_NORETRY |
-					    __GFP_NO_KSWAPD);
+					    __GFP_NO_KSWAPD) & ~__GFP_WAIT;
 static unsigned int low_order_gfp_flags  = (GFP_HIGHUSER | __GFP_ZERO |
 					 __GFP_NOWARN);
 static const unsigned int orders[] = {8, 4, 0};
@@ -76,9 +76,14 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 		if (order > 4)
 			gfp_flags = high_order_gfp_flags;
 		page = alloc_pages(gfp_flags, order);
+		if (!page)
+			return 0;
+		__dma_page_cpu_to_dev(page, 0, PAGE_SIZE << order,
+				      DMA_BIDIRECTIONAL);
 	}
 	if (!page)
 		return 0;
+
 	if (split_pages)
 		split_page(page, order);
 	return page;
@@ -94,17 +99,6 @@ static void free_buffer_page(struct ion_system_heap *heap,
 
 	if (!cached) {
 		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
-		/* zero the pages before returning them to the pool for
-		   security.  This uses vmap as we want to set the pgprot so
-		   the writes to occur to noncached mappings, as the pool's
-		   purpose is to keep the pages out of the cache */
-		for (i = 0; i < order / PAGE_SIZE; i++) {
-			struct page *sub_page = page + i;
-			void *addr = vmap(&sub_page, 1, VM_MAP,
-					  pgprot_writecombine(PAGE_KERNEL));
-			memset(addr, 0, PAGE_SIZE);
-			vunmap(addr);
-		}
 		ion_page_pool_free(pool, page);
 	} else if (split_pages) {
 		for (i = 0; i < (1 << order); i++)
@@ -201,9 +195,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		kfree(info);
 	}
 
-	dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-			       DMA_BIDIRECTIONAL);
-
 	buffer->priv_virt = table;
 	return 0;
 err1:
@@ -222,13 +213,20 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 	struct ion_system_heap *sys_heap = container_of(heap,
 							struct ion_system_heap,
 							heap);
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
+	bool cached = ion_buffer_cached(buffer);
 	struct scatterlist *sg;
 	LIST_HEAD(pages);
 	int i;
 
+	/* uncached pages come from the page pools, zero them before returning
+	   for security purposes (other allocations are zerod at alloc time */
+	if (!cached)
+		ion_heap_buffer_zero(buffer);
+
 	for_each_sg(table->sgl, sg, table->nents, i)
-		free_buffer_page(sys_heap, buffer, sg_page(sg), get_order(sg_dma_len(sg)));
+		free_buffer_page(sys_heap, buffer, sg_page(sg),
+				get_order(sg_dma_len(sg)));
 	sg_free_table(table);
 	kfree(table);
 }
@@ -245,77 +243,14 @@ void ion_system_heap_unmap_dma(struct ion_heap *heap,
 	return;
 }
 
-void *ion_system_heap_map_kernel(struct ion_heap *heap,
-				 struct ion_buffer *buffer)
-{
-	struct scatterlist *sg;
-	int i, j;
-	void *vaddr;
-	pgprot_t pgprot;
-	struct sg_table *table = buffer->priv_virt;
-	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = vmalloc(sizeof(struct page *) * npages);
-	struct page **tmp = pages;
-
-	if (!pages)
-		return 0;
-
-	if (buffer->flags & ION_FLAG_CACHED)
-		pgprot = PAGE_KERNEL;
-	else
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		int npages_this_entry = PAGE_ALIGN(sg_dma_len(sg)) / PAGE_SIZE;
-		struct page *page = sg_page(sg);
-		BUG_ON(i >= npages);
-		for (j = 0; j < npages_this_entry; j++) {
-			*(tmp++) = page++;
-		}
-	}
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	vfree(pages);
-
-	return vaddr;
-}
-
-void ion_system_heap_unmap_kernel(struct ion_heap *heap,
-				  struct ion_buffer *buffer)
-{
-	vunmap(buffer->vaddr);
-}
-
-int ion_system_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
-			     struct vm_area_struct *vma)
-{
-	struct sg_table *table = buffer->priv_virt;
-	unsigned long addr = vma->vm_start;
-	unsigned long offset = vma->vm_pgoff;
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		if (offset) {
-			offset--;
-			continue;
-		}
-		remap_pfn_range(vma, addr, page_to_pfn(sg_page(sg)),
-				sg_dma_len(sg), vma->vm_page_prot);
-		addr += sg_dma_len(sg);
-		if (addr >= vma->vm_end)
-			return 0;
-	}
-	return 0;
-}
-
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
 	.map_dma = ion_system_heap_map_dma,
 	.unmap_dma = ion_system_heap_unmap_dma,
-	.map_kernel = ion_system_heap_map_kernel,
-	.unmap_kernel = ion_system_heap_unmap_kernel,
-	.map_user = ion_system_heap_map_user,
+	.map_kernel = ion_heap_map_kernel,
+	.unmap_kernel = ion_heap_unmap_kernel,
+	.map_user = ion_heap_map_user,
 };
 
 static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
@@ -328,9 +263,12 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	int i;
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
-		seq_printf(s, "%d order %u pages in pool = %lu total\n",
-			   pool->count, pool->order,
-			   (1 << pool->order) * PAGE_SIZE * pool->count);
+		seq_printf(s, "%d order %u highmem pages in pool = %lu total\n",
+			   pool->high_count, pool->order,
+			   (1 << pool->order) * PAGE_SIZE * pool->high_count);
+		seq_printf(s, "%d order %u lowmem pages in pool = %lu total\n",
+			   pool->low_count, pool->order,
+			   (1 << pool->order) * PAGE_SIZE * pool->low_count);
 	}
 	return 0;
 }
@@ -454,8 +392,8 @@ static struct ion_heap_ops kmalloc_ops = {
 	.phys = ion_system_contig_heap_phys,
 	.map_dma = ion_system_contig_heap_map_dma,
 	.unmap_dma = ion_system_contig_heap_unmap_dma,
-	.map_kernel = ion_system_heap_map_kernel,
-	.unmap_kernel = ion_system_heap_unmap_kernel,
+	.map_kernel = ion_heap_map_kernel,
+	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_system_contig_heap_map_user,
 };
 

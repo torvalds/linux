@@ -126,11 +126,11 @@ struct ion_heap_ops {
  * that are allocated from a specially reserved heap.
  */
 struct ion_heap {
-	struct rb_node node;
+	struct plist_node node;
 	struct ion_device *dev;
 	enum ion_heap_type type;
 	struct ion_heap_ops *ops;
-	int id;
+	unsigned int id;
 	const char *name;
 	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
 };
@@ -177,6 +177,17 @@ void ion_device_destroy(struct ion_device *dev);
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
 
 /**
+ * some helpers for common operations on buffers using the sg_table
+ * and vaddr fields
+ */
+void *ion_heap_map_kernel(struct ion_heap *, struct ion_buffer *);
+void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
+int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
+			struct vm_area_struct *);
+int ion_heap_buffer_zero(struct ion_buffer *buffer);
+
+
+/**
  * functions for creating and destroying the built in ion heaps.
  * architectures can add their own custom architecture specific
  * heaps as appropriate.
@@ -184,7 +195,6 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
 
 struct ion_heap *ion_heap_create(struct ion_platform_heap *);
 void ion_heap_destroy(struct ion_heap *);
-
 struct ion_heap *ion_system_heap_create(struct ion_platform_heap *);
 void ion_system_heap_destroy(struct ion_heap *);
 
@@ -193,6 +203,9 @@ void ion_system_contig_heap_destroy(struct ion_heap *);
 
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
 void ion_carveout_heap_destroy(struct ion_heap *);
+
+struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
+void ion_chunk_heap_destroy(struct ion_heap *);
 /**
  * kernel api to allocate/free from carveout -- used when carveout is
  * used to back an architecture specific custom heap
@@ -216,8 +229,10 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 
 /**
  * struct ion_page_pool - pagepool struct
- * @count:		number of items in the pool
- * @items:		list of items
+ * @high_count:		number of highmem items in the pool
+ * @low_count:		number of lowmem items in the pool
+ * @high_items:		list of highmem items
+ * @low_items:		list of lowmem items
  * @shrinker:		a shrinker for the items
  * @mutex:		lock protecting this struct and especially the count
  *			item list
@@ -227,6 +242,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  *			when the shrinker fires
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
+ * @list:		plist node for list of pools
  *
  * Allows you to keep a pool of pre allocated pages to use from your heap.
  * Keeping a pool of pages that is ready for dma, ie any cached mapping have
@@ -234,14 +250,16 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  * on many systems
  */
 struct ion_page_pool {
-	int count;
-	struct list_head items;
-	struct shrinker shrinker;
+	int high_count;
+	int low_count;
+	struct list_head high_items;
+	struct list_head low_items;
 	struct mutex mutex;
 	void *(*alloc)(struct ion_page_pool *pool);
 	void (*free)(struct ion_page_pool *pool, struct page *page);
 	gfp_t gfp_mask;
 	unsigned int order;
+	struct plist_node list;
 };
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);

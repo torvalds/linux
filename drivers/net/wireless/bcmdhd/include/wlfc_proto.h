@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: wlfc_proto.h 347585 2012-07-27 09:02:53Z $
+* $Id: wlfc_proto.h 361006 2012-10-05 07:45:51Z $
 *
 */
 #ifndef __wlfc_proto_definitions_h__
@@ -97,6 +97,7 @@
 #define WLFC_CTL_TYPE_NIC_PRD_END		16
 #define WLFC_CTL_TYPE_AF_TXS			17
 #define WLFC_CTL_TYPE_TRANS_ID                  18
+#define WLFC_CTL_TYPE_COMP_TXSTATUS             19
 
 #define WLFC_CTL_TYPE_FILLER			255
 
