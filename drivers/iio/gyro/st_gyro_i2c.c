@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/trigger.h>
 
 #include <linux/iio/common/st_sensors.h>
 #include <linux/iio/common/st_sensors_i2c.h>

@@ -20,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -419,10 +419,15 @@ static const struct iio_info accel_info = {
 	.write_raw = &st_accel_write_raw,
 };
 
+#ifdef CONFIG_IIO_TRIGGER
 static const struct iio_trigger_ops st_accel_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_ACCEL_TRIGGER_SET_STATE,
 };
+#define ST_ACCEL_TRIGGER_OPS (&st_accel_trigger_ops)
+#else
+#define ST_ACCEL_TRIGGER_OPS NULL
+#endif
 
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
@@ -455,7 +460,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 			goto st_accel_common_probe_error;
 
 		err = st_sensors_allocate_trigger(indio_dev,
-							&st_accel_trigger_ops);
+						 ST_ACCEL_TRIGGER_OPS);
 		if (err < 0)
 			goto st_accel_probe_trigger_error;
 	}
