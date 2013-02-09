@@ -23,10 +23,17 @@
 
 #include "ext4_jbd2.h"
 #include "mballoc.h"
-#include <linux/debugfs.h>
 #include <linux/log2.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <trace/events/ext4.h>
+
+#ifdef CONFIG_EXT4_DEBUG
+ushort ext4_mballoc_debug __read_mostly;
+
+module_param_named(mballoc_debug, ext4_mballoc_debug, ushort, 0644);
+MODULE_PARM_DESC(mballoc_debug, "Debugging level for ext4's mballoc");
+#endif
 
 /*
  * MUSTDO:
@@ -2660,40 +2667,6 @@ static void ext4_free_data_callback(struct super_block *sb,
 	mb_debug(1, "freed %u blocks in %u structures\n", count, count2);
 }
 
-#ifdef CONFIG_EXT4_DEBUG
-u8 mb_enable_debug __read_mostly;
-
-static struct dentry *debugfs_dir;
-static struct dentry *debugfs_debug;
-
-static void __init ext4_create_debugfs_entry(void)
-{
-	debugfs_dir = debugfs_create_dir("ext4", NULL);
-	if (debugfs_dir)
-		debugfs_debug = debugfs_create_u8("mballoc-debug",
-						  S_IRUGO | S_IWUSR,
-						  debugfs_dir,
-						  &mb_enable_debug);
-}
-
-static void ext4_remove_debugfs_entry(void)
-{
-	debugfs_remove(debugfs_debug);
-	debugfs_remove(debugfs_dir);
-}
-
-#else
-
-static void __init ext4_create_debugfs_entry(void)
-{
-}
-
-static void ext4_remove_debugfs_entry(void)
-{
-}
-
-#endif
-
 int __init ext4_init_mballoc(void)
 {
 	ext4_pspace_cachep = KMEM_CACHE(ext4_prealloc_space,
@@ -2715,7 +2688,6 @@ int __init ext4_init_mballoc(void)
 		kmem_cache_destroy(ext4_ac_cachep);
 		return -ENOMEM;
 	}
-	ext4_create_debugfs_entry();
 	return 0;
 }
 
@@ -2730,7 +2702,6 @@ void ext4_exit_mballoc(void)
 	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_data_cachep);
 	ext4_groupinfo_destroy_slabs();
-	ext4_remove_debugfs_entry();
 }
 
 
@@ -3876,7 +3847,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 	struct super_block *sb = ac->ac_sb;
 	ext4_group_t ngroups, i;
 
-	if (!mb_enable_debug ||
+	if (!ext4_mballoc_debug ||
 	    (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return;
 
