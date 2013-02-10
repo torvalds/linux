@@ -65,6 +65,17 @@ struct clockdomain;
 		.ops = &_clkops_name,				\
 	};
 
+#define DEFINE_STRUCT_CLK_FLAGS(_name, _parent_array_name,	\
+				_clkops_name, _flags)		\
+	static struct clk _name = {				\
+		.name = #_name,					\
+		.hw = &_name##_hw.hw,				\
+		.parent_names = _parent_array_name,		\
+		.num_parents = ARRAY_SIZE(_parent_array_name),	\
+		.ops = &_clkops_name,				\
+		.flags = _flags,				\
+	};
+
 #define DEFINE_STRUCT_CLK_HW_OMAP(_name, _clkdm_name)		\
 	static struct clk_hw_omap _name##_hw = {		\
 		.hw = {						\
