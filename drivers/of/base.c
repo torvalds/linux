@@ -1091,9 +1091,10 @@ EXPORT_SYMBOL(of_parse_phandle);
  * To get a device_node of the `node2' node you may call this:
  * of_parse_phandle_with_args(node3, "list", "#list-cells", 1, &args);
  */
-int of_parse_phandle_with_args(const struct device_node *np, const char *list_name,
-				const char *cells_name, int index,
-				struct of_phandle_args *out_args)
+static int __of_parse_phandle_with_args(const struct device_node *np,
+					const char *list_name,
+					const char *cells_name, int index,
+					struct of_phandle_args *out_args)
 {
 	const __be32 *list, *list_end;
 	int rc = 0, size, cur_index = 0;
@@ -1183,14 +1184,46 @@ int of_parse_phandle_with_args(const struct device_node *np, const char *list_na
 	 * Unlock node before returning result; will be one of:
 	 * -ENOENT : index is for empty phandle
 	 * -EINVAL : parsing error on data
+	 * [1..n]  : Number of phandle (count mode; when index = -1)
 	 */
-	rc = -ENOENT;
+	rc = index < 0 ? cur_index : -ENOENT;
  err:
 	if (node)
 		of_node_put(node);
 	return rc;
 }
+
+int of_parse_phandle_with_args(const struct device_node *np, const char *list_name,
+				const char *cells_name, int index,
+				struct of_phandle_args *out_args)
+{
+	if (index < 0)
+		return -EINVAL;
+	return __of_parse_phandle_with_args(np, list_name, cells_name, index, out_args);
+}
 EXPORT_SYMBOL(of_parse_phandle_with_args);
+
+/**
+ * of_count_phandle_with_args() - Find the number of phandles references in a property
+ * @np:		pointer to a device tree node containing a list
+ * @list_name:	property name that contains a list
+ * @cells_name:	property name that specifies phandles' arguments count
+ *
+ * Returns the number of phandle + argument tuples within a property. It
+ * is a typical pattern to encode a list of phandle and variable
+ * arguments into a single property. The number of arguments is encoded
+ * by a property in the phandle-target node. For example, a gpios
+ * property would contain a list of GPIO specifies consisting of a
+ * phandle and 1 or more arguments. The number of arguments are
+ * determined by the #gpio-cells property in the node pointed to by the
+ * phandle.
+ */
+int of_count_phandle_with_args(const struct device_node *np, const char *list_name,
+				const char *cells_name)
+{
+	return __of_parse_phandle_with_args(np, list_name, cells_name, -1, NULL);
+}
+EXPORT_SYMBOL(of_count_phandle_with_args);
 
 #if defined(CONFIG_OF_DYNAMIC)
 static int of_property_notify(int action, struct device_node *np,
