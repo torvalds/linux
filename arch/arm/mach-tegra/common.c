@@ -1,6 +1,7 @@
 /*
  * arch/arm/mach-tegra/common.c
  *
+ * Copyright (c) 2013 NVIDIA Corporation. All rights reserved.
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
@@ -93,28 +94,36 @@ static void __init tegra_init_cache(void)
 
 }
 
+static void __init tegra_init_early(void)
+{
+	tegra_cpu_reset_handler_init();
+	tegra_apb_io_init();
+	tegra_init_fuse();
+	tegra_init_cache();
+	tegra_pmc_init();
+	tegra_powergate_init();
+}
+
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void __init tegra20_init_early(void)
 {
-	tegra_cpu_reset_handler_init();
-	tegra_apb_io_init();
-	tegra_init_fuse();
-	tegra_init_cache();
-	tegra_pmc_init();
-	tegra_powergate_init();
+	tegra_init_early();
 	tegra20_hotplug_init();
 }
 #endif
+
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 void __init tegra30_init_early(void)
 {
-	tegra_cpu_reset_handler_init();
-	tegra_apb_io_init();
-	tegra_init_fuse();
-	tegra_init_cache();
-	tegra_pmc_init();
-	tegra_powergate_init();
+	tegra_init_early();
 	tegra30_hotplug_init();
+}
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_114_SOC
+void __init tegra114_init_early(void)
+{
+	tegra_init_early();
 }
 #endif
 
