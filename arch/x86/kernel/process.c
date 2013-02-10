@@ -272,9 +272,6 @@ EXPORT_SYMBOL(boot_option_idle_override);
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void);
-#ifdef CONFIG_APM_MODULE
-EXPORT_SYMBOL(pm_idle);
-#endif
 
 #ifndef CONFIG_SMP
 static inline void play_dead(void)
