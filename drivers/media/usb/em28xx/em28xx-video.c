@@ -815,6 +815,17 @@ static void size_to_scale(struct em28xx *dev,
 		*vscale = EM28XX_HVSCALE_MAX;
 }
 
+static void scale_to_size(struct em28xx *dev,
+			  unsigned int hscale, unsigned int vscale,
+			  unsigned int *width, unsigned int *height)
+{
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
+
+	*width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
+	*height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
+}
+
 /* ------------------------------------------------------------------
 	IOCTL vidioc handling
    ------------------------------------------------------------------*/
@@ -890,9 +901,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	size_to_scale(dev, width, height, &hscale, &vscale);
-
-	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
-	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
+	scale_to_size(dev, hscale, hscale, &width, &height);
 
 	f->fmt.pix.width = width;
 	f->fmt.pix.height = height;
