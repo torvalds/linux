@@ -1019,12 +1019,11 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		return -ENODEV;
 	if (is_streaming(dev))
 		return -EBUSY;
-	if (dev->owner && dev->owner != filp)
+	if (dev->owner)
 		return -EBUSY;
 	ret = stk_try_fmt_vid_cap(filp, fmtd, &idx);
 	if (ret)
 		return ret;
-	dev->owner = filp;
 
 	dev->vsettings.palette = fmtd->fmt.pix.pixelformat;
 	stk_free_buffers(dev);
