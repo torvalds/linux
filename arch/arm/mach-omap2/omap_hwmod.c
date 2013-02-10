@@ -3041,11 +3041,8 @@ static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
 static int _am33xx_deassert_hardreset(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri)
 {
-	if (ohri->st_shift)
-		pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
-		       oh->name, ohri->name);
-
 	return am33xx_prm_deassert_hardreset(ohri->rst_shift,
+				ohri->st_shift,
 				oh->clkdm->pwrdm.ptr->prcm_offs,
 				oh->prcm.omap4.rstctrl_offs,
 				oh->prcm.omap4.rstst_offs);
