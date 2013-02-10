@@ -1405,8 +1405,12 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 
 	/* Report a continuous range */
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
-	fsize->stepwise.min_width = 48;
-	fsize->stepwise.min_height = 32;
+	scale_to_size(dev, EM28XX_HVSCALE_MAX, EM28XX_HVSCALE_MAX,
+		      &fsize->stepwise.min_width, &fsize->stepwise.min_height);
+	if (fsize->stepwise.min_width < 48)
+		fsize->stepwise.min_width = 48;
+	if (fsize->stepwise.min_height < 38)
+		fsize->stepwise.min_height = 38;
 	fsize->stepwise.max_width = maxw;
 	fsize->stepwise.max_height = maxh;
 	fsize->stepwise.step_width = 1;
