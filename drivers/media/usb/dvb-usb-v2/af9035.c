@@ -690,6 +690,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 			case AF9033_TUNER_IT9135_60:
 			case AF9033_TUNER_IT9135_61:
 			case AF9033_TUNER_IT9135_62:
+			case AF9033_TUNER_MXL5007T:
 				break;
 			default:
 				state->dual_mode = false;
