@@ -216,7 +216,7 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 	struct net_bridge_port *p;
 
 	/* user has chosen a value so keep it */
-	if (br->flags & BR_SET_MAC_ADDR)
+	if (br->dev->addr_assign_type == NET_ADDR_SET)
 		return false;
 
 	list_for_each_entry(p, &br->port_list, list) {

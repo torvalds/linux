@@ -197,9 +197,6 @@ struct net_bridge
 	bool				nf_call_ip6tables;
 	bool				nf_call_arptables;
 #endif
-	unsigned long			flags;
-#define BR_SET_MAC_ADDR		0x00000001
-
 	u16				group_fwd_mask;
 
 	/* STP */
