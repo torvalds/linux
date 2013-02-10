@@ -119,6 +119,23 @@ static struct fb_videomode apf28dev_video_modes[] = {
 	},
 };
 
+static struct fb_videomode cfa10049_video_modes[] = {
+	{
+		.name		= "Himax HX8357-B",
+		.refresh	= 60,
+		.xres		= 320,
+		.yres		= 480,
+		.pixclock	= 108506, /* picosecond (9.216 MHz) */
+		.left_margin	= 2,
+		.right_margin	= 2,
+		.upper_margin	= 2,
+		.lower_margin	= 2,
+		.hsync_len	= 15,
+		.vsync_len	= 15,
+		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 /*
@@ -387,6 +404,17 @@ static void __init cfa10049_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init cfa10037_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+
+	mxsfb_pdata.mode_list = cfa10049_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+}
+
 static void __init apf28_init(void)
 {
 	enable_clk_enet_out();
@@ -407,6 +435,8 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
+		cfa10037_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
