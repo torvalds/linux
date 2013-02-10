@@ -50,10 +50,13 @@ int  nouveau_object_fini(struct nouveau_object *, bool suspend);
 
 extern struct nouveau_ofuncs nouveau_object_ofuncs;
 
+/* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
+ * ".data". */
 struct nouveau_oclass {
 	u32 handle;
-	struct nouveau_ofuncs *ofuncs;
-	struct nouveau_omthds *omthds;
+	struct nouveau_ofuncs * const ofuncs;
+	struct nouveau_omthds * const omthds;
+	struct lock_class_key lock_class_key;
 };
 
 #define nv_oclass(o)    nv_object(o)->oclass

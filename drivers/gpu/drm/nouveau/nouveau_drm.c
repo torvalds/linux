@@ -245,6 +245,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	return 0;
 }
 
+static struct lock_class_key drm_client_lock_class_key;
+
 static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -256,6 +258,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = nouveau_cli_create(pdev, "DRM", sizeof(*drm), (void**)&drm);
 	if (ret)
 		return ret;
+	lockdep_set_class(&drm->client.mutex, &drm_client_lock_class_key);
 
 	dev->dev_private = drm;
 	drm->dev = dev;
