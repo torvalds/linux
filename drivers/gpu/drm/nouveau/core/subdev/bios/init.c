@@ -231,6 +231,11 @@ init_i2c(struct nvbios_init *init, int index)
 			return NULL;
 		}
 
+		if (index == -2 && init->outp->location) {
+			index = NV_I2C_TYPE_EXTAUX(init->outp->extdev);
+			return i2c->find_type(i2c, index);
+		}
+
 		index = init->outp->i2c_index;
 	}
 
@@ -258,7 +263,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 static int
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	u8 data;
 
 	if (port && init_exec(init)) {
@@ -274,7 +279,7 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	if (port && init_exec(init))
 		return nv_wraux(port, addr, &data, 1);
 	return -ENODEV;
