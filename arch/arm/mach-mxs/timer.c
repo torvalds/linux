@@ -72,8 +72,9 @@
 #define BM_TIMROT_TIMCTRLn_IRQ_EN	(1 << 14)
 #define BM_TIMROT_TIMCTRLn_IRQ		(1 << 15)
 #define BP_TIMROT_TIMCTRLn_SELECT	0
-#define BV_TIMROTv1_TIMCTRLn_SELECT__32KHZ_XTAL	0x8
-#define BV_TIMROTv2_TIMCTRLn_SELECT__32KHZ_XTAL	0xb
+#define BV_TIMROTv1_TIMCTRLn_SELECT__32KHZ_XTAL		0x8
+#define BV_TIMROTv2_TIMCTRLn_SELECT__32KHZ_XTAL		0xb
+#define BV_TIMROTv2_TIMCTRLn_SELECT__TICK_ALWAYS	0xf
 
 static struct clock_event_device mxs_clockevent_device;
 static enum clock_event_mode mxs_clockevent_mode = CLOCK_EVT_MODE_UNUSED;
@@ -206,7 +207,8 @@ static int __init mxs_clockevent_init(struct clk *timer_clk)
 		mxs_clockevent_device.set_next_event = timrotv1_set_next_event;
 	mxs_clockevent_device.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&mxs_clockevent_device,
-					clk_get_rate(timer_clk), 0xf,
+					clk_get_rate(timer_clk),
+					timrot_is_v1() ? 0xf : 0x2,
 					timrot_is_v1() ? 0xfffe : 0xfffffffe);
 
 	return 0;
@@ -274,7 +276,7 @@ void __init mxs_timer_init(void)
 	/* one for clock_event */
 	__raw_writel((timrot_is_v1() ?
 			BV_TIMROTv1_TIMCTRLn_SELECT__32KHZ_XTAL :
-			BV_TIMROTv2_TIMCTRLn_SELECT__32KHZ_XTAL) |
+			BV_TIMROTv2_TIMCTRLn_SELECT__TICK_ALWAYS) |
 			BM_TIMROT_TIMCTRLn_UPDATE |
 			BM_TIMROT_TIMCTRLn_IRQ_EN,
 			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
@@ -282,7 +284,7 @@ void __init mxs_timer_init(void)
 	/* another for clocksource */
 	__raw_writel((timrot_is_v1() ?
 			BV_TIMROTv1_TIMCTRLn_SELECT__32KHZ_XTAL :
-			BV_TIMROTv2_TIMCTRLn_SELECT__32KHZ_XTAL) |
+			BV_TIMROTv2_TIMCTRLn_SELECT__TICK_ALWAYS) |
 			BM_TIMROT_TIMCTRLn_RELOAD,
 			mxs_timrot_base + HW_TIMROT_TIMCTRLn(1));
 
