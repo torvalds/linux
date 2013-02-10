@@ -768,12 +768,15 @@ static int v4l_stk_mmap(struct file *fp, struct vm_area_struct *vma)
 static int stk_vidioc_querycap(struct file *filp,
 		void *priv, struct v4l2_capability *cap)
 {
+	struct stk_camera *dev = video_drvdata(filp);
+
 	strcpy(cap->driver, "stk");
 	strcpy(cap->card, "stk");
-	cap->version = DRIVER_VERSION_NUM;
+	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
 		| V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -797,10 +800,7 @@ static int stk_vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 
 static int stk_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
-	if (i != 0)
-		return -EINVAL;
-	else
-		return 0;
+	return i ? -EINVAL : 0;
 }
 
 static int stk_s_ctrl(struct v4l2_ctrl *ctrl)
