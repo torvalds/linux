@@ -733,12 +733,10 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 	int charger = 0;
 	int boost = 0;
 
-	if (mode == BQ2415X_MODE_HOST_CHARGER ||
-		mode == BQ2415X_MODE_DEDICATED_CHARGER)
-			charger = 1;
-
 	if (mode == BQ2415X_MODE_BOOST)
 		boost = 1;
+	else if (mode != BQ2415X_MODE_OFF)
+		charger = 1;
 
 	if (!charger)
 		ret = bq2415x_exec_command(bq, BQ2415X_CHARGER_DISABLE);
@@ -750,6 +748,10 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 		return ret;
 
 	switch (mode) {
+	case BQ2415X_MODE_OFF:
+		dev_dbg(bq->dev, "changing mode to: Offline\n");
+		ret = bq2415x_set_current_limit(bq, 100);
+		break;
 	case BQ2415X_MODE_NONE:
 		dev_dbg(bq->dev, "changing mode to: N/A\n");
 		ret = bq2415x_set_current_limit(bq, 100);
@@ -842,7 +844,7 @@ static void bq2415x_timer_error(struct bq2415x_device *bq, const char *msg)
 	dev_err(bq->dev, "%s\n", msg);
 	if (bq->automode > 0)
 		bq->automode = 0;
-	bq2415x_set_mode(bq, BQ2415X_MODE_NONE);
+	bq2415x_set_mode(bq, BQ2415X_MODE_OFF);
 	bq2415x_set_autotimer(bq, 0);
 }
 
@@ -1135,6 +1137,10 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 			return -ENOSYS;
 		bq->automode = 1;
 		mode = bq->reported_mode;
+	} else if (strncmp(buf, "off", 3) == 0) {
+		if (bq->automode > 0)
+			bq->automode = 0;
+		mode = BQ2415X_MODE_OFF;
 	} else if (strncmp(buf, "none", 4) == 0) {
 		if (bq->automode > 0)
 			bq->automode = 0;
@@ -1182,6 +1188,9 @@ static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 		ret += sprintf(buf+ret, "auto (");
 
 	switch (bq->mode) {
+	case BQ2415X_MODE_OFF:
+		ret += sprintf(buf+ret, "off");
+		break;
 	case BQ2415X_MODE_NONE:
 		ret += sprintf(buf+ret, "none");
 		break;
@@ -1216,6 +1225,8 @@ static ssize_t bq2415x_sysfs_show_reported_mode(struct device *dev,
 		return -EINVAL;
 
 	switch (bq->reported_mode) {
+	case BQ2415X_MODE_OFF:
+		return sprintf(buf, "off\n");
 	case BQ2415X_MODE_NONE:
 		return sprintf(buf, "none\n");
 	case BQ2415X_MODE_HOST_CHARGER:
@@ -1535,8 +1546,8 @@ static int bq2415x_probe(struct i2c_client *client,
 	bq->dev = &client->dev;
 	bq->chip = id->driver_data;
 	bq->name = name;
-	bq->mode = BQ2415X_MODE_NONE;
-	bq->reported_mode = BQ2415X_MODE_NONE;
+	bq->mode = BQ2415X_MODE_OFF;
+	bq->reported_mode = BQ2415X_MODE_OFF;
 	bq->autotimer = 0;
 	bq->automode = 0;
 
