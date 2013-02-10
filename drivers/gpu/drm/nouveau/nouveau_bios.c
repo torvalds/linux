@@ -1469,6 +1469,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	}
 	case DCB_OUTPUT_DP:
 		entry->dpconf.sor.link = (conf & 0x00000030) >> 4;
+		entry->extdev = (conf & 0x0000ff00) >> 8;
 		switch ((conf & 0x00e00000) >> 21) {
 		case 0:
 			entry->dpconf.link_bw = 162000;
@@ -1490,8 +1491,10 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		}
 		break;
 	case DCB_OUTPUT_TMDS:
-		if (dcb->version >= 0x40)
+		if (dcb->version >= 0x40) {
 			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+			entry->extdev = (conf & 0x0000ff00) >> 8;
+		}
 		else if (dcb->version >= 0x30)
 			entry->tmdsconf.slave_addr = (conf & 0x00000700) >> 8;
 		else if (dcb->version >= 0x22)

@@ -1923,6 +1923,184 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 }
 
 /******************************************************************************
+ * PIOR
+ *****************************************************************************/
+
+static void
+nv50_pior_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	u32 mthd = (nv_encoder->dcb->type << 12) | nv_encoder->or;
+	u32 ctrl = (mode == DRM_MODE_DPMS_ON);
+	nv_call(disp->core, NV50_DISP_PIOR_PWR + mthd, ctrl);
+}
+
+static bool
+nv50_pior_mode_fixup(struct drm_encoder *encoder,
+		     const struct drm_display_mode *mode,
+		     struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (nv_connector && nv_connector->native_mode) {
+		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
+			int id = adjusted_mode->base.id;
+			*adjusted_mode = *nv_connector->native_mode;
+			adjusted_mode->base.id = id;
+		}
+	}
+
+	adjusted_mode->clock *= 2;
+	return true;
+}
+
+static void
+nv50_pior_commit(struct drm_encoder *encoder)
+{
+}
+
+static void
+nv50_pior_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
+		   struct drm_display_mode *adjusted_mode)
+{
+	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct nouveau_connector *nv_connector;
+	u8 owner = 1 << nv_crtc->index;
+	u8 proto, depth;
+	u32 *push;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	switch (nv_connector->base.display_info.bpc) {
+	case 10: depth = 0x6; break;
+	case  8: depth = 0x5; break;
+	case  6: depth = 0x2; break;
+	default: depth = 0x0; break;
+	}
+
+	switch (nv_encoder->dcb->type) {
+	case DCB_OUTPUT_TMDS:
+	case DCB_OUTPUT_DP:
+		proto = 0x0;
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+
+	nv50_pior_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	push = evo_wait(mast, 8);
+	if (push) {
+		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			u32 ctrl = (depth << 16) | (proto << 8) | owner;
+			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+				ctrl |= 0x00001000;
+			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+				ctrl |= 0x00002000;
+			evo_mthd(push, 0x0700 + (nv_encoder->or * 0x040), 1);
+			evo_data(push, ctrl);
+		}
+
+		evo_kick(push, mast);
+	}
+
+	nv_encoder->crtc = encoder->crtc;
+}
+
+static void
+nv50_pior_disconnect(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	const int or = nv_encoder->or;
+	u32 *push;
+
+	if (nv_encoder->crtc) {
+		nv50_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(mast, 4);
+		if (push) {
+			if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+				evo_mthd(push, 0x0700 + (or * 0x040), 1);
+				evo_data(push, 0x00000000);
+			}
+
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+			evo_kick(push, mast);
+		}
+	}
+
+	nv_encoder->crtc = NULL;
+}
+
+static void
+nv50_pior_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+	kfree(encoder);
+}
+
+static const struct drm_encoder_helper_funcs nv50_pior_hfunc = {
+	.dpms = nv50_pior_dpms,
+	.mode_fixup = nv50_pior_mode_fixup,
+	.prepare = nv50_pior_disconnect,
+	.commit = nv50_pior_commit,
+	.mode_set = nv50_pior_mode_set,
+	.disable = nv50_pior_disconnect,
+	.get_crtc = nv50_display_crtc_get,
+};
+
+static const struct drm_encoder_funcs nv50_pior_func = {
+	.destroy = nv50_pior_destroy,
+};
+
+static int
+nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
+{
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c_port *ddc = NULL;
+	struct nouveau_encoder *nv_encoder;
+	struct drm_encoder *encoder;
+	int type;
+
+	switch (dcbe->type) {
+	case DCB_OUTPUT_TMDS:
+		ddc  = i2c->find_type(i2c, NV_I2C_TYPE_EXTDDC(dcbe->extdev));
+		type = DRM_MODE_ENCODER_TMDS;
+		break;
+	case DCB_OUTPUT_DP:
+		ddc  = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(dcbe->extdev));
+		type = DRM_MODE_ENCODER_TMDS;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	if (!nv_encoder)
+		return -ENOMEM;
+	nv_encoder->dcb = dcbe;
+	nv_encoder->or = ffs(dcbe->or) - 1;
+	nv_encoder->i2c = ddc;
+
+	encoder = to_drm_encoder(nv_encoder);
+	encoder->possible_crtcs = dcbe->heads;
+	encoder->possible_clones = 0;
+	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type);
+	drm_encoder_helper_add(encoder, &nv50_pior_hfunc);
+
+	drm_mode_connector_attach_encoder(connector, encoder);
+	return 0;
+}
+
+/******************************************************************************
  * Init
  *****************************************************************************/
 void
@@ -2044,25 +2222,28 @@ nv50_display_create(struct drm_device *dev)
 		if (IS_ERR(connector))
 			continue;
 
-		if (dcbe->location != DCB_LOC_ON_CHIP) {
-			NV_WARN(drm, "skipping off-chip encoder %d/%d\n",
-				dcbe->type, ffs(dcbe->or) - 1);
-			continue;
+		if (dcbe->location == DCB_LOC_ON_CHIP) {
+			switch (dcbe->type) {
+			case DCB_OUTPUT_TMDS:
+			case DCB_OUTPUT_LVDS:
+			case DCB_OUTPUT_DP:
+				ret = nv50_sor_create(connector, dcbe);
+				break;
+			case DCB_OUTPUT_ANALOG:
+				ret = nv50_dac_create(connector, dcbe);
+				break;
+			default:
+				ret = -ENODEV;
+				break;
+			}
+		} else {
+			ret = nv50_pior_create(connector, dcbe);
 		}
 
-		switch (dcbe->type) {
-		case DCB_OUTPUT_TMDS:
-		case DCB_OUTPUT_LVDS:
-		case DCB_OUTPUT_DP:
-			nv50_sor_create(connector, dcbe);
-			break;
-		case DCB_OUTPUT_ANALOG:
-			nv50_dac_create(connector, dcbe);
-			break;
-		default:
-			NV_WARN(drm, "skipping unsupported encoder %d/%d\n",
-				dcbe->type, ffs(dcbe->or) - 1);
-			continue;
+		if (ret) {
+			NV_WARN(drm, "failed to create encoder %d/%d/%d: %d\n",
+				     dcbe->location, dcbe->type,
+				     ffs(dcbe->or) - 1, ret);
 		}
 	}
 
