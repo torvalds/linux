@@ -25,6 +25,7 @@
 #include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/pps_kernel.h>
+#include <linux/bug.h>
 
 #define PPS_TTY_MAGIC		0x0001
 
@@ -33,7 +34,12 @@ static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status,
 {
 	struct pps_device *pps = pps_lookup_dev(tty);
 
-	BUG_ON(pps == NULL);
+	/*
+	 * This should never fail, but the ldisc locking is very
+	 * convoluted, so don't crash just in case.
+	 */
+	if (WARN_ON_ONCE(pps == NULL))
+		return;
 
 	/* Now do the PPS event report */
 	pps_event(pps, ts, status ? PPS_CAPTUREASSERT :
@@ -92,6 +98,9 @@ static void pps_tty_close(struct tty_struct *tty)
 	struct pps_device *pps = pps_lookup_dev(tty);
 
 	alias_n_tty_close(tty);
+
+	if (WARN_ON(!pps))
+		return;
 
 	dev_info(pps->dev, "removed\n");
 	pps_unregister_source(pps);
