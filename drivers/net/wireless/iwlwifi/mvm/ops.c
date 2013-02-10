@@ -536,25 +536,28 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 
 	for (i = 0; i < ARRAY_SIZE(iwl_mvm_rx_handlers); i++) {
 		const struct iwl_rx_handlers *rx_h = &iwl_mvm_rx_handlers[i];
-		if (rx_h->cmd_id == pkt->hdr.cmd) {
-			struct iwl_async_handler_entry *entry;
-			if (!rx_h->async)
-				return rx_h->fn(mvm, rxb, cmd);
+		struct iwl_async_handler_entry *entry;
 
-			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-			/* we can't do much... */
-			if (!entry)
-				return 0;
+		if (rx_h->cmd_id != pkt->hdr.cmd)
+			continue;
 
-			entry->rxb._page = rxb_steal_page(rxb);
-			entry->rxb._offset = rxb->_offset;
-			entry->rxb._rx_page_order = rxb->_rx_page_order;
-			entry->fn = rx_h->fn;
-			spin_lock(&mvm->async_handlers_lock);
-			list_add_tail(&entry->list, &mvm->async_handlers_list);
-			spin_unlock(&mvm->async_handlers_lock);
-			schedule_work(&mvm->async_handlers_wk);
-		}
+		if (!rx_h->async)
+			return rx_h->fn(mvm, rxb, cmd);
+
+		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		/* we can't do much... */
+		if (!entry)
+			return 0;
+
+		entry->rxb._page = rxb_steal_page(rxb);
+		entry->rxb._offset = rxb->_offset;
+		entry->rxb._rx_page_order = rxb->_rx_page_order;
+		entry->fn = rx_h->fn;
+		spin_lock(&mvm->async_handlers_lock);
+		list_add_tail(&entry->list, &mvm->async_handlers_list);
+		spin_unlock(&mvm->async_handlers_lock);
+		schedule_work(&mvm->async_handlers_wk);
+		break;
 	}
 
 	return 0;
