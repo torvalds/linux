@@ -120,6 +120,13 @@ static int ip6_finish_output2(struct sk_buff *skb)
 
 		IP6_UPD_PO_STATS(dev_net(dev), idev, IPSTATS_MIB_OUTMCAST,
 				skb->len);
+
+		if (IPV6_ADDR_MC_SCOPE(&ipv6_hdr(skb)->daddr) <=
+		    IPV6_ADDR_SCOPE_NODELOCAL &&
+		    !(dev->flags & IFF_LOOPBACK)) {
+			kfree_skb(skb);
+			return 0;
+		}
 	}
 
 	rcu_read_lock_bh();
