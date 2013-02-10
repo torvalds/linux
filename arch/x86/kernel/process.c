@@ -396,7 +396,8 @@ void default_idle(void)
 EXPORT_SYMBOL(default_idle);
 #endif
 
-bool set_pm_idle_to_default(void)
+#ifdef CONFIG_XEN
+bool xen_set_default_idle(void)
 {
 	bool ret = !!pm_idle;
 
@@ -404,6 +405,7 @@ bool set_pm_idle_to_default(void)
 
 	return ret;
 }
+#endif
 void stop_this_cpu(void *dummy)
 {
 	local_irq_disable();

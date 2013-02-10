@@ -561,7 +561,7 @@ void __init xen_arch_setup(void)
 #endif
 	disable_cpuidle();
 	disable_cpufreq();
-	WARN_ON(set_pm_idle_to_default());
+	WARN_ON(xen_set_default_idle());
 	fiddle_vdso();
 #ifdef CONFIG_NUMA
 	numa_off = 1;
