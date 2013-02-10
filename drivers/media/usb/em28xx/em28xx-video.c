@@ -807,12 +807,12 @@ static void get_scale(struct em28xx *dev,
 	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
-	if (*hscale >= 0x4000)
-		*hscale = 0x3fff;
+	if (*hscale > EM28XX_HVSCALE_MAX)
+		*hscale = EM28XX_HVSCALE_MAX;
 
 	*vscale = (((unsigned long)maxh) << 12) / height - 4096L;
-	if (*vscale >= 0x4000)
-		*vscale = 0x3fff;
+	if (*vscale > EM28XX_HVSCALE_MAX)
+		*vscale = EM28XX_HVSCALE_MAX;
 }
 
 /* ------------------------------------------------------------------
