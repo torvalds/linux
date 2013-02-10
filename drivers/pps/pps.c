@@ -350,9 +350,42 @@ free_idr:
 
 void pps_unregister_cdev(struct pps_device *pps)
 {
+	pps->lookup_cookie = NULL;
 	device_destroy(pps_class, pps->dev->devt);
 	cdev_del(&pps->cdev);
 }
+
+/*
+ * Look up a pps device by magic cookie.
+ * The cookie is usually a pointer to some enclosing device, but this
+ * code doesn't care; you should never be dereferencing it.
+ *
+ * This is a bit of a kludge that is currently used only by the PPS
+ * serial line discipline.  It may need to be tweaked when a second user
+ * is found.
+ *
+ * There is no function interface for setting the lookup_cookie field.
+ * It's initialized to NULL when the pps device is created, and if a
+ * client wants to use it, just fill it in afterward.
+ *
+ * The cookie is automatically set to NULL in pps_unregister_source()
+ * so that it will not be used again, even if the pps device cannot
+ * be removed from the idr due to pending references holding the minor
+ * number in use.
+ */
+struct pps_device *pps_lookup_dev(void const *cookie)
+{
+	struct pps_device *pps;
+	unsigned id;
+
+	rcu_read_lock();
+	idr_for_each_entry(&pps_idr, pps, id)
+		if (cookie == pps->lookup_cookie)
+			break;
+	rcu_read_unlock();
+	return pps;
+}
+EXPORT_SYMBOL(pps_lookup_dev);
 
 /*
  * Module stuff
