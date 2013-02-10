@@ -37,7 +37,7 @@ static const char * const tegra114_dt_board_compat[] = {
 DT_MACHINE_START(TEGRA114_DT, "NVIDIA Tegra114 (Flattened Device Tree)")
 	.smp		= smp_ops(tegra_smp_ops),
 	.map_io		= tegra_map_common_io,
-	.init_early	= tegra30_init_early,
+	.init_early	= tegra114_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_time	= clocksource_of_init,
