@@ -91,9 +91,9 @@ struct virtio_pci_vq_info
 };
 
 /* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
-static struct pci_device_id virtio_pci_id_table[] = {
-	{ 0x1af4, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 },
+static DEFINE_PCI_DEVICE_TABLE(virtio_pci_id_table) = {
+	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
