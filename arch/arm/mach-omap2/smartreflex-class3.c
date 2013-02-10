@@ -12,6 +12,7 @@
  */
 
 #include <linux/power/smartreflex.h>
+#include "soc.h"
 #include "voltage.h"
 
 static int sr_class3_enable(struct omap_sr *sr)

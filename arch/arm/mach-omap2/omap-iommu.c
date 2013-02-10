@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/iommu-omap.h>
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
