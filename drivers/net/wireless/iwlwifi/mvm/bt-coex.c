@@ -242,12 +242,60 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
+struct iwl_bt_notif_iterator_data {
+	struct iwl_mvm *mvm;
+	struct iwl_bt_coex_profile_notif *notif;
+};
+
+static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
+				      struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_bt_notif_iterator_data *data = _data;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum ieee80211_smps_mode smps_mode;
+	enum ieee80211_band band;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	if (chanctx_conf && chanctx_conf->def.chan)
+		band = chanctx_conf->def.chan->band;
+	else
+		band = -1;
+	rcu_read_unlock();
+
+	if (band != IEEE80211_BAND_2GHZ)
+		return;
+
+	smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	if (data->notif->bt_status)
+		smps_mode = IEEE80211_SMPS_DYNAMIC;
+
+	if (data->notif->bt_traffic_load)
+		smps_mode = IEEE80211_SMPS_STATIC;
+
+	IWL_DEBUG_COEX(data->mvm,
+		       "mac %d: bt_status %d traffic_load %d smps_req %d\n",
+		       mvmvif->id,  data->notif->bt_status,
+		       data->notif->bt_traffic_load, smps_mode);
+
+	ieee80211_request_smps(vif, smps_mode);
+}
+
 int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *dev_cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
+	struct iwl_bt_notif_iterator_data data = {
+		.mvm = mvm,
+		.notif = notif,
+	};
 	struct iwl_bt_coex_cmd cmd = {};
 	enum iwl_bt_kill_msk bt_kill_msk;
 
@@ -258,6 +306,10 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	IWL_DEBUG_COEX(mvm, "\tBT agg traffic load %d\n",
 		       notif->bt_agg_traffic_load);
 	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+
+	ieee80211_iterate_active_interfaces_atomic(
+					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_bt_notif_iterator, &data);
 
 	/* Low latency BT profile is active: give higher prio to BT */
 	if (BT_MBOX_MSG(notif, 3, SCO_STATE)  ||
