@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/omap-twl4030.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -209,6 +210,19 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
+static struct omap_tw4030_pdata omap_twl4030_audio_data = {
+	.voice_connected = true,
+	.custom_routing	= true,
+
+	.has_hs		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+	.has_hf		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+
+	.has_mainmic	= true,
+	.has_submic	= true,
+	.has_hsmic	= true,
+	.has_linein	= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+};
+
 static int sdp3430_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
@@ -224,6 +238,9 @@ static int sdp3430_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 15 is "sub_lcd_nRST" (output) */
 	gpio_request_one(gpio + 15, GPIOF_OUT_INIT_LOW, "sub_lcd_nRST");
+
+	omap_twl4030_audio_data.jack_detect = gpio + 2;
+	omap_twl4030_audio_init("SDP3430", &omap_twl4030_audio_data);
 
 	return 0;
 }
@@ -381,6 +398,9 @@ static int __init omap3430_i2c_init(void)
 	sdp3430_twldata.vdac->constraints.apply_uV = true;
 	sdp3430_twldata.vpll2->constraints.apply_uV = true;
 	sdp3430_twldata.vpll2->constraints.name = "VDVI";
+
+	sdp3430_twldata.audio->codec->hs_extmute = 1;
+	sdp3430_twldata.audio->codec->hs_extmute_gpio = -EINVAL;
 
 	omap3_pmic_init("twl4030", &sdp3430_twldata);
 

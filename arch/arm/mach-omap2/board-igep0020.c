@@ -629,7 +629,7 @@ static void __init igep_init(void)
 
 	igep_flash_init();
 	igep_leds_init();
-	omap_twl4030_audio_init("igep2");
+	omap_twl4030_audio_init("igep2", NULL);
 
 	/*
 	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
