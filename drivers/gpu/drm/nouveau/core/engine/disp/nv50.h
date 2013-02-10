@@ -35,6 +35,12 @@ struct nv50_disp_priv {
 		u32 lvdsconf;
 		const struct nouveau_dp_func *dp;
 	} sor;
+	struct {
+		int nr;
+		int (*power)(struct nv50_disp_priv *, int ext, u32 data);
+		u8 type[3];
+		const struct nouveau_dp_func *dp;
+	} pior;
 };
 
 #define DAC_MTHD(n) (n), (n) + 0x03
@@ -72,6 +78,11 @@ int nvd0_sor_dp_lnkctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,
 		       struct dcb_output *);
 int nvd0_sor_dp_drvctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,
 		       struct dcb_output *);
+
+#define PIOR_MTHD(n) (n), (n) + 0x03
+
+int nv50_pior_mthd(struct nouveau_object *, u32, void *, u32);
+int nv50_pior_power(struct nv50_disp_priv *, int, u32);
 
 struct nv50_disp_base {
 	struct nouveau_parent base;

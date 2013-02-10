@@ -678,6 +678,9 @@ nv50_disp_base_omthds[] = {
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },
 	{},
 };
 
@@ -1227,9 +1230,12 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 2;
+	priv->pior.nr = 3;
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
+	priv->pior.power = nv50_pior_power;
+	priv->pior.dp = &nv50_pior_dp_func;
 	return 0;
 }
 

@@ -70,6 +70,7 @@ struct nouveau_dp_func {
 
 extern const struct nouveau_dp_func nv94_sor_dp_func;
 extern const struct nouveau_dp_func nvd0_sor_dp_func;
+extern const struct nouveau_dp_func nv50_pior_dp_func;
 
 int nouveau_dp_train(struct nouveau_disp *, const struct nouveau_dp_func *,
 		     struct dcb_output *, int, u32);
