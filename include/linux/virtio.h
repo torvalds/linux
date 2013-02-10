@@ -78,7 +78,7 @@ struct virtio_device {
 	int index;
 	struct device dev;
 	struct virtio_device_id id;
-	struct virtio_config_ops *config;
+	const struct virtio_config_ops *config;
 	struct list_head vqs;
 	/* Note that this is a Linux set_bit-style bitmap. */
 	unsigned long features[1];

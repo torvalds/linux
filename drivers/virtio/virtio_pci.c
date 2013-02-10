@@ -652,7 +652,7 @@ static int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
-static struct virtio_config_ops virtio_pci_config_ops = {
+static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
 	.get_status	= vp_get_status,

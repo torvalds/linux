@@ -423,7 +423,7 @@ static const char *vm_bus_name(struct virtio_device *vdev)
 	return vm_dev->pdev->name;
 }
 
-static struct virtio_config_ops virtio_mmio_config_ops = {
+static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
 	.set		= vm_set,
 	.get_status	= vm_get_status,
