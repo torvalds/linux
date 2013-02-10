@@ -31,8 +31,6 @@ The \fB-S\fP option limits output to a 1-line System Summary for each interval.
 .PP
 The \fB-v\fP option increases verbosity.
 .PP
-The \fB-s\fP option prints the SMI counter, equivalent to "-c 0x34"
-.PP
 The \fB-c MSR#\fP option includes the delta of the specified 32-bit MSR counter.
 .PP
 The \fB-C MSR#\fP option includes the delta of the specified 64-bit MSR counter.
@@ -186,26 +184,24 @@ This is a weighted average, where the weight is %c0.  ie. it is the total number
 un-halted cycles elapsed per time divided by the number of CPUs.
 .SH SMI COUNTING EXAMPLE
 On Intel Nehalem and newer processors, MSR 0x34 is a System Management Mode Interrupt (SMI) counter.
-Using the -m option, you can display how many SMIs have fired since reset, or if there
-are SMIs during the measurement interval, you can display the delta using the -d option.
+This counter is shown by default under the "SMI" column.
 .nf
-[root@x980 ~]# turbostat -m 0x34
-cor CPU    %c0  GHz  TSC   MSR 0x034    %c1    %c3    %c6   %pc3   %pc6
-          1.41 1.82 3.38  0x00000000   8.92  37.82  51.85  17.37   0.55
-  0   0   3.73 2.03 3.38  0x00000055   1.72  48.25  46.31  17.38   0.55
-  0   6   0.14 1.63 3.38  0x00000056   5.30
-  1   2   2.51 1.80 3.38  0x00000056  15.65  29.33  52.52
-  1   8   0.10 1.65 3.38  0x00000056  18.05
-  2   4   1.16 1.68 3.38  0x00000056   5.87  24.47  68.50
-  2  10   0.10 1.63 3.38  0x00000056   6.93
-  8   1   3.84 1.91 3.38  0x00000056   1.36  50.65  44.16
-  8   7   0.08 1.64 3.38  0x00000056   5.12
-  9   3   1.82 1.73 3.38  0x00000056   7.59  24.21  66.38
-  9   9   0.09 1.68 3.38  0x00000056   9.32
- 10   5   1.66 1.65 3.38  0x00000056  15.10  50.00  33.23
- 10  11   1.72 1.65 3.38  0x00000056  15.05
+[root@x980 ~]# turbostat
+cor CPU    %c0  GHz  TSC SMI    %c1    %c3    %c6 CTMP   %pc3   %pc6
+          0.11 1.91 3.38   0   1.84   0.26  97.79   29   0.82  83.87
+  0   0   0.40 1.63 3.38   0  10.27   0.12  89.20   20   0.82  83.88
+  0   6   0.06 1.63 3.38   0  10.61
+  1   2   0.37 2.63 3.38   0   0.02   0.10  99.51   22
+  1   8   0.01 1.62 3.38   0   0.39
+  2   4   0.07 1.62 3.38   0   0.04   0.07  99.82   23
+  2  10   0.02 1.62 3.38   0   0.09
+  8   1   0.23 1.64 3.38   0   0.10   1.07  98.60   24
+  8   7   0.02 1.64 3.38   0   0.31
+  9   3   0.03 1.62 3.38   0   0.03   0.05  99.89   29
+  9   9   0.02 1.62 3.38   0   0.05
+ 10   5   0.07 1.62 3.38   0   0.08   0.12  99.73   27
+ 10  11   0.03 1.62 3.38   0   0.13
 ^C
-[root@x980 ~]# 
 .fi
 .SH NOTES
 
