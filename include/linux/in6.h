@@ -36,4 +36,13 @@ extern const struct in6_addr in6addr_linklocal_allnodes;
 extern const struct in6_addr in6addr_linklocal_allrouters;
 #define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT \
 		{ { { 0xff,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2 } } }
+extern const struct in6_addr in6addr_interfacelocal_allnodes;
+#define IN6ADDR_INTERFACELOCAL_ALLNODES_INIT \
+		{ { { 0xff,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
+extern const struct in6_addr in6addr_interfacelocal_allrouters;
+#define IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT \
+		{ { { 0xff,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2 } } }
+extern const struct in6_addr in6addr_sitelocal_allrouters;
+#define IN6ADDR_SITELOCAL_ALLROUTERS_INIT \
+		{ { { 0xff,5,0,0,0,0,0,0,0,0,0,0,0,0,0,2 } } }
 #endif
