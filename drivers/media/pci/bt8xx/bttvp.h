@@ -437,6 +437,7 @@ struct bttv {
 
 	/* radio data/state */
 	int has_radio;
+	int has_radio_tuner;
 	int radio_user;
 	int radio_uses_msp_demodulator;
 	unsigned long radio_freq;

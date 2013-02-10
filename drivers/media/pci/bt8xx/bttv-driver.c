@@ -1004,7 +1004,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 
 	/* automute */
 	mute = mute || (btv->opt_automute && (!signal || !btv->users)
-				&& !btv->radio_user);
+				&& !btv->has_radio_tuner);
 
 	if (mute)
 		gpio_val = bttv_tvcards[btv->c.type].gpiomute;
@@ -1701,6 +1701,16 @@ static struct videobuf_queue_ops bttv_video_qops = {
 	.buf_release  = buffer_release,
 };
 
+static void radio_enable(struct bttv *btv)
+{
+	/* Switch to the radio tuner */
+	if (!btv->has_radio_tuner) {
+		btv->has_radio_tuner = 1;
+		bttv_call_all(btv, tuner, s_radio);
+		audio_input(btv, TVAUDIO_INPUT_RADIO);
+	}
+}
+
 static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct bttv_fh *fh  = priv;
@@ -1832,6 +1842,8 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	if (f->tuner)
 		return -EINVAL;
 
+	if (f->type == V4L2_TUNER_RADIO)
+		radio_enable(btv);
 	f->frequency = f->type == V4L2_TUNER_RADIO ?
 				btv->radio_freq : btv->tv_freq;
 
@@ -1845,6 +1857,7 @@ static void bttv_set_frequency(struct bttv *btv, struct v4l2_frequency *f)
 	   frequency before assigning radio/tv_freq. */
 	bttv_call_all(btv, tuner, g_frequency, f);
 	if (f->type == V4L2_TUNER_RADIO) {
+		radio_enable(btv);
 		btv->radio_freq = f->frequency;
 		if (btv->has_matchbox)
 			tea5757_set_freq(btv, btv->radio_freq);
@@ -3235,8 +3248,6 @@ static int radio_open(struct file *file)
 
 	btv->radio_user++;
 
-	bttv_call_all(btv, tuner, s_radio);
-	audio_input(btv,TVAUDIO_INPUT_RADIO);
 	v4l2_fh_add(&fh->fh);
 
 	return 0;
@@ -3257,6 +3268,8 @@ static int radio_release(struct file *file)
 
 	bttv_call_all(btv, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
 
+	if (btv->radio_user == 0)
+		btv->has_radio_tuner = 0;
 	return 0;
 }
 
@@ -3269,6 +3282,7 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 		return -EINVAL;
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
+	radio_enable(btv);
 
 	bttv_call_all(btv, tuner, g_tuner, t);
 
@@ -3287,6 +3301,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
+	radio_enable(btv);
 	bttv_call_all(btv, tuner, s_tuner, t);
 	return 0;
 }
@@ -3301,6 +3316,7 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
+	radio_enable(btv);
 
 	bttv_call_all(btv, core, ioctl, SAA6588_CMD_READ, &cmd);
 
@@ -3319,6 +3335,7 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 		res = POLLPRI;
 	else if (req_events & POLLPRI)
 		poll_wait(file, &fh->fh.wait, wait);
+	radio_enable(btv);
 	cmd.instance = file;
 	cmd.event_list = wait;
 	cmd.result = res;
