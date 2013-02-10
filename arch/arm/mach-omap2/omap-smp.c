@@ -186,8 +186,6 @@ static void __init wakeup_secondary(void)
 		__raw_writel(virt_to_phys(omap5_secondary_startup),
 						base + OMAP_AUX_CORE_BOOT_1);
 
-	smp_wmb();
-
 	/*
 	 * Send a 'sev' to wake the secondary core from WFE.
 	 * Drain the outstanding writes to memory
