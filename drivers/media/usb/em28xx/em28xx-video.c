@@ -799,7 +799,7 @@ const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
 	.s_ctrl = em28xx_s_ctrl,
 };
 
-static void get_scale(struct em28xx *dev,
+static void size_to_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
@@ -889,7 +889,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				      1, 0);
 	}
 
-	get_scale(dev, width, height, &hscale, &vscale);
+	size_to_scale(dev, width, height, &hscale, &vscale);
 
 	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
 	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
@@ -923,7 +923,7 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 	dev->height = height;
 
 	/* set new image size */
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+	size_to_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
 
@@ -986,7 +986,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	/* set new image size */
 	dev->width = f.fmt.pix.width;
 	dev->height = f.fmt.pix.height;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+	size_to_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
