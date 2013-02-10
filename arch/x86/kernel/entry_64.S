@@ -1781,6 +1781,7 @@ first_nmi:
 	 * Leave room for the "copied" frame
 	 */
 	subq $(5*8), %rsp
+	CFI_ADJUST_CFA_OFFSET 5*8
 
 	/* Copy the stack frame to the Saved frame */
 	.rept 5
@@ -1863,10 +1864,8 @@ end_repeat_nmi:
 nmi_swapgs:
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
-	RESTORE_ALL 8
-
-	/* Pop the extra iret frame */
-	addq $(5*8), %rsp
+	/* Pop the extra iret frame at once */
+	RESTORE_ALL 6*8
 
 	/* Clear the NMI executing stack variable */
 	movq $0, 5*8(%rsp)
