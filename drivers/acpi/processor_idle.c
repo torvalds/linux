@@ -84,7 +84,6 @@ static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 static int disabled_by_idle_boot_param(void)
 {
 	return boot_option_idle_override == IDLE_POLL ||
-		boot_option_idle_override == IDLE_FORCE_MWAIT ||
 		boot_option_idle_override == IDLE_HALT;
 }
 
