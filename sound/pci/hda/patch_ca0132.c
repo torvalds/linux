@@ -2065,7 +2065,7 @@ static int dma_reset(struct dma_engine *dma)
 	struct ca0132_spec *spec = codec->spec;
 	int status;
 
-	if (dma->dmab)
+	if (dma->dmab->area)
 		snd_hda_codec_load_dsp_cleanup(codec, dma->dmab);
 
 	status = snd_hda_codec_load_dsp_prepare(codec,
@@ -2357,10 +2357,14 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 						chip_addx_remainder,
 						data_remainder,
 						remainder_words);
+			if (status < 0)
+				return status;
 			remainder_words = 0;
 		}
 		if (hci_write) {
 			status = dspxfr_hci_write(codec, hci_write);
+			if (status < 0)
+				return status;
 			hci_write = NULL;
 		}
 
@@ -2376,7 +2380,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 
 		snd_printdd(KERN_INFO "+++++ DMA complete");
 		dma_set_state(dma_engine, DMA_STATE_STOP);
-		dma_reset(dma_engine);
+		status = dma_reset(dma_engine);
 
 		if (status < 0)
 			return status;
@@ -2517,7 +2521,7 @@ exit:
 	if (ovly && (dma_chan != INVALID_DMA_CHANNEL))
 		dspio_free_dma_chan(codec, dma_chan);
 
-	if (dma_engine->dmab)
+	if (dma_engine->dmab->area)
 		snd_hda_codec_load_dsp_cleanup(codec, dma_engine->dmab);
 	kfree(dma_engine->dmab);
 	kfree(dma_engine);

@@ -2628,8 +2628,9 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 				  snd_dma_pci_data(chip->pci),
 				  byte_size, bufp);
 	if (err < 0)
-		goto error;
+		goto unlock;
 
+	mark_pages_wc(chip, bufp, true);
 	azx_dev = azx_get_dsp_loader_dev(chip);
 	azx_dev->bufsize = byte_size;
 	azx_dev->period_bytes = byte_size;
@@ -2651,6 +2652,9 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 	return azx_dev->stream_tag;
 
  error:
+	mark_pages_wc(chip, bufp, false);
+	snd_dma_free_pages(bufp);
+unlock:
 	snd_hda_unlock_devices(bus);
 	return err;
 }
@@ -2673,6 +2677,9 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 	struct azx *chip = bus->private_data;
 	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
 
+	if (!dmab->area)
+		return;
+
 	/* reset BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
 	azx_sd_writel(azx_dev, SD_BDLPU, 0);
@@ -2681,7 +2688,9 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 	azx_dev->period_bytes = 0;
 	azx_dev->format_val = 0;
 
+	mark_pages_wc(chip, dmab, false);
 	snd_dma_free_pages(dmab);
+	dmab->area = NULL;
 
 	snd_hda_unlock_devices(bus);
 }
