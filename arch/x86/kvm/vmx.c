@@ -84,8 +84,7 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
-static bool __read_mostly enable_apicv_reg_vid = 1;
-module_param(enable_apicv_reg_vid, bool, S_IRUGO);
+static bool __read_mostly enable_apicv_reg_vid;
 
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
