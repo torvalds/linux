@@ -415,10 +415,8 @@ void stop_this_cpu(void *dummy)
 	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
 
-	for (;;) {
-		if (hlt_works(smp_processor_id()))
-			halt();
-	}
+	for (;;)
+		halt();
 }
 
 /*
