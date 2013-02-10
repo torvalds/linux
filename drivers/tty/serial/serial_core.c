@@ -2723,15 +2723,15 @@ EXPORT_SYMBOL(uart_match_port);
  */
 void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
-	struct uart_state *state = uport->state;
-	struct tty_port *port = &state->port;
-	struct tty_ldisc *ld = NULL;
+	struct tty_port *port = &uport->state->port;
 	struct tty_struct *tty = port->tty;
+	struct tty_ldisc *ld = tty ? tty_ldisc_ref(tty) : NULL;
 
-	if (tty)
-	        ld = tty_ldisc_ref(tty);
-	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(tty, status);
+	if (ld) {
+		if (ld->ops->dcd_change)
+			ld->ops->dcd_change(tty, status);
+		tty_ldisc_deref(ld);
+	}
 
 	uport->icount.dcd++;
 #ifdef CONFIG_HARD_PPS
@@ -2745,9 +2745,6 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 		else if (tty)
 			tty_hangup(tty);
 	}
-
-	if (ld)
-		tty_ldisc_deref(ld);
 }
 EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
 
