@@ -27,6 +27,7 @@
 
 #include "omap_device.h"
 #include "omap_hwmod.h"
+#include "soc.h"
 
 #if defined(CONFIG_DRM_OMAP) || (CONFIG_DRM_OMAP_MODULE)
 
