@@ -2604,7 +2604,6 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 				 "ctx->status=%d ret=%d)\n",
 				 ctx_id, ctrl->status, ctx->status, ret);
 			ret = -EINVAL;
-			goto err_routine;
 		}
 
 		if (ctrl->regs == NULL) {
@@ -2668,7 +2667,6 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 		default:
 			fimc_err("%s: Invalid pixelformt : %d\n", __func__, format);
 			ret = -EINVAL;
-			goto err_routine;
 		}
 
 		if (ctx->dst[idx].base[FIMC_ADDR_Y] != 0 && y_size != 0 &&
@@ -2677,7 +2675,6 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 			fimc_err("%s: Y address is not CMA region 0x%x, %d \n",
 					__func__, ctx->dst[idx].base[FIMC_ADDR_Y], y_size);
 			ret = -EINVAL;
-			goto err_routine;
 		}
 		if (ctx->dst[idx].base[FIMC_ADDR_CB] != 0 && cb_size != 0 &&
 				!cma_is_registered_region((dma_addr_t)ctx->dst[idx].base[FIMC_ADDR_CB],
@@ -2685,7 +2682,6 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 			fimc_err("%s: CB address is not CMA region 0x%x, %d \n",
 					__func__, ctx->dst[idx].base[FIMC_ADDR_CB], cb_size);
 			ret = -EINVAL;
-			goto err_routine;
 		}
 		if (ctx->dst[idx].base[FIMC_ADDR_CR] != 0 && cr_size != 0 &&
 				!cma_is_registered_region((dma_addr_t)ctx->dst[idx].base[FIMC_ADDR_CR],
@@ -2693,7 +2689,6 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 			fimc_err("%s: CR address is not CMA region 0x%x, %d \n",
 					__func__, ctx->dst[idx].base[FIMC_ADDR_CR], cr_size);
 			ret = -EINVAL;
-			goto err_routine;
 		}
 		/* End check CMA region */
 
