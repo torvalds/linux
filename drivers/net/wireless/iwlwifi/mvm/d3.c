@@ -97,14 +97,14 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 	struct inet6_ifaddr *ifa;
 	int idx = 0;
 
-	read_lock(&idev->lock);
+	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		mvmvif->target_ipv6_addrs[idx] = ifa->addr;
 		idx++;
 		if (idx >= IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS)
 			break;
 	}
-	read_unlock(&idev->lock);
+	read_unlock_bh(&idev->lock);
 
 	mvmvif->num_target_ipv6_addrs = idx;
 }
