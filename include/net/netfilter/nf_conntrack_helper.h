@@ -100,6 +100,10 @@ struct nf_ct_helper_expectfn {
 	void (*expectfn)(struct nf_conn *ct, struct nf_conntrack_expect *exp);
 };
 
+__printf(3,4)
+void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
+		      const char *fmt, ...);
+
 void nf_ct_helper_expectfn_register(struct nf_ct_helper_expectfn *n);
 void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n);
 struct nf_ct_helper_expectfn *

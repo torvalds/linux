@@ -159,8 +159,10 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					 &matchoff, &matchlen,
 					 &addr, &port) > 0 &&
 		    !map_addr(skb, protoff, dataoff, dptr, datalen,
-			      matchoff, matchlen, &addr, port))
+			      matchoff, matchlen, &addr, port)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle SIP message");
 			return NF_DROP;
+		}
 		request = 1;
 	} else
 		request = 0;
@@ -193,8 +195,10 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 
 		olen = *datalen;
 		if (!map_addr(skb, protoff, dataoff, dptr, datalen,
-			      matchoff, matchlen, &addr, port))
+			      matchoff, matchlen, &addr, port)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle Via header");
 			return NF_DROP;
+		}
 
 		matchend = matchoff + matchlen + *datalen - olen;
 
@@ -209,8 +213,10 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					&ct->tuplehash[!dir].tuple.dst.u3,
 					true);
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
-					   poff, plen, buffer, buflen))
+					   poff, plen, buffer, buflen)) {
+				nf_ct_helper_log(skb, ct, "cannot mangle maddr");
 				return NF_DROP;
+			}
 		}
 
 		/* The received= parameter (RFC 2361) contains the address
@@ -225,6 +231,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					false);
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
 					   poff, plen, buffer, buflen))
+				nf_ct_helper_log(skb, ct, "cannot mangle received");
 				return NF_DROP;
 		}
 
@@ -238,8 +245,10 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 			__be16 p = ct->tuplehash[!dir].tuple.src.u.udp.port;
 			buflen = sprintf(buffer, "%u", ntohs(p));
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
-					   poff, plen, buffer, buflen))
+					   poff, plen, buffer, buflen)) {
+				nf_ct_helper_log(skb, ct, "cannot mangle rport");
 				return NF_DROP;
+			}
 		}
 	}
 
@@ -253,27 +262,35 @@ next:
 				       &addr, &port) > 0) {
 		if (!map_addr(skb, protoff, dataoff, dptr, datalen,
 			      matchoff, matchlen,
-			      &addr, port))
+			      &addr, port)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle contact");
 			return NF_DROP;
+		}
 	}
 
 	if (!map_sip_addr(skb, protoff, dataoff, dptr, datalen, SIP_HDR_FROM) ||
-	    !map_sip_addr(skb, protoff, dataoff, dptr, datalen, SIP_HDR_TO))
+	    !map_sip_addr(skb, protoff, dataoff, dptr, datalen, SIP_HDR_TO)) {
+		nf_ct_helper_log(skb, ct, "cannot mangle SIP from/to");
 		return NF_DROP;
+	}
 
 	/* Mangle destination port for Cisco phones, then fix up checksums */
 	if (dir == IP_CT_DIR_REPLY && ct_sip_info->forced_dport) {
 		struct udphdr *uh;
 
-		if (!skb_make_writable(skb, skb->len))
+		if (!skb_make_writable(skb, skb->len)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle packet");
 			return NF_DROP;
+		}
 
 		uh = (void *)skb->data + protoff;
 		uh->dest = ct_sip_info->forced_dport;
 
 		if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo, protoff,
-					      0, 0, NULL, 0))
+					      0, 0, NULL, 0)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle packet");
 			return NF_DROP;
+		}
 	}
 
 	return NF_ACCEPT;
@@ -372,15 +389,19 @@ static unsigned int nf_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 		}
 	}
 
-	if (port == 0)
+	if (port == 0) {
+		nf_ct_helper_log(skb, ct, "all ports in use for SIP");
 		return NF_DROP;
+	}
 
 	if (!nf_inet_addr_cmp(&exp->tuple.dst.u3, &exp->saved_addr) ||
 	    exp->tuple.dst.u.udp.port != exp->saved_proto.udp.port) {
 		buflen = sip_sprintf_addr_port(ct, buffer, &newaddr, port);
 		if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
-				   matchoff, matchlen, buffer, buflen))
+				   matchoff, matchlen, buffer, buflen)) {
+			nf_ct_helper_log(skb, ct, "cannot mangle packet");
 			goto err;
+		}
 	}
 	return NF_ACCEPT;
 
@@ -573,14 +594,18 @@ static unsigned int nf_nat_sdp_media(struct sk_buff *skb, unsigned int protoff,
 		}
 	}
 
-	if (port == 0)
+	if (port == 0) {
+		nf_ct_helper_log(skb, ct, "all ports in use for SDP media");
 		goto err1;
+	}
 
 	/* Update media port. */
 	if (rtp_exp->tuple.dst.u.udp.port != rtp_exp->saved_proto.udp.port &&
 	    !nf_nat_sdp_port(skb, protoff, dataoff, dptr, datalen,
-			     mediaoff, medialen, port))
+			     mediaoff, medialen, port)) {
+		nf_ct_helper_log(skb, ct, "cannot mangle SDP message");
 		goto err2;
+	}
 
 	return NF_ACCEPT;
 

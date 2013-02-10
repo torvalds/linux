@@ -28,6 +28,7 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
+#include <net/netfilter/nf_log.h>
 
 static DEFINE_MUTEX(nf_ct_helper_mutex);
 struct hlist_head *nf_ct_helper_hash __read_mostly;
@@ -331,6 +332,24 @@ nf_ct_helper_expectfn_find_by_symbol(const void *symbol)
 	return found ? cur : NULL;
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_symbol);
+
+__printf(3, 4)
+void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
+		      const char *fmt, ...)
+{
+	const struct nf_conn_help *help;
+	const struct nf_conntrack_helper *helper;
+
+	/* Called from the helper function, this call never fails */
+	help = nfct_help(ct);
+
+	/* rcu_read_lock()ed by nf_hook_slow */
+	helper = rcu_dereference(help->helper);
+
+	nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL,
+		      "nf_ct_%s: dropping packet: %s ", helper->name, fmt);
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_log);
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {

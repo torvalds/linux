@@ -60,8 +60,10 @@ static int tftp_help(struct sk_buff *skb,
 		nf_ct_dump_tuple(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
 		exp = nf_ct_expect_alloc(ct);
-		if (exp == NULL)
+		if (exp == NULL) {
+			nf_ct_helper_log(skb, ct, "cannot alloc expectation");
 			return NF_DROP;
+		}
 		tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
 		nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
 				  nf_ct_l3num(ct),
@@ -74,8 +76,10 @@ static int tftp_help(struct sk_buff *skb,
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_tftp(skb, ctinfo, exp);
-		else if (nf_ct_expect_related(exp) != 0)
+		else if (nf_ct_expect_related(exp) != 0) {
+			nf_ct_helper_log(skb, ct, "cannot add expectation");
 			ret = NF_DROP;
+		}
 		nf_ct_expect_put(exp);
 		break;
 	case TFTP_OPCODE_DATA:
