@@ -1046,6 +1046,13 @@ static int stk_vidioc_reqbufs(struct file *filp,
 	if (is_streaming(dev)
 		|| (dev->owner && dev->owner != filp))
 		return -EBUSY;
+	stk_free_buffers(dev);
+	if (rb->count == 0) {
+		stk_camera_write_reg(dev, 0x0, 0x49); /* turn off the LED */
+		unset_initialised(dev);
+		dev->owner = NULL;
+		return 0;
+	}
 	dev->owner = filp;
 
 	/*FIXME If they ask for zero, we must stop streaming and free */
