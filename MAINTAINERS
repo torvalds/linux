@@ -673,6 +673,12 @@ ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
 
+ARM PRIMECELL UART PL010 AND PL011 DRIVERS
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/tty/serial/amba-pl01*.c
+F:	include/linux/amba/serial.h
+
 ARM PRIMECELL BUS SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
 S:	Maintained
