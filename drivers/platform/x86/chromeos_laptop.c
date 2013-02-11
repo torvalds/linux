@@ -207,6 +207,13 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 		.callback = setup_cyapa_smbus_tp,
 	},
 	{
+		.ident = "HP Pavilion 14 Chromebook - Touchpad",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Butterfly"),
+		},
+		.callback = setup_cyapa_smbus_tp,
+	},
+	{
 		.ident = "Samsung Series 5 - Light Sensor",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Alex"),
