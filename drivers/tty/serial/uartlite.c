@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -615,7 +615,7 @@ static struct platform_driver ulite_platform_driver = {
  * Module setup/teardown
  */
 
-int __init ulite_init(void)
+static int __init ulite_init(void)
 {
 	int ret;
 
@@ -634,11 +634,11 @@ int __init ulite_init(void)
 err_plat:
 	uart_unregister_driver(&ulite_uart_driver);
 err_uart:
-	printk(KERN_ERR "registering uartlite driver failed: err=%i", ret);
+	pr_err("registering uartlite driver failed: err=%i", ret);
 	return ret;
 }
 
-void __exit ulite_exit(void)
+static void __exit ulite_exit(void)
 {
 	platform_driver_unregister(&ulite_platform_driver);
 	uart_unregister_driver(&ulite_uart_driver);
