@@ -1825,8 +1825,13 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	push = evo_wait(nv50_mast(dev), 8);
 	if (push) {
 		if (nv50_vers(mast) < NVD0_DISP_CLASS) {
+			u32 ctrl = (depth << 16) | (proto << 8) | owner;
+			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+				ctrl |= 0x00001000;
+			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+				ctrl |= 0x00002000;
 			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x040), 1);
-			evo_data(push, (depth << 16) | (proto << 8) | owner);
+			evo_data(push, ctrl);
 		} else {
 			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
 			u32 syncs = 0x00000001;
