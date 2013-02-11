@@ -780,7 +780,7 @@ int remove_inode_page(struct inode *inode)
 	return 0;
 }
 
-int new_inode_page(struct inode *inode, struct dentry *dentry)
+int new_inode_page(struct inode *inode, const struct qstr *name)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
@@ -790,7 +790,7 @@ int new_inode_page(struct inode *inode, struct dentry *dentry)
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
 	mutex_lock_op(sbi, NODE_NEW);
 	page = new_node_page(&dn, 0);
-	init_dent_inode(dentry, page);
+	init_dent_inode(name, page);
 	mutex_unlock_op(sbi, NODE_NEW);
 	if (IS_ERR(page))
 		return PTR_ERR(page);

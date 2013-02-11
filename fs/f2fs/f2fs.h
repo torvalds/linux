@@ -889,11 +889,17 @@ struct f2fs_dir_entry *f2fs_parent_dir(struct inode *, struct page **);
 ino_t f2fs_inode_by_name(struct inode *, struct qstr *);
 void f2fs_set_link(struct inode *, struct f2fs_dir_entry *,
 				struct page *, struct inode *);
-void init_dent_inode(struct dentry *, struct page *);
-int f2fs_add_link(struct dentry *, struct inode *);
+void init_dent_inode(const struct qstr *, struct page *);
+int __f2fs_add_link(struct inode *, const struct qstr *, struct inode *);
 void f2fs_delete_entry(struct f2fs_dir_entry *, struct page *, struct inode *);
 int f2fs_make_empty(struct inode *, struct inode *);
 bool f2fs_empty_dir(struct inode *);
+
+static inline int f2fs_add_link(struct dentry *dentry, struct inode *inode)
+{
+	return __f2fs_add_link(dentry->d_parent->d_inode, &dentry->d_name,
+				inode);
+}
 
 /*
  * super.c
@@ -918,7 +924,7 @@ void get_node_info(struct f2fs_sb_info *, nid_t, struct node_info *);
 int get_dnode_of_data(struct dnode_of_data *, pgoff_t, int);
 int truncate_inode_blocks(struct inode *, pgoff_t);
 int remove_inode_page(struct inode *);
-int new_inode_page(struct inode *, struct dentry *);
+int new_inode_page(struct inode *, const struct qstr *);
 struct page *new_node_page(struct dnode_of_data *, unsigned int);
 void ra_node_page(struct f2fs_sb_info *, nid_t);
 struct page *get_node_page(struct f2fs_sb_info *, pgoff_t);
