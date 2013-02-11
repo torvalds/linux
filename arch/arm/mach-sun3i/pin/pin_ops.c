@@ -1112,8 +1112,7 @@ __s32  gpio_read_one_pin_value(u32 p_handler, const char *gpio_name)
 
     reg_val  = PIO_REG_CFG_VALUE(port, port_num_func);
     func_val = (reg_val >> ((port_num - (port_num_func<<3))<<2)) & 0x07;
-    if(func_val == 0)
-    {
+	if ((func_val == 0) || (func_val == 1)) {
         reg_val = (PIO_REG_DATA_VALUE(port) >> port_num) & 0x01;
 
         return reg_val;
