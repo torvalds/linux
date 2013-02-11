@@ -250,6 +250,34 @@ static int dwc3_omap_remove_core(struct device *dev, void *c)
 	return 0;
 }
 
+static void dwc3_omap_enable_irqs(struct dwc3_omap *omap)
+{
+	u32			reg;
+
+	/* enable all IRQs */
+	reg = USBOTGSS_IRQO_COREIRQ_ST;
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, reg);
+
+	reg = (USBOTGSS_IRQ1_OEVT |
+			USBOTGSS_IRQ1_DRVVBUS_RISE |
+			USBOTGSS_IRQ1_CHRGVBUS_RISE |
+			USBOTGSS_IRQ1_DISCHRGVBUS_RISE |
+			USBOTGSS_IRQ1_IDPULLUP_RISE |
+			USBOTGSS_IRQ1_DRVVBUS_FALL |
+			USBOTGSS_IRQ1_CHRGVBUS_FALL |
+			USBOTGSS_IRQ1_DISCHRGVBUS_FALL |
+			USBOTGSS_IRQ1_IDPULLUP_FALL);
+
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_1, reg);
+}
+
+static void dwc3_omap_disable_irqs(struct dwc3_omap *omap)
+{
+	/* disable all IRQs */
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_1, 0x00);
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, 0x00);
+}
+
 static int dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -355,21 +383,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* enable all IRQs */
-	reg = USBOTGSS_IRQO_COREIRQ_ST;
-	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, reg);
-
-	reg = (USBOTGSS_IRQ1_OEVT |
-			USBOTGSS_IRQ1_DRVVBUS_RISE |
-			USBOTGSS_IRQ1_CHRGVBUS_RISE |
-			USBOTGSS_IRQ1_DISCHRGVBUS_RISE |
-			USBOTGSS_IRQ1_IDPULLUP_RISE |
-			USBOTGSS_IRQ1_DRVVBUS_FALL |
-			USBOTGSS_IRQ1_CHRGVBUS_FALL |
-			USBOTGSS_IRQ1_DISCHRGVBUS_FALL |
-			USBOTGSS_IRQ1_IDPULLUP_FALL);
-
-	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_1, reg);
+	dwc3_omap_enable_irqs(omap);
 
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
@@ -382,6 +396,9 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 static int dwc3_omap_remove(struct platform_device *pdev)
 {
+	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
+
+	dwc3_omap_disable_irqs(omap);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
