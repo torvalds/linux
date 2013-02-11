@@ -192,43 +192,15 @@ new_search:
 static unsigned long
 hugetlb_get_unmapped_area_new_pmd(unsigned long len)
 {
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	unsigned long start_addr, addr;
+	struct vm_unmapped_area_info info;
 
-	if (ALIGN_HUGEPT(len) > mm->cached_hole_size)
-		start_addr = mm->free_area_cache;
-	else
-		start_addr = TASK_UNMAPPED_BASE;
-
-new_search:
-	addr = ALIGN_HUGEPT(start_addr);
-
-	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
-		if (TASK_SIZE - len < addr) {
-			/*
-			 * Start a new search - just in case we missed
-			 * some holes.
-			 */
-			if (start_addr != TASK_UNMAPPED_BASE) {
-				start_addr = TASK_UNMAPPED_BASE;
-				mm->cached_hole_size = 0;
-				goto new_search;
-			}
-			return 0;
-		}
-		/* skip ahead if we've aligned right over some vmas */
-		if (vma && vma->vm_end <= addr)
-			continue;
-		if (!vma || ALIGN_HUGEPT(addr + len) <= vma->vm_start) {
-#if HPAGE_SHIFT < HUGEPT_SHIFT
-			if (len & HUGEPT_MASK)
-				mm->context.part_huge = addr + len;
-#endif
-			return addr;
-		}
-		addr = ALIGN_HUGEPT(vma->vm_end);
-	}
+	info.flags = 0;
+	info.length = len;
+	info.low_limit = TASK_UNMAPPED_BASE;
+	info.high_limit = TASK_SIZE;
+	info.align_mask = PAGE_MASK & HUGEPT_MASK;
+	info.align_offset = 0;
+	return vm_unmapped_area(&info);
 }
 
 unsigned long
@@ -266,11 +238,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	 * Find an unmapped naturally aligned set of 4MB blocks that we can use
 	 * for huge pages.
 	 */
-	addr = hugetlb_get_unmapped_area_new_pmd(len);
-	if (likely(addr))
-		return addr;
-
-	return -EINVAL;
+	return hugetlb_get_unmapped_area_new_pmd(len);
 }
 
 #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
