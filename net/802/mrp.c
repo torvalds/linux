@@ -744,8 +744,8 @@ static int mrp_pdu_parse_msg(struct mrp_applicant *app, struct sk_buff *skb,
 	return 0;
 }
 
-int mrp_rcv(struct sk_buff *skb, struct net_device *dev,
-	    struct packet_type *pt, struct net_device *orig_dev)
+static int mrp_rcv(struct sk_buff *skb, struct net_device *dev,
+		   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct mrp_application *appl = container_of(pt, struct mrp_application,
 						    pkttype);
