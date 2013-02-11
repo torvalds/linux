@@ -20,6 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 static struct platform_driver syscon_driver;
 
