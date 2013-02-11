@@ -5920,7 +5920,7 @@ static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	u32 msr_index = vcpu->arch.regs[VCPU_REGS_RCX];
 	gpa_t bitmap;
 
-	if (!nested_cpu_has(get_vmcs12(vcpu), CPU_BASED_USE_MSR_BITMAPS))
+	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
 		return 1;
 
 	/*
