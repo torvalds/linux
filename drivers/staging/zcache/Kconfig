@@ -24,3 +24,20 @@ config RAMSTER
 	  while minimizing total RAM across the cluster.  RAMster, like
 	  zcache2, compresses swap pages into local RAM, but then remotifies
 	  the compressed pages to another node in the RAMster cluster.
+
+# Depends on not-yet-upstreamed mm patches to export end_swap_bio_write and
+# __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage
+# without the frontswap call. When these are in-tree, the dependency on
+# BROKEN can be removed
+config ZCACHE_WRITEBACK
+	bool "Allow compressed swap pages to be writtenback to swap disk"
+	depends on ZCACHE=y && BROKEN
+	default n
+	help
+	  Zcache caches compressed swap pages (and other data) in RAM which
+	  often improves performance by avoiding I/O's due to swapping.
+	  In some workloads with very long-lived large processes, it can
+	  instead reduce performance.  Writeback decompresses zcache-compressed
+	  pages (in LRU order) when under memory pressure and writes them to
+	  the backing swap disk to ameliorate this problem.  Policy driving
+	  writeback is still under development.
