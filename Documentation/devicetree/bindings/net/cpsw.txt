@@ -24,6 +24,8 @@ Required properties:
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
 - no_bd_ram		: Must be 0 or 1
+- dual_emac		: Specifies Switch to act as Dual EMAC
+- dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
