@@ -56,5 +56,9 @@
 		serial1@ffc03000 {
 			clock-frequency = <100000000>;
 		};
+
+		sysmgr@ffd08000 {
+			cpu1-start-addr = <0xffd080c4>;
+		};
 	};
 };
