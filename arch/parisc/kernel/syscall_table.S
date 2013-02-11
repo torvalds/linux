@@ -327,12 +327,12 @@
 	ENTRY_SAME(epoll_wait)
  	ENTRY_SAME(remap_file_pages)
 	ENTRY_SAME(semtimedop)
-	ENTRY_SAME(mq_open)
+	ENTRY_COMP(mq_open)
 	ENTRY_SAME(mq_unlink)		/* 230 */
-	ENTRY_SAME(mq_timedsend)
-	ENTRY_SAME(mq_timedreceive)
-	ENTRY_SAME(mq_notify)
-	ENTRY_SAME(mq_getsetattr)
+	ENTRY_COMP(mq_timedsend)
+	ENTRY_COMP(mq_timedreceive)
+	ENTRY_COMP(mq_notify)
+	ENTRY_COMP(mq_getsetattr)
 	ENTRY_COMP(waitid)		/* 235 */
 	ENTRY_OURS(fadvise64_64)
 	ENTRY_SAME(set_tid_address)
