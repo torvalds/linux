@@ -101,8 +101,6 @@
 #define DOT11_RTS_LEN			16
 #define DOT11_CTS_LEN			10
 #define DOT11_BA_BITMAP_LEN		128
-#define DOT11_MIN_BEACON_PERIOD		1
-#define DOT11_MAX_BEACON_PERIOD		0xFFFF
 #define DOT11_MAXNUMFRAGS		16
 #define DOT11_MAX_FRAG_LEN		2346
 
@@ -5555,8 +5553,7 @@ int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs)
 
 int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period)
 {
-	if (period < DOT11_MIN_BEACON_PERIOD ||
-	    period > DOT11_MAX_BEACON_PERIOD)
+	if (period == 0)
 		return -EINVAL;
 
 	wlc->default_bss->beacon_period = period;
@@ -7408,8 +7405,12 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 			      struct brcms_bss_cfg *cfg,
 			      bool suspend)
 {
-	u16 prb_resp[BCN_TMPL_LEN / 2];
+	u16 *prb_resp;
 	int len = BCN_TMPL_LEN;
+
+	prb_resp = kmalloc(BCN_TMPL_LEN, GFP_ATOMIC);
+	if (!prb_resp)
+		return;
 
 	/*
 	 * write the probe response to hardware, or save in
@@ -7444,6 +7445,8 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 
 	if (suspend)
 		brcms_c_enable_mac(wlc);
+
+	kfree(prb_resp);
 }
 
 void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)

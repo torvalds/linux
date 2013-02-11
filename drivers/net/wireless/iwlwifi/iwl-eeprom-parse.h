@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,5 +125,14 @@ static inline void iwl_free_nvm_data(struct iwl_nvm_data *data)
 
 int iwl_nvm_check_version(struct iwl_nvm_data *data,
 			  struct iwl_trans *trans);
+
+int iwl_init_sband_channels(struct iwl_nvm_data *data,
+			    struct ieee80211_supported_band *sband,
+			    int n_channels, enum ieee80211_band band);
+
+void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
+			  struct iwl_nvm_data *data,
+			  struct ieee80211_sta_ht_cap *ht_info,
+			  enum ieee80211_band band);
 
 #endif /* __iwl_eeprom_parse_h__ */

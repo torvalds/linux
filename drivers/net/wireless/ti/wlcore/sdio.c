@@ -217,7 +217,7 @@ static struct wl1271_if_operations sdio_ops = {
 static int wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
-	struct wl12xx_platform_data *wlan_data;
+	struct wlcore_platdev_data *pdev_data;
 	struct wl12xx_sdio_glue *glue;
 	struct resource res[1];
 	mmc_pm_flag_t mmcflags;
@@ -228,10 +228,18 @@ static int wl1271_probe(struct sdio_func *func,
 	if (func->num != 0x02)
 		return -ENODEV;
 
+	pdev_data = kzalloc(sizeof(*pdev_data), GFP_KERNEL);
+	if (!pdev_data) {
+		dev_err(&func->dev, "can't allocate platdev_data\n");
+		goto out;
+	}
+
+	pdev_data->if_ops = &sdio_ops;
+
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&func->dev, "can't allocate glue\n");
-		goto out;
+		goto out_free_pdev_data;
 	}
 
 	glue->dev = &func->dev;
@@ -242,9 +250,9 @@ static int wl1271_probe(struct sdio_func *func,
 	/* Use block mode for transferring over one block size of data */
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
-	wlan_data = wl12xx_get_platform_data();
-	if (IS_ERR(wlan_data)) {
-		ret = PTR_ERR(wlan_data);
+	pdev_data->pdata = wl12xx_get_platform_data();
+	if (IS_ERR(pdev_data->pdata)) {
+		ret = PTR_ERR(pdev_data->pdata);
 		dev_err(glue->dev, "missing wlan platform data: %d\n", ret);
 		goto out_free_glue;
 	}
@@ -254,9 +262,7 @@ static int wl1271_probe(struct sdio_func *func,
 	dev_dbg(glue->dev, "sdio PM caps = 0x%x\n", mmcflags);
 
 	if (mmcflags & MMC_PM_KEEP_POWER)
-		wlan_data->pwr_in_suspend = true;
-
-	wlan_data->ops = &sdio_ops;
+		pdev_data->pdata->pwr_in_suspend = true;
 
 	sdio_set_drvdata(func, glue);
 
@@ -274,7 +280,7 @@ static int wl1271_probe(struct sdio_func *func,
 	else
 		chip_family = "wl12xx";
 
-	glue->core = platform_device_alloc(chip_family, -1);
+	glue->core = platform_device_alloc(chip_family, PLATFORM_DEVID_AUTO);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
 		ret = -ENOMEM;
@@ -285,7 +291,7 @@ static int wl1271_probe(struct sdio_func *func,
 
 	memset(res, 0x00, sizeof(res));
 
-	res[0].start = wlan_data->irq;
+	res[0].start = pdev_data->pdata->irq;
 	res[0].flags = IORESOURCE_IRQ;
 	res[0].name = "irq";
 
@@ -295,8 +301,8 @@ static int wl1271_probe(struct sdio_func *func,
 		goto out_dev_put;
 	}
 
-	ret = platform_device_add_data(glue->core, wlan_data,
-				       sizeof(*wlan_data));
+	ret = platform_device_add_data(glue->core, pdev_data,
+				       sizeof(*pdev_data));
 	if (ret) {
 		dev_err(glue->dev, "can't add platform data\n");
 		goto out_dev_put;
@@ -315,6 +321,9 @@ out_dev_put:
 out_free_glue:
 	kfree(glue);
 
+out_free_pdev_data:
+	kfree(pdev_data);
+
 out:
 	return ret;
 }
@@ -326,8 +335,7 @@ static void wl1271_remove(struct sdio_func *func)
 	/* Undo decrement done above in wl1271_probe */
 	pm_runtime_get_noresume(&func->dev);
 
-	platform_device_del(glue->core);
-	platform_device_put(glue->core);
+	platform_device_unregister(glue->core);
 	kfree(glue);
 }
 

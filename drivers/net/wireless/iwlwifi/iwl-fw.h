@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,6 +139,19 @@ struct fw_img {
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
+/*
+ * Calibration control struct.
+ * Sent as part of the phy configuration command.
+ * @flow_trigger: bitmap for which calibrations to perform according to
+ *		flow triggers.
+ * @event_trigger: bitmap for which calibrations to perform according to
+ *		event triggers.
+ */
+struct iwl_tlv_calib_ctrl {
+	__le32 flow_trigger;
+	__le32 event_trigger;
+} __packed;
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -153,6 +166,7 @@ struct fw_img {
  * @inst_evtlog_ptr: event log offset for runtime ucode.
  * @inst_evtlog_size: event log size for runtime ucode.
  * @inst_errlog_ptr: error log offfset for runtime ucode.
+ * @mvm_fw: indicates this is MVM firmware
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -168,7 +182,7 @@ struct iwl_fw {
 	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-	u64 default_calib[IWL_UCODE_TYPE_MAX];
+	struct iwl_tlv_calib_ctrl default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
 
 	bool mvm_fw;

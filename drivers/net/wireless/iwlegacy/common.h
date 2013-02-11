@@ -1356,6 +1356,7 @@ struct il_priv {
 		struct {
 			struct il_rx_phy_res last_phy_res;
 			bool last_phy_res_valid;
+			u32 ampdu_ref;
 
 			struct completion firmware_loading_complete;
 

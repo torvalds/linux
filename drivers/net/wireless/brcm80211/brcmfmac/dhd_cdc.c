@@ -303,6 +303,14 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 		brcmf_err("rx data ifnum out of range (%d)\n", *ifidx);
 		return -EBADE;
 	}
+	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
+	 * events this is easy because it contains the bssidx which maps
+	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
+	 * bssidx 1 is used for p2p0 and no data can be received or
+	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
+	 */
+	if (*ifidx)
+		(*ifidx)++;
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {

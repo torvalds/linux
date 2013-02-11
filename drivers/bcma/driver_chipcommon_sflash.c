@@ -5,10 +5,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "bcma_private.h"
+
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcma_private.h"
 
 static struct resource bcma_sflash_resource = {
 	.name	= "bcma_sflash",

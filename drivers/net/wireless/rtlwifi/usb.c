@@ -825,8 +825,6 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u32 ep_num;
 	struct urb *_urb = NULL;
 	struct sk_buff *_skb = NULL;
-	struct sk_buff_head *skb_list;
-	struct usb_anchor *urb_list;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
 	if (unlikely(IS_USB_STOP(rtlusb))) {
@@ -836,7 +834,6 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
-	skb_list = &rtlusb->tx_skb_queue[ep_num];
 	_skb = skb;
 	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num);
 	if (unlikely(!_urb)) {
@@ -844,7 +841,6 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 			 "Can't allocate urb. Drop skb!\n");
 		return;
 	}
-	urb_list = &rtlusb->tx_pending[ep_num];
 	_rtl_submit_tx_urb(hw, _urb);
 }
 
@@ -941,7 +937,8 @@ static struct rtl_intf_ops rtl_usb_ops = {
 };
 
 int rtl_usb_probe(struct usb_interface *intf,
-			const struct usb_device_id *id)
+		  const struct usb_device_id *id,
+		  struct rtl_hal_cfg *rtl_hal_cfg)
 {
 	int err;
 	struct ieee80211_hw *hw = NULL;
@@ -976,7 +973,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, hw);
 	/* init cfg & intf_ops */
 	rtlpriv->rtlhal.interface = INTF_USB;
-	rtlpriv->cfg = (struct rtl_hal_cfg *)(id->driver_info);
+	rtlpriv->cfg = rtl_hal_cfg;
 	rtlpriv->intf_ops = &rtl_usb_ops;
 	rtl_dbgp_flag_init(hw);
 	/* Init IO handler */

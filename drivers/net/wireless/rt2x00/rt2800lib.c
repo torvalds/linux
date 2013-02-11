@@ -80,7 +80,7 @@ static inline bool rt2800_is_305x_soc(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_rf(rt2x00dev, RF3022))
 		return true;
 
-	NOTICE(rt2x00dev, "Unknown RF chipset on rt305x\n");
+	WARNING(rt2x00dev, "Unknown RF chipset on rt305x\n");
 	return false;
 }
 

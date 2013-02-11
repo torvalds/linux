@@ -474,8 +474,6 @@ void ath_mci_cleanup(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_mci_coex *mci = &sc->mci_coex;
-	struct ath_mci_buf *buf = &mci->sched_buf;
 
 	ar9003_mci_cleanup(ah);
 

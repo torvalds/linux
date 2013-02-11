@@ -72,6 +72,7 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_SET_SCB_TIMEOUT			158
 #define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
 #define BRCMF_C_SET_SCAN_UNASSOC_TIME		187
@@ -149,6 +150,7 @@
 #define BRCMF_E_REASON_MINTXRATE		9
 #define BRCMF_E_REASON_TXFAIL			10
 
+#define BRCMF_E_REASON_LINK_BSSCFG_DIS		4
 #define BRCMF_E_REASON_FAST_ROAM_FAILED		5
 #define BRCMF_E_REASON_DIRECTED_ROAM		6
 #define BRCMF_E_REASON_TSPEC_REJECTED		7
@@ -375,6 +377,28 @@ struct brcmf_join_params {
 	struct brcmf_assoc_params_le params_le;
 };
 
+/* scan params for extended join */
+struct brcmf_join_scan_params_le {
+	u8 scan_type;		/* 0 use default, active or passive scan */
+	__le32 nprobes;		/* -1 use default, nr of probes per channel */
+	__le32 active_time;	/* -1 use default, dwell time per channel for
+				 * active scanning
+				 */
+	__le32 passive_time;	/* -1 use default, dwell time per channel
+				 * for passive scanning
+				 */
+	__le32 home_time;	/* -1 use default, dwell time for the home
+				 * channel between channel scans
+				 */
+};
+
+/* extended join params */
+struct brcmf_ext_join_params_le {
+	struct brcmf_ssid_le ssid_le;	/* {0, ""}: wildcard scan */
+	struct brcmf_join_scan_params_le scan_le;
+	struct brcmf_assoc_params_le assoc_le;
+};
+
 struct brcmf_wsec_key {
 	u32 index;		/* key index */
 	u32 len;		/* key length */
@@ -451,6 +475,19 @@ struct brcmf_sta_info_le {
 	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
 };
 
+/*
+ * WLC_E_PROBRESP_MSG
+ * WLC_E_P2P_PROBREQ_MSG
+ * WLC_E_ACTION_FRAME_RX
+ */
+struct brcmf_rx_mgmt_data {
+	__be16	version;
+	__be16	chanspec;
+	__be32	rssi;
+	__be32	mactime;
+	__be32	rate;
+};
+
 /* Bus independent dongle command */
 struct brcmf_dcmd {
 	uint cmd;		/* common dongle cmd definition */
@@ -489,9 +526,6 @@ struct brcmf_pub {
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	atomic_t pend_8021x_cnt;
-	wait_queue_head_t pend_8021x_wait;
-
 	struct brcmf_fweh_info fweh;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
@@ -515,9 +549,11 @@ struct brcmf_cfg80211_vif;
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
- * @idx: interface index in device firmware.
+ * @ifidx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
+ * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
+ * @pend_8021x_wait: used for signalling change in count.
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
@@ -526,9 +562,11 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
-	int idx;
+	int ifidx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
+	atomic_t pend_8021x_cnt;
+	wait_queue_head_t pend_8021x_wait;
 };
 
 
@@ -547,9 +585,10 @@ extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 			       struct sk_buff *rxp);
 
-extern int brcmf_net_attach(struct brcmf_if *ifp);
-extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
-				     s32 bssidx, char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
+extern int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
+extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx,
+				     s32 ifidx, char *name, u8 *mac_addr);
+extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
+extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_H_ */

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -459,14 +459,12 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		if (iwl_trans_grab_nic_access(priv->trans, true)) {
+		if (iwl_trans_grab_nic_access(priv->trans, true, &flags)) {
 			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
 			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-			iwl_trans_release_nic_access(priv->trans);
+			iwl_trans_release_nic_access(priv->trans, &flags);
 			ret = 0;
 		}
-		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
