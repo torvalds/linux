@@ -84,6 +84,7 @@ struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
 	u32 payload_len;
 	union {
+		struct ceph_osd_data raw_data_in;
 		struct {
 			u64 offset, length;
 			u64 truncate_size;
@@ -231,6 +232,15 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 				   struct ceph_msg *msg);
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
+
+extern void osd_req_op_init(struct ceph_osd_request *osd_req,
+					unsigned int which, u16 opcode);
+
+extern void osd_req_op_raw_data_in_pages(struct ceph_osd_request *,
+					unsigned int which,
+					struct page **pages, u64 length,
+					u32 alignment, bool pages_from_pool,
+					bool own_pages);
 
 extern void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
