@@ -27,5 +27,6 @@ void batadv_interface_rx(struct net_device *soft_iface,
 struct net_device *batadv_softif_create(const char *name);
 void batadv_softif_destroy_sysfs(struct net_device *soft_iface);
 int batadv_softif_is_valid(const struct net_device *net_dev);
+extern struct rtnl_link_ops batadv_link_ops;
 
 #endif /* _NET_BATMAN_ADV_SOFT_INTERFACE_H_ */

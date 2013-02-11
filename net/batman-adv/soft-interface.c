@@ -570,6 +570,8 @@ struct net_device *batadv_softif_create(const char *name)
 	if (!soft_iface)
 		return NULL;
 
+	soft_iface->rtnl_link_ops = &batadv_link_ops;
+
 	ret = register_netdevice(soft_iface);
 	if (ret < 0) {
 		pr_err("Unable to register the batman interface '%s': %i\n",
@@ -592,6 +594,26 @@ void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
 	queue_work(batadv_event_workqueue, &bat_priv->cleanup_work);
 }
 
+/**
+ * batadv_softif_destroy_netlink - deletion of batadv_soft_interface via netlink
+ * @soft_iface: the to-be-removed batman-adv interface
+ * @head: list pointer
+ */
+static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
+					  struct list_head *head)
+{
+	struct batadv_hard_iface *hard_iface;
+
+	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
+		if (hard_iface->soft_iface == soft_iface)
+			batadv_hardif_disable_interface(hard_iface,
+							BATADV_IF_CLEANUP_KEEP);
+	}
+
+	batadv_sysfs_del_meshif(soft_iface);
+	unregister_netdevice_queue(soft_iface, head);
+}
+
 int batadv_softif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == batadv_interface_tx)
@@ -599,6 +621,13 @@ int batadv_softif_is_valid(const struct net_device *net_dev)
 
 	return 0;
 }
+
+struct rtnl_link_ops batadv_link_ops __read_mostly = {
+	.kind		= "batadv",
+	.priv_size	= sizeof(struct batadv_priv),
+	.setup		= batadv_softif_init_early,
+	.dellink	= batadv_softif_destroy_netlink,
+};
 
 /* ethtool */
 static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
