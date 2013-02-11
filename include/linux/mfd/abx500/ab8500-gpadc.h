@@ -12,19 +12,32 @@
 
 /* GPADC source: From datasheet(ADCSwSel[4:0] in GPADCCtrl2
  * and ADCHwSel[4:0] in GPADCCtrl3 ) */
-#define BAT_CTRL	0x01
-#define BTEMP_BALL	0x02
-#define MAIN_CHARGER_V	0x03
-#define ACC_DETECT1	0x04
-#define ACC_DETECT2	0x05
-#define ADC_AUX1	0x06
-#define ADC_AUX2	0x07
-#define MAIN_BAT_V	0x08
-#define VBUS_V		0x09
-#define MAIN_CHARGER_C	0x0A
-#define USB_CHARGER_C	0x0B
-#define BK_BAT_V	0x0C
-#define DIE_TEMP	0x0D
+#define BAT_CTRL		0x01
+#define BTEMP_BALL		0x02
+#define MAIN_CHARGER_V		0x03
+#define ACC_DETECT1		0x04
+#define ACC_DETECT2		0x05
+#define ADC_AUX1		0x06
+#define ADC_AUX2		0x07
+#define MAIN_BAT_V		0x08
+#define VBUS_V			0x09
+#define MAIN_CHARGER_C		0x0A
+#define USB_CHARGER_C		0x0B
+#define BK_BAT_V		0x0C
+#define DIE_TEMP		0x0D
+#define USB_ID			0x0E
+#define XTAL_TEMP		0x12
+#define VBAT_TRUE_MEAS		0x13
+#define BAT_CTRL_AND_IBAT	0x1C
+#define VBAT_MEAS_AND_IBAT	0x1D
+#define VBAT_TRUE_MEAS_AND_IBAT	0x1E
+#define BAT_TEMP_AND_IBAT	0x1F
+
+/* Virtual channel used only for ibat convertion to ampere
+ * Battery current conversion (ibat) cannot be requested as a single conversion
+ *  but it is always in combination with other input requests
+ */
+#define IBAT_VIRTUAL_CHANNEL		0xFF
 
 #define SAMPLE_1        1
 #define SAMPLE_4        4
@@ -36,7 +49,6 @@
 /* Arbitrary ADC conversion type constants */
 #define ADC_SW				0
 #define ADC_HW				1
-
 
 struct ab8500_gpadc;
 
@@ -51,6 +63,9 @@ static inline int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 channel)
 
 int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel,
 		u8 avg_sample, u8 trig_edge, u8 trig_timer, u8 conv_type);
+int ab8500_gpadc_double_read_raw(struct ab8500_gpadc *gpadc, u8 channel,
+		u8 avg_sample, u8 trig_edge, u8 trig_timer, u8 conv_type,
+		int *ibat);
 int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 		u8 channel, int ad_value);
 
