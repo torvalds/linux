@@ -513,19 +513,19 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 }
 
 #ifdef CONFIG_EARLY_PRINTK
-static void __init null_prom_putchar(char c)
+static void null_prom_putchar(char c)
 {
 }
-void (*txx9_prom_putchar)(char c) __initdata = null_prom_putchar;
+void (*txx9_prom_putchar)(char c) = null_prom_putchar;
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	txx9_prom_putchar(c);
 }
 
 static void __iomem *early_txx9_sio_port;
 
-static void __init early_txx9_sio_putchar(char c)
+static void early_txx9_sio_putchar(char c)
 {
 #define TXX9_SICISR	0x0c
 #define TXX9_SITFIFO	0x1c

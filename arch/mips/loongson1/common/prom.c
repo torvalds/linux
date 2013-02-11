@@ -73,7 +73,7 @@ void __init prom_free_prom_memory(void)
 
 #define PORT(offset)	(u8 *)(KSEG1ADDR(LS1X_UART0_BASE + offset))
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	int timeout;
 
