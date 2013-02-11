@@ -56,14 +56,14 @@
 #define arizona_fll_warn(_fll, fmt, ...) \
 	dev_warn(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define arizona_fll_dbg(_fll, fmt, ...) \
-	dev_err(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
+	dev_dbg(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 
 #define arizona_aif_err(_dai, fmt, ...) \
 	dev_err(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define arizona_aif_warn(_dai, fmt, ...) \
 	dev_warn(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define arizona_aif_dbg(_dai, fmt, ...) \
-	dev_err(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
+	dev_dbg(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 
 const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
@@ -910,7 +910,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	cfg->n = target / (ratio * Fref);
 
-	if (target % Fref) {
+	if (target % (ratio * Fref)) {
 		gcd_fll = gcd(target, ratio * Fref);
 		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
 
@@ -920,6 +920,15 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	} else {
 		cfg->theta = 0;
 		cfg->lambda = 0;
+	}
+
+	/* Round down to 16bit range with cost of accuracy lost.
+	 * Denominator must be bigger than numerator so we only
+	 * take care of it.
+	 */
+	while (cfg->lambda >= (1 << 16)) {
+		cfg->theta >>= 1;
+		cfg->lambda >>= 1;
 	}
 
 	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
