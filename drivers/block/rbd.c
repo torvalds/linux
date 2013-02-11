@@ -172,6 +172,7 @@ enum obj_request_type {
 
 enum obj_req_flags {
 	OBJ_REQ_DONE,		/* completion flag: not done = 0, done = 1 */
+	OBJ_REQ_IMG_DATA,	/* object usage: standalone = 0, image = 1 */
 };
 
 struct rbd_obj_request {
@@ -1099,6 +1100,24 @@ static bool obj_request_done_test(struct rbd_obj_request *obj_request)
 	return test_bit(OBJ_REQ_DONE, &obj_request->flags) != 0;
 }
 
+static void obj_request_img_data_set(struct rbd_obj_request *obj_request)
+{
+	if (test_and_set_bit(OBJ_REQ_IMG_DATA, &obj_request->flags)) {
+		struct rbd_img_request *img_request = obj_request->img_request;
+		struct rbd_device *rbd_dev;
+
+		rbd_dev = img_request ? img_request->rbd_dev : NULL;
+		rbd_warn(rbd_dev, "obj_request %p already marked img_data\n",
+			obj_request);
+	}
+}
+
+static bool obj_request_img_data_test(struct rbd_obj_request *obj_request)
+{
+	smp_mb();
+	return test_bit(OBJ_REQ_IMG_DATA, &obj_request->flags) != 0;
+}
+
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
@@ -1139,6 +1158,8 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 	rbd_obj_request_get(obj_request);
 	obj_request->img_request = img_request;
 	obj_request->which = img_request->obj_request_count;
+	rbd_assert(!obj_request_img_data_test(obj_request));
+	obj_request_img_data_set(obj_request);
 	rbd_assert(obj_request->which != BAD_WHICH);
 	img_request->obj_request_count++;
 	list_add_tail(&obj_request->links, &img_request->obj_requests);
@@ -1158,6 +1179,7 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 	img_request->obj_request_count--;
 	rbd_assert(obj_request->which == img_request->obj_request_count);
 	obj_request->which = BAD_WHICH;
+	rbd_assert(obj_request_img_data_test(obj_request));
 	rbd_assert(obj_request->img_request == img_request);
 	obj_request->img_request = NULL;
 	obj_request->callback = NULL;
@@ -1343,7 +1365,9 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 
 	dout("%s: osd_req %p msg %p\n", __func__, osd_req, msg);
 	rbd_assert(osd_req == obj_request->osd_req);
-	rbd_assert(!!obj_request->img_request ^
+	rbd_assert(obj_request_img_data_test(obj_request) ^
+				!obj_request->img_request);
+	rbd_assert(obj_request_img_data_test(obj_request) ^
 				(obj_request->which == BAD_WHICH));
 
 	if (osd_req->r_result < 0)
@@ -1413,12 +1437,13 @@ static struct ceph_osd_request *rbd_osd_req_create(
 					bool write_request,
 					struct rbd_obj_request *obj_request)
 {
-	struct rbd_img_request *img_request = obj_request->img_request;
 	struct ceph_snap_context *snapc = NULL;
 	struct ceph_osd_client *osdc;
 	struct ceph_osd_request *osd_req;
 
-	if (img_request) {
+	if (obj_request_img_data_test(obj_request)) {
+		struct rbd_img_request *img_request = obj_request->img_request;
+
 		rbd_assert(write_request ==
 				img_request_write_test(img_request));
 		if (write_request)
@@ -1605,9 +1630,12 @@ static void rbd_img_request_destroy(struct kref *kref)
 
 static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 {
-	struct rbd_img_request *img_request = obj_request->img_request;
+	struct rbd_img_request *img_request;
 	unsigned int xferred;
 	int result;
+
+	rbd_assert(obj_request_img_data_test(obj_request));
+	img_request = obj_request->img_request;
 
 	rbd_assert(!img_request_child_test(img_request));
 	rbd_assert(img_request->rq != NULL);
@@ -1637,6 +1665,7 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 	u32 which = obj_request->which;
 	bool more = true;
 
+	rbd_assert(obj_request_img_data_test(obj_request));
 	img_request = obj_request->img_request;
 
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
