@@ -93,15 +93,20 @@ struct wmfw_adsp2_alg_hdr {
 struct wmfw_coeff_hdr {
 	u8 magic[4];
 	__le32 len;
-	__le32 ver;
+	union {
+		__be32 rev;
+		__le32 ver;
+	};
+	union {
+		__be32 core;
+		__le32 core_ver;
+	};
 	u8 data[];
 } __packed;
 
 struct wmfw_coeff_item {
-	union {
-		__be32 type;
-		__le32 offset;
-	};
+	__le16 offset;
+	__le16 type;
 	__le32 id;
 	__le32 ver;
 	__le32 sr;
