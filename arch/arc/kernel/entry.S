@@ -350,8 +350,8 @@ ARC_EXIT EV_Extension
 
 trap_with_param:
 
-	;make sure orig_r8 is a positive value
-	st  NR_syscalls + 2, [sp, PT_orig_r8]
+	; stop_pc info by gdb needs this info
+	st  orig_r8_IS_BRKPT, [sp, PT_orig_r8]
 
 	mov r0, r12
 	lr  r1, [efa]
