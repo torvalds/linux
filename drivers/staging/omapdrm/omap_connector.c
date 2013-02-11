@@ -261,10 +261,8 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	omap_dss_get_device(dssdev);
 
 	omap_connector = kzalloc(sizeof(struct omap_connector), GFP_KERNEL);
-	if (!omap_connector) {
-		dev_err(dev->dev, "could not allocate connector\n");
+	if (!omap_connector)
 		goto fail;
-	}
 
 	omap_connector->dssdev = dssdev;
 	omap_connector->encoder = encoder;

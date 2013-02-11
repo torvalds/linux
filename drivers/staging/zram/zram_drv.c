@@ -246,7 +246,6 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		 */
 		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
 		if (!uncmem) {
-			pr_info("Error allocating temp memory!\n");
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -517,10 +516,8 @@ struct zram_meta *zram_meta_alloc(u64 disksize)
 		goto out;
 
 	meta->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-	if (!meta->compress_workmem) {
-		pr_err("Error allocating compressor working memory!\n");
+	if (!meta->compress_workmem)
 		goto free_meta;
-	}
 
 	meta->compress_buffer =
 		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);

@@ -838,14 +838,11 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	chans_left = CHANS_PER_ASIC * board->num_asics;
 	n_subdevs = CALC_N_SUBDEVS(chans_left);
-	devpriv->sprivs =
-	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
-		    GFP_KERNEL);
-	if (!devpriv->sprivs) {
-		dev_warn(dev->class_dev,
-			 "cannot allocate subdevice private data structures\n");
+	devpriv->sprivs = kcalloc(n_subdevs,
+				  sizeof(struct pcmuio_subdev_private),
+				  GFP_KERNEL);
+	if (!devpriv->sprivs)
 		return -ENOMEM;
-	}
 
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret)

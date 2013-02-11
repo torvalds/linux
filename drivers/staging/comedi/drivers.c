@@ -203,10 +203,9 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 	}
 
 	async = kzalloc(sizeof(*async), GFP_KERNEL);
-	if (!async) {
-		dev_warn(dev->class_dev, "failed to allocate async struct\n");
+	if (!async)
 		return -ENOMEM;
-	}
+
 	init_waitqueue_head(&async->wait_head);
 	async->subdevice = s;
 	s->async = async;

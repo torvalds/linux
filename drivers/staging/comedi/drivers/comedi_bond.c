@@ -245,10 +245,9 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 				return 0;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
-			if (!bdev) {
-				dev_err(dev->class_dev, "Out of memory\n");
+			if (!bdev)
 				return 0;
-			}
+
 			bdev->dev = d;
 			bdev->minor = minor;
 			bdev->subdev = sdev;

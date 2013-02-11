@@ -601,11 +601,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	DBG("%s", channel_names[channel]);
 
 	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
-
-	if (!omap_crtc) {
-		dev_err(dev->dev, "could not allocate CRTC\n");
+	if (!omap_crtc)
 		goto fail;
-	}
 
 	crtc = &omap_crtc->base;
 

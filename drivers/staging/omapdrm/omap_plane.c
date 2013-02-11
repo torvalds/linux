@@ -390,10 +390,8 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	DBG("%s: priv=%d", plane_names[id], private_plane);
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
-	if (!omap_plane) {
-		dev_err(dev->dev, "could not allocate plane\n");
+	if (!omap_plane)
 		goto fail;
-	}
 
 	ret = kfifo_alloc(&omap_plane->unpin_fifo, 16, GFP_KERNEL);
 	if (ret) {

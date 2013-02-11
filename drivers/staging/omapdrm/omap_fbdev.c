@@ -348,10 +348,8 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 	int ret = 0;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
-	if (!fbdev) {
-		dev_err(dev->dev, "could not allocate fbdev\n");
+	if (!fbdev)
 		goto fail;
-	}
 
 	INIT_WORK(&fbdev->work, pan_worker);
 

@@ -581,10 +581,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 	struct resource *mem;
 
 	omap_dmm = kzalloc(sizeof(*omap_dmm), GFP_KERNEL);
-	if (!omap_dmm) {
-		dev_err(&dev->dev, "failed to allocate driver data section\n");
+	if (!omap_dmm)
 		goto fail;
-	}
 
 	/* initialize lists */
 	INIT_LIST_HEAD(&omap_dmm->alloc_head);
@@ -681,11 +679,9 @@ static int omap_dmm_probe(struct platform_device *dev)
 	}
 
 	/* alloc engines */
-	omap_dmm->engines = kzalloc(
-			omap_dmm->num_engines * sizeof(struct refill_engine),
-			GFP_KERNEL);
+	omap_dmm->engines = kcalloc(omap_dmm->num_engines,
+				    sizeof(struct refill_engine), GFP_KERNEL);
 	if (!omap_dmm->engines) {
-		dev_err(&dev->dev, "could not allocate engines\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -702,10 +698,9 @@ static int omap_dmm_probe(struct platform_device *dev)
 		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
 	}
 
-	omap_dmm->tcm = kzalloc(omap_dmm->num_lut * sizeof(*omap_dmm->tcm),
+	omap_dmm->tcm = kcalloc(omap_dmm->num_lut, sizeof(*omap_dmm->tcm),
 				GFP_KERNEL);
 	if (!omap_dmm->tcm) {
-		dev_err(&dev->dev, "failed to allocate lut ptrs\n");
 		ret = -ENOMEM;
 		goto fail;
 	}

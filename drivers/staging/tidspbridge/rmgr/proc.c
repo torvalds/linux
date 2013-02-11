@@ -119,16 +119,14 @@ static struct dmm_map_object *add_mapping_info(struct process_context *pr_ctxt,
 						dsp_addr, size);
 
 	map_obj = kzalloc(sizeof(struct dmm_map_object), GFP_KERNEL);
-	if (!map_obj) {
-		pr_err("%s: kzalloc failed\n", __func__);
+	if (!map_obj)
 		return NULL;
-	}
+
 	INIT_LIST_HEAD(&map_obj->link);
 
 	map_obj->pages = kcalloc(num_usr_pgs, sizeof(struct page *),
-							GFP_KERNEL);
+				 GFP_KERNEL);
 	if (!map_obj->pages) {
-		pr_err("%s: kzalloc failed\n", __func__);
 		kfree(map_obj);
 		return NULL;
 	}
@@ -693,7 +691,6 @@ static int memory_give_ownership(struct dmm_map_object *map_obj,
 
 	sg = kcalloc(num_pages, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
-		pr_err("%s: kcalloc failed\n", __func__);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1227,12 +1224,8 @@ int proc_load(void *hprocessor, const s32 argc_index,
 				(p_proc_object->bridge_context, &brd_state))) {
 			pr_info("%s: Processor Loaded %s\n", __func__, pargv0);
 			kfree(drv_datap->base_img);
-			drv_datap->base_img = kmalloc(strlen(pargv0) + 1,
-								GFP_KERNEL);
-			if (drv_datap->base_img)
-				strncpy(drv_datap->base_img, pargv0,
-							strlen(pargv0) + 1);
-			else
+			drv_datap->base_img = kstrdup(pargv0, GFP_KERNEL);
+			if (!drv_datap->base_img)
 				status = -ENOMEM;
 		}
 	}

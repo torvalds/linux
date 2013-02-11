@@ -1402,10 +1402,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	}
 
 	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
-	if (!omap_obj) {
-		dev_err(dev->dev, "could not allocate GEM object\n");
+	if (!omap_obj)
 		goto fail;
-	}
 
 	list_add(&omap_obj->mm_list, &priv->obj_list);
 
@@ -1461,11 +1459,9 @@ void omap_gem_init(struct drm_device *dev)
 		return;
 	}
 
-	usergart = kzalloc(3 * sizeof(*usergart), GFP_KERNEL);
-	if (!usergart) {
-		dev_warn(dev->dev, "could not allocate usergart\n");
+	usergart = kcalloc(3, sizeof(*usergart), GFP_KERNEL);
+	if (!usergart)
 		return;
-	}
 
 	/* reserve 4k aligned/wide regions for userspace mappings: */
 	for (i = 0; i < ARRAY_SIZE(fmts); i++) {

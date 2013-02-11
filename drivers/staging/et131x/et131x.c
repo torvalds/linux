@@ -2462,11 +2462,8 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
 		rfd = kzalloc(sizeof(struct rfd), GFP_ATOMIC | GFP_DMA);
-
-		if (!rfd) {
-			dev_err(&adapter->pdev->dev, "Couldn't alloc RFD\n");
+		if (!rfd)
 			return -ENOMEM;
-		}
 
 		rfd->skb = NULL;
 
@@ -2814,12 +2811,10 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	adapter->tx_ring.tcb_ring =
-		kcalloc(NUM_TCB, sizeof(struct tcb), GFP_ATOMIC | GFP_DMA);
-	if (!adapter->tx_ring.tcb_ring) {
-		dev_err(&adapter->pdev->dev, "Cannot alloc memory for TCBs\n");
+	adapter->tx_ring.tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
+					    GFP_ATOMIC | GFP_DMA);
+	if (!adapter->tx_ring.tcb_ring)
 		return -ENOMEM;
-	}
 
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 	tx_ring->tx_desc_ring =
@@ -4895,11 +4890,10 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	adapter->mii_bus->read = et131x_mdio_read;
 	adapter->mii_bus->write = et131x_mdio_write;
 	adapter->mii_bus->reset = et131x_mdio_reset;
-	adapter->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!adapter->mii_bus->irq) {
-		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+	adapter->mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int),
+					      GFP_KERNEL);
+	if (!adapter->mii_bus->irq)
 		goto err_mdio_free;
-	}
 
 	for (ii = 0; ii < PHY_MAX_ADDR; ii++)
 		adapter->mii_bus->irq[ii] = PHY_POLL;

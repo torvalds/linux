@@ -408,11 +408,9 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	//	if (memcmp(entry->mac, mac, ETH_ALEN)){
 		if (p == &ieee->ibss_mac_hash[index]) {
 			entry = kmalloc(sizeof(struct ieee_ibss_seq), GFP_ATOMIC);
-			if (!entry) {
-				netdev_warn(ieee->dev,
-					    "Cannot malloc new mac entry\n");
+			if (!entry)
 				return 0;
-			}
+
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num[tid] = seq;
 			entry->frag_num[tid] = frag;

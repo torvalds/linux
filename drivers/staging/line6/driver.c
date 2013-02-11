@@ -233,11 +233,8 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 
 	/* create message: */
 	msg = kmalloc(sizeof(struct message), GFP_ATOMIC);
-
-	if (msg == NULL) {
-		dev_err(line6->ifcdev, "Out of memory\n");
+	if (msg == NULL)
 		return -ENOMEM;
-	}
 
 	/* create URB: */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -300,10 +297,8 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 {
 	char *buffer = kmalloc(size + SYSEX_EXTRA_SIZE, GFP_ATOMIC);
 
-	if (!buffer) {
-		dev_err(line6->ifcdev, "out of memory\n");
+	if (!buffer)
 		return NULL;
-	}
 
 	buffer[0] = LINE6_SYSEX_BEGIN;
 	memcpy(buffer + 1, line6_midi_id, sizeof(line6_midi_id));
@@ -403,11 +398,8 @@ int line6_send_program(struct usb_line6 *line6, u8 value)
 	int partial;
 
 	buffer = kmalloc(2, GFP_KERNEL);
-
-	if (!buffer) {
-		dev_err(line6->ifcdev, "out of memory\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	buffer[0] = LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = value;
@@ -435,11 +427,8 @@ int line6_transmit_parameter(struct usb_line6 *line6, int param, u8 value)
 	int partial;
 
 	buffer = kmalloc(3, GFP_KERNEL);
-
-	if (!buffer) {
-		dev_err(line6->ifcdev, "out of memory\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	buffer[0] = LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = param;
@@ -834,9 +823,7 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	line6 = kzalloc(size, GFP_KERNEL);
-
 	if (line6 == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
 		ret = -ENODEV;
 		goto err_put;
 	}
@@ -875,18 +862,14 @@ static int line6_probe(struct usb_interface *interface,
 		/* initialize USB buffers: */
 		line6->buffer_listen =
 		    kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
-
 		if (line6->buffer_listen == NULL) {
-			dev_err(&interface->dev, "Out of memory\n");
 			ret = -ENOMEM;
 			goto err_destruct;
 		}
 
 		line6->buffer_message =
 		    kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
-
 		if (line6->buffer_message == NULL) {
-			dev_err(&interface->dev, "Out of memory\n");
 			ret = -ENOMEM;
 			goto err_destruct;
 		}

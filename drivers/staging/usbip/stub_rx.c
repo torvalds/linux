@@ -485,7 +485,6 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 			kzalloc(pdu->u.cmd_submit.transfer_buffer_length,
 				GFP_KERNEL);
 		if (!priv->urb->transfer_buffer) {
-			dev_err(&sdev->interface->dev, "malloc x_buff\n");
 			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 			return;
 		}

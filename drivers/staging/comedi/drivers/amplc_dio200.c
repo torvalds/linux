@@ -1105,10 +1105,9 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct dio200_subdev_intr *subpriv;
 
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
-	if (!subpriv) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	if (!subpriv)
 		return -ENOMEM;
-	}
+
 	subpriv->ofs = offset;
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
@@ -1444,10 +1443,8 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int chan;
 
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
-	if (!subpriv) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	if (!subpriv)
 		return -ENOMEM;
-	}
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_COUNTER;

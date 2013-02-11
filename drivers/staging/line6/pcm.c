@@ -121,10 +121,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 			line6pcm->buffer_in =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-
 			if (!line6pcm->buffer_in) {
-				dev_err(line6pcm->line6->ifcdev,
-					"cannot malloc capture buffer\n");
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
@@ -160,10 +157,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 			line6pcm->buffer_out =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-
 			if (!line6pcm->buffer_out) {
-				dev_err(line6pcm->line6->ifcdev,
-					"cannot malloc playback buffer\n");
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}

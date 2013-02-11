@@ -434,15 +434,12 @@ static void vhci_tx_urb(struct urb *urb)
 	}
 
 	priv = kzalloc(sizeof(struct vhci_priv), GFP_ATOMIC);
-
-	spin_lock(&vdev->priv_lock);
-
 	if (!priv) {
-		dev_err(&urb->dev->dev, "malloc vhci_priv\n");
-		spin_unlock(&vdev->priv_lock);
 		usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
+
+	spin_lock(&vdev->priv_lock);
 
 	priv->seqnum = atomic_inc_return(&the_controller->seqnum);
 	if (priv->seqnum == 0xffff)
@@ -684,7 +681,6 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		/* setup CMD_UNLINK pdu */
 		unlink = kzalloc(sizeof(struct vhci_unlink), GFP_ATOMIC);
 		if (!unlink) {
-			pr_err("malloc vhci_unlink\n");
 			spin_unlock(&vdev->priv_lock);
 			spin_unlock(&the_controller->lock);
 			usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_MALLOC);

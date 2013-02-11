@@ -266,10 +266,9 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 	}
 
 	us->sensebuf = kmalloc(US_SENSE_SIZE, GFP_KERNEL);
-	if (!us->sensebuf) {
-		pr_info("Sense buffer allocation failed\n");
+	if (!us->sensebuf)
 		return -ENOMEM;
-	}
+
 	return 0;
 }
 

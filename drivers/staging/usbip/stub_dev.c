@@ -286,10 +286,8 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 
 	/* yes, it's a new device */
 	sdev = kzalloc(sizeof(struct stub_device), GFP_KERNEL);
-	if (!sdev) {
-		dev_err(&interface->dev, "no memory for stub_device\n");
+	if (!sdev)
 		return NULL;
-	}
 
 	sdev->interface = usb_get_intf(interface);
 	sdev->udev = usb_get_dev(udev);

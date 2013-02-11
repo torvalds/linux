@@ -335,10 +335,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	DBG("load: dev=%p", dev);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev->dev, "could not allocate priv\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->omaprev = pdata->omaprev;
 

@@ -178,11 +178,9 @@ static struct scatterlist *sep_alloc_sg_buf(
 		nbr_pages += 1;
 	}
 
-	sg = kmalloc((sizeof(struct scatterlist) * nbr_pages), GFP_ATOMIC);
-	if (!sg) {
-		dev_warn(&sep->pdev->dev, "Cannot allocate page for new sg\n");
+	sg = kmalloc_array(nbr_pages, sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!sg)
 		return NULL;
-	}
 
 	sg_init_table(sg, nbr_pages);
 

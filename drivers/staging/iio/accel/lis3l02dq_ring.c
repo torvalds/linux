@@ -140,11 +140,8 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	char *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(indio_dev->dev.parent,
-			"memory alloc failed in buffer bh");
+	if (data == NULL)
 		goto done;
-	}
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		len = lis3l02dq_get_buffer_element(indio_dev, data);

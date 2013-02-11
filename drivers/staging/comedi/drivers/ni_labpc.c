@@ -570,13 +570,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		return -EINVAL;
 	} else if (dma_chan) {
 		/* allocate dma buffer */
-		devpriv->dma_buffer =
-		    kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL) {
-			dev_err(dev->class_dev,
-				"failed to allocate dma buffer\n");
+		devpriv->dma_buffer = kmalloc(dma_buffer_size,
+					      GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer == NULL)
 			return -ENOMEM;
-		}
+
 		if (request_dma(dma_chan, DRV_NAME)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %u\n",

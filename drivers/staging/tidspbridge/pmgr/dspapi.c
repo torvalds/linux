@@ -1543,7 +1543,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	if (num_bufs > MAX_BUFS)
 		return -EINVAL;
 
-	ap_buffer = kmalloc((num_bufs * sizeof(u8 *)), GFP_KERNEL);
+	ap_buffer = kmalloc_array(num_bufs, sizeof(u8 *), GFP_KERNEL);
 	if (ap_buffer == NULL)
 		return -ENOMEM;
 

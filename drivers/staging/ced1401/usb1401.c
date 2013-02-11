@@ -1391,10 +1391,8 @@ static int ced_probe(struct usb_interface *interface,
 
 	// allocate memory for our device extension and initialize it
 	pdx = kzalloc(sizeof(*pdx), GFP_KERNEL);
-	if (!pdx) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!pdx)
 		goto error;
-	}
 
 	for (i = 0; i < MAX_TRANSAREAS; ++i)	// Initialise the wait queues
 	{

@@ -95,7 +95,6 @@ int speakup_set_selection(struct tty_struct *tty)
 	/* Allocate a new buffer before freeing the old one ... */
 	bp = kmalloc((sel_end-sel_start)/2+1, GFP_ATOMIC);
 	if (!bp) {
-		dev_warn(tty->dev, "selection: kmalloc() failed\n");
 		speakup_clear_selection();
 		return -ENOMEM;
 	}
