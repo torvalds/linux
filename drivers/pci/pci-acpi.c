@@ -345,7 +345,6 @@ static void pci_acpi_setup(struct device *dev)
 		acpi_pci_irq_add_prt(handle, pci_domain_nr(pci_dev->bus), bus);
 	}
 
-	acpi_power_resource_register_device(dev, handle);
 	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
 		return;
 
@@ -368,7 +367,6 @@ static void pci_acpi_cleanup(struct device *dev)
 		device_set_run_wake(dev, false);
 		pci_acpi_remove_pm_notifier(adev);
 	}
-	acpi_power_resource_unregister_device(dev, handle);
 
 	if (pci_dev->subordinate)
 		acpi_pci_irq_del_prt(pci_domain_nr(pci_dev->bus),

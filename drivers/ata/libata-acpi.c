@@ -1029,30 +1029,20 @@ static void ata_acpi_register_power_resource(struct ata_device *dev)
 {
 	struct scsi_device *sdev = dev->sdev;
 	acpi_handle handle;
-	struct device *device;
 
 	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	device = &sdev->sdev_gendev;
-
-	acpi_power_resource_register_device(device, handle);
+	if (handle)
+		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
 }
 
 static void ata_acpi_unregister_power_resource(struct ata_device *dev)
 {
 	struct scsi_device *sdev = dev->sdev;
 	acpi_handle handle;
-	struct device *device;
 
 	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	device = &sdev->sdev_gendev;
-
-	acpi_power_resource_unregister_device(device, handle);
+	if (handle)
+		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
 }
 
 void ata_acpi_bind(struct ata_device *dev)
