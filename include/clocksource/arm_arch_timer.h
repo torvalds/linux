@@ -53,7 +53,7 @@ static inline u64 arch_timer_read_counter(void)
 	return 0;
 }
 
-static struct timecounter *arch_timer_get_timecounter(void)
+static inline struct timecounter *arch_timer_get_timecounter(void)
 {
 	return NULL;
 }
