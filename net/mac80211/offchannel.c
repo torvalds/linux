@@ -114,8 +114,13 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 	 * STA interfaces.
 	 */
 
+	/*
+	 * Stop queues and transmit all frames queued by the driver
+	 * before sending nullfunc to enable powersave at the AP.
+	 */
 	ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
+	drv_flush(local, false);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {

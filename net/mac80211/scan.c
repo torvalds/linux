@@ -334,6 +334,9 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 
 	ieee80211_offchannel_stop_vifs(local);
 
+	/* ensure nullfunc is transmitted before leaving operating channel */
+	drv_flush(local, false);
+
 	ieee80211_configure_filter(local);
 
 	/* We need to set power level at maximum rate for scanning. */
