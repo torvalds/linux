@@ -1,11 +1,3 @@
-include include/asm-generic/Kbuild.asm
-
-# 7-Oct-12: Jeremy Bennett <jeremy.bennett@embecosm.com>. Some of these
-# headers, beyond those specified in the generic set are needed by user code.
-
-header-y += page.h
-header-y += cachectl.h
-
 generic-y += auxvec.h
 generic-y += bugs.h
 generic-y += bitsperlong.h

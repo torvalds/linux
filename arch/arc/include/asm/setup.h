@@ -5,11 +5,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #ifndef __ASMARC_SETUP_H
 #define __ASMARC_SETUP_H
 
+
 #include <linux/types.h>
+#include <uapi/asm/setup.h>
 
 #define COMMAND_LINE_SIZE 256
 
