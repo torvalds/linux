@@ -563,6 +563,11 @@ static int batadv_hard_if_event(struct notifier_block *this,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_priv *bat_priv;
 
+	if (batadv_softif_is_valid(net_dev) && event == NETDEV_REGISTER) {
+		batadv_sysfs_add_meshif(net_dev);
+		return NOTIFY_DONE;
+	}
+
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface && event == NETDEV_REGISTER)
 		hard_iface = batadv_hardif_add_interface(net_dev);
