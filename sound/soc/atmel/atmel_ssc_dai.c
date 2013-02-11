@@ -42,8 +42,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <mach/hardware.h>
-
 #include "atmel-pcm.h"
 #include "atmel_ssc_dai.h"
 
@@ -679,15 +677,6 @@ static int atmel_ssc_resume(struct snd_soc_dai *cpu_dai)
 #  define atmel_ssc_resume	NULL
 #endif /* CONFIG_PM */
 
-static int atmel_ssc_probe(struct snd_soc_dai *dai)
-{
-	struct atmel_ssc_info *ssc_p = &ssc_info[dai->id];
-
-	snd_soc_dai_set_drvdata(dai, ssc_p);
-
-	return 0;
-}
-
 #define ATMEL_SSC_RATES (SNDRV_PCM_RATE_8000_96000)
 
 #define ATMEL_SSC_FORMATS (SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_S16_LE |\
@@ -703,7 +692,6 @@ static const struct snd_soc_dai_ops atmel_ssc_dai_ops = {
 };
 
 static struct snd_soc_dai_driver atmel_ssc_dai = {
-		.probe = atmel_ssc_probe,
 		.suspend = atmel_ssc_suspend,
 		.resume = atmel_ssc_resume,
 		.playback = {
@@ -790,8 +778,8 @@ void atmel_ssc_put_audio(int ssc_id)
 {
 	struct ssc_device *ssc = ssc_info[ssc_id].ssc;
 
-	ssc_free(ssc);
 	asoc_ssc_exit(&ssc->pdev->dev);
+	ssc_free(ssc);
 }
 EXPORT_SYMBOL_GPL(atmel_ssc_put_audio);
 
