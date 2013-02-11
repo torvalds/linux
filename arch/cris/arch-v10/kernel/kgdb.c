@@ -345,6 +345,7 @@ static int consistency_status = SUCCESS;
    in order to provide access mainly for 'g', 'G' and 'P'.
 */
 
+#ifdef PROCESS_SUPPORT
 /* Need two task id pointers in order to handle Hct and Hgt commands. */
 static int current_thread_c = 0;
 static int current_thread_g = 0;
@@ -352,6 +353,7 @@ static int current_thread_g = 0;
 /* Need two register images in order to handle Hct and Hgt commands. The
    variable reg_g is in addition to reg above. */
 static registers reg_g;
+#endif /* PROCESS_SUPPORT */
 
 /********************************** Breakpoint *******************************/
 /* Use an internal stack in the breakpoint and interrupt response routines */
@@ -610,6 +612,7 @@ putDebugString (const unsigned char *str, int length)
 }
 
 /********************************* Register image ****************************/
+#ifdef PROCESS_SUPPORT
 /* Copy the content of a register image into another. The size n is
    the size of the register image. Due to struct assignment generation of
    memcpy in libc. */
@@ -623,7 +626,6 @@ copy_registers (registers *dptr, registers *sptr, int n)
 		*dreg++ = *sreg++;
 }
 
-#ifdef PROCESS_SUPPORT
 /* Copy the stored registers from the stack. Put the register contents
    of thread thread_id in the struct reg. */
 static void
