@@ -1355,6 +1355,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_RADAR_EVENT: Type of radar event for notification to userspace,
  *	contains a value of enum nl80211_radar_event (u32).
  *
+ * @NL80211_ATTR_EXT_CAPA: 802.11 extended capabilities that the kernel driver
+ *	has and handles. The format is the same as the IE contents. See
+ *	802.11-2012 8.4.2.29 for more information.
+ * @NL80211_ATTR_EXT_CAPA_MASK: Extended capabilities that the kernel driver
+ *	has set in the %NL80211_ATTR_EXT_CAPA value, for multibit fields.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1634,6 +1640,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_MAC_ACL_MAX,
 
 	NL80211_ATTR_RADAR_EVENT,
+
+	NL80211_ATTR_EXT_CAPA,
+	NL80211_ATTR_EXT_CAPA_MASK,
 
 	/* add attributes here, update the policy in nl80211.c */
 
