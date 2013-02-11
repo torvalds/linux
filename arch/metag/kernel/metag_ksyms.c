@@ -37,6 +37,8 @@ EXPORT_SYMBOL(get_trigger_mask);
 EXPORT_SYMBOL(global_trigger_mask);
 #endif
 
+EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(empty_zero_page);
 
 EXPORT_SYMBOL(pfn_base);
