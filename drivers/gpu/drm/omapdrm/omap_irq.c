@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_irq.c
+ * drivers/gpu/drm/omapdrm/omap_irq.c
  *
  * Copyright (C) 2012 Texas Instruments
  * Author: Rob Clark <rob.clark@linaro.org>

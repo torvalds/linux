@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_drv.h
+ * drivers/gpu/drm/omapdrm/omap_drv.h
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob@ti.com>
@@ -25,8 +25,8 @@
 #include <linux/types.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/omap_drm.h>
 #include <linux/platform_data/omap_drm.h>
-#include "omap_drm.h"
 
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)

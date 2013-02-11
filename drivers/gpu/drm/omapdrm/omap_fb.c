@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_fb.c
+ * drivers/gpu/drm/omapdrm/omap_fb.c
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob@ti.com>

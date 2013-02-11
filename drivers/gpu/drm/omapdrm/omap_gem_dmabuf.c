@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_gem_dmabuf.c
+ * drivers/gpu/drm/omapdrm/omap_gem_dmabuf.c
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob.clark@linaro.org>

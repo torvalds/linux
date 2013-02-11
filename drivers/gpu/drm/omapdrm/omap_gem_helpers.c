@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_gem_helpers.c
+ * drivers/gpu/drm/omapdrm/omap_gem_helpers.c
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob.clark@linaro.org>
