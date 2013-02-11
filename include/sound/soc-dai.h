@@ -126,7 +126,8 @@ int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
 
 /* Digital Audio Interface mute */
-int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute);
+int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
+			     int direction);
 
 struct snd_soc_dai_ops {
 	/*
@@ -157,6 +158,7 @@ struct snd_soc_dai_ops {
 	 * Called by soc-core to minimise any pops.
 	 */
 	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
+	int (*mute_stream)(struct snd_soc_dai *dai, int mute, int stream);
 
 	/*
 	 * ALSA PCM audio operations - all optional.
