@@ -3681,9 +3681,11 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *new_ps = &eg_pi->requested_rps;
+	struct radeon_ps *old_ps = &eg_pi->current_rps;
 	int ret;
 
 	ni_restrict_performance_levels_before_switch(rdev);
+	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ni_enable_power_containment(rdev, new_ps, false);
 	ni_enable_smc_cac(rdev, new_ps, false);
 	rv770_halt_smc(rdev);
@@ -3698,6 +3700,7 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 	ni_populate_smc_tdp_limits(rdev, new_ps);
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	ni_enable_smc_cac(rdev, new_ps, true);
 	ni_enable_power_containment(rdev, new_ps, true);
 
