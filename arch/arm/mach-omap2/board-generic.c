@@ -16,7 +16,6 @@
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
 
-#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 
 #include "common.h"
@@ -156,7 +155,6 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= omap_gic_of_init,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_generic_init,
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
@@ -177,7 +175,6 @@ DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
 	.map_io		= omap5_map_io,
 	.init_early	= omap5_init_early,
 	.init_irq	= omap_gic_of_init,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap5_timer,
 	.dt_compat	= omap5_boards_compat,

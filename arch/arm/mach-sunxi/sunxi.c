@@ -21,8 +21,6 @@
 
 #include <linux/irqchip/sunxi.h>
 
-#include <asm/hardware/vic.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 

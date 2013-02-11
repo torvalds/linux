@@ -19,9 +19,9 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 
 #include "omap-secure.h"
@@ -157,7 +157,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 		booted = true;
 	}
 
-	gic_raise_softirq(cpumask_of(cpu), 0);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 	/*
 	 * Now the secondary core is starting up let it run its
@@ -231,8 +231,6 @@ static void __init omap4_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)

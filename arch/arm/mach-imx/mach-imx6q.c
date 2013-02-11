@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -29,7 +30,6 @@
 #include <asm/cpuidle.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -221,17 +221,12 @@ static void __init imx6q_map_io(void)
 	imx6q_clock_map_io();
 }
 
-static const struct of_device_id imx6q_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ /* sentinel */ }
-};
-
 static void __init imx6q_init_irq(void)
 {
 	l2x0_of_init(0, ~0UL);
 	imx_src_init();
 	imx_gpc_init();
-	of_irq_init(imx6q_irq_match);
+	irqchip_init();
 }
 
 static void __init imx6q_timer_init(void)
@@ -254,7 +249,6 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
-	.handle_irq	= imx6q_handle_irq,
 	.timer		= &imx6q_timer,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,

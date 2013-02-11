@@ -25,7 +25,6 @@
 #include <linux/serial_core.h>
 #include <linux/types.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -331,7 +330,6 @@ MACHINE_START(REAL6410, "REAL6410")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= real6410_map_io,
 	.init_machine	= real6410_machine_init,
 	.init_late	= s3c64xx_init_late,

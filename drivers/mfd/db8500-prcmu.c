@@ -26,13 +26,13 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <linux/cpufreq.h>
-#include <asm/hardware/gic.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>

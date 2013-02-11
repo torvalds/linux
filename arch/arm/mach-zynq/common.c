@@ -31,7 +31,6 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "common.h"
@@ -53,19 +52,6 @@ static void __init xilinx_init_machine(void)
 	l2x0_of_init(0x02060000, 0xF0F0FFFF);
 
 	of_platform_bus_probe(NULL, zynq_of_bus_ids, NULL);
-}
-
-static struct of_device_id irq_match[] __initdata = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ }
-};
-
-/**
- * xilinx_irq_init() - Interrupt controller initialization for the GIC.
- */
-static void __init xilinx_irq_init(void)
-{
-	of_irq_init(irq_match);
 }
 
 #define SCU_PERIPH_PHYS		0xF8F00000
@@ -117,8 +103,7 @@ static const char *xilinx_dt_match[] = {
 
 MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.map_io		= xilinx_map_io,
-	.init_irq	= xilinx_irq_init,
-	.handle_irq	= gic_handle_irq,
+	.init_irq	= irqchip_init,
 	.init_machine	= xilinx_init_machine,
 	.timer		= &xttcpss_sys_timer,
 	.dt_compat	= xilinx_dt_match,
