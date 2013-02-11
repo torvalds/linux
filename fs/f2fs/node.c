@@ -660,7 +660,7 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	int err = 0, cont = 1;
 	int level, offset[4], noffset[4];
-	unsigned int nofs;
+	unsigned int nofs = 0;
 	struct f2fs_node *rn;
 	struct dnode_of_data dn;
 	struct page *page;
