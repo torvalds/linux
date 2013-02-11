@@ -283,7 +283,6 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.can_wakeup = acpi_pci_can_wakeup,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
 };
@@ -321,10 +320,67 @@ static int acpi_pci_find_root_bridge(struct device *dev, acpi_handle *handle)
 	return 0;
 }
 
+static void pci_acpi_setup(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+	acpi_status status;
+	acpi_handle dummy;
+
+	/*
+	 * Evaluate and parse _PRT, if exists.  This code allows parsing of
+	 * _PRT objects within the scope of non-bridge devices.  Note that
+	 * _PRTs within the scope of a PCI bridge assume the bridge's
+	 * subordinate bus number.
+	 *
+	 * TBD: Can _PRTs exist within the scope of non-bridge PCI devices?
+	 */
+	status = acpi_get_handle(handle, METHOD_NAME__PRT, &dummy);
+	if (ACPI_SUCCESS(status)) {
+		unsigned char bus;
+
+		bus = pci_dev->subordinate ?
+			pci_dev->subordinate->number : pci_dev->bus->number;
+		acpi_pci_irq_add_prt(handle, pci_domain_nr(pci_dev->bus), bus);
+	}
+
+	acpi_power_resource_register_device(dev, handle);
+	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+		return;
+
+	device_set_wakeup_capable(dev, true);
+	acpi_pci_sleep_wake(pci_dev, false);
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (adev->wakeup.flags.run_wake)
+		device_set_run_wake(dev, true);
+}
+
+static void pci_acpi_cleanup(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+
+	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+		device_set_wakeup_capable(dev, false);
+		device_set_run_wake(dev, false);
+		pci_acpi_remove_pm_notifier(adev);
+	}
+	acpi_power_resource_unregister_device(dev, handle);
+
+	if (pci_dev->subordinate)
+		acpi_pci_irq_del_prt(pci_domain_nr(pci_dev->bus),
+				     pci_dev->subordinate->number);
+}
+
 static struct acpi_bus_type acpi_pci_bus = {
 	.bus = &pci_bus_type,
 	.find_device = acpi_pci_find_device,
 	.find_bridge = acpi_pci_find_root_bridge,
+	.setup = pci_acpi_setup,
+	.cleanup = pci_acpi_cleanup,
 };
 
 static int __init acpi_pci_init(void)

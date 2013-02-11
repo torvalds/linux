@@ -52,6 +52,7 @@ static const struct acpi_device_id acpi_platform_device_ids[] = {
 
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
+static DEFINE_MUTEX(acpi_scan_lock);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
@@ -116,30 +117,19 @@ static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 void acpi_bus_hot_remove_device(void *context)
 {
 	struct acpi_eject_event *ej_event = (struct acpi_eject_event *) context;
-	struct acpi_device *device;
-	acpi_handle handle = ej_event->handle;
+	struct acpi_device *device = ej_event->device;
+	acpi_handle handle = device->handle;
 	acpi_handle temp;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 
-	if (acpi_bus_get_device(handle, &device))
-		goto err_out;
-
-	if (!device)
-		goto err_out;
-
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
-	if (acpi_bus_trim(device, 1)) {
-		printk(KERN_ERR PREFIX
-				"Removing device failed\n");
-		goto err_out;
-	}
-
-	/* device has been freed */
+	acpi_bus_trim(device);
+	/* Device node has been released. */
 	device = NULL;
 
 	/* power off device */
@@ -215,7 +205,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		goto err;
 	}
 
-	ej_event->handle = acpi_device->handle;
+	ej_event->device = acpi_device;
 	if (acpi_device->flags.eject_pending) {
 		/* event originated from ACPI eject notification */
 		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
@@ -223,7 +213,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	} else {
 		/* event originated from user */
 		ej_event->event = ACPI_OST_EC_OSPM_EJECT;
-		(void) acpi_evaluate_hotplug_ost(ej_event->handle,
+		(void) acpi_evaluate_hotplug_ost(acpi_device->handle,
 			ej_event->event, ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	}
 
@@ -454,9 +444,9 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev)
 {
 	struct acpi_device *adev;
+	acpi_handle handle = ACPI_HANDLE(dev);
 
-	if (!ids || !ACPI_HANDLE(dev)
-	    || ACPI_FAILURE(acpi_bus_get_device(ACPI_HANDLE(dev), &adev)))
+	if (!ids || !handle || acpi_bus_get_device(handle, &adev))
 		return NULL;
 
 	return __acpi_match_device(adev, ids);
@@ -494,7 +484,8 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
-	return !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
+	return acpi_dev->flags.match_driver
+		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
 }
 
 static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -570,7 +561,6 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 }
 
 static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
-static int acpi_start_single_object(struct acpi_device *);
 static int acpi_device_probe(struct device * dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -579,9 +569,6 @@ static int acpi_device_probe(struct device * dev)
 
 	ret = acpi_bus_driver_init(acpi_dev, acpi_drv);
 	if (!ret) {
-		if (acpi_dev->bus_ops.acpi_op_start)
-			acpi_start_single_object(acpi_dev);
-
 		if (acpi_drv->ops.notify) {
 			ret = acpi_device_install_notify_handler(acpi_dev);
 			if (ret) {
@@ -704,7 +691,7 @@ end:
 	return result;
 }
 
-static void acpi_device_unregister(struct acpi_device *device, int type)
+static void acpi_device_unregister(struct acpi_device *device)
 {
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
@@ -758,24 +745,6 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Driver successfully bound to device\n"));
 	return 0;
-}
-
-static int acpi_start_single_object(struct acpi_device *device)
-{
-	int result = 0;
-	struct acpi_driver *driver;
-
-
-	if (!(driver = device->driver))
-		return 0;
-
-	if (driver->ops.start) {
-		result = driver->ops.start(device);
-		if (result && driver->ops.remove)
-			driver->ops.remove(device, ACPI_BUS_REMOVAL_NORMAL);
-	}
-
-	return result;
 }
 
 /**
@@ -1395,33 +1364,9 @@ static int acpi_device_set_context(struct acpi_device *device)
 	return -ENODEV;
 }
 
-static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
-{
-	if (!dev)
-		return -EINVAL;
-
-	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
-	device_release_driver(&dev->dev);
-
-	if (!rmdevice)
-		return 0;
-
-	/*
-	 * unbind _ADR-Based Devices when hot removal
-	 */
-	if (dev->flags.bus_address) {
-		if ((dev->parent) && (dev->parent->ops.unbind))
-			dev->parent->ops.unbind(dev);
-	}
-	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
-
-	return 0;
-}
-
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
-				  unsigned long long sta,
-				  struct acpi_bus_ops *ops)
+				  unsigned long long sta, bool match_driver)
 {
 	int result;
 	struct acpi_device *device;
@@ -1437,7 +1382,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	device->bus_ops = *ops; /* workround for not call .start */
 	STRUCT_TO_INT(device->status) = sta;
 
 	acpi_device_get_busid(device);
@@ -1488,15 +1432,8 @@ static int acpi_add_single_object(struct acpi_device **child,
 	if ((result = acpi_device_set_context(device)))
 		goto end;
 
+	device->flags.match_driver = match_driver;
 	result = acpi_device_register(device);
-
-	/*
-	 * Bind _ADR-Based Devices when hot add
-	 */
-	if (device->flags.bus_address) {
-		if (device->parent && device->parent->ops.bind)
-			device->parent->ops.bind(device);
-	}
 
 end:
 	if (!result) {
@@ -1519,16 +1456,12 @@ end:
 
 static void acpi_bus_add_power_resource(acpi_handle handle)
 {
-	struct acpi_bus_ops ops = {
-		.acpi_op_add = 1,
-		.acpi_op_start = 1,
-	};
 	struct acpi_device *device = NULL;
 
 	acpi_bus_get_device(handle, &device);
 	if (!device)
 		acpi_add_single_object(&device, handle, ACPI_BUS_TYPE_POWER,
-					ACPI_STA_DEFAULT, &ops);
+					ACPI_STA_DEFAULT, true);
 }
 
 static int acpi_bus_type_and_status(acpi_handle handle, int *type,
@@ -1570,15 +1503,18 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	return 0;
 }
 
-static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
-				      void *context, void **return_value)
+static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
+				      void *not_used, void **return_value)
 {
-	struct acpi_bus_ops *ops = context;
+	struct acpi_device *device = NULL;
 	int type;
 	unsigned long long sta;
-	struct acpi_device *device;
 	acpi_status status;
 	int result;
+
+	acpi_bus_get_device(handle, &device);
+	if (device)
+		goto out;
 
 	result = acpi_bus_type_and_status(handle, &type, &sta);
 	if (result)
@@ -1596,150 +1532,124 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 		return AE_CTRL_DEPTH;
 	}
 
-	/*
-	 * We may already have an acpi_device from a previous enumeration.  If
-	 * so, we needn't add it again, but we may still have to start it.
-	 */
-	device = NULL;
-	acpi_bus_get_device(handle, &device);
-	if (ops->acpi_op_add && !device) {
-		acpi_add_single_object(&device, handle, type, sta, ops);
-		/* Is the device a known good platform device? */
-		if (device
-		    && !acpi_match_device_ids(device, acpi_platform_device_ids))
-			acpi_create_platform_device(device);
-	}
-
+	acpi_add_single_object(&device, handle, type, sta,
+			       type == ACPI_BUS_TYPE_POWER);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
-	if (ops->acpi_op_start && !(ops->acpi_op_add)) {
-		status = acpi_start_single_object(device);
-		if (ACPI_FAILURE(status))
-			return AE_CTRL_DEPTH;
-	}
+	device->flags.match_driver = true;
 
+ out:
 	if (!*return_value)
 		*return_value = device;
+
 	return AE_OK;
 }
 
-static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
-			 struct acpi_device **child)
+static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
+					  void *not_used, void **ret_not_used)
 {
-	acpi_status status;
-	void *device = NULL;
+	acpi_status status = AE_OK;
+	struct acpi_device *device;
+	unsigned long long sta_not_used;
+	int type_not_used;
 
-	status = acpi_bus_check_add(handle, 0, ops, &device);
-	if (ACPI_SUCCESS(status))
-		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add, NULL, ops, &device);
+	/*
+	 * Ignore errors ignored by acpi_bus_check_add() to avoid terminating
+	 * namespace walks prematurely.
+	 */
+	if (acpi_bus_type_and_status(handle, &type_not_used, &sta_not_used))
+		return AE_OK;
 
-	if (child)
-		*child = device;
+	if (acpi_bus_get_device(handle, &device))
+		return AE_CTRL_DEPTH;
 
-	if (device)
-		return 0;
-	else
-		return -ENODEV;
+	if (!acpi_match_device_ids(device, acpi_platform_device_ids)) {
+		/* This is a known good platform device. */
+		acpi_create_platform_device(device);
+	} else if (device_attach(&device->dev) < 0) {
+		status = AE_CTRL_DEPTH;
+	}
+	return status;
 }
 
-/*
- * acpi_bus_add and acpi_bus_start
+/**
+ * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
+ * @handle: Root of the namespace scope to scan.
  *
- * scan a given ACPI tree and (probably recently hot-plugged)
- * create and add or starts found devices.
+ * Scan a given ACPI tree (probably recently hot-plugged) and create and add
+ * found devices.
  *
- * If no devices were found -ENODEV is returned which does not
- * mean that this is a real error, there just have been no suitable
- * ACPI objects in the table trunk from which the kernel could create
- * a device and add/start an appropriate driver.
+ * If no devices were found, -ENODEV is returned, but it does not mean that
+ * there has been a real error.  There just have been no suitable ACPI objects
+ * in the table trunk from which the kernel could create a device and add an
+ * appropriate driver.
  */
-
-int
-acpi_bus_add(struct acpi_device **child,
-	     struct acpi_device *parent, acpi_handle handle, int type)
+int acpi_bus_scan(acpi_handle handle)
 {
-	struct acpi_bus_ops ops;
+	void *device = NULL;
+	int error = 0;
 
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
+	mutex_lock(&acpi_scan_lock);
 
-	return acpi_bus_scan(handle, &ops, child);
-}
-EXPORT_SYMBOL(acpi_bus_add);
-
-int acpi_bus_start(struct acpi_device *device)
-{
-	struct acpi_bus_ops ops;
-	int result;
+	if (ACPI_SUCCESS(acpi_bus_check_add(handle, 0, NULL, &device)))
+		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				    acpi_bus_check_add, NULL, NULL, &device);
 
 	if (!device)
-		return -EINVAL;
+		error = -ENODEV;
+	else if (ACPI_SUCCESS(acpi_bus_device_attach(handle, 0, NULL, NULL)))
+		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				    acpi_bus_device_attach, NULL, NULL, NULL);
 
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_start = 1;
-
-	result = acpi_bus_scan(device->handle, &ops, NULL);
-
-	acpi_update_all_gpes();
-
-	return result;
+	mutex_unlock(&acpi_scan_lock);
+	return error;
 }
-EXPORT_SYMBOL(acpi_bus_start);
+EXPORT_SYMBOL(acpi_bus_scan);
 
-int acpi_bus_trim(struct acpi_device *start, int rmdevice)
+static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
+					  void *not_used, void **ret_not_used)
 {
-	acpi_status status;
-	struct acpi_device *parent, *child;
-	acpi_handle phandle, chandle;
-	acpi_object_type type;
-	u32 level = 1;
-	int err = 0;
+	struct acpi_device *device = NULL;
 
-	parent = start;
-	phandle = start->handle;
-	child = chandle = NULL;
-
-	while ((level > 0) && parent && (!err)) {
-		status = acpi_get_next_object(ACPI_TYPE_ANY, phandle,
-					      chandle, &chandle);
-
-		/*
-		 * If this scope is exhausted then move our way back up.
-		 */
-		if (ACPI_FAILURE(status)) {
-			level--;
-			chandle = phandle;
-			acpi_get_parent(phandle, &phandle);
-			child = parent;
-			parent = parent->parent;
-
-			if (level == 0)
-				err = acpi_bus_remove(child, rmdevice);
-			else
-				err = acpi_bus_remove(child, 1);
-
-			continue;
-		}
-
-		status = acpi_get_type(chandle, &type);
-		if (ACPI_FAILURE(status)) {
-			continue;
-		}
-		/*
-		 * If there is a device corresponding to chandle then
-		 * parse it (depth-first).
-		 */
-		if (acpi_bus_get_device(chandle, &child) == 0) {
-			level++;
-			phandle = chandle;
-			chandle = NULL;
-			parent = child;
-		}
-		continue;
+	if (!acpi_bus_get_device(handle, &device)) {
+		device->removal_type = ACPI_BUS_REMOVAL_EJECT;
+		device_release_driver(&device->dev);
 	}
-	return err;
+	return AE_OK;
+}
+
+static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
+				   void *not_used, void **ret_not_used)
+{
+	struct acpi_device *device = NULL;
+
+	if (!acpi_bus_get_device(handle, &device))
+		acpi_device_unregister(device);
+
+	return AE_OK;
+}
+
+void acpi_bus_trim(struct acpi_device *start)
+{
+	mutex_lock(&acpi_scan_lock);
+
+	/*
+	 * Execute acpi_bus_device_detach() as a post-order callback to detach
+	 * all ACPI drivers from the device nodes being removed.
+	 */
+	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
+			    acpi_bus_device_detach, NULL, NULL);
+	acpi_bus_device_detach(start->handle, 0, NULL, NULL);
+	/*
+	 * Execute acpi_bus_remove() as a post-order callback to remove device
+	 * nodes in the given namespace scope.
+	 */
+	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
+			    acpi_bus_remove, NULL, NULL);
+	acpi_bus_remove(start->handle, 0, NULL, NULL);
+
+	mutex_unlock(&acpi_scan_lock);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
@@ -1747,11 +1657,6 @@ static int acpi_bus_scan_fixed(void)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
-	struct acpi_bus_ops ops;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
-	ops.acpi_op_start = 1;
 
 	/*
 	 * Enumerate all fixed-feature devices.
@@ -1759,16 +1664,14 @@ static int acpi_bus_scan_fixed(void)
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON,
-						ACPI_STA_DEFAULT,
-						&ops);
+						ACPI_STA_DEFAULT, true);
 		device_init_wakeup(&device->dev, true);
 	}
 
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON,
-						ACPI_STA_DEFAULT,
-						&ops);
+						ACPI_STA_DEFAULT, true);
 	}
 
 	return result;
@@ -1777,11 +1680,6 @@ static int acpi_bus_scan_fixed(void)
 int __init acpi_scan_init(void)
 {
 	int result;
-	struct acpi_bus_ops ops;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
-	ops.acpi_op_start = 1;
 
 	result = bus_register(&acpi_bus_type);
 	if (result) {
@@ -1790,19 +1688,25 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_power_init();
+	acpi_pci_root_init();
 
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT, &ops, &acpi_root);
-
-	if (!result)
-		result = acpi_bus_scan_fixed();
-
+	result = acpi_bus_scan(ACPI_ROOT_OBJECT);
 	if (result)
-		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
-	else
-		acpi_update_all_gpes();
+		return result;
 
-	return result;
+	result = acpi_bus_get_device(ACPI_ROOT_OBJECT, &acpi_root);
+	if (result)
+		return result;
+
+	result = acpi_bus_scan_fixed();
+	if (result) {
+		acpi_device_unregister(acpi_root);
+		return result;
+	}
+
+	acpi_update_all_gpes();
+	return 0;
 }

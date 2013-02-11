@@ -310,8 +310,6 @@ static int dock_present(struct dock_station *ds)
 static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 {
 	struct acpi_device *device;
-	struct acpi_device *parent_device;
-	acpi_handle parent;
 	int ret;
 
 	if (acpi_bus_get_device(handle, &device)) {
@@ -319,16 +317,11 @@ static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 		 * no device created for this object,
 		 * so we should create one.
 		 */
-		acpi_get_parent(handle, &parent);
-		if (acpi_bus_get_device(parent, &parent_device))
-			parent_device = NULL;
-
-		ret = acpi_bus_add(&device, parent_device, handle,
-			ACPI_BUS_TYPE_DEVICE);
-		if (ret) {
+		ret = acpi_bus_scan(handle);
+		if (ret)
 			pr_debug("error adding bus, %x\n", -ret);
-			return NULL;
-		}
+
+		acpi_bus_get_device(handle, &device);
 	}
 	return device;
 }
@@ -343,13 +336,9 @@ static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 static void dock_remove_acpi_device(acpi_handle handle)
 {
 	struct acpi_device *device;
-	int ret;
 
-	if (!acpi_bus_get_device(handle, &device)) {
-		ret = acpi_bus_trim(device, 1);
-		if (ret)
-			pr_debug("error removing bus, %x\n", -ret);
-	}
+	if (!acpi_bus_get_device(handle, &device))
+		acpi_bus_trim(device);
 }
 
 /**

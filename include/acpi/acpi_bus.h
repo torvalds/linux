@@ -91,21 +91,12 @@ struct acpi_device;
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
-typedef int (*acpi_op_bind) (struct acpi_device * device);
-typedef int (*acpi_op_unbind) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
-
-struct acpi_bus_ops {
-	u32 acpi_op_add:1;
-	u32 acpi_op_start:1;
-};
 
 struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
 	acpi_op_start start;
-	acpi_op_bind bind;
-	acpi_op_unbind unbind;
 	acpi_op_notify notify;
 };
 
@@ -148,7 +139,8 @@ struct acpi_device_flags {
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 eject_pending:1;
-	u32 reserved:24;
+	u32 match_driver:1;
+	u32 reserved:23;
 };
 
 /* File System */
@@ -279,11 +271,9 @@ struct acpi_device {
 	struct acpi_device_wakeup wakeup;
 	struct acpi_device_perf performance;
 	struct acpi_device_dir dir;
-	struct acpi_device_ops ops;
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
-	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
 	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
 	u8 physical_node_count;
 	struct list_head physical_node_list;
@@ -316,7 +306,7 @@ struct acpi_bus_event {
 };
 
 struct acpi_eject_event {
-	acpi_handle	handle;
+	struct acpi_device	*device;
 	u32		event;
 };
 
@@ -356,11 +346,9 @@ static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 ty
 #endif
 int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);
-int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
-		 acpi_handle handle, int type);
+int acpi_bus_scan(acpi_handle handle);
 void acpi_bus_hot_remove_device(void *context);
-int acpi_bus_trim(struct acpi_device *start, int rmdevice);
-int acpi_bus_start(struct acpi_device *device);
+void acpi_bus_trim(struct acpi_device *start);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
 int acpi_match_device_ids(struct acpi_device *device,
 			  const struct acpi_device_id *ids);
@@ -390,6 +378,8 @@ struct acpi_bus_type {
 	int (*find_device) (struct device *, acpi_handle *);
 	/* For bridges, such as PCI root bridge, IDE controller */
 	int (*find_bridge) (struct device *, acpi_handle *);
+	void (*setup)(struct device *);
+	void (*cleanup)(struct device *);
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
@@ -397,7 +387,6 @@ int unregister_acpi_bus_type(struct acpi_bus_type *);
 struct acpi_pci_root {
 	struct list_head node;
 	struct acpi_device * device;
-	struct acpi_pci_id id;
 	struct pci_bus *bus;
 	u16 segment;
 	struct resource secondary;	/* downstream bus range */

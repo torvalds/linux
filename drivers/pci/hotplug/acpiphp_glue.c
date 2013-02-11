@@ -734,34 +734,24 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
  */
 static int acpiphp_bus_add(struct acpiphp_func *func)
 {
-	acpi_handle phandle;
-	struct acpi_device *device, *pdevice;
+	struct acpi_device *device;
 	int ret_val;
 
-	acpi_get_parent(func->handle, &phandle);
-	if (acpi_bus_get_device(phandle, &pdevice)) {
-		dbg("no parent device, assuming NULL\n");
-		pdevice = NULL;
-	}
 	if (!acpi_bus_get_device(func->handle, &device)) {
 		dbg("bus exists... trim\n");
 		/* this shouldn't be in here, so remove
 		 * the bus then re-add it...
 		 */
-		ret_val = acpi_bus_trim(device, 1);
-		dbg("acpi_bus_trim return %x\n", ret_val);
+		acpi_bus_trim(device);
 	}
 
-	ret_val = acpi_bus_add(&device, pdevice, func->handle,
-		ACPI_BUS_TYPE_DEVICE);
-	if (ret_val) {
-		dbg("error adding bus, %x\n",
-			-ret_val);
-		goto acpiphp_bus_add_out;
-	}
-	ret_val = acpi_bus_start(device);
+	ret_val = acpi_bus_scan(func->handle);
+	if (!ret_val)
+		ret_val = acpi_bus_get_device(func->handle, &device);
 
-acpiphp_bus_add_out:
+	if (ret_val)
+		dbg("error adding bus, %x\n", -ret_val);
+
 	return ret_val;
 }
 
@@ -781,11 +771,8 @@ static int acpiphp_bus_trim(acpi_handle handle)
 		return retval;
 	}
 
-	retval = acpi_bus_trim(device, 1);
-	if (retval)
-		err("cannot remove from acpi list\n");
-
-	return retval;
+	acpi_bus_trim(device);
+	return 0;
 }
 
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
@@ -1130,8 +1117,7 @@ static int acpiphp_configure_bridge (acpi_handle handle)
 
 static void handle_bridge_insertion(acpi_handle handle, u32 type)
 {
-	struct acpi_device *device, *pdevice;
-	acpi_handle phandle;
+	struct acpi_device *device;
 
 	if ((type != ACPI_NOTIFY_BUS_CHECK) &&
 			(type != ACPI_NOTIFY_DEVICE_CHECK)) {
@@ -1139,17 +1125,15 @@ static void handle_bridge_insertion(acpi_handle handle, u32 type)
 		return;
 	}
 
-	acpi_get_parent(handle, &phandle);
-	if (acpi_bus_get_device(phandle, &pdevice)) {
-		dbg("no parent device, assuming NULL\n");
-		pdevice = NULL;
-	}
-	if (acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE)) {
+	if (acpi_bus_scan(handle)) {
 		err("cannot add bridge to acpi list\n");
 		return;
 	}
-	if (!acpiphp_configure_bridge(handle) &&
-		!acpi_bus_start(device))
+	if (acpi_bus_get_device(handle, &device)) {
+		err("ACPI device object missing\n");
+		return;
+	}
+	if (!acpiphp_configure_bridge(handle))
 		add_bridge(handle);
 	else
 		err("cannot configure and start bridge\n");
