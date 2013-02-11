@@ -610,11 +610,6 @@ static const struct hid_device_id sensor_hub_devices[] = {
 };
 MODULE_DEVICE_TABLE(hid, sensor_hub_devices);
 
-static const struct hid_usage_id sensor_hub_grabbed_usages[] = {
-	{ HID_ANY_ID, HID_ANY_ID, HID_ANY_ID },
-	{ HID_ANY_ID - 1, HID_ANY_ID - 1, HID_ANY_ID - 1 }
-};
-
 static struct hid_driver sensor_hub_driver = {
 	.name = "hid-sensor-hub",
 	.id_table = sensor_hub_devices,
