@@ -231,10 +231,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			if (!mr->cur_tp)
 				continue;
 
-			/* ignore the lowest rate of each single-stream group */
-			if (!i && minstrel_mcs_groups[group].streams == 1)
-				continue;
-
 			if ((mr->cur_tp > cur_prob_tp && mr->probability >
 			     MINSTREL_FRAC(3, 4)) || mr->probability > cur_prob) {
 				mg->max_prob_rate = index;
