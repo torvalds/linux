@@ -121,9 +121,6 @@ struct dwc3_omap {
 	int			irq;
 	void __iomem		*base;
 
-	void			*context;
-	u32			resource_size;
-
 	u32			dma_status:1;
 };
 
@@ -294,7 +291,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	u32			reg;
 
 	void __iomem		*base;
-	void			*context;
 
 	if (!node) {
 		dev_err(dev, "device node not found\n");
@@ -327,16 +323,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	context = devm_kzalloc(dev, resource_size(res), GFP_KERNEL);
-	if (!context) {
-		dev_err(dev, "couldn't allocate dwc3 context memory\n");
-		return -ENOMEM;
-	}
-
 	spin_lock_init(&omap->lock);
 
-	omap->resource_size = resource_size(res);
-	omap->context	= context;
 	omap->dev	= dev;
 	omap->irq	= irq;
 	omap->base	= base;
