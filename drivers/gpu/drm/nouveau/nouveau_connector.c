@@ -112,7 +112,6 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_i2c_port *port = NULL;
 	int i, panel = -ENODEV;
 
@@ -142,8 +141,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
 
-		if (nv_encoder->dcb->i2c_index < 0xf)
-			port = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+		port = nv_encoder->i2c;
 		if (port && nv_probe_i2c(port, 0x50)) {
 			*pnv_encoder = nv_encoder;
 			break;

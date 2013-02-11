@@ -238,13 +238,12 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 		nouveau_encoder_connector_get(nv_encoder);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	const u32 bw_list[] = { 270000, 162000, 0 };
 	const u32 *link_bw = bw_list;
 	struct dp_state dp;
 
-	dp.auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+	dp.auxch = nv_encoder->i2c;
 	if (!dp.auxch)
 		return false;
 
@@ -311,12 +310,10 @@ nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
 		struct nouveau_object *core)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_i2c_port *auxch;
 	u8 status;
 
-	auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+	auxch = nv_encoder->i2c;
 	if (!auxch)
 		return;
 
@@ -357,12 +354,11 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_i2c_port *auxch;
 	u8 *dpcd = nv_encoder->dp.dpcd;
 	int ret;
 
-	auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+	auxch = nv_encoder->i2c;
 	if (!auxch)
 		return false;
 

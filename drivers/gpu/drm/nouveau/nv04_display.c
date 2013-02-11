@@ -34,6 +34,8 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 
+#include <subdev/i2c.h>
+
 int
 nv04_display_early_init(struct drm_device *dev)
 {
@@ -56,6 +58,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
@@ -120,6 +123,11 @@ nv04_display_create(struct drm_device *dev)
 				drm_get_connector_name(connector));
 			connector->funcs->destroy(connector);
 		}
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		nv_encoder->i2c = i2c->find(i2c, nv_encoder->dcb->i2c_index);
 	}
 
 	/* Save previous state */

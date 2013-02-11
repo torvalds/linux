@@ -43,6 +43,7 @@
 #include <subdev/timer.h>
 #include <subdev/bar.h>
 #include <subdev/fb.h>
+#include <subdev/i2c.h>
 
 #define EVO_DMA_NR 9
 
@@ -1554,20 +1555,23 @@ static const struct drm_encoder_funcs nv50_dac_func = {
 static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
-	struct drm_device *dev = connector->dev;
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
+	int type = DRM_MODE_ENCODER_DAC;
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
+	nv_encoder->i2c = i2c->find(i2c, dcbe->i2c_index);
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(dev, encoder, &nv50_dac_func, DRM_MODE_ENCODER_DAC);
+	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type);
 	drm_encoder_helper_add(encoder, &nv50_dac_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -1893,21 +1897,33 @@ static const struct drm_encoder_funcs nv50_sor_func = {
 static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
-	struct drm_device *dev = connector->dev;
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
+	int type;
+
+	switch (dcbe->type) {
+	case DCB_OUTPUT_LVDS: type = DRM_MODE_ENCODER_LVDS; break;
+	case DCB_OUTPUT_TMDS:
+	case DCB_OUTPUT_DP:
+	default:
+		type = DRM_MODE_ENCODER_TMDS;
+		break;
+	}
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
+	nv_encoder->i2c = i2c->find(i2c, dcbe->i2c_index);
 	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(dev, encoder, &nv50_sor_func, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type);
 	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
