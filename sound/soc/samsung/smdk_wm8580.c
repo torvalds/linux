@@ -193,9 +193,9 @@ static struct snd_soc_dai_link smdk_dai[] = {
 	[SEC_PLAYBACK] = { /* Sec_Fifo Playback i/f */
 		.name = "Sec_FIFO TX",
 		.stream_name = "Playback",
-		.cpu_dai_name = "samsung-i2s.x",
+		.cpu_dai_name = "samsung-i2s-sec",
 		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-i2s.x",
+		.platform_name = "samsung-i2s-sec",
 		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_ops,
 	},
@@ -223,9 +223,6 @@ static int __init smdk_audio_init(void)
 	if (machine_is_smdkc100()
 			|| machine_is_smdkv210() || machine_is_smdkc110()) {
 		smdk.num_links = 3;
-		/* Secondary is at offset SAMSUNG_I2S_SECOFF from Primary */
-		str = (char *)smdk_dai[SEC_PLAYBACK].cpu_dai_name;
-		str[strlen(str) - 1] = '0' + SAMSUNG_I2S_SECOFF;
 	} else if (machine_is_smdk6410()) {
 		str = (char *)smdk_dai[PRI_PLAYBACK].cpu_dai_name;
 		str[strlen(str) - 1] = '2';
