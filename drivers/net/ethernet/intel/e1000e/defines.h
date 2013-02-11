@@ -232,6 +232,7 @@
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
 #define E1000_CTRL_LANPHYPC_OVERRIDE 0x00010000 /* SW control of LANPHYPC */
 #define E1000_CTRL_LANPHYPC_VALUE    0x00020000 /* SW value of LANPHYPC */
+#define E1000_CTRL_MEHE     0x00080000  /* Memory Error Handling Enable */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
@@ -389,6 +390,12 @@
 
 #define E1000_PBS_16K E1000_PBA_16K
 
+/* Uncorrectable/correctable ECC Error counts and enable bits */
+#define E1000_PBECCSTS_CORR_ERR_CNT_MASK	0x000000FF
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
+#define E1000_PBECCSTS_ECC_ENABLE		0x00010000
+
 #define IFS_MAX       80
 #define IFS_MIN       40
 #define IFS_RATIO     4
@@ -408,6 +415,7 @@
 #define E1000_ICR_RXSEQ         0x00000008 /* Rx sequence error */
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
+#define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
@@ -443,6 +451,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
+#define E1000_IMS_ECCER     E1000_ICR_ECCER     /* Uncorrectable ECC Error */
 #define E1000_IMS_RXQ0      E1000_ICR_RXQ0      /* Rx Queue 0 Interrupt */
 #define E1000_IMS_RXQ1      E1000_ICR_RXQ1      /* Rx Queue 1 Interrupt */
 #define E1000_IMS_TXQ0      E1000_ICR_TXQ0      /* Tx Queue 0 Interrupt */

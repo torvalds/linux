@@ -19,7 +19,8 @@
 #include <mach/dma.h>
 
 static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
-				struct samsung_dma_req *param)
+				struct samsung_dma_req *param,
+				struct device *dev, char *ch_name)
 {
 	dma_cap_mask_t mask;
 	void *filter_param;
@@ -33,7 +34,12 @@ static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
 	 */
 	filter_param = (dma_ch == DMACH_DT_PROP) ?
 		(void *)param->dt_dmach_prop : (void *)dma_ch;
-	return (unsigned)dma_request_channel(mask, pl330_filter, filter_param);
+
+	if (dev->of_node)
+		return (unsigned)dma_request_slave_channel(dev, ch_name);
+	else
+		return (unsigned)dma_request_channel(mask, pl330_filter,
+							filter_param);
 }
 
 static int samsung_dmadev_release(unsigned ch, void *param)

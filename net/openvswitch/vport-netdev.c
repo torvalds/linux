@@ -35,10 +35,11 @@
 /* Must be called with rcu_read_lock. */
 static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 {
-	if (unlikely(!vport)) {
-		kfree_skb(skb);
-		return;
-	}
+	if (unlikely(!vport))
+		goto error;
+
+	if (unlikely(skb_warn_if_lro(skb)))
+		goto error;
 
 	/* Make our own copy of the packet.  Otherwise we will mangle the
 	 * packet for anyone who came before us (e.g. tcpdump via AF_PACKET).
@@ -50,6 +51,10 @@ static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 
 	skb_push(skb, ETH_HLEN);
 	ovs_vport_receive(vport, skb);
+	return;
+
+error:
+	kfree_skb(skb);
 }
 
 /* Called with rcu_read_lock and bottom-halves disabled. */
@@ -168,9 +173,6 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 				     packet_length(skb), mtu);
 		goto error;
 	}
-
-	if (unlikely(skb_warn_if_lro(skb)))
-		goto error;
 
 	skb->dev = netdev_vport->dev;
 	len = skb->len;

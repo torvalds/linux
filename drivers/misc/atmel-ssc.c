@@ -175,7 +175,7 @@ static int ssc_probe(struct platform_device *pdev)
 
 	/* disable all interrupts */
 	clk_enable(ssc->clk);
-	ssc_writel(ssc->regs, IDR, ~0UL);
+	ssc_writel(ssc->regs, IDR, -1);
 	ssc_readl(ssc->regs, SR);
 	clk_disable(ssc->clk);
 

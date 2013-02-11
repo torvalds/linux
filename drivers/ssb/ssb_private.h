@@ -252,10 +252,15 @@ static inline void ssb_extif_init(struct ssb_extif *extif)
 
 #ifdef CONFIG_SSB_DRIVER_GPIO
 extern int ssb_gpio_init(struct ssb_bus *bus);
+extern int ssb_gpio_unregister(struct ssb_bus *bus);
 #else /* CONFIG_SSB_DRIVER_GPIO */
 static inline int ssb_gpio_init(struct ssb_bus *bus)
 {
 	return -ENOTSUPP;
+}
+static inline int ssb_gpio_unregister(struct ssb_bus *bus)
+{
+	return 0;
 }
 #endif /* CONFIG_SSB_DRIVER_GPIO */
 

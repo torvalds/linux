@@ -249,11 +249,11 @@ static void hci_conn_disconnect(struct hci_conn *conn)
 	__u8 reason = hci_proto_disconn_ind(conn);
 
 	switch (conn->type) {
-	case ACL_LINK:
-		hci_acl_disconn(conn, reason);
-		break;
 	case AMP_LINK:
 		hci_amp_disconn(conn, reason);
+		break;
+	default:
+		hci_acl_disconn(conn, reason);
 		break;
 	}
 }

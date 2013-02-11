@@ -1971,6 +1971,7 @@ static struct video_device wl1273_viddev_template = {
 	.ioctl_ops		= &wl1273_ioctl_ops,
 	.name			= WL1273_FM_DRIVER_NAME,
 	.release		= wl1273_vdev_release,
+	.vfl_dir		= VFL_DIR_TX,
 };
 
 static int wl1273_fm_radio_remove(struct platform_device *pdev)

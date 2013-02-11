@@ -1462,12 +1462,15 @@ u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 			      u32 disabled_rb_mask)
 {
 	u32 rendering_pipe_num, rb_num_width, req_rb_num;
-	u32 pipe_rb_ratio, pipe_rb_remain;
+	u32 pipe_rb_ratio, pipe_rb_remain, tmp;
 	u32 data = 0, mask = 1 << (max_rb_num - 1);
 	unsigned i, j;
 
 	/* mask out the RBs that don't exist on that asic */
-	disabled_rb_mask |= (0xff << max_rb_num) & 0xff;
+	tmp = disabled_rb_mask | ((0xff << max_rb_num) & 0xff);
+	/* make sure at least one RB is available */
+	if ((tmp & 0xff) != 0xff)
+		disabled_rb_mask = tmp;
 
 	rendering_pipe_num = 1 << tiling_pipe_num;
 	req_rb_num = total_max_rb_num - r600_count_pipe_bits(disabled_rb_mask);
@@ -2313,7 +2316,7 @@ void r600_dma_stop(struct radeon_device *rdev)
 int r600_dma_resume(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
-	u32 rb_cntl, dma_cntl;
+	u32 rb_cntl, dma_cntl, ib_cntl;
 	u32 rb_bufsz;
 	int r;
 
@@ -2353,7 +2356,11 @@ int r600_dma_resume(struct radeon_device *rdev)
 	WREG32(DMA_RB_BASE, ring->gpu_addr >> 8);
 
 	/* enable DMA IBs */
-	WREG32(DMA_IB_CNTL, DMA_IB_ENABLE);
+	ib_cntl = DMA_IB_ENABLE;
+#ifdef __BIG_ENDIAN
+	ib_cntl |= DMA_IB_SWAP_ENABLE;
+#endif
+	WREG32(DMA_IB_CNTL, ib_cntl);
 
 	dma_cntl = RREG32(DMA_CNTL);
 	dma_cntl &= ~CTXEMPTY_INT_ENABLE;
