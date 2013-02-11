@@ -75,7 +75,7 @@ config TCG_INFINEON
 
 config TCG_IBMVTPM
 	tristate "IBM VTPM Interface"
-	depends on PPC64
+	depends on PPC_PSERIES
 	---help---
 	  If you have IBM virtual TPM (VTPM) support say Yes and it
 	  will be accessible from within Linux.  To compile this driver
