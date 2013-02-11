@@ -469,8 +469,18 @@ xfs_buf_item_push(
 
 	if (xfs_buf_ispinned(bp))
 		return XFS_ITEM_PINNED;
-	if (!xfs_buf_trylock(bp))
+	if (!xfs_buf_trylock(bp)) {
+		/*
+		 * If we have just raced with a buffer being pinned and it has
+		 * been marked stale, we could end up stalling until someone else
+		 * issues a log force to unpin the stale buffer. Check for the
+		 * race condition here so xfsaild recognizes the buffer is pinned
+		 * and queues a log force to move it along.
+		 */
+		if (xfs_buf_ispinned(bp))
+			return XFS_ITEM_PINNED;
 		return XFS_ITEM_LOCKED;
+	}
 
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 
