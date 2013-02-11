@@ -103,29 +103,10 @@ nouveau_i2c_find(struct nouveau_i2c *i2c, u8 index)
 
 	list_for_each_entry(port, &i2c->ports, head) {
 		if (port->index == index)
-			break;
+			return port;
 	}
 
-	if (&port->head == &i2c->ports)
-		return NULL;
-
-	if (nv_device(i2c)->card_type >= NV_50 && (port->dcb & 0x00000100)) {
-		u32 reg = 0x00e500, val;
-		if (port->type == 6) {
-			reg += port->drive * 0x50;
-			val  = 0x2002;
-		} else {
-			reg += ((port->dcb & 0x1e00) >> 9) * 0x50;
-			val  = 0xe001;
-		}
-
-		/* nfi, but neither auxch or i2c work if it's 1 */
-		nv_mask(i2c, reg + 0x0c, 0x00000001, 0x00000000);
-		/* nfi, but switches auxch vs normal i2c */
-		nv_mask(i2c, reg + 0x00, 0x0000f003, val);
-	}
-
-	return port;
+	return NULL;
 }
 
 static int
@@ -241,6 +222,23 @@ nouveau_i2c_sense_sda(void *data)
 	return 0;
 }
 
+static int
+nouveau_i2c_pre_xfer(struct i2c_adapter *adap)
+{
+	struct nouveau_i2c_port *port = (void *)adap;
+	struct nouveau_i2c *i2c = port->i2c;
+
+	if (nv_device(i2c)->card_type >= NV_50 && (port->dcb & 0x00000100)) {
+		u32 reg = 0x00e500 + ((port->dcb & 0x1e00) >> 9) * 0x50;
+		/* nfi, but neither auxch or i2c work if it's 1 */
+		nv_mask(i2c, reg + 0x0c, 0x00000001, 0x00000000);
+		/* nfi, but switches auxch vs normal i2c */
+		nv_mask(i2c, reg + 0x00, 0x0000f003, 0x0000e001);
+	}
+
+	return 0;
+}
+
 static const u32 nv50_i2c_port[] = {
 	0x00e138, 0x00e150, 0x00e168, 0x00e180,
 	0x00e254, 0x00e274, 0x00e764, 0x00e780,
@@ -347,6 +345,7 @@ nouveau_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 				port->bit.setscl = nouveau_i2c_drive_scl;
 				port->bit.getsda = nouveau_i2c_sense_sda;
 				port->bit.getscl = nouveau_i2c_sense_scl;
+				port->bit.pre_xfer = nouveau_i2c_pre_xfer;
 				ret = i2c_bit_add_bus(&port->adapter);
 			}
 		} else {

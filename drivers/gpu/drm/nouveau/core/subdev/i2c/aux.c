@@ -150,15 +150,29 @@ out:
 	return ret;
 }
 
+static void
+auxch_mux(struct nouveau_i2c_port *port)
+{
+	if (port->dcb & 0x00000100) {
+		u32 reg = 0x00e500 + (port->drive * 0x50);
+		/* nfi, but neither auxch or i2c work if it's 1 */
+		nv_mask(port->i2c, reg + 0x0c, 0x00000001, 0x00000000);
+		/* nfi, but switches auxch vs normal i2c */
+		nv_mask(port->i2c, reg + 0x00, 0x0000f003, 0x00002002);
+	}
+}
+
 int
 nv_rdaux(struct nouveau_i2c_port *auxch, u32 addr, u8 *data, u8 size)
 {
+	auxch_mux(auxch);
 	return auxch_tx(auxch->i2c, auxch->drive, 9, addr, data, size);
 }
 
 int
 nv_wraux(struct nouveau_i2c_port *auxch, u32 addr, u8 *data, u8 size)
 {
+	auxch_mux(auxch);
 	return auxch_tx(auxch->i2c, auxch->drive, 8, addr, data, size);
 }
 
@@ -168,6 +182,8 @@ aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct nouveau_i2c_port *auxch = (struct nouveau_i2c_port *)adap;
 	struct i2c_msg *msg = msgs;
 	int ret, mcnt = num;
+
+	auxch_mux(auxch);
 
 	while (mcnt--) {
 		u8 remaining = msg->len;
