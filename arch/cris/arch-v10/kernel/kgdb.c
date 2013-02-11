@@ -676,8 +676,6 @@ hex (char ch)
    Put the result in buf, and return a pointer to the last character
    in buf (null). */
 
-static int do_printk = 0;
-
 static char *
 mem2hex(char *buf, unsigned char *mem, int count)
 {
