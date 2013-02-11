@@ -121,6 +121,8 @@ struct dwc3_omap {
 	int			irq;
 	void __iomem		*base;
 
+	u32			utmi_otg_status;
+
 	u32			dma_status:1;
 };
 
@@ -402,12 +404,66 @@ static const struct of_device_id of_dwc3_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
 
+#ifdef CONFIG_PM
+static int dwc3_omap_prepare(struct device *dev)
+{
+	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+
+	dwc3_omap_disable_irqs(omap);
+
+	return 0;
+}
+
+static void dwc3_omap_complete(struct device *dev)
+{
+	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+
+	dwc3_omap_enable_irqs(omap);
+}
+
+static int dwc3_omap_suspend(struct device *dev)
+{
+	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+
+	omap->utmi_otg_status = dwc3_omap_readl(omap->base,
+			USBOTGSS_UTMI_OTG_STATUS);
+
+	return 0;
+}
+
+static int dwc3_omap_resume(struct device *dev)
+{
+	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+
+	dwc3_omap_writel(omap->base, USBOTGSS_UTMI_OTG_STATUS,
+			omap->utmi_otg_status);
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dwc3_omap_dev_pm_ops = {
+	.prepare	= dwc3_omap_prepare,
+	.complete	= dwc3_omap_complete,
+
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_omap_suspend, dwc3_omap_resume)
+};
+
+#define DEV_PM_OPS	(&dwc3_omap_dev_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
+
 static struct platform_driver dwc3_omap_driver = {
 	.probe		= dwc3_omap_probe,
 	.remove		= dwc3_omap_remove,
 	.driver		= {
 		.name	= "omap-dwc3",
 		.of_match_table	= of_dwc3_match,
+		.pm	= DEV_PM_OPS,
 	},
 };
 
