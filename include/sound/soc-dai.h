@@ -53,7 +53,7 @@ struct snd_compr_stream;
  * Specifies whether the DAI can also support inverted clocks for the specified
  * format.
  */
-#define SND_SOC_DAIFMT_NB_NF		(1 << 8) /* normal bit clock + frame */
+#define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* normal bit clock + frame */
 #define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* normal BCLK + inv FRM */
 #define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + nor FRM */
 #define SND_SOC_DAIFMT_IB_IF		(4 << 8) /* invert BCLK + FRM */

@@ -1728,20 +1728,16 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 
 	/* startup must always be called for new BEs */
 	ret = dpcm_be_dai_startup(fe, stream);
-	if (ret < 0) {
+	if (ret < 0)
 		goto disconnect;
-		return ret;
-	}
 
 	/* keep going if FE state is > open */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_OPEN)
 		return 0;
 
 	ret = dpcm_be_dai_hw_params(fe, stream);
-	if (ret < 0) {
+	if (ret < 0)
 		goto close;
-		return ret;
-	}
 
 	/* keep going if FE state is > hw_params */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_PARAMS)
@@ -1749,10 +1745,8 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 
 
 	ret = dpcm_be_dai_prepare(fe, stream);
-	if (ret < 0) {
+	if (ret < 0)
 		goto hw_free;
-		return ret;
-	}
 
 	/* run the stream event for each BE */
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_NOP);

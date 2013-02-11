@@ -906,8 +906,8 @@ struct snd_soc_dai_link {
 			struct snd_pcm_hw_params *params);
 
 	/* machine stream operations */
-	struct snd_soc_ops *ops;
-	struct snd_soc_compr_ops *compr_ops;
+	const struct snd_soc_ops *ops;
+	const struct snd_soc_compr_ops *compr_ops;
 };
 
 struct snd_soc_codec_conf {
