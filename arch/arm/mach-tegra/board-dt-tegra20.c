@@ -200,7 +200,7 @@ DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 (Flattened Device Tree)")
 	.smp		= smp_ops(tegra_smp_ops),
 	.init_early	= tegra20_init_early,
 	.init_irq	= tegra_dt_init_irq,
-	.timer		= &tegra_sys_timer,
+	.init_time	= tegra_init_timer,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_assert_system_reset,

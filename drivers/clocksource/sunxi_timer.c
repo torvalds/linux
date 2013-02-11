@@ -74,7 +74,6 @@ static int sunxi_clkevt_next_event(unsigned long evt,
 
 static struct clock_event_device sunxi_clockevent = {
 	.name = "sunxi_tick",
-	.shift = 32,
 	.rating = 300,
 	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode = sunxi_clkevt_mode,
@@ -104,7 +103,7 @@ static struct of_device_id sunxi_timer_dt_ids[] = {
 	{ }
 };
 
-static void __init sunxi_timer_init(void)
+void __init sunxi_timer_init(void)
 {
 	struct device_node *node;
 	unsigned long rate = 0;
@@ -154,18 +153,8 @@ static void __init sunxi_timer_init(void)
 	val = readl(timer_base + TIMER_CTL_REG);
 	writel(val | TIMER_CTL_ENABLE, timer_base + TIMER_CTL_REG);
 
-	sunxi_clockevent.mult = div_sc(rate / TIMER_SCAL,
-				NSEC_PER_SEC,
-				sunxi_clockevent.shift);
-	sunxi_clockevent.max_delta_ns = clockevent_delta2ns(0xff,
-							    &sunxi_clockevent);
-	sunxi_clockevent.min_delta_ns = clockevent_delta2ns(0x1,
-							    &sunxi_clockevent);
 	sunxi_clockevent.cpumask = cpumask_of(0);
 
-	clockevents_register_device(&sunxi_clockevent);
+	clockevents_config_and_register(&sunxi_clockevent, rate / TIMER_SCAL,
+					0x1, 0xff);
 }
-
-struct sys_timer sunxi_timer = {
-	.init = sunxi_timer_init,
-};

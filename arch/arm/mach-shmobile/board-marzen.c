@@ -383,5 +383,5 @@ MACHINE_START(MARZEN, "marzen")
 	.init_irq	= r8a7779_init_irq,
 	.init_machine	= marzen_init,
 	.init_late	= marzen_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= r8a7779_earlytimer_init,
 MACHINE_END

@@ -104,12 +104,38 @@ pit_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 	}
 }
 
+static void at91sam926x_pit_suspend(struct clock_event_device *cedev)
+{
+	/* Disable timer */
+	pit_write(AT91_PIT_MR, 0);
+}
+
+static void at91sam926x_pit_reset(void)
+{
+	/* Disable timer and irqs */
+	pit_write(AT91_PIT_MR, 0);
+
+	/* Clear any pending interrupts, wait for PIT to stop counting */
+	while (PIT_CPIV(pit_read(AT91_PIT_PIVR)) != 0)
+		cpu_relax();
+
+	/* Start PIT but don't enable IRQ */
+	pit_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
+}
+
+static void at91sam926x_pit_resume(struct clock_event_device *cedev)
+{
+	at91sam926x_pit_reset();
+}
+
 static struct clock_event_device pit_clkevt = {
 	.name		= "pit",
 	.features	= CLOCK_EVT_FEAT_PERIODIC,
 	.shift		= 32,
 	.rating		= 100,
 	.set_mode	= pit_clkevt_mode,
+	.suspend	= at91sam926x_pit_suspend,
+	.resume		= at91sam926x_pit_resume,
 };
 
 
@@ -149,19 +175,6 @@ static struct irqaction at91sam926x_pit_irq = {
 	.handler	= at91sam926x_pit_interrupt,
 	.irq		= NR_IRQS_LEGACY + AT91_ID_SYS,
 };
-
-static void at91sam926x_pit_reset(void)
-{
-	/* Disable timer and irqs */
-	pit_write(AT91_PIT_MR, 0);
-
-	/* Clear any pending interrupts, wait for PIT to stop counting */
-	while (PIT_CPIV(pit_read(AT91_PIT_PIVR)) != 0)
-		cpu_relax();
-
-	/* Start PIT but don't enable IRQ */
-	pit_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
-}
 
 #ifdef CONFIG_OF
 static struct of_device_id pit_timer_ids[] = {
@@ -211,7 +224,7 @@ static int __init of_at91sam926x_pit_init(void)
 /*
  * Set up both clocksource and clockevent support.
  */
-static void __init at91sam926x_pit_init(void)
+void __init at91sam926x_pit_init(void)
 {
 	unsigned long	pit_rate;
 	unsigned	bits;
@@ -250,12 +263,6 @@ static void __init at91sam926x_pit_init(void)
 	clockevents_register_device(&pit_clkevt);
 }
 
-static void at91sam926x_pit_suspend(void)
-{
-	/* Disable timer */
-	pit_write(AT91_PIT_MR, 0);
-}
-
 void __init at91sam926x_ioremap_pit(u32 addr)
 {
 #if defined(CONFIG_OF)
@@ -272,9 +279,3 @@ void __init at91sam926x_ioremap_pit(u32 addr)
 	if (!pit_base_addr)
 		panic("Impossible to ioremap PIT\n");
 }
-
-struct sys_timer at91sam926x_timer = {
-	.init		= at91sam926x_pit_init,
-	.suspend	= at91sam926x_pit_suspend,
-	.resume		= at91sam926x_pit_reset,
-};

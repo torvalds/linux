@@ -254,13 +254,9 @@ static struct irqaction mct_comp_event_irq = {
 
 static void exynos4_clockevent_init(void)
 {
-	clockevents_calc_mult_shift(&mct_comp_device, clk_rate, 5);
-	mct_comp_device.max_delta_ns =
-		clockevent_delta2ns(0xffffffff, &mct_comp_device);
-	mct_comp_device.min_delta_ns =
-		clockevent_delta2ns(0xf, &mct_comp_device);
 	mct_comp_device.cpumask = cpumask_of(0);
-	clockevents_register_device(&mct_comp_device);
+	clockevents_config_and_register(&mct_comp_device, clk_rate,
+					0xf, 0xffffffff);
 
 	if (soc_is_exynos5250())
 		setup_irq(EXYNOS5_IRQ_MCT_G0, &mct_comp_event_irq);
@@ -403,14 +399,8 @@ static int __cpuinit exynos4_local_timer_setup(struct clock_event_device *evt)
 	evt->set_mode = exynos4_tick_set_mode;
 	evt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	evt->rating = 450;
-
-	clockevents_calc_mult_shift(evt, clk_rate / (TICK_BASE_CNT + 1), 5);
-	evt->max_delta_ns =
-		clockevent_delta2ns(0x7fffffff, evt);
-	evt->min_delta_ns =
-		clockevent_delta2ns(0xf, evt);
-
-	clockevents_register_device(evt);
+	clockevents_config_and_register(evt, clk_rate / (TICK_BASE_CNT + 1),
+					0xf, 0x7fffffff);
 
 	exynos4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
 
@@ -477,7 +467,7 @@ static void __init exynos4_timer_resources(void)
 #endif /* CONFIG_LOCAL_TIMERS */
 }
 
-static void __init exynos_timer_init(void)
+void __init exynos4_timer_init(void)
 {
 	if (soc_is_exynos5440()) {
 		arch_timer_of_register();
@@ -493,7 +483,3 @@ static void __init exynos_timer_init(void)
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
-
-struct sys_timer exynos4_timer = {
-	.init		= exynos_timer_init,
-};

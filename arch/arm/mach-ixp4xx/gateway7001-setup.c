@@ -99,7 +99,7 @@ MACHINE_START(GATEWAY7001, "Gateway 7001 AP")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer		= &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.atag_offset	= 0x100,
 	.init_machine	= gateway7001_init,
 #if defined(CONFIG_PCI)

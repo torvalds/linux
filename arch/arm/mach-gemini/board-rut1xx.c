@@ -71,10 +71,6 @@ static struct platform_device rut1xx_leds = {
 	},
 };
 
-static struct sys_timer rut1xx_timer = {
-	.init	= gemini_timer_init,
-};
-
 static void __init rut1xx_init(void)
 {
 	gemini_gpio_init();
@@ -89,6 +85,6 @@ MACHINE_START(RUT100, "Teltonika RUT100")
 	.atag_offset	= 0x100,
 	.map_io		= gemini_map_io,
 	.init_irq	= gemini_init_irq,
-	.timer		= &rut1xx_timer,
+	.init_time	= gemini_timer_init,
 	.init_machine	= rut1xx_init,
 MACHINE_END

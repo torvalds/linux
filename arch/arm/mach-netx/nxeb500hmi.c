@@ -180,7 +180,7 @@ MACHINE_START(NXEB500HMI, "Hilscher nxeb500hmi")
 	.atag_offset	= 0x100,
 	.map_io		= netx_map_io,
 	.init_irq	= netx_init_irq,
-	.timer		= &netx_timer,
+	.init_time	= netx_timer_init,
 	.init_machine	= nxeb500hmi_init,
 	.restart	= netx_restart,
 MACHINE_END

@@ -346,17 +346,13 @@ static void __init pcm038_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer pcm038_timer = {
-	.init = pcm038_timer_init,
-};
-
 MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &pcm038_timer,
+	.init_time	= pcm038_timer_init,
 	.init_machine = pcm038_init,
 	.restart	= mxc_restart,
 MACHINE_END

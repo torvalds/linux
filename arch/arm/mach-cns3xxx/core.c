@@ -134,7 +134,6 @@ static int cns3xxx_timer_set_next_event(unsigned long evt,
 
 static struct clock_event_device cns3xxx_tmr1_clockevent = {
 	.name		= "cns3xxx timer1",
-	.shift		= 8,
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= cns3xxx_timer_set_mode,
 	.set_next_event	= cns3xxx_timer_set_next_event,
@@ -145,15 +144,9 @@ static struct clock_event_device cns3xxx_tmr1_clockevent = {
 static void __init cns3xxx_clockevents_init(unsigned int timer_irq)
 {
 	cns3xxx_tmr1_clockevent.irq = timer_irq;
-	cns3xxx_tmr1_clockevent.mult =
-		div_sc((cns3xxx_cpu_clock() >> 3) * 1000000, NSEC_PER_SEC,
-		       cns3xxx_tmr1_clockevent.shift);
-	cns3xxx_tmr1_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xffffffff, &cns3xxx_tmr1_clockevent);
-	cns3xxx_tmr1_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xf, &cns3xxx_tmr1_clockevent);
-
-	clockevents_register_device(&cns3xxx_tmr1_clockevent);
+	clockevents_config_and_register(&cns3xxx_tmr1_clockevent,
+					(cns3xxx_cpu_clock() >> 3) * 1000000,
+					0xf, 0xffffffff);
 }
 
 /*
@@ -235,16 +228,12 @@ static void __init __cns3xxx_timer_init(unsigned int timer_irq)
 	cns3xxx_clockevents_init(timer_irq);
 }
 
-static void __init cns3xxx_timer_init(void)
+void __init cns3xxx_timer_init(void)
 {
 	cns3xxx_tmr1 = IOMEM(CNS3XXX_TIMER1_2_3_BASE_VIRT);
 
 	__cns3xxx_timer_init(IRQ_CNS3XXX_TIMER0);
 }
-
-struct sys_timer cns3xxx_timer = {
-	.init = cns3xxx_timer_init,
-};
 
 #ifdef CONFIG_CACHE_L2X0
 

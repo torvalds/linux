@@ -52,7 +52,7 @@ struct mac_booter_data mac_bi_data;
 static unsigned long mac_orig_videoaddr;
 
 /* Mac specific timer functions */
-extern unsigned long mac_gettimeoffset(void);
+extern u32 mac_gettimeoffset(void);
 extern int mac_hwclk(int, struct rtc_time *);
 extern int mac_set_clock_mmss(unsigned long);
 extern void iop_preinit(void);
@@ -177,7 +177,7 @@ void __init config_mac(void)
 	mach_sched_init = mac_sched_init;
 	mach_init_IRQ = mac_init_IRQ;
 	mach_get_model = mac_get_model;
-	mach_gettimeoffset = mac_gettimeoffset;
+	arch_gettimeoffset = mac_gettimeoffset;
 	mach_hwclk = mac_hwclk;
 	mach_set_clock_mmss = mac_set_clock_mmss;
 	mach_reset = mac_reset;

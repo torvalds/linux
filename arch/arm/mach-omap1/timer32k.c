@@ -140,7 +140,6 @@ static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device clockevent_32k_timer = {
 	.name		= "32k-timer",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_next_event	= omap_32k_timer_set_next_event,
 	.set_mode	= omap_32k_timer_set_mode,
 };
@@ -165,16 +164,9 @@ static __init void omap_init_32k_timer(void)
 {
 	setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
 
-	clockevent_32k_timer.mult = div_sc(OMAP_32K_TICKS_PER_SEC,
-					   NSEC_PER_SEC,
-					   clockevent_32k_timer.shift);
-	clockevent_32k_timer.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &clockevent_32k_timer);
-	clockevent_32k_timer.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_32k_timer);
-
 	clockevent_32k_timer.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_32k_timer);
+	clockevents_config_and_register(&clockevent_32k_timer,
+					OMAP_32K_TICKS_PER_SEC, 1, 0xfffffffe);
 }
 
 /*

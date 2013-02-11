@@ -461,6 +461,6 @@ MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
 	.init_late	= omap4430_init_late,
-	.timer		= &omap4_timer,
+	.init_time	= omap4_local_timer_init,
 	.restart	= omap44xx_restart,
 MACHINE_END

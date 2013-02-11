@@ -175,19 +175,13 @@ static u32 notrace sirfsoc_read_sched_clock(void)
 
 static void __init sirfsoc_clockevent_init(void)
 {
-	clockevents_calc_mult_shift(&sirfsoc_clockevent, CLOCK_TICK_RATE, 60);
-
-	sirfsoc_clockevent.max_delta_ns =
-		clockevent_delta2ns(-2, &sirfsoc_clockevent);
-	sirfsoc_clockevent.min_delta_ns =
-		clockevent_delta2ns(2, &sirfsoc_clockevent);
-
 	sirfsoc_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&sirfsoc_clockevent);
+	clockevents_config_and_register(&sirfsoc_clockevent, CLOCK_TICK_RATE,
+					2, -2);
 }
 
 /* initialize the kernel jiffy timer source */
-static void __init sirfsoc_timer_init(void)
+void __init sirfsoc_timer_init(void)
 {
 	unsigned long rate;
 	struct clk *clk;
@@ -226,7 +220,7 @@ static struct of_device_id timer_ids[] = {
 	{},
 };
 
-static void __init sirfsoc_of_timer_map(void)
+void __init sirfsoc_of_timer_map(void)
 {
 	struct device_node *np;
 	const unsigned int *intspec;
@@ -245,7 +239,3 @@ static void __init sirfsoc_of_timer_map(void)
 
 	of_node_put(np);
 }
-
-struct sys_timer sirfsoc_timer = {
-	.init = sirfsoc_timer_init,
-};

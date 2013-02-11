@@ -40,6 +40,6 @@ MACHINE_START(W90P950EVB, "W90P950EVB")
 	.map_io		= nuc950evb_map_io,
 	.init_irq	= nuc900_init_irq,
 	.init_machine	= nuc950evb_init,
-	.timer		= &nuc900_timer,
+	.init_time	= nuc900_timer_init,
 	.restart	= nuc9xx_restart,
 MACHINE_END

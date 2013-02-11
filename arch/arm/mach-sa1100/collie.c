@@ -399,7 +399,7 @@ MACHINE_START(COLLIE, "Sharp-Collie")
 	.map_io		= collie_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= collie_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,

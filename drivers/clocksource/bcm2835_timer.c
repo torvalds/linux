@@ -101,7 +101,7 @@ static struct of_device_id bcm2835_time_match[] __initconst = {
 	{}
 };
 
-static void __init bcm2835_time_init(void)
+void __init bcm2835_timer_init(void)
 {
 	struct device_node *node;
 	void __iomem *base;
@@ -155,7 +155,3 @@ static void __init bcm2835_time_init(void)
 
 	pr_info("bcm2835: system timer (irq = %d)\n", irq);
 }
-
-struct sys_timer bcm2835_timer = {
-	.init = bcm2835_time_init,
-};

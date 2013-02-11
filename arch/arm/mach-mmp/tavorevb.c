@@ -103,7 +103,7 @@ MACHINE_START(TAVOREVB, "PXA910 Evaluation Board (aka TavorEVB)")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa910_init_irq,
-	.timer          = &pxa910_timer,
+	.init_time	= pxa910_timer_init,
 	.init_machine   = tavorevb_init,
 	.restart	= mmp_restart,
 MACHINE_END

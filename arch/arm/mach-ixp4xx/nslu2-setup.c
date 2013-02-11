@@ -232,10 +232,6 @@ static void __init nslu2_timer_init(void)
     ixp4xx_timer_init();
 }
 
-static struct sys_timer nslu2_timer = {
-    .init   = nslu2_timer_init,
-};
-
 static void __init nslu2_init(void)
 {
 	uint8_t __iomem *f;
@@ -303,7 +299,7 @@ MACHINE_START(NSLU2, "Linksys NSLU2")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &nslu2_timer,
+	.init_time	= nslu2_timer_init,
 	.init_machine	= nslu2_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,

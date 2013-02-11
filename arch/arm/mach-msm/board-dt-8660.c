@@ -47,6 +47,6 @@ DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.init_irq = irqchip_init,
 	.init_machine = msm8x60_dt_init,
 	.init_late = msm8x60_init_late,
-	.timer = &msm_dt_timer,
+	.init_time	= msm_dt_timer_init,
 	.dt_compat = msm8x60_fluid_match,
 MACHINE_END

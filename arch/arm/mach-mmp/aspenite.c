@@ -262,7 +262,7 @@ MACHINE_START(ASPENITE, "PXA168-based Aspenite Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa168_init_irq,
-	.timer          = &pxa168_timer,
+	.init_time	= pxa168_timer_init,
 	.init_machine   = common_init,
 	.restart	= pxa168_restart,
 MACHINE_END
@@ -271,7 +271,7 @@ MACHINE_START(ZYLONITE2, "PXA168-based Zylonite2 Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa168_init_irq,
-	.timer          = &pxa168_timer,
+	.init_time	= pxa168_timer_init,
 	.init_machine   = common_init,
 	.restart	= pxa168_restart,
 MACHINE_END

@@ -39,17 +39,6 @@
 extern unsigned long loops_per_jiffy; /* init/main.c */
 unsigned long loops_per_usec;
 
-
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-extern unsigned long do_slow_gettimeoffset(void);
-static unsigned long (*do_gettimeoffset)(void) = do_slow_gettimeoffset;
-
-u32 arch_gettimeoffset(void)
-{
-       return do_gettimeoffset() * 1000;
-}
-#endif
-
 int set_rtc_mmss(unsigned long nowtime)
 {
 	D(printk(KERN_DEBUG "set_rtc_mmss(%lu)\n", nowtime));

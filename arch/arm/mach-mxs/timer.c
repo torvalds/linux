@@ -195,7 +195,6 @@ static void mxs_set_mode(enum clock_event_mode mode,
 static struct clock_event_device mxs_clockevent_device = {
 	.name		= "mxs_timrot",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_mode	= mxs_set_mode,
 	.set_next_event	= timrotv2_set_next_event,
 	.rating		= 200,
@@ -203,25 +202,12 @@ static struct clock_event_device mxs_clockevent_device = {
 
 static int __init mxs_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int c = clk_get_rate(timer_clk);
-
-	mxs_clockevent_device.mult =
-		div_sc(c, NSEC_PER_SEC, mxs_clockevent_device.shift);
-	mxs_clockevent_device.cpumask = cpumask_of(0);
-	if (timrot_is_v1()) {
+	if (timrot_is_v1())
 		mxs_clockevent_device.set_next_event = timrotv1_set_next_event;
-		mxs_clockevent_device.max_delta_ns =
-			clockevent_delta2ns(0xfffe, &mxs_clockevent_device);
-		mxs_clockevent_device.min_delta_ns =
-			clockevent_delta2ns(0xf, &mxs_clockevent_device);
-	} else {
-		mxs_clockevent_device.max_delta_ns =
-			clockevent_delta2ns(0xfffffffe, &mxs_clockevent_device);
-		mxs_clockevent_device.min_delta_ns =
-			clockevent_delta2ns(0xf, &mxs_clockevent_device);
-	}
-
-	clockevents_register_device(&mxs_clockevent_device);
+	mxs_clockevent_device.cpumask = cpumask_of(0);
+	clockevents_config_and_register(&mxs_clockevent_device,
+					clk_get_rate(timer_clk), 0xf,
+					timrot_is_v1() ? 0xfffe : 0xfffffffe);
 
 	return 0;
 }

@@ -143,13 +143,9 @@ static int __cpuinit msm_local_timer_setup(struct clock_event_device *evt)
 	evt->rating = msm_clockevent.rating;
 	evt->set_mode = msm_timer_set_mode;
 	evt->set_next_event = msm_timer_set_next_event;
-	evt->shift = msm_clockevent.shift;
-	evt->mult = div_sc(GPT_HZ, NSEC_PER_SEC, evt->shift);
-	evt->max_delta_ns = clockevent_delta2ns(0xf0000000, evt);
-	evt->min_delta_ns = clockevent_delta2ns(4, evt);
 
 	*__this_cpu_ptr(msm_evt.percpu_evt) = evt;
-	clockevents_register_device(evt);
+	clockevents_config_and_register(evt, GPT_HZ, 4, 0xf0000000);
 	enable_percpu_irq(evt->irq, IRQ_TYPE_EDGE_RISING);
 	return 0;
 }
@@ -228,7 +224,7 @@ static const struct of_device_id msm_gpt_match[] __initconst = {
 	{ },
 };
 
-static void __init msm_dt_timer_init(void)
+void __init msm_dt_timer_init(void)
 {
 	struct device_node *np;
 	u32 freq;
@@ -295,10 +291,6 @@ static void __init msm_dt_timer_init(void)
 
 	msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
-
-struct sys_timer msm_dt_timer = {
-	.init = msm_dt_timer_init
-};
 #endif
 
 static int __init msm_timer_map(phys_addr_t event, phys_addr_t source)
@@ -316,7 +308,7 @@ static int __init msm_timer_map(phys_addr_t event, phys_addr_t source)
 	return 0;
 }
 
-static void __init msm7x01_timer_init(void)
+void __init msm7x01_timer_init(void)
 {
 	struct clocksource *cs = &msm_clocksource;
 
@@ -329,28 +321,16 @@ static void __init msm7x01_timer_init(void)
 			false);
 }
 
-struct sys_timer msm7x01_timer = {
-	.init = msm7x01_timer_init
-};
-
-static void __init msm7x30_timer_init(void)
+void __init msm7x30_timer_init(void)
 {
 	if (msm_timer_map(0xc0100004, 0xc0100024))
 		return;
 	msm_timer_init(24576000 / 4, 32, 1, false);
 }
 
-struct sys_timer msm7x30_timer = {
-	.init = msm7x30_timer_init
-};
-
-static void __init qsd8x50_timer_init(void)
+void __init qsd8x50_timer_init(void)
 {
 	if (msm_timer_map(0xAC100000, 0xAC100010))
 		return;
 	msm_timer_init(19200000 / 4, 32, 7, false);
 }
-
-struct sys_timer qsd8x50_timer = {
-	.init = qsd8x50_timer_init
-};

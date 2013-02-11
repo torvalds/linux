@@ -38,7 +38,7 @@ MACHINE_START(GESBC9312, "Glomation GESBC-9312-sx")
 	.atag_offset	= 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
-	.timer		= &ep93xx_timer,
+	.init_time	= ep93xx_timer_init,
 	.init_machine	= gesbc9312_init_machine,
 	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,

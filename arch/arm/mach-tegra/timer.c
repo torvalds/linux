@@ -168,7 +168,7 @@ static const struct of_device_id rtc_match[] __initconst = {
 	{}
 };
 
-static void __init tegra_init_timer(void)
+void __init tegra_init_timer(void)
 {
 	struct device_node *np;
 	struct clk *clk;
@@ -259,23 +259,15 @@ static void __init tegra_init_timer(void)
 		BUG();
 	}
 
-	clockevents_calc_mult_shift(&tegra_clockevent, 1000000, 5);
-	tegra_clockevent.max_delta_ns =
-		clockevent_delta2ns(0x1fffffff, &tegra_clockevent);
-	tegra_clockevent.min_delta_ns =
-		clockevent_delta2ns(0x1, &tegra_clockevent);
 	tegra_clockevent.cpumask = cpu_all_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
-	clockevents_register_device(&tegra_clockevent);
+	clockevents_config_and_register(&tegra_clockevent, 1000000,
+					0x1, 0x1fffffff);
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_local_timer_of_register();
 #endif
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
-
-struct sys_timer tegra_sys_timer = {
-	.init = tegra_init_timer,
-};
 
 #ifdef CONFIG_PM
 static u32 usec_config;

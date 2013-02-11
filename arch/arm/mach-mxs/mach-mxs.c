@@ -163,18 +163,10 @@ static void __init imx23_timer_init(void)
 	mx23_clocks_init();
 }
 
-static struct sys_timer imx23_timer = {
-	.init = imx23_timer_init,
-};
-
 static void __init imx28_timer_init(void)
 {
 	mx28_clocks_init();
 }
-
-static struct sys_timer imx28_timer = {
-	.init = imx28_timer_init,
-};
 
 enum mac_oui {
 	OUI_FSL,
@@ -446,7 +438,7 @@ DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 	.map_io		= mx23_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx23_timer,
+	.init_time	= imx23_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx23_dt_compat,
 	.restart	= mxs_restart,
@@ -456,7 +448,7 @@ DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx28_timer,
+	.init_time	= imx28_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx28_dt_compat,
 	.restart	= mxs_restart,
