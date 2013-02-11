@@ -417,7 +417,6 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 				cleanup_work);
 	soft_iface = bat_priv->soft_iface;
 
-	batadv_debugfs_del_meshif(soft_iface);
 	batadv_sysfs_del_meshif(soft_iface);
 
 	rtnl_lock();
@@ -522,6 +521,17 @@ static const struct net_device_ops batadv_netdev_ops = {
 };
 
 /**
+ * batadv_softif_free - Deconstructor of batadv_soft_interface
+ * @dev: Device to cleanup and remove
+ */
+static void batadv_softif_free(struct net_device *dev)
+{
+	batadv_debugfs_del_meshif(dev);
+	batadv_mesh_free(dev);
+	free_netdev(dev);
+}
+
+/**
  * batadv_softif_init_early - early stage initialization of soft interface
  * @dev: registered network device to modify
  */
@@ -532,7 +542,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &batadv_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = batadv_softif_free;
 	dev->tx_queue_len = 0;
 
 	/* can't call min_mtu, because the needed variables
@@ -575,7 +585,6 @@ void batadv_softif_destroy(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 
-	batadv_mesh_free(soft_iface);
 	queue_work(batadv_event_workqueue, &bat_priv->cleanup_work);
 }
 
