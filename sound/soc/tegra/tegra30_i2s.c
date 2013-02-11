@@ -71,7 +71,7 @@ static int tegra30_i2s_runtime_resume(struct device *dev)
 	return 0;
 }
 
-int tegra30_i2s_startup(struct snd_pcm_substream *substream,
+static int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
@@ -98,7 +98,7 @@ int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-void tegra30_i2s_shutdown(struct snd_pcm_substream *substream,
+static void tegra30_i2s_shutdown(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
