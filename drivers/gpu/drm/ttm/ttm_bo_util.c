@@ -344,8 +344,12 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 
 	if (ttm->state == tt_unpopulated) {
 		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
-		if (ret)
+		if (ret) {
+			/* if we fail here don't nuke the mm node
+			 * as the bo still owns it */
+			old_copy.mm_node = NULL;
 			goto out1;
+		}
 	}
 
 	add = 0;
@@ -371,8 +375,11 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 						   prot);
 		} else
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
-		if (ret)
+		if (ret) {
+			/* failing here, means keep old copy as-is */
+			old_copy.mm_node = NULL;
 			goto out1;
+		}
 	}
 	mb();
 out2:

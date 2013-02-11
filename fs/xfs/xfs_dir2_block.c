@@ -355,10 +355,12 @@ xfs_dir2_block_addname(
 	/*
 	 * If need to compact the leaf entries, do it now.
 	 */
-	if (compact)
+	if (compact) {
 		xfs_dir2_block_compact(tp, bp, hdr, btp, blp, &needlog,
 				      &lfloghigh, &lfloglow);
-	else if (btp->stale) {
+		/* recalculate blp post-compaction */
+		blp = xfs_dir2_block_leaf_p(btp);
+	} else if (btp->stale) {
 		/*
 		 * Set leaf logging boundaries to impossible state.
 		 * For the no-stale case they're set explicitly.

@@ -446,14 +446,8 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mode = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mode = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mode = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mode = 3;
 		break;
 	default:
 		arizona_aif_err(dai, "Unsupported DAI format %d\n",
@@ -691,7 +685,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	}
 	sr_val = i;
 
-	lrclk = snd_soc_params_to_bclk(params) / params_rate(params);
+	lrclk = rates[bclk] / params_rate(params);
 
 	arizona_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
@@ -714,7 +708,8 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, ARIZONA_ASYNC_SAMPLE_RATE_1,
 				    ARIZONA_ASYNC_SAMPLE_RATE_MASK, sr_val);
 		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
-				    ARIZONA_AIF1_RATE_MASK, 8);
+				    ARIZONA_AIF1_RATE_MASK,
+				    8 << ARIZONA_AIF1_RATE_SHIFT);
 		break;
 	default:
 		arizona_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
@@ -1086,6 +1081,9 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		dev_err(arizona->dev, "Failed to get FLL%d clock OK IRQ: %d\n",
 			id, ret);
 	}
+
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   ARIZONA_FLL1_FREERUN, 0);
 
 	return 0;
 }

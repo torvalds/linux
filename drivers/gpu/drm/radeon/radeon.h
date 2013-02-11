@@ -324,7 +324,6 @@ struct radeon_bo {
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				placements[3];
-	u32				busy_placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
@@ -654,6 +653,8 @@ struct radeon_ring {
 	u32			ptr_reg_mask;
 	u32			nop;
 	u32			idx;
+	u64			last_semaphore_signal_addr;
+	u64			last_semaphore_wait_addr;
 };
 
 /*

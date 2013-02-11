@@ -3,7 +3,9 @@ config FIREWIRE_SERIAL
        depends on FIREWIRE
        help
           This enables TTY over IEEE 1394, providing high-speed serial
-	  connectivity to cabled peers.
+	  connectivity to cabled peers. This driver implements a
+	  ad-hoc transport protocol and is currently limited to
+	  Linux-to-Linux communication.
 
 	  To compile this driver as a module, say M here:  the module will
 	  be called firewire-serial.

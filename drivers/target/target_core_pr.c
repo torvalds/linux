@@ -2053,7 +2053,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	/* Used for APTPL metadata w/ UNREGISTER */
 	unsigned char *pr_aptpl_buf = NULL;
 	unsigned char isid_buf[PR_REG_ISID_LEN], *isid_ptr = NULL;
-	sense_reason_t ret;
+	sense_reason_t ret = TCM_NO_SENSE;
 	int pr_holder = 0, type;
 
 	if (!se_sess || !se_lun) {

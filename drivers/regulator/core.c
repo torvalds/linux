@@ -1885,9 +1885,15 @@ int regulator_can_change_voltage(struct regulator *regulator)
 	struct regulator_dev	*rdev = regulator->rdev;
 
 	if (rdev->constraints &&
-	    rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE &&
-	    (rdev->desc->n_voltages - rdev->desc->linear_min_sel) > 1)
-		return 1;
+	    (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
+		if (rdev->desc->n_voltages - rdev->desc->linear_min_sel > 1)
+			return 1;
+
+		if (rdev->desc->continuous_voltage_range &&
+		    rdev->constraints->min_uV && rdev->constraints->max_uV &&
+		    rdev->constraints->min_uV != rdev->constraints->max_uV)
+			return 1;
+	}
 
 	return 0;
 }
@@ -3315,7 +3321,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  * @config: runtime configuration for regulator
  *
  * Called by regulator drivers to register a regulator.
- * Returns 0 on success.
+ * Returns a valid pointer to struct regulator_dev on success
+ * or an ERR_PTR() on error.
  */
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,

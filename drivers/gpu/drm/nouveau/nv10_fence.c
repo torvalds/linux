@@ -162,6 +162,13 @@ nv10_fence_destroy(struct nouveau_drm *drm)
 	kfree(priv);
 }
 
+void nv17_fence_resume(struct nouveau_drm *drm)
+{
+	struct nv10_fence_priv *priv = drm->fence;
+
+	nouveau_bo_wr32(priv->bo, 0, priv->sequence);
+}
+
 int
 nv10_fence_create(struct nouveau_drm *drm)
 {
@@ -197,6 +204,7 @@ nv10_fence_create(struct nouveau_drm *drm)
 		if (ret == 0) {
 			nouveau_bo_wr32(priv->bo, 0x000, 0x00000000);
 			priv->base.sync = nv17_fence_sync;
+			priv->base.resume = nv17_fence_resume;
 		}
 	}
 

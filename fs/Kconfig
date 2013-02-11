@@ -68,16 +68,6 @@ source "fs/quota/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
 
-config CUSE
-	tristate "Character device in Userspace support"
-	depends on FUSE_FS
-	help
-	  This FUSE extension allows character devices to be
-	  implemented in userspace.
-
-	  If you want to develop or use userspace character device
-	  based on CUSE, answer Y or M.
-
 config GENERIC_ACL
 	bool
 	select FS_POSIX_ACL

@@ -4,6 +4,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/export.h>
+#include <linux/rtnetlink.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -197,6 +198,15 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		struct ieee80211_sub_if_data *vlan;
+
+		/* for the VLAN list */
+		ASSERT_RTNL();
+		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+			rcu_assign_pointer(vlan->vif.chanctx_conf, NULL);
+	}
+
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
@@ -316,6 +326,15 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		struct ieee80211_sub_if_data *vlan;
+
+		/* for the VLAN list */
+		ASSERT_RTNL();
+		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+			rcu_assign_pointer(vlan->vif.chanctx_conf, &ctx->conf);
+	}
+
 	ieee80211_recalc_smps_chanctx(local, ctx);
  out:
 	mutex_unlock(&local->chanctx_mtx);
@@ -329,6 +348,25 @@ void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	mutex_lock(&sdata->local->chanctx_mtx);
 	__ieee80211_vif_release_channel(sdata);
 	mutex_unlock(&sdata->local->chanctx_mtx);
+}
+
+void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *ap;
+	struct ieee80211_chanctx_conf *conf;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP_VLAN || !sdata->bss))
+		return;
+
+	ap = container_of(sdata->bss, struct ieee80211_sub_if_data, u.ap);
+
+	mutex_lock(&local->chanctx_mtx);
+
+	conf = rcu_dereference_protected(ap->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	rcu_assign_pointer(sdata->vif.chanctx_conf, conf);
+	mutex_unlock(&local->chanctx_mtx);
 }
 
 void ieee80211_iter_chan_contexts_atomic(

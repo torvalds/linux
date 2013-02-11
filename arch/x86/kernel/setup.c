@@ -610,6 +610,83 @@ static __init void reserve_ibft_region(void)
 
 static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
 
+static bool __init snb_gfx_workaround_needed(void)
+{
+#ifdef CONFIG_PCI
+	int i;
+	u16 vendor, devid;
+	static const __initconst u16 snb_ids[] = {
+		0x0102,
+		0x0112,
+		0x0122,
+		0x0106,
+		0x0116,
+		0x0126,
+		0x010a,
+	};
+
+	/* Assume no if something weird is going on with PCI */
+	if (!early_pci_allowed())
+		return false;
+
+	vendor = read_pci_config_16(0, 2, 0, PCI_VENDOR_ID);
+	if (vendor != 0x8086)
+		return false;
+
+	devid = read_pci_config_16(0, 2, 0, PCI_DEVICE_ID);
+	for (i = 0; i < ARRAY_SIZE(snb_ids); i++)
+		if (devid == snb_ids[i])
+			return true;
+#endif
+
+	return false;
+}
+
+/*
+ * Sandy Bridge graphics has trouble with certain ranges, exclude
+ * them from allocation.
+ */
+static void __init trim_snb_memory(void)
+{
+	static const __initconst unsigned long bad_pages[] = {
+		0x20050000,
+		0x20110000,
+		0x20130000,
+		0x20138000,
+		0x40004000,
+	};
+	int i;
+
+	if (!snb_gfx_workaround_needed())
+		return;
+
+	printk(KERN_DEBUG "reserving inaccessible SNB gfx pages\n");
+
+	/*
+	 * Reserve all memory below the 1 MB mark that has not
+	 * already been reserved.
+	 */
+	memblock_reserve(0, 1<<20);
+	
+	for (i = 0; i < ARRAY_SIZE(bad_pages); i++) {
+		if (memblock_reserve(bad_pages[i], PAGE_SIZE))
+			printk(KERN_WARNING "failed to reserve 0x%08lx\n",
+			       bad_pages[i]);
+	}
+}
+
+/*
+ * Here we put platform-specific memory range workarounds, i.e.
+ * memory known to be corrupt or otherwise in need to be reserved on
+ * specific platforms.
+ *
+ * If this gets used more widely it could use a real dispatch mechanism.
+ */
+static void __init trim_platform_memory_ranges(void)
+{
+	trim_snb_memory();
+}
+
 static void __init trim_bios_range(void)
 {
 	/*
@@ -630,6 +707,7 @@ static void __init trim_bios_range(void)
 	 * take them out.
 	 */
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
+
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
 
@@ -729,15 +807,15 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_EFI
 	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
 		     "EL32", 4)) {
-		efi_enabled = 1;
-		efi_64bit = false;
+		set_bit(EFI_BOOT, &x86_efi_facility);
 	} else if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
 		     "EL64", 4)) {
-		efi_enabled = 1;
-		efi_64bit = true;
+		set_bit(EFI_BOOT, &x86_efi_facility);
+		set_bit(EFI_64BIT, &x86_efi_facility);
 	}
-	if (efi_enabled && efi_memblock_x86_reserve_range())
-		efi_enabled = 0;
+
+	if (efi_enabled(EFI_BOOT))
+		efi_memblock_x86_reserve_range();
 #endif
 
 	x86_init.oem.arch_setup();
@@ -810,7 +888,7 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
-	if (efi_enabled)
+	if (efi_enabled(EFI_BOOT))
 		efi_init();
 
 	dmi_scan_machine();
@@ -893,7 +971,7 @@ void __init setup_arch(char **cmdline_p)
 	 * The EFI specification says that boot service code won't be called
 	 * after ExitBootServices(). This is, in fact, a lie.
 	 */
-	if (efi_enabled)
+	if (efi_enabled(EFI_MEMMAP))
 		efi_reserve_boot_services();
 
 	/* preallocate 4k for mptable mpc */
@@ -907,6 +985,8 @@ void __init setup_arch(char **cmdline_p)
 			(max_pfn_mapped<<PAGE_SHIFT) - 1);
 
 	setup_real_mode();
+
+	trim_platform_memory_ranges();
 
 	init_gbpages();
 
@@ -1034,7 +1114,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
-	if (!efi_enabled || (efi_mem_type(0xa0000) != EFI_CONVENTIONAL_MEMORY))
+	if (!efi_enabled(EFI_BOOT) || (efi_mem_type(0xa0000) != EFI_CONVENTIONAL_MEMORY))
 		conswitchp = &vga_con;
 #elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
@@ -1051,14 +1131,14 @@ void __init setup_arch(char **cmdline_p)
 	register_refined_jiffies(CLOCK_TICK_RATE);
 
 #ifdef CONFIG_EFI
-	/* Once setup is done above, disable efi_enabled on mismatched
-	 * firmware/kernel archtectures since there is no support for
-	 * runtime services.
+	/* Once setup is done above, unmap the EFI memory map on
+	 * mismatched firmware/kernel archtectures since there is no
+	 * support for runtime services.
 	 */
-	if (efi_enabled && IS_ENABLED(CONFIG_X86_64) != efi_64bit) {
+	if (efi_enabled(EFI_BOOT) &&
+	    IS_ENABLED(CONFIG_X86_64) != efi_enabled(EFI_64BIT)) {
 		pr_info("efi: Setup done, disabling due to 32/64-bit mismatch\n");
 		efi_unmap_memmap();
-		efi_enabled = 0;
 	}
 #endif
 }

@@ -2899,6 +2899,8 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
 
+	buf[cnt] = 0;
+
 	trace_set_options(buf);
 
 	*ppos += cnt;
@@ -3452,7 +3454,7 @@ static int tracing_wait_pipe(struct file *filp)
 			return -EINTR;
 
 		/*
-		 * We block until we read something and tracing is enabled.
+		 * We block until we read something and tracing is disabled.
 		 * We still block if tracing is disabled, but we have never
 		 * read anything. This allows a user to cat this file, and
 		 * then enable tracing. But after we have read something,
@@ -3460,7 +3462,7 @@ static int tracing_wait_pipe(struct file *filp)
 		 *
 		 * iter->pos will be 0 if we haven't read anything.
 		 */
-		if (tracing_is_enabled() && iter->pos)
+		if (!tracing_is_enabled() && iter->pos)
 			break;
 	}
 
@@ -4815,10 +4817,17 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	if (buffer) {
-		if (val)
+		mutex_lock(&trace_types_lock);
+		if (val) {
 			ring_buffer_record_on(buffer);
-		else
+			if (current_trace->start)
+				current_trace->start(tr);
+		} else {
 			ring_buffer_record_off(buffer);
+			if (current_trace->stop)
+				current_trace->stop(tr);
+		}
+		mutex_unlock(&trace_types_lock);
 	}
 
 	(*ppos)++;

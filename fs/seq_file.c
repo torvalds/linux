@@ -296,7 +296,7 @@ EXPORT_SYMBOL(seq_read);
  *	seq_lseek -	->llseek() method for sequential files.
  *	@file: the file in question
  *	@offset: new position
- *	@origin: 0 for absolute, 1 for relative position
+ *	@whence: 0 for absolute, 1 for relative position
  *
  *	Ready-made ->f_op->llseek()
  */

@@ -239,7 +239,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 	struct mxs_lradc *lradc = iio_priv(iio);
 	const uint32_t chan_value = LRADC_CH_ACCUMULATE |
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
-	int i, j = 0;
+	unsigned int i, j = 0;
 
 	for_each_set_bit(i, iio->active_scan_mask, iio->masklength) {
 		lradc->buffer[j] = readl(lradc->base + LRADC_CH(j));

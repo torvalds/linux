@@ -1806,7 +1806,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 	struct iucv_irq_data *p;
 	struct iucv_irq_list *work;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_IUC]++;
+	inc_irq_stat(IRQEXT_IUC);
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);
