@@ -2646,6 +2646,8 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		}
 	}
 	while (cur <= end) {
+		unsigned long pnr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
+
 		if (cur >= last_byte) {
 			char *userpage;
 			struct extent_state *cached = NULL;
@@ -2733,26 +2735,17 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			continue;
 		}
 
-		ret = 0;
-		if (tree->ops && tree->ops->readpage_io_hook) {
-			ret = tree->ops->readpage_io_hook(page, cur,
-							  cur + iosize - 1);
-		}
-		if (!ret) {
-			unsigned long pnr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
-			pnr -= page->index;
-			ret = submit_extent_page(READ, tree, page,
+		pnr -= page->index;
+		ret = submit_extent_page(READ, tree, page,
 					 sector, disk_io_size, pg_offset,
 					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag);
-			if (!ret) {
-				nr++;
-				*bio_flags = this_bio_flag;
-			}
-		}
-		if (ret) {
+		if (!ret) {
+			nr++;
+			*bio_flags = this_bio_flag;
+		} else {
 			SetPageError(page);
 			unlock_extent(tree, cur, cur + iosize - 1);
 		}
@@ -3441,15 +3434,9 @@ retry:
 			 * swizzled back from swapper_space to tmpfs file
 			 * mapping
 			 */
-			if (tree->ops &&
-			    tree->ops->write_cache_pages_lock_hook) {
-				tree->ops->write_cache_pages_lock_hook(page,
-							       data, flush_fn);
-			} else {
-				if (!trylock_page(page)) {
-					flush_fn(data);
-					lock_page(page);
-				}
+			if (!trylock_page(page)) {
+				flush_fn(data);
+				lock_page(page);
 			}
 
 			if (unlikely(page->mapping != mapping)) {
