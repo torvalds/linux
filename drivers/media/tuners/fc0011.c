@@ -187,9 +187,6 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	u8 fa, fp, vco_sel, vco_cal;
 	u8 regs[FC11_NR_REGS] = { };
 
-	if (priv->frequency == p->frequency)
-		return 0;
-
 	regs[FC11_REG_7] = 0x0F;
 	regs[FC11_REG_8] = 0x3E;
 	regs[FC11_REG_10] = 0xB8;
