@@ -135,16 +135,21 @@ struct hw_perf_event {
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
+		struct { /* tracepoint */
+			struct task_struct	*tp_target;
+			/* for tp_event->class */
+			struct list_head	tp_list;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
-			struct arch_hw_breakpoint	info;
-			struct list_head		bp_list;
 			/*
 			 * Crufty hack to avoid the chicken and egg
 			 * problem hw_breakpoint has with context
 			 * creation and event initalization.
 			 */
 			struct task_struct		*bp_target;
+			struct arch_hw_breakpoint	info;
+			struct list_head		bp_list;
 		};
 #endif
 	};
