@@ -24,6 +24,9 @@ int main(void)
 
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(THREAD_CALLEE_REG, offsetof(struct thread_struct, callee_reg));
+#ifdef CONFIG_ARC_CURR_IN_REG
+	DEFINE(THREAD_USER_R25, offsetof(struct thread_struct, user_r25));
+#endif
 	DEFINE(THREAD_FAULT_ADDR,
 	       offsetof(struct thread_struct, fault_address));
 

@@ -264,6 +264,13 @@ config LINUX_LINK_BASE
 
 endmenu # "Platform Board Configuration"
 
+config ARC_CURR_IN_REG
+	bool "Dedicate Register r25 for current_task pointer"
+	default y
+	help
+	  This reserved Register R25 to point to Current Task in
+	  kernel mode. This saves memory access for each such access
+
 config ARC_STACK_NONEXEC
 	bool "Make stack non-executable"
 	default n

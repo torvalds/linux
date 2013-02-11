@@ -32,6 +32,9 @@
  *   was being "CLEARED" rather then "SET". Since it is Loop INHIBIT Bit,
  *   setting it and not clearing it clears ZOL context
  *
+ * Vineetg: May 16th, 2008
+ *  - r25 now contains the Current Task when in kernel
+ *
  * Vineetg: Dec 22, 2007
  *    Minor Surgery of Low Level ISR to make it SMP safe
  *    - MMU_SCRATCH0 Reg used for freeing up r9 in Level 1 ISR
@@ -534,6 +537,17 @@ restore_regs :
 	; Disable Interrupts while restoring reg-file back
 	; XXX can this be optimised out
 	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	; Restore User R25
+	; Earlier this used to be only for returning to user mode
+	; However with 2 levels of IRQ this can also happen even if
+	; in kernel mode
+	ld r9, [sp, PT_sp]
+	brhs r9, VMALLOC_START, 8f
+	RESTORE_USER_R25
+8:
+#endif
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None

@@ -13,6 +13,8 @@
  *   was being "CLEARED" rather then "SET". Actually "SET" clears ZOL context
  *
  * Vineetg: May 5th 2008
+ *  -Modified CALLEE_REG save/restore macros to handle the fact that
+ *      r25 contains the kernel current task ptr
  *  - Defined Stack Switching Macro to be reused in all intr/excp hdlrs
  *  - Shaved off 11 instructions from RESTORE_ALL_INT1 by using the
  *      address Write back load ld.ab instead of seperate ld/add instn
@@ -28,6 +30,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/arcregs.h>
 #include <asm/ptrace.h>
+#include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
 /* Note on the LD/ST addr modes with addr reg wback
@@ -106,7 +109,14 @@
 	st.a    r22, [sp, -4]
 	st.a    r23, [sp, -4]
 	st.a    r24, [sp, -4]
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	; Retrieve orig r25 and save it on stack
+	ld      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+	st.a    r12, [sp, -4]
+#else
 	st.a    r25, [sp, -4]
+#endif
 
 	/* move up by 1 word to "create" callee_regs->"stack_place_holder" */
 	sub sp, sp, 4
@@ -131,8 +141,12 @@
 	st.a    r22, [sp, -4]
 	st.a    r23, [sp, -4]
 	st.a    r24, [sp, -4]
+#ifdef CONFIG_ARC_CURR_IN_REG
+	sub     sp, sp, 8
+#else
 	st.a    r25, [sp, -4]
 	sub     sp, sp, 4
+#endif
 .endm
 
 /*--------------------------------------------------------------
@@ -148,8 +162,14 @@
  *-------------------------------------------------------------*/
 .macro RESTORE_CALLEE_SAVED_KERNEL
 
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	add     sp, sp, 8  /* skip callee_reg gutter and user r25 placeholder */
+#else
 	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
 	ld.ab   r25, [sp, 4]
+#endif
+
 	ld.ab   r24, [sp, 4]
 	ld.ab   r23, [sp, 4]
 	ld.ab   r22, [sp, 4]
@@ -235,6 +255,7 @@
  *
  * Entry   : r9 contains pre-IRQ/exception/trap status32
  * Exit    : SP is set to kernel mode stack pointer
+ *           If CURR_IN_REG, r25 set to "current" task pointer
  * Clobbers: r9
  *-------------------------------------------------------------*/
 
@@ -258,6 +279,16 @@
 88: /*------Intr/Ecxp happened in user mode, "switch" stack ------ */
 
 	GET_CURR_TASK_ON_CPU   r9
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+
+	/* If current task pointer cached in r25, time to
+	 *  -safekeep USER r25 in task->thread_struct->user_r25
+	 *  -load r25 with current task ptr
+	 */
+	st.as	r25, [r9, (TASK_THREAD + THREAD_USER_R25)/4]
+	mov	r25, r9
+#endif
 
 	/* With current tsk in r9, get it's kernel mode stack base */
 	GET_TSK_STACK_BASE  r9, r9
@@ -519,16 +550,30 @@
 
 .macro  SET_CURR_TASK_ON_CPU    tsk, tmp
 	st  \tsk, [@_current_task]
+#ifdef CONFIG_ARC_CURR_IN_REG
+	mov r25, \tsk
+#endif
 .endm
 
 /* ------------------------------------------------------------------
  * Get the ptr to some field of Current Task at @off in task struct
+ *  -Uses r25 for Current task ptr if that is enabled
  */
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+
+.macro GET_CURR_TASK_FIELD_PTR  off,  reg
+	add \reg, r25, \off
+.endm
+
+#else
 
 .macro GET_CURR_TASK_FIELD_PTR  off,  reg
 	GET_CURR_TASK_ON_CPU  \reg
 	add \reg, \reg, \off
 .endm
+
+#endif	/* CONFIG_ARC_CURR_IN_REG */
 
 #endif  /* __ASSEMBLY__ */
 
