@@ -329,7 +329,7 @@ default_entry:
 	pushfl
 	popl %eax			# get EFLAGS
 	testl $X86_EFLAGS_ID,%eax	# did EFLAGS.ID remained set?
-	jz 6f				# hw disallowed setting of ID bit
+	jz enable_paging		# hw disallowed setting of ID bit
 					# which means no CPUID and no CR4
 
 	xorl %eax,%eax
@@ -339,13 +339,13 @@ default_entry:
 	movl $1,%eax
 	cpuid
 	andl $~1,%edx			# Ignore CPUID.FPU
-	jz 6f				# No flags or only CPUID.FPU = no CR4
+	jz enable_paging		# No flags or only CPUID.FPU = no CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
 
 	testb $X86_CR4_PAE, %al		# check if PAE is enabled
-	jz 6f
+	jz enable_paging
 
 	/* Check if extended functions are implemented */
 	movl $0x80000000, %eax
@@ -353,7 +353,7 @@ default_entry:
 	/* Value must be in the range 0x80000001 to 0x8000ffff */
 	subl $0x80000001, %eax
 	cmpl $(0x8000ffff-0x80000001), %eax
-	ja 6f
+	ja enable_paging
 
 	/* Clear bogus XD_DISABLE bits */
 	call verify_cpu
@@ -362,7 +362,7 @@ default_entry:
 	cpuid
 	/* Execute Disable bit supported? */
 	btl $(X86_FEATURE_NX & 31), %edx
-	jnc 6f
+	jnc enable_paging
 
 	/* Setup EFER (Extended Feature Enable Register) */
 	movl $MSR_EFER, %ecx
@@ -372,7 +372,7 @@ default_entry:
 	/* Make changes effective */
 	wrmsr
 
-6:
+enable_paging:
 
 /*
  * Enable paging
