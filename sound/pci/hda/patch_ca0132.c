@@ -2615,6 +2615,7 @@ static int dspload_image(struct hda_codec *codec,
 	return status;
 }
 
+#ifdef CONFIG_SND_HDA_CODEC_CA0132_DSP
 static bool dspload_is_loaded(struct hda_codec *codec)
 {
 	unsigned int data = 0;
@@ -2626,6 +2627,9 @@ static bool dspload_is_loaded(struct hda_codec *codec)
 
 	return true;
 }
+#else
+#define dspload_is_loaded(codec)	false
+#endif
 
 static bool dspload_wait_loaded(struct hda_codec *codec)
 {
