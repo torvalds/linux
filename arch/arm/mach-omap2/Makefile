@@ -8,7 +8,7 @@ obj-y := id.o io.o control.o mux.o devices.o fb.o serial.o gpmc.o timer.o pm.o \
 	 omap_device.o sram.o
 
 omap-2-3-common				= irq.o
-hwmod-common				= omap_hwmod.o \
+hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
 					  omap_hwmod_common_data.o
 clock-common				= clock.o clock_common_data.o \
 					  clkt_dpll.o clkt_clksel.o
