@@ -173,6 +173,8 @@ enum obj_request_type {
 enum obj_req_flags {
 	OBJ_REQ_DONE,		/* completion flag: not done = 0, done = 1 */
 	OBJ_REQ_IMG_DATA,	/* object usage: standalone = 0, image = 1 */
+	OBJ_REQ_KNOWN,		/* EXISTS flag valid: no = 0, yes = 1 */
+	OBJ_REQ_EXISTS,		/* target exists: no = 0, yes = 1 */
 };
 
 struct rbd_obj_request {
@@ -1129,6 +1131,37 @@ static bool obj_request_done_test(struct rbd_obj_request *obj_request)
 	return test_bit(OBJ_REQ_DONE, &obj_request->flags) != 0;
 }
 
+/*
+ * This sets the KNOWN flag after (possibly) setting the EXISTS
+ * flag.  The latter is set based on the "exists" value provided.
+ *
+ * Note that for our purposes once an object exists it never goes
+ * away again.  It's possible that the response from two existence
+ * checks are separated by the creation of the target object, and
+ * the first ("doesn't exist") response arrives *after* the second
+ * ("does exist").  In that case we ignore the second one.
+ */
+static void obj_request_existence_set(struct rbd_obj_request *obj_request,
+				bool exists)
+{
+	if (exists)
+		set_bit(OBJ_REQ_EXISTS, &obj_request->flags);
+	set_bit(OBJ_REQ_KNOWN, &obj_request->flags);
+	smp_mb();
+}
+
+static bool obj_request_known_test(struct rbd_obj_request *obj_request)
+{
+	smp_mb();
+	return test_bit(OBJ_REQ_KNOWN, &obj_request->flags) != 0;
+}
+
+static bool obj_request_exists_test(struct rbd_obj_request *obj_request)
+{
+	smp_mb();
+	return test_bit(OBJ_REQ_EXISTS, &obj_request->flags) != 0;
+}
+
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
@@ -1622,6 +1655,10 @@ static struct rbd_img_request *rbd_img_request_create(
 	img_request->obj_request_count = 0;
 	INIT_LIST_HEAD(&img_request->obj_requests);
 	kref_init(&img_request->kref);
+
+	(void) obj_request_existence_set;
+	(void) obj_request_known_test;
+	(void) obj_request_exists_test;
 
 	rbd_img_request_get(img_request);	/* Avoid a warning */
 	rbd_img_request_put(img_request);	/* TEMPORARY */
