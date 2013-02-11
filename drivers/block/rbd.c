@@ -170,10 +170,15 @@ enum obj_request_type {
 	OBJ_REQUEST_NODATA, OBJ_REQUEST_BIO, OBJ_REQUEST_PAGES
 };
 
+enum obj_req_flags {
+	OBJ_REQ_DONE,		/* completion flag: not done = 0, done = 1 */
+};
+
 struct rbd_obj_request {
 	const char		*object_name;
 	u64			offset;		/* object start byte */
 	u64			length;		/* bytes from offset */
+	unsigned long		flags;
 
 	struct rbd_img_request	*img_request;
 	u64			img_offset;	/* image relative offset */
@@ -194,7 +199,6 @@ struct rbd_obj_request {
 	u64			xferred;	/* bytes transferred */
 	u64			version;
 	int			result;
-	atomic_t		done;
 
 	rbd_obj_callback_t	callback;
 	struct completion	completion;
@@ -1072,6 +1076,29 @@ out_err:
 	return NULL;
 }
 
+/*
+ * The default/initial value for all object request flags is 0.  For
+ * each flag, once its value is set to 1 it is never reset to 0
+ * again.
+ */
+static void obj_request_done_set(struct rbd_obj_request *obj_request)
+{
+	if (test_and_set_bit(OBJ_REQ_DONE, &obj_request->flags)) {
+		struct rbd_img_request *img_request = obj_request->img_request;
+		struct rbd_device *rbd_dev;
+
+		rbd_dev = img_request ? img_request->rbd_dev : NULL;
+		rbd_warn(rbd_dev, "obj_request %p already marked done\n",
+			obj_request);
+	}
+}
+
+static bool obj_request_done_test(struct rbd_obj_request *obj_request)
+{
+	smp_mb();
+	return test_bit(OBJ_REQ_DONE, &obj_request->flags) != 0;
+}
+
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
@@ -1190,33 +1217,6 @@ static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
 	dout("%s: obj %p\n", __func__, obj_request);
 
 	return wait_for_completion_interruptible(&obj_request->completion);
-}
-
-static void obj_request_done_init(struct rbd_obj_request *obj_request)
-{
-	atomic_set(&obj_request->done, 0);
-	smp_wmb();
-}
-
-static void obj_request_done_set(struct rbd_obj_request *obj_request)
-{
-	int done;
-
-	done = atomic_inc_return(&obj_request->done);
-	if (done > 1) {
-		struct rbd_img_request *img_request = obj_request->img_request;
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = img_request ? img_request->rbd_dev : NULL;
-		rbd_warn(rbd_dev, "obj_request %p was already done\n",
-			obj_request);
-	}
-}
-
-static bool obj_request_done_test(struct rbd_obj_request *obj_request)
-{
-	smp_mb();
-	return atomic_read(&obj_request->done) != 0;
 }
 
 /*
@@ -1475,10 +1475,10 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	obj_request->object_name = memcpy(name, object_name, size);
 	obj_request->offset = offset;
 	obj_request->length = length;
+	obj_request->flags = 0;
 	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
-	obj_request_done_init(obj_request);
 	init_completion(&obj_request->completion);
 	kref_init(&obj_request->kref);
 
