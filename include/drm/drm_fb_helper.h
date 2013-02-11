@@ -77,9 +77,7 @@ struct drm_fb_helper_connector {
 
 struct drm_fb_helper {
 	struct drm_framebuffer *fb;
-	struct drm_framebuffer *saved_fb;
 	struct drm_device *dev;
-	struct drm_display_mode *mode;
 	int crtc_count;
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
