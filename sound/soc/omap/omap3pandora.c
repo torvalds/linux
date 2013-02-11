@@ -144,11 +144,11 @@ static const struct snd_soc_dapm_route omap3pandora_in_map[] = {
 	{"AUXL", NULL, "Line In"},
 	{"AUXR", NULL, "Line In"},
 
-	{"MAINMIC", NULL, "Mic Bias 1"},
-	{"Mic Bias 1", NULL, "Mic (internal)"},
+	{"MAINMIC", NULL, "Mic (internal)"},
+	{"Mic (internal)", NULL, "Mic Bias 1"},
 
-	{"SUBMIC", NULL, "Mic Bias 2"},
-	{"Mic Bias 2", NULL, "Mic (external)"},
+	{"SUBMIC", NULL, "Mic (external)"},
+	{"Mic (external)", NULL, "Mic Bias 2"},
 };
 
 static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)
