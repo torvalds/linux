@@ -350,7 +350,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	return dp;
 }
 
-void free_stid(struct nfs4_stid *s, struct kmem_cache *slab)
+static void free_stid(struct nfs4_stid *s, struct kmem_cache *slab)
 {
 	struct idr *stateids = &s->sc_client->cl_stateids;
 
