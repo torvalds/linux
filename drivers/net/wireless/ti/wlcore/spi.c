@@ -332,10 +332,8 @@ static int wl1271_probe(struct spi_device *spi)
 	int ret = -ENOMEM;
 
 	pdev_data = kzalloc(sizeof(*pdev_data), GFP_KERNEL);
-	if (!pdev_data) {
-		dev_err(&spi->dev, "can't allocate platdev_data\n");
+	if (!pdev_data)
 		goto out;
-	}
 
 	pdev_data->pdata = spi->dev.platform_data;
 	if (!pdev_data->pdata) {

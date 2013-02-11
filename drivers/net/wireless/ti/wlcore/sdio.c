@@ -229,10 +229,8 @@ static int wl1271_probe(struct sdio_func *func,
 		return -ENODEV;
 
 	pdev_data = kzalloc(sizeof(*pdev_data), GFP_KERNEL);
-	if (!pdev_data) {
-		dev_err(&func->dev, "can't allocate platdev_data\n");
+	if (!pdev_data)
 		goto out;
-	}
 
 	pdev_data->if_ops = &sdio_ops;
 
