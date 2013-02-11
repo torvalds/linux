@@ -81,10 +81,9 @@ static int s2250loader_probe(struct usb_interface *interface,
 
 	/* Allocate dev data structure */
 	s = kmalloc(sizeof(device_extension_t), GFP_KERNEL);
-	if (s == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (s == NULL)
 		goto failed;
-	}
+
 	s2250_dev_table[minor] = s;
 
 	dev_info(&interface->dev,
