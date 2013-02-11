@@ -226,7 +226,7 @@ static struct platform_device *create_dss_pdev(const char *pdev_name,
 		dev_set_name(&pdev->dev, "%s", pdev->name);
 
 	ohs[0] = oh;
-	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
+	od = omap_device_alloc(pdev, ohs, 1);
 	if (IS_ERR(od)) {
 		pr_err("Could not alloc omap_device for %s\n", pdev_name);
 		r = -ENOMEM;
