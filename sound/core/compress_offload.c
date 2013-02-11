@@ -144,16 +144,17 @@ static int snd_compr_free(struct inode *inode, struct file *f)
 	return 0;
 }
 
-static void snd_compr_update_tstamp(struct snd_compr_stream *stream,
+static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 		struct snd_compr_tstamp *tstamp)
 {
 	if (!stream->ops->pointer)
-		return;
+		return -ENOTSUPP;
 	stream->ops->pointer(stream, tstamp);
 	pr_debug("dsp consumed till %d total %d bytes\n",
 		tstamp->byte_offset, tstamp->copied_total);
 	stream->runtime->hw_pointer = tstamp->byte_offset;
 	stream->runtime->total_bytes_transferred = tstamp->copied_total;
+	return 0;
 }
 
 static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
@@ -161,7 +162,9 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 {
 	long avail_calc; /*this needs to be signed variable */
 
+	memset(avail, 0, sizeof(*avail));
 	snd_compr_update_tstamp(stream, &avail->tstamp);
+	/* Still need to return avail even if tstamp can't be filled in */
 
 	/* FIXME: This needs to be different for capture stream,
 	   available is # of compressed data, for playback it's
@@ -517,11 +520,14 @@ out:
 static inline int
 snd_compr_tstamp(struct snd_compr_stream *stream, unsigned long arg)
 {
-	struct snd_compr_tstamp tstamp;
+	struct snd_compr_tstamp tstamp = {0};
+	int ret;
 
-	snd_compr_update_tstamp(stream, &tstamp);
-	return copy_to_user((struct snd_compr_tstamp __user *)arg,
-		&tstamp, sizeof(tstamp)) ? -EFAULT : 0;
+	ret = snd_compr_update_tstamp(stream, &tstamp);
+	if (ret == 0)
+		ret = copy_to_user((struct snd_compr_tstamp __user *)arg,
+			&tstamp, sizeof(tstamp)) ? -EFAULT : 0;
+	return ret;
 }
 
 static int snd_compr_pause(struct snd_compr_stream *stream)
