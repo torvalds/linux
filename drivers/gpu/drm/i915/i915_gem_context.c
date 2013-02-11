@@ -126,13 +126,8 @@ static int get_context_size(struct drm_device *dev)
 
 static void do_destroy(struct i915_hw_context *ctx)
 {
-	struct drm_device *dev = ctx->obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (ctx->file_priv)
 		idr_remove(&ctx->file_priv->context_idr, ctx->id);
-	else
-		BUG_ON(ctx != dev_priv->ring[RCS].default_context);
 
 	drm_gem_object_unreference(&ctx->obj->base);
 	kfree(ctx);
