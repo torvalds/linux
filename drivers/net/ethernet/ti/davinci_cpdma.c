@@ -60,6 +60,9 @@
 #define CPDMA_DESC_EOQ		BIT(28)
 #define CPDMA_DESC_TD_COMPLETE	BIT(27)
 #define CPDMA_DESC_PASS_CRC	BIT(26)
+#define CPDMA_DESC_TO_PORT_EN	BIT(20)
+#define CPDMA_TO_PORT_SHIFT	16
+#define CPDMA_DESC_PORT_MASK	(BIT(18) | BIT(17) | BIT(16))
 
 #define CPDMA_TEARDOWN_VALUE	0xfffffffc
 
@@ -131,6 +134,14 @@ struct cpdma_chan {
 #define dma_reg_write(ctlr, ofs, v)	__raw_writel(v, (ctlr)->dmaregs + (ofs))
 #define chan_write(chan, fld, v)	__raw_writel(v, (chan)->fld)
 #define desc_write(desc, fld, v)	__raw_writel((u32)(v), &(desc)->fld)
+
+#define cpdma_desc_to_port(chan, mode, directed)			\
+	do {								\
+		if (!is_rx_chan(chan) && ((directed == 1) ||		\
+					  (directed == 2)))		\
+			mode |= (CPDMA_DESC_TO_PORT_EN |		\
+				 (directed << CPDMA_TO_PORT_SHIFT));	\
+	} while (0)
 
 /*
  * Utility constructs for a cpdma descriptor pool.  Some devices (e.g. davinci
@@ -662,7 +673,7 @@ static void __cpdma_chan_submit(struct cpdma_chan *chan,
 }
 
 int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
-		      int len, gfp_t gfp_mask)
+		      int len, int directed, gfp_t gfp_mask)
 {
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
 	struct cpdma_desc __iomem	*desc;
@@ -692,6 +703,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 
 	buffer = dma_map_single(ctlr->dev, data, len, chan->dir);
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
+	cpdma_desc_to_port(chan, mode, directed);
 
 	desc_write(desc, hw_next,   0);
 	desc_write(desc, hw_buffer, buffer);
@@ -782,7 +794,8 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		status = -EBUSY;
 		goto unlock_ret;
 	}
-	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE);
+	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
+			    CPDMA_DESC_PORT_MASK);
 
 	chan->head = desc_from_phys(pool, desc_read(desc, hw_next));
 	chan_write(chan, cp, desc_dma);
