@@ -547,8 +547,8 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 		}
 		uart->port.uartclk = val;
 
-		if (of_property_read_u32(np, "baud", &val)) {
-			dev_err(&pdev->dev, "baud property NOT set\n");
+		if (of_property_read_u32(np, "current-speed", &val)) {
+			dev_err(&pdev->dev, "current-speed property NOT set\n");
 			return -EINVAL;
 		}
 		uart->baud = val;
@@ -694,10 +694,8 @@ static int arc_serial_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	dev_id = of_alias_get_id(np, "serial");
-	if (dev_id < 0) {
-		dev_err(&pdev->dev, "failed to get alias id: %d\n", dev_id);
-		return dev_id;
-	}
+	if (dev_id < 0)
+		dev_id = 0;
 
 	rc = arc_uart_init_one(pdev, dev_id);
 	if (rc)

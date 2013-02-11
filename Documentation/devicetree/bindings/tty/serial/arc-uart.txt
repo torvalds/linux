@@ -5,7 +5,7 @@ Required properties:
 - reg			: offset and length of the register set for the device.
 - interrupts		: device interrupt
 - clock-frequency	: the input clock frequency for the UART
-- baud			: baud rate for UART
+- current-speed		: baud rate for UART
 
 e.g.
 
@@ -14,7 +14,7 @@ arcuart0: serial@c0fc1000 {
 	reg = <0xc0fc1000 0x100>;
 	interrupts = <5>;
 	clock-frequency = <80000000>;
-	baud = <115200>;
+	current-speed = <115200>;
 	status = "okay";
 };
 
