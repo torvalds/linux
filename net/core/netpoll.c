@@ -206,7 +206,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	 * the dev_open/close paths use this to block netpoll activity
 	 * while changing device state
 	 */
-	if (!mutex_trylock(&dev->npinfo->dev_lock))
+	if (!mutex_trylock(&ni->dev_lock))
 		return;
 
 	if (!dev || !netif_running(dev))
@@ -221,7 +221,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 
 	poll_napi(dev);
 
-	mutex_unlock(&dev->npinfo->dev_lock);
+	mutex_unlock(&ni->dev_lock);
 
 	if (dev->flags & IFF_SLAVE) {
 		if (ni) {
@@ -1056,7 +1056,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 				goto free_npinfo;
 		}
 	} else {
-		npinfo = ndev->npinfo;
+		npinfo = rtnl_dereference(ndev->npinfo);
 		atomic_inc(&npinfo->refcnt);
 	}
 
@@ -1236,7 +1236,11 @@ void __netpoll_cleanup(struct netpoll *np)
 	struct netpoll_info *npinfo;
 	unsigned long flags;
 
-	npinfo = np->dev->npinfo;
+	/* rtnl_dereference would be preferable here but
+	 * rcu_cleanup_netpoll path can put us in here safely without
+	 * holding the rtnl, so plain rcu_dereference it is
+	 */
+	npinfo = rtnl_dereference(np->dev->npinfo);
 	if (!npinfo)
 		return;
 
