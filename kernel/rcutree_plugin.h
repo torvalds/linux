@@ -2176,11 +2176,51 @@ static int __init parse_rcu_nocb_poll(char *arg)
 early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
 
 /*
- * Does this CPU needs a grace period due to offloaded callbacks?
+ * Do any no-CBs CPUs need another grace period?
+ *
+ * Interrupts must be disabled.  If the caller does not hold the root
+ * rnp_node structure's ->lock, the results are advisory only.
  */
-static int rcu_nocb_needs_gp(struct rcu_data *rdp)
+static int rcu_nocb_needs_gp(struct rcu_state *rsp)
 {
-	return rdp->nocb_needs_gp;
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	return rnp->n_nocb_gp_requests[(ACCESS_ONCE(rnp->completed) + 1) & 0x1];
+}
+
+/*
+ * Clean up this rcu_node structure's no-CBs state at the end of
+ * a grace period, and also return whether any no-CBs CPU associated
+ * with this rcu_node structure needs another grace period.
+ */
+static int rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	int c = rnp->completed;
+	int needmore;
+
+	wake_up_all(&rnp->nocb_gp_wq[c & 0x1]);
+	rnp->n_nocb_gp_requests[c & 0x1] = 0;
+	needmore = rnp->n_nocb_gp_requests[(c + 1) & 0x1];
+	return needmore;
+}
+
+/*
+ * Set the root rcu_node structure's ->n_nocb_gp_requests field
+ * based on the sum of those of all rcu_node structures.  This does
+ * double-count the root rcu_node structure's requests, but this
+ * is necessary to handle the possibility of a rcu_nocb_kthread()
+ * having awakened during the time that the rcu_node structures
+ * were being updated for the end of the previous grace period.
+ */
+static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
+{
+	rnp->n_nocb_gp_requests[(rnp->completed + 1) & 0x1] += nrq;
+}
+
+static void rcu_init_one_nocb(struct rcu_node *rnp)
+{
+	init_waitqueue_head(&rnp->nocb_gp_wq[0]);
+	init_waitqueue_head(&rnp->nocb_gp_wq[1]);
 }
 
 /* Is the specified CPU a no-CPUs CPU? */
@@ -2289,31 +2329,73 @@ static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 {
 	unsigned long c;
+	bool d;
 	unsigned long flags;
-	unsigned long j;
+	unsigned long flags1;
 	struct rcu_node *rnp = rdp->mynode;
+	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	c = rnp->completed + 2;
-	rdp->nocb_needs_gp = true;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+
+	/* Count our request for a grace period. */
+	rnp->n_nocb_gp_requests[c & 0x1]++;
+
+	if (rnp->gpnum != rnp->completed) {
+
+		/*
+		 * This rcu_node structure believes that a grace period
+		 * is in progress, so we are done.  When this grace
+		 * period ends, our request will be acted upon.
+		 */
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+
+	} else {
+
+		/*
+		 * Might not be a grace period, check root rcu_node
+		 * structure to see if we must start one.
+		 */
+		if (rnp != rnp_root)
+			raw_spin_lock(&rnp_root->lock); /* irqs disabled. */
+		if (rnp_root->gpnum != rnp_root->completed) {
+			raw_spin_unlock(&rnp_root->lock); /* irqs disabled. */
+		} else {
+
+			/*
+			 * No grace period, so we need to start one.
+			 * The good news is that we can wait for exactly
+			 * one grace period instead of part of the current
+			 * grace period and all of the next grace period.
+			 * Adjust counters accordingly and start the
+			 * needed grace period.
+			 */
+			rnp->n_nocb_gp_requests[c & 0x1]--;
+			c = rnp_root->completed + 1;
+			rnp->n_nocb_gp_requests[c & 0x1]++;
+			rnp_root->n_nocb_gp_requests[c & 0x1]++;
+			local_save_flags(flags1);
+			rcu_start_gp(rdp->rsp, flags1); /* Rlses ->lock. */
+		}
+
+		/* Clean up locking and irq state. */
+		if (rnp != rnp_root)
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		else
+			local_irq_restore(flags);
+	}
 
 	/*
 	 * Wait for the grace period.  Do so interruptibly to avoid messing
 	 * up the load average.
 	 */
 	for (;;) {
-		j = jiffies;
-		schedule_timeout_interruptible(2);
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		if (ULONG_CMP_GE(rnp->completed, c)) {
-			rdp->nocb_needs_gp = false;
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		wait_event_interruptible(
+			rnp->nocb_gp_wq[c & 0x1],
+			(d = ULONG_CMP_GE(ACCESS_ONCE(rnp->completed), c)));
+		if (likely(d))
 			break;
-		}
-		if (j == jiffies)
-			flush_signals(current);
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		flush_signals(current);
 	}
 	smp_mb(); /* Ensure that CB invocation happens after GP end. */
 }
@@ -2416,9 +2498,22 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-static int rcu_nocb_needs_gp(struct rcu_data *rdp)
+static int rcu_nocb_needs_gp(struct rcu_state *rsp)
 {
 	return 0;
+}
+
+static int rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	return 0;
+}
+
+static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
+{
+}
+
+static void rcu_init_one_nocb(struct rcu_node *rnp)
+{
 }
 
 static bool is_nocb_cpu(int cpu)
