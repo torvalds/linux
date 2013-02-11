@@ -537,7 +537,7 @@ static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
 	trace_cpu_migrate_current(get_ns(), read_mpidr());
 }
 
-static int bL_switcher_trace_trigger(void)
+int bL_switcher_trace_trigger(void)
 {
 	int ret;
 
@@ -550,6 +550,7 @@ static int bL_switcher_trace_trigger(void)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(bL_switcher_trace_trigger);
 
 static int bL_switcher_enable(void)
 {
