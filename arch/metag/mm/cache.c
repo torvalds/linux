@@ -460,6 +460,7 @@ void metag_code_cache_flush_all(const void *start)
 
 	metag_phys_code_cache_flush(start, 4096);
 }
+EXPORT_SYMBOL(metag_code_cache_flush_all);
 
 void metag_code_cache_flush(const void *start, int bytes)
 {
