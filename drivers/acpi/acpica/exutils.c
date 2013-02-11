@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -202,35 +202,39 @@ void acpi_ex_relinquish_interpreter(void)
  *
  * PARAMETERS:  obj_desc        - Object to be truncated
  *
- * RETURN:      none
+ * RETURN:      TRUE if a truncation was performed, FALSE otherwise.
  *
  * DESCRIPTION: Truncate an ACPI Integer to 32 bits if the execution mode is
  *              32-bit, as determined by the revision of the DSDT.
  *
  ******************************************************************************/
 
-void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
+u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 {
 
 	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * Object must be a valid number and we must be executing
-	 * a control method. NS node could be there for AML_INT_NAMEPATH_OP.
+	 * a control method. Object could be NS node for AML_INT_NAMEPATH_OP.
 	 */
 	if ((!obj_desc) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) ||
 	    (obj_desc->common.type != ACPI_TYPE_INTEGER)) {
-		return;
+		return (FALSE);
 	}
 
-	if (acpi_gbl_integer_byte_width == 4) {
+	if ((acpi_gbl_integer_byte_width == 4) &&
+	    (obj_desc->integer.value > (u64)ACPI_UINT32_MAX)) {
 		/*
-		 * We are running a method that exists in a 32-bit ACPI table.
+		 * We are executing in a 32-bit ACPI table.
 		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
 		 */
-		obj_desc->integer.value &= (u64) ACPI_UINT32_MAX;
+		obj_desc->integer.value &= (u64)ACPI_UINT32_MAX;
+		return (TRUE);
 	}
+
+	return (FALSE);
 }
 
 /*******************************************************************************
@@ -336,7 +340,7 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
 	/* u64 is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
-		return_UINT32(1);
+		return_VALUE(1);
 	}
 
 	current_value = value;
@@ -350,7 +354,7 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
 		num_digits++;
 	}
 
-	return_UINT32(num_digits);
+	return_VALUE(num_digits);
 }
 
 /*******************************************************************************

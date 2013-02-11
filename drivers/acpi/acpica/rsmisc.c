@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,30 +136,30 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			/*
 			 * Mask and shift the flag bit
 			 */
-			ACPI_SET8(destination) = (u8)
-			    ((ACPI_GET8(source) >> info->value) & 0x01);
+			ACPI_SET8(destination,
+				  ((ACPI_GET8(source) >> info->value) & 0x01));
 			break;
 
 		case ACPI_RSC_2BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			ACPI_SET8(destination) = (u8)
-			    ((ACPI_GET8(source) >> info->value) & 0x03);
+			ACPI_SET8(destination,
+				  ((ACPI_GET8(source) >> info->value) & 0x03));
 			break;
 
 		case ACPI_RSC_3BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			ACPI_SET8(destination) = (u8)
-			    ((ACPI_GET8(source) >> info->value) & 0x07);
+			ACPI_SET8(destination,
+				  ((ACPI_GET8(source) >> info->value) & 0x07));
 			break;
 
 		case ACPI_RSC_COUNT:
 
 			item_count = ACPI_GET8(source);
-			ACPI_SET8(destination) = (u8) item_count;
+			ACPI_SET8(destination, item_count);
 
 			resource->length = resource->length +
 			    (info->value * (item_count - 1));
@@ -168,7 +168,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT16:
 
 			item_count = aml_resource_length;
-			ACPI_SET16(destination) = item_count;
+			ACPI_SET16(destination, item_count);
 
 			resource->length = resource->length +
 			    (info->value * (item_count - 1));
@@ -181,13 +181,13 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 			resource->length = resource->length + item_count;
 			item_count = item_count / 2;
-			ACPI_SET16(destination) = item_count;
+			ACPI_SET16(destination, item_count);
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_VEN:
 
 			item_count = ACPI_GET8(source);
-			ACPI_SET8(destination) = (u8)item_count;
+			ACPI_SET8(destination, item_count);
 
 			resource->length = resource->length +
 			    (info->value * item_count);
@@ -216,7 +216,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			}
 
 			resource->length = resource->length + item_count;
-			ACPI_SET16(destination) = item_count;
+			ACPI_SET16(destination, item_count);
 			break;
 
 		case ACPI_RSC_COUNT_SERIAL_VEN:
@@ -224,7 +224,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			item_count = ACPI_GET16(source) - info->value;
 
 			resource->length = resource->length + item_count;
-			ACPI_SET16(destination) = item_count;
+			ACPI_SET16(destination, item_count);
 			break;
 
 		case ACPI_RSC_COUNT_SERIAL_RES:
@@ -234,7 +234,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			    - ACPI_GET16(source) - info->value;
 
 			resource->length = resource->length + item_count;
-			ACPI_SET16(destination) = item_count;
+			ACPI_SET16(destination, item_count);
 			break;
 
 		case ACPI_RSC_LENGTH:
@@ -385,7 +385,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			}
 
 			target = ACPI_ADD_PTR(char, resource, info->value);
-			ACPI_SET8(target) = (u8) item_count;
+			ACPI_SET8(target, item_count);
 			break;
 
 		case ACPI_RSC_BITMASK16:
@@ -401,7 +401,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			}
 
 			target = ACPI_ADD_PTR(char, resource, info->value);
-			ACPI_SET8(target) = (u8) item_count;
+			ACPI_SET8(target, item_count);
 			break;
 
 		case ACPI_RSC_EXIT_NE:
@@ -514,37 +514,40 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/*
 			 * Clear the flag byte
 			 */
-			ACPI_SET8(destination) = 0;
+			ACPI_SET8(destination, 0);
 			break;
 
 		case ACPI_RSC_1BITFLAG:
 			/*
 			 * Mask and shift the flag bit
 			 */
-			ACPI_SET8(destination) |= (u8)
-			    ((ACPI_GET8(source) & 0x01) << info->value);
+			ACPI_SET_BIT(*ACPI_CAST8(destination), (u8)
+				     ((ACPI_GET8(source) & 0x01) << info->
+				      value));
 			break;
 
 		case ACPI_RSC_2BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			ACPI_SET8(destination) |= (u8)
-			    ((ACPI_GET8(source) & 0x03) << info->value);
+			ACPI_SET_BIT(*ACPI_CAST8(destination), (u8)
+				     ((ACPI_GET8(source) & 0x03) << info->
+				      value));
 			break;
 
 		case ACPI_RSC_3BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			ACPI_SET8(destination) |= (u8)
-			    ((ACPI_GET8(source) & 0x07) << info->value);
+			ACPI_SET_BIT(*ACPI_CAST8(destination), (u8)
+				     ((ACPI_GET8(source) & 0x07) << info->
+				      value));
 			break;
 
 		case ACPI_RSC_COUNT:
 
 			item_count = ACPI_GET8(source);
-			ACPI_SET8(destination) = (u8) item_count;
+			ACPI_SET8(destination, item_count);
 
 			aml_length =
 			    (u16) (aml_length +
@@ -561,18 +564,18 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT_GPIO_PIN:
 
 			item_count = ACPI_GET16(source);
-			ACPI_SET16(destination) = (u16)aml_length;
+			ACPI_SET16(destination, aml_length);
 
 			aml_length = (u16)(aml_length + item_count * 2);
 			target = ACPI_ADD_PTR(void, aml, info->value);
-			ACPI_SET16(target) = (u16)aml_length;
+			ACPI_SET16(target, aml_length);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_VEN:
 
 			item_count = ACPI_GET16(source);
-			ACPI_SET16(destination) = (u16)item_count;
+			ACPI_SET16(destination, item_count);
 
 			aml_length =
 			    (u16)(aml_length + (info->value * item_count));
@@ -584,7 +587,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/* Set resource source string length */
 
 			item_count = ACPI_GET16(source);
-			ACPI_SET16(destination) = (u16)aml_length;
+			ACPI_SET16(destination, aml_length);
 
 			/* Compute offset for the Vendor Data */
 
@@ -594,7 +597,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/* Set vendor offset only if there is vendor data */
 
 			if (resource->data.gpio.vendor_length) {
-				ACPI_SET16(target) = (u16)aml_length;
+				ACPI_SET16(target, aml_length);
 			}
 
 			acpi_rs_set_resource_length(aml_length, aml);
@@ -603,7 +606,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT_SERIAL_VEN:
 
 			item_count = ACPI_GET16(source);
-			ACPI_SET16(destination) = item_count + info->value;
+			ACPI_SET16(destination, item_count + info->value);
 			aml_length = (u16)(aml_length + item_count);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;
@@ -686,7 +689,8 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			 * Optional resource_source (Index and String)
 			 */
 			aml_length =
-			    acpi_rs_set_resource_source(aml, (acpi_rs_length)
+			    acpi_rs_set_resource_source(aml,
+							(acpi_rs_length)
 							aml_length, source);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;
@@ -706,10 +710,12 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/*
 			 * 8-bit encoded bitmask (DMA macro)
 			 */
-			ACPI_SET8(destination) = (u8)
-			    acpi_rs_encode_bitmask(source,
-						   *ACPI_ADD_PTR(u8, resource,
-								 info->value));
+			ACPI_SET8(destination,
+				  acpi_rs_encode_bitmask(source,
+							 *ACPI_ADD_PTR(u8,
+								       resource,
+								       info->
+								       value)));
 			break;
 
 		case ACPI_RSC_BITMASK16:

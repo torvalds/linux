@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,7 +107,7 @@ acpi_get_handle(acpi_handle parent,
 	 *
 	 * Error for <null Parent + relative path>
 	 */
-	if (acpi_ns_valid_root_prefix(pathname[0])) {
+	if (ACPI_IS_ROOT_PREFIX(pathname[0])) {
 
 		/* Pathname is fully qualified (starts with '\') */
 
@@ -290,7 +290,7 @@ acpi_get_object_info(acpi_handle handle,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		return (status);
 	}
 
 	node = acpi_ns_validate_handle(handle);
@@ -539,14 +539,14 @@ acpi_status acpi_install_method(u8 *buffer)
 	/* Parameter validation */
 
 	if (!buffer) {
-		return AE_BAD_PARAMETER;
+		return (AE_BAD_PARAMETER);
 	}
 
 	/* Table must be a DSDT or SSDT */
 
 	if (!ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) &&
 	    !ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
-		return AE_BAD_HEADER;
+		return (AE_BAD_HEADER);
 	}
 
 	/* First AML opcode in the table must be a control method */
@@ -554,7 +554,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	parser_state.aml = buffer + sizeof(struct acpi_table_header);
 	opcode = acpi_ps_peek_opcode(&parser_state);
 	if (opcode != AML_METHOD_OP) {
-		return AE_BAD_PARAMETER;
+		return (AE_BAD_PARAMETER);
 	}
 
 	/* Extract method information from the raw AML */
@@ -572,13 +572,13 @@ acpi_status acpi_install_method(u8 *buffer)
 	 */
 	aml_buffer = ACPI_ALLOCATE(aml_length);
 	if (!aml_buffer) {
-		return AE_NO_MEMORY;
+		return (AE_NO_MEMORY);
 	}
 
 	method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!method_obj) {
 		ACPI_FREE(aml_buffer);
-		return AE_NO_MEMORY;
+		return (AE_NO_MEMORY);
 	}
 
 	/* Lock namespace for acpi_ns_lookup, we may be creating a new node */
@@ -644,12 +644,12 @@ acpi_status acpi_install_method(u8 *buffer)
 	/* Remove local reference to the method object */
 
 	acpi_ut_remove_reference(method_obj);
-	return status;
+	return (status);
 
 error_exit:
 
 	ACPI_FREE(aml_buffer);
 	ACPI_FREE(method_obj);
-	return status;
+	return (status);
 }
 ACPI_EXPORT_SYMBOL(acpi_install_method)

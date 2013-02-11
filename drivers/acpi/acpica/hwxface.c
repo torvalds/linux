@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,10 +80,10 @@ acpi_status acpi_reset(void)
 
 	if (reset_reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		/*
-		 * For I/O space, write directly to the OSL. This
-		 * bypasses the port validation mechanism, which may
-		 * block a valid write to the reset register. Spec
-		 * section 4.7.3.6 requires register width to be 8.
+		 * For I/O space, write directly to the OSL. This bypasses the port
+		 * validation mechanism, which may block a valid write to the reset
+		 * register.
+		 * Spec section 4.7.3.6 requires register width to be 8.
 		 */
 		status =
 		    acpi_os_write_port((acpi_io_address) reset_reg->address,
@@ -333,7 +333,7 @@ ACPI_EXPORT_SYMBOL(acpi_read_bit_register)
  * FUNCTION:    acpi_write_bit_register
  *
  * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
- *              Value           - Value to write to the register, in bit
+ *              value           - Value to write to the register, in bit
  *                                position zero. The bit is automatically
  *                                shifted to the correct position.
  *
@@ -440,17 +440,41 @@ ACPI_EXPORT_SYMBOL(acpi_write_bit_register)
  *              *sleep_type_a        - Where SLP_TYPa is returned
  *              *sleep_type_b        - Where SLP_TYPb is returned
  *
- * RETURN:      status - ACPI status
+ * RETURN:      Status
  *
- * DESCRIPTION: Obtain the SLP_TYPa and SLP_TYPb values for the requested sleep
- *              state.
+ * DESCRIPTION: Obtain the SLP_TYPa and SLP_TYPb values for the requested
+ *              sleep state via the appropriate \_Sx object.
+ *
+ *  The sleep state package returned from the corresponding \_Sx_ object
+ *  must contain at least one integer.
+ *
+ *  March 2005:
+ *  Added support for a package that contains two integers. This
+ *  goes against the ACPI specification which defines this object as a
+ *  package with one encoded DWORD integer. However, existing practice
+ *  by many BIOS vendors is to return a package with 2 or more integer
+ *  elements, at least one per sleep type (A/B).
+ *
+ *  January 2013:
+ *  Therefore, we must be prepared to accept a package with either a
+ *  single integer or multiple integers.
+ *
+ *  The single integer DWORD format is as follows:
+ *      BYTE 0 - Value for the PM1A SLP_TYP register
+ *      BYTE 1 - Value for the PM1B SLP_TYP register
+ *      BYTE 2-3 - Reserved
+ *
+ *  The dual integer format is as follows:
+ *      Integer 0 - Value for the PM1A SLP_TYP register
+ *      Integer 1 - Value for the PM1A SLP_TYP register
  *
  ******************************************************************************/
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 	struct acpi_evaluate_info *info;
+	union acpi_operand_object **elements;
 
 	ACPI_FUNCTION_TRACE(acpi_get_sleep_type_data);
 
@@ -467,18 +491,14 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
+	/*
+	 * Evaluate the \_Sx namespace object containing the register values
+	 * for this state
+	 */
 	info->pathname =
 	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
-
-	/* Evaluate the namespace object containing the values for this state */
-
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%s while evaluating SleepState [%s]\n",
-				  acpi_format_exception(status),
-				  info->pathname));
-
 		goto cleanup;
 	}
 
@@ -487,64 +507,67 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	if (!info->return_object) {
 		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
 			    info->pathname));
-		status = AE_NOT_EXIST;
+		status = AE_AML_NO_RETURN_VALUE;
+		goto cleanup;
 	}
 
-	/* It must be of type Package */
+	/* Return object must be of type Package */
 
-	else if (info->return_object->common.type != ACPI_TYPE_PACKAGE) {
+	if (info->return_object->common.type != ACPI_TYPE_PACKAGE) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
+		goto cleanup1;
 	}
 
 	/*
-	 * The package must have at least two elements. NOTE (March 2005): This
-	 * goes against the current ACPI spec which defines this object as a
-	 * package with one encoded DWORD element. However, existing practice
-	 * by BIOS vendors seems to be to have 2 or more elements, at least
-	 * one per sleep type (A/B).
+	 * Any warnings about the package length or the object types have
+	 * already been issued by the predefined name module -- there is no
+	 * need to repeat them here.
 	 */
-	else if (info->return_object->package.count < 2) {
-		ACPI_ERROR((AE_INFO,
-			    "Sleep State return package does not have at least two elements"));
-		status = AE_AML_NO_OPERAND;
+	elements = info->return_object->package.elements;
+	switch (info->return_object->package.count) {
+	case 0:
+		status = AE_AML_PACKAGE_LIMIT;
+		break;
+
+	case 1:
+		if (elements[0]->common.type != ACPI_TYPE_INTEGER) {
+			status = AE_AML_OPERAND_TYPE;
+			break;
+		}
+
+		/* A valid _Sx_ package with one integer */
+
+		*sleep_type_a = (u8)elements[0]->integer.value;
+		*sleep_type_b = (u8)(elements[0]->integer.value >> 8);
+		break;
+
+	case 2:
+	default:
+		if ((elements[0]->common.type != ACPI_TYPE_INTEGER) ||
+		    (elements[1]->common.type != ACPI_TYPE_INTEGER)) {
+			status = AE_AML_OPERAND_TYPE;
+			break;
+		}
+
+		/* A valid _Sx_ package with two integers */
+
+		*sleep_type_a = (u8)elements[0]->integer.value;
+		*sleep_type_b = (u8)elements[1]->integer.value;
+		break;
 	}
 
-	/* The first two elements must both be of type Integer */
-
-	else if (((info->return_object->package.elements[0])->common.type
-		  != ACPI_TYPE_INTEGER) ||
-		 ((info->return_object->package.elements[1])->common.type
-		  != ACPI_TYPE_INTEGER)) {
-		ACPI_ERROR((AE_INFO,
-			    "Sleep State return package elements are not both Integers "
-			    "(%s, %s)",
-			    acpi_ut_get_object_type_name(info->return_object->
-							 package.elements[0]),
-			    acpi_ut_get_object_type_name(info->return_object->
-							 package.elements[1])));
-		status = AE_AML_OPERAND_TYPE;
-	} else {
-		/* Valid _Sx_ package size, type, and value */
-
-		*sleep_type_a = (u8)
-		    (info->return_object->package.elements[0])->integer.value;
-		*sleep_type_b = (u8)
-		    (info->return_object->package.elements[1])->integer.value;
-	}
-
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"While evaluating SleepState [%s], bad Sleep object %p type %s",
-				info->pathname, info->return_object,
-				acpi_ut_get_object_type_name(info->
-							     return_object)));
-	}
-
+      cleanup1:
 	acpi_ut_remove_reference(info->return_object);
 
       cleanup:
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"While evaluating Sleep State [%s]",
+				info->pathname));
+	}
+
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

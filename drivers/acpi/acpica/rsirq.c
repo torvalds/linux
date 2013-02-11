@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("rsirq")
  * acpi_rs_get_irq
  *
  ******************************************************************************/
-struct acpi_rsconvert_info acpi_rs_get_irq[8] = {
+struct acpi_rsconvert_info acpi_rs_get_irq[9] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_IRQ,
 	 ACPI_RS_SIZE(struct acpi_resource_irq),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_get_irq)},
@@ -80,41 +80,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[8] = {
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 3},
 
-	/* Get flags: Triggering[0], Polarity[3], Sharing[4] */
-
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
-	 AML_OFFSET(irq.flags),
-	 0},
-
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.polarity),
-	 AML_OFFSET(irq.flags),
-	 3},
-
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
-	 AML_OFFSET(irq.flags),
-	 4}
-};
-
-/*******************************************************************************
- *
- * acpi_rs_set_irq
- *
- ******************************************************************************/
-
-struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
-	/* Start with a default descriptor of length 3 */
-
-	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_IRQ,
-	 sizeof(struct aml_resource_irq),
-	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_irq)},
-
-	/* Convert interrupt list to 16-bit IRQ bitmask */
-
-	{ACPI_RSC_BITMASK16, ACPI_RS_OFFSET(data.irq.interrupts[0]),
-	 AML_OFFSET(irq.irq_mask),
-	 ACPI_RS_OFFSET(data.irq.interrupt_count)},
-
-	/* Set the flags byte */
+	/* Get flags: Triggering[0], Polarity[3], Sharing[4], Wake[5] */
 
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
 	 AML_OFFSET(irq.flags),
@@ -127,6 +93,48 @@ struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
 	 AML_OFFSET(irq.flags),
 	 4},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.wake_capable),
+	 AML_OFFSET(irq.flags),
+	 5}
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_set_irq
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
+	/* Start with a default descriptor of length 3 */
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_IRQ,
+	 sizeof(struct aml_resource_irq),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_irq)},
+
+	/* Convert interrupt list to 16-bit IRQ bitmask */
+
+	{ACPI_RSC_BITMASK16, ACPI_RS_OFFSET(data.irq.interrupts[0]),
+	 AML_OFFSET(irq.irq_mask),
+	 ACPI_RS_OFFSET(data.irq.interrupt_count)},
+
+	/* Set flags: Triggering[0], Polarity[3], Sharing[4], Wake[5] */
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
+	 AML_OFFSET(irq.flags),
+	 0},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.polarity),
+	 AML_OFFSET(irq.flags),
+	 3},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	 AML_OFFSET(irq.flags),
+	 4},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.wake_capable),
+	 AML_OFFSET(irq.flags),
+	 5},
 
 	/*
 	 * All done if the output descriptor length is required to be 3
@@ -181,7 +189,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
+struct acpi_rsconvert_info acpi_rs_convert_ext_irq[10] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_EXTENDED_IRQ,
 	 ACPI_RS_SIZE(struct acpi_resource_extended_irq),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_ext_irq)},
@@ -190,8 +198,10 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
 	 sizeof(struct aml_resource_extended_irq),
 	 0},
 
-	/* Flag bits */
-
+	/*
+	 * Flags: Producer/Consumer[0], Triggering[1], Polarity[2],
+	 *        Sharing[3], Wake[4]
+	 */
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.producer_consumer),
 	 AML_OFFSET(extended_irq.flags),
 	 0},
@@ -208,19 +218,21 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
 	 AML_OFFSET(extended_irq.flags),
 	 3},
 
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.wake_capable),
+	 AML_OFFSET(extended_irq.flags),
+	 4},
+
 	/* IRQ Table length (Byte4) */
 
 	{ACPI_RSC_COUNT, ACPI_RS_OFFSET(data.extended_irq.interrupt_count),
 	 AML_OFFSET(extended_irq.interrupt_count),
-	 sizeof(u32)}
-	,
+	 sizeof(u32)},
 
 	/* Copy every IRQ in the table, each is 32 bits */
 
 	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.extended_irq.interrupts[0]),
 	 AML_OFFSET(extended_irq.interrupts[0]),
-	 0}
-	,
+	 0},
 
 	/* Optional resource_source (Index and String) */
 
@@ -285,7 +297,6 @@ struct acpi_rsconvert_info acpi_rs_convert_fixed_dma[4] = {
 	 * request_lines
 	 * Channels
 	 */
-
 	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.fixed_dma.request_lines),
 	 AML_OFFSET(fixed_dma.request_lines),
 	 2},
@@ -293,5 +304,4 @@ struct acpi_rsconvert_info acpi_rs_convert_fixed_dma[4] = {
 	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.fixed_dma.width),
 	 AML_OFFSET(fixed_dma.width),
 	 1},
-
 };
