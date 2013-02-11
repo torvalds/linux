@@ -31,14 +31,15 @@ struct iio_channel {
 
 /**
  * iio_channel_get() - get description of all that is needed to access channel.
- * @name:		Unique name of the device as provided in the iio_map
+ * @dev:		Pointer to consumer device. Device name must match
+ *			the name of the device as provided in the iio_map
  *			with which the desired provider to consumer mapping
  *			was registered.
  * @consumer_channel:	Unique name to identify the channel on the consumer
  *			side. This typically describes the channels use within
  *			the consumer. E.g. 'battery_voltage'
  */
-struct iio_channel *iio_channel_get(const char *name,
+struct iio_channel *iio_channel_get(struct device *dev,
 				    const char *consumer_channel);
 
 /**

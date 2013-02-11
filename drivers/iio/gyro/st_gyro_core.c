@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -287,10 +287,15 @@ static const struct iio_info gyro_info = {
 	.write_raw = &st_gyro_write_raw,
 };
 
+#ifdef CONFIG_IIO_TRIGGER
 static const struct iio_trigger_ops st_gyro_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_GYRO_TRIGGER_SET_STATE,
 };
+#define ST_GYRO_TRIGGER_OPS (&st_gyro_trigger_ops)
+#else
+#define ST_GYRO_TRIGGER_OPS NULL
+#endif
 
 int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
@@ -323,7 +328,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 			goto st_gyro_common_probe_error;
 
 		err = st_sensors_allocate_trigger(indio_dev,
-							&st_gyro_trigger_ops);
+						  ST_GYRO_TRIGGER_OPS);
 		if (err < 0)
 			goto st_gyro_probe_trigger_error;
 	}

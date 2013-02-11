@@ -235,6 +235,16 @@ void st_sensors_deallocate_trigger(struct iio_dev *indio_dev);
 irqreturn_t st_sensors_trigger_handler(int irq, void *p);
 
 int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf);
+#else
+static inline int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
+				const struct iio_trigger_ops *trigger_ops)
+{
+	return 0;
+}
+static inline void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
+{
+	return;
+}
 #endif
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev);
