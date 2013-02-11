@@ -432,13 +432,10 @@ static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
 	unsigned number_readings = (response_length /
 			       MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_LEN);
 	unsigned i;
-	unsigned min;
-	unsigned min_set = 0;
 	unsigned total;
 	unsigned ngood = 0;
 	unsigned last_good = 0;
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	bool min_valid = false;
 	u32 last_sec;
 	u32 start_sec;
 	struct timespec delta;
@@ -446,35 +443,17 @@ static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
 	if (number_readings == 0)
 		return -EAGAIN;
 
-	/* Find minimum value in this set of results, discarding clearly
-	 * erroneous results.
+	/* Read the set of results and increment stats for any results that
+	 * appera to be erroneous.
 	 */
 	for (i = 0; i < number_readings; i++) {
 		efx_ptp_read_timeset(synch_buf, &ptp->timeset[i]);
 		synch_buf += MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_LEN;
-		if (ptp->timeset[i].window > SYNCHRONISATION_GRANULARITY_NS) {
-			if (min_valid) {
-				if (ptp->timeset[i].window < min_set)
-					min_set = ptp->timeset[i].window;
-			} else {
-				min_valid = true;
-				min_set = ptp->timeset[i].window;
-			}
-		}
 	}
 
-	if (min_valid) {
-		if (ptp->base_sync_valid && (min_set > ptp->base_sync_ns))
-			min = ptp->base_sync_ns;
-		else
-			min = min_set;
-	} else {
-		min = SYNCHRONISATION_GRANULARITY_NS;
-	}
-
-	/* Discard excessively long synchronise durations.  The MC times
-	 * when it finishes reading the host time so the corrected window
-	 * time should be fairly constant for a given platform.
+	/* Find the last good host-MC synchronization result. The MC times
+	 * when it finishes reading the host time so the corrected window time
+	 * should be fairly constant for a given platform.
 	 */
 	total = 0;
 	for (i = 0; i < number_readings; i++)
@@ -492,8 +471,8 @@ static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
 
 	if (ngood == 0) {
 		netif_warn(efx, drv, efx->net_dev,
-			   "PTP no suitable synchronisations %dns %dns\n",
-			   ptp->base_sync_ns, min_set);
+			   "PTP no suitable synchronisations %dns\n",
+			   ptp->base_sync_ns);
 		return -EAGAIN;
 	}
 
