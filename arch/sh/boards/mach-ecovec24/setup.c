@@ -907,21 +907,20 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 };
 
-static struct asoc_simple_dai_init_info fsi_da7210_init_info = {
-	.fmt		= SND_SOC_DAIFMT_I2S,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS |
-			  SND_SOC_DAIFMT_IB_NF,
-};
-
 static struct asoc_simple_card_info fsi_da7210_info = {
 	.name		= "DA7210",
 	.card		= "FSIB-DA7210",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "da7210.0-001a",
 	.platform	= "sh_fsi.0",
-	.codec_dai	= "da7210-hifi",
-	.init		= &fsi_da7210_init_info,
+	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "da7210-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+	},
 };
 
 static struct platform_device fsi_da7210_device = {
