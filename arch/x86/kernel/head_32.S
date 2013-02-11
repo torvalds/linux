@@ -394,30 +394,21 @@ default_entry:
 	jz 1f				# Did we do this already?
 	call *%eax
 1:
-	
-/* check if it is 486 or 386. */
+
 /*
- * XXX - this does a lot of unnecessary setup.  Alignment checks don't
- * apply at our cpl of 0 and the stack ought to be aligned already, and
- * we don't need to preserve eflags.
+ * Check if it is 486
  */
 	movl $-1,X86_CPUID	# -1 for no CPUID initially
-	movb $3,X86		# at least 386
+	movb $4,X86		# at least 486
 	pushfl			# push EFLAGS
 	popl %eax		# get EFLAGS
 	movl %eax,%ecx		# save original EFLAGS
-	xorl $0x240000,%eax	# flip AC and ID bits in EFLAGS
+	xorl $0x200000,%eax	# flip ID bit in EFLAGS
 	pushl %eax		# copy to EFLAGS
 	popfl			# set EFLAGS
 	pushfl			# get new EFLAGS
 	popl %eax		# put it in eax
 	xorl %ecx,%eax		# change in flags
-	pushl %ecx		# restore original EFLAGS
-	popfl
-	testl $0x40000,%eax	# check if AC bit changed
-	je is386
-
-	movb $4,X86		# at least 486
 	testl $0x200000,%eax	# check if ID bit changed
 	je is486
 
@@ -445,10 +436,7 @@ default_entry:
 	movl %edx,X86_CAPABILITY
 
 is486:	movl $0x50022,%ecx	# set AM, WP, NE and MP
-	jmp 2f
-
-is386:	movl $2,%ecx		# set MP
-2:	movl %cr0,%eax
+	movl %cr0,%eax
 	andl $0x80000011,%eax	# Save PG,PE,ET
 	orl %ecx,%eax
 	movl %eax,%cr0
