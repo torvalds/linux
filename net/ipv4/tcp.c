@@ -2714,6 +2714,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		else
 			err = -EINVAL;
 		break;
+	case TCP_TIMESTAMP:
+		if (!tp->repair)
+			err = -EPERM;
+		else
+			tp->tsoffset = val - tcp_time_stamp;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -2961,6 +2967,9 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 
 	case TCP_USER_TIMEOUT:
 		val = jiffies_to_msecs(icsk->icsk_user_timeout);
+		break;
+	case TCP_TIMESTAMP:
+		val = tcp_time_stamp + tp->tsoffset;
 		break;
 	default:
 		return -ENOPROTOOPT;
