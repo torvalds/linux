@@ -381,7 +381,7 @@ static __init void detect_machine_facilities(void)
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
+		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 	if (test_facility(66))
