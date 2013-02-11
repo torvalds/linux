@@ -1174,7 +1174,7 @@ static int __pci_enable_device_flags(struct pci_dev *dev,
 		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	}
 
-	if (atomic_add_return(1, &dev->enable_cnt) > 1)
+	if (atomic_inc_return(&dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
 
 	/* only skip sriov related */
@@ -1404,7 +1404,7 @@ pci_disable_device(struct pci_dev *dev)
 	dev_WARN_ONCE(&dev->dev, atomic_read(&dev->enable_cnt) <= 0,
 		      "disabling already-disabled device");
 
-	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
+	if (atomic_dec_return(&dev->enable_cnt) != 0)
 		return;
 
 	do_pci_disable_device(dev);
