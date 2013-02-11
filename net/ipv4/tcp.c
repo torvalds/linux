@@ -400,6 +400,8 @@ void tcp_init_sock(struct sock *sk)
 	tcp_enable_early_retrans(tp);
 	icsk->icsk_ca_ops = &tcp_init_congestion_ops;
 
+	tp->tsoffset = 0;
+
 	sk->sk_state = TCP_CLOSE;
 
 	sk->sk_write_space = sk_stream_write_space;
