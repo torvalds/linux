@@ -1230,6 +1230,21 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		if (local->queue_stop_reasons[q] ||
 		    (!txpending && !skb_queue_empty(&local->pending[q]))) {
+			if (unlikely(info->flags &
+					IEEE80211_TX_INTFL_OFFCHAN_TX_OK &&
+				     local->queue_stop_reasons[q] &
+					~BIT(IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL))) {
+				/*
+				 * Drop off-channel frames if queues are stopped
+				 * for any reason other than off-channel
+				 * operation. Never queue them.
+				 */
+				spin_unlock_irqrestore(
+					&local->queue_stop_reason_lock, flags);
+				ieee80211_purge_tx_queue(&local->hw, skbs);
+				return true;
+			}
+
 			/*
 			 * Since queue is stopped, queue up frames for later
 			 * transmission from the tx-pending tasklet when the

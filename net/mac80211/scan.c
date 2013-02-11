@@ -382,6 +382,11 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	int i;
 	struct ieee80211_sub_if_data *sdata;
 	enum ieee80211_band band = local->hw.conf.channel->band;
+	u32 tx_flags;
+
+	tx_flags = IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
+	if (local->scan_req->no_cck)
+		tx_flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	sdata = rcu_dereference_protected(local->scan_sdata,
 					  lockdep_is_held(&local->mtx));
@@ -393,9 +398,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
 			local->scan_req->rates[band], false,
-			local->scan_req->no_cck ?
-				IEEE80211_TX_CTL_NO_CCK_RATE : 0,
-			local->hw.conf.channel, true);
+			tx_flags, local->hw.conf.channel, true);
 
 	/*
 	 * After sending probe requests, wait for probe responses

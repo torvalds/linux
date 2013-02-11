@@ -685,7 +685,8 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	if (powersave)
 		nullfunc->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
-	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
+					IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
 	if (ifmgd->flags & (IEEE80211_STA_BEACON_POLL |
 			    IEEE80211_STA_CONNECTION_POLL))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_USE_MINRATE;
