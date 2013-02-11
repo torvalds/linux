@@ -290,19 +290,19 @@ int of_machine_is_compatible(const char *compat)
 EXPORT_SYMBOL(of_machine_is_compatible);
 
 /**
- *  of_device_is_available - check if a device is available for use
+ *  __of_device_is_available - check if a device is available for use
  *
- *  @device: Node to check for availability
+ *  @device: Node to check for availability, with locks already held
  *
  *  Returns 1 if the status property is absent or set to "okay" or "ok",
  *  0 otherwise
  */
-int of_device_is_available(const struct device_node *device)
+static int __of_device_is_available(const struct device_node *device)
 {
 	const char *status;
 	int statlen;
 
-	status = of_get_property(device, "status", &statlen);
+	status = __of_get_property(device, "status", &statlen);
 	if (status == NULL)
 		return 1;
 
@@ -312,6 +312,26 @@ int of_device_is_available(const struct device_node *device)
 	}
 
 	return 0;
+}
+
+/**
+ *  of_device_is_available - check if a device is available for use
+ *
+ *  @device: Node to check for availability
+ *
+ *  Returns 1 if the status property is absent or set to "okay" or "ok",
+ *  0 otherwise
+ */
+int of_device_is_available(const struct device_node *device)
+{
+	unsigned long flags;
+	int res;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	res = __of_device_is_available(device);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	return res;
+
 }
 EXPORT_SYMBOL(of_device_is_available);
 
@@ -404,7 +424,7 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 	raw_spin_lock(&devtree_lock);
 	next = prev ? prev->sibling : node->child;
 	for (; next; next = next->sibling) {
-		if (!of_device_is_available(next))
+		if (!__of_device_is_available(next))
 			continue;
 		if (of_node_get(next))
 			break;
