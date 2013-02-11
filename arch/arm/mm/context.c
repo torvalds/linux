@@ -34,6 +34,9 @@
  * The ASID is used to tag entries in the CPU caches and TLBs.
  * The context ID is used by debuggers and trace logic, and
  * should be unique within all running processes.
+ *
+ * In big endian operation, the two 32 bit words are swapped if accesed by
+ * non 64-bit operations.
  */
 #define ASID_FIRST_VERSION	(1ULL << ASID_BITS)
 #define NUM_USER_ASIDS		(ASID_FIRST_VERSION - 1)
