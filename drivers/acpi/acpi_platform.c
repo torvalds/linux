@@ -13,6 +13,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -21,17 +22,34 @@
 
 ACPI_MODULE_NAME("platform");
 
+static int acpi_create_platform_clks(struct acpi_device *adev)
+{
+	static struct platform_device *pdev;
+
+	/* Create Lynxpoint LPSS clocks */
+	if (!pdev && !strncmp(acpi_device_hid(adev), "INT33C", 6)) {
+		pdev = platform_device_register_simple("clk-lpt", -1, NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
+
+	return 0;
+}
+
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
+ * @flags: ACPI_PLATFORM_* flags that affect the creation of the platform
+ *	   devices.
  *
  * Check if the given @adev can be represented as a platform device and, if
  * that's the case, create and register a platform device, populate its common
  * resources and returns a pointer to it.  Otherwise, return %NULL.
  *
- * The platform device's name will be taken from the @adev's _HID and _UID.
+ * Name of the platform device will be the same as @adev's.
  */
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+						    unsigned long flags)
 {
 	struct platform_device *pdev = NULL;
 	struct acpi_device *acpi_parent;
@@ -40,6 +58,11 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	struct list_head resource_list;
 	struct resource *resources;
 	int count;
+
+	if ((flags & ACPI_PLATFORM_CLK) && acpi_create_platform_clks(adev)) {
+		dev_err(&adev->dev, "failed to create clocks\n");
+		return NULL;
+	}
 
 	/* If the ACPI node already has a physical device attached, skip it. */
 	if (adev->physical_node_count)

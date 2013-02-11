@@ -26,6 +26,7 @@
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 int acpi_sysfs_init(void);
+void acpi_csrt_init(void);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
@@ -117,6 +118,10 @@ static inline void suspend_nvs_restore(void) {}
   -------------------------------------------------------------------------- */
 struct platform_device;
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
+/* Flags for acpi_create_platform_device */
+#define ACPI_PLATFORM_CLK	BIT(0)
+
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+						    unsigned long flags);
 
 #endif /* _ACPI_INTERNAL_H_ */
