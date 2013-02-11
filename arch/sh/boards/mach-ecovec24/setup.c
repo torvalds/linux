@@ -887,12 +887,6 @@ static struct platform_device camera_devices[] = {
 };
 
 /* FSI */
-static struct sh_fsi_platform_info fsi_info = {
-	.port_b = {
-		.flags = SH_FSI_BRS_INV,
-	},
-};
-
 static struct resource fsi_resources[] = {
 	[0] = {
 		.name	= "FSI",
@@ -911,15 +905,13 @@ static struct platform_device fsi_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
-	.dev	= {
-		.platform_data	= &fsi_info,
-	},
 };
 
 static struct asoc_simple_dai_init_info fsi_da7210_init_info = {
 	.fmt		= SND_SOC_DAIFMT_I2S,
 	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS |
+			  SND_SOC_DAIFMT_IB_NF,
 };
 
 static struct asoc_simple_card_info fsi_da7210_info = {
