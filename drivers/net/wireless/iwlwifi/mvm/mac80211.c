@@ -475,7 +475,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (mvm->vif_count > 1) {
 		IWL_DEBUG_MAC80211(mvm,
 				   "Disable power on existing interfaces\n");
-		ieee80211_iterate_active_interfaces(
+		ieee80211_iterate_active_interfaces_atomic(
 					    mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_pm_disable_iterator, mvm);

@@ -194,7 +194,7 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			cmd.id_and_color, iwlmvm_mod_params.power_scheme,
 			le16_to_cpu(cmd.flags));
 
-	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_ASYNC,
 				    sizeof(cmd), &cmd);
 }
 
