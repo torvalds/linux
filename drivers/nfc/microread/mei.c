@@ -48,7 +48,7 @@ struct mei_nfc_hdr {
 #define MEI_NFC_MAX_READ (MEI_NFC_HEADER_SIZE + MEI_NFC_MAX_HCI_PAYLOAD)
 
 struct microread_mei_phy {
-	struct mei_bus_client *client;
+	struct mei_device *mei_device;
 	struct nfc_hci_dev *hdev;
 
 	int powered;
@@ -105,14 +105,14 @@ static int microread_mei_write(void *phy_id, struct sk_buff *skb)
 
 	MEI_DUMP_SKB_OUT("mei frame sent", skb);
 
-	r = mei_bus_send(phy->client, skb->data, skb->len);
+	r = mei_send(phy->device, skb->data, skb->len);
 	if (r > 0)
 		r = 0;
 
 	return r;
 }
 
-static void microread_event_cb(struct mei_bus_client *client, u32 events,
+static void microread_event_cb(struct mei_device *device, u32 events,
 			       void *context)
 {
 	struct microread_mei_phy *phy = context;
@@ -120,7 +120,7 @@ static void microread_event_cb(struct mei_bus_client *client, u32 events,
 	if (phy->hard_fault != 0)
 		return;
 
-	if (events & BIT(MEI_BUS_EVENT_RX)) {
+	if (events & BIT(MEI_EVENT_RX)) {
 		struct sk_buff *skb;
 		int reply_size;
 
@@ -128,7 +128,7 @@ static void microread_event_cb(struct mei_bus_client *client, u32 events,
 		if (!skb)
 			return;
 
-		reply_size = mei_bus_recv(client, skb->data, MEI_NFC_MAX_READ);
+		reply_size = mei_recv(device, skb->data, MEI_NFC_MAX_READ);
 		if (reply_size < MEI_NFC_HEADER_SIZE) {
 			kfree(skb);
 			return;
@@ -149,7 +149,8 @@ static struct nfc_phy_ops mei_phy_ops = {
 	.disable = microread_mei_disable,
 };
 
-static int microread_mei_probe(struct mei_bus_client *client)
+static int microread_mei_probe(struct mei_device *device,
+			       const struct mei_id *id)
 {
 	struct microread_mei_phy *phy;
 	int r;
@@ -162,10 +163,10 @@ static int microread_mei_probe(struct mei_bus_client *client)
 		return -ENOMEM;
 	}
 
-	phy->client = client;
-	mei_bus_set_clientdata(client, phy);
+	phy->device = device;
+	mei_set_clientdata(device, phy);
 
-	r = mei_bus_register_event_cb(client, microread_event_cb, phy);
+	r = mei_register_event_cb(device, microread_event_cb, phy);
 	if (r) {
 		pr_err(MICROREAD_DRIVER_NAME ": event cb registration failed\n");
 		goto err_out;
@@ -185,9 +186,9 @@ err_out:
 	return r;
 }
 
-static int microread_mei_remove(struct mei_bus_client *client)
+static int microread_mei_remove(struct mei_device *device)
 {
-	struct microread_mei_phy *phy = mei_bus_get_clientdata(client);
+	struct microread_mei_phy *phy = mei_get_clientdata(device);
 
 	pr_info("Removing microread\n");
 
@@ -201,14 +202,18 @@ static int microread_mei_remove(struct mei_bus_client *client)
 	return 0;
 }
 
-static struct mei_bus_driver microread_driver = {
-	.driver = {
-		   .name = MICROREAD_DRIVER_NAME,
-		  },
-	.id = {
-		.name = MICROREAD_DRIVER_NAME,
-		.uuid = MICROREAD_UUID,
-	},
+static struct mei_id microread_mei_tbl[] = {
+	{ MICROREAD_DRIVER_NAME, MICROREAD_UUID },
+
+	/* required last entry */
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mei, microread_mei_tbl);
+
+static struct mei_driver microread_driver = {
+	.id_table = microread_mei_tbl,
+	.name = MICROREAD_DRIVER_NAME,
 
 	.probe = microread_mei_probe,
 	.remove = microread_mei_remove,
