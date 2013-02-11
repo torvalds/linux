@@ -48,7 +48,7 @@
 			reg = <0xc0fc1000 0x100>;
 			interrupts = <5>;
 			clock-frequency = <80000000>;
-			baud = <115200>;
+			current-speed = <115200>;
 			status = "okay";
 		};
 	};
