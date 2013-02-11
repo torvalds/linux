@@ -543,7 +543,6 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 		skb->data_len += len;
 		skb->len += len;
 		skb->truesize += truesize;
-		skb_shinfo(skb)->gso_type |= SKB_GSO_SHARED_FRAG;
 		atomic_add(truesize, &skb->sk->sk_wmem_alloc);
 		while (len) {
 			int off = base & ~PAGE_MASK;
@@ -599,7 +598,7 @@ static int macvtap_skb_from_vnet_hdr(struct sk_buff *skb,
 
 	if (vnet_hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		skb_shinfo(skb)->gso_size = vnet_hdr->gso_size;
-		skb_shinfo(skb)->gso_type |= gso_type;
+		skb_shinfo(skb)->gso_type = gso_type;
 
 		/* Header must be checked, and gso_segs computed. */
 		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
@@ -743,6 +742,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = m->msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
 	if (vlan)
 		macvlan_start_xmit(skb, vlan->dev);

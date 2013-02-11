@@ -230,6 +230,13 @@ enum {
 
 	/* generate wifi status information (where possible) */
 	SKBTX_WIFI_STATUS = 1 << 4,
+
+	/* This indicates at least one fragment might be overwritten
+	 * (as in vmsplice(), sendfile() ...)
+	 * If we need to compute a TX checksum, we'll need to copy
+	 * all frags to avoid possible bad checksum
+	 */
+	SKBTX_SHARED_FRAG = 1 << 5,
 };
 
 /*
@@ -307,13 +314,6 @@ enum {
 	SKB_GSO_TCPV6 = 1 << 4,
 
 	SKB_GSO_FCOE = 1 << 5,
-
-	/* This indicates at least one fragment might be overwritten
-	 * (as in vmsplice(), sendfile() ...)
-	 * If we need to compute a TX checksum, we'll need to copy
-	 * all frags to avoid possible bad checksum
-	 */
-	SKB_GSO_SHARED_FRAG = 1 << 6,
 };
 
 #if BITS_PER_LONG > 32
@@ -2220,7 +2220,8 @@ static inline int skb_linearize(struct sk_buff *skb)
  */
 static inline bool skb_has_shared_frag(const struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->gso_type & SKB_GSO_SHARED_FRAG;
+	return skb_is_nonlinear(skb) &&
+	       skb_shinfo(skb)->tx_flags & SKBTX_SHARED_FRAG;
 }
 
 /**
