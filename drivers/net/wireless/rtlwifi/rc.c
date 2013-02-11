@@ -217,6 +217,12 @@ static void rtl_tx_status(void *ppriv,
 	}
 }
 
+static void rtl_rate_init(void *ppriv,
+			  struct ieee80211_supported_band *sband,
+			  struct ieee80211_sta *sta, void *priv_sta)
+{
+}
+
 static void *rtl_rate_alloc(struct ieee80211_hw *hw,
 		struct dentry *debugfsdir)
 {
@@ -261,6 +267,7 @@ static struct rate_control_ops rtl_rate_ops = {
 	.free = rtl_rate_free,
 	.alloc_sta = rtl_rate_alloc_sta,
 	.free_sta = rtl_rate_free_sta,
+	.rate_init = rtl_rate_init,
 	.tx_status = rtl_tx_status,
 	.get_rate = rtl_get_rate,
 };
