@@ -456,7 +456,8 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 	core_pct = div64_u64(sample->aperf * 100, sample->mperf);
 	sample->freq = cpu->pstate.turbo_pstate * core_pct * 1000;
 
-	sample->core_pct_busy = sample->pstate_pct_busy * core_pct / 100;
+	sample->core_pct_busy = div_s64((sample->pstate_pct_busy * core_pct),
+					100);
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
