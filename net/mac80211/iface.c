@@ -919,6 +919,17 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 			atomic_dec(&local->iff_promiscs);
 		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
+
+	/*
+	 * TODO: If somebody needs this on AP interfaces,
+	 *	 it can be enabled easily but multicast
+	 *	 addresses from VLANs need to be synced.
+	 */
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+	    sdata->vif.type != NL80211_IFTYPE_AP)
+		drv_set_multicast_list(local, sdata, &dev->mc);
+
 	spin_lock_bh(&local->filter_lock);
 	__hw_addr_sync(&local->mc_list, &dev->mc, dev->addr_len);
 	spin_unlock_bh(&local->filter_lock);

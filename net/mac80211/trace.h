@@ -431,6 +431,30 @@ TRACE_EVENT(drv_prepare_multicast,
 	)
 );
 
+TRACE_EVENT(drv_set_multicast_list,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata, int mc_count),
+
+	TP_ARGS(local, sdata, mc_count),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, allmulti)
+		__field(int, mc_count)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
+		__entry->mc_count = mc_count;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " configure mc filter, count=%d, allmulti=%d",
+		LOCAL_PR_ARG, __entry->mc_count, __entry->allmulti
+	)
+);
+
 TRACE_EVENT(drv_configure_filter,
 	TP_PROTO(struct ieee80211_local *local,
 		 unsigned int changed_flags,
