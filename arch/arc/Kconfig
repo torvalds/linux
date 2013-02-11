@@ -8,7 +8,6 @@
 
 config ARC
 	def_bool y
-	select ARCH_NO_VIRT_TO_BUS
 	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	select DEVTMPFS if !INITRAMFS_SOURCE=""
@@ -76,6 +75,9 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config NO_DMA
 	def_bool n
+
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
