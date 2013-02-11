@@ -265,7 +265,7 @@ void br_netpoll_disable(struct net_bridge_port *p)
 
 	p->np = NULL;
 
-	__netpoll_free_rcu(np);
+	__netpoll_free_async(np);
 }
 
 #endif

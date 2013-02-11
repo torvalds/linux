@@ -61,6 +61,7 @@ static struct srcu_struct netpoll_srcu;
 
 static void zap_completion_queue(void);
 static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo);
+static void netpoll_async_cleanup(struct work_struct *work);
 
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
@@ -1020,6 +1021,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 
 	np->dev = ndev;
 	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
+	INIT_WORK(&np->cleanup_work, netpoll_async_cleanup);
 
 	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
 	    !ndev->netdev_ops->ndo_poll_controller) {
@@ -1255,25 +1257,27 @@ void __netpoll_cleanup(struct netpoll *np)
 		if (ops->ndo_netpoll_cleanup)
 			ops->ndo_netpoll_cleanup(np->dev);
 
-		RCU_INIT_POINTER(np->dev->npinfo, NULL);
+		rcu_assign_pointer(np->dev->npinfo, NULL);
 		call_rcu_bh(&npinfo->rcu, rcu_cleanup_netpoll_info);
 	}
 }
 EXPORT_SYMBOL_GPL(__netpoll_cleanup);
 
-static void rcu_cleanup_netpoll(struct rcu_head *rcu_head)
+static void netpoll_async_cleanup(struct work_struct *work)
 {
-	struct netpoll *np = container_of(rcu_head, struct netpoll, rcu);
+	struct netpoll *np = container_of(work, struct netpoll, cleanup_work);
 
+	rtnl_lock();
 	__netpoll_cleanup(np);
+	rtnl_unlock();
 	kfree(np);
 }
 
-void __netpoll_free_rcu(struct netpoll *np)
+void __netpoll_free_async(struct netpoll *np)
 {
-	call_rcu_bh(&np->rcu, rcu_cleanup_netpoll);
+	schedule_work(&np->cleanup_work);
 }
-EXPORT_SYMBOL_GPL(__netpoll_free_rcu);
+EXPORT_SYMBOL_GPL(__netpoll_free_async);
 
 void netpoll_cleanup(struct netpoll *np)
 {
