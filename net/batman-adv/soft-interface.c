@@ -509,6 +509,58 @@ free_bat_counters:
 	return ret;
 }
 
+/**
+ * batadv_softif_slave_add - Add a slave interface to a batadv_soft_interface
+ * @dev: batadv_soft_interface used as master interface
+ * @slave_dev: net_device which should become the slave interface
+ *
+ * Return 0 if successful or error otherwise.
+ */
+static int batadv_softif_slave_add(struct net_device *dev,
+				   struct net_device *slave_dev)
+{
+	struct batadv_hard_iface *hard_iface;
+	int ret = -EINVAL;
+
+	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
+	if (!hard_iface || hard_iface->soft_iface != NULL)
+		goto out;
+
+	ret = batadv_hardif_enable_interface(hard_iface, dev->name);
+
+out:
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
+	return ret;
+}
+
+/**
+ * batadv_softif_slave_del - Delete a slave iface from a batadv_soft_interface
+ * @dev: batadv_soft_interface used as master interface
+ * @slave_dev: net_device which should be removed from the master interface
+ *
+ * Return 0 if successful or error otherwise.
+ */
+static int batadv_softif_slave_del(struct net_device *dev,
+				   struct net_device *slave_dev)
+{
+	struct batadv_hard_iface *hard_iface;
+	int ret = -EINVAL;
+
+	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
+
+	if (!hard_iface || hard_iface->soft_iface != dev)
+		goto out;
+
+	batadv_hardif_disable_interface(hard_iface, BATADV_IF_CLEANUP_KEEP);
+	ret = 0;
+
+out:
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
+	return ret;
+}
+
 static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_init = batadv_softif_init_late,
 	.ndo_open = batadv_interface_open,
@@ -517,7 +569,9 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_set_mac_address = batadv_interface_set_mac_addr,
 	.ndo_change_mtu = batadv_interface_change_mtu,
 	.ndo_start_xmit = batadv_interface_tx,
-	.ndo_validate_addr = eth_validate_addr
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_add_slave = batadv_softif_slave_add,
+	.ndo_del_slave = batadv_softif_slave_del,
 };
 
 /**
