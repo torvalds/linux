@@ -341,7 +341,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	}
 
  out:
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(wiphy, bss);
 
 	return rc;
 }

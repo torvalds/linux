@@ -535,7 +535,7 @@ struct mac_address {
  * struct cfg80211_acl_data - Access control list data
  *
  * @acl_policy: ACL policy to be applied on the station's
-	entry specified by mac_addr
+ *	entry specified by mac_addr
  * @n_acl_entries: Number of MAC address entries passed
  * @mac_addrs: List of MAC addresses of stations to be used for ACL
  */
@@ -666,6 +666,8 @@ struct station_parameters {
  * @STATION_INFO_INACTIVE_TIME: @inactive_time filled
  * @STATION_INFO_RX_BYTES: @rx_bytes filled
  * @STATION_INFO_TX_BYTES: @tx_bytes filled
+ * @STATION_INFO_RX_BYTES64: @rx_bytes filled with 64-bit value
+ * @STATION_INFO_TX_BYTES64: @tx_bytes filled with 64-bit value
  * @STATION_INFO_LLID: @llid filled
  * @STATION_INFO_PLID: @plid filled
  * @STATION_INFO_PLINK_STATE: @plink_state filled
@@ -674,8 +676,6 @@ struct station_parameters {
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
  * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
- * @STATION_INFO_RX_PACKETS64: @rx_packets filled with 64-bit value
- * @STATION_INFO_TX_PACKETS64: @tx_packets filled with 64-bit value
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
  * @STATION_INFO_TX_FAILED: @tx_failed filled
  * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
@@ -1226,6 +1226,7 @@ struct cfg80211_match_set {
  * @n_match_sets: number of match sets
  * @wiphy: the wiphy this was for
  * @dev: the interface
+ * @scan_start: start time of the scheduled scan
  * @channels: channels to scan
  * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
  */
@@ -1265,11 +1266,13 @@ enum cfg80211_signal_type {
 
 /**
  * struct cfg80211_bss_ie_data - BSS entry IE data
+ * @tsf: TSF contained in the frame that carried these IEs
  * @rcu_head: internal use, for freeing
  * @len: length of the IEs
  * @data: IE data
  */
 struct cfg80211_bss_ies {
+	u64 tsf;
 	struct rcu_head rcu_head;
 	int len;
 	u8 data[];
@@ -1283,26 +1286,32 @@ struct cfg80211_bss_ies {
  *
  * @channel: channel this BSS is on
  * @bssid: BSSID of the BSS
- * @tsf: timestamp of last received update
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
- * @ies: the information elements (Note that there
- *	is no guarantee that these are well-formed!); this is a pointer to
- *	either the beacon_ies or proberesp_ies depending on whether Probe
- *	Response frame has been received
+ * @ies: the information elements (Note that there is no guarantee that these
+ *	are well-formed!); this is a pointer to either the beacon_ies or
+ *	proberesp_ies depending on whether Probe Response frame has been
+ *	received. It is always non-%NULL.
  * @beacon_ies: the information elements from the last Beacon frame
+ *	(implementation note: if @hidden_beacon_bss is set this struct doesn't
+ *	own the beacon_ies, but they're just pointers to the ones from the
+ *	@hidden_beacon_bss struct)
  * @proberesp_ies: the information elements from the last Probe Response frame
+ * @hidden_beacon_bss: in case this BSS struct represents a probe response from
+ *	a BSS that hides the SSID in its beacon, this points to the BSS struct
+ *	that holds the beacon data. @beacon_ies is still valid, of course, and
+ *	points to the same data as hidden_beacon_bss->beacon_ies in that case.
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
-	u64 tsf;
-
 	struct ieee80211_channel *channel;
 
 	const struct cfg80211_bss_ies __rcu *ies;
 	const struct cfg80211_bss_ies __rcu *beacon_ies;
 	const struct cfg80211_bss_ies __rcu *proberesp_ies;
+
+	struct cfg80211_bss *hidden_beacon_bss;
 
 	s32 signal;
 
@@ -1404,6 +1413,8 @@ struct cfg80211_assoc_request {
  * @ie: Extra IEs to add to Deauthentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the deauthentication
+ * @local_state_change: if set, change local state only and
+ *	do not set a deauth frame
  */
 struct cfg80211_deauth_request {
 	const u8 *bssid;
@@ -2629,7 +2640,6 @@ struct cfg80211_cached_keys;
  *	the user-set AP, monitor and WDS channel
  * @preset_chan: (private) Used by the internal configuration code to
  *	track the channel to be used for AP later
- * @preset_chantype: (private) the corresponding channel type
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
  * @ssid_len: (private) Used by the internal configuration code
@@ -3166,19 +3176,21 @@ cfg80211_get_ibss(struct wiphy *wiphy,
 
 /**
  * cfg80211_ref_bss - reference BSS struct
+ * @wiphy: the wiphy this BSS struct belongs to
  * @bss: the BSS struct to reference
  *
  * Increments the refcount of the given BSS struct.
  */
-void cfg80211_ref_bss(struct cfg80211_bss *bss);
+void cfg80211_ref_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 /**
  * cfg80211_put_bss - unref BSS struct
+ * @wiphy: the wiphy this BSS struct belongs to
  * @bss: the BSS struct
  *
  * Decrements the refcount of the given BSS struct.
  */
-void cfg80211_put_bss(struct cfg80211_bss *bss);
+void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 /**
  * cfg80211_unlink_bss - unlink BSS from internal data structures

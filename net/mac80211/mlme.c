@@ -685,7 +685,8 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	if (powersave)
 		nullfunc->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
-	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
+					IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
 	if (ifmgd->flags & (IEEE80211_STA_BEACON_POLL |
 			    IEEE80211_STA_CONNECTION_POLL))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_USE_MINRATE;
@@ -951,39 +952,6 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
-		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
-		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
-
-	local->disable_dynamic_ps = false;
-	conf->dynamic_ps_timeout = local->dynamic_ps_user_timeout;
-}
-EXPORT_SYMBOL(ieee80211_enable_dyn_ps);
-
-void ieee80211_disable_dyn_ps(struct ieee80211_vif *vif)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
-		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
-		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
-
-	local->disable_dynamic_ps = true;
-	conf->dynamic_ps_timeout = 0;
-	del_timer_sync(&local->dynamic_ps_timer);
-	ieee80211_queue_work(&local->hw,
-			     &local->dynamic_ps_enable_work);
-}
-EXPORT_SYMBOL(ieee80211_disable_dyn_ps);
-
 /* powersave */
 static void ieee80211_enable_ps(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
@@ -1086,7 +1054,6 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	}
 
 	if (count == 1 && ieee80211_powersave_allowed(found)) {
-		struct ieee80211_conf *conf = &local->hw.conf;
 		s32 beaconint_us;
 
 		if (latency < 0)
@@ -1110,10 +1077,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 			else
 				timeout = 100;
 		}
-		local->dynamic_ps_user_timeout = timeout;
-		if (!local->disable_dynamic_ps)
-			conf->dynamic_ps_timeout =
-				local->dynamic_ps_user_timeout;
+		local->hw.conf.dynamic_ps_timeout = timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
@@ -1183,8 +1147,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (!local->disable_dynamic_ps &&
-	    local->hw.conf.dynamic_ps_timeout > 0) {
+	if (local->hw.conf.dynamic_ps_timeout > 0) {
 		/* don't enter PS if TX frames are pending */
 		if (drv_tx_frames_pending(local)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
@@ -1746,7 +1709,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 
 	if (beacon)
 		mlme_dbg_ratelimited(sdata,
-				     "detected beacon loss from AP - sending probe request\n");
+				     "detected beacon loss from AP - probing\n");
 
 	ieee80211_cqm_rssi_notify(&sdata->vif,
 		NL80211_CQM_RSSI_BEACON_LOSS_EVENT, GFP_KERNEL);
@@ -1830,7 +1793,6 @@ EXPORT_SYMBOL(ieee80211_ap_probereq_get);
 static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_local *local = sdata->local;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	mutex_lock(&ifmgd->mtx);
@@ -1850,10 +1812,6 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	 * but that's not a problem.
 	 */
 	cfg80211_send_deauth(sdata->dev, frame_buf, IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_beacon_connection_loss_work(struct work_struct *work)
@@ -1934,7 +1892,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_vif_release_channel(sdata);
 	}
 
-	cfg80211_put_bss(auth_data->bss);
+	cfg80211_put_bss(sdata->local->hw.wiphy, auth_data->bss);
 	kfree(auth_data);
 	sdata->u.mgd.auth_data = NULL;
 }
@@ -2086,10 +2044,6 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
 
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
-
 	return RX_MGMT_CFG80211_DEAUTH;
 }
 
@@ -2116,10 +2070,6 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 		   mgmt->sa, reason_code);
 
 	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
-
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
 
 	return RX_MGMT_CFG80211_DISASSOC;
 }
@@ -2263,9 +2213,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	if (elems.wmm_param)
 		set_sta_flag(sta, WLAN_STA_WME);
 
-	err = sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	if (!err)
-		err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 	if (!err && !(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
 		err = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 	if (err) {
@@ -2387,7 +2335,7 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_assoc_success(sdata, *bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
 			ieee80211_destroy_assoc_data(sdata, false);
-			cfg80211_put_bss(*bss);
+			cfg80211_put_bss(sdata->local->hw.wiphy, *bss);
 			return RX_MGMT_CFG80211_ASSOC_TIMEOUT;
 		}
 		sdata_info(sdata, "associated\n");
@@ -2567,6 +2515,17 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 		ifmgd->assoc_data->have_beacon = true;
 		ifmgd->assoc_data->need_beacon = false;
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf =
+				le64_to_cpu(mgmt->u.beacon.timestamp);
+			sdata->vif.bss_conf.sync_device_ts =
+				rx_status->device_timestamp;
+			if (elems.tim)
+				sdata->vif.bss_conf.sync_dtim_count =
+					elems.tim->dtim_count;
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
 		/* continue assoc process */
 		ifmgd->assoc_data->timeout = jiffies;
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
@@ -2641,7 +2600,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->flags & IEEE80211_STA_BEACON_POLL) {
 		mlme_dbg_ratelimited(sdata,
-				     "cancelling probereq poll due to a received beacon\n");
+				     "cancelling AP probe due to a received beacon\n");
 		mutex_lock(&local->mtx);
 		ifmgd->flags &= ~IEEE80211_STA_BEACON_POLL;
 		ieee80211_run_deferred_scan(local);
@@ -2725,7 +2684,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If we haven't had a beacon before, tell the driver about the
-	 * DTIM period now.
+	 * DTIM period (and beacon timing if desired) now.
 	 */
 	if (!bss_conf->dtim_period) {
 		/* a few bogus AP send dtim_period = 0 or no TIM IE */
@@ -2733,6 +2692,19 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
 		else
 			bss_conf->dtim_period = 1;
+
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf =
+				le64_to_cpu(mgmt->u.beacon.timestamp);
+			sdata->vif.bss_conf.sync_device_ts =
+				rx_status->device_timestamp;
+			if (elems.tim)
+				sdata->vif.bss_conf.sync_dtim_count =
+					elems.tim->dtim_count;
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
+
 		changed |= BSS_CHANGED_DTIM_PERIOD;
 	}
 
@@ -2853,7 +2825,6 @@ static void ieee80211_sta_timer(unsigned long data)
 static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 					  u8 *bssid, u8 reason, bool tx)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
@@ -2866,10 +2837,6 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	 * but that's not a problem.
 	 */
 	cfg80211_send_deauth(sdata->dev, frame_buf, IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 
 	mutex_lock(&ifmgd->mtx);
 }
@@ -3141,10 +3108,6 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	}
 
 	mutex_unlock(&ifmgd->mtx);
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_sta_bcn_mon_timer(unsigned long data)
@@ -3658,15 +3621,12 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 	}
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
-
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
 		struct ieee80211_supported_band *sband;
+		const struct cfg80211_bss_ies *ies;
 
 		sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -3710,8 +3670,34 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 		/* set timing information */
 		sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
-		sdata->vif.bss_conf.sync_tsf = cbss->tsf;
-		sdata->vif.bss_conf.sync_device_ts = bss->device_ts;
+		rcu_read_lock();
+		ies = rcu_dereference(cbss->beacon_ies);
+		if (ies) {
+			const u8 *tim_ie;
+
+			sdata->vif.bss_conf.sync_tsf = ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_beacon;
+			tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
+						  ies->data, ies->len);
+			if (tim_ie && tim_ie[1] >= 2)
+				sdata->vif.bss_conf.sync_dtim_count = tim_ie[2];
+			else
+				sdata->vif.bss_conf.sync_dtim_count = 0;
+		} else if (!(local->hw.flags &
+					IEEE80211_HW_TIMING_BEACON_ONLY)) {
+			ies = rcu_dereference(cbss->proberesp_ies);
+			/* must be non-NULL since beacon IEs were NULL */
+			sdata->vif.bss_conf.sync_tsf = ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_presp;
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+		} else {
+			sdata->vif.bss_conf.sync_tsf = 0;
+			sdata->vif.bss_conf.sync_device_ts = 0;
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+		}
+		rcu_read_unlock();
 
 		/* tell driver about BSSID, basic rates and timing */
 		ieee80211_bss_info_change_notify(sdata,
@@ -3831,7 +3817,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* hold our own reference */
-	cfg80211_ref_bss(auth_data->bss);
+	cfg80211_ref_bss(local->hw.wiphy, auth_data->bss);
 	err = 0;
 	goto out_unlock;
 
@@ -4037,13 +4023,23 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
 						    beacon_ies->data,
 						    beacon_ies->len);
+		u8 dtim_count = 0;
+
 		if (tim_ie && tim_ie[1] >= sizeof(struct ieee80211_tim_ie)) {
 			const struct ieee80211_tim_ie *tim;
 			tim = (void *)(tim_ie + 2);
 			ifmgd->dtim_period = tim->dtim_period;
+			dtim_count = tim->dtim_count;
 		}
 		assoc_data->have_beacon = true;
 		assoc_data->timeout = jiffies;
+
+		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+			sdata->vif.bss_conf.sync_tsf = beacon_ies->tsf;
+			sdata->vif.bss_conf.sync_device_ts =
+				bss->device_ts_beacon;
+			sdata->vif.bss_conf.sync_dtim_count = dtim_count;
+		}
 	} else {
 		assoc_data->timeout = jiffies;
 	}
@@ -4115,10 +4111,6 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&ifmgd->mtx);
 
  out:
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
-
 	if (sent_frame)
 		__cfg80211_send_deauth(sdata->dev, frame_buf,
 				       IEEE80211_DEAUTH_FRAME_LEN);
@@ -4158,10 +4150,6 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	__cfg80211_send_disassoc(sdata->dev, frame_buf,
 				 IEEE80211_DEAUTH_FRAME_LEN);
-
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&sdata->local->mtx);
 
 	return 0;
 }

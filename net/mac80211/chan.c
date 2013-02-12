@@ -91,6 +91,10 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
+
 	return ctx;
 }
 
@@ -110,6 +114,10 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 
 	list_del_rcu(&ctx->list);
 	kfree_rcu(ctx, rcu_head);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 }
 
 static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -128,6 +136,8 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount++;
 
 	ieee80211_recalc_txpower(sdata);
+	sdata->vif.bss_conf.idle = false;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	return 0;
 }
@@ -175,6 +185,9 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount--;
 	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
 
+	sdata->vif.bss_conf.idle = true;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 
 	if (ctx->refcount > 0) {
@@ -197,15 +210,6 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_sub_if_data *vlan;
-
-		/* for the VLAN list */
-		ASSERT_RTNL();
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-			rcu_assign_pointer(vlan->vif.chanctx_conf, NULL);
-	}
 
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
@@ -326,15 +330,6 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_sub_if_data *vlan;
-
-		/* for the VLAN list */
-		ASSERT_RTNL();
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-			rcu_assign_pointer(vlan->vif.chanctx_conf, &ctx->conf);
-	}
-
 	ieee80211_recalc_smps_chanctx(local, ctx);
  out:
 	mutex_unlock(&local->chanctx_mtx);
@@ -366,6 +361,40 @@ void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata)
 	conf = rcu_dereference_protected(ap->vif.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	rcu_assign_pointer(sdata->vif.chanctx_conf, conf);
+	mutex_unlock(&local->chanctx_mtx);
+}
+
+void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
+					 bool clear)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *vlan;
+	struct ieee80211_chanctx_conf *conf;
+
+	ASSERT_RTNL();
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP))
+		return;
+
+	mutex_lock(&local->chanctx_mtx);
+
+	/*
+	 * Check that conf exists, even when clearing this function
+	 * must be called with the AP's channel context still there
+	 * as it would otherwise cause VLANs to have an invalid
+	 * channel context pointer for a while, possibly pointing
+	 * to a channel context that has already been freed.
+	 */
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+	WARN_ON(!conf);
+
+	if (clear)
+		conf = NULL;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		rcu_assign_pointer(vlan->vif.chanctx_conf, conf);
+
 	mutex_unlock(&local->chanctx_mtx);
 }
 

@@ -38,8 +38,8 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "type      rate     throughput  ewma prob   this prob  "
-			"this succ/attempt   success    attempts\n");
+	p += sprintf(p, "type         rate     throughput  ewma prob   this prob  "
+			"retry   this succ/attempt   success    attempts\n");
 	for (i = 0; i < MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS; i++) {
 		char htmode = '2';
 		char gimode = 'L';
@@ -64,18 +64,19 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 			*(p++) = (idx == mi->max_tp_rate) ? 'T' : ' ';
 			*(p++) = (idx == mi->max_tp_rate2) ? 't' : ' ';
 			*(p++) = (idx == mi->max_prob_rate) ? 'P' : ' ';
-			p += sprintf(p, "MCS%-2u", (minstrel_mcs_groups[i].streams - 1) *
+			p += sprintf(p, " MCS%-2u", (minstrel_mcs_groups[i].streams - 1) *
 					MCS_GROUP_RATES + j);
 
 			tp = mr->cur_tp / 10;
 			prob = MINSTREL_TRUNC(mr->cur_prob * 1000);
 			eprob = MINSTREL_TRUNC(mr->probability * 1000);
 
-			p += sprintf(p, "  %6u.%1u   %6u.%1u   %6u.%1u        "
-					"%3u(%3u)   %8llu    %8llu\n",
+			p += sprintf(p, "      %6u.%1u   %6u.%1u    %6u.%1u    "
+					"%3u            %3u(%3u)  %8llu    %8llu\n",
 					tp / 10, tp % 10,
 					eprob / 10, eprob % 10,
 					prob / 10, prob % 10,
+					mr->retry_count,
 					mr->last_success,
 					mr->last_attempts,
 					(unsigned long long)mr->succ_hist,

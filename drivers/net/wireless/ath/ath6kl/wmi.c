@@ -1108,7 +1108,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 	kfree(mgmt);
 	if (bss == NULL)
 		return -ENOMEM;
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(ar->wiphy, bss);
 
 	/*
 	 * Firmware doesn't return any event when scheduled scan has

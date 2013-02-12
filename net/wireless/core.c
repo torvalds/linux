@@ -715,7 +715,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 		kfree(reg);
 	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
-		cfg80211_put_bss(&scan->pub);
+		cfg80211_put_bss(&rdev->wiphy, &scan->pub);
 	kfree(rdev);
 }
 

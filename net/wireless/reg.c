@@ -2189,10 +2189,15 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		 * However if a driver requested this specific regulatory
 		 * domain we keep it for its private use
 		 */
-		if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER)
+		if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
+			const struct ieee80211_regdomain *tmp;
+
+			tmp = get_wiphy_regdom(request_wiphy);
 			rcu_assign_pointer(request_wiphy->regd, rd);
-		else
+			rcu_free_regdom(tmp);
+		} else {
 			kfree(rd);
+		}
 
 		rd = NULL;
 

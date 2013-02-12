@@ -34,7 +34,8 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 {
 	if (!bss)
 		return;
-	cfg80211_put_bss(container_of((void *)bss, struct cfg80211_bss, priv));
+	cfg80211_put_bss(local->hw.wiphy,
+			 container_of((void *)bss, struct cfg80211_bss, priv));
 }
 
 static bool is_uapsd_supported(struct ieee802_11_elems *elems)
@@ -79,7 +80,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	bss = (void *)cbss->priv;
 
-	bss->device_ts = rx_status->device_timestamp;
+	if (beacon)
+		bss->device_ts_beacon = rx_status->device_timestamp;
+	else
+		bss->device_ts_presp = rx_status->device_timestamp;
 
 	if (elems->parse_error) {
 		if (beacon)
@@ -330,6 +334,9 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 
 	ieee80211_offchannel_stop_vifs(local);
 
+	/* ensure nullfunc is transmitted before leaving operating channel */
+	drv_flush(local, false);
+
 	ieee80211_configure_filter(local);
 
 	/* We need to set power level at maximum rate for scanning. */
@@ -378,6 +385,11 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	int i;
 	struct ieee80211_sub_if_data *sdata;
 	enum ieee80211_band band = local->hw.conf.channel->band;
+	u32 tx_flags;
+
+	tx_flags = IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
+	if (local->scan_req->no_cck)
+		tx_flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	sdata = rcu_dereference_protected(local->scan_sdata,
 					  lockdep_is_held(&local->mtx));
@@ -389,9 +401,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
 			local->scan_req->rates[band], false,
-			local->scan_req->no_cck ?
-				IEEE80211_TX_CTL_NO_CCK_RATE : 0,
-			local->hw.conf.channel, true);
+			tx_flags, local->hw.conf.channel, true);
 
 	/*
 	 * After sending probe requests, wait for probe responses
