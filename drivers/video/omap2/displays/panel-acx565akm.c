@@ -555,10 +555,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 		md->cabc_mode = get_hw_cabc_mode(md);
 	}
 
-	if (md->has_bc)
-		max_brightness = 255;
-	else
-		max_brightness = dssdev->max_backlight_level;
+	max_brightness = 255;
 
 	if (md->has_bc)
 		brightness = acx565akm_get_actual_brightness(md);
