@@ -22,6 +22,21 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
+struct tcf_police {
+	struct tcf_common	common;
+	int			tcfp_result;
+	u32			tcfp_ewma_rate;
+	u32			tcfp_burst;
+	u32			tcfp_mtu;
+	u32			tcfp_toks;
+	u32			tcfp_ptoks;
+	psched_time_t		tcfp_t_c;
+	struct qdisc_rate_table	*tcfp_R_tab;
+	struct qdisc_rate_table	*tcfp_P_tab;
+};
+#define to_police(pc)	\
+	container_of(pc, struct tcf_police, common)
+
 #define L2T(p, L)   qdisc_l2t((p)->tcfp_R_tab, L)
 #define L2T_P(p, L) qdisc_l2t((p)->tcfp_P_tab, L)
 

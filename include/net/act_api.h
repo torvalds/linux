@@ -35,21 +35,6 @@ struct tcf_common {
 #define tcf_lock	common.tcfc_lock
 #define tcf_rcu		common.tcfc_rcu
 
-struct tcf_police {
-	struct tcf_common	common;
-	int			tcfp_result;
-	u32			tcfp_ewma_rate;
-	u32			tcfp_burst;
-	u32			tcfp_mtu;
-	u32			tcfp_toks;
-	u32			tcfp_ptoks;
-	psched_time_t		tcfp_t_c;
-	struct qdisc_rate_table	*tcfp_R_tab;
-	struct qdisc_rate_table	*tcfp_P_tab;
-};
-#define to_police(pc)	\
-	container_of(pc, struct tcf_police, common)
-
 struct tcf_hashinfo {
 	struct tcf_common	**htab;
 	unsigned int		hmask;
