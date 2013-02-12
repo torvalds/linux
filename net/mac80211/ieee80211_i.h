@@ -315,6 +315,7 @@ struct ieee80211_roc_work {
 	u32 duration, req_duration;
 	struct sk_buff *frame;
 	u64 cookie, mgmt_tx_cookie;
+	enum ieee80211_roc_type type;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */

@@ -2410,7 +2410,8 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 				    struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_channel *channel,
 				    unsigned int duration, u64 *cookie,
-				    struct sk_buff *txskb)
+				    struct sk_buff *txskb,
+				    enum ieee80211_roc_type type)
 {
 	struct ieee80211_roc_work *roc, *tmp;
 	bool queued = false;
@@ -2429,6 +2430,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	roc->duration = duration;
 	roc->req_duration = duration;
 	roc->frame = txskb;
+	roc->type = type;
 	roc->mgmt_tx_cookie = (unsigned long)txskb;
 	roc->sdata = sdata;
 	INIT_DELAYED_WORK(&roc->work, ieee80211_sw_roc_work);
@@ -2459,7 +2461,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!duration)
 		duration = 10;
 
-	ret = drv_remain_on_channel(local, sdata, channel, duration);
+	ret = drv_remain_on_channel(local, sdata, channel, duration, type);
 	if (ret) {
 		kfree(roc);
 		return ret;
@@ -2478,10 +2480,13 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		 *
 		 * If it hasn't started yet, just increase the duration
 		 * and add the new one to the list of dependents.
+		 * If the type of the new ROC has higher priority, modify the
+		 * type of the previous one to match that of the new one.
 		 */
 		if (!tmp->started) {
 			list_add_tail(&roc->list, &tmp->dependents);
 			tmp->duration = max(tmp->duration, roc->duration);
+			tmp->type = max(tmp->type, roc->type);
 			queued = true;
 			break;
 		}
@@ -2493,16 +2498,18 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 			/*
 			 * In the offloaded ROC case, if it hasn't begun, add
 			 * this new one to the dependent list to be handled
-			 * when the the master one begins. If it has begun,
+			 * when the master one begins. If it has begun,
 			 * check that there's still a minimum time left and
 			 * if so, start this one, transmitting the frame, but
-			 * add it to the list directly after this one with a
+			 * add it to the list directly after this one with
 			 * a reduced time so we'll ask the driver to execute
 			 * it right after finishing the previous one, in the
 			 * hope that it'll also be executed right afterwards,
 			 * effectively extending the old one.
 			 * If there's no minimum time left, just add it to the
 			 * normal list.
+			 * TODO: the ROC type is ignored here, assuming that it
+			 * is better to immediately use the current ROC.
 			 */
 			if (!tmp->hw_begun) {
 				list_add_tail(&roc->list, &tmp->dependents);
@@ -2596,7 +2603,8 @@ static int ieee80211_remain_on_channel(struct wiphy *wiphy,
 
 	mutex_lock(&local->mtx);
 	ret = ieee80211_start_roc_work(local, sdata, chan,
-				       duration, cookie, NULL);
+				       duration, cookie, NULL,
+				       IEEE80211_ROC_TYPE_NORMAL);
 	mutex_unlock(&local->mtx);
 
 	return ret;
@@ -2829,7 +2837,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	/* This will handle all kinds of coalescing and immediate TX */
 	ret = ieee80211_start_roc_work(local, sdata, chan,
-				       wait, cookie, skb);
+				       wait, cookie, skb,
+				       IEEE80211_ROC_TYPE_MGMT_TX);
 	if (ret)
 		kfree_skb(skb);
  out_unlock:

@@ -2135,6 +2135,24 @@ enum ieee80211_rate_control_changed {
 };
 
 /**
+ * enum ieee80211_roc_type - remain on channel type
+ *
+ * With the support for multi channel contexts and multi channel operations,
+ * remain on channel operations might be limited/deferred/aborted by other
+ * flows/operations which have higher priority (and vise versa).
+ * Specifying the ROC type can be used by devices to prioritize the ROC
+ * operations compared to other operations/flows.
+ *
+ * @IEEE80211_ROC_TYPE_NORMAL: There are no special requirements for this ROC.
+ * @IEEE80211_ROC_TYPE_MGMT_TX: The remain on channel request is required
+ *	for sending managment frames offchannel.
+ */
+enum ieee80211_roc_type {
+	IEEE80211_ROC_TYPE_NORMAL = 0,
+	IEEE80211_ROC_TYPE_MGMT_TX,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -2687,7 +2705,8 @@ struct ieee80211_ops {
 	int (*remain_on_channel)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_channel *chan,
-				 int duration);
+				 int duration,
+				 enum ieee80211_roc_type type);
 	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
 	void (*get_ringparam)(struct ieee80211_hw *hw,
