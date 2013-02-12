@@ -1356,6 +1356,8 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
 	int max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
+	max_bitmaps = max(max_bitmaps, 1);
+
 	BUG_ON(ctl->total_bitmaps > max_bitmaps);
 
 	/*
@@ -1636,10 +1638,14 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	}
 
 	/*
-	 * some block groups are so tiny they can't be enveloped by a bitmap, so
-	 * don't even bother to create a bitmap for this
+	 * The original block groups from mkfs can be really small, like 8
+	 * megabytes, so don't bother with a bitmap for those entries.  However
+	 * some block groups can be smaller than what a bitmap would cover but
+	 * are still large enough that they could overflow the 32k memory limit,
+	 * so allow those block groups to still be allowed to have a bitmap
+	 * entry.
 	 */
-	if (BITS_PER_BITMAP * ctl->unit > block_group->key.offset)
+	if (((BITS_PER_BITMAP * ctl->unit) >> 1) > block_group->key.offset)
 		return false;
 
 	return true;
