@@ -474,7 +474,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (mvm->vif_count > 1) {
 		IWL_DEBUG_MAC80211(mvm,
 				   "Disable power on existing interfaces\n");
-		ieee80211_iterate_active_interfaces(
+		ieee80211_iterate_active_interfaces_atomic(
 					    mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_pm_disable_iterator, mvm);
@@ -670,8 +670,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
 			}
-			iwl_mvm_remove_time_event(mvm, mvmvif,
-						  &mvmvif->time_event_data);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
@@ -683,6 +681,13 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
+	} else if (changes & BSS_CHANGED_DTIM_PERIOD) {
+		/*
+		 * We received a beacon _after_ association so
+		 * remove the session protection.
+		 */
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
 	} else if (changes & BSS_CHANGED_PS) {
 		/*
 		 * TODO: remove this temporary code.
@@ -921,8 +926,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
-		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band);
-		ret = 0;
+		ret = iwl_mvm_update_sta(mvm, vif, sta);
+		if (ret == 0)
+			iwl_mvm_rs_rate_init(mvm, sta,
+					     mvmvif->phy_ctxt->channel->band);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = 0;

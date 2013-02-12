@@ -926,7 +926,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (WARN_ON(txq_id == trans_pcie->cmd_queue))
 		return;
 
-	spin_lock(&txq->lock);
+	spin_lock_bh(&txq->lock);
 
 	if (txq->q.read_ptr == tfd_num)
 		goto out;
@@ -970,7 +970,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (iwl_queue_space(&txq->q) > txq->q.low_mark)
 		iwl_wake_queue(trans, txq);
 out:
-	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->lock);
 }
 
 /*
@@ -1371,7 +1371,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		return;
 	}
 
-	spin_lock(&txq->lock);
+	spin_lock_bh(&txq->lock);
 
 	cmd_index = get_cmd_index(&txq->q, index);
 	cmd = txq->entries[cmd_index].cmd;
@@ -1405,7 +1405,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 
 	meta->flags = 0;
 
-	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->lock);
 }
 
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)

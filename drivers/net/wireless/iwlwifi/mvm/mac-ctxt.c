@@ -584,7 +584,11 @@ static void iwl_mvm_mac_ctxt_cmd_fill_sta(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  struct iwl_mac_data_sta *ctxt_sta)
 {
-	ctxt_sta->is_assoc = cpu_to_le32(vif->bss_conf.assoc ? 1 : 0);
+	/* We need the dtim_period to set the MAC as associated */
+	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period)
+		ctxt_sta->is_assoc = cpu_to_le32(1);
+	else
+		ctxt_sta->is_assoc = cpu_to_le32(0);
 
 	ctxt_sta->bi = cpu_to_le32(vif->bss_conf.beacon_int);
 	ctxt_sta->bi_reciprocal =

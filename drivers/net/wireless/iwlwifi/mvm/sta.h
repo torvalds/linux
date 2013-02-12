@@ -309,10 +309,14 @@ struct iwl_mvm_int_sta {
 	u32 tfd_queue_msk;
 };
 
-int iwl_mvm_sta_add_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta);
+int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			   bool update);
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
+int iwl_mvm_update_sta(struct iwl_mvm *mvm,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);

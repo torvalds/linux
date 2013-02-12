@@ -620,7 +620,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
 
-		ieee80211_tx_status(mvm->hw, skb);
+		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
 	if (txq_id >= IWL_FIRST_AMPDU_QUEUE) {
@@ -663,12 +663,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
 
-			spin_lock(&mvmsta->lock);
+			spin_lock_bh(&mvmsta->lock);
 			tid_data->next_reclaimed = next_reclaimed;
 			IWL_DEBUG_TX_REPLY(mvm, "Next reclaimed packet:%d\n",
 					   next_reclaimed);
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
-			spin_unlock(&mvmsta->lock);
+			spin_unlock_bh(&mvmsta->lock);
 		}
 
 #ifdef CONFIG_PM_SLEEP
@@ -832,7 +832,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		return 0;
 	}
 
-	spin_lock(&mvmsta->lock);
+	spin_lock_bh(&mvmsta->lock);
 
 	__skb_queue_head_init(&reclaimed_skbs);
 
@@ -886,13 +886,13 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		}
 	}
 
-	spin_unlock(&mvmsta->lock);
+	spin_unlock_bh(&mvmsta->lock);
 
 	rcu_read_unlock();
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status(mvm->hw, skb);
+		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
 	return 0;
