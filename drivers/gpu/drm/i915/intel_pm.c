@@ -2289,7 +2289,6 @@ err_unpin:
 	i915_gem_object_unpin(ctx);
 err_unref:
 	drm_gem_object_unreference(&ctx->base);
-	mutex_unlock(&dev->struct_mutex);
 	return NULL;
 }
 
