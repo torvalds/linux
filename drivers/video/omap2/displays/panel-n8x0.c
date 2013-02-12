@@ -295,12 +295,6 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 
 	gpio_direction_output(bdata->ctrl_pwrdown, 1);
 
-	if (bdata->platform_enable) {
-		r = bdata->platform_enable(dssdev);
-		if (r)
-			goto err_plat_en;
-	}
-
 	omapdss_rfbi_set_size(dssdev, dssdev->panel.timings.x_res,
 		dssdev->panel.timings.y_res);
 	omapdss_rfbi_set_pixel_size(dssdev, dssdev->ctrl.pixel_size);
@@ -373,9 +367,6 @@ err_inv_panel:
 err_inv_chip:
 	omapdss_rfbi_display_disable(dssdev);
 err_rfbi_en:
-	if (bdata->platform_disable)
-		bdata->platform_disable(dssdev);
-err_plat_en:
 	gpio_direction_output(bdata->ctrl_pwrdown, 0);
 	return r;
 }
@@ -391,9 +382,6 @@ static void n8x0_panel_power_off(struct omap_dss_device *dssdev)
 
 	send_display_off(spi);
 	send_sleep_in(spi);
-
-	if (bdata->platform_disable)
-		bdata->platform_disable(dssdev);
 
 	/*
 	 * HACK: we should turn off the panel here, but there is some problem
