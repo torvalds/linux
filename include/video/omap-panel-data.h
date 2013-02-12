@@ -34,11 +34,18 @@ struct omap_dss_device;
  * @name: panel name
  * @platform_enable: platform specific panel enable function
  * @platform_disable: platform specific panel disable function
+ * @num_gpios: number of gpios connected to panel
+ * @gpios: gpio numbers on the platform
+ * @gpio_invert: configure gpio as active high or low
  */
 struct panel_generic_dpi_data {
 	const char *name;
 	int (*platform_enable)(struct omap_dss_device *dssdev);
 	void (*platform_disable)(struct omap_dss_device *dssdev);
+
+	int num_gpios;
+	int gpios[10];
+	bool gpio_invert[10];
 };
 
 /**
@@ -98,6 +105,48 @@ struct picodlp_panel_data {
 struct tfp410_platform_data {
 	int i2c_bus_num;
 	int power_down_gpio;
+};
+
+/**
+ * sharp ls panel driver configuration data
+ * @resb_gpio: reset signal
+ * @ini_gpio: power on control
+ * @mo_gpio: selection for resolution(VGA/QVGA)
+ * @lr_gpio: selection for horizontal scanning direction
+ * @ud_gpio: selection for vertical scanning direction
+ */
+struct panel_sharp_ls037v7dw01_data {
+	int resb_gpio;
+	int ini_gpio;
+	int mo_gpio;
+	int lr_gpio;
+	int ud_gpio;
+};
+
+/**
+ * acx565akm panel driver configuration data
+ * @reset_gpio: reset signal
+ */
+struct panel_acx565akm_data {
+	int reset_gpio;
+};
+
+/**
+ * nec nl8048 panel driver configuration data
+ * @res_gpio: reset signal
+ * @qvga_gpio: selection for resolution(QVGA/WVGA)
+ */
+struct panel_nec_nl8048_data {
+	int res_gpio;
+	int qvga_gpio;
+};
+
+/**
+ * tpo td043 panel driver configuration data
+ * @nreset_gpio: reset signal
+ */
+struct panel_tpo_td043_data {
+	int nreset_gpio;
 };
 
 #endif /* __OMAP_PANEL_DATA_H */
