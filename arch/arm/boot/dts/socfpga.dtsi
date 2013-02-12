@@ -70,12 +70,14 @@
 			compatible = "altr,pio-1.0";
 			/* Register base 0xff200000 is for a light-weight bridge */
 			reg = <0xff200000 0x10>;
+			width = <32>;
 			/* There are 64 interrupts from the FPGA start at 72, so 45 has to be wrong */
 			interrupts = <0 45 4>;
 			interrupt-controller;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <1>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			level_trigger = <0>;
 		};
 
 

@@ -3,11 +3,13 @@ Altera GPIO controller bindings
 Required properties:
 - compatible:
   - "altr,pio-1.0"
+- reg: Physical base address and length of the controller's registers.
 - #gpio-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify optional parameters (unused)
 - gpio-controller : Marks the device node as a GPIO controller.
 - #interrupt-cells : Should be 1.
+- interrupts: Specify the interrupt.
 - interrupt-controller: Mark the device node as an interrupt controller
   The first cell is the GPIO number.
 
@@ -24,6 +26,8 @@ Example:
 
 gpio_altr: gpio_altr {
     compatible = "altr,pio-1.0";
+    reg = <0xff200000 0x10>;
+    interrupts = <0 45 4>;
     width = <32>;
     level_trigger = <0>;
     #gpio-cells = <2>;
