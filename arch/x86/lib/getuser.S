@@ -41,7 +41,7 @@ ENTRY(__get_user_1)
 	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
 	ASM_STAC
-1:	movzb (%_ASM_AX),%edx
+1:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
@@ -71,7 +71,7 @@ ENTRY(__get_user_4)
 	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
 	ASM_STAC
-3:	mov -3(%_ASM_AX),%edx
+3:	movl -3(%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
@@ -87,7 +87,7 @@ ENTRY(__get_user_8)
 	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
 	ASM_STAC
-4:	movq -7(%_ASM_AX),%_ASM_DX
+4:	movq -7(%_ASM_AX),%rdx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
@@ -98,8 +98,8 @@ ENTRY(__get_user_8)
 	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user_8
 	ASM_STAC
-4:	mov -7(%_ASM_AX),%edx
-5:	mov -3(%_ASM_AX),%ecx
+4:	movl -7(%_ASM_AX),%edx
+5:	movl -3(%_ASM_AX),%ecx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
