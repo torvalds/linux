@@ -1598,7 +1598,7 @@ static unsigned int dsp_chip_to_dsp_addx(unsigned int chip_addx,
 		return Y_OFF(chip_addx);
 	}
 
-	return (unsigned int)INVALID_CHIP_ADDRESS;
+	return INVALID_CHIP_ADDRESS;
 }
 
 /*
@@ -4540,7 +4540,7 @@ static int ca0132_init(struct hda_codec *codec)
 	int i;
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
-	spec->curr_chip_addx = (unsigned int)INVALID_CHIP_ADDRESS;
+	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
 	snd_hda_power_up(codec);
 
