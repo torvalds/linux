@@ -3737,7 +3737,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 {
 	struct wm8994_priv *wm8994 = data;
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
-	int reg, count;
+	int reg, count, ret;
 
 	/*
 	 * Jack detection may have detected a removal simulataneously
@@ -3783,11 +3783,11 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 
 	/* Avoid a transient report when the accessory is being removed */
 	if (wm8994->jackdet) {
-		reg = snd_soc_read(codec, WM1811_JACKDET_CTRL);
-		if (reg < 0) {
+		ret = snd_soc_read(codec, WM1811_JACKDET_CTRL);
+		if (ret < 0) {
 			dev_err(codec->dev, "Failed to read jack status: %d\n",
-				reg);
-		} else if (!(reg & WM1811_JACKDET_LVL)) {
+				ret);
+		} else if (!(ret & WM1811_JACKDET_LVL)) {
 			dev_dbg(codec->dev, "Ignoring removed jack\n");
 			return IRQ_HANDLED;
 		}
