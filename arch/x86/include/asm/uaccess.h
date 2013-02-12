@@ -125,13 +125,12 @@ extern int __get_user_4(void);
 extern int __get_user_8(void);
 extern int __get_user_bad(void);
 
-#define __get_user_x(size, ret, x, ptr)		      \
-	asm volatile("call __get_user_" #size	      \
-		     : "=a" (ret), "=d" (x)	      \
-		     : "0" (ptr))		      \
-
-/* Careful: we have to cast the result to the type of the pointer
- * for sign reasons */
+/*
+ * This is a type: either unsigned long, if the argument fits into
+ * that type, or otherwise unsigned long long.
+ */
+#define __inttype(x) \
+__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 
 /**
  * get_user: - Get a simple variable from user space.
@@ -149,48 +148,20 @@ extern int __get_user_bad(void);
  *
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
+ *
+ * Careful: we have to cast the result to the type of the pointer
+ * for sign reasons.
  */
-#ifdef CONFIG_X86_32
-#define __get_user_8(ret, x, ptr)		      \
-do {						      \
-	register unsigned long long __xx asm("%edx"); \
-	asm volatile("call __get_user_8"	      \
-		     : "=a" (ret), "=r" (__xx)	      \
-		     : "0" (ptr));		      \
-	(x) = __xx;				      \
-} while (0)
-
-#else
-#define __get_user_8(__ret_gu, __val_gu, ptr)				\
-		__get_user_x(8, __ret_gu, __val_gu, ptr)
-#endif
-
 #define get_user(x, ptr)						\
 ({									\
 	int __ret_gu;							\
-	struct {							\
-		unsigned long long __val_n : 8*sizeof(*(ptr));		\
-	} __val_gu;							\
+	register __inttype(*(ptr)) __val_gu asm("%edx");		\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__get_user_x(1, __ret_gu, __val_gu.__val_n, ptr);	\
-		break;							\
-	case 2:								\
-		__get_user_x(2, __ret_gu, __val_gu.__val_n, ptr);	\
-		break;							\
-	case 4:								\
-		__get_user_x(4, __ret_gu, __val_gu.__val_n, ptr);	\
-		break;							\
-	case 8:								\
-		__get_user_8(__ret_gu, __val_gu.__val_n, ptr);		\
-		break;							\
-	default:							\
-		__get_user_x(X, __ret_gu, __val_gu.__val_n, ptr);	\
-		break;							\
-	}								\
-	(x) = (__typeof__(*(ptr)))__val_gu.__val_n;			\
+	asm volatile("call __get_user_%P3"				\
+		     : "=a" (__ret_gu), "=r" (__val_gu)			\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__typeof__(*(ptr))) __val_gu;				\
 	__ret_gu;							\
 })
 
