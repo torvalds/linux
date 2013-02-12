@@ -232,6 +232,10 @@
 		samsung,audio-codec = <&wm8994>;
 	};
 
+	usb@12110000 {
+		samsung,vbus-gpio = <&gpx2 6 1 3 3>;
+	};
+
 	dp-controller {
 		samsung,color-space = <0>;
 		samsung,dynamic-range = <0>;
