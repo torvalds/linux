@@ -341,16 +341,6 @@ static int consistency_status = SUCCESS;
    in order to provide access mainly for 'g', 'G' and 'P'.
 */
 
-#ifdef PROCESS_SUPPORT
-/* Need two task id pointers in order to handle Hct and Hgt commands. */
-static int current_thread_c = 0;
-static int current_thread_g = 0;
-
-/* Need two register images in order to handle Hct and Hgt commands. The
-   variable reg_g is in addition to cris_reg above. */
-static registers reg_g;
-#endif /* PROCESS_SUPPORT */
-
 /********************************** Breakpoint *******************************/
 /* Use an internal stack in the breakpoint and interrupt response routines */
 #define INTERNAL_STACK_SIZE 1024
@@ -608,55 +598,6 @@ putDebugString (const unsigned char *str, int length)
 }
 
 /********************************* Register image ****************************/
-#ifdef PROCESS_SUPPORT
-/* Copy the content of a register image into another. The size n is
-   the size of the register image. Due to struct assignment generation of
-   memcpy in libc. */
-static void
-copy_registers (registers *dptr, registers *sptr, int n)
-{
-	unsigned char *dreg;
-	unsigned char *sreg;
-	
-	for (dreg = (unsigned char*)dptr, sreg = (unsigned char*)sptr; n > 0; n--)
-		*dreg++ = *sreg++;
-}
-
-/* Copy the stored registers from the stack. Put the register contents
-   of thread thread_id in the struct reg. */
-static void
-copy_registers_from_stack (int thread_id, registers *regptr)
-{
-	int j;
-	stack_registers *s = (stack_registers *)stack_list[thread_id];
-	unsigned int *d = (unsigned int *)regptr;
-	
-	for (j = 13; j >= 0; j--)
-		*d++ = s->r[j];
-	regptr->sp = (unsigned int)stack_list[thread_id];
-	regptr->pc = s->pc;
-	regptr->dccr = s->dccr;
-	regptr->srp = s->srp;
-}
-
-/* Copy the registers to the stack. Put the register contents of thread
-   thread_id from struct reg to the stack. */
-static void
-copy_registers_to_stack (int thread_id, registers *regptr)
-{
-	int i;
-	stack_registers *d = (stack_registers *)stack_list[thread_id];
-	unsigned int *s = (unsigned int *)regptr;
-	
-	for (i = 0; i < 14; i++) {
-		d->r[i] = *s++;
-	}
-	d->pc = regptr->pc;
-	d->dccr = regptr->dccr;
-	d->srp = regptr->srp;
-}
-#endif
-
 /* Write a value to a specified register in the register image of the current
    thread. Returns status code SUCCESS, E02 or E05. */
 static int
@@ -691,40 +632,6 @@ write_register (int regno, char *val)
 	}
 	return status;
 }
-
-#ifdef PROCESS_SUPPORT
-/* Write a value to a specified register in the stack of a thread other
-   than the current thread. Returns status code SUCCESS or E07. */
-static int
-write_stack_register (int thread_id, int regno, char *valptr)
-{
-	int status = SUCCESS;
-	stack_registers *d = (stack_registers *)stack_list[thread_id];
-	unsigned int val;
-	
-	hex2mem ((unsigned char *)&val, valptr, sizeof(unsigned int));
-	if (regno >= R0 && regno < SP) {
-		d->r[regno] = val;
-	}
-	else if (regno == SP) {
-		stack_list[thread_id] = val;
-	}
-	else if (regno == PC) {
-		d->pc = val;
-	}
-	else if (regno == SRP) {
-		d->srp = val;
-	}
-	else if (regno == DCCR) {
-		d->dccr = val;
-	}
-	else {
-		/* Do not support registers in the current thread. */
-		status = E07;
-	}
-	return status;
-}
-#endif
 
 /* Read a value from a specified register in the register image. Returns the
    value in the register or -1 for non-implemented registers.
@@ -811,26 +718,6 @@ stub_is_stopped(int sigval)
                 
 	}
 
-#ifdef PROCESS_SUPPORT
-	/* Store the registers of the executing thread. Assume that both step,
-	   continue, and register content requests are with respect to this
-	   thread. The executing task is from the operating system scheduler. */
-
-	current_thread_c = executing_task;
-	current_thread_g = executing_task;
-
-	/* A struct assignment translates into a libc memcpy call. Avoid
-	   all libc functions in order to prevent recursive break points. */
-	copy_registers (&reg_g, &cris_reg, sizeof(registers));
-
-	/* Store thread:r...; with the executing task TID. */
-	gdb_cris_strcpy (&remcomOutBuffer[pos], "thread:");
-	pos += gdb_cris_strlen ("thread:");
-	remcomOutBuffer[pos++] = hex_asc_hi(executing_task);
-	remcomOutBuffer[pos++] = hex_asc_lo(executing_task);
-	gdb_cris_strcpy (&remcomOutBuffer[pos], ";");
-#endif
-
 	/* null-terminate and send it off */
 
 	*ptr = 0;
@@ -865,19 +752,7 @@ handle_exception (int sigval)
 				   in a register  are in the same order the machine uses.
 				   Failure: void. */
 				
-				{
-#ifdef PROCESS_SUPPORT
-					/* Use the special register content in the executing thread. */
-					copy_registers (&reg_g, &cris_reg, sizeof(registers));
-					/* Replace the content available on the stack. */
-					if (current_thread_g != executing_task) {
-						copy_registers_from_stack (current_thread_g, &reg_g);
-					}
-					mem2hex ((unsigned char *)remcomOutBuffer, (unsigned char *)&reg_g, sizeof(registers));
-#else
-					mem2hex(remcomOutBuffer, (char *)&cris_reg, sizeof(registers));
-#endif
-				}
+				mem2hex(remcomOutBuffer, (char *)&cris_reg, sizeof(registers));
 				break;
 				
 			case 'G':
@@ -885,17 +760,7 @@ handle_exception (int sigval)
 				   Each byte of register data  is described by two hex digits.
 				   Success: OK
 				   Failure: void. */
-#ifdef PROCESS_SUPPORT
-				hex2mem ((unsigned char *)&reg_g, &remcomInBuffer[1], sizeof(registers));
-				if (current_thread_g == executing_task) {
-					copy_registers (&cris_reg, &reg_g, sizeof(registers));
-				}
-				else {
-					copy_registers_to_stack(current_thread_g, &reg_g);
-				}
-#else
 				hex2mem((char *)&cris_reg, &remcomInBuffer[1], sizeof(registers));
-#endif
 				gdb_cris_strcpy (remcomOutBuffer, "OK");
 				break;
 				
@@ -911,12 +776,7 @@ handle_exception (int sigval)
 					char *suffix;
 					int regno = gdb_cris_strtol (&remcomInBuffer[1], &suffix, 16);
 					int status;
-#ifdef PROCESS_SUPPORT
-					if (current_thread_g != executing_task)
-						status = write_stack_register (current_thread_g, regno, suffix+1);
-					else
-#endif
-						status = write_register (regno, suffix+1);
+					status = write_register (regno, suffix+1);
 
 					switch (status) {
 						case E02:
@@ -1051,119 +911,6 @@ handle_exception (int sigval)
 				   Not supported: E04 */
 				gdb_cris_strcpy (remcomOutBuffer, error_message[E04]);
 				break;
-#ifdef PROCESS_SUPPORT
-
-			case 'T':
-				/* Thread alive. TXX
-				   Is thread XX alive?
-				   Success: OK, thread XX is alive.
-				   Failure: E03, thread XX is dead. */
-				{
-					int thread_id = (int)gdb_cris_strtol (&remcomInBuffer[1], 0, 16);
-					/* Cannot tell whether it is alive or not. */
-					if (thread_id >= 0 && thread_id < number_of_tasks)
-						gdb_cris_strcpy (remcomOutBuffer, "OK");
-				}
-				break;
-								
-			case 'H':
-				/* Set thread for subsequent operations: Hct
-				   c = 'c' for thread used in step and continue;
-				   t can be -1 for all threads.
-				   c = 'g' for thread used in other  operations.
-				   t = 0 means pick any thread.
-				   Success: OK
-				   Failure: E01 */
-				{
-					int thread_id = gdb_cris_strtol (&remcomInBuffer[2], 0, 16);
-					if (remcomInBuffer[1] == 'c') {
-						/* c = 'c' for thread used in step and continue */
-						/* Do not change current_thread_c here. It would create a mess in
-						   the scheduler. */
-						gdb_cris_strcpy (remcomOutBuffer, "OK");
-					}
-					else if (remcomInBuffer[1] == 'g') {
-						/* c = 'g' for thread used in other  operations.
-						   t = 0 means pick any thread. Impossible since the scheduler does
-						   not allow that. */
-						if (thread_id >= 0 && thread_id < number_of_tasks) {
-							current_thread_g = thread_id;
-							gdb_cris_strcpy (remcomOutBuffer, "OK");
-						}
-						else {
-							/* Not expected - send an error message. */
-							gdb_cris_strcpy (remcomOutBuffer, error_message[E01]);
-						}
-					}
-					else {
-						/* Not expected - send an error message. */
-						gdb_cris_strcpy (remcomOutBuffer, error_message[E01]);
-					}
-				}
-				break;
-				
-			case 'q':
-			case 'Q':
-				/* Query of general interest. qXXXX
-				   Set general value XXXX. QXXXX=yyyy */
-				{
-					int pos;
-					int nextpos;
-					int thread_id;
-					
-					switch (remcomInBuffer[1]) {
-						case 'C':
-							/* Identify the remote current thread. */
-							gdb_cris_strcpy (&remcomOutBuffer[0], "QC");
-							remcomOutBuffer[2] = hex_asc_hi(current_thread_c);
-							remcomOutBuffer[3] = hex_asc_lo(current_thread_c);
-							remcomOutBuffer[4] = '\0';
-							break;
-						case 'L':
-							gdb_cris_strcpy (&remcomOutBuffer[0], "QM");
-							/* Reply with number of threads. */
-							if (os_is_started()) {
-								remcomOutBuffer[2] = hex_asc_hi(number_of_tasks);
-								remcomOutBuffer[3] = hex_asc_lo(number_of_tasks);
-							}
-							else {
-								remcomOutBuffer[2] = hex_asc_hi(0);
-								remcomOutBuffer[3] = hex_asc_lo(1);
-							}
-							/* Done with the reply. */
-							remcomOutBuffer[4] = hex_asc_lo(1);
-							pos = 5;
-							/* Expects the argument thread id. */
-							for (; pos < (5 + HEXCHARS_IN_THREAD_ID); pos++)
-								remcomOutBuffer[pos] = remcomInBuffer[pos];
-							/* Reply with the thread identifiers. */
-							if (os_is_started()) {
-								/* Store the thread identifiers of all tasks. */
-								for (thread_id = 0; thread_id < number_of_tasks; thread_id++) {
-									nextpos = pos + HEXCHARS_IN_THREAD_ID - 1;
-									for (; pos < nextpos; pos ++)
-										remcomOutBuffer[pos] = hex_asc_lo(0);
-									remcomOutBuffer[pos++] = hex_asc_lo(thread_id);
-								}
-							}
-							else {
-								/* Store the thread identifier of the boot task. */
-								nextpos = pos + HEXCHARS_IN_THREAD_ID - 1;
-								for (; pos < nextpos; pos ++)
-									remcomOutBuffer[pos] = hex_asc_lo(0);
-								remcomOutBuffer[pos++] = hex_asc_lo(current_thread_c);
-							}
-							remcomOutBuffer[pos] = '\0';
-							break;
-						default:
-							/* Not supported: "" */
-							/* Request information about section offsets: qOffsets. */
-							remcomOutBuffer[0] = 0;
-							break;
-					}
-				}
-				break;
-#endif /* PROCESS_SUPPORT */
 				
 			default:
 				/* The stub should ignore other request and send an empty
