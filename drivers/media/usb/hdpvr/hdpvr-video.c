@@ -594,7 +594,7 @@ static int vidioc_s_input(struct file *file, void *private_data,
 		return -EINVAL;
 
 	if (dev->status != STATUS_IDLE)
-		return -EAGAIN;
+		return -EBUSY;
 
 	retval = hdpvr_config_call(dev, CTRL_VIDEO_INPUT_VALUE, index+1);
 	if (!retval)
@@ -646,7 +646,7 @@ static int vidioc_s_audio(struct file *file, void *private_data,
 		return -EINVAL;
 
 	if (dev->status != STATUS_IDLE)
-		return -EAGAIN;
+		return -EBUSY;
 
 	retval = hdpvr_set_audio(dev, audio->index+1, dev->options.audio_codec);
 	if (!retval)
@@ -777,7 +777,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *private_data,
 				    struct v4l2_fmtdesc *f)
 {
 
-	if (f->index != 0 || f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (f->index != 0)
 		return -EINVAL;
 
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
