@@ -777,14 +777,11 @@ static int dgrp_remove_nd(struct nd_struct *nd)
 		dgrp_remove_node_class_sysfs_files(nd);
 	}
 
-	if (nd->nd_mon_de)
-		unregister_dgrp_device(nd->nd_mon_de);
+	unregister_dgrp_device(nd->nd_mon_de);
 
-	if (nd->nd_ports_de)
-		unregister_dgrp_device(nd->nd_ports_de);
+	unregister_dgrp_device(nd->nd_ports_de);
 
-	if (nd->nd_dpa_de)
-		unregister_dgrp_device(nd->nd_dpa_de);
+	unregister_dgrp_device(nd->nd_dpa_de);
 
 	dgrp_tty_uninit(nd);
 
