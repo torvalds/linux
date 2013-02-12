@@ -135,6 +135,9 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 			case DCB_OUTPUT_DP:
 				outp->link = (conf & 0x00000030) >> 4;
 				outp->sorconf.link = outp->link; /*XXX*/
+				outp->extdev = 0x00;
+				if (outp->location != 0)
+					outp->extdev = (conf & 0x0000ff00) >> 8;
 				break;
 			default:
 				break;
@@ -147,7 +150,7 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 static inline u16
 dcb_outp_hasht(struct dcb_output *outp)
 {
-	return outp->type;
+	return (outp->location << 4) | outp->type;
 }
 
 static inline u16
