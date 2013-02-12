@@ -13,13 +13,21 @@
 	__CPUINIT
 	.arch	armv7-a
 
-#define CPU1_START_ADDR 	        0xffd08010
-
 ENTRY(secondary_trampoline)
-	movw	r0, #:lower16:CPU1_START_ADDR
-	movt  r0, #:upper16:CPU1_START_ADDR
+	movw	r2, #:lower16:cpu1start_addr
+	movt  r2, #:upper16:cpu1start_addr
 
+	/* The socfpga VT cannot handle a 0xC0000000 page offset when loading
+		the cpu1start_addr, we bit clear it. Tested on HW and VT. */
+	bic	r2, r2, #0x40000000
+
+	ldr	r0, [r2]
 	ldr	r1, [r0]
 	bx	r1
 
 ENTRY(secondary_trampoline_end)
+
+ENTRY(socfpga_secondary_startup)
+       bl      v7_invalidate_l1
+       b       secondary_startup
+ENDPROC(socfpga_secondary_startup)

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
+ *  Copyright (C) 2013 Altera Corporation <www.altera.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 /include/ "socfpga.dtsi"
 
 / {
-	model = "Altera SOCFPGA Cyclone V";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	model = "Altera SOCFPGA VT";
+	compatible = "altr,socfpga-vt", "altr,socfpga";
 
 	chosen {
 		bootargs = "console=ttyS0,57600";
@@ -29,36 +29,36 @@
 	memory {
 		name = "memory";
 		device_type = "memory";
-		reg = <0x0 0x40000000>; /* 1GB */
+		reg = <0x0 0x40000000>; /* 1 GB */
 	};
 
 	soc {
 		timer0@ffc08000 {
-			clock-frequency = <100000000>;
+			clock-frequency = <7000000>;
 		};
 
 		timer1@ffc09000 {
-			clock-frequency = <100000000>;
+			clock-frequency = <7000000>;
 		};
 
 		timer2@ffd00000 {
-			clock-frequency = <25000000>;
+			clock-frequency = <7000000>;
 		};
 
 		timer3@ffd01000 {
-			clock-frequency = <25000000>;
+			clock-frequency = <7000000>;
 		};
 
 		serial0@ffc02000 {
-			clock-frequency = <100000000>;
+			clock-frequency = <7372800>;
 		};
 
 		serial1@ffc03000 {
-			clock-frequency = <100000000>;
+			clock-frequency = <7372800>;
 		};
 
 		sysmgr@ffd08000 {
-			cpu1-start-addr = <0xffd080c4>;
+			cpu1-start-addr = <0xffd08010>;
 		};
 	};
 };
