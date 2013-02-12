@@ -480,34 +480,44 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+static void __init arch_mem_addpart(phys_t mem, phys_t end, int type)
+{
+	phys_t size;
+	int i;
+
+	size = end - mem;
+	if (!size)
+		return;
+
+	/* Make sure it is in the boot_mem_map */
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		if (mem >= boot_mem_map.map[i].addr &&
+		    mem < (boot_mem_map.map[i].addr +
+			   boot_mem_map.map[i].size))
+			return;
+	}
+	add_memory_region(mem, size, type);
+}
+
 static void __init arch_mem_init(char **cmdline_p)
 {
-	phys_t init_mem, init_end, init_size;
-
 	extern void plat_mem_setup(void);
 
 	/* call board setup routine */
 	plat_mem_setup();
 
-	init_mem = PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT;
-	init_end = PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT;
-	init_size = init_end - init_mem;
-	if (init_size) {
-		/* Make sure it is in the boot_mem_map */
-		int i, found;
-		found = 0;
-		for (i = 0; i < boot_mem_map.nr_map; i++) {
-			if (init_mem >= boot_mem_map.map[i].addr &&
-			    init_mem < (boot_mem_map.map[i].addr +
-					boot_mem_map.map[i].size)) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
-			add_memory_region(init_mem, init_size,
-					  BOOT_MEM_INIT_RAM);
-	}
+	/*
+	 * Make sure all kernel memory is in the maps.  The "UP" and
+	 * "DOWN" are opposite for initdata since if it crosses over
+	 * into another memory section you don't want that to be
+	 * freed when the initdata is freed.
+	 */
+	arch_mem_addpart(PFN_DOWN(__pa_symbol(&_text)) << PAGE_SHIFT,
+			 PFN_UP(__pa_symbol(&_edata)) << PAGE_SHIFT,
+			 BOOT_MEM_RAM);
+	arch_mem_addpart(PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT,
+			 PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT,
+			 BOOT_MEM_INIT_RAM);
 
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
