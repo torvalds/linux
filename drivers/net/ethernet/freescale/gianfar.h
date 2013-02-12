@@ -627,24 +627,25 @@ struct rmon_mib
 };
 
 struct gfar_extra_stats {
-	u64 kernel_dropped;
-	u64 rx_large;
-	u64 rx_short;
-	u64 rx_nonoctet;
-	u64 rx_crcerr;
-	u64 rx_overrun;
-	u64 rx_bsy;
-	u64 rx_babr;
-	u64 rx_trunc;
-	u64 eberr;
-	u64 tx_babt;
-	u64 tx_underrun;
-	u64 rx_skbmissing;
-	u64 tx_timeout;
+	atomic64_t kernel_dropped;
+	atomic64_t rx_large;
+	atomic64_t rx_short;
+	atomic64_t rx_nonoctet;
+	atomic64_t rx_crcerr;
+	atomic64_t rx_overrun;
+	atomic64_t rx_bsy;
+	atomic64_t rx_babr;
+	atomic64_t rx_trunc;
+	atomic64_t eberr;
+	atomic64_t tx_babt;
+	atomic64_t tx_underrun;
+	atomic64_t rx_skbmissing;
+	atomic64_t tx_timeout;
 };
 
 #define GFAR_RMON_LEN ((sizeof(struct rmon_mib) - 16)/sizeof(u32))
-#define GFAR_EXTRA_STATS_LEN (sizeof(struct gfar_extra_stats)/sizeof(u64))
+#define GFAR_EXTRA_STATS_LEN \
+	(sizeof(struct gfar_extra_stats)/sizeof(atomic64_t))
 
 /* Number of stats exported via ethtool */
 #define GFAR_STATS_LEN (GFAR_RMON_LEN + GFAR_EXTRA_STATS_LEN)
