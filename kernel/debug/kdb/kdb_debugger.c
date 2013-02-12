@@ -114,7 +114,6 @@ int kdb_stub(struct kgdb_state *ks)
 	/* Remove any breakpoints as needed by kdb and clear single step */
 	kdb_bp_remove();
 	KDB_STATE_CLEAR(DOING_SS);
-	KDB_STATE_CLEAR(DOING_SSB);
 	KDB_STATE_SET(PAGER);
 	/* zero out any offline cpu data */
 	for_each_present_cpu(i) {

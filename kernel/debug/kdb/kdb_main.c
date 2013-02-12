@@ -1128,7 +1128,6 @@ void kdb_set_current_task(struct task_struct *p)
  *	KDB_CMD_GO	User typed 'go'.
  *	KDB_CMD_CPU	User switched to another cpu.
  *	KDB_CMD_SS	Single step.
- *	KDB_CMD_SSB	Single step until branch.
  */
 static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		     kdb_dbtrap_t db_result)
@@ -1166,14 +1165,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 #endif
 			kdb_printf("due to Debug @ " kdb_machreg_fmt "\n",
 				   instruction_pointer(regs));
-			break;
-		case KDB_DB_SSB:
-			/*
-			 * In the midst of ssb command. Just return.
-			 */
-			KDB_DEBUG_STATE("kdb_local 3", reason);
-			return KDB_CMD_SSB;	/* Continue with SSB command */
-
 			break;
 		case KDB_DB_SS:
 			break;
@@ -1297,7 +1288,6 @@ do_full_getstr:
 		if (diag == KDB_CMD_GO
 		 || diag == KDB_CMD_CPU
 		 || diag == KDB_CMD_SS
-		 || diag == KDB_CMD_SSB
 		 || diag == KDB_CMD_KGDB)
 			break;
 
@@ -1381,12 +1371,6 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 
 		if (result == KDB_CMD_SS) {
 			KDB_STATE_SET(DOING_SS);
-			break;
-		}
-
-		if (result == KDB_CMD_SSB) {
-			KDB_STATE_SET(DOING_SS);
-			KDB_STATE_SET(DOING_SSB);
 			break;
 		}
 
