@@ -3624,6 +3624,17 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 	if (hw->mac.type == e1000_ich8lan)
 		reg |= (E1000_RFCTL_IPV6_EX_DIS | E1000_RFCTL_NEW_IPV6_EXT_DIS);
 	ew32(RFCTL, reg);
+
+	/* Enable ECC on Lynxpoint */
+	if (hw->mac.type == e1000_pch_lpt) {
+		reg = er32(PBECCSTS);
+		reg |= E1000_PBECCSTS_ECC_ENABLE;
+		ew32(PBECCSTS, reg);
+
+		reg = er32(CTRL);
+		reg |= E1000_CTRL_MEHE;
+		ew32(CTRL, reg);
+	}
 }
 
 /**

@@ -388,8 +388,6 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel;
 	struct pppol2tp_session *ps;
-	int old_headroom;
-	int new_headroom;
 	int uhlen, headroom;
 
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
@@ -408,7 +406,6 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	if (tunnel == NULL)
 		goto abort_put_sess;
 
-	old_headroom = skb_headroom(skb);
 	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 	headroom = NET_SKB_PAD +
 		   sizeof(struct iphdr) + /* IP header */
@@ -417,9 +414,6 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		   sizeof(ppph);	/* PPP header */
 	if (skb_cow_head(skb, headroom))
 		goto abort_put_sess_tun;
-
-	new_headroom = skb_headroom(skb);
-	skb->truesize += new_headroom - old_headroom;
 
 	/* Setup PPP header */
 	__skb_push(skb, sizeof(ppph));

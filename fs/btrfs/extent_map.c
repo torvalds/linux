@@ -171,6 +171,10 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (test_bit(EXTENT_FLAG_COMPRESSED, &prev->flags))
 		return 0;
 
+	if (test_bit(EXTENT_FLAG_LOGGING, &prev->flags) ||
+	    test_bit(EXTENT_FLAG_LOGGING, &next->flags))
+		return 0;
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -255,7 +259,8 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
 	if (!em)
 		goto out;
 
-	list_move(&em->list, &tree->modified_extents);
+	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+		list_move(&em->list, &tree->modified_extents);
 	em->generation = gen;
 	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 	em->mod_start = em->start;
@@ -278,6 +283,13 @@ out:
 	write_unlock(&tree->lock);
 	return ret;
 
+}
+
+void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
+{
+	clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
+	if (em->in_tree)
+		try_merge_map(tree, em);
 }
 
 /**

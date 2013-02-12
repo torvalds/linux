@@ -2132,8 +2132,12 @@ static struct omap_hwmod omap44xx_mcpdm_hwmod = {
 	 * currently reset very early during boot, before I2C is
 	 * available, so it doesn't seem that we have any choice in
 	 * the kernel other than to avoid resetting it.
+	 *
+	 * Also, McPDM needs to be configured to NO_IDLE mode when it
+	 * is in used otherwise vital clocks will be gated which
+	 * results 'slow motion' audio playback.
 	 */
-	.flags		= HWMOD_EXT_OPT_MAIN_CLK,
+	.flags		= HWMOD_EXT_OPT_MAIN_CLK | HWMOD_SWSUP_SIDLE,
 	.mpu_irqs	= omap44xx_mcpdm_irqs,
 	.sdma_reqs	= omap44xx_mcpdm_sdma_reqs,
 	.main_clk	= "mcpdm_fck",

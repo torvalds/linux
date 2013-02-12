@@ -24,9 +24,6 @@
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 *******************************************************************************/
-
-#ifdef CONFIG_DEBUG_FS
-
 #include <linux/debugfs.h>
 #include <linux/module.h>
 
@@ -277,5 +274,3 @@ void ixgbe_dbg_exit(void)
 {
 	debugfs_remove_recursive(ixgbe_dbg_root);
 }
-
-#endif /* CONFIG_DEBUG_FS */
