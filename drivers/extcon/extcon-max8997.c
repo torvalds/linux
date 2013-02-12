@@ -30,51 +30,6 @@
 
 #define	DEV_NAME			"max8997-muic"
 
-/* MAX8997-MUIC STATUS1 register */
-#define STATUS1_ADC_SHIFT		0
-#define STATUS1_ADCLOW_SHIFT		5
-#define STATUS1_ADCERR_SHIFT		6
-#define STATUS1_ADC_MASK		(0x1f << STATUS1_ADC_SHIFT)
-#define STATUS1_ADCLOW_MASK		(0x1 << STATUS1_ADCLOW_SHIFT)
-#define STATUS1_ADCERR_MASK		(0x1 << STATUS1_ADCERR_SHIFT)
-
-/* MAX8997-MUIC STATUS2 register */
-#define STATUS2_CHGTYP_SHIFT		0
-#define STATUS2_CHGDETRUN_SHIFT		3
-#define STATUS2_DCDTMR_SHIFT		4
-#define STATUS2_DBCHG_SHIFT		5
-#define STATUS2_VBVOLT_SHIFT		6
-#define STATUS2_CHGTYP_MASK		(0x7 << STATUS2_CHGTYP_SHIFT)
-#define STATUS2_CHGDETRUN_MASK		(0x1 << STATUS2_CHGDETRUN_SHIFT)
-#define STATUS2_DCDTMR_MASK		(0x1 << STATUS2_DCDTMR_SHIFT)
-#define STATUS2_DBCHG_MASK		(0x1 << STATUS2_DBCHG_SHIFT)
-#define STATUS2_VBVOLT_MASK		(0x1 << STATUS2_VBVOLT_SHIFT)
-
-/* MAX8997-MUIC STATUS3 register */
-#define STATUS3_OVP_SHIFT		2
-#define STATUS3_OVP_MASK		(0x1 << STATUS3_OVP_SHIFT)
-
-/* MAX8997-MUIC CONTROL1 register */
-#define COMN1SW_SHIFT			0
-#define COMP2SW_SHIFT			3
-#define COMN1SW_MASK			(0x7 << COMN1SW_SHIFT)
-#define COMP2SW_MASK			(0x7 << COMP2SW_SHIFT)
-#define SW_MASK				(COMP2SW_MASK | COMN1SW_MASK)
-
-#define MAX8997_SW_USB		((1 << COMP2SW_SHIFT) | (1 << COMN1SW_SHIFT))
-#define MAX8997_SW_AUDIO	((2 << COMP2SW_SHIFT) | (2 << COMN1SW_SHIFT))
-#define MAX8997_SW_UART		((3 << COMP2SW_SHIFT) | (3 << COMN1SW_SHIFT))
-#define MAX8997_SW_OPEN		((0 << COMP2SW_SHIFT) | (0 << COMN1SW_SHIFT))
-
-#define	MAX8997_ADC_GROUND		0x00
-#define	MAX8997_ADC_MHL			0x01
-#define	MAX8997_ADC_JIG_USB_1		0x18
-#define	MAX8997_ADC_JIG_USB_2		0x19
-#define	MAX8997_ADC_DESKDOCK		0x1a
-#define	MAX8997_ADC_JIG_UART		0x1c
-#define	MAX8997_ADC_CARDOCK		0x1d
-#define	MAX8997_ADC_OPEN		0x1f
-
 struct max8997_muic_irq {
 	unsigned int irq;
 	const char *name;
@@ -109,17 +64,32 @@ struct max8997_muic_info {
 	struct extcon_dev	*edev;
 };
 
+enum {
+	EXTCON_CABLE_USB = 0,
+	EXTCON_CABLE_USB_HOST,
+	EXTCON_CABLE_TA,
+	EXTCON_CABLE_FAST_CHARGER,
+	EXTCON_CABLE_SLOW_CHARGER,
+	EXTCON_CABLE_CHARGE_DOWNSTREAM,
+	EXTCON_CABLE_MHL,
+	EXTCON_CABLE_DOCK_DESK,
+	EXTCON_CABLE_DOCK_CARD,
+	EXTCON_CABLE_JIG,
+
+	_EXTCON_CABLE_NUM,
+};
+
 static const char *max8997_extcon_cable[] = {
-	[0] = "USB",
-	[1] = "USB-Host",
-	[2] = "TA",
-	[3] = "Fast-charger",
-	[4] = "Slow-charger",
-	[5] = "Charge-downstream",
-	[6] = "MHL",
-	[7] = "Dock-desk",
-	[8] = "Dock-card",
-	[9] = "JIG",
+	[EXTCON_CABLE_USB]			= "USB",
+	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
+	[EXTCON_CABLE_TA]			= "TA",
+	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
+	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
+	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
+	[EXTCON_CABLE_MHL]			= "MHL",
+	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
+	[EXTCON_CABLE_DOCK_CARD]		= "Dock-Card",
+	[EXTCON_CABLE_JIG]			= "JIG",
 
 	NULL,
 };
@@ -132,8 +102,8 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 	if (usb_type == MAX8997_USB_HOST) {
 		/* switch to USB */
 		ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? MAX8997_SW_USB : MAX8997_SW_OPEN,
-				SW_MASK);
+				attached ? CONTROL1_SW_USB : CONTROL1_SW_OPEN,
+				CONTROL1_SW_MASK);
 		if (ret) {
 			dev_err(info->dev, "failed to update muic register\n");
 			goto out;
@@ -163,8 +133,8 @@ static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 
 	/* switch to AUDIO */
 	ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? MAX8997_SW_AUDIO : MAX8997_SW_OPEN,
-				SW_MASK);
+				attached ? CONTROL1_SW_AUDIO : CONTROL1_SW_OPEN,
+				CONTROL1_SW_MASK);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
 		goto out;
@@ -192,8 +162,8 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 
 	/* switch to UART */
 	ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? MAX8997_SW_UART : MAX8997_SW_OPEN,
-				SW_MASK);
+				attached ? CONTROL1_SW_UART : CONTROL1_SW_OPEN,
+				CONTROL1_SW_MASK);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
 		goto out;
