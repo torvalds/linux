@@ -549,7 +549,7 @@ int disp_resume(int clk, int status)
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
 			BSP_disp_vga_open(i);
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_open(i);
+			BSP_disp_hdmi_open(i, 0);
 	}
 
 	suspend_status &= ~status;
@@ -1452,7 +1452,7 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/* ----hdmi---- */
 	case DISP_CMD_HDMI_ON:
-		ret = BSP_disp_hdmi_open(ubuffer[0]);
+		ret = BSP_disp_hdmi_open(ubuffer[0], 0);
 		if (suspend_status != 0)
 			suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_HDMI;
 		break;

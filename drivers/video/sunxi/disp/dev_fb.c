@@ -1855,7 +1855,8 @@ __s32 Fb_Init(__u32 from)
 					BSP_disp_hdmi_set_mode(sel,
 							       g_fbi.disp_init.
 							       tv_mode[sel]);
-					BSP_disp_hdmi_open(sel);
+					BSP_disp_hdmi_open(sel,
+						gdisp.screen[sel].use_edid);
 				} else if (g_fbi.disp_init.output_type[sel] ==
 					   DISP_OUTPUT_TYPE_VGA) {
 					BSP_disp_vga_set_mode(sel,
