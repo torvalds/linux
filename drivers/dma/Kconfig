@@ -325,6 +325,10 @@ config DMA_ENGINE
 config DMA_VIRTUAL_CHANNELS
 	tristate
 
+config DMA_OF
+	def_bool y
+	depends on OF
+
 comment "DMA Clients"
 	depends on DMA_ENGINE
 
