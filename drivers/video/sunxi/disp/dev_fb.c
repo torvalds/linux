@@ -1681,11 +1681,7 @@ void hdmi_edid_received(unsigned char *edid, int block_count)
 			continue;
 		}
 
-		if (fbi->modelist.prev && fbi->modelist.next &&
-		    !list_empty(&fbi->modelist)) {
-			/* Non-empty modelist, destroy before overwriting. */
-			fb_destroy_modelist(&fbi->modelist);
-		}
+		fb_destroy_modelist(&fbi->modelist);
 
 		fb_videomode_to_modelist(fbi->monspecs.modedb,
 					 fbi->monspecs.modedb_len,
@@ -1734,6 +1730,7 @@ __s32 Fb_Init(__u32 from)
 
 		for (i = 0; i < SUNXI_MAX_FB; i++) {
 			g_fbi.fbinfo[i] = framebuffer_alloc(0, g_fbi.dev);
+			INIT_LIST_HEAD(&g_fbi.fbinfo[i]->modelist);
 			g_fbi.fbinfo[i]->fbops = &dispfb_ops;
 			g_fbi.fbinfo[i]->flags = 0;
 			g_fbi.fbinfo[i]->device = g_fbi.dev;
