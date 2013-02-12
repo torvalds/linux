@@ -49,6 +49,7 @@
 #include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/ratelimit.h>
 
 
 /* number of characters left in xmit buffer before select has we have room */
@@ -2188,7 +2189,7 @@ struct tty_ldisc_ops tty_ldisc_N_TTY = {
  *	n_tty_inherit_ops	-	inherit N_TTY methods
  *	@ops: struct tty_ldisc_ops where to save N_TTY methods
  *
- *	Used by a generic struct tty_ldisc_ops to easily inherit N_TTY
+ *	Enables a 'subclass' line discipline to 'inherit' N_TTY
  *	methods.
  */
 

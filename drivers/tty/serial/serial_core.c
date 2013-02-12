@@ -2726,13 +2726,12 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 	struct uart_state *state = uport->state;
 	struct tty_port *port = &state->port;
 	struct tty_ldisc *ld = NULL;
-	struct pps_event_time ts;
 	struct tty_struct *tty = port->tty;
 
 	if (tty)
 	        ld = tty_ldisc_ref(tty);
 	if (ld && ld->ops->dcd_change)
-		pps_get_ts(&ts);
+		ld->ops->dcd_change(tty, status);
 
 	uport->icount.dcd++;
 #ifdef CONFIG_HARD_PPS
@@ -2747,8 +2746,6 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 			tty_hangup(tty);
 	}
 
-	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(tty, status, &ts);
 	if (ld)
 		tty_ldisc_deref(ld);
 }

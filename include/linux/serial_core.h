@@ -29,7 +29,6 @@
 #include <linux/tty.h>
 #include <linux/mutex.h>
 #include <linux/sysrq.h>
-#include <linux/pps_kernel.h>
 #include <uapi/linux/serial_core.h>
 
 struct uart_port;

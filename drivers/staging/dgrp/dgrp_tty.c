@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/device.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
