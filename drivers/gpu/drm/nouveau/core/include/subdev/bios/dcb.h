@@ -25,6 +25,7 @@ struct dcb_output {
 	uint8_t or;
 	uint8_t link;
 	bool duallink_possible;
+	uint8_t extdev;
 	union {
 		struct sor_conf {
 			int link;
