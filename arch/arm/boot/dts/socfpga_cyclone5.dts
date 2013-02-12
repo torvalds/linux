@@ -70,7 +70,7 @@
 			cpu1-start-addr = <0xffd080c4>;
 		};
 
-		stmmac@ff702000 {
+		ethernet@ff702000 {
 			phy-mode = "rgmii";
 			phy-addr = <0xffffffff>; /* probe for phy addr */
 			status = "okay";

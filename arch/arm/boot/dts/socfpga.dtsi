@@ -103,7 +103,7 @@
 			};
 
 
-		gmac0: stmmac@ff700000 {
+		gmac0: ethernet@ff700000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
 			reg = <0xff700000 0x2000>;
 			interrupts = <0 115 4>;
@@ -112,7 +112,7 @@
 			status = "disabled";
 		};
 
-		gmac1: stmmac@ff702000 {
+		gmac1: ethernet@ff702000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
 			reg = <0xff702000 0x2000>;
 			interrupts = <0 120 4>;

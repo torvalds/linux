@@ -63,12 +63,12 @@
 			cpu1-start-addr = <0xffd08010>;
 		};
 
-		stmmac@ff700000 {
+		ethernet@ff700000 {
 			phy-mode = "gmii";
 			status = "okay";
 		};
 
-		stmmac@ff702000 {
+		ethernet@ff702000 {
 			phy-mode = "gmii";
 		};
 
