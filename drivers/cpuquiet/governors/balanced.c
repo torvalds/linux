@@ -341,9 +341,9 @@ static void balanced_work_func(struct work_struct *work)
 	if (cpu < nr_cpu_ids) {
 		last_change_time = now;
 		if (up)
-			cpuquiet_wake_cpu(cpu);
+			cpuquiet_wake_cpu(cpu, false);
 		else
-			cpuquiet_quiesence_cpu(cpu);
+			cpuquiet_quiesence_cpu(cpu, false);
 	}
 }
 

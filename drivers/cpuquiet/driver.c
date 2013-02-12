@@ -106,12 +106,12 @@ static struct kobj_type ktype_cpu_stats = {
 };
 #endif
 
-int cpuquiet_quiesence_cpu(unsigned int cpunumber)
+int cpuquiet_quiesence_cpu(unsigned int cpunumber, bool sync)
 {
 	int err = -EPERM;
 
 	if (cpuquiet_curr_driver && cpuquiet_curr_driver->quiesence_cpu)
-		err = cpuquiet_curr_driver->quiesence_cpu(cpunumber);
+		err = cpuquiet_curr_driver->quiesence_cpu(cpunumber, sync);
 
 #ifdef CONFIG_CPUQUIET_STATS
 	if (!err)
@@ -122,12 +122,12 @@ int cpuquiet_quiesence_cpu(unsigned int cpunumber)
 }
 EXPORT_SYMBOL(cpuquiet_quiesence_cpu);
 
-int cpuquiet_wake_cpu(unsigned int cpunumber)
+int cpuquiet_wake_cpu(unsigned int cpunumber, bool sync)
 {
 	int err = -EPERM;
 
 	if (cpuquiet_curr_driver && cpuquiet_curr_driver->wake_cpu)
-		err = cpuquiet_curr_driver->wake_cpu(cpunumber);
+		err = cpuquiet_curr_driver->wake_cpu(cpunumber, sync);
 
 #ifdef CONFIG_CPUQUIET_STATS
 	if (!err)

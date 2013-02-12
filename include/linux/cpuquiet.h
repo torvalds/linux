@@ -37,14 +37,14 @@ struct cpuquiet_governor {
 
 struct cpuquiet_driver {
 	char			name[CPUQUIET_NAME_LEN];
-	int (*quiesence_cpu)	(unsigned int cpunumber);
-	int (*wake_cpu)		(unsigned int cpunumber);
+	int (*quiesence_cpu)	(unsigned int cpunumber, bool sync);
+	int (*wake_cpu)		(unsigned int cpunumber, bool sync);
 };
 
 extern int cpuquiet_register_governor(struct cpuquiet_governor *gov);
 extern void cpuquiet_unregister_governor(struct cpuquiet_governor *gov);
-extern int cpuquiet_quiesence_cpu(unsigned int cpunumber);
-extern int cpuquiet_wake_cpu(unsigned int cpunumber);
+extern int cpuquiet_quiesence_cpu(unsigned int cpunumber, bool sync);
+extern int cpuquiet_wake_cpu(unsigned int cpunumber, bool sync);
 extern int cpuquiet_register_driver(struct cpuquiet_driver *drv);
 extern void cpuquiet_unregister_driver(struct cpuquiet_driver *drv);
 extern int cpuquiet_add_group(struct attribute_group *attrs);

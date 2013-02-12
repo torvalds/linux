@@ -190,11 +190,11 @@ static void runnables_work_func(struct work_struct *work)
 	if (action > 0) {
 		cpu = cpumask_next_zero(0, cpu_online_mask);
 		if (cpu < nr_cpu_ids)
-			cpuquiet_wake_cpu(cpu);
+			cpuquiet_wake_cpu(cpu, false);
 	} else if (action < 0) {
 		cpu = get_lightest_loaded_cpu_n();
 		if (cpu < nr_cpu_ids)
-			cpuquiet_quiesence_cpu(cpu);
+			cpuquiet_quiesence_cpu(cpu, false);
 	}
 }
 
