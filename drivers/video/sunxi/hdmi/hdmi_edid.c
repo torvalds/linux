@@ -483,8 +483,6 @@ __s32 ParseEDID(void)
 	if (EDID_CheckSum(0, EDID_Buf) != 0)
 		return 0;
 
-	hdmi_edid_received(EDID_Buf, 0);
-
 	if (EDID_Header_Check(EDID_Buf) != 0)
 		return 0;
 
@@ -500,14 +498,17 @@ __s32 ParseEDID(void)
 	if (BlockCount > 1) {
 		if (BlockCount > 5)
 			BlockCount = 5;
-
 		for (i = 1; i < BlockCount; i++) {
 			GetEDIDData(i, EDID_Buf);
-
 			if (EDID_CheckSum(i, EDID_Buf) != 0)
-				return 0;
+				BlockCount = i;
+		}
+	}
 
-			hdmi_edid_received(EDID_Buf+(0x80*i), i);
+	hdmi_edid_received(EDID_Buf, BlockCount);
+
+	if (BlockCount > 1) {
+		for (i = 1; i < BlockCount; i++) {
 
 			if (EDID_Buf[0x80 * i + 0] == 2) {
 				if (EDID_Buf[0x80 * i + 3] & 0x40) {
