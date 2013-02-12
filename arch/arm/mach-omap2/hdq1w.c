@@ -87,7 +87,7 @@ static int __init omap_init_hdq(void)
 	if (!oh)
 		return 0;
 
-	pdev = omap_device_build(devname, id, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build(devname, id, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 	     devname, oh->name);
 

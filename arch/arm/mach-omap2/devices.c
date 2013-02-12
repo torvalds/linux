@@ -61,8 +61,7 @@ static int __init omap3_l3_init(void)
 	if (!oh)
 		pr_err("could not look up %s\n", oh_name);
 
-	pdev = omap_device_build("omap_l3_smx", 0, oh, NULL, 0,
-							   NULL, 0, 0);
+	pdev = omap_device_build("omap_l3_smx", 0, oh, NULL, 0);
 
 	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
 
@@ -96,8 +95,7 @@ static int __init omap4_l3_init(void)
 			pr_err("could not look up %s\n", oh_name);
 	}
 
-	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL,
-						     0, NULL, 0, 0);
+	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL, 0);
 
 	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
 
@@ -273,7 +271,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 	keypad_data = sdp4430_keypad_data;
 
 	pdev = omap_device_build(name, id, oh, keypad_data,
-			sizeof(struct omap4_keypad_platform_data), NULL, 0, 0);
+				 sizeof(struct omap4_keypad_platform_data));
 
 	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n",
@@ -297,7 +295,7 @@ static inline void __init omap_init_mbox(void)
 		return;
 	}
 
-	pdev = omap_device_build("omap-mailbox", -1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build("omap-mailbox", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "%s: could not build device, err %ld\n",
 						__func__, PTR_ERR(pdev));
 }
@@ -337,7 +335,7 @@ static void __init omap_init_mcpdm(void)
 		return;
 	}
 
-	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap-mcpdm.\n");
 }
 #else
@@ -358,7 +356,7 @@ static void __init omap_init_dmic(void)
 		return;
 	}
 
-	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
 }
 #else
@@ -384,8 +382,7 @@ static void __init omap_init_hdmi_audio(void)
 		return;
 	}
 
-	pdev = omap_device_build("omap-hdmi-audio-dai",
-		-1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build("omap-hdmi-audio-dai", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev),
 	     "Can't build omap_device for omap-hdmi-audio-dai.\n");
 
@@ -429,8 +426,7 @@ static int __init omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 	}
 
 	spi_num++;
-	pdev = omap_device_build(name, spi_num, oh, pdata,
-				sizeof(*pdata),	NULL, 0, 0);
+	pdev = omap_device_build(name, spi_num, oh, pdata, sizeof(*pdata));
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s\n",
 				name, oh->name);
 	kfree(pdata);
@@ -460,7 +456,7 @@ static void omap_init_rng(void)
 	if (!oh)
 		return;
 
-	pdev = omap_device_build("omap_rng", -1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build("omap_rng", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap_rng\n");
 }
 
@@ -689,8 +685,7 @@ static void __init omap_init_ocp2scp(void)
 
 	pdata->dev_cnt	= dev_cnt;
 
-	pdev = omap_device_build(name, bus_id, oh, pdata, sizeof(*pdata), NULL,
-								0, false);
+	pdev = omap_device_build(name, bus_id, oh, pdata, sizeof(*pdata));
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build omap_device for %s %s\n",
 						name, oh_name);
