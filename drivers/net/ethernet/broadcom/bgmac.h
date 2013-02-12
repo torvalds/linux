@@ -450,7 +450,4 @@ static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 	bgmac_maskset(bgmac, offset, ~0, set);
 }
 
-u16 bgmac_phy_read(struct bgmac *bgmac, u8 phyaddr, u8 reg);
-void bgmac_phy_write(struct bgmac *bgmac, u8 phyaddr, u8 reg, u16 value);
-
 #endif /* _BGMAC_H */
