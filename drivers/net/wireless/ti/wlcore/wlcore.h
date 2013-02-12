@@ -183,7 +183,6 @@ struct wl1271 {
 
 	struct wl1271_if_operations *if_ops;
 
-	void (*set_power)(bool enable);
 	int irq;
 
 	spinlock_t wl_lock;

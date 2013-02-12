@@ -3057,12 +3057,22 @@ static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 	    nla_put_u32(msg, NL80211_STA_INFO_INACTIVE_TIME,
 			sinfo->inactive_time))
 		goto nla_put_failure;
-	if ((sinfo->filled & STATION_INFO_RX_BYTES) &&
+	if ((sinfo->filled & (STATION_INFO_RX_BYTES |
+			      STATION_INFO_RX_BYTES64)) &&
 	    nla_put_u32(msg, NL80211_STA_INFO_RX_BYTES,
+			(u32)sinfo->rx_bytes))
+		goto nla_put_failure;
+	if ((sinfo->filled & (STATION_INFO_TX_BYTES |
+			      NL80211_STA_INFO_TX_BYTES64)) &&
+	    nla_put_u32(msg, NL80211_STA_INFO_TX_BYTES,
+			(u32)sinfo->tx_bytes))
+		goto nla_put_failure;
+	if ((sinfo->filled & STATION_INFO_RX_BYTES64) &&
+	    nla_put_u64(msg, NL80211_STA_INFO_RX_BYTES64,
 			sinfo->rx_bytes))
 		goto nla_put_failure;
-	if ((sinfo->filled & STATION_INFO_TX_BYTES) &&
-	    nla_put_u32(msg, NL80211_STA_INFO_TX_BYTES,
+	if ((sinfo->filled & STATION_INFO_TX_BYTES64) &&
+	    nla_put_u64(msg, NL80211_STA_INFO_TX_BYTES64,
 			sinfo->tx_bytes))
 		goto nla_put_failure;
 	if ((sinfo->filled & STATION_INFO_LLID) &&
@@ -9322,6 +9332,103 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 	nlmsg_free(msg);
 }
 EXPORT_SYMBOL(cfg80211_report_obss_beacon);
+
+#ifdef CONFIG_PM
+void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
+				   struct cfg80211_wowlan_wakeup *wakeup,
+				   gfp_t gfp)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct sk_buff *msg;
+	void *hdr;
+	int err, size = 200;
+
+	trace_cfg80211_report_wowlan_wakeup(wdev->wiphy, wdev, wakeup);
+
+	if (wakeup)
+		size += wakeup->packet_present_len;
+
+	msg = nlmsg_new(size, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_SET_WOWLAN);
+	if (!hdr)
+		goto free_msg;
+
+	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
+	    nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)))
+		goto free_msg;
+
+	if (wdev->netdev && nla_put_u32(msg, NL80211_ATTR_IFINDEX,
+					wdev->netdev->ifindex))
+		goto free_msg;
+
+	if (wakeup) {
+		struct nlattr *reasons;
+
+		reasons = nla_nest_start(msg, NL80211_ATTR_WOWLAN_TRIGGERS);
+
+		if (wakeup->disconnect &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_DISCONNECT))
+			goto free_msg;
+		if (wakeup->magic_pkt &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_MAGIC_PKT))
+			goto free_msg;
+		if (wakeup->gtk_rekey_failure &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE))
+			goto free_msg;
+		if (wakeup->eap_identity_req &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST))
+			goto free_msg;
+		if (wakeup->four_way_handshake &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE))
+			goto free_msg;
+		if (wakeup->rfkill_release &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_RFKILL_RELEASE))
+			goto free_msg;
+
+		if (wakeup->pattern_idx >= 0 &&
+		    nla_put_u32(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN,
+				wakeup->pattern_idx))
+			goto free_msg;
+
+		if (wakeup->packet) {
+			u32 pkt_attr = NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211;
+			u32 len_attr = NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211_LEN;
+
+			if (!wakeup->packet_80211) {
+				pkt_attr =
+					NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023;
+				len_attr =
+					NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023_LEN;
+			}
+
+			if (wakeup->packet_len &&
+			    nla_put_u32(msg, len_attr, wakeup->packet_len))
+				goto free_msg;
+
+			if (nla_put(msg, pkt_attr, wakeup->packet_present_len,
+				    wakeup->packet))
+				goto free_msg;
+		}
+
+		nla_nest_end(msg, reasons);
+	}
+
+	err = genlmsg_end(msg, hdr);
+	if (err < 0)
+		goto free_msg;
+
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+	return;
+
+ free_msg:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_report_wowlan_wakeup);
+#endif
 
 void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 				enum nl80211_tdls_operation oper,

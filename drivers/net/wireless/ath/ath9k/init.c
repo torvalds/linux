@@ -922,7 +922,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 
 	ath9k_eeprom_release(sc);
 
-	if (sc->rfs_chan_spec_scan) {
+	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->rfs_chan_spec_scan) {
 		relay_close(sc->rfs_chan_spec_scan);
 		sc->rfs_chan_spec_scan = NULL;
 	}

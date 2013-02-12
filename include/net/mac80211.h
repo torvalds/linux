@@ -208,6 +208,8 @@ struct ieee80211_chanctx_conf {
  * @BSS_CHANGED_TXPOWER: TX power setting changed for this interface
  * @BSS_CHANGED_P2P_PS: P2P powersave settings (CTWindow, opportunistic PS)
  *	changed (currently only in P2P client mode, GO mode will be later)
+ * @BSS_CHANGED_DTIM_PERIOD: the DTIM period value was changed (set when
+ *	it becomes valid, managed mode only)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -230,6 +232,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_PS			= 1<<17,
 	BSS_CHANGED_TXPOWER		= 1<<18,
 	BSS_CHANGED_P2P_PS		= 1<<19,
+	BSS_CHANGED_DTIM_PERIOD		= 1<<20,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -271,9 +274,8 @@ enum ieee80211_rssi_event {
  *	if the hardware cannot handle this it must set the
  *	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE hardware flag
  * @dtim_period: num of beacons before the next DTIM, for beaconing,
- *	valid in station mode only while @assoc is true and if also
- *	requested by %IEEE80211_HW_NEED_DTIM_PERIOD (cf. also hw conf
- *	@ps_dtim_period)
+ *	valid in station mode only if after the driver was notified
+ *	with the %BSS_CHANGED_DTIM_PERIOD flag, will be non-zero then.
  * @sync_tsf: last beacon's/probe response's TSF timestamp (could be old
  *	as it may have been received during scanning long ago)
  * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
@@ -406,6 +408,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_RETRANSMISSION: This frame is being retransmitted
  *	after TX status because the destination was asleep, it must not
  *	be modified again (no seqno assignment, crypto, etc.)
+ * @IEEE80211_TX_INTFL_MLME_CONN_TX: This frame was transmitted by the MLME
+ *	code for connection establishment, this indicates that its status
+ *	should kick the MLME state machine.
  * @IEEE80211_TX_INTFL_NL80211_FRAME_TX: Frame was requested through nl80211
  *	MLME command (internal to mac80211 to figure out whether to send TX
  *	status to user space)
@@ -457,7 +462,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_NO_PS_BUFFER		= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
-	/* hole at 20, use later */
+	IEEE80211_TX_INTFL_MLME_CONN_TX		= BIT(20),
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
@@ -1328,9 +1333,9 @@ struct ieee80211_tx_control {
  *      When this flag is set, signaling beacon-loss will cause an immediate
  *      change to disassociated state.
  *
- * @IEEE80211_HW_NEED_DTIM_PERIOD:
- *	This device needs to know the DTIM period for the BSS before
- *	associating.
+ * @IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC:
+ *	This device needs to get data from beacon before association (i.e.
+ *	dtim_period).
  *
  * @IEEE80211_HW_SUPPORTS_PER_STA_GTK: The device's crypto engine supports
  *	per-station GTKs as used by IBSS RSN or during fast transition. If
@@ -1366,10 +1371,6 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF: Use the P2P Device address for any
  *	P2P Interface. This will be honoured even if more than one interface
  *	is supported.
- *
- * @IEEE80211_HW_TEARDOWN_AGGR_ON_BAR_FAIL: On this hardware TX BA session
- *	should be tear down once BAR frame will not be acked.
- *
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1379,7 +1380,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
-	IEEE80211_HW_NEED_DTIM_PERIOD			= 1<<7,
+	IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC		= 1<<7,
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
 	IEEE80211_HW_SUPPORTS_PS			= 1<<10,
@@ -1398,7 +1399,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
 	IEEE80211_HW_SCAN_WHILE_IDLE			= 1<<24,
 	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
-	IEEE80211_HW_TEARDOWN_AGGR_ON_BAR_FAIL		= 1<<26,
 };
 
 /**
@@ -3877,6 +3877,8 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  * When beacon filtering is enabled with %IEEE80211_VIF_BEACON_FILTER, and
  * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
  * needs to inform if the connection to the AP has been lost.
+ * The function may also be called if the connection needs to be terminated
+ * for some other reason, even if %IEEE80211_HW_CONNECTION_MONITOR isn't set.
  *
  * This function will cause immediate change to disassociated state,
  * without connection recovery attempts.
@@ -4210,5 +4212,17 @@ void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
  * applicable.
  */
 int ieee80211_ave_rssi(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_report_wowlan_wakeup - report WoWLAN wakeup
+ * @vif: virtual interface
+ * @wakeup: wakeup reason(s)
+ * @gfp: allocation flags
+ *
+ * See cfg80211_report_wowlan_wakeup().
+ */
+void ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
+				    struct cfg80211_wowlan_wakeup *wakeup,
+				    gfp_t gfp);
 
 #endif /* MAC80211_H */

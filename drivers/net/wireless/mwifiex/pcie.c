@@ -94,6 +94,13 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 
 	card->dev = pdev;
 
+	if (ent->driver_data) {
+		struct mwifiex_pcie_device *data = (void *)ent->driver_data;
+		card->pcie.firmware = data->firmware;
+		card->pcie.reg = data->reg;
+		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
+	}
+
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
 			     MWIFIEX_PCIE)) {
 		pr_err("%s failed\n", __func__);
@@ -230,13 +237,16 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-#define PCIE_VENDOR_ID_MARVELL              (0x11ab)
-#define PCIE_DEVICE_ID_MARVELL_88W8766P		(0x2b30)
-
 static DEFINE_PCI_DEVICE_TABLE(mwifiex_ids) = {
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8766P,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		.driver_data = (unsigned long) &mwifiex_pcie8766,
+	},
+	{
+		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8897,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		.driver_data = (unsigned long) &mwifiex_pcie8897,
 	},
 	{},
 };
@@ -364,12 +374,246 @@ static int mwifiex_pcie_enable_host_int(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function creates buffer descriptor ring for TX
+ * This function initializes TX buffer ring descriptors
+ */
+static int mwifiex_init_txq_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
+		card->tx_buf_list[i] = NULL;
+		if (reg->pfu_enabled) {
+			card->txbd_ring[i] = (void *)card->txbd_ring_vbase +
+					     (sizeof(*desc2) * i);
+			desc2 = card->txbd_ring[i];
+			memset(desc2, 0, sizeof(*desc2));
+		} else {
+			card->txbd_ring[i] = (void *)card->txbd_ring_vbase +
+					     (sizeof(*desc) * i);
+			desc = card->txbd_ring[i];
+			memset(desc, 0, sizeof(*desc));
+		}
+	}
+
+	return 0;
+}
+
+/* This function initializes RX buffer ring descriptors. Each SKB is allocated
+ * here and after mapping PCI memory, its physical address is assigned to
+ * PCIE Rx buffer descriptor's physical address.
+ */
+static int mwifiex_init_rxq_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	struct sk_buff *skb;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
+	dma_addr_t buf_pa;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
+		/* Allocate skb here so that firmware can DMA data from it */
+		skb = dev_alloc_skb(MWIFIEX_RX_DATA_BUF_SIZE);
+		if (!skb) {
+			dev_err(adapter->dev,
+				"Unable to allocate skb for RX ring.\n");
+			kfree(card->rxbd_ring_vbase);
+			return -ENOMEM;
+		}
+
+		if (mwifiex_map_pci_memory(adapter, skb,
+					   MWIFIEX_RX_DATA_BUF_SIZE,
+					   PCI_DMA_FROMDEVICE))
+			return -1;
+
+		MWIFIEX_SKB_PACB(skb, &buf_pa);
+
+		dev_dbg(adapter->dev,
+			"info: RX ring: skb=%p len=%d data=%p buf_pa=%#x:%x\n",
+			skb, skb->len, skb->data, (u32)buf_pa,
+			(u32)((u64)buf_pa >> 32));
+
+		card->rx_buf_list[i] = skb;
+		if (reg->pfu_enabled) {
+			card->rxbd_ring[i] = (void *)card->rxbd_ring_vbase +
+					     (sizeof(*desc2) * i);
+			desc2 = card->rxbd_ring[i];
+			desc2->paddr = buf_pa;
+			desc2->len = (u16)skb->len;
+			desc2->frag_len = (u16)skb->len;
+			desc2->flags = reg->ring_flag_eop | reg->ring_flag_sop;
+			desc2->offset = 0;
+		} else {
+			card->rxbd_ring[i] = (void *)(card->rxbd_ring_vbase +
+					     (sizeof(*desc) * i));
+			desc = card->rxbd_ring[i];
+			desc->paddr = buf_pa;
+			desc->len = (u16)skb->len;
+			desc->flags = 0;
+		}
+	}
+
+	return 0;
+}
+
+/* This function initializes event buffer ring descriptors. Each SKB is
+ * allocated here and after mapping PCI memory, its physical address is assigned
+ * to PCIE Rx buffer descriptor's physical address
+ */
+static int mwifiex_pcie_init_evt_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	struct mwifiex_evt_buf_desc *desc;
+	struct sk_buff *skb;
+	dma_addr_t buf_pa;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_EVT_BD; i++) {
+		/* Allocate skb here so that firmware can DMA data from it */
+		skb = dev_alloc_skb(MAX_EVENT_SIZE);
+		if (!skb) {
+			dev_err(adapter->dev,
+				"Unable to allocate skb for EVENT buf.\n");
+			kfree(card->evtbd_ring_vbase);
+			return -ENOMEM;
+		}
+		skb_put(skb, MAX_EVENT_SIZE);
+
+		if (mwifiex_map_pci_memory(adapter, skb, MAX_EVENT_SIZE,
+					   PCI_DMA_FROMDEVICE))
+			return -1;
+
+		MWIFIEX_SKB_PACB(skb, &buf_pa);
+
+		dev_dbg(adapter->dev,
+			"info: EVT ring: skb=%p len=%d data=%p buf_pa=%#x:%x\n",
+			skb, skb->len, skb->data, (u32)buf_pa,
+			(u32)((u64)buf_pa >> 32));
+
+		card->evt_buf_list[i] = skb;
+		card->evtbd_ring[i] = (void *)(card->evtbd_ring_vbase +
+				      (sizeof(*desc) * i));
+		desc = card->evtbd_ring[i];
+		desc->paddr = buf_pa;
+		desc->len = (u16)skb->len;
+		desc->flags = 0;
+	}
+
+	return 0;
+}
+
+/* This function cleans up TX buffer rings. If any of the buffer list has valid
+ * SKB address, associated SKB is freed.
+ */
+static void mwifiex_cleanup_txq_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	struct sk_buff *skb;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
+		if (reg->pfu_enabled) {
+			desc2 = card->txbd_ring[i];
+			if (card->tx_buf_list[i]) {
+				skb = card->tx_buf_list[i];
+				pci_unmap_single(card->dev, desc2->paddr,
+						 skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb_any(skb);
+			}
+			memset(desc2, 0, sizeof(*desc2));
+		} else {
+			desc = card->txbd_ring[i];
+			if (card->tx_buf_list[i]) {
+				skb = card->tx_buf_list[i];
+				pci_unmap_single(card->dev, desc->paddr,
+						 skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb_any(skb);
+			}
+			memset(desc, 0, sizeof(*desc));
+		}
+		card->tx_buf_list[i] = NULL;
+	}
+
+	return;
+}
+
+/* This function cleans up RX buffer rings. If any of the buffer list has valid
+ * SKB address, associated SKB is freed.
+ */
+static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
+	struct sk_buff *skb;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
+		if (reg->pfu_enabled) {
+			desc2 = card->rxbd_ring[i];
+			if (card->rx_buf_list[i]) {
+				skb = card->rx_buf_list[i];
+				pci_unmap_single(card->dev, desc2->paddr,
+						 skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb_any(skb);
+			}
+			memset(desc2, 0, sizeof(*desc2));
+		} else {
+			desc = card->rxbd_ring[i];
+			if (card->rx_buf_list[i]) {
+				skb = card->rx_buf_list[i];
+				pci_unmap_single(card->dev, desc->paddr,
+						 skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb_any(skb);
+			}
+			memset(desc, 0, sizeof(*desc));
+		}
+		card->rx_buf_list[i] = NULL;
+	}
+
+	return;
+}
+
+/* This function cleans up event buffer rings. If any of the buffer list has
+ * valid SKB address, associated SKB is freed.
+ */
+static void mwifiex_cleanup_evt_ring(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	struct mwifiex_evt_buf_desc *desc;
+	struct sk_buff *skb;
+	int i;
+
+	for (i = 0; i < MWIFIEX_MAX_EVT_BD; i++) {
+		desc = card->evtbd_ring[i];
+		if (card->evt_buf_list[i]) {
+			skb = card->evt_buf_list[i];
+			pci_unmap_single(card->dev, desc->paddr, MAX_EVENT_SIZE,
+					 PCI_DMA_FROMDEVICE);
+			dev_kfree_skb_any(skb);
+		}
+		card->evt_buf_list[i] = NULL;
+		memset(desc, 0, sizeof(*desc));
+	}
+
+	return;
+}
+
+/* This function creates buffer descriptor ring for TX
  */
 static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	int i;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	/*
 	 * driver maintaines the write pointer and firmware maintaines the read
@@ -377,12 +621,21 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 	 * starts at zero with rollover bit set
 	 */
 	card->txbd_wrptr = 0;
-	card->txbd_rdptr |= MWIFIEX_BD_FLAG_ROLLOVER_IND;
+
+	if (reg->pfu_enabled)
+		card->txbd_rdptr = 0;
+	else
+		card->txbd_rdptr |= reg->tx_rollover_ind;
 
 	/* allocate shared memory for the BD ring and divide the same in to
 	   several descriptors */
-	card->txbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
-							MWIFIEX_MAX_TXRX_BD;
+	if (reg->pfu_enabled)
+		card->txbd_ring_size = sizeof(struct mwifiex_pfu_buf_desc) *
+				       MWIFIEX_MAX_TXRX_BD;
+	else
+		card->txbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
+				       MWIFIEX_MAX_TXRX_BD;
+
 	dev_dbg(adapter->dev, "info: txbd_ring: Allocating %d bytes\n",
 		card->txbd_ring_size);
 	card->txbd_ring_vbase = pci_alloc_consistent(card->dev,
@@ -399,40 +652,15 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 		card->txbd_ring_vbase, (unsigned int)card->txbd_ring_pbase,
 		(u32)((u64)card->txbd_ring_pbase >> 32), card->txbd_ring_size);
 
-	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
-		card->txbd_ring[i] = (struct mwifiex_pcie_buf_desc *)
-				     (card->txbd_ring_vbase +
-				      (sizeof(struct mwifiex_pcie_buf_desc)
-				       * i));
-
-		card->tx_buf_list[i] = NULL;
-		card->txbd_ring[i]->paddr = 0;
-		card->txbd_ring[i]->len = 0;
-		card->txbd_ring[i]->flags = 0;
-	}
-
-	return 0;
+	return mwifiex_init_txq_ring(adapter);
 }
 
 static int mwifiex_pcie_delete_txbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb;
-	int i;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
-		if (card->tx_buf_list[i]) {
-			skb = card->tx_buf_list[i];
-			pci_unmap_single(card->dev, card->txbd_ring[i]->paddr,
-					 skb->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb_any(skb);
-		}
-		card->tx_buf_list[i] = NULL;
-		card->txbd_ring[i]->paddr = 0;
-		card->txbd_ring[i]->len = 0;
-		card->txbd_ring[i]->flags = 0;
-		card->txbd_ring[i] = NULL;
-	}
+	mwifiex_cleanup_txq_ring(adapter);
 
 	if (card->txbd_ring_vbase)
 		pci_free_consistent(card->dev, card->txbd_ring_size,
@@ -440,7 +668,7 @@ static int mwifiex_pcie_delete_txbd_ring(struct mwifiex_adapter *adapter)
 				    card->txbd_ring_pbase);
 	card->txbd_ring_size = 0;
 	card->txbd_wrptr = 0;
-	card->txbd_rdptr = 0 | MWIFIEX_BD_FLAG_ROLLOVER_IND;
+	card->txbd_rdptr = 0 | reg->tx_rollover_ind;
 	card->txbd_ring_vbase = NULL;
 	card->txbd_ring_pbase = 0;
 
@@ -453,9 +681,7 @@ static int mwifiex_pcie_delete_txbd_ring(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb;
-	int i;
-	dma_addr_t buf_pa;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	/*
 	 * driver maintaines the read pointer and firmware maintaines the write
@@ -463,10 +689,15 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 	 * starts at zero with rollover bit set
 	 */
 	card->rxbd_wrptr = 0;
-	card->rxbd_rdptr |= MWIFIEX_BD_FLAG_ROLLOVER_IND;
+	card->rxbd_rdptr = reg->rx_rollover_ind;
 
-	card->rxbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
-							MWIFIEX_MAX_TXRX_BD;
+	if (reg->pfu_enabled)
+		card->rxbd_ring_size = sizeof(struct mwifiex_pfu_buf_desc) *
+				       MWIFIEX_MAX_TXRX_BD;
+	else
+		card->rxbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
+				       MWIFIEX_MAX_TXRX_BD;
+
 	dev_dbg(adapter->dev, "info: rxbd_ring: Allocating %d bytes\n",
 		card->rxbd_ring_size);
 	card->rxbd_ring_vbase = pci_alloc_consistent(card->dev,
@@ -485,39 +716,7 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 		(u32)((u64)card->rxbd_ring_pbase >> 32),
 		card->rxbd_ring_size);
 
-	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
-		card->rxbd_ring[i] = (struct mwifiex_pcie_buf_desc *)
-				     (card->rxbd_ring_vbase +
-				      (sizeof(struct mwifiex_pcie_buf_desc)
-				       * i));
-
-		/* Allocate skb here so that firmware can DMA data from it */
-		skb = dev_alloc_skb(MWIFIEX_RX_DATA_BUF_SIZE);
-		if (!skb) {
-			dev_err(adapter->dev,
-				"Unable to allocate skb for RX ring.\n");
-			kfree(card->rxbd_ring_vbase);
-			return -ENOMEM;
-		}
-		if (mwifiex_map_pci_memory(adapter, skb,
-					   MWIFIEX_RX_DATA_BUF_SIZE,
-					   PCI_DMA_FROMDEVICE))
-			return -1;
-
-		MWIFIEX_SKB_PACB(skb, &buf_pa);
-
-		dev_dbg(adapter->dev, "info: RX ring: add new skb base: %p, "
-			"buf_base: %p, buf_pbase: %#x:%x, buf_len: %#x\n",
-			skb, skb->data, (u32)buf_pa, (u32)((u64)buf_pa >> 32),
-			skb->len);
-
-		card->rx_buf_list[i] = skb;
-		card->rxbd_ring[i]->paddr = buf_pa;
-		card->rxbd_ring[i]->len = (u16)skb->len;
-		card->rxbd_ring[i]->flags = 0;
-	}
-
-	return 0;
+	return mwifiex_init_rxq_ring(adapter);
 }
 
 /*
@@ -526,23 +725,9 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_delete_rxbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb;
-	int i;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	for (i = 0; i < MWIFIEX_MAX_TXRX_BD; i++) {
-		if (card->rx_buf_list[i]) {
-			skb = card->rx_buf_list[i];
-			pci_unmap_single(card->dev, card->rxbd_ring[i]->paddr ,
-					 MWIFIEX_RX_DATA_BUF_SIZE,
-					 PCI_DMA_FROMDEVICE);
-			dev_kfree_skb_any(skb);
-		}
-		card->rx_buf_list[i] = NULL;
-		card->rxbd_ring[i]->paddr = 0;
-		card->rxbd_ring[i]->len = 0;
-		card->rxbd_ring[i]->flags = 0;
-		card->rxbd_ring[i] = NULL;
-	}
+	mwifiex_cleanup_rxq_ring(adapter);
 
 	if (card->rxbd_ring_vbase)
 		pci_free_consistent(card->dev, card->rxbd_ring_size,
@@ -550,7 +735,7 @@ static int mwifiex_pcie_delete_rxbd_ring(struct mwifiex_adapter *adapter)
 				    card->rxbd_ring_pbase);
 	card->rxbd_ring_size = 0;
 	card->rxbd_wrptr = 0;
-	card->rxbd_rdptr = 0 | MWIFIEX_BD_FLAG_ROLLOVER_IND;
+	card->rxbd_rdptr = 0 | reg->rx_rollover_ind;
 	card->rxbd_ring_vbase = NULL;
 	card->rxbd_ring_pbase = 0;
 
@@ -563,9 +748,7 @@ static int mwifiex_pcie_delete_rxbd_ring(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb;
-	int i;
-	dma_addr_t buf_pa;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	/*
 	 * driver maintaines the read pointer and firmware maintaines the write
@@ -573,10 +756,11 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 	 * starts at zero with rollover bit set
 	 */
 	card->evtbd_wrptr = 0;
-	card->evtbd_rdptr |= MWIFIEX_BD_FLAG_ROLLOVER_IND;
+	card->evtbd_rdptr = reg->evt_rollover_ind;
 
-	card->evtbd_ring_size = sizeof(struct mwifiex_pcie_buf_desc) *
-							MWIFIEX_MAX_EVT_BD;
+	card->evtbd_ring_size = sizeof(struct mwifiex_evt_buf_desc) *
+				MWIFIEX_MAX_EVT_BD;
+
 	dev_dbg(adapter->dev, "info: evtbd_ring: Allocating %d bytes\n",
 		card->evtbd_ring_size);
 	card->evtbd_ring_vbase = pci_alloc_consistent(card->dev,
@@ -595,39 +779,7 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 		(u32)((u64)card->evtbd_ring_pbase >> 32),
 		card->evtbd_ring_size);
 
-	for (i = 0; i < MWIFIEX_MAX_EVT_BD; i++) {
-		card->evtbd_ring[i] = (struct mwifiex_pcie_buf_desc *)
-				      (card->evtbd_ring_vbase +
-				       (sizeof(struct mwifiex_pcie_buf_desc)
-					* i));
-
-		/* Allocate skb here so that firmware can DMA data from it */
-		skb = dev_alloc_skb(MAX_EVENT_SIZE);
-		if (!skb) {
-			dev_err(adapter->dev,
-				"Unable to allocate skb for EVENT buf.\n");
-			kfree(card->evtbd_ring_vbase);
-			return -ENOMEM;
-		}
-		skb_put(skb, MAX_EVENT_SIZE);
-
-		if (mwifiex_map_pci_memory(adapter, skb, MAX_EVENT_SIZE,
-					   PCI_DMA_FROMDEVICE))
-			return -1;
-
-		MWIFIEX_SKB_PACB(skb, &buf_pa);
-		dev_dbg(adapter->dev, "info: Evt ring: add new skb. base: %p, "
-			"buf_base: %p, buf_pbase: %#x:%x, buf_len: %#x\n",
-			skb, skb->data, (u32)buf_pa, (u32)((u64)buf_pa >> 32),
-			skb->len);
-
-		card->evt_buf_list[i] = skb;
-		card->evtbd_ring[i]->paddr = buf_pa;
-		card->evtbd_ring[i]->len = (u16)skb->len;
-		card->evtbd_ring[i]->flags = 0;
-	}
-
-	return 0;
+	return mwifiex_pcie_init_evt_ring(adapter);
 }
 
 /*
@@ -636,29 +788,16 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_delete_evtbd_ring(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb;
-	int i;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	for (i = 0; i < MWIFIEX_MAX_EVT_BD; i++) {
-		if (card->evt_buf_list[i]) {
-			skb = card->evt_buf_list[i];
-			pci_unmap_single(card->dev, card->evtbd_ring[i]->paddr,
-					 MAX_EVENT_SIZE, PCI_DMA_FROMDEVICE);
-			dev_kfree_skb_any(skb);
-		}
-		card->evt_buf_list[i] = NULL;
-		card->evtbd_ring[i]->paddr = 0;
-		card->evtbd_ring[i]->len = 0;
-		card->evtbd_ring[i]->flags = 0;
-		card->evtbd_ring[i] = NULL;
-	}
+	mwifiex_cleanup_evt_ring(adapter);
 
 	if (card->evtbd_ring_vbase)
 		pci_free_consistent(card->dev, card->evtbd_ring_size,
 				    card->evtbd_ring_vbase,
 				    card->evtbd_ring_pbase);
 	card->evtbd_wrptr = 0;
-	card->evtbd_rdptr = 0 | MWIFIEX_BD_FLAG_ROLLOVER_IND;
+	card->evtbd_rdptr = 0 | reg->evt_rollover_ind;
 	card->evtbd_ring_size = 0;
 	card->evtbd_ring_vbase = NULL;
 	card->evtbd_ring_pbase = 0;
@@ -771,12 +910,13 @@ static int mwifiex_pcie_delete_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 rdptr;
 
 	/* Read the TX ring read pointer set by firmware */
-	if (mwifiex_read_reg(adapter, REG_TXBD_RDPTR, &rdptr)) {
+	if (mwifiex_read_reg(adapter, reg->tx_rdptr, &rdptr)) {
 		dev_err(adapter->dev,
-			"Flush TXBD: failed to read REG_TXBD_RDPTR\n");
+			"Flush TXBD: failed to read reg->tx_rdptr\n");
 		return -1;
 	}
 
@@ -800,31 +940,35 @@ static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 {
-	const u32 num_tx_buffs = MWIFIEX_MAX_TXRX_BD;
 	struct sk_buff *skb;
 	dma_addr_t buf_pa;
-	u32 wrdoneidx, rdptr, unmap_count = 0;
+	u32 wrdoneidx, rdptr, num_tx_buffs, unmap_count = 0;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
 
 	/* Read the TX ring read pointer set by firmware */
-	if (mwifiex_read_reg(adapter, REG_TXBD_RDPTR, &rdptr)) {
+	if (mwifiex_read_reg(adapter, reg->tx_rdptr, &rdptr)) {
 		dev_err(adapter->dev,
-			"SEND COMP: failed to read REG_TXBD_RDPTR\n");
+			"SEND COMP: failed to read reg->tx_rdptr\n");
 		return -1;
 	}
 
 	dev_dbg(adapter->dev, "SEND COMP: rdptr_prev=0x%x, rdptr=0x%x\n",
 		card->txbd_rdptr, rdptr);
 
+	num_tx_buffs = MWIFIEX_MAX_TXRX_BD << reg->tx_start_ptr;
 	/* free from previous txbd_rdptr to current txbd_rdptr */
-	while (((card->txbd_rdptr & MWIFIEX_TXBD_MASK) !=
-		(rdptr & MWIFIEX_TXBD_MASK)) ||
-	       ((card->txbd_rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) !=
-		(rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND))) {
-		wrdoneidx = card->txbd_rdptr & MWIFIEX_TXBD_MASK;
+	while (((card->txbd_rdptr & reg->tx_mask) !=
+		(rdptr & reg->tx_mask)) ||
+	       ((card->txbd_rdptr & reg->tx_rollover_ind) !=
+		(rdptr & reg->tx_rollover_ind))) {
+		wrdoneidx = (card->txbd_rdptr & reg->tx_mask) >>
+			    reg->tx_start_ptr;
 
 		skb = card->tx_buf_list[wrdoneidx];
 		if (skb) {
@@ -845,25 +989,38 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 		}
 
 		card->tx_buf_list[wrdoneidx] = NULL;
-		card->txbd_ring[wrdoneidx]->paddr = 0;
-		card->txbd_ring[wrdoneidx]->len = 0;
-		card->txbd_ring[wrdoneidx]->flags = 0;
-		card->txbd_rdptr++;
 
-		if ((card->txbd_rdptr & MWIFIEX_TXBD_MASK) == num_tx_buffs)
+		if (reg->pfu_enabled) {
+			desc2 = (void *)card->txbd_ring[wrdoneidx];
+			memset(desc2, 0, sizeof(*desc2));
+		} else {
+			desc = card->txbd_ring[wrdoneidx];
+			memset(desc, 0, sizeof(*desc));
+		}
+		switch (card->dev->device) {
+		case PCIE_DEVICE_ID_MARVELL_88W8766P:
+			card->txbd_rdptr++;
+			break;
+		case PCIE_DEVICE_ID_MARVELL_88W8897:
+			card->txbd_rdptr += reg->ring_tx_start_ptr;
+			break;
+		}
+
+
+		if ((card->txbd_rdptr & reg->tx_mask) == num_tx_buffs)
 			card->txbd_rdptr = ((card->txbd_rdptr &
-					    MWIFIEX_BD_FLAG_ROLLOVER_IND) ^
-					    MWIFIEX_BD_FLAG_ROLLOVER_IND);
+					     reg->tx_rollover_ind) ^
+					     reg->tx_rollover_ind);
 	}
 
 	if (unmap_count)
 		adapter->data_sent = false;
 
 	if (card->txbd_flush) {
-		if (((card->txbd_wrptr & MWIFIEX_TXBD_MASK) ==
-		     (card->txbd_rdptr & MWIFIEX_TXBD_MASK)) &&
-		    ((card->txbd_wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) !=
-		     (card->txbd_rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND)))
+		if (((card->txbd_wrptr & reg->tx_mask) ==
+		     (card->txbd_rdptr & reg->tx_mask)) &&
+		    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
+		     (card->txbd_rdptr & reg->tx_rollover_ind)))
 			card->txbd_flush = 0;
 		else
 			mwifiex_clean_pcie_ring_buf(adapter);
@@ -883,9 +1040,12 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       struct mwifiex_tx_param *tx_param)
 {
 	struct pcie_service_card *card = adapter->card;
-	u32 wrindx;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	u32 wrindx, num_tx_buffs, rx_val;
 	int ret;
 	dma_addr_t buf_pa;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
 	__le16 *tmp;
 
 	if (!(skb->data && skb->len)) {
@@ -897,6 +1057,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
 
+	num_tx_buffs = MWIFIEX_MAX_TXRX_BD << reg->tx_start_ptr;
 	dev_dbg(adapter->dev, "info: SEND DATA: <Rd: %#x, Wr: %#x>\n",
 		card->txbd_rdptr, card->txbd_wrptr);
 	if (mwifiex_pcie_txbd_not_full(card)) {
@@ -913,25 +1074,46 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 					   PCI_DMA_TODEVICE))
 			return -1;
 
-		wrindx = card->txbd_wrptr & MWIFIEX_TXBD_MASK;
+		wrindx = (card->txbd_wrptr & reg->tx_mask) >> reg->tx_start_ptr;
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
 		card->tx_buf_list[wrindx] = skb;
-		card->txbd_ring[wrindx]->paddr = buf_pa;
-		card->txbd_ring[wrindx]->len = (u16)skb->len;
-		card->txbd_ring[wrindx]->flags = MWIFIEX_BD_FLAG_FIRST_DESC |
-						MWIFIEX_BD_FLAG_LAST_DESC;
 
-		if ((++card->txbd_wrptr & MWIFIEX_TXBD_MASK) ==
-							MWIFIEX_MAX_TXRX_BD)
+		if (reg->pfu_enabled) {
+			desc2 = (void *)card->txbd_ring[wrindx];
+			desc2->paddr = buf_pa;
+			desc2->len = (u16)skb->len;
+			desc2->frag_len = (u16)skb->len;
+			desc2->offset = 0;
+			desc2->flags = MWIFIEX_BD_FLAG_FIRST_DESC |
+					 MWIFIEX_BD_FLAG_LAST_DESC;
+		} else {
+			desc = card->txbd_ring[wrindx];
+			desc->paddr = buf_pa;
+			desc->len = (u16)skb->len;
+			desc->flags = MWIFIEX_BD_FLAG_FIRST_DESC |
+				      MWIFIEX_BD_FLAG_LAST_DESC;
+		}
+
+		switch (card->dev->device) {
+		case PCIE_DEVICE_ID_MARVELL_88W8766P:
+			card->txbd_wrptr++;
+			break;
+		case PCIE_DEVICE_ID_MARVELL_88W8897:
+			card->txbd_wrptr += reg->ring_tx_start_ptr;
+			break;
+		}
+
+		if ((card->txbd_wrptr & reg->tx_mask) == num_tx_buffs)
 			card->txbd_wrptr = ((card->txbd_wrptr &
-						MWIFIEX_BD_FLAG_ROLLOVER_IND) ^
-						MWIFIEX_BD_FLAG_ROLLOVER_IND);
+						reg->tx_rollover_ind) ^
+						reg->tx_rollover_ind);
 
-		/* Write the TX ring write pointer in to REG_TXBD_WRPTR */
-		if (mwifiex_write_reg(adapter, REG_TXBD_WRPTR,
-				      card->txbd_wrptr)) {
+		rx_val = card->rxbd_rdptr & reg->rx_wrap_mask;
+		/* Write the TX ring write pointer in to reg->tx_wrptr */
+		if (mwifiex_write_reg(adapter, reg->tx_wrptr,
+				      card->txbd_wrptr | rx_val)) {
 			dev_err(adapter->dev,
-				"SEND DATA: failed to write REG_TXBD_WRPTR\n");
+				"SEND DATA: failed to write reg->tx_wrptr\n");
 			ret = -1;
 			goto done_unmap;
 		}
@@ -971,9 +1153,11 @@ done_unmap:
 	MWIFIEX_SKB_PACB(skb, &buf_pa);
 	pci_unmap_single(card->dev, buf_pa, skb->len, PCI_DMA_TODEVICE);
 	card->tx_buf_list[wrindx] = NULL;
-	card->txbd_ring[wrindx]->paddr = 0;
-	card->txbd_ring[wrindx]->len = 0;
-	card->txbd_ring[wrindx]->flags = 0;
+	if (reg->pfu_enabled)
+		memset(desc2, 0, sizeof(*desc2));
+	else
+		memset(desc, 0, sizeof(*desc));
+
 	return ret;
 }
 
@@ -984,32 +1168,35 @@ done_unmap:
 static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	u32 wrptr, rd_index;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	u32 wrptr, rd_index, tx_val;
 	dma_addr_t buf_pa;
 	int ret = 0;
 	struct sk_buff *skb_tmp = NULL;
+	struct mwifiex_pcie_buf_desc *desc;
+	struct mwifiex_pfu_buf_desc *desc2;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
 
 	/* Read the RX ring Write pointer set by firmware */
-	if (mwifiex_read_reg(adapter, REG_RXBD_WRPTR, &wrptr)) {
+	if (mwifiex_read_reg(adapter, reg->rx_wrptr, &wrptr)) {
 		dev_err(adapter->dev,
-			"RECV DATA: failed to read REG_TXBD_RDPTR\n");
+			"RECV DATA: failed to read reg->rx_wrptr\n");
 		ret = -1;
 		goto done;
 	}
 	card->rxbd_wrptr = wrptr;
 
-	while (((wrptr & MWIFIEX_RXBD_MASK) !=
-		(card->rxbd_rdptr & MWIFIEX_RXBD_MASK)) ||
-	       ((wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) ==
-		(card->rxbd_rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND))) {
+	while (((wrptr & reg->rx_mask) !=
+		(card->rxbd_rdptr & reg->rx_mask)) ||
+	       ((wrptr & reg->rx_rollover_ind) ==
+		(card->rxbd_rdptr & reg->rx_rollover_ind))) {
 		struct sk_buff *skb_data;
 		u16 rx_len;
 		__le16 pkt_len;
 
-		rd_index = card->rxbd_rdptr & MWIFIEX_RXBD_MASK;
+		rd_index = card->rxbd_rdptr & reg->rx_mask;
 		skb_data = card->rx_buf_list[rd_index];
 
 		MWIFIEX_SKB_PACB(skb_data, &buf_pa);
@@ -1047,32 +1234,44 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 			"RECV DATA: Attach new sk_buff %p at rxbd_rdidx=%d\n",
 			skb_tmp, rd_index);
 		card->rx_buf_list[rd_index] = skb_tmp;
-		card->rxbd_ring[rd_index]->paddr = buf_pa;
-		card->rxbd_ring[rd_index]->len = skb_tmp->len;
-		card->rxbd_ring[rd_index]->flags = 0;
 
-		if ((++card->rxbd_rdptr & MWIFIEX_RXBD_MASK) ==
+		if (reg->pfu_enabled) {
+			desc2 = (void *)card->rxbd_ring[rd_index];
+			desc2->paddr = buf_pa;
+			desc2->len = skb_tmp->len;
+			desc2->frag_len = skb_tmp->len;
+			desc2->offset = 0;
+			desc2->flags = reg->ring_flag_sop | reg->ring_flag_eop;
+		} else {
+			desc = card->rxbd_ring[rd_index];
+			desc->paddr = buf_pa;
+			desc->len = skb_tmp->len;
+			desc->flags = 0;
+		}
+
+		if ((++card->rxbd_rdptr & reg->rx_mask) ==
 							MWIFIEX_MAX_TXRX_BD) {
 			card->rxbd_rdptr = ((card->rxbd_rdptr &
-					     MWIFIEX_BD_FLAG_ROLLOVER_IND) ^
-					    MWIFIEX_BD_FLAG_ROLLOVER_IND);
+					     reg->rx_rollover_ind) ^
+					     reg->rx_rollover_ind);
 		}
 		dev_dbg(adapter->dev, "info: RECV DATA: <Rd: %#x, Wr: %#x>\n",
 			card->rxbd_rdptr, wrptr);
 
-		/* Write the RX ring read pointer in to REG_RXBD_RDPTR */
-		if (mwifiex_write_reg(adapter, REG_RXBD_RDPTR,
-				      card->rxbd_rdptr)) {
+		tx_val = card->txbd_wrptr & reg->tx_wrap_mask;
+		/* Write the RX ring read pointer in to reg->rx_rdptr */
+		if (mwifiex_write_reg(adapter, reg->rx_rdptr,
+				      card->rxbd_rdptr | tx_val)) {
 			dev_err(adapter->dev,
-				"RECV DATA: failed to write REG_RXBD_RDPTR\n");
+				"RECV DATA: failed to write reg->rx_rdptr\n");
 			ret = -1;
 			goto done;
 		}
 
 		/* Read the RX ring Write pointer set by firmware */
-		if (mwifiex_read_reg(adapter, REG_RXBD_WRPTR, &wrptr)) {
+		if (mwifiex_read_reg(adapter, reg->rx_wrptr, &wrptr)) {
 			dev_err(adapter->dev,
-				"RECV DATA: failed to read REG_TXBD_RDPTR\n");
+				"RECV DATA: failed to read reg->rx_wrptr\n");
 			ret = -1;
 			goto done;
 		}
@@ -1093,6 +1292,7 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 {
 	dma_addr_t buf_pa;
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	if (!(skb->data && skb->len)) {
 		dev_err(adapter->dev,
@@ -1106,9 +1306,10 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 
 	MWIFIEX_SKB_PACB(skb, &buf_pa);
 
-	/* Write the lower 32bits of the physical address to scratch
-	 * register 0 */
-	if (mwifiex_write_reg(adapter, PCIE_SCRATCH_0_REG, (u32)buf_pa)) {
+	/* Write the lower 32bits of the physical address to low command
+	 * address scratch register
+	 */
+	if (mwifiex_write_reg(adapter, reg->cmd_addr_lo, (u32)buf_pa)) {
 		dev_err(adapter->dev,
 			"%s: failed to write download command to boot code.\n",
 			__func__);
@@ -1117,9 +1318,10 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		return -1;
 	}
 
-	/* Write the upper 32bits of the physical address to scratch
-	 * register 1 */
-	if (mwifiex_write_reg(adapter, PCIE_SCRATCH_1_REG,
+	/* Write the upper 32bits of the physical address to high command
+	 * address scratch register
+	 */
+	if (mwifiex_write_reg(adapter, reg->cmd_addr_hi,
 			      (u32)((u64)buf_pa >> 32))) {
 		dev_err(adapter->dev,
 			"%s: failed to write download command to boot code.\n",
@@ -1129,10 +1331,10 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		return -1;
 	}
 
-	/* Write the command length to scratch register 2 */
-	if (mwifiex_write_reg(adapter, PCIE_SCRATCH_2_REG, skb->len)) {
+	/* Write the command length to cmd_size scratch register */
+	if (mwifiex_write_reg(adapter, reg->cmd_size, skb->len)) {
 		dev_err(adapter->dev,
-			"%s: failed to write command len to scratch reg 2\n",
+			"%s: failed to write command len to cmd_size scratch reg\n",
 			__func__);
 		pci_unmap_single(card->dev, buf_pa, MWIFIEX_UPLD_SIZE,
 				 PCI_DMA_TODEVICE);
@@ -1158,11 +1360,14 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 static int mwifiex_pcie_init_fw_port(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	int tx_wrap = card->txbd_wrptr & reg->tx_wrap_mask;
 
-	/* Write the RX ring read pointer in to REG_RXBD_RDPTR */
-	if (mwifiex_write_reg(adapter, REG_RXBD_RDPTR, card->rxbd_rdptr | 0)) {
+	/* Write the RX ring read pointer in to reg->rx_rdptr */
+	if (mwifiex_write_reg(adapter, reg->rx_rdptr, card->rxbd_rdptr |
+			      tx_wrap)) {
 		dev_err(adapter->dev,
-			"RECV DATA: failed to write REG_RXBD_RDPTR\n");
+			"RECV DATA: failed to write reg->rx_rdptr\n");
 		return -1;
 	}
 	return 0;
@@ -1174,6 +1379,7 @@ static int
 mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	int ret = 0;
 	dma_addr_t cmd_buf_pa, cmdrsp_buf_pa;
 	u8 *payload = (u8 *)skb->data;
@@ -1206,7 +1412,7 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 
 	/* To send a command, the driver will:
 		1. Write the 64bit physical address of the data buffer to
-		   SCRATCH1 + SCRATCH0
+		   cmd response address low  + cmd response address high
 		2. Ring the door bell (i.e. set the door bell interrupt)
 
 		In response to door bell interrupt, the firmware will perform
@@ -1218,7 +1424,7 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		MWIFIEX_SKB_PACB(card->cmdrsp_buf, &cmdrsp_buf_pa);
 		/* Write the lower 32bits of the cmdrsp buffer physical
 		   address */
-		if (mwifiex_write_reg(adapter, REG_CMDRSP_ADDR_LO,
+		if (mwifiex_write_reg(adapter, reg->cmdrsp_addr_lo,
 				      (u32)cmdrsp_buf_pa)) {
 			dev_err(adapter->dev,
 				"Failed to write download cmd to boot code.\n");
@@ -1227,7 +1433,7 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		}
 		/* Write the upper 32bits of the cmdrsp buffer physical
 		   address */
-		if (mwifiex_write_reg(adapter, REG_CMDRSP_ADDR_HI,
+		if (mwifiex_write_reg(adapter, reg->cmdrsp_addr_hi,
 				      (u32)((u64)cmdrsp_buf_pa >> 32))) {
 			dev_err(adapter->dev,
 				"Failed to write download cmd to boot code.\n");
@@ -1237,15 +1443,16 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 	}
 
 	MWIFIEX_SKB_PACB(card->cmd_buf, &cmd_buf_pa);
-	/* Write the lower 32bits of the physical address to REG_CMD_ADDR_LO */
-	if (mwifiex_write_reg(adapter, REG_CMD_ADDR_LO, (u32)cmd_buf_pa)) {
+	/* Write the lower 32bits of the physical address to reg->cmd_addr_lo */
+	if (mwifiex_write_reg(adapter, reg->cmd_addr_lo,
+			      (u32)cmd_buf_pa)) {
 		dev_err(adapter->dev,
 			"Failed to write download cmd to boot code.\n");
 		ret = -1;
 		goto done;
 	}
-	/* Write the upper 32bits of the physical address to REG_CMD_ADDR_HI */
-	if (mwifiex_write_reg(adapter, REG_CMD_ADDR_HI,
+	/* Write the upper 32bits of the physical address to reg->cmd_addr_hi */
+	if (mwifiex_write_reg(adapter, reg->cmd_addr_hi,
 			      (u32)((u64)cmd_buf_pa >> 32))) {
 		dev_err(adapter->dev,
 			"Failed to write download cmd to boot code.\n");
@@ -1253,10 +1460,11 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		goto done;
 	}
 
-	/* Write the command length to REG_CMD_SIZE */
-	if (mwifiex_write_reg(adapter, REG_CMD_SIZE, card->cmd_buf->len)) {
+	/* Write the command length to reg->cmd_size */
+	if (mwifiex_write_reg(adapter, reg->cmd_size,
+			      card->cmd_buf->len)) {
 		dev_err(adapter->dev,
-			"Failed to write cmd len to REG_CMD_SIZE\n");
+			"Failed to write cmd len to reg->cmd_size\n");
 		ret = -1;
 		goto done;
 	}
@@ -1283,6 +1491,7 @@ done:
 static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	struct sk_buff *skb = card->cmdrsp_buf;
 	int count = 0;
 	u16 rx_len;
@@ -1328,14 +1537,14 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		/* Clear the cmd-rsp buffer address in scratch registers. This
 		   will prevent firmware from writing to the same response
 		   buffer again. */
-		if (mwifiex_write_reg(adapter, REG_CMDRSP_ADDR_LO, 0)) {
+		if (mwifiex_write_reg(adapter, reg->cmdrsp_addr_lo, 0)) {
 			dev_err(adapter->dev,
 				"cmd_done: failed to clear cmd_rsp_addr_lo\n");
 			return -1;
 		}
 		/* Write the upper 32bits of the cmdrsp buffer physical
 		   address */
-		if (mwifiex_write_reg(adapter, REG_CMDRSP_ADDR_HI, 0)) {
+		if (mwifiex_write_reg(adapter, reg->cmdrsp_addr_hi, 0)) {
 			dev_err(adapter->dev,
 				"cmd_done: failed to clear cmd_rsp_addr_hi\n");
 			return -1;
@@ -1380,9 +1589,11 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 rdptr = card->evtbd_rdptr & MWIFIEX_EVTBD_MASK;
 	u32 wrptr, event;
 	dma_addr_t buf_pa;
+	struct mwifiex_evt_buf_desc *desc;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
@@ -1399,9 +1610,9 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 	}
 
 	/* Read the event ring write pointer set by firmware */
-	if (mwifiex_read_reg(adapter, REG_EVTBD_WRPTR, &wrptr)) {
+	if (mwifiex_read_reg(adapter, reg->evt_wrptr, &wrptr)) {
 		dev_err(adapter->dev,
-			"EventReady: failed to read REG_EVTBD_WRPTR\n");
+			"EventReady: failed to read reg->evt_wrptr\n");
 		return -1;
 	}
 
@@ -1409,8 +1620,8 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		card->evtbd_rdptr, wrptr);
 	if (((wrptr & MWIFIEX_EVTBD_MASK) != (card->evtbd_rdptr
 					      & MWIFIEX_EVTBD_MASK)) ||
-	    ((wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) ==
-	     (card->evtbd_rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND))) {
+	    ((wrptr & reg->evt_rollover_ind) ==
+	     (card->evtbd_rdptr & reg->evt_rollover_ind))) {
 		struct sk_buff *skb_cmd;
 		__le16 data_len = 0;
 		u16 evt_len;
@@ -1424,9 +1635,8 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		/* Take the pointer and set it to event pointer in adapter
 		   and will return back after event handling callback */
 		card->evt_buf_list[rdptr] = NULL;
-		card->evtbd_ring[rdptr]->paddr = 0;
-		card->evtbd_ring[rdptr]->len = 0;
-		card->evtbd_ring[rdptr]->flags = 0;
+		desc = card->evtbd_ring[rdptr];
+		memset(desc, 0, sizeof(*desc));
 
 		event = *(u32 *) &skb_cmd->data[INTF_HEADER_LEN];
 		adapter->event_cause = event;
@@ -1462,10 +1672,12 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 				       struct sk_buff *skb)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	int ret = 0;
 	u32 rdptr = card->evtbd_rdptr & MWIFIEX_EVTBD_MASK;
 	u32 wrptr;
 	dma_addr_t buf_pa;
+	struct mwifiex_evt_buf_desc *desc;
 
 	if (!skb)
 		return 0;
@@ -1477,9 +1689,9 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	}
 
 	/* Read the event ring write pointer set by firmware */
-	if (mwifiex_read_reg(adapter, REG_EVTBD_WRPTR, &wrptr)) {
+	if (mwifiex_read_reg(adapter, reg->evt_wrptr, &wrptr)) {
 		dev_err(adapter->dev,
-			"event_complete: failed to read REG_EVTBD_WRPTR\n");
+			"event_complete: failed to read reg->evt_wrptr\n");
 		return -1;
 	}
 
@@ -1492,9 +1704,10 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
 		card->evt_buf_list[rdptr] = skb;
 		MWIFIEX_SKB_PACB(skb, &buf_pa);
-		card->evtbd_ring[rdptr]->paddr = buf_pa;
-		card->evtbd_ring[rdptr]->len = (u16)skb->len;
-		card->evtbd_ring[rdptr]->flags = 0;
+		desc = card->evtbd_ring[rdptr];
+		desc->paddr = buf_pa;
+		desc->len = (u16)skb->len;
+		desc->flags = 0;
 		skb = NULL;
 	} else {
 		dev_dbg(adapter->dev,
@@ -1504,17 +1717,18 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 
 	if ((++card->evtbd_rdptr & MWIFIEX_EVTBD_MASK) == MWIFIEX_MAX_EVT_BD) {
 		card->evtbd_rdptr = ((card->evtbd_rdptr &
-					MWIFIEX_BD_FLAG_ROLLOVER_IND) ^
-					MWIFIEX_BD_FLAG_ROLLOVER_IND);
+					reg->evt_rollover_ind) ^
+					reg->evt_rollover_ind);
 	}
 
 	dev_dbg(adapter->dev, "info: Updated <Rd: 0x%x, Wr: 0x%x>",
 		card->evtbd_rdptr, wrptr);
 
-	/* Write the event ring read pointer in to REG_EVTBD_RDPTR */
-	if (mwifiex_write_reg(adapter, REG_EVTBD_RDPTR, card->evtbd_rdptr)) {
+	/* Write the event ring read pointer in to reg->evt_rdptr */
+	if (mwifiex_write_reg(adapter, reg->evt_rdptr,
+			      card->evtbd_rdptr)) {
 		dev_err(adapter->dev,
-			"event_complete: failed to read REG_EVTBD_RDPTR\n");
+			"event_complete: failed to read reg->evt_rdptr\n");
 		return -1;
 	}
 
@@ -1543,6 +1757,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	u32 block_retry_cnt = 0;
 	dma_addr_t buf_pa;
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	if (!firmware || !firmware_len) {
 		dev_err(adapter->dev,
@@ -1574,7 +1789,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			break;
 
 		for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
-			ret = mwifiex_read_reg(adapter, PCIE_SCRATCH_2_REG,
+			ret = mwifiex_read_reg(adapter, reg->cmd_size,
 					       &len);
 			if (ret) {
 				dev_warn(adapter->dev,
@@ -1620,16 +1835,15 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 			dev_dbg(adapter->dev, ".");
 
-			tx_blocks = (txlen +
-				     MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD - 1) /
-				     MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD;
+			tx_blocks = (txlen + card->pcie.blksz_fw_dl - 1) /
+				    card->pcie.blksz_fw_dl;
 
 			/* Copy payload to buffer */
 			memmove(skb->data, &firmware[offset], txlen);
 		}
 
 		skb_put(skb, MWIFIEX_UPLD_SIZE - skb->len);
-		skb_trim(skb, tx_blocks * MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD);
+		skb_trim(skb, tx_blocks * card->pcie.blksz_fw_dl);
 
 		/* Send the boot command to device */
 		if (mwifiex_pcie_send_boot_cmd(adapter, skb)) {
@@ -1682,6 +1896,8 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 {
 	int ret = 0;
 	u32 firmware_stat, winner_status;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 tries;
 
 	/* Mask spurios interrupts */
@@ -1692,7 +1908,8 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 	}
 
 	dev_dbg(adapter->dev, "Setting driver ready signature\n");
-	if (mwifiex_write_reg(adapter, REG_DRV_READY, FIRMWARE_READY_PCIE)) {
+	if (mwifiex_write_reg(adapter, reg->drv_rdy,
+			      FIRMWARE_READY_PCIE)) {
 		dev_err(adapter->dev,
 			"Failed to write driver ready signature\n");
 		return -1;
@@ -1700,7 +1917,7 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 
 	/* Wait for firmware initialization event */
 	for (tries = 0; tries < poll_num; tries++) {
-		if (mwifiex_read_reg(adapter, PCIE_SCRATCH_3_REG,
+		if (mwifiex_read_reg(adapter, reg->fw_status,
 				     &firmware_stat))
 			ret = -1;
 		else
@@ -1717,7 +1934,7 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 	}
 
 	if (ret) {
-		if (mwifiex_read_reg(adapter, PCIE_SCRATCH_3_REG,
+		if (mwifiex_read_reg(adapter, reg->fw_status,
 				     &winner_status))
 			ret = -1;
 		else if (!winner_status) {
@@ -2061,10 +2278,11 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	if (user_rmmod) {
 		dev_dbg(adapter->dev, "Clearing driver ready signature\n");
-		if (mwifiex_write_reg(adapter, REG_DRV_READY, 0x00000000))
+		if (mwifiex_write_reg(adapter, reg->drv_rdy, 0x00000000))
 			dev_err(adapter->dev,
 				"Failed to write driver not-ready signature\n");
 	}
@@ -2102,7 +2320,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->dev = &pdev->dev;
-	strcpy(adapter->fw_name, PCIE8766_DEFAULT_FW_NAME);
+	strcpy(adapter->fw_name, card->pcie.firmware);
 
 	return 0;
 }
@@ -2162,7 +2380,7 @@ static int mwifiex_pcie_init_module(void)
 {
 	int ret;
 
-	pr_debug("Marvell 8766 PCIe Driver\n");
+	pr_debug("Marvell PCIe Driver\n");
 
 	sema_init(&add_remove_card_sem, 1);
 
@@ -2205,4 +2423,5 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex PCI-Express Driver version " PCIE_VERSION);
 MODULE_VERSION(PCIE_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("mrvl/pcie8766_uapsta.bin");
+MODULE_FIRMWARE(PCIE8766_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(PCIE8897_DEFAULT_FW_NAME);

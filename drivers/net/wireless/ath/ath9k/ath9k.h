@@ -319,6 +319,8 @@ struct ath_rx {
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
 	struct sk_buff *frag;
+
+	u32 ampdu_ref;
 };
 
 int ath_startrecv(struct ath_softc *sc);
@@ -387,6 +389,7 @@ struct ath_beacon_config {
 	u16 bmiss_timeout;
 	u8 dtim_count;
 	bool enable_beacon;
+	bool ibss_creator;
 };
 
 struct ath_beacon {
@@ -869,7 +872,7 @@ enum ath_fft_sample_type {
 
 struct fft_sample_tlv {
 	u8 type;	/* see ath_fft_sample */
-	u16 length;
+	__be16 length;
 	/* type dependent data follows */
 } __packed;
 
@@ -878,15 +881,15 @@ struct fft_sample_ht20 {
 
 	u8 max_exp;
 
-	u16 freq;
+	__be16 freq;
 	s8 rssi;
 	s8 noise;
 
-	u16 max_magnitude;
+	__be16 max_magnitude;
 	u8 max_index;
 	u8 bitmap_weight;
 
-	u64 tsf;
+	__be64 tsf;
 
 	u8 data[SPECTRAL_HT20_NUM_BINS];
 } __packed;

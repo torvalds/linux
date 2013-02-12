@@ -1183,14 +1183,10 @@ static void hci_discov_off(struct work_struct *work)
 
 int hci_uuids_clear(struct hci_dev *hdev)
 {
-	struct list_head *p, *n;
+	struct bt_uuid *uuid, *tmp;
 
-	list_for_each_safe(p, n, &hdev->uuids) {
-		struct bt_uuid *uuid;
-
-		uuid = list_entry(p, struct bt_uuid, list);
-
-		list_del(p);
+	list_for_each_entry_safe(uuid, tmp, &hdev->uuids, list) {
+		list_del(&uuid->list);
 		kfree(uuid);
 	}
 

@@ -120,6 +120,8 @@ static void cleanup_single_sta(struct sta_info *sta)
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
+		else if (ieee80211_vif_is_mesh(&sdata->vif))
+			ps = &sdata->u.mesh.ps;
 		else
 			return;
 
@@ -587,6 +589,12 @@ void sta_info_recalc_tim(struct sta_info *sta)
 
 		ps = &sta->sdata->bss->ps;
 		id = sta->sta.aid;
+#ifdef CONFIG_MAC80211_MESH
+	} else if (ieee80211_vif_is_mesh(&sta->sdata->vif)) {
+		ps = &sta->sdata->u.mesh.ps;
+		/* TIM map only for PLID <= IEEE80211_MAX_AID */
+		id = le16_to_cpu(sta->plid) % IEEE80211_MAX_AID;
+#endif
 	} else {
 		return;
 	}
@@ -745,8 +753,9 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	bool have_buffered = false;
 	int ac;
 
-	/* This is only necessary for stations on BSS interfaces */
-	if (!sta->sdata->bss)
+	/* This is only necessary for stations on BSS/MBSS interfaces */
+	if (!sta->sdata->bss &&
+	    !ieee80211_vif_is_mesh(&sta->sdata->vif))
 		return false;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -934,6 +943,11 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
 				sta->sta.addr);
+
+			if (ieee80211_vif_is_mesh(&sdata->vif) &&
+			    test_sta_flag(sta, WLAN_STA_PS_STA))
+				atomic_dec(&sdata->u.mesh.ps.num_sta_ps);
+
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
@@ -992,6 +1006,8 @@ static void clear_sta_ps_flags(void *_sta)
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		ps = &sdata->bss->ps;
+	else if (ieee80211_vif_is_mesh(&sdata->vif))
+		ps = &sdata->u.mesh.ps;
 	else
 		return;
 

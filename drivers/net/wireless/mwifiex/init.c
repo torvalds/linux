@@ -317,7 +317,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->pm_wakeup_fw_try = false;
 
-	adapter->max_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 

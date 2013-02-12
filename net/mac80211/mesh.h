@@ -222,6 +222,8 @@ int mesh_add_meshid_ie(struct sk_buff *skb,
 		       struct ieee80211_sub_if_data *sdata);
 int mesh_add_rsn_ie(struct sk_buff *skb,
 		    struct ieee80211_sub_if_data *sdata);
+int mesh_add_awake_window_ie(struct sk_buff *skb,
+			     struct ieee80211_sub_if_data *sdata);
 int mesh_add_vendor_ies(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata);
 int mesh_add_ds_params_ie(struct sk_buff *skb,
@@ -241,6 +243,21 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
 const struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
+
+/* mesh power save */
+void ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata);
+void ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
+				    enum nl80211_mesh_power_mode pm);
+void ieee80211_mps_set_frame_flags(struct ieee80211_sub_if_data *sdata,
+				   struct sta_info *sta,
+				   struct ieee80211_hdr *hdr);
+void ieee80211_mps_sta_status_update(struct sta_info *sta);
+void ieee80211_mps_rx_h_sta_process(struct sta_info *sta,
+				    struct ieee80211_hdr *hdr);
+void ieee80211_mpsp_trigger_process(u8 *qc, struct sta_info *sta,
+				    bool tx, bool acked);
+void ieee80211_mps_frame_release(struct sta_info *sta,
+				 struct ieee802_11_elems *elems);
 
 /* Mesh paths */
 int mesh_nexthop_lookup(struct sk_buff *skb,

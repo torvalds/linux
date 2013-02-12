@@ -398,8 +398,6 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 
 	pos = (u8 *) assoc;
 
-	mwifiex_cfg_tx_buf(priv, bss_desc);
-
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_ASSOCIATE);
 
 	/* Save so we know which BSS Desc to use in the response handler */

@@ -31,9 +31,6 @@ static void bss_release(struct kref *ref)
 	if (WARN_ON(atomic_read(&bss->hold)))
 		return;
 
-	if (bss->pub.free_priv)
-		bss->pub.free_priv(&bss->pub);
-
 	ies = (void *)rcu_access_pointer(bss->pub.beacon_ies);
 	if (ies)
 		kfree_rcu(ies, rcu_head);
@@ -44,21 +41,33 @@ static void bss_release(struct kref *ref)
 	kfree(bss);
 }
 
-/* must hold dev->bss_lock! */
-static void __cfg80211_unlink_bss(struct cfg80211_registered_device *dev,
-				  struct cfg80211_internal_bss *bss)
+static inline void bss_ref_get(struct cfg80211_internal_bss *bss)
 {
-	list_del_init(&bss->list);
-	rb_erase(&bss->rbn, &dev->bss_tree);
+	kref_get(&bss->ref);
+}
+
+static inline void bss_ref_put(struct cfg80211_internal_bss *bss)
+{
 	kref_put(&bss->ref, bss_release);
 }
 
-/* must hold dev->bss_lock! */
+static void __cfg80211_unlink_bss(struct cfg80211_registered_device *dev,
+				  struct cfg80211_internal_bss *bss)
+{
+	lockdep_assert_held(&dev->bss_lock);
+
+	list_del_init(&bss->list);
+	rb_erase(&bss->rbn, &dev->bss_tree);
+	bss_ref_put(bss);
+}
+
 static void __cfg80211_bss_expire(struct cfg80211_registered_device *dev,
 				  unsigned long expire_time)
 {
 	struct cfg80211_internal_bss *bss, *tmp;
 	bool expired = false;
+
+	lockdep_assert_held(&dev->bss_lock);
 
 	list_for_each_entry_safe(bss, tmp, &dev->bss_list, list) {
 		if (atomic_read(&bss->hold))
@@ -234,15 +243,16 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-/* must hold dev->bss_lock! */
 void cfg80211_bss_age(struct cfg80211_registered_device *dev,
                       unsigned long age_secs)
 {
 	struct cfg80211_internal_bss *bss;
 	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
 
+	spin_lock_bh(&dev->bss_lock);
 	list_for_each_entry(bss, &dev->bss_list, list)
 		bss->ts -= age_jiffies;
+	spin_unlock_bh(&dev->bss_lock);
 }
 
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
@@ -291,26 +301,6 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
 }
 EXPORT_SYMBOL(cfg80211_find_vendor_ie);
 
-static int cmp_ies(u8 num, const u8 *ies1, int len1, const u8 *ies2, int len2)
-{
-	const u8 *ie1 = cfg80211_find_ie(num, ies1, len1);
-	const u8 *ie2 = cfg80211_find_ie(num, ies2, len2);
-
-	/* equal if both missing */
-	if (!ie1 && !ie2)
-		return 0;
-	/* sort missing IE before (left of) present IE */
-	if (!ie1)
-		return -1;
-	if (!ie2)
-		return 1;
-
-	/* sort by length first, then by contents */
-	if (ie1[1] != ie2[1])
-		return ie2[1] - ie1[1];
-	return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
-}
-
 static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 		   const u8 *ssid, size_t ssid_len)
 {
@@ -334,152 +324,82 @@ static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 	return memcmp(ssidie + 2, ssid, ssid_len) == 0;
 }
 
-static bool is_mesh_bss(struct cfg80211_bss *a)
-{
-	const struct cfg80211_bss_ies *ies;
-	const u8 *ie;
+/**
+ * enum bss_compare_mode - BSS compare mode
+ * @BSS_CMP_REGULAR: regular compare mode (for insertion and normal find)
+ * @BSS_CMP_HIDE_ZLEN: find hidden SSID with zero-length mode
+ * @BSS_CMP_HIDE_NUL: find hidden SSID with NUL-ed out mode
+ */
+enum bss_compare_mode {
+	BSS_CMP_REGULAR,
+	BSS_CMP_HIDE_ZLEN,
+	BSS_CMP_HIDE_NUL,
+};
 
-	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
-		return false;
-
-	ies = rcu_access_pointer(a->ies);
-	if (!ies)
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_ID, ies->data, ies->len);
-	if (!ie)
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG, ies->data, ies->len);
-	if (!ie)
-		return false;
-
-	return true;
-}
-
-static bool is_mesh(struct cfg80211_bss *a,
-		    const u8 *meshid, size_t meshidlen,
-		    const u8 *meshcfg)
-{
-	const struct cfg80211_bss_ies *ies;
-	const u8 *ie;
-
-	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
-		return false;
-
-	ies = rcu_access_pointer(a->ies);
-	if (!ies)
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_ID, ies->data, ies->len);
-	if (!ie)
-		return false;
-	if (ie[1] != meshidlen)
-		return false;
-	if (memcmp(ie + 2, meshid, meshidlen))
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG, ies->data, ies->len);
-	if (!ie)
-		return false;
-	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
-		return false;
-
-	/*
-	 * Ignore mesh capability (last two bytes of the IE) when
-	 * comparing since that may differ between stations taking
-	 * part in the same mesh.
-	 */
-	return memcmp(ie + 2, meshcfg,
-		      sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
-}
-
-static int cmp_bss_core(struct cfg80211_bss *a, struct cfg80211_bss *b)
+static int cmp_bss(struct cfg80211_bss *a,
+		   struct cfg80211_bss *b,
+		   enum bss_compare_mode mode)
 {
 	const struct cfg80211_bss_ies *a_ies, *b_ies;
-	int r;
+	const u8 *ie1 = NULL;
+	const u8 *ie2 = NULL;
+	int i, r;
 
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
 
-	if (is_mesh_bss(a) && is_mesh_bss(b)) {
-		a_ies = rcu_access_pointer(a->ies);
-		if (!a_ies)
-			return -1;
-		b_ies = rcu_access_pointer(b->ies);
-		if (!b_ies)
-			return 1;
+	a_ies = rcu_access_pointer(a->ies);
+	if (!a_ies)
+		return -1;
+	b_ies = rcu_access_pointer(b->ies);
+	if (!b_ies)
+		return 1;
 
-		r = cmp_ies(WLAN_EID_MESH_ID,
-			    a_ies->data, a_ies->len,
-			    b_ies->data, b_ies->len);
-		if (r)
-			return r;
-		return cmp_ies(WLAN_EID_MESH_CONFIG,
-			       a_ies->data, a_ies->len,
-			       b_ies->data, b_ies->len);
+	if (WLAN_CAPABILITY_IS_STA_BSS(a->capability))
+		ie1 = cfg80211_find_ie(WLAN_EID_MESH_ID,
+				       a_ies->data, a_ies->len);
+	if (WLAN_CAPABILITY_IS_STA_BSS(b->capability))
+		ie2 = cfg80211_find_ie(WLAN_EID_MESH_ID,
+				       b_ies->data, b_ies->len);
+	if (ie1 && ie2) {
+		int mesh_id_cmp;
+
+		if (ie1[1] == ie2[1])
+			mesh_id_cmp = memcmp(ie1 + 2, ie2 + 2, ie1[1]);
+		else
+			mesh_id_cmp = ie2[1] - ie1[1];
+
+		ie1 = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+				       a_ies->data, a_ies->len);
+		ie2 = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+				       b_ies->data, b_ies->len);
+		if (ie1 && ie2) {
+			if (mesh_id_cmp)
+				return mesh_id_cmp;
+			if (ie1[1] != ie2[1])
+				return ie2[1] - ie1[1];
+			return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
+		}
 	}
 
 	/*
 	 * we can't use compare_ether_addr here since we need a < > operator.
 	 * The binary return value of compare_ether_addr isn't enough
 	 */
-	return memcmp(a->bssid, b->bssid, sizeof(a->bssid));
-}
-
-static int cmp_bss(struct cfg80211_bss *a,
-		   struct cfg80211_bss *b)
-{
-	const struct cfg80211_bss_ies *a_ies, *b_ies;
-	int r;
-
-	r = cmp_bss_core(a, b);
+	r = memcmp(a->bssid, b->bssid, sizeof(a->bssid));
 	if (r)
 		return r;
-
-	a_ies = rcu_access_pointer(a->ies);
-	if (!a_ies)
-		return -1;
-	b_ies = rcu_access_pointer(b->ies);
-	if (!b_ies)
-		return 1;
-
-	return cmp_ies(WLAN_EID_SSID,
-		       a_ies->data, a_ies->len,
-		       b_ies->data, b_ies->len);
-}
-
-static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
-{
-	const struct cfg80211_bss_ies *a_ies, *b_ies;
-	const u8 *ie1;
-	const u8 *ie2;
-	int i;
-	int r;
-
-	r = cmp_bss_core(a, b);
-	if (r)
-		return r;
-
-	a_ies = rcu_access_pointer(a->ies);
-	if (!a_ies)
-		return -1;
-	b_ies = rcu_access_pointer(b->ies);
-	if (!b_ies)
-		return 1;
 
 	ie1 = cfg80211_find_ie(WLAN_EID_SSID, a_ies->data, a_ies->len);
 	ie2 = cfg80211_find_ie(WLAN_EID_SSID, b_ies->data, b_ies->len);
 
+	if (!ie1 && !ie2)
+		return 0;
+
 	/*
-	 * Key comparator must use same algorithm in any rb-tree
-	 * search function (order is important), otherwise ordering
-	 * of items in the tree is broken and search gives incorrect
-	 * results. This code uses same order as cmp_ies() does.
-	 *
-	 * Note that due to the differring behaviour with hidden SSIDs
-	 * this function only works when "b" is the tree element and
-	 * "a" is the key we're looking for.
+	 * Note that with "hide_ssid", the function returns a match if
+	 * the already-present BSS ("b") is a hidden SSID beacon for
+	 * the new BSS ("a").
 	 */
 
 	/* sort missing IE before (left of) present IE */
@@ -488,24 +408,36 @@ static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 	if (!ie2)
 		return 1;
 
-	/* zero-size SSID is used as an indication of the hidden bss */
-	if (!ie2[1])
+	switch (mode) {
+	case BSS_CMP_HIDE_ZLEN:
+		/*
+		 * In ZLEN mode we assume the BSS entry we're
+		 * looking for has a zero-length SSID. So if
+		 * the one we're looking at right now has that,
+		 * return 0. Otherwise, return the difference
+		 * in length, but since we're looking for the
+		 * 0-length it's really equivalent to returning
+		 * the length of the one we're looking at.
+		 *
+		 * No content comparison is needed as we assume
+		 * the content length is zero.
+		 */
+		return ie2[1];
+	case BSS_CMP_REGULAR:
+	default:
+		/* sort by length first, then by contents */
+		if (ie1[1] != ie2[1])
+			return ie2[1] - ie1[1];
+		return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
+	case BSS_CMP_HIDE_NUL:
+		if (ie1[1] != ie2[1])
+			return ie2[1] - ie1[1];
+		/* this is equivalent to memcmp(zeroes, ie2 + 2, len) */
+		for (i = 0; i < ie2[1]; i++)
+			if (ie2[i + 2])
+				return -1;
 		return 0;
-
-	/* sort by length first, then by contents */
-	if (ie1[1] != ie2[1])
-		return ie2[1] - ie1[1];
-
-	/*
-	 * zeroed SSID ie is another indication of a hidden bss;
-	 * if it isn't zeroed just return the regular sort value
-	 * to find the next candidate
-	 */
-	for (i = 0; i < ie2[1]; i++)
-		if (ie2[i + 2])
-			return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
-
-	return 0;
+	}
 }
 
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
@@ -534,7 +466,7 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 			continue;
 		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {
 			res = bss;
-			kref_get(&res->ref);
+			bss_ref_get(res);
 			break;
 		}
 	}
@@ -546,34 +478,6 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	return &res->pub;
 }
 EXPORT_SYMBOL(cfg80211_get_bss);
-
-struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       const u8 *meshid, size_t meshidlen,
-				       const u8 *meshcfg)
-{
-	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
-	struct cfg80211_internal_bss *bss, *res = NULL;
-
-	spin_lock_bh(&dev->bss_lock);
-
-	list_for_each_entry(bss, &dev->bss_list, list) {
-		if (channel && bss->pub.channel != channel)
-			continue;
-		if (is_mesh(&bss->pub, meshid, meshidlen, meshcfg)) {
-			res = bss;
-			kref_get(&res->ref);
-			break;
-		}
-	}
-
-	spin_unlock_bh(&dev->bss_lock);
-	if (!res)
-		return NULL;
-	return &res->pub;
-}
-EXPORT_SYMBOL(cfg80211_get_mesh);
-
 
 static void rb_insert_bss(struct cfg80211_registered_device *dev,
 			  struct cfg80211_internal_bss *bss)
@@ -587,7 +491,7 @@ static void rb_insert_bss(struct cfg80211_registered_device *dev,
 		parent = *p;
 		tbss = rb_entry(parent, struct cfg80211_internal_bss, rbn);
 
-		cmp = cmp_bss(&bss->pub, &tbss->pub);
+		cmp = cmp_bss(&bss->pub, &tbss->pub, BSS_CMP_REGULAR);
 
 		if (WARN_ON(!cmp)) {
 			/* will sort of leak this BSS */
@@ -606,7 +510,8 @@ static void rb_insert_bss(struct cfg80211_registered_device *dev,
 
 static struct cfg80211_internal_bss *
 rb_find_bss(struct cfg80211_registered_device *dev,
-	    struct cfg80211_internal_bss *res)
+	    struct cfg80211_internal_bss *res,
+	    enum bss_compare_mode mode)
 {
 	struct rb_node *n = dev->bss_tree.rb_node;
 	struct cfg80211_internal_bss *bss;
@@ -614,30 +519,7 @@ rb_find_bss(struct cfg80211_registered_device *dev,
 
 	while (n) {
 		bss = rb_entry(n, struct cfg80211_internal_bss, rbn);
-		r = cmp_bss(&res->pub, &bss->pub);
-
-		if (r == 0)
-			return bss;
-		else if (r < 0)
-			n = n->rb_left;
-		else
-			n = n->rb_right;
-	}
-
-	return NULL;
-}
-
-static struct cfg80211_internal_bss *
-rb_find_hidden_bss(struct cfg80211_registered_device *dev,
-		   struct cfg80211_internal_bss *res)
-{
-	struct rb_node *n = dev->bss_tree.rb_node;
-	struct cfg80211_internal_bss *bss;
-	int r;
-
-	while (n) {
-		bss = rb_entry(n, struct cfg80211_internal_bss, rbn);
-		r = cmp_hidden_bss(&res->pub, &bss->pub);
+		r = cmp_bss(&res->pub, &bss->pub, mode);
 
 		if (r == 0)
 			return bss;
@@ -687,7 +569,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		return NULL;
 	}
 
-	found = rb_find_bss(dev, tmp);
+	found = rb_find_bss(dev, tmp, BSS_CMP_REGULAR);
 
 	if (found) {
 		found->pub.beacon_interval = tmp->pub.beacon_interval;
@@ -711,16 +593,15 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				kfree_rcu((struct cfg80211_bss_ies *)old,
 					  rcu_head);
 		} else if (rcu_access_pointer(tmp->pub.beacon_ies)) {
-			const struct cfg80211_bss_ies *old, *ies;
+			const struct cfg80211_bss_ies *old;
 
 			old = rcu_access_pointer(found->pub.beacon_ies);
-			ies = rcu_access_pointer(found->pub.ies);
 
 			rcu_assign_pointer(found->pub.beacon_ies,
 					   tmp->pub.beacon_ies);
 
 			/* Override IEs if they were from a beacon before */
-			if (old == ies)
+			if (old == rcu_access_pointer(found->pub.ies))
 				rcu_assign_pointer(found->pub.ies,
 						   tmp->pub.beacon_ies);
 
@@ -742,9 +623,14 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		/* TODO: The code is not trying to update existing probe
 		 * response bss entries when beacon ies are
 		 * getting changed. */
-		hidden = rb_find_hidden_bss(dev, tmp);
-		if (hidden)
+		hidden = rb_find_bss(dev, tmp, BSS_CMP_HIDE_ZLEN);
+		if (hidden) {
 			copy_hidden_ies(tmp, hidden);
+		} else {
+			hidden = rb_find_bss(dev, tmp, BSS_CMP_HIDE_NUL);
+			if (hidden)
+				copy_hidden_ies(tmp, hidden);
+		}
 
 		/*
 		 * create a copy -- the "res" variable that is passed in
@@ -773,7 +659,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	dev->bss_generation++;
 	spin_unlock_bh(&dev->bss_lock);
 
-	kref_get(&found->ref);
+	bss_ref_get(found);
 	return found;
 }
 
@@ -841,11 +727,8 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	 * Response frame, we need to pick one of the options and only use it
 	 * with the driver that does not provide the full Beacon/Probe Response
 	 * frame. Use Beacon frame pointer to avoid indicating that this should
-	 * override the iies pointer should we have received an earlier
+	 * override the IEs pointer should we have received an earlier
 	 * indication of Probe Response data.
-	 *
-	 * The initial buffer for the IEs is allocated with the BSS entry and
-	 * is located after the private area.
 	 */
 	ies = kmalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
@@ -943,7 +826,7 @@ void cfg80211_ref_bss(struct cfg80211_bss *pub)
 		return;
 
 	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	kref_get(&bss->ref);
+	bss_ref_get(bss);
 }
 EXPORT_SYMBOL(cfg80211_ref_bss);
 
@@ -955,7 +838,7 @@ void cfg80211_put_bss(struct cfg80211_bss *pub)
 		return;
 
 	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	kref_put(&bss->ref, bss_release);
+	bss_ref_put(bss);
 }
 EXPORT_SYMBOL(cfg80211_put_bss);
 
