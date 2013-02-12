@@ -2332,11 +2332,12 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 EXPORT_SYMBOL_HDA(snd_hda_find_mixer_ctl);
 
 static int find_empty_mixer_ctl_idx(struct hda_codec *codec, const char *name,
-				    int dev)
+				    int start_idx)
 {
-	int idx;
-	for (idx = 0; idx < 16; idx++) { /* 16 ctlrs should be large enough */
-		if (!find_mixer_ctl(codec, name, dev, idx))
+	int i, idx;
+	/* 16 ctlrs should be large enough */
+	for (i = 0, idx = start_idx; i < 16; i++, idx++) {
+		if (!find_mixer_ctl(codec, name, 0, idx))
 			return idx;
 	}
 	return -EBUSY;
@@ -3305,30 +3306,29 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new *dig_mix;
-	int idx, dev = 0;
-	const int spdif_pcm_dev = 1;
+	int idx = 0;
+	const int spdif_index = 16;
 	struct hda_spdif_out *spdif;
+	struct hda_bus *bus = codec->bus;
 
-	if (codec->primary_dig_out_type == HDA_PCM_TYPE_HDMI &&
+	if (bus->primary_dig_out_type == HDA_PCM_TYPE_HDMI &&
 	    type == HDA_PCM_TYPE_SPDIF) {
-		dev = spdif_pcm_dev;
-	} else if (codec->primary_dig_out_type == HDA_PCM_TYPE_SPDIF &&
+		idx = spdif_index;
+	} else if (bus->primary_dig_out_type == HDA_PCM_TYPE_SPDIF &&
 		   type == HDA_PCM_TYPE_HDMI) {
-		for (idx = 0; idx < codec->spdif_out.used; idx++) {
-			spdif = snd_array_elem(&codec->spdif_out, idx);
-			for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
-				kctl = find_mixer_ctl(codec, dig_mix->name, 0, idx);
-				if (!kctl)
-					break;
-				kctl->id.device = spdif_pcm_dev;
-			}
+		/* suppose a single SPDIF device */
+		for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
+			kctl = find_mixer_ctl(codec, dig_mix->name, 0, 0);
+			if (!kctl)
+				break;
+			kctl->id.index = spdif_index;
 		}
-		codec->primary_dig_out_type = HDA_PCM_TYPE_HDMI;
+		bus->primary_dig_out_type = HDA_PCM_TYPE_HDMI;
 	}
-	if (!codec->primary_dig_out_type)
-		codec->primary_dig_out_type = type;
+	if (!bus->primary_dig_out_type)
+		bus->primary_dig_out_type = type;
 
-	idx = find_empty_mixer_ctl_idx(codec, "IEC958 Playback Switch", dev);
+	idx = find_empty_mixer_ctl_idx(codec, "IEC958 Playback Switch", idx);
 	if (idx < 0) {
 		printk(KERN_ERR "hda_codec: too many IEC958 outputs\n");
 		return -EBUSY;
@@ -3338,7 +3338,6 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 		kctl = snd_ctl_new1(dig_mix, codec);
 		if (!kctl)
 			return -ENOMEM;
-		kctl->id.device = dev;
 		kctl->id.index = idx;
 		kctl->private_value = codec->spdif_out.used - 1;
 		err = snd_hda_ctl_add(codec, associated_nid, kctl);
