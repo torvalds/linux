@@ -2679,7 +2679,7 @@ static int chunk_usage_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
 	chunk_used = btrfs_block_group_used(&cache->item);
 
 	if (bargs->usage == 0)
-		user_thresh = 0;
+		user_thresh = 1;
 	else if (bargs->usage > 100)
 		user_thresh = cache->key.offset;
 	else
