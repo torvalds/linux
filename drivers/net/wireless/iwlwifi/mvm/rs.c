@@ -1229,8 +1229,7 @@ static int rs_switch_to_mimo2(struct iwl_mvm *mvm,
 	if (!sta->ht_cap.ht_supported)
 		return -1;
 
-	if (((sta->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
-						== WLAN_HT_CAP_SM_PS_STATIC)
+	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
@@ -1282,8 +1281,7 @@ static int rs_switch_to_mimo3(struct iwl_mvm *mvm,
 	if (!sta->ht_cap.ht_supported)
 		return -1;
 
-	if (((sta->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
-						== WLAN_HT_CAP_SM_PS_STATIC)
+	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */

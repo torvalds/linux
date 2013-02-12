@@ -343,10 +343,7 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		 * when using more then one tx stream (>MCS7).
 		 */
 		if (sta && txdesc->u.ht.mcs > 7 &&
-		    ((sta->ht_cap.cap &
-		      IEEE80211_HT_CAP_SM_PS) >>
-		     IEEE80211_HT_CAP_SM_PS_SHIFT) ==
-		    WLAN_HT_CAP_SM_PS_DYNAMIC)
+		    sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
 			__set_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags);
 	} else {
 		txdesc->u.ht.mcs = rt2x00_get_rate_mcs(hwrate->mcs);

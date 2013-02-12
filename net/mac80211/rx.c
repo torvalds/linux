@@ -2375,31 +2375,27 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		switch (mgmt->u.action.u.ht_smps.action) {
 		case WLAN_HT_ACTION_SMPS: {
 			struct ieee80211_supported_band *sband;
-			u8 smps;
+			enum ieee80211_smps_mode smps_mode;
 
 			/* convert to HT capability */
 			switch (mgmt->u.action.u.ht_smps.smps_control) {
 			case WLAN_HT_SMPS_CONTROL_DISABLED:
-				smps = WLAN_HT_CAP_SM_PS_DISABLED;
+				smps_mode = IEEE80211_SMPS_OFF;
 				break;
 			case WLAN_HT_SMPS_CONTROL_STATIC:
-				smps = WLAN_HT_CAP_SM_PS_STATIC;
+				smps_mode = IEEE80211_SMPS_STATIC;
 				break;
 			case WLAN_HT_SMPS_CONTROL_DYNAMIC:
-				smps = WLAN_HT_CAP_SM_PS_DYNAMIC;
+				smps_mode = IEEE80211_SMPS_DYNAMIC;
 				break;
 			default:
 				goto invalid;
 			}
-			smps <<= IEEE80211_HT_CAP_SM_PS_SHIFT;
 
 			/* if no change do nothing */
-			if ((rx->sta->sta.ht_cap.cap &
-					IEEE80211_HT_CAP_SM_PS) == smps)
+			if (rx->sta->sta.smps_mode == smps_mode)
 				goto handled;
-
-			rx->sta->sta.ht_cap.cap &= ~IEEE80211_HT_CAP_SM_PS;
-			rx->sta->sta.ht_cap.cap |= smps;
+			rx->sta->sta.smps_mode = smps_mode;
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 

@@ -102,6 +102,7 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	int i, max_tx_streams;
 	bool changed;
 	enum ieee80211_sta_rx_bandwidth bw;
+	enum ieee80211_smps_mode smps_mode;
 
 	memset(&ht_cap, 0, sizeof(ht_cap));
 
@@ -215,6 +216,24 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	sta->cur_max_bandwidth =
 		ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
+
+	switch ((ht_cap.cap & IEEE80211_HT_CAP_SM_PS)
+			>> IEEE80211_HT_CAP_SM_PS_SHIFT) {
+	case WLAN_HT_CAP_SM_PS_INVALID:
+	case WLAN_HT_CAP_SM_PS_STATIC:
+		smps_mode = IEEE80211_SMPS_STATIC;
+		break;
+	case WLAN_HT_CAP_SM_PS_DYNAMIC:
+		smps_mode = IEEE80211_SMPS_DYNAMIC;
+		break;
+	case WLAN_HT_CAP_SM_PS_DISABLED:
+		smps_mode = IEEE80211_SMPS_OFF;
+		break;
+	}
+
+	if (smps_mode != sta->sta.smps_mode)
+		changed = true;
+	sta->sta.smps_mode = smps_mode;
 
 	return changed;
 }

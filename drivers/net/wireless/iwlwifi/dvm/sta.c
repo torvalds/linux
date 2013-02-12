@@ -196,7 +196,6 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 				  __le32 *flags, __le32 *mask)
 {
 	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
-	u8 mimo_ps_mode;
 
 	*mask = STA_FLG_RTS_MIMO_PROT_MSK |
 		STA_FLG_MIMO_DIS_MSK |
@@ -208,26 +207,24 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	if (!sta || !sta_ht_inf->ht_supported)
 		return;
 
-	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
-
 	IWL_DEBUG_INFO(priv, "STA %pM SM PS mode: %s\n",
 			sta->addr,
-			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ?
+			(sta->smps_mode == IEEE80211_SMPS_STATIC) ?
 			"static" :
-			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ?
+			(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	switch (mimo_ps_mode) {
-	case WLAN_HT_CAP_SM_PS_STATIC:
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_STATIC:
 		*flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DYNAMIC:
+	case IEEE80211_SMPS_DYNAMIC:
 		*flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DISABLED:
+	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->smps_mode);
 		break;
 	}
 
