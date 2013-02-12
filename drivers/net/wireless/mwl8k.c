@@ -334,20 +334,20 @@ struct mwl8k_sta {
 #define MWL8K_STA(_sta) ((struct mwl8k_sta *)&((_sta)->drv_priv))
 
 static const struct ieee80211_channel mwl8k_channels_24[] = {
-	{ .center_freq = 2412, .hw_value = 1, },
-	{ .center_freq = 2417, .hw_value = 2, },
-	{ .center_freq = 2422, .hw_value = 3, },
-	{ .center_freq = 2427, .hw_value = 4, },
-	{ .center_freq = 2432, .hw_value = 5, },
-	{ .center_freq = 2437, .hw_value = 6, },
-	{ .center_freq = 2442, .hw_value = 7, },
-	{ .center_freq = 2447, .hw_value = 8, },
-	{ .center_freq = 2452, .hw_value = 9, },
-	{ .center_freq = 2457, .hw_value = 10, },
-	{ .center_freq = 2462, .hw_value = 11, },
-	{ .center_freq = 2467, .hw_value = 12, },
-	{ .center_freq = 2472, .hw_value = 13, },
-	{ .center_freq = 2484, .hw_value = 14, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2412, .hw_value = 1, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2417, .hw_value = 2, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2422, .hw_value = 3, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2427, .hw_value = 4, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2432, .hw_value = 5, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2437, .hw_value = 6, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2442, .hw_value = 7, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2447, .hw_value = 8, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2452, .hw_value = 9, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2457, .hw_value = 10, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2462, .hw_value = 11, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2467, .hw_value = 12, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2472, .hw_value = 13, },
+	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2484, .hw_value = 14, },
 };
 
 static const struct ieee80211_rate mwl8k_rates_24[] = {
@@ -368,10 +368,10 @@ static const struct ieee80211_rate mwl8k_rates_24[] = {
 };
 
 static const struct ieee80211_channel mwl8k_channels_50[] = {
-	{ .center_freq = 5180, .hw_value = 36, },
-	{ .center_freq = 5200, .hw_value = 40, },
-	{ .center_freq = 5220, .hw_value = 44, },
-	{ .center_freq = 5240, .hw_value = 48, },
+	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5180, .hw_value = 36, },
+	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5200, .hw_value = 40, },
+	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5220, .hw_value = 44, },
+	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5240, .hw_value = 48, },
 };
 
 static const struct ieee80211_rate mwl8k_rates_50[] = {

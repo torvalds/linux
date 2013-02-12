@@ -2058,7 +2058,8 @@ static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	memcpy(sdata->vif.bss_conf.mcast_rate, rate, sizeof(rate));
+	memcpy(sdata->vif.bss_conf.mcast_rate, rate,
+	       sizeof(int) * IEEE80211_NUM_BANDS);
 
 	return 0;
 }
