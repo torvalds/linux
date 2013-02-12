@@ -926,8 +926,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
-		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band);
-		ret = 0;
+		ret = iwl_mvm_update_sta(mvm, vif, sta);
+		if (ret == 0)
+			iwl_mvm_rs_rate_init(mvm, sta,
+					     mvmvif->phy_ctxt->channel->band);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = 0;

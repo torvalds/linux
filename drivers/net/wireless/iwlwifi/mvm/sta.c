@@ -81,8 +81,9 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm)
 	return IWL_MVM_STATION_COUNT;
 }
 
-/* add a NEW station to fw */
-int iwl_mvm_sta_add_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta)
+/* send station add/update command to firmware */
+int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			   bool update)
 {
 	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
 	struct iwl_mvm_add_sta_cmd add_sta_cmd;
@@ -94,8 +95,11 @@ int iwl_mvm_sta_add_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta)
 
 	add_sta_cmd.sta_id = mvm_sta->sta_id;
 	add_sta_cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
-	add_sta_cmd.tfd_queue_msk = cpu_to_le32(mvm_sta->tfd_queue_msk);
-	memcpy(&add_sta_cmd.addr, sta->addr, ETH_ALEN);
+	if (!update) {
+		add_sta_cmd.tfd_queue_msk = cpu_to_le32(mvm_sta->tfd_queue_msk);
+		memcpy(&add_sta_cmd.addr, sta->addr, ETH_ALEN);
+	}
+	add_sta_cmd.add_modify = update ? 1 : 0;
 
 	/* STA_FLG_FAT_EN_MSK ? */
 	/* STA_FLG_MIMO_EN_MSK ? */
@@ -181,7 +185,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	/* for HW restart - need to reset the seq_number etc... */
 	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
 
-	ret = iwl_mvm_sta_add_to_fw(mvm, sta);
+	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
 		return ret;
 
@@ -193,6 +197,13 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
 	return 0;
+}
+
+int iwl_mvm_update_sta(struct iwl_mvm *mvm,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
+{
+	return iwl_mvm_sta_send_to_fw(mvm, sta, true);
 }
 
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
