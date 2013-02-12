@@ -495,13 +495,13 @@ __s32 ParseEDID(void)
 
 	Parse_DTD_Block(EDID_Buf + 0x48);
 
-	BlockCount = EDID_Buf[0x7E];
+	BlockCount = EDID_Buf[0x7E] + 1;
 
-	if (BlockCount > 0) {
-		if (BlockCount > 4)
-			BlockCount = 4;
+	if (BlockCount > 1) {
+		if (BlockCount > 5)
+			BlockCount = 5;
 
-		for (i = 1; i <= BlockCount; i++) {
+		for (i = 1; i < BlockCount; i++) {
 			GetEDIDData(i, EDID_Buf);
 
 			if (EDID_CheckSum(i, EDID_Buf) != 0)
