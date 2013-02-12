@@ -63,13 +63,51 @@ static struct usb_device_id stkwebcam_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stkwebcam_table);
 
-/* The stk webcam laptop module is mounted upside down in some laptops :( */
+/*
+ * The stk webcam laptop module is mounted upside down in some laptops :(
+ *
+ * Some background information (thanks to Hans de Goede for providing this):
+ *
+ * 1) Once upon a time the stkwebcam driver was written
+ *
+ * 2) The webcam in question was used mostly in Asus laptop models, including
+ * the laptop of the original author of the driver, and in these models, in
+ * typical Asus fashion (see the long long list for uvc cams inside v4l-utils),
+ * they mounted the webcam-module the wrong way up. So the hflip and vflip
+ * module options were given a default value of 1 (the correct value for
+ * upside down mounted models)
+ *
+ * 3) Years later I got a bug report from a user with a laptop with stkwebcam,
+ * where the module was actually mounted the right way up, and thus showed
+ * upside down under Linux. So now I was facing the choice of 2 options:
+ *
+ * a) Add a not-upside-down list to stkwebcam, which overrules the default.
+ *
+ * b) Do it like all the other drivers do, and make the default right for
+ *    cams mounted the proper way and add an upside-down model list, with
+ *    models where we need to flip-by-default.
+ *
+ * Despite knowing that going b) would cause a period of pain where we were
+ * building the table I opted to go for option b), since a) is just too ugly,
+ * and worse different from how every other driver does it leading to
+ * confusion in the long run. This change was made in kernel 3.6.
+ *
+ * So for any user report about upside-down images since kernel 3.6 ask them
+ * to provide the output of 'sudo dmidecode' so the laptop can be added in
+ * the table below.
+ */
 static const struct dmi_system_id stk_upside_down_dmi_table[] = {
 	{
 		.ident = "ASUS G1",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "G1")
+		}
+	}, {
+		.ident = "ASUS F3JC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "F3JC")
 		}
 	},
 	{}
