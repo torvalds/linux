@@ -240,8 +240,8 @@ enum tegra20_clk {
 	uartb = 96, vfir, spdif_in, spdif_out, vi, vi_sensor, tvo, cve,
 	osc, clk_32k, clk_m, sclk, cclk, hclk, pclk, blink, pll_a, pll_a_out0,
 	pll_c, pll_c_out1, pll_d, pll_d_out0, pll_e, pll_m, pll_m_out1,
-	pll_p, pll_p_out1, pll_p_out2, pll_p_out3, pll_p_out4, pll_u,
-	pll_x, audio, pll_ref, twd, clk_max,
+	pll_p, pll_p_out1, pll_p_out2, pll_p_out3, pll_p_out4, pll_s, pll_u,
+	pll_x, cop, audio, pll_ref, twd, clk_max,
 };
 
 static struct clk *clks[clk_max];
