@@ -2906,7 +2906,7 @@ enum nl80211_tx_power_setting {
  *	corresponds to the lowest-order bit in the second byte of the mask.
  *	For example: The match 00:xx:00:00:xx:00:00:00:00:xx:xx:xx (where
  *	xx indicates "don't care") would be represented by a pattern of
- *	twelve zero bytes, and a mask of "0xed,0x07".
+ *	twelve zero bytes, and a mask of "0xed,0x01".
  *	Note that the pattern matching is done as though frames were not
  *	802.11 frames but 802.3 frames, i.e. the frame is fully unpacked
  *	first (including SNAP header unpacking) and then matched.
