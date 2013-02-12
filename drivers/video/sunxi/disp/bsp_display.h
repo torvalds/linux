@@ -255,7 +255,7 @@ extern __s32 BSP_disp_tv_set_dac_source(__u32 sel, __u32 index,
 					__disp_tv_dac_source source);
 extern __s32 BSP_disp_tv_get_dac_source(__u32 sel, __u32 index);
 
-extern __s32 BSP_disp_hdmi_open(__u32 sel);
+extern __s32 BSP_disp_hdmi_open(__u32 sel, __u32 wait_edid);
 extern __s32 BSP_disp_hdmi_close(__u32 sel);
 extern __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode);
 extern __s32 BSP_disp_set_videomode(__u32 sel,
