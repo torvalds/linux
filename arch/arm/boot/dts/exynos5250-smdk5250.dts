@@ -231,4 +231,13 @@
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&wm8994>;
 	};
+
+	dp-controller {
+		samsung,color-space = <0>;
+		samsung,dynamic-range = <0>;
+		samsung,ycbcr-coeff = <0>;
+		samsung,color-depth = <1>;
+		samsung,link-rate = <0x0a>;
+		samsung,lane-count = <4>;
+	};
 };
