@@ -122,7 +122,8 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 	err = gpmc_cs_request(gpmc_nand_data->cs, NAND_IO_SIZE,
 				(unsigned long *)&gpmc_nand_resource[0].start);
 	if (err < 0) {
-		dev_err(dev, "Cannot request GPMC CS\n");
+		dev_err(dev, "Cannot request GPMC CS %d, error %d\n",
+			gpmc_nand_data->cs, err);
 		return err;
 	}
 
