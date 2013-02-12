@@ -739,11 +739,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				if (calc_crc)
 					crc = crc32_be(crc, pos - 2, elen + 2);
 
-				if (pos[3] == 1) {
-					/* OUI Type 1 - WPA IE */
-					elems->wpa = pos;
-					elems->wpa_len = elen;
-				} else if (elen >= 5 && pos[3] == 2) {
+				if (elen >= 5 && pos[3] == 2) {
 					/* OUI Type 2 - WMM IE */
 					if (pos[4] == 0) {
 						elems->wmm_info = pos;

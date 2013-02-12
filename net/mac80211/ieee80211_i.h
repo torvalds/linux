@@ -1175,7 +1175,6 @@ struct ieee802_11_elems {
 	struct ieee80211_tim_ie *tim;
 	u8 *ibss_params;
 	u8 *challenge;
-	u8 *wpa;
 	u8 *rsn;
 	u8 *erp_info;
 	u8 *ext_supp_rates;
@@ -1208,7 +1207,6 @@ struct ieee802_11_elems {
 	u8 tim_len;
 	u8 ibss_params_len;
 	u8 challenge_len;
-	u8 wpa_len;
 	u8 rsn_len;
 	u8 erp_info_len;
 	u8 ext_supp_rates_len;
