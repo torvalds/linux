@@ -1035,7 +1035,7 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
-			 u8 *extra, size_t extra_len, const u8 *da,
+			 const u8 *extra, size_t extra_len, const u8 *da,
 			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx,
 			 u32 tx_flags)
 {
@@ -1947,7 +1947,7 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 }
 
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				  struct ieee80211_ht_operation *ht_oper,
+				  const struct ieee80211_ht_operation *ht_oper,
 				  struct cfg80211_chan_def *chandef)
 {
 	enum nl80211_channel_type channel_type;

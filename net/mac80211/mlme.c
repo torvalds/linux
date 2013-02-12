@@ -1041,10 +1041,10 @@ static void ieee80211_chswitch_timer(unsigned long data)
 	ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
 }
 
-void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				      struct ieee80211_channel_sw_ie *sw_elem,
-				      struct ieee80211_bss *bss,
-				      u64 timestamp)
+void
+ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				 const struct ieee80211_channel_sw_ie *sw_elem,
+				 struct ieee80211_bss *bss, u64 timestamp)
 {
 	struct cfg80211_bss *cbss =
 		container_of((void *)bss, struct cfg80211_bss, priv);
@@ -1479,13 +1479,14 @@ void ieee80211_dfs_cac_timer_work(struct work_struct *work)
 /* MLME */
 static bool ieee80211_sta_wmm_params(struct ieee80211_local *local,
 				     struct ieee80211_sub_if_data *sdata,
-				     u8 *wmm_param, size_t wmm_param_len)
+				     const u8 *wmm_param, size_t wmm_param_len)
 {
 	struct ieee80211_tx_queue_params params;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t left;
 	int count;
-	u8 *pos, uapsd_queues = 0;
+	const u8 *pos;
+	u8 uapsd_queues = 0;
 
 	if (!local->ops->conf_tx)
 		return false;
@@ -2670,7 +2671,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		need_ps = sdata->u.mgd.associated && !sdata->u.mgd.dtim_period;
 
 		if (elems->tim && !elems->parse_error) {
-			struct ieee80211_tim_ie *tim_ie = elems->tim;
+			const struct ieee80211_tim_ie *tim_ie = elems->tim;
 			sdata->u.mgd.dtim_period = tim_ie->dtim_period;
 		}
 	}

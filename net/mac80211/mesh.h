@@ -265,8 +265,8 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 int mesh_nexthop_resolve(struct sk_buff *skb,
 			 struct ieee80211_sub_if_data *sdata);
 void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata);
-struct mesh_path *mesh_path_lookup(u8 *dst,
-		struct ieee80211_sub_if_data *sdata);
+struct mesh_path *mesh_path_lookup(const u8 *dst,
+				   struct ieee80211_sub_if_data *sdata);
 struct mesh_path *mpp_path_lookup(u8 *dst,
 				  struct ieee80211_sub_if_data *sdata);
 int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata);
@@ -276,7 +276,7 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop);
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata);
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_mgmt *mgmt, size_t len);
-int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
+int mesh_path_add(const u8 *dst, struct ieee80211_sub_if_data *sdata);
 
 int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
@@ -301,8 +301,9 @@ void mesh_sta_cleanup(struct sta_info *sta);
 void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
 /* Mesh paths */
-int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn, __le16 target_rcode,
-		       const u8 *ra, struct ieee80211_sub_if_data *sdata);
+int mesh_path_error_tx(u8 ttl, const u8 *target, __le32 target_sn,
+		       __le16 target_rcode, const u8 *ra,
+		       struct ieee80211_sub_if_data *sdata);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);

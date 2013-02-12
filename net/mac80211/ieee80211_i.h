@@ -1163,41 +1163,41 @@ struct ieee80211_ra_tid {
 
 /* Parsed Information Elements */
 struct ieee802_11_elems {
-	u8 *ie_start;
+	const u8 *ie_start;
 	size_t total_len;
 
 	/* pointers to IEs */
-	u8 *ssid;
-	u8 *supp_rates;
-	u8 *fh_params;
-	u8 *ds_params;
-	u8 *cf_params;
-	struct ieee80211_tim_ie *tim;
-	u8 *ibss_params;
-	u8 *challenge;
-	u8 *rsn;
-	u8 *erp_info;
-	u8 *ext_supp_rates;
-	u8 *wmm_info;
-	u8 *wmm_param;
-	struct ieee80211_ht_cap *ht_cap_elem;
-	struct ieee80211_ht_operation *ht_operation;
-	struct ieee80211_vht_cap *vht_cap_elem;
-	struct ieee80211_vht_operation *vht_operation;
-	struct ieee80211_meshconf_ie *mesh_config;
-	u8 *mesh_id;
-	u8 *peering;
-	__le16 *awake_window;
-	u8 *preq;
-	u8 *prep;
-	u8 *perr;
-	struct ieee80211_rann_ie *rann;
-	struct ieee80211_channel_sw_ie *ch_switch_ie;
-	u8 *country_elem;
-	u8 *pwr_constr_elem;
-	u8 *quiet_elem;	/* first quite element */
-	u8 *timeout_int;
-	u8 *opmode_notif;
+	const u8 *ssid;
+	const u8 *supp_rates;
+	const u8 *fh_params;
+	const u8 *ds_params;
+	const u8 *cf_params;
+	const struct ieee80211_tim_ie *tim;
+	const u8 *ibss_params;
+	const u8 *challenge;
+	const u8 *rsn;
+	const u8 *erp_info;
+	const u8 *ext_supp_rates;
+	const u8 *wmm_info;
+	const u8 *wmm_param;
+	const struct ieee80211_ht_cap *ht_cap_elem;
+	const struct ieee80211_ht_operation *ht_operation;
+	const struct ieee80211_vht_cap *vht_cap_elem;
+	const struct ieee80211_vht_operation *vht_operation;
+	const struct ieee80211_meshconf_ie *mesh_config;
+	const u8 *mesh_id;
+	const u8 *peering;
+	const __le16 *awake_window;
+	const u8 *preq;
+	const u8 *prep;
+	const u8 *perr;
+	const struct ieee80211_rann_ie *rann;
+	const struct ieee80211_channel_sw_ie *ch_switch_ie;
+	const u8 *country_elem;
+	const u8 *pwr_constr_elem;
+	const u8 *quiet_elem;	/* first quite element */
+	const u8 *timeout_int;
+	const u8 *opmode_notif;
 
 	/* length of them, respectively */
 	u8 ssid_len;
@@ -1276,10 +1276,10 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata);
 int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
 int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata);
-void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				      struct ieee80211_channel_sw_ie *sw_elem,
-				      struct ieee80211_bss *bss,
-				      u64 timestamp);
+void
+ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				 const struct ieee80211_channel_sw_ie *sw_elem,
+				 struct ieee80211_bss *bss, u64 timestamp);
 void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
@@ -1387,7 +1387,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sta_ht_cap *ht_cap);
 bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_supported_band *sband,
-				       struct ieee80211_ht_cap *ht_cap_ie,
+				       const struct ieee80211_ht_cap *ht_cap_ie,
 				       struct sta_info *sta);
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
@@ -1428,10 +1428,11 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
 
 /* VHT */
-void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_supported_band *sband,
-					 struct ieee80211_vht_cap *vht_cap_ie,
-					 struct sta_info *sta);
+void
+ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_supported_band *sband,
+				    const struct ieee80211_vht_cap *vht_cap_ie,
+				    struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
@@ -1555,7 +1556,7 @@ static inline void ieee80211_add_pending_skbs(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
-			 u8 *extra, size_t extra_len, const u8 *bssid,
+			 const u8 *extra, size_t extra_len, const u8 *bssid,
 			 const u8 *da, const u8 *key, u8 key_len, u8 key_idx,
 			 u32 tx_flags);
 void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
@@ -1606,7 +1607,7 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 
 /* channel management */
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				  struct ieee80211_ht_operation *ht_oper,
+				  const struct ieee80211_ht_operation *ht_oper,
 				  struct cfg80211_chan_def *chandef);
 
 int __must_check

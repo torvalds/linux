@@ -13,10 +13,11 @@
 #include "rate.h"
 
 
-void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_supported_band *sband,
-					 struct ieee80211_vht_cap *vht_cap_ie,
-					 struct sta_info *sta)
+void
+ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_supported_band *sband,
+				    const struct ieee80211_vht_cap *vht_cap_ie,
+				    struct sta_info *sta)
 {
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 

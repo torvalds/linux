@@ -2152,7 +2152,7 @@ static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
  * @tim_len: length of the TIM IE
  * @aid: the AID to look for
  */
-static inline bool ieee80211_check_tim(struct ieee80211_tim_ie *tim,
+static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 				       u8 tim_len, u16 aid)
 {
 	u8 mask;
