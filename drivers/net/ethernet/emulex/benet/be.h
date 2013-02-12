@@ -36,13 +36,13 @@
 
 #define DRV_VER			"4.4.161.0u"
 #define DRV_NAME		"be2net"
-#define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
-#define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
-#define OC_NAME			"Emulex OneConnect 10Gbps NIC"
+#define BE_NAME			"Emulex BladeEngine2"
+#define BE3_NAME		"Emulex BladeEngine3"
+#define OC_NAME			"Emulex OneConnect"
 #define OC_NAME_BE		OC_NAME	"(be3)"
 #define OC_NAME_LANCER		OC_NAME "(Lancer)"
 #define OC_NAME_SH		OC_NAME "(Skyhawk)"
-#define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
+#define DRV_DESC		"Emulex OneConnect 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define EMULEX_VENDOR_ID	0x10df

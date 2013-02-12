@@ -507,7 +507,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (np->rxopt.all)
-		datagram_recv_ctl(sk, msg, skb);
+		ip6_datagram_recv_ctl(sk, msg, skb);
 
 	err = copied;
 	if (flags & MSG_TRUNC)
@@ -822,8 +822,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					&hlimit, &tclass, &dontfrag);
+		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+					    &hlimit, &tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
