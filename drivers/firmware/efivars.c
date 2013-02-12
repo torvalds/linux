@@ -405,10 +405,11 @@ static efi_status_t
 get_var_data(struct efivars *efivars, struct efi_variable *var)
 {
 	efi_status_t status;
+	unsigned long flags;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irqsave(&efivars->lock, flags);
 	status = get_var_data_locked(efivars, var);
-	spin_unlock(&efivars->lock);
+	spin_unlock_irqrestore(&efivars->lock, flags);
 
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: get_variable() failed 0x%lx!\n",
@@ -537,14 +538,14 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	status = efivars->ops->set_variable(new_var->VariableName,
 					    &new_var->VendorGuid,
 					    new_var->Attributes,
 					    new_var->DataSize,
 					    new_var->Data);
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
@@ -713,7 +714,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	 * amounts of memory. Pick a default size of 64K if
 	 * QueryVariableInfo() isn't supported by the firmware.
 	 */
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	if (!efivars->ops->query_variable_info)
 		status = EFI_UNSUPPORTED;
@@ -723,7 +724,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 						   &remaining_size, &max_size);
 	}
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	if (status != EFI_SUCCESS) {
 		if (status != EFI_UNSUPPORTED)
@@ -754,7 +755,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	 * set_variable call, and removal of the variable from the efivars
 	 * list (in the case of an authenticated delete).
 	 */
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	status = efivars->ops->set_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
@@ -762,7 +763,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 					    data);
 
 	if (status != EFI_SUCCESS) {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		kfree(data);
 
 		return efi_status_to_err(status);
@@ -783,20 +784,20 @@ static ssize_t efivarfs_file_write(struct file *file,
 					    NULL);
 
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		mutex_lock(&inode->i_mutex);
 		i_size_write(inode, newdatasize + sizeof(attributes));
 		mutex_unlock(&inode->i_mutex);
 
 	} else if (status == EFI_NOT_FOUND) {
 		list_del(&var->list);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		efivar_unregister(var);
 		drop_nlink(inode);
 		dput(file->f_dentry);
 
 	} else {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		pr_warn("efivarfs: inconsistent EFI variable implementation? "
 				"status = %lx\n", status);
 	}
@@ -818,11 +819,11 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	void *data;
 	ssize_t size = 0;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	status = efivars->ops->get_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
 					    &attributes, &datasize, NULL);
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return efi_status_to_err(status);
@@ -832,12 +833,12 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	if (!data)
 		return -ENOMEM;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	status = efivars->ops->get_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
 					    &attributes, &datasize,
 					    (data + sizeof(attributes)));
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	if (status != EFI_SUCCESS) {
 		size = efi_status_to_err(status);
@@ -965,9 +966,9 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	kobject_uevent(&var->kobj, KOBJ_ADD);
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	list_add(&var->list, &efivars->list);
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 	d_instantiate(dentry, inode);
 	dget(dentry);
 out:
@@ -984,7 +985,7 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct efivars *efivars = var->efivars;
 	efi_status_t status;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	status = efivars->ops->set_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
@@ -992,14 +993,14 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (status == EFI_SUCCESS || status == EFI_NOT_FOUND) {
 		list_del(&var->list);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		efivar_unregister(var);
 		drop_nlink(dir);
 		dput(dentry);
 		return 0;
 	}
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 	return -EINVAL;
 };
 
@@ -1065,13 +1066,13 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 		/* copied by the above to local storage in the dentry. */
 		kfree(name);
 
-		spin_lock(&efivars->lock);
+		spin_lock_irq(&efivars->lock);
 		efivars->ops->get_variable(entry->var.VariableName,
 					   &entry->var.VendorGuid,
 					   &entry->var.Attributes,
 					   &size,
 					   NULL);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 
 		mutex_lock(&inode->i_mutex);
 		inode->i_private = entry;
@@ -1122,7 +1123,7 @@ static int efi_pstore_open(struct pstore_info *psi)
 {
 	struct efivars *efivars = psi->data;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	efivars->walk_entry = list_first_entry(&efivars->list,
 					       struct efivar_entry, list);
 	return 0;
@@ -1132,7 +1133,7 @@ static int efi_pstore_close(struct pstore_info *psi)
 {
 	struct efivars *efivars = psi->data;
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 	return 0;
 }
 
@@ -1208,6 +1209,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 	int i, ret = 0;
 	u64 storage_space, remaining_space, max_variable_size;
 	efi_status_t status = EFI_NOT_FOUND;
+	unsigned long flags;
 
 	if (pstore_cannot_block_path(reason)) {
 		/*
@@ -1215,10 +1217,10 @@ static int efi_pstore_write(enum pstore_type_id type,
 		 * this driver returns without entering firmware to avoid
 		 * hanging up.
 		 */
-		if (!spin_trylock(&efivars->lock))
+		if (!spin_trylock_irqsave(&efivars->lock, flags))
 			return -EBUSY;
 	} else
-		spin_lock(&efivars->lock);
+		spin_lock_irqsave(&efivars->lock, flags);
 
 	/*
 	 * Check if there is a space enough to log.
@@ -1230,7 +1232,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 						   &remaining_space,
 						   &max_variable_size);
 	if (status || remaining_space < size + DUMP_NAME_LEN * 2) {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irqrestore(&efivars->lock, flags);
 		*id = part;
 		return -ENOSPC;
 	}
@@ -1244,7 +1246,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 	efivars->ops->set_variable(efi_name, &vendor, PSTORE_EFI_ATTRIBUTES,
 				   size, psi->buf);
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irqrestore(&efivars->lock, flags);
 
 	if (size)
 		ret = efivar_create_sysfs_entry(efivars,
@@ -1271,7 +1273,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	sprintf(name, "dump-type%u-%u-%d-%lu", type, (unsigned int)id, count,
 		time.tv_sec);
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
@@ -1315,7 +1317,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	if (found)
 		list_del(&found->list);
 
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	if (found)
 		efivar_unregister(found);
@@ -1385,7 +1387,7 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	/*
 	 * Does this variable already exist?
@@ -1403,7 +1405,7 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 		}
 	}
 	if (found) {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		return -EINVAL;
 	}
 
@@ -1417,10 +1419,10 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
 			status);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		return -EIO;
 	}
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	/* Create the entry in sysfs.  Locking is not required here */
 	status = efivar_create_sysfs_entry(efivars,
@@ -1448,7 +1450,7 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 
 	/*
 	 * Does this variable already exist?
@@ -1466,7 +1468,7 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 		}
 	}
 	if (!found) {
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		return -EINVAL;
 	}
 	/* force the Attributes/DataSize to 0 to ensure deletion */
@@ -1482,12 +1484,12 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
 			status);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		return -EIO;
 	}
 	list_del(&search_efivar->list);
 	/* We need to release this lock before unregistering. */
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 	efivar_unregister(search_efivar);
 
 	/* It's dead Jim.... */
@@ -1602,9 +1604,9 @@ efivar_create_sysfs_entry(struct efivars *efivars,
 	kfree(short_name);
 	short_name = NULL;
 
-	spin_lock(&efivars->lock);
+	spin_lock_irq(&efivars->lock);
 	list_add(&new_efivar->list, &efivars->list);
-	spin_unlock(&efivars->lock);
+	spin_unlock_irq(&efivars->lock);
 
 	return 0;
 }
@@ -1673,9 +1675,9 @@ void unregister_efivars(struct efivars *efivars)
 	struct efivar_entry *entry, *n;
 
 	list_for_each_entry_safe(entry, n, &efivars->list, list) {
-		spin_lock(&efivars->lock);
+		spin_lock_irq(&efivars->lock);
 		list_del(&entry->list);
-		spin_unlock(&efivars->lock);
+		spin_unlock_irq(&efivars->lock);
 		efivar_unregister(entry);
 	}
 	if (efivars->new_var)
