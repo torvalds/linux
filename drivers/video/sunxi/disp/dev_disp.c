@@ -510,12 +510,11 @@ static int disp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-void backlight_early_suspend(struct early_suspend *h)
+int disp_suspend(int clk, int status)
 {
 	int i = 0;
 
-	pr_info("display early suspend: %s\n", __func__);
+	__inf("disp_suspend clk %d status %d call\n", clk, status);
 
 	for (i = 0; i < 2; i++) {
 		suspend_output_type[i] = BSP_disp_get_output_type(i);
@@ -528,19 +527,19 @@ void backlight_early_suspend(struct early_suspend *h)
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
 			BSP_disp_hdmi_close(i);
 	}
+	BSP_disp_clk_off(clk);
+	suspend_status |= status;
 
-	BSP_disp_clk_off(2);
-
-	suspend_status |= 1;
+	return 0;
 }
 
-void backlight_late_resume(struct early_suspend *h)
+int disp_resume(int clk, int status)
 {
 	int i = 0;
 
-	pr_info("display late resume enter: %s\n", __func__);
+	__inf("disp_resume clk %d status %d call\n", clk, status);
 
-	BSP_disp_clk_on(2);
+	BSP_disp_clk_on(clk);
 
 	for (i = 0; i < 2; i++) {
 		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -553,9 +552,20 @@ void backlight_late_resume(struct early_suspend *h)
 			BSP_disp_hdmi_open(i);
 	}
 
-	suspend_status &= (~1);
+	suspend_status &= ~status;
 
-	pr_info("display late resume done: %s\n", __func__);
+	return 0;
+}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+void backlight_early_suspend(struct early_suspend *h)
+{
+	disp_suspend(2, 1);
+}
+
+void backlight_late_resume(struct early_suspend *h)
+{
+	disp_resume(2, 1);
 }
 
 static struct early_suspend backlight_early_suspend_handler = {
@@ -563,64 +573,27 @@ static struct early_suspend backlight_early_suspend_handler = {
 	.suspend = backlight_early_suspend,
 	.resume = backlight_late_resume,
 };
-
 #endif
 
 static int
-disp_suspend(struct platform_device *pdev, pm_message_t state)
+disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 {
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	int i = 0;
-
-	__inf("disp_suspend call\n");
-
-	for (i = 0; i < 2; i++) {
-		suspend_output_type[i] = BSP_disp_get_output_type(i);
-		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
-			DRV_lcd_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_TV)
-			BSP_disp_tv_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
-			BSP_disp_vga_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_close(i);
-	}
-	BSP_disp_clk_off(3);
+	disp_suspend(3, 3);
 #else
-	BSP_disp_clk_off(1);
+	disp_suspend(1, 2);
 #endif
-
-	suspend_status |= 2;
-
 	return 0;
 }
 
 static int
-disp_resume(struct platform_device *pdev)
+disp_normal_resume(struct platform_device *pdev)
 {
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	int i = 0;
-
-	__inf("disp_resume call\n");
-
-	BSP_disp_clk_on(3);
-
-	for (i = 0; i < 2; i++) {
-		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
-			DRV_lcd_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_TV)
-			BSP_disp_tv_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
-			BSP_disp_vga_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_open(i);
-	}
+	disp_resume(3, 3);
 #else
-	BSP_disp_clk_on(1);
+	disp_resume(1, 2);
 #endif
-
-	suspend_status &= (~2);
-
 	return 0;
 }
 
@@ -1841,15 +1814,11 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_SUSPEND:
-		{
-			pm_message_t state = { };
-
-			ret = disp_suspend(NULL, state);
-			break;
-		}
+		ret = disp_suspend(3, 3);
+		break;
 
 	case DISP_CMD_RESUME:
-		ret = disp_resume(NULL);
+		ret = disp_resume(3, 3);
 		break;
 
 	case DISP_CMD_PRINT_REG:
@@ -1882,8 +1851,8 @@ static const struct file_operations disp_fops = {
 static struct platform_driver disp_driver = {
 	.probe = disp_probe,
 	.remove = disp_remove,
-	.suspend = disp_suspend,
-	.resume = disp_resume,
+	.suspend = disp_normal_suspend,
+	.resume = disp_normal_resume,
 	.shutdown = disp_shutdown,
 	.driver = {
 		.name = "disp",
