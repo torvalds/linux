@@ -330,6 +330,18 @@ config I2C_AU1550
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
 
+config I2C_BCM2835
+	tristate "Broadcom BCM2835 I2C controller"
+	depends on ARCH_BCM2835
+	help
+	  If you say yes to this option, support will be included for the
+	  BCM2835 I2C controller.
+
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-bcm2835.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
