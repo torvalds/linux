@@ -523,7 +523,7 @@ getpacket (char *buffer)
 		xmitcsum = -1;
 		count = 0;
 		/* Read until a # or the end of the buffer is reached */
-		while (count < BUFMAX) {
+		while (count < BUFMAX - 1) {
 			ch = getDebugChar ();
 			if (ch == '#')
 				break;
