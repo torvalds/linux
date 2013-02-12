@@ -450,7 +450,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 	void __iomem *base = (void *)0xf6000000; /* static mapping */
 	int irq_num;
 	int irq_start;
-	int irq_offset;
 	int ret;
 
 	intc = kzalloc(sizeof(struct s3c_irq_intc), GFP_KERNEL);
@@ -474,7 +473,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_intpnd = base + 0x10;
 		irq_num = 32;
 		irq_start = S3C2410_IRQ(0);
-		irq_offset = 0;
 		break;
 	case 0x4a000018:
 		pr_debug("irq: found subintc\n");
@@ -482,7 +480,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_mask = base + 0x1c;
 		irq_num = 29;
 		irq_start = S3C2410_IRQSUB(0);
-		irq_offset = 0;
 		break;
 	case 0x4a000040:
 		pr_debug("irq: found intc2\n");
@@ -491,7 +488,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_intpnd = base + 0x50;
 		irq_num = 8;
 		irq_start = S3C2416_IRQ(0);
-		irq_offset = 0;
 		break;
 	case 0x560000a4:
 		pr_debug("irq: found eintc\n");
@@ -499,9 +495,8 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 
 		intc->reg_mask = base + 0xa4;
 		intc->reg_pending = base + 0x08;
-		irq_num = 20;
+		irq_num = 24;
 		irq_start = S3C2410_IRQ(32);
-		irq_offset = 4;
 		break;
 	default:
 		pr_err("irq: unsupported controller address\n");
@@ -512,7 +507,7 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 	/* now that all the data is complete, init the irq-domain */
 	s3c24xx_clear_intc(intc);
 	intc->domain = irq_domain_add_legacy(np, irq_num, irq_start,
-					     irq_offset, &s3c24xx_irq_ops,
+					     0, &s3c24xx_irq_ops,
 					     intc);
 	if (!intc->domain) {
 		pr_err("irq: could not create irq-domain\n");
