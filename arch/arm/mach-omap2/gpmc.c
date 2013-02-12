@@ -441,22 +441,14 @@ static int gpmc_cs_mem_enabled(int cs)
 	return l & GPMC_CONFIG7_CSVALID;
 }
 
-static int gpmc_cs_set_reserved(int cs, int reserved)
+static void gpmc_cs_set_reserved(int cs, int reserved)
 {
-	if (cs > GPMC_CS_NUM)
-		return -ENODEV;
-
 	gpmc_cs_map &= ~(1 << cs);
 	gpmc_cs_map |= (reserved ? 1 : 0) << cs;
-
-	return 0;
 }
 
 static bool gpmc_cs_reserved(int cs)
 {
-	if (cs > GPMC_CS_NUM)
-		return true;
-
 	return gpmc_cs_map & (1 << cs);
 }
 
