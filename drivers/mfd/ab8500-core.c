@@ -658,6 +658,15 @@ static struct resource ab8500_gpadc_resources[] = {
 	},
 };
 
+static struct resource ab8540_gpadc_resources[] = {
+	{
+		.name	= "SW_CONV_END",
+		.start	= AB8500_INT_GP_SW_ADC_CONV_END,
+		.end	= AB8500_INT_GP_SW_ADC_CONV_END,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct resource ab8500_rtc_resources[] = {
 	{
 		.name	= "60S",
@@ -1014,12 +1023,6 @@ static struct mfd_cell abx500_common_devs[] = {
 		.of_compatible = "stericsson,abx500-clk",
 	},
 	{
-		.name = "ab8500-gpadc",
-		.of_compatible = "stericsson,ab8500-gpadc",
-		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
-		.resources = ab8500_gpadc_resources,
-	},
-	{
 		.name = "ab8500-rtc",
 		.of_compatible = "stericsson,ab8500-rtc",
 		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
@@ -1118,6 +1121,12 @@ static struct mfd_cell ab8500_devs[] = {
 		.name = "ab8500-codec",
 		.of_compatible = "stericsson,ab8500-codec",
 	},
+	{
+		.name = "ab8500-gpadc",
+		.of_compatible = "stericsson,ab8500-gpadc",
+		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
+		.resources = ab8500_gpadc_resources,
+	},
 };
 
 static struct mfd_cell ab9540_devs[] = {
@@ -1133,10 +1142,44 @@ static struct mfd_cell ab9540_devs[] = {
 	{
 		.name = "ab9540-codec",
 	},
+	{
+		.name = "ab8500-gpadc",
+		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
+		.resources = ab8500_gpadc_resources,
+	},
+	{
+		.name = "ab-iddet",
+		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
+		.resources = ab8505_iddet_resources,
+	},
 };
 
-/* Device list common to ab9540 and ab8505 */
-static struct mfd_cell ab9540_ab8505_devs[] = {
+/* Device list for ab8505  */
+static struct mfd_cell ab8505_devs[] = {
+	{
+		.name = "ab-iddet",
+		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
+		.resources = ab8505_iddet_resources,
+	},
+};
+
+static struct mfd_cell ab8540_devs[] = {
+	{
+		.name = "ab8500-gpio",
+	},
+	{
+		.name = "ab8540-usb",
+		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
+		.resources = ab8500_usb_resources,
+	},
+	{
+		.name = "ab8540-codec",
+	},
+	{
+		.name = "ab8500-gpadc",
+		.num_resources = ARRAY_SIZE(ab8540_gpadc_resources),
+		.resources = ab8540_gpadc_resources,
+	},
 	{
 		.name = "ab-iddet",
 		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
@@ -1495,16 +1538,17 @@ static int ab8500_probe(struct platform_device *pdev)
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
 				ARRAY_SIZE(ab9540_devs), NULL,
 				ab8500->irq_base, ab8500->domain);
+	else if (is_ab8540(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab8540_devs,
+			      ARRAY_SIZE(ab8540_devs), NULL,
+			      ab8500->irq_base, ab8500->domain);
+	else if (is_ab8505(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab8505_devs,
+			      ARRAY_SIZE(ab8505_devs), NULL,
+			      ab8500->irq_base, ab8500->domain);
 	else
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
 				ARRAY_SIZE(ab8500_devs), NULL,
-				ab8500->irq_base, ab8500->domain);
-	if (ret)
-		return ret;
-
-	if (is_ab9540(ab8500) || is_ab8505(ab8500))
-		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
-				ARRAY_SIZE(ab9540_ab8505_devs), NULL,
 				ab8500->irq_base, ab8500->domain);
 	if (ret)
 		return ret;

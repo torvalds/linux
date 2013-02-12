@@ -311,6 +311,12 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel,
 	if (!gpadc)
 		return -ENODEV;
 
+	/* check if convertion is supported */
+	if ((gpadc->irq_sw < 0) && (conv_type == ADC_SW))
+		return -ENOTSUPP;
+	if ((gpadc->irq_hw < 0) && (conv_type == ADC_HW))
+		return -ENOTSUPP;
+
 	mutex_lock(&gpadc->ab8500_gpadc_lock);
 	/* Enable VTVout LDO this is required for GPADC */
 	pm_runtime_get_sync(gpadc->dev);
@@ -761,20 +767,12 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	}
 
 	gpadc->irq_sw = platform_get_irq_byname(pdev, "SW_CONV_END");
-	if (gpadc->irq_sw < 0) {
-		dev_err(gpadc->dev, "failed to get platform irq-%d\n",
-			gpadc->irq_sw);
-		ret = gpadc->irq_sw;
-		goto fail;
-	}
+	if (gpadc->irq_sw < 0)
+		dev_err(gpadc->dev, "failed to get platform sw_conv_end irq\n");
 
 	gpadc->irq_hw = platform_get_irq_byname(pdev, "HW_CONV_END");
-	if (gpadc->irq_hw < 0) {
-		dev_err(gpadc->dev, "failed to get platform irq-%d\n",
-			gpadc->irq_hw);
-		ret = gpadc->irq_hw;
-		goto fail;
-	}
+	if (gpadc->irq_hw < 0)
+		dev_err(gpadc->dev, "failed to get platform hw_conv_end irq\n");
 
 	gpadc->dev = &pdev->dev;
 	gpadc->parent = dev_get_drvdata(pdev->dev.parent);
@@ -784,21 +782,30 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	init_completion(&gpadc->ab8500_gpadc_complete);
 
 	/* Register interrupts */
-	ret = request_threaded_irq(gpadc->irq_sw, NULL,
-		ab8500_bm_gpadcconvend_handler,
-		IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-sw", gpadc);
-	if (ret < 0) {
-		dev_err(gpadc->dev, "Failed to register interrupt, irq: %d\n",
-			gpadc->irq_sw);
-		goto fail;
+	if (gpadc->irq_sw >= 0) {
+		ret = request_threaded_irq(gpadc->irq_sw, NULL,
+			ab8500_bm_gpadcconvend_handler,
+			IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-sw",
+			gpadc);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"Failed to register interrupt irq: %d\n",
+				gpadc->irq_sw);
+			goto fail;
+		}
 	}
-	ret = request_threaded_irq(gpadc->irq_hw, NULL,
-		ab8500_bm_gpadcconvend_handler,
-		IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-hw", gpadc);
-	if (ret < 0) {
-		dev_err(gpadc->dev, "Failed to register interrupt, irq: %d\n",
-			gpadc->irq_hw);
-		goto fail;
+
+	if (gpadc->irq_hw >= 0) {
+		ret = request_threaded_irq(gpadc->irq_hw, NULL,
+			ab8500_bm_gpadcconvend_handler,
+			IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-hw",
+			gpadc);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"Failed to register interrupt irq: %d\n",
+				gpadc->irq_hw);
+			goto fail_irq;
+		}
 	}
 
 	/* VTVout LDO used to power up ab8500-GPADC */
@@ -821,7 +828,9 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	ab8500_gpadc_read_calibration_data(gpadc);
 	list_add_tail(&gpadc->node, &ab8500_gpadc_list);
 	dev_dbg(gpadc->dev, "probe success\n");
+
 	return 0;
+
 fail_irq:
 	free_irq(gpadc->irq_sw, gpadc);
 	free_irq(gpadc->irq_hw, gpadc);
@@ -838,8 +847,10 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	/* remove this gpadc entry from the list */
 	list_del(&gpadc->node);
 	/* remove interrupt  - completion of Sw ADC conversion */
-	free_irq(gpadc->irq_sw, gpadc);
-	free_irq(gpadc->irq_hw, gpadc);
+	if (gpadc->irq_sw >= 0)
+		free_irq(gpadc->irq_sw, gpadc);
+	if (gpadc->irq_hw >= 0)
+		free_irq(gpadc->irq_hw, gpadc);
 
 	pm_runtime_get_sync(gpadc->dev);
 	pm_runtime_disable(gpadc->dev);
