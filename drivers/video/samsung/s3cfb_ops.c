@@ -38,6 +38,10 @@
 #define CMA_REGION_VIDEO	"fimd"
 #endif
 
+#ifdef CONFIG_ODROID_UMP
+#include <video/hardkernel_ump.h>
+#endif
+
 struct s3c_platform_fb *to_fb_plat(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1010,6 +1014,14 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 		}
 
 		break;
+#ifdef CONFIG_ODROID_UMP
+       case GET_UMP_SECURE_ID_BUF1:
+                pr_emerg("UMP: SecureID Buf1 Called\n");
+                return disp_get_ump_secure_id(fb, arg, 0);
+       case GET_UMP_SECURE_ID_BUF2:
+                pr_emerg("UMP: SecureID Buf2 Called\n");
+                return disp_get_ump_secure_id(fb, arg, 1);
+#endif
 	}
 
 	return ret;
