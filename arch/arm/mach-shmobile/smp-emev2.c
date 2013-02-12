@@ -74,9 +74,6 @@ static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *
 	/* enable cache coherency */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
 
-	/* Tell ROM loader about our vector (in headsmp.S) */
-	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
-
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 	return 0;
 }
@@ -86,6 +83,9 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 	int cpu = cpu_logical_map(0);
 
 	scu_enable(scu_base);
+
+	/* Tell ROM loader about our vector (in headsmp.S) */
+	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
 
 	/* enable cache coherency on CPU0 */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
