@@ -18,6 +18,9 @@
 /include/ "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	compatible = "ti,omap5";
 	interrupt-parent = <&gic>;
 
@@ -45,6 +48,14 @@
 		interrupts = <1 13 0x308>,
 			     <1 14 0x308>;
 		clock-frequency = <6144000>;
+	};
+
+	gic: interrupt-controller@48211000 {
+		compatible = "arm,cortex-a15-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48211000 0x1000>,
+		      <0x48212000 0x1000>;
 	};
 
 	/*
@@ -94,14 +105,6 @@
 			#size-cells = <0>;
 			pinctrl-single,register-width = <16>;
 			pinctrl-single,function-mask = <0x7fff>;
-		};
-
-		gic: interrupt-controller@48211000 {
-			compatible = "arm,cortex-a15-gic";
-			interrupt-controller;
-			#interrupt-cells = <3>;
-			reg = <0x48211000 0x1000>,
-			      <0x48212000 0x1000>;
 		};
 
 		sdma: dma-controller@4a056000 {
