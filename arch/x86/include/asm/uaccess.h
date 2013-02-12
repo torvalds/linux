@@ -148,9 +148,16 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  *
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
- *
+ */
+/*
  * Careful: we have to cast the result to the type of the pointer
  * for sign reasons.
+ *
+ * The use of %edx as the register specifier is a bit of a
+ * simplification, as gcc only cares about it as the starting point
+ * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * (%ecx being the next register in gcc's x86 register sequence), and
+ * %rdx on 64 bits.
  */
 #define get_user(x, ptr)						\
 ({									\
