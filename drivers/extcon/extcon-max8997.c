@@ -94,16 +94,61 @@ static const char *max8997_extcon_cable[] = {
 	NULL,
 };
 
+/*
+ * max8997_muic_set_path - Set hardware line according to attached cable
+ * @info: the instance including private data of max8997 MUIC
+ * @value: the path according to attached cable
+ * @attached: the state of cable (true:attached, false:detached)
+ *
+ * The max8997 MUIC device share outside H/W line among a varity of cables,
+ * so this function set internal path of H/W line according to the type of
+ * attached cable.
+ */
+static int max8997_muic_set_path(struct max8997_muic_info *info,
+		u8 val, bool attached)
+{
+	int ret = 0;
+	u8 ctrl1, ctrl2 = 0;
+
+	if (attached)
+		ctrl1 = val;
+	else
+		ctrl1 = CONTROL1_SW_OPEN;
+
+	ret = max8997_update_reg(info->muic,
+			MAX8997_MUIC_REG_CONTROL1, ctrl1, COMP_SW_MASK);
+	if (ret < 0) {
+		dev_err(info->dev, "failed to update MUIC register\n");
+		return -EAGAIN;
+	}
+
+	if (attached)
+		ctrl2 |= CONTROL2_CPEN_MASK;	/* LowPwr=0, CPEn=1 */
+	else
+		ctrl2 |= CONTROL2_LOWPWR_MASK;	/* LowPwr=1, CPEn=0 */
+
+	ret = max8997_update_reg(info->muic,
+			MAX8997_MUIC_REG_CONTROL2, ctrl2,
+			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
+	if (ret < 0) {
+		dev_err(info->dev, "failed to update MUIC register\n");
+		return -EAGAIN;
+	}
+
+	dev_info(info->dev,
+		"CONTROL1 : 0x%02x, CONTROL2 : 0x%02x, state : %s\n",
+		ctrl1, ctrl2, attached ? "attached" : "detached");
+
+	return 0;
+}
+
 static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 			enum max8997_muic_usb_type usb_type, bool attached)
 {
 	int ret = 0;
 
 	if (usb_type == MAX8997_USB_HOST) {
-		/* switch to USB */
-		ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? CONTROL1_SW_USB : CONTROL1_SW_OPEN,
-				CONTROL1_SW_MASK);
+		ret = max8997_muic_set_path(info, CONTROL1_SW_USB, attached);
 		if (ret) {
 			dev_err(info->dev, "failed to update muic register\n");
 			goto out;
@@ -131,10 +176,7 @@ static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 {
 	int ret = 0;
 
-	/* switch to AUDIO */
-	ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? CONTROL1_SW_AUDIO : CONTROL1_SW_OPEN,
-				CONTROL1_SW_MASK);
+	ret = max8997_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
 		goto out;
@@ -161,9 +203,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 	int ret = 0;
 
 	/* switch to UART */
-	ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CONTROL1,
-				attached ? CONTROL1_SW_UART : CONTROL1_SW_OPEN,
-				CONTROL1_SW_MASK);
+	ret = max8997_muic_set_path(info, CONTROL1_SW_UART, attached);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
 		goto out;
