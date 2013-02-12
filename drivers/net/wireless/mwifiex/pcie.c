@@ -62,6 +62,10 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 {
 	u32 *cookie_addr;
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
+	if (!reg->sleep_cookie)
+		return true;
 
 	if (card->sleep_cookie_vbase) {
 		cookie_addr = (u32 *)card->sleep_cookie_vbase;
@@ -299,8 +303,10 @@ static int mwifiex_read_reg(struct mwifiex_adapter *adapter, int reg, u32 *data)
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
 	int i = 0;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	while (mwifiex_pcie_ok_to_access_hw(adapter)) {
+	while (reg->sleep_cookie && mwifiex_pcie_ok_to_access_hw(adapter)) {
 		i++;
 		usleep_range(10, 20);
 		/* 50ms max wait */
@@ -1513,8 +1519,8 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		if (adapter->ps_state == PS_STATE_SLEEP_CFM) {
 			mwifiex_process_sleep_confirm_resp(adapter, skb->data,
 							   skb->len);
-			while (mwifiex_pcie_ok_to_access_hw(adapter) &&
-							(count++ < 10))
+			while (reg->sleep_cookie && (count++ < 10) &&
+			       mwifiex_pcie_ok_to_access_hw(adapter))
 				usleep_range(50, 60);
 		} else {
 			dev_err(adapter->dev,
@@ -2172,6 +2178,7 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	int ret;
 	struct pci_dev *pdev = card->dev;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
 	pci_set_drvdata(pdev, card);
 
@@ -2234,10 +2241,13 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	ret = mwifiex_pcie_alloc_cmdrsp_buf(adapter);
 	if (ret)
 		goto err_alloc_cmdbuf;
-	ret = mwifiex_pcie_alloc_sleep_cookie_buf(adapter);
-	if (ret)
-		goto err_alloc_cookie;
-
+	if (reg->sleep_cookie) {
+		ret = mwifiex_pcie_alloc_sleep_cookie_buf(adapter);
+		if (ret)
+			goto err_alloc_cookie;
+	} else {
+		card->sleep_cookie_vbase = NULL;
+	}
 	return ret;
 
 err_alloc_cookie:
@@ -2334,12 +2344,16 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg;
 
 	if (card) {
 		dev_dbg(adapter->dev, "%s(): calling free_irq()\n", __func__);
 		free_irq(card->dev->irq, card->dev);
 
-		mwifiex_pcie_delete_sleep_cookie_buf(adapter);
+		reg = card->pcie.reg;
+		if (reg->sleep_cookie)
+			mwifiex_pcie_delete_sleep_cookie_buf(adapter);
+
 		mwifiex_pcie_delete_cmdrsp_buf(adapter);
 		mwifiex_pcie_delete_evtbd_ring(adapter);
 		mwifiex_pcie_delete_rxbd_ring(adapter);
