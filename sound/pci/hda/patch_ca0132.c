@@ -858,7 +858,7 @@ static int chipio_write_data_multiple(struct hda_codec *codec,
 	int status = 0;
 
 	if (data == NULL) {
-		snd_printdd(KERN_ERR "chipio_write_data null ptr");
+		snd_printdd(KERN_ERR "chipio_write_data null ptr\n");
 		return -EINVAL;
 	}
 
@@ -1397,12 +1397,12 @@ static int dspio_scp(struct hda_codec *codec,
 		return -EINVAL;
 
 	if (dir == SCP_GET && reply == NULL) {
-		snd_printdd(KERN_ERR "dspio_scp get but has no buffer");
+		snd_printdd(KERN_ERR "dspio_scp get but has no buffer\n");
 		return -EINVAL;
 	}
 
 	if (reply != NULL && (reply_len == NULL || (*reply_len == 0))) {
-		snd_printdd(KERN_ERR "dspio_scp bad resp buf len parms");
+		snd_printdd(KERN_ERR "dspio_scp bad resp buf len parms\n");
 		return -EINVAL;
 	}
 
@@ -1420,7 +1420,7 @@ static int dspio_scp(struct hda_codec *codec,
 					sizeof(scp_reply), &ret_bytes);
 
 	if (status < 0) {
-		snd_printdd(KERN_ERR "dspio_scp: send scp msg failed");
+		snd_printdd(KERN_ERR "dspio_scp: send scp msg failed\n");
 		return status;
 	}
 
@@ -1439,17 +1439,17 @@ static int dspio_scp(struct hda_codec *codec,
 					/ sizeof(unsigned int);
 
 		if (*reply_len < ret_size*sizeof(unsigned int)) {
-			snd_printdd(KERN_ERR "reply too long for buf");
+			snd_printdd(KERN_ERR "reply too long for buf\n");
 			return -EINVAL;
 		} else if (ret_size != reply_data_size) {
-			snd_printdd(KERN_ERR "RetLen and HdrLen .NE.");
+			snd_printdd(KERN_ERR "RetLen and HdrLen .NE.\n");
 			return -EINVAL;
 		} else {
 			*reply_len = ret_size*sizeof(unsigned int);
 			memcpy(reply, scp_reply.data, *reply_len);
 		}
 	} else {
-		snd_printdd(KERN_ERR "reply ill-formed or errflag set");
+		snd_printdd(KERN_ERR "reply ill-formed or errflag set\n");
 		return -EIO;
 	}
 
@@ -1479,22 +1479,22 @@ static int dspio_alloc_dma_chan(struct hda_codec *codec, unsigned int *dma_chan)
 	int status = 0;
 	unsigned int size = sizeof(dma_chan);
 
-	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- begin");
+	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- begin\n");
 	status = dspio_scp(codec, MASTERCONTROL, MASTERCONTROL_ALLOC_DMA_CHAN,
 			SCP_GET, NULL, 0, dma_chan, &size);
 
 	if (status < 0) {
-		snd_printdd(KERN_INFO "dspio_alloc_dma_chan: SCP Failed");
+		snd_printdd(KERN_INFO "dspio_alloc_dma_chan: SCP Failed\n");
 		return status;
 	}
 
 	if ((*dma_chan + 1) == 0) {
-		snd_printdd(KERN_INFO "no free dma channels to allocate");
+		snd_printdd(KERN_INFO "no free dma channels to allocate\n");
 		return -EBUSY;
 	}
 
 	snd_printdd("dspio_alloc_dma_chan: chan=%d\n", *dma_chan);
-	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- complete");
+	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- complete\n");
 
 	return status;
 }
@@ -1507,18 +1507,18 @@ static int dspio_free_dma_chan(struct hda_codec *codec, unsigned int dma_chan)
 	int status = 0;
 	unsigned int dummy = 0;
 
-	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- begin");
+	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- begin\n");
 	snd_printdd("dspio_free_dma_chan: chan=%d\n", dma_chan);
 
 	status = dspio_scp(codec, MASTERCONTROL, MASTERCONTROL_ALLOC_DMA_CHAN,
 			   SCP_SET, &dma_chan, sizeof(dma_chan), NULL, &dummy);
 
 	if (status < 0) {
-		snd_printdd(KERN_INFO "dspio_free_dma_chan: SCP Failed");
+		snd_printdd(KERN_INFO "dspio_free_dma_chan: SCP Failed\n");
 		return status;
 	}
 
-	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- complete");
+	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- complete\n");
 
 	return status;
 }
@@ -1626,39 +1626,39 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 	unsigned int active;
 	bool code, yram;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Begin ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Begin ---------\n");
 
 	if (dma_chan >= DSPDMAC_DMA_CFG_CHANNEL_COUNT) {
-		snd_printdd(KERN_ERR "dma chan num invalid");
+		snd_printdd(KERN_ERR "dma chan num invalid\n");
 		return -EINVAL;
 	}
 
 	if (dsp_is_dma_active(codec, dma_chan)) {
-		snd_printdd(KERN_ERR "dma already active");
+		snd_printdd(KERN_ERR "dma already active\n");
 		return -EBUSY;
 	}
 
 	dsp_addx = dsp_chip_to_dsp_addx(chip_addx, &code, &yram);
 
 	if (dsp_addx == INVALID_CHIP_ADDRESS) {
-		snd_printdd(KERN_ERR "invalid chip addr");
+		snd_printdd(KERN_ERR "invalid chip addr\n");
 		return -ENXIO;
 	}
 
 	chnl_prop = DSPDMAC_CHNLPROP_AC_MASK;
 	active = 0;
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    start reg pgm");
+	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    start reg pgm\n");
 
 	if (ovly) {
 		status = chipio_read(codec, DSPDMAC_CHNLPROP_INST_OFFSET,
 				     &chnl_prop);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLPROP Reg fail");
+			snd_printdd(KERN_ERR "read CHNLPROP Reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read CHNLPROP");
+		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read CHNLPROP\n");
 	}
 
 	if (!code)
@@ -1670,20 +1670,20 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 
 	status = chipio_write(codec, DSPDMAC_CHNLPROP_INST_OFFSET, chnl_prop);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLPROP Reg fail");
+		snd_printdd(KERN_ERR "write CHNLPROP Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write CHNLPROP");
+	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write CHNLPROP\n");
 
 	if (ovly) {
 		status = chipio_read(codec, DSPDMAC_ACTIVE_INST_OFFSET,
 				     &active);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read ACTIVE Reg fail");
+			snd_printdd(KERN_ERR "read ACTIVE Reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read ACTIVE");
+		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read ACTIVE\n");
 	}
 
 	active &= (~(1 << (DSPDMAC_ACTIVE_AAR_LOBIT + dma_chan))) &
@@ -1691,27 +1691,27 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 
 	status = chipio_write(codec, DSPDMAC_ACTIVE_INST_OFFSET, active);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write ACTIVE Reg fail");
+		snd_printdd(KERN_ERR "write ACTIVE Reg fail\n");
 		return status;
 	}
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write ACTIVE");
+	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write ACTIVE\n");
 
 	status = chipio_write(codec, DSPDMAC_AUDCHSEL_INST_OFFSET(dma_chan),
 			      port_map_mask);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write AUDCHSEL Reg fail");
+		snd_printdd(KERN_ERR "write AUDCHSEL Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write AUDCHSEL");
+	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write AUDCHSEL\n");
 
 	status = chipio_write(codec, DSPDMAC_IRQCNT_INST_OFFSET(dma_chan),
 			DSPDMAC_IRQCNT_BICNT_MASK | DSPDMAC_IRQCNT_CICNT_MASK);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write IRQCNT Reg fail");
+		snd_printdd(KERN_ERR "write IRQCNT Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write IRQCNT");
+	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write IRQCNT\n");
 
 	snd_printdd(
 		   "ChipA=0x%x,DspA=0x%x,dmaCh=%u, "
@@ -1719,7 +1719,7 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 		   chip_addx, dsp_addx, dma_chan,
 		   port_map_mask, chnl_prop, active);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Complete ------");
+	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Complete ------\n");
 
 	return 0;
 }
@@ -1745,20 +1745,20 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	const unsigned int max_dma_count = 1 << (DSPDMAC_XFRCNT_BCNT_HIBIT -
 						DSPDMAC_XFRCNT_BCNT_LOBIT + 1);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Begin ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Begin ---------\n");
 
 	if (count > max_dma_count) {
-		snd_printdd(KERN_ERR "count too big");
+		snd_printdd(KERN_ERR "count too big\n");
 		return -EINVAL;
 	}
 
 	dsp_addx = dsp_chip_to_dsp_addx(chip_addx, &code, &yram);
 	if (dsp_addx == INVALID_CHIP_ADDRESS) {
-		snd_printdd(KERN_ERR "invalid chip addr");
+		snd_printdd(KERN_ERR "invalid chip addr\n");
 		return -ENXIO;
 	}
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    start reg pgm");
+	snd_printdd(KERN_INFO "   dsp_dma_setup()    start reg pgm\n");
 
 	addr_field = dsp_addx << DSPDMAC_DMACFG_DBADR_LOBIT;
 	incr_field   = 0;
@@ -1775,10 +1775,10 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_DMACFG_INST_OFFSET(dma_chan),
 				dma_cfg);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write DMACFG Reg fail");
+		snd_printdd(KERN_ERR "write DMACFG Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DMACFG");
+	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DMACFG\n");
 
 	adr_ofs = (count - 1) << (DSPDMAC_DSPADROFS_BOFS_LOBIT +
 							(code ? 0 : 1));
@@ -1786,10 +1786,10 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_DSPADROFS_INST_OFFSET(dma_chan),
 				adr_ofs);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write DSPADROFS Reg fail");
+		snd_printdd(KERN_ERR "write DSPADROFS Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DSPADROFS");
+	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DSPADROFS\n");
 
 	base_cnt = (count - 1) << DSPDMAC_XFRCNT_BCNT_LOBIT;
 
@@ -1800,17 +1800,17 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec,
 				DSPDMAC_XFRCNT_INST_OFFSET(dma_chan), xfr_cnt);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write XFRCNT Reg fail");
+		snd_printdd(KERN_ERR "write XFRCNT Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write XFRCNT");
+	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write XFRCNT\n");
 
 	snd_printdd(
 		   "ChipA=0x%x, cnt=0x%x, DMACFG=0x%x, "
 		   "ADROFS=0x%x, XFRCNT=0x%x\n",
 		   chip_addx, count, dma_cfg, adr_ofs, xfr_cnt);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Complete ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Complete ---------\n");
 
 	return 0;
 }
@@ -1824,17 +1824,17 @@ static int dsp_dma_start(struct hda_codec *codec,
 	unsigned int reg = 0;
 	int status = 0;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Begin ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Begin ---------\n");
 
 	if (ovly) {
 		status = chipio_read(codec,
 				     DSPDMAC_CHNLSTART_INST_OFFSET, &reg);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLSTART reg fail");
+			snd_printdd(KERN_ERR "read CHNLSTART reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "-- dsp_dma_start()    Read CHNLSTART");
+		snd_printdd(KERN_INFO "-- dsp_dma_start()    Read CHNLSTART\n");
 
 		reg &= ~(DSPDMAC_CHNLSTART_EN_MASK |
 				DSPDMAC_CHNLSTART_DIS_MASK);
@@ -1843,10 +1843,10 @@ static int dsp_dma_start(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_CHNLSTART_INST_OFFSET,
 			reg | (1 << (dma_chan + DSPDMAC_CHNLSTART_EN_LOBIT)));
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLSTART reg fail");
+		snd_printdd(KERN_ERR "write CHNLSTART reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Complete ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Complete ---------\n");
 
 	return status;
 }
@@ -1860,17 +1860,17 @@ static int dsp_dma_stop(struct hda_codec *codec,
 	unsigned int reg = 0;
 	int status = 0;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Begin ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Begin ---------\n");
 
 	if (ovly) {
 		status = chipio_read(codec,
 				     DSPDMAC_CHNLSTART_INST_OFFSET, &reg);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLSTART reg fail");
+			snd_printdd(KERN_ERR "read CHNLSTART reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "-- dsp_dma_stop()    Read CHNLSTART");
+		snd_printdd(KERN_INFO "-- dsp_dma_stop()    Read CHNLSTART\n");
 		reg &= ~(DSPDMAC_CHNLSTART_EN_MASK |
 				DSPDMAC_CHNLSTART_DIS_MASK);
 	}
@@ -1878,10 +1878,10 @@ static int dsp_dma_stop(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_CHNLSTART_INST_OFFSET,
 			reg | (1 << (dma_chan + DSPDMAC_CHNLSTART_DIS_LOBIT)));
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLSTART reg fail");
+		snd_printdd(KERN_ERR "write CHNLSTART reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Complete ---------");
+	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Complete ---------\n");
 
 	return status;
 }
@@ -1964,17 +1964,17 @@ static int dsp_allocate_ports(struct hda_codec *codec,
 {
 	int status;
 
-	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- begin");
+	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- begin\n");
 
 	if ((rate_multi != 1) && (rate_multi != 2) && (rate_multi != 4)) {
-		snd_printdd(KERN_ERR "bad rate multiple");
+		snd_printdd(KERN_ERR "bad rate multiple\n");
 		return -EINVAL;
 	}
 
 	status = dsp_allocate_router_ports(codec, num_chans,
 					   rate_multi, 0, port_map);
 
-	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- complete");
+	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- complete\n");
 
 	return status;
 }
@@ -1991,7 +1991,7 @@ static int dsp_allocate_ports_format(struct hda_codec *codec,
 	unsigned int rate_multi = sample_rate_mul / sample_rate_div;
 
 	if ((rate_multi != 1) && (rate_multi != 2) && (rate_multi != 4)) {
-		snd_printdd(KERN_ERR "bad rate multiple");
+		snd_printdd(KERN_ERR "bad rate multiple\n");
 		return -EINVAL;
 	}
 
@@ -2009,14 +2009,14 @@ static int dsp_free_ports(struct hda_codec *codec)
 {
 	int status;
 
-	snd_printdd(KERN_INFO "     dsp_free_ports() -- begin");
+	snd_printdd(KERN_INFO "     dsp_free_ports() -- begin\n");
 
 	status = dsp_free_router_ports(codec);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "free router ports fail");
+		snd_printdd(KERN_ERR "free router ports fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "     dsp_free_ports() -- complete");
+	snd_printdd(KERN_INFO "     dsp_free_ports() -- complete\n");
 
 	return status;
 }
@@ -2186,7 +2186,7 @@ static int dspxfr_hci_write(struct hda_codec *codec,
 	unsigned int count;
 
 	if (fls == NULL || fls->chip_addr != g_chip_addr_magic_value) {
-		snd_printdd(KERN_ERR "hci_write invalid params");
+		snd_printdd(KERN_ERR "hci_write invalid params\n");
 		return -EINVAL;
 	}
 
@@ -2195,7 +2195,7 @@ static int dspxfr_hci_write(struct hda_codec *codec,
 	while (count >= 2) {
 		status = chipio_write(codec, data[0], data[1]);
 		if (status < 0) {
-			snd_printdd(KERN_ERR "hci_write chipio failed");
+			snd_printdd(KERN_ERR "hci_write chipio failed\n");
 			return status;
 		}
 		count -= 2;
@@ -2346,7 +2346,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (status < 0)
 			return status;
 		if (!dsp_is_dma_active(codec, dma_chan)) {
-			snd_printdd(KERN_ERR "dspxfr:DMA did not start");
+			snd_printdd(KERN_ERR "dspxfr:DMA did not start\n");
 			return -EIO;
 		}
 		status = dma_set_state(dma_engine, DMA_STATE_RUN);
@@ -2378,7 +2378,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (dma_active)
 			break;
 
-		snd_printdd(KERN_INFO "+++++ DMA complete");
+		snd_printdd(KERN_INFO "+++++ DMA complete\n");
 		dma_set_state(dma_engine, DMA_STATE_STOP);
 		status = dma_reset(dma_engine);
 
@@ -2452,7 +2452,7 @@ static int dspxfr_image(struct hda_codec *codec,
 					hda_format, &response);
 
 	if (status < 0) {
-		snd_printdd(KERN_ERR "set converter format fail");
+		snd_printdd(KERN_ERR "set converter format fail\n");
 		goto exit;
 	}
 
@@ -2467,7 +2467,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	if (ovly) {
 		status = dspio_alloc_dma_chan(codec, &dma_chan);
 		if (status < 0) {
-			snd_printdd(KERN_ERR "alloc dmachan fail");
+			snd_printdd(KERN_ERR "alloc dmachan fail\n");
 			dma_chan = INVALID_DMA_CHANNEL;
 			goto exit;
 		}
@@ -2477,7 +2477,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	status = dsp_allocate_ports_format(codec, hda_format,
 					&port_map_mask);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "alloc ports fail");
+		snd_printdd(KERN_ERR "alloc ports fail\n");
 		goto exit;
 	}
 
@@ -2485,13 +2485,13 @@ static int dspxfr_image(struct hda_codec *codec,
 	status = codec_set_converter_stream_channel(codec,
 			WIDGET_CHIP_CTRL, stream_id, 0, &response);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "set stream chan fail");
+		snd_printdd(KERN_ERR "set stream chan fail\n");
 		goto exit;
 	}
 
 	while ((fls_data != NULL) && !is_last(fls_data)) {
 		if (!is_valid(fls_data)) {
-			snd_printdd(KERN_ERR "FLS check fail");
+			snd_printdd(KERN_ERR "FLS check fail\n");
 			status = -EINVAL;
 			goto exit;
 		}
@@ -2534,7 +2534,7 @@ exit:
  */
 static void dspload_post_setup(struct hda_codec *codec)
 {
-	snd_printdd(KERN_INFO "---- dspload_post_setup ------");
+	snd_printdd(KERN_INFO "---- dspload_post_setup ------\n");
 
 	/*set DSP speaker to 2.0 configuration*/
 	chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x18), 0x08080080);
@@ -2572,7 +2572,7 @@ static int dspload_image(struct hda_codec *codec,
 	unsigned int sample_rate;
 	unsigned short channels;
 
-	snd_printdd(KERN_INFO "---- dspload_image begin ------");
+	snd_printdd(KERN_INFO "---- dspload_image begin ------\n");
 	if (router_chans == 0) {
 		if (!ovly)
 			router_chans = DMA_TRANSFER_FRAME_SIZE_NWORDS;
@@ -2589,27 +2589,27 @@ static int dspload_image(struct hda_codec *codec,
 	}
 
 	do {
-		snd_printdd(KERN_INFO "Ready to program DMA");
+		snd_printdd(KERN_INFO "Ready to program DMA\n");
 		if (!ovly)
 			status = dsp_reset(codec);
 
 		if (status < 0)
 			break;
 
-		snd_printdd(KERN_INFO "dsp_reset() complete");
+		snd_printdd(KERN_INFO "dsp_reset() complete\n");
 		status = dspxfr_image(codec, fls, reloc, sample_rate, channels,
 				      ovly);
 
 		if (status < 0)
 			break;
 
-		snd_printdd(KERN_INFO "dspxfr_image() complete");
+		snd_printdd(KERN_INFO "dspxfr_image() complete\n");
 		if (autostart && !ovly) {
 			dspload_post_setup(codec);
 			status = dsp_set_run_state(codec);
 		}
 
-		snd_printdd(KERN_INFO "LOAD FINISHED");
+		snd_printdd(KERN_INFO "LOAD FINISHED\n");
 	} while (0);
 
 	return status;
