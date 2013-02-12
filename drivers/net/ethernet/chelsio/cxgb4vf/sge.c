@@ -1477,8 +1477,10 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 
-	if (pkt->vlan_ex)
+	if (pkt->vlan_ex) {
 		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		rxq->stats.vlan_ex++;
+	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
 
 	if (ret == GRO_HELD)
