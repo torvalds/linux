@@ -1644,6 +1644,8 @@ __s32 Display_set_fb_timing(__u32 sel)
 void hdmi_edid_received(unsigned char *edid, int block_count)
 {
 	struct fb_event event;
+	struct fb_modelist *m, *n;
+	int dummy;
 	__u32 sel = 0;
 	__u32 block = 0;
 	LIST_HEAD(old_modelist);
@@ -1695,6 +1697,22 @@ void hdmi_edid_received(unsigned char *edid, int block_count)
 		fb_videomode_to_modelist(fbi->monspecs.modedb,
 					 fbi->monspecs.modedb_len,
 					 &fbi->modelist);
+
+		/* Filter out modes which we cannot do */
+		list_for_each_entry_safe(m, n, &fbi->modelist, list) {
+			if (disp_get_pll_freq(
+				fb_videomode_pixclock_to_hdmi_pclk(
+					m->mode.pixclock), &dummy, &dummy)) {
+				list_del(&m->list);
+				kfree(m);
+			}
+		}
+		/* Are there any usable modes left? */
+		if (list_empty(&fbi->modelist)) {
+			list_splice(&old_modelist, &fbi->modelist);
+			pr_warn("EDID: No modes with good pixelclock found\n");
+			continue;
+		}
 
 		/*
 		 * Tell framebuffer users that modelist was replaced. This is
