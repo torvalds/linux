@@ -78,16 +78,15 @@ static inline void arch_local_irq_disable(void)
 	asm volatile("MOV TXMASKI,%0\n" : : "r" (flags) : "memory");
 }
 
+#ifdef CONFIG_SMP
+/* Avoid circular include dependencies through <linux/preempt.h> */
+void arch_local_irq_enable(void);
+#else
 static inline void arch_local_irq_enable(void)
 {
-#ifdef CONFIG_SMP
-	preempt_disable();
 	arch_local_irq_restore(get_trigger_mask());
-	preempt_enable_no_resched();
-#else
-	arch_local_irq_restore(get_trigger_mask());
-#endif
 }
+#endif
 
 #endif /* (__ASSEMBLY__) */
 

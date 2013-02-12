@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/preempt.h>
 #include <linux/ptrace.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -776,10 +777,15 @@ int traps_restore_context(void)
 #endif
 
 #ifdef CONFIG_SMP
-unsigned int get_trigger_mask(void)
+static inline unsigned int _get_trigger_mask(void)
 {
 	unsigned long cpu = smp_processor_id();
 	return per_cpu(trigger_mask, cpu);
+}
+
+unsigned int get_trigger_mask(void)
+{
+	return _get_trigger_mask();
 }
 
 static void set_trigger_mask(unsigned int mask)
@@ -787,6 +793,14 @@ static void set_trigger_mask(unsigned int mask)
 	unsigned long cpu = smp_processor_id();
 	per_cpu(trigger_mask, cpu) = mask;
 }
+
+void arch_local_irq_enable(void)
+{
+	preempt_disable();
+	arch_local_irq_restore(_get_trigger_mask());
+	preempt_enable_no_resched();
+}
+EXPORT_SYMBOL(arch_local_irq_enable);
 #else
 static void set_trigger_mask(unsigned int mask)
 {
