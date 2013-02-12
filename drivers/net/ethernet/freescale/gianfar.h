@@ -646,14 +646,8 @@ struct gfar_extra_stats {
 #define GFAR_RMON_LEN ((sizeof(struct rmon_mib) - 16)/sizeof(u32))
 #define GFAR_EXTRA_STATS_LEN (sizeof(struct gfar_extra_stats)/sizeof(u64))
 
-/* Number of stats in the stats structure (ignore car and cam regs)*/
+/* Number of stats exported via ethtool */
 #define GFAR_STATS_LEN (GFAR_RMON_LEN + GFAR_EXTRA_STATS_LEN)
-
-struct gfar_stats {
-	u64 extra[GFAR_EXTRA_STATS_LEN];
-	u64 rmon[GFAR_RMON_LEN];
-};
-
 
 struct gfar {
 	u32	tsec_id;	/* 0x.000 - Controller ID register */
