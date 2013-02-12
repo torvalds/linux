@@ -14,12 +14,8 @@
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/delay.h>
-#include <linux/of.h>
 #include <mach/common.h>
-#include <mach/r8a7779.h>
-#include <mach/emev2.h>
 #include <asm/cacheflush.h>
-#include <asm/mach-types.h>
 
 static cpumask_t dead_cpus;
 
