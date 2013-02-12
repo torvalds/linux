@@ -56,6 +56,8 @@ ssize_t disp_write(struct file *file, const char __user *buf, size_t count,
 		   loff_t *ppos);
 int disp_mmap(struct file *file, struct vm_area_struct *vma);
 long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+int disp_suspend(int clk, int status);
+int disp_resume(int clk, int status);
 
 __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize);
 void *disp_malloc(__u32 num_bytes);
