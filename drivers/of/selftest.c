@@ -35,7 +35,7 @@ static void __init of_selftest_parse_phandle_with_args(void)
 		return;
 	}
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		bool passed = true;
 		rc = of_parse_phandle_with_args(np, "phandle-list",
 						"#phandle-cells", i, &args);
