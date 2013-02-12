@@ -743,9 +743,11 @@ static struct irq_chip s3c2412_irq_cfsdi = {
 	.irq_unmask	= s3c2412_irq_cfsdi_unmask,
 };
 
-static int s3c2412_irq_add(struct device *dev, struct subsys_interface *sif)
+void s3c2412_init_irq(void)
 {
 	unsigned int irqno;
+
+	s3c24xx_init_irq();
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		irq_set_chip_and_handler(irqno, &s3c2412_irq_eint0t4,
@@ -762,22 +764,7 @@ static int s3c2412_irq_add(struct device *dev, struct subsys_interface *sif)
 					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
-
-	return 0;
 }
-
-static struct subsys_interface s3c2412_irq_interface = {
-	.name		= "s3c2412_irq",
-	.subsys		= &s3c2412_subsys,
-	.add_dev	= s3c2412_irq_add,
-};
-
-static int s3c2412_irq_init(void)
-{
-	return subsys_interface_register(&s3c2412_irq_interface);
-}
-
-arch_initcall(s3c2412_irq_init);
 #endif
 
 #ifdef CONFIG_CPU_S3C2416
