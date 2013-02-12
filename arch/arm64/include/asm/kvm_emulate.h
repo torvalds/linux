@@ -182,4 +182,52 @@ static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
 	return vcpu_sys_reg(vcpu, MPIDR_EL1);
 }
 
+static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
+{
+	if (vcpu_mode_is_32bit(vcpu))
+		return !!(*vcpu_cpsr(vcpu) & COMPAT_PSR_E_BIT);
+
+	return !!(vcpu_sys_reg(vcpu, SCTLR_EL1) & (1 << 25));
+}
+
+static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,
+						    unsigned long data,
+						    unsigned int len)
+{
+	if (kvm_vcpu_is_be(vcpu)) {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return be16_to_cpu(data & 0xffff);
+		case 4:
+			return be32_to_cpu(data & 0xffffffff);
+		default:
+			return be64_to_cpu(data);
+		}
+	}
+
+	return data;		/* Leave LE untouched */
+}
+
+static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
+						    unsigned long data,
+						    unsigned int len)
+{
+	if (kvm_vcpu_is_be(vcpu)) {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return cpu_to_be16(data & 0xffff);
+		case 4:
+			return cpu_to_be32(data & 0xffffffff);
+		default:
+			return cpu_to_be64(data);
+		}
+	}
+
+	return data;		/* Leave LE untouched */
+}
+
 #endif /* __ARM64_KVM_EMULATE_H__ */
