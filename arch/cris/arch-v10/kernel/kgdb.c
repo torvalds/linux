@@ -260,10 +260,6 @@ extern unsigned char executing_task;
 /* The number of characters used for a 64 bit thread identifier. */
 #define HEXCHARS_IN_THREAD_ID 16
 
-/* Avoid warning as the internal_stack is not used in the C-code. */
-#define USEDVAR(name)    { if (name) { ; } }
-#define USEDFUN(name) { void (*pf)(void) = (void *)name; USEDVAR(pf) }
-
 /********************************** Packet I/O ******************************/
 /* BUFMAX defines the maximum number of characters in
    inbound/outbound buffers */
@@ -854,11 +850,6 @@ kill_restart (void)
 void
 handle_exception (int sigval)
 {
-	/* Avoid warning of not used. */
-
-	USEDFUN(handle_exception);
-	USEDVAR(internal_stack[0]);
-
 	/* Send response. */
 
 	stub_is_stopped (sigval);
