@@ -480,8 +480,6 @@ void tick_broadcast(const struct cpumask *mask)
 {
 	smp_cross_call(mask, IPI_TIMER);
 }
-#else
-#define smp_timer_broadcast	NULL
 #endif
 
 static void broadcast_timer_set_mode(enum clock_event_mode mode,
