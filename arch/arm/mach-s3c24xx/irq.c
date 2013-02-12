@@ -783,9 +783,12 @@ static struct irq_chip s3c_irq_cam = {
 	.irq_ack	= s3c_irq_cam_ack,
 };
 
-static int s3c244x_irq_add(struct device *dev, struct subsys_interface *sif)
+#ifdef CONFIG_CPU_S3C2440
+void __init s3c2440_init_irq(void)
 {
 	unsigned int irqno;
+
+	s3c24xx_init_irq();
 
 	irq_set_chip_and_handler(IRQ_NFCON, &s3c_irq_level_chip,
 				 handle_level_irq);
@@ -802,36 +805,34 @@ static int s3c244x_irq_add(struct device *dev, struct subsys_interface *sif)
 					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
-
-	return 0;
 }
+#endif
 
-static struct subsys_interface s3c2440_irq_interface = {
-	.name		= "s3c2440_irq",
-	.subsys		= &s3c2440_subsys,
-	.add_dev	= s3c244x_irq_add,
-};
-
-static int s3c2440_irq_init(void)
+#ifdef CONFIG_CPU_S3C2442
+void __init s3c2442_init_irq(void)
 {
-	return subsys_interface_register(&s3c2440_irq_interface);
+	unsigned int irqno;
+
+	s3c24xx_init_irq();
+
+	irq_set_chip_and_handler(IRQ_NFCON, &s3c_irq_level_chip,
+				 handle_level_irq);
+	set_irq_flags(IRQ_NFCON, IRQF_VALID);
+
+	/* add chained handler for camera */
+
+	irq_set_chip_and_handler(IRQ_CAM, &s3c_irq_level_chip,
+				 handle_level_irq);
+	irq_set_chained_handler(IRQ_CAM, s3c_irq_demux_cam);
+
+	for (irqno = IRQ_S3C2440_CAM_C; irqno <= IRQ_S3C2440_CAM_P; irqno++) {
+		irq_set_chip_and_handler(irqno, &s3c_irq_cam,
+					 handle_level_irq);
+		set_irq_flags(irqno, IRQF_VALID);
+	}
 }
+#endif
 
-arch_initcall(s3c2440_irq_init);
-
-static struct subsys_interface s3c2442_irq_interface = {
-	.name		= "s3c2442_irq",
-	.subsys		= &s3c2442_subsys,
-	.add_dev	= s3c244x_irq_add,
-};
-
-
-static int s3c2442_irq_init(void)
-{
-	return subsys_interface_register(&s3c2442_irq_interface);
-}
-
-arch_initcall(s3c2442_irq_init);
 #endif
 
 #ifdef CONFIG_CPU_S3C2443

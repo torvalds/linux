@@ -73,6 +73,7 @@ extern void s3c244x_restart(char mode, const char *cmd);
 #ifdef CONFIG_CPU_S3C2440
 extern  int s3c2440_init(void);
 extern void s3c2440_map_io(void);
+extern void s3c2440_init_irq(void);
 #else
 #define s3c2440_init NULL
 #define s3c2440_map_io NULL
@@ -81,6 +82,7 @@ extern void s3c2440_map_io(void);
 #ifdef CONFIG_CPU_S3C2442
 extern  int s3c2442_init(void);
 extern void s3c2442_map_io(void);
+extern void s3c2442_init_irq(void);
 #else
 #define s3c2442_init NULL
 #define s3c2442_map_io NULL

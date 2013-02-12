@@ -190,11 +190,6 @@ static void __init rx3715_reserve(void)
 	memblock_reserve(0x30081000, 0x1000);
 }
 
-static void __init rx3715_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
-
 static void __init rx3715_init_machine(void)
 {
 #ifdef CONFIG_PM_H1940
@@ -212,7 +207,7 @@ MACHINE_START(RX3715, "IPAQ-RX3715")
 	.atag_offset	= 0x100,
 	.map_io		= rx3715_map_io,
 	.reserve	= rx3715_reserve,
-	.init_irq	= rx3715_init_irq,
+	.init_irq	= s3c2440_init_irq,
 	.init_machine	= rx3715_init_machine,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
