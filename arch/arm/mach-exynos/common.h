@@ -60,6 +60,9 @@ void exynos4212_register_clocks(void);
 #define exynos4212_register_clocks()
 #endif
 
+struct device_node;
+void combiner_init(void __iomem *combiner_base, struct device_node *np);
+
 extern struct smp_operations exynos_smp_ops;
 
 extern void exynos_cpu_die(unsigned int cpu);
