@@ -155,22 +155,6 @@ static struct irq_chip s3c2412_irq_cfsdi = {
 	.irq_unmask	= s3c2412_irq_cfsdi_unmask,
 };
 
-static int s3c2412_irq_rtc_wake(struct irq_data *data, unsigned int state)
-{
-	unsigned long pwrcfg;
-
-	pwrcfg = __raw_readl(S3C2412_PWRCFG);
-	if (state)
-		pwrcfg &= ~S3C2412_PWRCFG_RTC_MASKIRQ;
-	else
-		pwrcfg |= S3C2412_PWRCFG_RTC_MASKIRQ;
-	__raw_writel(pwrcfg, S3C2412_PWRCFG);
-
-	return s3c_irq_chip.irq_set_wake(data, state);
-}
-
-static struct irq_chip s3c2412_irq_rtc_chip;
-
 static int s3c2412_irq_add(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int irqno;
@@ -190,13 +174,6 @@ static int s3c2412_irq_add(struct device *dev, struct subsys_interface *sif)
 					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
-
-	/* change RTC IRQ's set wake method */
-
-	s3c2412_irq_rtc_chip = s3c_irq_chip;
-	s3c2412_irq_rtc_chip.irq_set_wake = s3c2412_irq_rtc_wake;
-
-	irq_set_chip(IRQ_RTC, &s3c2412_irq_rtc_chip);
 
 	return 0;
 }
