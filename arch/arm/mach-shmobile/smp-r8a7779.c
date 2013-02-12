@@ -87,13 +87,6 @@ static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 	__raw_writel(tmp, scu_base + 8);
 }
 
-static unsigned int __init r8a7779_get_core_count(void)
-{
-	void __iomem *scu_base = scu_base_addr();
-
-	return scu_get_core_count(scu_base);
-}
-
 static int r8a7779_platform_cpu_kill(unsigned int cpu)
 {
 	struct r8a7779_pm_ch *ch = NULL;
@@ -178,7 +171,7 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __init r8a7779_smp_init_cpus(void)
 {
-	unsigned int ncores = r8a7779_get_core_count();
+	unsigned int ncores = scu_get_core_count(scu_base_addr());
 
 	shmobile_smp_init_cpus(ncores);
 }
