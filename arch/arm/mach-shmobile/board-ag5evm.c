@@ -304,9 +304,9 @@ static int lcd_backlight_set_brightness(int brightness)
 
 	if (brightness == 0) {
 		/* Reset the chip */
-		gpio_set_value(GPIO_PORT235, 0);
+		gpio_set_value(235, 0);
 		mdelay(24);
-		gpio_set_value(GPIO_PORT235, 1);
+		gpio_set_value(235, 1);
 		return 0;
 	}
 
@@ -406,7 +406,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
-	.cd_gpio	= GPIO_PORT251,
+	.cd_gpio	= 251,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -461,7 +461,7 @@ static struct regulator_init_data cn4_power_init_data = {
 static struct fixed_voltage_config cn4_power_info = {
 	.supply_name = "CN4 SD/MMC Vdd",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT114,
+	.gpio = 114,
 	.enable_high = 1,
 	.init_data = &cn4_power_init_data,
 };
@@ -479,10 +479,10 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	static int power_gpio = -EINVAL;
 
 	if (power_gpio < 0) {
-		int ret = gpio_request_one(GPIO_PORT114, GPIOF_OUT_INIT_LOW,
+		int ret = gpio_request_one(114, GPIOF_OUT_INIT_LOW,
 					   "sdhi1_power");
 		if (!ret)
-			power_gpio = GPIO_PORT114;
+			power_gpio = 114;
 	}
 
 	/*
@@ -493,7 +493,7 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	 * regulator driver. We have to live with the race in case the driver
 	 * gets unloaded and the GPIO freed between these two steps.
 	 */
-	gpio_set_value(GPIO_PORT114, state);
+	gpio_set_value(114, state);
 }
 
 static struct sh_mobile_sdhi_info sh_sdhi1_info = {
@@ -603,11 +603,11 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
-	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
+	gpio_request_one(208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* enable SMSC911X */
-	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
-	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
+	gpio_request_one(144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* FSI A */
 	gpio_request(GPIO_FN_FSIACK, NULL);
@@ -622,13 +622,13 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
 
 	/* LCD panel */
-	gpio_request_one(GPIO_PORT217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
+	gpio_request_one(217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	mdelay(1);
-	gpio_set_value(GPIO_PORT217, 1);
+	gpio_set_value(217, 1);
 	mdelay(100);
 
 	/* LCD backlight controller */
-	gpio_request_one(GPIO_PORT235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
+	gpio_request_one(235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	lcd_backlight_set_brightness(0);
 
 	/* enable SDHI0 on CN15 [SD I/F] */

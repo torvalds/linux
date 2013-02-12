@@ -135,17 +135,17 @@ static struct platform_device keysc_device = {
 #define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
 
 static struct gpio_keys_button gpio_buttons[] = {
-	GPIO_KEY(KEY_VOLUMEUP, GPIO_PORT56, "+"), /* S2: VOL+ [IRQ9] */
-	GPIO_KEY(KEY_VOLUMEDOWN, GPIO_PORT54, "-"), /* S3: VOL- [IRQ10] */
-	GPIO_KEY(KEY_MENU, GPIO_PORT27, "Menu"), /* S4: MENU [IRQ30] */
-	GPIO_KEY(KEY_HOMEPAGE, GPIO_PORT26, "Home"), /* S5: HOME [IRQ31] */
-	GPIO_KEY(KEY_BACK, GPIO_PORT11, "Back"), /* S6: BACK [IRQ0] */
-	GPIO_KEY(KEY_PHONE, GPIO_PORT238, "Tel"), /* S7: TEL [IRQ11] */
-	GPIO_KEY(KEY_POWER, GPIO_PORT239, "C1"), /* S8: CAM [IRQ13] */
-	GPIO_KEY(KEY_MAIL, GPIO_PORT224, "Mail"), /* S9: MAIL [IRQ3] */
-	/* Omitted button "C3?": GPIO_PORT223 - S10: CUST [IRQ8] */
-	GPIO_KEY(KEY_CAMERA, GPIO_PORT164, "C2"), /* S11: CAM_HALF [IRQ25] */
-	/* Omitted button "?": GPIO_PORT152 - S12: CAM_FULL [No IRQ] */
+	GPIO_KEY(KEY_VOLUMEUP, 56, "+"), /* S2: VOL+ [IRQ9] */
+	GPIO_KEY(KEY_VOLUMEDOWN, 54, "-"), /* S3: VOL- [IRQ10] */
+	GPIO_KEY(KEY_MENU, 27, "Menu"), /* S4: MENU [IRQ30] */
+	GPIO_KEY(KEY_HOMEPAGE, 26, "Home"), /* S5: HOME [IRQ31] */
+	GPIO_KEY(KEY_BACK, 11, "Back"), /* S6: BACK [IRQ0] */
+	GPIO_KEY(KEY_PHONE, 238, "Tel"), /* S7: TEL [IRQ11] */
+	GPIO_KEY(KEY_POWER, 239, "C1"), /* S8: CAM [IRQ13] */
+	GPIO_KEY(KEY_MAIL, 224, "Mail"), /* S9: MAIL [IRQ3] */
+	/* Omitted button "C3?": 223 - S10: CUST [IRQ8] */
+	GPIO_KEY(KEY_CAMERA, 164, "C2"), /* S11: CAM_HALF [IRQ25] */
+	/* Omitted button "?": 152 - S12: CAM_FULL [No IRQ] */
 };
 
 static struct gpio_keys_platform_data gpio_key_info = {
@@ -165,9 +165,9 @@ static struct platform_device gpio_keys_device = {
 #define GPIO_LED(n, g) { .name = n, .gpio = g }
 
 static struct gpio_led gpio_leds[] = {
-	GPIO_LED("G", GPIO_PORT20), /* PORT20 [GPO0] -> LED7 -> "G" */
-	GPIO_LED("H", GPIO_PORT21), /* PORT21 [GPO1] -> LED8 -> "H" */
-	GPIO_LED("J", GPIO_PORT22), /* PORT22 [GPO2] -> LED9 -> "J" */
+	GPIO_LED("G", 20), /* PORT20 [GPO0] -> LED7 -> "G" */
+	GPIO_LED("H", 21), /* PORT21 [GPO1] -> LED8 -> "H" */
+	GPIO_LED("J", 22), /* PORT22 [GPO2] -> LED9 -> "J" */
 };
 
 static struct gpio_led_platform_data gpio_leds_info = {
@@ -187,7 +187,7 @@ static struct platform_device gpio_leds_device = {
 static struct led_renesas_tpu_config led_renesas_tpu12_pdata = {
 	.name		= "V2513",
 	.pin_gpio_fn	= GPIO_FN_TPU1TO2,
-	.pin_gpio	= GPIO_PORT153,
+	.pin_gpio	= 153,
 	.channel_offset = 0x90,
 	.timer_bit = 2,
 	.max_brightness = 1000,
@@ -215,7 +215,7 @@ static struct platform_device leds_tpu12_device = {
 static struct led_renesas_tpu_config led_renesas_tpu41_pdata = {
 	.name		= "V2514",
 	.pin_gpio_fn	= GPIO_FN_TPU4TO1,
-	.pin_gpio	= GPIO_PORT199,
+	.pin_gpio	= 199,
 	.channel_offset = 0x50,
 	.timer_bit = 1,
 	.max_brightness = 1000,
@@ -243,7 +243,7 @@ static struct platform_device leds_tpu41_device = {
 static struct led_renesas_tpu_config led_renesas_tpu21_pdata = {
 	.name		= "V2515",
 	.pin_gpio_fn	= GPIO_FN_TPU2TO1,
-	.pin_gpio	= GPIO_PORT197,
+	.pin_gpio	= 197,
 	.channel_offset = 0x50,
 	.timer_bit = 1,
 	.max_brightness = 1000,
@@ -271,7 +271,7 @@ static struct platform_device leds_tpu21_device = {
 static struct led_renesas_tpu_config led_renesas_tpu30_pdata = {
 	.name		= "KEYLED",
 	.pin_gpio_fn	= GPIO_FN_TPU3TO0,
-	.pin_gpio	= GPIO_PORT163,
+	.pin_gpio	= 163,
 	.channel_offset = 0x10,
 	.timer_bit = 0,
 	.max_brightness = 1000,
@@ -474,8 +474,8 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_D15_NAF15, NULL);
 	gpio_request(GPIO_FN_CS5A_, NULL);
 	gpio_request(GPIO_FN_WE0__FWE, NULL);
-	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
-	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
+	gpio_request_one(144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* KEYSC */
 	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
@@ -507,7 +507,7 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_MMCD0_6, NULL);
 	gpio_request(GPIO_FN_MMCD0_7, NULL);
 	gpio_request(GPIO_FN_MMCCMD0, NULL);
-	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
+	gpio_request_one(208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* SDHI0 (microSD) */
 	gpio_request(GPIO_FN_SDHICD0_PU, NULL);
