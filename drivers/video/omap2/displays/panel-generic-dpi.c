@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <video/omapdss.h>
 
 #include <video/omap-panel-data.h>
@@ -533,7 +534,7 @@ static inline struct panel_generic_dpi_data
 
 static int generic_dpi_panel_power_on(struct omap_dss_device *dssdev)
 {
-	int r;
+	int r, i;
 	struct panel_generic_dpi_data *panel_data = get_panel_data(dssdev);
 	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
 	struct panel_config *panel_config = drv_data->panel_config;
@@ -558,6 +559,11 @@ static int generic_dpi_panel_power_on(struct omap_dss_device *dssdev)
 			goto err1;
 	}
 
+	for (i = 0; i < panel_data->num_gpios; ++i) {
+		gpio_set_value_cansleep(panel_data->gpios[i],
+				panel_data->gpio_invert[i] ? 0 : 1);
+	}
+
 	return 0;
 err1:
 	omapdss_dpi_display_disable(dssdev);
@@ -570,9 +576,15 @@ static void generic_dpi_panel_power_off(struct omap_dss_device *dssdev)
 	struct panel_generic_dpi_data *panel_data = get_panel_data(dssdev);
 	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
 	struct panel_config *panel_config = drv_data->panel_config;
+	int i;
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
+
+	for (i = panel_data->num_gpios - 1; i >= 0; --i) {
+		gpio_set_value_cansleep(panel_data->gpios[i],
+				panel_data->gpio_invert[i] ? 1 : 0);
+	}
 
 	if (panel_data->platform_disable)
 		panel_data->platform_disable(dssdev);
@@ -589,7 +601,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 	struct panel_generic_dpi_data *panel_data = get_panel_data(dssdev);
 	struct panel_config *panel_config = NULL;
 	struct panel_drv_data *drv_data = NULL;
-	int i;
+	int i, r;
 
 	dev_dbg(&dssdev->dev, "probe\n");
 
@@ -605,6 +617,15 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 	if (!panel_config)
 		return -EINVAL;
+
+	for (i = 0; i < panel_data->num_gpios; ++i) {
+		r = devm_gpio_request_one(&dssdev->dev, panel_data->gpios[i],
+				panel_data->gpio_invert[i] ?
+				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+				"panel gpio");
+		if (r)
+			return r;
+	}
 
 	dssdev->panel.timings = panel_config->timings;
 
