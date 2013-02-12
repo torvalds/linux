@@ -591,14 +591,6 @@ struct omap_dss_device {
 	} phy;
 
 	struct {
-		struct {
-			/* regn is one greater than TRM's REGN value */
-			u16 regn;
-			u16 regm2;
-		} hdmi;
-	} clocks;
-
-	struct {
 		struct omap_video_timings timings;
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
