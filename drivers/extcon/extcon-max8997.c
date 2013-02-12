@@ -30,6 +30,13 @@
 
 #define	DEV_NAME			"max8997-muic"
 
+enum max8997_muic_adc_debounce_time {
+	ADC_DEBOUNCE_TIME_0_5MS = 0,	/* 0.5ms */
+	ADC_DEBOUNCE_TIME_10MS,		/* 10ms */
+	ADC_DEBOUNCE_TIME_25MS,		/* 25ms */
+	ADC_DEBOUNCE_TIME_38_62MS,	/* 38.62ms */
+};
+
 struct max8997_muic_irq {
 	unsigned int irq;
 	const char *name;
@@ -92,6 +99,38 @@ static const char *max8997_extcon_cable[] = {
 	[EXTCON_CABLE_JIG]			= "JIG",
 
 	NULL,
+};
+
+/*
+ * max8997_muic_set_debounce_time - Set the debounce time of ADC
+ * @info: the instance including private data of max8997 MUIC
+ * @time: the debounce time of ADC
+ */
+static int max8997_muic_set_debounce_time(struct max8997_muic_info *info,
+		enum max8997_muic_adc_debounce_time time)
+{
+	int ret;
+
+	switch (time) {
+	case ADC_DEBOUNCE_TIME_0_5MS:
+	case ADC_DEBOUNCE_TIME_10MS:
+	case ADC_DEBOUNCE_TIME_25MS:
+	case ADC_DEBOUNCE_TIME_38_62MS:
+		ret = max8997_update_reg(info->muic,
+					  MAX8997_MUIC_REG_CONTROL3,
+					  time << CONTROL3_ADCDBSET_SHIFT,
+					  CONTROL3_ADCDBSET_MASK);
+		if (ret) {
+			dev_err(info->dev, "failed to set ADC debounce time\n");
+			return -EAGAIN;
+		}
+		break;
+	default:
+		dev_err(info->dev, "invalid ADC debounce time\n");
+		return -EINVAL;
+	}
+
+	return 0;
 };
 
 /*
@@ -506,6 +545,9 @@ static int max8997_muic_probe(struct platform_device *pdev)
 					mdata->init_data[i].data);
 		}
 	}
+
+	/* Set ADC debounce time */
+	max8997_muic_set_debounce_time(info, ADC_DEBOUNCE_TIME_25MS);
 
 	/* Initial device detection */
 	max8997_muic_detect_dev(info);
