@@ -365,14 +365,18 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
 		if (!pos)
 			return NULL;
 
-		if (end - pos < sizeof(*ie))
-			return NULL;
-
 		ie = (struct ieee80211_vendor_ie *)pos;
+
+		/* make sure we can access ie->len */
+		BUILD_BUG_ON(offsetof(struct ieee80211_vendor_ie, len) != 1);
+
+		if (ie->len < sizeof(*ie))
+			goto cont;
+
 		ie_oui = ie->oui[0] << 16 | ie->oui[1] << 8 | ie->oui[2];
 		if (ie_oui == oui && ie->oui_type == oui_type)
 			return pos;
-
+cont:
 		pos += 2 + ie->len;
 	}
 	return NULL;
