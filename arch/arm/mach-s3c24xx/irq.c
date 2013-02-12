@@ -342,7 +342,10 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	case S3C_IRQTYPE_NONE:
 		return 0;
 	case S3C_IRQTYPE_EINT:
-		if (irq_data->parent_irq)
+		/* On the S3C2412, the EINT0to3 have a parent irq
+		 * but need the s3c_irq_eint0t4 chip
+		 */
+		if (irq_data->parent_irq && (!soc_is_s3c2412() || hw >= 4))
 			irq_set_chip_and_handler(virq, &s3c_irqext_chip,
 						 handle_edge_irq);
 		else
@@ -623,10 +626,10 @@ void __init s3c24xx_init_irq(void)
 
 #ifdef CONFIG_CPU_S3C2412
 static struct s3c_irq_data init_s3c2412base[32] = {
-	{ .type = S3C_IRQTYPE_EINT, }, /* EINT0 */
-	{ .type = S3C_IRQTYPE_EINT, }, /* EINT1 */
-	{ .type = S3C_IRQTYPE_EINT, }, /* EINT2 */
-	{ .type = S3C_IRQTYPE_EINT, }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT3 */
 	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT4to7 */
 	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT8to23 */
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
@@ -657,6 +660,33 @@ static struct s3c_irq_data init_s3c2412base[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, }, /* ADCPARENT */
 };
 
+static struct s3c_irq_data init_s3c2412eint[32] = {
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 0 }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 1 }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 2 }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 3 }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT4 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT5 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT6 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT7 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT8 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT9 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT10 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT11 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT12 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT13 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT14 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT15 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT16 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT17 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT18 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT19 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT20 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT21 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT22 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT23 */
+};
+
 static struct s3c_irq_data init_s3c2412subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-RX */
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-TX */
@@ -675,77 +705,9 @@ static struct s3c_irq_data init_s3c2412subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 21 }, /* CF */
 };
 
-/* the s3c2412 changes the behaviour of IRQ_EINT0 through IRQ_EINT3 by
- * having them turn up in both the INT* and the EINT* registers. Whilst
- * both show the status, they both now need to be acked when the IRQs
- * go off.
-*/
-
-static void
-s3c2412_irq_mask(struct irq_data *data)
-{
-	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
-	unsigned long mask;
-
-	mask = __raw_readl(S3C2410_INTMSK);
-	__raw_writel(mask | bitval, S3C2410_INTMSK);
-
-	mask = __raw_readl(S3C2412_EINTMASK);
-	__raw_writel(mask | bitval, S3C2412_EINTMASK);
-}
-
-static inline void
-s3c2412_irq_ack(struct irq_data *data)
-{
-	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
-
-	__raw_writel(bitval, S3C2412_EINTPEND);
-	__raw_writel(bitval, S3C2410_SRCPND);
-	__raw_writel(bitval, S3C2410_INTPND);
-}
-
-static inline void
-s3c2412_irq_maskack(struct irq_data *data)
-{
-	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
-	unsigned long mask;
-
-	mask = __raw_readl(S3C2410_INTMSK);
-	__raw_writel(mask|bitval, S3C2410_INTMSK);
-
-	mask = __raw_readl(S3C2412_EINTMASK);
-	__raw_writel(mask | bitval, S3C2412_EINTMASK);
-
-	__raw_writel(bitval, S3C2412_EINTPEND);
-	__raw_writel(bitval, S3C2410_SRCPND);
-	__raw_writel(bitval, S3C2410_INTPND);
-}
-
-static void
-s3c2412_irq_unmask(struct irq_data *data)
-{
-	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
-	unsigned long mask;
-
-	mask = __raw_readl(S3C2412_EINTMASK);
-	__raw_writel(mask & ~bitval, S3C2412_EINTMASK);
-
-	mask = __raw_readl(S3C2410_INTMSK);
-	__raw_writel(mask & ~bitval, S3C2410_INTMSK);
-}
-
-static struct irq_chip s3c2412_irq_eint0t4 = {
-	.irq_ack	= s3c2412_irq_ack,
-	.irq_mask	= s3c2412_irq_mask,
-	.irq_unmask	= s3c2412_irq_unmask,
-	.irq_set_wake	= s3c_irq_wake,
-	.irq_set_type	= s3c_irqext_type,
-};
-
 void s3c2412_init_irq(void)
 {
 	struct s3c_irq_intc *main_intc;
-	unsigned int irqno;
 
 	pr_info("S3C2412: IRQ Support\n");
 
@@ -759,16 +721,8 @@ void s3c2412_init_irq(void)
 		return;
 	}
 
-	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
+	s3c24xx_init_intc(NULL, &init_s3c2412eint[0], main_intc, 0x560000a4);
 	s3c24xx_init_intc(NULL, &init_s3c2412subint[0], main_intc, 0x4a000018);
-
-	/* special handling for eints 0 to 3 */
-
-	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
-		irq_set_chip_and_handler(irqno, &s3c2412_irq_eint0t4,
-					 handle_edge_irq);
-		set_irq_flags(irqno, IRQF_VALID);
-	}
 }
 #endif
 

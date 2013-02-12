@@ -59,6 +59,10 @@
 #define IRQ_ADCPARENT  S3C2410_IRQ(31)
 
 /* interrupts generated from the external interrupts sources */
+#define IRQ_EINT0_2412 S3C2410_IRQ(32)
+#define IRQ_EINT1_2412 S3C2410_IRQ(33)
+#define IRQ_EINT2_2412 S3C2410_IRQ(34)
+#define IRQ_EINT3_2412 S3C2410_IRQ(35)
 #define IRQ_EINT4      S3C2410_IRQ(36)	   /* 52 */
 #define IRQ_EINT5      S3C2410_IRQ(37)
 #define IRQ_EINT6      S3C2410_IRQ(38)
