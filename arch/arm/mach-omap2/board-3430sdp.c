@@ -35,7 +35,7 @@
 #include "common.h"
 #include <linux/omap-dma.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include "gpmc.h"
 #include "gpmc-smc91x.h"

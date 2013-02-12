@@ -41,7 +41,7 @@
 #include "gpmc-smsc911x.h"
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "board-flash.h"
 #include "mux.h"
