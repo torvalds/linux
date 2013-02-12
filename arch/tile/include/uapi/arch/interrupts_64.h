@@ -15,12 +15,14 @@
 #ifndef __ARCH_INTERRUPTS_H__
 #define __ARCH_INTERRUPTS_H__
 
+#ifndef __KERNEL__
 /** Mask for an interrupt. */
 #ifdef __ASSEMBLER__
 /* Note: must handle breaking interrupts into high and low words manually. */
 #define INT_MASK(intno) (1 << (intno))
 #else
 #define INT_MASK(intno) (1ULL << (intno))
+#endif
 #endif
 
 
@@ -85,192 +87,192 @@
 
 #ifndef __ASSEMBLER__
 #define QUEUED_INTERRUPTS ( \
-    INT_MASK(INT_MEM_ERROR) | \
-    INT_MASK(INT_IDN_COMPLETE) | \
-    INT_MASK(INT_UDN_COMPLETE) | \
-    INT_MASK(INT_IDN_FIREWALL) | \
-    INT_MASK(INT_UDN_FIREWALL) | \
-    INT_MASK(INT_TILE_TIMER) | \
-    INT_MASK(INT_AUX_TILE_TIMER) | \
-    INT_MASK(INT_IDN_TIMER) | \
-    INT_MASK(INT_UDN_TIMER) | \
-    INT_MASK(INT_IDN_AVAIL) | \
-    INT_MASK(INT_UDN_AVAIL) | \
-    INT_MASK(INT_IPI_3) | \
-    INT_MASK(INT_IPI_2) | \
-    INT_MASK(INT_IPI_1) | \
-    INT_MASK(INT_IPI_0) | \
-    INT_MASK(INT_PERF_COUNT) | \
-    INT_MASK(INT_AUX_PERF_COUNT) | \
-    INT_MASK(INT_INTCTRL_3) | \
-    INT_MASK(INT_INTCTRL_2) | \
-    INT_MASK(INT_INTCTRL_1) | \
-    INT_MASK(INT_INTCTRL_0) | \
-    INT_MASK(INT_BOOT_ACCESS) | \
-    INT_MASK(INT_WORLD_ACCESS) | \
-    INT_MASK(INT_I_ASID) | \
-    INT_MASK(INT_D_ASID) | \
-    INT_MASK(INT_DOUBLE_FAULT) | \
+    (1ULL << INT_MEM_ERROR) | \
+    (1ULL << INT_IDN_COMPLETE) | \
+    (1ULL << INT_UDN_COMPLETE) | \
+    (1ULL << INT_IDN_FIREWALL) | \
+    (1ULL << INT_UDN_FIREWALL) | \
+    (1ULL << INT_TILE_TIMER) | \
+    (1ULL << INT_AUX_TILE_TIMER) | \
+    (1ULL << INT_IDN_TIMER) | \
+    (1ULL << INT_UDN_TIMER) | \
+    (1ULL << INT_IDN_AVAIL) | \
+    (1ULL << INT_UDN_AVAIL) | \
+    (1ULL << INT_IPI_3) | \
+    (1ULL << INT_IPI_2) | \
+    (1ULL << INT_IPI_1) | \
+    (1ULL << INT_IPI_0) | \
+    (1ULL << INT_PERF_COUNT) | \
+    (1ULL << INT_AUX_PERF_COUNT) | \
+    (1ULL << INT_INTCTRL_3) | \
+    (1ULL << INT_INTCTRL_2) | \
+    (1ULL << INT_INTCTRL_1) | \
+    (1ULL << INT_INTCTRL_0) | \
+    (1ULL << INT_BOOT_ACCESS) | \
+    (1ULL << INT_WORLD_ACCESS) | \
+    (1ULL << INT_I_ASID) | \
+    (1ULL << INT_D_ASID) | \
+    (1ULL << INT_DOUBLE_FAULT) | \
     0)
 #define NONQUEUED_INTERRUPTS ( \
-    INT_MASK(INT_SINGLE_STEP_3) | \
-    INT_MASK(INT_SINGLE_STEP_2) | \
-    INT_MASK(INT_SINGLE_STEP_1) | \
-    INT_MASK(INT_SINGLE_STEP_0) | \
-    INT_MASK(INT_ITLB_MISS) | \
-    INT_MASK(INT_ILL) | \
-    INT_MASK(INT_GPV) | \
-    INT_MASK(INT_IDN_ACCESS) | \
-    INT_MASK(INT_UDN_ACCESS) | \
-    INT_MASK(INT_SWINT_3) | \
-    INT_MASK(INT_SWINT_2) | \
-    INT_MASK(INT_SWINT_1) | \
-    INT_MASK(INT_SWINT_0) | \
-    INT_MASK(INT_ILL_TRANS) | \
-    INT_MASK(INT_UNALIGN_DATA) | \
-    INT_MASK(INT_DTLB_MISS) | \
-    INT_MASK(INT_DTLB_ACCESS) | \
+    (1ULL << INT_SINGLE_STEP_3) | \
+    (1ULL << INT_SINGLE_STEP_2) | \
+    (1ULL << INT_SINGLE_STEP_1) | \
+    (1ULL << INT_SINGLE_STEP_0) | \
+    (1ULL << INT_ITLB_MISS) | \
+    (1ULL << INT_ILL) | \
+    (1ULL << INT_GPV) | \
+    (1ULL << INT_IDN_ACCESS) | \
+    (1ULL << INT_UDN_ACCESS) | \
+    (1ULL << INT_SWINT_3) | \
+    (1ULL << INT_SWINT_2) | \
+    (1ULL << INT_SWINT_1) | \
+    (1ULL << INT_SWINT_0) | \
+    (1ULL << INT_ILL_TRANS) | \
+    (1ULL << INT_UNALIGN_DATA) | \
+    (1ULL << INT_DTLB_MISS) | \
+    (1ULL << INT_DTLB_ACCESS) | \
     0)
 #define CRITICAL_MASKED_INTERRUPTS ( \
-    INT_MASK(INT_MEM_ERROR) | \
-    INT_MASK(INT_SINGLE_STEP_3) | \
-    INT_MASK(INT_SINGLE_STEP_2) | \
-    INT_MASK(INT_SINGLE_STEP_1) | \
-    INT_MASK(INT_SINGLE_STEP_0) | \
-    INT_MASK(INT_IDN_COMPLETE) | \
-    INT_MASK(INT_UDN_COMPLETE) | \
-    INT_MASK(INT_IDN_FIREWALL) | \
-    INT_MASK(INT_UDN_FIREWALL) | \
-    INT_MASK(INT_TILE_TIMER) | \
-    INT_MASK(INT_AUX_TILE_TIMER) | \
-    INT_MASK(INT_IDN_TIMER) | \
-    INT_MASK(INT_UDN_TIMER) | \
-    INT_MASK(INT_IDN_AVAIL) | \
-    INT_MASK(INT_UDN_AVAIL) | \
-    INT_MASK(INT_IPI_3) | \
-    INT_MASK(INT_IPI_2) | \
-    INT_MASK(INT_IPI_1) | \
-    INT_MASK(INT_IPI_0) | \
-    INT_MASK(INT_PERF_COUNT) | \
-    INT_MASK(INT_AUX_PERF_COUNT) | \
-    INT_MASK(INT_INTCTRL_3) | \
-    INT_MASK(INT_INTCTRL_2) | \
-    INT_MASK(INT_INTCTRL_1) | \
-    INT_MASK(INT_INTCTRL_0) | \
+    (1ULL << INT_MEM_ERROR) | \
+    (1ULL << INT_SINGLE_STEP_3) | \
+    (1ULL << INT_SINGLE_STEP_2) | \
+    (1ULL << INT_SINGLE_STEP_1) | \
+    (1ULL << INT_SINGLE_STEP_0) | \
+    (1ULL << INT_IDN_COMPLETE) | \
+    (1ULL << INT_UDN_COMPLETE) | \
+    (1ULL << INT_IDN_FIREWALL) | \
+    (1ULL << INT_UDN_FIREWALL) | \
+    (1ULL << INT_TILE_TIMER) | \
+    (1ULL << INT_AUX_TILE_TIMER) | \
+    (1ULL << INT_IDN_TIMER) | \
+    (1ULL << INT_UDN_TIMER) | \
+    (1ULL << INT_IDN_AVAIL) | \
+    (1ULL << INT_UDN_AVAIL) | \
+    (1ULL << INT_IPI_3) | \
+    (1ULL << INT_IPI_2) | \
+    (1ULL << INT_IPI_1) | \
+    (1ULL << INT_IPI_0) | \
+    (1ULL << INT_PERF_COUNT) | \
+    (1ULL << INT_AUX_PERF_COUNT) | \
+    (1ULL << INT_INTCTRL_3) | \
+    (1ULL << INT_INTCTRL_2) | \
+    (1ULL << INT_INTCTRL_1) | \
+    (1ULL << INT_INTCTRL_0) | \
     0)
 #define CRITICAL_UNMASKED_INTERRUPTS ( \
-    INT_MASK(INT_ITLB_MISS) | \
-    INT_MASK(INT_ILL) | \
-    INT_MASK(INT_GPV) | \
-    INT_MASK(INT_IDN_ACCESS) | \
-    INT_MASK(INT_UDN_ACCESS) | \
-    INT_MASK(INT_SWINT_3) | \
-    INT_MASK(INT_SWINT_2) | \
-    INT_MASK(INT_SWINT_1) | \
-    INT_MASK(INT_SWINT_0) | \
-    INT_MASK(INT_ILL_TRANS) | \
-    INT_MASK(INT_UNALIGN_DATA) | \
-    INT_MASK(INT_DTLB_MISS) | \
-    INT_MASK(INT_DTLB_ACCESS) | \
-    INT_MASK(INT_BOOT_ACCESS) | \
-    INT_MASK(INT_WORLD_ACCESS) | \
-    INT_MASK(INT_I_ASID) | \
-    INT_MASK(INT_D_ASID) | \
-    INT_MASK(INT_DOUBLE_FAULT) | \
+    (1ULL << INT_ITLB_MISS) | \
+    (1ULL << INT_ILL) | \
+    (1ULL << INT_GPV) | \
+    (1ULL << INT_IDN_ACCESS) | \
+    (1ULL << INT_UDN_ACCESS) | \
+    (1ULL << INT_SWINT_3) | \
+    (1ULL << INT_SWINT_2) | \
+    (1ULL << INT_SWINT_1) | \
+    (1ULL << INT_SWINT_0) | \
+    (1ULL << INT_ILL_TRANS) | \
+    (1ULL << INT_UNALIGN_DATA) | \
+    (1ULL << INT_DTLB_MISS) | \
+    (1ULL << INT_DTLB_ACCESS) | \
+    (1ULL << INT_BOOT_ACCESS) | \
+    (1ULL << INT_WORLD_ACCESS) | \
+    (1ULL << INT_I_ASID) | \
+    (1ULL << INT_D_ASID) | \
+    (1ULL << INT_DOUBLE_FAULT) | \
     0)
 #define MASKABLE_INTERRUPTS ( \
-    INT_MASK(INT_MEM_ERROR) | \
-    INT_MASK(INT_SINGLE_STEP_3) | \
-    INT_MASK(INT_SINGLE_STEP_2) | \
-    INT_MASK(INT_SINGLE_STEP_1) | \
-    INT_MASK(INT_SINGLE_STEP_0) | \
-    INT_MASK(INT_IDN_COMPLETE) | \
-    INT_MASK(INT_UDN_COMPLETE) | \
-    INT_MASK(INT_IDN_FIREWALL) | \
-    INT_MASK(INT_UDN_FIREWALL) | \
-    INT_MASK(INT_TILE_TIMER) | \
-    INT_MASK(INT_AUX_TILE_TIMER) | \
-    INT_MASK(INT_IDN_TIMER) | \
-    INT_MASK(INT_UDN_TIMER) | \
-    INT_MASK(INT_IDN_AVAIL) | \
-    INT_MASK(INT_UDN_AVAIL) | \
-    INT_MASK(INT_IPI_3) | \
-    INT_MASK(INT_IPI_2) | \
-    INT_MASK(INT_IPI_1) | \
-    INT_MASK(INT_IPI_0) | \
-    INT_MASK(INT_PERF_COUNT) | \
-    INT_MASK(INT_AUX_PERF_COUNT) | \
-    INT_MASK(INT_INTCTRL_3) | \
-    INT_MASK(INT_INTCTRL_2) | \
-    INT_MASK(INT_INTCTRL_1) | \
-    INT_MASK(INT_INTCTRL_0) | \
+    (1ULL << INT_MEM_ERROR) | \
+    (1ULL << INT_SINGLE_STEP_3) | \
+    (1ULL << INT_SINGLE_STEP_2) | \
+    (1ULL << INT_SINGLE_STEP_1) | \
+    (1ULL << INT_SINGLE_STEP_0) | \
+    (1ULL << INT_IDN_COMPLETE) | \
+    (1ULL << INT_UDN_COMPLETE) | \
+    (1ULL << INT_IDN_FIREWALL) | \
+    (1ULL << INT_UDN_FIREWALL) | \
+    (1ULL << INT_TILE_TIMER) | \
+    (1ULL << INT_AUX_TILE_TIMER) | \
+    (1ULL << INT_IDN_TIMER) | \
+    (1ULL << INT_UDN_TIMER) | \
+    (1ULL << INT_IDN_AVAIL) | \
+    (1ULL << INT_UDN_AVAIL) | \
+    (1ULL << INT_IPI_3) | \
+    (1ULL << INT_IPI_2) | \
+    (1ULL << INT_IPI_1) | \
+    (1ULL << INT_IPI_0) | \
+    (1ULL << INT_PERF_COUNT) | \
+    (1ULL << INT_AUX_PERF_COUNT) | \
+    (1ULL << INT_INTCTRL_3) | \
+    (1ULL << INT_INTCTRL_2) | \
+    (1ULL << INT_INTCTRL_1) | \
+    (1ULL << INT_INTCTRL_0) | \
     0)
 #define UNMASKABLE_INTERRUPTS ( \
-    INT_MASK(INT_ITLB_MISS) | \
-    INT_MASK(INT_ILL) | \
-    INT_MASK(INT_GPV) | \
-    INT_MASK(INT_IDN_ACCESS) | \
-    INT_MASK(INT_UDN_ACCESS) | \
-    INT_MASK(INT_SWINT_3) | \
-    INT_MASK(INT_SWINT_2) | \
-    INT_MASK(INT_SWINT_1) | \
-    INT_MASK(INT_SWINT_0) | \
-    INT_MASK(INT_ILL_TRANS) | \
-    INT_MASK(INT_UNALIGN_DATA) | \
-    INT_MASK(INT_DTLB_MISS) | \
-    INT_MASK(INT_DTLB_ACCESS) | \
-    INT_MASK(INT_BOOT_ACCESS) | \
-    INT_MASK(INT_WORLD_ACCESS) | \
-    INT_MASK(INT_I_ASID) | \
-    INT_MASK(INT_D_ASID) | \
-    INT_MASK(INT_DOUBLE_FAULT) | \
+    (1ULL << INT_ITLB_MISS) | \
+    (1ULL << INT_ILL) | \
+    (1ULL << INT_GPV) | \
+    (1ULL << INT_IDN_ACCESS) | \
+    (1ULL << INT_UDN_ACCESS) | \
+    (1ULL << INT_SWINT_3) | \
+    (1ULL << INT_SWINT_2) | \
+    (1ULL << INT_SWINT_1) | \
+    (1ULL << INT_SWINT_0) | \
+    (1ULL << INT_ILL_TRANS) | \
+    (1ULL << INT_UNALIGN_DATA) | \
+    (1ULL << INT_DTLB_MISS) | \
+    (1ULL << INT_DTLB_ACCESS) | \
+    (1ULL << INT_BOOT_ACCESS) | \
+    (1ULL << INT_WORLD_ACCESS) | \
+    (1ULL << INT_I_ASID) | \
+    (1ULL << INT_D_ASID) | \
+    (1ULL << INT_DOUBLE_FAULT) | \
     0)
 #define SYNC_INTERRUPTS ( \
-    INT_MASK(INT_SINGLE_STEP_3) | \
-    INT_MASK(INT_SINGLE_STEP_2) | \
-    INT_MASK(INT_SINGLE_STEP_1) | \
-    INT_MASK(INT_SINGLE_STEP_0) | \
-    INT_MASK(INT_IDN_COMPLETE) | \
-    INT_MASK(INT_UDN_COMPLETE) | \
-    INT_MASK(INT_ITLB_MISS) | \
-    INT_MASK(INT_ILL) | \
-    INT_MASK(INT_GPV) | \
-    INT_MASK(INT_IDN_ACCESS) | \
-    INT_MASK(INT_UDN_ACCESS) | \
-    INT_MASK(INT_SWINT_3) | \
-    INT_MASK(INT_SWINT_2) | \
-    INT_MASK(INT_SWINT_1) | \
-    INT_MASK(INT_SWINT_0) | \
-    INT_MASK(INT_ILL_TRANS) | \
-    INT_MASK(INT_UNALIGN_DATA) | \
-    INT_MASK(INT_DTLB_MISS) | \
-    INT_MASK(INT_DTLB_ACCESS) | \
+    (1ULL << INT_SINGLE_STEP_3) | \
+    (1ULL << INT_SINGLE_STEP_2) | \
+    (1ULL << INT_SINGLE_STEP_1) | \
+    (1ULL << INT_SINGLE_STEP_0) | \
+    (1ULL << INT_IDN_COMPLETE) | \
+    (1ULL << INT_UDN_COMPLETE) | \
+    (1ULL << INT_ITLB_MISS) | \
+    (1ULL << INT_ILL) | \
+    (1ULL << INT_GPV) | \
+    (1ULL << INT_IDN_ACCESS) | \
+    (1ULL << INT_UDN_ACCESS) | \
+    (1ULL << INT_SWINT_3) | \
+    (1ULL << INT_SWINT_2) | \
+    (1ULL << INT_SWINT_1) | \
+    (1ULL << INT_SWINT_0) | \
+    (1ULL << INT_ILL_TRANS) | \
+    (1ULL << INT_UNALIGN_DATA) | \
+    (1ULL << INT_DTLB_MISS) | \
+    (1ULL << INT_DTLB_ACCESS) | \
     0)
 #define NON_SYNC_INTERRUPTS ( \
-    INT_MASK(INT_MEM_ERROR) | \
-    INT_MASK(INT_IDN_FIREWALL) | \
-    INT_MASK(INT_UDN_FIREWALL) | \
-    INT_MASK(INT_TILE_TIMER) | \
-    INT_MASK(INT_AUX_TILE_TIMER) | \
-    INT_MASK(INT_IDN_TIMER) | \
-    INT_MASK(INT_UDN_TIMER) | \
-    INT_MASK(INT_IDN_AVAIL) | \
-    INT_MASK(INT_UDN_AVAIL) | \
-    INT_MASK(INT_IPI_3) | \
-    INT_MASK(INT_IPI_2) | \
-    INT_MASK(INT_IPI_1) | \
-    INT_MASK(INT_IPI_0) | \
-    INT_MASK(INT_PERF_COUNT) | \
-    INT_MASK(INT_AUX_PERF_COUNT) | \
-    INT_MASK(INT_INTCTRL_3) | \
-    INT_MASK(INT_INTCTRL_2) | \
-    INT_MASK(INT_INTCTRL_1) | \
-    INT_MASK(INT_INTCTRL_0) | \
-    INT_MASK(INT_BOOT_ACCESS) | \
-    INT_MASK(INT_WORLD_ACCESS) | \
-    INT_MASK(INT_I_ASID) | \
-    INT_MASK(INT_D_ASID) | \
-    INT_MASK(INT_DOUBLE_FAULT) | \
+    (1ULL << INT_MEM_ERROR) | \
+    (1ULL << INT_IDN_FIREWALL) | \
+    (1ULL << INT_UDN_FIREWALL) | \
+    (1ULL << INT_TILE_TIMER) | \
+    (1ULL << INT_AUX_TILE_TIMER) | \
+    (1ULL << INT_IDN_TIMER) | \
+    (1ULL << INT_UDN_TIMER) | \
+    (1ULL << INT_IDN_AVAIL) | \
+    (1ULL << INT_UDN_AVAIL) | \
+    (1ULL << INT_IPI_3) | \
+    (1ULL << INT_IPI_2) | \
+    (1ULL << INT_IPI_1) | \
+    (1ULL << INT_IPI_0) | \
+    (1ULL << INT_PERF_COUNT) | \
+    (1ULL << INT_AUX_PERF_COUNT) | \
+    (1ULL << INT_INTCTRL_3) | \
+    (1ULL << INT_INTCTRL_2) | \
+    (1ULL << INT_INTCTRL_1) | \
+    (1ULL << INT_INTCTRL_0) | \
+    (1ULL << INT_BOOT_ACCESS) | \
+    (1ULL << INT_WORLD_ACCESS) | \
+    (1ULL << INT_I_ASID) | \
+    (1ULL << INT_D_ASID) | \
+    (1ULL << INT_DOUBLE_FAULT) | \
     0)
 #endif /* !__ASSEMBLER__ */
 #endif /* !__ARCH_INTERRUPTS_H__ */

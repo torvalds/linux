@@ -140,6 +140,8 @@ config ARCH_DEFCONFIG
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "Tilera-specific configuration"
 
 config NR_CPUS

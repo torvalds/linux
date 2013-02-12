@@ -18,32 +18,20 @@
 #include <arch/interrupts.h>
 #include <arch/chip.h>
 
-#if !defined(__tilegx__) && defined(__ASSEMBLY__)
-
 /*
  * The set of interrupts we want to allow when interrupts are nominally
  * disabled.  The remainder are effectively "NMI" interrupts from
  * the point of view of the generic Linux code.  Note that synchronous
  * interrupts (aka "non-queued") are not blocked by the mask in any case.
  */
-#if CHIP_HAS_AUX_PERF_COUNTERS()
-#define LINUX_MASKABLE_INTERRUPTS_HI \
-	(~(INT_MASK_HI(INT_PERF_COUNT) | INT_MASK_HI(INT_AUX_PERF_COUNT)))
-#else
-#define LINUX_MASKABLE_INTERRUPTS_HI \
-	(~(INT_MASK_HI(INT_PERF_COUNT)))
-#endif
-
-#else
-
-#if CHIP_HAS_AUX_PERF_COUNTERS()
 #define LINUX_MASKABLE_INTERRUPTS \
-	(~(INT_MASK(INT_PERF_COUNT) | INT_MASK(INT_AUX_PERF_COUNT)))
-#else
-#define LINUX_MASKABLE_INTERRUPTS \
-	(~(INT_MASK(INT_PERF_COUNT)))
-#endif
+	(~((_AC(1,ULL) << INT_PERF_COUNT) | (_AC(1,ULL) << INT_AUX_PERF_COUNT)))
 
+#if CHIP_HAS_SPLIT_INTR_MASK()
+/* The same macro, but for the two 32-bit SPRs separately. */
+#define LINUX_MASKABLE_INTERRUPTS_LO (-1)
+#define LINUX_MASKABLE_INTERRUPTS_HI \
+	(~((1 << (INT_PERF_COUNT - 32)) | (1 << (INT_AUX_PERF_COUNT - 32))))
 #endif
 
 #ifndef __ASSEMBLY__
@@ -126,7 +114,7 @@
  * to know our current state.
  */
 DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
-#define INITIAL_INTERRUPTS_ENABLED INT_MASK(INT_MEM_ERROR)
+#define INITIAL_INTERRUPTS_ENABLED (1ULL << INT_MEM_ERROR)
 
 /* Disable interrupts. */
 #define arch_local_irq_disable() \
@@ -165,7 +153,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Prevent the given interrupt from being enabled next time we enable irqs. */
 #define arch_local_irq_mask(interrupt) \
-	(__get_cpu_var(interrupts_enabled_mask) &= ~INT_MASK(interrupt))
+	(__get_cpu_var(interrupts_enabled_mask) &= ~(1ULL << (interrupt)))
 
 /* Prevent the given interrupt from being enabled immediately. */
 #define arch_local_irq_mask_now(interrupt) do { \
@@ -175,7 +163,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Allow the given interrupt to be enabled next time we enable irqs. */
 #define arch_local_irq_unmask(interrupt) \
-	(__get_cpu_var(interrupts_enabled_mask) |= INT_MASK(interrupt))
+	(__get_cpu_var(interrupts_enabled_mask) |= (1ULL << (interrupt)))
 
 /* Allow the given interrupt to be enabled immediately, if !irqs_disabled. */
 #define arch_local_irq_unmask_now(interrupt) do { \
@@ -250,7 +238,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 /* Disable interrupts. */
 #define IRQ_DISABLE(tmp0, tmp1)					\
 	{							\
-	 movei  tmp0, -1;					\
+	 movei  tmp0, LINUX_MASKABLE_INTERRUPTS_LO;		\
 	 moveli tmp1, lo16(LINUX_MASKABLE_INTERRUPTS_HI)	\
 	};							\
 	{							\
