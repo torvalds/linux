@@ -299,6 +299,7 @@ void exynos4_restart(char mode, const char *cmd)
 
 void exynos5_restart(char mode, const char *cmd)
 {
+	struct device_node *np;
 	u32 val;
 	void __iomem *addr;
 
@@ -306,8 +307,9 @@ void exynos5_restart(char mode, const char *cmd)
 		val = 0x1;
 		addr = EXYNOS_SWRESET;
 	} else if (of_machine_is_compatible("samsung,exynos5440")) {
-		val = (0x10 << 20) | (0x1 << 16);
-		addr = EXYNOS5440_SWRESET;
+		np = of_find_compatible_node(NULL, NULL, "samsung,exynos5440-clock");
+		addr = of_iomap(np, 0) + 0xcc;
+		val = (0xfff << 20) | (0x1 << 16);
 	} else {
 		pr_err("%s: cannot support non-DT\n", __func__);
 		return;
@@ -1031,8 +1033,8 @@ static int __init exynos_init_irq_eint(void)
 	 * interrupt support code here can be completely removed.
 	 */
 	static const struct of_device_id exynos_pinctrl_ids[] = {
-		{ .compatible = "samsung,pinctrl-exynos4210", },
-		{ .compatible = "samsung,pinctrl-exynos4x12", },
+		{ .compatible = "samsung,exynos4210-pinctrl", },
+		{ .compatible = "samsung,exynos4x12-pinctrl", },
 	};
 	struct device_node *pctrl_np, *wkup_np;
 	const char *wkup_compat = "samsung,exynos4210-wakeup-eint";

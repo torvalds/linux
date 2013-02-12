@@ -7,9 +7,9 @@ on-chip controllers onto these pads.
 
 Required Properties:
 - compatible: should be one of the following.
-  - "samsung,pinctrl-exynos4210": for Exynos4210 compatible pin-controller.
-  - "samsung,pinctrl-exynos4x12": for Exynos4x12 compatible pin-controller.
-  - "samsung,pinctrl-exynos5250": for Exynos5250 compatible pin-controller.
+  - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
+  - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
+  - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
   the address space it occupies.
@@ -142,7 +142,7 @@ the following format 'pinctrl{n}' where n is a unique number for the alias.
 Example: A pin-controller node with pin banks:
 
 	pinctrl_0: pinctrl@11400000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
 
@@ -185,7 +185,7 @@ Example: A pin-controller node with pin banks:
 Example 1: A pin-controller node with pin groups.
 
 	pinctrl_0: pinctrl@11400000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
 
@@ -230,7 +230,7 @@ Example 1: A pin-controller node with pin groups.
 Example 2: A pin-controller node with external wakeup interrupt controller node.
 
 	pinctrl_1: pinctrl@11000000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11000000 0x1000>;
 		interrupts = <0 46 0>
 

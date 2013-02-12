@@ -197,9 +197,9 @@
 				};
 
 				usart3 {
-					pinctrl_uart3: usart3-0 {
+					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<2 23 0x2 0x1	/* PC22 periph B with pullup */
+							<2 22 0x2 0x1	/* PC22 periph B with pullup */
 							 2 23 0x2 0x0>;	/* PC23 periph B */
 					};
 
