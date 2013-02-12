@@ -168,31 +168,29 @@ do {						      \
 #define get_user(x, ptr)						\
 ({									\
 	int __ret_gu;							\
-	unsigned long __val_gu;						\
-	unsigned long long __val_gu8;					\
+	struct {							\
+		unsigned long long __val_n : 8*sizeof(*(ptr));		\
+	} __val_gu;							\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
+		__get_user_x(1, __ret_gu, __val_gu.__val_n, ptr);	\
 		break;							\
 	case 2:								\
-		__get_user_x(2, __ret_gu, __val_gu, ptr);		\
+		__get_user_x(2, __ret_gu, __val_gu.__val_n, ptr);	\
 		break;							\
 	case 4:								\
-		__get_user_x(4, __ret_gu, __val_gu, ptr);		\
+		__get_user_x(4, __ret_gu, __val_gu.__val_n, ptr);	\
 		break;							\
 	case 8:								\
-		__get_user_8(__ret_gu, __val_gu8, ptr);			\
+		__get_user_8(__ret_gu, __val_gu.__val_n, ptr);		\
 		break;							\
 	default:							\
-		__get_user_x(X, __ret_gu, __val_gu, ptr);		\
+		__get_user_x(X, __ret_gu, __val_gu.__val_n, ptr);	\
 		break;							\
 	}								\
-	if (sizeof(*(ptr)) == 8)					\
-		(x) = (__typeof__(*(ptr)))__val_gu8;			\
-	else								\
-		(x) = (__typeof__(*(ptr)))__val_gu;			\
+	(x) = (__typeof__(*(ptr)))__val_gu.__val_n;			\
 	__ret_gu;							\
 })
 
