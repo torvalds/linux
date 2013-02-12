@@ -422,7 +422,7 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 
 	/* Fill GPIO pin array */
 	pdata->num_ctrl = of_gpio_count(node);
-	if (!pdata->num_ctrl) {
+	if (pdata->num_ctrl <= 0) {
 		dev_err(dev, "gpios DT property empty / missing");
 		return -ENODEV;
 	}
@@ -477,7 +477,7 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 	pdata->speed = speed;
 
 	/* Alarm GPIO if one exists */
-	if (of_gpio_named_count(node, "alarm-gpios")) {
+	if (of_gpio_named_count(node, "alarm-gpios") > 0) {
 		struct gpio_fan_alarm *alarm;
 		int val;
 		enum of_gpio_flags flags;

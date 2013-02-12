@@ -1059,15 +1059,14 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
 #ifdef CONFIG_OF
 static int of_spi_register_master(struct spi_master *master)
 {
-	u16 nb;
-	int i, *cs;
+	int nb, i, *cs;
 	struct device_node *np = master->dev.of_node;
 
 	if (!np)
 		return 0;
 
 	nb = of_gpio_named_count(np, "cs-gpios");
-	master->num_chipselect = max(nb, master->num_chipselect);
+	master->num_chipselect = max(nb, (int)master->num_chipselect);
 
 	if (nb < 1)
 		return 0;
