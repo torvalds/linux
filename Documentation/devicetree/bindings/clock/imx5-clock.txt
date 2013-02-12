@@ -171,6 +171,7 @@ clocks and IDs.
 	can_sel			156
 	can1_serial_gate	157
 	can1_ipg_gate		158
+	owire_gate		159
 
 Examples (for mx53):
 

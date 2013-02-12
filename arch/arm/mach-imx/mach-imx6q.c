@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -22,6 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/opp.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
@@ -209,9 +211,72 @@ static struct cpuidle_driver imx6q_cpuidle_driver = {
 	.state_count		= 1,
 };
 
+#define OCOTP_CFG3			0x440
+#define OCOTP_CFG3_SPEED_SHIFT		16
+#define OCOTP_CFG3_SPEED_1P2GHZ		0x3
+
+static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
+{
+	struct device_node *np;
+	void __iomem *base;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+	if (!np) {
+		pr_warn("failed to find ocotp node\n");
+		return;
+	}
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_warn("failed to map ocotp\n");
+		goto put_node;
+	}
+
+	val = readl_relaxed(base + OCOTP_CFG3);
+	val >>= OCOTP_CFG3_SPEED_SHIFT;
+	if ((val & 0x3) != OCOTP_CFG3_SPEED_1P2GHZ)
+		if (opp_disable(cpu_dev, 1200000000))
+			pr_warn("failed to disable 1.2 GHz OPP\n");
+
+put_node:
+	of_node_put(np);
+}
+
+static void __init imx6q_opp_init(struct device *cpu_dev)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_path("/cpus/cpu@0");
+	if (!np) {
+		pr_warn("failed to find cpu0 node\n");
+		return;
+	}
+
+	cpu_dev->of_node = np;
+	if (of_init_opp_table(cpu_dev)) {
+		pr_warn("failed to init OPP table\n");
+		goto put_node;
+	}
+
+	imx6q_opp_check_1p2ghz(cpu_dev);
+
+put_node:
+	of_node_put(np);
+}
+
+struct platform_device imx6q_cpufreq_pdev = {
+	.name = "imx6q-cpufreq",
+};
+
 static void __init imx6q_init_late(void)
 {
 	imx_cpuidle_init(&imx6q_cpuidle_driver);
+
+	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
+		imx6q_opp_init(&imx6q_cpufreq_pdev.dev);
+		platform_device_register(&imx6q_cpufreq_pdev);
+	}
 }
 
 static void __init imx6q_map_io(void)

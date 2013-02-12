@@ -1,0 +1,130 @@
+/*
+ * Copyright 2012 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
+ * Copyright 2012 Steffen Trumtrar <s.trumtrar@pengutronix.de>, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx53-tqma53.dtsi"
+
+/ {
+	model = "TQ MBa53 starter kit";
+	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
+};
+
+&iomuxc {
+	lvds1 {
+		pinctrl_lvds1_1: lvds1-grp1 {
+			fsl,pins = <730 0x10000		/* LVDS0_TX3 */
+				    732 0x10000		/* LVDS0_CLK */
+				    734 0x10000		/* LVDS0_TX2 */
+				    736 0x10000		/* LVDS0_TX1 */
+				    738 0x10000>;	/* LVDS0_TX0 */
+		};
+
+		pinctrl_lvds1_2: lvds1-grp2 {
+			fsl,pins = <720 0x10000		/* LVDS1_TX3 */
+				    722 0x10000		/* LVDS1_TX2 */
+				    724 0x10000		/* LVDS1_CLK */
+				    726 0x10000		/* LVDS1_TX1 */
+				    728 0x10000>;	/* LVDS1_TX0 */
+		};
+	};
+
+	disp1 {
+		pinctrl_disp1_1: disp1-grp1 {
+			fsl,pins = <689 0x10000		/* DISP1_DRDY	*/
+				    482 0x10000		/* DISP1_HSYNC	*/
+				    489 0x10000		/* DISP1_VSYNC	*/
+				    684 0x10000		/* DISP1_DAT_0	*/
+				    515 0x10000		/* DISP1_DAT_22	*/
+				    523 0x10000		/* DISP1_DAT_23	*/
+				    543 0x10000		/* DISP1_DAT_21	*/
+				    553 0x10000		/* DISP1_DAT_20	*/
+				    558 0x10000		/* DISP1_DAT_19	*/
+				    564 0x10000		/* DISP1_DAT_18	*/
+				    570 0x10000		/* DISP1_DAT_17	*/
+				    575 0x10000		/* DISP1_DAT_16	*/
+				    580 0x10000		/* DISP1_DAT_15	*/
+				    585 0x10000		/* DISP1_DAT_14	*/
+				    590 0x10000		/* DISP1_DAT_13	*/
+				    595 0x10000		/* DISP1_DAT_12	*/
+				    628 0x10000		/* DISP1_DAT_11	*/
+				    634 0x10000		/* DISP1_DAT_10	*/
+				    639 0x10000		/* DISP1_DAT_9	*/
+				    644 0x10000		/* DISP1_DAT_8	*/
+				    649 0x10000		/* DISP1_DAT_7	*/
+				    654 0x10000		/* DISP1_DAT_6	*/
+				    659 0x10000		/* DISP1_DAT_5	*/
+				    664 0x10000		/* DISP1_DAT_4	*/
+				    669 0x10000		/* DISP1_DAT_3	*/
+				    674 0x10000		/* DISP1_DAT_2	*/
+				    679 0x10000		/* DISP1_DAT_1	*/
+				    684 0x10000>;	/* DISP1_DAT_0	*/
+		};
+	};
+};
+
+&cspi {
+	status = "okay";
+};
+
+&i2c2 {
+	codec: sgtl5000@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+	};
+
+	expander: pca9554@20 {
+		compatible = "pca9554";
+		reg = <0x20>;
+		interrupts = <109>;
+	};
+
+	sensor2: lm75@49 {
+		compatible = "lm75";
+		reg = <0x49>;
+	};
+};
+
+&fec {
+	status = "okay";
+};
+
+&esdhc2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&ecspi1 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&can2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
