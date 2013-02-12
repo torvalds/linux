@@ -1802,7 +1802,8 @@ static void alc889_fixup_imac91_vref(struct hda_codec *codec,
 }
 
 /* Don't take HP output as primary
- * strangely, the speaker output doesn't work on VAIO Z through DAC 0x05
+ * Strangely, the speaker output doesn't work on Vaio Z and some Vaio
+ * all-in-one desktop PCs (for example VGC-LN51JGB) through DAC 0x05
  */
 static void alc882_fixup_no_primary_hp(struct hda_codec *codec,
 				       const struct hda_fixup *fix, int action)
