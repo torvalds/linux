@@ -101,8 +101,55 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 	add_sta_cmd.add_modify = update ? 1 : 0;
 
-	/* STA_FLG_FAT_EN_MSK ? */
-	/* STA_FLG_MIMO_EN_MSK ? */
+	add_sta_cmd.station_flags_msk |= cpu_to_le32(STA_FLG_FAT_EN_MSK |
+						     STA_FLG_MIMO_EN_MSK);
+
+	switch (sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_160:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_160MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_80:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_80MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_40:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_40MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_20:
+		if (sta->ht_cap.ht_supported)
+			add_sta_cmd.station_flags |=
+				cpu_to_le32(STA_FLG_FAT_EN_20MHZ);
+		break;
+	}
+
+	switch (sta->rx_nss) {
+	case 1:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_SISO);
+		break;
+	case 2:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_MIMO2);
+		break;
+	case 3 ... 8:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_MIMO3);
+		break;
+	}
+
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_AUTOMATIC:
+	case IEEE80211_SMPS_NUM_MODES:
+		WARN_ON(1);
+		break;
+	case IEEE80211_SMPS_STATIC:
+		/* override NSS */
+		add_sta_cmd.station_flags &= ~cpu_to_le32(STA_FLG_MIMO_EN_MSK);
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_SISO);
+		break;
+	case IEEE80211_SMPS_DYNAMIC:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_RTS_MIMO_PROT);
+		break;
+	case IEEE80211_SMPS_OFF:
+		/* nothing */
+		break;
+	}
 
 	if (sta->ht_cap.ht_supported) {
 		add_sta_cmd.station_flags_msk |=
