@@ -268,8 +268,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 	 * point dentry is definitely not a root, so we won't need
 	 * that anymore.
 	 */
-	if (devname_garbage)
-		kfree(devname_garbage);
+	kfree(devname_garbage);
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
