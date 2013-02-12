@@ -240,6 +240,7 @@ int ntb_write_local_spad(struct ntb_device *ndev, unsigned int idx, u32 val);
 int ntb_read_local_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
 int ntb_write_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 val);
 int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
+resource_size_t ntb_get_mw_base(struct ntb_device *ndev, unsigned int mw);
 void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw);
 u64 ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw);
 void ntb_ring_sdb(struct ntb_device *ndev, unsigned int idx);

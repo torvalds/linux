@@ -350,6 +350,23 @@ int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val)
 }
 
 /**
+ * ntb_get_mw_base() - get addr for the NTB memory window
+ * @ndev: pointer to ntb_device instance
+ * @mw: memory window number
+ *
+ * This function provides the base address of the memory window specified.
+ *
+ * RETURNS: address, or NULL on error.
+ */
+resource_size_t ntb_get_mw_base(struct ntb_device *ndev, unsigned int mw)
+{
+	if (mw >= ntb_max_mw(ndev))
+		return 0;
+
+	return pci_resource_start(ndev->pdev, MW_TO_BAR(mw));
+}
+
+/**
  * ntb_get_mw_vbase() - get virtual addr for the NTB memory window
  * @ndev: pointer to ntb_device instance
  * @mw: memory window number
