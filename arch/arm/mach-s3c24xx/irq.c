@@ -838,43 +838,11 @@ static struct irq_chip s3c_irq_wdtac97 = {
 	.irq_ack	= s3c_irq_wdtac97_ack,
 };
 
-static int s3c2440_irq_add(struct device *dev, struct subsys_interface *sif)
+void __init s3c2440_init_irq(void)
 {
 	unsigned int irqno;
 
 	printk("S3C2440: IRQ Support\n");
-
-	/* add new chained handler for wdt, ac7 */
-
-	irq_set_chip_and_handler(IRQ_WDT, &s3c_irq_level_chip,
-				 handle_level_irq);
-	irq_set_chained_handler(IRQ_WDT, s3c_irq_demux_wdtac97);
-
-	for (irqno = IRQ_S3C2440_WDT; irqno <= IRQ_S3C2440_AC97; irqno++) {
-		irq_set_chip_and_handler(irqno, &s3c_irq_wdtac97,
-					 handle_level_irq);
-		set_irq_flags(irqno, IRQF_VALID);
-	}
-
-	return 0;
-}
-
-static struct subsys_interface s3c2440_irq_interface = {
-	.name		= "s3c2440_irq",
-	.subsys		= &s3c2440_subsys,
-	.add_dev	= s3c2440_irq_add,
-};
-
-static int s3c2440_irq_init(void)
-{
-	return subsys_interface_register(&s3c2440_irq_interface);
-}
-
-arch_initcall(s3c2440_irq_init);
-
-void __init s3c2440_init_irq(void)
-{
-	unsigned int irqno;
 
 	s3c24xx_init_irq();
 
@@ -890,6 +858,18 @@ void __init s3c2440_init_irq(void)
 
 	for (irqno = IRQ_S3C2440_CAM_C; irqno <= IRQ_S3C2440_CAM_P; irqno++) {
 		irq_set_chip_and_handler(irqno, &s3c_irq_cam,
+					 handle_level_irq);
+		set_irq_flags(irqno, IRQF_VALID);
+	}
+
+	/* add new chained handler for wdt, ac7 */
+
+	irq_set_chip_and_handler(IRQ_WDT, &s3c_irq_level_chip,
+				 handle_level_irq);
+	irq_set_chained_handler(IRQ_WDT, s3c_irq_demux_wdtac97);
+
+	for (irqno = IRQ_S3C2440_WDT; irqno <= IRQ_S3C2440_AC97; irqno++) {
+		irq_set_chip_and_handler(irqno, &s3c_irq_wdtac97,
 					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
