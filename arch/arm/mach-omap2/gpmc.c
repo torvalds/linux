@@ -181,7 +181,7 @@ void gpmc_cs_write_reg(int cs, int idx, u32 val)
 	__raw_writel(val, reg_addr);
 }
 
-u32 gpmc_cs_read_reg(int cs, int idx)
+static u32 gpmc_cs_read_reg(int cs, int idx)
 {
 	void __iomem *reg_addr;
 
@@ -190,7 +190,7 @@ u32 gpmc_cs_read_reg(int cs, int idx)
 }
 
 /* TODO: Add support for gpmc_fck to clock framework and use it */
-unsigned long gpmc_get_fclk_period(void)
+static unsigned long gpmc_get_fclk_period(void)
 {
 	unsigned long rate = clk_get_rate(gpmc_l3_clk);
 
@@ -205,7 +205,7 @@ unsigned long gpmc_get_fclk_period(void)
 	return rate;
 }
 
-unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
+static unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 {
 	unsigned long tick_ps;
 
@@ -215,7 +215,7 @@ unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 	return (time_ns * 1000 + tick_ps - 1) / tick_ps;
 }
 
-unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
+static unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 {
 	unsigned long tick_ps;
 
@@ -230,7 +230,7 @@ unsigned int gpmc_ticks_to_ns(unsigned int ticks)
 	return ticks * gpmc_get_fclk_period() / 1000;
 }
 
-unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns)
+static unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns)
 {
 	unsigned long ticks = gpmc_ns_to_ticks(time_ns);
 
@@ -448,7 +448,7 @@ static int gpmc_cs_mem_enabled(int cs)
 	return l & GPMC_CONFIG7_CSVALID;
 }
 
-int gpmc_cs_set_reserved(int cs, int reserved)
+static int gpmc_cs_set_reserved(int cs, int reserved)
 {
 	if (cs > GPMC_CS_NUM)
 		return -ENODEV;
@@ -459,7 +459,7 @@ int gpmc_cs_set_reserved(int cs, int reserved)
 	return 0;
 }
 
-int gpmc_cs_reserved(int cs)
+static int gpmc_cs_reserved(int cs)
 {
 	if (cs > GPMC_CS_NUM)
 		return -ENODEV;

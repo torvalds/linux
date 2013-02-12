@@ -198,20 +198,13 @@ extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
 extern int gpmc_get_client_irq(unsigned irq_config);
 
-extern unsigned int gpmc_ns_to_ticks(unsigned int time_ns);
-extern unsigned int gpmc_ps_to_ticks(unsigned int time_ps);
 extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
-extern unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns);
-extern unsigned long gpmc_get_fclk_period(void);
 
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
-extern u32 gpmc_cs_read_reg(int cs, int idx);
 extern int gpmc_calc_divider(unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
-extern int gpmc_cs_set_reserved(int cs, int reserved);
-extern int gpmc_cs_reserved(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
 extern int gpmc_cs_configure(int cs, int cmd, int wval);
