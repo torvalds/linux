@@ -12,6 +12,10 @@
 #include <linux/notifier.h>
 #include <linux/err.h>
 
+/* Offset for the firmware version within the TCPM */
+#define DB8500_PRCMU_FW_VERSION_OFFSET 0xA4
+#define DBX540_PRCMU_FW_VERSION_OFFSET 0xA8
+
 /* PRCMU Wakeup defines */
 enum prcmu_wakeup_index {
 	PRCMU_WAKEUP_INDEX_RTC,
@@ -212,6 +216,48 @@ enum ddr_pwrst {
 	DDR_PWR_STATE_ON            = 0x01,
 	DDR_PWR_STATE_OFFLOWLAT     = 0x02,
 	DDR_PWR_STATE_OFFHIGHLAT    = 0x03
+};
+
+#define DB8500_PRCMU_LEGACY_OFFSET		0xDD4
+
+struct prcmu_pdata
+{
+	bool enable_set_ddr_opp;
+	bool enable_ape_opp_100_voltage;
+	struct ab8500_platform_data *ab_platdata;
+	u32 version_offset;
+	u32 legacy_offset;
+	u32 adt_offset;
+};
+
+#define PRCMU_FW_PROJECT_U8500		2
+#define PRCMU_FW_PROJECT_U8400		3
+#define PRCMU_FW_PROJECT_U9500		4 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_MBB	5
+#define PRCMU_FW_PROJECT_U8500_C1	6
+#define PRCMU_FW_PROJECT_U8500_C2	7
+#define PRCMU_FW_PROJECT_U8500_C3	8
+#define PRCMU_FW_PROJECT_U8500_C4	9
+#define PRCMU_FW_PROJECT_U9500_MBL	10
+#define PRCMU_FW_PROJECT_U8500_MBL	11 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_MBL2	12 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8520		13
+#define PRCMU_FW_PROJECT_U8420		14
+#define PRCMU_FW_PROJECT_A9420		20
+/* [32..63] 9540 and derivatives */
+#define PRCMU_FW_PROJECT_U9540		32
+/* [64..95] 8540 and derivatives */
+#define PRCMU_FW_PROJECT_L8540		64
+/* [96..126] 8580 and derivatives */
+#define PRCMU_FW_PROJECT_L8580		96
+
+#define PRCMU_FW_PROJECT_NAME_LEN	20
+struct prcmu_fw_version {
+	u32 project; /* Notice, project shifted with 8 on ux540 */
+	u8 api_version;
+	u8 func_version;
+	u8 errata;
+	char project_name[PRCMU_FW_PROJECT_NAME_LEN];
 };
 
 #include <linux/mfd/db8500-prcmu.h>

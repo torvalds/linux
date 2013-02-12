@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <mach/id.h>
 
 static struct cpufreq_frequency_table *freq_table;
 static struct clk *armss_clk;
