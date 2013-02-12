@@ -452,10 +452,10 @@ static int gpmc_cs_set_reserved(int cs, int reserved)
 	return 0;
 }
 
-static int gpmc_cs_reserved(int cs)
+static bool gpmc_cs_reserved(int cs)
 {
 	if (cs > GPMC_CS_NUM)
-		return -ENODEV;
+		return true;
 
 	return gpmc_cs_map & (1 << cs);
 }
