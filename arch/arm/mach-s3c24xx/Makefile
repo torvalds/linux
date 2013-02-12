@@ -22,7 +22,7 @@ obj-$(CONFIG_S3C2410_DMA)	+= dma-s3c2410.o
 obj-$(CONFIG_S3C2410_PLL)	+= pll-s3c2410.o
 obj-$(CONFIG_S3C2410_PM)	+= pm-s3c2410.o sleep-s3c2410.o
 
-obj-$(CONFIG_CPU_S3C2412)	+= s3c2412.o irq-s3c2412.o clock-s3c2412.o
+obj-$(CONFIG_CPU_S3C2412)	+= s3c2412.o clock-s3c2412.o
 obj-$(CONFIG_S3C2412_CPUFREQ)	+= cpufreq-s3c2412.o
 obj-$(CONFIG_S3C2412_DMA)	+= dma-s3c2412.o
 obj-$(CONFIG_S3C2412_PM)	+= pm-s3c2412.o
