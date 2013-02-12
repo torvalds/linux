@@ -1238,6 +1238,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 portid, u32 seq, int flag
 					dev->wiphy.wowlan.pattern_min_len,
 				.max_pattern_len =
 					dev->wiphy.wowlan.pattern_max_len,
+				.max_pkt_offset =
+					dev->wiphy.wowlan.max_pkt_offset,
 			};
 			if (nla_put(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN,
 				    sizeof(pat), &pat))
@@ -6895,6 +6897,39 @@ static int nl80211_leave_mesh(struct sk_buff *skb, struct genl_info *info)
 }
 
 #ifdef CONFIG_PM
+static int nl80211_send_wowlan_patterns(struct sk_buff *msg,
+					struct cfg80211_registered_device *rdev)
+{
+	struct nlattr *nl_pats, *nl_pat;
+	int i, pat_len;
+
+	if (!rdev->wowlan->n_patterns)
+		return 0;
+
+	nl_pats = nla_nest_start(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN);
+	if (!nl_pats)
+		return -ENOBUFS;
+
+	for (i = 0; i < rdev->wowlan->n_patterns; i++) {
+		nl_pat = nla_nest_start(msg, i + 1);
+		if (!nl_pat)
+			return -ENOBUFS;
+		pat_len = rdev->wowlan->patterns[i].pattern_len;
+		if (nla_put(msg, NL80211_WOWLAN_PKTPAT_MASK,
+			    DIV_ROUND_UP(pat_len, 8),
+			    rdev->wowlan->patterns[i].mask) ||
+		    nla_put(msg, NL80211_WOWLAN_PKTPAT_PATTERN,
+			    pat_len, rdev->wowlan->patterns[i].pattern) ||
+		    nla_put_u32(msg, NL80211_WOWLAN_PKTPAT_OFFSET,
+				rdev->wowlan->patterns[i].pkt_offset))
+			return -ENOBUFS;
+		nla_nest_end(msg, nl_pat);
+	}
+	nla_nest_end(msg, nl_pats);
+
+	return 0;
+}
+
 static int nl80211_get_wowlan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -6935,32 +6970,8 @@ static int nl80211_get_wowlan(struct sk_buff *skb, struct genl_info *info)
 		    (rdev->wowlan->rfkill_release &&
 		     nla_put_flag(msg, NL80211_WOWLAN_TRIG_RFKILL_RELEASE)))
 			goto nla_put_failure;
-		if (rdev->wowlan->n_patterns) {
-			struct nlattr *nl_pats, *nl_pat;
-			int i, pat_len;
-
-			nl_pats = nla_nest_start(msg,
-					NL80211_WOWLAN_TRIG_PKT_PATTERN);
-			if (!nl_pats)
-				goto nla_put_failure;
-
-			for (i = 0; i < rdev->wowlan->n_patterns; i++) {
-				nl_pat = nla_nest_start(msg, i + 1);
-				if (!nl_pat)
-					goto nla_put_failure;
-				pat_len = rdev->wowlan->patterns[i].pattern_len;
-				if (nla_put(msg, NL80211_WOWLAN_PKTPAT_MASK,
-					    DIV_ROUND_UP(pat_len, 8),
-					    rdev->wowlan->patterns[i].mask) ||
-				    nla_put(msg, NL80211_WOWLAN_PKTPAT_PATTERN,
-					    pat_len,
-					    rdev->wowlan->patterns[i].pattern))
-					goto nla_put_failure;
-				nla_nest_end(msg, nl_pat);
-			}
-			nla_nest_end(msg, nl_pats);
-		}
-
+		if (nl80211_send_wowlan_patterns(msg, rdev))
+			goto nla_put_failure;
 		nla_nest_end(msg, nl_wowlan);
 	}
 
@@ -7046,7 +7057,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	if (tb[NL80211_WOWLAN_TRIG_PKT_PATTERN]) {
 		struct nlattr *pat;
 		int n_patterns = 0;
-		int rem, pat_len, mask_len;
+		int rem, pat_len, mask_len, pkt_offset;
 		struct nlattr *pat_tb[NUM_NL80211_WOWLAN_PKTPAT];
 
 		nla_for_each_nested(pat, tb[NL80211_WOWLAN_TRIG_PKT_PATTERN],
@@ -7080,6 +7091,15 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 			if (pat_len > wowlan->pattern_max_len ||
 			    pat_len < wowlan->pattern_min_len)
 				goto error;
+
+			if (!pat_tb[NL80211_WOWLAN_PKTPAT_OFFSET])
+				pkt_offset = 0;
+			else
+				pkt_offset = nla_get_u32(
+					pat_tb[NL80211_WOWLAN_PKTPAT_OFFSET]);
+			if (pkt_offset > wowlan->max_pkt_offset)
+				goto error;
+			new_triggers.patterns[i].pkt_offset = pkt_offset;
 
 			new_triggers.patterns[i].mask =
 				kmalloc(mask_len + pat_len, GFP_KERNEL);

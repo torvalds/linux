@@ -1576,6 +1576,7 @@ struct cfg80211_pmksa {
  *	one bit per byte, in same format as nl80211
  * @pattern: bytes to match where bitmask is 1
  * @pattern_len: length of pattern (in bytes)
+ * @pkt_offset: packet offset (in bytes)
  *
  * Internal note: @mask and @pattern are allocated in one chunk of
  * memory, free @mask only!
@@ -1583,6 +1584,7 @@ struct cfg80211_pmksa {
 struct cfg80211_wowlan_trig_pkt_pattern {
 	u8 *mask, *pattern;
 	int pattern_len;
+	int pkt_offset;
 };
 
 /**
@@ -2290,12 +2292,14 @@ enum wiphy_wowlan_support_flags {
  *	(see nl80211.h for the pattern definition)
  * @pattern_max_len: maximum length of each pattern
  * @pattern_min_len: minimum length of each pattern
+ * @max_pkt_offset: maximum Rx packet offset
  */
 struct wiphy_wowlan_support {
 	u32 flags;
 	int n_patterns;
 	int pattern_max_len;
 	int pattern_min_len;
+	int max_pkt_offset;
 };
 
 /**

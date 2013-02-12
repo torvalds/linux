@@ -2910,6 +2910,8 @@ enum nl80211_tx_power_setting {
  *	Note that the pattern matching is done as though frames were not
  *	802.11 frames but 802.3 frames, i.e. the frame is fully unpacked
  *	first (including SNAP header unpacking) and then matched.
+ * @NL80211_WOWLAN_PKTPAT_OFFSET: packet offset, pattern is matched after
+ *	these fixed number of bytes of received packet
  * @NUM_NL80211_WOWLAN_PKTPAT: number of attributes
  * @MAX_NL80211_WOWLAN_PKTPAT: max attribute number
  */
@@ -2917,6 +2919,7 @@ enum nl80211_wowlan_packet_pattern_attr {
 	__NL80211_WOWLAN_PKTPAT_INVALID,
 	NL80211_WOWLAN_PKTPAT_MASK,
 	NL80211_WOWLAN_PKTPAT_PATTERN,
+	NL80211_WOWLAN_PKTPAT_OFFSET,
 
 	NUM_NL80211_WOWLAN_PKTPAT,
 	MAX_NL80211_WOWLAN_PKTPAT = NUM_NL80211_WOWLAN_PKTPAT - 1,
@@ -2927,6 +2930,7 @@ enum nl80211_wowlan_packet_pattern_attr {
  * @max_patterns: maximum number of patterns supported
  * @min_pattern_len: minimum length of each pattern
  * @max_pattern_len: maximum length of each pattern
+ * @max_pkt_offset: maximum Rx packet offset
  *
  * This struct is carried in %NL80211_WOWLAN_TRIG_PKT_PATTERN when
  * that is part of %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED in the
@@ -2936,6 +2940,7 @@ struct nl80211_wowlan_pattern_support {
 	__u32 max_patterns;
 	__u32 min_pattern_len;
 	__u32 max_pattern_len;
+	__u32 max_pkt_offset;
 } __attribute__((packed));
 
 /**
@@ -2951,9 +2956,10 @@ struct nl80211_wowlan_pattern_support {
  * @NL80211_WOWLAN_TRIG_PKT_PATTERN: wake up on the specified packet patterns
  *	which are passed in an array of nested attributes, each nested attribute
  *	defining a with attributes from &struct nl80211_wowlan_trig_pkt_pattern.
- *	Each pattern defines a wakeup packet. The matching is done on the MSDU,
- *	i.e. as though the packet was an 802.3 packet, so the pattern matching
- *	is done after the packet is converted to the MSDU.
+ *	Each pattern defines a wakeup packet. Packet offset is associated with
+ *	each pattern which is used while matching the pattern. The matching is
+ *	done on the MSDU, i.e. as though the packet was an 802.3 packet, so the
+ *	pattern matching is done after the packet is converted to the MSDU.
  *
  *	In %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED, it is a binary attribute
  *	carrying a &struct nl80211_wowlan_pattern_support.
