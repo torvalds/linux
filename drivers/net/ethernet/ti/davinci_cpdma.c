@@ -460,10 +460,8 @@ int cpdma_ctlr_destroy(struct cpdma_ctlr *ctlr)
 	if (ctlr->state != CPDMA_STATE_IDLE)
 		cpdma_ctlr_stop(ctlr);
 
-	for (i = 0; i < ARRAY_SIZE(ctlr->channels); i++) {
-		if (ctlr->channels[i])
-			cpdma_chan_destroy(ctlr->channels[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(ctlr->channels); i++)
+		cpdma_chan_destroy(ctlr->channels[i]);
 
 	cpdma_desc_pool_destroy(ctlr->pool);
 	spin_unlock_irqrestore(&ctlr->lock, flags);
