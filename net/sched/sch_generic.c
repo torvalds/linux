@@ -25,6 +25,7 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
 
@@ -896,3 +897,39 @@ void dev_shutdown(struct net_device *dev)
 
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }
+
+void psched_ratecfg_precompute(struct psched_ratecfg *r, u32 rate)
+{
+	u64 factor;
+	u64 mult;
+	int shift;
+
+	r->rate_bps = rate << 3;
+	r->shift = 0;
+	r->mult = 1;
+	/*
+	 * Calibrate mult, shift so that token counting is accurate
+	 * for smallest packet size (64 bytes).  Token (time in ns) is
+	 * computed as (bytes * 8) * NSEC_PER_SEC / rate_bps.  It will
+	 * work as long as the smallest packet transfer time can be
+	 * accurately represented in nanosec.
+	 */
+	if (r->rate_bps > 0) {
+		/*
+		 * Higher shift gives better accuracy.  Find the largest
+		 * shift such that mult fits in 32 bits.
+		 */
+		for (shift = 0; shift < 16; shift++) {
+			r->shift = shift;
+			factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
+			mult = div64_u64(factor, r->rate_bps);
+			if (mult > UINT_MAX)
+				break;
+		}
+
+		r->shift = shift - 1;
+		factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
+		r->mult = div64_u64(factor, r->rate_bps);
+	}
+}
+EXPORT_SYMBOL(psched_ratecfg_precompute);

@@ -679,4 +679,23 @@ static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask,
 }
 #endif
 
+struct psched_ratecfg {
+	u64 rate_bps;
+	u32 mult;
+	u32 shift;
+};
+
+static inline u64 psched_l2t_ns(const struct psched_ratecfg *r,
+				unsigned int len)
+{
+	return ((u64)len * r->mult) >> r->shift;
+}
+
+extern void psched_ratecfg_precompute(struct psched_ratecfg *r, u32 rate);
+
+static inline u32 psched_ratecfg_getrate(const struct psched_ratecfg *r)
+{
+	return r->rate_bps >> 3;
+}
+
 #endif
