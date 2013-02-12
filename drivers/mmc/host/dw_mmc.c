@@ -42,17 +42,10 @@
 
 /* According to Synopsys, the data starvation interrupt (HTO) should not treat
  * as error. Software should continue the data transfer. We have verified this
- * in Virtual Target. Remove this fogbugz after verify this in actual
- * hardware.
+ * in Virtual Target. The same is applied to FIFO under/overrun (FRUN) as well.
  */
-#ifdef FOGBUGZ_13909
- #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DTO | SDMMC_INT_DCRC | \
- 				 SDMMC_INT_HTO | SDMMC_INT_SBE  | \
- 				 SDMMC_INT_EBE)
-#else
 #define DW_MCI_DATA_ERROR_FLAGS (SDMMC_INT_DTO | SDMMC_INT_DCRC | \
-				 SDMMC_INT_SBE | SDMMC_INT_EBE)
-#endif
+				 SDMMC_INT_HTO | SDMMC_INT_FRUN | SDMMC_INT_SBE | SDMMC_INT_EBE)
 
 #define DW_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | \
 				 SDMMC_INT_RESP_ERR)
