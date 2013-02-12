@@ -379,7 +379,8 @@ void gpmc_onenand_init(struct omap_onenand_platform_data *_onenand_data)
 	err = gpmc_cs_request(gpmc_onenand_data->cs, ONENAND_IO_SIZE,
 				(unsigned long *)&gpmc_onenand_resource.start);
 	if (err < 0) {
-		pr_err("%s: Cannot request GPMC CS\n", __func__);
+		pr_err("%s: Cannot request GPMC CS %d, error %d\n",
+		       __func__, gpmc_onenand_data->cs, err);
 		return;
 	}
 
