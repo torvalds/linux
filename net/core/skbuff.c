@@ -109,7 +109,7 @@ static const struct pipe_buf_operations sock_pipe_buf_ops = {
  *	@skb:	buffer
  *	@sz:	size
  *	@addr:	address
- *	@panic: skb_over_panic or skb_under_panic
+ *	@msg:	skb_over_panic or skb_under_panic
  *
  *	Out-of-line support for skb_put() and skb_push().
  *	Called via the wrapper skb_over_panic() or skb_under_panic().
@@ -117,10 +117,10 @@ static const struct pipe_buf_operations sock_pipe_buf_ops = {
  *	__builtin_return_address is not used because it is not always reliable.
  */
 static void skb_panic(struct sk_buff *skb, unsigned int sz, void *addr,
-		      const char panic[])
+		      const char msg[])
 {
 	pr_emerg("%s: text:%p len:%d put:%d head:%p data:%p tail:%#lx end:%#lx dev:%s\n",
-		 panic, addr, skb->len, sz, skb->head, skb->data,
+		 msg, addr, skb->len, sz, skb->head, skb->data,
 		 (unsigned long)skb->tail, (unsigned long)skb->end,
 		 skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
