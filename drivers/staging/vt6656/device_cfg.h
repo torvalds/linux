@@ -42,8 +42,8 @@ struct _version {
 #define false   (0)
 #endif
 
-#ifndef TRUE
-#define TRUE    (!(false))
+#ifndef true
+#define true    (!(false))
 #endif
 
 #define VID_TABLE_SIZE      64

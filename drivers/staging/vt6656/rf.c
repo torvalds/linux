@@ -719,7 +719,7 @@ const u8 RFaby11aChannelIndex[200] = {
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; false if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
@@ -735,7 +735,7 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
 		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
 
 
-	return TRUE;
+	return true;
 }
 
 
@@ -749,16 +749,16 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; false if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
 {
-	int bResult = TRUE;
+	int bResult = true;
 	u8 byPwr = pDevice->byCCKPwr;
 
 	if (pDevice->dwDiagRefCount)
-		return TRUE;
+		return true;
 
 	if (uCH == 0)
 		return -EINVAL;
@@ -801,16 +801,16 @@ int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; false if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 
 int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 {
-	int bResult = TRUE;
+	int bResult = true;
 
     if (pDevice->byCurPwr == byPwr)
-        return TRUE;
+        return true;
 
     pDevice->byCurPwr = byPwr;
 
@@ -1125,7 +1125,7 @@ void RFbRFTableDownload(struct vnt_private *pDevice)
 int s_bVT3226D0_11bLoCurrentAdjust(struct vnt_private *pDevice, u8 byChannel,
 	int b11bMode)
 {
-	int bResult = TRUE;
+	int bResult = true;
 
 	if (b11bMode)
 		bResult &= IFRFbWriteEmbedded(pDevice,

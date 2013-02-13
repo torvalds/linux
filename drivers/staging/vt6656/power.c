@@ -114,13 +114,13 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 		pMgmt->wCountToWakeUp = 0;
 	}
 
-	pDevice->bEnablePSMode = TRUE;
+	pDevice->bEnablePSMode = true;
 
 	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
 	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
 
-	pDevice->bPWBitOn = TRUE;
+	pDevice->bPWBitOn = true;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
@@ -160,7 +160,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
  * Consider to power down when no more packets to tx or rx.
  *
  * Return Value:
- *    TRUE, if power down success
+ *    true, if power down success
  *    false, if fail
  */
 
@@ -175,7 +175,7 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 					MAC_REG_PSCTL, &byData);
 
 	if ((byData & PSCTL_PS) != 0)
-		return TRUE;
+		return true;
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
 		/* check if in TIM wake period */
@@ -201,12 +201,12 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 		}
 	}
 
-	pDevice->bPSRxBeacon = TRUE;
+	pDevice->bPSRxBeacon = true;
 
 	/* no Tx, no Rx isr, now go to Doze */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
-	return TRUE;
+	return true;
 }
 
 /*
@@ -302,7 +302,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 /*
@@ -330,7 +330,7 @@ int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
 			/* Turn on wake up to listen next beacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 			pDevice->bPSRxBeacon = false;
-			bWakeUp = TRUE;
+			bWakeUp = true;
 		} else if (!pDevice->bPSRxBeacon) {
 			/* Listen until RxBeacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);

@@ -257,7 +257,7 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
 	if (WLAN_GET_FC_TODS(*(PWORD) pbyFrame) &&
 	    WLAN_GET_FC_FROMDS(*(PWORD) pbyFrame)) {
-		bA4 = TRUE;
+		bA4 = true;
 		pbyIV += 6;             /* 6 is 802.11 address4 */
 		wHLen += 6;
 		wPayloadSize -= 6;
@@ -380,7 +380,7 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	/* => above is the packet dec-MIC */
 
 	if (!memcmp(abyMIC, abyTmp, 8))
-		return TRUE;
+		return true;
 	else
 		return false;
 }

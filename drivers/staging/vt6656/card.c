@@ -517,7 +517,7 @@ void vUpdateIFS(struct vnt_private *pDevice)
         for (ii = 0; ii < pItemRates->len; ii++) {
             byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
             if (RATEwGetRateIdx(byRate) > RATE_11M) {
-                bOFDMRate = TRUE;
+                bOFDMRate = true;
                 break;
             }
         }
@@ -527,12 +527,12 @@ void vUpdateIFS(struct vnt_private *pDevice)
             for (ii = 0; ii < pItemRates->len; ii++) {
                 byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
                 if (RATEwGetRateIdx(byRate) > RATE_11M) {
-                    bOFDMRate = TRUE;
+                    bOFDMRate = true;
                     break;
                 }
             }
         }
-        if (bOFDMRate == TRUE) {
+        if (bOFDMRate == true) {
             pDevice->uCwMin = C_CWMIN_A;
             byMaxMin = 4;
         } else {
@@ -599,7 +599,7 @@ void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; false if failed.
+ * Return Value: true if succeeded; false if failed.
  *
  */
 void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx)
@@ -618,7 +618,7 @@ int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
 
     for (ii = RATE_54M; ii >= RATE_6M; ii --) {
         if ((pDevice->wBasicRate) & ((WORD)(1<<ii)))
-            return TRUE;
+            return true;
     }
     return false;
 }
@@ -723,7 +723,7 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
  *  Out:
  *      qwCurrTSF       - Current TSF counter
  *
- * Return Value: TRUE if success; otherwise false
+ * Return Value: true if success; otherwise false
  *
  */
 bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
@@ -731,7 +731,7 @@ bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
 
 	*pqwCurrTSF = pDevice->qwCurrTSF;
 
-	return TRUE;
+	return true;
 }
 
 
@@ -743,7 +743,7 @@ bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
  *  In:
  *      pDevice         - The adapter to be read
  *
- * Return Value: TRUE if success; otherwise false
+ * Return Value: true if success; otherwise false
  *
  */
 bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
@@ -753,7 +753,7 @@ bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
 
 	pDevice->qwCurrTSF = 0;
 
-	return TRUE;
+	return true;
 }
 
 /*
@@ -899,17 +899,17 @@ void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise false
+ * Return Value: true if success; otherwise false
  *
  */
 int CARDbRadioPowerOff(struct vnt_private *pDevice)
 {
-	int bResult = TRUE;
+	int bResult = true;
 
-    //if (pDevice->bRadioOff == TRUE)
-    //    return TRUE;
+    //if (pDevice->bRadioOff == true)
+    //    return true;
 
-    pDevice->bRadioOff = TRUE;
+    pDevice->bRadioOff = true;
 
     switch (pDevice->byRFType) {
         case RF_AL2230:
@@ -939,19 +939,19 @@ int CARDbRadioPowerOff(struct vnt_private *pDevice)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise false
+ * Return Value: true if success; otherwise false
  *
  */
 int CARDbRadioPowerOn(struct vnt_private *pDevice)
 {
-	int bResult = TRUE;
+	int bResult = true;
 
-    if ((pDevice->bHWRadioOff == TRUE) || (pDevice->bRadioControlOff == TRUE)) {
+    if ((pDevice->bHWRadioOff == true) || (pDevice->bRadioControlOff == true)) {
         return false;
     }
 
     //if (pDevice->bRadioOff == false)
-    //    return TRUE;
+    //    return true;
 
     pDevice->bRadioOff = false;
 
@@ -1034,7 +1034,7 @@ void CARDvSetBSSMode(struct vnt_private *pDevice)
 int CARDbChannelSwitch(struct vnt_private *pDevice, u8 byMode,
 	u8 byNewChannel, u8 byCount)
 {
-	int bResult = TRUE;
+	int bResult = true;
 
 	if (byCount == 0) {
 		pDevice->vnt_mgmt.uCurrChannel = byNewChannel;
@@ -1043,11 +1043,11 @@ int CARDbChannelSwitch(struct vnt_private *pDevice, u8 byMode,
 	}
     pDevice->byChannelSwitchCount = byCount;
     pDevice->byNewChannel = byNewChannel;
-    pDevice->bChannelSwitch = TRUE;
+    pDevice->bChannelSwitch = true;
 
     if (byMode == 1) {
         //bResult=CARDbStopTxPacket(pDevice, PKT_TYPE_802_11_ALL);
-        pDevice->bStopDataPkt = TRUE;
+        pDevice->bStopDataPkt = true;
     }
 	return bResult;
 }

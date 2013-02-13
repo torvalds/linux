@@ -218,7 +218,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
     for (ii = 0; ii < uRateLen; ii++) {
     	byRate = (BYTE)(pItemRates->abyRates[ii]);
         if (WLAN_MGMT_IS_BASICRATE(byRate) &&
-            (bUpdateBasicRate == TRUE))  {
+            (bUpdateBasicRate == true))  {
 	  /*
 	   * add to basic rate set, update pDevice->byTopCCKBasicRate and
 	   * pDevice->byTopOFDMBasicRate
@@ -307,8 +307,8 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u16 wIdxDownRate = 0;
 	int ii;
-	int bAutoRate[MAX_RATE] = {TRUE, TRUE, TRUE, TRUE, false, false, TRUE,
-					 TRUE, TRUE, TRUE, TRUE, TRUE};
+	int bAutoRate[MAX_RATE] = {true, true, true, true, false, false, true,
+					 true, true, true, true, true};
 	u32 dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180,
 		240, 360, 480, 540};
 	u32 dwThroughput = 0;
@@ -335,7 +335,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
 
     for (ii = 0; ii < MAX_RATE; ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-            if (bAutoRate[ii] == TRUE) {
+            if (bAutoRate[ii] == true) {
                 wIdxUpRate = (WORD) ii;
             }
         } else {
@@ -361,7 +361,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
     for (ii = psNodeDBTable->wTxDataRate; ii > 0;) {
         ii--;
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
-             (bAutoRate[ii]==TRUE) ) {
+             (bAutoRate[ii]==true) ) {
             dwThroughput = dwThroughputTbl[ii];
             wIdxDownRate = (WORD) ii;
         }

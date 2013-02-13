@@ -279,17 +279,17 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->b11hEnable = X80211h_MODE_DEF;
     pDevice->eOPMode = OP_MODE_DEF;
     pDevice->uConnectionRate = DATA_RATE_DEF;
-    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = TRUE;
+    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
     pDevice->byBBType = BBP_TYPE_DEF;
     pDevice->byPacketType = pDevice->byBBType;
     pDevice->byAutoFBCtrl = AUTO_FB_0;
-    pDevice->bUpdateBBVGA = TRUE;
+    pDevice->bUpdateBBVGA = true;
     pDevice->byFOETuning = 0;
     pDevice->byAutoPwrTunning = 0;
     pDevice->wCTSDuration = 0;
     pDevice->byPreambleType = 0;
     pDevice->bExistSWNetAddr = false;
-    /* pDevice->bDiversityRegCtlON = TRUE; */
+    /* pDevice->bDiversityRegCtlON = true; */
     pDevice->bDiversityRegCtlON = false;
 }
 
@@ -345,7 +345,7 @@ static int device_init_registers(struct vnt_private *pDevice,
 		       ETH_ALEN);
 
         if ( !FIRMWAREbCheckVersion(pDevice) ) {
-            if (FIRMWAREbDownload(pDevice) == TRUE) {
+            if (FIRMWAREbDownload(pDevice) == true) {
                 if (FIRMWAREbBrach2Sram(pDevice) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" FIRMWAREbBrach2Sram fail \n");
                   	spin_unlock_irq(&pDevice->lock);
@@ -412,7 +412,7 @@ static int device_init_registers(struct vnt_private *pDevice,
 	/* do MACbSoftwareReset in MACvInitialize */
 
 	/* force CCK */
-        pDevice->bCCK = TRUE;
+        pDevice->bCCK = true;
 	pDevice->bProtectMode = false;
 	/* only used in 11g type, sync with ERP IE */
         pDevice->bNonERPPresent = false;
@@ -470,7 +470,7 @@ static int device_init_registers(struct vnt_private *pDevice,
 
         byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
         if (byAntenna & EEP_ANTINV)
-            pDevice->bTxRxAntInv = TRUE;
+            pDevice->bTxRxAntInv = true;
         else
             pDevice->bTxRxAntInv = false;
 
@@ -484,13 +484,13 @@ static int device_init_registers(struct vnt_private *pDevice,
             pDevice->byTxAntennaMode = ANT_B;
             pDevice->dwTxAntennaSel = 1;
             pDevice->dwRxAntennaSel = 1;
-            if (pDevice->bTxRxAntInv == TRUE)
+            if (pDevice->bTxRxAntInv == true)
                 pDevice->byRxAntennaMode = ANT_A;
             else
                 pDevice->byRxAntennaMode = ANT_B;
 
             if (pDevice->bDiversityRegCtlON)
-                pDevice->bDiversityEnable = TRUE;
+                pDevice->bDiversityEnable = true;
             else
                 pDevice->bDiversityEnable = false;
         } else  {
@@ -500,13 +500,13 @@ static int device_init_registers(struct vnt_private *pDevice,
             pDevice->dwRxAntennaSel = 0;
             if (byAntenna & EEP_ANTENNA_AUX) {
                 pDevice->byTxAntennaMode = ANT_A;
-                if (pDevice->bTxRxAntInv == TRUE)
+                if (pDevice->bTxRxAntInv == true)
                     pDevice->byRxAntennaMode = ANT_B;
                 else
                     pDevice->byRxAntennaMode = ANT_A;
             } else {
                 pDevice->byTxAntennaMode = ANT_B;
-                if (pDevice->bTxRxAntInv == TRUE)
+                if (pDevice->bTxRxAntInv == true)
                     pDevice->byRxAntennaMode = ANT_A;
                 else
                     pDevice->byRxAntennaMode = ANT_B;
@@ -604,7 +604,7 @@ static int device_init_registers(struct vnt_private *pDevice,
      */
     if (pDevice->byBBType == BB_TYPE_11A) {
         CARDbAddBasicRate(pDevice, RATE_6M);
-        pDevice->bShortSlotTime = TRUE;
+        pDevice->bShortSlotTime = true;
     } else {
         CARDbAddBasicRate(pDevice, RATE_1M);
         pDevice->bShortSlotTime = false;
@@ -633,7 +633,7 @@ static int device_init_registers(struct vnt_private *pDevice,
             return false;
         }
         if ( (byTmp & GPIO3_DATA) == 0 ) {
-            pDevice->bHWRadioOff = TRUE;
+            pDevice->bHWRadioOff = true;
             MACvRegBitsOn(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
         } else {
             MACvRegBitsOff(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
@@ -646,7 +646,7 @@ static int device_init_registers(struct vnt_private *pDevice,
     ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
     MACvRegBitsOn(pDevice,MAC_REG_GPIOCTL0,0x01);
 
-    if ((pDevice->bHWRadioOff == TRUE) || (pDevice->bRadioControlOff == TRUE)) {
+    if ((pDevice->bHWRadioOff == true) || (pDevice->bRadioControlOff == true)) {
         CARDbRadioPowerOff(pDevice);
     } else {
         CARDbRadioPowerOn(pDevice);
@@ -654,7 +654,7 @@ static int device_init_registers(struct vnt_private *pDevice,
 
     spin_unlock_irq(&pDevice->lock);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
-    return TRUE;
+    return true;
 }
 
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
@@ -900,7 +900,7 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
 	    goto free_rx_tx;
 	}
 
-    return TRUE;
+    return true;
 
 free_rx_tx:
     device_free_rx_bufs(pDevice);
@@ -930,7 +930,7 @@ static bool device_init_defrag_cb(struct vnt_private *pDevice)
     }
     pDevice->cbDFCB = CB_MAX_RX_FRAG;
     pDevice->cbFreeDFCB = pDevice->cbDFCB;
-    return TRUE;
+    return true;
 
 free_frag:
     device_free_frag_bufs(pDevice);
@@ -965,7 +965,7 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
     ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1030,7 +1030,7 @@ static int  device_open(struct net_device *dev)
 	pDevice->int_interval = 100;  /* max 100 microframes */
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
-    pDevice->bIsRxWorkItemQueued = TRUE;
+    pDevice->bIsRxWorkItemQueued = true;
     pDevice->fKillEventPollingThread = false;
     pDevice->bEventAvailable = false;
 
@@ -1046,7 +1046,7 @@ static int  device_open(struct net_device *dev)
     INTvWorkItem(pDevice);
 
     /* if WEP key already set by iwconfig but device not yet open */
-    if ((pDevice->bEncryptionEnable == TRUE) && (pDevice->bTransmitKey == TRUE)) {
+    if ((pDevice->bEncryptionEnable == true) && (pDevice->bTransmitKey == true)) {
          spin_lock_irq(&pDevice->lock);
          KeybSetDefaultKey( pDevice,
                             &(pDevice->sKey),
@@ -1121,7 +1121,7 @@ static int device_close(struct net_device *dev)
     MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
     MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
-    pDevice->fKillEventPollingThread = TRUE;
+    pDevice->fKillEventPollingThread = true;
     del_timer(&pDevice->sTimerCommand);
     del_timer(&pMgmt->sTimerSecondCallback);
 
@@ -1314,7 +1314,7 @@ static int Config_FileGetParameter(unsigned char *string,
   }
 
    memcpy(dest,tmp_p,strlen(tmp_p));
- return TRUE;
+ return true;
 }
 
 /* if read fails, return NULL, or return data pointer */
@@ -1390,7 +1390,7 @@ static int Read_config_file(struct vnt_private *pDevice)
 /* get zonetype */
 {
     memset(tmpbuffer,0,sizeof(tmpbuffer));
-    if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer) ==TRUE) {
+    if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer) ==true) {
     if(memcmp(tmpbuffer,"USA",3)==0) {
       pDevice->config_file.ZoneType=ZoneType_USA;
     }
@@ -1409,12 +1409,12 @@ static int Read_config_file(struct vnt_private *pDevice)
 /* get other parameter */
   {
 	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("AUTHENMODE",tmpbuffer,buffer)==TRUE) {
+       if(Config_FileGetParameter("AUTHENMODE",tmpbuffer,buffer)==true) {
 	 pDevice->config_file.eAuthenMode = (int) simple_strtol(tmpbuffer, NULL, 10);
        }
 
 	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("ENCRYPTIONMODE",tmpbuffer,buffer)==TRUE) {
+       if(Config_FileGetParameter("ENCRYPTIONMODE",tmpbuffer,buffer)==true) {
 	 pDevice->config_file.eEncryptionStatus= (int) simple_strtol(tmpbuffer, NULL, 10);
        }
   }

@@ -33,10 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#if !defined(TRUE)
-#define TRUE            1
-#endif
-
 /****** Simple typedefs  ***************************************************/
 
 typedef u8 BYTE;

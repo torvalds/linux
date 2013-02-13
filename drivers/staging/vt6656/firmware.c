@@ -99,7 +99,7 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 			goto free_fw;
         }
 
-	result = TRUE;
+	result = true;
 free_fw:
 	release_firmware(fw);
 
@@ -128,7 +128,7 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
     if (NdisStatus != STATUS_SUCCESS) {
         return (false);
     } else {
-        return (TRUE);
+        return (true);
     }
 }
 
@@ -159,5 +159,5 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
         FIRMWAREbBrach2Sram(pDevice);
         return false;
     }
-    return TRUE;
+    return true;
 }

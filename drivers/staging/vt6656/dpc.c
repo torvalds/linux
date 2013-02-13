@@ -423,7 +423,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     }
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-        if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex) == TRUE) {
+        if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex) == true) {
             return false;
         }
     }
@@ -433,7 +433,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         bool     bRxDecryOK = false;
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"rx WEP pkt\n");
-        bIsWEP = TRUE;
+        bIsWEP = true;
         if ((pDevice->bEnableHostWEP) && (iSANodeIndex >= 0)) {
             pKey = &STempKey;
             pKey->byCipherSuite = pMgmt->sNodeDBTable[iSANodeIndex].byCipherSuite;
@@ -573,7 +573,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     	        skb->protocol = htons(ETH_P_802_2);
 	            memset(skb->cb, 0, sizeof(skb->cb));
 	            netif_rx(skb);
-                return TRUE;
+                return true;
 	        }
 
             //
@@ -585,7 +585,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
                 pRCB->Ref++;
             }
             if (pDevice->bIsRxMngWorkItemQueued == false) {
-                pDevice->bIsRxMngWorkItemQueued = TRUE;
+                pDevice->bIsRxMngWorkItemQueued = true;
                 tasklet_schedule(&pDevice->RxMngWorkItem);
             }
 
@@ -637,7 +637,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	     if (wEtherType == ETH_P_PAE) {         //Protocol Type in LLC-Header
                   if(((Protocol_Version==1) ||(Protocol_Version==2)) &&
 		     (Packet_Type==3)) {  //802.1x OR eapol-key challenge frame receive
-                        bRxeapol_key = TRUE;
+                        bRxeapol_key = true;
 		      Descriptor_type = skb->data[cbIVOffset + 8 + 24 + 6 + 1 +1+1+1+2];
 		      Key_info = (skb->data[cbIVOffset + 8 + 24 + 6 + 1 +1+1+1+2+1]<<8) |skb->data[cbIVOffset + 8 + 24 + 6 + 1 +1+1+1+2+2] ;
 		      if(Descriptor_type==2) {    //RSN
@@ -664,7 +664,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             }
         }
         else {
-            if (pMgmt->bInTIMWake == TRUE) {
+            if (pMgmt->bInTIMWake == true) {
                 pMgmt->bInTIMWake = false;
             }
         }
@@ -673,7 +673,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     // Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
     if (pDevice->bDiversityEnable && (FrameSize>50) &&
        (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
-       (pDevice->bLinkPass == TRUE)) {
+       (pDevice->bLinkPass == true)) {
         BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
     }
 
@@ -702,7 +702,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 
     // -----------------------------------------------
 
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == TRUE)){
+    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == true)){
         BYTE    abyMacHdr[24];
 
         // Only 802.1x packet incoming allowed
@@ -717,7 +717,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         if (wEtherType == ETH_P_PAE) {
             skb->dev = pDevice->apdev;
 
-            if (bIsWEP == TRUE) {
+            if (bIsWEP == true) {
                 // strip IV header(8)
                 memcpy(&abyMacHdr[0], (skb->data + 8), 24);
                 memcpy((skb->data + 8 + cbIVOffset), &abyMacHdr[0], 24);
@@ -731,7 +731,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             skb->protocol = htons(ETH_P_802_2);
             memset(skb->cb, 0, sizeof(skb->cb));
             netif_rx(skb);
-            return TRUE;
+            return true;
 
         }
         // check if 802.1x authorized
@@ -790,7 +790,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 
 
             if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) || (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
-                (pDevice->bRxMICFail == TRUE)) {
+                (pDevice->bRxMICFail == true)) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC comparison is fail!\n");
                 pDevice->bRxMICFail = false;
                 //pDevice->s802_11Counter.TKIPLocalMICFailures.QuadPart++;
@@ -802,7 +802,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
                     }
                 }
 				//send event to wpa_supplicant
-				//if(pDevice->bWPASuppWextEnabled == TRUE)
+				//if(pDevice->bWPASuppWextEnabled == true)
 				{
 					union iwreq_data wrqu;
 					struct iw_michaelmicfailure ev;
@@ -921,7 +921,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
@@ -951,7 +951,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                                          &Status
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDeAuthenBeginSta 1\n");
-                    return TRUE;
+                    return true;
                 }
                 if (pMgmt->sNodeDBTable[iSANodeIndex].eNodeState < NODE_ASSOC) {
                     // send deassoc notification
@@ -963,13 +963,13 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                                          &Status
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDisassocBeginSta 2\n");
-                    return TRUE;
+                    return true;
                 }
 
                 if (pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable) {
                     // delcare received ps-poll event
                     if (IS_CTL_PSPOLL(pbyFrame)) {
-                        pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
+                        pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
 			bScheduleCommand((void *) pDevice,
 					 WLAN_CMD_RX_PSPOLL,
 					 NULL);
@@ -980,7 +980,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                         // if PW bit off, send out all PS bufferring packets.
                         if (!IS_FC_POWERMGT(pbyFrame)) {
                             pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = false;
-                            pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
+                            pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
 				bScheduleCommand((void *) pDevice,
 						 WLAN_CMD_RX_PSPOLL,
 						 NULL);
@@ -990,15 +990,15 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                 }
                 else {
                    if (IS_FC_POWERMGT(pbyFrame)) {
-                       pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = TRUE;
+                       pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = true;
                        // Once if STA in PS state, enable multicast bufferring
-                       pMgmt->sNodeDBTable[0].bPSEnable = TRUE;
+                       pMgmt->sNodeDBTable[0].bPSEnable = true;
                    }
                    else {
                       // clear all pending PS frame.
                       if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
                           pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = false;
-                          pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
+                          pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
 			bScheduleCommand((void *) pDevice,
 					 WLAN_CMD_RX_PSPOLL,
 					 NULL);
@@ -1023,7 +1023,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ADDR1:%pM\n",
 				p802_11Header->abyAddr1);
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: wFrameCtl= %x\n", p802_11Header->wFrameCtl );
-                    return TRUE;
+                    return true;
             }
         }
     }
@@ -1065,7 +1065,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
             (pMgmt->byCSSPK != KEY_CTL_NONE)) {
             // unicast pkt use pairwise key
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"unicast pkt\n");
-            if (KeybGetKey(&(pDevice->sKey), pDevice->abyBSSID, 0xFFFFFFFF, &pKey) == TRUE) {
+            if (KeybGetKey(&(pDevice->sKey), pDevice->abyBSSID, 0xFFFFFFFF, &pKey) == true) {
                 if (pMgmt->byCSSPK == KEY_CTL_TKIP)
                     byDecMode = KEY_CTL_TKIP;
                 else if (pMgmt->byCSSPK == KEY_CTL_CCMP)
@@ -1099,7 +1099,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey == NULL\n");
         if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-        } else if (pDevice->bLinkPass == TRUE) {
+        } else if (pDevice->bLinkPass == true) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
         return false;
@@ -1107,7 +1107,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     if (byDecMode != pKey->byCipherSuite) {
         if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-        } else if (pDevice->bLinkPass == TRUE) {
+        } else if (pDevice->bLinkPass == true) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
         *pKeyOut = NULL;
@@ -1116,7 +1116,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-		(((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE)) {
+		(((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true)) {
             // Software WEP
             // 1. 3253A
             // 2. WEP 256
@@ -1164,8 +1164,8 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     }// end of TKIP/AES
 
     if ((*(pbyIV+3) & 0x20) != 0)
-        *pbExtIV = TRUE;
-    return TRUE;
+        *pbExtIV = true;
+    return true;
 }
 
 static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
@@ -1203,7 +1203,7 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     if (byDecMode != pKey->byCipherSuite) {
         if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-        } else if (pDevice->bLinkPass == TRUE) {
+        } else if (pDevice->bLinkPass == true) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
         }
         return false;
@@ -1213,7 +1213,7 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         // handle WEP
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP\n");
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-		(((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE) ||
+		(((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true) ||
             (bOnFly == false)) {
             // Software WEP
             // 1. 3253A
@@ -1283,8 +1283,8 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     }// end of TKIP/AES
 
     if ((*(pbyIV+3) & 0x20) != 0)
-        *pbExtIV = TRUE;
-    return TRUE;
+        *pbExtIV = true;
+    return true;
 }
 
 static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
@@ -1321,7 +1321,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
            }
        }
        else {
-           bRelayAndForward = TRUE;
+           bRelayAndForward = true;
        }
     }
     else {
@@ -1341,10 +1341,10 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
                     pMgmt->abyPSTxMap[wAID >> 3] |=  byMask[wAID & 7];
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "relay: index= %d, pMgmt->abyPSTxMap[%d]= %d\n",
                                iDANodeIndex, (wAID >> 3), pMgmt->abyPSTxMap[wAID >> 3]);
-                    return TRUE;
+                    return true;
                 }
                 else {
-                    bRelayOnly = TRUE;
+                    bRelayOnly = true;
                 }
             }
         }
@@ -1367,7 +1367,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     if (pDevice->uAssocCount == 0)
         return false;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1408,10 +1408,10 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 
 	if (bReAllocSkb == false) {
 		kfree_skb(pRCB->skb);
-		bReAllocSkb = TRUE;
+		bReAllocSkb = true;
 	}
 
-    if (bReAllocSkb == TRUE) {
+    if (bReAllocSkb == true) {
         pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
         // todo error handling
         if (pRCB->skb == NULL) {
@@ -1430,7 +1430,7 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
     if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == false) ) {
 
-        pDevice->bIsRxWorkItemQueued = TRUE;
+        pDevice->bIsRxWorkItemQueued = true;
         tasklet_schedule(&pDevice->ReadWorkItem);
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);

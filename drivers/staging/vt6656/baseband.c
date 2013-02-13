@@ -806,7 +806,7 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
         if (cbTmp != cbBitCount) {
             cbUsCount ++;
             if ((cbBitCount - cbTmp) <= 3)
-                bExtBit = TRUE;
+                bExtBit = true;
         }
         if (byPreambleType == 1)
             *pbyPhySgn = 0x0b;
@@ -1097,7 +1097,7 @@ else {
         MACvRegBitsOn(pDevice, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
     //}}
     } else {
-        return TRUE;
+        return true;
     }
 
    memcpy(abyArray, pbyAddr, wLength);
@@ -1136,7 +1136,7 @@ else {
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x0D,0x01);
 
     RFbRFTableDownload(pDevice);
-    return TRUE;//ntStatus;
+    return true;//ntStatus;
 }
 
 

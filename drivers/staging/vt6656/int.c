@@ -82,7 +82,7 @@ void INTvWorkItem(struct vnt_private *pDevice)
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
 
 	spin_lock_irq(&pDevice->lock);
-	if (pDevice->fKillEventPollingThread != TRUE)
+	if (pDevice->fKillEventPollingThread != true)
 		ntStatus = PIPEnsInterruptRead(pDevice);
 	spin_unlock_irq(&pDevice->lock);
 }
@@ -151,7 +151,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 					/* check if multicast tx buffering */
 					pMgmt->byDTIMCount =
 						pMgmt->byDTIMPeriod-1;
-					pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
+					pMgmt->sNodeDBTable[0].bRxPSPoll = true;
 					if (pMgmt->sNodeDBTable[0].bPSEnable)
 						bScheduleCommand((void *) pDevice,
 								 WLAN_CMD_RX_PSPOLL,
@@ -161,7 +161,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 						WLAN_CMD_BECON_SEND,
 						NULL);
 			} /* if (pDevice->eOPMode == OP_MODE_AP) */
-		pDevice->bBeaconSent = TRUE;
+		pDevice->bBeaconSent = true;
 		} else {
 			pDevice->bBeaconSent = false;
 		}

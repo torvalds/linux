@@ -400,7 +400,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		if (pMgmt->eConfigMode != WMAC_CONFIG_IBSS_STA) {
 			pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
-				pDevice->bCommit = TRUE;
+				pDevice->bCommit = true;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to ad-hoc \n");
 		break;
@@ -409,7 +409,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		if (pMgmt->eConfigMode != WMAC_CONFIG_ESS_STA) {
 			pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
-				pDevice->bCommit = TRUE;
+				pDevice->bCommit = true;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure \n");
 		break;
@@ -422,7 +422,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		if (pMgmt->eConfigMode != WMAC_CONFIG_AP) {
 			pMgmt->eConfigMode = WMAC_CONFIG_AP;
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
-				pDevice->bCommit = TRUE;
+				pDevice->bCommit = true;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point \n");
 		break;
@@ -672,7 +672,7 @@ int iwctl_siwap(struct net_device *dev, struct iw_request_info *info,
 		}
 
 		if (pDevice->flags & DEVICE_FLAGS_OPENED)
-			pDevice->bCommit = TRUE;
+			pDevice->bCommit = true;
 	}
 	return rc;
 }
@@ -816,7 +816,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 
 		// Wext wil order another command of siwap to link
 		// with desired AP, so here need not associate??
-		if (pDevice->bWPASuppWextEnabled == TRUE)  {
+		if (pDevice->bWPASuppWextEnabled == true)  {
 			/*******search if  in hidden ssid mode ****/
 			PKnownBSS pCurr = NULL;
 			BYTE abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
@@ -867,7 +867,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	if (pDevice->flags & DEVICE_FLAGS_OPENED)
-		pDevice->bCommit = TRUE;
+		pDevice->bCommit = true;
 
 	return 0;
 }
@@ -965,7 +965,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 	if (wrq->fixed != 0) {
 		// Fixed mode
 		// One rate, fixed
-		pDevice->bFixRate = TRUE;
+		pDevice->bFixRate = true;
 		if ((pDevice->byBBType == BB_TYPE_11B) && (brate > 3)) {
 			pDevice->uConnectionRate = 3;
 		} else {
@@ -1024,8 +1024,8 @@ int iwctl_giwrate(struct net_device *dev, struct iw_request_info *info,
 			brate = abySupportedRates[pDevice->wCurrentRate];
 		wrq->value = brate * 500000;
 		// If more than one rate, set auto
-		if (pDevice->bFixRate == TRUE)
-			wrq->fixed = TRUE;
+		if (pDevice->bFixRate == true)
+			wrq->fixed = true;
 	}
 
 	return 0;
@@ -1229,8 +1229,8 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 		}
 		pDevice->byKeyIndex = (BYTE)dwKeyIndex;
 		pDevice->uKeyLength = wrq->length;
-		pDevice->bTransmitKey = TRUE;
-		pDevice->bEncryptionEnable = TRUE;
+		pDevice->bTransmitKey = true;
+		pDevice->bEncryptionEnable = true;
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 
 		// Do we want to just set the transmit key index?
@@ -1256,7 +1256,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	}
 	if (wrq->flags & IW_ENCODE_RESTRICTED) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & ShareKey System\n");
-		pMgmt->bShareKeyAlgorithm = TRUE;
+		pMgmt->bShareKeyAlgorithm = true;
 	}
 	if (wrq->flags & IW_ENCODE_OPEN) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & Open System\n");
@@ -1423,7 +1423,7 @@ int iwctl_giwsens(struct net_device *dev, struct iw_request_info *info,
 	long ldBm;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSENS\n");
-	if (pDevice->bLinkPass == TRUE) {
+	if (pDevice->bLinkPass == true) {
 		RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
 		wrq->value = ldBm;
 	} else {
@@ -1510,7 +1510,7 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 		if (wrq->value == IW_AUTH_ALG_OPEN_SYSTEM)
 			pMgmt->bShareKeyAlgorithm = false;
 		else if (wrq->value == IW_AUTH_ALG_SHARED_KEY)
-			pMgmt->bShareKeyAlgorithm = TRUE;
+			pMgmt->bShareKeyAlgorithm = true;
 		break;
 	case IW_AUTH_WPA_ENABLED:
 		break;
@@ -1697,28 +1697,28 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 /****this method is so foolish,but there is no other way??? */
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
 		if (param->u.wpa_key.key_index ==0) {
-			pDevice->bwextstep0 = TRUE;
+			pDevice->bwextstep0 = true;
 		}
-		if ((pDevice->bwextstep0 == TRUE) && (param->u.wpa_key.key_index == 1)) {
+		if ((pDevice->bwextstep0 == true) && (param->u.wpa_key.key_index == 1)) {
 			pDevice->bwextstep0 = false;
-			pDevice->bwextstep1 = TRUE;
+			pDevice->bwextstep1 = true;
 		}
-		if ((pDevice->bwextstep1 == TRUE) && (param->u.wpa_key.key_index == 2)) {
+		if ((pDevice->bwextstep1 == true) && (param->u.wpa_key.key_index == 2)) {
 			pDevice->bwextstep1 = false;
-			pDevice->bwextstep2 = TRUE;
+			pDevice->bwextstep2 = true;
 		}
-		if ((pDevice->bwextstep2 == TRUE) && (param->u.wpa_key.key_index == 3)) {
+		if ((pDevice->bwextstep2 == true) && (param->u.wpa_key.key_index == 3)) {
 			pDevice->bwextstep2 = false;
-			pDevice->bwextstep3 = TRUE;
+			pDevice->bwextstep3 = true;
 		}
 	}
-	if (pDevice->bwextstep3 == TRUE) {
+	if (pDevice->bwextstep3 == true) {
 		PRINT_K("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");
 		pDevice->bwextstep0 = false;
 		pDevice->bwextstep1 = false;
 		pDevice->bwextstep2 = false;
 		pDevice->bwextstep3 = false;
-		pDevice->bWPASuppWextEnabled = TRUE;
+		pDevice->bWPASuppWextEnabled = true;
 		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 		KeyvInitTable(pDevice, &pDevice->sKey);
 	}
@@ -1758,7 +1758,7 @@ int iwctl_siwmlme(struct net_device *dev, struct iw_request_info *info,
 	switch (mlme->cmd){
 	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
-		if (pDevice->bLinkPass == TRUE) {
+		if (pDevice->bLinkPass == true) {
 			PRINT_K("iwctl_siwmlme--->send DISASSOCIATE\n");
 			bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE,
 					NULL);

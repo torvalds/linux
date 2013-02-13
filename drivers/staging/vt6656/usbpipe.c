@@ -311,10 +311,10 @@ int PIPEnsInterruptRead(struct vnt_private *pDevice)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartInterruptUsbRead()\n");
 
-    if(pDevice->intBuf.bInUse == TRUE){
+    if(pDevice->intBuf.bInUse == true){
         return (STATUS_FAILURE);
     }
-    pDevice->intBuf.bInUse = TRUE;
+    pDevice->intBuf.bInUse = true;
 //    pDevice->bEventAvailable = false;
     pDevice->ulIntInPosted++;
 
@@ -391,20 +391,20 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 
 //        if (ntStatus == STATUS_NOT_CONNECTED )
 //        {
-            pDevice->fKillEventPollingThread = TRUE;
+            pDevice->fKillEventPollingThread = true;
 //        }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"IntUSBIoCompleteControl STATUS = %d\n", ntStatus );
     } else {
 	    pDevice->ulIntInBytesRead += (unsigned long) urb->actual_length;
 	    pDevice->ulIntInContCRCError = 0;
-	    pDevice->bEventAvailable = TRUE;
+	    pDevice->bEventAvailable = true;
 	    INTnsProcessData(pDevice);
     }
 
     STAvUpdateUSBCounter(&pDevice->scStatistic.USB_InterruptStat, ntStatus);
 
 
-    if (pDevice->fKillEventPollingThread != TRUE) {
+    if (pDevice->fKillEventPollingThread != true) {
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
 		      usb_rcvbulkpipe(pDevice->usb, 1),
@@ -477,7 +477,7 @@ int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
 		return STATUS_FAILURE ;
 	}
     pRCB->Ref = 1;
-    pRCB->bBoolInUse= TRUE;
+    pRCB->bBoolInUse= true;
 
     return ntStatus;
 }
@@ -528,7 +528,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 //        }
     } else {
 	if (bytesRead)
-		bIndicateReceive = TRUE;
+		bIndicateReceive = true;
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
 
@@ -540,8 +540,8 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 
     if (bIndicateReceive) {
         spin_lock(&pDevice->lock);
-        if (RXbBulkInProcessData(pDevice, pRCB, bytesRead) == TRUE)
-            bReAllocSkb = TRUE;
+        if (RXbBulkInProcessData(pDevice, pRCB, bytesRead) == true)
+            bReAllocSkb = true;
         spin_unlock(&pDevice->lock);
     }
     pRCB->Ref--;
@@ -715,7 +715,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
         }
 
     }
-    if (pDevice->bLinkPass == TRUE) {
+    if (pDevice->bLinkPass == true) {
         if (netif_queue_stopped(pDevice->dev))
             netif_wake_queue(pDevice->dev);
     }

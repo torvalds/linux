@@ -455,7 +455,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 
 	if (param->u.crypt.alg == WPA_ALG_NONE) {
 
-        if (pMgmt->sNodeDBTable[iNodeIndex].bOnFly == TRUE) {
+        if (pMgmt->sNodeDBTable[iNodeIndex].bOnFly == true) {
             if (KeybRemoveKey( pDevice,
                                &(pDevice->sKey),
                                param->sta_addr,
@@ -492,7 +492,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
     dwKeyIndex = (DWORD)(param->u.crypt.idx);
     if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
         pDevice->byKeyIndex = (BYTE)dwKeyIndex;
-        pDevice->bTransmitKey = TRUE;
+        pDevice->bTransmitKey = true;
         dwKeyIndex |= (1 << 31);
     }
 
@@ -517,19 +517,19 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 			param->u.crypt.key_len,
 			&KeyRSC, (PBYTE)abyKey,
 			KEY_CTL_WEP
-                           ) == TRUE) {
+                           ) == true) {
 
 
-                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = TRUE;
+                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
             } else {
                 // Key Table Full
                 pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
-                bKeyTableFull = TRUE;
+                bKeyTableFull = true;
             }
         }
         pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-        pDevice->bEncryptionEnable = TRUE;
+        pDevice->bEncryptionEnable = true;
         pMgmt->byCSSPK = KEY_CTL_WEP;
         pMgmt->byCSSGK = KEY_CTL_WEP;
         pMgmt->sNodeDBTable[iNodeIndex].byCipherSuite = KEY_CTL_WEP;
@@ -575,7 +575,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
                            abyKey,
                            byKeyDecMode
                           );
-       pMgmt->sNodeDBTable[iNodeIndex].bOnFly = TRUE;
+       pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
     } else {
         dwKeyIndex |= (1 << 30); // set pairwise key
@@ -587,20 +587,20 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 			&KeyRSC,
                        (PBYTE)abyKey,
                         byKeyDecMode
-                       ) == TRUE) {
+                       ) == true) {
 
-            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = TRUE;
+            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
         } else {
             // Key Table Full
             pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
-            bKeyTableFull = TRUE;
+            bKeyTableFull = true;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Key Table Full\n");
         }
 
     }
 
-    if (bKeyTableFull == TRUE) {
+    if (bKeyTableFull == true) {
         wKeyCtl &= 0x7F00;              // clear all key control filed
         wKeyCtl |= (byKeyDecMode << 4);
         wKeyCtl |= (byKeyDecMode);
@@ -622,7 +622,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
               );
 
 	// set wep key
-    pDevice->bEncryptionEnable = TRUE;
+    pDevice->bEncryptionEnable = true;
     pMgmt->sNodeDBTable[iNodeIndex].byCipherSuite = byKeyDecMode;
     pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = dwKeyIndex;
     pMgmt->sNodeDBTable[iNodeIndex].dwTSC47_16 = 0;

@@ -170,7 +170,7 @@ static void *s_vGetFreeContext(struct vnt_private *pDevice)
     for (ii = 0; ii < pDevice->cbTD; ii++) {
         pContext = pDevice->apTD[ii];
         if (pContext->bBoolInUse == false) {
-            pContext->bBoolInUse = TRUE;
+            pContext->bBoolInUse = true;
             pReturnContext = pContext;
             break;
         }
@@ -1111,7 +1111,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
     wFifoCtl = pFifoHead->wFIFOCtl;
 
     if (wFifoCtl & FIFOCTL_CRCDIS) {
-        bDisCRC = TRUE;
+        bDisCRC = true;
     }
 
     if (wFifoCtl & FIFOCTL_AUTO_FB_0) {
@@ -1232,8 +1232,8 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
 
 	if (bNeedEncryption && pTransmitKey->pvKeyTable) {
-		if (((PSKeyTable)pTransmitKey->pvKeyTable)->bSoftWEP == TRUE)
-			bSoftWEP = TRUE; /* WEP 256 */
+		if (((PSKeyTable)pTransmitKey->pvKeyTable)->bSoftWEP == true)
+			bSoftWEP = true; /* WEP 256 */
 	}
 
     pTxBufHead = (PTX_BUFFER) usbPacketBuf;
@@ -1266,13 +1266,13 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 			pTxBufHead->wFIFOCtl =
 				pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
 		} else {
-			bNeedACK = TRUE;
+			bNeedACK = true;
 			pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
 		}
         }
         else {
             // MSDUs in Infra mode always need ACK
-            bNeedACK = TRUE;
+            bNeedACK = true;
             pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
         }
     } //if (pDevice->dwDiagRefCount != 0) {
@@ -1296,7 +1296,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     pTxBufHead->wFragCtl |= (WORD)(cbMACHdLen << 10);
 
     //Set FIFOCTL_GrpAckPolicy
-    if (pDevice->bGrpAckPolicy == TRUE) {//0000 0100 0000 0000
+    if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
         pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
     }
 
@@ -1311,7 +1311,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         }
     }
 
-    if (bSoftWEP != TRUE) {
+    if (bSoftWEP != true) {
         if ((bNeedEncryption) && (pTransmitKey != NULL))  { //WEP enabled
             if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) { //WEP40 or WEP104
                 pTxBufHead->wFragCtl |= FRAGCTL_LEGACY;
@@ -1354,7 +1354,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     if ( (bNeedACK == false) ||(cbFrameSize < pDevice->wRTSThreshold) ) {
         bRTS = false;
     } else {
-        bRTS = TRUE;
+        bRTS = true;
         pTxBufHead->wFIFOCtl |= (FIFOCTL_RTS | FIFOCTL_LRETRY);
     }
 
@@ -1362,7 +1362,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     wTxBufSize = sizeof(STxBufHead);
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
         if (byFBOption == AUTO_FB_NONE) {
-            if (bRTS == TRUE) {//RTS_need
+            if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_gRTS) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS));
                 pvRTS = (PSRTS_g) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR);
@@ -1380,7 +1380,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             }
         } else {
             // Auto Fall Back
-            if (bRTS == TRUE) {//RTS_need
+            if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_gRTS) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS));
                 pvRTS = (PSRTS_g_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR);
@@ -1400,7 +1400,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     }
     else {//802.11a/b packet
         if (byFBOption == AUTO_FB_NONE) {
-            if (bRTS == TRUE) {//RTS_need
+            if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab));
                 pvRTS = (PSRTS_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
@@ -1418,7 +1418,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             }
         } else {
             // Auto Fall Back
-            if (bRTS == TRUE) {//RTS_need
+            if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab));
                 pvRTS = (PSRTS_a_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
@@ -1462,7 +1462,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     s_vGenerateMACHeader(pDevice, pbyMacHdr, (WORD)uDuration, psEthHeader, bNeedEncryption,
                            byFragType, uDMAIdx, 0);
 
-    if (bNeedEncryption == TRUE) {
+    if (bNeedEncryption == true) {
         //Fill TXKEY
         s_vFillTxKey(pDevice, (PBYTE)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
                          pbyMacHdr, (WORD)cbFrameBodySize, (PBYTE)pMICHDR);
@@ -1507,7 +1507,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
     ASSERT(uLength == cbNdisBodySize);
 
-    if ((bNeedEncryption == TRUE) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
+    if ((bNeedEncryption == true) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
 
         ///////////////////////////////////////////////////////////////////
 
@@ -1547,7 +1547,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
         MIC_vUnInit();
 
-        if (pDevice->bTxMICFail == TRUE) {
+        if (pDevice->bTxMICFail == true) {
             *pdwMIC_L = 0;
             *pdwMIC_R = 0;
             pDevice->bTxMICFail = false;
@@ -1558,17 +1558,17 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     }
 
 
-    if (bSoftWEP == TRUE) {
+    if (bSoftWEP == true) {
 
         s_vSWencryption(pDevice, pTransmitKey, (pbyPayloadHead), (WORD)(cbFrameBodySize + cbMIClen));
 
-    } else if (  ((pDevice->eEncryptionStatus == Ndis802_11Encryption1Enabled) && (bNeedEncryption == TRUE))  ||
-          ((pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) && (bNeedEncryption == TRUE))   ||
-          ((pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) && (bNeedEncryption == TRUE))      ) {
+    } else if (  ((pDevice->eEncryptionStatus == Ndis802_11Encryption1Enabled) && (bNeedEncryption == true))  ||
+          ((pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) && (bNeedEncryption == true))   ||
+          ((pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) && (bNeedEncryption == true))      ) {
         cbFrameSize -= cbICVlen;
     }
 
-    if (pDevice->bSoftwareGenCrcErr == TRUE) {
+    if (pDevice->bSoftwareGenCrcErr == true) {
 	unsigned int cbLen;
         PDWORD pdwCRC;
 
@@ -1593,7 +1593,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     pTxBufHead->wFragCtl |= (WORD)byFragType;
 
 
-    return TRUE;
+    return true;
 
 }
 
@@ -1787,7 +1787,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         bNeedACK = false;
     }
     else {
-        bNeedACK = TRUE;
+        bNeedACK = true;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
     };
 
@@ -1807,7 +1807,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     pTxBufHead->wFIFOCtl |= (FIFOCTL_GENINT | FIFOCTL_ISDMA0);
 
     if ((pPacket->p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_CTL_PSPOLL) {
-        bIsPSPOLL = TRUE;
+        bIsPSPOLL = true;
         cbMacHdLen = WLAN_HDR_ADDR2_LEN;
     } else {
         cbMacHdLen = WLAN_HDR_ADDR3_LEN;
@@ -1840,7 +1840,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
             cbIVlen = 8;//RSN Header
             cbICVlen = 8;//MIC
             pTxBufHead->wFragCtl |= FRAGCTL_AES;
-            pDevice->bAES = TRUE;
+            pDevice->bAES = true;
         }
         //MAC Header should be padding 0 to DW alignment.
         uPadding = 4 - (cbMacHdLen%4);
@@ -1850,7 +1850,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     cbFrameSize = cbMacHdLen + cbFrameBodySize + cbIVlen + cbMIClen + cbICVlen + cbFCSlen;
 
     //Set FIFOCTL_GrpAckPolicy
-    if (pDevice->bGrpAckPolicy == TRUE) {//0000 0100 0000 0000
+    if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
         pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
     }
     //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
@@ -1911,12 +1911,12 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         pbyPayloadHead = (PBYTE)(pbyTxBufferAddr + cbHeaderSize + cbMacHdLen + uPadding + cbIVlen);
         do {
             if ((pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
-                (pDevice->bLinkPass == TRUE)) {
+                (pDevice->bLinkPass == true)) {
                 pbyBSSID = pDevice->abyBSSID;
                 // get pairwise key
                 if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == false) {
                     // get group key
-                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == TRUE) {
+                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == true) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Get GTK.\n");
                         break;
                     }
@@ -2172,15 +2172,15 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         bNeedACK = false;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
-            bNodeExist = TRUE;
+            bNodeExist = true;
         }
     }
     else {
         if (pDevice->bEnableHostWEP) {
             if (BSSbIsSTAInNodeDB(pDevice, (PBYTE)(p80211Header->sA3.abyAddr1), &uNodeIndex))
-                bNodeExist = TRUE;
+                bNodeExist = true;
         }
-        bNeedACK = TRUE;
+        bNeedACK = true;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
     };
 
@@ -2201,7 +2201,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     pTxBufHead->wFIFOCtl |= (FIFOCTL_GENINT | FIFOCTL_ISDMA0);
 
     if ((p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_CTL_PSPOLL) {
-        bIsPSPOLL = TRUE;
+        bIsPSPOLL = true;
         cbMacHdLen = WLAN_HDR_ADDR2_LEN;
     } else {
         cbMacHdLen = WLAN_HDR_ADDR3_LEN;
@@ -2253,7 +2253,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
             cbICVlen = 8;//MIC
             cbMICHDR = sizeof(SMICHDRHead);
             pTxBufHead->wFragCtl |= FRAGCTL_AES;
-            pDevice->bAES = TRUE;
+            pDevice->bAES = true;
         }
         //MAC Header should be padding 0 to DW alignment.
         uPadding = 4 - (cbMacHdLen%4);
@@ -2263,7 +2263,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     cbFrameSize = cbMacHdLen + cbFrameBodySize + cbIVlen + cbMIClen + cbICVlen + cbFCSlen + cbExtSuppRate;
 
     //Set FIFOCTL_GrpAckPolicy
-    if (pDevice->bGrpAckPolicy == TRUE) {//0000 0100 0000 0000
+    if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
         pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
     }
     //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
@@ -2380,7 +2380,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
             MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
             MIC_vUnInit();
 
-            if (pDevice->bTxMICFail == TRUE) {
+            if (pDevice->bTxMICFail == true) {
                 *pdwMIC_L = 0;
                 *pdwMIC_R = 0;
                 pDevice->bTxMICFail = false;
@@ -2498,7 +2498,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 
 	if (is_multicast_ether_addr((PBYTE)(skb->data))) {
             uNodeIndex = 0;
-            bNodeExist = TRUE;
+            bNodeExist = true;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
                 skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skb);
@@ -2543,7 +2543,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                 }else {
                     pDevice->byPreambleType = PREAMBLE_LONG;
                 }
-                bNodeExist = TRUE;
+                bNodeExist = true;
             }
         }
 
@@ -2579,22 +2579,22 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 		/* 802.1x OR eapol-key challenge frame transfer */
 		if (((Protocol_Version == 1) || (Protocol_Version == 2)) &&
 			(Packet_Type == 3)) {
-                        bTxeapol_key = TRUE;
+                        bTxeapol_key = true;
                        if(!(Key_info & BIT3) &&  //WPA or RSN group-key challenge
 			   (Key_info & BIT8) && (Key_info & BIT9)) {    //send 2/2 key
 			  if(Descriptor_type==254) {
-                               pDevice->fWPA_Authened = TRUE;
+                               pDevice->fWPA_Authened = true;
 			     PRINT_K("WPA ");
 			  }
 			  else {
-                               pDevice->fWPA_Authened = TRUE;
+                               pDevice->fWPA_Authened = true;
 			     PRINT_K("WPA2(re-keying) ");
 			  }
 			  PRINT_K("Authentication completed!!\n");
                         }
 		    else if((Key_info & BIT3) && (Descriptor_type==2) &&  //RSN pairwise-key challenge
 			       (Key_info & BIT8) && (Key_info & BIT9)) {
-			  pDevice->fWPA_Authened = TRUE;
+			  pDevice->fWPA_Authened = true;
                             PRINT_K("WPA2 Authentication completed!!\n");
 		     }
              }
@@ -2602,8 +2602,8 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 }
 //mike add:station mode check eapol-key challenge<---
 
-    if (pDevice->bEncryptionEnable == TRUE) {
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true) {
+        bNeedEncryption = true;
         // get Transmit key
         do {
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
@@ -2612,8 +2612,8 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                 // get pairwise key
                 if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == false) {
                     // get group key
-                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == TRUE) {
-                        bTKIP_UseGTK = TRUE;
+                    if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == true) {
+                        bTKIP_UseGTK = true;
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
                         break;
                     }
@@ -2630,7 +2630,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"\n");
 
                 // get pairwise key
-                if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == TRUE)
+                if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == true)
                     break;
             }
             // get group key
@@ -2643,7 +2643,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                 else
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"NOT IBSS and KEY is NULL. [%d]\n", pMgmt->eCurrMode);
             } else {
-                bTKIP_UseGTK = TRUE;
+                bTKIP_UseGTK = true;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
             }
         } while(false);
@@ -2651,7 +2651,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 
     if (pDevice->bEnableHostWEP) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"acdma0: STA index %d\n", uNodeIndex);
-        if (pDevice->bEncryptionEnable == TRUE) {
+        if (pDevice->bEncryptionEnable == true) {
             pTransmitKey = &STempKey;
             pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
             pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
@@ -2750,7 +2750,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         byPktType = PK_TYPE_11B;
     }
 
-    if (bNeedEncryption == TRUE) {
+    if (bNeedEncryption == true) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ntohs Pkt Type=%04x\n", ntohs(pDevice->sTxEthHeader.wType));
 	if ((pDevice->sTxEthHeader.wType) == cpu_to_be16(ETH_P_PAE)) {
 		bNeedEncryption = false;
@@ -2760,13 +2760,13 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Don't Find TX KEY\n");
                 }
                 else {
-                    if (bTKIP_UseGTK == TRUE) {
+                    if (bTKIP_UseGTK == true) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"error: KEY is GTK!!~~\n");
                     }
                     else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%X]\n",
 				pTransmitKey->dwKeyIndex);
-                        bNeedEncryption = TRUE;
+                        bNeedEncryption = true;
                     }
                 }
             }
@@ -2776,7 +2776,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                     (pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex & PAIRWISE_KEY)) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%X]\n",
 				pTransmitKey->dwKeyIndex);
-                    bNeedEncryption = TRUE;
+                    bNeedEncryption = true;
                  }
              }
         }
@@ -2806,12 +2806,12 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         return STATUS_FAILURE;
     }
 
-    if ( pDevice->bEnablePSMode == TRUE ) {
+    if ( pDevice->bEnablePSMode == true ) {
         if ( !pDevice->bPSModeTxBurst ) {
 		bScheduleCommand((void *) pDevice,
 				 WLAN_CMD_MAC_DISPOWERSAVING,
 				 NULL);
-            pDevice->bPSModeTxBurst = TRUE;
+            pDevice->bPSModeTxBurst = true;
         }
     }
 
@@ -2827,7 +2827,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 
     status = PIPEnsSendBulkOut(pDevice,pContext);
 
-    if (bNeedDeAuth == TRUE) {
+    if (bNeedDeAuth == true) {
         WORD wReason = WLAN_MGMT_REASON_MIC_FAILURE;
 
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (PBYTE) &wReason);
@@ -2857,7 +2857,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
  *  Out:
  *      TURE, false
  *
- * Return Value: Return TRUE if packet is copy to dma1; otherwise false
+ * Return Value: Return true if packet is copy to dma1; otherwise false
  */
 
 int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
@@ -2887,8 +2887,8 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
 
     memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, ETH_HLEN);
 
-    if (pDevice->bEncryptionEnable == TRUE) {
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true) {
+        bNeedEncryption = true;
         // get group key
         pbyBSSID = pDevice->abyBroadcastAddr;
         if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
@@ -2981,6 +2981,6 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
 
     status = PIPEnsSendBulkOut(pDevice,pContext);
 
-    return TRUE;
+    return true;
 }
 
