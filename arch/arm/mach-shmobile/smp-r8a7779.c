@@ -33,8 +33,6 @@
 #define AVECR IOMEM(0xfe700040)
 #define R8A7779_SCU_BASE IOMEM(0xf0000000)
 
-static void __iomem *shmobile_scu_base;
-
 static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
 	.chan_bit = 1, /* ARM1 */

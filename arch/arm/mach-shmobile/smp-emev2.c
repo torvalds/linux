@@ -32,8 +32,6 @@
 
 #define EMEV2_SCU_BASE 0x1e000000
 
-static void __iomem *shmobile_scu_base;
-
 static DEFINE_SPINLOCK(scu_lock);
 
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)

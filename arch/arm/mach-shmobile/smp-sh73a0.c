@@ -41,8 +41,6 @@
 
 #define SH73A0_SCU_BASE IOMEM(0xf0000000)
 
-static void __iomem *shmobile_scu_base;
-
 #ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, SH73A0_SCU_BASE + 0x600, 29);
 void __init sh73a0_register_twd(void)
