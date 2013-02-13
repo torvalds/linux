@@ -3151,6 +3151,7 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	     obj->stride, obj->tiling_mode);
 
 	switch (INTEL_INFO(dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:
