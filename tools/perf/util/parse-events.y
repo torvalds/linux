@@ -1,5 +1,4 @@
 %pure-parser
-%name-prefix "parse_events_"
 %parse-param {void *_data}
 %parse-param {void *scanner}
 %lex-param {void* scanner}
