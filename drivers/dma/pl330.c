@@ -2288,13 +2288,12 @@ static inline void fill_queue(struct dma_pl330_chan *pch)
 
 		/* If already submitted */
 		if (desc->status == BUSY)
-			break;
+			continue;
 
 		ret = pl330_submit_req(pch->pl330_chid,
 						&desc->req);
 		if (!ret) {
 			desc->status = BUSY;
-			break;
 		} else if (ret == -EAGAIN) {
 			/* QFull or DMAC Dying */
 			break;
