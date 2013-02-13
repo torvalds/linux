@@ -25,19 +25,15 @@
 #include "selftest.h"
 #include "workarounds.h"
 
-/* Number of RX descriptors pushed at once. */
-#define EFX_RX_BATCH  8
+/* Preferred number of descriptors to fill at once */
+#define EFX_RX_PREFERRED_BATCH 8U
 
 /* Number of RX buffers to recycle pages for.  When creating the RX page recycle
  * ring, this number is divided by the number of buffers per page to calculate
  * the number of pages to store in the RX page recycle ring.
  */
 #define EFX_RECYCLE_RING_SIZE_IOMMU 4096
-#define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_BATCH)
-
-/* Maximum length for an RX descriptor sharing a page */
-#define EFX_RX_HALF_PAGE ((PAGE_SIZE >> 1) - sizeof(struct efx_rx_page_state) \
-			  - EFX_PAGE_IP_ALIGN)
+#define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_PREFERRED_BATCH)
 
 /* Size of buffer allocated for skb header area. */
 #define EFX_SKB_HEADERS  64u
@@ -95,6 +91,19 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 				DMA_FROM_DEVICE);
 }
 
+void efx_rx_config_page_split(struct efx_nic *efx)
+{
+	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + EFX_PAGE_IP_ALIGN,
+				      L1_CACHE_BYTES);
+	efx->rx_bufs_per_page = efx->rx_buffer_order ? 1 :
+		((PAGE_SIZE - sizeof(struct efx_rx_page_state)) /
+		 efx->rx_page_buf_step);
+	efx->rx_buffer_truesize = (PAGE_SIZE << efx->rx_buffer_order) /
+		efx->rx_bufs_per_page;
+	efx->rx_pages_per_batch = DIV_ROUND_UP(EFX_RX_PREFERRED_BATCH,
+					       efx->rx_bufs_per_page);
+}
+
 /* Check the RX page recycle ring for a page that can be reused. */
 static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
 {
@@ -134,10 +143,10 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
  *
  * @rx_queue:		Efx RX queue
  *
- * This allocates memory for EFX_RX_BATCH receive buffers, maps them for DMA,
- * and populates struct efx_rx_buffers for each one. Return a negative error
- * code or 0 on success. If a single page can be split between two buffers,
- * then the page will either be inserted fully, or not at at all.
+ * This allocates a batch of pages, maps them for DMA, and populates
+ * struct efx_rx_buffers for each one. Return a negative error code or
+ * 0 on success. If a single page can be used for multiple buffers,
+ * then the page will either be inserted fully, or not at all.
  */
 static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 {
@@ -149,10 +158,8 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 	dma_addr_t dma_addr;
 	unsigned index, count;
 
-	/* We can split a page between two buffers */
-	BUILD_BUG_ON(EFX_RX_BATCH & 1);
-
-	for (count = 0; count < EFX_RX_BATCH; ++count) {
+	count = 0;
+	do {
 		page = efx_reuse_page(rx_queue);
 		if (page == NULL) {
 			page = alloc_pages(__GFP_COLD | __GFP_COMP | GFP_ATOMIC,
@@ -174,32 +181,26 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 			state = page_address(page);
 			dma_addr = state->dma_addr;
 		}
-		get_page(page);
 
 		dma_addr += sizeof(struct efx_rx_page_state);
 		page_offset = sizeof(struct efx_rx_page_state);
 
-	split:
-		index = rx_queue->added_count & rx_queue->ptr_mask;
-		rx_buf = efx_rx_buffer(rx_queue, index);
-		rx_buf->dma_addr = dma_addr + EFX_PAGE_IP_ALIGN;
-		rx_buf->page = page;
-		rx_buf->page_offset = page_offset + EFX_PAGE_IP_ALIGN;
-		rx_buf->len = efx->rx_dma_len;
-		++rx_queue->added_count;
-
-		if ((~count & 1) && (efx->rx_dma_len <= EFX_RX_HALF_PAGE)) {
-			/* Use the second half of the page */
-			get_page(page);
+		do {
+			index = rx_queue->added_count & rx_queue->ptr_mask;
+			rx_buf = efx_rx_buffer(rx_queue, index);
+			rx_buf->dma_addr = dma_addr + EFX_PAGE_IP_ALIGN;
+			rx_buf->page = page;
+			rx_buf->page_offset = page_offset + EFX_PAGE_IP_ALIGN;
+			rx_buf->len = efx->rx_dma_len;
 			rx_buf->flags = 0;
-			dma_addr += (PAGE_SIZE >> 1);
-			page_offset += (PAGE_SIZE >> 1);
-			++count;
-			goto split;
-		}
+			++rx_queue->added_count;
+			get_page(page);
+			dma_addr += efx->rx_page_buf_step;
+			page_offset += efx->rx_page_buf_step;
+		} while (page_offset + efx->rx_page_buf_step <= PAGE_SIZE);
 
 		rx_buf->flags = EFX_RX_BUF_LAST_IN_PAGE;
-	}
+	} while (++count < efx->rx_pages_per_batch);
 
 	return 0;
 }
@@ -307,7 +308,8 @@ static void efx_recycle_rx_buffers(struct efx_channel *channel,
  */
 void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 {
-	unsigned fill_level;
+	struct efx_nic *efx = rx_queue->efx;
+	unsigned int fill_level, batch_size;
 	int space, rc = 0;
 
 	/* Calculate current fill level, and exit if we don't need to fill */
@@ -322,8 +324,9 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 			rx_queue->min_fill = fill_level;
 	}
 
+	batch_size = efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	space = rx_queue->max_fill - fill_level;
-	EFX_BUG_ON_PARANOID(space < EFX_RX_BATCH);
+	EFX_BUG_ON_PARANOID(space < batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
@@ -340,7 +343,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 				efx_schedule_slow_fill(rx_queue);
 			goto out;
 		}
-	} while ((space -= EFX_RX_BATCH) >= EFX_RX_BATCH);
+	} while ((space -= batch_size) >= batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filled descriptor ring "
@@ -708,7 +711,8 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Initialise limit fields */
 	max_fill = efx->rxq_entries - EFX_RXD_HEAD_ROOM;
-	max_trigger = max_fill - EFX_RX_BATCH;
+	max_trigger =
+		max_fill - efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	if (rx_refill_threshold != 0) {
 		trigger = max_fill * min(rx_refill_threshold, 100U) / 100U;
 		if (trigger > max_trigger)

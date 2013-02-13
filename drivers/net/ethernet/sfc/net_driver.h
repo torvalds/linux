@@ -825,7 +825,9 @@ struct efx_nic {
 	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
 	unsigned int rx_buffer_truesize;
+	unsigned int rx_page_buf_step;
 	unsigned int rx_bufs_per_page;
+	unsigned int rx_pages_per_batch;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;

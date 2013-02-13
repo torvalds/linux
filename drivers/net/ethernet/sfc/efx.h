@@ -33,6 +33,7 @@ extern int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 extern unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 
 /* RX */
+extern void efx_rx_config_page_split(struct efx_nic *efx);
 extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_init_rx_queue(struct efx_rx_queue *rx_queue);

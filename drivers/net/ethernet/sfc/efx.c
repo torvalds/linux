@@ -643,10 +643,6 @@ static void efx_start_datapath(struct efx_nic *efx)
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = false;
 		efx->rx_buffer_order = 0;
-		if (rx_buf_len <= PAGE_SIZE / 2)
-			efx->rx_buffer_truesize = PAGE_SIZE / 2;
-		else
-			efx->rx_buffer_truesize = PAGE_SIZE;
 	} else if (efx->type->can_rx_scatter) {
 		BUILD_BUG_ON(sizeof(struct efx_rx_page_state) +
 			     EFX_PAGE_IP_ALIGN + EFX_RX_USR_BUF_SIZE >
@@ -654,14 +650,22 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx->rx_scatter = true;
 		efx->rx_dma_len = EFX_RX_USR_BUF_SIZE;
 		efx->rx_buffer_order = 0;
-		efx->rx_buffer_truesize = PAGE_SIZE / 2;
 	} else {
 		efx->rx_scatter = false;
 		efx->rx_buffer_order = get_order(rx_buf_len);
-		efx->rx_buffer_truesize = PAGE_SIZE << efx->rx_buffer_order;
 	}
 
-	efx->rx_bufs_per_page = (rx_buf_len <= PAGE_SIZE / 2) ? 2 : 1;
+	efx_rx_config_page_split(efx);
+	if (efx->rx_buffer_order)
+		netif_dbg(efx, drv, efx->net_dev,
+			  "RX buf len=%u; page order=%u batch=%u\n",
+			  efx->rx_dma_len, efx->rx_buffer_order,
+			  efx->rx_pages_per_batch);
+	else
+		netif_dbg(efx, drv, efx->net_dev,
+			  "RX buf len=%u step=%u bpp=%u; page batch=%u\n",
+			  efx->rx_dma_len, efx->rx_page_buf_step,
+			  efx->rx_bufs_per_page, efx->rx_pages_per_batch);
 
 	/* RX filters also have scatter-enabled flags */
 	if (efx->rx_scatter != old_rx_scatter)
