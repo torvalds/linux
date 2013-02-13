@@ -22,13 +22,13 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/gpio.h>
+#include "priv.h"
 
 struct nvd0_gpio_priv {
 	struct nouveau_gpio base;
 };
 
-static void
+void
 nvd0_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
@@ -57,7 +57,7 @@ nvd0_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 	}
 }
 
-static int
+int
 nvd0_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 {
 	u32 data = ((dir ^ 1) << 13) | (out << 12);
@@ -66,7 +66,7 @@ nvd0_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 	return 0;
 }
 
-static int
+int
 nvd0_gpio_sense(struct nouveau_gpio *gpio, int line)
 {
 	return !!(nv_rd32(gpio, 0x00d610 + (line * 4)) & 0x00004000);

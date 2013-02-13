@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/gpio.h>
+#include "priv.h"
 
 struct nv50_gpio_priv {
 	struct nouveau_gpio base;

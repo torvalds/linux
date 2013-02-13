@@ -91,6 +91,7 @@ nouveau-y += core/subdev/gpio/base.o
 nouveau-y += core/subdev/gpio/nv10.o
 nouveau-y += core/subdev/gpio/nv50.o
 nouveau-y += core/subdev/gpio/nvd0.o
+nouveau-y += core/subdev/gpio/nve0.o
 nouveau-y += core/subdev/i2c/base.o
 nouveau-y += core/subdev/i2c/aux.o
 nouveau-y += core/subdev/i2c/bit.o

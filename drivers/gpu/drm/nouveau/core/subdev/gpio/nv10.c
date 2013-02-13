@@ -24,7 +24,7 @@
  *
  */
 
-#include <subdev/gpio.h>
+#include "priv.h"
 
 struct nv10_gpio_priv {
 	struct nouveau_gpio base;

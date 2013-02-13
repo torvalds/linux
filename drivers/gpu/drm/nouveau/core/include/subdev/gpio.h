@@ -48,12 +48,6 @@ int  nouveau_gpio_init(struct nouveau_gpio *);
 extern struct nouveau_oclass nv10_gpio_oclass;
 extern struct nouveau_oclass nv50_gpio_oclass;
 extern struct nouveau_oclass nvd0_gpio_oclass;
-
-void nv50_gpio_dtor(struct nouveau_object *);
-int  nv50_gpio_init(struct nouveau_object *);
-int  nv50_gpio_fini(struct nouveau_object *, bool);
-void nv50_gpio_intr(struct nouveau_subdev *);
-void nv50_gpio_intr_enable(struct nouveau_event *, int line);
-void nv50_gpio_intr_disable(struct nouveau_event *, int line);
+extern struct nouveau_oclass nve0_gpio_oclass;
 
 #endif
