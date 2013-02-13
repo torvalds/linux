@@ -661,6 +661,8 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx->rx_buffer_truesize = PAGE_SIZE << efx->rx_buffer_order;
 	}
 
+	efx->rx_bufs_per_page = (rx_buf_len <= PAGE_SIZE / 2) ? 2 : 1;
+
 	/* RX filters also have scatter-enabled flags */
 	if (efx->rx_scatter != old_rx_scatter)
 		efx_filter_update_rx_scatter(efx);

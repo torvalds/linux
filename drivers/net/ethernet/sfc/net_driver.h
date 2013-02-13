@@ -264,12 +264,22 @@ struct efx_rx_page_state {
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
  * @scatter_n: Number of buffers used by current packet
+ * @page_ring: The ring to store DMA mapped pages for reuse.
+ * @page_add: Counter to calculate the write pointer for the recycle ring.
+ * @page_remove: Counter to calculate the read pointer for the recycle ring.
+ * @page_recycle_count: The number of pages that have been recycled.
+ * @page_recycle_failed: The number of pages that couldn't be recycled because
+ *      the kernel still held a reference to them.
+ * @page_recycle_full: The number of pages that were released because the
+ *      recycle ring was full.
+ * @page_ptr_mask: The number of pages in the RX recycle ring minus 1.
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
  * @min_fill: RX descriptor minimum non-zero fill level.
  *	This records the minimum fill level observed when a ring
  *	refill was triggered.
+ * @recycle_count: RX buffer recycle counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
  */
 struct efx_rx_queue {
@@ -285,10 +295,18 @@ struct efx_rx_queue {
 	unsigned int notified_count;
 	unsigned int removed_count;
 	unsigned int scatter_n;
+	struct page **page_ring;
+	unsigned int page_add;
+	unsigned int page_remove;
+	unsigned int page_recycle_count;
+	unsigned int page_recycle_failed;
+	unsigned int page_recycle_full;
+	unsigned int page_ptr_mask;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
 	unsigned int min_fill;
 	unsigned int min_overfill;
+	unsigned int recycle_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 };
@@ -806,6 +824,7 @@ struct efx_nic {
 	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
 	unsigned int rx_buffer_truesize;
+	unsigned int rx_bufs_per_page;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
