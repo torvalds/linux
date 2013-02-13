@@ -2458,7 +2458,7 @@ extern int radeon_acpi_init(struct radeon_device *rdev);
 extern void radeon_acpi_fini(struct radeon_device *rdev);
 extern bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rdev);
 extern int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
-						u8 ref_req, bool advertise);
+						u8 perf_req, bool advertise);
 extern int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev);
 #else
 static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; }
