@@ -167,7 +167,6 @@ struct paca_struct {
 };
 
 extern struct paca_struct *paca;
-extern __initdata struct paca_struct boot_paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
 extern void allocate_pacas(void);
