@@ -1176,9 +1176,26 @@ fp_unavailable_common:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
-1:	bl	.load_up_fpu
+1:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+BEGIN_FTR_SECTION
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+END_FTR_SECTION_IFSET(CPU_FTR_TM)
+#endif
+	bl	.load_up_fpu
 	b	fast_exception_return
-
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.fp_unavailable_tm
+	b	.ret_from_except
+#endif
 	.align	7
 	.globl altivec_unavailable_common
 altivec_unavailable_common:
@@ -1186,8 +1203,25 @@ altivec_unavailable_common:
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	beq	1f
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+  BEGIN_FTR_SECTION_NESTED(69)
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+  END_FTR_SECTION_NESTED(CPU_FTR_TM, CPU_FTR_TM, 69)
+#endif
 	bl	.load_up_altivec
 	b	fast_exception_return
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.altivec_unavailable_tm
+	b	.ret_from_except
+#endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
@@ -1204,7 +1238,24 @@ vsx_unavailable_common:
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
 	beq	1f
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+  BEGIN_FTR_SECTION_NESTED(69)
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+  END_FTR_SECTION_NESTED(CPU_FTR_TM, CPU_FTR_TM, 69)
+#endif
 	b	.load_up_vsx
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.vsx_unavailable_tm
+	b	.ret_from_except
+#endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
@@ -1219,6 +1270,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 tm_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0xf60, PACA_EXGEN)
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.tm_unavailable_exception
 	b	.ret_from_except

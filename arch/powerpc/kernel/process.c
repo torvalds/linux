@@ -515,7 +515,7 @@ out_and_saveregs:
 	tm_save_sprs(thr);
 }
 
-static inline void __maybe_unused tm_recheckpoint_new_task(struct task_struct *new)
+static inline void tm_recheckpoint_new_task(struct task_struct *new)
 {
 	unsigned long msr;
 
@@ -589,6 +589,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct ppc64_tlb_batch *batch;
 #endif
+
+	__switch_to_tm(prev);
 
 #ifdef CONFIG_SMP
 	/* avoid complexity of lazy save/restore of fpu
@@ -705,6 +707,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 * of sync. Hard disable here.
 	 */
 	hard_irq_disable();
+
+	tm_recheckpoint_new_task(new);
+
 	last = _switch(old_thread, new_thread);
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -1080,7 +1085,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		regs->msr = MSR_USER32;
 	}
 #endif
-
 	discard_lazy_cpu_state();
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
@@ -1100,6 +1104,13 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.spefscr = 0;
 	current->thread.used_spe = 0;
 #endif /* CONFIG_SPE */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (cpu_has_feature(CPU_FTR_TM))
+		regs->msr |= MSR_TM;
+	current->thread.tm_tfhar = 0;
+	current->thread.tm_texasr = 0;
+	current->thread.tm_tfiar = 0;
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 }
 
 #define PR_FP_ALL_EXCEPT (PR_FP_EXC_DIV | PR_FP_EXC_OVF | PR_FP_EXC_UND \
