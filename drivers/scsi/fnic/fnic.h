@@ -303,6 +303,8 @@ const char *fnic_state_to_str(unsigned int state);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
 
+int fnic_is_abts_pending(struct fnic *, struct scsi_cmnd *);
+
 static inline int
 fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
 {
