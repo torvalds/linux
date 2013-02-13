@@ -866,10 +866,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 				   WIRELESS_MODE WirelessMode,
 				   PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
 {
-	struct		r8180_priv *priv = ieee80211_priv(dev);
-	struct		ieee80211_device *ieee = priv->ieee80211;
 	AC_CODING	eACI;
-	u8		u1bAIFS;
 
 	/*
 	 *	<RJ_TODO_8185B>
@@ -890,8 +887,6 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 
 	write_nic_byte(dev, SIFS, ChnlAccessSetting->SIFS_Timer);
 	write_nic_byte(dev, SLOT, ChnlAccessSetting->SlotTimeTimer); /* Rewrited from directly use PlatformEFIOWrite1Byte(), by Annie, 2006-03-29. */
-
-	u1bAIFS = aSifsTime + (2 * ChnlAccessSetting->SlotTimeTimer);
 
 	write_nic_byte(dev, EIFS, ChnlAccessSetting->EIFS_Timer);
 
