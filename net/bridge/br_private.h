@@ -75,6 +75,7 @@ struct net_port_vlans {
 	}				parent;
 	struct rcu_head			rcu;
 	unsigned long			vlan_bitmap[BR_VLAN_BITMAP_LEN];
+	unsigned long			untagged_bitmap[BR_VLAN_BITMAP_LEN];
 	u16				num_vlans;
 };
 

@@ -23,6 +23,15 @@ static void __vlan_delete_pvid(struct net_port_vlans *v, u16 vid)
 	v->pvid = 0;
 }
 
+static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
+{
+	if (flags & BRIDGE_VLAN_INFO_PVID)
+		__vlan_add_pvid(v, vid);
+
+	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
+		set_bit(vid, v->untagged_bitmap);
+}
+
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	struct net_bridge_port *p = NULL;
@@ -31,8 +40,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 	int err;
 
 	if (test_bit(vid, v->vlan_bitmap)) {
-		if (flags & BRIDGE_VLAN_INFO_PVID)
-			__vlan_add_pvid(v, vid);
+		__vlan_add_flags(v, vid, flags);
 		return 0;
 	}
 
@@ -69,8 +77,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 
 	set_bit(vid, v->vlan_bitmap);
 	v->num_vlans++;
-	if (flags & BRIDGE_VLAN_INFO_PVID)
-		__vlan_add_pvid(v, vid);
+	__vlan_add_flags(v, vid, flags);
 
 	return 0;
 
@@ -86,6 +93,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 		return -EINVAL;
 
 	__vlan_delete_pvid(v, vid);
+	clear_bit(vid, v->untagged_bitmap);
 
 	if (v->port_idx && vid) {
 		struct net_device *dev = v->parent.port->dev;
@@ -144,11 +152,11 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 		goto out;
 
 	/* At this point, we know that the frame was filtered and contains
-	 * a valid vlan id.  If the vlan id matches the pvid of current port
+	 * a valid vlan id.  If the vlan id is set in the untagged bitmap,
 	 * send untagged; otherwise, send taged.
 	 */
 	br_vlan_get_tag(skb, &vid);
-	if (vid == br_get_pvid(pv))
+	if (test_bit(vid, pv->untagged_bitmap))
 		skb = br_vlan_untag(skb);
 	else {
 		/* Egress policy says "send tagged".  If output device

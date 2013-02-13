@@ -143,6 +143,10 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			vinfo.flags = 0;
 			if (vid == pvid)
 				vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
+
+			if (test_bit(vid, pv->untagged_bitmap))
+				vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
 			if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
 				    sizeof(vinfo), &vinfo))
 				goto nla_put_failure;
