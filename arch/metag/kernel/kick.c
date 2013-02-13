@@ -25,6 +25,7 @@
  * the KICK handlers require access to a CPU's pTBI structure. So we
  * pass it as an argument.
  */
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/types.h>
@@ -48,6 +49,7 @@ void kick_register_func(struct kick_irq_handler *kh)
 
 	spin_unlock_irqrestore(&kick_handlers_lock, flags);
 }
+EXPORT_SYMBOL(kick_register_func);
 
 void kick_unregister_func(struct kick_irq_handler *kh)
 {
@@ -59,6 +61,7 @@ void kick_unregister_func(struct kick_irq_handler *kh)
 
 	spin_unlock_irqrestore(&kick_handlers_lock, flags);
 }
+EXPORT_SYMBOL(kick_unregister_func);
 
 TBIRES
 kick_handler(TBIRES State, int SigNum, int Triggers, int Inst, PTBI pTBI)

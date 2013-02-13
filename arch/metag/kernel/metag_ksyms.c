@@ -29,8 +29,6 @@ EXPORT_SYMBOL(__do_clear_user);
 
 EXPORT_SYMBOL(pTBI_get);
 EXPORT_SYMBOL(meta_memoffset);
-EXPORT_SYMBOL(kick_register_func);
-EXPORT_SYMBOL(kick_unregister_func);
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
