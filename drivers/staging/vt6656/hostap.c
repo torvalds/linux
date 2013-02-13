@@ -135,9 +135,9 @@ static int hostap_disable_hostapd(struct vnt_private *pDevice, int rtnl_locked)
 	}
 	kfree(pDevice->apdev);
 	pDevice->apdev = NULL;
-    pDevice->bEnable8021x = FALSE;
-    pDevice->bEnableHostWEP = FALSE;
-    pDevice->bEncryptionEnable = FALSE;
+    pDevice->bEnable8021x = false;
+    pDevice->bEnableHostWEP = false;
+    pDevice->bEncryptionEnable = false;
 
 	return 0;
 }
@@ -230,7 +230,7 @@ static int hostap_add_sta(struct vnt_private *pDevice,
     pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
 // TODO listenInterval
 //    pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = 1;
-    pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = FALSE;
+    pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = false;
     pMgmt->sNodeDBTable[uNodeIndex].bySuppRate = param->u.add_sta.tx_supp_rates;
 
     // set max tx rate
@@ -422,7 +422,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 	int ret = 0;
 	s32 iNodeIndex = -1;
 	int ii;
-	int bKeyTableFull = FALSE;
+	int bKeyTableFull = false;
 	u16 wKeyCtl = 0;
 
 
@@ -444,7 +444,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
         iNodeIndex = 0;
 
 	} else {
-	    if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &iNodeIndex) == FALSE) {
+	    if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &iNodeIndex) == false) {
 	        param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ADDR;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " HOSTAP_CRYPT_ERR_UNKNOWN_ADDR\n");
 	        return -EINVAL;
@@ -460,10 +460,10 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
                                &(pDevice->sKey),
                                param->sta_addr,
                                pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex
-                              ) == FALSE) {
+                              ) == false) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybRemoveKey fail \n");
             }
-            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
         }
         pMgmt->sNodeDBTable[iNodeIndex].byKeyIndex = 0;
         pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = 0;
@@ -498,7 +498,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 
 	if (param->u.crypt.alg == WPA_ALG_WEP) {
 
-        if ((pDevice->bEnable8021x == FALSE) || (iNodeIndex == 0)) {
+        if ((pDevice->bEnable8021x == false) || (iNodeIndex == 0)) {
             KeybSetDefaultKey(  pDevice,
                                 &(pDevice->sKey),
                                 dwKeyIndex & ~(BIT30 | USE_KEYRSC),
@@ -524,7 +524,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 
             } else {
                 // Key Table Full
-                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+                pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
                 bKeyTableFull = TRUE;
             }
         }
@@ -593,7 +593,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 
         } else {
             // Key Table Full
-            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = FALSE;
+            pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
             bKeyTableFull = TRUE;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Key Table Full\n");
         }
@@ -661,7 +661,7 @@ static int hostap_get_encryption(struct vnt_private *pDevice,
 	if (is_broadcast_ether_addr(param->sta_addr)) {
         iNodeIndex = 0;
 	} else {
-	    if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &iNodeIndex) == FALSE) {
+	    if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &iNodeIndex) == false) {
 	        param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ADDR;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: HOSTAP_CRYPT_ERR_UNKNOWN_ADDR\n");
 	        return -EINVAL;

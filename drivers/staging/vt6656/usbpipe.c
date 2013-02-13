@@ -315,7 +315,7 @@ int PIPEnsInterruptRead(struct vnt_private *pDevice)
         return (STATUS_FAILURE);
     }
     pDevice->intBuf.bInUse = TRUE;
-//    pDevice->bEventAvailable = FALSE;
+//    pDevice->bEventAvailable = false;
     pDevice->ulIntInPosted++;
 
     //
@@ -383,7 +383,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
     // otherwise interrupt data handler will free int buffer after it handle it.
     if (( ntStatus != STATUS_SUCCESS )) {
         pDevice->ulBulkInError++;
-        pDevice->intBuf.bInUse = FALSE;
+        pDevice->intBuf.bInUse = false;
 
 //        if (ntStatus == USBD_STATUS_CRC) {
 //            pDevice->ulIntInContCRCError++;
@@ -505,8 +505,8 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 	PRCB pRCB = (PRCB)urb->context;
 	struct vnt_private *pDevice = pRCB->pDevice;
 	unsigned long   bytesRead;
-	int bIndicateReceive = FALSE;
-	int bReAllocSkb = FALSE;
+	int bIndicateReceive = false;
+	int bReAllocSkb = false;
 	int status;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
@@ -578,7 +578,7 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice, PUSB_SEND_CONTEXT pContext)
 
 
 
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
 
 /*
     if (pDevice->pPendingBulkOutContext != NULL) {
@@ -610,13 +610,13 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice, PUSB_SEND_CONTEXT pContext)
     	if (status != 0)
     	{
     		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Tx URB failed %d\n", status);
-		pContext->bBoolInUse = FALSE;
+		pContext->bBoolInUse = false;
     		return STATUS_FAILURE;
     	}
         return STATUS_PENDING;
     }
     else {
-        pContext->bBoolInUse = FALSE;
+        pContext->bBoolInUse = false;
         return STATUS_RESOURCES;
     }
 }
@@ -719,7 +719,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
         if (netif_queue_stopped(pDevice->dev))
             netif_wake_queue(pDevice->dev);
     }
-    pContext->bBoolInUse = FALSE;
+    pContext->bBoolInUse = false;
 
     return;
 }

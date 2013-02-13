@@ -288,9 +288,9 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->byAutoPwrTunning = 0;
     pDevice->wCTSDuration = 0;
     pDevice->byPreambleType = 0;
-    pDevice->bExistSWNetAddr = FALSE;
+    pDevice->bExistSWNetAddr = false;
     /* pDevice->bDiversityRegCtlON = TRUE; */
-    pDevice->bDiversityRegCtlON = FALSE;
+    pDevice->bDiversityRegCtlON = false;
 }
 
 
@@ -346,23 +346,23 @@ static int device_init_registers(struct vnt_private *pDevice,
 
         if ( !FIRMWAREbCheckVersion(pDevice) ) {
             if (FIRMWAREbDownload(pDevice) == TRUE) {
-                if (FIRMWAREbBrach2Sram(pDevice) == FALSE) {
+                if (FIRMWAREbBrach2Sram(pDevice) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" FIRMWAREbBrach2Sram fail \n");
                   	spin_unlock_irq(&pDevice->lock);
-                    return FALSE;
+                    return false;
                 }
             } else {
 
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" FIRMWAREbDownload fail \n");
                 spin_unlock_irq(&pDevice->lock);
-                return FALSE;
+                return false;
             }
         }
 
         if ( !BBbVT3184Init(pDevice) ) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail \n");
             spin_unlock_irq(&pDevice->lock);
-            return FALSE;
+            return false;
         }
     }
 
@@ -384,7 +384,7 @@ static int device_init_registers(struct vnt_private *pDevice,
     if ( ntStatus != STATUS_SUCCESS ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail \n");
         spin_unlock_irq(&pDevice->lock);
-        return FALSE;
+        return false;
     }
     if (InitType == DEVICE_INIT_COLD) {
 
@@ -393,7 +393,7 @@ static int device_init_registers(struct vnt_private *pDevice,
         if (ntStatus != STATUS_SUCCESS) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Cardinit request in status fail!\n");
             spin_unlock_irq(&pDevice->lock);
-            return FALSE;
+            return false;
         }
 
 	/* local ID for AES functions */
@@ -406,17 +406,17 @@ static int device_init_registers(struct vnt_private *pDevice,
 
         if ( ntStatus != STATUS_SUCCESS ) {
             spin_unlock_irq(&pDevice->lock);
-            return FALSE;
+            return false;
         }
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
 	/* force CCK */
         pDevice->bCCK = TRUE;
-	pDevice->bProtectMode = FALSE;
+	pDevice->bProtectMode = false;
 	/* only used in 11g type, sync with ERP IE */
-        pDevice->bNonERPPresent = FALSE;
-        pDevice->bBarkerPreambleMd = FALSE;
+        pDevice->bNonERPPresent = false;
+        pDevice->bBarkerPreambleMd = false;
         if ( pDevice->bFixRate ) {
             pDevice->wCurrentRate = (WORD) pDevice->uConnectionRate;
         } else {
@@ -472,7 +472,7 @@ static int device_init_registers(struct vnt_private *pDevice,
         if (byAntenna & EEP_ANTINV)
             pDevice->bTxRxAntInv = TRUE;
         else
-            pDevice->bTxRxAntInv = FALSE;
+            pDevice->bTxRxAntInv = false;
 
         byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
@@ -492,9 +492,9 @@ static int device_init_registers(struct vnt_private *pDevice,
             if (pDevice->bDiversityRegCtlON)
                 pDevice->bDiversityEnable = TRUE;
             else
-                pDevice->bDiversityEnable = FALSE;
+                pDevice->bDiversityEnable = false;
         } else  {
-            pDevice->bDiversityEnable = FALSE;
+            pDevice->bDiversityEnable = false;
             pDevice->byAntennaCount = 1;
             pDevice->dwTxAntennaSel = 0;
             pDevice->dwRxAntennaSel = 0;
@@ -607,7 +607,7 @@ static int device_init_registers(struct vnt_private *pDevice,
         pDevice->bShortSlotTime = TRUE;
     } else {
         CARDbAddBasicRate(pDevice, RATE_1M);
-        pDevice->bShortSlotTime = FALSE;
+        pDevice->bShortSlotTime = false;
     }
     BBvSetShortSlotTime(pDevice);
     CARDvSetBSSMode(pDevice);
@@ -619,7 +619,7 @@ static int device_init_registers(struct vnt_private *pDevice,
     }
 
     pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
-    pDevice->bHWRadioOff = FALSE;
+    pDevice->bHWRadioOff = false;
     if ( (pDevice->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0 ) {
         ntStatus = CONTROLnsRequestIn(pDevice,
                                     MESSAGE_TYPE_READ,
@@ -630,14 +630,14 @@ static int device_init_registers(struct vnt_private *pDevice,
 
         if ( ntStatus != STATUS_SUCCESS ) {
             spin_unlock_irq(&pDevice->lock);
-            return FALSE;
+            return false;
         }
         if ( (byTmp & GPIO3_DATA) == 0 ) {
             pDevice->bHWRadioOff = TRUE;
             MACvRegBitsOn(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
         } else {
             MACvRegBitsOff(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
-            pDevice->bHWRadioOff = FALSE;
+            pDevice->bHWRadioOff = false;
         }
 
     }
@@ -837,7 +837,7 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "alloc tx urb failed\n");
             goto free_tx;
         }
-        pTxContext->bBoolInUse = FALSE;
+        pTxContext->bBoolInUse = false;
     }
 
     /* allocate RCB mem */
@@ -872,7 +872,7 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
             goto free_rx_tx;
         }
         pRCB->skb->dev = pDevice->dev;
-        pRCB->bBoolInUse = FALSE;
+        pRCB->bBoolInUse = false;
         EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
         pDevice->NumRecvFreeList++;
         pRCB++;
@@ -908,7 +908,7 @@ free_rx_tx:
 free_tx:
     device_free_tx_bufs(pDevice);
 
-	return FALSE;
+	return false;
 }
 
 
@@ -934,7 +934,7 @@ static bool device_init_defrag_cb(struct vnt_private *pDevice)
 
 free_frag:
     device_free_frag_bufs(pDevice);
-    return FALSE;
+    return false;
 }
 
 
@@ -961,7 +961,7 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
 
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
-        return FALSE;
+        return false;
     ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
 
@@ -975,19 +975,19 @@ static int  device_open(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
 
-     pDevice->fWPA_Authened = FALSE;
+     pDevice->fWPA_Authened = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
 
 
     pDevice->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
-    if (device_alloc_bufs(pDevice) == FALSE) {
+    if (device_alloc_bufs(pDevice) == false) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_alloc_bufs fail... \n");
         return -ENOMEM;
     }
 
-    if (device_init_defrag_cb(pDevice)== FALSE) {
+    if (device_init_defrag_cb(pDevice)== false) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Initial defragment cb fail \n");
         goto free_rx_tx;
     }
@@ -1001,7 +1001,7 @@ static int  device_open(struct net_device *dev)
     /* read config file */
     Read_config_file(pDevice);
 
-    if (device_init_registers(pDevice, DEVICE_INIT_COLD) == FALSE) {
+    if (device_init_registers(pDevice, DEVICE_INIT_COLD) == false) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
         goto free_all;
     }
@@ -1013,11 +1013,11 @@ static int  device_open(struct net_device *dev)
 	memcpy(pDevice->vnt_mgmt.abyMACAddr,
 		pDevice->abyCurrentNetAddr, ETH_ALEN);
     memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, ETH_ALEN);
-    pDevice->bStopTx0Pkt = FALSE;
-    pDevice->bStopDataPkt = FALSE;
-    pDevice->bRoaming = FALSE;
-    pDevice->bIsRoaming = FALSE;
-    pDevice->bEnableRoaming = FALSE;
+    pDevice->bStopTx0Pkt = false;
+    pDevice->bStopDataPkt = false;
+    pDevice->bRoaming = false;
+    pDevice->bIsRoaming = false;
+    pDevice->bEnableRoaming = false;
     if (pDevice->bDiversityRegCtlON) {
         device_init_diversity_timer(pDevice);
     }
@@ -1031,15 +1031,15 @@ static int  device_open(struct net_device *dev)
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
     pDevice->bIsRxWorkItemQueued = TRUE;
-    pDevice->fKillEventPollingThread = FALSE;
-    pDevice->bEventAvailable = FALSE;
+    pDevice->fKillEventPollingThread = false;
+    pDevice->bEventAvailable = false;
 
-   pDevice->bWPADEVUp = FALSE;
-     pDevice->bwextstep0 = FALSE;
-     pDevice->bwextstep1 = FALSE;
-     pDevice->bwextstep2 = FALSE;
-     pDevice->bwextstep3 = FALSE;
-     pDevice->bWPASuppWextEnabled = FALSE;
+   pDevice->bWPADEVUp = false;
+     pDevice->bwextstep0 = false;
+     pDevice->bwextstep1 = false;
+     pDevice->bwextstep2 = false;
+     pDevice->bwextstep3 = false;
+     pDevice->bWPASuppWextEnabled = false;
     pDevice->byReAssocCount = 0;
 
     RXvWorkItem(pDevice);
@@ -1106,15 +1106,15 @@ static int device_close(struct net_device *dev)
 
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-        pMgmt->bShareKeyAlgorithm = FALSE;
-        pDevice->bEncryptionEnable = FALSE;
+        pMgmt->bShareKeyAlgorithm = false;
+        pDevice->bEncryptionEnable = false;
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 	spin_lock_irq(&pDevice->lock);
 	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
                 MACvDisableKeyEntry(pDevice,uu);
 	spin_unlock_irq(&pDevice->lock);
 
-    if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == FALSE) {
+    if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false) {
         MACbShutdown(pDevice);
     }
     netif_stop_queue(pDevice->dev);
@@ -1136,11 +1136,11 @@ static int device_close(struct net_device *dev)
     tasklet_kill(&pDevice->ReadWorkItem);
     tasklet_kill(&pDevice->EventWorkItem);
 
-   pDevice->bRoaming = FALSE;
-   pDevice->bIsRoaming = FALSE;
-   pDevice->bEnableRoaming = FALSE;
-    pDevice->bCmdRunning = FALSE;
-    pDevice->bLinkPass = FALSE;
+   pDevice->bRoaming = false;
+   pDevice->bIsRoaming = false;
+   pDevice->bEnableRoaming = false;
+    pDevice->bCmdRunning = false;
+    pDevice->bLinkPass = false;
     memset(pMgmt->abyCurrBSSID, 0, 6);
     pMgmt->eCurrState = WMAC_STATE_IDLE;
 
@@ -1277,14 +1277,14 @@ static int Config_FileGetParameter(unsigned char *string,
     /* find target string start point */
     start_p = kstrstr(source,buf1);
     if (start_p == NULL)
-	return FALSE;
+	return false;
 
     /* check if current config line is marked by "#" */
     for (ii = 1; ; ii++) {
 	if (memcmp(start_p - ii, "\n", 1) == 0)
 		break;
 	if (memcmp(start_p - ii, "#", 1) == 0)
-		return FALSE;
+		return false;
     }
 
     /* find target string end point */
@@ -1300,7 +1300,7 @@ static int Config_FileGetParameter(unsigned char *string,
    /* find value */
    start_p = kstrstr(buf2,"=");
    if (start_p == NULL)
-      return FALSE;
+      return false;
    memset(buf1,0,100);
    strcpy(buf1,start_p+1);
 

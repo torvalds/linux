@@ -146,7 +146,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
 					pMgmt->sNodeDBTable[0].bRxPSPoll =
-						FALSE;
+						false;
 				} else if (pMgmt->byDTIMCount == 0) {
 					/* check if multicast tx buffering */
 					pMgmt->byDTIMCount =
@@ -163,7 +163,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 			} /* if (pDevice->eOPMode == OP_MODE_AP) */
 		pDevice->bBeaconSent = TRUE;
 		} else {
-			pDevice->bBeaconSent = FALSE;
+			pDevice->bBeaconSent = false;
 		}
 		if (pINTData->byISR0 & ISR_TBTT) {
 			if (pDevice->bEnablePSMode)
@@ -202,7 +202,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 					WLAN_CMD_RADIO,
 					NULL);
 	pDevice->intBuf.uDataLen = 0;
-	pDevice->intBuf.bInUse = FALSE;
+	pDevice->intBuf.bInUse = false;
 
 	pStats->tx_packets = pDevice->scStatistic.ullTsrOK;
 	pStats->tx_bytes = pDevice->scStatistic.ullTxDirectedBytes +

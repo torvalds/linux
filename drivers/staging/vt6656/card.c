@@ -501,7 +501,7 @@ void vUpdateIFS(struct vnt_private *pDevice)
     }
     else {// PK_TYPE_11GA & PK_TYPE_11GB
         BYTE byRate = 0;
-        bool bOFDMRate = FALSE;
+        bool bOFDMRate = false;
 	unsigned int ii = 0;
         PWLAN_IE_SUPP_RATES pItemRates = NULL;
 
@@ -521,7 +521,7 @@ void vUpdateIFS(struct vnt_private *pDevice)
                 break;
             }
         }
-        if (bOFDMRate == FALSE) {
+        if (bOFDMRate == false) {
 		pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->vnt_mgmt
 			.abyCurrExtSuppRates;
             for (ii = 0; ii < pItemRates->len; ii++) {
@@ -599,7 +599,7 @@ void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: TRUE if succeeded; false if failed.
  *
  */
 void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx)
@@ -620,7 +620,7 @@ int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
         if ((pDevice->wBasicRate) & ((WORD)(1<<ii)))
             return TRUE;
     }
-    return FALSE;
+    return false;
 }
 
 u8 CARDbyGetPktType(struct vnt_private *pDevice)
@@ -723,7 +723,7 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
  *  Out:
  *      qwCurrTSF       - Current TSF counter
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: TRUE if success; otherwise false
  *
  */
 bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
@@ -743,7 +743,7 @@ bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
  *  In:
  *      pDevice         - The adapter to be read
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: TRUE if success; otherwise false
  *
  */
 bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
@@ -899,7 +899,7 @@ void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: TRUE if success; otherwise false
  *
  */
 int CARDbRadioPowerOff(struct vnt_private *pDevice)
@@ -939,7 +939,7 @@ int CARDbRadioPowerOff(struct vnt_private *pDevice)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success; otherwise FALSE
+ * Return Value: TRUE if success; otherwise false
  *
  */
 int CARDbRadioPowerOn(struct vnt_private *pDevice)
@@ -947,13 +947,13 @@ int CARDbRadioPowerOn(struct vnt_private *pDevice)
 	int bResult = TRUE;
 
     if ((pDevice->bHWRadioOff == TRUE) || (pDevice->bRadioControlOff == TRUE)) {
-        return FALSE;
+        return false;
     }
 
-    //if (pDevice->bRadioOff == FALSE)
+    //if (pDevice->bRadioOff == false)
     //    return TRUE;
 
-    pDevice->bRadioOff = FALSE;
+    pDevice->bRadioOff = false;
 
     BBvExitDeepSleep(pDevice);
 

@@ -38,12 +38,12 @@ struct _version {
     unsigned char   build;
 } version_t, *pversion_t;
 
-#ifndef FALSE
-#define FALSE   (0)
+#ifndef false
+#define false   (0)
 #endif
 
 #ifndef TRUE
-#define TRUE    (!(FALSE))
+#define TRUE    (!(false))
 #endif
 
 #define VID_TABLE_SIZE      64

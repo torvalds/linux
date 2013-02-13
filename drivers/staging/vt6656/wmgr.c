@@ -228,7 +228,7 @@ void vMgrObjectInit(struct vnt_private *pDevice)
     pMgmt->byCSSPK = KEY_CTL_NONE;
     pMgmt->byCSSGK = KEY_CTL_NONE;
     pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
-    BSSvClearBSSList((void *) pDevice, FALSE);
+    BSSvClearBSSList((void *) pDevice, false);
 
     init_timer(&pMgmt->sTimerSecondCallback);
     pMgmt->sTimerSecondCallback.data = (unsigned long)pDevice;
@@ -244,16 +244,16 @@ void vMgrObjectInit(struct vnt_private *pDevice)
     pDevice->sTimerTxData.data = (unsigned long)pDevice;
     pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
     pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-    pDevice->fTxDataInSleep = FALSE;
-    pDevice->IsTxDataTrigger = FALSE;
+    pDevice->fTxDataInSleep = false;
+    pDevice->IsTxDataTrigger = false;
     pDevice->nTxDataTimeCout = 0;
 
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
     pDevice->uCmdDequeueIdx = 0;
     pDevice->uCmdEnqueueIdx = 0;
     pDevice->eCommandState = WLAN_CMD_IDLE;
-    pDevice->bCmdRunning = FALSE;
-    pDevice->bCmdClear = FALSE;
+    pDevice->bCmdRunning = false;
+    pDevice->bCmdClear = false;
 
     return;
 }
@@ -505,7 +505,7 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
         pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = cpu_to_le16(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = cpu_to_le16(*sFrame.pwListenInterval);
         pMgmt->sNodeDBTable[uNodeIndex].bPSEnable =
-                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : FALSE;
+                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : false;
         // Todo: check sta basic rate, if ap can't support, set status code
         if (pDevice->byBBType == BB_TYPE_11B) {
             uRateLen = WLAN_RATES_MAXLEN_11B;
@@ -527,7 +527,7 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
 	RATEvParseMaxRate((void *)pDevice,
                            (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                            (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
-                           FALSE, // do not change our basic rate
+                           false, // do not change our basic rate
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -555,7 +555,7 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
             pDevice->bProtectMode = TRUE;
             pDevice->bNonERPPresent = TRUE;
         }
-        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == FALSE) {
+        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == false) {
             pDevice->bBarkerPreambleMd = TRUE;
         }
 
@@ -651,7 +651,7 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
         pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = cpu_to_le16(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = cpu_to_le16(*sFrame.pwListenInterval);
         pMgmt->sNodeDBTable[uNodeIndex].bPSEnable =
-                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : FALSE;
+                WLAN_GET_FC_PWRMGT(sFrame.pHdr->sA3.wFrameCtl) ? TRUE : false;
         // Todo: check sta basic rate, if ap can't support, set status code
 
         if (pDevice->byBBType == BB_TYPE_11B) {
@@ -675,7 +675,7 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 	RATEvParseMaxRate((void *)pDevice,
                           (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                           (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
-                           FALSE, // do not change our basic rate
+                           false, // do not change our basic rate
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate),
                            &(pMgmt->sNodeDBTable[uNodeIndex].wSuppRate),
@@ -704,7 +704,7 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
             pDevice->bProtectMode = TRUE;
             pDevice->bNonERPPresent = TRUE;
         }
-        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == FALSE) {
+        if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble == false) {
             pDevice->bBarkerPreambleMd = TRUE;
         }
 
@@ -872,11 +872,11 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
     }
 
 //need clear flags related to Networkmanager
-              pDevice->bwextstep0 = FALSE;
-              pDevice->bwextstep1 = FALSE;
-              pDevice->bwextstep2 = FALSE;
-              pDevice->bwextstep3 = FALSE;
-              pDevice->bWPASuppWextEnabled = FALSE;
+              pDevice->bwextstep0 = false;
+              pDevice->bwextstep1 = false;
+              pDevice->bwextstep2 = false;
+              pDevice->bwextstep3 = false;
+              pDevice->bWPASuppWextEnabled = false;
 
 if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
       timer_expire(pDevice->sTimerCommand, 0);
@@ -1399,13 +1399,13 @@ static void s_vMgrRxDisassociation(struct vnt_private *pDevice,
         vMgrDecodeDisassociation(&sFrame);
         DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "AP disassociated me, reason=%d.\n", cpu_to_le16(*(sFrame.pwReason)));
 
-          pDevice->fWPA_Authened = FALSE;
+          pDevice->fWPA_Authened = false;
 
         //TODO: do something let upper layer know or
         //try to send associate packet again because of inactivity timeout
         if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
-                pDevice->bLinkPass = FALSE;
-                pMgmt->sNodeDBTable[0].bActive = FALSE;
+                pDevice->bLinkPass = false;
+                pMgmt->sNodeDBTable[0].bActive = false;
 	       pDevice->byReAssocCount = 0;
                 pMgmt->eCurrState = WMAC_STATE_AUTH;  // jump back to the auth state!
                 pDevice->eCommandState = WLAN_ASSOCIATE_WAIT;
@@ -1467,17 +1467,17 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
             sFrame.len = pRxPacket->cbMPDULen;
             sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
             vMgrDecodeDeauthen(&sFrame);
-	   pDevice->fWPA_Authened = FALSE;
+	   pDevice->fWPA_Authened = false;
             DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO  "AP deauthed me, reason=%d.\n", cpu_to_le16((*(sFrame.pwReason))));
             // TODO: update BSS list for specific BSSID if pre-authentication case
 	    if (!compare_ether_addr(sFrame.pHdr->sA3.abyAddr3,
 				    pMgmt->abyCurrBSSID)) {
                 if (pMgmt->eCurrState >= WMAC_STATE_AUTHPENDING) {
-                    pMgmt->sNodeDBTable[0].bActive = FALSE;
+                    pMgmt->sNodeDBTable[0].bActive = false;
                     pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     netif_stop_queue(pDevice->dev);
-                    pDevice->bLinkPass = FALSE;
+                    pDevice->bLinkPass = false;
                     ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
                 }
             }
@@ -1511,7 +1511,7 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
 -*/
 static int ChannelExceedZoneType(struct vnt_private *pDevice, u8 byCurrChannel)
 {
-	int exceed = FALSE;
+	int exceed = false;
 
   switch(pDevice->byZoneType) {
   	case 0x00:                  //USA:1~11
@@ -1548,13 +1548,13 @@ static void s_vMgrRxBeacon(struct vnt_private *pDevice,
 	PKnownBSS pBSSList;
 	WLAN_FR_BEACON sFrame;
 	u64 qwTSFOffset;
-	int bIsBSSIDEqual = FALSE;
-	int bIsSSIDEqual = FALSE;
-	int bTSFLargeDiff = FALSE;
-	int bTSFOffsetPostive = FALSE;
-	int bUpdateTSF = FALSE;
-	int bIsAPBeacon = FALSE;
-	int bIsChannelEqual = FALSE;
+	int bIsBSSIDEqual = false;
+	int bIsSSIDEqual = false;
+	int bTSFLargeDiff = false;
+	int bTSFOffsetPostive = false;
+	int bUpdateTSF = false;
+	int bIsAPBeacon = false;
+	int bIsChannelEqual = false;
 	u32 uLocateByteIndex;
 	u8 byTIMBitOn = 0;
 	u16 wAIDNumber = 0;
@@ -1566,7 +1566,7 @@ static void s_vMgrRxBeacon(struct vnt_private *pDevice,
 	u8 byCurrChannel = pRxPacket->byRxChannel;
 	ERPObject sERP;
 	u32 uRateLen = WLAN_RATES_MAXLEN;
-	int bChannelHit = FALSE;
+	int bChannelHit = false;
 	u8 byOldPreambleType;
 
 
@@ -1618,7 +1618,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         sERP.bERPExist = TRUE;
 
     } else {
-        sERP.bERPExist = FALSE;
+        sERP.bERPExist = false;
         sERP.byERP = 0;
     }
 
@@ -1765,7 +1765,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                         bShortSlotTime = TRUE;
                     }
                     else if (pDevice->byBBType == BB_TYPE_11B) {
-                        bShortSlotTime = FALSE;
+                        bShortSlotTime = false;
                     }
                     if (bShortSlotTime != pDevice->bShortSlotTime) {
                         pDevice->bShortSlotTime = bShortSlotTime;
@@ -1827,7 +1827,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 	if (qwTimestamp >= qwLocalTSF)
 		bTSFOffsetPostive = TRUE;
 	else
-		bTSFOffsetPostive = FALSE;
+		bTSFOffsetPostive = false;
 
     if (bTSFOffsetPostive) {
         qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
@@ -1850,7 +1850,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 	if ((pDevice->bEnablePSMode == TRUE) && (sFrame.pTIM)) {
 
 		/* deal with DTIM, analysis TIM */
-            pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? TRUE : FALSE ;
+            pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? TRUE : false ;
             pMgmt->byDTIMCount = sFrame.pTIM->byDTIMCount;
             pMgmt->byDTIMPeriod = sFrame.pTIM->byDTIMPeriod;
             wAIDNumber = pMgmt->wCurrAID & ~(BIT14|BIT15);
@@ -1865,14 +1865,14 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 // len = byDTIMCount + byDTIMPeriod + byDTIMPeriod + byVirtBitMap[0~250]
                 if (sFrame.pTIM->len >= (uLocateByteIndex + 4)) {
                     byTIMBitOn  = (0x01) << ((wAIDNumber) % 8);
-                    pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? TRUE : FALSE;
+                    pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? TRUE : false;
                 }
                 else {
-                    pMgmt->bInTIM = FALSE;
+                    pMgmt->bInTIM = false;
                 };
             }
             else {
-                pMgmt->bInTIM = FALSE;
+                pMgmt->bInTIM = false;
             };
 
             if (pMgmt->bInTIM ||
@@ -1884,14 +1884,14 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 
             }
             else {
-                pMgmt->bInTIMWake = FALSE;
+                pMgmt->bInTIMWake = false;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Not In TIM..\n");
-                if (pDevice->bPWBitOn == FALSE) {
+                if (pDevice->bPWBitOn == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Send Null Packet\n");
                     if (PSbSendNullPacket(pDevice))
                         pDevice->bPWBitOn = TRUE;
                 }
-                if(PSbConsiderPowerDown(pDevice, FALSE, FALSE)) {
+                if(PSbConsiderPowerDown(pDevice, false, false)) {
                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Power down now...\n");
                 }
             }
@@ -2161,7 +2161,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     if (pDevice->byBBType == BB_TYPE_11A) {
         pDevice->bShortSlotTime = TRUE;
     } else {
-        pDevice->bShortSlotTime = FALSE;
+        pDevice->bShortSlotTime = false;
     }
     BBvSetShortSlotTime(pDevice);
     // vUpdateIFS() use pDevice->bShortSlotTime as parameter so it must be called
@@ -2311,7 +2311,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 	u16 wSuppRate;
 	u8 byTopCCKBasicRate = RATE_1M;
 	u8 byTopOFDMBasicRate = RATE_1M;
-	u8 bShortSlotTime = FALSE;
+	u8 bShortSlotTime = false;
 
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
@@ -2349,14 +2349,14 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 	    (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK)) {
 		/*
             if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
-                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No match RSN info. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
                 }
             } else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
-                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == false) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No match RSN info. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -2447,7 +2447,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 						    pMgmt->abyCurrBSSID,
 						    &pCurr->sRSNCapObj);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate: 1(%d)\n", bResult);
-                if (bResult == FALSE) {
+                if (bResult == false) {
 			vFlush_PMKID_Candidate((void *) pDevice);
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "vFlush_PMKID_Candidate: 4\n");
@@ -2500,7 +2500,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                     bShortSlotTime = TRUE;
                 }
                 else if (pDevice->byBBType == BB_TYPE_11B) {
-                    bShortSlotTime = FALSE;
+                    bShortSlotTime = false;
                 }
                 else {
                     bShortSlotTime = WLAN_GET_CAP_INFO_SHORTSLOTTIME(pCurr->wCapInfo);
@@ -2527,7 +2527,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 
             if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
 /*
-                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_TKIP, pCurr) == false) {
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
@@ -2535,7 +2535,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 */
             } else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
 /*
-                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == FALSE) {
+                if (WPA_SearchRSN(0, WPA_AESCCMP, pCurr) == false) {
                     // encryption mode error
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     return;
@@ -2641,7 +2641,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     if (s_bCipherMatch(pCurr,
                        pDevice->eEncryptionStatus,
                        &(pMgmt->byCSSPK),
-                       &(pMgmt->byCSSGK)) == FALSE) {
+                       &(pMgmt->byCSSGK)) == false) {
         DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "s_bCipherMatch Fail .......\n");
         return;
     }
@@ -2655,11 +2655,11 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     // Init the BSS informations
     pDevice->bCCK = TRUE;
-    pDevice->bProtectMode = FALSE;
+    pDevice->bProtectMode = false;
     MACvDisableProtectMD(pDevice);
-    pDevice->bBarkerPreambleMd = FALSE;
+    pDevice->bBarkerPreambleMd = false;
     MACvDisableBarkerPreambleMd(pDevice);
-    pDevice->bNonERPPresent = FALSE;
+    pDevice->bNonERPPresent = false;
     pDevice->byPreambleType = 0;
     pDevice->wBasicRate = 0;
     // Set Basic Rate
@@ -2701,7 +2701,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
             (pDevice->eConfigPHYMode == PHY_TYPE_AUTO)) {
             pDevice->byBBType = BB_TYPE_11B;
             pMgmt->eCurrentPHYMode = PHY_TYPE_11B;
-            pDevice->bShortSlotTime = FALSE;
+            pDevice->bShortSlotTime = false;
             BBvSetShortSlotTime(pDevice);
             CARDvSetBSSMode(pDevice);
         } else {
@@ -2717,7 +2717,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
             CARDvSetBSSMode(pDevice);
         } else if (pDevice->eConfigPHYMode == PHY_TYPE_11B) {
             pDevice->byBBType = BB_TYPE_11B;
-            pDevice->bShortSlotTime = FALSE;
+            pDevice->bShortSlotTime = false;
             BBvSetShortSlotTime(pDevice);
             CARDvSetBSSMode(pDevice);
         } else {
@@ -2823,8 +2823,8 @@ static void s_vMgrFormatTIM(struct vnt_manager *pMgmt, PWLAN_IE_TIM pTIM)
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byMap;
 	int ii, jj;
-	int bStartFound = FALSE;
-	int bMulticast = FALSE;
+	int bStartFound = false;
+	int bMulticast = false;
 	u16 wStartIndex = 0;
 	u16 wEndIndex = 0;
 
@@ -3888,7 +3888,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         sERP.byERP = sFrame.pERP->byContext;
         sERP.bERPExist = TRUE;
     } else {
-        sERP.bERPExist = FALSE;
+        sERP.bERPExist = false;
         sERP.byERP = 0;
     }
 
@@ -4037,7 +4037,7 @@ static void s_vMgrRxProbeRequest(struct vnt_private *pDevice,
 void vMgrRxManagePacket(struct vnt_private *pDevice, struct vnt_manager *pMgmt,
 		struct vnt_rx_mgmt *pRxPacket)
 {
-	int bInScan = FALSE;
+	int bInScan = false;
 	u32 uNodeIndex = 0;
 	NODE_STATE eNodeState = 0;
 	CMD_STATUS Status;
@@ -4073,7 +4073,7 @@ void vMgrRxManagePacket(struct vnt_private *pDevice, struct vnt_manager *pMgmt,
         case WLAN_FSTYPE_ASSOCRESP:
             // Frame Clase = 2
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx assocresp1\n");
-            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, FALSE);
+            s_vMgrRxAssocResponse(pDevice, pMgmt, pRxPacket, false);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx assocresp2\n");
             break;
 
@@ -4175,7 +4175,7 @@ void vMgrRxManagePacket(struct vnt_private *pDevice, struct vnt_manager *pMgmt,
  *  Prepare beacon to send
  *
  * Return Value:
- *    TRUE if success; FALSE if failed.
+ *    TRUE if success; false if failed.
  *
 -*/
 int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
@@ -4183,7 +4183,7 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 {
 	struct vnt_tx_mgmt *pTxPacket;
 
-//    pDevice->bBeaconBufReady = FALSE;
+//    pDevice->bBeaconBufReady = false;
     if (pDevice->bEncryptionEnable || pDevice->bEnable8021x){
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
     }
@@ -4206,7 +4206,7 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
         (pMgmt->abyCurrBSSID[0] == 0))
-        return FALSE;
+        return false;
 
     csBeacon_xmit(pDevice, pTxPacket);
     MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
@@ -4303,10 +4303,10 @@ int bAdd_PMKID_Candidate(struct vnt_private *pDevice, u8 *pbyBSSID,
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
 
     if ((pDevice == NULL) || (pbyBSSID == NULL) || (psRSNCapObj == NULL))
-        return FALSE;
+        return false;
 
     if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST)
-        return FALSE;
+        return false;
 
 
 
@@ -4377,7 +4377,7 @@ s_bCipherMatch (
     int i;
 
     if (pBSSNode == NULL)
-        return FALSE;
+        return false;
 
     // check cap. of BSS
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
@@ -4466,7 +4466,7 @@ s_bCipherMatch (
             *pbyCCSPK = KEY_CTL_NONE;
             return TRUE;
         } else {
-            return FALSE;
+            return false;
         }
 
     } else if (EncStatus == Ndis802_11Encryption2Enabled) {
@@ -4486,13 +4486,13 @@ s_bCipherMatch (
             *pbyCCSPK = KEY_CTL_TKIP;
             return TRUE;
         } else {
-            return FALSE;
+            return false;
         }
     } else if (EncStatus == Ndis802_11Encryption3Enabled) {
         if ((byMulticastCipher == KEY_CTL_CCMP) &&
             (byCipherMask == 0)) {
             // When CCMP is enable, "Use group cipher suite" shall not be a valid option.
-            return FALSE;
+            return false;
         } else if ((byMulticastCipher == KEY_CTL_WEP) &&
                    ((byCipherMask & 0x04) != 0)) {
             *pbyCCSGK = KEY_CTL_WEP;
@@ -4509,7 +4509,7 @@ s_bCipherMatch (
             *pbyCCSPK = KEY_CTL_CCMP;
             return TRUE;
         } else {
-            return FALSE;
+            return false;
         }
     }
     return TRUE;

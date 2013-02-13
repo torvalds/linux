@@ -455,7 +455,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 				bScheduleCommand((void *) pDevice,
 					WLAN_CMD_DISASSOCIATE, NULL);
 			} else {
-				pDevice->bLinkPass = FALSE;
+				pDevice->bLinkPass = false;
 				pMgmt->eCurrState = WMAC_STATE_IDLE;
 				memset(pMgmt->abyCurrBSSID, 0, 6);
 			}
@@ -479,7 +479,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 			spin_unlock_irq(&pDevice->lock);
 		}
-		pDevice->bCommit = FALSE;
+		pDevice->bCommit = false;
 	}
 
 
@@ -694,7 +694,7 @@ int iwctl_giwap(struct net_device *dev, struct iw_request_info *info,
 
 	memcpy(wrq->sa_data, pMgmt->abyCurrBSSID, 6);
 
-	if ((pDevice->bLinkPass == FALSE) && (pMgmt->eCurrMode != WMAC_MODE_ESS_AP))
+	if ((pDevice->bLinkPass == false) && (pMgmt->eCurrMode != WMAC_MODE_ESS_AP))
 		memset(wrq->sa_data, 0, 6);
 
 	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)
@@ -784,7 +784,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWESSID :\n");
 
-	pDevice->fWPA_Authened = FALSE;
+	pDevice->fWPA_Authened = false;
 	// Check if we asked for `any'
 	if (wrq->flags == 0) {
 		// Just send an empty SSID list
@@ -973,7 +973,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Fixed to Rate %d \n", pDevice->uConnectionRate);
 		}
 	} else {
-		pDevice->bFixRate = FALSE;
+		pDevice->bFixRate = false;
 		pDevice->uConnectionRate = 13;
 	}
 
@@ -1244,8 +1244,8 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	// Read the flags
 	if (wrq->flags & IW_ENCODE_DISABLED) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable WEP function\n");
-		pMgmt->bShareKeyAlgorithm = FALSE;
-		pDevice->bEncryptionEnable = FALSE;
+		pMgmt->bShareKeyAlgorithm = false;
+		pDevice->bEncryptionEnable = false;
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 		if (pDevice->flags & DEVICE_FLAGS_OPENED) {
 			spin_lock_irq(&pDevice->lock);
@@ -1260,7 +1260,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	}
 	if (wrq->flags & IW_ENCODE_OPEN) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & Open System\n");
-		pMgmt->bShareKeyAlgorithm = FALSE;
+		pMgmt->bShareKeyAlgorithm = false;
 	}
 
 	memset(pMgmt->abyDesireBSSID, 0xFF, 6);
@@ -1508,7 +1508,7 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 	case IW_AUTH_80211_AUTH_ALG:
 		PRINT_K("iwctl_siwauth:set AUTH_ALG=%d\n", wrq->value);
 		if (wrq->value == IW_AUTH_ALG_OPEN_SYSTEM)
-			pMgmt->bShareKeyAlgorithm = FALSE;
+			pMgmt->bShareKeyAlgorithm = false;
 		else if (wrq->value == IW_AUTH_ALG_SHARED_KEY)
 			pMgmt->bShareKeyAlgorithm = TRUE;
 		break;
@@ -1521,11 +1521,11 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 		break;
 	case IW_AUTH_PRIVACY_INVOKED:
 		pDevice->bEncryptionEnable = !!wrq->value;
-		if (pDevice->bEncryptionEnable == FALSE) {
+		if (pDevice->bEncryptionEnable == false) {
 			wpa_version = 0;
 			pairwise = 0;
 			pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-			pMgmt->bShareKeyAlgorithm = FALSE;
+			pMgmt->bShareKeyAlgorithm = false;
 			pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
 			PRINT_K("iwctl_siwauth:set WPADEV to disaable at 2?????\n");
 		}
@@ -1700,24 +1700,24 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 			pDevice->bwextstep0 = TRUE;
 		}
 		if ((pDevice->bwextstep0 == TRUE) && (param->u.wpa_key.key_index == 1)) {
-			pDevice->bwextstep0 = FALSE;
+			pDevice->bwextstep0 = false;
 			pDevice->bwextstep1 = TRUE;
 		}
 		if ((pDevice->bwextstep1 == TRUE) && (param->u.wpa_key.key_index == 2)) {
-			pDevice->bwextstep1 = FALSE;
+			pDevice->bwextstep1 = false;
 			pDevice->bwextstep2 = TRUE;
 		}
 		if ((pDevice->bwextstep2 == TRUE) && (param->u.wpa_key.key_index == 3)) {
-			pDevice->bwextstep2 = FALSE;
+			pDevice->bwextstep2 = false;
 			pDevice->bwextstep3 = TRUE;
 		}
 	}
 	if (pDevice->bwextstep3 == TRUE) {
 		PRINT_K("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");
-		pDevice->bwextstep0 = FALSE;
-		pDevice->bwextstep1 = FALSE;
-		pDevice->bwextstep2 = FALSE;
-		pDevice->bwextstep3 = FALSE;
+		pDevice->bwextstep0 = false;
+		pDevice->bwextstep1 = false;
+		pDevice->bwextstep2 = false;
+		pDevice->bwextstep3 = false;
 		pDevice->bWPASuppWextEnabled = TRUE;
 		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 		KeyvInitTable(pDevice, &pDevice->sKey);

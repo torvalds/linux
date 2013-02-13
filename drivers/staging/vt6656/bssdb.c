@@ -141,15 +141,15 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
         }
     }
 
-    if ((pbyBSSID != NULL)&&(pDevice->bRoaming == FALSE)) {
+    if ((pbyBSSID != NULL)&&(pDevice->bRoaming == false)) {
         // match BSSID first
         for (ii = 0; ii <MAX_BSS_NUM; ii++) {
             pCurrBSS = &(pMgmt->sBSSList[ii]);
 
-	   pCurrBSS->bSelected = FALSE;
+	   pCurrBSS->bSelected = false;
 
             if ((pCurrBSS->bActive) &&
-                (pCurrBSS->bSelected == FALSE)) {
+                (pCurrBSS->bSelected == false)) {
 		    if (!compare_ether_addr(pCurrBSS->abyBSSID, pbyBSSID)) {
                     if (pSSID != NULL) {
                         // compare ssid
@@ -183,9 +183,9 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
 
            //2007-0721-01<Mark>by MikeLiu
          //   if ((pCurrBSS->bActive) &&
-         //       (pCurrBSS->bSelected == FALSE)) {
+         //       (pCurrBSS->bSelected == false)) {
 
-	  pCurrBSS->bSelected = FALSE;
+	  pCurrBSS->bSelected = false;
           if (pCurrBSS->bActive) {
 
                 if (pSSID != NULL) {
@@ -237,7 +237,7 @@ pDevice->bSameBSSMaxNum = jj;
 
         if (pSelect != NULL) {
             pSelect->bSelected = TRUE;
-                        if (pDevice->bRoaming == FALSE)  {
+                        if (pDevice->bRoaming == false)  {
 	//       Einsn Add @20070907
 			memcpy(pbyDesireSSID,pCurrBSS->abySSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1) ;
                                                 }
@@ -274,12 +274,12 @@ void BSSvClearBSSList(struct vnt_private *pDevice, int bKeepCurrBSSID)
  //mike mark: there are two BSSID's in list. If that AP is in hidden ssid mode, one SSID is null,
  //                 but other's might not be obvious, so if it associate's with your STA,
  //                 you must keep the two of them!!
-               // bKeepCurrBSSID = FALSE;
+               // bKeepCurrBSSID = false;
                 continue;
             }
         }
 
-	pMgmt->sBSSList[ii].bActive = FALSE;
+	pMgmt->sBSSList[ii].bActive = false;
         memset(&pMgmt->sBSSList[ii], 0, sizeof(KnownBSS));
     }
     BSSvClearAnyBSSJoinRecord(pDevice);
@@ -355,7 +355,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 		(struct vnt_rx_mgmt *)pRxPacketContext;
 	PKnownBSS pBSSList = NULL;
 	unsigned int ii;
-	bool bParsingQuiet = FALSE;
+	bool bParsingQuiet = false;
 
 
     pBSSList = (PKnownBSS)&(pMgmt->sBSSList[0]);
@@ -368,7 +368,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 
     if (ii == MAX_BSS_NUM){
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Get free KnowBSS node failed.\n");
-        return FALSE;
+        return false;
     }
     // save the BSS info
     pBSSList->bActive = TRUE;
@@ -453,7 +453,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
     if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || (pBSSList->bWPA2Valid == TRUE)) {
 
         PSKeyItem  pTransmitKey = NULL;
-        bool       bIs802_1x = FALSE;
+        bool       bIs802_1x = false;
 
         for (ii = 0; ii < pBSSList->wAKMSSAuthCount; ii ++) {
             if (pBSSList->abyAKMSSAuthType[ii] == WLAN_11i_AKMSS_802_1X) {
@@ -534,10 +534,10 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 		(struct vnt_rx_mgmt *)pRxPacketContext;
 	int ii, jj;
 	signed long ldBm, ldBmSum;
-	bool bParsingQuiet = FALSE;
+	bool bParsingQuiet = false;
 
     if (pBSSList == NULL)
-        return FALSE;
+        return false;
 
 
 	pBSSList->qwBSSTimestamp = cpu_to_le64(qwTimestamp);
@@ -669,7 +669,7 @@ int BSSbIsSTAInNodeDB(struct vnt_private *pDevice,
         }
     }
 
-   return FALSE;
+   return false;
 };
 
 
@@ -826,7 +826,7 @@ void BSSvAddMulticastNode(struct vnt_private *pDevice)
         memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
     memset(pMgmt->sNodeDBTable[0].abyMACAddr, 0xff, WLAN_ADDR_LEN);
     pMgmt->sNodeDBTable[0].bActive = TRUE;
-    pMgmt->sNodeDBTable[0].bPSEnable = FALSE;
+    pMgmt->sNodeDBTable[0].bPSEnable = false;
     skb_queue_head_init(&pMgmt->sNodeDBTable[0].sTxPSQueue);
     RATEvParseMaxRate((void *) pDevice,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
@@ -874,7 +874,7 @@ void BSSvSecondCallBack(struct vnt_private *pDevice)
         pDevice->ulPSModeWaitTx++;
         if ( pDevice->ulPSModeWaitTx >= 2 ) {
             pDevice->ulPSModeWaitTx = 0;
-            pDevice->bPSModeTxBurst = FALSE;
+            pDevice->bPSModeTxBurst = false;
         }
     }
 
@@ -994,14 +994,14 @@ if(pDevice->byReAssocCount > 0) {
         else {
             if (pDevice->bProtectMode) {
                 MACvDisableProtectMD(pDevice);
-                pDevice->bProtectMode = FALSE;
+                pDevice->bProtectMode = false;
             }
         }
         // on/off short slot time
 
         if (uNonShortSlotSTACnt > 0) {
             if (pDevice->bShortSlotTime) {
-                pDevice->bShortSlotTime = FALSE;
+                pDevice->bShortSlotTime = false;
                 BBvSetShortSlotTime(pDevice);
 		vUpdateIFS((void *)pDevice);
             }
@@ -1025,7 +1025,7 @@ if(pDevice->byReAssocCount > 0) {
         else {
             if (pDevice->bBarkerPreambleMd) {
                 MACvDisableBarkerPreambleMd(pDevice);
-                pDevice->bBarkerPreambleMd = FALSE;
+                pDevice->bBarkerPreambleMd = false;
             }
         }
 
@@ -1037,7 +1037,7 @@ if(pDevice->byReAssocCount > 0) {
         if (uSleepySTACnt > 0)
             pMgmt->sNodeDBTable[0].bPSEnable = TRUE;
         else
-            pMgmt->sNodeDBTable[0].bPSEnable = FALSE;
+            pMgmt->sNodeDBTable[0].bPSEnable = false;
     }
 
     pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
@@ -1062,14 +1062,14 @@ if(pDevice->byReAssocCount > 0) {
     	    }
 
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >= LOST_BEACON_COUNT) {
-                pMgmt->sNodeDBTable[0].bActive = FALSE;
+                pMgmt->sNodeDBTable[0].bActive = false;
                 pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                 pMgmt->eCurrState = WMAC_STATE_IDLE;
                 netif_stop_queue(pDevice->dev);
-                pDevice->bLinkPass = FALSE;
+                pDevice->bLinkPass = false;
                 ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
                 pDevice->bRoaming = TRUE;
-                pDevice->bIsRoaming = FALSE;
+                pDevice->bIsRoaming = false;
 
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
 		/* let wpa supplicant know AP may disconnect */
@@ -1098,12 +1098,12 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bIsRoaming %d, !\n", pDevice->bIsRoaming );
 				 pMgmt->abyDesireSSID);
                 pDevice->uAutoReConnectTime = 0;
                 pDevice->uIsroamingTime = 0;
-                pDevice->bRoaming = FALSE;
+                pDevice->bRoaming = false;
           }
-      else if ((pDevice->bRoaming == FALSE)&&(pDevice->bIsRoaming == TRUE)) {
+      else if ((pDevice->bRoaming == false)&&(pDevice->bIsRoaming == TRUE)) {
                             pDevice->uIsroamingTime++;
        if (pDevice->uIsroamingTime >= 20)
-            pDevice->bIsRoaming = FALSE;
+            pDevice->bIsRoaming = false;
          }
 
    }
@@ -1159,7 +1159,7 @@ else {
                 pMgmt->sNodeDBTable[0].uInActiveCount = 0;
                 pMgmt->eCurrState = WMAC_STATE_STARTED;
                 netif_stop_queue(pDevice->dev);
-                pDevice->bLinkPass = FALSE;
+                pDevice->bLinkPass = false;
                 ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
             }
         }
@@ -1459,7 +1459,7 @@ void BSSvClearAnyBSSJoinRecord(struct vnt_private *pDevice)
 	int ii;
 
 	for (ii = 0; ii < MAX_BSS_NUM; ii++)
-		pMgmt->sBSSList[ii].bSelected = FALSE;
+		pMgmt->sBSSList[ii].bSelected = false;
 
 	return;
 }
@@ -1474,7 +1474,7 @@ static void s_vCheckPreEDThreshold(struct vnt_private *pDevice)
         pBSSList = BSSpAddrIsInBSSList(pDevice, pMgmt->abyCurrBSSID, (PWLAN_IE_SSID)pMgmt->abyCurrSSID);
         if (pBSSList != NULL) {
             pDevice->byBBPreEDRSSI = (BYTE) (~(pBSSList->ldBmAverRange) + 1);
-            BBvUpdatePreEDThreshold(pDevice, FALSE);
+            BBvUpdatePreEDThreshold(pDevice, false);
         }
     }
 }

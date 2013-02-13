@@ -249,7 +249,7 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	WORD            wHLen = 22;
 	/* 8 is IV, 8 is MIC, 4 is CRC */
 	WORD            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;
-	bool            bA4 = FALSE;
+	bool            bA4 = false;
 	BYTE            byTmp;
 	WORD            wCnt;
 	int             ii, jj, kk;
@@ -382,5 +382,5 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	if (!memcmp(abyMIC, abyTmp, 8))
 		return TRUE;
 	else
-		return FALSE;
+		return false;
 }

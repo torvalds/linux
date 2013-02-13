@@ -62,7 +62,7 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 	const struct firmware *fw;
 	int NdisStatus;
 	void *pBuffer = NULL;
-	bool result = FALSE;
+	bool result = false;
 	u16 wLength;
 	int ii, rc;
 
@@ -126,7 +126,7 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
                                     );
 
     if (NdisStatus != STATUS_SUCCESS) {
-        return (FALSE);
+        return (false);
     } else {
         return (TRUE);
     }
@@ -147,17 +147,17 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (ntStatus != STATUS_SUCCESS) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Invalid.\n");
-        return FALSE;
+        return false;
     }
     if (pDevice->wFirmwareVersion == 0xFFFF) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"In Loader.\n");
-        return FALSE;
+        return false;
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (pDevice->wFirmwareVersion < FIRMWARE_VERSION) {
         // branch to loader for download new firmware
         FIRMWAREbBrach2Sram(pDevice);
-        return FALSE;
+        return false;
     }
     return TRUE;
 }

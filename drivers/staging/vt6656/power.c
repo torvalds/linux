@@ -146,12 +146,12 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 
 	/* set always listen beacon */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
-	pDevice->bEnablePSMode = FALSE;
+	pDevice->bEnablePSMode = false;
 
 	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
 
-	pDevice->bPWBitOn = FALSE;
+	pDevice->bPWBitOn = false;
 }
 
 /*
@@ -161,7 +161,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
  *
  * Return Value:
  *    TRUE, if power down success
- *    FALSE, if fail
+ *    false, if fail
  */
 
 int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
@@ -180,16 +180,16 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
 		/* check if in TIM wake period */
 		if (pMgmt->bInTIMWake)
-			return FALSE;
+			return false;
 	}
 
 	/* check scan state */
 	if (pDevice->bCmdRunning)
-		return FALSE;
+		return false;
 
 	/* Tx Burst */
 	if (pDevice->bPSModeTxBurst)
-		return FALSE;
+		return false;
 
 	/* Froce PSEN on */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
@@ -197,7 +197,7 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
 		if (bCheckCountToWakeUp && (pMgmt->wCountToWakeUp == 0
 			|| pMgmt->wCountToWakeUp == 1)) {
-				return FALSE;
+				return false;
 		}
 	}
 
@@ -265,12 +265,12 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u16 flags = 0;
 
-	if (pDevice->bLinkPass == FALSE)
-		return FALSE;
+	if (pDevice->bLinkPass == false)
+		return false;
 
-	if ((pDevice->bEnablePSMode == FALSE) &&
-		(pDevice->fTxDataInSleep == FALSE)) {
-			return FALSE;
+	if ((pDevice->bEnablePSMode == false) &&
+		(pDevice->fTxDataInSleep == false)) {
+			return false;
 	}
 
 	memset(pMgmt->pbyPSPacketPool, 0, sizeof(struct vnt_tx_mgmt)
@@ -300,7 +300,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 	/* log error if sending failed */
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
-		return FALSE;
+		return false;
 	}
 	return TRUE;
 }
@@ -318,7 +318,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	int bWakeUp = FALSE;
+	int bWakeUp = false;
 
 	if (pMgmt->wListenInterval >= 2) {
 		if (pMgmt->wCountToWakeUp == 0)
@@ -329,7 +329,7 @@ int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
 		if (pMgmt->wCountToWakeUp == 1) {
 			/* Turn on wake up to listen next beacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
-			pDevice->bPSRxBeacon = FALSE;
+			pDevice->bPSRxBeacon = false;
 			bWakeUp = TRUE;
 		} else if (!pDevice->bPSRxBeacon) {
 			/* Listen until RxBeacon */

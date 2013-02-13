@@ -719,7 +719,7 @@ const u8 RFaby11aChannelIndex[200] = {
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: TRUE if succeeded; false if failed.
  *
  */
 int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
@@ -749,7 +749,7 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: TRUE if succeeded; false if failed.
  *
  */
 int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
@@ -801,7 +801,7 @@ int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
  *  Out:
  *      none
  *
- * Return Value: TRUE if succeeded; FALSE if failed.
+ * Return Value: TRUE if succeeded; false if failed.
  *
  */
 
@@ -818,7 +818,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 
         case RF_AL2230 :
             if (pDevice->byCurPwr >= AL2230_PWR_IDX_LEN)
-                return FALSE;
+                return false;
             bResult &= IFRFbWriteEmbedded(pDevice, dwAL2230PowerTable[pDevice->byCurPwr]);
             if (uRATE <= RATE_11M)
                 bResult &= IFRFbWriteEmbedded(pDevice, 0x0001B400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
@@ -828,7 +828,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 
         case RF_AL2230S :
             if (pDevice->byCurPwr >= AL2230_PWR_IDX_LEN)
-                return FALSE;
+                return false;
             bResult &= IFRFbWriteEmbedded(pDevice, dwAL2230PowerTable[pDevice->byCurPwr]);
             if (uRATE <= RATE_11M) {
                 bResult &= IFRFbWriteEmbedded(pDevice, 0x040C1400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
@@ -851,7 +851,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
                     bResult &= IFRFbWriteEmbedded(pDevice, 0x221BB900+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW);
                 }
 
-                if (pDevice->byCurPwr > AL7230_PWR_IDX_LEN) return FALSE;
+                if (pDevice->byCurPwr > AL7230_PWR_IDX_LEN) return false;
 
                 //  0x080F1B00 for 3 wire control TxGain(D10) and 0x31 as TX Gain value
                 dwMax7230Pwr = 0x080C0B00 | ( (pDevice->byCurPwr) << 12 ) |
@@ -867,7 +867,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
             DWORD       dwVT3226Pwr;
 
             if (pDevice->byCurPwr >= VT3226_PWR_IDX_LEN)
-                return FALSE;
+                return false;
             dwVT3226Pwr = ((0x3F-pDevice->byCurPwr) << 20 ) | ( 0x17 << 8 ) /* Reg7 */ |
                            (BY_VT3226_REG_LEN << 3 )  | IFREGCTL_REGW;
             bResult &= IFRFbWriteEmbedded(pDevice, dwVT3226Pwr);
@@ -879,7 +879,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
             DWORD       dwVT3226Pwr;
 
             if (pDevice->byCurPwr >= VT3226_PWR_IDX_LEN)
-                return FALSE;
+                return false;
 
             if (uRATE <= RATE_11M) {
 
@@ -924,7 +924,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
             DWORD       dwVT3342Pwr;
 
             if (pDevice->byCurPwr >= VT3342_PWR_IDX_LEN)
-                return FALSE;
+                return false;
 
             dwVT3342Pwr =  ((0x3F-pDevice->byCurPwr) << 20 ) | ( 0x27 << 8 ) /* Reg7 */ |
                             (BY_VT3342_REG_LEN << 3 )  | IFREGCTL_REGW;

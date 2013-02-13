@@ -87,9 +87,9 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		param->u.wpa_key.alg_name);
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-		pDevice->bEncryptionEnable = FALSE;
+		pDevice->bEncryptionEnable = false;
 		pDevice->byKeyIndex = 0;
-		pDevice->bTransmitKey = FALSE;
+		pDevice->bTransmitKey = false;
 		for (uu=0; uu<MAX_KEY_TABLE; uu++) {
 			MACvDisableKeyEntry(pDevice, uu);
 		}

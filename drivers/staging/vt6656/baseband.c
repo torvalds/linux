@@ -768,7 +768,7 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
 	int bCCK = pDevice->bCCK;
 
     cbBitCount = cbFrameLength * 8;
-    bExtBit = FALSE;
+    bExtBit = false;
 
     switch (wRate) {
     case RATE_1M :
@@ -785,7 +785,7 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
         break;
 
     case RATE_5M :
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = (cbBitCount * 10) / 55;
         cbTmp = (cbUsCount * 55) / 10;
@@ -799,7 +799,7 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
 
     case RATE_11M :
 
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = cbBitCount / 11;
         cbTmp = cbUsCount * 11;
@@ -976,12 +976,12 @@ int BBbVT3184Init(struct vnt_private *pDevice)
                                   EEP_MAX_CONTEXT_SIZE,
                                   pDevice->abyEEPROM);
     if (ntStatus != STATUS_SUCCESS) {
-        return FALSE;
+        return false;
     }
 
 
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
-//        return FALSE;
+//        return false;
 
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];

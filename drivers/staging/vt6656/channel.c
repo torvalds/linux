@@ -50,7 +50,7 @@ static int          msglevel                = MSG_LEVEL_INFO;
 
 static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 {
-  {0,   0,    FALSE},
+  {0,   0,    false},
   {1,   2412, TRUE},
   {2,   2417, TRUE},
   {3,   2422, TRUE},
@@ -392,14 +392,14 @@ ChannelValid(unsigned int CountryCode, unsigned int ChannelIndex)
 {
     bool    bValid;
 
-    bValid = FALSE;
+    bValid = false;
     /*
      * If Channel Index is invalid, return invalid
      */
     if ((ChannelIndex > CB_MAX_CHANNEL) ||
         (ChannelIndex == 0))
     {
-        bValid = FALSE;
+        bValid = false;
         goto exit;
     }
 
@@ -429,7 +429,7 @@ CHvChannelGetList (
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
-        return (FALSE);
+        return (false);
     }
     memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
     return (TRUE);
@@ -438,18 +438,18 @@ CHvChannelGetList (
 
 void CHvInitChannelTable(struct vnt_private *pDevice)
 {
-	int bMultiBand = FALSE;
+	int bMultiBand = false;
 	int ii;
 
     for (ii = 1; ii <= CB_MAX_CHANNEL; ii++)
-	sChannelTbl[ii].bValid = FALSE;
+	sChannelTbl[ii].bValid = false;
 
     switch (pDevice->byRFType) {
         case RF_AL2230:
         case RF_AL2230S:
         case RF_VT3226:
         case RF_VT3226D0:
-            bMultiBand = FALSE;
+            bMultiBand = false;
             break;
         case RF_AIROHA7230:
         case RF_VT3342A0:

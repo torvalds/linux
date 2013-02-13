@@ -69,16 +69,16 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
 
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            (pTable->KeyTable[i].PairwiseKey.bKeyValid == FALSE) &&
-            (pTable->KeyTable[i].GroupKey[0].bKeyValid == FALSE) &&
-            (pTable->KeyTable[i].GroupKey[1].bKeyValid == FALSE) &&
-            (pTable->KeyTable[i].GroupKey[2].bKeyValid == FALSE) &&
-            (pTable->KeyTable[i].GroupKey[3].bKeyValid == FALSE)
+            (pTable->KeyTable[i].PairwiseKey.bKeyValid == false) &&
+            (pTable->KeyTable[i].GroupKey[0].bKeyValid == false) &&
+            (pTable->KeyTable[i].GroupKey[1].bKeyValid == false) &&
+            (pTable->KeyTable[i].GroupKey[2].bKeyValid == false) &&
+            (pTable->KeyTable[i].GroupKey[3].bKeyValid == false)
             ) {
 
-            pTable->KeyTable[i].bInUse = FALSE;
+            pTable->KeyTable[i].bInUse = false;
             pTable->KeyTable[i].wKeyCtl = 0;
-            pTable->KeyTable[i].bSoftWEP = FALSE;
+            pTable->KeyTable[i].bSoftWEP = false;
             pbyData[wLength++] = (BYTE) i;
             //MACvDisableKeyEntry(pDevice, i);
         }
@@ -118,18 +118,18 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
 
     spin_lock_irq(&pDevice->lock);
     for (i=0;i<MAX_KEY_TABLE;i++) {
-        pTable->KeyTable[i].bInUse = FALSE;
-        pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
+        pTable->KeyTable[i].bInUse = false;
+        pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 	pTable->KeyTable[i].PairwiseKey.pvKeyTable =
 	  (void *)&pTable->KeyTable[i];
         for (jj=0; jj < MAX_GROUP_KEY; jj++) {
-            pTable->KeyTable[i].GroupKey[jj].bKeyValid = FALSE;
+            pTable->KeyTable[i].GroupKey[jj].bKeyValid = false;
 	    pTable->KeyTable[i].GroupKey[jj].pvKeyTable =
 	      (void *) &(pTable->KeyTable[i]);
         }
         pTable->KeyTable[i].wKeyCtl = 0;
         pTable->KeyTable[i].dwGTKeyIndex = 0;
-        pTable->KeyTable[i].bSoftWEP = FALSE;
+        pTable->KeyTable[i].bSoftWEP = false;
         pbyData[i] = (BYTE) i;
     }
     pbyData[i] = (BYTE) i;
@@ -158,7 +158,7 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
  *  Out:
  *      pKey            - Key return
  *
- * Return Value: TRUE if found otherwise FALSE
+ * Return Value: TRUE if found otherwise false
  *
  */
 int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
@@ -178,7 +178,7 @@ int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
                     return (TRUE);
                 }
                 else {
-                    return (FALSE);
+                    return (false);
                 }
             } else if (dwKeyIndex < MAX_GROUP_KEY) {
                 if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid == TRUE) {
@@ -186,15 +186,15 @@ int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
                     return (TRUE);
                 }
                 else {
-                    return (FALSE);
+                    return (false);
                 }
             }
             else {
-                return (FALSE);
+                return (false);
             }
         }
     }
-    return (FALSE);
+    return (false);
 }
 
 
@@ -212,7 +212,7 @@ int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
@@ -228,7 +228,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
     j = (MAX_KEY_TABLE-1);
     for (i=0;i<(MAX_KEY_TABLE-1);i++) {
-        if ((pTable->KeyTable[i].bInUse == FALSE) &&
+        if ((pTable->KeyTable[i].bInUse == false) &&
             (j == (MAX_KEY_TABLE-1))) {
             // found empty table
             j = i;
@@ -245,7 +245,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             } else {
                 // Group key
                 if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
-                    return (FALSE);
+                    return (false);
                 pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF]);
                 if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
                     // Group transmit key
@@ -313,7 +313,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
         } else {
             // Group key
             if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
-                return (FALSE);
+                return (false);
             pKey = &(pTable->KeyTable[j].GroupKey[dwKeyIndex & 0x000000FF]);
             if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
                 // Group transmit key
@@ -367,7 +367,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
         return (TRUE);
     }
-    return (FALSE);
+    return (false);
 }
 
 
@@ -382,7 +382,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 
@@ -390,19 +390,19 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 	u8 *pbyBSSID, u32 dwKeyIndex)
 {
 	int i;
-	int bReturnValue = FALSE;
+	int bReturnValue = false;
 
     if (is_broadcast_ether_addr(pbyBSSID)) {
         // delete all keys
         if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
             for (i=0;i<MAX_KEY_TABLE;i++) {
-                pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
+                pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
             }
             bReturnValue =  TRUE;
         }
         else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
             for (i=0;i<MAX_KEY_TABLE;i++) {
-                pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = FALSE;
+                pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
                 if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[i].dwGTKeyIndex & 0x7FFFFFFF)) {
                     // remove Group transmit key
                     pTable->KeyTable[i].dwGTKeyIndex = 0;
@@ -411,7 +411,7 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             bReturnValue = TRUE;
         }
         else {
-            bReturnValue = FALSE;
+            bReturnValue = false;
         }
 
     } else {
@@ -420,12 +420,12 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 		 !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 
                 if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
-                    pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
+                    pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
                     bReturnValue = TRUE;
                     break;
                 }
                 else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
-                    pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = FALSE;
+                    pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
                     if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[i].dwGTKeyIndex & 0x7FFFFFFF)) {
                         // remove Group transmit key
                         pTable->KeyTable[i].dwGTKeyIndex = 0;
@@ -434,7 +434,7 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                     break;
                 }
                 else {
-                    bReturnValue = FALSE;
+                    bReturnValue = false;
                     break;
                 }
             } //pTable->KeyTable[i].bInUse == TRUE
@@ -459,7 +459,7 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 int KeybRemoveAllKey(struct vnt_private *pDevice, PSKeyManagement pTable,
@@ -470,16 +470,16 @@ int KeybRemoveAllKey(struct vnt_private *pDevice, PSKeyManagement pTable,
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
 	    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
-            pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
+            pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 	    for (u = 0; u < MAX_GROUP_KEY; u++)
-		pTable->KeyTable[i].GroupKey[u].bKeyValid = FALSE;
+		pTable->KeyTable[i].GroupKey[u].bKeyValid = false;
 
             pTable->KeyTable[i].dwGTKeyIndex = 0;
             s_vCheckKeyTableValid(pDevice, pTable);
             return (TRUE);
         }
     }
-    return (FALSE);
+    return (false);
 }
 
 /*
@@ -491,7 +491,7 @@ int KeybRemoveAllKey(struct vnt_private *pDevice, PSKeyManagement pTable,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 void KeyvRemoveWEPKey(struct vnt_private *pDevice, PSKeyManagement pTable,
@@ -501,7 +501,7 @@ void KeyvRemoveWEPKey(struct vnt_private *pDevice, PSKeyManagement pTable,
    if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
         if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse == TRUE) {
             if (pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].byCipherSuite == KEY_CTL_WEP) {
-                pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = FALSE;
+                pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
                 if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex & 0x7FFFFFFF)) {
                     // remove Group transmit key
                     pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex = 0;
@@ -531,7 +531,7 @@ void KeyvRemoveAllWEPKey(struct vnt_private *pDevice, PSKeyManagement pTable)
  *  Out:
  *      pKey            - Key return
  *
- * Return Value: TRUE if found otherwise FALSE
+ * Return Value: TRUE if found otherwise false
  *
  */
 int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
@@ -561,14 +561,14 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
                     return (TRUE);
                 }
                 else {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PairwiseKey.bKeyValid == FALSE\n");
-                    return (FALSE);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PairwiseKey.bKeyValid == false\n");
+                    return (false);
                 }
             } // End of Type == PAIRWISE
             else {
                 if (pTable->KeyTable[i].dwGTKeyIndex == 0) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ERROR: dwGTKeyIndex == 0 !!!\n");
-                    return FALSE;
+                    return false;
                 }
                 if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid == TRUE) {
                     *pKey = &(pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)]);
@@ -585,8 +585,8 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
                     return (TRUE);
                 }
                 else {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GroupKey.bKeyValid == FALSE\n");
-                    return (FALSE);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GroupKey.bKeyValid == false\n");
+                    return (false);
                 }
             } // End of Type = GROUP
         } // BSSID match
@@ -596,7 +596,7 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02x ", *(pbyBSSID+ii));
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
-    return (FALSE);
+    return (false);
 }
 
 
@@ -609,7 +609,7 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
  *  Out:
  *      none
  *
- * Return Value: TRUE if found otherwise FALSE
+ * Return Value: TRUE if found otherwise false
  *
  */
 int KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey)
@@ -625,7 +625,7 @@ int KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey)
             return (TRUE);
         }
     }
-    return (FALSE);
+    return (false);
 }
 
 /*
@@ -641,7 +641,7 @@ int KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey)
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 
@@ -657,9 +657,9 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 	    (int) dwKeyIndex, (int) uKeyLength);
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
-        return (FALSE);
+        return (false);
     } else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
-        return (FALSE);
+        return (false);
     }
 
     if (uKeyLength > MAX_KEY_LEN)
@@ -691,7 +691,7 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
         pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0x4000;              // disable on-fly disable address match
         pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP = TRUE;
     } else {
-        if (pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP == FALSE)
+        if (pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP == false)
             pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0xC000;          // enable on-fly disable address match
     }
 
@@ -751,7 +751,7 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
  *  Out:
  *      none
  *
- * Return Value: TRUE if success otherwise FALSE
+ * Return Value: TRUE if success otherwise false
  *
  */
 
@@ -768,9 +768,9 @@ int KeybSetAllGroupKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
-        return (FALSE);
+        return (false);
     } else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
-        return (FALSE);
+        return (false);
     }
 
     for (i=0; i < MAX_KEY_TABLE-1; i++) {

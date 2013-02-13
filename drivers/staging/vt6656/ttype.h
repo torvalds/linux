@@ -36,9 +36,6 @@
 #if !defined(TRUE)
 #define TRUE            1
 #endif
-#if !defined(FALSE)
-#define FALSE           0
-#endif
 
 /****** Simple typedefs  ***************************************************/
 

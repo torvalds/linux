@@ -307,7 +307,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u16 wIdxDownRate = 0;
 	int ii;
-	int bAutoRate[MAX_RATE] = {TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE,
+	int bAutoRate[MAX_RATE] = {TRUE, TRUE, TRUE, TRUE, false, false, TRUE,
 					 TRUE, TRUE, TRUE, TRUE, TRUE};
 	u32 dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180,
 		240, 360, 480, 540};
@@ -339,7 +339,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
                 wIdxUpRate = (WORD) ii;
             }
         } else {
-            bAutoRate[ii] = FALSE;
+            bAutoRate[ii] = false;
         }
     }
 
