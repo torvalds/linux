@@ -3372,7 +3372,7 @@ int radeon_atom_round_to_true_voltage(struct radeon_device *rdev,
 }
 
 int radeon_atom_get_voltage_table(struct radeon_device *rdev,
-				  u8 voltage_type,
+				  u8 voltage_type, u8 voltage_mode,
 				  struct atom_voltage_table *voltage_table)
 {
 	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
@@ -3386,41 +3386,81 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 		voltage_info = (union voltage_object_info *)
 			(rdev->mode_info.atom_context->bios + data_offset);
 
-		switch (crev) {
+		switch (frev) {
 		case 1:
-			DRM_ERROR("old table version %d, %d\n", frev, crev);
-			return -EINVAL;
 		case 2:
-			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
-				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+			switch (crev) {
+			case 1:
+				DRM_ERROR("old table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			case 2:
+				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
 
-			for (i = 0; i < num_indices; i++) {
-				if (voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) {
-					ATOM_VOLTAGE_FORMULA_V2 *formula =
-						&voltage_info->v2.asVoltageObj[i].asFormula;
-					if (formula->ucNumOfVoltageEntries > MAX_VOLTAGE_ENTRIES)
-						return -EINVAL;
-					for (j = 0; j < formula->ucNumOfVoltageEntries; j++) {
-						voltage_table->entries[j].value =
-							le16_to_cpu(formula->asVIDAdjustEntries[j].usVoltageValue);
-						ret = radeon_atom_get_voltage_gpio_settings(rdev,
-											    voltage_table->entries[j].value,
-											    voltage_type,
-											    &voltage_table->entries[j].smio_low,
-											    &voltage_table->mask_low);
-						if (ret)
-							return ret;
+				for (i = 0; i < num_indices; i++) {
+					if (voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) {
+						ATOM_VOLTAGE_FORMULA_V2 *formula =
+							&voltage_info->v2.asVoltageObj[i].asFormula;
+						if (formula->ucNumOfVoltageEntries > MAX_VOLTAGE_ENTRIES)
+							return -EINVAL;
+						for (j = 0; j < formula->ucNumOfVoltageEntries; j++) {
+							voltage_table->entries[j].value =
+								le16_to_cpu(formula->asVIDAdjustEntries[j].usVoltageValue);
+							ret = radeon_atom_get_voltage_gpio_settings(rdev,
+												    voltage_table->entries[j].value,
+												    voltage_type,
+												    &voltage_table->entries[j].smio_low,
+												    &voltage_table->mask_low);
+							if (ret)
+								return ret;
+						}
+						voltage_table->count = formula->ucNumOfVoltageEntries;
+						return 0;
 					}
-					voltage_table->count = formula->ucNumOfVoltageEntries;
-					return 0;
 				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return -EINVAL;
+			}
+			break;
+		case 3:
+			switch (crev) {
+			case 1:
+				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V3_1);
+
+				for (i = 0; i < num_indices; i++) {
+					if ((voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageType ==
+					     voltage_type) &&
+					    (voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageMode ==
+					     voltage_mode)) {
+						ATOM_GPIO_VOLTAGE_OBJECT_V3 *gpio =
+							&voltage_info->v3.asVoltageObj[i].asGpioVoltageObj;
+						if (gpio->ucGpioEntryNum > MAX_VOLTAGE_ENTRIES)
+							return -EINVAL;
+						for (j = 0; j < gpio->ucGpioEntryNum; j++) {
+							voltage_table->entries[j].value =
+								le16_to_cpu(gpio->asVolGpioLut[j].usVoltageValue);
+							voltage_table->entries[j].smio_low =
+								le32_to_cpu(gpio->asVolGpioLut[j].ulVoltageId);
+						}
+						voltage_table->mask_low = le32_to_cpu(gpio->ulGpioMaskVal);
+						voltage_table->count = gpio->ucGpioEntryNum;
+						voltage_table->phase_delay = gpio->ucPhaseDelay;
+						return 0;
+					}
+				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return -EINVAL;
 			}
 			break;
 		default:
 			DRM_ERROR("unknown voltage object table\n");
 			return -EINVAL;
 		}
-
 	}
 	return -EINVAL;
 }

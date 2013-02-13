@@ -242,7 +242,7 @@ int radeon_atom_get_min_voltage(struct radeon_device *rdev,
 int radeon_atom_get_max_voltage(struct radeon_device *rdev,
 				u8 voltage_type, u16 *max_voltage);
 int radeon_atom_get_voltage_table(struct radeon_device *rdev,
-				  u8 voltage_type,
+				  u8 voltage_type, u8 voltage_mode,
 				  struct atom_voltage_table *voltage_table);
 bool radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
 				 u8 voltage_type, u8 voltage_mode);

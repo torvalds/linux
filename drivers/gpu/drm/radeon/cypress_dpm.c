@@ -1478,7 +1478,7 @@ int cypress_construct_voltage_tables(struct radeon_device *rdev)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	int ret;
 
-	ret = radeon_atom_get_voltage_table(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC,
+	ret = radeon_atom_get_voltage_table(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, 0,
 					    &eg_pi->vddc_voltage_table);
 	if (ret)
 		return ret;
@@ -1488,7 +1488,7 @@ int cypress_construct_voltage_tables(struct radeon_device *rdev)
 							      &eg_pi->vddc_voltage_table);
 
 	if (eg_pi->vddci_control) {
-		ret = radeon_atom_get_voltage_table(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI,
+		ret = radeon_atom_get_voltage_table(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI, 0,
 						    &eg_pi->vddci_voltage_table);
 		if (ret)
 			return ret;

@@ -597,6 +597,7 @@ struct atom_voltage_table
 {
 	u32 count;
 	u32 mask_low;
+	u32 phase_delay;
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
