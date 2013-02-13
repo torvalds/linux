@@ -3102,12 +3102,14 @@ int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 }
 
 union voltage_object_info {
-	struct  _ATOM_VOLTAGE_OBJECT_INFO v1;
-	struct  _ATOM_VOLTAGE_OBJECT_INFO_V2 v2;
+	struct _ATOM_VOLTAGE_OBJECT_INFO v1;
+	struct _ATOM_VOLTAGE_OBJECT_INFO_V2 v2;
+	struct _ATOM_VOLTAGE_OBJECT_INFO_V3_1 v3;
 };
 
 bool
-radeon_atom_is_voltage_gpio(struct radeon_device *rdev, u8 voltage_type)
+radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
+			    u8 voltage_type, u8 voltage_mode)
 {
 	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
 	u8 frev, crev;
@@ -3120,27 +3122,54 @@ radeon_atom_is_voltage_gpio(struct radeon_device *rdev, u8 voltage_type)
 		voltage_info = (union voltage_object_info *)
 			(rdev->mode_info.atom_context->bios + data_offset);
 
-		switch (crev) {
+		switch (frev) {
 		case 1:
-			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
-				sizeof(ATOM_VOLTAGE_OBJECT);
+		case 2:
+			switch (crev) {
+			case 1:
+				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+					sizeof(ATOM_VOLTAGE_OBJECT);
 
-			for (i = 0; i < num_indices; i++) {
-				if ((voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) &&
-				    (voltage_info->v1.asVoltageObj[i].asControl.ucVoltageControlId ==
-				     VOLTAGE_CONTROLLED_BY_GPIO))
-					return true;
+				for (i = 0; i < num_indices; i++) {
+					if ((voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) &&
+					    (voltage_info->v1.asVoltageObj[i].asControl.ucVoltageControlId ==
+					     VOLTAGE_CONTROLLED_BY_GPIO))
+						return true;
+				}
+				break;
+			case 2:
+				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+
+				for (i = 0; i < num_indices; i++) {
+					if ((voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) &&
+					    (voltage_info->v2.asVoltageObj[i].asControl.ucVoltageControlId ==
+					     VOLTAGE_CONTROLLED_BY_GPIO))
+						return true;
+				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return false;
 			}
 			break;
-		case 2:
-			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
-				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+		case 3:
+			switch (crev) {
+			case 1:
+				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V3_1);
 
-			for (i = 0; i < num_indices; i++) {
-				if ((voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) &&
-				    (voltage_info->v2.asVoltageObj[i].asControl.ucVoltageControlId ==
-				     VOLTAGE_CONTROLLED_BY_GPIO))
-					return true;
+				for (i = 0; i < num_indices; i++) {
+					if ((voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageType ==
+					     voltage_type) &&
+					    (voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageMode ==
+					     voltage_mode))
+						return true;
+				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return false;
 			}
 			break;
 		default:

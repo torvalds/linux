@@ -1933,7 +1933,7 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 		pi->fb_div_scale = 0;
 
 	pi->voltage_control =
-		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC);
+		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, 0);
 
 	pi->gfx_clock_gating = true;
 

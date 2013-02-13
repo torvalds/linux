@@ -244,7 +244,8 @@ int radeon_atom_get_max_voltage(struct radeon_device *rdev,
 int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 				  u8 voltage_type,
 				  struct atom_voltage_table *voltage_table);
-bool radeon_atom_is_voltage_gpio(struct radeon_device *rdev, u8 voltage_type);
+bool radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
+				 u8 voltage_type, u8 voltage_mode);
 void radeon_atom_update_memory_dll(struct radeon_device *rdev,
 				   u32 mem_clock);
 void radeon_atom_set_ac_timing(struct radeon_device *rdev,

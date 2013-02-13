@@ -2022,13 +2022,13 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	pi->lmp = RV770_LMP_DFLT;
 
 	pi->voltage_control =
-		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC);
+		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, 0);
 
 	pi->mvdd_control =
-		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_MVDDC);
+		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_MVDDC, 0);
 
 	eg_pi->vddci_control =
-		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI);
+		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI, 0);
 
 	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
                                    &frev, &crev, &data_offset)) {
