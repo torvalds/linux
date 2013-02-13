@@ -571,6 +571,26 @@ static int bL_switcher_halve_cpus(void)
 	return 0;
 }
 
+/* Determine the logical CPU a given physical CPU is grouped on. */
+int bL_switcher_get_logical_index(u32 mpidr)
+{
+	int cpu;
+
+	if (!bL_switcher_active)
+		return -EUNATCH;
+
+	mpidr &= MPIDR_HWID_BITMASK;
+	for_each_online_cpu(cpu) {
+		int pairing = bL_switcher_cpu_pairing[cpu];
+		if (pairing == -1)
+			continue;
+		if ((mpidr == cpu_logical_map(cpu)) ||
+		    (mpidr == cpu_logical_map(pairing)))
+			return cpu;
+	}
+	return -EINVAL;
+}
+
 static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
 {
 	trace_cpu_migrate_current(get_ns(), read_mpidr());
