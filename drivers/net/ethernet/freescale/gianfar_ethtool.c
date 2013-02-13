@@ -149,20 +149,17 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u64 *extra = (u64 *) & priv->extra_stats;
+	atomic64_t *extra = (atomic64_t *)&priv->extra_stats;
+
+	for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
+		buf[i] = atomic64_read(&extra[i]);
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
 		u32 __iomem *rmon = (u32 __iomem *) &regs->rmon;
-		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
-		for (i = 0; i < GFAR_RMON_LEN; i++)
-			stats->rmon[i] = (u64) gfar_read(&rmon[i]);
-
-		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
-			stats->extra[i] = extra[i];
-	} else
-		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
-			buf[i] = extra[i];
+		for (; i < GFAR_STATS_LEN; i++, rmon++)
+			buf[i] = (u64) gfar_read(rmon);
+	}
 }
 
 static int gfar_sset_count(struct net_device *dev, int sset)

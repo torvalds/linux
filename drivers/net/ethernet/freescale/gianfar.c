@@ -2648,7 +2648,7 @@ static inline void count_errors(unsigned short status, struct net_device *dev)
 	if (status & RXBD_TRUNCATED) {
 		stats->rx_length_errors++;
 
-		estats->rx_trunc++;
+		atomic64_inc(&estats->rx_trunc);
 
 		return;
 	}
@@ -2657,20 +2657,20 @@ static inline void count_errors(unsigned short status, struct net_device *dev)
 		stats->rx_length_errors++;
 
 		if (status & RXBD_LARGE)
-			estats->rx_large++;
+			atomic64_inc(&estats->rx_large);
 		else
-			estats->rx_short++;
+			atomic64_inc(&estats->rx_short);
 	}
 	if (status & RXBD_NONOCTET) {
 		stats->rx_frame_errors++;
-		estats->rx_nonoctet++;
+		atomic64_inc(&estats->rx_nonoctet);
 	}
 	if (status & RXBD_CRCERR) {
-		estats->rx_crcerr++;
+		atomic64_inc(&estats->rx_crcerr);
 		stats->rx_crc_errors++;
 	}
 	if (status & RXBD_OVERRUN) {
-		estats->rx_overrun++;
+		atomic64_inc(&estats->rx_overrun);
 		stats->rx_crc_errors++;
 	}
 }
@@ -2744,7 +2744,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	ret = napi_gro_receive(napi, skb);
 
 	if (GRO_DROP == ret)
-		priv->extra_stats.kernel_dropped++;
+		atomic64_inc(&priv->extra_stats.kernel_dropped);
 
 	return 0;
 }
@@ -2812,7 +2812,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			} else {
 				netif_warn(priv, rx_err, dev, "Missing skb!\n");
 				rx_queue->stats.rx_dropped++;
-				priv->extra_stats.rx_skbmissing++;
+				atomic64_inc(&priv->extra_stats.rx_skbmissing);
 			}
 
 		}
@@ -3245,7 +3245,7 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 			netif_dbg(priv, tx_err, dev,
 				  "TX FIFO underrun, packet dropped\n");
 			dev->stats.tx_dropped++;
-			priv->extra_stats.tx_underrun++;
+			atomic64_inc(&priv->extra_stats.tx_underrun);
 
 			local_irq_save(flags);
 			lock_tx_qs(priv);
@@ -3260,7 +3260,7 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 	}
 	if (events & IEVENT_BSY) {
 		dev->stats.rx_errors++;
-		priv->extra_stats.rx_bsy++;
+		atomic64_inc(&priv->extra_stats.rx_bsy);
 
 		gfar_receive(irq, grp_id);
 
@@ -3269,19 +3269,19 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 	}
 	if (events & IEVENT_BABR) {
 		dev->stats.rx_errors++;
-		priv->extra_stats.rx_babr++;
+		atomic64_inc(&priv->extra_stats.rx_babr);
 
 		netif_dbg(priv, rx_err, dev, "babbling RX error\n");
 	}
 	if (events & IEVENT_EBERR) {
-		priv->extra_stats.eberr++;
+		atomic64_inc(&priv->extra_stats.eberr);
 		netif_dbg(priv, rx_err, dev, "bus error\n");
 	}
 	if (events & IEVENT_RXC)
 		netif_dbg(priv, rx_status, dev, "control frame\n");
 
 	if (events & IEVENT_BABT) {
-		priv->extra_stats.tx_babt++;
+		atomic64_inc(&priv->extra_stats.tx_babt);
 		netif_dbg(priv, tx_err, dev, "babbling TX error\n");
 	}
 	return IRQ_HANDLED;
