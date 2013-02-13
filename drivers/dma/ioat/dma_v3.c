@@ -368,7 +368,7 @@ static void check_active(struct ioat2_dma_chan *ioat)
 
 }
 
-void ioat3_timer_event(unsigned long data)
+static void ioat3_timer_event(unsigned long data)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
