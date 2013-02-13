@@ -35,48 +35,34 @@
 #include "nv50_display.h"
 
 static int
-nvc0_fence_emit(struct nouveau_fence *fence)
+nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	struct nouveau_channel *chan = fence->channel;
-	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	int ret;
-
-	ret = RING_SPACE(chan, 6);
+	int ret = RING_SPACE(chan, 6);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(addr));
-		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, fence->sequence);
+		OUT_RING  (chan, upper_32_bits(virtual));
+		OUT_RING  (chan, lower_32_bits(virtual));
+		OUT_RING  (chan, sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
 		OUT_RING  (chan, 0x00000000);
 		FIRE_RING (chan);
 	}
-
 	return ret;
 }
 
 static int
-nvc0_fence_sync(struct nouveau_fence *fence,
-		struct nouveau_channel *prev, struct nouveau_channel *chan)
+nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)prev->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	int ret;
-
-	ret = RING_SPACE(chan, 5);
+	int ret = RING_SPACE(chan, 5);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(addr));
-		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, fence->sequence);
+		OUT_RING  (chan, upper_32_bits(virtual));
+		OUT_RING  (chan, lower_32_bits(virtual));
+		OUT_RING  (chan, sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL |
 				 NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD);
 		FIRE_RING (chan);
 	}
-
 	return ret;
 }
 
@@ -96,8 +82,10 @@ nvc0_fence_create(struct nouveau_drm *drm)
 	priv->base.resume = nv84_fence_resume;
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
-	priv->base.emit = nvc0_fence_emit;
-	priv->base.sync = nvc0_fence_sync;
+	priv->base.emit32 = nvc0_fence_emit32;
+	priv->base.emit = nv84_fence_emit;
+	priv->base.sync32 = nvc0_fence_sync32;
+	priv->base.sync = nv84_fence_sync;
 	priv->base.read = nv84_fence_read;
 
 	init_waitqueue_head(&priv->base.waiting);

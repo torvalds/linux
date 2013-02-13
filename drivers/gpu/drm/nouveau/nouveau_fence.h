@@ -39,7 +39,9 @@ struct nouveau_fence_priv {
 	void (*resume)(struct nouveau_drm *);
 	int  (*context_new)(struct nouveau_channel *);
 	void (*context_del)(struct nouveau_channel *);
+	int  (*emit32)(struct nouveau_channel *, u64, u32);
 	int  (*emit)(struct nouveau_fence *);
+	int  (*sync32)(struct nouveau_channel *, u64, u32);
 	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
 		     struct nouveau_channel *);
 	u32  (*read)(struct nouveau_channel *);
@@ -84,6 +86,9 @@ struct nv84_fence_priv {
 };
 
 u64  nv84_fence_crtc(struct nouveau_channel *, int);
+int  nv84_fence_emit(struct nouveau_fence *);
+int  nv84_fence_sync(struct nouveau_fence *, struct nouveau_channel *,
+		     struct nouveau_channel *);
 u32  nv84_fence_read(struct nouveau_channel *);
 int  nv84_fence_context_new(struct nouveau_channel *);
 void nv84_fence_context_del(struct nouveau_channel *);

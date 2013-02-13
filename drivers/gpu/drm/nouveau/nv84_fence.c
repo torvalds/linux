@@ -42,52 +42,60 @@ nv84_fence_crtc(struct nouveau_channel *chan, int crtc)
 }
 
 static int
-nv84_fence_emit(struct nouveau_fence *fence)
+nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	struct nouveau_channel *chan = fence->channel;
-	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	int ret;
-
-	ret = RING_SPACE(chan, 8);
+	int ret = RING_SPACE(chan, 8);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
 		OUT_RING  (chan, chan->vram);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(addr));
-		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, fence->sequence);
+		OUT_RING  (chan, upper_32_bits(virtual));
+		OUT_RING  (chan, lower_32_bits(virtual));
+		OUT_RING  (chan, sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
 		OUT_RING  (chan, 0x00000000);
 		FIRE_RING (chan);
 	}
-
 	return ret;
 }
 
 static int
-nv84_fence_sync(struct nouveau_fence *fence,
-		struct nouveau_channel *prev, struct nouveau_channel *chan)
+nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)prev->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	int ret;
-
-	ret = RING_SPACE(chan, 7);
+	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
 		OUT_RING  (chan, chan->vram);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(addr));
-		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, fence->sequence);
+		OUT_RING  (chan, upper_32_bits(virtual));
+		OUT_RING  (chan, lower_32_bits(virtual));
+		OUT_RING  (chan, sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
 		FIRE_RING (chan);
 	}
-
 	return ret;
+}
+
+int
+nv84_fence_emit(struct nouveau_fence *fence)
+{
+	struct nouveau_channel *chan = fence->channel;
+	struct nv84_fence_priv *priv = chan->drm->fence;
+	struct nv84_fence_chan *fctx = chan->fence;
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	u64 addr = fctx->vma.offset + fifo->chid * 16;
+	return priv->base.emit32(chan, addr, fence->sequence);
+}
+
+int
+nv84_fence_sync(struct nouveau_fence *fence,
+		struct nouveau_channel *prev, struct nouveau_channel *chan)
+{
+	struct nv84_fence_priv *priv = chan->drm->fence;
+	struct nv84_fence_chan *fctx = chan->fence;
+	struct nouveau_fifo_chan *fifo = (void *)prev->object;
+	u64 addr = fctx->vma.offset + fifo->chid * 16;
+	return priv->base.sync32(chan, addr, fence->sequence);
 }
 
 u32
@@ -205,7 +213,9 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.resume = nv84_fence_resume;
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
+	priv->base.emit32 = nv84_fence_emit32;
 	priv->base.emit = nv84_fence_emit;
+	priv->base.sync32 = nv84_fence_sync32;
 	priv->base.sync = nv84_fence_sync;
 	priv->base.read = nv84_fence_read;
 
