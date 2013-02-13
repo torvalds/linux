@@ -102,7 +102,7 @@ struct usbhs_hcd_omap {
 
 	void __iomem			*uhh_base;
 
-	struct usbhs_omap_platform_data	platdata;
+	struct usbhs_omap_platform_data	*pdata;
 
 	u32				usbhs_rev;
 	spinlock_t			lock;
@@ -184,18 +184,12 @@ err_end:
 static int omap_usbhs_alloc_children(struct platform_device *pdev)
 {
 	struct device				*dev = &pdev->dev;
-	struct usbhs_hcd_omap			*omap;
-	struct ehci_hcd_omap_platform_data	*ehci_data;
-	struct ohci_hcd_omap_platform_data	*ohci_data;
+	struct usbhs_omap_platform_data		*pdata = dev->platform_data;
 	struct platform_device			*ehci;
 	struct platform_device			*ohci;
 	struct resource				*res;
 	struct resource				resources[2];
 	int					ret;
-
-	omap = platform_get_drvdata(pdev);
-	ehci_data = omap->platdata.ehci_data;
-	ohci_data = omap->platdata.ohci_data;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ehci");
 	if (!res) {
@@ -213,8 +207,8 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 	}
 	resources[1] = *res;
 
-	ehci = omap_usbhs_alloc_child(OMAP_EHCI_DEVICE, resources, 2, ehci_data,
-		sizeof(*ehci_data), dev);
+	ehci = omap_usbhs_alloc_child(OMAP_EHCI_DEVICE, resources, 2, pdata,
+		sizeof(*pdata), dev);
 
 	if (!ehci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
@@ -238,8 +232,8 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 	}
 	resources[1] = *res;
 
-	ohci = omap_usbhs_alloc_child(OMAP_OHCI_DEVICE, resources, 2, ohci_data,
-		sizeof(*ohci_data), dev);
+	ohci = omap_usbhs_alloc_child(OMAP_OHCI_DEVICE, resources, 2, pdata,
+		sizeof(*pdata), dev);
 	if (!ohci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
 		ret = -ENOMEM;
@@ -278,7 +272,7 @@ static bool is_ohci_port(enum usbhs_omap_port_mode pmode)
 static int usbhs_runtime_resume(struct device *dev)
 {
 	struct usbhs_hcd_omap		*omap = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data	*pdata = &omap->platdata;
+	struct usbhs_omap_platform_data	*pdata = omap->pdata;
 	unsigned long			flags;
 
 	dev_dbg(dev, "usbhs_runtime_resume\n");
@@ -310,7 +304,7 @@ static int usbhs_runtime_resume(struct device *dev)
 static int usbhs_runtime_suspend(struct device *dev)
 {
 	struct usbhs_hcd_omap		*omap = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data	*pdata = &omap->platdata;
+	struct usbhs_omap_platform_data	*pdata = omap->pdata;
 	unsigned long			flags;
 
 	dev_dbg(dev, "usbhs_runtime_suspend\n");
@@ -342,19 +336,19 @@ static int usbhs_runtime_suspend(struct device *dev)
 static void omap_usbhs_init(struct device *dev)
 {
 	struct usbhs_hcd_omap		*omap = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data	*pdata = &omap->platdata;
+	struct usbhs_omap_platform_data	*pdata = omap->pdata;
 	unsigned long			flags;
 	unsigned			reg;
 
 	dev_dbg(dev, "starting TI HSUSB Controller\n");
 
-	if (pdata->ehci_data->phy_reset) {
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0]))
-			gpio_request_one(pdata->ehci_data->reset_gpio_port[0],
+	if (pdata->phy_reset) {
+		if (gpio_is_valid(pdata->reset_gpio_port[0]))
+			gpio_request_one(pdata->reset_gpio_port[0],
 					 GPIOF_OUT_INIT_LOW, "USB1 PHY reset");
 
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
-			gpio_request_one(pdata->ehci_data->reset_gpio_port[1],
+		if (gpio_is_valid(pdata->reset_gpio_port[1]))
+			gpio_request_one(pdata->reset_gpio_port[1],
 					 GPIOF_OUT_INIT_LOW, "USB2 PHY reset");
 
 		/* Hold the PHY in RESET for enough time till DIR is high */
@@ -430,33 +424,33 @@ static void omap_usbhs_init(struct device *dev)
 	spin_unlock_irqrestore(&omap->lock, flags);
 
 	pm_runtime_put_sync(dev);
-	if (pdata->ehci_data->phy_reset) {
+	if (pdata->phy_reset) {
 		/* Hold the PHY in RESET for enough time till
 		 * PHY is settled and ready
 		 */
 		udelay(10);
 
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0]))
+		if (gpio_is_valid(pdata->reset_gpio_port[0]))
 			gpio_set_value_cansleep
-				(pdata->ehci_data->reset_gpio_port[0], 1);
+				(pdata->reset_gpio_port[0], 1);
 
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
+		if (gpio_is_valid(pdata->reset_gpio_port[1]))
 			gpio_set_value_cansleep
-				(pdata->ehci_data->reset_gpio_port[1], 1);
+				(pdata->reset_gpio_port[1], 1);
 	}
 }
 
 static void omap_usbhs_deinit(struct device *dev)
 {
 	struct usbhs_hcd_omap		*omap = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data	*pdata = &omap->platdata;
+	struct usbhs_omap_platform_data	*pdata = omap->pdata;
 
-	if (pdata->ehci_data->phy_reset) {
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0]))
-			gpio_free(pdata->ehci_data->reset_gpio_port[0]);
+	if (pdata->phy_reset) {
+		if (gpio_is_valid(pdata->reset_gpio_port[0]))
+			gpio_free(pdata->reset_gpio_port[0]);
 
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
-			gpio_free(pdata->ehci_data->reset_gpio_port[1]);
+		if (gpio_is_valid(pdata->reset_gpio_port[1]))
+			gpio_free(pdata->reset_gpio_port[1]);
 	}
 }
 
@@ -490,14 +484,9 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 
 	spin_lock_init(&omap->lock);
 
-	for (i = 0; i < OMAP3_HS_USB_PORTS; i++)
-		omap->platdata.port_mode[i] = pdata->port_mode[i];
-
-	omap->platdata.ehci_data = pdata->ehci_data;
-	omap->platdata.ohci_data = pdata->ohci_data;
+	omap->pdata = pdata;
 
 	pm_runtime_enable(dev);
-
 
 	for (i = 0; i < OMAP3_HS_USB_PORTS; i++)
 		if (is_ehci_phy_mode(i) || is_ehci_tll_mode(i) ||
