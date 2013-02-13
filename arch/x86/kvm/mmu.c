@@ -448,7 +448,8 @@ static bool __check_direct_spte_mmio_pf(u64 spte)
 
 static bool spte_is_locklessly_modifiable(u64 spte)
 {
-	return !(~spte & (SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE));
+	return (spte & (SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE)) ==
+		(SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE);
 }
 
 static bool spte_has_volatile_bits(u64 spte)
@@ -1460,28 +1461,14 @@ static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, int nr)
 	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
 }
 
-/*
- * Remove the sp from shadow page cache, after call it,
- * we can not find this sp from the cache, and the shadow
- * page table is still valid.
- * It should be under the protection of mmu lock.
- */
-static void kvm_mmu_isolate_page(struct kvm_mmu_page *sp)
+static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
 {
 	ASSERT(is_empty_shadow_page(sp->spt));
 	hlist_del(&sp->hash_link);
-	if (!sp->role.direct)
-		free_page((unsigned long)sp->gfns);
-}
-
-/*
- * Free the shadow page table and the sp, we can do it
- * out of the protection of mmu lock.
- */
-static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
-{
 	list_del(&sp->link);
 	free_page((unsigned long)sp->spt);
+	if (!sp->role.direct)
+		free_page((unsigned long)sp->gfns);
 	kmem_cache_free(mmu_page_header_cache, sp);
 }
 
@@ -2125,7 +2112,6 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	do {
 		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
 		WARN_ON(!sp->role.invalid || sp->root_count);
-		kvm_mmu_isolate_page(sp);
 		kvm_mmu_free_page(sp);
 	} while (!list_empty(invalid_list));
 }
@@ -2327,9 +2313,8 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 		if (s->role.level != PT_PAGE_TABLE_LEVEL)
 			return 1;
 
-		if (!need_unsync && !s->unsync) {
+		if (!s->unsync)
 			need_unsync = true;
-		}
 	}
 	if (need_unsync)
 		kvm_unsync_pages(vcpu, gfn);
@@ -3687,6 +3672,7 @@ int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 	else
 		r = paging32_init_context(vcpu, context);
 
+	vcpu->arch.mmu.base_role.nxe = is_nx(vcpu);
 	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
 	vcpu->arch.mmu.base_role.cr0_wp  = is_write_protection(vcpu);
 	vcpu->arch.mmu.base_role.smep_andnot_wp
@@ -3853,7 +3839,7 @@ static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
 		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
 		*gpa &= ~(gpa_t)7;
 		*bytes = 8;
-		r = kvm_read_guest(vcpu->kvm, *gpa, &gentry, min(*bytes, 8));
+		r = kvm_read_guest(vcpu->kvm, *gpa, &gentry, 8);
 		if (r)
 			gentry = 0;
 		new = (const u8 *)&gentry;
@@ -4007,7 +3993,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			      !((sp->role.word ^ vcpu->arch.mmu.base_role.word)
 			      & mask.word) && rmap_can_add(vcpu))
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
-			if (!remote_flush && need_remote_flush(entry, *spte))
+			if (need_remote_flush(entry, *spte))
 				remote_flush = true;
 			++spte;
 		}

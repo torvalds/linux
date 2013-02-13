@@ -219,19 +219,6 @@ allocation of vcpu ids.  For example, if userspace wants
 single-threaded guest vcpus, it should make all vcpu ids be a multiple
 of the number of vcpus per vcore.
 
-On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
-threads in one or more virtual CPU cores.  (This is because the
-hardware requires all the hardware threads in a CPU core to be in the
-same partition.)  The KVM_CAP_PPC_SMT capability indicates the number
-of vcpus per virtual core (vcore).  The vcore id is obtained by
-dividing the vcpu id by the number of vcpus per vcore.  The vcpus in a
-given vcore will always be in the same physical core as each other
-(though that might be a different physical core from time to time).
-Userspace can control the threading (SMT) mode of the guest by its
-allocation of vcpu ids.  For example, if userspace wants
-single-threaded guest vcpus, it should make all vcpu ids be a multiple
-of the number of vcpus per vcore.
-
 For virtual cpus that have been created with S390 user controlled virtual
 machines, the resulting vcpu fd can be memory mapped at page offset
 KVM_S390_SIE_PAGE_OFFSET in order to obtain a memory map of the virtual
@@ -874,12 +861,12 @@ It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
 be identical.  This allows large pages in the guest to be backed by large
 pages in the host.
 
-The flags field supports two flag, KVM_MEM_LOG_DIRTY_PAGES, which instructs
-kvm to keep track of writes to memory within the slot.  See KVM_GET_DIRTY_LOG
-ioctl.  The KVM_CAP_READONLY_MEM capability indicates the availability of the
-KVM_MEM_READONLY flag.  When this flag is set for a memory region, KVM only
-allows read accesses.  Writes will be posted to userspace as KVM_EXIT_MMIO
-exits.
+The flags field supports two flags: KVM_MEM_LOG_DIRTY_PAGES and
+KVM_MEM_READONLY.  The former can be set to instruct KVM to keep track of
+writes to memory within the slot.  See KVM_GET_DIRTY_LOG ioctl to know how to
+use it.  The latter can be set, if KVM_CAP_READONLY_MEM capability allows it,
+to make a new slot read-only.  In this case, writes to this memory will be
+posted to userspace as KVM_EXIT_MMIO exits.
 
 When the KVM_CAP_SYNC_MMU capability is available, changes in the backing of
 the memory region are automatically reflected into the guest.  For example, an
