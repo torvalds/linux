@@ -23,11 +23,6 @@
 
 #include "sh_pfc.h"
 
-#define CPU_32_PORT(fn, pfx, sfx)				\
-	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##2, sfx), PORT_1(fn, pfx##30, sfx),	\
-	PORT_1(fn, pfx##31, sfx)
-
 #define CPU_32_PORT6(fn, pfx, sfx)				\
 	PORT_1(fn, pfx##0, sfx), PORT_1(fn, pfx##1, sfx),	\
 	PORT_1(fn, pfx##2, sfx), PORT_1(fn, pfx##3, sfx),	\
@@ -36,12 +31,12 @@
 	PORT_1(fn, pfx##8, sfx)
 
 #define CPU_ALL_PORT(fn, pfx, sfx)				\
-	CPU_32_PORT(fn, pfx##_0_, sfx),				\
-	CPU_32_PORT(fn, pfx##_1_, sfx),				\
-	CPU_32_PORT(fn, pfx##_2_, sfx),				\
-	CPU_32_PORT(fn, pfx##_3_, sfx),				\
-	CPU_32_PORT(fn, pfx##_4_, sfx),				\
-	CPU_32_PORT(fn, pfx##_5_, sfx),				\
+	PORT_32(fn, pfx##_0_, sfx),				\
+	PORT_32(fn, pfx##_1_, sfx),				\
+	PORT_32(fn, pfx##_2_, sfx),				\
+	PORT_32(fn, pfx##_3_, sfx),				\
+	PORT_32(fn, pfx##_4_, sfx),				\
+	PORT_32(fn, pfx##_5_, sfx),				\
 	CPU_32_PORT6(fn, pfx##_6_, sfx)
 
 #define _GP_GPIO(pfx, sfx) PINMUX_GPIO(GPIO_GP##pfx, GP##pfx##_DATA)
@@ -55,21 +50,8 @@
 #define PINMUX_GPIO_GP_ALL()	CPU_ALL_PORT(_GP_GPIO, , unused)
 #define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_GP_DATA, , unused)
 
-
-#define PORT_10_REV(fn, pfx, sfx)				\
-	PORT_1(fn, pfx##9, sfx), PORT_1(fn, pfx##8, sfx),	\
-	PORT_1(fn, pfx##7, sfx), PORT_1(fn, pfx##6, sfx),	\
-	PORT_1(fn, pfx##5, sfx), PORT_1(fn, pfx##4, sfx),	\
-	PORT_1(fn, pfx##3, sfx), PORT_1(fn, pfx##2, sfx),	\
-	PORT_1(fn, pfx##1, sfx), PORT_1(fn, pfx##0, sfx)
-
-#define CPU_32_PORT_REV(fn, pfx, sfx)					\
-	PORT_1(fn, pfx##31, sfx), PORT_1(fn, pfx##30, sfx),		\
-	PORT_10_REV(fn, pfx##2, sfx), PORT_10_REV(fn, pfx##1, sfx),	\
-	PORT_10_REV(fn, pfx, sfx)
-
-#define GP_INOUTSEL(bank) CPU_32_PORT_REV(_GP_INOUTSEL, _##bank##_, unused)
-#define GP_INDT(bank) CPU_32_PORT_REV(_GP_INDT, _##bank##_, unused)
+#define GP_INOUTSEL(bank) PORT_32_REV(_GP_INOUTSEL, _##bank##_, unused)
+#define GP_INDT(bank) PORT_32_REV(_GP_INDT, _##bank##_, unused)
 
 #define PINMUX_IPSR_DATA(ipsr, fn) PINMUX_DATA(fn##_MARK, FN_##ipsr, FN_##fn)
 #define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms) PINMUX_DATA(fn##_MARK, FN_##ms, \
