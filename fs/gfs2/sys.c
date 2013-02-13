@@ -330,6 +330,28 @@ static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	return ret;
 }
 
+static ssize_t wdack_show(struct gfs2_sbd *sdp, char *buf)
+{
+	int val = completion_done(&sdp->sd_wdack) ? 1 : 0;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t wdack_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	ssize_t ret = len;
+	int val;
+
+	val = simple_strtol(buf, NULL, 0);
+
+	if ((val == 1) &&
+	    !strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
+		complete(&sdp->sd_wdack);
+	else
+		ret = -EINVAL;
+	return ret;
+}
+
 static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
@@ -461,7 +483,7 @@ static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 GDLM_ATTR(proto_name,		0444, proto_name_show,		NULL);
 GDLM_ATTR(block,		0644, block_show,		block_store);
-GDLM_ATTR(withdraw,		0644, withdraw_show,		withdraw_store);
+GDLM_ATTR(withdraw,		0644, wdack_show,		wdack_store);
 GDLM_ATTR(jid,			0644, jid_show,			jid_store);
 GDLM_ATTR(first,		0644, lkfirst_show,		lkfirst_store);
 GDLM_ATTR(first_done,		0444, first_done_show,		NULL);

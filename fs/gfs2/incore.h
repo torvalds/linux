@@ -642,6 +642,7 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
+	struct completion sd_wdack;
 	struct delayed_work sd_control_work;
 
 	/* Inode Stuff */
