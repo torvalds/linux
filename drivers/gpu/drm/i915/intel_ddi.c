@@ -181,7 +181,8 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 	/* Enable the PCH Receiver FDI PLL */
 	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
-		     FDI_RX_PLL_ENABLE | ((intel_crtc->fdi_lanes - 1) << 19);
+		     FDI_RX_PLL_ENABLE |
+		     ((intel_crtc->config.fdi_lanes - 1) << 19);
 	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
 	POSTING_READ(_FDI_RXA_CTL);
 	udelay(220);
@@ -209,7 +210,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		 * port reversal bit */
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 			   DDI_BUF_CTL_ENABLE |
-			   ((intel_crtc->fdi_lanes - 1) << 1) |
+			   ((intel_crtc->config.fdi_lanes - 1) << 1) |
 			   hsw_ddi_buf_ctl_values[i / 2]);
 		POSTING_READ(DDI_BUF_CTL(PORT_E));
 
@@ -1022,7 +1023,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
-		temp |= (intel_crtc->fdi_lanes - 1) << 1;
+		temp |= (intel_crtc->config.fdi_lanes - 1) << 1;
 
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
 		   type == INTEL_OUTPUT_EDP) {
