@@ -1370,6 +1370,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl2832u_props, "GIGABYTE U7300", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x1104,
 		&rtl2832u_props, "Digivox Micro Hd", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_COMPRO, 0x0620,
+		&rtl2832u_props, "Compro VideoMate U620F", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
