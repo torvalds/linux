@@ -246,6 +246,34 @@ struct thread_struct {
 	unsigned long	spefscr;	/* SPE & eFP status */
 	int		used_spe;	/* set if process has used spe */
 #endif /* CONFIG_SPE */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64		tm_tfhar;	/* Transaction fail handler addr */
+	u64		tm_texasr;	/* Transaction exception & summary */
+	u64		tm_tfiar;	/* Transaction fail instr address reg */
+	unsigned long	tm_orig_msr;	/* Thread's MSR on ctx switch */
+	struct pt_regs	ckpt_regs;	/* Checkpointed registers */
+
+	/*
+	 * Transactional FP and VSX 0-31 register set.
+	 * NOTE: the sense of these is the opposite of the integer ckpt_regs!
+	 *
+	 * When a transaction is active/signalled/scheduled etc., *regs is the
+	 * most recent set of/speculated GPRs with ckpt_regs being the older
+	 * checkpointed regs to which we roll back if transaction aborts.
+	 *
+	 * However, fpr[] is the checkpointed 'base state' of FP regs, and
+	 * transact_fpr[] is the new set of transactional values.
+	 * VRs work the same way.
+	 */
+	double		transact_fpr[32][TS_FPRWIDTH];
+	struct {
+		unsigned int pad;
+		unsigned int val;	/* Floating point status */
+	} transact_fpscr;
+	vector128	transact_vr[32] __attribute__((aligned(16)));
+	vector128	transact_vscr __attribute__((aligned(16)));
+	unsigned long	transact_vrsave;
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */
 #endif /* CONFIG_KVM_BOOK3S_32_HANDLER */
