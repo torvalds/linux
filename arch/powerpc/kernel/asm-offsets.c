@@ -126,6 +126,7 @@ int main(void)
 	DEFINE(THREAD_TAR, offsetof(struct thread_struct, tar));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));
 	DEFINE(THREAD_TM_TFHAR, offsetof(struct thread_struct, tm_tfhar));
 	DEFINE(THREAD_TM_TEXASR, offsetof(struct thread_struct, tm_texasr));
 	DEFINE(THREAD_TM_TFIAR, offsetof(struct thread_struct, tm_tfiar));

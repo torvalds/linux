@@ -754,6 +754,9 @@ void show_regs(struct pt_regs * regs)
 	printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
 	printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
 #endif
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	printk("PACATMSCRATCH [%llx]\n", get_paca()->tm_scratch);
+#endif
 	show_stack(current, (unsigned long *) regs->gpr[1]);
 	if (!user_mode(regs))
 		show_instructions(regs);

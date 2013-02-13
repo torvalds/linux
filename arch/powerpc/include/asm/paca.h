@@ -137,6 +137,9 @@ struct paca_struct {
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
 	u64 sprg3;			/* Saved user-visible sprg */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64 tm_scratch;                 /* TM scratch area for reclaim */
+#endif
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Pointer to OPAL machine check event structure set by the

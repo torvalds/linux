@@ -785,6 +785,10 @@ fast_exception_return:
 	andc	r4,r4,r0	 /* r0 contains MSR_RI here */
 	mtmsrd	r4,1
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* TM debug */
+	std	r3, PACATMSCRATCH(r13) /* Stash returned-to MSR */
+#endif
 	/*
 	 * r13 is our per cpu area, only restore it if we are returning to
 	 * userspace the value stored in the stack frame may belong to
