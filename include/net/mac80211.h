@@ -2438,8 +2438,11 @@ enum ieee80211_roc_type {
  * @testmode_dump: Implement a cfg80211 test mode dump. The callback can sleep.
  *
  * @flush: Flush all pending frames from the hardware queue, making sure
- *	that the hardware queues are empty. If the parameter @drop is set
- *	to %true, pending frames may be dropped. The callback can sleep.
+ *	that the hardware queues are empty. The @queues parameter is a bitmap
+ *	of queues to flush, which is useful if different virtual interfaces
+ *	use different hardware queues; it may also indicate all queues.
+ *	If the parameter @drop is set to %true, pending frames may be dropped.
+ *	The callback can sleep.
  *
  * @channel_switch: Drivers that need (or want) to offload the channel
  *	switch operation for CSAs received from the AP may implement this
@@ -2687,7 +2690,7 @@ struct ieee80211_ops {
 			     struct netlink_callback *cb,
 			     void *data, int len);
 #endif
-	void (*flush)(struct ieee80211_hw *hw, bool drop);
+	void (*flush)(struct ieee80211_hw *hw, u32 queues, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*napi_poll)(struct ieee80211_hw *hw, int budget);

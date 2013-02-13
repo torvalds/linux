@@ -720,13 +720,14 @@ static inline void drv_rfkill_poll(struct ieee80211_local *local)
 		local->ops->rfkill_poll(&local->hw);
 }
 
-static inline void drv_flush(struct ieee80211_local *local, bool drop)
+static inline void drv_flush(struct ieee80211_local *local,
+			     u32 queues, bool drop)
 {
 	might_sleep();
 
-	trace_drv_flush(local, drop);
+	trace_drv_flush(local, queues, drop);
 	if (local->ops->flush)
-		local->ops->flush(&local->hw, drop);
+		local->ops->flush(&local->hw, queues, drop);
 	trace_drv_return_void(local);
 }
 

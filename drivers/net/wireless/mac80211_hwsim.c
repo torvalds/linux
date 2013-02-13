@@ -1389,7 +1389,7 @@ static int mac80211_hwsim_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void mac80211_hwsim_flush(struct ieee80211_hw *hw, bool drop)
+static void mac80211_hwsim_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	/* Not implemented, queues only on kernel side */
 }

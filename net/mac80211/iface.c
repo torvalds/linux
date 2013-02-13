@@ -92,7 +92,7 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
 		return 0;
 
-	drv_flush(local, false);
+	ieee80211_flush_queues(local, NULL);
 
 	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;

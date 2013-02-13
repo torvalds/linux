@@ -511,6 +511,31 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
 
+void ieee80211_flush_queues(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata)
+{
+	u32 queues;
+
+	if (!local->ops->flush)
+		return;
+
+	if (sdata && local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+		int ac;
+
+		queues = 0;
+
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			queues |= BIT(sdata->vif.hw_queue[ac]);
+		if (sdata->vif.cab_queue != IEEE80211_INVAL_HW_QUEUE)
+			queues |= BIT(sdata->vif.cab_queue);
+	} else {
+		/* all queues */
+		queues = BIT(local->hw.queues) - 1;
+	}
+
+	drv_flush(local, queues, false);
+}
+
 void ieee80211_iterate_active_interfaces(
 	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,

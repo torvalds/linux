@@ -964,23 +964,26 @@ TRACE_EVENT(drv_get_survey,
 );
 
 TRACE_EVENT(drv_flush,
-	TP_PROTO(struct ieee80211_local *local, bool drop),
+	TP_PROTO(struct ieee80211_local *local,
+		 u32 queues, bool drop),
 
-	TP_ARGS(local, drop),
+	TP_ARGS(local, queues, drop),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		__field(bool, drop)
+		__field(u32, queues)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->drop = drop;
+		__entry->queues = queues;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " drop:%d",
-		LOCAL_PR_ARG, __entry->drop
+		LOCAL_PR_FMT " queues:0x%x drop:%d",
+		LOCAL_PR_ARG, __entry->queues, __entry->drop
 	)
 );
 

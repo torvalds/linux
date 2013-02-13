@@ -35,7 +35,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	/* flush out all packets */
 	synchronize_net();
 
-	drv_flush(local, false);
+	ieee80211_flush_queues(local, NULL);
 
 	local->quiescing = true;
 	/* make quiescing visible to timers everywhere */
