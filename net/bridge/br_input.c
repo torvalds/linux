@@ -45,6 +45,10 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		return NET_RX_DROP;
 	}
 
+	skb = br_handle_vlan(br, br_get_vlan_info(br), skb);
+	if (!skb)
+		return NET_RX_DROP;
+
 	indev = skb->dev;
 	skb->dev = brdev;
 
@@ -61,11 +65,12 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
 	struct sk_buff *skb2;
+	u16 vid = 0;
 
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
-	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb))
+	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb, &vid))
 		goto drop;
 
 	/* insert into forwarding database after filtering to avoid spoofing */

@@ -67,6 +67,7 @@ struct br_ip
 
 struct net_port_vlans {
 	u16				port_idx;
+	u16				pvid;
 	union {
 		struct net_bridge_port		*port;
 		struct net_bridge		*br;
@@ -554,10 +555,13 @@ static inline void br_mdb_uninit(void)
 /* br_vlan.c */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 extern bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
-			       struct sk_buff *skb);
+			       struct sk_buff *skb, u16 *vid);
 extern bool br_allowed_egress(struct net_bridge *br,
 			      const struct net_port_vlans *v,
 			      const struct sk_buff *skb);
+extern struct sk_buff *br_handle_vlan(struct net_bridge *br,
+				      const struct net_port_vlans *v,
+				      struct sk_buff *skb);
 extern int br_vlan_add(struct net_bridge *br, u16 vid);
 extern int br_vlan_delete(struct net_bridge *br, u16 vid);
 extern void br_vlan_flush(struct net_bridge *br);
@@ -594,10 +598,23 @@ static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
 
 	return err;
 }
+
+static inline u16 br_get_pvid(const struct net_port_vlans *v)
+{
+	/* Return just the VID if it is set, or VLAN_N_VID (invalid vid) if
+	 * vid wasn't set
+	 */
+	smp_rmb();
+	return (v->pvid & VLAN_TAG_PRESENT) ?
+			(v->pvid & ~VLAN_TAG_PRESENT) :
+			VLAN_N_VID;
+}
+
 #else
 static inline bool br_allowed_ingress(struct net_bridge *br,
 				      struct net_port_vlans *v,
-				      struct sk_buff *skb)
+				      struct sk_buff *skb,
+				      u16 *vid)
 {
 	return true;
 }
@@ -607,6 +624,13 @@ static inline bool br_allowed_egress(struct net_bridge *br,
 				     const struct sk_buff *skb)
 {
 	return true;
+}
+
+static inline struct sk_buff *br_handle_vlan(struct net_bridge *br,
+					     const struct net_port_vlans *v,
+					     struct sk_buff *skb)
+{
+	return skb;
 }
 
 static inline int br_vlan_add(struct net_bridge *br, u16 vid)
@@ -648,9 +672,13 @@ static inline struct net_port_vlans *nbp_get_vlan_info(
 	return NULL;
 }
 
-static inline u16 br_vlan_get_tag(const struct sk_buff *skb)
+static inline u16 br_vlan_get_tag(const struct sk_buff *skb, u16 *tag)
 {
 	return 0;
+}
+static inline u16 br_get_pvid(const struct net_port_vlans *v)
+{
+	return VLAN_N_VID;	/* Returns invalid vid */
 }
 #endif
 

@@ -66,12 +66,68 @@ static void __vlan_flush(struct net_port_vlans *v)
 	kfree_rcu(v, rcu);
 }
 
-/* Called under RCU */
-bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
-			struct sk_buff *skb)
+/* Strip the tag from the packet.  Will return skb with tci set 0.  */
+static struct sk_buff *br_vlan_untag(struct sk_buff *skb)
+{
+	if (skb->protocol != htons(ETH_P_8021Q)) {
+		skb->vlan_tci = 0;
+		return skb;
+	}
+
+	skb->vlan_tci = 0;
+	skb = vlan_untag(skb);
+	if (skb)
+		skb->vlan_tci = 0;
+
+	return skb;
+}
+
+struct sk_buff *br_handle_vlan(struct net_bridge *br,
+			       const struct net_port_vlans *pv,
+			       struct sk_buff *skb)
 {
 	u16 vid;
 
+	if (!br->vlan_enabled)
+		goto out;
+
+	/* At this point, we know that the frame was filtered and contains
+	 * a valid vlan id.  If the vlan id matches the pvid of current port
+	 * send untagged; otherwise, send taged.
+	 */
+	br_vlan_get_tag(skb, &vid);
+	if (vid == br_get_pvid(pv))
+		skb = br_vlan_untag(skb);
+	else {
+		/* Egress policy says "send tagged".  If output device
+		 * is the  bridge, we need to add the VLAN header
+		 * ourselves since we'll be going through the RX path.
+		 * Sending to ports puts the frame on the TX path and
+		 * we let dev_hard_start_xmit() add the header.
+		 */
+		if (skb->protocol != htons(ETH_P_8021Q) &&
+		    pv->port_idx == 0) {
+			/* vlan_put_tag expects skb->data to point to
+			 * mac header.
+			 */
+			skb_push(skb, ETH_HLEN);
+			skb = __vlan_put_tag(skb, skb->vlan_tci);
+			if (!skb)
+				goto out;
+			/* put skb->data back to where it was */
+			skb_pull(skb, ETH_HLEN);
+			skb->vlan_tci = 0;
+		}
+	}
+
+out:
+	return skb;
+}
+
+/* Called under RCU */
+bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
+			struct sk_buff *skb, u16 *vid)
+{
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
@@ -84,8 +140,25 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		return false;
 
-	br_vlan_get_tag(skb, &vid);
-	if (test_bit(vid, v->vlan_bitmap))
+	if (br_vlan_get_tag(skb, vid)) {
+		u16 pvid = br_get_pvid(v);
+
+		/* Frame did not have a tag.  See if pvid is set
+		 * on this port.  That tells us which vlan untagged
+		 * traffic belongs to.
+		 */
+		if (pvid == VLAN_N_VID)
+			return false;
+
+		/* PVID is set on this port.  Any untagged ingress
+		 * frame is considered to belong to this vlan.
+		 */
+		__vlan_hwaccel_put_tag(skb, pvid);
+		return true;
+	}
+
+	/* Frame had a valid vlan tag.  See if vlan is allowed */
+	if (test_bit(*vid, v->vlan_bitmap))
 		return true;
 
 	return false;
