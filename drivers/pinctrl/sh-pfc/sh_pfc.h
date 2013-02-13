@@ -229,21 +229,21 @@ struct sh_pfc_soc_info {
  * PORT style (linear pin space)
  */
 
-#define PORT_1(fn, pfx, sfx) fn(pfx, sfx)
+#define PORT_1(pn, fn, pfx, sfx) fn(pfx, sfx)
 
-#define PORT_10(fn, pfx, sfx)						\
-	PORT_1(fn, pfx##0, sfx), PORT_1(fn, pfx##1, sfx),		\
-	PORT_1(fn, pfx##2, sfx), PORT_1(fn, pfx##3, sfx),		\
-	PORT_1(fn, pfx##4, sfx), PORT_1(fn, pfx##5, sfx),		\
-	PORT_1(fn, pfx##6, sfx), PORT_1(fn, pfx##7, sfx),		\
-	PORT_1(fn, pfx##8, sfx), PORT_1(fn, pfx##9, sfx)
+#define PORT_10(pn, fn, pfx, sfx)					  \
+	PORT_1(pn,   fn, pfx##0, sfx), PORT_1(pn+1, fn, pfx##1, sfx),	  \
+	PORT_1(pn+2, fn, pfx##2, sfx), PORT_1(pn+3, fn, pfx##3, sfx),	  \
+	PORT_1(pn+4, fn, pfx##4, sfx), PORT_1(pn+5, fn, pfx##5, sfx),	  \
+	PORT_1(pn+6, fn, pfx##6, sfx), PORT_1(pn+7, fn, pfx##7, sfx),	  \
+	PORT_1(pn+8, fn, pfx##8, sfx), PORT_1(pn+9, fn, pfx##9, sfx)
 
-#define PORT_90(fn, pfx, sfx) \
-	PORT_10(fn, pfx##1, sfx), PORT_10(fn, pfx##2, sfx),		\
-	PORT_10(fn, pfx##3, sfx), PORT_10(fn, pfx##4, sfx),		\
-	PORT_10(fn, pfx##5, sfx), PORT_10(fn, pfx##6, sfx),		\
-	PORT_10(fn, pfx##7, sfx), PORT_10(fn, pfx##8, sfx),		\
-	PORT_10(fn, pfx##9, sfx)
+#define PORT_90(pn, fn, pfx, sfx)					  \
+	PORT_10(pn+10, fn, pfx##1, sfx), PORT_10(pn+20, fn, pfx##2, sfx), \
+	PORT_10(pn+30, fn, pfx##3, sfx), PORT_10(pn+40, fn, pfx##4, sfx), \
+	PORT_10(pn+50, fn, pfx##5, sfx), PORT_10(pn+60, fn, pfx##6, sfx), \
+	PORT_10(pn+70, fn, pfx##7, sfx), PORT_10(pn+80, fn, pfx##8, sfx), \
+	PORT_10(pn+90, fn, pfx##9, sfx)
 
 /* PORT_ALL(suffix) - Expand to a list of PORT_#_suffix */
 #define _PORT_ALL(pfx, sfx)		pfx##_##sfx
