@@ -1,12 +1,9 @@
 #include <linux/export.h>
-#include <linux/linkage.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/hardirq.h>
 
-#include <asm/checksum.h>
+#include <asm/div64.h>
 #include <asm/ftrace.h>
+#include <asm/page.h>
+#include <asm/string.h>
 #include <asm/tbx.h>
 
 EXPORT_SYMBOL(clear_page);
