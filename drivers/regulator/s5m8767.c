@@ -659,15 +659,15 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	struct s5m8767_info *s5m8767;
 	int i, ret, size, buck_init;
 
+	if (!pdata) {
+		dev_err(pdev->dev.parent, "Platform data not supplied\n");
+		return -ENODEV;
+	}
+
 	if (iodev->dev->of_node) {
 		ret = s5m8767_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
-	}
-
-	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
-		return -ENODEV;
 	}
 
 	if (pdata->buck2_gpiodvs) {
