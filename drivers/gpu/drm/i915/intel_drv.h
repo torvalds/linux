@@ -249,6 +249,9 @@ struct intel_crtc_config {
 		u32 pos;
 		u32 size;
 	} pch_pfit;
+
+	/* FDI lanes used, only valid if has_pch_encoder is set. */
+	int fdi_lanes;
 };
 
 struct intel_crtc {
@@ -267,7 +270,6 @@ struct intel_crtc {
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
-	int fdi_lanes;
 
 	atomic_t unpin_work_count;
 

@@ -2420,7 +2420,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~(7 << 19);
-	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
@@ -2518,7 +2518,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~(7 << 19);
-	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2653,7 +2653,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~(7 << 19);
-	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
 	temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
 	temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2755,7 +2755,7 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~((0x7 << 19) | (0x7 << 16));
-	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
 	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
 
@@ -5410,12 +5410,12 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
 
 	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
-		      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
-	if (intel_crtc->fdi_lanes > 4) {
+		      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
+	if (intel_crtc->config.fdi_lanes > 4) {
 		DRM_DEBUG_KMS("invalid fdi lane config on pipe %c: %i lanes\n",
-			      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
+			      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
 		/* Clamp lanes to avoid programming the hw with bogus values. */
-		intel_crtc->fdi_lanes = 4;
+		intel_crtc->config.fdi_lanes = 4;
 
 		return false;
 	}
@@ -5428,28 +5428,28 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 		return true;
 	case PIPE_B:
 		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
-		    intel_crtc->fdi_lanes > 2) {
+		    intel_crtc->config.fdi_lanes > 2) {
 			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
-				      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
+				      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
 			/* Clamp lanes to avoid programming the hw with bogus values. */
-			intel_crtc->fdi_lanes = 2;
+			intel_crtc->config.fdi_lanes = 2;
 
 			return false;
 		}
 
-		if (intel_crtc->fdi_lanes > 2)
+		if (intel_crtc->config.fdi_lanes > 2)
 			WARN_ON(I915_READ(SOUTH_CHICKEN1) & FDI_BC_BIFURCATION_SELECT);
 		else
 			cpt_enable_fdi_bc_bifurcation(dev);
 
 		return true;
 	case PIPE_C:
-		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->fdi_lanes <= 2) {
-			if (intel_crtc->fdi_lanes > 2) {
+		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->config.fdi_lanes <= 2) {
+			if (intel_crtc->config.fdi_lanes > 2) {
 				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
-					      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
+					      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
 				/* Clamp lanes to avoid programming the hw with bogus values. */
-				intel_crtc->fdi_lanes = 2;
+				intel_crtc->config.fdi_lanes = 2;
 
 				return false;
 			}
@@ -5537,7 +5537,7 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 	lane = ironlake_get_lanes_required(target_clock, link_bw,
 					   intel_crtc->config.pipe_bpp);
 
-	intel_crtc->fdi_lanes = lane;
+	intel_crtc->config.fdi_lanes = lane;
 
 	if (intel_crtc->config.pixel_multiplier > 1)
 		link_bw *= intel_crtc->config.pixel_multiplier;
@@ -5764,7 +5764,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
 	 * ironlake_check_fdi_lanes. */
-	intel_crtc->fdi_lanes = 0;
+	intel_crtc->config.fdi_lanes = 0;
 	if (intel_crtc->config.has_pch_encoder)
 		ironlake_fdi_set_m_n(crtc);
 
