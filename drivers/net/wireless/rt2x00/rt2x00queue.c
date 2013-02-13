@@ -87,24 +87,35 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	skbdesc->entry = entry;
 
 	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags)) {
-		skbdesc->skb_dma = dma_map_single(rt2x00dev->dev,
-						  skb->data,
-						  skb->len,
-						  DMA_FROM_DEVICE);
+		dma_addr_t skb_dma;
+
+		skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
+					 DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(rt2x00dev->dev, skb_dma))) {
+			dev_kfree_skb_any(skb);
+			return NULL;
+		}
+
+		skbdesc->skb_dma = skb_dma;
 		skbdesc->flags |= SKBDESC_DMA_MAPPED_RX;
 	}
 
 	return skb;
 }
 
-void rt2x00queue_map_txskb(struct queue_entry *entry)
+int rt2x00queue_map_txskb(struct queue_entry *entry)
 {
 	struct device *dev = entry->queue->rt2x00dev->dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 
 	skbdesc->skb_dma =
 	    dma_map_single(dev, entry->skb->data, entry->skb->len, DMA_TO_DEVICE);
+
+	if (unlikely(dma_mapping_error(dev, skbdesc->skb_dma)))
+		return -ENOMEM;
+
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
 
@@ -545,8 +556,9 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Map the skb to DMA.
 	 */
-	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags))
-		rt2x00queue_map_txskb(entry);
+	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags) &&
+	    rt2x00queue_map_txskb(entry))
+		return -ENOMEM;
 
 	return 0;
 }
