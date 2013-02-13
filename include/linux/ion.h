@@ -48,7 +48,7 @@ enum ion_heap_type {
 #define ION_NUM_HEAP_IDS		sizeof(unsigned int) * 8
 
 /**
- * heap flags - the lower 16 bits are used by core ion, the upper 16
+ * allocation flags - the lower 16 bits are used by core ion, the upper 16
  * bits are reserved for use by the heaps themselves.
  */
 #define ION_FLAG_CACHED 1		/* mappings of this buffer should be
