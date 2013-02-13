@@ -115,6 +115,11 @@ static u8 OFDM_CONFIG[]	= {
 	 *---------------------------------------------------------------
 	 */
 
+static u8 PlatformIORead1Byte(struct net_device *dev, u32 offset)
+{
+	return read_nic_byte(dev, offset);
+}
+
 void PlatformIOWrite1Byte(struct net_device *dev, u32 offset, u8 data)
 {
 	write_nic_byte(dev, offset, data);
@@ -126,8 +131,6 @@ void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
 	write_nic_word(dev, offset, data);
 	read_nic_word(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 }
-
-u8 PlatformIORead1Byte(struct net_device *dev, u32 offset);
 
 void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 {
@@ -170,16 +173,6 @@ void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 		write_nic_dword(dev, offset, data);
 		read_nic_dword(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 	}
-}
-
-u8 PlatformIORead1Byte(struct net_device *dev, u32 offset)
-{
-	u8	data = 0;
-
-	data = read_nic_byte(dev, offset);
-
-
-	return data;
 }
 
 u16 PlatformIORead2Byte(struct net_device *dev, u32 offset)
