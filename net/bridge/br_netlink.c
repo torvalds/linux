@@ -217,7 +217,7 @@ out:
 	return err;
 }
 
-const struct nla_policy ifla_br_policy[IFLA_MAX+1] = {
+static const struct nla_policy ifla_br_policy[IFLA_MAX+1] = {
 	[IFLA_BRIDGE_FLAGS]	= { .type = NLA_U16 },
 	[IFLA_BRIDGE_MODE]	= { .type = NLA_U16 },
 	[IFLA_BRIDGE_VLAN_INFO]	= { .type = NLA_BINARY,
@@ -463,7 +463,7 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
-struct rtnl_af_ops br_af_ops = {
+static struct rtnl_af_ops br_af_ops = {
 	.family			= AF_BRIDGE,
 	.get_link_af_size	= br_get_link_af_size,
 };
