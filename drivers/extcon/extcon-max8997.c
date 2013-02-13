@@ -29,6 +29,7 @@
 #include <linux/irqdomain.h>
 
 #define	DEV_NAME			"max8997-muic"
+#define	DELAY_MS_DEFAULT		20000		/* unit: millisecond */
 
 enum max8997_muic_adc_debounce_time {
 	ADC_DEBOUNCE_TIME_0_5MS = 0,	/* 0.5ms */
@@ -127,6 +128,14 @@ struct max8997_muic_info {
 
 	struct max8997_muic_platform_data *muic_pdata;
 	enum max8997_muic_charger_type pre_charger_type;
+
+	/*
+	 * Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	struct delayed_work wq_detcable;
 
 	/*
 	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
@@ -629,11 +638,23 @@ static int max8997_muic_detect_dev(struct max8997_muic_info *info)
 	return 0;
 }
 
+static void max8997_muic_detect_cable_wq(struct work_struct *work)
+{
+	struct max8997_muic_info *info = container_of(to_delayed_work(work),
+				struct max8997_muic_info, wq_detcable);
+	int ret;
+
+	ret = max8997_muic_detect_dev(info);
+	if (ret < 0)
+		pr_err("failed to detect cable type\n");
+}
+
 static int max8997_muic_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *max8997 = dev_get_drvdata(pdev->dev.parent);
 	struct max8997_platform_data *pdata = dev_get_platdata(max8997->dev);
 	struct max8997_muic_info *info;
+	int delay_jiffies;
 	int ret, i;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
@@ -721,17 +742,23 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	/* Set ADC debounce time */
 	max8997_muic_set_debounce_time(info, ADC_DEBOUNCE_TIME_25MS);
 
-	/* Initial device detection */
-	ret = max8997_muic_detect_dev(info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to detect cable type\n");
-		goto err_extcon;
-	}
+	/*
+	 * Detect accessory after completing the initialization of platform
+	 *
+	 * - Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	INIT_DELAYED_WORK(&info->wq_detcable, max8997_muic_detect_cable_wq);
+	if (pdata->muic_pdata->detcable_delay_ms)
+		delay_jiffies = msecs_to_jiffies(pdata->muic_pdata->detcable_delay_ms);
+	else
+		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
+	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
 
-	return ret;
+	return 0;
 
-err_extcon:
-	extcon_dev_unregister(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
