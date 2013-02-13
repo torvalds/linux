@@ -675,8 +675,14 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 	if (data[0])
 		dir |= DIR_OUT;
 
-	if (devpriv->model == VMK8061_MODEL)
+	if (devpriv->model == VMK8061_MODEL) {
 		dir |= DIR_IN;
+		reg = VMK8061_DO_REG;
+		cmd = VMK8061_CMD_DO;
+	} else { /* VMK8055_MODEL */
+		reg = VMK8055_DO_REG;
+		cmd = VMK8055_CMD_WRT_AD;
+	}
 
 	retval = rudimentary_check(devpriv, dir);
 	if (retval)
@@ -688,14 +694,6 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 	tx_buf = devpriv->usb_tx_buf;
 
 	if (data[0]) {
-		if (devpriv->model == VMK8055_MODEL) {
-			reg = VMK8055_DO_REG;
-			cmd = VMK8055_CMD_WRT_AD;
-		} else { /* VMK8061_MODEL */
-			reg = VMK8061_DO_REG;
-			cmd = VMK8061_CMD_DO;
-		}
-
 		tx_buf[reg] &= ~data[0];
 		tx_buf[reg] |= (data[0] & data[1]);
 
@@ -706,7 +704,6 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 	}
 
 	if (devpriv->model == VMK8061_MODEL) {
-		reg = VMK8061_DO_REG;
 		tx_buf[0] = VMK8061_CMD_RD_DO;
 
 		retval = vmk80xx_read_packet(devpriv);
