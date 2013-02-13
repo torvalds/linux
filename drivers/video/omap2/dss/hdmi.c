@@ -1092,6 +1092,8 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
 
+	hdmi_init_output(pdev);
+
 	r = hdmi_panel_init();
 	if (r) {
 		DSSERR("can't init panel\n");
@@ -1099,8 +1101,6 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	}
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
-
-	hdmi_init_output(pdev);
 
 	hdmi_probe_pdata(pdev);
 
