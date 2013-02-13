@@ -219,6 +219,10 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				   u32 clock,
 				   bool strobe_mode,
 				   struct atom_clock_dividers *dividers);
+int radeon_atom_get_memory_pll_dividers(struct radeon_device *rdev,
+					u32 clock,
+					bool strobe_mode,
+					struct atom_mpll_param *mpll_param);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,

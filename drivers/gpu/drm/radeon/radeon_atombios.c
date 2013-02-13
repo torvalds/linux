@@ -2833,6 +2833,57 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 	return 0;
 }
 
+int radeon_atom_get_memory_pll_dividers(struct radeon_device *rdev,
+					u32 clock,
+					bool strobe_mode,
+					struct atom_mpll_param *mpll_param)
+{
+	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_1 args;
+	int index = GetIndexIntoMasterTable(COMMAND, ComputeMemoryClockParam);
+	u8 frev, crev;
+
+	memset(&args, 0, sizeof(args));
+	memset(mpll_param, 0, sizeof(struct atom_mpll_param));
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (frev) {
+	case 2:
+		switch (crev) {
+		case 1:
+			/* SI */
+			args.ulClock = cpu_to_le32(clock);	/* 10 khz */
+			args.ucInputFlag = 0;
+			if (strobe_mode)
+				args.ucInputFlag |= MPLL_INPUT_FLAG_STROBE_MODE_EN;
+
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+			mpll_param->clkfrac = le16_to_cpu(args.ulFbDiv.usFbDivFrac);
+			mpll_param->clkf = le16_to_cpu(args.ulFbDiv.usFbDiv);
+			mpll_param->post_div = args.ucPostDiv;
+			mpll_param->dll_speed = args.ucDllSpeed;
+			mpll_param->bwcntl = args.ucBWCntl;
+			mpll_param->vco_mode =
+				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_VCO_MODE_MASK) ? 1 : 0;
+			mpll_param->yclk_sel =
+				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_BYPASS_DQ_PLL) ? 1 : 0;
+			mpll_param->qdr =
+				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_QDR_ENABLE) ? 1 : 0;
+			mpll_param->half_rate =
+				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_AD_HALF_RATE) ? 1 : 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
 {
 	DYNAMIC_CLOCK_GATING_PS_ALLOCATION args;

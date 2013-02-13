@@ -519,6 +519,30 @@ struct atom_clock_dividers {
 	u32 flags;
 };
 
+struct atom_mpll_param {
+	union {
+		struct {
+#ifdef __BIG_ENDIAN
+			u32 reserved : 8;
+			u32 clkfrac : 12;
+			u32 clkf : 12;
+#else
+			u32 clkf : 12;
+			u32 clkfrac : 12;
+			u32 reserved : 8;
+#endif
+		};
+		u32 fb_div;
+	};
+	u32 post_div;
+	u32 bwcntl;
+	u32 dll_speed;
+	u32 vco_mode;
+	u32 yclk_sel;
+	u32 qdr;
+	u32 half_rate;
+};
+
 #define MEM_TYPE_GDDR5  0x50
 #define MEM_TYPE_GDDR4  0x40
 #define MEM_TYPE_GDDR3  0x30
