@@ -26,6 +26,7 @@
 #include <scsi/libfcoe.h>
 #include "fnic_io.h"
 #include "fnic_res.h"
+#include "fnic_trace.h"
 #include "vnic_dev.h"
 #include "vnic_wq.h"
 #include "vnic_rq.h"
