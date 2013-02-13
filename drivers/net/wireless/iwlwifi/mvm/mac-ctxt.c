@@ -286,6 +286,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	mvmvif->color = 0;
 
+	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
+	mvmvif->time_event_data.id = TE_MAX;
+
 	/* No need to allocate data queues to P2P Device MAC.*/
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -327,9 +330,6 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
-
-	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
-	mvmvif->time_event_data.id = TE_MAX;
 
 	return 0;
 
