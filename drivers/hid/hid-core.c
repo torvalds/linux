@@ -2229,6 +2229,14 @@ bool hid_ignore(struct hid_device *hdev)
 		    hdev->type != HID_TYPE_USBMOUSE)
 			return true;
 		break;
+	case USB_VENDOR_ID_VELLEMAN:
+		/* These are not HID devices.  They are handled by comedi. */
+		if ((hdev->product >= USB_DEVICE_ID_VELLEMAN_K8055_FIRST &&
+		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8055_LAST) ||
+		    (hdev->product >= USB_DEVICE_ID_VELLEMAN_K8061_FIRST &&
+		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8061_LAST))
+			return true;
+		break;
 	}
 
 	if (hdev->type == HID_TYPE_USBMOUSE &&
