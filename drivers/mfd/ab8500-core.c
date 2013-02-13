@@ -369,16 +369,48 @@ static void ab8500_irq_mask(struct irq_data *data)
 	int mask = 1 << (offset % 8);
 
 	ab8500->mask[index] |= mask;
+
+	/* The AB8500 GPIOs have two interrupts each (rising & falling). */
+	if (offset >= AB8500_INT_GPIO6R && offset <= AB8500_INT_GPIO41R)
+		ab8500->mask[index + 2] |= mask;
+	if (offset >= AB9540_INT_GPIO50R && offset <= AB9540_INT_GPIO54R)
+		ab8500->mask[index + 1] |= mask;
+	if (offset == AB8540_INT_GPIO43R || offset == AB8540_INT_GPIO44R)
+		/* Here the falling IRQ is one bit lower */
+		ab8500->mask[index] |= (mask << 1);
 }
 
 static void ab8500_irq_unmask(struct irq_data *data)
 {
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
+	unsigned int type = irqd_get_trigger_type(data);
 	int offset = data->hwirq;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
-	ab8500->mask[index] &= ~mask;
+	if (type & IRQ_TYPE_EDGE_RISING)
+		ab8500->mask[index] &= ~mask;
+
+	/* The AB8500 GPIOs have two interrupts each (rising & falling). */
+	if (type & IRQ_TYPE_EDGE_FALLING) {
+		if (offset >= AB8500_INT_GPIO6R && offset <= AB8500_INT_GPIO41R)
+			ab8500->mask[index + 2] &= ~mask;
+		else if (offset >= AB9540_INT_GPIO50R && offset <= AB9540_INT_GPIO54R)
+			ab8500->mask[index + 1] &= ~mask;
+		else if (offset == AB8540_INT_GPIO43R || offset == AB8540_INT_GPIO44R)
+			/* Here the falling IRQ is one bit lower */
+			ab8500->mask[index] &= ~(mask << 1);
+		else
+			ab8500->mask[index] &= ~mask;
+	} else {
+		/* Satisfies the case where type is not set. */
+		ab8500->mask[index] &= ~mask;
+	}
+}
+
+static int ab8500_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	return 0;
 }
 
 static struct irq_chip ab8500_irq_chip = {
@@ -388,6 +420,7 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_mask		= ab8500_irq_mask,
 	.irq_disable		= ab8500_irq_mask,
 	.irq_unmask		= ab8500_irq_unmask,
+	.irq_set_type		= ab8500_irq_set_type,
 };
 
 static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
@@ -411,6 +444,19 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 
 		line = (i << 3) + int_bit;
 		latch_val &= ~(1 << int_bit);
+
+		/*
+		 * This handles the falling edge hwirqs from the GPIO
+		 * lines. Route them back to the line registered for the
+		 * rising IRQ, as this is merely a flag for the same IRQ
+		 * in linux terms.
+		 */
+		if (line >= AB8500_INT_GPIO6F && line <= AB8500_INT_GPIO41F)
+			line -= 16;
+		if (line >= AB9540_INT_GPIO50F && line <= AB9540_INT_GPIO54F)
+			line -= 8;
+		if (line == AB8540_INT_GPIO43F || line == AB8540_INT_GPIO44F)
+			line += 1;
 
 		handle_nested_irq(ab8500->irq_base + line);
 	} while (latch_val);
@@ -1053,7 +1099,7 @@ static struct mfd_cell ab8500_bm_devs[] = {
 
 static struct mfd_cell ab8500_devs[] = {
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8500",
 		.of_compatible = "stericsson,ab8500-gpio",
 	},
 	{
@@ -1070,7 +1116,8 @@ static struct mfd_cell ab8500_devs[] = {
 
 static struct mfd_cell ab9540_devs[] = {
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab9540",
+		.of_compatible = "stericsson,ab9540-gpio",
 	},
 	{
 		.name = "ab9540-usb",
