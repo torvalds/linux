@@ -125,6 +125,29 @@ int main(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	DEFINE(THREAD_TAR, offsetof(struct thread_struct, tar));
 #endif
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	DEFINE(THREAD_TM_TFHAR, offsetof(struct thread_struct, tm_tfhar));
+	DEFINE(THREAD_TM_TEXASR, offsetof(struct thread_struct, tm_texasr));
+	DEFINE(THREAD_TM_TFIAR, offsetof(struct thread_struct, tm_tfiar));
+	DEFINE(PT_CKPT_REGS, offsetof(struct thread_struct, ckpt_regs));
+	DEFINE(THREAD_TRANSACT_VR0, offsetof(struct thread_struct,
+					 transact_vr[0]));
+	DEFINE(THREAD_TRANSACT_VSCR, offsetof(struct thread_struct,
+					  transact_vscr));
+	DEFINE(THREAD_TRANSACT_VRSAVE, offsetof(struct thread_struct,
+					    transact_vrsave));
+	DEFINE(THREAD_TRANSACT_FPR0, offsetof(struct thread_struct,
+					  transact_fpr[0]));
+	DEFINE(THREAD_TRANSACT_FPSCR, offsetof(struct thread_struct,
+					   transact_fpscr));
+#ifdef CONFIG_VSX
+	DEFINE(THREAD_TRANSACT_VSR0, offsetof(struct thread_struct,
+					  transact_fpr[0]));
+#endif
+	/* Local pt_regs on stack for Transactional Memory funcs. */
+	DEFINE(TM_FRAME_SIZE, STACK_FRAME_OVERHEAD +
+	       sizeof(struct pt_regs) + 16);
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));

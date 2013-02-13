@@ -152,6 +152,7 @@ typedef struct {
 #define TS_FPROFFSET 0
 #define TS_VSRLOWOFFSET 1
 #define TS_FPR(i) fpr[i][TS_FPROFFSET]
+#define TS_TRANS_FPR(i) transact_fpr[i][TS_FPROFFSET]
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */

@@ -123,6 +123,89 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define REST_16VRS(n,b,base)	REST_8VRS(n,b,base); REST_8VRS(n+8,b,base)
 #define REST_32VRS(n,b,base)	REST_16VRS(n,b,base); REST_16VRS(n+16,b,base)
 
+/* Save/restore FPRs, VRs and VSRs from their checkpointed backups in
+ * thread_struct:
+ */
+#define SAVE_FPR_TRANSACT(n, base)	stfd n,THREAD_TRANSACT_FPR0+	\
+					8*TS_FPRWIDTH*(n)(base)
+#define SAVE_2FPRS_TRANSACT(n, base)	SAVE_FPR_TRANSACT(n, base);	\
+					SAVE_FPR_TRANSACT(n+1, base)
+#define SAVE_4FPRS_TRANSACT(n, base)	SAVE_2FPRS_TRANSACT(n, base);	\
+					SAVE_2FPRS_TRANSACT(n+2, base)
+#define SAVE_8FPRS_TRANSACT(n, base)	SAVE_4FPRS_TRANSACT(n, base);	\
+					SAVE_4FPRS_TRANSACT(n+4, base)
+#define SAVE_16FPRS_TRANSACT(n, base)	SAVE_8FPRS_TRANSACT(n, base);	\
+					SAVE_8FPRS_TRANSACT(n+8, base)
+#define SAVE_32FPRS_TRANSACT(n, base)	SAVE_16FPRS_TRANSACT(n, base);	\
+					SAVE_16FPRS_TRANSACT(n+16, base)
+
+#define REST_FPR_TRANSACT(n, base)	lfd	n,THREAD_TRANSACT_FPR0+	\
+					8*TS_FPRWIDTH*(n)(base)
+#define REST_2FPRS_TRANSACT(n, base)	REST_FPR_TRANSACT(n, base);	\
+					REST_FPR_TRANSACT(n+1, base)
+#define REST_4FPRS_TRANSACT(n, base)	REST_2FPRS_TRANSACT(n, base);	\
+					REST_2FPRS_TRANSACT(n+2, base)
+#define REST_8FPRS_TRANSACT(n, base)	REST_4FPRS_TRANSACT(n, base);	\
+					REST_4FPRS_TRANSACT(n+4, base)
+#define REST_16FPRS_TRANSACT(n, base)	REST_8FPRS_TRANSACT(n, base);	\
+					REST_8FPRS_TRANSACT(n+8, base)
+#define REST_32FPRS_TRANSACT(n, base)	REST_16FPRS_TRANSACT(n, base);	\
+					REST_16FPRS_TRANSACT(n+16, base)
+
+
+#define SAVE_VR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VR0+(16*(n)); \
+					stvx n,b,base
+#define SAVE_2VRS_TRANSACT(n,b,base)	SAVE_VR_TRANSACT(n,b,base);	\
+					SAVE_VR_TRANSACT(n+1,b,base)
+#define SAVE_4VRS_TRANSACT(n,b,base)	SAVE_2VRS_TRANSACT(n,b,base);	\
+					SAVE_2VRS_TRANSACT(n+2,b,base)
+#define SAVE_8VRS_TRANSACT(n,b,base)	SAVE_4VRS_TRANSACT(n,b,base);	\
+					SAVE_4VRS_TRANSACT(n+4,b,base)
+#define SAVE_16VRS_TRANSACT(n,b,base)	SAVE_8VRS_TRANSACT(n,b,base);	\
+					SAVE_8VRS_TRANSACT(n+8,b,base)
+#define SAVE_32VRS_TRANSACT(n,b,base)	SAVE_16VRS_TRANSACT(n,b,base);	\
+					SAVE_16VRS_TRANSACT(n+16,b,base)
+
+#define REST_VR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VR0+(16*(n)); \
+					lvx n,b,base
+#define REST_2VRS_TRANSACT(n,b,base)	REST_VR_TRANSACT(n,b,base);	\
+					REST_VR_TRANSACT(n+1,b,base)
+#define REST_4VRS_TRANSACT(n,b,base)	REST_2VRS_TRANSACT(n,b,base);	\
+					REST_2VRS_TRANSACT(n+2,b,base)
+#define REST_8VRS_TRANSACT(n,b,base)	REST_4VRS_TRANSACT(n,b,base);	\
+					REST_4VRS_TRANSACT(n+4,b,base)
+#define REST_16VRS_TRANSACT(n,b,base)	REST_8VRS_TRANSACT(n,b,base);	\
+					REST_8VRS_TRANSACT(n+8,b,base)
+#define REST_32VRS_TRANSACT(n,b,base)	REST_16VRS_TRANSACT(n,b,base);	\
+					REST_16VRS_TRANSACT(n+16,b,base)
+
+
+#define SAVE_VSR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VSR0+(16*(n)); \
+					STXVD2X(n,R##base,R##b)
+#define SAVE_2VSRS_TRANSACT(n,b,base)	SAVE_VSR_TRANSACT(n,b,base);	\
+	                                SAVE_VSR_TRANSACT(n+1,b,base)
+#define SAVE_4VSRS_TRANSACT(n,b,base)	SAVE_2VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_2VSRS_TRANSACT(n+2,b,base)
+#define SAVE_8VSRS_TRANSACT(n,b,base)	SAVE_4VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_4VSRS_TRANSACT(n+4,b,base)
+#define SAVE_16VSRS_TRANSACT(n,b,base)	SAVE_8VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_8VSRS_TRANSACT(n+8,b,base)
+#define SAVE_32VSRS_TRANSACT(n,b,base)	SAVE_16VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_16VSRS_TRANSACT(n+16,b,base)
+
+#define REST_VSR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VSR0+(16*(n)); \
+					LXVD2X(n,R##base,R##b)
+#define REST_2VSRS_TRANSACT(n,b,base)	REST_VSR_TRANSACT(n,b,base);    \
+	                                REST_VSR_TRANSACT(n+1,b,base)
+#define REST_4VSRS_TRANSACT(n,b,base)	REST_2VSRS_TRANSACT(n,b,base);	\
+	                                REST_2VSRS_TRANSACT(n+2,b,base)
+#define REST_8VSRS_TRANSACT(n,b,base)	REST_4VSRS_TRANSACT(n,b,base);	\
+	                                REST_4VSRS_TRANSACT(n+4,b,base)
+#define REST_16VSRS_TRANSACT(n,b,base)	REST_8VSRS_TRANSACT(n,b,base);	\
+	                                REST_8VSRS_TRANSACT(n+8,b,base)
+#define REST_32VSRS_TRANSACT(n,b,base)	REST_16VSRS_TRANSACT(n,b,base);	\
+	                                REST_16VSRS_TRANSACT(n+16,b,base)
+
 /* Save the lower 32 VSRs in the thread VSR region */
 #define SAVE_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n));  STXVD2X(n,R##base,R##b)
 #define SAVE_2VSRS(n,b,base)	SAVE_VSR(n,b,base); SAVE_VSR(n+1,b,base)

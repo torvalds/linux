@@ -35,6 +35,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 2:	REST_32VSRS(n,c,base);						\
 3:
 
+#define __REST_32FPVSRS_TRANSACT(n,c,base)				\
+BEGIN_FTR_SECTION							\
+	b	2f;							\
+END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
+	REST_32FPRS_TRANSACT(n,base);					\
+	b	3f;							\
+2:	REST_32VSRS_TRANSACT(n,c,base);					\
+3:
+
 #define __SAVE_32FPVSRS(n,c,base)					\
 BEGIN_FTR_SECTION							\
 	b	2f;							\
@@ -45,9 +54,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 3:
 #else
 #define __REST_32FPVSRS(n,b,base)	REST_32FPRS(n, base)
+#define __REST_32FPVSRS_TRANSACT(n,b,base)	REST_32FPRS(n, base)
 #define __SAVE_32FPVSRS(n,b,base)	SAVE_32FPRS(n, base)
 #endif
 #define REST_32FPVSRS(n,c,base) __REST_32FPVSRS(n,__REG_##c,__REG_##base)
+#define REST_32FPVSRS_TRANSACT(n,c,base) \
+	__REST_32FPVSRS_TRANSACT(n,__REG_##c,__REG_##base)
 #define SAVE_32FPVSRS(n,c,base) __SAVE_32FPVSRS(n,__REG_##c,__REG_##base)
 
 /*

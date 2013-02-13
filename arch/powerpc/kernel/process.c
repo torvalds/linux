@@ -57,6 +57,13 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
+/* Transactional Memory debug */
+#ifdef TM_DEBUG_SW
+#define TM_DEBUG(x...) printk(KERN_INFO x)
+#else
+#define TM_DEBUG(x...) do { } while(0)
+#endif
+
 extern unsigned long _get_SP(void);
 
 #ifndef CONFIG_SMP
