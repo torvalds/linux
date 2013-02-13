@@ -59,14 +59,29 @@
  * Command flags to identify the type of command and for other future
  * use.
  */
-#define FNIC_NO_FLAGS			0
-#define FNIC_CDB_REQ			BIT(1)	/* All IOs with a valid CDB */
-#define FNIC_BLOCKING_REQ		BIT(2)	/* All blocking Requests */
-#define FNIC_DEVICE_RESET		BIT(3)	/* Device reset request */
-#define FNIC_DEV_RST_PENDING		BIT(4)	/* Device reset pending */
-#define FNIC_DEV_RST_TIMED_OUT		BIT(5)	/* Device reset timed out */
-#define FNIC_DEV_RST_TERM_ISSUED	BIT(6)	/* Device reset terminate */
-#define FNIC_DEV_RST_DONE		BIT(7)	/* Device reset done */
+#define FNIC_NO_FLAGS                   0
+#define FNIC_IO_INITIALIZED             BIT(0)
+#define FNIC_IO_ISSUED                  BIT(1)
+#define FNIC_IO_DONE                    BIT(2)
+#define FNIC_IO_REQ_NULL                BIT(3)
+#define FNIC_IO_ABTS_PENDING            BIT(4)
+#define FNIC_IO_ABORTED                 BIT(5)
+#define FNIC_IO_ABTS_ISSUED             BIT(6)
+#define FNIC_IO_TERM_ISSUED             BIT(7)
+#define FNIC_IO_INTERNAL_TERM_ISSUED    BIT(8)
+#define FNIC_IO_ABT_TERM_DONE           BIT(9)
+#define FNIC_IO_ABT_TERM_REQ_NULL       BIT(10)
+#define FNIC_IO_ABT_TERM_TIMED_OUT      BIT(11)
+#define FNIC_DEVICE_RESET               BIT(12)  /* Device reset request */
+#define FNIC_DEV_RST_ISSUED             BIT(13)
+#define FNIC_DEV_RST_TIMED_OUT          BIT(14)
+#define FNIC_DEV_RST_ABTS_ISSUED        BIT(15)
+#define FNIC_DEV_RST_TERM_ISSUED        BIT(16)
+#define FNIC_DEV_RST_DONE               BIT(17)
+#define FNIC_DEV_RST_REQ_NULL           BIT(18)
+#define FNIC_DEV_RST_ABTS_DONE          BIT(19)
+#define FNIC_DEV_RST_TERM_DONE          BIT(20)
+#define FNIC_DEV_RST_ABTS_PENDING       BIT(21)
 
 /*
  * Usage of the scsi_cmnd scratchpad.
