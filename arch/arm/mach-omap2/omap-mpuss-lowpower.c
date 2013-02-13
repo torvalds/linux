@@ -246,7 +246,10 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	/*
 	 * Call low level function  with targeted low power state.
 	 */
-	cpu_suspend(save_state, omap4_finish_suspend);
+	if (save_state)
+		cpu_suspend(save_state, omap4_finish_suspend);
+	else
+		omap4_finish_suspend(save_state);
 
 	/*
 	 * Restore the CPUx power state to ON otherwise CPUx
