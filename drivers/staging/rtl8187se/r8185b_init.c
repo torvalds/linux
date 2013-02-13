@@ -287,35 +287,19 @@ u16 RF_ReadReg(struct net_device *dev, u8 offset)
 	return reg;
 }
 
+static u8 ReadBBPortUchar(struct net_device *dev, u32 addr)
+{
+	PlatformIOWrite4Byte(dev, PhyAddr, addr & 0xffffff7f);
+	return PlatformIORead1Byte(dev, PhyDataR);
+}
 
 /* by Owen on 04/07/14 for writing BB register successfully */
-void WriteBBPortUchar(struct net_device *dev, u32 Data)
+static void WriteBBPortUchar(struct net_device *dev, u32 Data)
 {
-	/* u8	TimeoutCounter; */
-	u8	RegisterContent;
-	u8	UCharData;
-
-	UCharData = (u8)((Data & 0x0000ff00) >> 8);
 	PlatformIOWrite4Byte(dev, PhyAddr, Data);
-	/* for(TimeoutCounter = 10; TimeoutCounter > 0; TimeoutCounter--) */
-	{
-		PlatformIOWrite4Byte(dev, PhyAddr, Data & 0xffffff7f);
-		RegisterContent = PlatformIORead1Byte(dev, PhyDataR);
-		/*if(UCharData == RegisterContent)	*/
-		/*	break;	*/
-	}
+	ReadBBPortUchar(dev, Data);
 }
 
-u8 ReadBBPortUchar(struct net_device *dev, u32 addr)
-{
-	/*u8	TimeoutCounter; */
-	u8	RegisterContent;
-
-	PlatformIOWrite4Byte(dev, PhyAddr, addr & 0xffffff7f);
-	RegisterContent = PlatformIORead1Byte(dev, PhyDataR);
-
-	return RegisterContent;
-}
 /*
  *	Description:
  *	Perform Antenna settings with antenna diversity on 87SE.
