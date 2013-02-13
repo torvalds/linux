@@ -382,11 +382,13 @@ extern int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 			  unsigned long count, unsigned long off);
 extern int br_fdb_insert(struct net_bridge *br,
 			 struct net_bridge_port *source,
-			 const unsigned char *addr);
+			 const unsigned char *addr,
+			 u16 vid);
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
 			  const unsigned char *addr,
 			  u16 vid);
+extern int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vid);
 
 extern int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			 struct net_device *dev,
@@ -573,6 +575,7 @@ extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
 extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 extern void nbp_vlan_flush(struct net_bridge_port *port);
+extern bool nbp_vlan_find(struct net_bridge_port *port, u16 vid);
 
 static inline struct net_port_vlans *br_get_vlan_info(
 						const struct net_bridge *br)
@@ -674,6 +677,11 @@ static inline struct net_port_vlans *nbp_get_vlan_info(
 						const struct net_bridge_port *p)
 {
 	return NULL;
+}
+
+static inline bool nbp_vlan_find(struct net_bridge_port *port, u16 vid)
+{
+	return false;
 }
 
 static inline u16 br_vlan_get_tag(const struct sk_buff *skb, u16 *tag)

@@ -25,6 +25,9 @@ static void __vlan_delete_pvid(struct net_port_vlans *v, u16 vid)
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
+	struct net_bridge_port *p = NULL;
+	struct net_bridge *br;
+	struct net_device *dev;
 	int err;
 
 	if (test_bit(vid, v->vlan_bitmap)) {
@@ -33,19 +36,35 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		return 0;
 	}
 
-	if (v->port_idx && vid) {
-		struct net_device *dev = v->parent.port->dev;
+	if (vid) {
+		if (v->port_idx) {
+			p = v->parent.port;
+			br = p->br;
+			dev = p->dev;
+		} else {
+			br = v->parent.br;
+			dev = br->dev;
+		}
 
-		/* Add VLAN to the device filter if it is supported.
-		 * Stricly speaking, this is not necessary now, since devices
-		 * are made promiscuous by the bridge, but if that ever changes
-		 * this code will allow tagged traffic to enter the bridge.
-		 */
-		if (dev->features & NETIF_F_HW_VLAN_FILTER) {
+		if (p && (dev->features & NETIF_F_HW_VLAN_FILTER)) {
+			/* Add VLAN to the device filter if it is supported.
+			 * Stricly speaking, this is not necessary now, since
+			 * devices are made promiscuous by the bridge, but if
+			 * that ever changes this code will allow tagged
+			 * traffic to enter the bridge.
+			 */
 			err = dev->netdev_ops->ndo_vlan_rx_add_vid(dev, vid);
 			if (err)
 				return err;
 		}
+
+		err = br_fdb_insert(br, p, dev->dev_addr, vid);
+		if (err) {
+			br_err(br, "failed insert local address into bridge "
+			       "forwarding table\n");
+			goto out_filt;
+		}
+
 	}
 
 	set_bit(vid, v->vlan_bitmap);
@@ -54,6 +73,11 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		__vlan_add_pvid(v, vid);
 
 	return 0;
+
+out_filt:
+	if (p && (dev->features & NETIF_F_HW_VLAN_FILTER))
+		dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, vid);
+	return err;
 }
 
 static int __vlan_del(struct net_port_vlans *v, u16 vid)
@@ -253,6 +277,15 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
+	if (vid) {
+		/* If the VID !=0 remove fdb for this vid. VID 0 is special
+		 * in that it's the default and is always there in the fdb.
+		 */
+		spin_lock_bh(&br->hash_lock);
+		fdb_delete_by_addr(br, br->dev->dev_addr, vid);
+		spin_unlock_bh(&br->hash_lock);
+	}
+
 	__vlan_del(pv, vid);
 	return 0;
 }
@@ -329,6 +362,15 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
+	if (vid) {
+		/* If the VID !=0 remove fdb for this vid. VID 0 is special
+		 * in that it's the default and is always there in the fdb.
+		 */
+		spin_lock_bh(&port->br->hash_lock);
+		fdb_delete_by_addr(port->br, port->dev->dev_addr, vid);
+		spin_unlock_bh(&port->br->hash_lock);
+	}
+
 	return __vlan_del(pv, vid);
 }
 
@@ -343,4 +385,23 @@ void nbp_vlan_flush(struct net_bridge_port *port)
 		return;
 
 	__vlan_flush(pv);
+}
+
+bool nbp_vlan_find(struct net_bridge_port *port, u16 vid)
+{
+	struct net_port_vlans *pv;
+	bool found = false;
+
+	rcu_read_lock();
+	pv = rcu_dereference(port->vlan_info);
+
+	if (!pv)
+		goto out;
+
+	if (test_bit(vid, pv->vlan_bitmap))
+		found = true;
+
+out:
+	rcu_read_unlock();
+	return found;
 }
