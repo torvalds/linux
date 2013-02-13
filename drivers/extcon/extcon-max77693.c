@@ -185,7 +185,7 @@ enum {
 	_EXTCON_CABLE_NUM,
 };
 
-const char *max77693_extcon_cable[] = {
+static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_USB]			= "USB",
 	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
 	[EXTCON_CABLE_TA]			= "TA",
