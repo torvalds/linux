@@ -73,6 +73,7 @@ struct net_port_vlans {
 	}				parent;
 	struct rcu_head			rcu;
 	unsigned long			vlan_bitmap[BR_VLAN_BITMAP_LEN];
+	u16				num_vlans;
 };
 
 struct net_bridge_fdb_entry
@@ -715,7 +716,7 @@ extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 extern int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
 extern int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
 extern int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-		      struct net_device *dev);
+		      struct net_device *dev, u32 filter_mask);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */

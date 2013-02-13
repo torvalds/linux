@@ -65,14 +65,20 @@ static int br_port_fill_attrs(struct sk_buff *skb,
  * Create one netlink message for one interface
  * Contains port and master info as well as carrier and bridge state.
  */
-static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *port,
-			  u32 pid, u32 seq, int event, unsigned int flags)
+static int br_fill_ifinfo(struct sk_buff *skb,
+			  const struct net_bridge_port *port,
+			  u32 pid, u32 seq, int event, unsigned int flags,
+			  u32 filter_mask, const struct net_device *dev)
 {
-	const struct net_bridge *br = port->br;
-	const struct net_device *dev = port->dev;
+	const struct net_bridge *br;
 	struct ifinfomsg *hdr;
 	struct nlmsghdr *nlh;
 	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
+
+	if (port)
+		br = port->br;
+	else
+		br = netdev_priv(dev);
 
 	br_debug(br, "br_fill_info event %d port %s master %s\n",
 		     event, dev->name, br->dev->name);
@@ -99,7 +105,7 @@ static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *por
 	     nla_put_u32(skb, IFLA_LINK, dev->iflink)))
 		goto nla_put_failure;
 
-	if (event == RTM_NEWLINK) {
+	if (event == RTM_NEWLINK && port) {
 		struct nlattr *nest
 			= nla_nest_start(skb, IFLA_PROTINFO | NLA_F_NESTED);
 
@@ -108,6 +114,40 @@ static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *por
 		nla_nest_end(skb, nest);
 	}
 
+	/* Check if  the VID information is requested */
+	if (filter_mask & RTEXT_FILTER_BRVLAN) {
+		struct nlattr *af;
+		const struct net_port_vlans *pv;
+		struct bridge_vlan_info vinfo;
+		u16 vid;
+
+		if (port)
+			pv = nbp_get_vlan_info(port);
+		else
+			pv = br_get_vlan_info(br);
+
+		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN))
+			goto done;
+
+		af = nla_nest_start(skb, IFLA_AF_SPEC);
+		if (!af)
+			goto nla_put_failure;
+
+		for (vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
+		     vid < BR_VLAN_BITMAP_LEN;
+		     vid = find_next_bit(pv->vlan_bitmap,
+					 BR_VLAN_BITMAP_LEN, vid+1)) {
+			vinfo.vid = vid;
+			vinfo.flags = 0;
+			if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+				    sizeof(vinfo), &vinfo))
+				goto nla_put_failure;
+		}
+
+		nla_nest_end(skb, af);
+	}
+
+done:
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
@@ -135,7 +175,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	if (skb == NULL)
 		goto errout;
 
-	err = br_fill_ifinfo(skb, port, 0, 0, event, 0);
+	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, 0, port->dev);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -154,16 +194,17 @@ errout:
  * Dump information about all ports, in response to GETLINK
  */
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-	       struct net_device *dev)
+	       struct net_device *dev, u32 filter_mask)
 {
 	int err = 0;
 	struct net_bridge_port *port = br_port_get_rcu(dev);
 
-	/* not a bridge port */
-	if (!port)
+	/* not a bridge port and  */
+	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN))
 		goto out;
 
-	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI);
+	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
+			     filter_mask, dev);
 out:
 	return err;
 }
@@ -395,6 +436,29 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static size_t br_get_link_af_size(const struct net_device *dev)
+{
+	struct net_port_vlans *pv;
+
+	if (br_port_exists(dev))
+		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
+	else if (dev->priv_flags & IFF_EBRIDGE)
+		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
+	else
+		return 0;
+
+	if (!pv)
+		return 0;
+
+	/* Each VLAN is returned in bridge_vlan_info along with flags */
+	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
+}
+
+struct rtnl_af_ops br_af_ops = {
+	.family			= AF_BRIDGE,
+	.get_link_af_size	= br_get_link_af_size,
+};
+
 struct rtnl_link_ops br_link_ops __read_mostly = {
 	.kind		= "bridge",
 	.priv_size	= sizeof(struct net_bridge),
@@ -408,11 +472,18 @@ int __init br_netlink_init(void)
 	int err;
 
 	br_mdb_init();
-	err = rtnl_link_register(&br_link_ops);
+	err = rtnl_af_register(&br_af_ops);
 	if (err)
 		goto out;
 
+	err = rtnl_link_register(&br_link_ops);
+	if (err)
+		goto out_af;
+
 	return 0;
+
+out_af:
+	rtnl_af_unregister(&br_af_ops);
 out:
 	br_mdb_uninit();
 	return err;
@@ -421,5 +492,6 @@ out:
 void __exit br_netlink_fini(void)
 {
 	br_mdb_uninit();
+	rtnl_af_unregister(&br_af_ops);
 	rtnl_link_unregister(&br_link_ops);
 }

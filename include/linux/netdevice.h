@@ -1019,7 +1019,8 @@ struct net_device_ops {
 						      struct nlmsghdr *nlh);
 	int			(*ndo_bridge_getlink)(struct sk_buff *skb,
 						      u32 pid, u32 seq,
-						      struct net_device *dev);
+						      struct net_device *dev,
+						      u32 filter_mask);
 	int			(*ndo_bridge_dellink)(struct net_device *dev,
 						      struct nlmsghdr *nlh);
 	int			(*ndo_change_carrier)(struct net_device *dev,

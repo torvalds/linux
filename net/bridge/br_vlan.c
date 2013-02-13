@@ -28,6 +28,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid)
 	}
 
 	set_bit(vid, v->vlan_bitmap);
+	v->num_vlans++;
 	return 0;
 }
 
@@ -44,6 +45,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	}
 
 	clear_bit(vid, v->vlan_bitmap);
+	v->num_vlans--;
 	if (bitmap_empty(v->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
 		if (v->port_idx)
 			rcu_assign_pointer(v->parent.port->vlan_info, NULL);

@@ -2315,6 +2315,13 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx = 0;
 	u32 portid = NETLINK_CB(cb->skb).portid;
 	u32 seq = cb->nlh->nlmsg_seq;
+	struct nlattr *extfilt;
+	u32 filter_mask = 0;
+
+	extfilt = nlmsg_find_attr(cb->nlh, sizeof(struct rtgenmsg),
+				  IFLA_EXT_MASK);
+	if (extfilt)
+		filter_mask = nla_get_u32(extfilt);
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
@@ -2324,14 +2331,15 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		if (br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
 			    br_dev->netdev_ops->ndo_bridge_getlink(
-				    skb, portid, seq, dev) < 0)
+				    skb, portid, seq, dev, filter_mask) < 0)
 				break;
 			idx++;
 		}
 
 		if (ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
-			    ops->ndo_bridge_getlink(skb, portid, seq, dev) < 0)
+			    ops->ndo_bridge_getlink(skb, portid, seq, dev,
+						    filter_mask) < 0)
 				break;
 			idx++;
 		}
@@ -2372,14 +2380,14 @@ static int rtnl_bridge_notify(struct net_device *dev, u16 flags)
 
 	if ((!flags || (flags & BRIDGE_FLAGS_MASTER)) &&
 	    br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
-		err = br_dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		err = br_dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0);
 		if (err < 0)
 			goto errout;
 	}
 
 	if ((flags & BRIDGE_FLAGS_SELF) &&
 	    dev->netdev_ops->ndo_bridge_getlink) {
-		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0);
 		if (err < 0)
 			goto errout;
 	}
