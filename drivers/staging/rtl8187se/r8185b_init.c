@@ -928,44 +928,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 
 		for (eACI = 0; eACI < AC_MAX; eACI++) {
 			AcParam.f.AciAifsn.f.ACI = (u8)eACI;
-			{
-				PAC_PARAM	pAcParam = (PAC_PARAM)(&AcParam);
-				AC_CODING	eACI;
-				u8		u1bAIFS;
-				u32		u4bAcParam;
-
-				/*  Retrieve parameters to update. */
-				eACI = pAcParam->f.AciAifsn.f.ACI;
-				u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * ChnlAccessSetting->SlotTimeTimer + aSifsTime;
-				u4bAcParam = ((((u32)(pAcParam->f.TXOPLimit)) << AC_PARAM_TXOP_LIMIT_OFFSET)	|
-						(((u32)(pAcParam->f.Ecw.f.ECWmax)) << AC_PARAM_ECW_MAX_OFFSET)	|
-						(((u32)(pAcParam->f.Ecw.f.ECWmin)) << AC_PARAM_ECW_MIN_OFFSET)	|
-						(((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
-
-				switch (eACI) {
-				case AC1_BK:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC0_BE:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC2_VI:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC3_VO:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				default:
-					DMESGW("SetHwReg8185(): invalid ACI: %d !\n", eACI);
-					break;
-				}
-
-				write_nic_byte(dev, ACM_CONTROL, 0);
-			}
+			write_nic_byte(dev, ACM_CONTROL, 0);
 		}
 	}
 }
