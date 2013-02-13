@@ -502,7 +502,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		if (ret)
 			return ret;
 
-		if (nv_mclass(chan->object) < NVC0_CHANNEL_IND_CLASS) {
+		if (nv_mclass(chan->object) < NV84_CHANNEL_IND_CLASS) {
 			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, sync->sem.offset);
@@ -512,24 +512,36 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			OUT_RING  (chan, sync->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
 			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-			if (nv_mclass(chan->object) < NV84_CHANNEL_DMA_CLASS)
-				OUT_RING  (chan, NvSema);
-			else
-				OUT_RING  (chan, chan->vram);
+			OUT_RING  (chan, NvSema);
+		} else
+		if (nv_mclass(chan->object) < NVC0_CHANNEL_IND_CLASS) {
+			u64 offset = nv84_fence_crtc(chan, nv_crtc->index);
+			offset += sync->sem.offset;
+
+			BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset));
+			OUT_RING  (chan, 0xf00d0000 | sync->sem.value);
+			OUT_RING  (chan, 0x00000002);
+			BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
+			OUT_RING  (chan, 0x74b1e000);
+			OUT_RING  (chan, 0x00000001);
 		} else {
-			u64 offset = nvc0_fence_crtc(chan, nv_crtc->index);
+			u64 offset = nv84_fence_crtc(chan, nv_crtc->index);
 			offset += sync->sem.offset;
 
 			BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
 			OUT_RING  (chan, 0xf00d0000 | sync->sem.value);
-			OUT_RING  (chan, 0x1002);
+			OUT_RING  (chan, 0x00001002);
 			BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 			OUT_RING  (chan, 0x74b1e000);
-			OUT_RING  (chan, 0x1001);
+			OUT_RING  (chan, 0x00001001);
 		}
 
 		FIRE_RING (chan);

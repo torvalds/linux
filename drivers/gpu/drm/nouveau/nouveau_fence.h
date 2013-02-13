@@ -68,8 +68,27 @@ void nv17_fence_resume(struct nouveau_drm *drm);
 int nv50_fence_create(struct nouveau_drm *);
 int nv84_fence_create(struct nouveau_drm *);
 int nvc0_fence_create(struct nouveau_drm *);
-u64 nvc0_fence_crtc(struct nouveau_channel *, int crtc);
 
 int nouveau_flip_complete(void *chan);
+
+struct nv84_fence_chan {
+	struct nouveau_fence_chan base;
+	struct nouveau_vma vma;
+	struct nouveau_vma dispc_vma[4];
+};
+
+struct nv84_fence_priv {
+	struct nouveau_fence_priv base;
+	struct nouveau_bo *bo;
+	u32 *suspend;
+};
+
+u64  nv84_fence_crtc(struct nouveau_channel *, int);
+u32  nv84_fence_read(struct nouveau_channel *);
+int  nv84_fence_context_new(struct nouveau_channel *);
+void nv84_fence_context_del(struct nouveau_channel *);
+bool nv84_fence_suspend(struct nouveau_drm *);
+void nv84_fence_resume(struct nouveau_drm *);
+void nv84_fence_destroy(struct nouveau_drm *);
 
 #endif
