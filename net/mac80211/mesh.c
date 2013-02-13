@@ -675,7 +675,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(local, band);
 
-	ieee80211_mps_local_status_update(sdata);
+	changed |= ieee80211_mps_local_status_update(sdata);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 
