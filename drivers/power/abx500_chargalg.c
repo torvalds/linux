@@ -26,6 +26,7 @@
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
+#include <linux/notifier.h>
 
 /* Watchdog kick interval */
 #define CHG_WD_INTERVAL			(6 * HZ)
@@ -242,6 +243,9 @@ struct abx500_chargalg {
 	struct timer_list maintenance_timer;
 	struct kobject chargalg_kobject;
 };
+
+/*External charger prepare notifier*/
+BLOCKING_NOTIFIER_HEAD(charger_notifier_list);
 
 /* Main battery properties */
 static enum power_supply_property abx500_chargalg_props[] = {
@@ -503,6 +507,8 @@ static int abx500_chargalg_kick_watchdog(struct abx500_chargalg *di)
 static int abx500_chargalg_ac_en(struct abx500_chargalg *di, int enable,
 	int vset, int iset)
 {
+	static int abx500_chargalg_ex_ac_enable_toggle;
+
 	if (!di->ac_chg || !di->ac_chg->ops.enable)
 		return -ENXIO;
 
@@ -514,6 +520,14 @@ static int abx500_chargalg_ac_en(struct abx500_chargalg *di, int enable,
 
 	di->chg_info.ac_iset = iset;
 	di->chg_info.ac_vset = vset;
+
+	/* Enable external charger */
+	if (enable && di->ac_chg->external &&
+	    !abx500_chargalg_ex_ac_enable_toggle) {
+		blocking_notifier_call_chain(&charger_notifier_list,
+					     0, di->dev);
+		abx500_chargalg_ex_ac_enable_toggle++;
+	}
 
 	return di->ac_chg->ops.enable(di->ac_chg, enable, vset, iset);
 }

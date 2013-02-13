@@ -41,4 +41,6 @@ struct ux500_charger {
 	bool external;
 };
 
+extern struct blocking_notifier_head charger_notifier_list;
+
 #endif

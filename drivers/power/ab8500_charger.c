@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -97,6 +98,10 @@
 #define AB8500_SW_CONTROL_FALLBACK	0x03
 /* Wait for enumeration before charing in us */
 #define WAIT_ACA_RID_ENUMERATION	(5 * 1000)
+/*External charger control*/
+#define AB8500_SYS_CHARGER_CONTROL_REG		0x52
+#define EXTERNAL_CHARGER_DISABLE_REG_VAL	0x03
+#define EXTERNAL_CHARGER_ENABLE_REG_VAL		0x07
 
 /* UsbLineStatus register - usb types */
 enum ab8500_charger_link_status {
@@ -1678,6 +1683,29 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 	return ret;
 }
 
+static int ab8500_external_charger_prepare(struct notifier_block *charger_nb,
+				unsigned long event, void *data)
+{
+	int ret;
+	struct device *dev = data;
+	/*Toggle External charger control pin*/
+	ret = abx500_set_register_interruptible(dev, AB8500_SYS_CTRL1_BLOCK,
+				  AB8500_SYS_CHARGER_CONTROL_REG,
+				  EXTERNAL_CHARGER_DISABLE_REG_VAL);
+	if (ret < 0) {
+		dev_err(dev, "write reg failed %d\n", ret);
+		goto out;
+	}
+	ret = abx500_set_register_interruptible(dev, AB8500_SYS_CTRL1_BLOCK,
+				  AB8500_SYS_CHARGER_CONTROL_REG,
+				  EXTERNAL_CHARGER_ENABLE_REG_VAL);
+	if (ret < 0)
+		dev_err(dev, "Write reg failed %d\n", ret);
+
+out:
+	return ret;
+}
+
 /**
  * ab8500_charger_usb_check_enable() - enable usb charging
  * @charger:	pointer to the ux500_charger structure
@@ -3221,6 +3249,10 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 #define ab8500_charger_resume       NULL
 #endif
 
+static struct notifier_block charger_nb = {
+	.notifier_call = ab8500_external_charger_prepare,
+};
+
 static int ab8500_charger_remove(struct platform_device *pdev)
 {
 	struct ab8500_charger *di = platform_get_drvdata(pdev);
@@ -3249,6 +3281,11 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
+
+	/* Unregister external charger enable notifier */
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_unregister(
+			&charger_notifier_list, &charger_nb);
 
 	flush_scheduled_work();
 	if (di->usb_chg.enabled)
@@ -3330,6 +3367,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->ac_chg.enabled = di->bm->ac_enabled;
 	di->ac_chg.external = false;
+
+	/*notifier for external charger enabling*/
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_register(
+			&charger_notifier_list, &charger_nb);
 
 	/* USB supply */
 	/* power_supply base class */

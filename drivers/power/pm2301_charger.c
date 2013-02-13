@@ -1059,6 +1059,13 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	ret = pm2xxx_charger_detection(pm2, &val);
 
 	if ((ret == 0) && val) {
+		/*
+		 * When boot is due to AC charger plug-in,
+		 * read interrupt registers
+		 */
+		pm2xxx_reg_read(pm2, PM2XXX_REG_INT1, &val);
+		pm2xxx_reg_read(pm2, PM2XXX_REG_INT2, &val);
+		pm2xxx_reg_read(pm2, PM2XXX_REG_INT4, &val);
 		pm2->ac.charger_connected = 1;
 		pm2->ac_conn = true;
 		power_supply_changed(&pm2->ac_chg.psy);
