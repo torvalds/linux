@@ -2818,6 +2818,8 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	skb_set_queue_mapping(skb, ac);
 	skb->priority = tid;
 
+	skb->dev = sdata->dev;
+
 	/*
 	 * The other path calling ieee80211_xmit is from the tasklet,
 	 * and while we can handle concurrent transmissions locking

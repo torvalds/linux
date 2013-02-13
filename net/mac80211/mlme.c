@@ -2000,6 +2000,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	sdata_info(sdata, "authenticated\n");
 	ifmgd->auth_data->done = true;
 	ifmgd->auth_data->timeout = jiffies + IEEE80211_AUTH_WAIT_ASSOC;
+	ifmgd->auth_data->timeout_started = true;
 	run_again(ifmgd, ifmgd->auth_data->timeout);
 
 	if (ifmgd->auth_data->algorithm == WLAN_AUTH_SAE &&
@@ -2334,6 +2335,7 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			   "%pM rejected association temporarily; comeback duration %u TU (%u ms)\n",
 			   mgmt->sa, tu, ms);
 		assoc_data->timeout = jiffies + msecs_to_jiffies(ms);
+		assoc_data->timeout_started = true;
 		if (ms > IEEE80211_ASSOC_TIMEOUT)
 			run_again(ifmgd, assoc_data->timeout);
 		return RX_MGMT_NONE;
@@ -2457,6 +2459,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		sdata_info(sdata, "direct probe responded\n");
 		ifmgd->auth_data->tries = 0;
 		ifmgd->auth_data->timeout = jiffies;
+		ifmgd->auth_data->timeout_started = true;
 		run_again(ifmgd, ifmgd->auth_data->timeout);
 	}
 }
@@ -2542,6 +2545,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 		/* continue assoc process */
 		ifmgd->assoc_data->timeout = jiffies;
+		ifmgd->assoc_data->timeout_started = true;
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
 		return;
 	}
@@ -2934,7 +2938,10 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 
 	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
 		auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
+		ifmgd->auth_data->timeout_started = true;
 		run_again(ifmgd, auth_data->timeout);
+	} else {
+		auth_data->timeout_started = false;
 	}
 
 	return 0;
@@ -2968,7 +2975,10 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 
 	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
 		assoc_data->timeout = jiffies + IEEE80211_ASSOC_TIMEOUT;
+		assoc_data->timeout_started = true;
 		run_again(&sdata->u.mgd, assoc_data->timeout);
+	} else {
+		assoc_data->timeout_started = false;
 	}
 
 	return 0;
@@ -3007,6 +3017,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			} else {
 				ifmgd->auth_data->timeout = jiffies - 1;
 			}
+			ifmgd->auth_data->timeout_started = true;
 		} else if (ifmgd->assoc_data &&
 			   (ieee80211_is_assoc_req(fc) ||
 			    ieee80211_is_reassoc_req(fc))) {
@@ -3017,10 +3028,11 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			} else {
 				ifmgd->assoc_data->timeout = jiffies - 1;
 			}
+			ifmgd->assoc_data->timeout_started = true;
 		}
 	}
 
-	if (ifmgd->auth_data &&
+	if (ifmgd->auth_data && ifmgd->auth_data->timeout_started &&
 	    time_after(jiffies, ifmgd->auth_data->timeout)) {
 		if (ifmgd->auth_data->done) {
 			/*
@@ -3039,10 +3051,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			cfg80211_send_auth_timeout(sdata->dev, bssid);
 			mutex_lock(&ifmgd->mtx);
 		}
-	} else if (ifmgd->auth_data)
+	} else if (ifmgd->auth_data && ifmgd->auth_data->timeout_started)
 		run_again(ifmgd, ifmgd->auth_data->timeout);
 
-	if (ifmgd->assoc_data &&
+	if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started &&
 	    time_after(jiffies, ifmgd->assoc_data->timeout)) {
 		if ((ifmgd->assoc_data->need_beacon &&
 		     !ifmgd->assoc_data->have_beacon) ||
@@ -3057,7 +3069,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			cfg80211_send_assoc_timeout(sdata->dev, bssid);
 			mutex_lock(&ifmgd->mtx);
 		}
-	} else if (ifmgd->assoc_data)
+	} else if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started)
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
 
 	if (ifmgd->flags & (IEEE80211_STA_BEACON_POLL |
@@ -4032,6 +4044,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		sdata_info(sdata, "waiting for beacon from %pM\n",
 			   ifmgd->bssid);
 		assoc_data->timeout = TU_TO_EXP_TIME(req->bss->beacon_interval);
+		assoc_data->timeout_started = true;
 		assoc_data->need_beacon = true;
 	} else if (beacon_ies) {
 		const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
@@ -4047,6 +4060,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		}
 		assoc_data->have_beacon = true;
 		assoc_data->timeout = jiffies;
+		assoc_data->timeout_started = true;
 
 		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
 			sdata->vif.bss_conf.sync_tsf = beacon_ies->tsf;
@@ -4056,6 +4070,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		}
 	} else {
 		assoc_data->timeout = jiffies;
+		assoc_data->timeout_started = true;
 	}
 	rcu_read_unlock();
 

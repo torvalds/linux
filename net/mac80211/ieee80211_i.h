@@ -343,6 +343,7 @@ struct ieee80211_mgd_auth_data {
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 key_len, key_idx;
 	bool done;
+	bool timeout_started;
 
 	u16 sae_trans, sae_status;
 	size_t data_len;
@@ -364,6 +365,7 @@ struct ieee80211_mgd_assoc_data {
 	bool wmm, uapsd;
 	bool have_beacon, need_beacon;
 	bool synced;
+	bool timeout_started;
 
 	u8 ap_ht_param;
 
