@@ -191,6 +191,13 @@ config SBC8548
 	help
 	  This option enables support for the Wind River SBC8548 board
 
+config PPA8548
+	bool "Prodrive PPA8548"
+	help
+	  This option enables support for the Prodrive PPA8548 board.
+	select DEFAULT_UIMAGE
+	select HAS_RAPIDIO
+
 config GE_IMP3A
 	bool "GE Intelligent Platforms IMP3A"
 	select DEFAULT_UIMAGE
