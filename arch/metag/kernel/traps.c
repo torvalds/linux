@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/kernel.h>
@@ -59,6 +60,7 @@ DECLARE_PER_CPU(PTBI, pTBI);
 static DEFINE_PER_CPU(unsigned int, trigger_mask);
 #else
 unsigned int global_trigger_mask;
+EXPORT_SYMBOL(global_trigger_mask);
 #endif
 
 unsigned long per_cpu__stack_save[NR_CPUS];
@@ -787,6 +789,7 @@ unsigned int get_trigger_mask(void)
 {
 	return _get_trigger_mask();
 }
+EXPORT_SYMBOL(get_trigger_mask);
 
 static void set_trigger_mask(unsigned int mask)
 {

@@ -31,11 +31,6 @@ EXPORT_SYMBOL(pTBI_get);
 EXPORT_SYMBOL(meta_memoffset);
 EXPORT_SYMBOL(kick_register_func);
 EXPORT_SYMBOL(kick_unregister_func);
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(get_trigger_mask);
-#else
-EXPORT_SYMBOL(global_trigger_mask);
-#endif
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
