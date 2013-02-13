@@ -72,9 +72,9 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 {
 	scu_enable(shmobile_scu_base);
 
-	/* Map the reset vector (in headsmp-sh73a0.S) */
+	/* Map the reset vector (in headsmp-scu.S) */
 	__raw_writel(0, APARMBAREA);      /* 4k */
-	__raw_writel(__pa(sh73a0_secondary_vector), SBAR);
+	__raw_writel(__pa(shmobile_secondary_vector_scu), SBAR);
 
 	/* enable cache coherency on booting CPU */
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
