@@ -18,7 +18,8 @@
 			pll-supply = <&hdmi_pll_reg>;
 
 			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
-			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7)
+				GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -508,7 +509,7 @@
 
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&tca6416 0 0>; /* GPIO_PMU0 */
+		nvidia,vbus-gpio = <&tca6416 0 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -518,7 +519,7 @@
 
 	usb@c5008000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&tca6416 1 0>; /* GPIO_PMU1 */
+		nvidia,vbus-gpio = <&tca6416 1 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5008000 {
@@ -528,8 +529,8 @@
 
 	sdhci@c8000400 {
 		status = "okay";
-		cd-gpios = <&gpio 69 1>; /* gpio PI5 */
-		wp-gpios = <&gpio 173 0>; /* gpio PV5 */
+		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_HIGH>;
 		bus-width = <8>;
 	};
 

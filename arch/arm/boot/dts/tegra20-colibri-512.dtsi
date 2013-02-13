@@ -14,7 +14,8 @@
 			pll-supply = <&hdmi_pll_reg>;
 
 			nvidia,ddc-i2c-bus = <&i2c_ddc>;
-			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7)
+				GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -443,21 +444,25 @@
 
 	ac97: ac97 {
 		status = "okay";
-		nvidia,codec-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
-		nvidia,codec-sync-gpio = <&gpio 120 0>; /* gpio PP0 */
+		nvidia,codec-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
+			GPIO_ACTIVE_HIGH>;
+		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
+			GPIO_ACTIVE_HIGH>;
 	};
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio 169 1>; /* gpio PV1, active low */
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
 	};
 
 	usb-phy@c5004000 {
-		nvidia,phy-reset-gpio = <&gpio 169 1>; /* gpio PV1, active low */
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
 	};
 
 	sdhci@c8000600 {
-		cd-gpios = <&gpio 23 1>; /* gpio PC7 */
+		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>;
 	};
 
 	clocks {
@@ -514,7 +519,7 @@
 			enable-active-high;
 			regulator-boot-on;
 			regulator-always-on;
-			gpio = <&gpio 217 0>;
+			gpio = <&gpio TEGRA_GPIO(BB, 1) GPIO_ACTIVE_HIGH>;
 		};
 	};
 };

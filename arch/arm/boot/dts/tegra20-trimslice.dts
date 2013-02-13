@@ -18,7 +18,8 @@
 			pll-supply = <&hdmi_pll_reg>;
 
 			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
-			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7)
+				GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -311,7 +312,7 @@
 
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&gpio 170 0>; /* gpio PV2 */
+		nvidia,vbus-gpio = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -321,12 +322,14 @@
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
+			GPIO_ACTIVE_LOW>;
 	};
 
 	usb-phy@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
+			GPIO_ACTIVE_LOW>;
 	};
 
 	usb@c5008000 {
@@ -344,8 +347,8 @@
 
 	sdhci@c8000600 {
 		status = "okay";
-		cd-gpios = <&gpio 121 1>; /* gpio PP1 */
-		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
+		cd-gpios = <&gpio TEGRA_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
 	};
 
@@ -367,7 +370,7 @@
 
 		power {
 			label = "Power";
-			gpios = <&gpio 190 1>; /* gpio PX6, active low */
+			gpios = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_LOW>;
 			linux,code = <116>; /* KEY_POWER */
 			gpio-key,wakeup;
 		};
@@ -375,7 +378,7 @@
 
 	poweroff {
 		compatible = "gpio-poweroff";
-		gpios = <&gpio 191 1>; /* gpio PX7, active low */
+		gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
 	};
 
 	regulators {

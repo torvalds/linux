@@ -22,7 +22,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&pmic 7 0>;
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
 		};
 
 		sys_3v3_reg: regulator@101 {
@@ -34,7 +34,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&pmic 6 0>;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
 		};
 
 		usb1_vbus_reg: regulator@102 {
@@ -44,7 +44,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 238 0>; /* GPIO PDD6 */
+			gpio = <&gpio TEGRA_GPIO(DD, 6) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v0_reg>;
 		};
@@ -56,7 +56,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 236 0>; /* GPIO PDD4 */
+			gpio = <&gpio TEGRA_GPIO(DD, 4) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v0_reg>;
 		};
@@ -68,7 +68,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&pmic 8 0>;
+			gpio = <&pmic 8 GPIO_ACTIVE_HIGH>;
 		};
 
 		vdd_bl_reg: regulator@105 {
@@ -80,7 +80,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&gpio 234 0>; /* GPIO PDD2 */
+			gpio = <&gpio TEGRA_GPIO(DD, 2) GPIO_ACTIVE_HIGH>;
 		};
 
 		vdd_bl2_reg: regulator@106 {
@@ -92,13 +92,13 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&gpio 232 0>; /* GPIO PDD0 */
+			gpio = <&gpio TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	sdhci@78000400 {
 		status = "okay";
-		power-gpios = <&gpio 27 0>; /* gpio PD3 */
+		power-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
 		keep-power-in-suspend;
 	};
