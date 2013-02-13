@@ -869,8 +869,6 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 	struct		r8180_priv *priv = ieee80211_priv(dev);
 	struct		ieee80211_device *ieee = priv->ieee80211;
 	AC_CODING	eACI;
-	AC_PARAM	AcParam;
-	u8		bFollowLegacySetting = 0;
 	u8		u1bAIFS;
 
 	/*
@@ -899,37 +897,8 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 
 	write_nic_byte(dev, AckTimeOutReg, 0x5B); /* <RJ_EXPR_QOS> Suggested by wcchu, it is the default value of EIFS register, 2005.12.08. */
 
-	{ /* Legacy 802.11. */
-		bFollowLegacySetting = 1;
-
-	}
-
-	/* this setting is copied from rtl8187B.  xiong-2006-11-13 */
-	if (bFollowLegacySetting) {
-
-		/*
-		 *	Follow 802.11 seeting to AC parameter, all AC shall use the same parameter.
-		 *	2005.12.01, by rcnjko.
-		 */
-		AcParam.longData = 0;
-		AcParam.f.AciAifsn.f.AIFSN = 2; /* Follow 802.11 DIFS.	*/
-		AcParam.f.AciAifsn.f.ACM = 0;
-		AcParam.f.Ecw.f.ECWmin = ChnlAccessSetting->CWminIndex; /* Follow 802.11 CWmin. */
-		AcParam.f.Ecw.f.ECWmax = ChnlAccessSetting->CWmaxIndex; /* Follow 802.11 CWmax. */
-		AcParam.f.TXOPLimit = 0;
-
-		/* lzm reserved 080826 */
-		/* For turbo mode setting. port from 87B by Isaiah 2008-08-01 */
-		if (ieee->current_network.Turbo_Enable == 1)
-			AcParam.f.TXOPLimit = 0x01FF;
-		/* For 87SE with Intel 4965  Ad-Hoc mode have poor throughput (19MB) */
-		if (ieee->iw_mode == IW_MODE_ADHOC)
-			AcParam.f.TXOPLimit = 0x0020;
-
-		for (eACI = 0; eACI < AC_MAX; eACI++) {
-			AcParam.f.AciAifsn.f.ACI = (u8)eACI;
-			write_nic_byte(dev, ACM_CONTROL, 0);
-		}
+	for (eACI = 0; eACI < AC_MAX; eACI++) {
+		write_nic_byte(dev, ACM_CONTROL, 0);
 	}
 }
 
