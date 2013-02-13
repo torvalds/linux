@@ -964,54 +964,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 					break;
 				}
 
-				/* Cehck ACM bit. */
-				/* If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.	*/
-				{
-					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)(&pAcParam->f.AciAifsn);
-					AC_CODING	eACI = pAciAifsn->f.ACI;
-
-					/*for 8187B AsynIORead issue */
-					u8	AcmCtrl = 0;
-					if (pAciAifsn->f.ACM) {
-						/* ACM bit is 1. */
-						switch (eACI) {
-						case AC0_BE:
-							AcmCtrl |= (BEQ_ACM_EN|BEQ_ACM_CTL|ACM_HW_EN); /* or 0x21 */
-							break;
-
-						case AC2_VI:
-							AcmCtrl |= (VIQ_ACM_EN|VIQ_ACM_CTL|ACM_HW_EN); /* or 0x42 */
-							break;
-
-						case AC3_VO:
-							AcmCtrl |= (VOQ_ACM_EN|VOQ_ACM_CTL|ACM_HW_EN); /* or 0x84 */
-							break;
-
-						default:
-							DMESGW("SetHwReg8185(): [HW_VAR_ACM_CTRL] ACM set failed: eACI is %d\n", eACI);
-							break;
-						}
-					} else {
-						/* ACM bit is 0. */
-						switch (eACI) {
-						case AC0_BE:
-							AcmCtrl &= ((~BEQ_ACM_EN) & (~BEQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0xDE */
-							break;
-
-						case AC2_VI:
-							AcmCtrl &= ((~VIQ_ACM_EN) & (~VIQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0xBD */
-							break;
-
-						case AC3_VO:
-							AcmCtrl &= ((~VOQ_ACM_EN) & (~VOQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0x7B */
-							break;
-
-						default:
-							break;
-						}
-					}
-					write_nic_byte(dev, ACM_CONTROL, 0);
-				}
+				write_nic_byte(dev, ACM_CONTROL, 0);
 			}
 		}
 	}
