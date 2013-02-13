@@ -748,7 +748,7 @@
 			compatible = "ti,tps65090";
 			reg = <0x48>;
 			interrupt-parent = <&gpio>;
-			interrupts = <72 0x04>; /* gpio PJ0 */
+			interrupts = <TEGRA_GPIO(J, 0) IRQ_TYPE_LEVEL_HIGH>;
 
 			vsys1-supply = <&vdd_ac_bat_reg>;
 			vsys2-supply = <&vdd_ac_bat_reg>;
