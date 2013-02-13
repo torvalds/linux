@@ -58,6 +58,7 @@
 #include <asm/rio.h>
 #include <asm/fadump.h>
 #include <asm/switch_to.h>
+#include <asm/tm.h>
 #include <asm/debug.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -1188,6 +1189,88 @@ void tm_unavailable_exception(struct pt_regs *regs)
 
 	die("Unexpected TM unavailable exception", regs, SIGABRT);
 }
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+
+extern void do_load_up_fpu(struct pt_regs *regs);
+
+void fp_unavailable_tm(struct pt_regs *regs)
+{
+	/* Note:  This does not handle any kind of FP laziness. */
+
+	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
+		 regs->nip, regs->msr);
+	tm_enable();
+
+        /* We can only have got here if the task started using FP after
+         * beginning the transaction.  So, the transactional regs are just a
+         * copy of the checkpointed ones.  But, we still need to recheckpoint
+         * as we're enabling FP for the process; it will return, abort the
+         * transaction, and probably retry but now with FP enabled.  So the
+         * checkpointed FP registers need to be loaded.
+	 */
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+	/* Reclaim didn't save out any FPRs to transact_fprs. */
+
+	/* Enable FP for the task: */
+	regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+
+	/* This loads and recheckpoints the FP registers from
+	 * thread.fpr[].  They will remain in registers after the
+	 * checkpoint so we don't need to reload them after.
+	 */
+	tm_recheckpoint(&current->thread, regs->msr);
+}
+
+#ifdef CONFIG_ALTIVEC
+extern void do_load_up_altivec(struct pt_regs *regs);
+
+void altivec_unavailable_tm(struct pt_regs *regs)
+{
+	/* See the comments in fp_unavailable_tm().  This function operates
+	 * the same way.
+	 */
+
+	TM_DEBUG("Vector Unavailable trap whilst transactional at 0x%lx,"
+		 "MSR=%lx\n",
+		 regs->nip, regs->msr);
+	tm_enable();
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+	regs->msr |= MSR_VEC;
+	tm_recheckpoint(&current->thread, regs->msr);
+	current->thread.used_vr = 1;
+}
+#endif
+
+#ifdef CONFIG_VSX
+void vsx_unavailable_tm(struct pt_regs *regs)
+{
+	/* See the comments in fp_unavailable_tm().  This works similarly,
+	 * though we're loading both FP and VEC registers in here.
+	 *
+	 * If FP isn't in use, load FP regs.  If VEC isn't in use, load VEC
+	 * regs.  Either way, set MSR_VSX.
+	 */
+
+	TM_DEBUG("VSX Unavailable trap whilst transactional at 0x%lx,"
+		 "MSR=%lx\n",
+		 regs->nip, regs->msr);
+
+	tm_enable();
+	/* This reclaims FP and/or VR regs if they're already enabled */
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+
+	regs->msr |= MSR_VEC | MSR_FP | current->thread.fpexc_mode |
+		MSR_VSX;
+	/* This loads & recheckpoints FP and VRs. */
+	tm_recheckpoint(&current->thread, regs->msr);
+	current->thread.used_vsr = 1;
+}
+#endif
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 void performance_monitor_exception(struct pt_regs *regs)
 {
