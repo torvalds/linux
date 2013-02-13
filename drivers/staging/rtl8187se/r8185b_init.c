@@ -120,19 +120,19 @@ static u8 PlatformIORead1Byte(struct net_device *dev, u32 offset)
 	return read_nic_byte(dev, offset);
 }
 
-void PlatformIOWrite1Byte(struct net_device *dev, u32 offset, u8 data)
+static void PlatformIOWrite1Byte(struct net_device *dev, u32 offset, u8 data)
 {
 	write_nic_byte(dev, offset, data);
 	read_nic_byte(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 }
 
-void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
+static void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
 {
 	write_nic_word(dev, offset, data);
 	read_nic_word(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 }
 
-void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
+static void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 {
 	if (offset == PhyAddr) {
 	/* For Base Band configuration. */
@@ -175,7 +175,7 @@ void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 	}
 }
 
-void SetOutputEnableOfRfPins(struct net_device *dev)
+static void SetOutputEnableOfRfPins(struct net_device *dev)
 {
 	write_nic_word(dev, RFPinsEnable, 0x1bff);
 }
@@ -327,7 +327,7 @@ bool SetAntennaConfig87SE(struct net_device *dev,
  *--------------------------------------------------------------
  */
 
-void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
+static void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 {
 
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
@@ -628,7 +628,7 @@ void UpdateInitialGain(struct net_device *dev)
  *		Tx Power tracking mechanism routine on 87SE.
  *	Created by Roger, 2007.12.11.
  */
-void InitTxPwrTracking87SE(struct net_device *dev)
+static void InitTxPwrTracking87SE(struct net_device *dev)
 {
 	u32	u4bRfReg;
 
@@ -638,7 +638,7 @@ void InitTxPwrTracking87SE(struct net_device *dev)
 	RF_WriteReg(dev, 0x02, u4bRfReg|PWR_METER_EN);			mdelay(1);
 }
 
-void PhyConfig8185(struct net_device *dev)
+static void PhyConfig8185(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 		write_nic_dword(dev, RCR, priv->ReceiveConfig);
@@ -665,7 +665,7 @@ void PhyConfig8185(struct net_device *dev)
 	return;
 }
 
-void HwConfigureRTL8185(struct net_device *dev)
+static void HwConfigureRTL8185(struct net_device *dev)
 {
 	/* RTL8185_TODO: Determine Retrylimit, TxAGC, AutoRateFallback control. */
 	u8 bUNIVERSAL_CONTROL_RL = 0;
@@ -790,12 +790,12 @@ static void MacConfig_85BASIC(struct net_device *dev)
 	write_nic_byte(dev, 0x24E, 0x01);
 }
 
-u8 GetSupportedWirelessMode8185(struct net_device *dev)
+static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 {
 	return WIRELESS_MODE_B | WIRELESS_MODE_G;
 }
 
-void ActUpdateChannelAccessSetting(struct net_device *dev,
+static void ActUpdateChannelAccessSetting(struct net_device *dev,
 				   WIRELESS_MODE WirelessMode,
 				   PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
 {
@@ -830,7 +830,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 	}
 }
 
-void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
+static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 {
 	struct  r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	struct  ieee80211_device *ieee = priv->ieee80211;
@@ -887,7 +887,7 @@ void rtl8185b_irq_enable(struct net_device *dev)
 	write_nic_dword(dev, IMR, priv->IntrMask);
 }
 
-void MgntDisconnectIBSS(struct net_device *dev)
+static void MgntDisconnectIBSS(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u8 i;
@@ -913,7 +913,7 @@ void MgntDisconnectIBSS(struct net_device *dev)
 	notify_wx_assoc_event(priv->ieee80211);
 }
 
-void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
+static void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u8 i;
@@ -930,7 +930,7 @@ void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
 	}
 }
 
-void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
+static void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
@@ -948,7 +948,7 @@ void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 	priv->ieee80211->state = IEEE80211_NOLINK;
 }
 
-bool MgntDisconnect(struct net_device *dev, u8 asRsn)
+static bool MgntDisconnect(struct net_device *dev, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	/*
@@ -984,7 +984,7 @@ bool MgntDisconnect(struct net_device *dev, u8 asRsn)
  *	Assumption:
  *		PASSIVE LEVEL.
  */
-bool SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
+static bool SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bResult = false;
@@ -1088,7 +1088,7 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u
 	return bActionAllowed;
 }
 
-void InactivePowerSave(struct net_device *dev)
+static void InactivePowerSave(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	/*
