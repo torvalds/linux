@@ -689,8 +689,6 @@ static void abx500_chargalg_hold_charging(struct abx500_chargalg *di)
 static void abx500_chargalg_start_charging(struct abx500_chargalg *di,
 	int vset, int iset)
 {
-	bool start_chargalg_wd = true;
-
 	switch (di->chg_info.charger_type) {
 	case AC_CHG:
 		dev_dbg(di->dev,
@@ -708,12 +706,8 @@ static void abx500_chargalg_start_charging(struct abx500_chargalg *di,
 
 	default:
 		dev_err(di->dev, "Unknown charger to charge from\n");
-		start_chargalg_wd = false;
 		break;
 	}
-
-	if (start_chargalg_wd && !delayed_work_pending(&di->chargalg_wd_work))
-		queue_delayed_work(di->chargalg_wq, &di->chargalg_wd_work, 0);
 }
 
 /**
