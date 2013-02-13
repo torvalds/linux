@@ -393,7 +393,8 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 }
 
 /* Delete entry (via netlink) */
-static int vxlan_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
+static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
+			    struct net_device *dev,
 			    const unsigned char *addr)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);

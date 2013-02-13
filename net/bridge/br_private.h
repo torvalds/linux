@@ -388,7 +388,7 @@ extern void br_fdb_update(struct net_bridge *br,
 			  const unsigned char *addr,
 			  u16 vid);
 
-extern int br_fdb_delete(struct ndmsg *ndm,
+extern int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			 struct net_device *dev,
 			 const unsigned char *addr);
 extern int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[],
@@ -577,13 +577,13 @@ extern void nbp_vlan_flush(struct net_bridge_port *port);
 static inline struct net_port_vlans *br_get_vlan_info(
 						const struct net_bridge *br)
 {
-	return rcu_dereference(br->vlan_info);
+	return rcu_dereference_rtnl(br->vlan_info);
 }
 
 static inline struct net_port_vlans *nbp_get_vlan_info(
 						const struct net_bridge_port *p)
 {
-	return rcu_dereference(p->vlan_info);
+	return rcu_dereference_rtnl(p->vlan_info);
 }
 
 /* Since bridge now depends on 8021Q module, but the time bridge sees the

@@ -1959,6 +1959,7 @@ static int mlx4_en_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 }
 
 static int mlx4_en_fdb_del(struct ndmsg *ndm,
+			   struct nlattr *tb[],
 			   struct net_device *dev,
 			   const unsigned char *addr)
 {

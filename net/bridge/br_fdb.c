@@ -505,6 +505,10 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	ci.ndm_refcnt	 = 0;
 	if (nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
 		goto nla_put_failure;
+
+	if (nla_put(skb, NDA_VLAN, sizeof(u16), &fdb->vlan_id))
+		goto nla_put_failure;
+
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
@@ -516,6 +520,7 @@ static inline size_t fdb_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct ndmsg))
 		+ nla_total_size(ETH_ALEN) /* NDA_LLADDR */
+		+ nla_total_size(sizeof(u16)) /* NDA_VLAN */
 		+ nla_total_size(sizeof(struct nda_cacheinfo));
 }
 
@@ -617,6 +622,25 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 	return 0;
 }
 
+static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
+	       const unsigned char *addr, u16 nlh_flags, u16 vid)
+{
+	int err = 0;
+
+	if (ndm->ndm_flags & NTF_USE) {
+		rcu_read_lock();
+		br_fdb_update(p->br, p, addr, vid);
+		rcu_read_unlock();
+	} else {
+		spin_lock_bh(&p->br->hash_lock);
+		err = fdb_add_entry(p, addr, ndm->ndm_state,
+				    nlh_flags, vid);
+		spin_unlock_bh(&p->br->hash_lock);
+	}
+
+	return err;
+}
+
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
 int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	       struct net_device *dev,
@@ -624,10 +648,27 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 {
 	struct net_bridge_port *p;
 	int err = 0;
+	struct net_port_vlans *pv;
+	unsigned short vid = VLAN_N_VID;
 
 	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
 		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
 		return -EINVAL;
+	}
+
+	if (tb[NDA_VLAN]) {
+		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
+			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
+			return -EINVAL;
+		}
+
+		vid = nla_get_u16(tb[NDA_VLAN]);
+
+		if (vid >= VLAN_N_VID) {
+			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
+				vid);
+			return -EINVAL;
+		}
 	}
 
 	p = br_port_get_rtnl(dev);
@@ -637,41 +678,90 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		return -EINVAL;
 	}
 
-	if (ndm->ndm_flags & NTF_USE) {
-		rcu_read_lock();
-		br_fdb_update(p->br, p, addr, 0);
-		rcu_read_unlock();
+	pv = nbp_get_vlan_info(p);
+	if (vid != VLAN_N_VID) {
+		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
+			pr_info("bridge: RTM_NEWNEIGH with unconfigured "
+				"vlan %d on port %s\n", vid, dev->name);
+			return -EINVAL;
+		}
+
+		/* VID was specified, so use it. */
+		err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 	} else {
-		spin_lock_bh(&p->br->hash_lock);
-		err = fdb_add_entry(p, addr, ndm->ndm_state, nlh_flags,
-				0);
-		spin_unlock_bh(&p->br->hash_lock);
+		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
+			err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
+			goto out;
+		}
+
+		/* We have vlans configured on this port and user didn't
+		 * specify a VLAN.  To be nice, add/update entry for every
+		 * vlan on this port.
+		 */
+		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
+		while (vid < BR_VLAN_BITMAP_LEN) {
+			err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
+			if (err)
+				goto out;
+			vid = find_next_bit(pv->vlan_bitmap,
+					    BR_VLAN_BITMAP_LEN, vid+1);
+		}
 	}
+
+out:
+	return err;
+}
+
+static int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr,
+			      u16 vlan)
+{
+	struct hlist_head *head = &br->hash[br_mac_hash(addr, vlan)];
+	struct net_bridge_fdb_entry *fdb;
+
+	fdb = fdb_find(head, addr, vlan);
+	if (!fdb)
+		return -ENOENT;
+
+	fdb_delete(br, fdb);
+	return 0;
+}
+
+static int __br_fdb_delete(struct net_bridge_port *p,
+			   const unsigned char *addr, u16 vid)
+{
+	int err;
+
+	spin_lock_bh(&p->br->hash_lock);
+	err = fdb_delete_by_addr(p->br, addr, vid);
+	spin_unlock_bh(&p->br->hash_lock);
 
 	return err;
 }
 
-static int fdb_delete_by_addr(struct net_bridge_port *p, const u8 *addr)
-{
-	struct net_bridge *br = p->br;
-	struct hlist_head *head = &br->hash[br_mac_hash(addr, 0)];
-	struct net_bridge_fdb_entry *fdb;
-
-	fdb = fdb_find(head, addr, 0);
-	if (!fdb)
-		return -ENOENT;
-
-	fdb_delete(p->br, fdb);
-	return 0;
-}
-
 /* Remove neighbor entry with RTM_DELNEIGH */
-int br_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
+int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
+		  struct net_device *dev,
 		  const unsigned char *addr)
 {
 	struct net_bridge_port *p;
 	int err;
+	struct net_port_vlans *pv;
+	unsigned short vid = VLAN_N_VID;
 
+	if (tb[NDA_VLAN]) {
+		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
+			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
+			return -EINVAL;
+		}
+
+		vid = nla_get_u16(tb[NDA_VLAN]);
+
+		if (vid >= VLAN_N_VID) {
+			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
+				vid);
+			return -EINVAL;
+		}
+	}
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {
 		pr_info("bridge: RTM_DELNEIGH %s not a bridge port\n",
@@ -679,9 +769,33 @@ int br_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&p->br->hash_lock);
-	err = fdb_delete_by_addr(p, addr);
-	spin_unlock_bh(&p->br->hash_lock);
+	pv = nbp_get_vlan_info(p);
+	if (vid != VLAN_N_VID) {
+		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
+			pr_info("bridge: RTM_DELNEIGH with unconfigured "
+				"vlan %d on port %s\n", vid, dev->name);
+			return -EINVAL;
+		}
 
+		err = __br_fdb_delete(p, addr, vid);
+	} else {
+		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
+			err = __br_fdb_delete(p, addr, 0);
+			goto out;
+		}
+
+		/* We have vlans configured on this port and user didn't
+		 * specify a VLAN.  To be nice, add/update entry for every
+		 * vlan on this port.
+		 */
+		err = -ENOENT;
+		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
+		while (vid < BR_VLAN_BITMAP_LEN) {
+			err &= __br_fdb_delete(p, addr, vid);
+			vid = find_next_bit(pv->vlan_bitmap,
+					    BR_VLAN_BITMAP_LEN, vid+1);
+		}
+	}
+out:
 	return err;
 }
