@@ -66,6 +66,10 @@
  * i915.i915_enable_fbc parameter
  */
 
+static void gen9_init_clock_gating(struct drm_device *dev)
+{
+}
+
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7397,6 +7401,8 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
 		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
+		else if (INTEL_INFO(dev)->gen == 9)
+			dev_priv->display.init_clock_gating = gen9_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
 		dev_priv->display.update_wm = cherryview_update_wm;
 		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
