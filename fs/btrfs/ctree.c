@@ -1222,7 +1222,7 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 
 	__tree_mod_log_rewind(eb_rewin, time_seq, tm);
 	WARN_ON(btrfs_header_nritems(eb_rewin) >
-		BTRFS_NODEPTRS_PER_BLOCK(fs_info->fs_root));
+		BTRFS_NODEPTRS_PER_BLOCK(fs_info->tree_root));
 
 	return eb_rewin;
 }
