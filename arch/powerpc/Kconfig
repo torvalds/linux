@@ -313,6 +313,14 @@ config MATH_EMULATION
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
+config PPC_TRANSACTIONAL_MEM
+       bool "Transactional Memory support for POWERPC"
+       depends on PPC_BOOK3S_64
+       depends on SMP
+       default n
+       ---help---
+         Support user-mode Transactional Memory on POWERPC.
+
 config 8XX_MINIMAL_FPEMU
 	bool "Minimal math emulation for 8xx"
 	depends on 8xx && !MATH_EMULATION
