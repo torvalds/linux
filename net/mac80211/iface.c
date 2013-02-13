@@ -680,6 +680,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i, flushed;
+	struct ps_data *ps;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -768,6 +769,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
+	} else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		/* remove all packets in parent bc_buf pointing to this dev */
+		ps = &sdata->bss->ps;
+
+		spin_lock_irqsave(&ps->bc_buf.lock, flags);
+		skb_queue_walk_safe(&ps->bc_buf, skb, tmp) {
+			if (skb->dev == sdata->dev) {
+				__skb_unlink(skb, &ps->bc_buf);
+				local->total_ps_buffered--;
+				ieee80211_free_txskb(&local->hw, skb);
+			}
+		}
+		spin_unlock_irqrestore(&ps->bc_buf.lock, flags);
 	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		ieee80211_mgd_stop(sdata);
 	}
