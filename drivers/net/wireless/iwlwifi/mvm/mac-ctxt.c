@@ -245,6 +245,10 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	 * that we should share it with another interface.
 	 */
 
+	/* Currently, MAC ID 0 should be used only for the managed vif */
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		__clear_bit(0, data.available_mac_ids);
+
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_mac_iface_iterator, &data);
