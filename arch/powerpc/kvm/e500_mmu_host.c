@@ -507,13 +507,14 @@ static int kvmppc_e500_tlb1_map_tlb1(struct kvmppc_vcpu_e500 *vcpu_e500,
 	if (unlikely(vcpu_e500->host_tlb1_nv >= tlb1_max_shadow_size()))
 		vcpu_e500->host_tlb1_nv = 0;
 
-	vcpu_e500->tlb_refs[1][sesel] = *ref;
-	vcpu_e500->g2h_tlb1_map[esel] |= (u64)1 << sesel;
-	vcpu_e500->gtlb_priv[1][esel].ref.flags |= E500_TLB_BITMAP;
 	if (vcpu_e500->h2g_tlb1_rmap[sesel]) {
 		unsigned int idx = vcpu_e500->h2g_tlb1_rmap[sesel] - 1;
 		vcpu_e500->g2h_tlb1_map[idx] &= ~(1ULL << sesel);
 	}
+
+	vcpu_e500->tlb_refs[1][sesel] = *ref;
+	vcpu_e500->gtlb_priv[1][esel].ref.flags |= E500_TLB_BITMAP;
+	vcpu_e500->g2h_tlb1_map[esel] |= (u64)1 << sesel;
 	vcpu_e500->h2g_tlb1_rmap[sesel] = esel + 1;
 
 	return sesel;
