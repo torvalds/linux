@@ -175,26 +175,6 @@ void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 	}
 }
 
-u16 PlatformIORead2Byte(struct net_device *dev, u32 offset)
-{
-	u16	data = 0;
-
-	data = read_nic_word(dev, offset);
-
-
-	return data;
-}
-
-u32 PlatformIORead4Byte(struct net_device *dev, u32 offset)
-{
-	u32	data = 0;
-
-	data = read_nic_dword(dev, offset);
-
-
-	return data;
-}
-
 void SetOutputEnableOfRfPins(struct net_device *dev)
 {
 	write_nic_word(dev, RFPinsEnable, 0x1bff);
