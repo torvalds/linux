@@ -572,6 +572,40 @@ static void intel_gtt_cleanup(void)
 	intel_gtt_teardown_scratch_page();
 }
 
+/* Certain Gen5 chipsets require require idling the GPU before
+ * unmapping anything from the GTT when VT-d is enabled.
+ */
+static inline int needs_ilk_vtd_wa(void)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	const unsigned short gpu_devid = intel_private.pcidev->device;
+
+	/* Query intel_iommu to see if we need the workaround. Presumably that
+	 * was loaded first.
+	 */
+	if ((gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB ||
+	     gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG) &&
+	     intel_iommu_gfx_mapped)
+		return 1;
+#endif
+	return 0;
+}
+
+static bool intel_gtt_can_wc(void)
+{
+	if (INTEL_GTT_GEN <= 2)
+		return false;
+
+	if (INTEL_GTT_GEN >= 6)
+		return false;
+
+	/* Reports of major corruption with ILK vt'd enabled */
+	if (needs_ilk_vtd_wa())
+		return false;
+
+	return true;
+}
+
 static int intel_gtt_init(void)
 {
 	u32 gma_addr;
@@ -601,7 +635,7 @@ static int intel_gtt_init(void)
 	gtt_map_size = intel_private.gtt_total_entries * 4;
 
 	intel_private.gtt = NULL;
-	if (INTEL_GTT_GEN < 6 && INTEL_GTT_GEN > 2)
+	if (intel_gtt_can_wc())
 		intel_private.gtt = ioremap_wc(intel_private.gtt_bus_addr,
 					       gtt_map_size);
 	if (intel_private.gtt == NULL)
@@ -1071,7 +1105,6 @@ static void i965_write_entry(dma_addr_t addr,
 	addr |= (addr >> 28) & 0xf0;
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
-
 
 static int i9xx_setup(void)
 {
