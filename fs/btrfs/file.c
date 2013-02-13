@@ -1628,7 +1628,20 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	 */
 	if (test_and_clear_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
 			       &BTRFS_I(inode)->runtime_flags)) {
-		btrfs_add_ordered_operation(NULL, BTRFS_I(inode)->root, inode);
+		struct btrfs_trans_handle *trans;
+		struct btrfs_root *root = BTRFS_I(inode)->root;
+
+		/*
+		 * We need to block on a committing transaction to keep us from
+		 * throwing a ordered operation on to the list and causing
+		 * something like sync to deadlock trying to flush out this
+		 * inode.
+		 */
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+		btrfs_add_ordered_operation(trans, BTRFS_I(inode)->root, inode);
+		btrfs_end_transaction(trans, root);
 		if (inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 			filemap_flush(inode->i_mapping);
 	}

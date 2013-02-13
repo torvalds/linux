@@ -612,10 +612,12 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
  * extra check to make sure the ordered operation list really is empty
  * before we return
  */
-int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
+int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root, int wait)
 {
 	struct btrfs_inode *btrfs_inode;
 	struct inode *inode;
+	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct list_head splice;
 	struct list_head works;
 	struct btrfs_delalloc_work *work, *next;
@@ -626,7 +628,7 @@ int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
 
 	mutex_lock(&root->fs_info->ordered_operations_mutex);
 	spin_lock(&root->fs_info->ordered_extent_lock);
-	list_splice_init(&root->fs_info->ordered_operations, &splice);
+	list_splice_init(&cur_trans->ordered_operations, &splice);
 	while (!list_empty(&splice)) {
 		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
 				   ordered_operations);
@@ -643,7 +645,7 @@ int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
 
 		if (!wait)
 			list_add_tail(&BTRFS_I(inode)->ordered_operations,
-				      &root->fs_info->ordered_operations);
+				      &cur_trans->ordered_operations);
 		spin_unlock(&root->fs_info->ordered_extent_lock);
 
 		work = btrfs_alloc_delalloc_work(inode, wait, 1);
@@ -653,7 +655,7 @@ int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
 				list_add_tail(&btrfs_inode->ordered_operations,
 					      &splice);
 			list_splice_tail(&splice,
-					 &root->fs_info->ordered_operations);
+					 &cur_trans->ordered_operations);
 			spin_unlock(&root->fs_info->ordered_extent_lock);
 			ret = -ENOMEM;
 			goto out;
@@ -1033,6 +1035,7 @@ out:
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root, struct inode *inode)
 {
+	struct btrfs_transaction *cur_trans = trans->transaction;
 	u64 last_mod;
 
 	last_mod = max(BTRFS_I(inode)->generation, BTRFS_I(inode)->last_trans);
@@ -1047,7 +1050,7 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	if (list_empty(&BTRFS_I(inode)->ordered_operations)) {
 		list_add_tail(&BTRFS_I(inode)->ordered_operations,
-			      &root->fs_info->ordered_operations);
+			      &cur_trans->ordered_operations);
 	}
 	spin_unlock(&root->fs_info->ordered_extent_lock);
 }

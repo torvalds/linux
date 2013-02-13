@@ -157,6 +157,7 @@ loop:
 	spin_lock_init(&cur_trans->delayed_refs.lock);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
+	INIT_LIST_HEAD(&cur_trans->ordered_operations);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
 			     fs_info->btree_inode->i_mapping);
@@ -1456,7 +1457,7 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	 * it here and no for sure that nothing new will be added
 	 * to the list
 	 */
-	ret = btrfs_run_ordered_operations(root, 1);
+	ret = btrfs_run_ordered_operations(trans, root, 1);
 
 	return ret;
 }
@@ -1479,7 +1480,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	int should_grow = 0;
 	unsigned long now = get_seconds();
 
-	ret = btrfs_run_ordered_operations(root, 0);
+	ret = btrfs_run_ordered_operations(trans, root, 0);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
 		btrfs_end_transaction(trans, root);

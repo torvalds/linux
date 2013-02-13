@@ -1408,13 +1408,6 @@ struct btrfs_fs_info {
 	struct list_head delalloc_inodes;
 
 	/*
-	 * special rename and truncate targets that must be on disk before
-	 * we're allowed to commit.  This is basically the ext3 style
-	 * data=ordered list.
-	 */
-	struct list_head ordered_operations;
-
-	/*
 	 * there is a pool of worker threads for checksumming during writes
 	 * and a pool for checksumming after reads.  This is because readers
 	 * can run with FS locks held, and the writers may be waiting for
