@@ -1161,7 +1161,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 				       &chandef, 1, 1);
 
 	/* Schedule the time events */
-	ret = iwl_mvm_start_p2p_roc(mvm, vif, duration);
+	ret = iwl_mvm_start_p2p_roc(mvm, vif, duration, type);
 
 	mutex_unlock(&mvm->mutex);
 	IWL_DEBUG_MAC80211(mvm, "leave\n");
