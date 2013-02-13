@@ -1066,7 +1066,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	}
 
 	/* Register input device for button of dock device */
-	info->dock = input_allocate_device();
+	info->dock = devm_input_allocate_device(&pdev->dev);
 	if (!info->dock) {
 		dev_err(&pdev->dev, "%s: failed to allocate input\n", __func__);
 		return -ENOMEM;
