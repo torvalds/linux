@@ -17,6 +17,7 @@
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
 #include <linux/export.h>
+#include <linux/rculist.h>
 #include "br_private.h"
 
 /* Hook for brouter */
@@ -52,6 +53,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct sk_buff *skb2;
 
 	if (!p || p->state == BR_STATE_DISABLED)
+		goto drop;
+
+	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb))
 		goto drop;
 
 	/* insert into forwarding database after filtering to avoid spoofing */

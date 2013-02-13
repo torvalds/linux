@@ -552,6 +552,8 @@ static inline void br_mdb_uninit(void)
 
 /* br_vlan.c */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
+extern bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
+			       struct sk_buff *skb);
 extern int br_vlan_add(struct net_bridge *br, u16 vid);
 extern int br_vlan_delete(struct net_bridge *br, u16 vid);
 extern void br_vlan_flush(struct net_bridge *br);
@@ -559,7 +561,43 @@ extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
 extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid);
 extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 extern void nbp_vlan_flush(struct net_bridge_port *port);
+
+static inline struct net_port_vlans *br_get_vlan_info(
+						const struct net_bridge *br)
+{
+	return rcu_dereference(br->vlan_info);
+}
+
+static inline struct net_port_vlans *nbp_get_vlan_info(
+						const struct net_bridge_port *p)
+{
+	return rcu_dereference(p->vlan_info);
+}
+
+/* Since bridge now depends on 8021Q module, but the time bridge sees the
+ * skb, the vlan tag will always be present if the frame was tagged.
+ */
+static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
+{
+	int err = 0;
+
+	if (vlan_tx_tag_present(skb))
+		*vid = vlan_tx_tag_get(skb) & VLAN_VID_MASK;
+	else {
+		*vid = 0;
+		err = -EINVAL;
+	}
+
+	return err;
+}
 #else
+static inline bool br_allowed_ingress(struct net_bridge *br,
+				      struct net_port_vlans *v,
+				      struct sk_buff *skb)
+{
+	return true;
+}
+
 static inline int br_vlan_add(struct net_bridge *br, u16 vid)
 {
 	return -EOPNOTSUPP;
@@ -588,6 +626,21 @@ static inline void nbp_vlan_flush(struct net_bridge_port *port)
 {
 }
 
+static inline struct net_port_vlans *br_get_vlan_info(
+						const struct net_bridge *br)
+{
+	return NULL;
+}
+static inline struct net_port_vlans *nbp_get_vlan_info(
+						const struct net_bridge_port *p)
+{
+	return NULL;
+}
+
+static inline u16 br_vlan_get_tag(const struct sk_buff *skb)
+{
+	return 0;
+}
 #endif
 
 /* br_netfilter.c */

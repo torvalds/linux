@@ -64,6 +64,31 @@ static void __vlan_flush(struct net_port_vlans *v)
 	kfree_rcu(v, rcu);
 }
 
+/* Called under RCU */
+bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
+			struct sk_buff *skb)
+{
+	u16 vid;
+
+	/* If VLAN filtering is disabled on the bridge, all packets are
+	 * permitted.
+	 */
+	if (!br->vlan_enabled)
+		return true;
+
+	/* If there are no vlan in the permitted list, all packets are
+	 * rejected.
+	 */
+	if (!v)
+		return false;
+
+	br_vlan_get_tag(skb, &vid);
+	if (test_bit(vid, v->vlan_bitmap))
+		return true;
+
+	return false;
+}
+
 /* Must be protected by RTNL */
 int br_vlan_add(struct net_bridge *br, u16 vid)
 {
