@@ -57,7 +57,10 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 */
 struct ion_buffer {
 	struct kref ref;
-	struct rb_node node;
+	union {
+		struct rb_node node;
+		struct list_head list;
+	};
 	struct ion_device *dev;
 	struct ion_heap *heap;
 	unsigned long flags;
@@ -108,15 +111,25 @@ struct ion_heap_ops {
 };
 
 /**
+ * heap flags - flags between the heaps and core ion code
+ */
+#define ION_HEAP_FLAG_DEFER_FREE (1 << 0)
+
+/**
  * struct ion_heap - represents a heap in the system
  * @node:		rb node to put the heap on the device's tree of heaps
  * @dev:		back pointer to the ion_device
  * @type:		type of heap
  * @ops:		ops struct as above
+ * @flags:		flags
  * @id:			id of heap, also indicates priority of this heap when
  *			allocating.  These are specified by platform data and
  *			MUST be unique
  * @name:		used for debugging
+ * @free_list:		free list head if deferred free is used
+ * @lock:		protects the free list
+ * @waitqueue:		queue to wait on from deferred free thread
+ * @task:		task struct of deferred free thread
  * @debug_show:		called when heap debug file is read to add any
  *			heap specific debug info to output
  *
@@ -130,8 +143,13 @@ struct ion_heap {
 	struct ion_device *dev;
 	enum ion_heap_type type;
 	struct ion_heap_ops *ops;
+	unsigned long flags;
 	unsigned int id;
 	const char *name;
+	struct list_head free_list;
+	struct rt_mutex lock;
+	wait_queue_head_t waitqueue;
+	struct task_struct *task;
 	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
 };
 
