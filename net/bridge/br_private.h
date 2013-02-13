@@ -63,6 +63,7 @@ struct br_ip
 #endif
 	} u;
 	__be16		proto;
+	__u16		vid;
 };
 
 struct net_port_vlans {
