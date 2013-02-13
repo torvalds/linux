@@ -2,28 +2,12 @@
 #include <linux/linkage.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/hardirq.h>
 
 #include <asm/checksum.h>
-#include <asm/uaccess.h>
 #include <asm/ftrace.h>
 #include <asm/tbx.h>
-
-/* uaccess symbols */
-EXPORT_SYMBOL(__copy_user_zeroing);
-EXPORT_SYMBOL(__copy_user);
-EXPORT_SYMBOL(__get_user_asm_b);
-EXPORT_SYMBOL(__get_user_asm_w);
-EXPORT_SYMBOL(__get_user_asm_d);
-EXPORT_SYMBOL(__put_user_asm_b);
-EXPORT_SYMBOL(__put_user_asm_w);
-EXPORT_SYMBOL(__put_user_asm_d);
-EXPORT_SYMBOL(__put_user_asm_l);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(strnlen_user);
-EXPORT_SYMBOL(__do_clear_user);
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);

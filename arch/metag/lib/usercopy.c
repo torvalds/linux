@@ -10,6 +10,7 @@
  * Modified for Meta by Will Newton.
  */
 
+#include <linux/export.h>
 #include <linux/uaccess.h>
 #include <asm/cache.h>			/* def of L1_CACHE_BYTES */
 
@@ -610,6 +611,7 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 
 	return retn;
 }
+EXPORT_SYMBOL(__copy_user);
 
 #define __asm_copy_from_user_1(to, from, ret) \
 	__asm_copy_user_cont(to, from, ret,	\
@@ -936,6 +938,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 
 	return retn + n;
 }
+EXPORT_SYMBOL(__copy_user_zeroing);
 
 #define __asm_clear_8x64(to, ret) \
 	asm volatile (					\
@@ -1089,6 +1092,7 @@ unsigned long __do_clear_user(void __user *pto, unsigned long pn)
 
 	return retn;
 }
+EXPORT_SYMBOL(__do_clear_user);
 
 unsigned char __get_user_asm_b(const void __user *addr, long *err)
 {
@@ -1112,6 +1116,7 @@ unsigned char __get_user_asm_b(const void __user *addr, long *err)
 		: "D0FrT");
 	return x;
 }
+EXPORT_SYMBOL(__get_user_asm_b);
 
 unsigned short __get_user_asm_w(const void __user *addr, long *err)
 {
@@ -1135,6 +1140,7 @@ unsigned short __get_user_asm_w(const void __user *addr, long *err)
 		: "D0FrT");
 	return x;
 }
+EXPORT_SYMBOL(__get_user_asm_w);
 
 unsigned int __get_user_asm_d(const void __user *addr, long *err)
 {
@@ -1158,6 +1164,7 @@ unsigned int __get_user_asm_d(const void __user *addr, long *err)
 		: "D0FrT");
 	return x;
 }
+EXPORT_SYMBOL(__get_user_asm_d);
 
 long __put_user_asm_b(unsigned int x, void __user *addr)
 {
@@ -1181,6 +1188,7 @@ long __put_user_asm_b(unsigned int x, void __user *addr)
 		: "D0FrT");
 	return err;
 }
+EXPORT_SYMBOL(__put_user_asm_b);
 
 long __put_user_asm_w(unsigned int x, void __user *addr)
 {
@@ -1204,6 +1212,7 @@ long __put_user_asm_w(unsigned int x, void __user *addr)
 		: "D0FrT");
 	return err;
 }
+EXPORT_SYMBOL(__put_user_asm_w);
 
 long __put_user_asm_d(unsigned int x, void __user *addr)
 {
@@ -1227,6 +1236,7 @@ long __put_user_asm_d(unsigned int x, void __user *addr)
 		: "D0FrT");
 	return err;
 }
+EXPORT_SYMBOL(__put_user_asm_d);
 
 long __put_user_asm_l(unsigned long long x, void __user *addr)
 {
@@ -1250,6 +1260,7 @@ long __put_user_asm_l(unsigned long long x, void __user *addr)
 		: "D0FrT");
 	return err;
 }
+EXPORT_SYMBOL(__put_user_asm_l);
 
 long strnlen_user(const char __user *src, long count)
 {
@@ -1286,6 +1297,7 @@ long strnlen_user(const char __user *src, long count)
 
 	return res;
 }
+EXPORT_SYMBOL(strnlen_user);
 
 long __strncpy_from_user(char *dst, const char __user *src, long count)
 {
@@ -1339,3 +1351,4 @@ long __strncpy_from_user(char *dst, const char __user *src, long count)
 
 	return res;
 }
+EXPORT_SYMBOL(__strncpy_from_user);
