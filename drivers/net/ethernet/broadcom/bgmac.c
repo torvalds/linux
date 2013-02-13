@@ -974,6 +974,7 @@ static void bgmac_chip_intrs_on(struct bgmac *bgmac)
 static void bgmac_chip_intrs_off(struct bgmac *bgmac)
 {
 	bgmac_write(bgmac, BGMAC_INT_MASK, 0);
+	bgmac_read(bgmac, BGMAC_INT_MASK);
 }
 
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/gmac_enable */
