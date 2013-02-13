@@ -120,6 +120,7 @@
 #define TM_CAUSE_FAC_UNAV	0xfa
 #define TM_CAUSE_SYSCALL	0xf9 /* Persistent */
 #define TM_CAUSE_MISC		0xf6
+#define TM_CAUSE_SIGNAL		0xf4
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
