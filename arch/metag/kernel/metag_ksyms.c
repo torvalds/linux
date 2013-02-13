@@ -11,9 +11,7 @@
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
-EXPORT_SYMBOL(empty_zero_page);
 
-EXPORT_SYMBOL(pfn_base);
 #ifdef CONFIG_FLATMEM
 /* needed for the pfn_valid macro */
 EXPORT_SYMBOL(max_pfn);

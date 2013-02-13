@@ -3,6 +3,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/init.h>
@@ -25,10 +26,12 @@
 #include <asm/fixmap.h>
 
 unsigned long pfn_base;
+EXPORT_SYMBOL(pfn_base);
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_data;
 
 unsigned long empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 extern char __user_gateway_start;
 extern char __user_gateway_end;
