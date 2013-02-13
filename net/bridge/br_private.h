@@ -713,6 +713,7 @@ extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 extern int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
+extern int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
 extern int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		      struct net_device *dev);
 
