@@ -5,6 +5,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
@@ -141,6 +142,7 @@ u8 hwthread_id_2_cpu[4] __read_mostly = {
  * probably only be used via them.
  */
 unsigned int meta_memoffset;
+EXPORT_SYMBOL(meta_memoffset);
 
 static char __initdata *original_cmd_line;
 
@@ -579,6 +581,7 @@ PTBI pTBI_get(unsigned int cpu)
 {
 	return per_cpu(pTBI, cpu);
 }
+EXPORT_SYMBOL(pTBI_get);
 
 #if defined(CONFIG_METAG_DSP) && defined(CONFIG_METAG_FPU)
 char capabilites[] = "dsp fpu";

@@ -6,10 +6,8 @@
 #include <linux/interrupt.h>
 #include <linux/hardirq.h>
 
-#include <asm/setup.h>
 #include <asm/checksum.h>
 #include <asm/uaccess.h>
-#include <asm/traps.h>
 #include <asm/ftrace.h>
 #include <asm/tbx.h>
 
@@ -26,9 +24,6 @@ EXPORT_SYMBOL(__put_user_asm_l);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(strnlen_user);
 EXPORT_SYMBOL(__do_clear_user);
-
-EXPORT_SYMBOL(pTBI_get);
-EXPORT_SYMBOL(meta_memoffset);
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
