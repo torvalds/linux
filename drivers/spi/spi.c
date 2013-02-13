@@ -1067,8 +1067,11 @@ static int of_spi_register_master(struct spi_master *master)
 	nb = of_gpio_named_count(np, "cs-gpios");
 	master->num_chipselect = max(nb, (int)master->num_chipselect);
 
-	if (nb < 1)
+	/* Return error only for an incorrectly formed cs-gpios property */
+	if (nb == 0 || nb == -ENOENT)
 		return 0;
+	else if (nb < 0)
+		return nb;
 
 	cs = devm_kzalloc(&master->dev,
 			  sizeof(int) * master->num_chipselect,
