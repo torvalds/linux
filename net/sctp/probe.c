@@ -183,6 +183,13 @@ static __init int sctpprobe_init(void)
 {
 	int ret = -ENOMEM;
 
+	/* Warning: if the function signature of sctp_sf_eat_sack_6_2,
+	 * has been changed, you also have to change the signature of
+	 * jsctp_sf_eat_sack, otherwise you end up right here!
+	 */
+	BUILD_BUG_ON(__same_type(sctp_sf_eat_sack_6_2,
+				 jsctp_sf_eat_sack) == 0);
+
 	init_waitqueue_head(&sctpw.wait);
 	spin_lock_init(&sctpw.lock);
 	if (kfifo_alloc(&sctpw.fifo, bufsize, GFP_KERNEL))
