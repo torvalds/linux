@@ -209,12 +209,16 @@ static void netpoll_poll_dev(struct net_device *dev)
 	if (!mutex_trylock(&ni->dev_lock))
 		return;
 
-	if (!dev || !netif_running(dev))
+	if (!netif_running(dev)) {
+		mutex_unlock(&ni->dev_lock);
 		return;
+	}
 
 	ops = dev->netdev_ops;
-	if (!ops->ndo_poll_controller)
+	if (!ops->ndo_poll_controller) {
+		mutex_unlock(&ni->dev_lock);
 		return;
+	}
 
 	/* Process pending work on NIC */
 	ops->ndo_poll_controller(dev);
@@ -703,7 +707,7 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 			icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
 			icmp6h->icmp6_router = 0;
 			icmp6h->icmp6_solicited = 1;
-			target = (struct in6_addr *)skb_transport_header(send_skb) + sizeof(struct icmp6hdr);
+			target = (struct in6_addr *)(skb_transport_header(send_skb) + sizeof(struct icmp6hdr));
 			*target = msg->target;
 			icmp6h->icmp6_cksum = csum_ipv6_magic(saddr, daddr, size,
 							      IPPROTO_ICMPV6,
