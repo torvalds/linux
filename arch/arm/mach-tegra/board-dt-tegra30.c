@@ -3,7 +3,7 @@
  *
  * NVIDIA Tegra30 device tree board support
  *
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright (C) 2011, 2013, NVIDIA Corporation
  *
  * Derived from:
  *
@@ -50,7 +50,7 @@ static const char *tegra30_dt_board_compat[] = {
 DT_MACHINE_START(TEGRA30_DT, "NVIDIA Tegra30 (Flattened Device Tree)")
 	.smp		= smp_ops(tegra_smp_ops),
 	.map_io		= tegra_map_common_io,
-	.init_early	= tegra30_init_early,
+	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.init_time	= clocksource_of_init,
 	.init_machine	= tegra30_dt_init,
