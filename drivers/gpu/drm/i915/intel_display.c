@@ -7898,7 +7898,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	struct intel_encoder *encoder;
 	int count, ro;
 
-	/* The upper layers ensure that we either disabl a crtc or have a list
+	/* The upper layers ensure that we either disable a crtc or have a list
 	 * of connectors. For paranoia, double-check this. */
 	WARN_ON(!set->fb && (set->num_connectors != 0));
 	WARN_ON(set->fb && (set->num_connectors == 0));
