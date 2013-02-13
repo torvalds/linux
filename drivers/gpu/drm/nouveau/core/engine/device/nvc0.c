@@ -50,6 +50,7 @@
 #include <engine/ppp.h>
 #include <engine/copy.h>
 #include <engine/disp.h>
+#include <engine/perfmon.h>
 
 int
 nvc0_identify(struct nouveau_device *device)
@@ -84,6 +85,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xc4:
 		device->cname = "GF104";
@@ -114,6 +116,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xc3:
 		device->cname = "GF106";
@@ -143,6 +146,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xce:
 		device->cname = "GF114";
@@ -173,6 +177,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xcf:
 		device->cname = "GF116";
@@ -203,6 +208,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xc1:
 		device->cname = "GF108";
@@ -232,6 +238,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xc8:
 		device->cname = "GF110";
@@ -262,6 +269,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xd9:
 		device->cname = "GF119";
@@ -291,6 +299,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nvd0_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	case 0xd7:
 		device->cname = "GF117";
@@ -319,6 +328,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nvd0_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] = &nvc0_perfmon_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Fermi chipset\n");

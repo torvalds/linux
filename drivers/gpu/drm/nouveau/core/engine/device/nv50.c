@@ -50,6 +50,7 @@
 #include <engine/ppp.h>
 #include <engine/copy.h>
 #include <engine/disp.h>
+#include <engine/perfmon.h>
 
 int
 nv50_identify(struct nouveau_device *device)
@@ -77,6 +78,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv50_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv50_perfmon_oclass;
 		break;
 	case 0x84:
 		device->cname = "G84";
@@ -103,6 +105,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv84_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0x86:
 		device->cname = "G86";
@@ -129,6 +132,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv84_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0x92:
 		device->cname = "G92";
@@ -155,6 +159,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv84_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0x94:
 		device->cname = "G94";
@@ -181,6 +186,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv94_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0x96:
 		device->cname = "G96";
@@ -207,6 +213,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv94_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0x98:
 		device->cname = "G98";
@@ -233,6 +240,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv98_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv94_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0xa0:
 		device->cname = "G200";
@@ -259,6 +267,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva0_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0xaa:
 		device->cname = "MCP77/MCP78";
@@ -285,6 +294,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv98_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv94_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0xac:
 		device->cname = "MCP79/MCP7A";
@@ -311,6 +321,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nv98_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv94_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nv84_perfmon_oclass;
 		break;
 	case 0xa3:
 		device->cname = "GT215";
@@ -339,6 +350,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
 	case 0xa5:
 		device->cname = "GT216";
@@ -366,6 +378,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
 	case 0xa8:
 		device->cname = "GT218";
@@ -393,6 +406,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
 	case 0xaf:
 		device->cname = "MCP89";
@@ -420,6 +434,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nva3_disp_oclass;
+		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Tesla chipset\n");

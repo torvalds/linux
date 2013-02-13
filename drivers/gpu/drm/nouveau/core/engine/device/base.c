@@ -77,6 +77,7 @@ static const u64 disable_map[] = {
 	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_PWR]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_ENGINE_PERFMON]  = NV_DEVICE_DISABLE_CORE,
 	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_DISABLE_FIFO,
 	[NVDEV_ENGINE_SW]	= NV_DEVICE_DISABLE_FIFO,
 	[NVDEV_ENGINE_GR]	= NV_DEVICE_DISABLE_GRAPH,
@@ -123,7 +124,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	ret = nouveau_parent_create(parent, nv_object(device), oclass, 0, NULL,
 				    (1ULL << NVDEV_ENGINE_DMAOBJ) |
 				    (1ULL << NVDEV_ENGINE_FIFO) |
-				    (1ULL << NVDEV_ENGINE_DISP), &devobj);
+				    (1ULL << NVDEV_ENGINE_DISP) |
+				    (1ULL << NVDEV_ENGINE_PERFMON), &devobj);
 	*pobject = nv_object(devobj);
 	if (ret)
 		return ret;
