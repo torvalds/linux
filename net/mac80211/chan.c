@@ -137,7 +137,10 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_recalc_txpower(sdata);
 	sdata->vif.bss_conf.idle = false;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	return 0;
 }
@@ -186,7 +189,10 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
 
 	sdata->vif.bss_conf.idle = true;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 

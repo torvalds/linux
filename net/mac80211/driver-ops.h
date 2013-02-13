@@ -207,13 +207,16 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 {
 	might_sleep();
 
-	WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
-				BSS_CHANGED_BEACON_ENABLED) &&
-		     sdata->vif.type != NL80211_IFTYPE_AP &&
-		     sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-		     sdata->vif.type != NL80211_IFTYPE_MESH_POINT);
-	WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE &&
-		     changed & ~BSS_CHANGED_IDLE);
+	if (WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
+				    BSS_CHANGED_BEACON_ENABLED) &&
+			 sdata->vif.type != NL80211_IFTYPE_AP &&
+			 sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+			 sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
+		return;
+
+	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
+			 sdata->vif.type == NL80211_IFTYPE_MONITOR))
+		return;
 
 	check_sdata_in_driver(sdata);
 
