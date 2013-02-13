@@ -9,7 +9,8 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__INIT
+	__CPUINIT
+
 /*
  * Cold boot and hardware reset show different behaviour,
  * system will be always panic if we warm-reset the board
