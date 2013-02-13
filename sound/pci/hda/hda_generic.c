@@ -988,7 +988,7 @@ enum {
 	/* No DAC is found for the extra output */
 	BAD_NO_DAC = 0x4000,
 	/* No possible multi-ios */
-	BAD_MULTI_IO = 0x103,
+	BAD_MULTI_IO = 0x120,
 	/* No individual DAC for extra output */
 	BAD_NO_EXTRA_DAC = 0x102,
 	/* No individual DAC for extra surrounds */
