@@ -29,10 +29,10 @@
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
-	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx),		\
-	PORT_10(fn, pfx##10, sfx),	PORT_90(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##20, sfx),					\
-	PORT_1(fn, pfx##210, sfx),	PORT_1(fn, pfx##211, sfx)
+	PORT_10(0,  fn, pfx, sfx),	PORT_90(0,   fn, pfx, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),	PORT_90(100, fn, pfx##1, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx),					\
+	PORT_1(210, fn, pfx##210, sfx),	PORT_1(211, fn, pfx##211, sfx)
 
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\

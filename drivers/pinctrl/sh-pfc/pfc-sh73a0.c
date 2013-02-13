@@ -31,32 +31,32 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, pfx, sfx)				\
-	PORT_10(fn, pfx,    sfx), PORT_90(fn, pfx, sfx),	\
-	PORT_10(fn, pfx##10, sfx),				\
-	PORT_1(fn, pfx##110, sfx), PORT_1(fn, pfx##111, sfx),	\
-	PORT_1(fn, pfx##112, sfx), PORT_1(fn, pfx##113, sfx),	\
-	PORT_1(fn, pfx##114, sfx), PORT_1(fn, pfx##115, sfx),	\
-	PORT_1(fn, pfx##116, sfx), PORT_1(fn, pfx##117, sfx),	\
-	PORT_1(fn, pfx##118, sfx),				\
-	PORT_1(fn, pfx##128, sfx), PORT_1(fn, pfx##129, sfx),	\
-	PORT_10(fn, pfx##13, sfx), PORT_10(fn, pfx##14, sfx),	\
-	PORT_10(fn, pfx##15, sfx),				\
-	PORT_1(fn, pfx##160, sfx), PORT_1(fn, pfx##161, sfx),	\
-	PORT_1(fn, pfx##162, sfx), PORT_1(fn, pfx##163, sfx),	\
-	PORT_1(fn, pfx##164, sfx),				\
-	PORT_1(fn, pfx##192, sfx), PORT_1(fn, pfx##193, sfx),	\
-	PORT_1(fn, pfx##194, sfx), PORT_1(fn, pfx##195, sfx),	\
-	PORT_1(fn, pfx##196, sfx), PORT_1(fn, pfx##197, sfx),	\
-	PORT_1(fn, pfx##198, sfx), PORT_1(fn, pfx##199, sfx),	\
-	PORT_10(fn, pfx##20, sfx), PORT_10(fn, pfx##21, sfx),	\
-	PORT_10(fn, pfx##22, sfx), PORT_10(fn, pfx##23, sfx),	\
-	PORT_10(fn, pfx##24, sfx), PORT_10(fn, pfx##25, sfx),	\
-	PORT_10(fn, pfx##26, sfx), PORT_10(fn, pfx##27, sfx),	\
-	PORT_1(fn, pfx##280, sfx), PORT_1(fn, pfx##281, sfx),	\
-	PORT_1(fn, pfx##282, sfx),				\
-	PORT_1(fn, pfx##288, sfx), PORT_1(fn, pfx##289, sfx),	\
-	PORT_10(fn, pfx##29, sfx), PORT_10(fn, pfx##30, sfx)
+#define CPU_ALL_PORT(fn, pfx, sfx)					\
+	PORT_10(0,  fn, pfx, sfx), PORT_90(0, fn, pfx, sfx),		\
+	PORT_10(100, fn, pfx##10, sfx),					\
+	PORT_1(110, fn, pfx##110, sfx), PORT_1(111, fn, pfx##111, sfx),	\
+	PORT_1(112, fn, pfx##112, sfx), PORT_1(113, fn, pfx##113, sfx),	\
+	PORT_1(114, fn, pfx##114, sfx), PORT_1(115, fn, pfx##115, sfx),	\
+	PORT_1(116, fn, pfx##116, sfx), PORT_1(117, fn, pfx##117, sfx),	\
+	PORT_1(118, fn, pfx##118, sfx),					\
+	PORT_1(128, fn, pfx##128, sfx), PORT_1(129, fn, pfx##129, sfx),	\
+	PORT_10(130, fn, pfx##13, sfx), PORT_10(140, fn, pfx##14, sfx),	\
+	PORT_10(150, fn, pfx##15, sfx),					\
+	PORT_1(160, fn, pfx##160, sfx), PORT_1(161, fn, pfx##161, sfx),	\
+	PORT_1(162, fn, pfx##162, sfx), PORT_1(163, fn, pfx##163, sfx),	\
+	PORT_1(164, fn, pfx##164, sfx),					\
+	PORT_1(192, fn, pfx##192, sfx), PORT_1(193, fn, pfx##193, sfx),	\
+	PORT_1(194, fn, pfx##194, sfx), PORT_1(195, fn, pfx##195, sfx),	\
+	PORT_1(196, fn, pfx##196, sfx), PORT_1(197, fn, pfx##197, sfx),	\
+	PORT_1(198, fn, pfx##198, sfx), PORT_1(199, fn, pfx##199, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx), PORT_10(210, fn, pfx##21, sfx),	\
+	PORT_10(220, fn, pfx##22, sfx), PORT_10(230, fn, pfx##23, sfx),	\
+	PORT_10(240, fn, pfx##24, sfx), PORT_10(250, fn, pfx##25, sfx),	\
+	PORT_10(260, fn, pfx##26, sfx), PORT_10(270, fn, pfx##27, sfx),	\
+	PORT_1(280, fn, pfx##280, sfx), PORT_1(281, fn, pfx##281, sfx),	\
+	PORT_1(282, fn, pfx##282, sfx),					\
+	PORT_1(288, fn, pfx##288, sfx), PORT_1(289, fn, pfx##289, sfx),	\
+	PORT_10(290, fn, pfx##29, sfx), PORT_10(300, fn, pfx##30, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,

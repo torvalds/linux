@@ -30,13 +30,13 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, pfx, sfx) \
-	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx), \
-	PORT_10(fn, pfx##10, sfx),	PORT_10(fn, pfx##11, sfx), \
-	PORT_10(fn, pfx##12, sfx),	PORT_10(fn, pfx##13, sfx), \
-	PORT_10(fn, pfx##14, sfx),	PORT_10(fn, pfx##15, sfx), \
-	PORT_10(fn, pfx##16, sfx),	PORT_10(fn, pfx##17, sfx), \
-	PORT_10(fn, pfx##18, sfx),	PORT_1(fn, pfx##190, sfx)
+#define CPU_ALL_PORT(fn, pfx, sfx)					\
+	PORT_10(0,  fn, pfx, sfx),	PORT_90(0,  fn, pfx, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),	PORT_10(110, fn, pfx##11, sfx),	\
+	PORT_10(120, fn, pfx##12, sfx),	PORT_10(130, fn, pfx##13, sfx),	\
+	PORT_10(140, fn, pfx##14, sfx),	PORT_10(150, fn, pfx##15, sfx),	\
+	PORT_10(160, fn, pfx##16, sfx),	PORT_10(170, fn, pfx##17, sfx),	\
+	PORT_10(180, fn, pfx##18, sfx),	PORT_1(190, fn, pfx##190, sfx)
 
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\
