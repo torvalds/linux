@@ -396,6 +396,36 @@ static int __init dpi_verify_dsi_pll(struct platform_device *dsidev)
 	return 0;
 }
 
+/*
+ * Return a hardcoded channel for the DPI output. This should work for
+ * current use cases, but this can be later expanded to either resolve
+ * the channel in some more dynamic manner, or get the channel as a user
+ * parameter.
+ */
+static enum omap_channel dpi_get_channel(void)
+{
+	switch (omapdss_get_version()) {
+	case OMAPDSS_VER_OMAP24xx:
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_OMAP3630:
+	case OMAPDSS_VER_AM35xx:
+		return OMAP_DSS_CHANNEL_LCD;
+
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
+		return OMAP_DSS_CHANNEL_LCD2;
+
+	case OMAPDSS_VER_OMAP5:
+		return OMAP_DSS_CHANNEL_LCD3;
+
+	default:
+		DSSWARN("unsupported DSS version\n");
+		return OMAP_DSS_CHANNEL_LCD;
+	}
+}
+
 static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev;
@@ -416,12 +446,7 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 		dpi.vdds_dsi_reg = vdds_dsi;
 	}
 
-	/*
-	 * XXX We shouldn't need dssdev->channel for this. The dsi pll clock
-	 * source for DPI is SoC integration detail, not something that should
-	 * be configured in the dssdev
-	 */
-	dsidev = dpi_get_dsidev(dssdev->channel);
+	dsidev = dpi_get_dsidev(dpi.output.dispc_channel);
 
 	if (dsidev && dpi_verify_dsi_pll(dsidev)) {
 		dsidev = NULL;
@@ -513,6 +538,7 @@ static void __init dpi_init_output(struct platform_device *pdev)
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->type = OMAP_DISPLAY_TYPE_DPI;
 	out->name = "dpi.0";
+	out->dispc_channel = dpi_get_channel();
 
 	dss_register_output(out);
 }

@@ -2388,7 +2388,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
 		struct omap_dss_output *out = dssdev->output;
 
-		mgr = omap_dss_get_overlay_manager(dssdev->channel);
+		mgr = omap_dss_get_overlay_manager(out->dispc_channel);
 
 		if (!mgr || !out)
 			continue;

@@ -786,8 +786,6 @@ static void __init venc_probe_pdata(struct platform_device *vencdev)
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
-	dssdev->channel = OMAP_DSS_CHANNEL_DIGIT;
-
 	r = venc_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
@@ -820,6 +818,7 @@ static void __init venc_init_output(struct platform_device *pdev)
 	out->id = OMAP_DSS_OUTPUT_VENC;
 	out->type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
+	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
 	dss_register_output(out);
 }

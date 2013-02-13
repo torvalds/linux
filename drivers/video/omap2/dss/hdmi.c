@@ -1012,8 +1012,6 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	hdmi.ls_oe_gpio = priv->ls_oe_gpio;
 	hdmi.hpd_gpio = priv->hpd_gpio;
 
-	dssdev->channel = OMAP_DSS_CHANNEL_DIGIT;
-
 	r = hdmi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
@@ -1047,6 +1045,7 @@ static void __init hdmi_init_output(struct platform_device *pdev)
 	out->id = OMAP_DSS_OUTPUT_HDMI;
 	out->type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
+	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
 	dss_register_output(out);
 }

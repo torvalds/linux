@@ -546,6 +546,9 @@ struct omap_dss_output {
 	/* display type supported by the output */
 	enum omap_display_type type;
 
+	/* DISPC channel for this output */
+	enum omap_channel dispc_channel;
+
 	/* output instance */
 	enum omap_dss_output_id id;
 
@@ -563,6 +566,7 @@ struct omap_dss_device {
 
 	enum omap_display_type type;
 
+	/* obsolete, to be removed */
 	enum omap_channel channel;
 
 	union {

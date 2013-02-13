@@ -4946,6 +4946,55 @@ void omapdss_dsi_set_videomode_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_dsi_set_videomode_timings);
 
+/*
+ * Return a hardcoded channel for the DSI output. This should work for
+ * current use cases, but this can be later expanded to either resolve
+ * the channel in some more dynamic manner, or get the channel as a user
+ * parameter.
+ */
+static enum omap_channel dsi_get_channel(int module_id)
+{
+	switch (omapdss_get_version()) {
+	case OMAPDSS_VER_OMAP24xx:
+		DSSWARN("DSI not supported\n");
+		return OMAP_DSS_CHANNEL_LCD;
+
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_OMAP3630:
+	case OMAPDSS_VER_AM35xx:
+		return OMAP_DSS_CHANNEL_LCD;
+
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
+		switch (module_id) {
+		case 0:
+			return OMAP_DSS_CHANNEL_LCD;
+		case 1:
+			return OMAP_DSS_CHANNEL_LCD2;
+		default:
+			DSSWARN("unsupported module id\n");
+			return OMAP_DSS_CHANNEL_LCD;
+		}
+
+	case OMAPDSS_VER_OMAP5:
+		switch (module_id) {
+		case 0:
+			return OMAP_DSS_CHANNEL_LCD;
+		case 1:
+			return OMAP_DSS_CHANNEL_LCD3;
+		default:
+			DSSWARN("unsupported module id\n");
+			return OMAP_DSS_CHANNEL_LCD;
+		}
+
+	default:
+		DSSWARN("unsupported DSS version\n");
+		return OMAP_DSS_CHANNEL_LCD;
+	}
+}
+
 static int __init dsi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev =
@@ -5184,6 +5233,7 @@ static void __init dsi_init_output(struct platform_device *dsidev)
 
 	out->type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
+	out->dispc_channel = dsi_get_channel(dsi->module_id);
 
 	dss_register_output(out);
 }
