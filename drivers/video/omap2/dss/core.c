@@ -292,37 +292,9 @@ static int dss_bus_match(struct device *dev, struct device_driver *driver)
 	return strcmp(dssdev->driver_name, driver->name) == 0;
 }
 
-static ssize_t device_name_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			dssdev->name ?
-			dssdev->name : "");
-}
-
-static struct device_attribute default_dev_attrs[] = {
-	__ATTR(name, S_IRUGO, device_name_show, NULL),
-	__ATTR_NULL,
-};
-
-static ssize_t driver_name_show(struct device_driver *drv, char *buf)
-{
-	struct omap_dss_driver *dssdrv = to_dss_driver(drv);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			dssdrv->driver.name ?
-			dssdrv->driver.name : "");
-}
-static struct driver_attribute default_drv_attrs[] = {
-	__ATTR(name, S_IRUGO, driver_name_show, NULL),
-	__ATTR_NULL,
-};
-
 static struct bus_type dss_bus_type = {
 	.name = "omapdss",
 	.match = dss_bus_match,
-	.dev_attrs = default_dev_attrs,
-	.drv_attrs = default_drv_attrs,
 };
 
 static void dss_bus_release(struct device *dev)

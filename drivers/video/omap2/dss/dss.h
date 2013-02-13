@@ -188,10 +188,8 @@ int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
 void dss_disable_all_devices(void);
 
-int display_init_sysfs(struct platform_device *pdev,
-		struct omap_dss_device *dssdev);
-void display_uninit_sysfs(struct platform_device *pdev,
-		struct omap_dss_device *dssdev);
+int display_init_sysfs(struct platform_device *pdev);
+void display_uninit_sysfs(struct platform_device *pdev);
 
 /* manager */
 int dss_init_overlay_managers(void);
