@@ -4,7 +4,7 @@
 The Synopsis designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
 differences between the core Synopsis dw mshc controller properties described
-by synposis-dw-mshc.txt and the properties used by the Samsung Exynos specific
+by synopsis-dw-mshc.txt and the properties used by the Samsung Exynos specific
 extensions to the Synopsis Designware Mobile Storage Host Controller.
 
 Required Properties:
