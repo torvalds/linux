@@ -92,6 +92,13 @@ struct max8997_muic_reg_data {
 struct max8997_muic_platform_data {
 	struct max8997_muic_reg_data *init_data;
 	int num_init_data;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
 };
 
 enum max8997_haptic_motor_type {

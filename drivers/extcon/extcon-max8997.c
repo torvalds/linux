@@ -127,6 +127,13 @@ struct max8997_muic_info {
 
 	struct max8997_muic_platform_data *muic_pdata;
 	enum max8997_muic_charger_type pre_charger_type;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
 };
 
 enum {
@@ -322,7 +329,7 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 	int ret = 0;
 
 	if (usb_type == MAX8997_USB_HOST) {
-		ret = max8997_muic_set_path(info, CONTROL1_SW_USB, attached);
+		ret = max8997_muic_set_path(info, info->path_usb, attached);
 		if (ret < 0) {
 			dev_err(info->dev, "failed to update muic register\n");
 			return ret;
@@ -378,7 +385,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 	int ret = 0;
 
 	/* switch to UART */
-	ret = max8997_muic_set_path(info, CONTROL1_SW_UART, attached);
+	ret = max8997_muic_set_path(info, info->path_uart, attached);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
 		return -EINVAL;
@@ -693,6 +700,23 @@ static int max8997_muic_probe(struct platform_device *pdev)
 					mdata->init_data[i].data);
 		}
 	}
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	if (pdata->muic_pdata->path_uart)
+		info->path_uart = pdata->muic_pdata->path_uart;
+	else
+		info->path_uart = CONTROL1_SW_UART;
+
+	if (pdata->muic_pdata->path_usb)
+		info->path_usb = pdata->muic_pdata->path_usb;
+	else
+		info->path_usb = CONTROL1_SW_USB;
+
+	/* Set initial path for UART */
+	 max8997_muic_set_path(info, info->path_uart, true);
 
 	/* Set ADC debounce time */
 	max8997_muic_set_debounce_time(info, ADC_DEBOUNCE_TIME_25MS);
