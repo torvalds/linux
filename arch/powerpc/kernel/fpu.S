@@ -62,6 +62,60 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 	__REST_32FPVSRS_TRANSACT(n,__REG_##c,__REG_##base)
 #define SAVE_32FPVSRS(n,c,base) __SAVE_32FPVSRS(n,__REG_##c,__REG_##base)
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+/*
+ * Wrapper to call load_up_fpu from C.
+ * void do_load_up_fpu(struct pt_regs *regs);
+ */
+_GLOBAL(do_load_up_fpu)
+	mflr	r0
+	std	r0, 16(r1)
+	stdu	r1, -112(r1)
+
+	subi	r6, r3, STACK_FRAME_OVERHEAD
+	/* load_up_fpu expects r12=MSR, r13=PACA, and returns
+	 * with r12 = new MSR.
+	 */
+	ld	r12,_MSR(r6)
+	GET_PACA(r13)
+
+	bl	load_up_fpu
+	std	r12,_MSR(r6)
+
+	ld	r0, 112+16(r1)
+	addi	r1, r1, 112
+	mtlr	r0
+	blr
+
+
+/* void do_load_up_transact_fpu(struct thread_struct *thread)
+ *
+ * This is similar to load_up_fpu but for the transactional version of the FP
+ * register set.  It doesn't mess with the task MSR or valid flags.
+ * Furthermore, we don't do lazy FP with TM currently.
+ */
+_GLOBAL(do_load_up_transact_fpu)
+	mfmsr	r6
+	ori	r5,r6,MSR_FP
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	oris	r5,r5,MSR_VSX@h
+END_FTR_SECTION_IFSET(CPU_FTR_VSX)
+#endif
+	SYNC
+	MTMSRD(r5)
+
+	lfd	fr0,THREAD_TRANSACT_FPSCR(r3)
+	MTFSF_L(fr0)
+	REST_32FPVSRS_TRANSACT(0, R4, R3)
+
+	/* FP/VSX off again */
+	MTMSRD(r6)
+	SYNC
+
+	blr
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 /*
  * This task wants to use the FPU now.
  * On UP, disable FP for the task which had the FPU previously,
