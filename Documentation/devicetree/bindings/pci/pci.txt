@@ -1,0 +1,9 @@
+PCI bus bridges have standardized Device Tree bindings:
+
+PCI Bus Binding to: IEEE Std 1275-1994
+http://www.openfirmware.org/ofwg/bindings/pci/pci2_1.pdf
+
+And for the interrupt mapping part:
+
+Open Firmware Recommended Practice: Interrupt Mapping
+http://www.openfirmware.org/1275/practice/imap/imap0_9d.pdf
