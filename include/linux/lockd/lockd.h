@@ -212,7 +212,8 @@ int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 __be32		  nlmclnt_grant(const struct sockaddr *addr,
 				const struct nlm_lock *lock);
 void		  nlmclnt_recovery(struct nlm_host *);
-int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
+int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *,
+				  struct nlm_rqst *);
 void		  nlmclnt_next_cookie(struct nlm_cookie *);
 
 /*
