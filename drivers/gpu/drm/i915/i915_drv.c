@@ -356,6 +356,17 @@ static const struct intel_device_info intel_cherryview_info = {
 	CURSOR_OFFSETS,
 };
 
+static const struct intel_device_info intel_skylake_info = {
+	.is_preliminary = 1,
+	.gen = 9, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -392,7 +403,8 @@ static const struct intel_device_info intel_cherryview_info = {
 	INTEL_BDW_GT12D_IDS(&intel_broadwell_d_info),	\
 	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),	\
 	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info), \
-	INTEL_CHV_IDS(&intel_cherryview_info)
+	INTEL_CHV_IDS(&intel_cherryview_info),	\
+	INTEL_SKL_IDS(&intel_skylake_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
