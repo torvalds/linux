@@ -68,8 +68,8 @@ void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx);
 int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice);
 void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 		u64 qwBSSTimestamp, u64 qwLocalTSF);
-BOOL CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF);
-BOOL CARDbClearCurrentTSF(struct vnt_private *pDevice);
+bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF);
+bool CARDbClearCurrentTSF(struct vnt_private *pDevice);
 void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, WORD wBeaconInterval);
 void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
 			 WORD wBeaconInterval);

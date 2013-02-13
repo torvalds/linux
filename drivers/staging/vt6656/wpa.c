@@ -239,7 +239,7 @@ WPA_ParseRSN(
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 WPA_SearchRSN(
     BYTE                byCmd,
     BYTE                byEncrypt,
@@ -299,7 +299,7 @@ WPA_SearchRSN(
  * Return Value: none.
  *
 -*/
-BOOL
+bool
 WPAb_Is_RSN(
      PWLAN_IE_RSN_EXT pRSN
     )

@@ -79,20 +79,20 @@
 //
 
 typedef struct tagSERPObject {
-    BOOL    bERPExist;
+    bool    bERPExist;
     BYTE    byERP;
 } ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
-    BOOL    bRSNCapExist;
+    bool    bRSNCapExist;
     WORD    wRSNCap;
 } SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
 typedef struct tagKnownBSS {
     // BSS info
-    BOOL            bActive;
+    bool            bActive;
     BYTE            abyBSSID[WLAN_BSSID_LEN];
     unsigned int            uChannel;
     BYTE            abySuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -110,10 +110,10 @@ typedef struct tagKnownBSS {
     signed long            ldBmAverage[RSSI_STAT_COUNT];
     signed long            ldBmAverRange;
     //For any BSSID selection improvment
-    BOOL            bSelected;
+    bool            bSelected;
 
     //++ WPA informations
-    BOOL            bWPAValid;
+    bool            bWPAValid;
     BYTE            byGKType;
     BYTE            abyPKType[4];
     WORD            wPKCount;
@@ -124,7 +124,7 @@ typedef struct tagKnownBSS {
     //--
 
     //++ WPA2 informations
-    BOOL            bWPA2Valid;
+    bool            bWPA2Valid;
     BYTE            byCSSGK;
     WORD            wCSSPKCount;
     BYTE            abyCSSPK[4];
@@ -167,14 +167,14 @@ typedef enum tagNODE_STATE {
 // STA node info
 typedef struct tagKnownNodeDB {
     // STA info
-    BOOL            bActive;
+    bool            bActive;
     BYTE            abyMACAddr[WLAN_ADDR_LEN];
     BYTE            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     BYTE            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     WORD            wTxDataRate;
-    BOOL            bShortPreamble;
-    BOOL            bERPExist;
-    BOOL            bShortSlotTime;
+    bool            bShortPreamble;
+    bool            bERPExist;
+    bool            bShortSlotTime;
     unsigned int            uInActiveCount;
     WORD            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
     WORD            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
@@ -188,15 +188,15 @@ typedef struct tagKnownNodeDB {
     WORD            wListenInterval;
     WORD            wAID;
     NODE_STATE      eNodeState;
-    BOOL            bPSEnable;
-    BOOL            bRxPSPoll;
+    bool            bPSEnable;
+    bool            bRxPSPoll;
     BYTE            byAuthSequence;
     unsigned long           ulLastRxJiffer;
     BYTE            bySuppRate;
     DWORD           dwFlags;
     WORD            wEnQueueCnt;
 
-    BOOL            bOnFly;
+    bool            bOnFly;
     unsigned long long       KeyRSC;
     BYTE            byKeyIndex;
     DWORD           dwKeyIndex;
@@ -207,7 +207,7 @@ typedef struct tagKnownNodeDB {
     BYTE            abyWepKey[WLAN_WEPMAX_KEYLEN];
     //
     // Auto rate fallback vars
-    BOOL            bIsInFallback;
+    bool            bIsInFallback;
     unsigned int            uAverageRSSI;
     unsigned int            uRateRecoveryTimeout;
     unsigned int            uRatePollTimeout;

@@ -193,7 +193,7 @@ typedef struct _USB_SEND_CONTEXT {
     CONTEXT_TYPE    Type;
     SEthernetHeader sEthHeader;
     void *Next;
-    BOOL            bBoolInUse;
+    bool            bBoolInUse;
     unsigned char           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 } USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;
 
@@ -214,7 +214,7 @@ typedef struct {
     unsigned int            uDataLen;
     PBYTE           pDataBuf;
   /* struct urb *pUrb; */
-    BOOL            bInUse;
+    bool            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
 
 /* 0:11A 1:11B 2:11G */
@@ -308,7 +308,7 @@ typedef struct tagSPMKIDCandidateEvent {
 #define MAX_QUIET_COUNT     8
 
 typedef struct tagSQuietControl {
-    BOOL        bEnable;
+    bool        bEnable;
     DWORD       dwStartTime;
     BYTE        byPeriod;
     WORD        wDuration;
@@ -342,7 +342,7 @@ typedef struct tagSDeFragControlBlock
     struct sk_buff* skb;
     PBYTE           pbyRxBuffer;
     unsigned int            cbFrameLength;
-    BOOL            bInUse;
+    bool            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
 
 /* flags for options */

@@ -355,7 +355,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 		(struct vnt_rx_mgmt *)pRxPacketContext;
 	PKnownBSS pBSSList = NULL;
 	unsigned int ii;
-	BOOL bParsingQuiet = FALSE;
+	bool bParsingQuiet = FALSE;
 
 
     pBSSList = (PKnownBSS)&(pMgmt->sBSSList[0]);
@@ -453,7 +453,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
     if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || (pBSSList->bWPA2Valid == TRUE)) {
 
         PSKeyItem  pTransmitKey = NULL;
-        BOOL       bIs802_1x = FALSE;
+        bool       bIs802_1x = FALSE;
 
         for (ii = 0; ii < pBSSList->wAKMSSAuthCount; ii ++) {
             if (pBSSList->abyAKMSSAuthType[ii] == WLAN_11i_AKMSS_802_1X) {
@@ -534,7 +534,7 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 		(struct vnt_rx_mgmt *)pRxPacketContext;
 	int ii, jj;
 	signed long ldBm, ldBmSum;
-	BOOL bParsingQuiet = FALSE;
+	bool bParsingQuiet = FALSE;
 
     if (pBSSList == NULL)
         return FALSE;

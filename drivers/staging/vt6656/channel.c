@@ -387,10 +387,10 @@ static  struct
 // 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
 // 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 (Value 23 ~ 56)
  ************************************************************************/
-BOOL
+bool
 ChannelValid(unsigned int CountryCode, unsigned int ChannelIndex)
 {
-    BOOL    bValid;
+    bool    bValid;
 
     bValid = FALSE;
     /*
@@ -422,7 +422,7 @@ exit:
  *                          0x0000000000000003 means channel 1,2 are supported
  *                          0x000000000000000F means channel 1,2,..15 are supported
  ************************************************************************/
-BOOL
+bool
 CHvChannelGetList (
       unsigned int       uCountryCodeIdx,
      PBYTE      pbyChannelTable

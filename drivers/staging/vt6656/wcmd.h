@@ -74,9 +74,9 @@ typedef enum tagCMD_STATUS {
 typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
     BYTE     abyCmdDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    BOOL     bNeedRadioOFF;
-    BOOL     bRadioCmd;
-    BOOL     bForceSCAN;
+    bool     bNeedRadioOFF;
+    bool     bRadioCmd;
+    bool     bForceSCAN;
     WORD     wDeAuthenReason;
 } CMD_ITEM, *PCMD_ITEM;
 

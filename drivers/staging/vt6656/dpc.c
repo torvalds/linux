@@ -430,7 +430,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 
 
     if (IS_FC_WEP(pbyFrame)) {
-        BOOL     bRxDecryOK = FALSE;
+        bool     bRxDecryOK = FALSE;
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"rx WEP pkt\n");
         bIsWEP = TRUE;

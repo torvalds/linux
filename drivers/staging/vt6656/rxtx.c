@@ -2482,7 +2482,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	u8 *pbyBSSID;
 	int bNodeExist = FALSE;
 	PUSB_SEND_CONTEXT pContext;
-	BOOL fConvertedPacket;
+	bool fConvertedPacket;
 	PTX_BUFFER pTX_Buffer;
 	u32 status;
 	u16 wKeepRate = pDevice->wCurrentRate;

@@ -57,7 +57,7 @@
 
 typedef struct tagSKeyItem
 {
-    BOOL        bKeyValid;
+    bool        bKeyValid;
 	u32 uKeyLength;
     BYTE        abyKey[MAX_KEY_LEN];
 	u64 KeyRSC;
@@ -76,9 +76,9 @@ typedef struct tagSKeyTable
     SKeyItem    PairwiseKey;
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
     DWORD       dwGTKeyIndex;            // GroupTransmitKey Index
-    BOOL        bInUse;
+    bool        bInUse;
     WORD        wKeyCtl;
-    BOOL        bSoftWEP;
+    bool        bSoftWEP;
     BYTE        byReserved1[6];
 } SKeyTable, *PSKeyTable; //352
 

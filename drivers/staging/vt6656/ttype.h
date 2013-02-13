@@ -33,8 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-typedef int             BOOL;
-
 #if !defined(TRUE)
 #define TRUE            1
 #endif

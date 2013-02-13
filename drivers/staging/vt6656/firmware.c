@@ -62,7 +62,7 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 	const struct firmware *fw;
 	int NdisStatus;
 	void *pBuffer = NULL;
-	BOOL result = FALSE;
+	bool result = FALSE;
 	u16 wLength;
 	int ii, rc;
 

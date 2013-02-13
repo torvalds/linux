@@ -115,7 +115,7 @@ WPA2vParseRSN (
     int                 i, j;
     WORD                m = 0, n = 0;
     PBYTE               pbyOUI;
-    BOOL                bUseGK = FALSE;
+    bool                bUseGK = FALSE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
 

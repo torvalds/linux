@@ -501,7 +501,7 @@ void vUpdateIFS(struct vnt_private *pDevice)
     }
     else {// PK_TYPE_11GA & PK_TYPE_11GB
         BYTE byRate = 0;
-        BOOL bOFDMRate = FALSE;
+        bool bOFDMRate = FALSE;
 	unsigned int ii = 0;
         PWLAN_IE_SUPP_RATES pItemRates = NULL;
 
@@ -726,7 +726,7 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-int CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
+bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
 {
 
 	*pqwCurrTSF = pDevice->qwCurrTSF;
@@ -746,7 +746,7 @@ int CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-int CARDbClearCurrentTSF(struct vnt_private *pDevice)
+bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
 {
 
 	MACvRegBitsOn(pDevice, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);

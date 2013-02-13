@@ -187,7 +187,7 @@ static void s_vMgrSynchBSS(struct vnt_private *, u32 uBSSMode,
 	PKnownBSS pCurr, PCMD_STATUS  pStatus);
 
 
-static BOOL
+static bool
 s_bCipherMatch (
      PKnownBSS                        pBSSNode,
      NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
@@ -1756,7 +1756,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 }
                 // Sync Short Slot Time
                 if (WLAN_GET_CAP_INFO_SHORTSLOTTIME(pBSSList->wCapInfo) != pDevice->bShortSlotTime) {
-                    BOOL    bShortSlotTime;
+                    bool    bShortSlotTime;
 
                     bShortSlotTime = WLAN_GET_CAP_INFO_SHORTSLOTTIME(pBSSList->wCapInfo);
                     //DBG_PRN_WLAN05(("Set Short Slot Time: %d\n", pDevice->bShortSlotTime));
@@ -2443,7 +2443,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             // Add current BSS to Candidate list
             // This should only work for WPA2 BSS, and WPA2 BSS check must be done before.
             if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2) {
-		BOOL bResult = bAdd_PMKID_Candidate((void *) pDevice,
+		bool bResult = bAdd_PMKID_Candidate((void *) pDevice,
 						    pMgmt->abyCurrBSSID,
 						    &pCurr->sRSNCapObj);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate: 1(%d)\n", bResult);
@@ -4364,7 +4364,7 @@ void vFlush_PMKID_Candidate(struct vnt_private *pDevice)
 	return;
 }
 
-static BOOL
+static bool
 s_bCipherMatch (
      PKnownBSS                        pBSSNode,
      NDIS_802_11_ENCRYPTION_STATUS    EncStatus,

@@ -69,14 +69,14 @@ WPA_ParseRSN(
      PWLAN_IE_RSN_EXT pRSN
     );
 
-BOOL
+bool
 WPA_SearchRSN(
     BYTE                byCmd,
     BYTE                byEncrypt,
      PKnownBSS        pBSSList
     );
 
-BOOL
+bool
 WPAb_Is_RSN(
      PWLAN_IE_RSN_EXT pRSN
     );

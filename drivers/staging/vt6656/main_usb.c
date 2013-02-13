@@ -228,7 +228,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 static int device_init_registers(struct vnt_private *pDevice,
 	DEVICE_INIT_TYPE InitType);
-static BOOL device_init_defrag_cb(struct vnt_private *pDevice);
+static bool device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 
@@ -237,7 +237,7 @@ static void device_free_tx_bufs(struct vnt_private *pDevice);
 static void device_free_rx_bufs(struct vnt_private *pDevice);
 static void device_free_int_bufs(struct vnt_private *pDevice);
 static void device_free_frag_bufs(struct vnt_private *pDevice);
-static BOOL device_alloc_bufs(struct vnt_private *pDevice);
+static bool device_alloc_bufs(struct vnt_private *pDevice);
 
 static int Read_config_file(struct vnt_private *pDevice);
 static unsigned char *Config_FileOperation(struct vnt_private *pDevice);
@@ -814,7 +814,7 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
 }
 
 
-static BOOL device_alloc_bufs(struct vnt_private *pDevice)
+static bool device_alloc_bufs(struct vnt_private *pDevice)
 {
 
     PUSB_SEND_CONTEXT pTxContext;
@@ -914,7 +914,7 @@ free_tx:
 
 
 
-static BOOL device_init_defrag_cb(struct vnt_private *pDevice)
+static bool device_init_defrag_cb(struct vnt_private *pDevice)
 {
 	int i;
 	PSDeFragControlBlock pDeF;
