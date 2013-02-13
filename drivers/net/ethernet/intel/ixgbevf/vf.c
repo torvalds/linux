@@ -109,7 +109,12 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
+	/* New versions of the PF may NACK the reset return message
+	 * to indicate that no MAC address has yet been assigned for
+	 * the VF.
+	 */
+	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
+	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
 	memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
