@@ -369,7 +369,7 @@ static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 	pm_runtime_get_sync(mcpdm->dev);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, 0x00);
 
-	ret = request_irq(mcpdm->irq, omap_mcpdm_irq_handler,
+	ret = devm_request_irq(mcpdm->dev, mcpdm->irq, omap_mcpdm_irq_handler,
 				0, "McPDM", (void *)mcpdm);
 
 	pm_runtime_put_sync(mcpdm->dev);
@@ -389,7 +389,6 @@ static int omap_mcpdm_remove(struct snd_soc_dai *dai)
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 
-	free_irq(mcpdm->irq, (void *)mcpdm);
 	pm_runtime_disable(mcpdm->dev);
 
 	return 0;
@@ -465,14 +464,11 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENOMEM;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), "McPDM"))
-		return -EBUSY;
-
-	mcpdm->io_base = devm_ioremap(&pdev->dev, res->start,
-				      resource_size(res));
-	if (!mcpdm->io_base)
+	mcpdm->io_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!mcpdm->io_base) {
+		dev_err(&pdev->dev, "cannot remap\n");
 		return -ENOMEM;
+	}
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
 	if (mcpdm->irq < 0)
