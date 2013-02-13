@@ -2364,11 +2364,9 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	if (local->tim_in_locked_section) {
 		__ieee80211_beacon_add_tim(sdata, ps, skb);
 	} else {
-		unsigned long flags;
-
-		spin_lock_irqsave(&local->tim_lock, flags);
+		spin_lock(&local->tim_lock);
 		__ieee80211_beacon_add_tim(sdata, ps, skb);
-		spin_unlock_irqrestore(&local->tim_lock, flags);
+		spin_unlock(&local->tim_lock);
 	}
 
 	return 0;
