@@ -129,6 +129,9 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
 #define PPC_INST_XVCPSGNDP		0xf0000780
+#define PPC_INST_TRECHKPT		0x7c0007dd
+#define PPC_INST_TRECLAIM		0x7c00075d
+#define PPC_INST_TABORT			0x7c00071d
 
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
@@ -293,5 +296,12 @@
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
+
+/* Transactional memory instructions */
+#define TRECHKPT		stringify_in_c(.long PPC_INST_TRECHKPT)
+#define TRECLAIM(r)		stringify_in_c(.long PPC_INST_TRECLAIM \
+					       | __PPC_RA(r))
+#define TABORT(r)		stringify_in_c(.long PPC_INST_TABORT \
+					       | __PPC_RA(r))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */
