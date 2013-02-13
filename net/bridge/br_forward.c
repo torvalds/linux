@@ -31,6 +31,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
 	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
 		p->state == BR_STATE_FORWARDING);
 }
 

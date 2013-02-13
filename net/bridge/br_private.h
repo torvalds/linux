@@ -554,6 +554,9 @@ static inline void br_mdb_uninit(void)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 extern bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 			       struct sk_buff *skb);
+extern bool br_allowed_egress(struct net_bridge *br,
+			      const struct net_port_vlans *v,
+			      const struct sk_buff *skb);
 extern int br_vlan_add(struct net_bridge *br, u16 vid);
 extern int br_vlan_delete(struct net_bridge *br, u16 vid);
 extern void br_vlan_flush(struct net_bridge *br);
@@ -594,6 +597,13 @@ static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
 static inline bool br_allowed_ingress(struct net_bridge *br,
 				      struct net_port_vlans *v,
 				      struct sk_buff *skb)
+{
+	return true;
+}
+
+static inline bool br_allowed_egress(struct net_bridge *br,
+				     const struct net_port_vlans *v,
+				     const struct sk_buff *skb)
 {
 	return true;
 }

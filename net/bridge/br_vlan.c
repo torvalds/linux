@@ -89,6 +89,26 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	return false;
 }
 
+/* Called under RCU. */
+bool br_allowed_egress(struct net_bridge *br,
+		       const struct net_port_vlans *v,
+		       const struct sk_buff *skb)
+{
+	u16 vid;
+
+	if (!br->vlan_enabled)
+		return true;
+
+	if (!v)
+		return false;
+
+	br_vlan_get_tag(skb, &vid);
+	if (test_bit(vid, v->vlan_bitmap))
+		return true;
+
+	return false;
+}
+
 /* Must be protected by RTNL */
 int br_vlan_add(struct net_bridge *br, u16 vid)
 {
