@@ -1168,6 +1168,27 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
+void tm_unavailable_exception(struct pt_regs *regs)
+{
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
+	/* Currently we never expect a TMU exception.  Catch
+	 * this and kill the process!
+	 */
+	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
+	       "(msr %lx)\n",
+	       regs->nip, regs->msr);
+
+	if (user_mode(regs)) {
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	}
+
+	die("Unexpected TM unavailable exception", regs, SIGABRT);
+}
+
 void performance_monitor_exception(struct pt_regs *regs)
 {
 	__get_cpu_var(irq_stat).pmu_irqs++;
