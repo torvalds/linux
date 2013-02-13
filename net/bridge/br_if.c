@@ -139,6 +139,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	br_ifinfo_notify(RTM_DELLINK, p);
 
+	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);

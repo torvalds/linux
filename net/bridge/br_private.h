@@ -18,6 +18,7 @@
 #include <linux/netpoll.h>
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
+#include <linux/if_vlan.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -26,6 +27,7 @@
 
 #define BR_PORT_BITS	10
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
+#define BR_VLAN_BITMAP_LEN	BITS_TO_LONGS(VLAN_N_VID)
 
 #define BR_VERSION	"2.3"
 
@@ -61,6 +63,16 @@ struct br_ip
 #endif
 	} u;
 	__be16		proto;
+};
+
+struct net_port_vlans {
+	u16				port_idx;
+	union {
+		struct net_bridge_port		*port;
+		struct net_bridge		*br;
+	}				parent;
+	struct rcu_head			rcu;
+	unsigned long			vlan_bitmap[BR_VLAN_BITMAP_LEN];
 };
 
 struct net_bridge_fdb_entry
@@ -155,6 +167,9 @@ struct net_bridge_port
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll			*np;
+#endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	struct net_port_vlans __rcu	*vlan_info;
 #endif
 };
 
@@ -257,6 +272,10 @@ struct net_bridge
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	u8				vlan_enabled;
+	struct net_port_vlans __rcu	*vlan_info;
+#endif
 };
 
 struct br_input_skb_cb {
@@ -529,6 +548,46 @@ static inline void br_mdb_init(void)
 static inline void br_mdb_uninit(void)
 {
 }
+#endif
+
+/* br_vlan.c */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+extern int br_vlan_add(struct net_bridge *br, u16 vid);
+extern int br_vlan_delete(struct net_bridge *br, u16 vid);
+extern void br_vlan_flush(struct net_bridge *br);
+extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
+extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid);
+extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
+extern void nbp_vlan_flush(struct net_bridge_port *port);
+#else
+static inline int br_vlan_add(struct net_bridge *br, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_vlan_delete(struct net_bridge *br, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void br_vlan_flush(struct net_bridge *br)
+{
+}
+
+static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void nbp_vlan_flush(struct net_bridge_port *port)
+{
+}
+
 #endif
 
 /* br_netfilter.c */
