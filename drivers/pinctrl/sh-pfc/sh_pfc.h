@@ -28,6 +28,7 @@ enum {
 #define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
 
 struct sh_pfc_pin {
+	u16 pin;
 	u16 enum_id;
 	const char *name;
 	unsigned int configs;
@@ -214,8 +215,9 @@ struct sh_pfc_soc_info {
 #define GP_ALL(str)			CPU_ALL_PORT(_GP_ALL, str)
 
 /* PINMUX_GPIO_GP_ALL - Expand to a list of sh_pfc_pin entries */
-#define _GP_GPIO(bank, pin, _name, sfx)					\
-	[(bank * 32) + pin] = {						\
+#define _GP_GPIO(bank, _pin, _name, sfx)				\
+	[(bank * 32) + _pin] = {					\
+		.pin = (bank * 32) + _pin,				\
 		.name = __stringify(_name),				\
 		.enum_id = _name##_DATA,				\
 	}
@@ -250,17 +252,19 @@ struct sh_pfc_soc_info {
 #define PORT_ALL(str)			CPU_ALL_PORT(_PORT_ALL, PORT, str)
 
 /* PINMUX_GPIO - Expand to a sh_pfc_pin entry */
-#define PINMUX_GPIO(pin)						\
-	[GPIO_##pin] = {						\
+#define PINMUX_GPIO(_pin)						\
+	[GPIO_##_pin] = {						\
+		.pin = (u16)-1,						\
 		.name = __stringify(name),				\
-		.enum_id = pin##_DATA,					\
+		.enum_id = _pin##_DATA,					\
 	}
 
 /* SH_PFC_PIN_CFG - Expand to a sh_pfc_pin entry (named PORT#) with config */
-#define SH_PFC_PIN_CFG(pin, cfgs)					\
+#define SH_PFC_PIN_CFG(_pin, cfgs)					\
 	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
+		.pin = _pin,						\
+		.name = __stringify(PORT##_pin),			\
+		.enum_id = PORT##_pin##_DATA,				\
 		.configs = cfgs,					\
 	}
 
