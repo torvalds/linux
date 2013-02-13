@@ -229,7 +229,7 @@ struct sh_pfc_soc_info {
  * PORT style (linear pin space)
  */
 
-#define PORT_1(pn, fn, pfx, sfx) fn(pfx, sfx)
+#define PORT_1(pn, fn, pfx, sfx) fn(pn, pfx, sfx)
 
 #define PORT_10(pn, fn, pfx, sfx)					  \
 	PORT_1(pn,   fn, pfx##0, sfx), PORT_1(pn+1, fn, pfx##1, sfx),	  \
@@ -246,7 +246,7 @@ struct sh_pfc_soc_info {
 	PORT_10(pn+90, fn, pfx##9, sfx)
 
 /* PORT_ALL(suffix) - Expand to a list of PORT_#_suffix */
-#define _PORT_ALL(pfx, sfx)		pfx##_##sfx
+#define _PORT_ALL(pn, pfx, sfx)		pfx##_##sfx
 #define PORT_ALL(str)			CPU_ALL_PORT(_PORT_ALL, PORT, str)
 
 /* PINMUX_GPIO - Expand to a sh_pfc_pin entry */
@@ -267,7 +267,7 @@ struct sh_pfc_soc_info {
 /* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,
  *		     PORT_name_OUT, PORT_name_IN marks
  */
-#define _PORT_DATA(pfx, sfx)						\
+#define _PORT_DATA(pn, pfx, sfx)					\
 	PINMUX_DATA(PORT##pfx##_DATA, PORT##pfx##_FN0,			\
 		    PORT##pfx##_OUT, PORT##pfx##_IN)
 #define PINMUX_DATA_ALL()		CPU_ALL_PORT(_PORT_DATA, , unused)
