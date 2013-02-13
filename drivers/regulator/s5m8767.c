@@ -515,9 +515,10 @@ static int s5m8767_pmic_dt_parse_ds_gpio(struct sec_pmic_dev *iodev,
 	return 0;
 }
 
-static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
+static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct sec_platform_data *pdata)
 {
+	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *pmic_np, *regulators_np, *reg_np;
 	struct sec_regulator_data *rdata;
 	struct sec_opmode_data *rmode;
@@ -538,7 +539,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
 	/* count the number of regulators to be supported in pmic */
 	pdata->num_regulators = of_get_child_count(regulators_np);
 
-	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
 		dev_err(iodev->dev,
@@ -546,7 +547,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
 		return -ENOMEM;
 	}
 
-	rmode = devm_kzalloc(iodev->dev, sizeof(*rmode) *
+	rmode = devm_kzalloc(&pdev->dev, sizeof(*rmode) *
 				pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
 		dev_err(iodev->dev,
@@ -570,7 +571,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(
-						iodev->dev, reg_np);
+						&pdev->dev, reg_np);
 		rdata->reg_node = reg_np;
 		rdata++;
 		rmode->id = i;
@@ -642,7 +643,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
 	return 0;
 }
 #else
-static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
+static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct sec_platform_data *pdata)
 {
 	return 0;
@@ -659,7 +660,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	int i, ret, size, buck_init;
 
 	if (iodev->dev->of_node) {
-		ret = s5m8767_pmic_dt_parse_pdata(iodev, pdata);
+		ret = s5m8767_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
 	}
