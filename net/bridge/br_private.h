@@ -562,11 +562,11 @@ extern bool br_allowed_egress(struct net_bridge *br,
 extern struct sk_buff *br_handle_vlan(struct net_bridge *br,
 				      const struct net_port_vlans *v,
 				      struct sk_buff *skb);
-extern int br_vlan_add(struct net_bridge *br, u16 vid);
+extern int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
 extern int br_vlan_delete(struct net_bridge *br, u16 vid);
 extern void br_vlan_flush(struct net_bridge *br);
 extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
-extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid);
+extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 extern void nbp_vlan_flush(struct net_bridge_port *port);
 
@@ -633,7 +633,7 @@ static inline struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	return skb;
 }
 
-static inline int br_vlan_add(struct net_bridge *br, u16 vid)
+static inline int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 {
 	return -EOPNOTSUPP;
 }
@@ -647,7 +647,7 @@ static inline void br_vlan_flush(struct net_bridge *br)
 {
 }
 
-static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid)
+static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 {
 	return -EOPNOTSUPP;
 }

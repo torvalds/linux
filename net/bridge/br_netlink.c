@@ -120,6 +120,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		const struct net_port_vlans *pv;
 		struct bridge_vlan_info vinfo;
 		u16 vid;
+		u16 pvid;
 
 		if (port)
 			pv = nbp_get_vlan_info(port);
@@ -133,12 +134,15 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		if (!af)
 			goto nla_put_failure;
 
+		pvid = br_get_pvid(pv);
 		for (vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
 		     vid < BR_VLAN_BITMAP_LEN;
 		     vid = find_next_bit(pv->vlan_bitmap,
 					 BR_VLAN_BITMAP_LEN, vid+1)) {
 			vinfo.vid = vid;
 			vinfo.flags = 0;
+			if (vid == pvid)
+				vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
 			if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
 				    sizeof(vinfo), &vinfo))
 				goto nla_put_failure;
@@ -239,14 +243,15 @@ static int br_afspec(struct net_bridge *br,
 		switch (cmd) {
 		case RTM_SETLINK:
 			if (p) {
-				err = nbp_vlan_add(p, vinfo->vid);
+				err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
 				if (err)
 					break;
 
 				if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-					err = br_vlan_add(p->br, vinfo->vid);
+					err = br_vlan_add(p->br, vinfo->vid,
+							  vinfo->flags);
 			} else
-				err = br_vlan_add(br, vinfo->vid);
+				err = br_vlan_add(br, vinfo->vid, vinfo->flags);
 
 			if (err)
 				break;

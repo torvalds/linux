@@ -5,12 +5,33 @@
 
 #include "br_private.h"
 
-static int __vlan_add(struct net_port_vlans *v, u16 vid)
+static void __vlan_add_pvid(struct net_port_vlans *v, u16 vid)
+{
+	if (v->pvid == vid)
+		return;
+
+	smp_wmb();
+	v->pvid = vid;
+}
+
+static void __vlan_delete_pvid(struct net_port_vlans *v, u16 vid)
+{
+	if (v->pvid != vid)
+		return;
+
+	smp_wmb();
+	v->pvid = 0;
+}
+
+static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	int err;
 
-	if (test_bit(vid, v->vlan_bitmap))
-		return -EEXIST;
+	if (test_bit(vid, v->vlan_bitmap)) {
+		if (flags & BRIDGE_VLAN_INFO_PVID)
+			__vlan_add_pvid(v, vid);
+		return 0;
+	}
 
 	if (v->port_idx && vid) {
 		struct net_device *dev = v->parent.port->dev;
@@ -29,6 +50,9 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid)
 
 	set_bit(vid, v->vlan_bitmap);
 	v->num_vlans++;
+	if (flags & BRIDGE_VLAN_INFO_PVID)
+		__vlan_add_pvid(v, vid);
+
 	return 0;
 }
 
@@ -36,6 +60,8 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 {
 	if (!test_bit(vid, v->vlan_bitmap))
 		return -EINVAL;
+
+	__vlan_delete_pvid(v, vid);
 
 	if (v->port_idx && vid) {
 		struct net_device *dev = v->parent.port->dev;
@@ -58,6 +84,8 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 static void __vlan_flush(struct net_port_vlans *v)
 {
+	smp_wmb();
+	v->pvid = 0;
 	bitmap_zero(v->vlan_bitmap, BR_VLAN_BITMAP_LEN);
 	if (v->port_idx)
 		rcu_assign_pointer(v->parent.port->vlan_info, NULL);
@@ -185,7 +213,7 @@ bool br_allowed_egress(struct net_bridge *br,
 }
 
 /* Must be protected by RTNL */
-int br_vlan_add(struct net_bridge *br, u16 vid)
+int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
 	int err;
@@ -194,7 +222,7 @@ int br_vlan_add(struct net_bridge *br, u16 vid)
 
 	pv = rtnl_dereference(br->vlan_info);
 	if (pv)
-		return __vlan_add(pv, vid);
+		return __vlan_add(pv, vid, flags);
 
 	/* Create port vlan infomration
 	 */
@@ -203,7 +231,7 @@ int br_vlan_add(struct net_bridge *br, u16 vid)
 		return -ENOMEM;
 
 	pv->parent.br = br;
-	err = __vlan_add(pv, vid);
+	err = __vlan_add(pv, vid, flags);
 	if (err)
 		goto out;
 
@@ -234,7 +262,6 @@ void br_vlan_flush(struct net_bridge *br)
 	struct net_port_vlans *pv;
 
 	ASSERT_RTNL();
-
 	pv = rtnl_dereference(br->vlan_info);
 	if (!pv)
 		return;
@@ -258,7 +285,7 @@ unlock:
 }
 
 /* Must be protected by RTNL */
-int nbp_vlan_add(struct net_bridge_port *port, u16 vid)
+int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
 	int err;
@@ -267,7 +294,7 @@ int nbp_vlan_add(struct net_bridge_port *port, u16 vid)
 
 	pv = rtnl_dereference(port->vlan_info);
 	if (pv)
-		return __vlan_add(pv, vid);
+		return __vlan_add(pv, vid, flags);
 
 	/* Create port vlan infomration
 	 */
@@ -279,7 +306,7 @@ int nbp_vlan_add(struct net_bridge_port *port, u16 vid)
 
 	pv->port_idx = port->port_no;
 	pv->parent.port = port;
-	err = __vlan_add(pv, vid);
+	err = __vlan_add(pv, vid, flags);
 	if (err)
 		goto clean_up;
 

@@ -120,6 +120,7 @@ enum {
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
 
 #define BRIDGE_VLAN_INFO_MASTER	(1<<0)	/* Operate on Bridge device as well */
+#define BRIDGE_VLAN_INFO_PVID	(1<<1)	/* VLAN is PVID, ingress untagged */
 
 struct bridge_vlan_info {
 	u16 flags;
