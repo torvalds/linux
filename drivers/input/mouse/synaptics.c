@@ -722,11 +722,13 @@ static void synaptics_report_mt_data(struct psmouse *psmouse,
 	default:
 		/*
 		 * If the finger slot contained in SGM is valid, and either
-		 * hasn't changed, or is new, then report SGM in MTB slot 0.
+		 * hasn't changed, or is new, or the old SGM has now moved to
+		 * AGM, then report SGM in MTB slot 0.
 		 * Otherwise, empty MTB slot 0.
 		 */
 		if (mt_state->sgm != -1 &&
-		    (mt_state->sgm == old->sgm || old->sgm == -1))
+		    (mt_state->sgm == old->sgm ||
+		     old->sgm == -1 || mt_state->agm == old->sgm))
 			synaptics_report_slot(dev, 0, sgm);
 		else
 			synaptics_report_slot(dev, 0, NULL);
@@ -735,9 +737,31 @@ static void synaptics_report_mt_data(struct psmouse *psmouse,
 		 * If the finger slot contained in AGM is valid, and either
 		 * hasn't changed, or is new, then report AGM in MTB slot 1.
 		 * Otherwise, empty MTB slot 1.
+		 *
+		 * However, in the case where the AGM is new, make sure that
+		 * that it is either the same as the old SGM, or there was no
+		 * SGM.
+		 *
+		 * Otherwise, if the SGM was just 1, and the new AGM is 2, then
+		 * the new AGM will keep the old SGM's tracking ID, which can
+		 * cause apparent drumroll.  This happens if in the following
+		 * valid finger sequence:
+		 *
+		 *  Action                 SGM  AGM (MTB slot:Contact)
+		 *  1. Touch contact 0    (0:0)
+		 *  2. Touch contact 1    (0:0, 1:1)
+		 *  3. Lift  contact 0    (1:1)
+		 *  4. Touch contacts 2,3 (0:2, 1:3)
+		 *
+		 * In step 4, contact 3, in AGM must not be given the same
+		 * tracking ID as contact 1 had in step 3.  To avoid this,
+		 * the first agm with contact 3 is dropped and slot 1 is
+		 * invalidated (tracking ID = -1).
 		 */
 		if (mt_state->agm != -1 &&
-		    (mt_state->agm == old->agm || old->agm == -1))
+		    (mt_state->agm == old->agm ||
+		     (old->agm == -1 &&
+		      (old->sgm == -1 || mt_state->agm == old->sgm))))
 			synaptics_report_slot(dev, 1, agm);
 		else
 			synaptics_report_slot(dev, 1, NULL);
