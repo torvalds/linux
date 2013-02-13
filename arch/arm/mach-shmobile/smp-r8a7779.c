@@ -31,6 +31,9 @@
 #include <asm/smp_twd.h>
 
 #define AVECR IOMEM(0xfe700040)
+#define R8A7779_SCU_BASE IOMEM(0xf0000000)
+
+static void __iomem *shmobile_scu_base;
 
 static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
@@ -56,11 +59,6 @@ static struct r8a7779_pm_ch *r8a7779_ch_cpu[4] = {
 	[3] = &r8a7779_ch_cpu3,
 };
 
-static void __iomem *scu_base_addr(void)
-{
-	return (void __iomem *)0xf0000000;
-}
-
 static DEFINE_SPINLOCK(scu_lock);
 static unsigned long tmp;
 
@@ -75,7 +73,7 @@ void __init r8a7779_register_twd(void)
 
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 {
-	void __iomem *scu_base = scu_base_addr();
+	void __iomem *scu_base = shmobile_scu_base;
 
 	spin_lock(&scu_lock);
 	tmp = __raw_readl(scu_base + 8);
@@ -153,7 +151,7 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu = cpu_logical_map(0);
 
-	scu_enable(scu_base_addr());
+	scu_enable(shmobile_scu_base);
 
 	/* Map the reset vector (in headsmp.S) */
 	__raw_writel(__pa(shmobile_secondary_vector), AVECR);
@@ -171,9 +169,10 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __init r8a7779_smp_init_cpus(void)
 {
-	unsigned int ncores = scu_get_core_count(scu_base_addr());
+	/* setup r8a7779 specific SCU base */
+	shmobile_scu_base = R8A7779_SCU_BASE;
 
-	shmobile_smp_init_cpus(ncores);
+	shmobile_smp_init_cpus(scu_get_core_count(shmobile_scu_base));
 }
 
 struct smp_operations r8a7779_smp_ops  __initdata = {
