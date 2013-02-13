@@ -56,6 +56,19 @@
 #define FNIC_NO_TAG             -1
 
 /*
+ * Command flags to identify the type of command and for other future
+ * use.
+ */
+#define FNIC_NO_FLAGS			0
+#define FNIC_CDB_REQ			BIT(1)	/* All IOs with a valid CDB */
+#define FNIC_BLOCKING_REQ		BIT(2)	/* All blocking Requests */
+#define FNIC_DEVICE_RESET		BIT(3)	/* Device reset request */
+#define FNIC_DEV_RST_PENDING		BIT(4)	/* Device reset pending */
+#define FNIC_DEV_RST_TIMED_OUT		BIT(5)	/* Device reset timed out */
+#define FNIC_DEV_RST_TERM_ISSUED	BIT(6)	/* Device reset terminate */
+#define FNIC_DEV_RST_DONE		BIT(7)	/* Device reset done */
+
+/*
  * Usage of the scsi_cmnd scratchpad.
  * These fields are locked by the hashed io_req_lock.
  */
@@ -64,6 +77,7 @@
 #define CMD_ABTS_STATUS(Cmnd)	((Cmnd)->SCp.Message)
 #define CMD_LR_STATUS(Cmnd)	((Cmnd)->SCp.have_data_in)
 #define CMD_TAG(Cmnd)           ((Cmnd)->SCp.sent_command)
+#define CMD_FLAGS(Cmnd)         ((Cmnd)->SCp.Status)
 
 #define FCPIO_INVALID_CODE 0x100 /* hdr_status value unused by firmware */
 
@@ -71,8 +85,27 @@
 #define FNIC_HOST_RESET_TIMEOUT	     10000	/* mSec */
 #define FNIC_RMDEVICE_TIMEOUT        1000       /* mSec */
 #define FNIC_HOST_RESET_SETTLE_TIME  30         /* Sec */
+#define FNIC_ABT_TERM_DELAY_TIMEOUT  500        /* mSec */
 
 #define FNIC_MAX_FCP_TARGET     256
+
+/**
+ * state_flags to identify host state along along with fnic's state
+ **/
+#define __FNIC_FLAGS_FWRESET		BIT(0) /* fwreset in progress */
+#define __FNIC_FLAGS_BLOCK_IO		BIT(1) /* IOs are blocked */
+
+#define FNIC_FLAGS_NONE			(0)
+#define FNIC_FLAGS_FWRESET		(__FNIC_FLAGS_FWRESET | \
+					__FNIC_FLAGS_BLOCK_IO)
+
+#define FNIC_FLAGS_IO_BLOCKED		(__FNIC_FLAGS_BLOCK_IO)
+
+#define fnic_set_state_flags(fnicp, st_flags)	\
+	__fnic_set_state_flags(fnicp, st_flags, 0)
+
+#define fnic_clear_state_flags(fnicp, st_flags)  \
+	__fnic_set_state_flags(fnicp, st_flags, 1)
 
 extern unsigned int fnic_log_level;
 
@@ -170,6 +203,9 @@ struct fnic {
 
 	struct completion *remove_wait; /* device remove thread blocks */
 
+	atomic_t in_flight;		/* io counter */
+	u32 _reserved;			/* fill hole */
+	unsigned long state_flags;	/* protected by host lock */
 	enum fnic_state state;
 	spinlock_t fnic_lock;
 
@@ -267,4 +303,10 @@ const char *fnic_state_to_str(unsigned int state);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
 
+static inline int
+fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
+{
+	return ((fnic->state_flags & st_flags) == st_flags);
+}
+void __fnic_set_state_flags(struct fnic *, unsigned long, unsigned long);
 #endif /* _FNIC_H_ */
