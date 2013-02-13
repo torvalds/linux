@@ -683,7 +683,10 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 	struct acpi_device *device = NULL;
 	struct acpi_eject_event *ej_event = NULL;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
+	acpi_status status;
 	int result;
+
+	acpi_scan_lock_acquire();
 
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -733,25 +736,32 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 			break;
 		}
 
+		get_device(&device->dev);
 		ej_event->device = device;
 		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
-		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
-					(void *)ej_event);
-
-		/* eject is performed asynchronously */
-		return;
+		/* The eject is carried out asynchronously. */
+		status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
+						 ej_event);
+		if (ACPI_FAILURE(status)) {
+			put_device(&device->dev);
+			kfree(ej_event);
+			break;
+		}
+		goto out;
 
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 
 		/* non-hotplug event; possibly handled by other handler */
-		return;
+		goto out;
 	}
 
 	/* Inform firmware that the hotplug operation has completed */
 	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
-	return;
+
+ out:
+	acpi_scan_lock_release();
 }
 
 static acpi_status is_processor_device(acpi_handle handle)

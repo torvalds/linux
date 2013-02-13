@@ -1218,6 +1218,8 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 	handle = hp_work->handle;
 	type = hp_work->type;
 
+	acpi_scan_lock_acquire();
+
 	if (acpi_bus_get_device(handle, &device)) {
 		/* This bridge must have just been physically inserted */
 		handle_bridge_insertion(handle, type);
@@ -1295,6 +1297,7 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 	}
 
 out:
+	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 }
 
@@ -1341,6 +1344,8 @@ static void _handle_hotplug_event_func(struct work_struct *work)
 
 	func = (struct acpiphp_func *)context;
 
+	acpi_scan_lock_acquire();
+
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* bus re-enumerate */
@@ -1371,6 +1376,7 @@ static void _handle_hotplug_event_func(struct work_struct *work)
 		break;
 	}
 
+	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_func */
 }
 

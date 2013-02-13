@@ -88,6 +88,8 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 	acpi_status status;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 
+	acpi_scan_lock_acquire();
+
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* Fall through */
@@ -103,7 +105,7 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 				/* device exist and this is a remove request */
 				device->flags.eject_pending = 1;
 				kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-				return;
+				goto out;
 			}
 			break;
 		}
@@ -130,18 +132,20 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		if (!acpi_bus_get_device(handle, &device) && device) {
 			device->flags.eject_pending = 1;
 			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-			return;
+			goto out;
 		}
 		break;
 
 	default:
 		/* non-hotplug event; possibly handled by other handler */
-		return;
+		goto out;
 	}
 
 	/* Inform firmware that the hotplug operation has completed */
 	(void) acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
-	return;
+
+ out:
+	acpi_scan_lock_release();
 }
 
 static bool is_container(acpi_handle handle)

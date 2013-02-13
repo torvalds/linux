@@ -395,6 +395,9 @@ int acpi_bus_receive_event(struct acpi_bus_event *event);
 static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
 	{ return 0; }
 #endif
+
+void acpi_scan_lock_acquire(void);
+void acpi_scan_lock_release(void);
 int acpi_scan_add_handler(struct acpi_scan_handler *handler);
 int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);

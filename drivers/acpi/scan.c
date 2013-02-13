@@ -42,6 +42,18 @@ struct acpi_device_bus_id{
 	struct list_head node;
 };
 
+void acpi_scan_lock_acquire(void)
+{
+	mutex_lock(&acpi_scan_lock);
+}
+EXPORT_SYMBOL_GPL(acpi_scan_lock_acquire);
+
+void acpi_scan_lock_release(void)
+{
+	mutex_unlock(&acpi_scan_lock);
+}
+EXPORT_SYMBOL_GPL(acpi_scan_lock_release);
+
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {
 	if (!handler || !handler->attach)
@@ -95,8 +107,6 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
-static void __acpi_bus_trim(struct acpi_device *start);
-
 /**
  * acpi_bus_hot_remove_device: hot-remove a device and its children
  * @context: struct acpi_eject_event pointer (freed in this func)
@@ -107,7 +117,7 @@ static void __acpi_bus_trim(struct acpi_device *start);
  */
 void acpi_bus_hot_remove_device(void *context)
 {
-	struct acpi_eject_event *ej_event = (struct acpi_eject_event *) context;
+	struct acpi_eject_event *ej_event = context;
 	struct acpi_device *device = ej_event->device;
 	acpi_handle handle = device->handle;
 	acpi_handle temp;
@@ -118,11 +128,19 @@ void acpi_bus_hot_remove_device(void *context)
 
 	mutex_lock(&acpi_scan_lock);
 
+	/* If there is no handle, the device node has been unregistered. */
+	if (!device->handle) {
+		dev_dbg(&device->dev, "ACPI handle missing\n");
+		put_device(&device->dev);
+		goto out;
+	}
+
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
-	__acpi_bus_trim(device);
-	/* Device node has been released. */
+	acpi_bus_trim(device);
+	/* Device node has been unregistered. */
+	put_device(&device->dev);
 	device = NULL;
 
 	if (ACPI_SUCCESS(acpi_get_handle(handle, "_LCK", &temp))) {
@@ -151,6 +169,7 @@ void acpi_bus_hot_remove_device(void *context)
 					  ost_code, NULL);
 	}
 
+ out:
 	mutex_unlock(&acpi_scan_lock);
 	kfree(context);
 	return;
@@ -212,6 +231,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		goto err;
 	}
 
+	get_device(&acpi_device->dev);
 	ej_event->device = acpi_device;
 	if (acpi_device->flags.eject_pending) {
 		/* event originated from ACPI eject notification */
@@ -224,7 +244,11 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 			ej_event->event, ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	}
 
-	acpi_os_hotplug_execute(acpi_bus_hot_remove_device, (void *)ej_event);
+	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
+	if (ACPI_FAILURE(status)) {
+		put_device(&acpi_device->dev);
+		kfree(ej_event);
+	}
 err:
 	return ret;
 }
@@ -779,6 +803,7 @@ static void acpi_device_unregister(struct acpi_device *device)
 	 * no more references.
 	 */
 	acpi_device_set_power(device, ACPI_STATE_D3_COLD);
+	device->handle = NULL;
 	put_device(&device->dev);
 }
 
@@ -1623,13 +1648,13 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
  * there has been a real error.  There just have been no suitable ACPI objects
  * in the table trunk from which the kernel could create a device and add an
  * appropriate driver.
+ *
+ * Must be called under acpi_scan_lock.
  */
 int acpi_bus_scan(acpi_handle handle)
 {
 	void *device = NULL;
 	int error = 0;
-
-	mutex_lock(&acpi_scan_lock);
 
 	if (ACPI_SUCCESS(acpi_bus_check_add(handle, 0, NULL, &device)))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
@@ -1641,7 +1666,6 @@ int acpi_bus_scan(acpi_handle handle)
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				    acpi_bus_device_attach, NULL, NULL, NULL);
 
-	mutex_unlock(&acpi_scan_lock);
 	return error;
 }
 EXPORT_SYMBOL(acpi_bus_scan);
@@ -1678,7 +1702,13 @@ static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
 	return AE_OK;
 }
 
-static void __acpi_bus_trim(struct acpi_device *start)
+/**
+ * acpi_bus_trim - Remove ACPI device node and all of its descendants
+ * @start: Root of the ACPI device nodes subtree to remove.
+ *
+ * Must be called under acpi_scan_lock.
+ */
+void acpi_bus_trim(struct acpi_device *start)
 {
 	/*
 	 * Execute acpi_bus_device_detach() as a post-order callback to detach
@@ -1694,13 +1724,6 @@ static void __acpi_bus_trim(struct acpi_device *start)
 	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
 			    acpi_bus_remove, NULL, NULL);
 	acpi_bus_remove(start->handle, 0, NULL, NULL);
-}
-
-void acpi_bus_trim(struct acpi_device *start)
-{
-	mutex_lock(&acpi_scan_lock);
-	__acpi_bus_trim(start);
-	mutex_unlock(&acpi_scan_lock);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
@@ -1758,23 +1781,27 @@ int __init acpi_scan_init(void)
 	acpi_csrt_init();
 	acpi_container_init();
 
+	mutex_lock(&acpi_scan_lock);
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
 	result = acpi_bus_scan(ACPI_ROOT_OBJECT);
 	if (result)
-		return result;
+		goto out;
 
 	result = acpi_bus_get_device(ACPI_ROOT_OBJECT, &acpi_root);
 	if (result)
-		return result;
+		goto out;
 
 	result = acpi_bus_scan_fixed();
 	if (result) {
 		acpi_device_unregister(acpi_root);
-		return result;
+		goto out;
 	}
 
 	acpi_update_all_gpes();
-	return 0;
+
+ out:
+	mutex_unlock(&acpi_scan_lock);
+	return result;
 }
