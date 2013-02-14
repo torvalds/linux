@@ -107,6 +107,7 @@ int of_dma_controller_register(struct device_node *np,
 	if (!nbcells) {
 		pr_err("%s: #dma-cells property is missing or invalid\n",
 		       __func__);
+		kfree(ofdma);
 		return -EINVAL;
 	}
 
