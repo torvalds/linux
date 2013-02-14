@@ -2385,9 +2385,6 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	int oldsize = priv->rx_buffer_size;
 	int frame_size = new_mtu + ETH_HLEN;
 
-	if (gfar_is_vlan_on(priv))
-		frame_size += VLAN_HLEN;
-
 	if ((frame_size < 64) || (frame_size > JUMBO_FRAME_SIZE)) {
 		netif_err(priv, drv, dev, "Invalid MTU setting\n");
 		return -EINVAL;
