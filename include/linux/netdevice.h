@@ -2671,6 +2671,8 @@ extern void netdev_upper_dev_unlink(struct net_device *dev,
 extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 	netdev_features_t features, bool tx_path);
+extern struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
+					  netdev_features_t features);
 
 static inline
 struct sk_buff *skb_gso_segment(struct sk_buff *skb, netdev_features_t features)

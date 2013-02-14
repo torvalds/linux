@@ -2327,6 +2327,58 @@ out:
 }
 EXPORT_SYMBOL(skb_checksum_help);
 
+/**
+ *	skb_mac_gso_segment - mac layer segmentation handler.
+ *	@skb: buffer to segment
+ *	@features: features for the output path (see dev->features)
+ */
+struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
+				    netdev_features_t features)
+{
+	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
+	struct packet_offload *ptype;
+	__be16 type = skb->protocol;
+
+	while (type == htons(ETH_P_8021Q)) {
+		int vlan_depth = ETH_HLEN;
+		struct vlan_hdr *vh;
+
+		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))
+			return ERR_PTR(-EINVAL);
+
+		vh = (struct vlan_hdr *)(skb->data + vlan_depth);
+		type = vh->h_vlan_encapsulated_proto;
+		vlan_depth += VLAN_HLEN;
+	}
+
+	__skb_pull(skb, skb->mac_len);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, &offload_base, list) {
+		if (ptype->type == type && ptype->callbacks.gso_segment) {
+			if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+				int err;
+
+				err = ptype->callbacks.gso_send_check(skb);
+				segs = ERR_PTR(err);
+				if (err || skb_gso_ok(skb, features))
+					break;
+				__skb_push(skb, (skb->data -
+						 skb_network_header(skb)));
+			}
+			segs = ptype->callbacks.gso_segment(skb, features);
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	__skb_push(skb, skb->data - skb_mac_header(skb));
+
+	return segs;
+}
+EXPORT_SYMBOL(skb_mac_gso_segment);
+
+
 /* openvswitch calls this on rx path, so we need a different check.
  */
 static inline bool skb_needs_check(struct sk_buff *skb, bool tx_path)
@@ -2351,28 +2403,9 @@ static inline bool skb_needs_check(struct sk_buff *skb, bool tx_path)
 struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 				  netdev_features_t features, bool tx_path)
 {
-	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
-	struct packet_offload *ptype;
-	__be16 type = skb->protocol;
-	int vlan_depth = ETH_HLEN;
-	int err;
-
-	while (type == htons(ETH_P_8021Q)) {
-		struct vlan_hdr *vh;
-
-		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))
-			return ERR_PTR(-EINVAL);
-
-		vh = (struct vlan_hdr *)(skb->data + vlan_depth);
-		type = vh->h_vlan_encapsulated_proto;
-		vlan_depth += VLAN_HLEN;
-	}
-
-	skb_reset_mac_header(skb);
-	skb->mac_len = skb->network_header - skb->mac_header;
-	__skb_pull(skb, skb->mac_len);
-
 	if (unlikely(skb_needs_check(skb, tx_path))) {
+		int err;
+
 		skb_warn_bad_offload(skb);
 
 		if (skb_header_cloned(skb) &&
@@ -2380,26 +2413,10 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 			return ERR_PTR(err);
 	}
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(ptype, &offload_base, list) {
-		if (ptype->type == type && ptype->callbacks.gso_segment) {
-			if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
-				err = ptype->callbacks.gso_send_check(skb);
-				segs = ERR_PTR(err);
-				if (err || skb_gso_ok(skb, features))
-					break;
-				__skb_push(skb, (skb->data -
-						 skb_network_header(skb)));
-			}
-			segs = ptype->callbacks.gso_segment(skb, features);
-			break;
-		}
-	}
-	rcu_read_unlock();
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
 
-	__skb_push(skb, skb->data - skb_mac_header(skb));
-
-	return segs;
+	return skb_mac_gso_segment(skb, features);
 }
 EXPORT_SYMBOL(__skb_gso_segment);
 
