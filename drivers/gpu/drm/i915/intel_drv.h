@@ -250,8 +250,9 @@ struct intel_crtc_config {
 		u32 size;
 	} pch_pfit;
 
-	/* FDI lanes used, only valid if has_pch_encoder is set. */
+	/* FDI configuration, only valid if has_pch_encoder is set. */
 	int fdi_lanes;
+	struct intel_link_m_n fdi_m_n;
 };
 
 struct intel_crtc {

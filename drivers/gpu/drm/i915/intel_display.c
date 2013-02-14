@@ -5511,13 +5511,11 @@ void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 	}
 }
 
-static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
+static void ironlake_fdi_compute_config(struct intel_crtc *intel_crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	struct intel_link_m_n m_n = {0};
 	int target_clock, lane, link_bw;
 
 	/* FDI is a binary signal running at ~2.7GHz, encoding
@@ -5542,9 +5540,7 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 	if (intel_crtc->config.pixel_multiplier > 1)
 		link_bw *= intel_crtc->config.pixel_multiplier;
 	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane, target_clock,
-			       link_bw, &m_n);
-
-	intel_cpu_transcoder_set_m_n(intel_crtc, &m_n);
+			       link_bw, &intel_crtc->config.fdi_m_n);
 }
 
 static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
@@ -5765,8 +5761,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
 	 * ironlake_check_fdi_lanes. */
 	intel_crtc->config.fdi_lanes = 0;
-	if (intel_crtc->config.has_pch_encoder)
-		ironlake_fdi_set_m_n(crtc);
+	if (intel_crtc->config.has_pch_encoder) {
+		ironlake_fdi_compute_config(intel_crtc);
+
+		intel_cpu_transcoder_set_m_n(intel_crtc,
+					     &intel_crtc->config.fdi_m_n);
+	}
 
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
@@ -5896,8 +5896,12 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
-	if (intel_crtc->config.has_pch_encoder)
-		ironlake_fdi_set_m_n(crtc);
+	if (intel_crtc->config.has_pch_encoder) {
+		ironlake_fdi_compute_config(intel_crtc);
+
+		intel_cpu_transcoder_set_m_n(intel_crtc,
+					     &intel_crtc->config.fdi_m_n);
+	}
 
 	haswell_set_pipeconf(crtc);
 
