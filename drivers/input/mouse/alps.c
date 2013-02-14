@@ -109,8 +109,6 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x73, 0x02, 0x50 }, 0x00, ALPS_PROTO_V2, 0xcf, 0xcf, ALPS_FOUR_BUTTONS },		/* Dell Vostro 1400 */
 	{ { 0x52, 0x01, 0x14 }, 0x00, ALPS_PROTO_V2, 0xff, 0xff,
 		ALPS_PASS | ALPS_DUALPOINT | ALPS_PS2_INTERLEAVED },				/* Toshiba Tecra A11-11L */
-	{ { 0x73, 0x02, 0x64 },	0x9b, ALPS_PROTO_V3, 0x8f, 0x8f, ALPS_DUALPOINT },
-	{ { 0x73, 0x02, 0x64 },	0x9d, ALPS_PROTO_V3, 0x8f, 0x8f, ALPS_DUALPOINT },
 	{ { 0x73, 0x02, 0x64 },	0x8a, ALPS_PROTO_V4, 0x8f, 0x8f, 0 },
 };
 
@@ -1412,6 +1410,10 @@ error:
 
 static void alps_set_defaults(struct alps_data *priv)
 {
+	priv->byte0 = 0x8f;
+	priv->mask0 = 0x8f;
+	priv->flags = ALPS_DUALPOINT;
+
 	switch (priv->proto_version) {
 	case ALPS_PROTO_V1:
 	case ALPS_PROTO_V2:
@@ -1491,8 +1493,15 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 	    alps_exit_command_mode(psmouse))
 		return -EIO;
 
-	if (alps_match_table(psmouse, priv, e7, ec) == 0)
+	if (alps_match_table(psmouse, priv, e7, ec) == 0) {
 		return 0;
+	} else if (ec[0] == 0x88 && ec[1] == 0x07 &&
+		   ec[2] >= 0x90 && ec[2] <= 0x9d) {
+		priv->proto_version = ALPS_PROTO_V3;
+		alps_set_defaults(priv);
+
+		return 0;
+	}
 
 	psmouse_info(psmouse,
 		"Unknown ALPS touchpad: E7=%2.2x %2.2x %2.2x, EC=%2.2x %2.2x %2.2x\n",
