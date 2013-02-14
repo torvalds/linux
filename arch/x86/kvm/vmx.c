@@ -5985,7 +5985,8 @@ static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	/* Then read the msr_index'th bit from this bitmap: */
 	if (msr_index < 1024*8) {
 		unsigned char b;
-		kvm_read_guest(vcpu->kvm, bitmap + msr_index/8, &b, 1);
+		if (kvm_read_guest(vcpu->kvm, bitmap + msr_index/8, &b, 1))
+			return 1;
 		return 1 & (b >> (msr_index & 7));
 	} else
 		return 1; /* let L1 handle the wrong parameter */
