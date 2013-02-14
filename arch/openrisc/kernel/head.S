@@ -1069,8 +1069,7 @@ d_pte_not_present:
 	EXCEPTION_LOAD_GPR4
 	EXCEPTION_LOAD_GPR5
 	EXCEPTION_LOAD_GPR6
-	l.j	_dispatch_do_dpage_fault
-	l.nop
+	EXCEPTION_HANDLE(_dtlb_miss_page_fault_handler)
 
 /* ==============================================[ ITLB miss handler ]=== */
 ENTRY(itlb_miss_handler)
@@ -1192,8 +1191,7 @@ i_pte_not_present:
 	EXCEPTION_LOAD_GPR4
 	EXCEPTION_LOAD_GPR5
 	EXCEPTION_LOAD_GPR6
-	l.j	_dispatch_do_ipage_fault
-	l.nop
+	EXCEPTION_HANDLE(_itlb_miss_page_fault_handler)
 
 /* ==============================================[ boot tlb handlers ]=== */
 
