@@ -200,8 +200,8 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 	}
 
 	if (*min_uV > *max_uV) {
-		dev_err(regulator->dev, "Restricting voltage, %u-%uuV\n",
-			regulator->min_uV, regulator->max_uV);
+		rdev_err(rdev, "Restricting voltage, %u-%uuV\n",
+			*min_uV, *max_uV);
 		return -EINVAL;
 	}
 
