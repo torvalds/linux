@@ -404,7 +404,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		goto out_oversize;
 
 	/* Head of list must not be cloned. */
-	if (skb_cloned(head) && pskb_expand_head(head, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(head, GFP_ATOMIC))
 		goto out_oom;
 
 	/* If the first fragment is fragmented itself, we split

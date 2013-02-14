@@ -368,7 +368,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 	}
 
 	/* Head of list must not be cloned. */
-	if (skb_cloned(head) && pskb_expand_head(head, 0, 0, GFP_ATOMIC)) {
+	if (skb_unclone(head, GFP_ATOMIC)) {
 		pr_debug("skb is cloned but can't expand head");
 		goto out_oom;
 	}

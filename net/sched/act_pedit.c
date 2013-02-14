@@ -131,8 +131,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 	int i, munged = 0;
 	unsigned int off;
 
-	if (skb_cloned(skb) &&
-	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(skb, GFP_ATOMIC))
 		return p->tcf_action;
 
 	off = skb_network_offset(skb);
