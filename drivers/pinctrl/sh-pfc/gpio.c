@@ -43,8 +43,9 @@ static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 static int gpio_pin_request(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
+	struct sh_pfc_pin *pin = sh_pfc_get_pin(pfc, offset);
 
-	if (pfc->info->pins[offset].enum_id == 0)
+	if (pin->enum_id == 0)
 		return -EINVAL;
 
 	return pinctrl_request_gpio(offset);

@@ -78,6 +78,11 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 	return (void __iomem *)address;
 }
 
+struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin)
+{
+	return &pfc->info->pins[pin];
+}
+
 static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 {
 	if (enum_id < r->begin)
@@ -278,7 +283,7 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 void sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 			 struct pinmux_data_reg **drp, int *bitp)
 {
-	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
+	struct sh_pfc_pin *gpiop = sh_pfc_get_pin(pfc, gpio);
 	int k, n;
 
 	k = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
