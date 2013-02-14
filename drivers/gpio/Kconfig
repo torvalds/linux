@@ -178,6 +178,16 @@ config GPIO_SCH
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
 
+config GPIO_SUNXI
+	tristate "GPIO Support for sunxi platform"
+	depends on (ARCH_SUN3I || ARCH_SUN4I || ARCH_SUN5I)
+	help
+	  This option enables support for GPIOs on the Allwinner
+	  SOCs (sun3i/sun4i/arch_sun5i). The GPIOs must be
+	  defined in [gpio_para] section of sysconfig.fex
+	  file (gpio_used/gpio_num/gpio_pin_x variables)
+
+
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
 	depends on PCI
