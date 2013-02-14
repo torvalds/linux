@@ -72,6 +72,10 @@ struct alps_nibble_commands {
  *   mask0, should match byte0.
  * @mask0: The mask used to check the first byte of the report.
  * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ * @x_max: Largest possible X position value.
+ * @y_max: Largest possible Y position value.
+ * @x_bits: Number of X bits in the MT bitmap.
+ * @y_bits: Number of Y bits in the MT bitmap.
  * @hw_init: Protocol-specific hardware init function.
  * @process_packet: Protocol-specific function to process a report packet.
  * @set_abs_params: Protocol-specific function to configure the input_dev.
@@ -96,6 +100,10 @@ struct alps_data {
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
 	unsigned char flags;
+	int x_max;
+	int y_max;
+	int x_bits;
+	int y_bits;
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
