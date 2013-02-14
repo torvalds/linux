@@ -994,12 +994,12 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 	size_t size;
 
 	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
-	devpriv->usb_rx_buf = kmalloc(size, GFP_KERNEL);
+	devpriv->usb_rx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_rx_buf)
 		return -ENOMEM;
 
 	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
-	devpriv->usb_tx_buf = kmalloc(size, GFP_KERNEL);
+	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_tx_buf) {
 		kfree(devpriv->usb_rx_buf);
 		return -ENOMEM;
