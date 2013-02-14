@@ -1570,10 +1570,10 @@ static void dma_tc_handle(struct d40_chan *d40c)
 			d40c->busy = false;
 		pm_runtime_mark_last_busy(d40c->base->dev);
 		pm_runtime_put_autosuspend(d40c->base->dev);
-	}
 
-	d40_desc_remove(d40d);
-	d40_desc_done(d40c, d40d);
+		d40_desc_remove(d40d);
+		d40_desc_done(d40c, d40d);
+	}
 
 	d40c->pending_tx++;
 	tasklet_schedule(&d40c->tasklet);
