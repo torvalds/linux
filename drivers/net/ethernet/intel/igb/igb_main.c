@@ -7727,7 +7727,7 @@ static DEFINE_SPINLOCK(i2c_clients_lock);
  *  @adapter: adapter struct
  *  @dev_addr: device address of i2c needed.
  */
-struct i2c_client *
+static struct i2c_client *
 igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 {
 	ulong flags;
