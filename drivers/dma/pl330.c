@@ -606,6 +606,11 @@ struct dma_pl330_desc {
 	struct dma_pl330_chan *pchan;
 };
 
+struct dma_pl330_filter_args {
+	struct dma_pl330_dmac *pdmac;
+	unsigned int chan_id;
+};
+
 static inline void _callback(struct pl330_req *r, enum pl330_op_err err)
 {
 	if (r && r->xfer_cb)
@@ -2352,26 +2357,22 @@ static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
 	tasklet_schedule(&pch->task);
 }
 
+static bool pl330_dt_filter(struct dma_chan *chan, void *param)
+{
+	struct dma_pl330_filter_args *fargs = param;
+
+	if (chan->device != &fargs->pdmac->ddma)
+		return false;
+
+	return (chan->chan_id == fargs->chan_id);
+}
+
 bool pl330_filter(struct dma_chan *chan, void *param)
 {
 	u8 *peri_id;
 
 	if (chan->device->dev->driver != &pl330_driver.drv)
 		return false;
-
-#ifdef CONFIG_OF
-	if (chan->device->dev->of_node) {
-		const __be32 *prop_value;
-		phandle phandle;
-		struct device_node *node;
-
-		prop_value = ((struct property *)param)->value;
-		phandle = be32_to_cpup(prop_value++);
-		node = of_find_node_by_phandle(phandle);
-		return ((chan->private == node) &&
-				(chan->chan_id == be32_to_cpup(prop_value)));
-	}
-#endif
 
 	peri_id = chan->private;
 	return *peri_id == (unsigned)param;
