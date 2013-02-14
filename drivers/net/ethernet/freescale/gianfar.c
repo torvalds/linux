@@ -663,7 +663,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
-	priv->node = ofdev->dev.of_node;
 	priv->ndev = dev;
 
 	priv->num_tx_queues = num_tx_qs;
@@ -1001,7 +1000,6 @@ static int gfar_probe(struct platform_device *ofdev)
 	priv = netdev_priv(dev);
 	priv->ndev = dev;
 	priv->ofdev = ofdev;
-	priv->node = ofdev->dev.of_node;
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	spin_lock_init(&priv->bflock);
@@ -1037,8 +1035,6 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	/* Set the dev->base_addr to the gfar reg region */
 	dev->base_addr = (unsigned long) regs;
-
-	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	/* Fill in the dev structure */
 	dev->watchdog_timeo = TX_TIMEOUT;
