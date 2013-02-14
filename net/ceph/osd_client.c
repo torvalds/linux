@@ -122,9 +122,9 @@ void ceph_osdc_release_request(struct kref *kref)
 	}
 	if (req->r_reply)
 		ceph_msg_put(req->r_reply);
-	if (req->r_own_pages)
-		ceph_release_page_vector(req->r_pages,
-					 req->r_num_pages);
+	if (req->r_data.own_pages)
+		ceph_release_page_vector(req->r_data.pages,
+					 req->r_data.num_pages);
 	ceph_put_snap_context(req->r_snapc);
 	ceph_pagelist_release(&req->r_trail);
 	if (req->r_mempool)
@@ -1739,11 +1739,11 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 {
 	int rc = 0;
 
-	req->r_request->pages = req->r_pages;
-	req->r_request->page_count = req->r_num_pages;
-	req->r_request->page_alignment = req->r_page_alignment;
+	req->r_request->pages = req->r_data.pages;
+	req->r_request->page_count = req->r_data.num_pages;
+	req->r_request->page_alignment = req->r_data.alignment;
 #ifdef CONFIG_BLOCK
-	req->r_request->bio = req->r_bio;
+	req->r_request->bio = req->r_data.bio;
 #endif
 	req->r_request->trail = &req->r_trail;
 
@@ -1944,12 +1944,12 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 		return PTR_ERR(req);
 
 	/* it may be a short read due to an object boundary */
-	req->r_pages = pages;
-	req->r_num_pages = calc_pages_for(page_align, *plen);
-	req->r_page_alignment = page_align;
+	req->r_data.pages = pages;
+	req->r_data.num_pages = calc_pages_for(page_align, *plen);
+	req->r_data.alignment = page_align;
 
 	dout("readpages  final extent is %llu~%llu (%d pages align %d)\n",
-	     off, *plen, req->r_num_pages, page_align);
+	     off, *plen, req->r_data.num_pages, page_align);
 
 	rc = ceph_osdc_start_request(osdc, req, false);
 	if (!rc)
@@ -1987,10 +1987,10 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 		return PTR_ERR(req);
 
 	/* it may be a short write due to an object boundary */
-	req->r_pages = pages;
-	req->r_num_pages = calc_pages_for(page_align, len);
-	req->r_page_alignment = page_align;
-	dout("writepages %llu~%llu (%d pages)\n", off, len, req->r_num_pages);
+	req->r_data.pages = pages;
+	req->r_data.num_pages = calc_pages_for(page_align, len);
+	req->r_data.alignment = page_align;
+	dout("writepages %llu~%llu (%d pages)\n", off, len, req->r_data.num_pages);
 
 	rc = ceph_osdc_start_request(osdc, req, true);
 	if (!rc)
@@ -2083,22 +2083,22 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	m = ceph_msg_get(req->r_reply);
 
 	if (data_len > 0) {
-		int want = calc_pages_for(req->r_page_alignment, data_len);
+		int want = calc_pages_for(req->r_data.alignment, data_len);
 
-		if (req->r_pages && unlikely(req->r_num_pages < want)) {
+		if (req->r_data.pages && unlikely(req->r_data.num_pages < want)) {
 			pr_warning("tid %lld reply has %d bytes %d pages, we"
 				   " had only %d pages ready\n", tid, data_len,
-				   want, req->r_num_pages);
+				   want, req->r_data.num_pages);
 			*skip = 1;
 			ceph_msg_put(m);
 			m = NULL;
 			goto out;
 		}
-		m->pages = req->r_pages;
-		m->page_count = req->r_num_pages;
-		m->page_alignment = req->r_page_alignment;
+		m->pages = req->r_data.pages;
+		m->page_count = req->r_data.num_pages;
+		m->page_alignment = req->r_data.alignment;
 #ifdef CONFIG_BLOCK
-		m->bio = req->r_bio;
+		m->bio = req->r_data.bio;
 #endif
 	}
 	*skip = 0;

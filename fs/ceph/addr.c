@@ -243,8 +243,8 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 	dout("finish_read %p req %p rc %d bytes %d\n", inode, req, rc, bytes);
 
 	/* unlock all pages, zeroing any data we didn't read */
-	for (i = 0; i < req->r_num_pages; i++, bytes -= PAGE_CACHE_SIZE) {
-		struct page *page = req->r_pages[i];
+	for (i = 0; i < req->r_data.num_pages; i++, bytes -= PAGE_CACHE_SIZE) {
+		struct page *page = req->r_data.pages[i];
 
 		if (bytes < (int)PAGE_CACHE_SIZE) {
 			/* zero (remainder of) page */
@@ -258,7 +258,7 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	kfree(req->r_pages);
+	kfree(req->r_data.pages);
 }
 
 static void ceph_unlock_page_vector(struct page **pages, int num_pages)
@@ -336,9 +336,9 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		}
 		pages[i] = page;
 	}
-	req->r_pages = pages;
-	req->r_num_pages = nr_pages;
-	req->r_page_alignment = 0;
+	req->r_data.pages = pages;
+	req->r_data.num_pages = nr_pages;
+	req->r_data.alignment = 0;
 	req->r_callback = finish_read;
 	req->r_inode = inode;
 
@@ -374,7 +374,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 		max = (fsc->mount_options->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
 
-	dout("readpages %p file %p nr_pages %d max %d\n", inode, file, nr_pages,
+	dout("readpages %p file %p nr_pages %d max %d\n", inode,
+		file, nr_pages,
 	     max);
 	while (!list_empty(page_list)) {
 		rc = start_read(inode, page_list, max);
@@ -567,7 +568,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 		 * raced with a truncation and was adjusted at the osd,
 		 * so don't believe the reply.
 		 */
-		wrote = req->r_num_pages;
+		wrote = req->r_data.num_pages;
 	} else {
 		wrote = 0;
 		mapping_set_error(mapping, rc);
@@ -576,8 +577,8 @@ static void writepages_finish(struct ceph_osd_request *req,
 	     inode, rc, bytes, wrote);
 
 	/* clean all pages */
-	for (i = 0; i < req->r_num_pages; i++) {
-		page = req->r_pages[i];
+	for (i = 0; i < req->r_data.num_pages; i++) {
+		page = req->r_data.pages[i];
 		BUG_ON(!page);
 		WARN_ON(!PageUptodate(page));
 
@@ -606,31 +607,31 @@ static void writepages_finish(struct ceph_osd_request *req,
 		unlock_page(page);
 	}
 	dout("%p wrote+cleaned %d pages\n", inode, wrote);
-	ceph_put_wrbuffer_cap_refs(ci, req->r_num_pages, snapc);
+	ceph_put_wrbuffer_cap_refs(ci, req->r_data.num_pages, snapc);
 
-	ceph_release_pages(req->r_pages, req->r_num_pages);
-	if (req->r_pages_from_pool)
-		mempool_free(req->r_pages,
+	ceph_release_pages(req->r_data.pages, req->r_data.num_pages);
+	if (req->r_data.pages_from_pool)
+		mempool_free(req->r_data.pages,
 			     ceph_sb_to_client(inode->i_sb)->wb_pagevec_pool);
 	else
-		kfree(req->r_pages);
+		kfree(req->r_data.pages);
 	ceph_osdc_put_request(req);
 }
 
 /*
  * allocate a page vec, either directly, or if necessary, via a the
- * mempool.  we avoid the mempool if we can because req->r_num_pages
+ * mempool.  we avoid the mempool if we can because req->r_data.num_pages
  * may be less than the maximum write size.
  */
 static void alloc_page_vec(struct ceph_fs_client *fsc,
 			   struct ceph_osd_request *req)
 {
-	req->r_pages = kmalloc(sizeof(struct page *) * req->r_num_pages,
+	req->r_data.pages = kmalloc(sizeof(struct page *) * req->r_data.num_pages,
 			       GFP_NOFS);
-	if (!req->r_pages) {
-		req->r_pages = mempool_alloc(fsc->wb_pagevec_pool, GFP_NOFS);
-		req->r_pages_from_pool = 1;
-		WARN_ON(!req->r_pages);
+	if (!req->r_data.pages) {
+		req->r_data.pages = mempool_alloc(fsc->wb_pagevec_pool, GFP_NOFS);
+		req->r_data.pages_from_pool = 1;
+		WARN_ON(!req->r_data.pages);
 	}
 }
 
@@ -829,9 +830,9 @@ get_more_pages:
 					break;
 				}
 
-				req->r_num_pages = calc_pages_for(0, len);
-				req->r_page_alignment = 0;
-				max_pages = req->r_num_pages;
+				req->r_data.num_pages = calc_pages_for(0, len);
+				req->r_data.alignment = 0;
+				max_pages = req->r_data.num_pages;
 
 				alloc_page_vec(fsc, req);
 				req->r_callback = writepages_finish;
@@ -853,7 +854,7 @@ get_more_pages:
 			}
 
 			set_page_writeback(page);
-			req->r_pages[locked_pages] = page;
+			req->r_data.pages[locked_pages] = page;
 			locked_pages++;
 			next = page->index + 1;
 		}
@@ -883,14 +884,14 @@ get_more_pages:
 		}
 
 		/* submit the write */
-		offset = req->r_pages[0]->index << PAGE_CACHE_SHIFT;
+		offset = req->r_data.pages[0]->index << PAGE_CACHE_SHIFT;
 		len = min((snap_size ? snap_size : i_size_read(inode)) - offset,
 			  (u64)locked_pages << PAGE_CACHE_SHIFT);
 		dout("writepages got %d pages at %llu~%llu\n",
 		     locked_pages, offset, len);
 
 		/* revise final length, page count */
-		req->r_num_pages = locked_pages;
+		req->r_data.num_pages = locked_pages;
 		req->r_request_ops[0].extent.length = cpu_to_le64(len);
 		req->r_request_ops[0].payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);

@@ -50,6 +50,21 @@ struct ceph_osd {
 
 #define CEPH_OSD_MAX_OP 10
 
+struct ceph_osd_data {
+	struct {
+		struct {
+			struct page	**pages;
+			u32		num_pages;
+			u32		alignment;
+			bool		pages_from_pool;
+			bool		own_pages;
+		};
+#ifdef CONFIG_BLOCK
+		struct bio       *bio;
+#endif /* CONFIG_BLOCK */
+	};
+};
+
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
@@ -105,15 +120,8 @@ struct ceph_osd_request {
 
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
-	unsigned          r_num_pages;        /* size of page array (follows) */
-	unsigned          r_page_alignment;   /* io offset in first page */
-	struct page     **r_pages;            /* pages for data payload */
-	int               r_pages_from_pool;
-	int               r_own_pages;        /* if true, i own page list */
-#ifdef CONFIG_BLOCK
-	struct bio       *r_bio;	      /* instead of pages */
-#endif
 
+	struct ceph_osd_data r_data;
 	struct ceph_pagelist r_trail;	      /* trailing part of the data */
 };
 
