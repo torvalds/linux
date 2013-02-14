@@ -277,41 +277,6 @@ static void vmk80xx_read_eeprom(struct vmk80xx_private *devpriv, int flag)
 		strncpy(devpriv->fw.ic6_vers, rx + 25, 24);
 }
 
-static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
-{
-	struct usb_device *usb = devpriv->usb;
-	unsigned char *tx_buf = devpriv->usb_tx_buf;
-	struct urb *urb;
-	unsigned int tx_pipe;
-	int ival;
-	size_t size;
-
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb)
-		return -ENOMEM;
-
-	tx_pipe = usb_sndintpipe(usb, 0x01);
-
-	ival = devpriv->ep_tx->bInterval;
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
-
-	tx_buf[0] = VMK8055_CMD_RST;
-	tx_buf[1] = 0x00;
-	tx_buf[2] = 0x00;
-	tx_buf[3] = 0x00;
-	tx_buf[4] = 0x00;
-	tx_buf[5] = 0x00;
-	tx_buf[6] = 0x00;
-	tx_buf[7] = 0x00;
-
-	usb_fill_int_urb(urb, usb, tx_pipe, tx_buf, size,
-			 vmk80xx_tx_callback, devpriv, ival);
-
-	usb_anchor_urb(urb, &devpriv->tx_anchor);
-
-	return usb_submit_urb(urb, GFP_KERNEL);
-}
-
 static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 {
 	struct vmk80xx_private *devpriv = urb->context;
@@ -466,6 +431,15 @@ exit:
 	usb_free_urb(urb);
 
 	return retval;
+}
+
+static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
+{
+	size_t size;
+
+	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	memset(devpriv->usb_tx_buf, 0, size);
+	return vmk80xx_write_packet(devpriv, VMK8055_CMD_RST);
 }
 
 #define DIR_IN  1
