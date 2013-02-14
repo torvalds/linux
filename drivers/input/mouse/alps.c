@@ -983,7 +983,7 @@ static int alps_enter_command_mode(struct psmouse *psmouse,
 		return -1;
 	}
 
-	if (param[0] != 0x88 && param[1] != 0x07) {
+	if (param[0] != 0x88 || (param[1] != 0x07 && param[1] != 0x08)) {
 		psmouse_dbg(psmouse,
 			    "unknown response while entering command mode\n");
 		return -1;
