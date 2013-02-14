@@ -118,7 +118,9 @@ int of_dma_controller_register(struct device_node *np,
 	ofdma->use_count = 0;
 
 	/* Now queue of_dma controller structure in list */
+	spin_lock(&of_dma_lock);
 	list_add_tail(&ofdma->of_dma_controllers, &of_dma_list);
+	spin_unlock(&of_dma_lock);
 
 	return 0;
 }
