@@ -27,7 +27,7 @@
 
 #include <mach/platform.h>
 
-#define NR_IRQS		                      96
+#define NR_IRQS					(96+32)
 
 /*----------- interrupt register list -------------------------------------------*/
 
