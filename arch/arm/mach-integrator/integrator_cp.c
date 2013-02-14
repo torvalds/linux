@@ -78,7 +78,7 @@ static void __iomem *intcp_con_base;
  * fcb00000	cb000000	CP system control
  */
 
-static struct map_desc intcp_io_desc[] __initdata = {
+static struct map_desc intcp_io_desc[] __initdata __maybe_unused = {
 	{
 		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
