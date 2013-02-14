@@ -58,6 +58,11 @@
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
 
+#define CG_CLKPIN_CNTL                                    0x660
+#       define XTALIN_DIVIDE                              (1 << 1)
+#define CG_CLKPIN_CNTL_2                                  0x664
+#       define MUX_TCLK_TO_XCLK                           (1 << 8)
+
 #define DMIF_ADDR_CONFIG  				0xBD4
 
 #define	SRBM_STATUS				        0xE50

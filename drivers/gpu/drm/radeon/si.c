@@ -70,6 +70,33 @@ extern u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 
+#define PCIE_BUS_CLK                10000
+#define TCLK                        (PCIE_BUS_CLK / 10)
+
+/**
+ * si_get_xclk - get the xclk
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Returns the reference clock used by the gfx engine
+ * (SI).
+ */
+u32 si_get_xclk(struct radeon_device *rdev)
+{
+        u32 reference_clock = rdev->clock.spll.reference_freq;
+	u32 tmp;
+
+	tmp = RREG32(CG_CLKPIN_CNTL_2);
+	if (tmp & MUX_TCLK_TO_XCLK)
+		return TCLK;
+
+	tmp = RREG32(CG_CLKPIN_CNTL);
+	if (tmp & XTALIN_DIVIDE)
+		return reference_clock / 4;
+
+	return reference_clock;
+}
+
 /* get temperature in millidegrees */
 int si_get_temp(struct radeon_device *rdev)
 {

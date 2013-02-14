@@ -282,7 +282,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_CLOCK_CRYSTAL_FREQ:
 		/* return clock value in KHz */
-		value = rdev->clock.spll.reference_freq * 10;
+		if (rdev->asic->get_xclk)
+			value = radeon_get_xclk(rdev) * 10;
+		else
+			value = rdev->clock.spll.reference_freq * 10;
 		break;
 	case RADEON_INFO_NUM_BACKENDS:
 		if (rdev->family >= CHIP_TAHITI)
