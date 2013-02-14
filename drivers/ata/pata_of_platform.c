@@ -14,8 +14,9 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/libata.h>
 
-static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
+static int pata_of_platform_probe(struct platform_device *ofdev)
 {
 	int ret;
 	struct device_node *dn = ofdev->dev.of_node;
@@ -76,11 +77,6 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 				     reg_shift, pio_mask);
 }
 
-static int __devexit pata_of_platform_remove(struct platform_device *ofdev)
-{
-	return __pata_platform_remove(&ofdev->dev);
-}
-
 static struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
 	{ .compatible = "electra-ide", },
@@ -95,7 +91,7 @@ static struct platform_driver pata_of_platform_driver = {
 		.of_match_table = pata_of_platform_match,
 	},
 	.probe		= pata_of_platform_probe,
-	.remove		= __devexit_p(pata_of_platform_remove),
+	.remove		= ata_platform_remove_one,
 };
 
 module_platform_driver(pata_of_platform_driver);

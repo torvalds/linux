@@ -248,7 +248,59 @@ xfs_qm_init_dquot_blk(
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 
+static void
+xfs_dquot_buf_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	struct xfs_disk_dquot	*ddq;
+	xfs_dqid_t		id = 0;
+	int			i;
 
+	/*
+	 * On the first read of the buffer, verify that each dquot is valid.
+	 * We don't know what the id of the dquot is supposed to be, just that
+	 * they should be increasing monotonically within the buffer. If the
+	 * first id is corrupt, then it will fail on the second dquot in the
+	 * buffer so corruptions could point to the wrong dquot in this case.
+	 */
+	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
+		int	error;
+
+		ddq = &d[i].dd_diskdq;
+
+		if (i == 0)
+			id = be32_to_cpu(ddq->d_id);
+
+		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
+					"xfs_dquot_read_verify");
+		if (error) {
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, d);
+			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			break;
+		}
+	}
+}
+
+static void
+xfs_dquot_buf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dquot_buf_verify(bp);
+}
+
+void
+xfs_dquot_buf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dquot_buf_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_dquot_buf_ops = {
+	.verify_read = xfs_dquot_buf_read_verify,
+	.verify_write = xfs_dquot_buf_write_verify,
+};
 
 /*
  * Allocate a block and fill it with dquots.
@@ -315,6 +367,7 @@ xfs_qm_dqalloc(
 	error = xfs_buf_geterror(bp);
 	if (error)
 		goto error1;
+	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
 	 * Make a chunk of dquots out of this buffer and log
@@ -359,6 +412,51 @@ xfs_qm_dqalloc(
 
 	return (error);
 }
+STATIC int
+xfs_qm_dqrepair(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp,
+	xfs_dqid_t		firstid,
+	struct xfs_buf		**bpp)
+{
+	int			error;
+	struct xfs_disk_dquot	*ddq;
+	struct xfs_dqblk	*d;
+	int			i;
+
+	/*
+	 * Read the buffer without verification so we get the corrupted
+	 * buffer returned to us. make sure we verify it on write, though.
+	 */
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, dqp->q_blkno,
+				   mp->m_quotainfo->qi_dqchunklen,
+				   0, bpp, NULL);
+
+	if (error) {
+		ASSERT(*bpp == NULL);
+		return XFS_ERROR(error);
+	}
+	(*bpp)->b_ops = &xfs_dquot_buf_ops;
+
+	ASSERT(xfs_buf_islocked(*bpp));
+	d = (struct xfs_dqblk *)(*bpp)->b_addr;
+
+	/* Do the actual repair of dquots in this buffer */
+	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
+		ddq = &d[i].dd_diskdq;
+		error = xfs_qm_dqcheck(mp, ddq, firstid + i,
+				       dqp->dq_flags & XFS_DQ_ALLTYPES,
+				       XFS_QMOPT_DQREPAIR, "xfs_qm_dqrepair");
+		if (error) {
+			/* repair failed, we're screwed */
+			xfs_trans_brelse(tp, *bpp);
+			return XFS_ERROR(EIO);
+		}
+	}
+
+	return 0;
+}
 
 /*
  * Maps a dquot to the buffer containing its on-disk version.
@@ -378,7 +476,6 @@ xfs_qm_dqtobp(
 	xfs_buf_t	*bp;
 	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
 	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_disk_dquot_t *ddq;
 	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
 	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
 
@@ -439,33 +536,24 @@ xfs_qm_dqtobp(
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 					   dqp->q_blkno,
 					   mp->m_quotainfo->qi_dqchunklen,
-					   0, &bp);
-		if (error || !bp)
+					   0, &bp, &xfs_dquot_buf_ops);
+
+		if (error == EFSCORRUPTED && (flags & XFS_QMOPT_DQREPAIR)) {
+			xfs_dqid_t firstid = (xfs_dqid_t)map.br_startoff *
+						mp->m_quotainfo->qi_dqperchunk;
+			ASSERT(bp == NULL);
+			error = xfs_qm_dqrepair(mp, tp, dqp, firstid, &bp);
+		}
+
+		if (error) {
+			ASSERT(bp == NULL);
 			return XFS_ERROR(error);
-	}
-
-	ASSERT(xfs_buf_islocked(bp));
-
-	/*
-	 * calculate the location of the dquot inside the buffer.
-	 */
-	ddq = bp->b_addr + dqp->q_bufoffset;
-
-	/*
-	 * A simple sanity check in case we got a corrupted dquot...
-	 */
-	error = xfs_qm_dqcheck(mp, ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
-			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
-			   "dqtobp");
-	if (error) {
-		if (!(flags & XFS_QMOPT_DQREPAIR)) {
-			xfs_trans_brelse(tp, bp);
-			return XFS_ERROR(EIO);
 		}
 	}
 
+	ASSERT(xfs_buf_islocked(bp));
 	*O_bpp = bp;
-	*O_ddpp = ddq;
+	*O_ddpp = bp->b_addr + dqp->q_bufoffset;
 
 	return (0);
 }
@@ -920,7 +1008,7 @@ xfs_qm_dqflush(
 	 * Get the buffer containing the on-disk dquot
 	 */
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
-				   mp->m_quotainfo->qi_dqchunklen, 0, &bp);
+				   mp->m_quotainfo->qi_dqchunklen, 0, &bp, NULL);
 	if (error)
 		goto out_unlock;
 

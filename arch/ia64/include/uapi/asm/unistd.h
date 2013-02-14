@@ -324,5 +324,6 @@
 #define __NR_process_vm_readv		1332
 #define __NR_process_vm_writev		1333
 #define __NR_accept4			1334
+#define __NR_finit_module		1335
 
 #endif /* _UAPI_ASM_IA64_UNISTD_H */

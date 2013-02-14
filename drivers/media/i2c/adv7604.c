@@ -486,9 +486,19 @@ static inline int edid_read_block(struct v4l2_subdev *sd, unsigned len, u8 *val)
 	struct i2c_client *client = state->i2c_edid;
 	u8 msgbuf0[1] = { 0 };
 	u8 msgbuf1[256];
-	struct i2c_msg msg[2] = { { client->addr, 0, 1, msgbuf0 },
-				  { client->addr, 0 | I2C_M_RD, len, msgbuf1 }
-				};
+	struct i2c_msg msg[2] = {
+		{
+			.addr = client->addr,
+			.len = 1,
+			.buf = msgbuf0
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = msgbuf1
+		},
+	};
 
 	if (i2c_transfer(client->adapter, msg, 2) < 0)
 		return -EIO;

@@ -87,7 +87,8 @@ struct parport_pc_pci {
 				struct parport_pc_pci *card, int failed);
 };
 
-static int __devinit netmos_parallel_init(struct pci_dev *dev, struct parport_pc_pci *par, int autoirq, int autodma)
+static int netmos_parallel_init(struct pci_dev *dev, struct parport_pc_pci *par,
+				int autoirq, int autodma)
 {
 	/* the rule described below doesn't hold for this device */
 	if (dev->device == PCI_DEVICE_ID_NETMOS_9835 &&
@@ -111,7 +112,7 @@ static int __devinit netmos_parallel_init(struct pci_dev *dev, struct parport_pc
 	return 0;
 }
 
-static struct parport_pc_pci cards[] __devinitdata = {
+static struct parport_pc_pci cards[] = {
 	/* titan_110l */		{ 1, { { 3, -1 }, } },
 	/* titan_210l */		{ 1, { { 3, -1 }, } },
 	/* netmos_9xx5_combo */		{ 1, { { 2, -1 }, }, netmos_parallel_init },
@@ -258,7 +259,7 @@ MODULE_DEVICE_TABLE(pci,parport_serial_pci_tbl);
  * Cards not tested are marked n/t
  * If you have one of these cards and it works for you, please tell me..
  */
-static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
+static struct pciserial_board pci_parport_serial_boards[] = {
 	[titan_110l] = {
 		.flags		= FL_BASE1 | FL_BASE_BARS,
 		.num_ports	= 1,
@@ -479,8 +480,7 @@ struct parport_serial_private {
 };
 
 /* Register the serial port(s) of a PCI card. */
-static int __devinit serial_register (struct pci_dev *dev,
-				      const struct pci_device_id *id)
+static int serial_register(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
 	struct pciserial_board *board;
@@ -501,8 +501,7 @@ static int __devinit serial_register (struct pci_dev *dev,
 }
 
 /* Register the parallel port(s) of a PCI card. */
-static int __devinit parport_register (struct pci_dev *dev,
-				       const struct pci_device_id *id)
+static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct parport_pc_pci *card;
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
@@ -563,8 +562,8 @@ static int __devinit parport_register (struct pci_dev *dev,
 	return 0;
 }
 
-static int __devinit parport_serial_pci_probe (struct pci_dev *dev,
-					       const struct pci_device_id *id)
+static int parport_serial_pci_probe(struct pci_dev *dev,
+				    const struct pci_device_id *id)
 {
 	struct parport_serial_private *priv;
 	int err;
@@ -599,7 +598,7 @@ static int __devinit parport_serial_pci_probe (struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit parport_serial_pci_remove (struct pci_dev *dev)
+static void parport_serial_pci_remove(struct pci_dev *dev)
 {
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
 	int i;
@@ -664,7 +663,7 @@ static struct pci_driver parport_serial_pci_driver = {
 	.name		= "parport_serial",
 	.id_table	= parport_serial_pci_tbl,
 	.probe		= parport_serial_pci_probe,
-	.remove		= __devexit_p(parport_serial_pci_remove),
+	.remove		= parport_serial_pci_remove,
 #ifdef CONFIG_PM
 	.suspend	= parport_serial_pci_suspend,
 	.resume		= parport_serial_pci_resume,

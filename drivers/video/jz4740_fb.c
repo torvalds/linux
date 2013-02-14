@@ -136,7 +136,7 @@ struct jzfb {
 	uint32_t pseudo_palette[16];
 };
 
-static const struct fb_fix_screeninfo jzfb_fix __devinitconst = {
+static const struct fb_fix_screeninfo jzfb_fix = {
 	.id		= "JZ4740 FB",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
@@ -619,7 +619,7 @@ static struct  fb_ops jzfb_ops = {
 	.fb_setcolreg = jzfb_setcolreg,
 };
 
-static int __devinit jzfb_probe(struct platform_device *pdev)
+static int jzfb_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jzfb *jzfb;
@@ -725,7 +725,7 @@ err_framebuffer_release:
 	return ret;
 }
 
-static int __devexit jzfb_remove(struct platform_device *pdev)
+static int jzfb_remove(struct platform_device *pdev)
 {
 	struct jzfb *jzfb = platform_get_drvdata(pdev);
 
@@ -794,7 +794,7 @@ static const struct dev_pm_ops jzfb_pm_ops = {
 
 static struct platform_driver jzfb_driver = {
 	.probe = jzfb_probe,
-	.remove = __devexit_p(jzfb_remove),
+	.remove = jzfb_remove,
 	.driver = {
 		.name = "jz4740-fb",
 		.pm = JZFB_PM_OPS,

@@ -262,7 +262,7 @@ calstart:
 	return 0;
 }
 
-static int __devinit mv_u3d_phy_probe(struct platform_device *pdev)
+static int mv_u3d_phy_probe(struct platform_device *pdev)
 {
 	struct mv_u3d_phy *mv_u3d_phy;
 	struct mv_usb_platform_data *pdata;
@@ -331,7 +331,7 @@ static int __exit mv_u3d_phy_remove(struct platform_device *pdev)
 
 static struct platform_driver mv_u3d_phy_driver = {
 	.probe		= mv_u3d_phy_probe,
-	.remove		= __devexit_p(mv_u3d_phy_remove),
+	.remove		= mv_u3d_phy_remove,
 	.driver		= {
 		.name	= "mv-u3d-phy",
 		.owner	= THIS_MODULE,

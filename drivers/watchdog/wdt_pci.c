@@ -605,7 +605,7 @@ static struct notifier_block wdtpci_notifier = {
 };
 
 
-static int __devinit wdtpci_init_one(struct pci_dev *dev,
+static int wdtpci_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	int ret = -EIO;
@@ -705,7 +705,7 @@ out_pci:
 }
 
 
-static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
+static void wdtpci_remove_one(struct pci_dev *pdev)
 {
 	/* here we assume only one device will ever have
 	 * been picked up and registered by probe function */
@@ -736,7 +736,7 @@ static struct pci_driver wdtpci_driver = {
 	.name		= "wdt_pci",
 	.id_table	= wdtpci_pci_tbl,
 	.probe		= wdtpci_init_one,
-	.remove		= __devexit_p(wdtpci_remove_one),
+	.remove		= wdtpci_remove_one,
 };
 
 module_pci_driver(wdtpci_driver);

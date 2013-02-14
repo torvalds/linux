@@ -84,7 +84,7 @@ static const char *s1d13xxxfb_prod_names[] = {
 /*
  * here we define the default struct fb_fix_screeninfo
  */
-static struct fb_fix_screeninfo __devinitdata s1d13xxxfb_fix = {
+static struct fb_fix_screeninfo s1d13xxxfb_fix = {
 	.id		= S1D_FBID,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_PSEUDOCOLOR,
@@ -622,7 +622,7 @@ static struct fb_ops s1d13xxxfb_fbops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int s1d13xxxfb_width_tab[2][4] __devinitdata = {
+static int s1d13xxxfb_width_tab[2][4] = {
 	{4, 8, 16, -1},
 	{9, 12, 18, -1},
 };
@@ -642,8 +642,7 @@ static int s1d13xxxfb_width_tab[2][4] __devinitdata = {
  *	Note: some of the hardcoded values here might need some love to
  *	work on various chips, and might need to no longer be hardcoded.
  */
-static void __devinit
-s1d13xxxfb_fetch_hw_state(struct fb_info *info)
+static void s1d13xxxfb_fetch_hw_state(struct fb_info *info)
 {
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_fix_screeninfo *fix = &info->fix;
@@ -764,8 +763,7 @@ s1d13xxxfb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit
-s1d13xxxfb_probe(struct platform_device *pdev)
+static int s1d13xxxfb_probe(struct platform_device *pdev)
 {
 	struct s1d13xxxfb_par *default_par;
 	struct fb_info *info;

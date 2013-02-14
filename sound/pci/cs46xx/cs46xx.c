@@ -73,8 +73,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_cs46xx_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_cs46xx_ids);
 
-static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
-					   const struct pci_device_id *pci_id)
+static int snd_card_cs46xx_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -155,7 +155,7 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_card_cs46xx_remove(struct pci_dev *pci)
+static void snd_card_cs46xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -165,7 +165,7 @@ static struct pci_driver cs46xx_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cs46xx_ids,
 	.probe = snd_card_cs46xx_probe,
-	.remove = __devexit_p(snd_card_cs46xx_remove),
+	.remove = snd_card_cs46xx_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &snd_cs46xx_pm,

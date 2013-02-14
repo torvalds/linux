@@ -236,28 +236,6 @@ static void nec_8048_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static int nec_8048_panel_suspend(struct omap_dss_device *dssdev)
-{
-	nec_8048_panel_power_off(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	return 0;
-}
-
-static int nec_8048_panel_resume(struct omap_dss_device *dssdev)
-{
-	int r;
-
-	r = nec_8048_panel_power_on(dssdev);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
-}
-
 static int nec_8048_recommended_bpp(struct omap_dss_device *dssdev)
 {
 	return 16;
@@ -268,8 +246,6 @@ static struct omap_dss_driver nec_8048_driver = {
 	.remove			= nec_8048_panel_remove,
 	.enable			= nec_8048_panel_enable,
 	.disable		= nec_8048_panel_disable,
-	.suspend		= nec_8048_panel_suspend,
-	.resume			= nec_8048_panel_resume,
 	.get_recommended_bpp	= nec_8048_recommended_bpp,
 
 	.driver		= {
@@ -347,7 +323,7 @@ static int nec_8048_spi_resume(struct spi_device *spi)
 
 static struct spi_driver nec_8048_spi_driver = {
 	.probe		= nec_8048_spi_probe,
-	.remove		= __devexit_p(nec_8048_spi_remove),
+	.remove		= nec_8048_spi_remove,
 	.suspend	= nec_8048_spi_suspend,
 	.resume		= nec_8048_spi_resume,
 	.driver		= {

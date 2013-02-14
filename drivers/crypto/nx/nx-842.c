@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
-#include <asm/pSeries_reconfig.h>
 #include <asm/vio.h>
 
 #include "nx_csbcpb.h" /* struct nx_csbcpb */
@@ -1014,15 +1013,12 @@ error_out:
  *	NOTIFY_BAD encoded with error number on failure, use
  *		notifier_to_errno() to decode this value
  */
-static int nx842_OF_notifier(struct notifier_block *np,
-					unsigned long action,
-					void *update)
+static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
+			     void *update)
 {
-	struct pSeries_reconfig_prop_update *upd;
+	struct of_prop_reconfig *upd = update;
 	struct nx842_devdata *local_devdata;
 	struct device_node *node = NULL;
-
-	upd = (struct pSeries_reconfig_prop_update *)update;
 
 	rcu_read_lock();
 	local_devdata = rcu_dereference(devdata);
@@ -1030,10 +1026,10 @@ static int nx842_OF_notifier(struct notifier_block *np,
 		node = local_devdata->dev->of_node;
 
 	if (local_devdata &&
-			action == PSERIES_UPDATE_PROPERTY &&
-			!strcmp(upd->node->name, node->name)) {
+			action == OF_RECONFIG_UPDATE_PROPERTY &&
+			!strcmp(upd->dn->name, node->name)) {
 		rcu_read_unlock();
-		nx842_OF_upd(upd->property);
+		nx842_OF_upd(upd->prop);
 	} else
 		rcu_read_unlock();
 
@@ -1182,7 +1178,7 @@ static int __init nx842_probe(struct vio_dev *viodev,
 	synchronize_rcu();
 	kfree(old_devdata);
 
-	pSeries_reconfig_notifier_register(&nx842_of_nb);
+	of_reconfig_notifier_register(&nx842_of_nb);
 
 	ret = nx842_OF_upd(NULL);
 	if (ret && ret != -ENODEV) {
@@ -1228,7 +1224,7 @@ static int __exit nx842_remove(struct vio_dev *viodev)
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
-	pSeries_reconfig_notifier_unregister(&nx842_of_nb);
+	of_reconfig_notifier_unregister(&nx842_of_nb);
 	rcu_assign_pointer(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();

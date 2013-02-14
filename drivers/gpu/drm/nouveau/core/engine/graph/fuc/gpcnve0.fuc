@@ -57,6 +57,11 @@ chipsets:
 .b16 #nve4_gpc_mmio_tail
 .b16 #nve4_tpc_mmio_head
 .b16 #nve4_tpc_mmio_tail
+.b8  0xe6 0 0 0
+.b16 #nve4_gpc_mmio_head
+.b16 #nve4_gpc_mmio_tail
+.b16 #nve4_tpc_mmio_head
+.b16 #nve4_tpc_mmio_tail
 .b8  0 0 0 0
 
 // GPC mmio lists

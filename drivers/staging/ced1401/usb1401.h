@@ -165,7 +165,7 @@ typedef struct _DEVICE_EXTENSION
 
     // Parameters relating to a block read\write that is in progress. Some of these values
     //  are equivalent to values in rDMAInfo. The values here are those in use, while those
-    //  in rDMAInfo are those recieved from the 1401 via an escape sequence. If another
+    //  in rDMAInfo are those received from the 1401 via an escape sequence. If another
     //  escape sequence arrives before the previous xfer ends, rDMAInfo values are updated while these
     //  are used to finish off the current transfer.
     volatile short StagedId;            // The transfer area id for this transfer

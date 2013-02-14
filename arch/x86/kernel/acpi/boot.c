@@ -574,6 +574,12 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 
 	return irq;
 }
+EXPORT_SYMBOL_GPL(acpi_register_gsi);
+
+void acpi_unregister_gsi(u32 gsi)
+{
+}
+EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
 
 void __init acpi_set_irq_model_pic(void)
 {
@@ -1699,4 +1705,10 @@ int __acpi_release_global_lock(unsigned int *lock)
 		val = cmpxchg(lock, old, new);
 	} while (unlikely (val != old));
 	return old & 0x1;
+}
+
+void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
+{
+	e820_add_region(addr, size, E820_ACPI);
+	update_e820();
 }

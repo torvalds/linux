@@ -262,7 +262,7 @@ static struct snd_soc_dai_driver omap_hdmi_dai = {
 	.ops = &omap_hdmi_dai_ops,
 };
 
-static __devinit int omap_hdmi_probe(struct platform_device *pdev)
+static int omap_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *hdmi_rsrc;
@@ -324,7 +324,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit omap_hdmi_remove(struct platform_device *pdev)
+static int omap_hdmi_remove(struct platform_device *pdev)
 {
 	struct hdmi_priv *hdmi_data = dev_get_drvdata(&pdev->dev);
 
@@ -345,7 +345,7 @@ static struct platform_driver hdmi_dai_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = omap_hdmi_probe,
-	.remove = __devexit_p(omap_hdmi_remove),
+	.remove = omap_hdmi_remove,
 };
 
 module_platform_driver(hdmi_dai_driver);

@@ -1371,7 +1371,7 @@ static struct imx_pin_reg imx53_pin_regs[] = {
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 0, 0x7F8, 1), /* MX53_PAD_GPIO_8__ESAI1_TX5_RX0 */
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 1, 0x000, 0), /* MX53_PAD_GPIO_8__GPIO1_8 */
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 2, 0x000, 0), /* MX53_PAD_GPIO_8__EPIT2_EPITO */
-	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 3, 0x760, 3), /* MX53_PAD_GPIO_8__CAN1_RXCAN */
+	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 3, 0x760, 2), /* MX53_PAD_GPIO_8__CAN1_RXCAN */
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 4, 0x880, 5), /* MX53_PAD_GPIO_8__UART2_RXD_MUX */
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 5, 0x000, 0), /* MX53_PAD_GPIO_8__FIRI_TXD */
 	IMX_PIN_REG(MX53_PAD_GPIO_8, 0x6C8, 0x338, 6, 0x000, 0), /* MX53_PAD_GPIO_8__SPDIF_SRCLK */
@@ -1613,12 +1613,12 @@ static struct imx_pinctrl_soc_info imx53_pinctrl_info = {
 	.npin_regs = ARRAY_SIZE(imx53_pin_regs),
 };
 
-static struct of_device_id imx53_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id imx53_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx53-iomuxc", },
 	{ /* sentinel */ }
 };
 
-static int __devinit imx53_pinctrl_probe(struct platform_device *pdev)
+static int imx53_pinctrl_probe(struct platform_device *pdev)
 {
 	return imx_pinctrl_probe(pdev, &imx53_pinctrl_info);
 }
@@ -1630,7 +1630,7 @@ static struct platform_driver imx53_pinctrl_driver = {
 		.of_match_table = of_match_ptr(imx53_pinctrl_of_match),
 	},
 	.probe = imx53_pinctrl_probe,
-	.remove = __devexit_p(imx_pinctrl_remove),
+	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx53_pinctrl_init(void)

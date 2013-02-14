@@ -197,7 +197,7 @@ static const struct rtc_class_ops lpc32xx_rtc_ops = {
 	.alarm_irq_enable	= lpc32xx_rtc_alarm_irq_enable,
 };
 
-static int __devinit lpc32xx_rtc_probe(struct platform_device *pdev)
+static int lpc32xx_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct lpc32xx_rtc *rtc;
@@ -299,7 +299,7 @@ static int __devinit lpc32xx_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lpc32xx_rtc_remove(struct platform_device *pdev)
+static int lpc32xx_rtc_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -397,7 +397,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_rtc_match);
 
 static struct platform_driver lpc32xx_rtc_driver = {
 	.probe		= lpc32xx_rtc_probe,
-	.remove		= __devexit_p(lpc32xx_rtc_remove),
+	.remove		= lpc32xx_rtc_remove,
 	.driver = {
 		.name	= RTC_NAME,
 		.owner	= THIS_MODULE,

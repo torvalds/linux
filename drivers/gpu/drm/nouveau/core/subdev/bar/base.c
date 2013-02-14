@@ -65,14 +65,14 @@ nouveau_barobj_dtor(struct nouveau_object *object)
 }
 
 static u32
-nouveau_barobj_rd32(struct nouveau_object *object, u32 addr)
+nouveau_barobj_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_barobj *barobj = (void *)object;
 	return ioread32_native(barobj->iomem + addr);
 }
 
 static void
-nouveau_barobj_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nouveau_barobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_barobj *barobj = (void *)object;
 	iowrite32_native(data, barobj->iomem + addr);

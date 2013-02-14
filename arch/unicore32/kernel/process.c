@@ -262,26 +262,27 @@ asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
 int
 copy_thread(unsigned long clone_flags, unsigned long stack_start,
-	    unsigned long stk_sz, struct task_struct *p, struct pt_regs *regs)
+	    unsigned long stk_sz, struct task_struct *p)
 {
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 	thread->cpu_context.sp = (unsigned long)childregs;
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		thread->cpu_context.pc = (unsigned long)ret_from_kernel_thread;
 		thread->cpu_context.r4 = stack_start;
 		thread->cpu_context.r5 = stk_sz;
 		memset(childregs, 0, sizeof(struct pt_regs));
 	} else {
 		thread->cpu_context.pc = (unsigned long)ret_from_fork;
-		*childregs = *regs;
+		*childregs = *current_pt_regs();
 		childregs->UCreg_00 = 0;
-		childregs->UCreg_sp = stack_start;
+		if (stack_start)
+			childregs->UCreg_sp = stack_start;
 
 		if (clone_flags & CLONE_SETTLS)
-			childregs->UCreg_16 = regs->UCreg_03;
+			childregs->UCreg_16 = childregs->UCreg_03;
 	}
 	return 0;
 }

@@ -220,8 +220,8 @@ static void ems_pci_card_reset(struct ems_pci_card *card)
  * Probe PCI device for EMS CAN signature and register each available
  * CAN channel to SJA1000 Socket-CAN subsystem.
  */
-static int __devinit ems_pci_add_card(struct pci_dev *pdev,
-					const struct pci_device_id *ent)
+static int ems_pci_add_card(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;
 	struct net_device *dev;

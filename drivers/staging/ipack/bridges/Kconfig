@@ -1,8 +1,0 @@
-config BOARD_TPCI200
-	tristate "TEWS TPCI-200 support for IndustryPack bus"
-	depends on IPACK_BUS
-	depends on PCI
-	help
-	  This driver supports the TEWS TPCI200 device for the IndustryPack bus.
-	default n
-

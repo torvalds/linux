@@ -2,22 +2,17 @@
 #define CSR_LOG_H__
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2010
-            All rights reserved and confidential information of CSR
+	(c) Cambridge Silicon Radio Limited 2010
+	All rights reserved and confidential information of CSR
 
-            Refer to LICENSE.txt included with this source for details
-            on the license terms.
+	Refer to LICENSE.txt included with this source for details
+	on the license terms.
 
 *****************************************************************************/
 
 #include "csr_sched.h"
-#include "csr_panic.h"
 #include "csr_prim_defs.h"
 #include "csr_msgconv.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * Log filtering
@@ -77,34 +72,19 @@ u8 CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
 /*
  * Logging stuff
  */
-#define CSR_LOG_STRINGIFY_REAL(a) #a
+#define CSR_LOG_STRINGIFY_REAL(a) (#a)
 #define CSR_LOG_STRINGIFY(a) CSR_LOG_STRINGIFY_REAL(a)
 
-#ifdef CSR_LOG_ASSERT_ENABLE
-#define CSR_LOG_ASSERT(cond)                        \
-    do {                                                \
-        if (!(cond))                                    \
-        {                                               \
-            char *panic_arg = "[" __FILE__ ":" CSR_LOG_STRINGIFY(__LINE__) "] - " CSR_LOG_STRINGIFY(cond); \
-            CsrPanic(CSR_TECH_FW, CSR_PANIC_FW_ASSERTION_FAIL, panic_arg); \
-        }                                               \
-    } while (0)
-#else
-#define CSR_LOG_ASSERT(cond)
-#endif
-
-typedef struct
-{
-    u16            primitiveType;
-    const char *primitiveName;
-    CsrMsgConvMsgEntry  *messageConv; /* Private - do not use */
+typedef struct {
+	u16            primitiveType;
+	const char *primitiveName;
+	CsrMsgConvMsgEntry  *messageConv; /* Private - do not use */
 } CsrLogPrimitiveInformation;
 
-typedef struct
-{
-    const char        *techVer;
-    u32                   primitiveInfoCount;
-    CsrLogPrimitiveInformation *primitiveInfo;
+typedef struct {
+	const char        *techVer;
+	u32                   primitiveInfoCount;
+	CsrLogPrimitiveInformation *primitiveInfo;
 } CsrLogTechInformation;
 
 /*---------------------------------*/
@@ -118,21 +98,19 @@ typedef u32 bitmask32_t;
 #ifdef CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER
 /* DEPRECATED - replaced by csr_log_text.h */
 #define CSR_LOG_TEXT(text) \
-    do { \
-        if (!CsrLogTaskIsFiltered(CsrSchedTaskQueueGet(), CSR_LOG_LEVEL_TASK_TEXT)) \
-        { \
-            CsrLogTaskText(text, __LINE__, __FILE__); \
-        } \
-    } while (0)
+	do { \
+		if (!CsrLogTaskIsFiltered(CsrSchedTaskQueueGet(), CSR_LOG_LEVEL_TASK_TEXT)) { \
+			CsrLogTaskText(text, __LINE__, __FILE__); \
+		} \
+	} while (0)
 #else
 /* DEPRECATED - replaced by csr_log_text.h */
 #define CSR_LOG_TEXT(text) \
-    do { \
-        if (!CsrLogTaskIsFiltered(CsrSchedTaskQueueGet(), CSR_LOG_LEVEL_TASK_TEXT)) \
-        { \
-            CsrLogTaskText(text, 0, NULL); \
-        } \
-    } while (0)
+	do { \
+		if (!CsrLogTaskIsFiltered(CsrSchedTaskQueueGet(), CSR_LOG_LEVEL_TASK_TEXT)) { \
+			CsrLogTaskText(text, 0, NULL); \
+		} \
+	} while (0)
 #endif
 #else
 #define CSR_LOG_TEXT(text)
@@ -140,8 +118,8 @@ typedef u32 bitmask32_t;
 
 /* DEPRECATED - replaced by csr_log_text.h */
 void CsrLogTaskText(const char *text,
-    u32 line,
-    const char *file);
+	u32 line,
+	const char *file);
 
 #define CSR_LOG_STATE_TRANSITION_MASK_FSM_NAME          (0x001)
 #define CSR_LOG_STATE_TRANSITION_MASK_NEXT_STATE        (0x002)
@@ -153,16 +131,16 @@ void CsrLogTaskText(const char *text,
 
 /* DEPRECATED - replaced by csr_log_text.h */
 void CsrLogStateTransition(bitmask16_t mask,
-    u32 identifier,
-    const char *fsm_name,
-    u32 prev_state,
-    const char *prev_state_str,
-    u32 in_event,
-    const char *in_event_str,
-    u32 next_state,
-    const char *next_state_str,
-    u32 line,
-    const char *file);
+	u32 identifier,
+	const char *fsm_name,
+	u32 prev_state,
+	const char *prev_state_str,
+	u32 in_event,
+	const char *in_event_str,
+	u32 next_state,
+	const char *next_state_str,
+	u32 line,
+	const char *file);
 
 /*---------------------------------*/
 /*  BSP logging */
@@ -183,67 +161,63 @@ void CsrLogDeactivate(CsrSchedQid tskid);
 #define SYNERGY_SERIALIZER_TYPE_SER     (0x001)
 
 void CsrLogMessagePut(u32 line,
-    const char *file,
-    CsrSchedQid src_task_id,
-    CsrSchedQid dst_taskid,
-    CsrSchedMsgId msg_id,
-    u16 prim_type,
-    const void *msg);
+	const char *file,
+	CsrSchedQid src_task_id,
+	CsrSchedQid dst_taskid,
+	CsrSchedMsgId msg_id,
+	u16 prim_type,
+	const void *msg);
 
 void CsrLogMessageGet(CsrSchedQid src_task_id,
-    CsrSchedQid dst_taskid,
-    u8 get_res,
-    CsrSchedMsgId msg_id,
-    u16 prim_type,
-    const void *msg);
+	CsrSchedQid dst_taskid,
+	u8 get_res,
+	CsrSchedMsgId msg_id,
+	u16 prim_type,
+	const void *msg);
 
 void CsrLogTimedEventIn(u32 line,
-    const char *file,
-    CsrSchedQid task_id,
-    CsrSchedTid tid,
-    CsrTime requested_delay,
-    u16 fniarg,
-    const void *fnvarg);
+	const char *file,
+	CsrSchedQid task_id,
+	CsrSchedTid tid,
+	u32 requested_delay,
+	u16 fniarg,
+	const void *fnvarg);
 
 void CsrLogTimedEventFire(CsrSchedQid task_id,
-    CsrSchedTid tid);
+	CsrSchedTid tid);
 
 void CsrLogTimedEventDone(CsrSchedQid task_id,
-    CsrSchedTid tid);
+	CsrSchedTid tid);
 
 void CsrLogTimedEventCancel(u32 line,
-    const char *file,
-    CsrSchedQid task_id,
-    CsrSchedTid tid,
-    u8 cancel_res);
+	const char *file,
+	CsrSchedQid task_id,
+	CsrSchedTid tid,
+	u8 cancel_res);
 
 void CsrLogBgintRegister(u8 thread_id,
-    CsrSchedBgint irq,
-    const char *callback,
-    const void *ptr);
+	CsrSchedBgint irq,
+	const char *callback,
+	const void *ptr);
 void CsrLogBgintUnregister(CsrSchedBgint irq);
 void CsrLogBgintSet(CsrSchedBgint irq);
 void CsrLogBgintServiceStart(CsrSchedBgint irq);
 void CsrLogBgintServiceDone(CsrSchedBgint irq);
 
 void CsrLogExceptionStateEvent(u16 prim_type,
-    CsrPrim msg_type,
-    u16 state,
-    u32 line,
-    const char *file);
+	CsrPrim msg_type,
+	u16 state,
+	u32 line,
+	const char *file);
 void CsrLogExceptionGeneral(u16 prim_type,
-    u16 state,
-    const char *text,
-    u32 line,
-    const char *file);
+	u16 state,
+	const char *text,
+	u32 line,
+	const char *file);
 void CsrLogExceptionWarning(u16 prim_type,
-    u16 state,
-    const char *text,
-    u32 line,
-    const char *file);
-
-#ifdef __cplusplus
-}
-#endif
+	u16 state,
+	const char *text,
+	u32 line,
+	const char *file);
 
 #endif

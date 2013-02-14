@@ -23,6 +23,11 @@
 	(IRO[159].base + ((funcId) * IRO[159].m1))
 #define CSTORM_FUNC_EN_OFFSET(funcId) \
 	(IRO[149].base + ((funcId) * IRO[149].m1))
+#define CSTORM_HC_SYNC_LINE_INDEX_E1X_OFFSET(hcIndex, sbId) \
+	(IRO[139].base + ((hcIndex) * IRO[139].m1) + ((sbId) * IRO[139].m2))
+#define CSTORM_HC_SYNC_LINE_INDEX_E2_OFFSET(hcIndex, sbId) \
+	(IRO[138].base + (((hcIndex)>>2) * IRO[138].m1) + (((hcIndex)&3) \
+	* IRO[138].m2) + ((sbId) * IRO[138].m3))
 #define CSTORM_IGU_MODE_OFFSET (IRO[157].base)
 #define CSTORM_ISCSI_CQ_SIZE_OFFSET(pfId) \
 	(IRO[316].base + ((pfId) * IRO[316].m1))

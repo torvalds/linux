@@ -57,7 +57,7 @@ config DEVTMPFS_MOUNT
 	  on the rootfs is completely empty.
 
 config STANDALONE
-	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
+	bool "Select only drivers that don't need compile-time external firmware"
 	default y
 	help
 	  Select this option if you don't have magic firmware for drivers that
@@ -185,7 +185,6 @@ config DMA_SHARED_BUFFER
 	bool
 	default n
 	select ANON_INODES
-	depends on EXPERIMENTAL
 	help
 	  This option enables the framework for buffer-sharing between
 	  multiple drivers. A buffer is associated with a file using driver
@@ -193,8 +192,8 @@ config DMA_SHARED_BUFFER
 	  driver.
 
 config CMA
-	bool "Contiguous Memory Allocator (EXPERIMENTAL)"
-	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK && EXPERIMENTAL
+	bool "Contiguous Memory Allocator"
+	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
 	select MIGRATION
 	select MEMORY_ISOLATION
 	help

@@ -26,6 +26,12 @@
 
 #include "omap-pcm.h"
 
+#ifdef CONFIG_ARCH_OMAP1
+#define mcbsp_omap1()	1
+#else
+#define mcbsp_omap1()	0
+#endif
+
 /* McBSP register numbers. Register address offset = num * reg_step */
 enum {
 	/* Common registers */
@@ -341,7 +347,7 @@ int omap_st_enable(struct omap_mcbsp *mcbsp);
 int omap_st_disable(struct omap_mcbsp *mcbsp);
 int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
 
-int __devinit omap_mcbsp_init(struct platform_device *pdev);
-void __devexit omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_init(struct platform_device *pdev);
+void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
 
 #endif /* __ASOC_MCBSP_H */

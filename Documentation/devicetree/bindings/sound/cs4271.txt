@@ -18,6 +18,8 @@ Optional properties:
 
  - reset-gpio: 	a GPIO spec to define which pin is connected to the chip's
 		!RESET pin
+ - cirrus,amuteb-eq-bmutec:	When given, the Codec's AMUTEB=BMUTEC flag
+				is enabled.
 
 Examples:
 

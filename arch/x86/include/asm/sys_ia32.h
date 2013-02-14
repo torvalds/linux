@@ -54,8 +54,6 @@ asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
 asmlinkage long sys32_personality(unsigned long);
 asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
 
-asmlinkage long sys32_clone(unsigned int, unsigned int, struct pt_regs *);
-
 long sys32_lseek(unsigned int, int, unsigned int);
 long sys32_kill(int, int);
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
@@ -71,8 +69,6 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 
 /* ia32/ia32_signal.c */
 asmlinkage long sys32_sigsuspend(int, int, old_sigset_t);
-asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *,
-				  stack_ia32_t __user *, struct pt_regs *);
 asmlinkage long sys32_sigreturn(struct pt_regs *);
 asmlinkage long sys32_rt_sigreturn(struct pt_regs *);
 

@@ -193,7 +193,23 @@ struct work_request_hdr {
 	__be64 wr_lo;
 };
 
+/* wr_hi fields */
+#define S_WR_OP    24
+#define V_WR_OP(x) ((__u64)(x) << S_WR_OP)
+
 #define WR_HDR struct work_request_hdr wr
+
+/* option 0 fields */
+#define S_MSS_IDX    60
+#define M_MSS_IDX    0xF
+#define V_MSS_IDX(x) ((__u64)(x) << S_MSS_IDX)
+#define G_MSS_IDX(x) (((x) >> S_MSS_IDX) & M_MSS_IDX)
+
+/* option 2 fields */
+#define S_RSS_QUEUE    0
+#define M_RSS_QUEUE    0x3FF
+#define V_RSS_QUEUE(x) ((x) << S_RSS_QUEUE)
+#define G_RSS_QUEUE(x) (((x) >> S_RSS_QUEUE) & M_RSS_QUEUE)
 
 struct cpl_pass_open_req {
 	WR_HDR;
@@ -204,12 +220,14 @@ struct cpl_pass_open_req {
 	__be32 peer_ip;
 	__be64 opt0;
 #define TX_CHAN(x)    ((x) << 2)
+#define NO_CONG(x)    ((x) << 4)
 #define DELACK(x)     ((x) << 5)
 #define ULP_MODE(x)   ((x) << 8)
 #define RCV_BUFSIZ(x) ((x) << 12)
 #define DSCP(x)       ((x) << 22)
 #define SMAC_SEL(x)   ((u64)(x) << 28)
 #define L2T_IDX(x)    ((u64)(x) << 36)
+#define TCAM_BYPASS(x) ((u64)(x) << 48)
 #define NAGLE(x)      ((u64)(x) << 49)
 #define WND_SCALE(x)  ((u64)(x) << 50)
 #define KEEP_ALIVE(x) ((u64)(x) << 54)
@@ -247,8 +265,10 @@ struct cpl_pass_accept_rpl {
 #define RSS_QUEUE_VALID      (1 << 10)
 #define RX_COALESCE_VALID(x) ((x) << 11)
 #define RX_COALESCE(x)       ((x) << 12)
+#define PACE(x)	      ((x) << 16)
 #define TX_QUEUE(x)          ((x) << 23)
 #define RX_CHANNEL(x)        ((x) << 26)
+#define CCTRL_ECN(x)         ((x) << 27)
 #define WND_SCALE_EN(x)      ((x) << 28)
 #define TSTAMPS_EN(x)        ((x) << 29)
 #define SACK_EN(x)           ((x) << 30)
@@ -292,6 +312,9 @@ struct cpl_pass_establish {
 	union opcode_tid ot;
 	__be32 rsvd;
 	__be32 tos_stid;
+#define PASS_OPEN_TID(x) ((x) << 0)
+#define PASS_OPEN_TOS(x) ((x) << 24)
+#define GET_PASS_OPEN_TID(x)	(((x) >> 0) & 0xFFFFFF)
 #define GET_POPEN_TID(x) ((x) & 0xffffff)
 #define GET_POPEN_TOS(x) (((x) >> 24) & 0xff)
 	__be16 mac_idx;
@@ -332,6 +355,7 @@ struct cpl_set_tcb_field {
 	__be16 word_cookie;
 #define TCB_WORD(x)   ((x) << 0)
 #define TCB_COOKIE(x) ((x) << 5)
+#define GET_TCB_COOKIE(x) (((x) >> 5) & 7)
 	__be64 mask;
 	__be64 val;
 };
@@ -536,6 +560,37 @@ struct cpl_rx_pkt {
 	__be16 err_vec;
 };
 
+/* rx_pkt.l2info fields */
+#define S_RX_ETHHDR_LEN    0
+#define M_RX_ETHHDR_LEN    0x1F
+#define V_RX_ETHHDR_LEN(x) ((x) << S_RX_ETHHDR_LEN)
+#define G_RX_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_ETHHDR_LEN)
+
+#define S_RX_MACIDX    8
+#define M_RX_MACIDX    0x1FF
+#define V_RX_MACIDX(x) ((x) << S_RX_MACIDX)
+#define G_RX_MACIDX(x) (((x) >> S_RX_MACIDX) & M_RX_MACIDX)
+
+#define S_RXF_SYN    21
+#define V_RXF_SYN(x) ((x) << S_RXF_SYN)
+#define F_RXF_SYN    V_RXF_SYN(1U)
+
+#define S_RX_CHAN    28
+#define M_RX_CHAN    0xF
+#define V_RX_CHAN(x) ((x) << S_RX_CHAN)
+#define G_RX_CHAN(x) (((x) >> S_RX_CHAN) & M_RX_CHAN)
+
+/* rx_pkt.hdr_len fields */
+#define S_RX_TCPHDR_LEN    0
+#define M_RX_TCPHDR_LEN    0x3F
+#define V_RX_TCPHDR_LEN(x) ((x) << S_RX_TCPHDR_LEN)
+#define G_RX_TCPHDR_LEN(x) (((x) >> S_RX_TCPHDR_LEN) & M_RX_TCPHDR_LEN)
+
+#define S_RX_IPHDR_LEN    6
+#define M_RX_IPHDR_LEN    0x3FF
+#define V_RX_IPHDR_LEN(x) ((x) << S_RX_IPHDR_LEN)
+#define G_RX_IPHDR_LEN(x) (((x) >> S_RX_IPHDR_LEN) & M_RX_IPHDR_LEN)
+
 struct cpl_trace_pkt {
 	u8 opcode;
 	u8 intf;
@@ -634,6 +689,17 @@ struct cpl_fw6_msg {
 /* cpl_fw6_msg.type values */
 enum {
 	FW6_TYPE_CMD_RPL = 0,
+	FW6_TYPE_WR_RPL = 1,
+	FW6_TYPE_CQE = 2,
+	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+};
+
+struct cpl_fw6_msg_ofld_connection_wr_rpl {
+	__u64   cookie;
+	__be32  tid;    /* or atid in case of active failure */
+	__u8    t_state;
+	__u8    retval;
+	__u8    rsvd[2];
 };
 
 enum {
@@ -658,6 +724,7 @@ struct ulptx_sgl {
 	__be32 cmd_nsge;
 #define ULPTX_CMD(x) ((x) << 24)
 #define ULPTX_NSGE(x) ((x) << 0)
+#define ULPTX_MORE (1U << 23)
 	__be32 len0;
 	__be64 addr0;
 	struct ulptx_sge_pair sge[0];

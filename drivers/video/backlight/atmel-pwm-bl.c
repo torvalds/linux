@@ -106,10 +106,9 @@ static int atmel_pwm_bl_init_pwm(struct atmel_pwm_bl *pwmbl)
 	pwm_channel_writel(&pwmbl->pwmc, PWM_CPRD,
 			pwmbl->pdata->pwm_compare_max);
 
-	dev_info(&pwmbl->pdev->dev, "Atmel PWM backlight driver "
-			"(%lu Hz)\n", pwmbl->pwmc.mck /
-			pwmbl->pdata->pwm_compare_max /
-			(1 << prescale));
+	dev_info(&pwmbl->pdev->dev, "Atmel PWM backlight driver (%lu Hz)\n",
+		pwmbl->pwmc.mck / pwmbl->pdata->pwm_compare_max /
+		(1 << prescale));
 
 	return pwm_channel_enable(&pwmbl->pwmc);
 }

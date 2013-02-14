@@ -422,7 +422,7 @@ static struct cs5535audio_dma_ops snd_cs5535audio_capture_dma_ops = {
         .read_dma_pntr = cs5535audio_capture_read_dma_pntr,
 };
 
-int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
+int snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
 {
 	struct snd_pcm *pcm;
 	int err;

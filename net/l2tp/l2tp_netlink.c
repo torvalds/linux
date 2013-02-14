@@ -632,7 +632,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	     nla_put_u16(skb, L2TP_ATTR_MRU, session->mru)))
 		goto nla_put_failure;
 
-	if ((session->ifname && session->ifname[0] &&
+	if ((session->ifname[0] &&
 	     nla_put_string(skb, L2TP_ATTR_IFNAME, session->ifname)) ||
 	    (session->cookie_len &&
 	     nla_put(skb, L2TP_ATTR_COOKIE, session->cookie_len,

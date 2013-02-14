@@ -15,6 +15,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/ihex.h>
+#include <linux/usb/ezusb.h>
 
 struct ezusb_fx_type {
 	/* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
@@ -22,21 +23,16 @@ struct ezusb_fx_type {
 	unsigned short max_internal_adress;
 };
 
-struct ezusb_fx_type ezusb_fx1 = {
+static struct ezusb_fx_type ezusb_fx1 = {
 	.cpucs_reg = 0x7F92,
 	.max_internal_adress = 0x1B3F,
-};
-
-struct ezusb_fx_type ezusb_fx2 = {
-	.cpucs_reg = 0xE600,
-	.max_internal_adress = 0x3FFF,
 };
 
 /* Commands for writing to memory */
 #define WRITE_INT_RAM 0xA0
 #define WRITE_EXT_RAM 0xA3
 
-int ezusb_writememory(struct usb_device *dev, int address,
+static int ezusb_writememory(struct usb_device *dev, int address,
 				unsigned char *data, int length, __u8 request)
 {
 	int result;
@@ -58,10 +54,9 @@ int ezusb_writememory(struct usb_device *dev, int address,
 	kfree(transfer_buffer);
 	return result;
 }
-EXPORT_SYMBOL_GPL(ezusb_writememory);
 
-int ezusb_set_reset(struct usb_device *dev, unsigned short cpucs_reg,
-			 unsigned char reset_bit)
+static int ezusb_set_reset(struct usb_device *dev, unsigned short cpucs_reg,
+			   unsigned char reset_bit)
 {
 	int response = ezusb_writememory(dev, cpucs_reg, &reset_bit, 1, WRITE_INT_RAM);
 	if (response < 0)
@@ -75,12 +70,6 @@ int ezusb_fx1_set_reset(struct usb_device *dev, unsigned char reset_bit)
 	return ezusb_set_reset(dev, ezusb_fx1.cpucs_reg, reset_bit);
 }
 EXPORT_SYMBOL_GPL(ezusb_fx1_set_reset);
-
-int ezusb_fx2_set_reset(struct usb_device *dev, unsigned char reset_bit)
-{
-	return ezusb_set_reset(dev, ezusb_fx2.cpucs_reg, reset_bit);
-}
-EXPORT_SYMBOL_GPL(ezusb_fx2_set_reset);
 
 static int ezusb_ihex_firmware_download(struct usb_device *dev,
 					struct ezusb_fx_type fx,
@@ -151,11 +140,28 @@ int ezusb_fx1_ihex_firmware_download(struct usb_device *dev,
 }
 EXPORT_SYMBOL_GPL(ezusb_fx1_ihex_firmware_download);
 
+#if 0
+/*
+ * Once someone one needs these fx2 functions, uncomment them
+ * and add them to ezusb.h and all should be good.
+ */
+static struct ezusb_fx_type ezusb_fx2 = {
+	.cpucs_reg = 0xE600,
+	.max_internal_adress = 0x3FFF,
+};
+
+int ezusb_fx2_set_reset(struct usb_device *dev, unsigned char reset_bit)
+{
+	return ezusb_set_reset(dev, ezusb_fx2.cpucs_reg, reset_bit);
+}
+EXPORT_SYMBOL_GPL(ezusb_fx2_set_reset);
+
 int ezusb_fx2_ihex_firmware_download(struct usb_device *dev,
 				     const char *firmware_path)
 {
 	return ezusb_ihex_firmware_download(dev, ezusb_fx2, firmware_path);
 }
 EXPORT_SYMBOL_GPL(ezusb_fx2_ihex_firmware_download);
+#endif
 
 MODULE_LICENSE("GPL");

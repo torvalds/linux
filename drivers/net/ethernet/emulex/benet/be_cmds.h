@@ -196,9 +196,14 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
 #define OPCODE_COMMON_GET_HSW_CONFIG			152
+#define OPCODE_COMMON_GET_FUNC_CONFIG			160
+#define OPCODE_COMMON_GET_PROFILE_CONFIG		164
+#define OPCODE_COMMON_SET_PROFILE_CONFIG		165
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
+#define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
+#define OPCODE_COMMON_ENABLE_DISABLE_VF			196
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -1151,14 +1156,22 @@ struct flashrom_params {
 	u32 op_type;
 	u32 data_buf_size;
 	u32 offset;
-	u8 data_buf[4];
 };
 
 struct be_cmd_write_flashrom {
 	struct be_cmd_req_hdr hdr;
 	struct flashrom_params params;
-};
+	u8 data_buf[32768];
+	u8 rsvd[4];
+} __packed;
 
+/* cmd to read flash crc */
+struct be_cmd_read_flash_crc {
+	struct be_cmd_req_hdr hdr;
+	struct flashrom_params params;
+	u8 crc[4];
+	u8 rsvd[4];
+};
 /**************** Lancer Firmware Flash ************/
 struct amap_lancer_write_obj_context {
 	u8 write_length[24];
@@ -1429,6 +1442,41 @@ struct be_cmd_resp_set_func_cap {
 	u8 rsvd[212];
 };
 
+/*********************** Function Privileges ***********************/
+enum {
+	BE_PRIV_DEFAULT = 0x1,
+	BE_PRIV_LNKQUERY = 0x2,
+	BE_PRIV_LNKSTATS = 0x4,
+	BE_PRIV_LNKMGMT = 0x8,
+	BE_PRIV_LNKDIAG = 0x10,
+	BE_PRIV_UTILQUERY = 0x20,
+	BE_PRIV_FILTMGMT = 0x40,
+	BE_PRIV_IFACEMGMT = 0x80,
+	BE_PRIV_VHADM = 0x100,
+	BE_PRIV_DEVCFG = 0x200,
+	BE_PRIV_DEVSEC = 0x400
+};
+#define MAX_PRIVILEGES		(BE_PRIV_VHADM | BE_PRIV_DEVCFG | \
+				 BE_PRIV_DEVSEC)
+#define MIN_PRIVILEGES		BE_PRIV_DEFAULT
+
+struct be_cmd_priv_map {
+	u8 opcode;
+	u8 subsystem;
+	u32 priv_mask;
+};
+
+struct be_cmd_req_get_fn_privileges {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+};
+
+struct be_cmd_resp_get_fn_privileges {
+	struct be_cmd_resp_hdr hdr;
+	u32 privilege_mask;
+};
+
+
 /******************** GET/SET_MACLIST  **************************/
 #define BE_MAX_MAC			64
 struct be_cmd_req_get_mac_list {
@@ -1608,33 +1656,6 @@ struct be_cmd_resp_get_stats_v1 {
 	struct be_hw_stats_v1 hw_stats;
 };
 
-static inline void *hw_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
-
-		return &cmd->hw_stats;
-	} else {
-		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
-
-		return &cmd->hw_stats;
-	}
-}
-
-static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->erx;
-	} else {
-		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->erx;
-	}
-}
-
-
 /************** get fat capabilites *******************/
 #define MAX_MODULES 27
 #define MAX_MODES 4
@@ -1683,6 +1704,96 @@ struct be_cmd_req_set_ext_fat_caps {
 	struct be_cmd_req_hdr hdr;
 	struct be_fat_conf_params set_params;
 };
+
+#define RESOURCE_DESC_SIZE			72
+#define NIC_RESOURCE_DESC_TYPE_ID		0x41
+#define MAX_RESOURCE_DESC			4
+
+/* QOS unit number */
+#define QUN					4
+/* Immediate */
+#define IMM					6
+/* No save */
+#define NOSV					7
+
+struct be_nic_resource_desc {
+	u8 desc_type;
+	u8 desc_len;
+	u8 rsvd1;
+	u8 flags;
+	u8 vf_num;
+	u8 rsvd2;
+	u8 pf_num;
+	u8 rsvd3;
+	u16 unicast_mac_count;
+	u8 rsvd4[6];
+	u16 mcc_count;
+	u16 vlan_count;
+	u16 mcast_mac_count;
+	u16 txq_count;
+	u16 rq_count;
+	u16 rssq_count;
+	u16 lro_count;
+	u16 cq_count;
+	u16 toe_conn_count;
+	u16 eq_count;
+	u32 rsvd5;
+	u32 cap_flags;
+	u8 link_param;
+	u8 rsvd6[3];
+	u32 bw_min;
+	u32 bw_max;
+	u8 acpi_params;
+	u8 wol_param;
+	u16 rsvd7;
+	u32 rsvd8[3];
+};
+
+struct be_cmd_req_get_func_config {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_resp_get_func_config {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
+#define ACTIVE_PROFILE_TYPE			0x2
+struct be_cmd_req_get_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd;
+	u8 type;
+	u16 rsvd1;
+};
+
+struct be_cmd_resp_get_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
+struct be_cmd_req_set_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+	u32 desc_count;
+	struct be_nic_resource_desc nic_desc;
+};
+
+struct be_cmd_resp_set_profile_config {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_enable_disable_vf {
+	struct be_cmd_req_hdr hdr;
+	u8 enable;
+	u8 rsvd[3];
+};
+
+static inline bool check_privilege(struct be_adapter *adapter, u32 flags)
+{
+	return flags & adapter->cmd_privileges ? true : false;
+}
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_fw_wait_ready(struct be_adapter *adapter);
@@ -1780,6 +1891,8 @@ extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
+extern int be_cmd_get_fn_privileges(struct be_adapter *adapter,
+				    u32 *privilege, u32 domain);
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 				    bool *pmac_id_active, u32 *pmac_id,
 				    u8 domain);
@@ -1798,4 +1911,10 @@ extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 extern int lancer_wait_ready(struct be_adapter *adapter);
 extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
+extern int be_cmd_get_func_config(struct be_adapter *adapter);
+extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
+				     u8 domain);
 
+extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
+				     u8 domain);
+extern int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);

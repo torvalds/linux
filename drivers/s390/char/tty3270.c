@@ -722,6 +722,7 @@ out_pages:
 	while (pages--)
 		free_pages((unsigned long) tp->freemem_pages[pages], 0);
 	kfree(tp->freemem_pages);
+	tty_port_destroy(&tp->port);
 out_tp:
 	kfree(tp);
 out_err:
@@ -744,6 +745,7 @@ tty3270_free_view(struct tty3270 *tp)
 	for (pages = 0; pages < TTY3270_STRING_PAGES; pages++)
 		free_pages((unsigned long) tp->freemem_pages[pages], 0);
 	kfree(tp->freemem_pages);
+	tty_port_destroy(&tp->port);
 	kfree(tp);
 }
 

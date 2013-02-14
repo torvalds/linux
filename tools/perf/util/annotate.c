@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "annotate.h"
 #include <pthread.h>
+#include <linux/bitops.h>
 
 const char 	*disassembler_style;
 const char	*objdump_path;
@@ -170,15 +171,15 @@ static int lock__parse(struct ins_operands *ops)
 	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
 		goto out_free_ops;
 
-        ops->locked.ins = ins__find(name);
-        if (ops->locked.ins == NULL)
-                goto out_free_ops;
+	ops->locked.ins = ins__find(name);
+	if (ops->locked.ins == NULL)
+		goto out_free_ops;
 
-        if (!ops->locked.ins->ops)
-                return 0;
+	if (!ops->locked.ins->ops)
+		return 0;
 
-        if (ops->locked.ins->ops->parse)
-                ops->locked.ins->ops->parse(ops->locked.ops);
+	if (ops->locked.ins->ops->parse)
+		ops->locked.ins->ops->parse(ops->locked.ops);
 
 	return 0;
 
@@ -400,6 +401,8 @@ static struct ins instructions[] = {
 	{ .name = "testb", .ops  = &mov_ops, },
 	{ .name = "testl", .ops  = &mov_ops, },
 	{ .name = "xadd",  .ops  = &mov_ops, },
+	{ .name = "xbeginl", .ops  = &jump_ops, },
+	{ .name = "xbeginq", .ops  = &jump_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
@@ -855,12 +858,41 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 	struct source_line *iter;
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
+	int ret;
 
 	while (*p != NULL) {
 		parent = *p;
 		iter = rb_entry(parent, struct source_line, node);
 
-		if (src_line->percent > iter->percent)
+		ret = strcmp(iter->path, src_line->path);
+		if (ret == 0) {
+			iter->percent_sum += src_line->percent;
+			return;
+		}
+
+		if (ret < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	src_line->percent_sum = src_line->percent;
+
+	rb_link_node(&src_line->node, parent, p);
+	rb_insert_color(&src_line->node, root);
+}
+
+static void __resort_source_line(struct rb_root *root, struct source_line *src_line)
+{
+	struct source_line *iter;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct source_line, node);
+
+		if (src_line->percent_sum > iter->percent_sum)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -868,6 +900,24 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 
 	rb_link_node(&src_line->node, parent, p);
 	rb_insert_color(&src_line->node, root);
+}
+
+static void resort_source_line(struct rb_root *dest_root, struct rb_root *src_root)
+{
+	struct source_line *src_line;
+	struct rb_node *node;
+
+	node = rb_first(src_root);
+	while (node) {
+		struct rb_node *next;
+
+		src_line = rb_entry(node, struct source_line, node);
+		next = rb_next(node);
+		rb_erase(node, src_root);
+
+		__resort_source_line(dest_root, src_line);
+		node = next;
+	}
 }
 
 static void symbol__free_source_line(struct symbol *sym, int len)
@@ -894,6 +944,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct rb_root tmp_root = RB_ROOT;
 
 	if (!h->sum)
 		return 0;
@@ -928,12 +979,13 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		strcpy(src_line[i].path, path);
-		insert_source_line(root, &src_line[i]);
+		insert_source_line(&tmp_root, &src_line[i]);
 
 	next:
 		pclose(fp);
 	}
 
+	resort_source_line(root, &tmp_root);
 	return 0;
 }
 
@@ -957,7 +1009,7 @@ static void print_summary(struct rb_root *root, const char *filename)
 		char *path;
 
 		src_line = rb_entry(node, struct source_line, node);
-		percent = src_line->percent;
+		percent = src_line->percent_sum;
 		color = get_percent_color(percent);
 		path = src_line->path;
 

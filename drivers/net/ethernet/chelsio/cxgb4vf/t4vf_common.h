@@ -232,8 +232,8 @@ static inline int t4vf_wr_mbox_ns(struct adapter *adapter, const void *cmd,
 	return t4vf_wr_mbox_core(adapter, cmd, size, rpl, false);
 }
 
-int __devinit t4vf_wait_dev_ready(struct adapter *);
-int __devinit t4vf_port_init(struct adapter *, int);
+int t4vf_wait_dev_ready(struct adapter *);
+int t4vf_port_init(struct adapter *, int);
 
 int t4vf_fw_reset(struct adapter *);
 int t4vf_query_params(struct adapter *, unsigned int, const u32 *, u32 *);

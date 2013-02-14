@@ -1,0 +1,142 @@
+* Atmel AT91 Pinmux Controller
+
+The AT91 Pinmux Controler, enables the IC
+to share one PAD to several functional blocks. The sharing is done by
+multiplexing the PAD input/output signals. For each PAD there are up to
+8 muxing options (called periph modes). Since different modules require
+different PAD settings (like pull up, keeper, etc) the contoller controls
+also the PAD settings parameters.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+Atmel AT91 pin configuration node is a node of a group of pins which can be
+used for a specific device or function. This node represents both mux and config
+of the pins in that group. The 'pins' selects the function mode(also named pin
+mode) this pin can work on and the 'config' configures various pad settings
+such as pull-up, multi drive, etc.
+
+Required properties for iomux controller:
+- compatible: "atmel,at91rm9200-pinctrl"
+- atmel,mux-mask: array of mask (periph per bank) to describe if a pin can be
+  configured in this periph mode. All the periph and bank need to be describe.
+
+How to create such array:
+
+Each column will represent the possible peripheral of the pinctrl
+Each line will represent a pio bank
+
+Take an example on the 9260
+Peripheral: 2 ( A and B)
+Bank: 3 (A, B and C)
+=>
+
+  /*    A         B     */
+  0xffffffff 0xffc00c3b  /* pioA */
+  0xffffffff 0x7fff3ccf  /* pioB */
+  0xffffffff 0x007fffff  /* pioC */
+
+For each peripheral/bank we will descibe in a u32 if a pin can can be
+configured in it by putting 1 to the pin bit (1 << pin)
+
+Let's take the pioA on peripheral B
+From the datasheet Table 10-2.
+Peripheral B
+PA0	MCDB0
+PA1	MCCDB
+PA2
+PA3	MCDB3
+PA4	MCDB2
+PA5	MCDB1
+PA6
+PA7
+PA8
+PA9
+PA10	ETX2
+PA11	ETX3
+PA12
+PA13
+PA14
+PA15
+PA16
+PA17
+PA18
+PA19
+PA20
+PA21
+PA22	ETXER
+PA23	ETX2
+PA24	ETX3
+PA25	ERX2
+PA26	ERX3
+PA27	ERXCK
+PA28	ECRS
+PA29	ECOL
+PA30	RXD4
+PA31	TXD4
+
+=> 0xffc00c3b
+
+Required properties for pin configuration node:
+- atmel,pins: 4 integers array, represents a group of pins mux and config
+  setting. The format is atmel,pins = <PIN_BANK PIN_BANK_NUM PERIPH CONFIG>.
+  The PERIPH 0 means gpio, PERIPH 1 is periph A, PERIPH 2 is periph B...
+  PIN_BANK 0 is pioA, PIN_BANK 1 is pioB...
+
+Bits used for CONFIG:
+PULL_UP		(1 << 0): indicate this pin need a pull up.
+MULTIDRIVE	(1 << 1): indicate this pin need to be configured as multidrive.
+DEGLITCH	(1 << 2): indicate this pin need deglitch.
+PULL_DOWN	(1 << 3): indicate this pin need a pull down.
+DIS_SCHMIT	(1 << 4): indicate this pin need to disable schmit trigger.
+DEBOUNCE	(1 << 16): indicate this pin need debounce.
+DEBOUNCE_VAL	(0x3fff << 17): debounce val.
+
+NOTE:
+Some requirements for using atmel,at91rm9200-pinctrl binding:
+1. We have pin function node defined under at91 controller node to represent
+   what pinmux functions this SoC supports.
+2. The driver can use the function node's name and pin configuration node's
+   name describe the pin function and group hierarchy.
+   For example, Linux at91 pinctrl driver takes the function node's name
+   as the function name and pin configuration node's name as group name to
+   create the map table.
+3. Each pin configuration node should have a phandle, devices can set pins
+   configurations by referring to the phandle of that pin configuration node.
+4. The gpio controller must be describe in the pinctrl simple-bus.
+
+Examples:
+
+pinctrl@fffff400 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+	compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
+	reg = <0xfffff400 0x600>;
+
+	atmel,mux-mask = <
+	      /*    A         B     */
+	       0xffffffff 0xffc00c3b  /* pioA */
+	       0xffffffff 0x7fff3ccf  /* pioB */
+	       0xffffffff 0x007fffff  /* pioC */
+	      >;
+
+	/* shared pinctrl settings */
+	dbgu {
+		pinctrl_dbgu: dbgu-0 {
+			atmel,pins =
+				<1 14 0x1 0x0	/* PB14 periph A */
+				 1 15 0x1 0x1>;	/* PB15 periph A with pullup */
+		};
+	};
+};
+
+dbgu: serial@fffff200 {
+	compatible = "atmel,at91sam9260-usart";
+	reg = <0xfffff200 0x200>;
+	interrupts = <1 4 7>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dbgu>;
+	status = "disabled";
+};

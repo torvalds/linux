@@ -221,16 +221,16 @@ static void glue_ctr_crypt_final_128bit(const common_glue_ctr_func_t fn_ctr,
 	u8 *src = (u8 *)walk->src.virt.addr;
 	u8 *dst = (u8 *)walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
-	u128 ctrblk;
+	le128 ctrblk;
 	u128 tmp;
 
-	be128_to_u128(&ctrblk, (be128 *)walk->iv);
+	be128_to_le128(&ctrblk, (be128 *)walk->iv);
 
 	memcpy(&tmp, src, nbytes);
 	fn_ctr(ctx, &tmp, &tmp, &ctrblk);
 	memcpy(dst, &tmp, nbytes);
 
-	u128_to_be128((be128 *)walk->iv, &ctrblk);
+	le128_to_be128((be128 *)walk->iv, &ctrblk);
 }
 EXPORT_SYMBOL_GPL(glue_ctr_crypt_final_128bit);
 
@@ -243,11 +243,11 @@ static unsigned int __glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
 	unsigned int nbytes = walk->nbytes;
 	u128 *src = (u128 *)walk->src.virt.addr;
 	u128 *dst = (u128 *)walk->dst.virt.addr;
-	u128 ctrblk;
+	le128 ctrblk;
 	unsigned int num_blocks, func_bytes;
 	unsigned int i;
 
-	be128_to_u128(&ctrblk, (be128 *)walk->iv);
+	be128_to_le128(&ctrblk, (be128 *)walk->iv);
 
 	/* Process multi-block batch */
 	for (i = 0; i < gctx->num_funcs; i++) {
@@ -269,7 +269,7 @@ static unsigned int __glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
 	}
 
 done:
-	u128_to_be128((be128 *)walk->iv, &ctrblk);
+	le128_to_be128((be128 *)walk->iv, &ctrblk);
 	return nbytes;
 }
 

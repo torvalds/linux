@@ -575,7 +575,8 @@ s_nsBulkInUsbIoCompleteRead(
 //            MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
 //        }
     } else {
-        bIndicateReceive = TRUE;
+	if (bytesRead)
+		bIndicateReceive = TRUE;
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
 
@@ -660,6 +661,7 @@ PIPEnsSendBulkOut(
     	if (status != 0)
     	{
     		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Tx URB failed %d\n", status);
+		pContext->bBoolInUse = FALSE;
     		return STATUS_FAILURE;
     	}
         return STATUS_PENDING;

@@ -52,8 +52,6 @@
 #include <linux/of_device.h>
 #include <linux/of_i2c.h>
 #include <linux/pinctrl/consumer.h>
-
-#include <mach/hardware.h>
 #include <linux/platform_data/i2c-imx.h>
 
 /** Defines ********************************************************************
@@ -115,6 +113,11 @@ static u16 __initdata i2c_clk_div[50][2] = {
 	{ 3072,	0x1E }, { 3840,	0x1F }
 };
 
+enum imx_i2c_type {
+	IMX1_I2C,
+	IMX21_I2C,
+};
+
 struct imx_i2c_struct {
 	struct i2c_adapter	adapter;
 	struct clk		*clk;
@@ -124,12 +127,32 @@ struct imx_i2c_struct {
 	unsigned int 		disable_delay;
 	int			stopped;
 	unsigned int		ifdr; /* IMX_I2C_IFDR */
+	enum imx_i2c_type	devtype;
 };
 
+static struct platform_device_id imx_i2c_devtype[] = {
+	{
+		.name = "imx1-i2c",
+		.driver_data = IMX1_I2C,
+	}, {
+		.name = "imx21-i2c",
+		.driver_data = IMX21_I2C,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_i2c_devtype);
+
 static const struct of_device_id i2c_imx_dt_ids[] = {
-	{ .compatible = "fsl,imx1-i2c", },
+	{ .compatible = "fsl,imx1-i2c", .data = &imx_i2c_devtype[IMX1_I2C], },
+	{ .compatible = "fsl,imx21-i2c", .data = &imx_i2c_devtype[IMX21_I2C], },
 	{ /* sentinel */ }
 };
+
+static inline int is_imx1_i2c(struct imx_i2c_struct *i2c_imx)
+{
+	return i2c_imx->devtype == IMX1_I2C;
+}
 
 /** Functions for IMX I2C adapter driver ***************************************
 *******************************************************************************/
@@ -223,7 +246,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		temp &= ~(I2CR_MSTA | I2CR_MTX);
 		writeb(temp, i2c_imx->base + IMX_I2C_I2CR);
 	}
-	if (cpu_is_mx1()) {
+	if (is_imx1_i2c(i2c_imx)) {
 		/*
 		 * This delay caused by an i.MXL hardware bug.
 		 * If no (or too short) delay, no "STOP" bit will be generated.
@@ -465,6 +488,8 @@ static struct i2c_algorithm i2c_imx_algo = {
 
 static int __init i2c_imx_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id = of_match_device(i2c_imx_dt_ids,
+							   &pdev->dev);
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
@@ -496,6 +521,10 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't allocate interface\n");
 		return -ENOMEM;
 	}
+
+	if (of_id)
+		pdev->id_entry = of_id->data;
+	i2c_imx->devtype = pdev->id_entry->driver_data;
 
 	/* Setup i2c_imx driver structure */
 	strlcpy(i2c_imx->adapter.name, pdev->name, sizeof(i2c_imx->adapter.name));
@@ -593,7 +622,8 @@ static struct platform_driver i2c_imx_driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = i2c_imx_dt_ids,
-	}
+	},
+	.id_table	= imx_i2c_devtype,
 };
 
 static int __init i2c_adap_imx_init(void)

@@ -63,24 +63,24 @@ struct vr_nor_mtd {
 #define TIMING_BYTE_EN		(1 <<  0)	/* 8-bit vs 16-bit bus */
 #define TIMING_MASK		0x3FFF0000
 
-static void __devexit vr_nor_destroy_partitions(struct vr_nor_mtd *p)
+static void vr_nor_destroy_partitions(struct vr_nor_mtd *p)
 {
 	mtd_device_unregister(p->info);
 }
 
-static int __devinit vr_nor_init_partitions(struct vr_nor_mtd *p)
+static int vr_nor_init_partitions(struct vr_nor_mtd *p)
 {
 	/* register the flash bank */
 	/* partition the flash bank */
 	return mtd_device_parse_register(p->info, NULL, NULL, NULL, 0);
 }
 
-static void __devexit vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
+static void vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
 {
 	map_destroy(p->info);
 }
 
-static int __devinit vr_nor_mtd_setup(struct vr_nor_mtd *p)
+static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
 {
 	static const char *probe_types[] =
 	    { "cfi_probe", "jedec_probe", NULL };
@@ -96,7 +96,7 @@ static int __devinit vr_nor_mtd_setup(struct vr_nor_mtd *p)
 	return 0;
 }
 
-static void __devexit vr_nor_destroy_maps(struct vr_nor_mtd *p)
+static void vr_nor_destroy_maps(struct vr_nor_mtd *p)
 {
 	unsigned int exp_timing_cs0;
 
@@ -116,7 +116,7 @@ static void __devexit vr_nor_destroy_maps(struct vr_nor_mtd *p)
  * Initialize the map_info structure and map the flash.
  * Returns 0 on success, nonzero otherwise.
  */
-static int __devinit vr_nor_init_maps(struct vr_nor_mtd *p)
+static int vr_nor_init_maps(struct vr_nor_mtd *p)
 {
 	unsigned long csr_phys, csr_len;
 	unsigned long win_phys, win_len;
@@ -176,7 +176,7 @@ static struct pci_device_id vr_nor_pci_ids[] = {
 	{0,}
 };
 
-static void __devexit vr_nor_pci_remove(struct pci_dev *dev)
+static void vr_nor_pci_remove(struct pci_dev *dev)
 {
 	struct vr_nor_mtd *p = pci_get_drvdata(dev);
 
@@ -189,8 +189,7 @@ static void __devexit vr_nor_pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static int __devinit
-vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct vr_nor_mtd *p = NULL;
 	unsigned int exp_timing_cs0;
@@ -256,7 +255,7 @@ vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 static struct pci_driver vr_nor_pci_driver = {
 	.name = DRV_NAME,
 	.probe = vr_nor_pci_probe,
-	.remove = __devexit_p(vr_nor_pci_remove),
+	.remove = vr_nor_pci_remove,
 	.id_table = vr_nor_pci_ids,
 };
 

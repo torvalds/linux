@@ -1016,7 +1016,7 @@ static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit au1000_probe(struct platform_device *pdev)
+static int au1000_probe(struct platform_device *pdev)
 {
 	static unsigned version_printed;
 	struct au1000_private *aup = NULL;
@@ -1295,7 +1295,7 @@ out:
 	return err;
 }
 
-static int __devexit au1000_remove(struct platform_device *pdev)
+static int au1000_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1000_private *aup = netdev_priv(dev);
@@ -1340,7 +1340,7 @@ static int __devexit au1000_remove(struct platform_device *pdev)
 
 static struct platform_driver au1000_eth_driver = {
 	.probe  = au1000_probe,
-	.remove = __devexit_p(au1000_remove),
+	.remove = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
 		.owner  = THIS_MODULE,

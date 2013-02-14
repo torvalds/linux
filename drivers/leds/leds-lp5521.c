@@ -152,7 +152,7 @@ static int lp5521_read(struct i2c_client *client, u8 reg, u8 *buf)
 
 	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	*buf = ret;
 	return 0;
@@ -616,7 +616,7 @@ static ssize_t store_led_pattern(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 16, &val);
 	if (ret)
 		return ret;
 
@@ -687,7 +687,7 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static int __devinit lp5521_init_led(struct lp5521_led *led,
+static int lp5521_init_led(struct lp5521_led *led,
 				struct i2c_client *client,
 				int chan, struct lp5521_platform_data *pdata)
 {
@@ -736,7 +736,7 @@ static int __devinit lp5521_init_led(struct lp5521_led *led,
 	return 0;
 }
 
-static int __devinit lp5521_probe(struct i2c_client *client,
+static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5521_chip		*chip;
@@ -788,8 +788,15 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	 * LP5521_REG_ENABLE register will not have any effect - strange!
 	 */
 	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &buf);
-	if (ret || buf != LP5521_REG_R_CURR_DEFAULT) {
+	if (ret) {
 		dev_err(&client->dev, "error in resetting chip\n");
+		goto fail2;
+	}
+	if (buf != LP5521_REG_R_CURR_DEFAULT) {
+		dev_err(&client->dev,
+			"unexpected data in register (expected 0x%x got 0x%x)\n",
+			LP5521_REG_R_CURR_DEFAULT, buf);
+		ret = -EINVAL;
 		goto fail2;
 	}
 	usleep_range(10000, 20000);
@@ -855,7 +862,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit lp5521_remove(struct i2c_client *client)
+static int lp5521_remove(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int i;
@@ -886,7 +893,7 @@ static struct i2c_driver lp5521_driver = {
 		.name	= "lp5521",
 	},
 	.probe		= lp5521_probe,
-	.remove		= __devexit_p(lp5521_remove),
+	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
 };
 

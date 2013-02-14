@@ -34,14 +34,10 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/thread_info.h>
+#include <linux/kbuild.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-
-#define DEFINE(sym, val) \
-		asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int main(void)
 {

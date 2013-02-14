@@ -352,6 +352,10 @@ config CPU_PJ4
 	select ARM_THUMBEE
 	select CPU_V7
 
+config CPU_PJ4B
+	bool
+	select CPU_V7
+
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX

@@ -592,8 +592,8 @@ fail0:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit i82975x_init_one(struct pci_dev *pdev,
-		const struct pci_device_id *ent)
+static int i82975x_init_one(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -610,7 +610,7 @@ static int __devinit i82975x_init_one(struct pci_dev *pdev,
 	return rc;
 }
 
-static void __devexit i82975x_remove_one(struct pci_dev *pdev)
+static void i82975x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct i82975x_pvt *pvt;
@@ -643,7 +643,7 @@ MODULE_DEVICE_TABLE(pci, i82975x_pci_tbl);
 static struct pci_driver i82975x_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = i82975x_init_one,
-	.remove = __devexit_p(i82975x_remove_one),
+	.remove = i82975x_remove_one,
 	.id_table = i82975x_pci_tbl,
 };
 

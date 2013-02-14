@@ -433,9 +433,9 @@
   /* chip-specific constructor
    * (see "Management of Cards and Components")
    */
-  static int __devinit snd_mychip_create(struct snd_card *card,
-                                         struct pci_dev *pci,
-                                         struct mychip **rchip)
+  static int snd_mychip_create(struct snd_card *card,
+                               struct pci_dev *pci,
+                               struct mychip **rchip)
   {
           struct mychip *chip;
           int err;
@@ -475,8 +475,8 @@
   }
 
   /* constructor -- see "Constructor" sub-section */
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           static int dev;
           struct snd_card *card;
@@ -526,7 +526,7 @@
   }
 
   /* destructor -- see the "Destructor" sub-section */
-  static void __devexit snd_mychip_remove(struct pci_dev *pci)
+  static void snd_mychip_remove(struct pci_dev *pci)
   {
           snd_card_free(pci_get_drvdata(pci));
           pci_set_drvdata(pci, NULL);
@@ -542,9 +542,8 @@
       <para>
         The real constructor of PCI drivers is the <function>probe</function> callback.
       The <function>probe</function> callback and other component-constructors which are called
-      from the <function>probe</function> callback should be defined with
-      the <parameter>__devinit</parameter> prefix. You 
-      cannot use the <parameter>__init</parameter> prefix for them,
+      from the <function>probe</function> callback cannot be used with
+      the <parameter>__init</parameter> prefix
       because any PCI device could be a hotplug device. 
       </para>
 
@@ -728,7 +727,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void __devexit snd_mychip_remove(struct pci_dev *pci)
+  static void snd_mychip_remove(struct pci_dev *pci)
   {
           snd_card_free(pci_get_drvdata(pci));
           pci_set_drvdata(pci, NULL);
@@ -1059,14 +1058,6 @@
       </para>
 
       <para>
-        As further notes, the destructors (both
-      <function>snd_mychip_dev_free</function> and
-      <function>snd_mychip_free</function>) cannot be defined with
-      the <parameter>__devexit</parameter> prefix, because they may be
-      called from the constructor, too, at the false path. 
-      </para>
-
-      <para>
       For a device which allows hotplugging, you can use
       <function>snd_card_free_when_closed</function>.  This one will
       postpone the destruction until all devices are closed.
@@ -1120,9 +1111,9 @@
   }
 
   /* chip-specific constructor */
-  static int __devinit snd_mychip_create(struct snd_card *card,
-                                         struct pci_dev *pci,
-                                         struct mychip **rchip)
+  static int snd_mychip_create(struct snd_card *card,
+                               struct pci_dev *pci,
+                               struct mychip **rchip)
   {
           struct mychip *chip;
           int err;
@@ -1200,7 +1191,7 @@
           .name = KBUILD_MODNAME,
           .id_table = snd_mychip_ids,
           .probe = snd_mychip_probe,
-          .remove = __devexit_p(snd_mychip_remove),
+          .remove = snd_mychip_remove,
   };
 
   /* module initialization */
@@ -1465,11 +1456,6 @@
       </para>
 
       <para>
-      Again, remember that you cannot
-      use the <parameter>__devexit</parameter> prefix for this destructor. 
-      </para>
-
-      <para>
       We didn't implement the hardware disabling part in the above.
       If you need to do this, please note that the destructor may be
       called even before the initialization of the chip is completed.
@@ -1619,7 +1605,7 @@
           .name = KBUILD_MODNAME,
           .id_table = snd_mychip_ids,
           .probe = snd_mychip_probe,
-          .remove = __devexit_p(snd_mychip_remove),
+          .remove = snd_mychip_remove,
   };
 ]]>
           </programlisting>
@@ -1630,11 +1616,7 @@
         The <structfield>probe</structfield> and
       <structfield>remove</structfield> functions have already
       been defined in the previous sections.
-      The <structfield>remove</structfield> function should
-      be defined with the 
-      <function>__devexit_p()</function> macro, so that it's not
-      defined for built-in (and non-hot-pluggable) case. The
-      <structfield>name</structfield> 
+      The <structfield>name</structfield>
       field is the name string of this device. Note that you must not
       use a slash <quote>/</quote> in this string. 
       </para>
@@ -1665,9 +1647,7 @@
       <para>
         Note that these module entries are tagged with
       <parameter>__init</parameter> and 
-      <parameter>__exit</parameter> prefixes, not
-      <parameter>__devinit</parameter> nor
-      <parameter>__devexit</parameter>.
+      <parameter>__exit</parameter> prefixes.
       </para>
 
       <para>
@@ -1918,7 +1898,7 @@
    */
 
   /* create a pcm device */
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           int err;
@@ -1957,7 +1937,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           int err;
@@ -2124,7 +2104,7 @@
           ....
   }
 
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           ....
@@ -3399,7 +3379,7 @@ struct _snd_pcm_runtime {
 	  <title>Definition of a Control</title>
           <programlisting>
 <![CDATA[
-  static struct snd_kcontrol_new my_control __devinitdata = {
+  static struct snd_kcontrol_new my_control = {
           .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
           .name = "PCM Playback Switch",
           .index = 0,
@@ -3412,13 +3392,6 @@ struct _snd_pcm_runtime {
 ]]>
           </programlisting>
         </example>
-      </para>
-
-      <para>
-        Most likely the control is created via
-      <function>snd_ctl_new1()</function>, and in such a case, you can
-      add the <parameter>__devinitdata</parameter> prefix to the
-      definition as above. 
       </para>
 
       <para>
@@ -3847,10 +3820,8 @@ struct _snd_pcm_runtime {
 
       <para>
         <function>snd_ctl_new1()</function> allocates a new
-      <structname>snd_kcontrol</structname> instance (that's why the definition
-      of <parameter>my_control</parameter> can be with
-      the <parameter>__devinitdata</parameter> 
-      prefix), and <function>snd_ctl_add</function> assigns the given
+      <structname>snd_kcontrol</structname> instance,
+      and <function>snd_ctl_add</function> assigns the given
       control component to the card. 
       </para>
     </section>
@@ -3896,7 +3867,7 @@ struct _snd_pcm_runtime {
 <![CDATA[
   static DECLARE_TLV_DB_SCALE(db_scale_my_control, -4050, 150, 0);
 
-  static struct snd_kcontrol_new my_control __devinitdata = {
+  static struct snd_kcontrol_new my_control = {
           ...
           .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
                     SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -5761,8 +5732,8 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           ....
           struct snd_card *card;
@@ -5787,8 +5758,8 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           ....
           struct snd_card *card;
@@ -5825,7 +5796,7 @@ struct _snd_pcm_runtime {
           .name = KBUILD_MODNAME,
           .id_table = snd_my_ids,
           .probe = snd_my_probe,
-          .remove = __devexit_p(snd_my_remove),
+          .remove = snd_my_remove,
   #ifdef CONFIG_PM
           .suspend = snd_my_suspend,
           .resume = snd_my_resume,

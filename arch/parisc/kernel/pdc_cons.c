@@ -186,12 +186,12 @@ static int __init pdc_console_tty_driver_init(void)
 	printk(KERN_INFO "The PDC console driver is still registered, removing CON_BOOT flag\n");
 	pdc_cons.flags &= ~CON_BOOT;
 
-	tty_port_init(&tty_port);
-
 	pdc_console_tty_driver = alloc_tty_driver(1);
 
 	if (!pdc_console_tty_driver)
 		return -ENOMEM;
+
+	tty_port_init(&tty_port);
 
 	pdc_console_tty_driver->driver_name = "pdc_cons";
 	pdc_console_tty_driver->name = "ttyB";
@@ -207,6 +207,7 @@ static int __init pdc_console_tty_driver_init(void)
 	err = tty_register_driver(pdc_console_tty_driver);
 	if (err) {
 		printk(KERN_ERR "Unable to register the PDC console TTY driver\n");
+		tty_port_destroy(&tty_port);
 		return err;
 	}
 

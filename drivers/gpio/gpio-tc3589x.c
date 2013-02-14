@@ -292,17 +292,15 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 {
 	int base = tc3589x_gpio->irq_base;
 
-	if (base) {
-		tc3589x_gpio->domain = irq_domain_add_legacy(
-			NULL, tc3589x_gpio->chip.ngpio, base,
-			0, &tc3589x_irq_ops, tc3589x_gpio);
-	}
-	else {
-		tc3589x_gpio->domain = irq_domain_add_linear(
-			np, tc3589x_gpio->chip.ngpio,
-			&tc3589x_irq_ops, tc3589x_gpio);
-	}
-
+	/*
+	 * If this results in a linear domain, irq_create_mapping() will
+	 * take care of allocating IRQ descriptors at runtime. When a base
+	 * is provided, the IRQ descriptors will be allocated when the
+	 * domain is instantiated.
+	 */
+	tc3589x_gpio->domain = irq_domain_add_simple(np,
+			tc3589x_gpio->chip.ngpio, base, &tc3589x_irq_ops,
+			tc3589x_gpio);
 	if (!tc3589x_gpio->domain) {
 		dev_err(tc3589x_gpio->dev, "Failed to create irqdomain\n");
 		return -ENOSYS;
@@ -311,7 +309,7 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 	return 0;
 }
 
-static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
+static int tc3589x_gpio_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc3589x_gpio_platform_data *pdata;
@@ -389,7 +387,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit tc3589x_gpio_remove(struct platform_device *pdev)
+static int tc3589x_gpio_remove(struct platform_device *pdev)
 {
 	struct tc3589x_gpio *tc3589x_gpio = platform_get_drvdata(pdev);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
@@ -419,7 +417,7 @@ static struct platform_driver tc3589x_gpio_driver = {
 	.driver.name	= "tc3589x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tc3589x_gpio_probe,
-	.remove		= __devexit_p(tc3589x_gpio_remove),
+	.remove		= tc3589x_gpio_remove,
 };
 
 static int __init tc3589x_gpio_init(void)

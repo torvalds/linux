@@ -168,6 +168,11 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
+	if (pipe == 1) {
+		oaktrail_crtc_hdmi_dpms(crtc, mode);
+		return;
+	}
+
 	if (!gma_power_begin(dev, true))
 		return;
 
@@ -302,6 +307,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_connector *connector;
 
+	if (pipe == 1)
+		return oaktrail_crtc_hdmi_mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
+
 	if (!gma_power_begin(dev, true))
 		return 0;
 
@@ -343,7 +351,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		  (mode->crtc_vdisplay - 1));
 
 	if (psb_intel_encoder)
-		drm_connector_property_get_value(connector,
+		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {

@@ -8,6 +8,7 @@ snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 
 # for trace-points
 CFLAGS_hda_codec.o := -I$(src)
+CFLAGS_hda_intel.o := -I$(src)
 
 snd-hda-codec-realtek-objs :=	patch_realtek.o
 snd-hda-codec-cmedia-objs :=	patch_cmedia.o

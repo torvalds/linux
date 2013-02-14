@@ -64,7 +64,7 @@ MODULE_PARM_DESC(dma1, "DMA1 # for " CRD_NAME " driver.");
 module_param_array(thinkpad, bool, NULL, 0444);
 MODULE_PARM_DESC(thinkpad, "Enable only for the onboard CS4248 of IBM Thinkpad 360/750/755 series.");
 
-static int __devinit snd_ad1848_match(struct device *dev, unsigned int n)
+static int snd_ad1848_match(struct device *dev, unsigned int n)
 {
 	if (!enable[n])
 		return 0;
@@ -84,7 +84,7 @@ static int __devinit snd_ad1848_match(struct device *dev, unsigned int n)
 	return 1;
 }
 
-static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
+static int snd_ad1848_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
 	struct snd_wss *chip;
@@ -132,7 +132,7 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int __devexit snd_ad1848_remove(struct device *dev, unsigned int n)
+static int snd_ad1848_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
 	dev_set_drvdata(dev, NULL);
@@ -164,7 +164,7 @@ static int snd_ad1848_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_ad1848_driver = {
 	.match		= snd_ad1848_match,
 	.probe		= snd_ad1848_probe,
-	.remove		= __devexit_p(snd_ad1848_remove),
+	.remove		= snd_ad1848_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_ad1848_suspend,
 	.resume		= snd_ad1848_resume,

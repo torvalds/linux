@@ -271,7 +271,7 @@ config SERIAL_8250_DW
 	  present in the Synopsys DesignWare APB UART.
 
 config SERIAL_8250_EM
-	tristate "Support for Emma Mobile intergrated serial port"
+	tristate "Support for Emma Mobile integrated serial port"
 	depends on SERIAL_8250 && ARM && HAVE_CLK
 	help
 	  Selecting this option will add support for the integrated serial

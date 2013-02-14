@@ -288,7 +288,6 @@ struct musb_csr_regs {
 struct musb_context_registers {
 
 	u8 power;
-	u16 intrtxe, intrrxe;
 	u8 intrusbe;
 	u16 frame;
 	u8 index, testmode;
@@ -313,6 +312,8 @@ struct musb {
 	struct work_struct	irq_work;
 	u16			hwvers;
 
+	u16			intrrxe;
+	u16			intrtxe;
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
 #define MUSB_PORT_STAT_RESUME	(1 << 31)
 
@@ -521,8 +522,6 @@ extern const char musb_driver_name[];
 
 extern void musb_start(struct musb *musb);
 extern void musb_stop(struct musb *musb);
-extern int musb_get_id(struct device *dev, gfp_t gfp_mask);
-extern void musb_put_id(struct device *dev, int id);
 
 extern void musb_write_fifo(struct musb_hw_ep *ep, u16 len, const u8 *src);
 extern void musb_read_fifo(struct musb_hw_ep *ep, u16 len, u8 *dst);

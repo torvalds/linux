@@ -24,11 +24,11 @@
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/devices-common.h>
-#include <mach/hardware.h>
-#include <mach/mx25.h>
-#include <mach/iomux-v3.h>
+#include "common.h"
+#include "devices/devices-common.h"
+#include "hardware.h"
+#include "iomux-v3.h"
+#include "mx25.h"
 
 /*
  * This table defines static virtual address mappings for I/O regions.
@@ -89,6 +89,8 @@ static const struct resource imx25_audmux_res[] __initconst = {
 
 void __init imx25_soc_init(void)
 {
+	mxc_device_init();
+
 	/* i.mx25 has the i.mx35 type gpio */
 	mxc_register_gpio("imx35-gpio", 0, MX25_GPIO1_BASE_ADDR, SZ_16K, MX25_INT_GPIO1, 0);
 	mxc_register_gpio("imx35-gpio", 1, MX25_GPIO2_BASE_ADDR, SZ_16K, MX25_INT_GPIO2, 0);

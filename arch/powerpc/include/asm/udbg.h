@@ -21,7 +21,6 @@ extern int (*udbg_getc_poll)(void);
 
 extern void udbg_puts(const char *s);
 extern int udbg_write(const char *s, int n);
-extern int udbg_read(char *buf, int buflen);
 
 extern void register_early_udbg_console(void);
 extern void udbg_printf(const char *fmt, ...)

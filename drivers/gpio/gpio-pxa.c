@@ -250,7 +250,7 @@ static int pxa_gpio_of_xlate(struct gpio_chip *gc,
 }
 #endif
 
-static int __devinit pxa_init_gpio_chip(int gpio_end,
+static int pxa_init_gpio_chip(int gpio_end,
 					int (*set_wake)(unsigned int, unsigned int))
 {
 	int i, gpio, nbanks = gpio_to_bank(gpio_end) + 1;
@@ -448,7 +448,7 @@ static int pxa_gpio_nums(void)
 	} else if (cpu_is_pxa27x()) {
 		count = 120;
 		gpio_type = PXA27X_GPIO;
-	} else if (cpu_is_pxa93x() || cpu_is_pxa95x()) {
+	} else if (cpu_is_pxa93x()) {
 		count = 191;
 		gpio_type = PXA93X_GPIO;
 	} else if (cpu_is_pxa3xx()) {
@@ -490,7 +490,7 @@ const struct irq_domain_ops pxa_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static int __devinit pxa_gpio_probe_dt(struct platform_device *pdev)
+static int pxa_gpio_probe_dt(struct platform_device *pdev)
 {
 	int ret, nr_banks, nr_gpios;
 	struct device_node *prev, *next, *np = pdev->dev.of_node;
@@ -537,7 +537,7 @@ err:
 #define pxa_gpio_probe_dt(pdev)		(-1)
 #endif
 
-static int __devinit pxa_gpio_probe(struct platform_device *pdev)
+static int pxa_gpio_probe(struct platform_device *pdev)
 {
 	struct pxa_gpio_chip *c;
 	struct resource *res;

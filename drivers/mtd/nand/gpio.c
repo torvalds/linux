@@ -90,14 +90,14 @@ static void gpio_nand_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 
-	writesb(this->IO_ADDR_W, buf, len);
+	iowrite8_rep(this->IO_ADDR_W, buf, len);
 }
 
 static void gpio_nand_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 
-	readsb(this->IO_ADDR_R, buf, len);
+	ioread8_rep(this->IO_ADDR_R, buf, len);
 }
 
 static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
@@ -106,7 +106,7 @@ static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
 	struct nand_chip *this = mtd->priv;
 
 	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		writesw(this->IO_ADDR_W, buf, len>>1);
+		iowrite16_rep(this->IO_ADDR_W, buf, len>>1);
 	} else {
 		int i;
 		unsigned short *ptr = (unsigned short *)buf;
@@ -121,7 +121,7 @@ static void gpio_nand_readbuf16(struct mtd_info *mtd, u_char *buf, int len)
 	struct nand_chip *this = mtd->priv;
 
 	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		readsw(this->IO_ADDR_R, buf, len>>1);
+		ioread16_rep(this->IO_ADDR_R, buf, len>>1);
 	} else {
 		int i;
 		unsigned short *ptr = (unsigned short *)buf;
@@ -134,7 +134,11 @@ static void gpio_nand_readbuf16(struct mtd_info *mtd, u_char *buf, int len)
 static int gpio_nand_devready(struct mtd_info *mtd)
 {
 	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
-	return gpio_get_value(gpiomtd->plat.gpio_rdy);
+
+	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
+		return gpio_get_value(gpiomtd->plat.gpio_rdy);
+
+	return 1;
 }
 
 #ifdef CONFIG_OF
@@ -227,7 +231,7 @@ gpio_nand_get_io_sync(struct platform_device *pdev)
 	return platform_get_resource(pdev, IORESOURCE_MEM, 1);
 }
 
-static int __devexit gpio_nand_remove(struct platform_device *dev)
+static int gpio_nand_remove(struct platform_device *dev)
 {
 	struct gpiomtd *gpiomtd = platform_get_drvdata(dev);
 	struct resource *res;
@@ -252,7 +256,8 @@ static int __devexit gpio_nand_remove(struct platform_device *dev)
 	gpio_free(gpiomtd->plat.gpio_nce);
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_free(gpiomtd->plat.gpio_nwp);
-	gpio_free(gpiomtd->plat.gpio_rdy);
+	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
+		gpio_free(gpiomtd->plat.gpio_rdy);
 
 	kfree(gpiomtd);
 
@@ -277,7 +282,7 @@ static void __iomem *request_and_remap(struct resource *res, size_t size,
 	return ptr;
 }
 
-static int __devinit gpio_nand_probe(struct platform_device *dev)
+static int gpio_nand_probe(struct platform_device *dev)
 {
 	struct gpiomtd *gpiomtd;
 	struct nand_chip *this;
@@ -336,10 +341,12 @@ static int __devinit gpio_nand_probe(struct platform_device *dev)
 	if (ret)
 		goto err_cle;
 	gpio_direction_output(gpiomtd->plat.gpio_cle, 0);
-	ret = gpio_request(gpiomtd->plat.gpio_rdy, "NAND RDY");
-	if (ret)
-		goto err_rdy;
-	gpio_direction_input(gpiomtd->plat.gpio_rdy);
+	if (gpio_is_valid(gpiomtd->plat.gpio_rdy)) {
+		ret = gpio_request(gpiomtd->plat.gpio_rdy, "NAND RDY");
+		if (ret)
+			goto err_rdy;
+		gpio_direction_input(gpiomtd->plat.gpio_rdy);
+	}
 
 
 	this->IO_ADDR_W  = this->IO_ADDR_R;
@@ -386,7 +393,8 @@ static int __devinit gpio_nand_probe(struct platform_device *dev)
 err_wp:
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
-	gpio_free(gpiomtd->plat.gpio_rdy);
+	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
+		gpio_free(gpiomtd->plat.gpio_rdy);
 err_rdy:
 	gpio_free(gpiomtd->plat.gpio_cle);
 err_cle:

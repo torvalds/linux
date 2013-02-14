@@ -51,10 +51,8 @@ static inline unsigned int nlm_chip_is_xls_b(void)
 	return ((prid & 0xf000) == 0x4000);
 }
 
-/*
- *  XLR chip types
- */
- /* The XLS product line has chip versions 0x[48c]? */
+/*  XLR chip types */
+/* The XLS product line has chip versions 0x[48c]? */
 static inline unsigned int nlm_chip_is_xls(void)
 {
 	uint32_t prid = read_c0_prid();

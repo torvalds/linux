@@ -32,5 +32,8 @@ long clk_round_rate_index(struct clk_hw *hw, unsigned long drate,
 		}
 	}
 
+	if ((*index) == rtbl_cnt)
+		(*index)--;
+
 	return rate;
 }

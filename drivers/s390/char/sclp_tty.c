@@ -547,13 +547,14 @@ sclp_tty_init(void)
 		sclp_tty_tolower = 1;
 	}
 	sclp_tty_chars_count = 0;
-	tty_port_init(&sclp_port);
 
 	rc = sclp_register(&sclp_input_event);
 	if (rc) {
 		put_tty_driver(driver);
 		return rc;
 	}
+
+	tty_port_init(&sclp_port);
 
 	driver->driver_name = "sclp_line";
 	driver->name = "sclp_line";
@@ -571,6 +572,7 @@ sclp_tty_init(void)
 	rc = tty_register_driver(driver);
 	if (rc) {
 		put_tty_driver(driver);
+		tty_port_destroy(&sclp_port);
 		return rc;
 	}
 	sclp_tty_driver = driver;

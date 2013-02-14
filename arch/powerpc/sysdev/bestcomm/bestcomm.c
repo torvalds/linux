@@ -30,7 +30,7 @@
 #define DRIVER_NAME "bestcomm-core"
 
 /* MPC5200 device tree match tables */
-static struct of_device_id mpc52xx_sram_ids[] __devinitdata = {
+static struct of_device_id mpc52xx_sram_ids[] = {
 	{ .compatible = "fsl,mpc5200-sram", },
 	{ .compatible = "mpc5200-sram", },
 	{}
@@ -273,8 +273,7 @@ static u32 fdt_ops[] = {
 };
 
 
-static int __devinit
-bcom_engine_init(void)
+static int bcom_engine_init(void)
 {
 	int task;
 	phys_addr_t tdt_pa, ctx_pa, var_pa, fdt_pa;
@@ -365,7 +364,7 @@ bcom_engine_cleanup(void)
 /* OF platform driver                                                       */
 /* ======================================================================== */
 
-static int __devinit mpc52xx_bcom_probe(struct platform_device *op)
+static int mpc52xx_bcom_probe(struct platform_device *op)
 {
 	struct device_node *ofn_sram;
 	struct resource res_bcom;

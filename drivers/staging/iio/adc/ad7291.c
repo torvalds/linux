@@ -580,7 +580,7 @@ static const struct iio_info ad7291_info = {
 	.event_attrs = &ad7291_event_attribute_group,
 };
 
-static int __devinit ad7291_probe(struct i2c_client *client,
+static int ad7291_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct ad7291_chip_info *chip;
@@ -674,7 +674,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7291_remove(struct i2c_client *client)
+static int ad7291_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
@@ -706,7 +706,7 @@ static struct i2c_driver ad7291_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = ad7291_probe,
-	.remove = __devexit_p(ad7291_remove),
+	.remove = ad7291_remove,
 	.id_table = ad7291_id,
 };
 module_i2c_driver(ad7291_driver);

@@ -162,12 +162,10 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 
 	/* request fw */
 	if (IS_VENDOR_UMC_A_CUT(rtlhal->version) &&
-	    !IS_92C_SERIAL(rtlhal->version)) {
+	    !IS_92C_SERIAL(rtlhal->version))
 		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cfwU.bin";
-	} else if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version)) {
+	else if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version))
 		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cfwU_B.bin";
-		pr_info("****** This B_CUT device may not work with kernels 3.6 and earlier\n");
-	}
 
 	rtlpriv->max_fw_size = 0x4000;
 	pr_info("Using firmware %s\n", rtlpriv->cfg->fw_name);
@@ -374,14 +372,7 @@ MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
-static const struct dev_pm_ops rtlwifi_pm_ops = {
-	.suspend = rtl_pci_suspend,
-	.resume = rtl_pci_resume,
-	.freeze = rtl_pci_suspend,
-	.thaw = rtl_pci_resume,
-	.poweroff = rtl_pci_suspend,
-	.restore = rtl_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
 
 static struct pci_driver rtl92ce_driver = {
 	.name = KBUILD_MODNAME,

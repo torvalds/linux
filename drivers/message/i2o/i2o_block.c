@@ -609,7 +609,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 	u8 operation;
 
 	/*
-	 * This is to deail with the case of an application
+	 * This is to deal with the case of an application
 	 * opening a device and then the device disappears while
 	 * it's in use, and then the application tries to release
 	 * it.  ex: Unmounting a deleted RAID volume at reboot.

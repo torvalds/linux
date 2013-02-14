@@ -462,7 +462,7 @@ void xilinx_spi_deinit(struct spi_master *master)
 }
 EXPORT_SYMBOL(xilinx_spi_deinit);
 
-static int __devinit xilinx_spi_probe(struct platform_device *dev)
+static int xilinx_spi_probe(struct platform_device *dev)
 {
 	struct xspi_platform_data *pdata;
 	struct resource *r;
@@ -518,7 +518,7 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit xilinx_spi_remove(struct platform_device *dev)
+static int xilinx_spi_remove(struct platform_device *dev)
 {
 	xilinx_spi_deinit(platform_get_drvdata(dev));
 	platform_set_drvdata(dev, 0);
@@ -531,7 +531,7 @@ MODULE_ALIAS("platform:" XILINX_SPI_NAME);
 
 static struct platform_driver xilinx_spi_driver = {
 	.probe = xilinx_spi_probe,
-	.remove = __devexit_p(xilinx_spi_remove),
+	.remove = xilinx_spi_remove,
 	.driver = {
 		.name = XILINX_SPI_NAME,
 		.owner = THIS_MODULE,

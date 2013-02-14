@@ -293,7 +293,7 @@ static void radeon_unmap_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	pci_unmap_rom(dev, rinfo->bios_seg);
 }
 
-static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
+static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 {
 	void __iomem *rom;
 	u16 dptr;
@@ -388,7 +388,7 @@ static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev 
 }
 
 #ifdef CONFIG_X86
-static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
+static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 {
 	/* I simplified this code as we used to miss the signatures in
 	 * a lot of case. It's now closer to XFree, we just don't check
@@ -423,7 +423,7 @@ static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
  * tree. Hopefully, ATI OF driver is kind enough to fill these
  */
-static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
+static int radeon_read_xtal_OF(struct radeonfb_info *rinfo)
 {
 	struct device_node *dp = rinfo->of_node;
 	const u32 *val;
@@ -453,7 +453,7 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 /*
  * Read PLL infos from chip registers
  */
-static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
+static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 {
 	unsigned char ppll_div_sel;
 	unsigned Ns, Nm, M;
@@ -591,7 +591,7 @@ static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
 /*
  * Retrieve PLL infos by different means (BIOS, Open Firmware, register probing...)
  */
-static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
+static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
 {
 	/*
 	 * In the case nothing works, these are defaults; they are mostly
@@ -1868,7 +1868,7 @@ static struct fb_ops radeonfb_ops = {
 };
 
 
-static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
+static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
 {
 	struct fb_info *info = rinfo->info;
 
@@ -2143,8 +2143,8 @@ static struct bin_attribute edid2_attr = {
 };
 
 
-static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int radeonfb_pci_register(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct radeonfb_info *rinfo;
@@ -2407,7 +2407,7 @@ err_out:
 
 
 
-static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
+static void radeonfb_pci_unregister(struct pci_dev *pdev)
 {
         struct fb_info *info = pci_get_drvdata(pdev);
         struct radeonfb_info *rinfo = info->par;
@@ -2465,7 +2465,7 @@ static struct pci_driver radeonfb_driver = {
 	.name		= "radeonfb",
 	.id_table	= radeonfb_pci_table,
 	.probe		= radeonfb_pci_register,
-	.remove		= __devexit_p(radeonfb_pci_unregister),
+	.remove		= radeonfb_pci_unregister,
 #ifdef CONFIG_PM
 	.suspend       	= radeonfb_pci_suspend,
 	.resume		= radeonfb_pci_resume,

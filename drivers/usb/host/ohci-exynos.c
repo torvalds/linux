@@ -23,16 +23,17 @@ struct exynos_ohci_hcd {
 	struct clk *clk;
 };
 
+static int ohci_exynos_reset(struct usb_hcd *hcd)
+{
+	return ohci_init(hcd_to_ohci(hcd));
+}
+
 static int ohci_exynos_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int ret;
 
 	ohci_dbg(ohci, "ohci_exynos_start, ohci:%p", ohci);
-
-	ret = ohci_init(ohci);
-	if (ret < 0)
-		return ret;
 
 	ret = ohci_run(ohci);
 	if (ret < 0) {
@@ -53,6 +54,7 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 	.irq			= ohci_irq,
 	.flags			= HCD_MEMORY|HCD_USB11,
 
+	.reset			= ohci_exynos_reset,
 	.start			= ohci_exynos_start,
 	.stop			= ohci_stop,
 	.shutdown		= ohci_shutdown,
@@ -74,7 +76,7 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 
 static u64 ohci_exynos_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit exynos_ohci_probe(struct platform_device *pdev)
+static int exynos_ohci_probe(struct platform_device *pdev)
 {
 	struct exynos4_ohci_platdata *pdata;
 	struct exynos_ohci_hcd *exynos_ohci;
@@ -115,7 +117,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	}
 
 	exynos_ohci->hcd = hcd;
-	exynos_ohci->clk = clk_get(&pdev->dev, "usbhost");
+	exynos_ohci->clk = devm_clk_get(&pdev->dev, "usbhost");
 
 	if (IS_ERR(exynos_ohci->clk)) {
 		dev_err(&pdev->dev, "Failed to get usbhost clock\n");
@@ -123,9 +125,9 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 		goto fail_clk;
 	}
 
-	err = clk_enable(exynos_ohci->clk);
+	err = clk_prepare_enable(exynos_ohci->clk);
 	if (err)
-		goto fail_clken;
+		goto fail_clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -167,15 +169,13 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	return 0;
 
 fail_io:
-	clk_disable(exynos_ohci->clk);
-fail_clken:
-	clk_put(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 fail_clk:
 	usb_put_hcd(hcd);
 	return err;
 }
 
-static int __devexit exynos_ohci_remove(struct platform_device *pdev)
+static int exynos_ohci_remove(struct platform_device *pdev)
 {
 	struct exynos4_ohci_platdata *pdata = pdev->dev.platform_data;
 	struct exynos_ohci_hcd *exynos_ohci = platform_get_drvdata(pdev);
@@ -186,8 +186,7 @@ static int __devexit exynos_ohci_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(exynos_ohci->clk);
-	clk_put(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 
 	usb_put_hcd(hcd);
 
@@ -232,7 +231,7 @@ static int exynos_ohci_suspend(struct device *dev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 
 fail:
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -247,15 +246,12 @@ static int exynos_ohci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos4_ohci_platdata *pdata = pdev->dev.platform_data;
 
-	clk_enable(exynos_ohci->clk);
+	clk_prepare_enable(exynos_ohci->clk);
 
 	if (pdata && pdata->phy_init)
 		pdata->phy_init(pdev, S5P_USB_PHY_HOST);
 
-	/* Mark hardware accessible again as we are out of D3 state by now */
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 
 	return 0;
 }
@@ -279,7 +275,7 @@ MODULE_DEVICE_TABLE(of, exynos_ohci_match);
 
 static struct platform_driver exynos_ohci_driver = {
 	.probe		= exynos_ohci_probe,
-	.remove		= __devexit_p(exynos_ohci_remove),
+	.remove		= exynos_ohci_remove,
 	.shutdown	= exynos_ohci_shutdown,
 	.driver = {
 		.name	= "exynos-ohci",

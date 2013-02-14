@@ -21,7 +21,7 @@
 #ifndef ARCH_ARM_MACH_OMAP2_HDQ1W_H
 #define ARCH_ARM_MACH_OMAP2_HDQ1W_H
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 
 /*
  * XXX A future cleanup patch should modify

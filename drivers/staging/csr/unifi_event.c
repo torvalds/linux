@@ -376,8 +376,6 @@ unifi_process_receive_event(void *ospriv,
     s16 signal_id;
     u8 pktIndToSme = FALSE, freeBulkData = FALSE;
 
-    func_enter();
-
     unifi_trace(priv, UDBG5, "unifi_process_receive_event: "
                 "%04x %04x %04x %04x %04x %04x %04x %04x (%d)\n",
                 CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*0) & 0xFFFF,
@@ -523,7 +521,6 @@ unifi_process_receive_event(void *ospriv,
                                     unifi_net_data_free(priv, (void *)&bulkdata->d[i]);
                                 }
                            }
-                           func_exit();
                            return;
                        }
                    } /* CSR_MA_PACKET_INDICATION_ID */
@@ -573,7 +570,6 @@ unifi_process_receive_event(void *ospriv,
             }
     }
 
-    func_exit();
 } /* unifi_process_receive_event() */
 
 
@@ -587,7 +583,6 @@ void unifi_rx_queue_flush(void *ospriv)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
 
-    func_enter();
     unifi_trace(priv, UDBG4, "rx_wq_handler: RdPtr = %d WritePtr =  %d\n",
                 priv->rxSignalBuffer.readPointer,priv->rxSignalBuffer.writePointer);
     if(priv != NULL) {
@@ -605,7 +600,6 @@ void unifi_rx_queue_flush(void *ospriv)
         }
         priv->rxSignalBuffer.readPointer = readPointer;
     }
-    func_exit();
 }
 
 void rx_wq_handler(struct work_struct *work)
@@ -655,7 +649,6 @@ unifi_receive_event(void *ospriv,
     u8 writePointer;
     int i;
     rx_buff_struct_t * rx_buff;
-    func_enter();
 
     unifi_trace(priv, UDBG5, "unifi_receive_event: "
             "%04x %04x %04x %04x %04x %04x %04x %04x (%d)\n",
@@ -695,6 +688,5 @@ unifi_receive_event(void *ospriv,
 #else
     unifi_process_receive_event(ospriv, sigdata, siglen, bulkdata);
 #endif
-    func_exit();
 } /* unifi_receive_event() */
 

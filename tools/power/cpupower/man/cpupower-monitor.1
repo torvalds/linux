@@ -7,11 +7,11 @@ cpupower\-monitor \- Report processor frequency and idle statistics
 .RB "\-l"
 
 .B cpupower monitor
-.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB [ -c ] [ "\-m <mon1>," [ "<mon2>,..." ] ]
 .RB [ "\-i seconds" ]
 .br
 .B cpupower monitor
-.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB [ -c ][ "\-m <mon1>," [ "<mon2>,..." ] ]
 .RB command
 .br
 .SH DESCRIPTION
@@ -62,6 +62,17 @@ Only display specific monitors. Use the monitor string(s) provided by \-l option
 \-i seconds
 .RS 4
 Measure intervall.
+.RE
+.PP
+\-c
+.RS 4
+Schedule the process on every core before starting and ending measuring.
+This could be needed for the Idle_Stats monitor when no other MSR based
+monitor (has to be run on the core that is measured) is run in parallel.
+This is to wake up the processors from deeper sleep states and let the
+kernel re
+-account its cpuidle (C-state) information before reading the
+cpuidle timings from sysfs.
 .RE
 .PP
 command

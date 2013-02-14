@@ -137,7 +137,7 @@ static int control_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new kcontrol_template __devinitdata = {
+static struct snd_kcontrol_new kcontrol_template = {
 	.iface = SNDRV_CTL_ELEM_IFACE_HWDEP,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.index = 0,
@@ -489,8 +489,8 @@ static struct caiaq_controller kontrols4_controller[] = {
 	{ "LED: FX2: Mode",			133 | CNT_INTVAL },
 };
 
-static int __devinit add_controls(struct caiaq_controller *c, int num,
-				  struct snd_usb_caiaqdev *dev)
+static int add_controls(struct caiaq_controller *c, int num,
+			struct snd_usb_caiaqdev *dev)
 {
 	int i, ret;
 	struct snd_kcontrol *kc;
@@ -507,7 +507,7 @@ static int __devinit add_controls(struct caiaq_controller *c, int num,
 	return 0;
 }
 
-int __devinit snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
+int snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
 {
 	int ret = 0;
 

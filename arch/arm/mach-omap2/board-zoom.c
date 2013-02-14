@@ -22,9 +22,8 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include <plat/usb.h>
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "board-flash.h"
 #include "mux.h"
@@ -113,8 +112,9 @@ static void __init omap_zoom_init(void)
 		usbhs_init(&usbhs_bdata);
 	}
 
-	board_nand_init(zoom_nand_partitions, ARRAY_SIZE(zoom_nand_partitions),
-						ZOOM_NAND_CS, NAND_BUSWIDTH_16);
+	board_nand_init(zoom_nand_partitions,
+			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS,
+			NAND_BUSWIDTH_16, nand_default_timings);
 	zoom_debugboard_init();
 	zoom_peripherals_init();
 
@@ -138,7 +138,7 @@ MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.init_machine	= omap_zoom_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
@@ -151,5 +151,5 @@ MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.init_machine	= omap_zoom_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -1,0 +1,49 @@
+/dts-v1/;
+
+/include/ "kirkwood-ns2-common.dtsi"
+
+/ {
+	model = "LaCie Network Space Max v2";
+	compatible = "lacie,netspace_max_v2", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	ocp@f1000000 {
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+
+	gpio_fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio0 22 1
+			 &gpio0  7 1
+			 &gpio1  1 1
+			 &gpio0 23 1>;
+		gpio-fan,speed-map =
+			<   0  0
+			 1500 15
+			 1700 14
+			 1800 13
+			 2100 12
+			 3100 11
+			 3300 10
+			 4300  9
+			 5500  8>;
+		alarm-gpios = <&gpio0 25 1>;
+	};
+
+	ns2-leds {
+		compatible = "lacie,ns2-leds";
+
+		blue-sata {
+			label = "ns2:blue:sata";
+			slow-gpio = <&gpio0 29 0>;
+			cmd-gpio = <&gpio0 30 0>;
+		};
+	};
+};

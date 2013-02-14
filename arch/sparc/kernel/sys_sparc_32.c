@@ -34,11 +34,9 @@ asmlinkage unsigned long sys_getpagesize(void)
 	return PAGE_SIZE; /* Possibly older binaries want 8192 on sun4's? */
 }
 
-#define COLOUR_ALIGN(addr)      (((addr)+SHMLBA-1)&~(SHMLBA-1))
-
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
-	struct vm_area_struct * vmm;
+	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
 		/* We do not accept a shared mapping if it would violate
@@ -56,21 +54,14 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
 
-	if (flags & MAP_SHARED)
-		addr = COLOUR_ALIGN(addr);
-	else
-		addr = PAGE_ALIGN(addr);
-
-	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
-		/* At this point:  (!vmm || addr < vmm->vm_end). */
-		if (TASK_SIZE - PAGE_SIZE - len < addr)
-			return -ENOMEM;
-		if (!vmm || addr + len <= vmm->vm_start)
-			return addr;
-		addr = vmm->vm_end;
-		if (flags & MAP_SHARED)
-			addr = COLOUR_ALIGN(addr);
-	}
+	info.flags = 0;
+	info.length = len;
+	info.low_limit = addr;
+	info.high_limit = TASK_SIZE;
+	info.align_mask = (flags & MAP_SHARED) ?
+		(PAGE_MASK & (SHMLBA - 1)) : 0;
+	info.align_offset = pgoff << PAGE_SHIFT;
+	return vm_unmapped_area(&info);
 }
 
 /*
@@ -257,28 +248,4 @@ asmlinkage int sys_getdomainname(char __user *name, int len)
 out:
 	up_read(&uts_sem);
 	return err;
-}
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	long __res;
-	register long __g1 __asm__ ("g1") = __NR_execve;
-	register long __o0 __asm__ ("o0") = (long)(filename);
-	register long __o1 __asm__ ("o1") = (long)(argv);
-	register long __o2 __asm__ ("o2") = (long)(envp);
-	asm volatile ("t 0x10\n\t"
-		      "bcc 1f\n\t"
-		      "mov %%o0, %0\n\t"
-		      "sub %%g0, %%o0, %0\n\t"
-		      "1:\n\t"
-		      : "=r" (__res), "=&r" (__o0)
-		      : "1" (__o0), "r" (__o1), "r" (__o2), "r" (__g1)
-		      : "cc");
-	return __res;
 }

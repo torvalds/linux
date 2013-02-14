@@ -1225,6 +1225,8 @@ rs68328_init(void)
 
 	if (tty_register_driver(serial_driver)) {
 		put_tty_driver(serial_driver);
+		for (i = 0; i < NR_PORTS; i++)
+			tty_port_destroy(&m68k_soft[i].tport);
 		printk(KERN_ERR "Couldn't register serial driver\n");
 		return -ENOMEM;
 	}

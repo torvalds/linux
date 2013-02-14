@@ -362,7 +362,7 @@ static void tcx_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   info->screen_base, info->fix.smem_len);
 }
 
-static int __devinit tcx_probe(struct platform_device *op)
+static int tcx_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -486,7 +486,7 @@ out_err:
 	return err;
 }
 
-static int __devexit tcx_remove(struct platform_device *op)
+static int tcx_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct tcx_par *par = info->par;
@@ -518,7 +518,7 @@ static struct platform_driver tcx_driver = {
 		.of_match_table = tcx_match,
 	},
 	.probe		= tcx_probe,
-	.remove		= __devexit_p(tcx_remove),
+	.remove		= tcx_remove,
 };
 
 static int __init tcx_init(void)

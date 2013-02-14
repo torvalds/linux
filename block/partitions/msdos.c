@@ -94,6 +94,17 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 	return ret;
 }
 
+static void set_info(struct parsed_partitions *state, int slot,
+		     u32 disksig)
+{
+	struct partition_meta_info *info = &state->parts[slot].info;
+
+	snprintf(info->uuid, sizeof(info->uuid), "%08x-%02x", disksig,
+		 slot);
+	info->volname[0] = 0;
+	state->parts[slot].has_info = true;
+}
+
 /*
  * Create devices for each logical partition in an extended partition.
  * The logical partitions form a linked list, with each entry being
@@ -106,7 +117,8 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
  */
 
 static void parse_extended(struct parsed_partitions *state,
-			   sector_t first_sector, sector_t first_size)
+			   sector_t first_sector, sector_t first_size,
+			   u32 disksig)
 {
 	struct partition *p;
 	Sector sect;
@@ -166,6 +178,7 @@ static void parse_extended(struct parsed_partitions *state,
 			}
 
 			put_partition(state, state->next, next, size);
+			set_info(state, state->next, disksig);
 			if (SYS_IND(p) == LINUX_RAID_PARTITION)
 				state->parts[state->next].flags = ADDPART_FLAG_RAID;
 			loopct = 0;
@@ -437,6 +450,7 @@ int msdos_partition(struct parsed_partitions *state)
 	struct partition *p;
 	struct fat_boot_sector *fb;
 	int slot;
+	u32 disksig;
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data)
@@ -491,6 +505,8 @@ int msdos_partition(struct parsed_partitions *state)
 #endif
 	p = (struct partition *) (data + 0x1be);
 
+	disksig = le32_to_cpup((__le32 *)(data + 0x1b8));
+
 	/*
 	 * Look for partitions in two passes:
 	 * First find the primary and DOS-type extended partitions.
@@ -515,11 +531,12 @@ int msdos_partition(struct parsed_partitions *state)
 			put_partition(state, slot, start, n);
 
 			strlcat(state->pp_buf, " <", PAGE_SIZE);
-			parse_extended(state, start, size);
+			parse_extended(state, start, size, disksig);
 			strlcat(state->pp_buf, " >", PAGE_SIZE);
 			continue;
 		}
 		put_partition(state, slot, start, size);
+		set_info(state, slot, disksig);
 		if (SYS_IND(p) == LINUX_RAID_PARTITION)
 			state->parts[slot].flags = ADDPART_FLAG_RAID;
 		if (SYS_IND(p) == DM6_PARTITION)

@@ -161,14 +161,7 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 			    unsigned long start_time);
 
 void page_writeback_init(void);
-void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
-					unsigned long nr_pages_dirtied);
-
-static inline void
-balance_dirty_pages_ratelimited(struct address_space *mapping)
-{
-	balance_dirty_pages_ratelimited_nr(mapping, 1);
-}
+void balance_dirty_pages_ratelimited(struct address_space *mapping);
 
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
 				void *data);

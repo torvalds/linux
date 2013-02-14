@@ -53,6 +53,13 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 		mutex_unlock(&server->srv_mutex);
 		return rc;
 	}
+
+	/*
+	 * The response to this call was already factored into the sequence
+	 * number when the call went out, so we must adjust it back downward
+	 * after signing here.
+	 */
+	--server->sequence_number;
 	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
 	mutex_unlock(&server->srv_mutex);
 
@@ -575,37 +582,6 @@ cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSSMBQFileInfo(xid, tcon, fid->netfid, data);
 }
 
-static char *
-cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
-{
-	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
-	int dfsplen;
-	char *full_path = NULL;
-
-	/* if no prefix path, simply set path to the root of share to "" */
-	if (pplen == 0) {
-		full_path = kzalloc(1, GFP_KERNEL);
-		return full_path;
-	}
-
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
-		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
-	else
-		dfsplen = 0;
-
-	full_path = kmalloc(dfsplen + pplen + 1, GFP_KERNEL);
-	if (full_path == NULL)
-		return full_path;
-
-	if (dfsplen)
-		strncpy(full_path, tcon->treeName, dfsplen);
-	strncpy(full_path + dfsplen, vol->prepath, pplen);
-	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
-	full_path[dfsplen + pplen] = 0; /* add trailing null */
-	return full_path;
-}
-
 static void
 cifs_clear_stats(struct cifs_tcon *tcon)
 {
@@ -943,7 +919,6 @@ struct smb_version_operations smb1_operations = {
 	.set_path_size = CIFSSMBSetEOF,
 	.set_file_size = CIFSSMBSetFileSize,
 	.set_file_info = smb_set_file_info,
-	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,
@@ -984,4 +959,5 @@ struct smb_version_values smb1_values = {
 	.cap_unix = CAP_UNIX,
 	.cap_nt_find = CAP_NT_SMBS | CAP_NT_FIND,
 	.cap_large_files = CAP_LARGE_FILES,
+	.oplock_read = OPLOCK_READ,
 };

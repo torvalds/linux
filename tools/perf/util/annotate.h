@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "types.h"
 #include "symbol.h"
+#include "hist.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
@@ -75,6 +76,7 @@ struct sym_hist {
 struct source_line {
 	struct rb_node	node;
 	double		percent;
+	double		percent_sum;
 	char		*path;
 };
 
@@ -140,20 +142,18 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 
 #ifdef NEWT_SUPPORT
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			 void(*timer)(void *arg), void *arg, int delay_secs);
+			 struct hist_browser_timer *hbt);
 #else
 static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 				       struct map *map __maybe_unused,
 				       int evidx __maybe_unused,
-				       void(*timer)(void *arg) __maybe_unused,
-				       void *arg __maybe_unused,
-				       int delay_secs __maybe_unused)
+				       struct hist_browser_timer *hbt
+				       __maybe_unused)
 {
 	return 0;
 }
 #endif
 
 extern const char	*disassembler_style;
-extern const char	*objdump_path;
 
 #endif	/* __PERF_ANNOTATE_H */

@@ -216,7 +216,7 @@ config HW_RANDOM_MXC_RNGA
 
 config HW_RANDOM_NOMADIK
 	tristate "ST-Ericsson Nomadik Random Number Generator support"
-	depends on HW_RANDOM && PLAT_NOMADIK
+	depends on HW_RANDOM && ARCH_NOMADIK
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on ST-Ericsson SoCs (8815 and 8500).

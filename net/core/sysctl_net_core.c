@@ -216,6 +216,11 @@ static __net_init int sysctl_core_net_init(struct net *net)
 			goto err_dup;
 
 		tbl[0].data = &net->core.sysctl_somaxconn;
+
+		/* Don't export any sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns) {
+			tbl[0].procname = NULL;
+		}
 	}
 
 	net->core.sysctl_hdr = register_net_sysctl(net, "net/core", tbl);

@@ -39,18 +39,12 @@ static int s5pc100_cfg_i2s(struct platform_device *pdev)
 	return 0;
 }
 
-static const char *rclksrc_v5[] = {
-	[0] = "iis",
-	[1] = "i2sclkd2",
-};
-
 static struct s3c_audio_pdata i2sv5_pdata = {
 	.cfg_gpio = s5pc100_cfg_i2s,
 	.type = {
 		.i2s = {
 			.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI
 					 | QUIRK_NEED_RSTCLR,
-			.src_clk = rclksrc_v5,
 		},
 	},
 };
@@ -72,18 +66,8 @@ struct platform_device s5pc100_device_iis0 = {
 	},
 };
 
-static const char *rclksrc_v3[] = {
-	[0] = "iis",
-	[1] = "sclk_audio",
-};
-
 static struct s3c_audio_pdata i2sv3_pdata = {
 	.cfg_gpio = s5pc100_cfg_i2s,
-	.type = {
-		.i2s = {
-			.src_clk = rclksrc_v3,
-		},
-	},
 };
 
 static struct resource s5pc100_iis1_resource[] = {

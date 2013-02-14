@@ -931,15 +931,26 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->version = req->version;
 	hid->country = req->country;
 
-	strncpy(hid->name, req->name, 128);
-	strncpy(hid->phys, batostr(&bt_sk(session->ctrl_sock->sk)->src), 64);
-	strncpy(hid->uniq, batostr(&bt_sk(session->ctrl_sock->sk)->dst), 64);
+	strncpy(hid->name, req->name, sizeof(req->name) - 1);
+
+	snprintf(hid->phys, sizeof(hid->phys), "%pMR",
+		 &bt_sk(session->ctrl_sock->sk)->src);
+
+	snprintf(hid->uniq, sizeof(hid->uniq), "%pMR",
+		 &bt_sk(session->ctrl_sock->sk)->dst);
 
 	hid->dev.parent = &session->conn->dev;
 	hid->ll_driver = &hidp_hid_driver;
 
 	hid->hid_get_raw_report = hidp_get_raw_report;
 	hid->hid_output_raw_report = hidp_output_raw_report;
+
+	/* True if device is blacklisted in drivers/hid/hid-core.c */
+	if (hid_ignore(hid)) {
+		hid_destroy_device(session->hid);
+		session->hid = NULL;
+		return -ENODEV;
+	}
 
 	return 0;
 
@@ -1013,7 +1024,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	if (req->rd_size > 0) {
 		err = hidp_setup_hid(session, req);
-		if (err)
+		if (err && err != -ENODEV)
 			goto purge;
 	}
 

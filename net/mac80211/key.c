@@ -339,7 +339,7 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		key->conf.iv_len = TKIP_IV_LEN;
 		key->conf.icv_len = TKIP_ICV_LEN;
 		if (seq) {
-			for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
+			for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 				key->u.tkip.rx[i].iv32 =
 					get_unaligned_le32(&seq[2]);
 				key->u.tkip.rx[i].iv16 =
@@ -352,7 +352,7 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
 		if (seq) {
-			for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++)
+			for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
 				for (j = 0; j < CCMP_PN_LEN; j++)
 					key->u.ccmp.rx_pn[i][j] =
 						seq[CCMP_PN_LEN - j - 1];
@@ -372,8 +372,9 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		key->conf.iv_len = 0;
 		key->conf.icv_len = sizeof(struct ieee80211_mmie);
 		if (seq)
-			for (j = 0; j < 6; j++)
-				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
+			for (j = 0; j < CMAC_PN_LEN; j++)
+				key->u.aes_cmac.rx_pn[j] =
+					seq[CMAC_PN_LEN - j - 1];
 		/*
 		 * Initialize AES key state here as an optimization so that
 		 * it does not need to be initialized for every packet.
@@ -654,16 +655,16 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (WARN_ON(tid < 0 || tid >= NUM_RX_DATA_QUEUES))
+		if (WARN_ON(tid < 0 || tid >= IEEE80211_NUM_TIDS))
 			return;
 		seq->tkip.iv32 = key->u.tkip.rx[tid].iv32;
 		seq->tkip.iv16 = key->u.tkip.rx[tid].iv16;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		if (WARN_ON(tid < -1 || tid >= NUM_RX_DATA_QUEUES))
+		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
 			return;
 		if (tid < 0)
-			pn = key->u.ccmp.rx_pn[NUM_RX_DATA_QUEUES];
+			pn = key->u.ccmp.rx_pn[IEEE80211_NUM_TIDS];
 		else
 			pn = key->u.ccmp.rx_pn[tid];
 		memcpy(seq->ccmp.pn, pn, CCMP_PN_LEN);

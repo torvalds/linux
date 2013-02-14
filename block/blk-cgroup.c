@@ -231,7 +231,7 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	 * we shouldn't allow anything to go through for a bypassing queue.
 	 */
 	if (unlikely(blk_queue_bypass(q)))
-		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
+		return ERR_PTR(blk_queue_dying(q) ? -EINVAL : -EBUSY);
 	return __blkg_lookup_create(blkcg, q, NULL);
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
@@ -600,7 +600,7 @@ struct cftype blkcg_files[] = {
 };
 
 /**
- * blkcg_pre_destroy - cgroup pre_destroy callback
+ * blkcg_css_offline - cgroup css_offline callback
  * @cgroup: cgroup of interest
  *
  * This function is called when @cgroup is about to go away and responsible
@@ -610,7 +610,7 @@ struct cftype blkcg_files[] = {
  *
  * This is the blkcg counterpart of ioc_release_fn().
  */
-static int blkcg_pre_destroy(struct cgroup *cgroup)
+static void blkcg_css_offline(struct cgroup *cgroup)
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
 
@@ -632,10 +632,9 @@ static int blkcg_pre_destroy(struct cgroup *cgroup)
 	}
 
 	spin_unlock_irq(&blkcg->lock);
-	return 0;
 }
 
-static void blkcg_destroy(struct cgroup *cgroup)
+static void blkcg_css_free(struct cgroup *cgroup)
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
 
@@ -643,7 +642,7 @@ static void blkcg_destroy(struct cgroup *cgroup)
 		kfree(blkcg);
 }
 
-static struct cgroup_subsys_state *blkcg_create(struct cgroup *cgroup)
+static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
 {
 	static atomic64_t id_seq = ATOMIC64_INIT(0);
 	struct blkcg *blkcg;
@@ -740,10 +739,10 @@ static int blkcg_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 
 struct cgroup_subsys blkio_subsys = {
 	.name = "blkio",
-	.create = blkcg_create,
+	.css_alloc = blkcg_css_alloc,
+	.css_offline = blkcg_css_offline,
+	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
-	.pre_destroy = blkcg_pre_destroy,
-	.destroy = blkcg_destroy,
 	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
 	.module = THIS_MODULE,

@@ -543,6 +543,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-enuminput;
     &sub-enumoutput;
     &sub-enumstd;
+    &sub-expbuf;
     &sub-g-audio;
     &sub-g-audioout;
     &sub-g-crop;

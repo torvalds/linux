@@ -3860,7 +3860,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	return dev;
 }
 
-static void __devinit skge_show_addr(struct net_device *dev)
+static void skge_show_addr(struct net_device *dev)
 {
 	const struct skge_port *skge = netdev_priv(dev);
 
@@ -3869,8 +3869,7 @@ static void __devinit skge_show_addr(struct net_device *dev)
 
 static int only_32bit_dma;
 
-static int __devinit skge_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev, *dev1;
 	struct skge_hw *hw;
@@ -4012,7 +4011,7 @@ err_out:
 	return err;
 }
 
-static void __devexit skge_remove(struct pci_dev *pdev)
+static void skge_remove(struct pci_dev *pdev)
 {
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	struct net_device *dev0, *dev1;
@@ -4142,7 +4141,7 @@ static struct pci_driver skge_driver = {
 	.name =         DRV_NAME,
 	.id_table =     skge_id_table,
 	.probe =        skge_probe,
-	.remove =       __devexit_p(skge_remove),
+	.remove =       skge_remove,
 	.shutdown =	skge_shutdown,
 	.driver.pm =	SKGE_PM_OPS,
 };

@@ -205,7 +205,7 @@ RCU ("read-copy update") its name.  The RCU code is as follows:
 				audit_copy_rule(&ne->rule, &e->rule);
 				ne->rule.action = newaction;
 				ne->rule.file_count = newfield_count;
-				list_replace_rcu(e, ne);
+				list_replace_rcu(&e->list, &ne->list);
 				call_rcu(&e->rcu, audit_free_rule);
 				return 0;
 			}

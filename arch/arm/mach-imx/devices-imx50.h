@@ -18,8 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <mach/mx50.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_imx_uart_1irq_data imx50_imx_uart_data[];
 #define imx50_add_imx_uart(id, pdata)	\

@@ -306,7 +306,7 @@ static const struct rtc_class_ops mpc5200_rtc_ops = {
 	.alarm_irq_enable = mpc5121_rtc_alarm_irq_enable,
 };
 
-static int __devinit mpc5121_rtc_probe(struct platform_device *op)
+static int mpc5121_rtc_probe(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
@@ -382,7 +382,7 @@ out_free:
 	return err;
 }
 
-static int __devexit mpc5121_rtc_remove(struct platform_device *op)
+static int mpc5121_rtc_remove(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(&op->dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
@@ -403,7 +403,7 @@ static int __devexit mpc5121_rtc_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc5121_rtc_match[] __devinitdata = {
+static struct of_device_id mpc5121_rtc_match[] = {
 	{ .compatible = "fsl,mpc5121-rtc", },
 	{ .compatible = "fsl,mpc5200-rtc", },
 	{},
@@ -416,7 +416,7 @@ static struct platform_driver mpc5121_rtc_driver = {
 		.of_match_table = mpc5121_rtc_match,
 	},
 	.probe = mpc5121_rtc_probe,
-	.remove = __devexit_p(mpc5121_rtc_remove),
+	.remove = mpc5121_rtc_remove,
 };
 
 module_platform_driver(mpc5121_rtc_driver);

@@ -327,8 +327,10 @@ mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (chan == MAC802154_CHAN_NONE ||
 	    page >= WPAN_NUM_PAGES ||
-	    chan >= WPAN_NUM_CHANNELS)
+	    chan >= WPAN_NUM_CHANNELS) {
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
+	}
 
 	skb->skb_iif = dev->ifindex;
 	dev->stats.tx_packets++;
@@ -387,7 +389,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 {
-	return netif_rx(skb);
+	return netif_rx_ni(skb);
 }
 
 static int

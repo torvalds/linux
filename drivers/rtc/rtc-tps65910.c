@@ -222,7 +222,7 @@ static const struct rtc_class_ops tps65910_rtc_ops = {
 	.alarm_irq_enable = tps65910_rtc_alarm_irq_enable,
 };
 
-static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
+static int tps65910_rtc_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = NULL;
 	struct tps65910_rtc *tps_rtc = NULL;
@@ -247,6 +247,13 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	dev_dbg(&pdev->dev, "Enabling rtc-tps65910.\n");
+
+	/* Enable RTC digital power domain */
+	ret = regmap_update_bits(tps65910->regmap, TPS65910_DEVCTRL,
+		DEVCTRL_RTC_PWDN_MASK, 0 << DEVCTRL_RTC_PWDN_SHIFT);
+	if (ret < 0)
+		return ret;
+
 	rtc_reg = TPS65910_RTC_CTRL_STOP_RTC;
 	ret = regmap_write(tps65910->regmap, TPS65910_RTC_CTRL, rtc_reg);
 	if (ret < 0)
@@ -261,7 +268,7 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 		tps65910_rtc_interrupt, IRQF_TRIGGER_LOW,
-		"rtc-tps65910", &pdev->dev);
+		dev_name(&pdev->dev), &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ is not free.\n");
 		return ret;
@@ -285,7 +292,7 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
  * Disable tps65910 RTC interrupts.
  * Sets status flag to free.
  */
-static int __devexit tps65910_rtc_remove(struct platform_device *pdev)
+static int tps65910_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct tps65910_rtc *tps_rtc = platform_get_drvdata(pdev);
@@ -335,7 +342,7 @@ static const struct dev_pm_ops tps65910_rtc_pm_ops = {
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
-	.remove		= __devexit_p(tps65910_rtc_remove),
+	.remove		= tps65910_rtc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "tps65910-rtc",

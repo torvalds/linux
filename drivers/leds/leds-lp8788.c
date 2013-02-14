@@ -125,7 +125,7 @@ static void lp8788_brightness_set(struct led_classdev *led_cdev,
 	schedule_work(&led->work);
 }
 
-static __devinit int lp8788_led_probe(struct platform_device *pdev)
+static int lp8788_led_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct lp8788_led_platform_data *led_pdata;
@@ -167,7 +167,7 @@ static __devinit int lp8788_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_led_remove(struct platform_device *pdev)
+static int lp8788_led_remove(struct platform_device *pdev)
 {
 	struct lp8788_led *led = platform_get_drvdata(pdev);
 
@@ -179,7 +179,7 @@ static int __devexit lp8788_led_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_led_driver = {
 	.probe = lp8788_led_probe,
-	.remove = __devexit_p(lp8788_led_remove),
+	.remove = lp8788_led_remove,
 	.driver = {
 		.name = LP8788_DEV_KEYLED,
 		.owner = THIS_MODULE,

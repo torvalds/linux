@@ -485,13 +485,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wl1273 = {
 	.remove = wl1273_remove,
 };
 
-static int __devinit wl1273_platform_probe(struct platform_device *pdev)
+static int wl1273_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wl1273,
 				      &wl1273_dai, 1);
 }
 
-static int __devexit wl1273_platform_remove(struct platform_device *pdev)
+static int wl1273_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -505,7 +505,7 @@ static struct platform_driver wl1273_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wl1273_platform_probe,
-	.remove		= __devexit_p(wl1273_platform_remove),
+	.remove		= wl1273_platform_remove,
 };
 
 module_platform_driver(wl1273_platform_driver);

@@ -87,11 +87,13 @@ struct sock *__inet6_lookup_established(struct net *net,
 	rcu_read_lock();
 begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
-		/* For IPV6 do the cheaper port and family tests first. */
-		if (INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+		if (sk->sk_hash != hash)
+			continue;
+		if (likely(INET6_MATCH(sk, net, saddr, daddr, ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
 				goto begintw;
-			if (!INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!INET6_MATCH(sk, net, saddr, daddr,
+						  ports, dif))) {
 				sock_put(sk);
 				goto begin;
 			}
@@ -104,12 +106,16 @@ begin:
 begintw:
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
-		if (INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+		if (sk->sk_hash != hash)
+			continue;
+		if (likely(INET6_TW_MATCH(sk, net, saddr, daddr,
+					  ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
 				sk = NULL;
 				goto out;
 			}
-			if (!INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!INET6_TW_MATCH(sk, net, saddr, daddr,
+						     ports, dif))) {
 				sock_put(sk);
 				goto begintw;
 			}
@@ -236,9 +242,12 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 	/* Check TIME-WAIT sockets first. */
 	sk_nulls_for_each(sk2, node, &head->twchain) {
-		tw = inet_twsk(sk2);
+		if (sk2->sk_hash != hash)
+			continue;
 
-		if (INET6_TW_MATCH(sk2, net, hash, saddr, daddr, ports, dif)) {
+		if (likely(INET6_TW_MATCH(sk2, net, saddr, daddr,
+					  ports, dif))) {
+			tw = inet_twsk(sk2);
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else
@@ -249,7 +258,9 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 	/* And established part... */
 	sk_nulls_for_each(sk2, node, &head->chain) {
-		if (INET6_MATCH(sk2, net, hash, saddr, daddr, ports, dif))
+		if (sk2->sk_hash != hash)
+			continue;
+		if (likely(INET6_MATCH(sk2, net, saddr, daddr, ports, dif)))
 			goto not_unique;
 	}
 

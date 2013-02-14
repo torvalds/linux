@@ -33,10 +33,44 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/common.h>
-#include <mach/cpuidle.h>
-#include <mach/hardware.h>
 
+#include "common.h"
+#include "cpuidle.h"
+#include "hardware.h"
+
+#define IMX6Q_ANALOG_DIGPROG	0x260
+
+static int imx6q_revision(void)
+{
+	struct device_node *np;
+	void __iomem *base;
+	static u32 rev;
+
+	if (!rev) {
+		np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+		if (!np)
+			return IMX_CHIP_REVISION_UNKNOWN;
+		base = of_iomap(np, 0);
+		if (!base) {
+			of_node_put(np);
+			return IMX_CHIP_REVISION_UNKNOWN;
+		}
+		rev =  readl_relaxed(base + IMX6Q_ANALOG_DIGPROG);
+		iounmap(base);
+		of_node_put(np);
+	}
+
+	switch (rev & 0xff) {
+	case 0:
+		return IMX_CHIP_REVISION_1_0;
+	case 1:
+		return IMX_CHIP_REVISION_1_1;
+	case 2:
+		return IMX_CHIP_REVISION_1_2;
+	default:
+		return IMX_CHIP_REVISION_UNKNOWN;
+	}
+}
 
 void imx6q_restart(char mode, const char *cmd)
 {
@@ -117,6 +151,17 @@ static void __init imx6q_sabrelite_init(void)
 	imx6q_sabrelite_cko1_setup();
 }
 
+static void __init imx6q_1588_init(void)
+{
+	struct regmap *gpr;
+
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+	if (!IS_ERR(gpr))
+		regmap_update_bits(gpr, 0x4, 1 << 21, 1 << 21);
+	else
+		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
+
+}
 static void __init imx6q_usb_init(void)
 {
 	struct regmap *anatop;
@@ -153,6 +198,7 @@ static void __init imx6q_init_machine(void)
 
 	imx6q_pm_init();
 	imx6q_usb_init();
+	imx6q_1588_init();
 }
 
 static struct cpuidle_driver imx6q_cpuidle_driver = {
@@ -192,6 +238,7 @@ static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
 	twd_local_timer_of_register();
+	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 
 static struct sys_timer imx6q_timer = {

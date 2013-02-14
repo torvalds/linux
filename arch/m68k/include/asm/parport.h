@@ -15,8 +15,8 @@
 #define outsl(port,buf,len)  isa_outsb(port,buf,(len)<<2)
 
 /* no dma, or IRQ autoprobing */
-static int __devinit parport_pc_find_isa_ports (int autoirq, int autodma);
-static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
+static int parport_pc_find_isa_ports (int autoirq, int autodma);
+static int parport_pc_find_nonpci_ports (int autoirq, int autodma)
 {
         if (! (MACH_IS_Q40))
 	  return 0; /* count=0 */

@@ -95,7 +95,7 @@ static inline u32 ltq_calc_bar11mask(void)
 	return bar11mask;
 }
 
-static int __devinit ltq_pci_startup(struct platform_device *pdev)
+static int ltq_pci_startup(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	const __be32 *req_mask, *bus_clk;
@@ -201,7 +201,7 @@ static int __devinit ltq_pci_startup(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit ltq_pci_probe(struct platform_device *pdev)
+static int ltq_pci_probe(struct platform_device *pdev)
 {
 	struct resource *res_cfg, *res_bridge;
 

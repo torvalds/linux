@@ -347,7 +347,7 @@ later), which will happily live at the base of the Linux /sys/devices
 tree.  Therefore, if a DT node is at the root of the tree, then it
 really probably is best registered as a platform_device.
 
-Linux board support code calls of_platform_populate(NULL, NULL, NULL)
+Linux board support code calls of_platform_populate(NULL, NULL, NULL, NULL)
 to kick off discovery of devices at the root of the tree.  The
 parameters are all NULL because when starting from the root of the
 tree, there is no need to provide a starting node (the first NULL), a

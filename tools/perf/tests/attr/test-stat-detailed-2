@@ -1,0 +1,155 @@
+[config]
+command = stat
+args    = -dd kill >/dev/null 2>&1
+ret     = 1
+
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_TASK_CLOCK
+[event1:base-stat]
+fd=1
+type=1
+config=1
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CONTEXT_SWITCHES
+[event2:base-stat]
+fd=2
+type=1
+config=3
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CPU_MIGRATIONS
+[event3:base-stat]
+fd=3
+type=1
+config=4
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_PAGE_FAULTS
+[event4:base-stat]
+fd=4
+type=1
+config=2
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_CPU_CYCLES
+[event5:base-stat]
+fd=5
+type=0
+config=0
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
+[event6:base-stat]
+fd=6
+type=0
+config=7
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_BACKEND
+[event7:base-stat]
+fd=7
+type=0
+config=8
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_INSTRUCTIONS
+[event8:base-stat]
+fd=8
+type=0
+config=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_INSTRUCTIONS
+[event9:base-stat]
+fd=9
+type=0
+config=4
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_MISSES
+[event10:base-stat]
+fd=10
+type=0
+config=5
+
+# PERF_TYPE_HW_CACHE /
+#  PERF_COUNT_HW_CACHE_L1D                <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
+[event11:base-stat]
+fd=11
+type=3
+config=0
+
+# PERF_TYPE_HW_CACHE /
+#  PERF_COUNT_HW_CACHE_L1D                <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
+[event12:base-stat]
+fd=12
+type=3
+config=65536
+
+# PERF_TYPE_HW_CACHE /
+#  PERF_COUNT_HW_CACHE_LL                 <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
+[event13:base-stat]
+fd=13
+type=3
+config=2
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_LL                 <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
+[event14:base-stat]
+fd=14
+type=3
+config=65538
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_L1I                <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
+[event15:base-stat]
+fd=15
+type=3
+config=1
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_L1I                <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
+[event16:base-stat]
+fd=16
+type=3
+config=65537
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
+[event17:base-stat]
+fd=17
+type=3
+config=3
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
+[event18:base-stat]
+fd=18
+type=3
+config=65539
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
+[event19:base-stat]
+fd=19
+type=3
+config=4
+
+# PERF_TYPE_HW_CACHE,
+#  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
+# (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
+# (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
+[event20:base-stat]
+fd=20
+type=3
+config=65540

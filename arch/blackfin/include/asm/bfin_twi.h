@@ -61,7 +61,7 @@ struct bfin_twi_iface {
 	int			cur_msg;
 	u16			saved_clkdiv;
 	u16			saved_control;
-	struct bfin_twi_regs	*regs_base;
+	struct bfin_twi_regs __iomem *regs_base;
 };
 
 #define DEFINE_TWI_REG(reg_name, reg) \

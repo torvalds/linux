@@ -72,8 +72,8 @@ extern struct kmem_cache *t10_alua_lu_gp_mem_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
-extern int target_emulate_report_target_port_groups(struct se_cmd *);
-extern int target_emulate_set_target_port_groups(struct se_cmd *);
+extern sense_reason_t target_emulate_report_target_port_groups(struct se_cmd *);
+extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
 extern int core_alua_check_nonop_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
 				struct se_device *, struct se_port *,
@@ -91,7 +91,7 @@ extern void __core_alua_drop_lu_gp_mem(struct t10_alua_lu_gp_member *,
 					struct t10_alua_lu_gp *);
 extern void core_alua_drop_lu_gp_dev(struct se_device *);
 extern struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(
-			struct se_subsystem_dev *, const char *, int);
+			struct se_device *, const char *, int);
 extern int core_alua_set_tg_pt_gp_id(struct t10_alua_tg_pt_gp *, u16);
 extern struct t10_alua_tg_pt_gp_member *core_alua_allocate_tg_pt_gp_mem(
 					struct se_port *);
@@ -131,6 +131,7 @@ extern ssize_t core_alua_show_secondary_write_metadata(struct se_lun *,
 					char *);
 extern ssize_t core_alua_store_secondary_write_metadata(struct se_lun *,
 					const char *, size_t);
-extern int core_setup_alua(struct se_device *, int);
+extern int core_setup_alua(struct se_device *);
+extern sense_reason_t target_alua_state_check(struct se_cmd *cmd);
 
 #endif /* TARGET_CORE_ALUA_H */

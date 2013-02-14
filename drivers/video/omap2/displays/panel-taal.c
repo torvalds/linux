@@ -1245,76 +1245,6 @@ static void taal_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&td->lock);
 }
 
-static int taal_suspend(struct omap_dss_device *dssdev)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	dev_dbg(&dssdev->dev, "suspend\n");
-
-	mutex_lock(&td->lock);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	taal_cancel_ulps_work(dssdev);
-	taal_cancel_esd_work(dssdev);
-
-	dsi_bus_lock(dssdev);
-
-	r = taal_wake_up(dssdev);
-	if (!r)
-		taal_power_off(dssdev);
-
-	dsi_bus_unlock(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	mutex_unlock(&td->lock);
-
-	return 0;
-err:
-	mutex_unlock(&td->lock);
-	return r;
-}
-
-static int taal_resume(struct omap_dss_device *dssdev)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	dev_dbg(&dssdev->dev, "resume\n");
-
-	mutex_lock(&td->lock);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	dsi_bus_lock(dssdev);
-
-	r = taal_power_on(dssdev);
-
-	dsi_bus_unlock(dssdev);
-
-	if (r) {
-		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-	} else {
-		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-		taal_queue_esd_work(dssdev);
-	}
-
-	mutex_unlock(&td->lock);
-
-	return r;
-err:
-	mutex_unlock(&td->lock);
-	return r;
-}
-
 static void taal_framedone_cb(int err, void *data)
 {
 	struct omap_dss_device *dssdev = data;
@@ -1818,8 +1748,6 @@ static struct omap_dss_driver taal_driver = {
 
 	.enable		= taal_enable,
 	.disable	= taal_disable,
-	.suspend	= taal_suspend,
-	.resume		= taal_resume,
 
 	.update		= taal_update,
 	.sync		= taal_sync,

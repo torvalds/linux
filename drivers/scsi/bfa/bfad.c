@@ -1739,7 +1739,7 @@ static struct pci_driver bfad_pci_driver = {
 	.name = BFAD_DRIVER_NAME,
 	.id_table = bfad_id_table,
 	.probe = bfad_pci_probe,
-	.remove = __devexit_p(bfad_pci_remove),
+	.remove = bfad_pci_remove,
 	.err_handler = &bfad_err_handler,
 };
 

@@ -85,10 +85,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
-		if (priv->scan_pending_on_block) {
-			priv->scan_pending_on_block = false;
-			up(&priv->async_sem);
-		}
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:

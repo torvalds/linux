@@ -353,7 +353,7 @@ again:
 EXPORT_SYMBOL(bitmap_find_next_zero_area);
 
 /*
- * Bitmap printing & parsing functions: first version by Bill Irwin,
+ * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
  * second version by Paul Jackson, third by Joe Korty.
  */
 

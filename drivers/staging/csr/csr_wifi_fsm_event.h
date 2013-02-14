@@ -11,10 +11,6 @@
 #ifndef CSR_WIFI_FSM_EVENT_H
 #define CSR_WIFI_FSM_EVENT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_prim_defs.h"
 #include "csr_sched.h"
 
@@ -41,10 +37,6 @@ typedef struct CsrWifiFsmEvent
      */
     struct CsrWifiFsmEvent *next;
 } CsrWifiFsmEvent;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_FSM_EVENT_H */
 

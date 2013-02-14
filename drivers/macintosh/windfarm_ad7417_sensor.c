@@ -177,9 +177,9 @@ static const struct wf_sensor_ops wf_ad7417_adc_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static void __devinit wf_ad7417_add_sensor(struct wf_ad7417_priv *pv,
-					   int index, const char *name,
-					   const struct wf_sensor_ops *ops)
+static void wf_ad7417_add_sensor(struct wf_ad7417_priv *pv,
+				 int index, const char *name,
+				 const struct wf_sensor_ops *ops)
 {
 	pv->sensors[index].name = kasprintf(GFP_KERNEL, "%s-%d", name, pv->cpu);
 	pv->sensors[index].priv = pv;
@@ -188,7 +188,7 @@ static void __devinit wf_ad7417_add_sensor(struct wf_ad7417_priv *pv,
 		kref_get(&pv->ref);
 }
 
-static void __devinit wf_ad7417_init_chip(struct wf_ad7417_priv *pv)
+static void wf_ad7417_init_chip(struct wf_ad7417_priv *pv)
 {
 	int rc;
 	u8 buf[2];
@@ -230,8 +230,8 @@ static void __devinit wf_ad7417_init_chip(struct wf_ad7417_priv *pv)
 	pv->config = config;
 }
 
-static int __devinit wf_ad7417_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int wf_ad7417_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct wf_ad7417_priv *pv;
 	const struct mpu_data *mpu;
@@ -290,7 +290,7 @@ static int __devinit wf_ad7417_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit wf_ad7417_remove(struct i2c_client *client)
+static int wf_ad7417_remove(struct i2c_client *client)
 {
 	struct wf_ad7417_priv *pv = dev_get_drvdata(&client->dev);
 	int i;
@@ -322,7 +322,7 @@ static struct i2c_driver wf_ad7417_driver = {
 	.id_table	= wf_ad7417_id,
 };
 
-static int __devinit wf_ad7417_init(void)
+static int wf_ad7417_init(void)
 {
 	/* This is only supported on these machines */
 	if (!of_machine_is_compatible("PowerMac7,2") &&
@@ -333,7 +333,7 @@ static int __devinit wf_ad7417_init(void)
 	return i2c_add_driver(&wf_ad7417_driver);
 }
 
-static void __devexit wf_ad7417_exit(void)
+static void wf_ad7417_exit(void)
 {
 	i2c_del_driver(&wf_ad7417_driver);
 }

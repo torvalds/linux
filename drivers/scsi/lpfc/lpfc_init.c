@@ -3854,7 +3854,7 @@ static void
 lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 {
 	char port_name;
-	char message[80];
+	char message[128];
 	uint8_t status;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 
@@ -8813,7 +8813,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
  * 	0 - driver can claim the device
  * 	negative value - driver can not claim the device
  **/
-static int __devinit
+static int
 lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct lpfc_hba   *phba;
@@ -8980,7 +8980,7 @@ out_free_phba:
  * removed from PCI bus, it performs all the necessary cleanup for the HBA
  * device to be removed from the PCI subsystem properly.
  **/
-static void __devexit
+static void
 lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 {
 	struct Scsi_Host  *shost = pci_get_drvdata(pdev);
@@ -9450,7 +9450,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	struct lpfc_dmabuf *dmabuf, *next;
 	uint32_t offset = 0, temp_offset = 0;
 
-	/* It can be null, sanity check */
+	/* It can be null in no-wait mode, sanity check */
 	if (!fw) {
 		rc = -ENXIO;
 		goto out;
@@ -9528,8 +9528,45 @@ release_out:
 	release_firmware(fw);
 out:
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"3024 Firmware update done: %d.", rc);
+			"3024 Firmware update done: %d.\n", rc);
 	return;
+}
+
+/**
+ * lpfc_sli4_request_firmware_update - Request linux generic firmware upgrade
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is called to perform Linux generic firmware upgrade on device
+ * that supports such feature.
+ **/
+int
+lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
+{
+	uint8_t file_name[ELX_MODEL_NAME_SIZE];
+	int ret;
+	const struct firmware *fw;
+
+	/* Only supported on SLI4 interface type 2 for now */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_2)
+		return -EPERM;
+
+	snprintf(file_name, ELX_MODEL_NAME_SIZE, "%s.grp", phba->ModelName);
+
+	if (fw_upgrade == INT_FW_UPGRADE) {
+		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+					file_name, &phba->pcidev->dev,
+					GFP_KERNEL, (void *)phba,
+					lpfc_write_firmware);
+	} else if (fw_upgrade == RUN_FW_UPGRADE) {
+		ret = request_firmware(&fw, file_name, &phba->pcidev->dev);
+		if (!ret)
+			lpfc_write_firmware(fw, (void *)phba);
+	} else {
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 /**
@@ -9550,7 +9587,7 @@ out:
  * 	0 - driver can claim the device
  * 	negative value - driver can not claim the device
  **/
-static int __devinit
+static int
 lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct lpfc_hba   *phba;
@@ -9560,7 +9597,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	uint32_t cfg_mode, intr_mode;
 	int mcnt;
 	int adjusted_fcp_io_channel;
-	uint8_t file_name[ELX_MODEL_NAME_SIZE];
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -9703,16 +9739,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
 
-	/* check for firmware upgrade or downgrade (if_type 2 only) */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	    LPFC_SLI_INTF_IF_TYPE_2) {
-		snprintf(file_name, ELX_MODEL_NAME_SIZE, "%s.grp",
-			 phba->ModelName);
-		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-					file_name, &phba->pcidev->dev,
-					GFP_KERNEL, (void *)phba,
-					lpfc_write_firmware);
-	}
+	/* check for firmware upgrade or downgrade */
+	if (phba->cfg_request_firmware_upgrade)
+		ret = lpfc_sli4_request_firmware_update(phba, INT_FW_UPGRADE);
 
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
@@ -9750,7 +9779,7 @@ out_free_phba:
  * removed from PCI bus, it performs all the necessary cleanup for the HBA
  * device to be removed from the PCI subsystem properly.
  **/
-static void __devexit
+static void
 lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
@@ -10176,7 +10205,7 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
  * 	0 - driver can claim the device
  * 	negative value - driver can not claim the device
  **/
-static int __devinit
+static int
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	int rc;
@@ -10204,7 +10233,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
  * remove routine, which will perform all the necessary cleanup for the
  * device to be removed from the PCI subsystem properly.
  **/
-static void __devexit
+static void
 lpfc_pci_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
@@ -10546,7 +10575,7 @@ static struct pci_driver lpfc_driver = {
 	.name		= LPFC_DRIVER_NAME,
 	.id_table	= lpfc_id_table,
 	.probe		= lpfc_pci_probe_one,
-	.remove		= __devexit_p(lpfc_pci_remove_one),
+	.remove		= lpfc_pci_remove_one,
 	.suspend        = lpfc_pci_suspend_one,
 	.resume		= lpfc_pci_resume_one,
 	.err_handler    = &lpfc_err_handler,

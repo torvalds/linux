@@ -405,7 +405,7 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 		break;
 	default:
 		ret = -EINVAL;
-	};
+	}
 out:
 	mutex_unlock(&indio_dev->mlock);
 	return ret;
@@ -474,7 +474,7 @@ static const struct iio_chan_spec ad7152_channels[] = {
  * device probe and remove
  */
 
-static int __devinit ad7152_probe(struct i2c_client *client,
+static int ad7152_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -518,7 +518,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7152_remove(struct i2c_client *client)
+static int ad7152_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -541,7 +541,7 @@ static struct i2c_driver ad7152_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = ad7152_probe,
-	.remove = __devexit_p(ad7152_remove),
+	.remove = ad7152_remove,
 	.id_table = ad7152_id,
 };
 module_i2c_driver(ad7152_driver);

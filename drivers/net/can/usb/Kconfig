@@ -13,6 +13,35 @@ config CAN_ESD_USB2
           This driver supports the CAN-USB/2 interface
           from esd electronic system design gmbh (http://www.esd.eu).
 
+config CAN_KVASER_USB
+	tristate "Kvaser CAN/USB interface"
+	---help---
+	  This driver adds support for Kvaser CAN/USB devices like Kvaser
+	  Leaf Light.
+
+	  The driver gives support for the following devices:
+	    - Kvaser Leaf Light
+	    - Kvaser Leaf Professional HS
+	    - Kvaser Leaf SemiPro HS
+	    - Kvaser Leaf Professional LS
+	    - Kvaser Leaf Professional SWC
+	    - Kvaser Leaf Professional LIN
+	    - Kvaser Leaf SemiPro LS
+	    - Kvaser Leaf SemiPro SWC
+	    - Kvaser Memorator II HS/HS
+	    - Kvaser USBcan Professional HS/HS
+	    - Kvaser Leaf Light GI
+	    - Kvaser Leaf Professional HS (OBD-II connector)
+	    - Kvaser Memorator Professional HS/LS
+	    - Kvaser Leaf Light "China"
+	    - Kvaser BlackBird SemiPro
+	    - Kvaser USBcan R
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kvaser_usb.
+
 config CAN_PEAK_USB
 	tristate "PEAK PCAN-USB/USB Pro interfaces"
 	---help---

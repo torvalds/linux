@@ -971,12 +971,12 @@ static struct pxa3xx_pinmux_info pxa910_info = {
 	.ds_shift	= PXA910_DS_SHIFT,
 };
 
-static int __devinit pxa910_pinmux_probe(struct platform_device *pdev)
+static int pxa910_pinmux_probe(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_register(pdev, &pxa910_info);
 }
 
-static int __devexit pxa910_pinmux_remove(struct platform_device *pdev)
+static int pxa910_pinmux_remove(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_unregister(pdev);
 }
@@ -987,7 +987,7 @@ static struct platform_driver pxa910_pinmux_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pxa910_pinmux_probe,
-	.remove	= __devexit_p(pxa910_pinmux_remove),
+	.remove	= pxa910_pinmux_remove,
 };
 
 static int __init pxa910_pinmux_init(void)

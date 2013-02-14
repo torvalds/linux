@@ -28,8 +28,8 @@ config ZORRO
 	  Linux use these.
 
 config AMIGA_PCMCIA
-	bool "Amiga 1200/600 PCMCIA support (EXPERIMENTAL)"
-	depends on AMIGA && EXPERIMENTAL
+	bool "Amiga 1200/600 PCMCIA support"
+	depends on AMIGA
 	help
 	  Include support in the kernel for pcmcia on Amiga 1200 and Amiga
 	  600. If you intend to use pcmcia cards say Y; otherwise say N.

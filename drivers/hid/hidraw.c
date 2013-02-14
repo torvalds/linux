@@ -57,16 +57,16 @@ static ssize_t hidraw_read(struct file *file, char __user *buffer, size_t count,
 			set_current_state(TASK_INTERRUPTIBLE);
 
 			while (list->head == list->tail) {
-				if (file->f_flags & O_NONBLOCK) {
-					ret = -EAGAIN;
-					break;
-				}
 				if (signal_pending(current)) {
 					ret = -ERESTARTSYS;
 					break;
 				}
 				if (!list->hidraw->exist) {
 					ret = -EIO;
+					break;
+				}
+				if (file->f_flags & O_NONBLOCK) {
+					ret = -EAGAIN;
 					break;
 				}
 
@@ -295,6 +295,13 @@ out:
 
 }
 
+static int hidraw_fasync(int fd, struct file *file, int on)
+{
+	struct hidraw_list *list = file->private_data;
+
+	return fasync_helper(fd, file, on, &list->fasync);
+}
+
 static int hidraw_release(struct inode * inode, struct file * file)
 {
 	unsigned int minor = iminor(inode);
@@ -438,6 +445,7 @@ static const struct file_operations hidraw_ops = {
 	.open =         hidraw_open,
 	.release =      hidraw_release,
 	.unlocked_ioctl = hidraw_ioctl,
+	.fasync =	hidraw_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = hidraw_ioctl,
 #endif

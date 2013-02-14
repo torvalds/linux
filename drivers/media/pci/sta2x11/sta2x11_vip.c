@@ -1205,8 +1205,8 @@ static void vip_gpio_release(struct device *dev, int pin, const char *name)
  *
  * -ENODEV, device could not be detected or registered
  */
-static int __devinit sta2x11_vip_init_one(struct pci_dev *pdev,
-					  const struct pci_device_id *ent)
+static int sta2x11_vip_init_one(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
 	int ret;
 	struct sta2x11_vip *vip;
@@ -1376,7 +1376,7 @@ disable:
  * free memory
  * free GPIO pins
  */
-static void __devexit sta2x11_vip_remove_one(struct pci_dev *pdev)
+static void sta2x11_vip_remove_one(struct pci_dev *pdev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
 	struct sta2x11_vip *vip =
@@ -1517,7 +1517,7 @@ static DEFINE_PCI_DEVICE_TABLE(sta2x11_vip_pci_tbl) = {
 static struct pci_driver sta2x11_vip_driver = {
 	.name = DRV_NAME,
 	.probe = sta2x11_vip_init_one,
-	.remove = __devexit_p(sta2x11_vip_remove_one),
+	.remove = sta2x11_vip_remove_one,
 	.id_table = sta2x11_vip_pci_tbl,
 #ifdef CONFIG_PM
 	.suspend = sta2x11_vip_suspend,

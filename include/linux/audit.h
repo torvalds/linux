@@ -24,6 +24,7 @@
 #define _LINUX_AUDIT_H_
 
 #include <linux/sched.h>
+#include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
 
 struct audit_sig_info {
@@ -157,7 +158,8 @@ void audit_core_dumps(long signr);
 
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 {
-	if (unlikely(!audit_dummy_context()))
+	/* Force a record to be reported if a signal was delivered. */
+	if (signr || unlikely(!audit_dummy_context()))
 		__audit_seccomp(syscall, signr, code);
 }
 

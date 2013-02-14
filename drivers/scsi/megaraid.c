@@ -4522,7 +4522,7 @@ static struct scsi_host_template megaraid_template = {
 	.eh_host_reset_handler		= megaraid_reset,
 };
 
-static int __devinit
+static int
 megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct Scsi_Host *host;
@@ -4914,7 +4914,7 @@ __megaraid_shutdown(adapter_t *adapter)
 		mdelay(1000);
 }
 
-static void __devexit
+static void
 megaraid_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
@@ -5008,7 +5008,7 @@ static struct pci_driver megaraid_pci_driver = {
 	.name		= "megaraid_legacy",
 	.id_table	= megaraid_pci_tbl,
 	.probe		= megaraid_probe_one,
-	.remove		= __devexit_p(megaraid_remove_one),
+	.remove		= megaraid_remove_one,
 	.shutdown	= megaraid_shutdown,
 };
 

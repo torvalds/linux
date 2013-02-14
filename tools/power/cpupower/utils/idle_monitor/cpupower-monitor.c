@@ -39,6 +39,7 @@ static int mode;
 static int interval = 1;
 static char *show_monitors_param;
 static struct cpupower_topology cpu_top;
+static unsigned int wake_cpus;
 
 /* ToDo: Document this in the manpage */
 static char range_abbr[RANGE_MAX] = { 'T', 'C', 'P', 'M', };
@@ -84,7 +85,7 @@ int fill_string_with_spaces(char *s, int n)
 void print_header(int topology_depth)
 {
 	int unsigned mon;
-	int state, need_len, pr_mon_len;
+	int state, need_len;
 	cstate_t s;
 	char buf[128] = "";
 	int percent_width = 4;
@@ -93,7 +94,6 @@ void print_header(int topology_depth)
 	printf("%s|", buf);
 
 	for (mon = 0; mon < avail_monitors; mon++) {
-		pr_mon_len = 0;
 		need_len = monitors[mon]->hw_states_num * (percent_width + 3)
 			- 1;
 		if (mon != 0) {
@@ -315,15 +315,27 @@ int fork_it(char **argv)
 int do_interval_measure(int i)
 {
 	unsigned int num;
+	int cpu;
+
+	if (wake_cpus)
+		for (cpu = 0; cpu < cpu_count; cpu++)
+			bind_cpu(cpu);
 
 	for (num = 0; num < avail_monitors; num++) {
 		dprint("HW C-state residency monitor: %s - States: %d\n",
 		       monitors[num]->name, monitors[num]->hw_states_num);
 		monitors[num]->start();
 	}
+
 	sleep(i);
+
+	if (wake_cpus)
+		for (cpu = 0; cpu < cpu_count; cpu++)
+			bind_cpu(cpu);
+
 	for (num = 0; num < avail_monitors; num++)
 		monitors[num]->stop();
+
 
 	return 0;
 }
@@ -333,7 +345,7 @@ static void cmdline(int argc, char *argv[])
 	int opt;
 	progname = basename(argv[0]);
 
-	while ((opt = getopt(argc, argv, "+li:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "+lci:m:")) != -1) {
 		switch (opt) {
 		case 'l':
 			if (mode)
@@ -351,6 +363,9 @@ static void cmdline(int argc, char *argv[])
 				print_wrong_arg_exit();
 			mode = show;
 			show_monitors_param = optarg;
+			break;
+		case 'c':
+			wake_cpus = 1;
 			break;
 		default:
 			print_wrong_arg_exit();

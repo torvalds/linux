@@ -214,7 +214,7 @@ static const struct of_device_id mxs_gpio_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
 
-static int __devinit mxs_gpio_probe(struct platform_device *pdev)
+static int mxs_gpio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_gpio_dt_ids, &pdev->dev);

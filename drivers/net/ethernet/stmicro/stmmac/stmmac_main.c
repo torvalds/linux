@@ -115,16 +115,6 @@ static int tc = TC_DEFAULT;
 module_param(tc, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tc, "DMA threshold control value");
 
-/* Pay attention to tune this parameter; take care of both
- * hardware capability and network stabitily/performance impact.
- * Many tests showed that ~4ms latency seems to be good enough. */
-#ifdef CONFIG_STMMAC_TIMER
-#define DEFAULT_PERIODIC_RATE	256
-static int tmrate = DEFAULT_PERIODIC_RATE;
-module_param(tmrate, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(tmrate, "External timer freq. (default: 256Hz)");
-#endif
-
 #define DMA_BUFFER_SIZE	BUF_SIZE_2KiB
 static int buf_sz = DMA_BUFFER_SIZE;
 module_param(buf_sz, int, S_IRUGO | S_IWUSR);
@@ -146,6 +136,8 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
 static int stmmac_init_fs(struct net_device *dev);
 static void stmmac_exit_fs(void);
 #endif
+
+#define STMMAC_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
 
 /**
  * stmmac_verify_args - verify the driver parameters.
@@ -536,12 +528,6 @@ static void init_dma_desc_rings(struct net_device *dev)
 	else
 		bfsize = stmmac_set_bfsize(dev->mtu, priv->dma_buf_sz);
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Disable interrupts on completion for the reception if timer is on */
-	if (likely(priv->tm->enable))
-		dis_ic = 1;
-#endif
-
 	DBG(probe, INFO, "stmmac: txsize %d, rxsize %d, bfsize %d\n",
 	    txsize, rxsize, bfsize);
 
@@ -617,6 +603,8 @@ static void init_dma_desc_rings(struct net_device *dev)
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
 
+	if (priv->use_riwt)
+		dis_ic = 1;
 	/* Clear the Rx/Tx descriptors */
 	priv->hw->desc->init_rx_desc(priv->dma_rx, rxsize, dis_ic);
 	priv->hw->desc->init_tx_desc(priv->dma_tx, txsize);
@@ -704,15 +692,17 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 }
 
 /**
- * stmmac_tx:
- * @priv: private driver structure
+ * stmmac_tx_clean:
+ * @priv: private data pointer
  * Description: it reclaims resources after transmission completes.
  */
-static void stmmac_tx(struct stmmac_priv *priv)
+static void stmmac_tx_clean(struct stmmac_priv *priv)
 {
 	unsigned int txsize = priv->dma_tx_size;
 
 	spin_lock(&priv->tx_lock);
+
+	priv->xstats.tx_clean++;
 
 	while (priv->dirty_tx != priv->cur_tx) {
 		int last;
@@ -773,69 +763,16 @@ static void stmmac_tx(struct stmmac_priv *priv)
 	spin_unlock(&priv->tx_lock);
 }
 
-static inline void stmmac_enable_irq(struct stmmac_priv *priv)
+static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv)
 {
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_start(tmrate);
-	else
-#endif
-		priv->hw->dma->enable_dma_irq(priv->ioaddr);
+	priv->hw->dma->enable_dma_irq(priv->ioaddr);
 }
 
-static inline void stmmac_disable_irq(struct stmmac_priv *priv)
+static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv)
 {
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_stop();
-	else
-#endif
-		priv->hw->dma->disable_dma_irq(priv->ioaddr);
+	priv->hw->dma->disable_dma_irq(priv->ioaddr);
 }
 
-static int stmmac_has_work(struct stmmac_priv *priv)
-{
-	unsigned int has_work = 0;
-	int rxret, tx_work = 0;
-
-	rxret = priv->hw->desc->get_rx_owner(priv->dma_rx +
-		(priv->cur_rx % priv->dma_rx_size));
-
-	if (priv->dirty_tx != priv->cur_tx)
-		tx_work = 1;
-
-	if (likely(!rxret || tx_work))
-		has_work = 1;
-
-	return has_work;
-}
-
-static inline void _stmmac_schedule(struct stmmac_priv *priv)
-{
-	if (likely(stmmac_has_work(priv))) {
-		stmmac_disable_irq(priv);
-		napi_schedule(&priv->napi);
-	}
-}
-
-#ifdef CONFIG_STMMAC_TIMER
-void stmmac_schedule(struct net_device *dev)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	priv->xstats.sched_timer_n++;
-
-	_stmmac_schedule(priv);
-}
-
-static void stmmac_no_timer_started(unsigned int x)
-{;
-};
-
-static void stmmac_no_timer_stopped(void)
-{;
-};
-#endif
 
 /**
  * stmmac_tx_err:
@@ -858,16 +795,18 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 	netif_wake_queue(priv->dev);
 }
 
-
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
 	int status;
 
 	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
-	if (likely(status == handle_tx_rx))
-		_stmmac_schedule(priv);
-
-	else if (unlikely(status == tx_hard_error_bump_tc)) {
+	if (likely((status & handle_rx)) || (status & handle_tx)) {
+		if (likely(napi_schedule_prep(&priv->napi))) {
+			stmmac_disable_dma_irq(priv);
+			__napi_schedule(&priv->napi);
+		}
+	}
+	if (unlikely(status & tx_hard_error_bump_tc)) {
 		/* Try to bump up the dma threshold on this failure */
 		if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
 			tc += 64;
@@ -983,7 +922,6 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 		/* Alternate (enhanced) DESC mode*/
 		priv->dma_cap.enh_desc =
 			(hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
-
 	}
 
 	return hw_cap;
@@ -1025,6 +963,38 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 }
 
 /**
+ * stmmac_tx_timer:
+ * @data: data pointer
+ * Description:
+ * This is the timer handler to directly invoke the stmmac_tx_clean.
+ */
+static void stmmac_tx_timer(unsigned long data)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)data;
+
+	stmmac_tx_clean(priv);
+}
+
+/**
+ * stmmac_tx_timer:
+ * @priv: private data structure
+ * Description:
+ * This inits the transmit coalesce parameters: i.e. timer rate,
+ * timer handler and default threshold used for enabling the
+ * interrupt on completion bit.
+ */
+static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
+{
+	priv->tx_coal_frames = STMMAC_TX_FRAMES;
+	priv->tx_coal_timer = STMMAC_COAL_TX_TIMER;
+	init_timer(&priv->txtimer);
+	priv->txtimer.expires = STMMAC_COAL_TIMER(priv->tx_coal_timer);
+	priv->txtimer.data = (unsigned long)priv;
+	priv->txtimer.function = stmmac_tx_timer;
+	add_timer(&priv->txtimer);
+}
+
+/**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
  *  Description:
@@ -1038,23 +1008,6 @@ static int stmmac_open(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
-	if (unlikely(priv->tm == NULL))
-		return -ENOMEM;
-
-	priv->tm->freq = tmrate;
-
-	/* Test if the external timer can be actually used.
-	 * In case of failure continue without timer. */
-	if (unlikely((stmmac_open_ext_timer(dev, priv->tm)) < 0)) {
-		pr_warning("stmmaceth: cannot attach the external timer.\n");
-		priv->tm->freq = 0;
-		priv->tm->timer_start = stmmac_no_timer_started;
-		priv->tm->timer_stop = stmmac_no_timer_stopped;
-	} else
-		priv->tm->enable = 1;
-#endif
 	clk_prepare_enable(priv->stmmac_clk);
 
 	stmmac_check_ether_addr(priv);
@@ -1141,10 +1094,6 @@ static int stmmac_open(struct net_device *dev)
 	priv->hw->dma->start_tx(priv->ioaddr);
 	priv->hw->dma->start_rx(priv->ioaddr);
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm->timer_start(tmrate);
-#endif
-
 	/* Dump DMA/MAC registers */
 	if (netif_msg_hw(priv)) {
 		priv->hw->mac->dump_regs(priv->ioaddr);
@@ -1156,6 +1105,13 @@ static int stmmac_open(struct net_device *dev)
 
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS_TIMER;
 	priv->eee_enabled = stmmac_eee_init(priv);
+
+	stmmac_init_tx_coalesce(priv);
+
+	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
+		priv->rx_riwt = MAX_DMA_RIWT;
+		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
+	}
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
@@ -1170,9 +1126,6 @@ open_error_wolirq:
 	free_irq(dev->irq, dev);
 
 open_error:
-#ifdef CONFIG_STMMAC_TIMER
-	kfree(priv->tm);
-#endif
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
@@ -1203,13 +1156,9 @@ static int stmmac_release(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Stop and release the timer */
-	stmmac_close_ext_timer();
-	if (priv->tm != NULL)
-		kfree(priv->tm);
-#endif
 	napi_disable(&priv->napi);
+
+	del_timer_sync(&priv->txtimer);
 
 	/* Free the IRQ lines */
 	free_irq(dev->irq, dev);
@@ -1273,11 +1222,13 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef STMMAC_XMIT_DEBUG
 	if ((skb->len > ETH_FRAME_LEN) || nfrags)
-		pr_info("stmmac xmit:\n"
-		       "\tskb addr %p - len: %d - nopaged_len: %d\n"
-		       "\tn_frags: %d - ip_summed: %d - %s gso\n",
-		       skb, skb->len, nopaged_len, nfrags, skb->ip_summed,
-		       !skb_is_gso(skb) ? "isn't" : "is");
+		pr_debug("stmmac xmit: [entry %d]\n"
+			 "\tskb addr %p - len: %d - nopaged_len: %d\n"
+			 "\tn_frags: %d - ip_summed: %d - %s gso\n"
+			 "\ttx_count_frames %d\n", entry,
+			 skb, skb->len, nopaged_len, nfrags, skb->ip_summed,
+			 !skb_is_gso(skb) ? "isn't" : "is",
+			 priv->tx_count_frames);
 #endif
 
 	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
@@ -1287,9 +1238,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef STMMAC_XMIT_DEBUG
 	if ((nfrags > 0) || (skb->len > ETH_FRAME_LEN))
-		pr_debug("stmmac xmit: skb len: %d, nopaged_len: %d,\n"
-		       "\t\tn_frags: %d, ip_summed: %d\n",
-		       skb->len, nopaged_len, nfrags, skb->ip_summed);
+		pr_debug("\tskb len: %d, nopaged_len: %d,\n"
+			 "\t\tn_frags: %d, ip_summed: %d\n",
+			 skb->len, nopaged_len, nfrags, skb->ip_summed);
 #endif
 	priv->tx_skbuff[entry] = skb;
 
@@ -1320,16 +1271,24 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		wmb();
 	}
 
-	/* Interrupt on completition only for the latest segment */
+	/* Finalize the latest segment. */
 	priv->hw->desc->close_tx_desc(desc);
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Clean IC while using timer */
-	if (likely(priv->tm->enable))
-		priv->hw->desc->clear_tx_ic(desc);
-#endif
-
 	wmb();
+	/* According to the coalesce parameter the IC bit for the latest
+	 * segment could be reset and the timer re-started to invoke the
+	 * stmmac_tx function. This approach takes care about the fragments.
+	 */
+	priv->tx_count_frames += nfrags + 1;
+	if (priv->tx_coal_frames > priv->tx_count_frames) {
+		priv->hw->desc->clear_tx_ic(desc);
+		priv->xstats.tx_reset_ic_bit++;
+		TX_DBG("\t[entry %d]: tx_count_frames %d\n", entry,
+		       priv->tx_count_frames);
+		mod_timer(&priv->txtimer,
+			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
+	} else
+		priv->tx_count_frames = 0;
 
 	/* To avoid raise condition */
 	priv->hw->desc->set_tx_owner(first);
@@ -1471,14 +1430,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
-			if (unlikely(!priv->plat->rx_coe)) {
-				/* No RX COE for old mac10/100 devices */
+			if (unlikely(!priv->plat->rx_coe))
 				skb_checksum_none_assert(skb);
-				netif_receive_skb(skb);
-			} else {
+			else
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
-				napi_gro_receive(&priv->napi, skb);
-			}
+
+			napi_gro_receive(&priv->napi, skb);
 
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
@@ -1500,21 +1457,20 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
  *  @budget : maximum number of packets that the current CPU can receive from
  *	      all interfaces.
  *  Description :
- *   This function implements the the reception process.
- *   Also it runs the TX completion thread
+ *  To look at the incoming frames and clear the tx resources.
  */
 static int stmmac_poll(struct napi_struct *napi, int budget)
 {
 	struct stmmac_priv *priv = container_of(napi, struct stmmac_priv, napi);
 	int work_done = 0;
 
-	priv->xstats.poll_n++;
-	stmmac_tx(priv);
-	work_done = stmmac_rx(priv, budget);
+	priv->xstats.napi_poll++;
+	stmmac_tx_clean(priv);
 
+	work_done = stmmac_rx(priv, budget);
 	if (work_done < budget) {
 		napi_complete(napi);
-		stmmac_enable_irq(priv);
+		stmmac_enable_dma_irq(priv);
 	}
 	return work_done;
 }
@@ -1523,7 +1479,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
  *  stmmac_tx_timeout
  *  @dev : Pointer to net device structure
  *  Description: this function is called when a packet transmission fails to
- *   complete within a reasonable tmrate. The driver will mark the error in the
+ *   complete within a reasonable time. The driver will mark the error in the
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
@@ -2050,6 +2006,16 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	if (flow_ctrl)
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
 
+	/* Rx Watchdog is available in the COREs newer than the 3.40.
+	 * In some case, for example on bugged HW this feature
+	 * has to be disable and this can be done by passing the
+	 * riwt_off field from the platform.
+	 */
+	if ((priv->synopsys_id >= DWMAC_CORE_3_50) && (!priv->plat->riwt_off)) {
+		priv->use_riwt = 1;
+		pr_info(" Enable RX Mitigation via HW Watchdog Timer\n");
+	}
+
 	netif_napi_add(ndev, &priv->napi, stmmac_poll, 64);
 
 	spin_lock_init(&priv->lock);
@@ -2141,11 +2107,9 @@ int stmmac_suspend(struct net_device *ndev)
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm->timer_stop();
-	if (likely(priv->tm->enable))
+	if (priv->use_riwt)
 		dis_ic = 1;
-#endif
+
 	napi_disable(&priv->napi);
 
 	/* Stop TX/RX DMA */
@@ -2196,10 +2160,6 @@ int stmmac_resume(struct net_device *ndev)
 	priv->hw->dma->start_tx(priv->ioaddr);
 	priv->hw->dma->start_rx(priv->ioaddr);
 
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_start(tmrate);
-#endif
 	napi_enable(&priv->napi);
 
 	netif_start_queue(ndev);
@@ -2234,18 +2194,20 @@ int stmmac_restore(struct net_device *ndev)
  */
 static int __init stmmac_init(void)
 {
-	int err_plt = 0;
-	int err_pci = 0;
+	int ret;
 
-	err_plt = stmmac_register_platform();
-	err_pci = stmmac_register_pci();
-
-	if ((err_pci) && (err_plt)) {
-		pr_err("stmmac: driver registration failed\n");
-		return -EINVAL;
-	}
-
+	ret = stmmac_register_platform();
+	if (ret)
+		goto err;
+	ret = stmmac_register_pci();
+	if (ret)
+		goto err_pci;
 	return 0;
+err_pci:
+	stmmac_unregister_platform();
+err:
+	pr_err("stmmac: driver registration failed\n");
+	return ret;
 }
 
 static void __exit stmmac_exit(void)
@@ -2295,11 +2257,6 @@ static int __init stmmac_cmdline_opt(char *str)
 		} else if (!strncmp(opt, "eee_timer:", 6)) {
 			if (kstrtoint(opt + 10, 0, &eee_timer))
 				goto err;
-#ifdef CONFIG_STMMAC_TIMER
-		} else if (!strncmp(opt, "tmrate:", 7)) {
-			if (kstrtoint(opt + 7, 0, &tmrate))
-				goto err;
-#endif
 		}
 	}
 	return 0;

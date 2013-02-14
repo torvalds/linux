@@ -129,10 +129,10 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_TXMAXTRY            13
 
 #define TID_TO_WME_AC(_tid)				\
-	((((_tid) == 0) || ((_tid) == 3)) ? WME_AC_BE :	\
-	 (((_tid) == 1) || ((_tid) == 2)) ? WME_AC_BK :	\
-	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
-	 WME_AC_VO)
+	((((_tid) == 0) || ((_tid) == 3)) ? IEEE80211_AC_BE :	\
+	 (((_tid) == 1) || ((_tid) == 2)) ? IEEE80211_AC_BK :	\
+	 (((_tid) == 4) || ((_tid) == 5)) ? IEEE80211_AC_VI :	\
+	 IEEE80211_AC_VO)
 
 #define ATH_AGGR_DELIM_SZ          4
 #define ATH_AGGR_MINPLEN           256 /* in bytes, minimum packet length */
@@ -259,19 +259,21 @@ struct ath_atx_tid {
 };
 
 struct ath_node {
-#ifdef CONFIG_ATH9K_DEBUGFS
-	struct list_head list; /* for sc->nodes */
-#endif
+	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
-	struct ath_atx_tid tid[WME_NUM_TID];
-	struct ath_atx_ac ac[WME_NUM_AC];
+	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
+	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
 	int ps_key;
 
 	u16 maxampdu;
 	u8 mpdudensity;
 
 	bool sleeping;
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+	struct dentry *node_stat;
+#endif
 };
 
 #define AGGR_CLEANUP         BIT(1)
@@ -299,9 +301,9 @@ struct ath_tx {
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
-	struct ath_txq *txq_map[WME_NUM_AC];
-	u32 txq_max_pending[WME_NUM_AC];
-	u16 max_aggr_framelen[WME_NUM_AC][4][32];
+	struct ath_txq *txq_map[IEEE80211_NUM_ACS];
+	u32 txq_max_pending[IEEE80211_NUM_ACS];
+	u16 max_aggr_framelen[IEEE80211_NUM_ACS][4][32];
 };
 
 struct ath_rx_edma {
@@ -315,7 +317,6 @@ struct ath_rx {
 	u32 *rxlink;
 	u32 num_pkts;
 	unsigned int rxfilter;
-	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
 	struct ath_buf *rx_bufptr;
@@ -326,7 +327,6 @@ struct ath_rx {
 
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
-void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
@@ -437,6 +437,7 @@ void ath9k_set_beacon(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL_INT  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
+#define ATH_ANI_MAX_SKIP_COUNT  10
 
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
 #define ATH_PLL_WORK_INTERVAL   100
@@ -460,6 +461,12 @@ void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 /* BTCOEX */
 /**********/
 
+#define ATH_DUMP_BTCOEX(_s, _val)				\
+	do {							\
+		len += snprintf(buf + len, size - len,		\
+				"%20s : %10d\n", _s, (_val));	\
+	} while (0)
+
 enum bt_op_flags {
 	BT_OP_PRIORITY_DETECTED,
 	BT_OP_SCAN,
@@ -478,8 +485,10 @@ struct ath_btcoex {
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
 	u32 bt_wait_time;
+	int rssi_count;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
+	u8 stomp_audio;
 };
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
@@ -492,6 +501,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen);
 void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc);
+int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size);
 #else
 static inline int ath9k_init_btcoex(struct ath_softc *sc)
 {
@@ -517,6 +527,10 @@ static inline u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc,
 }
 static inline void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
+}
+static inline int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size)
+{
+	return 0;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
@@ -630,7 +644,6 @@ void ath_ant_comb_update(struct ath_softc *sc);
 enum sc_op_flags {
 	SC_OP_INVALID,
 	SC_OP_BEACONS,
-	SC_OP_RXFLUSH,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
 	SC_OP_HW_RESET,
@@ -642,6 +655,7 @@ enum sc_op_flags {
 #define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
 #define PS_WAIT_FOR_TX_ACK        BIT(3)
 #define PS_BEACON_SYNC            BIT(4)
+#define PS_WAIT_FOR_ANI           BIT(5)
 
 struct ath_rate_table;
 
@@ -708,9 +722,6 @@ struct ath_softc {
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
-	spinlock_t nodes_lock;
-	struct list_head nodes; /* basically, stations */
-	unsigned int tx_complete_poll_work_seen;
 #endif
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;

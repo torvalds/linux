@@ -617,8 +617,8 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit ds1307_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int ds1307_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
@@ -938,7 +938,7 @@ exit_free:
 	return err;
 }
 
-static int __devexit ds1307_remove(struct i2c_client *client)
+static int ds1307_remove(struct i2c_client *client)
 {
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
 
@@ -963,7 +963,7 @@ static struct i2c_driver ds1307_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1307_probe,
-	.remove		= __devexit_p(ds1307_remove),
+	.remove		= ds1307_remove,
 	.id_table	= ds1307_id,
 };
 

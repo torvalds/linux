@@ -32,6 +32,7 @@ static void __cpuinit highbank_secondary_init(unsigned int cpu)
 
 static int __cpuinit highbank_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	highbank_set_cpu_jump(cpu, secondary_startup);
 	gic_raise_softirq(cpumask_of(cpu), 0);
 	return 0;
 }
@@ -42,9 +43,7 @@ static int __cpuinit highbank_boot_secondary(unsigned int cpu, struct task_struc
  */
 static void __init highbank_smp_init_cpus(void)
 {
-	unsigned int i, ncores;
-
-	ncores = scu_get_core_count(scu_base_addr);
+	unsigned int i, ncores = 4;
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {
@@ -63,18 +62,8 @@ static void __init highbank_smp_init_cpus(void)
 
 static void __init highbank_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
-	scu_enable(scu_base_addr);
-
-	/*
-	 * Write the address of secondary startup into the jump table
-	 * The cores are in wfi and wait until they receive a soft interrupt
-	 * and a non-zero value to jump to. Then the secondary CPU branches
-	 * to this address.
-	 */
-	for (i = 1; i < max_cpus; i++)
-		highbank_set_cpu_jump(i, secondary_startup);
+	if (scu_base_addr)
+		scu_enable(scu_base_addr);
 }
 
 struct smp_operations highbank_smp_ops __initdata = {

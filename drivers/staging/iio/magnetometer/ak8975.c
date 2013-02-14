@@ -409,7 +409,7 @@ static const struct iio_info ak8975_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ak8975_probe(struct i2c_client *client,
+static int ak8975_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ak8975_data *data;
@@ -475,7 +475,7 @@ exit:
 	return err;
 }
 
-static int __devexit ak8975_remove(struct i2c_client *client)
+static int ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);
@@ -510,7 +510,7 @@ static struct i2c_driver ak8975_driver = {
 		.of_match_table = ak8975_of_match,
 	},
 	.probe		= ak8975_probe,
-	.remove		= __devexit_p(ak8975_remove),
+	.remove		= ak8975_remove,
 	.id_table	= ak8975_id,
 };
 module_i2c_driver(ak8975_driver);

@@ -1217,8 +1217,7 @@ static void __exit dsp_cleanup(void)
 {
 	mISDN_unregister_Bprotocol(&DSP);
 
-	if (timer_pending(&dsp_spl_tl))
-		del_timer(&dsp_spl_tl);
+	del_timer_sync(&dsp_spl_tl);
 
 	if (!list_empty(&dsp_ilist)) {
 		printk(KERN_ERR "mISDN_dsp: Audio DSP object inst list not "

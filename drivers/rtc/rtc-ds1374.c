@@ -391,7 +391,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit ds1374_remove(struct i2c_client *client)
+static int ds1374_remove(struct i2c_client *client)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 
@@ -442,7 +442,7 @@ static struct i2c_driver ds1374_driver = {
 		.pm = DS1374_PM,
 	},
 	.probe = ds1374_probe,
-	.remove = __devexit_p(ds1374_remove),
+	.remove = ds1374_remove,
 	.id_table = ds1374_id,
 };
 

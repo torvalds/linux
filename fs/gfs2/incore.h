@@ -205,7 +205,7 @@ struct lm_lockname {
 
 
 struct gfs2_glock_operations {
-	void (*go_xmote_th) (struct gfs2_glock *gl);
+	void (*go_sync) (struct gfs2_glock *gl);
 	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
@@ -216,6 +216,7 @@ struct gfs2_glock_operations {
 	const int go_type;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1
+#define GLOF_LVB    2
 };
 
 enum {
@@ -321,7 +322,6 @@ struct gfs2_glock {
 	ktime_t gl_dstamp;
 	struct gfs2_lkstats gl_stats;
 	struct dlm_lksb gl_lksb;
-	char gl_lvb[32];
 	unsigned long gl_tchange;
 	void *gl_object;
 
@@ -539,6 +539,7 @@ enum {
 	SDF_DEMOTE		= 5,
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
+	SDF_SKIP_DLM_UNLOCK	= 8,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -621,6 +622,7 @@ struct gfs2_sbd {
 	u32 sd_hash_bsize_shift;
 	u32 sd_hash_ptrs;	/* Number of pointers in a hash block */
 	u32 sd_qc_per_block;
+	u32 sd_blocks_per_bitmap;
 	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	u32 sd_max_height;	/* Max height of a file's metadata tree */
 	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];

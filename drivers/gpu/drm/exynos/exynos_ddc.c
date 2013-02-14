@@ -48,6 +48,7 @@ static struct i2c_device_id ddc_idtable[] = {
 	{ },
 };
 
+#ifdef CONFIG_OF
 static struct of_device_id hdmiddc_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmiddc",
@@ -55,15 +56,16 @@ static struct of_device_id hdmiddc_match_types[] = {
 		/* end node */
 	}
 };
+#endif
 
 struct i2c_driver ddc_driver = {
 	.driver = {
 		.name = "exynos-hdmiddc",
 		.owner = THIS_MODULE,
-		.of_match_table = hdmiddc_match_types,
+		.of_match_table = of_match_ptr(hdmiddc_match_types),
 	},
 	.id_table	= ddc_idtable,
 	.probe		= s5p_ddc_probe,
-	.remove		= __devexit_p(s5p_ddc_remove),
+	.remove		= s5p_ddc_remove,
 	.command		= NULL,
 };

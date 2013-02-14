@@ -357,6 +357,7 @@ config TRACE_SINK
 config PPC_EPAPR_HV_BYTECHAN
 	tristate "ePAPR hypervisor byte channel driver"
 	depends on PPC
+	select EPAPR_PARAVIRT
 	help
 	  This driver creates /dev entries for each ePAPR hypervisor byte
 	  channel, thereby allowing applications to communicate with byte

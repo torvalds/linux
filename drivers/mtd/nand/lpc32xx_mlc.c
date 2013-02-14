@@ -655,7 +655,7 @@ static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 /*
  * Probe for NAND controller
  */
-static int __devinit lpc32xx_nand_probe(struct platform_device *pdev)
+static int lpc32xx_nand_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host;
 	struct mtd_info *mtd;
@@ -845,7 +845,7 @@ err_exit1:
 /*
  * Remove NAND device
  */
-static int __devexit lpc32xx_nand_remove(struct platform_device *pdev)
+static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = &host->mtd;
@@ -907,7 +907,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_nand_match);
 
 static struct platform_driver lpc32xx_nand_driver = {
 	.probe		= lpc32xx_nand_probe,
-	.remove		= __devexit_p(lpc32xx_nand_remove),
+	.remove		= lpc32xx_nand_remove,
 	.resume		= lpc32xx_nand_resume,
 	.suspend	= lpc32xx_nand_suspend,
 	.driver		= {

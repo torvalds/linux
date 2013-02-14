@@ -24,7 +24,7 @@ static struct snd_soc_dai_link smdk2443_dai[] = {
 	.cpu_dai_name = "samsung-ac97",
 	.codec_dai_name = "ac97-hifi",
 	.codec_name = "ac97-codec",
-	.platform_name = "samsung-audio",
+	.platform_name = "samsung-ac97",
 },
 };
 

@@ -566,6 +566,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct ethhdr *ethh;
 	dma_addr_t dma;
 	u64 s_mac;
+	int factor = priv->cqe_factor;
 
 	if (!priv->port_up)
 		return 0;
@@ -574,7 +575,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	 * descriptor offset can be deduced from the CQE index instead of
 	 * reading 'cqe->index' */
 	index = cq->mcq.cons_index & ring->size_mask;
-	cqe = &cq->buf[index];
+	cqe = &cq->buf[(index << factor) + factor];
 
 	/* Process all completed CQEs */
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
@@ -630,7 +631,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 			    (cqe->checksum == cpu_to_be16(0xffff))) {
 				ring->csum_ok++;
-				/* This packet is eligible for LRO if it is:
+				/* This packet is eligible for GRO if it is:
 				 * - DIX Ethernet (type interpretation)
 				 * - TCP/IP (v4)
 				 * - without IP options
@@ -667,7 +668,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					goto next;
 				}
 
-				/* LRO not possible, complete processing here */
+				/* GRO not possible, complete processing here */
 				ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
 				ip_summed = CHECKSUM_NONE;
@@ -709,12 +710,9 @@ next:
 
 		++cq->mcq.cons_index;
 		index = (cq->mcq.cons_index) & ring->size_mask;
-		cqe = &cq->buf[index];
-		if (++polled == budget) {
-			/* We are here because we reached the NAPI budget -
-			 * flush only pending LRO sessions */
+		cqe = &cq->buf[(index << factor) + factor];
+		if (++polled == budget)
 			goto out;
-		}
 	}
 
 out:

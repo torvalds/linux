@@ -1110,7 +1110,7 @@ static const struct net_device_ops cpmac_netdev_ops = {
 
 static int external_switch;
 
-static int __devinit cpmac_probe(struct platform_device *pdev)
+static int cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id;
 	char mdio_bus_id[MII_BUS_ID_SIZE];
@@ -1204,7 +1204,7 @@ fail:
 	return rc;
 }
 
-static int __devexit cpmac_remove(struct platform_device *pdev)
+static int cpmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	unregister_netdev(dev);
@@ -1216,10 +1216,10 @@ static struct platform_driver cpmac_driver = {
 	.driver.name = "cpmac",
 	.driver.owner = THIS_MODULE,
 	.probe = cpmac_probe,
-	.remove = __devexit_p(cpmac_remove),
+	.remove = cpmac_remove,
 };
 
-int __devinit cpmac_init(void)
+int cpmac_init(void)
 {
 	u32 mask;
 	int i, res;
@@ -1290,7 +1290,7 @@ fail_alloc:
 	return res;
 }
 
-void __devexit cpmac_exit(void)
+void cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);

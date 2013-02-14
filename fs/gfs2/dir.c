@@ -1676,16 +1676,11 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				be16_add_cpu(&leaf->lf_entries, 1);
 			}
 			brelse(bh);
-			error = gfs2_meta_inode_buffer(ip, &bh);
-			if (error)
-				break;
-			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			ip->i_entries++;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 			if (S_ISDIR(nip->i_inode.i_mode))
 				inc_nlink(&ip->i_inode);
-			gfs2_dinode_out(ip, bh->b_data);
-			brelse(bh);
+			mark_inode_dirty(inode);
 			error = 0;
 			break;
 		}

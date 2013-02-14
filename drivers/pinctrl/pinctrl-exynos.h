@@ -17,125 +17,6 @@
  * (at your option) any later version.
  */
 
-#define EXYNOS_GPIO_START(__gpio)	((__gpio##_START) + (__gpio##_NR))
-
-#define EXYNOS4210_GPIO_A0_NR	(8)
-#define EXYNOS4210_GPIO_A1_NR	(6)
-#define EXYNOS4210_GPIO_B_NR	(8)
-#define EXYNOS4210_GPIO_C0_NR	(5)
-#define EXYNOS4210_GPIO_C1_NR	(5)
-#define EXYNOS4210_GPIO_D0_NR	(4)
-#define EXYNOS4210_GPIO_D1_NR	(4)
-#define EXYNOS4210_GPIO_E0_NR	(5)
-#define EXYNOS4210_GPIO_E1_NR	(8)
-#define EXYNOS4210_GPIO_E2_NR	(6)
-#define EXYNOS4210_GPIO_E3_NR	(8)
-#define EXYNOS4210_GPIO_E4_NR	(8)
-#define EXYNOS4210_GPIO_F0_NR	(8)
-#define EXYNOS4210_GPIO_F1_NR	(8)
-#define EXYNOS4210_GPIO_F2_NR	(8)
-#define EXYNOS4210_GPIO_F3_NR	(6)
-#define EXYNOS4210_GPIO_J0_NR	(8)
-#define EXYNOS4210_GPIO_J1_NR	(5)
-#define EXYNOS4210_GPIO_K0_NR	(7)
-#define EXYNOS4210_GPIO_K1_NR	(7)
-#define EXYNOS4210_GPIO_K2_NR	(7)
-#define EXYNOS4210_GPIO_K3_NR	(7)
-#define EXYNOS4210_GPIO_L0_NR	(8)
-#define EXYNOS4210_GPIO_L1_NR	(3)
-#define EXYNOS4210_GPIO_L2_NR	(8)
-#define EXYNOS4210_GPIO_Y0_NR	(6)
-#define EXYNOS4210_GPIO_Y1_NR	(4)
-#define EXYNOS4210_GPIO_Y2_NR	(6)
-#define EXYNOS4210_GPIO_Y3_NR	(8)
-#define EXYNOS4210_GPIO_Y4_NR	(8)
-#define EXYNOS4210_GPIO_Y5_NR	(8)
-#define EXYNOS4210_GPIO_Y6_NR	(8)
-#define EXYNOS4210_GPIO_X0_NR	(8)
-#define EXYNOS4210_GPIO_X1_NR	(8)
-#define EXYNOS4210_GPIO_X2_NR	(8)
-#define EXYNOS4210_GPIO_X3_NR	(8)
-#define EXYNOS4210_GPIO_Z_NR	(7)
-
-enum exynos4210_gpio_xa_start {
-	EXYNOS4210_GPIO_A0_START	= 0,
-	EXYNOS4210_GPIO_A1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_A0),
-	EXYNOS4210_GPIO_B_START		= EXYNOS_GPIO_START(EXYNOS4210_GPIO_A1),
-	EXYNOS4210_GPIO_C0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_B),
-	EXYNOS4210_GPIO_C1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_C0),
-	EXYNOS4210_GPIO_D0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_C1),
-	EXYNOS4210_GPIO_D1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_D0),
-	EXYNOS4210_GPIO_E0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_D1),
-	EXYNOS4210_GPIO_E1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_E0),
-	EXYNOS4210_GPIO_E2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_E1),
-	EXYNOS4210_GPIO_E3_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_E2),
-	EXYNOS4210_GPIO_E4_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_E3),
-	EXYNOS4210_GPIO_F0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_E4),
-	EXYNOS4210_GPIO_F1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_F0),
-	EXYNOS4210_GPIO_F2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_F1),
-	EXYNOS4210_GPIO_F3_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_F2),
-};
-
-enum exynos4210_gpio_xb_start {
-	EXYNOS4210_GPIO_J0_START	= 0,
-	EXYNOS4210_GPIO_J1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_J0),
-	EXYNOS4210_GPIO_K0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_J1),
-	EXYNOS4210_GPIO_K1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_K0),
-	EXYNOS4210_GPIO_K2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_K1),
-	EXYNOS4210_GPIO_K3_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_K2),
-	EXYNOS4210_GPIO_L0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_K3),
-	EXYNOS4210_GPIO_L1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_L0),
-	EXYNOS4210_GPIO_L2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_L1),
-	EXYNOS4210_GPIO_Y0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_L2),
-	EXYNOS4210_GPIO_Y1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y0),
-	EXYNOS4210_GPIO_Y2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y1),
-	EXYNOS4210_GPIO_Y3_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y2),
-	EXYNOS4210_GPIO_Y4_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y3),
-	EXYNOS4210_GPIO_Y5_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y4),
-	EXYNOS4210_GPIO_Y6_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y5),
-	EXYNOS4210_GPIO_X0_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_Y6),
-	EXYNOS4210_GPIO_X1_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_X0),
-	EXYNOS4210_GPIO_X2_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_X1),
-	EXYNOS4210_GPIO_X3_START	= EXYNOS_GPIO_START(EXYNOS4210_GPIO_X2),
-};
-
-enum exynos4210_gpio_xc_start {
-	EXYNOS4210_GPIO_Z_START		= 0,
-};
-
-#define	EXYNOS4210_GPIO_A0_IRQ		EXYNOS4210_GPIO_A0_START
-#define	EXYNOS4210_GPIO_A1_IRQ		EXYNOS4210_GPIO_A1_START
-#define	EXYNOS4210_GPIO_B_IRQ		EXYNOS4210_GPIO_B_START
-#define	EXYNOS4210_GPIO_C0_IRQ		EXYNOS4210_GPIO_C0_START
-#define	EXYNOS4210_GPIO_C1_IRQ		EXYNOS4210_GPIO_C1_START
-#define	EXYNOS4210_GPIO_D0_IRQ		EXYNOS4210_GPIO_D0_START
-#define	EXYNOS4210_GPIO_D1_IRQ		EXYNOS4210_GPIO_D1_START
-#define	EXYNOS4210_GPIO_E0_IRQ		EXYNOS4210_GPIO_E0_START
-#define	EXYNOS4210_GPIO_E1_IRQ		EXYNOS4210_GPIO_E1_START
-#define	EXYNOS4210_GPIO_E2_IRQ		EXYNOS4210_GPIO_E2_START
-#define	EXYNOS4210_GPIO_E3_IRQ		EXYNOS4210_GPIO_E3_START
-#define	EXYNOS4210_GPIO_E4_IRQ		EXYNOS4210_GPIO_E4_START
-#define	EXYNOS4210_GPIO_F0_IRQ		EXYNOS4210_GPIO_F0_START
-#define	EXYNOS4210_GPIO_F1_IRQ		EXYNOS4210_GPIO_F1_START
-#define	EXYNOS4210_GPIO_F2_IRQ		EXYNOS4210_GPIO_F2_START
-#define	EXYNOS4210_GPIO_F3_IRQ		EXYNOS4210_GPIO_F3_START
-#define	EXYNOS4210_GPIO_J0_IRQ		EXYNOS4210_GPIO_J0_START
-#define	EXYNOS4210_GPIO_J1_IRQ		EXYNOS4210_GPIO_J1_START
-#define	EXYNOS4210_GPIO_K0_IRQ		EXYNOS4210_GPIO_K0_START
-#define	EXYNOS4210_GPIO_K1_IRQ		EXYNOS4210_GPIO_K1_START
-#define	EXYNOS4210_GPIO_K2_IRQ		EXYNOS4210_GPIO_K2_START
-#define	EXYNOS4210_GPIO_K3_IRQ		EXYNOS4210_GPIO_K3_START
-#define	EXYNOS4210_GPIO_L0_IRQ		EXYNOS4210_GPIO_L0_START
-#define	EXYNOS4210_GPIO_L1_IRQ		EXYNOS4210_GPIO_L1_START
-#define	EXYNOS4210_GPIO_L2_IRQ		EXYNOS4210_GPIO_L2_START
-#define	EXYNOS4210_GPIO_Z_IRQ		EXYNOS4210_GPIO_Z_START
-
-#define EXYNOS4210_GPIOA_NR_PINS	EXYNOS_GPIO_START(EXYNOS4210_GPIO_F3)
-#define EXYNOS4210_GPIOA_NR_GINT	EXYNOS_GPIO_START(EXYNOS4210_GPIO_F3)
-#define EXYNOS4210_GPIOB_NR_PINS	EXYNOS_GPIO_START(EXYNOS4210_GPIO_X3)
-#define EXYNOS4210_GPIOB_NR_GINT	EXYNOS_GPIO_START(EXYNOS4210_GPIO_L2)
-#define EXYNOS4210_GPIOC_NR_PINS	EXYNOS_GPIO_START(EXYNOS4210_GPIO_Z)
-
 /* External GPIO and wakeup interrupt related definitions */
 #define EXYNOS_GPIO_ECON_OFFSET		0x700
 #define EXYNOS_GPIO_EMASK_OFFSET	0x900
@@ -165,11 +46,10 @@ enum exynos4210_gpio_xc_start {
 #define EXYNOS_EINT_MAX_PER_BANK	8
 #define EXYNOS_EINT_NR_WKUP_EINT
 
-#define EXYNOS_PIN_BANK_EINTN(reg, __gpio, id)		\
+#define EXYNOS_PIN_BANK_EINTN(pins, reg, id)		\
 	{						\
 		.pctl_offset	= reg,			\
-		.pin_base	= (__gpio##_START),	\
-		.nr_pins	= (__gpio##_NR),	\
+		.nr_pins	= pins,			\
 		.func_width	= 4,			\
 		.pud_width	= 2,			\
 		.drv_width	= 2,			\
@@ -179,40 +59,50 @@ enum exynos4210_gpio_xc_start {
 		.name		= id			\
 	}
 
-#define EXYNOS_PIN_BANK_EINTG(reg, __gpio, id)		\
+#define EXYNOS_PIN_BANK_EINTG(pins, reg, id, offs)	\
 	{						\
 		.pctl_offset	= reg,			\
-		.pin_base	= (__gpio##_START),	\
-		.nr_pins	= (__gpio##_NR),	\
+		.nr_pins	= pins,			\
 		.func_width	= 4,			\
 		.pud_width	= 2,			\
 		.drv_width	= 2,			\
 		.conpdn_width	= 2,			\
 		.pudpdn_width	= 2,			\
 		.eint_type	= EINT_TYPE_GPIO,	\
-		.irq_base	= (__gpio##_IRQ),	\
+		.eint_offset	= offs,			\
+		.name		= id			\
+	}
+
+#define EXYNOS_PIN_BANK_EINTW(pins, reg, id, offs)	\
+	{						\
+		.pctl_offset	= reg,			\
+		.nr_pins	= pins,			\
+		.func_width	= 4,			\
+		.pud_width	= 2,			\
+		.drv_width	= 2,			\
+		.eint_type	= EINT_TYPE_WKUP,	\
+		.eint_offset	= offs,			\
 		.name		= id			\
 	}
 
 /**
- * struct exynos_geint_data: gpio eint specific data for irq_chip callbacks.
- * @bank: pin bank from which this gpio interrupt originates.
- * @pin: pin number within the bank.
- * @eint_offset: offset to be added to the con/pend/mask register bank base.
+ * struct exynos_weint_data: irq specific data for all the wakeup interrupts
+ * generated by the external wakeup interrupt controller.
+ * @irq: interrupt number within the domain.
+ * @bank: bank responsible for this interrupt
  */
-struct exynos_geint_data {
-	struct samsung_pin_bank	*bank;
-	u32			pin;
-	u32			eint_offset;
+struct exynos_weint_data {
+	unsigned int irq;
+	struct samsung_pin_bank *bank;
 };
 
 /**
- * struct exynos_weint_data: irq specific data for all the wakeup interrupts
+ * struct exynos_muxed_weint_data: irq specific data for muxed wakeup interrupts
  * generated by the external wakeup interrupt controller.
- * @domain: irq domain representing the external wakeup interrupts
- * @irq: interrupt number within the domain.
+ * @nr_banks: count of banks being part of the mux
+ * @banks: array of banks being part of the mux
  */
-struct exynos_weint_data {
-	struct irq_domain	*domain;
-	u32			irq;
+struct exynos_muxed_weint_data {
+	unsigned int nr_banks;
+	struct samsung_pin_bank *banks[];
 };

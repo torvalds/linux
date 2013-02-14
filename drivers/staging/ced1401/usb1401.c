@@ -89,14 +89,11 @@ synchronous non-Urb based transfers.
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/version.h>
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35) )
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/uaccess.h>
-#endif
 
 #include "usb1401.h"
 
@@ -122,19 +119,6 @@ MODULE_DEVICE_TABLE(usb, ced_table);
    is an integer 512 is the largest possible packet on EHCI */
 #define WRITES_IN_FLIGHT	8
 /* arbitrarily chosen */
-
-/* 
-The cause for these errors is that the driver makes use of the functions usb_buffer_alloc() and usb_buffer_free() which got renamed in kernel 2.6.35. This is stated in the Changelog:   USB: rename usb_buffer_alloc() and usb_buffer_free() users
-    For more clearance what the functions actually do,
-      usb_buffer_alloc() is renamed to usb_alloc_coherent()
-      usb_buffer_free()  is renamed to usb_free_coherent()
-   This is needed on Debian 2.6.32-5-amd64
-*/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35) )
-#define usb_alloc_coherent usb_buffer_alloc
-#define usb_free_coherent  usb_buffer_free
-#define noop_llseek NULL
-#endif
 
 static struct usb_driver ced_driver;
 
@@ -927,9 +911,9 @@ static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 ** ReadHuff
 **
 ** Reads a coded number in and returns it, Code is:
-** If data is in range 0..127 we recieve 1 byte. If data in range 128-16383
-** we recieve two bytes, top bit of first indicates another on its way. If
-** data in range 16383-4194303 we get three bytes, top two bits of first set
+** If data is in range 0..127 we receive 1 byte. If data in range 128-16383
+** we receive two bytes, top bit of first indicates another on its way. If
+** data in range 16384-4194303 we get three bytes, top two bits of first set
 ** to indicate three byte total.
 **
 *****************************************************************************/
@@ -1252,12 +1236,7 @@ int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
 ** ulArg    The argument passed in. Note that long is 64-bits in 64-bit system, i.e. it is big
 **          enough for a 64-bit pointer.
 *****************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
-#else
-static int ced_ioctl(struct inode *node, struct file *file, unsigned int cmd,
-		     unsigned long ulArg)
-#endif
 {
 	int err = 0;
 	DEVICE_EXTENSION *pdx = file->private_data;
@@ -1388,11 +1367,7 @@ static const struct file_operations ced_fops = {
 	.release = ced_release,
 	.flush = ced_flush,
 	.llseek = noop_llseek,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	.unlocked_ioctl = ced_ioctl,
-#else
-	.ioctl = ced_ioctl,
-#endif
 };
 
 /*
@@ -1537,7 +1512,7 @@ error:
 static void ced_disconnect(struct usb_interface *interface)
 {
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(interface);
-	int minor = interface->minor;	// save for message at the end
+	int minor = interface->minor;
 	int i;
 
 	usb_set_intfdata(interface, NULL);	// remove the pdx from the interface
@@ -1572,8 +1547,7 @@ void ced_draw_down(DEVICE_EXTENSION * pdx)
 
 	pdx->bInDrawDown = true;
 	time = usb_wait_anchor_empty_timeout(&pdx->submitted, 3000);
-	if (!time)		// if we timed out we kill the urbs
-	{
+	if (!time) {		// if we timed out we kill the urbs
 		usb_kill_anchored_urbs(&pdx->submitted);
 		dev_err(&pdx->interface->dev, "%s timed out", __func__);
 	}

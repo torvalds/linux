@@ -20,6 +20,7 @@
 #include <linux/serial.h>
 #include <linux/serial_pnx8xxx.h>
 #include <linux/platform_device.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <int.h>
 #include <usb.h>
@@ -96,12 +97,40 @@ static u64 ohci_dmamask = DMA_BIT_MASK(32);
 
 static u64 uart_dmamask = DMA_BIT_MASK(32);
 
+static int pnx8550_usb_ohci_power_on(struct platform_device *pdev)
+{
+	/*
+	 * Set register CLK48CTL to enable and 48MHz
+	 */
+	outl(0x00000003, PCI_BASE | 0x0004770c);
+
+	/*
+	 * Set register CLK12CTL to enable and 48MHz
+	 */
+	outl(0x00000003, PCI_BASE | 0x00047710);
+
+	udelay(100);
+
+	return 0;
+}
+
+static void pnx8550_usb_ohci_power_off(struct platform_device *pdev)
+{
+	udelay(10);
+}
+
+static struct usb_ohci_pdata pnx8550_usb_ohci_pdata = {
+	.power_on	= pnx8550_usb_ohci_power_on,
+	.power_off	= pnx8550_usb_ohci_power_off,
+};
+
 static struct platform_device pnx8550_usb_ohci_device = {
-	.name		= "pnx8550-ohci",
+	.name		= "ohci-platform",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &ohci_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &pnx8550_usb_ohci_pdata,
 	},
 	.num_resources	= ARRAY_SIZE(pnx8550_usb_ohci_resources),
 	.resource	= pnx8550_usb_ohci_resources,

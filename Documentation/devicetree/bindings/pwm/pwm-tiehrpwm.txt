@@ -1,0 +1,23 @@
+TI SOC EHRPWM based PWM controller
+
+Required properties:
+- compatible : Must be "ti,am33xx-ehrpwm"
+- #pwm-cells: Should be 3. Number of cells being used to specify PWM property.
+  First cell specifies the per-chip index of the PWM to use, the second
+  cell is the period in nanoseconds and bit 0 in the third cell is used to
+  encode the polarity of PWM output. Set bit 0 of the third in PWM specifier
+  to 1 for inverse polarity & set to 0 for normal polarity.
+- reg: physical base address and size of the registers map.
+
+Optional properties:
+- ti,hwmods: Name of the hwmod associated to the EHRPWM:
+  "ehrpwm<x>", <x> being the 0-based instance number from the HW spec
+
+Example:
+
+ehrpwm0: ehrpwm@0 {
+	compatible = "ti,am33xx-ehrpwm";
+	#pwm-cells = <3>;
+	reg = <0x48300200 0x100>;
+	ti,hwmods = "ehrpwm0";
+};

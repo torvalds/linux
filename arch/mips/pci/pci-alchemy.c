@@ -356,7 +356,7 @@ static struct syscore_ops alchemy_pci_pmops = {
 	.resume		= alchemy_pci_resume,
 };
 
-static int __devinit alchemy_pci_probe(struct platform_device *pdev)
+static int alchemy_pci_probe(struct platform_device *pdev)
 {
 	struct alchemy_pci_platdata *pd = pdev->dev.platform_data;
 	struct alchemy_pci_context *ctx;

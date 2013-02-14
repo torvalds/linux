@@ -26,7 +26,8 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/time.h>
-#include <mach/at91_tc.h>
+
+#include "at91_tc.h"
 
 #define at91_tc_read(field) \
 	__raw_readl(AT91_IO_P2V(AT91_TC) + field)

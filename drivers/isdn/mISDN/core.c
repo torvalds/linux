@@ -140,7 +140,6 @@ static struct device_attribute mISDN_dev_attrs[] = {
 	{}
 };
 
-#ifdef CONFIG_HOTPLUG
 static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
@@ -153,7 +152,6 @@ static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-#endif
 
 static void mISDN_class_release(struct class *cls)
 {
@@ -163,9 +161,7 @@ static void mISDN_class_release(struct class *cls)
 static struct class mISDN_class = {
 	.name = "mISDN",
 	.owner = THIS_MODULE,
-#ifdef CONFIG_HOTPLUG
 	.dev_uevent = mISDN_uevent,
-#endif
 	.dev_attrs = mISDN_dev_attrs,
 	.dev_release = mISDN_dev_release,
 	.class_release = mISDN_class_release,

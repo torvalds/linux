@@ -768,32 +768,6 @@ static struct platform_device ceu0_device = {
 };
 
 /* FSI */
-static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
-{
-	struct clk *fsib;
-	int ret;
-
-	/* it support 48KHz only */
-	if (48000 != rate)
-		return -EINVAL;
-
-	fsib = clk_get(dev, "ickb");
-	if (IS_ERR(fsib))
-		return -EINVAL;
-
-	if (enable) {
-		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
-		clk_enable(fsib);
-	} else {
-		ret = 0;
-		clk_disable(fsib);
-	}
-
-	clk_put(fsib);
-
-	return ret;
-}
-
 static struct sh_fsi_platform_info fsi_info = {
 	/* FSI-WM8978 */
 	.port_a = {
@@ -802,8 +776,8 @@ static struct sh_fsi_platform_info fsi_info = {
 	/* FSI-HDMI */
 	.port_b = {
 		.flags		= SH_FSI_FMT_SPDIF |
-				  SH_FSI_ENABLE_STREAM_MODE,
-		.set_rate	= fsi_hdmi_set_rate,
+				  SH_FSI_ENABLE_STREAM_MODE |
+				  SH_FSI_CLK_CPG,
 		.tx_id		= SHDMA_SLAVE_FSIB_TX,
 	}
 };
@@ -938,13 +912,11 @@ static void __init eva_clock_init(void)
 	struct clk *xtal1	= clk_get(NULL, "extal1");
 	struct clk *usb24s	= clk_get(NULL, "usb24s");
 	struct clk *fsibck	= clk_get(NULL, "fsibck");
-	struct clk *fsib	= clk_get(&fsi_device.dev, "ickb");
 
 	if (IS_ERR(system)	||
 	    IS_ERR(xtal1)	||
 	    IS_ERR(usb24s)	||
-	    IS_ERR(fsibck)	||
-	    IS_ERR(fsib)) {
+	    IS_ERR(fsibck)) {
 		pr_err("armadillo800eva board clock init failed\n");
 		goto clock_error;
 	}
@@ -956,9 +928,7 @@ static void __init eva_clock_init(void)
 	clk_set_parent(usb24s, system);
 
 	/* FSIBCK is 12.288MHz, and it is parent of FSI-B */
-	clk_set_parent(fsib, fsibck);
 	clk_set_rate(fsibck, 12288000);
-	clk_set_rate(fsib,   12288000);
 
 clock_error:
 	if (!IS_ERR(system))
@@ -969,8 +939,6 @@ clock_error:
 		clk_put(usb24s);
 	if (!IS_ERR(fsibck))
 		clk_put(fsibck);
-	if (!IS_ERR(fsib))
-		clk_put(fsib);
 }
 
 /*
@@ -1229,6 +1197,13 @@ static void __init eva_add_early_devices(void)
 	shmobile_timer.init = eva_earlytimer_init;
 }
 
+#define RESCNT2 IOMEM(0xe6188020)
+static void eva_restart(char mode, const char *cmd)
+{
+	/* Do soft power on reset */
+	writel((1 << 31), RESCNT2);
+}
+
 static const char *eva_boards_compat_dt[] __initdata = {
 	"renesas,armadillo800eva",
 	NULL,
@@ -1243,4 +1218,5 @@ DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 	.dt_compat	= eva_boards_compat_dt,
+	.restart	= eva_restart,
 MACHINE_END

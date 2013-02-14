@@ -78,7 +78,7 @@ int iio_map_array_unregister(struct iio_dev *indio_dev,
 				found_it = true;
 				break;
 			}
-		if (found_it == false) {
+		if (!found_it) {
 			ret = -ENODEV;
 			goto error_ret;
 		}
@@ -203,6 +203,7 @@ struct iio_channel *iio_channel_get_all(const char *name)
 		if (name && strcmp(name, c->map->consumer_dev_name) != 0)
 			continue;
 		chans[mapind].indio_dev = c->indio_dev;
+		chans[mapind].data = c->map->consumer_data;
 		chans[mapind].channel =
 			iio_chan_spec_from_name(chans[mapind].indio_dev,
 						c->map->adc_channel_label);
@@ -313,6 +314,9 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	case IIO_VAL_FRACTIONAL:
 		*processed = div_s64(raw64 * (s64)scale_val * scale,
 				     scale_val2);
+		break;
+	case IIO_VAL_FRACTIONAL_LOG2:
+		*processed = (raw64 * (s64)scale_val * scale) >> scale_val2;
 		break;
 	default:
 		return -EINVAL;

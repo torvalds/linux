@@ -505,19 +505,8 @@ static int ds2482_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init sensors_ds2482_init(void)
-{
-	return i2c_add_driver(&ds2482_driver);
-}
-
-static void __exit sensors_ds2482_exit(void)
-{
-	i2c_del_driver(&ds2482_driver);
-}
+module_i2c_driver(ds2482_driver);
 
 MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");
 MODULE_DESCRIPTION("DS2482 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_ds2482_init);
-module_exit(sensors_ds2482_exit);

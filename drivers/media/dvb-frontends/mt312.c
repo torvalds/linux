@@ -549,7 +549,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	    || (p->frequency > fe->ops.info.frequency_max))
 		return -EINVAL;
 
-	if ((p->inversion < INVERSION_OFF)
+	if (((int)p->inversion < INVERSION_OFF)
 	    || (p->inversion > INVERSION_ON))
 		return -EINVAL;
 
@@ -557,7 +557,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	    || (p->symbol_rate > fe->ops.info.symbol_rate_max))
 		return -EINVAL;
 
-	if ((p->fec_inner < FEC_NONE)
+	if (((int)p->fec_inner < FEC_NONE)
 	    || (p->fec_inner > FEC_AUTO))
 		return -EINVAL;
 

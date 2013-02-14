@@ -495,16 +495,15 @@ EXPORT_SYMBOL(qdisc_watchdog_init);
 
 void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 {
-	ktime_t time;
-
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
 	qdisc_throttled(wd->qdisc);
-	time = ktime_set(0, 0);
-	time = ktime_add_ns(time, PSCHED_TICKS2NS(expires));
-	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
+
+	hrtimer_start(&wd->timer,
+		      ns_to_ktime(PSCHED_TICKS2NS(expires)),
+		      HRTIMER_MODE_ABS);
 }
 EXPORT_SYMBOL(qdisc_watchdog_schedule);
 
@@ -834,6 +833,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 		}
 		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
+		if (!netif_is_multiqueue(dev))
+			sch->flags |= TCQ_F_ONETXQUEUE;
 	}
 
 	sch->handle = handle;
@@ -981,6 +982,9 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct Qdisc *p = NULL;
 	int err;
 
+	if ((n->nlmsg_type != RTM_GETQDISC) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)
 		return -ENODEV;
@@ -1043,6 +1047,9 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 clid;
 	struct Qdisc *q, *p;
 	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 replay:
 	/* Reinit, just in case something touches this. */
@@ -1379,6 +1386,9 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 clid = tcm->tcm_handle;
 	u32 qid = TC_H_MAJ(clid);
 	int err;
+
+	if ((n->nlmsg_type != RTM_GETTCLASS) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)

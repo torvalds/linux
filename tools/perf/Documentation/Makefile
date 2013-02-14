@@ -1,3 +1,5 @@
+include ../config/utilities.mak
+
 OUTPUT := ./
 ifeq ("$(origin O)", "command line")
   ifneq ($(O),)
@@ -64,12 +66,23 @@ MAKEINFO=makeinfo
 INSTALL_INFO=install-info
 DOCBOOK2X_TEXI=docbook2x-texi
 DBLATEX=dblatex
+XMLTO=xmlto
 ifndef PERL_PATH
 	PERL_PATH = /usr/bin/perl
 endif
 
 -include ../config.mak.autogen
 -include ../config.mak
+
+_tmp_tool_path := $(call get-executable,$(ASCIIDOC))
+ifeq ($(_tmp_tool_path),)
+	missing_tools = $(ASCIIDOC)
+endif
+
+_tmp_tool_path := $(call get-executable,$(XMLTO))
+ifeq ($(_tmp_tool_path),)
+	missing_tools += $(XMLTO)
+endif
 
 #
 # For asciidoc ...
@@ -170,13 +183,27 @@ pdf: $(OUTPUT)user-manual.pdf
 
 install: install-man
 
-install-man: man
+check-man-tools:
+ifdef missing_tools
+	$(error "You need to install $(missing_tools) for man pages")
+endif
+
+do-install-man: man
 	$(INSTALL) -d -m 755 $(DESTDIR)$(man1dir)
 #	$(INSTALL) -d -m 755 $(DESTDIR)$(man5dir)
 #	$(INSTALL) -d -m 755 $(DESTDIR)$(man7dir)
 	$(INSTALL) -m 644 $(DOC_MAN1) $(DESTDIR)$(man1dir)
 #	$(INSTALL) -m 644 $(DOC_MAN5) $(DESTDIR)$(man5dir)
 #	$(INSTALL) -m 644 $(DOC_MAN7) $(DESTDIR)$(man7dir)
+
+install-man: check-man-tools man
+
+try-install-man:
+ifdef missing_tools
+	$(warning Please install $(missing_tools) to have the man pages installed)
+else
+	$(MAKE) do-install-man
+endif
 
 install-info: info
 	$(INSTALL) -d -m 755 $(DESTDIR)$(infodir)
@@ -246,7 +273,7 @@ $(MAN_HTML): $(OUTPUT)%.html : %.txt
 
 $(OUTPUT)%.1 $(OUTPUT)%.5 $(OUTPUT)%.7 : $(OUTPUT)%.xml
 	$(QUIET_XMLTO)$(RM) $@ && \
-	xmlto -o $(OUTPUT) -m $(MANPAGE_XSL) $(XMLTO_EXTRA) man $<
+	$(XMLTO) -o $(OUTPUT) -m $(MANPAGE_XSL) $(XMLTO_EXTRA) man $<
 
 $(OUTPUT)%.xml : %.txt
 	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \

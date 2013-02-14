@@ -192,7 +192,7 @@ static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
 	return ath79_spi_rr(sp, AR71XX_SPI_REG_RDS);
 }
 
-static __devinit int ath79_spi_probe(struct platform_device *pdev)
+static int ath79_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct ath79_spi *sp;
@@ -251,7 +251,7 @@ err_put_master:
 	return ret;
 }
 
-static __devexit int ath79_spi_remove(struct platform_device *pdev)
+static int ath79_spi_remove(struct platform_device *pdev)
 {
 	struct ath79_spi *sp = platform_get_drvdata(pdev);
 
@@ -265,7 +265,7 @@ static __devexit int ath79_spi_remove(struct platform_device *pdev)
 
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
-	.remove		= __devexit_p(ath79_spi_remove),
+	.remove		= ath79_spi_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -185,8 +185,7 @@
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
-/*
- * Use byte values for the following shift parameters
+/* Use byte values for the following shift parameters
  * Usage:
  *     psrctl |= (((ROUNDUP(value0, 128) >> E1000_PSRCTL_BSIZE0_SHIFT) &
  *                  E1000_PSRCTL_BSIZE0_MASK) |
@@ -233,6 +232,7 @@
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
 #define E1000_CTRL_LANPHYPC_OVERRIDE 0x00010000 /* SW control of LANPHYPC */
 #define E1000_CTRL_LANPHYPC_VALUE    0x00020000 /* SW value of LANPHYPC */
+#define E1000_CTRL_MEHE     0x00080000  /* Memory Error Handling Enable */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
@@ -242,8 +242,7 @@
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
 
-/*
- * Bit definitions for the Management Data IO (MDIO) and Management Data
+/* Bit definitions for the Management Data IO (MDIO) and Management Data
  * Clock (MDC) pins in the Device Control Register.
  */
 
@@ -391,6 +390,12 @@
 
 #define E1000_PBS_16K E1000_PBA_16K
 
+/* Uncorrectable/correctable ECC Error counts and enable bits */
+#define E1000_PBECCSTS_CORR_ERR_CNT_MASK	0x000000FF
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
+#define E1000_PBECCSTS_ECC_ENABLE		0x00010000
+
 #define IFS_MAX       80
 #define IFS_MIN       40
 #define IFS_RATIO     4
@@ -410,6 +415,7 @@
 #define E1000_ICR_RXSEQ         0x00000008 /* Rx sequence error */
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
+#define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
@@ -424,8 +430,7 @@
 #define E1000_PBA_ECC_STAT_CLR      0x00000002 /* Clear ECC error counter */
 #define E1000_PBA_ECC_INT_EN        0x00000004 /* Enable ICR bit 5 for ECC */
 
-/*
- * This defines the bits that are set in the Interrupt Mask
+/* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXT0   = Receiver Timer Interrupt (ring 0)
  *   o TXDW   = Transmit Descriptor Written Back
@@ -446,6 +451,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
+#define E1000_IMS_ECCER     E1000_ICR_ECCER     /* Uncorrectable ECC Error */
 #define E1000_IMS_RXQ0      E1000_ICR_RXQ0      /* Rx Queue 0 Interrupt */
 #define E1000_IMS_RXQ1      E1000_ICR_RXQ1      /* Rx Queue 1 Interrupt */
 #define E1000_IMS_TXQ0      E1000_ICR_TXQ0      /* Tx Queue 0 Interrupt */
@@ -475,8 +481,7 @@
 /* 802.1q VLAN Packet Size */
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
-/* Receive Address */
-/*
+/* Receive Address
  * Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * Technically, we have 16 spots.  However, we reserve one of these spots
@@ -723,8 +728,7 @@
 #define MAX_PHY_REG_ADDRESS    0x1F  /* 5 bit address bus (0-0x1F) */
 #define MAX_PHY_MULTI_PAGE_REG 0xF
 
-/* Bit definitions for valid PHY IDs. */
-/*
+/* Bit definitions for valid PHY IDs.
  * I = Integrated
  * E = External
  */
@@ -762,8 +766,7 @@
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
-/*
- * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
+/* 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
  * 0=Normal 10BASE-T Rx Threshold
  */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX 0x0800 /* 1=Assert CRS on Transmit */
@@ -779,14 +782,12 @@
 
 #define M88E1000_PSSR_CABLE_LENGTH_SHIFT 7
 
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the master
  */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the slave
  */
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK  0x0300
@@ -808,8 +809,7 @@
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
                            ((reg) & MAX_PHY_REG_ADDRESS))
 
-/*
- * Bits...
+/* Bits...
  * 15-5: page
  * 4-0: register offset
  */

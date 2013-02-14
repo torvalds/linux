@@ -16,7 +16,6 @@
 #include <linux/mm.h>
 #include <asm/mach-types.h>
 #include <video/omapdss.h>
-#include <plat/vram.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "board-rx51.h"
@@ -87,17 +86,4 @@ static int __init rx51_video_init(void)
 }
 
 subsys_initcall(rx51_video_init);
-
-void __init rx51_video_mem_init(void)
-{
-	/*
-	 * GFX 864x480x32bpp
-	 * VID1/2 1280x720x32bpp double buffered
-	 */
-	omap_vram_set_sdram_vram(PAGE_ALIGN(864 * 480 * 4) +
-			2 * PAGE_ALIGN(1280 * 720 * 4 * 2), 0);
-}
-
-#else
-void __init rx51_video_mem_init(void) { }
 #endif /* defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE) */

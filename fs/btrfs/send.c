@@ -1814,8 +1814,10 @@ static int name_cache_insert(struct send_ctx *sctx,
 			(unsigned long)nce->ino);
 	if (!nce_head) {
 		nce_head = kmalloc(sizeof(*nce_head), GFP_NOFS);
-		if (!nce_head)
+		if (!nce_head) {
+			kfree(nce);
 			return -ENOMEM;
+		}
 		INIT_LIST_HEAD(nce_head);
 
 		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
@@ -4397,9 +4399,9 @@ static int full_send_tree(struct send_ctx *sctx)
 	if (!path)
 		return -ENOMEM;
 
-	spin_lock(&send_root->root_times_lock);
+	spin_lock(&send_root->root_item_lock);
 	start_ctransid = btrfs_root_ctransid(&send_root->root_item);
-	spin_unlock(&send_root->root_times_lock);
+	spin_unlock(&send_root->root_item_lock);
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
@@ -4422,9 +4424,9 @@ join_trans:
 	 * Make sure the tree has not changed after re-joining. We detect this
 	 * by comparing start_ctransid and ctransid. They should always match.
 	 */
-	spin_lock(&send_root->root_times_lock);
+	spin_lock(&send_root->root_item_lock);
 	ctransid = btrfs_root_ctransid(&send_root->root_item);
-	spin_unlock(&send_root->root_times_lock);
+	spin_unlock(&send_root->root_item_lock);
 
 	if (ctransid != start_ctransid) {
 		WARN(1, KERN_WARNING "btrfs: the root that you're trying to "

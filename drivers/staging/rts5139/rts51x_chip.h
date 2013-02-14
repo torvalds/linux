@@ -253,7 +253,7 @@ struct sense_data_t {
 #define SUPPORT_UHS50_MMC44		0x40
 
 struct rts51x_option {
-	int mspro_formatter_enable;
+	int rts51x_mspro_formatter_enable;
 
 	/* card clock expected by user for fpga platform */
 	int fpga_sd_sdr104_clk;
@@ -308,7 +308,7 @@ struct rts51x_option {
 	 * add for config delay between 1/4 PMOS and 3/4 PMOS */
 	int pwr_delay;
 
-	int xd_rw_step;		/* add to tune xd tRP */
+	int rts51x_xd_rw_step;		/* add to tune xd tRP */
 	int D3318_off_delay;	/* add to tune D3318 off delay time */
 	int delink_delay;	/* add to tune delink delay time */
 	/* add for rts5129 to enable/disable D3318 off */
@@ -320,7 +320,7 @@ struct rts51x_option {
 
 	u8 debounce_num;	/* debounce number */
 	u8 led_toggle_interval;	/* used to control led toggle speed */
-	int xd_rwn_step;
+	int rts51x_xd_rwn_step;
 	u8 sd_send_status_en;
 	/* used to store default phase which is
 	 * used when phase tune all pass. */
@@ -337,11 +337,11 @@ struct rts51x_option {
 	u8 dv18_voltage;	/* add to tune dv18 voltage */
 };
 
-#define MS_FORMATTER_ENABLED(chip)	((chip)->option.mspro_formatter_enable)
+#define MS_FORMATTER_ENABLED(chip)	((chip)->option.rts51x_mspro_formatter_enable)
 
 struct rts51x_chip;
 
-typedef int (*card_rw_func) (struct scsi_cmnd *srb, struct rts51x_chip *chip,
+typedef int (*rts51x_card_rw_func) (struct scsi_cmnd *srb, struct rts51x_chip *chip,
 			     u32 sec_addr, u16 sec_cnt);
 
 /* For MS Card */
@@ -564,7 +564,7 @@ struct sd_info {
 #define CHK_MS8BIT(ms_card)	(((ms_card)->ms_type & MS_8BIT))
 #define CHK_MS4BIT(ms_card)	(((ms_card)->ms_type & MS_4BIT))
 
-struct ms_delay_write_tag {
+struct rts51x_ms_delay_write_tag {
 	u16 old_phyblock;
 	u16 new_phyblock;
 	u16 logblock;
@@ -605,7 +605,7 @@ struct ms_info {
 	u32 total_sec_cnt;
 	u8 last_rw_int;
 
-	struct ms_delay_write_tag delay_write;
+	struct rts51x_ms_delay_write_tag delay_write;
 
 	int counter;
 
@@ -671,7 +671,7 @@ struct rts51x_chip {
 	u32 capacity[MAX_ALLOWED_LUN_CNT];
 
 	/* read/write card function pointer */
-	card_rw_func rw_card[MAX_ALLOWED_LUN_CNT];
+	rts51x_card_rw_func rw_card[MAX_ALLOWED_LUN_CNT];
 	/* read/write capacity, used for GPIO Toggle */
 	u32 rw_cap[MAX_ALLOWED_LUN_CNT];
 	/* card to lun mapping table */

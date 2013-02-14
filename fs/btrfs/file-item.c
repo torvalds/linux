@@ -133,7 +133,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
@@ -151,6 +150,26 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+u64 btrfs_file_extent_length(struct btrfs_path *path)
+{
+	int extent_type;
+	struct btrfs_file_extent_item *fi;
+	u64 len;
+
+	fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
+			    struct btrfs_file_extent_item);
+	extent_type = btrfs_file_extent_type(path->nodes[0], fi);
+
+	if (extent_type == BTRFS_FILE_EXTENT_REG ||
+	    extent_type == BTRFS_FILE_EXTENT_PREALLOC)
+		len = btrfs_file_extent_num_bytes(path->nodes[0], fi);
+	else if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+		len = btrfs_file_extent_inline_len(path->nodes[0], fi);
+	else
+		BUG();
+
+	return len;
+}
 
 static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				   struct inode *inode, struct bio *bio,
@@ -441,8 +460,8 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		if (!contig)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 
-		if (!contig && (offset >= ordered->file_offset + ordered->len ||
-		    offset < ordered->file_offset)) {
+		if (offset >= ordered->file_offset + ordered->len ||
+		    offset < ordered->file_offset) {
 			unsigned long bytes_left;
 			sums->len = this_sum_bytes;
 			this_sum_bytes = 0;

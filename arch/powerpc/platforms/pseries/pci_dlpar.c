@@ -149,7 +149,7 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
 
-struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
+struct pci_controller *init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
 

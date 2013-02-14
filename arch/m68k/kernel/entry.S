@@ -44,34 +44,29 @@
 
 .globl system_call, buserr, trap, resume
 .globl sys_call_table
-.globl sys_fork, sys_clone, sys_vfork
+.globl __sys_fork, __sys_clone, __sys_vfork
 .globl ret_from_interrupt, bad_interrupt
 .globl auto_irqhandler_fixup
 .globl user_irqvec_fixup
 
 .text
-ENTRY(sys_fork)
+ENTRY(__sys_fork)
 	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	m68k_fork
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
+	jbsr	sys_fork
+	lea     %sp@(24),%sp
 	rts
 
-ENTRY(sys_clone)
+ENTRY(__sys_clone)
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
 	jbsr	m68k_clone
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
+	lea     %sp@(28),%sp
 	rts
 
-ENTRY(sys_vfork)
+ENTRY(__sys_vfork)
 	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	m68k_vfork
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
+	jbsr	sys_vfork
+	lea     %sp@(24),%sp
 	rts
 
 ENTRY(sys_sigreturn)
@@ -115,16 +110,9 @@ ENTRY(ret_from_kernel_thread)
 	| a3 contains the kernel thread payload, d7 - its argument
 	movel	%d1,%sp@-
 	jsr	schedule_tail
-	GET_CURRENT(%d0)
 	movel	%d7,(%sp)
 	jsr	%a3@
 	addql	#4,%sp
-	movel	%d0,(%sp)
-	jra	sys_exit
-
-ENTRY(ret_from_kernel_execve)
-	movel	4(%sp), %sp
-	GET_CURRENT(%d0)
 	jra	ret_from_exception
 
 #if defined(CONFIG_COLDFIRE) || !defined(CONFIG_MMU)

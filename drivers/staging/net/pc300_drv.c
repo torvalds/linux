@@ -3409,7 +3409,7 @@ static void cpc_init_card(pc300_t * card)
 	board_nbr++;
 }
 
-static int __devinit
+static int
 cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err, eeprom_outdated = 0;
@@ -3607,7 +3607,7 @@ err_disable_dev:
 	return err;
 }
 
-static void __devexit cpc_remove_one(struct pci_dev *pdev)
+static void cpc_remove_one(struct pci_dev *pdev)
 {
 	pc300_t *card = pci_get_drvdata(pdev);
 
@@ -3646,7 +3646,7 @@ static struct pci_driver cpc_driver = {
 	.name           = "pc300",
 	.id_table       = cpc_pci_dev_id,
 	.probe          = cpc_init_one,
-	.remove         = __devexit_p(cpc_remove_one),
+	.remove         = cpc_remove_one,
 };
 
 static int __init cpc_init(void)

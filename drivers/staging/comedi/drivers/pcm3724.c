@@ -62,14 +62,6 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-struct pcm3724_board {
-	const char *name;	/*  driver name */
-	int dio;		/*  num of DIO */
-	int numofports;		/*  num of 8255 subdevices */
-	unsigned int IRQbits;	/*  allowed interrupts */
-	unsigned int io_range;	/*  len of IO space */
-};
-
 /* used to track configured dios */
 struct priv_pcm3724 {
 	int dio_1;
@@ -156,13 +148,12 @@ static void do_3724_config(struct comedi_device *dev,
 static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s,
 			int chanspec)
 {
+	struct priv_pcm3724 *priv = dev->private;
 	struct comedi_subdevice *s_dio1 = &dev->subdevices[0];
 	unsigned int mask;
 	int gatecfg;
-	struct priv_pcm3724 *priv;
 
 	gatecfg = 0;
-	priv = dev->private;
 
 	mask = 1 << CR_CHAN(chanspec);
 	if (s == s_dio1)
@@ -233,36 +224,33 @@ static int subdev_3724_insn_config(struct comedi_device *dev,
 static int pcm3724_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct pcm3724_board *board = comedi_board(dev);
+	struct priv_pcm3724 *priv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
-	int ret, i, n_subdevices;
+	int ret, i;
+
+	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
-	iorange = board->io_range;
+	iorange = PCM3724_SIZE;
 
-	ret = alloc_private(dev, sizeof(struct priv_pcm3724));
-	if (ret < 0)
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
-
-	((struct priv_pcm3724 *)(dev->private))->dio_1 = 0;
-	((struct priv_pcm3724 *)(dev->private))->dio_2 = 0;
+	dev->private = priv;
 
 	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
-	       board->name, iobase);
+	       dev->board_name, iobase);
 	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
-	dev->board_name = board->name;
 	printk(KERN_INFO "\n");
 
-	n_subdevices = board->numofports;
-
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
@@ -277,7 +265,6 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 static void pcm3724_detach(struct comedi_device *dev)
 {
-	const struct pcm3724_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int i;
 
@@ -288,21 +275,14 @@ static void pcm3724_detach(struct comedi_device *dev)
 		}
 	}
 	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
+		release_region(dev->iobase, PCM3724_SIZE);
 }
-
-static const struct pcm3724_board boardtypes[] = {
-	{ "pcm3724", 48, 2, 0x00fc, PCM3724_SIZE, },
-};
 
 static struct comedi_driver pcm3724_driver = {
 	.driver_name	= "pcm3724",
 	.module		= THIS_MODULE,
 	.attach		= pcm3724_attach,
 	.detach		= pcm3724_detach,
-	.board_name	= &boardtypes[0].name,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.offset		= sizeof(struct pcm3724_board),
 };
 module_comedi_driver(pcm3724_driver);
 

@@ -35,8 +35,6 @@
  * Currently it blind writes bunch of static registers from the
  * fc2580_freq_regs_lut[] when fc2580_set_params() is called. Add some
  * logic to reduce unneeded register writes.
- * There is also don't-care registers, initialized with value 0xff, and those
- * are also written to the chip currently (yes, not wise).
  */
 
 /* write multiple registers */
@@ -109,6 +107,17 @@ static int fc2580_wr_reg(struct fc2580_priv *priv, u8 reg, u8 val)
 static int fc2580_rd_reg(struct fc2580_priv *priv, u8 reg, u8 *val)
 {
 	return fc2580_rd_regs(priv, reg, val, 1);
+}
+
+/* write single register conditionally only when value differs from 0xff
+ * XXX: This is special routine meant only for writing fc2580_freq_regs_lut[]
+ * values. Do not use for the other purposes. */
+static int fc2580_wr_reg_ff(struct fc2580_priv *priv, u8 reg, u8 val)
+{
+	if (val == 0xff)
+		return 0;
+	else
+		return fc2580_wr_regs(priv, reg, &val, 1);
 }
 
 static int fc2580_set_params(struct dvb_frontend *fe)
@@ -213,99 +222,99 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	if (i == ARRAY_SIZE(fc2580_freq_regs_lut))
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x25, fc2580_freq_regs_lut[i].r25_val);
+	ret = fc2580_wr_reg_ff(priv, 0x25, fc2580_freq_regs_lut[i].r25_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x27, fc2580_freq_regs_lut[i].r27_val);
+	ret = fc2580_wr_reg_ff(priv, 0x27, fc2580_freq_regs_lut[i].r27_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x28, fc2580_freq_regs_lut[i].r28_val);
+	ret = fc2580_wr_reg_ff(priv, 0x28, fc2580_freq_regs_lut[i].r28_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x29, fc2580_freq_regs_lut[i].r29_val);
+	ret = fc2580_wr_reg_ff(priv, 0x29, fc2580_freq_regs_lut[i].r29_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x2b, fc2580_freq_regs_lut[i].r2b_val);
+	ret = fc2580_wr_reg_ff(priv, 0x2b, fc2580_freq_regs_lut[i].r2b_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x2c, fc2580_freq_regs_lut[i].r2c_val);
+	ret = fc2580_wr_reg_ff(priv, 0x2c, fc2580_freq_regs_lut[i].r2c_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x2d, fc2580_freq_regs_lut[i].r2d_val);
+	ret = fc2580_wr_reg_ff(priv, 0x2d, fc2580_freq_regs_lut[i].r2d_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x30, fc2580_freq_regs_lut[i].r30_val);
+	ret = fc2580_wr_reg_ff(priv, 0x30, fc2580_freq_regs_lut[i].r30_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x44, fc2580_freq_regs_lut[i].r44_val);
+	ret = fc2580_wr_reg_ff(priv, 0x44, fc2580_freq_regs_lut[i].r44_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x50, fc2580_freq_regs_lut[i].r50_val);
+	ret = fc2580_wr_reg_ff(priv, 0x50, fc2580_freq_regs_lut[i].r50_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x53, fc2580_freq_regs_lut[i].r53_val);
+	ret = fc2580_wr_reg_ff(priv, 0x53, fc2580_freq_regs_lut[i].r53_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x5f, fc2580_freq_regs_lut[i].r5f_val);
+	ret = fc2580_wr_reg_ff(priv, 0x5f, fc2580_freq_regs_lut[i].r5f_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x61, fc2580_freq_regs_lut[i].r61_val);
+	ret = fc2580_wr_reg_ff(priv, 0x61, fc2580_freq_regs_lut[i].r61_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x62, fc2580_freq_regs_lut[i].r62_val);
+	ret = fc2580_wr_reg_ff(priv, 0x62, fc2580_freq_regs_lut[i].r62_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x63, fc2580_freq_regs_lut[i].r63_val);
+	ret = fc2580_wr_reg_ff(priv, 0x63, fc2580_freq_regs_lut[i].r63_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x67, fc2580_freq_regs_lut[i].r67_val);
+	ret = fc2580_wr_reg_ff(priv, 0x67, fc2580_freq_regs_lut[i].r67_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x68, fc2580_freq_regs_lut[i].r68_val);
+	ret = fc2580_wr_reg_ff(priv, 0x68, fc2580_freq_regs_lut[i].r68_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x69, fc2580_freq_regs_lut[i].r69_val);
+	ret = fc2580_wr_reg_ff(priv, 0x69, fc2580_freq_regs_lut[i].r69_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6a, fc2580_freq_regs_lut[i].r6a_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6a, fc2580_freq_regs_lut[i].r6a_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6b, fc2580_freq_regs_lut[i].r6b_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6b, fc2580_freq_regs_lut[i].r6b_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6c, fc2580_freq_regs_lut[i].r6c_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6c, fc2580_freq_regs_lut[i].r6c_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6d, fc2580_freq_regs_lut[i].r6d_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6d, fc2580_freq_regs_lut[i].r6d_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6e, fc2580_freq_regs_lut[i].r6e_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6e, fc2580_freq_regs_lut[i].r6e_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x6f, fc2580_freq_regs_lut[i].r6f_val);
+	ret = fc2580_wr_reg_ff(priv, 0x6f, fc2580_freq_regs_lut[i].r6f_val);
 	if (ret < 0)
 		goto err;
 

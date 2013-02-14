@@ -557,7 +557,7 @@ static irqreturn_t gdrom_dma_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit gdrom_set_interrupt_handlers(void)
+static int gdrom_set_interrupt_handlers(void)
 {
 	int err;
 
@@ -681,7 +681,7 @@ static void gdrom_request(struct request_queue *rq)
 }
 
 /* Print string identifying GD ROM device */
-static int __devinit gdrom_outputversion(void)
+static int gdrom_outputversion(void)
 {
 	struct gdrom_id *id;
 	char *model_name, *manuf_name, *firmw_ver;
@@ -715,7 +715,7 @@ free_id:
 }
 
 /* set the default mode for DMA transfer */
-static int __devinit gdrom_init_dma_mode(void)
+static int gdrom_init_dma_mode(void)
 {
 	__raw_writeb(0x13, GDROM_ERROR_REG);
 	__raw_writeb(0x22, GDROM_INTSEC_REG);
@@ -736,7 +736,7 @@ static int __devinit gdrom_init_dma_mode(void)
 	return 0;
 }
 
-static void __devinit probe_gdrom_setupcd(void)
+static void probe_gdrom_setupcd(void)
 {
 	gd.cd_info->ops = &gdrom_ops;
 	gd.cd_info->capacity = 1;
@@ -745,7 +745,7 @@ static void __devinit probe_gdrom_setupcd(void)
 		CDC_SELECT_DISC;
 }
 
-static void __devinit probe_gdrom_setupdisk(void)
+static void probe_gdrom_setupdisk(void)
 {
 	gd.disk->major = gdrom_major;
 	gd.disk->first_minor = 1;
@@ -753,7 +753,7 @@ static void __devinit probe_gdrom_setupdisk(void)
 	strcpy(gd.disk->disk_name, GDROM_DEV_NAME);
 }
 
-static int __devinit probe_gdrom_setupqueue(void)
+static int probe_gdrom_setupqueue(void)
 {
 	blk_queue_logical_block_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
 	/* using DMA so memory will need to be contiguous */
@@ -768,7 +768,7 @@ static int __devinit probe_gdrom_setupqueue(void)
  * register this as a block device and as compliant with the
  * universal CD Rom driver interface
  */
-static int __devinit probe_gdrom(struct platform_device *devptr)
+static int probe_gdrom(struct platform_device *devptr)
 {
 	int err;
 	/* Start the device */
@@ -838,7 +838,7 @@ probe_fail_no_mem:
 	return err;
 }
 
-static int __devexit remove_gdrom(struct platform_device *devptr)
+static int remove_gdrom(struct platform_device *devptr)
 {
 	flush_work(&work);
 	blk_cleanup_queue(gd.gdrom_rq);
@@ -854,7 +854,7 @@ static int __devexit remove_gdrom(struct platform_device *devptr)
 
 static struct platform_driver gdrom_driver = {
 	.probe = probe_gdrom,
-	.remove = __devexit_p(remove_gdrom),
+	.remove = remove_gdrom,
 	.driver = {
 			.name = GDROM_DEV_NAME,
 	},

@@ -295,8 +295,6 @@ void __init netfilter_init(void)
 		panic("cannot create netfilter proc entry");
 #endif
 
-	if (netfilter_queue_init() < 0)
-		panic("cannot initialize nf_queue");
 	if (netfilter_log_init() < 0)
 		panic("cannot initialize nf_log");
 }

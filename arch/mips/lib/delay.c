@@ -21,7 +21,7 @@ void __delay(unsigned long loops)
 	"	.set	noreorder				\n"
 	"	.align	3					\n"
 	"1:	bnez	%0, 1b					\n"
-#if __SIZEOF_LONG__ == 4
+#if BITS_PER_LONG == 32
 	"	subu	%0, 1					\n"
 #else
 	"	dsubu	%0, 1					\n"

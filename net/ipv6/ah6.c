@@ -44,7 +44,7 @@
 #define IPV6HDR_BASELEN 8
 
 struct tmp_ext {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		struct in6_addr saddr;
 #endif
 		struct in6_addr daddr;
@@ -152,7 +152,7 @@ bad:
 	return false;
 }
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 /**
  *	ipv6_rearrange_destopt - rearrange IPv6 destination options header
  *	@iph: IPv6 header
@@ -320,7 +320,7 @@ static void ah6_output_done(struct crypto_async_request *base, int err)
 	memcpy(top_iph, iph_base, IPV6HDR_BASELEN);
 
 	if (extlen) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		memcpy(&top_iph->saddr, iph_ext, extlen);
 #else
 		memcpy(&top_iph->daddr, iph_ext, extlen);
@@ -385,7 +385,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	memcpy(iph_base, top_iph, IPV6HDR_BASELEN);
 
 	if (extlen) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		memcpy(iph_ext, &top_iph->saddr, extlen);
 #else
 		memcpy(iph_ext, &top_iph->daddr, extlen);
@@ -434,7 +434,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	memcpy(top_iph, iph_base, IPV6HDR_BASELEN);
 
 	if (extlen) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		memcpy(&top_iph->saddr, iph_ext, extlen);
 #else
 		memcpy(&top_iph->daddr, iph_ext, extlen);
@@ -472,7 +472,10 @@ static void ah6_input_done(struct crypto_async_request *base, int err)
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_iph, hdr_len);
 	__skb_pull(skb, ah_hlen + hdr_len);
-	skb_set_transport_header(skb, -hdr_len);
+	if (x->props.mode == XFRM_MODE_TUNNEL)
+		skb_reset_transport_header(skb);
+	else
+		skb_set_transport_header(skb, -hdr_len);
 out:
 	kfree(AH_SKB_CB(skb)->tmp);
 	xfrm_input_resume(skb, err);
@@ -593,8 +596,12 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_iph, hdr_len);
-	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + hdr_len);
+
+	if (x->props.mode == XFRM_MODE_TUNNEL)
+		skb_reset_transport_header(skb);
+	else
+		skb_set_transport_header(skb, -hdr_len);
 
 	err = nexthdr;
 

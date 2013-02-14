@@ -108,8 +108,7 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = mdio_read,
 };
 
-static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
-                                         struct device_node *np)
+static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
 {
 	struct resource res;
 	const u32 *data;
@@ -150,7 +149,7 @@ static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
 	return 0;
 }
 
-static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
+static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	struct mii_bus *new_bus;
 	struct bb_info *bitbang;

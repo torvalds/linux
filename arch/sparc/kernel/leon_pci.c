@@ -43,7 +43,7 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 	}
 }
 
-void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
+void pcibios_fixup_bus(struct pci_bus *pbus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;

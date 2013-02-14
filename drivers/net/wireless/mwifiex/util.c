@@ -146,20 +146,16 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
  * to the kernel.
  */
 int
-mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
+mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 			    struct sk_buff *skb)
 {
 	struct rxpd *rx_pd;
-	struct mwifiex_private *priv;
 	u16 pkt_len;
 
 	if (!skb)
 		return -1;
 
 	rx_pd = (struct rxpd *)skb->data;
-	priv = mwifiex_get_priv_by_id(adapter, rx_pd->bss_num, rx_pd->bss_type);
-	if (!priv)
-		return -1;
 
 	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
 	skb_pull(skb, sizeof(pkt_len));
@@ -190,18 +186,9 @@ mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
  * the function creates a blank SKB, fills it with the data from the
  * received buffer and then sends this new SKB to the kernel.
  */
-int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
+int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
-	struct mwifiex_rxinfo *rx_info;
-	struct mwifiex_private *priv;
-
 	if (!skb)
-		return -1;
-
-	rx_info = MWIFIEX_SKB_RXCB(skb);
-	priv = mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
-				      rx_info->bss_type);
-	if (!priv)
 		return -1;
 
 	skb->dev = priv->netdev;
@@ -225,7 +212,7 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 	 * fragments. Currently we fail the Filesndl-ht.scr script
 	 * for UDP, hence this fix
 	 */
-	if ((adapter->iface_type == MWIFIEX_USB) &&
+	if ((priv->adapter->iface_type == MWIFIEX_USB) &&
 	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
 		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
 

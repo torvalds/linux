@@ -297,7 +297,7 @@ static void sead3_i2c_platform_setup(struct pic32_i2c_platform_data *priv)
 		priv->base + PIC32_I2CxSTATCLR);
 }
 
-static int __devinit sead3_i2c_platform_probe(struct platform_device *pdev)
+static int sead3_i2c_platform_probe(struct platform_device *pdev)
 {
 	struct pic32_i2c_platform_data *priv;
 	struct resource *r;
@@ -345,7 +345,7 @@ out:
 	return ret;
 }
 
-static int __devexit sead3_i2c_platform_remove(struct platform_device *pdev)
+static int sead3_i2c_platform_remove(struct platform_device *pdev)
 {
 	struct pic32_i2c_platform_data *priv = platform_get_drvdata(pdev);
 
@@ -383,7 +383,7 @@ static struct platform_driver sead3_i2c_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sead3_i2c_platform_probe,
-	.remove		= __devexit_p(sead3_i2c_platform_remove),
+	.remove		= sead3_i2c_platform_remove,
 	.suspend	= sead3_i2c_platform_suspend,
 	.resume		= sead3_i2c_platform_resume,
 };

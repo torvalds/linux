@@ -54,7 +54,7 @@ struct wl12xx_sdio_glue {
 	struct platform_device *core;
 };
 
-static const struct sdio_device_id wl1271_devices[] __devinitconst = {
+static const struct sdio_device_id wl1271_devices[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271) },
 	{}
 };
@@ -214,7 +214,7 @@ static struct wl1271_if_operations sdio_ops = {
 	.set_block_size = wl1271_sdio_set_block_size,
 };
 
-static int __devinit wl1271_probe(struct sdio_func *func,
+static int wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
 	struct wl12xx_platform_data *wlan_data;
@@ -319,7 +319,7 @@ out:
 	return ret;
 }
 
-static void __devexit wl1271_remove(struct sdio_func *func)
+static void wl1271_remove(struct sdio_func *func)
 {
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
 
@@ -384,7 +384,7 @@ static struct sdio_driver wl1271_sdio_driver = {
 	.name		= "wl1271_sdio",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
-	.remove		= __devexit_p(wl1271_remove),
+	.remove		= wl1271_remove,
 #ifdef CONFIG_PM
 	.drv = {
 		.pm = &wl1271_sdio_pm_ops,

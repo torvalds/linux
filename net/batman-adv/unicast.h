@@ -29,10 +29,44 @@ int batadv_frag_reassemble_skb(struct sk_buff *skb,
 			       struct batadv_priv *bat_priv,
 			       struct sk_buff **new_skb);
 void batadv_frag_list_free(struct list_head *head);
-int batadv_unicast_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv);
 int batadv_frag_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv,
 			 struct batadv_hard_iface *hard_iface,
 			 const uint8_t dstaddr[]);
+bool batadv_unicast_4addr_prepare_skb(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb,
+				      struct batadv_orig_node *orig_node,
+				      int packet_subtype);
+int batadv_unicast_generic_send_skb(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb, int packet_type,
+				    int packet_subtype);
+
+
+/**
+ * batadv_unicast_send_skb - send the skb encapsulated in a unicast packet
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the payload to send
+ */
+static inline int batadv_unicast_send_skb(struct batadv_priv *bat_priv,
+					  struct sk_buff *skb)
+{
+	return batadv_unicast_generic_send_skb(bat_priv, skb, BATADV_UNICAST,
+					       0);
+}
+
+/**
+ * batadv_unicast_send_skb - send the skb encapsulated in a unicast4addr packet
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the payload to send
+ * @packet_subtype: the batman 4addr packet subtype to use
+ */
+static inline int batadv_unicast_4addr_send_skb(struct batadv_priv *bat_priv,
+						struct sk_buff *skb,
+						int packet_subtype)
+{
+	return batadv_unicast_generic_send_skb(bat_priv, skb,
+					       BATADV_UNICAST_4ADDR,
+					       packet_subtype);
+}
 
 static inline int batadv_frag_can_reassemble(const struct sk_buff *skb, int mtu)
 {

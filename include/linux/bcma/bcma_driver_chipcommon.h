@@ -1,6 +1,9 @@
 #ifndef LINUX_BCMA_DRIVER_CC_H_
 #define LINUX_BCMA_DRIVER_CC_H_
 
+#include <linux/platform_device.h>
+#include <linux/gpio.h>
+
 /** ChipCommon core registers. **/
 #define BCMA_CC_ID			0x0000
 #define  BCMA_CC_ID_ID			0x0000FFFF
@@ -510,6 +513,7 @@ struct bcma_chipcommon_pmu {
 
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 struct bcma_pflash {
+	bool present;
 	u8 buswidth;
 	u32 window;
 	u32 window_size;
@@ -532,6 +536,7 @@ struct mtd_info;
 
 struct bcma_nflash {
 	bool present;
+	bool boot;		/* This is the flash the SoC boots from */
 
 	struct mtd_info *mtd;
 };
@@ -552,6 +557,7 @@ struct bcma_drv_cc {
 	u32 capabilities;
 	u32 capabilities_ext;
 	u8 setup_done:1;
+	u8 early_setup_done:1;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
@@ -567,6 +573,14 @@ struct bcma_drv_cc {
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
+	u32 ticks_per_ms;
+	struct platform_device *watchdog;
+
+	/* Lock for GPIO register access. */
+	spinlock_t gpio_lock;
+#ifdef CONFIG_BCMA_DRIVER_GPIO
+	struct gpio_chip gpio;
+#endif
 };
 
 /* Register access */
@@ -583,14 +597,14 @@ struct bcma_drv_cc {
 	bcma_cc_write32(cc, offset, (bcma_cc_read32(cc, offset) & (mask)) | (set))
 
 extern void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
+extern void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc);
 
 extern void bcma_chipco_suspend(struct bcma_drv_cc *cc);
 extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
-extern void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc,
-					  u32 ticks);
+extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
@@ -603,9 +617,12 @@ u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_intmask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_polarity(struct bcma_drv_cc *cc, u32 mask, u32 value);
+u32 bcma_chipco_gpio_pullup(struct bcma_drv_cc *cc, u32 mask, u32 value);
+u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
 /* PMU support */
 extern void bcma_pmu_init(struct bcma_drv_cc *cc);
+extern void bcma_pmu_early_init(struct bcma_drv_cc *cc);
 
 extern void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset,
 				  u32 value);

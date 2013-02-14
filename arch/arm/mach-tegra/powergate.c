@@ -28,10 +28,10 @@
 #include <linux/spinlock.h>
 
 #include <mach/clk.h>
-#include <mach/iomap.h>
 #include <mach/powergate.h>
 
 #include "fuse.h"
+#include "iomap.h"
 
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)

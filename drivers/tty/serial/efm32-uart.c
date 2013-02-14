@@ -690,7 +690,7 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 
 }
 
-static int __devinit efm32_uart_probe(struct platform_device *pdev)
+static int efm32_uart_probe(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port;
 	struct resource *res;
@@ -764,7 +764,7 @@ err_get_base:
 	return ret;
 }
 
-static int __devexit efm32_uart_remove(struct platform_device *pdev)
+static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
 
@@ -791,7 +791,7 @@ MODULE_DEVICE_TABLE(of, efm32_uart_dt_ids);
 
 static struct platform_driver efm32_uart_driver = {
 	.probe = efm32_uart_probe,
-	.remove = __devexit_p(efm32_uart_remove),
+	.remove = efm32_uart_remove,
 
 	.driver = {
 		.name = DRIVER_NAME,

@@ -87,7 +87,7 @@ static inline struct f_acm *port_to_acm(struct gserial *p)
 
 /* notification endpoint uses smallish and infrequent fixed-size messages */
 
-#define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
+#define GS_NOTIFY_INTERVAL_MS		32
 #define GS_NOTIFY_MAXPACKET		10	/* notification + 2 bytes */
 
 /* interface and class descriptors: */
@@ -167,7 +167,7 @@ static struct usb_endpoint_descriptor acm_fs_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(GS_NOTIFY_MAXPACKET),
-	.bInterval =		1 << GS_LOG2_NOTIFY_INTERVAL,
+	.bInterval =		GS_NOTIFY_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor acm_fs_in_desc = {
@@ -199,14 +199,13 @@ static struct usb_descriptor_header *acm_fs_function[] = {
 };
 
 /* high speed support: */
-
 static struct usb_endpoint_descriptor acm_hs_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(GS_NOTIFY_MAXPACKET),
-	.bInterval =		GS_LOG2_NOTIFY_INTERVAL+4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(GS_NOTIFY_INTERVAL_MS),
 };
 
 static struct usb_endpoint_descriptor acm_hs_in_desc = {
@@ -659,37 +658,22 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	acm->notify_req->complete = acm_cdc_notify_complete;
 	acm->notify_req->context = acm;
 
-	/* copy descriptors */
-	f->descriptors = usb_copy_descriptors(acm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		acm_hs_in_desc.bEndpointAddress =
-				acm_fs_in_desc.bEndpointAddress;
-		acm_hs_out_desc.bEndpointAddress =
-				acm_fs_out_desc.bEndpointAddress;
-		acm_hs_notify_desc.bEndpointAddress =
-				acm_fs_notify_desc.bEndpointAddress;
+	acm_hs_in_desc.bEndpointAddress = acm_fs_in_desc.bEndpointAddress;
+	acm_hs_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
+	acm_hs_notify_desc.bEndpointAddress =
+		acm_fs_notify_desc.bEndpointAddress;
 
-		/* copy descriptors */
-		f->hs_descriptors = usb_copy_descriptors(acm_hs_function);
-	}
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		acm_ss_in_desc.bEndpointAddress =
-			acm_fs_in_desc.bEndpointAddress;
-		acm_ss_out_desc.bEndpointAddress =
-			acm_fs_out_desc.bEndpointAddress;
+	acm_ss_in_desc.bEndpointAddress = acm_fs_in_desc.bEndpointAddress;
+	acm_ss_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(acm_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, acm_fs_function, acm_hs_function,
+			acm_ss_function);
+	if (status)
+		goto fail;
 
 	DBG(cdev, "acm ttyGS%d: %s speed IN/%s OUT/%s NOTIFY/%s\n",
 			acm->port_num,
@@ -721,11 +705,8 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_acm		*acm = func_to_acm(f);
 
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	usb_free_descriptors(f->descriptors);
+	acm_string_defs[0].id = 0;
+	usb_free_all_descriptors(f);
 	gs_free_req(acm->notify, acm->notify_req);
 	kfree(acm);
 }
@@ -762,27 +743,15 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 	 */
 
 	/* maybe allocate device-global string IDs, and patch descriptors */
-	if (acm_string_defs[ACM_CTRL_IDX].id == 0) {
-		status = usb_string_id(c->cdev);
+	if (acm_string_defs[0].id == 0) {
+		status = usb_string_ids_tab(c->cdev, acm_string_defs);
 		if (status < 0)
 			return status;
-		acm_string_defs[ACM_CTRL_IDX].id = status;
-
-		acm_control_interface_desc.iInterface = status;
-
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		acm_string_defs[ACM_DATA_IDX].id = status;
-
-		acm_data_interface_desc.iInterface = status;
-
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		acm_string_defs[ACM_IAD_IDX].id = status;
-
-		acm_iad_descriptor.iFunction = status;
+		acm_control_interface_desc.iInterface =
+			acm_string_defs[ACM_CTRL_IDX].id;
+		acm_data_interface_desc.iInterface =
+			acm_string_defs[ACM_DATA_IDX].id;
+		acm_iad_descriptor.iFunction = acm_string_defs[ACM_IAD_IDX].id;
 	}
 
 	/* allocate and initialize one new instance */

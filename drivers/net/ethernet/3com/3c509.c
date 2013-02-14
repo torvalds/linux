@@ -92,7 +92,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-static char version[] __devinitdata = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
+static char version[] = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
 
 #ifdef EL3_DEBUG
 static int el3_debug = EL3_DEBUG;
@@ -184,7 +184,7 @@ static int max_interrupt_work = 10;
 static int nopnp;
 #endif
 
-static int __devinit el3_common_init(struct net_device *dev);
+static int el3_common_init(struct net_device *dev);
 static void el3_common_remove(struct net_device *dev);
 static ushort id_read_eeprom(int index);
 static ushort read_eeprom(int ioaddr, int index);
@@ -270,9 +270,8 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 
 }
 
-static void __devinit el3_dev_fill(struct net_device *dev, __be16 *phys_addr,
-				   int ioaddr, int irq, int if_port,
-				   enum el3_cardtype type)
+static void el3_dev_fill(struct net_device *dev, __be16 *phys_addr, int ioaddr,
+			 int irq, int if_port, enum el3_cardtype type)
 {
 	struct el3_private *lp = netdev_priv(dev);
 
@@ -283,8 +282,7 @@ static void __devinit el3_dev_fill(struct net_device *dev, __be16 *phys_addr,
 	lp->type = type;
 }
 
-static int __devinit el3_isa_match(struct device *pdev,
-				   unsigned int ndev)
+static int el3_isa_match(struct device *pdev, unsigned int ndev)
 {
 	struct net_device *dev;
 	int ioaddr, isa_irq, if_port, err;
@@ -341,7 +339,7 @@ static int __devinit el3_isa_match(struct device *pdev,
 	return 1;
 }
 
-static int __devexit el3_isa_remove(struct device *pdev,
+static int el3_isa_remove(struct device *pdev,
 				    unsigned int ndev)
 {
 	el3_device_remove(pdev);
@@ -382,7 +380,7 @@ static int el3_isa_resume(struct device *dev, unsigned int n)
 
 static struct isa_driver el3_isa_driver = {
 	.match		= el3_isa_match,
-	.remove		= __devexit_p(el3_isa_remove),
+	.remove		= el3_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= el3_isa_suspend,
 	.resume		= el3_isa_resume,
@@ -406,8 +404,7 @@ static struct pnp_device_id el3_pnp_ids[] = {
 };
 MODULE_DEVICE_TABLE(pnp, el3_pnp_ids);
 
-static int __devinit el3_pnp_probe(struct pnp_dev *pdev,
-				    const struct pnp_device_id *id)
+static int el3_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *id)
 {
 	short i;
 	int ioaddr, irq, if_port;
@@ -445,7 +442,7 @@ static int __devinit el3_pnp_probe(struct pnp_dev *pdev,
 	return 0;
 }
 
-static void __devexit el3_pnp_remove(struct pnp_dev *pdev)
+static void el3_pnp_remove(struct pnp_dev *pdev)
 {
 	el3_common_remove(pnp_get_drvdata(pdev));
 	pnp_set_drvdata(pdev, NULL);
@@ -467,7 +464,7 @@ static struct pnp_driver el3_pnp_driver = {
 	.name		= "3c509",
 	.id_table	= el3_pnp_ids,
 	.probe		= el3_pnp_probe,
-	.remove		= __devexit_p(el3_pnp_remove),
+	.remove		= el3_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= el3_pnp_suspend,
 	.resume		= el3_pnp_resume,
@@ -496,7 +493,7 @@ static struct eisa_driver el3_eisa_driver = {
 		.driver   = {
 				.name    = "3c579",
 				.probe   = el3_eisa_probe,
-				.remove  = __devexit_p (el3_device_remove),
+				.remove  = el3_device_remove,
 				.suspend = el3_suspend,
 				.resume  = el3_resume,
 		}
@@ -519,7 +516,7 @@ static const struct net_device_ops netdev_ops = {
 #endif
 };
 
-static int __devinit el3_common_init(struct net_device *dev)
+static int el3_common_init(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
 	int err;
@@ -618,7 +615,7 @@ static int __init el3_eisa_probe (struct device *device)
 /* This remove works for all device types.
  *
  * The net dev must be stored in the driver data field */
-static int __devexit el3_device_remove (struct device *device)
+static int el3_device_remove(struct device *device)
 {
 	struct net_device *dev;
 

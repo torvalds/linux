@@ -2193,7 +2193,7 @@ net2272_gadget_release(struct device *_dev)
 
 /*---------------------------------------------------------------------------*/
 
-static void __devexit
+static void
 net2272_remove(struct net2272 *dev)
 {
 	usb_del_gadget_udc(&dev->gadget);
@@ -2215,8 +2215,7 @@ net2272_remove(struct net2272 *dev)
 	dev_info(dev->dev, "unbind\n");
 }
 
-static struct net2272 * __devinit
-net2272_probe_init(struct device *dev, unsigned int irq)
+static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 {
 	struct net2272 *ret;
 
@@ -2246,7 +2245,7 @@ net2272_probe_init(struct device *dev, unsigned int irq)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 {
 	int ret;
@@ -2306,7 +2305,7 @@ err_add_udc:
  * don't respond over USB until a gadget driver binds to us
  */
 
-static int __devinit
+static int
 net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 {
 	unsigned long resource, len, tmp;
@@ -2389,7 +2388,7 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 {
 	unsigned long resource, len;
@@ -2447,7 +2446,7 @@ net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net2272 *dev;
@@ -2489,7 +2488,7 @@ net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ret;
 }
 
-static void __devexit
+static void
 net2272_rdk1_remove(struct pci_dev *pdev, struct net2272 *dev)
 {
 	int i;
@@ -2511,7 +2510,7 @@ net2272_rdk1_remove(struct pci_dev *pdev, struct net2272 *dev)
 	}
 }
 
-static void __devexit
+static void
 net2272_rdk2_remove(struct pci_dev *pdev, struct net2272 *dev)
 {
 	int i;
@@ -2530,7 +2529,7 @@ net2272_rdk2_remove(struct pci_dev *pdev, struct net2272 *dev)
 			pci_resource_len(pdev, i));
 }
 
-static void __devexit
+static void
 net2272_pci_remove(struct pci_dev *pdev)
 {
 	struct net2272 *dev = pci_get_drvdata(pdev);
@@ -2549,7 +2548,7 @@ net2272_pci_remove(struct pci_dev *pdev)
 }
 
 /* Table of matching PCI IDs */
-static struct pci_device_id __devinitdata pci_ids[] = {
+static struct pci_device_id pci_ids[] = {
 	{	/* RDK 1 card */
 		.class       = ((PCI_CLASS_BRIDGE_OTHER << 8) | 0xfe),
 		.class_mask  = 0,
@@ -2575,7 +2574,7 @@ static struct pci_driver net2272_pci_driver = {
 	.id_table = pci_ids,
 
 	.probe    = net2272_pci_probe,
-	.remove   = __devexit_p(net2272_pci_remove),
+	.remove   = net2272_pci_remove,
 };
 
 static int net2272_pci_register(void)
@@ -2595,7 +2594,7 @@ static inline void net2272_pci_unregister(void) { }
 
 /*---------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 net2272_plat_probe(struct platform_device *pdev)
 {
 	struct net2272 *dev;
@@ -2661,7 +2660,7 @@ net2272_plat_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit
+static int
 net2272_plat_remove(struct platform_device *pdev)
 {
 	struct net2272 *dev = platform_get_drvdata(pdev);
@@ -2678,7 +2677,7 @@ net2272_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver net2272_plat_driver = {
 	.probe   = net2272_plat_probe,
-	.remove  = __devexit_p(net2272_plat_remove),
+	.remove  = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
 		.owner = THIS_MODULE,

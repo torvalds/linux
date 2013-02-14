@@ -210,7 +210,7 @@ void jz4740_rtc_poweroff(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(jz4740_rtc_poweroff);
 
-static int __devinit jz4740_rtc_probe(struct platform_device *pdev)
+static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_rtc *rtc;
@@ -297,7 +297,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz4740_rtc_remove(struct platform_device *pdev)
+static int jz4740_rtc_remove(struct platform_device *pdev)
 {
 	struct jz4740_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -347,7 +347,7 @@ static const struct dev_pm_ops jz4740_pm_ops = {
 
 static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
-	.remove	 = __devexit_p(jz4740_rtc_remove),
+	.remove	 = jz4740_rtc_remove,
 	.driver	 = {
 		.name  = "jz4740-rtc",
 		.owner = THIS_MODULE,

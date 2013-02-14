@@ -120,7 +120,16 @@ static unsigned long vt8500_dclk_recalc_rate(struct clk_hw *hw,
 static long vt8500_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *prate)
 {
+	struct clk_device *cdev = to_clk_device(hw);
 	u32 divisor = *prate / rate;
+
+	/*
+	 * If this is a request for SDMMC we have to adjust the divisor
+	 * when >31 to use the fixed predivisor
+	 */
+	if ((cdev->div_mask == 0x3F) && (divisor > 31)) {
+		divisor = 64 * ((divisor / 64) + 1);
+	}
 
 	return *prate / divisor;
 }
@@ -134,6 +143,15 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (divisor == cdev->div_mask + 1)
 		divisor = 0;
+
+	/* SDMMC mask may need to be corrected before testing if its valid */
+	if ((cdev->div_mask == 0x3F) && (divisor > 31)) {
+		/*
+		 * Bit 5 is a fixed /64 predivisor. If the requested divisor
+		 * is >31 then correct for the fixed divisor being required.
+		 */
+		divisor = 0x20 + (divisor / 64);
+	}
 
 	if (divisor > cdev->div_mask) {
 		pr_err("%s: invalid divisor for clock\n", __func__);

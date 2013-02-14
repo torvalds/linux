@@ -176,14 +176,7 @@ int arizona_irq_init(struct arizona *arizona)
 		aod = &wm5102_aod;
 		irq = &wm5102_irq;
 
-		switch (arizona->rev) {
-		case 0:
-		case 1:
-			ctrlif_error = false;
-			break;
-		default:
-			break;
-		}
+		ctrlif_error = false;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM5110
@@ -191,14 +184,7 @@ int arizona_irq_init(struct arizona *arizona)
 		aod = &wm5110_aod;
 		irq = &wm5110_irq;
 
-		switch (arizona->rev) {
-		case 0:
-		case 1:
-			ctrlif_error = false;
-			break;
-		default:
-			break;
-		}
+		ctrlif_error = false;
 		break;
 #endif
 	default:
@@ -224,6 +210,7 @@ int arizona_irq_init(struct arizona *arizona)
 	arizona->virq = irq_domain_add_linear(NULL, 2, &arizona_domain_ops,
 					      arizona);
 	if (!arizona->virq) {
+		dev_err(arizona->dev, "Failed to add core IRQ domain\n");
 		ret = -EINVAL;
 		goto err;
 	}

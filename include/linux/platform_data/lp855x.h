@@ -89,11 +89,6 @@ enum lp8556_brightness_source {
 	LP8556_COMBINED2,	/* pwm + i2c after the shaper block */
 };
 
-struct lp855x_pwm_data {
-	void (*pwm_set_intensity) (int brightness, int max_brightness);
-	int (*pwm_get_intensity) (int max_brightness);
-};
-
 struct lp855x_rom_data {
 	u8 addr;
 	u8 val;
@@ -105,7 +100,7 @@ struct lp855x_rom_data {
  * @mode : brightness control by pwm or lp855x register
  * @device_control : value of DEVICE CONTROL register
  * @initial_brightness : initial value of backlight brightness
- * @pwm_data : platform specific pwm generation functions.
+ * @period_ns : platform specific pwm period value. unit is nano.
 		Only valid when mode is PWM_BASED.
  * @load_new_rom_data :
 	0 : use default configuration data
@@ -118,7 +113,7 @@ struct lp855x_platform_data {
 	enum lp855x_brightness_ctrl_mode mode;
 	u8 device_control;
 	int initial_brightness;
-	struct lp855x_pwm_data pwm_data;
+	unsigned int period_ns;
 	u8 load_new_rom_data;
 	int size_program;
 	struct lp855x_rom_data *rom_data;

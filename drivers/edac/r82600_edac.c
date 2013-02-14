@@ -359,8 +359,8 @@ fail:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit r82600_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int r82600_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	edac_dbg(0, "\n");
 
@@ -368,7 +368,7 @@ static int __devinit r82600_init_one(struct pci_dev *pdev,
 	return r82600_probe1(pdev, ent->driver_data);
 }
 
-static void __devexit r82600_remove_one(struct pci_dev *pdev)
+static void r82600_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
@@ -397,7 +397,7 @@ MODULE_DEVICE_TABLE(pci, r82600_pci_tbl);
 static struct pci_driver r82600_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = r82600_init_one,
-	.remove = __devexit_p(r82600_remove_one),
+	.remove = r82600_remove_one,
 	.id_table = r82600_pci_tbl,
 };
 

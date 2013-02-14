@@ -72,12 +72,6 @@ extern unsigned long pgd_current[];
 #define ASID_INC	0x10
 #define ASID_MASK	0xff0
 
-#elif defined(CONFIG_CPU_RM9000)
-
-#define ASID_INC	0x1
-#define ASID_MASK	0xfff
-
-/* SMTC/34K debug hack - but maybe we'll keep it */
 #elif defined(CONFIG_MIPS_MT_SMTC)
 
 #define ASID_INC	0x1

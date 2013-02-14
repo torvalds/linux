@@ -221,7 +221,7 @@ static void fakelb_del(struct fakelb_dev_priv *priv)
 	ieee802154_free_device(priv->dev);
 }
 
-static int __devinit fakelb_probe(struct platform_device *pdev)
+static int fakelb_probe(struct platform_device *pdev)
 {
 	struct fakelb_priv *priv;
 	struct fakelb_dev_priv *dp;
@@ -253,7 +253,7 @@ err_alloc:
 	return err;
 }
 
-static int __devexit fakelb_remove(struct platform_device *pdev)
+static int fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_priv *priv = platform_get_drvdata(pdev);
 	struct fakelb_dev_priv *dp, *temp;
@@ -269,7 +269,7 @@ static struct platform_device *ieee802154fake_dev;
 
 static struct platform_driver ieee802154fake_driver = {
 	.probe = fakelb_probe,
-	.remove = __devexit_p(fakelb_remove),
+	.remove = fakelb_remove,
 	.driver = {
 			.name = "ieee802154fakelb",
 			.owner = THIS_MODULE,

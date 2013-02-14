@@ -93,8 +93,8 @@ struct pci_root_info __init *alloc_pci_root_info(int bus_min, int bus_max,
 	return info;
 }
 
-void __devinit update_res(struct pci_root_info *info, resource_size_t start,
-			  resource_size_t end, unsigned long flags, int merge)
+void update_res(struct pci_root_info *info, resource_size_t start,
+		resource_size_t end, unsigned long flags, int merge)
 {
 	struct resource *res;
 	struct pci_root_res *root_res;

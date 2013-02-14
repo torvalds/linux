@@ -1048,7 +1048,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 static int anysee_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query          = anysee_rc_query;
 	rc->interval       = 250;  /* windows driver uses 500ms */
 
@@ -1170,7 +1170,7 @@ static int anysee_ci_poll_slot_status(struct dvb_ca_en50221 *ci, int slot,
 	struct dvb_usb_device *d = ci->data;
 	struct anysee_state *state = d_to_priv(d);
 	int ret;
-	u8 tmp;
+	u8 tmp = 0;
 
 	ret = anysee_rd_reg_mask(d, REG_IOC, &tmp, 0x40);
 	if (ret)

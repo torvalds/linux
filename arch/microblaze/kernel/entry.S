@@ -293,24 +293,6 @@ C_ENTRY(_user_exception):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	addi	r14, r14, 4	/* return address is 4 byte after call */
 
-	mfs	r1, rmsr
-	nop
-	andi	r1, r1, MSR_UMS
-	bnei	r1, 1f
-
-/* Kernel-mode state save - kernel execve */
-	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
-	tophys(r1,r1);
-
-	addik	r1, r1, -PT_SIZE; /* Make room on the stack. */
-	SAVE_REGS
-
-	swi	r1, r1, PT_MODE; /* pt_regs -> kernel mode */
-	brid	2f;
-	nop;				/* Fill delay slot */
-
-/* User-mode state save.  */
-1:
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get stack from task_struct */
@@ -460,18 +442,6 @@ TRAP_return:		/* Make global symbol for debugging */
 	nop;
 
 
-/* These syscalls need access to the struct pt_regs on the stack, so we
-   implement them in assembly (they're basically all wrappers anyway).  */
-
-C_ENTRY(sys_fork_wrapper):
-	addi	r5, r0, SIGCHLD			/* Arg 0: flags */
-	lwi	r6, r1, PT_R1	/* Arg 1: child SP (use parent's) */
-	addik	r7, r1, 0			/* Arg 2: parent context */
-	add	r8, r0, r0			/* Arg 3: (unused) */
-	add	r9, r0, r0;			/* Arg 4: (unused) */
-	brid	do_fork		/* Do real work (tail-call) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
-
 /* This the initial entry point for a new child thread, with an appropriate
    stack in place that makes it look the the child is in the middle of an
    syscall.  This function is actually `returned to' from switch_thread
@@ -479,28 +449,19 @@ C_ENTRY(sys_fork_wrapper):
    saved context).  */
 C_ENTRY(ret_from_fork):
 	bralid	r15, schedule_tail; /* ...which is schedule_tail's arg */
-	add	r3, r5, r0;	/* switch_thread returns the prev task */
+	add	r5, r3, r0;	/* switch_thread returns the prev task */
 				/* ( in the delay slot ) */
 	brid	ret_from_trap;	/* Do normal trap return */
 	add	r3, r0, r0;	/* Child's fork call should return 0. */
 
-C_ENTRY(sys_vfork):
-	brid	microblaze_vfork	/* Do real work (tail-call) */
-	addik	r5, r1, 0
-
-C_ENTRY(sys_clone):
-	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
-	lwi	r6, r1, PT_R1;	/* If so, use paret's stack ptr */
-1:	addik	r7, r1, 0;			/* Arg 2: parent context */
-	lwi     r9, r1, PT_R8;          /* parent tid.  */
-	lwi     r10, r1, PT_R9;         /* child tid.  */
-	/* do_fork will pick up TLS from regs->r10.  */
-	brid	do_fork		/* Do real work (tail-call) */
-	add     r8, r0, r0;             /* Arg 3: (unused) */
-
-C_ENTRY(sys_execve):
-	brid	microblaze_execve;	/* Do real work (tail-call).*/
-	addik	r8, r1, 0;		/* add user context as 4th arg */
+C_ENTRY(ret_from_kernel_thread):
+	bralid	r15, schedule_tail; /* ...which is schedule_tail's arg */
+	add	r5, r3, r0;	/* switch_thread returns the prev task */
+				/* ( in the delay slot ) */
+	brald	r15, r20	/* fn was left in r20 */
+	addk	r5, r0, r19	/* ... and argument - in r19 */
+	brid	ret_from_trap
+	add	r3, r0, r0
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	brid	sys_rt_sigreturn	/* Do real work */

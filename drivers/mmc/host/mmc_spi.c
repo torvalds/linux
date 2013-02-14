@@ -1485,7 +1485,7 @@ nomem:
 }
 
 
-static int __devexit mmc_spi_remove(struct spi_device *spi)
+static int mmc_spi_remove(struct spi_device *spi)
 {
 	struct mmc_host		*mmc = dev_get_drvdata(&spi->dev);
 	struct mmc_spi_host	*host;
@@ -1517,7 +1517,7 @@ static int __devexit mmc_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static struct of_device_id mmc_spi_of_match_table[] __devinitdata = {
+static struct of_device_id mmc_spi_of_match_table[] = {
 	{ .compatible = "mmc-spi-slot", },
 	{},
 };
@@ -1529,7 +1529,7 @@ static struct spi_driver mmc_spi_driver = {
 		.of_match_table = mmc_spi_of_match_table,
 	},
 	.probe =	mmc_spi_probe,
-	.remove =	__devexit_p(mmc_spi_remove),
+	.remove =	mmc_spi_remove,
 };
 
 module_spi_driver(mmc_spi_driver);

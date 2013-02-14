@@ -103,6 +103,9 @@ nvc0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -137,13 +140,12 @@ nvc0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
-
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
-	bar->flush(bar);
 
 	nv_wr32(priv, 0x002634, chan->base.chid);
 	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
@@ -152,6 +154,9 @@ nvc0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
+	nv_wo32(base, addr + 0x00, 0x00000000);
+	nv_wo32(base, addr + 0x04, 0x00000000);
+	bar->flush(bar);
 	return 0;
 }
 
@@ -175,10 +180,13 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x1000,
 					  args->pushbuf,
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_COPY1), &chan);
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_COPY1) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_PPP), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -494,7 +502,7 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
 	if (stat & 0x00000100) {
-		nv_info(priv, "unknown status 0x00000100\n");
+		nv_warn(priv, "unknown status 0x00000100\n");
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
 	}

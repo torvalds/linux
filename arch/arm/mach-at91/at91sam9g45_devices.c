@@ -26,7 +26,6 @@
 #include <video/atmel_lcdc.h>
 
 #include <mach/at91_adc.h>
-#include <mach/board.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9g45_matrix.h>
 #include <mach/at91_matrix.h>
@@ -36,6 +35,7 @@
 
 #include <media/atmel-isi.h>
 
+#include "board.h"
 #include "generic.h"
 #include "clock.h"
 
@@ -1459,7 +1459,7 @@ static struct resource ssc0_resources[] = {
 };
 
 static struct platform_device at91sam9g45_ssc0_device = {
-	.name	= "ssc",
+	.name	= "at91sam9g45_ssc",
 	.id	= 0,
 	.dev	= {
 		.dma_mask		= &ssc0_dmamask,
@@ -1501,7 +1501,7 @@ static struct resource ssc1_resources[] = {
 };
 
 static struct platform_device at91sam9g45_ssc1_device = {
-	.name	= "ssc",
+	.name	= "at91sam9g45_ssc",
 	.id	= 1,
 	.dev	= {
 		.dma_mask		= &ssc1_dmamask,

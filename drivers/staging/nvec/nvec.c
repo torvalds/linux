@@ -39,7 +39,6 @@
 #include <linux/workqueue.h>
 
 #include <mach/clk.h>
-#include <mach/iomap.h>
 
 #include "nvec.h"
 
@@ -716,7 +715,7 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, "\x04\x01", 2);
 }
 
-static int __devinit tegra_nvec_probe(struct platform_device *pdev)
+static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
@@ -853,7 +852,7 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_nvec_remove(struct platform_device *pdev)
+static int tegra_nvec_remove(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
@@ -901,7 +900,7 @@ static int nvec_resume(struct device *dev)
 static const SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
 
 /* Match table for of_platform binding */
-static const struct of_device_id nvidia_nvec_of_match[] __devinitconst = {
+static const struct of_device_id nvidia_nvec_of_match[] = {
 	{ .compatible = "nvidia,nvec", },
 	{},
 };
@@ -909,7 +908,7 @@ MODULE_DEVICE_TABLE(of, nvidia_nvec_of_match);
 
 static struct platform_driver nvec_device_driver = {
 	.probe   = tegra_nvec_probe,
-	.remove  = __devexit_p(tegra_nvec_remove),
+	.remove  = tegra_nvec_remove,
 	.driver  = {
 		.name = "nvec",
 		.owner = THIS_MODULE,

@@ -57,7 +57,7 @@ static const struct pci_device_id emu_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, emu_tbl);
 
-static int __devinit emu_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int emu_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct emu *emu;
 	struct gameport *port;
@@ -107,7 +107,7 @@ static int __devinit emu_probe(struct pci_dev *pdev, const struct pci_device_id 
 	return error;
 }
 
-static void __devexit emu_remove(struct pci_dev *pdev)
+static void emu_remove(struct pci_dev *pdev)
 {
 	struct emu *emu = pci_get_drvdata(pdev);
 
@@ -122,7 +122,7 @@ static struct pci_driver emu_driver = {
         .name =         "Emu10k1_gameport",
         .id_table =     emu_tbl,
         .probe =        emu_probe,
-        .remove =       __devexit_p(emu_remove),
+	.remove =	emu_remove,
 };
 
 module_pci_driver(emu_driver);

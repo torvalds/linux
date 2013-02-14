@@ -52,6 +52,22 @@ struct he_stat {
 	u32			nr_events;
 };
 
+struct hist_entry_diff {
+	bool	computed;
+
+	/* PERF_HPP__DISPL */
+	int	displacement;
+
+	/* PERF_HPP__DELTA */
+	double	period_ratio_delta;
+
+	/* PERF_HPP__RATIO */
+	double	period_ratio;
+
+	/* HISTC_WEIGHTED_DIFF */
+	s64	wdiff;
+};
+
 /**
  * struct hist_entry - histogram entry
  *
@@ -61,11 +77,17 @@ struct he_stat {
 struct hist_entry {
 	struct rb_node		rb_node_in;
 	struct rb_node		rb_node;
+	union {
+		struct list_head node;
+		struct list_head head;
+	} pairs;
 	struct he_stat		stat;
 	struct map_symbol	ms;
 	struct thread		*thread;
 	u64			ip;
 	s32			cpu;
+
+	struct hist_entry_diff	diff;
 
 	/* XXX These two should move to some tree widget lib */
 	u16			row_offset;
@@ -78,14 +100,29 @@ struct hist_entry {
 	char			*srcline;
 	struct symbol		*parent;
 	unsigned long		position;
-	union {
-		struct hist_entry *pair;
-		struct rb_root	  sorted_chain;
-	};
+	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
 	struct hists		*hists;
 	struct callchain_root	callchain[0];
 };
+
+static inline bool hist_entry__has_pairs(struct hist_entry *he)
+{
+	return !list_empty(&he->pairs.node);
+}
+
+static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
+{
+	if (hist_entry__has_pairs(he))
+		return list_entry(he->pairs.node.next, struct hist_entry, pairs.node);
+	return NULL;
+}
+
+static inline void hist__entry_add_pair(struct hist_entry *he,
+					struct hist_entry *pair)
+{
+	list_add_tail(&he->pairs.head, &pair->pairs.node);
+}
 
 enum sort_type {
 	SORT_PID,

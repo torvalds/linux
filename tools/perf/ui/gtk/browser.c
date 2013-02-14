@@ -237,9 +237,7 @@ static GtkWidget *perf_gtk__setup_statusbar(void)
 
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 				  const char *help,
-				  void (*timer) (void *arg)__maybe_unused,
-				  void *arg __maybe_unused,
-				  int delay_secs __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused)
 {
 	struct perf_evsel *pos;
 	GtkWidget *vbox;

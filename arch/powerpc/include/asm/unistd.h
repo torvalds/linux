@@ -12,7 +12,7 @@
 #include <uapi/asm/unistd.h>
 
 
-#define __NR_syscalls		353
+#define __NR_syscalls		354
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
@@ -54,9 +54,11 @@
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_NEWFSTATAT
 #define __ARCH_WANT_COMPAT_SYS_SENDFILE
+#define __ARCH_WANT_COMPAT_SYS_SCHED_RR_GET_INTERVAL
 #endif
-#define __ARCH_WANT_SYS_EXECVE
-#define __ARCH_WANT_KERNEL_EXECVE
+#define __ARCH_WANT_SYS_FORK
+#define __ARCH_WANT_SYS_VFORK
+#define __ARCH_WANT_SYS_CLONE
 
 /*
  * "Conditional" syscalls

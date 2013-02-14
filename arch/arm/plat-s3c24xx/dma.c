@@ -325,7 +325,7 @@ static int s3c2410_dma_start(struct s3c2410_dma_chan *chan)
 
 	chan->state = S3C2410_DMA_RUNNING;
 
-	/* check wether there is anything to load, and if not, see
+	/* check whether there is anything to load, and if not, see
 	 * if we can find anything to load
 	 */
 

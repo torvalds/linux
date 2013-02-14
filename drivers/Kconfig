@@ -156,4 +156,6 @@ source "drivers/pwm/Kconfig"
 
 source "drivers/irqchip/Kconfig"
 
+source "drivers/ipack/Kconfig"
+
 endmenu

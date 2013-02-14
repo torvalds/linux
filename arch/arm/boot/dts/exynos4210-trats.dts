@@ -35,24 +35,15 @@
 		regulator-name = "VMEM_VDD_2.8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
-		gpio = <&gpk0 2 1 0 0>;
+		gpio = <&gpk0 2 0>;
 		enable-active-high;
 	};
 
 	sdhci_emmc: sdhci@12510000 {
 		bus-width = <8>;
 		non-removable;
-		broken-voltage;
-		gpios = <&gpk0 0 2 0 3>,
-			<&gpk0 1 2 0 3>,
-			<&gpk0 3 2 2 3>,
-			<&gpk0 4 2 2 3>,
-			<&gpk0 5 2 2 3>,
-			<&gpk0 6 2 2 3>,
-			<&gpk1 3 3 3 3>,
-			<&gpk1 4 3 3 3>,
-			<&gpk1 5 3 3 3>,
-			<&gpk1 6 3 3 3>;
+		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
+		pinctrl-names = "default";
 		vmmc-supply = <&vemmc_reg>;
 		status = "okay";
 	};
@@ -73,12 +64,74 @@
 		status = "okay";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		vol-down-key {
+			gpios = <&gpx2 1 1>;
+			linux,code = <114>;
+			label = "volume down";
+			debounce-interval = <10>;
+		};
+
+		vol-up-key {
+			gpios = <&gpx2 0 1>;
+			linux,code = <115>;
+			label = "volume up";
+			debounce-interval = <10>;
+		};
+
+		power-key {
+			gpios = <&gpx2 7 1>;
+			linux,code = <116>;
+			label = "power";
+			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
+
+		ok-key {
+			gpios = <&gpx3 5 1>;
+			linux,code = <352>;
+			label = "ok";
+			debounce-interval = <10>;
+		};
+	};
+
+	tsp_reg: voltage-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "TSP_FIXED_VOLTAGES";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&gpl0 3 0>;
+		enable-active-high;
+	};
+
+	i2c@13890000 {
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-slave-addr = <0x10>;
+		samsung,i2c-max-bus-freq = <400000>;
+		pinctrl-0 = <&i2c3_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		mms114-touchscreen@48 {
+			compatible = "melfas,mms114";
+			reg = <0x48>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <4 2>;
+			x-size = <720>;
+			y-size = <1280>;
+			avdd-supply = <&tsp_reg>;
+			vdd-supply = <&tsp_reg>;
+		};
+	};
+
 	i2c@138B0000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-slave-addr = <0x10>;
 		samsung,i2c-max-bus-freq = <100000>;
-		gpios = <&gpb 6 3 3 0>,
-			<&gpb 7 3 3 0>;
+		pinctrl-0 = <&i2c5_bus>;
+		pinctrl-names = "default";
 		status = "okay";
 
 		max8997_pmic@66 {
@@ -93,9 +146,9 @@
 			max8997,pmic-ignore-gpiodvs-side-effect;
 			max8997,pmic-buck125-default-dvs-idx = <0>;
 
-			max8997,pmic-buck125-dvs-gpios = <&gpx0 5 1 0 0>,
-						         <&gpx0 6 1 0 0>,
-							 <&gpl0 0 1 0 0>;
+			max8997,pmic-buck125-dvs-gpios = <&gpx0 5 0>,
+						         <&gpx0 6 0>,
+							 <&gpl0 0 0>;
 
 			max8997,pmic-buck1-dvs-voltage = <1350000>, <1300000>,
 							 <1250000>, <1200000>,

@@ -38,6 +38,8 @@
 				hog {
 					pinctrl_hog: hoggrp {
 						fsl,pins = <
+							1004 0x80000000 /* MX6Q_PAD_GPIO_4__GPIO_1_4 */
+							1012 0x80000000 /* MX6Q_PAD_GPIO_5__GPIO_1_5 */
 							1402 0x80000000	/* MX6Q_PAD_NANDF_D0__GPIO_2_0 */
 							1410 0x80000000	/* MX6Q_PAD_NANDF_D1__GPIO_2_1 */
 							1418 0x80000000	/* MX6Q_PAD_NANDF_D2__GPIO_2_2 */
@@ -71,6 +73,22 @@
 				wp-gpios = <&gpio2 1 0>;
 				status = "okay";
 			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio1 4 0>;
+			linux,code = <115>; /* KEY_VOLUMEUP */
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio1 5 0>;
+			linux,code = <114>; /* KEY_VOLUMEDOWN */
 		};
 	};
 };

@@ -23,29 +23,24 @@ Recommended properties :
 - ti,davinci-nand-buswidth: buswidth 8 or 16
 - ti,davinci-nand-use-bbt: use flash based bad block table support.
 
-Example (enbw_cmc board):
-aemif@60000000 {
-	compatible = "ti,davinci-aemif";
-	#address-cells = <2>;
-	#size-cells = <1>;
-	reg = <0x68000000 0x80000>;
-	ranges = <2 0 0x60000000 0x02000000
-		  3 0 0x62000000 0x02000000
-		  4 0 0x64000000 0x02000000
-		  5 0 0x66000000 0x02000000
-		  6 0 0x68000000 0x02000000>;
-	nand@3,0 {
-		compatible = "ti,davinci-nand";
-		reg = <3 0x0 0x807ff
-			6 0x0 0x8000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ti,davinci-chipselect = <1>;
-		ti,davinci-mask-ale = <0>;
-		ti,davinci-mask-cle = <0>;
-		ti,davinci-mask-chipsel = <0>;
-		ti,davinci-ecc-mode = "hw";
-		ti,davinci-ecc-bits = <4>;
-		ti,davinci-nand-use-bbt;
+nand device bindings may contain additional sub-nodes describing
+partitions of the address space. See partition.txt for more detail.
+
+Example(da850 EVM ):
+nand_cs3@62000000 {
+	compatible = "ti,davinci-nand";
+	reg = <0x62000000 0x807ff
+		0x68000000 0x8000>;
+	ti,davinci-chipselect = <1>;
+	ti,davinci-mask-ale = <0>;
+	ti,davinci-mask-cle = <0>;
+	ti,davinci-mask-chipsel = <0>;
+	ti,davinci-ecc-mode = "hw";
+	ti,davinci-ecc-bits = <4>;
+	ti,davinci-nand-use-bbt;
+
+	partition@180000 {
+		label = "ubifs";
+		reg = <0x180000 0x7e80000>;
 	};
 };

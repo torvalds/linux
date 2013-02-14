@@ -342,7 +342,7 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void framedone_callback(void *data, u32 mask)
+static void framedone_callback(void *data)
 {
 	void (*callback)(void *data);
 
@@ -908,8 +908,8 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
-	r = omap_dispc_register_isr(framedone_callback, NULL,
-			DISPC_IRQ_FRAMEDONE);
+	r = dss_mgr_register_framedone_handler(out->manager,
+			framedone_callback, NULL);
 	if (r) {
 		DSSERR("can't get FRAMEDONE irq\n");
 		goto err1;
@@ -933,8 +933,10 @@ EXPORT_SYMBOL(omapdss_rfbi_display_enable);
 
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 {
-	omap_dispc_unregister_isr(framedone_callback, NULL,
-			DISPC_IRQ_FRAMEDONE);
+	struct omap_dss_output *out = dssdev->output;
+
+	dss_mgr_unregister_framedone_handler(out->manager,
+			framedone_callback, NULL);
 	omap_dss_stop_device(dssdev);
 
 	rfbi_runtime_put();
@@ -950,7 +952,7 @@ static int __init rfbi_init_display(struct omap_dss_device *dssdev)
 static struct omap_dss_device * __init rfbi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	const char *def_disp_name = dss_get_default_display_name();
+	const char *def_disp_name = omapdss_get_default_display_name();
 	struct omap_dss_device *def_dssdev;
 	int i;
 
@@ -999,9 +1001,18 @@ static void __init rfbi_probe_pdata(struct platform_device *rfbidev)
 		return;
 	}
 
+	r = omapdss_output_set_device(&rfbi.output, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_put_device(dssdev);
+		return;
+	}
+
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		omapdss_output_unset_device(&rfbi.output);
 		dss_put_device(dssdev);
 		return;
 	}

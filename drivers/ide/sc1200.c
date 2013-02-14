@@ -291,7 +291,7 @@ static const struct ide_dma_ops sc1200_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info sc1200_chipset __devinitconst = {
+static const struct ide_port_info sc1200_chipset = {
 	.name		= DRV_NAME,
 	.port_ops	= &sc1200_port_ops,
 	.dma_ops	= &sc1200_dma_ops,
@@ -303,7 +303,7 @@ static const struct ide_port_info sc1200_chipset __devinitconst = {
 	.udma_mask	= ATA_UDMA2,
 };
 
-static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct sc1200_saved_state *ss = NULL;
 	int rc;

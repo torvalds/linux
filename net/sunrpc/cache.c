@@ -775,11 +775,11 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 	if (rp->q.list.next == &cd->queue) {
 		spin_unlock(&queue_lock);
 		mutex_unlock(&inode->i_mutex);
-		BUG_ON(rp->offset);
+		WARN_ON_ONCE(rp->offset);
 		return 0;
 	}
 	rq = container_of(rp->q.list.next, struct cache_request, q.list);
-	BUG_ON(rq->q.reader);
+	WARN_ON_ONCE(rq->q.reader);
 	if (rp->offset == 0)
 		rq->readers++;
 	spin_unlock(&queue_lock);

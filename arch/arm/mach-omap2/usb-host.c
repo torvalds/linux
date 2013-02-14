@@ -25,10 +25,10 @@
 
 #include <asm/io.h>
 
-#include <plat/usb.h>
-#include <plat/omap_device.h>
-
+#include "soc.h"
+#include "omap_device.h"
 #include "mux.h"
+#include "usb.h"
 
 #ifdef CONFIG_MFD_OMAP_USB_HOST
 
@@ -508,6 +508,10 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 	if (cpu_is_omap34xx()) {
 		setup_ehci_io_mux(pdata->port_mode);
 		setup_ohci_io_mux(pdata->port_mode);
+
+		if (omap_rev() <= OMAP3430_REV_ES2_1)
+			usbhs_data.single_ulpi_bypass = true;
+
 	} else if (cpu_is_omap44xx()) {
 		setup_4430ehci_io_mux(pdata->port_mode);
 		setup_4430ohci_io_mux(pdata->port_mode);

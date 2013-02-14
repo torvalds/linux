@@ -69,12 +69,12 @@ struct hdq_data {
 	int			init_trans;
 };
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev);
-static int __devexit omap_hdq_remove(struct platform_device *pdev);
+static int omap_hdq_probe(struct platform_device *pdev);
+static int omap_hdq_remove(struct platform_device *pdev);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe =	omap_hdq_probe,
-	.remove =	__devexit_p(omap_hdq_remove),
+	.remove =	omap_hdq_remove,
 	.driver =	{
 		.name =	"omap_hdq",
 	},
@@ -537,7 +537,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	}
 }
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev)
+static int omap_hdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdq_data *hdq_data;
@@ -613,7 +613,7 @@ err_w1:
 	return ret;
 }
 
-static int __devexit omap_hdq_remove(struct platform_device *pdev)
+static int omap_hdq_remove(struct platform_device *pdev)
 {
 	struct hdq_data *hdq_data = platform_get_drvdata(pdev);
 

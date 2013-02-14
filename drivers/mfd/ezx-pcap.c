@@ -371,7 +371,7 @@ static int pcap_remove_subdev(struct device *dev, void *unused)
 	return 0;
 }
 
-static int __devinit pcap_add_subdev(struct pcap_chip *pcap,
+static int pcap_add_subdev(struct pcap_chip *pcap,
 						struct pcap_subdev *subdev)
 {
 	struct platform_device *pdev;
@@ -391,7 +391,7 @@ static int __devinit pcap_add_subdev(struct pcap_chip *pcap,
 	return ret;
 }
 
-static int __devexit ezx_pcap_remove(struct spi_device *spi)
+static int ezx_pcap_remove(struct spi_device *spi)
 {
 	struct pcap_chip *pcap = dev_get_drvdata(&spi->dev);
 	struct pcap_platform_data *pdata = spi->dev.platform_data;
@@ -420,7 +420,7 @@ static int __devexit ezx_pcap_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit ezx_pcap_probe(struct spi_device *spi)
+static int ezx_pcap_probe(struct spi_device *spi)
 {
 	struct pcap_platform_data *pdata = spi->dev.platform_data;
 	struct pcap_chip *pcap;
@@ -525,7 +525,7 @@ ret:
 
 static struct spi_driver ezxpcap_driver = {
 	.probe	= ezx_pcap_probe,
-	.remove = __devexit_p(ezx_pcap_remove),
+	.remove = ezx_pcap_remove,
 	.driver = {
 		.name	= "ezx-pcap",
 		.owner	= THIS_MODULE,

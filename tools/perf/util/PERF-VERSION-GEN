@@ -9,18 +9,14 @@ GVF=${OUTPUT}PERF-VERSION-FILE
 LF='
 '
 
+#
 # First check if there is a .git to get the version from git describe
-# otherwise try to get the version from the kernel makefile
+# otherwise try to get the version from the kernel Makefile
+#
 if test -d ../../.git -o -f ../../.git &&
-	VN=$(git describe --match 'v[0-9].[0-9]*' --abbrev=4 HEAD 2>/dev/null) &&
-	case "$VN" in
-	*$LF*) (exit 1) ;;
-	v[0-9]*)
-		git update-index -q --refresh
-		test -z "$(git diff-index --name-only HEAD --)" ||
-		VN="$VN-dirty" ;;
-	esac
+	VN=$(git tag 2>/dev/null | tail -1 | grep -E "v[0-9].[0-9]*")
 then
+	VN=$(echo $VN"-g"$(git log -1 --abbrev=4 --pretty=format:"%h" HEAD))
 	VN=$(echo "$VN" | sed -e 's/-/./g');
 else
 	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)

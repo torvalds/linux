@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/stat.h>
 #include <linux/sysfs.h>
+#include <linux/etherdevice.h>
 
 #include "cpsw_ale.h"
 
@@ -211,10 +212,34 @@ static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 	mask &= ~port_mask;
 
 	/* free if only remaining port is host port */
-	if (mask == BIT(ale->params.ale_ports))
-		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
-	else
+	if (mask)
 		cpsw_ale_set_port_mask(ale_entry, mask);
+	else
+		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+}
+
+int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS];
+	int ret, idx;
+
+	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+		cpsw_ale_read(ale, idx, ale_entry);
+		ret = cpsw_ale_get_entry_type(ale_entry);
+		if (ret != ALE_TYPE_ADDR && ret != ALE_TYPE_VLAN_ADDR)
+			continue;
+
+		if (cpsw_ale_get_mcast(ale_entry)) {
+			u8 addr[6];
+
+			cpsw_ale_get_addr(ale_entry, addr);
+			if (!is_broadcast_ether_addr(addr))
+				cpsw_ale_flush_mcast(ale, ale_entry, port_mask);
+		}
+
+		cpsw_ale_write(ale, idx, ale_entry);
+	}
+	return 0;
 }
 
 static void cpsw_ale_flush_ucast(struct cpsw_ale *ale, u32 *ale_entry,

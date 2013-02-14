@@ -30,19 +30,19 @@
 
 #include <media/soc_camera.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/3ds_debugboard.h>
-#include <mach/ulpi.h>
 
+#include "3ds_debugboard.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 static int mx31_3ds_pins[] = {
 	/* UART1 */
@@ -393,7 +393,7 @@ static struct regulator_init_data gpo_init = {
 };
 
 static struct regulator_consumer_supply vmmc2_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "mxc-mmc.0"),
+	REGULATOR_SUPPLY("vmmc", "imx31-mmc.0"),
 };
 
 static struct regulator_init_data vmmc2_init = {

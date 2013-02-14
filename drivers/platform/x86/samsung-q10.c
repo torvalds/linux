@@ -77,7 +77,7 @@ static int samsungq10_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(samsungq10_pm_ops,
 			  samsungq10_suspend, samsungq10_resume);
 
-static int __devinit samsungq10_probe(struct platform_device *pdev)
+static int samsungq10_probe(struct platform_device *pdev)
 {
 
 	struct backlight_properties props;
@@ -99,7 +99,7 @@ static int __devinit samsungq10_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit samsungq10_remove(struct platform_device *pdev)
+static int samsungq10_remove(struct platform_device *pdev)
 {
 
 	struct backlight_device *bd = platform_get_drvdata(pdev);
@@ -119,7 +119,7 @@ static struct platform_driver samsungq10_driver = {
 		.pm	= &samsungq10_pm_ops,
 	},
 	.probe		= samsungq10_probe,
-	.remove		= __devexit_p(samsungq10_remove),
+	.remove		= samsungq10_remove,
 };
 
 static struct platform_device *samsungq10_device;

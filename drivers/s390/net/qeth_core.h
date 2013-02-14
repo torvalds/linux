@@ -933,6 +933,7 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
+void qeth_trace_features(struct qeth_card *);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

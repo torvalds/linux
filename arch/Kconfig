@@ -80,6 +80,7 @@ config UPROBES
 	bool "Transparent user-space probes (EXPERIMENTAL)"
 	depends on UPROBE_EVENT && PERF_EVENTS
 	default n
+	select PERCPU_RWSEM
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
 	  enable instrumentation applications (such as 'perf probe')
@@ -111,6 +112,25 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 
 	  See Documentation/unaligned-memory-access.txt for more
 	  information on the topic of unaligned memory accesses.
+
+config ARCH_USE_BUILTIN_BSWAP
+       bool
+       help
+	 Modern versions of GCC (since 4.4) have builtin functions
+	 for handling byte-swapping. Using these, instead of the old
+	 inline assembler that the architecture code provides in the
+	 __arch_bswapXX() macros, allows the compiler to see what's
+	 happening and offers more opportunity for optimisation. In
+	 particular, the compiler will be able to combine the byteswap
+	 with a nearby load or store and use load-and-swap or
+	 store-and-swap instructions if the architecture has them. It
+	 should almost *never* result in code which is worse than the
+	 hand-coded assembler in <asm/swab.h>.  But just in case it
+	 does, the use of the builtins is optional.
+
+	 Any architecture with load-and-swap or store-and-swap
+	 instructions should set this. And it shouldn't hurt to set it
+	 on architectures that don't have such instructions.
 
 config HAVE_SYSCALL_WRAPPERS
 	bool
@@ -271,12 +291,6 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
-config GENERIC_KERNEL_THREAD
-	bool
-
-config GENERIC_KERNEL_EXECVE
-	bool
-
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
@@ -300,15 +314,16 @@ config SECCOMP_FILTER
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
 
-config HAVE_RCU_USER_QS
+config HAVE_CONTEXT_TRACKING
 	bool
 	help
-	  Provide kernel entry/exit hooks necessary for userspace
-	  RCU extended quiescent state. Syscalls need to be wrapped inside
-	  rcu_user_exit()-rcu_user_enter() through the slow path using
-	  TIF_NOHZ flag. Exceptions handlers must be wrapped as well. Irqs
-	  are already protected inside rcu_irq_enter/rcu_irq_exit() but
-	  preemption or signal handling on irq exit still need to be protected.
+	  Provide kernel/user boundaries probes necessary for subsystems
+	  that need it, such as userspace RCU extended quiescent state.
+	  Syscalls need to be wrapped inside user_exit()-user_enter() through
+	  the slow path using TIF_NOHZ flag. Exceptions handlers must be
+	  wrapped as well. Irqs are already protected inside
+	  rcu_irq_enter/rcu_irq_exit() but preemption or signal handling on
+	  irq exit still need to be protected.
 
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
@@ -340,5 +355,22 @@ config MODULES_USE_ELF_REL
 	help
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
+
+config GENERIC_SIGALTSTACK
+	bool
+
+#
+# ABI hall of shame
+#
+config CLONE_BACKWARDS
+	bool
+	help
+	  Architecture has tls passed as the 4th argument of clone(2),
+	  not the 5th one.
+
+config CLONE_BACKWARDS2
+	bool
+	help
+	  Architecture has the first two arguments of clone(2) swapped.
 
 source "kernel/gcov/Kconfig"

@@ -1897,7 +1897,7 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 	},
 };
 
-static int __devinit tsl2x7x_probe(struct i2c_client *clientp,
+static int tsl2x7x_probe(struct i2c_client *clientp,
 	const struct i2c_device_id *id)
 {
 	int ret;
@@ -2026,7 +2026,7 @@ static int tsl2x7x_resume(struct device *dev)
 	return ret;
 }
 
-static int __devexit tsl2x7x_remove(struct i2c_client *client)
+static int tsl2x7x_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -2070,7 +2070,7 @@ static struct i2c_driver tsl2x7x_driver = {
 	},
 	.id_table = tsl2x7x_idtable,
 	.probe = tsl2x7x_probe,
-	.remove = __devexit_p(tsl2x7x_remove),
+	.remove = tsl2x7x_remove,
 };
 
 module_i2c_driver(tsl2x7x_driver);

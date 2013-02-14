@@ -366,7 +366,7 @@ static const u8 mbc_irq_handlers[] = {
 	PCF50633_IRQ_LOWBAT,
 };
 
-static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
+static int pcf50633_mbc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc;
 	int ret;
@@ -447,7 +447,7 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_mbc_remove(struct platform_device *pdev)
+static int pcf50633_mbc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc = platform_get_drvdata(pdev);
 	int i;
@@ -471,7 +471,7 @@ static struct platform_driver pcf50633_mbc_driver = {
 		.name = "pcf50633-mbc",
 	},
 	.probe = pcf50633_mbc_probe,
-	.remove = __devexit_p(pcf50633_mbc_remove),
+	.remove = pcf50633_mbc_remove,
 };
 
 module_platform_driver(pcf50633_mbc_driver);

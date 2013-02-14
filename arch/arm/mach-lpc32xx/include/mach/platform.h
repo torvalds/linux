@@ -515,6 +515,7 @@
 /*
  * clkpwr_timers_pwms_clk_ctrl_1 register definitions
  */
+#define LPC32XX_CLKPWR_TMRPWMCLK_MPWM_EN	0x40
 #define LPC32XX_CLKPWR_TMRPWMCLK_TIMER3_EN	0x20
 #define LPC32XX_CLKPWR_TMRPWMCLK_TIMER2_EN	0x10
 #define LPC32XX_CLKPWR_TMRPWMCLK_TIMER1_EN	0x08

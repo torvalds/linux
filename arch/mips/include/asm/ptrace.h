@@ -49,6 +49,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
+#define user_stack_pointer(r) ((r)->regs[29])
 
 extern asmlinkage void syscall_trace_enter(struct pt_regs *regs);
 extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
@@ -60,5 +61,11 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 	if (unlikely(!user_mode(regs)))
 		die(str, regs);
 }
+
+#define current_pt_regs()						\
+({									\
+	unsigned long sp = (unsigned long)__builtin_frame_address(0);	\
+	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) + 1 - 32) - 1;	\
+})
 
 #endif /* _ASM_PTRACE_H */

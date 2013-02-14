@@ -213,7 +213,7 @@ static int rfkill_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver rfkill_gpio_driver = {
 	.probe = rfkill_gpio_probe,
-	.remove = __devexit_p(rfkill_gpio_remove),
+	.remove = rfkill_gpio_remove,
 	.driver = {
 		   .name = "rfkill_gpio",
 		   .owner = THIS_MODULE,

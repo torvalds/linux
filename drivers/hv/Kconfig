@@ -13,4 +13,10 @@ config HYPERV_UTILS
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
+config HYPERV_BALLOON
+	tristate "Microsoft Hyper-V Balloon driver"
+	depends on HYPERV
+	help
+	  Select this option to enable Hyper-V Balloon driver.
+
 endmenu

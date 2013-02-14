@@ -78,7 +78,7 @@ static int fm801_gp_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
+static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
 	struct fm801_gp *gp;
 	struct gameport *port;
@@ -129,7 +129,7 @@ static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device
 	return error;
 }
 
-static void __devexit fm801_gp_remove(struct pci_dev *pci)
+static void fm801_gp_remove(struct pci_dev *pci)
 {
 	struct fm801_gp *gp = pci_get_drvdata(pci);
 
@@ -150,7 +150,7 @@ static struct pci_driver fm801_gp_driver = {
 	.name =		"FM801_gameport",
 	.id_table =	fm801_gp_id_table,
 	.probe =	fm801_gp_probe,
-	.remove =	__devexit_p(fm801_gp_remove),
+	.remove =	fm801_gp_remove,
 };
 
 module_pci_driver(fm801_gp_driver);

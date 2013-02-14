@@ -789,7 +789,6 @@ struct iwl_priv {
 	/* remain-on-channel offload support */
 	struct ieee80211_channel *hw_roc_channel;
 	struct delayed_work hw_roc_disable_work;
-	enum nl80211_channel_type hw_roc_chantype;
 	int hw_roc_duration;
 	bool hw_roc_setup, hw_roc_start_notified;
 
@@ -844,7 +843,7 @@ struct iwl_priv {
 	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-	struct iwl_eeprom_data *eeprom_data;
+	struct iwl_nvm_data *nvm_data;
 	/* eeprom blob for debugfs/testmode */
 	u8 *eeprom_blob;
 	size_t eeprom_blob_size;

@@ -194,8 +194,8 @@ static void ttusbir_urb_complete(struct urb *urb)
 		dev_warn(tt->dev, "failed to resubmit urb: %d\n", rc);
 }
 
-static int __devinit ttusbir_probe(struct usb_interface *intf,
-						const struct usb_device_id *id)
+static int ttusbir_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	struct ttusbir *tt;
 	struct usb_interface_descriptor *idesc;
@@ -316,7 +316,7 @@ static int __devinit ttusbir_probe(struct usb_interface *intf,
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_TYPE_ALL;
+	rc->allowed_protos = RC_BIT_ALL;
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;
@@ -367,7 +367,7 @@ out:
 	return ret;
 }
 
-static void __devexit ttusbir_disconnect(struct usb_interface *intf)
+static void ttusbir_disconnect(struct usb_interface *intf)
 {
 	struct ttusbir *tt = usb_get_intfdata(intf);
 	struct usb_device *udev = tt->udev;
@@ -435,7 +435,7 @@ static struct usb_driver ttusbir_driver = {
 	.suspend = ttusbir_suspend,
 	.resume = ttusbir_resume,
 	.reset_resume = ttusbir_resume,
-	.disconnect = __devexit_p(ttusbir_disconnect)
+	.disconnect = ttusbir_disconnect,
 };
 
 module_usb_driver(ttusbir_driver);

@@ -663,7 +663,7 @@ static void fwspk_card_free(struct snd_card *card)
 	mutex_destroy(&fwspk->mutex);
 }
 
-static const struct device_info *__devinit fwspk_detect(struct fw_device *dev)
+static const struct device_info *fwspk_detect(struct fw_device *dev)
 {
 	static const struct device_info griffin_firewave = {
 		.driver_name = "FireWave",
@@ -699,7 +699,7 @@ static const struct device_info *__devinit fwspk_detect(struct fw_device *dev)
 	return NULL;
 }
 
-static int __devinit fwspk_probe(struct device *unit_dev)
+static int fwspk_probe(struct device *unit_dev)
 {
 	struct fw_unit *unit = fw_unit(unit_dev);
 	struct fw_device *fw_dev = fw_parent_device(unit);
@@ -770,7 +770,7 @@ error:
 	return err;
 }
 
-static int __devexit fwspk_remove(struct device *dev)
+static int fwspk_remove(struct device *dev)
 {
 	struct fwspk *fwspk = dev_get_drvdata(dev);
 
@@ -834,7 +834,7 @@ static struct fw_driver fwspk_driver = {
 		.name	= KBUILD_MODNAME,
 		.bus	= &fw_bus_type,
 		.probe	= fwspk_probe,
-		.remove	= __devexit_p(fwspk_remove),
+		.remove	= fwspk_remove,
 	},
 	.update   = fwspk_bus_reset,
 	.id_table = fwspk_id_table,

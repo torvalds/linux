@@ -591,16 +591,14 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 
 	/* Now look at all of this device's children. */
 	usb_hub_for_each_child(usbdev, chix, childdev) {
-		if (childdev) {
-			usb_lock_device(childdev);
-			ret = usb_device_dump(buffer, nbytes, skip_bytes,
-					      file_offset, childdev, bus,
-					      level + 1, chix - 1, ++cnt);
-			usb_unlock_device(childdev);
-			if (ret == -EFAULT)
-				return total_written;
-			total_written += ret;
-		}
+		usb_lock_device(childdev);
+		ret = usb_device_dump(buffer, nbytes, skip_bytes,
+				      file_offset, childdev, bus,
+				      level + 1, chix - 1, ++cnt);
+		usb_unlock_device(childdev);
+		if (ret == -EFAULT)
+			return total_written;
+		total_written += ret;
 	}
 	return total_written;
 }

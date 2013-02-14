@@ -1072,7 +1072,7 @@ static int __init parse_active_dev(void)
 	return 0;
 }
 
-static int __devinit parse_port(char *opt_str, int *output_interface)
+static int parse_port(char *opt_str, int *output_interface)
 {
 	if (!strncmp(opt_str, "DVP0", 4))
 		*output_interface = INTERFACE_DVP0;
@@ -1089,7 +1089,7 @@ static int __devinit parse_port(char *opt_str, int *output_interface)
 	return 0;
 }
 
-static void __devinit parse_lcd_port(void)
+static void parse_lcd_port(void)
 {
 	parse_port(viafb_lcd_port, &viaparinfo->chip_info->lvds_chip_info.
 		output_interface);
@@ -1102,7 +1102,7 @@ static void __devinit parse_lcd_port(void)
 		  output_interface);
 }
 
-static void __devinit parse_dvi_port(void)
+static void parse_dvi_port(void)
 {
 	parse_port(viafb_dvi_port, &viaparinfo->chip_info->tmds_chip_info.
 		output_interface);
@@ -1727,7 +1727,7 @@ static struct viafb_pm_hooks viafb_fb_pm_hooks = {
 
 #endif
 
-static void __devinit i2c_bus_probe(struct viafb_shared *shared)
+static void i2c_bus_probe(struct viafb_shared *shared)
 {
 	/* should be always CRT */
 	printk(KERN_INFO "viafb: Probing I2C bus 0x26\n");
@@ -1753,7 +1753,7 @@ static void i2c_bus_free(struct viafb_shared *shared)
 	via_aux_free(shared->i2c_2C);
 }
 
-int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
+int via_fb_pci_probe(struct viafb_dev *vdev)
 {
 	u32 default_xres, default_yres;
 	struct fb_var_screeninfo default_var;
@@ -1945,7 +1945,7 @@ out_fb_release:
 	return rc;
 }
 
-void __devexit via_fb_pci_remove(struct pci_dev *pdev)
+void via_fb_pci_remove(struct pci_dev *pdev)
 {
 	DEBUG_MSG(KERN_INFO "via_pci_remove!\n");
 	fb_dealloc_cmap(&viafbinfo->cmap);

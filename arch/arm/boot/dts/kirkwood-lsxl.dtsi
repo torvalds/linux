@@ -1,4 +1,5 @@
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	chosen {
@@ -6,6 +7,71 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_power_hdd &pmx_usb_vbus
+				      &pmx_fan_low &pmx_fan_high
+				      &pmx_led_function_red &pmx_led_alarm
+				      &pmx_led_info &pmx_led_power
+				      &pmx_fan_lock &pmx_button_function
+				      &pmx_power_switch &pmx_power_auto_switch
+				      &pmx_led_function_blue >;
+			pinctrl-names = "default";
+
+			pmx_power_hdd: pmx-power-hdd {
+				marvell,pins = "mpp10";
+				marvell,function = "gpo";
+			};
+			pmx_usb_vbus: pmx-usb-vbus {
+				marvell,pins = "mpp11";
+				marvell,function = "gpio";
+			};
+			pmx_fan_high: pmx-fan-high {
+				marvell,pins = "mpp18";
+				marvell,function = "gpo";
+			};
+			pmx_fan_low: pmx-fan-low {
+				marvell,pins = "mpp19";
+				marvell,function = "gpo";
+			};
+			pmx_led_function_blue: pmx-led-function-blue {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_led_alarm: pmx-led-alarm {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_led_info: pmx-led-info {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_fan_lock: pmx-fan-lock {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_button_function: pmx-button-function {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_power_switch: pmx-power-switch {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_power_auto_switch: pmx-power-auto-switch {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_led_function_red: pmx-led-function_red {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+
+		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
@@ -92,6 +158,46 @@
 		led@5 {
 			label = "lsxl:red:func";
 			gpios = <&gpio1 16 1>;
+		};
+	};
+
+	gpio_fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio0 19 1
+		         &gpio0 18 1>;
+		gpio-fan,speed-map = <0    3
+		                      1500 2
+		                      3250 1
+		                      5000 0>;
+		alarm-gpios = <&gpio1 8 0>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 11 0>;
+		};
+		hdd_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "HDD Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 10 0>;
 		};
 	};
 };

@@ -126,6 +126,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	cred = get_current_cred();
 	keyring = keyring_alloc(desc, cred->fsuid, cred->fsgid, cred,
+				KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ,
 				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	put_cred(cred);
 	if (IS_ERR(keyring)) {
@@ -150,12 +151,12 @@ static int call_sbin_request_key(struct key_construction *cons,
 		cred->thread_keyring ? cred->thread_keyring->serial : 0);
 
 	prkey = 0;
-	if (cred->tgcred->process_keyring)
-		prkey = cred->tgcred->process_keyring->serial;
+	if (cred->process_keyring)
+		prkey = cred->process_keyring->serial;
 	sprintf(keyring_str[1], "%d", prkey);
 
 	rcu_read_lock();
-	session = rcu_dereference(cred->tgcred->session_keyring);
+	session = rcu_dereference(cred->session_keyring);
 	if (!session)
 		session = cred->user->session_keyring;
 	sskey = session->serial;
@@ -297,14 +298,14 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_PROCESS_KEYRING:
-			dest_keyring = key_get(cred->tgcred->process_keyring);
+			dest_keyring = key_get(cred->process_keyring);
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_SESSION_KEYRING:
 			rcu_read_lock();
 			dest_keyring = key_get(
-				rcu_dereference(cred->tgcred->session_keyring));
+				rcu_dereference(cred->session_keyring));
 			rcu_read_unlock();
 
 			if (dest_keyring)
@@ -347,6 +348,7 @@ static int construct_alloc_key(struct key_type *type,
 	const struct cred *cred = current_cred();
 	unsigned long prealloc;
 	struct key *key;
+	key_perm_t perm;
 	key_ref_t key_ref;
 	int ret;
 
@@ -355,8 +357,15 @@ static int construct_alloc_key(struct key_type *type,
 	*_key = NULL;
 	mutex_lock(&user->cons_lock);
 
+	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK | KEY_POS_SETATTR;
+	perm |= KEY_USR_VIEW;
+	if (type->read)
+		perm |= KEY_POS_READ;
+	if (type == &key_type_keyring || type->update)
+		perm |= KEY_POS_WRITE;
+
 	key = key_alloc(type, description, cred->fsuid, cred->fsgid, cred,
-			KEY_POS_ALL, flags);
+			perm, flags);
 	if (IS_ERR(key))
 		goto alloc_failed;
 

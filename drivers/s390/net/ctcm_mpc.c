@@ -1367,7 +1367,6 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 	struct mpc_group *grp;
 	struct channel *wch;
 
-	BUG_ON(dev == NULL);
 	CTCM_PR_DEBUG("Enter %s: %s\n",	__func__, dev->name);
 
 	priv  = dev->ml_priv;
@@ -1471,8 +1470,6 @@ static void mpc_action_timeout(fsm_instance *fi, int event, void *arg)
 	struct mpc_group *grp;
 	struct channel *wch;
 	struct channel *rch;
-
-	BUG_ON(dev == NULL);
 
 	priv = dev->ml_priv;
 	grp = priv->mpcg;

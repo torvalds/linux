@@ -891,8 +891,6 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 	return serio_match_port(serio_drv->id_table, serio);
 }
 
-#ifdef CONFIG_HOTPLUG
-
 #define SERIO_ADD_UEVENT_VAR(fmt, val...)				\
 	do {								\
 		int err = add_uevent_var(env, fmt, val);		\
@@ -919,15 +917,6 @@ static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 #undef SERIO_ADD_UEVENT_VAR
-
-#else
-
-static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-
-#endif /* CONFIG_HOTPLUG */
 
 #ifdef CONFIG_PM
 static int serio_suspend(struct device *dev)

@@ -1,5 +1,4 @@
 /*
- * @ubi: UBI device description object
  * Copyright (c) International Business Machines Corp., 2006
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2050,7 +2049,7 @@ static int self_check_ec(struct ubi_device *ubi, int pnum, int ec)
 	long long read_ec;
 	struct ubi_ec_hdr *ec_hdr;
 
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
@@ -2090,7 +2089,7 @@ out_free:
 static int self_check_in_wl_tree(const struct ubi_device *ubi,
 				 struct ubi_wl_entry *e, struct rb_root *root)
 {
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	if (in_wl_tree(e, root))
@@ -2116,7 +2115,7 @@ static int self_check_in_pq(const struct ubi_device *ubi,
 	struct ubi_wl_entry *p;
 	int i;
 
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	for (i = 0; i < UBI_PROT_QUEUE_LEN; ++i)

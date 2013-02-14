@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
+#include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
@@ -58,9 +59,6 @@
 #ifdef CONFIG_ARCH_LUBBOCK
 #include <mach/lubbock.h>
 #endif
-
-#include <asm/mach/udc_pxa2xx.h>
-
 
 /*
  * This driver handles the USB Device Controller (UDC) in Intel's PXA 25x

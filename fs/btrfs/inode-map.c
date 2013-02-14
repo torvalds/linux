@@ -434,8 +434,9 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	 * 3 items for pre-allocation
 	 */
 	trans->bytes_reserved = btrfs_calc_trans_metadata_size(root, 8);
-	ret = btrfs_block_rsv_add_noflush(root, trans->block_rsv,
-					  trans->bytes_reserved);
+	ret = btrfs_block_rsv_add(root, trans->block_rsv,
+				  trans->bytes_reserved,
+				  BTRFS_RESERVE_NO_FLUSH);
 	if (ret)
 		goto out;
 	trace_btrfs_space_reservation(root->fs_info, "ino_cache",

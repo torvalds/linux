@@ -195,7 +195,7 @@ static struct pccard_operations bfin_cf_ops = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit bfin_cf_probe(struct platform_device *pdev)
+static int bfin_cf_probe(struct platform_device *pdev)
 {
 	struct bfin_cf_socket *cf;
 	struct resource *io_mem, *attr_mem;
@@ -286,7 +286,7 @@ fail0:
 	return status;
 }
 
-static int __devexit bfin_cf_remove(struct platform_device *pdev)
+static int bfin_cf_remove(struct platform_device *pdev)
 {
 	struct bfin_cf_socket *cf = platform_get_drvdata(pdev);
 
@@ -307,7 +307,7 @@ static struct platform_driver bfin_cf_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = bfin_cf_probe,
-	.remove = __devexit_p(bfin_cf_remove),
+	.remove = bfin_cf_remove,
 };
 
 module_platform_driver(bfin_cf_driver);

@@ -64,6 +64,16 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 	}
 }
 
+static void asix_set_netdev_dev_addr(struct usbnet *dev, u8 *addr)
+{
+	if (is_valid_ether_addr(addr)) {
+		memcpy(dev->net->dev_addr, addr, ETH_ALEN);
+	} else {
+		netdev_info(dev->net, "invalid hw address, using random\n");
+		eth_hw_addr_random(dev->net);
+	}
+}
+
 /* Get the PHY Identifier from the PHYSID1 & PHYSID2 MII registers */
 static u32 asix_get_phyid(struct usbnet *dev)
 {
@@ -225,7 +235,8 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 			   ret);
 		goto out;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -423,7 +434,8 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -777,7 +789,8 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;

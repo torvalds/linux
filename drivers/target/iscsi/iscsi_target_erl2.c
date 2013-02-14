@@ -372,7 +372,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 * made generic here.
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
-		     (cmd->cmd_sn >= conn->sess->exp_cmd_sn)) {
+		     iscsi_sna_gte(cmd->cmd_sn, conn->sess->exp_cmd_sn)) {
 			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd);

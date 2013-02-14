@@ -14,6 +14,7 @@
 #include <bcm63xx_cpu.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
+#include <bcm63xx_reset.h>
 #include <bcm63xx_clk.h>
 
 static DEFINE_MUTEX(clocks_mutex);
@@ -124,15 +125,10 @@ static void enetsw_set(struct clk *clk, int enable)
 			CKCTL_6368_SWPKT_USB_EN |
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 	if (enable) {
-		u32 val;
-
 		/* reset switch core afer clock change */
-		val = bcm_perf_readl(PERF_SOFTRESET_6368_REG);
-		val &= ~SOFTRESET_6368_ENETSW_MASK;
-		bcm_perf_writel(val, PERF_SOFTRESET_6368_REG);
+		bcm63xx_core_set_reset(BCM63XX_RESET_ENETSW, 1);
 		msleep(10);
-		val |= SOFTRESET_6368_ENETSW_MASK;
-		bcm_perf_writel(val, PERF_SOFTRESET_6368_REG);
+		bcm63xx_core_set_reset(BCM63XX_RESET_ENETSW, 0);
 		msleep(10);
 	}
 }
@@ -222,15 +218,10 @@ static void xtm_set(struct clk *clk, int enable)
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 
 	if (enable) {
-		u32 val;
-
 		/* reset sar core afer clock change */
-		val = bcm_perf_readl(PERF_SOFTRESET_6368_REG);
-		val &= ~SOFTRESET_6368_SAR_MASK;
-		bcm_perf_writel(val, PERF_SOFTRESET_6368_REG);
+		bcm63xx_core_set_reset(BCM63XX_RESET_SAR, 1);
 		mdelay(1);
-		val |= SOFTRESET_6368_SAR_MASK;
-		bcm_perf_writel(val, PERF_SOFTRESET_6368_REG);
+		bcm63xx_core_set_reset(BCM63XX_RESET_SAR, 0);
 		mdelay(1);
 	}
 }
@@ -250,6 +241,19 @@ static void ipsec_set(struct clk *clk, int enable)
 
 static struct clk clk_ipsec = {
 	.set	= ipsec_set,
+};
+
+/*
+ * PCIe clock
+ */
+
+static void pcie_set(struct clk *clk, int enable)
+{
+	bcm_hwclock_set(CKCTL_6328_PCIE_EN, enable);
+}
+
+static struct clk clk_pcie = {
+	.set	= pcie_set,
 };
 
 /*
@@ -313,6 +317,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_pcm;
 	if (BCMCPU_IS_6368() && !strcmp(id, "ipsec"))
 		return &clk_ipsec;
+	if (BCMCPU_IS_6328() && !strcmp(id, "pcie"))
+		return &clk_pcie;
 	return ERR_PTR(-ENOENT);
 }
 

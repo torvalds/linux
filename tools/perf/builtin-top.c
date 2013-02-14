@@ -26,6 +26,7 @@
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/machine.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
@@ -581,6 +582,11 @@ static void *display_thread_tui(void *arg)
 	struct perf_evsel *pos;
 	struct perf_top *top = arg;
 	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
+	struct hist_browser_timer hbt = {
+		.timer		= perf_top__sort_new_samples,
+		.arg		= top,
+		.refresh	= top->delay_secs,
+	};
 
 	perf_top__sort_new_samples(top);
 
@@ -592,9 +598,8 @@ static void *display_thread_tui(void *arg)
 	list_for_each_entry(pos, &top->evlist->entries, node)
 		pos->hists.uid_filter_str = top->target.uid_str;
 
-	perf_evlist__tui_browse_hists(top->evlist, help,
-				      perf_top__sort_new_samples,
-				      top, top->delay_secs);
+	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+				      &top->session->header.env);
 
 	exit_browser(0);
 	exit(0);
@@ -871,7 +876,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 						   &sample, machine);
 		} else if (event->header.type < PERF_RECORD_MAX) {
 			hists__inc_nr_events(&evsel->hists, event->header.type);
-			perf_event__process(&top->tool, event, &sample, machine);
+			machine__process_event(machine, event);
 		} else
 			++session->hists.stats.nr_unknown_events;
 	}
@@ -975,6 +980,10 @@ try_again:
 			} else if (err == EMFILE) {
 				ui__error("Too many events are opened.\n"
 					    "Try again after reducing the number of events\n");
+				goto out_err;
+			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
+				ui__error("\'precise\' request may not be supported. "
+					  "Try removing 'p' modifier\n");
 				goto out_err;
 			}
 

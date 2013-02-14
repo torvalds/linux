@@ -171,6 +171,9 @@ struct in_ifaddr {
 extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
 
+extern void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
+					struct ipv4_devconf *devconf);
+
 extern struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
 static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
 {

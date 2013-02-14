@@ -97,7 +97,7 @@ static struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static int __devinit syscon_probe(struct platform_device *pdev)
+static int syscon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -138,7 +138,7 @@ static int __devinit syscon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit syscon_remove(struct platform_device *pdev)
+static int syscon_remove(struct platform_device *pdev)
 {
 	struct syscon *syscon;
 
@@ -156,7 +156,7 @@ static struct platform_driver syscon_driver = {
 		.of_match_table = of_syscon_match,
 	},
 	.probe		= syscon_probe,
-	.remove		= __devexit_p(syscon_remove),
+	.remove		= syscon_remove,
 };
 
 static int __init syscon_init(void)

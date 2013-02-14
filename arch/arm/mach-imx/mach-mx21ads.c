@@ -18,15 +18,15 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx21.h>
 
+#include "common.h"
 #include "devices-imx21.h"
+#include "hardware.h"
+#include "iomux-mx21.h"
 
 /*
  * Memory-mapped I/O on MX21ADS base board

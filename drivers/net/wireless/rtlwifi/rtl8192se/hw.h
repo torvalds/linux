@@ -54,7 +54,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw);
 int rtl92se_set_network_type(struct ieee80211_hw *hw,
 			     enum nl80211_iftype type);
 void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 * addr);
+void rtl92se_set_mac_addr(struct rtl_io *io, const u8 *addr);
 void rtl92se_set_qos(struct ieee80211_hw *hw, int aci);
 void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw);
 void rtl92se_set_beacon_interval(struct ieee80211_hw *hw);

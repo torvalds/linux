@@ -542,7 +542,7 @@ static int lpc32xx_of_xlate(struct gpio_chip *gc,
 	return gpiospec->args[1];
 }
 
-static int __devinit lpc32xx_gpio_probe(struct platform_device *pdev)
+static int lpc32xx_gpio_probe(struct platform_device *pdev)
 {
 	int i;
 
@@ -559,7 +559,7 @@ static int __devinit lpc32xx_gpio_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id lpc32xx_gpio_of_match[] __devinitdata = {
+static struct of_device_id lpc32xx_gpio_of_match[] = {
 	{ .compatible = "nxp,lpc3220-gpio", },
 	{ },
 };

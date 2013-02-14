@@ -721,31 +721,6 @@ config USB_FUNCTIONFS_GENERIC
 	  Include a configuration with the Function Filesystem alone with
 	  no Ethernet interface.
 
-config USB_FILE_STORAGE
-	tristate "File-backed Storage Gadget (DEPRECATED)"
-	depends on BLOCK
-	help
-	  The File-backed Storage Gadget acts as a USB Mass Storage
-	  disk drive.  As its storage repository it can use a regular
-	  file or a block device (in much the same way as the "loop"
-	  device driver), specified as a module parameter.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "g_file_storage".
-
-	  NOTE: This driver is deprecated.  Its replacement is the
-	  Mass Storage Gadget.
-
-config USB_FILE_STORAGE_TEST
-	bool "File-backed Storage Gadget testing version"
-	depends on USB_FILE_STORAGE
-	default n
-	help
-	  Say "y" to generate the larger testing version of the
-	  File-backed Storage Gadget, useful for probing the
-	  behavior of USB Mass Storage hosts.  Not needed for
-	  normal operation.
-
 config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
@@ -756,8 +731,8 @@ config USB_MASS_STORAGE
 	  device (in much the same way as the "loop" device driver),
 	  specified as a module parameter or sysfs option.
 
-	  This driver is an updated replacement for the deprecated
-	  File-backed Storage Gadget (g_file_storage).
+	  This driver is a replacement for now removed File-backed
+	  Storage Gadget (g_file_storage).
 
 	  Say "y" to link the driver statically, or "m" to build
 	  a dynamically linked module called "g_mass_storage".

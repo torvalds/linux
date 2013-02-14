@@ -47,8 +47,9 @@
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdebug")
+
 #ifdef ACPI_DEBUG_OUTPUT
-static acpi_thread_id acpi_gbl_prev_thread_id;
+static acpi_thread_id acpi_gbl_prev_thread_id = (acpi_thread_id) 0xFFFFFFFF;
 static char *acpi_gbl_fn_entry_str = "----Entry";
 static char *acpi_gbl_fn_exit_str = "----Exit-";
 
@@ -109,7 +110,7 @@ void acpi_ut_track_stack_ptr(void)
  * RETURN:      Updated pointer to the function name
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
- *              This allows compiler macros such as __func__ to be used
+ *              This allows compiler macros such as __FUNCTION__ to be used
  *              with no change to the debug output.
  *
  ******************************************************************************/
@@ -222,7 +223,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print message with no headers.  Has same interface as
+ * DESCRIPTION: Print message with no headers. Has same interface as
  *              debug_print so that the same macros can be used.
  *
  ******************************************************************************/
@@ -258,7 +259,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print_raw)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -290,7 +291,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -299,6 +300,7 @@ acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
 		  const char *module_name, u32 component_id, void *pointer)
 {
+
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
@@ -319,7 +321,7 @@ acpi_ut_trace_ptr(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -350,7 +352,7 @@ acpi_ut_trace_str(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -380,7 +382,7 @@ acpi_ut_trace_u32(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -412,7 +414,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit status also.
  *
  ******************************************************************************/
@@ -453,7 +455,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
@@ -485,7 +487,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
@@ -511,7 +513,7 @@ acpi_ut_ptr_exit(u32 line_number,
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
  *              display             - BYTE, WORD, DWORD, or QWORD display
- *              component_ID        - Caller's component ID
+ *              offset              - Beginning buffer offset (display only)
  *
  * RETURN:      None
  *
@@ -519,7 +521,7 @@ acpi_ut_ptr_exit(u32 line_number,
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
+void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 {
 	u32 i = 0;
 	u32 j;
@@ -541,7 +543,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 
 		/* Print current offset */
 
-		acpi_os_printf("%6.4X: ", i);
+		acpi_os_printf("%6.4X: ", (base_offset + i));
 
 		/* Print 16 hex chars */
 
@@ -623,7 +625,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_dump_buffer
+ * FUNCTION:    acpi_ut_debug_dump_buffer
  *
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
@@ -636,7 +638,8 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
+void
+acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
 {
 
 	/* Only dump the buffer if tracing is enabled */
@@ -646,5 +649,5 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 		return;
 	}
 
-	acpi_ut_dump_buffer2(buffer, count, display);
+	acpi_ut_dump_buffer(buffer, count, display, 0);
 }

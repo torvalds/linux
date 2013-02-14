@@ -981,7 +981,7 @@ static const struct net_device_ops mcp251x_netdev_ops = {
 	.ndo_start_xmit = mcp251x_hard_start_xmit,
 };
 
-static int __devinit mcp251x_can_probe(struct spi_device *spi)
+static int mcp251x_can_probe(struct spi_device *spi)
 {
 	struct net_device *net;
 	struct mcp251x_priv *priv;
@@ -1100,7 +1100,7 @@ error_out:
 	return ret;
 }
 
-static int __devexit mcp251x_can_remove(struct spi_device *spi)
+static int mcp251x_can_remove(struct spi_device *spi)
 {
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
@@ -1198,7 +1198,7 @@ static struct spi_driver mcp251x_can_driver = {
 
 	.id_table = mcp251x_id_table,
 	.probe = mcp251x_can_probe,
-	.remove = __devexit_p(mcp251x_can_remove),
+	.remove = mcp251x_can_remove,
 	.suspend = mcp251x_can_suspend,
 	.resume = mcp251x_can_resume,
 };

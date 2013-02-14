@@ -190,7 +190,7 @@ int tipc_publish(u32 portref, unsigned int scope,
 int tipc_withdraw(u32 portref, unsigned int scope,
 		struct tipc_name_seq const *name_seq);
 
-int tipc_connect2port(u32 portref, struct tipc_portid const *port);
+int tipc_connect(u32 portref, struct tipc_portid const *port);
 
 int tipc_disconnect(u32 portref);
 
@@ -200,7 +200,9 @@ int tipc_shutdown(u32 ref);
 /*
  * The following routines require that the port be locked on entry
  */
-int tipc_disconnect_port(struct tipc_port *tp_ptr);
+int __tipc_disconnect(struct tipc_port *tp_ptr);
+int __tipc_connect(u32 ref, struct tipc_port *p_ptr,
+		   struct tipc_portid const *peer);
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*

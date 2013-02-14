@@ -143,7 +143,7 @@ static int max77686_clk_register(struct device *dev,
 	return 0;
 }
 
-static __devinit int max77686_clk_probe(struct platform_device *pdev)
+static int max77686_clk_probe(struct platform_device *pdev)
 {
 	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77686_clk **max77686_clks;
@@ -199,7 +199,7 @@ out:
 	return ret;
 }
 
-static int __devexit max77686_clk_remove(struct platform_device *pdev)
+static int max77686_clk_remove(struct platform_device *pdev)
 {
 	struct max77686_clk **max77686_clks = platform_get_drvdata(pdev);
 	int i;
@@ -223,7 +223,7 @@ static struct platform_driver max77686_clk_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max77686_clk_probe,
-	.remove = __devexit_p(max77686_clk_remove),
+	.remove = max77686_clk_remove,
 	.id_table = max77686_clk_id,
 };
 

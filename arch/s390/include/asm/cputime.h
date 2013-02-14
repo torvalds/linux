@@ -14,6 +14,7 @@
 
 
 #define __ARCH_HAS_VTIME_ACCOUNT
+#define __ARCH_HAS_VTIME_TASK_SWITCH
 
 /* We want to use full resolution of the CPU timer: 2**-12 micro-seconds. */
 

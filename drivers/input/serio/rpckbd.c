@@ -114,7 +114,7 @@ static void rpckbd_close(struct serio *port)
  * Allocate and initialize serio structure for subsequent registration
  * with serio core.
  */
-static int __devinit rpckbd_probe(struct platform_device *dev)
+static int rpckbd_probe(struct platform_device *dev)
 {
 	struct rpckbd_data *rpckbd;
 	struct serio *serio;
@@ -153,7 +153,7 @@ static int __devinit rpckbd_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit rpckbd_remove(struct platform_device *dev)
+static int rpckbd_remove(struct platform_device *dev)
 {
 	struct serio *serio = platform_get_drvdata(dev);
 	struct rpckbd_data *rpckbd = serio->port_data;
@@ -166,7 +166,7 @@ static int __devexit rpckbd_remove(struct platform_device *dev)
 
 static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
-	.remove		= __devexit_p(rpckbd_remove),
+	.remove		= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
 		.owner	= THIS_MODULE,

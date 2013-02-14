@@ -13,6 +13,12 @@ struct ssb_serial_port {
 	unsigned int reg_shift;
 };
 
+struct ssb_pflash {
+	bool present;
+	u8 buswidth;
+	u32 window;
+	u32 window_size;
+};
 
 struct ssb_mipscore {
 	struct ssb_device *dev;
@@ -20,9 +26,7 @@ struct ssb_mipscore {
 	int nr_serial_ports;
 	struct ssb_serial_port serial_ports[4];
 
-	u8 flash_buswidth;
-	u32 flash_window;
-	u32 flash_window_size;
+	struct ssb_pflash pflash;
 };
 
 extern void ssb_mipscore_init(struct ssb_mipscore *mcore);

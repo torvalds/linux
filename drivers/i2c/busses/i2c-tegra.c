@@ -642,7 +642,7 @@ static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
 
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
-static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
+static const struct of_device_id tegra_i2c_of_match[] = {
 	{ .compatible = "nvidia,tegra30-i2c", .data = &tegra30_i2c_hw, },
 	{ .compatible = "nvidia,tegra20-i2c", .data = &tegra20_i2c_hw, },
 	{ .compatible = "nvidia,tegra20-i2c-dvc", .data = &tegra20_i2c_hw, },
@@ -651,7 +651,7 @@ static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 #endif
 
-static int __devinit tegra_i2c_probe(struct platform_device *pdev)
+static int tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
 	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
@@ -769,7 +769,7 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_i2c_remove(struct platform_device *pdev)
+static int tegra_i2c_remove(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 	i2c_del_adapter(&i2c_dev->adapter);
@@ -817,7 +817,7 @@ static SIMPLE_DEV_PM_OPS(tegra_i2c_pm, tegra_i2c_suspend, tegra_i2c_resume);
 
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
-	.remove  = __devexit_p(tegra_i2c_remove),
+	.remove  = tegra_i2c_remove,
 	.driver  = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,

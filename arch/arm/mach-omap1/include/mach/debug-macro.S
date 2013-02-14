@@ -13,7 +13,7 @@
 
 #include <linux/serial_reg.h>
 
-#include <plat/serial.h>
+#include "serial.h"
 
 		.pushsection .data
 omap_uart_phys:	.word	0x0

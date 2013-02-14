@@ -1221,7 +1221,7 @@ static struct of_device_id armpmu_of_device_ids[] = {
 	{},
 };
 
-static int __devinit armpmu_device_probe(struct platform_device *pdev)
+static int armpmu_device_probe(struct platform_device *pdev)
 {
 	if (!cpu_pmu)
 		return -ENODEV;

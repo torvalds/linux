@@ -16,7 +16,6 @@
 #include <linux/videodev2.h>
 #include <linux/bitmap.h>
 #include <linux/fb.h>
-#include <linux/videodev2.h>
 
 struct ipu_soc;
 
@@ -293,6 +292,7 @@ static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p,
 
 void ipu_cpmem_set_yuv_planar(struct ipu_ch_param __iomem *p, u32 pixel_format,
 			int stride, int height);
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format);
 void ipu_cpmem_set_yuv_planar_full(struct ipu_ch_param __iomem *p,
 		u32 pixel_format, int stride, int u_offset, int v_offset);
 int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat);

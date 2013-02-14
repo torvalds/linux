@@ -1385,7 +1385,6 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 	struct connection *con;
 	struct writequeue_entry *e;
 	int offset = 0;
-	int users = 0;
 
 	con = nodeid2con(nodeid, allocation);
 	if (!con)
@@ -1399,7 +1398,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 	} else {
 		offset = e->end;
 		e->end += len;
-		users = e->users++;
+		e->users++;
 	}
 	spin_unlock(&con->writequeue_lock);
 
@@ -1414,7 +1413,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 		spin_lock(&con->writequeue_lock);
 		offset = e->end;
 		e->end += len;
-		users = e->users++;
+		e->users++;
 		list_add_tail(&e->list, &con->writequeue);
 		spin_unlock(&con->writequeue_lock);
 		goto got_one;

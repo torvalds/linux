@@ -726,7 +726,7 @@ err0:
 	return ret;
 }
 
-static int __devinit sh_cmt_probe(struct platform_device *pdev)
+static int sh_cmt_probe(struct platform_device *pdev)
 {
 	struct sh_cmt_priv *p = platform_get_drvdata(pdev);
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
@@ -767,14 +767,14 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit sh_cmt_remove(struct platform_device *pdev)
+static int sh_cmt_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
 static struct platform_driver sh_cmt_device_driver = {
 	.probe		= sh_cmt_probe,
-	.remove		= __devexit_p(sh_cmt_remove),
+	.remove		= sh_cmt_remove,
 	.driver		= {
 		.name	= "sh_cmt",
 	}

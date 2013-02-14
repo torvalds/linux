@@ -251,12 +251,8 @@ static ssize_t pp_write (struct file * file, const char __user * buf,
 			break;
 		}
 
-		if (signal_pending (current)) {
-			if (!bytes_written) {
-				bytes_written = -EINTR;
-			}
+		if (signal_pending (current))
 			break;
-		}
 
 		cond_resched();
 	}

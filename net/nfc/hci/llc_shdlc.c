@@ -634,9 +634,9 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 			r = llc_shdlc_connect_initiate(shdlc);
 		else
 			r = -ETIME;
-		if (r < 0)
+		if (r < 0) {
 			llc_shdlc_connect_complete(shdlc, r);
-		else {
+		} else {
 			mod_timer(&shdlc->connect_timer, jiffies +
 				  msecs_to_jiffies(SHDLC_CONNECT_VALUE_MS));
 
@@ -682,9 +682,8 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 			llc_shdlc_handle_send_queue(shdlc);
 		}
 
-		if (shdlc->hard_fault) {
+		if (shdlc->hard_fault)
 			shdlc->llc_failure(shdlc->hdev, shdlc->hard_fault);
-		}
 		break;
 	default:
 		break;

@@ -16,7 +16,7 @@
  * data and their integration with other OMAP modules and Linux.
  */
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 
 #include "omap_hwmod_common_data.h"
 

@@ -361,6 +361,22 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		}
 		break;
+	case RADEON_INFO_MAX_SE:
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_shader_engines;
+		else if (rdev->family >= CHIP_CAYMAN)
+			value = rdev->config.cayman.max_shader_engines;
+		else if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.num_ses;
+		else
+			value = 1;
+		break;
+	case RADEON_INFO_MAX_SH_PER_SE:
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_sh_per_se;
+		else
+			return -EINVAL;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

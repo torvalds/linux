@@ -352,6 +352,8 @@ static struct sk_buff *ipw_packet_received_skb(unsigned char *data,
 	}
 
 	skb = dev_alloc_skb(length + 4);
+	if (skb == NULL)
+		return NULL;
 	skb_reserve(skb, 2);
 	memcpy(skb_put(skb, length), data, length);
 
@@ -397,7 +399,8 @@ void ipwireless_network_packet_received(struct ipw_network *network,
 
 				/* Send the data to the ppp_generic module. */
 				skb = ipw_packet_received_skb(data, length);
-				ppp_input(network->ppp_channel, skb);
+				if (skb)
+					ppp_input(network->ppp_channel, skb);
 			} else
 				spin_unlock_irqrestore(&network->lock,
 						flags);

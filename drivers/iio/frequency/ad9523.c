@@ -959,7 +959,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __devinit ad9523_probe(struct spi_device *spi)
+static int ad9523_probe(struct spi_device *spi)
 {
 	struct ad9523_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -1020,7 +1020,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad9523_remove(struct spi_device *spi)
+static int ad9523_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad9523_state *st = iio_priv(indio_dev);
@@ -1049,7 +1049,7 @@ static struct spi_driver ad9523_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9523_probe,
-	.remove		= __devexit_p(ad9523_remove),
+	.remove		= ad9523_remove,
 	.id_table	= ad9523_id,
 };
 module_spi_driver(ad9523_driver);

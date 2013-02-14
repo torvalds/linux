@@ -102,7 +102,7 @@ static const struct ide_port_ops jmicron_port_ops = {
 	.cable_detect		= jmicron_cable_detect,
 };
 
-static const struct ide_port_info jmicron_chipset __devinitconst = {
+static const struct ide_port_info jmicron_chipset = {
 	.name		= DRV_NAME,
 	.enablebits	= { { 0x40, 0x01, 0x01 }, { 0x40, 0x10, 0x10 } },
 	.port_ops	= &jmicron_port_ops,
@@ -120,7 +120,7 @@ static const struct ide_port_info jmicron_chipset __devinitconst = {
  *	We then use the IDE PCI generic helper to do most of the work.
  */
 
-static int __devinit jmicron_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int jmicron_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &jmicron_chipset, NULL);
 }

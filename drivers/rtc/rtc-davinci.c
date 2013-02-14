@@ -485,7 +485,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	struct resource *res, *mem;
 	int ret = 0;
 
-	davinci_rtc = kzalloc(sizeof(struct davinci_rtc), GFP_KERNEL);
+	davinci_rtc = devm_kzalloc(&pdev->dev, sizeof(struct davinci_rtc), GFP_KERNEL);
 	if (!davinci_rtc) {
 		dev_dbg(dev, "could not allocate memory for private data\n");
 		return -ENOMEM;
@@ -494,15 +494,13 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	davinci_rtc->irq = platform_get_irq(pdev, 0);
 	if (davinci_rtc->irq < 0) {
 		dev_err(dev, "no RTC irq\n");
-		ret = davinci_rtc->irq;
-		goto fail1;
+		return davinci_rtc->irq;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "no mem resource\n");
-		ret = -EINVAL;
-		goto fail1;
+		return -EINVAL;
 	}
 
 	davinci_rtc->pbase = res->start;
@@ -513,8 +511,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	if (!mem) {
 		dev_err(dev, "RTC registers at %08x are not free\n",
 			davinci_rtc->pbase);
-		ret = -EBUSY;
-		goto fail1;
+		return -EBUSY;
 	}
 
 	davinci_rtc->base = ioremap(davinci_rtc->pbase, davinci_rtc->base_size);
@@ -529,8 +526,9 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
-		dev_err(dev, "unable to register RTC device, err %ld\n",
-				PTR_ERR(davinci_rtc->rtc));
+		ret = PTR_ERR(davinci_rtc->rtc);
+		dev_err(dev, "unable to register RTC device, err %d\n",
+				ret);
 		goto fail3;
 	}
 
@@ -566,13 +564,10 @@ fail3:
 	iounmap(davinci_rtc->base);
 fail2:
 	release_mem_region(davinci_rtc->pbase, davinci_rtc->base_size);
-fail1:
-	kfree(davinci_rtc);
-
 	return ret;
 }
 
-static int __devexit davinci_rtc_remove(struct platform_device *pdev)
+static int davinci_rtc_remove(struct platform_device *pdev)
 {
 	struct davinci_rtc *davinci_rtc = platform_get_drvdata(pdev);
 
@@ -589,14 +584,12 @@ static int __devexit davinci_rtc_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	kfree(davinci_rtc);
-
 	return 0;
 }
 
 static struct platform_driver davinci_rtc_driver = {
 	.probe		= davinci_rtc_probe,
-	.remove		= __devexit_p(davinci_rtc_remove),
+	.remove		= davinci_rtc_remove,
 	.driver		= {
 		.name = "rtc_davinci",
 		.owner = THIS_MODULE,

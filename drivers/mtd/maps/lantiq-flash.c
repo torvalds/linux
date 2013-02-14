@@ -45,7 +45,7 @@ struct ltq_mtd {
 };
 
 static const char ltq_map_name[] = "ltq_nor";
-static const char *ltq_probe_types[] __devinitconst = {
+static const char *ltq_probe_types[] = {
 					"cmdlinepart", "ofpart", NULL };
 
 static map_word
@@ -109,7 +109,7 @@ ltq_copy_to(struct map_info *map, unsigned long to,
 	spin_unlock_irqrestore(&ebu_lock, flags);
 }
 
-static int __devinit
+static int
 ltq_mtd_probe(struct platform_device *pdev)
 {
 	struct mtd_part_parser_data ppdata;
@@ -185,7 +185,7 @@ err_out:
 	return err;
 }
 
-static int __devexit
+static int
 ltq_mtd_remove(struct platform_device *pdev)
 {
 	struct ltq_mtd *ltq_mtd = platform_get_drvdata(pdev);
@@ -209,7 +209,7 @@ MODULE_DEVICE_TABLE(of, ltq_mtd_match);
 
 static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
-	.remove = __devexit_p(ltq_mtd_remove),
+	.remove = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
 		.owner = THIS_MODULE,

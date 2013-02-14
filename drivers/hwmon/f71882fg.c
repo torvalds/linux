@@ -364,7 +364,7 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	char *buf);
 
-static int __devinit f71882fg_probe(struct platform_device *pdev);
+static int f71882fg_probe(struct platform_device *pdev);
 static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
@@ -2145,7 +2145,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%s\n", f71882fg_names[data->type]);
 }
 
-static int __devinit f71882fg_create_sysfs_files(struct platform_device *pdev,
+static int f71882fg_create_sysfs_files(struct platform_device *pdev,
 	struct sensor_device_attribute_2 *attr, int count)
 {
 	int err, i;
@@ -2167,7 +2167,7 @@ static void f71882fg_remove_sysfs_files(struct platform_device *pdev,
 		device_remove_file(&pdev->dev, &attr[i].dev_attr);
 }
 
-static int __devinit f71882fg_create_fan_sysfs_files(
+static int f71882fg_create_fan_sysfs_files(
 	struct platform_device *pdev, int idx)
 {
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
@@ -2265,7 +2265,7 @@ static int __devinit f71882fg_create_fan_sysfs_files(
 	return err;
 }
 
-static int __devinit f71882fg_probe(struct platform_device *pdev)
+static int f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
 	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;

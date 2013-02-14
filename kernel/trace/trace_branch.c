@@ -77,7 +77,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->correct = val == expect;
 
 	if (!filter_check_discard(call, entry, buffer, event))
-		ring_buffer_unlock_commit(buffer, event);
+		__buffer_unlock_commit(buffer, event);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);
@@ -199,7 +199,7 @@ __init static int init_branch_tracer(void)
 	}
 	return register_tracer(&branch_trace);
 }
-device_initcall(init_branch_tracer);
+core_initcall(init_branch_tracer);
 
 #else
 static inline

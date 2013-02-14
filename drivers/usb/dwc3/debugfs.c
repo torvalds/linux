@@ -56,7 +56,7 @@
 #define dump_register(nm)				\
 {							\
 	.name	= __stringify(nm),			\
-	.offset	= DWC3_ ##nm,				\
+	.offset	= DWC3_ ##nm - DWC3_GLOBALS_REGS_START,	\
 }
 
 static const struct debugfs_reg32 dwc3_regs[] = {
@@ -652,7 +652,7 @@ static const struct file_operations dwc3_link_state_fops = {
 	.release		= single_release,
 };
 
-int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
+int dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
 	struct dentry		*file;
@@ -703,7 +703,7 @@ err0:
 	return ret;
 }
 
-void __devexit dwc3_debugfs_exit(struct dwc3 *dwc)
+void dwc3_debugfs_exit(struct dwc3 *dwc)
 {
 	debugfs_remove_recursive(dwc->root);
 	dwc->root = NULL;

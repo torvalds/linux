@@ -378,7 +378,7 @@ static int iio_dummy_init_device(struct iio_dev *indio_dev)
  *                      const struct i2c_device_id *id)
  * SPI: iio_dummy_probe(struct spi_device *spi)
  */
-static int __devinit iio_dummy_probe(int index)
+static int iio_dummy_probe(int index)
 {
 	int ret;
 	struct iio_dev *indio_dev;

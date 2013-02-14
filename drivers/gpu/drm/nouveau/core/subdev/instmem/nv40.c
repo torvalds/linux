@@ -111,14 +111,14 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static u32
-nv40_instmem_rd32(struct nouveau_object *object, u32 addr)
+nv40_instmem_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nv04_instmem_priv *priv = (void *)object;
 	return ioread32_native(priv->iomem + addr);
 }
 
 static void
-nv40_instmem_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nv40_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nv04_instmem_priv *priv = (void *)object;
 	iowrite32_native(data, priv->iomem + addr);

@@ -259,7 +259,7 @@ acpi_hw_process_pci_list(struct acpi_pci_id *pci_id,
 		status = acpi_hw_get_pci_device_info(pci_id, info->device,
 						     &bus_number, &is_bridge);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			return (status);
 		}
 
 		info = info->next;
@@ -271,7 +271,7 @@ acpi_hw_process_pci_list(struct acpi_pci_id *pci_id,
 			  pci_id->segment, pci_id->bus, pci_id->device,
 			  pci_id->function, status, bus_number, is_bridge));
 
-	return_ACPI_STATUS(AE_OK);
+	return (AE_OK);
 }
 
 /*******************************************************************************

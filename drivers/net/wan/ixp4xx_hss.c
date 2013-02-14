@@ -1326,7 +1326,7 @@ static const struct net_device_ops hss_hdlc_ops = {
 	.ndo_do_ioctl   = hss_hdlc_ioctl,
 };
 
-static int __devinit hss_init_one(struct platform_device *pdev)
+static int hss_init_one(struct platform_device *pdev)
 {
 	struct port *port;
 	struct net_device *dev;
@@ -1377,7 +1377,7 @@ err_free:
 	return err;
 }
 
-static int __devexit hss_remove_one(struct platform_device *pdev)
+static int hss_remove_one(struct platform_device *pdev)
 {
 	struct port *port = platform_get_drvdata(pdev);
 

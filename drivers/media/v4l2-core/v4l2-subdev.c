@@ -412,20 +412,20 @@ static int
 v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 				     struct v4l2_subdev_format *fmt)
 {
-	switch (media_entity_type(pad->entity)) {
-	case MEDIA_ENT_T_V4L2_SUBDEV:
+	if (media_entity_type(pad->entity) == MEDIA_ENT_T_V4L2_SUBDEV) {
+		struct v4l2_subdev *sd =
+			media_entity_to_v4l2_subdev(pad->entity);
+
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt->pad = pad->index;
-		return v4l2_subdev_call(media_entity_to_v4l2_subdev(
-						pad->entity),
-					pad, get_fmt, NULL, fmt);
-	default:
-		WARN(1, "Driver bug! Wrong media entity type %d, entity %s\n",
-		     media_entity_type(pad->entity), pad->entity->name);
-		/* Fall through */
-	case MEDIA_ENT_T_DEVNODE_V4L:
-		return -EINVAL;
+		return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
 	}
+
+	WARN(pad->entity->type != MEDIA_ENT_T_DEVNODE_V4L,
+	     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
+	     pad->entity->type, pad->entity->name);
+
+	return -EINVAL;
 }
 
 int v4l2_subdev_link_validate(struct media_link *link)

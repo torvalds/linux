@@ -290,8 +290,8 @@ failure:
 	return err;
 }
 
-static int __devinit kvaser_pci_init_one(struct pci_dev *pdev,
-					 const struct pci_device_id *ent)
+static int kvaser_pci_init_one(struct pci_dev *pdev,
+			       const struct pci_device_id *ent)
 {
 	int err;
 	struct net_device *master_dev = NULL;
@@ -379,7 +379,7 @@ failure:
 
 }
 
-static void __devexit kvaser_pci_remove_one(struct pci_dev *pdev)
+static void kvaser_pci_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -394,7 +394,7 @@ static struct pci_driver kvaser_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = kvaser_pci_tbl,
 	.probe = kvaser_pci_init_one,
-	.remove = __devexit_p(kvaser_pci_remove_one),
+	.remove = kvaser_pci_remove_one,
 };
 
 module_pci_driver(kvaser_pci_driver);

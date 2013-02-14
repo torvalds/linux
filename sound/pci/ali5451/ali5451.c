@@ -1678,8 +1678,8 @@ static void snd_ali_pcm_free(struct snd_pcm *pcm)
 }
 
 
-static int __devinit snd_ali_pcm(struct snd_ali * codec, int device,
-				 struct ali_pcm_description *desc)
+static int snd_ali_pcm(struct snd_ali *codec, int device,
+		       struct ali_pcm_description *desc)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1727,7 +1727,7 @@ static struct ali_pcm_description ali_pcms[] = {
 	}
 };
 
-static int __devinit snd_ali_build_pcms(struct snd_ali *codec)
+static int snd_ali_build_pcms(struct snd_ali *codec)
 {
 	int i, err;
 	for (i = 0; i < codec->num_of_codecs && i < ARRAY_SIZE(ali_pcms); i++) {
@@ -1832,7 +1832,7 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ali5451_mixer_spdif[] __devinitdata = {
+static struct snd_kcontrol_new snd_ali5451_mixer_spdif[] = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
@@ -1842,7 +1842,7 @@ static struct snd_kcontrol_new snd_ali5451_mixer_spdif[] __devinitdata = {
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
 
-static int __devinit snd_ali_mixer(struct snd_ali * codec)
+static int snd_ali_mixer(struct snd_ali *codec)
 {
 	struct snd_ac97_template ac97;
 	unsigned int idx;
@@ -2079,14 +2079,14 @@ static void snd_ali_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buf, "%02x: %08x\n", i, inl(ALI_REG(codec, i)));
 }
 
-static void __devinit snd_ali_proc_init(struct snd_ali *codec)
+static void snd_ali_proc_init(struct snd_ali *codec)
 {
 	struct snd_info_entry *entry;
 	if (!snd_card_proc_new(codec->card, "ali5451", &entry))
 		snd_info_set_text_ops(entry, codec, snd_ali_proc_read);
 }
 
-static int __devinit snd_ali_resources(struct snd_ali *codec)
+static int snd_ali_resources(struct snd_ali *codec)
 {
 	int err;
 
@@ -2112,11 +2112,11 @@ static int snd_ali_dev_free(struct snd_device *device)
 	return 0;
 }
 
-static int __devinit snd_ali_create(struct snd_card *card,
-				    struct pci_dev *pci,
-				    int pcm_streams,
-				    int spdif_support,
-				    struct snd_ali ** r_ali)
+static int snd_ali_create(struct snd_card *card,
+			  struct pci_dev *pci,
+			  int pcm_streams,
+			  int spdif_support,
+			  struct snd_ali **r_ali)
 {
 	struct snd_ali *codec;
 	int i, err;
@@ -2246,8 +2246,8 @@ static int __devinit snd_ali_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit snd_ali_probe(struct pci_dev *pci,
-				   const struct pci_device_id *pci_id)
+static int snd_ali_probe(struct pci_dev *pci,
+			 const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct snd_ali *codec;
@@ -2295,7 +2295,7 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_ali_remove(struct pci_dev *pci)
+static void snd_ali_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2305,7 +2305,7 @@ static struct pci_driver ali5451_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
-	.remove = __devexit_p(snd_ali_remove),
+	.remove = snd_ali_remove,
 	.driver = {
 		.pm = ALI_PM_OPS,
 	},

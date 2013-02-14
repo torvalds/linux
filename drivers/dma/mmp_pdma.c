@@ -712,7 +712,7 @@ static void dma_do_tasklet(unsigned long data)
 	}
 }
 
-static int __devexit mmp_pdma_remove(struct platform_device *op)
+static int mmp_pdma_remove(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev = platform_get_drvdata(op);
 
@@ -720,7 +720,7 @@ static int __devexit mmp_pdma_remove(struct platform_device *op)
 	return 0;
 }
 
-static int __devinit mmp_pdma_chan_init(struct mmp_pdma_device *pdev,
+static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev,
 							int idx, int irq)
 {
 	struct mmp_pdma_phy *phy  = &pdev->phy[idx];
@@ -764,7 +764,7 @@ static struct of_device_id mmp_pdma_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mmp_pdma_dt_ids);
 
-static int __devinit mmp_pdma_probe(struct platform_device *op)
+static int mmp_pdma_probe(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev;
 	const struct of_device_id *of_id;
@@ -865,7 +865,7 @@ static struct platform_driver mmp_pdma_driver = {
 	},
 	.id_table	= mmp_pdma_id_table,
 	.probe		= mmp_pdma_probe,
-	.remove		= __devexit_p(mmp_pdma_remove),
+	.remove		= mmp_pdma_remove,
 };
 
 module_platform_driver(mmp_pdma_driver);

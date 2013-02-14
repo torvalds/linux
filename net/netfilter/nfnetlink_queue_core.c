@@ -809,7 +809,6 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 };
 
 static const struct nf_queue_handler nfqh = {
-	.name 	= "nf_queue",
 	.outfn	= &nfqnl_enqueue_packet,
 };
 
@@ -827,14 +826,10 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	if (nfqa[NFQA_CFG_CMD]) {
 		cmd = nla_data(nfqa[NFQA_CFG_CMD]);
 
-		/* Commands without queue context - might sleep */
+		/* Obsolete commands without queue context */
 		switch (cmd->command) {
-		case NFQNL_CFG_CMD_PF_BIND:
-			return nf_register_queue_handler(ntohs(cmd->pf),
-							 &nfqh);
-		case NFQNL_CFG_CMD_PF_UNBIND:
-			return nf_unregister_queue_handler(ntohs(cmd->pf),
-							   &nfqh);
+		case NFQNL_CFG_CMD_PF_BIND: return 0;
+		case NFQNL_CFG_CMD_PF_UNBIND: return 0;
 		}
 	}
 
@@ -1074,6 +1069,7 @@ static int __init nfnetlink_queue_init(void)
 #endif
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
+	nf_register_queue_handler(&nfqh);
 	return status;
 
 #ifdef CONFIG_PROC_FS
@@ -1087,7 +1083,7 @@ cleanup_netlink_notifier:
 
 static void __exit nfnetlink_queue_fini(void)
 {
-	nf_unregister_queue_handlers(&nfqh);
+	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);

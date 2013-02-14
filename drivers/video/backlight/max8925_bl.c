@@ -101,7 +101,7 @@ static const struct backlight_ops max8925_backlight_ops = {
 	.get_brightness	= max8925_backlight_get_brightness,
 };
 
-static int __devinit max8925_backlight_probe(struct platform_device *pdev)
+static int max8925_backlight_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_backlight_pdata *pdata = pdev->dev.platform_data;
@@ -120,15 +120,13 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for mode control!\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_mode_cntl = res->start;
 	res = platform_get_resource(pdev, IORESOURCE_REG, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for control!\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_cntl = res->start;
 
@@ -142,8 +140,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 					&max8925_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
-		ret = PTR_ERR(bl);
-		goto out;
+		return PTR_ERR(bl);
 	}
 	bl->props.brightness = MAX_BRIGHTNESS;
 
@@ -166,12 +163,10 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	return 0;
 out_brt:
 	backlight_device_unregister(bl);
-out:
-	devm_kfree(&pdev->dev, data);
 	return ret;
 }
 
-static int __devexit max8925_backlight_remove(struct platform_device *pdev)
+static int max8925_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 
@@ -185,7 +180,7 @@ static struct platform_driver max8925_backlight_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8925_backlight_probe,
-	.remove		= __devexit_p(max8925_backlight_remove),
+	.remove		= max8925_backlight_remove,
 };
 
 module_platform_driver(max8925_backlight_driver);

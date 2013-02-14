@@ -244,15 +244,15 @@ static int pcs_get_group_pins(struct pinctrl_dev *pctldev,
 
 static void pcs_pin_dbg_show(struct pinctrl_dev *pctldev,
 					struct seq_file *s,
-					unsigned offset)
+					unsigned pin)
 {
 	struct pcs_device *pcs;
-	unsigned val;
+	unsigned val, mux_bytes;
 
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
-	val = pcs->read(pcs->base + offset);
-	val &= pcs->fmask;
+	mux_bytes = pcs->width / BITS_PER_BYTE;
+	val = pcs->read(pcs->base + pin * mux_bytes);
 
 	seq_printf(s, "%08x %s " , val, DRIVER_NAME);
 }
@@ -465,7 +465,7 @@ static struct pinconf_ops pcs_pinconf_ops = {
  * @pcs: pcs driver instance
  * @offset: register offset from base
  */
-static int __devinit pcs_add_pin(struct pcs_device *pcs, unsigned offset)
+static int pcs_add_pin(struct pcs_device *pcs, unsigned offset)
 {
 	struct pinctrl_pin_desc *pin;
 	struct pcs_name *pn;
@@ -498,7 +498,7 @@ static int __devinit pcs_add_pin(struct pcs_device *pcs, unsigned offset)
  * If your hardware needs holes in the address space, then just set
  * up multiple driver instances.
  */
-static int __devinit pcs_allocate_pin_table(struct pcs_device *pcs)
+static int pcs_allocate_pin_table(struct pcs_device *pcs)
 {
 	int mux_bytes, nr_pins, i;
 
@@ -772,7 +772,7 @@ static int pcs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
 	*map = devm_kzalloc(pcs->dev, sizeof(**map), GFP_KERNEL);
-	if (!map)
+	if (!*map)
 		return -ENOMEM;
 
 	*num_maps = 0;
@@ -879,7 +879,7 @@ static void pcs_free_resources(struct pcs_device *pcs)
 
 static struct of_device_id pcs_of_match[];
 
-static int __devinit pcs_probe(struct platform_device *pdev)
+static int pcs_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
@@ -986,7 +986,7 @@ free:
 	return ret;
 }
 
-static int __devexit pcs_remove(struct platform_device *pdev)
+static int pcs_remove(struct platform_device *pdev)
 {
 	struct pcs_device *pcs = platform_get_drvdata(pdev);
 
@@ -998,7 +998,7 @@ static int __devexit pcs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id pcs_of_match[] __devinitdata = {
+static struct of_device_id pcs_of_match[] = {
 	{ .compatible = DRIVER_NAME, },
 	{ },
 };
@@ -1006,7 +1006,7 @@ MODULE_DEVICE_TABLE(of, pcs_of_match);
 
 static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
-	.remove		= __devexit_p(pcs_remove),
+	.remove		= pcs_remove,
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,

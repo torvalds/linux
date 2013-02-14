@@ -128,15 +128,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 					 target_i915_obj->cache_level);
 	}
 
-	/* The target buffer should have appeared before us in the
-	 * exec_object list, so it should have a GTT space bound by now.
-	 */
-	if (unlikely(target_offset == 0)) {
-		DRM_DEBUG("No GTT space found for object %d\n",
-			  reloc->target_handle);
-		return ret;
-	}
-
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
 		DRM_DEBUG("reloc with multiple write domains: "
@@ -548,6 +539,8 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	total = 0;
 	for (i = 0; i < count; i++) {
 		struct drm_i915_gem_relocation_entry __user *user_relocs;
+		u64 invalid_offset = (u64)-1;
+		int j;
 
 		user_relocs = (void __user *)(uintptr_t)exec[i].relocs_ptr;
 
@@ -556,6 +549,25 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 			ret = -EFAULT;
 			mutex_lock(&dev->struct_mutex);
 			goto err;
+		}
+
+		/* As we do not update the known relocation offsets after
+		 * relocating (due to the complexities in lock handling),
+		 * we need to mark them as invalid now so that we force the
+		 * relocation processing next time. Just in case the target
+		 * object is evicted and then rebound into its old
+		 * presumed_offset before the next execbuffer - if that
+		 * happened we would make the mistake of assuming that the
+		 * relocations were valid.
+		 */
+		for (j = 0; j < exec[i].relocation_count; j++) {
+			if (copy_to_user(&user_relocs[j].presumed_offset,
+					 &invalid_offset,
+					 sizeof(invalid_offset))) {
+				ret = -EFAULT;
+				mutex_lock(&dev->struct_mutex);
+				goto err;
+			}
 		}
 
 		reloc_offset[i] = total;
@@ -672,7 +684,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 	}
 
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
-		intel_gtt_chipset_flush();
+		i915_gem_chipset_flush(ring->dev);
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
@@ -722,8 +734,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *objects,
-				   struct intel_ring_buffer *ring,
-				   u32 seqno)
+				   struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_object *obj;
 
@@ -735,10 +746,10 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 		obj->base.write_domain = obj->base.pending_write_domain;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
-		i915_gem_object_move_to_active(obj, ring, seqno);
+		i915_gem_object_move_to_active(obj, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->last_write_seqno = seqno;
+			obj->last_write_seqno = intel_ring_get_seqno(ring);
 			if (obj->pin_count) /* check for potential scanout */
 				intel_mark_fb_busy(obj);
 		}
@@ -798,8 +809,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct intel_ring_buffer *ring;
 	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
-	u32 seqno;
 	u32 mask;
+	u32 flags;
 	int ret, mode, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -810,6 +821,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = validate_exec_list(exec, args->buffer_count);
 	if (ret)
 		return ret;
+
+	flags = 0;
+	if (args->flags & I915_EXEC_SECURE) {
+		if (!file->is_master || !capable(CAP_SYS_ADMIN))
+		    return -EPERM;
+
+		flags |= I915_DISPATCH_SECURE;
+	}
+	if (args->flags & I915_EXEC_IS_PINNED)
+		flags |= I915_DISPATCH_PINNED;
 
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:
@@ -983,25 +1004,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
+	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
+	 * batch" bit. Hence we need to pin secure batches into the global gtt.
+	 * hsw should have this fixed, but let's be paranoid and do it
+	 * unconditionally for now. */
+	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
+		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
+
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects);
 	if (ret)
 		goto err;
-
-	seqno = i915_gem_next_request_seqno(ring);
-	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++) {
-		if (seqno < ring->sync_seqno[i]) {
-			/* The GPU can not handle its semaphore value wrapping,
-			 * so every billion or so execbuffers, we need to stall
-			 * the GPU in order to reset the counters.
-			 */
-			ret = i915_gpu_idle(dev);
-			if (ret)
-				goto err;
-			i915_gem_retire_requests(dev);
-
-			BUG_ON(ring->sync_seqno[i]);
-		}
-	}
 
 	ret = i915_switch_context(ring, file, ctx_id);
 	if (ret)
@@ -1028,8 +1040,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	trace_i915_gem_ring_dispatch(ring, seqno);
-
 	exec_start = batch_obj->gtt_offset + args->batch_start_offset;
 	exec_len = args->batch_len;
 	if (cliprects) {
@@ -1040,17 +1050,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				goto err;
 
 			ret = ring->dispatch_execbuffer(ring,
-							exec_start, exec_len);
+							exec_start, exec_len,
+							flags);
 			if (ret)
 				goto err;
 		}
 	} else {
-		ret = ring->dispatch_execbuffer(ring, exec_start, exec_len);
+		ret = ring->dispatch_execbuffer(ring,
+						exec_start, exec_len,
+						flags);
 		if (ret)
 			goto err;
 	}
 
-	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
+	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
+
+	i915_gem_execbuffer_move_to_active(&objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
 
 err:

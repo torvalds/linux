@@ -728,7 +728,7 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 	return retval;
 }
 
-static struct ac97_pcm at91_ac97_pcm_defs[] __devinitdata = {
+static struct ac97_pcm at91_ac97_pcm_defs[] = {
 	/* Playback */
 	{
 		.exclusive = 1,
@@ -756,7 +756,7 @@ static struct ac97_pcm at91_ac97_pcm_defs[] __devinitdata = {
 	},
 };
 
-static int __devinit atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
+static int atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
 {
 	struct snd_pcm		*pcm;
 	struct snd_pcm_hardware	hw = atmel_ac97c_hw;
@@ -902,7 +902,7 @@ static void atmel_ac97c_reset(struct atmel_ac97c *chip)
 	}
 }
 
-static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
+static int atmel_ac97c_probe(struct platform_device *pdev)
 {
 	struct snd_card			*card;
 	struct atmel_ac97c		*chip;
@@ -1168,7 +1168,7 @@ static SIMPLE_DEV_PM_OPS(atmel_ac97c_pm, atmel_ac97c_suspend, atmel_ac97c_resume
 #define ATMEL_AC97C_PM_OPS	NULL
 #endif
 
-static int __devexit atmel_ac97c_remove(struct platform_device *pdev)
+static int atmel_ac97c_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct atmel_ac97c *chip = get_chip(card);
@@ -1205,7 +1205,7 @@ static int __devexit atmel_ac97c_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver atmel_ac97c_driver = {
-	.remove		= __devexit_p(atmel_ac97c_remove),
+	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
 		.owner	= THIS_MODULE,

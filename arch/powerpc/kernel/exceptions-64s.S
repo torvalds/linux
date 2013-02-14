@@ -19,12 +19,76 @@
 /*
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
- * 0x0100 - 0x2fff : pSeries Interrupt prologs
- * 0x3000 - 0x5fff : interrupt support common interrupt prologs
- * 0x6000 - 0x6fff : Initial (CPU0) segment table
+ * 0x0100 - 0x17ff : pSeries Interrupt prologs
+ * 0x1800 - 0x4000 : interrupt support common interrupt prologs
+ * 0x4000 - 0x5fff : pSeries interrupts with IR=1,DR=1
+ * 0x6000 - 0x6fff : more interrupt support including for IR=1,DR=1
  * 0x7000 - 0x7fff : FWNMI data area
- * 0x8000 -        : Early init and support code
+ * 0x8000 - 0x8fff : Initial (CPU0) segment table
+ * 0x9000 -        : Early init and support code
  */
+	/* Syscall routine is used twice, in reloc-off and reloc-on paths */
+#define SYSCALL_PSERIES_1 					\
+BEGIN_FTR_SECTION						\
+	cmpdi	r0,0x1ebe ; 					\
+	beq-	1f ;						\
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
+	mr	r9,r13 ;					\
+	GET_PACA(r13) ;						\
+	mfspr	r11,SPRN_SRR0 ;					\
+0:
+
+#define SYSCALL_PSERIES_2_RFID 					\
+	mfspr	r12,SPRN_SRR1 ;					\
+	ld	r10,PACAKBASE(r13) ; 				\
+	LOAD_HANDLER(r10, system_call_entry) ; 			\
+	mtspr	SPRN_SRR0,r10 ; 				\
+	ld	r10,PACAKMSR(r13) ;				\
+	mtspr	SPRN_SRR1,r10 ; 				\
+	rfid ; 							\
+	b	. ;	/* prevent speculative execution */
+
+#define SYSCALL_PSERIES_3					\
+	/* Fast LE/BE switch system call */			\
+1:	mfspr	r12,SPRN_SRR1 ;					\
+	xori	r12,r12,MSR_LE ;				\
+	mtspr	SPRN_SRR1,r12 ;					\
+	rfid ;		/* return to userspace */		\
+	b	. ;						\
+2:	mfspr	r12,SPRN_SRR1 ;					\
+	andi.	r12,r12,MSR_PR ;				\
+	bne	0b ;						\
+	mtspr	SPRN_SRR0,r3 ;					\
+	mtspr	SPRN_SRR1,r4 ;					\
+	mtspr	SPRN_SDR1,r5 ;					\
+	rfid ;							\
+	b	. ;	/* prevent speculative execution */
+
+#if defined(CONFIG_RELOCATABLE)
+	/*
+	 * We can't branch directly; in the direct case we use LR
+	 * and system_call_entry restores LR.  (We thus need to move
+	 * LR to r10 in the RFID case too.)
+	 */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	mflr	r10 ;						\
+	ld	r12,PACAKBASE(r13) ; 				\
+	LOAD_HANDLER(r12, system_call_entry_direct) ;		\
+	mtlr	r12 ;						\
+	mfspr	r12,SPRN_SRR1 ;					\
+	/* Re-use of r13... No spare regs to do this */	\
+	li	r13,MSR_RI ;					\
+	mtmsrd 	r13,1 ;						\
+	GET_PACA(r13) ;	/* get r13 back */			\
+	blr ;
+#else
+	/* We can branch directly */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	mfspr	r12,SPRN_SRR1 ;					\
+	li	r10,MSR_RI ;					\
+	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
+	b	system_call_entry_direct ;
+#endif
 
 /*
  * This is the start of the interrupt handlers for pSeries
@@ -207,30 +271,10 @@ system_call_pSeries:
 	KVMTEST(0xc00)
 	GET_SCRATCH0(r13)
 #endif
-BEGIN_FTR_SECTION
-	cmpdi	r0,0x1ebe
-	beq-	1f
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
-	mr	r9,r13
-	GET_PACA(r13)
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
-	ld	r10,PACAKBASE(r13)
-	LOAD_HANDLER(r10, system_call_entry)
-	mtspr	SPRN_SRR0,r10
-	ld	r10,PACAKMSR(r13)
-	mtspr	SPRN_SRR1,r10
-	rfid
-	b	.	/* prevent speculative execution */
-
+	SYSCALL_PSERIES_1
+	SYSCALL_PSERIES_2_RFID
+	SYSCALL_PSERIES_3
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
-
-/* Fast LE/BE switch system call */
-1:	mfspr	r12,SPRN_SRR1
-	xori	r12,r12,MSR_LE
-	mtspr	SPRN_SRR1,r12
-	rfid		/* return to userspace */
-	b	.
 
 	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xd00)
@@ -276,7 +320,7 @@ vsx_unavailable_pSeries_1:
 	KVM_HANDLER_PR_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
 
 	. = 0x1500
-	.global denorm_Hypervisor
+	.global denorm_exception_hv
 denorm_exception_hv:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
@@ -311,12 +355,14 @@ denorm_exception_hv:
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1800, 0x1802, cbe_thermal)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1802)
+#else
+	. = 0x1800
 #endif /* CONFIG_CBE_RAS */
 
-	. = 0x3000
 
 /*** Out of line interrupts support ***/
 
+	.align	7
 	/* moved from 0x200 */
 machine_check_pSeries:
 	.globl machine_check_fwnmi
@@ -575,16 +621,12 @@ slb_miss_user_pseries:
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
 
-	.align	7
-	.globl	__end_interrupts
-__end_interrupts:
-
 /*
  * Code from here down to __end_handlers is invoked from the
  * exception prologs above.  Because the prologs assemble the
  * addresses of these handlers using the LOAD_HANDLER macro,
- * which uses an addi instruction, these handlers must be in
- * the first 32k of the kernel image.
+ * which uses an ori instruction, these handlers must be in
+ * the first 64k of the kernel image.
  */
 
 /*** Common interrupt handlers ***/
@@ -613,8 +655,8 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
-        STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
-        STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
+	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
+	STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 	STD_EXCEPTION_COMMON(0x1502, denorm, .unknown_exception)
@@ -629,7 +671,158 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
 #endif /* CONFIG_CBE_RAS */
 
+	/*
+	 * Relocation-on interrupts: A subset of the interrupts can be delivered
+	 * with IR=1/DR=1, if AIL==2 and MSR.HV won't be changed by delivering
+	 * it.  Addresses are the same as the original interrupt addresses, but
+	 * offset by 0xc000000000004000.
+	 * It's impossible to receive interrupts below 0x300 via this mechanism.
+	 * KVM: None of these traps are from the guest ; anything that escalated
+	 * to HV=1 from HV=0 is delivered via real mode handlers.
+	 */
+
+	/*
+	 * This uses the standard macro, since the original 0x300 vector
+	 * only has extra guff for STAB-based processors -- which never
+	 * come here.
+	 */
+	STD_RELON_EXCEPTION_PSERIES(0x4300, 0x300, data_access)
+	. = 0x4380
+	.globl data_access_slb_relon_pSeries
+data_access_slb_relon_pSeries:
+	HMT_MEDIUM
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
+	std	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r3,SPRN_DAR
+	mfspr	r12,SPRN_SRR1
+#ifndef CONFIG_RELOCATABLE
+	b	.slb_miss_realmode
+#else
+	/*
+	 * We can't just use a direct branch to .slb_miss_realmode
+	 * because the distance from here to there depends on where
+	 * the kernel ends up being put.
+	 */
+	mfctr	r11
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, .slb_miss_realmode)
+	mtctr	r10
+	bctr
+#endif
+
+	STD_RELON_EXCEPTION_PSERIES(0x4400, 0x400, instruction_access)
+	. = 0x4480
+	.globl instruction_access_slb_relon_pSeries
+instruction_access_slb_relon_pSeries:
+	HMT_MEDIUM
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x480)
+	std	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
+	mfspr	r12,SPRN_SRR1
+#ifndef CONFIG_RELOCATABLE
+	b	.slb_miss_realmode
+#else
+	mfctr	r11
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, .slb_miss_realmode)
+	mtctr	r10
+	bctr
+#endif
+
+	. = 0x4500
+	.globl hardware_interrupt_relon_pSeries;
+	.globl hardware_interrupt_relon_hv;
+hardware_interrupt_relon_pSeries:
+hardware_interrupt_relon_hv:
+	BEGIN_FTR_SECTION
+		_MASKABLE_RELON_EXCEPTION_PSERIES(0x502, hardware_interrupt, EXC_HV, SOFTEN_TEST_HV)
+	FTR_SECTION_ELSE
+		_MASKABLE_RELON_EXCEPTION_PSERIES(0x500, hardware_interrupt, EXC_STD, SOFTEN_TEST_PR)
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_206)
+	STD_RELON_EXCEPTION_PSERIES(0x4600, 0x600, alignment)
+	STD_RELON_EXCEPTION_PSERIES(0x4700, 0x700, program_check)
+	STD_RELON_EXCEPTION_PSERIES(0x4800, 0x800, fp_unavailable)
+	MASKABLE_RELON_EXCEPTION_PSERIES(0x4900, 0x900, decrementer)
+	STD_RELON_EXCEPTION_HV(0x4980, 0x982, hdecrementer)
+	STD_RELON_EXCEPTION_PSERIES(0x4b00, 0xb00, trap_0b)
+
+	. = 0x4c00
+	.globl system_call_relon_pSeries
+system_call_relon_pSeries:
+	HMT_MEDIUM
+	SYSCALL_PSERIES_1
+	SYSCALL_PSERIES_2_DIRECT
+	SYSCALL_PSERIES_3
+
+	STD_RELON_EXCEPTION_PSERIES(0x4d00, 0xd00, single_step)
+
+	. = 0x4e00
+	b	h_data_storage_relon_hv
+
+	. = 0x4e20
+	b	h_instr_storage_relon_hv
+
+	. = 0x4e40
+	b	emulation_assist_relon_hv
+
+	. = 0x4e50
+	b	hmi_exception_relon_hv
+
+	. = 0x4e60
+	b	hmi_exception_relon_hv
+
+	/* For when we support the doorbell interrupt:
+	STD_RELON_EXCEPTION_HYPERVISOR(0x4e80, 0xe80, doorbell_hyper)
+	*/
+
+performance_monitor_relon_pSeries_1:
+	. = 0x4f00
+	b	performance_monitor_relon_pSeries
+
+altivec_unavailable_relon_pSeries_1:
+	. = 0x4f20
+	b	altivec_unavailable_relon_pSeries
+
+vsx_unavailable_relon_pSeries_1:
+	. = 0x4f40
+	b	vsx_unavailable_relon_pSeries
+
+#ifdef CONFIG_CBE_RAS
+	STD_RELON_EXCEPTION_HV(0x5200, 0x1202, cbe_system_error)
+#endif /* CONFIG_CBE_RAS */
+	STD_RELON_EXCEPTION_PSERIES(0x5300, 0x1300, instruction_breakpoint)
+#ifdef CONFIG_PPC_DENORMALISATION
+	. = 0x5500
+	b	denorm_exception_hv
+#endif
+#ifdef CONFIG_CBE_RAS
+	STD_RELON_EXCEPTION_HV(0x5600, 0x1602, cbe_maintenance)
+#else
+#ifdef CONFIG_HVC_SCOM
+	STD_RELON_EXCEPTION_HV(0x5600, 0x1600, maintence_interrupt)
+	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1600)
+#endif /* CONFIG_HVC_SCOM */
+#endif /* CONFIG_CBE_RAS */
+	STD_RELON_EXCEPTION_PSERIES(0x5700, 0x1700, altivec_assist)
+#ifdef CONFIG_CBE_RAS
+	STD_RELON_EXCEPTION_HV(0x5800, 0x1802, cbe_thermal)
+#endif /* CONFIG_CBE_RAS */
+
+	/* Other future vectors */
 	.align	7
+	.globl	__end_interrupts
+__end_interrupts:
+
+	.align	7
+system_call_entry_direct:
+#if defined(CONFIG_RELOCATABLE)
+	/* The first level prologue may have used LR to get here, saving
+	 * orig in r10.  To save hacking/ifdeffing common code, restore here.
+	 */
+	mtlr	r10
+#endif
 system_call_entry:
 	b	system_call_common
 
@@ -714,21 +907,21 @@ data_access_common:
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
 	li	r5,0x300
-	b	.do_hash_page	 	/* Try to handle as hpte fault */
+	b	.do_hash_page		/* Try to handle as hpte fault */
 
 	.align  7
-        .globl  h_data_storage_common
+	.globl  h_data_storage_common
 h_data_storage_common:
-        mfspr   r10,SPRN_HDAR
-        std     r10,PACA_EXGEN+EX_DAR(r13)
-        mfspr   r10,SPRN_HDSISR
-        stw     r10,PACA_EXGEN+EX_DSISR(r13)
-        EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
-        bl      .save_nvgprs
+	mfspr   r10,SPRN_HDAR
+	std     r10,PACA_EXGEN+EX_DAR(r13)
+	mfspr   r10,SPRN_HDSISR
+	stw     r10,PACA_EXGEN+EX_DSISR(r13)
+	EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
+	bl      .save_nvgprs
 	DISABLE_INTS
-        addi    r3,r1,STACK_FRAME_OVERHEAD
-        bl      .unknown_exception
-        b       .ret_from_except
+	addi    r3,r1,STACK_FRAME_OVERHEAD
+	bl      .unknown_exception
+	b       .ret_from_except
 
 	.align	7
 	.globl instruction_access_common
@@ -741,7 +934,7 @@ instruction_access_common:
 	li	r5,0x400
 	b	.do_hash_page		/* Try to handle as hpte fault */
 
-        STD_EXCEPTION_COMMON(0xe20, h_instr_storage, .unknown_exception)
+	STD_EXCEPTION_COMMON(0xe20, h_instr_storage, .unknown_exception)
 
 /*
  * Here is the common SLB miss user that is used when going to virtual
@@ -1152,6 +1345,21 @@ _GLOBAL(do_stab_bolted)
 	rfid
 	b	.	/* prevent speculative execution */
 
+
+	/* Equivalents to the above handlers for relocation-on interrupt vectors */
+	STD_RELON_EXCEPTION_HV(., 0xe00, h_data_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe00)
+	STD_RELON_EXCEPTION_HV(., 0xe20, h_instr_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe20)
+	STD_RELON_EXCEPTION_HV(., 0xe40, emulation_assist)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
+	STD_RELON_EXCEPTION_HV(., 0xe60, hmi_exception)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
+
+	STD_RELON_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
+	STD_RELON_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
+	STD_RELON_EXCEPTION_PSERIES(., 0xf40, vsx_unavailable)
+
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
  * Data area reserved for FWNMI option.
@@ -1164,7 +1372,7 @@ fwnmi_data_area:
 	/* pseries and powernv need to keep the whole page from
 	 * 0x7000 to 0x8000 free for use by the firmware
 	 */
-        . = 0x8000
+	. = 0x8000
 #endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
 /* Space for CPU0's segment table */

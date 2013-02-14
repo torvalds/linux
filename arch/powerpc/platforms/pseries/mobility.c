@@ -116,7 +116,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
-		prom_update_property(dn, new_prop);
+		of_update_property(dn, new_prop);
 		new_prop = NULL;
 	}
 
@@ -172,7 +172,7 @@ static int update_dt_node(u32 phandle)
 
 			case 0x80000000:
 				prop = of_find_property(dn, prop_name, NULL);
-				prom_remove_property(dn, prop);
+				of_remove_property(dn, prop);
 				prop = NULL;
 				break;
 

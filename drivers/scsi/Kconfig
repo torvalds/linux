@@ -603,6 +603,7 @@ config SCSI_ARCMSR
 
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 source "drivers/scsi/mpt2sas/Kconfig"
+source "drivers/scsi/mpt3sas/Kconfig"
 source "drivers/scsi/ufs/Kconfig"
 
 config SCSI_HPTIOP
@@ -1812,6 +1813,7 @@ config SCSI_VIRTIO
           This is the virtual HBA driver for virtio.  If the kernel will
           be used in a virtual machine, say Y or M.
 
+source "drivers/scsi/csiostor/Kconfig"
 
 endif # SCSI_LOWLEVEL
 

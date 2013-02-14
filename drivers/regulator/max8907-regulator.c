@@ -237,8 +237,7 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators,
-				 max8907_matches,
+	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
@@ -275,7 +274,7 @@ static inline struct device_node *match_of_node(int index)
 }
 #endif
 
-static __devinit int max8907_regulator_probe(struct platform_device *pdev)
+static int max8907_regulator_probe(struct platform_device *pdev)
 {
 	struct max8907 *max8907 = dev_get_drvdata(pdev->dev.parent);
 	struct max8907_platform_data *pdata = dev_get_platdata(max8907->dev);
@@ -368,7 +367,7 @@ err_unregister_regulator:
 	return ret;
 }
 
-static __devexit int max8907_regulator_remove(struct platform_device *pdev)
+static int max8907_regulator_remove(struct platform_device *pdev)
 {
 	struct max8907_regulator *pmic = platform_get_drvdata(pdev);
 	int i;
@@ -385,7 +384,7 @@ static struct platform_driver max8907_regulator_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = max8907_regulator_probe,
-	.remove = __devexit_p(max8907_regulator_remove),
+	.remove = max8907_regulator_remove,
 };
 
 static int __init max8907_regulator_init(void)

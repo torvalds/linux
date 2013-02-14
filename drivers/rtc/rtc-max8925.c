@@ -247,7 +247,7 @@ static const struct rtc_class_ops max8925_rtc_ops = {
 	.set_alarm	= max8925_rtc_set_alarm,
 };
 
-static int __devinit max8925_rtc_probe(struct platform_device *pdev)
+static int max8925_rtc_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_rtc_info *info;
@@ -292,7 +292,7 @@ out_irq:
 	return ret;
 }
 
-static int __devexit max8925_rtc_remove(struct platform_device *pdev)
+static int max8925_rtc_remove(struct platform_device *pdev)
 {
 	struct max8925_rtc_info *info = platform_get_drvdata(pdev);
 
@@ -334,7 +334,7 @@ static struct platform_driver max8925_rtc_driver = {
 		.pm     = &max8925_rtc_pm_ops,
 	},
 	.probe		= max8925_rtc_probe,
-	.remove		= __devexit_p(max8925_rtc_remove),
+	.remove		= max8925_rtc_remove,
 };
 
 module_platform_driver(max8925_rtc_driver);

@@ -347,7 +347,7 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 
 	tipc_node_lock(n_ptr);
 
-	if (n_ptr->bclink.supported &&
+	if (n_ptr->bclink.recv_permitted &&
 	    (n_ptr->bclink.last_in != n_ptr->bclink.last_sent) &&
 	    (n_ptr->bclink.last_in == msg_bcgap_after(msg)))
 		n_ptr->bclink.oos_state = 2;
@@ -429,7 +429,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 		goto exit;
 
 	tipc_node_lock(node);
-	if (unlikely(!node->bclink.supported))
+	if (unlikely(!node->bclink.recv_permitted))
 		goto unlock;
 
 	/* Handle broadcast protocol message */
@@ -564,7 +564,7 @@ exit:
 
 u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
 {
-	return (n_ptr->bclink.supported &&
+	return (n_ptr->bclink.recv_permitted &&
 		(tipc_bclink_get_last_sent() != n_ptr->bclink.acked));
 }
 
@@ -619,16 +619,14 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
 			continue;	/* bearer pair doesn't add anything */
 
-		if (p->blocked ||
-		    p->media->send_msg(buf, p, &p->media->bcast_addr)) {
+		if (!tipc_bearer_blocked(p))
+			tipc_bearer_send(p, buf, &p->media->bcast_addr);
+		else if (s && !tipc_bearer_blocked(s))
 			/* unable to send on primary bearer */
-			if (!s || s->blocked ||
-			    s->media->send_msg(buf, s,
-					       &s->media->bcast_addr)) {
-				/* unable to send on either bearer */
-				continue;
-			}
-		}
+			tipc_bearer_send(s, buf, &s->media->bcast_addr);
+		else
+			/* unable to send on either bearer */
+			continue;
 
 		if (s) {
 			bcbearer->bpairs[bp_index].primary = s;
@@ -731,8 +729,8 @@ int tipc_bclink_stats(char *buf, const u32 buf_size)
 			     "  TX naks:%u acks:%u dups:%u\n",
 			     s->sent_nacks, s->sent_acks, s->retransmitted);
 	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  Congestion bearer:%u link:%u  Send queue max:%u avg:%u\n",
-			     s->bearer_congs, s->link_congs, s->max_queue_sz,
+			     "  Congestion link:%u  Send queue max:%u avg:%u\n",
+			     s->link_congs, s->max_queue_sz,
 			     s->queue_sz_counts ?
 			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
 
@@ -766,7 +764,6 @@ int tipc_bclink_set_queue_limits(u32 limit)
 
 void tipc_bclink_init(void)
 {
-	INIT_LIST_HEAD(&bcbearer->bearer.cong_links);
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-broadcast");

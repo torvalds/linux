@@ -81,7 +81,7 @@ next_tag:
 		goto next_tag;
 	}
 
-	if (unlikely((tag & 0x1f) == 0x1f)) {
+	if (unlikely((tag & 0x1f) == ASN1_LONG_TAG)) {
 		do {
 			if (unlikely(datalen - dp < 2))
 				goto data_overrun_error;
@@ -96,7 +96,7 @@ next_tag:
 		goto next_tag;
 	}
 
-	if (unlikely(len == 0x80)) {
+	if (unlikely(len == ASN1_INDEFINITE_LENGTH)) {
 		/* Indefinite length */
 		if (unlikely((tag & ASN1_CONS_BIT) == ASN1_PRIM << 5))
 			goto indefinite_len_primitive;
@@ -222,7 +222,7 @@ next_op:
 		if (unlikely(dp >= datalen - 1))
 			goto data_overrun_error;
 		tag = data[dp++];
-		if (unlikely((tag & 0x1f) == 0x1f))
+		if (unlikely((tag & 0x1f) == ASN1_LONG_TAG))
 			goto long_tag_not_supported;
 
 		if (op & ASN1_OP_MATCH__ANY) {
@@ -254,7 +254,7 @@ next_op:
 
 		len = data[dp++];
 		if (len > 0x7f) {
-			if (unlikely(len == 0x80)) {
+			if (unlikely(len == ASN1_INDEFINITE_LENGTH)) {
 				/* Indefinite length */
 				if (unlikely(!(tag & ASN1_CONS_BIT)))
 					goto indefinite_len_primitive;

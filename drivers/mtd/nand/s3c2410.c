@@ -730,11 +730,14 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 				      struct s3c2410_nand_mtd *mtd,
 				      struct s3c2410_nand_set *set)
 {
-	if (set)
+	if (set) {
 		mtd->mtd.name = set->name;
 
-	return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+		return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
 					 set->partitions, set->nr_partitions);
+	}
+
+	return -ENODEV;
 }
 
 /**
@@ -879,7 +882,7 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 	if (chip->ecc.mode != NAND_ECC_HW)
 		return;
 
-		/* change the behaviour depending on wether we are using
+		/* change the behaviour depending on whether we are using
 		 * the large or small page nand device */
 
 	if (chip->page_shift > 10) {

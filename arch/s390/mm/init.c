@@ -125,7 +125,6 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(max_zone_pfns);
-	fault_init();
 }
 
 void __init mem_init(void)
@@ -158,34 +157,6 @@ void __init mem_init(void)
 	       (unsigned long)&_stext,
 	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
-
-#ifdef CONFIG_DEBUG_PAGEALLOC
-void kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long address;
-	int i;
-
-	for (i = 0; i < numpages; i++) {
-		address = page_to_phys(page + i);
-		pgd = pgd_offset_k(address);
-		pud = pud_offset(pgd, address);
-		pmd = pmd_offset(pud, address);
-		pte = pte_offset_kernel(pmd, address);
-		if (!enable) {
-			__ptep_ipte(address, pte);
-			pte_val(*pte) = _PAGE_TYPE_EMPTY;
-			continue;
-		}
-		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
-		/* Flush cpu write queue. */
-		mb();
-	}
-}
-#endif
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {

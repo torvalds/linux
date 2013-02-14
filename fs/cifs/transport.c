@@ -144,9 +144,6 @@ smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
 
 	*sent = 0;
 
-	if (ssocket == NULL)
-		return -ENOTSOCK; /* BB eventually add reconnect code here */
-
 	smb_msg.msg_name = (struct sockaddr *) &server->dstaddr;
 	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
@@ -290,6 +287,9 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	size_t total_len = 0, sent;
 	struct socket *ssocket = server->ssocket;
 	int val = 1;
+
+	if (ssocket == NULL)
+		return -ENOTSOCK;
 
 	cFYI(1, "Sending smb: smb_len=%u", smb_buf_length);
 	dump_smb(iov[0].iov_base, iov[0].iov_len);

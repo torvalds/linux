@@ -22,7 +22,7 @@
 
 #include "arizona.h"
 
-static __devinit int arizona_i2c_probe(struct i2c_client *i2c,
+static int arizona_i2c_probe(struct i2c_client *i2c,
 					  const struct i2c_device_id *id)
 {
 	struct arizona *arizona;
@@ -65,7 +65,7 @@ static __devinit int arizona_i2c_probe(struct i2c_client *i2c,
 	return arizona_dev_init(arizona);
 }
 
-static int __devexit arizona_i2c_remove(struct i2c_client *i2c)
+static int arizona_i2c_remove(struct i2c_client *i2c)
 {
 	struct arizona *arizona = dev_get_drvdata(&i2c->dev);
 	arizona_dev_exit(arizona);
@@ -86,7 +86,7 @@ static struct i2c_driver arizona_i2c_driver = {
 		.pm	= &arizona_pm_ops,
 	},
 	.probe		= arizona_i2c_probe,
-	.remove		= __devexit_p(arizona_i2c_remove),
+	.remove		= arizona_i2c_remove,
 	.id_table	= arizona_i2c_id,
 };
 

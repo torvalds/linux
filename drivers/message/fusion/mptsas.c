@@ -5332,7 +5332,7 @@ mptsas_shutdown(struct pci_dev *pdev)
 	mptsas_cleanup_fw_event_q(ioc);
 }
 
-static void __devexit mptsas_remove(struct pci_dev *pdev)
+static void mptsas_remove(struct pci_dev *pdev)
 {
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	struct mptsas_portinfo *p, *n;
@@ -5387,7 +5387,7 @@ static struct pci_driver mptsas_driver = {
 	.name		= "mptsas",
 	.id_table	= mptsas_pci_table,
 	.probe		= mptsas_probe,
-	.remove		= __devexit_p(mptsas_remove),
+	.remove		= mptsas_remove,
 	.shutdown	= mptsas_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,

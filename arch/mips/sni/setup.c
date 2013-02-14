@@ -15,12 +15,12 @@
 #include <linux/fb.h>
 #include <linux/screen_info.h>
 
-#ifdef CONFIG_ARC
+#ifdef CONFIG_FW_ARC
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #endif
 
-#ifdef CONFIG_SNIPROM
+#ifdef CONFIG_FW_SNIPROM
 #include <asm/mipsprom.h>
 #endif
 
@@ -37,7 +37,7 @@ extern void sni_machine_power_off(void);
 
 static void __init sni_display_setup(void)
 {
-#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_ARC)
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_FW_ARC)
 	struct screen_info *si = &screen_info;
 	DISPLAY_STATUS *di;
 
@@ -56,7 +56,7 @@ static void __init sni_display_setup(void)
 
 static void __init sni_console_setup(void)
 {
-#ifndef CONFIG_ARC
+#ifndef CONFIG_FW_ARC
 	char *ctype;
 	char *cdev;
 	char *baud;
@@ -236,7 +236,7 @@ void __init plat_mem_setup(void)
 #include <video/vga.h>
 #include <video/cirrus.h>
 
-static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
+static void quirk_cirrus_ram_size(struct pci_dev *dev)
 {
 	u16 cmd;
 

@@ -26,8 +26,8 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-nomadik.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
-#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/map.h>

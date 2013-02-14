@@ -387,7 +387,7 @@ static int nuc900fb_init_registers(struct fb_info *info)
  *    The buffer should be a non-cached, non-buffered, memory region
  *    to allow palette and pixel writes without flushing the cache.
  */
-static int __devinit nuc900fb_map_video_memory(struct fb_info *info)
+static int nuc900fb_map_video_memory(struct fb_info *info)
 {
 	struct nuc900fb_info *fbi = info->par;
 	dma_addr_t map_dma;
@@ -499,7 +499,7 @@ static inline void nuc900fb_cpufreq_deregister(struct nuc900fb_info *info)
 
 static char driver_name[] = "nuc900fb";
 
-static int __devinit nuc900fb_probe(struct platform_device *pdev)
+static int nuc900fb_probe(struct platform_device *pdev)
 {
 	struct nuc900fb_info *fbi;
 	struct nuc900fb_display *display;

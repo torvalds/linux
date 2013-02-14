@@ -1218,19 +1218,19 @@ static int init_lirc_sir(void)
 	return 0;
 }
 
-static int __devinit lirc_sir_probe(struct platform_device *dev)
+static int lirc_sir_probe(struct platform_device *dev)
 {
 	return 0;
 }
 
-static int __devexit lirc_sir_remove(struct platform_device *dev)
+static int lirc_sir_remove(struct platform_device *dev)
 {
 	return 0;
 }
 
 static struct platform_driver lirc_sir_driver = {
 	.probe		= lirc_sir_probe,
-	.remove		= __devexit_p(lirc_sir_remove),
+	.remove		= lirc_sir_remove,
 	.driver		= {
 		.name	= "lirc_sir",
 		.owner	= THIS_MODULE,

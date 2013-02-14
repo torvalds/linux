@@ -31,21 +31,19 @@
 #define PAGE_SHIFT	16
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK       (~((1 << PAGE_SHIFT) - 1))
+#define PAGE_MASK       (~(PAGE_SIZE - 1))
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 #define HPAGE_SHIFT	(PAGE_SHIFT + PAGE_SHIFT - 3)
 #define HPAGE_SIZE	(_AC(1,UL) << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-#else /* !CONFIG_HUGETLB_PAGE */
+#else /* !CONFIG_MIPS_HUGE_TLB_SUPPORT */
 #define HPAGE_SHIFT	({BUILD_BUG(); 0; })
 #define HPAGE_SIZE	({BUILD_BUG(); 0; })
 #define HPAGE_MASK	({BUILD_BUG(); 0; })
 #define HUGETLB_PAGE_ORDER	({BUILD_BUG(); 0; })
-#endif /* CONFIG_HUGETLB_PAGE */
-
-#ifndef __ASSEMBLY__
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #include <linux/pfn.h>
 #include <asm/io.h>
@@ -139,8 +137,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  */
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
 
-#endif /* !__ASSEMBLY__ */
-
 /*
  * __pa()/__va() should be used only during mem init.
  */
@@ -202,7 +198,10 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(kaddr)))
-#define virt_addr_valid(kaddr)	pfn_valid(PFN_DOWN(virt_to_phys(kaddr)))
+
+extern int __virt_addr_valid(const volatile void *kaddr);
+#define virt_addr_valid(kaddr)						\
+	__virt_addr_valid((const volatile void *) (kaddr))
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)

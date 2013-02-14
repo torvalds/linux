@@ -552,7 +552,7 @@ static struct dentry *ab8500_bank_file;
 static struct dentry *ab8500_address_file;
 static struct dentry *ab8500_val_file;
 
-static int __devinit ab8500_debug_probe(struct platform_device *plf)
+static int ab8500_debug_probe(struct platform_device *plf)
 {
 	debug_bank = AB8500_MISC;
 	debug_address = AB8500_REV_REG & 0x00FF;
@@ -597,7 +597,7 @@ exit_no_debugfs:
 	return -ENOMEM;
 }
 
-static int __devexit ab8500_debug_remove(struct platform_device *plf)
+static int ab8500_debug_remove(struct platform_device *plf)
 {
 	debugfs_remove(ab8500_val_file);
 	debugfs_remove(ab8500_address_file);
@@ -614,7 +614,7 @@ static struct platform_driver ab8500_debug_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = ab8500_debug_probe,
-	.remove = __devexit_p(ab8500_debug_remove)
+	.remove = ab8500_debug_remove
 };
 
 static int __init ab8500_debug_init(void)

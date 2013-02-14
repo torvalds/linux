@@ -39,7 +39,6 @@
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
 #define WAKE_DENOMINATOR 1001
-#define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
 
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1200
@@ -351,11 +350,6 @@ static void precalculate_bars(struct vivi_dev *dev)
 		}
 	}
 }
-
-#define TSTAMP_MIN_Y	24
-#define TSTAMP_MAX_Y	(TSTAMP_MIN_Y + 15)
-#define TSTAMP_INPUT_X	10
-#define TSTAMP_MIN_X	(54 + TSTAMP_INPUT_X)
 
 /* 'odd' is true for pixels 1, 3, 5, etc. and false for pixels 0, 2, 4, etc. */
 static void gen_twopix(struct vivi_dev *dev, u8 *buf, int colorpos, bool odd)
@@ -1308,7 +1302,7 @@ static int __init vivi_create_instance(int inst)
 	/* initialize queue */
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct vivi_buffer);
 	q->ops = &vivi_video_qops;

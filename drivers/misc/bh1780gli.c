@@ -144,7 +144,7 @@ static const struct attribute_group bh1780_attr_group = {
 	.attrs = bh1780_attributes,
 };
 
-static int __devinit bh1780_probe(struct i2c_client *client,
+static int bh1780_probe(struct i2c_client *client,
 						const struct i2c_device_id *id)
 {
 	int ret;
@@ -185,7 +185,7 @@ err_op_failed:
 	return ret;
 }
 
-static int __devexit bh1780_remove(struct i2c_client *client)
+static int bh1780_remove(struct i2c_client *client)
 {
 	struct bh1780_data *ddata;
 
@@ -248,7 +248,7 @@ static const struct i2c_device_id bh1780_id[] = {
 
 static struct i2c_driver bh1780_driver = {
 	.probe		= bh1780_probe,
-	.remove		= __devexit_p(bh1780_remove),
+	.remove		= bh1780_remove,
 	.id_table	= bh1780_id,
 	.driver = {
 		.name = "bh1780",

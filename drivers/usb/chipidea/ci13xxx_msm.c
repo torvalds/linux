@@ -55,7 +55,7 @@ static struct ci13xxx_platform_data ci13xxx_msm_platdata = {
 	.notify_event		= ci13xxx_msm_notify_event,
 };
 
-static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
+static int ci13xxx_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
 
@@ -77,7 +77,7 @@ static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
+static int ci13xxx_msm_remove(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci = platform_get_drvdata(pdev);
 
@@ -89,7 +89,7 @@ static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
 
 static struct platform_driver ci13xxx_msm_driver = {
 	.probe = ci13xxx_msm_probe,
-	.remove = __devexit_p(ci13xxx_msm_remove),
+	.remove = ci13xxx_msm_remove,
 	.driver = { .name = "msm_hsusb", },
 };
 

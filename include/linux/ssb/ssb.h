@@ -6,8 +6,10 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/gpio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include <linux/ssb/ssb_regs.h>
 
@@ -432,7 +434,11 @@ struct ssb_bus {
 #ifdef CONFIG_SSB_EMBEDDED
 	/* Lock for GPIO register access. */
 	spinlock_t gpio_lock;
+	struct platform_device *watchdog;
 #endif /* EMBEDDED */
+#ifdef CONFIG_SSB_DRIVER_GPIO
+	struct gpio_chip gpio;
+#endif /* DRIVER_GPIO */
 
 	/* Internal-only stuff follows. Do not touch. */
 	struct list_head list;

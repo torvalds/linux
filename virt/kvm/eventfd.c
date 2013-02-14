@@ -35,6 +35,7 @@
 
 #include "iodev.h"
 
+#ifdef __KVM_HAVE_IOAPIC
 /*
  * --------------------------------------------------------------------
  * irqfd: Allows an fd to be used to inject an interrupt to the guest
@@ -332,7 +333,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		mutex_lock(&kvm->irqfds.resampler_lock);
 
 		list_for_each_entry(resampler,
-				    &kvm->irqfds.resampler_list, list) {
+				    &kvm->irqfds.resampler_list, link) {
 			if (resampler->notifier.gsi == irqfd->gsi) {
 				irqfd->resampler = resampler;
 				break;
@@ -425,17 +426,21 @@ fail:
 	kfree(irqfd);
 	return ret;
 }
+#endif
 
 void
 kvm_eventfd_init(struct kvm *kvm)
 {
+#ifdef __KVM_HAVE_IOAPIC
 	spin_lock_init(&kvm->irqfds.lock);
 	INIT_LIST_HEAD(&kvm->irqfds.items);
 	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
 	mutex_init(&kvm->irqfds.resampler_lock);
+#endif
 	INIT_LIST_HEAD(&kvm->ioeventfds);
 }
 
+#ifdef __KVM_HAVE_IOAPIC
 /*
  * shutdown any irqfd's that match fd+gsi
  */
@@ -555,6 +560,7 @@ static void __exit irqfd_module_exit(void)
 
 module_init(irqfd_module_init);
 module_exit(irqfd_module_exit);
+#endif
 
 /*
  * --------------------------------------------------------------------

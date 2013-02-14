@@ -16,6 +16,26 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfclk.h>
+
+/***************************************************************************/
+
+DEFINE_CLK(pll, "pll.0", MCF_CLK);
+DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
+DEFINE_CLK(mcftmr0, "mcftmr.0", MCF_BUSCLK);
+DEFINE_CLK(mcftmr1, "mcftmr.1", MCF_BUSCLK);
+DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
+DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
+
+struct clk *mcf_clks[] = {
+	&clk_pll,
+	&clk_sys,
+	&clk_mcftmr0,
+	&clk_mcftmr1,
+	&clk_mcfuart0,
+	&clk_mcfuart1,
+	NULL
+};
 
 /***************************************************************************/
 
@@ -28,8 +48,8 @@ static struct resource m5249_smc91x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= MCFINTC2_GPIOIRQ6,
-		.end		= MCFINTC2_GPIOIRQ6,
+		.start		= MCF_IRQ_GPIO6,
+		.end		= MCF_IRQ_GPIO6,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -75,8 +95,8 @@ static void __init m5249_smc91x_init(void)
 	gpio = readl(MCFSIM2_GPIOINTENABLE);
 	writel(gpio | 0x40, MCFSIM2_GPIOINTENABLE);
 
-	gpio = readl(MCFSIM2_INTLEVEL5);
-	writel(gpio | 0x04000000, MCFSIM2_INTLEVEL5);
+	gpio = readl(MCFINTC2_INTPRI5);
+	writel(gpio | 0x04000000, MCFINTC2_INTPRI5);
 }
 
 #endif /* CONFIG_M5249C3 */

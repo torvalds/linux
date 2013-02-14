@@ -53,13 +53,18 @@
 					CKCTL_6338_SAR_EN |		\
 					CKCTL_6338_SPI_EN)
 
-#define CKCTL_6345_CPU_EN		(1 << 0)
-#define CKCTL_6345_BUS_EN		(1 << 1)
-#define CKCTL_6345_EBI_EN		(1 << 2)
-#define CKCTL_6345_UART_EN		(1 << 3)
-#define CKCTL_6345_ADSLPHY_EN		(1 << 4)
-#define CKCTL_6345_ENET_EN		(1 << 7)
-#define CKCTL_6345_USBH_EN		(1 << 8)
+/* BCM6345 clock bits are shifted by 16 on the left, because of the test
+ * control register which is 16-bits wide. That way we do not have any
+ * specific BCM6345 code for handling clocks, and writing 0 to the test
+ * control register is fine.
+ */
+#define CKCTL_6345_CPU_EN		(1 << 16)
+#define CKCTL_6345_BUS_EN		(1 << 17)
+#define CKCTL_6345_EBI_EN		(1 << 18)
+#define CKCTL_6345_UART_EN		(1 << 19)
+#define CKCTL_6345_ADSLPHY_EN		(1 << 20)
+#define CKCTL_6345_ENET_EN		(1 << 23)
+#define CKCTL_6345_USBH_EN		(1 << 24)
 
 #define CKCTL_6345_ALL_SAFE_EN		(CKCTL_6345_ENET_EN |	\
 					CKCTL_6345_USBH_EN |	\
@@ -191,6 +196,7 @@
 /* Soft Reset register */
 #define PERF_SOFTRESET_REG		0x28
 #define PERF_SOFTRESET_6328_REG		0x10
+#define PERF_SOFTRESET_6358_REG		0x34
 #define PERF_SOFTRESET_6368_REG		0x10
 
 #define SOFTRESET_6328_SPI_MASK		(1 << 0)
@@ -243,6 +249,15 @@
 				  SOFTRESET_6348_SAR_MASK |		\
 				  SOFTRESET_6348_ACLC_MASK |		\
 				  SOFTRESET_6348_ADSLMIPSPLL_MASK)
+
+#define SOFTRESET_6358_SPI_MASK		(1 << 0)
+#define SOFTRESET_6358_ENET_MASK	(1 << 2)
+#define SOFTRESET_6358_MPI_MASK		(1 << 3)
+#define SOFTRESET_6358_EPHY_MASK	(1 << 6)
+#define SOFTRESET_6358_SAR_MASK		(1 << 7)
+#define SOFTRESET_6358_USBH_MASK	(1 << 12)
+#define SOFTRESET_6358_PCM_MASK		(1 << 13)
+#define SOFTRESET_6358_ADSL_MASK	(1 << 14)
 
 #define SOFTRESET_6368_SPI_MASK		(1 << 0)
 #define SOFTRESET_6368_MPI_MASK		(1 << 3)

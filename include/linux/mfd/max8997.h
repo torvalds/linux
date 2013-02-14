@@ -75,6 +75,7 @@ enum max8998_regulators {
 struct max8997_regulator_data {
 	int id;
 	struct regulator_init_data *initdata;
+	struct device_node *reg_node;
 };
 
 enum max8997_muic_usb_type {

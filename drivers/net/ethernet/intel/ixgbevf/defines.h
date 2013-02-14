@@ -33,8 +33,11 @@
 #define IXGBE_DEV_ID_X540_VF            0x1515
 
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
-#define IXGBE_VF_MAX_TX_QUEUES          1
-#define IXGBE_VF_MAX_RX_QUEUES          1
+#define IXGBE_VF_MAX_TX_QUEUES          8
+#define IXGBE_VF_MAX_RX_QUEUES          8
+
+/* DCB define */
+#define IXGBE_VF_MAX_TRAFFIC_CLASS	8
 
 /* Link speed */
 typedef u32 ixgbe_link_speed;

@@ -14,12 +14,12 @@
 #define TI_FLAG_FAULT_CODE_SHIFT	56
 #define TI_FLAG_BYTE_WSTATE		1
 #define TI_FLAG_WSTATE_SHIFT		48
-#define TI_FLAG_BYTE_CWP		2
-#define TI_FLAG_CWP_SHIFT		40
-#define TI_FLAG_BYTE_CURRENT_DS		3
-#define TI_FLAG_CURRENT_DS_SHIFT	32
-#define TI_FLAG_BYTE_FPDEPTH		4
-#define TI_FLAG_FPDEPTH_SHIFT		24
+#define TI_FLAG_BYTE_NOERROR		2
+#define TI_FLAG_BYTE_NOERROR_SHIFT	40
+#define TI_FLAG_BYTE_FPDEPTH		3
+#define TI_FLAG_FPDEPTH_SHIFT		32
+#define TI_FLAG_BYTE_CWP		4
+#define TI_FLAG_CWP_SHIFT		24
 #define TI_FLAG_BYTE_WSAVED		5
 #define TI_FLAG_WSAVED_SHIFT		16
 
@@ -47,7 +47,7 @@ struct thread_info {
 	struct exec_domain	*exec_domain;
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u8			new_child;
-	__u8			syscall_noerror;
+	__u8			current_ds;
 	__u16			cpu;
 
 	unsigned long		*utraps;
@@ -74,9 +74,9 @@ struct thread_info {
 #define TI_FAULT_CODE	(TI_FLAGS + TI_FLAG_BYTE_FAULT_CODE)
 #define TI_WSTATE	(TI_FLAGS + TI_FLAG_BYTE_WSTATE)
 #define TI_CWP		(TI_FLAGS + TI_FLAG_BYTE_CWP)
-#define TI_CURRENT_DS	(TI_FLAGS + TI_FLAG_BYTE_CURRENT_DS)
 #define TI_FPDEPTH	(TI_FLAGS + TI_FLAG_BYTE_FPDEPTH)
 #define TI_WSAVED	(TI_FLAGS + TI_FLAG_BYTE_WSAVED)
+#define TI_SYS_NOERROR	(TI_FLAGS + TI_FLAG_BYTE_NOERROR)
 #define TI_FPSAVED	0x00000010
 #define TI_KSP		0x00000018
 #define TI_FAULT_ADDR	0x00000020
@@ -84,7 +84,7 @@ struct thread_info {
 #define TI_EXEC_DOMAIN	0x00000030
 #define TI_PRE_COUNT	0x00000038
 #define TI_NEW_CHILD	0x0000003c
-#define TI_SYS_NOERROR	0x0000003d
+#define TI_CURRENT_DS	0x0000003d
 #define TI_CPU		0x0000003e
 #define TI_UTRAPS	0x00000040
 #define TI_REG_WINDOW	0x00000048
@@ -121,7 +121,7 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)				\
 {							\
 	.task		=	&tsk,			\
-	.flags		= ((unsigned long)ASI_P) << TI_FLAG_CURRENT_DS_SHIFT,	\
+	.current_ds	=	ASI_P,			\
 	.exec_domain	=	&default_exec_domain,	\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
 	.restart_block	= {				\
@@ -153,13 +153,12 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define set_thread_wstate(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSTATE] = (val))
 #define get_thread_cwp()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP])
 #define set_thread_cwp(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP] = (val))
-#define get_thread_current_ds()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CURRENT_DS])
-#define set_thread_current_ds(val)	(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CURRENT_DS] = (val))
+#define get_thread_noerror()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR])
+#define set_thread_noerror(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR] = (val))
 #define get_thread_fpdepth()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH])
 #define set_thread_fpdepth(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH] = (val))
 #define get_thread_wsaved()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSAVED])
 #define set_thread_wsaved(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSAVED] = (val))
-
 #endif /* !(__ASSEMBLY__) */
 
 /*

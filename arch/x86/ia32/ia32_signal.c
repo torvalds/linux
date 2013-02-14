@@ -136,52 +136,6 @@ asmlinkage long sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
 	return sigsuspend(&blocked);
 }
 
-asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
-				  stack_ia32_t __user *uoss_ptr,
-				  struct pt_regs *regs)
-{
-	stack_t uss, uoss;
-	int ret, err = 0;
-	mm_segment_t seg;
-
-	if (uss_ptr) {
-		u32 ptr;
-
-		memset(&uss, 0, sizeof(stack_t));
-		if (!access_ok(VERIFY_READ, uss_ptr, sizeof(stack_ia32_t)))
-			return -EFAULT;
-
-		get_user_try {
-			get_user_ex(ptr, &uss_ptr->ss_sp);
-			get_user_ex(uss.ss_flags, &uss_ptr->ss_flags);
-			get_user_ex(uss.ss_size, &uss_ptr->ss_size);
-		} get_user_catch(err);
-
-		if (err)
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ptr);
-	}
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack((stack_t __force __user *) (uss_ptr ? &uss : NULL),
-			     (stack_t __force __user *) &uoss, regs->sp);
-	set_fs(seg);
-	if (ret >= 0 && uoss_ptr)  {
-		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(stack_ia32_t)))
-			return -EFAULT;
-
-		put_user_try {
-			put_user_ex(ptr_to_compat(uoss.ss_sp), &uoss_ptr->ss_sp);
-			put_user_ex(uoss.ss_flags, &uoss_ptr->ss_flags);
-			put_user_ex(uoss.ss_size, &uoss_ptr->ss_size);
-		} put_user_catch(err);
-
-		if (err)
-			ret = -EFAULT;
-	}
-	return ret;
-}
-
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -292,7 +246,6 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe_ia32 __user *frame;
 	sigset_t set;
 	unsigned int ax;
-	struct pt_regs tregs;
 
 	frame = (struct rt_sigframe_ia32 __user *)(regs->sp - 4);
 
@@ -306,8 +259,7 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
-	tregs = *regs;
-	if (sys32_sigaltstack(&frame->uc.uc_stack, NULL, &tregs) == -EFAULT)
+	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return ax;
@@ -515,10 +467,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		else
 			put_user_ex(0, &frame->uc.uc_flags);
 		put_user_ex(0, &frame->uc.uc_link);
-		put_user_ex(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-		put_user_ex(sas_ss_flags(regs->sp),
-			    &frame->uc.uc_stack.ss_flags);
-		put_user_ex(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+		err |= __compat_save_altstack(&frame->uc.uc_stack, regs->sp);
 
 		if (ka->sa.sa_flags & SA_RESTORER)
 			restorer = ka->sa.sa_restorer;

@@ -221,6 +221,7 @@ static __exit void rs_exit(void)
 		printk("ISS_SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
+	tty_port_destroy(&serial_port);
 }
 
 

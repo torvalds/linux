@@ -1289,7 +1289,7 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 EXPORT_SYMBOL(vio_unregister_driver);
 
 /* vio_dev refcount hit 0 */
-static void __devinit vio_dev_release(struct device *dev)
+static void vio_dev_release(struct device *dev)
 {
 	struct iommu_table *tbl = get_iommu_table_base(dev);
 
@@ -1545,7 +1545,7 @@ static struct device_attribute vio_dev_attrs[] = {
 	__ATTR_NULL
 };
 
-void __devinit vio_unregister_device(struct vio_dev *viodev)
+void vio_unregister_device(struct vio_dev *viodev)
 {
 	device_unregister(&viodev->dev);
 }

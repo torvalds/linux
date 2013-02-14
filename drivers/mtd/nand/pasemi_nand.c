@@ -89,7 +89,7 @@ int pasemi_device_ready(struct mtd_info *mtd)
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
 
-static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
+static int pasemi_nand_probe(struct platform_device *ofdev)
 {
 	struct pci_dev *pdev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -184,7 +184,7 @@ static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int __devexit pasemi_nand_remove(struct platform_device *ofdev)
+static int pasemi_nand_remove(struct platform_device *ofdev)
 {
 	struct nand_chip *chip;
 

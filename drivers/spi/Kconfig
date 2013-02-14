@@ -123,6 +123,13 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_CLPS711X
+	tristate "CLPS711X host SPI controller"
+	depends on ARCH_CLPS711X
+	help
+	  This enables dedicated general purpose SPI/Microwire1-compatible
+	  master mode interface (SSI1) for CLPS711X-based CPUs.
+
 config SPI_COLDFIRE_QSPI
 	tristate "Freescale Coldfire QSPI controller"
 	depends on (M520x || M523x || M5249 || M525x || M527x || M528x || M532x)
@@ -341,10 +348,10 @@ config SPI_SC18IS602
 
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
-	depends on SUPERH && HAVE_CLK
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
 	select SPI_BITBANG
 	help
-	  SPI driver for SuperH MSIOF blocks.
+	  SPI driver for SuperH and SH Mobile MSIOF blocks.
 
 config SPI_SH
 	tristate "SuperH SPI controller"
@@ -372,18 +379,26 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
-config SPI_STMP3XXX
-	tristate "Freescale STMP37xx/378x SPI/SSP controller"
-	depends on ARCH_STMP3XXX
-	help
-	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
-
 config SPI_MXS
 	tristate "Freescale MXS SPI controller"
 	depends on ARCH_MXS
 	select STMP_DEVICE
 	help
 	  SPI driver for Freescale MXS devices.
+
+config SPI_TEGRA20_SFLASH
+	tristate "Nvidia Tegra20 Serial flash Controller"
+	depends on ARCH_TEGRA
+	help
+	  SPI driver for Nvidia Tegra20 Serial flash Controller interface.
+	  The main usecase of this controller is to use spi flash as boot
+	  device.
+
+config SPI_TEGRA20_SLINK
+	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	help
+	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
 
 config SPI_TI_SSP
 	tristate "TI Sequencer Serial Port - SPI Support"

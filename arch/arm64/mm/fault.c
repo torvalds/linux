@@ -36,6 +36,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+static const char *fault_name(unsigned int esr);
+
 /*
  * Dump out the page tables associated with 'addr' in mm 'mm'.
  */
@@ -112,8 +114,9 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	struct siginfo si;
 
 	if (show_unhandled_signals) {
-		pr_info("%s[%d]: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
-			tsk->comm, task_pid_nr(tsk), sig, addr, esr);
+		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x\n",
+			tsk->comm, task_pid_nr(tsk), fault_name(esr), sig,
+			addr, esr);
 		show_pte(tsk->mm, addr);
 		show_regs(regs);
 	}
@@ -449,6 +452,12 @@ static struct fault_info {
 	{ do_bad,		SIGBUS,  0,		"unknown 62"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 63"			},
 };
+
+static const char *fault_name(unsigned int esr)
+{
+	const struct fault_info *inf = fault_info + (esr & 63);
+	return inf->name;
+}
 
 /*
  * Dispatch a data abort to the relevant handler.

@@ -6,7 +6,9 @@ Required properties:
   - "ti,omap4-spi" for OMAP4+.
 - ti,spi-num-cs : Number of chipselect supported  by the instance.
 - ti,hwmods: Name of the hwmod associated to the McSPI
-
+- ti,pindir-d0-out-d1-in: Select the D0 pin as output and D1 as
+			  input. The default is D0 as input and
+			  D1 as output.
 
 Example:
 

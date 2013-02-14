@@ -54,7 +54,8 @@ PROPERTIES
    - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,sec-v4.0"
+      Definition: Must include "fsl,sec-v4.0". Also includes SEC
+           ERA versions (optional) with which the device is compatible.
 
    - #address-cells
        Usage: required
@@ -106,7 +107,7 @@ PROPERTIES
 
 EXAMPLE
 	crypto@300000 {
-		compatible = "fsl,sec-v4.0";
+		compatible = "fsl,sec-v4.0", "fsl,sec-era-v2.0";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x300000 0x10000>;

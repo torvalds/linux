@@ -77,7 +77,7 @@ void __set_pmd(pmd_t *pmdptr, unsigned long pmd)
  * checks at dup_mmap(), exec(), and other mmlist addition points
  * could be used. The locking scheme was chosen on the basis of
  * manfred's recommendations and having no core impact whatsoever.
- * -- wli
+ * -- nyc
  */
 DEFINE_SPINLOCK(pgd_lock);
 struct page *pgd_list;

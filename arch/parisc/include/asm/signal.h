@@ -34,8 +34,6 @@ struct k_sigaction {
 	struct sigaction sa;
 };
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-
 #include <asm/sigcontext.h>
 
 #endif /* !__ASSEMBLY */

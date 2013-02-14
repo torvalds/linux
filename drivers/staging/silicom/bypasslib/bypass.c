@@ -11,7 +11,6 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <linux/version.h>
 #if defined(CONFIG_SMP) && ! defined(__SMP__)
 #define __SMP__
 #endif

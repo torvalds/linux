@@ -1761,7 +1761,7 @@ static const struct ieee80211_ops adm8211_ops = {
 	.get_tsf		= adm8211_get_tsft
 };
 
-static int __devinit adm8211_probe(struct pci_dev *pdev,
+static int adm8211_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct ieee80211_hw *dev;
@@ -1935,7 +1935,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 }
 
 
-static void __devexit adm8211_remove(struct pci_dev *pdev)
+static void adm8211_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct adm8211_priv *priv;
@@ -1985,7 +1985,7 @@ static struct pci_driver adm8211_driver = {
 	.name		= "adm8211",
 	.id_table	= adm8211_pci_id_table,
 	.probe		= adm8211_probe,
-	.remove		= __devexit_p(adm8211_remove),
+	.remove		= adm8211_remove,
 #ifdef CONFIG_PM
 	.suspend	= adm8211_suspend,
 	.resume		= adm8211_resume,

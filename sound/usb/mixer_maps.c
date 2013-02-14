@@ -179,6 +179,15 @@ static struct usbmix_name_map audigy2nx_map[] = {
 	{ 0 } /* terminator */
 };
 
+static struct usbmix_selector_map c400_selectors[] = {
+	{
+		.id = 0x80,
+		.count = 2,
+		.names = (const char*[]) {"Internal", "SPDIF"}
+	},
+	{ 0 } /* terminator */
+};
+
 static struct usbmix_selector_map audigy2nx_selectors[] = {
 	{
 		.id = 14, /* Capture Source */
@@ -365,6 +374,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		 */
 		.id = USB_ID(0x06f8, 0xc000),
 		.map = hercules_usb51_map,
+	},
+	{
+		.id = USB_ID(0x0763, 0x2030),
+		.selector_map = c400_selectors,
 	},
 	{
 		.id = USB_ID(0x08bb, 0x2702),
