@@ -1721,8 +1721,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
-	msg->pages = req->r_pages;
-	msg->page_count = req->r_num_pages;
+	ceph_msg_data_set_pages(msg, req->r_pages, req->r_num_pages, 0);
+
 	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
 	msg->hdr.data_off = cpu_to_le16(0);
 
