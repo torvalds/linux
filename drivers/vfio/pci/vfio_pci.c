@@ -371,31 +371,21 @@ static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
 {
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 	struct vfio_pci_device *vdev = device_data;
-	struct pci_dev *pdev = vdev->pdev;
 
 	if (index >= VFIO_PCI_NUM_REGIONS)
 		return -EINVAL;
 
 	switch (index) {
 	case VFIO_PCI_CONFIG_REGION_INDEX:
-		return vfio_pci_config_readwrite(vdev, buf, count,
-						 ppos, iswrite);
+		return vfio_pci_config_rw(vdev, buf, count, ppos, iswrite);
+
 	case VFIO_PCI_ROM_REGION_INDEX:
 		if (iswrite)
 			return -EINVAL;
-		return vfio_pci_mem_readwrite(vdev, buf, count, ppos, false);
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, false);
 
 	case VFIO_PCI_BAR0_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
-	{
-		unsigned long flags = pci_resource_flags(pdev, index);
-
-		if (flags & IORESOURCE_IO)
-			return vfio_pci_io_readwrite(vdev, buf, count,
-						     ppos, iswrite);
-		if (flags & IORESOURCE_MEM)
-			return vfio_pci_mem_readwrite(vdev, buf, count,
-						      ppos, iswrite);
-	}
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, iswrite);
 	}
 
 	return -EINVAL;
@@ -404,13 +394,19 @@ static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
 static ssize_t vfio_pci_read(void *device_data, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
+	if (!count)
+		return 0;
+
 	return vfio_pci_rw(device_data, buf, count, ppos, false);
 }
 
 static ssize_t vfio_pci_write(void *device_data, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	return vfio_pci_rw(device_data, buf, count, ppos, true);
+	if (!count)
+		return 0;
+
+	return vfio_pci_rw(device_data, (char __user *)buf, count, ppos, true);
 }
 
 static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)

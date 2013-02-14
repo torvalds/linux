@@ -1501,9 +1501,8 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return ret;
 }
 
-ssize_t vfio_pci_config_readwrite(struct vfio_pci_device *vdev,
-				  char __user *buf, size_t count,
-				  loff_t *ppos, bool iswrite)
+ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev, char __user *buf,
+			   size_t count, loff_t *ppos, bool iswrite)
 {
 	size_t done = 0;
 	int ret = 0;
