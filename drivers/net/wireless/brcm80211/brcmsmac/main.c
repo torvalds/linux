@@ -6443,10 +6443,9 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 			if ((txrate[k]->flags & IEEE80211_TX_RC_MCS)
 			    && (!is_mcs_rate(rspec[k]))) {
-				brcms_err(wlc->hw->d11core,
-					  "wl%d: %s: IEEE80211_TX_"
-					  "RC_MCS != is_mcs_rate(rspec)\n",
-					  wlc->pub->unit, __func__);
+				brcms_warn(wlc->hw->d11core,
+					   "wl%d: %s: IEEE80211_TX_RC_MCS != is_mcs_rate(rspec)\n",
+					   wlc->pub->unit, __func__);
 			}
 
 			if (is_mcs_rate(rspec[k])) {
@@ -6838,21 +6837,19 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 					wlc->fragthresh[queue] =
 					    (u16) newfragthresh;
 			} else {
-				brcms_err(wlc->hw->d11core,
-					  "wl%d: %s txop invalid "
-					  "for rate %d\n",
-					  wlc->pub->unit, fifo_names[queue],
-					  rspec2rate(rspec[0]));
+				brcms_warn(wlc->hw->d11core,
+					   "wl%d: %s txop invalid for rate %d\n",
+					   wlc->pub->unit, fifo_names[queue],
+					   rspec2rate(rspec[0]));
 			}
 
 			if (dur > wlc->edcf_txop[ac])
-				brcms_err(wlc->hw->d11core,
-					  "wl%d: %s: %s txop "
-					  "exceeded phylen %d/%d dur %d/%d\n",
-					  wlc->pub->unit, __func__,
-					  fifo_names[queue],
-					  phylen, wlc->fragthresh[queue],
-					  dur, wlc->edcf_txop[ac]);
+				brcms_warn(wlc->hw->d11core,
+					   "wl%d: %s: %s txop exceeded phylen %d/%d dur %d/%d\n",
+					   wlc->pub->unit, __func__,
+					   fifo_names[queue],
+					   phylen, wlc->fragthresh[queue],
+					   dur, wlc->edcf_txop[ac]);
 		}
 	}
 
