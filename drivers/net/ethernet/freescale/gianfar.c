@@ -344,6 +344,9 @@ static void gfar_init_mac(struct net_device *ndev)
 	/* Configure the coalescing support */
 	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 
+	/* set this when rx hw offload (TOE) functions are being used */
+	priv->uses_rxfcb = 0;
+
 	if (priv->rx_filer_enable) {
 		rctrl |= RCTRL_FILREN;
 		/* Program the RIR0 reg with the required distribution */
@@ -354,8 +357,10 @@ static void gfar_init_mac(struct net_device *ndev)
 	if (ndev->flags & IFF_PROMISC)
 		rctrl |= RCTRL_PROM;
 
-	if (ndev->features & NETIF_F_RXCSUM)
+	if (ndev->features & NETIF_F_RXCSUM) {
 		rctrl |= RCTRL_CHECKSUMMING;
+		priv->uses_rxfcb = 1;
+	}
 
 	if (priv->extended_hash) {
 		rctrl |= RCTRL_EXTHASH;
@@ -377,11 +382,15 @@ static void gfar_init_mac(struct net_device *ndev)
 	}
 
 	/* Enable HW time stamping if requested from user space */
-	if (priv->hwts_rx_en)
+	if (priv->hwts_rx_en) {
 		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
+		priv->uses_rxfcb = 1;
+	}
 
-	if (ndev->features & NETIF_F_HW_VLAN_RX)
+	if (ndev->features & NETIF_F_HW_VLAN_RX) {
 		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
+		priv->uses_rxfcb = 1;
+	}
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);
@@ -498,20 +507,6 @@ void unlock_tx_qs(struct gfar_private *priv)
 
 	for (i = 0; i < priv->num_tx_queues; i++)
 		spin_unlock(&priv->tx_queue[i]->txlock);
-}
-
-static bool gfar_is_vlan_on(struct gfar_private *priv)
-{
-	return (priv->ndev->features & NETIF_F_HW_VLAN_RX) ||
-	       (priv->ndev->features & NETIF_F_HW_VLAN_TX);
-}
-
-/* Returns 1 if incoming frames use an FCB */
-static inline int gfar_uses_fcb(struct gfar_private *priv)
-{
-	return gfar_is_vlan_on(priv) ||
-	       (priv->ndev->features & NETIF_F_RXCSUM) ||
-	       (priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER);
 }
 
 static void free_tx_pointers(struct gfar_private *priv)
@@ -2326,10 +2321,13 @@ void gfar_check_rx_parser_mode(struct gfar_private *priv)
 
 	tempval = gfar_read(&regs->rctrl);
 	/* If parse is no longer required, then disable parser */
-	if (tempval & RCTRL_REQ_PARSER)
+	if (tempval & RCTRL_REQ_PARSER) {
 		tempval |= RCTRL_PRSDEP_INIT;
-	else
+		priv->uses_rxfcb = 1;
+	} else {
 		tempval &= ~RCTRL_PRSDEP_INIT;
+		priv->uses_rxfcb = 0;
+	}
 	gfar_write(&regs->rctrl, tempval);
 }
 
@@ -2362,6 +2360,7 @@ void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
 		tempval = gfar_read(&regs->rctrl);
 		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
 		gfar_write(&regs->rctrl, tempval);
+		priv->uses_rxfcb = 1;
 	} else {
 		/* Disable VLAN tag extraction */
 		tempval = gfar_read(&regs->rctrl);
@@ -2390,7 +2389,7 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
-	if (gfar_uses_fcb(priv))
+	if (priv->uses_rxfcb)
 		frame_size += GMAC_FCB_LEN;
 
 	frame_size += priv->padding;
@@ -2759,7 +2758,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 	bdp = rx_queue->cur_rx;
 	base = rx_queue->rx_bd_base;
 
-	amount_pull = (gfar_uses_fcb(priv) ? GMAC_FCB_LEN : 0);
+	amount_pull = priv->uses_rxfcb ? GMAC_FCB_LEN : 0;
 
 	while (!((bdp->status & RXBD_EMPTY) || (--rx_work_limit < 0))) {
 		struct sk_buff *newskb;

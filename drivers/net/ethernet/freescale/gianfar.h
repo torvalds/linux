@@ -1056,6 +1056,7 @@ struct gfar_private {
 	enum gfar_errata errata;
 	unsigned int rx_buffer_size;
 
+	u16 uses_rxfcb;
 	u16 padding;
 
 	/* HW time stamping enabled flag */
