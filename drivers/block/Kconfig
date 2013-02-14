@@ -63,19 +63,6 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
-config BLK_DEV_XD
-	tristate "XT hard disk support"
-	depends on ISA && ISA_DMA_API
-	select CHECK_SIGNATURE
-	help
-	  Very old 8 bit hard disk controllers used in the IBM XT computer
-	  will be supported if you say Y here.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called xd.
-
-	  It's pretty unlikely that you have one of these: say N.
-
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
