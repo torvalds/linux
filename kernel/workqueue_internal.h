@@ -28,7 +28,7 @@ struct worker {
 
 	struct work_struct	*current_work;	/* L: work being processed */
 	work_func_t		current_func;	/* L: current_work's fn */
-	struct cpu_workqueue_struct *current_cwq; /* L: current_work's cwq */
+	struct pool_workqueue	*current_pwq; /* L: current_work's pwq */
 	struct list_head	scheduled;	/* L: scheduled works */
 	struct task_struct	*task;		/* I: worker task */
 	struct worker_pool	*pool;		/* I: the associated pool */
