@@ -133,8 +133,8 @@ static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit);
 static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
-static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
-			      int amount_pull, struct napi_struct *napi);
+static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
+			       int amount_pull, struct napi_struct *napi);
 void gfar_halt(struct net_device *dev);
 static void gfar_halt_nodisable(struct net_device *dev);
 void gfar_start(struct net_device *dev);
@@ -2692,8 +2692,8 @@ static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 
 
 /* gfar_process_frame() -- handle one incoming packet if skb isn't NULL. */
-static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
-			      int amount_pull, struct napi_struct *napi)
+static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
+			       int amount_pull, struct napi_struct *napi)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
@@ -2742,8 +2742,6 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 
 	if (unlikely(GRO_DROP == ret))
 		atomic64_inc(&priv->extra_stats.kernel_dropped);
-
-	return 0;
 }
 
 /* gfar_clean_rx_ring() -- Processes each frame in the rx ring
