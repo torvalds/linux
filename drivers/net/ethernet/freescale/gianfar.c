@@ -2740,7 +2740,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	/* Send the packet up the stack */
 	ret = napi_gro_receive(napi, skb);
 
-	if (GRO_DROP == ret)
+	if (unlikely(GRO_DROP == ret))
 		atomic64_inc(&priv->extra_stats.kernel_dropped);
 
 	return 0;
