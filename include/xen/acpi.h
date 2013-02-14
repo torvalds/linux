@@ -57,21 +57,6 @@ void xen_stub_processor_exit(void);
 void xen_pcpu_hotplug_sync(void);
 int xen_pcpu_id(uint32_t acpi_id);
 
-int xen_acpi_notify_hypervisor_state(u8 sleep_state,
-				     u32 pm1a_cnt, u32 pm1b_cnd);
-
-static inline void xen_acpi_sleep_register(void)
-{
-	if (xen_initial_domain())
-		acpi_os_set_prepare_sleep(
-			&xen_acpi_notify_hypervisor_state);
-}
-#else
-static inline void xen_acpi_sleep_register(void)
-{
-}
-#endif
-
 static inline int xen_acpi_get_pxm(acpi_handle h)
 {
 	unsigned long long pxm;
@@ -89,5 +74,20 @@ static inline int xen_acpi_get_pxm(acpi_handle h)
 
 	return -ENXIO;
 }
+
+int xen_acpi_notify_hypervisor_state(u8 sleep_state,
+				     u32 pm1a_cnt, u32 pm1b_cnd);
+
+static inline void xen_acpi_sleep_register(void)
+{
+	if (xen_initial_domain())
+		acpi_os_set_prepare_sleep(
+			&xen_acpi_notify_hypervisor_state);
+}
+#else
+static inline void xen_acpi_sleep_register(void)
+{
+}
+#endif
 
 #endif	/* _XEN_ACPI_H */
