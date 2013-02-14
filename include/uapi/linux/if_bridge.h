@@ -124,8 +124,8 @@ enum {
 #define BRIDGE_VLAN_INFO_UNTAGGED	(1<<2)	/* VLAN egresses untagged */
 
 struct bridge_vlan_info {
-	u16 flags;
-	u16 vid;
+	__u16 flags;
+	__u16 vid;
 };
 
 /* Bridge multicast database attributes
