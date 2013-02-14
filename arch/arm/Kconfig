@@ -725,6 +725,7 @@ config ARCH_SUN4I
 	select ARCH_HAS_CPUFREQ
 	select ARM_L1_CACHE_SHIFT_6
 	select NEED_MACH_IO_H
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
 
@@ -740,6 +741,7 @@ config ARCH_SUN5I
         select ARCH_HAS_CPUFREQ
         select ARM_L1_CACHE_SHIFT_6
 	select NEED_MACH_IO_H
+	select ARCH_WANT_OPTIONAL_GPIOLIB
         help
           This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
 
