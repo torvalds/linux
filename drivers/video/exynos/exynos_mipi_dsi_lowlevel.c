@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/ctype.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 
 #include <video/exynos_mipi_dsim.h>
