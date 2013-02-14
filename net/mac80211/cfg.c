@@ -1261,7 +1261,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
 		u32 changed = 0;
-		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED) {
+		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED &&
+		    (params->sta_modify_mask &
+					STATION_PARAM_APPLY_PLINK_STATE)) {
 			switch (params->plink_state) {
 			case NL80211_PLINK_ESTAB:
 				if (sta->plink_state != NL80211_PLINK_ESTAB)
@@ -1292,12 +1294,18 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				/*  nothing  */
 				break;
 			}
+		} else if (params->sta_modify_mask &
+					STATION_PARAM_APPLY_PLINK_STATE) {
+			return -EINVAL;
 		} else {
 			switch (params->plink_action) {
-			case PLINK_ACTION_OPEN:
+			case NL80211_PLINK_ACTION_NO_ACTION:
+				/* nothing */
+				break;
+			case NL80211_PLINK_ACTION_OPEN:
 				changed |= mesh_plink_open(sta);
 				break;
-			case PLINK_ACTION_BLOCK:
+			case NL80211_PLINK_ACTION_BLOCK:
 				changed |= mesh_plink_block(sta);
 				break;
 			}
