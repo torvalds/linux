@@ -625,6 +625,10 @@
  *	%NL80211_ATTR_RADAR_EVENT is used to inform about the type of the
  *	event.
  *
+ * @NL80211_CMD_GET_PROTOCOL_FEATURES: Get global nl80211 protocol features,
+ *	i.e. features for the nl80211 protocol rather than device features.
+ *	Returns the features in the %NL80211_ATTR_PROTOCOL_FEATURES bitmap.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -778,6 +782,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_MAC_ACL,
 
 	NL80211_CMD_RADAR_DETECT,
+
+	NL80211_CMD_GET_PROTOCOL_FEATURES,
 
 	/* add new commands above here */
 
@@ -1383,6 +1389,13 @@ enum nl80211_commands {
  *	advertised to the driver, e.g., to enable TDLS off channel operations
  *	and PU-APSD.
  *
+ * @NL80211_ATTR_PROTOCOL_FEATURES: global nl80211 feature flags, see
+ *	&enum nl80211_protocol_features, the attribute is a u32.
+ *
+ * @NL80211_ATTR_SPLIT_WIPHY_DUMP: flag attribute, userspace supports
+ *	receiving the data for a single wiphy split across multiple
+ *	messages, given with wiphy dump message
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1668,6 +1681,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_STA_CAPABILITY,
 	NL80211_ATTR_STA_EXT_CAPABILITY,
+
+	NL80211_ATTR_PROTOCOL_FEATURES,
+	NL80211_ATTR_SPLIT_WIPHY_DUMP,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3617,6 +3633,18 @@ enum nl80211_dfs_state {
 	NL80211_DFS_USABLE,
 	NL80211_DFS_UNAVAILABLE,
 	NL80211_DFS_AVAILABLE,
+};
+
+/**
+ * enum enum nl80211_protocol_features - nl80211 protocol features
+ * @NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP: nl80211 supports splitting
+ *	wiphy dumps (if requested by the application with the attribute
+ *	%NL80211_ATTR_SPLIT_WIPHY_DUMP. Also supported is filtering the
+ *	wiphy dump by %NL80211_ATTR_WIPHY, %NL80211_ATTR_IFINDEX or
+ *	%NL80211_ATTR_WDEV.
+ */
+enum nl80211_protocol_features {
+	NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP =	1 << 0,
 };
 
 #endif /* __LINUX_NL80211_H */
