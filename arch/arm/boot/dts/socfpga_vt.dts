@@ -69,7 +69,7 @@
 		};
 
 		ethernet@ff702000 {
-			phy-mode = "gmii";
+			status = "disabled";
 		};
 
 		qspi: spi@ff705000 {
