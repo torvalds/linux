@@ -985,12 +985,12 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 		if (ret)
 			return pcibios_err_to_errno(ret);
 
+		vdev->extended_caps = true;
+
 		if ((word & PCI_EXP_FLAGS_VERS) == 1)
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V1;
-		else {
-			vdev->extended_caps = true;
+		else
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V2;
-		}
 	case PCI_CAP_ID_HT:
 		ret = pci_read_config_byte(pdev, pos + 3, &byte);
 		if (ret)
