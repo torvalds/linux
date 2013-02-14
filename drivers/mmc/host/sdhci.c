@@ -1675,7 +1675,7 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 }
 
 static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
-						int signal_voltage)
+						struct mmc_ios *ios)
 {
 	u16 ctrl;
 	int ret;
@@ -1689,7 +1689,7 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 
 	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 
-	switch (signal_voltage) {
+	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
 		/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
 		ctrl &= ~SDHCI_CTRL_VDD_180;
@@ -1762,7 +1762,7 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 }
 
 static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
-	int signal_voltage)
+	struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	int err;
@@ -1770,7 +1770,7 @@ static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 	if (host->version < SDHCI_SPEC_300)
 		return 0;
 	sdhci_runtime_pm_get(host);
-	err = sdhci_do_start_signal_voltage_switch(host, signal_voltage);
+	err = sdhci_do_start_signal_voltage_switch(host, ios);
 	sdhci_runtime_pm_put(host);
 	return err;
 }
