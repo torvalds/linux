@@ -12,10 +12,10 @@
 #ifndef _ALPS_H
 #define _ALPS_H
 
-#define ALPS_PROTO_V1	0
-#define ALPS_PROTO_V2	1
-#define ALPS_PROTO_V3	2
-#define ALPS_PROTO_V4	3
+#define ALPS_PROTO_V1	1
+#define ALPS_PROTO_V2	2
+#define ALPS_PROTO_V3	3
+#define ALPS_PROTO_V4	4
 
 /**
  * struct alps_model_info - touchpad ID table

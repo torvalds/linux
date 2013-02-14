@@ -1451,12 +1451,34 @@ static int alps_hw_init(struct psmouse *psmouse)
 	return ret;
 }
 
-static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *version)
+static int alps_match_table(struct psmouse *psmouse, struct alps_data *priv,
+			    unsigned char *e7, unsigned char *ec)
 {
-	static const unsigned char rates[] = { 0, 10, 20, 40, 60, 80, 100, 200 };
-	unsigned char param[4];
-	const struct alps_model_info *model = NULL;
+	const struct alps_model_info *model;
 	int i;
+
+	for (i = 0; i < ARRAY_SIZE(alps_model_data); i++) {
+		model = &alps_model_data[i];
+
+		if (!memcmp(e7, model->signature, sizeof(model->signature)) &&
+		    (!model->command_mode_resp ||
+		     model->command_mode_resp == ec[2])) {
+
+			priv->proto_version = model->proto_version;
+			priv->flags = model->flags;
+			priv->byte0 = model->byte0;
+			priv->mask0 = model->mask0;
+
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
+{
+	unsigned char e6[4], e7[4], ec[4];
 
 	/*
 	 * First try "E6 report".
@@ -1464,73 +1486,41 @@ static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int
 	 * The bits 0-2 of the first byte will be 1s if some buttons are
 	 * pressed.
 	 */
-	if (alps_rpt_cmd(psmouse, PSMOUSE_CMD_SETRES, PSMOUSE_CMD_SETSCALE11,
-			 param))
-		return NULL;
+	if (alps_rpt_cmd(psmouse, PSMOUSE_CMD_SETRES,
+			 PSMOUSE_CMD_SETSCALE11, e6))
+		return -EIO;
 
-	if ((param[0] & 0xf8) != 0 || param[1] != 0 ||
-	    (param[2] != 10 && param[2] != 100))
-		return NULL;
+	if ((e6[0] & 0xf8) != 0 || e6[1] != 0 || (e6[2] != 10 && e6[2] != 100))
+		return -EINVAL;
 
 	/*
-	 * Now try "E7 report". Allowed responses are in
-	 * alps_model_data[].signature
+	 * Now get the "E7" and "EC" reports.  These will uniquely identify
+	 * most ALPS touchpads.
 	 */
-	if (alps_rpt_cmd(psmouse, PSMOUSE_CMD_SETRES, PSMOUSE_CMD_SETSCALE21,
-			 param))
-		return NULL;
+	if (alps_rpt_cmd(psmouse, PSMOUSE_CMD_SETRES,
+			 PSMOUSE_CMD_SETSCALE21, e7) ||
+	    alps_rpt_cmd(psmouse, PSMOUSE_CMD_SETRES,
+			 PSMOUSE_CMD_RESET_WRAP, ec) ||
+	    alps_exit_command_mode(psmouse))
+		return -EIO;
 
-	if (version) {
-		for (i = 0; i < ARRAY_SIZE(rates) && param[2] != rates[i]; i++)
-			/* empty */;
-		*version = (param[0] << 8) | (param[1] << 4) | i;
-	}
+	if (alps_match_table(psmouse, priv, e7, ec) == 0)
+		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(alps_model_data); i++) {
-		if (!memcmp(param, alps_model_data[i].signature,
-			    sizeof(alps_model_data[i].signature))) {
-			model = alps_model_data + i;
-			break;
-		}
-	}
+	psmouse_info(psmouse,
+		"Unknown ALPS touchpad: E7=%2.2x %2.2x %2.2x, EC=%2.2x %2.2x %2.2x\n",
+		e7[0], e7[1], e7[2], ec[0], ec[1], ec[2]);
 
-	if (model && model->proto_version > ALPS_PROTO_V2) {
-		/*
-		 * Need to check command mode response to identify
-		 * model
-		 */
-		model = NULL;
-		if (alps_enter_command_mode(psmouse, param)) {
-			psmouse_warn(psmouse,
-				     "touchpad failed to enter command mode\n");
-		} else {
-			for (i = 0; i < ARRAY_SIZE(alps_model_data); i++) {
-				if (alps_model_data[i].proto_version > ALPS_PROTO_V2 &&
-				    alps_model_data[i].command_mode_resp == param[0]) {
-					model = alps_model_data + i;
-					break;
-				}
-			}
-			alps_exit_command_mode(psmouse);
-
-			if (!model)
-				psmouse_dbg(psmouse,
-					    "Unknown command mode response %2.2x\n",
-					    param[0]);
-		}
-	}
-
-	return model;
+	return -EINVAL;
 }
 
 static int alps_reconnect(struct psmouse *psmouse)
 {
-	const struct alps_model_info *model;
+	struct alps_data *priv = psmouse->private;
 
 	psmouse_reset(psmouse);
 
-	model = alps_get_model(psmouse, NULL);
-	if (!model)
+	if (alps_identify(psmouse, priv) < 0)
 		return -1;
 
 	return alps_hw_init(psmouse);
@@ -1549,9 +1539,7 @@ static void alps_disconnect(struct psmouse *psmouse)
 int alps_init(struct psmouse *psmouse)
 {
 	struct alps_data *priv;
-	const struct alps_model_info *model;
 	struct input_dev *dev1 = psmouse->dev, *dev2;
-	int version;
 
 	priv = kzalloc(sizeof(struct alps_data), GFP_KERNEL);
 	dev2 = input_allocate_device();
@@ -1565,14 +1553,8 @@ int alps_init(struct psmouse *psmouse)
 
 	psmouse_reset(psmouse);
 
-	model = alps_get_model(psmouse, &version);
-	if (!model)
+	if (alps_identify(psmouse, priv) < 0)
 		goto init_fail;
-
-	priv->proto_version = model->proto_version;
-	priv->byte0 = model->byte0;
-	priv->mask0 = model->mask0;
-	priv->flags = model->flags;
 
 	if (alps_hw_init(psmouse))
 		goto init_fail;
@@ -1678,18 +1660,16 @@ init_fail:
 
 int alps_detect(struct psmouse *psmouse, bool set_properties)
 {
-	int version;
-	const struct alps_model_info *model;
+	struct alps_data dummy;
 
-	model = alps_get_model(psmouse, &version);
-	if (!model)
+	if (alps_identify(psmouse, &dummy) < 0)
 		return -1;
 
 	if (set_properties) {
 		psmouse->vendor = "ALPS";
-		psmouse->name = model->flags & ALPS_DUALPOINT ?
+		psmouse->name = dummy.flags & ALPS_DUALPOINT ?
 				"DualPoint TouchPad" : "GlidePoint";
-		psmouse->model = version;
+		psmouse->model = dummy.proto_version << 8;
 	}
 	return 0;
 }
