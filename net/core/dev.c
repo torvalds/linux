@@ -3457,7 +3457,7 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 	}
 }
 
-static int __netif_receive_skb(struct sk_buff *skb)
+static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 {
 	struct packet_type *ptype, *pt_prev;
 	rx_handler_func_t *rx_handler;
@@ -3466,23 +3466,10 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	bool deliver_exact = false;
 	int ret = NET_RX_DROP;
 	__be16 type;
-	unsigned long pflags = current->flags;
 
 	net_timestamp_check(!netdev_tstamp_prequeue, skb);
 
 	trace_netif_receive_skb(skb);
-
-	/*
-	 * PFMEMALLOC skbs are special, they should
-	 * - be delivered to SOCK_MEMALLOC sockets only
-	 * - stay away from userspace
-	 * - have bounded memory usage
-	 *
-	 * Use PF_MEMALLOC as this saves us from propagating the allocation
-	 * context down to all allocation sites.
-	 */
-	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
-		current->flags |= PF_MEMALLOC;
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (netpoll_receive_skb(skb))
@@ -3517,7 +3504,7 @@ another_round:
 	}
 #endif
 
-	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
+	if (pfmemalloc)
 		goto skip_taps;
 
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
@@ -3536,8 +3523,7 @@ skip_taps:
 ncls:
 #endif
 
-	if (sk_memalloc_socks() && skb_pfmemalloc(skb)
-				&& !skb_pfmemalloc_protocol(skb))
+	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;
 
 	if (vlan_tx_tag_present(skb)) {
@@ -3607,7 +3593,31 @@ drop:
 unlock:
 	rcu_read_unlock();
 out:
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	return ret;
+}
+
+static int __netif_receive_skb(struct sk_buff *skb)
+{
+	int ret;
+
+	if (sk_memalloc_socks() && skb_pfmemalloc(skb)) {
+		unsigned long pflags = current->flags;
+
+		/*
+		 * PFMEMALLOC skbs are special, they should
+		 * - be delivered to SOCK_MEMALLOC sockets only
+		 * - stay away from userspace
+		 * - have bounded memory usage
+		 *
+		 * Use PF_MEMALLOC as this saves us from propagating the allocation
+		 * context down to all allocation sites.
+		 */
+		current->flags |= PF_MEMALLOC;
+		ret = __netif_receive_skb_core(skb, true);
+		tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	} else
+		ret = __netif_receive_skb_core(skb, false);
+
 	return ret;
 }
 
