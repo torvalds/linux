@@ -335,7 +335,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	void *p;
 	size_t msg_size = sizeof(*head) + num_op*sizeof(*op);
 	int flags = req->r_flags;
-	u64 data_len = 0;
+	u64 data_len;
 	int i;
 
 	WARN_ON((flags & (CEPH_OSD_FLAG_READ|CEPH_OSD_FLAG_WRITE)) == 0);
@@ -363,8 +363,6 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	while (num_op--)
 		osd_req_encode_op(req, op++, src_op++);
 
-	data_len += req->r_trail.length;
-
 	if (snapc) {
 		head->snap_seq = cpu_to_le64(snapc->seq);
 		head->num_snaps = cpu_to_le32(snapc->num_snaps);
@@ -374,14 +372,12 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 		}
 	}
 
+	data_len = req->r_trail.length;
 	if (flags & CEPH_OSD_FLAG_WRITE) {
 		req->r_request->hdr.data_off = cpu_to_le16(off);
-		req->r_request->hdr.data_len = cpu_to_le32(len + data_len);
-	} else if (data_len) {
-		req->r_request->hdr.data_off = 0;
-		req->r_request->hdr.data_len = cpu_to_le32(data_len);
+		data_len += len;
 	}
-
+	req->r_request->hdr.data_len = cpu_to_le32(data_len);
 	req->r_request->page_alignment = req->r_page_alignment;
 
 	BUG_ON(p > msg->front.iov_base + msg->front.iov_len);
