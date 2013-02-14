@@ -862,8 +862,6 @@ static void __init fill_pmd_gaps(void)
 #if defined(CONFIG_PCI) && !defined(CONFIG_NEED_MACH_IO_H)
 static void __init pci_reserve_io(void)
 {
-	struct vm_struct *vm;
-	unsigned long addr;
 	struct static_vm *svm;
 
 	svm = find_static_vm_vaddr((void *)PCI_IO_VIRT_BASE);
