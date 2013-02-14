@@ -620,13 +620,11 @@ static struct platform_device *pdev0, *pdev1;
 static const struct platform_device_info edma_dev_info0 = {
 	.name = "edma-dma-engine",
 	.id = 0,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct platform_device_info edma_dev_info1 = {
 	.name = "edma-dma-engine",
 	.id = 1,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static int edma_init(void)
@@ -640,6 +638,8 @@ static int edma_init(void)
 			ret = PTR_ERR(pdev0);
 			goto out;
 		}
+		pdev0->dev.dma_mask = &pdev0->dev.coherent_dma_mask;
+		pdev0->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	}
 
 	if (EDMA_CTLRS == 2) {
@@ -649,6 +649,8 @@ static int edma_init(void)
 			platform_device_unregister(pdev0);
 			ret = PTR_ERR(pdev1);
 		}
+		pdev1->dev.dma_mask = &pdev1->dev.coherent_dma_mask;
+		pdev1->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	}
 
 out:
