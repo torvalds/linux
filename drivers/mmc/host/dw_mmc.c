@@ -2144,6 +2144,11 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		pdata->bus_hz = 50000000;
 	}
 
+	if (of_property_read_u32(dev->of_node, "pwr-en", &pdata->pwr_en)) {
+		dev_info(dev, "couldn't determine pwr-en, assuming pwr-en = 0\n");
+		pdata->pwr_en = 0;
+	}
+
 	/* find out number of slots supported */
 	if (of_property_read_u32(dev->of_node, "num-slots",
 				&pdata->num_slots)) {
@@ -2293,6 +2298,9 @@ int dw_mci_probe(struct dw_mci *host)
 	/* Clear the interrupts for the host controller */
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
+
+	/* Set PWREN bit */
+	mci_writel(host, PWREN, host->pdata->pwr_en);
 
 	/* Put in max timeout */
 	mci_writel(host, TMOUT, 0xFFFFFFFF);

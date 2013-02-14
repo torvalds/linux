@@ -55,6 +55,8 @@ Optional properties:
 
 * broken-cd: as documented in mmc core bindings.
 
+* pwr-en: Card needs power from controller. 0 or 1
+
 Aliases:
 
 - All the MSHC controller nodes should be represented in the aliases node using
