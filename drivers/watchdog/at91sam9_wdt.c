@@ -56,7 +56,7 @@
 
 /* User land timeout */
 #define WDT_HEARTBEAT 15
-static int heartbeat = WDT_HEARTBEAT;
+static int heartbeat;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
 	"(default = " __MODULE_STRING(WDT_HEARTBEAT) ")");
@@ -176,6 +176,7 @@ static const struct watchdog_ops at91_wdt_ops = {
 static struct watchdog_device at91_wdt_dev = {
 	.info =		&at91_wdt_info,
 	.ops =		&at91_wdt_ops,
+	.timeout =	WDT_HEARTBEAT,
 	.min_timeout =	1,
 	.max_timeout =	0xFFFF,
 };
@@ -194,8 +195,8 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	at91_wdt_dev.timeout = heartbeat;
 	at91_wdt_dev.parent = &pdev->dev;
+	watchdog_init_timeout(&at91_wdt_dev, heartbeat, &pdev->dev);
 	watchdog_set_nowayout(&at91_wdt_dev, nowayout);
 
 	/* Set watchdog */
@@ -212,7 +213,7 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	mod_timer(&at91wdt_private.timer, jiffies + WDT_TIMEOUT);
 
 	pr_info("enabled (heartbeat=%d sec, nowayout=%d)\n",
-		heartbeat, nowayout);
+		at91_wdt_dev.timeout, nowayout);
 
 	return 0;
 }
