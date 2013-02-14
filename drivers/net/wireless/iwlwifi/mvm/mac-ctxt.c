@@ -651,6 +651,13 @@ static int iwl_mvm_mac_ctxt_cmd_station(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
+	/* Allow beacons to pass through as long as we are not associated,or we
+	 * do not have dtim period information */
+	if (!vif->bss_conf.assoc || !vif->bss_conf.dtim_period)
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+	else
+		cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
+
 	/* Fill the data specific for station mode */
 	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta);
 
@@ -714,7 +721,9 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	cmd.protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT);
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROMISC);
+
+	/* Override the filter flags to accept only probe requests */
+	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	/*
 	 * This flag should be set to true when the P2P Device is
@@ -880,6 +889,9 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
+
+	/* Also enable probe requests to pass */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	/* Fill the data specific for ap mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap);
