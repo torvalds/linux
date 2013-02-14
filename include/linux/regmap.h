@@ -299,9 +299,9 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
-struct regmap *regmap_init_mmio(struct device *dev,
-				void __iomem *regs,
-				const struct regmap_config *config);
+struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+				    void __iomem *regs,
+				    const struct regmap_config *config);
 
 struct regmap *devm_regmap_init(struct device *dev,
 				const struct regmap_bus *bus,
@@ -311,9 +311,44 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config);
 struct regmap *devm_regmap_init_spi(struct spi_device *dev,
 				    const struct regmap_config *config);
-struct regmap *devm_regmap_init_mmio(struct device *dev,
-				     void __iomem *regs,
-				     const struct regmap_config *config);
+struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+					 void __iomem *regs,
+					 const struct regmap_config *config);
+
+/**
+ * regmap_init_mmio(): Initialise register map
+ *
+ * @dev: Device that will be interacted with
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+static inline struct regmap *regmap_init_mmio(struct device *dev,
+					void __iomem *regs,
+					const struct regmap_config *config)
+{
+	return regmap_init_mmio_clk(dev, NULL, regs, config);
+}
+
+/**
+ * devm_regmap_init_mmio(): Initialise managed register map
+ *
+ * @dev: Device that will be interacted with
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+static inline struct regmap *devm_regmap_init_mmio(struct device *dev,
+					void __iomem *regs,
+					const struct regmap_config *config)
+{
+	return devm_regmap_init_mmio_clk(dev, NULL, regs, config);
+}
 
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
