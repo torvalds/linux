@@ -24,6 +24,7 @@
  * 02110-1301 USA
  */
 #include <linux/kernel.h>
+#include <linux/errno.h>
 
 #include <sound/aess.h>
 
