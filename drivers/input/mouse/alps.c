@@ -1190,13 +1190,9 @@ static int alps_absolute_mode_v3(struct psmouse *psmouse)
 
 static int alps_hw_init_v3(struct psmouse *psmouse)
 {
-	struct alps_data *priv = psmouse->private;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	int reg_val;
 	unsigned char param[4];
-
-	priv->nibble_commands = alps_v3_nibble_commands;
-	priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
 
 	if (alps_enter_command_mode(psmouse, NULL))
 		goto error;
@@ -1343,12 +1339,8 @@ static int alps_absolute_mode_v4(struct psmouse *psmouse)
 
 static int alps_hw_init_v4(struct psmouse *psmouse)
 {
-	struct alps_data *priv = psmouse->private;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
-
-	priv->nibble_commands = alps_v4_nibble_commands;
-	priv->addr_command = PSMOUSE_CMD_DISABLE;
 
 	if (alps_enter_command_mode(psmouse, NULL))
 		goto error;
@@ -1431,11 +1423,15 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->hw_init = alps_hw_init_v3;
 		priv->process_packet = alps_process_packet_v3;
 		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->nibble_commands = alps_v3_nibble_commands;
+		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
 		break;
 	case ALPS_PROTO_V4:
 		priv->hw_init = alps_hw_init_v4;
 		priv->process_packet = alps_process_packet_v4;
 		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->nibble_commands = alps_v4_nibble_commands;
+		priv->addr_command = PSMOUSE_CMD_DISABLE;
 		break;
 	}
 }
