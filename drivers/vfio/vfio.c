@@ -642,33 +642,16 @@ int vfio_add_group_dev(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(vfio_add_group_dev);
 
-/* Test whether a struct device is present in our tracking */
-static bool vfio_dev_present(struct device *dev)
+/* Given a referenced group, check if it contains the device */
+static bool vfio_dev_present(struct vfio_group *group, struct device *dev)
 {
-	struct iommu_group *iommu_group;
-	struct vfio_group *group;
 	struct vfio_device *device;
 
-	iommu_group = iommu_group_get(dev);
-	if (!iommu_group)
-		return false;
-
-	group = vfio_group_get_from_iommu(iommu_group);
-	if (!group) {
-		iommu_group_put(iommu_group);
-		return false;
-	}
-
 	device = vfio_group_get_device(group, dev);
-	if (!device) {
-		vfio_group_put(group);
-		iommu_group_put(iommu_group);
+	if (!device)
 		return false;
-	}
 
 	vfio_device_put(device);
-	vfio_group_put(group);
-	iommu_group_put(iommu_group);
 	return true;
 }
 
@@ -682,10 +665,18 @@ void *vfio_del_group_dev(struct device *dev)
 	struct iommu_group *iommu_group = group->iommu_group;
 	void *device_data = device->device_data;
 
+	/*
+	 * The group exists so long as we have a device reference.  Get
+	 * a group reference and use it to scan for the device going away.
+	 */
+	vfio_group_get(group);
+
 	vfio_device_put(device);
 
 	/* TODO send a signal to encourage this to be released */
-	wait_event(vfio.release_q, !vfio_dev_present(dev));
+	wait_event(vfio.release_q, !vfio_dev_present(group, dev));
+
+	vfio_group_put(group);
 
 	iommu_group_put(iommu_group);
 
