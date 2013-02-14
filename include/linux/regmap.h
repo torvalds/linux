@@ -235,14 +235,21 @@ struct regmap_range_cfg {
 	unsigned int window_len;
 };
 
+struct regmap_async;
+
 typedef int (*regmap_hw_write)(void *context, const void *data,
 			       size_t count);
 typedef int (*regmap_hw_gather_write)(void *context,
 				      const void *reg, size_t reg_len,
 				      const void *val, size_t val_len);
+typedef int (*regmap_hw_async_write)(void *context,
+				     const void *reg, size_t reg_len,
+				     const void *val, size_t val_len,
+				     struct regmap_async *async);
 typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef struct regmap_async *(*regmap_hw_async_alloc)(void);
 typedef void (*regmap_hw_free_context)(void *context);
 
 /**
@@ -255,8 +262,11 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
+ * @async_write: Write operation which completes asynchronously, optional and
+ *               must serialise with respect to non-async I/O.
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
+ * @async_alloc: Allocate a regmap_async() structure.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
  * @reg_format_endian_default: Default endianness for formatted register
@@ -265,13 +275,16 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @val_format_endian_default: Default endianness for formatted register
  *     values. Used when the regmap_config specifies DEFAULT. If this is
  *     DEFAULT, BIG is assumed.
+ * @async_size: Size of struct used for async work.
  */
 struct regmap_bus {
 	bool fast_io;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
+	regmap_hw_async_write async_write;
 	regmap_hw_read read;
 	regmap_hw_free_context free_context;
+	regmap_hw_async_alloc async_alloc;
 	u8 read_flag_mask;
 	enum regmap_endian reg_format_endian_default;
 	enum regmap_endian val_format_endian_default;
@@ -310,6 +323,8 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
+int regmap_raw_write_async(struct regmap *map, unsigned int reg,
+			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
@@ -321,6 +336,7 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change);
 int regmap_get_val_bytes(struct regmap *map);
+int regmap_async_complete(struct regmap *map);
 
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
@@ -422,6 +438,13 @@ static inline int regmap_raw_write(struct regmap *map, unsigned int reg,
 	return -EINVAL;
 }
 
+static inline int regmap_raw_write_async(struct regmap *map, unsigned int reg,
+					 const void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
 static inline int regmap_bulk_write(struct regmap *map, unsigned int reg,
 				    const void *val, size_t val_count)
 {
@@ -496,6 +519,11 @@ static inline void regcache_cache_bypass(struct regmap *map, bool enable)
 }
 
 static inline void regcache_mark_dirty(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regmap_async_complete(struct regmap *map)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 }
