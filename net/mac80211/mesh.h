@@ -239,10 +239,13 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 		struct sta_info *sta, struct sk_buff *skb);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
-void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
+int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
 const struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
+/* wrapper for ieee80211_bss_info_change_notify() */
+void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+				       u32 changed);
 
 /* mesh power save */
 u32 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata);

@@ -580,6 +580,9 @@ struct ieee80211_if_mesh {
 	u32 mesh_seqnum;
 	bool accepting_plinks;
 	int num_gates;
+	struct beacon_data __rcu *beacon;
+	/* just protects beacon updates for now */
+	struct mutex mtx;
 	const u8 *ie;
 	u8 ie_len;
 	enum {
