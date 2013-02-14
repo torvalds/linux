@@ -261,7 +261,8 @@ config MMU
 #
 choice
 	prompt "ARM system type"
-	default ARCH_MULTIPLATFORM
+	default ARCH_VERSATILE if !MMU
+	default ARCH_MULTIPLATFORM if MMU
 
 config ARCH_MULTIPLATFORM
 	bool "Allow multiple platforms to be selected"
