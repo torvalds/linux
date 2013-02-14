@@ -1013,8 +1013,8 @@ static int alps_rpt_cmd(struct psmouse *psmouse, int init_command,
 	if (ps2_command(ps2dev, param, PSMOUSE_CMD_GETINFO))
 		return -EIO;
 
-	psmouse_dbg(psmouse, "%2.2X report: %2.2x %2.2x %2.2x\n",
-		    repeated_command, param[0], param[1], param[2]);
+	psmouse_dbg(psmouse, "%2.2X report: %3ph\n",
+		    repeated_command, param);
 	return 0;
 }
 
@@ -1274,9 +1274,7 @@ static int alps_setup_trackstick_v3(struct psmouse *psmouse, int reg_base)
 		psmouse_warn(psmouse, "trackstick E7 report failed\n");
 		ret = -ENODEV;
 	} else {
-		psmouse_dbg(psmouse,
-			    "trackstick E7 report: %2.2x %2.2x %2.2x\n",
-			    param[0], param[1], param[2]);
+		psmouse_dbg(psmouse, "trackstick E7 report: %3ph\n", param);
 
 		/*
 		 * Not sure what this does, but it is absolutely
@@ -1323,6 +1321,7 @@ static int alps_hw_init_v3(struct psmouse *psmouse)
 	reg_val = alps_probe_trackstick_v3(psmouse, ALPS_REG_BASE_PINNACLE);
 	if (reg_val == -EIO)
 		goto error;
+
 	if (reg_val == 0 &&
 	    alps_setup_trackstick_v3(psmouse, ALPS_REG_BASE_PINNACLE) == -EIO)
 		goto error;
@@ -1676,8 +1675,7 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 	}
 
 	psmouse_info(psmouse,
-		"Unknown ALPS touchpad: E7=%2.2x %2.2x %2.2x, EC=%2.2x %2.2x %2.2x\n",
-		e7[0], e7[1], e7[2], ec[0], ec[1], ec[2]);
+		     "Unknown ALPS touchpad: E7=%3ph, EC=%3ph\n", e7, ec);
 
 	return -EINVAL;
 }
