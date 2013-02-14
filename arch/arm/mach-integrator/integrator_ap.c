@@ -94,7 +94,7 @@ void __iomem *ap_syscon_base;
  * f1b00000	1b000000	GPIO
  */
 
-static struct map_desc ap_io_desc[] __initdata = {
+static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	{
 		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),

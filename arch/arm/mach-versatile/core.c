@@ -114,7 +114,7 @@ void __init versatile_init_irq(void)
 	writel(PIC_MASK, VA_SIC_BASE + SIC_INT_PIC_ENABLE);
 }
 
-static struct map_desc versatile_io_desc[] __initdata = {
+static struct map_desc versatile_io_desc[] __initdata __maybe_unused = {
 	{
 		.virtual	=  IO_ADDRESS(VERSATILE_SYS_BASE),
 		.pfn		= __phys_to_pfn(VERSATILE_SYS_BASE),

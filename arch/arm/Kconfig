@@ -261,7 +261,8 @@ config MMU
 #
 choice
 	prompt "ARM system type"
-	default ARCH_MULTIPLATFORM
+	default ARCH_VERSATILE if !MMU
+	default ARCH_MULTIPLATFORM if MMU
 
 config ARCH_MULTIPLATFORM
 	bool "Allow multiple platforms to be selected"
@@ -1449,6 +1450,10 @@ config ISA
 config ISA_DMA
 	bool
 	select ISA_DMA_API
+
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+	depends on !ARCH_RPC && !ARCH_NETWINDER && !ARCH_SHARK
 
 # Select ISA DMA interface
 config ISA_DMA_API
