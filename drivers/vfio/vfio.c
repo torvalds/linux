@@ -442,7 +442,7 @@ static struct vfio_device *vfio_group_get_device(struct vfio_group *group,
  * a device.  It's not always practical to leave a device within a group
  * driverless as it could get re-bound to something unsafe.
  */
-static const char * const vfio_driver_whitelist[] = { "pci-stub" };
+static const char * const vfio_driver_whitelist[] = { "pci-stub", "pcieport" };
 
 static bool vfio_whitelisted_driver(struct device_driver *drv)
 {
