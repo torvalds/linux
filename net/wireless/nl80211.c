@@ -3359,20 +3359,12 @@ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] __read_mostly = {
 	[NL80211_STA_WME_MAX_SP] = { .type = NLA_U8 },
 };
 
-static int nl80211_set_station_tdls(struct genl_info *info,
-				    struct station_parameters *params)
+static int nl80211_parse_sta_wme(struct genl_info *info,
+				 struct station_parameters *params)
 {
 	struct nlattr *tb[NL80211_STA_WME_MAX + 1];
 	struct nlattr *nla;
 	int err;
-
-	/* Dummy STA entry gets updated once the peer capabilities are known */
-	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
-		params->ht_capa =
-			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
-	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY])
-		params->vht_capa =
-			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
 
 	/* parse WME attributes if present */
 	if (!info->attrs[NL80211_ATTR_STA_WME])
@@ -3399,6 +3391,20 @@ static int nl80211_set_station_tdls(struct genl_info *info,
 	params->sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
 
 	return 0;
+}
+
+static int nl80211_set_station_tdls(struct genl_info *info,
+				    struct station_parameters *params)
+{
+	/* Dummy STA entry gets updated once the peer capabilities are known */
+	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		params->ht_capa =
+			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
+	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY])
+		params->vht_capa =
+			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
+
+	return nl80211_parse_sta_wme(info, params);
 }
 
 static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
@@ -3674,30 +3680,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	if (info->attrs[NL80211_ATTR_STA_WME]) {
-		struct nlattr *tb[NL80211_STA_WME_MAX + 1];
-		struct nlattr *nla;
-
-		nla = info->attrs[NL80211_ATTR_STA_WME];
-		err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
-				       nl80211_sta_wme_policy);
-		if (err)
-			return err;
-
-		if (tb[NL80211_STA_WME_UAPSD_QUEUES])
-			params.uapsd_queues =
-			     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
-		if (params.uapsd_queues & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
-			return -EINVAL;
-
-		if (tb[NL80211_STA_WME_MAX_SP])
-			params.max_sp = nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
-
-		if (params.max_sp & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
-			return -EINVAL;
-
-		params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
-	}
+	err = nl80211_parse_sta_wme(info, &params);
+	if (err)
+		return err;
 
 	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
