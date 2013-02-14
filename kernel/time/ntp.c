@@ -511,13 +511,17 @@ static void sync_cmos_clock(struct work_struct *work)
 
 	getnstimeofday(&now);
 	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2) {
+		struct timespec adjust = now;
+
 		fail = -ENODEV;
+		if (persistent_clock_is_local)
+			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-		fail = update_persistent_clock(now);
+		fail = update_persistent_clock(adjust);
 #endif
 #ifdef CONFIG_RTC_SYSTOHC
 		if (fail == -ENODEV)
-			fail = rtc_set_ntp_time(now);
+			fail = rtc_set_ntp_time(adjust);
 #endif
 	}
 
