@@ -47,8 +47,8 @@ int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
 void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
 		      unsigned long value);
-int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
-			struct pinmux_data_reg **drp, int *bitp);
+void sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
+			 struct pinmux_data_reg **drp, int *bitp);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 		      int cfg_mode);
 

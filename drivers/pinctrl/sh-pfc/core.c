@@ -89,12 +89,6 @@ static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 	return 1;
 }
 
-static bool sh_pfc_gpio_is_pin(struct sh_pfc *pfc, unsigned int gpio)
-{
-	return (gpio < pfc->info->nr_pins) &&
-	       (pfc->info->pins[gpio].enum_id != 0);
-}
-
 static unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 					 unsigned long reg_width)
 {
@@ -226,14 +220,11 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 	sh_pfc_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
-static int sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
+static void sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
 {
 	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
 	struct pinmux_data_reg *data_reg;
 	int k, n;
-
-	if (!sh_pfc_gpio_is_pin(pfc, gpio))
-		return -1;
 
 	k = 0;
 	while (1) {
@@ -250,15 +241,13 @@ static int sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
 				gpiop->flags |= (k << PINMUX_FLAG_DREG_SHIFT);
 				gpiop->flags &= ~PINMUX_FLAG_DBIT;
 				gpiop->flags |= (n << PINMUX_FLAG_DBIT_SHIFT);
-				return 0;
+				return;
 			}
 		}
 		k++;
 	}
 
 	BUG();
-
-	return -1;
 }
 
 static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
@@ -266,8 +255,12 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 	struct pinmux_data_reg *drp;
 	int k;
 
-	for (k = 0; k < pfc->info->nr_pins; k++)
+	for (k = 0; k < pfc->info->nr_pins; k++) {
+		if (pfc->info->pins[k].enum_id == 0)
+			continue;
+
 		sh_pfc_setup_data_reg(pfc, k);
+	}
 
 	k = 0;
 	while (1) {
@@ -282,20 +275,16 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 	}
 }
 
-int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
-			struct pinmux_data_reg **drp, int *bitp)
+void sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
+			 struct pinmux_data_reg **drp, int *bitp)
 {
 	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
 	int k, n;
-
-	if (!sh_pfc_gpio_is_pin(pfc, gpio))
-		return -1;
 
 	k = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
 	n = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
 	*drp = pfc->info->data_regs + k;
 	*bitp = n;
-	return 0;
 }
 
 static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
