@@ -389,6 +389,7 @@ static void __init omap_common_late_init(void)
 {
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
+	omap_soc_device_init();
 }
 
 #ifdef CONFIG_SOC_OMAP2420

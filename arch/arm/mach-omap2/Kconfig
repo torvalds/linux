@@ -15,6 +15,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_DM_TIMER
 	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
+	select SOC_BUS
 	select SPARSE_IRQ
 	select USE_OF
 	help
