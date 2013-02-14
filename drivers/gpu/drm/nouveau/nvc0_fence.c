@@ -81,37 +81,10 @@ nvc0_fence_context_new(struct nouveau_channel *chan)
 int
 nvc0_fence_create(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
-	struct nv84_fence_priv *priv;
-	int ret;
-
-	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->base.dtor = nv84_fence_destroy;
-	priv->base.suspend = nv84_fence_suspend;
-	priv->base.resume = nv84_fence_resume;
-	priv->base.context_new = nvc0_fence_context_new;
-	priv->base.context_del = nv84_fence_context_del;
-
-	init_waitqueue_head(&priv->base.waiting);
-	priv->base.uevent = true;
-
-	ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
-			     TTM_PL_FLAG_VRAM, 0, 0, NULL, &priv->bo);
+	int ret = nv84_fence_create(drm);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
-		if (ret == 0) {
-			ret = nouveau_bo_map(priv->bo);
-			if (ret)
-				nouveau_bo_unpin(priv->bo);
-		}
-		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+		struct nv84_fence_priv *priv = drm->fence;
+		priv->base.context_new = nvc0_fence_context_new;
 	}
-
-	if (ret)
-		nv84_fence_destroy(drm);
 	return ret;
 }

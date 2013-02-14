@@ -787,7 +787,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, false, &fence);
 	if (ret) {
 		NV_ERROR(cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);

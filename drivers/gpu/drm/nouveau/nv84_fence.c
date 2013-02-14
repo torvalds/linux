@@ -76,27 +76,39 @@ nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	return ret;
 }
 
-int
+static int
 nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
 	struct nouveau_fifo_chan *fifo = (void *)chan->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
+	u64 addr = fifo->chid * 16;
+
+	if (fence->sysmem)
+		addr += fctx->vma_gart.offset;
+	else
+		addr += fctx->vma.offset;
+
 	return fctx->base.emit32(chan, addr, fence->sequence);
 }
 
-int
+static int
 nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
 	struct nouveau_fifo_chan *fifo = (void *)prev->object;
-	u64 addr = fctx->vma.offset + fifo->chid * 16;
+	u64 addr = fifo->chid * 16;
+
+	if (fence->sysmem)
+		addr += fctx->vma_gart.offset;
+	else
+		addr += fctx->vma.offset;
+
 	return fctx->base.sync32(chan, addr, fence->sequence);
 }
 
-u32
+static u32
 nv84_fence_read(struct nouveau_channel *chan)
 {
 	struct nouveau_fifo_chan *fifo = (void *)chan->object;
@@ -104,7 +116,7 @@ nv84_fence_read(struct nouveau_channel *chan)
 	return nouveau_bo_rd32(priv->bo, fifo->chid * 16/4);
 }
 
-void
+static void
 nv84_fence_context_del(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->drm->dev;
@@ -117,6 +129,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 		nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 	}
 
+	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
@@ -144,8 +157,10 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sync32 = nv84_fence_sync32;
 
 	ret = nouveau_bo_vma_add(priv->bo, client->vm, &fctx->vma);
-	if (ret)
-		nv84_fence_context_del(chan);
+	if (ret == 0) {
+		ret = nouveau_bo_vma_add(priv->bo_gart, client->vm,
+					&fctx->vma_gart);
+	}
 
 	/* map display semaphore buffers into channel's vm */
 	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
@@ -154,10 +169,13 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	}
 
 	nouveau_bo_wr32(priv->bo, fifo->chid * 16/4, 0x00000000);
+
+	if (ret)
+		nv84_fence_context_del(chan);
 	return ret;
 }
 
-bool
+static bool
 nv84_fence_suspend(struct nouveau_drm *drm)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
@@ -173,7 +191,7 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 	return priv->suspend != NULL;
 }
 
-void
+static void
 nv84_fence_resume(struct nouveau_drm *drm)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
@@ -188,10 +206,14 @@ nv84_fence_resume(struct nouveau_drm *drm)
 	}
 }
 
-void
+static void
 nv84_fence_destroy(struct nouveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
+	nouveau_bo_unmap(priv->bo_gart);
+	if (priv->bo_gart)
+		nouveau_bo_unpin(priv->bo_gart);
+	nouveau_bo_ref(NULL, &priv->bo_gart);
 	nouveau_bo_unmap(priv->bo);
 	if (priv->bo)
 		nouveau_bo_unpin(priv->bo);
@@ -231,6 +253,21 @@ nv84_fence_create(struct nouveau_drm *drm)
 		}
 		if (ret)
 			nouveau_bo_ref(NULL, &priv->bo);
+	}
+
+	if (ret == 0)
+		ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
+				     TTM_PL_FLAG_TT, 0, 0, NULL,
+				     &priv->bo_gart);
+	if (ret == 0) {
+		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT);
+		if (ret == 0) {
+			ret = nouveau_bo_map(priv->bo_gart);
+			if (ret)
+				nouveau_bo_unpin(priv->bo_gart);
+		}
+		if (ret)
+			nouveau_bo_ref(NULL, &priv->bo_gart);
 	}
 
 	if (ret)

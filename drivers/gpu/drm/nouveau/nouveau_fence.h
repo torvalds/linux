@@ -7,15 +7,15 @@ struct nouveau_fence {
 	struct list_head head;
 	struct kref kref;
 
+	bool sysmem;
+
 	struct nouveau_channel *channel;
 	unsigned long timeout;
 	u32 sequence;
-
-	void (*work)(void *priv, bool signalled);
-	void *priv;
 };
 
-int  nouveau_fence_new(struct nouveau_channel *, struct nouveau_fence **);
+int  nouveau_fence_new(struct nouveau_channel *, bool sysmem,
+		       struct nouveau_fence **);
 struct nouveau_fence *
 nouveau_fence_ref(struct nouveau_fence *);
 void nouveau_fence_unref(struct nouveau_fence **);
@@ -79,24 +79,18 @@ int nouveau_flip_complete(void *chan);
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
 	struct nouveau_vma vma;
+	struct nouveau_vma vma_gart;
 	struct nouveau_vma dispc_vma[4];
 };
 
 struct nv84_fence_priv {
 	struct nouveau_fence_priv base;
 	struct nouveau_bo *bo;
+	struct nouveau_bo *bo_gart;
 	u32 *suspend;
 };
 
 u64  nv84_fence_crtc(struct nouveau_channel *, int);
-int  nv84_fence_emit(struct nouveau_fence *);
-int  nv84_fence_sync(struct nouveau_fence *, struct nouveau_channel *,
-		     struct nouveau_channel *);
-u32  nv84_fence_read(struct nouveau_channel *);
 int  nv84_fence_context_new(struct nouveau_channel *);
-void nv84_fence_context_del(struct nouveau_channel *);
-bool nv84_fence_suspend(struct nouveau_drm *);
-void nv84_fence_resume(struct nouveau_drm *);
-void nv84_fence_destroy(struct nouveau_drm *);
 
 #endif

@@ -41,8 +41,6 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 	struct nouveau_fence *fence, *fnext;
 	spin_lock(&fctx->lock);
 	list_for_each_entry_safe(fence, fnext, &fctx->pending, head) {
-		if (fence->work)
-			fence->work(fence->priv, false);
 		fence->channel = NULL;
 		list_del(&fence->head);
 		nouveau_fence_unref(&fence);
@@ -69,8 +67,6 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		if (fctx->read(chan) < fence->sequence)
 			break;
 
-		if (fence->work)
-			fence->work(fence->priv, true);
 		fence->channel = NULL;
 		list_del(&fence->head);
 		nouveau_fence_unref(&fence);
@@ -256,7 +252,8 @@ nouveau_fence_ref(struct nouveau_fence *fence)
 }
 
 int
-nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
+nouveau_fence_new(struct nouveau_channel *chan, bool sysmem,
+		  struct nouveau_fence **pfence)
 {
 	struct nouveau_fence *fence;
 	int ret = 0;
@@ -267,6 +264,8 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
 		return -ENOMEM;
+
+	fence->sysmem = sysmem;
 	kref_init(&fence->kref);
 
 	ret = nouveau_fence_emit(fence, chan);
