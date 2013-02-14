@@ -2413,6 +2413,7 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 			return ERR_PTR(err);
 	}
 
+	SKB_GSO_CB(skb)->mac_offset = skb_headroom(skb);
 	skb_reset_mac_header(skb);
 	skb_reset_mac_len(skb);
 

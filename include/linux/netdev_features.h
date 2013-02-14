@@ -41,7 +41,7 @@ enum {
 	NETIF_F_TSO_ECN_BIT,		/* ... TCP ECN support */
 	NETIF_F_TSO6_BIT,		/* ... TCPv6 segmentation */
 	NETIF_F_FSO_BIT,		/* ... FCoE segmentation */
-	NETIF_F_GSO_RESERVED1,		/* ... free (fill GSO_MASK to 8 bits) */
+	NETIF_F_GSO_GRE_BIT,		/* ... GRE with TSO */
 	/**/NETIF_F_GSO_LAST,		/* [can't be last bit, see GSO_MASK] */
 	NETIF_F_GSO_RESERVED2		/* ... free (fill GSO_MASK to 8 bits) */
 		= NETIF_F_GSO_LAST,
@@ -102,6 +102,7 @@ enum {
 #define NETIF_F_VLAN_CHALLENGED	__NETIF_F(VLAN_CHALLENGED)
 #define NETIF_F_RXFCS		__NETIF_F(RXFCS)
 #define NETIF_F_RXALL		__NETIF_F(RXALL)
+#define NETIF_F_GRE_GSO		__NETIF_F(GSO_GRE)
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */
