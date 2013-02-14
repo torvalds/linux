@@ -3872,7 +3872,7 @@ void i915_gem_l3_remap(struct drm_device *dev)
 	u32 misccpctl;
 	int i;
 
-	if (!IS_IVYBRIDGE(dev))
+	if (!HAS_L3_GPU_CACHE(dev))
 		return;
 
 	if (!dev_priv->l3_parity.remap_info)
