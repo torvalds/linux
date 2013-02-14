@@ -658,7 +658,7 @@ enum station_parameters_apply_mask {
  * @ext_capab_len: number of extended capabilities
  */
 struct station_parameters {
-	u8 *supported_rates;
+	const u8 *supported_rates;
 	struct net_device *vlan;
 	u32 sta_flags_mask, sta_flags_set;
 	u32 sta_modify_mask;
@@ -667,13 +667,13 @@ struct station_parameters {
 	u8 supported_rates_len;
 	u8 plink_action;
 	u8 plink_state;
-	struct ieee80211_ht_cap *ht_capa;
-	struct ieee80211_vht_cap *vht_capa;
+	const struct ieee80211_ht_cap *ht_capa;
+	const struct ieee80211_vht_cap *vht_capa;
 	u8 uapsd_queues;
 	u8 max_sp;
 	enum nl80211_mesh_power_mode local_pm;
 	u16 capability;
-	u8 *ext_capab;
+	const u8 *ext_capab;
 	u8 ext_capab_len;
 };
 
