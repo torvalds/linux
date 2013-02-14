@@ -302,8 +302,10 @@ nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
 
 /*
  * Try to find an entry matching the current call in the cache. When none
- * is found, we grab the oldest unlocked entry off the LRU list.
- * Note that no operation within the loop may sleep.
+ * is found, we try to grab the oldest expired entry off the LRU list. If
+ * a suitable one isn't there, then drop the cache_lock and allocate a
+ * new one, then search again in case one got inserted while this thread
+ * didn't hold the lock.
  */
 int
 nfsd_cache_lookup(struct svc_rqst *rqstp)
@@ -344,6 +346,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		}
 	}
 
+	/* Drop the lock and allocate a new entry */
 	spin_unlock(&cache_lock);
 	rp = nfsd_reply_cache_alloc();
 	if (!rp) {
