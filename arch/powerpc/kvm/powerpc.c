@@ -739,7 +739,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	if (irq->irq == KVM_INTERRUPT_UNSET) {
-		kvmppc_core_dequeue_external(vcpu, irq);
+		kvmppc_core_dequeue_external(vcpu);
 		return 0;
 	}
 

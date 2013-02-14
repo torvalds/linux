@@ -222,8 +222,7 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, prio);
 }
 
-void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                  struct kvm_interrupt *irq)
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 {
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);

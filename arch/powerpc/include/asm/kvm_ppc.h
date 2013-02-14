@@ -104,8 +104,7 @@ extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
-extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                         struct kvm_interrupt *irq);
+extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu);
 
 extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
