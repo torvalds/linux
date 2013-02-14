@@ -13883,7 +13883,8 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 			tp->nvram_size = TG3_NVRAM_SIZE_1MB;
 			break;
 		default:
-			tp->nvram_size = TG3_NVRAM_SIZE_128KB;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5762)
+				tp->nvram_size = TG3_NVRAM_SIZE_128KB;
 			break;
 		}
 		break;
@@ -13929,7 +13930,8 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 			tp->nvram_size = TG3_NVRAM_SIZE_1MB;
 			break;
 		default:
-			tp->nvram_size = TG3_NVRAM_SIZE_128KB;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5762)
+				tp->nvram_size = TG3_NVRAM_SIZE_128KB;
 			break;
 		}
 		break;
