@@ -1370,7 +1370,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 			"command to run after to the measured command"),
 	OPT_UINTEGER('I', "interval-print", &interval,
 		    "print counts at regular interval in ms (>= 100)"),
-	OPT_SET_UINT(0, "aggr-socket", &aggr_mode,
+	OPT_SET_UINT(0, "per-socket", &aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_END()
 	};
