@@ -488,7 +488,7 @@ config MACH_MX31ADS_WM1133_EV1
 	bool "Support Wolfson Microelectronics 1133-EV1 module"
 	depends on MACH_MX31ADS
 	depends on MFD_WM8350_I2C
-	depends on REGULATOR_WM8350
+	depends on REGULATOR_WM8350 = y
 	select MFD_WM8350_CONFIG_MODE_0
 	select MFD_WM8352_CONFIG_MODE_0
 	help
