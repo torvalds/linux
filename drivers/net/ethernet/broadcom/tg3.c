@@ -14514,7 +14514,7 @@ static int tg3_phy_probe(struct tg3 *tp)
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5762 ||
-	     (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 &&
+	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
 	      tp->pci_chip_rev_id != CHIPREV_ID_5717_A0) ||
 	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
 	      tp->pci_chip_rev_id != CHIPREV_ID_57765_A0)))
