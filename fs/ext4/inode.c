@@ -352,10 +352,12 @@ void ext4_da_update_reserve_space(struct inode *inode,
 	}
 
 	if (unlikely(ei->i_allocated_meta_blocks > ei->i_reserved_meta_blocks)) {
-		ext4_warning(inode->i_sb, "%s: ino %lu, allocated %d "
-			 "with only %d reserved metadata blocks\n", __func__,
-			 inode->i_ino, ei->i_allocated_meta_blocks,
-			 ei->i_reserved_meta_blocks);
+		ext4_warning(inode->i_sb, "ino %lu, allocated %d "
+			"with only %d reserved metadata blocks "
+			"(releasing %d blocks with reserved %d data blocks)",
+			inode->i_ino, ei->i_allocated_meta_blocks,
+			     ei->i_reserved_meta_blocks, used,
+			     ei->i_reserved_data_blocks);
 		WARN_ON(1);
 		ei->i_allocated_meta_blocks = ei->i_reserved_meta_blocks;
 	}
@@ -1609,7 +1611,7 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 				 (unsigned long long) next,
 				 mpd->b_size >> mpd->inode->i_blkbits, err);
 			ext4_msg(sb, KERN_CRIT,
-				"This should not happen!! Data will be lost\n");
+				"This should not happen!! Data will be lost");
 			if (err == -ENOSPC)
 				ext4_print_free_blocks(mpd->inode);
 		}
