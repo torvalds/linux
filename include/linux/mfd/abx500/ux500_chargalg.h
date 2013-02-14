@@ -17,6 +17,7 @@ struct ux500_charger;
 
 struct ux500_charger_ops {
 	int (*enable) (struct ux500_charger *, int, int, int);
+	int (*check_enable) (struct ux500_charger *, int, int);
 	int (*kick_wd) (struct ux500_charger *);
 	int (*update_curr) (struct ux500_charger *, int);
 };

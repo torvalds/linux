@@ -52,6 +52,7 @@
 #define VBUS_DET_DBNC100		0x02
 #define VBUS_DET_DBNC1			0x01
 #define OTP_ENABLE_WD			0x01
+#define DROP_COUNT_RESET		0x01
 
 #define MAIN_CH_INPUT_CURR_SHIFT	4
 #define VBUS_IN_CURR_LIM_SHIFT		4
@@ -1678,6 +1679,105 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 }
 
 /**
+ * ab8500_charger_usb_check_enable() - enable usb charging
+ * @charger:	pointer to the ux500_charger structure
+ * @vset:	charging voltage
+ * @iset:	charger output current
+ *
+ * Check if the VBUS charger has been disconnected and reconnected without
+ * AB8500 rising an interrupt. Returns 0 on success.
+ */
+static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
+	int vset, int iset)
+{
+	u8 usbch_ctrl1 = 0;
+	int ret = 0;
+
+	struct ab8500_charger *di = to_ab8500_charger_usb_device_info(charger);
+
+	if (!di->usb.charger_connected)
+		return ret;
+
+	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8500_USBCH_CTRL1_REG, &usbch_ctrl1);
+	if (ret < 0) {
+		dev_err(di->dev, "ab8500 read failed %d\n", __LINE__);
+		return ret;
+	}
+	dev_dbg(di->dev, "USB charger ctrl: 0x%02x\n", usbch_ctrl1);
+
+	if (!(usbch_ctrl1 & USB_CH_ENA)) {
+		dev_info(di->dev, "Charging has been disabled abnormally and will be re-enabled\n");
+
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_CHARGER, AB8500_CHARGER_CTRL,
+					DROP_COUNT_RESET, DROP_COUNT_RESET);
+		if (ret < 0) {
+			dev_err(di->dev, "ab8500 write failed %d\n", __LINE__);
+			return ret;
+		}
+
+		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset, iset);
+		if (ret < 0) {
+			dev_err(di->dev, "Failed to enable VBUS charger %d\n",
+					__LINE__);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+/**
+ * ab8500_charger_ac_check_enable() - enable usb charging
+ * @charger:	pointer to the ux500_charger structure
+ * @vset:	charging voltage
+ * @iset:	charger output current
+ *
+ * Check if the AC charger has been disconnected and reconnected without
+ * AB8500 rising an interrupt. Returns 0 on success.
+ */
+static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
+	int vset, int iset)
+{
+	u8 mainch_ctrl1 = 0;
+	int ret = 0;
+
+	struct ab8500_charger *di = to_ab8500_charger_ac_device_info(charger);
+
+	if (!di->ac.charger_connected)
+		return ret;
+
+	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8500_MCH_CTRL1, &mainch_ctrl1);
+	if (ret < 0) {
+		dev_err(di->dev, "ab8500 read failed %d\n", __LINE__);
+		return ret;
+	}
+	dev_dbg(di->dev, "AC charger ctrl: 0x%02x\n", mainch_ctrl1);
+
+	if (!(mainch_ctrl1 & MAIN_CH_ENA)) {
+		dev_info(di->dev, "Charging has been disabled abnormally and will be re-enabled\n");
+
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_CHARGER, AB8500_CHARGER_CTRL,
+					DROP_COUNT_RESET, DROP_COUNT_RESET);
+
+		if (ret < 0) {
+			dev_err(di->dev, "ab8500 write failed %d\n", __LINE__);
+			return ret;
+		}
+
+		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset, iset);
+		if (ret < 0) {
+			dev_err(di->dev, "failed to enable AC charger %d\n",
+				__LINE__);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+/**
  * ab8500_charger_watchdog_kick() - kick charger watchdog
  * @di:		pointer to the ab8500_charger structure
  *
@@ -1734,8 +1834,7 @@ static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
 
 	/* Reset the main and usb drop input current measurement counter */
 	ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
-				AB8500_CHARGER_CTRL,
-				0x1);
+				AB8500_CHARGER_CTRL, DROP_COUNT_RESET);
 	if (ret) {
 		dev_err(di->dev, "%s write failed\n", __func__);
 		return ret;
@@ -3221,6 +3320,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->ac_chg.ops.enable = &ab8500_charger_ac_en;
+	di->ac_chg.ops.check_enable = &ab8500_charger_ac_check_enable;
 	di->ac_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->ac_chg.ops.update_curr = &ab8500_charger_update_charger_current;
 	di->ac_chg.max_out_volt = ab8500_charger_voltage_map[
@@ -3242,6 +3342,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->usb_chg.ops.enable = &ab8500_charger_usb_en;
+	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[

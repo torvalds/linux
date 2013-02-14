@@ -305,6 +305,30 @@ static void abx500_chargalg_state_to(struct abx500_chargalg *di,
 	di->charge_state = state;
 }
 
+static int abx500_chargalg_check_charger_enable(struct abx500_chargalg *di)
+{
+	switch (di->charge_state) {
+	case STATE_NORMAL:
+	case STATE_MAINTENANCE_A:
+	case STATE_MAINTENANCE_B:
+		break;
+	default:
+		return 0;
+	}
+
+	if (di->chg_info.charger_type & USB_CHG) {
+		return di->usb_chg->ops.check_enable(di->usb_chg,
+                         di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
+                         di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+	} else if ((di->chg_info.charger_type & AC_CHG) &&
+		   !(di->ac_chg->external)) {
+		return di->ac_chg->ops.check_enable(di->ac_chg,
+                         di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
+                         di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+	}
+	return 0;
+}
+
 /**
  * abx500_chargalg_check_charger_connection() - Check charger connection change
  * @di:		pointer to the abx500_chargalg structure
@@ -1219,6 +1243,7 @@ static void abx500_chargalg_external_power_changed(struct power_supply *psy)
 static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 {
 	int charger_status;
+	int ret;
 
 	/* Collect data from all power_supply class devices */
 	class_for_each_device(power_supply_class, NULL,
@@ -1229,6 +1254,14 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	abx500_chargalg_check_charger_voltage(di);
 
 	charger_status = abx500_chargalg_check_charger_connection(di);
+
+	if (is_ab8500(di->parent)) {
+		ret = abx500_chargalg_check_charger_enable(di);
+		if (ret < 0)
+			dev_err(di->dev, "Checking charger is enabled error"
+					": Returned Value %d\n", ret);
+	}
+
 	/*
 	 * First check if we have a charger connected.
 	 * Also we don't allow charging of unknown batteries if configured
