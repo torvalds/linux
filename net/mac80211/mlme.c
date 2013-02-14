@@ -1637,17 +1637,18 @@ void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_is_data(hdr->frame_control))
 	    return;
 
-	if (ack)
-		ieee80211_sta_reset_conn_monitor(sdata);
-
 	if (ieee80211_is_nullfunc(hdr->frame_control) &&
 	    sdata->u.mgd.probe_send_count > 0) {
 		if (ack)
-			sdata->u.mgd.probe_send_count = 0;
+			ieee80211_sta_reset_conn_monitor(sdata);
 		else
 			sdata->u.mgd.nullfunc_failed = true;
 		ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+		return;
 	}
+
+	if (ack)
+		ieee80211_sta_reset_conn_monitor(sdata);
 }
 
 static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
