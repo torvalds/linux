@@ -103,6 +103,7 @@ extern struct nouveau_oclass nv4e_i2c_oclass;
 extern struct nouveau_oclass nv50_i2c_oclass;
 extern struct nouveau_oclass nv94_i2c_oclass;
 extern struct nouveau_oclass nvd0_i2c_oclass;
+extern struct nouveau_oclass nouveau_anx9805_sclass[];
 
 extern const struct i2c_algorithm nouveau_i2c_bit_algo;
 extern const struct i2c_algorithm nouveau_i2c_aux_algo;

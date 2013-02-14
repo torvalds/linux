@@ -24,6 +24,9 @@
 
 #include <core/option.h>
 
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+#include <subdev/bios/i2c.h>
 #include <subdev/i2c.h>
 #include <subdev/vga.h>
 
@@ -278,6 +281,11 @@ _nouveau_i2c_dtor(struct nouveau_object *object)
 	nouveau_subdev_destroy(&i2c->base);
 }
 
+static struct nouveau_oclass *
+nouveau_i2c_extdev_sclass[] = {
+	nouveau_anx9805_sclass,
+};
+
 int
 nouveau_i2c_create_(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
@@ -289,7 +297,10 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 	struct nouveau_i2c *i2c;
 	struct nouveau_object *object;
 	struct dcb_i2c_entry info;
-	int ret, index = -1;
+	int ret, i, j, index = -1;
+	struct dcb_output outp;
+	u8  ver, hdr;
+	u32 data;
 
 	ret = nouveau_subdev_create(parent, engine, oclass, 0,
 				    "I2C", "i2c", &i2c);
@@ -315,6 +326,42 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 							  index, &object);
 			}
 		} while (ret && (++oclass)->handle);
+	}
+
+	/* in addition to the busses specified in the i2c table, there
+	 * may be ddc/aux channels hiding behind external tmds/dp/etc
+	 * transmitters.
+	 */
+	index = ((index + 0x0f) / 0x10) * 0x10;
+	i = -1;
+	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &outp))) {
+		if (!outp.location || !outp.extdev)
+			continue;
+
+		switch (outp.type) {
+		case DCB_OUTPUT_TMDS:
+			info.type = NV_I2C_TYPE_EXTDDC(outp.extdev);
+			break;
+		case DCB_OUTPUT_DP:
+			info.type = NV_I2C_TYPE_EXTAUX(outp.extdev);
+			break;
+		default:
+			continue;
+		}
+
+		ret = -ENODEV;
+		j = -1;
+		while (ret && ++j < ARRAY_SIZE(nouveau_i2c_extdev_sclass)) {
+			parent = nv_object(i2c->find(i2c, outp.i2c_index));
+			oclass = nouveau_i2c_extdev_sclass[j];
+			do {
+				if (oclass->handle != info.type)
+					continue;
+				ret = nouveau_object_ctor(parent, *pobject,
+							  oclass, NULL,
+							  index++, &object);
+			} while (ret && (++oclass)->handle);
+		}
 	}
 
 	return 0;
