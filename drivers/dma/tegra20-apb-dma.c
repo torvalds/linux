@@ -767,7 +767,6 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 
 	ret = dma_cookie_status(dc, cookie, txstate);
 	if (ret == DMA_SUCCESS) {
-		dma_set_residue(txstate, 0);
 		spin_unlock_irqrestore(&tdc->lock, flags);
 		return ret;
 	}
