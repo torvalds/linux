@@ -1159,35 +1159,18 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 
 /*
  * Test whether @work is being queued from another work executing on the
- * same workqueue.  This is rather expensive and should only be used from
- * cold paths.
+ * same workqueue.
  */
 static bool is_chained_work(struct workqueue_struct *wq)
 {
-	unsigned long flags;
-	unsigned int cpu;
+	struct worker *worker;
 
-	for_each_cwq_cpu(cpu, wq) {
-		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
-		struct worker_pool *pool = cwq->pool;
-		struct worker *worker;
-		struct hlist_node *pos;
-		int i;
-
-		spin_lock_irqsave(&pool->lock, flags);
-		for_each_busy_worker(worker, i, pos, pool) {
-			if (worker->task != current)
-				continue;
-			spin_unlock_irqrestore(&pool->lock, flags);
-			/*
-			 * I'm @worker, no locking necessary.  See if @work
-			 * is headed to the same workqueue.
-			 */
-			return worker->current_cwq->wq == wq;
-		}
-		spin_unlock_irqrestore(&pool->lock, flags);
-	}
-	return false;
+	worker = current_wq_worker();
+	/*
+	 * Return %true iff I'm a worker execuing a work item on @wq.  If
+	 * I'm @worker, it's safe to dereference it without locking.
+	 */
+	return worker && worker->current_cwq->wq == wq;
 }
 
 static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
