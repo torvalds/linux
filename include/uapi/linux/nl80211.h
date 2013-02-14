@@ -36,7 +36,21 @@
  * The station is still assumed to belong to the AP interface it was added
  * to.
  *
- * TODO: need more info?
+ * Station handling varies per interface type and depending on the driver's
+ * capabilities.
+ *
+ * For drivers supporting TDLS with external setup (WIPHY_FLAG_SUPPORTS_TDLS
+ * and WIPHY_FLAG_TDLS_EXTERNAL_SETUP), the station lifetime is as follows:
+ *  - a setup station entry is added, not yet authorized, without any rate
+ *    or capability information, this just exists to avoid race conditions
+ *  - when the TDLS setup is done, a single NL80211_CMD_SET_STATION is valid
+ *    to add rate and capability information to the station and at the same
+ *    time mark it authorized.
+ *  - %NL80211_TDLS_ENABLE_LINK is then used
+ *  - after this, the only valid operation is to remove it by tearing down
+ *    the TDLS link (%NL80211_TDLS_DISABLE_LINK)
+ *
+ * TODO: need more info for other interface types
  */
 
 /**

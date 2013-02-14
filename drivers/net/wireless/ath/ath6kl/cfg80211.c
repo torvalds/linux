@@ -2990,13 +2990,15 @@ static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
+	int err;
 
 	if (vif->nw_type != AP_NETWORK)
 		return -EOPNOTSUPP;
 
-	/* Use this only for authorizing/unauthorizing a station */
-	if (!(params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)))
-		return -EOPNOTSUPP;
+	err = cfg80211_check_station_change(wiphy, params,
+					    CFG80211_STA_AP_MLME_CLIENT);
+	if (err)
+		return err;
 
 	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED))
 		return ath6kl_wmi_ap_set_mlme(ar->wmi, vif->fw_vif_idx,

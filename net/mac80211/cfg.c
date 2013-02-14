@@ -1177,6 +1177,18 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			mask |= BIT(NL80211_STA_FLAG_ASSOCIATED);
 		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
 			set |= BIT(NL80211_STA_FLAG_ASSOCIATED);
+	} else if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		/*
+		 * TDLS -- everything follows authorized, but
+		 * only becoming authorized is possible, not
+		 * going back
+		 */
+		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
+			set |= BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+			       BIT(NL80211_STA_FLAG_ASSOCIATED);
+			mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+				BIT(NL80211_STA_FLAG_ASSOCIATED);
+		}
 	}
 
 	ret = sta_apply_auth_flags(local, sta, mask, set);
@@ -1261,9 +1273,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
 		u32 changed = 0;
-		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED &&
-		    (params->sta_modify_mask &
-					STATION_PARAM_APPLY_PLINK_STATE)) {
+
+		if (params->sta_modify_mask & STATION_PARAM_APPLY_PLINK_STATE) {
 			switch (params->plink_state) {
 			case NL80211_PLINK_ESTAB:
 				if (sta->plink_state != NL80211_PLINK_ESTAB)
@@ -1294,21 +1305,18 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				/*  nothing  */
 				break;
 			}
-		} else if (params->sta_modify_mask &
-					STATION_PARAM_APPLY_PLINK_STATE) {
-			return -EINVAL;
-		} else {
-			switch (params->plink_action) {
-			case NL80211_PLINK_ACTION_NO_ACTION:
-				/* nothing */
-				break;
-			case NL80211_PLINK_ACTION_OPEN:
-				changed |= mesh_plink_open(sta);
-				break;
-			case NL80211_PLINK_ACTION_BLOCK:
-				changed |= mesh_plink_block(sta);
-				break;
-			}
+		}
+
+		switch (params->plink_action) {
+		case NL80211_PLINK_ACTION_NO_ACTION:
+			/* nothing */
+			break;
+		case NL80211_PLINK_ACTION_OPEN:
+			changed |= mesh_plink_open(sta);
+			break;
+		case NL80211_PLINK_ACTION_BLOCK:
+			changed |= mesh_plink_block(sta);
+			break;
 		}
 
 		if (params->local_pm)
@@ -1354,8 +1362,10 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	 * defaults -- if userspace wants something else we'll
 	 * change it accordingly in sta_apply_parameters()
 	 */
-	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))) {
+		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	}
 
 	err = sta_apply_parameters(local, sta, params);
 	if (err) {
@@ -1364,8 +1374,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/*
-	 * for TDLS, rate control should be initialized only when supported
-	 * rates are known.
+	 * for TDLS, rate control should be initialized only when
+	 * rates are known and station is marked authorized
 	 */
 	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER))
 		rate_control_rate_init(sta);
@@ -1402,33 +1412,56 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_change_station(struct wiphy *wiphy,
-				    struct net_device *dev,
-				    u8 *mac,
+				    struct net_device *dev, u8 *mac,
 				    struct station_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
+	enum cfg80211_station_type statype;
 	int err;
 
 	mutex_lock(&local->sta_mtx);
 
 	sta = sta_info_get_bss(sdata, mac);
 	if (!sta) {
-		mutex_unlock(&local->sta_mtx);
-		return -ENOENT;
+		err = -ENOENT;
+		goto out_err;
 	}
 
-	/* in station mode, some updates are only valid with TDLS */
-	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    (params->supported_rates || params->ht_capa || params->vht_capa ||
-	     params->sta_modify_mask ||
-	     (params->sta_flags_mask & BIT(NL80211_STA_FLAG_WME))) &&
-	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
-		mutex_unlock(&local->sta_mtx);
-		return -EINVAL;
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_MESH_POINT:
+		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
+			statype = CFG80211_STA_MESH_PEER_SECURE;
+		else
+			statype = CFG80211_STA_MESH_PEER_NONSEC;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		statype = CFG80211_STA_IBSS;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+			statype = CFG80211_STA_AP_STA;
+			break;
+		}
+		if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			statype = CFG80211_STA_TDLS_PEER_ACTIVE;
+		else
+			statype = CFG80211_STA_TDLS_PEER_SETUP;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		statype = CFG80211_STA_AP_CLIENT;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		goto out_err;
 	}
+
+	err = cfg80211_check_station_change(wiphy, params, statype);
+	if (err)
+		goto out_err;
 
 	if (params->vlan && params->vlan != sta->sdata->dev) {
 		bool prev_4addr = false;
@@ -1436,16 +1469,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 		vlansdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
-		if (vlansdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-		    vlansdata->vif.type != NL80211_IFTYPE_AP) {
-			mutex_unlock(&local->sta_mtx);
-			return -EINVAL;
-		}
-
 		if (params->vlan->ieee80211_ptr->use_4addr) {
 			if (vlansdata->u.vlan.sta) {
-				mutex_unlock(&local->sta_mtx);
-				return -EBUSY;
+				err = -EBUSY;
+				goto out_err;
 			}
 
 			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
@@ -1472,12 +1499,12 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	}
 
 	err = sta_apply_parameters(local, sta, params);
-	if (err) {
-		mutex_unlock(&local->sta_mtx);
-		return err;
-	}
+	if (err)
+		goto out_err;
 
-	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
+	/* When peer becomes authorized, init rate control as well */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 		rate_control_rate_init(sta);
 
 	mutex_unlock(&local->sta_mtx);
@@ -1487,7 +1514,11 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		ieee80211_recalc_ps(local, -1);
 		ieee80211_recalc_ps_vif(sdata);
 	}
+
 	return 0;
+out_err:
+	mutex_unlock(&local->sta_mtx);
+	return err;
 }
 
 #ifdef CONFIG_MAC80211_MESH

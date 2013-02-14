@@ -678,6 +678,49 @@ struct station_parameters {
 };
 
 /**
+ * enum cfg80211_station_type - the type of station being modified
+ * @CFG80211_STA_AP_CLIENT: client of an AP interface
+ * @CFG80211_STA_AP_MLME_CLIENT: client of an AP interface that has
+ *	the AP MLME in the device
+ * @CFG80211_STA_AP_STA: AP station on managed interface
+ * @CFG80211_STA_IBSS: IBSS station
+ * @CFG80211_STA_TDLS_PEER_SETUP: TDLS peer on managed interface (dummy entry
+ *	while TDLS setup is in progress, it moves out of this state when
+ *	being marked authorized; use this only if TDLS with external setup is
+ *	supported/used)
+ * @CFG80211_STA_TDLS_PEER_ACTIVE: TDLS peer on managed interface (active
+ *	entry that is operating, has been marked authorized by userspace)
+ * @CFG80211_STA_MESH_PEER_NONSEC: peer on mesh interface (non-secured)
+ * @CFG80211_STA_MESH_PEER_SECURE: peer on mesh interface (secured)
+ */
+enum cfg80211_station_type {
+	CFG80211_STA_AP_CLIENT,
+	CFG80211_STA_AP_MLME_CLIENT,
+	CFG80211_STA_AP_STA,
+	CFG80211_STA_IBSS,
+	CFG80211_STA_TDLS_PEER_SETUP,
+	CFG80211_STA_TDLS_PEER_ACTIVE,
+	CFG80211_STA_MESH_PEER_NONSEC,
+	CFG80211_STA_MESH_PEER_SECURE,
+};
+
+/**
+ * cfg80211_check_station_change - validate parameter changes
+ * @wiphy: the wiphy this operates on
+ * @params: the new parameters for a station
+ * @statype: the type of station being modified
+ *
+ * Utility function for the @change_station driver method. Call this function
+ * with the appropriate station type looking up the station (and checking that
+ * it exists). It will verify whether the station change is acceptable, and if
+ * not will return an error code. Note that it may modify the parameters for
+ * backward compatibility reasons, so don't use them before calling this.
+ */
+int cfg80211_check_station_change(struct wiphy *wiphy,
+				  struct station_parameters *params,
+				  enum cfg80211_station_type statype);
+
+/**
  * enum station_info_flags - station information flags
  *
  * Used by the driver to indicate which info in &struct station_info
@@ -1770,9 +1813,8 @@ struct cfg80211_gtk_rekey_data {
  * @change_station: Modify a given station. Note that flags changes are not much
  *	validated in cfg80211, in particular the auth/assoc/authorized flags
  *	might come to the driver in invalid combinations -- make sure to check
- *	them, also against the existing state! Also, supported_rates changes are
- *	not checked in station mode -- drivers need to reject (or ignore) them
- *	for anything but TDLS peers.
+ *	them, also against the existing state! Drivers must call
+ *	cfg80211_check_station_change() to validate the information.
  * @get_station: get station information for the station identified by @mac
  * @dump_station: dump station callback -- resume dump at index @idx
  *
