@@ -64,7 +64,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEINVALID);
-			goto error_nolock;
+			goto error;
 		}
 
 		err = xfrm_state_check_expire(x);
