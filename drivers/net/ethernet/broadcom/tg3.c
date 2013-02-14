@@ -16902,6 +16902,8 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	tg3_timer_init(tp);
 
+	tg3_carrier_off(tp);
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
