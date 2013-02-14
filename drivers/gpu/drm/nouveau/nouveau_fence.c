@@ -61,13 +61,12 @@ nouveau_fence_context_new(struct nouveau_fence_chan *fctx)
 static void
 nouveau_fence_update(struct nouveau_channel *chan)
 {
-	struct nouveau_fence_priv *priv = chan->drm->fence;
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_fence *fence, *fnext;
 
 	spin_lock(&fctx->lock);
 	list_for_each_entry_safe(fence, fnext, &fctx->pending, head) {
-		if (priv->read(chan) < fence->sequence)
+		if (fctx->read(chan) < fence->sequence)
 			break;
 
 		if (fence->work)
@@ -82,7 +81,6 @@ nouveau_fence_update(struct nouveau_channel *chan)
 int
 nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct nouveau_fence_priv *priv = chan->drm->fence;
 	struct nouveau_fence_chan *fctx = chan->fence;
 	int ret;
 
@@ -90,7 +88,7 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 	fence->timeout  = jiffies + (3 * DRM_HZ);
 	fence->sequence = ++fctx->sequence;
 
-	ret = priv->emit(fence);
+	ret = fctx->emit(fence);
 	if (!ret) {
 		kref_get(&fence->kref);
 		spin_lock(&fctx->lock);
@@ -219,14 +217,14 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 int
 nouveau_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct nouveau_fence_priv *priv = chan->drm->fence;
+	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_channel *prev;
 	int ret = 0;
 
 	prev = fence ? fence->channel : NULL;
 	if (prev) {
 		if (unlikely(prev != chan && !nouveau_fence_done(fence))) {
-			ret = priv->sync(fence, prev, chan);
+			ret = fctx->sync(fence, prev, chan);
 			if (unlikely(ret))
 				ret = nouveau_fence_wait(fence, true, false);
 		}

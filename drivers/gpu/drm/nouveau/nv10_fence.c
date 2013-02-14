@@ -75,6 +75,9 @@ nv10_fence_context_new(struct nouveau_channel *chan)
 		return -ENOMEM;
 
 	nouveau_fence_context_new(&fctx->base);
+	fctx->base.emit = nv10_fence_emit;
+	fctx->base.read = nv10_fence_read;
+	fctx->base.sync = nv10_fence_sync;
 	return 0;
 }
 
@@ -102,9 +105,6 @@ nv10_fence_create(struct nouveau_drm *drm)
 	priv->base.dtor = nv10_fence_destroy;
 	priv->base.context_new = nv10_fence_context_new;
 	priv->base.context_del = nv10_fence_context_del;
-	priv->base.emit = nv10_fence_emit;
-	priv->base.read = nv10_fence_read;
-	priv->base.sync = nv10_fence_sync;
 	spin_lock_init(&priv->lock);
 	return 0;
 }

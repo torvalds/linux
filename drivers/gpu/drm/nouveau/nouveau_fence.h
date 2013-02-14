@@ -29,6 +29,13 @@ struct nouveau_fence_chan {
 	struct list_head pending;
 	struct list_head flip;
 
+	int  (*emit)(struct nouveau_fence *);
+	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
+		     struct nouveau_channel *);
+	u32  (*read)(struct nouveau_channel *);
+	int  (*emit32)(struct nouveau_channel *, u64, u32);
+	int  (*sync32)(struct nouveau_channel *, u64, u32);
+
 	spinlock_t lock;
 	u32 sequence;
 };
@@ -39,12 +46,6 @@ struct nouveau_fence_priv {
 	void (*resume)(struct nouveau_drm *);
 	int  (*context_new)(struct nouveau_channel *);
 	void (*context_del)(struct nouveau_channel *);
-	int  (*emit32)(struct nouveau_channel *, u64, u32);
-	int  (*emit)(struct nouveau_fence *);
-	int  (*sync32)(struct nouveau_channel *, u64, u32);
-	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
-		     struct nouveau_channel *);
-	u32  (*read)(struct nouveau_channel *);
 
 	wait_queue_head_t waiting;
 	bool uevent;

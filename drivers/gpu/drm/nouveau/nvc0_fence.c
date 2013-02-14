@@ -66,6 +66,18 @@ nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	return ret;
 }
 
+static int
+nvc0_fence_context_new(struct nouveau_channel *chan)
+{
+	int ret = nv84_fence_context_new(chan);
+	if (ret == 0) {
+		struct nv84_fence_chan *fctx = chan->fence;
+		fctx->base.emit32 = nvc0_fence_emit32;
+		fctx->base.sync32 = nvc0_fence_sync32;
+	}
+	return ret;
+}
+
 int
 nvc0_fence_create(struct nouveau_drm *drm)
 {
@@ -80,13 +92,8 @@ nvc0_fence_create(struct nouveau_drm *drm)
 	priv->base.dtor = nv84_fence_destroy;
 	priv->base.suspend = nv84_fence_suspend;
 	priv->base.resume = nv84_fence_resume;
-	priv->base.context_new = nv84_fence_context_new;
+	priv->base.context_new = nvc0_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
-	priv->base.emit32 = nvc0_fence_emit32;
-	priv->base.emit = nv84_fence_emit;
-	priv->base.sync32 = nvc0_fence_sync32;
-	priv->base.sync = nv84_fence_sync;
-	priv->base.read = nv84_fence_read;
 
 	init_waitqueue_head(&priv->base.waiting);
 	priv->base.uevent = true;

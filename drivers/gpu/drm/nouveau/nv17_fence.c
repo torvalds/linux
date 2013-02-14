@@ -84,6 +84,9 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 		return -ENOMEM;
 
 	nouveau_fence_context_new(&fctx->base);
+	fctx->base.emit = nv10_fence_emit;
+	fctx->base.read = nv10_fence_read;
+	fctx->base.sync = nv17_fence_sync;
 
 	ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
 				 NvSema, 0x0002,
@@ -121,9 +124,6 @@ nv17_fence_create(struct nouveau_drm *drm)
 	priv->base.resume = nv17_fence_resume;
 	priv->base.context_new = nv17_fence_context_new;
 	priv->base.context_del = nv10_fence_context_del;
-	priv->base.emit = nv10_fence_emit;
-	priv->base.read = nv10_fence_read;
-	priv->base.sync = nv17_fence_sync;
 	spin_lock_init(&priv->lock);
 
 	ret = nouveau_bo_new(drm->dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,

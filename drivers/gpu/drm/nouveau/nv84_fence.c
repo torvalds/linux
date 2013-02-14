@@ -80,22 +80,20 @@ int
 nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
-	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx = chan->fence;
 	struct nouveau_fifo_chan *fifo = (void *)chan->object;
 	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	return priv->base.emit32(chan, addr, fence->sequence);
+	return fctx->base.emit32(chan, addr, fence->sequence);
 }
 
 int
 nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
-	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx = chan->fence;
 	struct nouveau_fifo_chan *fifo = (void *)prev->object;
 	u64 addr = fctx->vma.offset + fifo->chid * 16;
-	return priv->base.sync32(chan, addr, fence->sequence);
+	return fctx->base.sync32(chan, addr, fence->sequence);
 }
 
 u32
@@ -139,6 +137,11 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 		return -ENOMEM;
 
 	nouveau_fence_context_new(&fctx->base);
+	fctx->base.emit = nv84_fence_emit;
+	fctx->base.sync = nv84_fence_sync;
+	fctx->base.read = nv84_fence_read;
+	fctx->base.emit32 = nv84_fence_emit32;
+	fctx->base.sync32 = nv84_fence_sync32;
 
 	ret = nouveau_bo_vma_add(priv->bo, client->vm, &fctx->vma);
 	if (ret)
@@ -213,11 +216,6 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.resume = nv84_fence_resume;
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
-	priv->base.emit32 = nv84_fence_emit32;
-	priv->base.emit = nv84_fence_emit;
-	priv->base.sync32 = nv84_fence_sync32;
-	priv->base.sync = nv84_fence_sync;
-	priv->base.read = nv84_fence_read;
 
 	init_waitqueue_head(&priv->base.waiting);
 	priv->base.uevent = true;
