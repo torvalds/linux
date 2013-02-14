@@ -1412,9 +1412,11 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		return -ENOENT;
 	}
 
-	/* in station mode, supported rates are only valid with TDLS */
+	/* in station mode, some updates are only valid with TDLS */
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    params->supported_rates &&
+	    (params->supported_rates || params->ht_capa || params->vht_capa ||
+	     params->sta_modify_mask ||
+	     (params->sta_flags_mask & BIT(NL80211_STA_FLAG_WME))) &&
 	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 		mutex_unlock(&local->sta_mtx);
 		return -EINVAL;
