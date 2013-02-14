@@ -1361,6 +1361,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_EXT_CAPA_MASK: Extended capabilities that the kernel driver
  *	has set in the %NL80211_ATTR_EXT_CAPA value, for multibit fields.
  *
+ * @NL80211_ATTR_STA_CAPABILITY: Station capabilities (u16) are advertised to
+ *	the driver, e.g., to enable TDLS power save (PU-APSD).
+ *
+ * @NL80211_ATTR_STA_EXT_CAPABILITY: Station extended capabilities are
+ *	advertised to the driver, e.g., to enable TDLS off channel operations
+ *	and PU-APSD.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1643,6 +1650,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_EXT_CAPA,
 	NL80211_ATTR_EXT_CAPA_MASK,
+
+	NL80211_ATTR_STA_CAPABILITY,
+	NL80211_ATTR_STA_EXT_CAPABILITY,
 
 	/* add attributes here, update the policy in nl80211.c */
 
