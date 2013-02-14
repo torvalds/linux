@@ -810,7 +810,7 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 		*tim2 = *div1 * devpriv->i8254_osc_base;
 							/* real convert timer */
 
-		if (usessh & (chnsshfront == 0))	/* use BSSH signal */
+		if (usessh && (chnsshfront == 0))	/* use BSSH signal */
 			if (*div2 < (chans + 2))
 				*div2 = chans + 2;
 
