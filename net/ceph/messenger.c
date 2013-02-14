@@ -2701,6 +2701,34 @@ void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 }
 EXPORT_SYMBOL(ceph_msg_data_set_pages);
 
+void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
+				struct ceph_pagelist *pagelist)
+{
+	/* BUG_ON(!pagelist); */
+	/* BUG_ON(msg->pagelist); */
+
+	msg->pagelist = pagelist;
+}
+EXPORT_SYMBOL(ceph_msg_data_set_pagelist);
+
+void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio)
+{
+	/* BUG_ON(!bio); */
+	/* BUG_ON(msg->bio); */
+
+	msg->bio = bio;
+}
+EXPORT_SYMBOL(ceph_msg_data_set_bio);
+
+void ceph_msg_data_set_trail(struct ceph_msg *msg, struct ceph_pagelist *trail)
+{
+	/* BUG_ON(!trail); */
+	/* BUG_ON(msg->trail); */
+
+	msg->trail = trail;
+}
+EXPORT_SYMBOL(ceph_msg_data_set_trail);
+
 /*
  * construct a new message with given type, size
  * the new msg has a ref count of 1.

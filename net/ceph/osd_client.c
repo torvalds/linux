@@ -1763,12 +1763,12 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			osd_data->length, osd_data->alignment);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		req->r_request->bio = osd_data->bio;
+		ceph_msg_data_set_bio(req->r_request, osd_data->bio);
 #endif
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
 	}
-	req->r_request->trail = &req->r_trail;
+	ceph_msg_data_set_trail(req->r_request, &req->r_trail);
 
 	register_request(osdc, req);
 
@@ -2132,7 +2132,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 				osd_data->length, osd_data->alignment);
 #ifdef CONFIG_BLOCK
 		} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-			m->bio = osd_data->bio;
+			ceph_msg_data_set_bio(m, osd_data->bio);
 #endif
 		}
 	}
