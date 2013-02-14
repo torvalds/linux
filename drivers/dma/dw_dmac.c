@@ -1661,6 +1661,12 @@ static int dw_probe(struct platform_device *pdev)
 	if (!regs)
 		return -EBUSY;
 
+	/* Apply default dma_mask if needed */
+	if (!pdev->dev.dma_mask) {
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	}
+
 	dw_params = dma_read_byaddr(regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
 
