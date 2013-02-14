@@ -3619,6 +3619,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&params, 0, sizeof(params));
 
+	if (!rdev->ops->add_station)
+		return -EOPNOTSUPP;
+
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
@@ -3671,8 +3674,30 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	if (!rdev->ops->add_station)
-		return -EOPNOTSUPP;
+	if (info->attrs[NL80211_ATTR_STA_WME]) {
+		struct nlattr *tb[NL80211_STA_WME_MAX + 1];
+		struct nlattr *nla;
+
+		nla = info->attrs[NL80211_ATTR_STA_WME];
+		err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
+				       nl80211_sta_wme_policy);
+		if (err)
+			return err;
+
+		if (tb[NL80211_STA_WME_UAPSD_QUEUES])
+			params.uapsd_queues =
+			     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
+		if (params.uapsd_queues & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
+			return -EINVAL;
+
+		if (tb[NL80211_STA_WME_MAX_SP])
+			params.max_sp = nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
+
+		if (params.max_sp & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
+			return -EINVAL;
+
+		params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
+	}
 
 	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
@@ -3681,36 +3706,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_GO:
-		/* parse WME attributes if sta is WME capable */
-		if ((rdev->wiphy.flags & WIPHY_FLAG_AP_UAPSD) &&
-		    (params.sta_flags_set & BIT(NL80211_STA_FLAG_WME)) &&
-		    info->attrs[NL80211_ATTR_STA_WME]) {
-			struct nlattr *tb[NL80211_STA_WME_MAX + 1];
-			struct nlattr *nla;
+		/* ignore WME attributes if iface/sta is not capable */
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_AP_UAPSD) ||
+		    !(params.sta_flags_set & BIT(NL80211_STA_FLAG_WME)))
+			params.sta_modify_mask &= ~STATION_PARAM_APPLY_UAPSD;
 
-			nla = info->attrs[NL80211_ATTR_STA_WME];
-			err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
-					       nl80211_sta_wme_policy);
-			if (err)
-				return err;
-
-			if (tb[NL80211_STA_WME_UAPSD_QUEUES])
-				params.uapsd_queues =
-				     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
-			if (params.uapsd_queues &
-					~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
-				return -EINVAL;
-
-			if (tb[NL80211_STA_WME_MAX_SP])
-				params.max_sp =
-				     nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
-
-			if (params.max_sp &
-					~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
-				return -EINVAL;
-
-			params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
-		}
 		/* TDLS peers cannot be added */
 		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
 			return -EINVAL;
@@ -3731,6 +3731,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			return PTR_ERR(params.vlan);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
+		/* ignore uAPSD data */
+		params.sta_modify_mask &= ~STATION_PARAM_APPLY_UAPSD;
+
 		/* associated is disallowed */
 		if (params.sta_flags_mask & BIT(NL80211_STA_FLAG_ASSOCIATED))
 			return -EINVAL;
@@ -3739,6 +3742,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		break;
 	case NL80211_IFTYPE_STATION:
+		/* ignore uAPSD data */
+		params.sta_modify_mask &= ~STATION_PARAM_APPLY_UAPSD;
+
 		/* associated is disallowed */
 		if (params.sta_flags_mask & BIT(NL80211_STA_FLAG_ASSOCIATED))
 			return -EINVAL;
