@@ -130,8 +130,9 @@ struct ceph_osd_request {
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
 
-	struct ceph_osd_data r_data;
-	struct ceph_pagelist r_trail;	      /* trailing part of the data */
+	struct ceph_osd_data r_data_in;
+	struct ceph_osd_data r_data_out;
+	struct ceph_pagelist r_trail;	      /* trailing part of data out */
 };
 
 struct ceph_osd_event {

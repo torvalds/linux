@@ -568,13 +568,13 @@ more:
 		if ((file->f_flags & O_SYNC) == 0) {
 			/* get a second commit callback */
 			req->r_safe_callback = sync_write_commit;
-			req->r_data.own_pages = 1;
+			req->r_data_out.own_pages = 1;
 		}
 	}
-	req->r_data.type = CEPH_OSD_DATA_TYPE_PAGES;
-	req->r_data.pages = pages;
-	req->r_data.num_pages = num_pages;
-	req->r_data.alignment = page_align;
+	req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
+	req->r_data_out.pages = pages;
+	req->r_data_out.num_pages = num_pages;
+	req->r_data_out.alignment = page_align;
 	req->r_inode = inode;
 
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
