@@ -63,10 +63,15 @@ struct alps_nibble_commands {
  * struct alps_data - private data structure for the ALPS driver
  * @dev2: "Relative" device used to report trackstick or mouse activity.
  * @phys: Physical path for the relative device.
- * @i: Information on the detected touchpad model.
  * @nibble_commands: Command mapping used for touchpad register accesses.
  * @addr_command: Command used to tell the touchpad that a register address
  *   follows.
+ * @proto_version: Indicates V1/V2/V3/...
+ * @byte0: Helps figure out whether a position report packet matches the
+ *   known format for this model.  The first byte of the report, ANDed with
+ *   mask0, should match byte0.
+ * @mask0: The mask used to check the first byte of the report.
+ * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
  * @prev_fin: Finger bit from previous packet.
  * @multi_packet: Multi-packet data in progress.
  * @multi_data: Saved multi-packet data.
@@ -81,9 +86,14 @@ struct alps_nibble_commands {
 struct alps_data {
 	struct input_dev *dev2;
 	char phys[32];
-	const struct alps_model_info *i;
+
+	/* these are autodetected when the device is identified */
 	const struct alps_nibble_commands *nibble_commands;
 	int addr_command;
+	unsigned char proto_version;
+	unsigned char byte0, mask0;
+	unsigned char flags;
+
 	int prev_fin;
 	int multi_packet;
 	unsigned char multi_data[6];
