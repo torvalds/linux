@@ -2995,6 +2995,14 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		pi->pcfg.data_bus_width / 8, pi->pcfg.num_chan,
 		pi->pcfg.num_peri, pi->pcfg.num_events);
 
+	ret = of_dma_controller_register(adev->dev.of_node,
+					 of_dma_pl330_xlate, pdmac);
+	if (ret) {
+		dev_err(&adev->dev,
+		"unable to register DMA to the generic DT DMA helpers\n");
+		goto probe_err2;
+	}
+
 	return 0;
 
 probe_err2:
@@ -3014,6 +3022,8 @@ static int __devexit pl330_remove(struct amba_device *adev)
 
 	if (!pdmac)
 		return 0;
+
+	of_dma_controller_free(adev->dev.of_node);
 
 	amba_set_drvdata(adev, NULL);
 
