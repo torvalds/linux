@@ -20,6 +20,7 @@ enum {
 	NDA_LLADDR,
 	NDA_CACHEINFO,
 	NDA_PROBES,
+	NDA_VLAN,
 	__NDA_MAX
 };
 

@@ -247,8 +247,8 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static int qlcnic_fdb_del(struct ndmsg *ndm, struct net_device *netdev,
-			const unsigned char *addr)
+static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *netdev, const unsigned char *addr)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = -EOPNOTSUPP;

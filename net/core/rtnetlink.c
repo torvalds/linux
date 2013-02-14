@@ -2119,13 +2119,17 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
 	struct ndmsg *ndm;
-	struct nlattr *llattr;
+	struct nlattr *tb[NDA_MAX+1];
 	struct net_device *dev;
 	int err = -EINVAL;
 	__u8 *addr;
 
-	if (nlmsg_len(nlh) < sizeof(*ndm))
-		return -EINVAL;
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
+	if (err < 0)
+		return err;
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex == 0) {
@@ -2139,13 +2143,17 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -ENODEV;
 	}
 
-	llattr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_LLADDR);
-	if (llattr == NULL || nla_len(llattr) != ETH_ALEN) {
-		pr_info("PF_BRIGDE: RTM_DELNEIGH with invalid address\n");
+	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid address\n");
 		return -EINVAL;
 	}
 
-	addr = nla_data(llattr);
+	addr = nla_data(tb[NDA_LLADDR]);
+	if (!is_valid_ether_addr(addr)) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid ether address\n");
+		return -EINVAL;
+	}
+
 	err = -EOPNOTSUPP;
 
 	/* Support fdb on master device the net/bridge default case */
@@ -2155,7 +2163,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		const struct net_device_ops *ops = br_dev->netdev_ops;
 
 		if (ops->ndo_fdb_del)
-			err = ops->ndo_fdb_del(ndm, dev, addr);
+			err = ops->ndo_fdb_del(ndm, tb, dev, addr);
 
 		if (err)
 			goto out;
@@ -2165,7 +2173,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	/* Embedded bridge, macvlan, and any other device support */
 	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_del) {
-		err = dev->netdev_ops->ndo_fdb_del(ndm, dev, addr);
+		err = dev->netdev_ops->ndo_fdb_del(ndm, tb, dev, addr);
 
 		if (!err) {
 			rtnl_fdb_notify(dev, addr, RTM_DELNEIGH);
@@ -2315,6 +2323,13 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx = 0;
 	u32 portid = NETLINK_CB(cb->skb).portid;
 	u32 seq = cb->nlh->nlmsg_seq;
+	struct nlattr *extfilt;
+	u32 filter_mask = 0;
+
+	extfilt = nlmsg_find_attr(cb->nlh, sizeof(struct rtgenmsg),
+				  IFLA_EXT_MASK);
+	if (extfilt)
+		filter_mask = nla_get_u32(extfilt);
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
@@ -2324,14 +2339,15 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		if (br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
 			    br_dev->netdev_ops->ndo_bridge_getlink(
-				    skb, portid, seq, dev) < 0)
+				    skb, portid, seq, dev, filter_mask) < 0)
 				break;
 			idx++;
 		}
 
 		if (ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
-			    ops->ndo_bridge_getlink(skb, portid, seq, dev) < 0)
+			    ops->ndo_bridge_getlink(skb, portid, seq, dev,
+						    filter_mask) < 0)
 				break;
 			idx++;
 		}
@@ -2372,14 +2388,14 @@ static int rtnl_bridge_notify(struct net_device *dev, u16 flags)
 
 	if ((!flags || (flags & BRIDGE_FLAGS_MASTER)) &&
 	    br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
-		err = br_dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		err = br_dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0);
 		if (err < 0)
 			goto errout;
 	}
 
 	if ((flags & BRIDGE_FLAGS_SELF) &&
 	    dev->netdev_ops->ndo_bridge_getlink) {
-		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0);
 		if (err < 0)
 			goto errout;
 	}
@@ -2450,6 +2466,77 @@ static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			err = -EOPNOTSUPP;
 		else
 			err = dev->netdev_ops->ndo_bridge_setlink(dev, nlh);
+
+		if (!err)
+			flags &= ~BRIDGE_FLAGS_SELF;
+	}
+
+	if (have_flags)
+		memcpy(nla_data(attr), &flags, sizeof(flags));
+	/* Generate event to notify upper layer of bridge change */
+	if (!err)
+		err = rtnl_bridge_notify(dev, oflags);
+out:
+	return err;
+}
+
+static int rtnl_bridge_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			       void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct ifinfomsg *ifm;
+	struct net_device *dev;
+	struct nlattr *br_spec, *attr = NULL;
+	int rem, err = -EOPNOTSUPP;
+	u16 oflags, flags = 0;
+	bool have_flags = false;
+
+	if (nlmsg_len(nlh) < sizeof(*ifm))
+		return -EINVAL;
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->ifi_family != AF_BRIDGE)
+		return -EPFNOSUPPORT;
+
+	dev = __dev_get_by_index(net, ifm->ifi_index);
+	if (!dev) {
+		pr_info("PF_BRIDGE: RTM_SETLINK with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+	if (br_spec) {
+		nla_for_each_nested(attr, br_spec, rem) {
+			if (nla_type(attr) == IFLA_BRIDGE_FLAGS) {
+				have_flags = true;
+				flags = nla_get_u16(attr);
+				break;
+			}
+		}
+	}
+
+	oflags = flags;
+
+	if (!flags || (flags & BRIDGE_FLAGS_MASTER)) {
+		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
+
+		if (!br_dev || !br_dev->netdev_ops->ndo_bridge_dellink) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
+		err = br_dev->netdev_ops->ndo_bridge_dellink(dev, nlh);
+		if (err)
+			goto out;
+
+		flags &= ~BRIDGE_FLAGS_MASTER;
+	}
+
+	if ((flags & BRIDGE_FLAGS_SELF)) {
+		if (!dev->netdev_ops->ndo_bridge_dellink)
+			err = -EOPNOTSUPP;
+		else
+			err = dev->netdev_ops->ndo_bridge_dellink(dev, nlh);
 
 		if (!err)
 			flags &= ~BRIDGE_FLAGS_SELF;
@@ -2647,6 +2734,7 @@ void __init rtnetlink_init(void)
 	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, rtnl_fdb_dump, NULL);
 
 	rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, rtnl_bridge_getlink, NULL);
+	rtnl_register(PF_BRIDGE, RTM_DELLINK, rtnl_bridge_dellink, NULL, NULL);
 	rtnl_register(PF_BRIDGE, RTM_SETLINK, rtnl_bridge_setlink, NULL, NULL);
 }
 

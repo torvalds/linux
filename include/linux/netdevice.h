@@ -884,7 +884,8 @@ struct netdev_fcoe_hbainfo {
  *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
- * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
+ * int (*ndo_fdb_del)(struct ndmsg *ndm, struct nlattr *tb[],
+ *		      struct net_device *dev,
  *		      const unsigned char *addr)
  *	Deletes the FDB entry from dev coresponding to addr.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
@@ -1008,6 +1009,7 @@ struct net_device_ops {
 					       const unsigned char *addr,
 					       u16 flags);
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr);
 	int			(*ndo_fdb_dump)(struct sk_buff *skb,
@@ -1019,7 +1021,10 @@ struct net_device_ops {
 						      struct nlmsghdr *nlh);
 	int			(*ndo_bridge_getlink)(struct sk_buff *skb,
 						      u32 pid, u32 seq,
-						      struct net_device *dev);
+						      struct net_device *dev,
+						      u32 filter_mask);
+	int			(*ndo_bridge_dellink)(struct net_device *dev,
+						      struct nlmsghdr *nlh);
 	int			(*ndo_change_carrier)(struct net_device *dev,
 						      bool new_carrier);
 };

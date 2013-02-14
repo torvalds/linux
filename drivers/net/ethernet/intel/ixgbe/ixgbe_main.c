@@ -7002,7 +7002,7 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return err;
 }
 
-static int ixgbe_ndo_fdb_del(struct ndmsg *ndm,
+static int ixgbe_ndo_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			     struct net_device *dev,
 			     const unsigned char *addr)
 {
@@ -7079,7 +7079,8 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 }
 
 static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-				    struct net_device *dev)
+				    struct net_device *dev,
+				    u32 filter_mask)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	u16 mode;
