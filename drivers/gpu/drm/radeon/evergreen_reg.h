@@ -29,6 +29,11 @@
 #define TN_SMC_IND_DATA_0                               0x204
 
 /* evergreen */
+#define EVERGREEN_PIF_PHY0_INDEX                        0x8
+#define EVERGREEN_PIF_PHY0_DATA                         0xc
+#define EVERGREEN_PIF_PHY1_INDEX                        0x10
+#define EVERGREEN_PIF_PHY1_DATA                         0x14
+
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS               0x310
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH          0x324
 #define EVERGREEN_D3VGA_CONTROL                         0x3e0
