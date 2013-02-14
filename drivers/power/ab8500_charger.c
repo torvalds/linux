@@ -1925,6 +1925,67 @@ static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
 	return ret;
 }
 
+/**
+ * ab8540_charger_power_path_enable() - enable usb power path mode
+ * @charger:	pointer to the ux500_charger structure
+ * @enable:	enable/disable flag
+ *
+ * Enable or disable the power path for usb mode
+ * Returns error code in case of failure else 0(on success)
+ */
+static int ab8540_charger_power_path_enable(struct ux500_charger *charger,
+		bool enable)
+{
+	int ret;
+	struct ab8500_charger *di;
+
+	if (charger->psy.type == POWER_SUPPLY_TYPE_USB)
+		di = to_ab8500_charger_usb_device_info(charger);
+	else
+		return -ENXIO;
+
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
+				BUS_POWER_PATH_MODE_ENA, enable);
+	if (ret) {
+		dev_err(di->dev, "%s write failed\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+
+/**
+ * ab8540_charger_usb_pre_chg_enable() - enable usb pre change
+ * @charger:	pointer to the ux500_charger structure
+ * @enable:	enable/disable flag
+ *
+ * Enable or disable the pre-chage for usb mode
+ * Returns error code in case of failure else 0(on success)
+ */
+static int ab8540_charger_usb_pre_chg_enable(struct ux500_charger *charger,
+		bool enable)
+{
+	int ret;
+	struct ab8500_charger *di;
+
+	if (charger->psy.type == POWER_SUPPLY_TYPE_USB)
+		di = to_ab8500_charger_usb_device_info(charger);
+	else
+		return -ENXIO;
+
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
+				BUS_POWER_PATH_PRECHG_ENA, enable);
+	if (ret) {
+		dev_err(di->dev, "%s write failed\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 {
 	struct power_supply *psy;
@@ -3201,6 +3262,23 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 	if (ret < 0)
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
 
+	if (is_ab8540(di->parent)) {
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
+			BUS_VSYS_VOL_SELECT_MASK, BUS_VSYS_VOL_SELECT_3P6V);
+		if (ret) {
+			dev_err(di->dev, "failed to setup usb power path vsys voltage\n");
+			goto out;
+		}
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
+			BUS_PP_PRECHG_CURRENT_MASK, 0);
+		if (ret) {
+			dev_err(di->dev, "failed to setup usb power path prechage current\n");
+			goto out;
+		}
+	}
+
 out:
 	return ret;
 }
@@ -3484,6 +3562,8 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
+	di->usb_chg.ops.pp_enable = &ab8540_charger_power_path_enable;
+	di->usb_chg.ops.pre_chg_enable = &ab8540_charger_usb_pre_chg_enable;
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr = ab8500_charger_current_map[
@@ -3491,6 +3571,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.enabled = di->bm->usb_enabled;
 	di->usb_chg.external = false;
+	di->usb_chg.power_path = di->bm->usb_power_path;
 	di->usb_state.usb_current = -1;
 
 	/* Create a work queue for the charger */

@@ -34,6 +34,9 @@
 /* End-of-charge criteria counter */
 #define EOC_COND_CNT			10
 
+/* Plus margin for the low battery threshold */
+#define BAT_PLUS_MARGIN                (100)
+
 #define to_abx500_chargalg_device_info(x) container_of((x), \
 	struct abx500_chargalg, chargalg_psy);
 
@@ -83,6 +86,7 @@ enum abx500_chargalg_states {
 	STATE_HW_TEMP_PROTECT_INIT,
 	STATE_HW_TEMP_PROTECT,
 	STATE_NORMAL_INIT,
+	STATE_USB_PP_PRE_CHARGE,
 	STATE_NORMAL,
 	STATE_WAIT_FOR_RECHARGE_INIT,
 	STATE_WAIT_FOR_RECHARGE,
@@ -114,6 +118,7 @@ static const char *states[] = {
 	"HW_TEMP_PROTECT_INIT",
 	"HW_TEMP_PROTECT",
 	"NORMAL_INIT",
+	"USB_PP_PRE_CHARGE",
 	"NORMAL",
 	"WAIT_FOR_RECHARGE_INIT",
 	"WAIT_FOR_RECHARGE",
@@ -560,6 +565,37 @@ static int abx500_chargalg_usb_en(struct abx500_chargalg *di, int enable,
 	return di->usb_chg->ops.enable(di->usb_chg, enable, vset, iset);
 }
 
+ /**
+ * ab8540_chargalg_usb_pp_en() - Enable/ disable USB power path
+ * @di:                pointer to the abx500_chargalg structure
+ * @enable:    power path enable/disable
+ *
+ * The USB power path will be enable/ disable
+ */
+static int ab8540_chargalg_usb_pp_en(struct abx500_chargalg *di, bool enable)
+{
+	if (!di->usb_chg || !di->usb_chg->ops.pp_enable)
+		return -ENXIO;
+
+	return di->usb_chg->ops.pp_enable(di->usb_chg, enable);
+}
+
+/**
+ * ab8540_chargalg_usb_pre_chg_en() - Enable/ disable USB pre-charge
+ * @di:                pointer to the abx500_chargalg structure
+ * @enable:    USB pre-charge enable/disable
+ *
+ * The USB USB pre-charge will be enable/ disable
+ */
+static int ab8540_chargalg_usb_pre_chg_en(struct abx500_chargalg *di,
+					  bool enable)
+{
+	if (!di->usb_chg || !di->usb_chg->ops.pre_chg_enable)
+		return -ENXIO;
+
+	return di->usb_chg->ops.pre_chg_enable(di->usb_chg, enable);
+}
+
 /**
  * abx500_chargalg_update_chg_curr() - Update charger current
  * @di:		pointer to the abx500_chargalg structure
@@ -765,6 +801,9 @@ static void abx500_chargalg_end_of_charge(struct abx500_chargalg *di)
 		di->batt_data.avg_curr > 0) {
 		if (++di->eoc_cnt >= EOC_COND_CNT) {
 			di->eoc_cnt = 0;
+			if ((di->chg_info.charger_type & USB_CHG) &&
+			   (di->usb_chg->power_path))
+				ab8540_chargalg_usb_pp_en(di, true);
 			di->charge_status = POWER_SUPPLY_STATUS_FULL;
 			di->maintenance_chg = true;
 			dev_dbg(di->dev, "EOC reached!\n");
@@ -1465,6 +1504,22 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		break;
 
 	case STATE_NORMAL_INIT:
+		if ((di->chg_info.charger_type & USB_CHG) &&
+				di->usb_chg->power_path) {
+			if (di->batt_data.volt >
+			    (di->bm->fg_params->lowbat_threshold +
+			     BAT_PLUS_MARGIN)) {
+				ab8540_chargalg_usb_pre_chg_en(di, false);
+				ab8540_chargalg_usb_pp_en(di, false);
+			} else {
+				ab8540_chargalg_usb_pp_en(di, true);
+				ab8540_chargalg_usb_pre_chg_en(di, true);
+				abx500_chargalg_state_to(di,
+					STATE_USB_PP_PRE_CHARGE);
+				break;
+			}
+		}
+
 		abx500_chargalg_start_charging(di,
 			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
 			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
@@ -1477,6 +1532,13 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		di->maintenance_chg = false;
 		power_supply_changed(&di->chargalg_psy);
 
+		break;
+
+	case STATE_USB_PP_PRE_CHARGE:
+		if (di->batt_data.volt >
+			(di->bm->fg_params->lowbat_threshold +
+			BAT_PLUS_MARGIN))
+			abx500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 
 	case STATE_NORMAL:

@@ -69,6 +69,8 @@
 #define AB8500_USBCH_CTRL1_REG		0xC0
 #define AB8500_USBCH_CTRL2_REG		0xC1
 #define AB8500_USBCH_IPT_CRNTLVL_REG	0xC2
+#define AB8540_USB_PP_MODE_REG		0xC5
+#define AB8540_USB_PP_CHR_REG		0xC6
 
 /*
  * Gas Gauge register offsets
@@ -258,6 +260,16 @@ enum bup_vch_sel {
 #define AB8505_RTC_PCUT_FLAG_TIME_REG	0x15
 #define AB8505_RTC_PCUT_RESTART_REG	0x16
 #define AB8505_RTC_PCUT_DEBOUNCE_REG	0x17
+
+/* USB Power Path constants for ab8540 */
+#define BUS_VSYS_VOL_SELECT_MASK		0x06
+#define BUS_VSYS_VOL_SELECT_3P6V		0x00
+#define BUS_VSYS_VOL_SELECT_3P325V		0x02
+#define BUS_VSYS_VOL_SELECT_3P9V		0x04
+#define BUS_VSYS_VOL_SELECT_4P3V		0x06
+#define BUS_POWER_PATH_MODE_ENA			0x01
+#define BUS_PP_PRECHG_CURRENT_MASK		0x0E
+#define BUS_POWER_PATH_PRECHG_ENA		0x01
 
 /**
  * struct res_to_temp - defines one point in a temp to res curve. To

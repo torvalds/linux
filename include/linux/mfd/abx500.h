@@ -267,6 +267,7 @@ struct abx500_bm_data {
 	bool autopower_cfg;
 	bool ac_enabled;
 	bool usb_enabled;
+	bool usb_power_path;
 	bool no_maintenance;
 	bool capacity_scaling;
 	bool chg_unknown_bat;
