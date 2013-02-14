@@ -3802,7 +3802,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	__be16 type = skb->protocol;
 	struct list_head *head = &offload_base;
 	int same_flow;
-	int mac_len;
 	enum gro_result ret;
 
 	if (!(skb->dev->features & NETIF_F_GRO) || netpoll_rx_on(skb))
@@ -3819,8 +3818,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			continue;
 
 		skb_set_network_header(skb, skb_gro_offset(skb));
-		mac_len = skb->network_header - skb->mac_header;
-		skb->mac_len = mac_len;
+		skb_reset_mac_len(skb);
 		NAPI_GRO_CB(skb)->same_flow = 0;
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
