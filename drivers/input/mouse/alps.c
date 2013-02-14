@@ -114,6 +114,11 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x73, 0x02, 0x64 },	0x8a, ALPS_PROTO_V4, 0x8f, 0x8f, 0 },
 };
 
+static void alps_set_abs_params_st(struct alps_data *priv,
+				   struct input_dev *dev1);
+static void alps_set_abs_params_mt(struct alps_data *priv,
+				   struct input_dev *dev1);
+
 /*
  * XXX - this entry is suspicious. First byte has zero lower nibble,
  * which is what a normal mouse would report. Also, the value 0x0e
@@ -695,24 +700,6 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
-static void alps_process_packet(struct psmouse *psmouse)
-{
-	struct alps_data *priv = psmouse->private;
-
-	switch (priv->proto_version) {
-	case ALPS_PROTO_V1:
-	case ALPS_PROTO_V2:
-		alps_process_packet_v1_v2(psmouse);
-		break;
-	case ALPS_PROTO_V3:
-		alps_process_packet_v3(psmouse);
-		break;
-	case ALPS_PROTO_V4:
-		alps_process_packet_v4(psmouse);
-		break;
-	}
-}
-
 static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
 					unsigned char packet[],
 					bool report_buttons)
@@ -770,7 +757,7 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 			return PSMOUSE_BAD_DATA;
 		}
 
-		alps_process_packet(psmouse);
+		priv->process_packet(psmouse);
 
 		/* Continue with the next packet */
 		psmouse->packet[0] = psmouse->packet[6];
@@ -814,6 +801,7 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 static void alps_flush_packet(unsigned long data)
 {
 	struct psmouse *psmouse = (struct psmouse *)data;
+	struct alps_data *priv = psmouse->private;
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 
@@ -831,7 +819,7 @@ static void alps_flush_packet(unsigned long data)
 				    "refusing packet %3ph (suspected interleaved ps/2)\n",
 				    psmouse->packet + 3);
 		} else {
-			alps_process_packet(psmouse);
+			priv->process_packet(psmouse);
 		}
 		psmouse->pktcnt = 0;
 	}
@@ -876,7 +864,7 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 	}
 
 	if (psmouse->pktcnt == psmouse->pktsize) {
-		alps_process_packet(psmouse);
+		priv->process_packet(psmouse);
 		return PSMOUSE_FULL_PACKET;
 	}
 
@@ -1430,25 +1418,26 @@ error:
 	return -1;
 }
 
-static int alps_hw_init(struct psmouse *psmouse)
+static void alps_set_defaults(struct alps_data *priv)
 {
-	struct alps_data *priv = psmouse->private;
-	int ret = -1;
-
 	switch (priv->proto_version) {
 	case ALPS_PROTO_V1:
 	case ALPS_PROTO_V2:
-		ret = alps_hw_init_v1_v2(psmouse);
+		priv->hw_init = alps_hw_init_v1_v2;
+		priv->process_packet = alps_process_packet_v1_v2;
+		priv->set_abs_params = alps_set_abs_params_st;
 		break;
 	case ALPS_PROTO_V3:
-		ret = alps_hw_init_v3(psmouse);
+		priv->hw_init = alps_hw_init_v3;
+		priv->process_packet = alps_process_packet_v3;
+		priv->set_abs_params = alps_set_abs_params_mt;
 		break;
 	case ALPS_PROTO_V4:
-		ret = alps_hw_init_v4(psmouse);
+		priv->hw_init = alps_hw_init_v4;
+		priv->process_packet = alps_process_packet_v4;
+		priv->set_abs_params = alps_set_abs_params_mt;
 		break;
 	}
-
-	return ret;
 }
 
 static int alps_match_table(struct psmouse *psmouse, struct alps_data *priv,
@@ -1465,6 +1454,8 @@ static int alps_match_table(struct psmouse *psmouse, struct alps_data *priv,
 		     model->command_mode_resp == ec[2])) {
 
 			priv->proto_version = model->proto_version;
+			alps_set_defaults(priv);
+
 			priv->flags = model->flags;
 			priv->byte0 = model->byte0;
 			priv->mask0 = model->mask0;
@@ -1523,7 +1514,7 @@ static int alps_reconnect(struct psmouse *psmouse)
 	if (alps_identify(psmouse, priv) < 0)
 		return -1;
 
-	return alps_hw_init(psmouse);
+	return priv->hw_init(psmouse);
 }
 
 static void alps_disconnect(struct psmouse *psmouse)
@@ -1534,6 +1525,29 @@ static void alps_disconnect(struct psmouse *psmouse)
 	del_timer_sync(&priv->timer);
 	input_unregister_device(priv->dev2);
 	kfree(priv);
+}
+
+static void alps_set_abs_params_st(struct alps_data *priv,
+				   struct input_dev *dev1)
+{
+	input_set_abs_params(dev1, ABS_X, 0, 1023, 0, 0);
+	input_set_abs_params(dev1, ABS_Y, 0, 767, 0, 0);
+}
+
+static void alps_set_abs_params_mt(struct alps_data *priv,
+				   struct input_dev *dev1)
+{
+	set_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
+	input_mt_init_slots(dev1, 2, 0);
+	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, ALPS_V3_X_MAX, 0, 0);
+	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, ALPS_V3_Y_MAX, 0, 0);
+
+	set_bit(BTN_TOOL_DOUBLETAP, dev1->keybit);
+	set_bit(BTN_TOOL_TRIPLETAP, dev1->keybit);
+	set_bit(BTN_TOOL_QUADTAP, dev1->keybit);
+
+	input_set_abs_params(dev1, ABS_X, 0, ALPS_V3_X_MAX, 0, 0);
+	input_set_abs_params(dev1, ABS_Y, 0, ALPS_V3_Y_MAX, 0, 0);
 }
 
 int alps_init(struct psmouse *psmouse)
@@ -1556,7 +1570,7 @@ int alps_init(struct psmouse *psmouse)
 	if (alps_identify(psmouse, priv) < 0)
 		goto init_fail;
 
-	if (alps_hw_init(psmouse))
+	if (priv->hw_init(psmouse))
 		goto init_fail;
 
 	/*
@@ -1578,28 +1592,7 @@ int alps_init(struct psmouse *psmouse)
 
 	dev1->evbit[BIT_WORD(EV_ABS)] |= BIT_MASK(EV_ABS);
 
-	switch (priv->proto_version) {
-	case ALPS_PROTO_V1:
-	case ALPS_PROTO_V2:
-		input_set_abs_params(dev1, ABS_X, 0, 1023, 0, 0);
-		input_set_abs_params(dev1, ABS_Y, 0, 767, 0, 0);
-		break;
-	case ALPS_PROTO_V3:
-	case ALPS_PROTO_V4:
-		set_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
-		input_mt_init_slots(dev1, 2, 0);
-		input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, ALPS_V3_X_MAX, 0, 0);
-		input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, ALPS_V3_Y_MAX, 0, 0);
-
-		set_bit(BTN_TOOL_DOUBLETAP, dev1->keybit);
-		set_bit(BTN_TOOL_TRIPLETAP, dev1->keybit);
-		set_bit(BTN_TOOL_QUADTAP, dev1->keybit);
-
-		input_set_abs_params(dev1, ABS_X, 0, ALPS_V3_X_MAX, 0, 0);
-		input_set_abs_params(dev1, ABS_Y, 0, ALPS_V3_Y_MAX, 0, 0);
-		break;
-	}
-
+	priv->set_abs_params(priv, dev1);
 	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 
 	if (priv->flags & ALPS_WHEEL) {

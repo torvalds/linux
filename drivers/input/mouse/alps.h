@@ -72,6 +72,9 @@ struct alps_nibble_commands {
  *   mask0, should match byte0.
  * @mask0: The mask used to check the first byte of the report.
  * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ * @hw_init: Protocol-specific hardware init function.
+ * @process_packet: Protocol-specific function to process a report packet.
+ * @set_abs_params: Protocol-specific function to configure the input_dev.
  * @prev_fin: Finger bit from previous packet.
  * @multi_packet: Multi-packet data in progress.
  * @multi_data: Saved multi-packet data.
@@ -93,6 +96,10 @@ struct alps_data {
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
 	unsigned char flags;
+
+	int (*hw_init)(struct psmouse *psmouse);
+	void (*process_packet)(struct psmouse *psmouse);
+	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
 
 	int prev_fin;
 	int multi_packet;
