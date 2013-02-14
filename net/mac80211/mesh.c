@@ -868,6 +868,63 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->u.mesh.timers_running = 0;
 }
 
+static void
+ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
+			    struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct sk_buff *presp;
+	struct beacon_data *bcn;
+	struct ieee80211_mgmt *hdr;
+	struct ieee802_11_elems elems;
+	size_t baselen;
+	u8 *pos, *end;
+
+	end = ((u8 *) mgmt) + len;
+	pos = mgmt->u.probe_req.variable;
+	baselen = (u8 *) pos - (u8 *) mgmt;
+	if (baselen > len)
+		return;
+
+	ieee802_11_parse_elems(pos, len - baselen, &elems);
+
+	/* 802.11-2012 10.1.4.3.2 */
+	if ((!ether_addr_equal(mgmt->da, sdata->vif.addr) &&
+	     !is_broadcast_ether_addr(mgmt->da)) ||
+	    elems.ssid_len != 0)
+		return;
+
+	if (elems.mesh_id_len != 0 &&
+	    (elems.mesh_id_len != ifmsh->mesh_id_len ||
+	     memcmp(elems.mesh_id, ifmsh->mesh_id, ifmsh->mesh_id_len)))
+		return;
+
+	rcu_read_lock();
+	bcn = rcu_dereference(ifmsh->beacon);
+
+	if (!bcn)
+		goto out;
+
+	presp = dev_alloc_skb(local->tx_headroom +
+			      bcn->head_len + bcn->tail_len);
+	if (!presp)
+		goto out;
+
+	skb_reserve(presp, local->tx_headroom);
+	memcpy(skb_put(presp, bcn->head_len), bcn->head, bcn->head_len);
+	memcpy(skb_put(presp, bcn->tail_len), bcn->tail, bcn->tail_len);
+	hdr = (struct ieee80211_mgmt *) presp->data;
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					 IEEE80211_STYPE_PROBE_RESP);
+	memcpy(hdr->da, mgmt->sa, ETH_ALEN);
+	mpl_dbg(sdata, "sending probe resp. to %pM\n", hdr->da);
+	IEEE80211_SKB_CB(presp)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, presp);
+out:
+	rcu_read_unlock();
+}
+
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 					u16 stype,
 					struct ieee80211_mgmt *mgmt,
@@ -956,6 +1013,9 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_STYPE_BEACON:
 		ieee80211_mesh_rx_bcn_presp(sdata, stype, mgmt, skb->len,
 					    rx_status);
+		break;
+	case IEEE80211_STYPE_PROBE_REQ:
+		ieee80211_mesh_rx_probe_req(sdata, mgmt, skb->len);
 		break;
 	case IEEE80211_STYPE_ACTION:
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
