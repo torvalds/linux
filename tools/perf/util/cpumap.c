@@ -267,7 +267,53 @@ static int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	return 0;
 }
 
+int cpu_map__get_core(struct cpu_map *map, int idx)
+{
+	FILE *fp;
+	const char *mnt;
+	char path[PATH_MAX];
+	int cpu, ret, s;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	mnt = sysfs_find_mountpoint();
+	if (!mnt)
+		return -1;
+
+	snprintf(path, PATH_MAX,
+		"%s/devices/system/cpu/cpu%d/topology/core_id",
+		mnt, cpu);
+
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+	ret = fscanf(fp, "%d", &cpu);
+	fclose(fp);
+	if (ret != 1)
+		return -1;
+
+	s = cpu_map__get_socket(map, idx);
+	if (s == -1)
+		return -1;
+
+	/*
+	 * encode socket in upper 16 bits
+	 * core_id is relative to socket, and
+	 * we need a global id. So we combine
+	 * socket+ core id
+	 */
+	return (s << 16) | (cpu & 0xffff);
+}
+
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket);
+}
+
+int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep)
+{
+	return cpu_map__build_map(cpus, corep, cpu_map__get_core);
 }

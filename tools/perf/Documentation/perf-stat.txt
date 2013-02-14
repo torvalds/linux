@@ -126,6 +126,12 @@ use --per-socket in addition to -a. (system-wide).  The output includes the
 socket number and the number of online processors on that socket. This is
 useful to gauge the amount of aggregation.
 
+--per-core::
+Aggregate counts per physical processor for system-wide mode measurements.  This
+is a useful mode to detect imbalance between physical cores.  To enable this mode,
+use --per-core in addition to -a. (system-wide).  The output includes the
+core number and the number of online logical processors on that physical processor.
+
 EXAMPLES
 --------
 

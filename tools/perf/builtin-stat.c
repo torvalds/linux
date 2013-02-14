@@ -80,6 +80,7 @@ enum aggr_mode {
 	AGGR_NONE,
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
+	AGGR_CORE,
 };
 
 static int			run_count			=  1;
@@ -384,6 +385,9 @@ static void print_interval(void)
 		case AGGR_SOCKET:
 			fprintf(output, "#           time socket cpus             counts events\n");
 			break;
+		case AGGR_CORE:
+			fprintf(output, "#           time core         cpus             counts events\n");
+			break;
 		case AGGR_NONE:
 			fprintf(output, "#           time CPU                 counts events\n");
 			break;
@@ -397,6 +401,7 @@ static void print_interval(void)
 		num_print_interval = 0;
 
 	switch (aggr_mode) {
+	case AGGR_CORE:
 	case AGGR_SOCKET:
 		print_aggr(prefix);
 		break;
@@ -566,13 +571,23 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 	print_noise_pct(stddev_stats(&ps->res_stats[0]), avg);
 }
 
-static void aggr_printout(struct perf_evsel *evsel, int cpu, int nr)
+static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 {
 	switch (aggr_mode) {
+	case AGGR_CORE:
+		fprintf(output, "S%d-C%*d%s%*d%s",
+			cpu_map__id_to_socket(id),
+			csv_output ? 0 : -8,
+			cpu_map__id_to_cpu(id),
+			csv_sep,
+			csv_output ? 0 : 4,
+			nr,
+			csv_sep);
+		break;
 	case AGGR_SOCKET:
 		fprintf(output, "S%*d%s%*d%s",
 			csv_output ? 0 : -5,
-			cpu,
+			id,
 			csv_sep,
 			csv_output ? 0 : 4,
 			nr,
@@ -581,7 +596,7 @@ static void aggr_printout(struct perf_evsel *evsel, int cpu, int nr)
 	case AGGR_NONE:
 		fprintf(output, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			perf_evsel__cpus(evsel)->map[cpu], csv_sep);
+			perf_evsel__cpus(evsel)->map[id], csv_sep);
 		break;
 	case AGGR_GLOBAL:
 	default:
@@ -1095,6 +1110,7 @@ static void print_stat(int argc, const char **argv)
 	}
 
 	switch (aggr_mode) {
+	case AGGR_CORE:
 	case AGGR_SOCKET:
 		print_aggr(NULL);
 		break;
@@ -1162,6 +1178,13 @@ static int perf_stat_init_aggr_mode(void)
 			return -1;
 		}
 		aggr_get_id = cpu_map__get_socket;
+		break;
+	case AGGR_CORE:
+		if (cpu_map__build_core_map(evsel_list->cpus, &aggr_map)) {
+			perror("cannot build core map");
+			return -1;
+		}
+		aggr_get_id = cpu_map__get_core;
 		break;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
@@ -1372,6 +1395,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "print counts at regular interval in ms (>= 100)"),
 	OPT_SET_UINT(0, "per-socket", &aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
+	OPT_SET_UINT(0, "per-core", &aggr_mode,
+		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_END()
 	};
 	const char * const stat_usage[] = {

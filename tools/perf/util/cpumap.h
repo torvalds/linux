@@ -15,13 +15,25 @@ void cpu_map__delete(struct cpu_map *map);
 struct cpu_map *cpu_map__read(FILE *file);
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp);
 int cpu_map__get_socket(struct cpu_map *map, int idx);
+int cpu_map__get_core(struct cpu_map *map, int idx);
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp);
+int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep);
 
 static inline int cpu_map__socket(struct cpu_map *sock, int s)
 {
 	if (!sock || s > sock->nr || s < 0)
 		return 0;
 	return sock->map[s];
+}
+
+static inline int cpu_map__id_to_socket(int id)
+{
+	return id >> 16;
+}
+
+static inline int cpu_map__id_to_cpu(int id)
+{
+	return id & 0xffff;
 }
 
 static inline int cpu_map__nr(const struct cpu_map *map)
