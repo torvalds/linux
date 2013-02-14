@@ -33,7 +33,7 @@ static struct omap_dss_device *to_dss_device_sysfs(struct device *dev)
 	struct omap_dss_device *dssdev = NULL;
 
 	for_each_dss_dev(dssdev) {
-		if (&dssdev->dev == dev) {
+		if (dssdev->dev == dev) {
 			omap_dss_put_device(dssdev);
 			return dssdev;
 		}
@@ -308,7 +308,7 @@ int display_init_sysfs(struct platform_device *pdev)
 	int r;
 
 	for_each_dss_dev(dssdev) {
-		struct kobject *kobj = &dssdev->dev.kobj;
+		struct kobject *kobj = &dssdev->dev->kobj;
 
 		r = sysfs_create_files(kobj, display_sysfs_attrs);
 		if (r) {
@@ -339,6 +339,7 @@ void display_uninit_sysfs(struct platform_device *pdev)
 
 	for_each_dss_dev(dssdev) {
 		sysfs_remove_link(&pdev->dev.kobj, dssdev->alias);
-		sysfs_remove_files(&dssdev->dev.kobj, display_sysfs_attrs);
+		sysfs_remove_files(&dssdev->dev->kobj,
+				display_sysfs_attrs);
 	}
 }

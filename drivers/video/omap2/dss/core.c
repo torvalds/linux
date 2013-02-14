@@ -437,30 +437,32 @@ struct omap_dss_device *dss_alloc_and_init_device(struct device *parent)
 	if (!dssdev)
 		return NULL;
 
-	dssdev->dev.bus = &dss_bus_type;
-	dssdev->dev.parent = parent;
-	dssdev->dev.release = omap_dss_dev_release;
-	dev_set_name(&dssdev->dev, "display%d", disp_num_counter++);
+	dssdev->old_dev.bus = &dss_bus_type;
+	dssdev->old_dev.parent = parent;
+	dssdev->old_dev.release = omap_dss_dev_release;
+	dev_set_name(&dssdev->old_dev, "display%d", disp_num_counter++);
 
-	device_initialize(&dssdev->dev);
+	device_initialize(&dssdev->old_dev);
 
 	return dssdev;
 }
 
 int dss_add_device(struct omap_dss_device *dssdev)
 {
+	dssdev->dev = &dssdev->old_dev;
+
 	omapdss_register_display(dssdev);
-	return device_add(&dssdev->dev);
+	return device_add(&dssdev->old_dev);
 }
 
 void dss_put_device(struct omap_dss_device *dssdev)
 {
-	put_device(&dssdev->dev);
+	put_device(&dssdev->old_dev);
 }
 
 void dss_unregister_device(struct omap_dss_device *dssdev)
 {
-	device_unregister(&dssdev->dev);
+	device_unregister(&dssdev->old_dev);
 	omapdss_unregister_display(dssdev);
 }
 

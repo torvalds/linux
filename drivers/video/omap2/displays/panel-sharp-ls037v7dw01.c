@@ -66,35 +66,35 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->panel.timings = sharp_ls_timings;
 
 	if (gpio_is_valid(pd->mo_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->mo_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->mo_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd MO");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(pd->lr_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->lr_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->lr_gpio,
 				GPIOF_OUT_INIT_HIGH, "lcd LR");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(pd->ud_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->ud_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->ud_gpio,
 				GPIOF_OUT_INIT_HIGH, "lcd UD");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(pd->resb_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->resb_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->resb_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd RESB");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(pd->ini_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->ini_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->ini_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd INI");
 		if (r)
 			return r;

@@ -596,7 +596,11 @@ struct omap_dss_output {
 };
 
 struct omap_dss_device {
-	struct device dev;
+	/* old device, to be removed */
+	struct device old_dev;
+
+	/* new device, pointer to panel device */
+	struct device *dev;
 
 	struct list_head panel_list;
 
@@ -856,7 +860,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool mem_to_mem);
 
 #define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
-#define to_dss_device(x) container_of((x), struct omap_dss_device, dev)
+#define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
 
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
