@@ -436,10 +436,15 @@ exit:
 static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
 {
 	size_t size;
+	int retval;
 
 	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
 	memset(devpriv->usb_tx_buf, 0, size);
-	return vmk80xx_write_packet(devpriv, VMK8055_CMD_RST);
+	retval = vmk80xx_write_packet(devpriv, VMK8055_CMD_RST);
+	if (retval)
+		return retval;
+	/* set outputs to known state as we cannot read them */
+	return vmk80xx_write_packet(devpriv, VMK8055_CMD_WRT_AD);
 }
 
 #define DIR_IN  1
