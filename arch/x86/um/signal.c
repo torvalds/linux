@@ -464,7 +464,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	return 0;
 }
 
-long sys_sigreturn(struct pt_regs *regs)
+long sys_sigreturn(void)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
 	struct sigframe __user *frame = (struct sigframe __user *)(sp - 8);
@@ -577,7 +577,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 }
 #endif
 
-long sys_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(void)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
 	struct rt_sigframe __user *frame =
@@ -601,14 +601,3 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	force_sig(SIGSEGV, current);
 	return 0;
 }
-
-#ifdef CONFIG_X86_32
-long ptregs_sigreturn(void)
-{
-	return sys_sigreturn(NULL);
-}
-long ptregs_rt_sigreturn(void)
-{
-	return sys_rt_sigreturn(NULL);
-}
-#endif

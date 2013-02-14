@@ -535,70 +535,13 @@ static int x32_setup_rt_frame(int sig, struct k_sigaction *ka,
 	return 0;
 }
 
-#ifdef CONFIG_X86_32
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction __user *act,
-	      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret = 0;
-
-	if (act) {
-		old_sigset_t mask;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)))
-			return -EFAULT;
-
-		get_user_try {
-			get_user_ex(new_ka.sa.sa_handler, &act->sa_handler);
-			get_user_ex(new_ka.sa.sa_flags, &act->sa_flags);
-			get_user_ex(mask, &act->sa_mask);
-			get_user_ex(new_ka.sa.sa_restorer, &act->sa_restorer);
-		} get_user_catch(ret);
-
-		if (ret)
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-			return -EFAULT;
-
-		put_user_try {
-			put_user_ex(old_ka.sa.sa_handler, &oact->sa_handler);
-			put_user_ex(old_ka.sa.sa_flags, &oact->sa_flags);
-			put_user_ex(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-			put_user_ex(old_ka.sa.sa_restorer, &oact->sa_restorer);
-		} put_user_catch(ret);
-
-		if (ret)
-			return -EFAULT;
-	}
-
-	return ret;
-}
-#endif /* CONFIG_X86_32 */
-
 /*
  * Do a signal return; undo the signal stack.
  */
 #ifdef CONFIG_X86_32
-unsigned long sys_sigreturn(struct pt_regs *regs)
+unsigned long sys_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct sigframe __user *frame;
 	unsigned long ax;
 	sigset_t set;
@@ -625,8 +568,9 @@ badframe:
 }
 #endif /* CONFIG_X86_32 */
 
-long sys_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	unsigned long ax;
 	sigset_t set;
@@ -843,8 +787,9 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 }
 
 #ifdef CONFIG_X86_X32_ABI
-asmlinkage long sys32_x32_rt_sigreturn(struct pt_regs *regs)
+asmlinkage long sys32_x32_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe_x32 __user *frame;
 	sigset_t set;
 	unsigned long ax;

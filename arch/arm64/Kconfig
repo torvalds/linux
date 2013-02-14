@@ -6,10 +6,15 @@ config ARM64
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_COMPAT_RT_SIGACTION
+	select GENERIC_COMPAT_RT_SIGPENDING
+	select GENERIC_COMPAT_RT_SIGPROCMASK
+	select GENERIC_COMPAT_RT_SIGQUEUEINFO
 	select GENERIC_HARDIRQS_NO_DEPRECATED
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select GENERIC_SIGALTSTACK
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HARDIRQS_SW_RESEND
@@ -204,6 +209,8 @@ config COMPAT
 	depends on !ARM64_64K_PAGES
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
+	select OLD_SIGSUSPEND3
+	select COMPAT_OLD_SIGACTION
 	help
 	  This option enables support for a 32-bit EL0 running under a 64-bit
 	  kernel at EL1. AArch32-specific components such as system calls,

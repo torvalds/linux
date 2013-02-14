@@ -160,7 +160,6 @@ struct __new_sigaction {
 	__sigrestore_t		sa_restorer;  /* not used by Linux/SPARC yet */
 	__new_sigset_t		sa_mask;
 };
-#endif
 
 struct __old_sigaction {
 	__sighandler_t		sa_handler;
@@ -168,6 +167,7 @@ struct __old_sigaction {
 	unsigned long		sa_flags;
 	void			(*sa_restorer)(void);  /* not used by Linux/SPARC yet */
 };
+#endif
 
 typedef struct sigaltstack {
 	void			__user *ss_sp;

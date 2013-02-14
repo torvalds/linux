@@ -61,18 +61,6 @@ asmlinkage long sys32_unimplemented(int r26, int r25, int r24, int r23,
     return -ENOSYS;
 }
 
-asmlinkage long sys32_sched_rr_get_interval(pid_t pid,
-	struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-
-	KERNEL_SYSCALL(ret, sys_sched_rr_get_interval, pid, (struct timespec __user *)&t);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
 struct msgbuf32 {
     int mtype;
     char mtext[1];

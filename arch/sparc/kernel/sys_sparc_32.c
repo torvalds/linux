@@ -160,41 +160,12 @@ sparc_breakpoint (struct pt_regs *regs)
 #endif
 }
 
-asmlinkage int
-sparc_sigaction (int sig, const struct old_sigaction __user *act,
-		 struct old_sigaction __user *oact)
+SYSCALL_DEFINE3(sparc_sigaction, int, sig,
+		struct old_sigaction __user *,act,
+		struct old_sigaction __user *,oact)
 {
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
 	WARN_ON_ONCE(sig >= 0);
-	sig = -sig;
-
-	if (act) {
-		unsigned long mask;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-		new_ka.ka_restorer = NULL;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
+	return sys_sigaction(-sig, act, oact);
 }
 
 SYSCALL_DEFINE5(rt_sigaction, int, sig,

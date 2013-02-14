@@ -26,13 +26,6 @@ typedef struct {
 	unsigned long	sig[_NSIG_WORDS];
 } sigset_t;
 
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-};
-
 #define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>

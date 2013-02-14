@@ -61,7 +61,7 @@ struct rt_signal_frame32 {
 	compat_sigset_t		mask;
 	/* __siginfo_fpu_t * */ u32 fpu_save;
 	unsigned int		insns[2];
-	stack_t32		stack;
+	compat_stack_t		stack;
 	unsigned int		extra_size; /* Should be sizeof(siginfo_extra_v8plus_t) */
 	/* Only valid if (regs.psr & (PSR_VERS|PSR_IMPL)) == PSR_V8PLUS */
 	siginfo_extra_v8plus_t	v8plus;
@@ -230,13 +230,11 @@ segv:
 asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 {
 	struct rt_signal_frame32 __user *sf;
-	unsigned int psr, pc, npc, u_ss_sp;
+	unsigned int psr, pc, npc;
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
-	mm_segment_t old_fs;
 	sigset_t set;
 	compat_sigset_t seta;
-	stack_t st;
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
@@ -295,20 +293,10 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	if (!err && fpu_save)
 		err |= restore_fpu_state(regs, compat_ptr(fpu_save));
 	err |= copy_from_user(&seta, &sf->mask, sizeof(compat_sigset_t));
-	err |= __get_user(u_ss_sp, &sf->stack.ss_sp);
-	st.ss_sp = compat_ptr(u_ss_sp);
-	err |= __get_user(st.ss_flags, &sf->stack.ss_flags);
-	err |= __get_user(st.ss_size, &sf->stack.ss_size);
+	err |= compat_restore_altstack(&sf->stack);
 	if (err)
 		goto segv;
 		
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((stack_t __user *) &st, NULL, (unsigned long)sf);
-	set_fs(old_fs);
-	
 	err |= __get_user(rwin_save, &sf->rwin_save);
 	if (!err && rwin_save) {
 		if (restore_rwin_state(compat_ptr(rwin_save)))
@@ -642,9 +630,7 @@ static int setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= copy_siginfo_to_user32(&sf->info, info);
 	
 	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &sf->stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &sf->stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &sf->stack.ss_size);
+	err |= __compat_save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 
 	switch (_NSIG_WORDS) {
 	case 4: seta.sig[7] = (oldset->sig[3] >> 32);
@@ -854,31 +840,5 @@ asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp)
 	
 	ret = 0;
 out:
-	return ret;
-}
-
-asmlinkage long do_sys32_sigaltstack(u32 ussa, u32 uossa, unsigned long sp)
-{
-	stack_t uss, uoss;
-	u32 u_ss_sp = 0;
-	int ret;
-	mm_segment_t old_fs;
-	stack_t32 __user *uss32 = compat_ptr(ussa);
-	stack_t32 __user *uoss32 = compat_ptr(uossa);
-	
-	if (ussa && (get_user(u_ss_sp, &uss32->ss_sp) ||
-		    __get_user(uss.ss_flags, &uss32->ss_flags) ||
-		    __get_user(uss.ss_size, &uss32->ss_size)))
-		return -EFAULT;
-	uss.ss_sp = compat_ptr(u_ss_sp);
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(ussa ? (stack_t __user *) &uss : NULL,
-			     uossa ? (stack_t __user *) &uoss : NULL, sp);
-	set_fs(old_fs);
-	if (!ret && uossa && (put_user(ptr_to_compat(uoss.ss_sp), &uoss32->ss_sp) ||
-		    __put_user(uoss.ss_flags, &uoss32->ss_flags) ||
-		    __put_user(uoss.ss_size, &uoss32->ss_size)))
-		return -EFAULT;
 	return ret;
 }

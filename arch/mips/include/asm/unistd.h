@@ -43,6 +43,8 @@
 # ifdef CONFIG_MIPS32_O32
 #  define __ARCH_WANT_COMPAT_SYS_TIME
 # endif
+#define __ARCH_WANT_SYS_FORK
+#define __ARCH_WANT_SYS_CLONE
 
 /* whitelists for checksyscalls */
 #define __IGNORE_select

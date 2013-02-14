@@ -24,8 +24,6 @@
  * System call wrappers implemented in kernel/entry.S.
  */
 asmlinkage long sys_rt_sigreturn_wrapper(void);
-asmlinkage long sys_sigaltstack_wrapper(const stack_t __user *uss,
-					stack_t __user *uoss);
 
 #include <asm-generic/syscalls.h>
 

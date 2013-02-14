@@ -12,7 +12,6 @@ struct pt_regs;
 asmlinkage long xtensa_ptrace(long, long, long, long);
 asmlinkage long xtensa_sigreturn(struct pt_regs*);
 asmlinkage long xtensa_rt_sigreturn(struct pt_regs*);
-asmlinkage long xtensa_sigaltstack(struct pt_regs *regs);
 asmlinkage long xtensa_shmat(int, char __user *, int);
 asmlinkage long xtensa_fadvise64_64(int, int,
 				    unsigned long long, unsigned long long);

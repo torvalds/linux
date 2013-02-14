@@ -117,8 +117,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_mprotect			/* 6010 */
 	PTR	sys_munmap
 	PTR	sys_brk
-	PTR	sys_32_rt_sigaction
-	PTR	sys_32_rt_sigprocmask
+	PTR	compat_sys_rt_sigaction
+	PTR	compat_sys_rt_sigprocmask
 	PTR	compat_sys_ioctl		/* 6015 */
 	PTR	sys_pread64
 	PTR	sys_pwrite64
@@ -159,8 +159,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_socketpair
 	PTR	compat_sys_setsockopt
 	PTR	sys_getsockopt
-	PTR	sys_clone			/* 6055 */
-	PTR	sys_fork
+	PTR	__sys_clone			/* 6055 */
+	PTR	__sys_fork
 	PTR	compat_sys_execve
 	PTR	sys_exit
 	PTR	compat_sys_wait4
@@ -229,11 +229,11 @@ EXPORT(sysn32_call_table)
 	PTR	sys_getsid
 	PTR	sys_capget
 	PTR	sys_capset
-	PTR	sys_32_rt_sigpending		/* 6125 */
+	PTR	compat_sys_rt_sigpending	/* 6125 */
 	PTR	compat_sys_rt_sigtimedwait
-	PTR	sys_32_rt_sigqueueinfo
-	PTR	sysn32_rt_sigsuspend
-	PTR	sys32_sigaltstack
+	PTR	compat_sys_rt_sigqueueinfo
+	PTR	compat_sys_rt_sigsuspend
+	PTR	compat_sys_sigaltstack
 	PTR	compat_sys_utime		/* 6130 */
 	PTR	sys_mknod
 	PTR	sys_32_personality
@@ -249,7 +249,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_sched_getscheduler
 	PTR	sys_sched_get_priority_max
 	PTR	sys_sched_get_priority_min
-	PTR	sys_32_sched_rr_get_interval	/* 6145 */
+	PTR	compat_sys_sched_rr_get_interval	/* 6145 */
 	PTR	sys_mlock
 	PTR	sys_munlock
 	PTR	sys_mlockall
@@ -298,7 +298,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fremovexattr
 	PTR	sys_tkill
 	PTR	sys_ni_syscall
-	PTR	sys_32_futex
+	PTR	compat_sys_futex
 	PTR	compat_sys_sched_setaffinity	/* 6195 */
 	PTR	compat_sys_sched_getaffinity
 	PTR	sys_cacheflush
