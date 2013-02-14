@@ -571,6 +571,7 @@ more:
 			req->r_data.own_pages = 1;
 		}
 	}
+	req->r_data.type = CEPH_OSD_DATA_TYPE_PAGES;
 	req->r_data.pages = pages;
 	req->r_data.num_pages = num_pages;
 	req->r_data.alignment = page_align;

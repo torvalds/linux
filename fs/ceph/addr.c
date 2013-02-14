@@ -243,6 +243,7 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 	dout("finish_read %p req %p rc %d bytes %d\n", inode, req, rc, bytes);
 
 	/* unlock all pages, zeroing any data we didn't read */
+	BUG_ON(req->r_data.type != CEPH_OSD_DATA_TYPE_PAGES);
 	for (i = 0; i < req->r_data.num_pages; i++, bytes -= PAGE_CACHE_SIZE) {
 		struct page *page = req->r_data.pages[i];
 
@@ -336,6 +337,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		}
 		pages[i] = page;
 	}
+	req->r_data.type = CEPH_OSD_DATA_TYPE_PAGES;
 	req->r_data.pages = pages;
 	req->r_data.num_pages = nr_pages;
 	req->r_data.alignment = 0;
@@ -561,6 +563,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	long writeback_stat;
 	unsigned issued = ceph_caps_issued(ci);
 
+	BUG_ON(req->r_data.type != CEPH_OSD_DATA_TYPE_PAGES);
 	if (rc >= 0) {
 		/*
 		 * Assume we wrote the pages we originally sent.  The
@@ -830,6 +833,7 @@ get_more_pages:
 					break;
 				}
 
+				req->r_data.type = CEPH_OSD_DATA_TYPE_PAGES;
 				req->r_data.num_pages = calc_pages_for(0, len);
 				req->r_data.alignment = 0;
 				max_pages = req->r_data.num_pages;

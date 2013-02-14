@@ -50,8 +50,17 @@ struct ceph_osd {
 
 #define CEPH_OSD_MAX_OP 10
 
+enum ceph_osd_data_type {
+	CEPH_OSD_DATA_TYPE_NONE,
+	CEPH_OSD_DATA_TYPE_PAGES,
+#ifdef CONFIG_BLOCK
+	CEPH_OSD_DATA_TYPE_BIO,
+#endif /* CONFIG_BLOCK */
+};
+
 struct ceph_osd_data {
-	struct {
+	enum ceph_osd_data_type	type;
+	union {
 		struct {
 			struct page	**pages;
 			u32		num_pages;
