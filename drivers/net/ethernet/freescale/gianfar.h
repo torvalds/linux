@@ -1060,6 +1060,7 @@ struct gfar_private {
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
+	struct device *dev;
 	struct net_device *ndev;
 	struct platform_device *ofdev;
 	enum gfar_errata errata;

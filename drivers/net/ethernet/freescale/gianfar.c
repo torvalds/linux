@@ -231,7 +231,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 	dma_addr_t addr;
 	int i, j, k;
 	struct gfar_private *priv = netdev_priv(ndev);
-	struct device *dev = &priv->ofdev->dev;
+	struct device *dev = priv->dev;
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 
@@ -1000,6 +1000,7 @@ static int gfar_probe(struct platform_device *ofdev)
 	priv = netdev_priv(dev);
 	priv->ndev = dev;
 	priv->ofdev = ofdev;
+	priv->dev = &ofdev->dev;
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	spin_lock_init(&priv->bflock);
@@ -1713,13 +1714,13 @@ static void free_skb_tx_queue(struct gfar_priv_tx_q *tx_queue)
 		if (!tx_queue->tx_skbuff[i])
 			continue;
 
-		dma_unmap_single(&priv->ofdev->dev, txbdp->bufPtr,
+		dma_unmap_single(priv->dev, txbdp->bufPtr,
 				 txbdp->length, DMA_TO_DEVICE);
 		txbdp->lstatus = 0;
 		for (j = 0; j < skb_shinfo(tx_queue->tx_skbuff[i])->nr_frags;
 		     j++) {
 			txbdp++;
-			dma_unmap_page(&priv->ofdev->dev, txbdp->bufPtr,
+			dma_unmap_page(priv->dev, txbdp->bufPtr,
 				       txbdp->length, DMA_TO_DEVICE);
 		}
 		txbdp++;
@@ -1740,8 +1741,8 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 
 	for (i = 0; i < rx_queue->rx_ring_size; i++) {
 		if (rx_queue->rx_skbuff[i]) {
-			dma_unmap_single(&priv->ofdev->dev,
-					 rxbdp->bufPtr, priv->rx_buffer_size,
+			dma_unmap_single(priv->dev, rxbdp->bufPtr,
+					 priv->rx_buffer_size,
 					 DMA_FROM_DEVICE);
 			dev_kfree_skb_any(rx_queue->rx_skbuff[i]);
 			rx_queue->rx_skbuff[i] = NULL;
@@ -1780,7 +1781,7 @@ static void free_skb_resources(struct gfar_private *priv)
 			free_skb_rx_queue(rx_queue);
 	}
 
-	dma_free_coherent(&priv->ofdev->dev,
+	dma_free_coherent(priv->dev,
 			  sizeof(struct txbd8) * priv->total_tx_ring_size +
 			  sizeof(struct rxbd8) * priv->total_rx_ring_size,
 			  priv->tx_queue[0]->tx_bd_base,
@@ -2160,7 +2161,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (i == nr_frags - 1)
 				lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 
-			bufaddr = skb_frag_dma_map(&priv->ofdev->dev,
+			bufaddr = skb_frag_dma_map(priv->dev,
 						   &skb_shinfo(skb)->frags[i],
 						   0,
 						   length,
@@ -2212,7 +2213,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus |= BD_LFLAG(TXBD_TOE);
 	}
 
-	txbdp_start->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
+	txbdp_start->bufPtr = dma_map_single(priv->dev, skb->data,
 					     skb_headlen(skb), DMA_TO_DEVICE);
 
 	/* If time stamping is requested one additional TxBD must be set up. The
@@ -2525,7 +2526,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		} else
 			buflen = bdp->length;
 
-		dma_unmap_single(&priv->ofdev->dev, bdp->bufPtr,
+		dma_unmap_single(priv->dev, bdp->bufPtr,
 				 buflen, DMA_TO_DEVICE);
 
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
@@ -2544,7 +2545,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		bdp = next_txbd(bdp, base, tx_ring_size);
 
 		for (i = 0; i < frags; i++) {
-			dma_unmap_page(&priv->ofdev->dev, bdp->bufPtr,
+			dma_unmap_page(priv->dev, bdp->bufPtr,
 				       bdp->length, DMA_TO_DEVICE);
 			bdp->lstatus &= BD_LFLAG(TXBD_WRAP);
 			bdp = next_txbd(bdp, base, tx_ring_size);
@@ -2610,7 +2611,7 @@ static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 	struct gfar_private *priv = netdev_priv(dev);
 	dma_addr_t buf;
 
-	buf = dma_map_single(&priv->ofdev->dev, skb->data,
+	buf = dma_map_single(priv->dev, skb->data,
 			     priv->rx_buffer_size, DMA_FROM_DEVICE);
 	gfar_init_rxbdp(rx_queue, bdp, buf);
 }
@@ -2775,7 +2776,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 
 		skb = rx_queue->rx_skbuff[rx_queue->skb_currx];
 
-		dma_unmap_single(&priv->ofdev->dev, bdp->bufPtr,
+		dma_unmap_single(priv->dev, bdp->bufPtr,
 				 priv->rx_buffer_size, DMA_FROM_DEVICE);
 
 		if (unlikely(!(bdp->status & RXBD_ERR) &&
