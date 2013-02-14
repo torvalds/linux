@@ -1167,7 +1167,7 @@ static bool is_chained_work(struct workqueue_struct *wq)
 	unsigned long flags;
 	unsigned int cpu;
 
-	for_each_wq_cpu(cpu) {
+	for_each_cwq_cpu(cpu, wq) {
 		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 		struct worker_pool *pool = cwq->pool;
 		struct worker *worker;
