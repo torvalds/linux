@@ -60,6 +60,42 @@ struct alps_nibble_commands {
 };
 
 /**
+ * struct alps_fields - decoded version of the report packet
+ * @x_map: Bitmap of active X positions for MT.
+ * @y_map: Bitmap of active Y positions for MT.
+ * @fingers: Number of fingers for MT.
+ * @x: X position for ST.
+ * @y: Y position for ST.
+ * @z: Z position for ST.
+ * @first_mp: Packet is the first of a multi-packet report.
+ * @is_mp: Packet is part of a multi-packet report.
+ * @left: Left touchpad button is active.
+ * @right: Right touchpad button is active.
+ * @middle: Middle touchpad button is active.
+ * @ts_left: Left trackstick button is active.
+ * @ts_right: Right trackstick button is active.
+ * @ts_middle: Middle trackstick button is active.
+ */
+struct alps_fields {
+	unsigned int x_map;
+	unsigned int y_map;
+	unsigned int fingers;
+	unsigned int x;
+	unsigned int y;
+	unsigned int z;
+	unsigned int first_mp:1;
+	unsigned int is_mp:1;
+
+	unsigned int left:1;
+	unsigned int right:1;
+	unsigned int middle:1;
+
+	unsigned int ts_left:1;
+	unsigned int ts_right:1;
+	unsigned int ts_middle:1;
+};
+
+/**
  * struct alps_data - private data structure for the ALPS driver
  * @dev2: "Relative" device used to report trackstick or mouse activity.
  * @phys: Physical path for the relative device.
@@ -78,6 +114,7 @@ struct alps_nibble_commands {
  * @y_bits: Number of Y bits in the MT bitmap.
  * @hw_init: Protocol-specific hardware init function.
  * @process_packet: Protocol-specific function to process a report packet.
+ * @decode_fields: Protocol-specific function to read packet bitfields.
  * @set_abs_params: Protocol-specific function to configure the input_dev.
  * @prev_fin: Finger bit from previous packet.
  * @multi_packet: Multi-packet data in progress.
@@ -107,6 +144,7 @@ struct alps_data {
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
+	void (*decode_fields)(struct alps_fields *f, unsigned char *p);
 	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
 
 	int prev_fin;
