@@ -119,6 +119,7 @@ static void sh_pfc_noop_disable(struct pinctrl_dev *pctldev, unsigned func,
 static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
 			       int new_type)
 {
+	unsigned int mark = pfc->info->pins[offset].enum_id;
 	unsigned long flags;
 	int pinmux_type;
 	int ret = -EINVAL;
@@ -137,7 +138,7 @@ static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
 	case PINMUX_TYPE_INPUT:
 	case PINMUX_TYPE_INPUT_PULLUP:
 	case PINMUX_TYPE_INPUT_PULLDOWN:
-		sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
+		sh_pfc_config_mux(pfc, mark, pinmux_type, GPIO_CFG_FREE);
 		break;
 	default:
 		goto err;
@@ -146,15 +147,13 @@ static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
 	/*
 	 * Dry run
 	 */
-	if (sh_pfc_config_gpio(pfc, offset, new_type,
-			       GPIO_CFG_DRYRUN) != 0)
+	if (sh_pfc_config_mux(pfc, mark, new_type, GPIO_CFG_DRYRUN) != 0)
 		goto err;
 
 	/*
 	 * Request
 	 */
-	if (sh_pfc_config_gpio(pfc, offset, new_type,
-			       GPIO_CFG_REQ) != 0)
+	if (sh_pfc_config_mux(pfc, mark, new_type, GPIO_CFG_REQ) != 0)
 		goto err;
 
 	pfc->info->pins[offset].flags &= ~PINMUX_FLAG_TYPE;
@@ -214,7 +213,8 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 
 	pinmux_type = pfc->info->pins[offset].flags & PINMUX_FLAG_TYPE;
 
-	sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
+	sh_pfc_config_mux(pfc, pfc->info->pins[offset].enum_id, pinmux_type,
+			  GPIO_CFG_FREE);
 
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }

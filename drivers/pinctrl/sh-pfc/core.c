@@ -95,13 +95,6 @@ static bool sh_pfc_gpio_is_pin(struct sh_pfc *pfc, unsigned int gpio)
 	       (pfc->info->pins[gpio].enum_id != 0);
 }
 
-static bool sh_pfc_gpio_is_function(struct sh_pfc *pfc, unsigned int gpio)
-{
-	return (gpio >= pfc->info->nr_pins) &&
-	       (gpio < pfc->info->nr_pins + pfc->info->nr_func_gpios) &&
-	       (pfc->info->func_gpios[gpio - pfc->info->nr_pins].enum_id != 0);
-}
-
 static unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 					 unsigned long reg_width)
 {
@@ -350,22 +343,11 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 	return -1;
 }
 
-static int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
-			       pinmux_enum_t *enum_idp)
+static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
+			      pinmux_enum_t *enum_idp)
 {
 	pinmux_enum_t *data = pfc->info->gpio_data;
-	pinmux_enum_t enum_id;
 	int k;
-
-	if (sh_pfc_gpio_is_pin(pfc, gpio)) {
-		enum_id = pfc->info->pins[gpio].enum_id;
-	} else if (sh_pfc_gpio_is_function(pfc, gpio)) {
-		unsigned int offset = gpio - pfc->info->nr_pins;
-		enum_id = pfc->info->func_gpios[offset].enum_id;
-	} else {
-		pr_err("non data/mark enum_id for gpio %d\n", gpio);
-		return -1;
-	}
 
 	if (pos) {
 		*enum_idp = data[pos + 1];
@@ -373,18 +355,18 @@ static int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 	}
 
 	for (k = 0; k < pfc->info->gpio_data_size; k++) {
-		if (data[k] == enum_id) {
+		if (data[k] == mark) {
 			*enum_idp = data[k + 1];
 			return k + 1;
 		}
 	}
 
-	pr_err("cannot locate data/mark enum_id for gpio %d\n", gpio);
+	pr_err("cannot locate data/mark enum_id for mark %d\n", mark);
 	return -1;
 }
 
-int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
-		       int cfg_mode)
+int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
+		      int cfg_mode)
 {
 	struct pinmux_cfg_reg *cr = NULL;
 	pinmux_enum_t enum_id;
@@ -423,7 +405,7 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 	field = 0;
 	value = 0;
 	while (1) {
-		pos = sh_pfc_gpio_to_enum(pfc, gpio, pos, &enum_id);
+		pos = sh_pfc_mark_to_enum(pfc, mark, pos, &enum_id);
 		if (pos <= 0)
 			goto out_err;
 
