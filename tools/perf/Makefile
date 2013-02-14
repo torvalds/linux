@@ -581,6 +581,11 @@ else
 endif # SOURCE_LIBELF
 endif # NO_LIBELF
 
+# There's only x86 (both 32 and 64) support for CFI unwind so far
+ifneq ($(ARCH),x86)
+	NO_LIBUNWIND := 1
+endif
+
 ifndef NO_LIBUNWIND
 # for linking with debug library, run like:
 # make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
