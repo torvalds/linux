@@ -213,7 +213,8 @@ static int fsl_spi_setup_transfer(struct spi_device *spi,
 
 	/* Make sure its a bit width we support [4..16, 32] */
 	if ((bits_per_word < 4)
-	    || ((bits_per_word > 16) && (bits_per_word != 32)))
+	    || ((bits_per_word > 16) && (bits_per_word != 32))
+	    || (bits_per_word > mpc8xxx_spi->max_bits_per_word))
 		return -EINVAL;
 
 	if (!hz)
@@ -520,6 +521,7 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;
 	mpc8xxx_spi->spi_remove = fsl_spi_remove;
+	mpc8xxx_spi->max_bits_per_word = 32;
 	mpc8xxx_spi->type = fsl_spi_get_type(dev);
 
 	ret = fsl_spi_cpm_init(mpc8xxx_spi);
@@ -557,6 +559,10 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	/* Enable SPI interface */
 	regval = pdata->initial_spmode | SPMODE_INIT_VAL | SPMODE_ENABLE;
+	if (mpc8xxx_spi->max_bits_per_word < 8) {
+		regval &= ~SPMODE_LEN(0xF);
+		regval |= SPMODE_LEN(mpc8xxx_spi->max_bits_per_word - 1);
+	}
 	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE)
 		regval |= SPMODE_OP;
 
