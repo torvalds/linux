@@ -2865,6 +2865,16 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
+static char *shmem_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "/%s (deleted)",
+				dentry->d_name.name);
+}
+
+static struct dentry_operations anon_ops = {
+	.d_dname = shmem_dname
+};
+
 /**
  * shmem_file_setup - get an unlinked file living in tmpfs
  * @name: name for dentry (to be seen in /proc/<pid>/maps
@@ -2876,7 +2886,7 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	struct file *res;
 	struct inode *inode;
 	struct path path;
-	struct dentry *root;
+	struct super_block *sb;
 	struct qstr this;
 
 	if (IS_ERR(shm_mnt))
@@ -2892,14 +2902,15 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = 0; /* will go */
-	root = shm_mnt->mnt_root;
-	path.dentry = d_alloc(root, &this);
+	sb = shm_mnt->mnt_sb;
+	path.dentry = d_alloc_pseudo(sb, &this);
 	if (!path.dentry)
 		goto put_memory;
+	d_set_d_op(path.dentry, &anon_ops);
 	path.mnt = mntget(shm_mnt);
 
 	res = ERR_PTR(-ENOSPC);
-	inode = shmem_get_inode(root->d_sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
+	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
 	if (!inode)
 		goto put_dentry;
 
