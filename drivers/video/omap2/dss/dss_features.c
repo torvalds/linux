@@ -538,6 +538,7 @@ static const enum dss_feat_id omap3630_dss_feat_list[] = {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
 	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_DPI_USES_VDDS_DSI,
 };
 
 static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
