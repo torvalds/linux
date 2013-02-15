@@ -1476,7 +1476,6 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	struct s2255_channel *channel = fh->channel;
 	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	memset(sp, 0, sizeof(struct v4l2_streamparm));
 	sp->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	sp->parm.capture.capturemode = channel->cap_parm.capturemode;
 	def_num = (channel->mode.format == FORMAT_NTSC) ? 1001 : 1000;
