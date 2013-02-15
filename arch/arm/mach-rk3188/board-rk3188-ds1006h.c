@@ -1806,10 +1806,13 @@ static void rk30_pm_power_off(void)
                        printk("enter restart===========\n");
                        arm_pm_restart(0, NULL);
                }
+		/** code here may cause tablet cannot boot when shutdown without charger pluged in
+		  * and then plug in charger. -- Cody Xie
                else
 		{
 			act8846_device_shutdown();
 		}
+		  */
        }
 #endif
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
