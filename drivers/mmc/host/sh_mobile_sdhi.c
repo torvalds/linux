@@ -147,7 +147,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 
-	priv = kzalloc(sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
 	if (priv == NULL) {
 		dev_err(&pdev->dev, "kzalloc failed\n");
 		return -ENOMEM;
@@ -159,11 +159,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		if (p->init) {
 			ret = p->init(pdev, &sdhi_ops);
 			if (ret)
-				goto einit;
+				return ret;
 		}
 	}
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
@@ -223,33 +223,33 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_CARD_DETECT);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_card_detect_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_card_detect_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_card_detect;
+			goto eirq;
 	}
 
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDIO);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_sdio_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_sdio_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_sdio;
+			goto eirq;
 	}
 
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDCARD);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_sdcard_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_sdcard_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_sdcard;
+			goto eirq;
 	} else if (!multiplexed_isr) {
 		dev_err(&pdev->dev,
 			"Principal SD-card IRQ is missing among named interrupts\n");
 		ret = irq;
-		goto eirq_sdcard;
+		goto eirq;
 	}
 
 	if (multiplexed_isr) {
@@ -258,15 +258,15 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			if (irq < 0)
 				break;
 			i++;
-			ret = request_irq(irq, tmio_mmc_irq, 0,
+			ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq, 0,
 					  dev_name(&pdev->dev), host);
 			if (ret)
-				goto eirq_multiplexed;
+				goto eirq;
 		}
 
 		/* There must be at least one IRQ source */
 		if (!i)
-			goto eirq_multiplexed;
+			goto eirq;
 	}
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
@@ -276,28 +276,12 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	return ret;
 
-eirq_multiplexed:
-	while (i--) {
-		irq = platform_get_irq(pdev, i);
-		free_irq(irq, host);
-	}
-eirq_sdcard:
-	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDIO);
-	if (irq >= 0)
-		free_irq(irq, host);
-eirq_sdio:
-	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_CARD_DETECT);
-	if (irq >= 0)
-		free_irq(irq, host);
-eirq_card_detect:
+eirq:
 	tmio_mmc_host_remove(host);
 eprobe:
-	clk_put(priv->clk);
 eclkget:
 	if (p && p->cleanup)
 		p->cleanup(pdev);
-einit:
-	kfree(priv);
 	return ret;
 }
 
@@ -305,25 +289,12 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-	int i = 0, irq;
 
 	tmio_mmc_host_remove(host);
 
-	while (1) {
-		irq = platform_get_irq(pdev, i++);
-		if (irq < 0)
-			break;
-		free_irq(irq, host);
-	}
-
-	clk_put(priv->clk);
-
 	if (p && p->cleanup)
 		p->cleanup(pdev);
-
-	kfree(priv);
 
 	return 0;
 }
