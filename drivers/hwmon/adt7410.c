@@ -415,7 +415,7 @@ static const struct i2c_device_id adt7410_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adt7410_suspend(struct device *dev)
 {
 	int ret;
