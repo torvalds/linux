@@ -1241,20 +1241,25 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
 {
-	struct au0828_fh *fh  = priv;
+	struct video_device *vdev = video_devdata(file);
+	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
 	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
 	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
-	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
+	usb_make_path(dev->usbdev, cap->bus_info, sizeof(cap->bus_info));
 
-	/*set the device capabilities */
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_AUDIO |
+	/* set the device capabilities */
+	cap->device_caps = V4L2_CAP_AUDIO |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING |
 		V4L2_CAP_TUNER;
+	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	else
+		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
+		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE;
 	return 0;
 }
 
