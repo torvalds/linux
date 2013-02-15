@@ -1144,6 +1144,9 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 	u16 tlv_len, offset;
 	char *service_name;
 	size_t service_name_len;
+	struct nfc_llcp_sdp_tlv *sdp;
+	HLIST_HEAD(llc_sdres_list);
+	size_t sdres_tlvs_len;
 
 	dsap = nfc_llcp_dsap(skb);
 	ssap = nfc_llcp_ssap(skb);
@@ -1158,6 +1161,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 	tlv = &skb->data[LLCP_HEADER_SIZE];
 	tlv_len = skb->len - LLCP_HEADER_SIZE;
 	offset = 0;
+	sdres_tlvs_len = 0;
 
 	while (offset < tlv_len) {
 		type = tlv[0];
@@ -1175,14 +1179,14 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 			    !strncmp(service_name, "urn:nfc:sn:sdp",
 				     service_name_len)) {
 				sap = 1;
-				goto send_snl;
+				goto add_snl;
 			}
 
 			llcp_sock = nfc_llcp_sock_from_sn(local, service_name,
 							  service_name_len);
 			if (!llcp_sock) {
 				sap = 0;
-				goto send_snl;
+				goto add_snl;
 			}
 
 			/*
@@ -1199,7 +1203,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 
 				if (sap == LLCP_SAP_MAX) {
 					sap = 0;
-					goto send_snl;
+					goto add_snl;
 				}
 
 				client_count =
@@ -1216,8 +1220,13 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 
 			pr_debug("%p %d\n", llcp_sock, sap);
 
-send_snl:
-			nfc_llcp_send_snl(local, tid, sap);
+add_snl:
+			sdp = nfc_llcp_build_sdres_tlv(tid, sap);
+			if (sdp == NULL)
+				goto exit;
+
+			sdres_tlvs_len += sdp->tlv_len;
+			hlist_add_head(&sdp->node, &llc_sdres_list);
 			break;
 
 		default:
@@ -1228,6 +1237,10 @@ send_snl:
 		offset += length + 2;
 		tlv += length + 2;
 	}
+
+exit:
+	if (!hlist_empty(&llc_sdres_list))
+		nfc_llcp_send_snl_sdres(local, &llc_sdres_list, sdres_tlvs_len);
 }
 
 static void nfc_llcp_rx_work(struct work_struct *work)

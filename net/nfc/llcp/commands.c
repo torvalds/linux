@@ -117,6 +117,39 @@ u8 *nfc_llcp_build_tlv(u8 type, u8 *value, u8 value_length, u8 *tlv_length)
 	return tlv;
 }
 
+struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdres_tlv(u8 tid, u8 sap)
+{
+	struct nfc_llcp_sdp_tlv *sdres;
+	u8 value[2];
+
+	sdres = kzalloc(sizeof(struct nfc_llcp_sdp_tlv), GFP_KERNEL);
+	if (sdres == NULL)
+		return NULL;
+
+	value[0] = tid;
+	value[1] = sap;
+
+	sdres->tlv = nfc_llcp_build_tlv(LLCP_TLV_SDRES, value, 2,
+					&sdres->tlv_len);
+	if (sdres->tlv == NULL) {
+		kfree(sdres);
+		return NULL;
+	}
+
+	sdres->tid = tid;
+	sdres->sap = sap;
+
+	INIT_HLIST_NODE(&sdres->node);
+
+	return sdres;
+}
+
+void nfc_llcp_free_sdp_tlv(struct nfc_llcp_sdp_tlv *sdp)
+{
+	kfree(sdp->tlv);
+	kfree(sdp);
+}
+
 int nfc_llcp_parse_gb_tlv(struct nfc_llcp_local *local,
 			  u8 *tlv_array, u16 tlv_array_len)
 {
@@ -425,48 +458,55 @@ error_tlv:
 	return err;
 }
 
-int nfc_llcp_send_snl(struct nfc_llcp_local *local, u8 tid, u8 sap)
+static struct sk_buff *nfc_llcp_allocate_snl(struct nfc_llcp_local *local,
+					     size_t tlv_length)
 {
 	struct sk_buff *skb;
 	struct nfc_dev *dev;
-	u8 *sdres_tlv = NULL, sdres_tlv_length, sdres[2];
 	u16 size = 0;
 
-	pr_debug("Sending SNL tid 0x%x sap 0x%x\n", tid, sap);
-
 	if (local == NULL)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	dev = local->dev;
 	if (dev == NULL)
-		return -ENODEV;
-
-	sdres[0] = tid;
-	sdres[1] = sap;
-	sdres_tlv = nfc_llcp_build_tlv(LLCP_TLV_SDRES, sdres, 0,
-				       &sdres_tlv_length);
-	if (sdres_tlv == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENODEV);
 
 	size += LLCP_HEADER_SIZE;
 	size += dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE;
-	size += sdres_tlv_length;
+	size += tlv_length;
 
 	skb = alloc_skb(size, GFP_KERNEL);
-	if (skb == NULL) {
-		kfree(sdres_tlv);
-		return -ENOMEM;
-	}
+	if (skb == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
 	skb = llcp_add_header(skb, LLCP_SAP_SDP, LLCP_SAP_SDP, LLCP_PDU_SNL);
 
-	memcpy(skb_put(skb, sdres_tlv_length), sdres_tlv, sdres_tlv_length);
+	return skb;
+}
+
+int nfc_llcp_send_snl_sdres(struct nfc_llcp_local *local,
+			    struct hlist_head *tlv_list, size_t tlvs_len)
+{
+	struct nfc_llcp_sdp_tlv *sdp;
+	struct hlist_node *n;
+	struct sk_buff *skb;
+
+	skb = nfc_llcp_allocate_snl(local, tlvs_len);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	hlist_for_each_entry_safe(sdp, n, tlv_list, node) {
+		memcpy(skb_put(skb, sdp->tlv_len), sdp->tlv, sdp->tlv_len);
+
+		hlist_del(&sdp->node);
+
+		nfc_llcp_free_sdp_tlv(sdp);
+	}
 
 	skb_queue_tail(&local->tx_queue, skb);
-
-	kfree(sdres_tlv);
 
 	return 0;
 }
