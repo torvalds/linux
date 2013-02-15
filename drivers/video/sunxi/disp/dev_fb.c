@@ -1717,6 +1717,15 @@ void hdmi_edid_received(unsigned char *edid, int block_count)
 				kfree(m);
 			}
 		}
+		/*
+		 * When edid is not enabled make sure the current mode is in
+		 * the mode-list, so that the user-set mode is honored.
+		 */
+		if (!gdisp.screen[sel].use_edid) {
+			struct fb_videomode videomode;
+			if (BSP_disp_get_videomode(sel, &videomode) == 0)
+				fb_add_videomode(&videomode, &fbi->modelist);
+		}
 		/* Are there any usable modes left? */
 		if (list_empty(&fbi->modelist)) {
 			list_splice(&old_modelist, &fbi->modelist);
