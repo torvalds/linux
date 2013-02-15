@@ -36,6 +36,7 @@
 #include "oztrace.h"
 #include "ozurbparanoia.h"
 #include "ozevent.h"
+#include "ozhcd.h"
 /*------------------------------------------------------------------------------
  * Number of units of buffering to capture for an isochronous IN endpoint before
  * allowing data to be indicated up.

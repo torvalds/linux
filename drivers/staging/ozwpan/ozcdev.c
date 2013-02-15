@@ -19,6 +19,7 @@
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozevent.h"
+#include "ozcdev.h"
 /*------------------------------------------------------------------------------
  */
 #define OZ_RD_BUF_SZ	256
