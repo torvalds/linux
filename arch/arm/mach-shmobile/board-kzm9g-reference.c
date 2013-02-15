@@ -91,13 +91,6 @@ static void __init kzm_init(void)
 #endif
 }
 
-static void kzm9g_restart(char mode, const char *cmd)
-{
-#define RESCNT2 IOMEM(0xe6188020)
-	/* Do soft power on reset */
-	writel((1 << 31), RESCNT2);
-}
-
 static const char *kzm9g_boards_compat_dt[] __initdata = {
 	"renesas,kzm9g-reference",
 	NULL,
@@ -110,8 +103,6 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g-reference")
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= irqchip_init,
 	.init_machine	= kzm_init,
-	.init_late	= shmobile_init_late,
 	.init_time	= shmobile_timer_init,
-	.restart	= kzm9g_restart,
 	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END
