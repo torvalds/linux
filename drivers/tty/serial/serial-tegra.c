@@ -1269,8 +1269,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	const struct tegra_uart_chip_data *cdata;
 	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(tegra_uart_of_match),
-				&pdev->dev);
+	match = of_match_device(tegra_uart_of_match, &pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
@@ -1361,7 +1360,7 @@ static struct platform_driver tegra_uart_platform_driver = {
 	.remove		= tegra_uart_remove,
 	.driver		= {
 		.name	= "serial-tegra",
-		.of_match_table = of_match_ptr(tegra_uart_of_match),
+		.of_match_table = tegra_uart_of_match,
 		.pm	= &tegra_uart_pm_ops,
 	},
 };
