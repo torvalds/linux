@@ -773,10 +773,15 @@ static void intel_pstate_exit(void)
 }
 module_exit(intel_pstate_exit);
 
+static int __initdata no_load;
+
 static int __init intel_pstate_init(void)
 {
 	int rc = 0;
 	const struct x86_cpu_id *id;
+
+	if (no_load)
+		return -ENODEV;
 
 	id = x86_match_cpu(intel_pstate_cpu_ids);
 	if (!id)
@@ -801,6 +806,17 @@ out:
 	return -ENODEV;
 }
 device_initcall(intel_pstate_init);
+
+static int __init intel_pstate_setup(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strcmp(str, "disable"))
+		no_load = 1;
+	return 0;
+}
+early_param("intel_pstate", intel_pstate_setup);
 
 MODULE_AUTHOR("Dirk Brandewie <dirk.j.brandewie@intel.com>");
 MODULE_DESCRIPTION("'intel_pstate' - P state driver Intel Core processors");
