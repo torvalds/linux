@@ -729,18 +729,17 @@ void vtime_init_idle(struct task_struct *t)
 
 cputime_t task_gtime(struct task_struct *t)
 {
-	unsigned long flags;
 	unsigned int seq;
 	cputime_t gtime;
 
 	do {
-		seq = read_seqbegin_irqsave(&t->vtime_seqlock, flags);
+		seq = read_seqbegin(&t->vtime_seqlock);
 
 		gtime = t->gtime;
 		if (t->flags & PF_VCPU)
 			gtime += vtime_delta(t);
 
-	} while (read_seqretry_irqrestore(&t->vtime_seqlock, seq, flags));
+	} while (read_seqretry(&t->vtime_seqlock, seq));
 
 	return gtime;
 }
@@ -756,7 +755,6 @@ fetch_task_cputime(struct task_struct *t,
 		   cputime_t *u_src, cputime_t *s_src,
 		   cputime_t *udelta, cputime_t *sdelta)
 {
-	unsigned long flags;
 	unsigned int seq;
 	unsigned long long delta;
 
@@ -764,7 +762,7 @@ fetch_task_cputime(struct task_struct *t,
 		*udelta = 0;
 		*sdelta = 0;
 
-		seq = read_seqbegin_irqsave(&t->vtime_seqlock, flags);
+		seq = read_seqbegin(&t->vtime_seqlock);
 
 		if (u_dst)
 			*u_dst = *u_src;
@@ -788,7 +786,7 @@ fetch_task_cputime(struct task_struct *t,
 			if (t->vtime_snap_whence == VTIME_SYS)
 				*sdelta = delta;
 		}
-	} while (read_seqretry_irqrestore(&t->vtime_seqlock, seq, flags));
+	} while (read_seqretry(&t->vtime_seqlock, seq));
 }
 
 
