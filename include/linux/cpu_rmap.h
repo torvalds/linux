@@ -13,9 +13,11 @@
 #include <linux/cpumask.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/kref.h>
 
 /**
  * struct cpu_rmap - CPU affinity reverse-map
+ * @refcount: kref for object
  * @size: Number of objects to be reverse-mapped
  * @used: Number of objects added
  * @obj: Pointer to array of object pointers
@@ -23,6 +25,7 @@
  *      based on affinity masks
  */
 struct cpu_rmap {
+	struct kref	refcount;
 	u16		size, used;
 	void		**obj;
 	struct {
@@ -33,15 +36,7 @@ struct cpu_rmap {
 #define CPU_RMAP_DIST_INF 0xffff
 
 extern struct cpu_rmap *alloc_cpu_rmap(unsigned int size, gfp_t flags);
-
-/**
- * free_cpu_rmap - free CPU affinity reverse-map
- * @rmap: Reverse-map allocated with alloc_cpu_rmap(), or %NULL
- */
-static inline void free_cpu_rmap(struct cpu_rmap *rmap)
-{
-	kfree(rmap);
-}
+extern int cpu_rmap_put(struct cpu_rmap *rmap);
 
 extern int cpu_rmap_add(struct cpu_rmap *rmap, void *obj);
 extern int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,

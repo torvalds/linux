@@ -269,9 +269,9 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[usboh3_per_gate], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usboh3_per_gate], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usboh3_per_gate], "per", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ipg", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ahb", "imx-udc-mx51");
 	clk_register_clkdev(clk[nfc_gate], NULL, "imx51-nand");
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");

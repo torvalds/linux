@@ -1,5 +1,5 @@
-TODOs
------
+TODOs prior to this driver moving out of staging
+------------------------------------------------
 1. Implement retries for RCODE_BUSY, RCODE_NO_ACK and RCODE_SEND_ERROR
    - I/O is handled asynchronously which presents some issues when error
      conditions occur.
@@ -11,17 +11,9 @@ TODOs
 -- Issues with firewire stack --
 1. This driver uses the same unregistered vendor id that the firewire core does
      (0xd00d1e). Perhaps this could be exposed as a define in
-     firewire-constants.h?
-2. MAX_ASYNC_PAYLOAD needs to be publicly exposed by core/ohci
-   - otherwise how will this driver know the max size of address window to
-     open for one packet write?
+     firewire.h?
 3. Maybe device_max_receive() and link_speed_to_max_payload() should be
      taken up by the firewire core?
-4. To avoid dropping rx data while still limiting the maximum buffering,
-     the size of the AR context must be known. How to expose this to drivers?
-5. Explore if bigger AR context will reduce RCODE_BUSY responses
-   (or auto-grow to certain max size -- but this would require major surgery
-    as the current AR is contiguously mapped)
 
 -- Issues with TTY core --
   1. Hack for alternate device name scheme

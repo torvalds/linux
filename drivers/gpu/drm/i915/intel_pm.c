@@ -44,6 +44,14 @@
  * i915.i915_enable_fbc parameter
  */
 
+static bool intel_crtc_active(struct drm_crtc *crtc)
+{
+	/* Be paranoid as we can arrive here with only partial
+	 * state retrieved from the hardware during setup.
+	 */
+	return to_intel_crtc(crtc)->active && crtc->fb && crtc->mode.clock;
+}
+
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -405,9 +413,8 @@ void intel_update_fbc(struct drm_device *dev)
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
-		if (to_intel_crtc(tmp_crtc)->active &&
-		    !to_intel_crtc(tmp_crtc)->primary_disabled &&
-		    tmp_crtc->fb) {
+		if (intel_crtc_active(tmp_crtc) &&
+		    !to_intel_crtc(tmp_crtc)->primary_disabled) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
@@ -992,7 +999,7 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	struct drm_crtc *crtc, *enabled = NULL;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (to_intel_crtc(crtc)->active && crtc->fb) {
+		if (intel_crtc_active(crtc)) {
 			if (enabled)
 				return NULL;
 			enabled = crtc;
@@ -1086,7 +1093,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active) {
+	if (!intel_crtc_active(crtc)) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
 		return false;
@@ -1215,7 +1222,7 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	int entries;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active)
+	if (!intel_crtc_active(crtc))
 		return false;
 
 	clock = crtc->mode.clock;	/* VESA DOT Clock */
@@ -1476,7 +1483,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
-	if (to_intel_crtc(crtc)->active && crtc->fb) {
+	if (intel_crtc_active(crtc)) {
 		int cpp = crtc->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
@@ -1490,7 +1497,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 	crtc = intel_get_crtc_for_plane(dev, 1);
-	if (to_intel_crtc(crtc)->active && crtc->fb) {
+	if (intel_crtc_active(crtc)) {
 		int cpp = crtc->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
@@ -2044,7 +2051,7 @@ sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active) {
+	if (!intel_crtc_active(crtc)) {
 		*sprite_wm = display->guard_size;
 		return false;
 	}
@@ -4243,7 +4250,8 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 }
 
 static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
@@ -4260,7 +4268,8 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
@@ -4297,14 +4306,16 @@ void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
 static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
@@ -4344,6 +4355,8 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(0xffff));
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 }
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
@@ -4364,7 +4377,8 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* The below doubles as a POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 

@@ -305,7 +305,7 @@ static bool fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf
 	char *buf;
 
 	size = fw_file_size(file);
-	if (size < 0)
+	if (size <= 0)
 		return false;
 	buf = vmalloc(size);
 	if (!buf)

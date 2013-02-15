@@ -1709,7 +1709,7 @@ static int mwifiex_set_ibss_params(struct mwifiex_private *priv,
 						NL80211_CHAN_NO_HT)
 			config_bands |= BAND_GN;
 	} else {
-		if (cfg80211_get_chandef_type(&params->chandef) !=
+		if (cfg80211_get_chandef_type(&params->chandef) ==
 						NL80211_CHAN_NO_HT)
 			config_bands = BAND_A;
 		else

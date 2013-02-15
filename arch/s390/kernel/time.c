@@ -63,7 +63,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
  */
 unsigned long long notrace __kprobes sched_clock(void)
 {
-	return (get_clock_monotonic() * 125) >> 9;
+	return tod_to_ns(get_clock_monotonic());
 }
 
 /*
@@ -168,7 +168,7 @@ static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
+	inc_irq_stat(IRQEXT_CLK);
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -179,7 +179,7 @@ static void stp_timing_alert(struct stp_irq_parm *);
 static void timing_alert_interrupt(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
+	inc_irq_stat(IRQEXT_TLA);
 	if (param32 & 0x00c40000)
 		etr_timing_alert((struct etr_irq_parm *) &param32);
 	if (param32 & 0x00038000)
