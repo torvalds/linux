@@ -281,26 +281,26 @@ static inline char *zbud_data(void *zbpg,
  * debugfs viewers, some of these should also be atomic_long_t, but
  * I don't know how to expose atomics via debugfs either...
  */
-static unsigned long zbud_eph_pageframes;
-static unsigned long zbud_pers_pageframes;
-static unsigned long zbud_eph_zpages;
-static unsigned long zbud_pers_zpages;
+static ssize_t zbud_eph_pageframes;
+static ssize_t zbud_pers_pageframes;
+static ssize_t zbud_eph_zpages;
+static ssize_t zbud_pers_zpages;
 static u64 zbud_eph_zbytes;
 static u64 zbud_pers_zbytes;
-static unsigned long zbud_eph_evicted_pageframes;
-static unsigned long zbud_pers_evicted_pageframes;
-static unsigned long zbud_eph_cumul_zpages;
-static unsigned long zbud_pers_cumul_zpages;
+static ssize_t zbud_eph_evicted_pageframes;
+static ssize_t zbud_pers_evicted_pageframes;
+static ssize_t zbud_eph_cumul_zpages;
+static ssize_t zbud_pers_cumul_zpages;
 static u64 zbud_eph_cumul_zbytes;
 static u64 zbud_pers_cumul_zbytes;
-static unsigned long zbud_eph_cumul_chunk_counts[NCHUNKS];
-static unsigned long zbud_pers_cumul_chunk_counts[NCHUNKS];
-static unsigned long zbud_eph_buddied_count;
-static unsigned long zbud_pers_buddied_count;
-static unsigned long zbud_eph_unbuddied_count;
-static unsigned long zbud_pers_unbuddied_count;
-static unsigned long zbud_eph_zombie_count;
-static unsigned long zbud_pers_zombie_count;
+static ssize_t zbud_eph_cumul_chunk_counts[NCHUNKS];
+static ssize_t zbud_pers_cumul_chunk_counts[NCHUNKS];
+static ssize_t zbud_eph_buddied_count;
+static ssize_t zbud_pers_buddied_count;
+static ssize_t zbud_eph_unbuddied_count;
+static ssize_t zbud_pers_unbuddied_count;
+static ssize_t zbud_eph_zombie_count;
+static ssize_t zbud_pers_zombie_count;
 static atomic_t zbud_eph_zombie_atomic;
 static atomic_t zbud_pers_zombie_atomic;
 
