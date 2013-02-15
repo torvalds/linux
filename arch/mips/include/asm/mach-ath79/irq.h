@@ -10,7 +10,7 @@
 #define __ASM_MACH_ATH79_IRQ_H
 
 #define MIPS_CPU_IRQ_BASE	0
-#define NR_IRQS			48
+#define NR_IRQS			51
 
 #define ATH79_CPU_IRQ(_x)	(MIPS_CPU_IRQ_BASE + (_x))
 
@@ -25,6 +25,10 @@
 #define ATH79_IP2_IRQ_BASE	(ATH79_PCI_IRQ_BASE + ATH79_PCI_IRQ_COUNT)
 #define ATH79_IP2_IRQ_COUNT	2
 #define ATH79_IP2_IRQ(_x)	(ATH79_IP2_IRQ_BASE + (_x))
+
+#define ATH79_IP3_IRQ_BASE	(ATH79_IP2_IRQ_BASE + ATH79_IP2_IRQ_COUNT)
+#define ATH79_IP3_IRQ_COUNT     3
+#define ATH79_IP3_IRQ(_x)       (ATH79_IP3_IRQ_BASE + (_x))
 
 #include_next <irq.h>
 

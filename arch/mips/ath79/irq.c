@@ -103,7 +103,10 @@ static void __init ath79_misc_irq_init(void)
 
 	if (soc_is_ar71xx() || soc_is_ar913x())
 		ath79_misc_irq_chip.irq_mask_ack = ar71xx_misc_irq_mask;
-	else if (soc_is_ar724x() || soc_is_ar933x() || soc_is_ar934x())
+	else if (soc_is_ar724x() ||
+		 soc_is_ar933x() ||
+		 soc_is_ar934x() ||
+		 soc_is_qca955x())
 		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 	else
 		BUG();
@@ -150,6 +153,88 @@ static void ar934x_ip2_irq_init(void)
 	irq_set_chained_handler(ATH79_CPU_IRQ(2), ar934x_ip2_irq_dispatch);
 }
 
+static void qca955x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	u32 status;
+
+	disable_irq_nosync(irq);
+
+	status = ath79_reset_rr(QCA955X_RESET_REG_EXT_INT_STATUS);
+	status &= QCA955X_EXT_INT_PCIE_RC1_ALL | QCA955X_EXT_INT_WMAC_ALL;
+
+	if (status == 0) {
+		spurious_interrupt();
+		goto enable;
+	}
+
+	if (status & QCA955X_EXT_INT_PCIE_RC1_ALL) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP2_IRQ(0));
+	}
+
+	if (status & QCA955X_EXT_INT_WMAC_ALL) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP2_IRQ(1));
+	}
+
+enable:
+	enable_irq(irq);
+}
+
+static void qca955x_ip3_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	u32 status;
+
+	disable_irq_nosync(irq);
+
+	status = ath79_reset_rr(QCA955X_RESET_REG_EXT_INT_STATUS);
+	status &= QCA955X_EXT_INT_PCIE_RC2_ALL |
+		  QCA955X_EXT_INT_USB1 |
+		  QCA955X_EXT_INT_USB2;
+
+	if (status == 0) {
+		spurious_interrupt();
+		goto enable;
+	}
+
+	if (status & QCA955X_EXT_INT_USB1) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(0));
+	}
+
+	if (status & QCA955X_EXT_INT_USB2) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(1));
+	}
+
+	if (status & QCA955X_EXT_INT_PCIE_RC2_ALL) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(2));
+	}
+
+enable:
+	enable_irq(irq);
+}
+
+static void qca955x_irq_init(void)
+{
+	int i;
+
+	for (i = ATH79_IP2_IRQ_BASE;
+	     i < ATH79_IP2_IRQ_BASE + ATH79_IP2_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip,
+					 handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ(2), qca955x_ip2_irq_dispatch);
+
+	for (i = ATH79_IP3_IRQ_BASE;
+	     i < ATH79_IP3_IRQ_BASE + ATH79_IP3_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip,
+					 handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ(3), qca955x_ip3_irq_dispatch);
+}
+
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long pending;
@@ -185,6 +270,17 @@ asmlinkage void plat_irq_dispatch(void)
  * Issue a flush in the handlers to ensure that the driver sees
  * the update.
  */
+
+static void ath79_default_ip2_handler(void)
+{
+	do_IRQ(ATH79_CPU_IRQ(2));
+}
+
+static void ath79_default_ip3_handler(void)
+{
+	do_IRQ(ATH79_CPU_IRQ(3));
+}
+
 static void ar71xx_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_PCI);
@@ -206,11 +302,6 @@ static void ar913x_ip2_handler(void)
 static void ar933x_ip2_handler(void)
 {
 	ath79_ddr_wb_flush(AR933X_DDR_REG_FLUSH_WMAC);
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
-
-static void ar934x_ip2_handler(void)
-{
 	do_IRQ(ATH79_CPU_IRQ(2));
 }
 
@@ -259,8 +350,11 @@ void __init arch_init_irq(void)
 		ath79_ip2_handler = ar933x_ip2_handler;
 		ath79_ip3_handler = ar933x_ip3_handler;
 	} else if (soc_is_ar934x()) {
-		ath79_ip2_handler = ar934x_ip2_handler;
+		ath79_ip2_handler = ath79_default_ip2_handler;
 		ath79_ip3_handler = ar934x_ip3_handler;
+	} else if (soc_is_qca955x()) {
+		ath79_ip2_handler = ath79_default_ip2_handler;
+		ath79_ip3_handler = ath79_default_ip3_handler;
 	} else {
 		BUG();
 	}
@@ -271,4 +365,6 @@ void __init arch_init_irq(void)
 
 	if (soc_is_ar934x())
 		ar934x_ip2_irq_init();
+	else if (soc_is_qca955x())
+		qca955x_irq_init();
 }
