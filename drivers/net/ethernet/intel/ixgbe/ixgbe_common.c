@@ -592,6 +592,36 @@ s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr)
 	return 0;
 }
 
+enum ixgbe_bus_width ixgbe_convert_bus_width(u16 link_status)
+{
+	switch (link_status & IXGBE_PCI_LINK_WIDTH) {
+	case IXGBE_PCI_LINK_WIDTH_1:
+		return ixgbe_bus_width_pcie_x1;
+	case IXGBE_PCI_LINK_WIDTH_2:
+		return ixgbe_bus_width_pcie_x2;
+	case IXGBE_PCI_LINK_WIDTH_4:
+		return ixgbe_bus_width_pcie_x4;
+	case IXGBE_PCI_LINK_WIDTH_8:
+		return ixgbe_bus_width_pcie_x8;
+	default:
+		return ixgbe_bus_width_unknown;
+	}
+}
+
+enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status)
+{
+	switch (link_status & IXGBE_PCI_LINK_SPEED) {
+	case IXGBE_PCI_LINK_SPEED_2500:
+		return ixgbe_bus_speed_2500;
+	case IXGBE_PCI_LINK_SPEED_5000:
+		return ixgbe_bus_speed_5000;
+	case IXGBE_PCI_LINK_SPEED_8000:
+		return ixgbe_bus_speed_8000;
+	default:
+		return ixgbe_bus_speed_unknown;
+	}
+}
+
 /**
  *  ixgbe_get_bus_info_generic - Generic set PCI bus info
  *  @hw: pointer to hardware structure
@@ -610,38 +640,8 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 	pci_read_config_word(adapter->pdev, IXGBE_PCI_LINK_STATUS,
 	                     &link_status);
 
-	switch (link_status & IXGBE_PCI_LINK_WIDTH) {
-	case IXGBE_PCI_LINK_WIDTH_1:
-		hw->bus.width = ixgbe_bus_width_pcie_x1;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_2:
-		hw->bus.width = ixgbe_bus_width_pcie_x2;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_4:
-		hw->bus.width = ixgbe_bus_width_pcie_x4;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_8:
-		hw->bus.width = ixgbe_bus_width_pcie_x8;
-		break;
-	default:
-		hw->bus.width = ixgbe_bus_width_unknown;
-		break;
-	}
-
-	switch (link_status & IXGBE_PCI_LINK_SPEED) {
-	case IXGBE_PCI_LINK_SPEED_2500:
-		hw->bus.speed = ixgbe_bus_speed_2500;
-		break;
-	case IXGBE_PCI_LINK_SPEED_5000:
-		hw->bus.speed = ixgbe_bus_speed_5000;
-		break;
-	case IXGBE_PCI_LINK_SPEED_8000:
-		hw->bus.speed = ixgbe_bus_speed_8000;
-		break;
-	default:
-		hw->bus.speed = ixgbe_bus_speed_unknown;
-		break;
-	}
+	hw->bus.width = ixgbe_convert_bus_width(link_status);
+	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
 
 	mac->ops.set_lan_id(hw);
 
