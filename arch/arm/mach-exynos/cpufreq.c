@@ -621,7 +621,7 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* Safe default startup limits */
 	if (samsung_rev() >= EXYNOS4412_REV_2_0)
-		policy->max = 1600000;
+		policy->max = 1704000;
 	else
 		policy->max = 1400000;
 	policy->min = 200000;
