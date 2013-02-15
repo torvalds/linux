@@ -393,7 +393,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       u32 truncate_seq,
 					       u64 truncate_size,
 					       struct timespec *mtime,
-					       bool use_mempool, int num_reply,
+					       bool use_mempool,
 					       int page_align)
 {
 	struct ceph_osd_req_op ops[2];
@@ -1837,7 +1837,7 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 	req = ceph_osdc_new_request(osdc, layout, vino, off, plen,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, 0, truncate_seq, truncate_size, NULL,
-				    false, 1, page_align);
+				    false, page_align);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1878,7 +1878,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
 				    snapc, 0,
 				    truncate_seq, truncate_size, mtime,
-				    true, 1, page_align);
+				    true, page_align);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
