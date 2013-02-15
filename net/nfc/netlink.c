@@ -53,6 +53,9 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_DEVICE_POWERED] = { .type = NLA_U8 },
 	[NFC_ATTR_IM_PROTOCOLS] = { .type = NLA_U32 },
 	[NFC_ATTR_TM_PROTOCOLS] = { .type = NLA_U32 },
+	[NFC_ATTR_LLC_PARAM_LTO] = { .type = NLA_U8 },
+	[NFC_ATTR_LLC_PARAM_RW] = { .type = NLA_U8 },
+	[NFC_ATTR_LLC_PARAM_MIUX] = { .type = NLA_U16 },
 };
 
 static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
