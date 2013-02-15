@@ -525,9 +525,3 @@ void oz_cdev_rx(struct oz_pd *pd, struct oz_elt *elt)
 out:
 	oz_cdev_release_ctx(ctx);
 }
-/*------------------------------------------------------------------------------
- * Context: softirq
- */
-void oz_cdev_heartbeat(struct oz_pd *pd)
-{
-}
