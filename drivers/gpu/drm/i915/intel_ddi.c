@@ -1481,7 +1481,6 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 static const struct drm_encoder_helper_funcs intel_ddi_helper_funcs = {
 	.mode_fixup = intel_ddi_mode_fixup,
 	.mode_set = intel_ddi_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 void intel_ddi_init(struct drm_device *dev, enum port port)

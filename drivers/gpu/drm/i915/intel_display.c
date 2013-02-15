@@ -3718,10 +3718,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	intel_crtc_update_sarea(crtc, enable);
 }
 
-static void intel_crtc_noop(struct drm_crtc *crtc)
-{
-}
-
 static void intel_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3768,10 +3764,6 @@ void intel_modeset_disable(struct drm_device *dev)
 		if (crtc->enabled)
 			intel_crtc_disable(crtc);
 	}
-}
-
-void intel_encoder_noop(struct drm_encoder *encoder)
-{
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -7277,7 +7269,6 @@ free_work:
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
-	.disable = intel_crtc_noop,
 };
 
 bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
@@ -7987,14 +7978,9 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	BUG_ON(!set->crtc);
 	BUG_ON(!set->crtc->helper_private);
 
-	if (!set->mode)
-		set->fb = NULL;
-
-	/* The fb helper likes to play gross jokes with ->mode_set_config.
-	 * Unfortunately the crtc helper doesn't do much at all for this case,
-	 * so we have to cope with this madness until the fb helper is fixed up. */
-	if (set->fb && set->num_connectors == 0)
-		return 0;
+	/* Enforce sane interface api - has been abused by the fb helper. */
+	BUG_ON(!set->mode && set->fb);
+	BUG_ON(set->fb && set->num_connectors == 0);
 
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",

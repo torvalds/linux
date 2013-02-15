@@ -57,9 +57,10 @@ static struct fb_ops intelfb_ops = {
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
-static int intelfb_create(struct intel_fbdev *ifbdev,
+static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
+	struct intel_fbdev *ifbdev = (struct intel_fbdev *)helper;
 	struct drm_device *dev = ifbdev->helper.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
@@ -181,26 +182,10 @@ out:
 	return ret;
 }
 
-static int intel_fb_find_or_create_single(struct drm_fb_helper *helper,
-					  struct drm_fb_helper_surface_size *sizes)
-{
-	struct intel_fbdev *ifbdev = (struct intel_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = intelfb_create(ifbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,
-	.fb_probe = intel_fb_find_or_create_single,
+	.fb_probe = intelfb_create,
 };
 
 static void intel_fbdev_destroy(struct drm_device *dev,

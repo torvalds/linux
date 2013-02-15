@@ -545,9 +545,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
 	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int new_fb = 0;
 	int bytespp;
-	int ret;
 
 	bytespp = sizes->surface_bpp / 8;
 	if (bytespp == 3)	/* no 24bit packed */
@@ -562,13 +560,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
                 sizes->surface_depth = 16;
         }
 
-	if (!helper->fb) {
-		ret = psbfb_create(psb_fbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
+	return psbfb_create(psb_fbdev, sizes);
 }
 
 static struct drm_fb_helper_funcs psb_fb_helper_funcs = {
@@ -616,6 +608,10 @@ int psb_fbdev_init(struct drm_device *dev)
 							INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(&fbdev->psb_fb_helper, 32);
 	return 0;
 }
