@@ -493,7 +493,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 				   page_off, len,
 				   ci->i_truncate_seq, ci->i_truncate_size,
 				   &inode->i_mtime,
-				   &page, 1, 0, 0);
+				   &page, 1, 0);
 	if (err < 0) {
 		dout("writepage setting page/mapping error %d %p\n", err, page);
 		SetPageError(page);

@@ -275,7 +275,7 @@ extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 				u32 truncate_seq, u64 truncate_size,
 				struct timespec *mtime,
 				struct page **pages, int nr_pages,
-				int flags, int do_sync);
+				int flags);
 
 /* watch/notify events */
 extern int ceph_osdc_create_event(struct ceph_osd_client *osdc,
