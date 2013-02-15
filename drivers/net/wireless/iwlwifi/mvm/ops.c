@@ -222,6 +222,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
+	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, false),
+
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
@@ -284,6 +286,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BEACON_NOTIFICATION),
 	CMD(BEACON_TEMPLATE_CMD),
 	CMD(STATISTICS_NOTIFICATION),
+	CMD(EOSP_NOTIFICATION),
 	CMD(REDUCE_TX_POWER_CMD),
 	CMD(TX_ANT_CONFIGURATION_CMD),
 	CMD(D3_CONFIG_CMD),

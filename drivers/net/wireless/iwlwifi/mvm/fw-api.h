@@ -163,6 +163,7 @@ enum {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
+	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/* RF-KILL commands and notifications */

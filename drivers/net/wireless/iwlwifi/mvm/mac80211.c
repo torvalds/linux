@@ -203,6 +203,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 				       REGULATORY_DISABLE_BEACON_HINTS;
 
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_GO_UAPSD)
+		hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+
 	hw->wiphy->iface_combinations = iwl_mvm_iface_combinations;
 	hw->wiphy->n_iface_combinations =
 		ARRAY_SIZE(iwl_mvm_iface_combinations);
@@ -305,6 +308,9 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			   struct sk_buff *skb)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_sta *sta = control->sta;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		IWL_DEBUG_DROP(mvm, "Dropping - RF/CT KILL\n");
@@ -315,8 +321,16 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
 		goto drop;
 
-	if (control->sta) {
-		if (iwl_mvm_tx_skb(mvm, skb, control->sta))
+	/* treat non-bufferable MMPDUs as broadcast if sta is sleeping */
+	if (unlikely(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER &&
+		     ieee80211_is_mgmt(hdr->frame_control) &&
+		     !ieee80211_is_deauth(hdr->frame_control) &&
+		     !ieee80211_is_disassoc(hdr->frame_control) &&
+		     !ieee80211_is_action(hdr->frame_control)))
+		sta = NULL;
+
+	if (sta) {
+		if (iwl_mvm_tx_skb(mvm, skb, sta))
 			goto drop;
 		return;
 	}
@@ -1168,20 +1182,32 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 
 static void
 iwl_mvm_mac_allow_buffered_frames(struct ieee80211_hw *hw,
-				  struct ieee80211_sta *sta, u16 tid,
+				  struct ieee80211_sta *sta, u16 tids,
 				  int num_frames,
 				  enum ieee80211_frame_release_type reason,
 				  bool more_data)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	/* TODO: how do we tell the fw to send frames for a specific TID */
+	/* Called when we need to transmit (a) frame(s) from mac80211 */
 
-	/*
-	 * The fw will send EOSP notification when the last frame will be
-	 * transmitted.
-	 */
-	iwl_mvm_sta_modify_sleep_tx_count(mvm, sta, reason, num_frames);
+	iwl_mvm_sta_modify_sleep_tx_count(mvm, sta, reason, num_frames,
+					  tids, more_data, false);
+}
+
+static void
+iwl_mvm_mac_release_buffered_frames(struct ieee80211_hw *hw,
+				    struct ieee80211_sta *sta, u16 tids,
+				    int num_frames,
+				    enum ieee80211_frame_release_type reason,
+				    bool more_data)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	/* Called when we need to transmit (a) frame(s) from agg queue */
+
+	iwl_mvm_sta_modify_sleep_tx_count(mvm, sta, reason, num_frames,
+					  tids, more_data, true);
 }
 
 static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
@@ -1191,11 +1217,25 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int tid;
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
+		spin_lock_bh(&mvmsta->lock);
+		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+			struct iwl_mvm_tid_data *tid_data;
+
+			tid_data = &mvmsta->tid_data[tid];
+			if (tid_data->state != IWL_AGG_ON &&
+			    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+				continue;
+			if (iwl_mvm_tid_queued(tid_data) == 0)
+				continue;
+			ieee80211_sta_set_buffered(sta, tid, true);
+		}
+		spin_unlock_bh(&mvmsta->lock);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx
 		 * queues to this station will not be transmitted. The fw will
@@ -1914,6 +1954,7 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.sta_state = iwl_mvm_mac_sta_state,
 	.sta_notify = iwl_mvm_mac_sta_notify,
 	.allow_buffered_frames = iwl_mvm_mac_allow_buffered_frames,
+	.release_buffered_frames = iwl_mvm_mac_release_buffered_frames,
 	.set_rts_threshold = iwl_mvm_mac_set_rts_threshold,
 	.sta_rc_update = iwl_mvm_sta_rc_update,
 	.conf_tx = iwl_mvm_mac_conf_tx,
