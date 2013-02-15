@@ -29,6 +29,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 /* DVB */
 #include "demux.h"
@@ -119,6 +120,9 @@ enum au0828_dev_state {
 };
 
 struct au0828_fh {
+	/* must be the first field of this struct! */
+	struct v4l2_fh fh;
+
 	struct au0828_dev *dev;
 	unsigned int  resources;
 
