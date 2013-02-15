@@ -45,7 +45,7 @@ static int gpio_pin_request(struct gpio_chip *gc, unsigned offset)
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	struct sh_pfc_pin *pin = sh_pfc_get_pin(pfc, offset);
 
-	if (pin->enum_id == 0)
+	if (pin == NULL || pin->enum_id == 0)
 		return -EINVAL;
 
 	return pinctrl_request_gpio(offset);
@@ -127,7 +127,7 @@ static void gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->dev = pfc->dev;
 	gc->owner = THIS_MODULE;
 	gc->base = 0;
-	gc->ngpio = pfc->info->nr_pins;
+	gc->ngpio = pfc->nr_pins;
 }
 
 /* -----------------------------------------------------------------------------
@@ -184,7 +184,7 @@ static void gpio_function_setup(struct sh_pfc_chip *chip)
 
 	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->info->nr_pins;
+	gc->base = pfc->nr_pins;
 	gc->ngpio = pfc->info->nr_func_gpios;
 }
 
@@ -219,20 +219,43 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, void(*setup)(struct sh_pfc_chip *))
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 {
+	const struct pinmux_range *ranges;
+	struct pinmux_range def_range;
 	struct sh_pfc_chip *chip;
+	unsigned int nr_ranges;
+	unsigned int i;
 	int ret;
 
+	/* Register the real GPIOs chip. */
 	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
 	pfc->gpio = chip;
 
-	ret = gpiochip_add_pin_range(&chip->gpio_chip, dev_name(pfc->dev), 0, 0,
-				     chip->gpio_chip.ngpio);
-	if (ret < 0)
-		return ret;
+	/* Register the GPIO to pin mappings. */
+	if (pfc->info->ranges == NULL) {
+		def_range.begin = 0;
+		def_range.end = pfc->info->nr_pins - 1;
+		ranges = &def_range;
+		nr_ranges = 1;
+	} else {
+		ranges = pfc->info->ranges;
+		nr_ranges = pfc->info->nr_ranges;
+	}
 
+	for (i = 0; i < nr_ranges; ++i) {
+		const struct pinmux_range *range = &ranges[i];
+
+		ret = gpiochip_add_pin_range(&chip->gpio_chip,
+					     dev_name(pfc->dev),
+					     range->begin, range->begin,
+					     range->end - range->begin + 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Register the function GPIOs chip. */
 	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);

@@ -80,7 +80,24 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 
 struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin)
 {
-	return &pfc->info->pins[pin];
+	unsigned int offset;
+	unsigned int i;
+
+	if (pfc->info->ranges == NULL)
+		return &pfc->info->pins[pin];
+
+	for (i = 0, offset = 0; i < pfc->info->nr_ranges; ++i) {
+		const struct pinmux_range *range = &pfc->info->ranges[i];
+
+		if (pin <= range->end)
+			return pin >= range->begin
+			     ? &pfc->info->pins[offset + pin - range->begin]
+			     : NULL;
+
+		offset += range->end - range->begin + 1;
+	}
+
+	return NULL;
 }
 
 static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)

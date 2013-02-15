@@ -293,29 +293,48 @@ static const struct pinconf_ops sh_pfc_pinconf_ops = {
 	.pin_config_dbg_show	= sh_pfc_pinconf_dbg_show,
 };
 
-/* pinmux ranges -> pinctrl pin descs */
-static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
+/* PFC ranges -> pinctrl pin descs */
+static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
-	int i;
+	const struct pinmux_range *ranges;
+	struct pinmux_range def_range;
+	unsigned int nr_ranges;
+	unsigned int nr_pins;
+	unsigned int i;
 
-	pmx->nr_pads = pfc->info->nr_pins;
+	if (pfc->info->ranges == NULL) {
+		def_range.begin = 0;
+		def_range.end = pfc->info->nr_pins - 1;
+		ranges = &def_range;
+		nr_ranges = 1;
+	} else {
+		ranges = pfc->info->ranges;
+		nr_ranges = pfc->info->nr_ranges;
+	}
 
-	pmx->pads = devm_kzalloc(pfc->dev, sizeof(*pmx->pads) * pmx->nr_pads,
+	pmx->pads = devm_kzalloc(pfc->dev,
+				 sizeof(*pmx->pads) * pfc->info->nr_pins,
 				 GFP_KERNEL);
-	if (unlikely(!pmx->pads)) {
-		pmx->nr_pads = 0;
+	if (unlikely(!pmx->pads))
 		return -ENOMEM;
+
+	for (i = 0, nr_pins = 0; i < nr_ranges; ++i) {
+		const struct pinmux_range *range = &ranges[i];
+		unsigned int number;
+
+		for (number = range->begin; number <= range->end;
+		     number++, nr_pins++) {
+			struct pinctrl_pin_desc *pin = &pmx->pads[nr_pins];
+			struct sh_pfc_pin *info = &pfc->info->pins[nr_pins];
+
+			pin->number = number;
+			pin->name = info->name;
+		}
 	}
 
-	for (i = 0; i < pmx->nr_pads; i++) {
-		struct pinctrl_pin_desc *pin = pmx->pads + i;
-		struct sh_pfc_pin *gpio = pfc->info->pins + i;
+	pfc->nr_pins = ranges[nr_ranges-1].end + 1;
 
-		pin->number = i;
-		pin->name = gpio->name;
-	}
-
-	return 0;
+	return nr_ranges;
 }
 
 static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
@@ -347,6 +366,7 @@ static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pinctrl *pmx;
+	int nr_ranges;
 	int ret;
 
 	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
@@ -356,9 +376,9 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pfc = pfc;
 	pfc->pinctrl = pmx;
 
-	ret = sh_pfc_map_gpios(pfc, pmx);
-	if (unlikely(ret != 0))
-		return ret;
+	nr_ranges = sh_pfc_map_pins(pfc, pmx);
+	if (unlikely(nr_ranges < 0))
+		return nr_ranges;
 
 	ret = sh_pfc_map_functions(pfc, pmx);
 	if (unlikely(ret != 0))
@@ -370,7 +390,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl_desc.pmxops = &sh_pfc_pinmux_ops;
 	pmx->pctl_desc.confops = &sh_pfc_pinconf_ops;
 	pmx->pctl_desc.pins = pmx->pads;
-	pmx->pctl_desc.npins = pmx->nr_pads;
+	pmx->pctl_desc.npins = pfc->info->nr_pins;
 
 	pmx->pctl = pinctrl_register(&pmx->pctl_desc, pfc->dev, pmx);
 	if (IS_ERR(pmx->pctl))
