@@ -128,9 +128,7 @@ static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 20 * 1000; /* in ns */
 
 	/* policy sharing between dual CPUs */
-	cpumask_copy(policy->cpus, cpu_present_mask);
-
-	policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+	cpumask_setall(policy->cpus);
 
 	return 0;
 }

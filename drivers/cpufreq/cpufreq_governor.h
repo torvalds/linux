@@ -82,6 +82,7 @@ struct cpu_dbs_common_info {
 	 * the governor or limits.
 	 */
 	struct mutex timer_mutex;
+	ktime_t time_stamp;
 };
 
 struct od_cpu_dbs_info_s {
@@ -108,7 +109,7 @@ struct od_dbs_tuners {
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
-	unsigned int down_differential;
+	unsigned int adj_up_threshold;
 	unsigned int powersave_bias;
 	unsigned int io_is_busy;
 };
@@ -129,7 +130,6 @@ struct dbs_data {
 	#define GOV_CONSERVATIVE	1
 	int governor;
 	unsigned int min_sampling_rate;
-	unsigned int enable; /* number of CPUs using this policy */
 	struct attribute_group *attr_group;
 	void *tuners;
 
@@ -171,6 +171,8 @@ static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall);
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
+bool need_load_eval(struct cpu_dbs_common_info *cdbs,
+		unsigned int sampling_rate);
 int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 		struct cpufreq_policy *policy, unsigned int event);
 #endif /* _CPUFREQ_GOVERNER_H */

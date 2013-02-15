@@ -111,6 +111,12 @@ policy->governor		must contain the "default policy" for
 For setting some of these values, the frequency table helpers might be
 helpful. See the section 2 for more information on them.
 
+SMP systems normally have same clock source for a group of cpus. For these the
+.init() would be called only once for the first online cpu. Here the .init()
+routine must initialize policy->cpus with mask of all possible cpus (Online +
+Offline) that share the clock. Then the core would copy this mask onto
+policy->related_cpus and will reset policy->cpus to carry only online cpus.
+
 
 1.3 verify
 ------------

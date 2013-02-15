@@ -227,19 +227,7 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* set the transition latency value */
 	policy->cpuinfo.transition_latency = 100000;
 
-	/*
-	 * EXYNOS4 multi-core processors has 2 cores
-	 * that the frequency cannot be set independently.
-	 * Each cpu is bound to the same speed.
-	 * So the affected cpu is all of the cpus.
-	 */
-	if (num_online_cpus() == 1) {
-		cpumask_copy(policy->related_cpus, cpu_possible_mask);
-		cpumask_copy(policy->cpus, cpu_online_mask);
-	} else {
-		policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
-		cpumask_setall(policy->cpus);
-	}
+	cpumask_setall(policy->cpus);
 
 	return cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
 }

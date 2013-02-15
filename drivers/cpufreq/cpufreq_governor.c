@@ -161,25 +161,48 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 }
 EXPORT_SYMBOL_GPL(dbs_check_cpu);
 
-static inline void dbs_timer_init(struct dbs_data *dbs_data,
-		struct cpu_dbs_common_info *cdbs, unsigned int sampling_rate)
+static inline void dbs_timer_init(struct dbs_data *dbs_data, int cpu,
+				  unsigned int sampling_rate)
 {
 	int delay = delay_for_sampling_rate(sampling_rate);
+	struct cpu_dbs_common_info *cdbs = dbs_data->get_cpu_cdbs(cpu);
 
-	INIT_DEFERRABLE_WORK(&cdbs->work, dbs_data->gov_dbs_timer);
-	schedule_delayed_work_on(cdbs->cpu, &cdbs->work, delay);
+	schedule_delayed_work_on(cpu, &cdbs->work, delay);
 }
 
-static inline void dbs_timer_exit(struct cpu_dbs_common_info *cdbs)
+static inline void dbs_timer_exit(struct dbs_data *dbs_data, int cpu)
 {
+	struct cpu_dbs_common_info *cdbs = dbs_data->get_cpu_cdbs(cpu);
+
 	cancel_delayed_work_sync(&cdbs->work);
 }
+
+/* Will return if we need to evaluate cpu load again or not */
+bool need_load_eval(struct cpu_dbs_common_info *cdbs,
+		unsigned int sampling_rate)
+{
+	if (policy_is_shared(cdbs->cur_policy)) {
+		ktime_t time_now = ktime_get();
+		s64 delta_us = ktime_us_delta(time_now, cdbs->time_stamp);
+
+		/* Do nothing if we recently have sampled */
+		if (delta_us < (s64)(sampling_rate / 2))
+			return false;
+		else
+			cdbs->time_stamp = time_now;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(need_load_eval);
 
 int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 		struct cpufreq_policy *policy, unsigned int event)
 {
 	struct od_cpu_dbs_info_s *od_dbs_info = NULL;
 	struct cs_cpu_dbs_info_s *cs_dbs_info = NULL;
+	struct cs_ops *cs_ops = NULL;
+	struct od_ops *od_ops = NULL;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	struct cpu_dbs_common_info *cpu_cdbs;
@@ -192,109 +215,111 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 		cs_dbs_info = dbs_data->get_cpu_dbs_info_s(cpu);
 		sampling_rate = &cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice;
+		cs_ops = dbs_data->gov_ops;
 	} else {
 		od_dbs_info = dbs_data->get_cpu_dbs_info_s(cpu);
 		sampling_rate = &od_tuners->sampling_rate;
 		ignore_nice = od_tuners->ignore_nice;
+		od_ops = dbs_data->gov_ops;
 	}
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) || (!policy->cur))
+		if (!policy->cur)
 			return -EINVAL;
 
 		mutex_lock(&dbs_data->mutex);
 
-		dbs_data->enable++;
-		cpu_cdbs->cpu = cpu;
 		for_each_cpu(j, policy->cpus) {
-			struct cpu_dbs_common_info *j_cdbs;
-			j_cdbs = dbs_data->get_cpu_cdbs(j);
+			struct cpu_dbs_common_info *j_cdbs =
+				dbs_data->get_cpu_cdbs(j);
 
+			j_cdbs->cpu = j;
 			j_cdbs->cur_policy = policy;
 			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j,
 					&j_cdbs->prev_cpu_wall);
 			if (ignore_nice)
 				j_cdbs->prev_cpu_nice =
 					kcpustat_cpu(j).cpustat[CPUTIME_NICE];
+
+			mutex_init(&j_cdbs->timer_mutex);
+			INIT_DEFERRABLE_WORK(&j_cdbs->work,
+					     dbs_data->gov_dbs_timer);
 		}
 
-		/*
-		 * Start the timerschedule work, when this governor is used for
-		 * first time
-		 */
-		if (dbs_data->enable != 1)
-			goto second_time;
-
-		rc = sysfs_create_group(cpufreq_global_kobject,
-				dbs_data->attr_group);
-		if (rc) {
-			mutex_unlock(&dbs_data->mutex);
-			return rc;
+		if (!policy->governor->initialized) {
+			rc = sysfs_create_group(cpufreq_global_kobject,
+					dbs_data->attr_group);
+			if (rc) {
+				mutex_unlock(&dbs_data->mutex);
+				return rc;
+			}
 		}
-
-		/* policy latency is in nS. Convert it to uS first */
-		latency = policy->cpuinfo.transition_latency / 1000;
-		if (latency == 0)
-			latency = 1;
 
 		/*
 		 * conservative does not implement micro like ondemand
 		 * governor, thus we are bound to jiffes/HZ
 		 */
 		if (dbs_data->governor == GOV_CONSERVATIVE) {
-			struct cs_ops *ops = dbs_data->gov_ops;
+			cs_dbs_info->down_skip = 0;
+			cs_dbs_info->enable = 1;
+			cs_dbs_info->requested_freq = policy->cur;
 
-			cpufreq_register_notifier(ops->notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
+			if (!policy->governor->initialized) {
+				cpufreq_register_notifier(cs_ops->notifier_block,
+						CPUFREQ_TRANSITION_NOTIFIER);
 
-			dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
-				jiffies_to_usecs(10);
+				dbs_data->min_sampling_rate =
+					MIN_SAMPLING_RATE_RATIO *
+					jiffies_to_usecs(10);
+			}
 		} else {
-			struct od_ops *ops = dbs_data->gov_ops;
+			od_dbs_info->rate_mult = 1;
+			od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
+			od_ops->powersave_bias_init_cpu(cpu);
 
-			od_tuners->io_is_busy = ops->io_busy();
+			if (!policy->governor->initialized)
+				od_tuners->io_is_busy = od_ops->io_busy();
 		}
+
+		if (policy->governor->initialized)
+			goto unlock;
+
+		/* policy latency is in nS. Convert it to uS first */
+		latency = policy->cpuinfo.transition_latency / 1000;
+		if (latency == 0)
+			latency = 1;
 
 		/* Bring kernel and HW constraints together */
 		dbs_data->min_sampling_rate = max(dbs_data->min_sampling_rate,
 				MIN_LATENCY_MULTIPLIER * latency);
 		*sampling_rate = max(dbs_data->min_sampling_rate, latency *
 				LATENCY_MULTIPLIER);
-
-second_time:
-		if (dbs_data->governor == GOV_CONSERVATIVE) {
-			cs_dbs_info->down_skip = 0;
-			cs_dbs_info->enable = 1;
-			cs_dbs_info->requested_freq = policy->cur;
-		} else {
-			struct od_ops *ops = dbs_data->gov_ops;
-			od_dbs_info->rate_mult = 1;
-			od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
-			ops->powersave_bias_init_cpu(cpu);
-		}
+unlock:
 		mutex_unlock(&dbs_data->mutex);
 
-		mutex_init(&cpu_cdbs->timer_mutex);
-		dbs_timer_init(dbs_data, cpu_cdbs, *sampling_rate);
+		/* Initiate timer time stamp */
+		cpu_cdbs->time_stamp = ktime_get();
+
+		for_each_cpu(j, policy->cpus)
+			dbs_timer_init(dbs_data, j, *sampling_rate);
 		break;
 
 	case CPUFREQ_GOV_STOP:
 		if (dbs_data->governor == GOV_CONSERVATIVE)
 			cs_dbs_info->enable = 0;
 
-		dbs_timer_exit(cpu_cdbs);
+		for_each_cpu(j, policy->cpus)
+			dbs_timer_exit(dbs_data, j);
 
 		mutex_lock(&dbs_data->mutex);
 		mutex_destroy(&cpu_cdbs->timer_mutex);
-		dbs_data->enable--;
-		if (!dbs_data->enable) {
-			struct cs_ops *ops = dbs_data->gov_ops;
 
+		if (policy->governor->initialized == 1) {
 			sysfs_remove_group(cpufreq_global_kobject,
 					dbs_data->attr_group);
 			if (dbs_data->governor == GOV_CONSERVATIVE)
-				cpufreq_unregister_notifier(ops->notifier_block,
+				cpufreq_unregister_notifier(cs_ops->notifier_block,
 						CPUFREQ_TRANSITION_NOTIFIER);
 		}
 		mutex_unlock(&dbs_data->mutex);
