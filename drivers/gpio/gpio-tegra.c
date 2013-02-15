@@ -398,10 +398,11 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	int j;
 
 	match = of_match_device(tegra_gpio_of_match, &pdev->dev);
-	if (match)
-		config = (struct tegra_gpio_soc_config *)match->data;
-	else
-		config = &tegra20_gpio_config;
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+	config = (struct tegra_gpio_soc_config *)match->data;
 
 	tegra_gpio_bank_stride = config->bank_stride;
 	tegra_gpio_upper_offset = config->upper_offset;
@@ -462,9 +463,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_OF_GPIO
 	tegra_gpio_chip.of_node = pdev->dev.of_node;
-#endif
 
 	gpiochip_add(&tegra_gpio_chip);
 
