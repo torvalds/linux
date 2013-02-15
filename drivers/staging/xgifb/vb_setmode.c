@@ -2860,10 +2860,8 @@ static unsigned short XGI_GetOffset(unsigned short ModeNo,
 		temp = 0x6B;
 		if (infoflag & InterlaceMode)
 			temp = temp << 1;
-		return temp * colordepth;
-	} else {
-		return temp * colordepth;
 	}
+	return temp * colordepth;
 }
 
 static void XGI_SetCRT2Offset(unsigned short ModeNo,
