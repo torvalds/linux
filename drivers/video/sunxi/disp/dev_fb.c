@@ -301,6 +301,10 @@ parser_disp_init_para(__disp_init_t *init_para)
 	}
 	init_para->seq[0] = value;
 
+#if 1
+	/* HdG: scaler_mode = 0 breaks interlaced modes, force to 1 for now */
+	init_para->scaler_mode[0] = 1;
+#else
 	if (script_parser_fetch
 	    ("disp_init", "fb0_scaler_mode_enable", &value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb0_scaler_mode_enable "
@@ -308,6 +312,7 @@ parser_disp_init_para(__disp_init_t *init_para)
 		return -1;
 	}
 	init_para->scaler_mode[0] = value;
+#endif
 
 	/* fb1 */
 	if (script_parser_fetch("disp_init", "fb1_framebuffer_num",
@@ -330,6 +335,10 @@ parser_disp_init_para(__disp_init_t *init_para)
 	}
 	init_para->seq[1] = value;
 
+#if 1
+	/* HdG: scaler_mode = 0 breaks interlaced modes, force to 1 for now */
+	init_para->scaler_mode[1] = 1;
+#else
 	if (script_parser_fetch
 	    ("disp_init", "fb1_scaler_mode_enable", &value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb1_scaler_mode_enable "
@@ -337,6 +346,7 @@ parser_disp_init_para(__disp_init_t *init_para)
 		return -1;
 	}
 	init_para->scaler_mode[1] = value;
+#endif
 
 	__inf("====display init para begin====\n");
 	__inf("b_init:%d\n", init_para->b_init);
