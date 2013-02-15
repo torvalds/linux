@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/gcd.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -332,9 +333,27 @@ const struct soc_enum arizona_ng_hold =
 			4, arizona_ng_hold_text);
 EXPORT_SYMBOL_GPL(arizona_ng_hold);
 
+static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int val;
+	int i;
+
+	if (ena)
+		val = ARIZONA_IN_VU;
+	else
+		val = 0;
+
+	for (i = 0; i < priv->num_inputs; i++)
+		snd_soc_update_bits(codec,
+				    ARIZONA_ADC_DIGITAL_VOLUME_1L + (i * 4),
+				    ARIZONA_IN_VU, val);
+}
+
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int reg;
 
 	if (w->shift % 2)
@@ -343,13 +362,29 @@ int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		reg = ARIZONA_ADC_DIGITAL_VOLUME_1R + ((w->shift / 2) * 8);
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		priv->in_pending++;
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE, 0);
+
+		/* If this is the last input pending then allow VU */
+		priv->in_pending--;
+		if (priv->in_pending == 0) {
+			msleep(1);
+			arizona_in_set_vu(w->codec, 1);
+		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE,
-				    ARIZONA_IN1L_MUTE);
+		snd_soc_update_bits(w->codec, reg,
+				    ARIZONA_IN1L_MUTE | ARIZONA_IN_VU,
+				    ARIZONA_IN1L_MUTE | ARIZONA_IN_VU);
 		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable volume updates if no inputs are enabled */
+		reg = snd_soc_read(w->codec, ARIZONA_INPUT_ENABLES);
+		if (reg == 0)
+			arizona_in_set_vu(w->codec, 0);
 	}
 
 	return 0;

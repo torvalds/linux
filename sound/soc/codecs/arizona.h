@@ -65,6 +65,9 @@ struct arizona_priv {
 	int sysclk;
 	int asyncclk;
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
+
+	int num_inputs;
+	unsigned int in_pending;
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 99
