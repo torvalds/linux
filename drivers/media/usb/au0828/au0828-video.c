@@ -1373,10 +1373,13 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	input->index = tmp;
 	strcpy(input->name, inames[AUVI_INPUT(tmp).type]);
 	if ((AUVI_INPUT(tmp).type == AU0828_VMUX_TELEVISION) ||
-	    (AUVI_INPUT(tmp).type == AU0828_VMUX_CABLE))
+	    (AUVI_INPUT(tmp).type == AU0828_VMUX_CABLE)) {
 		input->type |= V4L2_INPUT_TYPE_TUNER;
-	else
+		input->audioset = 1;
+	} else {
 		input->type |= V4L2_INPUT_TYPE_CAMERA;
+		input->audioset = 2;
+	}
 
 	input->std = dev->vdev->tvnorms;
 
@@ -1408,12 +1411,15 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	switch (AUVI_INPUT(index).type) {
 	case AU0828_VMUX_SVIDEO:
 		dev->input_type = AU0828_VMUX_SVIDEO;
+		dev->ctrl_ainput = 1;
 		break;
 	case AU0828_VMUX_COMPOSITE:
 		dev->input_type = AU0828_VMUX_COMPOSITE;
+		dev->ctrl_ainput = 1;
 		break;
 	case AU0828_VMUX_TELEVISION:
 		dev->input_type = AU0828_VMUX_TELEVISION;
+		dev->ctrl_ainput = 0;
 		break;
 	default:
 		dprintk(1, "VIDIOC_S_INPUT unknown input type set [%d]\n",
@@ -1450,23 +1456,32 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	return 0;
 }
 
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int vidioc_enumaudio(struct file *file, void *priv, struct v4l2_audio *a)
 {
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	unsigned int index = a->index;
-
 	if (a->index > 1)
 		return -EINVAL;
 
-	index = dev->ctrl_ainput;
-	if (index == 0)
+	if (a->index == 0)
 		strcpy(a->name, "Television");
 	else
 		strcpy(a->name, "Line in");
 
 	a->capability = V4L2_AUDCAP_STEREO;
-	a->index = index;
+	return 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
+{
+	struct au0828_fh *fh = priv;
+	struct au0828_dev *dev = fh->dev;
+
+	a->index = dev->ctrl_ainput;
+	if (a->index == 0)
+		strcpy(a->name, "Television");
+	else
+		strcpy(a->name, "Line in");
+
+	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
 
@@ -1474,6 +1489,7 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
+
 	if (a->index != dev->ctrl_ainput)
 		return -EINVAL;
 	return 0;
@@ -1877,6 +1893,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
+	.vidioc_enumaudio           = vidioc_enumaudio,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
