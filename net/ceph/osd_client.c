@@ -38,49 +38,6 @@ static int op_has_extent(int op)
 		op == CEPH_OSD_OP_WRITE);
 }
 
-int ceph_calc_raw_layout(struct ceph_file_layout *layout,
-			u64 off, u64 *plen, u64 *bno,
-			struct ceph_osd_request *req,
-			struct ceph_osd_req_op *op)
-{
-	u64 orig_len = *plen;
-	u64 objoff, objlen;    /* extent in object */
-	int r;
-
-	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
-					  &objoff, &objlen);
-	if (r < 0)
-		return r;
-	if (objlen < orig_len) {
-		*plen = objlen;
-		dout(" skipping last %llu, final file extent %llu~%llu\n",
-		     orig_len - *plen, off, *plen);
-	}
-
-	if (op_has_extent(op->op)) {
-		u32 osize = le32_to_cpu(layout->fl_object_size);
-		op->extent.offset = objoff;
-		op->extent.length = objlen;
-		if (op->extent.truncate_size <= off - objoff) {
-			op->extent.truncate_size = 0;
-		} else {
-			op->extent.truncate_size -= off - objoff;
-			if (op->extent.truncate_size > osize)
-				op->extent.truncate_size = osize;
-		}
-	}
-	req->r_num_pages = calc_pages_for(off, *plen);
-	req->r_page_alignment = off & ~PAGE_MASK;
-	if (op->op == CEPH_OSD_OP_WRITE)
-		op->payload_len = *plen;
-
-	dout("calc_layout bno=%llx %llu~%llu (%d pages)\n",
-	     *bno, objoff, objlen, req->r_num_pages);
-	return 0;
-}
-EXPORT_SYMBOL(ceph_calc_raw_layout);
-
 /*
  * Implement client access to distributed object storage cluster.
  *
@@ -112,12 +69,42 @@ static int calc_layout(struct ceph_vino vino,
 		       struct ceph_osd_request *req,
 		       struct ceph_osd_req_op *op)
 {
-	u64 bno;
+	u64 orig_len = *plen;
+	u64 bno = 0;
+	u64 objoff = 0;
+	u64 objlen = 0;
 	int r;
 
-	r = ceph_calc_raw_layout(layout, off, plen, &bno, req, op);
+	/* object extent? */
+	r = ceph_calc_file_object_mapping(layout, off, orig_len, &bno,
+					  &objoff, &objlen);
 	if (r < 0)
 		return r;
+	if (objlen < orig_len) {
+		*plen = objlen;
+		dout(" skipping last %llu, final file extent %llu~%llu\n",
+		     orig_len - *plen, off, *plen);
+	}
+
+	if (op_has_extent(op->op)) {
+		u32 osize = le32_to_cpu(layout->fl_object_size);
+		op->extent.offset = objoff;
+		op->extent.length = objlen;
+		if (op->extent.truncate_size <= off - objoff) {
+			op->extent.truncate_size = 0;
+		} else {
+			op->extent.truncate_size -= off - objoff;
+			if (op->extent.truncate_size > osize)
+				op->extent.truncate_size = osize;
+		}
+	}
+	req->r_num_pages = calc_pages_for(off, *plen);
+	req->r_page_alignment = off & ~PAGE_MASK;
+	if (op->op == CEPH_OSD_OP_WRITE)
+		op->payload_len = *plen;
+
+	dout("calc_layout bno=%llx %llu~%llu (%d pages)\n",
+	     bno, objoff, objlen, req->r_num_pages);
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
