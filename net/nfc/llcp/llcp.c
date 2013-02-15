@@ -156,6 +156,7 @@ static void local_release(struct kref *ref)
 	cancel_work_sync(&local->rx_work);
 	cancel_work_sync(&local->timeout_work);
 	kfree_skb(local->rx_pending);
+	nfc_llcp_free_sdp_tlv_list(&local->pending_sdreqs);
 	kfree(local);
 }
 
@@ -1147,6 +1148,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 	struct nfc_llcp_sdp_tlv *sdp;
 	HLIST_HEAD(llc_sdres_list);
 	size_t sdres_tlvs_len;
+	HLIST_HEAD(nl_sdres_list);
 
 	dsap = nfc_llcp_dsap(skb);
 	ssap = nfc_llcp_ssap(skb);
@@ -1229,6 +1231,30 @@ add_snl:
 			hlist_add_head(&sdp->node, &llc_sdres_list);
 			break;
 
+		case LLCP_TLV_SDRES:
+			mutex_lock(&local->sdreq_lock);
+
+			pr_debug("LLCP_TLV_SDRES: searching tid %d\n", tlv[2]);
+
+			hlist_for_each_entry(sdp, &local->pending_sdreqs, node) {
+				if (sdp->tid != tlv[2])
+					continue;
+
+				sdp->sap = tlv[3];
+
+				pr_debug("Found: uri=%s, sap=%d\n",
+					 sdp->uri, sdp->sap);
+
+				hlist_del(&sdp->node);
+
+				hlist_add_head(&sdp->node, &nl_sdres_list);
+
+				break;
+			}
+
+			mutex_unlock(&local->sdreq_lock);
+			break;
+
 		default:
 			pr_err("Invalid SNL tlv value 0x%x\n", type);
 			break;
@@ -1239,6 +1265,9 @@ add_snl:
 	}
 
 exit:
+	if (!hlist_empty(&nl_sdres_list))
+		nfc_genl_llc_send_sdres(local->dev, &nl_sdres_list);
+
 	if (!hlist_empty(&llc_sdres_list))
 		nfc_llcp_send_snl_sdres(local, &llc_sdres_list, sdres_tlvs_len);
 }
@@ -1425,6 +1454,9 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	local->remote_miu = LLCP_DEFAULT_MIU;
 	local->remote_lto = LLCP_DEFAULT_LTO;
+
+	mutex_init(&local->sdreq_lock);
+	INIT_HLIST_HEAD(&local->pending_sdreqs);
 
 	list_add(&local->list, &llcp_devices);
 

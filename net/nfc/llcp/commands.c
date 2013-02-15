@@ -144,10 +144,57 @@ struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdres_tlv(u8 tid, u8 sap)
 	return sdres;
 }
 
+struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdreq_tlv(u8 tid, char *uri,
+						  size_t uri_len)
+{
+	struct nfc_llcp_sdp_tlv *sdreq;
+
+	pr_debug("uri: %s, len: %zu\n", uri, uri_len);
+
+	sdreq = kzalloc(sizeof(struct nfc_llcp_sdp_tlv), GFP_KERNEL);
+	if (sdreq == NULL)
+		return NULL;
+
+	sdreq->tlv_len = uri_len + 3;
+
+	if (uri[uri_len - 1] == 0)
+		sdreq->tlv_len--;
+
+	sdreq->tlv = kzalloc(sdreq->tlv_len + 1, GFP_KERNEL);
+	if (sdreq->tlv == NULL) {
+		kfree(sdreq);
+		return NULL;
+	}
+
+	sdreq->tlv[0] = LLCP_TLV_SDREQ;
+	sdreq->tlv[1] = sdreq->tlv_len - 2;
+	sdreq->tlv[2] = tid;
+
+	sdreq->tid = tid;
+	sdreq->uri = sdreq->tlv + 3;
+	memcpy(sdreq->uri, uri, uri_len);
+
+	INIT_HLIST_NODE(&sdreq->node);
+
+	return sdreq;
+}
+
 void nfc_llcp_free_sdp_tlv(struct nfc_llcp_sdp_tlv *sdp)
 {
 	kfree(sdp->tlv);
 	kfree(sdp);
+}
+
+void nfc_llcp_free_sdp_tlv_list(struct hlist_head *head)
+{
+	struct nfc_llcp_sdp_tlv *sdp;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_safe(sdp, n, head, node) {
+		hlist_del(&sdp->node);
+
+		nfc_llcp_free_sdp_tlv(sdp);
+	}
 }
 
 int nfc_llcp_parse_gb_tlv(struct nfc_llcp_local *local,
@@ -505,6 +552,37 @@ int nfc_llcp_send_snl_sdres(struct nfc_llcp_local *local,
 
 		nfc_llcp_free_sdp_tlv(sdp);
 	}
+
+	skb_queue_tail(&local->tx_queue, skb);
+
+	return 0;
+}
+
+int nfc_llcp_send_snl_sdreq(struct nfc_llcp_local *local,
+			    struct hlist_head *tlv_list, size_t tlvs_len)
+{
+	struct nfc_llcp_sdp_tlv *sdreq;
+	struct hlist_node *n;
+	struct sk_buff *skb;
+
+	skb = nfc_llcp_allocate_snl(local, tlvs_len);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	mutex_lock(&local->sdreq_lock);
+
+	hlist_for_each_entry_safe(sdreq, n, tlv_list, node) {
+		pr_debug("tid %d for %s\n", sdreq->tid, sdreq->uri);
+
+		memcpy(skb_put(skb, sdreq->tlv_len), sdreq->tlv,
+		       sdreq->tlv_len);
+
+		hlist_del(&sdreq->node);
+
+		hlist_add_head(&sdreq->node, &local->pending_sdreqs);
+	}
+
+	mutex_unlock(&local->sdreq_lock);
 
 	skb_queue_tail(&local->tx_queue, skb);
 

@@ -90,6 +90,8 @@ enum nfc_commands {
 	NFC_CMD_LLC_SET_PARAMS,
 	NFC_CMD_ENABLE_SE,
 	NFC_CMD_DISABLE_SE,
+	NFC_CMD_LLC_SDREQ,
+	NFC_EVENT_LLC_SDRES,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -140,10 +142,20 @@ enum nfc_attrs {
 	NFC_ATTR_LLC_PARAM_RW,
 	NFC_ATTR_LLC_PARAM_MIUX,
 	NFC_ATTR_SE,
+	NFC_ATTR_LLC_SDP,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
 #define NFC_ATTR_MAX (__NFC_ATTR_AFTER_LAST - 1)
+
+enum nfc_sdp_attr {
+	NFC_SDP_ATTR_UNSPEC,
+	NFC_SDP_ATTR_URI,
+	NFC_SDP_ATTR_SAP,
+/* private: internal use only */
+	__NFC_SDP_ATTR_AFTER_LAST
+};
+#define NFC_SDP_ATTR_MAX (__NFC_SDP_ATTR_AFTER_LAST - 1)
 
 #define NFC_DEVICE_NAME_MAXSIZE 8
 #define NFC_NFCID1_MAXSIZE 10
