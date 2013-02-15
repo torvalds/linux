@@ -364,6 +364,7 @@ static int adt7410_probe(struct i2c_client *client,
 	/*
 	 * Set to 16 bit resolution, continous conversion and comparator mode.
 	 */
+	ret &= ~ADT7410_MODE_MASK;
 	data->config = ret | ADT7410_FULL | ADT7410_RESOLUTION |
 			ADT7410_EVENT_MODE;
 	if (data->config != data->oldconfig) {
