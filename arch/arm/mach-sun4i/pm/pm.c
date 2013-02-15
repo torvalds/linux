@@ -37,7 +37,7 @@
 #include <asm/io.h>
 #include <linux/power/aw_pm.h>
 
-#define AW_PM_DBG   1
+#define AW_PM_DBG   0
 #undef PM_DBG
 #if(AW_PM_DBG)
     #define PM_DBG(format,args...)   printk("[pm]"format,##args)
