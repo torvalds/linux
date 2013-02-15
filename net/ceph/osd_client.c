@@ -23,7 +23,7 @@
 
 static const struct ceph_connection_operations osd_con_ops;
 
-static void send_queued(struct ceph_osd_client *osdc);
+static void __send_queued(struct ceph_osd_client *osdc);
 static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd);
 static void __register_request(struct ceph_osd_client *osdc,
 			       struct ceph_osd_request *req);
@@ -554,8 +554,8 @@ static void osd_reset(struct ceph_connection *con)
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
 	__kick_osd_requests(osdc, osd);
+	__send_queued(osdc);
 	mutex_unlock(&osdc->request_mutex);
-	send_queued(osdc);
 	up_read(&osdc->map_sem);
 }
 
@@ -997,16 +997,13 @@ static void __send_request(struct ceph_osd_client *osdc,
 /*
  * Send any requests in the queue (req_unsent).
  */
-static void send_queued(struct ceph_osd_client *osdc)
+static void __send_queued(struct ceph_osd_client *osdc)
 {
 	struct ceph_osd_request *req, *tmp;
 
-	dout("send_queued\n");
-	mutex_lock(&osdc->request_mutex);
-	list_for_each_entry_safe(req, tmp, &osdc->req_unsent, r_req_lru_item) {
+	dout("__send_queued\n");
+	list_for_each_entry_safe(req, tmp, &osdc->req_unsent, r_req_lru_item)
 		__send_request(osdc, req);
-	}
-	mutex_unlock(&osdc->request_mutex);
 }
 
 /*
@@ -1058,8 +1055,8 @@ static void handle_timeout(struct work_struct *work)
 	}
 
 	__schedule_osd_timeout(osdc);
+	__send_queued(osdc);
 	mutex_unlock(&osdc->request_mutex);
-	send_queued(osdc);
 	up_read(&osdc->map_sem);
 }
 
@@ -1397,7 +1394,9 @@ done:
 	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
 		ceph_monc_request_next_osdmap(&osdc->client->monc);
 
-	send_queued(osdc);
+	mutex_lock(&osdc->request_mutex);
+	__send_queued(osdc);
+	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
 	wake_up_all(&osdc->client->auth_wq);
 	return;
