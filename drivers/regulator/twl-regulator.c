@@ -441,12 +441,6 @@ static const u16 VSIM_VSEL_table[] = {
 static const u16 VDAC_VSEL_table[] = {
 	1200, 1300, 1800, 1800,
 };
-static const u16 VDD1_VSEL_table[] = {
-	800, 1450,
-};
-static const u16 VDD2_VSEL_table[] = {
-	800, 1450, 1500,
-};
 static const u16 VIO_VSEL_table[] = {
 	1800, 1850,
 };
