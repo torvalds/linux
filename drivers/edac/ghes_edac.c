@@ -287,10 +287,19 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	mci->dev_name = "ghes";
 
 	if (!fake) {
-		/* Fill DIMM info from DMI */
-		dimm_fill.count = 0;
-		dimm_fill.mci = mci;
-		dmi_walk(ghes_edac_dmidecode, &dimm_fill);
+		/*
+		 * Fill DIMM info from DMI for the memory controller #0
+		 *
+		 * Keep it in blank for the other memory controllers, as
+		 * there's no reliable way to properly credit each DIMM to
+		 * the memory controller, as different BIOSes fill the
+		 * DMI bank location fields on different ways
+		 */
+		if (!ghes_edac_mc_num) {
+			dimm_fill.count = 0;
+			dimm_fill.mci = mci;
+			dmi_walk(ghes_edac_dmidecode, &dimm_fill);
+		}
 	} else {
 		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
 						       mci->n_layers, 0, 0, 0);
