@@ -54,6 +54,7 @@
 
 #include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 
 #endif /* __ASM_GENERIC_BITOPS_H */
