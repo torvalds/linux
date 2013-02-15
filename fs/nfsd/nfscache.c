@@ -263,7 +263,7 @@ nfsd_cache_csum(struct svc_rqst *rqstp)
 	base = buf->page_base & ~PAGE_MASK;
 	while (csum_len) {
 		p = page_address(buf->pages[idx]) + base;
-		len = min(PAGE_SIZE - base, csum_len);
+		len = min_t(size_t, PAGE_SIZE - base, csum_len);
 		csum = csum_partial(p, len, csum);
 		csum_len -= len;
 		base = 0;
