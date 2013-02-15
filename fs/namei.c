@@ -2941,8 +2941,8 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	int error;
 
 	file = get_empty_filp();
-	if (!file)
-		return ERR_PTR(-ENFILE);
+	if (IS_ERR(file))
+		return file;
 
 	file->f_flags = op->open_flag;
 
