@@ -1996,9 +1996,9 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 					 plane_req->src_w, plane_req->src_h);
 	if (!ret) {
 		old_fb = plane->fb;
-		fb = NULL;
 		plane->crtc = crtc;
 		plane->fb = fb;
+		fb = NULL;
 	}
 	drm_modeset_unlock_all(dev);
 
