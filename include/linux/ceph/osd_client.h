@@ -273,8 +273,7 @@ extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 /* watch/notify events */
 extern int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 				  void (*event_cb)(u64, u64, u8, void *),
-				  int one_shot, void *data,
-				  struct ceph_osd_event **pevent);
+				  void *data, struct ceph_osd_event **pevent);
 extern void ceph_osdc_cancel_event(struct ceph_osd_event *event);
 extern int ceph_osdc_wait_event(struct ceph_osd_event *event,
 				unsigned long timeout);

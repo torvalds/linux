@@ -1477,8 +1477,7 @@ static void __remove_event(struct ceph_osd_event *event)
 
 int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 			   void (*event_cb)(u64, u64, u8, void *),
-			   int one_shot, void *data,
-			   struct ceph_osd_event **pevent)
+			   void *data, struct ceph_osd_event **pevent)
 {
 	struct ceph_osd_event *event;
 
@@ -1488,7 +1487,7 @@ int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 
 	dout("create_event %p\n", event);
 	event->cb = event_cb;
-	event->one_shot = one_shot;
+	event->one_shot = 0;
 	event->data = data;
 	event->osdc = osdc;
 	INIT_LIST_HEAD(&event->osd_node);
@@ -1541,7 +1540,8 @@ static void do_event_work(struct work_struct *work)
 /*
  * Process osd watch notifications
  */
-void handle_watch_notify(struct ceph_osd_client *osdc, struct ceph_msg *msg)
+static void handle_watch_notify(struct ceph_osd_client *osdc,
+				struct ceph_msg *msg)
 {
 	void *p, *end;
 	u8 proto_ver;
@@ -1562,9 +1562,8 @@ void handle_watch_notify(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	spin_lock(&osdc->event_lock);
 	event = __find_event(osdc, cookie);
 	if (event) {
+		BUG_ON(event->one_shot);
 		get_event(event);
-		if (event->one_shot)
-			__remove_event(event);
 	}
 	spin_unlock(&osdc->event_lock);
 	dout("handle_watch_notify cookie %lld ver %lld event %p\n",

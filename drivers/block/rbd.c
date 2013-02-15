@@ -1744,7 +1744,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	rbd_assert(start ^ !!rbd_dev->watch_request);
 
 	if (start) {
-		ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0, rbd_dev,
+		ret = ceph_osdc_create_event(osdc, rbd_watch_cb, rbd_dev,
 						&rbd_dev->watch_event);
 		if (ret < 0)
 			return ret;
