@@ -84,19 +84,29 @@ struct acpi_driver;
 struct acpi_device;
 
 /*
+ * ACPI Scan Handler
+ * -----------------
+ */
+
+struct acpi_scan_handler {
+	const struct acpi_device_id *ids;
+	struct list_head list_node;
+	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
+	void (*detach)(struct acpi_device *dev);
+};
+
+/*
  * ACPI Driver
  * -----------
  */
 
 typedef int (*acpi_op_add) (struct acpi_device * device);
-typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
-typedef int (*acpi_op_start) (struct acpi_device * device);
+typedef int (*acpi_op_remove) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
 
 struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
-	acpi_op_start start;
 	acpi_op_notify notify;
 };
 
@@ -271,6 +281,7 @@ struct acpi_device {
 	struct acpi_device_wakeup wakeup;
 	struct acpi_device_perf performance;
 	struct acpi_device_dir dir;
+	struct acpi_scan_handler *handler;
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
@@ -384,6 +395,10 @@ int acpi_bus_receive_event(struct acpi_bus_event *event);
 static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
 	{ return 0; }
 #endif
+
+void acpi_scan_lock_acquire(void);
+void acpi_scan_lock_release(void);
+int acpi_scan_add_handler(struct acpi_scan_handler *handler);
 int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_scan(acpi_handle handle);

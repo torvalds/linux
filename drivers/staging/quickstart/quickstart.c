@@ -296,7 +296,7 @@ fail_config:
 	return ret;
 }
 
-static int quickstart_acpi_remove(struct acpi_device *device, int type)
+static int quickstart_acpi_remove(struct acpi_device *device)
 {
 	acpi_status status;
 	struct quickstart_acpi *quickstart;

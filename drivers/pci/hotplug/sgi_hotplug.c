@@ -425,6 +425,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 			pdevice = NULL;
 		}
 
+		acpi_scan_lock_acquire();
 		/*
 		 * Walk the rootbus node's immediate children looking for
 		 * the slot's device node(s). There can be more than
@@ -458,6 +459,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 				}
 			}
 		}
+		acpi_scan_lock_release();
 	}
 
 	/* Call the driver for the new device */
@@ -508,6 +510,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		/* Get the rootbus node pointer */
 		phandle = PCI_CONTROLLER(slot->pci_bus)->acpi_handle;
 
+		acpi_scan_lock_acquire();
 		/*
 		 * Walk the rootbus node's immediate children looking for
 		 * the slot's device node(s). There can be more than
@@ -538,7 +541,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 					acpi_bus_trim(device);
 			}
 		}
-
+		acpi_scan_lock_release();
 	}
 
 	/* Free the SN resources assigned to the Linux device.*/

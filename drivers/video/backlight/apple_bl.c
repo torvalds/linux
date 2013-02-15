@@ -196,7 +196,7 @@ static int apple_bl_add(struct acpi_device *dev)
 	return 0;
 }
 
-static int apple_bl_remove(struct acpi_device *dev, int type)
+static int apple_bl_remove(struct acpi_device *dev)
 {
 	backlight_device_unregister(apple_backlight_device);
 

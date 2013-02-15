@@ -97,7 +97,7 @@ module_param(psv, int, 0644);
 MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 
 static int acpi_thermal_add(struct acpi_device *device);
-static int acpi_thermal_remove(struct acpi_device *device, int type);
+static int acpi_thermal_remove(struct acpi_device *device);
 static void acpi_thermal_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id  thermal_device_ids[] = {
@@ -1111,7 +1111,7 @@ end:
 	return result;
 }
 
-static int acpi_thermal_remove(struct acpi_device *device, int type)
+static int acpi_thermal_remove(struct acpi_device *device)
 {
 	struct acpi_thermal *tz = NULL;
 

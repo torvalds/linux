@@ -363,8 +363,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 #if defined(CONFIG_ACPI_HOTPLUG_CPU) &&			\
 	(defined(CONFIG_ACPI_HOTPLUG_MEMORY) ||		\
 	 defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) &&	\
-	(defined(CONFIG_ACPI_CONTAINER) ||		\
-	 defined(CONFIG_ACPI_CONTAINER_MODULE))
+	defined(CONFIG_ACPI_CONTAINER)
 #define ACPI_HOTPLUG_OST
 #endif
 

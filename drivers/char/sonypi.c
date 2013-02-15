@@ -1142,7 +1142,7 @@ static int sonypi_acpi_add(struct acpi_device *device)
 	return 0;
 }
 
-static int sonypi_acpi_remove(struct acpi_device *device, int type)
+static int sonypi_acpi_remove(struct acpi_device *device)
 {
 	sonypi_acpi_device = NULL;
 	return 0;
