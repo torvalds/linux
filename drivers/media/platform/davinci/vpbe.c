@@ -344,7 +344,7 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
-		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS &&
+		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS &&
 		    !memcmp(&output->modes[i].dv_timings,
 				dv_timings, sizeof(*dv_timings)))
 			break;
@@ -385,7 +385,7 @@ static int vpbe_g_dv_timings(struct vpbe_device *vpbe_dev,
 		     struct v4l2_dv_timings *dv_timings)
 {
 	if (vpbe_dev->current_timings.timings_type &
-	  VPBE_ENC_CUSTOM_TIMINGS) {
+	  VPBE_ENC_DV_TIMINGS) {
 		*dv_timings = vpbe_dev->current_timings.dv_timings;
 		return 0;
 	}
@@ -412,7 +412,7 @@ static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
-		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS) {
+		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS) {
 			if (j == timings->index)
 				break;
 			j++;
@@ -515,7 +515,7 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 				return vpbe_s_std(vpbe_dev,
 						 &preset_mode->std_id);
 			if (preset_mode->timings_type &
-						VPBE_ENC_CUSTOM_TIMINGS) {
+						VPBE_ENC_DV_TIMINGS) {
 				dv_timings =
 					preset_mode->dv_timings;
 				return vpbe_s_dv_timings(vpbe_dev, &dv_timings);

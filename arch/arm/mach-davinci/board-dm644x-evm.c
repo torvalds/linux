@@ -649,7 +649,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	{
 		.name		= "480p59_94",
-		.timings_type	= VPBE_ENC_CUSTOM_TIMINGS,
+		.timings_type	= VPBE_ENC_DV_TIMINGS,
 		.dv_timings	= V4L2_DV_BT_CEA_720X480P59_94,
 		.interlaced	= 0,
 		.xres		= 720,
@@ -661,7 +661,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	},
 	{
 		.name		= "576p50",
-		.timings_type	= VPBE_ENC_CUSTOM_TIMINGS,
+		.timings_type	= VPBE_ENC_DV_TIMINGS,
 		.dv_timings	= V4L2_DV_BT_CEA_720X576P50,
 		.interlaced	= 0,
 		.xres		= 720,

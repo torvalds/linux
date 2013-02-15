@@ -1202,7 +1202,7 @@ vpbe_display_g_dv_timings(struct file *file, void *priv,
 	/* Get the given standard in the encoder */
 
 	if (vpbe_dev->current_timings.timings_type &
-				VPBE_ENC_CUSTOM_TIMINGS) {
+				VPBE_ENC_DV_TIMINGS) {
 		*dv_timings = vpbe_dev->current_timings.dv_timings;
 	} else {
 		return -EINVAL;

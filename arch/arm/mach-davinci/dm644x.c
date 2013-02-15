@@ -706,7 +706,7 @@ static int dm644x_venc_setup_clock(enum vpbe_enc_timings_type type,
 		v |= DM644X_VPSS_DACCLKEN;
 		writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
 		break;
-	case VPBE_ENC_CUSTOM_TIMINGS:
+	case VPBE_ENC_DV_TIMINGS:
 		if (pclock <= 27000000) {
 			v |= DM644X_VPSS_DACCLKEN;
 			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
