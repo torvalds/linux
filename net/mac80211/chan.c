@@ -9,7 +9,7 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-static void ieee80211_change_chandef(struct ieee80211_local *local,
+static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
 				     const struct cfg80211_chan_def *chandef)
 {
@@ -49,7 +49,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 		if (!compat)
 			continue;
 
-		ieee80211_change_chandef(local, ctx, compat);
+		ieee80211_change_chanctx(local, ctx, compat);
 
 		return ctx;
 	}
@@ -137,7 +137,10 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_recalc_txpower(sdata);
 	sdata->vif.bss_conf.idle = false;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	return 0;
 }
@@ -172,7 +175,7 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	if (WARN_ON_ONCE(!compat))
 		return;
 
-	ieee80211_change_chandef(local, ctx, compat);
+	ieee80211_change_chanctx(local, ctx, compat);
 }
 
 static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -186,13 +189,17 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
 
 	sdata->vif.bss_conf.idle = true;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 
 	if (ctx->refcount > 0) {
 		ieee80211_recalc_chanctx_chantype(sdata->local, ctx);
 		ieee80211_recalc_smps_chanctx(local, ctx);
+		ieee80211_recalc_radar_chanctx(local, ctx);
 	}
 }
 
@@ -214,6 +221,37 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
+}
+
+void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
+				    struct ieee80211_chanctx *chanctx)
+{
+	struct ieee80211_sub_if_data *sdata;
+	bool radar_enabled = false;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (sdata->radar_required) {
+			radar_enabled = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (radar_enabled == chanctx->conf.radar_enabled)
+		return;
+
+	chanctx->conf.radar_enabled = radar_enabled;
+	local->radar_detect_enabled = chanctx->conf.radar_enabled;
+
+	if (!local->use_chanctx) {
+		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	}
+
+	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
 }
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
@@ -331,6 +369,56 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
+int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
+				   const struct cfg80211_chan_def *chandef,
+				   u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	if (cfg80211_chandef_identical(chandef, &sdata->vif.bss_conf.chandef)) {
+		ret = 0;
+		goto out;
+	}
+
+	if (chandef->width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (!cfg80211_chandef_compatible(&conf->def, chandef)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+
+	*changed |= BSS_CHANGED_BANDWIDTH;
+	ret = 0;
  out:
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;

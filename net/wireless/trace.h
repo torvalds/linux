@@ -2051,6 +2051,21 @@ TRACE_EVENT(cfg80211_reg_can_beacon,
 		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
+TRACE_EVENT(cfg80211_chandef_dfs_required,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, chandef),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
 TRACE_EVENT(cfg80211_ch_switch_notify,
 	TP_PROTO(struct net_device *netdev,
 		 struct cfg80211_chan_def *chandef),
@@ -2065,6 +2080,36 @@ TRACE_EVENT(cfg80211_ch_switch_notify,
 	),
 	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
 		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
+TRACE_EVENT(cfg80211_radar_event,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, chandef),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
+TRACE_EVENT(cfg80211_cac_event,
+	TP_PROTO(struct net_device *netdev, enum nl80211_radar_event evt),
+	TP_ARGS(netdev, evt),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(enum nl80211_radar_event, evt)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->evt = evt;
+	),
+	TP_printk(NETDEV_PR_FMT ",  event: %d",
+		  NETDEV_PR_ARG, __entry->evt)
 );
 
 DECLARE_EVENT_CLASS(cfg80211_rx_evt,

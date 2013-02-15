@@ -74,14 +74,17 @@ static void mps_qos_null_tx(struct sta_info *sta)
  * @sdata: local mesh subif
  *
  * sets the non-peer power mode and triggers the driver PS (re-)configuration
+ * Return BSS_CHANGED_BEACON if a beacon update is necessary.
  */
-void ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
+u32 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct sta_info *sta;
 	bool peering = false;
 	int light_sleep_cnt = 0;
 	int deep_sleep_cnt = 0;
+	u32 changed = 0;
+	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
@@ -115,17 +118,26 @@ void ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
 	 */
 	if (peering) {
 		mps_dbg(sdata, "setting non-peer PM to active for peering\n");
-		ifmsh->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
+		nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
 	} else if (light_sleep_cnt || deep_sleep_cnt) {
 		mps_dbg(sdata, "setting non-peer PM to deep sleep\n");
-		ifmsh->nonpeer_pm = NL80211_MESH_POWER_DEEP_SLEEP;
+		nonpeer_pm = NL80211_MESH_POWER_DEEP_SLEEP;
 	} else {
 		mps_dbg(sdata, "setting non-peer PM to user value\n");
-		ifmsh->nonpeer_pm = ifmsh->mshcfg.power_mode;
+		nonpeer_pm = ifmsh->mshcfg.power_mode;
 	}
 
+	/* need update if sleep counts move between 0 and non-zero */
+	if (ifmsh->nonpeer_pm != nonpeer_pm ||
+	    !ifmsh->ps_peers_light_sleep != !light_sleep_cnt ||
+	    !ifmsh->ps_peers_deep_sleep != !deep_sleep_cnt)
+		changed = BSS_CHANGED_BEACON;
+
+	ifmsh->nonpeer_pm = nonpeer_pm;
 	ifmsh->ps_peers_light_sleep = light_sleep_cnt;
 	ifmsh->ps_peers_deep_sleep = deep_sleep_cnt;
+
+	return changed;
 }
 
 /**
@@ -133,9 +145,10 @@ void ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
  *
  * @sta: mesh STA
  * @pm: the power mode to set
+ * Return BSS_CHANGED_BEACON if a beacon update is in order.
  */
-void ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
-				    enum nl80211_mesh_power_mode pm)
+u32 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
+				   enum nl80211_mesh_power_mode pm)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
@@ -151,7 +164,7 @@ void ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
 	if (sta->plink_state == NL80211_PLINK_ESTAB)
 		mps_qos_null_tx(sta);
 
-	ieee80211_mps_local_status_update(sdata);
+	return ieee80211_mps_local_status_update(sdata);
 }
 
 /**

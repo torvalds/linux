@@ -496,33 +496,26 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		if (sta && elems->ht_operation && elems->ht_cap_elem &&
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
-			struct ieee80211_sta_ht_cap sta_ht_cap_new;
+			struct ieee80211_ht_cap htcap_ie;
 			struct cfg80211_chan_def chandef;
 
 			ieee80211_ht_oper_to_chandef(channel,
 						     elems->ht_operation,
 						     &chandef);
 
-			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-							  elems->ht_cap_elem,
-							  &sta_ht_cap_new);
+			memcpy(&htcap_ie, elems->ht_cap_elem, sizeof(htcap_ie));
 
 			/*
 			 * fall back to HT20 if we don't use or use
 			 * the other extension channel
 			 */
-			if (chandef.width != NL80211_CHAN_WIDTH_40 ||
-			    cfg80211_get_chandef_type(&chandef) !=
+			if (cfg80211_get_chandef_type(&chandef) !=
 						sdata->u.ibss.channel_type)
-				sta_ht_cap_new.cap &=
-					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				htcap_ie.cap_info &=
+					cpu_to_le16(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 
-			if (memcmp(&sta->sta.ht_cap, &sta_ht_cap_new,
-				   sizeof(sta_ht_cap_new))) {
-				memcpy(&sta->sta.ht_cap, &sta_ht_cap_new,
-				       sizeof(sta_ht_cap_new));
-				rates_updated = true;
-			}
+			rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(
+						sdata, sband, &htcap_ie, sta);
 		}
 
 		if (sta && rates_updated) {

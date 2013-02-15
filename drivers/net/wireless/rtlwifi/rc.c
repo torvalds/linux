@@ -116,9 +116,8 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 		if (txrc->short_preamble)
 			rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 		if (mac->opmode == NL80211_IFTYPE_AP ||
-			mac->opmode == NL80211_IFTYPE_ADHOC) {
-			if (sta && (sta->ht_cap.cap &
-			    IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		    mac->opmode == NL80211_IFTYPE_ADHOC) {
+			if (sta && (sta->bandwidth >= IEEE80211_STA_RX_BW_40))
 				rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 		} else {
 			if (mac->bw_40)
