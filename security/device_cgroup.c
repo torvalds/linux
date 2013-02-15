@@ -49,6 +49,8 @@ struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
 	enum devcg_behavior behavior;
+	/* temporary list for pending propagation operations */
+	struct list_head propagate_pending;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -185,6 +187,11 @@ static void dev_exception_clean(struct dev_cgroup *dev_cgroup)
 	__dev_exception_clean(dev_cgroup);
 }
 
+static inline bool is_devcg_online(const struct dev_cgroup *devcg)
+{
+	return (devcg->behavior != DEVCG_DEFAULT_NONE);
+}
+
 /**
  * devcgroup_online - initializes devcgroup's behavior and exceptions based on
  * 		      parent's
@@ -235,6 +242,7 @@ static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 	if (!dev_cgroup)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);
+	INIT_LIST_HEAD(&dev_cgroup->propagate_pending);
 	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
 	parent_cgroup = cgroup->parent;
 
@@ -413,6 +421,111 @@ static inline int may_allow_all(struct dev_cgroup *parent)
 	return parent->behavior == DEVCG_DEFAULT_ALLOW;
 }
 
+/**
+ * revalidate_active_exceptions - walks through the active exception list and
+ * 				  revalidates the exceptions based on parent's
+ * 				  behavior and exceptions. The exceptions that
+ * 				  are no longer valid will be removed.
+ * 				  Called with devcgroup_mutex held.
+ * @devcg: cgroup which exceptions will be checked
+ *
+ * This is one of the three key functions for hierarchy implementation.
+ * This function is responsible for re-evaluating all the cgroup's active
+ * exceptions due to a parent's exception change.
+ * Refer to Documentation/cgroups/devices.txt for more details.
+ */
+static void revalidate_active_exceptions(struct dev_cgroup *devcg)
+{
+	struct dev_exception_item *ex;
+	struct list_head *this, *tmp;
+
+	list_for_each_safe(this, tmp, &devcg->exceptions) {
+		ex = container_of(this, struct dev_exception_item, list);
+		if (!parent_has_perm(devcg, ex))
+			dev_exception_rm(devcg, ex);
+	}
+}
+
+/**
+ * get_online_devcg - walks the cgroup tree and fills a list with the online
+ * 		      groups
+ * @root: cgroup used as starting point
+ * @online: list that will be filled with online groups
+ *
+ * Must be called with devcgroup_mutex held. Grabs RCU lock.
+ * Because devcgroup_mutex is held, no devcg will become online or offline
+ * during the tree walk (see devcgroup_online, devcgroup_offline)
+ * A separated list is needed because propagate_behavior() and
+ * propagate_exception() need to allocate memory and can block.
+ */
+static void get_online_devcg(struct cgroup *root, struct list_head *online)
+{
+	struct cgroup *pos;
+	struct dev_cgroup *devcg;
+
+	lockdep_assert_held(&devcgroup_mutex);
+
+	rcu_read_lock();
+	cgroup_for_each_descendant_pre(pos, root) {
+		devcg = cgroup_to_devcgroup(pos);
+		if (is_devcg_online(devcg))
+			list_add_tail(&devcg->propagate_pending, online);
+	}
+	rcu_read_unlock();
+}
+
+/**
+ * propagate_exception - propagates a new exception to the children
+ * @devcg_root: device cgroup that added a new exception
+ * @ex: new exception to be propagated
+ *
+ * returns: 0 in case of success, != 0 in case of error
+ */
+static int propagate_exception(struct dev_cgroup *devcg_root,
+			       struct dev_exception_item *ex)
+{
+	struct cgroup *root = devcg_root->css.cgroup;
+	struct dev_cgroup *devcg, *parent, *tmp;
+	int rc = 0;
+	LIST_HEAD(pending);
+
+	get_online_devcg(root, &pending);
+
+	list_for_each_entry_safe(devcg, tmp, &pending, propagate_pending) {
+		parent = cgroup_to_devcgroup(devcg->css.cgroup->parent);
+
+		/*
+		 * in case both root's behavior and devcg is allow, a new
+		 * restriction means adding to the exception list
+		 */
+		if (devcg_root->behavior == DEVCG_DEFAULT_ALLOW &&
+		    devcg->behavior == DEVCG_DEFAULT_ALLOW) {
+			rc = dev_exception_add(devcg, ex);
+			if (rc)
+				break;
+		} else {
+			/*
+			 * in the other possible cases:
+			 * root's behavior: allow, devcg's: deny
+			 * root's behavior: deny, devcg's: deny
+			 * the exception will be removed
+			 */
+			dev_exception_rm(devcg, ex);
+		}
+		revalidate_active_exceptions(devcg);
+
+		list_del_init(&devcg->propagate_pending);
+	}
+	return rc;
+}
+
+static inline bool has_children(struct dev_cgroup *devcgroup)
+{
+	struct cgroup *cgrp = devcgroup->css.cgroup;
+
+	return !list_empty(&cgrp->children);
+}
+
 /*
  * Modify the exception list using allow/deny rules.
  * CAP_SYS_ADMIN is needed for this.  It's at least separate from CAP_MKNOD
@@ -449,6 +562,9 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	case 'a':
 		switch (filetype) {
 		case DEVCG_ALLOW:
+			if (has_children(devcgroup))
+				return -EINVAL;
+
 			if (!may_allow_all(parent))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
@@ -462,6 +578,9 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 				return rc;
 			break;
 		case DEVCG_DENY:
+			if (has_children(devcgroup))
+				return -EINVAL;
+
 			dev_exception_clean(devcgroup);
 			devcgroup->behavior = DEVCG_DEFAULT_DENY;
 			break;
@@ -556,22 +675,28 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
-		return dev_exception_add(devcgroup, &ex);
+		rc = dev_exception_add(devcgroup, &ex);
+		break;
 	case DEVCG_DENY:
 		/*
 		 * If the default policy is to deny by default, try to remove
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->behavior == DEVCG_DEFAULT_DENY) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_DENY)
 			dev_exception_rm(devcgroup, &ex);
-			return 0;
-		}
-		return dev_exception_add(devcgroup, &ex);
+		else
+			rc = dev_exception_add(devcgroup, &ex);
+
+		if (rc)
+			break;
+		/* we only propagate new restrictions */
+		rc = propagate_exception(devcgroup, &ex);
+		break;
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
 	}
-	return 0;
+	return rc;
 }
 
 static int devcgroup_access_write(struct cgroup *cgrp, struct cftype *cft,
