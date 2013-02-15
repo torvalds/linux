@@ -1050,7 +1050,7 @@ ENTRY(_switch)
 	 * we are expected to have set up the arg to schedule_tail already,
 	 * hence we do so here unconditionally:
 	 */
-	l.lwz   r3,TI_STACK(r3)		/* Load 'prev' as schedule_tail arg */
+	l.lwz   r3,TI_TASK(r3)		/* Load 'prev' as schedule_tail arg */
 	l.jr	r9
 	 l.nop
 
