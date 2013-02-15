@@ -204,6 +204,7 @@ enum maxim_ret {
  * @batt_data:		data of the battery
  * @susp_status:	current charger suspension status
  * @bm:           	Platform specific battery management information
+ * @parent:		pointer to the struct abx500
  * @chargalg_psy:	structure that holds the battery properties exposed by
  *			the charging algorithm
  * @events:		structure for information about events triggered
@@ -227,6 +228,7 @@ struct abx500_chargalg {
 	struct abx500_chargalg_charger_info chg_info;
 	struct abx500_chargalg_battery_data batt_data;
 	struct abx500_chargalg_suspension_status susp_status;
+	struct ab8500 *parent;
 	struct abx500_bm_data *bm;
 	struct power_supply chargalg_psy;
 	struct ux500_charger *ac_chg;
@@ -1873,8 +1875,9 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* get device struct */
+	/* get device struct and parent */
 	di->dev = &pdev->dev;
+	di->parent = dev_get_drvdata(pdev->dev.parent);
 
 	/* chargalg supply */
 	di->chargalg_psy.name = "abx500_chargalg";
