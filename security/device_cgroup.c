@@ -305,8 +305,8 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
  * @dev_cgroup: dev cgroup to be tested against
  * @refex: new exception
  */
-static int may_access(struct dev_cgroup *dev_cgroup,
-		      struct dev_exception_item *refex)
+static bool may_access(struct dev_cgroup *dev_cgroup,
+		       struct dev_exception_item *refex)
 {
 	struct dev_exception_item *ex;
 	bool match = false;
@@ -332,16 +332,19 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 
 	/*
 	 * In two cases we'll consider this new exception valid:
-	 * - the dev cgroup has its default policy to allow + exception list:
-	 *   the new exception should *not* match any of the exceptions
-	 *   (behavior == DEVCG_DEFAULT_ALLOW, !match)
 	 * - the dev cgroup has its default policy to deny + exception list:
 	 *   the new exception *should* match the exceptions
-	 *   (behavior == DEVCG_DEFAULT_DENY, match)
+	 * - the dev cgroup has its default policy to allow + exception list:
+	 *   the new exception should *not* match any of the exceptions
 	 */
-	if ((dev_cgroup->behavior == DEVCG_DEFAULT_DENY) == match)
-		return 1;
-	return 0;
+	if (dev_cgroup->behavior == DEVCG_DEFAULT_DENY) {
+		if (match)
+			return true;
+	} else {
+		if (!match)
+			return true;
+	}
+	return false;
 }
 
 /*
