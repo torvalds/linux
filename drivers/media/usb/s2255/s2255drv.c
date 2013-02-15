@@ -852,10 +852,15 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct s2255_fh *fh = priv;
 	struct s2255_channel *channel = fh->channel;
+	int is_ntsc = channel->std & V4L2_STD_525_60;
 
 	f->fmt.pix.width = channel->width;
 	f->fmt.pix.height = channel->height;
-	f->fmt.pix.field = fh->vb_vidq.field;
+	if (f->fmt.pix.height >=
+	    (is_ntsc ? NUM_LINES_1CIFS_NTSC : NUM_LINES_1CIFS_PAL) * 2)
+		f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	else
+		f->fmt.pix.field = V4L2_FIELD_TOP;
 	f->fmt.pix.pixelformat = channel->fmt->fourcc;
 	f->fmt.pix.bytesperline = f->fmt.pix.width * (channel->fmt->depth >> 3);
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -869,11 +874,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	const struct s2255_fmt *fmt;
 	enum v4l2_field field;
-	int  b_any_field = 0;
 	struct s2255_fh *fh = priv;
 	struct s2255_channel *channel = fh->channel;
-	int is_ntsc;
-	is_ntsc = (channel->std & V4L2_STD_525_60) ? 1 : 0;
+	int is_ntsc = channel->std & V4L2_STD_525_60;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
@@ -881,8 +884,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	field = f->fmt.pix.field;
-	if (field == V4L2_FIELD_ANY)
-		b_any_field = 1;
 
 	dprintk(50, "%s NTSC: %d suggested width: %d, height: %d\n",
 		__func__, is_ntsc, f->fmt.pix.width, f->fmt.pix.height);
@@ -890,24 +891,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		/* NTSC */
 		if (f->fmt.pix.height >= NUM_LINES_1CIFS_NTSC * 2) {
 			f->fmt.pix.height = NUM_LINES_1CIFS_NTSC * 2;
-			if (b_any_field) {
-				field = V4L2_FIELD_SEQ_TB;
-			} else if (!((field == V4L2_FIELD_INTERLACED) ||
-				      (field == V4L2_FIELD_SEQ_TB) ||
-				      (field == V4L2_FIELD_INTERLACED_TB))) {
-				dprintk(1, "unsupported field setting\n");
-				return -EINVAL;
-			}
+			field = V4L2_FIELD_INTERLACED;
 		} else {
 			f->fmt.pix.height = NUM_LINES_1CIFS_NTSC;
-			if (b_any_field) {
-				field = V4L2_FIELD_TOP;
-			} else if (!((field == V4L2_FIELD_TOP) ||
-				      (field == V4L2_FIELD_BOTTOM))) {
-				dprintk(1, "unsupported field setting\n");
-				return -EINVAL;
-			}
-
+			field = V4L2_FIELD_TOP;
 		}
 		if (f->fmt.pix.width >= LINE_SZ_4CIFS_NTSC)
 			f->fmt.pix.width = LINE_SZ_4CIFS_NTSC;
@@ -921,37 +908,19 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		/* PAL */
 		if (f->fmt.pix.height >= NUM_LINES_1CIFS_PAL * 2) {
 			f->fmt.pix.height = NUM_LINES_1CIFS_PAL * 2;
-			if (b_any_field) {
-				field = V4L2_FIELD_SEQ_TB;
-			} else if (!((field == V4L2_FIELD_INTERLACED) ||
-				      (field == V4L2_FIELD_SEQ_TB) ||
-				      (field == V4L2_FIELD_INTERLACED_TB))) {
-				dprintk(1, "unsupported field setting\n");
-				return -EINVAL;
-			}
+			field = V4L2_FIELD_INTERLACED;
 		} else {
 			f->fmt.pix.height = NUM_LINES_1CIFS_PAL;
-			if (b_any_field) {
-				field = V4L2_FIELD_TOP;
-			} else if (!((field == V4L2_FIELD_TOP) ||
-				     (field == V4L2_FIELD_BOTTOM))) {
-				dprintk(1, "unsupported field setting\n");
-				return -EINVAL;
-			}
+			field = V4L2_FIELD_TOP;
 		}
-		if (f->fmt.pix.width >= LINE_SZ_4CIFS_PAL) {
+		if (f->fmt.pix.width >= LINE_SZ_4CIFS_PAL)
 			f->fmt.pix.width = LINE_SZ_4CIFS_PAL;
-			field = V4L2_FIELD_SEQ_TB;
-		} else if (f->fmt.pix.width >= LINE_SZ_2CIFS_PAL) {
+		else if (f->fmt.pix.width >= LINE_SZ_2CIFS_PAL)
 			f->fmt.pix.width = LINE_SZ_2CIFS_PAL;
-			field = V4L2_FIELD_TOP;
-		} else if (f->fmt.pix.width >= LINE_SZ_1CIFS_PAL) {
+		else if (f->fmt.pix.width >= LINE_SZ_1CIFS_PAL)
 			f->fmt.pix.width = LINE_SZ_1CIFS_PAL;
-			field = V4L2_FIELD_TOP;
-		} else {
+		else
 			f->fmt.pix.width = LINE_SZ_1CIFS_PAL;
-			field = V4L2_FIELD_TOP;
-		}
 	}
 	f->fmt.pix.field = field;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
