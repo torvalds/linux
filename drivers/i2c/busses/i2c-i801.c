@@ -1254,7 +1254,6 @@ static void i801_remove(struct pci_dev *dev)
 		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on

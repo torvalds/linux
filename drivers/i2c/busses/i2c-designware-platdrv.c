@@ -207,7 +207,6 @@ err_unuse_clocks:
 	clk_put(dev->clk);
 	dev->clk = NULL;
 err_free_mem:
-	platform_set_drvdata(pdev, NULL);
 	put_device(&pdev->dev);
 	kfree(dev);
 err_release_region:
@@ -221,7 +220,6 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 	struct resource *mem;
 
-	platform_set_drvdata(pdev, NULL);
 	pm_runtime_get_sync(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);

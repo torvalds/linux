@@ -975,7 +975,6 @@ stu300_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 	/* Turn off everything */
 	stu300_wr8(0x00, dev->virtbase + I2C_CR);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

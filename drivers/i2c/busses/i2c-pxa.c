@@ -1219,8 +1219,6 @@ static int i2c_pxa_remove(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = platform_get_drvdata(dev);
 
-	platform_set_drvdata(dev, NULL);
-
 	i2c_del_adapter(&i2c->adap);
 	if (!i2c->use_pio)
 		free_irq(i2c->irq, i2c);

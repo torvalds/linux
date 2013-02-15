@@ -1105,7 +1105,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
  err_irq:
 	iounmap(dev->virtbase);
  err_no_ioremap:
-	amba_set_drvdata(adev, NULL);
 	kfree(dev);
  err_pinctrl:
  err_no_mem:
@@ -1130,7 +1129,6 @@ static int nmk_i2c_remove(struct amba_device *adev)
 		release_mem_region(res->start, resource_size(res));
 	clk_put(dev->clk);
 	pm_runtime_disable(&adev->dev);
-	amba_set_drvdata(adev, NULL);
 	kfree(dev);
 
 	return 0;

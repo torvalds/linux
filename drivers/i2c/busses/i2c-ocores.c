@@ -451,7 +451,6 @@ static int ocores_i2c_remove(struct platform_device *pdev)
 
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
