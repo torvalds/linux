@@ -4418,14 +4418,93 @@ int si_rlc_init(struct radeon_device *rdev)
 	return 0;
 }
 
+static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
+					 bool enable)
+{
+	u32 tmp = RREG32(CP_INT_CNTL_RING0);
+	u32 mask;
+	int i;
+
+	if (enable)
+		tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	else
+		tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
+
+	if (!enable) {
+		/* read a gfx register */
+		tmp = RREG32(DB_DEPTH_INFO);
+
+		mask = RLC_BUSY_STATUS | GFX_POWER_STATUS | GFX_CLOCK_STATUS | GFX_LS_STATUS;
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if ((RREG32(RLC_STAT) & mask) == (GFX_CLOCK_STATUS | GFX_POWER_STATUS))
+				break;
+			udelay(1);
+		}
+	}
+}
+
+static void si_wait_for_rlc_serdes(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(RLC_SERDES_MASTER_BUSY_0) == 0)
+			break;
+		udelay(1);
+	}
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(RLC_SERDES_MASTER_BUSY_1) == 0)
+			break;
+		udelay(1);
+	}
+}
+
 static void si_rlc_stop(struct radeon_device *rdev)
 {
 	WREG32(RLC_CNTL, 0);
+
+	si_enable_gui_idle_interrupt(rdev, false);
+
+	si_wait_for_rlc_serdes(rdev);
 }
 
 static void si_rlc_start(struct radeon_device *rdev)
 {
 	WREG32(RLC_CNTL, RLC_ENABLE);
+
+	si_enable_gui_idle_interrupt(rdev, true);
+
+	udelay(50);
+}
+
+static bool si_lbpw_supported(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	/* Enable LBPW only for DDR3 */
+	tmp = RREG32(MC_SEQ_MISC0);
+	if ((tmp & 0xF0000000) == 0xB0000000)
+		return true;
+	return false;
+}
+
+static void si_enable_lbpw(struct radeon_device *rdev, bool enable)
+{
+	u32 tmp;
+
+	tmp = RREG32(RLC_LB_CNTL);
+	if (enable)
+		tmp |= LOAD_BALANCE_ENABLE;
+	else
+		tmp &= ~LOAD_BALANCE_ENABLE;
+	WREG32(RLC_LB_CNTL, tmp);
+
+	if (!enable) {
+		si_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+		WREG32(SPI_LB_CU_MASK, 0x00ff);
+	}
 }
 
 static int si_rlc_resume(struct radeon_device *rdev)
@@ -4443,6 +4522,7 @@ static int si_rlc_resume(struct radeon_device *rdev)
 	WREG32(RLC_LB_CNTL, 0);
 	WREG32(RLC_LB_CNTR_MAX, 0xffffffff);
 	WREG32(RLC_LB_CNTR_INIT, 0);
+	WREG32(RLC_LB_INIT_CU_MASK, 0xffffffff);
 
 	WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
 	WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
@@ -4456,6 +4536,8 @@ static int si_rlc_resume(struct radeon_device *rdev)
 		WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
 	}
 	WREG32(RLC_UCODE_ADDR, 0);
+
+	si_enable_lbpw(rdev, si_lbpw_supported(rdev));
 
 	si_rlc_start(rdev);
 

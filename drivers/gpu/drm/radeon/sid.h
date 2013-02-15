@@ -275,6 +275,8 @@
 #define MC_IO_PAD_CNTL_D0           			0x29d0
 #define		MEM_FALL_OUT_CMD      			(1 << 8)
 
+#define MC_SEQ_MISC0           				0x2a00
+
 #define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
 #define MC_SEQ_IO_DEBUG_DATA           			0x2a48
 
@@ -638,6 +640,8 @@
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
 
+#define	SPI_LB_CU_MASK					0x9354
+
 #define	TA_CNTL_AUX					0x9508
 
 #define CC_RB_BACKEND_DISABLE				0x98F4
@@ -790,6 +794,7 @@
 #define RLC_RL_BASE                                       0xC304
 #define RLC_RL_SIZE                                       0xC308
 #define RLC_LB_CNTL                                       0xC30C
+#       define LOAD_BALANCE_ENABLE                        (1 << 0)
 #define RLC_SAVE_AND_RESTORE_BASE                         0xC310
 #define RLC_LB_CNTR_MAX                                   0xC314
 #define RLC_LB_CNTR_INIT                                  0xC318
@@ -804,6 +809,18 @@
 #define RLC_CAPTURE_GPU_CLOCK_COUNT                       0xC340
 #define RLC_MC_CNTL                                       0xC344
 #define RLC_UCODE_CNTL                                    0xC348
+#define RLC_STAT                                          0xC34C
+#       define RLC_BUSY_STATUS                            (1 << 0)
+#       define GFX_POWER_STATUS                           (1 << 1)
+#       define GFX_CLOCK_STATUS                           (1 << 2)
+#       define GFX_LS_STATUS                              (1 << 3)
+
+#define RLC_LB_INIT_CU_MASK                               0xC41C
+
+#define RLC_SERDES_MASTER_BUSY_0                          0xC464
+#define RLC_SERDES_MASTER_BUSY_1                          0xC468
+
+#define DB_DEPTH_INFO                                   0x2803c
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
