@@ -429,8 +429,12 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 		if (!nr_pages_per_csrow(csrow))
 			continue;
 		err = edac_create_csrow_object(mci, mci->csrows[i], i);
-		if (err < 0)
+		if (err < 0) {
+			edac_dbg(1,
+				 "failure: create csrow objects for csrow %d\n",
+				 i);
 			goto error;
+		}
 	}
 	return 0;
 
@@ -999,6 +1003,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	edac_dbg(0, "creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
 		bus_unregister(&mci->bus);
 		kfree(mci->bus.name);
 		return err;
