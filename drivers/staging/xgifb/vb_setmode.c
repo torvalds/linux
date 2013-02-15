@@ -5572,13 +5572,10 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 			| VB_SIS302LV | VB_XGI301C)) {
 		if (!(pVBInfo->SetFlag & DisableChA)) {
-			if (pVBInfo->SetFlag & EnableChA) {
+			if ((pVBInfo->SetFlag & EnableChA) ||
+			    (pVBInfo->VBInfo & SetCRT2ToDualEdge)) {
 				/* Power on */
 				xgifb_reg_set(pVBInfo->Part1Port, 0x1E, 0x20);
-			} else if (pVBInfo->VBInfo & SetCRT2ToDualEdge) {
-				/* Power on */
-				xgifb_reg_set(pVBInfo->Part1Port,
-						0x1E, 0x20);
 			}
 		}
 
