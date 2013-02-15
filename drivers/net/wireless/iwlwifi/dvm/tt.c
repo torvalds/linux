@@ -471,8 +471,8 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 					set_bit(STATUS_CT_KILL, &priv->status);
 					iwl_perform_ct_kill_task(priv, true);
 				} else {
-					iwl_prepare_ct_kill_task(priv);
 					tt->state = old_state;
+					iwl_prepare_ct_kill_task(priv);
 				}
 			} else if (old_state == IWL_TI_CT_KILL &&
 				  tt->state != IWL_TI_CT_KILL) {
