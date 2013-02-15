@@ -1990,7 +1990,9 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	slot->wp_gpio = dw_mci_of_get_wp_gpio(host->dev, slot->id);
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto err_setup_bus;
 
 #if defined(CONFIG_DEBUG_FS)
 	dw_mci_init_debugfs(slot);
