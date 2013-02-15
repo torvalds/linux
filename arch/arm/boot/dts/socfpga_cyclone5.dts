@@ -204,6 +204,7 @@
 		reg = <0x28>;
 		height = <2>;
 		width = <16>;
+		brightness = <8>;
 	};
 
 	eeprom@51 {

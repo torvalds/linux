@@ -33,6 +33,10 @@
 #define LCD_SET_CURSOR          0x45
 #define LCD_BACKSPACE           0x4e
 #define LCD_CLEAR_SCREEN        0x51
+#define LCD_BRIGHTNESS          0x53
+
+#define LCD_BRIGHTNESS_MIN	1
+#define LCD_BRIGHTNESS_MAX	8
 
 #define ASCII_BS                0x08
 #define ASCII_LF                0x0a
@@ -80,6 +84,11 @@ static int lcd_cmd_one_param(struct lcd *lcd_data, u8 cmd, u8 param)
 		return -1;
 	}
 	return 0;
+}
+
+static int lcd_cmd_backlight_brightness(struct lcd *lcd_data, u8 brightness)
+{
+	return lcd_cmd_one_param(lcd_data, LCD_BRIGHTNESS, brightness);
 }
 
 static int lcd_cmd_display_on(struct lcd *lcd_data)
@@ -376,7 +385,7 @@ static int __devinit lcd_probe(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	struct lcd *lcd_data;
 	struct tty_driver *lcd_tty_driver;
-	unsigned int width = 0, height = 0, i;
+	unsigned int width = 0, height = 0, i, brightness = 0;
 	char *buffer;
 	int ret = -ENOMEM;
 
@@ -387,6 +396,14 @@ static int __devinit lcd_probe(struct i2c_client *client,
 			"Need to specify lcd width/height in device tree\n");
 		ret = -EINVAL;
 		goto err_devtree;
+	}
+
+	of_property_read_u32(np, "brightness", &brightness);
+	if ((brightness < LCD_BRIGHTNESS_MIN) ||
+	    (brightness > LCD_BRIGHTNESS_MAX)) {
+		dev_info(&client->dev,
+			"lcd brighness not set or out of range, defaulting to maximum\n");
+		brightness = LCD_BRIGHTNESS_MAX;
 	}
 
 	for (i = 0 ; i < MAX_LCDS ; i++)
@@ -435,6 +452,7 @@ static int __devinit lcd_probe(struct i2c_client *client,
 	lcd_clear_buffer(lcd_data);
 	lcd_cmd_display_on(lcd_data);
 	lcd_cmd_clear_screen(lcd_data);
+	lcd_cmd_backlight_brightness(lcd_data, brightness);
 
 	dev_info(&client->dev, "LCD driver initialized\n");
 

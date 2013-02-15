@@ -1,0 +1,21 @@
+* TTY on a Newhaven NHD‐0216K3Z‐NSW‐BBW LCD connected to I2C
+
+Required properties:
+- compatible: Should be "newhaven,nhd‐0216k3z‐nsw‐bbw";
+- reg: i2c address
+- height: should be 2 lines
+- width: should be 16 characters
+- brightness: backlight brightness. Range is 1 to 8, where
+              1=OFF and 8=maximum brightness.
+
+Example:
+
+&i2c0 {
+	lcd: lcd@28 {
+		compatible = "newhaven,nhd‐0216k3z‐nsw‐bbw";
+		reg = <0x28>;
+		height = <2>;
+		width = <16>;
+		brightness = <8>;
+	};
+
