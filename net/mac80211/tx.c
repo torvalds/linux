@@ -1495,7 +1495,7 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		if (ieee80211_is_data(hdr->frame_control) &&
 		    is_unicast_ether_addr(hdr->addr1)) {
-			if (mesh_nexthop_resolve(skb, sdata))
+			if (mesh_nexthop_resolve(sdata, skb))
 				return; /* skb queued: don't free */
 		} else {
 			ieee80211_mps_set_frame_flags(sdata, NULL, hdr);
@@ -1844,9 +1844,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		}
 
 		if (!is_multicast_ether_addr(skb->data)) {
-			mpath = mesh_path_lookup(skb->data, sdata);
+			mpath = mesh_path_lookup(sdata, skb->data);
 			if (!mpath)
-				mppath = mpp_path_lookup(skb->data, sdata);
+				mppath = mpp_path_lookup(sdata, skb->data);
 		}
 
 		/*
@@ -1859,8 +1859,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		    !(mppath && !ether_addr_equal(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
-			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
-					sdata, NULL, NULL);
+			meshhdrlen = ieee80211_new_mesh_header(sdata, &mesh_hdr,
+							       NULL, NULL);
 		} else {
 			/* DS -> MBSS (802.11-2012 13.11.3.3).
 			 * For unicast with unknown forwarding information,
@@ -1879,18 +1879,14 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 					mesh_da, sdata->vif.addr);
 			if (is_multicast_ether_addr(mesh_da))
 				/* DA TA mSA AE:SA */
-				meshhdrlen =
-					ieee80211_new_mesh_header(&mesh_hdr,
-							sdata,
-							skb->data + ETH_ALEN,
-							NULL);
+				meshhdrlen = ieee80211_new_mesh_header(
+						sdata, &mesh_hdr,
+						skb->data + ETH_ALEN, NULL);
 			else
 				/* RA TA mDA mSA AE:DA SA */
-				meshhdrlen =
-					ieee80211_new_mesh_header(&mesh_hdr,
-							sdata,
-							skb->data,
-							skb->data + ETH_ALEN);
+				meshhdrlen = ieee80211_new_mesh_header(
+						sdata, &mesh_hdr, skb->data,
+						skb->data + ETH_ALEN);
 
 		}
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);

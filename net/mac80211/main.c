@@ -1173,8 +1173,7 @@ static void __exit ieee80211_exit(void)
 	rc80211_minstrel_ht_exit();
 	rc80211_minstrel_exit();
 
-	if (mesh_allocated)
-		ieee80211s_stop();
+	ieee80211s_stop();
 
 	ieee80211_iface_exit();
 

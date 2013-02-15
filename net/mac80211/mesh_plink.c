@@ -38,8 +38,8 @@ enum plink_event {
 };
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
-		enum ieee80211_self_protected_actioncode action,
-		u8 *da, __le16 llid, __le16 plid, __le16 reason);
+			       enum ieee80211_self_protected_actioncode action,
+			       u8 *da, __le16 llid, __le16 plid, __le16 reason);
 
 /**
  * mesh_plink_fsm_restart - restart a mesh peer link finite state machine
@@ -231,8 +231,9 @@ u32 mesh_plink_deactivate(struct sta_info *sta)
 }
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
-		enum ieee80211_self_protected_actioncode action,
-		u8 *da, __le16 llid, __le16 plid, __le16 reason) {
+			       enum ieee80211_self_protected_actioncode action,
+			       u8 *da, __le16 llid, __le16 plid, __le16 reason)
+{
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
@@ -283,13 +284,13 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		}
 		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
 		    ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
-		    mesh_add_rsn_ie(skb, sdata) ||
-		    mesh_add_meshid_ie(skb, sdata) ||
-		    mesh_add_meshconf_ie(skb, sdata))
+		    mesh_add_rsn_ie(sdata, skb) ||
+		    mesh_add_meshid_ie(sdata, skb) ||
+		    mesh_add_meshconf_ie(sdata, skb))
 			goto free;
 	} else {	/* WLAN_SP_MESH_PEERING_CLOSE */
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
-		if (mesh_add_meshid_ie(skb, sdata))
+		if (mesh_add_meshid_ie(sdata, skb))
 			goto free;
 	}
 
@@ -333,12 +334,12 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
-		if (mesh_add_ht_cap_ie(skb, sdata) ||
-		    mesh_add_ht_oper_ie(skb, sdata))
+		if (mesh_add_ht_cap_ie(sdata, skb) ||
+		    mesh_add_ht_oper_ie(sdata, skb))
 			goto free;
 	}
 
-	if (mesh_add_vendor_ies(skb, sdata))
+	if (mesh_add_vendor_ies(sdata, skb))
 		goto free;
 
 	ieee80211_tx_skb(sdata, skb);
@@ -666,8 +667,9 @@ u32 mesh_plink_block(struct sta_info *sta)
 }
 
 
-void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
-			 size_t len, struct ieee80211_rx_status *rx_status)
+void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_mgmt *mgmt, size_t len,
+			 struct ieee80211_rx_status *rx_status)
 {
 	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
 	struct ieee802_11_elems elems;
@@ -680,7 +682,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	u8 *baseaddr;
 	u32 changed = 0;
 	__le16 plid, llid, reason;
-	static const char *mplstates[] = {
+	static const char * const mplstates[] = {
 		[NL80211_PLINK_LISTEN] = "LISTEN",
 		[NL80211_PLINK_OPN_SNT] = "OPN-SNT",
 		[NL80211_PLINK_OPN_RCVD] = "OPN-RCVD",
@@ -708,13 +710,15 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		baselen += 4;
 	}
 	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
+
 	if (!elems.peering) {
 		mpl_dbg(sdata,
 			"Mesh plink: missing necessary peer link ie\n");
 		return;
 	}
+
 	if (elems.rsn_len &&
-			sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
+	    sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
 		mpl_dbg(sdata,
 			"Mesh plink: can't establish link with secure peer\n");
 		return;
@@ -733,7 +737,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	}
 
 	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-				(!elems.mesh_id || !elems.mesh_config)) {
+	    (!elems.mesh_id || !elems.mesh_config)) {
 		mpl_dbg(sdata, "Mesh plink: missing necessary ie\n");
 		return;
 	}
