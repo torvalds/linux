@@ -21,6 +21,8 @@ struct nouveau_i2c_port {
 	u32 drive;
 	u32 sense;
 	u32 state;
+	void (*aux_mux)(struct nouveau_i2c_port *);
+	int  (*aux)(struct nouveau_i2c_port *, u8, u32, u8 *, u8);
 };
 
 struct nouveau_i2c {
@@ -56,5 +58,8 @@ int nv_wraux(struct nouveau_i2c_port *, u32 addr, u8 *data, u8 size);
 
 extern const struct i2c_algorithm nouveau_i2c_bit_algo;
 extern const struct i2c_algorithm nouveau_i2c_aux_algo;
+
+void nv94_aux_mux(struct nouveau_i2c_port *);
+int  nv94_aux(struct nouveau_i2c_port *, u8, u32, u8 *, u8);
 
 #endif

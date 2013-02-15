@@ -303,6 +303,8 @@ nouveau_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			port->drive = info.drive & 0x0f;
 			port->sense = port->drive;
 			port->adapter.algo = &nouveau_i2c_aux_algo;
+			port->aux_mux = nv94_aux_mux;
+			port->aux = nv94_aux;
 			break;
 		default:
 			break;
