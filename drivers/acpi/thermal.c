@@ -288,7 +288,7 @@ do {	\
 	if (flags != ACPI_TRIPS_INIT)	\
 		ACPI_EXCEPTION((AE_INFO, AE_ERROR,	\
 		"ACPI thermal trip point %s changed\n"	\
-		"Please send acpidump to linux-acpi@vger.kernel.org\n", str)); \
+		"Please send acpidump to linux-acpi@vger.kernel.org", str)); \
 } while (0)
 
 static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
@@ -531,6 +531,10 @@ static void acpi_thermal_check(void *data)
 {
 	struct acpi_thermal *tz = data;
 
+	if (!tz->tz_enabled) {
+		pr_warn("thermal zone is disabled \n");
+		return;
+	}
 	thermal_zone_device_update(tz->thermal_zone);
 }
 
