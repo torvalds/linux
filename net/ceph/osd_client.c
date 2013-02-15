@@ -1494,7 +1494,6 @@ int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 	RB_CLEAR_NODE(&event->node);
 	kref_init(&event->kref);   /* one ref for us */
 	kref_get(&event->kref);    /* one ref for the caller */
-	init_completion(&event->completion);
 
 	spin_lock(&osdc->event_lock);
 	event->cookie = ++osdc->event_count;
@@ -1530,7 +1529,6 @@ static void do_event_work(struct work_struct *work)
 
 	dout("do_event_work completing %p\n", event);
 	event->cb(ver, notify_id, opcode, event->data);
-	complete(&event->completion);
 	dout("do_event_work completed %p\n", event);
 	ceph_osdc_put_event(event);
 	kfree(event_work);
@@ -1588,7 +1586,6 @@ static void handle_watch_notify(struct ceph_osd_client *osdc,
 	return;
 
 done_err:
-	complete(&event->completion);
 	ceph_osdc_put_event(event);
 	return;
 
@@ -1596,21 +1593,6 @@ bad:
 	pr_err("osdc handle_watch_notify corrupt msg\n");
 	return;
 }
-
-int ceph_osdc_wait_event(struct ceph_osd_event *event, unsigned long timeout)
-{
-	int err;
-
-	dout("wait_event %p\n", event);
-	err = wait_for_completion_interruptible_timeout(&event->completion,
-							timeout * HZ);
-	ceph_osdc_put_event(event);
-	if (err > 0)
-		err = 0;
-	dout("wait_event %p returns %d\n", event, err);
-	return err;
-}
-EXPORT_SYMBOL(ceph_osdc_wait_event);
 
 /*
  * Register request, send initial attempt.

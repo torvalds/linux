@@ -107,7 +107,6 @@ struct ceph_osd_event {
 	struct rb_node node;
 	struct list_head osd_node;
 	struct kref kref;
-	struct completion completion;
 };
 
 struct ceph_osd_event_work {
@@ -275,8 +274,6 @@ extern int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 				  void (*event_cb)(u64, u64, u8, void *),
 				  void *data, struct ceph_osd_event **pevent);
 extern void ceph_osdc_cancel_event(struct ceph_osd_event *event);
-extern int ceph_osdc_wait_event(struct ceph_osd_event *event,
-				unsigned long timeout);
 extern void ceph_osdc_put_event(struct ceph_osd_event *event);
 #endif
 
