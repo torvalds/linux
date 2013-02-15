@@ -185,35 +185,58 @@ static void dev_exception_clean(struct dev_cgroup *dev_cgroup)
 	__dev_exception_clean(dev_cgroup);
 }
 
+/**
+ * devcgroup_online - initializes devcgroup's behavior and exceptions based on
+ * 		      parent's
+ * @cgroup: cgroup getting online
+ * returns 0 in case of success, error code otherwise
+ */
+static int devcgroup_online(struct cgroup *cgroup)
+{
+	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup = NULL;
+	int ret = 0;
+
+	mutex_lock(&devcgroup_mutex);
+	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	if (cgroup->parent)
+		parent_dev_cgroup = cgroup_to_devcgroup(cgroup->parent);
+
+	if (parent_dev_cgroup == NULL)
+		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
+	else {
+		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
+					  &parent_dev_cgroup->exceptions);
+		if (!ret)
+			dev_cgroup->behavior = parent_dev_cgroup->behavior;
+	}
+	mutex_unlock(&devcgroup_mutex);
+
+	return ret;
+}
+
+static void devcgroup_offline(struct cgroup *cgroup)
+{
+	struct dev_cgroup *dev_cgroup = cgroup_to_devcgroup(cgroup);
+
+	mutex_lock(&devcgroup_mutex);
+	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
+	mutex_unlock(&devcgroup_mutex);
+}
+
 /*
  * called from kernel/cgroup.c with cgroup_lock() held.
  */
 static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 {
-	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup;
+	struct dev_cgroup *dev_cgroup;
 	struct cgroup *parent_cgroup;
-	int ret;
 
 	dev_cgroup = kzalloc(sizeof(*dev_cgroup), GFP_KERNEL);
 	if (!dev_cgroup)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);
+	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
 	parent_cgroup = cgroup->parent;
-
-	if (parent_cgroup == NULL)
-		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
-	else {
-		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
-		mutex_lock(&devcgroup_mutex);
-		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
-					  &parent_dev_cgroup->exceptions);
-		dev_cgroup->behavior = parent_dev_cgroup->behavior;
-		mutex_unlock(&devcgroup_mutex);
-		if (ret) {
-			kfree(dev_cgroup);
-			return ERR_PTR(ret);
-		}
-	}
 
 	return &dev_cgroup->css;
 }
@@ -587,6 +610,8 @@ struct cgroup_subsys devices_subsys = {
 	.can_attach = devcgroup_can_attach,
 	.css_alloc = devcgroup_css_alloc,
 	.css_free = devcgroup_css_free,
+	.css_online = devcgroup_online,
+	.css_offline = devcgroup_offline,
 	.subsys_id = devices_subsys_id,
 	.base_cftypes = dev_cgroup_files,
 
