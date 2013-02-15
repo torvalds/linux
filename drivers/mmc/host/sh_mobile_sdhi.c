@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
@@ -31,6 +32,16 @@
 #include <linux/delay.h>
 
 #include "tmio_mmc.h"
+
+struct sh_mobile_sdhi_of_data {
+	unsigned long tmio_flags;
+};
+
+static const struct sh_mobile_sdhi_of_data sh_mobile_sdhi_of_cfg[] = {
+	{
+		.tmio_flags = TMIO_MMC_HAS_IDLE_WAIT,
+	},
+};
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
@@ -117,8 +128,18 @@ static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
 
+static const struct of_device_id sh_mobile_sdhi_of_match[] = {
+	{ .compatible = "renesas,shmobile-sdhi" },
+	{ .compatible = "renesas,sh7372-sdhi" },
+	{ .compatible = "renesas,r8a7740-sdhi", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{},
+};
+MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
+
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
@@ -185,6 +206,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 * All SDHI blocks support SDIO IRQ signalling.
 	 */
 	mmc_data->flags |= TMIO_MMC_SDIO_IRQ;
+
+	if (of_id && of_id->data) {
+		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
+		mmc_data->flags |= of_data->tmio_flags;
+	}
 
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)
@@ -312,12 +338,6 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	.runtime_suspend = tmio_mmc_host_runtime_suspend,
 	.runtime_resume = tmio_mmc_host_runtime_resume,
 };
-
-static const struct of_device_id sh_mobile_sdhi_of_match[] = {
-	{ .compatible = "renesas,shmobile-sdhi" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
 
 static struct platform_driver sh_mobile_sdhi_driver = {
 	.driver		= {
