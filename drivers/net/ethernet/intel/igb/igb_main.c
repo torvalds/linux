@@ -3354,6 +3354,20 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	wr32(E1000_RXDCTL(reg_idx), rxdctl);
 }
 
+static void igb_set_rx_buffer_len(struct igb_adapter *adapter,
+				  struct igb_ring *rx_ring)
+{
+#define IGB_MAX_BUILD_SKB_SIZE \
+	(SKB_WITH_OVERHEAD(IGB_RX_BUFSZ) - \
+	 (NET_SKB_PAD + NET_IP_ALIGN + IGB_TS_HDR_LEN))
+
+	/* set build_skb flag */
+	if (adapter->max_frame_size <= IGB_MAX_BUILD_SKB_SIZE)
+		set_ring_build_skb_enabled(rx_ring);
+	else
+		clear_ring_build_skb_enabled(rx_ring);
+}
+
 /**
  * igb_configure_rx - Configure receive Unit after Reset
  * @adapter: board private structure
@@ -3373,8 +3387,11 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_configure_rx_ring(adapter, adapter->rx_ring[i]);
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct igb_ring *rx_ring = adapter->rx_ring[i];
+		igb_set_rx_buffer_len(adapter, rx_ring);
+		igb_configure_rx_ring(adapter, rx_ring);
+	}
 }
 
 /**
@@ -4417,13 +4434,6 @@ static void igb_tx_olinfo_status(struct igb_ring *tx_ring,
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
 
-/*
- * The largest size we can write to the descriptor is 65535.  In order to
- * maintain a power of two alignment we have to limit ourselves to 32K.
- */
-#define IGB_MAX_TXD_PWR	15
-#define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
-
 static void igb_tx_map(struct igb_ring *tx_ring,
 		       struct igb_tx_buffer *first,
 		       const u8 hdr_len)
@@ -4592,15 +4602,25 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	struct igb_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
+	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 	__be16 protocol = vlan_get_protocol(skb);
 	u8 hdr_len = 0;
 
-	/* need: 1 descriptor per page,
+	/* need: 1 descriptor per page * PAGE_SIZE/IGB_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_headlen/IGB_MAX_DATA_PER_TXD,
 	 *       + 2 desc gap to keep tail from touching head,
-	 *       + 1 desc for skb->data,
 	 *       + 1 desc for context descriptor,
-	 * otherwise try next time */
-	if (igb_maybe_stop_tx(tx_ring, skb_shinfo(skb)->nr_frags + 4)) {
+	 * otherwise try next time
+	 */
+	if (NETDEV_FRAG_PAGE_MAX_SIZE > IGB_MAX_DATA_PER_TXD) {
+		unsigned short f;
+		for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
+			count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+	} else {
+		count += skb_shinfo(skb)->nr_frags;
+	}
+
+	if (igb_maybe_stop_tx(tx_ring, count + 3)) {
 		/* this is a hard error */
 		return NETDEV_TX_BUSY;
 	}
@@ -4642,7 +4662,7 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	igb_tx_map(tx_ring, first, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
-	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
+	igb_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
 
@@ -6046,9 +6066,10 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		}
 	}
 
+#define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets &&
 		     netif_carrier_ok(tx_ring->netdev) &&
-		     igb_desc_unused(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
+		     igb_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD)) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
@@ -6097,6 +6118,41 @@ static void igb_reuse_rx_page(struct igb_ring *rx_ring,
 					 DMA_FROM_DEVICE);
 }
 
+static bool igb_can_reuse_rx_page(struct igb_rx_buffer *rx_buffer,
+				  struct page *page,
+				  unsigned int truesize)
+{
+	/* avoid re-using remote pages */
+	if (unlikely(page_to_nid(page) != numa_node_id()))
+		return false;
+
+#if (PAGE_SIZE < 8192)
+	/* if we are only owner of page we can reuse it */
+	if (unlikely(page_count(page) != 1))
+		return false;
+
+	/* flip page offset to other buffer */
+	rx_buffer->page_offset ^= IGB_RX_BUFSZ;
+
+	/* since we are the only owner of the page and we need to
+	 * increment it, just set the value to 2 in order to avoid
+	 * an unnecessary locked operation
+	 */
+	atomic_set(&page->_count, 2);
+#else
+	/* move offset up to the next cache line */
+	rx_buffer->page_offset += truesize;
+
+	if (rx_buffer->page_offset > (PAGE_SIZE - IGB_RX_BUFSZ))
+		return false;
+
+	/* bump ref count on page before it is given to the stack */
+	get_page(page);
+#endif
+
+	return true;
+}
+
 /**
  * igb_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_ring: rx descriptor ring to transact packets on
@@ -6119,6 +6175,11 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 {
 	struct page *page = rx_buffer->page;
 	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = IGB_RX_BUFSZ;
+#else
+	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+#endif
 
 	if ((size <= IGB_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
 		unsigned char *va = page_address(page) + rx_buffer->page_offset;
@@ -6141,38 +6202,88 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 	}
 
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, IGB_RX_BUFSZ);
+			rx_buffer->page_offset, size, truesize);
 
-	/* avoid re-using remote pages */
-	if (unlikely(page_to_nid(page) != numa_node_id()))
-		return false;
+	return igb_can_reuse_rx_page(rx_buffer, page, truesize);
+}
 
+static struct sk_buff *igb_build_rx_buffer(struct igb_ring *rx_ring,
+					   union e1000_adv_rx_desc *rx_desc)
+{
+	struct igb_rx_buffer *rx_buffer;
+	struct sk_buff *skb;
+	struct page *page;
+	void *page_addr;
+	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
-	/* if we are only owner of page we can reuse it */
-	if (unlikely(page_count(page) != 1))
-		return false;
-
-	/* flip page offset to other buffer */
-	rx_buffer->page_offset ^= IGB_RX_BUFSZ;
-
-	/*
-	 * since we are the only owner of the page and we need to
-	 * increment it, just set the value to 2 in order to avoid
-	 * an unnecessary locked operation
-	 */
-	atomic_set(&page->_count, 2);
+	unsigned int truesize = IGB_RX_BUFSZ;
 #else
-	/* move offset up to the next cache line */
-	rx_buffer->page_offset += SKB_DATA_ALIGN(size);
-
-	if (rx_buffer->page_offset > (PAGE_SIZE - IGB_RX_BUFSZ))
-		return false;
-
-	/* bump ref count on page before it is given to the stack */
-	get_page(page);
+	unsigned int truesize = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
+				SKB_DATA_ALIGN(NET_SKB_PAD +
+					       NET_IP_ALIGN +
+					       size);
 #endif
 
-	return true;
+	/* If we spanned a buffer we have a huge mess so test for it */
+	BUG_ON(unlikely(!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP)));
+
+	/* Guarantee this function can be used by verifying buffer sizes */
+	BUILD_BUG_ON(SKB_WITH_OVERHEAD(IGB_RX_BUFSZ) < (NET_SKB_PAD +
+							NET_IP_ALIGN +
+							IGB_TS_HDR_LEN +
+							ETH_FRAME_LEN +
+							ETH_FCS_LEN));
+
+	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
+	page = rx_buffer->page;
+	prefetchw(page);
+
+	page_addr = page_address(page) + rx_buffer->page_offset;
+
+	/* prefetch first cache line of first page */
+	prefetch(page_addr + NET_SKB_PAD + NET_IP_ALIGN);
+#if L1_CACHE_BYTES < 128
+	prefetch(page_addr + L1_CACHE_BYTES + NET_SKB_PAD + NET_IP_ALIGN);
+#endif
+
+	/* build an skb to around the page buffer */
+	skb = build_skb(page_addr, truesize);
+	if (unlikely(!skb)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return NULL;
+	}
+
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev,
+				      rx_buffer->dma,
+				      rx_buffer->page_offset,
+				      IGB_RX_BUFSZ,
+				      DMA_FROM_DEVICE);
+
+	/* update pointers within the skb to store the data */
+	skb_reserve(skb, NET_IP_ALIGN + NET_SKB_PAD);
+	__skb_put(skb, size);
+
+	/* pull timestamp out of packet data */
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
+		igb_ptp_rx_pktstamp(rx_ring->q_vector, skb->data, skb);
+		__skb_pull(skb, IGB_TS_HDR_LEN);
+	}
+
+	if (igb_can_reuse_rx_page(rx_buffer, page, truesize)) {
+		/* hand second half of page back to the ring */
+		igb_reuse_rx_page(rx_ring, rx_buffer);
+	} else {
+		/* we are not reusing the buffer so unmap it */
+		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+
+	/* clear contents of buffer_info */
+	rx_buffer->dma = 0;
+	rx_buffer->page = NULL;
+
+	return skb;
 }
 
 static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
@@ -6183,13 +6294,6 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
 	struct page *page;
 
 	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
-
-	/*
-	 * This memory barrier is needed to keep us from reading
-	 * any other fields out of the rx_desc until we know the
-	 * RXD_STAT_DD bit is set
-	 */
-	rmb();
 
 	page = rx_buffer->page;
 	prefetchw(page);
@@ -6590,8 +6694,17 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_DD))
 			break;
 
+		/* This memory barrier is needed to keep us from reading
+		 * any other fields out of the rx_desc until we know the
+		 * RXD_STAT_DD bit is set
+		 */
+		rmb();
+
 		/* retrieve a buffer from the ring */
-		skb = igb_fetch_rx_buffer(rx_ring, rx_desc, skb);
+		if (ring_uses_build_skb(rx_ring))
+			skb = igb_build_rx_buffer(rx_ring, rx_desc);
+		else
+			skb = igb_fetch_rx_buffer(rx_ring, rx_desc, skb);
 
 		/* exit if we failed to retrieve a buffer */
 		if (!skb)
@@ -6678,6 +6791,14 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
 	return true;
 }
 
+static inline unsigned int igb_rx_offset(struct igb_ring *rx_ring)
+{
+	if (ring_uses_build_skb(rx_ring))
+		return NET_SKB_PAD + NET_IP_ALIGN;
+	else
+		return 0;
+}
+
 /**
  * igb_alloc_rx_buffers - Replace used receive buffers; packet split
  * @adapter: address of board private structure
@@ -6704,7 +6825,9 @@ void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
 		 * Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma + bi->page_offset);
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma +
+						     bi->page_offset +
+						     igb_rx_offset(rx_ring));
 
 		rx_desc++;
 		bi++;
@@ -7608,7 +7731,7 @@ static DEFINE_SPINLOCK(i2c_clients_lock);
  *  @adapter: adapter struct
  *  @dev_addr: device address of i2c needed.
  */
-struct i2c_client *
+static struct i2c_client *
 igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 {
 	ulong flags;
@@ -7631,13 +7754,8 @@ igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 		}
 	}
 
-	/* no client_list found, create a new one as long as
-	 * irqs are not disabled
-	 */
-	if (unlikely(irqs_disabled()))
-		goto exit;
-
-	client_list = kzalloc(sizeof(*client_list), GFP_KERNEL);
+	/* no client_list found, create a new one */
+	client_list = kzalloc(sizeof(*client_list), GFP_ATOMIC);
 	if (client_list == NULL)
 		goto exit;
 
