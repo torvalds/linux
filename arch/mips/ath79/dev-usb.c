@@ -208,6 +208,19 @@ static void __init ar934x_usb_setup(void)
 			   &ath79_ehci_pdata_v2, sizeof(ath79_ehci_pdata_v2));
 }
 
+static void __init qca955x_usb_setup(void)
+{
+	ath79_usb_register("ehci-platform", 0,
+			   QCA955X_EHCI0_BASE, QCA955X_EHCI_SIZE,
+			   ATH79_IP3_IRQ(0),
+			   &ath79_ehci_pdata_v2, sizeof(ath79_ehci_pdata_v2));
+
+	ath79_usb_register("ehci-platform", 1,
+			   QCA955X_EHCI1_BASE, QCA955X_EHCI_SIZE,
+			   ATH79_IP3_IRQ(1),
+			   &ath79_ehci_pdata_v2, sizeof(ath79_ehci_pdata_v2));
+}
+
 void __init ath79_register_usb(void)
 {
 	if (soc_is_ar71xx())
@@ -222,6 +235,8 @@ void __init ath79_register_usb(void)
 		ar933x_usb_setup();
 	else if (soc_is_ar934x())
 		ar934x_usb_setup();
+	else if (soc_is_qca955x())
+		qca955x_usb_setup();
 	else
 		BUG();
 }
