@@ -323,14 +323,15 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 */
 static  int codec_init(void)
 {
-	int device_lr_change = 0;
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
+	int rc;
+
 	//enable dac digital
 	codec_wr_control(SUN4I_DAC_DPC, 0x1, DAC_EN, 0x1);
 
 	codec_wr_control(SUN4I_DAC_FIFOC ,  0x1,28, 0x1);
 	//set digital volume to maximum
-	if(codec_chip_ver == MAGIC_VER_A){
+	if (machine_is_sun4i() && codec_chip_ver == MAGIC_VER_A) {
 		codec_wr_control(SUN4I_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
 	}
 	//pa mute
@@ -339,21 +340,29 @@ static  int codec_init(void)
 	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
 	codec_wr_control(SUN4I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
 	//set volume
-	if(codec_chip_ver == MAGIC_VER_A){
-		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x01);
-	}else if(codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C){
+	if (machine_is_sun4i()) {
+		int device_lr_change = 0;
+		if (codec_chip_ver == MAGIC_VER_A) {
+			codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x01);
+		} else if (codec_chip_ver == MAGIC_VER_B ||
+			   codec_chip_ver == MAGIC_VER_C) {
+			codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x3b);
+		} else {
+			pr_err("[audio codec] chip version is unknown!\n");
+			return -1;
+		}
+		rc = script_parser_fetch("audio_para", "audio_lr_change",
+					 &device_lr_change, 1);
+		if (rc != SCRIPT_AUDIO_OK) {
+			pr_err("No audio_lr_change in fex audio_para\n");
+			return -1;
+		}
+		if (device_lr_change)
+			codec_wr_control(SUN4I_DAC_DEBUG, 0x1,
+					 DAC_CHANNEL, 0x1);
+	} else {
 		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x3b);
-	}else{
-		printk("[audio codec] chip version is unknown!\n");
-		return -1;
 	}
-	if(SCRIPT_AUDIO_OK != script_parser_fetch("audio_para", "audio_lr_change", &device_lr_change, sizeof(device_lr_change)/sizeof(int))){
-		printk("audiocodec_adap_awxx_init: script_parser_fetch err. \n");
-	    return -1;
-	}
-
-	if(device_lr_change)
-		codec_wr_control(SUN4I_DAC_DEBUG ,  0x1, DAC_CHANNEL, 0x1);
 	return 0;
 }
 
@@ -521,19 +530,20 @@ int __init snd_chip_codec_mixer_new(struct snd_card *card)
 	*/
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 
-	if(codec_chip_ver == MAGIC_VER_A){
+	if (machine_is_sun4i() && codec_chip_ver == MAGIC_VER_A) {
 		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_a); idx++) {
 			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_a[idx],clnt))) < 0) {
 				return err;
 			}
 		}
-	}else if(codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C){
+	} else if (machine_is_sun5i() || codec_chip_ver == MAGIC_VER_B ||
+					 codec_chip_ver == MAGIC_VER_C) {
 		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_b_c); idx++) {
 			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_b_c[idx],clnt))) < 0) {
 				return err;
 			}
 		}
-	}else{
+	} else {
 		printk("[audio codec] chip version is unknown!\n");
 		return -1;
 	}

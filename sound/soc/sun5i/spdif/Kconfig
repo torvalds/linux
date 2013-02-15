@@ -1,5 +1,0 @@
-
-config SND_SUN5I_SOC_SPDIF
-	tristate "sun5i On-Chip spdif"
-	default n
-
