@@ -437,10 +437,8 @@ static int adt7410_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops adt7410_dev_pm_ops = {
-	.suspend	= adt7410_suspend,
-	.resume		= adt7410_resume,
-};
+static SIMPLE_DEV_PM_OPS(adt7410_dev_pm_ops, adt7410_suspend, adt7410_resume);
+
 #define ADT7410_DEV_PM_OPS (&adt7410_dev_pm_ops)
 #else
 #define ADT7410_DEV_PM_OPS NULL
