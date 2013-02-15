@@ -46,13 +46,13 @@ nv_rdi2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg)
 int
 nv_wri2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg, u8 val)
 {
+	u8 buf[2] = { reg, val };
 	struct i2c_msg msgs[] = {
-		{ .addr = addr, .flags = 0, .len = 1, .buf = &reg },
-		{ .addr = addr, .flags = 0, .len = 1, .buf = &val },
+		{ .addr = addr, .flags = 0, .len = 2, .buf = buf },
 	};
 
-	int ret = i2c_transfer(&port->adapter, msgs, 2);
-	if (ret != 2)
+	int ret = i2c_transfer(&port->adapter, msgs, 1);
+	if (ret != 1)
 		return -EIO;
 
 	return 0;
