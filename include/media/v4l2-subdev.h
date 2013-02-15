@@ -279,14 +279,6 @@ struct v4l2_mbus_frame_desc {
    s_routing: see s_routing in audio_ops, except this version is for video
 	devices.
 
-   s_dv_preset: set dv (Digital Video) preset in the sub device. Similar to
-	s_std()
-
-   g_dv_preset: get current dv (Digital Video) preset in the sub device.
-
-   query_dv_preset: query dv preset in the sub device. This is similar to
-	querystd()
-
    s_dv_timings(): Set custom dv timings in the sub device. This is used
 	when sub device is capable of setting detailed timing information
 	in the hardware to generate/detect the video signal.
@@ -331,14 +323,6 @@ struct v4l2_subdev_video_ops {
 				struct v4l2_subdev_frame_interval *interval);
 	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
-	int (*enum_dv_presets) (struct v4l2_subdev *sd,
-			struct v4l2_dv_enum_preset *preset);
-	int (*s_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
-	int (*g_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
-	int (*query_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
