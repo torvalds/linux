@@ -33,6 +33,7 @@
 #include <mach/hardware.h>
 #include <asm/dma.h>
 #include <mach/dma.h>
+#include <asm/mach-types.h>
 
 #include "sun4i-i2sdma.h"
 #include "sun4i-i2s.h"
@@ -77,33 +78,55 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 
 	reg_val = readl(sun4i_iis.regs + SUN4I_TXCHMAP);
 	reg_val = 0;
-	if(substream->runtime->channels == 1) {
-		reg_val = 0x76543200;
+	if (machine_is_sun4i()) {
+		if(substream->runtime->channels == 1) {
+			reg_val = 0x76543200;
+		} else {
+			reg_val = 0x76543210;
+		}
 	} else {
-		reg_val = 0x76543210;
+		if(substream->runtime->channels == 1) {
+			reg_val = 0x00000000;
+		} else {
+			reg_val = 0x00000010;
+		}
 	}
 	writel(reg_val, sun4i_iis.regs + SUN4I_TXCHMAP);
 
 	reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
-	reg_val &= ~SUN4I_IISCTL_SDO3EN;
-	reg_val &= ~SUN4I_IISCTL_SDO2EN;
-	reg_val &= ~SUN4I_IISCTL_SDO1EN;
-	reg_val &= ~SUN4I_IISCTL_SDO0EN;
-	switch(substream->runtime->channels) {
-		case 1:
-		case 2:
-			reg_val |= SUN4I_IISCTL_SDO0EN; break;
-		case 3:
-		case 4:
-			reg_val |= SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN; break;
-		case 5:
-		case 6:
-			reg_val |= SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN | SUN4I_IISCTL_SDO2EN; break;
-		case 7:
-		case 8:
-			reg_val |= SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN | SUN4I_IISCTL_SDO2EN | SUN4I_IISCTL_SDO3EN; break;
-		default:
-			reg_val |= SUN4I_IISCTL_SDO0EN; break;
+	if (machine_is_sun4i()) {
+		reg_val &= ~SUN4I_IISCTL_SDO3EN;
+		reg_val &= ~SUN4I_IISCTL_SDO2EN;
+		reg_val &= ~SUN4I_IISCTL_SDO1EN;
+		reg_val &= ~SUN4I_IISCTL_SDO0EN;
+		switch(substream->runtime->channels) {
+			case 1:
+			case 2:
+				reg_val |= SUN4I_IISCTL_SDO0EN;
+				break;
+			case 3:
+			case 4:
+				reg_val |= SUN4I_IISCTL_SDO0EN;
+				reg_val |= SUN4I_IISCTL_SDO1EN;
+				break;
+			case 5:
+			case 6:
+				reg_val |= SUN4I_IISCTL_SDO0EN;
+				reg_val |= SUN4I_IISCTL_SDO1EN;
+				reg_val |= SUN4I_IISCTL_SDO2EN;
+				break;
+			case 7:
+			case 8:
+				reg_val |= SUN4I_IISCTL_SDO0EN;
+				reg_val |= SUN4I_IISCTL_SDO1EN;
+				reg_val |= SUN4I_IISCTL_SDO2EN;
+				reg_val |= SUN4I_IISCTL_SDO3EN;
+				break;
+			default:
+				reg_val |= SUN4I_IISCTL_SDO0EN;
+		}
+	} else {
+		reg_val |= SUN4I_IISCTL_SDO0EN;
 	}
 	writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 
@@ -207,7 +230,12 @@ static int sun4i_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	//SDO ON
 	reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
-	reg_val |= (SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN | SUN4I_IISCTL_SDO2EN | SUN4I_IISCTL_SDO3EN);
+	if (machine_is_sun4i()) {
+		reg_val |= (SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN |
+			    SUN4I_IISCTL_SDO2EN | SUN4I_IISCTL_SDO3EN);
+	} else {
+		reg_val |= SUN4I_IISCTL_SDO0EN;
+	}
 	writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 
 	/* master or slave selection */
