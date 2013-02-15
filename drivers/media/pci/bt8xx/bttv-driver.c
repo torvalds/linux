@@ -2925,23 +2925,6 @@ static int bttv_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
 	return 0;
 }
 
-static int bttv_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	if (unlikely(a->index))
-		return -EINVAL;
-
-	strcpy(a->name, "audio");
-	return 0;
-}
-
-static int bttv_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
-{
-	if (unlikely(a->index))
-		return -EINVAL;
-
-	return 0;
-}
-
 static ssize_t bttv_read(struct file *file, char __user *data,
 			 size_t count, loff_t *ppos)
 {
@@ -3184,8 +3167,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap           = bttv_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap         = bttv_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap           = bttv_s_fmt_vbi_cap,
-	.vidioc_g_audio                 = bttv_g_audio,
-	.vidioc_s_audio                 = bttv_s_audio,
 	.vidioc_cropcap                 = bttv_cropcap,
 	.vidioc_reqbufs                 = bttv_reqbufs,
 	.vidioc_querybuf                = bttv_querybuf,
