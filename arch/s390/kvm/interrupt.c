@@ -55,6 +55,13 @@ static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static u64 int_word_to_isc_bits(u32 int_word)
+{
+	u8 isc = (int_word & 0x38000000) >> 27;
+
+	return (0x80 >> isc) << 24;
+}
+
 static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_interrupt_info *inti)
 {
@@ -96,7 +103,8 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
 		if (psw_ioint_disabled(vcpu))
 			return 0;
-		if (vcpu->arch.sie_block->gcr[6] & inti->io.io_int_word)
+		if (vcpu->arch.sie_block->gcr[6] &
+		    int_word_to_isc_bits(inti->io.io_int_word))
 			return 1;
 		return 0;
 	default:
@@ -724,7 +732,8 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 	list_for_each_entry(iter, &fi->list, list) {
 		if (!is_ioint(iter->type))
 			continue;
-		if (cr6 && ((cr6 & iter->io.io_int_word) == 0))
+		if (cr6 &&
+		    ((cr6 & int_word_to_isc_bits(iter->io.io_int_word)) == 0))
 			continue;
 		if (schid) {
 			if (((schid & 0x00000000ffff0000) >> 16) !=
@@ -811,11 +820,14 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	if (!is_ioint(inti->type))
 		list_add_tail(&inti->list, &fi->list);
 	else {
+		u64 isc_bits = int_word_to_isc_bits(inti->io.io_int_word);
+
 		/* Keep I/O interrupts sorted in isc order. */
 		list_for_each_entry(iter, &fi->list, list) {
 			if (!is_ioint(iter->type))
 				continue;
-			if (iter->io.io_int_word <= inti->io.io_int_word)
+			if (int_word_to_isc_bits(iter->io.io_int_word)
+			    <= isc_bits)
 				continue;
 			break;
 		}

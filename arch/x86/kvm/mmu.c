@@ -832,8 +832,7 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 	if (host_level == PT_PAGE_TABLE_LEVEL)
 		return host_level;
 
-	max_level = kvm_x86_ops->get_lpage_level() < host_level ?
-		kvm_x86_ops->get_lpage_level() : host_level;
+	max_level = min(kvm_x86_ops->get_lpage_level(), host_level);
 
 	for (level = PT_DIRECTORY_LEVEL; level <= max_level; ++level)
 		if (has_wrprotected_page(vcpu->kvm, large_gfn, level))
@@ -1106,8 +1105,7 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
 
 /*
  * Write-protect on the specified @sptep, @pt_protect indicates whether
- * spte writ-protection is caused by protecting shadow page table.
- * @flush indicates whether tlb need be flushed.
+ * spte write-protection is caused by protecting shadow page table.
  *
  * Note: write protection is difference between drity logging and spte
  * protection:
@@ -1116,10 +1114,9 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
  * - for spte protection, the spte can be writable only after unsync-ing
  *   shadow page.
  *
- * Return true if the spte is dropped.
+ * Return true if tlb need be flushed.
  */
-static bool
-spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush, bool pt_protect)
+static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool pt_protect)
 {
 	u64 spte = *sptep;
 
@@ -1129,17 +1126,11 @@ spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush, bool pt_protect)
 
 	rmap_printk("rmap_write_protect: spte %p %llx\n", sptep, *sptep);
 
-	if (__drop_large_spte(kvm, sptep)) {
-		*flush |= true;
-		return true;
-	}
-
 	if (pt_protect)
 		spte &= ~SPTE_MMU_WRITEABLE;
 	spte = spte & ~PT_WRITABLE_MASK;
 
-	*flush |= mmu_spte_update(sptep, spte);
-	return false;
+	return mmu_spte_update(sptep, spte);
 }
 
 static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
@@ -1151,11 +1142,8 @@ static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
 		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-		if (spte_write_protect(kvm, sptep, &flush, pt_protect)) {
-			sptep = rmap_get_first(*rmapp, &iter);
-			continue;
-		}
 
+		flush |= spte_write_protect(kvm, sptep, pt_protect);
 		sptep = rmap_get_next(&iter);
 	}
 
@@ -1959,9 +1947,9 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 {
 	u64 spte;
 
-	spte = __pa(sp->spt)
-		| PT_PRESENT_MASK | PT_ACCESSED_MASK
-		| PT_WRITABLE_MASK | PT_USER_MASK;
+	spte = __pa(sp->spt) | PT_PRESENT_MASK | PT_WRITABLE_MASK |
+	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask;
+
 	mmu_spte_set(sptep, spte);
 }
 
@@ -2400,16 +2388,15 @@ done:
 }
 
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-			 unsigned pt_access, unsigned pte_access,
-			 int write_fault, int *emulate, int level, gfn_t gfn,
-			 pfn_t pfn, bool speculative, bool host_writable)
+			 unsigned pte_access, int write_fault, int *emulate,
+			 int level, gfn_t gfn, pfn_t pfn, bool speculative,
+			 bool host_writable)
 {
 	int was_rmapped = 0;
 	int rmap_count;
 
-	pgprintk("%s: spte %llx access %x write_fault %d gfn %llx\n",
-		 __func__, *sptep, pt_access,
-		 write_fault, gfn);
+	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
+		 *sptep, write_fault, gfn);
 
 	if (is_rmap_spte(*sptep)) {
 		/*
@@ -2525,7 +2512,7 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 		return -1;
 
 	for (i = 0; i < ret; i++, gfn++, start++)
-		mmu_set_spte(vcpu, start, ACC_ALL, access, 0, NULL,
+		mmu_set_spte(vcpu, start, access, 0, NULL,
 			     sp->role.level, gfn, page_to_pfn(pages[i]),
 			     true, true);
 
@@ -2586,15 +2573,15 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 
 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
 		if (iterator.level == level) {
-			unsigned pte_access = ACC_ALL;
-
-			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
+			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL,
 				     write, &emulate, level, gfn, pfn,
 				     prefault, map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;
 		}
+
+		drop_large_spte(vcpu, iterator.sptep);
 
 		if (!is_shadow_present_pte(*iterator.sptep)) {
 			u64 base_addr = iterator.addr;
@@ -2605,11 +2592,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 					      iterator.level - 1,
 					      1, ACC_ALL, iterator.sptep);
 
-			mmu_spte_set(iterator.sptep,
-				     __pa(sp->spt)
-				     | PT_PRESENT_MASK | PT_WRITABLE_MASK
-				     | shadow_user_mask | shadow_x_mask
-				     | shadow_accessed_mask);
+			link_shadow_page(iterator.sptep, sp);
 		}
 	}
 	return emulate;
