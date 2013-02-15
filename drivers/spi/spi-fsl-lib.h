@@ -70,6 +70,8 @@ struct mpc8xxx_spi {
 	unsigned int flags;
 
 #ifdef CONFIG_SPI_FSL_SPI
+	int type;
+
 	void (*set_shifts)(u32 *rx_shift, u32 *tx_shift,
 			   int bits_per_word, int msb_first);
 #endif

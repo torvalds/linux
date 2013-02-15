@@ -39,6 +39,37 @@
 #include "spi-fsl-cpm.h"
 #include "spi-fsl-spi.h"
 
+#define TYPE_FSL	0
+
+struct fsl_spi_match_data {
+	int type;
+};
+
+static struct fsl_spi_match_data of_fsl_spi_fsl_config = {
+	.type = TYPE_FSL,
+};
+
+static struct of_device_id of_fsl_spi_match[] = {
+	{
+		.compatible = "fsl,spi",
+		.data = &of_fsl_spi_fsl_config,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, of_fsl_spi_match);
+
+static int fsl_spi_get_type(struct device *dev)
+{
+	const struct of_device_id *match;
+
+	if (dev->of_node) {
+		match = of_match_node(of_fsl_spi_match, dev->of_node);
+		if (match && match->data)
+			return ((struct fsl_spi_match_data *)match->data)->type;
+	}
+	return TYPE_FSL;
+}
+
 static void fsl_spi_change_mode(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
@@ -489,7 +520,7 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;
 	mpc8xxx_spi->spi_remove = fsl_spi_remove;
-
+	mpc8xxx_spi->type = fsl_spi_get_type(dev);
 
 	ret = fsl_spi_cpm_init(mpc8xxx_spi);
 	if (ret)
@@ -713,12 +744,6 @@ static int of_fsl_spi_remove(struct platform_device *ofdev)
 	of_fsl_spi_free_chipselects(&ofdev->dev);
 	return 0;
 }
-
-static const struct of_device_id of_fsl_spi_match[] = {
-	{ .compatible = "fsl,spi" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, of_fsl_spi_match);
 
 static struct platform_driver of_fsl_spi_driver = {
 	.driver = {
