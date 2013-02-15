@@ -217,11 +217,11 @@ static int __devinit create_sunxi_led(const struct gpio_led *template,
 		led_dat->cdev.blink_set = sunxi_blink_set;
 	}
 	led_dat->cdev.brightness_set = sunxi_led_set;
-	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP)
+	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP) {
 		state = sunxi_gpio_get_value(led_dat->gpio);
 		if (led_dat->active_low)
 			state = !state;
-	else
+	} else
 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
 	if (!template->retain_state_suspended)
