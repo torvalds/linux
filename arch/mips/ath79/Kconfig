@@ -88,6 +88,10 @@ config SOC_AR934X
 	select PCI_AR724X if PCI
 	def_bool n
 
+config SOC_QCA955X
+	select USB_ARCH_HAS_EHCI
+	def_bool n
+
 config PCI_AR724X
 	def_bool n
 
