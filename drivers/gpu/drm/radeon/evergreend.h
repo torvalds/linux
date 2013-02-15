@@ -381,6 +381,10 @@
 #       define RLC_ENABLE                               (1 << 0)
 #       define GFX_POWER_GATING_ENABLE                  (1 << 7)
 #       define GFX_POWER_GATING_SRC                     (1 << 8)
+#       define DYN_PER_SIMD_PG_ENABLE                   (1 << 27)
+#       define LB_CNT_SPIM_ACTIVE                       (1 << 30)
+#       define LOAD_BALANCE_ENABLE                      (1 << 31)
+
 #define RLC_HB_BASE                                       0x3f10
 #define RLC_HB_CNTL                                       0x3f0c
 #define RLC_HB_RPTR                                       0x3f20
@@ -394,7 +398,12 @@
 
 /* new for TN */
 #define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
+#define TN_RLC_LB_CNTR_MAX                                0x3f14
+#define TN_RLC_LB_CNTR_INIT                               0x3f18
 #define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
+#define TN_RLC_LB_INIT_SIMD_MASK                          0x3fe4
+#define TN_RLC_LB_ALWAYS_ACTIVE_SIMD_MASK                 0x3fe8
+#define TN_RLC_LB_PARAMS                                  0x3fec
 
 #define GRBM_GFX_INDEX          			0x802C
 #define		INSTANCE_INDEX(x)			((x) << 0)

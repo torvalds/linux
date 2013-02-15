@@ -1176,6 +1176,16 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_CL_ENHANCE, CLIP_VTX_REORDER_ENA | NUM_CLIP_SEQ(3));
 
 	udelay(50);
+
+	/* set clockgating golden values on TN */
+	if (rdev->family == CHIP_ARUBA) {
+		tmp = RREG32_CG(CG_CGTT_LOCAL_0);
+		tmp &= ~0x00380000;
+		WREG32_CG(CG_CGTT_LOCAL_0, tmp);
+                tmp = RREG32_CG(CG_CGTT_LOCAL_1);
+		tmp &= ~0x0e000000;
+		WREG32_CG(CG_CGTT_LOCAL_1, tmp);
+	}
 }
 
 /*

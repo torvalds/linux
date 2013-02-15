@@ -665,6 +665,12 @@
 #define		TID_UNIT(x)				((x) << 14)
 #define		TID_UNIT_MASK				(0xf << 14)
 
+#define	CG_IND_ADDR					0x8f8
+#define	CG_IND_DATA					0x8fc
+/* CGIND regs */
+#define	CG_CGTT_LOCAL_0					0x00
+#define	CG_CGTT_LOCAL_1					0x01
+
 #define MC_CG_CONFIG                                    0x25bc
 #define         MCDW_WR_ENABLE                          (1 << 0)
 #define         MCDX_WR_ENABLE                          (1 << 1)

@@ -4035,10 +4035,15 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 static void evergreen_rlc_start(struct radeon_device *rdev)
 {
-	if (rdev->flags & RADEON_IS_IGP)
-		WREG32(RLC_CNTL, RLC_ENABLE | GFX_POWER_GATING_ENABLE | GFX_POWER_GATING_SRC);
-	else
-		WREG32(RLC_CNTL, RLC_ENABLE);
+	u32 mask = RLC_ENABLE;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		mask |= GFX_POWER_GATING_ENABLE | GFX_POWER_GATING_SRC;
+		if (rdev->family == CHIP_ARUBA)
+			mask |= DYN_PER_SIMD_PG_ENABLE | LB_CNT_SPIM_ACTIVE | LOAD_BALANCE_ENABLE;
+	}
+
+	WREG32(RLC_CNTL, mask);
 }
 
 int evergreen_rlc_resume(struct radeon_device *rdev)
@@ -4054,15 +4059,33 @@ int evergreen_rlc_resume(struct radeon_device *rdev)
 	WREG32(RLC_HB_CNTL, 0);
 
 	if (rdev->flags & RADEON_IS_IGP) {
+		if (rdev->family == CHIP_ARUBA) {
+			u32 always_on_bitmap =
+				3 | (3 << (16 * rdev->config.cayman.max_shader_engines));
+			/* find out the number of active simds */
+			u32 tmp = (RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffff0000) >> 16;
+			tmp |= 0xffffffff << rdev->config.cayman.max_simds_per_se;
+			tmp = hweight32(~tmp);
+			if (tmp == rdev->config.cayman.max_simds_per_se) {
+				WREG32(TN_RLC_LB_ALWAYS_ACTIVE_SIMD_MASK, always_on_bitmap);
+				WREG32(TN_RLC_LB_PARAMS, 0x00601004);
+				WREG32(TN_RLC_LB_INIT_SIMD_MASK, 0xffffffff);
+				WREG32(TN_RLC_LB_CNTR_INIT, 0x00000000);
+				WREG32(TN_RLC_LB_CNTR_MAX, 0x00002000);
+			}
+		} else {
+			WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
+			WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
+		}
 		WREG32(TN_RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
 		WREG32(TN_RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
 	} else {
 		WREG32(RLC_HB_BASE, 0);
 		WREG32(RLC_HB_RPTR, 0);
 		WREG32(RLC_HB_WPTR, 0);
+		WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
+		WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
 	}
-	WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
-	WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
 
