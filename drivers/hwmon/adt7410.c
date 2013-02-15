@@ -78,10 +78,6 @@ enum adt7410_type {		/* keep sorted in alphabetical order */
 	adt7410,
 };
 
-/* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
-					I2C_CLIENT_END };
-
 static const u8 ADT7410_REG_TEMP[4] = {
 	ADT7410_TEMPERATURE,		/* input */
 	ADT7410_T_ALARM_HIGH,		/* high */
@@ -453,7 +449,7 @@ static struct i2c_driver adt7410_driver = {
 	.probe		= adt7410_probe,
 	.remove		= adt7410_remove,
 	.id_table	= adt7410_ids,
-	.address_list	= normal_i2c,
+	.address_list	= I2C_ADDRS(0x48, 0x49, 0x4a, 0x4b),
 };
 
 module_i2c_driver(adt7410_driver);
