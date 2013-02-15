@@ -677,16 +677,10 @@ static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
 static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
-	struct v4l2_dv_enum_preset e_preset;
-	int error;
+	const struct v4l2_bt_timings *bt = &device->current_timings->timings.bt;
 
-	/* Calculate height and width based on current standard */
-	error = v4l_fill_dv_preset_info(device->current_timings->preset, &e_preset);
-	if (error)
-		return error;
-
-	f->width = e_preset.width;
-	f->height = e_preset.height;
+	f->width = bt->width;
+	f->height = bt->height;
 	f->code = V4L2_MBUS_FMT_YUYV10_1X20;
 	f->field = device->current_timings->scanmode;
 	f->colorspace = device->current_timings->color_space;
@@ -896,35 +890,21 @@ static int tvp7002_s_stream(struct v4l2_subdev *sd, int enable)
  */
 static int tvp7002_log_status(struct v4l2_subdev *sd)
 {
-	const struct tvp7002_timings_definition *timings = tvp7002_timings;
 	struct tvp7002 *device = to_tvp7002(sd);
-	struct v4l2_dv_enum_preset e_preset;
-	struct v4l2_dv_preset detected;
-	int i;
+	const struct v4l2_bt_timings *bt;
+	int detected;
 
-	detected.preset = V4L2_DV_INVALID;
-	/* Find my current standard*/
-	tvp7002_query_dv_preset(sd, &detected);
+	/* Find my current timings */
+	tvp7002_query_dv(sd, &detected);
 
-	/* Print standard related code values */
-	for (i = 0; i < NUM_TIMINGS; i++, timings++)
-		if (timings->preset == detected.preset)
-			break;
-
-	if (v4l_fill_dv_preset_info(device->current_timings->preset, &e_preset))
-		return -EINVAL;
-
-	v4l2_info(sd, "Selected DV Preset: %s\n", e_preset.name);
-	v4l2_info(sd, "   Pixels per line: %u\n", e_preset.width);
-	v4l2_info(sd, "   Lines per frame: %u\n\n", e_preset.height);
-	if (i == NUM_TIMINGS) {
-		v4l2_info(sd, "Detected DV Preset: None\n");
+	bt = &device->current_timings->timings.bt;
+	v4l2_info(sd, "Selected DV Timings: %ux%u\n", bt->width, bt->height);
+	if (detected == NUM_TIMINGS) {
+		v4l2_info(sd, "Detected DV Timings: None\n");
 	} else {
-		if (v4l_fill_dv_preset_info(timings->preset, &e_preset))
-			return -EINVAL;
-		v4l2_info(sd, "Detected DV Preset: %s\n", e_preset.name);
-		v4l2_info(sd, "  Pixels per line: %u\n", e_preset.width);
-		v4l2_info(sd, "  Lines per frame: %u\n\n", e_preset.height);
+		bt = &tvp7002_timings[detected].timings.bt;
+		v4l2_info(sd, "Detected DV Timings: %ux%u\n",
+				bt->width, bt->height);
 	}
 	v4l2_info(sd, "Streaming enabled: %s\n",
 					device->streaming ? "yes" : "no");
@@ -1019,7 +999,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 {
 	struct v4l2_subdev *sd;
 	struct tvp7002 *device;
-	struct v4l2_dv_preset preset;
+	struct v4l2_dv_timings timings;
 	int polarity_a;
 	int polarity_b;
 	u8 revision;
@@ -1080,8 +1060,8 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 		return error;
 
 	/* Set registers according to default video mode */
-	preset.preset = device->current_timings->preset;
-	error = tvp7002_s_dv_preset(sd, &preset);
+	timings = device->current_timings->timings;
+	error = tvp7002_s_dv_timings(sd, &timings);
 
 	v4l2_ctrl_handler_init(&device->hdl, 1);
 	v4l2_ctrl_new_std(&device->hdl, &tvp7002_ctrl_ops,
