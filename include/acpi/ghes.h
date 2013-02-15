@@ -27,6 +27,7 @@ struct ghes {
 struct ghes_estatus_node {
 	struct llist_node llnode;
 	struct acpi_hest_generic *generic;
+	struct ghes *ghes;
 };
 
 struct ghes_estatus_cache {
@@ -43,3 +44,29 @@ enum {
 	GHES_SEV_RECOVERABLE = 0x2,
 	GHES_SEV_PANIC = 0x3,
 };
+
+/* From drivers/edac/ghes_edac.c */
+
+#ifdef CONFIG_EDAC_GHES
+void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
+				struct cper_sec_mem_err *mem_err);
+
+int ghes_edac_register(struct ghes *ghes, struct device *dev);
+
+void ghes_edac_unregister(struct ghes *ghes);
+
+#else
+static inline void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
+				       struct cper_sec_mem_err *mem_err)
+{
+}
+
+static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
+{
+	return 0;
+}
+
+static inline void ghes_edac_unregister(struct ghes *ghes)
+{
+}
+#endif

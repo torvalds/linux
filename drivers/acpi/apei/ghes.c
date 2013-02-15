@@ -409,7 +409,8 @@ static void ghes_clear_estatus(struct ghes *ghes)
 	ghes->flags &= ~GHES_TO_CLEAR;
 }
 
-static void ghes_do_proc(const struct acpi_hest_generic_status *estatus)
+static void ghes_do_proc(struct ghes *ghes,
+			 const struct acpi_hest_generic_status *estatus)
 {
 	int sev, sec_sev;
 	struct acpi_hest_generic_data *gdata;
@@ -421,6 +422,8 @@ static void ghes_do_proc(const struct acpi_hest_generic_status *estatus)
 				 CPER_SEC_PLATFORM_MEM)) {
 			struct cper_sec_mem_err *mem_err;
 			mem_err = (struct cper_sec_mem_err *)(gdata+1);
+			ghes_edac_report_mem_error(ghes, sev, mem_err);
+
 #ifdef CONFIG_X86_MCE
 			apei_mce_report_mem_error(sev == GHES_SEV_CORRECTED,
 						  mem_err);
@@ -639,7 +642,7 @@ static int ghes_proc(struct ghes *ghes)
 		if (ghes_print_estatus(NULL, ghes->generic, ghes->estatus))
 			ghes_estatus_cache_add(ghes->generic, ghes->estatus);
 	}
-	ghes_do_proc(ghes->estatus);
+	ghes_do_proc(ghes, ghes->estatus);
 out:
 	ghes_clear_estatus(ghes);
 	return 0;
@@ -732,7 +735,7 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
 		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
 		len = apei_estatus_len(estatus);
 		node_len = GHES_ESTATUS_NODE_LEN(len);
-		ghes_do_proc(estatus);
+		ghes_do_proc(estatus_node->ghes, estatus);
 		if (!ghes_estatus_cached(estatus)) {
 			generic = estatus_node->generic;
 			if (ghes_print_estatus(NULL, generic, estatus))
@@ -821,6 +824,7 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 		estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool,
 						      node_len);
 		if (estatus_node) {
+			estatus_node->ghes = ghes;
 			estatus_node->generic = ghes->generic;
 			estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
 			memcpy(estatus, ghes->estatus, len);
@@ -899,6 +903,11 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		ghes = NULL;
 		goto err;
 	}
+
+	rc = ghes_edac_register(ghes, &ghes_dev->dev);
+	if (rc < 0)
+		goto err;
+
 	switch (generic->notify.type) {
 	case ACPI_HEST_NOTIFY_POLLED:
 		ghes->timer.function = ghes_poll_func;
@@ -911,13 +920,13 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		if (acpi_gsi_to_irq(generic->notify.vector, &ghes->irq)) {
 			pr_err(GHES_PFX "Failed to map GSI to IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
-			goto err;
+			goto err_edac_unreg;
 		}
 		if (request_irq(ghes->irq, ghes_irq_func,
 				0, "GHES IRQ", ghes)) {
 			pr_err(GHES_PFX "Failed to register IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
-			goto err;
+			goto err_edac_unreg;
 		}
 		break;
 	case ACPI_HEST_NOTIFY_SCI:
@@ -943,6 +952,8 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	platform_set_drvdata(ghes_dev, ghes);
 
 	return 0;
+err_edac_unreg:
+	ghes_edac_unregister(ghes);
 err:
 	if (ghes) {
 		ghes_fini(ghes);
@@ -995,6 +1006,9 @@ static int ghes_remove(struct platform_device *ghes_dev)
 	}
 
 	ghes_fini(ghes);
+
+	ghes_edac_unregister(ghes);
+
 	kfree(ghes);
 
 	platform_set_drvdata(ghes_dev, NULL);
