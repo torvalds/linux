@@ -1579,7 +1579,7 @@ static void __init xen_hvm_init_shared_info(void)
 
 static void __init init_hvm_pv_info(void)
 {
-	uint32_t ecx, edx, pages, msr, base;
+	uint32_t eax, ebx, ecx, edx, pages, msr, base;
 	u64 pfn;
 
 	base = xen_cpuid_base();
