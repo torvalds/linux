@@ -25,6 +25,12 @@
 
 static DEFINE_MUTEX(devcgroup_mutex);
 
+enum devcg_behavior {
+	DEVCG_DEFAULT_NONE,
+	DEVCG_DEFAULT_ALLOW,
+	DEVCG_DEFAULT_DENY,
+};
+
 /*
  * exception list locking rules:
  * hold devcgroup_mutex for update/read.
@@ -42,10 +48,7 @@ struct dev_exception_item {
 struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
-	enum {
-		DEVCG_DEFAULT_ALLOW,
-		DEVCG_DEFAULT_DENY,
-	} behavior;
+	enum devcg_behavior behavior;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -304,9 +307,11 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
  *		verify if a certain access is allowed.
  * @dev_cgroup: dev cgroup to be tested against
  * @refex: new exception
+ * @behavior: behavior of the exception
  */
 static bool may_access(struct dev_cgroup *dev_cgroup,
-		       struct dev_exception_item *refex)
+		       struct dev_exception_item *refex,
+		       enum devcg_behavior behavior)
 {
 	struct dev_exception_item *ex;
 	bool match = false;
@@ -330,19 +335,27 @@ static bool may_access(struct dev_cgroup *dev_cgroup,
 		break;
 	}
 
-	/*
-	 * In two cases we'll consider this new exception valid:
-	 * - the dev cgroup has its default policy to deny + exception list:
-	 *   the new exception *should* match the exceptions
-	 * - the dev cgroup has its default policy to allow + exception list:
-	 *   the new exception should *not* match any of the exceptions
-	 */
-	if (dev_cgroup->behavior == DEVCG_DEFAULT_DENY) {
-		if (match)
+	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW) {
+		if (behavior == DEVCG_DEFAULT_ALLOW) {
+			/* the exception will deny access to certain devices */
 			return true;
+		} else {
+			/* the exception will allow access to certain devices */
+			if (match)
+				/*
+				 * a new exception allowing access shouldn't
+				 * match an parent's exception
+				 */
+				return false;
+			return true;
+		}
 	} else {
-		if (!match)
+		/* only behavior == DEVCG_DEFAULT_DENY allowed here */
+		if (match)
+			/* parent has an exception that matches the proposed */
 			return true;
+		else
+			return false;
 	}
 	return false;
 }
@@ -361,7 +374,7 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 	if (!pcg)
 		return 1;
 	parent = cgroup_to_devcgroup(pcg);
-	return may_access(parent, ex);
+	return may_access(parent, ex, childcg->behavior);
 }
 
 /**
@@ -395,7 +408,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 {
 	const char *b;
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
-	int count, rc;
+	int count, rc = 0;
 	struct dev_exception_item ex;
 	struct cgroup *p = devcgroup->css.cgroup;
 	struct dev_cgroup *parent = NULL;
@@ -612,7 +625,7 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 
 	rcu_read_lock();
 	dev_cgroup = task_devcgroup(current);
-	rc = may_access(dev_cgroup, &ex);
+	rc = may_access(dev_cgroup, &ex, dev_cgroup->behavior);
 	rcu_read_unlock();
 
 	if (!rc)
