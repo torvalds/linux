@@ -265,6 +265,9 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	IWL_DEBUG_TE(mvm, "Add new TE, duration %d TU\n",
+		     le32_to_cpu(te_cmd->duration));
+
 	spin_lock_bh(&mvm->time_event_lock);
 	if (WARN_ON(te_data->id != TE_MAX)) {
 		spin_unlock_bh(&mvm->time_event_lock);
