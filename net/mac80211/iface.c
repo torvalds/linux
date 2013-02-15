@@ -294,7 +294,8 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
-	if ((sdata->vif.type != NL80211_IFTYPE_AP) ||
+	if ((sdata->vif.type != NL80211_IFTYPE_AP &&
+	     sdata->vif.type != NL80211_IFTYPE_MESH_POINT) ||
 	    !(sdata->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)) {
 		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 		return 0;
