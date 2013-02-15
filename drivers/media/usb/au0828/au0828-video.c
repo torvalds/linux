@@ -1562,12 +1562,12 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
 
 	if (dev->std_set_in_tuner_core == 0) {
-	  /* If we've never sent the standard in tuner core, do so now.  We
-	     don't do this at device probe because we don't want to incur
-	     the cost of a firmware load */
-	  v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
-			       dev->vdev->tvnorms);
-	  dev->std_set_in_tuner_core = 1;
+		/* If we've never sent the standard in tuner core, do so now.
+		   We don't do this at device probe because we don't want to
+		   incur the cost of a firmware load */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+				     dev->vdev->tvnorms);
+		dev->std_set_in_tuner_core = 1;
 	}
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, freq);
