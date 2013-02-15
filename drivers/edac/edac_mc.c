@@ -900,6 +900,7 @@ const char *edac_layer_name[] = {
 	[EDAC_MC_LAYER_CHANNEL] = "channel",
 	[EDAC_MC_LAYER_SLOT] = "slot",
 	[EDAC_MC_LAYER_CHIP_SELECT] = "csrow",
+	[EDAC_MC_LAYER_ALL_MEM] = "memory",
 };
 EXPORT_SYMBOL_GPL(edac_layer_name);
 

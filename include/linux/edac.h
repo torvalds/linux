@@ -375,6 +375,9 @@ enum scrub_type {
  * @EDAC_MC_LAYER_CHANNEL:	memory layer is named "channel"
  * @EDAC_MC_LAYER_SLOT:		memory layer is named "slot"
  * @EDAC_MC_LAYER_CHIP_SELECT:	memory layer is named "chip select"
+ * @EDAC_MC_LAYER_ALL_MEM:	memory layout is unknown. All memory is mapped
+ *				as a single memory area. This is used when
+ *				retrieving errors from a firmware driven driver.
  *
  * This enum is used by the drivers to tell edac_mc_sysfs what name should
  * be used when describing a memory stick location.
@@ -384,6 +387,7 @@ enum edac_mc_layer_type {
 	EDAC_MC_LAYER_CHANNEL,
 	EDAC_MC_LAYER_SLOT,
 	EDAC_MC_LAYER_CHIP_SELECT,
+	EDAC_MC_LAYER_ALL_MEM,
 };
 
 /**
