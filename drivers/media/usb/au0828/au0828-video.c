@@ -1339,7 +1339,17 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 
 	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
 		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+	dev->std = norm;
 
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct au0828_fh *fh = priv;
+	struct au0828_dev *dev = fh->dev;
+
+	*norm = dev->std;
 	return 0;
 }
 
@@ -1890,6 +1900,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
 	.vidioc_s_std               = vidioc_s_std,
+	.vidioc_g_std               = vidioc_g_std,
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,
@@ -1914,7 +1925,6 @@ static const struct video_device au0828_video_template = {
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
 	.tvnorms                    = V4L2_STD_NTSC_M,
-	.current_norm               = V4L2_STD_NTSC_M,
 };
 
 /**************************************************************************/
@@ -1983,6 +1993,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->bytesperline = dev->width << 1;
 	dev->ctrl_ainput = 0;
 	dev->ctrl_freq = 960;
+	dev->std = V4L2_STD_NTSC_M;
 
 	/* allocate and fill v4l2 video struct */
 	dev->vdev = video_device_alloc();

@@ -222,6 +222,7 @@ struct au0828_dev {
 	int vbi_width;
 	int vbi_height;
 	u32 vbi_read;
+	v4l2_std_id std;
 	u32 field_size;
 	u32 frame_size;
 	u32 bytesperline;
