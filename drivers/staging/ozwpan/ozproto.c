@@ -171,7 +171,7 @@ static void pd_set_presleep(struct oz_pd *pd, u8 presleep)
  * Context: softirq-serialized
  */
 static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
-			u8 *pd_addr, struct net_device *net_dev)
+			const u8 *pd_addr, struct net_device *net_dev)
 {
 	struct oz_pd *pd;
 	struct oz_elt_connect_req *body =
@@ -306,7 +306,7 @@ done:
  * Context: softirq-serialized
  */
 static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
-			u8 *report, u8 len)
+			const u8 *report, u8 len)
 {
 	struct oz_farewell *f;
 	struct oz_farewell *f2;
@@ -734,7 +734,7 @@ void oz_pd_request_heartbeat(struct oz_pd *pd)
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
-struct oz_pd *oz_pd_find(u8 *mac_addr)
+struct oz_pd *oz_pd_find(const u8 *mac_addr)
 {
 	struct oz_pd *pd;
 	struct list_head *e;

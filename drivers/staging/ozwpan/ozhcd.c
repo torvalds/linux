@@ -759,7 +759,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
-void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, u8 *desc,
+void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 			int length, int offset, int total_size)
 {
 	struct oz_port *port = (struct oz_port *)hport;
@@ -895,7 +895,7 @@ static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
-void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, u8 *data,
+void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
 	int data_len)
 {
 	struct oz_port *port = (struct oz_port *)hport;
@@ -948,7 +948,8 @@ void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, u8 *data,
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-static int oz_hcd_buffer_data(struct oz_endpoint *ep, u8 *data, int data_len)
+static int oz_hcd_buffer_data(struct oz_endpoint *ep, const u8 *data,
+			      int data_len)
 {
 	int space;
 	int copy_len;
@@ -983,7 +984,7 @@ static int oz_hcd_buffer_data(struct oz_endpoint *ep, u8 *data, int data_len)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-void oz_hcd_data_ind(void *hport, u8 endpoint, u8 *data, int data_len)
+void oz_hcd_data_ind(void *hport, u8 endpoint, const u8 *data, int data_len)
 {
 	struct oz_port *port = (struct oz_port *)hport;
 	struct oz_endpoint *ep;

@@ -62,7 +62,7 @@ int oz_protocol_init(char *devs);
 void oz_protocol_term(void);
 int oz_get_pd_list(struct oz_mac_addr *addr, int max_count);
 void oz_app_enable(int app_id, int enable);
-struct oz_pd *oz_pd_find(u8 *mac_addr);
+struct oz_pd *oz_pd_find(const u8 *mac_addr);
 void oz_binding_add(char *net_dev);
 void oz_binding_remove(char *net_dev);
 void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time,

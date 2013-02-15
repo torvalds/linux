@@ -46,7 +46,7 @@ static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt);
 static atomic_t g_submitted_isoc = ATOMIC_INIT(0);
 /* Application handler functions.
  */
-static struct oz_app_if g_app_if[OZ_APPID_MAX] = {
+static const struct oz_app_if g_app_if[OZ_APPID_MAX] = {
 	{oz_usb_init,
 	oz_usb_term,
 	oz_usb_start,
@@ -157,7 +157,7 @@ void oz_pd_put(struct oz_pd *pd)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-struct oz_pd *oz_pd_alloc(u8 *mac_addr)
+struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 {
 	struct oz_pd *pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
 	if (pd) {
@@ -235,7 +235,7 @@ void oz_pd_destroy(struct oz_pd *pd)
  */
 int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 {
-	struct oz_app_if *ai;
+	const struct oz_app_if *ai;
 	int rc = 0;
 	oz_trace("oz_services_start(0x%x) resume(%d)\n", apps, resume);
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
@@ -260,7 +260,7 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
  */
 void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
 {
-	struct oz_app_if *ai;
+	const struct oz_app_if *ai;
 	oz_trace("oz_stop_services(0x%x) pause(%d)\n", apps, pause);
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (apps & (1<<ai->app_id)) {
@@ -281,7 +281,7 @@ void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
  */
 void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 {
-	struct oz_app_if *ai;
+	const struct oz_app_if *ai;
 	int more = 0;
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (ai->heartbeat && (apps & (1<<ai->app_id))) {
@@ -774,7 +774,7 @@ static void oz_isoc_destructor(struct sk_buff *skb)
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
-int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, u8 *data, int len)
+int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 {
 	struct net_device *dev = pd->net_dev;
 	struct oz_isoc_stream *st;
@@ -913,7 +913,7 @@ void oz_apps_term(void)
  */
 void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 {
-	struct oz_app_if *ai;
+	const struct oz_app_if *ai;
 	if (app_id == 0 || app_id > OZ_APPID_MAX)
 		return;
 	ai = &g_app_if[app_id-1];
@@ -925,7 +925,7 @@ void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 void oz_pd_indicate_farewells(struct oz_pd *pd)
 {
 	struct oz_farewell *f;
-	struct oz_app_if *ai = &g_app_if[OZ_APPID_USB-1];
+	const struct oz_app_if *ai = &g_app_if[OZ_APPID_USB-1];
 	while (1) {
 		oz_polling_lock_bh();
 		if (list_empty(&pd->farewell_list)) {

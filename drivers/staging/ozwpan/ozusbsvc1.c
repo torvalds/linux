@@ -157,7 +157,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
  * Context: tasklet
  */
 static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
-	u8 request, __le16 value, __le16 index, u8 *data, int data_len)
+	u8 request, __le16 value, __le16 index, const u8 *data, int data_len)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	struct oz_pd *pd = usb_ctx->pd;
@@ -184,7 +184,7 @@ static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
  * Context: tasklet
  */
 int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
-			u8 *data, int data_len)
+			const u8 *data, int data_len)
 {
 	unsigned wvalue = le16_to_cpu(setup->wValue);
 	unsigned windex = le16_to_cpu(setup->wIndex);

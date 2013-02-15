@@ -200,7 +200,7 @@ out:
 /*------------------------------------------------------------------------------
  * Context: process
  */
-static int oz_set_active_pd(u8 *addr)
+static int oz_set_active_pd(const u8 *addr)
 {
 	int rc = 0;
 	struct oz_pd *pd;
