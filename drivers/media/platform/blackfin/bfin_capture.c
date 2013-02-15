@@ -384,7 +384,7 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 	params.ppi_control = bcap_dev->cfg->ppi_control;
 	params.int_mask = bcap_dev->cfg->int_mask;
 	if (bcap_dev->cfg->inputs[bcap_dev->cur_input].capabilities
-			& V4L2_IN_CAP_CUSTOM_TIMINGS) {
+			& V4L2_IN_CAP_DV_TIMINGS) {
 		struct v4l2_bt_timings *bt = &bcap_dev->dv_timings.bt;
 
 		params.hdelay = bt->hsync + bt->hbackporch;
@@ -1111,7 +1111,7 @@ static int bcap_probe(struct platform_device *pdev)
 		}
 		bcap_dev->std = std;
 	}
-	if (config->inputs[0].capabilities & V4L2_IN_CAP_CUSTOM_TIMINGS) {
+	if (config->inputs[0].capabilities & V4L2_IN_CAP_DV_TIMINGS) {
 		struct v4l2_dv_timings dv_timings;
 		ret = v4l2_subdev_call(bcap_dev->sd, video,
 				g_dv_timings, &dv_timings);
