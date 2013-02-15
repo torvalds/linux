@@ -1084,7 +1084,14 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwlagn_wowlan_kek_kck_material_cmd kek_kck_cmd;
 	struct iwlagn_wowlan_tkip_params_cmd tkip_cmd = {};
-	struct iwlagn_d3_config_cmd d3_cfg_cmd = {};
+	struct iwlagn_d3_config_cmd d3_cfg_cmd = {
+		/*
+		 * Program the minimum sleep time to 10 seconds, as many
+		 * platforms have issues processing a wakeup signal while
+		 * still being in the process of suspending.
+		 */
+		.min_sleep_time = cpu_to_le32(10 * 1000 * 1000),
+	};
 	struct wowlan_key_data key_data = {
 		.ctx = ctx,
 		.bssid = ctx->active.bssid_addr,
