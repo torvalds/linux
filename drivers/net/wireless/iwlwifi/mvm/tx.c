@@ -641,7 +641,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		next_reclaimed = ssn;
 	} else {
 		/* The next packet to be reclaimed is the one after this one */
-		next_reclaimed = SEQ_TO_SN(seq_ctl + 0x10);
+		next_reclaimed = IEEE80211_SEQ_TO_SN(seq_ctl + 0x10);
 	}
 
 	IWL_DEBUG_TX_REPLY(mvm,

@@ -648,24 +648,6 @@ static ieee80211_rx_result ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-#define SEQ_MODULO 0x1000
-#define SEQ_MASK   0xfff
-
-static inline int seq_less(u16 sq1, u16 sq2)
-{
-	return ((sq1 - sq2) & SEQ_MASK) > (SEQ_MODULO >> 1);
-}
-
-static inline u16 seq_inc(u16 sq)
-{
-	return (sq + 1) & SEQ_MASK;
-}
-
-static inline u16 seq_sub(u16 sq1, u16 sq2)
-{
-	return (sq1 - sq2) & SEQ_MASK;
-}
-
 static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 					    struct tid_ampdu_rx *tid_agg_rx,
 					    int index,
@@ -687,7 +669,7 @@ static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 	__skb_queue_tail(frames, skb);
 
 no_frame:
-	tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+	tid_agg_rx->head_seq_num = ieee80211_sn_inc(tid_agg_rx->head_seq_num);
 }
 
 static void ieee80211_release_reorder_frames(struct ieee80211_sub_if_data *sdata,
@@ -699,8 +681,9 @@ static void ieee80211_release_reorder_frames(struct ieee80211_sub_if_data *sdata
 
 	lockdep_assert_held(&tid_agg_rx->reorder_lock);
 
-	while (seq_less(tid_agg_rx->head_seq_num, head_seq_num)) {
-		index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
+	while (ieee80211_sn_less(tid_agg_rx->head_seq_num, head_seq_num)) {
+		index = ieee80211_sn_sub(tid_agg_rx->head_seq_num,
+					 tid_agg_rx->ssn) %
 							tid_agg_rx->buf_size;
 		ieee80211_release_reorder_frame(sdata, tid_agg_rx, index,
 						frames);
@@ -727,8 +710,8 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 	lockdep_assert_held(&tid_agg_rx->reorder_lock);
 
 	/* release the buffer until next missing frame */
-	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
-						tid_agg_rx->buf_size;
+	index = ieee80211_sn_sub(tid_agg_rx->head_seq_num,
+				 tid_agg_rx->ssn) % tid_agg_rx->buf_size;
 	if (!tid_agg_rx->reorder_buf[index] &&
 	    tid_agg_rx->stored_mpdu_num) {
 		/*
@@ -756,19 +739,22 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 			 * Increment the head seq# also for the skipped slots.
 			 */
 			tid_agg_rx->head_seq_num =
-				(tid_agg_rx->head_seq_num + skipped) & SEQ_MASK;
+				(tid_agg_rx->head_seq_num +
+				 skipped) & IEEE80211_SN_MASK;
 			skipped = 0;
 		}
 	} else while (tid_agg_rx->reorder_buf[index]) {
 		ieee80211_release_reorder_frame(sdata, tid_agg_rx, index,
 						frames);
-		index =	seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
+		index =	ieee80211_sn_sub(tid_agg_rx->head_seq_num,
+					 tid_agg_rx->ssn) %
 							tid_agg_rx->buf_size;
 	}
 
 	if (tid_agg_rx->stored_mpdu_num) {
-		j = index = seq_sub(tid_agg_rx->head_seq_num,
-				    tid_agg_rx->ssn) % tid_agg_rx->buf_size;
+		j = index = ieee80211_sn_sub(tid_agg_rx->head_seq_num,
+					     tid_agg_rx->ssn) %
+							tid_agg_rx->buf_size;
 
 		for (; j != (index - 1) % tid_agg_rx->buf_size;
 		     j = (j + 1) % tid_agg_rx->buf_size) {
@@ -809,7 +795,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	head_seq_num = tid_agg_rx->head_seq_num;
 
 	/* frame with out of date sequence number */
-	if (seq_less(mpdu_seq_num, head_seq_num)) {
+	if (ieee80211_sn_less(mpdu_seq_num, head_seq_num)) {
 		dev_kfree_skb(skb);
 		goto out;
 	}
@@ -818,8 +804,9 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	 * If frame the sequence number exceeds our buffering window
 	 * size release some previous frames to make room for this one.
 	 */
-	if (!seq_less(mpdu_seq_num, head_seq_num + buf_size)) {
-		head_seq_num = seq_inc(seq_sub(mpdu_seq_num, buf_size));
+	if (!ieee80211_sn_less(mpdu_seq_num, head_seq_num + buf_size)) {
+		head_seq_num = ieee80211_sn_inc(
+				ieee80211_sn_sub(mpdu_seq_num, buf_size));
 		/* release stored frames up to new head to stack */
 		ieee80211_release_reorder_frames(sdata, tid_agg_rx,
 						 head_seq_num, frames);
@@ -827,7 +814,8 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 
 	/* Now the new frame is always in the range of the reordering buffer */
 
-	index = seq_sub(mpdu_seq_num, tid_agg_rx->ssn) % tid_agg_rx->buf_size;
+	index = ieee80211_sn_sub(mpdu_seq_num,
+				 tid_agg_rx->ssn) % tid_agg_rx->buf_size;
 
 	/* check if we already stored this frame */
 	if (tid_agg_rx->reorder_buf[index]) {
@@ -843,7 +831,8 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	 */
 	if (mpdu_seq_num == tid_agg_rx->head_seq_num &&
 	    tid_agg_rx->stored_mpdu_num == 0) {
-		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+		tid_agg_rx->head_seq_num =
+			ieee80211_sn_inc(tid_agg_rx->head_seq_num);
 		ret = false;
 		goto out;
 	}

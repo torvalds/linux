@@ -113,6 +113,34 @@
 #define IEEE80211_CTL_EXT_SSW_FBACK	0x9000
 #define IEEE80211_CTL_EXT_SSW_ACK	0xa000
 
+
+#define IEEE80211_SN_MASK		((IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_MAX_SN		IEEE80211_SN_MASK
+#define IEEE80211_SN_MODULO		(IEEE80211_MAX_SN + 1)
+
+static inline int ieee80211_sn_less(u16 sn1, u16 sn2)
+{
+	return ((sn1 - sn2) & IEEE80211_SN_MASK) > (IEEE80211_SN_MODULO >> 1);
+}
+
+static inline u16 ieee80211_sn_add(u16 sn1, u16 sn2)
+{
+	return (sn1 + sn2) & IEEE80211_SN_MASK;
+}
+
+static inline u16 ieee80211_sn_inc(u16 sn)
+{
+	return ieee80211_sn_add(sn, 1);
+}
+
+static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
+{
+	return (sn1 - sn2) & IEEE80211_SN_MASK;
+}
+
+#define IEEE80211_SEQ_TO_SN(seq)	(((seq) & IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_SN_TO_SEQ(ssn)	(((ssn) << 4) & IEEE80211_SCTL_SEQ)
+
 /* miscellaneous IEEE 802.11 constants */
 #define IEEE80211_MAX_FRAG_THRESHOLD	2352
 #define IEEE80211_MAX_RTS_THRESHOLD	2353
