@@ -10,6 +10,10 @@
  * Copyright (c) 2009  MontaVista Software, Inc.
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
  *
+ * GRLIB support:
+ * Copyright (c) 2012 Aeroflex Gaisler AB.
+ * Author: Andreas Larsson <andreas@gaisler.com>
+ *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
@@ -21,13 +25,15 @@
 
 /* SPI Controller registers */
 struct fsl_spi_reg {
-	u8 res1[0x20];
+	__be32 cap; /* TYPE_GRLIB specific */
+	u8 res1[0x1C];
 	__be32 mode;
 	__be32 event;
 	__be32 mask;
 	__be32 command;
 	__be32 transmit;
 	__be32 receive;
+	__be32 slvsel; /* TYPE_GRLIB specific */
 };
 
 /* SPI Controller mode register definitions */
@@ -42,6 +48,11 @@ struct fsl_spi_reg {
 #define	SPMODE_PM(x)		((x) << 16)
 #define	SPMODE_OP		(1 << 14)
 #define	SPMODE_CG(x)		((x) << 7)
+
+/* TYPE_GRLIB SPI Controller capability register definitions */
+#define SPCAP_SSEN(x)		(((x) >> 16) & 0x1)
+#define SPCAP_SSSZ(x)		(((x) >> 24) & 0xff)
+#define SPCAP_MAXWLEN(x)	(((x) >> 20) & 0xf)
 
 /*
  * Default for SPI Mode:

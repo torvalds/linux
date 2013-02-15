@@ -236,7 +236,7 @@ config SPI_FSL_CPM
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
-	bool "Freescale SPI controller"
+	bool "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
 	depends on OF
 	select SPI_FSL_LIB
 	select SPI_FSL_CPM if FSL_SOC
@@ -244,6 +244,8 @@ config SPI_FSL_SPI
 	  This enables using the Freescale SPI controllers in master mode.
 	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.
 	  MPC8569 uses the controller in QE mode, MPC8610 in cpu mode.
+	  This also enables using the Aeroflex Gaisler GRLIB SPI controller in
+	  master mode.
 
 config SPI_FSL_ESPI
 	bool "Freescale eSPI controller"
