@@ -229,12 +229,17 @@ config SPI_MPC512x_PSC
 
 config SPI_FSL_LIB
 	tristate
+	depends on OF
+
+config SPI_FSL_CPM
+	tristate
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
 	bool "Freescale SPI controller"
-	depends on FSL_SOC
+	depends on OF
 	select SPI_FSL_LIB
+	select SPI_FSL_CPM if FSL_SOC
 	help
 	  This enables using the Freescale SPI controllers in master mode.
 	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.

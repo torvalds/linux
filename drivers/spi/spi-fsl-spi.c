@@ -30,75 +30,14 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
-#include <sysdev/fsl_soc.h>
-#include <asm/cpm.h>
-#include <asm/qe.h>
-
 #include "spi-fsl-lib.h"
-
-/* CPM1 and CPM2 are mutually exclusive. */
-#ifdef CONFIG_CPM1
-#include <asm/cpm1.h>
-#define CPM_SPI_CMD mk_cr_cmd(CPM_CR_CH_SPI, 0)
-#else
-#include <asm/cpm2.h>
-#define CPM_SPI_CMD mk_cr_cmd(CPM_CR_SPI_PAGE, CPM_CR_SPI_SBLOCK, 0, 0)
-#endif
-
-/* SPI Controller registers */
-struct fsl_spi_reg {
-	u8 res1[0x20];
-	__be32 mode;
-	__be32 event;
-	__be32 mask;
-	__be32 command;
-	__be32 transmit;
-	__be32 receive;
-};
-
-/* SPI Controller mode register definitions */
-#define	SPMODE_LOOP		(1 << 30)
-#define	SPMODE_CI_INACTIVEHIGH	(1 << 29)
-#define	SPMODE_CP_BEGIN_EDGECLK	(1 << 28)
-#define	SPMODE_DIV16		(1 << 27)
-#define	SPMODE_REV		(1 << 26)
-#define	SPMODE_MS		(1 << 25)
-#define	SPMODE_ENABLE		(1 << 24)
-#define	SPMODE_LEN(x)		((x) << 20)
-#define	SPMODE_PM(x)		((x) << 16)
-#define	SPMODE_OP		(1 << 14)
-#define	SPMODE_CG(x)		((x) << 7)
-
-/*
- * Default for SPI Mode:
- *	SPI MODE 0 (inactive low, phase middle, MSB, 8-bit length, slow clk
- */
-#define	SPMODE_INIT_VAL (SPMODE_CI_INACTIVEHIGH | SPMODE_DIV16 | SPMODE_REV | \
-			 SPMODE_MS | SPMODE_LEN(7) | SPMODE_PM(0xf))
-
-/* SPIE register values */
-#define	SPIE_NE		0x00000200	/* Not empty */
-#define	SPIE_NF		0x00000100	/* Not full */
-
-/* SPIM register values */
-#define	SPIM_NE		0x00000200	/* Not empty */
-#define	SPIM_NF		0x00000100	/* Not full */
-
-#define	SPIE_TXB	0x00000200	/* Last char is written to tx fifo */
-#define	SPIE_RXB	0x00000100	/* Last char is written to rx buf */
-
-/* SPCOM register values */
-#define	SPCOM_STR	(1 << 23)	/* Start transmit */
-
-#define	SPI_PRAM_SIZE	0x100
-#define	SPI_MRBLR	((unsigned int)PAGE_SIZE)
-
-static void *fsl_dummy_rx;
-static DEFINE_MUTEX(fsl_dummy_rx_lock);
-static int fsl_dummy_rx_refcnt;
+#include "spi-fsl-cpm.h"
+#include "spi-fsl-spi.h"
 
 static void fsl_spi_change_mode(struct spi_device *spi)
 {
@@ -119,18 +58,7 @@ static void fsl_spi_change_mode(struct spi_device *spi)
 
 	/* When in CPM mode, we need to reinit tx and rx. */
 	if (mspi->flags & SPI_CPM_MODE) {
-		if (mspi->flags & SPI_QE) {
-			qe_issue_cmd(QE_INIT_TX_RX, mspi->subblock,
-				     QE_CR_PROTOCOL_UNSPECIFIED, 0);
-		} else {
-			cpm_command(CPM_SPI_CMD, CPM_CR_INIT_TRX);
-			if (mspi->flags & SPI_CPM1) {
-				out_be16(&mspi->pram->rbptr,
-					 in_be16(&mspi->pram->rbase));
-				out_be16(&mspi->pram->tbptr,
-					 in_be16(&mspi->pram->tbase));
-			}
-		}
+		fsl_spi_cpm_reinit_txrx(mspi);
 	}
 	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 	local_irq_restore(flags);
@@ -293,112 +221,6 @@ static int fsl_spi_setup_transfer(struct spi_device *spi,
 
 	fsl_spi_change_mode(spi);
 	return 0;
-}
-
-static void fsl_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
-{
-	struct cpm_buf_desc __iomem *tx_bd = mspi->tx_bd;
-	struct cpm_buf_desc __iomem *rx_bd = mspi->rx_bd;
-	unsigned int xfer_len = min(mspi->count, SPI_MRBLR);
-	unsigned int xfer_ofs;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
-
-	xfer_ofs = mspi->xfer_in_progress->len - mspi->count;
-
-	if (mspi->rx_dma == mspi->dma_dummy_rx)
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma);
-	else
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
-	out_be16(&rx_bd->cbd_datlen, 0);
-	out_be16(&rx_bd->cbd_sc, BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP);
-
-	if (mspi->tx_dma == mspi->dma_dummy_tx)
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma);
-	else
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
-	out_be16(&tx_bd->cbd_datlen, xfer_len);
-	out_be16(&tx_bd->cbd_sc, BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP |
-				 BD_SC_LAST);
-
-	/* start transfer */
-	mpc8xxx_spi_write_reg(&reg_base->command, SPCOM_STR);
-}
-
-static int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-				struct spi_transfer *t, bool is_dma_mapped)
-{
-	struct device *dev = mspi->dev;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
-
-	if (is_dma_mapped) {
-		mspi->map_tx_dma = 0;
-		mspi->map_rx_dma = 0;
-	} else {
-		mspi->map_tx_dma = 1;
-		mspi->map_rx_dma = 1;
-	}
-
-	if (!t->tx_buf) {
-		mspi->tx_dma = mspi->dma_dummy_tx;
-		mspi->map_tx_dma = 0;
-	}
-
-	if (!t->rx_buf) {
-		mspi->rx_dma = mspi->dma_dummy_rx;
-		mspi->map_rx_dma = 0;
-	}
-
-	if (mspi->map_tx_dma) {
-		void *nonconst_tx = (void *)mspi->tx; /* shut up gcc */
-
-		mspi->tx_dma = dma_map_single(dev, nonconst_tx, t->len,
-					      DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, mspi->tx_dma)) {
-			dev_err(dev, "unable to map tx dma\n");
-			return -ENOMEM;
-		}
-	} else if (t->tx_buf) {
-		mspi->tx_dma = t->tx_dma;
-	}
-
-	if (mspi->map_rx_dma) {
-		mspi->rx_dma = dma_map_single(dev, mspi->rx, t->len,
-					      DMA_FROM_DEVICE);
-		if (dma_mapping_error(dev, mspi->rx_dma)) {
-			dev_err(dev, "unable to map rx dma\n");
-			goto err_rx_dma;
-		}
-	} else if (t->rx_buf) {
-		mspi->rx_dma = t->rx_dma;
-	}
-
-	/* enable rx ints */
-	mpc8xxx_spi_write_reg(&reg_base->mask, SPIE_RXB);
-
-	mspi->xfer_in_progress = t;
-	mspi->count = t->len;
-
-	/* start CPM transfers */
-	fsl_spi_cpm_bufs_start(mspi);
-
-	return 0;
-
-err_rx_dma:
-	if (mspi->map_tx_dma)
-		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	return -ENOMEM;
-}
-
-static void fsl_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct spi_transfer *t = mspi->xfer_in_progress;
-
-	if (mspi->map_tx_dma)
-		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	if (mspi->map_rx_dma)
-		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
-	mspi->xfer_in_progress = NULL;
 }
 
 static int fsl_spi_cpu_bufs(struct mpc8xxx_spi *mspi,
@@ -568,30 +390,6 @@ static int fsl_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events)
-{
-	u16 len;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
-
-	dev_dbg(mspi->dev, "%s: bd datlen %d, count %d\n", __func__,
-		in_be16(&mspi->rx_bd->cbd_datlen), mspi->count);
-
-	len = in_be16(&mspi->rx_bd->cbd_datlen);
-	if (len > mspi->count) {
-		WARN_ON(1);
-		len = mspi->count;
-	}
-
-	/* Clear the events */
-	mpc8xxx_spi_write_reg(&reg_base->event, events);
-
-	mspi->count -= len;
-	if (mspi->count)
-		fsl_spi_cpm_bufs_start(mspi);
-	else
-		complete(&mspi->done);
-}
-
 static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 {
 	struct fsl_spi_reg *reg_base = mspi->reg_base;
@@ -644,197 +442,6 @@ static irqreturn_t fsl_spi_irq(s32 irq, void *context_data)
 		fsl_spi_cpu_irq(mspi, events);
 
 	return ret;
-}
-
-static void *fsl_spi_alloc_dummy_rx(void)
-{
-	mutex_lock(&fsl_dummy_rx_lock);
-
-	if (!fsl_dummy_rx)
-		fsl_dummy_rx = kmalloc(SPI_MRBLR, GFP_KERNEL);
-	if (fsl_dummy_rx)
-		fsl_dummy_rx_refcnt++;
-
-	mutex_unlock(&fsl_dummy_rx_lock);
-
-	return fsl_dummy_rx;
-}
-
-static void fsl_spi_free_dummy_rx(void)
-{
-	mutex_lock(&fsl_dummy_rx_lock);
-
-	switch (fsl_dummy_rx_refcnt) {
-	case 0:
-		WARN_ON(1);
-		break;
-	case 1:
-		kfree(fsl_dummy_rx);
-		fsl_dummy_rx = NULL;
-		/* fall through */
-	default:
-		fsl_dummy_rx_refcnt--;
-		break;
-	}
-
-	mutex_unlock(&fsl_dummy_rx_lock);
-}
-
-static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
-	const u32 *iprop;
-	int size;
-	void __iomem *spi_base;
-	unsigned long pram_ofs = -ENOMEM;
-
-	/* Can't use of_address_to_resource(), QE muram isn't at 0. */
-	iprop = of_get_property(np, "reg", &size);
-
-	/* QE with a fixed pram location? */
-	if (mspi->flags & SPI_QE && iprop && size == sizeof(*iprop) * 4)
-		return cpm_muram_alloc_fixed(iprop[2], SPI_PRAM_SIZE);
-
-	/* QE but with a dynamic pram location? */
-	if (mspi->flags & SPI_QE) {
-		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-		qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, mspi->subblock,
-				QE_CR_PROTOCOL_UNSPECIFIED, pram_ofs);
-		return pram_ofs;
-	}
-
-	spi_base = of_iomap(np, 1);
-	if (spi_base == NULL)
-		return -EINVAL;
-
-	if (mspi->flags & SPI_CPM2) {
-		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-		out_be16(spi_base, pram_ofs);
-	} else {
-		struct spi_pram __iomem *pram = spi_base;
-		u16 rpbase = in_be16(&pram->rpbase);
-
-		/* Microcode relocation patch applied? */
-		if (rpbase)
-			pram_ofs = rpbase;
-		else {
-			pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-			out_be16(spi_base, pram_ofs);
-		}
-	}
-
-	iounmap(spi_base);
-	return pram_ofs;
-}
-
-static int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
-	const u32 *iprop;
-	int size;
-	unsigned long pram_ofs;
-	unsigned long bds_ofs;
-
-	if (!(mspi->flags & SPI_CPM_MODE))
-		return 0;
-
-	if (!fsl_spi_alloc_dummy_rx())
-		return -ENOMEM;
-
-	if (mspi->flags & SPI_QE) {
-		iprop = of_get_property(np, "cell-index", &size);
-		if (iprop && size == sizeof(*iprop))
-			mspi->subblock = *iprop;
-
-		switch (mspi->subblock) {
-		default:
-			dev_warn(dev, "cell-index unspecified, assuming SPI1");
-			/* fall through */
-		case 0:
-			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
-			break;
-		case 1:
-			mspi->subblock = QE_CR_SUBBLOCK_SPI2;
-			break;
-		}
-	}
-
-	pram_ofs = fsl_spi_cpm_get_pram(mspi);
-	if (IS_ERR_VALUE(pram_ofs)) {
-		dev_err(dev, "can't allocate spi parameter ram\n");
-		goto err_pram;
-	}
-
-	bds_ofs = cpm_muram_alloc(sizeof(*mspi->tx_bd) +
-				  sizeof(*mspi->rx_bd), 8);
-	if (IS_ERR_VALUE(bds_ofs)) {
-		dev_err(dev, "can't allocate bds\n");
-		goto err_bds;
-	}
-
-	mspi->dma_dummy_tx = dma_map_single(dev, empty_zero_page, PAGE_SIZE,
-					    DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, mspi->dma_dummy_tx)) {
-		dev_err(dev, "unable to map dummy tx buffer\n");
-		goto err_dummy_tx;
-	}
-
-	mspi->dma_dummy_rx = dma_map_single(dev, fsl_dummy_rx, SPI_MRBLR,
-					    DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, mspi->dma_dummy_rx)) {
-		dev_err(dev, "unable to map dummy rx buffer\n");
-		goto err_dummy_rx;
-	}
-
-	mspi->pram = cpm_muram_addr(pram_ofs);
-
-	mspi->tx_bd = cpm_muram_addr(bds_ofs);
-	mspi->rx_bd = cpm_muram_addr(bds_ofs + sizeof(*mspi->tx_bd));
-
-	/* Initialize parameter ram. */
-	out_be16(&mspi->pram->tbase, cpm_muram_offset(mspi->tx_bd));
-	out_be16(&mspi->pram->rbase, cpm_muram_offset(mspi->rx_bd));
-	out_8(&mspi->pram->tfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_8(&mspi->pram->rfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_be16(&mspi->pram->mrblr, SPI_MRBLR);
-	out_be32(&mspi->pram->rstate, 0);
-	out_be32(&mspi->pram->rdp, 0);
-	out_be16(&mspi->pram->rbptr, 0);
-	out_be16(&mspi->pram->rbc, 0);
-	out_be32(&mspi->pram->rxtmp, 0);
-	out_be32(&mspi->pram->tstate, 0);
-	out_be32(&mspi->pram->tdp, 0);
-	out_be16(&mspi->pram->tbptr, 0);
-	out_be16(&mspi->pram->tbc, 0);
-	out_be32(&mspi->pram->txtmp, 0);
-
-	return 0;
-
-err_dummy_rx:
-	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
-err_dummy_tx:
-	cpm_muram_free(bds_ofs);
-err_bds:
-	cpm_muram_free(pram_ofs);
-err_pram:
-	fsl_spi_free_dummy_rx();
-	return -ENOMEM;
-}
-
-static void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-
-	if (!(mspi->flags & SPI_CPM_MODE))
-		return;
-
-	dma_unmap_single(dev, mspi->dma_dummy_rx, SPI_MRBLR, DMA_FROM_DEVICE);
-	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
-	cpm_muram_free(cpm_muram_offset(mspi->tx_bd));
-	cpm_muram_free(cpm_muram_offset(mspi->pram));
-	fsl_spi_free_dummy_rx();
 }
 
 static void fsl_spi_remove(struct mpc8xxx_spi *mspi)
@@ -1047,7 +654,7 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 	struct spi_master *master;
 	struct resource mem;
-	struct resource irq;
+	int irq;
 	int ret = -ENOMEM;
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
@@ -1062,13 +669,13 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	if (ret)
 		goto err;
 
-	ret = of_irq_to_resource(np, 0, &irq);
-	if (!ret) {
+	irq = irq_of_parse_and_map(np, 0);
+	if (!irq) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	master = fsl_spi_probe(dev, &mem, irq.start);
+	master = fsl_spi_probe(dev, &mem, irq);
 	if (IS_ERR(master)) {
 		ret = PTR_ERR(master);
 		goto err;

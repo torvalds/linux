@@ -14,6 +14,7 @@ Required properties:
   controller you have.
 - interrupt-parent : the phandle for the interrupt controller that
   services interrupts for this device.
+- clock-frequency : input clock frequency to non FSL_SOC cores
 
 Optional properties:
 - gpios : specifies the gpio pins to be used for chipselects.
