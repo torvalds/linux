@@ -1323,7 +1323,48 @@
 #define	DMA_PACKET_CONSTANT_FILL                0xd
 #define	DMA_PACKET_NOP                          0xf
 
-/* PCIE link stuff */
+/* PIF PHY0 indirect regs */
+#define PB0_PIF_CNTL                                      0x10
+#       define LS2_EXIT_TIME(x)                           ((x) << 17)
+#       define LS2_EXIT_TIME_MASK                         (0x7 << 17)
+#       define LS2_EXIT_TIME_SHIFT                        17
+#define PB0_PIF_PAIRING                                   0x11
+#       define MULTI_PIF                                  (1 << 25)
+#define PB0_PIF_PWRDOWN_0                                 0x12
+#       define PLL_POWER_STATE_IN_TXS2_0(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_0(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_SHIFT             10
+#       define PLL_RAMP_UP_TIME_0(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_0_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_0_SHIFT                   24
+#define PB0_PIF_PWRDOWN_1                                 0x13
+#       define PLL_POWER_STATE_IN_TXS2_1(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_1(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_SHIFT             10
+#       define PLL_RAMP_UP_TIME_1(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_1_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_1_SHIFT                   24
+/* PIF PHY1 indirect regs */
+#define PB1_PIF_CNTL                                      0x10
+#define PB1_PIF_PAIRING                                   0x11
+#define PB1_PIF_PWRDOWN_0                                 0x12
+#define PB1_PIF_PWRDOWN_1                                 0x13
+/* PCIE PORT indirect regs */
+#define PCIE_LC_CNTL                                      0xa0
+#       define LC_L0S_INACTIVITY(x)                       ((x) << 8)
+#       define LC_L0S_INACTIVITY_MASK                     (0xf << 8)
+#       define LC_L0S_INACTIVITY_SHIFT                    8
+#       define LC_L1_INACTIVITY(x)                        ((x) << 12)
+#       define LC_L1_INACTIVITY_MASK                      (0xf << 12)
+#       define LC_L1_INACTIVITY_SHIFT                     12
+#       define LC_PMI_TO_L1_DIS                           (1 << 16)
+#       define LC_ASPM_TO_L1_DIS                          (1 << 24)
 #define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
 #define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
 #       define LC_LINK_WIDTH_SHIFT                        0
@@ -1343,6 +1384,9 @@
 #       define LC_SHORT_RECONFIG_EN                       (1 << 11)
 #       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
 #       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#       define LC_DYN_LANES_PWR_STATE(x)                  ((x) << 21)
+#       define LC_DYN_LANES_PWR_STATE_MASK                (0x3 << 21)
+#       define LC_DYN_LANES_PWR_STATE_SHIFT               21
 #define PCIE_LC_SPEED_CNTL                                0xa4 /* PCIE_P */
 #       define LC_GEN2_EN_STRAP                           (1 << 0)
 #       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 1)
