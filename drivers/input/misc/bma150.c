@@ -372,7 +372,7 @@ static int bma150_open(struct bma150_data *bma150)
 	int error;
 
 	error = pm_runtime_get_sync(&bma150->client->dev);
-	if (error && error != -ENOSYS)
+	if (error < 0 && error != -ENOSYS)
 		return error;
 
 	/*
