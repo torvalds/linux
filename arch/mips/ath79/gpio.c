@@ -194,12 +194,14 @@ void __init ath79_gpio_init(void)
 		ath79_gpio_count = AR933X_GPIO_COUNT;
 	else if (soc_is_ar934x())
 		ath79_gpio_count = AR934X_GPIO_COUNT;
+	else if (soc_is_qca955x())
+		ath79_gpio_count = QCA955X_GPIO_COUNT;
 	else
 		BUG();
 
 	ath79_gpio_base = ioremap_nocache(AR71XX_GPIO_BASE, AR71XX_GPIO_SIZE);
 	ath79_gpio_chip.ngpio = ath79_gpio_count;
-	if (soc_is_ar934x()) {
+	if (soc_is_ar934x() || soc_is_qca955x()) {
 		ath79_gpio_chip.direction_input = ar934x_gpio_direction_input;
 		ath79_gpio_chip.direction_output = ar934x_gpio_direction_output;
 	}

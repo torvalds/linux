@@ -510,6 +510,7 @@
 #define AR913X_GPIO_COUNT		22
 #define AR933X_GPIO_COUNT		30
 #define AR934X_GPIO_COUNT		23
+#define QCA955X_GPIO_COUNT		24
 
 /*
  * SRIF block
