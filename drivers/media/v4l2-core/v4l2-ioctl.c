@@ -652,22 +652,6 @@ static void v4l_print_dbg_register(const void *arg, bool write_only)
 			p->reg, p->val);
 }
 
-static void v4l_print_dv_enum_presets(const void *arg, bool write_only)
-{
-	const struct v4l2_dv_enum_preset *p = arg;
-
-	pr_cont("index=%u, preset=%u, name=%.*s, width=%u, height=%u\n",
-			p->index, p->preset,
-			(int)sizeof(p->name), p->name, p->width, p->height);
-}
-
-static void v4l_print_dv_preset(const void *arg, bool write_only)
-{
-	const struct v4l2_dv_preset *p = arg;
-
-	pr_cont("preset=%u\n", p->preset);
-}
-
 static void v4l_print_dv_timings(const void *arg, bool write_only)
 {
 	const struct v4l2_dv_timings *p = arg;
@@ -1011,17 +995,13 @@ static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_input *p = arg;
 
 	/*
-	 * We set the flags for CAP_PRESETS, CAP_DV_TIMINGS &
+	 * We set the flags for CAP_DV_TIMINGS &
 	 * CAP_STD here based on ioctl handler provided by the
 	 * driver. If the driver doesn't support these
 	 * for a specific input, it must override these flags.
 	 */
 	if (is_valid_ioctl(vfd, VIDIOC_S_STD))
 		p->capabilities |= V4L2_IN_CAP_STD;
-	if (is_valid_ioctl(vfd, VIDIOC_S_DV_PRESET))
-		p->capabilities |= V4L2_IN_CAP_PRESETS;
-	if (is_valid_ioctl(vfd, VIDIOC_S_DV_TIMINGS))
-		p->capabilities |= V4L2_IN_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_input(file, fh, p);
 }
@@ -1033,17 +1013,13 @@ static int v4l_enumoutput(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_output *p = arg;
 
 	/*
-	 * We set the flags for CAP_PRESETS, CAP_DV_TIMINGS &
+	 * We set the flags for CAP_DV_TIMINGS &
 	 * CAP_STD here based on ioctl handler provided by the
 	 * driver. If the driver doesn't support these
 	 * for a specific output, it must override these flags.
 	 */
 	if (is_valid_ioctl(vfd, VIDIOC_S_STD))
 		p->capabilities |= V4L2_OUT_CAP_STD;
-	if (is_valid_ioctl(vfd, VIDIOC_S_DV_PRESET))
-		p->capabilities |= V4L2_OUT_CAP_PRESETS;
-	if (is_valid_ioctl(vfd, VIDIOC_S_DV_TIMINGS))
-		p->capabilities |= V4L2_OUT_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_output(file, fh, p);
 }
@@ -2040,10 +2016,6 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_REGISTER, v4l_dbg_g_register, v4l_print_dbg_register, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_IDENT, v4l_dbg_g_chip_ident, v4l_print_dbg_chip_ident, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_HW_FREQ_SEEK, v4l_s_hw_freq_seek, v4l_print_hw_freq_seek, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_ENUM_DV_PRESETS, vidioc_enum_dv_presets, v4l_print_dv_enum_presets, 0),
-	IOCTL_INFO_STD(VIDIOC_S_DV_PRESET, vidioc_s_dv_preset, v4l_print_dv_preset, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_G_DV_PRESET, vidioc_g_dv_preset, v4l_print_dv_preset, 0),
-	IOCTL_INFO_STD(VIDIOC_QUERY_DV_PRESET, vidioc_query_dv_preset, v4l_print_dv_preset, 0),
 	IOCTL_INFO_STD(VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings, v4l_print_dv_timings, INFO_FL_PRIO),
 	IOCTL_INFO_STD(VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings, v4l_print_dv_timings, 0),
 	IOCTL_INFO_FNC(VIDIOC_DQEVENT, v4l_dqevent, v4l_print_event, 0),

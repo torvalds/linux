@@ -254,15 +254,6 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_frmivalenum *fival);
 
 	/* DV Timings IOCTLs */
-	int (*vidioc_enum_dv_presets) (struct file *file, void *fh,
-				       struct v4l2_dv_enum_preset *preset);
-
-	int (*vidioc_s_dv_preset) (struct file *file, void *fh,
-				   struct v4l2_dv_preset *preset);
-	int (*vidioc_g_dv_preset) (struct file *file, void *fh,
-				   struct v4l2_dv_preset *preset);
-	int (*vidioc_query_dv_preset) (struct file *file, void *fh,
-					struct v4l2_dv_preset *qpreset);
 	int (*vidioc_s_dv_timings) (struct file *file, void *fh,
 				    struct v4l2_dv_timings *timings);
 	int (*vidioc_g_dv_timings) (struct file *file, void *fh,
