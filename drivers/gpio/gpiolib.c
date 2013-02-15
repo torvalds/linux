@@ -172,12 +172,12 @@ static int gpio_ensure_requested(struct gpio_desc *desc)
 	return 0;
 }
 
-/* caller holds gpio_lock *OR* gpio is marked as requested */
 static struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 {
 	return desc ? desc->chip : NULL;
 }
 
+/* caller holds gpio_lock *OR* gpio is marked as requested */
 struct gpio_chip *gpio_to_chip(unsigned gpio)
 {
 	return gpiod_to_chip(gpio_to_desc(gpio));
