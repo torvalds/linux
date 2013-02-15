@@ -1778,14 +1778,7 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 		}
 	} /* {End of VB} */
 
-	tempal = inb((pVBInfo->P3ca + 0x02));
-	tempal = tempal >> 2;
-	tempal &= 0x03;
-
-	/* for Dot8 Scaling LCD */
-	if ((pVBInfo->LCDInfo & EnableScalingLCD) && (modeflag & Charx8Dot))
-		tempal = tempal ^ tempal; /* ; set to VCLK25MHz always */
-
+	inb((pVBInfo->P3ca + 0x02));
 	tempal = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 	return tempal;
 }
