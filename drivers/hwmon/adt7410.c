@@ -407,6 +407,7 @@ static int adt7410_remove(struct i2c_client *client)
 
 static const struct i2c_device_id adt7410_ids[] = {
 	{ "adt7410", adt7410, },
+	{ "adt7420", adt7410, },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);
@@ -455,5 +456,5 @@ static struct i2c_driver adt7410_driver = {
 module_i2c_driver(adt7410_driver);
 
 MODULE_AUTHOR("Hartmut Knaack");
-MODULE_DESCRIPTION("ADT7410 driver");
+MODULE_DESCRIPTION("ADT7410/ADT7420 driver");
 MODULE_LICENSE("GPL");
