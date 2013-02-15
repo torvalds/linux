@@ -291,13 +291,11 @@ static struct platform_driver sunxi_led_driver = {
 
 static int __init sunxi_leds_init(void)
 {
-	int err;
-	int i;
+	int i, err, value;
 	int sunxi_leds_used = 0;
 	struct sunxi_gpio_data *leds_i;
 	struct gpio_led *dleds_i;
-	char pin[16];
-	char name[16];
+	char key[20];
 
 	/* parse script.bin for [leds_para] section
 	   leds_used/leds_num/leds_pin_x/leds_name_x */
@@ -354,35 +352,35 @@ static int __init sunxi_leds_init(void)
 
 		/* make next script entry name */
 		sprintf(leds_i->pin_name, "leds_pin_%d", i+1);
-		sprintf(pin, "leds_pin_%d", i+1);
-		sprintf(name, "leds_name_%d", i+1);
+
+		/* fetch next led name */
+		sprintf(key, "leds_name_%d", i + 1);
+		err = script_parser_fetch("leds_para", key,
+					  (int *)leds_i->led_name,
+					  sizeof(leds_i->led_name)/sizeof(int));
+		if (err) {
+			pr_err("%s script_parser_fetch '[leds_para]' '%s' error\n",
+				__func__, key);
+			goto exit;
+		}
 
 		/* fetch next led gpio information */
-		err = script_parser_fetch("leds_para", pin,
+		sprintf(key, "leds_pin_%d", i + 1);
+		err = script_parser_fetch("leds_para", key,
 					(int *)&leds_i->info,
 					sizeof(script_gpio_set_t));
 
 		if (err) {
 			pr_err("%s script_parser_fetch '[leds_para]' '%s' error\n",
-				__func__, pin);
+				__func__, key);
 			break;
 		}
 
-		/* fetch next led name */
-		err = script_parser_fetch("leds_para", name,
-					  (int *)leds_i->led_name,
-					  sizeof(leds_i->led_name)/sizeof(int));
-		if (err) {
-			pr_err("%s script_parser_fetch '[leds_para]' '%s' error\n",
-				__func__, name);
-			goto exit;
-		}
-
 		/* reserve gpio for led */
-		leds_i->gpio_handler = gpio_request_ex("leds_para", pin);
+		leds_i->gpio_handler = gpio_request_ex("leds_para", key);
 		if (!leds_i->gpio_handler) {
 			pr_err("%s can't request '[leds_para]' '%s', already used ?",
-				__func__, pin);
+				__func__, key);
 			break;
 		}
 
@@ -391,6 +389,16 @@ static int __init sunxi_leds_init(void)
 		dleds_i->default_state = LEDS_GPIO_DEFSTATE_OFF;
 		dleds_i->gpio = i;
 		dleds_i->default_trigger = "none";
+
+		sprintf(key, "leds_default_%d", i + 1); value = 0;
+		err = script_parser_fetch("leds_para", key, &value, 1);
+		if (err == 0)
+			dleds_i->default_state = value;
+
+		sprintf(key, "leds_inverted_%d", i + 1); value = 0;
+		err = script_parser_fetch("leds_para", key, &value, 1);
+		if (err == 0 && value)
+			dleds_i->active_low = 1;
 
 		leds_i++;
 		dleds_i++;
