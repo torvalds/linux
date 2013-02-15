@@ -156,7 +156,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 
 	if (p) {
-		p->pdata = mmc_data;
 		if (p->init) {
 			ret = p->init(pdev, &sdhi_ops);
 			if (ret)
@@ -309,9 +308,6 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	int i = 0, irq;
-
-	if (p)
-		p->pdata = NULL;
 
 	tmio_mmc_host_remove(host);
 
