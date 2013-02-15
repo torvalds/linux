@@ -7490,7 +7490,8 @@ skip_sriov:
 
 	/* print bus type/speed/width info */
 	e_dev_info("(PCI Express:%s:%s) %pM\n",
-		   (hw->bus.speed == ixgbe_bus_speed_5000 ? "5.0GT/s" :
+		   (hw->bus.speed == ixgbe_bus_speed_8000 ? "8.0GT/s" :
+		    hw->bus.speed == ixgbe_bus_speed_5000 ? "5.0GT/s" :
 		    hw->bus.speed == ixgbe_bus_speed_2500 ? "2.5GT/s" :
 		    "Unknown"),
 		   (hw->bus.width == ixgbe_bus_width_pcie_x8 ? "Width x8" :

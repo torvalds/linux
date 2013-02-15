@@ -635,6 +635,9 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 	case IXGBE_PCI_LINK_SPEED_5000:
 		hw->bus.speed = ixgbe_bus_speed_5000;
 		break;
+	case IXGBE_PCI_LINK_SPEED_8000:
+		hw->bus.speed = ixgbe_bus_speed_8000;
+		break;
 	default:
 		hw->bus.speed = ixgbe_bus_speed_unknown;
 		break;
