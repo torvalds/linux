@@ -792,26 +792,77 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	return ret;
 }
 
+/*
+ * Look for a btrfs signature on a device. This may be called out of the mount path
+ * and we are not allowed to call set_blocksize during the scan. The superblock
+ * is read via pagecache
+ */
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret)
 {
 	struct btrfs_super_block *disk_super;
 	struct block_device *bdev;
-	struct buffer_head *bh;
-	int ret;
+	struct page *page;
+	void *p;
+	int ret = -EINVAL;
 	u64 devid;
 	u64 transid;
 	u64 total_devices;
+	u64 bytenr;
+	pgoff_t index;
 
+	/*
+	 * we would like to check all the supers, but that would make
+	 * a btrfs mount succeed after a mkfs from a different FS.
+	 * So, we need to add a special mount option to scan for
+	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
+	 */
+	bytenr = btrfs_sb_offset(0);
 	flags |= FMODE_EXCL;
 	mutex_lock(&uuid_mutex);
-	ret = btrfs_get_bdev_and_sb(path, flags, holder, 0, &bdev, &bh);
-	if (ret)
+
+	bdev = blkdev_get_by_path(path, flags, holder);
+
+	if (IS_ERR(bdev)) {
+		ret = PTR_ERR(bdev);
+		printk(KERN_INFO "btrfs: open %s failed\n", path);
 		goto error;
-	disk_super = (struct btrfs_super_block *)bh->b_data;
+	}
+
+	/* make sure our super fits in the device */
+	if (bytenr + PAGE_CACHE_SIZE >= i_size_read(bdev->bd_inode))
+		goto error_bdev_put;
+
+	/* make sure our super fits in the page */
+	if (sizeof(*disk_super) > PAGE_CACHE_SIZE)
+		goto error_bdev_put;
+
+	/* make sure our super doesn't straddle pages on disk */
+	index = bytenr >> PAGE_CACHE_SHIFT;
+	if ((bytenr + sizeof(*disk_super) - 1) >> PAGE_CACHE_SHIFT != index)
+		goto error_bdev_put;
+
+	/* pull in the page with our super */
+	page = read_cache_page_gfp(bdev->bd_inode->i_mapping,
+				   index, GFP_NOFS);
+
+	if (IS_ERR_OR_NULL(page))
+		goto error_bdev_put;
+
+	p = kmap(page);
+
+	/* align our pointer to the offset of the super block */
+	disk_super = p + (bytenr & ~PAGE_CACHE_MASK);
+
+	if (btrfs_super_bytenr(disk_super) != bytenr ||
+	    strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
+		    sizeof(disk_super->magic)))
+		goto error_unmap;
+
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
 	total_devices = btrfs_super_num_devices(disk_super);
+
 	if (disk_super->label[0]) {
 		if (disk_super->label[BTRFS_LABEL_SIZE - 1])
 			disk_super->label[BTRFS_LABEL_SIZE - 1] = '\0';
@@ -819,12 +870,19 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	} else {
 		printk(KERN_INFO "device fsid %pU ", disk_super->fsid);
 	}
+
 	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
+
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 	if (!ret && fs_devices_ret)
 		(*fs_devices_ret)->total_devices = total_devices;
-	brelse(bh);
+
+error_unmap:
+	kunmap(page);
+	page_cache_release(page);
+
+error_bdev_put:
 	blkdev_put(bdev, flags);
 error:
 	mutex_unlock(&uuid_mutex);
