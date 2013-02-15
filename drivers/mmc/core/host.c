@@ -400,6 +400,19 @@ void mmc_of_parse(struct mmc_host *host)
 	}
 	if (explicit_inv_wp ^ gpio_inv_wp)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+	if (of_find_property(np, "cap-sd-highspeed", &len))
+		host->caps |= MMC_CAP_SD_HIGHSPEED;
+	if (of_find_property(np, "cap-mmc-highspeed", &len))
+		host->caps |= MMC_CAP_MMC_HIGHSPEED;
+	if (of_find_property(np, "cap-power-off-card", &len))
+		host->caps |= MMC_CAP_POWER_OFF_CARD;
+	if (of_find_property(np, "cap-sdio-irq", &len))
+		host->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(np, "keep-power-in-suspend", &len))
+		host->pm_caps |= MMC_PM_KEEP_POWER;
+	if (of_find_property(np, "enable-sdio-wakeup", &len))
+		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 }
 
 EXPORT_SYMBOL(mmc_of_parse);

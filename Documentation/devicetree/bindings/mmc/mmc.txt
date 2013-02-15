@@ -24,6 +24,10 @@ Optional properties:
 - max-frequency: maximum operating clock frequency
 - no-1-8-v: when present, denotes that 1.8v card voltage is not supported on
   this system, even if the controller claims it is.
+- cap-sd-highspeed: SD high-speed timing is supported
+- cap-mmc-highspeed: MMC high-speed timing is supported
+- cap-power-off-card: powering off the card is safe
+- cap-sdio-irq: enable SDIO IRQ signalling on this interface
 
 *NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
 polarity properties, we have to fix the meaning of the "normal" and "inverted"
