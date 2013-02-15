@@ -707,6 +707,8 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	/* ensure we send some value back into *errp */
 	*errp = 0;
 
+	if (create && err == 0)
+		err = -ENOSPC;	/* should never happen */
 	if (err < 0)
 		*errp = err;
 	if (err <= 0)
