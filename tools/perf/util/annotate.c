@@ -809,7 +809,7 @@ fallback:
 		pr_err("Can't annotate %s:\n\n"
 		       "No vmlinux file%s\nwas found in the path.\n\n"
 		       "Please use:\n\n"
-		       "  perf buildid-cache -av vmlinux\n\n"
+		       "  perf buildid-cache -vu vmlinux\n\n"
 		       "or:\n\n"
 		       "  --vmlinux vmlinux\n",
 		       sym->name, build_id_msg ?: "");

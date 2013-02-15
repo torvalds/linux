@@ -27,6 +27,10 @@ OPTIONS
 -M::
 --missing=:: 
 	List missing build ids in the cache for the specified file.
+-u::
+--update::
+	Update specified file of the cache. It can be used to update kallsyms
+	kernel dso to vmlinux in order to support annotation.
 -v::
 --verbose::
 	Be more verbose.
