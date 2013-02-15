@@ -68,6 +68,21 @@ const char *ceph_osd_op_name(int op)
 	return "???";
 }
 
+const char *ceph_osd_state_name(int s)
+{
+	switch (s) {
+	case CEPH_OSD_EXISTS:
+		return "exists";
+	case CEPH_OSD_UP:
+		return "up";
+	case CEPH_OSD_AUTOOUT:
+		return "autoout";
+	case CEPH_OSD_NEW:
+		return "new";
+	default:
+		return "???";
+	}
+}
 
 const char *ceph_pool_op_name(int op)
 {
