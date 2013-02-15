@@ -88,13 +88,14 @@ static int gpiod_request(struct gpio_desc *desc, const char *label);
 static void gpiod_free(struct gpio_desc *desc);
 static int gpiod_direction_input(struct gpio_desc *desc);
 static int gpiod_direction_output(struct gpio_desc *desc, int value);
+static int gpiod_get_direction(const struct gpio_desc *desc);
 static int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce);
-static int gpiod_get_value_cansleep(struct gpio_desc *desc);
+static int gpiod_get_value_cansleep(const struct gpio_desc *desc);
 static void gpiod_set_value_cansleep(struct gpio_desc *desc, int value);
-static int gpiod_get_value(struct gpio_desc *desc);
+static int gpiod_get_value(const struct gpio_desc *desc);
 static void gpiod_set_value(struct gpio_desc *desc, int value);
-static int gpiod_cansleep(struct gpio_desc *desc);
-static int gpiod_to_irq(struct gpio_desc *desc);
+static int gpiod_cansleep(const struct gpio_desc *desc);
+static int gpiod_to_irq(const struct gpio_desc *desc);
 static int gpiod_export(struct gpio_desc *desc, bool direction_may_change);
 static int gpiod_export_link(struct device *dev, const char *name,
 			     struct gpio_desc *desc);
@@ -172,7 +173,7 @@ static int gpio_ensure_requested(struct gpio_desc *desc)
 }
 
 /* caller holds gpio_lock *OR* gpio is marked as requested */
-static struct gpio_chip *gpiod_to_chip(struct gpio_desc *desc)
+static struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 {
 	return desc ? desc->chip : NULL;
 }
@@ -207,7 +208,7 @@ static int gpiochip_find_base(int ngpio)
 }
 
 /* caller ensures gpio is valid and requested, chip->get_direction may sleep  */
-static int gpiod_get_direction(struct gpio_desc *desc)
+static int gpiod_get_direction(const struct gpio_desc *desc)
 {
 	struct gpio_chip	*chip;
 	unsigned		offset;
@@ -223,11 +224,13 @@ static int gpiod_get_direction(struct gpio_desc *desc)
 	if (status > 0) {
 		/* GPIOF_DIR_IN, or other positive */
 		status = 1;
-		clear_bit(FLAG_IS_OUT, &desc->flags);
+		/* FLAG_IS_OUT is just a cache of the result of get_direction(),
+		 * so it does not affect constness per se */
+		clear_bit(FLAG_IS_OUT, &((struct gpio_desc *)desc)->flags);
 	}
 	if (status == 0) {
 		/* GPIOF_DIR_OUT */
-		set_bit(FLAG_IS_OUT, &desc->flags);
+		set_bit(FLAG_IS_OUT, &((struct gpio_desc *)desc)->flags);
 	}
 	return status;
 }
@@ -263,7 +266,7 @@ static DEFINE_MUTEX(sysfs_lock);
 static ssize_t gpio_direction_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	ssize_t			status;
 
 	mutex_lock(&sysfs_lock);
@@ -1830,7 +1833,7 @@ EXPORT_SYMBOL_GPL(gpio_set_debounce);
  * It returns the zero or nonzero value provided by the associated
  * gpio_chip.get() method; or zero if no such method is provided.
  */
-static int gpiod_get_value(struct gpio_desc *desc)
+static int gpiod_get_value(const struct gpio_desc *desc)
 {
 	struct gpio_chip	*chip;
 	int value;
@@ -1948,7 +1951,7 @@ EXPORT_SYMBOL_GPL(__gpio_set_value);
  * This is used directly or indirectly to implement gpio_cansleep().  It
  * returns nonzero if access reading or writing the GPIO value can sleep.
  */
-static int gpiod_cansleep(struct gpio_desc *desc)
+static int gpiod_cansleep(const struct gpio_desc *desc)
 {
 	if (!desc)
 		return 0;
@@ -1971,7 +1974,7 @@ EXPORT_SYMBOL_GPL(__gpio_cansleep);
  * It returns the number of the IRQ signaled by this (input) GPIO,
  * or a negative errno.
  */
-static int gpiod_to_irq(struct gpio_desc *desc)
+static int gpiod_to_irq(const struct gpio_desc *desc)
 {
 	struct gpio_chip	*chip;
 	int			offset;
@@ -1994,7 +1997,7 @@ EXPORT_SYMBOL_GPL(__gpio_to_irq);
  * Common examples include ones connected to I2C or SPI chips.
  */
 
-static int gpiod_get_value_cansleep(struct gpio_desc *desc)
+static int gpiod_get_value_cansleep(const struct gpio_desc *desc)
 {
 	struct gpio_chip	*chip;
 	int value;
