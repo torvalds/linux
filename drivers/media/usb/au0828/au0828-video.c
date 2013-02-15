@@ -1226,18 +1226,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 }
 
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
-{
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
-	if (qc->type)
-		return 0;
-	else
-		return -EINVAL;
-}
-
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
 {
@@ -1492,26 +1480,6 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 
 	if (a->index != dev->ctrl_ainput)
 		return -EINVAL;
-	return 0;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
-	return 0;
-
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 	return 0;
 }
 
@@ -1905,9 +1873,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,
-	.vidioc_queryctrl           = vidioc_queryctrl,
-	.vidioc_g_ctrl              = vidioc_g_ctrl,
-	.vidioc_s_ctrl              = vidioc_s_ctrl,
 	.vidioc_streamon            = vidioc_streamon,
 	.vidioc_streamoff           = vidioc_streamoff,
 	.vidioc_g_tuner             = vidioc_g_tuner,
@@ -2013,13 +1978,13 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 	/* Fill the video capture device struct */
 	*dev->vdev = au0828_video_template;
-	dev->vdev->parent = &dev->usbdev->dev;
+	dev->vdev->v4l2_dev = &dev->v4l2_dev;
 	dev->vdev->lock = &dev->lock;
 	strcpy(dev->vdev->name, "au0828a video");
 
 	/* Setup the VBI device */
 	*dev->vbi_dev = au0828_video_template;
-	dev->vbi_dev->parent = &dev->usbdev->dev;
+	dev->vbi_dev->v4l2_dev = &dev->v4l2_dev;
 	dev->vbi_dev->lock = &dev->lock;
 	strcpy(dev->vbi_dev->name, "au0828a vbi");
 

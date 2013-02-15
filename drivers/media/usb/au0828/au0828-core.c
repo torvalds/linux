@@ -143,6 +143,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	au0828_i2c_unregister(dev);
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+	v4l2_ctrl_handler_free(&dev->v4l2_ctrl_hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
 #endif
 
@@ -205,12 +206,22 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/* Create the v4l2_device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
-		printk(KERN_ERR "%s() v4l2_device_register failed\n",
+		pr_err("%s() v4l2_device_register failed\n",
 		       __func__);
 		mutex_unlock(&dev->lock);
 		kfree(dev);
-		return -EIO;
+		return retval;
 	}
+	/* This control handler will inherit the controls from au8522 */
+	retval = v4l2_ctrl_handler_init(&dev->v4l2_ctrl_hdl, 4);
+	if (retval) {
+		pr_err("%s() v4l2_ctrl_handler_init failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;
 #endif
 
 	/* Power Up the bridge */

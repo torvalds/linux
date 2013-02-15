@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 /* DVB */
 #include "demux.h"
@@ -202,6 +203,7 @@ struct au0828_dev {
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog */
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
 #endif
 	int users;
 	unsigned int resources;	/* resources in use */
