@@ -107,7 +107,7 @@ static void ar934x_wmac_setup(void)
 	ath79_wmac_resources[0].start = AR934X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR934X_WMAC_BASE + AR934X_WMAC_SIZE - 1;
 	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
-	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].end = ATH79_IP2_IRQ(1);
 
 	t = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
 	if (t & AR934X_BOOTSTRAP_REF_CLK_40)
