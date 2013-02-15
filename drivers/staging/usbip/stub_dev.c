@@ -526,13 +526,13 @@ static void stub_disconnect(struct usb_interface *interface)
  * when the device is being reset
  */
 
-int stub_pre_reset(struct usb_interface *interface)
+static int stub_pre_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "pre_reset\n");
 	return 0;
 }
 
-int stub_post_reset(struct usb_interface *interface)
+static int stub_post_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "post_reset\n");
 	return 0;
