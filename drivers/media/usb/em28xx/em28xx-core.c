@@ -607,12 +607,12 @@ EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
-	em28xx_write_reg(dev, EM28XX_R20_YGAIN, 0x10);	/* contrast */
-	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, 0x00);	/* brightness */
-	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, 0x10);	/* saturation */
-	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, 0x00);
+	em28xx_write_reg(dev, EM28XX_R20_YGAIN, CONTRAST_DEFAULT);
+	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, BRIGHTNESS_DEFAULT);
+	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, SATURATION_DEFAULT);
+	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, BLUE_BALANCE_DEFAULT);
+	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, RED_BALANCE_DEFAULT);
+	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, SHARPNESS_DEFAULT);
 
 	em28xx_write_reg(dev, EM28XX_R14_GAMMA, 0x20);
 	em28xx_write_reg(dev, EM28XX_R15_RGAIN, 0x20);

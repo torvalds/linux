@@ -120,12 +120,23 @@
 #define EM28XX_R1E_CWIDTH	0x1e
 #define EM28XX_R1F_CHEIGHT	0x1f
 
-#define EM28XX_R20_YGAIN	0x20
-#define EM28XX_R21_YOFFSET	0x21
-#define EM28XX_R22_UVGAIN	0x22
-#define EM28XX_R23_UOFFSET	0x23
-#define EM28XX_R24_VOFFSET	0x24
-#define EM28XX_R25_SHARPNESS	0x25
+#define EM28XX_R20_YGAIN	0x20 /* contrast [0:4]   */
+#define   CONTRAST_DEFAULT	0x10
+
+#define EM28XX_R21_YOFFSET	0x21 /* brightness       */	/* signed */
+#define   BRIGHTNESS_DEFAULT	0x00
+
+#define EM28XX_R22_UVGAIN	0x22 /* saturation [0:4] */
+#define   SATURATION_DEFAULT	0x10
+
+#define EM28XX_R23_UOFFSET	0x23 /* blue balance     */	/* signed */
+#define   BLUE_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R24_VOFFSET	0x24 /* red balance      */	/* signed */
+#define   RED_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R25_SHARPNESS	0x25 /* sharpness [0:4]  */
+#define   SHARPNESS_DEFAULT	0x00
 
 #define EM28XX_R26_COMPR	0x26
 #define EM28XX_R27_OUTFMT	0x27
