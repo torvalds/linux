@@ -3091,7 +3091,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		return retval;
 	}
 
-	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_handler_init(hdl, 8);
 	dev->v4l2_dev.ctrl_handler = hdl;
 
 	/* register i2c bus */
@@ -3159,11 +3159,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		}
 		msleep(3);
 	}
-
-	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
-	retval = dev->ctrl_handler.error;
-	if (retval)
-		goto fail;
 
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {

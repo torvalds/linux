@@ -782,17 +782,38 @@ void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
 static int em28xx_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct em28xx *dev = container_of(ctrl->handler, struct em28xx, ctrl_handler);
+	int ret = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		dev->mute = ctrl->val;
+		ret = em28xx_audio_analog_set(dev);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->val;
+		ret = em28xx_audio_analog_set(dev);
+		break;
+	case V4L2_CID_CONTRAST:
+		ret = em28xx_write_reg(dev, EM28XX_R20_YGAIN, ctrl->val);
+		break;
+	case V4L2_CID_BRIGHTNESS:
+		ret = em28xx_write_reg(dev, EM28XX_R21_YOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		ret = em28xx_write_reg(dev, EM28XX_R22_UVGAIN, ctrl->val);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		ret = em28xx_write_reg(dev, EM28XX_R23_UOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		ret = em28xx_write_reg(dev, EM28XX_R24_VOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_SHARPNESS:
+		ret = em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, ctrl->val);
 		break;
 	}
 
-	return em28xx_audio_analog_set(dev);
+	return (ret < 0) ? ret : 0;
 }
 
 const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
@@ -1784,8 +1805,41 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			 (EM28XX_XCLK_AUDIO_UNMUTE | val));
 
 	em28xx_set_outfmt(dev);
-	em28xx_colorlevels_set_default(dev);
 	em28xx_compression_disable(dev);
+
+	/* Add image controls */
+	/* NOTE: at this point, the subdevices are already registered, so bridge
+	 * controls are only added/enabled when no subdevice provides them */
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_CONTRAST))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_CONTRAST,
+				  0, 0x1f, 1, CONTRAST_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BRIGHTNESS))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_BRIGHTNESS,
+				  -0x80, 0x7f, 1, BRIGHTNESS_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SATURATION))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_SATURATION,
+				  0, 0x1f, 1, SATURATION_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BLUE_BALANCE))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_BLUE_BALANCE,
+				  -0x30, 0x30, 1, BLUE_BALANCE_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_RED_BALANCE))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_RED_BALANCE,
+				  -0x30, 0x30, 1, RED_BALANCE_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SHARPNESS))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_SHARPNESS,
+				  0, 0x0f, 1, SHARPNESS_DEFAULT);
+
+	/* Reset image controls */
+	em28xx_colorlevels_set_default(dev);
+	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
+	if (dev->ctrl_handler.error)
+		return dev->ctrl_handler.error;
 
 	/* allocate and fill video video_device struct */
 	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
