@@ -79,20 +79,7 @@ unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
 {
 	u32 c;
 
-	c = jhash_3words((__force u32)saddr->s6_addr32[0],
-			 (__force u32)saddr->s6_addr32[1],
-			 (__force u32)saddr->s6_addr32[2],
-			 rnd);
-
-	c = jhash_3words((__force u32)saddr->s6_addr32[3],
-			 (__force u32)daddr->s6_addr32[0],
-			 (__force u32)daddr->s6_addr32[1],
-			 c);
-
-	c =  jhash_3words((__force u32)daddr->s6_addr32[2],
-			  (__force u32)daddr->s6_addr32[3],
-			  (__force u32)id,
-			  c);
+	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr), id, rnd);
 
 	return c & (INETFRAGS_HASHSZ - 1);
 }
