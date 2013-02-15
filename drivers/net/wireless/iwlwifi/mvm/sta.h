@@ -362,8 +362,10 @@ int iwl_mvm_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  struct iwl_mvm_int_sta *bsta);
 int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *bsta);
 void iwl_mvm_sta_drained_wk(struct work_struct *wk);
-void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm, int sta_id);
-void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm, int sta_id,
+void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
+				struct ieee80211_sta *sta);
+void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
+				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
 				       u16 cnt);
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
