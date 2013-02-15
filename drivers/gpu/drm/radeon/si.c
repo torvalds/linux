@@ -67,6 +67,7 @@ MODULE_FIRMWARE("radeon/HAINAN_mc.bin");
 MODULE_FIRMWARE("radeon/HAINAN_rlc.bin");
 
 static void si_pcie_gen3_enable(struct radeon_device *rdev);
+static void si_program_aspm(struct radeon_device *rdev);
 extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
@@ -5319,6 +5320,8 @@ static int si_startup(struct radeon_device *rdev)
 
 	/* enable pcie gen2/3 link */
 	si_pcie_gen3_enable(rdev);
+	/* enable aspm */
+	si_program_aspm(rdev);
 
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
 	    !rdev->rlc_fw || !rdev->mc_fw) {
@@ -5943,3 +5946,203 @@ static void si_pcie_gen3_enable(struct radeon_device *rdev)
 	}
 }
 
+static void si_program_aspm(struct radeon_device *rdev)
+{
+	u32 data, orig;
+	bool disable_l0s = false, disable_l1 = false, disable_plloff_in_l1 = false;
+	bool disable_clkreq = false;
+
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		return;
+
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL);
+	data &= ~LC_XMIT_N_FTS_MASK;
+	data |= LC_XMIT_N_FTS(0x24) | LC_XMIT_N_FTS_OVERRIDE_EN;
+	if (orig != data)
+		WREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL, data);
+
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL3);
+	data |= LC_GO_TO_RECOVERY;
+	if (orig != data)
+		WREG32_PCIE_PORT(PCIE_LC_CNTL3, data);
+
+	orig = data = RREG32_PCIE(PCIE_P_CNTL);
+	data |= P_IGNORE_EDB_ERR;
+	if (orig != data)
+		WREG32_PCIE(PCIE_P_CNTL, data);
+
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL);
+	data &= ~(LC_L0S_INACTIVITY_MASK | LC_L1_INACTIVITY_MASK);
+	data |= LC_PMI_TO_L1_DIS;
+	if (!disable_l0s)
+		data |= LC_L0S_INACTIVITY(7);
+
+	if (!disable_l1) {
+		data |= LC_L1_INACTIVITY(7);
+		data &= ~LC_PMI_TO_L1_DIS;
+		if (orig != data)
+			WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
+
+		if (!disable_plloff_in_l1) {
+			bool clk_req_support;
+
+			orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_0);
+			data &= ~(PLL_POWER_STATE_IN_OFF_0_MASK | PLL_POWER_STATE_IN_TXS2_0_MASK);
+			data |= PLL_POWER_STATE_IN_OFF_0(7) | PLL_POWER_STATE_IN_TXS2_0(7);
+			if (orig != data)
+				WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_0, data);
+
+			orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_1);
+			data &= ~(PLL_POWER_STATE_IN_OFF_1_MASK | PLL_POWER_STATE_IN_TXS2_1_MASK);
+			data |= PLL_POWER_STATE_IN_OFF_1(7) | PLL_POWER_STATE_IN_TXS2_1(7);
+			if (orig != data)
+				WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_1, data);
+
+			orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_0);
+			data &= ~(PLL_POWER_STATE_IN_OFF_0_MASK | PLL_POWER_STATE_IN_TXS2_0_MASK);
+			data |= PLL_POWER_STATE_IN_OFF_0(7) | PLL_POWER_STATE_IN_TXS2_0(7);
+			if (orig != data)
+				WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_0, data);
+
+			orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_1);
+			data &= ~(PLL_POWER_STATE_IN_OFF_1_MASK | PLL_POWER_STATE_IN_TXS2_1_MASK);
+			data |= PLL_POWER_STATE_IN_OFF_1(7) | PLL_POWER_STATE_IN_TXS2_1(7);
+			if (orig != data)
+				WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_1, data);
+
+			if ((rdev->family != CHIP_OLAND) && (rdev->family != CHIP_HAINAN)) {
+				orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_0);
+				data &= ~PLL_RAMP_UP_TIME_0_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_0, data);
+
+				orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_1);
+				data &= ~PLL_RAMP_UP_TIME_1_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_1, data);
+
+				orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_2);
+				data &= ~PLL_RAMP_UP_TIME_2_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_2, data);
+
+				orig = data = RREG32_PIF_PHY0(PB0_PIF_PWRDOWN_3);
+				data &= ~PLL_RAMP_UP_TIME_3_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY0(PB0_PIF_PWRDOWN_3, data);
+
+				orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_0);
+				data &= ~PLL_RAMP_UP_TIME_0_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_0, data);
+
+				orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_1);
+				data &= ~PLL_RAMP_UP_TIME_1_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_1, data);
+
+				orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_2);
+				data &= ~PLL_RAMP_UP_TIME_2_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_2, data);
+
+				orig = data = RREG32_PIF_PHY1(PB1_PIF_PWRDOWN_3);
+				data &= ~PLL_RAMP_UP_TIME_3_MASK;
+				if (orig != data)
+					WREG32_PIF_PHY1(PB1_PIF_PWRDOWN_3, data);
+			}
+			orig = data = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
+			data &= ~LC_DYN_LANES_PWR_STATE_MASK;
+			data |= LC_DYN_LANES_PWR_STATE(3);
+			if (orig != data)
+				WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, data);
+
+			orig = data = RREG32_PIF_PHY0(PB0_PIF_CNTL);
+			data &= ~LS2_EXIT_TIME_MASK;
+			if ((rdev->family == CHIP_OLAND) || (rdev->family == CHIP_HAINAN))
+				data |= LS2_EXIT_TIME(5);
+			if (orig != data)
+				WREG32_PIF_PHY0(PB0_PIF_CNTL, data);
+
+			orig = data = RREG32_PIF_PHY1(PB1_PIF_CNTL);
+			data &= ~LS2_EXIT_TIME_MASK;
+			if ((rdev->family == CHIP_OLAND) || (rdev->family == CHIP_HAINAN))
+				data |= LS2_EXIT_TIME(5);
+			if (orig != data)
+				WREG32_PIF_PHY1(PB1_PIF_CNTL, data);
+
+			if (!disable_clkreq) {
+				struct pci_dev *root = rdev->pdev->bus->self;
+				u32 lnkcap;
+
+				clk_req_support = false;
+				pcie_capability_read_dword(root, PCI_EXP_LNKCAP, &lnkcap);
+				if (lnkcap & PCI_EXP_LNKCAP_CLKPM)
+					clk_req_support = true;
+			} else {
+				clk_req_support = false;
+			}
+
+			if (clk_req_support) {
+				orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL2);
+				data |= LC_ALLOW_PDWN_IN_L1 | LC_ALLOW_PDWN_IN_L23;
+				if (orig != data)
+					WREG32_PCIE_PORT(PCIE_LC_CNTL2, data);
+
+				orig = data = RREG32(THM_CLK_CNTL);
+				data &= ~(CMON_CLK_SEL_MASK | TMON_CLK_SEL_MASK);
+				data |= CMON_CLK_SEL(1) | TMON_CLK_SEL(1);
+				if (orig != data)
+					WREG32(THM_CLK_CNTL, data);
+
+				orig = data = RREG32(MISC_CLK_CNTL);
+				data &= ~(DEEP_SLEEP_CLK_SEL_MASK | ZCLK_SEL_MASK);
+				data |= DEEP_SLEEP_CLK_SEL(1) | ZCLK_SEL(1);
+				if (orig != data)
+					WREG32(MISC_CLK_CNTL, data);
+
+				orig = data = RREG32(CG_CLKPIN_CNTL);
+				data &= ~BCLK_AS_XCLK;
+				if (orig != data)
+					WREG32(CG_CLKPIN_CNTL, data);
+
+				orig = data = RREG32(CG_CLKPIN_CNTL_2);
+				data &= ~FORCE_BIF_REFCLK_EN;
+				if (orig != data)
+					WREG32(CG_CLKPIN_CNTL_2, data);
+
+				orig = data = RREG32(MPLL_BYPASSCLK_SEL);
+				data &= ~MPLL_CLKOUT_SEL_MASK;
+				data |= MPLL_CLKOUT_SEL(4);
+				if (orig != data)
+					WREG32(MPLL_BYPASSCLK_SEL, data);
+
+				orig = data = RREG32(SPLL_CNTL_MODE);
+				data &= ~SPLL_REFCLK_SEL_MASK;
+				if (orig != data)
+					WREG32(SPLL_CNTL_MODE, data);
+			}
+		}
+	} else {
+		if (orig != data)
+			WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
+	}
+
+	orig = data = RREG32_PCIE(PCIE_CNTL2);
+	data |= SLV_MEM_LS_EN | MST_MEM_LS_EN | REPLAY_MEM_LS_EN;
+	if (orig != data)
+		WREG32_PCIE(PCIE_CNTL2, data);
+
+	if (!disable_l0s) {
+		data = RREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL);
+		if((data & LC_N_FTS_MASK) == LC_N_FTS_MASK) {
+			data = RREG32_PCIE(PCIE_LC_STATUS1);
+			if ((data & LC_REVERSE_XMIT) && (data & LC_REVERSE_RCVR)) {
+				orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL);
+				data &= ~LC_L0S_INACTIVITY_MASK;
+				if (orig != data)
+					WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
+			}
+		}
+	}
+}
