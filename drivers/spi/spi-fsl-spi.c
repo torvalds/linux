@@ -456,10 +456,44 @@ static int fsl_spi_setup(struct spi_device *spi)
 		return retval;
 	}
 
+	if (mpc8xxx_spi->type == TYPE_GRLIB) {
+		if (gpio_is_valid(spi->cs_gpio)) {
+			int desel;
+
+			retval = gpio_request(spi->cs_gpio,
+					      dev_name(&spi->dev));
+			if (retval)
+				return retval;
+
+			desel = !(spi->mode & SPI_CS_HIGH);
+			retval = gpio_direction_output(spi->cs_gpio, desel);
+			if (retval) {
+				gpio_free(spi->cs_gpio);
+				return retval;
+			}
+		} else if (spi->cs_gpio != -ENOENT) {
+			if (spi->cs_gpio < 0)
+				return spi->cs_gpio;
+			return -EINVAL;
+		}
+		/* When spi->cs_gpio == -ENOENT, a hole in the phandle list
+		 * indicates to use native chipselect if present, or allow for
+		 * an always selected chip
+		 */
+	}
+
 	/* Initialize chipselect - might be active for SPI_CS_HIGH mode */
 	fsl_spi_chipselect(spi, BITBANG_CS_INACTIVE);
 
 	return 0;
+}
+
+static void fsl_spi_cleanup(struct spi_device *spi)
+{
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
+
+	if (mpc8xxx_spi->type == TYPE_GRLIB && gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 }
 
 static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
@@ -529,9 +563,13 @@ static void fsl_spi_grlib_cs_control(struct spi_device *spi, bool on)
 	u32 slvsel;
 	u16 cs = spi->chip_select;
 
-	slvsel = mpc8xxx_spi_read_reg(&reg_base->slvsel);
-	slvsel = on ? (slvsel | (1 << cs)) : (slvsel & ~(1 << cs));
-	mpc8xxx_spi_write_reg(&reg_base->slvsel, slvsel);
+	if (gpio_is_valid(spi->cs_gpio)) {
+		gpio_set_value(spi->cs_gpio, on);
+	} else if (cs < mpc8xxx_spi->native_chipselects) {
+		slvsel = mpc8xxx_spi_read_reg(&reg_base->slvsel);
+		slvsel = on ? (slvsel | (1 << cs)) : (slvsel & ~(1 << cs));
+		mpc8xxx_spi_write_reg(&reg_base->slvsel, slvsel);
+	}
 }
 
 static void fsl_spi_grlib_probe(struct device *dev)
@@ -550,11 +588,12 @@ static void fsl_spi_grlib_probe(struct device *dev)
 	if (mbits)
 		mpc8xxx_spi->max_bits_per_word = mbits + 1;
 
-	master->num_chipselect = 1; /* Allow for an always selected chip */
+	mpc8xxx_spi->native_chipselects = 0;
 	if (SPCAP_SSEN(capabilities)) {
-		master->num_chipselect = SPCAP_SSSZ(capabilities);
+		mpc8xxx_spi->native_chipselects = SPCAP_SSSZ(capabilities);
 		mpc8xxx_spi_write_reg(&reg_base->slvsel, 0xffffffff);
 	}
+	master->num_chipselect = mpc8xxx_spi->native_chipselects;
 	pdata->cs_control = fsl_spi_grlib_cs_control;
 }
 
@@ -581,6 +620,7 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 		goto err_probe;
 
 	master->setup = fsl_spi_setup;
+	master->cleanup = fsl_spi_cleanup;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;

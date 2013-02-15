@@ -71,6 +71,7 @@ struct mpc8xxx_spi {
 
 #ifdef CONFIG_SPI_FSL_SPI
 	int type;
+	int native_chipselects;
 	u8 max_bits_per_word;
 
 	void (*set_shifts)(u32 *rx_shift, u32 *tx_shift,
