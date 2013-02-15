@@ -36,6 +36,71 @@ static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 	return gpio_to_pfc_chip(gc)->pfc;
 }
 
+static void gpio_get_data_reg(struct sh_pfc *pfc, unsigned int gpio,
+			      struct pinmux_data_reg **dr, unsigned int *bit)
+{
+	struct sh_pfc_pin *gpiop = sh_pfc_get_pin(pfc, gpio);
+
+	*dr = pfc->info->data_regs
+	    + ((gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT);
+	*bit = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
+}
+
+static void gpio_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
+{
+	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
+	struct pinmux_data_reg *data_reg;
+	int k, n;
+
+	k = 0;
+	while (1) {
+		data_reg = pfc->info->data_regs + k;
+
+		if (!data_reg->reg_width)
+			break;
+
+		data_reg->mapped_reg = sh_pfc_phys_to_virt(pfc, data_reg->reg);
+
+		for (n = 0; n < data_reg->reg_width; n++) {
+			if (data_reg->enum_ids[n] == gpiop->enum_id) {
+				gpiop->flags &= ~PINMUX_FLAG_DREG;
+				gpiop->flags |= (k << PINMUX_FLAG_DREG_SHIFT);
+				gpiop->flags &= ~PINMUX_FLAG_DBIT;
+				gpiop->flags |= (n << PINMUX_FLAG_DBIT_SHIFT);
+				return;
+			}
+		}
+		k++;
+	}
+
+	BUG();
+}
+
+static void gpio_setup_data_regs(struct sh_pfc *pfc)
+{
+	struct pinmux_data_reg *drp;
+	int k;
+
+	for (k = 0; k < pfc->info->nr_pins; k++) {
+		if (pfc->info->pins[k].enum_id == 0)
+			continue;
+
+		gpio_setup_data_reg(pfc, k);
+	}
+
+	k = 0;
+	while (1) {
+		drp = pfc->info->data_regs + k;
+
+		if (!drp->reg_width)
+			break;
+
+		drp->reg_shadow = sh_pfc_read_raw_reg(drp->mapped_reg,
+						      drp->reg_width);
+		k++;
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * Pin GPIOs
  */
@@ -59,10 +124,19 @@ static void gpio_pin_free(struct gpio_chip *gc, unsigned offset)
 static void gpio_pin_set_value(struct sh_pfc *pfc, unsigned offset, int value)
 {
 	struct pinmux_data_reg *dr;
-	int bit;
+	unsigned long pos;
+	unsigned int bit;
 
-	sh_pfc_get_data_reg(pfc, offset, &dr, &bit);
-	sh_pfc_write_bit(dr, bit, value);
+	gpio_get_data_reg(pfc, offset, &dr, &bit);
+
+	pos = dr->reg_width - (bit + 1);
+
+	if (value)
+		set_bit(pos, &dr->reg_shadow);
+	else
+		clear_bit(pos, &dr->reg_shadow);
+
+	sh_pfc_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
 }
 
 static int gpio_pin_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -82,10 +156,14 @@ static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	struct pinmux_data_reg *dr;
-	int bit;
+	unsigned long pos;
+	unsigned int bit;
 
-	sh_pfc_get_data_reg(pfc, offset, &dr, &bit);
-	return sh_pfc_read_bit(dr, bit);
+	gpio_get_data_reg(pfc, offset, &dr, &bit);
+
+	pos = dr->reg_width - (bit + 1);
+
+	return (sh_pfc_read_raw_reg(dr->mapped_reg, dr->reg_width) >> pos) & 1;
 }
 
 static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
@@ -225,6 +303,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	unsigned int nr_ranges;
 	unsigned int i;
 	int ret;
+
+	gpio_setup_data_regs(pfc);
 
 	/* Register the real GPIOs chip. */
 	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup);

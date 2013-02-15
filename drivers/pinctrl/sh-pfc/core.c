@@ -55,8 +55,7 @@ static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 	return 0;
 }
 
-static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
-					 unsigned long address)
+void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc, unsigned long address)
 {
 	struct sh_pfc_window *window;
 	int k;
@@ -111,8 +110,8 @@ static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 	return 1;
 }
 
-static unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
-					 unsigned long reg_width)
+unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
+				  unsigned long reg_width)
 {
 	switch (reg_width) {
 	case 8:
@@ -127,8 +126,8 @@ static unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 	return 0;
 }
 
-static void sh_pfc_write_raw_reg(void __iomem *mapped_reg,
-				 unsigned long reg_width, unsigned long data)
+void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
+			  unsigned long data)
 {
 	switch (reg_width) {
 	case 8:
@@ -143,37 +142,6 @@ static void sh_pfc_write_raw_reg(void __iomem *mapped_reg,
 	}
 
 	BUG();
-}
-
-int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos)
-{
-	unsigned long pos;
-
-	pos = dr->reg_width - (in_pos + 1);
-
-	pr_debug("read_bit: addr = %lx, pos = %ld, "
-		 "r_width = %ld\n", dr->reg, pos, dr->reg_width);
-
-	return (sh_pfc_read_raw_reg(dr->mapped_reg, dr->reg_width) >> pos) & 1;
-}
-
-void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
-		      unsigned long value)
-{
-	unsigned long pos;
-
-	pos = dr->reg_width - (in_pos + 1);
-
-	pr_debug("write_bit addr = %lx, value = %d, pos = %ld, "
-		 "r_width = %ld\n",
-		 dr->reg, !!value, pos, dr->reg_width);
-
-	if (value)
-		set_bit(pos, &dr->reg_shadow);
-	else
-		clear_bit(pos, &dr->reg_shadow);
-
-	sh_pfc_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
 }
 
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
@@ -240,73 +208,6 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 			~data);
 
 	sh_pfc_write_raw_reg(mapped_reg, crp->reg_width, data);
-}
-
-static void sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
-{
-	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
-	struct pinmux_data_reg *data_reg;
-	int k, n;
-
-	k = 0;
-	while (1) {
-		data_reg = pfc->info->data_regs + k;
-
-		if (!data_reg->reg_width)
-			break;
-
-		data_reg->mapped_reg = sh_pfc_phys_to_virt(pfc, data_reg->reg);
-
-		for (n = 0; n < data_reg->reg_width; n++) {
-			if (data_reg->enum_ids[n] == gpiop->enum_id) {
-				gpiop->flags &= ~PINMUX_FLAG_DREG;
-				gpiop->flags |= (k << PINMUX_FLAG_DREG_SHIFT);
-				gpiop->flags &= ~PINMUX_FLAG_DBIT;
-				gpiop->flags |= (n << PINMUX_FLAG_DBIT_SHIFT);
-				return;
-			}
-		}
-		k++;
-	}
-
-	BUG();
-}
-
-static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
-{
-	struct pinmux_data_reg *drp;
-	int k;
-
-	for (k = 0; k < pfc->info->nr_pins; k++) {
-		if (pfc->info->pins[k].enum_id == 0)
-			continue;
-
-		sh_pfc_setup_data_reg(pfc, k);
-	}
-
-	k = 0;
-	while (1) {
-		drp = pfc->info->data_regs + k;
-
-		if (!drp->reg_width)
-			break;
-
-		drp->reg_shadow = sh_pfc_read_raw_reg(drp->mapped_reg,
-						      drp->reg_width);
-		k++;
-	}
-}
-
-void sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
-			 struct pinmux_data_reg **drp, int *bitp)
-{
-	struct sh_pfc_pin *gpiop = sh_pfc_get_pin(pfc, gpio);
-	int k, n;
-
-	k = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
-	n = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
-	*drp = pfc->info->data_regs + k;
-	*bitp = n;
 }
 
 static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
@@ -518,7 +419,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	spin_lock_init(&pfc->lock);
 
 	pinctrl_provide_dummies();
-	sh_pfc_setup_data_regs(pfc);
 
 	/*
 	 * Initialize pinctrl bindings first

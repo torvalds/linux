@@ -46,11 +46,12 @@ int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
-int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
-void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
-		      unsigned long value);
-void sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
-			 struct pinmux_data_reg **drp, int *bitp);
+void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc, unsigned long address);
+unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
+				  unsigned long reg_width);
+void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
+			  unsigned long data);
+
 struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 		      int cfg_mode);
