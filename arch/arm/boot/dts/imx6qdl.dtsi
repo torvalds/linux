@@ -101,6 +101,11 @@
 			cache-level = <2>;
 		};
 
+		pmu {
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = <0 94 0x04>;
+		};
+
 		aips-bus@02000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
