@@ -44,7 +44,7 @@ struct oz_serial_ctx {
 /*------------------------------------------------------------------------------
  */
 static struct oz_cdev g_cdev;
-struct class *g_oz_class;
+static struct class *g_oz_class;
 /*------------------------------------------------------------------------------
  * Context: process and softirq
  */
@@ -71,7 +71,7 @@ static void oz_cdev_release_ctx(struct oz_serial_ctx *ctx)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-int oz_cdev_open(struct inode *inode, struct file *filp)
+static int oz_cdev_open(struct inode *inode, struct file *filp)
 {
 	struct oz_cdev *dev;
 	oz_trace("oz_cdev_open()\n");
@@ -83,7 +83,7 @@ int oz_cdev_open(struct inode *inode, struct file *filp)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-int oz_cdev_release(struct inode *inode, struct file *filp)
+static int oz_cdev_release(struct inode *inode, struct file *filp)
 {
 	oz_trace("oz_cdev_release()\n");
 	return 0;
@@ -91,7 +91,7 @@ int oz_cdev_release(struct inode *inode, struct file *filp)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-ssize_t oz_cdev_read(struct file *filp, char __user *buf, size_t count,
+static ssize_t oz_cdev_read(struct file *filp, char __user *buf, size_t count,
 		loff_t *fpos)
 {
 	int n;
@@ -143,8 +143,8 @@ out2:
 /*------------------------------------------------------------------------------
  * Context: process
  */
-ssize_t oz_cdev_write(struct file *filp, const char __user *buf, size_t count,
-		loff_t *fpos)
+static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
+		size_t count, loff_t *fpos)
 {
 	struct oz_pd *pd;
 	struct oz_elt_buf *eb;
@@ -233,7 +233,8 @@ static int oz_set_active_pd(u8 *addr)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-long oz_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
+			  unsigned long arg)
 {
 	int rc = 0;
 	if (_IOC_TYPE(cmd) != OZ_IOCTL_MAGIC)
@@ -297,7 +298,7 @@ long oz_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
+static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int ret = 0;
 	struct oz_cdev *dev = filp->private_data;
@@ -318,7 +319,7 @@ unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 }
 /*------------------------------------------------------------------------------
  */
-const struct file_operations oz_fops = {
+static const struct file_operations oz_fops = {
 	.owner =	THIS_MODULE,
 	.open =		oz_cdev_open,
 	.release =	oz_cdev_release,

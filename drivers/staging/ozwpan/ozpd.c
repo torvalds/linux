@@ -407,7 +407,7 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-void oz_set_more_bit(struct sk_buff *skb)
+static void oz_set_more_bit(struct sk_buff *skb)
 {
 	struct oz_hdr *oz_hdr = (struct oz_hdr *)skb_network_header(skb);
 	oz_hdr->control |= OZ_F_MORE_DATA;
@@ -415,7 +415,7 @@ void oz_set_more_bit(struct sk_buff *skb)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
+static void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
 {
 	struct oz_hdr *oz_hdr = (struct oz_hdr *)skb_network_header(skb);
 	oz_hdr->last_pkt_num = pd->trigger_pkt_num & OZ_LAST_PN_MASK;

@@ -305,7 +305,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
+static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 	struct oz_usb_hdr *usb_hdr, int len)
 {
 	struct oz_data *data_hdr = (struct oz_data *)usb_hdr;

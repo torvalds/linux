@@ -327,7 +327,7 @@ static struct oz_endpoint *oz_ep_alloc(gfp_t mem_flags, int buffer_size)
  * disabled.
  * Context: softirq or process
  */
-struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd, struct urb *urb)
+static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd, struct urb *urb)
 {
 	struct oz_urb_link *urbl;
 	struct list_head *e;
@@ -417,7 +417,8 @@ static void oz_ep_free(struct oz_port *port, struct oz_endpoint *ep)
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
-void oz_complete_buffered_urb(struct oz_port *port, struct oz_endpoint *ep,
+static void oz_complete_buffered_urb(struct oz_port *port,
+			struct oz_endpoint *ep,
 			struct urb *urb)
 {
 	u8 data_len, available_space, copy_len;
