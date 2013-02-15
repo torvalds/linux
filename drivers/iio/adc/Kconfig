@@ -103,6 +103,13 @@ config AT91_ADC
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
 
+config EXYNOS_ADC
+	bool "Exynos ADC driver support"
+	help
+	  Core support for the ADC block found in the Samsung EXYNOS series
+	  of SoCs for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
+
 config LP8788_ADC
 	bool "LP8788 ADC driver"
 	depends on MFD_LP8788
