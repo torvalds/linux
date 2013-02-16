@@ -200,7 +200,12 @@ __u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock)
 	 * 100 or 250 KHz before the conversion -> round to the nearest
 	 * multiple of 50 KHz to undo the precision loss.
 	 */
-	__u32 pclk = (PICOS2HZ(pixclock) + 25000) / 50000;
+	__u32 pclk;
+
+	if (pixclock == 0)
+		return 0;
+
+	pclk = (PICOS2HZ(pixclock) + 25000) / 50000;
 	return pclk * 50000;
 }
 
