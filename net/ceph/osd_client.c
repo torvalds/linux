@@ -67,16 +67,15 @@ static int calc_layout(struct ceph_vino vino,
 		       struct ceph_file_layout *layout,
 		       u64 off, u64 *plen,
 		       struct ceph_osd_request *req,
-		       struct ceph_osd_req_op *op)
+		       struct ceph_osd_req_op *op, u64 *bno)
 {
 	u64 orig_len = *plen;
-	u64 bno = 0;
 	u64 objoff = 0;
 	u64 objlen = 0;
 	int r;
 
 	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, orig_len, &bno,
+	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
 					  &objoff, &objlen);
 	if (r < 0)
 		return r;
@@ -104,9 +103,9 @@ static int calc_layout(struct ceph_vino vino,
 		op->payload_len = *plen;
 
 	dout("calc_layout bno=%llx %llu~%llu (%d pages)\n",
-	     bno, objoff, objlen, req->r_num_pages);
+	     *bno, objoff, objlen, req->r_num_pages);
 
-	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
+	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, *bno);
 	req->r_oid_len = strlen(req->r_oid);
 
 	return 0;
@@ -449,6 +448,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	struct ceph_osd_req_op ops[2];
 	struct ceph_osd_request *req;
 	unsigned int num_op = 1;
+	u64 bno = 0;
 	int r;
 
 	memset(&ops, 0, sizeof ops);
@@ -469,11 +469,12 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	req->r_flags = flags;
 
 	/* calculate max write size */
-	r = calc_layout(vino, layout, off, plen, req, ops);
+	r = calc_layout(vino, layout, off, plen, req, ops, &bno);
 	if (r < 0) {
 		ceph_osdc_put_request(req);
 		return ERR_PTR(r);
 	}
+
 	req->r_file_layout = *layout;  /* keep a copy */
 
 	/* in case it differs from natural (file) alignment that
