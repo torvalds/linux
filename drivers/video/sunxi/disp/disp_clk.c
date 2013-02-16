@@ -907,6 +907,9 @@ static __s32 disp_get_pll_freq_between(__u32 pclk, __u32 min, __u32 max,
 
 __s32 disp_get_pll_freq(__u32 pclk, __u32 *pll_freq,  __u32 *pll_2x)
 {
+	if (pclk == 0)
+		return -1;
+
 	/* First try the 2 special video pll clks */
 	if ((270000000 % pclk) == 0) {
 		*pll_freq = 270000000;
