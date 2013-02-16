@@ -656,7 +656,7 @@ static void abx500_gpio_disable_free(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinmux_ops abx500_pinmux_ops = {
+static const struct pinmux_ops abx500_pinmux_ops = {
 	.get_functions_count = abx500_pmx_get_funcs_cnt,
 	.get_function_name = abx500_pmx_get_func_name,
 	.get_function_groups = abx500_pmx_get_func_groups,
@@ -704,7 +704,7 @@ static void abx500_pin_dbg_show(struct pinctrl_dev *pctldev,
 				 chip->base + offset - 1);
 }
 
-static struct pinctrl_ops abx500_pinctrl_ops = {
+static const struct pinctrl_ops abx500_pinctrl_ops = {
 	.get_groups_count = abx500_get_groups_cnt,
 	.get_group_name = abx500_get_group_name,
 	.get_group_pins = abx500_get_group_pins,
@@ -778,7 +778,7 @@ int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 	return ret;
 }
 
-static struct pinconf_ops abx500_pinconf_ops = {
+static const struct pinconf_ops abx500_pinconf_ops = {
 	.pin_config_get = abx500_pin_config_get,
 	.pin_config_set = abx500_pin_config_set,
 };

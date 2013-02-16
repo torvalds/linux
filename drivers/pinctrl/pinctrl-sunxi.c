@@ -1029,7 +1029,7 @@ static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops sunxi_pctrl_ops = {
+static const struct pinctrl_ops sunxi_pctrl_ops = {
 	.dt_node_to_map		= sunxi_pctrl_dt_node_to_map,
 	.dt_free_map		= sunxi_pctrl_dt_free_map,
 	.get_groups_count	= sunxi_pctrl_get_groups_count,
@@ -1098,7 +1098,7 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops sunxi_pconf_ops = {
+static const struct pinconf_ops sunxi_pconf_ops = {
 	.pin_config_group_get	= sunxi_pconf_group_get,
 	.pin_config_group_set	= sunxi_pconf_group_set,
 };
@@ -1204,7 +1204,7 @@ error:
 	return ret;
 }
 
-static struct pinmux_ops sunxi_pmx_ops = {
+static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,

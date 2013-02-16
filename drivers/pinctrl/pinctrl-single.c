@@ -270,7 +270,7 @@ static int pcs_dt_node_to_map(struct pinctrl_dev *pctldev,
 				struct device_node *np_config,
 				struct pinctrl_map **map, unsigned *num_maps);
 
-static struct pinctrl_ops pcs_pinctrl_ops = {
+static const struct pinctrl_ops pcs_pinctrl_ops = {
 	.get_groups_count = pcs_get_groups_count,
 	.get_group_name = pcs_get_group_name,
 	.get_group_pins = pcs_get_group_pins,
@@ -408,7 +408,7 @@ static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinmux_ops pcs_pinmux_ops = {
+static const struct pinmux_ops pcs_pinmux_ops = {
 	.get_functions_count = pcs_get_functions_count,
 	.get_function_name = pcs_get_function_name,
 	.get_function_groups = pcs_get_function_groups,
@@ -451,7 +451,7 @@ static void pcs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinconf_ops pcs_pinconf_ops = {
+static const struct pinconf_ops pcs_pinconf_ops = {
 	.pin_config_get = pcs_pinconf_get,
 	.pin_config_set = pcs_pinconf_set,
 	.pin_config_group_get = pcs_pinconf_group_get,
