@@ -572,7 +572,7 @@ static int __init sunxi_gpio_init(void)
 exit:
 	return err;
 }
-module_init(sunxi_gpio_init);
+subsys_initcall(sunxi_gpio_init);
 
 static void __exit sunxi_gpio_exit(void)
 {
