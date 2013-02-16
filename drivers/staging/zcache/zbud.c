@@ -103,8 +103,8 @@ struct zbudpage {
 		struct {
 			unsigned long space_for_flags;
 			struct {
-				unsigned zbud0_size: PAGE_SHIFT;
-				unsigned zbud1_size: PAGE_SHIFT;
+				unsigned zbud0_size:PAGE_SHIFT;
+				unsigned zbud1_size:PAGE_SHIFT;
 				unsigned unevictable:2;
 			};
 			struct list_head budlist;
