@@ -27,6 +27,9 @@
 
 struct sh_pfc_pinctrl {
 	struct pinctrl_dev *pctl;
+	struct pinctrl_desc pctl_desc;
+	struct pinctrl_gpio_range range;
+
 	struct sh_pfc *pfc;
 
 	struct pinmux_gpio **functions;
@@ -314,19 +317,6 @@ static const struct pinconf_ops sh_pfc_pinconf_ops = {
 	.pin_config_dbg_show	= sh_pfc_pinconf_dbg_show,
 };
 
-static struct pinctrl_gpio_range sh_pfc_gpio_range = {
-	.name		= DRV_NAME,
-	.id		= 0,
-};
-
-static struct pinctrl_desc sh_pfc_pinctrl_desc = {
-	.name		= DRV_NAME,
-	.owner		= THIS_MODULE,
-	.pctlops	= &sh_pfc_pinctrl_ops,
-	.pmxops		= &sh_pfc_pinmux_ops,
-	.confops	= &sh_pfc_pinconf_ops,
-};
-
 static void sh_pfc_map_one_gpio(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx,
 				struct pinmux_gpio *gpio, unsigned offset)
 {
@@ -386,9 +376,6 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
-	sh_pfc_pinctrl_desc.pins = pmx->pads;
-	sh_pfc_pinctrl_desc.npins = pmx->nr_pads;
-
 	return 0;
 }
 
@@ -438,16 +425,25 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	if (unlikely(ret != 0))
 		return ret;
 
-	pmx->pctl = pinctrl_register(&sh_pfc_pinctrl_desc, pfc->dev, pmx);
+	pmx->pctl_desc.name = DRV_NAME;
+	pmx->pctl_desc.owner = THIS_MODULE;
+	pmx->pctl_desc.pctlops = &sh_pfc_pinctrl_ops;
+	pmx->pctl_desc.pmxops = &sh_pfc_pinmux_ops;
+	pmx->pctl_desc.confops = &sh_pfc_pinconf_ops;
+	pmx->pctl_desc.pins = pmx->pads;
+	pmx->pctl_desc.npins = pmx->nr_pads;
+
+	pmx->pctl = pinctrl_register(&pmx->pctl_desc, pfc->dev, pmx);
 	if (IS_ERR(pmx->pctl))
 		return PTR_ERR(pmx->pctl);
 
-	sh_pfc_gpio_range.npins = pfc->info->last_gpio
-				- pfc->info->first_gpio + 1;
-	sh_pfc_gpio_range.base = pfc->info->first_gpio;
-	sh_pfc_gpio_range.pin_base = pfc->info->first_gpio;
+	pmx->range.name = DRV_NAME,
+	pmx->range.id = 0;
+	pmx->range.npins = pfc->info->last_gpio - pfc->info->first_gpio + 1;
+	pmx->range.base = pfc->info->first_gpio;
+	pmx->range.pin_base = pfc->info->first_gpio;
 
-	pinctrl_add_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
+	pinctrl_add_gpio_range(pmx->pctl, &pmx->range);
 
 	return 0;
 }
