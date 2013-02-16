@@ -495,7 +495,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	if (info == NULL)
 		return -ENODEV;
 
-	pfc = devm_kzalloc(&pdev->dev, sizeof(pfc), GFP_KERNEL);
+	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
 	if (pfc == NULL)
 		return -ENOMEM;
 
