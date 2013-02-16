@@ -46,20 +46,11 @@ struct framerates {
 	int nrates;
 };
 
-/* control definition */
-struct gspca_ctrl {
-	s16 val;	/* current value */
-	s16 def;	/* default value */
-	s16 min, max;	/* minimum and maximum values */
-};
-
 /* device information - set at probe time */
 struct cam {
 	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	const struct framerates *mode_framerates; /* must have size nmodes,
 						   * just like cam_mode */
-	struct gspca_ctrl *ctrls;	/* control table - size nctrls */
-					/* may be NULL */
 	u32 bulk_size;		/* buffer size when image transfer by bulk */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 	u8 nmodes;		/* size of cam_mode */
@@ -93,8 +84,6 @@ typedef int (*cam_ident_op) (struct gspca_dev *,
 				struct v4l2_dbg_chip_ident *);
 typedef void (*cam_streamparm_op) (struct gspca_dev *,
 				  struct v4l2_streamparm *);
-typedef int (*cam_qmnu_op) (struct gspca_dev *,
-			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
@@ -102,20 +91,10 @@ typedef int (*cam_int_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
 
-struct ctrl {
-	struct v4l2_queryctrl qctrl;
-	int (*set)(struct gspca_dev *, __s32);
-	int (*get)(struct gspca_dev *, __s32 *);
-	cam_v_op set_control;
-};
-
 /* subdriver description */
 struct sd_desc {
 /* information */
 	const char *name;	/* sub-driver name */
-/* controls */
-	const struct ctrl *ctrls;	/* static control definition */
-	int nctrls;
 /* mandatory operations */
 	cam_cf_op config;	/* called on probe */
 	cam_op init;		/* called on probe and resume */
@@ -130,7 +109,6 @@ struct sd_desc {
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_get_jpg_op get_jcomp;
 	cam_set_jpg_op set_jcomp;
-	cam_qmnu_op querymenu;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -174,8 +152,6 @@ struct gspca_dev {
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
-	unsigned ctrl_dis;		/* disabled controls (bit map) */
-	unsigned ctrl_inac;		/* inactive controls (bit map) */
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* autogain and exposure or gain control cluster, these are global as
