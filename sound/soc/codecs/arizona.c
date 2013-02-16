@@ -335,6 +335,23 @@ EXPORT_SYMBOL_GPL(arizona_ng_hold);
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
+	unsigned int reg;
+
+	if (w->shift % 2)
+		reg = ARIZONA_ADC_DIGITAL_VOLUME_1L + ((w->shift / 2) * 8);
+	else
+		reg = ARIZONA_ADC_DIGITAL_VOLUME_1R + ((w->shift / 2) * 8);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE,
+				    ARIZONA_IN1L_MUTE);
+		break;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_in_ev);
