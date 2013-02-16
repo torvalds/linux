@@ -1023,10 +1023,7 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 		adapter->data_sent = false;
 
 	if (card->txbd_flush) {
-		if (((card->txbd_wrptr & reg->tx_mask) ==
-		     (card->txbd_rdptr & reg->tx_mask)) &&
-		    ((card->txbd_wrptr & reg->tx_rollover_ind) !=
-		     (card->txbd_rdptr & reg->tx_rollover_ind)))
+		if (mwifiex_pcie_txbd_empty(card, card->txbd_rdptr))
 			card->txbd_flush = 0;
 		else
 			mwifiex_clean_pcie_ring_buf(adapter);
