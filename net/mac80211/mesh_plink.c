@@ -129,7 +129,6 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u32 changed = 0;
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
@@ -142,23 +141,19 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 		    sta->plink_state != NL80211_PLINK_ESTAB)
 			continue;
 
-		switch (sta->ch_width) {
-		case NL80211_CHAN_WIDTH_20_NOHT:
-			mpl_dbg(sdata,
-				"mesh_plink %pM: nonHT sta (%pM) is present\n",
-				sdata->vif.addr, sta->sta.addr);
+		if (sta->sta.bandwidth > IEEE80211_STA_RX_BW_20)
+			continue;
+
+		if (!sta->sta.ht_cap.ht_supported) {
+			mpl_dbg(sdata, "nonHT sta (%pM) is present\n",
+				       sta->sta.addr);
 			non_ht_sta = true;
-			goto out;
-		case NL80211_CHAN_WIDTH_20:
-			mpl_dbg(sdata,
-				"mesh_plink %pM: HT20 sta (%pM) is present\n",
-				sdata->vif.addr, sta->sta.addr);
-			ht20_sta = true;
-		default:
 			break;
 		}
+
+		mpl_dbg(sdata, "HT20 sta (%pM) is present\n", sta->sta.addr);
+		ht20_sta = true;
 	}
-out:
 	rcu_read_unlock();
 
 	if (non_ht_sta)
@@ -169,16 +164,13 @@ out:
 	else
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 
-	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
-		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
-		sdata->u.mesh.mshcfg.ht_opmode = ht_opmode;
-		changed = BSS_CHANGED_HT;
-		mpl_dbg(sdata,
-			"mesh_plink %pM: protection mode changed to %d\n",
-			sdata->vif.addr, ht_opmode);
-	}
+	if (sdata->vif.bss_conf.ht_operation_mode == ht_opmode)
+		return 0;
 
-	return changed;
+	sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+	sdata->u.mesh.mshcfg.ht_opmode = ht_opmode;
+	mpl_dbg(sdata, "selected new HT protection mode %d\n", ht_opmode);
+	return BSS_CHANGED_HT;
 }
 
 /**
@@ -371,24 +363,18 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	if (sta->sta.supp_rates[band] != rates)
 		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
 	sta->sta.supp_rates[band] = rates;
-	if (elems->ht_cap_elem &&
-	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  elems->ht_cap_elem, sta);
-	else
-		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
 
-	if (elems->ht_operation) {
-		struct cfg80211_chan_def chandef;
+	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+					      elems->ht_cap_elem, sta))
+		changed |= IEEE80211_RC_BW_CHANGED;
 
-		if (!(elems->ht_operation->ht_param &
-		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
-			sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
-		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-					     elems->ht_operation, &chandef);
-		if (sta->ch_width != chandef.width)
+	/* HT peer is operating 20MHz-only */
+	if (elems->ht_operation &&
+	    !(elems->ht_operation->ht_param &
+	      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
+		if (sta->sta.bandwidth != IEEE80211_STA_RX_BW_20)
 			changed |= IEEE80211_RC_BW_CHANGED;
-		sta->ch_width = chandef.width;
+		sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
 	}
 
 	if (insert)
