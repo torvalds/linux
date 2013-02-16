@@ -55,7 +55,8 @@ static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 	return 0;
 }
 
-void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc, unsigned long address)
+static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
+					 unsigned long address)
 {
 	struct sh_pfc_window *window;
 	int k;

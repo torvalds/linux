@@ -46,7 +46,6 @@ int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
-void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc, unsigned long address);
 unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 				  unsigned long reg_width);
 void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,

@@ -110,7 +110,6 @@ struct pinmux_cfg_reg {
 struct pinmux_data_reg {
 	unsigned long reg, reg_width, reg_shadow;
 	pinmux_enum_t *enum_ids;
-	void __iomem *mapped_reg;
 };
 
 #define PINMUX_DATA_REG(name, r, r_width) \
