@@ -140,6 +140,12 @@ static const struct hc_driver sw_ohci_hc_driver = {
 	.get_frame_number = ohci_get_frame,
 
 	/*
+	 * dma fixes
+	 */
+	.map_urb_for_dma = sunxi_hcd_map_urb_for_dma,
+	.unmap_urb_for_dma = sunxi_hcd_unmap_urb_for_dma,
+
+	/*
 	 * root hub support
 	 */
 	.hub_status_data = ohci_hub_status_data,
