@@ -86,7 +86,7 @@ struct ceph_msg {
 #ifdef CONFIG_BLOCK
 	struct bio  *bio;		/* instead of pages/pagelist */
 	struct bio  *bio_iter;		/* bio iterator */
-	int bio_seg;			/* current bio segment */
+	unsigned int bio_seg;		/* current bio segment */
 #endif /* CONFIG_BLOCK */
 	struct ceph_pagelist *trail;	/* the trailing part of the data */
 	bool front_is_vmalloc;

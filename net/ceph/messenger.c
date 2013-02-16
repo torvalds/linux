@@ -697,18 +697,19 @@ static void con_out_kvec_add(struct ceph_connection *con,
 }
 
 #ifdef CONFIG_BLOCK
-static void init_bio_iter(struct bio *bio, struct bio **iter, int *seg)
+static void init_bio_iter(struct bio *bio, struct bio **bio_iter,
+			unsigned int *bio_seg)
 {
 	if (!bio) {
-		*iter = NULL;
-		*seg = 0;
+		*bio_iter = NULL;
+		*bio_seg = 0;
 		return;
 	}
-	*iter = bio;
-	*seg = bio->bi_idx;
+	*bio_iter = bio;
+	*bio_seg = (unsigned int) bio->bi_idx;
 }
 
-static void iter_bio_next(struct bio **bio_iter, int *seg)
+static void iter_bio_next(struct bio **bio_iter, unsigned int *seg)
 {
 	if (*bio_iter == NULL)
 		return;
@@ -1818,7 +1819,8 @@ static int read_partial_message_pages(struct ceph_connection *con,
 
 #ifdef CONFIG_BLOCK
 static int read_partial_message_bio(struct ceph_connection *con,
-				    struct bio **bio_iter, int *bio_seg,
+				    struct bio **bio_iter,
+				    unsigned int *bio_seg,
 				    unsigned int data_len, bool do_datacrc)
 {
 	struct bio_vec *bv = bio_iovec_idx(*bio_iter, *bio_seg);
