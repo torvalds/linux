@@ -109,7 +109,7 @@ static int calc_layout(struct ceph_vino vino,
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
 
-	return r;
+	return 0;
 }
 
 /*
@@ -470,8 +470,10 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	/* calculate max write size */
 	r = calc_layout(vino, layout, off, plen, req, ops);
-	if (r < 0)
+	if (r < 0) {
+		ceph_osdc_put_request(req);
 		return ERR_PTR(r);
+	}
 	req->r_file_layout = *layout;  /* keep a copy */
 
 	/* in case it differs from natural (file) alignment that
