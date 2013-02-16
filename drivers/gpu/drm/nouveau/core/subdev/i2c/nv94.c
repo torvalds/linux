@@ -1,5 +1,5 @@
 /*
- * Copyright 2009 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,11 +22,8 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/i2c.h>
+#include "nv50.h"
 
-/******************************************************************************
- * aux channel util functions
- *****************************************************************************/
 #define AUX_DBG(fmt, args...) nv_debug(aux, "AUXCH(%d): " fmt, ch, ##args)
 #define AUX_ERR(fmt, args...) nv_error(aux, "AUXCH(%d): " fmt, ch, ##args)
 
@@ -72,12 +69,13 @@ auxch_init(struct nouveau_i2c *aux, int ch)
 }
 
 int
-nv94_aux(struct nouveau_i2c_port *port, u8 type, u32 addr, u8 *data, u8 size)
+nv94_aux(struct nouveau_i2c_port *base, u8 type, u32 addr, u8 *data, u8 size)
 {
-	struct nouveau_i2c *aux = port->i2c;
+	struct nouveau_i2c *aux = nouveau_i2c(base);
+	struct nv50_i2c_port *port = (void *)base;
 	u32 ctrl, stat, timeout, retries;
 	u32 xbuf[4] = {};
-	int ch = port->drive;
+	int ch = port->addr;
 	int ret, i;
 
 	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
@@ -153,13 +151,135 @@ out:
 }
 
 void
-nv94_aux_mux(struct nouveau_i2c_port *port)
+nv94_i2c_acquire(struct nouveau_i2c_port *base)
 {
-	if (port->dcb & 0x00000100) {
-		u32 reg = 0x00e500 + (port->drive * 0x50);
-		/* nfi, but neither auxch or i2c work if it's 1 */
-		nv_mask(port->i2c, reg + 0x0c, 0x00000001, 0x00000000);
-		/* nfi, but switches auxch vs normal i2c */
-		nv_mask(port->i2c, reg + 0x00, 0x0000f003, 0x00002002);
+	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_port *port = (void *)base;
+	if (port->ctrl) {
+		nv_mask(priv, port->ctrl + 0x0c, 0x00000001, 0x00000000);
+		nv_mask(priv, port->ctrl + 0x00, 0x0000f003, port->data);
 	}
 }
+
+void
+nv94_i2c_release(struct nouveau_i2c_port *base)
+{
+}
+
+static const struct nouveau_i2c_func
+nv94_i2c_func = {
+	.acquire   = nv94_i2c_acquire,
+	.release   = nv94_i2c_release,
+	.drive_scl = nv50_i2c_drive_scl,
+	.drive_sda = nv50_i2c_drive_sda,
+	.sense_scl = nv50_i2c_sense_scl,
+	.sense_sda = nv50_i2c_sense_sda,
+};
+
+static int
+nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		   struct nouveau_oclass *oclass, void *data, u32 index,
+		   struct nouveau_object **pobject)
+{
+	struct dcb_i2c_entry *info = data;
+	struct nv50_i2c_port *port;
+	int ret;
+
+	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
+				     &nouveau_i2c_bit_algo, &port);
+	*pobject = nv_object(port);
+	if (ret)
+		return ret;
+
+	if (info->drive >= nv50_i2c_addr_nr)
+		return -EINVAL;
+
+	port->base.func = &nv94_i2c_func;
+	port->state = 7;
+	port->addr = nv50_i2c_addr[info->drive];
+	if (info->share != DCB_I2C_UNUSED) {
+		port->ctrl = 0x00e500 + (info->share * 0x50);
+		port->data = 0x0000e001;
+	}
+	return 0;
+}
+
+static const struct nouveau_i2c_func
+nv94_aux_func = {
+	.acquire   = nv94_i2c_acquire,
+	.release   = nv94_i2c_release,
+	.aux       = nv94_aux,
+};
+
+int
+nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		   struct nouveau_oclass *oclass, void *data, u32 index,
+		   struct nouveau_object **pobject)
+{
+	struct dcb_i2c_entry *info = data;
+	struct nv50_i2c_port *port;
+	int ret;
+
+	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
+				     &nouveau_i2c_aux_algo, &port);
+	*pobject = nv_object(port);
+	if (ret)
+		return ret;
+
+	port->base.func = &nv94_aux_func;
+	port->addr = info->drive;
+	if (info->share != DCB_I2C_UNUSED) {
+		port->ctrl = 0x00e500 + (info->drive * 0x50);
+		port->data = 0x00002002;
+	}
+
+	return 0;
+}
+
+static struct nouveau_oclass
+nv94_i2c_sclass[] = {
+	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
+	  .ofuncs = &(struct nouveau_ofuncs) {
+		  .ctor = nv94_i2c_port_ctor,
+		  .dtor = _nouveau_i2c_port_dtor,
+		  .init = nv50_i2c_port_init,
+		  .fini = _nouveau_i2c_port_fini,
+	  },
+	},
+	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX),
+	  .ofuncs = &(struct nouveau_ofuncs) {
+		  .ctor = nv94_aux_port_ctor,
+		  .dtor = _nouveau_i2c_port_dtor,
+		  .init = _nouveau_i2c_port_init,
+		  .fini = _nouveau_i2c_port_fini,
+	  },
+	},
+	{}
+};
+
+static int
+nv94_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	      struct nouveau_oclass *oclass, void *data, u32 size,
+	      struct nouveau_object **pobject)
+{
+	struct nv50_i2c_priv *priv;
+	int ret;
+
+	ret = nouveau_i2c_create(parent, engine, oclass, nv94_i2c_sclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+struct nouveau_oclass
+nv94_i2c_oclass = {
+	.handle = NV_SUBDEV(I2C, 0x94),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv94_i2c_ctor,
+		.dtor = _nouveau_i2c_dtor,
+		.init = _nouveau_i2c_init,
+		.fini = _nouveau_i2c_fini,
+	},
+};

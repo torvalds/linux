@@ -27,10 +27,10 @@
 int
 nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
-	if (port->aux) {
-		if (port->aux_mux)
-			port->aux_mux(port);
-		return port->aux(port, 9, addr, data, size);
+	if (port->func->aux) {
+		if (port->func->acquire)
+			port->func->acquire(port);
+		return port->func->aux(port, 9, addr, data, size);
 	}
 	return -ENODEV;
 }
@@ -38,10 +38,10 @@ nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 int
 nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
-	if (port->aux) {
-		if (port->aux_mux)
-			port->aux_mux(port);
-		return port->aux(port, 8, addr, data, size);
+	if (port->func->aux) {
+		if (port->func->acquire)
+			port->func->acquire(port);
+		return port->func->aux(port, 8, addr, data, size);
 	}
 	return -ENODEV;
 }
@@ -49,14 +49,14 @@ nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 static int
 aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	struct nouveau_i2c_port *port = (struct nouveau_i2c_port *)adap;
+	struct nouveau_i2c_port *port = adap->algo_data;
 	struct i2c_msg *msg = msgs;
 	int ret, mcnt = num;
 
-	if (!port->aux)
+	if (!port->func->aux)
 		return -ENODEV;
-	if ( port->aux_mux)
-		port->aux_mux(port);
+	if ( port->func->acquire)
+		port->func->acquire(port);
 
 	while (mcnt--) {
 		u8 remaining = msg->len;
@@ -74,7 +74,7 @@ aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = port->aux(port, cmd, msg->addr, ptr, cnt);
+			ret = port->func->aux(port, cmd, msg->addr, ptr, cnt);
 			if (ret < 0)
 				return ret;
 

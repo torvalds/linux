@@ -50,7 +50,7 @@ nv30_identify(struct nouveau_device *device)
 		device->cname = "NV30";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -69,7 +69,7 @@ nv30_identify(struct nouveau_device *device)
 		device->cname = "NV35";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -88,7 +88,7 @@ nv30_identify(struct nouveau_device *device)
 		device->cname = "NV31";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -108,7 +108,7 @@ nv30_identify(struct nouveau_device *device)
 		device->cname = "NV36";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -128,7 +128,7 @@ nv30_identify(struct nouveau_device *device)
 		device->cname = "NV34";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;

@@ -31,7 +31,7 @@ static bool
 probe_monitoring_device(struct nouveau_i2c_port *i2c,
 			struct i2c_board_info *info)
 {
-	struct nouveau_therm_priv *priv = (void *)nouveau_therm(i2c->i2c);
+	struct nouveau_therm_priv *priv = (void *)nouveau_therm(i2c);
 	struct i2c_client *client;
 
 	request_module("%s%s", I2C_MODULE_PREFIX, info->type);

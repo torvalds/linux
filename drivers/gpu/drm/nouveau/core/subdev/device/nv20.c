@@ -50,7 +50,7 @@ nv20_identify(struct nouveau_device *device)
 		device->cname = "NV20";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -69,7 +69,7 @@ nv20_identify(struct nouveau_device *device)
 		device->cname = "NV25";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -88,7 +88,7 @@ nv20_identify(struct nouveau_device *device)
 		device->cname = "NV28";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
@@ -107,7 +107,7 @@ nv20_identify(struct nouveau_device *device)
 		device->cname = "NV2A";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
