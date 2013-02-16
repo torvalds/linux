@@ -237,7 +237,7 @@ int gpio_init(void)
 	sunxi_script_init((void *)__va(SYS_CONFIG_MEMBASE));
 	return 1;
 }
-fs_initcall(gpio_init);
+arch_initcall(gpio_init);
 
 /*
  *
