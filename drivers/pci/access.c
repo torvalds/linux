@@ -515,7 +515,7 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 		return false;
 
 	switch (pos) {
-	case PCI_EXP_FLAGS_TYPE:
+	case PCI_EXP_FLAGS:
 		return true;
 	case PCI_EXP_DEVCAP:
 	case PCI_EXP_DEVCTL:
