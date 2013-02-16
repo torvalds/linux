@@ -109,6 +109,19 @@ nouveau_i2c_find(struct nouveau_i2c *i2c, u8 index)
 	return NULL;
 }
 
+static struct nouveau_i2c_port *
+nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
+{
+	struct nouveau_i2c_port *port;
+
+	list_for_each_entry(port, &i2c->ports, head) {
+		if (port->type == type)
+			return port;
+	}
+
+	return NULL;
+}
+
 static int
 nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
 		     struct i2c_board_info *info,
@@ -264,6 +277,7 @@ nouveau_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	i2c->find = nouveau_i2c_find;
+	i2c->find_type = nouveau_i2c_find_type;
 	i2c->identify = nouveau_i2c_identify;
 	INIT_LIST_HEAD(&i2c->ports);
 

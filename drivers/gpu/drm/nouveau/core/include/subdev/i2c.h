@@ -16,7 +16,7 @@ struct nouveau_i2c_port {
 	struct i2c_algo_bit_data bit;
 	struct list_head head;
 	u8  index;
-	u8  type;
+	u16 type;
 	u32 dcb;
 	u32 drive;
 	u32 sense;
@@ -29,6 +29,7 @@ struct nouveau_i2c {
 	struct nouveau_subdev base;
 
 	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
+	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
 	int (*identify)(struct nouveau_i2c *, int index,
 			const char *what, struct i2c_board_info *,
 			bool (*match)(struct nouveau_i2c_port *,
