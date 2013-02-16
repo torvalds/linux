@@ -925,7 +925,6 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
 	memcpy(hdr->da, mgmt->sa, ETH_ALEN);
-	mpl_dbg(sdata, "sending probe resp. to %pM\n", hdr->da);
 	IEEE80211_SKB_CB(presp)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, presp);
 out:
