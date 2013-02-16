@@ -23,6 +23,7 @@ mwifiex-y += util.o
 mwifiex-y += txrx.o
 mwifiex-y += wmm.o
 mwifiex-y += 11n.o
+mwifiex-y += 11ac.o
 mwifiex-y += 11n_aggr.o
 mwifiex-y += 11n_rxreorder.o
 mwifiex-y += scan.o
