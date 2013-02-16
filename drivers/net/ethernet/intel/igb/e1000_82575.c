@@ -227,7 +227,7 @@ out:
  *  igb_init_nvm_params_82575 - Init NVM func ptrs.
  *  @hw: pointer to the HW structure
  **/
-s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
+static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = rd32(E1000_EECD);
@@ -867,7 +867,7 @@ static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
  *  During driver activity, SmartSpeed should be enabled so performance is
  *  maintained.
  **/
-s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
+static s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = 0;
