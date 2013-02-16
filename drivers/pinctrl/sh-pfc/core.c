@@ -30,10 +30,8 @@ static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 	struct resource *res;
 	int k;
 
-	if (pdev->num_resources == 0) {
-		pfc->num_windows = 0;
-		return 0;
-	}
+	if (pdev->num_resources == 0)
+		return -EINVAL;
 
 	pfc->window = devm_kzalloc(pfc->dev, pdev->num_resources *
 				   sizeof(*pfc->window), GFP_NOWAIT);
@@ -59,11 +57,11 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 					 unsigned long address)
 {
 	struct sh_pfc_window *window;
-	int k;
+	unsigned int i;
 
 	/* scan through physical windows and convert address */
-	for (k = 0; k < pfc->num_windows; k++) {
-		window = pfc->window + k;
+	for (i = 0; i < pfc->num_windows; i++) {
+		window = pfc->window + i;
 
 		if (address < window->phys)
 			continue;
@@ -74,8 +72,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 		return window->virt + (address - window->phys);
 	}
 
-	/* no windows defined, register must be 1:1 mapped virt:phys */
-	return (void __iomem *)address;
+	BUG();
 }
 
 struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin)
