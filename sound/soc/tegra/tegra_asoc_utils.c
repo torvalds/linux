@@ -176,11 +176,7 @@ int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
 		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA20;
 	else if (of_machine_is_compatible("nvidia,tegra30"))
 		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA30;
-	else if (!dev->of_node)
-		/* non-DT is always Tegra20 */
-		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA20;
 	else
-		/* DT boot, but unknown SoC */
 		return -EINVAL;
 
 	data->clk_pll_a = clk_get_sys(NULL, "pll_a");
