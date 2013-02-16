@@ -863,8 +863,8 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	struct nvbios_outp info1;
 	struct nvbios_ocfg info2;
 	u8  ver, hdr, cnt, len;
-	u16 data, conf;
 	u32 ctrl = 0x00000000;
+	u32 data, conf = ~0;
 	int i;
 
 	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
@@ -885,12 +885,12 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	}
 
 	if (!(ctrl & (1 << head)))
-		return 0x0000;
+		return conf;
 	i--;
 
 	data = exec_lookup(priv, head, i, ctrl, outp, &ver, &hdr, &cnt, &len, &info1);
 	if (!data)
-		return 0x0000;
+		return conf;
 
 	switch (outp->type) {
 	case DCB_OUTPUT_TMDS:
@@ -923,13 +923,11 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 				.execute = 1,
 			};
 
-			if (nvbios_exec(&init))
-				return 0x0000;
-			return conf;
+			nvbios_exec(&init);
 		}
 	}
 
-	return 0x0000;
+	return conf;
 }
 
 static void
@@ -1082,7 +1080,7 @@ nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
 	if (head >= 0) {
 		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 		u32 conf = exec_clkcmp(priv, head, 0, pclk, &outp);
-		if (conf) {
+		if (conf != ~0) {
 			if (outp.type == DCB_OUTPUT_ANALOG) {
 				addr = 0x614280 + (ffs(outp.or) - 1) * 0x800;
 				mask = 0xffffffff;
@@ -1132,7 +1130,7 @@ nv50_disp_intr_unk40(struct nv50_disp_priv *priv, u32 super)
 	if (head >= 0) {
 		struct dcb_output outp;
 		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		if (pclk && exec_clkcmp(priv, head, 1, pclk, &outp)) {
+		if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0) {
 			if (outp.type == DCB_OUTPUT_TMDS)
 				nv50_disp_intr_unk40_tmds(priv, &outp);
 		}

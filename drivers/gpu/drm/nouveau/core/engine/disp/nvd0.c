@@ -657,11 +657,11 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int outp,
 	struct nvbios_ocfg info2;
 	struct dcb_output dcb;
 	u8  ver, hdr, cnt, len;
-	u16 data, conf;
+	u32 data, conf = ~0;
 
 	data = exec_lookup(priv, head, outp, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info1);
 	if (data == 0x0000)
-		return false;
+		return conf;
 
 	switch (dcb.type) {
 	case DCB_OUTPUT_TMDS:
@@ -694,13 +694,11 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int outp,
 				.execute = 1,
 			};
 
-			if (nvbios_exec(&init))
-				return 0x0000;
-			return conf;
+			nvbios_exec(&init);
 		}
 	}
 
-	return 0x0000;
+	return conf;
 }
 
 static void
@@ -785,9 +783,10 @@ nvd0_display_unk2_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
 
 	for (i = 0; mask && i < 8; i++) {
-		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20)), cfg;
+		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20));
 		if (mcp & (1 << head)) {
-			if ((cfg = exec_clkcmp(priv, head, i, mcp, 0, pclk))) {
+			u32 cfg = exec_clkcmp(priv, head, i, mcp, 0, pclk);
+			if (cfg != ~0) {
 				u32 addr, mask, data = 0x00000000;
 				if (i < 4) {
 					addr = 0x612280 + ((i - 0) * 0x800);
