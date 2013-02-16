@@ -9,6 +9,10 @@ driver as they did not build properly at the time.
 
 TODO:
 	- some rx packets have CRC/code/frame errors
+	- Look at reducing the number of spinlocks
+	- Simplify code in nic_rx_pkts(), when determining multicast_pkts_rcvd
+	- Implement NAPI support
+	- in et131x_tx(), don't return NETDEV_TX_BUSY, just drop the packet with	  kfree_skb().
 
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
