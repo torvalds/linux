@@ -434,7 +434,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	acpi_status status;
 	int result;
 	struct acpi_pci_root *root;
-	acpi_handle handle;
 	struct acpi_pci_driver *driver;
 	u32 flags, base_flags;
 	bool is_osc_granted = false;
@@ -488,16 +487,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       root->segment, &root->secondary);
-
-	/*
-	 * PCI Routing Table
-	 * -----------------
-	 * Evaluate and parse _PRT, if exists.
-	 */
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->segment,
-					      root->secondary.start);
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(device->handle);
 
@@ -623,7 +612,6 @@ out_del_root:
 	list_del(&root->node);
 	mutex_unlock(&acpi_pci_root_lock);
 
-	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 end:
 	kfree(root);
 	return result;
@@ -631,8 +619,6 @@ end:
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
-	acpi_status status;
-	acpi_handle handle;
 	struct acpi_pci_root *root = acpi_driver_data(device);
 	struct acpi_pci_driver *driver;
 
@@ -646,10 +632,6 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
-
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 
 	pci_remove_root_bus(root->bus);
 
