@@ -107,6 +107,18 @@ dcb_outp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 	return 0x0000;
 }
 
+static inline u16
+dcb_outp_hasht(struct dcb_output *outp)
+{
+	return (outp->extdev << 8) | (outp->location << 4) | outp->type;
+}
+
+static inline u16
+dcb_outp_hashm(struct dcb_output *outp)
+{
+	return (outp->heads << 8) | (outp->link << 6) | outp->or;
+}
+
 u16
 dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 	       struct dcb_output *outp)
@@ -143,20 +155,11 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 				break;
 			}
 		}
+
+		outp->hasht = dcb_outp_hasht(outp);
+		outp->hashm = dcb_outp_hashm(outp);
 	}
 	return dcb;
-}
-
-static inline u16
-dcb_outp_hasht(struct dcb_output *outp)
-{
-	return (outp->location << 4) | outp->type;
-}
-
-static inline u16
-dcb_outp_hashm(struct dcb_output *outp)
-{
-	return (outp->heads << 8) | (outp->link << 6) | outp->or;
 }
 
 u16
@@ -165,7 +168,7 @@ dcb_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
 {
 	u16 dcb, idx = 0;
 	while ((dcb = dcb_outp_parse(bios, idx++, ver, len, outp))) {
-		if (dcb_outp_hasht(outp) == type) {
+		if ((dcb_outp_hasht(outp) & 0x00ff) == (type & 0x00ff)) {
 			if ((dcb_outp_hashm(outp) & mask) == mask)
 				break;
 		}
