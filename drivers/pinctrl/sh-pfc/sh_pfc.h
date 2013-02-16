@@ -84,8 +84,8 @@ struct pinmux_func {
 
 struct pinmux_cfg_reg {
 	unsigned long reg, reg_width, field_width;
-	pinmux_enum_t *enum_ids;
-	unsigned long *var_field_width;
+	const pinmux_enum_t *enum_ids;
+	const unsigned long *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
@@ -99,7 +99,7 @@ struct pinmux_cfg_reg {
 
 struct pinmux_data_reg {
 	unsigned long reg, reg_width;
-	pinmux_enum_t *enum_ids;
+	const pinmux_enum_t *enum_ids;
 };
 
 #define PINMUX_DATA_REG(name, r, r_width) \
@@ -121,14 +121,14 @@ struct pinmux_range {
 };
 
 struct sh_pfc_soc_info {
-	char *name;
+	const char *name;
 	struct pinmux_range input;
 	struct pinmux_range input_pd;
 	struct pinmux_range input_pu;
 	struct pinmux_range output;
 	struct pinmux_range function;
 
-	struct sh_pfc_pin *pins;
+	const struct sh_pfc_pin *pins;
 	unsigned int nr_pins;
 	const struct pinmux_range *ranges;
 	unsigned int nr_ranges;
@@ -137,16 +137,16 @@ struct sh_pfc_soc_info {
 	const struct sh_pfc_function *functions;
 	unsigned int nr_functions;
 
-	struct pinmux_func *func_gpios;
+	const struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
 
-	struct pinmux_cfg_reg *cfg_regs;
-	struct pinmux_data_reg *data_regs;
+	const struct pinmux_cfg_reg *cfg_regs;
+	const struct pinmux_data_reg *data_regs;
 
-	pinmux_enum_t *gpio_data;
+	const pinmux_enum_t *gpio_data;
 	unsigned int gpio_data_size;
 
-	struct pinmux_irq *gpio_irq;
+	const struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
 
 	unsigned long unlock_reg;

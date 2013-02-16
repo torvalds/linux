@@ -577,7 +577,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 	/* specify valid pin states for each pin in GPIO mode */
 
 	/* I/O and Pull U/D */
@@ -1660,7 +1660,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* IRQ */
 	GPIO_FN(IRQ0_PORT2),	GPIO_FN(IRQ0_PORT13),
 	GPIO_FN(IRQ1),
@@ -2128,7 +2128,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(TRACEAUD_FROM_MEMC),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xe6050000), /* PORT0CR */
 	PORTCR(1,	0xe6050001), /* PORT1CR */
 	PORTCR(2,	0xe6050002), /* PORT2CR */
@@ -2442,7 +2442,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PORTL031_000DR", 0xe6054800, 32) {
 		PORT31_DATA,	PORT30_DATA,	PORT29_DATA,	PORT28_DATA,
 		PORT27_DATA,	PORT26_DATA,	PORT25_DATA,	PORT24_DATA,
@@ -2546,7 +2546,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-static struct pinmux_irq pinmux_irqs[] = {
+static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(evt2irq(0x0200), GPIO_PORT2,   GPIO_PORT13),	/* IRQ0A */
 	PINMUX_IRQ(evt2irq(0x0220), GPIO_PORT20),		/* IRQ1A */
 	PINMUX_IRQ(evt2irq(0x0240), GPIO_PORT11,  GPIO_PORT12),	/* IRQ2A */
@@ -2581,7 +2581,7 @@ static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(evt2irq(0x33E0), GPIO_PORT41,  GPIO_PORT167),/* IRQ31A */
 };
 
-struct sh_pfc_soc_info r8a7740_pinmux_info = {
+const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
 	.input		= { PINMUX_INPUT_BEGIN,
 			    PINMUX_INPUT_END },

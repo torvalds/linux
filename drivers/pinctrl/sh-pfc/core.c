@@ -96,7 +96,8 @@ int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 	return -1;
 }
 
-static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
+static int sh_pfc_enum_in_range(pinmux_enum_t enum_id,
+				const struct pinmux_range *r)
 {
 	if (enum_id < r->begin)
 		return 0;
@@ -142,7 +143,7 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
 }
 
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
-				     struct pinmux_cfg_reg *crp,
+				     const struct pinmux_cfg_reg *crp,
 				     unsigned long in_pos,
 				     void __iomem **mapped_regp,
 				     unsigned long *maskp,
@@ -164,7 +165,7 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 }
 
 static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
-				    struct pinmux_cfg_reg *crp,
+				    const struct pinmux_cfg_reg *crp,
 				    unsigned long field, unsigned long value)
 {
 	void __iomem *mapped_reg;
@@ -192,10 +193,10 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 }
 
 static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
-				 struct pinmux_cfg_reg **crp, int *fieldp,
+				 const struct pinmux_cfg_reg **crp, int *fieldp,
 				 int *valuep)
 {
-	struct pinmux_cfg_reg *config_reg;
+	const struct pinmux_cfg_reg *config_reg;
 	unsigned long r_width, f_width, curr_width, ncomb;
 	int k, m, n, pos, bit_pos;
 
@@ -238,7 +239,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 			      pinmux_enum_t *enum_idp)
 {
-	pinmux_enum_t *data = pfc->info->gpio_data;
+	const pinmux_enum_t *data = pfc->info->gpio_data;
 	int k;
 
 	if (pos) {
@@ -259,9 +260,9 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 {
-	struct pinmux_cfg_reg *cr = NULL;
+	const struct pinmux_cfg_reg *cr = NULL;
 	pinmux_enum_t enum_id;
-	struct pinmux_range *range;
+	const struct pinmux_range *range;
 	int in_range, pos, field, value;
 
 	switch (pinmux_type) {
@@ -352,7 +353,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 
 static int sh_pfc_probe(struct platform_device *pdev)
 {
-	struct sh_pfc_soc_info *info;
+	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
 

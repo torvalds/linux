@@ -141,7 +141,7 @@ static int sh_pfc_reconfig_pin(struct sh_pfc_pinctrl *pmx, unsigned offset,
 	struct sh_pfc *pfc = pmx->pfc;
 	int idx = sh_pfc_get_pin_index(pfc, offset);
 	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
-	struct sh_pfc_pin *pin = &pfc->info->pins[idx];
+	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
 	unsigned int mark = pin->enum_id;
 	unsigned long flags;
 	int ret = -EINVAL;
@@ -324,7 +324,8 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 		     number++, nr_pins++) {
 			struct sh_pfc_pin_config *cfg = &pmx->configs[nr_pins];
 			struct pinctrl_pin_desc *pin = &pmx->pins[nr_pins];
-			struct sh_pfc_pin *info = &pfc->info->pins[nr_pins];
+			const struct sh_pfc_pin *info =
+				&pfc->info->pins[nr_pins];
 
 			pin->number = number;
 			pin->name = info->name;

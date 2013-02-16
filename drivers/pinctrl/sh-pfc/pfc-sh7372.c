@@ -368,7 +368,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 
 	/* specify valid pin states for each pin in GPIO mode */
 	PORT_DATA_IO_PD(0),		PORT_DATA_IO_PD(1),
@@ -935,7 +935,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* IRQ */
 	GPIO_FN(IRQ0_6),	GPIO_FN(IRQ0_162),	GPIO_FN(IRQ1),
 	GPIO_FN(IRQ2_4),	GPIO_FN(IRQ2_5),	GPIO_FN(IRQ3_8),
@@ -1202,7 +1202,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(SDENC_DV_CLKI),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xE6051000), /* PORT0CR */
 	PORTCR(1,	0xE6051001), /* PORT1CR */
 	PORTCR(2,	0xE6051002), /* PORT2CR */
@@ -1474,7 +1474,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PORTL095_064DR", 0xE6054008, 32) {
 			PORT95_DATA, PORT94_DATA, PORT93_DATA, PORT92_DATA,
 			PORT91_DATA, PORT90_DATA, PORT89_DATA, PORT88_DATA,
@@ -1599,7 +1599,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 
 #define EXT_IRQ16L(n) evt2irq(0x200 + ((n) << 5))
 #define EXT_IRQ16H(n) evt2irq(0x3200 + (((n) - 16) << 5))
-static struct pinmux_irq pinmux_irqs[] = {
+static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16L(0), GPIO_PORT6, GPIO_PORT162),
 	PINMUX_IRQ(EXT_IRQ16L(1), GPIO_PORT12),
 	PINMUX_IRQ(EXT_IRQ16L(2), GPIO_PORT4, GPIO_PORT5),
@@ -1634,7 +1634,7 @@ static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16H(31), GPIO_PORT138, GPIO_PORT184),
 };
 
-struct sh_pfc_soc_info sh7372_pinmux_info = {
+const struct sh_pfc_soc_info sh7372_pinmux_info = {
 	.name = "sh7372_pfc",
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.input_pu = { PINMUX_INPUT_PULLUP_BEGIN, PINMUX_INPUT_PULLUP_END },

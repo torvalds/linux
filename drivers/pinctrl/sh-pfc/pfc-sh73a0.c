@@ -509,7 +509,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 	/* specify valid pin states for each pin in GPIO mode */
 
 	/* Table 25-1 (I/O and Pull U/D) */
@@ -1543,7 +1543,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	GPIO_PORT_ALL(),
 };
 
-static struct pinmux_range pinmux_ranges[] = {
+static const struct pinmux_range pinmux_ranges[] = {
 	{.begin = 0, .end = 118,},
 	{.begin = 128, .end = 164,},
 	{.begin = 192, .end = 282,},
@@ -1552,7 +1552,7 @@ static struct pinmux_range pinmux_ranges[] = {
 
 #define PINMUX_FN_BASE	GPIO_FN_VBUS_0
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* Table 25-1 (Functions 0-7) */
 	GPIO_FN(VBUS_0),
 	GPIO_FN(GPI0),
@@ -2228,7 +2228,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(FSIAISLD_PU),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000), /* PORT0CR */
 	PORTCR(1, 0xe6050001), /* PORT1CR */
 	PORTCR(2, 0xe6050002), /* PORT2CR */
@@ -2636,7 +2636,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PORTL031_000DR", 0xe6054000, 32) {
 			PORT31_DATA, PORT30_DATA, PORT29_DATA, PORT28_DATA,
 			PORT27_DATA, PORT26_DATA, PORT25_DATA, PORT24_DATA,
@@ -2744,7 +2744,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 #define EXT_IRQ16L(n) intcs_evt2irq(0x200 + ((n) << 5))
 #define EXT_IRQ16H(n) intcs_evt2irq(0x3200 + ((n - 16) << 5))
 
-static struct pinmux_irq pinmux_irqs[] = {
+static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16H(19), 9),
 	PINMUX_IRQ(EXT_IRQ16L(1), 10),
 	PINMUX_IRQ(EXT_IRQ16L(0), 11),
@@ -2779,7 +2779,7 @@ static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16L(9), 308),
 };
 
-struct sh_pfc_soc_info sh73a0_pinmux_info = {
+const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.name = "sh73a0_pfc",
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.input_pu = { PINMUX_INPUT_PULLUP_BEGIN, PINMUX_INPUT_PULLUP_END },

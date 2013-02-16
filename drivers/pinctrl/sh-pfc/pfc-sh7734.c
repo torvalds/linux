@@ -592,7 +592,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
 	PINMUX_DATA(CLKOUT_MARK, FN_CLKOUT),
@@ -1373,7 +1373,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(CLKOUT), GPIO_FN(BS), GPIO_FN(CS0), GPIO_FN(EX_CS0),
 	GPIO_FN(RD), GPIO_FN(WE0), GPIO_FN(WE1),
 	GPIO_FN(SCL0), GPIO_FN(PENC0), GPIO_FN(USB_OVC0),
@@ -1652,7 +1652,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(SCL1), GPIO_FN(SCIF_CLK_C),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("GPSR0", 0xFFFC0004, 32, 1) {
 		GP_0_31_FN, FN_IP2_2_0,
 		GP_0_30_FN, FN_IP1_31_29,
@@ -2421,7 +2421,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	/* GPIO 0 - 5*/
 	{ PINMUX_DATA_REG("INDT0", 0xFFC4000C, 32) { GP_INDT(0) } },
 	{ PINMUX_DATA_REG("INDT1", 0xFFC4100C, 32) { GP_INDT(1) } },
@@ -2438,7 +2438,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-struct sh_pfc_soc_info sh7734_pinmux_info = {
+const struct sh_pfc_soc_info sh7734_pinmux_info = {
 	.name = "sh7734_pfc",
 
 	.unlock_reg = 0xFFFC0000,

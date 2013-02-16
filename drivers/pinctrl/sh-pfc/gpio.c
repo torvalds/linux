@@ -82,7 +82,7 @@ static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned gpio)
 {
 	struct sh_pfc *pfc = chip->pfc;
 	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[gpio];
-	struct sh_pfc_pin *pin = &pfc->info->pins[gpio];
+	const struct sh_pfc_pin *pin = &pfc->info->pins[gpio];
 	const struct pinmux_data_reg *dreg;
 	unsigned int bit;
 	unsigned int i;

@@ -781,7 +781,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 
 	/* Port A */
 	PINMUX_DATA(PA1_DATA, PA1_IN),
@@ -1617,7 +1617,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* INTC */
 	GPIO_FN(IRQ7_PG),
 	GPIO_FN(IRQ6_PG),
@@ -1949,7 +1949,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(LCD_M_DISP),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	/* "name" addr register_size Field_Width */
 
 	/* where Field_Width is 1 for single mode registers or 4 for upto 16
@@ -2738,7 +2738,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{}
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PADR0", 0xfffe3816, 16) {
 		0, 0, 0, 0, 0, 0, 0, PA1_DATA,
 		0, 0, 0, 0, 0, 0, 0, PA0_DATA }
@@ -2817,7 +2817,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ }
 };
 
-struct sh_pfc_soc_info sh7269_pinmux_info = {
+const struct sh_pfc_soc_info sh7269_pinmux_info = {
 	.name = "sh7269_pfc",
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END, FORCE_IN },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END, FORCE_OUT },

@@ -355,7 +355,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 
 	/* PA GPIO */
 	PINMUX_DATA(PA7_DATA, PA7_IN, PA7_OUT, PA7_IN_PU),
@@ -849,7 +849,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* FN */
 	GPIO_FN(D63_AD31),
 	GPIO_FN(D62_AD30),
@@ -1018,7 +1018,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(IRQOUT),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("PACR", 0xffe70000, 16, 2) {
 		PA7_FN, PA7_OUT, PA7_IN, PA7_IN_PU,
 		PA6_FN, PA6_OUT, PA6_IN, PA6_IN_PU,
@@ -1218,7 +1218,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{}
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PADR", 0xffe70020, 8) {
 		PA7_DATA, PA6_DATA, PA5_DATA, PA4_DATA,
 		PA3_DATA, PA2_DATA, PA1_DATA, PA0_DATA }
@@ -1286,7 +1286,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-struct sh_pfc_soc_info sh7785_pinmux_info = {
+const struct sh_pfc_soc_info sh7785_pinmux_info = {
 	.name = "sh7785_pfc",
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.input_pu = { PINMUX_INPUT_PULLUP_BEGIN, PINMUX_INPUT_PULLUP_END },

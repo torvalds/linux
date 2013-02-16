@@ -526,7 +526,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const pinmux_enum_t pinmux_data[] = {
 	/* PTA GPIO */
 	PINMUX_DATA(PTA7_DATA, PTA7_IN, PTA7_OUT),
 	PINMUX_DATA(PTA6_DATA, PTA6_IN, PTA6_OUT),
@@ -1374,7 +1374,7 @@ static struct sh_pfc_pin pinmux_pins[] = {
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static struct pinmux_func pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* PTA (mobule: LBSC, RGMII) */
 	GPIO_FN(BS),
 	GPIO_FN(RDWR),
@@ -1726,7 +1726,7 @@ static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(ON_DQ0),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("PACR", 0xffec0000, 16, 2) {
 		PTA7_FN, PTA7_OUT, PTA7_IN, PTA7_IN_PU,
 		PTA6_FN, PTA6_OUT, PTA6_IN, PTA6_IN_PU,
@@ -2156,7 +2156,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{}
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PADR", 0xffec0034, 8) {
 		PTA7_DATA, PTA6_DATA, PTA5_DATA, PTA4_DATA,
 		PTA3_DATA, PTA2_DATA, PTA1_DATA, PTA0_DATA }
@@ -2264,7 +2264,7 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-struct sh_pfc_soc_info sh7757_pinmux_info = {
+const struct sh_pfc_soc_info sh7757_pinmux_info = {
 	.name = "sh7757_pfc",
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.input_pu = { PINMUX_INPUT_PULLUP_BEGIN, PINMUX_INPUT_PULLUP_END },
