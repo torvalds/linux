@@ -263,4 +263,8 @@
 #define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
 #endif
 
+#ifndef cpu_has_vz
+#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */

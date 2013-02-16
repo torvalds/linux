@@ -442,6 +442,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_ULRI;
 	if (config3 & MIPS_CONF3_ISA)
 		c->options |= MIPS_CPU_MICROMIPS;
+	if (config3 & MIPS_CONF3_VZ)
+		c->ases |= MIPS_ASE_VZ;
 
 	return config3 & MIPS_CONF_M;
 }
