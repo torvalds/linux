@@ -301,7 +301,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
 				  ring->start);
 		} else {
-			new_skb = netdev_alloc_skb(bgmac->net_dev, len);
+			new_skb = netdev_alloc_skb_ip_align(bgmac->net_dev, len);
 			if (new_skb) {
 				skb_put(new_skb, len);
 				skb_copy_from_linear_data_offset(skb, BGMAC_RX_FRAME_OFFSET,
