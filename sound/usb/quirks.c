@@ -533,7 +533,7 @@ static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 {
 	struct usb_host_config *config = dev->actconfig;
 	int err;
-	u8 bootresponse[12];
+	u8 bootresponse[0x12];
 	int fwsize;
 	int count;
 
