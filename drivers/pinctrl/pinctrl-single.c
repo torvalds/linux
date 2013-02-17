@@ -350,6 +350,9 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	int i;
 
 	pcs = pinctrl_dev_get_drvdata(pctldev);
+	/* If function mask is null, needn't enable it. */
+	if (!pcs->fmask)
+		return 0;
 	func = radix_tree_lookup(&pcs->ftree, fselector);
 	if (!func)
 		return -EINVAL;
@@ -384,6 +387,10 @@ static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
 	int i;
 
 	pcs = pinctrl_dev_get_drvdata(pctldev);
+	/* If function mask is null, needn't disable it. */
+	if (!pcs->fmask)
+		return;
+
 	func = radix_tree_lookup(&pcs->ftree, fselector);
 	if (!func) {
 		dev_err(pcs->dev, "%s could not find function%i\n",
@@ -426,6 +433,10 @@ static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 	struct list_head *pos, *tmp;
 	int mux_bytes = 0;
 	unsigned data;
+
+	/* If function mask is null, return directly. */
+	if (!pcs->fmask)
+		return -ENOTSUPP;
 
 	list_for_each_safe(pos, tmp, &pcs->gpiofuncs) {
 		frange = list_entry(pos, struct pcs_gpiofunc_range, node);
@@ -969,10 +980,17 @@ static int pcs_probe(struct platform_device *pdev)
 	PCS_GET_PROP_U32("pinctrl-single,register-width", &pcs->width,
 			 "register width not specified\n");
 
-	PCS_GET_PROP_U32("pinctrl-single,function-mask", &pcs->fmask,
-			 "function register mask not specified\n");
-	pcs->fshift = ffs(pcs->fmask) - 1;
-	pcs->fmax = pcs->fmask >> pcs->fshift;
+	ret = of_property_read_u32(np, "pinctrl-single,function-mask",
+				   &pcs->fmask);
+	if (!ret) {
+		pcs->fshift = ffs(pcs->fmask) - 1;
+		pcs->fmax = pcs->fmask >> pcs->fshift;
+	} else {
+		/* If mask property doesn't exist, function mux is invalid. */
+		pcs->fmask = 0;
+		pcs->fshift = 0;
+		pcs->fmax = 0;
+	}
 
 	ret = of_property_read_u32(np, "pinctrl-single,function-off",
 					&pcs->foff);
