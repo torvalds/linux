@@ -26,6 +26,11 @@
 
 #define CPDMA_RX_SOURCE_PORT(__status__)	((__status__ >> 16) & 0x7)
 
+#define CPDMA_EOI_RX_THRESH	0x0
+#define CPDMA_EOI_RX		0x1
+#define CPDMA_EOI_TX		0x2
+#define CPDMA_EOI_MISC		0x3
+
 struct cpdma_params {
 	struct device		*dev;
 	void __iomem		*dmaregs;
@@ -88,7 +93,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 int cpdma_chan_process(struct cpdma_chan *chan, int quota);
 
 int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable);
-void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr);
+void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr, u32 value);
 int cpdma_chan_int_ctrl(struct cpdma_chan *chan, bool enable);
 bool cpdma_check_free_tx_desc(struct cpdma_chan *chan);
 

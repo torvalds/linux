@@ -510,18 +510,20 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 	int			num_tx, num_rx;
 
 	num_tx = cpdma_chan_process(priv->txch, 128);
+	if (num_tx)
+		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+
 	num_rx = cpdma_chan_process(priv->rxch, budget);
+	if (num_rx < budget) {
+		napi_complete(napi);
+		cpsw_intr_enable(priv);
+		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+		cpsw_enable_irq(priv);
+	}
 
 	if (num_rx || num_tx)
 		cpsw_dbg(priv, intr, "poll %d rx, %d tx pkts\n",
 			 num_rx, num_tx);
-
-	if (num_rx < budget) {
-		napi_complete(napi);
-		cpsw_intr_enable(priv);
-		cpdma_ctlr_eoi(priv->dma);
-		cpsw_enable_irq(priv);
-	}
 
 	return num_rx;
 }
@@ -835,7 +837,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
 	napi_enable(&priv->napi);
-	cpdma_ctlr_eoi(priv->dma);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
 	if (priv->data.dual_emac)
 		priv->slaves[priv->emac_port].open_stat = true;
@@ -1075,7 +1078,9 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpdma_chan_start(priv->txch);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+
 }
 
 static struct net_device_stats *cpsw_ndo_get_stats(struct net_device *ndev)
@@ -1094,7 +1099,9 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	cpsw_interrupt(ndev->irq, priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+
 }
 #endif
 

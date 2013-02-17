@@ -493,9 +493,9 @@ int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable)
 	return 0;
 }
 
-void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr)
+void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr, u32 value)
 {
-	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, 0);
+	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, value);
 }
 
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
