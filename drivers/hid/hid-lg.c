@@ -81,7 +81,6 @@ static __u8 df_rdesc_fixed[] = {
 0x09, 0x01,         /*          Usage (?: 1),                   */
 0x81, 0x02,         /*          Input (Variable),               */
 0x05, 0x01,         /*          Usage Page (Desktop),           */
-0x09, 0x31,         /*          Usage (Y),                      */
 0x26, 0xFF, 0x00,   /*          Logical Maximum (255),          */
 0x46, 0xFF, 0x00,   /*          Physical Maximum (255),         */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -101,11 +100,14 @@ static __u8 df_rdesc_fixed[] = {
 0x25, 0x01,         /*          Logical Maximum (1),            */
 0x45, 0x01,         /*          Physical Maximum (1),           */
 0x81, 0x02,         /*          Input (Variable),               */
-0x95, 0x02,         /*          Report Count (2),               */
+0x05, 0x01,         /*          Usage Page (Desktop),           */
+0x95, 0x01,         /*          Report Count (1),               */
 0x75, 0x08,         /*          Report Size (8),                */
 0x26, 0xFF, 0x00,   /*          Logical Maximum (255),          */
 0x46, 0xFF, 0x00,   /*          Physical Maximum (255),         */
-0x09, 0x02,         /*          Usage (?: 2),                   */
+0x09, 0x31,         /*          Usage (Y),                      */
+0x81, 0x02,         /*          Input (Variable),               */
+0x09, 0x35,         /*          Usage (Rz),                     */
 0x81, 0x02,         /*          Input (Variable),               */
 0xC0,               /*      End Collection,                     */
 0xA1, 0x02,         /*      Collection (Logical),               */
