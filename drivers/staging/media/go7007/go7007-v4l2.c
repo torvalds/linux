@@ -1834,7 +1834,6 @@ static struct video_device go7007_template = {
 	.release	= go7007_vfl_release,
 	.ioctl_ops	= &video_ioctl_ops,
 	.tvnorms	= V4L2_STD_ALL,
-	.current_norm	= V4L2_STD_NTSC,
 };
 
 int go7007_v4l2_init(struct go7007 *go)
