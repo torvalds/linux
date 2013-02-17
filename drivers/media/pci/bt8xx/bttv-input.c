@@ -415,14 +415,6 @@ void init_bttv_i2c_ir(struct bttv *btv)
 #endif
 }
 
-int fini_bttv_i2c(struct bttv *btv)
-{
-	if (0 != btv->i2c_rc)
-		return 0;
-
-	return i2c_del_adapter(&btv->c.i2c_adap);
-}
-
 int bttv_input_init(struct bttv *btv)
 {
 	struct bttv_ir *ir;

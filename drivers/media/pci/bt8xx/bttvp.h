@@ -300,6 +300,10 @@ extern int no_overlay;
 /* bttv-input.c                                               */
 
 extern void init_bttv_i2c_ir(struct bttv *btv);
+
+/* ---------------------------------------------------------- */
+/* bttv-i2c.c                                                 */
+extern int init_bttv_i2c(struct bttv *btv);
 extern int fini_bttv_i2c(struct bttv *btv);
 
 /* ---------------------------------------------------------- */
@@ -310,7 +314,6 @@ extern unsigned int bttv_verbose;
 extern unsigned int bttv_debug;
 extern unsigned int bttv_gpio;
 extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
-extern int init_bttv_i2c(struct bttv *btv);
 
 #define dprintk(fmt, ...)			\
 do {						\
