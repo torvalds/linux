@@ -239,24 +239,6 @@ static acpi_status xen_acpi_cpu_hotadd(struct acpi_processor *pr)
 	return AE_OK;
 }
 
-static
-int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
-{
-	acpi_handle phandle;
-	struct acpi_device *pdev;
-
-	if (acpi_get_parent(handle, &phandle))
-		return -ENODEV;
-
-	if (acpi_bus_get_device(phandle, &pdev))
-		return -ENODEV;
-
-	if (acpi_bus_scan(handle))
-		return -ENODEV;
-
-	return 0;
-}
-
 static int acpi_processor_device_remove(struct acpi_device *device)
 {
 	pr_debug(PREFIX "Xen does not support CPU hotremove\n");
@@ -272,6 +254,8 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 	int result;
 
+	acpi_scan_lock_acquire();
+
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
@@ -286,12 +270,16 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		if (!acpi_bus_get_device(handle, &device))
 			break;
 
-		result = acpi_processor_device_add(handle, &device);
+		result = acpi_bus_scan(handle);
 		if (result) {
 			pr_err(PREFIX "Unable to add the device\n");
 			break;
 		}
-
+		result = acpi_bus_get_device(handle, &device);
+		if (result) {
+			pr_err(PREFIX "Missing device object\n");
+			break;
+		}
 		ost_code = ACPI_OST_SC_SUCCESS;
 		break;
 
@@ -321,11 +309,13 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 				  "Unsupported event [0x%x]\n", event));
 
 		/* non-hotplug event; possibly handled by other handler */
-		return;
+		goto out;
 	}
 
 	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
-	return;
+
+out:
+	acpi_scan_lock_release();
 }
 
 static acpi_status is_processor_device(acpi_handle handle)
