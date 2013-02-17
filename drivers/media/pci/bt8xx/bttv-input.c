@@ -375,6 +375,7 @@ void init_bttv_i2c_ir(struct bttv *btv)
 		I2C_CLIENT_END
 	};
 	struct i2c_board_info info;
+	struct i2c_client *i2c_dev;
 
 	if (0 != btv->i2c_rc)
 		return;
@@ -390,7 +391,12 @@ void init_bttv_i2c_ir(struct bttv *btv)
 		btv->init_data.ir_codes = RC_MAP_PV951;
 		info.addr = 0x4b;
 		break;
-	default:
+	}
+
+	if (btv->init_data.name) {
+		info.platform_data = &btv->init_data;
+		i2c_dev = i2c_new_device(&btv->c.i2c_adap, &info);
+	} else {
 		/*
 		 * The external IR receiver is at i2c address 0x34 (0x35 for
 		 * reads).  Future Hauppauge cards will have an internal
@@ -399,16 +405,14 @@ void init_bttv_i2c_ir(struct bttv *btv)
 		 * internal.
 		 * That's why we probe 0x1a (~0x34) first. CB
 		 */
-
-		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
-		return;
+		i2c_dev = i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
 	}
+	if (NULL == i2c_dev)
+		return;
 
-	if (btv->init_data.name)
-		info.platform_data = &btv->init_data;
-	i2c_new_device(&btv->c.i2c_adap, &info);
-
-	return;
+#if defined(CONFIG_MODULES) && defined(MODULE)
+	request_module("ir-kbd-i2c");
+#endif
 }
 
 int fini_bttv_i2c(struct bttv *btv)
