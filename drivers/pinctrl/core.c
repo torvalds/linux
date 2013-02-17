@@ -27,6 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/machine.h>
+#include <asm-generic/gpio.h>
 #include "core.h"
 #include "devicetree.h"
 #include "pinmux.h"
@@ -277,6 +278,39 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
 }
 
 /**
+ * pinctrl_ready_for_gpio_range() - check if other GPIO pins of
+ * the same GPIO chip are in range
+ * @gpio: gpio pin to check taken from the global GPIO pin space
+ *
+ * This function is complement of pinctrl_match_gpio_range(). If the return
+ * value of pinctrl_match_gpio_range() is NULL, this function could be used
+ * to check whether pinctrl device is ready or not. Maybe some GPIO pins
+ * of the same GPIO chip don't have back-end pinctrl interface.
+ * If the return value is true, it means that pinctrl device is ready & the
+ * certain GPIO pin doesn't have back-end pinctrl device. If the return value
+ * is false, it means that pinctrl device may not be ready.
+ */
+static bool pinctrl_ready_for_gpio_range(unsigned gpio)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range = NULL;
+	struct gpio_chip *chip = gpio_to_chip(gpio);
+
+	/* Loop over the pin controllers */
+	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+		/* Loop over the ranges */
+		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+			/* Check if any gpio range overlapped with gpio chip */
+			if (range->base + range->npins - 1 < chip->base ||
+			    range->base > chip->base + chip->ngpio - 1)
+				continue;
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * pinctrl_get_device_gpio_range() - find device for GPIO range
  * @gpio: the pin to locate the pin controller for
  * @outdev: the pin control device if found
@@ -443,6 +477,8 @@ int pinctrl_request_gpio(unsigned gpio)
 
 	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
 	if (ret) {
+		if (pinctrl_ready_for_gpio_range(gpio))
+			ret = 0;
 		mutex_unlock(&pinctrl_mutex);
 		return ret;
 	}
