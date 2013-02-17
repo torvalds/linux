@@ -41,6 +41,14 @@ MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature famil
  * If it was disabled a parasite powered device might not get the require
  * current to do a temperature conversion.  If it is enabled parasite powered
  * devices have a better chance of getting the current required.
+ * In case the parasite power-detection is not working (seems to be the case
+ * for some DS18S20) the strong pullup can also be forced, regardless of the
+ * power state of the devices.
+ *
+ * Summary of options:
+ * - strong_pullup = 0	Disable strong pullup completely
+ * - strong_pullup = 1	Enable automatic strong pullup detection
+ * - strong_pullup = 2	Force strong pullup
  */
 static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
@@ -197,7 +205,8 @@ static ssize_t w1_therm_read(struct device *device,
 				continue;
 
 			/* 750ms strong pullup (or delay) after the convert */
-			if (!external_power && w1_strong_pullup)
+			if (w1_strong_pullup == 2 ||
+					(!external_power && w1_strong_pullup))
 				w1_next_pullup(dev, tm);
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
