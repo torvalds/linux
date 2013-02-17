@@ -909,9 +909,8 @@ nv50_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400828, 0x00000000);
 	nv_wr32(priv, 0x40082c, 0x00000000);
 	nv_wr32(priv, 0x400830, 0x00000000);
-	nv_wr32(priv, 0x400724, 0x00000000);
 	nv_wr32(priv, 0x40032c, 0x00000000);
-	nv_wr32(priv, 0x400320, 4);	/* CTXCTL_CMD = NEWCTXDMA */
+	nv_wr32(priv, 0x400330, 0x00000000);
 
 	/* some unknown zcull magic */
 	switch (nv_device(priv)->chipset & 0xf0) {
