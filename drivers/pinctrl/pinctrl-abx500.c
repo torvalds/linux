@@ -834,6 +834,7 @@ static const struct of_device_id abx500_gpio_match[] = {
 	{ .compatible = "stericsson,ab8505-gpio", .data = (void *)PINCTRL_AB8505, },
 	{ .compatible = "stericsson,ab8540-gpio", .data = (void *)PINCTRL_AB8540, },
 	{ .compatible = "stericsson,ab9540-gpio", .data = (void *)PINCTRL_AB9540, },
+	{ }
 };
 
 static int abx500_gpio_probe(struct platform_device *pdev)
