@@ -517,11 +517,11 @@ static int nilfs_encode_fh(struct inode *inode, __u32 *fh, int *lenp,
 
 	if (parent && *lenp < NILFS_FID_SIZE_CONNECTABLE) {
 		*lenp = NILFS_FID_SIZE_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	}
 	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE) {
 		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	fid->cno = root->cno;
