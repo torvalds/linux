@@ -1945,7 +1945,7 @@ EXPORT_SYMBOL_GPL(regulator_disable_regmap);
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
 	/* A GPIO control always takes precedence */
-	if (rdev->ena_gpio)
+	if (rdev->ena_pin)
 		return rdev->ena_gpio_state;
 
 	/* If we don't know then assume that the regulator is always on */
@@ -3344,7 +3344,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 		if (status < 0)
 			return status;
 	}
-	if (rdev->ena_gpio || ops->is_enabled) {
+	if (rdev->ena_pin || ops->is_enabled) {
 		status = device_create_file(dev, &dev_attr_state);
 		if (status < 0)
 			return status;
@@ -3556,7 +3556,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		if (config->ena_gpio_flags & GPIOF_OUT_INIT_HIGH)
 			rdev->ena_gpio_state = 1;
 
-		if (rdev->ena_gpio_invert)
+		if (config->ena_gpio_invert)
 			rdev->ena_gpio_state = !rdev->ena_gpio_state;
 	}
 

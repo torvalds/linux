@@ -302,8 +302,6 @@ struct regulator_dev {
 	struct dentry *debugfs;
 
 	struct regulator_enable_gpio *ena_pin;
-	int ena_gpio;
-	unsigned int ena_gpio_invert:1;
 	unsigned int ena_gpio_state:1;
 };
 
