@@ -1860,7 +1860,7 @@ static int vsock_create(struct net *net, struct socket *sock,
 	if (!sock)
 		return -EINVAL;
 
-	if (protocol)
+	if (protocol && protocol != PF_VSOCK)
 		return -EPROTONOSUPPORT;
 
 	switch (sock->type) {
