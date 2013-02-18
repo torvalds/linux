@@ -116,41 +116,26 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 {
 	gtt_pte_t *pt_vaddr;
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
-	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
-	unsigned i, j, m, segment_len;
-	dma_addr_t page_addr;
-	struct scatterlist *sg;
+	unsigned act_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	struct sg_page_iter sg_iter;
 
-	/* init sg walking */
-	sg = pages->sgl;
-	i = 0;
-	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-	m = 0;
+	pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
+		dma_addr_t page_addr;
 
-	while (i < pages->nents) {
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+		page_addr = sg_dma_address(sg_iter.sg) +
+				(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		pt_vaddr[act_pte] = gen6_pte_encode(ppgtt->dev, page_addr,
+							cache_level);
+		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
+			kunmap_atomic(pt_vaddr);
+			act_pd++;
+			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+			act_pte = 0;
 
-		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
-			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			pt_vaddr[j] = gen6_pte_encode(ppgtt->dev, page_addr,
-						      cache_level);
-
-			/* grab the next page */
-			if (++m == segment_len) {
-				if (++i == pages->nents)
-					break;
-
-				sg = sg_next(sg);
-				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-				m = 0;
-			}
 		}
-
-		kunmap_atomic(pt_vaddr);
-
-		first_pte = 0;
-		act_pd++;
 	}
+	kunmap_atomic(pt_vaddr);
 }
 
 static void gen6_ppgtt_cleanup(struct i915_hw_ppgtt *ppgtt)
@@ -432,21 +417,17 @@ static void gen6_ggtt_insert_entries(struct drm_device *dev,
 				     enum i915_cache_level level)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct scatterlist *sg = st->sgl;
 	gtt_pte_t __iomem *gtt_entries =
 		(gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
-	int unused, i = 0;
-	unsigned int len, m = 0;
+	int i = 0;
+	struct sg_page_iter sg_iter;
 	dma_addr_t addr;
 
-	for_each_sg(st->sgl, sg, st->nents, unused) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (m = 0; m < len; m++) {
-			addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			iowrite32(gen6_pte_encode(dev, addr, level),
-				  &gtt_entries[i]);
-			i++;
-		}
+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
+		addr = sg_dma_address(sg_iter.sg) +
+			(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		iowrite32(gen6_pte_encode(dev, addr, level), &gtt_entries[i]);
+		i++;
 	}
 
 	/* XXX: This serves as a posting read to make sure that the PTE has
