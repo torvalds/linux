@@ -98,7 +98,6 @@
 #include <net/sock.h>
 
 #include "af_vsock.h"
-#include "vsock_version.h"
 
 static int __vsock_bind(struct sock *sk, struct sockaddr_vm *addr);
 static void vsock_sk_destruct(struct sock *sk);
@@ -2009,5 +2008,5 @@ EXPORT_SYMBOL_GPL(vsock_core_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION(VSOCK_DRIVER_VERSION_STRING);
+MODULE_VERSION("1.0.0.0-k");
 MODULE_LICENSE("GPL v2");
