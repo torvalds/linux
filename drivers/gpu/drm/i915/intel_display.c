@@ -2301,9 +2301,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	if (crtc->fb)
-		intel_finish_fb(crtc->fb);
-
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
 	if (ret) {
 		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
@@ -8125,6 +8122,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			goto fail;
 		}
 	} else if (config->fb_changed) {
+		intel_crtc_wait_for_pending_flips(set->crtc);
+
 		ret = intel_pipe_set_base(set->crtc,
 					  set->x, set->y, set->fb);
 	}
