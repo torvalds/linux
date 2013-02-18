@@ -745,12 +745,9 @@ static struct sk_buff *handle_offloads(struct sk_buff *skb)
 			goto error;
 		skb_shinfo(skb)->gso_type |= SKB_GSO_GRE;
 		return skb;
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		err = skb_checksum_help(skb);
-		if (unlikely(err))
-			goto error;
 	}
-	skb->ip_summed = CHECKSUM_NONE;
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_NONE;
 
 	return skb;
 
