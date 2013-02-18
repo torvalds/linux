@@ -192,7 +192,7 @@ static int sensor_report_value(struct i2c_client *client)
 	}
 
 	//filter gyro data
-	if( ((abs(axis.x) > pdata->x_min) & (abs(axis.x) < 240))||(abs(axis.x) > 260) || ((abs(axis.y) > pdata->y_min)& (abs(axis.y) < 240))||(abs(axis.y) > 260)|| ((abs(axis.z) > pdata->z_min) & (abs(axis.z) < 250)) || (abs(axis.z) > 260) )
+	if((abs(axis.x) > pdata->x_min)||(abs(axis.y) > pdata->y_min)||(abs(axis.z) > pdata->z_min))
 	{	
 		gyro_report_value(client, &axis);	
 

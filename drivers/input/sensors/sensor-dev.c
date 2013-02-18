@@ -43,6 +43,9 @@
 #define DBG(x...)
 #endif
 
+#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.0 2013-2-18"
+
+
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID]; 
 static struct class *g_sensor_class[SENSOR_NUM_TYPES];
@@ -1445,6 +1448,8 @@ static int __init sensor_init(void)
 	pr_info("%s: Probe name %s\n", __func__, sensor_driver.driver.name);
 	if (res)
 		pr_err("%s failed\n", __func__);
+	
+	printk("%s\n", SENSOR_VERSION_AND_TIME);
 	return res;
 }
 
