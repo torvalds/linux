@@ -14,8 +14,6 @@
  */
 
 #include <linux/types.h>
-
-#define EXPORT_SYMTAB
 #include <linux/bitops.h>
 #include <linux/cred.h>
 #include <linux/init.h>
