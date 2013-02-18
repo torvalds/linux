@@ -531,15 +531,33 @@ static inline void __flush_tlb_kernel_page(unsigned long kaddr)
  * Branch predictor maintenance is paired with full TLB invalidation, so
  * there is no need for any barriers here.
  */
+static inline void __local_flush_bp_all(void)
+{
+	const int zero = 0;
+	const unsigned int __tlb_flag = __cpu_tlb_flags;
+
+	if (tlb_flag(TLB_V6_BP))
+		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero));
+}
+
 static inline void local_flush_bp_all(void)
 {
 	const int zero = 0;
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
+	__local_flush_bp_all();
+	if (tlb_flag(TLB_V7_UIS_BP))
+		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero));
+}
+
+static inline void __flush_bp_all(void)
+{
+	const int zero = 0;
+	const unsigned int __tlb_flag = __cpu_tlb_flags;
+
+	__local_flush_bp_all();
 	if (tlb_flag(TLB_V7_UIS_BP))
 		asm("mcr p15, 0, %0, c7, c1, 6" : : "r" (zero));
-	else if (tlb_flag(TLB_V6_BP))
-		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero));
 }
 
 #include <asm/cputype.h>
