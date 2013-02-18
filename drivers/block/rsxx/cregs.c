@@ -107,10 +107,10 @@ static struct creg_cmd *pop_active_cmd(struct rsxx_cardinfo *card)
 	 * Spin lock is needed because this can be called in atomic/interrupt
 	 * context.
 	 */
-	spin_lock_bh(&card->creg_ctrl.pop_lock);
+	spin_lock_bh(&card->creg_ctrl.lock);
 	cmd = card->creg_ctrl.active_cmd;
 	card->creg_ctrl.active_cmd = NULL;
-	spin_unlock_bh(&card->creg_ctrl.pop_lock);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 
 	return cmd;
 }
@@ -126,7 +126,11 @@ static void creg_issue_cmd(struct rsxx_cardinfo *card, struct creg_cmd *cmd)
 					  cmd->buf, cmd->stream);
 	}
 
-	/* Data copy must complete before initiating the command. */
+	/*
+	 * Data copy must complete before initiating the command. This is
+	 * needed for weakly ordered processors (i.e. PowerPC), so that all
+	 * neccessary registers are written before we kick the hardware.
+	 */
 	wmb();
 
 	/* Setting the valid bit will kick off the command. */
@@ -192,11 +196,11 @@ static int creg_queue_cmd(struct rsxx_cardinfo *card,
 	cmd->cb_private = cb_private;
 	cmd->status	= 0;
 
-	mutex_lock(&card->creg_ctrl.lock);
+	spin_lock(&card->creg_ctrl.lock);
 	list_add_tail(&cmd->list, &card->creg_ctrl.queue);
 	card->creg_ctrl.q_depth++;
 	creg_kick_queue(card);
-	mutex_unlock(&card->creg_ctrl.lock);
+	spin_unlock(&card->creg_ctrl.lock);
 
 	return 0;
 }
@@ -219,10 +223,11 @@ static void creg_cmd_timed_out(unsigned long data)
 
 	kmem_cache_free(creg_cmd_pool, cmd);
 
-	spin_lock(&card->creg_ctrl.pop_lock);
+
+	spin_lock(&card->creg_ctrl.lock);
 	card->creg_ctrl.active = 0;
 	creg_kick_queue(card);
-	spin_unlock(&card->creg_ctrl.pop_lock);
+	spin_unlock(&card->creg_ctrl.lock);
 }
 
 
@@ -291,10 +296,10 @@ creg_done:
 
 	kmem_cache_free(creg_cmd_pool, cmd);
 
-	mutex_lock(&card->creg_ctrl.lock);
+	spin_lock(&card->creg_ctrl.lock);
 	card->creg_ctrl.active = 0;
 	creg_kick_queue(card);
-	mutex_unlock(&card->creg_ctrl.lock);
+	spin_unlock(&card->creg_ctrl.lock);
 }
 
 static void creg_reset(struct rsxx_cardinfo *card)
@@ -303,6 +308,10 @@ static void creg_reset(struct rsxx_cardinfo *card)
 	struct creg_cmd *tmp;
 	unsigned long flags;
 
+	/*
+	 * mutex_trylock is used here because if reset_lock is taken then a
+	 * reset is already happening. So, we can just go ahead and return.
+	 */
 	if (!mutex_trylock(&card->creg_ctrl.reset_lock))
 		return;
 
@@ -315,7 +324,7 @@ static void creg_reset(struct rsxx_cardinfo *card)
 		"Resetting creg interface for recovery\n");
 
 	/* Cancel outstanding commands */
-	mutex_lock(&card->creg_ctrl.lock);
+	spin_lock(&card->creg_ctrl.lock);
 	list_for_each_entry_safe(cmd, tmp, &card->creg_ctrl.queue, list) {
 		list_del(&cmd->list);
 		card->creg_ctrl.q_depth--;
@@ -336,7 +345,7 @@ static void creg_reset(struct rsxx_cardinfo *card)
 
 		card->creg_ctrl.active = 0;
 	}
-	mutex_unlock(&card->creg_ctrl.lock);
+	spin_unlock(&card->creg_ctrl.lock);
 
 	card->creg_ctrl.reset = 0;
 	spin_lock_irqsave(&card->irq_lock, flags);
@@ -359,7 +368,7 @@ static void creg_cmd_done_cb(struct rsxx_cardinfo *card,
 {
 	struct creg_completion *cmd_completion;
 
-	cmd_completion = (struct creg_completion *)cmd->cb_private;
+	cmd_completion = cmd->cb_private;
 	BUG_ON(!cmd_completion);
 
 	cmd_completion->st = st;
@@ -380,7 +389,6 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 	unsigned long timeout;
 	int st;
 
-	INIT_COMPLETION(cmd_done);
 	completion.cmd_done = &cmd_done;
 	completion.st = 0;
 	completion.creg_status = 0;
@@ -390,8 +398,13 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 	if (st)
 		return st;
 
+	/*
+	 * This timeout is neccessary for unresponsive hardware. The additional
+	 * 20 seconds to used to guarantee that each cregs requests has time to
+	 * complete.
+	 */
 	timeout = msecs_to_jiffies((CREG_TIMEOUT_MSEC *
-				    card->creg_ctrl.q_depth) + 20000);
+				card->creg_ctrl.q_depth) + 20000);
 
 	/*
 	 * The creg interface is guaranteed to complete. It has a timeout
@@ -443,7 +456,7 @@ static int issue_creg_rw(struct rsxx_cardinfo *card,
 		if (st)
 			return st;
 
-		data   = (void *)((char *)data + xfer);
+		data   = (char *)data + xfer;
 		addr  += xfer;
 		size8 -= xfer;
 	} while (size8);
@@ -558,9 +571,9 @@ static void hw_log_msg(struct rsxx_cardinfo *card, const char *str, int len)
 }
 
 /*
- * The substrncpy() function copies to string(up to count bytes) point to by src
- * (including the terminating '\0' character) to dest. Returns the number of
- * bytes copied to dest.
+ * The substrncpy function copies the src string (which includes the
+ * terminating '\0' character), up to the count into the dest pointer.
+ * Returns the number of bytes copied to dest.
  */
 static int substrncpy(char *dest, const char *src, int count)
 {
@@ -657,6 +670,9 @@ int rsxx_reg_access(struct rsxx_cardinfo *card,
 	if (st)
 		return -EFAULT;
 
+	if (cmd.cnt > RSXX_MAX_REG_CNT)
+		return -EFAULT;
+
 	st = issue_reg_cmd(card, &cmd, read);
 	if (st)
 		return st;
@@ -682,8 +698,7 @@ int rsxx_creg_setup(struct rsxx_cardinfo *card)
 	INIT_WORK(&card->creg_ctrl.done_work, creg_cmd_done);
 	mutex_init(&card->creg_ctrl.reset_lock);
 	INIT_LIST_HEAD(&card->creg_ctrl.queue);
-	mutex_init(&card->creg_ctrl.lock);
-	spin_lock_init(&card->creg_ctrl.pop_lock);
+	spin_lock_init(&card->creg_ctrl.lock);
 	setup_timer(&card->creg_ctrl.cmd_timer, creg_cmd_timed_out,
 		    (unsigned long) card);
 
@@ -697,7 +712,7 @@ void rsxx_creg_destroy(struct rsxx_cardinfo *card)
 	int cnt = 0;
 
 	/* Cancel outstanding commands */
-	mutex_lock(&card->creg_ctrl.lock);
+	spin_lock(&card->creg_ctrl.lock);
 	list_for_each_entry_safe(cmd, tmp, &card->creg_ctrl.queue, list) {
 		list_del(&cmd->list);
 		if (cmd->cb)
@@ -722,7 +737,7 @@ void rsxx_creg_destroy(struct rsxx_cardinfo *card)
 			"Canceled active creg command\n");
 		kmem_cache_free(creg_cmd_pool, cmd);
 	}
-	mutex_unlock(&card->creg_ctrl.lock);
+	spin_unlock(&card->creg_ctrl.lock);
 
 	cancel_work_sync(&card->creg_ctrl.done_work);
 }

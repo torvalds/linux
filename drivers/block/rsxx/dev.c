@@ -149,7 +149,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 			    void *cb_data,
 			    unsigned int error)
 {
-	struct rsxx_bio_meta *meta = (struct rsxx_bio_meta *)cb_data;
+	struct rsxx_bio_meta *meta = cb_data;
 
 	if (error)
 		atomic_set(&meta->error, 1);

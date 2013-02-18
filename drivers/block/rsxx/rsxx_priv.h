@@ -127,7 +127,7 @@ struct rsxx_cardinfo {
 
 	/* Embedded CPU Communication */
 	struct {
-		struct mutex		lock;
+		spinlock_t		lock;
 		bool			active;
 		struct creg_cmd		*active_cmd;
 		struct work_struct	done_work;
@@ -141,7 +141,6 @@ struct rsxx_cardinfo {
 		} creg_stats;
 		struct timer_list	cmd_timer;
 		struct mutex		reset_lock;
-		spinlock_t		pop_lock;
 		int			reset;
 	} creg_ctrl;
 
@@ -336,7 +335,6 @@ static inline unsigned int CREG_DATA(int N)
 
 /***** config.c *****/
 int rsxx_load_config(struct rsxx_cardinfo *card);
-int rsxx_save_config(struct rsxx_cardinfo *card);
 
 /***** core.c *****/
 void rsxx_enable_ier(struct rsxx_cardinfo *card, unsigned int intr);
@@ -345,8 +343,6 @@ void rsxx_enable_ier_and_isr(struct rsxx_cardinfo *card,
 				 unsigned int intr);
 void rsxx_disable_ier_and_isr(struct rsxx_cardinfo *card,
 				  unsigned int intr);
-char *rsxx_card_state_to_str(unsigned int state);
-irqreturn_t rsxx_isr(int irq, void *pdata);
 
 /***** dev.c *****/
 int rsxx_attach_dev(struct rsxx_cardinfo *card);
@@ -364,16 +360,11 @@ int rsxx_dma_setup(struct rsxx_cardinfo *card);
 void rsxx_dma_destroy(struct rsxx_cardinfo *card);
 int rsxx_dma_init(void);
 void rsxx_dma_cleanup(void);
-int rsxx_dma_configure(struct rsxx_cardinfo *card);
 int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
 			   struct bio *bio,
 			   atomic_t *n_dmas,
 			   rsxx_dma_cb cb,
 			   void *cb_data);
-int rsxx_dma_stripe_setup(struct rsxx_cardinfo *card,
-			      unsigned int stripe_size8);
-unsigned int rsxx_get_dma_tgt(struct rsxx_cardinfo *card, u64 addr8);
-unsigned int rsxx_addr8_to_laddr(u64 addr8, struct rsxx_cardinfo *card);
 
 /***** cregs.c *****/
 int rsxx_creg_write(struct rsxx_cardinfo *card, u32 addr,

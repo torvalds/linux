@@ -31,7 +31,7 @@
 
 static void initialize_config(void *config)
 {
-	struct rsxx_card_cfg *cfg = (struct rsxx_card_cfg *) config;
+	struct rsxx_card_cfg *cfg = config;
 
 	cfg->hdr.version = RSXX_CFG_VERSION;
 
@@ -97,7 +97,7 @@ static void config_data_cpu_to_le(struct rsxx_card_cfg *cfg)
 
 
 /*----------------- Config Operations ------------------*/
-int rsxx_save_config(struct rsxx_cardinfo *card)
+static int rsxx_save_config(struct rsxx_cardinfo *card)
 {
 	struct rsxx_card_cfg cfg;
 	int st;

@@ -102,7 +102,7 @@ struct dma_tracker_list {
 
 
 /*----------------- Misc Utility Functions -------------------*/
-unsigned int rsxx_addr8_to_laddr(u64 addr8, struct rsxx_cardinfo *card)
+static unsigned int rsxx_addr8_to_laddr(u64 addr8, struct rsxx_cardinfo *card)
 {
 	unsigned long long tgt_addr8;
 
@@ -113,7 +113,7 @@ unsigned int rsxx_addr8_to_laddr(u64 addr8, struct rsxx_cardinfo *card)
 	return tgt_addr8;
 }
 
-unsigned int rsxx_get_dma_tgt(struct rsxx_cardinfo *card, u64 addr8)
+static unsigned int rsxx_get_dma_tgt(struct rsxx_cardinfo *card, u64 addr8)
 {
 	unsigned int tgt;
 
@@ -757,7 +757,7 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 	INIT_LIST_HEAD(&ctrl->queue);
 
 	setup_timer(&ctrl->activity_timer, dma_engine_stalled,
-		    (unsigned long)ctrl);
+					(unsigned long)ctrl);
 
 	ctrl->issue_wq = alloc_ordered_workqueue(DRIVER_NAME"_issue", 0);
 	if (!ctrl->issue_wq)
@@ -803,7 +803,7 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 	return 0;
 }
 
-int rsxx_dma_stripe_setup(struct rsxx_cardinfo *card,
+static int rsxx_dma_stripe_setup(struct rsxx_cardinfo *card,
 			      unsigned int stripe_size8)
 {
 	if (!is_power_of_2(stripe_size8)) {
@@ -834,7 +834,7 @@ int rsxx_dma_stripe_setup(struct rsxx_cardinfo *card,
 	return 0;
 }
 
-int rsxx_dma_configure(struct rsxx_cardinfo *card)
+static int rsxx_dma_configure(struct rsxx_cardinfo *card)
 {
 	u32 intr_coal;
 

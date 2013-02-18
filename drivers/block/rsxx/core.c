@@ -102,9 +102,9 @@ void rsxx_disable_ier_and_isr(struct rsxx_cardinfo *card,
 	iowrite32(card->ier_mask, card->regmap + IER);
 }
 
-irqreturn_t rsxx_isr(int irq, void *pdata)
+static irqreturn_t rsxx_isr(int irq, void *pdata)
 {
-	struct rsxx_cardinfo *card = (struct rsxx_cardinfo *) pdata;
+	struct rsxx_cardinfo *card = pdata;
 	unsigned int isr;
 	int handled = 0;
 	int reread_isr;
@@ -161,6 +161,17 @@ irqreturn_t rsxx_isr(int irq, void *pdata)
 }
 
 /*----------------- Card Event Handler -------------------*/
+static char *rsxx_card_state_to_str(unsigned int state)
+{
+	static char *state_strings[] = {
+		"Unknown", "Shutdown", "Starting", "Formatting",
+		"Uninitialized", "Good", "Shutting Down",
+		"Fault", "Read Only Fault", "dStroying"
+	};
+
+	return state_strings[ffs(state)];
+}
+
 static void card_state_change(struct rsxx_cardinfo *card,
 			      unsigned int new_state)
 {
@@ -251,18 +262,6 @@ static void card_event_handler(struct work_struct *work)
 		rsxx_read_hw_log(card);
 }
 
-
-char *rsxx_card_state_to_str(unsigned int state)
-{
-	static char *state_strings[] = {
-		"Unknown", "Shutdown", "Starting", "Formatting",
-		"Uninitialized", "Good", "Shutting Down",
-		"Fault", "Read Only Fault", "dStroying"
-	};
-
-	return state_strings[ffs(state)];
-}
-
 /*----------------- Card Operations -------------------*/
 static int card_shutdown(struct rsxx_cardinfo *card)
 {
@@ -323,7 +322,6 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	struct rsxx_cardinfo *card;
-	unsigned long flags;
 	int st;
 
 	dev_info(&dev->dev, "PCI-Flash SSD discovered\n");
@@ -386,9 +384,9 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	spin_lock_init(&card->irq_lock);
 	card->halt = 0;
 
-	spin_lock_irqsave(&card->irq_lock, flags);
+	spin_lock_irq(&card->irq_lock);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
-	spin_unlock_irqrestore(&card->irq_lock, flags);
+	spin_unlock_irq(&card->irq_lock);
 
 	if (!force_legacy) {
 		st = pci_enable_msi(dev);
@@ -408,9 +406,9 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	/************* Setup Processor Command Interface *************/
 	rsxx_creg_setup(card);
 
-	spin_lock_irqsave(&card->irq_lock, flags);
+	spin_lock_irq(&card->irq_lock);
 	rsxx_enable_ier_and_isr(card, CR_INTR_CREG);
-	spin_unlock_irqrestore(&card->irq_lock, flags);
+	spin_unlock_irq(&card->irq_lock);
 
 	st = rsxx_compatibility_check(card);
 	if (st) {
@@ -463,9 +461,9 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	 * we can enable the event interrupt(it kicks off actions in
 	 * those layers so we couldn't enable it right away.)
 	 */
-	spin_lock_irqsave(&card->irq_lock, flags);
+	spin_lock_irq(&card->irq_lock);
 	rsxx_enable_ier_and_isr(card, CR_INTR_EVENT);
-	spin_unlock_irqrestore(&card->irq_lock, flags);
+	spin_unlock_irq(&card->irq_lock);
 
 	if (card->state == CARD_STATE_SHUTDOWN) {
 		st = rsxx_issue_card_cmd(card, CARD_CMD_STARTUP);
@@ -487,9 +485,9 @@ failed_create_dev:
 	rsxx_dma_destroy(card);
 failed_dma_setup:
 failed_compatiblity_check:
-	spin_lock_irqsave(&card->irq_lock, flags);
+	spin_lock_irq(&card->irq_lock);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
-	spin_unlock_irqrestore(&card->irq_lock, flags);
+	spin_unlock_irq(&card->irq_lock);
 	free_irq(dev->irq, card);
 	if (!force_legacy)
 		pci_disable_msi(dev);
