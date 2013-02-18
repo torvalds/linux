@@ -2362,7 +2362,7 @@ static int max98090_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops max98090_pm = {
+static const struct dev_pm_ops max98090_pm = {
 	SET_RUNTIME_PM_OPS(max98090_runtime_suspend,
 		max98090_runtime_resume, NULL)
 };
