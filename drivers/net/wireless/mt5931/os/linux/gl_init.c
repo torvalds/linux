@@ -3181,7 +3181,7 @@ retry_initwlan:
     /*WCNCR00002676, keep OS wake up for 100ms*/
     KAL_WAKE_LOCK_INIT(NULL, &isr_wakelock, "WLAN TIME 2");
 
-	for (timeout = 50; timeout >=0; timeout--)
+	/*for (timeout = 50; timeout >=0; timeout--)
     {
 		if (driver_start_ok == 1)
 			return ret;
@@ -3196,7 +3196,7 @@ retry_initwlan:
         	printk("wifi driver probe processing fail. retry!\n");
 		exitWlan();
 		goto retry_initwlan;
-    }
+    }*/
 
     return ret;
      
