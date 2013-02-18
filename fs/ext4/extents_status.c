@@ -229,59 +229,59 @@ static struct extent_status *__es_tree_search(struct rb_root *root,
 }
 
 /*
- * ext4_es_find_extent: find the 1st delayed extent covering @es->lblk
+ * ext4_es_find_delayed_extent: find the 1st delayed extent covering @es->lblk
  * if it exists, otherwise, the next extent after @es->lblk.
  *
  * @inode: the inode which owns delayed extents
+ * @lblk: the offset where we start to search
  * @es: delayed extent that we found
- *
- * Returns the first block of the next extent after es, otherwise
- * EXT_MAX_BLOCKS if no extent is found.
- * Delayed extent is returned via @es.
  */
-ext4_lblk_t ext4_es_find_extent(struct inode *inode, struct extent_status *es)
+void ext4_es_find_delayed_extent(struct inode *inode, ext4_lblk_t lblk,
+				 struct extent_status *es)
 {
 	struct ext4_es_tree *tree = NULL;
 	struct extent_status *es1 = NULL;
 	struct rb_node *node;
-	ext4_lblk_t ret = EXT_MAX_BLOCKS;
 
-	trace_ext4_es_find_extent_enter(inode, es->es_lblk);
+	BUG_ON(es == NULL);
+	trace_ext4_es_find_delayed_extent_enter(inode, lblk);
 
 	read_lock(&EXT4_I(inode)->i_es_lock);
 	tree = &EXT4_I(inode)->i_es_tree;
 
 	/* find extent in cache firstly */
-	es->es_len = es->es_pblk = 0;
+	es->es_lblk = es->es_len = es->es_pblk = 0;
 	if (tree->cache_es) {
 		es1 = tree->cache_es;
-		if (in_range(es->es_lblk, es1->es_lblk, es1->es_len)) {
+		if (in_range(lblk, es1->es_lblk, es1->es_len)) {
 			es_debug("%u cached by [%u/%u) %llu %llx\n",
-				 es->es_lblk, es1->es_lblk, es1->es_len,
+				 lblk, es1->es_lblk, es1->es_len,
 				 ext4_es_pblock(es1), ext4_es_status(es1));
 			goto out;
 		}
 	}
 
-	es1 = __es_tree_search(&tree->root, es->es_lblk);
+	es1 = __es_tree_search(&tree->root, lblk);
 
 out:
-	if (es1) {
+	if (es1 && !ext4_es_is_delayed(es1)) {
+		while ((node = rb_next(&es1->rb_node)) != NULL) {
+			es1 = rb_entry(node, struct extent_status, rb_node);
+			if (ext4_es_is_delayed(es1))
+				break;
+		}
+	}
+
+	if (es1 && ext4_es_is_delayed(es1)) {
 		tree->cache_es = es1;
 		es->es_lblk = es1->es_lblk;
 		es->es_len = es1->es_len;
 		es->es_pblk = es1->es_pblk;
-		node = rb_next(&es1->rb_node);
-		if (node) {
-			es1 = rb_entry(node, struct extent_status, rb_node);
-			ret = es1->es_lblk;
-		}
 	}
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
 
-	trace_ext4_es_find_extent_exit(inode, es, ret);
-	return ret;
+	trace_ext4_es_find_delayed_extent_exit(inode, es);
 }
 
 static struct extent_status *

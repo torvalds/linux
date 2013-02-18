@@ -51,8 +51,8 @@ extern int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 				 unsigned long long status);
 extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
-extern ext4_lblk_t ext4_es_find_extent(struct inode *inode,
-				struct extent_status *es);
+extern void ext4_es_find_delayed_extent(struct inode *inode, ext4_lblk_t lblk,
+					struct extent_status *es);
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {

@@ -2147,7 +2147,7 @@ TRACE_EVENT(ext4_es_remove_extent,
 		  __entry->lblk, __entry->len)
 );
 
-TRACE_EVENT(ext4_es_find_extent_enter,
+TRACE_EVENT(ext4_es_find_delayed_extent_enter,
 	TP_PROTO(struct inode *inode, ext4_lblk_t lblk),
 
 	TP_ARGS(inode, lblk),
@@ -2169,11 +2169,10 @@ TRACE_EVENT(ext4_es_find_extent_enter,
 		  (unsigned long) __entry->ino, __entry->lblk)
 );
 
-TRACE_EVENT(ext4_es_find_extent_exit,
-	TP_PROTO(struct inode *inode, struct extent_status *es,
-		 ext4_lblk_t ret),
+TRACE_EVENT(ext4_es_find_delayed_extent_exit,
+	TP_PROTO(struct inode *inode, struct extent_status *es),
 
-	TP_ARGS(inode, es, ret),
+	TP_ARGS(inode, es),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -2182,7 +2181,6 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 		__field(	ext4_lblk_t,	len		)
 		__field(	ext4_fsblk_t,	pblk		)
 		__field(	unsigned long long, status	)
-		__field(	ext4_lblk_t,	ret		)
 	),
 
 	TP_fast_assign(
@@ -2192,14 +2190,13 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 		__entry->len	= es->es_len;
 		__entry->pblk	= ext4_es_pblock(es);
 		__entry->status	= ext4_es_status(es);
-		__entry->ret	= ret;
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %llx ret %u",
+	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->len,
-		  __entry->pblk, __entry->status, __entry->ret)
+		  __entry->pblk, __entry->status)
 );
 
 #endif /* _TRACE_EXT4_H */
