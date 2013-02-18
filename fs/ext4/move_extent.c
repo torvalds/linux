@@ -764,9 +764,6 @@ out:
 		kfree(donor_path);
 	}
 
-	ext4_ext_invalidate_cache(orig_inode);
-	ext4_ext_invalidate_cache(donor_inode);
-
 	return replaced_count;
 }
 

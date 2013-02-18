@@ -809,17 +809,6 @@ do {									       \
 
 #endif /* defined(__KERNEL__) || defined(__linux__) */
 
-/*
- * storage for cached extent
- * If ec_len == 0, then the cache is invalid.
- * If ec_start == 0, then the cache represents a gap (null mapping)
- */
-struct ext4_ext_cache {
-	ext4_fsblk_t	ec_start;
-	ext4_lblk_t	ec_block;
-	__u32		ec_len; /* must be 32bit to return holes */
-};
-
 #include "extents_status.h"
 
 /*
@@ -886,7 +875,6 @@ struct ext4_inode_info {
 	struct inode vfs_inode;
 	struct jbd2_inode *jinode;
 
-	struct ext4_ext_cache i_cached_extent;
 	/*
 	 * File creation time. Its function is same as that of
 	 * struct timespec i_{a,c,m}time in the generic inode.
