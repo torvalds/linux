@@ -561,7 +561,6 @@ static int fill_inode(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int i;
 	int issued = 0, implemented;
-	int updating_inode = 0;
 	struct timespec mtime, atime, ctime;
 	u32 nsplits;
 	struct ceph_buffer *xattr_blob = NULL;
@@ -601,7 +600,6 @@ static int fill_inode(struct inode *inode,
 	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
 		goto no_change;
 	
-	updating_inode = 1;
 	issued = __ceph_caps_issued(ci, &implemented);
 	issued |= implemented | __ceph_caps_dirty(ci);
 
@@ -717,6 +715,17 @@ static int fill_inode(struct inode *inode,
 		       ceph_vinop(inode), inode->i_mode);
 	}
 
+	/* set dir completion flag? */
+	if (S_ISDIR(inode->i_mode) &&
+	    ci->i_files == 0 && ci->i_subdirs == 0 &&
+	    ceph_snap(inode) == CEPH_NOSNAP &&
+	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
+	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
+	    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
+		dout(" marking %p complete (empty)\n", inode);
+		ci->i_ceph_flags |= CEPH_I_COMPLETE;
+		ci->i_max_offset = 2;
+	}
 no_change:
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -765,19 +774,6 @@ no_change:
 		pr_warning("mds issued no caps on %llx.%llx\n",
 			   ceph_vinop(inode));
 		__ceph_get_fmode(ci, cap_fmode);
-	}
-
-	/* set dir completion flag? */
-	if (S_ISDIR(inode->i_mode) &&
-	    updating_inode &&                 /* didn't jump to no_change */
-	    ci->i_files == 0 && ci->i_subdirs == 0 &&
-	    ceph_snap(inode) == CEPH_NOSNAP &&
-	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
-	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
-	    !ceph_dir_test_complete(inode)) {
-		dout(" marking %p complete (empty)\n", inode);
-		ceph_dir_set_complete(inode);
-		ci->i_max_offset = 2;
 	}
 
 	/* update delegation info? */
@@ -861,7 +857,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);
-	if (!ceph_dir_test_complete(inode)) {
+	if ((ceph_inode(inode)->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 		spin_unlock(&ci->i_ceph_lock);
 		return;
 	}
@@ -1066,7 +1062,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			 * d_move() puts the renamed dentry at the end of
 			 * d_subdirs.  We need to assign it an appropriate
 			 * directory offset so we can behave when holding
-			 * D_COMPLETE.
+			 * I_COMPLETE.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 

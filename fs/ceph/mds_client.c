@@ -2029,7 +2029,7 @@ out:
 }
 
 /*
- * Invalidate dir D_COMPLETE, dentry lease state on an aborted MDS
+ * Invalidate dir I_COMPLETE, dentry lease state on an aborted MDS
  * namespace request.
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
@@ -2037,9 +2037,9 @@ void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 	struct inode *inode = req->r_locked_dir;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	dout("invalidate_dir_request %p (D_COMPLETE, lease(s))\n", inode);
+	dout("invalidate_dir_request %p (I_COMPLETE, lease(s))\n", inode);
 	spin_lock(&ci->i_ceph_lock);
-	ceph_dir_clear_complete(inode);
+	ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
 	ci->i_release_count++;
 	spin_unlock(&ci->i_ceph_lock);
 
