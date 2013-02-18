@@ -332,7 +332,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	uint32_t status;
 	bool done;
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		switch (intel_dig_port->port) {
 		case PORT_A:
 			ch_ctl = DPA_AUX_CH_CTL;
@@ -387,7 +387,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 */
 	pm_qos_update_request(&dev_priv->pm_qos, 0);
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		switch (intel_dig_port->port) {
 		case PORT_A:
 			ch_ctl = DPA_AUX_CH_CTL;
@@ -842,7 +842,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_link_compute_m_n(intel_crtc->bpp, lane_count,
 			       mode->clock, adjusted_mode->clock, &m_n);
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		I915_WRITE(PIPE_DATA_M1(cpu_transcoder),
 			   TU_SIZE(m_n.tu) | m_n.gmch_m);
 		I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
@@ -1537,7 +1537,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_400:
 			return DP_TRAIN_PRE_EMPHASIS_9_5;
@@ -1745,7 +1745,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	uint32_t signal_levels, mask;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		signal_levels = intel_hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
 	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
@@ -1776,7 +1776,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	int ret;
 	uint32_t temp;
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		temp = I915_READ(DP_TP_CTL(port));
 
 		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
