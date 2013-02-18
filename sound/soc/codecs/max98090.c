@@ -2322,7 +2322,7 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	max98090->pdata = i2c->dev.platform_data;
 	max98090->irq = i2c->irq;
 
-	max98090->regmap = regmap_init_i2c(i2c, &max98090_regmap);
+	max98090->regmap = devm_regmap_init_i2c(i2c, &max98090_regmap);
 	if (IS_ERR(max98090->regmap)) {
 		ret = PTR_ERR(max98090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -2332,18 +2332,13 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_max98090, max98090_dai,
 			ARRAY_SIZE(max98090_dai));
-	if (ret < 0)
-		regmap_exit(max98090->regmap);
-
 err_enable:
 	return ret;
 }
 
 static int max98090_i2c_remove(struct i2c_client *client)
 {
-	struct max98090_priv *max98090 = dev_get_drvdata(&client->dev);
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(max98090->regmap);
 	return 0;
 }
 
