@@ -15,6 +15,10 @@ struct dcb_output;
 struct nv50_disp_priv {
 	struct nouveau_disp base;
 	struct nouveau_oclass *sclass;
+
+	struct work_struct supervisor;
+	u32 super;
+
 	struct {
 		int nr;
 	} head;
@@ -126,6 +130,7 @@ extern struct nouveau_ofuncs nv50_disp_oimm_ofuncs;
 extern struct nouveau_ofuncs nv50_disp_curs_ofuncs;
 extern struct nouveau_ofuncs nv50_disp_base_ofuncs;
 extern struct nouveau_oclass nv50_disp_cclass;
+void nv50_disp_intr_supervisor(struct work_struct *);
 void nv50_disp_intr(struct nouveau_subdev *);
 
 extern struct nouveau_omthds nv84_disp_base_omthds[];
@@ -139,6 +144,7 @@ extern struct nouveau_ofuncs nvd0_disp_oimm_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_curs_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_base_ofuncs;
 extern struct nouveau_oclass nvd0_disp_cclass;
+void nvd0_disp_intr_supervisor(struct work_struct *);
 void nvd0_disp_intr(struct nouveau_subdev *);
 
 #endif

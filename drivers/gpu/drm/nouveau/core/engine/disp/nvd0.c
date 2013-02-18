@@ -836,6 +836,26 @@ nvd0_display_unk4_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 }
 
 void
+nvd0_disp_intr_supervisor(struct work_struct *work)
+{
+	struct nv50_disp_priv *priv =
+		container_of(work, struct nv50_disp_priv, supervisor);
+	u32 mask = 0, head = ~0;
+
+	while (!mask && ++head < priv->head.nr)
+		mask = nv_rd32(priv, 0x6101d4 + (head * 0x800));
+
+	nv_debug(priv, "supervisor %08x %08x %d\n", priv->super, mask, head);
+
+	if (priv->super & 0x00000001)
+		nvd0_display_unk1_handler(priv, head, mask);
+	if (priv->super & 0x00000002)
+		nvd0_display_unk2_handler(priv, head, mask);
+	if (priv->super & 0x00000004)
+		nvd0_display_unk4_handler(priv, head, mask);
+}
+
+void
 nvd0_disp_intr(struct nouveau_subdev *subdev)
 {
 	struct nv50_disp_priv *priv = (void *)subdev;
@@ -868,27 +888,11 @@ nvd0_disp_intr(struct nouveau_subdev *subdev)
 
 	if (intr & 0x00100000) {
 		u32 stat = nv_rd32(priv, 0x6100ac);
-		u32 mask = 0, crtc = ~0;
-
-		while (!mask && ++crtc < priv->head.nr)
-			mask = nv_rd32(priv, 0x6101d4 + (crtc * 0x800));
-
-		if (stat & 0x00000001) {
-			nv_wr32(priv, 0x6100ac, 0x00000001);
-			nvd0_display_unk1_handler(priv, crtc, mask);
-			stat &= ~0x00000001;
-		}
-
-		if (stat & 0x00000002) {
-			nv_wr32(priv, 0x6100ac, 0x00000002);
-			nvd0_display_unk2_handler(priv, crtc, mask);
-			stat &= ~0x00000002;
-		}
-
-		if (stat & 0x00000004) {
-			nv_wr32(priv, 0x6100ac, 0x00000004);
-			nvd0_display_unk4_handler(priv, crtc, mask);
-			stat &= ~0x00000004;
+		if (stat & 0x00000007) {
+			priv->super = (stat & 0x00000007);
+			schedule_work(&priv->supervisor);
+			nv_wr32(priv, 0x6100ac, priv->super);
+			stat &= ~0x00000007;
 		}
 
 		if (stat) {
@@ -929,6 +933,7 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->sclass = nvd0_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nvd0_disp_intr;
+	INIT_WORK(&priv->supervisor, nvd0_disp_intr_supervisor);
 	priv->sclass = nvd0_disp_sclass;
 	priv->head.nr = heads;
 	priv->dac.nr = 3;

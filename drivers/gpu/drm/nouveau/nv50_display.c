@@ -424,7 +424,10 @@ evo_kick(u32 *push, void *evoc)
 static bool
 evo_sync_wait(void *data)
 {
-	return nouveau_bo_rd32(data, EVO_MAST_NTFY) != 0x00000000;
+	if (nouveau_bo_rd32(data, EVO_MAST_NTFY) != 0x00000000)
+		return true;
+	usleep_range(1, 2);
+	return false;
 }
 
 static int

@@ -940,7 +940,6 @@ nv50_disp_intr_unk10(struct nv50_disp_priv *priv, u32 super)
 			exec_script(priv, head, 1);
 	}
 
-	nv_wr32(priv, 0x610024, 0x00000010);
 	nv_wr32(priv, 0x610030, 0x80000000);
 }
 
@@ -1097,7 +1096,6 @@ nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
 		}
 	}
 
-	nv_wr32(priv, 0x610024, 0x00000020);
 	nv_wr32(priv, 0x610030, 0x80000000);
 }
 
@@ -1136,22 +1134,23 @@ nv50_disp_intr_unk40(struct nv50_disp_priv *priv, u32 super)
 		}
 	}
 
-	nv_wr32(priv, 0x610024, 0x00000040);
 	nv_wr32(priv, 0x610030, 0x80000000);
 }
 
-static void
-nv50_disp_intr_super(struct nv50_disp_priv *priv, u32 intr1)
+void
+nv50_disp_intr_supervisor(struct work_struct *work)
 {
+	struct nv50_disp_priv *priv =
+		container_of(work, struct nv50_disp_priv, supervisor);
 	u32 super = nv_rd32(priv, 0x610030);
 
-	nv_debug(priv, "supervisor 0x%08x 0x%08x\n", intr1, super);
+	nv_debug(priv, "supervisor 0x%08x 0x%08x\n", priv->super, super);
 
-	if (intr1 & 0x00000010)
+	if (priv->super & 0x00000010)
 		nv50_disp_intr_unk10(priv, super);
-	if (intr1 & 0x00000020)
+	if (priv->super & 0x00000020)
 		nv50_disp_intr_unk20(priv, super);
-	if (intr1 & 0x00000040)
+	if (priv->super & 0x00000040)
 		nv50_disp_intr_unk40(priv, super);
 }
 
@@ -1180,7 +1179,9 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (intr1 & 0x00000070) {
-		nv50_disp_intr_super(priv, intr1);
+		priv->super = (intr1 & 0x00000070);
+		schedule_work(&priv->supervisor);
+		nv_wr32(priv, 0x610024, priv->super);
 		intr1 &= ~0x00000070;
 	}
 }
@@ -1202,6 +1203,7 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->sclass = nv50_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
+	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
 	priv->sclass = nv50_disp_sclass;
 	priv->head.nr = 2;
 	priv->dac.nr = 3;

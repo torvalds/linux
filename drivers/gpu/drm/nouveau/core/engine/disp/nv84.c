@@ -72,6 +72,7 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->sclass = nv84_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
+	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
 	priv->sclass = nv84_disp_sclass;
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
