@@ -712,11 +712,15 @@ void rk610_codec_reg_set(void)
     rk610_codec_write(codec,ACCELCODEC_R00, ASC_HPF_ENABLE|ASC_DSM_MODE_ENABLE|ASC_SCRAMBLE_ENABLE|ASC_DITHER_ENABLE|ASC_BCLKDIV_4);
     //2volume,input,output
     digital_gain = Volume_Output;
-    rk610_codec_write(codec,ACCELCODEC_R05, (digital_gain >> 8) & 0xFF);
-    rk610_codec_write(codec,ACCELCODEC_R06, digital_gain & 0xFF);
-    rk610_codec_write(codec,ACCELCODEC_R07, (digital_gain >> 8) & 0xFF);
-    rk610_codec_write(codec,ACCELCODEC_R08, digital_gain & 0xFF);
-
+	
+	if(rk610_codec_read(codec,ACCELCODEC_R05)!=0x0f) {
+		rk610_codec_write(codec,ACCELCODEC_R05, (digital_gain >> 8) & 0xFF);
+		rk610_codec_write(codec,ACCELCODEC_R06, digital_gain & 0xFF);
+	}
+	if(rk610_codec_read(codec,ACCELCODEC_R07)!=0x0f){
+		rk610_codec_write(codec,ACCELCODEC_R07, (digital_gain >> 8) & 0xFF);
+		rk610_codec_write(codec,ACCELCODEC_R08, digital_gain & 0xFF);
+	}
     rk610_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_ENABLE|ASC_INT_ENABLE);
     gR0BReg = ASC_DEC_ENABLE|ASC_INT_ENABLE;  //ASC_DEC_DISABLE|ASC_INT_ENABLE;
 
