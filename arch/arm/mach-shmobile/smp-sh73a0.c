@@ -39,7 +39,7 @@
 
 #define PSTR_SHUTDOWN_MODE	3
 
-#define SH73A0_SCU_BASE IOMEM(0xf0000000)
+#define SH73A0_SCU_BASE 0xf0000000
 
 #ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, SH73A0_SCU_BASE + 0x600, 29);
@@ -81,7 +81,7 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 static void __init sh73a0_smp_init_cpus(void)
 {
 	/* setup sh73a0 specific SCU base */
-	shmobile_scu_base = SH73A0_SCU_BASE;
+	shmobile_scu_base = IOMEM(SH73A0_SCU_BASE);
 
 	shmobile_smp_init_cpus(scu_get_core_count(shmobile_scu_base));
 }
