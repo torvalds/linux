@@ -53,6 +53,7 @@ struct vfio_pci_device {
 	bool			reset_works;
 	bool			extended_caps;
 	bool			bardirty;
+	bool			has_vga;
 	struct pci_saved_state	*pci_saved_state;
 	atomic_t		refcnt;
 };
@@ -75,6 +76,9 @@ extern ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev,
 				  loff_t *ppos, bool iswrite);
 
 extern ssize_t vfio_pci_bar_rw(struct vfio_pci_device *vdev, char __user *buf,
+			       size_t count, loff_t *ppos, bool iswrite);
+
+extern ssize_t vfio_pci_vga_rw(struct vfio_pci_device *vdev, char __user *buf,
 			       size_t count, loff_t *ppos, bool iswrite);
 
 extern int vfio_pci_init_perm_bits(void);

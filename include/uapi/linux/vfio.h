@@ -303,6 +303,15 @@ enum {
 	VFIO_PCI_BAR5_REGION_INDEX,
 	VFIO_PCI_ROM_REGION_INDEX,
 	VFIO_PCI_CONFIG_REGION_INDEX,
+	/*
+	 * Expose VGA regions defined for PCI base class 03, subclass 00.
+	 * This includes I/O port ranges 0x3b0 to 0x3bb and 0x3c0 to 0x3df
+	 * as well as the MMIO range 0xa0000 to 0xbffff.  Each implemented
+	 * range is found at it's identity mapped offset from the region
+	 * offset, for example 0x3b0 is region_info.offset + 0x3b0.  Areas
+	 * between described ranges are unimplemented.
+	 */
+	VFIO_PCI_VGA_REGION_INDEX,
 	VFIO_PCI_NUM_REGIONS
 };
 

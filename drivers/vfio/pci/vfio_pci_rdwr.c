@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/vgaarb.h>
 
 #include "vfio_pci_private.h"
 
@@ -172,6 +173,66 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_device *vdev, char __user *buf,
 
 	if (bar == PCI_ROM_RESOURCE)
 		pci_unmap_rom(pdev, io);
+
+	return done;
+}
+
+ssize_t vfio_pci_vga_rw(struct vfio_pci_device *vdev, char __user *buf,
+			       size_t count, loff_t *ppos, bool iswrite)
+{
+	int ret;
+	loff_t off, pos = *ppos & VFIO_PCI_OFFSET_MASK;
+	void __iomem *iomem = NULL;
+	unsigned int rsrc;
+	bool is_ioport;
+	ssize_t done;
+
+	if (!vdev->has_vga)
+		return -EINVAL;
+
+	switch (pos) {
+	case 0xa0000 ... 0xbffff:
+		count = min(count, (size_t)(0xc0000 - pos));
+		iomem = ioremap_nocache(0xa0000, 0xbffff - 0xa0000 + 1);
+		off = pos - 0xa0000;
+		rsrc = VGA_RSRC_LEGACY_MEM;
+		is_ioport = false;
+		break;
+	case 0x3b0 ... 0x3bb:
+		count = min(count, (size_t)(0x3bc - pos));
+		iomem = ioport_map(0x3b0, 0x3bb - 0x3b0 + 1);
+		off = pos - 0x3b0;
+		rsrc = VGA_RSRC_LEGACY_IO;
+		is_ioport = true;
+		break;
+	case 0x3c0 ... 0x3df:
+		count = min(count, (size_t)(0x3e0 - pos));
+		iomem = ioport_map(0x3c0, 0x3df - 0x3c0 + 1);
+		off = pos - 0x3c0;
+		rsrc = VGA_RSRC_LEGACY_IO;
+		is_ioport = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!iomem)
+		return -ENOMEM;
+
+	ret = vga_get_interruptible(vdev->pdev, rsrc);
+	if (ret) {
+		is_ioport ? ioport_unmap(iomem) : iounmap(iomem);
+		return ret;
+	}
+
+	done = do_io_rw(iomem, buf, off, count, 0, 0, iswrite);
+
+	vga_put(vdev->pdev, rsrc);
+
+	is_ioport ? ioport_unmap(iomem) : iounmap(iomem);
+
+	if (done >= 0)
+		*ppos += done;
 
 	return done;
 }
