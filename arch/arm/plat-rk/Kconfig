@@ -184,7 +184,7 @@ config RK_CONSOLE_THREAD
 
 config RK_SRAM_DMA
 	bool "Sound DMA buffer in internal SRAM"
-	depends on ARCH_RK30
+	depends on ARCH_RK30 || ARCH_RK3188
 
 config RK_PL330_DMA
 	bool
