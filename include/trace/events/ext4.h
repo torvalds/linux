@@ -2255,6 +2255,66 @@ TRACE_EVENT(ext4_es_lookup_extent_exit,
 		  __entry->found ? __entry->status : 0)
 );
 
+TRACE_EVENT(ext4_es_reclaim_extents_count,
+	TP_PROTO(struct super_block *sb, int nr_cached),
+
+	TP_ARGS(sb, nr_cached),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int,	nr_cached		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->nr_cached	= nr_cached;
+	),
+
+	TP_printk("dev %d,%d cached objects nr %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->nr_cached)
+);
+
+TRACE_EVENT(ext4_es_shrink_enter,
+	TP_PROTO(struct super_block *sb, int nr_to_scan),
+
+	TP_ARGS(sb, nr_to_scan),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int,	nr_to_scan		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->nr_to_scan	= nr_to_scan;
+	),
+
+	TP_printk("dev %d,%d nr to scan %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->nr_to_scan)
+);
+
+TRACE_EVENT(ext4_es_shrink_exit,
+	TP_PROTO(struct super_block *sb, int shrunk_nr),
+
+	TP_ARGS(sb, shrunk_nr),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int,	shrunk_nr		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->shrunk_nr	= shrunk_nr;
+	),
+
+	TP_printk("dev %d,%d nr to scan %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->shrunk_nr)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

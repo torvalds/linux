@@ -145,6 +145,9 @@ static struct kmem_cache *ext4_es_cachep;
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes);
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 			      ext4_lblk_t end);
+static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
+				       int nr_to_scan);
+static int ext4_es_reclaim_extents_count(struct super_block *sb);
 
 int __init ext4_init_es(void)
 {
@@ -280,6 +283,7 @@ out:
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
 
+	ext4_es_lru_add(inode);
 	trace_ext4_es_find_delayed_extent_exit(inode, es);
 }
 
@@ -294,11 +298,24 @@ ext4_es_alloc_extent(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len,
 	es->es_lblk = lblk;
 	es->es_len = len;
 	es->es_pblk = pblk;
+
+	/*
+	 * We don't count delayed extent because we never try to reclaim them
+	 */
+	if (!ext4_es_is_delayed(es))
+		EXT4_I(inode)->i_es_lru_nr++;
+
 	return es;
 }
 
 static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 {
+	/* Decrease the lru counter when this es is not delayed */
+	if (!ext4_es_is_delayed(es)) {
+		BUG_ON(EXT4_I(inode)->i_es_lru_nr == 0);
+		EXT4_I(inode)->i_es_lru_nr--;
+	}
+
 	kmem_cache_free(ext4_es_cachep, es);
 }
 
@@ -456,6 +473,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 
+	ext4_es_lru_add(inode);
 	ext4_es_print_tree(inode);
 
 	return err;
@@ -517,6 +535,7 @@ out:
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
 
+	ext4_es_lru_add(inode);
 	trace_ext4_es_lookup_extent_exit(inode, es, found);
 	return found;
 }
@@ -638,4 +657,141 @@ int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 	ext4_es_print_tree(inode);
 	return err;
+}
+
+static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
+{
+	struct ext4_sb_info *sbi = container_of(shrink,
+					struct ext4_sb_info, s_es_shrinker);
+	struct ext4_inode_info *ei;
+	struct list_head *cur, *tmp, scanned;
+	int nr_to_scan = sc->nr_to_scan;
+	int ret, nr_shrunk = 0;
+
+	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan);
+
+	if (!nr_to_scan)
+		return ext4_es_reclaim_extents_count(sbi->s_sb);
+
+	INIT_LIST_HEAD(&scanned);
+
+	spin_lock(&sbi->s_es_lru_lock);
+	list_for_each_safe(cur, tmp, &sbi->s_es_lru) {
+		list_move_tail(cur, &scanned);
+
+		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
+
+		read_lock(&ei->i_es_lock);
+		if (ei->i_es_lru_nr == 0) {
+			read_unlock(&ei->i_es_lock);
+			continue;
+		}
+		read_unlock(&ei->i_es_lock);
+
+		write_lock(&ei->i_es_lock);
+		ret = __es_try_to_reclaim_extents(ei, nr_to_scan);
+		write_unlock(&ei->i_es_lock);
+
+		nr_shrunk += ret;
+		nr_to_scan -= ret;
+		if (nr_to_scan == 0)
+			break;
+	}
+	list_splice_tail(&scanned, &sbi->s_es_lru);
+	spin_unlock(&sbi->s_es_lru_lock);
+	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk);
+
+	return ext4_es_reclaim_extents_count(sbi->s_sb);
+}
+
+void ext4_es_register_shrinker(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi;
+
+	sbi = EXT4_SB(sb);
+	INIT_LIST_HEAD(&sbi->s_es_lru);
+	spin_lock_init(&sbi->s_es_lru_lock);
+	sbi->s_es_shrinker.shrink = ext4_es_shrink;
+	sbi->s_es_shrinker.seeks = DEFAULT_SEEKS;
+	register_shrinker(&sbi->s_es_shrinker);
+}
+
+void ext4_es_unregister_shrinker(struct super_block *sb)
+{
+	unregister_shrinker(&EXT4_SB(sb)->s_es_shrinker);
+}
+
+void ext4_es_lru_add(struct inode *inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+
+	spin_lock(&sbi->s_es_lru_lock);
+	if (list_empty(&ei->i_es_lru))
+		list_add_tail(&ei->i_es_lru, &sbi->s_es_lru);
+	else
+		list_move_tail(&ei->i_es_lru, &sbi->s_es_lru);
+	spin_unlock(&sbi->s_es_lru_lock);
+}
+
+void ext4_es_lru_del(struct inode *inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+
+	spin_lock(&sbi->s_es_lru_lock);
+	if (!list_empty(&ei->i_es_lru))
+		list_del_init(&ei->i_es_lru);
+	spin_unlock(&sbi->s_es_lru_lock);
+}
+
+static int ext4_es_reclaim_extents_count(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_inode_info *ei;
+	struct list_head *cur;
+	int nr_cached = 0;
+
+	spin_lock(&sbi->s_es_lru_lock);
+	list_for_each(cur, &sbi->s_es_lru) {
+		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
+		read_lock(&ei->i_es_lock);
+		nr_cached += ei->i_es_lru_nr;
+		read_unlock(&ei->i_es_lock);
+	}
+	spin_unlock(&sbi->s_es_lru_lock);
+	trace_ext4_es_reclaim_extents_count(sb, nr_cached);
+	return nr_cached;
+}
+
+static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
+				       int nr_to_scan)
+{
+	struct inode *inode = &ei->vfs_inode;
+	struct ext4_es_tree *tree = &ei->i_es_tree;
+	struct rb_node *node;
+	struct extent_status *es;
+	int nr_shrunk = 0;
+
+	if (ei->i_es_lru_nr == 0)
+		return 0;
+
+	node = rb_first(&tree->root);
+	while (node != NULL) {
+		es = rb_entry(node, struct extent_status, rb_node);
+		node = rb_next(&es->rb_node);
+		/*
+		 * We can't reclaim delayed extent from status tree because
+		 * fiemap, bigallic, and seek_data/hole need to use it.
+		 */
+		if (!ext4_es_is_delayed(es)) {
+			rb_erase(&es->rb_node, &tree->root);
+			ext4_es_free_extent(inode, es);
+			nr_shrunk++;
+			if (--nr_to_scan == 0)
+				break;
+		}
+	}
+	tree->cache_es = NULL;
+	return nr_shrunk;
 }

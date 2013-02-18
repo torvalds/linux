@@ -888,6 +888,8 @@ struct ext4_inode_info {
 	/* extents status tree */
 	struct ext4_es_tree i_es_tree;
 	rwlock_t i_es_lock;
+	struct list_head i_es_lru;
+	unsigned int i_es_lru_nr;	/* protected by i_es_lock */
 
 	/* ialloc */
 	ext4_group_t	i_last_alloc_group;
@@ -1303,6 +1305,11 @@ struct ext4_sb_info {
 
 	/* Precomputed FS UUID checksum for seeding other checksums */
 	__u32 s_csum_seed;
+
+	/* Reclaim extents from extent status tree */
+	struct shrinker s_es_shrinker;
+	struct list_head s_es_lru;
+	spinlock_t s_es_lru_lock ____cacheline_aligned_in_smp;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
