@@ -246,11 +246,11 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 		return;
 	}
 
-	if (intel_sdvo->sdvo_reg == SDVOB) {
-		cval = I915_READ(SDVOC);
-	} else {
-		bval = I915_READ(SDVOB);
-	}
+	if (intel_sdvo->sdvo_reg == GEN3_SDVOB)
+		cval = I915_READ(GEN3_SDVOC);
+	else
+		bval = I915_READ(GEN3_SDVOB);
+
 	/*
 	 * Write the registers twice for luck. Sometimes,
 	 * writing them only once doesn't appear to 'stick'.
@@ -258,10 +258,10 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	 */
 	for (i = 0; i < 2; i++)
 	{
-		I915_WRITE(SDVOB, bval);
-		I915_READ(SDVOB);
-		I915_WRITE(SDVOC, cval);
-		I915_READ(SDVOC);
+		I915_WRITE(GEN3_SDVOB, bval);
+		I915_READ(GEN3_SDVOB);
+		I915_WRITE(GEN3_SDVOC, cval);
+		I915_READ(GEN3_SDVOC);
 	}
 }
 
@@ -1182,10 +1182,10 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	} else {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		switch (intel_sdvo->sdvo_reg) {
-		case SDVOB:
+		case GEN3_SDVOB:
 			sdvox &= SDVOB_PRESERVE_MASK;
 			break;
-		case SDVOC:
+		case GEN3_SDVOC:
 			sdvox &= SDVOC_PRESERVE_MASK;
 			break;
 		}

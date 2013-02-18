@@ -1432,9 +1432,9 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
-	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIB);
-	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIC);
-	assert_pch_hdmi_disabled(dev_priv, pipe, HDMID);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMIB);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMIC);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMID);
 }
 
 /**
@@ -8352,20 +8352,20 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A, PORT_A);
 
-		if (I915_READ(HDMIB) & PORT_DETECTED) {
+		if (I915_READ(PCH_HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
-				intel_hdmi_init(dev, HDMIB, PORT_B);
+				intel_hdmi_init(dev, PCH_HDMIB, PORT_B);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
 				intel_dp_init(dev, PCH_DP_B, PORT_B);
 		}
 
-		if (I915_READ(HDMIC) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMIC, PORT_C);
+		if (I915_READ(PCH_HDMIC) & PORT_DETECTED)
+			intel_hdmi_init(dev, PCH_HDMIC, PORT_C);
 
-		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMID, PORT_D);
+		if (!dpd_is_edp && I915_READ(PCH_HDMID) & PORT_DETECTED)
+			intel_hdmi_init(dev, PCH_HDMID, PORT_D);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C, PORT_C);
@@ -8377,24 +8377,26 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
 			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 
-		if (I915_READ(VLV_DISPLAY_BASE + SDVOB) & PORT_DETECTED) {
-			intel_hdmi_init(dev, VLV_DISPLAY_BASE + SDVOB, PORT_B);
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & PORT_DETECTED) {
+			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
+					PORT_B);
 			if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED)
 				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 		}
 
-		if (I915_READ(VLV_DISPLAY_BASE + SDVOC) & PORT_DETECTED)
-			intel_hdmi_init(dev, VLV_DISPLAY_BASE + SDVOC, PORT_C);
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & PORT_DETECTED)
+			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
+					PORT_C);
 
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
 
-		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
-			found = intel_sdvo_init(dev, SDVOB, true);
+			found = intel_sdvo_init(dev, GEN3_SDVOB, true);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
-				intel_hdmi_init(dev, SDVOB, PORT_B);
+				intel_hdmi_init(dev, GEN4_HDMIB, PORT_B);
 			}
 
 			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
@@ -8405,16 +8407,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		/* Before G4X SDVOC doesn't have its own detect register */
 
-		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOC\n");
-			found = intel_sdvo_init(dev, SDVOC, false);
+			found = intel_sdvo_init(dev, GEN3_SDVOC, false);
 		}
 
-		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
+		if (!found && (I915_READ(GEN3_SDVOC) & SDVO_DETECTED)) {
 
 			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
-				intel_hdmi_init(dev, SDVOC, PORT_C);
+				intel_hdmi_init(dev, GEN4_HDMIC, PORT_C);
 			}
 			if (SUPPORTS_INTEGRATED_DP(dev)) {
 				DRM_DEBUG_KMS("probing DP_C\n");

@@ -1681,8 +1681,9 @@
 #define   SDVOB_HOTPLUG_INT_STATUS_I915		(1 << 6)
 
 /* SDVO port control */
-#define SDVOB			0x61140
-#define SDVOC			0x61160
+#define GEN3_SDVOB		0x61140
+#define GEN3_SDVOC		0x61160
+#define PCH_SDVOB		0xe1140
 #define   SDVO_ENABLE		(1 << 31)
 #define   SDVO_PIPE_B_SELECT	(1 << 30)
 #define   SDVO_STALL_SELECT	(1 << 29)
@@ -3982,8 +3983,12 @@
 #define FDI_PLL_CTL_1           0xfe000
 #define FDI_PLL_CTL_2           0xfe004
 
-/* or SDVOB */
-#define HDMIB   0xe1140
+/* The same register may be used for SDVO or HDMI */
+#define GEN4_HDMIB	GEN3_SDVOB
+#define GEN4_HDMIC	GEN3_SDVOC
+#define PCH_HDMIB	PCH_SDVOB
+#define PCH_HDMIC	0xe1150
+#define PCH_HDMID	0xe1160
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER(pipe)       ((pipe) << 30)
 #define  TRANSCODER_CPT(pipe)   ((pipe) << 29)
@@ -4003,12 +4008,6 @@
 #define  VSYNC_ACTIVE_HIGH      (1 << 4)
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
-
-/* PCH SDVOB multiplex with HDMIB */
-#define PCH_SDVOB	HDMIB
-
-#define HDMIC   0xe1150
-#define HDMID   0xe1160
 
 #define PCH_LVDS	0xe1180
 #define  LVDS_DETECTED	(1 << 1)
