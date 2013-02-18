@@ -1528,17 +1528,12 @@ void i915_gem_lastclose(struct drm_device *dev);
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
-	struct scatterlist *sg = obj->pages->sgl;
-	int nents = obj->pages->nents;
-	while (nents > SG_MAX_SINGLE_ALLOC) {
-		if (n < SG_MAX_SINGLE_ALLOC - 1)
-			break;
+	struct sg_page_iter sg_iter;
 
-		sg = sg_chain_ptr(sg + SG_MAX_SINGLE_ALLOC - 1);
-		n -= SG_MAX_SINGLE_ALLOC - 1;
-		nents -= SG_MAX_SINGLE_ALLOC - 1;
-	}
-	return sg_page(sg+n);
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, n)
+		return sg_iter.page;
+
+	return NULL;
 }
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
