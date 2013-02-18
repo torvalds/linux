@@ -366,6 +366,7 @@ struct intel_hdmi {
 
 struct intel_dp {
 	uint32_t output_reg;
+	uint32_t aux_ch_ctl_reg;
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
