@@ -1374,7 +1374,7 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 				 struct ieee80211_sta *sta,
 				 u32 changed)
 {
-	bool wide = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	bool wide = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update wide %d", wide);
 

@@ -137,13 +137,8 @@ static void cleanup_single_sta(struct sta_info *sta)
 		ieee80211_purge_tx_queue(&local->hw, &sta->tx_filtered[ac]);
 	}
 
-#ifdef CONFIG_MAC80211_MESH
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		mesh_accept_plinks_update(sdata);
-		mesh_plink_deactivate(sta);
-		del_timer_sync(&sta->plink_timer);
-	}
-#endif
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_sta_cleanup(sta);
 
 	cancel_work_sync(&sta->drv_unblock_wk);
 
@@ -380,6 +375,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
 
+	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
+
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
 	return sta;
@@ -576,7 +573,6 @@ void sta_info_recalc_tim(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ps_data *ps;
-	unsigned long flags;
 	bool indicate_tim = false;
 	u8 ignore_for_tim = sta->sta.uapsd_queues;
 	int ac;
@@ -633,7 +629,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	}
 
  done:
-	spin_lock_irqsave(&local->tim_lock, flags);
+	spin_lock_bh(&local->tim_lock);
 
 	if (indicate_tim)
 		__bss_tim_set(ps->tim, id);
@@ -646,7 +642,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 		local->tim_in_locked_section = false;
 	}
 
-	spin_unlock_irqrestore(&local->tim_lock, flags);
+	spin_unlock_bh(&local->tim_lock);
 }
 
 static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
@@ -1124,6 +1120,8 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
+
+	skb->dev = sdata->dev;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);

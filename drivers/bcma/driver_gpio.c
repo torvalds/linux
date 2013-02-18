@@ -107,3 +107,8 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 
 	return gpiochip_add(chip);
 }
+
+int bcma_gpio_unregister(struct bcma_drv_cc *cc)
+{
+	return gpiochip_remove(&cc->gpio);
+}

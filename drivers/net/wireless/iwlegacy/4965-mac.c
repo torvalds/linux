@@ -1793,8 +1793,7 @@ il4965_tx_skb(struct il_priv *il,
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
 	/* Total # bytes to be transmitted */
-	len = (u16) skb->len;
-	tx_cmd->len = cpu_to_le16(len);
+	tx_cmd->len = cpu_to_le16((u16) skb->len);
 
 	if (info->control.hw_key)
 		il4965_tx_cmd_build_hwcrypto(il, info, tx_cmd, skb, sta_id);
@@ -1804,7 +1803,6 @@ il4965_tx_skb(struct il_priv *il,
 
 	il4965_tx_cmd_build_rate(il, tx_cmd, info, sta, fc);
 
-	il_update_stats(il, true, fc, len);
 	/*
 	 * Use the first empty entry in this queue's command buffer array
 	 * to contain the Tx command and MAC header concatenated together
@@ -1826,18 +1824,8 @@ il4965_tx_skb(struct il_priv *il,
 	txcmd_phys =
 	    pci_map_single(il->pci_dev, &out_cmd->hdr, firstlen,
 			   PCI_DMA_BIDIRECTIONAL);
-	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, firstlen);
-	/* Add buffer containing Tx command and MAC(!) header to TFD's
-	 * first entry */
-	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
-
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
-		txq->need_update = 1;
-	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
-	}
+	if (unlikely(pci_dma_mapping_error(il->pci_dev, txcmd_phys)))
+		goto drop_unlock;
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -1846,8 +1834,24 @@ il4965_tx_skb(struct il_priv *il,
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr)))
+			goto drop_unlock;
+	}
+
+	/* Add buffer containing Tx command and MAC(!) header to TFD's
+	 * first entry */
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
+	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
+	dma_unmap_len_set(out_meta, len, firstlen);
+	if (secondlen)
 		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, secondlen,
 					       0, 0);
+
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+		txq->need_update = 1;
+	} else {
+		wait_write_ptr = 1;
+		txq->need_update = 0;
 	}
 
 	scratch_phys =
@@ -1859,6 +1863,8 @@ il4965_tx_skb(struct il_priv *il,
 				    PCI_DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = il_get_dma_hi_addr(scratch_phys);
+
+	il_update_stats(il, true, fc, skb->len);
 
 	D_TX("sequence nr = 0X%x\n", le16_to_cpu(out_cmd->hdr.sequence));
 	D_TX("tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));

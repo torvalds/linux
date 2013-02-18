@@ -324,6 +324,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
+	INIT_DELAYED_WORK(&rdev->dfs_update_channels_wk,
+			  cfg80211_dfs_channels_update_work);
 #ifdef CONFIG_CFG80211_WEXT
 	rdev->wiphy.wext = &cfg80211_wext_handler;
 #endif
@@ -365,7 +367,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
 
-	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH;
+	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH |
+			       NL80211_FEATURE_ADVERTISE_CHAN_LIMITS;
 
 	return &rdev->wiphy;
 }
@@ -695,6 +698,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
+	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
 
 	if (rdev->wowlan && rdev->ops->set_wakeup)
 		rdev_set_wakeup(rdev, false);
@@ -715,7 +719,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 		kfree(reg);
 	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
-		cfg80211_put_bss(&scan->pub);
+		cfg80211_put_bss(&rdev->wiphy, &scan->pub);
 	kfree(rdev);
 }
 

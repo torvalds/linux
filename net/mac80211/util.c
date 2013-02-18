@@ -739,11 +739,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				if (calc_crc)
 					crc = crc32_be(crc, pos - 2, elen + 2);
 
-				if (pos[3] == 1) {
-					/* OUI Type 1 - WPA IE */
-					elems->wpa = pos;
-					elems->wpa_len = elen;
-				} else if (elen >= 5 && pos[3] == 2) {
+				if (elen >= 5 && pos[3] == 2) {
 					/* OUI Type 2 - WMM IE */
 					if (pos[4] == 0) {
 						elems->wmm_info = pos;
@@ -788,6 +784,12 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_VHT_OPERATION:
 			if (elen >= sizeof(struct ieee80211_vht_operation))
 				elems->vht_operation = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_OPMODE_NOTIF:
+			if (elen > 0)
+				elems->opmode_notif = pos;
 			else
 				elem_parse_failed = true;
 			break;
@@ -1033,7 +1035,7 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
-			 u8 *extra, size_t extra_len, const u8 *da,
+			 const u8 *extra, size_t extra_len, const u8 *da,
 			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx,
 			 u32 tx_flags)
 {
@@ -1945,7 +1947,7 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 }
 
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				  struct ieee80211_ht_operation *ht_oper,
+				  const struct ieee80211_ht_operation *ht_oper,
 				  struct cfg80211_chan_def *chandef)
 {
 	enum nl80211_channel_type channel_type;
@@ -2133,3 +2135,49 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 	return ts;
 }
+
+void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
+
+		if (sdata->wdev.cac_started) {
+			ieee80211_vif_release_channel(sdata);
+			cfg80211_cac_event(sdata->dev,
+					   NL80211_RADAR_CAC_ABORTED,
+					   GFP_KERNEL);
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+}
+
+void ieee80211_dfs_radar_detected_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, radar_detected_work);
+	struct cfg80211_chan_def chandef;
+
+	ieee80211_dfs_cac_cancel(local);
+
+	if (local->use_chanctx)
+		/* currently not handled */
+		WARN_ON(1);
+	else {
+		cfg80211_chandef_create(&chandef, local->hw.conf.channel,
+					local->hw.conf.channel_type);
+		cfg80211_radar_event(local->hw.wiphy, &chandef, GFP_KERNEL);
+	}
+}
+
+void ieee80211_radar_detected(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_radar_detected(local);
+
+	ieee80211_queue_work(hw, &local->radar_detected_work);
+}
+EXPORT_SYMBOL(ieee80211_radar_detected);

@@ -126,6 +126,7 @@ struct mwifiex_pcie_card_reg {
 	u8 ring_flag_xs_eop;
 	u32 ring_tx_start_ptr;
 	u8 pfu_enabled;
+	u8 sleep_cookie;
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
@@ -156,6 +157,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
 	.ring_flag_xs_eop = 0,
 	.ring_tx_start_ptr = 0,
 	.pfu_enabled = 0,
+	.sleep_cookie = 1,
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
@@ -186,6 +188,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.ring_flag_xs_eop = MWIFIEX_BD_FLAG_XS_EOP,
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
+	.sleep_cookie = 0,
 };
 
 struct mwifiex_pcie_device {

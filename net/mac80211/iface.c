@@ -78,8 +78,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
 }
 
-static u32 ieee80211_idle_off(struct ieee80211_local *local,
-			      const char *reason)
+static u32 ieee80211_idle_off(struct ieee80211_local *local)
 {
 	if (!(local->hw.conf.flags & IEEE80211_CONF_IDLE))
 		return 0;
@@ -99,110 +98,45 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 	return IEEE80211_CONF_CHANGE_IDLE;
 }
 
-static u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
+void ieee80211_recalc_idle(struct ieee80211_local *local)
 {
-	struct ieee80211_sub_if_data *sdata;
-	int count = 0;
-	bool working = false, scanning = false;
+	bool working = false, scanning, active;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
 	struct ieee80211_roc_work *roc;
+	u32 change;
 
-#ifdef CONFIG_PROVE_LOCKING
-	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
-		!lockdep_is_held(&local->iflist_mtx));
-#endif
 	lockdep_assert_held(&local->mtx);
 
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata)) {
-			sdata->vif.bss_conf.idle = true;
-			continue;
-		}
-
-		sdata->old_idle = sdata->vif.bss_conf.idle;
-
-		/* do not count disabled managed interfaces */
-		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !sdata->u.mgd.associated &&
-		    !sdata->u.mgd.auth_data &&
-		    !sdata->u.mgd.assoc_data) {
-			sdata->vif.bss_conf.idle = true;
-			continue;
-		}
-		/* do not count unused IBSS interfaces */
-		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-		    !sdata->u.ibss.ssid_len) {
-			sdata->vif.bss_conf.idle = true;
-			continue;
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
-			continue;
-
-		/* count everything else */
-		sdata->vif.bss_conf.idle = false;
-		count++;
-	}
+	active = !list_empty(&local->chanctx_list);
 
 	if (!local->ops->remain_on_channel) {
 		list_for_each_entry(roc, &local->roc_list, list) {
 			working = true;
-			roc->sdata->vif.bss_conf.idle = false;
+			break;
 		}
 	}
 
-	sdata = rcu_dereference_protected(local->scan_sdata,
-					  lockdep_is_held(&local->mtx));
-	if (sdata && !(local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)) {
-		scanning = true;
-		sdata->vif.bss_conf.idle = false;
-	}
-
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-		    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
-			continue;
-		if (sdata->old_idle == sdata->vif.bss_conf.idle)
-			continue;
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
-	}
+	scanning = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
+		   test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning);
 
 	if (working || scanning)
 		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_WORK;
 	else
 		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_WORK;
 
-	if (count)
+	if (active)
 		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
 	else
 		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
 
 	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
 
-	if (working)
-		return ieee80211_idle_off(local, "working");
-	if (scanning)
-		return ieee80211_idle_off(local, "scanning");
-	if (!count)
-		return ieee80211_idle_on(local);
+	if (working || scanning || active)
+		change = ieee80211_idle_off(local);
 	else
-		return ieee80211_idle_off(local, "in use");
-
-	return 0;
-}
-
-void ieee80211_recalc_idle(struct ieee80211_local *local)
-{
-	u32 chg;
-
-	mutex_lock(&local->iflist_mtx);
-	chg = __ieee80211_recalc_idle(local);
-	mutex_unlock(&local->iflist_mtx);
-	if (chg)
-		ieee80211_hw_config(local, chg);
+		change = ieee80211_idle_on(local);
+	if (change)
+		ieee80211_hw_config(local, change);
 }
 
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
@@ -621,6 +555,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 				goto err_del_interface;
 		}
 
+		drv_add_interface_debugfs(local, sdata);
+
 		if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 			local->fif_probe_req++;
@@ -694,10 +630,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	if (sdata->flags & IEEE80211_SDATA_PROMISC)
 		atomic_inc(&local->iff_promiscs);
 
-	mutex_lock(&local->mtx);
-	hw_reconf_flags |= __ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
-
 	if (coming_up)
 		local->open_count++;
 
@@ -748,6 +680,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i, flushed;
+	struct ps_data *ps;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -817,6 +750,16 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 	cancel_work_sync(&sdata->recalc_smps);
 
+	cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
+
+	if (sdata->wdev.cac_started) {
+		mutex_lock(&local->iflist_mtx);
+		ieee80211_vif_release_channel(sdata);
+		mutex_unlock(&local->iflist_mtx);
+		cfg80211_cac_event(sdata->dev, NL80211_RADAR_CAC_ABORTED,
+				   GFP_KERNEL);
+	}
+
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
@@ -826,6 +769,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
+	} else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		/* remove all packets in parent bc_buf pointing to this dev */
+		ps = &sdata->bss->ps;
+
+		spin_lock_irqsave(&ps->bc_buf.lock, flags);
+		skb_queue_walk_safe(&ps->bc_buf, skb, tmp) {
+			if (skb->dev == sdata->dev) {
+				__skb_unlink(skb, &ps->bc_buf);
+				local->total_ps_buffered--;
+				ieee80211_free_txskb(&local->hw, skb);
+			}
+		}
+		spin_unlock_irqrestore(&ps->bc_buf.lock, flags);
 	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		ieee80211_mgd_stop(sdata);
 	}
@@ -882,15 +838,13 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 */
 		ieee80211_free_keys(sdata);
 
+		drv_remove_interface_debugfs(local, sdata);
+
 		if (going_down)
 			drv_remove_interface(local, sdata);
 	}
 
 	sdata->bss = NULL;
-
-	mutex_lock(&local->mtx);
-	hw_reconf_flags |= __ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 
 	ieee80211_recalc_ps(local, -1);
 
@@ -1583,6 +1537,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	spin_lock_init(&sdata->cleanup_stations_lock);
 	INIT_LIST_HEAD(&sdata->cleanup_stations);
 	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
+	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
+			  ieee80211_dfs_cac_timer_work);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;

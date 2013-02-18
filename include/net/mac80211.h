@@ -147,10 +147,12 @@ struct ieee80211_low_level_stats {
  * enum ieee80211_chanctx_change - change flag for channel context
  * @IEEE80211_CHANCTX_CHANGE_WIDTH: The channel width changed
  * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
+ * @IEEE80211_CHANCTX_CHANGE_RADAR: radar detection flag changed
  */
 enum ieee80211_chanctx_change {
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(0),
 	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
+	IEEE80211_CHANCTX_CHANGE_RADAR		= BIT(2),
 };
 
 /**
@@ -165,6 +167,7 @@ enum ieee80211_chanctx_change {
  * @rx_chains_dynamic: The number of RX chains that must be enabled
  *	after RTS/CTS handshake to receive SMPS MIMO transmissions;
  *	this will always be >= @rx_chains_static.
+ * @radar_enabled: whether radar detection is enabled on this channel.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
@@ -172,6 +175,8 @@ struct ieee80211_chanctx_conf {
 	struct cfg80211_chan_def def;
 
 	u8 rx_chains_static, rx_chains_dynamic;
+
+	bool radar_enabled;
 
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
@@ -210,6 +215,9 @@ struct ieee80211_chanctx_conf {
  *	changed (currently only in P2P client mode, GO mode will be later)
  * @BSS_CHANGED_DTIM_PERIOD: the DTIM period value was changed (set when
  *	it becomes valid, managed mode only)
+ * @BSS_CHANGED_BANDWIDTH: The bandwidth used by this interface changed,
+ *	note that this is only called when it changes after the channel
+ *	context had been assigned.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -233,6 +241,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_TXPOWER		= 1<<18,
 	BSS_CHANGED_P2P_PS		= 1<<19,
 	BSS_CHANGED_DTIM_PERIOD		= 1<<20,
+	BSS_CHANGED_BANDWIDTH		= 1<<21,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -277,9 +286,16 @@ enum ieee80211_rssi_event {
  *	valid in station mode only if after the driver was notified
  *	with the %BSS_CHANGED_DTIM_PERIOD flag, will be non-zero then.
  * @sync_tsf: last beacon's/probe response's TSF timestamp (could be old
- *	as it may have been received during scanning long ago)
+ *	as it may have been received during scanning long ago). If the
+ *	HW flag %IEEE80211_HW_TIMING_BEACON_ONLY is set, then this can
+ *	only come from a beacon, but might not become valid until after
+ *	association when a beacon is received (which is notified with the
+ *	%BSS_CHANGED_DTIM flag.)
  * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
  *	the driver/device can use this to calculate synchronisation
+ *	(see @sync_tsf)
+ * @sync_dtim_count: Only valid when %IEEE80211_HW_TIMING_BEACON_ONLY
+ *	is requested, see @sync_tsf/@sync_device_ts.
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -331,6 +347,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 sync_tsf;
 	u32 sync_device_ts;
+	u8 sync_dtim_count;
 	u32 basic_rates;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
@@ -391,6 +408,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: internal to mac80211, can be
  *	set by rate control algorithms to indicate probe rate, will
  *	be cleared for fragmented frames (except on the last fragment)
+ * @IEEE80211_TX_INTFL_OFFCHAN_TX_OK: Internal to mac80211. Used to indicate
+ *	that a frame can be transmitted while the queues are stopped for
+ *	off-channel operation.
  * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
  *	used to indicate that a pending frame requires TX processing before
  *	it can be sent out.
@@ -456,6 +476,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_AMPDU			= BIT(10),
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
+	IEEE80211_TX_INTFL_OFFCHAN_TX_OK	= BIT(13),
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
@@ -955,6 +976,7 @@ enum ieee80211_smps_mode {
  *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
+ * @radar_enabled: whether radar detection is enabled
  *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
  *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
@@ -981,6 +1003,7 @@ struct ieee80211_conf {
 
 	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type;
+	bool radar_enabled;
 	enum ieee80211_smps_mode smps_mode;
 };
 
@@ -1178,6 +1201,24 @@ enum ieee80211_sta_state {
 };
 
 /**
+ * enum ieee80211_sta_rx_bandwidth - station RX bandwidth
+ * @IEEE80211_STA_RX_BW_20: station can only receive 20 MHz
+ * @IEEE80211_STA_RX_BW_40: station can receive up to 40 MHz
+ * @IEEE80211_STA_RX_BW_80: station can receive up to 80 MHz
+ * @IEEE80211_STA_RX_BW_160: station can receive up to 160 MHz
+ *	(including 80+80 MHz)
+ *
+ * Implementation note: 20 must be zero to be initialized
+ *	correctly, the values must be sorted.
+ */
+enum ieee80211_sta_rx_bandwidth {
+	IEEE80211_STA_RX_BW_20 = 0,
+	IEEE80211_STA_RX_BW_40,
+	IEEE80211_STA_RX_BW_80,
+	IEEE80211_STA_RX_BW_160,
+};
+
+/**
  * struct ieee80211_sta - station table entry
  *
  * A station table entry represents a station we are possibly
@@ -1199,6 +1240,12 @@ enum ieee80211_sta_state {
  * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
  *	if wme is supported.
  * @max_sp: max Service Period. Only valid if wme is supported.
+ * @bandwidth: current bandwidth the station can receive with
+ * @rx_nss: in HT/VHT, the maximum number of spatial streams the
+ *	station can receive at the moment, changed by operating mode
+ *	notifications and capabilities. The value is only valid after
+ *	the station moves to associated state.
+ * @smps_mode: current SMPS mode (off, static or dynamic)
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1209,6 +1256,9 @@ struct ieee80211_sta {
 	bool wme;
 	u8 uapsd_queues;
 	u8 max_sp;
+	u8 rx_nss;
+	enum ieee80211_sta_rx_bandwidth bandwidth;
+	enum ieee80211_smps_mode smps_mode;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1355,10 +1405,6 @@ struct ieee80211_tx_control {
  *	setup strictly in HW. mac80211 should not attempt to do this in
  *	software.
  *
- * @IEEE80211_HW_SCAN_WHILE_IDLE: The device can do hw scan while
- *	being idle (i.e. mac80211 doesn't have to go idle-off during the
- *	the scan).
- *
  * @IEEE80211_HW_WANT_MONITOR_VIF: The driver would like to be informed of
  *	a virtual monitor interface when monitor interfaces are the only
  *	active interfaces.
@@ -1371,6 +1417,9 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF: Use the P2P Device address for any
  *	P2P Interface. This will be honoured even if more than one interface
  *	is supported.
+ *
+ * @IEEE80211_HW_TIMING_BEACON_ONLY: Use sync timing from beacon frames
+ *	only, to allow getting TBTT of a DTIM beacon.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1397,8 +1446,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
-	IEEE80211_HW_SCAN_WHILE_IDLE			= 1<<24,
 	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
+	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 };
 
 /**
@@ -1682,15 +1731,6 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * whenever %IEEE80211_CONF_PS is set. In this case mac80211 will disable
  * dynamic PS feature in stack and will just keep %IEEE80211_CONF_PS
  * enabled whenever user has enabled powersave.
- *
- * Some hardware need to toggle a single shared antenna between WLAN and
- * Bluetooth to facilitate co-existence. These types of hardware set
- * limitations on the use of host controlled dynamic powersave whenever there
- * is simultaneous WLAN and Bluetooth traffic. For these types of hardware, the
- * driver may request temporarily going into full power save, in order to
- * enable toggling the antenna between BT and WLAN. If the driver requests
- * disabling dynamic powersave, the @dynamic_ps_timeout value will be
- * temporarily set to zero until the driver re-enables dynamic powersave.
  *
  * Driver informs U-APSD client support by enabling
  * %IEEE80211_HW_SUPPORTS_UAPSD flag. The mode is configured through the
@@ -2077,16 +2117,21 @@ enum ieee80211_frame_release_type {
  * enum ieee80211_rate_control_changed - flags to indicate what changed
  *
  * @IEEE80211_RC_BW_CHANGED: The bandwidth that can be used to transmit
- *	to this station changed.
+ *	to this station changed. The actual bandwidth is in the station
+ *	information -- for HT20/40 the IEEE80211_HT_CAP_SUP_WIDTH_20_40
+ *	flag changes, for HT and VHT the bandwidth field changes.
  * @IEEE80211_RC_SMPS_CHANGED: The SMPS state of the station changed.
  * @IEEE80211_RC_SUPP_RATES_CHANGED: The supported rate set of this peer
  *	changed (in IBSS mode) due to discovering more information about
  *	the peer.
+ * @IEEE80211_RC_NSS_CHANGED: N_SS (number of spatial streams) was changed
+ *	by the peer
  */
 enum ieee80211_rate_control_changed {
 	IEEE80211_RC_BW_CHANGED		= BIT(0),
 	IEEE80211_RC_SMPS_CHANGED	= BIT(1),
 	IEEE80211_RC_SUPP_RATES_CHANGED	= BIT(2),
+	IEEE80211_RC_NSS_CHANGED	= BIT(3),
 };
 
 /**
@@ -2166,6 +2211,18 @@ enum ieee80211_rate_control_changed {
  *	the mac_addr member of the conf structure is, however, set to the
  *	MAC address of the device going away.
  *	Hence, this callback must be implemented. It can sleep.
+ *
+ * @add_interface_debugfs: Drivers can use this callback to add debugfs files
+ *	when a vif is added to mac80211. This callback and
+ *	@remove_interface_debugfs should be within a CONFIG_MAC80211_DEBUGFS
+ *	conditional. @remove_interface_debugfs must be provided for cleanup.
+ *	This callback can sleep.
+ *
+ * @remove_interface_debugfs: Remove the debugfs files which were added using
+ *	@add_interface_debugfs. This callback must remove all debugfs entries
+ *	that were added because mac80211 only removes interface debugfs when the
+ *	interface is destroyed, not when it is removed from the driver.
+ *	This callback can sleep.
  *
  * @config: Handler for configuration requests. IEEE 802.11 code calls this
  *	function to change hardware configuration, e.g., channel.
@@ -2580,6 +2637,12 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
 				   struct dentry *dir);
+	void (*add_interface_debugfs)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct dentry *dir);
+	void (*remove_interface_debugfs)(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct dentry *dir);
 #endif
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
@@ -3909,36 +3972,6 @@ void ieee80211_connection_loss(struct ieee80211_vif *vif);
 void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
 
 /**
- * ieee80211_disable_dyn_ps - force mac80211 to temporarily disable dynamic psm
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- *
- * Some hardware require full power save to manage simultaneous BT traffic
- * on the WLAN frequency. Full PSM is required periodically, whenever there are
- * burst of BT traffic. The hardware gets information of BT traffic via
- * hardware co-existence lines, and consequentially requests mac80211 to
- * (temporarily) enter full psm.
- * This function will only temporarily disable dynamic PS, not enable PSM if
- * it was not already enabled.
- * The driver must make sure to re-enable dynamic PS using
- * ieee80211_enable_dyn_ps() if the driver has disabled it.
- *
- */
-void ieee80211_disable_dyn_ps(struct ieee80211_vif *vif);
-
-/**
- * ieee80211_enable_dyn_ps - restore dynamic psm after being disabled
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- *
- * This function restores dynamic PS after being temporarily disabled via
- * ieee80211_disable_dyn_ps(). Each ieee80211_disable_dyn_ps() call must
- * be coupled with an eventual call to this function.
- *
- */
-void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif);
-
-/**
  * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
  *	rssi threshold triggered
  *
@@ -3953,6 +3986,13 @@ void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif);
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
 			       gfp_t gfp);
+
+/**
+ * ieee80211_radar_detected - inform that a radar was detected
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ */
+void ieee80211_radar_detected(struct ieee80211_hw *hw);
 
 /**
  * ieee80211_chswitch_done - Complete channel switch process

@@ -296,8 +296,9 @@ struct sta_ampdu_mlme {
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
  * @beacon_loss_count: number of times beacon loss has triggered
- * @supports_40mhz: tracks whether the station advertised 40 MHz support
- *	as we overwrite its HT parameters with the currently used value
+ * @rcu_head: RCU head used for freeing this station struct
+ * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
+ *	taken from HT/VHT capabilities or VHT operating mode notification
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -399,10 +400,10 @@ struct sta_info {
 	} debugfs;
 #endif
 
+	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;
-
-	bool supports_40mhz;
 
 	/* keep last! */
 	struct ieee80211_sta sta;

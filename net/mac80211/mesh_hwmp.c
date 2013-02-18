@@ -30,14 +30,14 @@
 
 static void mesh_queue_preq(struct mesh_path *, u8);
 
-static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
+static inline u32 u32_field_get(const u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
 		offset += 6;
 	return get_unaligned_le32(preq_elem + offset);
 }
 
-static inline u32 u16_field_get(u8 *preq_elem, int offset, bool ae)
+static inline u32 u16_field_get(const u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
 		offset += 6;
@@ -102,10 +102,13 @@ enum mpath_frame_type {
 static const u8 broadcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
-		u8 *orig_addr, __le32 orig_sn, u8 target_flags, u8 *target,
-		__le32 target_sn, const u8 *da, u8 hop_count, u8 ttl,
-		__le32 lifetime, __le32 metric, __le32 preq_id,
-		struct ieee80211_sub_if_data *sdata)
+				  const u8 *orig_addr, __le32 orig_sn,
+				  u8 target_flags, const u8 *target,
+				  __le32 target_sn, const u8 *da,
+				  u8 hop_count, u8 ttl,
+				  __le32 lifetime, __le32 metric,
+				  __le32 preq_id,
+				  struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -235,7 +238,7 @@ static void prepare_frame_for_deferred_tx(struct ieee80211_sub_if_data *sdata,
  * also acquires in the TX path.  To avoid a deadlock we don't transmit the
  * frame directly but add it to the pending queue instead.
  */
-int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
+int mesh_path_error_tx(u8 ttl, const u8 *target, __le32 target_sn,
 		       __le16 target_rcode, const u8 *ra,
 		       struct ieee80211_sub_if_data *sdata)
 {
@@ -369,14 +372,14 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
  * path routing information is updated.
  */
 static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
-			    struct ieee80211_mgmt *mgmt,
-			    u8 *hwmp_ie, enum mpath_frame_type action)
+			       struct ieee80211_mgmt *mgmt,
+			       const u8 *hwmp_ie, enum mpath_frame_type action)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct mesh_path *mpath;
 	struct sta_info *sta;
 	bool fresh_info;
-	u8 *orig_addr, *ta;
+	const u8 *orig_addr, *ta;
 	u32 orig_sn, orig_metric;
 	unsigned long orig_lifetime, exp_time;
 	u32 last_hop_metric, new_metric;
@@ -511,11 +514,11 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 
 static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
-				    u8 *preq_elem, u32 metric)
+				    const u8 *preq_elem, u32 metric)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath = NULL;
-	u8 *target_addr, *orig_addr;
+	const u8 *target_addr, *orig_addr;
 	const u8 *da;
 	u8 target_flags, ttl, flags;
 	u32 orig_sn, target_sn, lifetime, orig_metric;
@@ -648,11 +651,11 @@ next_hop_deref_protected(struct mesh_path *mpath)
 
 static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
-				    u8 *prep_elem, u32 metric)
+				    const u8 *prep_elem, u32 metric)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
-	u8 *target_addr, *orig_addr;
+	const u8 *target_addr, *orig_addr;
 	u8 ttl, hopcount, flags;
 	u8 next_hop[ETH_ALEN];
 	u32 target_sn, orig_sn, lifetime;
@@ -711,12 +714,13 @@ fail:
 }
 
 static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
-			     struct ieee80211_mgmt *mgmt, u8 *perr_elem)
+				    struct ieee80211_mgmt *mgmt,
+				    const u8 *perr_elem)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
 	u8 ttl;
-	u8 *ta, *target_addr;
+	const u8 *ta, *target_addr;
 	u32 target_sn;
 	u16 target_rcode;
 
@@ -758,15 +762,15 @@ endperr:
 }
 
 static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
-				struct ieee80211_mgmt *mgmt,
-				struct ieee80211_rann_ie *rann)
+				    struct ieee80211_mgmt *mgmt,
+				    const struct ieee80211_rann_ie *rann)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct mesh_path *mpath;
 	u8 ttl, flags, hopcount;
-	u8 *orig_addr;
+	const u8 *orig_addr;
 	u32 orig_sn, metric, metric_txsta, interval;
 	bool root_is_gate;
 

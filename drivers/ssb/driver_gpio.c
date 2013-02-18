@@ -196,3 +196,15 @@ int ssb_gpio_init(struct ssb_bus *bus)
 
 	return -1;
 }
+
+int ssb_gpio_unregister(struct ssb_bus *bus)
+{
+	if (ssb_chipco_available(&bus->chipco) ||
+	    ssb_extif_available(&bus->extif)) {
+		return gpiochip_remove(&bus->gpio);
+	} else {
+		SSB_WARN_ON(1);
+	}
+
+	return -1;
+}

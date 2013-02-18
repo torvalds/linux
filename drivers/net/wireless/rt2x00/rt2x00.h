@@ -1169,8 +1169,10 @@ static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
+ *
+ * Returns -ENOMEM if mapping fail, 0 otherwise.
  */
-void rt2x00queue_map_txskb(struct queue_entry *entry);
+int rt2x00queue_map_txskb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_unmap_skb - Unmap a skb from DMA.
