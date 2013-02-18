@@ -1945,6 +1945,27 @@ sub start_monitor_and_boot {
 my $check_build_re = ".*:.*(warning|error|Error):.*";
 my $utf8_quote = "\\x{e2}\\x{80}(\\x{98}|\\x{99})";
 
+sub process_warning_line {
+    my ($line) = @_;
+
+    chomp $line;
+
+    # for distcc heterogeneous systems, some compilers
+    # do things differently causing warning lines
+    # to be slightly different. This makes an attempt
+    # to fixe those issues.
+
+    # chop off the index into the line
+    # using distcc, some compilers give different indexes
+    # depending on white space
+    $line =~ s/^(\s*\S+:\d+:)\d+/$1/;
+
+    # Some compilers use UTF-8 extended for quotes and some don't.
+    $line =~ s/$utf8_quote/'/g;
+
+    return $line;
+}
+
 # Read buildlog and check against warnings file for any
 # new warnings.
 #
@@ -1965,8 +1986,9 @@ sub check_buildlog {
 
 	while (<IN>) {
 	    if (/$check_build_re/) {
-		chomp;
-		$warnings_list{$_} = 1;
+		my $warning = process_warning_line $_;
+		
+		$warnings_list{$warning} = 1;
 	    }
 	}
 	close(IN);
@@ -1978,13 +2000,9 @@ sub check_buildlog {
     open(IN, $buildlog) or dodie "Can't open $buildlog";
     while (<IN>) {
 	if (/$check_build_re/) {
+	    my $warning = process_warning_line $_;
 
-	    # Some compilers use UTF-8 extended for quotes
-	    # for distcc heterogeneous systems, this causes issues
-	    s/$utf8_quote/'/g;
-
-	    chomp;
-	    if (!defined $warnings_list{$_}) {
+	    if (!defined $warnings_list{$warning}) {
 		fail "New warning found (not in $warnings_file)\n$_\n";
 		$no_reboot = $save_no_reboot;
 		return 0;
