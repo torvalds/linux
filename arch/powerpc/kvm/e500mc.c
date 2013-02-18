@@ -108,6 +108,8 @@ void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 }
 
+static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu_on_cpu);
+
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
@@ -136,8 +138,11 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	mtspr(SPRN_GDEAR, vcpu->arch.shared->dar);
 	mtspr(SPRN_GESR, vcpu->arch.shared->esr);
 
-	if (vcpu->arch.oldpir != mfspr(SPRN_PIR))
+	if (vcpu->arch.oldpir != mfspr(SPRN_PIR) ||
+	    __get_cpu_var(last_vcpu_on_cpu) != vcpu) {
 		kvmppc_e500_tlbil_all(vcpu_e500);
+		__get_cpu_var(last_vcpu_on_cpu) = vcpu;
+	}
 
 	kvmppc_load_guest_fp(vcpu);
 }
