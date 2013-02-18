@@ -2494,11 +2494,13 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 	struct port *port = NULL;
 	int lacp_fast;
 
-	read_lock(&bond->lock);
+	write_lock_bh(&bond->lock);
 	lacp_fast = bond->params.lacp_fast;
 
 	bond_for_each_slave(bond, slave, i) {
 		port = &(SLAVE_AD_INFO(slave).port);
+		if (port->slave == NULL)
+			continue;
 		__get_state_machine_lock(port);
 		if (lacp_fast)
 			port->actor_oper_port_state |= AD_STATE_LACP_TIMEOUT;
@@ -2507,5 +2509,5 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 		__release_state_machine_lock(port);
 	}
 
-	read_unlock(&bond->lock);
+	write_unlock_bh(&bond->lock);
 }
