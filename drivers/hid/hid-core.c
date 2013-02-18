@@ -1267,7 +1267,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	if (!hid)
 		return -ENODEV;
 
-	if (down_trylock(&hid->driver_lock))
+	if (down_trylock(&hid->driver_input_lock))
 		return -EBUSY;
 
 	if (!hid->driver) {
@@ -1324,7 +1324,7 @@ nomem:
 	ret = hid_report_raw_event(hid, type, data, size, interrupt);
 
 unlock:
-	up(&hid->driver_lock);
+	up(&hid->driver_input_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
@@ -1845,6 +1845,11 @@ static int hid_device_probe(struct device *dev)
 
 	if (down_interruptible(&hdev->driver_lock))
 		return -EINTR;
+	if (down_interruptible(&hdev->driver_input_lock)) {
+		ret = -EINTR;
+		goto unlock_driver_lock;
+	}
+	hdev->io_started = false;
 
 	if (!hdev->driver) {
 		id = hid_match_device(hdev, hdrv);
@@ -1867,6 +1872,9 @@ static int hid_device_probe(struct device *dev)
 		}
 	}
 unlock:
+	if (!hdev->io_started)
+		up(&hdev->driver_input_lock);
+unlock_driver_lock:
 	up(&hdev->driver_lock);
 	return ret;
 }
@@ -1875,9 +1883,15 @@ static int hid_device_remove(struct device *dev)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct hid_driver *hdrv;
+	int ret = 0;
 
 	if (down_interruptible(&hdev->driver_lock))
 		return -EINTR;
+	if (down_interruptible(&hdev->driver_input_lock)) {
+		ret = -EINTR;
+		goto unlock_driver_lock;
+	}
+	hdev->io_started = false;
 
 	hdrv = hdev->driver;
 	if (hdrv) {
@@ -1889,8 +1903,11 @@ static int hid_device_remove(struct device *dev)
 		hdev->driver = NULL;
 	}
 
+	if (!hdev->io_started)
+		up(&hdev->driver_input_lock);
+unlock_driver_lock:
 	up(&hdev->driver_lock);
-	return 0;
+	return ret;
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
@@ -2329,6 +2346,7 @@ struct hid_device *hid_allocate_device(void)
 	init_waitqueue_head(&hdev->debug_wait);
 	INIT_LIST_HEAD(&hdev->debug_list);
 	sema_init(&hdev->driver_lock, 1);
+	sema_init(&hdev->driver_input_lock, 1);
 
 	return hdev;
 }
