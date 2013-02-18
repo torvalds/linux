@@ -731,6 +731,9 @@ SOC_ENUM("LHPF2 Mode", arizona_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", arizona_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", arizona_lhpf4_mode),
 
+SOC_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
+SOC_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
+
 ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
 
@@ -1532,7 +1535,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 1);
+	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
 	if (ret != 0)
 		return ret;
 
@@ -1623,6 +1626,12 @@ static int wm5102_probe(struct platform_device *pdev)
 	arizona_init_fll(arizona, 2, ARIZONA_FLL2_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL2_LOCK, ARIZONA_IRQ_FLL2_CLOCK_OK,
 			 &wm5102->fll[1]);
+
+	/* SR2 fixed at 8kHz, SR3 fixed at 16kHz */
+	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_2,
+			   ARIZONA_SAMPLE_RATE_2_MASK, 0x11);
+	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_3,
+			   ARIZONA_SAMPLE_RATE_3_MASK, 0x12);
 
 	for (i = 0; i < ARRAY_SIZE(wm5102_dai); i++)
 		arizona_init_dai(&wm5102->core, i);

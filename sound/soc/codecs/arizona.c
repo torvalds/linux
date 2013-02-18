@@ -433,6 +433,33 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
 
+const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
+	"SYNCCLK rate", "8kHz", "16kHz", "ASYNCCLK rate",
+};
+EXPORT_SYMBOL_GPL(arizona_rate_text);
+
+const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
+	0, 1, 2, 8,
+};
+EXPORT_SYMBOL_GPL(arizona_rate_val);
+
+
+const struct soc_enum arizona_isrc_fsl[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_1_CTRL_2,
+			      ARIZONA_ISRC1_FSL_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_2_CTRL_2,
+			      ARIZONA_ISRC2_FSL_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_3_CTRL_2,
+			      ARIZONA_ISRC3_FSL_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+EXPORT_SYMBOL_GPL(arizona_isrc_fsl);
+
 static const char *arizona_vol_ramp_text[] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
 	"15ms/6dB", "30ms/6dB",
