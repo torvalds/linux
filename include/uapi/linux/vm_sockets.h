@@ -52,14 +52,6 @@
 
 #define SO_VM_SOCKETS_PEER_HOST_VM_ID 3
 
-/* Option name for socket's service label.  Use as the option name in
- * setsockopt(3) or getsockopt(3) to set or get the service label for a socket.
- * The service label is a C-style NUL-terminated string.  Only available for
- * hypervisor endpoints.
- */
-
-#define SO_VM_SOCKETS_SERVICE_LABEL 4
-
 /* Option name for determining if a socket is trusted.  Use as the option name
  * in getsockopt(3) to determine if a socket is trusted.  The value is a
  * signed integer.
