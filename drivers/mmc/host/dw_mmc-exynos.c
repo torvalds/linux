@@ -230,7 +230,7 @@ static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.remove		= __exit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dwmmc_exynos",
-		.of_match_table	= of_match_ptr(dw_mci_exynos_match),
+		.of_match_table	= dw_mci_exynos_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
 };
