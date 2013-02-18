@@ -1558,24 +1558,6 @@ skip:
 	return count;
 }
 
-static void qlcnic_83xx_poll_process_aen(struct qlcnic_adapter *adapter)
-{
-	unsigned long flags;
-	u32 mask, resp, event;
-
-	spin_lock_irqsave(&adapter->ahw->mbx_lock, flags);
-	resp = QLCRDX(adapter->ahw, QLCNIC_FW_MBX_CTRL);
-	if (!(resp & QLCNIC_SET_OWNER))
-		goto out;
-	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
-	if (event &  QLCNIC_MBX_ASYNC_EVENT)
-		qlcnic_83xx_process_aen(adapter);
-out:
-	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
-	writel(0, adapter->ahw->pci_base0 + mask);
-	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
-}
-
 static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 {
 	int tx_complete;
@@ -1589,15 +1571,11 @@ static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 	/* tx ring count = 1 */
 	tx_ring = adapter->tx_ring;
 
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-		qlcnic_83xx_poll_process_aen(adapter);
-
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
-			qlcnic_83xx_enable_intr(adapter, sds_ring);
+		qlcnic_83xx_enable_intr(adapter, sds_ring);
 	}
 
 	return work_done;
@@ -1653,7 +1631,8 @@ void qlcnic_83xx_napi_enable(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		napi_enable(&sds_ring->napi);
-		qlcnic_83xx_enable_intr(adapter, sds_ring);
+		if (adapter->flags & QLCNIC_MSIX_ENABLED)
+			qlcnic_83xx_enable_intr(adapter, sds_ring);
 	}
 
 	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
@@ -1677,7 +1656,8 @@ void qlcnic_83xx_napi_disable(struct qlcnic_adapter *adapter)
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		writel(1, sds_ring->crb_intr_mask);
+		if (adapter->flags & QLCNIC_MSIX_ENABLED)
+			qlcnic_83xx_disable_intr(adapter, sds_ring);
 		napi_synchronize(&sds_ring->napi);
 		napi_disable(&sds_ring->napi);
 	}

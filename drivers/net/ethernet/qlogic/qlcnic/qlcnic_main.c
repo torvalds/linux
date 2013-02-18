@@ -1269,20 +1269,27 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			handler = qlcnic_msi_intr;
 		else {
 			flags |= IRQF_SHARED;
-			handler = qlcnic_intr;
+			if (qlcnic_82xx_check(adapter))
+				handler = qlcnic_intr;
+			else
+				handler = qlcnic_83xx_intr;
 		}
 	}
 	adapter->irq = netdev->irq;
 
 	if (adapter->ahw->diag_test != QLCNIC_LOOPBACK_TEST) {
-		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
-			sds_ring = &recv_ctx->sds_rings[ring];
-			snprintf(sds_ring->name, sizeof(int) + IFNAMSIZ,
-				 "%s[%d]", netdev->name, ring);
-			err = request_irq(sds_ring->irq, handler, flags,
-					  sds_ring->name, sds_ring);
-			if (err)
-				return err;
+		if (qlcnic_82xx_check(adapter) ||
+		    (qlcnic_83xx_check(adapter) &&
+		     (adapter->flags & QLCNIC_MSIX_ENABLED))) {
+			for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+				sds_ring = &recv_ctx->sds_rings[ring];
+				snprintf(sds_ring->name, sizeof(int) + IFNAMSIZ,
+					 "%s[%d]", netdev->name, ring);
+				err = request_irq(sds_ring->irq, handler, flags,
+						  sds_ring->name, sds_ring);
+				if (err)
+					return err;
+			}
 		}
 		if (qlcnic_83xx_check(adapter) &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
@@ -1292,7 +1299,7 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 				tx_ring = &adapter->tx_ring[ring];
 				snprintf(tx_ring->name, sizeof(int) + IFNAMSIZ,
 					 "%s[%d]", netdev->name,
-				adapter->max_sds_rings + ring);
+					 adapter->max_sds_rings + ring);
 				err = request_irq(tx_ring->irq, handler, flags,
 						  tx_ring->name, tx_ring);
 				if (err)
@@ -1313,9 +1320,13 @@ qlcnic_free_irq(struct qlcnic_adapter *adapter)
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 
 	if (adapter->ahw->diag_test != QLCNIC_LOOPBACK_TEST) {
-		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
-			sds_ring = &recv_ctx->sds_rings[ring];
-			free_irq(sds_ring->irq, sds_ring);
+		if (qlcnic_82xx_check(adapter) ||
+		    (qlcnic_83xx_check(adapter) &&
+		     (adapter->flags & QLCNIC_MSIX_ENABLED))) {
+			for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+				sds_ring = &recv_ctx->sds_rings[ring];
+				free_irq(sds_ring->irq, sds_ring);
+			}
 		}
 		if (qlcnic_83xx_check(adapter)) {
 			for (ring = 0; ring < adapter->max_drv_tx_rings;

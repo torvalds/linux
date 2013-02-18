@@ -388,12 +388,45 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 	return 0;
 }
 
-inline void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
-				    struct qlcnic_host_sds_ring *sds_ring)
+inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
+{
+	writel(0, adapter->tgt_mask_reg);
+}
+
+/* Enable MSI-x and INT-x interrupts */
+void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
+			     struct qlcnic_host_sds_ring *sds_ring)
 {
 	writel(0, sds_ring->crb_intr_mask);
-	if (!QLCNIC_IS_MSI_FAMILY(adapter))
-		writel(0, adapter->tgt_mask_reg);
+}
+
+/* Disable MSI-x and INT-x interrupts */
+void qlcnic_83xx_disable_intr(struct qlcnic_adapter *adapter,
+			      struct qlcnic_host_sds_ring *sds_ring)
+{
+	writel(1, sds_ring->crb_intr_mask);
+}
+
+inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
+						    *adapter)
+{
+	u32 mask;
+
+	/* Mailbox in MSI-x mode and Legacy Interrupt share the same
+	 * source register. We could be here before contexts are created
+	 * and sds_ring->crb_intr_mask has not been initialized, calculate
+	 * BAR offset for Interrupt Source Register
+	 */
+	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
+	writel(0, adapter->ahw->pci_base0 + mask);
+}
+
+inline void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *adapter)
+{
+	u32 mask;
+
+	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
+	writel(1, adapter->ahw->pci_base0 + mask);
 }
 
 static inline void qlcnic_83xx_get_mbx_data(struct qlcnic_adapter *adapter,
@@ -419,8 +452,12 @@ irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *adapter)
 		adapter->stats.spurious_intr++;
 		return IRQ_NONE;
 	}
+	/* The barrier is required to ensure writes to the registers */
+	wmb();
+
 	/* clear the interrupt trigger control register */
 	writel(0, adapter->isr_int_vec);
+	intr_val = readl(adapter->isr_int_vec);
 	do {
 		intr_val = readl(adapter->tgt_status_reg);
 		if (QLC_83XX_INTX_FUNC(intr_val) != ahw->pci_func)
@@ -429,13 +466,51 @@ irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *adapter)
 	} while (QLC_83XX_VALID_INTX_BIT30(intr_val) &&
 		 (retries < QLC_83XX_LEGACY_INTX_MAX_RETRY));
 
-	if (retries == QLC_83XX_LEGACY_INTX_MAX_RETRY) {
-		dev_info(&adapter->pdev->dev,
-			 "Reached maximum retries to clear legacy interrupt\n");
+	return IRQ_HANDLED;
+}
+
+static void qlcnic_83xx_poll_process_aen(struct qlcnic_adapter *adapter)
+{
+	u32 resp, event;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->ahw->mbx_lock, flags);
+
+	resp = QLCRDX(adapter->ahw, QLCNIC_FW_MBX_CTRL);
+	if (!(resp & QLCNIC_SET_OWNER))
+		goto out;
+
+	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
+	if (event &  QLCNIC_MBX_ASYNC_EVENT)
+		qlcnic_83xx_process_aen(adapter);
+out:
+	qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
+	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
+}
+
+irqreturn_t qlcnic_83xx_intr(int irq, void *data)
+{
+	struct qlcnic_adapter *adapter = data;
+	struct qlcnic_host_sds_ring *sds_ring;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	if (qlcnic_83xx_clear_legacy_intr(adapter) == IRQ_NONE)
 		return IRQ_NONE;
+
+	qlcnic_83xx_poll_process_aen(adapter);
+
+	if (ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
+		ahw->diag_cnt++;
+		qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
+		return IRQ_HANDLED;
 	}
 
-	mdelay(QLC_83XX_LEGACY_INTX_DELAY);
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+		qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
+	} else {
+		sds_ring = &adapter->recv_ctx->sds_rings[0];
+		napi_schedule(&sds_ring->napi);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -460,14 +535,20 @@ done:
 
 void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 {
-	u32 val = 0;
-	u32 num_msix = adapter->ahw->num_msix - 1;
+	u32 val = 0, num_msix = adapter->ahw->num_msix - 1;
 
-	val = (num_msix << 8);
+	if (adapter->flags & QLCNIC_MSIX_ENABLED)
+		num_msix = adapter->ahw->num_msix - 1;
+	else
+		num_msix = 0;
 
 	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, val);
-	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		free_irq(adapter->msix_entries[num_msix].vector, adapter);
+
+	qlcnic_83xx_disable_mbx_intr(adapter);
+
+	msleep(20);
+	synchronize_irq(adapter->msix_entries[num_msix].vector);
+	free_irq(adapter->msix_entries[num_msix].vector, adapter);
 }
 
 int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
@@ -486,13 +567,23 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 		handler = qlcnic_83xx_handle_aen;
 		val = adapter->msix_entries[adapter->ahw->num_msix - 1].vector;
 		snprintf(name, (IFNAMSIZ + 4),
-			 "%s[%s]", adapter->netdev->name, "aen");
+			 "%s[%s]", "qlcnic", "aen");
 		err = request_irq(val, handler, flags, name, adapter);
 		if (err) {
 			dev_err(&adapter->pdev->dev,
 				"failed to register MBX interrupt\n");
 			return err;
 		}
+	} else {
+		handler = qlcnic_83xx_intr;
+		val = adapter->msix_entries[0].vector;
+		err = request_irq(val, handler, flags, "qlcnic", adapter);
+		if (err) {
+			dev_err(&adapter->pdev->dev,
+				"failed to register INTx interrupt\n");
+			return err;
+		}
+		qlcnic_83xx_clear_legacy_intr_mask(adapter);
 	}
 
 	/* Enable mailbox interrupt */
@@ -604,6 +695,7 @@ void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *adapter)
 		val = BIT_2;
 
 	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, val);
+	qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
 }
 
 void qlcnic_83xx_check_vf(struct qlcnic_adapter *adapter,
@@ -700,6 +792,7 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	int i;
 	u16 opcode;
 	u8 mbx_err_code;
+	unsigned long flags;
 	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
@@ -711,7 +804,7 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 		return 0;
 	}
 
-	spin_lock(&ahw->mbx_lock);
+	spin_lock_irqsave(&adapter->ahw->mbx_lock, flags);
 	mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 
 	if (mbx_val) {
@@ -721,7 +814,7 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 		      "Mailbox not available, 0x%x, collect FW dump\n",
 		      mbx_val);
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
-		spin_unlock(&ahw->mbx_lock);
+		spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
 		return cmd->rsp.arg[0];
 	}
 
@@ -776,7 +869,7 @@ poll:
 out:
 	/* clear fw mbx control register */
 	QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
-	spin_unlock(&ahw->mbx_lock);
+	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
 	return rsp;
 }
 
@@ -1194,7 +1287,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			writel(1, sds_ring->crb_intr_mask);
+			qlcnic_83xx_disable_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1730,6 +1823,7 @@ irqreturn_t qlcnic_83xx_handle_aen(int irq, void *data)
 	resp = QLCRDX(adapter->ahw, QLCNIC_FW_MBX_CTRL);
 	if (!(resp & QLCNIC_SET_OWNER))
 		goto out;
+
 	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
 	if (event &  QLCNIC_MBX_ASYNC_EVENT)
 		qlcnic_83xx_process_aen(adapter);

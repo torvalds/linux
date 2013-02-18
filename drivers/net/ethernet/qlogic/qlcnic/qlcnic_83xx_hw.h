@@ -368,8 +368,11 @@ irqreturn_t qlcnic_83xx_handle_aen(int, void *);
 int qlcnic_83xx_get_port_info(struct qlcnic_adapter *);
 void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *);
+irqreturn_t qlcnic_83xx_intr(int, void *);
 irqreturn_t qlcnic_83xx_tmp_intr(int, void *);
 void qlcnic_83xx_enable_intr(struct qlcnic_adapter *,
+			     struct qlcnic_host_sds_ring *);
+void qlcnic_83xx_disable_intr(struct qlcnic_adapter *,
 			     struct qlcnic_host_sds_ring *);
 void qlcnic_83xx_check_vf(struct qlcnic_adapter *,
 			  const struct pci_device_id *);
