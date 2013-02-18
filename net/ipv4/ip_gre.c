@@ -1103,8 +1103,14 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 	tunnel->hlen = addend;
 	/* TCP offload with GRE SEQ is not supported. */
 	if (!(tunnel->parms.o_flags & GRE_SEQ)) {
-		dev->features		|= NETIF_F_GSO_SOFTWARE;
-		dev->hw_features	|= NETIF_F_GSO_SOFTWARE;
+		/* device supports enc gso offload*/
+		if (tdev->hw_enc_features & NETIF_F_GRE_GSO) {
+			dev->features		|= NETIF_F_TSO;
+			dev->hw_features	|= NETIF_F_TSO;
+		} else {
+			dev->features		|= NETIF_F_GSO_SOFTWARE;
+			dev->hw_features	|= NETIF_F_GSO_SOFTWARE;
+		}
 	}
 
 	return mtu;
