@@ -553,17 +553,17 @@ static void palmas_dt_to_pdata(struct device *dev,
 				sizeof(struct palmas_reg_init), GFP_KERNEL);
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,warm_reset", &prop);
+				"ti,warm-reset", &prop);
 		if (!ret)
 			pdata->reg_init[idx]->warm_reset = prop;
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,roof_floor", &prop);
+				"ti,roof-floor", &prop);
 		if (!ret)
 			pdata->reg_init[idx]->roof_floor = prop;
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,mode_sleep", &prop);
+				"ti,mode-sleep", &prop);
 		if (!ret)
 			pdata->reg_init[idx]->mode_sleep = prop;
 
@@ -578,7 +578,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 			pdata->reg_init[idx]->vsel = prop;
 	}
 
-	ret = of_property_read_u32(node, "ti,ldo6_vibrator", &prop);
+	ret = of_property_read_u32(node, "ti,ldo6-vibrator", &prop);
 	if (!ret)
 		pdata->ldo6_vibrator = prop;
 }
