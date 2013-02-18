@@ -3786,7 +3786,12 @@ static void cgroup_event_remove(struct work_struct *work)
 			remove);
 	struct cgroup *cgrp = event->cgrp;
 
+	remove_wait_queue(event->wqh, &event->wait);
+
 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
+
+	/* Notify userspace the event is going away. */
+	eventfd_signal(event->eventfd, 1);
 
 	eventfd_ctx_put(event->eventfd);
 	kfree(event);
@@ -3807,15 +3812,25 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 	unsigned long flags = (unsigned long)key;
 
 	if (flags & POLLHUP) {
-		__remove_wait_queue(event->wqh, &event->wait);
-		spin_lock(&cgrp->event_list_lock);
-		list_del_init(&event->list);
-		spin_unlock(&cgrp->event_list_lock);
 		/*
-		 * We are in atomic context, but cgroup_event_remove() may
-		 * sleep, so we have to call it in workqueue.
+		 * If the event has been detached at cgroup removal, we
+		 * can simply return knowing the other side will cleanup
+		 * for us.
+		 *
+		 * We can't race against event freeing since the other
+		 * side will require wqh->lock via remove_wait_queue(),
+		 * which we hold.
 		 */
-		schedule_work(&event->remove);
+		spin_lock(&cgrp->event_list_lock);
+		if (!list_empty(&event->list)) {
+			list_del_init(&event->list);
+			/*
+			 * We are in atomic context, but cgroup_event_remove()
+			 * may sleep, so we have to call it in workqueue.
+			 */
+			schedule_work(&event->remove);
+		}
+		spin_unlock(&cgrp->event_list_lock);
 	}
 
 	return 0;
@@ -4375,20 +4390,14 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	/*
 	 * Unregister events and notify userspace.
 	 * Notify userspace about cgroup removing only after rmdir of cgroup
-	 * directory to avoid race between userspace and kernelspace. Use
-	 * a temporary list to avoid a deadlock with cgroup_event_wake(). Since
-	 * cgroup_event_wake() is called with the wait queue head locked,
-	 * remove_wait_queue() cannot be called while holding event_list_lock.
+	 * directory to avoid race between userspace and kernelspace.
 	 */
 	spin_lock(&cgrp->event_list_lock);
-	list_splice_init(&cgrp->event_list, &tmp_list);
-	spin_unlock(&cgrp->event_list_lock);
-	list_for_each_entry_safe(event, tmp, &tmp_list, list) {
+	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
 		list_del_init(&event->list);
-		remove_wait_queue(event->wqh, &event->wait);
-		eventfd_signal(event->eventfd, 1);
 		schedule_work(&event->remove);
 	}
+	spin_unlock(&cgrp->event_list_lock);
 
 	return 0;
 }
