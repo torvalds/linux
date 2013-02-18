@@ -605,7 +605,7 @@ int __net_init ip_vs_app_net_init(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	INIT_LIST_HEAD(&ipvs->app_list);
-	proc_net_fops_create(net, "ip_vs_app", 0, &ip_vs_app_fops);
+	proc_create("ip_vs_app", 0, net->proc_net, &ip_vs_app_fops);
 	return 0;
 }
 

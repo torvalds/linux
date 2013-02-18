@@ -276,7 +276,7 @@ static int cn_init(void)
 
 	cn_already_initialized = 1;
 
-	proc_net_fops_create(&init_net, "connector", S_IRUGO, &cn_file_ops);
+	proc_create("connector", S_IRUGO, init_net.proc_net, &cn_file_ops);
 
 	return 0;
 }

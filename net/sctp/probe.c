@@ -195,8 +195,8 @@ static __init int sctpprobe_init(void)
 	if (kfifo_alloc(&sctpw.fifo, bufsize, GFP_KERNEL))
 		return ret;
 
-	if (!proc_net_fops_create(&init_net, procname, S_IRUSR,
-				  &sctpprobe_fops))
+	if (!proc_create(procname, S_IRUSR, init_net.proc_net,
+			 &sctpprobe_fops))
 		goto free_kfifo;
 
 	ret = register_jprobe(&sctp_recv_probe);

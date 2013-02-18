@@ -3800,10 +3800,10 @@ int __net_init ip_vs_control_net_init(struct net *net)
 
 	spin_lock_init(&ipvs->tot_stats.lock);
 
-	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);
-	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
-	proc_net_fops_create(net, "ip_vs_stats_percpu", 0,
-			     &ip_vs_stats_percpu_fops);
+	proc_create("ip_vs", 0, net->proc_net, &ip_vs_info_fops);
+	proc_create("ip_vs_stats", 0, net->proc_net, &ip_vs_stats_fops);
+	proc_create("ip_vs_stats_percpu", 0, net->proc_net,
+		    &ip_vs_stats_percpu_fops);
 
 	if (ip_vs_control_net_init_sysctl(net))
 		goto err;

@@ -171,7 +171,7 @@ static __init int dccpprobe_init(void)
 	spin_lock_init(&dccpw.lock);
 	if (kfifo_alloc(&dccpw.fifo, bufsize, GFP_KERNEL))
 		return ret;
-	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
+	if (!proc_create(procname, S_IRUSR, init_net.proc_net, &dccpprobe_fops))
 		goto err0;
 
 	ret = setup_jprobe();

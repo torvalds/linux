@@ -2118,7 +2118,7 @@ static int __init scc_init_driver (void)
 	}
 	rtnl_unlock();
 
-	proc_net_fops_create(&init_net, "z8530drv", 0, &scc_net_seq_fops);
+	proc_create("z8530drv", 0, init_net.proc_net, &scc_net_seq_fops);
 
 	return 0;
 }

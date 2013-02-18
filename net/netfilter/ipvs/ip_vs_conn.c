@@ -1291,8 +1291,8 @@ int __net_init ip_vs_conn_net_init(struct net *net)
 
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_net_fops_create(net, "ip_vs_conn", 0, &ip_vs_conn_fops);
-	proc_net_fops_create(net, "ip_vs_conn_sync", 0, &ip_vs_conn_sync_fops);
+	proc_create("ip_vs_conn", 0, net->proc_net, &ip_vs_conn_fops);
+	proc_create("ip_vs_conn_sync", 0, net->proc_net, &ip_vs_conn_sync_fops);
 	return 0;
 }
 

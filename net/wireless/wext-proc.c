@@ -143,7 +143,8 @@ static const struct file_operations wireless_seq_fops = {
 int __net_init wext_proc_init(struct net *net)
 {
 	/* Create /proc/net/wireless entry */
-	if (!proc_net_fops_create(net, "wireless", S_IRUGO, &wireless_seq_fops))
+	if (!proc_create("wireless", S_IRUGO, net->proc_net,
+			 &wireless_seq_fops))
 		return -ENOMEM;
 
 	return 0;
