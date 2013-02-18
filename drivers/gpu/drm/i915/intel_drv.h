@@ -347,7 +347,7 @@ struct dip_infoframe {
 } __attribute__((packed));
 
 struct intel_hdmi {
-	u32 sdvox_reg;
+	u32 hdmi_reg;
 	int ddc_bus;
 	uint32_t color_range;
 	bool color_range_auto;
@@ -444,7 +444,7 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev,
-			    int sdvox_reg, enum port port);
+			    int hdmi_reg, enum port port);
 extern void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 				      struct intel_connector *intel_connector);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);

@@ -50,7 +50,7 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 
 	enabled_bits = HAS_DDI(dev) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
 
-	WARN(I915_READ(intel_hdmi->sdvox_reg) & enabled_bits,
+	WARN(I915_READ(intel_hdmi->hdmi_reg) & enabled_bits,
 	     "HDMI port enabled, expecting disabled\n");
 }
 
@@ -597,40 +597,40 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-	u32 sdvox;
+	u32 hdmi_val;
 
-	sdvox = SDVO_ENCODING_HDMI;
+	hdmi_val = SDVO_ENCODING_HDMI;
 	if (!HAS_PCH_SPLIT(dev))
-		sdvox |= intel_hdmi->color_range;
+		hdmi_val |= intel_hdmi->color_range;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
-		sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
+		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
-		sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
+		hdmi_val |= SDVO_HSYNC_ACTIVE_HIGH;
 
 	if (intel_crtc->bpp > 24)
-		sdvox |= COLOR_FORMAT_12bpc;
+		hdmi_val |= COLOR_FORMAT_12bpc;
 	else
-		sdvox |= COLOR_FORMAT_8bpc;
+		hdmi_val |= COLOR_FORMAT_8bpc;
 
 	/* Required on CPT */
 	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
-		sdvox |= HDMI_MODE_SELECT;
+		hdmi_val |= HDMI_MODE_SELECT;
 
 	if (intel_hdmi->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(intel_crtc->pipe));
-		sdvox |= SDVO_AUDIO_ENABLE;
-		sdvox |= SDVO_NULL_PACKETS_DURING_VSYNC;
+		hdmi_val |= SDVO_AUDIO_ENABLE;
+		hdmi_val |= SDVO_NULL_PACKETS_DURING_VSYNC;
 		intel_write_eld(encoder, adjusted_mode);
 	}
 
 	if (HAS_PCH_CPT(dev))
-		sdvox |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
+		hdmi_val |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
 	else if (intel_crtc->pipe == PIPE_B)
-		sdvox |= SDVO_PIPE_B_SELECT;
+		hdmi_val |= SDVO_PIPE_B_SELECT;
 
-	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
-	POSTING_READ(intel_hdmi->sdvox_reg);
+	I915_WRITE(intel_hdmi->hdmi_reg, hdmi_val);
+	POSTING_READ(intel_hdmi->hdmi_reg);
 
 	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
@@ -643,7 +643,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 tmp;
 
-	tmp = I915_READ(intel_hdmi->sdvox_reg);
+	tmp = I915_READ(intel_hdmi->hdmi_reg);
 
 	if (!(tmp & SDVO_ENABLE))
 		return false;
@@ -667,7 +667,7 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 	if (intel_hdmi->has_audio)
 		enable_bits |= SDVO_AUDIO_ENABLE;
 
-	temp = I915_READ(intel_hdmi->sdvox_reg);
+	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	/* HW workaround for IBX, we need to move the port to transcoder A
 	 * before disabling it. */
@@ -684,21 +684,21 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 	 * we do this anyway which shows more stable in testing.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->sdvox_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(intel_hdmi->sdvox_reg);
+		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
+		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
 	temp |= enable_bits;
 
-	I915_WRITE(intel_hdmi->sdvox_reg, temp);
-	POSTING_READ(intel_hdmi->sdvox_reg);
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
 
 	/* HW workaround, need to write this twice for issue that may result
 	 * in first write getting masked.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->sdvox_reg, temp);
-		POSTING_READ(intel_hdmi->sdvox_reg);
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 }
 
@@ -710,7 +710,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE | SDVO_AUDIO_ENABLE;
 
-	temp = I915_READ(intel_hdmi->sdvox_reg);
+	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	/* HW workaround for IBX, we need to move the port to transcoder A
 	 * before disabling it. */
@@ -720,12 +720,12 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 
 		if (temp & SDVO_PIPE_B_SELECT) {
 			temp &= ~SDVO_PIPE_B_SELECT;
-			I915_WRITE(intel_hdmi->sdvox_reg, temp);
-			POSTING_READ(intel_hdmi->sdvox_reg);
+			I915_WRITE(intel_hdmi->hdmi_reg, temp);
+			POSTING_READ(intel_hdmi->hdmi_reg);
 
 			/* Again we need to write this twice. */
-			I915_WRITE(intel_hdmi->sdvox_reg, temp);
-			POSTING_READ(intel_hdmi->sdvox_reg);
+			I915_WRITE(intel_hdmi->hdmi_reg, temp);
+			POSTING_READ(intel_hdmi->hdmi_reg);
 
 			/* Transcoder selection bits only update
 			 * effectively on vblank. */
@@ -740,21 +740,21 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	 * we do this anyway which shows more stable in testing.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->sdvox_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(intel_hdmi->sdvox_reg);
+		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
+		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
 	temp &= ~enable_bits;
 
-	I915_WRITE(intel_hdmi->sdvox_reg, temp);
-	POSTING_READ(intel_hdmi->sdvox_reg);
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
 
 	/* HW workaround, need to write this twice for issue that may result
 	 * in first write getting masked.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->sdvox_reg, temp);
-		POSTING_READ(intel_hdmi->sdvox_reg);
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 }
 
@@ -1075,7 +1075,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	}
 }
 
-void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
+void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 {
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
@@ -1108,7 +1108,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 	intel_encoder->cloneable = false;
 
 	intel_dig_port->port = port;
-	intel_dig_port->hdmi.sdvox_reg = sdvox_reg;
+	intel_dig_port->hdmi.hdmi_reg = hdmi_reg;
 	intel_dig_port->dp.output_reg = 0;
 
 	intel_hdmi_init_connector(intel_dig_port, intel_connector);
