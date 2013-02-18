@@ -1415,11 +1415,12 @@ static const struct i2c_device_id sensor_id[] = {
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
 	{"light_cm3217", LIGHT_ID_CM3217},
+	{"light_cm3232", LIGHT_ID_CM3232},
 	{"light_al3006", LIGHT_ID_AL3006},
 	{"ls_stk3171", LIGHT_ID_STK3171},
 	{"ls_isl29023", LIGHT_ID_ISL29023},
 	{"ls_ap321xx", LIGHT_ID_AP321XX},
-        {"ls_photoresistor", LIGHT_ID_PHOTORESISTOR},
+	{"ls_photoresistor", LIGHT_ID_PHOTORESISTOR},
 	/*proximity sensor*/
 	{"psensor", PROXIMITY_ID_ALL},
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	
