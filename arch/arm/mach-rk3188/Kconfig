@@ -1,14 +1,15 @@
 choice
 	prompt "Rockchip SoC Type"
+	depends on ARCH_RK3188
 
 config SOC_RK3188
 	bool "RK3188"
 
 endchoice
 
-if SOC_RK3188
 choice
 	prompt "RK3188 Board Type"
+	depends on SOC_RK3188
 
 config MACH_RK3188_TB
 	bool "RK3188 Top Board"
@@ -24,4 +25,3 @@ config MACH_RK3188_DS1006H
 	bool "RK3188 ds1006h board"
 
 endchoice
-endif
