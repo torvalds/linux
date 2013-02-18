@@ -120,6 +120,8 @@ static void cleanup_single_sta(struct sta_info *sta)
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
+		else if (ieee80211_vif_is_mesh(&sdata->vif))
+			ps = &sdata->u.mesh.ps;
 		else
 			return;
 
@@ -135,13 +137,8 @@ static void cleanup_single_sta(struct sta_info *sta)
 		ieee80211_purge_tx_queue(&local->hw, &sta->tx_filtered[ac]);
 	}
 
-#ifdef CONFIG_MAC80211_MESH
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		mesh_accept_plinks_update(sdata);
-		mesh_plink_deactivate(sta);
-		del_timer_sync(&sta->plink_timer);
-	}
-#endif
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_sta_cleanup(sta);
 
 	cancel_work_sync(&sta->drv_unblock_wk);
 
@@ -378,6 +375,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
 
+	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
+
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
 	return sta;
@@ -574,7 +573,6 @@ void sta_info_recalc_tim(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ps_data *ps;
-	unsigned long flags;
 	bool indicate_tim = false;
 	u8 ignore_for_tim = sta->sta.uapsd_queues;
 	int ac;
@@ -587,6 +585,12 @@ void sta_info_recalc_tim(struct sta_info *sta)
 
 		ps = &sta->sdata->bss->ps;
 		id = sta->sta.aid;
+#ifdef CONFIG_MAC80211_MESH
+	} else if (ieee80211_vif_is_mesh(&sta->sdata->vif)) {
+		ps = &sta->sdata->u.mesh.ps;
+		/* TIM map only for PLID <= IEEE80211_MAX_AID */
+		id = le16_to_cpu(sta->plid) % IEEE80211_MAX_AID;
+#endif
 	} else {
 		return;
 	}
@@ -625,7 +629,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	}
 
  done:
-	spin_lock_irqsave(&local->tim_lock, flags);
+	spin_lock_bh(&local->tim_lock);
 
 	if (indicate_tim)
 		__bss_tim_set(ps->tim, id);
@@ -638,7 +642,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 		local->tim_in_locked_section = false;
 	}
 
-	spin_unlock_irqrestore(&local->tim_lock, flags);
+	spin_unlock_bh(&local->tim_lock);
 }
 
 static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
@@ -745,8 +749,9 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	bool have_buffered = false;
 	int ac;
 
-	/* This is only necessary for stations on BSS interfaces */
-	if (!sta->sdata->bss)
+	/* This is only necessary for stations on BSS/MBSS interfaces */
+	if (!sta->sdata->bss &&
+	    !ieee80211_vif_is_mesh(&sta->sdata->vif))
 		return false;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -934,6 +939,11 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
 				sta->sta.addr);
+
+			if (ieee80211_vif_is_mesh(&sdata->vif) &&
+			    test_sta_flag(sta, WLAN_STA_PS_STA))
+				atomic_dec(&sdata->u.mesh.ps.num_sta_ps);
+
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
@@ -992,6 +1002,8 @@ static void clear_sta_ps_flags(void *_sta)
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		ps = &sdata->bss->ps;
+	else if (ieee80211_vif_is_mesh(&sdata->vif))
+		ps = &sdata->u.mesh.ps;
 	else
 		return;
 
@@ -1108,6 +1120,8 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
+
+	skb->dev = sdata->dev;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);

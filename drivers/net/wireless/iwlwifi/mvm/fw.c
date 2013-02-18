@@ -621,10 +621,6 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
 
-	if (flags & CARD_DISABLED_MSK)
-		iwl_write32(mvm->trans, CSR_UCODE_DRV_GP1_SET,
-			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-
 	return 0;
 }
 

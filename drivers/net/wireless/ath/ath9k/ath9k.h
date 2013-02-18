@@ -389,6 +389,7 @@ struct ath_beacon_config {
 	u16 bmiss_timeout;
 	u8 dtim_count;
 	bool enable_beacon;
+	bool ibss_creator;
 };
 
 struct ath_beacon {

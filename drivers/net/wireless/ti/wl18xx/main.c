@@ -547,6 +547,11 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
 		.pwr_limit_reference_11p	= 0x64,
+		.per_chan_bo_mode_11_abg	= { 0x00, 0x00, 0x00, 0x00,
+						    0x00, 0x00, 0x00, 0x00,
+						    0x00, 0x00, 0x00, 0x00,
+						    0x00 },
+		.per_chan_bo_mode_11_p		= { 0x00, 0x00, 0x00, 0x00 },
 		.per_chan_pwr_limit_arr_11p	= { 0xff, 0xff, 0xff, 0xff,
 						    0xff, 0xff, 0xff },
 		.psat				= 0,
@@ -1369,7 +1374,7 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 				 struct ieee80211_sta *sta,
 				 u32 changed)
 {
-	bool wide = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	bool wide = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update wide %d", wide);
 

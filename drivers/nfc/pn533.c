@@ -219,7 +219,7 @@ struct pn533_poll_modulations {
 	u8 len;
 };
 
-const struct pn533_poll_modulations poll_mod[] = {
+static const struct pn533_poll_modulations poll_mod[] = {
 	[PN533_POLL_MOD_106KBPS_A] = {
 		.data = {
 			.maxtg = 1,
@@ -485,7 +485,7 @@ static u8 pn533_get_cmd_code(void *frame)
 	return PN533_FRAME_CMD(f);
 }
 
-struct pn533_frame_ops pn533_std_frame_ops = {
+static struct pn533_frame_ops pn533_std_frame_ops = {
 	.tx_frame_init = pn533_tx_frame_init,
 	.tx_frame_finish = pn533_tx_frame_finish,
 	.tx_update_payload_len = pn533_tx_update_payload_len,
@@ -532,7 +532,6 @@ static void pn533_recv_response(struct urb *urb)
 			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
-		break;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
@@ -589,7 +588,6 @@ static void pn533_recv_ack(struct urb *urb)
 			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
-		break;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
@@ -1380,7 +1378,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 		return NULL;
 
 	/* DEP support only */
-	*skb_put(skb, 1) |= PN533_INIT_TARGET_DEP;
+	*skb_put(skb, 1) = PN533_INIT_TARGET_DEP;
 
 	/* MIFARE params */
 	memcpy(skb_put(skb, 6), mifare_params, 6);

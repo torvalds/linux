@@ -151,6 +151,11 @@
 /* Mesh Control 802.11s */
 #define IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT  0x0100
 
+/* Mesh Power Save Level */
+#define IEEE80211_QOS_CTL_MESH_PS_LEVEL		0x0200
+/* Mesh Receiver Service Period Initiated */
+#define IEEE80211_QOS_CTL_RSPI			0x0400
+
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
 #define IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK	0x0f
@@ -675,11 +680,14 @@ struct ieee80211_meshconf_ie {
  * @IEEE80211_MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
  * @IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure
  *	is ongoing
+ * @IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL: STA is in deep sleep mode or has
+ *	neighbors in deep sleep mode
  */
 enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS		= 0x01,
 	IEEE80211_MESHCONF_CAPAB_FORWARDING		= 0x08,
 	IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING		= 0x20,
+	IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL	= 0x40,
 };
 
 /**
@@ -704,6 +712,30 @@ enum ieee80211_rann_flags {
 enum ieee80211_ht_chanwidth_values {
 	IEEE80211_HT_CHANWIDTH_20MHZ = 0,
 	IEEE80211_HT_CHANWIDTH_ANY = 1,
+};
+
+/**
+ * enum ieee80211_opmode_bits - VHT operating mode field bits
+ * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK: channel width mask
+ * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ: 20 MHz channel width
+ * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ: 40 MHz channel width
+ * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ: 80 MHz channel width
+ * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ: 160 MHz or 80+80 MHz channel width
+ * @IEEE80211_OPMODE_NOTIF_RX_NSS_MASK: number of spatial streams mask
+ *	(the NSS value is the value of this field + 1)
+ * @IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT: number of spatial streams shift
+ * @IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF: indicates streams in SU-MIMO PPDU
+ *	using a beamforming steering matrix
+ */
+enum ieee80211_vht_opmode_bits {
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK	= 3,
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ	= 0,
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ	= 1,
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ	= 2,
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ	= 3,
+	IEEE80211_OPMODE_NOTIF_RX_NSS_MASK	= 0x70,
+	IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT	= 4,
+	IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF	= 0x80,
 };
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
@@ -836,6 +868,10 @@ struct ieee80211_mgmt {
 					__le16 capability;
 					u8 variable[0];
 				} __packed tdls_discover_resp;
+				struct {
+					u8 action_code;
+					u8 operating_mode;
+				} __packed vht_opmode_notif;
 			} u;
 		} __packed action;
 	} u;
@@ -1265,6 +1301,7 @@ struct ieee80211_vht_operation {
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454			0x00000002
 #define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ		0x00000004
 #define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ	0x00000008
+#define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK			0x0000000C
 #define IEEE80211_VHT_CAP_RXLDPC				0x00000010
 #define IEEE80211_VHT_CAP_SHORT_GI_80				0x00000020
 #define IEEE80211_VHT_CAP_SHORT_GI_160				0x00000040
@@ -1590,6 +1627,7 @@ enum ieee80211_eid {
 
 	WLAN_EID_VHT_CAPABILITY = 191,
 	WLAN_EID_VHT_OPERATION = 192,
+	WLAN_EID_OPMODE_NOTIF = 199,
 
 	/* 802.11ad */
 	WLAN_EID_NON_TX_BSSID_CAP =  83,
@@ -1644,6 +1682,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_WMM = 17,
 	WLAN_CATEGORY_FST = 18,
 	WLAN_CATEGORY_UNPROT_DMG = 20,
+	WLAN_CATEGORY_VHT = 21,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -1667,6 +1706,13 @@ enum ieee80211_ht_actioncode {
 	WLAN_HT_ACTION_NONCOMPRESSED_BF = 5,
 	WLAN_HT_ACTION_COMPRESSED_BF = 6,
 	WLAN_HT_ACTION_ASEL_IDX_FEEDBACK = 7,
+};
+
+/* VHT action codes */
+enum ieee80211_vht_actioncode {
+	WLAN_VHT_ACTION_COMPRESSED_BF = 0,
+	WLAN_VHT_ACTION_GROUPID_MGMT = 1,
+	WLAN_VHT_ACTION_OPMODE_NOTIF = 2,
 };
 
 /* Self Protected Action codes */
@@ -1729,6 +1775,8 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+
+#define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
@@ -2106,7 +2154,7 @@ static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
  * @tim_len: length of the TIM IE
  * @aid: the AID to look for
  */
-static inline bool ieee80211_check_tim(struct ieee80211_tim_ie *tim,
+static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 				       u8 tim_len, u16 aid)
 {
 	u8 mask;

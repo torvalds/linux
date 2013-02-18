@@ -23,7 +23,7 @@
 #define __WL18XX_CONF_H__
 
 #define WL18XX_CONF_MAGIC	0x10e100ca
-#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0005)
+#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0006)
 #define WL18XX_CONF_MASK	0x0000ffff
 #define WL18XX_CONF_SIZE	(WLCORE_CONF_SIZE + \
 				 sizeof(struct wl18xx_priv_conf))
@@ -70,8 +70,9 @@ struct wl18xx_mac_and_phy_params {
 	u8 pwr_limit_reference_11_abg;
 	u8 per_chan_pwr_limit_arr_11p[NUM_OF_CHANNELS_11_P];
 	u8 pwr_limit_reference_11p;
-	u8 spare1[9];
-	u8 spare2[9];
+	u8 spare1;
+	u8 per_chan_bo_mode_11_abg[13];
+	u8 per_chan_bo_mode_11_p[4];
 	u8 primary_clock_setting_time;
 	u8 clock_valid_on_wake_up;
 	u8 secondary_clock_setting_time;

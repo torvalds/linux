@@ -121,8 +121,8 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_DBM\n");
-	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD)
-		sf += snprintf(buf + sf, mxln - sf, "NEED_DTIM_PERIOD\n");
+	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC)
+		sf += snprintf(buf + sf, mxln - sf, "NEED_DTIM_BEFORE_ASSOC\n");
 	if (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT)
 		sf += snprintf(buf + sf, mxln - sf, "SPECTRUM_MGMT\n");
 	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
@@ -151,8 +151,6 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 		sf += snprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
 	if (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)
 		sf += snprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
-	if (local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)
-		sf += snprintf(buf + sf, mxln - sf, "SCAN_WHILE_IDLE\n");
 
 	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);

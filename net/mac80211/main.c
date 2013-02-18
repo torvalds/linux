@@ -34,8 +34,6 @@
 #include "cfg.h"
 #include "debugfs.h"
 
-static struct lock_class_key ieee80211_rx_skb_queue_class;
-
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
 	u64 mc;
@@ -503,6 +501,11 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 	},
 };
 
+static const u8 extended_capabilities[] = {
+	0, 0, 0, 0, 0, 0, 0,
+	WLAN_EXT_CAPA8_OPMODE_NOTIF,
+};
+
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
@@ -559,14 +562,17 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			WIPHY_FLAG_REPORTS_OBSS |
 			WIPHY_FLAG_OFFCHAN_TX;
 
+	wiphy->extended_capabilities = extended_capabilities;
+	wiphy->extended_capabilities_mask = extended_capabilities;
+	wiphy->extended_capabilities_len = ARRAY_SIZE(extended_capabilities);
+
 	if (ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
 			   NL80211_FEATURE_SAE |
 			   NL80211_FEATURE_HT_IBSS |
-			   NL80211_FEATURE_VIF_TXPOWER |
-			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
+			   NL80211_FEATURE_VIF_TXPOWER;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -613,24 +619,18 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	mutex_init(&local->key_mtx);
 	spin_lock_init(&local->filter_lock);
+	spin_lock_init(&local->rx_path_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
 	INIT_LIST_HEAD(&local->chanctx_list);
 	mutex_init(&local->chanctx_mtx);
 
-	/*
-	 * The rx_skb_queue is only accessed from tasklets,
-	 * but other SKB queues are used from within IRQ
-	 * context. Therefore, this one needs a different
-	 * locking class so our direct, non-irq-safe use of
-	 * the queue's lock doesn't throw lockdep warnings.
-	 */
-	skb_queue_head_init_class(&local->rx_skb_queue,
-				  &ieee80211_rx_skb_queue_class);
-
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
+
+	INIT_WORK(&local->radar_detected_work,
+		  ieee80211_dfs_radar_detected_work);
 
 	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
 	local->smps_mode = IEEE80211_SMPS_OFF;
@@ -707,9 +707,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 #endif
 
-	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
-		return -EINVAL;
-
 	if (!local->use_chanctx) {
 		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
 			const struct ieee80211_iface_combination *comb;
@@ -727,6 +724,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		 */
 		if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS))
 			return -EINVAL;
+
+		/* DFS currently not supported with channel context drivers */
+		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
+			const struct ieee80211_iface_combination *comb;
+
+			comb = &local->hw.wiphy->iface_combinations[i];
+
+			if (comb->radar_detect_widths)
+				return -EINVAL;
+		}
 	}
 
 	/* Only HW csum features are currently compatible with mac80211 */
@@ -1089,7 +1096,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 		wiphy_warn(local->hw.wiphy, "skb_queue not empty\n");
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
-	skb_queue_purge(&local->rx_skb_queue);
 
 	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);

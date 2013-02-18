@@ -1545,10 +1545,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 				bss_conf->bssid);
 	}
 
-	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_ADHOC &&
-	    priv->beacon_ctx) {
+	if (changes & BSS_CHANGED_BEACON && priv->beacon_ctx == ctx) {
 		if (iwlagn_update_beacon(priv, vif))
-			IWL_ERR(priv, "Error sending IBSS beacon\n");
+			IWL_ERR(priv, "Error updating beacon\n");
 	}
 
 	mutex_unlock(&priv->mutex);

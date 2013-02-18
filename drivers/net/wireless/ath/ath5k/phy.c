@@ -1613,6 +1613,10 @@ ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 	ah->ah_cal_mask |= AR5K_CALIBRATION_NF;
 
 	ee_mode = ath5k_eeprom_mode_from_channel(ah->ah_current_channel);
+	if (WARN_ON(ee_mode < 0)) {
+		ah->ah_cal_mask &= ~AR5K_CALIBRATION_NF;
+		return;
+	}
 
 	/* completed NF calibration, test threshold */
 	nf = ath5k_hw_read_measured_noise_floor(ah);

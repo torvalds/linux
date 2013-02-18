@@ -81,10 +81,10 @@
  *   'processed' and 'read' driver indexes as well)
  * + A received packet is processed and handed to the kernel network stack,
  *   detached from the iwl->rxq.  The driver 'processed' index is updated.
- * + The Host/Firmware iwl->rxq is replenished at tasklet time from the rx_free
- *   list. If there are no allocated buffers in iwl->rxq->rx_free, the READ
- *   INDEX is not incremented and iwl->status(RX_STALLED) is set.  If there
- *   were enough free buffers and RX_STALLED is set it is cleared.
+ * + The Host/Firmware iwl->rxq is replenished at irq thread time from the
+ *   rx_free list. If there are no allocated buffers in iwl->rxq->rx_free,
+ *   the READ INDEX is not incremented and iwl->status(RX_STALLED) is set.
+ *   If there were enough free buffers and RX_STALLED is set it is cleared.
  *
  *
  * Driver sequence:
@@ -214,9 +214,9 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 	/*
 	 * If the device isn't enabled - not need to try to add buffers...
 	 * This can happen when we stop the device and still have an interrupt
-	 * pending. We stop the APM before we sync the interrupts / tasklets
-	 * because we have to (see comment there). On the other hand, since
-	 * the APM is stopped, we cannot access the HW (in particular not prph).
+	 * pending. We stop the APM before we sync the interrupts because we
+	 * have to (see comment there). On the other hand, since the APM is
+	 * stopped, we cannot access the HW (in particular not prph).
 	 * So don't try to restock if the APM has been already stopped.
 	 */
 	if (!test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status))
@@ -796,11 +796,14 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 	wake_up(&trans_pcie->wait_command_queue);
 
+	local_bh_disable();
 	iwl_op_mode_nic_error(trans->op_mode);
+	local_bh_enable();
 }
 
-void iwl_pcie_tasklet(struct iwl_trans *trans)
+irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 {
+	struct iwl_trans *trans = dev_id;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
 	u32 inta = 0;
@@ -810,6 +813,8 @@ void iwl_pcie_tasklet(struct iwl_trans *trans)
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
+
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
@@ -855,7 +860,7 @@ void iwl_pcie_tasklet(struct iwl_trans *trans)
 
 		handled |= CSR_INT_BIT_HW_ERR;
 
-		return;
+		goto out;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -1005,6 +1010,10 @@ void iwl_pcie_tasklet(struct iwl_trans *trans)
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(trans);
+
+out:
+	lock_map_release(&trans->sync_cmd_lockdep_map);
+	return IRQ_HANDLED;
 }
 
 /******************************************************************************
@@ -1127,7 +1136,7 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
-	 * If we have something to service, the tasklet will re-enable ints.
+	 * If we have something to service, the irq thread will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here. */
 	inta_mask = iwl_read32(trans, CSR_INT_MASK);
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
@@ -1167,9 +1176,9 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 #endif
 
 	trans_pcie->inta |= inta;
-	/* iwl_pcie_tasklet() will service interrupts and re-enable them */
+	/* the thread will service interrupts and re-enable them */
 	if (likely(inta))
-		tasklet_schedule(&trans_pcie->irq_tasklet);
+		return IRQ_WAKE_THREAD;
 	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 		 !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
@@ -1277,9 +1286,10 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	trans_pcie->inta |= inta;
 
 	/* iwl_pcie_tasklet() will service interrupts and re-enable them */
-	if (likely(inta))
-		tasklet_schedule(&trans_pcie->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
+	if (likely(inta)) {
+		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+		return IRQ_WAKE_THREAD;
+	} else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 		 !trans_pcie->inta) {
 		/* Allow interrupt if was disabled by this handler and
 		 * no tasklet was schedules, We should not enable interrupt,

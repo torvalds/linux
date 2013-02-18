@@ -338,7 +338,7 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 		if (bss) {
 			wil_dbg_wmi(wil, "Added BSS %pM\n",
 				    rx_mgmt_frame->bssid);
-			cfg80211_put_bss(bss);
+			cfg80211_put_bss(wiphy, bss);
 		} else {
 			wil_err(wil, "cfg80211_inform_bss() failed\n");
 		}

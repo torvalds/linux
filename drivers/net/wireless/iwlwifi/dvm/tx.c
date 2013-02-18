@@ -1117,7 +1117,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
 		IWLAGN_TX_RES_RA_POS;
 
-	spin_lock(&priv->sta_lock);
+	spin_lock_bh(&priv->sta_lock);
 
 	if (is_agg)
 		iwl_rx_reply_tx_agg(priv, tx_resp);
@@ -1207,7 +1207,15 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			freed++;
 		}
 
-		WARN_ON(!is_agg && freed != 1);
+		if (tid != IWL_TID_NON_QOS) {
+			priv->tid_data[sta_id][tid].next_reclaimed =
+				next_reclaimed;
+			IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d\n",
+					   next_reclaimed);
+		}
+
+		if (!is_agg && freed != 1)
+			IWL_ERR(priv, "Q: %d, freed %d\n", txq_id, freed);
 
 		/*
 		 * An offchannel frame can be send only on the AUX queue, where
@@ -1228,11 +1236,11 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			   le16_to_cpu(tx_resp->seq_ctl));
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
-	spin_unlock(&priv->sta_lock);
+	spin_unlock_bh(&priv->sta_lock);
 
 	while (!skb_queue_empty(&skbs)) {
 		skb = __skb_dequeue(&skbs);
-		ieee80211_tx_status(priv->hw, skb);
+		ieee80211_tx_status_ni(priv->hw, skb);
 	}
 
 	if (is_offchannel_skb)
@@ -1279,12 +1287,12 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	tid = ba_resp->tid;
 	agg = &priv->tid_data[sta_id][tid].agg;
 
-	spin_lock(&priv->sta_lock);
+	spin_lock_bh(&priv->sta_lock);
 
 	if (unlikely(!agg->wait_for_ba)) {
 		if (unlikely(ba_resp->bitmap))
 			IWL_ERR(priv, "Received BA when not expected\n");
-		spin_unlock(&priv->sta_lock);
+		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
 
@@ -1298,7 +1306,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		IWL_DEBUG_TX_QUEUES(priv,
 				    "Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
 				    scd_flow, sta_id, tid, agg->txq_id);
-		spin_unlock(&priv->sta_lock);
+		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
 
@@ -1367,11 +1375,11 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		}
 	}
 
-	spin_unlock(&priv->sta_lock);
+	spin_unlock_bh(&priv->sta_lock);
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status(priv->hw, skb);
+		ieee80211_tx_status_ni(priv->hw, skb);
 	}
 
 	return 0;

@@ -116,9 +116,8 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 		if (txrc->short_preamble)
 			rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 		if (mac->opmode == NL80211_IFTYPE_AP ||
-			mac->opmode == NL80211_IFTYPE_ADHOC) {
-			if (sta && (sta->ht_cap.cap &
-			    IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		    mac->opmode == NL80211_IFTYPE_ADHOC) {
+			if (sta && (sta->bandwidth >= IEEE80211_STA_RX_BW_40))
 				rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 		} else {
 			if (mac->bw_40)
@@ -217,6 +216,12 @@ static void rtl_tx_status(void *ppriv,
 	}
 }
 
+static void rtl_rate_init(void *ppriv,
+			  struct ieee80211_supported_band *sband,
+			  struct ieee80211_sta *sta, void *priv_sta)
+{
+}
+
 static void *rtl_rate_alloc(struct ieee80211_hw *hw,
 		struct dentry *debugfsdir)
 {
@@ -261,6 +266,7 @@ static struct rate_control_ops rtl_rate_ops = {
 	.free = rtl_rate_free,
 	.alloc_sta = rtl_rate_alloc_sta,
 	.free_sta = rtl_rate_free_sta,
+	.rate_init = rtl_rate_init,
 	.tx_status = rtl_tx_status,
 	.get_rate = rtl_get_rate,
 };

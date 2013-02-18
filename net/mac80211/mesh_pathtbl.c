@@ -181,7 +181,7 @@ errcopy:
 	return -ENOMEM;
 }
 
-static u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
+static u32 mesh_table_hash(const u8 *addr, struct ieee80211_sub_if_data *sdata,
 			   struct mesh_table *tbl)
 {
 	/* Use last four bytes of hw addr and interface index as hash index */
@@ -212,6 +212,7 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		memcpy(hdr->addr1, sta->sta.addr, ETH_ALEN);
 		memcpy(hdr->addr2, mpath->sdata->vif.addr, ETH_ALEN);
+		ieee80211_mps_set_frame_flags(sta->sdata, sta, hdr);
 	}
 
 	spin_unlock_irqrestore(&mpath->frame_queue.lock, flags);
@@ -325,8 +326,8 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 }
 
 
-static struct mesh_path *mpath_lookup(struct mesh_table *tbl, u8 *dst,
-					  struct ieee80211_sub_if_data *sdata)
+static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
+				      struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
 	struct hlist_node *n;
@@ -358,7 +359,8 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, u8 *dst,
  *
  * Locking: must be called within a read rcu section.
  */
-struct mesh_path *mesh_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
+struct mesh_path *mesh_path_lookup(const u8 *dst,
+				   struct ieee80211_sub_if_data *sdata)
 {
 	return mpath_lookup(rcu_dereference(mesh_paths), dst, sdata);
 }
@@ -493,7 +495,7 @@ int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
  *
  * State: the initial state of the new path is set to 0
  */
-int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
+int mesh_path_add(const u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
