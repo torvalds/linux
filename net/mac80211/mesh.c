@@ -17,7 +17,7 @@
 #define TMR_RUNNING_MP	1
 #define TMR_RUNNING_MPR	2
 
-int mesh_allocated;
+static int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
@@ -36,6 +36,8 @@ void ieee80211s_init(void)
 
 void ieee80211s_stop(void)
 {
+	if (!mesh_allocated)
+		return;
 	mesh_pathtbl_unregister();
 	kmem_cache_destroy(rm_cache);
 }
@@ -90,24 +92,22 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
 	     (ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
-		goto mismatch;
+		return false;
 
 	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
-		goto mismatch;
+		return false;
 
 	ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
 				     ie->ht_operation, &sta_chan_def);
 
 	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
 					 &sta_chan_def))
-		goto mismatch;
+		return false;
 
 	return true;
-mismatch:
-	return false;
 }
 
 /**
@@ -118,7 +118,7 @@ mismatch:
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
 	return (ie->mesh_config->meshconf_cap &
-	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
+			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
 }
 
 /**
@@ -196,11 +196,12 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->u.mesh.rmc)
 		return;
 
-	for (i = 0; i < RMC_BUCKETS; i++)
+	for (i = 0; i < RMC_BUCKETS; i++) {
 		list_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
 			list_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 		}
+	}
 
 	kfree(rmc);
 	sdata->u.mesh.rmc = NULL;
@@ -209,6 +210,7 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 /**
  * mesh_rmc_check - Check frame in recent multicast cache and add if absent.
  *
+ * @sdata:	interface
  * @sa:		source address
  * @mesh_hdr:	mesh_header
  *
@@ -218,8 +220,8 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
  * received this frame lately. If the frame is not in the cache, it is added to
  * it.
  */
-int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
-		   struct ieee80211_sub_if_data *sdata)
+int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
+		   const u8 *sa, struct ieee80211s_hdr *mesh_hdr)
 {
 	struct mesh_rmc *rmc = sdata->u.mesh.rmc;
 	u32 seqnum = 0;
@@ -233,12 +235,11 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	list_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
 		++entries;
 		if (time_after(jiffies, p->exp_time) ||
-				(entries == RMC_QUEUE_MAX_LEN)) {
+		    entries == RMC_QUEUE_MAX_LEN) {
 			list_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 			--entries;
-		} else if ((seqnum == p->seqnum) &&
-			   (ether_addr_equal(sa, p->sa)))
+		} else if ((seqnum == p->seqnum) && ether_addr_equal(sa, p->sa))
 			return -1;
 	}
 
@@ -253,8 +254,8 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	return 0;
 }
 
-int
-mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
+			 struct sk_buff *skb)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 *pos, neighbors;
@@ -285,19 +286,18 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	/* Mesh capability */
 	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
 	*pos |= ifmsh->accepting_plinks ?
-	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
 	*pos |= ifmsh->ps_peers_deep_sleep ?
-	    IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL : 0x00;
+			IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL : 0x00;
 	*pos++ |= ifmsh->adjusting_tbtt ?
-	    IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
+			IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
 	*pos++ = 0x00;
 
 	return 0;
 }
 
-int
-mesh_add_meshid_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+int mesh_add_meshid_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 *pos;
@@ -314,8 +314,8 @@ mesh_add_meshid_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-int mesh_add_awake_window_ie(struct sk_buff *skb,
-			     struct ieee80211_sub_if_data *sdata)
+static int mesh_add_awake_window_ie(struct ieee80211_sub_if_data *sdata,
+				    struct sk_buff *skb)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 *pos;
@@ -337,8 +337,8 @@ int mesh_add_awake_window_ie(struct sk_buff *skb,
 	return 0;
 }
 
-int
-mesh_add_vendor_ies(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
+			struct sk_buff *skb)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 offset, len;
@@ -361,8 +361,7 @@ mesh_add_vendor_ies(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-int
-mesh_add_rsn_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
+int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 len = 0;
@@ -390,8 +389,8 @@ mesh_add_rsn_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-int mesh_add_ds_params_ie(struct sk_buff *skb,
-			  struct ieee80211_sub_if_data *sdata)
+static int mesh_add_ds_params_ie(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
@@ -417,8 +416,8 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 	return 0;
 }
 
-int mesh_add_ht_cap_ie(struct sk_buff *skb,
-		       struct ieee80211_sub_if_data *sdata)
+int mesh_add_ht_cap_ie(struct ieee80211_sub_if_data *sdata,
+		       struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
@@ -439,8 +438,8 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 	return 0;
 }
 
-int mesh_add_ht_oper_ie(struct sk_buff *skb,
-			struct ieee80211_sub_if_data *sdata)
+int mesh_add_ht_oper_ie(struct ieee80211_sub_if_data *sdata,
+			struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -475,6 +474,7 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 
 	return 0;
 }
+
 static void ieee80211_mesh_path_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
@@ -520,7 +520,7 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
 
 /**
  * ieee80211_fill_mesh_addresses - fill addresses of a locally originated mesh frame
- * @hdr:    	802.11 frame header
+ * @hdr:	802.11 frame header
  * @fc:		frame control field
  * @meshda:	destination address in the mesh
  * @meshsa:	source address address in the mesh.  Same as TA, as frame is
@@ -551,8 +551,8 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 
 /**
  * ieee80211_new_mesh_header - create a new mesh header
- * @meshhdr:    uninitialized mesh header
  * @sdata:	mesh interface to be used
+ * @meshhdr:    uninitialized mesh header
  * @addr4or5:   1st address in the ae header, which may correspond to address 4
  *              (if addr6 is NULL) or address 5 (if addr6 is present). It may
  *              be NULL.
@@ -561,32 +561,38 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
  *
  * Return the header length.
  */
-int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata, char *addr4or5,
-		char *addr6)
+int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211s_hdr *meshhdr,
+			      const char *addr4or5, const char *addr6)
 {
-	int aelen = 0;
-	BUG_ON(!addr4or5 && addr6);
+	if (WARN_ON(!addr4or5 && addr6))
+		return 0;
+
 	memset(meshhdr, 0, sizeof(*meshhdr));
+
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
+
+	/* FIXME: racy -- TX on multiple queues can be concurrent */
 	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
 	sdata->u.mesh.mesh_seqnum++;
+
 	if (addr4or5 && !addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A4;
-		aelen += ETH_ALEN;
 		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
+		return 2 * ETH_ALEN;
 	} else if (addr4or5 && addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A5_A6;
-		aelen += 2 * ETH_ALEN;
 		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
 		memcpy(meshhdr->eaddr2, addr6, ETH_ALEN);
+		return 3 * ETH_ALEN;
 	}
-	return 6 + aelen;
+
+	return ETH_ALEN;
 }
 
-static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
-			   struct ieee80211_if_mesh *ifmsh)
+static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 changed;
 
 	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
@@ -596,7 +602,8 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 	ieee80211_mbss_info_change_notify(sdata, changed);
 
 	mod_timer(&ifmsh->housekeeping_timer,
-		  round_jiffies(jiffies + IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
+		  round_jiffies(jiffies +
+				IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
 }
 
 static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
@@ -708,7 +715,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	*pos++ = 0x0;
 
 	if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
-	    mesh_add_ds_params_ie(skb, sdata))
+	    mesh_add_ds_params_ie(sdata, skb))
 		goto out_free;
 
 	bcn->head_len = skb->len;
@@ -719,13 +726,13 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	bcn->tail = bcn->head + bcn->head_len;
 
 	if (ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
-	    mesh_add_rsn_ie(skb, sdata) ||
-	    mesh_add_ht_cap_ie(skb, sdata) ||
-	    mesh_add_ht_oper_ie(skb, sdata) ||
-	    mesh_add_meshid_ie(skb, sdata) ||
-	    mesh_add_meshconf_ie(skb, sdata) ||
-	    mesh_add_awake_window_ie(skb, sdata) ||
-	    mesh_add_vendor_ies(skb, sdata))
+	    mesh_add_rsn_ie(sdata, skb) ||
+	    mesh_add_ht_cap_ie(sdata, skb) ||
+	    mesh_add_ht_oper_ie(sdata, skb) ||
+	    mesh_add_meshid_ie(sdata, skb) ||
+	    mesh_add_meshconf_ie(sdata, skb) ||
+	    mesh_add_awake_window_ie(sdata, skb) ||
+	    mesh_add_vendor_ies(sdata, skb))
 		goto out_free;
 
 	bcn->tail_len = skb->len;
@@ -918,7 +925,6 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
 	memcpy(hdr->da, mgmt->sa, ETH_ALEN);
-	mpl_dbg(sdata, "sending probe resp. to %pM\n", hdr->da);
 	IEEE80211_SKB_CB(presp)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, presp);
 out:
@@ -1039,7 +1045,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		mesh_mpp_table_grow();
 
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
-		ieee80211_mesh_housekeeping(sdata, ifmsh);
+		ieee80211_mesh_housekeeping(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags))
 		ieee80211_mesh_rootpath(sdata);
