@@ -1625,9 +1625,8 @@ i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 {
-	int page_count = obj->base.size / PAGE_SIZE;
-	struct scatterlist *sg;
-	int ret, i;
+	struct sg_page_iter sg_iter;
+	int ret;
 
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
@@ -1647,8 +1646,8 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
 
-	for_each_sg(obj->pages->sgl, sg, page_count, i) {
-		struct page *page = sg_page(sg);
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
+		struct page *page = sg_iter.page;
 
 		if (obj->dirty)
 			set_page_dirty(page);
@@ -1749,7 +1748,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct address_space *mapping;
 	struct sg_table *st;
 	struct scatterlist *sg;
+	struct sg_page_iter sg_iter;
 	struct page *page;
+	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	gfp_t gfp;
 
 	/* Assert that the object is not currently in any GPU domain. As it
@@ -1779,7 +1780,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	gfp = mapping_gfp_mask(mapping);
 	gfp |= __GFP_NORETRY | __GFP_NOWARN | __GFP_NO_KSWAPD;
 	gfp &= ~(__GFP_IO | __GFP_WAIT);
-	for_each_sg(st->sgl, sg, page_count, i) {
+	sg = st->sgl;
+	st->nents = 0;
+	for (i = 0; i < page_count; i++) {
 		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		if (IS_ERR(page)) {
 			i915_gem_purge(dev_priv, page_count);
@@ -1802,9 +1805,18 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			gfp &= ~(__GFP_IO | __GFP_WAIT);
 		}
 
-		sg_set_page(sg, page, PAGE_SIZE, 0);
+		if (!i || page_to_pfn(page) != last_pfn + 1) {
+			if (i)
+				sg = sg_next(sg);
+			st->nents++;
+			sg_set_page(sg, page, PAGE_SIZE, 0);
+		} else {
+			sg->length += PAGE_SIZE;
+		}
+		last_pfn = page_to_pfn(page);
 	}
 
+	sg_mark_end(sg);
 	obj->pages = st;
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
@@ -1813,8 +1825,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	return 0;
 
 err_pages:
-	for_each_sg(st->sgl, sg, i, page_count)
-		page_cache_release(sg_page(sg));
+	sg_mark_end(sg);
+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
+		page_cache_release(sg_iter.page);
 	sg_free_table(st);
 	kfree(st);
 	return PTR_ERR(page);
