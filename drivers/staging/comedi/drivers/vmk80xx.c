@@ -100,15 +100,8 @@ enum {
 #define VMK8061_CMD_RD_AO       0x0f
 #define VMK8061_CMD_RD_PWM      0x10
 
-#define TRANS_OUT_BUSY          1
-#define TRANS_IN_BUSY           2
-#define TRANS_IN_RUNNING        3
-
 #define IC3_VERSION             (1 << 0)
 #define IC6_VERSION             (1 << 1)
-
-#define URB_RCV_FLAG            (1 << 0)
-#define URB_SND_FLAG            (1 << 1)
 
 enum vmk80xx_model {
 	VMK8055_MODEL,
@@ -170,59 +163,12 @@ struct vmk80xx_private {
 	struct usb_interface *intf;
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
-	struct usb_anchor rx_anchor;
-	struct usb_anchor tx_anchor;
 	struct firmware_version fw;
 	struct semaphore limit_sem;
-	wait_queue_head_t read_wait;
-	wait_queue_head_t write_wait;
 	unsigned char *usb_rx_buf;
 	unsigned char *usb_tx_buf;
-	unsigned long flags;
 	enum vmk80xx_model model;
 };
-
-static void vmk80xx_tx_callback(struct urb *urb)
-{
-	struct vmk80xx_private *devpriv = urb->context;
-	unsigned long *flags = &devpriv->flags;
-
-	if (!test_bit(TRANS_OUT_BUSY, flags))
-		return;
-
-	clear_bit(TRANS_OUT_BUSY, flags);
-
-	wake_up_interruptible(&devpriv->write_wait);
-}
-
-static void vmk80xx_rx_callback(struct urb *urb)
-{
-	struct vmk80xx_private *devpriv = urb->context;
-	unsigned long *flags = &devpriv->flags;
-	int stat = urb->status;
-
-	switch (stat) {
-	case 0:
-		break;
-	case -ENOENT:
-	case -ECONNRESET:
-	case -ESHUTDOWN:
-		break;
-	default:
-		/* Try to resubmit the urb */
-		if (test_bit(TRANS_IN_RUNNING, flags) && devpriv->intf) {
-			usb_anchor_urb(urb, &devpriv->rx_anchor);
-
-			if (usb_submit_urb(urb, GFP_KERNEL))
-				usb_unanchor_urb(urb);
-		}
-		break;
-	}
-
-	clear_bit(TRANS_IN_BUSY, flags);
-
-	wake_up_interruptible(&devpriv->read_wait);
-}
 
 static int vmk80xx_check_data_link(struct vmk80xx_private *devpriv)
 {
@@ -277,49 +223,14 @@ static void vmk80xx_read_eeprom(struct vmk80xx_private *devpriv, int flag)
 		strncpy(devpriv->fw.ic6_vers, rx + 25, 24);
 }
 
-static void vmk80xx_build_int_urb(struct urb *urb, int flag)
-{
-	struct vmk80xx_private *devpriv = urb->context;
-	struct usb_device *usb = devpriv->usb;
-	__u8 rx_addr;
-	__u8 tx_addr;
-	unsigned int pipe;
-	unsigned char *buf;
-	size_t size;
-	void (*callback) (struct urb *);
-	int ival;
-
-	if (flag & URB_RCV_FLAG) {
-		rx_addr = devpriv->ep_rx->bEndpointAddress;
-		pipe = usb_rcvintpipe(usb, rx_addr);
-		buf = devpriv->usb_rx_buf;
-		size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
-		callback = vmk80xx_rx_callback;
-		ival = devpriv->ep_rx->bInterval;
-	} else {		/* URB_SND_FLAG */
-		tx_addr = devpriv->ep_tx->bEndpointAddress;
-		pipe = usb_sndintpipe(usb, tx_addr);
-		buf = devpriv->usb_tx_buf;
-		size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
-		callback = vmk80xx_tx_callback;
-		ival = devpriv->ep_tx->bInterval;
-	}
-
-	usb_fill_int_urb(urb, usb, pipe, buf, size, callback, devpriv, ival);
-}
-
 static void vmk80xx_do_bulk_msg(struct vmk80xx_private *devpriv)
 {
 	struct usb_device *usb = devpriv->usb;
-	unsigned long *flags = &devpriv->flags;
 	__u8 tx_addr;
 	__u8 rx_addr;
 	unsigned int tx_pipe;
 	unsigned int rx_pipe;
 	size_t size;
-
-	set_bit(TRANS_IN_BUSY, flags);
-	set_bit(TRANS_OUT_BUSY, flags);
 
 	tx_addr = devpriv->ep_tx->bEndpointAddress;
 	rx_addr = devpriv->ep_rx->bEndpointAddress;
@@ -335,102 +246,52 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_private *devpriv)
 	usb_bulk_msg(usb, tx_pipe, devpriv->usb_tx_buf,
 		     size, NULL, devpriv->ep_tx->bInterval);
 	usb_bulk_msg(usb, rx_pipe, devpriv->usb_rx_buf, size, NULL, HZ * 10);
-
-	clear_bit(TRANS_OUT_BUSY, flags);
-	clear_bit(TRANS_IN_BUSY, flags);
 }
 
 static int vmk80xx_read_packet(struct vmk80xx_private *devpriv)
 {
-	unsigned long *flags = &devpriv->flags;
-	struct urb *urb;
-	int retval;
+	struct usb_device *usb;
+	struct usb_endpoint_descriptor *ep;
+	unsigned int pipe;
 
 	if (!devpriv->intf)
 		return -ENODEV;
 
-	/* Only useful for interrupt transfers */
-	if (test_bit(TRANS_IN_BUSY, flags))
-		if (wait_event_interruptible(devpriv->read_wait,
-					     !test_bit(TRANS_IN_BUSY, flags)))
-			return -ERESTART;
-
 	if (devpriv->model == VMK8061_MODEL) {
 		vmk80xx_do_bulk_msg(devpriv);
-
 		return 0;
 	}
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb)
-		return -ENOMEM;
-
-	urb->context = devpriv;
-	vmk80xx_build_int_urb(urb, URB_RCV_FLAG);
-
-	set_bit(TRANS_IN_RUNNING, flags);
-	set_bit(TRANS_IN_BUSY, flags);
-
-	usb_anchor_urb(urb, &devpriv->rx_anchor);
-
-	retval = usb_submit_urb(urb, GFP_KERNEL);
-	if (!retval)
-		goto exit;
-
-	clear_bit(TRANS_IN_RUNNING, flags);
-	usb_unanchor_urb(urb);
-
-exit:
-	usb_free_urb(urb);
-
-	return retval;
+	usb = devpriv->usb;
+	ep = devpriv->ep_rx;
+	pipe = usb_rcvintpipe(usb, ep->bEndpointAddress);
+	return usb_interrupt_msg(usb, pipe, devpriv->usb_rx_buf,
+				 le16_to_cpu(ep->wMaxPacketSize), NULL,
+				 HZ * 10);
 }
 
 static int vmk80xx_write_packet(struct vmk80xx_private *devpriv, int cmd)
 {
-	unsigned long *flags = &devpriv->flags;
-	struct urb *urb;
-	int retval;
+	struct usb_device *usb;
+	struct usb_endpoint_descriptor *ep;
+	unsigned int pipe;
 
 	if (!devpriv->intf)
 		return -ENODEV;
 
-	if (test_bit(TRANS_OUT_BUSY, flags))
-		if (wait_event_interruptible(devpriv->write_wait,
-					     !test_bit(TRANS_OUT_BUSY, flags)))
-			return -ERESTART;
+	devpriv->usb_tx_buf[0] = cmd;
 
 	if (devpriv->model == VMK8061_MODEL) {
-		devpriv->usb_tx_buf[0] = cmd;
 		vmk80xx_do_bulk_msg(devpriv);
-
 		return 0;
 	}
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb)
-		return -ENOMEM;
-
-	urb->context = devpriv;
-	vmk80xx_build_int_urb(urb, URB_SND_FLAG);
-
-	set_bit(TRANS_OUT_BUSY, flags);
-
-	usb_anchor_urb(urb, &devpriv->tx_anchor);
-
-	devpriv->usb_tx_buf[0] = cmd;
-
-	retval = usb_submit_urb(urb, GFP_KERNEL);
-	if (!retval)
-		goto exit;
-
-	clear_bit(TRANS_OUT_BUSY, flags);
-	usb_unanchor_urb(urb);
-
-exit:
-	usb_free_urb(urb);
-
-	return retval;
+	usb = devpriv->usb;
+	ep = devpriv->ep_tx;
+	pipe = usb_sndintpipe(usb, ep->bEndpointAddress);
+	return usb_interrupt_msg(usb, pipe, devpriv->usb_tx_buf,
+				 le16_to_cpu(ep->wMaxPacketSize), NULL,
+				 HZ * 10);
 }
 
 static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
@@ -447,25 +308,6 @@ static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
 	return vmk80xx_write_packet(devpriv, VMK8055_CMD_WRT_AD);
 }
 
-#define DIR_IN  1
-#define DIR_OUT 2
-
-static int rudimentary_check(struct vmk80xx_private *devpriv, int dir)
-{
-	if (!devpriv)
-		return -EFAULT;
-	if (dir & DIR_IN) {
-		if (test_bit(TRANS_IN_BUSY, &devpriv->flags))
-			return -EBUSY;
-	}
-	if (dir & DIR_OUT) {
-		if (test_bit(TRANS_OUT_BUSY, &devpriv->flags))
-			return -EBUSY;
-	}
-
-	return 0;
-}
-
 static int vmk80xx_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -475,10 +317,6 @@ static int vmk80xx_ai_insn_read(struct comedi_device *dev,
 	int chan;
 	int reg[2];
 	int n;
-
-	n = rudimentary_check(devpriv, DIR_IN);
-	if (n)
-		return n;
 
 	down(&devpriv->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -529,10 +367,6 @@ static int vmk80xx_ao_insn_write(struct comedi_device *dev,
 	int reg;
 	int n;
 
-	n = rudimentary_check(devpriv, DIR_OUT);
-	if (n)
-		return n;
-
 	down(&devpriv->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
@@ -573,10 +407,6 @@ static int vmk80xx_ao_insn_read(struct comedi_device *dev,
 	int reg;
 	int n;
 
-	n = rudimentary_check(devpriv, DIR_IN);
-	if (n)
-		return n;
-
 	down(&devpriv->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
@@ -605,10 +435,6 @@ static int vmk80xx_di_insn_bits(struct comedi_device *dev,
 	unsigned char *rx_buf;
 	int reg;
 	int retval;
-
-	retval = rudimentary_check(devpriv, DIR_IN);
-	if (retval)
-		return retval;
 
 	down(&devpriv->limit_sem);
 
@@ -646,26 +472,16 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 {
 	struct vmk80xx_private *devpriv = dev->private;
 	unsigned char *rx_buf, *tx_buf;
-	int dir, reg, cmd;
+	int reg, cmd;
 	int retval;
 
-	dir = 0;
-
-	if (data[0])
-		dir |= DIR_OUT;
-
 	if (devpriv->model == VMK8061_MODEL) {
-		dir |= DIR_IN;
 		reg = VMK8061_DO_REG;
 		cmd = VMK8061_CMD_DO;
 	} else { /* VMK8055_MODEL */
 		reg = VMK8055_DO_REG;
 		cmd = VMK8055_CMD_WRT_AD;
 	}
-
-	retval = rudimentary_check(devpriv, dir);
-	if (retval)
-		return retval;
 
 	down(&devpriv->limit_sem);
 
@@ -711,10 +527,6 @@ static int vmk80xx_cnt_insn_read(struct comedi_device *dev,
 	int chan;
 	int reg[2];
 	int n;
-
-	n = rudimentary_check(devpriv, DIR_IN);
-	if (n)
-		return n;
 
 	down(&devpriv->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -762,10 +574,6 @@ static int vmk80xx_cnt_insn_config(struct comedi_device *dev,
 	int reg;
 	int n;
 
-	n = rudimentary_check(devpriv, DIR_OUT);
-	if (n)
-		return n;
-
 	insn_cmd = data[0];
 	if (insn_cmd != INSN_CONFIG_RESET && insn_cmd != GPCT_RESET)
 		return -EINVAL;
@@ -808,10 +616,6 @@ static int vmk80xx_cnt_insn_write(struct comedi_device *dev,
 	int chan;
 	int cmd;
 	int n;
-
-	n = rudimentary_check(devpriv, DIR_OUT);
-	if (n)
-		return n;
 
 	down(&devpriv->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -856,10 +660,6 @@ static int vmk80xx_pwm_insn_read(struct comedi_device *dev,
 	int reg[2];
 	int n;
 
-	n = rudimentary_check(devpriv, DIR_IN);
-	if (n)
-		return n;
-
 	down(&devpriv->limit_sem);
 
 	tx_buf = devpriv->usb_tx_buf;
@@ -892,10 +692,6 @@ static int vmk80xx_pwm_insn_write(struct comedi_device *dev,
 	int reg[2];
 	int cmd;
 	int n;
-
-	n = rudimentary_check(devpriv, DIR_OUT);
-	if (n)
-		return n;
 
 	down(&devpriv->limit_sem);
 
@@ -1106,11 +902,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	sema_init(&devpriv->limit_sem, 8);
-	init_waitqueue_head(&devpriv->read_wait);
-	init_waitqueue_head(&devpriv->write_wait);
-
-	init_usb_anchor(&devpriv->rx_anchor);
-	init_usb_anchor(&devpriv->tx_anchor);
 
 	usb_set_intfdata(intf, devpriv);
 
@@ -1140,9 +931,6 @@ static void vmk80xx_detach(struct comedi_device *dev)
 	down(&devpriv->limit_sem);
 
 	usb_set_intfdata(devpriv->intf, NULL);
-
-	usb_kill_anchored_urbs(&devpriv->rx_anchor);
-	usb_kill_anchored_urbs(&devpriv->tx_anchor);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
