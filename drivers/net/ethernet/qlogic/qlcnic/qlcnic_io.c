@@ -152,6 +152,89 @@ static inline u32 qlcnic_get_ref_handle(struct qlcnic_adapter *adapter,
 		return handle;
 }
 
+static inline int qlcnic_82xx_is_lb_pkt(u64 sts_data)
+{
+	return (qlcnic_get_sts_status(sts_data) == STATUS_CKSUM_LOOP) ? 1 : 0;
+}
+
+void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter, struct sk_buff *skb,
+			  int loopback_pkt, __le16 vlan_id)
+{
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
+	struct qlcnic_filter *fil, *tmp_fil;
+	struct hlist_node *tmp_hnode, *n;
+	struct hlist_head *head;
+	unsigned long time;
+	u64 src_addr = 0;
+	u8 hindex, found = 0, op;
+	int ret;
+
+	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
+
+	if (loopback_pkt) {
+		if (adapter->rx_fhash.fnum >= adapter->rx_fhash.fmax)
+			return;
+
+		hindex = qlcnic_mac_hash(src_addr) &
+			 (adapter->fhash.fbucket_size - 1);
+		head = &(adapter->rx_fhash.fhead[hindex]);
+
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
+			    tmp_fil->vlan_id == vlan_id) {
+				time = tmp_fil->ftime;
+				if (jiffies > (QLCNIC_READD_AGE * HZ + time))
+					tmp_fil->ftime = jiffies;
+				return;
+			}
+		}
+
+		fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
+		if (!fil)
+			return;
+
+		fil->ftime = jiffies;
+		memcpy(fil->faddr, &src_addr, ETH_ALEN);
+		fil->vlan_id = vlan_id;
+		spin_lock(&adapter->rx_mac_learn_lock);
+		hlist_add_head(&(fil->fnode), head);
+		adapter->rx_fhash.fnum++;
+		spin_unlock(&adapter->rx_mac_learn_lock);
+	} else {
+		hindex = qlcnic_mac_hash(src_addr) &
+			 (adapter->fhash.fbucket_size - 1);
+		head = &(adapter->rx_fhash.fhead[hindex]);
+		spin_lock(&adapter->rx_mac_learn_lock);
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
+			    tmp_fil->vlan_id == vlan_id) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			spin_unlock(&adapter->rx_mac_learn_lock);
+			return;
+		}
+
+		op = vlan_id ? QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_ADD;
+		ret = qlcnic_sre_macaddr_change(adapter, (u8 *)&src_addr,
+						vlan_id, op);
+		if (!ret) {
+			op = vlan_id ? QLCNIC_MAC_VLAN_DEL : QLCNIC_MAC_DEL;
+			ret = qlcnic_sre_macaddr_change(adapter,
+							(u8 *)&src_addr,
+							vlan_id, op);
+			if (!ret) {
+				hlist_del(&(tmp_fil->fnode));
+				adapter->rx_fhash.fnum--;
+			}
+		}
+		spin_unlock(&adapter->rx_mac_learn_lock);
+	}
+}
+
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
 			       __le16 vlan_id)
 {
@@ -207,9 +290,6 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 		return;
 	}
 
-	/* Only NPAR capable devices support vlan based learning */
-	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
-		vlan_id = first_desc->vlan_TCI;
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
 	hindex = qlcnic_mac_hash(src_addr) & (adapter->fhash.fbucket_size - 1);
 	head = &(adapter->fhash.fhead[hindex]);
@@ -920,8 +1000,8 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	struct qlcnic_rx_buffer *buffer;
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
-	int index, length, cksum, pkt_offset;
-	u16 vid = 0xffff;
+	int index, length, cksum, pkt_offset, is_lb_pkt;
+	u16 vid = 0xffff, t_vid;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -940,6 +1020,14 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, cksum);
 	if (!skb)
 		return buffer;
+
+	if (adapter->drv_mac_learn &&
+	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		t_vid = 0;
+		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
+				     cpu_to_le16(t_vid));
+	}
 
 	if (length > rds_ring->skb_size)
 		skb_put(skb, rds_ring->skb_size);
@@ -985,8 +1073,8 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	struct ipv6hdr *ipv6h;
 	struct tcphdr *th;
 	bool push, timestamp;
-	int index, l2_hdr_offset, l4_hdr_offset;
-	u16 lro_length, length, data_offset, vid = 0xffff;
+	int index, l2_hdr_offset, l4_hdr_offset, is_lb_pkt;
+	u16 lro_length, length, data_offset, t_vid, vid = 0xffff;
 	u32 seq_number;
 
 	if (unlikely(ring > adapter->max_rds_rings))
@@ -1010,6 +1098,14 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, STATUS_CKSUM_OK);
 	if (!skb)
 		return buffer;
+
+	if (adapter->drv_mac_learn &&
+	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		t_vid = 0;
+		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
+				     cpu_to_le16(t_vid));
+	}
 
 	if (timestamp)
 		data_offset = l4_hdr_offset + QLC_TCP_TS_HDR_SIZE;
@@ -1357,6 +1453,17 @@ void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 	}
 }
 
+#define QLC_83XX_NORMAL_LB_PKT	(1ULL << 36)
+#define QLC_83XX_LRO_LB_PKT	(1ULL << 46)
+
+static inline int qlcnic_83xx_is_lb_pkt(u64 sts_data, int lro_pkt)
+{
+	if (lro_pkt)
+		return (sts_data & QLC_83XX_LRO_LB_PKT) ? 1 : 0;
+	else
+		return (sts_data & QLC_83XX_NORMAL_LB_PKT) ? 1 : 0;
+}
+
 static struct qlcnic_rx_buffer *
 qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 			struct qlcnic_host_sds_ring *sds_ring,
@@ -1367,8 +1474,8 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	struct qlcnic_rx_buffer *buffer;
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
-	int index, length, cksum;
-	u16 vid = 0xffff;
+	int index, length, cksum, is_lb_pkt;
+	u16 vid = 0xffff, t_vid;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -1385,6 +1492,14 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, cksum);
 	if (!skb)
 		return buffer;
+
+	if (adapter->drv_mac_learn &&
+	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		t_vid = 0;
+		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 0);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
+				     cpu_to_le16(t_vid));
+	}
 
 	if (length > rds_ring->skb_size)
 		skb_put(skb, rds_ring->skb_size);
@@ -1424,9 +1539,9 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	struct tcphdr *th;
 	bool push;
 	int l2_hdr_offset, l4_hdr_offset;
-	int index;
+	int index, is_lb_pkt;
 	u16 lro_length, length, data_offset, gso_size;
-	u16 vid = 0xffff;
+	u16 vid = 0xffff, t_vid;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1447,6 +1562,14 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, STATUS_CKSUM_OK);
 	if (!skb)
 		return buffer;
+
+	if (adapter->drv_mac_learn &&
+	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		t_vid = 0;
+		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 1);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
+				     cpu_to_le16(t_vid));
+	}
 	if (qlcnic_83xx_is_tstamp(sts_data[1]))
 		data_offset = l4_hdr_offset + QLCNIC_TCP_TS_HDR_SIZE;
 	else

@@ -1008,9 +1008,12 @@ struct qlcnic_adapter {
 	struct delayed_work idc_aen_work;
 
 	struct qlcnic_filter_hash fhash;
+	struct qlcnic_filter_hash rx_fhash;
 
 	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
+	/* spinlock for catching rcv filters for eswitch traffic */
+	spinlock_t rx_mac_learn_lock;
 	u32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
@@ -1506,6 +1509,8 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *);
 int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
+void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
+			  __le16);
 /*
  * QLOGIC Board information
  */
