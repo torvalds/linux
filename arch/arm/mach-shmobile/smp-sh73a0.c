@@ -124,6 +124,11 @@ static void sh73a0_cpu_die(unsigned int cpu)
 	/* Enter shutdown mode */
 	cpu_do_idle();
 }
+
+static int sh73a0_cpu_disable(unsigned int cpu)
+{
+	return 0; /* CPU0 and CPU1 supported */
+}
 #endif /* CONFIG_HOTPLUG_CPU */
 
 struct smp_operations sh73a0_smp_ops __initdata = {
@@ -134,6 +139,6 @@ struct smp_operations sh73a0_smp_ops __initdata = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= sh73a0_cpu_kill,
 	.cpu_die		= sh73a0_cpu_die,
-	.cpu_disable		= shmobile_cpu_disable_any,
+	.cpu_disable		= sh73a0_cpu_disable,
 #endif
 };
