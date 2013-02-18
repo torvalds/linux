@@ -1573,11 +1573,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	if (press_type < 0)
 		goto not_input_data;
 
-	spin_lock_irqsave(&ictx->kc_lock, flags);
-	if (ictx->kc == KEY_UNKNOWN)
-		goto unknown_key;
-	spin_unlock_irqrestore(&ictx->kc_lock, flags);
-
 	if (ktype != IMON_KEY_PANEL) {
 		if (press_type == 0)
 			rc_keyup(ictx->rdev);
@@ -1618,12 +1613,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	ictx->last_keycode = kc;
 	spin_unlock_irqrestore(&ictx->kc_lock, flags);
 
-	return;
-
-unknown_key:
-	spin_unlock_irqrestore(&ictx->kc_lock, flags);
-	dev_info(dev, "%s: unknown keypress, code 0x%llx\n", __func__,
-		 (long long)scancode);
 	return;
 
 not_input_data:
