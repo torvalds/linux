@@ -38,8 +38,8 @@
 #define RT5631_VERSION "0.01 alsa 1.0.24"
 
 #define RT5631_ALC_DAC_FUNC_ENA 0	//ALC functio for DAC
-#define RT5631_ALC_ADC_FUNC_ENA 1	//ALC function for ADC
-#define RT5631_SPK_TIMER	0	//if enable this, MUST enable RT5631_EQ_FUNC_ENA first!
+#define RT5631_ALC_ADC_FUNC_ENA 0	//ALC function for ADC
+#define RT5631_SPK_TIMER	1	//if enable this, MUST enable RT5631_EQ_FUNC_ENA first!
 
 struct rt5631_priv {
 	int codec_version;
@@ -52,7 +52,8 @@ struct rt5631_priv {
 #if (RT5631_SPK_TIMER == 1)
 static struct timer_list spk_timer;
 struct work_struct  spk_work;
-static bool last_is_spk = false;	// need modify.
+//static bool last_is_spk = false;	// need modify.
+static int last_is_spk = -1;	//bard 9-13
 #endif
 
 static struct snd_soc_codec *rt5631_codec;
@@ -174,18 +175,23 @@ static struct rt5631_init_reg init_list[] = {
 
 	{RT5631_SPK_OUT_VOL		, (DEF_VOL_SPK<<8) | DEF_VOL_SPK},//speaker channel volume select SPKMIXER,0DB by default
 	{RT5631_HP_OUT_VOL		, (DEF_VOL<<8) | DEF_VOL},//Headphone channel volume select OUTMIXER,0DB by default
-	{RT5631_MONO_AXO_1_2_VOL	, 0xf0c0},//AXO1/AXO2 channel volume select OUTMIXER,0DB by default
+	{RT5631_MONO_AXO_1_2_VOL	, 0xE0c0},//AXO1/AXO2 channel volume select OUTMIXER,0DB by default
 	//{RT5631_STEREO_DAC_VOL_1	, 0x004C},
+	{RT5631_STEREO_DAC_VOL_2	, 0x0303},
 	{RT5631_ADC_REC_MIXER		, 0xb0f0},//Record Mixer source from Mic1 by default
-	{RT5631_ADC_CTRL_1		, 0x0006},//STEREO ADC CONTROL 1
+	{RT5631_ADC_CTRL_1		, 0x0004},//STEREO ADC CONTROL 1
 	{RT5631_MIC_CTRL_2		, 0x4400},//0x8800},//0x6600}, //Mic1/Mic2 boost 40DB by default
 	{RT5631_PWR_MANAG_ADD1		, 0x93e0},
+	{RT5631_SDP_CTRL        , 0x8002},
+	//increase hpo charge pump VEE
+	{RT5631_INDEX_ADD			, 0x45},
+	{RT5631_INDEX_DATA			, 0x6530},
 	
 #if RT5631_ALC_ADC_FUNC_ENA	
 
-	{RT5631_ALC_CTRL_1		, 0x0a0f},//ALC CONTROL 1
-	{RT5631_ALC_CTRL_2		, 0x0005},//ALC CONTROL 2
-	{RT5631_ALC_CTRL_3		, 0xe080},//ALC CONTROL 3
+	{RT5631_ALC_CTRL_1		, 0x060a},//ALC CONTROL 1
+	{RT5631_ALC_CTRL_2		, 0x0002},//ALC CONTROL 2
+	{RT5631_ALC_CTRL_3		, 0xe088},//ALC CONTROL 3
 	
 #endif	
 	{RT5631_OUTMIXER_L_CTRL		, 0xdfC0},//DAC_L-->OutMixer_L by default
@@ -193,7 +199,7 @@ static struct rt5631_init_reg init_list[] = {
 	{RT5631_AXO1MIXER_CTRL		, 0x8840},//OutMixer_L-->AXO1Mixer by default
 	{RT5631_AXO2MIXER_CTRL		, 0x8880},//OutMixer_R-->AXO2Mixer by default
 	{RT5631_SPK_MIXER_CTRL		, 0xd8d8},//DAC-->SpeakerMixer
-	{RT5631_SPK_MONO_OUT_CTRL	, 0x6c00},//Speaker volume-->SPOMixer(L-->L,R-->R)	
+	{RT5631_SPK_MONO_OUT_CTRL	, 0x0c00},//Speaker volume-->SPOMixer(L-->L,R-->R)	
 	{RT5631_GEN_PUR_CTRL_REG	, 0x4e00},//Speaker AMP ratio gain is 1.27x
 #if defined(CONFIG_ADJUST_VOL_BY_CODEC)
 	{RT5631_SPK_MONO_HP_OUT_CTRL	, 0x0000},//HP from outputmixer,speaker out from SpeakerOut Mixer	
@@ -265,6 +271,10 @@ struct hw_eq_preset hweq_preset[] = {
 	{BASS	, {0x1A43, 0x0C00, 0x0000, 0x0000, 0x0000, 0x0000,
 		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 		0x0000, 0x0000, 0x0000, 0x0000}, 0x0001},
+	//	{HFREQ, {0x1BBC,0x0000,0xC9A4,0x1BBC,0x0000,0x2997,0x142D,0xFCB6,0xEF01,0x1BBC,0x0000,0xE835,0x0FEC,0xC66E,0x1A29,0x1CEE},0x0014},//orig
+	//{HFREQ, {0x1BBC,0x0000,0xC9A4,0x1BBC,0x0000,0x2997,0x142D,0xFCB6,0x1E97,0x08AC,0xFCB6,0xEEA6,0x095B,0xC66E,0x1A29,0x1CEE},0x0018},//roy 20120904 
+	{HFREQ, {0x1FBC,0x1D18,0x11C1,0x0B2B,0xFF1B,0x1F8D,0x09F3,0xFB54,0xEF01,0x1BBC,0x0000,0xE835,0x2298,0xC66E,0x1A29,0x1CEE},0x0014},//roy 20120914 
+	{SPK_FR,{0x1DE4,0xF405,0xC306,0x1D60,0x01F3,0x07CA,0x12AF,0xF805,0xE904,0x1C10,0x0000,0x1C8B,0x0000,0xc5e1,0x1afb,0x1d46},0x0003},
 };
 
 static int rt5631_reg_init(struct snd_soc_codec *codec)
@@ -379,6 +389,7 @@ static void rt5631_update_eqmode(struct snd_soc_codec *codec, int mode)
 {
 	int i;
 
+	DBG("enter rt5631_update_eqmode=========\n");
 	if (NORMAL == mode) {
 		/* In Normal mode, the EQ parameter is cleared,
 		 * and hardware LP, BP1, BP2, BP3, HP1, HP2
@@ -426,18 +437,20 @@ static int rt5631_eq_sel_put(struct snd_kcontrol *kcontrol,
 static void spk_work_handler(struct work_struct *work)
 {
 	struct snd_soc_codec *codec = rt5631_codec;
-	bool is_spk = (rt5631_read(codec, 0x4a)) & 0x04;	//detect rt5631 reg4a[3], 1'b:SPK, 0'b:HP ;
-	if(last_is_spk != is_spk)
-		printk("%s---%s is in use.last is %s in use\n", __FUNCTION__,is_spk?"speaker":"headphone",last_is_spk?"speaker":"headphone");
-		
-	if(is_spk && !last_is_spk){
+	int is_spk = (rt5631_read(codec, 0x4a)) & 0x04;	//detect rt5631 reg4a[3], 1'b:SPK, 0'b:HP ; //bard 9-13
+	//if(last_is_spk != is_spk)
+	//	printk("%s---%s is in use.last is %s in use\n", __FUNCTION__,is_spk?"speaker":"headphone",last_is_spk?"speaker":"headphone");
+	//printk("last_is_spk=%d is_spk=%d\n",last_is_spk,is_spk);
+	if(is_spk && (last_is_spk != is_spk)){
 		rt5631_write_index_mask(codec,0x11,0x0000,0x0007);	//0db
 		rt5631_write_index(codec,0x12,0x0003);			//0db
 		rt5631_update_eqmode(codec, SPK_FR);		// SPK is in use, enable EQ mode of SPK_FR.
-	}else if(!is_spk && last_is_spk){
+	
+
+	}else if(!is_spk && (last_is_spk != is_spk)){
 	//flove071311	rt5631_update_eqmode(codec, NORMAL);		// HP is in use, enable EQ mode of NORMAL.
-		rt5631_write_index_mask(codec,0x11,0x0001,0x0003);
-		rt5631_write_index(codec,0x12,0x0001);	
+		rt5631_write_index_mask(codec,0x11,0x0002,0x0003);
+		rt5631_write_index(codec,0x12,0x0007);	
 		rt5631_update_eqmode(codec,HFREQ);		
 	}
 	last_is_spk = is_spk;
@@ -1769,7 +1782,7 @@ static int rt5631_hifi_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 
-	pr_info("enter %s, syclk=%d\n", __func__, freq);
+	DBG("enter %s, syclk=%d\n", __func__, freq);
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 96000))) {
 		rt5631->sysclk = freq;
 		return 0;
@@ -1789,7 +1802,7 @@ static int rt5631_codec_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 	int i, ret = -EINVAL;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	DBG(KERN_DEBUG "enter %s\n", __func__);
 
 	if (!freq_in || !freq_out)
 		return 0;
@@ -2066,7 +2079,8 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 					0, 0x2000);
 
 #if (RT5631_SPK_TIMER == 1)
-		last_is_spk = !last_is_spk;	//wired~, update eqmode right here by spk_timer.
+		//last_is_spk = !last_is_spk;	//wired~, update eqmode right here by spk_timer.
+		last_is_spk = -1;	//wired~, update eqmode right here by spk_timer. //bard 9-13
 #endif
 
 	return 0;
@@ -2126,6 +2140,12 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 	.reg_cache_step = 1,
 };
 
+void rt5631_shutdown(struct i2c_client *client)
+{
+	rt5631_set_bias_level(rt5631_codec, SND_SOC_BIAS_OFF);
+}
+
+
 static const struct i2c_device_id rt5631_i2c_id[] = {
 	{ "rt5631", 0 },
 	{ }
@@ -2169,6 +2189,7 @@ struct i2c_driver rt5631_i2c_driver = {
 	.probe = rt5631_i2c_probe,
 	.remove   = __devexit_p(rt5631_i2c_remove),
 	.id_table = rt5631_i2c_id,
+	.shutdown = rt5631_shutdown,
 };
 
 static int __init rt5631_modinit(void)
