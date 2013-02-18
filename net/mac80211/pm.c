@@ -38,6 +38,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_scan_cancel(local);
 
+	ieee80211_dfs_cac_cancel(local);
+
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
@@ -228,3 +230,13 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
  * ieee80211_reconfig(), which is also needed for hardware
  * hang/firmware failure/etc. recovery.
  */
+
+void ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
+				    struct cfg80211_wowlan_wakeup *wakeup,
+				    gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	cfg80211_report_wowlan_wakeup(&sdata->wdev, wakeup, gfp);
+}
+EXPORT_SYMBOL(ieee80211_report_wowlan_wakeup);

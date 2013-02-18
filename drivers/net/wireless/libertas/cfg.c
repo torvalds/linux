@@ -657,7 +657,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
-				cfg80211_put_bss(bss);
+				cfg80211_put_bss(wiphy, bss);
 			}
 		} else
 			lbs_deb_scan("scan response: missing BSS channel IE\n");
@@ -1444,7 +1444,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 
  done:
 	if (bss)
-		cfg80211_put_bss(bss);
+		cfg80211_put_bss(wiphy, bss);
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
 	return ret;
 }
@@ -1766,7 +1766,7 @@ static void lbs_join_post(struct lbs_private *priv,
 				  params->beacon_interval,
 				  fake_ie, fake - fake_ie,
 				  0, GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(priv->wdev->wiphy, bss);
 
 	memcpy(priv->wdev->ssid, params->ssid, params->ssid_len);
 	priv->wdev->ssid_len = params->ssid_len;
@@ -2011,7 +2011,7 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	if (bss) {
 		ret = lbs_ibss_join_existing(priv, params, bss);
-		cfg80211_put_bss(bss);
+		cfg80211_put_bss(wiphy, bss);
 	} else
 		ret = lbs_ibss_start_new(priv, params);
 

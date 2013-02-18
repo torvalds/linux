@@ -760,7 +760,6 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	synchronize_irq(trans_pcie->pci_dev->irq);
-	tasklet_kill(&trans_pcie->irq_tasklet);
 
 	iwl_pcie_tx_free(trans);
 	iwl_pcie_rx_free(trans);
@@ -1480,6 +1479,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans->ops = &trans_ops_pcie;
 	trans->cfg = cfg;
+	trans_lockdep_init(trans);
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
@@ -1567,15 +1567,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 
-	tasklet_init(&trans_pcie->irq_tasklet, (void (*)(unsigned long))
-		     iwl_pcie_tasklet, (unsigned long)trans);
-
 	if (iwl_pcie_alloc_ict(trans))
 		goto out_free_cmd_pool;
 
-	err = request_irq(pdev->irq, iwl_pcie_isr_ict,
-			  IRQF_SHARED, DRV_NAME, trans);
-	if (err) {
+	if (request_threaded_irq(pdev->irq, iwl_pcie_isr_ict,
+				 iwl_pcie_irq_handler,
+				 IRQF_SHARED, DRV_NAME, trans)) {
 		IWL_ERR(trans, "Error allocating IRQ %d\n", pdev->irq);
 		goto out_free_ict;
 	}

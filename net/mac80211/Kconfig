@@ -258,6 +258,17 @@ config MAC80211_MESH_SYNC_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_MESH_PS_DEBUG
+	bool "Verbose mesh powersave debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  powersave debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
 config MAC80211_TDLS_DEBUG
 	bool "Verbose TDLS debugging"
 	depends on MAC80211_DEBUG_MENU

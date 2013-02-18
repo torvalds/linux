@@ -113,13 +113,13 @@ struct iwl_cfg;
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD the this Rx responds to.
- *	Must be atomic and called with BH disabled.
+ *	This callback may sleep, it is called from a threaded IRQ handler.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
  * @queue_not_full: notifies that a HW queue is not full any more.
  *	Must be atomic and called with BH disabled.
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
- *	the radio is killed. Must be atomic.
+ *	the radio is killed. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -130,8 +130,7 @@ struct iwl_cfg;
  *	called with BH disabled.
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
- * @wimax_active: invoked when WiMax becomes active.  Must be atomic and called
- *	with BH disabled.
+ * @wimax_active: invoked when WiMax becomes active. May sleep
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -178,6 +177,7 @@ static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
 				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
+	might_sleep();
 	return op_mode->ops->rx(op_mode, rxb, cmd);
 }
 
@@ -196,6 +196,7 @@ static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
 static inline void iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode,
 					  bool state)
 {
+	might_sleep();
 	op_mode->ops->hw_rf_kill(op_mode, state);
 }
 
@@ -223,6 +224,7 @@ static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)
 
 static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
+	might_sleep();
 	op_mode->ops->wimax_active(op_mode);
 }
 

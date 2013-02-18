@@ -206,6 +206,11 @@ struct wl1271_if_operations {
 	void (*set_block_size) (struct device *child, unsigned int blksz);
 };
 
+struct wlcore_platdev_data {
+	struct wl12xx_platform_data *pdata;
+	struct wl1271_if_operations *if_ops;
+};
+
 #define MAX_NUM_KEYS 14
 #define MAX_KEY_SIZE 32
 

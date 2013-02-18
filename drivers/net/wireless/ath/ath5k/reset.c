@@ -985,6 +985,8 @@ ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		return;
 
 	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (WARN_ON(ee_mode < 0))
+		return;
 
 	/* Adjust power delta for channel 14 */
 	if (channel->center_freq == 2484)

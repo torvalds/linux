@@ -1204,7 +1204,7 @@ static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta)
 			caps |= WLAN_RC_TS_FLAG | WLAN_RC_DS_FLAG;
 		else if (sta->ht_cap.mcs.rx_mask[1])
 			caps |= WLAN_RC_DS_FLAG;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+		if (sta->bandwidth >= IEEE80211_STA_RX_BW_40) {
 			caps |= WLAN_RC_40_FLAG;
 			if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
 				caps |= WLAN_RC_SGI_FLAG;

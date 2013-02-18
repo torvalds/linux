@@ -249,7 +249,6 @@ struct iwl_trans_pcie {
 	int ict_index;
 	u32 inta;
 	bool use_ict;
-	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -330,7 +329,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 * RX
 ******************************************************/
 int iwl_pcie_rx_init(struct iwl_trans *trans);
-void iwl_pcie_tasklet(struct iwl_trans *trans);
+irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id);
 int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
 

@@ -3897,6 +3897,24 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le64	replay_ctr;
 } __packed;
 
+#define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
+
+/*
+ * REPLY_WOWLAN_GET_STATUS = 0xe5
+ */
+struct iwlagn_wowlan_status {
+	__le64 replay_ctr;
+	__le32 rekey_status;
+	__le32 wakeup_reason;
+	u8 pattern_number;
+	u8 reserved1;
+	__le16 qos_seq_ctr[8];
+	__le16 non_qos_seq_ctr;
+	__le16 reserved2;
+	union iwlagn_all_tsc_rsc tsc_rsc;
+	__le16 reserved3;
+} __packed;
+
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)
  */

@@ -121,7 +121,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx(mvm->hw, skb);
+	ieee80211_rx_ni(mvm->hw, skb);
 }
 
 /*

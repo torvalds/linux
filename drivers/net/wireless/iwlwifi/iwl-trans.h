@@ -65,6 +65,7 @@
 
 #include <linux/ieee80211.h>
 #include <linux/mm.h> /* for page_address */
+#include <linux/lockdep.h>
 
 #include "iwl-debug.h"
 #include "iwl-config.h"
@@ -526,6 +527,10 @@ struct iwl_trans {
 
 	struct dentry *dbgfs_dir;
 
+#ifdef CONFIG_LOCKDEP
+	struct lockdep_map sync_cmd_lockdep_map;
+#endif
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
@@ -602,12 +607,22 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
-				struct iwl_host_cmd *cmd)
+				     struct iwl_host_cmd *cmd)
 {
+	int ret;
+
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->send_cmd(trans, cmd);
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
+
+	ret = trans->ops->send_cmd(trans, cmd);
+
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return ret;
 }
 
 static inline struct iwl_device_cmd *
@@ -790,5 +805,15 @@ iwl_trans_release_nic_access(struct iwl_trans *trans, unsigned long *flags)
 ******************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
+
+static inline void trans_lockdep_init(struct iwl_trans *trans)
+{
+#ifdef CONFIG_LOCKDEP
+	static struct lock_class_key __key;
+
+	lockdep_init_map(&trans->sync_cmd_lockdep_map, "sync_cmd_lockdep_map",
+			 &__key, 0);
+#endif
+}
 
 #endif /* __iwl_trans_h__ */

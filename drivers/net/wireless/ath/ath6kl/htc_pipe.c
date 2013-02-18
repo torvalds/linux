@@ -509,9 +509,7 @@ static void destroy_htc_txctrl_packet(struct htc_packet *packet)
 {
 	struct sk_buff *skb;
 	skb = packet->skb;
-	if (skb != NULL)
-		dev_kfree_skb(skb);
-
+	dev_kfree_skb(skb);
 	kfree(packet);
 }
 
@@ -969,6 +967,22 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	u16 payload_len;
 	int status = 0;
 
+	/*
+	 * ar->htc_target can be NULL due to a race condition that can occur
+	 * during driver initialization(we do 'ath6kl_hif_power_on' before
+	 * initializing 'ar->htc_target' via 'ath6kl_htc_create').
+	 * 'ath6kl_hif_power_on' assigns 'ath6kl_recv_complete' as
+	 * usb_complete_t/callback function for 'usb_fill_bulk_urb'.
+	 * Thus the possibility of ar->htc_target being NULL
+	 * via ath6kl_recv_complete -> ath6kl_usb_io_comp_work.
+	 */
+	if (WARN_ON_ONCE(!target)) {
+		ath6kl_err("Target not yet initialized\n");
+		status = -EINVAL;
+		goto free_skb;
+	}
+
+
 	netdata = skb->data;
 	netlen = skb->len;
 
@@ -1054,6 +1068,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 
 		dev_kfree_skb(skb);
 		skb = NULL;
+
 		goto free_skb;
 	}
 
@@ -1089,8 +1104,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	skb = NULL;
 
 free_skb:
-	if (skb != NULL)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 
 	return status;
 
@@ -1184,7 +1198,7 @@ static void reset_endpoint_states(struct htc_target *target)
 		INIT_LIST_HEAD(&ep->pipe.tx_lookup_queue);
 		INIT_LIST_HEAD(&ep->rx_bufq);
 		ep->target = target;
-		ep->pipe.tx_credit_flow_enabled = (bool) 1; /* FIXME */
+		ep->pipe.tx_credit_flow_enabled = true;
 	}
 }
 

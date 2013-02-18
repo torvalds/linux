@@ -37,7 +37,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(&wdev->current_bss->pub);
+		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
 	}
 
 	cfg80211_hold_bss(bss_from_pub(bss));
@@ -182,7 +182,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(&wdev->current_bss->pub);
+		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
 	}
 
 	wdev->current_bss = NULL;

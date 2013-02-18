@@ -207,13 +207,16 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 {
 	might_sleep();
 
-	WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
-				BSS_CHANGED_BEACON_ENABLED) &&
-		     sdata->vif.type != NL80211_IFTYPE_AP &&
-		     sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-		     sdata->vif.type != NL80211_IFTYPE_MESH_POINT);
-	WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE &&
-		     changed & ~BSS_CHANGED_IDLE);
+	if (WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
+				    BSS_CHANGED_BEACON_ENABLED) &&
+			 sdata->vif.type != NL80211_IFTYPE_AP &&
+			 sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+			 sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
+		return;
+
+	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
+			 sdata->vif.type == NL80211_IFTYPE_MONITOR))
+		return;
 
 	check_sdata_in_driver(sdata);
 
@@ -528,6 +531,43 @@ static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
 		local->ops->sta_remove_debugfs(&local->hw, &sdata->vif,
 					       sta, dir);
 }
+
+static inline
+void drv_add_interface_debugfs(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->add_interface_debugfs)
+		return;
+
+	local->ops->add_interface_debugfs(&local->hw, &sdata->vif,
+					  sdata->debugfs.dir);
+}
+
+static inline
+void drv_remove_interface_debugfs(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->remove_interface_debugfs)
+		return;
+
+	local->ops->remove_interface_debugfs(&local->hw, &sdata->vif,
+					     sdata->debugfs.dir);
+}
+#else
+static inline
+void drv_add_interface_debugfs(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata) {}
+static inline
+void drv_remove_interface_debugfs(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata) {}
 #endif
 
 static inline __must_check

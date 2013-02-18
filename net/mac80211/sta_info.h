@@ -56,6 +56,8 @@
  * @WLAN_STA_INSERTED: This station is inserted into the hash table.
  * @WLAN_STA_RATE_CONTROL: rate control was initialized for this station.
  * @WLAN_STA_TOFFSET_KNOWN: toffset calculated for this station is valid.
+ * @WLAN_STA_MPSP_OWNER: local STA is owner of a mesh Peer Service Period.
+ * @WLAN_STA_MPSP_RECIPIENT: local STA is recipient of a MPSP.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH,
@@ -78,6 +80,8 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_INSERTED,
 	WLAN_STA_RATE_CONTROL,
 	WLAN_STA_TOFFSET_KNOWN,
+	WLAN_STA_MPSP_OWNER,
+	WLAN_STA_MPSP_RECIPIENT,
 };
 
 #define ADDBA_RESP_INTERVAL HZ
@@ -282,6 +286,9 @@ struct sta_ampdu_mlme {
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
  * @ch_width: peer's channel width
+ * @local_pm: local link-specific power save mode
+ * @peer_pm: peer-specific power save mode towards local STA
+ * @nonpeer_pm: STA power save mode towards non-peer neighbors
  * @debugfs: debug filesystem info
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
@@ -289,8 +296,9 @@ struct sta_ampdu_mlme {
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
  * @beacon_loss_count: number of times beacon loss has triggered
- * @supports_40mhz: tracks whether the station advertised 40 MHz support
- *	as we overwrite its HT parameters with the currently used value
+ * @rcu_head: RCU head used for freeing this station struct
+ * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
+ *	taken from HT/VHT capabilities or VHT operating mode notification
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -379,6 +387,10 @@ struct sta_info {
 	s64 t_offset;
 	s64 t_offset_setpoint;
 	enum nl80211_chan_width ch_width;
+	/* mesh power save */
+	enum nl80211_mesh_power_mode local_pm;
+	enum nl80211_mesh_power_mode peer_pm;
+	enum nl80211_mesh_power_mode nonpeer_pm;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -388,10 +400,10 @@ struct sta_info {
 	} debugfs;
 #endif
 
+	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;
-
-	bool supports_40mhz;
 
 	/* keep last! */
 	struct ieee80211_sta sta;

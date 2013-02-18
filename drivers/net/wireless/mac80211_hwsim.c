@@ -2247,6 +2247,7 @@ static int __init init_mac80211_hwsim(void)
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
 		hw->sta_data_size = sizeof(struct hwsim_sta_priv);
+		hw->chanctx_data_size = sizeof(struct hwsim_chanctx_priv);
 
 		memcpy(data->channels_2ghz, hwsim_channels_2ghz,
 			sizeof(hwsim_channels_2ghz));

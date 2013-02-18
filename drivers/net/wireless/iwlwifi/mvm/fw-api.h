@@ -633,6 +633,9 @@ struct iwl_binding_cmd {
 	__le32 phy;
 } __packed; /* BINDING_CMD_API_S_VER_1 */
 
+/* The maximal number of fragments in the FW's schedule session */
+#define IWL_MVM_MAX_QUOTA 128
+
 /**
  * struct iwl_time_quota_data - configuration of time quota per binding
  * @id_and_color: ID and color of the relevant Binding

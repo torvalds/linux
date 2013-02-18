@@ -494,6 +494,33 @@ minstrel_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
 	kfree(mi);
 }
 
+static void
+minstrel_init_cck_rates(struct minstrel_priv *mp)
+{
+	static const int bitrates[4] = { 10, 20, 55, 110 };
+	struct ieee80211_supported_band *sband;
+	int i, j;
+
+	sband = mp->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (!sband)
+		return;
+
+	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+
+		if (rate->flags & IEEE80211_RATE_ERP_G)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(bitrates); j++) {
+			if (rate->bitrate != bitrates[j])
+				continue;
+
+			mp->cck_rates[j] = i;
+			break;
+		}
+	}
+}
+
 static void *
 minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
@@ -538,6 +565,8 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	mp->dbg_fixed_rate = debugfs_create_u32("fixed_rate_idx",
 			S_IRUGO | S_IWUGO, debugfsdir, &mp->fixed_rate_idx);
 #endif
+
+	minstrel_init_cck_rates(mp);
 
 	return mp;
 }

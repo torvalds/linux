@@ -84,8 +84,8 @@ out:
 static int wlcore_validate_fw_ver(struct wl1271 *wl)
 {
 	unsigned int *fw_ver = wl->chip.fw_ver;
-	unsigned int *min_ver = (wl->fw_type == WL12XX_FW_TYPE_NORMAL) ?
-		wl->min_sr_fw_ver : wl->min_mr_fw_ver;
+	unsigned int *min_ver = (wl->fw_type == WL12XX_FW_TYPE_MULTI) ?
+		wl->min_mr_fw_ver : wl->min_sr_fw_ver;
 	char min_fw_str[32] = "";
 	int i;
 

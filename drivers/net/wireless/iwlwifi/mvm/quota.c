@@ -131,7 +131,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 {
 	struct iwl_time_quota_cmd cmd;
-	int i, idx, ret;
+	int i, idx, ret, num_active_bindings, quota, quota_rem;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
@@ -156,20 +156,39 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		iwl_mvm_quota_iterator(&data, newvif->addr, newvif);
 	}
 
+	/*
+	 * The FW's scheduling session consists of
+	 * IWL_MVM_MAX_QUOTA fragments. Divide these fragments
+	 * equally between all the bindings that require quota
+	 */
+	num_active_bindings = 0;
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
+		if (data.n_interfaces[i] > 0)
+			num_active_bindings++;
+	}
+
+	if (!num_active_bindings)
+		goto send_cmd;
+
+	quota = IWL_MVM_MAX_QUOTA / num_active_bindings;
+	quota_rem = IWL_MVM_MAX_QUOTA % num_active_bindings;
+
 	for (idx = 0, i = 0; i < MAX_BINDINGS; i++) {
 		if (data.n_interfaces[i] <= 0)
 			continue;
 
 		cmd.quotas[idx].id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(i, data.colors[i]));
-		cmd.quotas[idx].quota = cpu_to_le32(100);
-		cmd.quotas[idx].max_duration = cpu_to_le32(1000);
+		cmd.quotas[idx].quota = cpu_to_le32(quota);
+		cmd.quotas[idx].max_duration = cpu_to_le32(IWL_MVM_MAX_QUOTA);
 		idx++;
 	}
 
-	for (i = idx; i < MAX_BINDINGS; i++)
-		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
+	/* Give the remainder of the session to the first binding */
+	le32_add_cpu(&cmd.quotas[0].quota, quota_rem);
 
+send_cmd:
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, CMD_SYNC,
 				   sizeof(cmd), &cmd);
 	if (ret)
