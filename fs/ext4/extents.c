@@ -2076,8 +2076,18 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 			break;
 		}
 
-		/* This is possible iff next == next_del == EXT_MAX_BLOCKS */
-		if (next == next_del) {
+		/*
+		 * This is possible iff next == next_del == EXT_MAX_BLOCKS.
+		 * we need to check next == EXT_MAX_BLOCKS because it is
+		 * possible that an extent is with unwritten and delayed
+		 * status due to when an extent is delayed allocated and
+		 * is allocated by fallocate status tree will track both of
+		 * them in a extent.
+		 *
+		 * So we could return a unwritten and delayed extent, and
+		 * its block is equal to 'next'.
+		 */
+		if (next == next_del && next == EXT_MAX_BLOCKS) {
 			flags |= FIEMAP_EXTENT_LAST;
 			if (unlikely(next_del != EXT_MAX_BLOCKS ||
 				     next != EXT_MAX_BLOCKS)) {
@@ -3522,9 +3532,9 @@ out:
  *
  * Return 1 if there is a delalloc block in the range, otherwise 0.
  */
-static int ext4_find_delalloc_range(struct inode *inode,
-				    ext4_lblk_t lblk_start,
-				    ext4_lblk_t lblk_end)
+int ext4_find_delalloc_range(struct inode *inode,
+			     ext4_lblk_t lblk_start,
+			     ext4_lblk_t lblk_end)
 {
 	struct extent_status es;
 
