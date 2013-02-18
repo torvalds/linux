@@ -1211,7 +1211,7 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	struct imx_port *sport = imx_ports[co->index];
 	struct imx_port_ucrs old_ucr;
 	unsigned int ucr1;
-	unsigned long flags;
+	unsigned long flags = 0;
 	int locked = 1;
 
 	if (sport->port.sysrq)
