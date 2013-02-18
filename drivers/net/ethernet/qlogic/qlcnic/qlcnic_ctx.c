@@ -599,9 +599,17 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 		dev->flags &= ~QLCNIC_NEED_FLR;
 	}
 
+	if (qlcnic_83xx_check(dev) && (dev->flags & QLCNIC_MSIX_ENABLED)) {
+		if (dev->ahw->diag_test != QLCNIC_LOOPBACK_TEST) {
+			err = qlcnic_83xx_config_intrpt(dev, 1);
+			if (err)
+				return err;
+		}
+	}
+
 	err = qlcnic_fw_cmd_create_rx_ctx(dev);
 	if (err)
-		return err;
+		goto err_out;
 
 	for (ring = 0; ring < dev->max_drv_tx_rings; ring++) {
 		err = qlcnic_fw_cmd_create_tx_ctx(dev,
@@ -610,18 +618,25 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 		if (err) {
 			qlcnic_fw_cmd_destroy_rx_ctx(dev);
 			if (ring == 0)
-				return err;
+				goto err_out;
 
 			for (i = 0; i < ring; i++)
 				qlcnic_fw_cmd_destroy_tx_ctx(dev,
 							     &dev->tx_ring[i]);
 
-			return err;
+			goto err_out;
 		}
 	}
 
 	set_bit(__QLCNIC_FW_ATTACHED, &dev->state);
 	return 0;
+
+err_out:
+	if (qlcnic_83xx_check(dev) && (dev->flags & QLCNIC_MSIX_ENABLED)) {
+		if (dev->ahw->diag_test != QLCNIC_LOOPBACK_TEST)
+			qlcnic_83xx_config_intrpt(dev, 0);
+	}
+	return err;
 }
 
 void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
@@ -633,6 +648,12 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++)
 			qlcnic_fw_cmd_destroy_tx_ctx(adapter,
 						     &adapter->tx_ring[ring]);
+
+		if (qlcnic_83xx_check(adapter) &&
+		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
+			if (adapter->ahw->diag_test != QLCNIC_LOOPBACK_TEST)
+				qlcnic_83xx_config_intrpt(adapter, 0);
+		}
 		/* Allow dma queues to drain after context reset */
 		mdelay(20);
 	}

@@ -497,8 +497,6 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 
 	/* Enable mailbox interrupt */
 	qlcnic_83xx_enable_mbx_intrpt(adapter);
-	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		err = qlcnic_83xx_config_intrpt(adapter, 1);
 
 	return err;
 }
@@ -1915,7 +1913,7 @@ int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *adapter, bool op_type)
 	u32 val, temp;
 	struct qlcnic_cmd_args cmd;
 
-	max_ints = adapter->ahw->num_msix;
+	max_ints = adapter->ahw->num_msix - 1;
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTRPT);
 	cmd.req.arg[1] = max_ints;
 	for (i = 0, index = 2; i < max_ints; i++) {
