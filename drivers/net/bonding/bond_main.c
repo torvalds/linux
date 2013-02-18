@@ -4264,6 +4264,10 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_fix_features	= bond_fix_features,
 };
 
+static const struct device_type bond_type = {
+	.name = "bond",
+};
+
 static void bond_destructor(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -4293,6 +4297,8 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_set_mode_ops(bond, bond->params.mode);
 
 	bond_dev->destructor = bond_destructor;
+
+	SET_NETDEV_DEVTYPE(bond_dev, &bond_type);
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
