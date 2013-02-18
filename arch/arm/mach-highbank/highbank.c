@@ -18,14 +18,11 @@
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/irqchip.h>
-#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/smp.h>
 #include <linux/amba/bus.h>
 #include <linux/clk-provider.h>
 
@@ -35,7 +32,6 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 
 #include "core.h"
 #include "sysregs.h"
