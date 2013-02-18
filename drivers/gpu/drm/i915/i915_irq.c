@@ -915,6 +915,8 @@ static void i915_error_work_func(struct work_struct *work)
 		for_each_ring(ring, dev_priv, i)
 			wake_up_all(&ring->irq_queue);
 
+		intel_display_handle_reset(dev);
+
 		wake_up_all(&dev_priv->gpu_error.reset_queue);
 	}
 }
