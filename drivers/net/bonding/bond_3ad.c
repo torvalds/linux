@@ -389,13 +389,13 @@ static u8 __get_duplex(struct port *port)
 
 /**
  * __initialize_port_locks - initialize a port's STATE machine spinlock
- * @port: the port we're looking at
+ * @port: the slave of the port we're looking at
  *
  */
-static inline void __initialize_port_locks(struct port *port)
+static inline void __initialize_port_locks(struct slave *slave)
 {
 	// make sure it isn't called twice
-	spin_lock_init(&(SLAVE_AD_INFO(port->slave).state_machine_lock));
+	spin_lock_init(&(SLAVE_AD_INFO(slave).state_machine_lock));
 }
 
 //conversions
@@ -1910,6 +1910,7 @@ int bond_3ad_bind_slave(struct slave *slave)
 
 		ad_initialize_port(port, bond->params.lacp_fast);
 
+		__initialize_port_locks(slave);
 		port->slave = slave;
 		port->actor_port_number = SLAVE_AD_INFO(slave).id;
 		// key is determined according to the link speed, duplex and user key(which is yet not supported)
@@ -1932,8 +1933,6 @@ int bond_3ad_bind_slave(struct slave *slave)
 		port->next_port_in_aggregator = NULL;
 
 		__disable_port(port);
-		__initialize_port_locks(port);
-
 
 		// aggregator initialization
 		aggregator = &(SLAVE_AD_INFO(slave).aggregator);
