@@ -494,8 +494,8 @@ store_hard_offline_page(struct device *dev,
 	return ret ? ret : count;
 }
 
-static DEVICE_ATTR(soft_offline_page, 0644, NULL, store_soft_offline_page);
-static DEVICE_ATTR(hard_offline_page, 0644, NULL, store_hard_offline_page);
+static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
+static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
 
 static __init int memory_fail_init(void)
 {
