@@ -121,9 +121,7 @@ MODULE_PARM_DESC(i915_enable_ppgtt,
 unsigned int i915_preliminary_hw_support __read_mostly = 0;
 module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
 MODULE_PARM_DESC(preliminary_hw_support,
-		"Enable preliminary hardware support. "
-		"Enable Haswell and ValleyView Support. "
-		"(default: false)");
+		"Enable preliminary hardware support. (default: false)");
 
 static struct drm_driver driver;
 extern int intel_agp_enabled;
