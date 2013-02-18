@@ -23,8 +23,6 @@
 #include <sound/max98090.h>
 #include "max98090.h"
 
-#include <linux/version.h>
-
 #define DEBUG
 #define EXTMIC_METHOD
 #define EXTMIC_METHOD_TEST
