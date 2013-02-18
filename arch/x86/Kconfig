@@ -1922,6 +1922,7 @@ config APM_DO_ENABLE
 	  this feature.
 
 config APM_CPU_IDLE
+	depends on CPU_IDLE
 	bool "Make CPU Idle calls when idle"
 	---help---
 	  Enable calls to APM CPU Idle/CPU Busy inside the kernel's idle loop.

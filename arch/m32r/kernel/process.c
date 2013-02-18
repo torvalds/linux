@@ -44,34 +44,8 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return tsk->thread.lr;
 }
 
-/*
- * Powermanagement idle function, if any..
- */
-static void (*pm_idle)(void) = NULL;
-
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
-
-/*
- * We use this is we don't have any better
- * idle routine..
- */
-static void default_idle(void)
-{
-	/* M32R_FIXME: Please use "cpu_sleep" mode.  */
-	cpu_relax();
-}
-
-/*
- * On SMP it's slightly faster (but much more power-consuming!)
- * to poll the ->work.need_resched flag instead of waiting for the
- * cross-CPU IPI to arrive. Use this option with caution.
- */
-static void poll_idle (void)
-{
-	/* M32R_FIXME */
-	cpu_relax();
-}
 
 /*
  * The idle thread. There's no useful work to be
@@ -84,14 +58,8 @@ void cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		rcu_idle_enter();
-		while (!need_resched()) {
-			void (*idle)(void) = pm_idle;
-
-			if (!idle)
-				idle = default_idle;
-
-			idle();
-		}
+		while (!need_resched())
+			cpu_relax();
 		rcu_idle_exit();
 		schedule_preempt_disabled();
 	}
@@ -119,21 +87,6 @@ void machine_power_off(void)
 {
 	/* M32R_FIXME */
 }
-
-static int __init idle_setup (char *str)
-{
-	if (!strncmp(str, "poll", 4)) {
-		printk("using poll in idle threads.\n");
-		pm_idle = poll_idle;
-	} else if (!strncmp(str, "sleep", 4)) {
-		printk("using sleep in idle threads.\n");
-		pm_idle = default_idle;
-	}
-
-	return 1;
-}
-
-__setup("idle=", idle_setup);
 
 void show_regs(struct pt_regs * regs)
 {

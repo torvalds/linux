@@ -22,7 +22,7 @@
 #include <asm/smp.h>
 #include <asm/bl_bit.h>
 
-void (*pm_idle)(void);
+static void (*sh_idle)(void);
 
 static int hlt_counter;
 
@@ -103,9 +103,9 @@ void cpu_idle(void)
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
 			if (cpuidle_idle_call())
-				pm_idle();
+				sh_idle();
 			/*
-			 * Sanity check to ensure that pm_idle() returns
+			 * Sanity check to ensure that sh_idle() returns
 			 * with IRQs enabled
 			 */
 			WARN_ON(irqs_disabled());
@@ -123,13 +123,13 @@ void __init select_idle_routine(void)
 	/*
 	 * If a platform has set its own idle routine, leave it alone.
 	 */
-	if (pm_idle)
+	if (sh_idle)
 		return;
 
 	if (hlt_works())
-		pm_idle = default_idle;
+		sh_idle = default_idle;
 	else
-		pm_idle = poll_idle;
+		sh_idle = poll_idle;
 }
 
 void stop_this_cpu(void *unused)
