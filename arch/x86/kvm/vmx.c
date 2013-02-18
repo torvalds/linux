@@ -5908,6 +5908,52 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 static const int kvm_vmx_max_exit_handlers =
 	ARRAY_SIZE(kvm_vmx_exit_handlers);
 
+static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
+				       struct vmcs12 *vmcs12)
+{
+	unsigned long exit_qualification;
+	gpa_t bitmap, last_bitmap;
+	unsigned int port;
+	int size;
+	u8 b;
+
+	if (nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING))
+		return 1;
+
+	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
+		return 0;
+
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+
+	port = exit_qualification >> 16;
+	size = (exit_qualification & 7) + 1;
+
+	last_bitmap = (gpa_t)-1;
+	b = -1;
+
+	while (size > 0) {
+		if (port < 0x8000)
+			bitmap = vmcs12->io_bitmap_a;
+		else if (port < 0x10000)
+			bitmap = vmcs12->io_bitmap_b;
+		else
+			return 1;
+		bitmap += (port & 0x7fff) / 8;
+
+		if (last_bitmap != bitmap)
+			if (kvm_read_guest(vcpu->kvm, bitmap, &b, 1))
+				return 1;
+		if (b & (1 << (port & 7)))
+			return 1;
+
+		port++;
+		size--;
+		last_bitmap = bitmap;
+	}
+
+	return 0;
+}
+
 /*
  * Return 1 if we should exit from L2 to L1 to handle an MSR access access,
  * rather than handle it ourselves in L0. I.e., check whether L1 expressed
@@ -6097,8 +6143,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_DR_ACCESS:
 		return nested_cpu_has(vmcs12, CPU_BASED_MOV_DR_EXITING);
 	case EXIT_REASON_IO_INSTRUCTION:
-		/* TODO: support IO bitmaps */
-		return 1;
+		return nested_vmx_exit_handled_io(vcpu, vmcs12);
 	case EXIT_REASON_MSR_READ:
 	case EXIT_REASON_MSR_WRITE:
 		return nested_vmx_exit_handled_msr(vcpu, vmcs12, exit_reason);
