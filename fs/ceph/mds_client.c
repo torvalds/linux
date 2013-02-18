@@ -1197,6 +1197,8 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	session->s_trim_caps--;
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
+		__queue_cap_release(session, ceph_ino(inode), cap->cap_id,
+				    cap->mseq, cap->issue_seq);
 		__ceph_remove_cap(cap);
 	} else {
 		/* try to drop referring dentries */

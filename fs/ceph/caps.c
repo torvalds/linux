@@ -997,9 +997,9 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	return 0;
 }
 
-static void __queue_cap_release(struct ceph_mds_session *session,
-				u64 ino, u64 cap_id, u32 migrate_seq,
-				u32 issue_seq)
+void __queue_cap_release(struct ceph_mds_session *session,
+			 u64 ino, u64 cap_id, u32 migrate_seq,
+			 u32 issue_seq)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_cap_release *head;

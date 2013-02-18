@@ -755,6 +755,8 @@ static inline void ceph_remove_cap(struct ceph_cap *cap)
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);
 
+extern void __queue_cap_release(struct ceph_mds_session *session, u64 ino,
+				u64 cap_id, u32 migrate_seq, u32 issue_seq);
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern int ceph_fsync(struct file *file, loff_t start, loff_t end,
