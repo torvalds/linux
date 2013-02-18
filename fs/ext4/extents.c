@@ -3528,13 +3528,14 @@ static int ext4_find_delalloc_range(struct inode *inode,
 {
 	struct extent_status es;
 
-	es.start = lblk_start;
-	ext4_es_find_extent(inode, &es);
-	if (es.len == 0)
+	es.es_lblk = lblk_start;
+	(void)ext4_es_find_extent(inode, &es);
+	if (es.es_len == 0)
 		return 0; /* there is no delay extent in this tree */
-	else if (es.start <= lblk_start && lblk_start < es.start + es.len)
+	else if (es.es_lblk <= lblk_start &&
+		 lblk_start < es.es_lblk + es.es_len)
 		return 1;
-	else if (lblk_start <= es.start && es.start <= lblk_end)
+	else if (lblk_start <= es.es_lblk && es.es_lblk <= lblk_end)
 		return 1;
 	else
 		return 0;
@@ -4569,7 +4570,7 @@ static int ext4_find_delayed_extent(struct inode *inode,
 	struct extent_status es;
 	ext4_lblk_t next_del;
 
-	es.start = newex->ec_block;
+	es.es_lblk = newex->ec_block;
 	next_del = ext4_es_find_extent(inode, &es);
 
 	if (newex->ec_start == 0) {
@@ -4577,18 +4578,18 @@ static int ext4_find_delayed_extent(struct inode *inode,
 		 * No extent in extent-tree contains block @newex->ec_start,
 		 * then the block may stay in 1)a hole or 2)delayed-extent.
 		 */
-		if (es.len == 0)
+		if (es.es_len == 0)
 			/* A hole found. */
 			return 0;
 
-		if (es.start > newex->ec_block) {
+		if (es.es_lblk > newex->ec_block) {
 			/* A hole found. */
-			newex->ec_len = min(es.start - newex->ec_block,
+			newex->ec_len = min(es.es_lblk - newex->ec_block,
 					    newex->ec_len);
 			return 0;
 		}
 
-		newex->ec_len = es.start + es.len - newex->ec_block;
+		newex->ec_len = es.es_lblk + es.es_len - newex->ec_block;
 	}
 
 	return next_del;

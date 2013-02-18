@@ -22,8 +22,8 @@
 
 struct extent_status {
 	struct rb_node rb_node;
-	ext4_lblk_t start;	/* first block extent covers */
-	ext4_lblk_t len;	/* length of extent in block */
+	ext4_lblk_t es_lblk;	/* first logical block extent covers */
+	ext4_lblk_t es_len;	/* length of extent in block */
 };
 
 struct ext4_es_tree {
@@ -35,9 +35,9 @@ extern int __init ext4_init_es(void);
 extern void ext4_exit_es(void);
 extern void ext4_es_init_tree(struct ext4_es_tree *tree);
 
-extern int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t start,
+extern int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
-extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t start,
+extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
 extern ext4_lblk_t ext4_es_find_extent(struct inode *inode,
 				struct extent_status *es);

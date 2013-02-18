@@ -2093,75 +2093,75 @@ TRACE_EVENT(ext4_ext_remove_space_done,
 );
 
 TRACE_EVENT(ext4_es_insert_extent,
-	TP_PROTO(struct inode *inode, ext4_lblk_t start, ext4_lblk_t len),
+	TP_PROTO(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len),
 
-	TP_ARGS(inode, start, len),
+	TP_ARGS(inode, lblk, len),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
-		__field(	loff_t,	start			)
+		__field(	loff_t,	lblk			)
 		__field(	loff_t, len			)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
-		__entry->start	= start;
+		__entry->lblk	= lblk;
 		__entry->len	= len;
 	),
 
 	TP_printk("dev %d,%d ino %lu es [%lld/%lld)",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->start, __entry->len)
+		  __entry->lblk, __entry->len)
 );
 
 TRACE_EVENT(ext4_es_remove_extent,
-	TP_PROTO(struct inode *inode, ext4_lblk_t start, ext4_lblk_t len),
+	TP_PROTO(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len),
 
-	TP_ARGS(inode, start, len),
+	TP_ARGS(inode, lblk, len),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
-		__field(	loff_t,	start			)
+		__field(	loff_t,	lblk			)
 		__field(	loff_t,	len			)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
-		__entry->start	= start;
+		__entry->lblk	= lblk;
 		__entry->len	= len;
 	),
 
 	TP_printk("dev %d,%d ino %lu es [%lld/%lld)",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->start, __entry->len)
+		  __entry->lblk, __entry->len)
 );
 
 TRACE_EVENT(ext4_es_find_extent_enter,
-	TP_PROTO(struct inode *inode, ext4_lblk_t start),
+	TP_PROTO(struct inode *inode, ext4_lblk_t lblk),
 
-	TP_ARGS(inode, start),
+	TP_ARGS(inode, lblk),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
-		__field(	ext4_lblk_t,	start		)
+		__field(	ext4_lblk_t,	lblk		)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
-		__entry->start	= start;
+		__entry->lblk	= lblk;
 	),
 
-	TP_printk("dev %d,%d ino %lu start %u",
+	TP_printk("dev %d,%d ino %lu lblk %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  (unsigned long) __entry->ino, __entry->start)
+		  (unsigned long) __entry->ino, __entry->lblk)
 );
 
 TRACE_EVENT(ext4_es_find_extent_exit,
@@ -2173,7 +2173,7 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
-		__field(	ext4_lblk_t,	start		)
+		__field(	ext4_lblk_t,	lblk		)
 		__field(	ext4_lblk_t,	len		)
 		__field(	ext4_lblk_t,	ret		)
 	),
@@ -2181,15 +2181,15 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
-		__entry->start	= es->start;
-		__entry->len	= es->len;
+		__entry->lblk	= es->es_lblk;
+		__entry->len	= es->es_len;
 		__entry->ret	= ret;
 	),
 
 	TP_printk("dev %d,%d ino %lu es [%u/%u) ret %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->start, __entry->len, __entry->ret)
+		  __entry->lblk, __entry->len, __entry->ret)
 );
 
 #endif /* _TRACE_EXT4_H */
