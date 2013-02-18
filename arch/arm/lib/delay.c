@@ -77,6 +77,7 @@ void __init register_current_timer_delay(const struct delay_timer *timer)
 		arm_delay_ops.delay		= __timer_delay;
 		arm_delay_ops.const_udelay	= __timer_const_udelay;
 		arm_delay_ops.udelay		= __timer_udelay;
+		arm_delay_ops.const_clock	= true;
 		delay_calibrated		= true;
 	} else {
 		pr_info("Ignoring duplicate/late registration of read_current_timer delay\n");
