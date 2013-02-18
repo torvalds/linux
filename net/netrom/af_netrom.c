@@ -1482,9 +1482,9 @@ static void __exit nr_exit(void)
 {
 	int i;
 
-	proc_net_remove(&init_net, "nr");
-	proc_net_remove(&init_net, "nr_neigh");
-	proc_net_remove(&init_net, "nr_nodes");
+	remove_proc_entry("nr", init_net.proc_net);
+	remove_proc_entry("nr_neigh", init_net.proc_net);
+	remove_proc_entry("nr_nodes", init_net.proc_net);
 	nr_loopback_clear();
 
 	nr_rt_free();

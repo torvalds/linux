@@ -1199,7 +1199,7 @@ static void __exit yam_cleanup_driver(void)
 		kfree(p);
 	}
 
-	proc_net_remove(&init_net, "yam");
+	remove_proc_entry("yam", init_net.proc_net);
 }
 
 /* --------------------------------------------------------------------- */

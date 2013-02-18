@@ -596,6 +596,6 @@ void __init dn_neigh_init(void)
 
 void __exit dn_neigh_cleanup(void)
 {
-	proc_net_remove(&init_net, "decnet_neigh");
+	remove_proc_entry("decnet_neigh", init_net.proc_net);
 	neigh_table_clear(&dn_neigh_table);
 }

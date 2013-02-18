@@ -2413,7 +2413,7 @@ static void __exit decnet_exit(void)
 	dn_neigh_cleanup();
 	dn_fib_cleanup();
 
-	proc_net_remove(&init_net, "decnet");
+	remove_proc_entry("decnet", init_net.proc_net);
 
 	proto_unregister(&dn_proto);
 

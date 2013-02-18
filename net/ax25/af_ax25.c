@@ -2009,9 +2009,9 @@ MODULE_ALIAS_NETPROTO(PF_AX25);
 
 static void __exit ax25_exit(void)
 {
-	proc_net_remove(&init_net, "ax25_route");
-	proc_net_remove(&init_net, "ax25");
-	proc_net_remove(&init_net, "ax25_calls");
+	remove_proc_entry("ax25_route", init_net.proc_net);
+	remove_proc_entry("ax25", init_net.proc_net);
+	remove_proc_entry("ax25_calls", init_net.proc_net);
 
 	unregister_netdevice_notifier(&ax25_dev_notifier);
 

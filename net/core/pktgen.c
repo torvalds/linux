@@ -3650,7 +3650,7 @@ static int __net_init pg_net_init(struct net *net)
 remove_entry:
 	remove_proc_entry(PGCTRL, pn->proc_dir);
 remove:
-	proc_net_remove(pn->net, PG_PROC_DIR);
+	remove_proc_entry(PG_PROC_DIR, pn->net->proc_net);
 	return ret;
 }
 
@@ -3676,7 +3676,7 @@ static void __net_exit pg_net_exit(struct net *net)
 	}
 
 	remove_proc_entry(PGCTRL, pn->proc_dir);
-	proc_net_remove(pn->net, PG_PROC_DIR);
+	remove_proc_entry(PG_PROC_DIR, pn->net->proc_net);
 }
 
 static struct pernet_operations pg_net_ops = {

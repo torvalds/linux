@@ -517,7 +517,7 @@ int __net_init ac6_proc_init(struct net *net)
 
 void ac6_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "anycast6");
+	remove_proc_entry("anycast6", net->proc_net);
 }
 #endif
 

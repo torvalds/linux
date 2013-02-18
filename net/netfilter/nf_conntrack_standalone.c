@@ -377,7 +377,7 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 	return 0;
 
 out_stat_nf_conntrack:
-	proc_net_remove(net, "nf_conntrack");
+	remove_proc_entry("nf_conntrack", net->proc_net);
 out_nf_conntrack:
 	return -ENOMEM;
 }
@@ -385,7 +385,7 @@ out_nf_conntrack:
 static void nf_conntrack_standalone_fini_proc(struct net *net)
 {
 	remove_proc_entry("nf_conntrack", net->proc_net_stat);
-	proc_net_remove(net, "nf_conntrack");
+	remove_proc_entry("nf_conntrack", net->proc_net);
 }
 #else
 static int nf_conntrack_standalone_init_proc(struct net *net)

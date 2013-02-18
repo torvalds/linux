@@ -208,7 +208,7 @@ static __init int sctpprobe_init(void)
 	return 0;
 
 remove_proc:
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 free_kfifo:
 	kfifo_free(&sctpw.fifo);
 	return ret;
@@ -217,7 +217,7 @@ free_kfifo:
 static __exit void sctpprobe_exit(void)
 {
 	kfifo_free(&sctpw.fifo);
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 	unregister_jprobe(&sctp_recv_probe);
 }
 

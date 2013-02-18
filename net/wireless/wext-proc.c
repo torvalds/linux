@@ -152,5 +152,5 @@ int __net_init wext_proc_init(struct net *net)
 
 void __net_exit wext_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "wireless");
+	remove_proc_entry("wireless", net->proc_net);
 }

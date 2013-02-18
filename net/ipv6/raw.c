@@ -1300,7 +1300,7 @@ static int __net_init raw6_init_net(struct net *net)
 
 static void __net_exit raw6_exit_net(struct net *net)
 {
-	proc_net_remove(net, "raw6");
+	remove_proc_entry("raw6", net->proc_net);
 }
 
 static struct pernet_operations raw6_net_ops = {

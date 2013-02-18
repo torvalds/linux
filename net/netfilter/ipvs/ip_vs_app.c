@@ -612,5 +612,5 @@ int __net_init ip_vs_app_net_init(struct net *net)
 void __net_exit ip_vs_app_net_cleanup(struct net *net)
 {
 	unregister_ip_vs_app(net, NULL /* all */);
-	proc_net_remove(net, "ip_vs_app");
+	remove_proc_entry("ip_vs_app", net->proc_net);
 }

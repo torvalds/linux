@@ -3332,7 +3332,7 @@ static int __net_init if6_proc_net_init(struct net *net)
 
 static void __net_exit if6_proc_net_exit(struct net *net)
 {
-       proc_net_remove(net, "if_inet6");
+	remove_proc_entry("if_inet6", net->proc_net);
 }
 
 static struct pernet_operations if6_proc_net_ops = {

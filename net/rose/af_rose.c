@@ -1608,10 +1608,10 @@ static void __exit rose_exit(void)
 {
 	int i;
 
-	proc_net_remove(&init_net, "rose");
-	proc_net_remove(&init_net, "rose_neigh");
-	proc_net_remove(&init_net, "rose_nodes");
-	proc_net_remove(&init_net, "rose_routes");
+	remove_proc_entry("rose", init_net.proc_net);
+	remove_proc_entry("rose_neigh", init_net.proc_net);
+	remove_proc_entry("rose_nodes", init_net.proc_net);
+	remove_proc_entry("rose_routes", init_net.proc_net);
 	rose_loopback_clear();
 
 	rose_rt_free();

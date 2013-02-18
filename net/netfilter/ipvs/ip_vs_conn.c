@@ -1300,8 +1300,8 @@ void __net_exit ip_vs_conn_net_cleanup(struct net *net)
 {
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(net);
-	proc_net_remove(net, "ip_vs_conn");
-	proc_net_remove(net, "ip_vs_conn_sync");
+	remove_proc_entry("ip_vs_conn", net->proc_net);
+	remove_proc_entry("ip_vs_conn_sync", net->proc_net);
 }
 
 int __init ip_vs_conn_init(void)

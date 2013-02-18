@@ -2656,15 +2656,15 @@ static int __net_init igmp_net_init(struct net *net)
 	return 0;
 
 out_mcfilter:
-	proc_net_remove(net, "igmp");
+	remove_proc_entry("igmp", net->proc_net);
 out_igmp:
 	return -ENOMEM;
 }
 
 static void __net_exit igmp_net_exit(struct net *net)
 {
-	proc_net_remove(net, "mcfilter");
-	proc_net_remove(net, "igmp");
+	remove_proc_entry("mcfilter", net->proc_net);
+	remove_proc_entry("igmp", net->proc_net);
 }
 
 static struct pernet_operations igmp_net_ops = {

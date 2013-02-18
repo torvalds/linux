@@ -2620,18 +2620,18 @@ int __net_init fib_proc_init(struct net *net)
 	return 0;
 
 out3:
-	proc_net_remove(net, "fib_triestat");
+	remove_proc_entry("fib_triestat", net->proc_net);
 out2:
-	proc_net_remove(net, "fib_trie");
+	remove_proc_entry("fib_trie", net->proc_net);
 out1:
 	return -ENOMEM;
 }
 
 void __net_exit fib_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "fib_trie");
-	proc_net_remove(net, "fib_triestat");
-	proc_net_remove(net, "route");
+	remove_proc_entry("fib_trie", net->proc_net);
+	remove_proc_entry("fib_triestat", net->proc_net);
+	remove_proc_entry("route", net->proc_net);
 }
 
 #endif /* CONFIG_PROC_FS */

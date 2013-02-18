@@ -433,9 +433,9 @@ static int __net_init ip_conntrack_net_init(struct net *net)
 	return 0;
 
 err3:
-	proc_net_remove(net, "ip_conntrack_expect");
+	remove_proc_entry("ip_conntrack_expect", net->proc_net);
 err2:
-	proc_net_remove(net, "ip_conntrack");
+	remove_proc_entry("ip_conntrack", net->proc_net);
 err1:
 	return -ENOMEM;
 }
@@ -443,8 +443,8 @@ err1:
 static void __net_exit ip_conntrack_net_exit(struct net *net)
 {
 	remove_proc_entry("ip_conntrack", net->proc_net_stat);
-	proc_net_remove(net, "ip_conntrack_expect");
-	proc_net_remove(net, "ip_conntrack");
+	remove_proc_entry("ip_conntrack_expect", net->proc_net);
+	remove_proc_entry("ip_conntrack", net->proc_net);
 }
 
 static struct pernet_operations ip_conntrack_net_ops = {

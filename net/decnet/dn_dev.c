@@ -1433,7 +1433,7 @@ void __exit dn_dev_cleanup(void)
 	}
 #endif /* CONFIG_SYSCTL */
 
-	proc_net_remove(&init_net, "decnet_dev");
+	remove_proc_entry("decnet_dev", init_net.proc_net);
 
 	dn_dev_devices_off();
 }

@@ -652,7 +652,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 
 void bt_procfs_cleanup(struct net *net, const char *name)
 {
-	proc_net_remove(net, name);
+	remove_proc_entry(name, net->proc_net);
 }
 #else
 int bt_procfs_init(struct module* module, struct net *net, const char *name,

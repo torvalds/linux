@@ -1145,7 +1145,7 @@ static __net_init int pppoe_init_net(struct net *net)
 
 static __net_exit void pppoe_exit_net(struct net *net)
 {
-	proc_net_remove(net, "pppoe");
+	remove_proc_entry("pppoe", net->proc_net);
 }
 
 static struct pernet_operations pppoe_net_ops = {

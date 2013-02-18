@@ -2610,14 +2610,14 @@ out:
 	return err;
 
 out_proc_net_igmp6:
-	proc_net_remove(net, "igmp6");
+	remove_proc_entry("igmp6", net->proc_net);
 	goto out;
 }
 
 static void __net_exit igmp6_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "mcfilter6");
-	proc_net_remove(net, "igmp6");
+	remove_proc_entry("mcfilter6", net->proc_net);
+	remove_proc_entry("igmp6", net->proc_net);
 }
 #else
 static inline int igmp6_proc_init(struct net *net)

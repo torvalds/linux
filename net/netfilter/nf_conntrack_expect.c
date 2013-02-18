@@ -582,7 +582,7 @@ static int exp_proc_init(struct net *net)
 static void exp_proc_remove(struct net *net)
 {
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
-	proc_net_remove(net, "nf_conntrack_expect");
+	remove_proc_entry("nf_conntrack_expect", net->proc_net);
 #endif /* CONFIG_NF_CONNTRACK_PROCFS */
 }
 

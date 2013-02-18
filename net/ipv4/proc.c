@@ -482,18 +482,18 @@ static __net_init int ip_proc_init_net(struct net *net)
 	return 0;
 
 out_snmp:
-	proc_net_remove(net, "netstat");
+	remove_proc_entry("netstat", net->proc_net);
 out_netstat:
-	proc_net_remove(net, "sockstat");
+	remove_proc_entry("sockstat", net->proc_net);
 out_sockstat:
 	return -ENOMEM;
 }
 
 static __net_exit void ip_proc_exit_net(struct net *net)
 {
-	proc_net_remove(net, "snmp");
-	proc_net_remove(net, "netstat");
-	proc_net_remove(net, "sockstat");
+	remove_proc_entry("snmp", net->proc_net);
+	remove_proc_entry("netstat", net->proc_net);
+	remove_proc_entry("sockstat", net->proc_net);
 }
 
 static __net_initdata struct pernet_operations ip_proc_ops = {
