@@ -126,6 +126,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 signature;
 	struct pci_dev *pdev = adapter->pdev;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	const char *fmt;
 
 	signature = qlcnic_get_cmd_signature(ahw);
 
@@ -147,8 +148,28 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1));
-		dev_err(&pdev->dev, "failed card response code:0x%x\n",
-			cmd->rsp.arg[0]);
+		switch (cmd->rsp.arg[0]) {
+		case QLCNIC_RCODE_INVALID_ARGS:
+			fmt = "CDRP invalid args: [%d]\n";
+			break;
+		case QLCNIC_RCODE_NOT_SUPPORTED:
+		case QLCNIC_RCODE_NOT_IMPL:
+			fmt = "CDRP command not supported: [%d]\n";
+			break;
+		case QLCNIC_RCODE_NOT_PERMITTED:
+			fmt = "CDRP requested action not permitted: [%d]\n";
+			break;
+		case QLCNIC_RCODE_INVALID:
+			fmt = "CDRP invalid or unknown cmd received: [%d]\n";
+			break;
+		case QLCNIC_RCODE_TIMEOUT:
+			fmt = "CDRP command timeout: [%d]\n";
+			break;
+		default:
+			fmt = "CDRP command failed: [%d]\n";
+			break;
+		}
+		dev_err(&pdev->dev, fmt, cmd->rsp.arg[0]);
 	} else if (rsp == QLCNIC_CDRP_RSP_OK)
 		cmd->rsp.arg[0] = QLCNIC_RCODE_SUCCESS;
 
