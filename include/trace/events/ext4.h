@@ -2199,6 +2199,62 @@ TRACE_EVENT(ext4_es_find_delayed_extent_exit,
 		  __entry->pblk, __entry->status)
 );
 
+TRACE_EVENT(ext4_es_lookup_extent_enter,
+	TP_PROTO(struct inode *inode, ext4_lblk_t lblk),
+
+	TP_ARGS(inode, lblk),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,		dev		)
+		__field(	ino_t,		ino		)
+		__field(	ext4_lblk_t,	lblk		)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->lblk	= lblk;
+	),
+
+	TP_printk("dev %d,%d ino %lu lblk %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino, __entry->lblk)
+);
+
+TRACE_EVENT(ext4_es_lookup_extent_exit,
+	TP_PROTO(struct inode *inode, struct extent_status *es,
+		 int found),
+
+	TP_ARGS(inode, es, found),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,		dev		)
+		__field(	ino_t,		ino		)
+		__field(	ext4_lblk_t,	lblk		)
+		__field(	ext4_lblk_t,	len		)
+		__field(	ext4_fsblk_t,	pblk		)
+		__field(	unsigned long long,	status	)
+		__field(	int,		found		)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->lblk	= es->es_lblk;
+		__entry->len	= es->es_len;
+		__entry->pblk	= ext4_es_pblock(es);
+		__entry->status	= ext4_es_status(es);
+		__entry->found	= found;
+	),
+
+	TP_printk("dev %d,%d ino %lu found %d [%u/%u) %llu %llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino, __entry->found,
+		  __entry->lblk, __entry->len,
+		  __entry->found ? __entry->pblk : 0,
+		  __entry->found ? __entry->status : 0)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

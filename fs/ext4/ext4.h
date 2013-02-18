@@ -579,6 +579,8 @@ enum {
 #define EXT4_GET_BLOCKS_KEEP_SIZE		0x0080
 	/* Do not take i_data_sem locking in ext4_map_blocks */
 #define EXT4_GET_BLOCKS_NO_LOCK			0x0100
+	/* Do not put hole in extent cache */
+#define EXT4_GET_BLOCKS_NO_PUT_HOLE		0x0200
 
 /*
  * Flags used by ext4_free_blocks
