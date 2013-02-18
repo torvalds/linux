@@ -2093,28 +2093,33 @@ TRACE_EVENT(ext4_ext_remove_space_done,
 );
 
 TRACE_EVENT(ext4_es_insert_extent,
-	TP_PROTO(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len),
+	TP_PROTO(struct inode *inode, struct extent_status *es),
 
-	TP_ARGS(inode, lblk, len),
+	TP_ARGS(inode, es),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
-		__field(	loff_t,	lblk			)
-		__field(	loff_t, len			)
+		__field(	dev_t,		dev		)
+		__field(	ino_t,		ino		)
+		__field(	ext4_lblk_t,	lblk		)
+		__field(	ext4_lblk_t,	len		)
+		__field(	ext4_fsblk_t,	pblk		)
+		__field(	unsigned long long, status	)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
-		__entry->lblk	= lblk;
-		__entry->len	= len;
+		__entry->lblk	= es->es_lblk;
+		__entry->len	= es->es_len;
+		__entry->pblk	= ext4_es_pblock(es);
+		__entry->status	= ext4_es_status(es);
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%lld/%lld)",
+	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->lblk, __entry->len)
+		  __entry->lblk, __entry->len,
+		  __entry->pblk, __entry->status)
 );
 
 TRACE_EVENT(ext4_es_remove_extent,
@@ -2175,6 +2180,8 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 		__field(	ino_t,		ino		)
 		__field(	ext4_lblk_t,	lblk		)
 		__field(	ext4_lblk_t,	len		)
+		__field(	ext4_fsblk_t,	pblk		)
+		__field(	unsigned long long, status	)
 		__field(	ext4_lblk_t,	ret		)
 	),
 
@@ -2183,13 +2190,16 @@ TRACE_EVENT(ext4_es_find_extent_exit,
 		__entry->ino	= inode->i_ino;
 		__entry->lblk	= es->es_lblk;
 		__entry->len	= es->es_len;
+		__entry->pblk	= ext4_es_pblock(es);
+		__entry->status	= ext4_es_status(es);
 		__entry->ret	= ret;
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%u/%u) ret %u",
+	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %llx ret %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->lblk, __entry->len, __entry->ret)
+		  __entry->lblk, __entry->len,
+		  __entry->pblk, __entry->status, __entry->ret)
 );
 
 #endif /* _TRACE_EXT4_H */

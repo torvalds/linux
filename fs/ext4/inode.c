@@ -1784,7 +1784,8 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 				goto out_unlock;
 		}
 
-		retval = ext4_es_insert_extent(inode, map->m_lblk, map->m_len);
+		retval = ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
+					       ~0, EXTENT_STATUS_DELAYED);
 		if (retval)
 			goto out_unlock;
 
