@@ -1129,6 +1129,27 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 	I915_WRITE_NOTRACE(MI_MODE, 0);
 }
 
+static void
+hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
+{
+	if (IS_HASWELL(dev_priv->dev) &&
+	    (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) {
+		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
+			  reg);
+		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED);
+	}
+}
+
+static void
+hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
+{
+	if (IS_HASWELL(dev_priv->dev) &&
+	    (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) {
+		DRM_ERROR("Unclaimed write to %x\n", reg);
+		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);
+	}
+}
+
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
@@ -1165,18 +1186,12 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	} \
 	if (IS_GEN5(dev_priv->dev)) \
 		ilk_dummy_write(dev_priv); \
-	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
-		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
-	} \
+	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	write##y(val, dev_priv->regs + reg); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unclaimed write to %x\n", reg); \
-		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
-	} \
+	hsw_unclaimed_reg_check(dev_priv, reg); \
 }
 __i915_write(8, b)
 __i915_write(16, w)
