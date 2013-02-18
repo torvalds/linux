@@ -88,6 +88,8 @@
 #define qlcnic_get_lro_sts_mss(sts_data1)		\
 	((sts_data1 >> 32) & 0x0FFFF)
 
+#define qlcnic_83xx_get_lro_sts_mss(sts) ((sts) & 0xffff)
+
 /* opcode field in status_desc */
 #define QLCNIC_SYN_OFFLOAD	0x03
 #define QLCNIC_RXPKT_DESC  	0x04
@@ -1423,7 +1425,7 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	bool push;
 	int l2_hdr_offset, l4_hdr_offset;
 	int index;
-	u16 lro_length, length, data_offset;
+	u16 lro_length, length, data_offset, gso_size;
 	u16 vid = 0xffff;
 
 	if (unlikely(ring > adapter->max_rds_rings))
@@ -1477,6 +1479,15 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 
 	th->psh = push;
 	length = skb->len;
+
+	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP) {
+		gso_size = qlcnic_83xx_get_lro_sts_mss(sts_data[0]);
+		skb_shinfo(skb)->gso_size = gso_size;
+		if (skb->protocol == htons(ETH_P_IPV6))
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+		else
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+	}
 
 	if (vid != 0xffff)
 		__vlan_hwaccel_put_tag(skb, vid);

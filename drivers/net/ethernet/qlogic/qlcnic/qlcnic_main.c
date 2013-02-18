@@ -1339,11 +1339,24 @@ qlcnic_free_irq(struct qlcnic_adapter *adapter)
 	}
 }
 
+static void qlcnic_get_lro_mss_capability(struct qlcnic_adapter *adapter)
+{
+	u32 capab = 0;
+
+	if (qlcnic_82xx_check(adapter)) {
+		if (adapter->ahw->capabilities2 &
+		    QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG)
+			adapter->flags |= QLCNIC_FW_LRO_MSS_CAP;
+	} else {
+		capab = adapter->ahw->capabilities;
+		if (QLC_83XX_GET_FW_LRO_MSS_CAPABILITY(capab))
+			adapter->flags |= QLCNIC_FW_LRO_MSS_CAP;
+	}
+}
+
 int __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	int ring;
-	u32 capab2;
-
 	struct qlcnic_host_rds_ring *rds_ring;
 
 	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
@@ -1353,12 +1366,7 @@ int __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 		return 0;
 	if (qlcnic_set_eswitch_port_config(adapter))
 		return -EIO;
-
-	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
-		capab2 = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
-		if (capab2 & QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG)
-			adapter->flags |= QLCNIC_FW_LRO_MSS_CAP;
-	}
+	qlcnic_get_lro_mss_capability(adapter);
 
 	if (qlcnic_fw_create_ctx(adapter))
 		return -EIO;

@@ -223,6 +223,7 @@ struct qlc_83xx_idc {
 #define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
 #define QLC_83XX_GET_HW_LRO_CAPABILITY(val)		(val & 0x400)
 #define QLC_83XX_GET_VLAN_ALIGN_CAPABILITY(val)	(val & 0x4000)
+#define QLC_83XX_GET_FW_LRO_MSS_CAPABILITY(val)	(val & 0x20000)
 #define QLC_83XX_VIRTUAL_NIC_MODE			0xFF
 #define QLC_83XX_DEFAULT_MODE				0x0
 #define QLCNIC_BRDTYPE_83XX_10G			0x0083
