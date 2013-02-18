@@ -540,7 +540,8 @@ static inline void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 }
 
 static int nl80211_msg_put_channel(struct sk_buff *msg,
-				   struct ieee80211_channel *chan)
+				   struct ieee80211_channel *chan,
+				   bool large)
 {
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_FREQ,
 			chan->center_freq))
@@ -555,9 +556,22 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 	if ((chan->flags & IEEE80211_CHAN_NO_IBSS) &&
 	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_IBSS))
 		goto nla_put_failure;
-	if ((chan->flags & IEEE80211_CHAN_RADAR) &&
-	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_RADAR))
-		goto nla_put_failure;
+	if (chan->flags & IEEE80211_CHAN_RADAR) {
+		if (nla_put_flag(msg, NL80211_FREQUENCY_ATTR_RADAR))
+			goto nla_put_failure;
+		if (large) {
+			u32 time;
+
+			time = elapsed_jiffies_msecs(chan->dfs_state_entered);
+
+			if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_DFS_STATE,
+					chan->dfs_state))
+				goto nla_put_failure;
+			if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_DFS_TIME,
+					time))
+				goto nla_put_failure;
+		}
+	}
 
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
 			DBM_TO_MBM(chan->max_power)))
@@ -833,7 +847,8 @@ nla_put_failure:
 }
 
 static int nl80211_put_iface_combinations(struct wiphy *wiphy,
-					  struct sk_buff *msg)
+					  struct sk_buff *msg,
+					  bool large)
 {
 	struct nlattr *nl_combis;
 	int i, j;
@@ -881,6 +896,10 @@ static int nl80211_put_iface_combinations(struct wiphy *wiphy,
 				c->num_different_channels) ||
 		    nla_put_u32(msg, NL80211_IFACE_COMB_MAXNUM,
 				c->max_interfaces))
+			goto nla_put_failure;
+		if (large &&
+		    nla_put_u32(msg, NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS,
+				c->radar_detect_widths))
 			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_combi);
@@ -1231,7 +1250,8 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 
 					chan = &sband->channels[i];
 
-					if (nl80211_msg_put_channel(msg, chan))
+					if (nl80211_msg_put_channel(msg, chan,
+								    split))
 						goto nla_put_failure;
 
 					nla_nest_end(msg, nl_freq);
@@ -1385,7 +1405,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 					dev->wiphy.software_iftypes))
 			goto nla_put_failure;
 
-		if (nl80211_put_iface_combinations(&dev->wiphy, msg))
+		if (nl80211_put_iface_combinations(&dev->wiphy, msg, split))
 			goto nla_put_failure;
 
 		(*split_start)++;
@@ -9377,7 +9397,7 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_BEFORE);
 	if (!nl_freq)
 		goto nla_put_failure;
-	if (nl80211_msg_put_channel(msg, channel_before))
+	if (nl80211_msg_put_channel(msg, channel_before, false))
 		goto nla_put_failure;
 	nla_nest_end(msg, nl_freq);
 
@@ -9385,7 +9405,7 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_AFTER);
 	if (!nl_freq)
 		goto nla_put_failure;
-	if (nl80211_msg_put_channel(msg, channel_after))
+	if (nl80211_msg_put_channel(msg, channel_after, false))
 		goto nla_put_failure;
 	nla_nest_end(msg, nl_freq);
 
