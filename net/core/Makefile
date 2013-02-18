@@ -13,6 +13,7 @@ obj-y		     += dev.o ethtool.o dev_addr_lists.o dst.o netevent.o \
 
 obj-$(CONFIG_XFRM) += flow.o
 obj-y += net-sysfs.o
+obj-$(CONFIG_PROC_FS) += net-procfs.o
 obj-$(CONFIG_NET_PKTGEN) += pktgen.o
 obj-$(CONFIG_NETPOLL) += netpoll.o
 obj-$(CONFIG_NET_DMA) += user_dma.o
