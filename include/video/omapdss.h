@@ -541,6 +541,8 @@ struct omap_dss_writeback_info {
 struct omap_dss_output {
 	struct list_head list;
 
+	const char *name;
+
 	/* display type supported by the output */
 	enum omap_display_type type;
 

@@ -819,6 +819,7 @@ static void __init venc_init_output(struct platform_device *pdev)
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
 	out->type = OMAP_DISPLAY_TYPE_VENC;
+	out->name = "venc.0";
 
 	dss_register_output(out);
 }

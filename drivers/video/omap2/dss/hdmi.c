@@ -1046,6 +1046,7 @@ static void __init hdmi_init_output(struct platform_device *pdev)
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
 	out->type = OMAP_DISPLAY_TYPE_HDMI;
+	out->name = "hdmi.0";
 
 	dss_register_output(out);
 }

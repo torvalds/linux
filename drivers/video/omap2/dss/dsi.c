@@ -5183,6 +5183,7 @@ static void __init dsi_init_output(struct platform_device *dsidev)
 			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
 
 	out->type = OMAP_DISPLAY_TYPE_DSI;
+	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 
 	dss_register_output(out);
 }

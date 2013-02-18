@@ -278,6 +278,7 @@ static void __init sdi_init_output(struct platform_device *pdev)
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_SDI;
 	out->type = OMAP_DISPLAY_TYPE_SDI;
+	out->name = "sdi.0";
 
 	dss_register_output(out);
 }
