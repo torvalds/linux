@@ -1516,8 +1516,14 @@ static void alc260_fixup_fsc_s7020(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->gen.add_out_jack_modes = 1;
+		break;
+	case HDA_FIXUP_ACT_PROBE:
+		spec->init_amp = ALC_INIT_NONE;
+		break;
+	}
 }
 
 static const struct hda_fixup alc260_fixups[] = {
