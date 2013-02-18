@@ -1133,10 +1133,10 @@ static void
 hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
 {
 	if (IS_HASWELL(dev_priv->dev) &&
-	    (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) {
+	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
 			  reg);
-		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED);
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
 }
 
@@ -1144,9 +1144,9 @@ static void
 hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 {
 	if (IS_HASWELL(dev_priv->dev) &&
-	    (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) {
+	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
 		DRM_ERROR("Unclaimed write to %x\n", reg);
-		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
 }
 

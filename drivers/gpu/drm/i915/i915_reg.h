@@ -522,6 +522,9 @@
 #define GEN7_ERR_INT	0x44040
 #define   ERR_INT_MMIO_UNCLAIMED (1<<13)
 
+#define FPGA_DBG		0x42300
+#define   FPGA_DBG_RM_NOCLAIM	(1<<31)
+
 #define DERRMR		0x44050
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
