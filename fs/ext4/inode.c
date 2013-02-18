@@ -559,16 +559,10 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		return retval;
 
 	/*
-	 * When we call get_blocks without the create flag, the
-	 * BH_Unwritten flag could have gotten set if the blocks
-	 * requested were part of a uninitialized extent.  We need to
-	 * clear this flag now that we are committed to convert all or
-	 * part of the uninitialized extent to be an initialized
-	 * extent.  This is because we need to avoid the combination
-	 * of BH_Unwritten and BH_Mapped flags being simultaneously
-	 * set on the buffer_head.
+	 * Here we clear m_flags because after allocating an new extent,
+	 * it will be set again.
 	 */
-	map->m_flags &= ~EXT4_MAP_UNWRITTEN;
+	map->m_flags &= ~EXT4_MAP_FLAGS;
 
 	/*
 	 * New blocks allocate and/or writing to uninitialized extent
