@@ -62,19 +62,9 @@ void exynos4_fimd0_gpio_setup_24bpp(void)
 	 *  10 | FIMD : selected
 	 *  11 | FIMD
 	 */
-#ifdef CONFIG_FB_S5P_MDNIE
-	reg = __raw_readl(S3C_VA_SYS + 0x0210);
-	reg &= ~(1<<13);
-	reg &= ~(1<<12);
-	reg &= ~(3<<10);
-	reg |= (1<<0);
-	reg &= ~(1<<1);
-	__raw_writel(reg, S3C_VA_SYS + 0x0210);
-#else
 	reg = __raw_readl(S3C_VA_SYS + 0x0210);
 	reg |= (1 << 1);
 	__raw_writel(reg, S3C_VA_SYS + 0x0210);
-#endif
 }
 #endif
 

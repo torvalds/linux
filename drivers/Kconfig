@@ -128,11 +128,6 @@ source "drivers/hwspinlock/Kconfig"
 
 source "drivers/clocksource/Kconfig"
 
-# Secure OS Mobicore
-source "drivers/gud/Kconfig"
-
-source "drivers/iommu/Kconfig"
-
 source "drivers/gator_v5/Kconfig"
 
 endmenu

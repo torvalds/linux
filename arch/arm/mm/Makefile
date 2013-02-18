@@ -2,33 +2,11 @@
 # Makefile for the linux arm-specific parts of the memory manager.
 #
 
-obj-y				:= extable.o fault.o \
+obj-y				:= dma-mapping.o extable.o fault.o init.o \
 				   iomap.o
 
-ifeq ($(CONFIG_SLP),y)
-obj-y				+= dma-mapping-slp.o init-slp.o
-else
-ifeq ($(CONFIG_DMA_CMA),y)
-obj-y				+= dma-mapping-cma.o init-cma.o
-else
-obj-y				+= dma-mapping.o init.o
-endif
-endif
-
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
-				   mmap.o pgd.o vmregion.o
-
-ifeq ($(CONFIG_MMU),y)
-ifeq ($(CONFIG_SLP),y)
-obj-y				+= mmu-slp.o
-else
-ifeq ($(CONFIG_DMA_CMA),y)
-obj-y				+= mmu-cma.o
-else
-obj-y				+= mmu.o
-endif
-endif
-endif
+				   mmap.o pgd.o mmu.o vmregion.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o

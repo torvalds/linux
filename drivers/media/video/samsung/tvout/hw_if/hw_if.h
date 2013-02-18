@@ -58,8 +58,15 @@ enum s5p_mixer_color_fmt {
 	MIXER_RGB8888 = 7
 };
 
+enum s5p_mixer_csc_type {
+	MIXER_CSC_601_LR,
+	MIXER_CSC_601_FR,
+	MIXER_CSC_709_LR,
+	MIXER_CSC_709_FR
+};
+
 enum s5p_mixer_rgb {
-	MIXER_RGB601_0_255 = 0,
+	MIXER_RGB601_0_255,
 	MIXER_RGB601_16_235,
 	MIXER_RGB709_0_255,
 	MIXER_RGB709_16_235
@@ -84,13 +91,10 @@ extern int s5p_mixer_set_grp_layer_src_pos(enum s5p_mixer_layer layer, u32 span,
 		u32 width, u32 height, u32 src_offs_x, u32 src_offs_y);
 extern void s5p_mixer_set_bg_color(enum s5p_mixer_bg_color_num colornum,
 		u32 color_y, u32 color_cb, u32 color_cr);
-extern void s5p_mixer_set_video_limiter(u32 upper_y, u32 lower_y,
-		u32 upper_c, u32 lower_c, bool enable);
 extern void s5p_mixer_init_status_reg(enum s5p_mixer_burst_mode burst,
 		enum s5p_tvout_endian endian);
 extern int s5p_mixer_init_display_mode(enum s5p_tvout_disp_mode mode,
-		enum s5p_tvout_o_mode output_mode, enum s5p_mixer_rgb
-		rgb_type);
+		enum s5p_tvout_o_mode output_mode);
 extern void s5p_mixer_scaling(enum s5p_mixer_layer layer,
 		struct s5ptvfb_user_scaling scaling);
 extern void s5p_mixer_set_color_format(enum s5p_mixer_layer layer,
@@ -99,12 +103,11 @@ extern void s5p_mixer_set_chroma_key(enum s5p_mixer_layer layer, bool enabled,
 		u32 key);
 extern void s5p_mixer_init_bg_dither_enable(bool cr_dither_enable,
 		bool cdither_enable, bool y_dither_enable);
-extern void s5p_mixer_init_csc_coef_default(enum s5p_mixer_rgb csc_type);
+extern void s5p_mixer_init_csc_coef_default(enum s5p_mixer_csc_type csc_type);
 extern void s5p_mixer_start(void);
 extern void s5p_mixer_stop(void);
 extern void s5p_mixer_set_underflow_int_enable(enum s5p_mixer_layer layer,
 		bool en);
-extern void s5p_mixer_set_vsync_interrupt(bool);
 extern void s5p_mixer_clear_pend_all(void);
 extern irqreturn_t s5p_mixer_irq(int irq, void *dev_id);
 extern void s5p_mixer_init(void __iomem *addr);
@@ -197,18 +200,6 @@ enum s5p_hdmi_color_depth {
 	HDMI_CD_36,
 	HDMI_CD_30,
 	HDMI_CD_24
-};
-
-enum s5p_hdmi_q_range {
-	HDMI_Q_DEFAULT = 0,
-	HDMI_Q_LIMITED_RANGE,
-	HDMI_Q_FULL_RANGE,
-	HDMI_Q_RESERVED,
-};
-
-enum s5p_hdmi_avi_yq {
-	HDMI_AVI_YQ_LIMITED_RANGE = 0,
-	HDMI_AVI_YQ_FULL_RANGE,
 };
 
 enum s5p_hdmi_interrrupt {
@@ -364,27 +355,6 @@ struct s5p_hdmi_v_format {
 	u8			mhl_vsync;
 };
 
-#ifdef CONFIG_HDMI_TX_STRENGTH
-#define HDMI_PHY_I2C_REG10	0x10
-#define HDMI_PHY_I2C_REG0F	0x0F
-#define HDMI_PHY_I2C_REG04	0x04
-#define HDMI_PHY_I2C_REG13	0x13
-#define HDMI_PHY_I2C_REG17	0x17
-
-#define TX_EMP_LVL	0x10
-#define TX_AMP_LVL	0x08
-#define TX_LVL_CH0	0x04
-#define TX_LVL_CH1	0x02
-#define TX_LVL_CH2	0x01
-
-#define TX_EMP_LVL_VAL	0
-#define TX_AMP_LVL_VAL	1
-#define TX_LVL_CH0_VAL	2
-#define TX_LVL_CH1_VAL	3
-#define TX_LVL_CH2_VAL	4
-
-extern int s5p_hdmi_phy_set_tx_strength(u8 ch, u8 *value);
-#endif
 extern int s5p_hdmi_phy_power(bool on);
 extern s32 s5p_hdmi_phy_config(
 		enum phy_freq freq, enum s5p_hdmi_color_depth cd);
@@ -397,8 +367,7 @@ extern void s5p_hdmi_reg_acp(u8 *header, u8 *acp);
 extern void s5p_hdmi_reg_isrc(u8 *isrc1, u8 *isrc2);
 extern void s5p_hdmi_reg_gmp(u8 *gmp);
 #ifdef CONFIG_HDMI_14A_3D
-extern void s5p_hdmi_reg_infoframe(
-	struct s5p_hdmi_infoframe *info, u8 *data, u8 type_3D);
+extern void s5p_hdmi_reg_infoframe(struct s5p_hdmi_infoframe *info, u8 *data, u8 type_3D);
 extern void s5p_hdmi_reg_tg(struct s5p_hdmi_v_format *v);
 #else
 extern void s5p_hdmi_reg_infoframe(struct s5p_hdmi_infoframe *info, u8 *data);
@@ -423,17 +392,13 @@ extern u8 s5p_hdmi_reg_get_hpd_status(void);
 extern void s5p_hdmi_reg_hpd_gen(void);
 extern int s5p_hdmi_reg_intc_set_isr(irqreturn_t (*isr)(int, void *), u8 num);
 extern void s5p_hdmi_reg_intc_enable(enum s5p_hdmi_interrrupt intr, u8 en);
-#ifdef CONFIG_HDMI_EARJACK_MUTE
-extern bool hdmi_audio_ext;
-#endif
 extern void s5p_hdmi_reg_audio_enable(u8 en);
 extern int s5p_hdmi_audio_init(
 		enum s5p_tvout_audio_codec_type audio_codec,
 		u32 sample_rate, u32 bits, u32 frame_size_code,
 		struct s5p_hdmi_audio *audio);
 extern irqreturn_t s5p_hdmi_irq(int irq, void *dev_id);
-extern void s5p_hdmi_init(void __iomem *hdmi_addr);
-extern void s5p_hdmi_phy_init(void __iomem *hdmi_phy_addr);
+extern void s5p_hdmi_init(void __iomem *hdmi_addr, void __iomem *hdmi_phy_addr);
 extern void s5p_hdmi_reg_output(struct s5p_hdmi_o_reg *reg);
 extern void s5p_hdmi_reg_packet_trans(struct s5p_hdmi_o_trans *trans);
 extern void s5p_hdmi_reg_mute(bool en);
@@ -771,14 +736,12 @@ extern int s5p_hdcp_encrypt_stop(bool on);
 extern int __init s5p_hdcp_init(void);
 extern int s5p_hdcp_start(void);
 extern int s5p_hdcp_stop(void);
-extern void s5p_hdcp_flush_work(void);
 
 /****************************************
  * Definitions for sdo ctrl class
  ***************************************/
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#if defined(CONFIG_BUSFREQ_OPP)
 #define BUSFREQ_400MHZ	400200
-#define BUSFREQ_133MHZ	133133
 #endif
 
 #ifdef CONFIG_ANALOG_TVENC
@@ -976,7 +939,6 @@ struct s5p_hdmi_video {
 	enum s5p_hdmi_pic_aspect	aspect;
 	enum s5p_hdmi_colorimetry	colorimetry;
 	enum s5p_hdmi_color_depth	depth;
-	enum s5p_hdmi_q_range		q_range;
 };
 
 struct s5p_hdmi_o_params {
@@ -1018,14 +980,10 @@ struct s5p_tvif_ctrl_private_data {
 
 	bool				running;
 
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#if defined(CONFIG_BUSFREQ_OPP)
 	struct device *bus_dev; /* for BusFreq with Opp */
 #endif
 	struct device *dev; /* hpd device pointer */
-#ifdef CONFIG_HDMI_TX_STRENGTH
-	u8 tx_ch;
-	u8 *tx_val;
-#endif
 };
 
 #endif /* _SAMSUNG_TVOUT_HW_IF_H_ */

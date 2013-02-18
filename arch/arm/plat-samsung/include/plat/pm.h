@@ -44,9 +44,6 @@ extern unsigned long s3c_irqwake_eintallow;
 extern void (*pm_cpu_prep)(void);
 extern void (*pm_cpu_sleep)(void);
 extern void (*pm_cpu_restore)(void);
-extern int (*pm_prepare)(void);
-extern void (*pm_finish)(void);
-extern unsigned int (*pm_check_eint_pend)(void);
 
 /* Flags for PM Control */
 
@@ -157,10 +154,10 @@ extern void s3c_pm_check_restore(void);
 extern void s3c_pm_check_cleanup(void);
 extern void s3c_pm_check_store(void);
 #else
-#define s3c_pm_check_prepare() do { } while (0)
-#define s3c_pm_check_restore() do { } while (0)
-#define s3c_pm_check_cleanup() do { } while (0)
-#define s3c_pm_check_store()   do { } while (0)
+#define s3c_pm_check_prepare() do { } while(0)
+#define s3c_pm_check_restore() do { } while(0)
+#define s3c_pm_check_cleanup() do { } while(0)
+#define s3c_pm_check_store()   do { } while(0)
 #endif
 
 /**
@@ -189,5 +186,3 @@ extern void s3c_pm_save_gpios(void);
 
 extern void s3c_pm_save_core(void);
 extern void s3c_pm_restore_core(void);
-
-extern unsigned long s3c_suspend_wakeup_stat;

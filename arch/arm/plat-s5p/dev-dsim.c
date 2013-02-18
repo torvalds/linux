@@ -20,7 +20,6 @@
 #include <mach/map.h>
 #include <mach/dsim.h>
 #include <mach/mipi_ddi.h>
-#include <linux/regulator/machine.h>
 
 static struct dsim_config dsim_info = {
 	.auto_flush = false,		/* main frame fifo auto flush at VSYNC pulse */
@@ -35,6 +34,7 @@ static struct dsim_config dsim_info = {
 
 	.e_no_data_lane = DSIM_DATA_LANE_4,
 	.e_byte_clk = DSIM_PLL_OUT_DIV8,
+
 
 	.pll_stable_time = 500,		/* D-PHY PLL stable time spec :min = 200usec ~ max 400usec */
 
@@ -86,6 +86,7 @@ static struct s5p_platform_dsim dsim_platform_data = {
 
 	/* default platform revision is 0(evt0). */
 	.platform_rev = 0,
+	.cfg_gpio = exynos4_dsim_gpio_setup_24bpp,
 };
 
 struct platform_device s5p_device_dsim = {

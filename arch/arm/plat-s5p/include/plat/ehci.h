@@ -16,12 +16,6 @@ struct s5p_ehci_platdata {
 	int (*phy_exit)(struct platform_device *pdev, int type);
 	int (*phy_suspend)(struct platform_device *pdev, int type);
 	int (*phy_resume)(struct platform_device *pdev, int type);
-#if defined(CONFIG_LINK_DEVICE_HSIC) || defined(CONFIG_LINK_DEVICE_USB) ||\
-	defined(CONFIG_CDMA_MODEM_MDM6600)
-/* for SAMSUNG Modem*/
-	void (*noti_host_states)(struct platform_device *pdev, int type);
-	int (*get_cp_active_state)(void);
-#endif
 };
 
 struct s5p_ohci_platdata {

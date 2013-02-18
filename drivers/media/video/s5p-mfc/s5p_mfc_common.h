@@ -57,8 +57,6 @@
 #define MFC_WORKQUEUE_LEN	32
 
 #define MFC_BASE_MASK		((1 << 17) - 1)
-#define MFC_VER_MAJOR(ver)	((ver >> 4) & 0xF)
-#define MFC_VER_MINOR(ver)	(ver & 0xF)
 
 /**
  * enum s5p_mfc_inst_type - The type of an MFC device node.

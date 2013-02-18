@@ -165,8 +165,4 @@ static int __init blk_ioc_init(void)
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL);
 	return 0;
 }
-#ifdef CONFIG_FAST_RESUME
-beforeresume_initcall(blk_ioc_init);
-#else
 subsys_initcall(blk_ioc_init);
-#endif

@@ -27,8 +27,6 @@
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
-#include <linux/clk.h>
-#include <linux/pm_qos_params.h>
 
 #include <asm/mach-types.h>
 
@@ -39,7 +37,6 @@
 #include <mach/regs-mem.h>
 #include <mach/cpufreq.h>
 #include <mach/asv.h>
-#include <mach/sec_debug.h>
 
 #include <plat/map-s5p.h>
 #include <plat/gpio-cfg.h>
@@ -49,14 +46,11 @@
 #define DIVIDING_FACTOR		10000
 #define UP_THRESHOLD_DEFAULT	23
 
-#define SYSFS_DEBUG_BUSFREQ
-
 static unsigned up_threshold;
 static struct regulator *int_regulator;
 static struct exynos4_ppmu_hw dmc[2];
 static struct exynos4_ppmu_hw cpu;
 static unsigned int bus_utilization[2];
-static struct cpufreq_freqs *freqs;
 
 static unsigned int g_busfreq_lock_id;
 static enum busfreq_level_request g_busfreq_lock_val[DVFS_LOCK_ID_END];
@@ -70,8 +64,6 @@ const char *const cpufreq_lock_name[DVFS_LOCK_ID_END] = {
 	[DVFS_LOCK_ID_CAM] = "CAM",
 	[DVFS_LOCK_ID_PM] = "PM",
 	[DVFS_LOCK_ID_USER] = "USER",
-	[DVFS_LOCK_ID_LCD] = "LCD",
-	[DVFS_LOCK_ID_ROTATION_BOOSTER] = "ROTATION_BOOSTER",
 };
 
 static DEFINE_MUTEX(set_bus_freq_lock);
@@ -82,12 +74,6 @@ enum busfreq_level_idx {
 	LV_2,
 	LV_END
 };
-
-#ifdef SYSFS_DEBUG_BUSFREQ
-static unsigned int time_in_state[LV_END];
-unsigned long prejiffies;
-unsigned long curjiffies;
-#endif
 
 static unsigned int p_idx;
 static unsigned int curr_idx;
@@ -104,68 +90,9 @@ struct busfreq_table {
 static struct busfreq_table exynos4_busfreq_table[] = {
 	{LV_0, 400000, 1100000, 0, 0},
 	{LV_1, 267000, 1000000, 0, 0},
-#ifdef CONFIG_BUSFREQ_L2_160M
-	/*L2: 160MHz */
-	{LV_2, 160000, 1000000, 0, 0},
-#else
-	/* L2: 133MHz */
 	{LV_2, 133000, 950000, 0, 0},
-#endif
 	{0, 0, 0, 0, 0},
 };
-
-#ifdef CONFIG_BUSFREQ_QOS
-enum busfreq_qos_target {
-	BUS_QOS_0,
-	BUS_QOS_1,
-	BUS_QOS_MAX,
-};
-
-static enum busfreq_qos_target busfreq_qos = BUS_QOS_0;
-
-/*  GDL: [3] MFC_L, [2] G3D, [1] TV, [0] Image */
-/*  GDR: [5] MAUDIO, [4] MFC_R, [3] FSYS, [2] LCD1, [1] LCD0, [0] CAM */
-#if defined(CONFIG_BUSFREQ_QOS_NONE)
-static unsigned int exynos4_qos_value[BUS_QOS_MAX][LV_END][4] = {
-	{
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-	},
-	{
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-	}
-};
-#elif defined(CONFIG_BUSFREQ_QOS_1024X600)	/* For P2 */
-static unsigned int exynos4_qos_value[BUS_QOS_MAX][LV_END][4] = {
-	{
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-		{0x06, 0x0b, 0x00, 0x00},
-	},
-	{
-		{0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00},
-		{0x06, 0x0b, 0x00, 0x00},
-	}
-};
-#elif defined(CONFIG_BUSFREQ_QOS_1280X800)	/* For Q1, P8 */
-static unsigned int exynos4_qos_value[BUS_QOS_MAX][LV_END][4] = {
-	{
-		{0x06, 0x03, 0x06, 0x2f},
-		{0x06, 0x03, 0x06, 0x2f},
-		{0x03, 0x0b, 0x00, 0x00},
-	},
-	{
-		{0x06, 0x0b, 0x00, 0x00},
-		{0x06, 0x0b, 0x00, 0x00},
-		{0x03, 0x0b, 0x00, 0x00},
-	}
-};
-#endif
-#endif
 
 #define ASV_GROUP	5
 static unsigned int exynos4_asv_volt[ASV_GROUP][LV_END] = {
@@ -189,13 +116,8 @@ static unsigned int clkdiv_dmc0[LV_END][8] = {
 	/* DMC L1: 266.7MHz */
 	{ 4, 2, 1, 2, 1, 1, 3, 1 },
 
-#ifdef CONFIG_BUSFREQ_L2_160M
-	/* DMC L2: 160MHz */
-	{ 5, 1, 1, 4, 1, 1, 3, 1 },
-#else
 	/* DMC L2: 133MHz */
 	{ 5, 2, 1, 5, 1, 1, 3, 1 },
-#endif
 };
 
 static unsigned int clkdiv_top[LV_END][5] = {
@@ -248,24 +170,9 @@ static unsigned int clkdiv_ip_bus[LV_END][3] = {
 	{ 3, 5, 7 },
 };
 
-#ifdef CONFIG_BUSFREQ_QOS
-static void exynos4_set_qos(unsigned int index)
-{
-	/* printk(KERN_INFO "exynos4_set_qos level %d\n", index); */
-	__raw_writel(exynos4_qos_value[busfreq_qos][index][0], S5P_VA_GDL + 0x400);
-	__raw_writel(exynos4_qos_value[busfreq_qos][index][1], S5P_VA_GDL + 0x404);
-	__raw_writel(exynos4_qos_value[busfreq_qos][index][2], S5P_VA_GDR + 0x400);
-	__raw_writel(exynos4_qos_value[busfreq_qos][index][3], S5P_VA_GDR + 0x404);
-}
-#endif
-
 static void exynos4_set_busfreq(unsigned int div_index)
 {
 	unsigned int tmp, val;
-
-	sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
-			"%s: div_index=%d(%ps)", __func__, div_index,
-			__builtin_return_address(0));
 
 	/* Change Divider - DMC0 */
 	tmp = exynos4_busfreq_table[div_index].clk_dmcdiv;
@@ -383,19 +290,6 @@ static int busfreq_target(struct busfreq_table *freq_table,
 		ppc_load = 50;
 	}
 
-#ifdef CONFIG_BUSFREQ_L2_160M
-		target_freq = (ppc_load * freq_table[p_idx].mem_clk) /
-							(up_threshold);
-
-		for (i = 1; i <= LV_END; i++) {
-			if (target_freq >= freq_table[i].mem_clk) {
-				idx = i - 1;
-				break;
-			}
-		}
-
-		idx = freq_table[idx].idx;
-#else
 	if (ppc_load >= up_threshold) {
 		target_freq = freq_table[0].mem_clk;
 	} else {
@@ -426,11 +320,6 @@ static int busfreq_target(struct busfreq_table *freq_table,
 			}
 		}
 	}
-
-	if ((freqs->new == exynos_info->freq_table[exynos_info->max_support_idx].frequency)
-			&& (ppc_load == 0))
-		idx = pre_idx;
-#endif
 
 	if ((idx > LV_1) && (ppmu_load > 5))
 		idx = LV_1;
@@ -464,9 +353,6 @@ static unsigned int busfreq_monitor(void)
 {
 	unsigned int i, index = 0, ret;
 	unsigned long long ppcload, ppmuload;
-#ifdef SYSFS_DEBUG_BUSFREQ
-	unsigned long level_state_jiffies;
-#endif
 
 	for (i = 0; i < 2; i++) {
 		exynos4_ppc_stop(&dmc[i]);
@@ -491,30 +377,6 @@ static unsigned int busfreq_monitor(void)
 	if (ret)
 		pr_err("%s: (%d)\n", __func__, ret);
 
-#ifdef SYSFS_DEBUG_BUSFREQ
-	curjiffies = jiffies;
-	if (prejiffies != 0)
-		level_state_jiffies = curjiffies - prejiffies;
-	else
-		level_state_jiffies = 0;
-
-	prejiffies = jiffies;
-
-	switch (p_idx) {
-	case LV_0:
-		time_in_state[LV_0] += level_state_jiffies;
-		break;
-	case LV_1:
-		time_in_state[LV_1] += level_state_jiffies;
-		break;
-	case LV_2:
-		time_in_state[LV_2] += level_state_jiffies;
-		break;
-	default:
-		break;
-	}
-#endif
-
 out:
 	pr_debug("Bus freq(%d-%d)\n", p_idx, index);
 
@@ -530,7 +392,6 @@ static int exynos4_busfreq_notifier_event(struct notifier_block *this,
 
 	switch (event) {
 	case CPUFREQ_PRECHANGE:
-		freqs = (struct cpufreq_freqs *)ptr;
 		curr_idx = busfreq_monitor();
 		break;
 	case CPUFREQ_POSTCHANGE:
@@ -539,12 +400,8 @@ static int exynos4_busfreq_notifier_event(struct notifier_block *this,
 			regulator_set_voltage(int_regulator, voltage,
 					voltage);
 
-		if (p_idx != curr_idx) {
-#ifdef CONFIG_BUSFREQ_QOS
-			exynos4_set_qos(curr_idx);
-#endif
+		if (p_idx != curr_idx)
 			exynos4_set_busfreq(curr_idx);
-		}
 
 		if (p_idx < curr_idx)
 			regulator_set_voltage(int_regulator, voltage,
@@ -599,22 +456,6 @@ static struct notifier_block exynos4_busfreq_reboot_notifier = {
 	.notifier_call = exynos4_busfreq_reboot_notify,
 };
 
-#ifdef CONFIG_BUSFREQ_QOS
-static int exynos4_bus_qos_notify(struct notifier_block *nb,
-		unsigned long l, void *v)
-{
-	busfreq_qos = (int)l;
-	printk(KERN_INFO "exynos4_bus_qos_notify table %d\n", busfreq_qos);
-	exynos4_set_qos(curr_idx);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block exynos4_busqos_notifier = {
-	.notifier_call = exynos4_bus_qos_notify,
-};
-#endif
-
 int exynos4_busfreq_lock(unsigned int nId,
 	enum busfreq_level_request busfreq_level)
 {
@@ -640,9 +481,6 @@ int exynos4_busfreq_lock(unsigned int nId,
 		g_busfreq_lock_level = busfreq_level;
 		/* get the voltage value */
 		int_volt = exynos4_busfreq_table[busfreq_level].volt;
-#ifdef CONFIG_BUSFREQ_QOS
-		exynos4_set_qos(curr_idx);
-#endif
 		regulator_set_voltage(int_regulator, int_volt,
 				int_volt);
 		exynos4_set_busfreq(busfreq_level);
@@ -722,51 +560,6 @@ static void __init exynos4_set_bus_volt(void)
 	return;
 }
 
-#ifdef SYSFS_DEBUG_BUSFREQ
-static ssize_t show_time_in_state(struct kobject *kobj,
-		struct attribute *attr, char *buf)
-{
-	ssize_t len = 0;
-	int i;
-
-	for (i = 0; i < LV_END; i++)
-		len += sprintf(buf + len, "%u: %u\n",
-			exynos4_busfreq_table[i].mem_clk, time_in_state[i]);
-
-	return len;
-}
-
-static ssize_t store_time_in_state(struct kobject *kobj,
-		struct attribute *attr, const char *buf, size_t count)
-{
-	return count;
-}
-
-static struct global_attr busfreq_time_in_state_attr = __ATTR(busfreq_time_in_state,
-		0644, show_time_in_state, store_time_in_state);
-
-static ssize_t show_up_threshold(struct kobject *kobj,
-		struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", up_threshold);
-}
-
-static ssize_t store_up_threshold(struct kobject *kobj,
-		struct attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-
-	ret = sscanf(buf, "%u", &up_threshold);
-	if (ret != 1)
-		return -EINVAL;
-	printk(KERN_ERR "** Up_Threshold is changed to %u **\n", up_threshold);
-
-	return count;
-}
-
-static struct global_attr busfreq_up_threshold_attr = __ATTR(busfreq_up_threshold,
-		0644, show_up_threshold, store_up_threshold);
-
 static ssize_t show_busfreq_level_lock(struct kobject *kobj,
 		struct attribute *attr, char *buf)
 {
@@ -808,14 +601,12 @@ static ssize_t show_busfreq_level(struct kobject *kobj,
 
 static struct global_attr busfreq_level_attr = __ATTR(busfreq_current_level,
 		S_IRUGO, show_busfreq_level, NULL);
-#endif
 
 static int __init busfreq_mon_init(void)
 {
 	unsigned int i;
 	unsigned int tmp;
 	unsigned int val;
-	struct clk *ppmu_clk = NULL;
 
 	if (!soc_is_exynos4210())
 		return -ENODEV;
@@ -898,31 +689,6 @@ static int __init busfreq_mon_init(void)
 		return -ENODEV;
 	}
 
-	/* PPMUs using for cpufreq get clk from clk_list */
-	ppmu_clk = clk_get(NULL, "ppmudmc0");
-	if (IS_ERR(ppmu_clk)) {
-		pr_err("Failed to get ppmudmc0 clock\n");
-		goto err_clk;
-	}
-	clk_enable(ppmu_clk);
-	clk_put(ppmu_clk);
-
-	ppmu_clk = clk_get(NULL, "ppmudmc1");
-	if (IS_ERR(ppmu_clk)) {
-		pr_err("Failed to get ppmudmc1 clock\n");
-		goto err_clk;
-	}
-	clk_enable(ppmu_clk);
-	clk_put(ppmu_clk);
-
-	ppmu_clk = clk_get(NULL, "ppmucpu");
-	if (IS_ERR(ppmu_clk)) {
-		pr_err("Failed to get ppmucpu clock\n");
-		goto err_clk;
-	}
-	clk_enable(ppmu_clk);
-	clk_put(ppmu_clk);
-
 	busfreq_mon_reset();
 
 	if (cpufreq_register_notifier(&exynos4_busfreq_notifier,
@@ -939,33 +705,17 @@ static int __init busfreq_mon_init(void)
 	if (register_reboot_notifier(&exynos4_busfreq_reboot_notifier))
 		pr_err("Failed to setup reboot notifier\n");
 
-#ifdef SYSFS_DEBUG_BUSFREQ
 	if (sysfs_create_file(cpufreq_global_kobject,
 			&busfreq_level__lock_attr.attr))
 		pr_err("Failed to create sysfs file(lock)\n");
 
-	if (sysfs_create_file(cpufreq_global_kobject,
-			&busfreq_time_in_state_attr.attr))
-		pr_err("Failed to create sysfs file(time_in_state)\n");
-
-	if (sysfs_create_file(cpufreq_global_kobject,
-			&busfreq_up_threshold_attr.attr))
-		pr_err("Failed to create sysfs file(up_threshold)\n");
-
 	if (sysfs_create_file(cpufreq_global_kobject, &busfreq_level_attr.attr))
 		pr_err("Failed to create sysfs file(level)\n");
-#endif
-#ifdef CONFIG_BUSFREQ_QOS
-	pm_qos_add_notifier(PM_QOS_BUS_QOS, &exynos4_busqos_notifier);
-#endif
-
 	return 0;
-
 err_pm:
 	cpufreq_unregister_notifier(&exynos4_busfreq_notifier,
 				CPUFREQ_TRANSITION_NOTIFIER);
 err_cpufreq:
-err_clk:
 	if (!IS_ERR(int_regulator))
 		regulator_put(int_regulator);
 

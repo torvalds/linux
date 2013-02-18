@@ -55,11 +55,7 @@ void s3c_csis0_cfg_phy_global(int on)
 	} else {
 		/* MIPI Power Disable */
 		cfg = __raw_readl(EXYNOS4_MIPI_CONTROL0);
-		cfg &= ~EXYNOS4_MIPI_DPHY_S_RESETN;
-
-		if (!(cfg & EXYNOS4_MIPI_DPHY_M_RESETN))
-			cfg &= ~EXYNOS4_MIPI_DPHY_EN;
-
+		cfg &= ~EXYNOS4_MIPI_DPHY_EN;
 		__raw_writel(cfg, EXYNOS4_MIPI_CONTROL0);
 
 		dbg(KERN_INFO "csis0 off\n");
@@ -83,11 +79,7 @@ void s3c_csis1_cfg_phy_global(int on)
 	} else {
 		/* MIPI Power Disable */
 		cfg = __raw_readl(EXYNOS4_MIPI_CONTROL1);
-		cfg &= ~EXYNOS4_MIPI_DPHY_S_RESETN;
-
-		if (!(cfg & EXYNOS4_MIPI_DPHY_M_RESETN))
-			cfg &= ~EXYNOS4_MIPI_DPHY_EN;
-
+		cfg &= ~EXYNOS4_MIPI_DPHY_EN;
 		__raw_writel(cfg, EXYNOS4_MIPI_CONTROL1);
 
 		dbg(KERN_INFO "csis1 off\n");

@@ -24,7 +24,6 @@ extern struct clk exynos4_clk_fimg2d;
 
 extern struct clksrc_clk exynos4_clk_sclk_apll;
 extern struct clksrc_clk exynos4_clk_mout_mpll;
-extern struct clksrc_clk exynos4_clk_aclk_160;
 extern struct clksrc_clk exynos4_clk_aclk_133;
 extern struct clksrc_clk exynos4_clk_aclk_200;
 #ifdef CONFIG_CPU_EXYNOS4212
@@ -63,19 +62,12 @@ struct vpll_div_data {
 };
 
 extern struct clk_ops exynos4_vpll_ops;
-extern struct clk_ops exynos4_epll_ops;
 
 extern int exynos4_clksrc_mask_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_lcd1_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_image_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_leftbus_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_rightbus_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_peril_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_perir_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_cam_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_tv_ctrl(struct clk *clk, int enable);
-extern int exynos4_clk_ip_gps_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_dmc_ctrl(struct clk *clk, int enable);
 
 #endif /* __ASM_ARCH_CLOCK_H */

@@ -37,7 +37,6 @@
 #include <asm/page.h>
 
 #include <plat/regs_jpeg_v2_x.h>
-#include <plat/cpu.h>
 #include <mach/irqs.h>
 
 #ifdef CONFIG_PM_RUNTIME
@@ -53,7 +52,6 @@
 #include "jpeg_mem.h"
 #include "jpeg_regs.h"
 
-#if defined (CONFIG_JPEG_V2_1)
 void jpeg_watchdog(unsigned long arg)
 {
 	struct jpeg_dev *dev = (struct jpeg_dev *)arg;
@@ -82,6 +80,7 @@ static void jpeg_watchdog_worker(struct work_struct *work)
 	printk(KERN_DEBUG "jpeg_watchdog_worker\n");
 	dev = container_of(work, struct jpeg_dev, watchdog_work);
 
+	spin_lock_irqsave(&dev->slock, flags);
 	clear_bit(0, &dev->hw_run);
 	if (dev->mode == ENCODING)
 		ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev_enc);
@@ -89,7 +88,6 @@ static void jpeg_watchdog_worker(struct work_struct *work)
 		ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev_dec);
 
 	if (ctx) {
-		spin_lock_irqsave(&ctx->slock, flags);
 		src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
@@ -99,12 +97,13 @@ static void jpeg_watchdog_worker(struct work_struct *work)
 			v4l2_m2m_job_finish(dev->m2m_dev_enc, ctx->m2m_ctx);
 		else
 			v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		spin_unlock_irqrestore(&ctx->slock, flags);
 	} else {
 		printk(KERN_ERR "watchdog_ctx is NULL\n");
 	}
+
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
-#endif
+
 static int jpeg_dec_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 			    unsigned int *num_planes, unsigned long sizes[],
 			    void *allocators[])
@@ -206,7 +205,7 @@ static int jpeg_enc_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		for (i = 0; i < ctx->param.enc_param.in_plane; i++) {
 			sizes[i] = (ctx->param.enc_param.out_width *
 				ctx->param.enc_param.out_height *
-				ctx->param.enc_param.out_depth * 22 / 10) / 8;
+				ctx->param.enc_param.out_depth) / 8;
 			allocators[i] = ctx->dev->alloc_ctx;
 		}
 	}
@@ -383,6 +382,8 @@ static int jpeg_m2m_open(struct file *file)
 	file->private_data = ctx;
 	ctx->dev = dev;
 
+	spin_lock_init(&ctx->slock);
+
 	if (node == JPEG_NODE_DECODER)
 		ctx->m2m_ctx =
 			v4l2_m2m_ctx_init(dev->m2m_dev_dec, ctx,
@@ -398,11 +399,12 @@ static int jpeg_m2m_open(struct file *file)
 		return err;
 	}
 
+	clk_enable(dev->clk);
+
 #ifdef CONFIG_PM_RUNTIME
 #if defined (CONFIG_CPU_EXYNOS5250)
-	clk_enable(dev->clk);
 	dev->vb2->resume(dev->alloc_ctx);
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* lock bus frequency */
 	dev_lock(dev->bus_dev, &dev->plat_dev->dev, BUSFREQ_400MHZ);
 #endif
@@ -423,26 +425,25 @@ static int jpeg_m2m_release(struct file *file)
 	struct jpeg_ctx *ctx = file->private_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->dev->slock, flags);
-#ifdef CONFIG_JPEG_V2_1
+	spin_lock_irqsave(&ctx->slock, flags);
 	if (test_bit(0, &ctx->dev->hw_run) == 0)
 		del_timer_sync(&ctx->dev->watchdog_timer);
-#endif
+
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
-	spin_unlock_irqrestore(&ctx->dev->slock, flags);
+	spin_unlock_irqrestore(&ctx->slock, flags);
 
 #ifdef CONFIG_PM_RUNTIME
 #if defined (CONFIG_CPU_EXYNOS5250)
 	ctx->dev->vb2->suspend(ctx->dev->alloc_ctx);
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* Unlock bus frequency */
 	dev_unlock(ctx->dev->bus_dev, &ctx->dev->plat_dev->dev);
 #endif
-	clk_disable(ctx->dev->clk);
 #else
 	pm_runtime_put_sync(&ctx->dev->plat_dev->dev);
 #endif
 #endif
+	clk_disable(ctx->dev->clk);
 	kfree(ctx);
 
 	return 0;
@@ -496,7 +497,7 @@ static void jpeg_device_enc_run(void *priv)
 	unsigned long flags;
 
 	dev = ctx->dev;
-	spin_lock_irqsave(&ctx->dev->slock, flags);
+	spin_lock_irqsave(&ctx->slock, flags);
 
 	dev->mode = ENCODING;
 	enc_param = ctx->param.enc_param;
@@ -504,7 +505,7 @@ static void jpeg_device_enc_run(void *priv)
 	jpeg_sw_reset(dev->reg_base);
 	jpeg_set_interrupt(dev->reg_base);
 	jpeg_set_huf_table_enable(dev->reg_base, 1);
-	jpeg_set_enc_tbl(dev->reg_base, enc_param.quality);
+	jpeg_set_enc_tbl(dev->reg_base);
 	jpeg_set_encode_tbl_select(dev->reg_base, enc_param.quality);
 	jpeg_set_stream_size(dev->reg_base,
 		enc_param.in_width, enc_param.in_height);
@@ -528,12 +529,9 @@ static void jpeg_device_enc_run(void *priv)
 
 	jpeg_set_encode_hoff_cnt(dev->reg_base, enc_param.out_fmt);
 
-#ifdef CONFIG_JPEG_V2_2
-		jpeg_set_timer_count(dev->reg_base, enc_param.in_width * enc_param.in_height * 32 + 0xff);
-#endif
 	jpeg_set_enc_dec_mode(dev->reg_base, ENCODING);
 
-	spin_unlock_irqrestore(&ctx->dev->slock, flags);
+	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
 static void jpeg_device_dec_run(void *priv)
@@ -546,19 +544,18 @@ static void jpeg_device_dec_run(void *priv)
 
 	dev = ctx->dev;
 
-	spin_lock_irqsave(&ctx->dev->slock, flags);
+	spin_lock_irqsave(&ctx->slock, flags);
 
-#ifdef CONFIG_JPEG_V2_1
-		printk(KERN_DEBUG "dec_run.\n");
+	printk(KERN_DEBUG "dec_run.\n");
 
-		if (timer_pending(&ctx->dev->watchdog_timer) == 0) {
-			ctx->dev->watchdog_timer.expires = jiffies +
-						msecs_to_jiffies(JPEG_WATCHDOG_INTERVAL);
-			add_timer(&ctx->dev->watchdog_timer);
-		}
+	if (timer_pending(&ctx->dev->watchdog_timer) == 0) {
+		ctx->dev->watchdog_timer.expires = jiffies +
+					msecs_to_jiffies(JPEG_WATCHDOG_INTERVAL);
+		add_timer(&ctx->dev->watchdog_timer);
+	}
 
-		set_bit(0, &ctx->dev->hw_run);
-#endif
+	set_bit(0, &ctx->dev->hw_run);
+
 	dev->mode = DECODING;
 	dec_param = ctx->param.dec_param;
 
@@ -574,10 +571,10 @@ static void jpeg_device_dec_run(void *priv)
 	if (dec_param.out_plane == 1)
 		jpeg_set_frame_buf_address(dev->reg_base,
 			dec_param.out_fmt, dev->vb2->plane_addr(vb, 0), 0, 0);
-	else if (dec_param.out_plane == 2)
+	else if (dec_param.out_plane == 2) {
 		jpeg_set_frame_buf_address(dev->reg_base,
 		dec_param.out_fmt, dev->vb2->plane_addr(vb, 0), dev->vb2->plane_addr(vb, 1), 0);
-	else if (dec_param.out_plane == 3)
+	} else if (dec_param.out_plane == 3)
 		jpeg_set_frame_buf_address(dev->reg_base,
 			dec_param.out_fmt, dev->vb2->plane_addr(vb, 0),
 			dev->vb2->plane_addr(vb, 1), dev->vb2->plane_addr(vb, 2));
@@ -595,12 +592,9 @@ static void jpeg_device_dec_run(void *priv)
 
 	jpeg_set_dec_out_fmt(dev->reg_base, dec_param.out_fmt);
 	jpeg_set_dec_bitstream_size(dev->reg_base, dec_param.size);
-#ifdef CONFIG_JPEG_V2_2
-	jpeg_set_timer_count(dev->reg_base, dec_param.in_width * dec_param.in_height * 8 + 0xff);
-#endif
 	jpeg_set_enc_dec_mode(dev->reg_base, DECODING);
 
-	spin_unlock_irqrestore(&ctx->dev->slock, flags);
+	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
 static void jpeg_job_enc_abort(void *priv)
@@ -646,10 +640,6 @@ static irqreturn_t jpeg_irq(int irq, void *priv)
 
 	spin_lock(&ctrl->slock);
 
-#ifdef CONFIG_JPEG_V2_2
-	jpeg_clean_interrupt(ctrl->reg_base);
-#endif
-
 	if (ctrl->mode == ENCODING)
 		ctx = v4l2_m2m_get_curr_priv(ctrl->m2m_dev_enc);
 	else
@@ -684,9 +674,6 @@ static irqreturn_t jpeg_irq(int irq, void *priv)
 		case 0x10:
 			ctrl->irq_ret = ERR_FRAME;
 			break;
-		case 0x20:
-			ctrl->irq_ret = ERR_TIME_OUT;
-			break;
 		default:
 			ctrl->irq_ret = ERR_UNKNOWN;
 			break;
@@ -703,9 +690,7 @@ static irqreturn_t jpeg_irq(int irq, void *priv)
 		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
 	}
 
-#ifdef CONFIG_JPEG_V2_1
-		clear_bit(0, &ctx->dev->hw_run);
-#endif
+	clear_bit(0, &ctx->dev->hw_run);
 	if (ctrl->mode == ENCODING)
 		v4l2_m2m_job_finish(ctrl->m2m_dev_enc, ctx->m2m_ctx);
 	else
@@ -772,7 +757,6 @@ static int jpeg_probe(struct platform_device *pdev)
 		goto err_map;
 	}
 
-	spin_lock_init(&dev->slock);
 	/* irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -887,23 +871,18 @@ static int jpeg_probe(struct platform_device *pdev)
 		goto err_video_reg;
 	}
 
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* To lock bus frequency in OPP mode */
 	dev->bus_dev = dev_get("exynos-busfreq");
 #endif
 
-#ifdef CONFIG_JPEG_V2_1
 	dev->watchdog_workqueue = create_singlethread_workqueue(JPEG_NAME);
-	if (!dev->watchdog_workqueue) {
-		ret = -ENOMEM;
-		goto err_video_reg;
-	}
 	INIT_WORK(&dev->watchdog_work, jpeg_watchdog_worker);
 	atomic_set(&dev->watchdog_cnt, 0);
 	init_timer(&dev->watchdog_timer);
 	dev->watchdog_timer.data = (unsigned long)dev;
 	dev->watchdog_timer.function = jpeg_watchdog;
-#endif
+
 	/* clock disable */
 	clk_disable(dev->clk);
 
@@ -943,11 +922,11 @@ err_alloc:
 static int jpeg_remove(struct platform_device *pdev)
 {
 	struct jpeg_dev *dev = platform_get_drvdata(pdev);
-#ifdef CONFIG_JPEG_V2_1
-		del_timer_sync(&dev->watchdog_timer);
-		flush_workqueue(dev->watchdog_workqueue);
-		destroy_workqueue(dev->watchdog_workqueue);
-#endif
+
+	del_timer_sync(&dev->watchdog_timer);
+	flush_workqueue(dev->watchdog_workqueue);
+	destroy_workqueue(dev->watchdog_workqueue);
+
 	v4l2_m2m_release(dev->m2m_dev_enc);
 	video_unregister_device(dev->vfd_enc);
 
@@ -965,7 +944,7 @@ static int jpeg_remove(struct platform_device *pdev)
 	clk_put(dev->clk);
 #ifdef CONFIG_PM_RUNTIME
 #if defined (CONFIG_CPU_EXYNOS5250)
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* lock bus frequency */
 	dev_unlock(dev->bus_dev, &pdev->dev);
 #endif
@@ -988,7 +967,7 @@ static int jpeg_suspend(struct platform_device *pdev, pm_message_t state)
 		dev->vb2->suspend(dev->alloc_ctx);
 		clk_disable(dev->clk);
 	}
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* lock bus frequency */
 	dev_unlock(dev->bus_dev, &pdev->dev);
 #endif
@@ -1006,7 +985,7 @@ static int jpeg_resume(struct platform_device *pdev)
 	struct jpeg_dev *dev = platform_get_drvdata(pdev);
 
 	if (dev->ctx) {
-	clk_enable(dev->clk);
+		clk_enable(dev->clk);
 		dev->vb2->resume(dev->alloc_ctx);
 	}
 #else
@@ -1045,10 +1024,9 @@ static int jpeg_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct jpeg_dev *jpeg_drv = platform_get_drvdata(pdev);
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* lock bus frequency */
-	if (samsung_rev() < EXYNOS4412_REV_2_0)
-		dev_unlock(jpeg_drv->bus_dev, dev);
+	dev_unlock(jpeg_drv->bus_dev, dev);
 #endif
 	jpeg_drv->vb2->suspend(jpeg_drv->alloc_ctx);
 	/* clock disable */
@@ -1060,11 +1038,9 @@ static int jpeg_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct jpeg_dev *jpeg_drv = platform_get_drvdata(pdev);
-#if defined(CONFIG_BUSFREQ_OPP) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
+#ifdef CONFIG_BUSFREQ_OPP
 	/* lock bus frequency */
-	if (samsung_rev() < EXYNOS4412_REV_2_0)
-		dev_lock(jpeg_drv->bus_dev,
-			&jpeg_drv->plat_dev->dev, BUSFREQ_400MHZ);
+	dev_lock(jpeg_drv->bus_dev, &jpeg_drv->plat_dev->dev, BUSFREQ_400MHZ);
 #endif
 	clk_enable(jpeg_drv->clk);
 	jpeg_drv->vb2->resume(jpeg_drv->alloc_ctx);
@@ -1111,7 +1087,9 @@ static int __init jpeg_init(void)
 {
 	printk(KERN_CRIT "Initialize JPEG driver\n");
 
-	return platform_driver_register(&jpeg_driver);
+	platform_driver_register(&jpeg_driver);
+
+	return 0;
 }
 
 static void __exit jpeg_exit(void)

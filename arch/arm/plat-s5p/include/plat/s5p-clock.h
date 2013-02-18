@@ -19,7 +19,6 @@
 
 #define clk_fin_apll clk_ext_xtal_mux
 #define clk_fin_bpll clk_ext_xtal_mux
-#define clk_fin_gpll clk_ext_xtal_mux
 #define clk_fin_cpll clk_ext_xtal_mux
 #define clk_fin_mpll clk_ext_xtal_mux
 #define clk_fin_epll clk_ext_xtal_mux

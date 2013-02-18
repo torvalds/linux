@@ -162,32 +162,6 @@ static long jpeg_ioctl(struct file *file,
 	case IOCTL_GET_ENC_IN_BUF:
 		return jpeg_get_frame_buf(arg);
 
-	case IOCTL_GET_PHYADDR:
-		return jpeg_ctrl->mem.frame_data_addr;
-
-	case IOCTL_GET_PHYMEM_BASE:
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_JPEG
-		if (copy_to_user((void *)arg, &jpeg_ctrl->mem.base, sizeof(unsigned int))) {
-			jpeg_err("IOCTL_GET_PHYMEM_BASE:::copy_to_user error\n");
-			return -1;
-		}
-		return 0;
-#else
-		return -1;
-#endif
-
-	case IOCTL_GET_PHYMEM_SIZE:
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_JPEG
-		ret = CONFIG_VIDEO_SAMSUNG_MEMSIZE_JPEG * 1024;
-		if (copy_to_user((void *)arg, &ret, sizeof(unsigned int))) {
-			jpeg_err("IOCTL_GET_PHYMEM_SIZE:::copy_to_user error\n");
-			return -1;
-		}
-		return 0;
-#else
-		return -1;
-#endif
-
 	case IOCTL_SET_DEC_PARAM:
 		ret = copy_from_user(&ctrl->dec_param,
 			(struct jpeg_dec_param *)arg,
@@ -368,7 +342,7 @@ static int jpeg_probe(struct platform_device *pdev)
 	if (!res) {
 		jpeg_err("failed to request jpeg irq resource\n");
 		ret = -ENOENT;
-		goto err_irq;
+		goto err_map;
 	}
 
 	jpeg_ctrl->irq_no = res->start;

@@ -379,11 +379,13 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+#if !defined(CONFIG_MACH_ODROID_4X12)
 	if (spdif_pdata && spdif_pdata->cfg_gpio
 			&& spdif_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure GPIO pins\n");
 		return -EINVAL;
 	}
+#endif
 
 	spdif = &spdif_info;
 	spdif->dev = &pdev->dev;

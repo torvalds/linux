@@ -89,8 +89,7 @@ gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
 	if (WARN_ON(!size))
 		return -EINVAL;
 
-	//nbytes = sizeof(struct gen_pool_chunk) + BITS_TO_LONGS(nbits) * sizeof(long);
-	nbytes = sizeof *chunk + BITS_TO_LONGS(size) * sizeof *chunk->bits;
+	nbytes = sizeof(struct gen_pool_chunk) + BITS_TO_LONGS(nbits) * sizeof(long);
 	
 	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
 	if (!chunk)

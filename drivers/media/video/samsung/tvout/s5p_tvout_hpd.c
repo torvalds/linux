@@ -14,34 +14,24 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/poll.h>
+#include <linux/switch.h>
 
 #include <plat/tvout.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#ifdef CONFIG_HDMI_SWITCH_HPD
-#include <linux/switch.h>
-#endif
 
 #include "s5p_tvout_common_lib.h"
 #include "hw_if/hw_if.h"
 
-#ifdef CONFIG_TVOUT_DEBUG
-#define HPDIFPRINTK(fmt, args...)					\
-do {									\
-	if (unlikely(tvout_dbg_flag & (1 << DBG_FLAG_HPD))) {		\
-		printk(KERN_INFO "[HPD_IF] %s: " fmt,			\
-			__func__ , ## args);				\
-	}								\
-} while (0)
+#ifdef CONFIG_HPD_DEBUG
+#define HPDIFPRINTK(fmt, args...) \
+	printk(KERN_INFO "[HPD_IF] %s: " fmt, __func__ , ## args)
 #else
 #define HPDIFPRINTK(fmt, args...)
 #endif
 
-#define HPDPRINTK(fmt, args...) \
-	printk(KERN_INFO "[HPD_IF] %s: " fmt, __func__ , ## args)
-
-#define VERSION         "1.2"	/* Driver version number */
-#define HPD_MINOR       243	/* Major 10, Minor 243, /dev/hpd */
+#define VERSION         "1.2" /* Driver version number */
+#define HPD_MINOR       243 /* Major 10, Minor 243, /dev/hpd */
 
 #define HPD_LO          0
 #define HPD_HI          1
@@ -51,29 +41,26 @@ do {									\
 
 #define RETRY_COUNT	50
 
+//codewalker
+//struct switch_dev switch_hdmi_detection = {
+//	.name = "hdmi",
+//};
+
 struct hpd_struct {
 	spinlock_t lock;
 	wait_queue_head_t waitq;
 	atomic_t state;
-	void (*int_src_hdmi_hpd) (void);
-	void (*int_src_ext_hpd) (void);
-	int (*read_gpio) (void);
+	void (*int_src_hdmi_hpd)(void);
+	void (*int_src_ext_hpd)(void);
+	int (*read_gpio)(void);
 	int irq_n;
-#ifdef CONFIG_HDMI_SWITCH_HPD
-	struct switch_dev hpd_switch;
-#endif
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-	void (*ext_ic_control) (bool ic_on);
-#endif
 };
 
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-static work_func_t  ext_ic_control_func(void) ;
-static DECLARE_DELAYED_WORK(ext_ic_control_dwork,
-		(work_func_t)ext_ic_control_func);
-#endif
-
 static struct hpd_struct hpd_struct;
+
+#if defined(CONFIG_MACH_ODROID_4X12)&&defined(CONFIG_SND_SAMSUNG_I2S)
+extern void	odroid_audio_tvout(bool tvout);
+#endif
 
 static int last_hpd_state;
 static int last_uevent_state;
@@ -83,18 +70,18 @@ atomic_t poll_state;
 static int s5p_hpd_open(struct inode *inode, struct file *file);
 static int s5p_hpd_release(struct inode *inode, struct file *file);
 static ssize_t s5p_hpd_read(struct file *file, char __user *buffer,
-			    size_t count, loff_t *ppos);
+		size_t count, loff_t *ppos);
 static unsigned int s5p_hpd_poll(struct file *file, poll_table *wait);
 static long s5p_hpd_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg);
+		unsigned int cmd, unsigned long arg);
 
 static const struct file_operations hpd_fops = {
-	.owner = THIS_MODULE,
-	.open = s5p_hpd_open,
+	.owner   = THIS_MODULE,
+	.open    = s5p_hpd_open,
 	.release = s5p_hpd_release,
-	.read = s5p_hpd_read,
-	.poll = s5p_hpd_poll,
-	.unlocked_ioctl = s5p_hpd_ioctl,
+	.read    = s5p_hpd_read,
+	.poll    = s5p_hpd_poll,
+	.unlocked_ioctl   = s5p_hpd_ioctl,
 };
 
 static struct miscdevice hpd_misc_device = {
@@ -103,33 +90,27 @@ static struct miscdevice hpd_misc_device = {
 	&hpd_fops,
 };
 
-#ifdef CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-	static struct switch_dev g_audio_ch_switch;
-#endif
-
 static void s5p_hpd_kobject_uevent(void)
 {
 	char env_buf[120];
-#ifndef CONFIG_HDMI_SWITCH_HPD
 	char *envp[2];
 	int env_offset = 0;
-#endif
 	int i = 0;
 	int hpd_state = atomic_read(&hpd_struct.state);
 
 	HPDIFPRINTK("++\n");
 	memset(env_buf, 0, sizeof(env_buf));
 
-	if (hpd_state) {
+	if (hpd_state)	{
 		while (on_stop_process && (i < RETRY_COUNT)) {
-			HPDIFPRINTK("waiting on_stop_process\n");
-			usleep_range(5000, 5000);
+			HPDIFPRINTK("on_stop_process\n");
+			msleep(5);
 			i++;
 		};
 	} else {
 		while (on_start_process && (i < RETRY_COUNT)) {
-			HPDIFPRINTK("waiting on_start_process\n");
-			usleep_range(5000, 5000);
+			HPDIFPRINTK("on_start_process\n");
+			msleep(5);
 			i++;
 		};
 	}
@@ -137,67 +118,40 @@ static void s5p_hpd_kobject_uevent(void)
 	if (i == RETRY_COUNT) {
 		on_stop_process = false;
 		on_start_process = false;
-		printk(KERN_ERR	"[ERROR] %s() %s fail !!\n", __func__,
-			hpd_state ? "on_stop_process" : "on_start_process");
 	}
 
 	hpd_state = atomic_read(&hpd_struct.state);
 	if (hpd_state) {
 		if (last_uevent_state == -1 || last_uevent_state == HPD_LO) {
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-			HPDPRINTK("ext_ic power ON\n");
-			hpd_struct.ext_ic_control(true);
-			msleep(20);
-#endif
-#ifdef CONFIG_HDMI_SWITCH_HPD
-			hpd_struct.hpd_switch.state = 0;
-			switch_set_state(&hpd_struct.hpd_switch, 1);
-#else
 			sprintf(env_buf, "HDMI_STATE=online");
 			envp[env_offset++] = env_buf;
 			envp[env_offset] = NULL;
 			HPDIFPRINTK("online event\n");
-			kobject_uevent_env(&(hpd_misc_device.this_device->kobj),
-					   KOBJ_CHANGE, envp);
-#endif
-			HPDPRINTK("[HDMI] HPD event -connect!!!\n");
-			if (atomic_read(&hdmi_status) == HDMI_OFF) {
-				on_start_process = true;
-			} else {
-				on_start_process = false;
-			}
-			HPDIFPRINTK("%s() on_start_process(%d)\n",
-					__func__, on_start_process);
+			kobject_uevent_env(&(hpd_misc_device.this_device->kobj), KOBJ_CHANGE, envp);
+			on_start_process = true;
 		}
 		last_uevent_state = HPD_HI;
+	#if defined(CONFIG_MACH_ODROID_4X12)&&defined(CONFIG_SND_SAMSUNG_I2S)
+		odroid_audio_tvout(1);
+	#endif
 	} else {
 		if (last_uevent_state == -1 || last_uevent_state == HPD_HI) {
-#ifdef CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-			switch_set_state(&g_audio_ch_switch, (int)-1);
-#endif
-#ifdef CONFIG_HDMI_SWITCH_HPD
-			hpd_struct.hpd_switch.state = 1;
-			switch_set_state(&hpd_struct.hpd_switch, 0);
-#else
 			sprintf(env_buf, "HDMI_STATE=offline");
 			envp[env_offset++] = env_buf;
 			envp[env_offset] = NULL;
 			HPDIFPRINTK("offline event\n");
-			kobject_uevent_env(&(hpd_misc_device.this_device->kobj),
-					   KOBJ_CHANGE, envp);
-#endif
-			HPDPRINTK("[HDMI] HPD event -disconnet!!!\n");
-			if (atomic_read(&hdmi_status) == HDMI_ON) {
-				on_stop_process = true;
-			} else {
-				on_stop_process = false;
-			}
-			HPDIFPRINTK("%s() on_stop_process(%d)\n",
-					__func__, on_stop_process);
-
+			kobject_uevent_env(&(hpd_misc_device.this_device->kobj), KOBJ_CHANGE, envp);
+			on_stop_process = true;
 		}
 		last_uevent_state = HPD_LO;
+
+	#if defined(CONFIG_MACH_ODROID_4X12)&&defined(CONFIG_SND_SAMSUNG_I2S)
+		odroid_audio_tvout(0);
+	#endif
 	}
+
+	//codewalker
+	//switch_set_state(&switch_hdmi_detection, hpd_state);
 }
 
 static DECLARE_WORK(hpd_work, (void *)s5p_hpd_kobject_uevent);
@@ -205,6 +159,10 @@ static DECLARE_WORK(hpd_work, (void *)s5p_hpd_kobject_uevent);
 static int s5p_hpd_open(struct inode *inode, struct file *file)
 {
 	atomic_set(&poll_state, 1);
+
+	//codewalker
+	//int hpd_state = atomic_read(&hpd_struct.state);
+	//switch_set_state(&switch_hdmi_detection, hpd_state);
 
 	return 0;
 }
@@ -215,7 +173,7 @@ static int s5p_hpd_release(struct inode *inode, struct file *file)
 }
 
 static ssize_t s5p_hpd_read(struct file *file, char __user *buffer,
-			    size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	ssize_t retval;
 	unsigned long spin_flags;
@@ -223,7 +181,7 @@ static ssize_t s5p_hpd_read(struct file *file, char __user *buffer,
 	spin_lock_irqsave(&hpd_struct.lock, spin_flags);
 
 	retval = put_user(atomic_read(&hpd_struct.state),
-			  (unsigned int __user *)buffer);
+		(unsigned int __user *) buffer);
 
 	atomic_set(&poll_state, -1);
 	spin_unlock_irqrestore(&hpd_struct.lock, spin_flags);
@@ -231,7 +189,7 @@ static ssize_t s5p_hpd_read(struct file *file, char __user *buffer,
 	return retval;
 }
 
-static unsigned int s5p_hpd_poll(struct file *file, poll_table * wait)
+static unsigned int s5p_hpd_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &hpd_struct.waitq, wait);
 
@@ -242,75 +200,52 @@ static unsigned int s5p_hpd_poll(struct file *file, poll_table * wait)
 }
 
 #define HPD_GET_STATE _IOR('H', 100, unsigned int)
-#define AUDIO_CH_SET_STATE _IOR('H', 101, unsigned int)
-
-#ifdef	CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-void hdmi_send_audio_ch_num(
-	int supported_ch_num, struct switch_dev *p_audio_ch_switch)
-{
-	if (last_uevent_state == HPD_LO) {
-		printk(KERN_INFO	"[WARNING] %s() "
-			"HDMI Audio ch = %d but not send\n",
-			__func__, supported_ch_num);
-		return;
-	} else
-		printk(KERN_INFO	"%s() "
-			"HDMI Audio ch = %d\n",
-			__func__, supported_ch_num);
-
-	p_audio_ch_switch->state = 0;
-	switch_set_state(p_audio_ch_switch, (int)supported_ch_num);
-}
-#endif
+#define HPD_GET_I2C_CHANNEL _IOR('H', 101, unsigned int)
 
 static long s5p_hpd_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg)
+		unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case HPD_GET_STATE:
 		{
-			unsigned int *status = (unsigned int *)arg;
-			*status = atomic_read(&hpd_struct.state);
+		unsigned int *status = (unsigned int *)arg;
+		*status = atomic_read(&hpd_struct.state);
 
-			if (last_uevent_state == -1)
-				last_uevent_state = *status;
+		if (last_uevent_state == -1)
+			last_uevent_state = *status;
 
-			if (last_uevent_state != *status) {
-				on_start_process = false;
-				on_stop_process = false;
-				HPDIFPRINTK("%s() on_start_process, "
-					"on_stop_process = false" , __func__);
-			}
-
-			HPDIFPRINTK("HPD status is %s\n",
-				    (*status) ? "plugged" : "unplugged");
-			return 0;
+		if (last_uevent_state != *status) {
+			on_start_process = false;
+			on_stop_process = false;
 		}
-#ifdef	CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-	case AUDIO_CH_SET_STATE:
+
+		HPDIFPRINTK("HPD status is %s\n",
+				(*status) ? "plugged" : "unplugged");
+		return 0;
+		}
+	case HPD_GET_I2C_CHANNEL:
 		{
-			int supported_ch_num;
-			if (copy_from_user(&supported_ch_num,
-				(void __user *)arg, sizeof(supported_ch_num))) {
-				printk(KERN_ERR	"%s() -copy_from_user error\n",
-					__func__);
-				return -EFAULT;
-			}
+		unsigned int *channel= (unsigned int *)arg;
+	#if defined(CONFIG_MACH_ODROID_4X12)
+			char *string="/dev/i2c-2";
+	#else
+			char *string="/dev/i2c-1";
+	#endif
 
-			printk(KERN_INFO	"%s() - AUDIO_CH_SET_STATE = 0x%x\n",
-				__func__, supported_ch_num);
-			hdmi_send_audio_ch_num(supported_ch_num,
-				&g_audio_ch_switch);
-			return 0;
+		HPDIFPRINTK("I2C channel is %d\n",channel);
+	
+		return	copy_to_user(channel,string,11);
+		
 		}
-#endif
+
 	default:
 		printk(KERN_ERR "(%d) unknown ioctl, HPD_GET_STATE(%d)\n",
-		       (unsigned int)cmd, (unsigned int)HPD_GET_STATE);
-		return -EFAULT;
+				(unsigned int)cmd, (unsigned int)HPD_GET_STATE);
+		return  -EFAULT;
 	}
 
 }
+
 
 int s5p_hpd_set_hdmiint(void)
 {
@@ -361,8 +296,9 @@ int s5p_hpd_get_status(void)
 	return hpd_state;
 
 }
+EXPORT_SYMBOL_GPL(s5p_hpd_get_status);
 
-static int s5p_hpd_irq_eint(int irq)
+static int s5p_hdp_irq_eint(int irq)
 {
 
 	HPDIFPRINTK("\n");
@@ -380,11 +316,6 @@ static int s5p_hpd_irq_eint(int irq)
 		wake_up_interruptible(&hpd_struct.waitq);
 	} else {
 		HPDIFPRINTK("gpio is low\n");
-#if defined(CONFIG_SAMSUNG_WORKAROUND_HPD_GLANCE) &&\
-	!defined(CONFIG_SAMSUNG_MHL_9290) &&\
-	!defined(CONFIG_MHL_SII9234)
-		call_sched_mhl_hpd_handler();
-#endif
 		irq_set_irq_type(hpd_struct.irq_n, IRQ_TYPE_LEVEL_HIGH);
 		if (atomic_read(&hpd_struct.state) == HPD_LO)
 			return IRQ_HANDLED;
@@ -394,16 +325,12 @@ static int s5p_hpd_irq_eint(int irq)
 
 		last_hpd_state = HPD_LO;
 
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-		schedule_delayed_work(&ext_ic_control_dwork ,
-				msecs_to_jiffies(1000));
-#endif
 		wake_up_interruptible(&hpd_struct.waitq);
 	}
 	schedule_work(&hpd_work);
 
 	HPDIFPRINTK("%s\n", atomic_read(&hpd_struct.state) == HPD_HI ?
-		    "HPD HI" : "HPD LO");
+		"HPD HI" : "HPD LO");
 
 	return IRQ_HANDLED;
 }
@@ -427,8 +354,6 @@ static int s5p_hpd_irq_hdmi(int irq)
 
 	/* is this our interrupt? */
 	if (!(flag & (1 << HDMI_IRQ_HPD_PLUG | 1 << HDMI_IRQ_HPD_UNPLUG))) {
-		printk(KERN_WARNING "%s() flag is wrong : 0x%x\n",
-		       __func__, flag);
 		ret = IRQ_NONE;
 
 		goto out;
@@ -444,8 +369,6 @@ static int s5p_hpd_irq_hdmi(int irq)
 	}
 
 	if (flag & (1 << HDMI_IRQ_HPD_PLUG)) {
-		HPDIFPRINTK("HPD_HI\n");
-
 		s5p_hdmi_reg_intc_enable(HDMI_IRQ_HPD_UNPLUG, 1);
 		if (atomic_read(&hpd_struct.state) == HPD_HI)
 			return IRQ_HANDLED;
@@ -456,14 +379,9 @@ static int s5p_hpd_irq_hdmi(int irq)
 		last_hpd_state = HPD_HI;
 		wake_up_interruptible(&hpd_struct.waitq);
 
-	} else if (flag & (1 << HDMI_IRQ_HPD_UNPLUG)) {
-		HPDIFPRINTK("HPD_LO\n");
-#if defined(CONFIG_SAMSUNG_WORKAROUND_HPD_GLANCE) &&\
-	!defined(CONFIG_SAMSUNG_MHL_9290) &&\
-	!defined(CONFIG_MHL_SII9234)
-		call_sched_mhl_hpd_handler();
-#endif
+		HPDIFPRINTK("HPD_HI\n");
 
+	} else if (flag & (1 << HDMI_IRQ_HPD_UNPLUG)) {
 		s5p_hdcp_stop();
 
 		s5p_hdmi_reg_intc_enable(HDMI_IRQ_HPD_PLUG, 1);
@@ -474,17 +392,15 @@ static int s5p_hpd_irq_hdmi(int irq)
 		atomic_set(&poll_state, 1);
 
 		last_hpd_state = HPD_LO;
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-		schedule_delayed_work(&ext_ic_control_dwork ,
-				msecs_to_jiffies(1000));
-#endif
 
 		wake_up_interruptible(&hpd_struct.waitq);
+
+		HPDIFPRINTK("HPD_LO\n");
 	}
 
 	schedule_work(&hpd_work);
 
- out:
+out:
 	return IRQ_HANDLED;
 }
 
@@ -498,87 +414,20 @@ static irqreturn_t s5p_hpd_irq_handler(int irq, void *dev_id)
 {
 	irqreturn_t ret = IRQ_HANDLED;
 
+	HPDIFPRINTK("\n");
 	/* check HDMI status */
 	if (atomic_read(&hdmi_status)) {
 		/* HDMI on */
-		HPDIFPRINTK("HDMI HPD interrupt\n");
 		ret = s5p_hpd_irq_hdmi(irq);
-		HPDIFPRINTK("HDMI HPD interrupt - end\n");
+		HPDIFPRINTK("HDMI HPD interrupt\n");
 	} else {
 		/* HDMI off */
+		ret = s5p_hdp_irq_eint(irq);
 		HPDIFPRINTK("EINT HPD interrupt\n");
-		ret = s5p_hpd_irq_eint(irq);
-		HPDIFPRINTK("EINT HPD interrupt - end\n");
 	}
 
 	return ret;
 }
-
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-static work_func_t  ext_ic_control_func(void)
-{
-	if (!hpd_struct.read_gpio()) {
-		hpd_struct.ext_ic_control(false);
-		HPDPRINTK("HDMI_EXT_IC Power Off\n");
-	} else {
-		HPDPRINTK("HDMI_EXT_IC Delay work do nothing\n");
-	}
-	return 0;
-}
-#endif
-
-
-#ifdef	CONFIG_SAMSUNG_WORKAROUND_HPD_GLANCE
-static irqreturn_t s5p_hpd_irq_default_handler(int irq, void *dev_id)
-{
-	u8 flag;
-
-	flag = s5p_hdmi_reg_intc_status();
-
-	if (s5p_hdmi_reg_get_hpd_status())
-		s5p_hdmi_reg_intc_clear_pending(HDMI_IRQ_HPD_PLUG);
-	else
-		s5p_hdmi_reg_intc_clear_pending(HDMI_IRQ_HPD_UNPLUG);
-
-	s5p_hdmi_reg_intc_enable(HDMI_IRQ_HPD_UNPLUG, 0);
-	s5p_hdmi_reg_intc_enable(HDMI_IRQ_HPD_PLUG, 0);
-
-	if (flag & (1 << HDMI_IRQ_HPD_PLUG))
-		HPDIFPRINTK("HPD_HI\n");
-	else if (flag & (1 << HDMI_IRQ_HPD_UNPLUG))
-		HPDIFPRINTK("HPD_LO\n");
-	else
-		HPDIFPRINTK("UNKNOWN EVENT\n");
-
-	return IRQ_HANDLED;
-}
-
-void mhl_hpd_handler(bool onoff)
-{
-	static int old_state;
-
-	if (old_state == onoff) {
-		printk(KERN_INFO	"%s() state is aready %s\n",
-			__func__, onoff ? "on" : "off");
-		return;
-	} else {
-		printk(KERN_INFO	"%s(%d), old_state(%d)\n",
-			__func__, onoff, old_state);
-		old_state = onoff;
-	}
-
-	if (onoff == true) {
-		enable_irq(hpd_struct.irq_n);
-		s5p_hdmi_reg_intc_set_isr(s5p_hpd_irq_handler,
-					  (u8) HDMI_IRQ_HPD_PLUG);
-	} else {
-		disable_irq_nosync(hpd_struct.irq_n);
-		s5p_hdmi_reg_intc_set_isr(s5p_hpd_irq_default_handler,
-					  (u8) HDMI_IRQ_HPD_PLUG);
-	}
-}
-EXPORT_SYMBOL(mhl_hpd_handler);
-#endif
 
 static int __devinit s5p_hpd_probe(struct platform_device *pdev)
 {
@@ -587,7 +436,7 @@ static int __devinit s5p_hpd_probe(struct platform_device *pdev)
 
 	if (misc_register(&hpd_misc_device)) {
 		printk(KERN_WARNING " Couldn't register device 10, %d.\n",
-		       HPD_MINOR);
+			HPD_MINOR);
 
 		return -EBUSY;
 	}
@@ -604,74 +453,52 @@ static int __devinit s5p_hpd_probe(struct platform_device *pdev)
 
 	if (pdata->int_src_hdmi_hpd)
 		hpd_struct.int_src_hdmi_hpd =
-		    (void (*)(void))pdata->int_src_hdmi_hpd;
+			(void (*)(void))pdata->int_src_hdmi_hpd;
 	if (pdata->int_src_ext_hpd)
 		hpd_struct.int_src_ext_hpd =
-		    (void (*)(void))pdata->int_src_ext_hpd;
+			(void (*)(void))pdata->int_src_ext_hpd;
 	if (pdata->read_gpio)
 		hpd_struct.read_gpio = (int (*)(void))pdata->read_gpio;
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-	if (pdata->ext_ic_control)
-		hpd_struct.ext_ic_control = pdata->ext_ic_control;
-#endif
+
 	hpd_struct.irq_n = platform_get_irq(pdev, 0);
 
 	hpd_struct.int_src_ext_hpd();
 	if (hpd_struct.read_gpio()) {
 		atomic_set(&hpd_struct.state, HPD_HI);
 		last_hpd_state = HPD_HI;
-#ifdef CONFIG_HDMI_CONTROLLED_BY_EXT_IC
-		hpd_struct.ext_ic_control(true);
-#endif
 	} else {
 		atomic_set(&hpd_struct.state, HPD_LO);
 		last_hpd_state = HPD_LO;
 	}
 
-#ifdef CONFIG_HDMI_SWITCH_HPD
-	hpd_struct.hpd_switch.name = "hdmi";
-	switch_dev_register(&hpd_struct.hpd_switch);
-#endif
-	switch_set_state(&hpd_struct.hpd_switch, last_hpd_state);
 	irq_set_irq_type(hpd_struct.irq_n, IRQ_TYPE_EDGE_BOTH);
 
-	ret = request_irq(hpd_struct.irq_n, (irq_handler_t) s5p_hpd_irq_handler,
-			  IRQF_DISABLED, "hpd", (void *)(&pdev->dev));
+	ret = request_irq(hpd_struct.irq_n, (irq_handler_t)s5p_hpd_irq_handler,
+		IRQF_DISABLED, "hpd", (void *)(&pdev->dev));
 
 	if (ret) {
-		printk(KERN_ERR "failed to install hpd irq\n");
+		printk(KERN_ERR  "failed to install hpd irq\n");
 		misc_deregister(&hpd_misc_device);
 		return -EIO;
 	}
-#ifdef	CONFIG_SAMSUNG_WORKAROUND_HPD_GLANCE
-	disable_irq(hpd_struct.irq_n);
-#	if !defined(CONFIG_SAMSUNG_MHL_9290) &&\
-		!defined(CONFIG_MHL_SII9234)
-		hpd_intr_state = s5p_hpd_get_status;
-#	endif
-#endif
 
-	s5p_hdmi_reg_intc_set_isr(s5p_hpd_irq_handler, (u8) HDMI_IRQ_HPD_PLUG);
 	s5p_hdmi_reg_intc_set_isr(s5p_hpd_irq_handler,
-				  (u8) HDMI_IRQ_HPD_UNPLUG);
+					(u8)HDMI_IRQ_HPD_PLUG);
+	s5p_hdmi_reg_intc_set_isr(s5p_hpd_irq_handler,
+					(u8)HDMI_IRQ_HPD_UNPLUG);
 
 	last_uevent_state = -1;
 
-#ifdef CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-	g_audio_ch_switch.name = "ch_hdmi_audio";
-	switch_dev_register(&g_audio_ch_switch);
-#endif
+	//codewalker
+	//switch_dev_register(&switch_hdmi_detection);
+
 	return 0;
 }
 
 static int __devexit s5p_hpd_remove(struct platform_device *pdev)
 {
-#ifdef CONFIG_HDMI_SWITCH_HPD
-	switch_dev_unregister(&hpd_struct.hpd_switch);
-#endif
-#ifdef CONFIG_LSI_HDMI_AUDIO_CH_EVENT
-	switch_dev_unregister(&g_audio_ch_switch);
-#endif
+	//codewalker
+	//switch_dev_unregister(&switch_hdmi_detection);
 	return 0;
 }
 
@@ -695,14 +522,14 @@ static int s5p_hpd_resume(struct platform_device *dev)
 #endif
 
 static struct platform_driver s5p_hpd_driver = {
-	.probe = s5p_hpd_probe,
-	.remove = __devexit_p(s5p_hpd_remove),
-	.suspend = s5p_hpd_suspend,
-	.resume = s5p_hpd_resume,
-	.driver = {
-		   .name = "s5p-tvout-hpd",
-		   .owner = THIS_MODULE,
-		   },
+	.probe		= s5p_hpd_probe,
+	.remove		= __devexit_p(s5p_hpd_remove),
+	.suspend	= s5p_hpd_suspend,
+	.resume		= s5p_hpd_resume,
+	.driver		= {
+		.name	= "s5p-tvout-hpd",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static char banner[] __initdata =

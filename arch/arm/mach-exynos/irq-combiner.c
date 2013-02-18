@@ -13,11 +13,8 @@
 */
 
 #include <linux/io.h>
-#include <linux/interrupt.h>
 
 #include <asm/mach/irq.h>
-#include <plat/cpu.h>
-#include <mach/map.h>
 
 #define COMBINER_ENABLE_SET	0x0
 #define COMBINER_ENABLE_CLEAR	0x4
@@ -70,10 +67,8 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	spin_unlock(&irq_controller_lock);
 	status &= chip_data->irq_mask;
 
-	if (status == 0) {
-		do_bad_IRQ(irq, desc);
+	if (status == 0)
 		goto out;
-	}
 
 	combiner_irq = __ffs(status);
 
@@ -139,9 +134,6 @@ void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 
 	__raw_writel(combiner_data[combiner_nr].irq_mask,
 		     base + COMBINER_ENABLE_CLEAR);
-
-	if (soc_is_exynos4210())
-		__raw_writel(0x01010101, S5P_VA_COMBINER_BASE + 0x40);
 
 	/* Setup the Linux IRQ subsystem */
 

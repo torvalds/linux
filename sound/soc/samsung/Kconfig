@@ -69,28 +69,6 @@ config SND_SOC_SAMSUNG_SMDK_WM8994
 	help
 		Say Y if you want to add support for SoC audio on the SMDKs.
 
-config SND_SOC_SAMSUNG_MIDAS_WM1811
-	tristate "SoC I2S Audio support for WM1811 on MIDAS"
-	depends on SND_SOC_SAMSUNG && MACH_MIDAS
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the MIDAS.
-
-config SND_SOC_SAMSUNG_GRANDE_WM1811
-	tristate "SoC I2S Audio support for WM1811 on Grande"
-	depends on SND_SOC_SAMSUNG && (MACH_M0_GRANDECTC || MACH_IRON || MACH_M0_DUOSCTC )
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-
-config SND_SOC_SAMSUNG_T0_WM1811
-	tristate "SoC I2S Audio support for WM1811 on T0"
-	depends on SND_SOC_SAMSUNG && (MACH_T0 || MACH_M3_USA_TMO)
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the T0.
-
 config SND_SOC_ODROID_MAX98095
 	tristate "SoC I2S Audio support for MAX98095 on ODROID"
 	depends on SND_SOC_SAMSUNG && (MACH_ODROID_4X12)
@@ -104,69 +82,9 @@ config SND_SOC_ODROID_MAX98090
 	depends on SND_SOC_SAMSUNG && (MACH_ODROID_4X12)
 	select SND_SOC_MAX98090
 	select SND_SAMSUNG_I2S
-	select SND_SOC_SAMSUNG_I2S_SEC
 	help
 		Say Y if you want to add support for SoC audio on the ODROID.
 
-config SND_SOC_SAMSUNG_T0DUOS_WM1811
-	tristate "SoC I2S Audio support for WM1811 on T0DUOS"
-	depends on SND_SOC_SAMSUNG && (MACH_T0_CHN_CTC || MACH_T0_CHN_CMCC || MACH_T0_CHN_OPEN_DUOS || MACH_T0_CHN_CU_DUOS)
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-
-config SND_SOC_SAMSUNG_M3_WM1811
-	tristate "SoC I2S Audio support for WM1811 on M3"
-	depends on SND_SOC_SAMSUNG && MACH_M3
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-
-config SND_SOC_SAMSUNG_SLP_EXYNOS_WM1811
-	tristate "SoC I2S Audio support for WM1811 on SLP MIDAS"
-	depends on SND_SOC_SAMSUNG && (MACH_SLP_PQ || MACH_SLP_PQ_LTE || MACH_REDWOOD || MACH_SLP_T0_LTE)
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the SLP Exynos PQ_Proxima, Redwood.
-
-config SND_SOC_SAMSUNG_SLP_NAPLES_WM1811
-	tristate "SoC I2S Audio support for WM1811 on SLP NAPLES"
-	depends on SND_SOC_SAMSUNG && (MACH_SLP_NAPLES || MACH_SLP_NAPLES_D || MACH_SLP_NAPLES_Q)
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-
-config SND_SOC_SAMSUNG_LUNGO_WM1811
-	tristate "SoC I2S Audio support for WM1811 on LUNGO"
-	depends on SND_SOC_SAMSUNG && (MACH_P10 ||MACH_P11 || MACH_P4NOTE)
-	select SND_SOC_WM8994
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the LUNGO.
-
-config SND_SOC_U1_MC1N2
-	tristate "SoC I2S Audio support for MC1N2 on U1"
-	depends on SND_SOC_SAMSUNG && (MACH_U1 || MACH_PX)
-	select SND_SOC_MC1N2
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on U1.
-
-config SND_SOC_SLP_TRATS_MC1N2
-	tristate "SoC I2S Audio support for MC1N2 on SLP TRATS"
-	depends on SND_SOC_SAMSUNG && (MACH_TRATS)
-	select SND_SOC_MC1N2
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y if you want to add support for SoC audio on SLP TRATS.
-	  This uses
-	  Samsung Exynos-4210 audio subsystem
-	  and Yamaha MC1N2 codec.
-
-config SND_SOC_SAMSUNG_USE_DMA_WRAPPER
-	bool "DMA wrapper for ALSA Platform(DMA)"
-
-config SND_SOC_SAMSUNG_I2S_SEC
-	bool "I2S operate secondary FIFO"
-        depends on SND_SAMSUNG_LP || SND_SAMSUNG_ALP
 
 choice
 	prompt "Samsung I2S Audio type"
@@ -180,7 +98,6 @@ config SND_SAMSUNG_NORMAL
 
 config SND_SAMSUNG_LP
 	bool "LP Audio support"
-	select SND_SOC_SAMSUNG_I2S_SEC
 	help
 	  Say Y if you want to support LP audio.
 
@@ -284,7 +201,7 @@ config SND_SOC_SAMSUNG_RX1950_UDA1380
 
 config SND_SOC_SAMSUNG_SMDK_WM9713
 	tristate "SoC AC97 Audio support for SMDK with WM9713"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110 || MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12 || MACH_SMDK5210 || MACH_SMDK5250)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110 || MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12 || MACH_SMDK5250)
 	select SND_SOC_WM9713
 	select SND_SAMSUNG_AC97
 	help
@@ -307,7 +224,7 @@ config SND_SOC_GONI_AQUILA_WM8994
 
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210 || MACH_SMDKV310 || MACH_SMDK4X12 || MACH_SMDK5210 || MACH_SMDK5250)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210 || MACH_SMDKV310 || MACH_SMDK4X12 || MACH_SMDK5250 || MACH_ODROID_4X12)
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.

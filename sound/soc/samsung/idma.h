@@ -13,9 +13,7 @@
 #ifndef __S3C_IDMA_H_
 #define __S3C_IDMA_H_
 
-#ifdef CONFIG_SND_SAMSUNG_ALP
 #include "srp_alp/srp_alp.h"
-#endif
 
 #define I2SAHB			0x20
 #define I2SSTR0			0x24
@@ -62,20 +60,15 @@
 #define LP_TXBUFF_ADDR		(soc_is_exynos5250() ? \
 				(SRP_DMEM_BASE + LP_TXBUFF_OFFSET) : \
 				(SRP_IRAM_BASE + LP_TXBUFF_OFFSET))
-#define LP_TXBUFF_MAX		(32 * 1024)
 /* If only enabled LP Audio */
 #else
-#define LP_TXBUFF_ADDR		(0x03000000)
-#define LP_TXBUFF_MAX		(128 * 1024)
+#define LP_TXBUFF_ADDR		(SRP_DMEM_BASE)
 #endif
 
 /* idma_state */
 #define LPAM_DMA_STOP		0
 #define LPAM_DMA_START		1
 
-#ifdef CONFIG_SND_SOC_SAMSUNG_USE_DMA_WRAPPER
-extern struct snd_soc_platform_driver samsung_asoc_idma_platform;
-#endif
 extern void idma_init(void *regs);
 
 /* These functions are used for srp driver. */

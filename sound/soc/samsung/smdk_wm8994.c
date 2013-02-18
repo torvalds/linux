@@ -21,7 +21,6 @@
 #include "i2s.h"
 #include "s3c-i2s-v2.h"
 #include "../codecs/wm8994.h"
-#include <sound/pcm_params.h>
 
  /*
   * Default CFG switch settings to use this driver:
@@ -81,9 +80,7 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* AIF1CLK should be >=3MHz for optimal performance */
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
-		pll_out = params_rate(params) * 384;
-	else if (params_rate(params) == 8000 || params_rate(params) == 11025)
+	if (params_rate(params) == 8000 || params_rate(params) == 11025)
 		pll_out = params_rate(params) * 512;
 	else
 		pll_out = params_rate(params) * 256;
@@ -293,7 +290,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Sec_Dai",
 		.cpu_dai_name = "samsung-i2s.4",
 		.codec_dai_name = "wm8994-aif1",
-#ifdef CONFIG_SND_SOC_SAMSUNG_USE_DMA_WRAPPER
+#if defined(CONFIG_SND_SAMSUNG_NORMAL) || defined(CONFIG_SND_SAMSUNG_RP)
 		.platform_name = "samsung-audio",
 #else
 		.platform_name = "samsung-audio-idma",

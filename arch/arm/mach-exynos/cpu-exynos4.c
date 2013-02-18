@@ -18,7 +18,6 @@
 #include <asm/proc-fns.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
-#include <asm/cacheflush.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -35,7 +34,6 @@
 #include <plat/reset.h>
 #include <plat/audio.h>
 #include <plat/tv-core.h>
-#include <plat/rtc-core.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
@@ -144,16 +142,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.pfn            = __phys_to_pfn(EXYNOS4_PA_PPMU_DMC1),
 		.length         = SZ_8K,
 		.type           = MT_DEVICE,
-	}, {
-		.virtual        = (unsigned long)S5P_VA_GDL,
-		.pfn            = __phys_to_pfn(EXYNOS4_PA_GDL),
-		.length         = SZ_4K,
-		.type           = MT_DEVICE,
-	}, {
-		.virtual        = (unsigned long)S5P_VA_GDR,
-		.pfn            = __phys_to_pfn(EXYNOS4_PA_GDR),
-		.length         = SZ_4K,
-		.type           = MT_DEVICE,
 	},
 };
 
@@ -259,7 +247,7 @@ void __init exynos4_map_io(void)
 #ifdef CONFIG_S3C_DEV_HSMMC3
 	exynos4_default_sdhci3();
 #endif
-#ifdef CONFIG_EXYNOS4_DEV_MSHC
+#ifdef CONFIG_S5P_DEV_MSHC
 	exynos4_default_mshci();
 #endif
 	exynos4_i2sv3_setup_resource();
@@ -268,16 +256,13 @@ void __init exynos4_map_io(void)
 	s3c_fimc_setname(1, "exynos4-fimc");
 	s3c_fimc_setname(2, "exynos4-fimc");
 	s3c_fimc_setname(3, "exynos4-fimc");
-#ifdef CONFIG_S3C_DEV_RTC
-	s3c_rtc_setname("exynos-rtc");
-#endif
 #ifdef CONFIG_FB_S3C
 	s5p_fb_setname(0, "exynos4-fb");	/* FIMD0 */
 #endif
 	if (soc_is_exynos4210())
-		s3c_adc_setname("samsung-adc-v3");
+		s3c_adc_setname("s5pv210-adc");
 	else
-		s3c_adc_setname("samsung-adc-v4");
+		s3c_adc_setname("exynos4412-adc");
 
 	s5p_hdmi_setname("exynos4-hdmi");
 
@@ -287,7 +272,7 @@ void __init exynos4_map_io(void)
 	s3c_i2c2_setname("s3c2440-i2c");
 
 #ifdef CONFIG_S5P_DEV_ACE
-	s5p_ace_setname("exynos-ace");
+	s5p_ace_setname("exynos4-ace");
 #endif
 }
 
@@ -400,12 +385,10 @@ static int __init exynos4_l2x0_cache_init(void)
 	outer_cache.set_debug = exynos4_l2x0_set_debug;
 #endif
 #endif
-	/* Enable the full line of zero */
-	enable_cache_foz();
+
 	return 0;
 }
 
-//early_initcall(exynos4_l2x0_cache_init);
 early_initcall(exynos4_l2x0_cache_init);
 #endif
 

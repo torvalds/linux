@@ -21,7 +21,6 @@
 
 #include <plat/cpu.h>
 #include <plat/pd.h>
-#include <plat/bts.h>
 
 int exynos_pd_init(struct device *dev)
 {
@@ -57,10 +56,10 @@ int exynos_pd_enable(struct device *dev)
 	/* Wait max 1ms */
 	timeout = 1000;
 	while ((__raw_readl(pdata->base + 0x4) & S5P_INT_LOCAL_PWR_EN)
-	       != S5P_INT_LOCAL_PWR_EN) {
+		!= S5P_INT_LOCAL_PWR_EN) {
 		if (timeout == 0) {
 			printk(KERN_ERR "Power domain %s enable failed.\n",
-			       dev_name(dev));
+				dev_name(dev));
 			return -ETIMEDOUT;
 		}
 		timeout--;
@@ -75,7 +74,6 @@ int exynos_pd_enable(struct device *dev)
 	if (data->clk_base)
 		__raw_writel(tmp, data->clk_base);
 
-	bts_enable(pdata->id);
 	return 0;
 }
 
@@ -86,35 +84,9 @@ int exynos_pd_disable(struct device *dev)
 	u32 timeout;
 	u32 tmp = 0;
 
-	static int boot_lcd0 = 1;
-	if (boot_lcd0) {
-		struct platform_device *pdev = to_platform_device(dev);
-		/*
-		 * Currently,in exynos4x12, FIMD parent power domain
-		 * is PD_LCD0,
-		 * but in exynos5x12, it is changed to PD_DISP1.
-		 * so i add PD_DISP1 for exynos5
-		 */
-		if ((pdev->id == PD_LCD0) || (pdev->id == PD_DISP1)) {
-			printk(KERN_INFO "lcd0 disable skip only one time");
-			boot_lcd0--;
-			return 0;
-		}
-	}
-
 	/*  save clock source register */
 	if (data->clksrc_base)
 		tmp = __raw_readl(data->clksrc_base);
-#ifdef CONFIG_EXYNOS5_LOWPWR_IDLE
-	if (soc_is_exynos5250() &&
-		(pdata->base == EXYNOS5_ISP_CONFIGURATION))
-		return 0;
-#endif
-	/* Do not disable MFC power domain for EXYNOS5250 EVT0 */
-	if (soc_is_exynos5250() &&
-		(samsung_rev() < EXYNOS5250_REV_1_0) &&
-		(pdata->base == EXYNOS5_MFC_CONFIGURATION))
-		return 0;
 
 	/*
 	 * To ISP power domain off,
@@ -153,7 +125,7 @@ int exynos_pd_disable(struct device *dev)
 	while (__raw_readl(pdata->base + 0x4) & S5P_INT_LOCAL_PWR_EN) {
 		if (timeout == 0) {
 			printk(KERN_ERR "Power domain %s disable failed.\n",
-			       dev_name(dev));
+				dev_name(dev));
 			return -ETIMEDOUT;
 		}
 		timeout--;

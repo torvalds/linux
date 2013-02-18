@@ -88,6 +88,16 @@ static struct sleep_save exynos4_clock_save[] = {
 	SAVE_ITEM(EXYNOS4_CLKSRC_DMC),
 	SAVE_ITEM(EXYNOS4_CLKSRC_CPU),
 };
+
+static struct sleep_save exynos4_epll_save[] = {
+	SAVE_ITEM(EXYNOS4_EPLL_CON0),
+	SAVE_ITEM(EXYNOS4_EPLL_CON1),
+};
+
+static struct sleep_save exynos4_vpll_save[] = {
+	SAVE_ITEM(EXYNOS4_VPLL_CON0),
+	SAVE_ITEM(EXYNOS4_VPLL_CON1),
+};
 #endif
 
 struct clk exynos4_clk_sclk_hdmi27m = {
@@ -160,22 +170,17 @@ static int exynos4_clksrc_mask_tv_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS4_CLKSRC_MASK_TV, clk, enable);
 }
 
-int exynos4_clk_ip_leftbus_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_LEFTBUS, clk, enable);
-}
-
 static int exynos4_clk_ip_mfc_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_MFC, clk, enable);
 }
 
-int exynos4_clk_ip_cam_ctrl(struct clk *clk, int enable)
+static int exynos4_clk_ip_cam_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_CAM, clk, enable);
 }
 
-int exynos4_clk_ip_tv_ctrl(struct clk *clk, int enable)
+static int exynos4_clk_ip_tv_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_TV, clk, enable);
 }
@@ -190,14 +195,14 @@ int exynos4_clk_ip_image_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_IMAGE, clk, enable);
 }
 
-int exynos4_clk_ip_rightbus_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_RIGHTBUS, clk, enable);
-}
-
 static int exynos4_clk_ip_lcd0_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_LCD0, clk, enable);
+}
+
+int exynos4_clk_ip_lcd1_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_LCD1, clk, enable);
 }
 
 int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable)
@@ -205,17 +210,12 @@ int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_FSYS, clk, enable);
 }
 
-int exynos4_clk_ip_gps_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_GPS, clk, enable);
-}
-
 int exynos4_clk_ip_peril_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_PERIL, clk, enable);
 }
 
-int exynos4_clk_ip_perir_ctrl(struct clk *clk, int enable)
+static int exynos4_clk_ip_perir_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_PERIR, clk, enable);
 }
@@ -245,16 +245,6 @@ int exynos4_clk_ip_dmc_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_DMC, clk, enable);
 }
 
-static int exynos4_clk_sclkapll_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS4_CLKGATE_SCLKCPU, clk, enable);
-}
-
-static int exynos4_clk_ip_cpu_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_CPU, clk, enable);
-}
-
 static int exynos4_clk_hdmiphy_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_HDMI_PHY_CONTROL, clk, enable);
@@ -279,8 +269,6 @@ struct clksrc_clk exynos4_clk_sclk_apll = {
 	.clk	= {
 		.name		= "sclk_apll",
 		.parent		= &exynos4_clk_mout_apll.clk,
-		.enable		= exynos4_clk_sclkapll_ctrl,
-		.ctrlbit	= (1 << 0),
 	},
 	.reg_div = { .reg = EXYNOS4_CLKDIV_CPU, .shift = 24, .size = 3 },
 };
@@ -434,35 +422,6 @@ static struct clksrc_clk exynos4_clk_pclk_acp = {
 	.reg_div = { .reg = EXYNOS4_CLKDIV_DMC0, .shift = 4, .size = 3 },
 };
 
-static struct clk *exynos4_clkset_c2c_list[] = {
-	[0] = &exynos4_clk_mout_mpll.clk,
-	[1] = &exynos4_clk_sclk_apll.clk,
-};
-
-static struct clksrc_sources exynos4_clkset_mout_c2c = {
-	.sources	= exynos4_clkset_c2c_list,
-	.nr_sources	= ARRAY_SIZE(exynos4_clkset_c2c_list),
-};
-
-static struct clksrc_clk exynos4_clk_sclk_c2c = {
-	.clk	= {
-		.name		= "sclk_c2c",
-		.id		= -1,
-	},
-	.sources = &exynos4_clkset_mout_c2c,
-	.reg_src = { .reg = EXYNOS4_CLKSRC_DMC, .shift = 0, .size = 1 },
-	.reg_div = { .reg = EXYNOS4_CLKDIV_DMC1, .shift = 4, .size = 3 },
-};
-
-static struct clksrc_clk exynos4_clk_aclk_c2c = {
-	.clk	= {
-		.name	= "aclk_c2c",
-		.id	= -1,
-		.parent	= &exynos4_clk_sclk_c2c.clk,
-	},
-	.reg_div = { .reg = EXYNOS4_CLKDIV_DMC1, .shift = 12, .size = 3 },
-};
-
 /* Core list of CMU_TOP side */
 
 struct clk *exynos4_clkset_aclk_top_list[] = {
@@ -490,7 +449,7 @@ static struct clksrc_clk exynos4_clk_aclk_100 = {
 	.reg_div = { .reg = EXYNOS4_CLKDIV_TOP, .shift = 4, .size = 4 },
 };
 
-struct clksrc_clk exynos4_clk_aclk_160 = {
+static struct clksrc_clk exynos4_clk_aclk_160 = {
 	.clk	= {
 		.name		= "aclk_160",
 	},
@@ -653,14 +612,6 @@ static struct clksrc_clk *exynos4_sclk_tv[] = {
 
 static struct clk exynos4_init_clocks_off[] = {
 	{
-		.name		= "ppmuright",
-		.enable		= exynos4_clk_ip_rightbus_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "ppmuleft",
-		.enable		= exynos4_clk_ip_leftbus_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
 		.name		= "timers",
 		.parent		= &exynos4_clk_aclk_100.clk,
 		.enable		= exynos4_clk_ip_peril_ctrl,
@@ -708,13 +659,23 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_cam_ctrl,
 		.ctrlbit	= (1 << 18),
 	}, {
-		.name		= "ppmucamif",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 16),
+		.name		= "lcd",
+		.devname	= "s3cfb.0",
+		.enable		= exynos4_clk_ip_lcd0_ctrl,
+		.ctrlbit	= (1 << 0),
 	}, {
-		.name		= "jpeg",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 6),
+		.name		= "lcd",
+		.devname	= "s3cfb.1",
+		.enable		= exynos4_clk_ip_lcd1_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
+		.name		= "dsim0",
+		.enable		= exynos4_clk_ip_lcd0_ctrl,
+		.ctrlbit	= (1 << 3),
+	}, {
+		.name		= "dsim1",
+		.enable		= exynos4_clk_ip_lcd1_ctrl,
+		.ctrlbit	= (1 << 3),
 	}, {
 		.name		= "rotator",
 		.devname	= "exynos-rot",
@@ -754,6 +715,7 @@ static struct clk exynos4_init_clocks_off[] = {
 		.ctrlbit	= (1 << 16),
 	}, {
 		.name		= "rtc",
+		.devname	= "s3c64xx-rtc",
 		.enable		= exynos4_clk_ip_perir_ctrl,
 		.ctrlbit	= (1 << 15),
 	}, {
@@ -763,10 +725,6 @@ static struct clk exynos4_init_clocks_off[] = {
 	}, {
 		.name		= "hdmicec",
 		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 11),
-	}, {
-		.name		= "sromc",
-		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 11),
 	}, {
 		.name		= "usbhost",
@@ -830,13 +788,13 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 14),
 	}, {
-		.name		= "ppmutv",
-		.enable		= exynos4_clk_ip_tv_ctrl,
-		.ctrlbit	= (1 << 5),
-	}, {
 		.name		= "hdmi",
 		.enable		= exynos4_clk_ip_tv_ctrl,
 		.ctrlbit	= (1 << 3),
+	}, {
+		.name		= "tvenc",
+		.enable		= exynos4_clk_ip_tv_ctrl,
+		.ctrlbit	= (1 << 2),
 	}, {
 		.name		= "dac",
 		.devname        = "s5p-sdo",
@@ -850,18 +808,6 @@ static struct clk exynos4_init_clocks_off[] = {
 		.name		= "vp",
 		.enable		= exynos4_clk_ip_tv_ctrl,
 		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "ppmuimage",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 9),
-	}, {
-		.name		= "qerotator",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "rotator",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 1),
 	}, {
 		.name           = "hdmiphy",
 		.devname        = "exynos4-hdmi",
@@ -914,7 +860,6 @@ static struct clk exynos4_init_clocks_off[] = {
 		.ctrlbit	= (1 << 4),
 	}, {
 		.name		= "sysmmu",
-
 		.devname	= SYSMMU_CLOCK_NAME(mdma, 11),
 		.enable		= exynos4_clk_ip_image_ctrl,
 		.ctrlbit	= (1 << 5),
@@ -933,15 +878,6 @@ static struct clk exynos4_init_clocks_off[] = {
 		.devname	= SYSMMU_CLOCK_NAME(mfc_r, 14),
 		.enable		= exynos4_clk_ip_mfc_ctrl,
 		.ctrlbit	= (1 << 2),
-	}, {
-		.name		= "sysmmu",
-		.devname	= SYSMMU_CLOCK_NAME(gps, 16),
-		.enable		= exynos4_clk_ip_gps_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "gps",
-		.enable		= exynos4_clk_ip_gps_ctrl,
-		.ctrlbit	= (1 << 0),
 	}, {
 		.name		= "ppmumfc",
 		.enable		= exynos4_clk_ip_mfc_ctrl,
@@ -972,118 +908,17 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_g3d_ctrl,
 		.ctrlbit	= (1 << 1),
 	}, {
+		.name		= "ppmulcd",
+		.enable		= exynos4_clk_ip_lcd0_ctrl,
+		.ctrlbit	= (1 << 5),
+	}, {
 		.name		= "ppmucam",
 		.enable		= exynos4_clk_ip_cam_ctrl,
 		.ctrlbit	= (1 << 16),
 	}, {
-		.name		= "hpm",
-		.enable		= exynos4_clk_ip_cpu_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "iec",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 18),
-	}, {
-		.name		= "apc",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 17),
-	}, {
-		.name		= "ppmuacp",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 16),
-	}, {
-		.name		= "ppmucpu",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 10),
-	}, {
-		.name		= "ppmudmc1",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 9),
-	}, {
-		.name		= "ppmudmc0",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 8),
-#ifdef CONFIG_CPU_EXYNOS4210
-	}, {
-		.name		= "qesss",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 15),
-	}, {
-		.name		= "id_remapper",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 13),
-	}, {
-		.name		= "qecpu",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "fbm_dmc1",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 6),
-	}, {
-		.name		= "seckey",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 12),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.5",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 10),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.4",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 9),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.3",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 8),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.2",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.1",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 6),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.0",
-		.enable		= exynos4_clk_ip_perir_ctrl,
+		.name		= "ppmutv",
+		.enable		= exynos4_clk_ip_tv_ctrl,
 		.ctrlbit	= (1 << 5),
-#endif
-	}, {
-		.name		= "qefimc",
-		.devname	= "s5p-qe.3",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 15),
-	}, {
-		.name		= "qefimc",
-		.devname	= "s5p-qe.2",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 14),
-	}, {
-		.name		= "qefimc",
-		.devname	= "s5p-qe.1",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 13),
-	}, {
-		.name		= "qefimc",
-		.devname	= "s5p-qe.0",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 12),
-	}, {
-		.name		= "qeg3d",
-		.enable		= exynos4_clk_ip_g3d_ctrl,
-		.ctrlbit	= (1 << 2),
-	}, {
-		.name		= "secss",
-		.parent		= &exynos4_clk_aclk_acp.clk,
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 4),
 	},
 };
 
@@ -1352,104 +1187,6 @@ struct clk exynos4_init_dmaclocks[] = {
 
 static struct clk exynos4_init_clocks[] = {
 	{
-#ifndef CONFIG_CPU_EXYNOS4210
-		.name		= "seckey",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 12),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.5",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 10),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.4",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 9),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.3",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 8),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.2",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.1",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 6),
-	}, {
-		.name		= "tzpc",
-		.devname	= "exnos4-tzpc.0",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 5),
-	}, {
-#endif
-		.name		= "cssys",
-		.enable		= exynos4_clk_ip_cpu_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "gic",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 20),
-#ifndef CONFIG_CPU_EXYNOS4210
-	}, {
-		.name		= "qesss",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 15),
-	}, {
-		.name		= "id_remapper",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 13),
-	}, {
-		.name		= "qecpu",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "fbm_dmc1",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 6),
-#endif
-	}, {
-		.name		= "fbm_dmc0",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 5),
-	}, {
-		.name		= "int_comb",
-		.enable		= exynos4_clk_ip_dmc_ctrl,
-		.ctrlbit	= (1 << 2),
-	}, {
-		.name		= "g3d",
-		.enable		= exynos4_clk_ip_g3d_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "tmu",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 17),
-	}, {
-		.name		= "mct",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 13),
-	}, {
-		.name		= "cmu_top",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 3),
-	}, {
-		.name		= "pmu_apb",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 2),
-	}, {
-		.name		= "sysreg",
-		.enable		= exynos4_clk_ip_perir_ctrl ,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "chipid",
-		.enable		= exynos4_clk_ip_perir_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
 		.name		= "uart",
 		.devname	= "s5pv210-uart.0",
 		.enable		= exynos4_clk_ip_peril_ctrl,
@@ -1475,37 +1212,11 @@ static struct clk exynos4_init_clocks[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 4),
 	}, {
-#if 1
-		.name		= "lcd",
-		.devname	= "s3cfb.0",
-		.enable 	= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "mie0",
-		.enable 	= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "mdnie0",
-		.enable 	= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 2),
-	}, {
-		.name		= "dsim0",
-		.enable 	= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 3),
-	}, {
-		.name		= "ppmulcd",
-		.enable 	= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 5),
-	},
-#endif
-#ifdef CONFIG_INTERNAL_MODEM_IF
-	{
-		.name		= "modem",
-		.id		= -1,
-		.enable		= exynos4_clk_ip_peril_ctrl,
-		.ctrlbit	= (1 << 28),
-	},
-#endif
+		.name		= "secss",
+		.parent		= &exynos4_clk_aclk_acp.clk,
+		.enable		= exynos4_clk_ip_dmc_ctrl,
+		.ctrlbit	= (1 << 4),
+	}
 };
 
 struct clk *exynos4_clkset_group_list[] = {
@@ -1523,30 +1234,6 @@ struct clk *exynos4_clkset_group_list[] = {
 struct clksrc_sources exynos4_clkset_group = {
 	.sources	= exynos4_clkset_group_list,
 	.nr_sources	= ARRAY_SIZE(exynos4_clkset_group_list),
-};
-
-static struct clksrc_clk clk_sclk_mipidphy4l = {
-	.clk    = {
-		.name           = "sclk_mipidphy4l",
-		.id             = -1,
-		.enable         = exynos4_clksrc_mask_lcd0_ctrl,
-		.ctrlbit        = (1 << 12),
-	},
-	.sources        = &exynos4_clkset_group,
-	.reg_src        = { .reg = EXYNOS4_CLKSRC_LCD0, .shift = 12, .size = 4 },
-	.reg_div	= { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 16, .size = 4 },
-};
-
-static struct clksrc_clk clk_sclk_mipidphy2l = {
-	.clk    = {
-		.name           = "sclk_mipidphy2l",
-		.id             = -1,
-		.enable         = exynos4_clksrc_mask_lcd0_ctrl,
-		.ctrlbit        = (1 << 12),
-	},
-	.sources        = &exynos4_clkset_group,
-	.reg_src        = { .reg = EXYNOS4_CLKSRC_LCD1, .shift = 12, .size = 4 },
-	.reg_div	= { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 16, .size = 4 },
 };
 
 static struct clk *exynos4_clkset_mout_g2d0_list[] = {
@@ -1930,137 +1617,6 @@ static struct clksrc_clk exynos4_clksrcs[] = {
 		.sources = &exynos4_clkset_group,
 		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD1, .shift = 0, .size = 4 },
 		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 0, .size = 4 },
-#if defined(CONFIG_FB_S5P_MDNIE) || defined(CONFIG_MDNIE_SUPPORT)
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie",
-			.id		= -1,
-			.enable		= exynos4_clksrc_mask_lcd0_ctrl,
-			.ctrlbit	= (1 << 4),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD0, .shift = 4, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 4, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie",
-			.id		= 1,
-			.enable		= exynos4_clksrc_mask_lcd1_ctrl,
-			.ctrlbit	= (1 << 4),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD1, .shift = 4, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 4, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie_pwm",
-			.id		= -1,
-			.enable		= exynos4_clksrc_mask_lcd0_ctrl,
-			.ctrlbit	= (1 << 8),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD0, .shift = 8, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 8, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie_pwm",
-			.id		= 1,
-			.enable		= exynos4_clksrc_mask_lcd1_ctrl,
-			.ctrlbit	= (1 << 8),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD1, .shift = 8, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 8, .size = 4 },
-#endif
-#ifdef CONFIG_FB_MDNIE_PWM
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie_pwm_pre",
-			.id		= -1,
-			.enable		= exynos4_clksrc_mask_lcd0_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD0, .shift = 8, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 12, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mdnie_pwm_pre",
-			.id		= 1,
-			.enable		= exynos4_clksrc_mask_lcd1_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.sources = &exynos4_clkset_group,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD1, .shift = 8, .size = 4 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 12, .size = 4 },
-#endif
-	}, {
-		.clk		= {
-			.name		= "sclk_mipi",
-#ifdef CONFIG_FB_S5P_MIPI_DSIM
-			.id		= -1,
-#else
-			.id		= 0,
-#endif
-			.parent		= &clk_sclk_mipidphy4l.clk,
-			.enable		= exynos4_clksrc_mask_lcd0_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 20, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mipi",
-			.id		= 1,
-			.parent		= &clk_sclk_mipidphy2l.clk,
-			.enable		= exynos4_clksrc_mask_lcd1_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD1, .shift = 20, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mmc",
-			.id		= 0,
-			.parent		= &exynos4_clk_dout_mmc0.clk,
-			.enable		= exynos4_clksrc_mask_fsys_ctrl,
-			.ctrlbit	= (1 << 0),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS1, .shift = 8, .size = 8 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mmc",
-			.id		= 1,
-			.parent         = &exynos4_clk_dout_mmc1.clk,
-			.enable		= exynos4_clksrc_mask_fsys_ctrl,
-			.ctrlbit	= (1 << 4),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS1, .shift = 24, .size = 8 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mmc",
-			.id		= 2,
-			.parent         = &exynos4_clk_dout_mmc2.clk,
-			.enable		= exynos4_clksrc_mask_fsys_ctrl,
-			.ctrlbit	= (1 << 8),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS2, .shift = 8, .size = 8 },
-	}, {
-		.clk		= {
-			.name		= "sclk_mmc",
-			.id		= 3,
-			.parent         = &exynos4_clk_dout_mmc3.clk,
-			.enable		= exynos4_clksrc_mask_fsys_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS2, .shift = 24, .size = 8 },
-	}, {
-		.clk		= {
-			.name		= "sclk_dwmci",
-			.id		= -1,
-			.parent         = &exynos4_clk_dout_mmc4.clk,
-			.enable		= exynos4_clksrc_mask_fsys_ctrl,
-			.ctrlbit	= (1 << 16),
-		},
-		.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS3, .shift = 8, .size = 8 },
 	}, {
 		.clk	= {
 			.name		= "sclk_spi",
@@ -2165,7 +1721,7 @@ static struct clksrc_clk exynos4_clksrcs[] = {
 	}, {
 		.clk	= {
 			.name		= "sclk_pcm",
-			.devname        = "samsung-pcm.2",
+			.devname	= "samsung-pcm.2",
 			.parent		= &exynos4_clk_sclk_audio2.clk,
 		},
 			.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL4, .shift = 20, .size = 8 },
@@ -2245,17 +1801,100 @@ static struct clksrc_clk *exynos4_sysclks[] = {
 	&exynos4_clk_dout_copy,
 	&exynos4_clk_mout_g3d0,
 	&exynos4_clk_mout_g3d1,
+	&exynos4_clk_sclk_fimg2d,
 	&exynos4_clk_dout_spi0,
 	&exynos4_clk_dout_spi1,
 	&exynos4_clk_dout_spi2,
-#ifdef CONFIG_CPU_EXYNOS4212
-	&exynos4_clk_sclk_c2c,
-	&exynos4_clk_aclk_c2c,
-#endif
-	&exynos4_clk_sclk_fimg2d,
 };
 
-struct clk_ops exynos4_epll_ops;
+static unsigned long exynos4_epll_get_rate(struct clk *clk)
+{
+	return clk->rate;
+}
+
+static u32 epll_div[][6] = {
+	{ 192000000, 0, 48, 3, 1, 0 },
+	{ 180000000, 0, 45, 3, 1, 0 },
+	{  73728000, 1, 73, 3, 3, 47710 },
+	{  67737600, 1, 90, 4, 3, 20762 },
+	{  49152000, 0, 49, 3, 3, 9961 },
+	{  45158400, 0, 45, 3, 3, 10381 },
+	{ 180633600, 0, 45, 3, 1, 10381 },
+	{ 400000000, 0, 100, 3, 1, 0 },
+};
+
+static int exynos4_epll_set_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned int epll_con, epll_con_k;
+	unsigned int i;
+	unsigned int tmp;
+	unsigned int epll_rate;
+	unsigned int locktime;
+	unsigned int lockcnt;
+
+	/* Return if nothing changed */
+	if (clk->rate == rate)
+		return 0;
+
+	if (clk->parent)
+		epll_rate = clk_get_rate(clk->parent);
+	else
+		epll_rate = clk_ext_xtal_mux.rate;
+
+	if (epll_rate != 24000000) {
+		pr_err("Invalid Clock : recommended clock is 24MHz.\n");
+		return -EINVAL;
+	}
+
+
+	epll_con = __raw_readl(EXYNOS4_EPLL_CON0);
+	epll_con &= ~(0x1 << 27 | \
+			PLL46XX_MDIV_MASK << PLL46XX_MDIV_SHIFT |   \
+			PLL46XX_PDIV_MASK << PLL46XX_PDIV_SHIFT | \
+			PLL46XX_SDIV_MASK << PLL46XX_SDIV_SHIFT);
+
+	for (i = 0; i < ARRAY_SIZE(epll_div); i++) {
+		if (epll_div[i][0] == rate) {
+			epll_con_k = epll_div[i][5] << 0;
+			epll_con |= epll_div[i][1] << 27;
+			epll_con |= epll_div[i][2] << PLL46XX_MDIV_SHIFT;
+			epll_con |= epll_div[i][3] << PLL46XX_PDIV_SHIFT;
+			epll_con |= epll_div[i][4] << PLL46XX_SDIV_SHIFT;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(epll_div)) {
+		printk(KERN_ERR "%s: Invalid Clock EPLL Frequency\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	epll_rate /= 1000000;
+
+	/* 3000 max_cycls : specification data */
+	locktime = 3000 / epll_rate * epll_div[i][3];
+	lockcnt = locktime * 10000 / (10000 / epll_rate);
+
+	__raw_writel(lockcnt, EXYNOS4_EPLL_LOCK);
+
+	__raw_writel(epll_con, EXYNOS4_EPLL_CON0);
+	__raw_writel(epll_con_k, EXYNOS4_EPLL_CON1);
+
+	do {
+		tmp = __raw_readl(EXYNOS4_EPLL_CON0);
+	} while (!(tmp & 0x1 << EXYNOS4_EPLLCON0_LOCKED_SHIFT));
+
+	clk->rate = rate;
+
+	return 0;
+}
+
+static struct clk_ops exynos4_epll_ops = {
+	.get_rate = exynos4_epll_get_rate,
+	.set_rate = exynos4_epll_set_rate,
+};
+
 struct clk_ops exynos4_vpll_ops;
 
 static int xtal_rate;
@@ -2353,19 +1992,30 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 
 	clk_fout_epll.ops = &exynos4_epll_ops;
 
-#ifdef CONFIG_EXYNOS4_MSHC_SUPPORT_PQPRIME_EPLL
-	/* This is code for support PegasusQ Prime dynamically */
-	if (soc_is_exynos4412() && (samsung_rev() >= EXYNOS4412_REV_2_0)) {
-		/* PegasusQ Prime use EPLL rather than MPLL */
-		if (clk_set_parent(&exynos4_clk_dout_mmc4.clk, &exynos4_clk_mout_epll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-				exynos4_clk_mout_epll.clk.name, exynos4_clk_dout_mmc4.clk.name);
-	}
-#endif
-#ifdef CONFIG_EXYNOS4_MSHC_EPLL_45MHZ
+#ifdef CONFIG_EXYNOS4_SDMMC_EPLL_50MHZ
+	__raw_writel(0x70007, EXYNOS4_CLKDIV_FSYS1);
+	if (clk_set_parent(&exynos4_clk_dout_mmc0.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_mout_epll.clk.name,
+				 exynos4_clk_dout_mmc0.clk.name);
+	if (clk_set_parent(&exynos4_clk_dout_mmc1.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_mout_epll.clk.name,
+				 exynos4_clk_dout_mmc1.clk.name);
+	__raw_writel(0x70007, EXYNOS4_CLKDIV_FSYS2);
+	if (clk_set_parent(&exynos4_clk_dout_mmc2.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_mout_epll.clk.name,
+				 exynos4_clk_dout_mmc2.clk.name);
+	if (clk_set_parent(&exynos4_clk_dout_mmc3.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_mout_epll.clk.name,
+				 exynos4_clk_dout_mmc3.clk.name);
+	__raw_writel(0x0, EXYNOS4_CLKDIV_FSYS3);
 	if (clk_set_parent(&exynos4_clk_dout_mmc4.clk, &exynos4_clk_mout_epll.clk))
 		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-				 exynos4_clk_mout_epll.clk.name, exynos4_clk_dout_mmc4.clk.name);
+				 exynos4_clk_mout_epll.clk.name,
+				 exynos4_clk_dout_mmc4.clk.name);
 #endif
 #ifdef CONFIG_EXYNOS4_MSHC_VPLL_46MHZ
 	if (clk_set_parent(&exynos4_clk_dout_mmc4.clk, &exynos4_clk_sclk_vpll.clk))
@@ -2375,9 +2025,50 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
 				exynos4_clk_fout_vpll.clk.name, exynos4_clk_sclk_vpll.clk.name);
 #endif
+
+	if (clk_set_parent(&exynos4_clk_mout_audss.clk, &clk_fout_epll))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				clk_fout_epll.name, exynos4_clk_mout_audss.clk.name);
+
+#if defined(CONFIG_SND_SAMSUNG_PCM) && !defined(CONFIG_SND_SAMSUNG_PCM_USE_EPLL)
+	if (clk_set_parent(&exynos4_clk_sclk_audio0.clk, &exynos4_clk_audiocdclk0.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				exynos4_clk_audiocdclk0.clk.name, exynos4_clk_sclk_audio0.clk.name);
+#else
+	if (clk_set_parent(&exynos4_clk_sclk_audio0.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				exynos4_clk_mout_epll.clk.name, exynos4_clk_sclk_audio0.clk.name);
+#endif
+
+	if (clk_set_parent(&exynos4_clk_sclk_audio1.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				exynos4_clk_mout_epll.clk.name, exynos4_clk_sclk_audio1.clk.name);
+	if (clk_set_parent(&exynos4_clk_sclk_audio2.clk, &exynos4_clk_mout_epll.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				exynos4_clk_mout_epll.clk.name, exynos4_clk_sclk_audio2.clk.name);
 	if (clk_set_parent(&exynos4_clk_mout_epll.clk, &clk_fout_epll))
 		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
 				clk_fout_epll.name, exynos4_clk_mout_epll.clk.name);
+
+#if 	defined(CONFIG_BOARD_ODROID_X)||defined(CONFIG_BOARD_ODROID_X2)|| \
+		defined(CONFIG_BOARD_ODROID_U)||defined(CONFIG_BOARD_ODROID_U2)|| \
+		defined(CONFIG_BOARD_ODROID_Q)||defined(CONFIG_BOARD_ODROID_Q2)
+
+	__raw_writel(0x10001, EXYNOS4_CLKDIV_FSYS1);
+	if (clk_set_parent(&exynos4_clk_dout_mmc0.clk, &exynos4_clk_aclk_160.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_aclk_160.clk.name,
+				 exynos4_clk_dout_mmc0.clk.name);
+	if (clk_set_parent(&exynos4_clk_dout_mmc1.clk, &exynos4_clk_aclk_160.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_aclk_160.clk.name,
+				 exynos4_clk_dout_mmc1.clk.name);
+	__raw_writel(0x10001, EXYNOS4_CLKDIV_FSYS2);
+	if (clk_set_parent(&exynos4_clk_dout_mmc2.clk, &exynos4_clk_aclk_160.clk))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				 exynos4_clk_aclk_160.clk.name,
+				 exynos4_clk_dout_mmc2.clk.name);
+#endif
 
 	clk_fout_vpll.enable = exynos4_clk_vpll_ctrl;
 	clk_fout_vpll.ops = &exynos4_vpll_ops;
@@ -2397,15 +2088,14 @@ static struct clk *exynos4_clks[] __initdata = {
 static int exynos4_clock_suspend(void)
 {
 	unsigned int tmp;
-
-	if (!soc_is_exynos4210()) {
-		tmp = __raw_readl(EXYNOS4_CLKSRC_TOP1);
-		tmp &= ~(0x1 << EXYNOS4_CLKDIV_TOP1_ACLK200_SUB_SHIFT |
-			0x1 << EXYNOS4_CLKDIV_TOP1_ACLK400_MCUISP_SUB_SHIFT);
-		__raw_writel(tmp, EXYNOS4_CLKSRC_TOP1);
-	}
+	tmp = __raw_readl(EXYNOS4_CLKSRC_TOP1);
+	tmp &= ~(0x1 << EXYNOS4_CLKDIV_TOP1_ACLK200_SUB_SHIFT |
+		0x1 << EXYNOS4_CLKDIV_TOP1_ACLK400_MCUISP_SUB_SHIFT);
+	__raw_writel(tmp, EXYNOS4_CLKSRC_TOP1);
 
 	s3c_pm_do_save(exynos4_clock_save, ARRAY_SIZE(exynos4_clock_save));
+	s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
+	s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 
 	return 0;
 }
@@ -2413,6 +2103,8 @@ static int exynos4_clock_suspend(void)
 static void exynos4_clock_resume(void)
 {
 	s3c_pm_do_restore_core(exynos4_clock_save, ARRAY_SIZE(exynos4_clock_save));
+	s3c_pm_do_restore_core(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
+	s3c_pm_do_restore_core(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 }
 #else
 #define exynos4_clock_suspend NULL

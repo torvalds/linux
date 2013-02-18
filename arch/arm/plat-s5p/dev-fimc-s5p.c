@@ -18,11 +18,6 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fimc.h>
-#ifdef CONFIG_USE_FIMC_CMA
-#include <linux/dma-mapping.h>
-
-static u64 s3c_fimc_dmamask = DMA_BIT_MASK(32);
-#endif
 
 static struct resource s3c_fimc0_resource[] = {
 	[0] = {
@@ -91,12 +86,6 @@ static struct resource s3c_fimc1_resource[] = {
 struct platform_device s3c_device_fimc1 = {
 	.name		= "s3c-fimc",
 	.id		= 1,
-#ifdef CONFIG_USE_FIMC_CMA
-	.dev		= {
-		.dma_mask		= &s3c_fimc_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-#endif
 	.num_resources	= ARRAY_SIZE(s3c_fimc1_resource),
 	.resource	= s3c_fimc1_resource,
 };
@@ -229,7 +218,6 @@ void __init s3c_fimc3_set_platdata(struct s3c_platform_fimc *pd)
 			npd->clk_off = s3c_fimc_clk_off;
 
 		npd->hw_ver = 0x51;
-		npd->use_cam = false;
 		s3c_device_fimc3.dev.platform_data = npd;
 	}
 }

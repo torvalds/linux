@@ -52,6 +52,7 @@ static struct resource exynos5_fimc_is_resource[] = {
 		.end	= EXYNOS5_PA_FIMC_IS + SZ_2M + SZ_256K + SZ_128K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
+
 	[1] = {
 		.start	= IRQ_ARMISP_GIC,
 		.end	= IRQ_ARMISP_GIC,
@@ -129,6 +130,7 @@ void __init exynos5_fimc_is_set_platdata(struct exynos5_platform_fimc_is *pd)
 			npd->clk_on = exynos5_fimc_is_clk_on;
 		if (!npd->clk_off)
 			npd->clk_off = exynos5_fimc_is_clk_off;
+
 
 		exynos5_device_fimc_is.dev.platform_data = npd;
 	}

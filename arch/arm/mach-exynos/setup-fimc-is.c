@@ -35,8 +35,6 @@ struct platform_device; /* don't need the contents */
 void exynos_fimc_is_cfg_gpio(struct platform_device *pdev)
 {
 	int ret;
-
-#if defined(CONFIG_MACH_SMDK4X12)
 	/* 1. UART setting for FIMC-IS */
 	/* GPM3[5] : TXD_UART_ISP */
 	ret = gpio_request(EXYNOS4212_GPM3(5), "GPM3");
@@ -68,7 +66,6 @@ void exynos_fimc_is_cfg_gpio(struct platform_device *pdev)
 	s3c_gpio_cfgpin(EXYNOS4212_GPM4(1), (0x2<<4));
 	s3c_gpio_setpull(EXYNOS4212_GPM4(1), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS4212_GPM4(1));
-#endif
 
 	ret = gpio_request(EXYNOS4212_GPM4(2), "GPM4");
 	if (ret)
@@ -334,24 +331,13 @@ void exynos5_fimc_is_cfg_gpio(struct platform_device *pdev)
 	int ret;
 
 	/* 1. UART setting for FIMC-IS */
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_5M_nRST, "GPIO_5M_nRST");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_5M_nRST ####\n");
-	s3c_gpio_cfgpin(GPIO_5M_nRST, (0x2<<0));
-	s3c_gpio_setpull(GPIO_5M_nRST, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_5M_nRST);
-#else
 	ret = gpio_request(EXYNOS5_GPE0(0), "GPE0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPE0_0 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPE0(0), (0x2<<0));
 	s3c_gpio_setpull(EXYNOS5_GPE0(0), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPE0(0));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-#else
 	ret = gpio_request(EXYNOS5_GPE0(1), "GPE0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPE0_1 ####\n");
@@ -393,174 +379,75 @@ void exynos5_fimc_is_cfg_gpio(struct platform_device *pdev)
 	s3c_gpio_cfgpin(EXYNOS5_GPE0(6), (0x3<<24));
 	s3c_gpio_setpull(EXYNOS5_GPE0(6), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPE0(6));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_ISP_TXD, "GPIO_ISP_TXD");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_ISP_TXD ####\n");
-	s3c_gpio_cfgpin(GPIO_ISP_TXD, (0x3<<28));
-	s3c_gpio_setpull(GPIO_ISP_TXD, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_ISP_TXD);
-#else
 	ret = gpio_request(EXYNOS5_GPE0(7), "GPE0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPE0_7 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPE0(7), (0x3<<28));
 	s3c_gpio_setpull(EXYNOS5_GPE0(7), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPE0(7));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-#else
 	ret = gpio_request(EXYNOS5_GPE1(0), "GPE1");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPE1_0 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPE1(0), (0x3<<0));
 	s3c_gpio_setpull(EXYNOS5_GPE1(0), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPE1(0));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_ISP_RXD, "GPIO_ISP_RXD");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_ISP_RXD ####\n");
-	s3c_gpio_cfgpin(GPIO_ISP_RXD, (0x3<<4));
-	s3c_gpio_setpull(GPIO_ISP_RXD, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_ISP_RXD);
-#else
 	ret = gpio_request(EXYNOS5_GPE1(1), "GPE1");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPE1_1 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPE1(1), (0x3<<4));
 	s3c_gpio_setpull(EXYNOS5_GPE1(1), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPE1(1));
-#endif
 
 	/* 2. GPIO setting for FIMC-IS */
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_5M_CAM_SDA_18V, "GPIO_5M_CAM_SDA_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_5M_CAM_SDA_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_5M_CAM_SDA_18V, (0x2<<0));
-	s3c_gpio_setpull(GPIO_5M_CAM_SDA_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_5M_CAM_SDA_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF0(0), "GPF0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF0_0 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF0(0), (0x2<<0));
 	s3c_gpio_setpull(EXYNOS5_GPF0(0), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF0(0));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_5M_CAM_SCL_18V, "GPIO_5M_CAM_SCL_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_5M_CAM_SCL_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_5M_CAM_SCL_18V, (0x2<<4));
-	s3c_gpio_setpull(GPIO_5M_CAM_SCL_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_5M_CAM_SCL_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF0(1), "GPF0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF0_1 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF0(1), (0x2<<4));
 	s3c_gpio_setpull(EXYNOS5_GPF0(1), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF0(1));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_VT_CAM_SDA_18V, "GPIO_VT_CAM_SDA_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_VT_CAM_SDA_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_VT_CAM_SDA_18V, (0x2<<8));
-	s3c_gpio_setpull(GPIO_VT_CAM_SDA_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_VT_CAM_SDA_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF0(2), "GPF0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF0_2 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF0(2), (0x2<<8));
 	s3c_gpio_setpull(EXYNOS5_GPF0(2), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF0(2));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_VT_CAM_SCL_18V, "GPIO_VT_CAM_SCL_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_5M_CAM_SDA_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_VT_CAM_SCL_18V, (0x2<<12));
-	s3c_gpio_setpull(GPIO_VT_CAM_SCL_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_VT_CAM_SCL_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF0(0), "GPF0");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF0_3 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF0(3), (0x2<<12));
 	s3c_gpio_setpull(EXYNOS5_GPF0(3), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF0(3));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_CMC_CLK_18V, "GPIO_CMC_CLK_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_CMC_CLK_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_CMC_CLK_18V, (0x3<<0));
-	s3c_gpio_setpull(GPIO_CMC_CLK_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_CMC_CLK_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF1(0), "GPF1");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF1_0 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF1(0), (0x3<<0));
 	s3c_gpio_setpull(EXYNOS5_GPF1(0), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF1(0));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_CMC_CS_18V, "GPIO_CMC_CS_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_CMC_CS_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_CMC_CS_18V, (0x3<<4));
-	s3c_gpio_setpull(GPIO_CMC_CS_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_CMC_CS_18V);
-#else
 	ret = gpio_request(EXYNOS5_GPF1(1), "GPF1");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPF1_0 ####\n");
 	s3c_gpio_cfgpin(EXYNOS5_GPF1(1), (0x3<<4));
 	s3c_gpio_setpull(EXYNOS5_GPF1(1), S3C_GPIO_PULL_NONE);
 	gpio_free(EXYNOS5_GPF1(1));
-#endif
 
 	/* CAM A port(b0010) : PCLK, VSYNC, HREF, CLK_OUT */
-#if defined(CONFIG_MACH_P10)
-	s3c_gpio_cfgrange_nopull(GPIO_CAM_MCLK, 1, S3C_GPIO_SFN(2));
-#else
 	s3c_gpio_cfgrange_nopull(EXYNOS5_GPH0(3), 1, S3C_GPIO_SFN(2));
-#endif
 
-#if defined(CONFIG_MACH_P10)
-	/* CAM A port : POWER */
-	s3c_gpio_cfgpin(GPIO_CAM_IO_EN, S3C_GPIO_OUTPUT);
-	s3c_gpio_setpull(GPIO_CAM_IO_EN, S3C_GPIO_PULL_NONE);
-	gpio_set_value(GPIO_CAM_IO_EN, 1);
-
-	/* CAM A reset*/
-	ret = gpio_request(GPIO_5M_nRST, "GPIO_5M_nRST");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_5M_nRST ####\n");
-
-	s3c_gpio_setpull(GPIO_5M_nRST, S3C_GPIO_PULL_NONE);
-	gpio_direction_output(GPIO_5M_nRST, 0);
-	gpio_direction_output(GPIO_5M_nRST, 1);
-	gpio_free(GPIO_5M_nRST);
-#else
-	/* CAM A port(b0010) : DATA[0-7] */
-	/* s3c_gpio_cfgrange_nopull(EXYNOS5_GPH1(0), 8, S3C_GPIO_SFN(2)); */
-
-	/* Camera A reset*/
+	/* Camera A */
 	ret = gpio_request(EXYNOS5_GPX1(2), "GPX1");
 	if (ret)
 		printk(KERN_ERR "#### failed to request GPX1_2 ####\n");
@@ -569,110 +456,6 @@ void exynos5_fimc_is_cfg_gpio(struct platform_device *pdev)
 	gpio_direction_output(EXYNOS5_GPX1(2), 0);
 	gpio_direction_output(EXYNOS5_GPX1(2), 1);
 	gpio_free(EXYNOS5_GPX1(2));
-#endif
-
-	/* CAM B port */
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_VTCAM_MCLK, "GPIO_VTCAM_MCLK");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_VTCAM_MCLK ####\n");
-	s3c_gpio_cfgpin(GPIO_VTCAM_MCLK, (0x2<<4));
-	s3c_gpio_setpull(GPIO_VTCAM_MCLK, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_VTCAM_MCLK);
-#else
-	/* CAM B port */
-	ret = gpio_request(EXYNOS5_GPG2(1), "GPG2");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPG2_1 ####\n");
-	s3c_gpio_cfgpin(EXYNOS5_GPG2(1), (0x2<<4));
-	s3c_gpio_setpull(EXYNOS5_GPG2(1), S3C_GPIO_PULL_NONE);
-	gpio_free(EXYNOS5_GPG2(1));
-#endif
-
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_VT_CAM_SDA_18V, "GPIO_VT_CAM_SDA_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_VT_CAM_SDA_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_VT_CAM_SDA_18V, (0x2<<8));
-	s3c_gpio_setpull(GPIO_VT_CAM_SDA_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_VT_CAM_SDA_18V);
-#else
-
-	ret = gpio_request(EXYNOS5_GPF0(2), "GPF0");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPF0_2 ####\n");
-	s3c_gpio_cfgpin(EXYNOS5_GPF0(2), (0x2<<8));
-	s3c_gpio_setpull(EXYNOS5_GPF0(2), S3C_GPIO_PULL_NONE);
-	gpio_free(EXYNOS5_GPF0(2));
-#endif
-
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_VT_CAM_SCL_18V, "GPIO_VT_CAM_SCL_18V");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_VT_CAM_SCL_18V ####\n");
-	s3c_gpio_cfgpin(GPIO_VT_CAM_SCL_18V, (0x2<<12));
-	s3c_gpio_setpull(GPIO_VT_CAM_SCL_18V, S3C_GPIO_PULL_NONE);
-	gpio_free(GPIO_VT_CAM_SCL_18V);
-#else
-
-	ret = gpio_request(EXYNOS5_GPF0(3), "GPF1");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPF0_3 ####\n");
-	s3c_gpio_cfgpin(EXYNOS5_GPF0(3), (0x2<<12));
-	s3c_gpio_setpull(EXYNOS5_GPF0(3), S3C_GPIO_PULL_NONE);
-	gpio_free(EXYNOS5_GPF0(3));
-#endif
-
-	/* Camera B reset*/
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_CAM_VT_nRST, "GPIO_CAM_VT_nRST");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_CAM_VT_nRST ####\n");
-
-	s3c_gpio_setpull(GPIO_CAM_VT_nRST, S3C_GPIO_PULL_NONE);
-	gpio_direction_output(GPIO_CAM_VT_nRST, 0);
-	gpio_direction_output(GPIO_CAM_VT_nRST, 1);
-	gpio_free(GPIO_CAM_VT_nRST);
-#else
-
-	/* Camera B reset*/
-	ret = gpio_request(EXYNOS5_GPX1(0), "GPX1");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPX1_0 ####\n");
-
-	s3c_gpio_setpull(EXYNOS5_GPX1(0), S3C_GPIO_PULL_NONE);
-	gpio_direction_output(EXYNOS5_GPX1(0), 0);
-	gpio_direction_output(EXYNOS5_GPX1(0), 1);
-	gpio_free(EXYNOS5_GPX1(0));
-#endif
-
-	/* Flash */
-#if defined(CONFIG_MACH_P10)
-	ret = gpio_request(GPIO_CAM_FLASH_SET_T, "GPIO_CAM_FLASH_SET_T");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_CAM_FLASH_SET_T ####\n");
-
-	s3c_gpio_setpull(GPIO_CAM_FLASH_SET_T, S3C_GPIO_PULL_NONE);
-	gpio_direction_output(GPIO_CAM_FLASH_SET_T, 0);
-	/* turn on */
-	/* gpio_direction_output(GPIO_CAM_FLASH_SET_T, 1); */
-	gpio_free(GPIO_CAM_FLASH_SET_T);
-
-	ret = gpio_request(GPIO_CAM_FLASH_EN_T, "GPIO_CAM_FLASH_EN_T");
-	if (ret)
-		printk(KERN_ERR "#### failed to request GPIO_CAM_FLASH_EN_T ####\n");
-
-	s3c_gpio_setpull(GPIO_CAM_FLASH_EN_T, S3C_GPIO_PULL_NONE);
-	gpio_direction_output(GPIO_CAM_FLASH_EN_T, 0);
-	/* turn on */
-	/* gpio_direction_output(GPIO_CAM_FLASH_EN_T, 1); */
-	gpio_free(GPIO_CAM_FLASH_EN_T);
-#endif
-
-#if defined(CONFIG_MACH_P10)
-	/* CAM A port : POWER */
-	gpio_set_value(GPIO_CAM_IO_EN, 0);
-#endif
 }
 
 int exynos5_fimc_is_cfg_clk(struct platform_device *pdev)
@@ -788,22 +571,13 @@ int exynos5_fimc_is_cfg_clk(struct platform_device *pdev)
 	mout_mpll = clk_get(&pdev->dev, "mout_mpll_user");
 	if (IS_ERR(mout_mpll))
 		return PTR_ERR(mout_mpll);
-	sclk_mipi = clk_get(&pdev->dev, "sclk_gscl_wrap0");
+	sclk_mipi = clk_get(&pdev->dev, "sclk_gscl_wrap");
 	if (IS_ERR(sclk_mipi))
 		return PTR_ERR(sclk_mipi);
 
 	clk_set_parent(sclk_mipi, mout_mpll);
-	clk_set_rate(sclk_mipi, 267 * 1000000);
+	clk_set_rate(sclk_mipi, 266 * 1000000);
 
-	mout_mpll = clk_get(&pdev->dev, "mout_mpll_user");
-	if (IS_ERR(mout_mpll))
-		return PTR_ERR(mout_mpll);
-	sclk_mipi = clk_get(&pdev->dev, "sclk_gscl_wrap1");
-	if (IS_ERR(sclk_mipi))
-		return PTR_ERR(sclk_mipi);
-
-	clk_set_parent(sclk_mipi, mout_mpll);
-	clk_set_rate(sclk_mipi, 267 * 1000000);
 	mipi = clk_get_rate(mout_mpll);
 	printk(KERN_DEBUG "mipi_src : %ld\n", mipi);
 	mipi = clk_get_rate(sclk_mipi);
@@ -829,148 +603,49 @@ int exynos5_fimc_is_cfg_clk(struct platform_device *pdev)
 	clk_put(cam_src);
 	clk_put(cam_A_clk);
 
-	/* camera B */
-	cam_src = clk_get(&pdev->dev, "xxti");
-	if (IS_ERR(cam_src))
-		return PTR_ERR(cam_src);
-	cam_A_clk = clk_get(&pdev->dev, "sclk_cam1");
-	if (IS_ERR(cam_A_clk))
-		return PTR_ERR(cam_A_clk);
-
-	epll = clk_get_rate(cam_src);
-	printk(KERN_DEBUG "epll : %ld\n", epll);
-
-	clk_set_parent(cam_A_clk, cam_src);
-	clk_set_rate(cam_A_clk, 24 * 1000000);
-
-	clk_put(cam_src);
-	clk_put(cam_A_clk);
 	return 0;
 }
-
-#include <linux/regulator/machine.h>
-#include <linux/regulator/fixed.h>
 
 int exynos5_fimc_is_clk_on(struct platform_device *pdev)
 {
 	struct clk *gsc_ctrl = NULL;
 	struct clk *isp_ctrl = NULL;
 	struct clk *mipi_ctrl = NULL;
-	struct clk *cam_if_top = NULL;
 	struct clk *cam_A_clk = NULL;
-	struct regulator *regulator = NULL;
 
 	printk(KERN_DEBUG "exynos5_fimc_is_clk_on\n");
 
-#if defined(CONFIG_MACH_P10)
-	/* CAM A port : POWER */
-	gpio_set_value(GPIO_CAM_IO_EN, 1);
-
-	/* ISP */
-	regulator = regulator_get(NULL, "cam_core_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	regulator_enable(regulator);
-	regulator_put(regulator);
-
-	/* ldo18 */
-	regulator = regulator_get(NULL, "cam_io_from_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	regulator_enable(regulator);
-	regulator_put(regulator);
-
-	/* ldo24 */
-	regulator = regulator_get(NULL, "cam_af_2.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	regulator_enable(regulator);
-	regulator_put(regulator);
-
-	/* ldo19 */
-	regulator = regulator_get(NULL, "vt_cam_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	regulator_enable(regulator);
-	regulator_put(regulator);
-#endif
-
 	gsc_ctrl = clk_get(&pdev->dev, "gscl");
-	if (IS_ERR(gsc_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl) failed\n", __func__);
+	if (IS_ERR(gsc_ctrl))
 		return PTR_ERR(gsc_ctrl);
-	}
 
 	clk_enable(gsc_ctrl);
 	clk_put(gsc_ctrl);
 
 	isp_ctrl = clk_get(&pdev->dev, "isp0");
-	if (IS_ERR(isp_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(isp0) failed\n", __func__);
+	if (IS_ERR(isp_ctrl))
 		return PTR_ERR(isp_ctrl);
-	}
 
 	clk_enable(isp_ctrl);
 	clk_put(isp_ctrl);
 
 	isp_ctrl = clk_get(&pdev->dev, "isp1");
-	if (IS_ERR(isp_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(isp1) failed\n", __func__);
+	if (IS_ERR(isp_ctrl))
 		return PTR_ERR(isp_ctrl);
-	}
 
 	clk_enable(isp_ctrl);
 	clk_put(isp_ctrl);
 
-	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap0");
-	if (IS_ERR(mipi_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl_wrap0) failed\n", __func__);
+	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap");
+	if (IS_ERR(mipi_ctrl))
 		return PTR_ERR(mipi_ctrl);
-	}
 
 	clk_enable(mipi_ctrl);
 	clk_put(mipi_ctrl);
-
-	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap1");
-	if (IS_ERR(mipi_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl_wrap1) failed\n", __func__);
-		return PTR_ERR(mipi_ctrl);
-	}
-
-	clk_enable(mipi_ctrl);
-	clk_put(mipi_ctrl);
-
-	cam_if_top = clk_get(&pdev->dev, "camif_top");
-	if (IS_ERR(cam_if_top)) {
-		printk(KERN_ERR "%s : clk_get(camif_top) failed\n", __func__);
-		return PTR_ERR(cam_if_top);
-	}
-
-	clk_enable(cam_if_top);
-	clk_put(cam_if_top);
 
 	cam_A_clk = clk_get(&pdev->dev, "sclk_cam0");
-	if (IS_ERR(cam_A_clk)) {
-		printk(KERN_ERR "%s : clk_get(sclk_cam0) failed\n", __func__);
+	if (IS_ERR(cam_A_clk))
 		return PTR_ERR(cam_A_clk);
-	}
-
-	clk_enable(cam_A_clk);
-	clk_put(cam_A_clk);
-
-	cam_A_clk = clk_get(&pdev->dev, "sclk_cam1");
-	if (IS_ERR(cam_A_clk)) {
-		printk(KERN_ERR "%s : clk_get(sclk_cam1) failed\n", __func__);
-		return PTR_ERR(cam_A_clk);
-	}
 
 	clk_enable(cam_A_clk);
 	clk_put(cam_A_clk);
@@ -983,128 +658,44 @@ int exynos5_fimc_is_clk_off(struct platform_device *pdev)
 	struct clk *gsc_ctrl = NULL;
 	struct clk *isp_ctrl = NULL;
 	struct clk *mipi_ctrl = NULL;
-	struct clk *cam_if_top = NULL;
 	struct clk *cam_A_clk = NULL;
-	struct regulator *regulator = NULL;
 
 	printk(KERN_DEBUG "exynos5_fimc_is_clk_on\n");
 
-	cam_A_clk = clk_get(&pdev->dev, "sclk_cam1");
-	if (IS_ERR(cam_A_clk)) {
-		printk(KERN_ERR "%s : clk_get(sclk_cam1) failed\n", __func__);
-		return PTR_ERR(cam_A_clk);
-	}
-
-	clk_disable(cam_A_clk);
-	clk_put(cam_A_clk);
-
-   	cam_A_clk = clk_get(&pdev->dev, "sclk_cam0");
-	if (IS_ERR(cam_A_clk)) {
-		printk(KERN_ERR "%s : clk_get(sclk_cam0) failed\n", __func__);
-		return PTR_ERR(cam_A_clk);
-	}
-
-	clk_disable(cam_A_clk);
-	clk_put(cam_A_clk);
-
-	cam_if_top = clk_get(&pdev->dev, "camif_top");
-	if (IS_ERR(cam_if_top)) {
-		printk(KERN_ERR "%s : clk_get(camif_top) failed\n", __func__);
-		return PTR_ERR(cam_if_top);
-	}
-
-	clk_disable(cam_if_top);
-	clk_put(cam_if_top);
-
-	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap1");
-	if (IS_ERR(mipi_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl_wrap1) failed\n", __func__);
-		return PTR_ERR(mipi_ctrl);
-	}
-
-	clk_disable(mipi_ctrl);
-	clk_put(mipi_ctrl);
-
-	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap0");
-	if (IS_ERR(mipi_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl_wrap0) failed\n", __func__);
-		return PTR_ERR(mipi_ctrl);
-	}
-
-	clk_disable(mipi_ctrl);
-	clk_put(mipi_ctrl);
-
-   	isp_ctrl = clk_get(&pdev->dev, "isp1");
-	if (IS_ERR(isp_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(isp1) failed\n", __func__);
-		return PTR_ERR(isp_ctrl);
-	}
-
-	clk_disable(isp_ctrl);
-	clk_put(isp_ctrl);
-
-	isp_ctrl = clk_get(&pdev->dev, "isp0");
-	if (IS_ERR(isp_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(isp0) failed\n", __func__);
-		return PTR_ERR(isp_ctrl);
-	}
-
-	clk_disable(isp_ctrl);
-	clk_put(isp_ctrl);
-
 	gsc_ctrl = clk_get(&pdev->dev, "gscl");
-	if (IS_ERR(gsc_ctrl)) {
-		printk(KERN_ERR "%s : clk_get(gscl) failed\n", __func__);
+	if (IS_ERR(gsc_ctrl))
 		return PTR_ERR(gsc_ctrl);
-	}
 
 	clk_disable(gsc_ctrl);
 	clk_put(gsc_ctrl);
 
-#if defined(CONFIG_MACH_P10)
-	/* ldo19 */
-	regulator = regulator_get(NULL, "vt_cam_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	if (regulator_is_enabled(regulator))
-		regulator_force_disable(regulator);
-	regulator_put(regulator);
+	isp_ctrl = clk_get(&pdev->dev, "isp0");
+	if (IS_ERR(isp_ctrl))
+		return PTR_ERR(isp_ctrl);
 
-	/* ldo24 */
-	regulator = regulator_get(NULL, "cam_af_2.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	if (regulator_is_enabled(regulator))
-		regulator_force_disable(regulator);
-	regulator_put(regulator);
+	clk_disable(isp_ctrl);
+	clk_put(isp_ctrl);
 
-	/* ldo18 */
-	regulator = regulator_get(NULL, "cam_io_from_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	if (regulator_is_enabled(regulator))
-		regulator_force_disable(regulator);
-	regulator_put(regulator);
+	isp_ctrl = clk_get(&pdev->dev, "isp1");
+	if (IS_ERR(isp_ctrl))
+		return PTR_ERR(isp_ctrl);
 
-	/* ISP */
-	regulator = regulator_get(NULL, "cam_core_1.8v");
-	if (IS_ERR(regulator)) {
-		printk(KERN_ERR "%s : regulator_get failed\n", __func__);
-		return PTR_ERR(regulator);
-	}
-	if (regulator_is_enabled(regulator))
-		regulator_force_disable(regulator);
-	regulator_put(regulator);
+	clk_disable(isp_ctrl);
+	clk_put(isp_ctrl);
 
-	/* CAM A port : POWER */
-	gpio_set_value(GPIO_CAM_IO_EN, 0);
-#endif
+	mipi_ctrl = clk_get(&pdev->dev, "gscl_wrap");
+	if (IS_ERR(mipi_ctrl))
+		return PTR_ERR(mipi_ctrl);
+
+	clk_disable(mipi_ctrl);
+	clk_put(mipi_ctrl);
+
+	cam_A_clk = clk_get(&pdev->dev, "sclk_cam0");
+	if (IS_ERR(cam_A_clk))
+		return PTR_ERR(cam_A_clk);
+
+	clk_disable(cam_A_clk);
+	clk_put(cam_A_clk);
 
 	return 0;
 }

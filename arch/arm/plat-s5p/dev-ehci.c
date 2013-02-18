@@ -16,10 +16,8 @@
 #include <plat/devs.h>
 #include <plat/ehci.h>
 #include <plat/usb-phy.h>
-#if defined(CONFIG_LINK_DEVICE_HSIC) || defined(CONFIG_LINK_DEVICE_USB)
-#include <mach/sec_modem.h>
-#endif
 
+#ifdef CONFIG_USB_EHCI_S5P
 /* USB EHCI Host Controller registration */
 static struct resource s5p_ehci_resource[] = {
 	[0] = {
@@ -62,14 +60,10 @@ void __init s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd)
 		npd->phy_suspend = s5p_usb_phy_suspend;
 	if (!npd->phy_resume)
 		npd->phy_resume = s5p_usb_phy_resume;
-#if defined(CONFIG_LINK_DEVICE_HSIC) || defined(CONFIG_LINK_DEVICE_USB)
-	if (!npd->noti_host_states)
-		npd->noti_host_states = set_host_states;
-	if (!npd->get_cp_active_state)
-		npd->get_cp_active_state = get_cp_active_state;
-#endif
 }
+#endif
 
+#ifdef CONFIG_USB_OHCI_S5P
 /* USB Host Controlle OHCI registrations */
 static struct resource s5p_ohci_resource[] = {
 	[0] = {
@@ -113,6 +107,7 @@ void __init s5p_ohci_set_platdata(struct s5p_ohci_platdata *pd)
 	if (!npd->phy_resume)
 		npd->phy_resume = s5p_usb_phy_resume;
 }
+#endif
 
 #ifdef CONFIG_S5P_DEV_USB_SWITCH
 /* USB Switch */

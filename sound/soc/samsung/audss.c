@@ -52,26 +52,11 @@ static DEFINE_SPINLOCK(lock);
 
 static int audss_clk_div_init(struct clk *src_clk)
 {
-	struct clk *fout_epll;
+	u32 clk_div = readl(S5P_CLKDIV_AUDSS);
 	u32 src_clk_rate = 0;
-	u64 srp_rate = 0;
-	u64 bus_rate = 0;
-	u64 i2s_rate = 0;
-	u32 srp_div;
-	u32 bus_div;
-	u32 i2s_div;
+	u32 bus_div = 0;
+	u32 i2s_div = 0;
 	u32 ret = -1;
-
-	writel(0xF84, S5P_CLKDIV_AUDSS);	/* to avoid over-clock */
-
-	fout_epll = clk_get(NULL, "fout_epll");
-	if (IS_ERR(fout_epll)) {
-		pr_err("%s: failed to get fout_epll\n", __func__);
-		return ret;
-	}
-	clk_set_parent(audss.mout_audss, fout_epll);
-
-	pr_debug("%s: CLKSRC[0x%x]\n", __func__, readl(S5P_CLKSRC_AUDSS));
 
 	src_clk_rate = clk_get_rate(src_clk);
 	if (!src_clk_rate) {
@@ -81,32 +66,34 @@ static int audss_clk_div_init(struct clk *src_clk)
 	}
 
 	pr_debug("%s: SRC Clock Rate[%d]\n", __func__, src_clk_rate);
+	switch (src_clk_rate) {
+	case 192000000:
+	case 180633605:
+	case 180000000:
+		bus_div = 4;
+		i2s_div = !strcmp(audss.rclksrc, "i2sclk") ? 4 : 16;
+		break;
 
-	for (srp_div = 1; srp_div <= 16; srp_div++) {
-		if ((src_clk_rate >> (srp_div - 1)) <= 100000000)
-			break;
+	case 96000000:
+		bus_div = 2;
+		i2s_div = !strcmp(audss.rclksrc, "i2sclk") ? 2 : 16;
+		break;
+
+	default:
+		pr_err("%s: Not supported src clk rate\n", __func__);
 	}
 
-	for (bus_div = 1; bus_div <= 16; bus_div++) {
-		if ((src_clk_rate >> (bus_div - 1)) <= 50000000)
-			break;
-	}
+	clk_div &= ~(S5P_AUDSS_CLKDIV_RP_MASK
+		| S5P_AUDSS_CLKDIV_BUSCLK_MASK
+		| S5P_AUDSS_CLKDIV_I2SCLK_MASK);
 
-	for (i2s_div = 1; i2s_div <= 16; i2s_div++) {
-		if ((src_clk_rate >> (i2s_div - 1)) <= 50000000)
-			break;
-	}
+	if (bus_div)
+		clk_div |= (bus_div - 1) << S5P_AUDSS_CLKDIV_BUSCLK_SHIFT;
 
-	if (!strcmp(audss.rclksrc, "busclk"))
-		i2s_div = 16;			/* Use max div */
+	if (i2s_div)
+		clk_div |= (i2s_div - 1) << S5P_AUDSS_CLKDIV_I2SCLK_SHIFT;
 
-	srp_rate = src_clk_rate >> (srp_div - 1);
-	bus_rate = src_clk_rate >> (bus_div - 1);
-	i2s_rate = src_clk_rate >> (i2s_div - 1);
-
-	clk_set_rate(audss.dout_srp, srp_rate);
-	clk_set_rate(audss.bus_clk, bus_rate);
-	clk_set_rate(audss.i2s_clk, i2s_rate);
+	writel(clk_div, S5P_CLKDIV_AUDSS);
 
 	pr_debug("%s: BUSCLK[%ld], I2SCLK[%ld]\n", __func__,
 						clk_get_rate(audss.bus_clk),
@@ -127,7 +114,7 @@ void audss_reg_save(void)
 	audss.reg_saved = true;
 
 	pr_debug("%s: Successfully saved audss reg\n", __func__);
-	pr_info("%s: SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
+	pr_debug("%s: SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
 					audss.suspend_audss_clksrc,
 					audss.suspend_audss_clkdiv,
 					audss.suspend_audss_clkgate);
@@ -138,13 +125,13 @@ void audss_reg_restore(void)
 	if (!audss.reg_saved)
 		return;
 
-	writel(audss.suspend_audss_clkgate, S5P_CLKGATE_AUDSS);
-	writel(audss.suspend_audss_clkdiv, S5P_CLKDIV_AUDSS);
 	writel(audss.suspend_audss_clksrc, S5P_CLKSRC_AUDSS);
+	writel(audss.suspend_audss_clkdiv, S5P_CLKDIV_AUDSS);
+	writel(audss.suspend_audss_clkgate, S5P_CLKGATE_AUDSS);
 	audss.reg_saved = false;
 
 	pr_debug("%s: Successfully restored audss reg\n", __func__);
-	pr_info("%s: SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
+	pr_debug("%s: SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
 					audss.suspend_audss_clksrc,
 					audss.suspend_audss_clkdiv,
 					audss.suspend_audss_clkgate);
@@ -182,13 +169,12 @@ void audss_clk_enable(bool enable)
 		clk_disable(audss.srp_clk);
 		if (!strcmp(audss.rclksrc, "i2sclk"))
 			clk_disable(audss.i2s_clk);
-		audss_reg_save();
 
 		audss.clk_enabled = false;
+		audss_reg_save();
 	}
 
-	pr_info("%s(%d): SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
-						enable ? 1 : 0,
+	pr_debug("%s: SRC[0x%x], DIV[0x%x], GATE[0x%x]\n", __func__,
 						readl(S5P_CLKSRC_AUDSS),
 						readl(S5P_CLKDIV_AUDSS),
 						readl(S5P_CLKGATE_AUDSS));

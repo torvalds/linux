@@ -95,7 +95,7 @@
 #ifdef CONFIG_EXYNOS4_DEV_DWMCI
 #include <mach/dwmci.h>
 #endif
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#ifdef CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION
 #include <mach/secmem.h>
 #endif
 #include <mach/dev.h>
@@ -588,20 +588,20 @@ static void exynos_dwmci_cfg_gpio(int width)
 	}
 
 	switch (width) {
-	case MMC_BUS_WIDTH_8:
+	case 8:
 		for (gpio = EXYNOS4_GPK1(3); gpio <= EXYNOS4_GPK1(6); gpio++) {
 			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(4));
 			s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
 			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
 		}
-	case MMC_BUS_WIDTH_4:
+	case 4:
 		for (gpio = EXYNOS4_GPK0(3); gpio <= EXYNOS4_GPK0(6); gpio++) {
 			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
 			s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
 			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
 		}
 		break;
-	case MMC_BUS_WIDTH_1:
+	case 1:
 		gpio = EXYNOS4_GPK0(3);
 		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
 		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
@@ -1761,7 +1761,7 @@ static struct device_domain busfreq;
 
 static struct platform_device exynos4_busfreq = {
 	.id = -1,
-	.name = "exynos-busfreq",
+	.name = "exynos4-busfreq",
 };
 
 static struct platform_device *smdkv310_devices[] __initdata = {
@@ -2146,7 +2146,7 @@ static void __init exynos4_reserve_mem(void)
 			.start = 0
 		},
 #endif
-#if !defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && \
+#if !defined(CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION) && \
 	defined(CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC1)
 		{
 			.name = "fimc1",
@@ -2205,18 +2205,11 @@ static void __init exynos4_reserve_mem(void)
 			{ .alignment	= 128 << 10 },
 		},
 #endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_TVOUT
-		{
-			.name = "tvout",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_TVOUT * SZ_1K,
-			.start = 0
-		},
-#endif
 		{
 			.size = 0
 		},
 	};
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#ifdef CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION
 	static struct cma_region regions_secure[] = {
 #ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC1
 		{
@@ -2237,7 +2230,7 @@ static void __init exynos4_reserve_mem(void)
 			.size = 0
 		},
 	};
-#else /* !CONFIG_EXYNOS_CONTENT_PATH_PROTECTION */
+#else /* !CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION */
 	struct cma_region *regions_secure = NULL;
 #endif
 	static const char map[] __initconst =
@@ -2260,7 +2253,6 @@ static void __init exynos4_reserve_mem(void)
 		"samsung-rp=srp;"
 		"s5p-jpeg=jpeg;"
 		"s5p-fimg2d=fimg2d;"
-		"s5p-tvout=tvout;"
 		"s5p-smem/mfc=mfc0,mfc-secure;"
 		"s5p-smem/fimc=fimc1;"
 		"s5p-smem/mfc-shm=mfc1,mfc-normal;"
@@ -2388,7 +2380,7 @@ static void __init smdkv310_machine_init(void)
 #ifdef CONFIG_EXYNOS4_DEV_DWMCI
 	if (samsung_rev() != EXYNOS4210_REV_1_1)
 		exynos_dwmci_pdata.caps &= ~(MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR);
-	exynos_dwmci_set_platdata(&exynos_dwmci_pdata. 0);
+	exynos_dwmci_set_platdata(&exynos_dwmci_pdata);
 #endif
 
 #ifdef CONFIG_S3C_DEV_HSMMC
@@ -2474,7 +2466,7 @@ static void __init smdkv310_machine_init(void)
 	s3c_device_fimc1.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 	s3c_device_fimc2.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 	s3c_device_fimc3.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#ifdef CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION
 	secmem.parent = &exynos4_device_pd[PD_CAM].dev;
 #endif
 #endif

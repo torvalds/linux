@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
-#include <linux/power/charger-manager.h>
 
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
@@ -33,7 +32,6 @@
 #include <mach/pm-core.h>
 
 /* for external use */
-unsigned long s3c_suspend_wakeup_stat;
 
 unsigned long s3c_pm_flags;
 
@@ -67,7 +65,7 @@ static inline void s3c_pm_debug_init(void)
 }
 
 #else
-#define s3c_pm_debug_init() do { } while (0)
+#define s3c_pm_debug_init() do { } while(0)
 
 #endif /* CONFIG_SAMSUNG_PM_DEBUG */
 
@@ -190,13 +188,8 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
 void s3c_pm_do_restore(struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
-#if defined(CONFIG_CPU_EXYNOS4210)
-		S3C_PMDBG("restore %p (restore %08lx, was %08x)\n",
-			  ptr->reg, ptr->val, __raw_readl(ptr->reg));
-#else
-		S3C_PMDBG("restore %p (restore %08lx, was %08x)\n",
+		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
 		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
-#endif
 
 		__raw_writel(ptr->val, ptr->reg);
 	}
@@ -215,13 +208,8 @@ void s3c_pm_do_restore(struct sleep_save *ptr, int count)
 
 void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
 {
-	for (; count > 0; count--, ptr++) {
-#if !defined(CONFIG_CPU_EXYNOS4210)
-		pr_debug("restore_core %p (restore %08lx, was %08x)\n",
-		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
-#endif
+	for (; count > 0; count--, ptr++)
 		__raw_writel(ptr->val, ptr->reg);
-	}
 }
 
 /* s3c2410_pm_show_resume_irqs
@@ -237,17 +225,16 @@ static void __maybe_unused s3c_pm_show_resume_irqs(int start,
 	which &= ~mask;
 
 	for (i = 0; i <= 31; i++) {
-		if (which & (1L<<i))
+		if (which & (1L<<i)) {
 			S3C_PMDBG("IRQ %d asserted at resume\n", start+i);
+		}
 	}
 }
+
 
 void (*pm_cpu_prep)(void);
 void (*pm_cpu_sleep)(void);
 void (*pm_cpu_restore)(void);
-int (*pm_prepare)(void);
-void (*pm_finish)(void);
-unsigned int (*pm_check_eint_pend)(void);
 
 #define any_allowed(mask, allow) (((mask) & (allow)) != (allow))
 
@@ -255,9 +242,7 @@ unsigned int (*pm_check_eint_pend)(void);
  *
  * central control for sleep/resume process
 */
-#ifdef CONFIG_FAST_BOOT
-extern bool fake_shut_down;
-#endif
+
 static int s3c_pm_enter(suspend_state_t state)
 {
 	/* ensure the debug is initialised (if enabled) */
@@ -281,15 +266,6 @@ static int s3c_pm_enter(suspend_state_t state)
 		printk(KERN_ERR "%s: No wake-up sources!\n", __func__);
 		printk(KERN_ERR "%s: Aborting sleep\n", __func__);
 		return -EINVAL;
-	}
-
-	if (pm_check_eint_pend) {
-		u32 pending_eint = pm_check_eint_pend();
-		if (pending_eint) {
-			pr_warn("%s: Aborting sleep, EINT PENDING(0x%08x)\n",
-					__func__, pending_eint);
-			return -EBUSY;
-		}
 	}
 
 	/* save all necessary core registers not covered by the drivers */
@@ -318,38 +294,13 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_check_store();
 
-#ifdef CONFIG_FAST_BOOT
-	if (fake_shut_down) {
-#if defined(CONFIG_SEC_MODEM) || defined(CONFIG_QC_MODEM)
-		/* Masking external wake up source
-		 * only enable  power key, FUEL ALERT, AP/IF PMIC IRQ
-		 * and SIM Detect Irq
-		 */
-		__raw_writel(0xdf77df7f, S5P_EINT_WAKEUP_MASK);
-#else
-		/* Masking external wake up source
-		 * only enable  power key, FUEL ALERT, AP/IF PMIC IRQ */
-		__raw_writel(0xff77df7f, S5P_EINT_WAKEUP_MASK);
-#endif
-		/* disable all system int */
-		__raw_writel(0xffffffff, S5P_WAKEUP_MASK);
-	}
-#endif
-
 	/* send the cpu to sleep... */
 
 	s3c_pm_arch_stop_clocks();
 
-	printk(KERN_ALERT "PM: SLEEP\n");
-
 	/* s3c_cpu_save will also act as our return point from when
 	 * we resume as it saves its own register state and restores it
 	 * during the resume.  */
-
-	printk(KERN_ALERT "ARM_COREx_STATUS CORE1[0x%08x], CORE2[0x%08x], CORE3[0x%08x]\n",
-			__raw_readl(S5P_VA_PMU + 0x2084),
-			__raw_readl(S5P_VA_PMU + 0x2104),
-			__raw_readl(S5P_VA_PMU + 0x2184));
 
 	s3c_cpu_save(0, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 
@@ -364,7 +315,7 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_debug_init();
 
-	/* restore the system state */
+        /* restore the system state */
 
 	if (pm_cpu_restore)
 		pm_cpu_restore();
@@ -389,54 +340,21 @@ static int s3c_pm_enter(suspend_state_t state)
 static int s3c_pm_prepare(void)
 {
 	/* prepare check area if configured */
-#if defined(CONFIG_MACH_P8LTE) \
-	|| defined(CONFIG_MACH_U1_NA_SPR) \
-	|| defined(CONFIG_MACH_U1_NA_USCC)
-	disable_hlt();
-#endif
+
 	s3c_pm_check_prepare();
-
-	if (pm_prepare)
-		pm_prepare();
-
 	return 0;
 }
 
 static void s3c_pm_finish(void)
 {
-	if (pm_finish)
-		pm_finish();
-
 	s3c_pm_check_cleanup();
-#if defined(CONFIG_MACH_P8LTE) \
-	|| defined(CONFIG_MACH_U1_NA_SPR) \
-	|| defined(CONFIG_MACH_U1_NA_USCC)
-	enable_hlt();
-#endif
 }
-
-#if defined(CONFIG_CHARGER_MANAGER)
-static bool s3c_cm_suspend_again(void)
-{
-	bool ret;
-
-	if (!is_charger_manager_active())
-		return false;
-
-	ret = cm_suspend_again();
-
-	return ret;
-}
-#endif
 
 static const struct platform_suspend_ops s3c_pm_ops = {
 	.enter		= s3c_pm_enter,
 	.prepare	= s3c_pm_prepare,
 	.finish		= s3c_pm_finish,
 	.valid		= suspend_valid_only_mem,
-#if defined(CONFIG_CHARGER_MANAGER)
-	.suspend_again	= s3c_cm_suspend_again,
-#endif
 };
 
 /* s3c_pm_init
@@ -448,7 +366,7 @@ static const struct platform_suspend_ops s3c_pm_ops = {
 
 int __init s3c_pm_init(void)
 {
-	printk(KERN_INFO "S3C Power Management, Copyright 2004 Simtec Electronics\n");
+	printk("S3C Power Management, Copyright 2004 Simtec Electronics\n");
 
 	suspend_set_ops(&s3c_pm_ops);
 	return 0;

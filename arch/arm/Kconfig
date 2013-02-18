@@ -4,7 +4,6 @@ config ARM
 	select HAVE_AOUT
 	select HAVE_DMA_API_DEBUG
 	select HAVE_IDE
-	select HAVE_DMA_CONTIGUOUS if (CPU_V6 || CPU_V6K || CPU_V7)
 	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
@@ -38,9 +37,6 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
-
-config ARM_HAS_SG_CHAIN
-	bool
 
 config HAVE_PWM
 	bool
@@ -115,6 +111,7 @@ config STACKTRACE_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	bool
+	depends on !SMP
 	default y
 
 config LOCKDEP_SUPPORT
@@ -142,6 +139,7 @@ config RWSEM_GENERIC_SPINLOCK
 	bool
 
 config RWSEM_XCHGADD_ALGORITHM
+	bool
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32
@@ -215,9 +213,6 @@ config ARM_PATCH_PHYS_VIRT_16BIT
 	  This option extends the physical to virtual translation patching
 	  to allow physical memory down to a theoretical minimum of 64K
 	  boundaries.
-
-config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
 
 source "init/Kconfig"
 
@@ -1798,8 +1793,6 @@ config ARM_FLUSH_CONSOLE_ON_RESTART
 	  console drivers. This option forces the console lock to be
 	  released if it failed to be acquired, which will cause all the
 	  pending messages to be flushed.
-
-source "arch/arm/mvp/Kconfig"
 
 endmenu
 

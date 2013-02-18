@@ -17,7 +17,7 @@
 static struct resource s5p_mipi_csis0_resource[] = {
 	[0] = {
 		.start = S5P_PA_MIPI_CSIS0,
-		.end   = S5P_PA_MIPI_CSIS0 + SZ_16K - 1,
+		.end   = S5P_PA_MIPI_CSIS0 + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -35,7 +35,7 @@ struct platform_device s5p_device_mipi_csis0 = {
 };
 
 struct s5p_platform_mipi_csis s5p_mipi_csis0_default_data __initdata = {
-	.clk_rate	= 166000000,
+	.clk_rate 	= 166000000,
 	.lanes		= 2,
 	.alignment	= 32,
 	.hs_settle	= 12,

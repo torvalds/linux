@@ -17,10 +17,12 @@ if CPU_EXYNOS4210 || CPU_EXYNOS4212 || CPU_EXYNOS4412
 	source "drivers/media/video/samsung/fimc/Kconfig"
 	source "drivers/media/video/samsung/tvout/Kconfig"
 	source "drivers/media/video/samsung/mfc5x/Kconfig"
+
 endif
 
 config VIDEO_FIMG2D
 	bool
+	select S5P_SYSTEM_MMU
 	depends on VIDEO_SAMSUNG
 	default n
 
@@ -77,42 +79,37 @@ config VIDEO_SAMSUNG_MEMSIZE_FIMC2
 config VIDEO_SAMSUNG_MEMSIZE_FIMC3
 	int "Memory size in kbytes for FIMC3"
 	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC
-	default "0"
+	default "5120"
 
 config VIDEO_SAMSUNG_MEMSIZE_MFC
 	int "Memory size in kbytes for MFC"
-	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 1) && (!EXYNOS_CONTENT_PATH_PROTECTION)
-	default "65536"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 1) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "156928"
 
 config VIDEO_SAMSUNG_MEMSIZE_MFC0
 	int "Memory size in kbytes for MFC port0"
-	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS_CONTENT_PATH_PROTECTION)
-	default "41984"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "56192"
 
 config VIDEO_SAMSUNG_MEMSIZE_MFC1
 	int "Memory size in kbytes for MFC port1"
-	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS_CONTENT_PATH_PROTECTION)
-	default "41984"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "100864"
 
 config VIDEO_SAMSUNG_MEMSIZE_MFC_SECURE
 	int "Memory size in kbytes for MFC Secure"
-	depends on VIDEO_MFC5X && EXYNOS_CONTENT_PATH_PROTECTION
+	depends on VIDEO_MFC5X && EXYNOS4_CONTENT_PATH_PROTECTION
 	default "41984"
 
 config VIDEO_SAMSUNG_MEMSIZE_MFC_NORMAL
 	int "Memory size in kbytes for MFC Normal"
-	depends on VIDEO_MFC5X && EXYNOS_CONTENT_PATH_PROTECTION
+	depends on VIDEO_MFC5X && EXYNOS4_CONTENT_PATH_PROTECTION
 	default "41984"
 
 config VIDEO_SAMSUNG_MEMSIZE_JPEG
 	int "Memory size in kbytes for JPEG"
 	depends on VIDEO_JPEG || (VIDEO_JPEG_V2X && (CPU_EXYNOS4212 || CPU_EXYNOS4412))
 	default "40960"
-
-config VIDEO_SAMSUNG_MEMSIZE_TVOUT
-	int "Memory size in kbytes for TVOUT"
-	depends on VIDEO_TVOUT
-	default "16384"
 endif
 
 config VIDEO_MALI_R2P4

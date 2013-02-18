@@ -57,7 +57,7 @@ int __init exynos4_fimd_setup_clock(struct device *dev, const char *bus_clk,
 	}
 
 	if (!clk_rate)
-		clk_rate = 87000000UL;
+		clk_rate = 134000000UL;
 
 	if (clk_set_rate(sclk, clk_rate)) {
 		pr_err("%s rate change failed: %lu\n", sclk->name, clk_rate);

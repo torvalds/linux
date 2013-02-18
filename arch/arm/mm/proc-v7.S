@@ -375,7 +375,7 @@ __v7_setup:
 	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_743622
-	teq	r5, #0x00200000			@ only present in r2p*
+	teq	r5, #0x00200000			@ present in r2p*
 	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orreq	r10, r10, #1 << 6		@ set bit #6
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
@@ -428,19 +428,15 @@ __v7_setup:
 #endif
 #endif
 #ifdef CONFIG_ARM_ERRATA_763722
-	teq	r6, #0x0			@ present in r0p0
-	teqne	r6, #0x1			@ present in r0p1
-	teqne	r6, #0x2			@ present in r0p2
-	teqne	r6, #0x3			@ present in r0p3
-	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orreq	r10, r10, #15 << 25		@ set [28:25] bit
+	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orr	r10, r10, #15 << 25		@ set [28:25] bit
 #ifdef CONFIG_ARM_TRUSTZONE
-	ldreq	r0, =SMC_CMD_REG
-	ldreq	r1, =SMC_REG_ID_CP15(1, 0, 0, 1)
-	moveq	r2, r10
-	smceq	0
+	ldr	r0, =SMC_CMD_REG
+	ldr	r1, =SMC_REG_ID_CP15(1, 0, 0, 1)
+	mov	r2, r10
+	smc	0
 #else
-	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
+	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
 #endif
 #ifdef CONFIG_ARM_TRUSTZONE
@@ -448,7 +444,9 @@ __v7_setup:
 #endif
 
 4:	mov	r10, #0
+#ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
+#endif
 	dsb
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs

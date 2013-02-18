@@ -3,7 +3,7 @@
  * SRP Audio Firmware for Samsung Exynos4
  *
  * Copyright (c) 2010 Samsung Electronics
- *	http://www.samsungsemi.com/
+ * 	http://www.samsungsemi.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9339,3 +9339,4 @@ unsigned long rp_fw_vliw_len = sizeof(rp_fw_vliw);
 unsigned long rp_fw_cga_len = sizeof(rp_fw_cga);
 unsigned long rp_fw_cga_sa_len = sizeof(rp_fw_cga_sa);
 unsigned long rp_fw_data_len = sizeof(rp_fw_data);
+

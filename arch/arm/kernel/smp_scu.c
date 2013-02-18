@@ -23,10 +23,6 @@
 #define SCU_INVALIDATE		0x0c
 #define SCU_FPGA_REVISION	0x10
 
-#ifdef CONFIG_MACH_PX
-extern void logbuf_force_unlock(void);
-#endif
-
 /*
  * Get the number of CPU cores from the SCU configuration
  */
@@ -39,7 +35,7 @@ unsigned int __init scu_get_core_count(void __iomem *scu_base)
 /*
  * Enable the SCU
  */
-void scu_enable(void __iomem *scu_base)
+void __init scu_enable(void __iomem *scu_base)
 {
 	u32 scu_ctrl;
 
@@ -57,10 +53,8 @@ void scu_enable(void __iomem *scu_base)
 	if (scu_ctrl & 1)
 		return;
 
-	if ((soc_is_exynos4412() && (samsung_rev() >= EXYNOS4412_REV_1_0)) ||
-		soc_is_exynos4210())
+	if (soc_is_exynos4412() && (samsung_rev() >= EXYNOS4412_REV_1_0))
 		scu_ctrl |= (1<<3);
-
 	scu_ctrl |= 1;
 	__raw_writel(scu_ctrl, scu_base + SCU_CTRL);
 
@@ -69,10 +63,6 @@ void scu_enable(void __iomem *scu_base)
 	 * initialised is visible to the other CPUs.
 	 */
 	flush_cache_all();
-
-#ifdef CONFIG_MACH_PX
-	logbuf_force_unlock();
-#endif
 }
 
 /*
