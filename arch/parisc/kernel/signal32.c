@@ -65,7 +65,7 @@ put_sigset32(compat_sigset_t __user *up, sigset_t *set, size_t sz)
 {
 	compat_sigset_t s;
 
-	if (sz != sizeof *set)
+	if (sz != sizeof(compat_sigset_t))
 		return -EINVAL;
 	sigset_64to32(&s, set);
 
@@ -78,7 +78,7 @@ get_sigset32(compat_sigset_t __user *up, sigset_t *set, size_t sz)
 	compat_sigset_t s;
 	int r;
 
-	if (sz != sizeof *set)
+	if (sz != sizeof(compat_sigset_t))
 		return -EINVAL;
 
 	if ((r = copy_from_user(&s, up, sz)) == 0) {
@@ -94,8 +94,11 @@ int sys32_rt_sigprocmask(int how, compat_sigset_t __user *set, compat_sigset_t _
 	sigset_t old_set, new_set;
 	int ret;
 
-	if (set && get_sigset32(set, &new_set, sigsetsize))
-		return -EFAULT;
+	if (set) {
+		ret = get_sigset32(set, &new_set, sigsetsize);
+		if (ret)
+			return ret;
+	}
 	
 	KERNEL_SYSCALL(ret, sys_rt_sigprocmask, how, set ? (sigset_t __user *)&new_set : NULL,
 				 oset ? (sigset_t __user *)&old_set : NULL, sigsetsize);
@@ -127,6 +130,10 @@ sys32_rt_sigaction(int sig, const struct sigaction32 __user *act, struct sigacti
 	struct k_sigaction32 new_sa32, old_sa32;
 	struct k_sigaction new_sa, old_sa;
 	int ret = -EINVAL;
+
+	/* XXX: Don't preclude handling different sized sigset_t's.  */
+	if (sigsetsize != sizeof(compat_sigset_t))
+		return -EINVAL;
 
 	if (act) {
 		if (copy_from_user(&new_sa32.sa, act, sizeof new_sa32.sa))
