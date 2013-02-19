@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_gem_dmabuf.c
+ * drivers/gpu/drm/omapdrm/omap_gem_dmabuf.c
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob.clark@linaro.org>
@@ -53,10 +53,10 @@ static struct sg_table *omap_gem_map_dma_buf(
 	/* this should be after _get_paddr() to ensure we have pages attached */
 	omap_gem_dma_sync(obj, dir);
 
-out:
-	if (ret)
-		return ERR_PTR(ret);
 	return sg;
+out:
+	kfree(sg);
+	return ERR_PTR(ret);
 }
 
 static void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,

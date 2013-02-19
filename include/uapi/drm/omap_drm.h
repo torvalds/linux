@@ -1,5 +1,5 @@
 /*
- * include/drm/omap_drm.h
+ * include/uapi/drm/omap_drm.h
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob@ti.com>

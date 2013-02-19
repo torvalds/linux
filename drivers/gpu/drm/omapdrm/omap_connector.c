@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_connector.c
+ * drivers/gpu/drm/omapdrm/omap_connector.c
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob@ti.com>

@@ -1,5 +1,5 @@
 /*
- * drivers/staging/omapdrm/omap_drv.h
+ * drivers/gpu/drm/omapdrm/omap_drv.h
  *
  * Copyright (C) 2011 Texas Instruments
  * Author: Rob Clark <rob@ti.com>
@@ -25,8 +25,8 @@
 #include <linux/types.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/omap_drm.h>
 #include <linux/platform_data/omap_drm.h>
-#include "omap_drm.h"
 
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
@@ -133,6 +133,10 @@ void omap_debugfs_cleanup(struct drm_minor *minor);
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
+#endif
+
+#ifdef CONFIG_PM
+int omap_gem_resume(struct device *dev);
 #endif
 
 int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
