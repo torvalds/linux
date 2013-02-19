@@ -739,6 +739,7 @@ struct hdmi_eld {
 	int	eld_size;
 	char    eld_buffer[ELD_MAX_SIZE];
 	struct parsed_hdmi_eld info;
+	struct mutex lock;
 #ifdef CONFIG_PROC_FS
 	struct snd_info_entry *proc_entry;
 #endif
