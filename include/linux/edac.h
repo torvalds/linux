@@ -48,7 +48,6 @@ static inline void opstate_init(void)
 }
 
 #define EDAC_MC_LABEL_LEN	31
-#define MC_PROC_NAME_MAX_LEN	7
 
 /**
  * enum dev_type - describe the type of memory DRAM chips used at the stick
@@ -633,7 +632,6 @@ struct mem_ctl_info {
 	const char *mod_ver;
 	const char *ctl_name;
 	const char *dev_name;
-	char proc_name[MC_PROC_NAME_MAX_LEN + 1];
 	void *pvt_info;
 	unsigned long start_time;	/* mci load start time (in jiffies) */
 
