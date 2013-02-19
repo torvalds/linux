@@ -223,7 +223,7 @@ static int rk29_backlight_pwm_resume(void)
 	gpio_free(pwm_gpio);
 	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
-	msleep(30);
+	msleep(200);
 	gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return 0;
@@ -232,8 +232,9 @@ static int rk29_backlight_pwm_resume(void)
 static struct rk29_bl_info rk29_bl_info = {
 	.pwm_id = PWM_ID,
 	.min_brightness = 50,
-	.max_brightness=255,
+	.max_brightness=200,
 	.brightness_mode =BRIGHTNESS_MODE_CONIC,
+	.pre_div = 30 * 1000,
 	.bl_ref = PWM_EFFECT_VALUE,
 	.io_init = rk29_backlight_io_init,
 	.io_deinit = rk29_backlight_io_deinit,
@@ -415,6 +416,16 @@ static struct sensor_platform_data lis3dh_info = {
 	.poll_delay_ms = 30,
         .init_platform_hw = lis3dh_init_platform_hw,
 	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+};
+#endif
+#if defined(CONFIG_CHARGER_CW2015)
+struct cw2015_platform_data cw2015_info = {
+		.dc_det_pin      = RK30_PIN0_PB2,
+        .batt_low_pin    = RK30_PIN0_PB1,
+        //.charge_ok_pin   = RK30_PIN0_PA6,
+        .dc_det_level    = GPIO_LOW,
+        .batt_low_level  = GPIO_LOW,
+        //.charge_ok_level = GPIO_HIGH,
 };
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
@@ -1521,7 +1532,14 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 	},
 #endif
-
+#if defined (CONFIG_CHARGER_CW2015)
+        {
+                .type                   = "cw2015",
+                .addr                   = 0x62,
+                .flags                  = 0,
+                .platform_data = &cw2015_info,
+        },
+#endif
 };
 #endif
 
@@ -1719,19 +1737,31 @@ static struct pmu_info  act8846_dcdc_info[] = {
 		.name          = "vdd_core",    //logic
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  1000000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		.suspend_vol  =  1200000,
+		#else
+		.suspend_vol  =  900000,
+		#endif
 	},
 	{
 		.name          = "vdd_cpu",   //arm
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  1000000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		.suspend_vol  =  1200000,
+		#else
+		.suspend_vol  =  900000,
+		#endif
 	},
 	{
 		.name          = "act_dcdc4",   //vccio
 		.min_uv          = 3300000,
 		.max_uv         = 3300000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		.suspend_vol  =  3000000,
+		#else
 		.suspend_vol  =  2800000,
+		#endif
 	},
 	
 };
@@ -1805,7 +1835,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.type    		= "act8846",
 		.addr           = 0x5a, 
 		.flags			= 0,
-		.irq            = ACT8846_HOST_IRQ,
+	//	.irq            = ACT8846_HOST_IRQ,
 		.platform_data=&act8846_data,
 	},
 #endif
@@ -1817,7 +1847,6 @@ static struct i2c_board_info __initdata i2c1_info[] = {
         .irq            = RK30_PIN0_PB5,
     },   
 #endif
-
 };
 #endif
 
@@ -2250,9 +2279,9 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-//	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
-//	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
-	{.frequency = 533 * 1000 + DDR_FREQ_NORMAL,     .index = 1200 * 1000},
+	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
+	//{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
+	{.frequency = 528 * 1000 + DDR_FREQ_NORMAL,     .index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
