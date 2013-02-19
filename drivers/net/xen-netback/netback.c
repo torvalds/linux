@@ -990,7 +990,7 @@ static int xen_netbk_tx_check_gop(struct xen_netbk *netbk,
 		xen_netbk_idx_release(netbk, pending_idx, XEN_NETIF_RSP_ERROR);
 
 	/* Skip first skb fragment if it is on same page as header fragment. */
-	start = ((unsigned long)shinfo->frags[i].page == pending_idx);
+	start = ((unsigned long)shinfo->frags[0].page == pending_idx);
 
 	for (i = start; i < nr_frags; i++) {
 		int j, newerr;
