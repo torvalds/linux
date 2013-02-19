@@ -23,8 +23,10 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/mfd/tps6507x.h>
+#include <linux/regulator/of_regulator.h>
 
 /* DCDC's */
 #define TPS6507X_DCDC_1				0
@@ -356,6 +358,80 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.list_voltage = regulator_list_voltage_table,
 };
 
+#ifdef CONFIG_OF
+static struct of_regulator_match tps6507x_matches[] = {
+	{ .name = "VDCDC1"},
+	{ .name = "VDCDC2"},
+	{ .name = "VDCDC3"},
+	{ .name = "LDO1"},
+	{ .name = "LDO2"},
+};
+
+static struct tps6507x_board *tps6507x_parse_dt_reg_data(
+		struct platform_device *pdev,
+		struct of_regulator_match **tps6507x_reg_matches)
+{
+	struct tps6507x_board *tps_board;
+	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_node *regulators;
+	struct of_regulator_match *matches;
+	static struct regulator_init_data *reg_data;
+	int idx = 0, count, ret;
+
+	tps_board = devm_kzalloc(&pdev->dev, sizeof(*tps_board),
+					GFP_KERNEL);
+	if (!tps_board) {
+		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+		return NULL;
+	}
+
+	regulators = of_find_node_by_name(np, "regulators");
+	if (!regulators) {
+		dev_err(&pdev->dev, "regulator node not found\n");
+		return NULL;
+	}
+
+	count = ARRAY_SIZE(tps6507x_matches);
+	matches = tps6507x_matches;
+
+	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
+			ret);
+		return NULL;
+	}
+
+	*tps6507x_reg_matches = matches;
+
+	reg_data = devm_kzalloc(&pdev->dev, (sizeof(struct regulator_init_data)
+					* TPS6507X_NUM_REGULATOR), GFP_KERNEL);
+	if (!reg_data) {
+		dev_err(&pdev->dev, "Failure to alloc init data for regulators.\n");
+		return NULL;
+	}
+
+	tps_board->tps6507x_pmic_init_data = reg_data;
+
+	for (idx = 0; idx < count; idx++) {
+		if (!matches[idx].init_data || !matches[idx].of_node)
+			continue;
+
+		memcpy(&reg_data[idx], matches[idx].init_data,
+				sizeof(struct regulator_init_data));
+
+	}
+
+	return tps_board;
+}
+#else
+static inline struct tps6507x_board *tps6507x_parse_dt_reg_data(
+			struct platform_device *pdev,
+			struct of_regulator_match **tps6507x_reg_matches)
+{
+	*tps6507x_reg_matches = NULL;
+	return NULL;
+}
+#endif
 static int tps6507x_pmic_probe(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = dev_get_drvdata(pdev->dev.parent);
@@ -365,8 +441,10 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps6507x_pmic *tps;
 	struct tps6507x_board *tps_board;
+	struct of_regulator_match *tps6507x_reg_matches = NULL;
 	int i;
 	int error;
+	unsigned int prop;
 
 	/**
 	 * tps_board points to pmic related constants
@@ -374,6 +452,9 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 	 */
 
 	tps_board = dev_get_platdata(tps6507x_dev->dev);
+	if (!tps_board && tps6507x_dev->dev->of_node)
+		tps_board = tps6507x_parse_dt_reg_data(pdev,
+						&tps6507x_reg_matches);
 	if (!tps_board)
 		return -EINVAL;
 
@@ -414,6 +495,17 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 		config.dev = tps6507x_dev->dev;
 		config.init_data = init_data;
 		config.driver_data = tps;
+
+		if (tps6507x_reg_matches) {
+			error = of_property_read_u32(
+				tps6507x_reg_matches[i].of_node,
+					"ti,defdcdc_default", &prop);
+
+			if (!error)
+				tps->info[i]->defdcdc_default = prop;
+
+			config.of_node = tps6507x_reg_matches[i].of_node;
+		}
 
 		rdev = regulator_register(&tps->desc[i], &config);
 		if (IS_ERR(rdev)) {
