@@ -252,6 +252,16 @@ static int m5602_init(struct gspca_dev *gspca_dev)
 	return err;
 }
 
+static int m5602_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->sensor->init_controls)
+		return 0;
+
+	return sd->sensor->init_controls(sd);
+}
+
 static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -336,11 +346,12 @@ static void m5602_stop_transfer(struct gspca_dev *gspca_dev)
 		sd->sensor->stop(sd);
 }
 
-/* sub-driver description, the ctrl and nctrl is filled at probe time */
-static struct sd_desc sd_desc = {
+/* sub-driver description */
+static const struct sd_desc sd_desc = {
 	.name		= MODULE_NAME,
 	.config		= m5602_configure,
 	.init		= m5602_init,
+	.init_controls	= m5602_init_controls,
 	.start		= m5602_start_transfer,
 	.stopN		= m5602_stop_transfer,
 	.pkt_scan	= m5602_urb_complete
@@ -355,7 +366,6 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	int err;
 
 	cam = &gspca_dev->cam;
-	sd->desc = &sd_desc;
 
 	if (dump_bridge)
 		m5602_dump_bridge(sd);

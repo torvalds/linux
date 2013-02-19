@@ -136,16 +136,33 @@ struct sd {
 	/* A pointer to the currently connected sensor */
 	const struct m5602_sensor *sensor;
 
-	struct sd_desc *desc;
-
-	/* Sensor private data */
-	void *sensor_priv;
-
 	/* The current frame's id, used to detect frame boundaries */
 	u8 frame_id;
 
 	/* The current frame count */
 	u32 frame_count;
+
+	/* Camera rotation polling thread for "flipable" cams */
+	struct task_struct *rotation_thread;
+
+	struct { /* auto-white-bal + green/red/blue balance control cluster */
+		struct v4l2_ctrl *auto_white_bal;
+		struct v4l2_ctrl *red_bal;
+		struct v4l2_ctrl *blue_bal;
+		struct v4l2_ctrl *green_bal;
+	};
+	struct { /* autoexpo / expo cluster */
+		struct v4l2_ctrl *autoexpo;
+		struct v4l2_ctrl *expo;
+	};
+	struct { /* autogain / gain cluster */
+		struct v4l2_ctrl *autogain;
+		struct v4l2_ctrl *gain;
+	};
+	struct { /* hflip/vflip cluster */
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+	};
 };
 
 int m5602_read_bridge(

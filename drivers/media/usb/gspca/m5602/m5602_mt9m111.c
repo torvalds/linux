@@ -20,22 +20,8 @@
 
 #include "m5602_mt9m111.h"
 
-static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-static int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
-					 __s32 val);
-static int mt9m111_get_auto_white_balance(struct gspca_dev *gspca_dev,
-					  __s32 *val);
-static int mt9m111_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int mt9m111_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int mt9m111_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
-static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl);
+static void mt9m111_dump_registers(struct sd *sd);
 
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
@@ -50,118 +36,26 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 	}
 };
 
-static const struct ctrl mt9m111_ctrls[] = {
-#define VFLIP_IDX 0
-	{
-		{
-			.id		= V4L2_CID_VFLIP,
-			.type           = V4L2_CTRL_TYPE_BOOLEAN,
-			.name           = "vertical flip",
-			.minimum        = 0,
-			.maximum        = 1,
-			.step           = 1,
-			.default_value  = 0
-		},
-		.set = mt9m111_set_vflip,
-		.get = mt9m111_get_vflip
-	},
-#define HFLIP_IDX 1
-	{
-		{
-			.id             = V4L2_CID_HFLIP,
-			.type           = V4L2_CTRL_TYPE_BOOLEAN,
-			.name           = "horizontal flip",
-			.minimum        = 0,
-			.maximum        = 1,
-			.step           = 1,
-			.default_value  = 0
-		},
-		.set = mt9m111_set_hflip,
-		.get = mt9m111_get_hflip
-	},
-#define GAIN_IDX 2
-	{
-		{
-			.id             = V4L2_CID_GAIN,
-			.type           = V4L2_CTRL_TYPE_INTEGER,
-			.name           = "gain",
-			.minimum        = 0,
-			.maximum        = (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2,
-			.step           = 1,
-			.default_value  = MT9M111_DEFAULT_GAIN,
-			.flags          = V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = mt9m111_set_gain,
-		.get = mt9m111_get_gain
-	},
-#define AUTO_WHITE_BALANCE_IDX 3
-	{
-		{
-			.id             = V4L2_CID_AUTO_WHITE_BALANCE,
-			.type           = V4L2_CTRL_TYPE_BOOLEAN,
-			.name           = "auto white balance",
-			.minimum        = 0,
-			.maximum        = 1,
-			.step           = 1,
-			.default_value  = 0,
-		},
-		.set = mt9m111_set_auto_white_balance,
-		.get = mt9m111_get_auto_white_balance
-	},
-#define GREEN_BALANCE_IDX 4
-	{
-		{
-			.id		= M5602_V4L2_CID_GREEN_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "green balance",
-			.minimum	= 0x00,
-			.maximum	= 0x7ff,
-			.step		= 0x1,
-			.default_value	= MT9M111_GREEN_GAIN_DEFAULT,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = mt9m111_set_green_balance,
-		.get = mt9m111_get_green_balance
-	},
-#define BLUE_BALANCE_IDX 5
-	{
-		{
-			.id		= V4L2_CID_BLUE_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "blue balance",
-			.minimum	= 0x00,
-			.maximum	= 0x7ff,
-			.step		= 0x1,
-			.default_value	= MT9M111_BLUE_GAIN_DEFAULT,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = mt9m111_set_blue_balance,
-		.get = mt9m111_get_blue_balance
-	},
-#define RED_BALANCE_IDX 5
-	{
-		{
-			.id		= V4L2_CID_RED_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "red balance",
-			.minimum	= 0x00,
-			.maximum	= 0x7ff,
-			.step		= 0x1,
-			.default_value	= MT9M111_RED_GAIN_DEFAULT,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = mt9m111_set_red_balance,
-		.get = mt9m111_get_red_balance
-	},
+static const struct v4l2_ctrl_ops mt9m111_ctrl_ops = {
+	.s_ctrl = mt9m111_s_ctrl,
 };
 
-static void mt9m111_dump_registers(struct sd *sd);
+static const struct v4l2_ctrl_config mt9m111_greenbal_cfg = {
+	.ops	= &mt9m111_ctrl_ops,
+	.id	= M5602_V4L2_CID_GREEN_BALANCE,
+	.name	= "Green Balance",
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.min	= 0,
+	.max	= 0x7ff,
+	.step	= 1,
+	.def	= MT9M111_GREEN_GAIN_DEFAULT,
+	.flags	= V4L2_CTRL_FLAG_SLIDER,
+};
 
 int mt9m111_probe(struct sd *sd)
 {
 	u8 data[2] = {0x00, 0x00};
 	int i;
-	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == MT9M111_SENSOR) {
@@ -200,19 +94,8 @@ int mt9m111_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sensor_settings = kmalloc(ARRAY_SIZE(mt9m111_ctrls) * sizeof(s32),
-				  GFP_KERNEL);
-	if (!sensor_settings)
-		return -ENOMEM;
-
 	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(mt9m111_modes);
-	sd->desc->ctrls = mt9m111_ctrls;
-	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
-
-	for (i = 0; i < ARRAY_SIZE(mt9m111_ctrls); i++)
-		sensor_settings[i] = mt9m111_ctrls[i].qctrl.default_value;
-	sd->sensor_priv = sensor_settings;
 
 	return 0;
 }
@@ -220,7 +103,6 @@ sensor_found:
 int mt9m111_init(struct sd *sd)
 {
 	int i, err = 0;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_mt9m111) && !err; i++) {
@@ -241,30 +123,45 @@ int mt9m111_init(struct sd *sd)
 	if (dump_sensor)
 		mt9m111_dump_registers(sd);
 
-	err = mt9m111_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
-	if (err < 0)
-		return err;
+	return 0;
+}
 
-	err = mt9m111_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
-	if (err < 0)
-		return err;
+int mt9m111_init_controls(struct sd *sd)
+{
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
-	err = mt9m111_set_green_balance(&sd->gspca_dev,
-					 sensor_settings[GREEN_BALANCE_IDX]);
-	if (err < 0)
-		return err;
+	sd->gspca_dev.vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 7);
 
-	err = mt9m111_set_blue_balance(&sd->gspca_dev,
-					 sensor_settings[BLUE_BALANCE_IDX]);
-	if (err < 0)
-		return err;
+	sd->auto_white_bal = v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops,
+					       V4L2_CID_AUTO_WHITE_BALANCE,
+					       0, 1, 1, 0);
+	sd->green_bal = v4l2_ctrl_new_custom(hdl, &mt9m111_greenbal_cfg, NULL);
+	sd->red_bal = v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops,
+					V4L2_CID_RED_BALANCE, 0, 0x7ff, 1,
+					MT9M111_RED_GAIN_DEFAULT);
+	sd->blue_bal = v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops,
+					V4L2_CID_BLUE_BALANCE, 0, 0x7ff, 1,
+					MT9M111_BLUE_GAIN_DEFAULT);
 
-	err = mt9m111_set_red_balance(&sd->gspca_dev,
-					sensor_settings[RED_BALANCE_IDX]);
-	if (err < 0)
-		return err;
+	v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops, V4L2_CID_GAIN, 0,
+			  (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2, 1,
+			  MT9M111_DEFAULT_GAIN);
 
-	return mt9m111_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	sd->hflip = v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops, V4L2_CID_HFLIP,
+				      0, 1, 1, 0);
+	sd->vflip = v4l2_ctrl_new_std(hdl, &mt9m111_ctrl_ops, V4L2_CID_VFLIP,
+				      0, 1, 1, 0);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_auto_cluster(4, &sd->auto_white_bal, 0, false);
+	v4l2_ctrl_cluster(2, &sd->hflip);
+
+	return 0;
 }
 
 int mt9m111_start(struct sd *sd)
@@ -272,7 +169,6 @@ int mt9m111_start(struct sd *sd)
 	int i, err = 0;
 	u8 data[2];
 	struct cam *cam = &sd->gspca_dev.cam;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width - 1;
 	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
@@ -334,25 +230,10 @@ int mt9m111_start(struct sd *sd)
 	switch (width) {
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
-		data[0] = MT9M111_RMB_OVER_SIZED;
-		data[1] = MT9M111_RMB_ROW_SKIP_2X |
-			  MT9M111_RMB_COLUMN_SKIP_2X |
-			  (sensor_settings[VFLIP_IDX] << 0) |
-			  (sensor_settings[HFLIP_IDX] << 1);
-
-		err = m5602_write_sensor(sd,
-					 MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 
 	case 320:
 		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
-		data[0] = MT9M111_RMB_OVER_SIZED;
-		data[1] = MT9M111_RMB_ROW_SKIP_4X |
-				MT9M111_RMB_COLUMN_SKIP_4X |
-				(sensor_settings[VFLIP_IDX] << 0) |
-				(sensor_settings[HFLIP_IDX] << 1);
-		err = m5602_write_sensor(sd,
-					 MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 	}
 	return err;
@@ -361,105 +242,46 @@ int mt9m111_start(struct sd *sd)
 void mt9m111_disconnect(struct sd *sd)
 {
 	sd->sensor = NULL;
-	kfree(sd->sensor_priv);
 }
 
-static int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[VFLIP_IDX];
-	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
-
-	return 0;
-}
-
-static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int mt9m111_set_hvflip(struct gspca_dev *gspca_dev)
 {
 	int err;
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	int hflip;
+	int vflip;
 
-	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
-
-	sensor_settings[VFLIP_IDX] = val;
+	PDEBUG(D_V4L2, "Set hvflip to %d %d", sd->hflip->val, sd->vflip->val);
 
 	/* The mt9m111 is flipped by default */
-	val = !val;
+	hflip = !sd->hflip->val;
+	vflip = !sd->vflip->val;
 
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
 		return err;
 
-	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
-	if (err < 0)
-		return err;
-
-	data[1] = (data[1] & 0xfe) | val;
-	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
-				   data, 2);
-	return err;
-}
-
-static int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[HFLIP_IDX];
-	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
-
-	return 0;
-}
-
-static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
-{
-	int err;
-	u8 data[2] = {0x00, 0x00};
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
-
-	sensor_settings[HFLIP_IDX] = val;
-
-	/* The mt9m111 is flipped by default */
-	val = !val;
-
-	/* Set the correct page map */
-	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
-	if (err < 0)
-		return err;
-
-	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
-	if (err < 0)
-		return err;
-
-	data[1] = (data[1] & 0xfd) | ((val << 1) & 0x02);
+	data[0] = MT9M111_RMB_OVER_SIZED;
+	if (gspca_dev->width == 640) {
+		data[1] = MT9M111_RMB_ROW_SKIP_2X |
+			  MT9M111_RMB_COLUMN_SKIP_2X |
+			  (hflip << 1) | vflip;
+	} else {
+		data[1] = MT9M111_RMB_ROW_SKIP_4X |
+			  MT9M111_RMB_COLUMN_SKIP_4X |
+			  (hflip << 1) | vflip;
+	}
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
 	return err;
-}
-
-static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GAIN_IDX];
-	PDEBUG(D_V4L2, "Read gain %d", *val);
-
-	return 0;
 }
 
 static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
 					  __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 	int err;
 	u8 data[2];
 
@@ -467,7 +289,6 @@ static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	if (err < 0)
 		return err;
 
-	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val & 0x01;
 	data[1] = ((data[1] & 0xfd) | ((val & 0x01) << 1));
 
 	err = m5602_write_sensor(sd, MT9M111_CP_OPERATING_MODE_CTL, data, 2);
@@ -476,24 +297,11 @@ static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	return err;
 }
 
-static int mt9m111_get_auto_white_balance(struct gspca_dev *gspca_dev,
-					  __s32 *val) {
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTO_WHITE_BALANCE_IDX];
-	PDEBUG(D_V4L2, "Read auto white balance %d", *val);
-	return 0;
-}
-
 static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err, tmp;
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	sensor_settings[GAIN_IDX] = val;
 
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
@@ -532,9 +340,7 @@ static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[GREEN_BALANCE_IDX] = val;
 	data[1] = (val & 0xff);
 	data[0] = (val & 0xff00) >> 8;
 
@@ -548,23 +354,11 @@ static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
 				  data, 2);
 }
 
-static int mt9m111_get_green_balance(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GREEN_BALANCE_IDX];
-	PDEBUG(D_V4L2, "Read green balance %d", *val);
-	return 0;
-}
-
 static int mt9m111_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[BLUE_BALANCE_IDX] = val;
 	data[1] = (val & 0xff);
 	data[0] = (val & 0xff00) >> 8;
 
@@ -574,23 +368,11 @@ static int mt9m111_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 				  data, 2);
 }
 
-static int mt9m111_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[BLUE_BALANCE_IDX];
-	PDEBUG(D_V4L2, "Read blue balance %d", *val);
-	return 0;
-}
-
 static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[RED_BALANCE_IDX] = val;
 	data[1] = (val & 0xff);
 	data[0] = (val & 0xff00) >> 8;
 
@@ -600,14 +382,40 @@ static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 				  data, 2);
 }
 
-static int mt9m111_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	int err;
 
-	*val = sensor_settings[RED_BALANCE_IDX];
-	PDEBUG(D_V4L2, "Read red balance %d", *val);
-	return 0;
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		err = mt9m111_set_auto_white_balance(gspca_dev, ctrl->val);
+		if (err || ctrl->val)
+			return err;
+		err = mt9m111_set_green_balance(gspca_dev, sd->green_bal->val);
+		if (err)
+			return err;
+		err = mt9m111_set_red_balance(gspca_dev, sd->red_bal->val);
+		if (err)
+			return err;
+		err = mt9m111_set_blue_balance(gspca_dev, sd->blue_bal->val);
+		break;
+	case V4L2_CID_GAIN:
+		err = mt9m111_set_gain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		err = mt9m111_set_hvflip(gspca_dev);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return err;
 }
 
 static void mt9m111_dump_registers(struct sd *sd)

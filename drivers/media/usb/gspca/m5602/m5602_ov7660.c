@@ -20,111 +20,8 @@
 
 #include "m5602_ov7660.h"
 
-static int ov7660_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int ov7660_get_auto_white_balance(struct gspca_dev *gspca_dev,
-					 __s32 *val);
-static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
-					 __s32 val);
-static int ov7660_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
-static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int ov7660_get_auto_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev, __s32 val);
-static int ov7660_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int ov7660_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-static int ov7660_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int ov7660_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-
-static const struct ctrl ov7660_ctrls[] = {
-#define GAIN_IDX 1
-	{
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "gain",
-			.minimum	= 0x00,
-			.maximum	= 0xff,
-			.step		= 0x1,
-			.default_value	= OV7660_DEFAULT_GAIN,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = ov7660_set_gain,
-		.get = ov7660_get_gain
-	},
-#define BLUE_BALANCE_IDX 2
-#define RED_BALANCE_IDX 3
-#define AUTO_WHITE_BALANCE_IDX 4
-	{
-		{
-			.id		= V4L2_CID_AUTO_WHITE_BALANCE,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "auto white balance",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 1
-		},
-		.set = ov7660_set_auto_white_balance,
-		.get = ov7660_get_auto_white_balance
-	},
-#define AUTO_GAIN_CTRL_IDX 5
-	{
-		{
-			.id		= V4L2_CID_AUTOGAIN,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "auto gain control",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 1
-		},
-		.set = ov7660_set_auto_gain,
-		.get = ov7660_get_auto_gain
-	},
-#define AUTO_EXPOSURE_IDX 6
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE_AUTO,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "auto exposure",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 1
-		},
-		.set = ov7660_set_auto_exposure,
-		.get = ov7660_get_auto_exposure
-	},
-#define HFLIP_IDX 7
-	{
-		{
-			.id		= V4L2_CID_HFLIP,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "horizontal flip",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 0
-		},
-		.set = ov7660_set_hflip,
-		.get = ov7660_get_hflip
-	},
-#define VFLIP_IDX 8
-	{
-		{
-			.id		= V4L2_CID_VFLIP,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "vertical flip",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 0
-		},
-		.set = ov7660_set_vflip,
-		.get = ov7660_get_vflip
-	},
-
-};
+static int ov7660_s_ctrl(struct v4l2_ctrl *ctrl);
+static void ov7660_dump_registers(struct sd *sd);
 
 static struct v4l2_pix_format ov7660_modes[] = {
 	{
@@ -140,14 +37,14 @@ static struct v4l2_pix_format ov7660_modes[] = {
 	}
 };
 
-static void ov7660_dump_registers(struct sd *sd);
+static const struct v4l2_ctrl_ops ov7660_ctrl_ops = {
+	.s_ctrl = ov7660_s_ctrl,
+};
 
 int ov7660_probe(struct sd *sd)
 {
 	int err = 0, i;
 	u8 prod_id = 0, ver_id = 0;
-
-	s32 *sensor_settings;
 
 	if (force_sensor) {
 		if (force_sensor == OV7660_SENSOR) {
@@ -191,19 +88,8 @@ int ov7660_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sensor_settings = kmalloc(
-		ARRAY_SIZE(ov7660_ctrls) * sizeof(s32), GFP_KERNEL);
-	if (!sensor_settings)
-		return -ENOMEM;
-
 	sd->gspca_dev.cam.cam_mode = ov7660_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov7660_modes);
-	sd->desc->ctrls = ov7660_ctrls;
-	sd->desc->nctrls = ARRAY_SIZE(ov7660_ctrls);
-
-	for (i = 0; i < ARRAY_SIZE(ov7660_ctrls); i++)
-		sensor_settings[i] = ov7660_ctrls[i].qctrl.default_value;
-	sd->sensor_priv = sensor_settings;
 
 	return 0;
 }
@@ -211,7 +97,6 @@ sensor_found:
 int ov7660_init(struct sd *sd)
 {
 	int i, err = 0;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_ov7660); i++) {
@@ -231,33 +116,40 @@ int ov7660_init(struct sd *sd)
 	if (dump_sensor)
 		ov7660_dump_registers(sd);
 
-	err = ov7660_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
-	if (err < 0)
-		return err;
+	return 0;
+}
 
-	err = ov7660_set_auto_white_balance(&sd->gspca_dev,
-		sensor_settings[AUTO_WHITE_BALANCE_IDX]);
-	if (err < 0)
-		return err;
+int ov7660_init_controls(struct sd *sd)
+{
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
-	err = ov7660_set_auto_gain(&sd->gspca_dev,
-		sensor_settings[AUTO_GAIN_CTRL_IDX]);
-	if (err < 0)
-		return err;
+	sd->gspca_dev.vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 6);
 
-	err = ov7660_set_auto_exposure(&sd->gspca_dev,
-		sensor_settings[AUTO_EXPOSURE_IDX]);
-	if (err < 0)
-		return err;
-	err = ov7660_set_hflip(&sd->gspca_dev,
-		sensor_settings[HFLIP_IDX]);
-	if (err < 0)
-		return err;
+	v4l2_ctrl_new_std(hdl, &ov7660_ctrl_ops, V4L2_CID_AUTO_WHITE_BALANCE,
+			  0, 1, 1, 1);
+	v4l2_ctrl_new_std_menu(hdl, &ov7660_ctrl_ops,
+			  V4L2_CID_EXPOSURE_AUTO, 1, 0, V4L2_EXPOSURE_AUTO);
 
-	err = ov7660_set_vflip(&sd->gspca_dev,
-		sensor_settings[VFLIP_IDX]);
+	sd->autogain = v4l2_ctrl_new_std(hdl, &ov7660_ctrl_ops,
+					 V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	sd->gain = v4l2_ctrl_new_std(hdl, &ov7660_ctrl_ops, V4L2_CID_GAIN, 0,
+				     255, 1, OV7660_DEFAULT_GAIN);
 
-	return err;
+	sd->hflip = v4l2_ctrl_new_std(hdl, &ov7660_ctrl_ops, V4L2_CID_HFLIP,
+				      0, 1, 1, 0);
+	sd->vflip = v4l2_ctrl_new_std(hdl, &ov7660_ctrl_ops, V4L2_CID_VFLIP,
+				      0, 1, 1, 0);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_auto_cluster(2, &sd->autogain, 0, false);
+	v4l2_ctrl_cluster(2, &sd->hflip);
+
+	return 0;
 }
 
 int ov7660_start(struct sd *sd)
@@ -275,43 +167,18 @@ void ov7660_disconnect(struct sd *sd)
 	ov7660_stop(sd);
 
 	sd->sensor = NULL;
-	kfree(sd->sensor_priv);
-}
-
-static int ov7660_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GAIN_IDX];
-	PDEBUG(D_V4L2, "Read gain %d", *val);
-	return 0;
 }
 
 static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
-	u8 i2c_data;
+	u8 i2c_data = val;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Setting gain to %d", val);
 
-	sensor_settings[GAIN_IDX] = val;
-
 	err = m5602_write_sensor(sd, OV7660_GAIN, &i2c_data, 1);
 	return err;
-}
-
-
-static int ov7660_get_auto_white_balance(struct gspca_dev *gspca_dev,
-					 __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTO_WHITE_BALANCE_IDX];
-	return 0;
 }
 
 static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
@@ -320,11 +187,9 @@ static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	int err;
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
 
-	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val;
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
 		return err;
@@ -335,26 +200,14 @@ static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	return err;
 }
 
-static int ov7660_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTO_GAIN_CTRL_IDX];
-	PDEBUG(D_V4L2, "Read auto gain control %d", *val);
-	return 0;
-}
-
 static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set auto gain control to %d", val);
 
-	sensor_settings[AUTO_GAIN_CTRL_IDX] = val;
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
 		return err;
@@ -364,94 +217,69 @@ static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	return m5602_write_sensor(sd, OV7660_COM8, &i2c_data, 1);
 }
 
-static int ov7660_get_auto_exposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTO_EXPOSURE_IDX];
-	PDEBUG(D_V4L2, "Read auto exposure control %d", *val);
-	return 0;
-}
-
 static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev,
 				    __s32 val)
 {
 	int err;
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	PDEBUG(D_V4L2, "Set auto exposure control to %d", val);
 
-	sensor_settings[AUTO_EXPOSURE_IDX] = val;
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
 		return err;
 
+	val = (val == V4L2_EXPOSURE_AUTO);
 	i2c_data = ((i2c_data & 0xfe) | ((val & 0x01) << 0));
 
 	return m5602_write_sensor(sd, OV7660_COM8, &i2c_data, 1);
 }
 
-static int ov7660_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[HFLIP_IDX];
-	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
-	return 0;
-}
-
-static int ov7660_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int ov7660_set_hvflip(struct gspca_dev *gspca_dev)
 {
 	int err;
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
+	PDEBUG(D_V4L2, "Set hvflip to %d, %d", sd->hflip->val, sd->vflip->val);
 
-	sensor_settings[HFLIP_IDX] = val;
-
-	i2c_data = ((val & 0x01) << 5) |
-		(sensor_settings[VFLIP_IDX] << 4);
+	i2c_data = (sd->hflip->val << 5) | (sd->vflip->val << 4);
 
 	err = m5602_write_sensor(sd, OV7660_MVFP, &i2c_data, 1);
 
 	return err;
 }
 
-static int ov7660_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov7660_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[VFLIP_IDX];
-	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
-
-	return 0;
-}
-
-static int ov7660_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
-{
 	int err;
-	u8 i2c_data;
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
-	sensor_settings[VFLIP_IDX] = val;
+	if (!gspca_dev->streaming)
+		return 0;
 
-	i2c_data = ((val & 0x01) << 4) | (sensor_settings[VFLIP_IDX] << 5);
-	err = m5602_write_sensor(sd, OV7660_MVFP, &i2c_data, 1);
-	if (err < 0)
-		return err;
-
-	/* When vflip is toggled we need to readjust the bridge hsync/vsync */
-	if (gspca_dev->streaming)
-		err = ov7660_start(sd);
+	switch (ctrl->id) {
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		err = ov7660_set_auto_white_balance(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE_AUTO:
+		err = ov7660_set_auto_exposure(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		err = ov7660_set_auto_gain(gspca_dev, ctrl->val);
+		if (err || ctrl->val)
+			return err;
+		err = ov7660_set_gain(gspca_dev, sd->gain->val);
+		break;
+	case V4L2_CID_HFLIP:
+		err = ov7660_set_hvflip(gspca_dev);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return err;
 }
