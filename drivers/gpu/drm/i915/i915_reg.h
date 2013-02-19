@@ -1718,19 +1718,19 @@
 #define   SDVOC_PRESERVE_MASK ((1 << 17) | SDVO_INTERRUPT_ENABLE)
 
 /* Gen 4 SDVO/HDMI bits: */
-#define   COLOR_FORMAT_8bpc			(0 << 26)
+#define   SDVO_COLOR_FORMAT_8bpc		(0 << 26)
 #define   SDVO_ENCODING_SDVO			(0 << 10)
 #define   SDVO_ENCODING_HDMI			(2 << 10)
 #define   HDMI_MODE_SELECT_HDMI			(1 << 9) /* HDMI only */
 #define   HDMI_MODE_SELECT_DVI			(0 << 9) /* HDMI only */
-#define   SDVO_COLOR_RANGE_16_235		(1 << 8) /* HDMI only */
+#define   HDMI_COLOR_RANGE_16_235		(1 << 8) /* HDMI only */
 #define   SDVO_AUDIO_ENABLE			(1 << 6)
 /* VSYNC/HSYNC bits new with 965, default is to be set */
 #define   SDVO_VSYNC_ACTIVE_HIGH		(1 << 4)
 #define   SDVO_HSYNC_ACTIVE_HIGH		(1 << 3)
 
 /* Gen 5 (IBX) SDVO/HDMI bits: */
-#define   COLOR_FORMAT_12bpc			(3 << 26) /* HDMI only */
+#define   HDMI_COLOR_FORMAT_12bpc		(3 << 26) /* HDMI only */
 #define   SDVOB_HOTPLUG_ENABLE			(1 << 23) /* SDVO only */
 
 /* Gen 6 (CPT) SDVO/HDMI bits: */

@@ -609,9 +609,9 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 		hdmi_val |= SDVO_HSYNC_ACTIVE_HIGH;
 
 	if (intel_crtc->bpp > 24)
-		hdmi_val |= COLOR_FORMAT_12bpc;
+		hdmi_val |= HDMI_COLOR_FORMAT_12bpc;
 	else
-		hdmi_val |= COLOR_FORMAT_8bpc;
+		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
 
 	/* Required on CPT */
 	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
@@ -778,7 +778,7 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		if (intel_hdmi->has_hdmi_sink &&
 		    drm_mode_cea_vic(adjusted_mode) > 1)
-			intel_hdmi->color_range = SDVO_COLOR_RANGE_16_235;
+			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_hdmi->color_range = 0;
 	}
@@ -941,7 +941,7 @@ intel_hdmi_set_property(struct drm_connector *connector,
 			break;
 		case INTEL_BROADCAST_RGB_LIMITED:
 			intel_hdmi->color_range_auto = false;
-			intel_hdmi->color_range = SDVO_COLOR_RANGE_16_235;
+			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 			break;
 		default:
 			return -EINVAL;
