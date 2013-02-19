@@ -2298,13 +2298,17 @@ static int create_hp_mic(struct hda_codec *codec)
 /*
  * output jack mode
  */
+
+static int create_hp_mic_jack_mode(struct hda_codec *codec, hda_nid_t pin);
+
+static const char * const out_jack_texts[] = {
+	"Line Out", "Headphone Out",
+};
+
 static int out_jack_mode_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
 {
-	static const char * const texts[] = {
-		"Line Out", "Headphone Out",
-	};
-	return snd_hda_enum_helper_info(kcontrol, uinfo, 2, texts);
+	return snd_hda_enum_helper_info(kcontrol, uinfo, 2, out_jack_texts);
 }
 
 static int out_jack_mode_get(struct snd_kcontrol *kcontrol,
@@ -2366,6 +2370,17 @@ static void get_jack_mode_name(struct hda_codec *codec, hda_nid_t pin,
 		;
 }
 
+static int get_out_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->add_out_jack_modes) {
+		unsigned int pincap = snd_hda_query_pin_caps(codec, pin);
+		if ((pincap & AC_PINCAP_OUT) && (pincap & AC_PINCAP_HP_DRV))
+			return 2;
+	}
+	return 1;
+}
+
 static int create_out_jack_modes(struct hda_codec *codec, int num_pins,
 				 hda_nid_t *pins)
 {
@@ -2374,8 +2389,13 @@ static int create_out_jack_modes(struct hda_codec *codec, int num_pins,
 
 	for (i = 0; i < num_pins; i++) {
 		hda_nid_t pin = pins[i];
-		unsigned int pincap = snd_hda_query_pin_caps(codec, pin);
-		if ((pincap & AC_PINCAP_OUT) && (pincap & AC_PINCAP_HP_DRV)) {
+		if (pin == spec->hp_mic_pin) {
+			int ret = create_hp_mic_jack_mode(codec, pin);
+			if (ret < 0)
+				return ret;
+			continue;
+		}
+		if (get_out_jack_num_items(codec, pin) > 1) {
 			struct snd_kcontrol_new *knew;
 			char name[44];
 			get_jack_mode_name(codec, pin, name, sizeof(name));
@@ -2496,12 +2516,30 @@ static const struct snd_kcontrol_new in_jack_mode_enum = {
 	.put = in_jack_mode_put,
 };
 
+static int get_in_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	int nitems = 0;
+	if (spec->add_in_jack_modes)
+		nitems = hweight32(get_vref_caps(codec, pin));
+	return nitems ? nitems : 1;
+}
+
 static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	unsigned int defcfg;
 	struct snd_kcontrol_new *knew;
 	char name[44];
+	unsigned int defcfg;
+
+	if (pin == spec->hp_mic_pin) {
+		if (!spec->add_out_jack_modes) {
+			int ret = create_hp_mic_jack_mode(codec, pin);
+			if (ret < 0)
+				return ret;
+		}
+		return 0;
+	}
 
 	/* no jack mode for fixed pins */
 	defcfg = snd_hda_codec_get_pincfg(codec, pin);
@@ -2509,7 +2547,7 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 		return 0;
 
 	/* no multiple vref caps? */
-	if (hweight32(get_vref_caps(codec, pin)) <= 1)
+	if (get_in_jack_num_items(codec, pin) <= 1)
 		return 0;
 
 	get_jack_mode_name(codec, pin, name, sizeof(name));
@@ -2520,6 +2558,129 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 	return 0;
 }
 
+/*
+ * HP/mic shared jack mode
+ */
+static int hp_mic_jack_mode_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	int out_jacks = get_out_jack_num_items(codec, nid);
+	int in_jacks = get_in_jack_num_items(codec, nid);
+	const char *text = NULL;
+	int idx;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = out_jacks + in_jacks;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	idx = uinfo->value.enumerated.item;
+	if (idx < out_jacks) {
+		if (out_jacks > 1)
+			text = out_jack_texts[idx];
+		else
+			text = "Headphone Out";
+	} else {
+		idx -= out_jacks;
+		if (in_jacks > 1) {
+			unsigned int vref_caps = get_vref_caps(codec, nid);
+			text = vref_texts[get_vref_idx(vref_caps, idx)];
+		} else
+			text = "Mic In";
+	}
+
+	strcpy(uinfo->value.enumerated.name, text);
+	return 0;
+}
+
+static int get_cur_hp_mic_jack_mode(struct hda_codec *codec, hda_nid_t nid)
+{
+	int out_jacks = get_out_jack_num_items(codec, nid);
+	int in_jacks = get_in_jack_num_items(codec, nid);
+	unsigned int val = snd_hda_codec_get_pin_target(codec, nid);
+	int idx = 0;
+
+	if (val & PIN_OUT) {
+		if (out_jacks > 1 && val == PIN_HP)
+			idx = 1;
+	} else if (val & PIN_IN) {
+		idx = out_jacks;
+		if (in_jacks > 1) {
+			unsigned int vref_caps = get_vref_caps(codec, nid);
+			val &= AC_PINCTL_VREFEN;
+			idx += cvt_from_vref_idx(vref_caps, val);
+		}
+	}
+	return idx;
+}
+
+static int hp_mic_jack_mode_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	ucontrol->value.enumerated.item[0] =
+		get_cur_hp_mic_jack_mode(codec, nid);
+	return 0;
+}
+
+static int hp_mic_jack_mode_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	int out_jacks = get_out_jack_num_items(codec, nid);
+	int in_jacks = get_in_jack_num_items(codec, nid);
+	unsigned int val, oldval, idx;
+
+	oldval = get_cur_hp_mic_jack_mode(codec, nid);
+	idx = ucontrol->value.enumerated.item[0];
+	if (oldval == idx)
+		return 0;
+
+	if (idx < out_jacks) {
+		if (out_jacks > 1)
+			val = idx ? PIN_HP : PIN_OUT;
+		else
+			val = PIN_HP;
+	} else {
+		idx -= out_jacks;
+		if (in_jacks > 1) {
+			unsigned int vref_caps = get_vref_caps(codec, nid);
+			val = snd_hda_codec_get_pin_target(codec, nid);
+			val &= ~AC_PINCTL_VREFEN;
+			val |= get_vref_idx(vref_caps, idx);
+		} else
+			val = snd_hda_get_default_vref(codec, nid);
+	}
+	snd_hda_set_pin_ctl_cache(codec, nid, val);
+	return 1;
+}
+
+static const struct snd_kcontrol_new hp_mic_jack_mode_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = hp_mic_jack_mode_info,
+	.get = hp_mic_jack_mode_get,
+	.put = hp_mic_jack_mode_put,
+};
+
+static int create_hp_mic_jack_mode(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew;
+
+	if (get_out_jack_num_items(codec, pin) <= 1 &&
+	    get_in_jack_num_items(codec, pin) <= 1)
+		return 0; /* no need */
+	knew = snd_hda_gen_add_kctl(spec, "Headphone Mic Jack Mode",
+				    &hp_mic_jack_mode_enum);
+	if (!knew)
+		return -ENOMEM;
+	knew->private_value = pin;
+	return 0;
+}
 
 /*
  * Parse input paths
