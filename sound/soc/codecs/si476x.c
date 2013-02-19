@@ -45,13 +45,23 @@ static unsigned int si476x_codec_read(struct snd_soc_codec *codec,
 				      unsigned int reg)
 {
 	int err;
+	unsigned int val;
 	struct si476x_core *core = codec->control_data;
 
 	si476x_core_lock(core);
-	err = si476x_core_cmd_get_property(core, reg);
+	if (!si476x_core_is_powered_up(core))
+		regcache_cache_only(core->regmap, true);
+
+	err = regmap_read(core->regmap, reg, &val);
+
+	if (!si476x_core_is_powered_up(core))
+		regcache_cache_only(core->regmap, false);
 	si476x_core_unlock(core);
 
-	return err;
+	if (err < 0)
+		return err;
+
+	return val;
 }
 
 static int si476x_codec_write(struct snd_soc_codec *codec,
@@ -61,7 +71,13 @@ static int si476x_codec_write(struct snd_soc_codec *codec,
 	struct si476x_core *core = codec->control_data;
 
 	si476x_core_lock(core);
-	err = si476x_core_cmd_set_property(core, reg, val);
+	if (!si476x_core_is_powered_up(core))
+		regcache_cache_only(core->regmap, true);
+
+	err = regmap_write(core->regmap, reg, val);
+
+	if (!si476x_core_is_powered_up(core))
+		regcache_cache_only(core->regmap, false);
 	si476x_core_unlock(core);
 
 	return err;
