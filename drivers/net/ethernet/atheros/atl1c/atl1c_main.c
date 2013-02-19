@@ -2072,7 +2072,7 @@ static int atl1c_tx_map(struct atl1c_adapter *adapter,
 		if (unlikely(pci_dma_mapping_error(adapter->pdev,
 						   buffer_info->dma)))
 			goto err_dma;
-
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
 		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
 			ATL1C_PCIMAP_TODEVICE);
 		mapped_len += map_len;
