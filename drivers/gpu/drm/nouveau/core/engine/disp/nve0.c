@@ -73,11 +73,7 @@ nve0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
 	priv->sor.hdmi = nvd0_hdmi_ctrl;
-	priv->sor.dp_train = nvd0_sor_dp_train;
-	priv->sor.dp_train_init = nv94_sor_dp_train_init;
-	priv->sor.dp_train_fini = nv94_sor_dp_train_fini;
-	priv->sor.dp_lnkctl = nvd0_sor_dp_lnkctl;
-	priv->sor.dp_drvctl = nvd0_sor_dp_drvctl;
+	priv->sor.dp = &nvd0_sor_dp_func;
 	return 0;
 }
 

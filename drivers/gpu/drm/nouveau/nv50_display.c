@@ -1683,9 +1683,6 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	nv_call(disp->core, NV50_DISP_SOR_PWR + or, (mode == DRM_MODE_DPMS_ON));
-
-	if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
-		nouveau_dp_dpms(encoder, mode, nv_encoder->dp.datarate, disp->core);
 }
 
 static bool

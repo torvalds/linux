@@ -911,7 +911,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	}
 
 	data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
-	if (data) {
+	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
 			struct nvbios_init init = {
@@ -1078,8 +1078,28 @@ nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
 	head = ffs((super & 0x00000180) >> 7) - 1;
 	if (head >= 0) {
 		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		u32 conf = exec_clkcmp(priv, head, 0, pclk, &outp);
+		u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
 		if (conf != ~0) {
+			if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
+				u32 soff = (ffs(outp.or) - 1) * 0x08;
+				u32 ctrl = nv_rd32(priv, 0x610798 + soff);
+				u32 datarate;
+
+				switch ((ctrl & 0x000f0000) >> 16) {
+				case 6: datarate = pclk * 30 / 8; break;
+				case 5: datarate = pclk * 24 / 8; break;
+				case 2:
+				default:
+					datarate = pclk * 18 / 8;
+					break;
+				}
+
+				nouveau_dp_train(&priv->base, priv->sor.dp,
+						 &outp, head, datarate);
+			}
+
+			exec_clkcmp(priv, head, 0, pclk, &outp);
+
 			if (outp.type == DCB_OUTPUT_ANALOG) {
 				addr = 0x614280 + (ffs(outp.or) - 1) * 0x800;
 				mask = 0xffffffff;
@@ -1128,10 +1148,9 @@ nv50_disp_intr_unk40(struct nv50_disp_priv *priv, u32 super)
 	if (head >= 0) {
 		struct dcb_output outp;
 		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0) {
-			if (outp.type == DCB_OUTPUT_TMDS)
+		if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0)
+			if (outp.location == 0 && outp.type == DCB_OUTPUT_TMDS)
 				nv50_disp_intr_unk40_tmds(priv, &outp);
-		}
 	}
 
 	nv_wr32(priv, 0x610030, 0x80000000);

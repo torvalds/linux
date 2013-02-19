@@ -10,7 +10,7 @@
 #include <engine/dmaobj.h>
 #include <engine/disp.h>
 
-struct dcb_output;
+#include "dport.h"
 
 struct nv50_disp_priv {
 	struct nouveau_disp base;
@@ -32,22 +32,8 @@ struct nv50_disp_priv {
 		int (*power)(struct nv50_disp_priv *, int sor, u32 data);
 		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
 		int (*hdmi)(struct nv50_disp_priv *, int head, int sor, u32);
-		int (*dp_train_init)(struct nv50_disp_priv *, int sor, int link,
-				     int head, u16 type, u16 mask, u32 data,
-				     struct dcb_output *);
-		int (*dp_train_fini)(struct nv50_disp_priv *, int sor, int link,
-				     int head, u16 type, u16 mask, u32 data,
-				     struct dcb_output *);
-		int (*dp_train)(struct nv50_disp_priv *, int sor, int link,
-				u16 type, u16 mask, u32 data,
-				struct dcb_output *);
-		int (*dp_lnkctl)(struct nv50_disp_priv *, int sor, int link,
-				 int head, u16 type, u16 mask, u32 data,
-				 struct dcb_output *);
-		int (*dp_drvctl)(struct nv50_disp_priv *, int sor, int link,
-				 int lane, u16 type, u16 mask, u32 data,
-				 struct dcb_output *);
 		u32 lvdsconf;
+		const struct nouveau_dp_func *dp;
 	} sor;
 };
 

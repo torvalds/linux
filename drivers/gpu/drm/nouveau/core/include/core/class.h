@@ -198,25 +198,6 @@ struct nv04_display_class {
 #define NV84_DISP_SOR_HDMI_PWR_REKEY                                 0x0000007f
 #define NV50_DISP_SOR_LVDS_SCRIPT                                    0x00013000
 #define NV50_DISP_SOR_LVDS_SCRIPT_ID                                 0x0000ffff
-#define NV94_DISP_SOR_DP_TRAIN                                       0x00016000
-#define NV94_DISP_SOR_DP_TRAIN_OP                                    0xf0000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_PATTERN                            0x00000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_INIT                               0x10000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_FINI                               0x20000000
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD                           0x00000001
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF                       0x00000000
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON                        0x00000001
-#define NV94_DISP_SOR_DP_TRAIN_PATTERN                               0x00000003
-#define NV94_DISP_SOR_DP_TRAIN_PATTERN_DISABLED                      0x00000000
-#define NV94_DISP_SOR_DP_LNKCTL                                      0x00016040
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME                                0x80000000
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME_STD                            0x00000000
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH                            0x80000000
-#define NV94_DISP_SOR_DP_LNKCTL_WIDTH                                0x00001f00
-#define NV94_DISP_SOR_DP_LNKCTL_COUNT                                0x00000007
-#define NV94_DISP_SOR_DP_DRVCTL(l)                     ((l) * 0x40 + 0x00016100)
-#define NV94_DISP_SOR_DP_DRVCTL_VS                                   0x00000300
-#define NV94_DISP_SOR_DP_DRVCTL_PE                                   0x00000003
 
 #define NV50_DISP_DAC_MTHD                                           0x00020000
 #define NV50_DISP_DAC_MTHD_TYPE                                      0x0000f000
