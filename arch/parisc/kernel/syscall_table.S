@@ -403,7 +403,7 @@
 	ENTRY_COMP(signalfd)
 	ENTRY_SAME(ni_syscall)		/* was timerfd */
 	ENTRY_SAME(eventfd)
-	ENTRY_COMP(fallocate)		/* 305 */
+	ENTRY_OURS(fallocate)		/* 305 */
 	ENTRY_SAME(timerfd_create)
 	ENTRY_COMP(timerfd_settime)
 	ENTRY_COMP(timerfd_gettime)

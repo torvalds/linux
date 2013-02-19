@@ -142,13 +142,6 @@ long sys32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
 				  buf, len);
 }
 
-asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
-				u32 lenhi, u32 lenlo)
-{
-        return sys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
-                             ((loff_t)lenhi << 32) | lenlo);
-}
-
 asmlinkage long compat_sys_fanotify_mark(int fan_fd, int flags, u32 mask_hi,
 					 u32 mask_lo, int fd,
 					 const char __user *pathname)
