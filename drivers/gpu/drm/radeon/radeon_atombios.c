@@ -3062,6 +3062,13 @@ int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
 	return 0;
 }
 
+int radeon_atom_get_leakage_vddc_based_on_leakage_idx(struct radeon_device *rdev,
+						      u16 *voltage,
+						      u16 leakage_idx)
+{
+	return radeon_atom_get_max_vddc(rdev, VOLTAGE_TYPE_VDDC, leakage_idx, voltage);
+}
+
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,
 					  u32 *gpio_value, u32 *gpio_mask)

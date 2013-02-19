@@ -233,6 +233,9 @@ int radeon_atom_get_voltage_step(struct radeon_device *rdev,
 				 u8 voltage_type, u16 *voltage_step);
 int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
 			     u16 voltage_id, u16 *voltage);
+int radeon_atom_get_leakage_vddc_based_on_leakage_idx(struct radeon_device *rdev,
+						      u16 *voltage,
+						      u16 leakage_idx);
 int radeon_atom_round_to_true_voltage(struct radeon_device *rdev,
 				      u8 voltage_type,
 				      u16 nominal_voltage,
