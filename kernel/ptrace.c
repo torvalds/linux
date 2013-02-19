@@ -92,7 +92,7 @@ void __ptrace_unlink(struct task_struct *child)
 	 * TASK_KILLABLE sleeps.
 	 */
 	if (child->group_stop & GROUP_STOP_PENDING || task_is_traced(child))
-		signal_wake_up(child, task_is_traced(child));
+		ptrace_signal_wake_up(child, true);
 
 	spin_unlock(&child->sighand->siglock);
 }
@@ -245,7 +245,7 @@ static int ptrace_attach(struct task_struct *task)
 	 */
 	if (task_is_stopped(task)) {
 		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
-		signal_wake_up(task, 1);
+		signal_wake_up_state(task, __TASK_STOPPED);
 		wait_trap = true;
 	}
 
