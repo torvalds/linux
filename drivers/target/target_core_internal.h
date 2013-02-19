@@ -45,7 +45,7 @@ struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_device *, u3
 int	core_dev_del_lun(struct se_portal_group *, u32);
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *, u32);
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,
-		u32, char *, int *);
+		struct se_node_acl *, u32, int *);
 int	core_dev_add_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *, u32, u32);
 int	core_dev_del_initiator_node_lun_acl(struct se_portal_group *,
