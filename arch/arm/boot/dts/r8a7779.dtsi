@@ -83,13 +83,4 @@
 		interrupt-parent = <&gic>;
 		interrupts = <0 81 0x4>;
 	};
-
-	lan0: lan0@18000000 {
-		compatible = "smsc,lan9220", "smsc,lan9115";
-		reg = <0x18000000 0x100>;
-		phy-mode = "mii";
-		interrupt-parent = <&gic>;
-		interrupts = <0 28 0x4>;
-		reg-io-width = <4>;
-	};
 };
