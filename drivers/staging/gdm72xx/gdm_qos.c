@@ -337,7 +337,6 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 	struct nic *nic = nic_ptr;
 	u32 i, SFID, index, pos;
 	u8 subCmdEvt;
-	u8 len;
 	struct qos_cb_s *qcb = &nic->qos;
 	struct qos_entry_s *entry, *n;
 	struct list_head send_list;
@@ -347,8 +346,6 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 	subCmdEvt = (u8)buf[4];
 
 	if (subCmdEvt == QOS_REPORT) {
-		len = (u8)buf[5];
-
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		for (i = 0; i < qcb->qos_list_cnt; i++) {
 			SFID = ((buf[(i*5)+6]<<24)&0xff000000);
@@ -369,8 +366,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		send_qos_list(nic, &send_list);
 		return;
 	} else if (subCmdEvt == QOS_ADD) {
-		pos = 5;
-		len = (u8)buf[pos++];
+		pos = 6;
 
 		SFID = ((buf[pos++]<<24)&0xff000000);
 		SFID += ((buf[pos++]<<16)&0xff0000);
@@ -424,8 +420,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
 	} else if (subCmdEvt == QOS_CHANGE_DEL) {
-		pos = 5;
-		len = (u8)buf[pos++];
+		pos = 6;
 		SFID = ((buf[pos++]<<24)&0xff000000);
 		SFID += ((buf[pos++]<<16)&0xff0000);
 		SFID += ((buf[pos++]<<8)&0xff00);
