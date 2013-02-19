@@ -1006,10 +1006,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 			if (skb_has_shared_frag(skb)) {
 				err = __skb_linearize(skb);
-				if (err) {
-					ip_rt_put(rt);
+				if (err)
 					goto tx_error;
-				}
 			}
 
 			*ptr = 0;
