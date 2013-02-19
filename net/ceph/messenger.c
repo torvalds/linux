@@ -2387,13 +2387,15 @@ static void con_work(struct work_struct *work)
 {
 	struct ceph_connection *con = container_of(work, struct ceph_connection,
 						   work.work);
+	bool fault = false;
 	int ret;
 
 	mutex_lock(&con->mutex);
 restart:
 	if (con_sock_closed(con)) {
 		dout("%s: con %p SOCK_CLOSED\n", __func__, con);
-		goto fault;
+		fault = true;
+		goto done;
 	}
 	if (con_backoff(con)) {
 		dout("%s: con %p BACKOFF\n", __func__, con);
@@ -2418,7 +2420,8 @@ restart:
 		goto restart;
 	if (ret < 0) {
 		con->error_msg = "socket error on read";
-		goto fault;
+		fault = true;
+		goto done;
 	}
 
 	ret = try_write(con);
@@ -2426,20 +2429,17 @@ restart:
 		goto restart;
 	if (ret < 0) {
 		con->error_msg = "socket error on write";
-		goto fault;
+		fault = true;
 	}
-
 done:
+	if (fault)
+		con_fault(con);
 	mutex_unlock(&con->mutex);
-done_unlocked:
-	con->ops->put(con);
-	return;
 
-fault:
-	con_fault(con);
-	mutex_unlock(&con->mutex);
-	con_fault_finish(con);
-	goto done_unlocked;
+	if (fault)
+		con_fault_finish(con);
+
+	con->ops->put(con);
 }
 
 
