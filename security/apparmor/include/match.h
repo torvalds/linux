@@ -20,8 +20,6 @@
 #define DFA_NOMATCH			0
 #define DFA_START			1
 
-#define DFA_VALID_PERM_MASK		0xffffffff
-#define DFA_VALID_PERM2_MASK		0xffffffff
 
 /**
  * The format used for transition tables is based on the GNU flex table
