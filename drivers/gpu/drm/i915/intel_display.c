@@ -6960,7 +6960,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
-	struct drm_i915_gem_object *obj;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
@@ -6989,8 +6988,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	drm_vblank_put(dev, intel_crtc->pipe);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	obj = work->old_fb_obj;
 
 	wake_up_all(&dev_priv->pending_flip_queue);
 
