@@ -646,7 +646,7 @@ static int win1_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN1_VIR,v_WIN1_RGB888_VIRWIDTH(xvir));
 			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN1_ALPHA_EN,v_WIN1_ALPHA_EN(0));
 			lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN1_RB_SWAP,v_WIN1_RB_SWAP(0));
-			// lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+		 	//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
 			break;
 		case RGB565:  //rgb565
 			fmt_cfg = 2;
@@ -1147,11 +1147,34 @@ static int rk3188_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,boo
 {
 	struct rk3188_lcdc_device *lcdc_dev = 
 		container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	rk_screen * screen = dev_drv->cur_screen;
+	u64 ft = 0;
+	u32 dotclk;
+	int ret;
+	u32 pixclock;
+	if(set)
+	{
+		ft = div_u64(1000000000000llu,fps);
+		dev_drv->pixclock = div_u64(ft,(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
+				(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len));
+		dotclk = div_u64(1000000000000llu,dev_drv->pixclock);
+		ret = clk_set_rate(lcdc_dev->dclk, dotclk);
+		if(ret)
+		{
+	        	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
+			return 0;
+		}			
+	}
 	
-	u32 pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	
+	pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
+	dev_drv->pixclock = lcdc_dev->pixclock = pixclock;
 	fps = rk_fb_calc_fps(lcdc_dev->screen,pixclock);
+	screen->ft = 1000/fps ;  //one frame time in ms
 
+	if(set)
+		dev_info(dev_drv->dev,"%s:dclk:%lu,fps:%d\n",__func__,clk_get_rate(lcdc_dev->dclk),fps);
+	
 	return fps;
 }
 
