@@ -68,10 +68,6 @@ struct fsl_diu_shared_fb {
 	bool		in_use;
 };
 
-void mpc512x_set_monitor_port(enum fsl_diu_monitor_port port)
-{
-}
-
 #define DIU_DIV_MASK	0x000000ff
 void mpc512x_set_pixel_clock(unsigned int pixclock)
 {
@@ -303,7 +299,6 @@ void __init mpc512x_setup_diu(void)
 		}
 	}
 
-	diu_ops.set_monitor_port	= mpc512x_set_monitor_port;
 	diu_ops.set_pixel_clock		= mpc512x_set_pixel_clock;
 	diu_ops.valid_monitor_port	= mpc512x_valid_monitor_port;
 	diu_ops.release_bootmem		= mpc512x_release_bootmem;
