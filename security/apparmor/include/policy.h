@@ -32,13 +32,13 @@
 extern const char *const profile_mode_names[];
 #define APPARMOR_NAMES_MAX_INDEX 3
 
-#define COMPLAIN_MODE(_profile)	\
-	((aa_g_profile_mode == APPARMOR_COMPLAIN) || \
-	 ((_profile)->mode == APPARMOR_COMPLAIN))
+#define PROFILE_MODE(_profile, _mode)		\
+	((aa_g_profile_mode == (_mode)) ||	\
+	 ((_profile)->mode == (_mode)))
 
-#define KILL_MODE(_profile) \
-	((aa_g_profile_mode == APPARMOR_KILL) || \
-	 ((_profile)->mode == APPARMOR_KILL))
+#define COMPLAIN_MODE(_profile)	PROFILE_MODE((_profile), APPARMOR_COMPLAIN)
+
+#define KILL_MODE(_profile) PROFILE_MODE((_profile), APPARMOR_KILL)
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->flags & PFLAG_HAT)
 
