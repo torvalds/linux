@@ -53,26 +53,8 @@
 #define USBPHY_OTGSESSEND_EN	(1 << 20)
 #define USBPHY_DATA_POLARITY	(1 << 23)
 
-struct usbhs_omap_board_data {
-	enum usbhs_omap_port_mode	port_mode[OMAP3_HS_USB_PORTS];
-
-	/* have to be valid if phy_reset is true and portx is in phy mode */
-	int	reset_gpio_port[OMAP3_HS_USB_PORTS];
-
-	/* Set this to true for ES2.x silicon */
-	unsigned			es2_compatibility:1;
-
-	unsigned			phy_reset:1;
-
-	/*
-	 * Regulators for USB PHYs.
-	 * Each PHY can have a separate regulator.
-	 */
-	struct regulator		*regulator[OMAP3_HS_USB_PORTS];
-};
-
 extern void usb_musb_init(struct omap_musb_board_data *board_data);
-extern void usbhs_init(const struct usbhs_omap_board_data *pdata);
+extern void usbhs_init(struct usbhs_omap_platform_data *pdata);
 
 extern void am35x_musb_reset(void);
 extern void am35x_musb_phy_power(u8 on);

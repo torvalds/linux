@@ -41,10 +41,7 @@ endif
 obj-$(CONFIG_SND_SOC_IMX_SSI) += snd-soc-imx-ssi.o
 obj-$(CONFIG_SND_SOC_IMX_AUDMUX) += snd-soc-imx-audmux.o
 
-obj-$(CONFIG_SND_SOC_IMX_PCM_FIQ) += snd-soc-imx-pcm-fiq.o
-snd-soc-imx-pcm-fiq-y := imx-pcm-fiq.o imx-pcm.o
-obj-$(CONFIG_SND_SOC_IMX_PCM_DMA) += snd-soc-imx-pcm-dma.o
-snd-soc-imx-pcm-dma-y := imx-pcm-dma.o imx-pcm.o
+obj-$(CONFIG_SND_SOC_IMX_PCM) += snd-soc-imx-pcm.o
 
 # i.MX Machine Support
 snd-soc-eukrea-tlv320-objs := eukrea-tlv320.o

@@ -1358,7 +1358,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 						  &iwe, IW_EV_UINT_LEN);
 	}
 
-	buf = kmalloc(30, GFP_ATOMIC);
+	buf = kmalloc(31, GFP_ATOMIC);
 	if (buf) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;

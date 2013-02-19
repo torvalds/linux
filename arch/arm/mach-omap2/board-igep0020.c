@@ -526,7 +526,7 @@ static void __init igep_i2c_init(void)
 	omap3_pmic_init("twl4030", &igep_twldata);
 }
 
-static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep2_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -537,7 +537,7 @@ static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
 	.reset_gpio_port[2] = -EINVAL,
 };
 
-static const struct usbhs_omap_board_data igep3_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep3_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,

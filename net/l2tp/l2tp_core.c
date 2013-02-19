@@ -168,6 +168,51 @@ l2tp_session_id_hash_2(struct l2tp_net *pn, u32 session_id)
 
 }
 
+/* Lookup the tunnel socket, possibly involving the fs code if the socket is
+ * owned by userspace.  A struct sock returned from this function must be
+ * released using l2tp_tunnel_sock_put once you're done with it.
+ */
+struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
+{
+	int err = 0;
+	struct socket *sock = NULL;
+	struct sock *sk = NULL;
+
+	if (!tunnel)
+		goto out;
+
+	if (tunnel->fd >= 0) {
+		/* Socket is owned by userspace, who might be in the process
+		 * of closing it.  Look the socket up using the fd to ensure
+		 * consistency.
+		 */
+		sock = sockfd_lookup(tunnel->fd, &err);
+		if (sock)
+			sk = sock->sk;
+	} else {
+		/* Socket is owned by kernelspace */
+		sk = tunnel->sock;
+	}
+
+out:
+	return sk;
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_sock_lookup);
+
+/* Drop a reference to a tunnel socket obtained via. l2tp_tunnel_sock_put */
+void l2tp_tunnel_sock_put(struct sock *sk)
+{
+	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
+	if (tunnel) {
+		if (tunnel->fd >= 0) {
+			/* Socket is owned by userspace */
+			sockfd_put(sk->sk_socket);
+		}
+		sock_put(sk);
+	}
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_sock_put);
+
 /* Lookup a session by id in the global session list
  */
 static struct l2tp_session *l2tp_session_find_2(struct net *net, u32 session_id)
@@ -1123,8 +1168,6 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	struct udphdr *uh;
 	struct inet_sock *inet;
 	__wsum csum;
-	int old_headroom;
-	int new_headroom;
 	int headroom;
 	int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 	int udp_len;
@@ -1136,16 +1179,12 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	 */
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		uhlen + hdr_len;
-	old_headroom = skb_headroom(skb);
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
 	}
 
-	new_headroom = skb_headroom(skb);
 	skb_orphan(skb);
-	skb->truesize += new_headroom - old_headroom;
-
 	/* Setup L2TP header */
 	session->build_header(session, __skb_push(skb, hdr_len));
 
@@ -1607,6 +1646,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	tunnel->old_sk_destruct = sk->sk_destruct;
 	sk->sk_destruct = &l2tp_tunnel_destruct;
 	tunnel->sock = sk;
+	tunnel->fd = fd;
 	lockdep_set_class_and_name(&sk->sk_lock.slock, &l2tp_socket_class, "l2tp_sock");
 
 	sk->sk_allocation = GFP_ATOMIC;
@@ -1642,24 +1682,32 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_create);
  */
 int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
-	int err = 0;
-	struct socket *sock = tunnel->sock ? tunnel->sock->sk_socket : NULL;
+	int err = -EBADF;
+	struct socket *sock = NULL;
+	struct sock *sk = NULL;
+
+	sk = l2tp_tunnel_sock_lookup(tunnel);
+	if (!sk)
+		goto out;
+
+	sock = sk->sk_socket;
+	BUG_ON(!sock);
 
 	/* Force the tunnel socket to close. This will eventually
 	 * cause the tunnel to be deleted via the normal socket close
 	 * mechanisms when userspace closes the tunnel socket.
 	 */
-	if (sock != NULL) {
-		err = inet_shutdown(sock, 2);
+	err = inet_shutdown(sock, 2);
 
-		/* If the tunnel's socket was created by the kernel,
-		 * close the socket here since the socket was not
-		 * created by userspace.
-		 */
-		if (sock->file == NULL)
-			err = inet_release(sock);
-	}
+	/* If the tunnel's socket was created by the kernel,
+	 * close the socket here since the socket was not
+	 * created by userspace.
+	 */
+	if (sock->file == NULL)
+		err = inet_release(sock);
 
+	l2tp_tunnel_sock_put(sk);
+out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);

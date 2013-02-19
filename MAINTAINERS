@@ -1489,7 +1489,7 @@ AVR32 ARCHITECTURE
 M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
 M:	Hans-Christian Egtvedt <egtvedt@samfundet.no>
 W:	http://www.atmel.com/products/AVR32/
-W:	http://avr32linux.org/
+W:	http://mirror.egtvedt.no/avr32linux.org/
 W:	http://avrfreaks.net/
 S:	Maintained
 F:	arch/avr32/

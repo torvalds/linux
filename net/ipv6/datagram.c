@@ -380,7 +380,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			sin->sin6_addr = ipv6_hdr(skb)->saddr;
 			if (np->rxopt.all)
-				datagram_recv_ctl(sk, msg, skb);
+				ip6_datagram_recv_ctl(sk, msg, skb);
 			if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin->sin6_scope_id = IP6CB(skb)->iif;
 		} else {
@@ -468,7 +468,8 @@ out:
 }
 
 
-int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
+int ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+			  struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet6_skb_parm *opt = IP6CB(skb);
@@ -597,11 +598,12 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ip6_datagram_recv_ctl);
 
-int datagram_send_ctl(struct net *net, struct sock *sk,
-		      struct msghdr *msg, struct flowi6 *fl6,
-		      struct ipv6_txoptions *opt,
-		      int *hlimit, int *tclass, int *dontfrag)
+int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
+			  struct msghdr *msg, struct flowi6 *fl6,
+			  struct ipv6_txoptions *opt,
+			  int *hlimit, int *tclass, int *dontfrag)
 {
 	struct in6_pktinfo *src_info;
 	struct cmsghdr *cmsg;
@@ -871,4 +873,4 @@ int datagram_send_ctl(struct net *net, struct sock *sk,
 exit_f:
 	return err;
 }
-EXPORT_SYMBOL_GPL(datagram_send_ctl);
+EXPORT_SYMBOL_GPL(ip6_datagram_send_ctl);

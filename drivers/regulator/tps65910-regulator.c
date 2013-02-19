@@ -998,7 +998,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		return NULL;
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators, matches, count);
+	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
