@@ -1844,9 +1844,24 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		}
 
 		if (!is_multicast_ether_addr(skb->data)) {
+			struct sta_info *next_hop;
+			bool mpp_lookup = true;
+
 			mpath = mesh_path_lookup(sdata, skb->data);
-			if (!mpath)
+			if (mpath) {
+				mpp_lookup = false;
+				next_hop = rcu_dereference(mpath->next_hop);
+				if (!next_hop ||
+				    !(mpath->flags & (MESH_PATH_ACTIVE |
+						      MESH_PATH_RESOLVING)))
+					mpp_lookup = true;
+			}
+
+			if (mpp_lookup)
 				mppath = mpp_path_lookup(sdata, skb->data);
+
+			if (mppath && mpath)
+				mesh_path_del(mpath->sdata, mpath->dst);
 		}
 
 		/*
