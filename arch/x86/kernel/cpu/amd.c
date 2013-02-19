@@ -723,12 +723,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		 * performance degradation for certain nested-paging guests.
 		 * Prevent this conversion by clearing bit 24 in
 		 * MSR_AMD64_BU_CFG2.
+		 *
+		 * NOTE: we want to use the _safe accessors so as not to #GP kvm
+		 * guests on older kvm hosts.
 		 */
-		if (c->x86 == 0x10) {
-			rdmsrl(MSR_AMD64_BU_CFG2, value);
-			value &= ~(1ULL << 24);
-			wrmsrl(MSR_AMD64_BU_CFG2, value);
-		}
+
+		rdmsrl_safe(MSR_AMD64_BU_CFG2, &value);
+		value &= ~(1ULL << 24);
+		wrmsrl_safe(MSR_AMD64_BU_CFG2, value);
 	}
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
