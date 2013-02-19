@@ -469,7 +469,6 @@ static int apparmor_file_lock(struct file *file, unsigned int cmd)
 static int common_mmap(int op, struct file *file, unsigned long prot,
 		       unsigned long flags)
 {
-	struct dentry *dentry;
 	int mask = 0;
 
 	if (!file || !file->f_security)
@@ -486,7 +485,6 @@ static int common_mmap(int op, struct file *file, unsigned long prot,
 	if (prot & PROT_EXEC)
 		mask |= AA_EXEC_MMAP;
 
-	dentry = file->f_path.dentry;
 	return common_file_perm(op, file, mask);
 }
 
@@ -507,11 +505,9 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 				char **value)
 {
 	int error = -ENOENT;
-	struct aa_profile *profile;
 	/* released below */
 	const struct cred *cred = get_task_cred(task);
 	struct aa_task_cxt *cxt = cred->security;
-	profile = aa_cred_profile(cred);
 
 	if (strcmp(name, "current") == 0)
 		error = aa_getprocattr(aa_newest_version(cxt->profile),
