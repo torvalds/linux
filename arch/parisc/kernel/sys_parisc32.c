@@ -60,42 +60,23 @@ asmlinkage long sys32_unimplemented(int r26, int r25, int r24, int r23,
     return -ENOSYS;
 }
 
-asmlinkage int sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
+/* Note: it is necessary to treat out_fd and in_fd as unsigned ints, with the
+ * corresponding cast to a signed int to insure that the proper conversion
+ * (sign extension) between the register representation of a signed int (msr in
+ * 32-bit mode) and the register representation of a signed int (msr in 64-bit
+ * mode) is performed.
+ */
+asmlinkage long sys32_sendfile(u32 out_fd, u32 in_fd,
+			       compat_off_t __user *offset, compat_size_t count)
 {
-        mm_segment_t old_fs = get_fs();
-        int ret;
-        off_t of;
-
-        if (offset && get_user(of, offset))
-                return -EFAULT;
-
-        set_fs(KERNEL_DS);
-        ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL, count);
-        set_fs(old_fs);
-
-        if (offset && put_user(of, offset))
-                return -EFAULT;
-
-        return ret;
+	return compat_sys_sendfile((int)out_fd, (int)in_fd, offset, count);
 }
 
-asmlinkage int sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset, s32 count)
+asmlinkage long sys32_sendfile64(u32 out_fd, u32 in_fd,
+				 compat_loff_t __user *offset, compat_size_t count)
 {
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd, offset ? (loff_t __user *)&lof : NULL, count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
+	return sys_sendfile64((int)out_fd, (int)in_fd,
+				(loff_t __user *)offset, count);
 }
 
 
