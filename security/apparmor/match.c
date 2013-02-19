@@ -30,7 +30,7 @@
  *
  * Returns: pointer to table else NULL on failure
  *
- * NOTE: must be freed by kvfree (not kmalloc)
+ * NOTE: must be freed by kvfree (not kfree)
  */
 static struct table_header *unpack_table(char *blob, size_t bsize)
 {
@@ -57,7 +57,7 @@ static struct table_header *unpack_table(char *blob, size_t bsize)
 	if (bsize < tsize)
 		goto out;
 
-	table = kvmalloc(tsize);
+	table = kvzalloc(tsize);
 	if (table) {
 		*table = th;
 		if (th.td_flags == YYTD_DATA8)
