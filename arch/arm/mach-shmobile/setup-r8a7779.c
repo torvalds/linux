@@ -322,7 +322,7 @@ static struct platform_device i2c3_device = {
 	.num_resources	= ARRAY_SIZE(rcar_i2c3_res),
 };
 
-static struct platform_device *r8a7779_early_devices_dt[] __initdata = {
+static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -350,8 +350,8 @@ void __init r8a7779_add_standard_devices(void)
 
 	r8a7779_init_pm_domains();
 
-	platform_add_devices(r8a7779_early_devices_dt,
-			    ARRAY_SIZE(r8a7779_early_devices_dt));
+	platform_add_devices(r8a7779_devices_dt,
+			    ARRAY_SIZE(r8a7779_devices_dt));
 	platform_add_devices(r8a7779_early_devices,
 			    ARRAY_SIZE(r8a7779_early_devices));
 }
@@ -368,8 +368,8 @@ void __init r8a7779_earlytimer_init(void)
 
 void __init r8a7779_add_early_devices(void)
 {
-	early_platform_add_devices(r8a7779_early_devices_dt,
-				   ARRAY_SIZE(r8a7779_early_devices_dt));
+	early_platform_add_devices(r8a7779_devices_dt,
+				   ARRAY_SIZE(r8a7779_devices_dt));
 	early_platform_add_devices(r8a7779_early_devices,
 				   ARRAY_SIZE(r8a7779_early_devices));
 
@@ -391,16 +391,9 @@ void __init r8a7779_add_early_devices(void)
 }
 
 #ifdef CONFIG_USE_OF
-void __init r8a7779_add_early_devices_dt(void)
+void __init r8a7779_init_delay(void)
 {
 	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
-
-	early_platform_add_devices(r8a7779_early_devices_dt,
-				   ARRAY_SIZE(r8a7779_early_devices_dt));
-
-	/* Early serial console setup is not included here.
-	 * See comment in r8a7779_add_early_devices().
-	 */
 }
 
 static const struct of_dev_auxdata r8a7779_auxdata_lookup[] __initconst = {
@@ -412,8 +405,8 @@ void __init r8a7779_add_standard_devices_dt(void)
 	/* clocks are setup late during boot in the case of DT */
 	r8a7779_clock_init();
 
-	platform_add_devices(r8a7779_early_devices_dt,
-			    ARRAY_SIZE(r8a7779_early_devices_dt));
+	platform_add_devices(r8a7779_devices_dt,
+			     ARRAY_SIZE(r8a7779_devices_dt));
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     r8a7779_auxdata_lookup, NULL);
 }
@@ -425,7 +418,7 @@ static const char *r8a7779_compat_dt[] __initdata = {
 
 DT_MACHINE_START(SH73A0_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
-	.init_early	= r8a7779_add_early_devices_dt,
+	.init_early	= r8a7779_init_delay,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= r8a7779_add_standard_devices_dt,
