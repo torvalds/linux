@@ -514,6 +514,9 @@ struct atom_clock_dividers {
 	bool enable_dithen;
 	u32 vco_mode;
 	u32 real_clock;
+	/* added for CI */
+	u32 post_divider;
+	u32 flags;
 };
 
 extern enum radeon_tv_std

@@ -2700,6 +2700,8 @@ union get_clock_dividers {
 	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V3 v3;
 	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 v4;
 	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V5 v5;
+	struct _COMPUTE_GPU_CLOCK_INPUT_PARAMETERS_V1_6 v6_in;
+	struct _COMPUTE_GPU_CLOCK_OUTPUT_PARAMETERS_V1_6 v6_out;
 };
 
 int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
@@ -2794,8 +2796,24 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 
 		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-		dividers->post_div = args.v4.ucPostDiv;
+		dividers->post_divider = dividers->post_div = args.v4.ucPostDiv;
 		dividers->real_clock = le32_to_cpu(args.v4.ulClock);
+		break;
+	case 6:
+		/* CI */
+		/* COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK, COMPUTE_GPUCLK_INPUT_FLAG_SCLK */
+		args.v6_in.ulClock.ulComputeClockFlag = clock_type;
+		args.v6_in.ulClock.ulClockFreq = cpu_to_le32(clock);	/* 10 khz */
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		dividers->whole_fb_div = le16_to_cpu(args.v6_out.ulFbDiv.usFbDiv);
+		dividers->frac_fb_div = le16_to_cpu(args.v6_out.ulFbDiv.usFbDivFrac);
+		dividers->ref_div = args.v6_out.ucPllRefDiv;
+		dividers->post_div = args.v6_out.ucPllPostDiv;
+		dividers->flags = args.v6_out.ucPllCntlFlag;
+		dividers->real_clock = le32_to_cpu(args.v6_out.ulClock.ulClock);
+		dividers->post_divider = args.v6_out.ulClock.ucPostDiv;
 		break;
 	default:
 		return -EINVAL;
