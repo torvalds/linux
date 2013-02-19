@@ -53,6 +53,7 @@ header-y += xt_hashlimit.h
 header-y += xt_helper.h
 header-y += xt_iprange.h
 header-y += xt_ipvs.h
+header-y += xt_layer7.h
 header-y += xt_length.h
 header-y += xt_limit.h
 header-y += xt_mac.h
