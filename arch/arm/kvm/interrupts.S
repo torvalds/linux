@@ -235,9 +235,9 @@ ENTRY(kvm_call_hyp)
  * instruction is issued since all traps are disabled when running the host
  * kernel as per the Hyp-mode initialization at boot time.
  *
- * HVC instructions cause a trap to the vector page + offset 0x18 (see hyp_hvc
+ * HVC instructions cause a trap to the vector page + offset 0x14 (see hyp_hvc
  * below) when the HVC instruction is called from SVC mode (i.e. a guest or the
- * host kernel) and they cause a trap to the vector page + offset 0xc when HVC
+ * host kernel) and they cause a trap to the vector page + offset 0x8 when HVC
  * instructions are called from within Hyp-mode.
  *
  * Hyp-ABI: Calling HYP-mode functions from host (in SVC mode):
