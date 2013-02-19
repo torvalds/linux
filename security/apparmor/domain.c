@@ -512,11 +512,7 @@ x_clear:
 	cxt->profile = new_profile;
 
 	/* clear out all temporary/transitional state from the context */
-	aa_put_profile(cxt->previous);
-	aa_put_profile(cxt->onexec);
-	cxt->previous = NULL;
-	cxt->onexec = NULL;
-	cxt->token = 0;
+	aa_clear_task_cxt_trans(cxt);
 
 audit:
 	error = aa_audit_file(profile, &perms, GFP_KERNEL, OP_EXEC, MAY_EXEC,

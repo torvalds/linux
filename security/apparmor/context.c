@@ -105,16 +105,12 @@ int aa_replace_current_profile(struct aa_profile *profile)
 		return -ENOMEM;
 
 	cxt = new->security;
-	if (unconfined(profile) || (cxt->profile->ns != profile->ns)) {
+	if (unconfined(profile) || (cxt->profile->ns != profile->ns))
 		/* if switching to unconfined or a different profile namespace
 		 * clear out context state
 		 */
-		aa_put_profile(cxt->previous);
-		aa_put_profile(cxt->onexec);
-		cxt->previous = NULL;
-		cxt->onexec = NULL;
-		cxt->token = 0;
-	}
+		aa_clear_task_cxt_trans(cxt);
+
 	/* be careful switching cxt->profile, when racing replacement it
 	 * is possible that cxt->profile->replacedby is the reference keeping
 	 * @profile valid, so make sure to get its reference before dropping
@@ -222,11 +218,10 @@ int aa_restore_previous_profile(u64 token)
 		aa_get_profile(cxt->profile);
 		aa_put_profile(cxt->previous);
 	}
-	/* clear exec && prev information when restoring to previous context */
+	/* ref has been transfered so avoid putting ref in clear_task_cxt */
 	cxt->previous = NULL;
-	cxt->token = 0;
-	aa_put_profile(cxt->onexec);
-	cxt->onexec = NULL;
+	/* clear exec && prev information when restoring to previous context */
+	aa_clear_task_cxt_trans(cxt);
 
 	commit_creds(new);
 	return 0;

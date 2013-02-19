@@ -160,4 +160,17 @@ static inline struct aa_profile *aa_current_profile(void)
 	return profile;
 }
 
+/**
+ * aa_clear_task_cxt_trans - clear transition tracking info from the cxt
+ * @cxt: task context to clear (NOT NULL)
+ */
+static inline void aa_clear_task_cxt_trans(struct aa_task_cxt *cxt)
+{
+	aa_put_profile(cxt->previous);
+	aa_put_profile(cxt->onexec);
+	cxt->previous = NULL;
+	cxt->onexec = NULL;
+	cxt->token = 0;
+}
+
 #endif /* __AA_CONTEXT_H */
