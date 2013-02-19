@@ -88,7 +88,7 @@ obj-$(CONFIG_MACH_AT91SAM9M10G45EK) += board-sam9m10g45ek.o
 
 # AT91SAM board with device-tree
 obj-$(CONFIG_MACH_AT91RM9200_DT) += board-rm9200-dt.o
-obj-$(CONFIG_MACH_AT91SAM_DT) += board-dt.o
+obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # AT91X40 board-specific support
 obj-$(CONFIG_MACH_AT91EB01)	+= board-eb01.o
