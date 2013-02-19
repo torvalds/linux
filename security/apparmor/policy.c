@@ -87,7 +87,6 @@
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 #include "include/resource.h"
-#include "include/sid.h"
 
 
 /* root profile namespace */
@@ -292,7 +291,6 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 	if (!ns->unconfined)
 		goto fail_unconfined;
 
-	ns->unconfined->sid = aa_alloc_sid();
 	ns->unconfined->flags = PFLAG_UNCONFINED | PFLAG_IX_ON_NAME_ERROR |
 	    PFLAG_IMMUTABLE;
 
@@ -302,6 +300,8 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 	 * replaces with refs to parent namespace unconfined
 	 */
 	ns->unconfined->ns = aa_get_namespace(ns);
+
+	atomic_set(&ns->uniq_null, 0);
 
 	return ns;
 
@@ -497,7 +497,6 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 	/* released when @new is freed */
 	new->parent = aa_get_profile(old->parent);
 	new->ns = aa_get_namespace(old->ns);
-	new->sid = old->sid;
 	__list_add_profile(&policy->profiles, new);
 	/* inherit children */
 	list_for_each_entry_safe(child, tmp, &old->base.profiles, base.list) {
@@ -665,7 +664,7 @@ struct aa_profile *aa_alloc_profile(const char *hname)
  * @hat: true if the null- learning profile is a hat
  *
  * Create a null- complain mode profile used in learning mode.  The name of
- * the profile is unique and follows the format of parent//null-sid.
+ * the profile is unique and follows the format of parent//null-<uniq>.
  *
  * null profiles are added to the profile list but the list does not
  * hold a count on them so that they are automatically released when
@@ -677,20 +676,19 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
 {
 	struct aa_profile *profile = NULL;
 	char *name;
-	u32 sid = aa_alloc_sid();
+	int uniq = atomic_inc_return(&parent->ns->uniq_null);
 
 	/* freed below */
 	name = kmalloc(strlen(parent->base.hname) + 2 + 7 + 8, GFP_KERNEL);
 	if (!name)
 		goto fail;
-	sprintf(name, "%s//null-%x", parent->base.hname, sid);
+	sprintf(name, "%s//null-%x", parent->base.hname, uniq);
 
 	profile = aa_alloc_profile(name);
 	kfree(name);
 	if (!profile)
 		goto fail;
 
-	profile->sid = sid;
 	profile->mode = APPARMOR_COMPLAIN;
 	profile->flags = PFLAG_NULL;
 	if (hat)
@@ -708,7 +706,6 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
 	return profile;
 
 fail:
-	aa_free_sid(sid);
 	return NULL;
 }
 
@@ -749,7 +746,6 @@ static void free_profile(struct aa_profile *profile)
 	aa_free_cap_rules(&profile->caps);
 	aa_free_rlimit_rules(&profile->rlimits);
 
-	aa_free_sid(profile->sid);
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
 
@@ -972,7 +968,6 @@ static void __add_new_profile(struct aa_namespace *ns, struct aa_policy *policy,
 		profile->parent = aa_get_profile((struct aa_profile *) policy);
 	__list_add_profile(&policy->profiles, profile);
 	/* released on free_profile */
-	profile->sid = aa_alloc_sid();
 	profile->ns = aa_get_namespace(ns);
 }
 
@@ -1110,14 +1105,8 @@ audit:
 	if (!error) {
 		if (rename_profile)
 			__replace_profile(rename_profile, new_profile);
-		if (old_profile) {
-			/* when there are both rename and old profiles
-			 * inherit old profiles sid
-			 */
-			if (rename_profile)
-				aa_free_sid(new_profile->sid);
+		if (old_profile)
 			__replace_profile(old_profile, new_profile);
-		}
 		if (!(old_profile || rename_profile))
 			__add_new_profile(ns, policy, new_profile);
 	}

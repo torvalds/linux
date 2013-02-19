@@ -105,6 +105,7 @@ struct aa_ns_acct {
  * @acct: accounting for the namespace
  * @unconfined: special unconfined profile for the namespace
  * @sub_ns: list of namespaces under the current namespace.
+ * @uniq_null: uniq value used for null learning profiles
  *
  * An aa_namespace defines the set profiles that are searched to determine
  * which profile to attach to a task.  Profiles can not be shared between
@@ -127,6 +128,7 @@ struct aa_namespace {
 	struct aa_ns_acct acct;
 	struct aa_profile *unconfined;
 	struct list_head sub_ns;
+	atomic_t uniq_null;
 };
 
 /* struct aa_policydb - match engine for a policy
@@ -148,7 +150,6 @@ struct aa_policydb {
  * @rename: optional profile name that this profile renamed
  * @xmatch: optional extended matching for unconfined executables names
  * @xmatch_len: xmatch prefix len, used to determine xmatch priority
- * @sid: the unique security id number of this profile
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @flags: flags controlling profile behavior
@@ -184,7 +185,6 @@ struct aa_profile {
 
 	struct aa_dfa *xmatch;
 	int xmatch_len;
-	u32 sid;
 	enum audit_mode audit;
 	enum profile_mode mode;
 	u32 flags;

@@ -27,7 +27,6 @@
 #include "include/match.h"
 #include "include/policy.h"
 #include "include/policy_unpack.h"
-#include "include/sid.h"
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
