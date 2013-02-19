@@ -1176,10 +1176,6 @@ vpbe_display_s_dv_timings(struct file *file, void *priv,
 			"Failed to set the dv timings info\n");
 		return -EINVAL;
 	}
-	/* set the current norm to zero to be consistent. If STD is used
-	 * v4l2 layer will set the norm properly on successful s_std call
-	 */
-	layer->video_dev.current_norm = 0;
 
 	return 0;
 }
@@ -1694,12 +1690,8 @@ static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->vfl_dir	= VFL_DIR_TX;
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &
-			VPBE_ENC_STD) {
+			VPBE_ENC_STD)
 		vbd->tvnorms = (V4L2_STD_525_60 | V4L2_STD_625_50);
-		vbd->current_norm =
-			disp_dev->vpbe_dev->current_timings.std_id;
-	} else
-		vbd->current_norm = 0;
 
 	snprintf(vbd->name, sizeof(vbd->name),
 			"DaVinci_VPBE Display_DRIVER_V%d.%d.%d",
