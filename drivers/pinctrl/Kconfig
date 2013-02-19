@@ -229,6 +229,7 @@ config PINCTRL_EXYNOS5440
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/vt8500/Kconfig"
 
 config PINCTRL_XWAY
 	bool
