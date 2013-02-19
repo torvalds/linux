@@ -19,11 +19,13 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/mfd/tps65090.h>
 
 struct tps65090_regulator {
@@ -67,8 +69,8 @@ static struct regulator_desc tps65090_regulator_desc[] = {
 	tps65090_REG_DESC(FET5,  "infet5",  0x13, tps65090_reg_contol_ops),
 	tps65090_REG_DESC(FET6,  "infet6",  0x14, tps65090_reg_contol_ops),
 	tps65090_REG_DESC(FET7,  "infet7",  0x15, tps65090_reg_contol_ops),
-	tps65090_REG_DESC(LDO1,  "vsys_l1", 0,    tps65090_ldo_ops),
-	tps65090_REG_DESC(LDO2,  "vsys_l2", 0,    tps65090_ldo_ops),
+	tps65090_REG_DESC(LDO1,  "vsys-l1", 0,    tps65090_ldo_ops),
+	tps65090_REG_DESC(LDO2,  "vsys-l2", 0,    tps65090_ldo_ops),
 };
 
 static inline bool is_dcdc(int id)
@@ -138,6 +140,92 @@ static void tps65090_configure_regulator_config(
 	}
 }
 
+#ifdef CONFIG_OF
+static struct of_regulator_match tps65090_matches[] = {
+	{ .name = "dcdc1", },
+	{ .name = "dcdc2", },
+	{ .name = "dcdc3", },
+	{ .name = "fet1",  },
+	{ .name = "fet2",  },
+	{ .name = "fet3",  },
+	{ .name = "fet4",  },
+	{ .name = "fet5",  },
+	{ .name = "fet6",  },
+	{ .name = "fet7",  },
+	{ .name = "ldo1",  },
+	{ .name = "ldo2",  },
+};
+
+static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
+		struct platform_device *pdev,
+		struct of_regulator_match **tps65090_reg_matches)
+{
+	struct tps65090_platform_data *tps65090_pdata;
+	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_node *regulators;
+	int idx = 0, ret;
+	struct tps65090_regulator_plat_data *reg_pdata;
+
+	tps65090_pdata = devm_kzalloc(&pdev->dev, sizeof(*tps65090_pdata),
+				GFP_KERNEL);
+	if (!tps65090_pdata) {
+		dev_err(&pdev->dev, "Memory alloc for tps65090_pdata failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	reg_pdata = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX *
+				sizeof(*reg_pdata), GFP_KERNEL);
+	if (!reg_pdata) {
+		dev_err(&pdev->dev, "Memory alloc for reg_pdata failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	regulators = of_find_node_by_name(np, "regulators");
+	if (!regulators) {
+		dev_err(&pdev->dev, "regulator node not found\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
+			ARRAY_SIZE(tps65090_matches));
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Error parsing regulator init data: %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	*tps65090_reg_matches = tps65090_matches;
+	for (idx = 0; idx < ARRAY_SIZE(tps65090_matches); idx++) {
+		struct regulator_init_data *ri_data;
+		struct tps65090_regulator_plat_data *rpdata;
+
+		rpdata = &reg_pdata[idx];
+		ri_data = tps65090_matches[idx].init_data;
+		if (!ri_data || !tps65090_matches[idx].of_node)
+			continue;
+
+		rpdata->reg_init_data = ri_data;
+		rpdata->enable_ext_control = of_property_read_bool(
+					tps65090_matches[idx].of_node,
+					"ti,enable-ext-control");
+		if (rpdata->enable_ext_control)
+			rpdata->gpio = of_get_named_gpio(np,
+					"dcdc-ext-control-gpios", 0);
+
+		tps65090_pdata->reg_pdata[idx] = rpdata;
+	}
+	return tps65090_pdata;
+}
+#else
+static inline struct tps65090_platform_data *tps65090_parse_dt_reg_data(
+			struct platform_device *pdev,
+			struct of_regulator_match **tps65090_reg_matches)
+{
+	*tps65090_reg_matches = NULL;
+	return NULL;
+}
+#endif
+
 static int tps65090_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65090 *tps65090_mfd = dev_get_drvdata(pdev->dev.parent);
@@ -147,15 +235,19 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 	struct tps65090_regulator_plat_data *tps_pdata;
 	struct tps65090_regulator *pmic;
 	struct tps65090_platform_data *tps65090_pdata;
+	struct of_regulator_match *tps65090_reg_matches = NULL;
 	int num;
 	int ret;
 
 	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	tps65090_pdata = dev_get_platdata(pdev->dev.parent);
-	if (!tps65090_pdata) {
+	if (!tps65090_pdata && tps65090_mfd->dev->of_node)
+		tps65090_pdata = tps65090_parse_dt_reg_data(pdev,
+					&tps65090_reg_matches);
+	if (IS_ERR_OR_NULL(tps65090_pdata)) {
 		dev_err(&pdev->dev, "Platform data missing\n");
-		return -EINVAL;
+		return tps65090_pdata ? PTR_ERR(tps65090_pdata) : -EINVAL;
 	}
 
 	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
@@ -192,13 +284,17 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 			}
 		}
 
-		config.dev = &pdev->dev;
+		config.dev = pdev->dev.parent;
 		config.driver_data = ri;
 		config.regmap = tps65090_mfd->rmap;
 		if (tps_pdata)
 			config.init_data = tps_pdata->reg_init_data;
 		else
 			config.init_data = NULL;
+		if (tps65090_reg_matches)
+			config.of_node = tps65090_reg_matches[num].of_node;
+		else
+			config.of_node = NULL;
 
 		rdev = regulator_register(ri->desc, &config);
 		if (IS_ERR(rdev)) {
