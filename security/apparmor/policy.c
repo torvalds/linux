@@ -635,81 +635,6 @@ void __init aa_free_root_ns(void)
 }
 
 /**
- * aa_alloc_profile - allocate, initialize and return a new profile
- * @hname: name of the profile  (NOT NULL)
- *
- * Returns: refcount profile or NULL on failure
- */
-struct aa_profile *aa_alloc_profile(const char *hname)
-{
-	struct aa_profile *profile;
-
-	/* freed by free_profile - usually through aa_put_profile */
-	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
-	if (!profile)
-		return NULL;
-
-	if (!policy_init(&profile->base, NULL, hname)) {
-		kzfree(profile);
-		return NULL;
-	}
-
-	/* refcount released by caller */
-	return profile;
-}
-
-/**
- * aa_new_null_profile - create a new null-X learning profile
- * @parent: profile that caused this profile to be created (NOT NULL)
- * @hat: true if the null- learning profile is a hat
- *
- * Create a null- complain mode profile used in learning mode.  The name of
- * the profile is unique and follows the format of parent//null-<uniq>.
- *
- * null profiles are added to the profile list but the list does not
- * hold a count on them so that they are automatically released when
- * not in use.
- *
- * Returns: new refcounted profile else NULL on failure
- */
-struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
-{
-	struct aa_profile *profile = NULL;
-	char *name;
-	int uniq = atomic_inc_return(&parent->ns->uniq_null);
-
-	/* freed below */
-	name = kmalloc(strlen(parent->base.hname) + 2 + 7 + 8, GFP_KERNEL);
-	if (!name)
-		goto fail;
-	sprintf(name, "%s//null-%x", parent->base.hname, uniq);
-
-	profile = aa_alloc_profile(name);
-	kfree(name);
-	if (!profile)
-		goto fail;
-
-	profile->mode = APPARMOR_COMPLAIN;
-	profile->flags = PFLAG_NULL;
-	if (hat)
-		profile->flags |= PFLAG_HAT;
-
-	/* released on free_profile */
-	profile->parent = aa_get_profile(parent);
-	profile->ns = aa_get_namespace(parent->ns);
-
-	write_lock(&profile->ns->lock);
-	__list_add_profile(&parent->base.profiles, profile);
-	write_unlock(&profile->ns->lock);
-
-	/* refcount released by caller */
-	return profile;
-
-fail:
-	return NULL;
-}
-
-/**
  * free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
  *
@@ -784,6 +709,81 @@ void aa_free_profile_kref(struct kref *kref)
 					    base.count);
 
 	free_profile(p);
+}
+
+/**
+ * aa_alloc_profile - allocate, initialize and return a new profile
+ * @hname: name of the profile  (NOT NULL)
+ *
+ * Returns: refcount profile or NULL on failure
+ */
+struct aa_profile *aa_alloc_profile(const char *hname)
+{
+	struct aa_profile *profile;
+
+	/* freed by free_profile - usually through aa_put_profile */
+	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
+	if (!profile)
+		return NULL;
+
+	if (!policy_init(&profile->base, NULL, hname)) {
+		kzfree(profile);
+		return NULL;
+	}
+
+	/* refcount released by caller */
+	return profile;
+}
+
+/**
+ * aa_new_null_profile - create a new null-X learning profile
+ * @parent: profile that caused this profile to be created (NOT NULL)
+ * @hat: true if the null- learning profile is a hat
+ *
+ * Create a null- complain mode profile used in learning mode.  The name of
+ * the profile is unique and follows the format of parent//null-<uniq>.
+ *
+ * null profiles are added to the profile list but the list does not
+ * hold a count on them so that they are automatically released when
+ * not in use.
+ *
+ * Returns: new refcounted profile else NULL on failure
+ */
+struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
+{
+	struct aa_profile *profile = NULL;
+	char *name;
+	int uniq = atomic_inc_return(&parent->ns->uniq_null);
+
+	/* freed below */
+	name = kmalloc(strlen(parent->base.hname) + 2 + 7 + 8, GFP_KERNEL);
+	if (!name)
+		goto fail;
+	sprintf(name, "%s//null-%x", parent->base.hname, uniq);
+
+	profile = aa_alloc_profile(name);
+	kfree(name);
+	if (!profile)
+		goto fail;
+
+	profile->mode = APPARMOR_COMPLAIN;
+	profile->flags = PFLAG_NULL;
+	if (hat)
+		profile->flags |= PFLAG_HAT;
+
+	/* released on free_profile */
+	profile->parent = aa_get_profile(parent);
+	profile->ns = aa_get_namespace(parent->ns);
+
+	write_lock(&profile->ns->lock);
+	__list_add_profile(&parent->base.profiles, profile);
+	write_unlock(&profile->ns->lock);
+
+	/* refcount released by caller */
+	return profile;
+
+fail:
+	return NULL;
 }
 
 /* TODO: profile accounting - setup in remove */
