@@ -117,6 +117,8 @@ enum {
 #define	IPOIB_OP_CM     (0)
 #endif
 
+#define IPOIB_QPN_MASK ((__force u32) cpu_to_be32(0xFFFFFF))
+
 /* structs */
 
 struct ipoib_header {
