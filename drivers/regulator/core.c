@@ -2080,10 +2080,20 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_regmap);
  */
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 {
+	int ret;
+
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
-	return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+	ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
 				  rdev->desc->vsel_mask, sel);
+	if (ret)
+		return ret;
+
+	if (rdev->desc->apply_bit)
+		ret = regmap_update_bits(rdev->regmap, rdev->desc->apply_reg,
+					 rdev->desc->apply_bit,
+					 rdev->desc->apply_bit);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_regmap);
 
