@@ -6260,7 +6260,6 @@ static int __init net_dev_init(void)
 
 	hotcpu_notifier(dev_cpu_callback, 0);
 	dst_init();
-	dev_mcast_init();
 	rc = 0;
 out:
 	return rc;

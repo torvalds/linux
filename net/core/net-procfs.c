@@ -341,11 +341,6 @@ static struct pernet_operations __net_initdata dev_proc_ops = {
 	.exit = dev_proc_net_exit,
 };
 
-int __init dev_proc_init(void)
-{
-	return register_pernet_subsys(&dev_proc_ops);
-}
-
 static int dev_mc_seq_show(struct seq_file *seq, void *v)
 {
 	struct netdev_hw_addr *ha;
@@ -408,7 +403,10 @@ static struct pernet_operations __net_initdata dev_mc_net_ops = {
 	.exit = dev_mc_net_exit,
 };
 
-void __init dev_mcast_init(void)
+int __init dev_proc_init(void)
 {
-	register_pernet_subsys(&dev_mc_net_ops);
+	int ret = register_pernet_subsys(&dev_proc_ops);
+	if (!ret)
+		return register_pernet_subsys(&dev_mc_net_ops);
+	return ret;
 }
