@@ -1547,7 +1547,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 	queue_work(dev_priv->wq, &dev_priv->gpu_error.work);
 }
 
-static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
+static void __always_unused i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
@@ -2598,6 +2598,8 @@ static int i965_irq_postinstall(struct drm_device *dev)
 			       I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 
 	enable_mask = ~dev_priv->irq_mask;
+	enable_mask &= ~(I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+			 I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT);
 	enable_mask |= I915_USER_INTERRUPT;
 
 	if (IS_G4X(dev))
@@ -2684,6 +2686,13 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	unsigned long irqflags;
 	int irq_received;
 	int ret = IRQ_NONE, pipe;
+	u32 flip[2] = {
+		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT,
+		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT
+	};
+	u32 flip_mask =
+		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -2692,7 +2701,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	for (;;) {
 		bool blc_event = false;
 
-		irq_received = iir != 0;
+		irq_received = (iir & ~flip_mask) != 0;
 
 		/* Can't rely on pipestat interrupt bit in iir as it might
 		 * have been cleared after the pipestat interrupt was received.
@@ -2739,7 +2748,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
 
-		I915_WRITE(IIR, iir);
+		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
@@ -2747,17 +2756,17 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[VCS]);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
-			intel_prepare_page_flip(dev, 0);
-
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
-			intel_prepare_page_flip(dev, 1);
-
 		for_each_pipe(pipe) {
 			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS &&
 			    drm_handle_vblank(dev, pipe)) {
-				i915_pageflip_stall_check(dev, pipe);
-				intel_finish_page_flip(dev, pipe);
+				if (iir & flip[pipe]) {
+					intel_prepare_page_flip(dev, pipe);
+
+					if ((I915_READ(ISR) & flip[pipe]) == 0) {
+						intel_finish_page_flip(dev, pipe);
+						flip_mask &= ~flip[pipe];
+					}
+				}
 			}
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
