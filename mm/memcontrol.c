@@ -3030,7 +3030,9 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
 	if (memcg) {
 		s->memcg_params->memcg = memcg;
 		s->memcg_params->root_cache = root_cache;
-	}
+	} else
+		s->memcg_params->is_root_cache = true;
+
 	return 0;
 }
 

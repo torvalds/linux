@@ -390,6 +390,7 @@ Protocol:	2.00+
 	F  Special		(0xFF = undefined)
        10  Reserved
        11  Minimal Linux Bootloader <http://sebastian-plotz.blogspot.de>
+       12  OVMF UEFI virtualization stack
 
   Please contact <hpa@zytor.com> if you need a bootloader ID
   value assigned.

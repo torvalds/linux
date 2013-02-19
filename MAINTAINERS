@@ -7524,7 +7524,7 @@ S:	Maintained
 F:	drivers/media/tuners/tea5767.*
 
 TEAM DRIVER
-M:	Jiri Pirko <jpirko@redhat.com>
+M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/team/
