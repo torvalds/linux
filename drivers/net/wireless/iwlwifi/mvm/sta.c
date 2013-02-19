@@ -340,6 +340,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+		/* flush its queues here since we are freeing mvm_sta */
+		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
+
 		/*
 		 * Put a non-NULL since the fw station isn't removed.
 		 * It will be removed after the MAC will be set as
@@ -347,9 +350,6 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		 */
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-EINVAL));
-
-		/* flush its queues here since we are freeing mvm_sta */
-		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
 
 		/* if we are associated - we can't remove the AP STA now */
 		if (vif->bss_conf.assoc)
