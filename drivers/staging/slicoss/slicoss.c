@@ -76,6 +76,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/netdevice.h>
+#include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
@@ -189,76 +190,14 @@ static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
 				adapter->bit64reglock.flags);
 }
 
-/*
- * Functions to obtain the CRC corresponding to the destination mac address.
- * This is a standard ethernet CRC in that it is a 32-bit, reflected CRC using
- * the polynomial:
- *   x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 +
- *   x^4 + x^2 + x^1.
- *
- * After the CRC for the 6 bytes is generated (but before the value is
- * complemented),
- * we must then transpose the value and return bits 30-23.
- *
- */
-static u32 slic_crc_table[256];	/* Table of CRCs for all possible byte values */
-static u32 slic_crc_init;	/* Is table initialized */
-
-/*
- *  Contruct the CRC32 table
- */
-static void slic_mcast_init_crc32(void)
-{
-	u32 c;			/*  CRC reg                      */
-	u32 e = 0;		/*  Poly X-or pattern            */
-	int i;			/*  counter                      */
-	int k;			/*  byte being shifted into crc  */
-
-	static int p[] = { 0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26 };
-
-	for (i = 0; i < ARRAY_SIZE(p); i++)
-		e |= 1L << (31 - p[i]);
-
-	for (i = 1; i < 256; i++) {
-		c = i;
-		for (k = 8; k; k--)
-			c = c & 1 ? (c >> 1) ^ e : c >> 1;
-		slic_crc_table[i] = c;
-	}
-}
-
-/*
- *  Return the MAC hast as described above.
- */
-static unsigned char slic_mcast_get_mac_hash(char *macaddr)
-{
-	u32 crc;
-	char *p;
-	int i;
-	unsigned char machash = 0;
-
-	if (!slic_crc_init) {
-		slic_mcast_init_crc32();
-		slic_crc_init = 1;
-	}
-
-	crc = 0xFFFFFFFF;	/* Preload shift register, per crc-32 spec */
-	for (i = 0, p = macaddr; i < 6; ++p, ++i)
-		crc = (crc >> 8) ^ slic_crc_table[(crc ^ *p) & 0xFF];
-
-	/* Return bits 1-8, transposed */
-	for (i = 1; i < 9; i++)
-		machash |= (((crc >> i) & 1) << (8 - i));
-
-	return machash;
-}
-
 static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 {
 	unsigned char crcpoly;
 
 	/* Get the CRC polynomial for the mac address */
-	crcpoly = slic_mcast_get_mac_hash(address);
+	/* we use bits 1-8 (lsb), bitwise reversed,
+	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
+	crcpoly = (ether_crc(ETH_ALEN, address)>>23);
 
 	/* We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
