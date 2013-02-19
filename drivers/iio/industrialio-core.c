@@ -708,6 +708,36 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		attrcount++;
 	}
+	for_each_set_bit(i, &chan->info_mask_separate, sizeof(long)*8) {
+		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i],
+					     chan,
+					     &iio_read_channel_info,
+					     &iio_write_channel_info,
+					     i,
+					     0,
+					     &indio_dev->dev,
+					     &indio_dev->channel_attr_list);
+		if (ret < 0)
+			goto error_ret;
+		attrcount++;
+	}
+	for_each_set_bit(i, &chan->info_mask_shared_by_type, sizeof(long)*8) {
+		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i],
+					     chan,
+					     &iio_read_channel_info,
+					     &iio_write_channel_info,
+					     i,
+					     1,
+					     &indio_dev->dev,
+					     &indio_dev->channel_attr_list);
+		if (ret == -EBUSY) {
+			ret = 0;
+			continue;
+		} else if (ret < 0) {
+			goto error_ret;
+		}
+		attrcount++;
+	}
 
 	if (chan->ext_info) {
 		unsigned int i = 0;

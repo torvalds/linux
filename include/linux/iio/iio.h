@@ -218,6 +218,10 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  *			endianness:	little or big endian
  * @info_mask:		What information is to be exported about this channel.
  *			This includes calibbias, scale etc.
+ * @info_mask_separate: What information is to be exported that is specific to
+ *			this channel.
+ * @info_mask_shared_by_type: What information is to be exported that is shared
+*			by all channels of the same type.
  * @event_mask:		What events can this channel produce.
  * @ext_info:		Array of extended info attributes for this channel.
  *			The array is NULL terminated, the last element should
@@ -253,6 +257,8 @@ struct iio_chan_spec {
 		enum iio_endian endianness;
 	} scan_type;
 	long			info_mask;
+	long			info_mask_separate;
+	long			info_mask_shared_by_type;
 	long			event_mask;
 	const struct iio_chan_spec_ext_info *ext_info;
 	const char		*extend_name;
@@ -275,7 +281,9 @@ struct iio_chan_spec {
 static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 	enum iio_chan_info_enum type)
 {
-	return chan->info_mask & IIO_CHAN_INFO_BITS(type);
+	return (chan->info_mask & IIO_CHAN_INFO_BITS(type)) |
+	       (chan->info_mask_separate & type) |
+	       (chan->info_mask_shared_by_type & type);
 }
 
 #define IIO_ST(si, rb, sb, sh)						\
