@@ -834,6 +834,66 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	return ret;
 }
 
+static void
+mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
+		     struct rate_info *rate)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->is_hw_11ac_capable) {
+		/* bit[1-0]: 00=LG 01=HT 10=VHT */
+		if (tx_htinfo & BIT(0)) {
+			/* HT */
+			rate->mcs = priv->tx_rate;
+			rate->flags |= RATE_INFO_FLAGS_MCS;
+		}
+		if (tx_htinfo & BIT(1)) {
+			/* VHT */
+			rate->mcs = priv->tx_rate & 0x0F;
+			rate->flags |= RATE_INFO_FLAGS_VHT_MCS;
+		}
+
+		if (tx_htinfo & (BIT(1) | BIT(0))) {
+			/* HT or VHT */
+			switch (tx_htinfo & (BIT(3) | BIT(2))) {
+			case 0:
+				/* This will be 20MHz */
+				break;
+			case (BIT(2)):
+				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+				break;
+			case (BIT(3)):
+				rate->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+				break;
+			case (BIT(3) | BIT(2)):
+				rate->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+				break;
+			}
+
+			if (tx_htinfo & BIT(4))
+				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+			if ((priv->tx_rate >> 4) == 1)
+				rate->nss = 2;
+			else
+				rate->nss = 1;
+		}
+	} else {
+		/*
+		 * Bit 0 in tx_htinfo indicates that current Tx rate
+		 * is 11n rate. Valid MCS index values for us are 0 to 15.
+		 */
+		if ((tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
+			rate->mcs = priv->tx_rate;
+			rate->flags |= RATE_INFO_FLAGS_MCS;
+			if (tx_htinfo & BIT(1))
+				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+			if (tx_htinfo & BIT(2))
+				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
+		}
+	}
+}
+
 /*
  * This function dumps the station information on a buffer.
  *
@@ -873,20 +933,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
 			      &priv->dtim_period);
 
-	/*
-	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
-	 * MCS index values for us are 0 to 15.
-	 */
-	if ((priv->tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
-		sinfo->txrate.mcs = priv->tx_rate;
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
-		/* 40MHz rate */
-		if (priv->tx_htinfo & BIT(1))
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-		/* SGI enabled */
-		if (priv->tx_htinfo & BIT(2))
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	}
+	mwifiex_parse_htinfo(priv, priv->tx_htinfo, &sinfo->txrate);
 
 	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
@@ -1295,20 +1342,22 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	/* Set appropriate bands */
 	if (params->chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		bss_cfg->band_cfg = BAND_CONFIG_BG;
+		config_bands = BAND_B | BAND_G;
 
-		if (cfg80211_get_chandef_type(&params->chandef) ==
-						NL80211_CHAN_NO_HT)
-			config_bands = BAND_B | BAND_G;
-		else
-			config_bands = BAND_B | BAND_G | BAND_GN;
+		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_GN;
+
+		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_GAC;
 	} else {
 		bss_cfg->band_cfg = BAND_CONFIG_A;
+		config_bands = BAND_A;
 
-		if (cfg80211_get_chandef_type(&params->chandef) ==
-						NL80211_CHAN_NO_HT)
-			config_bands = BAND_A;
-		else
-			config_bands = BAND_AN | BAND_A;
+		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_AN;
+
+		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_AAC;
 	}
 
 	if (!((config_bands | priv->adapter->fw_bands) &
@@ -1879,6 +1928,79 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	return 0;
 }
 
+static void mwifiex_setup_vht_caps(struct ieee80211_sta_vht_cap *vht_info,
+				   struct mwifiex_private *priv)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u32 vht_cap = 0, cap = adapter->hw_dot_11ac_dev_cap;
+
+	vht_info->vht_supported = true;
+
+	switch (GET_VHTCAP_MAXMPDULEN(cap)) {
+	case 0x00:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
+		break;
+	case 0x01:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991;
+		break;
+	case 0x10:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
+	    break;
+	default:
+	    dev_err(adapter->dev, "unsupported MAX MPDU len\n");
+	    break;
+	}
+
+	if (ISSUPP_11ACVHTHTCVHT(cap))
+		vht_cap |= IEEE80211_VHT_CAP_HTC_VHT;
+
+	if (ISSUPP_11ACVHTTXOPPS(cap))
+		vht_cap |= IEEE80211_VHT_CAP_VHT_TXOP_PS;
+
+	if (ISSUPP_11ACMURXBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE;
+
+	if (ISSUPP_11ACMUTXBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+
+	if (ISSUPP_11ACSUBEAMFORMER(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+
+	if (ISSUPP_11ACSUBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+
+	if (ISSUPP_11ACRXSTBC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_RXSTBC_1;
+
+	if (ISSUPP_11ACTXSTBC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_TXSTBC;
+
+	if (ISSUPP_11ACSGI160(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SHORT_GI_160;
+
+	if (ISSUPP_11ACSGI80(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
+
+	if (ISSUPP_11ACLDPC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_RXLDPC;
+
+	if (ISSUPP_11ACBW8080(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+
+	if (ISSUPP_11ACBW160(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+
+	vht_info->cap = vht_cap;
+
+	/* Update MCS support for VHT */
+	vht_info->vht_mcs.rx_mcs_map = cpu_to_le16(
+				adapter->hw_dot_11ac_mcs_support & 0xFFFF);
+	vht_info->vht_mcs.rx_highest = 0;
+	vht_info->vht_mcs.tx_mcs_map = cpu_to_le16(
+				adapter->hw_dot_11ac_mcs_support >> 16);
+	vht_info->vht_mcs.tx_highest = 0;
+}
+
 /*
  * This function sets up the CFG802.11 specific HT capability fields
  * with default values.
@@ -2092,10 +2214,17 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	priv->netdev = dev;
 
 	mwifiex_setup_ht_caps(&wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+	if (adapter->is_hw_11ac_capable)
+		mwifiex_setup_vht_caps(
+			&wiphy->bands[IEEE80211_BAND_2GHZ]->vht_cap, priv);
 
 	if (adapter->config_bands & BAND_A)
 		mwifiex_setup_ht_caps(
 			&wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
+
+	if ((adapter->config_bands & BAND_A) && adapter->is_hw_11ac_capable)
+		mwifiex_setup_vht_caps(
+			&wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap, priv);
 
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = priv->wdev;

@@ -1403,6 +1403,7 @@ enum {
 
 #define AGG_TX_STATUS_MSK	0x00000fff	/* bits 0:11 */
 #define AGG_TX_TRY_MSK		0x0000f000	/* bits 12:15 */
+#define AGG_TX_TRY_POS		12
 
 #define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL_MSK | \
 				     AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \

@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 #define CAPINFO_MASK    (~(BIT(15) | BIT(14) | BIT(12) | BIT(11) | BIT(9)))
 
@@ -511,6 +512,12 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	    (priv->adapter->config_bands & BAND_GN ||
 	     priv->adapter->config_bands & BAND_AN))
 		mwifiex_cmd_append_11n_tlv(priv, bss_desc, &pos);
+
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info) &&
+	    !bss_desc->disable_11n && !bss_desc->disable_11ac &&
+	    (priv->adapter->config_bands & BAND_GAC ||
+	     priv->adapter->config_bands & BAND_AAC))
+		mwifiex_cmd_append_11ac_tlv(priv, bss_desc, &pos);
 
 	/* Append vendor specific IE TLV */
 	mwifiex_cmd_append_vsie_tlv(priv, MWIFIEX_VSIE_MASK_ASSOC, &pos);
@@ -1421,6 +1428,7 @@ mwifiex_band_to_radio_type(u8 band)
 	case BAND_A:
 	case BAND_AN:
 	case BAND_A | BAND_AN:
+	case BAND_A | BAND_AN | BAND_AAC:
 		return HostCmd_SCAN_RADIO_TYPE_A;
 	case BAND_B:
 	case BAND_G:

@@ -479,7 +479,7 @@ TRACE_EVENT(drv_set_tim,
 
 	TP_printk(
 		LOCAL_PR_FMT STA_PR_FMT " set:%d",
-		LOCAL_PR_ARG, STA_PR_FMT, __entry->set
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->set
 	)
 );
 
@@ -1684,7 +1684,7 @@ TRACE_EVENT(api_sta_block_awake,
 
 	TP_printk(
 		LOCAL_PR_FMT STA_PR_FMT " block:%d",
-		LOCAL_PR_ARG, STA_PR_FMT, __entry->block
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->block
 	)
 );
 
@@ -1782,7 +1782,7 @@ TRACE_EVENT(api_eosp,
 
 	TP_printk(
 		LOCAL_PR_FMT STA_PR_FMT,
-		LOCAL_PR_ARG, STA_PR_FMT
+		LOCAL_PR_ARG, STA_PR_ARG
 	)
 );
 

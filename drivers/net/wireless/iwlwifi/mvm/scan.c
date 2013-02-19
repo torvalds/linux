@@ -292,7 +292,12 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	cmd->rxon_flags = iwl_mvm_scan_rxon_flags(req);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
-	cmd->type = SCAN_TYPE_FORCED;
+
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		cmd->type = cpu_to_le32(SCAN_TYPE_DISCOVERY_FORCED);
+	else
+		cmd->type = cpu_to_le32(SCAN_TYPE_FORCED);
+
 	cmd->repeats = cpu_to_le32(1);
 
 	/*

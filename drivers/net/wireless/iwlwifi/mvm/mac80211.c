@@ -113,10 +113,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		    IEEE80211_HW_QUEUE_CONTROL |
 		    IEEE80211_HW_WANT_MONITOR_VIF |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
 		    IEEE80211_HW_SUPPORTS_PS |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_AMPDU_AGGREGATION;
+		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_TIMING_BEACON_ONLY;
 
 	hw->queues = IWL_FIRST_AMPDU_QUEUE;
 	hw->offchannel_tx_hw_queue = IWL_OFFCHANNEL_QUEUE;
@@ -857,7 +857,6 @@ iwl_mvm_mac_allow_buffered_frames(struct ieee80211_hw *hw,
 				  bool more_data)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 
 	/* TODO: how do we tell the fw to send frames for a specific TID */
 
@@ -865,8 +864,7 @@ iwl_mvm_mac_allow_buffered_frames(struct ieee80211_hw *hw,
 	 * The fw will send EOSP notification when the last frame will be
 	 * transmitted.
 	 */
-	iwl_mvm_sta_modify_sleep_tx_count(mvm, mvmsta->sta_id, reason,
-					  num_frames);
+	iwl_mvm_sta_modify_sleep_tx_count(mvm, sta, reason, num_frames);
 }
 
 static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
@@ -890,7 +888,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_AWAKE:
 		if (WARN_ON(mvmsta->sta_id == IWL_INVALID_STATION))
 			break;
-		iwl_mvm_sta_modify_ps_wake(mvm, mvmsta->sta_id);
+		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;
 	default:
 		break;
