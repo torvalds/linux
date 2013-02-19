@@ -1141,7 +1141,7 @@ static bool obj_request_type_valid(enum obj_request_type type)
 	}
 }
 
-struct ceph_osd_req_op *rbd_osd_req_op_create(u16 opcode, ...)
+static struct ceph_osd_req_op *rbd_osd_req_op_create(u16 opcode, ...)
 {
 	struct ceph_osd_req_op *op;
 	va_list args;
@@ -1537,7 +1537,8 @@ static void rbd_obj_request_destroy(struct kref *kref)
  * that comprises the image request, and the Linux request pointer
  * (if there is one).
  */
-struct rbd_img_request *rbd_img_request_create(struct rbd_device *rbd_dev,
+static struct rbd_img_request *rbd_img_request_create(
+					struct rbd_device *rbd_dev,
 					u64 offset, u64 length,
 					bool write_request)
 {
@@ -1971,6 +1972,7 @@ out:
 }
 
 static void rbd_request_fn(struct request_queue *q)
+		__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct rbd_device *rbd_dev = q->queuedata;
 	bool read_only = rbd_dev->mapping.read_only;
@@ -2705,7 +2707,7 @@ static void rbd_spec_free(struct kref *kref)
 	kfree(spec);
 }
 
-struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
+static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 				struct rbd_spec *spec)
 {
 	struct rbd_device *rbd_dev;
@@ -4256,7 +4258,7 @@ static void rbd_sysfs_cleanup(void)
 	device_unregister(&rbd_root_dev);
 }
 
-int __init rbd_init(void)
+static int __init rbd_init(void)
 {
 	int rc;
 
@@ -4272,7 +4274,7 @@ int __init rbd_init(void)
 	return 0;
 }
 
-void __exit rbd_exit(void)
+static void __exit rbd_exit(void)
 {
 	rbd_sysfs_cleanup();
 }
