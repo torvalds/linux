@@ -171,7 +171,7 @@ static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
-	int hs_actived, i;
+	int hs_actived;
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -191,9 +191,6 @@ static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Indicate device suspended */
 	adapter->is_suspended = true;
 
-	for (i = 0; i < adapter->priv_num; i++)
-		netif_carrier_off(adapter->priv[i]->netdev);
-
 	return 0;
 }
 
@@ -209,7 +206,6 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
-	int i;
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -230,10 +226,6 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 	}
 
 	adapter->is_suspended = false;
-
-	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]->media_connected)
-			netif_carrier_on(adapter->priv[i]->netdev);
 
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
 			  MWIFIEX_ASYNC_CMD);
