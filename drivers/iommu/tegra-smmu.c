@@ -1,7 +1,7 @@
 /*
  * IOMMU API for SMMU in Tegra30
  *
- * Copyright (c) 2011-2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011-2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -293,7 +293,11 @@ struct smmu_debugfs_info {
  * Per SMMU device - IOMMU device
  */
 struct smmu_device {
-	void __iomem	*regs[NUM_SMMU_REG_BANKS];
+	void __iomem	*regbase;	/* register offset base */
+	void __iomem	**regs;		/* register block start address array */
+	void __iomem	**rege;		/* register block end address array */
+	int		nregs;		/* number of register blocks */
+
 	unsigned long	iovmm_base;	/* remappable base address */
 	unsigned long	page_count;	/* total remappable size */
 	spinlock_t	lock;
@@ -323,38 +327,37 @@ static struct smmu_device *smmu_handle; /* unique for a system */
 /*
  *	SMMU register accessors
  */
+static bool inline smmu_valid_reg(struct smmu_device *smmu,
+				  void __iomem *addr)
+{
+	int i;
+
+	for (i = 0; i < smmu->nregs; i++) {
+		if (addr < smmu->regs[i])
+			break;
+		if (addr <= smmu->rege[i])
+			return true;
+	}
+
+	return false;
+}
+
 static inline u32 smmu_read(struct smmu_device *smmu, size_t offs)
 {
-	BUG_ON(offs < 0x10);
-	if (offs < 0x3c)
-		return readl(smmu->regs[0] + offs - 0x10);
-	BUG_ON(offs < 0x1f0);
-	if (offs < 0x200)
-		return readl(smmu->regs[1] + offs - 0x1f0);
-	BUG_ON(offs < 0x228);
-	if (offs < 0x284)
-		return readl(smmu->regs[2] + offs - 0x228);
-	BUG();
+	void __iomem *addr = smmu->regbase + offs;
+
+	BUG_ON(!smmu_valid_reg(smmu, addr));
+
+	return readl(addr);
 }
 
 static inline void smmu_write(struct smmu_device *smmu, u32 val, size_t offs)
 {
-	BUG_ON(offs < 0x10);
-	if (offs < 0x3c) {
-		writel(val, smmu->regs[0] + offs - 0x10);
-		return;
-	}
-	BUG_ON(offs < 0x1f0);
-	if (offs < 0x200) {
-		writel(val, smmu->regs[1] + offs - 0x1f0);
-		return;
-	}
-	BUG_ON(offs < 0x228);
-	if (offs < 0x284) {
-		writel(val, smmu->regs[2] + offs - 0x228);
-		return;
-	}
-	BUG();
+	void __iomem *addr = smmu->regbase + offs;
+
+	BUG_ON(!smmu_valid_reg(smmu, addr));
+
+	writel(val, addr);
 }
 
 #define VA_PAGE_TO_PA(va, page)	\
@@ -1170,7 +1173,13 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(smmu->regs); i++) {
+	smmu->nregs = pdev->num_resources;
+	smmu->regs = devm_kzalloc(dev, 2 * smmu->nregs * sizeof(*smmu->regs),
+				  GFP_KERNEL);
+	smmu->rege = smmu->regs + smmu->nregs;
+	if (!smmu->regs)
+		return -ENOMEM;
+	for (i = 0; i < smmu->nregs; i++) {
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
@@ -1179,7 +1188,10 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		smmu->regs[i] = devm_request_and_ioremap(&pdev->dev, res);
 		if (!smmu->regs[i])
 			return -EBUSY;
+		smmu->rege[i] = smmu->regs[i] + resource_size(res) - 1;
 	}
+	/* Same as "mc" 1st regiter block start address */
+	smmu->regbase = (void __iomem *)((u32)smmu->regs[0] & PAGE_MASK);
 
 	err = of_get_dma_window(dev->of_node, NULL, 0, NULL, &base, &size);
 	if (err)
@@ -1216,6 +1228,7 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		as->pte_attr = _PTE_ATTR;
 
 		spin_lock_init(&as->lock);
+		spin_lock_init(&as->client_lock);
 		INIT_LIST_HEAD(&as->client);
 	}
 	spin_lock_init(&smmu->lock);
@@ -1254,13 +1267,11 @@ const struct dev_pm_ops tegra_smmu_pm_ops = {
 	.resume		= tegra_smmu_resume,
 };
 
-#ifdef CONFIG_OF
 static struct of_device_id tegra_smmu_of_match[] = {
 	{ .compatible = "nvidia,tegra30-smmu", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_smmu_of_match);
-#endif
 
 static struct platform_driver tegra_smmu_driver = {
 	.probe		= tegra_smmu_probe,
@@ -1269,7 +1280,7 @@ static struct platform_driver tegra_smmu_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "tegra-smmu",
 		.pm	= &tegra_smmu_pm_ops,
-		.of_match_table = of_match_ptr(tegra_smmu_of_match),
+		.of_match_table = tegra_smmu_of_match,
 	},
 };
 
