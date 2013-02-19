@@ -860,6 +860,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNLABEL
 	tristate '"connlabel" match support'
 	select NF_CONNTRACK_LABELS
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	---help---
 	  This match allows you to test and assign userspace-defined labels names

@@ -104,7 +104,6 @@ static unsigned int ipv6_helper(unsigned int hooknum,
 	const struct nf_conn_help *help;
 	const struct nf_conntrack_helper *helper;
 	enum ip_conntrack_info ctinfo;
-	unsigned int ret;
 	__be16 frag_off;
 	int protoff;
 	u8 nexthdr;
@@ -130,12 +129,7 @@ static unsigned int ipv6_helper(unsigned int hooknum,
 		return NF_ACCEPT;
 	}
 
-	ret = helper->help(skb, protoff, ct, ctinfo);
-	if (ret != NF_ACCEPT && (ret & NF_VERDICT_MASK) != NF_QUEUE) {
-		nf_log_packet(NFPROTO_IPV6, hooknum, skb, in, out, NULL,
-			      "nf_ct_%s: dropping packet", helper->name);
-	}
-	return ret;
+	return helper->help(skb, protoff, ct, ctinfo);
 }
 
 static unsigned int ipv6_confirm(unsigned int hooknum,

@@ -100,7 +100,6 @@ static unsigned int ipv4_helper(unsigned int hooknum,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn_help *help;
 	const struct nf_conntrack_helper *helper;
-	unsigned int ret;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
@@ -116,13 +115,8 @@ static unsigned int ipv4_helper(unsigned int hooknum,
 	if (!helper)
 		return NF_ACCEPT;
 
-	ret = helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
-			   ct, ctinfo);
-	if (ret != NF_ACCEPT && (ret & NF_VERDICT_MASK) != NF_QUEUE) {
-		nf_log_packet(NFPROTO_IPV4, hooknum, skb, in, out, NULL,
-			      "nf_ct_%s: dropping packet", helper->name);
-	}
-	return ret;
+	return helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
+			    ct, ctinfo);
 }
 
 static unsigned int ipv4_confirm(unsigned int hooknum,
