@@ -69,6 +69,23 @@ void aa_dup_task_context(struct aa_task_cxt *new, const struct aa_task_cxt *old)
 }
 
 /**
+ * aa_get_task_profile - Get another task's profile
+ * @task: task to query  (NOT NULL)
+ *
+ * Returns: counted reference to @task's profile
+ */
+struct aa_profile *aa_get_task_profile(struct task_struct *task)
+{
+	struct aa_profile *p;
+
+	rcu_read_lock();
+	p = aa_get_profile(__aa_task_profile(task));
+	rcu_read_unlock();
+
+	return p;
+}
+
+/**
  * aa_replace_current_profile - replace the current tasks profiles
  * @profile: new profile  (NOT NULL)
  *

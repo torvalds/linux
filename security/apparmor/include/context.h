@@ -80,23 +80,8 @@ int aa_replace_current_profile(struct aa_profile *profile);
 int aa_set_current_onexec(struct aa_profile *profile);
 int aa_set_current_hat(struct aa_profile *profile, u64 token);
 int aa_restore_previous_profile(u64 cookie);
+struct aa_profile *aa_get_task_profile(struct task_struct *task);
 
-/**
- * __aa_task_is_confined - determine if @task has any confinement
- * @task: task to check confinement of  (NOT NULL)
- *
- * If @task != current needs to be called in RCU safe critical section
- */
-static inline bool __aa_task_is_confined(struct task_struct *task)
-{
-	struct aa_task_cxt *cxt = __task_cred(task)->security;
-
-	BUG_ON(!cxt || !cxt->profile);
-	if (unconfined(aa_newest_version(cxt->profile)))
-		return 0;
-
-	return 1;
-}
 
 /**
  * aa_cred_profile - obtain cred's profiles
@@ -111,6 +96,30 @@ static inline struct aa_profile *aa_cred_profile(const struct cred *cred)
 	struct aa_task_cxt *cxt = cred->security;
 	BUG_ON(!cxt || !cxt->profile);
 	return aa_newest_version(cxt->profile);
+}
+
+/**
+ * __aa_task_profile - retrieve another task's profile
+ * @task: task to query  (NOT NULL)
+ *
+ * Returns: @task's profile without incrementing its ref count
+ *
+ * If @task != current needs to be called in RCU safe critical section
+ */
+static inline struct aa_profile *__aa_task_profile(struct task_struct *task)
+{
+	return aa_cred_profile(__task_cred(task));
+}
+
+/**
+ * __aa_task_is_confined - determine if @task has any confinement
+ * @task: task to check confinement of  (NOT NULL)
+ *
+ * If @task != current needs to be called in RCU safe critical section
+ */
+static inline bool __aa_task_is_confined(struct task_struct *task)
+{
+	return !unconfined(__aa_task_profile(task));
 }
 
 /**

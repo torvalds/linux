@@ -62,17 +62,14 @@ static int may_change_ptraced_domain(struct task_struct *task,
 				     struct aa_profile *to_profile)
 {
 	struct task_struct *tracer;
-	const struct cred *cred = NULL;
 	struct aa_profile *tracerp = NULL;
 	int error = 0;
 
 	rcu_read_lock();
 	tracer = ptrace_parent(task);
-	if (tracer) {
+	if (tracer)
 		/* released below */
-		cred = get_task_cred(tracer);
-		tracerp = aa_cred_profile(cred);
-	}
+		tracerp = aa_get_task_profile(tracer);
 
 	/* not ptraced */
 	if (!tracer || unconfined(tracerp))
@@ -82,8 +79,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 
 out:
 	rcu_read_unlock();
-	if (cred)
-		put_cred(cred);
+	aa_put_profile(tracerp);
 
 	return error;
 }
