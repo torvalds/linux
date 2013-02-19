@@ -1483,22 +1483,16 @@ static struct se_lun *core_dev_get_lun(struct se_portal_group *tpg, u32 unpacked
 
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	struct se_portal_group *tpg,
+	struct se_node_acl *nacl,
 	u32 mapped_lun,
-	char *initiatorname,
 	int *ret)
 {
 	struct se_lun_acl *lacl;
-	struct se_node_acl *nacl;
 
-	if (strlen(initiatorname) >= TRANSPORT_IQN_LEN) {
+	if (strlen(nacl->initiatorname) >= TRANSPORT_IQN_LEN) {
 		pr_err("%s InitiatorName exceeds maximum size.\n",
 			tpg->se_tpg_tfo->get_fabric_name());
 		*ret = -EOVERFLOW;
-		return NULL;
-	}
-	nacl = core_tpg_get_initiator_node_acl(tpg, initiatorname);
-	if (!nacl) {
-		*ret = -EINVAL;
 		return NULL;
 	}
 	lacl = kzalloc(sizeof(struct se_lun_acl), GFP_KERNEL);
@@ -1511,7 +1505,8 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	INIT_LIST_HEAD(&lacl->lacl_list);
 	lacl->mapped_lun = mapped_lun;
 	lacl->se_lun_nacl = nacl;
-	snprintf(lacl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
+	snprintf(lacl->initiatorname, TRANSPORT_IQN_LEN, "%s",
+		 nacl->initiatorname);
 
 	return lacl;
 }

@@ -357,8 +357,8 @@ static struct config_group *target_fabric_make_mappedlun(
 		goto out;
 	}
 
-	lacl = core_dev_init_initiator_node_lun_acl(se_tpg, mapped_lun,
-			config_item_name(acl_ci), &ret);
+	lacl = core_dev_init_initiator_node_lun_acl(se_tpg, se_nacl,
+			mapped_lun, &ret);
 	if (!lacl) {
 		ret = -EINVAL;
 		goto out;
