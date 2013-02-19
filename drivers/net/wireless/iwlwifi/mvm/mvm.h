@@ -337,6 +337,7 @@ struct iwl_mvm {
 
 	/* BT-Coex */
 	u8 bt_kill_msk;
+	struct iwl_bt_coex_profile_notif last_bt_notif;
 };
 
 /* Extract MVM priv from op_mode and _hw */

@@ -307,6 +307,9 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 		       notif->bt_agg_traffic_load);
 	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
 
+	/* remember this notification for future use: rssi fluctuations */
+	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+
 	ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 					iwl_mvm_bt_notif_iterator, &data);
