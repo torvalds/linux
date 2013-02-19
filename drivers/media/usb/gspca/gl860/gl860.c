@@ -58,115 +58,135 @@ MODULE_PARM_DESC(sensor,
 
 /*============================ webcam controls =============================*/
 
-/* Functions to get and set a control value */
-#define SD_SETGET(thename) \
-static int sd_set_##thename(struct gspca_dev *gspca_dev, s32 val)\
-{\
-	struct sd *sd = (struct sd *) gspca_dev;\
-\
-	sd->vcur.thename = val;\
-	if (gspca_dev->streaming)\
-		sd->waitSet = 1;\
-	return 0;\
-} \
-static int sd_get_##thename(struct gspca_dev *gspca_dev, s32 *val)\
-{\
-	struct sd *sd = (struct sd *) gspca_dev;\
-\
-	*val = sd->vcur.thename;\
-	return 0;\
-}
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *) gspca_dev;
 
-SD_SETGET(mirror)
-SD_SETGET(flip)
-SD_SETGET(AC50Hz)
-SD_SETGET(backlight)
-SD_SETGET(brightness)
-SD_SETGET(gamma)
-SD_SETGET(hue)
-SD_SETGET(saturation)
-SD_SETGET(sharpness)
-SD_SETGET(whitebal)
-SD_SETGET(contrast)
-
-#define GL860_NCTRLS 11
-
-/* control table */
-static struct ctrl sd_ctrls_mi1320[GL860_NCTRLS];
-static struct ctrl sd_ctrls_mi2020[GL860_NCTRLS];
-static struct ctrl sd_ctrls_ov2640[GL860_NCTRLS];
-static struct ctrl sd_ctrls_ov9655[GL860_NCTRLS];
-
-#define SET_MY_CTRL(theid, \
-	thetype, thelabel, thename) \
-	if (sd->vmax.thename != 0) {\
-		sd_ctrls[nCtrls].qctrl.id   = theid;\
-		sd_ctrls[nCtrls].qctrl.type = thetype;\
-		strcpy(sd_ctrls[nCtrls].qctrl.name, thelabel);\
-		sd_ctrls[nCtrls].qctrl.minimum = 0;\
-		sd_ctrls[nCtrls].qctrl.maximum = sd->vmax.thename;\
-		sd_ctrls[nCtrls].qctrl.default_value = sd->vcur.thename;\
-		sd_ctrls[nCtrls].qctrl.step = \
-			(sd->vmax.thename < 16) ? 1 : sd->vmax.thename/16;\
-		sd_ctrls[nCtrls].set = sd_set_##thename;\
-		sd_ctrls[nCtrls].get = sd_get_##thename;\
-		nCtrls++;\
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		sd->vcur.brightness = ctrl->val;
+		break;
+	case V4L2_CID_CONTRAST:
+		sd->vcur.contrast = ctrl->val;
+		break;
+	case V4L2_CID_SATURATION:
+		sd->vcur.saturation = ctrl->val;
+		break;
+	case V4L2_CID_HUE:
+		sd->vcur.hue = ctrl->val;
+		break;
+	case V4L2_CID_GAMMA:
+		sd->vcur.gamma = ctrl->val;
+		break;
+	case V4L2_CID_HFLIP:
+		sd->vcur.mirror = ctrl->val;
+		break;
+	case V4L2_CID_VFLIP:
+		sd->vcur.flip = ctrl->val;
+		break;
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		sd->vcur.AC50Hz = ctrl->val;
+		break;
+	case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
+		sd->vcur.whitebal = ctrl->val;
+		break;
+	case V4L2_CID_SHARPNESS:
+		sd->vcur.sharpness = ctrl->val;
+		break;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		sd->vcur.backlight = ctrl->val;
+		break;
+	default:
+		return -EINVAL;
 	}
 
-static int gl860_build_control_table(struct gspca_dev *gspca_dev)
+	if (gspca_dev->streaming)
+		sd->waitSet = 1;
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct ctrl *sd_ctrls;
-	int nCtrls = 0;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
-	if (_MI1320_)
-		sd_ctrls = sd_ctrls_mi1320;
-	else if (_MI2020_)
-		sd_ctrls = sd_ctrls_mi2020;
-	else if (_OV2640_)
-		sd_ctrls = sd_ctrls_ov2640;
-	else if (_OV9655_)
-		sd_ctrls = sd_ctrls_ov9655;
-	else
-		return 0;
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 11);
 
-	memset(sd_ctrls, 0, GL860_NCTRLS * sizeof(struct ctrl));
+	if (sd->vmax.brightness)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_BRIGHTNESS,
+				  0, sd->vmax.brightness, 1,
+				  sd->vcur.brightness);
 
-	SET_MY_CTRL(V4L2_CID_BRIGHTNESS,
-		V4L2_CTRL_TYPE_INTEGER, "Brightness", brightness)
-	SET_MY_CTRL(V4L2_CID_SHARPNESS,
-		V4L2_CTRL_TYPE_INTEGER, "Sharpness", sharpness)
-	SET_MY_CTRL(V4L2_CID_CONTRAST,
-		V4L2_CTRL_TYPE_INTEGER, "Contrast", contrast)
-	SET_MY_CTRL(V4L2_CID_GAMMA,
-		V4L2_CTRL_TYPE_INTEGER, "Gamma", gamma)
-	SET_MY_CTRL(V4L2_CID_HUE,
-		V4L2_CTRL_TYPE_INTEGER, "Palette", hue)
-	SET_MY_CTRL(V4L2_CID_SATURATION,
-		V4L2_CTRL_TYPE_INTEGER, "Saturation", saturation)
-	SET_MY_CTRL(V4L2_CID_WHITE_BALANCE_TEMPERATURE,
-		V4L2_CTRL_TYPE_INTEGER, "White Bal.", whitebal)
-	SET_MY_CTRL(V4L2_CID_BACKLIGHT_COMPENSATION,
-		V4L2_CTRL_TYPE_INTEGER, "Backlight" , backlight)
+	if (sd->vmax.contrast)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_CONTRAST,
+				  0, sd->vmax.contrast, 1,
+				  sd->vcur.contrast);
 
-	SET_MY_CTRL(V4L2_CID_HFLIP,
-		V4L2_CTRL_TYPE_BOOLEAN, "Mirror", mirror)
-	SET_MY_CTRL(V4L2_CID_VFLIP,
-		V4L2_CTRL_TYPE_BOOLEAN, "Flip", flip)
-	SET_MY_CTRL(V4L2_CID_POWER_LINE_FREQUENCY,
-		V4L2_CTRL_TYPE_BOOLEAN, "AC power 50Hz", AC50Hz)
+	if (sd->vmax.saturation)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_SATURATION,
+				  0, sd->vmax.saturation, 1,
+				  sd->vcur.saturation);
 
-	return nCtrls;
+	if (sd->vmax.hue)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_HUE,
+				  0, sd->vmax.hue, 1, sd->vcur.hue);
+
+	if (sd->vmax.gamma)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_GAMMA,
+				  0, sd->vmax.gamma, 1, sd->vcur.gamma);
+
+	if (sd->vmax.mirror)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_HFLIP,
+				  0, sd->vmax.mirror, 1, sd->vcur.mirror);
+
+	if (sd->vmax.flip)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_VFLIP,
+				  0, sd->vmax.flip, 1, sd->vcur.flip);
+
+	if (sd->vmax.AC50Hz)
+		v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+				  V4L2_CID_POWER_LINE_FREQUENCY,
+				  sd->vmax.AC50Hz, 0, sd->vcur.AC50Hz);
+
+	if (sd->vmax.whitebal)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				  V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+				  0, sd->vmax.whitebal, 1, sd->vcur.whitebal);
+
+	if (sd->vmax.sharpness)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_SHARPNESS,
+				  0, sd->vmax.sharpness, 1,
+				  sd->vcur.sharpness);
+
+	if (sd->vmax.backlight)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				  V4L2_CID_BACKLIGHT_COMPENSATION,
+				  0, sd->vmax.backlight, 1,
+				  sd->vcur.backlight);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	return 0;
 }
 
 /*==================== sud-driver structure initialisation =================*/
 
 static const struct sd_desc sd_desc_mi1320 = {
 	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_mi1320,
-	.nctrls      = GL860_NCTRLS,
 	.config      = sd_config,
 	.init        = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init   = sd_isoc_init,
 	.start       = sd_start,
 	.stop0       = sd_stop0,
@@ -176,10 +196,9 @@ static const struct sd_desc sd_desc_mi1320 = {
 
 static const struct sd_desc sd_desc_mi2020 = {
 	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_mi2020,
-	.nctrls      = GL860_NCTRLS,
 	.config      = sd_config,
 	.init        = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init   = sd_isoc_init,
 	.start       = sd_start,
 	.stop0       = sd_stop0,
@@ -189,10 +208,9 @@ static const struct sd_desc sd_desc_mi2020 = {
 
 static const struct sd_desc sd_desc_ov2640 = {
 	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_ov2640,
-	.nctrls      = GL860_NCTRLS,
 	.config      = sd_config,
 	.init        = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init   = sd_isoc_init,
 	.start       = sd_start,
 	.stop0       = sd_stop0,
@@ -202,10 +220,9 @@ static const struct sd_desc sd_desc_ov2640 = {
 
 static const struct sd_desc sd_desc_ov9655 = {
 	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_ov9655,
-	.nctrls      = GL860_NCTRLS,
 	.config      = sd_config,
 	.init        = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init   = sd_isoc_init,
 	.start       = sd_start,
 	.stop0       = sd_stop0,
@@ -371,7 +388,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	dev_init_settings(gspca_dev);
 	if (AC50Hz != 0xff)
 		((struct sd *) gspca_dev)->vcur.AC50Hz = AC50Hz;
-	gl860_build_control_table(gspca_dev);
 
 	return 0;
 }
