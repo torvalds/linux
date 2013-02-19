@@ -333,7 +333,7 @@ static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&tmu01_device,
 };
 
-static struct platform_device *r8a7779_early_devices[] __initdata = {
+static struct platform_device *r8a7779_late_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
 	&i2c2_device,
@@ -352,8 +352,8 @@ void __init r8a7779_add_standard_devices(void)
 
 	platform_add_devices(r8a7779_devices_dt,
 			    ARRAY_SIZE(r8a7779_devices_dt));
-	platform_add_devices(r8a7779_early_devices,
-			    ARRAY_SIZE(r8a7779_early_devices));
+	platform_add_devices(r8a7779_late_devices,
+			    ARRAY_SIZE(r8a7779_late_devices));
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
@@ -370,8 +370,6 @@ void __init r8a7779_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7779_devices_dt,
 				   ARRAY_SIZE(r8a7779_devices_dt));
-	early_platform_add_devices(r8a7779_early_devices,
-				   ARRAY_SIZE(r8a7779_early_devices));
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
