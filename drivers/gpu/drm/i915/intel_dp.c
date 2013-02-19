@@ -748,6 +748,18 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
 	bpp = min_t(int, 8*3, pipe_config->pipe_bpp);
+
+	/*
+	 * eDP panels are really fickle, try to enfore the bpp the firmware
+	 * recomments. This means we'll up-dither 16bpp framebuffers on
+	 * high-depth panels.
+	 */
+	if (is_edp(intel_dp) && dev_priv->edp.bpp) {
+		DRM_DEBUG_KMS("forcing bpp for eDP panel to BIOS-provided %i\n",
+			      dev_priv->edp.bpp);
+		bpp = dev_priv->edp.bpp;
+	}
+
 	for (; bpp >= 6*3; bpp -= 2*3) {
 		mode_rate = intel_dp_link_required(target_clock, bpp);
 
@@ -797,18 +809,6 @@ found:
 			       target_clock, adjusted_mode->clock,
 			       &pipe_config->dp_m_n);
 
-	/*
-	 * XXX: We have a strange regression where using the vbt edp bpp value
-	 * for the link bw computation results in black screens, the panel only
-	 * works when we do the computation at the usual 24bpp (but still
-	 * requires us to use 18bpp). Until that's fully debugged, stay
-	 * bug-for-bug compatible with the old code.
-	 */
-	if (is_edp(intel_dp) && dev_priv->edp.bpp) {
-		DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n",
-			      bpp, dev_priv->edp.bpp);
-		bpp = min_t(int, bpp, dev_priv->edp.bpp);
-	}
 	pipe_config->pipe_bpp = bpp;
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
