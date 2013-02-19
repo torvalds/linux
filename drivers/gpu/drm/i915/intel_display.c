@@ -4525,6 +4525,68 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 }
 
+static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t pipeconf;
+
+	pipeconf = I915_READ(PIPECONF(intel_crtc->pipe));
+
+	if (intel_crtc->pipe == 0 && INTEL_INFO(dev)->gen < 4) {
+		/* Enable pixel doubling when the dot clock is > 90% of the (display)
+		 * core speed.
+		 *
+		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
+		 * pipe == 0 check?
+		 */
+		if (intel_crtc->config.requested_mode.clock >
+		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
+			pipeconf |= PIPECONF_DOUBLE_WIDE;
+		else
+			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
+	}
+
+	/* default to 8bpc */
+	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
+	if (intel_crtc->config.has_dp_encoder) {
+		if (intel_crtc->config.dither) {
+			pipeconf |= PIPECONF_6BPC |
+				    PIPECONF_DITHER_EN |
+				    PIPECONF_DITHER_TYPE_SP;
+		}
+	}
+
+	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(&intel_crtc->base,
+						      INTEL_OUTPUT_EDP)) {
+		if (intel_crtc->config.dither) {
+			pipeconf |= PIPECONF_6BPC |
+					PIPECONF_ENABLE |
+					I965_PIPECONF_ACTIVE;
+		}
+	}
+
+	if (HAS_PIPE_CXSR(dev)) {
+		if (intel_crtc->lowfreq_avail) {
+			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
+			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
+		} else {
+			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
+			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
+		}
+	}
+
+	pipeconf &= ~PIPECONF_INTERLACE_MASK;
+	if (!IS_GEN2(dev) &&
+	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+	else
+		pipeconf |= PIPECONF_PROGRESSIVE;
+
+	I915_WRITE(PIPECONF(intel_crtc->pipe), pipeconf);
+	POSTING_READ(PIPECONF(intel_crtc->pipe));
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      int x, int y,
 			      struct drm_framebuffer *fb)
@@ -4539,7 +4601,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dspcntr, pipeconf;
+	u32 dspcntr;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_lvds = false, is_tv = false;
 	struct intel_encoder *encoder;
@@ -4619,9 +4681,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 
-	/* setup pipeconf */
-	pipeconf = I915_READ(PIPECONF(pipe));
-
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -4632,57 +4691,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
 	}
 
-	if (pipe == 0 && INTEL_INFO(dev)->gen < 4) {
-		/* Enable pixel doubling when the dot clock is > 90% of the (display)
-		 * core speed.
-		 *
-		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
-		 * pipe == 0 check?
-		 */
-		if (mode->clock >
-		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
-			pipeconf |= PIPECONF_DOUBLE_WIDE;
-		else
-			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
-	}
-
-	/* default to 8bpc */
-	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
-	if (intel_crtc->config.has_dp_encoder) {
-		if (intel_crtc->config.dither) {
-			pipeconf |= PIPECONF_6BPC |
-				    PIPECONF_DITHER_EN |
-				    PIPECONF_DITHER_TYPE_SP;
-		}
-	}
-
-	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
-		if (intel_crtc->config.dither) {
-			pipeconf |= PIPECONF_6BPC |
-					PIPECONF_ENABLE |
-					I965_PIPECONF_ACTIVE;
-		}
-	}
-
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
-
-	if (HAS_PIPE_CXSR(dev)) {
-		if (intel_crtc->lowfreq_avail) {
-			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
-			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-		} else {
-			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
-			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
-		}
-	}
-
-	pipeconf &= ~PIPECONF_INTERLACE_MASK;
-	if (!IS_GEN2(dev) &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
-	else
-		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
@@ -4694,8 +4704,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		   (mode->hdisplay - 1));
 	I915_WRITE(DSPPOS(plane), 0);
 
-	I915_WRITE(PIPECONF(pipe), pipeconf);
-	POSTING_READ(PIPECONF(pipe));
+	i9xx_set_pipeconf(intel_crtc);
+
 	intel_enable_pipe(dev_priv, pipe, false);
 
 	intel_wait_for_vblank(dev, pipe);
