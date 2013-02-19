@@ -1455,6 +1455,7 @@ enum {
 	ALC260_FIXUP_HP_B1900,
 	ALC260_FIXUP_KN1,
 	ALC260_FIXUP_FSC_S7020,
+	ALC260_FIXUP_FSC_S7020_JWSE,
 };
 
 static void alc260_gpio1_automute(struct hda_codec *codec)
@@ -1516,14 +1517,18 @@ static void alc260_fixup_fsc_s7020(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-
-	switch (action) {
-	case HDA_FIXUP_ACT_PRE_PROBE:
-		spec->gen.add_out_jack_modes = 1;
-		break;
-	case HDA_FIXUP_ACT_PROBE:
+	if (action == HDA_FIXUP_ACT_PROBE)
 		spec->init_amp = ALC_INIT_NONE;
-		break;
+}
+
+static void alc260_fixup_fsc_s7020_jwse(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.add_out_jack_modes = 1;
+		spec->gen.add_in_jack_modes = 1;
+		spec->gen.hp_mic = 1;
 	}
 }
 
@@ -1586,6 +1591,12 @@ static const struct hda_fixup alc260_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc260_fixup_fsc_s7020,
 	},
+	[ALC260_FIXUP_FSC_S7020_JWSE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc260_fixup_fsc_s7020_jwse,
+		.chained = true,
+		.chain_id = ALC260_FIXUP_FSC_S7020,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
@@ -1599,6 +1610,14 @@ static const struct snd_pci_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x152d, 0x0729, "Quanta KN1", ALC260_FIXUP_KN1),
 	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_FIXUP_REPLACER),
 	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
+	{}
+};
+
+static const struct hda_model_fixup alc260_fixup_models[] = {
+	{.id = ALC260_FIXUP_GPIO1, .name = "gpio1"},
+	{.id = ALC260_FIXUP_COEF, .name = "coef"},
+	{.id = ALC260_FIXUP_FSC_S7020, .name = "fujitsu"},
+	{.id = ALC260_FIXUP_FSC_S7020_JWSE, .name = "fujitsu-jwse"},
 	{}
 };
 
@@ -1620,7 +1639,8 @@ static int patch_alc260(struct hda_codec *codec)
 	 */
 	spec->gen.prefer_hp_amp = 1;
 
-	snd_hda_pick_fixup(codec, NULL, alc260_fixup_tbl, alc260_fixups);
+	snd_hda_pick_fixup(codec, alc260_fixup_models, alc260_fixup_tbl,
+			   alc260_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	/* automatic parse from the BIOS config */
