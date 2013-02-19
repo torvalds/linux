@@ -247,10 +247,7 @@
 	ENTRY_SAME(sched_yield)
 	ENTRY_SAME(sched_get_priority_max)
 	ENTRY_SAME(sched_get_priority_min)	/* 160 */
-	/* These 2 would've worked if someone had defined struct timespec
-	 * carefully, like timeval for example (which is about the same).
-	 * Unfortunately it contains a long :-( */
-	ENTRY_DIFF(sched_rr_get_interval)
+	ENTRY_COMP(sched_rr_get_interval)
 	ENTRY_COMP(nanosleep)
 	ENTRY_SAME(mremap)
 	ENTRY_SAME(setresuid)
