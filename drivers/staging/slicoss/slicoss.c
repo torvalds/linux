@@ -2786,7 +2786,6 @@ static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	struct adapter *adapter = netdev_priv(dev);
 	struct slic_hostcmd *hcmd = NULL;
 	u32 status = 0;
-	u32 skbtype = NORMAL_ETHFRAME;
 	void *offloadcmd = NULL;
 
 	card = adapter->card;
@@ -2800,19 +2799,16 @@ static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 		goto xmit_fail;
 	}
 
-	if (skbtype == NORMAL_ETHFRAME) {
-		hcmd = slic_cmdq_getfree(adapter);
-		if (!hcmd) {
-			adapter->xmitq_full = 1;
-			status = XMIT_FAIL_HOSTCMD_FAIL;
-			goto xmit_fail;
-		}
-		hcmd->skb = skb;
-		hcmd->busy = 1;
-		hcmd->type = SLIC_CMD_DUMB;
-		if (skbtype == NORMAL_ETHFRAME)
-			slic_xmit_build_request(adapter, hcmd, skb);
+	hcmd = slic_cmdq_getfree(adapter);
+	if (!hcmd) {
+		adapter->xmitq_full = 1;
+		status = XMIT_FAIL_HOSTCMD_FAIL;
+		goto xmit_fail;
 	}
+	hcmd->skb = skb;
+	hcmd->busy = 1;
+	hcmd->type = SLIC_CMD_DUMB;
+	slic_xmit_build_request(adapter, hcmd, skb);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
@@ -2838,7 +2834,7 @@ static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 xmit_done:
 	return NETDEV_TX_OK;
 xmit_fail:
-	slic_xmit_fail(adapter, skb, offloadcmd, skbtype, status);
+	slic_xmit_fail(adapter, skb, offloadcmd, NORMAL_ETHFRAME, status);
 	goto xmit_done;
 }
 
