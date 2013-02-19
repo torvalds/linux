@@ -4,7 +4,7 @@
  * This file contains AppArmor dfa based regular expression matching engine
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2012 Canonical Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -137,7 +137,6 @@ static int verify_dfa(struct aa_dfa *dfa, int flags)
 		for (i = 0; i < state_count; i++) {
 			if (DEFAULT_TABLE(dfa)[i] >= state_count)
 				goto out;
-			/* TODO: do check that DEF state recursion terminates */
 			if (BASE_TABLE(dfa)[i] + 255 >= trans_count) {
 				printk(KERN_ERR "AppArmor DFA next/check upper "
 				       "bounds error\n");
