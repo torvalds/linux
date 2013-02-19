@@ -365,20 +365,24 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
 		send_qos_list(nic, &send_list);
 		return;
-	} else if (subCmdEvt == QOS_ADD) {
-		pos = 6;
+	}
 
-		SFID = ((buf[pos++]<<24)&0xff000000);
-		SFID += ((buf[pos++]<<16)&0xff0000);
-		SFID += ((buf[pos++]<<8)&0xff00);
-		SFID += (buf[pos++]);
+	/* subCmdEvt == QOS_ADD || subCmdEvt == QOS_CHANG_DEL */
+	pos = 6;
+	SFID = ((buf[pos++]<<24)&0xff000000);
+	SFID += ((buf[pos++]<<16)&0xff0000);
+	SFID += ((buf[pos++]<<8)&0xff00);
+	SFID += (buf[pos++]);
 
-		index = get_csr(qcb, SFID, 1);
-		if (index == -1) {
-			netdev_err(nic->netdev, "QoS ERROR: csr Update Error\n");
-			return;
-		}
+	index = get_csr(qcb, SFID, 1);
+	if (index == -1) {
+		netdev_err(nic->netdev,
+			   "QoS ERROR: csr Update Error / Wrong index (%d) \n",
+			   index);
+		return;
+	}
 
+	if (subCmdEvt == QOS_ADD) {
 		netdev_dbg(nic->netdev, "QOS_ADD SFID = 0x%x, index=%d\n",
 			   SFID, index);
 
@@ -420,18 +424,6 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
 	} else if (subCmdEvt == QOS_CHANGE_DEL) {
-		pos = 6;
-		SFID = ((buf[pos++]<<24)&0xff000000);
-		SFID += ((buf[pos++]<<16)&0xff0000);
-		SFID += ((buf[pos++]<<8)&0xff00);
-		SFID += (buf[pos++]);
-		index = get_csr(qcb, SFID, 1);
-		if (index == -1) {
-			netdev_err(nic->netdev, "QoS ERROR: Wrong index(%d)\n",
-				   index);
-			return;
-		}
-
 		netdev_dbg(nic->netdev, "QOS_CHANGE_DEL SFID = 0x%x, index=%d\n",
 			   SFID, index);
 
