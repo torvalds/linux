@@ -284,9 +284,11 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_mvm_sta_tx_agg_start(mvm, vif, sta, tid, ssn);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
+		ret = iwl_mvm_sta_tx_agg_stop(mvm, vif, sta, tid);
+		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-		ret = iwl_mvm_sta_tx_agg_stop(mvm, vif, sta, tid);
+		ret = iwl_mvm_sta_tx_agg_flush(mvm, vif, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ret = iwl_mvm_sta_tx_agg_oper(mvm, vif, sta, tid, buf_size);
