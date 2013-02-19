@@ -566,7 +566,7 @@ static struct reginfo sensor_init_data[] =
 
 
 	//-------------H_V_Switch(4)---------------//
-			{0x14 , 0x12},  //0x10
+			{0x14 , 0x10},  //0x10
 
 	 /*GC0308_H_V_Switch,
 
