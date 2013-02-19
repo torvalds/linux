@@ -2284,8 +2284,11 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		    drm_handle_vblank(dev, 0)) {
 			if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 				intel_prepare_page_flip(dev, 0);
-				intel_finish_page_flip(dev, 0);
-				flip_mask &= ~I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+
+				if ((I915_READ16(ISR) & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) == 0) {
+					intel_finish_page_flip(dev, 0);
+					flip_mask &= ~I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+				}
 			}
 		}
 
@@ -2293,8 +2296,11 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		    drm_handle_vblank(dev, 1)) {
 			if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
 				intel_prepare_page_flip(dev, 1);
-				intel_finish_page_flip(dev, 1);
-				flip_mask &= ~I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+
+				if ((I915_READ16(ISR) & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) == 0) {
+					intel_finish_page_flip(dev, 1);
+					flip_mask &= ~I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+				}
 			}
 		}
 
@@ -2491,8 +2497,17 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			    drm_handle_vblank(dev, pipe)) {
 				if (iir & flip[plane]) {
 					intel_prepare_page_flip(dev, plane);
-					intel_finish_page_flip(dev, pipe);
-					flip_mask &= ~flip[plane];
+
+					/* We detect FlipDone by looking for the change in PendingFlip from '1'
+					 * to '0' on the following vblank, i.e. IIR has the Pendingflip
+					 * asserted following the MI_DISPLAY_FLIP, but ISR is deasserted, hence
+					 * the flip is completed (no longer pending). Since this doesn't raise an
+					 * interrupt per se, we watch for the change at vblank.
+					 */
+					if ((I915_READ(ISR) & flip[plane]) == 0) {
+						intel_finish_page_flip(dev, pipe);
+						flip_mask &= ~flip[plane];
+					}
 				}
 			}
 
