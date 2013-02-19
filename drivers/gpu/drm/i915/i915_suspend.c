@@ -255,6 +255,7 @@ static void i915_save_display(struct drm_device *dev)
 static void i915_restore_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mask = 0xffffffff;
 
 	/* Display arbitration */
 	if (INTEL_INFO(dev)->gen <= 4)
@@ -267,10 +268,13 @@ static void i915_restore_display(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
 		I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		mask = ~LVDS_PORT_EN;
+
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(PCH_LVDS, dev_priv->regfile.saveLVDS);
+		I915_WRITE(PCH_LVDS, dev_priv->regfile.saveLVDS & mask);
 	} else if (IS_MOBILE(dev) && !IS_I830(dev))
-		I915_WRITE(LVDS, dev_priv->regfile.saveLVDS);
+		I915_WRITE(LVDS, dev_priv->regfile.saveLVDS & mask);
 
 	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
 		I915_WRITE(PFIT_CONTROL, dev_priv->regfile.savePFIT_CONTROL);
