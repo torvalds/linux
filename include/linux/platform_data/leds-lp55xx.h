@@ -32,6 +32,13 @@
 #define LP5521_CLK_INT			1	/* Internal clock */
 #define LP5521_CLK_AUTO			2	/* Automatic clock selection */
 
+/* Bits in LP5562 CONFIG register */
+#define LP5562_PWM_HF			LP5521_PWM_HF
+#define LP5562_PWRSAVE_EN		LP5521_PWRSAVE_EN
+#define LP5562_CLK_SRC_EXT		LP5521_CLK_SRC_EXT
+#define LP5562_CLK_INT			LP5521_CLK_INT
+#define LP5562_CLK_AUTO			LP5521_CLK_AUTO
+
 struct lp55xx_led_config {
 	const char *name;
 	u8 chan_nr;
@@ -40,9 +47,9 @@ struct lp55xx_led_config {
 };
 
 struct lp55xx_predef_pattern {
-	u8 *r;
-	u8 *g;
-	u8 *b;
+	const u8 *r;
+	const u8 *g;
+	const u8 *b;
 	u8 size_r;
 	u8 size_g;
 	u8 size_b;

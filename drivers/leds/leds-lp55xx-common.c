@@ -1,5 +1,5 @@
 /*
- * LP5521/LP5523/LP55231 Common Driver
+ * LP5521/LP5523/LP55231/LP5562 Common Driver
  *
  * Copyright 2012 Texas Instruments
  *
