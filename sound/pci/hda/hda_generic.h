@@ -145,7 +145,10 @@ struct hda_gen_spec {
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
 	unsigned int dyn_adc_idx[HDA_MAX_NUM_INPUTS];
+	/* shared hp/mic */
 	hda_nid_t shared_mic_vref_pin;
+	hda_nid_t hp_mic_pin;
+	int hp_mic_mux_idx;
 
 	/* DAC/ADC lists */
 	int num_all_dacs;
@@ -200,7 +203,8 @@ struct hda_gen_spec {
 
 	/* other parse behavior flags */
 	unsigned int need_dac_fix:1; /* need to limit DACs for multi channels */
-	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
+	unsigned int hp_mic:1; /* Allow HP as a mic-in */
+	unsigned int suppress_hp_mic_detect:1; /* Don't detect HP/mic */
 	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */

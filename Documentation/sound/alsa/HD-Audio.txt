@@ -466,6 +466,9 @@ The generic parser supports the following hints:
 - add_in_jack_modes (bool): add "xxx Jack Mode" enum controls to each
   input jack for allowing to change the mic bias vref
 - power_down_unused (bool): power down the unused widgets
+- add_hp_mic (bool): add the headphone to capture source if possible
+- hp_mic_detect (bool): enable/disable the hp/mic shared input for a
+  single built-in mic case; default true
 - mixer_nid (int): specifies the widget NID of the analog-loopback
   mixer
 
