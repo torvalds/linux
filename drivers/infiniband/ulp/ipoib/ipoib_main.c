@@ -1693,6 +1693,8 @@ static void ipoib_remove_one(struct ib_device *device)
 		return;
 
 	dev_list = ib_get_client_data(device, &ipoib_client);
+	if (!dev_list)
+		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
