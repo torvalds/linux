@@ -21,7 +21,6 @@
 #include <linux/time.h>
 #include <linux/smp.h>
 #include <linux/sem.h>
-#include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
@@ -71,63 +70,6 @@ asmlinkage long sys32_sched_rr_get_interval(pid_t pid,
 	if (put_compat_timespec(&t, interval))
 		return -EFAULT;
 	return ret;
-}
-
-struct msgbuf32 {
-    int mtype;
-    char mtext[1];
-};
-
-asmlinkage long sys32_msgsnd(int msqid,
-				struct msgbuf32 __user *umsgp32,
-				size_t msgsz, int msgflg)
-{
-	struct msgbuf *mb;
-	struct msgbuf32 mb32;
-	int err;
-
-	if ((mb = kmalloc(msgsz + sizeof *mb + 4, GFP_KERNEL)) == NULL)
-		return -ENOMEM;
-
-	err = get_user(mb32.mtype, &umsgp32->mtype);
-	mb->mtype = mb32.mtype;
-	err |= copy_from_user(mb->mtext, &umsgp32->mtext, msgsz);
-
-	if (err)
-		err = -EFAULT;
-	else
-		KERNEL_SYSCALL(err, sys_msgsnd, msqid, (struct msgbuf __user *)mb, msgsz, msgflg);
-
-	kfree(mb);
-	return err;
-}
-
-asmlinkage long sys32_msgrcv(int msqid,
-				struct msgbuf32 __user *umsgp32,
-				size_t msgsz, long msgtyp, int msgflg)
-{
-	struct msgbuf *mb;
-	struct msgbuf32 mb32;
-	int err, len;
-
-	if ((mb = kmalloc(msgsz + sizeof *mb + 4, GFP_KERNEL)) == NULL)
-		return -ENOMEM;
-
-	KERNEL_SYSCALL(err, sys_msgrcv, msqid, (struct msgbuf __user *)mb, msgsz, msgtyp, msgflg);
-
-	if (err >= 0) {
-		len = err;
-		mb32.mtype = mb->mtype;
-		err = put_user(mb32.mtype, &umsgp32->mtype);
-		err |= copy_to_user(&umsgp32->mtext, mb->mtext, len);
-		if (err)
-			err = -EFAULT;
-		else
-			err = len;
-	}
-
-	kfree(mb);
-	return err;
 }
 
 asmlinkage int sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)

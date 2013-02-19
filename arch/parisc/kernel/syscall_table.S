@@ -286,8 +286,8 @@
 	ENTRY_SAME(semop)		/* 185 */
 	ENTRY_SAME(semget)
 	ENTRY_DIFF(semctl)
-	ENTRY_DIFF(msgsnd)
-	ENTRY_DIFF(msgrcv)
+	ENTRY_COMP(msgsnd)
+	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
 	ENTRY_SAME(msgctl)
 	ENTRY_SAME(shmat)
