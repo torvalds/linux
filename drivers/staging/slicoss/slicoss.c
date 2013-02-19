@@ -3643,11 +3643,12 @@ static u32 slic_card_locate(struct adapter *adapter)
 
 	while (physcard) {
 		for (i = 0; i < SLIC_MAX_PORTS; i++) {
-			if (!physcard->adapter[i])
-				continue;
-			else
+			if (physcard->adapter[i])
 				break;
 		}
+		if (i == SLIC_MAX_PORTS)
+			break;
+
 		if (physcard->adapter[i]->slotnumber == adapter->slotnumber)
 			break;
 		physcard = physcard->next;
