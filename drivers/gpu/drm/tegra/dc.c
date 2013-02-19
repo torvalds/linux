@@ -158,7 +158,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *adjusted,
 			       int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct tegra_framebuffer *fb = to_tegra_fb(crtc->fb);
+	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned int h_dda, v_dda, bpp;
 	struct tegra_dc_window win;

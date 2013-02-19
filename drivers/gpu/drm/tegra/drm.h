@@ -18,16 +18,6 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fixed.h>
 
-struct tegra_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_cma_object *obj;
-};
-
-static inline struct tegra_framebuffer *to_tegra_fb(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct tegra_framebuffer, base);
-}
-
 struct host1x {
 	struct drm_device *drm;
 	struct device *dev;
@@ -44,7 +34,6 @@ struct host1x {
 	struct list_head clients;
 
 	struct drm_fbdev_cma *fbdev;
-	struct tegra_framebuffer fb;
 };
 
 struct host1x_client;
