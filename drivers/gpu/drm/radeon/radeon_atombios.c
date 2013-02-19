@@ -3077,6 +3077,121 @@ int radeon_atom_get_leakage_vddc_based_on_leakage_idx(struct radeon_device *rdev
 	return radeon_atom_get_max_vddc(rdev, VOLTAGE_TYPE_VDDC, leakage_idx, voltage);
 }
 
+int radeon_atom_get_leakage_id_from_vbios(struct radeon_device *rdev,
+					  u16 *leakage_id)
+{
+	union set_voltage args;
+	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
+	u8 frev, crev;
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (crev) {
+	case 3:
+	case 4:
+		args.v3.ucVoltageType = 0;
+		args.v3.ucVoltageMode = ATOM_GET_LEAKAGE_ID;
+		args.v3.usVoltageLevel = 0;
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		*leakage_id = le16_to_cpu(args.v3.usVoltageLevel);
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int radeon_atom_get_leakage_vddc_based_on_leakage_params(struct radeon_device *rdev,
+							 u16 *vddc, u16 *vddci,
+							 u16 virtual_voltage_id,
+							 u16 vbios_voltage_id)
+{
+	int index = GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int i, j;
+	ATOM_ASIC_PROFILING_INFO_V2_1 *profile;
+	u16 *leakage_bin, *vddc_id_buf, *vddc_buf, *vddci_id_buf, *vddci_buf;
+
+	*vddc = 0;
+	*vddci = 0;
+
+	if (!atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				    &frev, &crev, &data_offset))
+		return -EINVAL;
+
+	profile = (ATOM_ASIC_PROFILING_INFO_V2_1 *)
+		(rdev->mode_info.atom_context->bios + data_offset);
+
+	switch (frev) {
+	case 1:
+		return -EINVAL;
+	case 2:
+		switch (crev) {
+		case 1:
+			if (size < sizeof(ATOM_ASIC_PROFILING_INFO_V2_1))
+				return -EINVAL;
+			leakage_bin = (u16 *)
+				(rdev->mode_info.atom_context->bios + data_offset +
+				 le16_to_cpu(profile->usLeakageBinArrayOffset));
+			vddc_id_buf = (u16 *)
+				(rdev->mode_info.atom_context->bios + data_offset +
+				 le16_to_cpu(profile->usElbVDDC_IdArrayOffset));
+			vddc_buf = (u16 *)
+				(rdev->mode_info.atom_context->bios + data_offset +
+				 le16_to_cpu(profile->usElbVDDC_LevelArrayOffset));
+			vddci_id_buf = (u16 *)
+				(rdev->mode_info.atom_context->bios + data_offset +
+				 le16_to_cpu(profile->usElbVDDCI_IdArrayOffset));
+			vddci_buf = (u16 *)
+				(rdev->mode_info.atom_context->bios + data_offset +
+				 le16_to_cpu(profile->usElbVDDCI_LevelArrayOffset));
+
+			if (profile->ucElbVDDC_Num > 0) {
+				for (i = 0; i < profile->ucElbVDDC_Num; i++) {
+					if (vddc_id_buf[i] == virtual_voltage_id) {
+						for (j = 0; j < profile->ucLeakageBinNum; j++) {
+							if (vbios_voltage_id <= leakage_bin[j]) {
+								*vddc = vddc_buf[j * profile->ucElbVDDC_Num + i];
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+			if (profile->ucElbVDDCI_Num > 0) {
+				for (i = 0; i < profile->ucElbVDDCI_Num; i++) {
+					if (vddci_id_buf[i] == virtual_voltage_id) {
+						for (j = 0; j < profile->ucLeakageBinNum; j++) {
+							if (vbios_voltage_id <= leakage_bin[j]) {
+								*vddci = vddci_buf[j * profile->ucElbVDDCI_Num + i];
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,
 					  u32 *gpio_value, u32 *gpio_mask)
