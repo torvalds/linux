@@ -403,7 +403,8 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		return PTR_ERR(npage[0]);
 
 	parent = npage[0];
-	nids[1] = get_nid(parent, offset[0], true);
+	if (level != 0)
+		nids[1] = get_nid(parent, offset[0], true);
 	dn->inode_page = npage[0];
 	dn->inode_page_locked = true;
 
