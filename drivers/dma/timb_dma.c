@@ -823,7 +823,7 @@ static struct platform_driver td_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe	= td_probe,
-	.remove	= __exit_p(td_remove),
+	.remove	= td_remove,
 };
 
 module_platform_driver(td_driver);
