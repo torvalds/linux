@@ -507,6 +507,8 @@ struct nvme_admin_cmd {
 
 #ifdef __KERNEL__
 #include <linux/pci.h>
+#include <linux/miscdevice.h>
+#include <linux/kref.h>
 
 #define NVME_IO_TIMEOUT	(5 * HZ)
 
@@ -527,6 +529,9 @@ struct nvme_dev {
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
+	struct kref kref;
+	struct miscdevice miscdev;
+	char name[12];
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];

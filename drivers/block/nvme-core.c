@@ -1647,6 +1647,56 @@ static void nvme_release_instance(struct nvme_dev *dev)
 	spin_unlock(&dev_list_lock);
 }
 
+static void nvme_free_dev(struct kref *kref)
+{
+	struct nvme_dev *dev = container_of(kref, struct nvme_dev, kref);
+	nvme_dev_remove(dev);
+	pci_disable_msix(dev->pci_dev);
+	iounmap(dev->bar);
+	nvme_release_instance(dev);
+	nvme_release_prp_pools(dev);
+	pci_disable_device(dev->pci_dev);
+	pci_release_regions(dev->pci_dev);
+	kfree(dev->queues);
+	kfree(dev->entry);
+	kfree(dev);
+}
+
+static int nvme_dev_open(struct inode *inode, struct file *f)
+{
+	struct nvme_dev *dev = container_of(f->private_data, struct nvme_dev,
+								miscdev);
+	kref_get(&dev->kref);
+	f->private_data = dev;
+	return 0;
+}
+
+static int nvme_dev_release(struct inode *inode, struct file *f)
+{
+	struct nvme_dev *dev = f->private_data;
+	kref_put(&dev->kref, nvme_free_dev);
+	return 0;
+}
+
+static long nvme_dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+{
+	struct nvme_dev *dev = f->private_data;
+	switch (cmd) {
+	case NVME_IOCTL_ADMIN_CMD:
+		return nvme_user_admin_cmd(dev, (void __user *)arg);
+	default:
+		return -ENOTTY;
+	}
+}
+
+static const struct file_operations nvme_dev_fops = {
+	.owner		= THIS_MODULE,
+	.open		= nvme_dev_open,
+	.release	= nvme_dev_release,
+	.unlocked_ioctl	= nvme_dev_ioctl,
+	.compat_ioctl	= nvme_dev_ioctl,
+};
+
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int bars, result = -ENOMEM;
@@ -1705,8 +1755,20 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto delete;
 
+	scnprintf(dev->name, sizeof(dev->name), "nvme%d", dev->instance);
+	dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	dev->miscdev.parent = &pdev->dev;
+	dev->miscdev.name = dev->name;
+	dev->miscdev.fops = &nvme_dev_fops;
+	result = misc_register(&dev->miscdev);
+	if (result)
+		goto remove;
+
+	kref_init(&dev->kref);
 	return 0;
 
+ remove:
+	nvme_dev_remove(dev);
  delete:
 	spin_lock(&dev_list_lock);
 	list_del(&dev->node);
@@ -1732,16 +1794,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 static void nvme_remove(struct pci_dev *pdev)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
-	nvme_dev_remove(dev);
-	pci_disable_msix(pdev);
-	iounmap(dev->bar);
-	nvme_release_instance(dev);
-	nvme_release_prp_pools(dev);
-	pci_disable_device(pdev);
-	pci_release_regions(pdev);
-	kfree(dev->queues);
-	kfree(dev->entry);
-	kfree(dev);
+	misc_deregister(&dev->miscdev);
+	kref_put(&dev->kref, nvme_free_dev);
 }
 
 /* These functions are yet to be implemented */
