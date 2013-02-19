@@ -75,6 +75,7 @@ struct hdmi_spec_per_pin {
 	struct hda_codec *codec;
 	struct hdmi_eld sink_eld;
 	struct delayed_work work;
+	struct snd_kcontrol *eld_ctl;
 	int repoll_count;
 	bool non_pcm;
 	bool chmap_set;		/* channel-map override by ALSA API? */
@@ -413,6 +414,7 @@ static int hdmi_create_eld_ctl(struct hda_codec *codec, int pin_idx,
 	if (err < 0)
 		return err;
 
+	spec->pins[pin_idx].eld_ctl = kctl;
 	return 0;
 }
 
@@ -1220,11 +1222,14 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	}
 
 	mutex_lock(&pin_eld->lock);
-	if (pin_eld->eld_valid && !eld->eld_valid)
+	if (pin_eld->eld_valid && !eld->eld_valid) {
 		update_eld = true;
+		eld_changed = true;
+	}
 	if (update_eld) {
 		pin_eld->eld_valid = eld->eld_valid;
-		eld_changed = memcmp(pin_eld->eld_buffer, eld->eld_buffer,
+		eld_changed = pin_eld->eld_size != eld->eld_size ||
+			      memcmp(pin_eld->eld_buffer, eld->eld_buffer,
 				     eld->eld_size) != 0;
 		if (eld_changed)
 			memcpy(pin_eld->eld_buffer, eld->eld_buffer,
@@ -1233,6 +1238,11 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		pin_eld->info = eld->info;
 	}
 	mutex_unlock(&pin_eld->lock);
+
+	if (eld_changed)
+		snd_ctl_notify(codec->bus->card,
+			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
+			       &per_pin->eld_ctl->id);
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
