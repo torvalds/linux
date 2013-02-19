@@ -41,6 +41,15 @@
 			#gpio-cells = <3>;
 		};
 
+		pinctrl: pinctrl@d8110000 {
+			compatible = "wm,wm8650-pinctrl";
+			reg = <0xd8110000 0x10000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		pmc@d8130000 {
 			compatible = "via,vt8500-pmc";
 			reg = <0xd8130000 0x1000>;
