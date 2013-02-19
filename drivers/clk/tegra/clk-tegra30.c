@@ -275,6 +275,7 @@ static DEFINE_SPINLOCK(clk_out_lock);
 static DEFINE_SPINLOCK(pll_div_lock);
 static DEFINE_SPINLOCK(cml_lock);
 static DEFINE_SPINLOCK(pll_d_lock);
+static DEFINE_SPINLOCK(sysrate_lock);
 
 #define TEGRA_INIT_DATA_MUX(_name, _con_id, _dev_id, _parents, _offset,	\
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
@@ -327,21 +328,21 @@ enum tegra30_clk {
 	kbc = 36, statmon, pmc, kfuse = 40, sbc1, nor, sbc2 = 44, sbc3 = 46,
 	i2c5, dsia, mipi = 50, hdmi, csi, tvdac, i2c2, uartc, emc = 57, usb2,
 	usb3, mpe, vde, bsea, bsev, speedo, uartd, uarte, i2c3, sbc4, sdmmc3,
-	pcie, owr, afi, csite, pciex, avpucq, la, dtv = 79, ndspeed, i2c_slow,
+	pcie, owr, afi, csite, pciex, avpucq, la, dtv = 79, ndspeed, i2cslow,
 	dsib, irama = 84, iramb, iramc, iramd, cram2, audio_2x = 90, csus = 92,
 	cdev1, cdev2, cpu_g = 96, cpu_lp, gr3d2, mselect, tsensor, i2s3, i2s4,
 	i2c4, sbc5, sbc6, d_audio, apbif, dam0, dam1, dam2, hda2codec_2x,
 	atomics, audio0_2x, audio1_2x, audio2_2x, audio3_2x, audio4_2x,
-	spdif_2x, actmon, extern1, extern2, extern3, sata_oob, sata, hda, se,
-	hda2hdmi, sata_cold, uartb = 160, vfir, spdif_out, spdif_in, vi,
-	vi_sensor, fuse, fuse_burn, cve, tvo, clk_32k, clk_m, clk_m_div2,
+	spdif_2x, actmon, extern1, extern2, extern3, sata_oob, sata, hda,
+	se = 127, hda2hdmi, sata_cold, uartb = 160, vfir, spdif_in, spdif_out,
+	vi, vi_sensor, fuse, fuse_burn, cve, tvo, clk_32k, clk_m, clk_m_div2,
 	clk_m_div4, pll_ref, pll_c, pll_c_out1, pll_m, pll_m_out1, pll_p,
 	pll_p_out1, pll_p_out2, pll_p_out3, pll_p_out4, pll_a, pll_a_out0,
 	pll_d, pll_d_out0, pll_d2, pll_d2_out0, pll_u, pll_x, pll_x_out0, pll_e,
 	spdif_in_sync, i2s0_sync, i2s1_sync, i2s2_sync, i2s3_sync, i2s4_sync,
 	vimclk_sync, audio0, audio1, audio2, audio3, audio4, spdif, clk_out_1,
 	clk_out_2, clk_out_3, sclk, blink, cclk_g, cclk_lp, twd, cml0, cml1,
-	i2cslow, hclk, pclk, clk_out_1_mux = 300, clk_max
+	hclk, pclk, clk_out_1_mux = 300, clk_max
 };
 
 static struct clk *clks[clk_max];
@@ -1249,16 +1250,16 @@ static void __init tegra30_pmc_clk_init(void)
 
 }
 
-const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-				 "pll_p_cclkg", "pll_p_out4_cclkg",
-				 "pll_p_out3_cclkg", "unused", "pll_x" };
-const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-				  "pll_p_cclklp", "pll_p_out4_cclklp",
-				  "pll_p_out3_cclklp", "unused", "pll_x",
-				  "pll_x_out0" };
-const char *sclk_parents[] = { "clk_m", "pll_c_out1", "pll_p_out4",
-			       "pll_p_out3", "pll_p_out2", "unused",
-			       "clk_32k", "pll_m_out1" };
+static const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
+					"pll_p_cclkg", "pll_p_out4_cclkg",
+					"pll_p_out3_cclkg", "unused", "pll_x" };
+static const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
+					 "pll_p_cclklp", "pll_p_out4_cclklp",
+					 "pll_p_out3_cclklp", "unused", "pll_x",
+					 "pll_x_out0" };
+static const char *sclk_parents[] = { "clk_m", "pll_c_out1", "pll_p_out4",
+				      "pll_p_out3", "pll_p_out2", "unused",
+				      "clk_32k", "pll_m_out1" };
 
 static void __init tegra30_super_clk_init(void)
 {
@@ -1348,19 +1349,21 @@ static void __init tegra30_super_clk_init(void)
 
 	/* HCLK */
 	clk = clk_register_divider(NULL, "hclk_div", "sclk", 0,
-				   clk_base + SYSTEM_CLK_RATE, 4, 2, 0, NULL);
+				   clk_base + SYSTEM_CLK_RATE, 4, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "hclk", "hclk_div", CLK_SET_RATE_PARENT,
 				clk_base + SYSTEM_CLK_RATE, 7,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "hclk", NULL);
 	clks[hclk] = clk;
 
 	/* PCLK */
 	clk = clk_register_divider(NULL, "pclk_div", "hclk", 0,
-				   clk_base + SYSTEM_CLK_RATE, 0, 2, 0, NULL);
+				   clk_base + SYSTEM_CLK_RATE, 0, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "pclk", "pclk_div", CLK_SET_RATE_PARENT,
 				clk_base + SYSTEM_CLK_RATE, 3,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "pclk", NULL);
 	clks[pclk] = clk;
 
@@ -1874,7 +1877,11 @@ static struct tegra_cpu_car_ops tegra30_cpu_car_ops = {
 };
 
 static __initdata struct tegra_clk_init_table init_table[] = {
-	{uarta, pll_p, 408000000, 1},
+	{uarta, pll_p, 408000000, 0},
+	{uartb, pll_p, 408000000, 0},
+	{uartc, pll_p, 408000000, 0},
+	{uartd, pll_p, 408000000, 0},
+	{uarte, pll_p, 408000000, 0},
 	{pll_a, clk_max, 564480000, 1},
 	{pll_a_out0, clk_max, 11289600, 1},
 	{extern1, pll_a_out0, 0, 1},
