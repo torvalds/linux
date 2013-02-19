@@ -917,7 +917,7 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	struct max8997_regulator_data *rdata;
 	unsigned int i, dvs_voltage_nr = 1, ret;
 
-	pmic_np = iodev->dev->of_node;
+	pmic_np = of_node_get(iodev->dev->of_node);
 	if (!pmic_np) {
 		dev_err(&pdev->dev, "could not find pmic sub-node\n");
 		return -ENODEV;
@@ -930,13 +930,12 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	}
 
 	/* count the number of regulators to be supported in pmic */
-	pdata->num_regulators = 0;
-	for_each_child_of_node(regulators_np, reg_np)
-		pdata->num_regulators++;
+	pdata->num_regulators = of_get_child_count(regulators_np);
 
 	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
+		of_node_put(regulators_np);
 		dev_err(&pdev->dev, "could not allocate memory for regulator data\n");
 		return -ENOMEM;
 	}
@@ -959,6 +958,7 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 		rdata->reg_node = reg_np;
 		rdata++;
 	}
+	of_node_put(regulators_np);
 
 	if (of_get_property(pmic_np, "max8997,pmic-buck1-uses-gpio-dvs", NULL))
 		pdata->buck1_gpiodvs = true;

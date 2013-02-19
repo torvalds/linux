@@ -527,6 +527,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	u32 prop;
 	int idx, ret;
 
+	node = of_node_get(node);
 	regulators = of_find_node_by_name(node, "regulators");
 	if (!regulators) {
 		dev_info(dev, "regulator node not found\n");
@@ -535,6 +536,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 
 	ret = of_regulator_match(dev, regulators, palmas_matches,
 			PALMAS_NUM_REGS);
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return;

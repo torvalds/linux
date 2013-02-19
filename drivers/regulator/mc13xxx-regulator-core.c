@@ -164,17 +164,16 @@ EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_ops);
 #ifdef CONFIG_OF
 int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
-	struct device_node *parent, *child;
-	int num = 0;
+	struct device_node *parent;
+	int num;
 
 	of_node_get(pdev->dev.parent->of_node);
 	parent = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
 	if (!parent)
 		return -ENODEV;
 
-	for_each_child_of_node(parent, child)
-		num++;
-
+	num = of_get_child_count(parent);
+	of_node_put(parent);
 	return num;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
@@ -197,8 +196,11 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data) * priv->num_regulators,
 			    GFP_KERNEL);
-	if (!data)
+	if (!data) {
+		of_node_put(parent);
 		return NULL;
+	}
+
 	p = data;
 
 	for_each_child_of_node(parent, child) {
@@ -217,6 +219,7 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 			}
 		}
 	}
+	of_node_put(parent);
 
 	*num_parsed = parsed;
 	return data;
