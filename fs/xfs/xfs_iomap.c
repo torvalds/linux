@@ -362,7 +362,7 @@ xfs_iomap_eof_prealloc_initial_size(
 	if (imap[0].br_startblock == HOLESTARTBLOCK)
 		return 0;
 	if (imap[0].br_blockcount <= (MAXEXTLEN >> 1))
-		return imap[0].br_blockcount;
+		return imap[0].br_blockcount << 1;
 	return XFS_B_TO_FSB(mp, offset);
 }
 
