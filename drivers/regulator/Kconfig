@@ -91,6 +91,7 @@ config REGULATOR_AAT2870
 config REGULATOR_ARIZONA
 	tristate "Wolfson Arizona class devices"
 	depends on MFD_ARIZONA
+	depends on SND_SOC
 	help
 	  Support for the regulators found on Wolfson Arizona class
 	  devices.
