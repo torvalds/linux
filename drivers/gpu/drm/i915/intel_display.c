@@ -2369,6 +2369,11 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 			   FDI_FE_ERRC_ENABLE);
 }
 
+static bool pipe_has_enabled_pch(struct intel_crtc *intel_crtc)
+{
+	return intel_crtc->base.enabled && intel_crtc->config.has_pch_encoder;
+}
+
 static void ivb_modeset_global_resources(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2378,10 +2383,13 @@ static void ivb_modeset_global_resources(struct drm_device *dev)
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_C]);
 	uint32_t temp;
 
-	/* When everything is off disable fdi C so that we could enable fdi B
-	 * with all lanes. XXX: This misses the case where a pipe is not using
-	 * any pch resources and so doesn't need any fdi lanes. */
-	if (!pipe_B_crtc->base.enabled && !pipe_C_crtc->base.enabled) {
+	/*
+	 * When everything is off disable fdi C so that we could enable fdi B
+	 * with all lanes. Note that we don't care about enabled pipes without
+	 * an enabled pch encoder.
+	 */
+	if (!pipe_has_enabled_pch(pipe_B_crtc) &&
+	    !pipe_has_enabled_pch(pipe_C_crtc)) {
 		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_B)) & FDI_RX_ENABLE);
 		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_C)) & FDI_RX_ENABLE);
 
@@ -4011,7 +4019,7 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 		return true;
 	case PIPE_C:
-		if (!pipe_B_crtc->base.enabled ||
+		if (!pipe_has_enabled_pch(pipe_B_crtc) ||
 		    pipe_B_crtc->config.fdi_lanes <= 2) {
 			if (pipe_config->fdi_lanes > 2) {
 				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
