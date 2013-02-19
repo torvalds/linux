@@ -78,7 +78,7 @@ struct timblogiw_buffer {
 	struct timblogiw_fh	*fh;
 };
 
-const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
+static const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
 	{
 		.std			= V4L2_STD_PAL,
 		.width			= 720,
