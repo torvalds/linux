@@ -1193,9 +1193,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (INTEL_PCH_TYPE(dev) >= PCH_CPT)
-		sdvox |= TRANSCODER_CPT(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL_CPT(intel_crtc->pipe);
 	else
-		sdvox |= TRANSCODER(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
@@ -1305,15 +1305,9 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	temp = I915_READ(intel_sdvo->sdvo_reg);
 	if ((temp & SDVO_ENABLE) == 0) {
 		/* HW workaround for IBX, we need to move the port
-		 * to transcoder A before disabling it. */
-		if (HAS_PCH_IBX(dev)) {
-			struct drm_crtc *crtc = encoder->base.crtc;
-			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
-
-			/* Restore the transcoder select bit. */
-			if (pipe == PIPE_B)
-				temp |= SDVO_PIPE_B_SELECT;
-		}
+		 * to transcoder A before disabling it, so restore it here. */
+		if (HAS_PCH_IBX(dev))
+			temp |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
 	}

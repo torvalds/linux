@@ -615,20 +615,20 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 
 	/* Required on CPT */
 	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
-		hdmi_val |= HDMI_MODE_SELECT;
+		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
 	if (intel_hdmi->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(intel_crtc->pipe));
 		hdmi_val |= SDVO_AUDIO_ENABLE;
-		hdmi_val |= SDVO_NULL_PACKETS_DURING_VSYNC;
+		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 		intel_write_eld(encoder, adjusted_mode);
 	}
 
 	if (HAS_PCH_CPT(dev))
-		hdmi_val |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
-	else if (intel_crtc->pipe == PIPE_B)
-		hdmi_val |= SDVO_PIPE_B_SELECT;
+		hdmi_val |= SDVO_PIPE_SEL_CPT(intel_crtc->pipe);
+	else
+		hdmi_val |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 	I915_WRITE(intel_hdmi->hdmi_reg, hdmi_val);
 	POSTING_READ(intel_hdmi->hdmi_reg);
@@ -661,6 +661,7 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE;
@@ -671,15 +672,9 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	/* HW workaround for IBX, we need to move the port to transcoder A
-	 * before disabling it. */
-	if (HAS_PCH_IBX(dev)) {
-		struct drm_crtc *crtc = encoder->base.crtc;
-		int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
-
-		/* Restore the transcoder select bit. */
-		if (pipe == PIPE_B)
-			enable_bits |= SDVO_PIPE_B_SELECT;
-	}
+	 * before disabling it, so restore the transcoder select bit here. */
+	if (HAS_PCH_IBX(dev))
+		enable_bits |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
 	 * we do this anyway which shows more stable in testing.

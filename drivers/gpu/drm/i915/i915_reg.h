@@ -1693,6 +1693,8 @@
 
 /* Gen 3 SDVO bits: */
 #define   SDVO_ENABLE				(1 << 31)
+#define   SDVO_PIPE_SEL(pipe)			((pipe) << 30)
+#define   SDVO_PIPE_SEL_MASK			(1 << 30)
 #define   SDVO_PIPE_B_SELECT			(1 << 30)
 #define   SDVO_STALL_SELECT			(1 << 29)
 #define   SDVO_INTERRUPT_ENABLE			(1 << 26)
@@ -1719,7 +1721,8 @@
 #define   COLOR_FORMAT_8bpc			(0 << 26)
 #define   SDVO_ENCODING_SDVO			(0 << 10)
 #define   SDVO_ENCODING_HDMI			(2 << 10)
-#define   SDVO_NULL_PACKETS_DURING_VSYNC	(1 << 9) /* HDMI only */
+#define   HDMI_MODE_SELECT_HDMI			(1 << 9) /* HDMI only */
+#define   HDMI_MODE_SELECT_DVI			(0 << 9) /* HDMI only */
 #define   SDVO_COLOR_RANGE_16_235		(1 << 8) /* HDMI only */
 #define   SDVO_AUDIO_ENABLE			(1 << 6)
 /* VSYNC/HSYNC bits new with 965, default is to be set */
@@ -1731,16 +1734,8 @@
 #define   SDVOB_HOTPLUG_ENABLE			(1 << 23) /* SDVO only */
 
 /* Gen 6 (CPT) SDVO/HDMI bits: */
-#define   TRANSCODER_CPT(pipe)			((pipe) << 29)
-#define   TRANSCODER_MASK_CPT			(3 << 29)
-
-/* Repeated but still used bits: */
-#define   PORT_ENABLE				(1 << 31)
-#define   TRANSCODER(pipe)			((pipe) << 30)
-#define   TRANSCODER_MASK			(1 << 30)
-#define   HDMI_MODE_SELECT			(1 << 9)
-#define   DVI_MODE_SELECT			(0 << 9)
-#define   PORT_DETECTED				(1 << 2)
+#define   SDVO_PIPE_SEL_CPT(pipe)		((pipe) << 29)
+#define   SDVO_PIPE_SEL_MASK_CPT		(3 << 29)
 
 
 /* DVO port control */

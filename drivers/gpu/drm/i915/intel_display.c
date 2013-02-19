@@ -1340,14 +1340,14 @@ static bool dp_pipe_enabled(struct drm_i915_private *dev_priv,
 static bool hdmi_pipe_enabled(struct drm_i915_private *dev_priv,
 			      enum pipe pipe, u32 val)
 {
-	if ((val & PORT_ENABLE) == 0)
+	if ((val & SDVO_ENABLE) == 0)
 		return false;
 
 	if (HAS_PCH_CPT(dev_priv->dev)) {
-		if ((val & PORT_TRANS_SEL_MASK) != PORT_TRANS_SEL_CPT(pipe))
+		if ((val & SDVO_PIPE_SEL_MASK_CPT) != SDVO_PIPE_SEL_CPT(pipe))
 			return false;
 	} else {
-		if ((val & TRANSCODER_MASK) != TRANSCODER(pipe))
+		if ((val & SDVO_PIPE_SEL_MASK) != SDVO_PIPE_SEL(pipe))
 			return false;
 	}
 	return true;
@@ -1405,7 +1405,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 
-	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & PORT_ENABLE) == 0
+	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_ENABLE) == 0
 	     && (val & SDVO_PIPE_B_SELECT),
 	     "IBX PCH hdmi port still using transcoder B\n");
 }
@@ -8352,7 +8352,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A, PORT_A);
 
-		if (I915_READ(PCH_HDMIB) & PORT_DETECTED) {
+		if (I915_READ(PCH_HDMIB) & SDVO_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
@@ -8361,10 +8361,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 				intel_dp_init(dev, PCH_DP_B, PORT_B);
 		}
 
-		if (I915_READ(PCH_HDMIC) & PORT_DETECTED)
+		if (I915_READ(PCH_HDMIC) & SDVO_DETECTED)
 			intel_hdmi_init(dev, PCH_HDMIC, PORT_C);
 
-		if (!dpd_is_edp && I915_READ(PCH_HDMID) & PORT_DETECTED)
+		if (!dpd_is_edp && I915_READ(PCH_HDMID) & SDVO_DETECTED)
 			intel_hdmi_init(dev, PCH_HDMID, PORT_D);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
@@ -8377,14 +8377,14 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
 			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & PORT_DETECTED) {
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED) {
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
 					PORT_B);
 			if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED)
 				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 		}
 
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & PORT_DETECTED)
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
 
