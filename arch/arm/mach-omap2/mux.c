@@ -739,8 +739,9 @@ static void __init omap_mux_dbg_create_entry(
 	list_for_each_entry(e, &partition->muxmodes, node) {
 		struct omap_mux *m = &e->mux;
 
-		(void)debugfs_create_file(m->muxnames[0], S_IWUSR, mux_dbg_dir,
-					  m, &omap_mux_dbg_signal_fops);
+		(void)debugfs_create_file(m->muxnames[0], S_IWUSR | S_IRUGO,
+					  mux_dbg_dir, m,
+					  &omap_mux_dbg_signal_fops);
 	}
 }
 
