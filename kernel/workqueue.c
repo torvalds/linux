@@ -1512,7 +1512,7 @@ static void worker_leave_idle(struct worker *worker)
  * flushed from cpu callbacks while cpu is going down, they are
  * guaranteed to execute on the cpu.
  *
- * This function is to be used by rogue workers and rescuers to bind
+ * This function is to be used by unbound workers and rescuers to bind
  * themselves to the target cpu and may race with cpu going down or
  * coming online.  kthread_bind() can't be used because it may put the
  * worker to already dead cpu and set_cpus_allowed_ptr() can't be used
@@ -1537,7 +1537,6 @@ static bool worker_maybe_bind_and_lock(struct worker *worker)
 __acquires(&pool->lock)
 {
 	struct worker_pool *pool = worker->pool;
-	struct task_struct *task = worker->task;
 
 	while (true) {
 		/*
@@ -1547,12 +1546,12 @@ __acquires(&pool->lock)
 		 * against POOL_DISASSOCIATED.
 		 */
 		if (!(pool->flags & POOL_DISASSOCIATED))
-			set_cpus_allowed_ptr(task, get_cpu_mask(pool->cpu));
+			set_cpus_allowed_ptr(current, get_cpu_mask(pool->cpu));
 
 		spin_lock_irq(&pool->lock);
 		if (pool->flags & POOL_DISASSOCIATED)
 			return false;
-		if (task_cpu(task) == pool->cpu &&
+		if (task_cpu(current) == pool->cpu &&
 		    cpumask_equal(&current->cpus_allowed,
 				  get_cpu_mask(pool->cpu)))
 			return true;
