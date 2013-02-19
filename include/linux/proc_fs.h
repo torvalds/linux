@@ -187,12 +187,9 @@ static inline void proc_flush_task(struct task_struct *task)
 
 static inline struct proc_dir_entry *create_proc_entry(const char *name,
 	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
-static inline struct proc_dir_entry *proc_create(const char *name,
-	umode_t mode, struct proc_dir_entry *parent,
-	const struct file_operations *proc_fops)
-{
-	return NULL;
-}
+
+#define proc_create(name, mode, parent, fops)  ({ (void)(mode), NULL; })
+
 static inline struct proc_dir_entry *proc_create_data(const char *name,
 	umode_t mode, struct proc_dir_entry *parent,
 	const struct file_operations *proc_fops, void *data)
