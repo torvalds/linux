@@ -109,6 +109,19 @@ void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 
+/**
+ * r600_get_xclk - get the xclk
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Returns the reference clock used by the gfx engine
+ * (r6xx, IGPs, APUs).
+ */
+u32 r600_get_xclk(struct radeon_device *rdev)
+{
+	return rdev->clock.spll.reference_freq;
+}
+
 /* get temperature in millidegrees */
 int rv6xx_get_temp(struct radeon_device *rdev)
 {
@@ -4448,14 +4461,14 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 }
 
 /**
- * r600_get_gpu_clock - return GPU clock counter snapshot
+ * r600_get_gpu_clock_counter - return GPU clock counter snapshot
  *
  * @rdev: radeon_device pointer
  *
  * Fetches a GPU clock counter snapshot (R6xx-cayman).
  * Returns the 64 bit clock counter snapshot.
  */
-uint64_t r600_get_gpu_clock(struct radeon_device *rdev)
+uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev)
 {
 	uint64_t clock;
 
