@@ -725,23 +725,27 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 #endif
 	
 	sprintf(name, "lcdc%d",lcdc_id);
+
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	dev_drv = inf->lcdc_dev_drv[0];
+#else
 	for(i = 0; i < inf->num_lcdc; i++)  //find the driver for the extend display device
 	{
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND)
 		{
 			dev_drv = inf->lcdc_dev_drv[i];
-			printk("hdmi connect to lcdc%d\n",dev_drv->id);
 			break;
 		}
 	}
-
+	
 	if(i == inf->num_lcdc)
 	{
 		printk(KERN_ERR "%s driver not found!",name);
 		return -ENODEV;
 		
 	}
-
+#endif
+	printk("hdmi connect to lcdc%d\n",dev_drv->id);
 	
 	if(inf->num_lcdc == 1)
 	{
@@ -889,6 +893,10 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	char name[6];
 	int i;
 	sprintf(name, "lcdc%d",lcdc_id);
+
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+		dev_drv = inf->lcdc_dev_drv[0];
+#else
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND)
@@ -904,7 +912,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 		return -ENODEV;
 		
 	}
-
+#endif
 	if(inf->num_lcdc == 1)
 	{
 		info = inf->fb[0];
