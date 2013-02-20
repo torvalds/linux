@@ -162,19 +162,19 @@ static size_t clear_user_mvcos(size_t size, void __user *to)
 
 static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 {
+	size_t done, len, offset, len_str;
 	char buf[256];
-	int rc;
-	size_t done, len, len_str;
 
 	done = 0;
 	do {
-		len = min(count - done, (size_t) 256);
-		rc = uaccess.copy_from_user(len, src + done, buf);
-		if (unlikely(rc == len))
+		offset = (size_t)src & ~PAGE_MASK;
+		len = min(256UL, PAGE_SIZE - offset);
+		len = min(count - done, len);
+		if (copy_from_user_mvcos(len, src, buf))
 			return 0;
-		len -= rc;
 		len_str = strnlen(buf, len);
 		done += len_str;
+		src += len_str;
 	} while ((len_str == len) && (done < count));
 	return done + 1;
 }
@@ -182,18 +182,18 @@ static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
 				      char *dst)
 {
-	int rc;
-	size_t done, len, len_str;
+	size_t done, len, offset, len_str;
 
 	done = 0;
 	do {
-		len = min(count - done, (size_t) 4096);
-		rc = uaccess.copy_from_user(len, src + done, dst);
-		if (unlikely(rc == len))
+		offset = (size_t)src & ~PAGE_MASK;
+		len = min(count - done, PAGE_SIZE - offset);
+		if (copy_from_user_mvcos(len, src, dst))
 			return -EFAULT;
-		len -= rc;
 		len_str = strnlen(dst, len);
 		done += len_str;
+		src += len_str;
+		dst += len_str;
 	} while ((len_str == len) && (done < count));
 	return done;
 }
