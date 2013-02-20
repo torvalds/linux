@@ -172,7 +172,7 @@ out:
 	nv_wr32(bios, pcireg, access);
 }
 
-#if defined(CONFIG_ACPI)
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
 bool nouveau_acpi_rom_supported(struct pci_dev *pdev);
 #else

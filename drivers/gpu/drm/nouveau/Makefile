@@ -238,7 +238,9 @@ nouveau-y += nouveau_mem.o
 
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
+ifdef CONFIG_X86
 nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+endif
 nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o
