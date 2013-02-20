@@ -39,6 +39,9 @@ config HAVE_DYNAMIC_FTRACE
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_DYNAMIC_FTRACE_WITH_REGS
+	bool
+
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
@@ -250,6 +253,16 @@ config FTRACE_SYSCALLS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
 
+config TRACER_SNAPSHOT
+	bool "Create a snapshot trace buffer"
+	select TRACER_MAX_TRACE
+	help
+	  Allow tracing users to take snapshot of the current buffer using the
+	  ftrace interface, e.g.:
+
+	      echo 1 > /sys/kernel/debug/tracing/snapshot
+	      cat snapshot
+
 config TRACE_BRANCH_PROFILING
 	bool
 	select GENERIC_TRACER
@@ -433,6 +446,11 @@ config DYNAMIC_FTRACE
 	  wakes up once a second and checks to see if any ftrace calls
 	  were made. If so, it runs stop_machine (stops all CPUS)
 	  and modifies the code to jump over the call to ftrace.
+
+config DYNAMIC_FTRACE_WITH_REGS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 config FUNCTION_PROFILER
 	bool "Kernel function profiler"

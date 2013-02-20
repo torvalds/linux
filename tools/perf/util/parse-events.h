@@ -29,8 +29,7 @@ const char *event_type(int type);
 
 extern int parse_events_option(const struct option *opt, const char *str,
 			       int unset);
-extern int parse_events(struct perf_evlist *evlist, const char *str,
-			int unset);
+extern int parse_events(struct perf_evlist *evlist, const char *str);
 extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
 
@@ -51,7 +50,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE,
 };
 
-struct parse_events__term {
+struct parse_events_term {
 	char *config;
 	union {
 		char *str;
@@ -62,24 +61,25 @@ struct parse_events__term {
 	struct list_head list;
 };
 
-struct parse_events_data__events {
+struct parse_events_evlist {
 	struct list_head list;
 	int idx;
+	int nr_groups;
 };
 
-struct parse_events_data__terms {
+struct parse_events_terms {
 	struct list_head *terms;
 };
 
-int parse_events__is_hardcoded_term(struct parse_events__term *term);
-int parse_events__term_num(struct parse_events__term **_term,
+int parse_events__is_hardcoded_term(struct parse_events_term *term);
+int parse_events_term__num(struct parse_events_term **_term,
 			   int type_term, char *config, u64 num);
-int parse_events__term_str(struct parse_events__term **_term,
+int parse_events_term__str(struct parse_events_term **_term,
 			   int type_term, char *config, char *str);
-int parse_events__term_sym_hw(struct parse_events__term **term,
+int parse_events_term__sym_hw(struct parse_events_term **term,
 			      char *config, unsigned idx);
-int parse_events__term_clone(struct parse_events__term **new,
-			     struct parse_events__term *term);
+int parse_events_term__clone(struct parse_events_term **new,
+			     struct parse_events_term *term);
 void parse_events__free_terms(struct list_head *terms);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);

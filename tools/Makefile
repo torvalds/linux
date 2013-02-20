@@ -15,7 +15,7 @@ help:
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
 	@echo ''
 	@echo 'You can do:'
-	@echo ' $$ make -C tools/<tool>_install'
+	@echo ' $$ make -C tools/ <tool>_install'
 	@echo ''
 	@echo '  from the kernel command line to build and install one of'
 	@echo '  the tools above'

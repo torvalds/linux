@@ -132,21 +132,102 @@ static u64 amd_pmu_event_map(int hw_event)
 	return amd_perfmon_event_map[hw_event];
 }
 
-static int amd_pmu_hw_config(struct perf_event *event)
+static struct event_constraint *amd_nb_event_constraint;
+
+/*
+ * Previously calculated offsets
+ */
+static unsigned int event_offsets[X86_PMC_IDX_MAX] __read_mostly;
+static unsigned int count_offsets[X86_PMC_IDX_MAX] __read_mostly;
+static unsigned int rdpmc_indexes[X86_PMC_IDX_MAX] __read_mostly;
+
+/*
+ * Legacy CPUs:
+ *   4 counters starting at 0xc0010000 each offset by 1
+ *
+ * CPUs with core performance counter extensions:
+ *   6 counters starting at 0xc0010200 each offset by 2
+ *
+ * CPUs with north bridge performance counter extensions:
+ *   4 additional counters starting at 0xc0010240 each offset by 2
+ *   (indexed right above either one of the above core counters)
+ */
+static inline int amd_pmu_addr_offset(int index, bool eventsel)
 {
-	int ret;
+	int offset, first, base;
 
-	/* pass precise event sampling to ibs: */
-	if (event->attr.precise_ip && get_ibs_caps())
-		return -ENOENT;
+	if (!index)
+		return index;
 
-	ret = x86_pmu_hw_config(event);
+	if (eventsel)
+		offset = event_offsets[index];
+	else
+		offset = count_offsets[index];
+
+	if (offset)
+		return offset;
+
+	if (amd_nb_event_constraint &&
+	    test_bit(index, amd_nb_event_constraint->idxmsk)) {
+		/*
+		 * calculate the offset of NB counters with respect to
+		 * base eventsel or perfctr
+		 */
+
+		first = find_first_bit(amd_nb_event_constraint->idxmsk,
+				       X86_PMC_IDX_MAX);
+
+		if (eventsel)
+			base = MSR_F15H_NB_PERF_CTL - x86_pmu.eventsel;
+		else
+			base = MSR_F15H_NB_PERF_CTR - x86_pmu.perfctr;
+
+		offset = base + ((index - first) << 1);
+	} else if (!cpu_has_perfctr_core)
+		offset = index;
+	else
+		offset = index << 1;
+
+	if (eventsel)
+		event_offsets[index] = offset;
+	else
+		count_offsets[index] = offset;
+
+	return offset;
+}
+
+static inline int amd_pmu_rdpmc_index(int index)
+{
+	int ret, first;
+
+	if (!index)
+		return index;
+
+	ret = rdpmc_indexes[index];
+
 	if (ret)
 		return ret;
 
-	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+	if (amd_nb_event_constraint &&
+	    test_bit(index, amd_nb_event_constraint->idxmsk)) {
+		/*
+		 * according to the mnual, ECX value of the NB counters is
+		 * the index of the NB counter (0, 1, 2 or 3) plus 6
+		 */
 
+		first = find_first_bit(amd_nb_event_constraint->idxmsk,
+				       X86_PMC_IDX_MAX);
+		ret = index - first + 6;
+	} else
+		ret = index;
+
+	rdpmc_indexes[index] = ret;
+
+	return ret;
+}
+
+static int amd_core_hw_config(struct perf_event *event)
+{
 	if (event->attr.exclude_host && event->attr.exclude_guest)
 		/*
 		 * When HO == GO == 1 the hardware treats that as GO == HO == 0
@@ -156,14 +237,37 @@ static int amd_pmu_hw_config(struct perf_event *event)
 		event->hw.config &= ~(ARCH_PERFMON_EVENTSEL_USR |
 				      ARCH_PERFMON_EVENTSEL_OS);
 	else if (event->attr.exclude_host)
-		event->hw.config |= AMD_PERFMON_EVENTSEL_GUESTONLY;
+		event->hw.config |= AMD64_EVENTSEL_GUESTONLY;
 	else if (event->attr.exclude_guest)
-		event->hw.config |= AMD_PERFMON_EVENTSEL_HOSTONLY;
+		event->hw.config |= AMD64_EVENTSEL_HOSTONLY;
 
-	if (event->attr.type != PERF_TYPE_RAW)
-		return 0;
+	return 0;
+}
 
-	event->hw.config |= event->attr.config & AMD64_RAW_EVENT_MASK;
+/*
+ * NB counters do not support the following event select bits:
+ *   Host/Guest only
+ *   Counter mask
+ *   Invert counter mask
+ *   Edge detect
+ *   OS/User mode
+ */
+static int amd_nb_hw_config(struct perf_event *event)
+{
+	/* for NB, we only allow system wide counting mode */
+	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
+		return -EINVAL;
+
+	if (event->attr.exclude_user || event->attr.exclude_kernel ||
+	    event->attr.exclude_host || event->attr.exclude_guest)
+		return -EINVAL;
+
+	event->hw.config &= ~(ARCH_PERFMON_EVENTSEL_USR |
+			      ARCH_PERFMON_EVENTSEL_OS);
+
+	if (event->hw.config & ~(AMD64_RAW_EVENT_MASK_NB |
+				 ARCH_PERFMON_EVENTSEL_INT))
+		return -EINVAL;
 
 	return 0;
 }
@@ -181,6 +285,11 @@ static inline int amd_is_nb_event(struct hw_perf_event *hwc)
 	return (hwc->config & 0xe0) == 0xe0;
 }
 
+static inline int amd_is_perfctr_nb_event(struct hw_perf_event *hwc)
+{
+	return amd_nb_event_constraint && amd_is_nb_event(hwc);
+}
+
 static inline int amd_has_nb(struct cpu_hw_events *cpuc)
 {
 	struct amd_nb *nb = cpuc->amd_nb;
@@ -188,18 +297,35 @@ static inline int amd_has_nb(struct cpu_hw_events *cpuc)
 	return nb && nb->nb_id != -1;
 }
 
-static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
-				      struct perf_event *event)
+static int amd_pmu_hw_config(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
+	int ret;
+
+	/* pass precise event sampling to ibs: */
+	if (event->attr.precise_ip && get_ibs_caps())
+		return -ENOENT;
+
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
+
+	ret = x86_pmu_hw_config(event);
+	if (ret)
+		return ret;
+
+	if (event->attr.type == PERF_TYPE_RAW)
+		event->hw.config |= event->attr.config & AMD64_RAW_EVENT_MASK;
+
+	if (amd_is_perfctr_nb_event(&event->hw))
+		return amd_nb_hw_config(event);
+
+	return amd_core_hw_config(event);
+}
+
+static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
+					   struct perf_event *event)
+{
 	struct amd_nb *nb = cpuc->amd_nb;
 	int i;
-
-	/*
-	 * only care about NB events
-	 */
-	if (!(amd_has_nb(cpuc) && amd_is_nb_event(hwc)))
-		return;
 
 	/*
 	 * need to scan whole list because event may not have
@@ -212,6 +338,19 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (cmpxchg(nb->owners + i, event, NULL) == event)
 			break;
+	}
+}
+
+static void amd_nb_interrupt_hw_config(struct hw_perf_event *hwc)
+{
+	int core_id = cpu_data(smp_processor_id()).cpu_core_id;
+
+	/* deliver interrupts only to this core */
+	if (hwc->config & ARCH_PERFMON_EVENTSEL_INT) {
+		hwc->config |= AMD64_EVENTSEL_INT_CORE_ENABLE;
+		hwc->config &= ~AMD64_EVENTSEL_INT_CORE_SEL_MASK;
+		hwc->config |= (u64)(core_id) <<
+			AMD64_EVENTSEL_INT_CORE_SEL_SHIFT;
 	}
 }
 
@@ -247,24 +386,24 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
   *
   * Given that resources are allocated (cmpxchg), they must be
   * eventually freed for others to use. This is accomplished by
-  * calling amd_put_event_constraints().
+  * calling __amd_put_nb_event_constraints()
   *
   * Non NB events are not impacted by this restriction.
   */
 static struct event_constraint *
-amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+__amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
+			       struct event_constraint *c)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct amd_nb *nb = cpuc->amd_nb;
-	struct perf_event *old = NULL;
-	int max = x86_pmu.num_counters;
-	int i, j, k = -1;
+	struct perf_event *old;
+	int idx, new = -1;
 
-	/*
-	 * if not NB event or no NB, then no constraints
-	 */
-	if (!(amd_has_nb(cpuc) && amd_is_nb_event(hwc)))
-		return &unconstrained;
+	if (!c)
+		c = &unconstrained;
+
+	if (cpuc->is_fake)
+		return c;
 
 	/*
 	 * detect if already present, if so reuse
@@ -276,48 +415,36 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 	 * because of successive calls to x86_schedule_events() from
 	 * hw_perf_group_sched_in() without hw_perf_enable()
 	 */
-	for (i = 0; i < max; i++) {
-		/*
-		 * keep track of first free slot
-		 */
-		if (k == -1 && !nb->owners[i])
-			k = i;
+	for_each_set_bit(idx, c->idxmsk, x86_pmu.num_counters) {
+		if (new == -1 || hwc->idx == idx)
+			/* assign free slot, prefer hwc->idx */
+			old = cmpxchg(nb->owners + idx, NULL, event);
+		else if (nb->owners[idx] == event)
+			/* event already present */
+			old = event;
+		else
+			continue;
+
+		if (old && old != event)
+			continue;
+
+		/* reassign to this slot */
+		if (new != -1)
+			cmpxchg(nb->owners + new, event, NULL);
+		new = idx;
 
 		/* already present, reuse */
-		if (nb->owners[i] == event)
-			goto done;
-	}
-	/*
-	 * not present, so grab a new slot
-	 * starting either at:
-	 */
-	if (hwc->idx != -1) {
-		/* previous assignment */
-		i = hwc->idx;
-	} else if (k != -1) {
-		/* start from free slot found */
-		i = k;
-	} else {
-		/*
-		 * event not found, no slot found in
-		 * first pass, try again from the
-		 * beginning
-		 */
-		i = 0;
-	}
-	j = i;
-	do {
-		old = cmpxchg(nb->owners+i, NULL, event);
-		if (!old)
+		if (old == event)
 			break;
-		if (++i == max)
-			i = 0;
-	} while (i != j);
-done:
-	if (!old)
-		return &nb->event_constraints[i];
+	}
 
-	return &emptyconstraint;
+	if (new == -1)
+		return &emptyconstraint;
+
+	if (amd_is_perfctr_nb_event(hwc))
+		amd_nb_interrupt_hw_config(hwc);
+
+	return &nb->event_constraints[new];
 }
 
 static struct amd_nb *amd_alloc_nb(int cpu)
@@ -364,7 +491,7 @@ static void amd_pmu_cpu_starting(int cpu)
 	struct amd_nb *nb;
 	int i, nb_id;
 
-	cpuc->perf_ctr_virt_mask = AMD_PERFMON_EVENTSEL_HOSTONLY;
+	cpuc->perf_ctr_virt_mask = AMD64_EVENTSEL_HOSTONLY;
 
 	if (boot_cpu_data.x86_max_cores < 2)
 		return;
@@ -405,6 +532,26 @@ static void amd_pmu_cpu_dead(int cpu)
 
 		cpuhw->amd_nb = NULL;
 	}
+}
+
+static struct event_constraint *
+amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+{
+	/*
+	 * if not NB event or no NB, then no constraints
+	 */
+	if (!(amd_has_nb(cpuc) && amd_is_nb_event(&event->hw)))
+		return &unconstrained;
+
+	return __amd_get_nb_event_constraints(cpuc, event,
+					      amd_nb_event_constraint);
+}
+
+static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
+				      struct perf_event *event)
+{
+	if (amd_has_nb(cpuc) && amd_is_nb_event(&event->hw))
+		__amd_put_nb_event_constraints(cpuc, event);
 }
 
 PMU_FORMAT_ATTR(event,	"config:0-7,32-35");
@@ -496,6 +643,9 @@ static struct event_constraint amd_f15_PMC30 = EVENT_CONSTRAINT_OVERLAP(0, 0x09,
 static struct event_constraint amd_f15_PMC50 = EVENT_CONSTRAINT(0, 0x3F, 0);
 static struct event_constraint amd_f15_PMC53 = EVENT_CONSTRAINT(0, 0x38, 0);
 
+static struct event_constraint amd_NBPMC96 = EVENT_CONSTRAINT(0, 0x3C0, 0);
+static struct event_constraint amd_NBPMC74 = EVENT_CONSTRAINT(0, 0xF0, 0);
+
 static struct event_constraint *
 amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
@@ -561,8 +711,8 @@ amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *ev
 			return &amd_f15_PMC20;
 		}
 	case AMD_EVENT_NB:
-		/* not yet implemented */
-		return &emptyconstraint;
+		return __amd_get_nb_event_constraints(cpuc, event,
+						      amd_nb_event_constraint);
 	default:
 		return &emptyconstraint;
 	}
@@ -587,6 +737,8 @@ static __initconst const struct x86_pmu amd_pmu = {
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_K7_EVNTSEL0,
 	.perfctr		= MSR_K7_PERFCTR0,
+	.addr_offset            = amd_pmu_addr_offset,
+	.rdpmc_index		= amd_pmu_rdpmc_index,
 	.event_map		= amd_pmu_event_map,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
 	.num_counters		= AMD64_NUM_COUNTERS,
@@ -608,7 +760,7 @@ static __initconst const struct x86_pmu amd_pmu = {
 
 static int setup_event_constraints(void)
 {
-	if (boot_cpu_data.x86 >= 0x15)
+	if (boot_cpu_data.x86 == 0x15)
 		x86_pmu.get_event_constraints = amd_get_event_constraints_f15h;
 	return 0;
 }
@@ -638,6 +790,23 @@ static int setup_perfctr_core(void)
 	return 0;
 }
 
+static int setup_perfctr_nb(void)
+{
+	if (!cpu_has_perfctr_nb)
+		return -ENODEV;
+
+	x86_pmu.num_counters += AMD64_NUM_COUNTERS_NB;
+
+	if (cpu_has_perfctr_core)
+		amd_nb_event_constraint = &amd_NBPMC96;
+	else
+		amd_nb_event_constraint = &amd_NBPMC74;
+
+	printk(KERN_INFO "perf: AMD northbridge performance counters detected\n");
+
+	return 0;
+}
+
 __init int amd_pmu_init(void)
 {
 	/* Performance-monitoring supported from K7 and later: */
@@ -648,6 +817,7 @@ __init int amd_pmu_init(void)
 
 	setup_event_constraints();
 	setup_perfctr_core();
+	setup_perfctr_nb();
 
 	/* Events are common for all AMDs */
 	memcpy(hw_cache_event_ids, amd_hw_cache_event_ids,
@@ -678,7 +848,7 @@ void amd_pmu_disable_virt(void)
 	 * SVM is disabled the Guest-only bits still gets set and the counter
 	 * will not count anything.
 	 */
-	cpuc->perf_ctr_virt_mask = AMD_PERFMON_EVENTSEL_HOSTONLY;
+	cpuc->perf_ctr_virt_mask = AMD64_EVENTSEL_HOSTONLY;
 
 	/* Reload all events */
 	x86_pmu_disable_all();

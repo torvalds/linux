@@ -47,22 +47,31 @@ int machine__process_event(struct machine *machine, union perf_event *event);
 
 typedef void (*machine__process_t)(struct machine *machine, void *data);
 
-void machines__process(struct rb_root *machines,
-		       machine__process_t process, void *data);
+struct machines {
+	struct machine host;
+	struct rb_root guests;
+};
 
-struct machine *machines__add(struct rb_root *machines, pid_t pid,
+void machines__init(struct machines *machines);
+void machines__exit(struct machines *machines);
+
+void machines__process_guests(struct machines *machines,
+			      machine__process_t process, void *data);
+
+struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir);
-struct machine *machines__find_host(struct rb_root *machines);
-struct machine *machines__find(struct rb_root *machines, pid_t pid);
-struct machine *machines__findnew(struct rb_root *machines, pid_t pid);
+struct machine *machines__find_host(struct machines *machines);
+struct machine *machines__find(struct machines *machines, pid_t pid);
+struct machine *machines__findnew(struct machines *machines, pid_t pid);
 
-void machines__set_id_hdr_size(struct rb_root *machines, u16 id_hdr_size);
+void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
+void machine__delete_dead_threads(struct machine *machine);
+void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
-
 
 struct branch_info *machine__resolve_bstack(struct machine *machine,
 					    struct thread *thread,
@@ -129,19 +138,19 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 			       symbol_filter_t filter);
 
-size_t machine__fprintf_dsos_buildid(struct machine *machine,
-				     FILE *fp, bool with_hits);
-size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp);
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits);
+size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
+size_t machines__fprintf_dsos(struct machines *machines, FILE *fp);
+size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
 
 void machine__destroy_kernel_maps(struct machine *machine);
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);
 int machine__create_kernel_maps(struct machine *machine);
 
-int machines__create_kernel_maps(struct rb_root *machines, pid_t pid);
-int machines__create_guest_kernel_maps(struct rb_root *machines);
-void machines__destroy_guest_kernel_maps(struct rb_root *machines);
+int machines__create_kernel_maps(struct machines *machines, pid_t pid);
+int machines__create_guest_kernel_maps(struct machines *machines);
+void machines__destroy_kernel_maps(struct machines *machines);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 

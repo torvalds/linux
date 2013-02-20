@@ -1475,9 +1475,9 @@ static int perf_sched__read_events(struct perf_sched *sched, bool destroy,
 			goto out_delete;
 		}
 
-		sched->nr_events      = session->hists.stats.nr_events[0];
-		sched->nr_lost_events = session->hists.stats.total_lost;
-		sched->nr_lost_chunks = session->hists.stats.nr_events[PERF_RECORD_LOST];
+		sched->nr_events      = session->stats.nr_events[0];
+		sched->nr_lost_events = session->stats.total_lost;
+		sched->nr_lost_chunks = session->stats.nr_events[PERF_RECORD_LOST];
 	}
 
 	if (destroy)

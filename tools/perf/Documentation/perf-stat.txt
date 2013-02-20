@@ -114,6 +114,17 @@ with it.  --append may be used here.  Examples:
 
 perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- make -s -j64 O=defconfig-build/ bzImage
 
+-I msecs::
+--interval-print msecs::
+	Print count deltas every N milliseconds (minimum: 100ms)
+	example: perf stat -I 1000 -e cycles -a sleep 5
+
+--aggr-socket::
+Aggregate counts per processor socket for system-wide mode measurements.  This
+is a useful mode to detect imbalance between sockets.  To enable this mode,
+use --aggr-socket in addition to -a. (system-wide).  The output includes the
+socket number and the number of online processors on that socket. This is
+useful to gauge the amount of aggregation.
 
 EXAMPLES
 --------

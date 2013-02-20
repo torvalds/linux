@@ -6,6 +6,7 @@
 #include "types.h"
 #include "symbol.h"
 #include "hist.h"
+#include "sort.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
@@ -152,6 +153,29 @@ static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 {
 	return 0;
 }
+#endif
+
+#ifdef GTK2_SUPPORT
+int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
+			 struct hist_browser_timer *hbt);
+
+static inline int hist_entry__gtk_annotate(struct hist_entry *he, int evidx,
+					   struct hist_browser_timer *hbt)
+{
+	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evidx, hbt);
+}
+
+void perf_gtk__show_annotations(void);
+#else
+static inline int hist_entry__gtk_annotate(struct hist_entry *he __maybe_unused,
+					   int evidx __maybe_unused,
+					   struct hist_browser_timer *hbt
+					   __maybe_unused)
+{
+	return 0;
+}
+
+static inline void perf_gtk__show_annotations(void) {}
 #endif
 
 extern const char	*disassembler_style;

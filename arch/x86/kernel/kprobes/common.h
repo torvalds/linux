@@ -99,4 +99,15 @@ static inline unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsig
 	return addr;
 }
 #endif
+
+#ifdef CONFIG_KPROBES_ON_FTRACE
+extern int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+			   struct kprobe_ctlblk *kcb);
+#else
+static inline int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+				  struct kprobe_ctlblk *kcb)
+{
+	return 0;
+}
+#endif
 #endif
