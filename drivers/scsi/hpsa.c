@@ -1131,7 +1131,7 @@ clean:
 	return -ENOMEM;
 }
 
-static void hpsa_map_sg_chain_block(struct ctlr_info *h,
+static int hpsa_map_sg_chain_block(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	struct SGDescriptor *chain_sg, *chain_block;
@@ -1144,8 +1144,15 @@ static void hpsa_map_sg_chain_block(struct ctlr_info *h,
 		(c->Header.SGTotal - h->max_cmd_sg_entries);
 	temp64 = pci_map_single(h->pdev, chain_block, chain_sg->Len,
 				PCI_DMA_TODEVICE);
+	if (dma_mapping_error(&h->pdev->dev, temp64)) {
+		/* prevent subsequent unmapping */
+		chain_sg->Addr.lower = 0;
+		chain_sg->Addr.upper = 0;
+		return -1;
+	}
 	chain_sg->Addr.lower = (u32) (temp64 & 0x0FFFFFFFFULL);
 	chain_sg->Addr.upper = (u32) ((temp64 >> 32) & 0x0FFFFFFFFULL);
+	return 0;
 }
 
 static void hpsa_unmap_sg_chain_block(struct ctlr_info *h,
@@ -2123,7 +2130,10 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 	if (chained) {
 		cp->Header.SGList = h->max_cmd_sg_entries;
 		cp->Header.SGTotal = (u16) (use_sg + 1);
-		hpsa_map_sg_chain_block(h, cp);
+		if (hpsa_map_sg_chain_block(h, cp)) {
+			scsi_dma_unmap(cmd);
+			return -1;
+		}
 		return 0;
 	}
 
