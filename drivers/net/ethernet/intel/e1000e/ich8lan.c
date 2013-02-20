@@ -312,7 +312,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		mac_reg &= ~E1000_CTRL_LANPHYPC_VALUE;
 		ew32(CTRL, mac_reg);
 		e1e_flush();
-		udelay(10);
+		usleep_range(10, 20);
 		mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
 		ew32(CTRL, mac_reg);
 		e1e_flush();
@@ -1517,7 +1517,7 @@ s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 	if (ret_val)
 		return ret_val;
 
-	udelay(20);
+	usleep_range(20, 40);
 	ctrl_ext = er32(CTRL_EXT);
 	ctrl_reg = er32(CTRL);
 
@@ -1527,11 +1527,11 @@ s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 
 	ew32(CTRL_EXT, ctrl_ext | E1000_CTRL_EXT_SPD_BYPS);
 	e1e_flush();
-	udelay(20);
+	usleep_range(20, 40);
 	ew32(CTRL, ctrl_reg);
 	ew32(CTRL_EXT, ctrl_ext);
 	e1e_flush();
-	udelay(20);
+	usleep_range(20, 40);
 
 	return 0;
 }
@@ -2037,7 +2037,7 @@ static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw)
 	do {
 		data = er32(STATUS);
 		data &= E1000_STATUS_LAN_INIT_DONE;
-		udelay(100);
+		usleep_range(100, 200);
 	} while ((!data) && --loop);
 
 	/* If basic configuration is incomplete before the above loop
@@ -2801,7 +2801,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 		/* Convert offset to bytes. */
 		act_offset = (i + new_bank_offset) << 1;
 
-		udelay(100);
+		usleep_range(100, 200);
 		/* Write the bytes to the new bank. */
 		ret_val = e1000_retry_write_flash_byte_ich8lan(hw,
 							       act_offset,
@@ -2809,7 +2809,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 		if (ret_val)
 			break;
 
-		udelay(100);
+		usleep_range(100, 200);
 		ret_val = e1000_retry_write_flash_byte_ich8lan(hw,
 							       act_offset + 1,
 							       (u8)(data >> 8));
@@ -3077,7 +3077,7 @@ static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw,
 
 	for (program_retries = 0; program_retries < 100; program_retries++) {
 		e_dbg("Retrying Byte %2.2X at offset %u\n", byte, offset);
-		udelay(100);
+		usleep_range(100, 200);
 		ret_val = e1000_write_flash_byte_ich8lan(hw, offset, byte);
 		if (!ret_val)
 			break;

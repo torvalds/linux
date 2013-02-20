@@ -597,7 +597,7 @@ static inline s32 __ew32_prepare(struct e1000_hw *hw)
 	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
 
 	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
-		udelay(50);
+		usleep_range(50, 100);
 
 	return i;
 }

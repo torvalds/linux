@@ -1297,7 +1297,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 		ew32(CTRL, ctrl_reg);
 		e1e_flush();
-		udelay(500);
+		usleep_range(500, 1000);
 
 		return 0;
 	}
@@ -1323,7 +1323,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1e_wphy(hw, PHY_REG(2, 21), phy_reg);
 		/* Assert SW reset for above settings to take effect */
 		hw->phy.ops.commit(hw);
-		mdelay(1);
+		usleep_range(1000, 2000);
 		/* Force Full Duplex */
 		e1e_rphy(hw, PHY_REG(769, 16), &phy_reg);
 		e1e_wphy(hw, PHY_REG(769, 16), phy_reg | 0x000C);
@@ -1364,7 +1364,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	/* force 1000, set loopback */
 	e1e_wphy(hw, MII_BMCR, 0x4140);
-	mdelay(250);
+	msleep(250);
 
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = er32(CTRL);
@@ -1396,7 +1396,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	if (hw->phy.type == e1000_phy_m88)
 		e1000_phy_disable_receiver(adapter);
 
-	udelay(500);
+	usleep_range(500, 1000);
 
 	return 0;
 }
@@ -1704,7 +1704,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 			/* On some Phy/switch combinations, link establishment
 			 * can take a few seconds more than expected.
 			 */
-			msleep(5000);
+			msleep_interruptible(5000);
 
 		if (!(er32(STATUS) & E1000_STATUS_LU))
 			*data = 1;

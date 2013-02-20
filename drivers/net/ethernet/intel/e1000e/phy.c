@@ -97,7 +97,7 @@ s32 e1000e_get_phy_id(struct e1000_hw *hw)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
-		udelay(20);
+		usleep_range(20, 40);
 		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
@@ -165,7 +165,7 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	 * the lower time out
 	 */
 	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
-		udelay(50);
+		usleep_range(50, 100);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
 			break;
@@ -184,7 +184,7 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
-		udelay(100);
+		usleep_range(100, 200);
 
 	return 0;
 }
@@ -223,7 +223,7 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	 * the lower time out
 	 */
 	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
-		udelay(50);
+		usleep_range(50, 100);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
 			break;
@@ -241,7 +241,7 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
-		udelay(100);
+		usleep_range(100, 200);
 
 	return 0;
 }
@@ -2120,7 +2120,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 	ew32(CTRL, ctrl);
 	e1e_flush();
 
-	udelay(150);
+	usleep_range(150, 300);
 
 	phy->ops.release(hw);
 

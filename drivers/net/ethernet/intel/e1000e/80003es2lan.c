@@ -395,7 +395,7 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		 * before the device has completed the "Page Select" MDI
 		 * transaction.  So we wait 200us after each MDI command...
 		 */
-		udelay(200);
+		usleep_range(200, 400);
 
 		/* ...and verify the command was successful. */
 		ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
@@ -405,13 +405,13 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 			return -E1000_ERR_PHY;
 		}
 
-		udelay(200);
+		usleep_range(200, 400);
 
 		ret_val = e1000e_read_phy_reg_mdic(hw,
 						   MAX_PHY_REG_ADDRESS & offset,
 						   data);
 
-		udelay(200);
+		usleep_range(200, 400);
 	} else {
 		ret_val = e1000e_read_phy_reg_mdic(hw,
 						   MAX_PHY_REG_ADDRESS & offset,
@@ -464,7 +464,7 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		 * before the device has completed the "Page Select" MDI
 		 * transaction.  So we wait 200us after each MDI command...
 		 */
-		udelay(200);
+		usleep_range(200, 400);
 
 		/* ...and verify the command was successful. */
 		ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
@@ -474,13 +474,13 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 			return -E1000_ERR_PHY;
 		}
 
-		udelay(200);
+		usleep_range(200, 400);
 
 		ret_val = e1000e_write_phy_reg_mdic(hw,
 						    MAX_PHY_REG_ADDRESS &
 						    offset, data);
 
-		udelay(200);
+		usleep_range(200, 400);
 	} else {
 		ret_val = e1000e_write_phy_reg_mdic(hw,
 						    MAX_PHY_REG_ADDRESS &

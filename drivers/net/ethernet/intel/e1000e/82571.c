@@ -437,7 +437,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
-		udelay(20);
+		usleep_range(20, 40);
 		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
@@ -482,7 +482,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 		i++;
 	}
 
@@ -499,7 +499,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (er32(SWSM) & E1000_SWSM_SWESMBI)
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == fw_timeout) {
@@ -1022,7 +1022,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	}
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
-		udelay(10);
+		usleep_range(10, 20);
 		ctrl_ext = er32(CTRL_EXT);
 		ctrl_ext |= E1000_CTRL_EXT_EE_RST;
 		ew32(CTRL_EXT, ctrl_ext);
@@ -1529,7 +1529,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	status = er32(STATUS);
 	er32(RXCW);
 	/* SYNCH bit and IV bit are sticky */
-	udelay(10);
+	usleep_range(10, 20);
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
@@ -1632,7 +1632,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
-				udelay(10);
+				usleep_range(10, 20);
 				rxcw = er32(RXCW);
 				if ((rxcw & E1000_RXCW_SYNCH) &&
 				    (rxcw & E1000_RXCW_C))

@@ -596,7 +596,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		 * serdes media type.
 		 */
 		/* SYNCH bit and IV bit are sticky. */
-		udelay(10);
+		usleep_range(10, 20);
 		rxcw = er32(RXCW);
 		if (rxcw & E1000_RXCW_SYNCH) {
 			if (!(rxcw & E1000_RXCW_IV)) {
@@ -613,7 +613,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU) {
 			/* SYNCH bit and IV bit are sticky, so reread rxcw. */
-			udelay(10);
+			usleep_range(10, 20);
 			rxcw = er32(RXCW);
 			if (rxcw & E1000_RXCW_SYNCH) {
 				if (!(rxcw & E1000_RXCW_IV)) {
@@ -1382,7 +1382,7 @@ s32 e1000e_get_hw_semaphore(struct e1000_hw *hw)
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 		i++;
 	}
 
@@ -1400,7 +1400,7 @@ s32 e1000e_get_hw_semaphore(struct e1000_hw *hw)
 		if (er32(SWSM) & E1000_SWSM_SWESMBI)
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == timeout) {
@@ -1712,7 +1712,7 @@ s32 e1000e_disable_pcie_master(struct e1000_hw *hw)
 	while (timeout) {
 		if (!(er32(STATUS) & E1000_STATUS_GIO_MASTER_ENABLE))
 			break;
-		udelay(100);
+		usleep_range(100, 200);
 		timeout--;
 	}
 
