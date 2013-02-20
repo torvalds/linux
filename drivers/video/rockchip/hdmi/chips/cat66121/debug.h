@@ -10,7 +10,7 @@
 //******************************************/
 #ifndef _DEBUG_H_
 #define _DEBUG_H_
-#define Debug_message 1
+#define Debug_message 0
 
 #pragma message("debug.h")
 
