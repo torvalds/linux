@@ -2959,6 +2959,7 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	struct CommandList *c;
 	char *buff = NULL;
 	union u64bit temp64;
+	int rc = 0;
 
 	if (!argp)
 		return -EINVAL;
@@ -2978,8 +2979,8 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 			/* Copy the data into the buffer we created */
 			if (copy_from_user(buff, iocommand.buf,
 				iocommand.buf_size)) {
-				kfree(buff);
-				return -EFAULT;
+				rc = -EFAULT;
+				goto out_kfree;
 			}
 		} else {
 			memset(buff, 0, iocommand.buf_size);
@@ -2987,8 +2988,8 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	}
 	c = cmd_special_alloc(h);
 	if (c == NULL) {
-		kfree(buff);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_kfree;
 	}
 	/* Fill in the command type */
 	c->cmd_type = CMD_IOCTL_PEND;
@@ -3027,22 +3028,22 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	memcpy(&iocommand.error_info, c->err_info,
 		sizeof(iocommand.error_info));
 	if (copy_to_user(argp, &iocommand, sizeof(iocommand))) {
-		kfree(buff);
-		cmd_special_free(h, c);
-		return -EFAULT;
+		rc = -EFAULT;
+		goto out;
 	}
 	if (iocommand.Request.Type.Direction == XFER_READ &&
 		iocommand.buf_size > 0) {
 		/* Copy the data out of the buffer we created */
 		if (copy_to_user(iocommand.buf, buff, iocommand.buf_size)) {
-			kfree(buff);
-			cmd_special_free(h, c);
-			return -EFAULT;
+			rc = -EFAULT;
+			goto out;
 		}
 	}
-	kfree(buff);
+out:
 	cmd_special_free(h, c);
-	return 0;
+out_kfree:
+	kfree(buff);
+	return rc;
 }
 
 static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
