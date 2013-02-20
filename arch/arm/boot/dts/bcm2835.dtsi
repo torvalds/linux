@@ -64,6 +64,16 @@
 			#interrupt-cells = <2>;
 		};
 
+		spi: spi@20204000 {
+			compatible = "brcm,bcm2835-spi";
+			reg = <0x7e204000 0x1000>;
+			interrupts = <2 22>;
+			clocks = <&clk_spi>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@20205000 {
 			compatible = "brcm,bcm2835-i2c";
 			reg = <0x7e205000 0x1000>;
@@ -106,6 +116,13 @@
 			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <150000000>;
+		};
+
+		clk_spi: spi {
+			compatible = "fixed-clock";
+			reg = <2>;
+			#clock-cells = <0>;
+			clock-frequency = <250000000>;
 		};
 	};
 };
