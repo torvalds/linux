@@ -383,7 +383,7 @@ again:
 	h->block_rsv = NULL;
 	h->orig_rsv = NULL;
 	h->aborted = 0;
-	h->qgroup_reserved = qgroup_reserved;
+	h->qgroup_reserved = 0;
 	h->delayed_ref_elem.seq = 0;
 	h->type = type;
 	h->allocating_chunk = false;
@@ -402,6 +402,7 @@ again:
 		h->block_rsv = &root->fs_info->trans_block_rsv;
 		h->bytes_reserved = num_bytes;
 	}
+	h->qgroup_reserved = qgroup_reserved;
 
 got_it:
 	btrfs_record_root_in_trans(h, root);
