@@ -819,7 +819,7 @@ long ncp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case NCP_IOC_CONN_LOGGED_IN:
 	case NCP_IOC_SETROOT:
 		if (!capable(CAP_SYS_ADMIN)) {
-			ret = -EACCES;
+			ret = -EPERM;
 			goto out;
 		}
 		break;
