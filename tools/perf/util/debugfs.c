@@ -5,7 +5,6 @@
 #include <linux/kernel.h>
 #include <sys/mount.h>
 
-static int debugfs_premounted;
 char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
 char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
@@ -15,7 +14,7 @@ static const char *debugfs_known_mountpoints[] = {
 	0,
 };
 
-static int debugfs_found;
+static bool debugfs_found;
 
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)
@@ -30,7 +29,7 @@ const char *debugfs_find_mountpoint(void)
 	ptr = debugfs_known_mountpoints;
 	while (*ptr) {
 		if (debugfs_valid_mountpoint(*ptr) == 0) {
-			debugfs_found = 1;
+			debugfs_found = true;
 			strcpy(debugfs_mountpoint, *ptr);
 			return debugfs_mountpoint;
 		}
@@ -52,7 +51,7 @@ const char *debugfs_find_mountpoint(void)
 	if (strcmp(type, "debugfs") != 0)
 		return NULL;
 
-	debugfs_found = 1;
+	debugfs_found = true;
 
 	return debugfs_mountpoint;
 }
@@ -82,10 +81,8 @@ static void debugfs_set_tracing_events_path(const char *mountpoint)
 char *debugfs_mount(const char *mountpoint)
 {
 	/* see if it's already mounted */
-	if (debugfs_find_mountpoint()) {
-		debugfs_premounted = 1;
+	if (debugfs_find_mountpoint())
 		goto out;
-	}
 
 	/* if not mounted and no argument */
 	if (mountpoint == NULL) {
@@ -100,7 +97,7 @@ char *debugfs_mount(const char *mountpoint)
 		return NULL;
 
 	/* save the mountpoint */
-	debugfs_found = 1;
+	debugfs_found = true;
 	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
 out:
 	debugfs_set_tracing_events_path(debugfs_mountpoint);
