@@ -169,7 +169,10 @@ struct e1000_option {
 		/* list_option info */
 		struct {
 			int nr;
-			struct e1000_opt_list { int i; char *str; } *p;
+			struct e1000_opt_list {
+				int i;
+				char *str;
+			} *p;
 		} l;
 	} arg;
 };
