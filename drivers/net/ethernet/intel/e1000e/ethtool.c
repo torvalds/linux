@@ -812,10 +812,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 wlock_mac = 0;
 
 	/* The status register is Read Only, so a write should fail.
-	 * Some bits that get toggled are ignored.
+	 * Some bits that get toggled are ignored.  There are several bits
+	 * on newer hardware that are r/w.
 	 */
 	switch (mac->type) {
-	/* there are several bits on newer hardware that are r/w */
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_80003es2lan:
@@ -1600,8 +1600,10 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 	k = 0;
 	l = 0;
-	for (j = 0; j <= lc; j++) { /* loop count loop */
-		for (i = 0; i < 64; i++) { /* send the packets */
+	/* loop count loop */
+	for (j = 0; j <= lc; j++) {
+		/* send the packets */
+		for (i = 0; i < 64; i++) {
 			buffer_info = &tx_ring->buffer_info[k];
 
 			e1000_create_lbtest_frame(buffer_info->skb, 1024);
@@ -1618,7 +1620,8 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		msleep(200);
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;
-		do { /* receive the sent packets */
+		/* receive the sent packets */
+		do {
 			buffer_info = &rx_ring->buffer_info[l];
 
 			dma_sync_single_for_cpu(&pdev->dev,
@@ -1645,7 +1648,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			ret_val = 14; /* error code for time out error */
 			break;
 		}
-	} /* end loop count loop */
+	}
 	return ret_val;
 }
 

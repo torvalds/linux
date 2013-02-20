@@ -161,11 +161,13 @@ struct e1000_option {
 	const char *err;
 	int def;
 	union {
-		struct { /* range_option info */
+		/* range_option info */
+		struct {
 			int min;
 			int max;
 		} r;
-		struct { /* list_option info */
+		/* list_option info */
+		struct {
 			int nr;
 			struct e1000_opt_list { int i; char *str; } *p;
 		} l;
@@ -247,7 +249,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			   "Using defaults for all values\n");
 	}
 
-	{ /* Transmit Interrupt Delay */
+	/* Transmit Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Interrupt Delay",
@@ -266,7 +269,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->tx_int_delay = opt.def;
 		}
 	}
-	{ /* Transmit Absolute Interrupt Delay */
+	/* Transmit Absolute Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Absolute Interrupt Delay",
@@ -285,7 +289,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->tx_abs_int_delay = opt.def;
 		}
 	}
-	{ /* Receive Interrupt Delay */
+	/* Receive Interrupt Delay */
+	{
 		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Interrupt Delay",
@@ -304,7 +309,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->rx_int_delay = opt.def;
 		}
 	}
-	{ /* Receive Absolute Interrupt Delay */
+	/* Receive Absolute Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Absolute Interrupt Delay",
@@ -323,7 +329,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->rx_abs_int_delay = opt.def;
 		}
 	}
-	{ /* Interrupt Throttling Rate */
+	/* Interrupt Throttling Rate */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Throttling Rate (ints/sec)",
@@ -393,7 +400,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			break;
 		}
 	}
-	{ /* Interrupt Mode */
+	/* Interrupt Mode */
+	{
 		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Mode",
@@ -436,7 +444,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 		kfree(opt.err);
 #endif
 	}
-	{ /* Smart Power Down */
+	/* Smart Power Down */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "PHY Smart Power Down",
@@ -451,7 +460,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 				adapter->flags |= FLAG_SMART_POWER_DOWN;
 		}
 	}
-	{ /* CRC Stripping */
+	/* CRC Stripping */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "CRC Stripping",
@@ -471,7 +481,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->flags2 |= FLAG2_DFLT_CRC_STRIPPING;
 		}
 	}
-	{ /* Kumeran Lock Loss Workaround */
+	/* Kumeran Lock Loss Workaround */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "Kumeran Lock Loss Workaround",
@@ -490,7 +501,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
 								     enabled);
 	}
-	{ /* Write-protect NVM */
+	/* Write-protect NVM */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "Write-protect NVM",

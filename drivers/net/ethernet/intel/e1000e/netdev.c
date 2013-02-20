@@ -2558,8 +2558,8 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 
 	current_itr = max(adapter->rx_itr, adapter->tx_itr);
 
-	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
+	switch (current_itr) {
 	case lowest_latency:
 		new_itr = 70000;
 		break;

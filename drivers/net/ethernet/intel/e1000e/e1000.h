@@ -238,9 +238,8 @@ struct e1000_adapter {
 	u16 tx_itr;
 	u16 rx_itr;
 
-	/* Tx */
-	struct e1000_ring *tx_ring /* One per active queue */
-						____cacheline_aligned_in_smp;
+	/* Tx - one ring per active queue */
+	struct e1000_ring *tx_ring ____cacheline_aligned_in_smp;
 	u32 tx_fifo_limit;
 
 	struct napi_struct napi;
