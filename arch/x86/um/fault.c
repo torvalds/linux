@@ -20,7 +20,7 @@ int arch_fixup(unsigned long address, struct uml_pt_regs *regs)
 	const struct exception_table_entry *fixup;
 
 	fixup = search_exception_tables(address);
-	if (fixup != 0) {
+	if (fixup) {
 		UPT_IP(regs) = fixup->fixup;
 		return 1;
 	}
