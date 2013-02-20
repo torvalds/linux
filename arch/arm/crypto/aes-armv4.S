@@ -34,8 +34,9 @@
 @ A little glue here to select the correct code below for the ARM CPU
 @ that is being targetted.
 
+#include <linux/linkage.h>
+
 .text
-.code	32
 
 .type	AES_Te,%object
 .align	5
@@ -145,10 +146,8 @@ AES_Te:
 
 @ void AES_encrypt(const unsigned char *in, unsigned char *out,
 @ 		 const AES_KEY *key) {
-.global AES_encrypt
-.type   AES_encrypt,%function
 .align	5
-AES_encrypt:
+ENTRY(AES_encrypt)
 	sub	r3,pc,#8		@ AES_encrypt
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	r12,r0		@ inp
@@ -239,15 +238,8 @@ AES_encrypt:
 	strb	r6,[r12,#14]
 	strb	r3,[r12,#15]
 #endif
-#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r12,pc}
-#else
-	ldmia   sp!,{r4-r12,lr}
-	tst	lr,#1
-	moveq	pc,lr			@ be binary compatible with V4, yet
-	.word	0xe12fff1e			@ interoperable with Thumb ISA:-)
-#endif
-.size	AES_encrypt,.-AES_encrypt
+ENDPROC(AES_encrypt)
 
 .type   _armv4_AES_encrypt,%function
 .align	2
@@ -386,10 +378,8 @@ _armv4_AES_encrypt:
 	ldr	pc,[sp],#4		@ pop and return
 .size	_armv4_AES_encrypt,.-_armv4_AES_encrypt
 
-.global private_AES_set_encrypt_key
-.type   private_AES_set_encrypt_key,%function
 .align	5
-private_AES_set_encrypt_key:
+ENTRY(private_AES_set_encrypt_key)
 _armv4_AES_set_encrypt_key:
 	sub	r3,pc,#8		@ AES_set_encrypt_key
 	teq	r0,#0
@@ -658,15 +648,11 @@ _armv4_AES_set_encrypt_key:
 
 .Ldone:	mov	r0,#0
 	ldmia   sp!,{r4-r12,lr}
-.Labrt:	tst	lr,#1
-	moveq	pc,lr			@ be binary compatible with V4, yet
-	.word	0xe12fff1e			@ interoperable with Thumb ISA:-)
-.size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
+.Labrt:	mov	pc,lr
+ENDPROC(private_AES_set_encrypt_key)
 
-.global private_AES_set_decrypt_key
-.type   private_AES_set_decrypt_key,%function
 .align	5
-private_AES_set_decrypt_key:
+ENTRY(private_AES_set_decrypt_key)
 	str	lr,[sp,#-4]!            @ push lr
 #if 0
 	@ kernel does both of these in setkey so optimise this bit out by
@@ -748,15 +734,8 @@ private_AES_set_decrypt_key:
 	bne	.Lmix
 
 	mov	r0,#0
-#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r12,pc}
-#else
-	ldmia   sp!,{r4-r12,lr}
-	tst	lr,#1
-	moveq	pc,lr			@ be binary compatible with V4, yet
-	.word	0xe12fff1e			@ interoperable with Thumb ISA:-)
-#endif
-.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
+ENDPROC(private_AES_set_decrypt_key)
 
 .type	AES_Td,%object
 .align	5
@@ -862,10 +841,8 @@ AES_Td:
 
 @ void AES_decrypt(const unsigned char *in, unsigned char *out,
 @ 		 const AES_KEY *key) {
-.global AES_decrypt
-.type   AES_decrypt,%function
 .align	5
-AES_decrypt:
+ENTRY(AES_decrypt)
 	sub	r3,pc,#8		@ AES_decrypt
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	r12,r0		@ inp
@@ -956,15 +933,8 @@ AES_decrypt:
 	strb	r6,[r12,#14]
 	strb	r3,[r12,#15]
 #endif
-#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r12,pc}
-#else
-	ldmia   sp!,{r4-r12,lr}
-	tst	lr,#1
-	moveq	pc,lr			@ be binary compatible with V4, yet
-	.word	0xe12fff1e			@ interoperable with Thumb ISA:-)
-#endif
-.size	AES_decrypt,.-AES_decrypt
+ENDPROC(AES_decrypt)
 
 .type   _armv4_AES_decrypt,%function
 .align	2
@@ -1064,7 +1034,9 @@ _armv4_AES_decrypt:
 	and	r9,lr,r1,lsr#8
 
 	ldrb	r7,[r10,r7]		@ Td4[s1>>0]
-	ldrb	r1,[r10,r1,lsr#24]	@ Td4[s1>>24]
+ ARM(	ldrb	r1,[r10,r1,lsr#24]  )	@ Td4[s1>>24]
+ THUMB(	add	r1,r10,r1,lsr#24    ) 	@ Td4[s1>>24]
+ THUMB(	ldrb	r1,[r1]		    )
 	ldrb	r8,[r10,r8]		@ Td4[s1>>16]
 	eor	r0,r7,r0,lsl#24
 	ldrb	r9,[r10,r9]		@ Td4[s1>>8]
@@ -1077,7 +1049,9 @@ _armv4_AES_decrypt:
 	ldrb	r8,[r10,r8]		@ Td4[s2>>0]
 	and	r9,lr,r2,lsr#16
 
-	ldrb	r2,[r10,r2,lsr#24]	@ Td4[s2>>24]
+ ARM(	ldrb	r2,[r10,r2,lsr#24]  )	@ Td4[s2>>24]
+ THUMB(	add	r2,r10,r2,lsr#24    )	@ Td4[s2>>24]
+ THUMB(	ldrb	r2,[r2]		    )
 	eor	r0,r0,r7,lsl#8
 	ldrb	r9,[r10,r9]		@ Td4[s2>>16]
 	eor	r1,r8,r1,lsl#16
@@ -1090,7 +1064,9 @@ _armv4_AES_decrypt:
 	and	r9,lr,r3		@ i2
 
 	ldrb	r9,[r10,r9]		@ Td4[s3>>0]
-	ldrb	r3,[r10,r3,lsr#24]	@ Td4[s3>>24]
+ ARM(	ldrb	r3,[r10,r3,lsr#24]  )	@ Td4[s3>>24]
+ THUMB(	add	r3,r10,r3,lsr#24    )	@ Td4[s3>>24]
+ THUMB(	ldrb	r3,[r3]		    )
 	eor	r0,r0,r7,lsl#16
 	ldr	r7,[r11,#0]
 	eor	r1,r1,r8,lsl#8
