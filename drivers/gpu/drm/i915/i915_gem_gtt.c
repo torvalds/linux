@@ -725,7 +725,9 @@ static inline size_t gen7_get_stolen_size(u16 snb_gmch_ctl)
 
 static int gen6_gmch_probe(struct drm_device *dev,
 			   size_t *gtt_total,
-			   size_t *stolen)
+			   size_t *stolen,
+			   phys_addr_t *mappable_base,
+			   unsigned long *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	phys_addr_t gtt_bus_addr;
@@ -733,11 +735,13 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	u16 snb_gmch_ctl;
 	int ret;
 
+	*mappable_base = pci_resource_start(dev->pdev, 2);
+	*mappable_end = pci_resource_len(dev->pdev, 2);
+
 	/* 64/512MB is the current min/max we actually know of, but this is just
 	 * a coarse sanity check.
 	 */
-	if ((dev_priv->gtt.mappable_end < (64<<20) ||
-	     (dev_priv->gtt.mappable_end > (512<<20)))) {
+	if ((*mappable_end < (64<<20) || (*mappable_end > (512<<20)))) {
 		DRM_ERROR("Unknown GMADR size (%lx)\n",
 			  dev_priv->gtt.mappable_end);
 		return -ENXIO;
@@ -782,7 +786,9 @@ static void gen6_gmch_remove(struct drm_device *dev)
 
 static int i915_gmch_probe(struct drm_device *dev,
 			   size_t *gtt_total,
-			   size_t *stolen)
+			   size_t *stolen,
+			   phys_addr_t *mappable_base,
+			   unsigned long *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -793,7 +799,7 @@ static int i915_gmch_probe(struct drm_device *dev,
 		return -EIO;
 	}
 
-	intel_gtt_get(gtt_total, stolen);
+	intel_gtt_get(gtt_total, stolen, mappable_base, mappable_end);
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
 	dev_priv->gtt.gtt_clear_range = i915_ggtt_clear_range;
@@ -814,9 +820,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	unsigned long gtt_size;
 	int ret;
 
-	gtt->mappable_base = pci_resource_start(dev->pdev, 2);
-	gtt->mappable_end = pci_resource_len(dev->pdev, 2);
-
 	if (INTEL_INFO(dev)->gen <= 5) {
 		dev_priv->gtt.gtt_probe = i915_gmch_probe;
 		dev_priv->gtt.gtt_remove = i915_gmch_remove;
@@ -826,7 +829,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	}
 
 	ret = dev_priv->gtt.gtt_probe(dev, &dev_priv->gtt.total,
-				     &dev_priv->gtt.stolen_size);
+				     &dev_priv->gtt.stolen_size,
+				     &gtt->mappable_base,
+				     &gtt->mappable_end);
 	if (ret)
 		return ret;
 

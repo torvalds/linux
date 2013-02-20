@@ -2267,7 +2267,7 @@ uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 
 	switch (bpp) {
 	case 8:
-		fmt = DRM_FORMAT_RGB332;
+		fmt = DRM_FORMAT_C8;
 		break;
 	case 16:
 		if (depth == 15)
@@ -3870,6 +3870,7 @@ void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 			  int *bpp)
 {
 	switch (format) {
+	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB332:
 	case DRM_FORMAT_BGR233:
 		*depth = 8;

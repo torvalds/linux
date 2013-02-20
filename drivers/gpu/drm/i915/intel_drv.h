@@ -235,6 +235,9 @@ struct intel_crtc {
 	/* We can share PLLs across outputs if the timings match */
 	struct intel_pch_pll *pch_pll;
 	uint32_t ddi_pll_sel;
+
+	/* reset counter value when the last flip was submitted */
+	unsigned int reset_counter;
 };
 
 struct intel_plane {
@@ -390,6 +393,7 @@ struct intel_dp {
 struct intel_digital_port {
 	struct intel_encoder base;
 	enum port port;
+	u32 port_reversal;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 };

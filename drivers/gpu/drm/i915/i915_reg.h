@@ -308,6 +308,7 @@
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
+#define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
@@ -1235,6 +1236,10 @@
 #define   MAD_DIMM_A_SIZE_SHIFT		0
 #define   MAD_DIMM_A_SIZE_MASK		(0xff << MAD_DIMM_A_SIZE_SHIFT)
 
+/** snb MCH registers for priority tuning */
+#define MCH_SSKPD			(MCHBAR_MIRROR_BASE_SNB + 0x5d10)
+#define   MCH_SSKPD_WM0_MASK		0x3f
+#define   MCH_SSKPD_WM0_VAL		0xc
 
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
@@ -1625,12 +1630,9 @@
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		(dev_priv->info->display_mmio_offset + 0x61110)
-#define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
-#define   DPB_HOTPLUG_INT_EN			(1 << 29)
-#define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
-#define   DPC_HOTPLUG_INT_EN			(1 << 28)
-#define   HDMID_HOTPLUG_INT_EN			(1 << 27)
-#define   DPD_HOTPLUG_INT_EN			(1 << 27)
+#define   PORTB_HOTPLUG_INT_EN			(1 << 29)
+#define   PORTC_HOTPLUG_INT_EN			(1 << 28)
+#define   PORTD_HOTPLUG_INT_EN			(1 << 27)
 #define   SDVOB_HOTPLUG_INT_EN			(1 << 26)
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
@@ -1653,19 +1655,12 @@
 
 #define PORT_HOTPLUG_STAT	(dev_priv->info->display_mmio_offset + 0x61114)
 /* HDMI/DP bits are gen4+ */
-#define   DPB_HOTPLUG_LIVE_STATUS               (1 << 29)
-#define   DPC_HOTPLUG_LIVE_STATUS               (1 << 28)
-#define   DPD_HOTPLUG_LIVE_STATUS               (1 << 27)
-#define   DPD_HOTPLUG_INT_STATUS		(3 << 21)
-#define   DPC_HOTPLUG_INT_STATUS		(3 << 19)
-#define   DPB_HOTPLUG_INT_STATUS		(3 << 17)
-/* HDMI bits are shared with the DP bits */
-#define   HDMIB_HOTPLUG_LIVE_STATUS             (1 << 29)
-#define   HDMIC_HOTPLUG_LIVE_STATUS             (1 << 28)
-#define   HDMID_HOTPLUG_LIVE_STATUS             (1 << 27)
-#define   HDMID_HOTPLUG_INT_STATUS		(3 << 21)
-#define   HDMIC_HOTPLUG_INT_STATUS		(3 << 19)
-#define   HDMIB_HOTPLUG_INT_STATUS		(3 << 17)
+#define   PORTB_HOTPLUG_LIVE_STATUS               (1 << 29)
+#define   PORTC_HOTPLUG_LIVE_STATUS               (1 << 28)
+#define   PORTD_HOTPLUG_LIVE_STATUS               (1 << 27)
+#define   PORTD_HOTPLUG_INT_STATUS		(3 << 21)
+#define   PORTC_HOTPLUG_INT_STATUS		(3 << 19)
+#define   PORTB_HOTPLUG_INT_STATUS		(3 << 17)
 /* CRT/TV common between gen3+ */
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
@@ -2954,6 +2949,7 @@
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
 #define   CURSOR_STRIDE_MASK	0x30000000
+#define   CURSOR_PIPE_CSC_ENABLE (1<<24)
 #define   CURSOR_FORMAT_SHIFT	24
 #define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)
 #define   CURSOR_FORMAT_2C	(0x00 << CURSOR_FORMAT_SHIFT)
@@ -3015,6 +3011,7 @@
 #define   DISPPLANE_RGBA888			(0xf<<26)
 #define   DISPPLANE_STEREO_ENABLE		(1<<25)
 #define   DISPPLANE_STEREO_DISABLE		0
+#define   DISPPLANE_PIPE_CSC_ENABLE		(1<<24)
 #define   DISPPLANE_SEL_PIPE_SHIFT		24
 #define   DISPPLANE_SEL_PIPE_MASK		(3<<DISPPLANE_SEL_PIPE_SHIFT)
 #define   DISPPLANE_SEL_PIPE_A			0
@@ -3103,6 +3100,7 @@
 #define   DVS_FORMAT_RGBX101010	(1<<25)
 #define   DVS_FORMAT_RGBX888	(2<<25)
 #define   DVS_FORMAT_RGBX161616	(3<<25)
+#define   DVS_PIPE_CSC_ENABLE   (1<<24)
 #define   DVS_SOURCE_KEY	(1<<22)
 #define   DVS_RGB_ORDER_XBGR	(1<<20)
 #define   DVS_YUV_BYTE_ORDER_MASK (3<<16)
@@ -3170,7 +3168,7 @@
 #define   SPRITE_FORMAT_RGBX161616	(3<<25)
 #define   SPRITE_FORMAT_YUV444		(4<<25)
 #define   SPRITE_FORMAT_XR_BGR101010	(5<<25) /* Extended range */
-#define   SPRITE_CSC_ENABLE		(1<<24)
+#define   SPRITE_PIPE_CSC_ENABLE	(1<<24)
 #define   SPRITE_SOURCE_KEY		(1<<22)
 #define   SPRITE_RGB_ORDER_RGBX		(1<<20) /* only for 888 and 161616 */
 #define   SPRITE_YUV_TO_RGB_CSC_DISABLE	(1<<19)
@@ -3917,7 +3915,7 @@
 #define  FDI_10BPC                      (1<<16)
 #define  FDI_6BPC                       (2<<16)
 #define  FDI_12BPC                      (3<<16)
-#define  FDI_LINK_REVERSE_OVERWRITE     (1<<15)
+#define  FDI_RX_LINK_REVERSAL_OVERRIDE  (1<<15)
 #define  FDI_DMI_LINK_REVERSE_MASK      (1<<14)
 #define  FDI_RX_PLL_ENABLE              (1<<13)
 #define  FDI_FS_ERR_CORRECT_ENABLE      (1<<11)
@@ -4272,8 +4270,8 @@
 #define   GEN6_PCODE_READ_MIN_FREQ_TABLE	0x9
 #define	  GEN6_PCODE_WRITE_RC6VIDS		0x4
 #define	  GEN6_PCODE_READ_RC6VIDS		0x5
-#define   GEN6_ENCODE_RC6_VID(mv)		(((mv) / 5) - 245) < 0 ?: 0
-#define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) > 0 ? ((vids) * 5) + 245 : 0)
+#define   GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
+#define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 
@@ -4516,6 +4514,7 @@
 #define  DDI_BUF_EMP_800MV_0DB_HSW		(7<<24)   /* Sel7 */
 #define  DDI_BUF_EMP_800MV_3_5DB_HSW		(8<<24)   /* Sel8 */
 #define  DDI_BUF_EMP_MASK			(0xf<<24)
+#define  DDI_BUF_PORT_REVERSAL			(1<<16)
 #define  DDI_BUF_IS_IDLE			(1<<7)
 #define  DDI_A_4_LANES				(1<<4)
 #define  DDI_PORT_WIDTH_X1			(0<<1)
@@ -4648,5 +4647,52 @@
 #define  WM_DBG_DISALLOW_MULTIPLE_LP	(1<<0)
 #define  WM_DBG_DISALLOW_MAXFIFO	(1<<1)
 #define  WM_DBG_DISALLOW_SPRITE		(1<<2)
+
+/* pipe CSC */
+#define _PIPE_A_CSC_COEFF_RY_GY	0x49010
+#define _PIPE_A_CSC_COEFF_BY	0x49014
+#define _PIPE_A_CSC_COEFF_RU_GU	0x49018
+#define _PIPE_A_CSC_COEFF_BU	0x4901c
+#define _PIPE_A_CSC_COEFF_RV_GV	0x49020
+#define _PIPE_A_CSC_COEFF_BV	0x49024
+#define _PIPE_A_CSC_MODE	0x49028
+#define _PIPE_A_CSC_PREOFF_HI	0x49030
+#define _PIPE_A_CSC_PREOFF_ME	0x49034
+#define _PIPE_A_CSC_PREOFF_LO	0x49038
+#define _PIPE_A_CSC_POSTOFF_HI	0x49040
+#define _PIPE_A_CSC_POSTOFF_ME	0x49044
+#define _PIPE_A_CSC_POSTOFF_LO	0x49048
+
+#define _PIPE_B_CSC_COEFF_RY_GY	0x49110
+#define _PIPE_B_CSC_COEFF_BY	0x49114
+#define _PIPE_B_CSC_COEFF_RU_GU	0x49118
+#define _PIPE_B_CSC_COEFF_BU	0x4911c
+#define _PIPE_B_CSC_COEFF_RV_GV	0x49120
+#define _PIPE_B_CSC_COEFF_BV	0x49124
+#define _PIPE_B_CSC_MODE	0x49128
+#define _PIPE_B_CSC_PREOFF_HI	0x49130
+#define _PIPE_B_CSC_PREOFF_ME	0x49134
+#define _PIPE_B_CSC_PREOFF_LO	0x49138
+#define _PIPE_B_CSC_POSTOFF_HI	0x49140
+#define _PIPE_B_CSC_POSTOFF_ME	0x49144
+#define _PIPE_B_CSC_POSTOFF_LO	0x49148
+
+#define CSC_BLACK_SCREEN_OFFSET (1 << 2)
+#define CSC_POSITION_BEFORE_GAMMA (1 << 1)
+#define CSC_MODE_YUV_TO_RGB (1 << 0)
+
+#define PIPE_CSC_COEFF_RY_GY(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_RY_GY, _PIPE_B_CSC_COEFF_RY_GY)
+#define PIPE_CSC_COEFF_BY(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_BY, _PIPE_B_CSC_COEFF_BY)
+#define PIPE_CSC_COEFF_RU_GU(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_RU_GU, _PIPE_B_CSC_COEFF_RU_GU)
+#define PIPE_CSC_COEFF_BU(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_BU, _PIPE_B_CSC_COEFF_BU)
+#define PIPE_CSC_COEFF_RV_GV(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_RV_GV, _PIPE_B_CSC_COEFF_RV_GV)
+#define PIPE_CSC_COEFF_BV(pipe) _PIPE(pipe, _PIPE_A_CSC_COEFF_BV, _PIPE_B_CSC_COEFF_BV)
+#define PIPE_CSC_MODE(pipe) _PIPE(pipe, _PIPE_A_CSC_MODE, _PIPE_B_CSC_MODE)
+#define PIPE_CSC_PREOFF_HI(pipe) _PIPE(pipe, _PIPE_A_CSC_PREOFF_HI, _PIPE_B_CSC_PREOFF_HI)
+#define PIPE_CSC_PREOFF_ME(pipe) _PIPE(pipe, _PIPE_A_CSC_PREOFF_ME, _PIPE_B_CSC_PREOFF_ME)
+#define PIPE_CSC_PREOFF_LO(pipe) _PIPE(pipe, _PIPE_A_CSC_PREOFF_LO, _PIPE_B_CSC_PREOFF_LO)
+#define PIPE_CSC_POSTOFF_HI(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_HI, _PIPE_B_CSC_POSTOFF_HI)
+#define PIPE_CSC_POSTOFF_ME(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_ME, _PIPE_B_CSC_POSTOFF_ME)
+#define PIPE_CSC_POSTOFF_LO(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_LO, _PIPE_B_CSC_POSTOFF_LO)
 
 #endif /* _I915_REG_H_ */

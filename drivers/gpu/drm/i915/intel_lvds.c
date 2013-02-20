@@ -51,7 +51,6 @@ struct intel_lvds_encoder {
 
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
-	bool pfit_dirty;
 	bool is_dual_link;
 	u32 reg;
 
@@ -151,6 +150,29 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	I915_WRITE(lvds_encoder->reg, temp);
 }
 
+static void intel_pre_enable_lvds(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_lvds_encoder *enc = to_lvds_encoder(&encoder->base);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_SPLIT(dev) || !enc->pfit_control)
+		return;
+
+	/*
+	 * Enable automatic panel scaling so that non-native modes
+	 * fill the screen.  The panel fitter should only be
+	 * adjusted whilst the pipe is disabled, according to
+	 * register description and PRM.
+	 */
+	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+		      enc->pfit_control,
+		      enc->pfit_pgm_ratios);
+
+	I915_WRITE(PFIT_PGM_RATIOS, enc->pfit_pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, enc->pfit_control);
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -171,22 +193,6 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	}
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
-
-	if (lvds_encoder->pfit_dirty) {
-		/*
-		 * Enable automatic panel scaling so that non-native modes
-		 * fill the screen.  The panel fitter should only be
-		 * adjusted whilst the pipe is disabled, according to
-		 * register description and PRM.
-		 */
-		DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-			      lvds_encoder->pfit_control,
-			      lvds_encoder->pfit_pgm_ratios);
-
-		I915_WRITE(PFIT_PGM_RATIOS, lvds_encoder->pfit_pgm_ratios);
-		I915_WRITE(PFIT_CONTROL, lvds_encoder->pfit_control);
-		lvds_encoder->pfit_dirty = false;
-	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 	POSTING_READ(lvds_encoder->reg);
@@ -216,11 +222,6 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
-
-	if (lvds_encoder->pfit_control) {
-		I915_WRITE(PFIT_CONTROL, 0);
-		lvds_encoder->pfit_dirty = true;
-	}
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_encoder->reg);
@@ -461,7 +462,6 @@ out:
 	    pfit_pgm_ratios != lvds_encoder->pfit_pgm_ratios) {
 		lvds_encoder->pfit_control = pfit_control;
 		lvds_encoder->pfit_pgm_ratios = pfit_pgm_ratios;
-		lvds_encoder->pfit_dirty = true;
 	}
 	dev_priv->lvds_border_bits = border;
 
@@ -547,13 +547,14 @@ static const struct dmi_system_id intel_no_modeset_on_lid[] = {
 };
 
 /*
- * Lid events. Note the use of 'modeset_on_lid':
- *  - we set it on lid close, and reset it on open
+ * Lid events. Note the use of 'modeset':
+ *  - we set it to MODESET_ON_LID_OPEN on lid close,
+ *    and set it to MODESET_DONE on open
  *  - we use it as a "only once" bit (ie we ignore
- *    duplicate events where it was already properly
- *    set/reset)
- *  - the suspend/resume paths will also set it to
- *    zero, since they restore the mode ("lid open").
+ *    duplicate events where it was already properly set)
+ *  - the suspend/resume paths will set it to
+ *    MODESET_SUSPENDED and ignore the lid open event,
+ *    because they restore the mode ("lid open").
  */
 static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 			    void *unused)
@@ -567,6 +568,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return NOTIFY_OK;
 
+	mutex_lock(&dev_priv->modeset_restore_lock);
+	if (dev_priv->modeset_restore == MODESET_SUSPENDED)
+		goto exit;
 	/*
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.
@@ -575,21 +579,24 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))
-		return NOTIFY_OK;
+		goto exit;
 	if (!acpi_lid_open()) {
-		dev_priv->modeset_on_lid = 1;
-		return NOTIFY_OK;
+		/* do modeset on next lid open event */
+		dev_priv->modeset_restore = MODESET_ON_LID_OPEN;
+		goto exit;
 	}
 
-	if (!dev_priv->modeset_on_lid)
-		return NOTIFY_OK;
-
-	dev_priv->modeset_on_lid = 0;
+	if (dev_priv->modeset_restore == MODESET_DONE)
+		goto exit;
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, true);
 	drm_modeset_unlock_all(dev);
 
+	dev_priv->modeset_restore = MODESET_DONE;
+
+exit:
+	mutex_unlock(&dev_priv->modeset_restore_lock);
 	return NOTIFY_OK;
 }
 
@@ -1093,6 +1100,7 @@ bool intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
+	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;

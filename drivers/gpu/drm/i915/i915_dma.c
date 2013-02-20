@@ -1610,6 +1610,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->dpio_lock);
 
 	mutex_init(&dev_priv->rps.hw_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 		dev_priv->num_pipe = 3;

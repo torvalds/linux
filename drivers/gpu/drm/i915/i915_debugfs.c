@@ -694,7 +694,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 
 	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
-	seq_printf(m, "Kernel: " UTS_RELEASE);
+	seq_printf(m, "Kernel: " UTS_RELEASE "\n");
 	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "IER: 0x%08x\n", error->ier);
@@ -1484,7 +1484,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	struct intel_ring_buffer *ring;
+	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
@@ -1500,6 +1501,14 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_printf(m, "render context ");
 		describe_obj(m, dev_priv->ips.renderctx);
 		seq_printf(m, "\n");
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (ring->default_context) {
+			seq_printf(m, "HW default context %s ring ", ring->name);
+			describe_obj(m, ring->default_context->obj);
+			seq_printf(m, "\n");
+		}
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);

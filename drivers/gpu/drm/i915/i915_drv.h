@@ -399,7 +399,8 @@ struct i915_gtt {
 
 	/* global gtt ops */
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
-			  size_t *stolen);
+			  size_t *stolen, phys_addr_t *mappable_base,
+			  unsigned long *mappable_end);
 	void (*gtt_remove)(struct drm_device *dev);
 	void (*gtt_clear_range)(struct drm_device *dev,
 				unsigned int first_entry,
@@ -846,6 +847,12 @@ struct i915_gpu_error {
 	unsigned int stop_rings;
 };
 
+enum modeset_restore {
+	MODESET_ON_LID_OPEN,
+	MODESET_DONE,
+	MODESET_SUSPENDED,
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -919,7 +926,7 @@ typedef struct drm_i915_private {
 
 	/* overlay */
 	struct intel_overlay *overlay;
-	bool sprite_scaling_enabled;
+	unsigned int sprite_scaling_enabled;
 
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */
@@ -967,8 +974,8 @@ typedef struct drm_i915_private {
 
 	unsigned long quirks;
 
-	/* Register state */
-	bool modeset_on_lid;
+	enum modeset_restore modeset_restore;
+	struct mutex modeset_restore_lock;
 
 	struct i915_gtt gtt;
 
@@ -1033,7 +1040,7 @@ typedef struct drm_i915_private {
 	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
 
-	bool fdi_rx_polarity_reversed;
+	u32 fdi_rx_config;
 
 	struct i915_suspend_saved_registers regfile;
 
@@ -1208,13 +1215,6 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
-
-	/**
-	 * Number of crtcs where this object is currently the fb, but
-	 * will be page flipped away on the next vblank.  When it
-	 * reaches 0, dev_priv->pending_flip_queue will be woken up.
-	 */
-	atomic_t pending_flip;
 };
 #define to_gem_object(obj) (&((struct drm_i915_gem_object *)(obj))->base)
 
