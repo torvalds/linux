@@ -1185,7 +1185,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 	int ret;
 
 	if (fll->ref_src < 0 || fll->ref_src == source) {
-		if (fll->sync_src == -1 &&
+		if (fll->sync_src == ARIZONA_FLL_SRC_NONE &&
 		    fll->ref_src == source && fll->ref_freq == Fref &&
 		    fll->fout == Fout)
 			return 0;
@@ -1196,7 +1196,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 				return ret;
 		}
 
-		fll->sync_src = -1;
+		fll->sync_src = ARIZONA_FLL_SRC_NONE;
 		fll->ref_src = source;
 		fll->ref_freq = Fref;
 	} else {
@@ -1240,7 +1240,7 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 	fll->id = id;
 	fll->base = base;
 	fll->arizona = arizona;
-	fll->sync_src = -1;
+	fll->sync_src = ARIZONA_FLL_SRC_NONE;
 
 	/* Configure default refclk to 32kHz if we have one */
 	regmap_read(arizona->regmap, ARIZONA_CLOCK_32K_1, &val);
@@ -1250,7 +1250,7 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		fll->ref_src = val & ARIZONA_CLK_32K_SRC_MASK;
 		break;
 	default:
-		fll->ref_src = -1;
+		fll->ref_src = ARIZONA_FLL_SRC_NONE;
 	}
 	fll->ref_freq = 32768;
 
