@@ -57,8 +57,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ehci_hcd *ehci;
 
-	dev_info(&pdev->dev, "initializing i.MX USB Controller\n");
-
 	if (!pdata) {
 		dev_err(dev, "No platform data given, bailing out.\n");
 		return -EINVAL;
