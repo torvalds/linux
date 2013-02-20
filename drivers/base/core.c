@@ -563,8 +563,15 @@ int device_create_file(struct device *dev,
 		       const struct device_attribute *attr)
 {
 	int error = 0;
-	if (dev)
+
+	if (dev) {
+		WARN(((attr->attr.mode & S_IWUGO) && !attr->store),
+				"Write permission without 'store'\n");
+		WARN(((attr->attr.mode & S_IRUGO) && !attr->show),
+				"Read permission without 'show'\n");
 		error = sysfs_create_file(&dev->kobj, &attr->attr);
+	}
+
 	return error;
 }
 
