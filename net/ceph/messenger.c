@@ -9,8 +9,9 @@
 #include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
+#ifdef	CONFIG_BLOCK
 #include <linux/bio.h>
-#include <linux/blkdev.h>
+#endif	/* CONFIG_BLOCK */
 #include <linux/dns_resolver.h>
 #include <net/tcp.h>
 
@@ -2651,9 +2652,11 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	m->page_alignment = 0;
 	m->pages = NULL;
 	m->pagelist = NULL;
+#ifdef	CONFIG_BLOCK
 	m->bio = NULL;
 	m->bio_iter = NULL;
 	m->bio_seg = 0;
+#endif	/* CONFIG_BLOCK */
 	m->trail = NULL;
 
 	/* front */

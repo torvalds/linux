@@ -52,10 +52,10 @@ static inline int ceph_has_room(void **p, void *end, size_t n)
 	return end >= *p && n <= end - *p;
 }
 
-#define ceph_decode_need(p, end, n, bad)		\
-	do {						\
-		if (!likely(ceph_has_room(p, end, n)))	\
-			goto bad;			\
+#define ceph_decode_need(p, end, n, bad)			\
+	do {							\
+		if (!likely(ceph_has_room(p, end, n)))		\
+			goto bad;				\
 	} while (0)
 
 #define ceph_decode_64_safe(p, end, v, bad)			\
@@ -99,8 +99,8 @@ static inline int ceph_has_room(void **p, void *end, size_t n)
  *
  * There are two possible failures:
  *   - converting the string would require accessing memory at or
- *     beyond the "end" pointer provided (-E
- *   - memory could not be allocated for the result
+ *     beyond the "end" pointer provided (-ERANGE)
+ *   - memory could not be allocated for the result (-ENOMEM)
  */
 static inline char *ceph_extract_encoded_string(void **p, void *end,
 						size_t *lenp, gfp_t gfp)
@@ -217,10 +217,10 @@ static inline void ceph_encode_string(void **p, void *end,
 	*p += len;
 }
 
-#define ceph_encode_need(p, end, n, bad)		\
-	do {						\
-		if (!likely(ceph_has_room(p, end, n)))	\
-			goto bad;			\
+#define ceph_encode_need(p, end, n, bad)			\
+	do {							\
+		if (!likely(ceph_has_room(p, end, n)))		\
+			goto bad;				\
 	} while (0)
 
 #define ceph_encode_64_safe(p, end, v, bad)			\
@@ -231,12 +231,17 @@ static inline void ceph_encode_string(void **p, void *end,
 #define ceph_encode_32_safe(p, end, v, bad)			\
 	do {							\
 		ceph_encode_need(p, end, sizeof(u32), bad);	\
-		ceph_encode_32(p, v);			\
+		ceph_encode_32(p, v);				\
 	} while (0)
 #define ceph_encode_16_safe(p, end, v, bad)			\
 	do {							\
 		ceph_encode_need(p, end, sizeof(u16), bad);	\
-		ceph_encode_16(p, v);			\
+		ceph_encode_16(p, v);				\
+	} while (0)
+#define ceph_encode_8_safe(p, end, v, bad)			\
+	do {							\
+		ceph_encode_need(p, end, sizeof(u8), bad);	\
+		ceph_encode_8(p, v);				\
 	} while (0)
 
 #define ceph_encode_copy_safe(p, end, pv, n, bad)		\
