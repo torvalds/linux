@@ -127,15 +127,42 @@ on the number of vectors that can be allocated; pci_enable_msi_block()
 returns as soon as it finds any constraint that doesn't allow the
 call to succeed.
 
-4.2.3 pci_disable_msi
+4.2.3 pci_enable_msi_block_auto
+
+int pci_enable_msi_block_auto(struct pci_dev *dev, unsigned int *count)
+
+This variation on pci_enable_msi() call allows a device driver to request
+the maximum possible number of MSIs.  The MSI specification only allows
+interrupts to be allocated in powers of two, up to a maximum of 2^5 (32).
+
+If this function returns a positive number, it indicates that it has
+succeeded and the returned value is the number of allocated interrupts. In
+this case, the function enables MSI on this device and updates dev->irq to
+be the lowest of the new interrupts assigned to it.  The other interrupts
+assigned to the device are in the range dev->irq to dev->irq + returned
+value - 1.
+
+If this function returns a negative number, it indicates an error and
+the driver should not attempt to request any more MSI interrupts for
+this device.
+
+If the device driver needs to know the number of interrupts the device
+supports it can pass the pointer count where that number is stored. The
+device driver must decide what action to take if pci_enable_msi_block_auto()
+succeeds, but returns a value less than the number of interrupts supported.
+If the device driver does not need to know the number of interrupts
+supported, it can set the pointer count to NULL.
+
+4.2.4 pci_disable_msi
 
 void pci_disable_msi(struct pci_dev *dev)
 
 This function should be used to undo the effect of pci_enable_msi() or
-pci_enable_msi_block().  Calling it restores dev->irq to the pin-based
-interrupt number and frees the previously allocated message signaled
-interrupt(s).  The interrupt may subsequently be assigned to another
-device, so drivers should not cache the value of dev->irq.
+pci_enable_msi_block() or pci_enable_msi_block_auto().  Calling it restores
+dev->irq to the pin-based interrupt number and frees the previously
+allocated message signaled interrupt(s).  The interrupt may subsequently be
+assigned to another device, so drivers should not cache the value of
+dev->irq.
 
 Before calling this function, a device driver must always call free_irq()
 on any interrupt for which it previously called request_irq().
