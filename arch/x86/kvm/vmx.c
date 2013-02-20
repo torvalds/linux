@@ -6436,7 +6436,7 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
 }
 
-static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
+static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
 				      u32 idt_vectoring_info,
 				      int instr_len_field,
 				      int error_code_field)
@@ -6447,46 +6447,43 @@ static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 
 	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
-	vmx->vcpu.arch.nmi_injected = false;
-	kvm_clear_exception_queue(&vmx->vcpu);
-	kvm_clear_interrupt_queue(&vmx->vcpu);
+	vcpu->arch.nmi_injected = false;
+	kvm_clear_exception_queue(vcpu);
+	kvm_clear_interrupt_queue(vcpu);
 
 	if (!idtv_info_valid)
 		return;
 
-	kvm_make_request(KVM_REQ_EVENT, &vmx->vcpu);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	vector = idt_vectoring_info & VECTORING_INFO_VECTOR_MASK;
 	type = idt_vectoring_info & VECTORING_INFO_TYPE_MASK;
 
 	switch (type) {
 	case INTR_TYPE_NMI_INTR:
-		vmx->vcpu.arch.nmi_injected = true;
+		vcpu->arch.nmi_injected = true;
 		/*
 		 * SDM 3: 27.7.1.2 (September 2008)
 		 * Clear bit "block by NMI" before VM entry if a NMI
 		 * delivery faulted.
 		 */
-		vmx_set_nmi_mask(&vmx->vcpu, false);
+		vmx_set_nmi_mask(vcpu, false);
 		break;
 	case INTR_TYPE_SOFT_EXCEPTION:
-		vmx->vcpu.arch.event_exit_inst_len =
-			vmcs_read32(instr_len_field);
+		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		/* fall through */
 	case INTR_TYPE_HARD_EXCEPTION:
 		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
 			u32 err = vmcs_read32(error_code_field);
-			kvm_queue_exception_e(&vmx->vcpu, vector, err);
+			kvm_queue_exception_e(vcpu, vector, err);
 		} else
-			kvm_queue_exception(&vmx->vcpu, vector);
+			kvm_queue_exception(vcpu, vector);
 		break;
 	case INTR_TYPE_SOFT_INTR:
-		vmx->vcpu.arch.event_exit_inst_len =
-			vmcs_read32(instr_len_field);
+		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		/* fall through */
 	case INTR_TYPE_EXT_INTR:
-		kvm_queue_interrupt(&vmx->vcpu, vector,
-			type == INTR_TYPE_SOFT_INTR);
+		kvm_queue_interrupt(vcpu, vector, type == INTR_TYPE_SOFT_INTR);
 		break;
 	default:
 		break;
@@ -6497,7 +6494,7 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
 	if (is_guest_mode(&vmx->vcpu))
 		return;
-	__vmx_complete_interrupts(vmx, vmx->idt_vectoring_info,
+	__vmx_complete_interrupts(&vmx->vcpu, vmx->idt_vectoring_info,
 				  VM_EXIT_INSTRUCTION_LEN,
 				  IDT_VECTORING_ERROR_CODE);
 }
@@ -6506,7 +6503,7 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 {
 	if (is_guest_mode(vcpu))
 		return;
-	__vmx_complete_interrupts(to_vmx(vcpu),
+	__vmx_complete_interrupts(vcpu,
 				  vmcs_read32(VM_ENTRY_INTR_INFO_FIELD),
 				  VM_ENTRY_INSTRUCTION_LEN,
 				  VM_ENTRY_EXCEPTION_ERROR_CODE);
