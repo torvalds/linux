@@ -122,6 +122,38 @@
 		nvidia,ahb = <&ahb>;
 	};
 
+	sdhci@78000000 {
+		compatible = "nvidia,tegra114-sdhci", "nvidia,tegra30-sdhci";
+		reg = <0x78000000 0x200>;
+		interrupts = <0 14 0x04>;
+		clocks = <&tegra_car 14>;
+		status = "disable";
+	};
+
+	sdhci@78000200 {
+		compatible = "nvidia,tegra114-sdhci", "nvidia,tegra30-sdhci";
+		reg = <0x78000200 0x200>;
+		interrupts = <0 15 0x04>;
+		clocks = <&tegra_car 9>;
+		status = "disable";
+	};
+
+	sdhci@78000400 {
+		compatible = "nvidia,tegra114-sdhci", "nvidia,tegra30-sdhci";
+		reg = <0x78000400 0x200>;
+		interrupts = <0 19 0x04>;
+		clocks = <&tegra_car 69>;
+		status = "disable";
+	};
+
+	sdhci@78000600 {
+		compatible = "nvidia,tegra114-sdhci", "nvidia,tegra30-sdhci";
+		reg = <0x78000600 0x200>;
+		interrupts = <0 31 0x04>;
+		clocks = <&tegra_car 15>;
+		status = "disable";
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
