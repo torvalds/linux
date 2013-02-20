@@ -1184,14 +1184,30 @@ int rk_gps_reset_set(int level)
 }
 int rk_enable_hclk_gps(void)
 {
-	printk("%s \n", __FUNCTION__);
-	clk_enable(clk_get(NULL, "hclk_gps"));
+	struct clk *gps_aclk = NULL;
+	gps_aclk = clk_get(NULL, "aclk_gps");
+	if(gps_aclk) {
+		clk_enable(gps_aclk);
+		clk_put(gps_aclk);
+		printk("%s \n", __FUNCTION__);
+	}
+	else
+		printk("get gps aclk fail\n");
 	return 0;
 }
 int rk_disable_hclk_gps(void)
 {
-	printk("%s \n", __FUNCTION__);
-	clk_disable(clk_get(NULL, "hclk_gps"));
+	struct clk *gps_aclk = NULL;
+	gps_aclk = clk_get(NULL, "aclk_gps");
+	if(gps_aclk) {
+		//TO wait long enough until GPS ISR is finished.
+		msleep(5);
+		clk_disable(gps_aclk);
+		clk_put(gps_aclk);
+		printk("%s \n", __FUNCTION__);
+	}	
+	else
+		printk("get gps aclk fail\n");
 	return 0;
 }
 struct rk_gps_data rk_gps_info = {
