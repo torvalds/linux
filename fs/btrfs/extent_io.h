@@ -75,7 +75,6 @@ struct extent_io_ops {
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
-	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
 				    struct extent_state *state, int mirror);
@@ -90,8 +89,6 @@ struct extent_io_ops {
 				  struct extent_state *other);
 	void (*split_extent_hook)(struct inode *inode,
 				  struct extent_state *orig, u64 split);
-	int (*write_cache_pages_lock_hook)(struct page *page, void *data,
-					   void (*flush_fn)(void *));
 };
 
 struct extent_io_tree {

@@ -23,13 +23,13 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/btrfs.h>
 
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "locking.h"
 #include "ulist.h"
-#include "ioctl.h"
 #include "backref.h"
 
 /* TODO XXX FIXME
@@ -847,6 +847,10 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	spin_lock(&fs_info->qgroup_lock);
+	if (!fs_info->quota_root) {
+		spin_unlock(&fs_info->qgroup_lock);
+		return 0;
+	}
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
 	quota_root = fs_info->quota_root;

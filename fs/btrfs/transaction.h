@@ -43,6 +43,7 @@ struct btrfs_transaction {
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
+	struct list_head ordered_operations;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
 };
@@ -68,6 +69,7 @@ struct btrfs_trans_handle {
 	struct btrfs_block_rsv *orig_rsv;
 	short aborted;
 	short adding_csums;
+	bool allocating_chunk;
 	enum btrfs_trans_type type;
 	/*
 	 * this root is only needed to validate that the root passed to
@@ -110,13 +112,15 @@ struct btrfs_trans_handle *btrfs_start_transaction_lflush(
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
+					struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid);
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root);
 
 int btrfs_add_dead_root(struct btrfs_root *root);
-int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
+int btrfs_defrag_root(struct btrfs_root *root);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root);
