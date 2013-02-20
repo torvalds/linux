@@ -180,6 +180,59 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
+#ifdef CONFIG_DEBUG_FS
+/**
+ * drm_fb_cma_describe() - Helper to dump information about a single
+ * CMA framebuffer object
+ */
+void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
+{
+	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
+	int i, n = drm_format_num_planes(fb->pixel_format);
+
+	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
+			(char *)&fb->pixel_format);
+
+	for (i = 0; i < n; i++) {
+		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
+				i, fb->offsets[i], fb->pitches[i]);
+		drm_gem_cma_describe(fb_cma->obj[i], m);
+	}
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_describe);
+
+/**
+ * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
+ * in debugfs.
+ */
+int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_framebuffer *fb;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret) {
+		mutex_unlock(&dev->mode_config.mutex);
+		return ret;
+	}
+
+	list_for_each_entry(fb, &dev->mode_config.fb_list, head)
+		drm_fb_cma_describe(fb, m);
+
+	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_debugfs_show);
+#endif
+
 static struct fb_ops drm_fbdev_cma_ops = {
 	.owner		= THIS_MODULE,
 	.fb_fillrect	= sys_fillrect,

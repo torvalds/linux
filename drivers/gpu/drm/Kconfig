@@ -217,3 +217,5 @@ source "drivers/gpu/drm/shmobile/Kconfig"
 source "drivers/gpu/drm/tegra/Kconfig"
 
 source "drivers/gpu/drm/omapdrm/Kconfig"
+
+source "drivers/gpu/drm/tilcdc/Kconfig"
