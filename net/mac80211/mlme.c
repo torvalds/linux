@@ -4319,6 +4319,17 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	/*
+	 * Make sure some work items will not run after this,
+	 * they will not do anything but might not have been
+	 * cancelled when disconnecting.
+	 */
+	cancel_work_sync(&ifmgd->monitor_work);
+	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
+	cancel_work_sync(&ifmgd->request_smps_work);
+	cancel_work_sync(&ifmgd->csa_connection_drop_work);
+	cancel_work_sync(&ifmgd->chswitch_work);
+
 	mutex_lock(&ifmgd->mtx);
 	if (ifmgd->assoc_data)
 		ieee80211_destroy_assoc_data(sdata, false);
