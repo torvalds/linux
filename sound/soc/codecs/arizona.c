@@ -1090,6 +1090,20 @@ static bool arizona_is_enabled_fll(struct arizona_fll *fll)
 	return reg & ARIZONA_FLL1_ENA;
 }
 
+static void arizona_disable_fll(struct arizona_fll *fll)
+{
+	struct arizona *arizona = fll->arizona;
+	bool change;
+
+	regmap_update_bits_check(arizona->regmap, fll->base + 1,
+				 ARIZONA_FLL1_ENA, 0, &change);
+	regmap_update_bits(arizona->regmap, fll->base + 0x11,
+			   ARIZONA_FLL1_SYNC_ENA, 0);
+
+	if (change)
+		pm_runtime_put_autosuspend(arizona->dev);
+}
+
 int arizona_set_fll(struct arizona_fll *fll, int source,
 		    unsigned int Fref, unsigned int Fout)
 {
@@ -1156,13 +1170,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		if (ret == 0)
 			arizona_fll_warn(fll, "Timed out waiting for lock\n");
 	} else {
-		regmap_update_bits(arizona->regmap, fll->base + 1,
-				   ARIZONA_FLL1_ENA, 0);
-		regmap_update_bits(arizona->regmap, fll->base + 0x11,
-				   ARIZONA_FLL1_SYNC_ENA, 0);
-
-		if (ena)
-			pm_runtime_put_autosuspend(arizona->dev);
+		arizona_disable_fll(fll);
 	}
 
 	fll->fref = Fref;
