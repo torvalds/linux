@@ -231,6 +231,15 @@ static inline u8 ssb_crc8(u8 crc, u8 data)
 	return t[crc ^ data];
 }
 
+static void sprom_get_mac(char *mac, const u16 *in)
+{
+	int i;
+	for (i = 0; i < 3; i++) {
+		*mac++ = in[i];
+		*mac++ = in[i] >> 8;
+	}
+}
+
 static u8 ssb_sprom_crc(const u16 *sprom, u16 size)
 {
 	int word;
@@ -341,8 +350,6 @@ static s8 r123_extract_antgain(u8 sprom_revision, const u16 *in,
 
 static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 {
-	int i;
-	u16 v;
 	u16 loc[3];
 
 	if (out->revision == 3)			/* rev 3 moved MAC */
@@ -352,19 +359,10 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 		loc[1] = SSB_SPROM1_ET0MAC;
 		loc[2] = SSB_SPROM1_ET1MAC;
 	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(loc[0]) + i];
-		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
-	}
+	sprom_get_mac(out->il0mac, &in[SPOFF(loc[0])]);
 	if (out->revision < 3) { 	/* only rev 1-2 have et0, et1 */
-		for (i = 0; i < 3; i++) {
-			v = in[SPOFF(loc[1]) + i];
-			*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
-		}
-		for (i = 0; i < 3; i++) {
-			v = in[SPOFF(loc[2]) + i];
-			*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
-		}
+		sprom_get_mac(out->et0mac, &in[SPOFF(loc[1])]);
+		sprom_get_mac(out->et1mac, &in[SPOFF(loc[2])]);
 	}
 	SPEX(et0phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0A, 0);
 	SPEX(et1phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1A,
@@ -454,19 +452,15 @@ static void sprom_extract_r458(struct ssb_sprom *out, const u16 *in)
 
 static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 {
-	int i;
-	u16 v;
 	u16 il0mac_offset;
 
 	if (out->revision == 4)
 		il0mac_offset = SSB_SPROM4_IL0MAC;
 	else
 		il0mac_offset = SSB_SPROM5_IL0MAC;
-	/* extract the MAC address */
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(il0mac_offset) + i];
-		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
-	}
+
+	sprom_get_mac(out->il0mac, &in[SPOFF(il0mac_offset)]);
+
 	SPEX(et0phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET0A, 0);
 	SPEX(et1phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET1A,
 	     SSB_SPROM4_ETHPHY_ET1A_SHIFT);
@@ -530,7 +524,7 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
-	u16 v, o;
+	u16 o;
 	u16 pwr_info_offset[] = {
 		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
 		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
@@ -539,10 +533,8 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 			ARRAY_SIZE(out->core_pwr_info));
 
 	/* extract the MAC address */
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM8_IL0MAC) + i];
-		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
-	}
+	sprom_get_mac(out->il0mac, &in[SPOFF(SSB_SPROM8_IL0MAC)]);
+
 	SPEX(board_rev, SSB_SPROM8_BOARDREV, 0xFFFF, 0);
 	SPEX(alpha2[0], SSB_SPROM8_CCODE, 0xff00, 8);
 	SPEX(alpha2[1], SSB_SPROM8_CCODE, 0x00ff, 0);
