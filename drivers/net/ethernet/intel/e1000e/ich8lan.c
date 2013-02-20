@@ -3150,7 +3150,7 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 	flash_linear_addr = hw->nvm.flash_base_addr;
 	flash_linear_addr += (bank) ? flash_bank_size : 0;
 
-	for (j = 0; j < iteration ; j++) {
+	for (j = 0; j < iteration; j++) {
 		do {
 			u32 timeout = ICH_FLASH_ERASE_COMMAND_TIMEOUT;
 
@@ -3501,7 +3501,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	if (mac->type == e1000_ich8lan)
 		snoop = PCIE_ICH8_SNOOP_ALL;
 	else
-		snoop = (u32) ~(PCIE_NO_SNOOP_ALL);
+		snoop = (u32)~(PCIE_NO_SNOOP_ALL);
 	e1000e_set_pcie_no_snoop(hw, snoop);
 
 	ctrl_ext = er32(CTRL_EXT);

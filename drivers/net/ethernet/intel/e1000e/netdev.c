@@ -4452,7 +4452,7 @@ static void e1000e_update_phy_task(struct work_struct *work)
  **/
 static void e1000_update_phy_info(unsigned long data)
 {
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+	struct e1000_adapter *adapter = (struct e1000_adapter *)data;
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
@@ -4784,7 +4784,7 @@ static void e1000e_check_82574_phy_workaround(struct e1000_adapter *adapter)
  **/
 static void e1000_watchdog(unsigned long data)
 {
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+	struct e1000_adapter *adapter = (struct e1000_adapter *)data;
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -5350,7 +5350,7 @@ static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 	if (skb->len <= MINIMUM_DHCP_PACKET_SIZE)
 		return 0;
 
-	if (((struct ethhdr *) skb->data)->h_proto != htons(ETH_P_IP))
+	if (((struct ethhdr *)skb->data)->h_proto != htons(ETH_P_IP))
 		return 0;
 
 	{
@@ -6727,11 +6727,11 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = e1000_watchdog;
-	adapter->watchdog_timer.data = (unsigned long) adapter;
+	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	init_timer(&adapter->phy_info_timer);
 	adapter->phy_info_timer.function = e1000_update_phy_info;
-	adapter->phy_info_timer.data = (unsigned long) adapter;
+	adapter->phy_info_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, e1000_reset_task);
 	INIT_WORK(&adapter->watchdog_task, e1000_watchdog_task);
