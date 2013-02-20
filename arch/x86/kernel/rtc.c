@@ -149,7 +149,6 @@ unsigned long mach_get_cmos_time(void)
 	if (century) {
 		century = bcd2bin(century);
 		year += century * 100;
-		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
 	} else
 		year += CMOS_YEARS_OFFS;
 

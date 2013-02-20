@@ -167,12 +167,16 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 {
 	char *hdr;
-	struct timeval timestamp;
+	struct timespec timestamp;
 	size_t len;
 
-	do_gettimeofday(&timestamp);
+	/* Report zeroed timestamp if called before timekeeping has resumed. */
+	if (__getnstimeofday(&timestamp)) {
+		timestamp.tv_sec = 0;
+		timestamp.tv_nsec = 0;
+	}
 	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lu.%lu\n",
-		(long)timestamp.tv_sec, (long)timestamp.tv_usec);
+		(long)timestamp.tv_sec, (long)(timestamp.tv_nsec / 1000));
 	WARN_ON_ONCE(!hdr);
 	len = hdr ? strlen(hdr) : 0;
 	persistent_ram_write(prz, hdr, len);
