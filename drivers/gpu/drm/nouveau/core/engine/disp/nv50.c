@@ -972,21 +972,29 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 }
 
 static void
-nv50_disp_intr_unk10(struct nv50_disp_priv *priv, u32 super)
+nv50_disp_intr_unk10_0(struct nv50_disp_priv *priv, int head)
 {
-	int head = ffs((super & 0x00000060) >> 5) - 1;
-	if (head >= 0) {
-		head = ffs((super & 0x00000180) >> 7) - 1;
-		if (head >= 0)
-			exec_script(priv, head, 1);
-	}
-
-	nv_wr32(priv, 0x610030, 0x80000000);
+	exec_script(priv, head, 1);
 }
 
 static void
-nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
-		        struct dcb_output *outp, u32 pclk)
+nv50_disp_intr_unk20_0(struct nv50_disp_priv *priv, int head)
+{
+	exec_script(priv, head, 2);
+}
+
+static void
+nv50_disp_intr_unk20_1(struct nv50_disp_priv *priv, int head)
+{
+	struct nouveau_clock *clk = nouveau_clock(priv);
+	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+	if (pclk)
+		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+}
+
+static void
+nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
+			  struct dcb_output *outp, u32 pclk)
 {
 	const int link = !(outp->sorconf.link & 1);
 	const int   or = ffs(outp->or) - 1;
@@ -1092,77 +1100,54 @@ nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
 }
 
 static void
-nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
+nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 {
 	struct dcb_output outp;
-	int head;
+	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+	u32 hval, hreg = 0x614200 + (head * 0x800);
+	u32 oval, oreg;
+	u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
+	if (conf != ~0) {
+		if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
+			u32 soff = (ffs(outp.or) - 1) * 0x08;
+			u32 ctrl = nv_rd32(priv, 0x610798 + soff);
+			u32 datarate;
 
-	/* finish detaching encoder? */
-	head = ffs((super & 0x00000180) >> 7) - 1;
-	if (head >= 0)
-		exec_script(priv, head, 2);
-
-	/* check whether a vpll change is required */
-	head = ffs((super & 0x00000600) >> 9) - 1;
-	if (head >= 0) {
-		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		if (pclk) {
-			struct nouveau_clock *clk = nouveau_clock(priv);
-			clk->pll_set(clk, PLL_VPLL0 + head, pclk);
-		}
-	}
-
-	/* (re)attach the relevant OR to the head */
-	head = ffs((super & 0x00000180) >> 7) - 1;
-	if (head >= 0) {
-		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		u32 hval, hreg = 0x614200 + (head * 0x800);
-		u32 oval, oreg;
-		u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
-		if (conf != ~0) {
-			if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
-				u32 soff = (ffs(outp.or) - 1) * 0x08;
-				u32 ctrl = nv_rd32(priv, 0x610798 + soff);
-				u32 datarate;
-
-				switch ((ctrl & 0x000f0000) >> 16) {
-				case 6: datarate = pclk * 30 / 8; break;
-				case 5: datarate = pclk * 24 / 8; break;
-				case 2:
-				default:
-					datarate = pclk * 18 / 8;
-					break;
-				}
-
-				nouveau_dp_train(&priv->base, priv->sor.dp,
-						 &outp, head, datarate);
+			switch ((ctrl & 0x000f0000) >> 16) {
+			case 6: datarate = pclk * 30 / 8; break;
+			case 5: datarate = pclk * 24 / 8; break;
+			case 2:
+			default:
+				datarate = pclk * 18 / 8;
+				break;
 			}
 
-			exec_clkcmp(priv, head, 0, pclk, &outp);
-
-			if (!outp.location && outp.type == DCB_OUTPUT_ANALOG) {
-				oreg = 0x614280 + (ffs(outp.or) - 1) * 0x800;
-				oval = 0x00000000;
-				hval = 0x00000000;
-			} else
-			if (!outp.location) {
-				if (outp.type == DCB_OUTPUT_DP)
-					nv50_disp_intr_unk20_dp(priv, &outp, pclk);
-				oreg = 0x614300 + (ffs(outp.or) - 1) * 0x800;
-				oval = (conf & 0x0100) ? 0x0101 : 0x0000;
-				hval = 0x00000000;
-			} else {
-				oreg = 0x614380 + (ffs(outp.or) - 1) * 0x800;
-				oval = 0x00000001;
-				hval = 0x00000001;
-			}
-
-			nv_mask(priv, hreg, 0x0000000f, hval);
-			nv_mask(priv, oreg, 0x00000707, oval);
+			nouveau_dp_train(&priv->base, priv->sor.dp,
+					 &outp, head, datarate);
 		}
-	}
 
-	nv_wr32(priv, 0x610030, 0x80000000);
+		exec_clkcmp(priv, head, 0, pclk, &outp);
+
+		if (!outp.location && outp.type == DCB_OUTPUT_ANALOG) {
+			oreg = 0x614280 + (ffs(outp.or) - 1) * 0x800;
+			oval = 0x00000000;
+			hval = 0x00000000;
+		} else
+		if (!outp.location) {
+			if (outp.type == DCB_OUTPUT_DP)
+				nv50_disp_intr_unk20_2_dp(priv, &outp, pclk);
+			oreg = 0x614300 + (ffs(outp.or) - 1) * 0x800;
+			oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
+			hval = 0x00000000;
+		} else {
+			oreg = 0x614380 + (ffs(outp.or) - 1) * 0x800;
+			oval = 0x00000001;
+			hval = 0x00000001;
+		}
+
+		nv_mask(priv, hreg, 0x0000000f, hval);
+		nv_mask(priv, oreg, 0x00000707, oval);
+	}
 }
 
 /* If programming a TMDS output on a SOR that can also be configured for
@@ -1174,7 +1159,7 @@ nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
  * programmed for DisplayPort.
  */
 static void
-nv50_disp_intr_unk40_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp)
+nv50_disp_intr_unk40_0_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	const int link = !(outp->sorconf.link & 1);
@@ -1188,37 +1173,32 @@ nv50_disp_intr_unk40_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp)
 }
 
 static void
-nv50_disp_intr_unk40(struct nv50_disp_priv *priv, u32 super)
+nv50_disp_intr_unk40_0(struct nv50_disp_priv *priv, int head)
 {
-	int head = ffs((super & 0x00000180) >> 7) - 1;
-	if (head >= 0) {
-		struct dcb_output outp;
-		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-		if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0) {
-			if (outp.location == 0 && outp.type == DCB_OUTPUT_TMDS)
-				nv50_disp_intr_unk40_tmds(priv, &outp);
-			else
-			if (outp.location == 1 && outp.type == DCB_OUTPUT_DP) {
-				u32 soff = (ffs(outp.or) - 1) * 0x08;
-				u32 ctrl = nv_rd32(priv, 0x610b84 + soff);
-				u32 datarate;
+	struct dcb_output outp;
+	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+	if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0) {
+		if (outp.location == 0 && outp.type == DCB_OUTPUT_TMDS)
+			nv50_disp_intr_unk40_0_tmds(priv, &outp);
+		else
+		if (outp.location == 1 && outp.type == DCB_OUTPUT_DP) {
+			u32 soff = (ffs(outp.or) - 1) * 0x08;
+			u32 ctrl = nv_rd32(priv, 0x610b84 + soff);
+			u32 datarate;
 
-				switch ((ctrl & 0x000f0000) >> 16) {
-				case 6: datarate = pclk * 30 / 8; break;
-				case 5: datarate = pclk * 24 / 8; break;
-				case 2:
-				default:
-					datarate = pclk * 18 / 8;
-					break;
-				}
-
-				nouveau_dp_train(&priv->base, priv->pior.dp,
-						 &outp, head, datarate);
+			switch ((ctrl & 0x000f0000) >> 16) {
+			case 6: datarate = pclk * 30 / 8; break;
+			case 5: datarate = pclk * 24 / 8; break;
+			case 2:
+			default:
+				datarate = pclk * 18 / 8;
+				break;
 			}
+
+			nouveau_dp_train(&priv->base, priv->pior.dp,
+					 &outp, head, datarate);
 		}
 	}
-
-	nv_wr32(priv, 0x610030, 0x80000000);
 }
 
 void
@@ -1227,15 +1207,45 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 	struct nv50_disp_priv *priv =
 		container_of(work, struct nv50_disp_priv, supervisor);
 	u32 super = nv_rd32(priv, 0x610030);
+	int head;
 
 	nv_debug(priv, "supervisor 0x%08x 0x%08x\n", priv->super, super);
 
-	if (priv->super & 0x00000010)
-		nv50_disp_intr_unk10(priv, super);
-	if (priv->super & 0x00000020)
-		nv50_disp_intr_unk20(priv, super);
-	if (priv->super & 0x00000040)
-		nv50_disp_intr_unk40(priv, super);
+	if (priv->super & 0x00000010) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(super & (0x00000020 << head)))
+				continue;
+			if (!(super & (0x00000080 << head)))
+				continue;
+			nv50_disp_intr_unk10_0(priv, head);
+		}
+	} else
+	if (priv->super & 0x00000020) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(super & (0x00000080 << head)))
+				continue;
+			nv50_disp_intr_unk20_0(priv, head);
+		}
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(super & (0x00000200 << head)))
+				continue;
+			nv50_disp_intr_unk20_1(priv, head);
+		}
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(super & (0x00000080 << head)))
+				continue;
+			nv50_disp_intr_unk20_2(priv, head);
+		}
+	} else
+	if (priv->super & 0x00000040) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(super & (0x00000080 << head)))
+				continue;
+			nv50_disp_intr_unk40_0(priv, head);
+		}
+	}
+
+	nv_wr32(priv, 0x610030, 0x80000000);
 }
 
 void

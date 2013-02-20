@@ -242,5 +242,6 @@ ifdef CONFIG_X86
 nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
 endif
 nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
+nouveau-$(CONFIG_DEBUG_FS) += nouveau_debugfs.o
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o
