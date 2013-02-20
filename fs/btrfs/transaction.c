@@ -469,9 +469,41 @@ struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root
 	return start_transaction(root, 0, TRANS_USERSPACE, 0);
 }
 
+/*
+ * btrfs_attach_transaction() - catch the running transaction
+ *
+ * It is used when we want to commit the current the transaction, but
+ * don't want to start a new one.
+ *
+ * Note: If this function return -ENOENT, it just means there is no
+ * running transaction. But it is possible that the inactive transaction
+ * is still in the memory, not fully on disk. If you hope there is no
+ * inactive transaction in the fs when -ENOENT is returned, you should
+ * invoke
+ *     btrfs_attach_transaction_barrier()
+ */
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_ATTACH, 0);
+}
+
+/*
+ * btrfs_attach_transaction() - catch the running transaction
+ *
+ * It is similar to the above function, the differentia is this one
+ * will wait for all the inactive transactions until they fully
+ * complete.
+ */
+struct btrfs_trans_handle *
+btrfs_attach_transaction_barrier(struct btrfs_root *root)
+{
+	struct btrfs_trans_handle *trans;
+
+	trans = start_transaction(root, 0, TRANS_ATTACH, 0);
+	if (IS_ERR(trans) && PTR_ERR(trans) == -ENOENT)
+		btrfs_wait_for_commit(root, 0);
+
+	return trans;
 }
 
 /* wait for a transaction commit to be fully complete */
