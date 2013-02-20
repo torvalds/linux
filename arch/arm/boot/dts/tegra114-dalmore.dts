@@ -721,6 +721,17 @@
 		nvidia,invert-interrupt;
 	};
 
+	sdhci@78000400 {
+		cd-gpios = <&gpio 170 1>; /* gpio PV2 */
+		bus-width = <4>;
+		status = "okay";
+	};
+
+	sdhci@78000600 {
+		bus-width = <8>;
+		status = "okay";
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
