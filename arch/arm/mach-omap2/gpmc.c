@@ -1187,6 +1187,46 @@ static struct of_device_id gpmc_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
+/**
+ * gpmc_read_settings_dt - read gpmc settings from device-tree
+ * @np:		pointer to device-tree node for a gpmc child device
+ * @p:		pointer to gpmc settings structure
+ *
+ * Reads the GPMC settings for a GPMC child device from device-tree and
+ * stores them in the GPMC settings structure passed. The GPMC settings
+ * structure is initialised to zero by this function and so any
+ * previously stored settings will be cleared.
+ */
+void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
+{
+	memset(p, 0, sizeof(struct gpmc_settings));
+
+	p->sync_read = of_property_read_bool(np, "gpmc,sync-read");
+	p->sync_write = of_property_read_bool(np, "gpmc,sync-write");
+	p->device_nand = of_property_read_bool(np, "gpmc,device-nand");
+	of_property_read_u32(np, "gpmc,device-width", &p->device_width);
+	of_property_read_u32(np, "gpmc,mux-add-data", &p->mux_add_data);
+
+	if (!of_property_read_u32(np, "gpmc,burst-length", &p->burst_len)) {
+		p->burst_wrap = of_property_read_bool(np, "gpmc,burst-wrap");
+		p->burst_read = of_property_read_bool(np, "gpmc,burst-read");
+		p->burst_write = of_property_read_bool(np, "gpmc,burst-write");
+		if (!p->burst_read && !p->burst_write)
+			pr_warn("%s: page/burst-length set but not used!\n",
+				__func__);
+	}
+
+	if (!of_property_read_u32(np, "gpmc,wait-pin", &p->wait_pin)) {
+		p->wait_on_read = of_property_read_bool(np,
+							"gpmc,wait-on-read");
+		p->wait_on_write = of_property_read_bool(np,
+							 "gpmc,wait-on-write");
+		if (!p->wait_on_read && !p->wait_on_write)
+			pr_warn("%s: read/write wait monitoring not enabled!\n",
+				__func__);
+	}
+}
+
 static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 						struct gpmc_timings *gpmc_t)
 {

@@ -65,6 +65,29 @@ The following are only applicable to OMAP3+ and AM335x:
  - gpmc,wr-access
  - gpmc,wr-data-mux-bus
 
+GPMC chip-select settings properties for child nodes. All are optional.
+
+- gpmc,burst-length	Page/burst length. Must be 4, 8 or 16.
+- gpmc,burst-wrap	Enables wrap bursting
+- gpmc,burst-read	Enables read page/burst mode
+- gpmc,burst-write	Enables write page/burst mode
+- gpmc,device-nand	Device is NAND
+- gpmc,device-width	Total width of device(s) connected to a GPMC
+			chip-select in bytes. The GPMC supports 8-bit
+			and 16-bit devices and so this property must be
+			1 or 2.
+- gpmc,mux-add-data	Address and data multiplexing configuration.
+			Valid values are 1 for address-address-data
+			multiplexing mode and 2 for address-data
+			multiplexing mode.
+- gpmc,sync-read	Enables synchronous read. Defaults to asynchronous
+			is this is not set.
+- gpmc,sync-write	Enables synchronous writes. Defaults to asynchronous
+			is this is not set.
+- gpmc,wait-pin		Wait-pin used by client. Must be less than
+			"gpmc,num-waitpins".
+- gpmc,wait-on-read	Enables wait monitoring on reads.
+- gpmc,wait-on-write	Enables wait monitoring on writes.
 
 Example for an AM33xx board:
 
