@@ -3503,6 +3503,14 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/*
+	 * Stop timers before deleting work items, as timers
+	 * could race and re-add the work-items. They will be
+	 * re-established on connection.
+	 */
+	del_timer_sync(&ifmgd->conn_mon_timer);
+	del_timer_sync(&ifmgd->bcn_mon_timer);
+
+	/*
 	 * we need to use atomic bitops for the running bits
 	 * only because both timers might fire at the same
 	 * time -- the code here is properly synchronised.
@@ -3516,13 +3524,9 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	if (del_timer_sync(&ifmgd->timer))
 		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
 
-	cancel_work_sync(&ifmgd->chswitch_work);
 	if (del_timer_sync(&ifmgd->chswitch_timer))
 		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
-
-	/* these will just be re-established on connection */
-	del_timer_sync(&ifmgd->conn_mon_timer);
-	del_timer_sync(&ifmgd->bcn_mon_timer);
+	cancel_work_sync(&ifmgd->chswitch_work);
 }
 
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
