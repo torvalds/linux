@@ -1079,7 +1079,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 {
 	struct arizona *arizona = fll->arizona;
 	struct arizona_fll_cfg cfg, sync;
-	unsigned int reg, val;
+	unsigned int reg;
 	int syncsrc;
 	bool ena;
 	int ret;
@@ -1096,16 +1096,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 	ena = reg & ARIZONA_FLL1_ENA;
 
 	if (Fout) {
-		/* Do we have a 32kHz reference? */
-		regmap_read(arizona->regmap, ARIZONA_CLOCK_32K_1, &val);
-		switch (val & ARIZONA_CLK_32K_SRC_MASK) {
-		case ARIZONA_CLK_SRC_MCLK1:
-		case ARIZONA_CLK_SRC_MCLK2:
-			syncsrc = val & ARIZONA_CLK_32K_SRC_MASK;
-			break;
-		default:
-			syncsrc = -1;
-		}
+		syncsrc = fll->ref_src;
 
 		if (source == syncsrc)
 			syncsrc = -1;
@@ -1115,7 +1106,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 			if (ret != 0)
 				return ret;
 
-			ret = arizona_calc_fll(fll, &cfg, 32768, Fout);
+			ret = arizona_calc_fll(fll, &cfg, fll->ref_freq, Fout);
 			if (ret != 0)
 				return ret;
 		} else {
@@ -1178,12 +1169,25 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		     int ok_irq, struct arizona_fll *fll)
 {
 	int ret;
+	unsigned int val;
 
 	init_completion(&fll->ok);
 
 	fll->id = id;
 	fll->base = base;
 	fll->arizona = arizona;
+
+	/* Configure default refclk to 32kHz if we have one */
+	regmap_read(arizona->regmap, ARIZONA_CLOCK_32K_1, &val);
+	switch (val & ARIZONA_CLK_32K_SRC_MASK) {
+	case ARIZONA_CLK_SRC_MCLK1:
+	case ARIZONA_CLK_SRC_MCLK2:
+		fll->ref_src = val & ARIZONA_CLK_32K_SRC_MASK;
+		break;
+	default:
+		fll->ref_src = -1;
+	}
+	fll->ref_freq = 32768;
 
 	snprintf(fll->lock_name, sizeof(fll->lock_name), "FLL%d lock", id);
 	snprintf(fll->clock_ok_name, sizeof(fll->clock_ok_name),
