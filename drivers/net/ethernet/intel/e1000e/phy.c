@@ -71,8 +71,7 @@ s32 e1000e_check_reset_block_generic(struct e1000_hw *hw)
 
 	manc = er32(MANC);
 
-	return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ?
-	       E1000_BLK_PHY_RESET : 0;
+	return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ? E1000_BLK_PHY_RESET : 0;
 }
 
 /**
@@ -775,8 +774,7 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 
 		phy_data |= M88E1000_EPSCR_TX_CLK_25;
 
-		if ((phy->revision == 2) &&
-		    (phy->id == M88E1111_I_PHY_ID)) {
+		if ((phy->revision == 2) && (phy->id == M88E1111_I_PHY_ID)) {
 			/* 82573L PHY - set the downshift counter to 5x. */
 			phy_data &= ~M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK;
 			phy_data |= M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X;

@@ -223,8 +223,7 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 
 	/* Fiber NICs only allow 1000 gbps Full duplex */
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) &&
-	    spd != SPEED_1000 &&
-	    dplx != DUPLEX_FULL) {
+	    (spd != SPEED_1000) && (dplx != DUPLEX_FULL)) {
 		goto err_inval;
 	}
 
@@ -616,8 +615,7 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver,  e1000e_driver_name,
-		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, e1000e_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, e1000e_driver_version,
 		sizeof(drvinfo->version));
 
@@ -1143,8 +1141,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		tx_ring->count = E1000_DEFAULT_TXD;
 
 	tx_ring->buffer_info = kcalloc(tx_ring->count,
-				       sizeof(struct e1000_buffer),
-				       GFP_KERNEL);
+				       sizeof(struct e1000_buffer), GFP_KERNEL);
 	if (!tx_ring->buffer_info) {
 		ret_val = 1;
 		goto err_nomem;
@@ -1205,8 +1202,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		rx_ring->count = E1000_DEFAULT_RXD;
 
 	rx_ring->buffer_info = kcalloc(rx_ring->count,
-				       sizeof(struct e1000_buffer),
-				       GFP_KERNEL);
+				       sizeof(struct e1000_buffer), GFP_KERNEL);
 	if (!rx_ring->buffer_info) {
 		ret_val = 5;
 		goto err_nomem;
