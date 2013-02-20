@@ -242,15 +242,6 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			 "fixing up rel/abs in Logitech report descriptor\n");
 		rdesc[33] = rdesc[50] = 0x02;
 	}
-	if ((drv_data->quirks & LG_FF4) && *rsize >= 101 &&
-			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
-			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
-		hid_info(hdev, "fixing up Logitech Speed Force Wireless button descriptor\n");
-		rdesc[41] = 0x05;
-		rdesc[42] = 0x09;
-		rdesc[47] = 0x95;
-		rdesc[48] = 0x0B;
-	}
 
 	switch (hdev->product) {
 
@@ -290,6 +281,17 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 				"fixing up Logitech Driving Force Pro report descriptor\n");
 			rdesc = dfp_rdesc_fixed;
 			*rsize = sizeof(dfp_rdesc_fixed);
+		}
+		break;
+
+	case USB_DEVICE_ID_LOGITECH_WII_WHEEL:
+		if (*rsize >= 101 && rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
+				rdesc[47] == 0x05 && rdesc[48] == 0x09) {
+			hid_info(hdev, "fixing up Logitech Speed Force Wireless report descriptor\n");
+			rdesc[41] = 0x05;
+			rdesc[42] = 0x09;
+			rdesc[47] = 0x95;
+			rdesc[48] = 0x0B;
 		}
 		break;
 	}
