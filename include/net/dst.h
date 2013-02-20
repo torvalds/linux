@@ -36,13 +36,9 @@ struct dst_entry {
 	struct net_device       *dev;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
-	union {
-		unsigned long           expires;
-		/* point to where the dst_entry copied from */
-		struct dst_entry        *from;
-	};
+	unsigned long           expires;
 	struct dst_entry	*path;
-	void			*__pad0;
+	struct dst_entry	*from;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
