@@ -549,7 +549,8 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	if (eeprom->len == 0)
 		return -EOPNOTSUPP;
 
-	if (eeprom->magic != (adapter->pdev->vendor | (adapter->pdev->device << 16)))
+	if (eeprom->magic !=
+	    (adapter->pdev->vendor | (adapter->pdev->device << 16)))
 		return -EFAULT;
 
 	if (adapter->flags & FLAG_READ_ONLY_NVM)

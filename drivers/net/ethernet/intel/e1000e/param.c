@@ -143,7 +143,8 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
  *
  * Default Value: 1 (enabled)
  */
-E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
+E1000_PARAM(WriteProtectNVM,
+	    "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
 
 /* Enable CRC Stripping
  *
@@ -500,7 +501,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (adapter->flags & FLAG_IS_ICH) {
 			if (num_WriteProtectNVM > bd) {
-				unsigned int write_protect_nvm = WriteProtectNVM[bd];
+				unsigned int write_protect_nvm =
+				    WriteProtectNVM[bd];
 				e1000_validate_option(&write_protect_nvm, &opt,
 						      adapter);
 				if (write_protect_nvm)
