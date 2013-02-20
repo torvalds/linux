@@ -28,11 +28,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-
 #include <linux/platform_data/usb-ehci-mxc.h>
-
-#include <asm/mach-types.h>
-
 #include "ehci.h"
 
 #define DRIVER_DESC "Freescale On-Chip EHCI Host driver"
