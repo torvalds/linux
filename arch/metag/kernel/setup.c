@@ -406,6 +406,8 @@ void __init setup_arch(char **cmdline_p)
 	cpu_2_hwthread_id[smp_processor_id()] = hard_processor_id();
 	hwthread_id_2_cpu[hard_processor_id()] = smp_processor_id();
 
+	/* Copy device tree blob into non-init memory before unflattening */
+	copy_fdt();
 	unflatten_device_tree();
 
 #ifdef CONFIG_SMP

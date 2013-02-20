@@ -95,3 +95,20 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 
 	return mdesc_best;
 }
+
+/**
+ * copy_fdt - Copy device tree into non-init memory.
+ *
+ * We must copy the flattened device tree blob into non-init memory because the
+ * unflattened device tree will reference the strings in it directly.
+ */
+void __init copy_fdt(void)
+{
+	void *alloc = early_init_dt_alloc_memory_arch(
+			be32_to_cpu(initial_boot_params->totalsize), 0x40);
+	if (alloc) {
+		memcpy(alloc, initial_boot_params,
+		       be32_to_cpu(initial_boot_params->totalsize));
+		initial_boot_params = alloc;
+	}
+}
