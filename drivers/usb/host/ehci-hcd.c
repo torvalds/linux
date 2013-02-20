@@ -1292,6 +1292,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_octeon_driver
 #endif
 
+#ifdef CONFIG_ARCH_VT8500
+#include "ehci-vt8500.c"
+#define	PLATFORM_DRIVER		vt8500_ehci_driver
+#endif
+
 #ifdef CONFIG_PLAT_SPEAR
 #include "ehci-spear.c"
 #define PLATFORM_DRIVER		spear_ehci_hcd_driver
@@ -1342,7 +1347,6 @@ MODULE_LICENSE ("GPL");
 	!IS_ENABLED(CONFIG_USB_CHIPIDEA_HOST) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_MXC) && \
 	!defined(PLATFORM_DRIVER) && \
-	!IS_ENABLED(CONFIG_ARCH_VT8500) && \
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(OF_PLATFORM_DRIVER) && \
 	!defined(XILINX_OF_PLATFORM_DRIVER)

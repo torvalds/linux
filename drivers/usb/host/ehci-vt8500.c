@@ -16,25 +16,52 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/usb.h>
-#include <linux/usb/hcd.h>
-#include <linux/io.h>
-#include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include "ehci.h"
+static const struct hc_driver vt8500_ehci_hc_driver = {
+	.description		= hcd_name,
+	.product_desc		= "VT8500 EHCI",
+	.hcd_priv_size		= sizeof(struct ehci_hcd),
 
-#define DRIVER_DESC "vt8500 On-Chip EHCI Host driver"
+	/*
+	 * generic hardware linkage
+	 */
+	.irq			= ehci_irq,
+	.flags			= HCD_MEMORY | HCD_USB2,
 
-static const char hcd_name[] = "ehci-vt8500";
+	/*
+	 * basic lifecycle operations
+	 */
+	.reset			= ehci_setup,
+	.start			= ehci_run,
+	.stop			= ehci_stop,
+	.shutdown		= ehci_shutdown,
 
-static struct hc_driver __read_mostly vt8500_ehci_hc_driver;
+	/*
+	 * managing i/o requests and associated device resources
+	 */
+	.urb_enqueue		= ehci_urb_enqueue,
+	.urb_dequeue		= ehci_urb_dequeue,
+	.endpoint_disable	= ehci_endpoint_disable,
+	.endpoint_reset		= ehci_endpoint_reset,
 
-static const struct ehci_driver_overrides ehci_vt8500_overrides __initdata = {
-	.reset = ehci_setup,
+	/*
+	 * scheduling support
+	 */
+	.get_frame_number	= ehci_get_frame,
+
+	/*
+	 * root hub support
+	 */
+	.hub_status_data	= ehci_hub_status_data,
+	.hub_control		= ehci_hub_control,
+	.bus_suspend		= ehci_bus_suspend,
+	.bus_resume		= ehci_bus_resume,
+	.relinquish_port	= ehci_relinquish_port,
+	.port_handed_over	= ehci_port_handed_over,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 static u64 vt8500_ehci_dma_mask = DMA_BIT_MASK(32);
@@ -113,31 +140,11 @@ static struct platform_driver vt8500_ehci_driver = {
 	.remove		= vt8500_ehci_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
-		.name	= hcd_name,
+		.name	= "vt8500-ehci",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(vt8500_ehci_ids),
 	}
 };
 
-static int __init ehci_vt8500_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-	ehci_init_driver(&vt8500_ehci_hc_driver, &ehci_vt8500_overrides);
-	return platform_driver_register(&vt8500_ehci_driver);
-}
-module_init(ehci_vt8500_init);
-
-static void __exit ehci_vt8500_cleanup(void)
-{
-	platform_driver_unregister(&vt8500_ehci_driver);
-}
-module_exit(ehci_vt8500_cleanup);
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR("Alexey Charkov");
-MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:vt8500-ehci");
 MODULE_DEVICE_TABLE(of, vt8500_ehci_ids);
