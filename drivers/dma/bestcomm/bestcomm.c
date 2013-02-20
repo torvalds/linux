@@ -23,9 +23,9 @@
 #include <asm/irq.h>
 #include <asm/mpc52xx.h>
 
-#include "sram.h"
-#include "bestcomm_priv.h"
-#include "bestcomm.h"
+#include <linux/fsl/bestcomm/sram.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include "linux/fsl/bestcomm/bestcomm.h"
 
 #define DRIVER_NAME "bestcomm-core"
 

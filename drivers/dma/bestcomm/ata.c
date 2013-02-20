@@ -18,9 +18,9 @@
 #include <linux/types.h>
 #include <asm/io.h>
 
-#include "bestcomm.h"
-#include "bestcomm_priv.h"
-#include "ata.h"
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include <linux/fsl/bestcomm/ata.h>
 
 
 /* ======================================================================== */

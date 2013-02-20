@@ -13,47 +13,23 @@
 
 /include/ "mpc5200b.dtsi"
 
+/* Timer pins that need to be in GPIO mode */
+&gpt0 { gpio-controller; };
+&gpt1 { gpio-controller; };
+&gpt2 { gpio-controller; };
+&gpt3 { gpio-controller; };
+
+/* Disabled timers */
+&gpt4 { status = "disabled"; };
+&gpt5 { status = "disabled"; };
+&gpt6 { status = "disabled"; };
+&gpt7 { status = "disabled"; };
+
 / {
 	model = "manroland,mucmc52";
 	compatible = "manroland,mucmc52";
 
 	soc5200@f0000000 {
-		gpt0: timer@600 {	// GPT 0 in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt1: timer@610 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt2: timer@620 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt3: timer@630 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		timer@640 {
-			status = "disabled";
-		};
-
-		timer@650 {
-			status = "disabled";
-		};
-
-		timer@660 {
-			status = "disabled";
-		};
-
-		timer@670 {
-			status = "disabled";
-		};
-
 		rtc@800 {
 			status = "disabled";
 		};

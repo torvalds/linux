@@ -23,7 +23,7 @@
 #include <asm/io.h>
 #include <asm/mmu.h>
 
-#include "sram.h"
+#include <linux/fsl/bestcomm/sram.h>
 
 
 /* Struct keeping our 'state' */

@@ -21,9 +21,9 @@
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
 
-#include "bestcomm.h"
-#include "bestcomm_priv.h"
-#include "gen_bd.h"
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include <linux/fsl/bestcomm/gen_bd.h>
 
 
 /* ======================================================================== */
