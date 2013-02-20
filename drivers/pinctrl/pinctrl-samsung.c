@@ -716,7 +716,6 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	}
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = drvdata->ctrl->nr_pins;
-	ctrldesc->npins = drvdata->ctrl->nr_pins;
 
 	/* dynamically populate the pin number and pin name for pindesc */
 	for (pin = 0, pdesc = pindesc; pin < ctrldesc->npins; pin++, pdesc++)
