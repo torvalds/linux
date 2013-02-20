@@ -60,26 +60,30 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 {
-	if ((dev_priv->pipestat[pipe] & mask) != mask) {
-		u32 reg = PIPESTAT(pipe);
+	u32 reg = PIPESTAT(pipe);
+	u32 pipestat = I915_READ(reg) & 0x7fff0000;
 
-		dev_priv->pipestat[pipe] |= mask;
-		/* Enable the interrupt, clear any pending status */
-		I915_WRITE(reg, dev_priv->pipestat[pipe] | (mask >> 16));
-		POSTING_READ(reg);
-	}
+	if ((pipestat & mask) == mask)
+		return;
+
+	/* Enable the interrupt, clear any pending status */
+	pipestat |= mask | (mask >> 16);
+	I915_WRITE(reg, pipestat);
+	POSTING_READ(reg);
 }
 
 void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 {
-	if ((dev_priv->pipestat[pipe] & mask) != 0) {
-		u32 reg = PIPESTAT(pipe);
+	u32 reg = PIPESTAT(pipe);
+	u32 pipestat = I915_READ(reg) & 0x7fff0000;
 
-		dev_priv->pipestat[pipe] &= ~mask;
-		I915_WRITE(reg, dev_priv->pipestat[pipe]);
-		POSTING_READ(reg);
-	}
+	if ((pipestat & mask) == 0)
+		return;
+
+	pipestat &= ~mask;
+	I915_WRITE(reg, pipestat);
+	POSTING_READ(reg);
 }
 
 /**
@@ -2069,9 +2073,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
 		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
-	dev_priv->pipestat[0] = 0;
-	dev_priv->pipestat[1] = 0;
-
 	/* Hack for broken MSIs on VLV */
 	pci_write_config_dword(dev_priv->dev->pdev, 0x94, 0xfee00000);
 	pci_read_config_word(dev->pdev, 0x98, &msid);
@@ -2200,9 +2201,6 @@ static void i8xx_irq_preinstall(struct drm_device * dev)
 static int i8xx_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-
-	dev_priv->pipestat[0] = 0;
-	dev_priv->pipestat[1] = 0;
 
 	I915_WRITE16(EMR,
 		     ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
@@ -2364,9 +2362,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask;
-
-	dev_priv->pipestat[0] = 0;
-	dev_priv->pipestat[1] = 0;
 
 	I915_WRITE(EMR, ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
 
@@ -2634,8 +2629,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	if (IS_G4X(dev))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
 
-	dev_priv->pipestat[0] = 0;
-	dev_priv->pipestat[1] = 0;
 	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
 
 	/*
