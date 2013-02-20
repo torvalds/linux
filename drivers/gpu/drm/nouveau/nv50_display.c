@@ -1509,9 +1509,6 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 				evo_mthd(push, 0x0180 + (or * 0x020), 1);
 				evo_data(push, 0x00000000);
 			}
-
-			evo_mthd(push, 0x0080, 1);
-			evo_data(push, 0x00000000);
 			evo_kick(push, mast);
 		}
 	}
@@ -1725,9 +1722,6 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 				evo_mthd(push, 0x0200 + (or * 0x20), 1);
 				evo_data(push, 0x00000000);
 			}
-
-			evo_mthd(push, 0x0080, 1);
-			evo_data(push, 0x00000000);
 			evo_kick(push, mast);
 		}
 
@@ -2029,9 +2023,6 @@ nv50_pior_disconnect(struct drm_encoder *encoder)
 				evo_mthd(push, 0x0700 + (or * 0x040), 1);
 				evo_data(push, 0x00000000);
 			}
-
-			evo_mthd(push, 0x0080, 1);
-			evo_data(push, 0x00000000);
 			evo_kick(push, mast);
 		}
 	}
