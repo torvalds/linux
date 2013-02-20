@@ -1895,13 +1895,11 @@ static int free_io_failure(struct inode *inode, struct io_failure_record *rec,
 	if (ret)
 		err = ret;
 
-	if (did_repair) {
-		ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, rec->start,
-					rec->start + rec->len - 1,
-					EXTENT_DAMAGED, GFP_NOFS);
-		if (ret && !err)
-			err = ret;
-	}
+	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, rec->start,
+				rec->start + rec->len - 1,
+				EXTENT_DAMAGED, GFP_NOFS);
+	if (ret && !err)
+		err = ret;
 
 	kfree(rec);
 	return err;
@@ -1932,9 +1930,14 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
+	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
 	BUG_ON(!mirror_num);
+
+	/* we can't repair anything in raid56 yet */
+	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
+		return 0;
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	if (!bio)
@@ -2052,6 +2055,7 @@ static int clean_io_failure(u64 start, struct page *page)
 						failrec->failed_mirror);
 			did_repair = !ret;
 		}
+		ret = 0;
 	}
 
 out:
@@ -2487,13 +2491,13 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
 	return ret;
 }
 
-static int merge_bio(struct extent_io_tree *tree, struct page *page,
+static int merge_bio(int rw, struct extent_io_tree *tree, struct page *page,
 		     unsigned long offset, size_t size, struct bio *bio,
 		     unsigned long bio_flags)
 {
 	int ret = 0;
 	if (tree->ops && tree->ops->merge_bio_hook)
-		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
+		ret = tree->ops->merge_bio_hook(rw, page, offset, size, bio,
 						bio_flags);
 	BUG_ON(ret < 0);
 	return ret;
@@ -2528,7 +2532,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 				sector;
 
 		if (prev_bio_flags != bio_flags || !contig ||
-		    merge_bio(tree, page, offset, page_size, bio, bio_flags) ||
+		    merge_bio(rw, tree, page, offset, page_size, bio, bio_flags) ||
 		    bio_add_page(bio, page, page_size, offset) < page_size) {
 			ret = submit_one_bio(rw, bio, mirror_num,
 					     prev_bio_flags);
@@ -4162,6 +4166,7 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 
 static void check_buffer_tree_ref(struct extent_buffer *eb)
 {
+	int refs;
 	/* the ref bit is tricky.  We have to make sure it is set
 	 * if we have the buffer dirty.   Otherwise the
 	 * code to free a buffer can end up dropping a dirty
@@ -4182,6 +4187,10 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 * So bump the ref count first, then set the bit.  If someone
 	 * beat us to it, drop the ref we added.
 	 */
+	refs = atomic_read(&eb->refs);
+	if (refs >= 2 && test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
+		return;
+
 	spin_lock(&eb->refs_lock);
 	if (!test_and_set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
 		atomic_inc(&eb->refs);
@@ -4383,8 +4392,19 @@ static int release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 
 void free_extent_buffer(struct extent_buffer *eb)
 {
+	int refs;
+	int old;
 	if (!eb)
 		return;
+
+	while (1) {
+		refs = atomic_read(&eb->refs);
+		if (refs <= 3)
+			break;
+		old = atomic_cmpxchg(&eb->refs, refs, refs - 1);
+		if (old == refs)
+			return;
+	}
 
 	spin_lock(&eb->refs_lock);
 	if (atomic_read(&eb->refs) == 2 &&

@@ -132,6 +132,15 @@ struct btrfs_delayed_ref_root {
 	unsigned long num_heads_ready;
 
 	/*
+	 * bumped when someone is making progress on the delayed
+	 * refs, so that other procs know they are just adding to
+	 * contention intead of helping
+	 */
+	atomic_t procs_running_refs;
+	atomic_t ref_seq;
+	wait_queue_head_t wait;
+
+	/*
 	 * set when the tree is flushing before a transaction commit,
 	 * used by the throttling code to decide if new updates need
 	 * to be run right away

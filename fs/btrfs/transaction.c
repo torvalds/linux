@@ -167,6 +167,9 @@ loop:
 
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
+	atomic_set(&cur_trans->delayed_refs.procs_running_refs, 0);
+	atomic_set(&cur_trans->delayed_refs.ref_seq, 0);
+	init_waitqueue_head(&cur_trans->delayed_refs.wait);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	INIT_LIST_HEAD(&cur_trans->ordered_operations);
@@ -637,7 +640,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
 
-	while (count < 2) {
+	while (count < 1) {
 		unsigned long cur = trans->delayed_ref_updates;
 		trans->delayed_ref_updates = 0;
 		if (cur &&
@@ -649,6 +652,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		}
 		count++;
 	}
+
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
 
@@ -744,7 +748,9 @@ int btrfs_write_marked_extents(struct btrfs_root *root,
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
 				      mark, &cached_state)) {
 		convert_extent_bit(dirty_pages, start, end, EXTENT_NEED_WAIT,
@@ -758,6 +764,7 @@ int btrfs_write_marked_extents(struct btrfs_root *root,
 	}
 	if (err)
 		werr = err;
+	blk_finish_plug(&plug);
 	return werr;
 }
 

@@ -46,6 +46,7 @@
 #include "check-integrity.h"
 #include "rcu-string.h"
 #include "dev-replace.h"
+#include "raid56.h"
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
@@ -640,8 +641,15 @@ err:
 		btree_readahead_hook(root, eb, eb->start, ret);
 	}
 
-	if (ret)
+	if (ret) {
+		/*
+		 * our io error hook is going to dec the io pages
+		 * again, we have to make sure it has something
+		 * to decrement
+		 */
+		atomic_inc(&eb->io_pages);
 		clear_extent_buffer_uptodate(eb);
+	}
 	free_extent_buffer(eb);
 out:
 	return ret;
@@ -655,6 +663,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 	eb = (struct extent_buffer *)page->private;
 	set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
 	eb->read_mirror = failed_mirror;
+	atomic_dec(&eb->io_pages);
 	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(root, eb, eb->start, -EIO);
 	return -EIO;	/* we fixed nothing */
@@ -671,17 +680,23 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	end_io_wq->work.flags = 0;
 
 	if (bio->bi_rw & REQ_WRITE) {
-		if (end_io_wq->metadata == 1)
+		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_METADATA)
 			btrfs_queue_worker(&fs_info->endio_meta_write_workers,
 					   &end_io_wq->work);
-		else if (end_io_wq->metadata == 2)
+		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_FREE_SPACE)
 			btrfs_queue_worker(&fs_info->endio_freespace_worker,
+					   &end_io_wq->work);
+		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
+			btrfs_queue_worker(&fs_info->endio_raid56_workers,
 					   &end_io_wq->work);
 		else
 			btrfs_queue_worker(&fs_info->endio_write_workers,
 					   &end_io_wq->work);
 	} else {
-		if (end_io_wq->metadata)
+		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
+			btrfs_queue_worker(&fs_info->endio_raid56_workers,
+					   &end_io_wq->work);
+		else if (end_io_wq->metadata)
 			btrfs_queue_worker(&fs_info->endio_meta_workers,
 					   &end_io_wq->work);
 		else
@@ -696,6 +711,7 @@ static void end_workqueue_bio(struct bio *bio, int err)
  * 0 - if data
  * 1 - if normal metadta
  * 2 - if writing to the free space cache area
+ * 3 - raid parity work
  */
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			int metadata)
@@ -2179,6 +2195,12 @@ int open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
 
+	ret = btrfs_alloc_stripe_hash_table(fs_info);
+	if (ret) {
+		err = -ENOMEM;
+		goto fail_alloc;
+	}
+
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
@@ -2349,6 +2371,12 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->endio_meta_write_workers,
 			   "endio-meta-write", fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
+	btrfs_init_workers(&fs_info->endio_raid56_workers,
+			   "endio-raid56", fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
+	btrfs_init_workers(&fs_info->rmw_workers,
+			   "rmw", fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
 			   fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
@@ -2367,6 +2395,8 @@ int open_ctree(struct super_block *sb,
 	 */
 	fs_info->endio_workers.idle_thresh = 4;
 	fs_info->endio_meta_workers.idle_thresh = 4;
+	fs_info->endio_raid56_workers.idle_thresh = 4;
+	fs_info->rmw_workers.idle_thresh = 2;
 
 	fs_info->endio_write_workers.idle_thresh = 2;
 	fs_info->endio_meta_write_workers.idle_thresh = 2;
@@ -2383,6 +2413,8 @@ int open_ctree(struct super_block *sb,
 	ret |= btrfs_start_workers(&fs_info->fixup_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_meta_workers);
+	ret |= btrfs_start_workers(&fs_info->rmw_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_raid56_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_meta_write_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_write_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_freespace_worker);
@@ -2726,6 +2758,8 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
+	btrfs_stop_workers(&fs_info->endio_raid56_workers);
+	btrfs_stop_workers(&fs_info->rmw_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->endio_freespace_worker);
@@ -2747,6 +2781,7 @@ fail_bdi:
 fail_srcu:
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
+	btrfs_free_stripe_hash_table(fs_info);
 	btrfs_close_devices(fs_info->fs_devices);
 	return err;
 
@@ -3094,11 +3129,16 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 				     ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK)
 				      == 0)))
 					num_tolerated_disk_barrier_failures = 0;
-				else if (num_tolerated_disk_barrier_failures > 1
-					 &&
-					 (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-						   BTRFS_BLOCK_GROUP_RAID10)))
-					num_tolerated_disk_barrier_failures = 1;
+				else if (num_tolerated_disk_barrier_failures > 1) {
+					if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+					    BTRFS_BLOCK_GROUP_RAID5 |
+					    BTRFS_BLOCK_GROUP_RAID10)) {
+						num_tolerated_disk_barrier_failures = 1;
+					} else if (flags &
+						   BTRFS_BLOCK_GROUP_RAID5) {
+						num_tolerated_disk_barrier_failures = 2;
+					}
+				}
 			}
 		}
 		up_read(&sinfo->groups_sem);
@@ -3402,6 +3442,8 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
+	btrfs_stop_workers(&fs_info->endio_raid56_workers);
+	btrfs_stop_workers(&fs_info->rmw_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->endio_freespace_worker);
@@ -3423,6 +3465,8 @@ int close_ctree(struct btrfs_root *root)
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 	bdi_destroy(&fs_info->bdi);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
+
+	btrfs_free_stripe_hash_table(fs_info);
 
 	return 0;
 }

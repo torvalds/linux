@@ -40,6 +40,7 @@
 #include <linux/ratelimit.h>
 #include <linux/mount.h>
 #include <linux/btrfs.h>
+#include <linux/blkdev.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -1605,7 +1606,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
  * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
  * we don't create bios that span stripes or chunks
  */
-int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
+int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio,
 			 unsigned long bio_flags)
 {
@@ -1620,7 +1621,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 
 	length = bio->bi_size;
 	map_length = length;
-	ret = btrfs_map_block(root->fs_info, READ, logical,
+	ret = btrfs_map_block(root->fs_info, rw, logical,
 			      &map_length, NULL, 0);
 	/* Will always return 0 with map_multi == NULL */
 	BUG_ON(ret < 0);
@@ -6464,19 +6465,24 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int async_submit = 0;
 
 	map_length = orig_bio->bi_size;
-	ret = btrfs_map_block(root->fs_info, READ, start_sector << 9,
+	ret = btrfs_map_block(root->fs_info, rw, start_sector << 9,
 			      &map_length, NULL, 0);
 	if (ret) {
 		bio_put(orig_bio);
 		return -EIO;
 	}
-
 	if (map_length >= orig_bio->bi_size) {
 		bio = orig_bio;
 		goto submit;
 	}
 
-	async_submit = 1;
+	/* async crcs make it difficult to collect full stripe writes. */
+	if (btrfs_get_alloc_profile(root, 1) &
+	    (BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6))
+		async_submit = 0;
+	else
+		async_submit = 1;
+
 	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
 	if (!bio)
 		return -ENOMEM;
@@ -6518,7 +6524,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			bio->bi_end_io = btrfs_end_dio_bio;
 
 			map_length = orig_bio->bi_size;
-			ret = btrfs_map_block(root->fs_info, READ,
+			ret = btrfs_map_block(root->fs_info, rw,
 					      start_sector << 9,
 					      &map_length, NULL, 0);
 			if (ret) {
