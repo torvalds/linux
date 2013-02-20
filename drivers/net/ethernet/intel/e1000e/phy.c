@@ -410,8 +410,7 @@ static s32 __e1000e_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data,
 						    (u16)offset);
 	if (!ret_val)
 		ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS &
-							offset,
-						    data);
+						    offset, data);
 	if (!locked)
 		hw->phy.ops.release(hw);
 
@@ -1296,7 +1295,7 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 		e_dbg("Waiting for forced speed/duplex link on M88 phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
-						     100000, &link);
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 
@@ -1319,7 +1318,7 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 		/* Try once more */
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
-						     100000, &link);
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1733,7 +1732,7 @@ static s32 e1000_wait_autoneg(struct e1000_hw *hw)
  *  Polls the PHY status register for link, 'iterations' number of times.
  **/
 s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
-			       u32 usec_interval, bool *success)
+				u32 usec_interval, bool *success)
 {
 	s32 ret_val = 0;
 	u16 i, phy_status;

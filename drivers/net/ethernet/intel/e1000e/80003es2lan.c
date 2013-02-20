@@ -580,7 +580,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 		e_dbg("Waiting for forced speed/duplex link on GG82563 phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
-						     100000, &link);
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 
@@ -595,7 +595,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 
 		/* Try once more */
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
-						     100000, &link);
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 	}
@@ -666,14 +666,12 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
 	s32 ret_val;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
-		ret_val = e1000e_get_speed_and_duplex_copper(hw,
-								    speed,
-								    duplex);
+		ret_val = e1000e_get_speed_and_duplex_copper(hw, speed, duplex);
 		hw->phy.ops.cfg_on_link_up(hw);
 	} else {
 		ret_val = e1000e_get_speed_and_duplex_fiber_serdes(hw,
-								  speed,
-								  duplex);
+								   speed,
+								   duplex);
 	}
 
 	return ret_val;
@@ -823,7 +821,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 					    E1000_KMRNCTRLSTA_OFFSET_SHIFT, &i);
 	if (!ret_val) {
 		if ((i & E1000_KMRNCTRLSTA_OPMODE_MASK) ==
-		     E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO)
+		    E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO)
 			hw->dev_spec.e80003es2lan.mdic_wa_enable = false;
 	}
 
@@ -890,7 +888,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
-	u32 ctrl_ext;
+	u32 reg;
 	u16 data;
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_MAC_SPEC_CTRL, &data);
@@ -953,22 +951,19 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	}
 
 	/* Bypass Rx and Tx FIFO's */
-	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-					E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
-					E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
-					E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
+	reg = E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL;
+	data = (E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
+		E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, reg, data);
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
-				       E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
-				       &data);
+	reg = E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE;
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw, reg, &data);
 	if (ret_val)
 		return ret_val;
 	data |= E1000_KMRNCTRLSTA_OPMODE_E_IDLE;
-	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-					E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
-					data);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, reg, data);
 	if (ret_val)
 		return ret_val;
 
@@ -981,9 +976,9 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	ctrl_ext = er32(CTRL_EXT);
-	ctrl_ext &= ~(E1000_CTRL_EXT_LINK_MODE_MASK);
-	ew32(CTRL_EXT, ctrl_ext);
+	reg = er32(CTRL_EXT);
+	reg &= ~E1000_CTRL_EXT_LINK_MODE_MASK;
+	ew32(CTRL_EXT, reg);
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_PWR_MGMT_CTRL, &data);
 	if (ret_val)

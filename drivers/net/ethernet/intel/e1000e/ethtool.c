@@ -499,8 +499,8 @@ static int e1000_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(u16) *
-			(last_word - first_word + 1), GFP_KERNEL);
+	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
+			      GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 
@@ -511,7 +511,7 @@ static int e1000_get_eeprom(struct net_device *netdev,
 	} else {
 		for (i = 0; i < last_word - first_word + 1; i++) {
 			ret_val = e1000_read_nvm(hw, first_word + i, 1,
-						      &eeprom_buff[i]);
+						 &eeprom_buff[i]);
 			if (ret_val)
 				break;
 		}
@@ -576,7 +576,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 		/* need read/modify/write of last changed EEPROM word */
 		/* only the first byte of the word is being modified */
 		ret_val = e1000_read_nvm(hw, last_word, 1,
-				  &eeprom_buff[last_word - first_word]);
+					 &eeprom_buff[last_word - first_word]);
 
 	if (ret_val)
 		goto out;
@@ -624,10 +624,10 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	 * PCI-E controllers
 	 */
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d-%d",
-		(adapter->eeprom_vers & 0xF000) >> 12,
-		(adapter->eeprom_vers & 0x0FF0) >> 4,
-		(adapter->eeprom_vers & 0x000F));
+		 "%d.%d-%d",
+		 (adapter->eeprom_vers & 0xF000) >> 12,
+		 (adapter->eeprom_vers & 0x0FF0) >> 4,
+		 (adapter->eeprom_vers & 0x000F));
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -966,8 +966,8 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	if (!request_irq(irq, e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
 			 netdev)) {
 		shared_int = 0;
-	} else if (request_irq(irq, e1000_test_intr, IRQF_SHARED,
-		 netdev->name, netdev)) {
+	} else if (request_irq(irq, e1000_test_intr, IRQF_SHARED, netdev->name,
+			       netdev)) {
 		*data = 1;
 		ret_val = -1;
 		goto out;
@@ -1077,28 +1077,33 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	struct e1000_ring *tx_ring = &adapter->test_tx_ring;
 	struct e1000_ring *rx_ring = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_buffer *buffer_info;
 	int i;
 
 	if (tx_ring->desc && tx_ring->buffer_info) {
 		for (i = 0; i < tx_ring->count; i++) {
-			if (tx_ring->buffer_info[i].dma)
+			buffer_info = &tx_ring->buffer_info[i];
+
+			if (buffer_info->dma)
 				dma_unmap_single(&pdev->dev,
-					tx_ring->buffer_info[i].dma,
-					tx_ring->buffer_info[i].length,
-					DMA_TO_DEVICE);
-			if (tx_ring->buffer_info[i].skb)
-				dev_kfree_skb(tx_ring->buffer_info[i].skb);
+						 buffer_info->dma,
+						 buffer_info->length,
+						 DMA_TO_DEVICE);
+			if (buffer_info->skb)
+				dev_kfree_skb(buffer_info->skb);
 		}
 	}
 
 	if (rx_ring->desc && rx_ring->buffer_info) {
 		for (i = 0; i < rx_ring->count; i++) {
-			if (rx_ring->buffer_info[i].dma)
+			buffer_info = &rx_ring->buffer_info[i];
+
+			if (buffer_info->dma)
 				dma_unmap_single(&pdev->dev,
-					rx_ring->buffer_info[i].dma,
-					2048, DMA_FROM_DEVICE);
-			if (rx_ring->buffer_info[i].skb)
-				dev_kfree_skb(rx_ring->buffer_info[i].skb);
+						 buffer_info->dma,
+						 2048, DMA_FROM_DEVICE);
+			if (buffer_info->skb)
+				dev_kfree_skb(buffer_info->skb);
 		}
 	}
 
@@ -1561,7 +1566,7 @@ static int e1000_check_lbtest_frame(struct sk_buff *skb,
 	frame_size &= ~1;
 	if (*(skb->data + 3) == 0xFF)
 		if ((*(skb->data + frame_size / 2 + 10) == 0xBE) &&
-		   (*(skb->data + frame_size / 2 + 12) == 0xAF))
+		    (*(skb->data + frame_size / 2 + 12) == 0xAF))
 			return 0;
 	return 13;
 }
@@ -1572,6 +1577,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 	struct e1000_ring *rx_ring = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_buffer *buffer_info;
 	int i, j, k, l;
 	int lc;
 	int good_cnt;
@@ -1594,12 +1600,13 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 	l = 0;
 	for (j = 0; j <= lc; j++) { /* loop count loop */
 		for (i = 0; i < 64; i++) { /* send the packets */
-			e1000_create_lbtest_frame(tx_ring->buffer_info[k].skb,
-						  1024);
+			buffer_info = &tx_ring->buffer_info[k];
+
+			e1000_create_lbtest_frame(buffer_info->skb, 1024);
 			dma_sync_single_for_device(&pdev->dev,
-					tx_ring->buffer_info[k].dma,
-					tx_ring->buffer_info[k].length,
-					DMA_TO_DEVICE);
+						   buffer_info->dma,
+						   buffer_info->length,
+						   DMA_TO_DEVICE);
 			k++;
 			if (k == tx_ring->count)
 				k = 0;
@@ -1610,12 +1617,14 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;
 		do { /* receive the sent packets */
-			dma_sync_single_for_cpu(&pdev->dev,
-					rx_ring->buffer_info[l].dma, 2048,
-					DMA_FROM_DEVICE);
+			buffer_info = &rx_ring->buffer_info[l];
 
-			ret_val = e1000_check_lbtest_frame(
-					rx_ring->buffer_info[l].skb, 1024);
+			dma_sync_single_for_cpu(&pdev->dev,
+						buffer_info->dma, 2048,
+						DMA_FROM_DEVICE);
+
+			ret_val = e1000_check_lbtest_frame(buffer_info->skb,
+							   1024);
 			if (!ret_val)
 				good_cnt++;
 			l++;

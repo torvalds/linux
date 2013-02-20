@@ -1804,8 +1804,8 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		ew32(RCTL, mac_reg);
 
 		ret_val = e1000e_read_kmrn_reg(hw,
-						E1000_KMRNCTRLSTA_CTRL_OFFSET,
-						&data);
+					       E1000_KMRNCTRLSTA_CTRL_OFFSET,
+					       &data);
 		if (ret_val)
 			return ret_val;
 		ret_val = e1000e_write_kmrn_reg(hw,
@@ -1814,8 +1814,8 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		if (ret_val)
 			return ret_val;
 		ret_val = e1000e_read_kmrn_reg(hw,
-						E1000_KMRNCTRLSTA_HD_CTRL,
-						&data);
+					       E1000_KMRNCTRLSTA_HD_CTRL,
+					       &data);
 		if (ret_val)
 			return ret_val;
 		data &= ~(0xF << 8);
@@ -1862,8 +1862,8 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		ew32(RCTL, mac_reg);
 
 		ret_val = e1000e_read_kmrn_reg(hw,
-						E1000_KMRNCTRLSTA_CTRL_OFFSET,
-						&data);
+					       E1000_KMRNCTRLSTA_CTRL_OFFSET,
+					       &data);
 		if (ret_val)
 			return ret_val;
 		ret_val = e1000e_write_kmrn_reg(hw,
@@ -1872,8 +1872,8 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		if (ret_val)
 			return ret_val;
 		ret_val = e1000e_read_kmrn_reg(hw,
-						E1000_KMRNCTRLSTA_HD_CTRL,
-						&data);
+					       E1000_KMRNCTRLSTA_HD_CTRL,
+					       &data);
 		if (ret_val)
 			return ret_val;
 		data &= ~(0xF << 8);
@@ -2653,8 +2653,9 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 
 		ew32flash(ICH_FLASH_FADDR, flash_linear_addr);
 
-		ret_val = e1000_flash_cycle_ich8lan(hw,
-						ICH_FLASH_READ_COMMAND_TIMEOUT);
+		ret_val =
+		    e1000_flash_cycle_ich8lan(hw,
+					      ICH_FLASH_READ_COMMAND_TIMEOUT);
 
 		/* Check if FCERR is set to 1, if set to 1, clear it
 		 * and try the whole sequence a few more times, else
@@ -3017,8 +3018,9 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		/* check if FCERR is set to 1 , if set to 1, clear it
 		 * and try the whole sequence a few more times else done
 		 */
-		ret_val = e1000_flash_cycle_ich8lan(hw,
-					       ICH_FLASH_WRITE_COMMAND_TIMEOUT);
+		ret_val =
+		    e1000_flash_cycle_ich8lan(hw,
+					      ICH_FLASH_WRITE_COMMAND_TIMEOUT);
 		if (!ret_val)
 			break;
 
@@ -3150,6 +3152,8 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 
 	for (j = 0; j < iteration ; j++) {
 		do {
+			u32 timeout = ICH_FLASH_ERASE_COMMAND_TIMEOUT;
+
 			/* Steps */
 			ret_val = e1000_flash_cycle_init_ich8lan(hw);
 			if (ret_val)
@@ -3169,8 +3173,7 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 			flash_linear_addr += (j * sector_size);
 			ew32flash(ICH_FLASH_FADDR, flash_linear_addr);
 
-			ret_val = e1000_flash_cycle_ich8lan(hw,
-					       ICH_FLASH_ERASE_COMMAND_TIMEOUT);
+			ret_val = e1000_flash_cycle_ich8lan(hw, timeout);
 			if (!ret_val)
 				break;
 
@@ -3625,8 +3628,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
 
-	e_dbg("After fix-ups FlowControl is now = %x\n",
-		hw->fc.current_mode);
+	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
 	ret_val = hw->mac.ops.setup_physical_interface(hw);
@@ -3838,7 +3840,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
  *  /disabled - false).
  **/
 void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
-						 bool state)
+						  bool state)
 {
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 
@@ -3920,12 +3922,12 @@ void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 		return;
 
 	ret_val = e1000e_read_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
-				      &reg_data);
+				       &reg_data);
 	if (ret_val)
 		return;
 	reg_data |= E1000_KMRNCTRLSTA_DIAG_NELPBK;
 	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
-				       reg_data);
+					reg_data);
 	if (ret_val)
 		return;
 	reg_data &= ~E1000_KMRNCTRLSTA_DIAG_NELPBK;

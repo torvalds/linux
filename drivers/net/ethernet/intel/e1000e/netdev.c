@@ -1430,7 +1430,7 @@ copydone:
 		e1000_rx_hash(netdev, rx_desc->wb.lower.hi_dword.rss, skb);
 
 		if (rx_desc->wb.upper.header_status &
-			   cpu_to_le16(E1000_RXDPS_HDRSTAT_HDRSP))
+		    cpu_to_le16(E1000_RXDPS_HDRSTAT_HDRSP))
 			adapter->rx_hdr_split++;
 
 		e1000_receive_skb(adapter, netdev, skb, staterr,
@@ -1496,6 +1496,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 	int cleaned_count = 0;
 	bool cleaned = false;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+	struct skb_shared_info *shinfo;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
@@ -1552,9 +1553,10 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 						   0, length);
 			} else {
 				/* this is the middle of a chain */
-				skb_fill_page_desc(rxtop,
-				    skb_shinfo(rxtop)->nr_frags,
-				    buffer_info->page, 0, length);
+				shinfo = skb_shinfo(rxtop);
+				skb_fill_page_desc(rxtop, shinfo->nr_frags,
+						   buffer_info->page, 0,
+						   length);
 				/* re-use the skb, only consumed the page */
 				buffer_info->skb = skb;
 			}
@@ -1563,9 +1565,10 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 		} else {
 			if (rxtop) {
 				/* end of the chain */
-				skb_fill_page_desc(rxtop,
-				    skb_shinfo(rxtop)->nr_frags,
-				    buffer_info->page, 0, length);
+				shinfo = skb_shinfo(rxtop);
+				skb_fill_page_desc(rxtop, shinfo->nr_frags,
+						   buffer_info->page, 0,
+						   length);
 				/* re-use the current skb, we only consumed the
 				 * page
 				 */
@@ -1719,7 +1722,8 @@ static void e1000_clean_rx_ring(struct e1000_ring *rx_ring)
 static void e1000e_downshift_workaround(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
-					struct e1000_adapter, downshift_task);
+						     struct e1000_adapter,
+						     downshift_task);
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
@@ -2044,8 +2048,9 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 		if (adapter->flags & FLAG_HAS_MSIX) {
 			adapter->num_vectors = 3; /* RxQ0, TxQ0 and other */
 			adapter->msix_entries = kcalloc(adapter->num_vectors,
-						      sizeof(struct msix_entry),
-						      GFP_KERNEL);
+							sizeof(struct
+							       msix_entry),
+							GFP_KERNEL);
 			if (adapter->msix_entries) {
 				for (i = 0; i < adapter->num_vectors; i++)
 					adapter->msix_entries[i].entry = i;
@@ -3854,13 +3859,13 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		if ((adapter->max_frame_size * 2) > (pba << 10)) {
 			if (!(adapter->flags2 & FLAG2_DISABLE_AIM)) {
 				dev_info(&adapter->pdev->dev,
-					"Interrupt Throttle Rate turned off\n");
+					 "Interrupt Throttle Rate off\n");
 				adapter->flags2 |= FLAG2_DISABLE_AIM;
 				e1000e_write_itr(adapter, 0);
 			}
 		} else if (adapter->flags2 & FLAG2_DISABLE_AIM) {
 			dev_info(&adapter->pdev->dev,
-				 "Interrupt Throttle Rate turned on\n");
+				 "Interrupt Throttle Rate on\n");
 			adapter->flags2 &= ~FLAG2_DISABLE_AIM;
 			adapter->itr = 20000;
 			e1000e_write_itr(adapter, adapter->itr);
@@ -4429,7 +4434,8 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 static void e1000e_update_phy_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
-					struct e1000_adapter, update_phy_task);
+						     struct e1000_adapter,
+						     update_phy_task);
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
@@ -4789,7 +4795,8 @@ static void e1000_watchdog(unsigned long data)
 static void e1000_watchdog_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
-					struct e1000_adapter, watchdog_task);
+						     struct e1000_adapter,
+						     watchdog_task);
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	struct e1000_phy_info *phy = &adapter->hw.phy;
@@ -4823,8 +4830,8 @@ static void e1000_watchdog_task(struct work_struct *work)
 			/* update snapshot of PHY registers on LSC */
 			e1000_phy_read_status(adapter);
 			mac->ops.get_link_up_info(&adapter->hw,
-						   &adapter->link_speed,
-						   &adapter->link_duplex);
+						  &adapter->link_speed,
+						  &adapter->link_duplex);
 			e1000_print_link_info(adapter);
 
 			/* check if SmartSpeed worked */
@@ -4937,7 +4944,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 				adapter->flags |= FLAG_RESTART_NOW;
 			else
 				pm_schedule_suspend(netdev->dev.parent,
-							LINK_TIMEOUT);
+						    LINK_TIMEOUT);
 		}
 	}
 
@@ -4972,8 +4979,8 @@ link_up:
 		 */
 		u32 goc = (adapter->gotc + adapter->gorc) / 10000;
 		u32 dif = (adapter->gotc > adapter->gorc ?
-			    adapter->gotc - adapter->gorc :
-			    adapter->gorc - adapter->gotc) / 10000;
+			   adapter->gotc - adapter->gorc :
+			   adapter->gorc - adapter->gotc) / 10000;
 		u32 itr = goc > 0 ? (dif * 6000 / goc + 2000) : 8000;
 
 		e1000e_write_itr(adapter, itr);
@@ -5211,7 +5218,8 @@ static int e1000_tx_map(struct e1000_ring *tx_ring, struct sk_buff *skb,
 			buffer_info->time_stamp = jiffies;
 			buffer_info->next_to_watch = i;
 			buffer_info->dma = skb_frag_dma_map(&pdev->dev, frag,
-						offset, size, DMA_TO_DEVICE);
+							    offset, size,
+							    DMA_TO_DEVICE);
 			buffer_info->mapped_as_page = true;
 			if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 				goto dma_error;
@@ -5669,9 +5677,9 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
 	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
-	     (max_frame == ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN))
+	    (max_frame == ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN))
 		adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN
-					 + ETH_FCS_LEN;
+		    + ETH_FCS_LEN;
 
 	if (netif_running(netdev))
 		e1000e_up(adapter);
@@ -5850,7 +5858,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	phy_reg &= ~(BM_RCTL_MO_MASK);
 	if (mac_reg & E1000_RCTL_MO_3)
 		phy_reg |= (((mac_reg & E1000_RCTL_MO_3) >> E1000_RCTL_MO_SHIFT)
-				<< BM_RCTL_MO_SHIFT);
+			    << BM_RCTL_MO_SHIFT);
 	if (mac_reg & E1000_RCTL_BAM)
 		phy_reg |= BM_RCTL_BAM;
 	if (mac_reg & E1000_RCTL_PMCF)
@@ -6098,24 +6106,24 @@ static int __e1000_resume(struct pci_dev *pdev)
 		e1e_rphy(&adapter->hw, BM_WUS, &phy_data);
 		if (phy_data) {
 			e_info("PHY Wakeup cause - %s\n",
-				phy_data & E1000_WUS_EX ? "Unicast Packet" :
-				phy_data & E1000_WUS_MC ? "Multicast Packet" :
-				phy_data & E1000_WUS_BC ? "Broadcast Packet" :
-				phy_data & E1000_WUS_MAG ? "Magic Packet" :
-				phy_data & E1000_WUS_LNKC ?
-				"Link Status Change" : "other");
+			       phy_data & E1000_WUS_EX ? "Unicast Packet" :
+			       phy_data & E1000_WUS_MC ? "Multicast Packet" :
+			       phy_data & E1000_WUS_BC ? "Broadcast Packet" :
+			       phy_data & E1000_WUS_MAG ? "Magic Packet" :
+			       phy_data & E1000_WUS_LNKC ?
+			       "Link Status Change" : "other");
 		}
 		e1e_wphy(&adapter->hw, BM_WUS, ~0);
 	} else {
 		u32 wus = er32(WUS);
 		if (wus) {
 			e_info("MAC Wakeup cause - %s\n",
-				wus & E1000_WUS_EX ? "Unicast Packet" :
-				wus & E1000_WUS_MC ? "Multicast Packet" :
-				wus & E1000_WUS_BC ? "Broadcast Packet" :
-				wus & E1000_WUS_MAG ? "Magic Packet" :
-				wus & E1000_WUS_LNKC ? "Link Status Change" :
-				"other");
+			       wus & E1000_WUS_EX ? "Unicast Packet" :
+			       wus & E1000_WUS_MC ? "Multicast Packet" :
+			       wus & E1000_WUS_BC ? "Broadcast Packet" :
+			       wus & E1000_WUS_MAG ? "Magic Packet" :
+			       wus & E1000_WUS_LNKC ? "Link Status Change" :
+			       "other");
 		}
 		ew32(WUS, ~0);
 	}
@@ -6514,7 +6522,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	resource_size_t flash_start, flash_len;
 	static int cards_found;
 	u16 aspm_disable_flag = 0;
-	int i, err, pci_using_dac;
+	int bars, i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 
@@ -6548,9 +6556,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	err = pci_request_selected_regions_exclusive(pdev,
-					  pci_select_bars(pdev, IORESOURCE_MEM),
-					  e1000e_driver_name);
+	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	err = pci_request_selected_regions_exclusive(pdev, bars,
+						     e1000e_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -6995,8 +7003,8 @@ MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 #ifdef CONFIG_PM
 static const struct dev_pm_ops e1000_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(e1000_suspend, e1000_resume)
-	SET_RUNTIME_PM_OPS(e1000_runtime_suspend,
-				e1000_runtime_resume, e1000_idle)
+	SET_RUNTIME_PM_OPS(e1000_runtime_suspend, e1000_runtime_resume,
+			   e1000_idle)
 };
 #endif
 

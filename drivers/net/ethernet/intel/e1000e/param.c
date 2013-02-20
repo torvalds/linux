@@ -45,7 +45,7 @@
 unsigned int copybreak = COPYBREAK_DEFAULT;
 module_param(copybreak, uint, 0644);
 MODULE_PARM_DESC(copybreak,
-	"Maximum size of packet that is copied to a new buffer on receive");
+		 "Maximum size of packet that is copied to a new buffer on receive");
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
@@ -478,18 +478,17 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			.err  = "defaulting to Enabled",
 			.def  = OPTION_ENABLED
 		};
+		bool enabled = opt.def;
 
 		if (num_KumeranLockLoss > bd) {
 			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
 			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
-			if (hw->mac.type == e1000_ich8lan)
-				e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
-								kmrn_lock_loss);
-		} else {
-			if (hw->mac.type == e1000_ich8lan)
-				e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
-								       opt.def);
+			enabled = kmrn_lock_loss;
 		}
+
+		if (hw->mac.type == e1000_ich8lan)
+			e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
+								     enabled);
 	}
 	{ /* Write-protect NVM */
 		static const struct e1000_option opt = {
