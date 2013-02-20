@@ -880,6 +880,12 @@ static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		return arizona_set_fll(&wm5110->fll[0], source, Fref, Fout);
 	case WM5110_FLL2:
 		return arizona_set_fll(&wm5110->fll[1], source, Fref, Fout);
+	case WM5110_FLL1_REFCLK:
+		return arizona_set_fll_refclk(&wm5110->fll[0], source, Fref,
+					      Fout);
+	case WM5110_FLL2_REFCLK:
+		return arizona_set_fll_refclk(&wm5110->fll[1], source, Fref,
+					      Fout);
 	default:
 		return -EINVAL;
 	}

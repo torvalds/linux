@@ -1139,6 +1139,45 @@ static void arizona_disable_fll(struct arizona_fll *fll)
 		pm_runtime_put_autosuspend(arizona->dev);
 }
 
+int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
+			   unsigned int Fref, unsigned int Fout)
+{
+	struct arizona_fll_cfg ref, sync;
+	int ret;
+
+	if (source < 0)
+		return -EINVAL;
+
+	if (fll->ref_src == source && fll->ref_freq == Fref &&
+	    fll->fout == Fout)
+		return 0;
+
+	if (Fout) {
+		ret = arizona_calc_fll(fll, &ref, Fref, Fout);
+		if (ret != 0)
+			return ret;
+
+		if (fll->sync_src >= 0) {
+			ret = arizona_calc_fll(fll, &sync, fll->sync_freq, Fout);
+			if (ret != 0)
+				return ret;
+		}
+	}
+
+	fll->ref_src = source;
+	fll->ref_freq = Fref;
+	fll->fout = Fout;
+
+	if (Fout) {
+		arizona_enable_fll(fll, &ref, &sync);
+	} else {
+		arizona_disable_fll(fll);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_set_fll_refclk);
+
 int arizona_set_fll(struct arizona_fll *fll, int source,
 		    unsigned int Fref, unsigned int Fout)
 {
