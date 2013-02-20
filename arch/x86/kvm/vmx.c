@@ -7404,8 +7404,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	vmcs12->vm_exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
-	vmcs12->idt_vectoring_info_field =
-		vmcs_read32(IDT_VECTORING_INFO_FIELD);
+	vmcs12->idt_vectoring_info_field = to_vmx(vcpu)->idt_vectoring_info;
 	vmcs12->idt_vectoring_error_code =
 		vmcs_read32(IDT_VECTORING_ERROR_CODE);
 	vmcs12->vm_exit_instruction_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
