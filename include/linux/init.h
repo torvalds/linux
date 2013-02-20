@@ -153,6 +153,7 @@ extern unsigned int reset_devices;
 /* used by init/main.c */
 void setup_arch(char **);
 void prepare_namespace(void);
+void __init load_default_modules(void);
 
 extern void (*late_time_init)(void);
 
