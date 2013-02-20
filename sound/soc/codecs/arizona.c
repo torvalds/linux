@@ -1074,12 +1074,27 @@ static void arizona_apply_fll(struct arizona *arizona, unsigned int base,
 			   ARIZONA_FLL1_CTRL_UPD | cfg->n);
 }
 
+static bool arizona_is_enabled_fll(struct arizona_fll *fll)
+{
+	struct arizona *arizona = fll->arizona;
+	unsigned int reg;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, fll->base + 1, &reg);
+	if (ret != 0) {
+		arizona_fll_err(fll, "Failed to read current state: %d\n",
+				ret);
+		return ret;
+	}
+
+	return reg & ARIZONA_FLL1_ENA;
+}
+
 int arizona_set_fll(struct arizona_fll *fll, int source,
 		    unsigned int Fref, unsigned int Fout)
 {
 	struct arizona *arizona = fll->arizona;
 	struct arizona_fll_cfg ref, sync;
-	unsigned int reg;
 	bool ena;
 	int ret;
 
@@ -1111,13 +1126,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		fll->sync_freq = Fref;
 	}
 
-	ret = regmap_read(arizona->regmap, fll->base + 1, &reg);
-	if (ret != 0) {
-		arizona_fll_err(fll, "Failed to read current state: %d\n",
-				ret);
-		return ret;
-	}
-	ena = reg & ARIZONA_FLL1_ENA;
+	ena = arizona_is_enabled_fll(fll);
 
 	if (Fout) {
 		regmap_update_bits(arizona->regmap, fll->base + 5,
