@@ -405,7 +405,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	struct regmap_config *regmap_config;
 	const struct reg_default *regmap_patch = NULL;
 	const char *devname;
-	int ret, i, patch_regs;
+	int ret, i, patch_regs = 0;
 	int pulls = 0;
 
 	if (dev_get_platdata(wm8994->dev)) {
