@@ -201,6 +201,8 @@ struct arizona_fll {
 	unsigned int fref;
 	unsigned int fout;
 
+	int sync_src;
+	unsigned int sync_freq;
 	int ref_src;
 	unsigned int ref_freq;
 
