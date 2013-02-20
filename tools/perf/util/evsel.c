@@ -10,7 +10,7 @@
 #include <byteswap.h>
 #include <linux/bitops.h>
 #include "asm/bug.h"
-#include "debugfs.h"
+#include <lk/debugfs.h>
 #include "event-parse.h"
 #include "evsel.h"
 #include "evlist.h"

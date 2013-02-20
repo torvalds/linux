@@ -1,14 +1,19 @@
-#include "util.h"
-#include "debugfs.h"
-#include "cache.h"
-
-#include <linux/kernel.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <sys/vfs.h>
 #include <sys/mount.h>
+#include <linux/magic.h>
+#include <linux/kernel.h>
+
+#include "debugfs.h"
 
 char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
 char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
-static const char *debugfs_known_mountpoints[] = {
+static const char * const debugfs_known_mountpoints[] = {
 	"/sys/kernel/debug/",
 	"/debug/",
 	0,
@@ -19,12 +24,12 @@ static bool debugfs_found;
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)
 {
-	const char **ptr;
+	const char * const *ptr;
 	char type[100];
 	FILE *fp;
 
 	if (debugfs_found)
-		return (const char *) debugfs_mountpoint;
+		return (const char *)debugfs_mountpoint;
 
 	ptr = debugfs_known_mountpoints;
 	while (*ptr) {

@@ -33,7 +33,13 @@ help:
 cpupower: FORCE
 	$(call descend,power/$@)
 
-firewire lguest perf usb virtio vm: FORCE
+firewire guest usb virtio vm: FORCE
+	$(call descend,$@)
+
+liblk: FORCE
+	$(call descend,lib/lk)
+
+perf: liblk FORCE
 	$(call descend,$@)
 
 selftests: FORCE
@@ -61,7 +67,13 @@ install: cpupower_install firewire_install lguest_install perf_install \
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-firewire_clean lguest_clean perf_clean usb_clean virtio_clean vm_clean:
+firewire_clean lguest_clean usb_clean virtio_clean vm_clean:
+	$(call descend,$(@:_clean=),clean)
+
+liblk_clean:
+	$(call descend,lib/lk,clean)
+
+perf_clean: liblk_clean
 	$(call descend,$(@:_clean=),clean)
 
 selftests_clean:

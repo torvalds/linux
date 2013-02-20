@@ -3,7 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "sysfs.h"
-#include "debugfs.h"
+#include <lk/debugfs.h>
 #include "tests.h"
 #include <linux/hw_breakpoint.h>
 
