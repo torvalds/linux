@@ -163,28 +163,23 @@ config USB_EHCI_HCD_OMAP
 	  OMAP3 and later chips.
 
 config USB_EHCI_HCD_ORION
-        tristate  "Support for Marvell EBU on-chip EHCI USB controller"
+        tristate  "Support for Marvell Orion on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && PLAT_ORION
         default y
         ---help---
           Enables support for the on-chip EHCI controller on
-          Marvell's embedded ARM SoCs, including Orion,
-	  Kirkwood, Dove, Armada XP, Armada 370.
-	  This is different from the EHCI implementation on
-	  Marvell's mobile PXA and MMP SoC, see USB_EHCI_MV
-	  for those.
-
+          Morvell Orion chips.
 
 config USB_EHCI_HCD_VT8500
-        tristate "Support for VIA/Wondermedia on-chip EHCI USB controller"
+        tristate "Support for VT8500 on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && ARCH_VT8500
         default y
         ---help---
           Enables support for the on-chip EHCI controller on
-          VIA VT8500 and Wondermedia WM8x50 chips.
+          VT8500 chips.
 
 config USB_EHCI_MSM
-	bool "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
+	bool "Support for MSM on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MSM
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_MSM_OTG
@@ -220,11 +215,10 @@ config USB_EHCI_SH
 	  If you use the PCI EHCI controller, this option is not necessary.
 
 config USB_EHCI_S5P
-	boolean "EHCI support for Samsung S5P/EXYNOS SoC Series"
-	depends on USB_EHCI_HCD && PLAT_S5P
-	help
-	 Enable support for the Samsung S5Pxxxx and Exynos3/4/5 SOC's
-	 on-chip EHCI controller.
+       boolean "S5P EHCI support"
+       depends on USB_EHCI_HCD && PLAT_S5P
+       help
+	 Enable support for the S5P SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
 	bool "EHCI support for Marvell on-chip controller"
@@ -234,8 +228,6 @@ config USB_EHCI_MV
 	  Enables support for Marvell (including PXA and MMP series) on-chip
 	  USB SPH and OTG controller. SPH is a single port host, and it can
 	  only be EHCI host. OTG is controller that can switch to host mode.
-	  Note that there is a separate driver for Marvell's embedded ARM
-	  SoCs, see USB_EHCI_HCD_ORION for those.
 
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
