@@ -196,8 +196,7 @@ static int e1000_get_settings(struct net_device *netdev,
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if ((hw->phy.media_type == e1000_media_type_copper) &&
 	    netif_carrier_ok(netdev))
-		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
-		                                      ETH_TP_MDI;
+		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X : ETH_TP_MDI;
 	else
 		ecmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 
@@ -297,12 +296,10 @@ static int e1000_set_settings(struct net_device *netdev,
 		hw->mac.autoneg = 1;
 		if (hw->phy.media_type == e1000_media_type_fiber)
 			hw->phy.autoneg_advertised = ADVERTISED_1000baseT_Full |
-						     ADVERTISED_FIBRE |
-						     ADVERTISED_Autoneg;
+			    ADVERTISED_FIBRE | ADVERTISED_Autoneg;
 		else
 			hw->phy.autoneg_advertised = ecmd->advertising |
-						     ADVERTISED_TP |
-						     ADVERTISED_Autoneg;
+			    ADVERTISED_TP | ADVERTISED_Autoneg;
 		ecmd->advertising = hw->phy.autoneg_advertised;
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = e1000_fc_default;
@@ -345,7 +342,7 @@ static void e1000_get_pauseparam(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 
 	pause->autoneg =
-		(adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
+	    (adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
 	if (hw->fc.current_mode == e1000_fc_rx_pause) {
 		pause->rx_pause = 1;
@@ -434,7 +431,7 @@ static void e1000_get_regs(struct net_device *netdev,
 	memset(p, 0, E1000_REGS_LEN * sizeof(u32));
 
 	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
-			adapter->pdev->device;
+	    adapter->pdev->device;
 
 	regs_buff[0]  = er32(CTRL);
 	regs_buff[1]  = er32(STATUS);
@@ -821,7 +818,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_80003es2lan:
 		toggle = 0x7FFFF3FF;
 		break;
-        default:
+	default:
 		toggle = 0x7FFFF033;
 		break;
 	}
@@ -1178,8 +1175,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		tx_ring->buffer_info[i].skb = skb;
 		tx_ring->buffer_info[i].length = skb->len;
 		tx_ring->buffer_info[i].dma =
-			dma_map_single(&pdev->dev, skb->data, skb->len,
-				       DMA_TO_DEVICE);
+		    dma_map_single(&pdev->dev, skb->data, skb->len,
+				   DMA_TO_DEVICE);
 		if (dma_mapping_error(&pdev->dev,
 				      tx_ring->buffer_info[i].dma)) {
 			ret_val = 4;
@@ -1225,10 +1222,10 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	ew32(RDH(0), 0);
 	ew32(RDT(0), 0);
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
-		E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_LPE |
-		E1000_RCTL_SBP | E1000_RCTL_SECRC |
-		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
-		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+	    E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_LPE |
+	    E1000_RCTL_SBP | E1000_RCTL_SECRC |
+	    E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
+	    (adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 	ew32(RCTL, rctl);
 
 	for (i = 0; i < rx_ring->count; i++) {
@@ -1243,8 +1240,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_ring->buffer_info[i].skb = skb;
 		rx_ring->buffer_info[i].dma =
-			dma_map_single(&pdev->dev, skb->data, 2048,
-				       DMA_FROM_DEVICE);
+		    dma_map_single(&pdev->dev, skb->data, 2048,
+				   DMA_FROM_DEVICE);
 		if (dma_mapping_error(&pdev->dev,
 				      rx_ring->buffer_info[i].dma)) {
 			ret_val = 8;
@@ -1980,11 +1977,11 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 		switch (e1000_gstrings_stats[i].type) {
 		case NETDEV_STATS:
 			p = (char *) &net_stats +
-					e1000_gstrings_stats[i].stat_offset;
+			    e1000_gstrings_stats[i].stat_offset;
 			break;
 		case E1000_STATS:
 			p = (char *) adapter +
-					e1000_gstrings_stats[i].stat_offset;
+			    e1000_gstrings_stats[i].stat_offset;
 			break;
 		default:
 			data[i] = 0;
@@ -1992,7 +1989,7 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 		}
 
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
-			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 }
 

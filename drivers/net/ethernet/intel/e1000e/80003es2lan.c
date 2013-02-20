@@ -116,7 +116,7 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 	nvm->type = e1000_nvm_eeprom_spi;
 
 	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
-			  E1000_EECD_SIZE_EX_SHIFT);
+		     E1000_EECD_SIZE_EX_SHIFT);
 
 	/* Added to a constant, "size" becomes the left-shift value
 	 * for setting word_size.
@@ -406,14 +406,14 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		udelay(200);
 
 		ret_val = e1000e_read_phy_reg_mdic(hw,
-		                                  MAX_PHY_REG_ADDRESS & offset,
-		                                  data);
+						   MAX_PHY_REG_ADDRESS & offset,
+						   data);
 
 		udelay(200);
 	} else {
 		ret_val = e1000e_read_phy_reg_mdic(hw,
-		                                  MAX_PHY_REG_ADDRESS & offset,
-		                                  data);
+						   MAX_PHY_REG_ADDRESS & offset,
+						   data);
 	}
 
 	e1000_release_phy_80003es2lan(hw);
@@ -475,14 +475,14 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		udelay(200);
 
 		ret_val = e1000e_write_phy_reg_mdic(hw,
-		                                  MAX_PHY_REG_ADDRESS & offset,
-		                                  data);
+						    MAX_PHY_REG_ADDRESS &
+						    offset, data);
 
 		udelay(200);
 	} else {
 		ret_val = e1000e_write_phy_reg_mdic(hw,
-		                                  MAX_PHY_REG_ADDRESS & offset,
-		                                  data);
+						    MAX_PHY_REG_ADDRESS &
+						    offset, data);
 	}
 
 	e1000_release_phy_80003es2lan(hw);
@@ -784,14 +784,14 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
-	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-		   E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC;
+	reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+		    E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC);
 	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
 	reg_data = er32(TXDCTL(1));
-	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-		   E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC;
+	reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+		    E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC);
 	ew32(TXDCTL(1), reg_data);
 
 	/* Enable retransmit on late collisions */
@@ -818,10 +818,9 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	/* default to true to enable the MDIC W/A */
 	hw->dev_spec.e80003es2lan.mdic_wa_enable = true;
 
-	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
-	                              E1000_KMRNCTRLSTA_OFFSET >>
-	                              E1000_KMRNCTRLSTA_OFFSET_SHIFT,
-	                              &i);
+	ret_val =
+	    e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_OFFSET >>
+					    E1000_KMRNCTRLSTA_OFFSET_SHIFT, &i);
 	if (!ret_val) {
 		if ((i & E1000_KMRNCTRLSTA_OPMODE_MASK) ==
 		     E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO)
@@ -1049,27 +1048,29 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	 * polling the phy; this fixes erroneous timeouts at 10Mbps.
 	 */
 	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 4),
-	                                           0xFFFF);
+						   0xFFFF);
 	if (ret_val)
 		return ret_val;
 	ret_val = e1000_read_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
-	                                          &reg_data);
+						  &reg_data);
 	if (ret_val)
 		return ret_val;
 	reg_data |= 0x3F;
 	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
-	                                           reg_data);
+						   reg_data);
 	if (ret_val)
 		return ret_val;
-	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
-				      E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
-				      &reg_data);
+	ret_val =
+	    e1000_read_kmrn_reg_80003es2lan(hw,
+					    E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
+					    &reg_data);
 	if (ret_val)
 		return ret_val;
 	reg_data |= E1000_KMRNCTRLSTA_INB_CTRL_DIS_PADDING;
-	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-					E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
-					reg_data);
+	ret_val =
+	    e1000_write_kmrn_reg_80003es2lan(hw,
+					     E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
+					     reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1096,7 +1097,7 @@ static s32 e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw)
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
 		ret_val = e1000e_get_speed_and_duplex_copper(hw, &speed,
-		                                             &duplex);
+							     &duplex);
 		if (ret_val)
 			return ret_val;
 
@@ -1125,9 +1126,10 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	u16 reg_data, reg_data2;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT;
-	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-	                               reg_data);
+	ret_val =
+	    e1000_write_kmrn_reg_80003es2lan(hw,
+					     E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+					     reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1171,9 +1173,10 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	u32 i = 0;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT;
-	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-	                               reg_data);
+	ret_val =
+	    e1000_write_kmrn_reg_80003es2lan(hw,
+					     E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+					     reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1220,7 +1223,7 @@ static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 		return ret_val;
 
 	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
-	               E1000_KMRNCTRLSTA_OFFSET) | E1000_KMRNCTRLSTA_REN;
+		       E1000_KMRNCTRLSTA_OFFSET) | E1000_KMRNCTRLSTA_REN;
 	ew32(KMRNCTRLSTA, kmrnctrlsta);
 	e1e_flush();
 
@@ -1255,7 +1258,7 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 		return ret_val;
 
 	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
-	               E1000_KMRNCTRLSTA_OFFSET) | data;
+		       E1000_KMRNCTRLSTA_OFFSET) | data;
 	ew32(KMRNCTRLSTA, kmrnctrlsta);
 	e1e_flush();
 
