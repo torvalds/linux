@@ -1542,7 +1542,6 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 			rx_ring->rx_skb_top = NULL;
 			goto next_desc;
 		}
-
 #define rxtop (rx_ring->rx_skb_top)
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
 			/* this descriptor is only the beginning (or middle) */
@@ -1915,7 +1914,6 @@ static irqreturn_t e1000_intr_msix_tx(int __always_unused irq, void *data)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
-
 
 	adapter->total_tx_bytes = 0;
 	adapter->total_tx_packets = 0;
@@ -4384,6 +4382,7 @@ static int e1000_close(struct net_device *netdev)
 
 	return 0;
 }
+
 /**
  * e1000_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure

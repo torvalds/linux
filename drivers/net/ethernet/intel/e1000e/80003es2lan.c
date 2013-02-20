@@ -38,6 +38,7 @@
  */
 static const u16 e1000_gg82563_cable_length_table[] = {
 	 0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
+
 #define GG82563_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_gg82563_cable_length_table)
 
@@ -1417,4 +1418,3 @@ const struct e1000_info e1000_es2_info = {
 	.phy_ops		= &es2_phy_ops,
 	.nvm_ops		= &es2_nvm_ops,
 };
-

@@ -244,7 +244,6 @@
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
 
-
 #define ADVERTISE_10_HALF                 0x0001
 #define ADVERTISE_10_FULL                 0x0002
 #define ADVERTISE_100_HALF                0x0004

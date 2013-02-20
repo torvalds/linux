@@ -120,6 +120,7 @@ static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Interrupt test (offline)", "Loopback test  (offline)",
 	"Link test   (on/offline)"
 };
+
 #define E1000_TEST_LEN ARRAY_SIZE(e1000_gstrings_test)
 
 static int e1000_get_settings(struct net_device *netdev,
@@ -783,6 +784,7 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 	}
 	return 0;
 }
+
 #define REG_PATTERN_TEST_ARRAY(reg, offset, mask, write)                       \
 	do {                                                                   \
 		if (reg_pattern_test(adapter, data, reg, offset, mask, write)) \

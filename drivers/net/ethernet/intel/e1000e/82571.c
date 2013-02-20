@@ -526,6 +526,7 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
 	ew32(SWSM, swsm);
 }
+
 /**
  *  e1000_get_hw_semaphore_82573 - Acquire hardware semaphore
  *  @hw: pointer to the HW structure
@@ -2066,4 +2067,3 @@ const struct e1000_info e1000_82583_info = {
 	.phy_ops		= &e82_phy_ops_bm,
 	.nvm_ops		= &e82571_nvm_ops,
 };
-

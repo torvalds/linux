@@ -1606,7 +1606,6 @@ release:
 	return ret_val;
 }
 
-
 /**
  *  e1000_set_mdio_slow_mode_hv - Set slow MDIO access mode
  *  @hw:   pointer to the HW structure
@@ -3517,6 +3516,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 
 	return ret_val;
 }
+
 /**
  *  e1000_initialize_hw_bits_ich8lan - Initialize required hardware bits
  *  @hw: pointer to the HW structure
