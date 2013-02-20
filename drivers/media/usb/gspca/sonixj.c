@@ -1550,6 +1550,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 			0,
 			gspca_dev->usb_buf, 8,
 			500);
+	msleep(2);
 	if (ret < 0) {
 		pr_err("i2c_w1 err %d\n", ret);
 		gspca_dev->usb_err = ret;

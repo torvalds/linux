@@ -225,15 +225,6 @@ nouveau_display_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* power on internal panel if it's not already.  the init tables of
-	 * some vbios default this to off for some reason, causing the
-	 * panel to not work after resume
-	 */
-	if (gpio && gpio->get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff) == 0) {
-		gpio->set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
-		msleep(300);
-	}
-
 	/* enable polling for external displays */
 	drm_kms_helper_poll_enable(dev);
 

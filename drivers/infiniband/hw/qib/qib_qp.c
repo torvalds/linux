@@ -263,20 +263,15 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 		struct qib_qp __rcu **qpp;
 
 		qpp = &dev->qp_table[n];
-		q = rcu_dereference_protected(*qpp,
-			lockdep_is_held(&dev->qpt_lock));
-		for (; q; qpp = &q->next) {
+		for (; (q = rcu_dereference_protected(*qpp,
+				lockdep_is_held(&dev->qpt_lock))) != NULL;
+				qpp = &q->next)
 			if (q == qp) {
 				atomic_dec(&qp->refcount);
 				*qpp = qp->next;
 				rcu_assign_pointer(qp->next, NULL);
-				q = rcu_dereference_protected(*qpp,
-					lockdep_is_held(&dev->qpt_lock));
 				break;
 			}
-			q = rcu_dereference_protected(*qpp,
-				lockdep_is_held(&dev->qpt_lock));
-		}
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);

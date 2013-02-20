@@ -109,7 +109,7 @@ static int xt_ct_tg_check_v0(const struct xt_tgchk_param *par)
 	struct xt_ct_target_info *info = par->targinfo;
 	struct nf_conntrack_tuple t;
 	struct nf_conn *ct;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (info->flags & ~XT_CT_NOTRACK)
 		return -EINVAL;
@@ -247,7 +247,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 	struct xt_ct_target_info_v1 *info = par->targinfo;
 	struct nf_conntrack_tuple t;
 	struct nf_conn *ct;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (info->flags & ~XT_CT_NOTRACK)
 		return -EINVAL;

@@ -1306,8 +1306,9 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static int schizo_pbm_init(struct pci_pbm_info *pbm, struct platform_device *op,
-			   u32 portid, int chip_type)
+static int schizo_pbm_init(struct pci_pbm_info *pbm,
+			   struct platform_device *op, u32 portid,
+			   int chip_type)
 {
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->dev.of_node;

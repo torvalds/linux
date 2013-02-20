@@ -58,11 +58,10 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 	buf[7] = dev->dev_attrib.block_size & 0xff;
 
 	rbuf = transport_kmap_data_sg(cmd);
-	if (!rbuf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -97,11 +96,10 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 		buf[14] = 0x80;
 
 	rbuf = transport_kmap_data_sg(cmd);
-	if (!rbuf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;

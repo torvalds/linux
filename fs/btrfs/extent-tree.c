@@ -3997,7 +3997,7 @@ again:
 	 * We make the other tasks wait for the flush only when we can flush
 	 * all things.
 	 */
-	if (ret && flush == BTRFS_RESERVE_FLUSH_ALL) {
+	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
 		flushing = true;
 		space_info->flush = 1;
 	}
@@ -4534,7 +4534,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	unsigned nr_extents = 0;
 	int extra_reserve = 0;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_FLUSH_ALL;
-	int ret;
+	int ret = 0;
 	bool delalloc_lock = true;
 
 	/* If we are a free space inode we need to not flush since we will be in
@@ -4579,20 +4579,18 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	csum_bytes = BTRFS_I(inode)->csum_bytes;
 	spin_unlock(&BTRFS_I(inode)->lock);
 
-	if (root->fs_info->quota_enabled) {
+	if (root->fs_info->quota_enabled)
 		ret = btrfs_qgroup_reserve(root, num_bytes +
 					   nr_extents * root->leafsize);
-		if (ret) {
-			spin_lock(&BTRFS_I(inode)->lock);
-			calc_csum_metadata_size(inode, num_bytes, 0);
-			spin_unlock(&BTRFS_I(inode)->lock);
-			if (delalloc_lock)
-				mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
-			return ret;
-		}
-	}
 
-	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
+	/*
+	 * ret != 0 here means the qgroup reservation failed, we go straight to
+	 * the shared error handling then.
+	 */
+	if (ret == 0)
+		ret = reserve_metadata_bytes(root, block_rsv,
+					     to_reserve, flush);
+
 	if (ret) {
 		u64 to_free = 0;
 		unsigned dropped;
@@ -5560,7 +5558,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	int empty_cluster = 2 * 1024 * 1024;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
-	int index = 0;
+	int index = __get_raid_index(data);
 	int alloc_type = (data & BTRFS_BLOCK_GROUP_DATA) ?
 		RESERVE_ALLOC_NO_ACCOUNT : RESERVE_ALLOC;
 	bool found_uncached_bg = false;
@@ -6788,11 +6786,13 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 						       &wc->flags[level]);
 			if (ret < 0) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
+				path->locks[level] = 0;
 				return ret;
 			}
 			BUG_ON(wc->refs[level] == 0);
 			if (wc->refs[level] == 1) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
+				path->locks[level] = 0;
 				return 1;
 			}
 		}

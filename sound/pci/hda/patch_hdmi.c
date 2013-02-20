@@ -1502,7 +1502,7 @@ static int hdmi_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	ctl_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	substream = snd_pcm_chmap_substream(info, ctl_idx);
 	if (!substream || !substream->runtime)
-		return -EBADFD;
+		return 0; /* just for avoiding error from alsactl restore */
 	switch (substream->runtime->status->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_SETUP:

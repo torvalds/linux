@@ -46,6 +46,7 @@
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <xen/balloon.h>
 #include "common.h"
 
 /*
@@ -161,10 +162,12 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 static void make_response(struct xen_blkif *blkif, u64 id,
 			  unsigned short op, int st);
 
-#define foreach_grant(pos, rbtree, node) \
-	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node); \
+#define foreach_grant_safe(pos, n, rbtree, node) \
+	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node), \
+	     (n) = rb_next(&(pos)->node); \
 	     &(pos)->node != NULL; \
-	     (pos) = container_of(rb_next(&(pos)->node), typeof(*(pos)), node))
+	     (pos) = container_of(n, typeof(*(pos)), node), \
+	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
 
 
 static void add_persistent_gnt(struct rb_root *root,
@@ -217,10 +220,11 @@ static void free_persistent_gnts(struct rb_root *root, unsigned int num)
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
+	struct rb_node *n;
 	int ret = 0;
 	int segs_to_unmap = 0;
 
-	foreach_grant(persistent_gnt, root, node) {
+	foreach_grant_safe(persistent_gnt, n, root, node) {
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 		gnttab_set_unmap_op(&unmap[segs_to_unmap],
@@ -230,17 +234,19 @@ static void free_persistent_gnts(struct rb_root *root, unsigned int num)
 			persistent_gnt->handle);
 
 		pages[segs_to_unmap] = persistent_gnt->page;
-		rb_erase(&persistent_gnt->node, root);
-		kfree(persistent_gnt);
-		num--;
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
 			!rb_next(&persistent_gnt->node)) {
 			ret = gnttab_unmap_refs(unmap, NULL, pages,
 				segs_to_unmap);
 			BUG_ON(ret);
+			free_xenballooned_pages(segs_to_unmap, pages);
 			segs_to_unmap = 0;
 		}
+
+		rb_erase(&persistent_gnt->node, root);
+		kfree(persistent_gnt);
+		num--;
 	}
 	BUG_ON(num != 0);
 }
@@ -523,8 +529,8 @@ static int xen_blkbk_map(struct blkif_request *req,
 				GFP_KERNEL);
 			if (!persistent_gnt)
 				return -ENOMEM;
-			persistent_gnt->page = alloc_page(GFP_KERNEL);
-			if (!persistent_gnt->page) {
+			if (alloc_xenballooned_pages(1, &persistent_gnt->page,
+			    false)) {
 				kfree(persistent_gnt);
 				return -ENOMEM;
 			}
@@ -875,7 +881,6 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		goto fail_response;
 	}
 
-	preq.dev           = req->u.rw.handle;
 	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 

@@ -79,7 +79,9 @@ static void flush_tlb_power7(struct kvm_vcpu *vcpu)
 static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 {
 	unsigned long srr1 = vcpu->arch.shregs.msr;
+#ifdef CONFIG_PPC_POWERNV
 	struct opal_machine_check_event *opal_evt;
+#endif
 	long handled = 1;
 
 	if (srr1 & SRR1_MC_LDSTERR) {
@@ -117,6 +119,7 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		handled = 0;
 	}
 
+#ifdef CONFIG_PPC_POWERNV
 	/*
 	 * See if OPAL has already handled the condition.
 	 * We assume that if the condition is recovered then OPAL
@@ -131,6 +134,7 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 
 	if (handled)
 		opal_evt->in_use = 0;
+#endif
 
 	return handled;
 }

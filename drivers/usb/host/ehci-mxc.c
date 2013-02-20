@@ -17,75 +17,38 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/slab.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #include <linux/platform_data/usb-ehci-mxc.h>
 
 #include <asm/mach-types.h>
 
+#include "ehci.h"
+
+#define DRIVER_DESC "Freescale On-Chip EHCI Host driver"
+
+static const char hcd_name[] = "ehci-mxc";
+
 #define ULPI_VIEWPORT_OFFSET	0x170
 
 struct ehci_mxc_priv {
 	struct clk *usbclk, *ahbclk, *phyclk;
-	struct usb_hcd *hcd;
 };
 
-/* called during probe() after chip reset completes */
-static int ehci_mxc_setup(struct usb_hcd *hcd)
-{
-	hcd->has_tt = 1;
+static struct hc_driver __read_mostly ehci_mxc_hc_driver;
 
-	return ehci_setup(hcd);
-}
-
-static const struct hc_driver ehci_mxc_hc_driver = {
-	.description = hcd_name,
-	.product_desc = "Freescale On-Chip EHCI Host Controller",
-	.hcd_priv_size = sizeof(struct ehci_hcd),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq = ehci_irq,
-	.flags = HCD_USB2 | HCD_MEMORY,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset = ehci_mxc_setup,
-	.start = ehci_run,
-	.stop = ehci_stop,
-	.shutdown = ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue = ehci_urb_enqueue,
-	.urb_dequeue = ehci_urb_dequeue,
-	.endpoint_disable = ehci_endpoint_disable,
-	.endpoint_reset = ehci_endpoint_reset,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number = ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data = ehci_hub_status_data,
-	.hub_control = ehci_hub_control,
-	.bus_suspend = ehci_bus_suspend,
-	.bus_resume = ehci_bus_resume,
-	.relinquish_port = ehci_relinquish_port,
-	.port_handed_over = ehci_port_handed_over,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
+static const struct ehci_driver_overrides ehci_mxc_overrides __initdata = {
+	.extra_priv_size =	sizeof(struct ehci_mxc_priv),
 };
 
 static int ehci_mxc_drv_probe(struct platform_device *pdev)
@@ -112,12 +75,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Found HC with no register addr. Check setup!\n");
@@ -134,6 +91,10 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		ret = -EFAULT;
 		goto err_alloc;
 	}
+
+	hcd->has_tt = 1;
+	ehci = hcd_to_ehci(hcd);
+	priv = (struct ehci_mxc_priv *) ehci->priv;
 
 	/* enable clocks */
 	priv->usbclk = devm_clk_get(&pdev->dev, "ipg");
@@ -169,8 +130,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		mdelay(10);
 	}
 
-	ehci = hcd_to_ehci(hcd);
-
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
@@ -198,8 +157,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->hcd = hcd;
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, hcd);
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
@@ -244,8 +202,11 @@ err_alloc:
 static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 {
 	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
-	struct ehci_mxc_priv *priv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = priv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct ehci_mxc_priv *priv = (struct ehci_mxc_priv *) ehci->priv;
+
+	usb_remove_hcd(hcd);
 
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);
@@ -253,23 +214,20 @@ static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 	if (pdata->otg)
 		usb_phy_shutdown(pdata->otg);
 
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
-
 	clk_disable_unprepare(priv->usbclk);
 	clk_disable_unprepare(priv->ahbclk);
 
 	if (priv->phyclk)
 		clk_disable_unprepare(priv->phyclk);
 
+	usb_put_hcd(hcd);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
 static void ehci_mxc_drv_shutdown(struct platform_device *pdev)
 {
-	struct ehci_mxc_priv *priv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = priv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
@@ -279,9 +237,31 @@ MODULE_ALIAS("platform:mxc-ehci");
 
 static struct platform_driver ehci_mxc_driver = {
 	.probe = ehci_mxc_drv_probe,
-	.remove = __exit_p(ehci_mxc_drv_remove),
+	.remove = ehci_mxc_drv_remove,
 	.shutdown = ehci_mxc_drv_shutdown,
 	.driver = {
 		   .name = "mxc-ehci",
 	},
 };
+
+static int __init ehci_mxc_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ehci_init_driver(&ehci_mxc_hc_driver, &ehci_mxc_overrides);
+	return platform_driver_register(&ehci_mxc_driver);
+}
+module_init(ehci_mxc_init);
+
+static void __exit ehci_mxc_cleanup(void)
+{
+	platform_driver_unregister(&ehci_mxc_driver);
+}
+module_exit(ehci_mxc_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Sascha Hauer");
+MODULE_LICENSE("GPL");

@@ -239,7 +239,12 @@ static int arizona_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	regcache_sync(arizona->regmap);
+	ret = regcache_sync(arizona->regmap);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to restore register cache\n");
+		regulator_disable(arizona->dcvdd);
+		return ret;
+	}
 
 	return 0;
 }

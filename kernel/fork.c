@@ -1668,8 +1668,10 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 		 int, tls_val)
 #endif
 {
-	return do_fork(clone_flags, newsp, 0,
-		parent_tidptr, child_tidptr);
+	long ret = do_fork(clone_flags, newsp, 0, parent_tidptr, child_tidptr);
+	asmlinkage_protect(5, ret, clone_flags, newsp,
+			parent_tidptr, child_tidptr, tls_val);
+	return ret;
 }
 #endif
 

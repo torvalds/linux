@@ -17,9 +17,6 @@ TODO
 . Revisit GEM sync object infrastructure.. TTM has some framework for this
   already.  Possibly this could be refactored out and made more common?
   There should be some way to do this with less wheel-reinvention.
-. Review DSS vs KMS mismatches.  The omap_dss_device is sort of part encoder,
-  part connector.  Which results in a bit of duct tape to fwd calls from
-  encoder to connector.  Possibly this could be done a bit better.
 . Solve PM sequencing on resume.  DMM/TILER must be reloaded before any
   access is made from any component in the system.  Which means on suspend
   CRTC's should be disabled, and on resume the LUT should be reprogrammed
