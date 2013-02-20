@@ -486,6 +486,8 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 
 int proc_fill_super(struct super_block *s)
 {
+	struct inode *root_inode;
+
 	s->s_flags |= MS_NODIRATIME | MS_NOSUID | MS_NOEXEC;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
@@ -494,11 +496,18 @@ int proc_fill_super(struct super_block *s)
 	s->s_time_gran = 1;
 	
 	pde_get(&proc_root);
-	s->s_root = d_make_root(proc_get_inode(s, &proc_root));
-	if (s->s_root)
-		return 0;
+	root_inode = proc_get_inode(s, &proc_root);
+	if (!root_inode) {
+		printk(KERN_ERR "proc_fill_super: get root inode failed\n");
+		pde_put(&proc_root);
+		return -ENOMEM;
+	}
 
-	printk("proc_read_super: get root inode failed\n");
-	pde_put(&proc_root);
-	return -ENOMEM;
+	s->s_root = d_make_root(root_inode);
+	if (!s->s_root) {
+		printk(KERN_ERR "proc_fill_super: allocate dentry failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
