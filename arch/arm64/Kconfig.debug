@@ -24,4 +24,21 @@ config DEBUG_STACK_USAGE
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T output.
 
+config EARLY_PRINTK
+	bool "Early printk support"
+	default y
+	help
+	  Say Y here if you want to have an early console using the
+	  earlyprintk=<name>[,<addr>][,<options>] kernel parameter. It
+	  is assumed that the early console device has been initialised
+	  by the boot loader prior to starting the Linux kernel.
+
+config PID_IN_CONTEXTIDR
+	bool "Write the current PID to the CONTEXTIDR register"
+	help
+	  Enabling this option causes the kernel to write the current PID to
+	  the CONTEXTIDR register, at the expense of some additional
+	  instructions during context switch. Say Y here only if you are
+	  planning to use hardware trace tools with this kernel.
+
 endmenu
