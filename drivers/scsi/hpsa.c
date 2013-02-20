@@ -1405,6 +1405,11 @@ static void hpsa_map_one(struct pci_dev *pdev,
 	}
 
 	addr64 = (u64) pci_map_single(pdev, buf, buflen, data_direction);
+	if (dma_mapping_error(&pdev->dev, addr64)) {
+		cp->Header.SGList = 0;
+		cp->Header.SGTotal = 0;
+		return;
+	}
 	cp->SG[0].Addr.lower =
 	  (u32) (addr64 & (u64) 0x00000000FFFFFFFF);
 	cp->SG[0].Addr.upper =
