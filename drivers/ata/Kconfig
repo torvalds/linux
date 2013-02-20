@@ -260,6 +260,14 @@ config SATA_PROMISE
 
 	  If unsure, say N.
 
+config SATA_RCAR
+	tristate "Renesas R-Car SATA support"
+	depends on ARCH_SHMOBILE && ARCH_R8A7779
+	help
+	  This option enables support for Renesas R-Car Serial ATA.
+
+	  If unsure, say N.
+
 config SATA_SIL
 	tristate "Silicon Image SATA support"
 	depends on PCI

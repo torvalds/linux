@@ -23,6 +23,7 @@ obj-$(CONFIG_ATA_PIIX)		+= ata_piix.o
 obj-$(CONFIG_SATA_MV)		+= sata_mv.o
 obj-$(CONFIG_SATA_NV)		+= sata_nv.o
 obj-$(CONFIG_SATA_PROMISE)	+= sata_promise.o
+obj-$(CONFIG_SATA_RCAR)		+= sata_rcar.o
 obj-$(CONFIG_SATA_SIL)		+= sata_sil.o
 obj-$(CONFIG_SATA_SIS)		+= sata_sis.o
 obj-$(CONFIG_SATA_SVW)		+= sata_svw.o
