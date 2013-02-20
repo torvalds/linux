@@ -324,7 +324,7 @@ s32 e1000_set_page_igp(struct e1000_hw *hw, u16 page)
  *  semaphores before exiting.
  **/
 static s32 __e1000e_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data,
-                                    bool locked)
+				     bool locked)
 {
 	s32 ret_val = 0;
 
@@ -391,7 +391,7 @@ s32 e1000e_read_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset, u16 *data)
  *  at the offset.  Release any acquired semaphores before exiting.
  **/
 static s32 __e1000e_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data,
-                                     bool locked)
+				      bool locked)
 {
 	s32 ret_val = 0;
 
@@ -458,7 +458,7 @@ s32 e1000e_write_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset, u16 data)
  *  Release any acquired semaphores before exiting.
  **/
 static s32 __e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data,
-                                 bool locked)
+				 bool locked)
 {
 	u32 kmrnctrlsta;
 
@@ -531,7 +531,7 @@ s32 e1000e_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
  *  before exiting.
  **/
 static s32 __e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data,
-                                  bool locked)
+				  bool locked)
 {
 	u32 kmrnctrlsta;
 
@@ -2987,7 +2987,7 @@ static u32 e1000_get_phy_addr_for_hv_page(u32 page)
  *  These accesses done with PHY address 2 and without using pages.
  **/
 static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
-                                          u16 *data, bool read)
+					  u16 *data, bool read)
 {
 	s32 ret_val;
 	u32 addr_reg;
