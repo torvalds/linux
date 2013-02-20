@@ -65,7 +65,6 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
-#include "cfg.h"
 
 /* Highest firmware API version supported */
 #define IWL7260_UCODE_API_MAX	6
