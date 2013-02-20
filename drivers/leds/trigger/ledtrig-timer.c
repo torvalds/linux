@@ -17,7 +17,6 @@
 #include <linux/device.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
-#include "leds.h"
 
 static ssize_t led_delay_on_show(struct device *dev,
 		struct device_attribute *attr, char *buf)

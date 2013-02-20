@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/leds.h>
-#include "leds.h"
+#include "../leds.h"
 
 struct transient_trig_data {
 	int activate;

@@ -18,7 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
-#include "leds.h"
+#include "../leds.h"
 
 #define DEFAULT_DELAY 100
 

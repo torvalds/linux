@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/leds.h>
 #include <linux/reboot.h>
-#include "leds.h"
+#include "../leds.h"
 
 static int panic_heartbeats;
 
