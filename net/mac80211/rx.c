@@ -1894,8 +1894,10 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		 * 'align' will only take the values 0 or 2 here
 		 * since all frames are required to be aligned
 		 * to 2-byte boundaries when being passed to
-		 * mac80211. That also explains the __skb_push()
-		 * below.
+		 * mac80211; the code here works just as well if
+		 * that isn't true, but mac80211 assumes it can
+		 * access fields as 2-byte aligned (e.g. for
+		 * compare_ether_addr)
 		 */
 		align = ((unsigned long)(skb->data + sizeof(struct ethhdr))) & 3;
 		if (align) {
