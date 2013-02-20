@@ -13,6 +13,8 @@
 #ifndef __LINUX_INPUT_ADXL34X_H__
 #define __LINUX_INPUT_ADXL34X_H__
 
+#include <linux/input.h>
+
 struct adxl34x_platform_data {
 
 	/*

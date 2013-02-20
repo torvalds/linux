@@ -46,18 +46,6 @@
 #define BMA150_POLL_MAX		200
 #define BMA150_POLL_MIN		0
 
-#define BMA150_BW_25HZ		0
-#define BMA150_BW_50HZ		1
-#define BMA150_BW_100HZ		2
-#define BMA150_BW_190HZ		3
-#define BMA150_BW_375HZ		4
-#define BMA150_BW_750HZ		5
-#define BMA150_BW_1500HZ	6
-
-#define BMA150_RANGE_2G		0
-#define BMA150_RANGE_4G		1
-#define BMA150_RANGE_8G		2
-
 #define BMA150_MODE_NORMAL	0
 #define BMA150_MODE_SLEEP	2
 #define BMA150_MODE_WAKE_UP	3
@@ -372,7 +360,7 @@ static int bma150_open(struct bma150_data *bma150)
 	int error;
 
 	error = pm_runtime_get_sync(&bma150->client->dev);
-	if (error && error != -ENOSYS)
+	if (error < 0 && error != -ENOSYS)
 		return error;
 
 	/*

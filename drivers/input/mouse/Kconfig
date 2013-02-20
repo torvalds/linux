@@ -68,6 +68,16 @@ config MOUSE_PS2_SYNAPTICS
 
 	  If unsure, say Y.
 
+config MOUSE_PS2_CYPRESS
+       bool "Cypress PS/2 mouse protocol extension" if EXPERT
+       default y
+       depends on MOUSE_PS2
+       help
+         Say Y here if you have a Cypress PS/2 Trackpad connected to
+         your system.
+
+         If unsure, say Y.
+
 config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EXPERT
 	default y
@@ -192,6 +202,18 @@ config MOUSE_BCM5974
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm5974.
+
+config MOUSE_CYAPA
+	tristate "Cypress APA I2C Trackpad support"
+	depends on I2C
+	help
+	  This driver adds support for Cypress All Points Addressable (APA)
+	  I2C Trackpads, including the ones used in 2012 Samsung Chromebooks.
+
+	  Say Y here if you have a Cypress APA I2C Trackpad.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cyapa.
 
 config MOUSE_INPORT
 	tristate "InPort/MS/ATIXL busmouse"
