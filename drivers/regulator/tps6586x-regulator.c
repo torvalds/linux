@@ -245,7 +245,7 @@ static int tps6586x_regulator_set_slew_rate(struct platform_device *pdev,
 		reg = TPS6586X_SM1SL;
 		break;
 	default:
-		dev_warn(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
+		dev_err(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
 		return -EINVAL;
 	}
 
