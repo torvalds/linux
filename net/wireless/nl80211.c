@@ -3418,18 +3418,9 @@ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] __read_mostly = {
 static int nl80211_set_station_tdls(struct genl_info *info,
 				    struct station_parameters *params)
 {
-	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct nlattr *tb[NL80211_STA_WME_MAX + 1];
 	struct nlattr *nla;
 	int err;
-
-	/* Can only set if TDLS ... */
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -EOPNOTSUPP;
-
-	/* ... with external setup is supported */
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP))
-		return -EOPNOTSUPP;
 
 	/* Dummy STA entry gets updated once the peer capabilities are known */
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])

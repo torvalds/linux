@@ -281,9 +281,10 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 			if (mwifiex_band_to_radio_type((u8) bss_desc->bss_band)
 			    == HostCmd_SCAN_RADIO_TYPE_BG)
-				config_bands = BAND_B | BAND_G | BAND_GN;
+				config_bands = BAND_B | BAND_G | BAND_GN |
+					       BAND_GAC;
 			else
-				config_bands = BAND_A | BAND_AN;
+				config_bands = BAND_A | BAND_AN | BAND_AAC;
 
 			if (!((config_bands | adapter->fw_bands) &
 			      ~adapter->fw_bands))

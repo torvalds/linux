@@ -267,6 +267,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	/* rx_status carries information about the packet to mac80211 */
 	rx_status.mactime = le64_to_cpu(phy_info->timestamp);
+	rx_status.device_timestamp = le32_to_cpu(phy_info->system_timestamp);
 	rx_status.band =
 		(phy_info->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;

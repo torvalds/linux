@@ -1188,13 +1188,16 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 	rcu_read_unlock();
 }
 
-void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm, int sta_id)
+void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
+				struct ieee80211_sta *sta)
 {
+	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
-		.sta_id = sta_id,
+		.sta_id = mvmsta->sta_id,
 		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
 		.sleep_state_flags = cpu_to_le16(STA_SLEEP_STATE_AWAKE),
+		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
 
@@ -1208,18 +1211,21 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm, int sta_id)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
 
-void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm, int sta_id,
+void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
+				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
 				       u16 cnt)
 {
 	u16 sleep_state_flags =
 		(reason == IEEE80211_FRAME_RELEASE_UAPSD) ?
 			STA_SLEEP_STATE_UAPSD : STA_SLEEP_STATE_PS_POLL;
+	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
-		.sta_id = sta_id,
+		.sta_id = mvmsta->sta_id,
 		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
 		.sleep_tx_count = cpu_to_le16(cnt),
+		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 		/*
 		 * Same modify mask for sleep_tx_count and sleep_state_flags so
 		 * we must set the sleep_state_flags too.

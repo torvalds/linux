@@ -248,6 +248,11 @@ static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 	}
 
 	resp = (void *)pkt->data;
+
+	/* we should never get a response to another TIME_EVENT_CMD here */
+	if (WARN_ON_ONCE(le32_to_cpu(resp->id) != te_data->id))
+		return false;
+
 	te_data->uid = le32_to_cpu(resp->unique_id);
 	IWL_DEBUG_TE(mvm, "TIME_EVENT_CMD response - UID = 0x%x\n",
 		     te_data->uid);
@@ -264,6 +269,9 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	IWL_DEBUG_TE(mvm, "Add new TE, duration %d TU\n",
+		     le32_to_cpu(te_cmd->duration));
 
 	spin_lock_bh(&mvm->time_event_lock);
 	if (WARN_ON(te_data->id != TE_MAX)) {
@@ -413,7 +421,7 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 
 	IWL_DEBUG_TE(mvm, "Removing TE 0x%x\n", le32_to_cpu(time_cmd.id));
-	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, CMD_ASYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, CMD_SYNC,
 				   sizeof(time_cmd), &time_cmd);
 	if (WARN_ON(ret))
 		return;

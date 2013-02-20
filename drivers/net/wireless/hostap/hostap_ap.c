@@ -376,7 +376,7 @@ int ap_control_add_mac(struct mac_restrictions *mac_restrictions, u8 *mac)
 
 	entry = kmalloc(sizeof(struct mac_entry), GFP_KERNEL);
 	if (entry == NULL)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(entry->addr, mac, ETH_ALEN);
 

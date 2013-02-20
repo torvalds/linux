@@ -1250,6 +1250,23 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
 			break;
+		case WLAN_EID_VHT_CAPABILITY:
+			bss_entry->disable_11ac = false;
+			bss_entry->bcn_vht_cap =
+				(void *)(current_ptr +
+					 sizeof(struct ieee_types_header));
+			bss_entry->vht_cap_offset =
+					(u16)((u8 *)bss_entry->bcn_vht_cap -
+					      bss_entry->beacon_buf);
+			break;
+		case WLAN_EID_VHT_OPERATION:
+			bss_entry->bcn_vht_oper =
+				(void *)(current_ptr +
+					 sizeof(struct ieee_types_header));
+			bss_entry->vht_info_offset =
+					(u16)((u8 *)bss_entry->bcn_vht_oper -
+					      bss_entry->beacon_buf);
+			break;
 		case WLAN_EID_BSS_COEX_2040:
 			bss_entry->bcn_bss_co_2040 = current_ptr +
 				sizeof(struct ieee_types_header);
@@ -1263,6 +1280,14 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			bss_entry->ext_cap_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
+			break;
+		case WLAN_EID_OPMODE_NOTIF:
+			bss_entry->oper_mode =
+				(void *)(current_ptr +
+					 sizeof(struct ieee_types_header));
+			bss_entry->oper_mode_offset =
+					(u16)((u8 *)bss_entry->oper_mode -
+					      bss_entry->beacon_buf);
 			break;
 		default:
 			break;
@@ -1479,20 +1504,26 @@ static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 	priv->curr_bss_params.bss_descriptor.bcn_wapi_ie = NULL;
 	priv->curr_bss_params.bss_descriptor.wapi_offset = 0;
 	priv->curr_bss_params.bss_descriptor.bcn_ht_cap = NULL;
-	priv->curr_bss_params.bss_descriptor.ht_cap_offset =
-		0;
+	priv->curr_bss_params.bss_descriptor.ht_cap_offset = 0;
 	priv->curr_bss_params.bss_descriptor.bcn_ht_oper = NULL;
-	priv->curr_bss_params.bss_descriptor.ht_info_offset =
-		0;
-	priv->curr_bss_params.bss_descriptor.bcn_bss_co_2040 =
-		NULL;
-	priv->curr_bss_params.bss_descriptor.
-		bss_co_2040_offset = 0;
+	priv->curr_bss_params.bss_descriptor.ht_info_offset = 0;
+	priv->curr_bss_params.bss_descriptor.bcn_bss_co_2040 = NULL;
+	priv->curr_bss_params.bss_descriptor.bss_co_2040_offset = 0;
 	priv->curr_bss_params.bss_descriptor.bcn_ext_cap = NULL;
 	priv->curr_bss_params.bss_descriptor.ext_cap_offset = 0;
 	priv->curr_bss_params.bss_descriptor.beacon_buf = NULL;
-	priv->curr_bss_params.bss_descriptor.beacon_buf_size =
-		0;
+	priv->curr_bss_params.bss_descriptor.beacon_buf_size = 0;
+	priv->curr_bss_params.bss_descriptor.bcn_vht_cap = NULL;
+	priv->curr_bss_params.bss_descriptor.vht_cap_offset = 0;
+	priv->curr_bss_params.bss_descriptor.bcn_vht_oper = NULL;
+	priv->curr_bss_params.bss_descriptor.vht_info_offset = 0;
+	priv->curr_bss_params.bss_descriptor.oper_mode = NULL;
+	priv->curr_bss_params.bss_descriptor.oper_mode_offset = 0;
+
+	/* Disable 11ac by default. Enable it only where there
+	 * exist VHT_CAP IE in AP beacon
+	 */
+	priv->curr_bss_params.bss_descriptor.disable_11ac = true;
 
 	/* Make a copy of current BSSID descriptor */
 	memcpy(&priv->curr_bss_params.bss_descriptor, bss_desc,
@@ -2022,6 +2053,14 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 			(curr_bss->beacon_buf +
 			 curr_bss->ht_info_offset);
 
+	if (curr_bss->bcn_vht_cap)
+		curr_bss->bcn_ht_cap = (void *)(curr_bss->beacon_buf +
+						curr_bss->vht_cap_offset);
+
+	if (curr_bss->bcn_vht_oper)
+		curr_bss->bcn_ht_oper = (void *)(curr_bss->beacon_buf +
+						 curr_bss->vht_info_offset);
+
 	if (curr_bss->bcn_bss_co_2040)
 		curr_bss->bcn_bss_co_2040 =
 			(curr_bss->beacon_buf + curr_bss->bss_co_2040_offset);
@@ -2029,6 +2068,10 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 	if (curr_bss->bcn_ext_cap)
 		curr_bss->bcn_ext_cap = curr_bss->beacon_buf +
 			curr_bss->ext_cap_offset;
+
+	if (curr_bss->oper_mode)
+		curr_bss->oper_mode = (void *)(curr_bss->beacon_buf +
+					       curr_bss->oper_mode_offset);
 }
 
 /*
