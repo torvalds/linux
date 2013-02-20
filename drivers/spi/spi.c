@@ -1080,7 +1080,8 @@ static int of_spi_register_master(struct spi_master *master)
 	if (!master->cs_gpios)
 		return -ENOMEM;
 
-	memset(cs, -EINVAL, master->num_chipselect);
+	for (i = 0; i < master->num_chipselect; i++)
+		cs[i] = -EINVAL;
 
 	for (i = 0; i < nb; i++)
 		cs[i] = of_get_named_gpio(np, "cs-gpios", i);
@@ -1134,6 +1135,9 @@ int spi_register_master(struct spi_master *master)
 	 */
 	if (master->num_chipselect == 0)
 		return -EINVAL;
+
+	if ((master->bus_num < 0) && master->dev.of_node)
+		master->bus_num = of_alias_get_id(master->dev.of_node, "spi");
 
 	/* convention:  dynamically assigned bus IDs count down from the max */
 	if (master->bus_num < 0) {
@@ -1366,12 +1370,14 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	}
 
 	/**
-	 * Set transfer bits_per_word as spi device default if it is not
-	 * set for this transfer.
+	 * Set transfer bits_per_word and max speed as spi device default if
+	 * it is not set for this transfer.
 	 */
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
 		if (!xfer->bits_per_word)
 			xfer->bits_per_word = spi->bits_per_word;
+		if (!xfer->speed_hz)
+			xfer->speed_hz = spi->max_speed_hz;
 	}
 
 	message->spi = spi;
@@ -1656,7 +1662,8 @@ int spi_write_then_read(struct spi_device *spi,
 	 * using the pre-allocated buffer or the transfer is too large.
 	 */
 	if ((n_tx + n_rx) > SPI_BUFSIZ || !mutex_trylock(&lock)) {
-		local_buf = kmalloc(max((unsigned)SPI_BUFSIZ, n_tx + n_rx), GFP_KERNEL);
+		local_buf = kmalloc(max((unsigned)SPI_BUFSIZ, n_tx + n_rx),
+				    GFP_KERNEL | GFP_DMA);
 		if (!local_buf)
 			return -ENOMEM;
 	} else {

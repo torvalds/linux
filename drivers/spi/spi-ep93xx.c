@@ -446,7 +446,7 @@ static inline int bits_per_word(const struct ep93xx_spi *espi)
 	struct spi_message *msg = espi->current_msg;
 	struct spi_transfer *t = msg->state;
 
-	return t->bits_per_word ? t->bits_per_word : msg->spi->bits_per_word;
+	return t->bits_per_word;
 }
 
 static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
