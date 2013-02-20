@@ -25,6 +25,7 @@
 #include <asm/kdebug.h>
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
+#include <asm/bootparam_utils.h>
 
 static void __init zap_identity_mappings(void)
 {
@@ -46,6 +47,7 @@ static void __init copy_bootdata(char *real_mode_data)
 	char * command_line;
 
 	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+	sanitize_boot_params(&boot_params);
 	if (boot_params.hdr.cmd_line_ptr) {
 		command_line = __va(boot_params.hdr.cmd_line_ptr);
 		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
