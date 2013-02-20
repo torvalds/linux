@@ -73,10 +73,6 @@ enum hp_wmi_event_ids {
 	HPWMI_LOCK_SWITCH = 7,
 };
 
-static int hp_wmi_bios_setup(struct platform_device *device);
-static int __exit hp_wmi_bios_remove(struct platform_device *device);
-static int hp_wmi_resume_handler(struct device *device);
-
 struct bios_args {
 	u32 signature;
 	u32 command;
@@ -159,21 +155,6 @@ struct rfkill2_device {
 
 static int rfkill2_count;
 static struct rfkill2_device rfkill2[HPWMI_MAX_RFKILL2_DEVICES];
-
-static const struct dev_pm_ops hp_wmi_pm_ops = {
-	.resume  = hp_wmi_resume_handler,
-	.restore  = hp_wmi_resume_handler,
-};
-
-static struct platform_driver hp_wmi_driver = {
-	.driver = {
-		.name = "hp-wmi",
-		.owner = THIS_MODULE,
-		.pm = &hp_wmi_pm_ops,
-	},
-	.probe = hp_wmi_bios_setup,
-	.remove = hp_wmi_bios_remove,
-};
 
 /*
  * hp_wmi_perform_query
@@ -812,7 +793,7 @@ fail:
 	return err;
 }
 
-static int hp_wmi_bios_setup(struct platform_device *device)
+static int __init hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
 
@@ -917,11 +898,28 @@ static int hp_wmi_resume_handler(struct device *device)
 	return 0;
 }
 
+static const struct dev_pm_ops hp_wmi_pm_ops = {
+	.resume  = hp_wmi_resume_handler,
+	.restore  = hp_wmi_resume_handler,
+};
+
+static struct platform_driver hp_wmi_driver = {
+	.driver = {
+		.name = "hp-wmi",
+		.owner = THIS_MODULE,
+		.pm = &hp_wmi_pm_ops,
+	},
+	.remove = __exit_p(hp_wmi_bios_remove),
+};
+
 static int __init hp_wmi_init(void)
 {
 	int err;
 	int event_capable = wmi_has_guid(HPWMI_EVENT_GUID);
 	int bios_capable = wmi_has_guid(HPWMI_BIOS_GUID);
+
+	if (!bios_capable && !event_capable)
+		return -ENODEV;
 
 	if (event_capable) {
 		err = hp_wmi_input_setup();
@@ -933,34 +931,29 @@ static int __init hp_wmi_init(void)
 	}
 
 	if (bios_capable) {
-		err = platform_driver_register(&hp_wmi_driver);
-		if (err)
-			goto err_driver_reg;
-		hp_wmi_platform_dev = platform_device_alloc("hp-wmi", -1);
-		if (!hp_wmi_platform_dev) {
-			err = -ENOMEM;
-			goto err_device_alloc;
+		hp_wmi_platform_dev =
+			platform_device_register_simple("hp-wmi", -1, NULL, 0);
+		if (IS_ERR(hp_wmi_platform_dev)) {
+			err = PTR_ERR(hp_wmi_platform_dev);
+			goto err_destroy_input;
 		}
-		err = platform_device_add(hp_wmi_platform_dev);
-		if (err)
-			goto err_device_add;
-	}
 
-	if (!bios_capable && !event_capable)
-		return -ENODEV;
+		err = platform_driver_probe(&hp_wmi_driver, hp_wmi_bios_setup);
+		if (err)
+			goto err_unregister_device;
+	}
 
 	return 0;
 
-err_device_add:
-	platform_device_put(hp_wmi_platform_dev);
-err_device_alloc:
-	platform_driver_unregister(&hp_wmi_driver);
-err_driver_reg:
+err_unregister_device:
+	platform_device_unregister(hp_wmi_platform_dev);
+err_destroy_input:
 	if (event_capable)
 		hp_wmi_input_destroy();
 
 	return err;
 }
+module_init(hp_wmi_init);
 
 static void __exit hp_wmi_exit(void)
 {
@@ -972,6 +965,4 @@ static void __exit hp_wmi_exit(void)
 		platform_driver_unregister(&hp_wmi_driver);
 	}
 }
-
-module_init(hp_wmi_init);
 module_exit(hp_wmi_exit);
