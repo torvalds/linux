@@ -88,6 +88,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	 * If we don't have a cache build one so we don't have to do a
 	 * linear scan each time.
 	 */
+	mutex_lock(&map->cache_lock);
 	i = base;
 	if (list_empty(&map->debugfs_off_cache)) {
 		for (; i <= map->max_register; i += map->reg_stride) {
@@ -110,6 +111,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 				c = kzalloc(sizeof(*c), GFP_KERNEL);
 				if (!c) {
 					regmap_debugfs_free_dump_cache(map);
+					mutex_unlock(&map->cache_lock);
 					return base;
 				}
 				c->min = p;
@@ -142,12 +144,14 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			fpos_offset = from - c->min;
 			reg_offset = fpos_offset / map->debugfs_tot_len;
 			*pos = c->min + (reg_offset * map->debugfs_tot_len);
+			mutex_unlock(&map->cache_lock);
 			return c->base_reg + reg_offset;
 		}
 
 		*pos = c->max;
 		ret = c->max_reg;
 	}
+	mutex_unlock(&map->cache_lock);
 
 	return ret;
 }
@@ -308,6 +312,79 @@ static const struct file_operations regmap_range_fops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t regmap_reg_ranges_read_file(struct file *file,
+					   char __user *user_buf, size_t count,
+					   loff_t *ppos)
+{
+	struct regmap *map = file->private_data;
+	struct regmap_debugfs_off_cache *c;
+	loff_t p = 0;
+	size_t buf_pos = 0;
+	char *buf;
+	char *entry;
+	int ret;
+
+	if (*ppos < 0 || !count)
+		return -EINVAL;
+
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	entry = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!entry) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	/* While we are at it, build the register dump cache
+	 * now so the read() operation on the `registers' file
+	 * can benefit from using the cache.  We do not care
+	 * about the file position information that is contained
+	 * in the cache, just about the actual register blocks */
+	regmap_calc_tot_len(map, buf, count);
+	regmap_debugfs_get_dump_start(map, 0, *ppos, &p);
+
+	/* Reset file pointer as the fixed-format of the `registers'
+	 * file is not compatible with the `range' file */
+	p = 0;
+	mutex_lock(&map->cache_lock);
+	list_for_each_entry(c, &map->debugfs_off_cache, list) {
+		snprintf(entry, PAGE_SIZE, "%x-%x",
+			 c->base_reg, c->max_reg);
+		if (p >= *ppos) {
+			if (buf_pos + 1 + strlen(entry) > count)
+				break;
+			snprintf(buf + buf_pos, count - buf_pos,
+				 "%s", entry);
+			buf_pos += strlen(entry);
+			buf[buf_pos] = '\n';
+			buf_pos++;
+		}
+		p += strlen(entry) + 1;
+	}
+	mutex_unlock(&map->cache_lock);
+
+	kfree(entry);
+	ret = buf_pos;
+
+	if (copy_to_user(user_buf, buf, buf_pos)) {
+		ret = -EFAULT;
+		goto out_buf;
+	}
+
+	*ppos += buf_pos;
+out_buf:
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations regmap_reg_ranges_fops = {
+	.open = simple_open,
+	.read = regmap_reg_ranges_read_file,
+	.llseek = default_llseek,
+};
+
 static ssize_t regmap_access_read_file(struct file *file,
 				       char __user *user_buf, size_t count,
 				       loff_t *ppos)
@@ -382,6 +459,7 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	struct regmap_range_node *range_node;
 
 	INIT_LIST_HEAD(&map->debugfs_off_cache);
+	mutex_init(&map->cache_lock);
 
 	if (name) {
 		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
@@ -399,6 +477,9 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 
 	debugfs_create_file("name", 0400, map->debugfs,
 			    map, &regmap_name_fops);
+
+	debugfs_create_file("range", 0400, map->debugfs,
+			    map, &regmap_reg_ranges_fops);
 
 	if (map->max_register) {
 		debugfs_create_file("registers", 0400, map->debugfs,
@@ -432,7 +513,9 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 void regmap_debugfs_exit(struct regmap *map)
 {
 	debugfs_remove_recursive(map->debugfs);
+	mutex_lock(&map->cache_lock);
 	regmap_debugfs_free_dump_cache(map);
+	mutex_unlock(&map->cache_lock);
 	kfree(map->debugfs_name);
 }
 

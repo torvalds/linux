@@ -76,6 +76,7 @@ struct regmap {
 	unsigned int debugfs_tot_len;
 
 	struct list_head debugfs_off_cache;
+	struct mutex cache_lock;
 #endif
 
 	unsigned int max_register;
