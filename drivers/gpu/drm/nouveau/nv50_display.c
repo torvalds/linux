@@ -1739,14 +1739,6 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 }
 
 static void
-nv50_sor_prepare(struct drm_encoder *encoder)
-{
-	nv50_sor_disconnect(encoder);
-	if (nouveau_encoder(encoder)->dcb->type == DCB_OUTPUT_DP)
-		evo_sync(encoder->dev);
-}
-
-static void
 nv50_sor_commit(struct drm_encoder *encoder)
 {
 }
@@ -1883,7 +1875,7 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs nv50_sor_hfunc = {
 	.dpms = nv50_sor_dpms,
 	.mode_fixup = nv50_sor_mode_fixup,
-	.prepare = nv50_sor_prepare,
+	.prepare = nv50_sor_disconnect,
 	.commit = nv50_sor_commit,
 	.mode_set = nv50_sor_mode_set,
 	.disable = nv50_sor_disconnect,
@@ -1946,7 +1938,7 @@ nv50_display_init(struct drm_device *dev)
 		evo_mthd(push, 0x0088, 1);
 		evo_data(push, NvEvoSync);
 		evo_kick(push, nv50_mast(dev));
-		return evo_sync(dev);
+		return 0;
 	}
 
 	return -EBUSY;
