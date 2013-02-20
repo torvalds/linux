@@ -15,6 +15,7 @@
 #include <linux/edac.h>
 #include <linux/dmi.h>
 #include "edac_core.h"
+#include <ras/ras_event.h>
 
 #define GHES_EDAC_REVISION " Ver: 1.0.0"
 
@@ -24,6 +25,7 @@ struct ghes_edac_pvt {
 	struct mem_ctl_info *mci;
 
 	/* Buffers for the error handling routine */
+	char detail_location[240];
 	char other_detail[160];
 	char msg[80];
 };
@@ -191,6 +193,7 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 	struct mem_ctl_info *mci;
 	struct ghes_edac_pvt *pvt = NULL;
 	char *p;
+	u8 grain_bits;
 
 	list_for_each_entry(pvt, &ghes_reglist, list) {
 		if (ghes == pvt->ghes)
@@ -398,6 +401,16 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 	if (p > pvt->other_detail)
 		*(p - 1) = '\0';
 
+	/* Generate the trace event */
+	grain_bits = fls_long(e->grain);
+	sprintf(pvt->detail_location, "APEI location: %s %s",
+		e->location, e->other_detail);
+	trace_mc_event(type, e->msg, e->label, e->error_count,
+		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
+		       PAGES_TO_MiB(e->page_frame_number) | e->offset_in_page,
+		       grain_bits, e->syndrome, pvt->detail_location);
+
+	/* Report the error via EDAC API */
 	edac_raw_mc_handle_error(type, mci, e);
 }
 EXPORT_SYMBOL_GPL(ghes_edac_report_mem_error);
