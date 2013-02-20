@@ -235,8 +235,8 @@ FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 #define FAN_FROM_REG(val, div)	((val) == 0   ? -1 : \
@@ -244,16 +244,15 @@ FAN_TO_REG(long rpm, int div)
 						1350000 / ((val) * (div))))
 
 /* for temp1 */
-#define TEMP1_TO_REG(val)	(SENSORS_LIMIT(((val) < 0 ? (val)+0x100*1000 \
-					: (val)) / 1000, 0, 0xff))
+#define TEMP1_TO_REG(val)	(clamp_val(((val) < 0 ? (val) + 0x100 * 1000 \
+						      : (val)) / 1000, 0, 0xff))
 #define TEMP1_FROM_REG(val)	(((val) & 0x80 ? (val)-0x100 : (val)) * 1000)
 /* for temp2 and temp3, because they need additional resolution */
 #define TEMP_ADD_FROM_REG(val1, val2) \
 	((((val1) & 0x80 ? (val1)-0x100 \
 		: (val1)) * 1000) + ((val2 & 0x80) ? 500 : 0))
 #define TEMP_ADD_TO_REG_HIGH(val) \
-	(SENSORS_LIMIT(((val) < 0 ? (val)+0x100*1000 \
-			: (val)) / 1000, 0, 0xff))
+	(clamp_val(((val) < 0 ? (val) + 0x100 * 1000 : (val)) / 1000, 0, 0xff))
 #define TEMP_ADD_TO_REG_LOW(val)	((val%1000) ? 0x80 : 0x00)
 
 #define DIV_FROM_REG(val)		(1 << (val))
@@ -262,7 +261,7 @@ static inline u8
 DIV_TO_REG(long val)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1, 128) >> 1;
+	val = clamp_val(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -397,7 +396,7 @@ static ssize_t store_in_##reg(struct device *dev, \
 	if (err) \
 		return err; \
 	mutex_lock(&data->update_lock); \
-	data->in_##reg[nr] = SENSORS_LIMIT(IN_TO_REG(nr, val) / 4, 0, 255); \
+	data->in_##reg[nr] = clamp_val(IN_TO_REG(nr, val) / 4, 0, 255); \
 	w83792d_write_value(client, W83792D_REG_IN_##REG[nr], \
 			    data->in_##reg[nr]); \
 	mutex_unlock(&data->update_lock); \
@@ -645,7 +644,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	val = SENSORS_LIMIT(val, 0, 255) >> 4;
+	val = clamp_val(val, 0, 255) >> 4;
 
 	mutex_lock(&data->update_lock);
 	val |= w83792d_read_value(client, W83792D_REG_PWM[nr]) & 0xf0;
@@ -799,7 +798,7 @@ store_thermal_cruise(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	target_mask = w83792d_read_value(client,
 					 W83792D_REG_THERMAL[nr]) & 0x80;
-	data->thermal_cruise[nr] = SENSORS_LIMIT(target_tmp, 0, 255);
+	data->thermal_cruise[nr] = clamp_val(target_tmp, 0, 255);
 	w83792d_write_value(client, W83792D_REG_THERMAL[nr],
 		(data->thermal_cruise[nr]) | target_mask);
 	mutex_unlock(&data->update_lock);
@@ -837,7 +836,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	tol_mask = w83792d_read_value(client,
 		W83792D_REG_TOLERANCE[nr]) & ((nr == 1) ? 0x0f : 0xf0);
-	tol_tmp = SENSORS_LIMIT(val, 0, 15);
+	tol_tmp = clamp_val(val, 0, 15);
 	tol_tmp &= 0x0f;
 	data->tolerance[nr] = tol_tmp;
 	if (nr == 1)
@@ -881,7 +880,7 @@ store_sf2_point(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->sf2_points[index][nr] = SENSORS_LIMIT(val, 0, 127);
+	data->sf2_points[index][nr] = clamp_val(val, 0, 127);
 	mask_tmp = w83792d_read_value(client,
 					W83792D_REG_POINTS[index][nr]) & 0x80;
 	w83792d_write_value(client, W83792D_REG_POINTS[index][nr],
@@ -923,7 +922,7 @@ store_sf2_level(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->sf2_levels[index][nr] = SENSORS_LIMIT((val * 15) / 100, 0, 15);
+	data->sf2_levels[index][nr] = clamp_val((val * 15) / 100, 0, 15);
 	mask_tmp = w83792d_read_value(client, W83792D_REG_LEVELS[index][nr])
 		& ((nr == 3) ? 0xf0 : 0x0f);
 	if (nr == 3)
