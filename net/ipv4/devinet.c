@@ -55,6 +55,7 @@
 #include <linux/sysctl.h>
 #endif
 #include <linux/kmod.h>
+#include <linux/netconf.h>
 
 #include <net/arp.h>
 #include <net/ip.h>
@@ -723,7 +724,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 
 	case SIOCSIFFLAGS:
 		ret = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto out;
 		break;
 	case SIOCSIFADDR:	/* Set interface address (and family) */
@@ -731,7 +732,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCSIFDSTADDR:	/* Set the destination address */
 	case SIOCSIFNETMASK: 	/* Set the netmask for the interface */
 		ret = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto out;
 		ret = -EINVAL;
 		if (sin->sin_family != AF_INET)
@@ -822,9 +823,9 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		if (!ifa) {
 			ret = -ENOBUFS;
 			ifa = inet_alloc_ifa();
-			INIT_HLIST_NODE(&ifa->hash);
 			if (!ifa)
 				break;
+			INIT_HLIST_NODE(&ifa->hash);
 			if (colon)
 				memcpy(ifa->ifa_label, ifr.ifr_name, IFNAMSIZ);
 			else
@@ -1442,6 +1443,155 @@ static int inet_set_link_af(struct net_device *dev, const struct nlattr *nla)
 	return 0;
 }
 
+static int inet_netconf_msgsize_devconf(int type)
+{
+	int size = NLMSG_ALIGN(sizeof(struct netconfmsg))
+		   + nla_total_size(4);	/* NETCONFA_IFINDEX */
+
+	/* type -1 is used for ALL */
+	if (type == -1 || type == NETCONFA_FORWARDING)
+		size += nla_total_size(4);
+	if (type == -1 || type == NETCONFA_RP_FILTER)
+		size += nla_total_size(4);
+	if (type == -1 || type == NETCONFA_MC_FORWARDING)
+		size += nla_total_size(4);
+
+	return size;
+}
+
+static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
+				     struct ipv4_devconf *devconf, u32 portid,
+				     u32 seq, int event, unsigned int flags,
+				     int type)
+{
+	struct nlmsghdr  *nlh;
+	struct netconfmsg *ncm;
+
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct netconfmsg),
+			flags);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	ncm = nlmsg_data(nlh);
+	ncm->ncm_family = AF_INET;
+
+	if (nla_put_s32(skb, NETCONFA_IFINDEX, ifindex) < 0)
+		goto nla_put_failure;
+
+	/* type -1 is used for ALL */
+	if ((type == -1 || type == NETCONFA_FORWARDING) &&
+	    nla_put_s32(skb, NETCONFA_FORWARDING,
+			IPV4_DEVCONF(*devconf, FORWARDING)) < 0)
+		goto nla_put_failure;
+	if ((type == -1 || type == NETCONFA_RP_FILTER) &&
+	    nla_put_s32(skb, NETCONFA_RP_FILTER,
+			IPV4_DEVCONF(*devconf, RP_FILTER)) < 0)
+		goto nla_put_failure;
+	if ((type == -1 || type == NETCONFA_MC_FORWARDING) &&
+	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
+			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+		goto nla_put_failure;
+
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
+				 struct ipv4_devconf *devconf)
+{
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(inet_netconf_msgsize_devconf(type), GFP_ATOMIC);
+	if (skb == NULL)
+		goto errout;
+
+	err = inet_netconf_fill_devconf(skb, ifindex, devconf, 0, 0,
+					RTM_NEWNETCONF, 0, type);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_NETCONF, NULL, GFP_ATOMIC);
+	return;
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(net, RTNLGRP_IPV4_NETCONF, err);
+}
+
+static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
+	[NETCONFA_IFINDEX]	= { .len = sizeof(int) },
+	[NETCONFA_FORWARDING]	= { .len = sizeof(int) },
+	[NETCONFA_RP_FILTER]	= { .len = sizeof(int) },
+};
+
+static int inet_netconf_get_devconf(struct sk_buff *in_skb,
+				    struct nlmsghdr *nlh,
+				    void *arg)
+{
+	struct net *net = sock_net(in_skb->sk);
+	struct nlattr *tb[NETCONFA_MAX+1];
+	struct netconfmsg *ncm;
+	struct sk_buff *skb;
+	struct ipv4_devconf *devconf;
+	struct in_device *in_dev;
+	struct net_device *dev;
+	int ifindex;
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(*ncm), tb, NETCONFA_MAX,
+			  devconf_ipv4_policy);
+	if (err < 0)
+		goto errout;
+
+	err = EINVAL;
+	if (!tb[NETCONFA_IFINDEX])
+		goto errout;
+
+	ifindex = nla_get_s32(tb[NETCONFA_IFINDEX]);
+	switch (ifindex) {
+	case NETCONFA_IFINDEX_ALL:
+		devconf = net->ipv4.devconf_all;
+		break;
+	case NETCONFA_IFINDEX_DEFAULT:
+		devconf = net->ipv4.devconf_dflt;
+		break;
+	default:
+		dev = __dev_get_by_index(net, ifindex);
+		if (dev == NULL)
+			goto errout;
+		in_dev = __in_dev_get_rtnl(dev);
+		if (in_dev == NULL)
+			goto errout;
+		devconf = &in_dev->cnf;
+		break;
+	}
+
+	err = -ENOBUFS;
+	skb = nlmsg_new(inet_netconf_msgsize_devconf(-1), GFP_ATOMIC);
+	if (skb == NULL)
+		goto errout;
+
+	err = inet_netconf_fill_devconf(skb, ifindex, devconf,
+					NETLINK_CB(in_skb).portid,
+					nlh->nlmsg_seq, RTM_NEWNETCONF, 0,
+					-1);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
+errout:
+	return err;
+}
+
 #ifdef CONFIG_SYSCTL
 
 static void devinet_copy_dflt_conf(struct net *net, int i)
@@ -1467,6 +1617,12 @@ static void inet_forward_change(struct net *net)
 
 	IPV4_DEVCONF_ALL(net, ACCEPT_REDIRECTS) = !on;
 	IPV4_DEVCONF_DFLT(net, FORWARDING) = on;
+	inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+				    NETCONFA_IFINDEX_ALL,
+				    net->ipv4.devconf_all);
+	inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+				    NETCONFA_IFINDEX_DEFAULT,
+				    net->ipv4.devconf_dflt);
 
 	for_each_netdev(net, dev) {
 		struct in_device *in_dev;
@@ -1474,8 +1630,11 @@ static void inet_forward_change(struct net *net)
 			dev_disable_lro(dev);
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);
-		if (in_dev)
+		if (in_dev) {
 			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
+			inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+						    dev->ifindex, &in_dev->cnf);
+		}
 		rcu_read_unlock();
 	}
 }
@@ -1501,6 +1660,23 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 		    i == IPV4_DEVCONF_ROUTE_LOCALNET - 1)
 			if ((new_value == 0) && (old_value != 0))
 				rt_cache_flush(net);
+		if (i == IPV4_DEVCONF_RP_FILTER - 1 &&
+		    new_value != old_value) {
+			int ifindex;
+
+			if (cnf == net->ipv4.devconf_dflt)
+				ifindex = NETCONFA_IFINDEX_DEFAULT;
+			else if (cnf == net->ipv4.devconf_all)
+				ifindex = NETCONFA_IFINDEX_ALL;
+			else {
+				struct in_device *idev =
+					container_of(cnf, struct in_device,
+						     cnf);
+				ifindex = idev->dev->ifindex;
+			}
+			inet_netconf_notify_devconf(net, NETCONFA_RP_FILTER,
+						    ifindex, cnf);
+		}
 	}
 
 	return ret;
@@ -1527,15 +1703,23 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 			}
 			if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING)) {
 				inet_forward_change(net);
-			} else if (*valp) {
+			} else {
 				struct ipv4_devconf *cnf = ctl->extra1;
 				struct in_device *idev =
 					container_of(cnf, struct in_device, cnf);
-				dev_disable_lro(idev->dev);
+				if (*valp)
+					dev_disable_lro(idev->dev);
+				inet_netconf_notify_devconf(net,
+							    NETCONFA_FORWARDING,
+							    idev->dev->ifindex,
+							    cnf);
 			}
 			rtnl_unlock();
 			rt_cache_flush(net);
-		}
+		} else
+			inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+						    NETCONFA_IFINDEX_DEFAULT,
+						    net->ipv4.devconf_dflt);
 	}
 
 	return ret;
@@ -1809,5 +1993,7 @@ void __init devinet_init(void)
 	rtnl_register(PF_INET, RTM_NEWADDR, inet_rtm_newaddr, NULL, NULL);
 	rtnl_register(PF_INET, RTM_DELADDR, inet_rtm_deladdr, NULL, NULL);
 	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr, NULL);
+	rtnl_register(PF_INET, RTM_GETNETCONF, inet_netconf_get_devconf,
+		      NULL, NULL);
 }
 

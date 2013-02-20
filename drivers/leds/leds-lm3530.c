@@ -377,7 +377,7 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 }
 static DEVICE_ATTR(mode, 0644, lm3530_mode_get, lm3530_mode_set);
 
-static int __devinit lm3530_probe(struct i2c_client *client,
+static int lm3530_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	struct lm3530_platform_data *pdata = client->dev.platform_data;
@@ -452,7 +452,7 @@ err_create_file:
 	return err;
 }
 
-static int __devexit lm3530_remove(struct i2c_client *client)
+static int lm3530_remove(struct i2c_client *client)
 {
 	struct lm3530_data *drvdata = i2c_get_clientdata(client);
 
@@ -472,7 +472,7 @@ MODULE_DEVICE_TABLE(i2c, lm3530_id);
 
 static struct i2c_driver lm3530_i2c_driver = {
 	.probe = lm3530_probe,
-	.remove = __devexit_p(lm3530_remove),
+	.remove = lm3530_remove,
 	.id_table = lm3530_id,
 	.driver = {
 		.name = LM3530_NAME,

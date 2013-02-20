@@ -15,8 +15,8 @@
 #include <mach/at91sam9x5.h>
 #include <mach/at91_pmc.h>
 #include <mach/cpu.h>
-#include <mach/board.h>
 
+#include "board.h"
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
@@ -233,6 +233,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("mci_clk", "f000c000.mmc", &mmc1_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffec00.dma-controller", &dma0_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffee00.dma-controller", &dma1_clk),
+	CLKDEV_CON_DEV_ID("pclk", "f0010000.ssc", &ssc_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8010000.i2c", &twi0_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8014000.i2c", &twi1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8018000.i2c", &twi2_clk),

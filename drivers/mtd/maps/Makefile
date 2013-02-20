@@ -7,7 +7,6 @@ obj-$(CONFIG_MTD)		+= map_funcs.o
 endif
 
 # Chip mappings
-obj-$(CONFIG_MTD_CDB89712)	+= cdb89712.o
 obj-$(CONFIG_MTD_CFI_FLAGADM)	+= cfi_flagadm.o
 obj-$(CONFIG_MTD_DC21285)	+= dc21285.o
 obj-$(CONFIG_MTD_DILNETPC)	+= dilnetpc.o
@@ -40,7 +39,6 @@ obj-$(CONFIG_MTD_SOLUTIONENGINE)+= solutionengine.o
 obj-$(CONFIG_MTD_PCI)		+= pci.o
 obj-$(CONFIG_MTD_AUTCPU12)	+= autcpu12-nvram.o
 obj-$(CONFIG_MTD_IMPA7)		+= impa7.o
-obj-$(CONFIG_MTD_FORTUNET)	+= fortunet.o
 obj-$(CONFIG_MTD_UCLINUX)	+= uclinux.o
 obj-$(CONFIG_MTD_NETtel)	+= nettel.o
 obj-$(CONFIG_MTD_SCB2_FLASH)	+= scb2_flash.o

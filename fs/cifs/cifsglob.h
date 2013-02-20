@@ -178,6 +178,7 @@ struct smb_rqst {
 
 enum smb_version {
 	Smb_1 = 1,
+	Smb_20,
 	Smb_21,
 	Smb_30,
 };
@@ -280,9 +281,6 @@ struct smb_version_operations {
 	/* set attributes */
 	int (*set_file_info)(struct inode *, const char *, FILE_BASIC_INFO *,
 			     const unsigned int);
-	/* build a full path to the root of the mount */
-	char * (*build_path_to_root)(struct smb_vol *, struct cifs_sb_info *,
-				     struct cifs_tcon *);
 	/* check if we can send an echo or nor */
 	bool (*can_echo)(struct TCP_Server_Info *);
 	/* send echo request */
@@ -369,6 +367,8 @@ struct smb_version_operations {
 	void (*set_lease_key)(struct inode *, struct cifs_fid *fid);
 	/* generate new lease key */
 	void (*new_lease_key)(struct cifs_fid *fid);
+	int (*calc_signature)(struct smb_rqst *rqst,
+				   struct TCP_Server_Info *server);
 };
 
 struct smb_version_values {
@@ -386,6 +386,7 @@ struct smb_version_values {
 	unsigned int	cap_unix;
 	unsigned int	cap_nt_find;
 	unsigned int	cap_large_files;
+	unsigned int	oplock_read;
 };
 
 #define HEADER_SIZE(server) (server->vals->header_size)
@@ -396,7 +397,6 @@ struct smb_vol {
 	char *password;
 	char *domainname;
 	char *UNC;
-	char *UNCip;
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
@@ -444,11 +444,11 @@ struct smb_vol {
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
-	unsigned short int port;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	struct smb_version_operations *ops;
 	struct smb_version_values *vals;
 	char *prepath;
+	struct sockaddr_storage dstaddr; /* destination address */
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
 };
@@ -1067,30 +1067,16 @@ static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 static inline void
 convert_delimiter(char *path, char delim)
 {
-	int i;
-	char old_delim;
-
-	if (path == NULL)
-		return;
+	char old_delim, *pos;
 
 	if (delim == '/')
 		old_delim = '\\';
 	else
 		old_delim = '/';
 
-	for (i = 0; path[i] != '\0'; i++) {
-		if (path[i] == old_delim)
-			path[i] = delim;
-	}
-}
-
-static inline char *
-build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-		   struct cifs_tcon *tcon)
-{
-	if (!vol->ops->build_path_to_root)
-		return NULL;
-	return vol->ops->build_path_to_root(vol, cifs_sb, tcon);
+	pos = path;
+	while ((pos = strchr(pos, old_delim)))
+		*pos = delim;
 }
 
 #ifdef CONFIG_CIFS_STATS
@@ -1362,7 +1348,7 @@ require use of the stronger protocol */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
 #define   CIFSSEC_MUST_NTLMSSP	0x80080 /* raw ntlmssp with ntlmv2 */
 
-#define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_NTLMSSP)
+#define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLMSSP)
 #define   CIFSSEC_MAX (CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2)
 #define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
 /*
@@ -1506,6 +1492,6 @@ extern struct smb_version_values smb20_values;
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
 #define SMB30_VERSION_STRING	"3.0"
-/*extern struct smb_version_operations smb30_operations; */ /* not needed yet */
+extern struct smb_version_operations smb30_operations;
 extern struct smb_version_values smb30_values;
 #endif	/* _CIFS_GLOB_H */

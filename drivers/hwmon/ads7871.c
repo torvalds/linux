@@ -173,7 +173,7 @@ static const struct attribute_group ads7871_group = {
 	.attrs = ads7871_attributes,
 };
 
-static int __devinit ads7871_probe(struct spi_device *spi)
+static int ads7871_probe(struct spi_device *spi)
 {
 	int ret, err;
 	uint8_t val;
@@ -225,7 +225,7 @@ error_remove:
 	return err;
 }
 
-static int __devexit ads7871_remove(struct spi_device *spi)
+static int ads7871_remove(struct spi_device *spi)
 {
 	struct ads7871_data *pdata = spi_get_drvdata(spi);
 
@@ -241,7 +241,7 @@ static struct spi_driver ads7871_driver = {
 	},
 
 	.probe = ads7871_probe,
-	.remove = __devexit_p(ads7871_remove),
+	.remove = ads7871_remove,
 };
 
 module_spi_driver(ads7871_driver);

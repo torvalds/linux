@@ -60,7 +60,7 @@ enum tc35815_chiptype {
 /* indexed by tc35815_chiptype, above */
 static const struct {
 	const char *name;
-} chip_info[] __devinitdata = {
+} chip_info[] = {
 	{ "TOSHIBA TC35815CF 10/100BaseTX" },
 	{ "TOSHIBA TC35815 with Wake on LAN" },
 	{ "TOSHIBA TC35815/TX4939" },
@@ -719,7 +719,7 @@ err_out:
  * should provide a "tc35815-mac" device with a MAC address in its
  * platform_data.
  */
-static int __devinit tc35815_mac_match(struct device *dev, void *data)
+static int tc35815_mac_match(struct device *dev, void *data)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
 	struct pci_dev *pci_dev = data;
@@ -727,7 +727,7 @@ static int __devinit tc35815_mac_match(struct device *dev, void *data)
 	return !strcmp(plat_dev->name, "tc35815-mac") && plat_dev->id == id;
 }
 
-static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
+static int tc35815_read_plat_dev_addr(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct device *pd = bus_find_device(&platform_bus_type, NULL,
@@ -741,13 +741,13 @@ static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
 	return -ENODEV;
 }
 #else
-static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
+static int tc35815_read_plat_dev_addr(struct net_device *dev)
 {
 	return -ENODEV;
 }
 #endif
 
-static int __devinit tc35815_init_dev_addr(struct net_device *dev)
+static int tc35815_init_dev_addr(struct net_device *dev)
 {
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
@@ -785,8 +785,8 @@ static const struct net_device_ops tc35815_netdev_ops = {
 #endif
 };
 
-static int __devinit tc35815_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int tc35815_init_one(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	void __iomem *ioaddr = NULL;
 	struct net_device *dev;
@@ -878,7 +878,7 @@ err_out:
 }
 
 
-static void __devexit tc35815_remove_one(struct pci_dev *pdev)
+static void tc35815_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tc35815_local *lp = netdev_priv(dev);
@@ -2198,7 +2198,7 @@ static struct pci_driver tc35815_pci_driver = {
 	.name		= MODNAME,
 	.id_table	= tc35815_pci_tbl,
 	.probe		= tc35815_init_one,
-	.remove		= __devexit_p(tc35815_remove_one),
+	.remove		= tc35815_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= tc35815_suspend,
 	.resume		= tc35815_resume,

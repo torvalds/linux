@@ -37,6 +37,9 @@ struct perf_pmu {
 struct perf_pmu *perf_pmu__find(char *name);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms);
+int perf_pmu__config_terms(struct list_head *formats,
+			   struct perf_event_attr *attr,
+			   struct list_head *head_terms);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms);
 struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
 				struct list_head *head_terms);
@@ -46,6 +49,7 @@ void perf_pmu_error(struct list_head *list, char *name, char const *msg);
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
 void perf_pmu__set_format(unsigned long *bits, long from, long to);
+int perf_pmu__format_parse(char *dir, struct list_head *head);
 
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 

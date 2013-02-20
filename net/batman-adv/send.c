@@ -18,6 +18,7 @@
  */
 
 #include "main.h"
+#include "distributed-arp-table.h"
 #include "send.h"
 #include "routing.h"
 #include "translation-table.h"
@@ -26,6 +27,8 @@
 #include "vis.h"
 #include "gateway_common.h"
 #include "originator.h"
+
+#include <linux/if_ether.h>
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -59,11 +62,11 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
-	ethhdr->h_proto = __constant_htons(BATADV_ETH_P_BATMAN);
+	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
 	skb->priority = TC_PRIO_CONTROL;
-	skb->protocol = __constant_htons(BATADV_ETH_P_BATMAN);
+	skb->protocol = __constant_htons(ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
 
@@ -75,6 +78,39 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
+}
+
+/**
+ * batadv_send_skb_to_orig - Lookup next-hop and transmit skb.
+ * @skb: Packet to be transmitted.
+ * @orig_node: Final destination of the packet.
+ * @recv_if: Interface used when receiving the packet (can be NULL).
+ *
+ * Looks up the best next-hop towards the passed originator and passes the
+ * skb on for preparation of MAC header. If the packet originated from this
+ * host, NULL can be passed as recv_if and no interface alternating is
+ * attempted.
+ *
+ * Returns TRUE on success; FALSE otherwise.
+ */
+bool batadv_send_skb_to_orig(struct sk_buff *skb,
+			     struct batadv_orig_node *orig_node,
+			     struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = orig_node->bat_priv;
+	struct batadv_neigh_node *neigh_node;
+
+	/* batadv_find_router() increases neigh_nodes refcount if found. */
+	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
+	if (!neigh_node)
+		return false;
+
+	/* route it */
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+
+	batadv_neigh_node_free_ref(neigh_node);
+
+	return true;
 }
 
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
@@ -207,6 +243,9 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+		goto out;
+
+	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet))
 		goto out;
 
 	/* rebroadcast packet */

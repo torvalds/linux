@@ -5,7 +5,7 @@ Contact:	xiaoyan.zhang@intel.com
 Description:
 		This folder includes the attributes related with PPI (Physical
 		Presence Interface). Only if TPM is supported by BIOS, this
-		folder makes sence. The folder path can be got by command
+		folder makes sense. The folder path can be got by command
 		'find /sys/ -name 'pcrs''. For the detail information of PPI,
 		please refer to the PPI specification from
 		http://www.trustedcomputinggroup.org/

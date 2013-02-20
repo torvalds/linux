@@ -1438,7 +1438,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
-static int __devinit init_queue(struct driver_data *drv_data)
+static int init_queue(struct driver_data *drv_data)
 {
 	INIT_LIST_HEAD(&drv_data->queue);
 	spin_lock_init(&drv_data->lock);
@@ -1526,7 +1526,7 @@ static int destroy_queue(struct driver_data *drv_data)
 	return 0;
 }
 
-static int __devinit pxa2xx_spi_probe(struct platform_device *pdev)
+static int pxa2xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pxa2xx_spi_master *platform_info;

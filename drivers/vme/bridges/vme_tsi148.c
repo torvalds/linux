@@ -35,10 +35,8 @@
 #include "../vme_bridge.h"
 #include "vme_tsi148.h"
 
-static int __init tsi148_init(void);
 static int tsi148_probe(struct pci_dev *, const struct pci_device_id *);
 static void tsi148_remove(struct pci_dev *);
-static void __exit tsi148_exit(void);
 
 
 /* Module parameter */
@@ -2244,11 +2242,6 @@ static void tsi148_free_consistent(struct device *parent, size_t size,
 	pci_free_consistent(pdev, size, vaddr, dma);
 }
 
-static int __init tsi148_init(void)
-{
-	return pci_register_driver(&tsi148_driver);
-}
-
 /*
  * Configure CR/CSR space
  *
@@ -2754,10 +2747,7 @@ static void tsi148_remove(struct pci_dev *pdev)
 	kfree(tsi148_bridge);
 }
 
-static void __exit tsi148_exit(void)
-{
-	pci_unregister_driver(&tsi148_driver);
-}
+module_pci_driver(tsi148_driver);
 
 MODULE_PARM_DESC(err_chk, "Check for VME errors on reads and writes");
 module_param(err_chk, bool, 0);
@@ -2767,6 +2757,3 @@ module_param(geoid, int, 0);
 
 MODULE_DESCRIPTION("VME driver for the Tundra Tempe VME bridge");
 MODULE_LICENSE("GPL");
-
-module_init(tsi148_init);
-module_exit(tsi148_exit);

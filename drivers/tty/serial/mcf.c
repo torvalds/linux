@@ -571,7 +571,7 @@ static struct uart_driver mcf_driver = {
 
 /****************************************************************************/
 
-static int __devinit mcf_probe(struct platform_device *pdev)
+static int mcf_probe(struct platform_device *pdev)
 {
 	struct mcf_platform_uart *platp = pdev->dev.platform_data;
 	struct uart_port *port;
@@ -599,7 +599,7 @@ static int __devinit mcf_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int __devexit mcf_remove(struct platform_device *pdev)
+static int mcf_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;
@@ -617,7 +617,7 @@ static int __devexit mcf_remove(struct platform_device *pdev)
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove		= __devexit_p(mcf_remove),
+	.remove		= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 		.owner	= THIS_MODULE,

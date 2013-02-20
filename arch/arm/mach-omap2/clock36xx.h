@@ -8,6 +8,6 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK36XX_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCK36XX_H
 
-extern const struct clkops clkops_omap36xx_pwrdn_with_hsdiv_wait_restore;
+extern int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk_hw *hw);
 
 #endif

@@ -1,0 +1,23 @@
+* Marvell Armada 370 / Armada XP Ethernet Controller (NETA)
+
+Required properties:
+- compatible: should be "marvell,armada-370-neta".
+- reg: address and length of the register set for the device.
+- interrupts: interrupt for the device
+- phy: A phandle to a phy node defining the PHY address (as the reg
+  property, a single integer).
+- phy-mode: The interface between the SoC and the PHY (a string that
+  of_get_phy_mode() can understand)
+- clocks: a pointer to the reference clock for this device.
+
+Example:
+
+ethernet@d0070000 {
+	compatible = "marvell,armada-370-neta";
+	reg = <0xd0070000 0x2500>;
+	interrupts = <8>;
+	clocks = <&gate_clk 4>;
+	status = "okay";
+	phy = <&phy0>;
+	phy-mode = "rgmii-id";
+};

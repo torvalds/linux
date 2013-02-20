@@ -68,23 +68,31 @@ static int get_callid(const char *dptr, unsigned int dataoff,
 static int
 ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 {
+	struct sk_buff *reasm = skb_nfct_reasm(skb);
 	struct ip_vs_iphdr iph;
 	unsigned int dataoff, datalen, matchoff, matchlen;
 	const char *dptr;
 	int retc;
 
-	ip_vs_fill_iphdr(p->af, skb_network_header(skb), &iph);
+	ip_vs_fill_iph_skb(p->af, skb, &iph);
 
 	/* Only useful with UDP */
 	if (iph.protocol != IPPROTO_UDP)
 		return -EINVAL;
+	/* todo: IPv6 fragments:
+	 *       I think this only should be done for the first fragment. /HS
+	 */
+	if (reasm) {
+		skb = reasm;
+		dataoff = iph.thoff_reasm + sizeof(struct udphdr);
+	} else
+		dataoff = iph.len + sizeof(struct udphdr);
 
-	/* No Data ? */
-	dataoff = iph.len + sizeof(struct udphdr);
 	if (dataoff >= skb->len)
 		return -EINVAL;
-
-	if ((retc=skb_linearize(skb)) < 0)
+	/* todo: Check if this will mess-up the reasm skb !!! /HS */
+	retc = skb_linearize(skb);
+	if (retc < 0)
 		return retc;
 	dptr = skb->data + dataoff;
 	datalen = skb->len - dataoff;

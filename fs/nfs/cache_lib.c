@@ -118,7 +118,6 @@ int nfs_cache_register_sb(struct super_block *sb, struct cache_detail *cd)
 	struct dentry *dir;
 
 	dir = rpc_d_lookup_sb(sb, "cache");
-	BUG_ON(dir == NULL);
 	ret = sunrpc_cache_register_pipefs(dir, cd->name, 0600, cd);
 	dput(dir);
 	return ret;

@@ -21,14 +21,11 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/sdrc.h>
-
 #include "clock.h"
 #include "clock3xxx.h"
 #include "clock34xx.h"
 #include "sdrc.h"
+#include "sram.h"
 
 #define CYCLES_PER_MHZ			1000000
 
@@ -47,8 +44,10 @@
  * Program the DPLL M2 divider with the rounded target rate.  Returns
  * -EINVAL upon error, or 0 upon success.
  */
-int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
+int omap3_core_dpll_m2_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
 {
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 new_div = 0;
 	u32 unlock_dll = 0;
 	u32 c;
@@ -66,7 +65,7 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	sdrcrate = __clk_get_rate(sdrc_ick_p);
-	clkrate = __clk_get_rate(clk);
+	clkrate = __clk_get_rate(hw->clk);
 	if (rate > clkrate)
 		sdrcrate <<= ((rate / clkrate) >> 1);
 	else
@@ -115,8 +114,6 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
 				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
 				  0, 0, 0, 0);
-	clk->rate = rate;
-
 	return 0;
 }
 

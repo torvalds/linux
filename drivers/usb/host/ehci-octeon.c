@@ -159,9 +159,6 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hcd);
 
-	/* root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
 	return 0;
 err3:
 	ehci_octeon_stop();

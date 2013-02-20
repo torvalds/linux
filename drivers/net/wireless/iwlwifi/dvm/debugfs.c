@@ -305,7 +305,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	int pos = 0, ofs = 0, buf_size = 0;
 	const u8 *ptr;
 	char *buf;
-	u16 eeprom_ver;
+	u16 nvm_ver;
 	size_t eeprom_len = priv->eeprom_blob_size;
 	buf_size = 4 * eeprom_len + 256;
 
@@ -321,9 +321,9 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	eeprom_ver = priv->eeprom_data->eeprom_version;
+	nvm_ver = priv->nvm_data->nvm_version;
 	pos += scnprintf(buf + pos, buf_size - pos,
-			 "NVM version: 0x%x\n", eeprom_ver);
+			 "NVM version: 0x%x\n", nvm_ver);
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
@@ -1333,17 +1333,17 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"tx power: (1/2 dB step)\n");
-		if ((priv->eeprom_data->valid_tx_ant & ANT_A) &&
+		if ((priv->nvm_data->valid_tx_ant & ANT_A) &&
 		    tx->tx_power.ant_a)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna A:",
 					tx->tx_power.ant_a);
-		if ((priv->eeprom_data->valid_tx_ant & ANT_B) &&
+		if ((priv->nvm_data->valid_tx_ant & ANT_B) &&
 		    tx->tx_power.ant_b)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna B:",
 					tx->tx_power.ant_b);
-		if ((priv->eeprom_data->valid_tx_ant & ANT_C) &&
+		if ((priv->nvm_data->valid_tx_ant & ANT_C) &&
 		    tx->tx_power.ant_c)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna C:",
@@ -2101,7 +2101,7 @@ static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
 	if (iwl_is_rfkill(priv))
 		return -EFAULT;
 
-	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	iwlagn_dev_txfifo_flush(priv);
 
 	return count;
 }

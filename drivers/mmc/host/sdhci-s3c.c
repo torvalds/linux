@@ -441,7 +441,7 @@ static void sdhci_s3c_setup_card_detect_gpio(struct sdhci_s3c *sc)
 }
 
 #ifdef CONFIG_OF
-static int __devinit sdhci_s3c_parse_dt(struct device *dev,
+static int sdhci_s3c_parse_dt(struct device *dev,
 		struct sdhci_host *host, struct s3c_sdhci_platdata *pdata)
 {
 	struct device_node *node = dev->of_node;
@@ -532,7 +532,7 @@ static int __devinit sdhci_s3c_parse_dt(struct device *dev,
 	return 0;
 }
 #else
-static int __devinit sdhci_s3c_parse_dt(struct device *dev,
+static int sdhci_s3c_parse_dt(struct device *dev,
 		struct sdhci_host *host, struct s3c_sdhci_platdata *pdata)
 {
 	return -EINVAL;
@@ -555,7 +555,7 @@ static inline struct sdhci_s3c_drv_data *sdhci_s3c_get_driver_data(
 			platform_get_device_id(pdev)->driver_data;
 }
 
-static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
+static int sdhci_s3c_probe(struct platform_device *pdev)
 {
 	struct s3c_sdhci_platdata *pdata;
 	struct sdhci_s3c_drv_data *drv_data;
@@ -781,7 +781,7 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
+static int sdhci_s3c_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host =  platform_get_drvdata(pdev);
 	struct sdhci_s3c *sc = sdhci_priv(host);
@@ -911,7 +911,7 @@ MODULE_DEVICE_TABLE(of, sdhci_s3c_dt_match);
 
 static struct platform_driver sdhci_s3c_driver = {
 	.probe		= sdhci_s3c_probe,
-	.remove		= __devexit_p(sdhci_s3c_remove),
+	.remove		= sdhci_s3c_remove,
 	.id_table	= sdhci_s3c_driver_ids,
 	.driver		= {
 		.owner	= THIS_MODULE,

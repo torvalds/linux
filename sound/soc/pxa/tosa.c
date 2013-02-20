@@ -241,7 +241,7 @@ static struct snd_soc_card tosa = {
 	.num_links = ARRAY_SIZE(tosa_dai),
 };
 
-static int __devinit tosa_probe(struct platform_device *pdev)
+static int tosa_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &tosa;
 	int ret;
@@ -262,7 +262,7 @@ static int __devinit tosa_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit tosa_remove(struct platform_device *pdev)
+static int tosa_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -277,7 +277,7 @@ static struct platform_driver tosa_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tosa_probe,
-	.remove		= __devexit_p(tosa_remove),
+	.remove		= tosa_remove,
 };
 
 module_platform_driver(tosa_driver);

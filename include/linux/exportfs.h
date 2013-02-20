@@ -83,6 +83,11 @@ enum fid_type {
 	 * 64 bit parent inode number.
 	 */
 	FILEID_NILFS_WITH_PARENT = 0x62,
+
+	/*
+	 * Filesystems must not use 0xff file ID.
+	 */
+	FILEID_INVALID = 0xff,
 };
 
 struct fid {
@@ -177,6 +182,8 @@ struct export_operations {
 	int (*commit_metadata)(struct inode *inode);
 };
 
+extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
+				    int *max_len, struct inode *parent);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 	int *max_len, int connectable);
 extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,

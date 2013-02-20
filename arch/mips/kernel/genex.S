@@ -19,7 +19,6 @@
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/war.h>
-#include <asm/page.h>
 #include <asm/thread_info.h>
 
 #define PANIC_PIC(msg)					\
@@ -483,8 +482,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	MFC0	k1, CP0_ENTRYHI
 	andi	k1, 0xff	/* ASID_MASK */
 	MFC0	k0, CP0_EPC
-	PTR_SRL	k0, PAGE_SHIFT + 1
-	PTR_SLL	k0, PAGE_SHIFT + 1
+	PTR_SRL	k0, _PAGE_SHIFT + 1
+	PTR_SLL	k0, _PAGE_SHIFT + 1
 	or	k1, k0
 	MTC0	k1, CP0_ENTRYHI
 	mtc0_tlbw_hazard

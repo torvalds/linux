@@ -486,35 +486,35 @@ config PREEMPT_RCU
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
 
+config CONTEXT_TRACKING
+       bool
+
 config RCU_USER_QS
 	bool "Consider userspace as in RCU extended quiescent state"
-	depends on HAVE_RCU_USER_QS && SMP
+	depends on HAVE_CONTEXT_TRACKING && SMP
+	select CONTEXT_TRACKING
 	help
 	  This option sets hooks on kernel / userspace boundaries and
 	  puts RCU in extended quiescent state when the CPU runs in
 	  userspace. It means that when a CPU runs in userspace, it is
 	  excluded from the global RCU state machine and thus doesn't
-	  to keep the timer tick on for RCU.
+	  try to keep the timer tick on for RCU.
 
 	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option. It adds
-	  unnecessary overhead.
+	  dynticks mode, you shouldn't enable this option.  It also
+	  adds unnecessary overhead.
 
 	  If unsure say N
 
-config RCU_USER_QS_FORCE
-	bool "Force userspace extended QS by default"
-	depends on RCU_USER_QS
+config CONTEXT_TRACKING_FORCE
+	bool "Force context tracking"
+	depends on CONTEXT_TRACKING
 	help
-	  Set the hooks in user/kernel boundaries by default in order to
-	  test this feature that treats userspace as an extended quiescent
-	  state until we have a real user like a full adaptive nohz option.
-
-	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option. It adds
-	  unnecessary overhead.
-
-	  If unsure say N
+	  Probe on user/kernel boundaries by default in order to
+	  test the features that rely on it such as userspace RCU extended
+	  quiescent states.
+	  This test is there for debugging until we have a real user like the
+	  full dynticks mode.
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
@@ -582,14 +582,13 @@ config RCU_FAST_NO_HZ
 	depends on NO_HZ && SMP
 	default n
 	help
-	  This option causes RCU to attempt to accelerate grace periods
-	  in order to allow CPUs to enter dynticks-idle state more
-	  quickly.  On the other hand, this option increases the overhead
-	  of the dynticks-idle checking, particularly on systems with
-	  large numbers of CPUs.
+	  This option causes RCU to attempt to accelerate grace periods in
+	  order to allow CPUs to enter dynticks-idle state more quickly.
+	  On the other hand, this option increases the overhead of the
+	  dynticks-idle checking, thus degrading scheduling latency.
 
-	  Say Y if energy efficiency is critically important, particularly
-	  	if you have relatively few CPUs.
+	  Say Y if energy efficiency is critically important, and you don't
+	  	care about real-time response.
 
 	  Say N if you are unsure.
 
@@ -655,6 +654,28 @@ config RCU_BOOST_DELAY
 
 	  Accept the default if unsure.
 
+config RCU_NOCB_CPU
+	bool "Offload RCU callback processing from boot-selected CPUs"
+	depends on TREE_RCU || TREE_PREEMPT_RCU
+	default n
+	help
+	  Use this option to reduce OS jitter for aggressive HPC or
+	  real-time workloads.	It can also be used to offload RCU
+	  callback invocation to energy-efficient CPUs in battery-powered
+	  asymmetric multiprocessors.
+
+	  This option offloads callback invocation from the set of
+	  CPUs specified at boot time by the rcu_nocbs parameter.
+	  For each such CPU, a kthread ("rcuoN") will be created to
+	  invoke callbacks, where the "N" is the CPU being offloaded.
+	  Nothing prevents this kthread from running on the specified
+	  CPUs, but (1) the kthreads may be preempted between each
+	  callback, and (2) affinity or cgroups can be used to force
+	  the kthreads to run on whatever set of CPUs is desired.
+
+	  Say Y here if you want reduced OS jitter on selected CPUs.
+	  Say N here if you are unsure.
+
 endmenu # "RCU Subsystem"
 
 config IKCONFIG
@@ -695,6 +716,50 @@ config LOG_BUF_SHIFT
 #
 config HAVE_UNSTABLE_SCHED_CLOCK
 	bool
+
+#
+# For architectures that want to enable the support for NUMA-affine scheduler
+# balancing logic:
+#
+config ARCH_SUPPORTS_NUMA_BALANCING
+	bool
+
+# For architectures that (ab)use NUMA to represent different memory regions
+# all cpu-local but of different latencies, such as SuperH.
+#
+config ARCH_WANT_NUMA_VARIABLE_LOCALITY
+	bool
+
+#
+# For architectures that are willing to define _PAGE_NUMA as _PAGE_PROTNONE
+config ARCH_WANTS_PROT_NUMA_PROT_NONE
+	bool
+
+config ARCH_USES_NUMA_PROT_NONE
+	bool
+	default y
+	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
+	depends on NUMA_BALANCING
+
+config NUMA_BALANCING_DEFAULT_ENABLED
+	bool "Automatically enable NUMA aware memory/task placement"
+	default y
+	depends on NUMA_BALANCING
+	help
+	  If set, autonumic NUMA balancing will be enabled if running on a NUMA
+	  machine.
+
+config NUMA_BALANCING
+	bool "Memory placement aware NUMA scheduler"
+	depends on ARCH_SUPPORTS_NUMA_BALANCING
+	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
+	depends on SMP && NUMA && MIGRATION
+	help
+	  This option adds support for automatic NUMA aware memory/task placement.
+	  The mechanism is quite primitive and is based on migrating memory when
+	  it is references to the node the task is running on.
+
+	  This system will be inactive on UMA systems.
 
 menuconfig CGROUPS
 	boolean "Control Group support"
@@ -817,7 +882,7 @@ config MEMCG_SWAP_ENABLED
 config MEMCG_KMEM
 	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
 	depends on MEMCG && EXPERIMENTAL
-	default n
+	depends on SLUB || SLAB
 	help
 	  The Kernel Memory extension for Memory Resource Controller can limit
 	  the amount of memory used by kernel objects in the system. Those are
@@ -1004,11 +1069,9 @@ config UIDGID_CONVERTED
 	# Filesystems
 	depends on 9P_FS = n
 	depends on AFS_FS = n
-	depends on AUTOFS4_FS = n
 	depends on CEPH_FS = n
 	depends on CIFS = n
 	depends on CODA_FS = n
-	depends on FUSE_FS = n
 	depends on GFS2_FS = n
 	depends on NCP_FS = n
 	depends on NFSD = n
@@ -1119,7 +1182,7 @@ config CC_OPTIMIZE_FOR_SIZE
 	  Enabling this option will pass "-Os" instead of "-O2" to gcc
 	  resulting in a smaller kernel.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config SYSCTL
 	bool

@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
@@ -37,7 +38,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/irda.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 #include <mach/assabet.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/irqs.h>

@@ -19,18 +19,12 @@ int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
 void	core_dev_unexport(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
-int	target_report_luns(struct se_cmd *);
-void	se_release_device_for_hba(struct se_device *);
-void	se_release_vpd_for_dev(struct se_device *);
-int	se_free_virtual_device(struct se_device *, struct se_hba *);
-int	se_dev_check_online(struct se_device *);
-int	se_dev_check_shutdown(struct se_device *);
-void	se_dev_set_default_attribs(struct se_device *, struct se_dev_limits *);
 int	se_dev_set_task_timeout(struct se_device *, u32);
 int	se_dev_set_max_unmap_lba_count(struct se_device *, u32);
 int	se_dev_set_max_unmap_block_desc_count(struct se_device *, u32);
 int	se_dev_set_unmap_granularity(struct se_device *, u32);
 int	se_dev_set_unmap_granularity_alignment(struct se_device *, u32);
+int	se_dev_set_max_write_same_len(struct se_device *, u32);
 int	se_dev_set_emulate_dpo(struct se_device *, int);
 int	se_dev_set_emulate_fua_write(struct se_device *, int);
 int	se_dev_set_emulate_fua_read(struct se_device *, int);
@@ -60,6 +54,9 @@ void	core_dev_free_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *lacl);
 int	core_dev_setup_virtual_lun0(void);
 void	core_dev_release_virtual_lun0(void);
+struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
+int	target_configure_device(struct se_device *dev);
+void	target_free_device(struct se_device *);
 
 /* target_core_hba.c */
 struct se_hba *core_alloc_hba(const char *, u32, u32);
@@ -105,10 +102,11 @@ int	transport_dump_vpd_ident(struct t10_vpd *, unsigned char *, int);
 bool	target_stop_cmd(struct se_cmd *cmd, unsigned long *flags);
 int	transport_clear_lun_from_sessions(struct se_lun *);
 void	transport_send_task_abort(struct se_cmd *);
-int	target_cmd_size_check(struct se_cmd *cmd, unsigned int size);
+sense_reason_t	target_cmd_size_check(struct se_cmd *cmd, unsigned int size);
+void	target_qf_do_work(struct work_struct *work);
 
 /* target_core_stat.c */
-void	target_stat_setup_dev_default_groups(struct se_subsystem_dev *);
+void	target_stat_setup_dev_default_groups(struct se_device *);
 void	target_stat_setup_port_default_groups(struct se_lun *);
 void	target_stat_setup_mappedlun_default_groups(struct se_lun_acl *);
 

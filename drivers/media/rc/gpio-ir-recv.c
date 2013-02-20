@@ -58,7 +58,7 @@ err_get_value:
 	return IRQ_HANDLED;
 }
 
-static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
+static int gpio_ir_recv_probe(struct platform_device *pdev)
 {
 	struct gpio_rc_dev *gpio_dev;
 	struct rc_dev *rcdev;
@@ -95,7 +95,7 @@ static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
 	if (pdata->allowed_protos)
 		rcdev->allowed_protos = pdata->allowed_protos;
 	else
-		rcdev->allowed_protos = RC_TYPE_ALL;
+		rcdev->allowed_protos = RC_BIT_ALL;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;
@@ -140,7 +140,7 @@ err_allocate_device:
 	return rc;
 }
 
-static int __devexit gpio_ir_recv_remove(struct platform_device *pdev)
+static int gpio_ir_recv_remove(struct platform_device *pdev)
 {
 	struct gpio_rc_dev *gpio_dev = platform_get_drvdata(pdev);
 
@@ -188,7 +188,7 @@ static const struct dev_pm_ops gpio_ir_recv_pm_ops = {
 
 static struct platform_driver gpio_ir_recv_driver = {
 	.probe  = gpio_ir_recv_probe,
-	.remove = __devexit_p(gpio_ir_recv_remove),
+	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
 		.owner  = THIS_MODULE,

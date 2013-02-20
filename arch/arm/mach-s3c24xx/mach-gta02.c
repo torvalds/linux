@@ -521,7 +521,6 @@ static struct platform_device *gta02_devices[] __initdata = {
 	&gta02_nor_flash,
 	&s3c24xx_pwm_device,
 	&s3c_device_iis,
-	&samsung_asoc_dma,
 	&s3c_device_i2c0,
 	&gta02_dfbmcs320_device,
 	&gta02_buttons_device,

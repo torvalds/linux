@@ -898,7 +898,7 @@ static struct pci_driver synclink_pci_driver = {
 	.name		= "synclink",
 	.id_table	= synclink_pci_tbl,
 	.probe		= synclink_init_one,
-	.remove		= __devexit_p(synclink_remove_one),
+	.remove		= synclink_remove_one,
 };
 
 static struct tty_driver *serial_driver;
@@ -4425,6 +4425,7 @@ static void synclink_cleanup(void)
 		mgsl_release_resources(info);
 		tmp = info;
 		info = info->next_device;
+		tty_port_destroy(&tmp->port);
 		kfree(tmp);
 	}
 	
@@ -8064,7 +8065,7 @@ static void hdlcdev_exit(struct mgsl_struct *info)
 #endif /* CONFIG_HDLC */
 
 
-static int __devinit synclink_init_one (struct pci_dev *dev,
+static int synclink_init_one (struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	struct mgsl_struct *info;
@@ -8116,7 +8117,7 @@ static int __devinit synclink_init_one (struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit synclink_remove_one (struct pci_dev *dev)
+static void synclink_remove_one (struct pci_dev *dev)
 {
 }
 

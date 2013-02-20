@@ -22,10 +22,6 @@
 #include "csr_wifi_sme_ap_prim.h"
 #include "csr_wifi_nme_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_ap_prim.h
 #endif
@@ -493,11 +489,6 @@ typedef struct
     CsrWifiMacAddress     peerMacAddress;
     CsrWifiMacAddress     peerDeviceAddress;
 } CsrWifiNmeApStationInd;
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_NME_AP_PRIM_H__ */
 

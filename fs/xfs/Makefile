@@ -37,9 +37,8 @@ xfs-y				+= xfs_aops.o \
 				   xfs_file.o \
 				   xfs_filestream.o \
 				   xfs_fsops.o \
-				   xfs_fs_subr.o \
 				   xfs_globals.o \
-				   xfs_iget.o \
+				   xfs_icache.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
@@ -47,7 +46,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_message.o \
 				   xfs_mru_cache.o \
 				   xfs_super.o \
-				   xfs_sync.o \
 				   xfs_xattr.o \
 				   xfs_rename.o \
 				   xfs_utils.o \

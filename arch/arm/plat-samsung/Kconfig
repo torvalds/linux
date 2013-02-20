@@ -414,6 +414,11 @@ config S5P_SETUP_MIPIPHY
 	help
 	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
+config S3C_SETUP_CAMIF
+	bool
+	help
+	  Compile in common setup code for S3C CAMIF devices
+
 # DMA
 
 config S3C_DMA
@@ -502,5 +507,6 @@ config DEBUG_S3C_UART
 	default "0" if DEBUG_S3C_UART0
 	default "1" if DEBUG_S3C_UART1
 	default "2" if DEBUG_S3C_UART2
+	default "3" if DEBUG_S3C_UART3
 
 endif

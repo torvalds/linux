@@ -1034,7 +1034,7 @@ int bdi_writeback_thread(void *data)
 	while (!kthread_freezable_should_stop(NULL)) {
 		/*
 		 * Remove own delayed wake-up timer, since we are already awake
-		 * and we'll take care of the preriodic write-back.
+		 * and we'll take care of the periodic write-back.
 		 */
 		del_timer(&wb->wakeup_timer);
 

@@ -195,6 +195,10 @@ struct mmci_host {
 	unsigned int		size;
 	struct regulator	*vcc;
 
+	/* pinctrl handles */
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*pins_default;
+
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
 	struct dma_chan		*dma_current;

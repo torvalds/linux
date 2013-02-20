@@ -108,7 +108,7 @@ int iio_dummy_evgen_get_irq(void)
 
 	mutex_lock(&iio_evgen->lock);
 	for (i = 0; i < IIO_EVENTGEN_NO; i++)
-		if (iio_evgen->inuse[i] == false) {
+		if (!iio_evgen->inuse[i]) {
 			ret = iio_evgen->base + i;
 			iio_evgen->inuse[i] = true;
 			break;

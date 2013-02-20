@@ -169,7 +169,7 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 		queue_delayed_work(cvm_oct_poll_queue, &priv->port_periodic_work, HZ);
  }
 
-static __devinit void cvm_oct_configure_common_hw(void)
+static void cvm_oct_configure_common_hw(void)
 {
 	/* Setup the FPA */
 	cvmx_fpa_enable();
@@ -586,7 +586,7 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 
 extern void octeon_mdiobus_force_mod_depencency(void);
 
-static struct device_node * __devinit cvm_oct_of_get_child(const struct device_node *parent,
+static struct device_node *cvm_oct_of_get_child(const struct device_node *parent,
 							   int reg_val)
 {
 	struct device_node *node = NULL;
@@ -604,7 +604,7 @@ static struct device_node * __devinit cvm_oct_of_get_child(const struct device_n
 	return node;
 }
 
-static struct device_node * __devinit cvm_oct_node_for_port(struct device_node *pip,
+static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 							    int interface, int port)
 {
 	struct device_node *ni, *np;
@@ -619,7 +619,7 @@ static struct device_node * __devinit cvm_oct_node_for_port(struct device_node *
 	return np;
 }
 
-static int __devinit cvm_oct_probe(struct platform_device *pdev)
+static int cvm_oct_probe(struct platform_device *pdev)
 {
 	int num_interfaces;
 	int interface;
@@ -813,7 +813,7 @@ static int __devinit cvm_oct_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit cvm_oct_remove(struct platform_device *pdev)
+static int cvm_oct_remove(struct platform_device *pdev)
 {
 	int port;
 
@@ -874,7 +874,7 @@ MODULE_DEVICE_TABLE(of, cvm_oct_match);
 
 static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
-	.remove		= __devexit_p(cvm_oct_remove),
+	.remove		= cvm_oct_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,

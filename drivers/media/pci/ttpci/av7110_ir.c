@@ -324,7 +324,7 @@ static void ir_handler(struct av7110 *av7110, u32 ircom)
 }
 
 
-int __devinit av7110_ir_init(struct av7110 *av7110)
+int av7110_ir_init(struct av7110 *av7110)
 {
 	struct input_dev *input_dev;
 	static struct proc_dir_entry *e;
@@ -385,7 +385,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 }
 
 
-void __devexit av7110_ir_exit(struct av7110 *av7110)
+void av7110_ir_exit(struct av7110 *av7110)
 {
 	int i;
 

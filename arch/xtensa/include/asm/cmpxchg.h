@@ -22,17 +22,30 @@
 static inline unsigned long
 __cmpxchg_u32(volatile int *p, int old, int new)
 {
-  __asm__ __volatile__("rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
-		       "l32i    %0, %1, 0              \n\t"
-		       "bne	%0, %2, 1f             \n\t"
-		       "s32i    %3, %1, 0              \n\t"
-		       "1:                             \n\t"
-		       "wsr     a15, ps                \n\t"
-		       "rsync                          \n\t"
-		       : "=&a" (old)
-		       : "a" (p), "a" (old), "r" (new)
-		       : "a15", "memory");
-  return old;
+#if XCHAL_HAVE_S32C1I
+	__asm__ __volatile__(
+			"       wsr     %2, scompare1\n"
+			"       s32c1i  %0, %1, 0\n"
+			: "+a" (new)
+			: "a" (p), "a" (old)
+			: "memory"
+			);
+
+	return new;
+#else
+	__asm__ __volatile__(
+			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %1, 0\n"
+			"       bne     %0, %2, 1f\n"
+			"       s32i    %3, %1, 0\n"
+			"1:\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (old)
+			: "a" (p), "a" (old), "r" (new)
+			: "a15", "memory");
+	return old;
+#endif
 }
 /* This function doesn't exist, so you'll get a linker error
  * if something tries to do an invalid cmpxchg(). */
@@ -93,19 +106,36 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 
 static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 {
-  unsigned long tmp;
-  __asm__ __volatile__("rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
-		       "l32i    %0, %1, 0              \n\t"
-		       "s32i    %2, %1, 0              \n\t"
-		       "wsr     a15, ps                \n\t"
-		       "rsync                          \n\t"
-		       : "=&a" (tmp)
-		       : "a" (m), "a" (val)
-		       : "a15", "memory");
-  return tmp;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp, result;
+	__asm__ __volatile__(
+			"1:     l32i    %1, %2, 0\n"
+			"       mov     %0, %3\n"
+			"       wsr     %1, scompare1\n"
+			"       s32c1i  %0, %2, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (m), "a" (val)
+			: "memory"
+			);
+	return result;
+#else
+	unsigned long tmp;
+	__asm__ __volatile__(
+			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %1, 0\n"
+			"       s32i    %2, %1, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (tmp)
+			: "a" (m), "a" (val)
+			: "a15", "memory");
+	return tmp;
+#endif
 }
 
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
+#define xchg(ptr,x) \
+	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 /*
  * This only works if the compiler isn't horribly bad at optimizing.

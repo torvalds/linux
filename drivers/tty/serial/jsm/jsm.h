@@ -57,9 +57,11 @@ enum {
 	DBG_CARR	= 0x10000,
 };
 
-#define jsm_printk(nlevel, klevel, pdev, fmt, args...)	\
-	if ((DBG_##nlevel & jsm_debug))			\
-	dev_printk(KERN_##klevel, pdev->dev, fmt, ## args)
+#define jsm_dbg(nlevel, pdev, fmt, ...)				\
+do {								\
+	if (DBG_##nlevel & jsm_debug)				\
+		dev_dbg(pdev->dev, fmt, ##__VA_ARGS__);		\
+} while (0)
 
 #define	MAXLINES	256
 #define MAXPORTS	8

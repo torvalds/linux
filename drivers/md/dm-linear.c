@@ -55,6 +55,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_requests = 1;
 	ti->num_discard_requests = 1;
+	ti->num_write_same_requests = 1;
 	ti->private = lc;
 	return 0;
 
@@ -87,8 +88,7 @@ static void linear_map_bio(struct dm_target *ti, struct bio *bio)
 		bio->bi_sector = linear_map_sector(ti, bio->bi_sector);
 }
 
-static int linear_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int linear_map(struct dm_target *ti, struct bio *bio)
 {
 	linear_map_bio(ti, bio);
 
@@ -155,7 +155,7 @@ static int linear_iterate_devices(struct dm_target *ti,
 
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,

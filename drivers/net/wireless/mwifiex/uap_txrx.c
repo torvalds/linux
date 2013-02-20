@@ -146,7 +146,7 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 	}
 
 	/* Forward unicat/Inter-BSS packets to kernel. */
-	return mwifiex_process_rx_packet(adapter, skb);
+	return mwifiex_process_rx_packet(priv, skb);
 }
 
 /*
@@ -159,23 +159,16 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
  *
  * The completion callback is called after processing is complete.
  */
-int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 				  struct sk_buff *skb)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;
 	struct uap_rxpd *uap_rx_pd;
-	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u16 rx_pkt_type;
 	u8 ta[ETH_ALEN], pkt_type;
 	struct mwifiex_sta_node *node;
-
-	struct mwifiex_private *priv =
-			mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
-					       rx_info->bss_type);
-
-	if (!priv)
-		return -1;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_type = le16_to_cpu(uap_rx_pd->rx_pkt_type);
@@ -210,7 +203,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 
 		while (!skb_queue_empty(&list)) {
 			rx_skb = __skb_dequeue(&list);
-			ret = mwifiex_recv_packet(adapter, rx_skb);
+			ret = mwifiex_recv_packet(priv, rx_skb);
 			if (ret)
 				dev_err(adapter->dev,
 					"AP:Rx A-MSDU failed");
@@ -218,7 +211,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 
 		return 0;
 	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
-		ret = mwifiex_process_mgmt_packet(adapter, skb);
+		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
 			dev_err(adapter->dev, "Rx of mgmt packet failed");
 		dev_kfree_skb_any(skb);

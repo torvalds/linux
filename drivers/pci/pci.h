@@ -8,7 +8,6 @@
 
 /* Functions internal to the PCI core code */
 
-extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 #if !defined(CONFIG_DMI) && !defined(CONFIG_ACPI)
@@ -159,11 +158,8 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 }
 extern struct device_attribute pci_dev_attrs[];
 extern struct device_attribute pcibus_dev_attrs[];
-#ifdef CONFIG_HOTPLUG
+extern struct device_type pci_dev_type;
 extern struct bus_attribute pci_bus_attrs[];
-#else
-#define pci_bus_attrs	NULL
-#endif
 
 
 /**
@@ -234,13 +230,14 @@ struct pci_sriov {
 	int nres;		/* number of resources */
 	u32 cap;		/* SR-IOV Capabilities */
 	u16 ctrl;		/* SR-IOV Control */
-	u16 total;		/* total VFs associated with the PF */
-	u16 initial;		/* initial VFs associated with the PF */
-	u16 nr_virtfn;		/* number of VFs available */
+	u16 total_VFs;		/* total VFs associated with the PF */
+	u16 initial_VFs;	/* initial VFs associated with the PF */
+	u16 num_VFs;		/* number of VFs available */
 	u16 offset;		/* first VF Routing ID offset */
 	u16 stride;		/* following VF stride */
 	u32 pgsz;		/* page size for BAR alignment */
 	u8 link;		/* Function Dependency Link */
+	u16 driver_max_VFs;	/* max num VFs driver supports */
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
 	struct mutex lock;	/* lock for VF bus */

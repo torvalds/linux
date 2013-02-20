@@ -550,7 +550,7 @@ bool sirfsoc_dma_filter_id(struct dma_chan *chan, void *chan_id)
 }
 EXPORT_SYMBOL(sirfsoc_dma_filter_id);
 
-static int __devinit sirfsoc_dma_probe(struct platform_device *op)
+static int sirfsoc_dma_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
@@ -655,7 +655,7 @@ irq_dispose:
 	return ret;
 }
 
-static int __devexit sirfsoc_dma_remove(struct platform_device *op)
+static int sirfsoc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
@@ -673,7 +673,7 @@ static struct of_device_id sirfsoc_dma_match[] = {
 
 static struct platform_driver sirfsoc_dma_driver = {
 	.probe		= sirfsoc_dma_probe,
-	.remove		= __devexit_p(sirfsoc_dma_remove),
+	.remove		= sirfsoc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

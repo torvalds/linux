@@ -309,10 +309,13 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state *walk_state);
 acpi_status
 acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state *walk_state);
 
-struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id, union acpi_parse_object
-						  *origin, union acpi_operand_object
-						  *mth_desc, struct acpi_thread_state
-						  *thread);
+struct acpi_walk_state * acpi_ds_create_walk_state(acpi_owner_id owner_id,
+						   union acpi_parse_object
+						   *origin,
+						   union acpi_operand_object
+						   *mth_desc,
+						   struct acpi_thread_state
+						   *thread);
 
 acpi_status
 acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,

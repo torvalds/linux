@@ -100,7 +100,7 @@ static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-static int __devinit nvec_kbd_probe(struct platform_device *pdev)
+static int nvec_kbd_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	int i, j, err;
@@ -159,7 +159,7 @@ fail:
 	return err;
 }
 
-static int __devexit nvec_kbd_remove(struct platform_device *pdev)
+static int nvec_kbd_remove(struct platform_device *pdev)
 {
 	input_unregister_device(keys_dev.input);
 	input_free_device(keys_dev.input);
@@ -169,7 +169,7 @@ static int __devexit nvec_kbd_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_kbd_driver = {
 	.probe  = nvec_kbd_probe,
-	.remove = __devexit_p(nvec_kbd_remove),
+	.remove = nvec_kbd_remove,
 	.driver = {
 		.name = "nvec-kbd",
 		.owner = THIS_MODULE,

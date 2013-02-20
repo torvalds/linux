@@ -565,7 +565,7 @@ fail_msg_node:
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:
-	free_bootmem((unsigned long)smu, sizeof(struct smu_device));
+	free_bootmem(__pa(smu), sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
 	of_node_put(np);
@@ -997,7 +997,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 		       "%02x !\n", id, hdr->id);
 		goto failure;
 	}
-	if (prom_add_property(smu->of_node, prop)) {
+	if (of_add_property(smu->of_node, prop)) {
 		printk(KERN_DEBUG "SMU: Failed creating sdb-partition-%02x "
 		       "property !\n", id);
 		goto failure;

@@ -386,7 +386,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int __devinit setup_regulators(struct lp3971 *lp3971,
+static int setup_regulators(struct lp3971 *lp3971,
 				      struct lp3971_platform_data *pdata)
 {
 	int i, err;
@@ -429,7 +429,7 @@ err_nomem:
 	return err;
 }
 
-static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
+static int lp3971_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3971 *lp3971;
@@ -472,7 +472,7 @@ err_detect:
 	return ret;
 }
 
-static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
+static int lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;
@@ -498,7 +498,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = lp3971_i2c_probe,
-	.remove   = __devexit_p(lp3971_i2c_remove),
+	.remove   = lp3971_i2c_remove,
 	.id_table = lp3971_i2c_id,
 };
 

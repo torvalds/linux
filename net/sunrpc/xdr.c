@@ -318,7 +318,10 @@ xdr_shrink_bufhead(struct xdr_buf *buf, size_t len)
 
 	tail = buf->tail;
 	head = buf->head;
-	BUG_ON (len > head->iov_len);
+
+	WARN_ON_ONCE(len > head->iov_len);
+	if (len > head->iov_len)
+		len = head->iov_len;
 
 	/* Shift the tail first */
 	if (tail->iov_len != 0) {

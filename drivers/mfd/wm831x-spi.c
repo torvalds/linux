@@ -21,7 +21,7 @@
 
 #include <linux/mfd/wm831x/core.h>
 
-static int __devinit wm831x_spi_probe(struct spi_device *spi)
+static int wm831x_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct wm831x *wm831x;
@@ -51,7 +51,7 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	return wm831x_device_init(wm831x, type, spi->irq);
 }
 
-static int __devexit wm831x_spi_remove(struct spi_device *spi)
+static int wm831x_spi_remove(struct spi_device *spi)
 {
 	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
 
@@ -99,7 +99,7 @@ static struct spi_driver wm831x_spi_driver = {
 	},
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
+	.remove		= wm831x_spi_remove,
 	.shutdown	= wm831x_spi_shutdown,
 };
 

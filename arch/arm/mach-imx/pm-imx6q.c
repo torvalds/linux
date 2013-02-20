@@ -18,8 +18,9 @@
 #include <asm/proc-fns.h>
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
+
+#include "common.h"
+#include "hardware.h"
 
 extern unsigned long phys_l2x0_saved_regs;
 
@@ -40,6 +41,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		cpu_suspend(0, imx6q_suspend_finish);
 		imx_smp_prepare();
 		imx_gpc_post_resume();
+		imx6q_set_lpm(WAIT_CLOCKED);
 		break;
 	default:
 		return -EINVAL;

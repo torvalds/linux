@@ -34,6 +34,7 @@
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("Socket-CAN driver for SJA1000 on the platform bus");
+MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_LICENSE("GPL v2");
 
 static u8 sp_read_reg8(const struct sja1000_priv *priv, int reg)

@@ -638,7 +638,6 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 got_map_page:
 	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
 got_map_ptr:
-	memset(ret, 0, memmap_size);
 
 	return ret;
 }
@@ -758,6 +757,8 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 		goto out;
 	}
 
+	memset(memmap, 0, sizeof(struct page) * nr_pages);
+
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 
 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
@@ -770,6 +771,27 @@ out:
 	}
 	return ret;
 }
+
+#ifdef CONFIG_MEMORY_FAILURE
+static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+{
+	int i;
+
+	if (!memmap)
+		return;
+
+	for (i = 0; i < PAGES_PER_SECTION; i++) {
+		if (PageHWPoison(&memmap[i])) {
+			atomic_long_sub(1, &mce_bad_pages);
+			ClearPageHWPoison(&memmap[i]);
+		}
+	}
+}
+#else
+static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+{
+}
+#endif
 
 void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 {
@@ -784,6 +806,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 		ms->pageblock_flags = NULL;
 	}
 
+	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
 	free_section_usemap(memmap, usemap);
 }
 #endif

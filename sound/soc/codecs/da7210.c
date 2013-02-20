@@ -1218,8 +1218,8 @@ static const struct regmap_config da7210_regmap_config_i2c = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
-			   	      const struct i2c_device_id *id)
+static int da7210_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct da7210_priv *da7210;
 	int ret;
@@ -1231,7 +1231,7 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, da7210);
 
-	da7210->regmap = regmap_init_i2c(i2c, &da7210_regmap_config_i2c);
+	da7210->regmap = devm_regmap_init_i2c(i2c, &da7210_regmap_config_i2c);
 	if (IS_ERR(da7210->regmap)) {
 		ret = PTR_ERR(da7210->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
@@ -1245,24 +1245,15 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		goto err_regmap;
-	}
-	return ret;
-
-err_regmap:
-	regmap_exit(da7210->regmap);
 
 	return ret;
 }
 
-static int __devexit da7210_i2c_remove(struct i2c_client *client)
+static int da7210_i2c_remove(struct i2c_client *client)
 {
-	struct da7210_priv *da7210 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(da7210->regmap);
 	return 0;
 }
 
@@ -1279,7 +1270,7 @@ static struct i2c_driver da7210_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= da7210_i2c_probe,
-	.remove		= __devexit_p(da7210_i2c_remove),
+	.remove		= da7210_i2c_remove,
 	.id_table	= da7210_i2c_id,
 };
 #endif
@@ -1323,7 +1314,7 @@ static const struct regmap_config da7210_regmap_config_spi = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit da7210_spi_probe(struct spi_device *spi)
+static int da7210_spi_probe(struct spi_device *spi)
 {
 	struct da7210_priv *da7210;
 	int ret;
@@ -1346,24 +1337,15 @@ static int __devinit da7210_spi_probe(struct spi_device *spi)
 	if (ret != 0)
 		dev_warn(&spi->dev, "Failed to apply regmap patch: %d\n", ret);
 
-	ret =  snd_soc_register_codec(&spi->dev,
+	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
-	if (ret < 0)
-		goto err_regmap;
-
-	return ret;
-
-err_regmap:
-	regmap_exit(da7210->regmap);
 
 	return ret;
 }
 
-static int __devexit da7210_spi_remove(struct spi_device *spi)
+static int da7210_spi_remove(struct spi_device *spi)
 {
-	struct da7210_priv *da7210 = spi_get_drvdata(spi);
 	snd_soc_unregister_codec(&spi->dev);
-	regmap_exit(da7210->regmap);
 	return 0;
 }
 
@@ -1373,7 +1355,7 @@ static struct spi_driver da7210_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = da7210_spi_probe,
-	.remove = __devexit_p(da7210_spi_remove)
+	.remove = da7210_spi_remove
 };
 #endif
 

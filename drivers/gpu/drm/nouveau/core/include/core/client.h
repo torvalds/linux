@@ -36,6 +36,9 @@ nouveau_client(void *obj)
 
 int  nouveau_client_create_(const char *name, u64 device, const char *cfg,
 			    const char *dbg, int, void **);
+#define nouveau_client_destroy(p)                                              \
+	nouveau_namedb_destroy(&(p)->base)
+
 int  nouveau_client_init(struct nouveau_client *);
 int  nouveau_client_fini(struct nouveau_client *, bool suspend);
 

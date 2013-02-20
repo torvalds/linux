@@ -340,7 +340,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	/*
 	 * Alocate and fill the csrow/channels structs
 	 */
-	mci->csrows = kcalloc(sizeof(*mci->csrows), tot_csrows, GFP_KERNEL);
+	mci->csrows = kcalloc(tot_csrows, sizeof(*mci->csrows), GFP_KERNEL);
 	if (!mci->csrows)
 		goto error;
 	for (row = 0; row < tot_csrows; row++) {
@@ -351,7 +351,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 		csr->csrow_idx = row;
 		csr->mci = mci;
 		csr->nr_channels = tot_channels;
-		csr->channels = kcalloc(sizeof(*csr->channels), tot_channels,
+		csr->channels = kcalloc(tot_channels, sizeof(*csr->channels),
 					GFP_KERNEL);
 		if (!csr->channels)
 			goto error;
@@ -369,7 +369,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	/*
 	 * Allocate and fill the dimm structs
 	 */
-	mci->dimms  = kcalloc(sizeof(*mci->dimms), tot_dimms, GFP_KERNEL);
+	mci->dimms  = kcalloc(tot_dimms, sizeof(*mci->dimms), GFP_KERNEL);
 	if (!mci->dimms)
 		goto error;
 

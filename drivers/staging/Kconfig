@@ -52,8 +52,6 @@ source "drivers/staging/rtl8192e/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
-source "drivers/staging/rts_pstor/Kconfig"
-
 source "drivers/staging/rts5139/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
@@ -120,13 +118,9 @@ source "drivers/staging/omapdrm/Kconfig"
 
 source "drivers/staging/android/Kconfig"
 
-source "drivers/staging/telephony/Kconfig"
-
 source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/ccg/Kconfig"
-
-source "drivers/staging/ipack/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
 
@@ -143,5 +137,9 @@ source "drivers/staging/ced1401/Kconfig"
 source "drivers/staging/imx-drm/Kconfig"
 
 source "drivers/staging/dgrp/Kconfig"
+
+source "drivers/staging/sb105x/Kconfig"
+
+source "drivers/staging/fwserial/Kconfig"
 
 endif # STAGING

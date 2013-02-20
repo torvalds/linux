@@ -66,7 +66,7 @@
 	ENTRY_SAME(creat)
 	ENTRY_SAME(link)
 	ENTRY_SAME(unlink)		/* 10 */
-	ENTRY_DIFF(execve_wrapper)
+	ENTRY_COMP(execve)
 	ENTRY_SAME(chdir)
 	/* See comments in kernel/time.c!!! Maybe we don't need this? */
 	ENTRY_COMP(time)

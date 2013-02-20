@@ -365,7 +365,7 @@ static const struct iio_info adxrs450_info = {
 	.write_raw = &adxrs450_write_raw,
 };
 
-static int __devinit adxrs450_probe(struct spi_device *spi)
+static int adxrs450_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adxrs450_state *st;
@@ -409,7 +409,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit adxrs450_remove(struct spi_device *spi)
+static int adxrs450_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));
@@ -430,7 +430,7 @@ static struct spi_driver adxrs450_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adxrs450_probe,
-	.remove = __devexit_p(adxrs450_remove),
+	.remove = adxrs450_remove,
 	.id_table	= adxrs450_id,
 };
 module_spi_driver(adxrs450_driver);

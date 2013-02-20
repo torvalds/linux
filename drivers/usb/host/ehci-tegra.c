@@ -28,7 +28,10 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/usb/tegra_usb_phy.h>
-#include <mach/iomap.h>
+
+#define TEGRA_USB_BASE			0xC5000000
+#define TEGRA_USB2_BASE			0xC5004000
+#define TEGRA_USB3_BASE			0xC5008000
 
 #define TEGRA_USB_DMA_ALIGN 32
 
@@ -277,7 +280,6 @@ static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 static int tegra_ehci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval;
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
@@ -285,12 +287,7 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 	/* switch to host mode */
 	hcd->has_tt = 1;
 
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 1);
-	return retval;
+	return ehci_setup(hcd);
 }
 
 struct dma_aligned_buffer {
@@ -778,9 +775,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 
-	if (tegra == NULL || hcd == NULL)
-		return -EINVAL;
-
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
@@ -811,7 +805,7 @@ static void tegra_ehci_hcd_shutdown(struct platform_device *pdev)
 		hcd->driver->shutdown(hcd);
 }
 
-static struct of_device_id tegra_ehci_of_match[] __devinitdata = {
+static struct of_device_id tegra_ehci_of_match[] = {
 	{ .compatible = "nvidia,tegra20-ehci", },
 	{ },
 };

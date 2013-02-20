@@ -28,12 +28,12 @@
 #include "util/hist.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "arch/common.h"
 
 #include <linux/bitmap.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
-	char const *input_name;
 	bool	   force, use_tui, use_stdio;
 	bool	   full_paths;
 	bool	   print_line;
@@ -139,7 +139,7 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx, NULL, NULL, 0);
+			key = hist_entry__tui_annotate(he, evidx, NULL);
 			switch (key) {
 			case K_RIGHT:
 				next = rb_next(nd);
@@ -174,7 +174,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	session = perf_session__new(ann->input_name, O_RDONLY,
+	session = perf_session__new(input_name, O_RDONLY,
 				    ann->force, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
@@ -182,6 +182,12 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
+		if (ret)
+			goto out_delete;
+	}
+
+	if (!objdump_path) {
+		ret = perf_session_env__lookup_objdump(&session->header.env);
 		if (ret)
 			goto out_delete;
 	}
@@ -246,13 +252,14 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.sample	= process_sample_event,
 			.mmap	= perf_event__process_mmap,
 			.comm	= perf_event__process_comm,
-			.fork	= perf_event__process_task,
+			.exit	= perf_event__process_exit,
+			.fork	= perf_event__process_fork,
 			.ordered_samples = true,
 			.ordering_requires_timestamps = true,
 		},
 	};
 	const struct option options[] = {
-	OPT_STRING('i', "input", &annotate.input_name, "file",
+	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),

@@ -104,7 +104,7 @@ static void flush_tlb_func(void *info)
 		return;
 
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-		if (f->flush_end == TLB_FLUSH_ALL || !cpu_has_invlpg)
+		if (f->flush_end == TLB_FLUSH_ALL)
 			local_flush_tlb();
 		else if (!f->flush_end)
 			__flush_tlb_single(f->flush_start);
@@ -337,10 +337,8 @@ static const struct file_operations fops_tlbflush = {
 
 static int __cpuinit create_tlb_flushall_shift(void)
 {
-	if (cpu_has_invlpg) {
-		debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
-			arch_debugfs_dir, NULL, &fops_tlbflush);
-	}
+	debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
+			    arch_debugfs_dir, NULL, &fops_tlbflush);
 	return 0;
 }
 late_initcall(create_tlb_flushall_shift);

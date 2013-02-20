@@ -25,6 +25,12 @@
 #define MCOUNT_OFFSET_INSNS 4
 #endif
 
+/* Arch override because MIPS doesn't need to run this from stop_machine() */
+void arch_ftrace_update_code(int command)
+{
+	ftrace_modify_all_code(command);
+}
+
 /*
  * Check if the address is in kernel space
  *
@@ -89,6 +95,24 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	return 0;
 }
 
+#ifndef CONFIG_64BIT
+static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
+				unsigned int new_code2)
+{
+	int faulted;
+
+	safe_store_code(new_code1, ip, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+	ip += 4;
+	safe_store_code(new_code2, ip, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+	flush_icache_range(ip, ip + 8); /* original ip + 12 */
+	return 0;
+}
+#endif
+
 /*
  * The details about the calling site of mcount on MIPS
  *
@@ -131,8 +155,18 @@ int ftrace_make_nop(struct module *mod,
 	 * needed.
 	 */
 	new = in_kernel_space(ip) ? INSN_NOP : INSN_B_1F;
-
+#ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
+#else
+	/*
+	 * On 32 bit MIPS platforms, gcc adds a stack adjust
+	 * instruction in the delay slot after the branch to
+	 * mcount and expects mcount to restore the sp on return.
+	 * This is based on a legacy API and does nothing but
+	 * waste instructions so it's being removed at runtime.
+	 */
+	return ftrace_modify_code_2(ip, new, INSN_NOP);
+#endif
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)

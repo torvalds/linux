@@ -140,7 +140,7 @@ static int socrates_nand_device_ready(struct mtd_info *mtd)
 /*
  * Probe for the NAND device.
  */
-static int __devinit socrates_nand_probe(struct platform_device *ofdev)
+static int socrates_nand_probe(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host;
 	struct mtd_info *mtd;
@@ -220,7 +220,7 @@ out:
 /*
  * Remove a NAND device.
  */
-static int __devexit socrates_nand_remove(struct platform_device *ofdev)
+static int socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
 	struct mtd_info *mtd = &host->mtd;
@@ -251,7 +251,7 @@ static struct platform_driver socrates_nand_driver = {
 		.of_match_table = socrates_nand_match,
 	},
 	.probe		= socrates_nand_probe,
-	.remove		= __devexit_p(socrates_nand_remove),
+	.remove		= socrates_nand_remove,
 };
 
 module_platform_driver(socrates_nand_driver);

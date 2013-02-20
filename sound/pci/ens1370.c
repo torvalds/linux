@@ -1268,8 +1268,8 @@ static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ }
 };
 
-static int __devinit snd_ensoniq_pcm(struct ensoniq * ensoniq, int device,
-				     struct snd_pcm ** rpcm)
+static int snd_ensoniq_pcm(struct ensoniq *ensoniq, int device,
+			   struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1310,8 +1310,8 @@ static int __devinit snd_ensoniq_pcm(struct ensoniq * ensoniq, int device,
 	return 0;
 }
 
-static int __devinit snd_ensoniq_pcm2(struct ensoniq * ensoniq, int device,
-				      struct snd_pcm ** rpcm)
+static int snd_ensoniq_pcm2(struct ensoniq *ensoniq, int device,
+			    struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1484,7 +1484,7 @@ static int snd_es1371_spdif_put(struct snd_kcontrol *kcontrol,
 
 
 /* spdif controls */
-static struct snd_kcontrol_new snd_es1371_mixer_spdif[] __devinitdata = {
+static struct snd_kcontrol_new snd_es1371_mixer_spdif[] = {
 	ES1371_SPDIF(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH)),
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1546,7 +1546,7 @@ static int snd_es1373_rear_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ens1373_rear __devinitdata =
+static struct snd_kcontrol_new snd_ens1373_rear =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"AC97 2ch->4ch Copy Switch",
@@ -1591,7 +1591,7 @@ static int snd_es1373_line_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_ens1373_line __devinitdata =
+static struct snd_kcontrol_new snd_ens1373_line =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Line In->Rear Out Switch",
@@ -1625,7 +1625,7 @@ static int es1371_quirk_lookup(struct ensoniq *ensoniq,
 	return 0;
 }
 
-static struct es1371_quirk es1371_spdif_present[] __devinitdata = {
+static struct es1371_quirk es1371_spdif_present[] = {
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_C },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_D },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_E },
@@ -1634,14 +1634,14 @@ static struct es1371_quirk es1371_spdif_present[] __devinitdata = {
 	{ .vid = PCI_ANY_ID, .did = PCI_ANY_ID }
 };
 
-static struct snd_pci_quirk ens1373_line_quirk[] __devinitdata = {
+static struct snd_pci_quirk ens1373_line_quirk[] = {
 	SND_PCI_QUIRK_ID(0x1274, 0x2000), /* GA-7DXR */
 	SND_PCI_QUIRK_ID(0x1458, 0xa000), /* GA-8IEXP */
 	{ } /* end */
 };
 
-static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
-					    int has_spdif, int has_line)
+static int snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
+				  int has_spdif, int has_line)
 {
 	struct snd_card *card = ensoniq->card;
 	struct snd_ac97_bus *pbus;
@@ -1749,7 +1749,7 @@ static int snd_ensoniq_control_put(struct snd_kcontrol *kcontrol,
  * ENS1370 mixer
  */
 
-static struct snd_kcontrol_new snd_es1370_controls[2] __devinitdata = {
+static struct snd_kcontrol_new snd_es1370_controls[2] = {
 ENSONIQ_CONTROL("PCM 0 Output also on Line-In Jack", ES_1370_XCTL0),
 ENSONIQ_CONTROL("Mic +5V bias", ES_1370_XCTL1)
 };
@@ -1762,7 +1762,7 @@ static void snd_ensoniq_mixer_free_ak4531(struct snd_ak4531 *ak4531)
 	ensoniq->u.es1370.ak4531 = NULL;
 }
 
-static int __devinit snd_ensoniq_1370_mixer(struct ensoniq * ensoniq)
+static int snd_ensoniq_1370_mixer(struct ensoniq *ensoniq)
 {
 	struct snd_card *card = ensoniq->card;
 	struct snd_ak4531 ak4531;
@@ -1796,7 +1796,7 @@ static int __devinit snd_ensoniq_1370_mixer(struct ensoniq * ensoniq)
 #ifdef SUPPORT_JOYSTICK
 
 #ifdef CHIP1371
-static int __devinit snd_ensoniq_get_joystick_port(int dev)
+static int snd_ensoniq_get_joystick_port(int dev)
 {
 	switch (joystick_port[dev]) {
 	case 0: /* disabled */
@@ -1819,7 +1819,7 @@ static inline int snd_ensoniq_get_joystick_port(int dev)
 }
 #endif
 
-static int __devinit snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
+static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
 {
 	struct gameport *gp;
 	int io_port;
@@ -1913,7 +1913,7 @@ static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 #endif
 }
 
-static void __devinit snd_ensoniq_proc_init(struct ensoniq * ensoniq)
+static void snd_ensoniq_proc_init(struct ensoniq *ensoniq)
 {
 	struct snd_info_entry *entry;
 
@@ -1960,7 +1960,7 @@ static int snd_ensoniq_dev_free(struct snd_device *device)
 }
 
 #ifdef CHIP1371
-static struct snd_pci_quirk es1371_amplifier_hack[] __devinitdata = {
+static struct snd_pci_quirk es1371_amplifier_hack[] = {
 	SND_PCI_QUIRK_ID(0x107b, 0x2150),	/* Gateway Solo 2150 */
 	SND_PCI_QUIRK_ID(0x13bd, 0x100c),	/* EV1938 on Mebius PC-MJ100V */
 	SND_PCI_QUIRK_ID(0x1102, 0x5938),	/* Targa Xtender300 */
@@ -2106,9 +2106,9 @@ static SIMPLE_DEV_PM_OPS(snd_ensoniq_pm, snd_ensoniq_suspend, snd_ensoniq_resume
 #define SND_ENSONIQ_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static int __devinit snd_ensoniq_create(struct snd_card *card,
-				     struct pci_dev *pci,
-				     struct ensoniq ** rensoniq)
+static int snd_ensoniq_create(struct snd_card *card,
+			      struct pci_dev *pci,
+			      struct ensoniq **rensoniq)
 {
 	struct ensoniq *ensoniq;
 	int err;
@@ -2361,8 +2361,8 @@ static struct snd_rawmidi_ops snd_ensoniq_midi_input =
 	.trigger =	snd_ensoniq_midi_input_trigger,
 };
 
-static int __devinit snd_ensoniq_midi(struct ensoniq * ensoniq, int device,
-				      struct snd_rawmidi **rrawmidi)
+static int snd_ensoniq_midi(struct ensoniq *ensoniq, int device,
+			    struct snd_rawmidi **rrawmidi)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
@@ -2422,8 +2422,8 @@ static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit snd_audiopci_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+static int snd_audiopci_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -2494,7 +2494,7 @@ static int __devinit snd_audiopci_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_audiopci_remove(struct pci_dev *pci)
+static void snd_audiopci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2504,7 +2504,7 @@ static struct pci_driver ens137x_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
-	.remove = __devexit_p(snd_audiopci_remove),
+	.remove = snd_audiopci_remove,
 	.driver = {
 		.pm = SND_ENSONIQ_PM_OPS,
 	},

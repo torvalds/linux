@@ -93,8 +93,7 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts,
-			struct perf_evsel *first);
+			struct perf_record_opts *opts);
 
 bool perf_evsel__is_cache_op_valid(u8 type, u8 op);
 
@@ -225,5 +224,10 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {
 	return list_entry(evsel->node.next, struct perf_evsel, node);
+}
+
+static inline bool perf_evsel__is_group_member(const struct perf_evsel *evsel)
+{
+	return evsel->leader != NULL;
 }
 #endif /* __PERF_EVSEL_H */

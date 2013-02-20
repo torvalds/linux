@@ -53,9 +53,10 @@ static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/2-bb: " fmt, dev->core->name , ## arg)
-
+#define dprintk(level, fmt, arg...) do {				      \
+	if (debug + 1 > level)						      \
+		printk(KERN_DEBUG "%s/2-bb: " fmt, dev->core->name , ## arg); \
+} while(0)
 
 /* ------------------------------------------------------------------ */
 

@@ -19,16 +19,17 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-
-#include <plat/dma.h>
-#include <plat/omap_device.h>
 #include <linux/pm_runtime.h>
+
+#include <linux/omap-dma.h>
+
+#include "omap_device.h"
 
 /*
  * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
  * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
  */
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
 static int omap3_enable_st_clock(unsigned int id, bool enable)

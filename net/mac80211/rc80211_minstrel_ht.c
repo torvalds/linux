@@ -389,9 +389,9 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_tx_rate *ar = info->status.rates;
 	struct minstrel_rate_stats *rate, *rate2;
 	struct minstrel_priv *mp = priv;
-	bool last = false;
+	bool last;
 	int group;
-	int i = 0;
+	int i;
 
 	if (!msp->is_ht)
 		return mac80211_minstrel.tx_status(priv, sband, sta, &msp->legacy, skb);
@@ -419,12 +419,10 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 		mi->sample_packets += info->status.ampdu_len;
 
+	last = !minstrel_ht_txstat_valid(&ar[0]);
 	for (i = 0; !last; i++) {
 		last = (i == IEEE80211_TX_MAX_RATES - 1) ||
 		       !minstrel_ht_txstat_valid(&ar[i + 1]);
-
-		if (!minstrel_ht_txstat_valid(&ar[i]))
-			break;
 
 		group = minstrel_ht_get_group_idx(&ar[i]);
 		rate = &mi->groups[group].rates[ar[i].idx % 8];

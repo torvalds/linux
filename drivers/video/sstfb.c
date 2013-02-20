@@ -104,7 +104,7 @@ static bool slowpci;		/* slow PCI settings */
 */
 #define DEFAULT_VIDEO_MODE "640x480@60"
 
-static char *mode_option __devinitdata = DEFAULT_VIDEO_MODE;
+static char *mode_option = DEFAULT_VIDEO_MODE;
 
 enum {
 	ID_VOODOO1 = 0,
@@ -113,7 +113,7 @@ enum {
 
 #define IS_VOODOO2(par) ((par)->type == ID_VOODOO2)
 
-static struct sst_spec voodoo_spec[] __devinitdata = {
+static struct sst_spec voodoo_spec[] = {
  { .name = "Voodoo Graphics", .default_gfx_clock = 50000, .max_gfxclk = 60 },
  { .name = "Voodoo2",	      .default_gfx_clock = 75000, .max_gfxclk = 85 },
 };
@@ -822,7 +822,7 @@ static void sstfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 /* 
  * get lfb size 
  */
-static int __devinit sst_get_memsize(struct fb_info *info, __u32 *memsize)
+static int sst_get_memsize(struct fb_info *info, __u32 *memsize)
 {
 	u8 __iomem *fbbase_virt = info->screen_base;
 
@@ -865,7 +865,7 @@ static int __devinit sst_get_memsize(struct fb_info *info, __u32 *memsize)
 /* fbi should be idle, and fifo emty and mem disabled */
 /* supposed to detect AT&T ATT20C409 and Ti TVP3409 ramdacs */
 
-static int __devinit sst_detect_att(struct fb_info *info)
+static int sst_detect_att(struct fb_info *info)
 {
 	struct sstfb_par *par = info->par;
 	int i, mir, dir;
@@ -890,7 +890,7 @@ static int __devinit sst_detect_att(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit sst_detect_ti(struct fb_info *info)
+static int sst_detect_ti(struct fb_info *info)
 {
 	struct sstfb_par *par = info->par;
 	int i, mir, dir;
@@ -926,7 +926,7 @@ static int __devinit sst_detect_ti(struct fb_info *info)
  * touched...
  * is it really safe ? how can i reset this ramdac ? geee...
  */
-static int __devinit sst_detect_ics(struct fb_info *info)
+static int sst_detect_ics(struct fb_info *info)
 {
 	struct sstfb_par *par = info->par;
 	int m_clk0_1, m_clk0_7, m_clk1_b;
@@ -1105,7 +1105,7 @@ static void sst_set_vidmod_ics(struct fb_info *info, const int bpp)
  */
 
 
-static struct dac_switch dacs[] __devinitdata = {
+static struct dac_switch dacs[] = {
 	{	.name		= "TI TVP3409",
 		.detect		= sst_detect_ti,
 		.set_pll	= sst_set_pll_att_ti,
@@ -1121,7 +1121,7 @@ static struct dac_switch dacs[] __devinitdata = {
 		.set_vidmod	= sst_set_vidmod_ics },
 };
 
-static int __devinit sst_detect_dactype(struct fb_info *info, struct sstfb_par *par)
+static int sst_detect_dactype(struct fb_info *info, struct sstfb_par *par)
 {
 	int i, ret = 0;
 
@@ -1140,7 +1140,7 @@ static int __devinit sst_detect_dactype(struct fb_info *info, struct sstfb_par *
 /*
  * Internal Routines
  */
-static int __devinit sst_init(struct fb_info *info, struct sstfb_par *par)
+static int sst_init(struct fb_info *info, struct sstfb_par *par)
 {
 	u32 fbiinit0, fbiinit1, fbiinit4;
 	struct pci_dev *dev = par->dev;
@@ -1239,7 +1239,7 @@ static int __devinit sst_init(struct fb_info *info, struct sstfb_par *par)
 	return 1;
 }
 
-static void  __devexit sst_shutdown(struct fb_info *info)
+static void sst_shutdown(struct fb_info *info)
 {
 	struct sstfb_par *par = info->par;
 	struct pci_dev *dev = par->dev;
@@ -1271,7 +1271,7 @@ static void  __devexit sst_shutdown(struct fb_info *info)
 /*
  * Interface to the world
  */
-static int  __devinit sstfb_setup(char *options)
+static int sstfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -1317,8 +1317,7 @@ static struct fb_ops sstfb_ops = {
 	.fb_ioctl	= sstfb_ioctl,
 };
 
-static int __devinit sstfb_probe(struct pci_dev *pdev,
-			const struct pci_device_id *id)
+static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	struct fb_fix_screeninfo *fix;
@@ -1458,7 +1457,7 @@ fail_mmio_mem:
 	return -ENXIO; 	/* no voodoo detected */
 }
 
-static void __devexit sstfb_remove(struct pci_dev *pdev)
+static void sstfb_remove(struct pci_dev *pdev)
 {
 	struct sstfb_par *par;
 	struct fb_info *info;
@@ -1490,11 +1489,11 @@ static struct pci_driver sstfb_driver = {
 	.name		= "sstfb",
 	.id_table	= sstfb_id_tbl,
 	.probe		= sstfb_probe,
-	.remove		= __devexit_p(sstfb_remove),
+	.remove		= sstfb_remove,
 };
 
 
-static int __devinit sstfb_init(void)
+static int sstfb_init(void)
 {
 	char *option = NULL;
 
@@ -1505,7 +1504,7 @@ static int __devinit sstfb_init(void)
 	return pci_register_driver(&sstfb_driver);
 }
 
-static void __devexit sstfb_exit(void)
+static void sstfb_exit(void)
 {
 	pci_unregister_driver(&sstfb_driver);
 }

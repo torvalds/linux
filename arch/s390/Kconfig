@@ -34,12 +34,6 @@ config GENERIC_BUG
 config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
-config NO_IOMEM
-	def_bool y
-
-config NO_DMA
-	def_bool y
-
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool 64BIT
 
@@ -57,6 +51,12 @@ config KEXEC
 
 config AUDIT_ARCH
 	def_bool y
+
+config NO_IOPORT
+	def_bool y
+
+config PCI_QUIRKS
+	def_bool n
 
 config S390
 	def_bool y
@@ -137,9 +137,9 @@ config S390
 	select GENERIC_CLOCKEVENTS
 	select KTIME_SCALAR if 32BIT
 	select HAVE_ARCH_SECCOMP_FILTER
-	select GENERIC_KERNEL_THREAD
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select CLONE_BACKWARDS2
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -168,6 +168,10 @@ config HAVE_MARCH_Z10_FEATURES
 config HAVE_MARCH_Z196_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z10_FEATURES
+
+config HAVE_MARCH_ZEC12_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z196_FEATURES
 
 choice
 	prompt "Processor type"
@@ -219,6 +223,13 @@ config MARCH_Z196
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
 	  not work on older machines.
+
+config MARCH_ZEC12
+	bool "IBM zEC12"
+	select HAVE_MARCH_ZEC12_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM zEC12 (2827 series). The
+	  kernel will be slightly faster but will not work on older machines.
 
 endchoice
 
@@ -423,6 +434,53 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
+
+menuconfig PCI
+	bool "PCI support"
+	default n
+	depends on 64BIT
+	select ARCH_SUPPORTS_MSI
+	select PCI_MSI
+	help
+	  Enable PCI support.
+
+if PCI
+
+config PCI_NR_FUNCTIONS
+	int "Maximum number of PCI functions (1-4096)"
+	range 1 4096
+	default "64"
+	help
+	  This allows you to specify the maximum number of PCI functions which
+	  this kernel will support.
+
+source "drivers/pci/Kconfig"
+source "drivers/pci/pcie/Kconfig"
+source "drivers/pci/hotplug/Kconfig"
+
+endif	# PCI
+
+config PCI_DOMAINS
+	def_bool PCI
+
+config HAS_IOMEM
+	def_bool PCI
+
+config IOMMU_HELPER
+	def_bool PCI
+
+config HAS_DMA
+	def_bool PCI
+	select HAVE_DMA_API_DEBUG
+
+config NEED_SG_DMA_LENGTH
+	def_bool PCI
+
+config HAVE_DMA_ATTRS
+	def_bool PCI
+
+config NEED_DMA_MAP_STATE
+	def_bool PCI
 
 config CHSC_SCH
 	def_tristate m

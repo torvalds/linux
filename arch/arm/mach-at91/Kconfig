@@ -39,7 +39,6 @@ config SOC_AT91RM9200
 config SOC_AT91SAM9260
 	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
 	select HAVE_AT91_DBGU0
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
@@ -57,7 +56,6 @@ config SOC_AT91SAM9263
 	bool "AT91SAM9263"
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 
 config SOC_AT91SAM9RL
@@ -70,7 +68,6 @@ config SOC_AT91SAM9G45
 	bool "AT91SAM9G45 or AT91SAM9M10 families"
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
@@ -80,7 +77,6 @@ config SOC_AT91SAM9X5
 	bool "AT91SAM9x5 family"
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.

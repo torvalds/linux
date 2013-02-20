@@ -37,8 +37,8 @@ config SND_HDA_HWDEP
 	  with codecs for debugging purposes.
 
 config SND_HDA_RECONFIG
-	bool "Allow dynamic codec reconfiguration (EXPERIMENTAL)"
-	depends on SND_HDA_HWDEP && EXPERIMENTAL
+	bool "Allow dynamic codec reconfiguration"
+	depends on SND_HDA_HWDEP
 	help
 	  Say Y here to enable the HD-audio codec re-configuration feature.
 	  This adds the sysfs interfaces to allow user to clear the whole
@@ -72,7 +72,6 @@ config SND_HDA_INPUT_JACK
 
 config SND_HDA_PATCH_LOADER
 	bool "Support initialization patch loading for HD-audio"
-	depends on EXPERIMENTAL
 	select FW_LOADER
 	select SND_HDA_HWDEP
 	select SND_HDA_RECONFIG

@@ -240,9 +240,11 @@ int snd_hda_mixer_bind_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 /*
  * SPDIF I/O
  */
-int snd_hda_create_spdif_out_ctls(struct hda_codec *codec,
-				  hda_nid_t associated_nid,
-				  hda_nid_t cvt_nid);
+int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
+				hda_nid_t associated_nid,
+				hda_nid_t cvt_nid, int type);
+#define snd_hda_create_spdif_out_ctls(codec, anid, cnid) \
+	snd_hda_create_dig_out_ctls(codec, anid, cnid, HDA_PCM_TYPE_SPDIF)
 int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);
 
 /*
@@ -597,6 +599,15 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
 #define get_amp_offset(kc)	(((kc)->private_value >> 23) & 0x3f)
 #define get_amp_min_mute(kc)	(((kc)->private_value >> 29) & 0x1)
+
+/*
+ * enum control helper
+ */
+int snd_hda_enum_helper_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo,
+			     int num_entries, const char * const *texts);
+#define snd_hda_enum_bool_helper_info(kcontrol, uinfo) \
+	snd_hda_enum_helper_info(kcontrol, uinfo, 0, NULL)
 
 /*
  * CEA Short Audio Descriptor data

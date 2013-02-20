@@ -30,6 +30,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
+#include <linux/omap-iommu.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <media/v4l2-event.h>

@@ -114,11 +114,6 @@ static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 	hlist_del_init_rcu(&pte->list_vpte);
 	hlist_del_init_rcu(&pte->list_vpte_long);
 
-	if (pte->pte.may_write)
-		kvm_release_pfn_dirty(pte->pfn);
-	else
-		kvm_release_pfn_clean(pte->pfn);
-
 	spin_unlock(&vcpu3s->mmu_lock);
 
 	vcpu3s->hpte_cache_count--;

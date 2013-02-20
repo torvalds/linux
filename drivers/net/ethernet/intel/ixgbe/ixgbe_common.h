@@ -78,9 +78,9 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
 s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
+s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
-s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask);
 s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr);
@@ -107,6 +107,7 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 
 void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
 			     u32 headroom, int strategy);
+s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
 
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define IXGBE_EMC_INTERNAL_DATA		0x00

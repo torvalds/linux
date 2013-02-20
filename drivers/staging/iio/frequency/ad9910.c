@@ -361,7 +361,7 @@ static const struct iio_info ad9910_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad9910_probe(struct spi_device *spi)
+static int ad9910_probe(struct spi_device *spi)
 {
 	struct ad9910_state *st;
 	struct iio_dev *idev;
@@ -397,7 +397,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad9910_remove(struct spi_device *spi)
+static int ad9910_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));
@@ -411,7 +411,7 @@ static struct spi_driver ad9910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad9910_probe,
-	.remove = __devexit_p(ad9910_remove),
+	.remove = ad9910_remove,
 };
 module_spi_driver(ad9910_driver);
 

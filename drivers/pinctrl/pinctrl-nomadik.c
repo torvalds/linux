@@ -31,9 +31,8 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-
 #include <asm/mach/irq.h>
-
+#include <mach/irqs.h>
 #include "pinctrl-nomadik.h"
 
 /*
@@ -259,6 +258,9 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	u8 alt_index;
 	const struct prcm_gpiocr_altcx_pin_desc *pin_desc;
 	const u16 *gpiocr_regs;
+
+	if (!npct->prcm_base)
+		return;
 
 	if (alt_num > PRCM_IDX_GPIOCR_ALTC_MAX) {
 		dev_err(npct->dev, "PRCM GPIOCR: alternate-C%i is invalid\n",
@@ -674,7 +676,7 @@ int nmk_gpio_set_mode(int gpio, int gpio_mode)
 }
 EXPORT_SYMBOL(nmk_gpio_set_mode);
 
-static int nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpio)
+static int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpio)
 {
 	int i;
 	u16 reg;
@@ -682,6 +684,9 @@ static int nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpio)
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	const struct prcm_gpiocr_altcx_pin_desc *pin_desc;
 	const u16 *gpiocr_regs;
+
+	if (!npct->prcm_base)
+		return NMK_GPIO_ALT_C;
 
 	for (i = 0; i < npct->soc->npins_altcx; i++) {
 		if (npct->soc->altcx_pins[i].pin == gpio)
@@ -1307,7 +1312,7 @@ const struct irq_domain_ops nmk_gpio_irq_simple_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-static int __devinit nmk_gpio_probe(struct platform_device *dev)
+static int nmk_gpio_probe(struct platform_device *dev)
 {
 	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
 	struct device_node *np = dev->dev.of_node;
@@ -1847,7 +1852,7 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 	{},
 };
 
-static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
+static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct device_node *np = pdev->dev.of_node;
@@ -1888,9 +1893,12 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 				"failed to ioremap PRCM registers\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (version == PINCTRL_NMK_STN8815) {
 		dev_info(&pdev->dev,
 			 "No PRCM base, assume no ALT-Cx control is available\n");
+	} else {
+		dev_err(&pdev->dev, "missing PRCM base address\n");
+		return -EINVAL;
 	}
 
 	/*

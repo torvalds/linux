@@ -407,8 +407,9 @@
 #define __NR_process_vm_writev	339
 #define __NR_kern_features	340
 #define __NR_kcmp		341
+#define __NR_finit_module	342
 
-#define NR_syscalls		342
+#define NR_syscalls		343
 
 /* Bitmask values returned from kern_features system call.  */
 #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001

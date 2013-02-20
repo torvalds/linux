@@ -104,7 +104,6 @@ struct das6402_private {
 
 	int das6402_ignoreirq;
 };
-#define devpriv ((struct das6402_private *)dev->private)
 
 static void das6402_ai_fifo_dregs(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
@@ -152,6 +151,7 @@ static void das6402_setcounter(struct comedi_device *dev)
 static irqreturn_t intr_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct das6402_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	if (!dev->attached || devpriv->das6402_ignoreirq) {
@@ -196,6 +196,8 @@ static void das6402_ai_fifo_read(struct comedi_device *dev, short *data, int n)
 static int das6402_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct das6402_private *devpriv = dev->private;
+
 	/*
 	 *  This function should reset the board from whatever condition it
 	 *  is in (i.e., acquiring data), to a non-active state.
@@ -217,6 +219,8 @@ static int das6402_ai_cancel(struct comedi_device *dev,
 static int das6402_ai_mode2(struct comedi_device *dev,
 			    struct comedi_subdevice *s, comedi_trig * it)
 {
+	struct das6402_private *devpriv = dev->private;
+
 	devpriv->das6402_ignoreirq = 1;
 	dev_dbg(dev->class_dev, "Starting acquisition\n");
 	outb_p(0x03, dev->iobase + 10);	/* enable external trigging */
@@ -236,6 +240,7 @@ static int das6402_ai_mode2(struct comedi_device *dev,
 
 static int board_init(struct comedi_device *dev)
 {
+	struct das6402_private *devpriv = dev->private;
 	BYTE b;
 
 	devpriv->das6402_ignoreirq = 1;
@@ -277,6 +282,7 @@ static int board_init(struct comedi_device *dev)
 static int das6402_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct das6402_private *devpriv;
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
@@ -303,9 +309,11 @@ static int das6402_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->irq = irq;
-	ret = alloc_private(dev, sizeof(struct das6402_private));
-	if (ret < 0)
-		return ret;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)

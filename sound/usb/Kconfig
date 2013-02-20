@@ -90,7 +90,7 @@ config SND_USB_CAIAQ_INPUT
 
 config SND_USB_US122L
 	tristate "Tascam US-122L USB driver"
-	depends on X86 && EXPERIMENTAL
+	depends on X86
 	select SND_HWDEP
 	select SND_RAWMIDI
 	help

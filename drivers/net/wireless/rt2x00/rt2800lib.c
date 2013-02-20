@@ -2173,7 +2173,7 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 				rt2800_rfcsr_write(rt2x00dev, 59,
 						   r59_nonbt_rev[idx]);
 			} else if (rt2x00_rt(rt2x00dev, RT5390) ||
-					   rt2x00_rt(rt2x00dev, RT5392)) {
+				   rt2x00_rt(rt2x00dev, RT5392)) {
 				static const char r59_non_bt[] = {0x8f, 0x8f,
 					0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8d,
 					0x8a, 0x88, 0x88, 0x87, 0x87, 0x86};
@@ -2243,7 +2243,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
 		rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
-		rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 1);
+		rt2x00_set_field8(&rfcsr, RFCSR3_VCOCAL_EN, 1);
 		rt2800_rfcsr_write(rt2x00dev, 3, rfcsr);
 	}
 
@@ -2264,7 +2264,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	if (rf->channel <= 14) {
 		if (!rt2x00_rt(rt2x00dev, RT5390) &&
-			!rt2x00_rt(rt2x00dev, RT5392)) {
+		    !rt2x00_rt(rt2x00dev, RT5392)) {
 			if (test_bit(CAPABILITY_EXTERNAL_LNA_BG,
 				     &rt2x00dev->cap_flags)) {
 				rt2800_bbp_write(rt2x00dev, 82, 0x62);
@@ -2520,19 +2520,36 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	return comp_value;
 }
 
+static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
+					int power_level, int max_power)
+{
+	int delta;
+
+	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags))
+		return 0;
+
+	/*
+	 * XXX: We don't know the maximum transmit power of our hardware since
+	 * the EEPROM doesn't expose it. We only know that we are calibrated
+	 * to 100% tx power.
+	 *
+	 * Hence, we assume the regulatory limit that cfg80211 calulated for
+	 * the current channel is our maximum and if we are requested to lower
+	 * the value we just reduce our tx power accordingly.
+	 */
+	delta = power_level - max_power;
+	return min(delta, 0);
+}
+
 static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 				   enum ieee80211_band band, int power_level,
 				   u8 txpower, int delta)
 {
-	u32 reg;
 	u16 eeprom;
 	u8 criterion;
 	u8 eirp_txpower;
 	u8 eirp_txpower_criterion;
 	u8 reg_limit;
-
-	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
-		return txpower;
 
 	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
 		/*
@@ -2542,11 +2559,13 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 		 * .11b data rate need add additional 4dbm
 		 * when calculating eirp txpower.
 		 */
-		rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
-		criterion = rt2x00_get_field32(reg, TX_PWR_CFG_0_6MBS);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + 1,
+				   &eeprom);
+		criterion = rt2x00_get_field16(eeprom,
+					       EEPROM_TXPOWER_BYRATE_RATE0);
 
-		rt2x00_eeprom_read(rt2x00dev,
-				   EEPROM_EIRP_MAX_TX_POWER, &eeprom);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_EIRP_MAX_TX_POWER,
+				   &eeprom);
 
 		if (band == IEEE80211_BAND_2GHZ)
 			eirp_txpower_criterion = rt2x00_get_field16(eeprom,
@@ -2563,36 +2582,71 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	} else
 		reg_limit = 0;
 
-	return txpower + delta - reg_limit;
+	txpower = max(0, txpower + delta - reg_limit);
+	return min_t(u8, txpower, 0xc);
 }
 
+/*
+ * We configure transmit power using MAC TX_PWR_CFG_{0,...,N} registers and
+ * BBP R1 register. TX_PWR_CFG_X allow to configure per rate TX power values,
+ * 4 bits for each rate (tune from 0 to 15 dBm). BBP_R1 controls transmit power
+ * for all rates, but allow to set only 4 discrete values: -12, -6, 0 and 6 dBm.
+ * Reference per rate transmit power values are located in the EEPROM at
+ * EEPROM_TXPOWER_BYRATE offset. We adjust them and BBP R1 settings according to
+ * current conditions (i.e. band, bandwidth, temperature, user settings).
+ */
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  enum ieee80211_band band,
+				  struct ieee80211_channel *chan,
 				  int power_level)
 {
-	u8 txpower;
+	u8 txpower, r1;
 	u16 eeprom;
-	int i, is_rate_b;
-	u32 reg;
-	u8 r1;
-	u32 offset;
-	int delta;
+	u32 reg, offset;
+	int i, is_rate_b, delta, power_ctrl;
+	enum ieee80211_band band = chan->band;
 
 	/*
-	 * Calculate HT40 compensation delta
+	 * Calculate HT40 compensation. For 40MHz we need to add or subtract
+	 * value read from EEPROM (different for 2GHz and for 5GHz).
 	 */
 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	/*
-	 * calculate temperature compensation delta
+	 * Calculate temperature compensation. Depends on measurement of current
+	 * TSSI (Transmitter Signal Strength Indication) we know TX power (due
+	 * to temperature or maybe other factors) is smaller or bigger than
+	 * expected. We adjust it, based on TSSI reference and boundaries values
+	 * provided in EEPROM.
 	 */
 	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
-	 * set to normal bbp tx power control mode: +/- 0dBm
+	 * Decrease power according to user settings, on devices with unknown
+	 * maximum tx power. For other devices we take user power_level into
+	 * consideration on rt2800_compensate_txpower().
+	 */
+	delta += rt2800_get_txpower_reg_delta(rt2x00dev, power_level,
+					      chan->max_power);
+
+	/*
+	 * BBP_R1 controls TX power for all rates, it allow to set the following
+	 * gains -12, -6, 0, +6 dBm by setting values 2, 1, 0, 3 respectively.
+	 *
+	 * TODO: we do not use +6 dBm option to do not increase power beyond
+	 * regulatory limit, however this could be utilized for devices with
+	 * CAPABILITY_POWER_LIMIT.
 	 */
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, 0);
+	if (delta <= -12) {
+		power_ctrl = 2;
+		delta += 12;
+	} else if (delta <= -6) {
+		power_ctrl = 1;
+		delta += 6;
+	} else {
+		power_ctrl = 0;
+	}
+	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 	offset = TX_PWR_CFG_0;
 
@@ -2710,7 +2764,7 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 
 void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev)
 {
-	rt2800_config_txpower(rt2x00dev, rt2x00dev->curr_band,
+	rt2800_config_txpower(rt2x00dev, rt2x00dev->hw->conf.channel,
 			      rt2x00dev->tx_power);
 }
 EXPORT_SYMBOL_GPL(rt2800_gain_calibration);
@@ -2750,7 +2804,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	case RF5390:
 	case RF5392:
 		rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
-		rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 1);
+		rt2x00_set_field8(&rfcsr, RFCSR3_VCOCAL_EN, 1);
 		rt2800_rfcsr_write(rt2x00dev, 3, rfcsr);
 		break;
 	default:
@@ -2845,11 +2899,11 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 	if (flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rt2800_config_channel(rt2x00dev, libconf->conf,
 				      &libconf->rf, &libconf->channel);
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	}
 	if (flags & IEEE80211_CONF_CHANGE_POWER)
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2800_config_retry_limit(rt2x00dev, libconf);
@@ -3538,8 +3592,8 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt_rev(rt2x00dev, RT2860, REV_RT2860D))
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
 	else if (rt2x00_rt(rt2x00dev, RT3290) ||
-		     rt2x00_rt(rt2x00dev, RT5390) ||
-		     rt2x00_rt(rt2x00dev, RT5392))
+		 rt2x00_rt(rt2x00dev, RT5390) ||
+		 rt2x00_rt(rt2x00dev, RT5392))
 		rt2800_bbp_write(rt2x00dev, 84, 0x9a);
 	else
 		rt2800_bbp_write(rt2x00dev, 84, 0x99);
@@ -3598,7 +3652,7 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	else if (rt2x00_rt(rt2x00dev, RT3352))
 		rt2800_bbp_write(rt2x00dev, 105, 0x34);
 	else if (rt2x00_rt(rt2x00dev, RT5390) ||
-			 rt2x00_rt(rt2x00dev, RT5392))
+		 rt2x00_rt(rt2x00dev, RT5392))
 		rt2800_bbp_write(rt2x00dev, 105, 0x3c);
 	else
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
@@ -3692,7 +3746,7 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT5390) ||
-		rt2x00_rt(rt2x00dev, RT5392)) {
+	    rt2x00_rt(rt2x00dev, RT5392)) {
 		int ant, div_mode;
 
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
@@ -4166,66 +4220,66 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 			rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
 		rt2800_rfcsr_write(rt2x00dev, 62, 0x00);
 		rt2800_rfcsr_write(rt2x00dev, 63, 0x00);
-	}	else if (rt2x00_rt(rt2x00dev, RT5392)) {
-			rt2800_rfcsr_write(rt2x00dev, 1, 0x17);
-			rt2800_rfcsr_write(rt2x00dev, 2, 0x80);
-			rt2800_rfcsr_write(rt2x00dev, 3, 0x88);
-			rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
-			rt2800_rfcsr_write(rt2x00dev, 6, 0xe0);
-			rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 10, 0x53);
-			rt2800_rfcsr_write(rt2x00dev, 11, 0x4a);
-			rt2800_rfcsr_write(rt2x00dev, 12, 0x46);
-			rt2800_rfcsr_write(rt2x00dev, 13, 0x9f);
-			rt2800_rfcsr_write(rt2x00dev, 14, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 15, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 16, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 18, 0x03);
-			rt2800_rfcsr_write(rt2x00dev, 19, 0x4d);
-			rt2800_rfcsr_write(rt2x00dev, 20, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 21, 0x8d);
-			rt2800_rfcsr_write(rt2x00dev, 22, 0x20);
-			rt2800_rfcsr_write(rt2x00dev, 23, 0x0b);
-			rt2800_rfcsr_write(rt2x00dev, 24, 0x44);
-			rt2800_rfcsr_write(rt2x00dev, 25, 0x80);
-			rt2800_rfcsr_write(rt2x00dev, 26, 0x82);
-			rt2800_rfcsr_write(rt2x00dev, 27, 0x09);
-			rt2800_rfcsr_write(rt2x00dev, 28, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 29, 0x10);
-			rt2800_rfcsr_write(rt2x00dev, 30, 0x10);
-			rt2800_rfcsr_write(rt2x00dev, 31, 0x80);
-			rt2800_rfcsr_write(rt2x00dev, 32, 0x20);
-			rt2800_rfcsr_write(rt2x00dev, 33, 0xC0);
-			rt2800_rfcsr_write(rt2x00dev, 34, 0x07);
-			rt2800_rfcsr_write(rt2x00dev, 35, 0x12);
-			rt2800_rfcsr_write(rt2x00dev, 36, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 37, 0x08);
-			rt2800_rfcsr_write(rt2x00dev, 38, 0x89);
-			rt2800_rfcsr_write(rt2x00dev, 39, 0x1b);
-			rt2800_rfcsr_write(rt2x00dev, 40, 0x0f);
-			rt2800_rfcsr_write(rt2x00dev, 41, 0xbb);
-			rt2800_rfcsr_write(rt2x00dev, 42, 0xd5);
-			rt2800_rfcsr_write(rt2x00dev, 43, 0x9b);
-			rt2800_rfcsr_write(rt2x00dev, 44, 0x0e);
-			rt2800_rfcsr_write(rt2x00dev, 45, 0xa2);
-			rt2800_rfcsr_write(rt2x00dev, 46, 0x73);
-			rt2800_rfcsr_write(rt2x00dev, 47, 0x0c);
-			rt2800_rfcsr_write(rt2x00dev, 48, 0x10);
-			rt2800_rfcsr_write(rt2x00dev, 49, 0x94);
-			rt2800_rfcsr_write(rt2x00dev, 50, 0x94);
-			rt2800_rfcsr_write(rt2x00dev, 51, 0x3a);
-			rt2800_rfcsr_write(rt2x00dev, 52, 0x48);
-			rt2800_rfcsr_write(rt2x00dev, 53, 0x44);
-			rt2800_rfcsr_write(rt2x00dev, 54, 0x38);
-			rt2800_rfcsr_write(rt2x00dev, 55, 0x43);
-			rt2800_rfcsr_write(rt2x00dev, 56, 0xa1);
-			rt2800_rfcsr_write(rt2x00dev, 57, 0x00);
-			rt2800_rfcsr_write(rt2x00dev, 58, 0x39);
-			rt2800_rfcsr_write(rt2x00dev, 59, 0x07);
-			rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
-			rt2800_rfcsr_write(rt2x00dev, 61, 0x91);
-			rt2800_rfcsr_write(rt2x00dev, 62, 0x39);
-			rt2800_rfcsr_write(rt2x00dev, 63, 0x07);
+	} else if (rt2x00_rt(rt2x00dev, RT5392)) {
+		rt2800_rfcsr_write(rt2x00dev, 1, 0x17);
+		rt2800_rfcsr_write(rt2x00dev, 2, 0x80);
+		rt2800_rfcsr_write(rt2x00dev, 3, 0x88);
+		rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
+		rt2800_rfcsr_write(rt2x00dev, 6, 0xe0);
+		rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 10, 0x53);
+		rt2800_rfcsr_write(rt2x00dev, 11, 0x4a);
+		rt2800_rfcsr_write(rt2x00dev, 12, 0x46);
+		rt2800_rfcsr_write(rt2x00dev, 13, 0x9f);
+		rt2800_rfcsr_write(rt2x00dev, 14, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 15, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 16, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 18, 0x03);
+		rt2800_rfcsr_write(rt2x00dev, 19, 0x4d);
+		rt2800_rfcsr_write(rt2x00dev, 20, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 21, 0x8d);
+		rt2800_rfcsr_write(rt2x00dev, 22, 0x20);
+		rt2800_rfcsr_write(rt2x00dev, 23, 0x0b);
+		rt2800_rfcsr_write(rt2x00dev, 24, 0x44);
+		rt2800_rfcsr_write(rt2x00dev, 25, 0x80);
+		rt2800_rfcsr_write(rt2x00dev, 26, 0x82);
+		rt2800_rfcsr_write(rt2x00dev, 27, 0x09);
+		rt2800_rfcsr_write(rt2x00dev, 28, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 29, 0x10);
+		rt2800_rfcsr_write(rt2x00dev, 30, 0x10);
+		rt2800_rfcsr_write(rt2x00dev, 31, 0x80);
+		rt2800_rfcsr_write(rt2x00dev, 32, 0x20);
+		rt2800_rfcsr_write(rt2x00dev, 33, 0xC0);
+		rt2800_rfcsr_write(rt2x00dev, 34, 0x07);
+		rt2800_rfcsr_write(rt2x00dev, 35, 0x12);
+		rt2800_rfcsr_write(rt2x00dev, 36, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 37, 0x08);
+		rt2800_rfcsr_write(rt2x00dev, 38, 0x89);
+		rt2800_rfcsr_write(rt2x00dev, 39, 0x1b);
+		rt2800_rfcsr_write(rt2x00dev, 40, 0x0f);
+		rt2800_rfcsr_write(rt2x00dev, 41, 0xbb);
+		rt2800_rfcsr_write(rt2x00dev, 42, 0xd5);
+		rt2800_rfcsr_write(rt2x00dev, 43, 0x9b);
+		rt2800_rfcsr_write(rt2x00dev, 44, 0x0e);
+		rt2800_rfcsr_write(rt2x00dev, 45, 0xa2);
+		rt2800_rfcsr_write(rt2x00dev, 46, 0x73);
+		rt2800_rfcsr_write(rt2x00dev, 47, 0x0c);
+		rt2800_rfcsr_write(rt2x00dev, 48, 0x10);
+		rt2800_rfcsr_write(rt2x00dev, 49, 0x94);
+		rt2800_rfcsr_write(rt2x00dev, 50, 0x94);
+		rt2800_rfcsr_write(rt2x00dev, 51, 0x3a);
+		rt2800_rfcsr_write(rt2x00dev, 52, 0x48);
+		rt2800_rfcsr_write(rt2x00dev, 53, 0x44);
+		rt2800_rfcsr_write(rt2x00dev, 54, 0x38);
+		rt2800_rfcsr_write(rt2x00dev, 55, 0x43);
+		rt2800_rfcsr_write(rt2x00dev, 56, 0xa1);
+		rt2800_rfcsr_write(rt2x00dev, 57, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 58, 0x39);
+		rt2800_rfcsr_write(rt2x00dev, 59, 0x07);
+		rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
+		rt2800_rfcsr_write(rt2x00dev, 61, 0x91);
+		rt2800_rfcsr_write(rt2x00dev, 62, 0x39);
+		rt2800_rfcsr_write(rt2x00dev, 63, 0x07);
 	}
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
@@ -4302,7 +4356,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_read(rt2x00dev, 26, &drv_data->bbp26);
 
 	if (!rt2x00_rt(rt2x00dev, RT5390) &&
-		!rt2x00_rt(rt2x00dev, RT5392)) {
+	    !rt2x00_rt(rt2x00dev, RT5392)) {
 		/*
 		 * Set back to initial state
 		 */
@@ -4331,7 +4385,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, OPT_14_CSR, reg);
 
 	if (!rt2x00_rt(rt2x00dev, RT5390) &&
-		!rt2x00_rt(rt2x00dev, RT5392)) {
+	    !rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_rfcsr_read(rt2x00dev, 17, &rfcsr);
 		rt2x00_set_field8(&rfcsr, RFCSR17_TX_LO1_EN, 0);
 		if (rt2x00_rt(rt2x00dev, RT3070) ||
@@ -4403,7 +4457,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT5390) ||
-		rt2x00_rt(rt2x00dev, RT5392)) {
+	    rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_rfcsr_read(rt2x00dev, 38, &rfcsr);
 		rt2x00_set_field8(&rfcsr, RFCSR38_RX_LO1_EN, 0);
 		rt2800_rfcsr_write(rt2x00dev, 38, rfcsr);
@@ -5036,7 +5090,8 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK |
 	    IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+	    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+	    IEEE80211_HW_TEARDOWN_AGGR_ON_BAR_FAIL;
 
 	/*
 	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING for USB devices

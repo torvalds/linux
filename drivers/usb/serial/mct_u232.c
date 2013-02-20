@@ -38,10 +38,6 @@
 #include <linux/ioctl.h>
 #include "mct_u232.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "z2.1"		/* Linux in-kernel version */
 #define DRIVER_AUTHOR "Wolfgang Grandegger <wolfgang@ces.ch>"
 #define DRIVER_DESC "Magic Control Technology USB-RS232 converter driver"
 

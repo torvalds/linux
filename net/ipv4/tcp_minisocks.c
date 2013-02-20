@@ -553,7 +553,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			 * it can be estimated (approximately)
 			 * from another data.
 			 */
-			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->retrans);
+			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->num_timeout);
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
@@ -582,7 +582,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		 * Note that even if there is new data in the SYN packet
 		 * they will be thrown away too.
 		 */
-		req->rsk_ops->rtx_syn_ack(sk, req, NULL);
+		inet_rtx_syn_ack(sk, req);
 		return NULL;
 	}
 
@@ -696,7 +696,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* Got ACK for our SYNACK, so update baseline for SYNACK RTT sample. */
 	if (tmp_opt.saw_tstamp && tmp_opt.rcv_tsecr)
 		tcp_rsk(req)->snt_synack = tmp_opt.rcv_tsecr;
-	else if (req->retrans) /* don't take RTT sample if retrans && ~TS */
+	else if (req->num_retrans) /* don't take RTT sample if retrans && ~TS */
 		tcp_rsk(req)->snt_synack = 0;
 
 	/* For Fast Open no more processing is needed (sk is the
@@ -706,7 +706,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		return sk;
 
 	/* While TCP_DEFER_ACCEPT is active, drop bare ACK. */
-	if (req->retrans < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
+	if (req->num_timeout < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
 	    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
 		inet_rsk(req)->acked = 1;
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDEFERACCEPTDROP);

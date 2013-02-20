@@ -668,12 +668,6 @@ __cr_alignment:
 #endif
 	.ltorg
 
-ENTRY(sys_clone)
-		add	ip, sp, #S_OFF
-		stw	ip, [sp+], #4
-		b	__sys_clone
-ENDPROC(sys_clone)
-
 ENTRY(sys_rt_sigreturn)
 		add	r0, sp, #S_OFF
 		mov	why, #0		@ prevent syscall restart handling

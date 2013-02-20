@@ -62,13 +62,6 @@ static LIST_HEAD(ddebug_tables);
 static int verbose = 0;
 module_param(verbose, int, 0644);
 
-/* Return the last part of a pathname */
-static inline const char *basename(const char *path)
-{
-	const char *tail = strrchr(path, '/');
-	return tail ? tail+1 : path;
-}
-
 /* Return the path relative to source root */
 static inline const char *trim_prefix(const char *path)
 {
@@ -154,7 +147,7 @@ static int ddebug_change(const struct ddebug_query *query,
 			/* match against the source filename */
 			if (query->filename &&
 			    strcmp(query->filename, dp->filename) &&
-			    strcmp(query->filename, basename(dp->filename)) &&
+			    strcmp(query->filename, kbasename(dp->filename)) &&
 			    strcmp(query->filename, trim_prefix(dp->filename)))
 				continue;
 

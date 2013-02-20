@@ -31,8 +31,8 @@ struct iowa_bus {
 	void   *private;
 };
 
-void __devinit iowa_register_bus(struct pci_controller *, struct ppc_pci_io *,
-				 int (*)(struct iowa_bus *, void *), void *);
+void iowa_register_bus(struct pci_controller *, struct ppc_pci_io *,
+		       int (*)(struct iowa_bus *, void *), void *);
 struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR);
 struct iowa_bus *iowa_pio_find_bus(unsigned long);
 

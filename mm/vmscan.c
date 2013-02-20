@@ -1177,7 +1177,11 @@ int isolate_lru_page(struct page *page)
 }
 
 /*
- * Are there way too many processes in the direct reclaim path already?
+ * A direct reclaimer may isolate SWAP_CLUSTER_MAX pages from the LRU list and
+ * then get resheduled. When there are massive number of tasks doing page
+ * allocation, such sleeping direct reclaimers may keep piling up on each CPU,
+ * the LRU list will go small and be scanned faster than necessary, leading to
+ * unnecessary swapping, thrashing and OOM.
  */
 static int too_many_isolated(struct zone *zone, int file,
 		struct scan_control *sc)
@@ -1197,6 +1201,14 @@ static int too_many_isolated(struct zone *zone, int file,
 		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
 	}
+
+	/*
+	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
+	 * won't get blocked by normal direct-reclaimers, forming a circular
+	 * deadlock.
+	 */
+	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
+		inactive >>= 3;
 
 	return isolated > inactive;
 }
@@ -1679,11 +1691,22 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 
 	if (global_reclaim(sc)) {
 		free  = zone_page_state(zone, NR_FREE_PAGES);
-		/* If we have very few page cache pages,
-		   force-scan anon pages. */
 		if (unlikely(file + free <= high_wmark_pages(zone))) {
+			/*
+			 * If we have very few page cache pages, force-scan
+			 * anon pages.
+			 */
 			fraction[0] = 1;
 			fraction[1] = 0;
+			denominator = 1;
+			goto out;
+		} else if (!inactive_file_is_low_global(zone)) {
+			/*
+			 * There is enough inactive page cache, do not
+			 * reclaim anything from the working set right now.
+			 */
+			fraction[0] = 0;
+			fraction[1] = 1;
 			denominator = 1;
 			goto out;
 		}
@@ -1752,7 +1775,7 @@ out:
 /* Use reclaim/compaction for costly allocs or under memory pressure */
 static bool in_reclaim_compaction(struct scan_control *sc)
 {
-	if (COMPACTION_BUILD && sc->order &&
+	if (IS_ENABLED(CONFIG_COMPACTION) && sc->order &&
 			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
 			 sc->priority < DEF_PRIORITY - 2))
 		return true;
@@ -2005,7 +2028,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			if (zone->all_unreclaimable &&
 					sc->priority != DEF_PRIORITY)
 				continue;	/* Let kswapd poll it */
-			if (COMPACTION_BUILD) {
+			if (IS_ENABLED(CONFIG_COMPACTION)) {
 				/*
 				 * If we already have plenty of memory free for
 				 * compaction in this zone, don't free any more.
@@ -2421,19 +2444,24 @@ static bool zone_balanced(struct zone *zone, int order,
 				    balance_gap, classzone_idx, 0))
 		return false;
 
-	if (COMPACTION_BUILD && order && !compaction_suitable(zone, order))
+	if (IS_ENABLED(CONFIG_COMPACTION) && order &&
+	    !compaction_suitable(zone, order))
 		return false;
 
 	return true;
 }
 
 /*
- * pgdat_balanced is used when checking if a node is balanced for high-order
- * allocations. Only zones that meet watermarks and are in a zone allowed
- * by the callers classzone_idx are added to balanced_pages. The total of
- * balanced pages must be at least 25% of the zones allowed by classzone_idx
- * for the node to be considered balanced. Forcing all zones to be balanced
- * for high orders can cause excessive reclaim when there are imbalanced zones.
+ * pgdat_balanced() is used when checking if a node is balanced.
+ *
+ * For order-0, all zones must be balanced!
+ *
+ * For high-order allocations only zones that meet watermarks and are in a
+ * zone allowed by the callers classzone_idx are added to balanced_pages. The
+ * total of balanced pages must be at least 25% of the zones allowed by
+ * classzone_idx for the node to be considered balanced. Forcing all zones to
+ * be balanced for high orders can cause excessive reclaim when there are
+ * imbalanced zones.
  * The choice of 25% is due to
  *   o a 16M DMA zone that is balanced will not balance a zone on any
  *     reasonable sized machine
@@ -2443,17 +2471,43 @@ static bool zone_balanced(struct zone *zone, int order,
  *     Similarly, on x86-64 the Normal zone would need to be at least 1G
  *     to balance a node on its own. These seemed like reasonable ratios.
  */
-static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
-						int classzone_idx)
+static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
 {
 	unsigned long present_pages = 0;
+	unsigned long balanced_pages = 0;
 	int i;
 
-	for (i = 0; i <= classzone_idx; i++)
-		present_pages += pgdat->node_zones[i].present_pages;
+	/* Check the watermark levels */
+	for (i = 0; i <= classzone_idx; i++) {
+		struct zone *zone = pgdat->node_zones + i;
 
-	/* A special case here: if zone has no page, we think it's balanced */
-	return balanced_pages >= (present_pages >> 2);
+		if (!populated_zone(zone))
+			continue;
+
+		present_pages += zone->present_pages;
+
+		/*
+		 * A special case here:
+		 *
+		 * balance_pgdat() skips over all_unreclaimable after
+		 * DEF_PRIORITY. Effectively, it considers them balanced so
+		 * they must be considered balanced here as well!
+		 */
+		if (zone->all_unreclaimable) {
+			balanced_pages += zone->present_pages;
+			continue;
+		}
+
+		if (zone_balanced(zone, order, 0, i))
+			balanced_pages += zone->present_pages;
+		else if (!order)
+			return false;
+	}
+
+	if (order)
+		return balanced_pages >= (present_pages >> 2);
+	else
+		return true;
 }
 
 /*
@@ -2465,10 +2519,6 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
 static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
 					int classzone_idx)
 {
-	int i;
-	unsigned long balanced = 0;
-	bool all_zones_ok = true;
-
 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
 	if (remaining)
 		return false;
@@ -2487,39 +2537,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
 		return false;
 	}
 
-	/* Check the watermark levels */
-	for (i = 0; i <= classzone_idx; i++) {
-		struct zone *zone = pgdat->node_zones + i;
-
-		if (!populated_zone(zone))
-			continue;
-
-		/*
-		 * balance_pgdat() skips over all_unreclaimable after
-		 * DEF_PRIORITY. Effectively, it considers them balanced so
-		 * they must be considered balanced here as well if kswapd
-		 * is to sleep
-		 */
-		if (zone->all_unreclaimable) {
-			balanced += zone->present_pages;
-			continue;
-		}
-
-		if (!zone_balanced(zone, order, 0, i))
-			all_zones_ok = false;
-		else
-			balanced += zone->present_pages;
-	}
-
-	/*
-	 * For high-order requests, the balanced zones must contain at least
-	 * 25% of the nodes pages for kswapd to sleep. For order-0, all zones
-	 * must be balanced
-	 */
-	if (order)
-		return pgdat_balanced(pgdat, balanced, classzone_idx);
-	else
-		return all_zones_ok;
+	return pgdat_balanced(pgdat, order, classzone_idx);
 }
 
 /*
@@ -2546,8 +2564,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
 static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 							int *classzone_idx)
 {
-	int all_zones_ok;
-	unsigned long balanced;
+	struct zone *unbalanced_zone;
 	int i;
 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
 	unsigned long total_scanned;
@@ -2580,8 +2597,7 @@ loop_again:
 		unsigned long lru_pages = 0;
 		int has_under_min_watermark_zone = 0;
 
-		all_zones_ok = 1;
-		balanced = 0;
+		unbalanced_zone = NULL;
 
 		/*
 		 * Scan in the highmem->dma direction for the highest
@@ -2684,7 +2700,7 @@ loop_again:
 			 * Do not reclaim more than needed for compaction.
 			 */
 			testorder = order;
-			if (COMPACTION_BUILD && order &&
+			if (IS_ENABLED(CONFIG_COMPACTION) && order &&
 					compaction_suitable(zone, order) !=
 						COMPACT_SKIPPED)
 				testorder = 0;
@@ -2719,7 +2735,7 @@ loop_again:
 			}
 
 			if (!zone_balanced(zone, testorder, 0, end_zone)) {
-				all_zones_ok = 0;
+				unbalanced_zone = zone;
 				/*
 				 * We are still under min water mark.  This
 				 * means that we have a GFP_ATOMIC allocation
@@ -2737,8 +2753,6 @@ loop_again:
 				 * speculatively avoid congestion waits
 				 */
 				zone_clear_flag(zone, ZONE_CONGESTED);
-				if (i <= *classzone_idx)
-					balanced += zone->present_pages;
 			}
 
 		}
@@ -2752,7 +2766,7 @@ loop_again:
 				pfmemalloc_watermark_ok(pgdat))
 			wake_up(&pgdat->pfmemalloc_wait);
 
-		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+		if (pgdat_balanced(pgdat, order, *classzone_idx))
 			break;		/* kswapd: all done */
 		/*
 		 * OK, kswapd is getting into trouble.  Take a nap, then take
@@ -2761,8 +2775,8 @@ loop_again:
 		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
 			if (has_under_min_watermark_zone)
 				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
-			else
-				congestion_wait(BLK_RW_ASYNC, HZ/10);
+			else if (unbalanced_zone)
+				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
 		}
 
 		/*
@@ -2776,12 +2790,7 @@ loop_again:
 	} while (--sc.priority >= 0);
 out:
 
-	/*
-	 * order-0: All zones must meet high watermark for a balanced node
-	 * high-order: Balanced zones must make up at least 25% of the node
-	 *             for the node to be balanced
-	 */
-	if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))) {
+	if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
 		cond_resched();
 
 		try_to_freeze();
@@ -2951,7 +2960,7 @@ static int kswapd(void *p)
 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
 	balanced_classzone_idx = classzone_idx;
 	for ( ; ; ) {
-		int ret;
+		bool ret;
 
 		/*
 		 * If the last balance_pgdat was unsuccessful it's unlikely a
@@ -3113,13 +3122,13 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
    not required for correctness.  So if the last cpu in a node goes
    away, we get changed to run anywhere: as the first one comes back,
    restore their cpu bindings. */
-static int __devinit cpu_callback(struct notifier_block *nfb,
-				  unsigned long action, void *hcpu)
+static int cpu_callback(struct notifier_block *nfb, unsigned long action,
+			void *hcpu)
 {
 	int nid;
 
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
-		for_each_node_state(nid, N_HIGH_MEMORY) {
+		for_each_node_state(nid, N_MEMORY) {
 			pg_data_t *pgdat = NODE_DATA(nid);
 			const struct cpumask *mask;
 
@@ -3175,7 +3184,7 @@ static int __init kswapd_init(void)
 	int nid;
 
 	swap_setup();
-	for_each_node_state(nid, N_HIGH_MEMORY)
+	for_each_node_state(nid, N_MEMORY)
  		kswapd_run(nid);
 	hotcpu_notifier(cpu_callback, 0);
 	return 0;

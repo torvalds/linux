@@ -223,7 +223,7 @@ static const struct ide_port_ops amd_port_ops = {
 		.udma_mask	= udma,					\
 	}
 
-static const struct ide_port_info amd74xx_chipsets[] __devinitconst = {
+static const struct ide_port_info amd74xx_chipsets[] = {
 	/* 0: AMD7401 */	DECLARE_AMD_DEV(0x00, ATA_UDMA2),
 	/* 1: AMD7409 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA4),
 	/* 2: AMD7411/7441 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA5),
@@ -235,7 +235,7 @@ static const struct ide_port_info amd74xx_chipsets[] __devinitconst = {
 	/* 6: AMD5536 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA5),
 };
 
-static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int amd74xx_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ide_port_info d;
 	u8 idx = id->driver_data;

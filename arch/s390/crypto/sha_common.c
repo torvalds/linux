@@ -36,7 +36,8 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 	if (index) {
 		memcpy(ctx->buf + index, data, bsize - index);
 		ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, bsize);
-		BUG_ON(ret != bsize);
+		if (ret != bsize)
+			return -EIO;
 		data += bsize - index;
 		len -= bsize - index;
 		index = 0;
@@ -46,7 +47,8 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 	if (len >= bsize) {
 		ret = crypt_s390_kimd(ctx->func, ctx->state, data,
 				      len & ~(bsize - 1));
-		BUG_ON(ret != (len & ~(bsize - 1)));
+		if (ret != (len & ~(bsize - 1)))
+			return -EIO;
 		data += ret;
 		len -= ret;
 	}
@@ -88,7 +90,8 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	memcpy(ctx->buf + end - 8, &bits, sizeof(bits));
 
 	ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, end);
-	BUG_ON(ret != end);
+	if (ret != end)
+		return -EIO;
 
 	/* copy digest to out */
 	memcpy(out, ctx->state, crypto_shash_digestsize(desc->tfm));

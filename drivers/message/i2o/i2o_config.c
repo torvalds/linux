@@ -189,7 +189,7 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 		return -ENXIO;
 
 	/*
-	 * Stop users being able to try and allocate arbitary amounts
+	 * Stop users being able to try and allocate arbitrary amounts
 	 * of DMA space. 64K is way more than sufficient for this.
 	 */
 	if (kcmd.oplen > 65536)

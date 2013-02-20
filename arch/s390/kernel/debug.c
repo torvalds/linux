@@ -1127,13 +1127,14 @@ debug_register_view(debug_info_t * id, struct debug_view *view)
 	if (i == DEBUG_MAX_VIEWS) {
 		pr_err("Registering view %s/%s would exceed the maximum "
 		       "number of views %i\n", id->name, view->name, i);
-		debugfs_remove(pde);
 		rc = -1;
 	} else {
 		id->views[i] = view;
 		id->debugfs_entries[i] = pde;
 	}
 	spin_unlock_irqrestore(&id->lock, flags);
+	if (rc)
+		debugfs_remove(pde);
 out:
 	return rc;
 }
@@ -1146,9 +1147,9 @@ EXPORT_SYMBOL(debug_register_view);
 int
 debug_unregister_view(debug_info_t * id, struct debug_view *view)
 {
-	int rc = 0;
-	int i;
+	struct dentry *dentry = NULL;
 	unsigned long flags;
+	int i, rc = 0;
 
 	if (!id)
 		goto out;
@@ -1160,10 +1161,12 @@ debug_unregister_view(debug_info_t * id, struct debug_view *view)
 	if (i == DEBUG_MAX_VIEWS)
 		rc = -1;
 	else {
-		debugfs_remove(id->debugfs_entries[i]);
+		dentry = id->debugfs_entries[i];
 		id->views[i] = NULL;
+		id->debugfs_entries[i] = NULL;
 	}
 	spin_unlock_irqrestore(&id->lock, flags);
+	debugfs_remove(dentry);
 out:
 	return rc;
 }

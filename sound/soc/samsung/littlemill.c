@@ -145,7 +145,7 @@ static struct snd_soc_dai_link littlemill_dai[] = {
 		.stream_name = "CPU",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8994-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
@@ -270,7 +270,7 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 		return ret;
 
 	/* This will check device compatibility itself */
-	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL);
+	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL, NULL, NULL);
 
 	/* As will this */
 	wm8994_mic_detect(codec, &littlemill_headset, 1);
@@ -297,7 +297,7 @@ static struct snd_soc_card littlemill = {
 	.late_probe = littlemill_late_probe,
 };
 
-static __devinit int littlemill_probe(struct platform_device *pdev)
+static int littlemill_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &littlemill;
 	int ret;
@@ -314,7 +314,7 @@ static __devinit int littlemill_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit littlemill_remove(struct platform_device *pdev)
+static int littlemill_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -330,7 +330,7 @@ static struct platform_driver littlemill_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = littlemill_probe,
-	.remove = __devexit_p(littlemill_remove),
+	.remove = littlemill_remove,
 };
 
 module_platform_driver(littlemill_driver);

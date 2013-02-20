@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "Seagate GoFlex Net";
@@ -16,6 +17,61 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_usb_power_enable &pmx_led_orange
+				      &pmx_led_left_cap_0 &pmx_led_left_cap_1
+				      &pmx_led_left_cap_2 &pmx_led_left_cap_3
+				      &pmx_led_right_cap_0 &pmx_led_right_cap_1
+				      &pmx_led_right_cap_2 &pmx_led_right_cap_3
+				    >;
+			pinctrl-names = "default";
+
+			pmx_usb_power_enable: pmx-usb-power-enable {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_0: pmx-led_right_cap_0 {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_1: pmx-led_right_cap_1 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_2: pmx-led_right_cap_2 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_3: pmx-led_right_cap_3 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_0: pmx-led_left_cap_0 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_1: pmx-led_left_cap_1 {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_2: pmx-led_left_cap_2 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_3: pmx-led_left_cap_3 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_led_green: pmx-led_green {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_led_orange: pmx-led_orange {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+		};
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "ok";
@@ -94,6 +150,23 @@
 		right3 {
 			label = "status:white:right3";
 			gpios = <&gpio1 9 0>;
+		};
+	};
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 29 0>;
 		};
 	};
 };

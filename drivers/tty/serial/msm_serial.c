@@ -917,7 +917,7 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 	return uart_add_one_port(&msm_uart_driver, port);
 }
 
-static int __devexit msm_serial_remove(struct platform_device *pdev)
+static int msm_serial_remove(struct platform_device *pdev)
 {
 	struct msm_port *msm_port = platform_get_drvdata(pdev);
 

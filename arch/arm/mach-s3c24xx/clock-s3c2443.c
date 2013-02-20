@@ -158,12 +158,6 @@ static struct clk init_clocks_off[] = {
 		.devname	= "s3c2410-spi.0",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
-		.ctrlbit	= S3C2443_PCLKCON_SPI0,
-	}, {
-		.name		= "spi",
-		.devname	= "s3c2410-spi.1",
-		.parent		= &clk_p,
-		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_SPI1,
 	}
 };

@@ -687,7 +687,7 @@ static struct pinctrl_desc tegra_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-int __devinit tegra_pinctrl_probe(struct platform_device *pdev,
+int tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data)
 {
 	struct tegra_pmx *pmx;
@@ -760,7 +760,7 @@ int __devinit tegra_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);
 
-int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
+int tegra_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
 

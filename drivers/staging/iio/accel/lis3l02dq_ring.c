@@ -154,7 +154,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= pf->timestamp;
-	iio_push_to_buffer(indio_dev->buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 
 	kfree(data);
 done:
@@ -237,7 +237,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	u8 t;
 
 	__lis3l02dq_write_data_ready_config(indio_dev, state);
-	if (state == false) {
+	if (!state) {
 		/*
 		 * A possible quirk with the handler is currently worked around
 		 * by ensuring outstanding read events are cleared.
@@ -263,7 +263,7 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	/* If gpio still high (or high again)
 	 * In theory possible we will need to do this several times */
 	for (i = 0; i < 5; i++)
-		if (gpio_get_value(irq_to_gpio(st->us->irq)))
+		if (gpio_get_value(st->gpio))
 			lis3l02dq_read_all(indio_dev, NULL);
 		else
 			break;

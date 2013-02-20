@@ -196,6 +196,10 @@ static int nf_conntrack_event_init_sysctl(struct net *net)
 	table[0].data = &net->ct.sysctl_events;
 	table[1].data = &net->ct.sysctl_events_retry_timeout;
 
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		table[0].procname = NULL;
+
 	net->ct.event_sysctl_header =
 		register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.event_sysctl_header) {

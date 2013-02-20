@@ -171,4 +171,16 @@ cpumask_of_pcibus(const struct pci_bus *bus)
 }
 #endif
 
+struct pci_setup_rom {
+	struct setup_data data;
+	uint16_t vendor;
+	uint16_t devid;
+	uint64_t pcilen;
+	unsigned long segment;
+	unsigned long bus;
+	unsigned long device;
+	unsigned long function;
+	uint8_t romdata[0];
+};
+
 #endif /* _ASM_X86_PCI_H */

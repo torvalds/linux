@@ -191,7 +191,7 @@ static irqreturn_t l2_ecc_err(int irq, void *dev_id)
 {
 	int status;
 
-	printk(KERN_ERR "L2 ecc error happend\n");
+	printk(KERN_ERR "L2 ecc error happened\n");
 	status = bfin_read32(L2CTL0_STAT);
 	if (status & 0x1)
 		printk(KERN_ERR "Core channel error type:0x%x, addr:0x%x\n",

@@ -420,10 +420,10 @@ static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (tx_power > DIV_ROUND_UP(priv->eeprom_data->max_tx_pwr_half_dbm, 2)) {
+	if (tx_power > DIV_ROUND_UP(priv->nvm_data->max_tx_pwr_half_dbm, 2)) {
 		IWL_WARN(priv,
 			"Requested user TXPOWER %d above upper limit %d.\n",
-			 tx_power, priv->eeprom_data->max_tx_pwr_half_dbm);
+			 tx_power, priv->nvm_data->max_tx_pwr_half_dbm);
 		return -EINVAL;
 	}
 

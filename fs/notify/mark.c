@@ -109,8 +109,11 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
-	if (atomic_dec_and_test(&mark->refcnt))
+	if (atomic_dec_and_test(&mark->refcnt)) {
+		if (mark->group)
+			fsnotify_put_group(mark->group);
 		mark->free_mark(mark);
+	}
 }
 
 /*
@@ -118,14 +121,14 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
  * The caller had better be holding a reference to this mark so we don't actually
  * do the final put under the mark->lock
  */
-void fsnotify_destroy_mark(struct fsnotify_mark *mark)
+void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
+				  struct fsnotify_group *group)
 {
-	struct fsnotify_group *group;
 	struct inode *inode = NULL;
 
-	spin_lock(&mark->lock);
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 
-	group = mark->group;
+	spin_lock(&mark->lock);
 
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
@@ -134,8 +137,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	}
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
-
-	spin_lock(&group->mark_lock);
 
 	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
 		inode = mark->i.inode;
@@ -147,13 +148,22 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	list_del_init(&mark->g_list);
 
-	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
+
+	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
+		iput(inode);
+	/* release lock temporarily */
+	mutex_unlock(&group->mark_mutex);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->destroy_list, &destroy_list);
 	spin_unlock(&destroy_lock);
 	wake_up(&destroy_waitq);
+	/*
+	 * We don't necessarily have a ref on mark from caller so the above destroy
+	 * may have actually freed it, unless this group provides a 'freeing_mark'
+	 * function which must be holding a reference.
+	 */
 
 	/*
 	 * Some groups like to know that marks are being freed.  This is a
@@ -175,21 +185,17 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	 * is just a lazy update (and could be a perf win...)
 	 */
 
-	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
-		iput(inode);
+	atomic_dec(&group->num_marks);
 
-	/*
-	 * We don't necessarily have a ref on mark from caller so the above iput
-	 * may have already destroyed it.  Don't touch from now on.
-	 */
+	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
+}
 
-	/*
-	 * it's possible that this group tried to destroy itself, but this
-	 * this mark was simultaneously being freed by inode.  If that's the
-	 * case, we finish freeing the group here.
-	 */
-	if (unlikely(atomic_dec_and_test(&group->num_marks)))
-		fsnotify_final_destroy_group(group);
+void fsnotify_destroy_mark(struct fsnotify_mark *mark,
+			   struct fsnotify_group *group)
+{
+	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
+	fsnotify_destroy_mark_locked(mark, group);
+	mutex_unlock(&group->mark_mutex);
 }
 
 void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
@@ -214,26 +220,26 @@ void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mas
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group.
  */
-int fsnotify_add_mark(struct fsnotify_mark *mark,
-		      struct fsnotify_group *group, struct inode *inode,
-		      struct vfsmount *mnt, int allow_dups)
+int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
+			     struct fsnotify_group *group, struct inode *inode,
+			     struct vfsmount *mnt, int allow_dups)
 {
 	int ret = 0;
 
 	BUG_ON(inode && mnt);
 	BUG_ON(!inode && !mnt);
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 
 	/*
 	 * LOCKING ORDER!!!!
+	 * group->mark_mutex
 	 * mark->lock
-	 * group->mark_lock
 	 * inode->i_lock
 	 */
 	spin_lock(&mark->lock);
-	spin_lock(&group->mark_lock);
-
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
 
+	fsnotify_get_group(group);
 	mark->group = group;
 	list_add(&mark->g_list, &group->marks_list);
 	atomic_inc(&group->num_marks);
@@ -251,11 +257,8 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 		BUG();
 	}
 
-	spin_unlock(&group->mark_lock);
-
 	/* this will pin the object if appropriate */
 	fsnotify_set_mark_mask_locked(mark, mark->mask);
-
 	spin_unlock(&mark->lock);
 
 	if (inode)
@@ -265,10 +268,10 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 err:
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	list_del_init(&mark->g_list);
+	fsnotify_put_group(group);
 	mark->group = NULL;
 	atomic_dec(&group->num_marks);
 
-	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
 
 	spin_lock(&destroy_lock);
@@ -279,6 +282,16 @@ err:
 	return ret;
 }
 
+int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
+		      struct inode *inode, struct vfsmount *mnt, int allow_dups)
+{
+	int ret;
+	mutex_lock(&group->mark_mutex);
+	ret = fsnotify_add_mark_locked(mark, group, inode, mnt, allow_dups);
+	mutex_unlock(&group->mark_mutex);
+	return ret;
+}
+
 /*
  * clear any marks in a group in which mark->flags & flags is true
  */
@@ -286,22 +299,16 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 					 unsigned int flags)
 {
 	struct fsnotify_mark *lmark, *mark;
-	LIST_HEAD(free_list);
 
-	spin_lock(&group->mark_lock);
+	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
 		if (mark->flags & flags) {
-			list_add(&mark->free_g_list, &free_list);
-			list_del_init(&mark->g_list);
 			fsnotify_get_mark(mark);
+			fsnotify_destroy_mark_locked(mark, group);
+			fsnotify_put_mark(mark);
 		}
 	}
-	spin_unlock(&group->mark_lock);
-
-	list_for_each_entry_safe(mark, lmark, &free_list, free_g_list) {
-		fsnotify_destroy_mark(mark);
-		fsnotify_put_mark(mark);
-	}
+	mutex_unlock(&group->mark_mutex);
 }
 
 /*
@@ -317,6 +324,8 @@ void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *ol
 	assert_spin_locked(&old->lock);
 	new->i.inode = old->i.inode;
 	new->m.mnt = old->m.mnt;
+	if (old->group)
+		fsnotify_get_group(old->group);
 	new->group = old->group;
 	new->mask = old->mask;
 	new->free_mark = old->free_mark;

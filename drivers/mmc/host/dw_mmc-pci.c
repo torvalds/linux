@@ -37,7 +37,7 @@ static struct dw_mci_board pci_board_data = {
 	.fifo_depth			= 32,
 };
 
-static int __devinit dw_mci_pci_probe(struct pci_dev *pdev,
+static int dw_mci_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *entries)
 {
 	struct dw_mci *host;
@@ -85,7 +85,7 @@ err_disable_dev:
 	return ret;
 }
 
-static void __devexit dw_mci_pci_remove(struct pci_dev *pdev)
+static void dw_mci_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
@@ -134,7 +134,7 @@ static struct pci_driver dw_mci_pci_driver = {
 	.name		= "dw_mmc_pci",
 	.id_table	= dw_mci_pci_id,
 	.probe		= dw_mci_pci_probe,
-	.remove		= __devexit_p(dw_mci_pci_remove),
+	.remove		= dw_mci_pci_remove,
 	.driver		=	{
 		.pm =   &dw_mci_pci_pmops
 	},

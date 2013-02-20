@@ -185,7 +185,7 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx)
 
 	cancel_work_sync(&sta->ampdu_mlme.work);
 
-	for (i = 0; i <  STA_TID_NUM; i++) {
+	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
 		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR, tx);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
 					       WLAN_REASON_QSTA_LEAVE_QBSS, tx);
@@ -209,7 +209,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		return;
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
-	for (tid = 0; tid < STA_TID_NUM; tid++) {
+	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
 		if (test_and_clear_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired))
 			___ieee80211_stop_rx_ba_session(
 				sta, tid, WLAN_BACK_RECIPIENT,

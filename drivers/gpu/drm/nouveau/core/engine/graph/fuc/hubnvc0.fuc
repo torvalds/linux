@@ -754,6 +754,16 @@ ctx_mmio_exec:
 //		on load it means: "a save preceeded this load"
 //
 ctx_xfer:
+	// according to mwk, some kind of wait for idle
+	mov $r15 0xc00
+	shl b32 $r15 6
+	mov $r14 4
+	iowr I[$r15 + 0x200] $r14
+	ctx_xfer_idle:
+		iord $r14 I[$r15 + 0x000]
+		and $r14 0x2000
+		bra ne #ctx_xfer_idle
+
 	bra not $p1 #ctx_xfer_pre
 	bra $p2 #ctx_xfer_pre_load
 	ctx_xfer_pre:

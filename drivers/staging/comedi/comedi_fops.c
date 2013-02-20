@@ -23,7 +23,6 @@
 
 #undef DEBUG
 
-#define __NO_VERSION__
 #include "comedi_compat32.h"
 
 #include <linux/module.h>
@@ -880,6 +879,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		if (insn->n == 5)
 			return 0;
 		break;
+	case INSN_CONFIG_DIGITAL_TRIG:
+		if (insn->n == 6)
+			return 0;
+		break;
 		/* by default we allow the insn since we don't have checks for
 		 * all possible cases yet */
 	default:
@@ -1546,6 +1549,9 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == COMEDI_DEVCONFIG) {
 		rc = do_devconfig_ioctl(dev,
 					(struct comedi_devconfig __user *)arg);
+		if (rc == 0)
+			/* Evade comedi_auto_unconfig(). */
+			dev_file_info->hardware_device = NULL;
 		goto done;
 	}
 

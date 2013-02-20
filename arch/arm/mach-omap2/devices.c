@@ -24,10 +24,11 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
+#include <linux/omap-dma.h>
+
 #include "iomap.h"
-#include <plat/dma.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include "omap4-keypad.h"
 
 #include "soc.h"
@@ -35,6 +36,7 @@
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
+#include "dma.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
@@ -127,7 +129,7 @@ static struct platform_device omap2cam_device = {
 
 #if defined(CONFIG_IOMMU_API)
 
-#include <plat/iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
 static struct resource omap3isp_resources[] = {
 	{
@@ -201,6 +203,16 @@ static struct resource omap3isp_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
+		.start		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE,
+		.end		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE + 3,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL,
+		.end		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL + 3,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
 		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
@@ -214,7 +226,7 @@ static struct platform_device omap3isp_device = {
 };
 
 static struct omap_iommu_arch_data omap3_isp_iommu = {
-	.name = "isp",
+	.name = "mmu_isp",
 };
 
 int omap3_init_camera(struct isp_platform_data *pdata)
@@ -627,7 +639,7 @@ static int count_ocp2scp_devices(struct omap_ocp2scp_dev *ocp2scp_dev)
 	return cnt;
 }
 
-static void omap_init_ocp2scp(void)
+static void __init omap_init_ocp2scp(void)
 {
 	struct omap_hwmod	*oh;
 	struct platform_device	*pdev;
@@ -723,29 +735,3 @@ static int __init omap2_init_devices(void)
 	return 0;
 }
 arch_initcall(omap2_init_devices);
-
-#if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
-static int __init omap_init_wdt(void)
-{
-	int id = -1;
-	struct platform_device *pdev;
-	struct omap_hwmod *oh;
-	char *oh_name = "wd_timer2";
-	char *dev_name = "omap_wdt";
-
-	if (!cpu_class_is_omap2() || of_have_populated_dt())
-		return 0;
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up wd_timer%d hwmod\n", id);
-		return -EINVAL;
-	}
-
-	pdev = omap_device_build(dev_name, id, oh, NULL, 0, NULL, 0, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
-				dev_name, oh->name);
-	return 0;
-}
-subsys_initcall(omap_init_wdt);
-#endif

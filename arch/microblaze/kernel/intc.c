@@ -44,7 +44,6 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	unsigned long mask = 1 << d->hwirq;
 
 	pr_debug("enable_or_unmask: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + SIE, mask);
 
 	/* ack level irqs because they can't be acked during
 	 * ack function since the handle_level_irq function
@@ -52,6 +51,8 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	 */
 	if (irqd_is_level_type(d))
 		out_be32(INTC_BASE + IAR, mask);
+
+	out_be32(INTC_BASE + SIE, mask);
 }
 
 static void intc_disable_or_mask(struct irq_data *d)
@@ -98,7 +99,7 @@ unsigned int get_irq(void)
 	return irq;
 }
 
-int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+static int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 {
 	u32 intr_mask = (u32)d->host_data;
 

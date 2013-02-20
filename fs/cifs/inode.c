@@ -1791,11 +1791,12 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	stat->ino = CIFS_I(inode)->uniqueid;
 
 	/*
-	 * If on a multiuser mount without unix extensions, and the admin hasn't
-	 * overridden them, set the ownership to the fsuid/fsgid of the current
-	 * process.
+	 * If on a multiuser mount without unix extensions or cifsacl being
+	 * enabled, and the admin hasn't overridden them, set the ownership
+	 * to the fsuid/fsgid of the current process.
 	 */
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER) &&
+	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 	    !tcon->unix_ext) {
 		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID))
 			stat->uid = current_fsuid();

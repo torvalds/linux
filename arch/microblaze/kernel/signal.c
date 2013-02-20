@@ -354,7 +354,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, int in_syscall)
+asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
 	/*
 	 * We want the common case to go fast, which

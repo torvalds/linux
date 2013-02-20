@@ -232,7 +232,7 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 
 static struct platform_device *spitzpm_device;
 
-static int __devinit spitzpm_init(void)
+static int spitzpm_init(void)
 {
 	int ret;
 

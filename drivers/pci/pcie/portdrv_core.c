@@ -120,8 +120,7 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
 		 * the value in this field indicates which MSI-X Table entry is
 		 * used to generate the interrupt message."
 		 */
-		pos = pci_pcie_cap(dev);
-		pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
+		pcie_capability_read_word(dev, PCI_EXP_FLAGS, &reg16);
 		entry = (reg16 & PCI_EXP_FLAGS_IRQ) >> 9;
 		if (entry >= nr_entries)
 			goto Error;

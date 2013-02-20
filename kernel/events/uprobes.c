@@ -33,6 +33,7 @@
 #include <linux/ptrace.h>	/* user_enable_single_step */
 #include <linux/kdebug.h>	/* notifier mechanism */
 #include "../../mm/internal.h"	/* munlock_vma_page */
+#include <linux/percpu-rwsem.h>
 
 #include <linux/uprobes.h>
 
@@ -70,6 +71,8 @@ static struct mutex uprobes_mutex[UPROBES_HASH_SZ];
 /* serialize uprobe->pending_list */
 static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 #define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
+
+static struct percpu_rw_semaphore dup_mmap_sem;
 
 /*
  * uprobe_events allows us to skip the uprobe_mmap if there are no uprobe
@@ -766,10 +769,13 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 	struct map_info *info;
 	int err = 0;
 
+	percpu_down_write(&dup_mmap_sem);
 	info = build_map_info(uprobe->inode->i_mapping,
 					uprobe->offset, is_register);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
+	if (IS_ERR(info)) {
+		err = PTR_ERR(info);
+		goto out;
+	}
 
 	while (info) {
 		struct mm_struct *mm = info->mm;
@@ -799,7 +805,8 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		mmput(mm);
 		info = free_map_info(info);
 	}
-
+ out:
+	percpu_up_write(&dup_mmap_sem);
 	return err;
 }
 
@@ -1131,6 +1138,16 @@ void uprobe_clear_state(struct mm_struct *mm)
 	kfree(area);
 }
 
+void uprobe_start_dup_mmap(void)
+{
+	percpu_down_read(&dup_mmap_sem);
+}
+
+void uprobe_end_dup_mmap(void)
+{
+	percpu_up_read(&dup_mmap_sem);
+}
+
 void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 {
 	newmm->uprobes_state.xol_area = NULL;
@@ -1199,6 +1216,11 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe, unsigned long slot
 	vaddr = kmap_atomic(area->page);
 	memcpy(vaddr + offset, uprobe->arch.insn, MAX_UINSN_BYTES);
 	kunmap_atomic(vaddr);
+	/*
+	 * We probably need flush_icache_user_range() but it needs vma.
+	 * This should work on supported architectures too.
+	 */
+	flush_dcache_page(area->page);
 
 	return current->utask->xol_vaddr;
 }
@@ -1430,16 +1452,6 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	return uprobe;
 }
 
-void __weak arch_uprobe_enable_step(struct arch_uprobe *arch)
-{
-	user_enable_single_step(current);
-}
-
-void __weak arch_uprobe_disable_step(struct arch_uprobe *arch)
-{
-	user_disable_single_step(current);
-}
-
 /*
  * Run handler and ask thread to singlestep.
  * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
@@ -1493,7 +1505,6 @@ static void handle_swbp(struct pt_regs *regs)
 		goto out;
 
 	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
-		arch_uprobe_enable_step(&uprobe->arch);
 		utask->active_uprobe = uprobe;
 		utask->state = UTASK_SSTEP;
 		return;
@@ -1525,7 +1536,6 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 	else
 		WARN_ON_ONCE(1);
 
-	arch_uprobe_disable_step(&uprobe->arch);
 	put_uprobe(uprobe);
 	utask->active_uprobe = NULL;
 	utask->state = UTASK_RUNNING;
@@ -1603,6 +1613,9 @@ static int __init init_uprobes(void)
 		mutex_init(&uprobes_mutex[i]);
 		mutex_init(&uprobes_mmap_mutex[i]);
 	}
+
+	if (percpu_init_rwsem(&dup_mmap_sem))
+		return -ENOMEM;
 
 	return register_die_notifier(&uprobe_exception_nb);
 }

@@ -700,7 +700,7 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 		}
 	}
 
-	/* Add the pinmux to the global list */
+	/* Add the pinctrl handle to the global list */
 	list_add_tail(&p->node, &pinctrl_list);
 
 	return p;

@@ -1,0 +1,23 @@
+* Cadence EMAC Ethernet controller
+
+Required properties:
+- compatible: Should be "cdns,[<chip>-]{emac}"
+  Use "cdns,at91rm9200-emac" Atmel at91rm9200 SoC.
+  or the generic form: "cdns,emac".
+- reg: Address and length of the register set for the device
+- interrupts: Should contain macb interrupt
+- phy-mode: String, operation mode of the PHY interface.
+  Supported values are: "mii", "rmii".
+
+Optional properties:
+- local-mac-address: 6 bytes, mac address
+
+Examples:
+
+	macb0: ethernet@fffc4000 {
+		compatible = "cdns,at91rm9200-emac";
+		reg = <0xfffc4000 0x4000>;
+		interrupts = <21>;
+		phy-mode = "rmii";
+		local-mac-address = [3a 0e 03 04 05 06];
+	};

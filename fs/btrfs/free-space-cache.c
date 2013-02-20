@@ -307,7 +307,6 @@ static void io_ctl_unmap_page(struct io_ctl *io_ctl)
 
 static void io_ctl_map_page(struct io_ctl *io_ctl, int clear)
 {
-	WARN_ON(io_ctl->cur);
 	BUG_ON(io_ctl->index >= io_ctl->num_pages);
 	io_ctl->page = io_ctl->pages[io_ctl->index++];
 	io_ctl->cur = kmap(io_ctl->page);
@@ -1250,18 +1249,13 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 			 * if previous extent entry covers the offset,
 			 * we should return it instead of the bitmap entry
 			 */
-			n = &entry->offset_index;
-			while (1) {
-				n = rb_prev(n);
-				if (!n)
-					break;
+			n = rb_prev(&entry->offset_index);
+			if (n) {
 				prev = rb_entry(n, struct btrfs_free_space,
 						offset_index);
-				if (!prev->bitmap) {
-					if (prev->offset + prev->bytes > offset)
-						entry = prev;
-					break;
-				}
+				if (!prev->bitmap &&
+				    prev->offset + prev->bytes > offset)
+					entry = prev;
 			}
 		}
 		return entry;
@@ -1287,18 +1281,13 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 	}
 
 	if (entry->bitmap) {
-		n = &entry->offset_index;
-		while (1) {
-			n = rb_prev(n);
-			if (!n)
-				break;
+		n = rb_prev(&entry->offset_index);
+		if (n) {
 			prev = rb_entry(n, struct btrfs_free_space,
 					offset_index);
-			if (!prev->bitmap) {
-				if (prev->offset + prev->bytes > offset)
-					return prev;
-				break;
-			}
+			if (!prev->bitmap &&
+			    prev->offset + prev->bytes > offset)
+				return prev;
 		}
 		if (entry->offset + BITS_PER_BITMAP * ctl->unit > offset)
 			return entry;
@@ -1364,7 +1353,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bitmap_bytes;
 	u64 extent_bytes;
 	u64 size = block_group->key.offset;
-	u64 bytes_per_bg = BITS_PER_BITMAP * block_group->sectorsize;
+	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
 	int max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
 	BUG_ON(ctl->total_bitmaps > max_bitmaps);
@@ -1650,8 +1639,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	 * some block groups are so tiny they can't be enveloped by a bitmap, so
 	 * don't even bother to create a bitmap for this
 	 */
-	if (BITS_PER_BITMAP * block_group->sectorsize >
-	    block_group->key.offset)
+	if (BITS_PER_BITMAP * ctl->unit > block_group->key.offset)
 		return false;
 
 	return true;
@@ -1874,11 +1862,13 @@ int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *info;
-	int ret = 0;
+	int ret;
+	bool re_search = false;
 
 	spin_lock(&ctl->tree_lock);
 
 again:
+	ret = 0;
 	if (!bytes)
 		goto out_lock;
 
@@ -1891,17 +1881,17 @@ again:
 		info = tree_search_offset(ctl, offset_to_bitmap(ctl, offset),
 					  1, 0);
 		if (!info) {
-			/* the tree logging code might be calling us before we
-			 * have fully loaded the free space rbtree for this
-			 * block group.  So it is possible the entry won't
-			 * be in the rbtree yet at all.  The caching code
-			 * will make sure not to put it in the rbtree if
-			 * the logging code has pinned it.
+			/*
+			 * If we found a partial bit of our free space in a
+			 * bitmap but then couldn't find the other part this may
+			 * be a problem, so WARN about it.
 			 */
+			WARN_ON(re_search);
 			goto out_lock;
 		}
 	}
 
+	re_search = false;
 	if (!info->bitmap) {
 		unlink_free_space(ctl, info);
 		if (offset == info->offset) {
@@ -1947,8 +1937,10 @@ again:
 	}
 
 	ret = remove_from_bitmap(ctl, info, &offset, &bytes);
-	if (ret == -EAGAIN)
+	if (ret == -EAGAIN) {
+		re_search = true;
 		goto again;
+	}
 	BUG_ON(ret); /* logic error */
 out_lock:
 	spin_unlock(&ctl->tree_lock);
@@ -2298,10 +2290,10 @@ static int btrfs_bitmap_cluster(struct btrfs_block_group_cache *block_group,
 	unsigned long total_found = 0;
 	int ret;
 
-	i = offset_to_bit(entry->offset, block_group->sectorsize,
+	i = offset_to_bit(entry->offset, ctl->unit,
 			  max_t(u64, offset, entry->offset));
-	want_bits = bytes_to_bits(bytes, block_group->sectorsize);
-	min_bits = bytes_to_bits(min_bytes, block_group->sectorsize);
+	want_bits = bytes_to_bits(bytes, ctl->unit);
+	min_bits = bytes_to_bits(min_bytes, ctl->unit);
 
 again:
 	found_bits = 0;
@@ -2325,23 +2317,22 @@ again:
 
 	total_found += found_bits;
 
-	if (cluster->max_size < found_bits * block_group->sectorsize)
-		cluster->max_size = found_bits * block_group->sectorsize;
+	if (cluster->max_size < found_bits * ctl->unit)
+		cluster->max_size = found_bits * ctl->unit;
 
 	if (total_found < want_bits || cluster->max_size < cont1_bytes) {
 		i = next_zero + 1;
 		goto again;
 	}
 
-	cluster->window_start = start * block_group->sectorsize +
-		entry->offset;
+	cluster->window_start = start * ctl->unit + entry->offset;
 	rb_erase(&entry->offset_index, &ctl->free_space_offset);
 	ret = tree_insert_offset(&cluster->root, entry->offset,
 				 &entry->offset_index, 1);
 	BUG_ON(ret); /* -EEXIST; Logic error */
 
 	trace_btrfs_setup_cluster(block_group, cluster,
-				  total_found * block_group->sectorsize, 1);
+				  total_found * ctl->unit, 1);
 	return 0;
 }
 

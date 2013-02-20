@@ -186,7 +186,7 @@ static struct snd_soc_card mioa701 = {
 	.num_links = ARRAY_SIZE(mioa701_dai),
 };
 
-static int __devinit mioa701_wm9713_probe(struct platform_device *pdev)
+static int mioa701_wm9713_probe(struct platform_device *pdev)
 {
 	int rc;
 
@@ -202,7 +202,7 @@ static int __devinit mioa701_wm9713_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int __devexit mioa701_wm9713_remove(struct platform_device *pdev)
+static int mioa701_wm9713_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -212,7 +212,7 @@ static int __devexit mioa701_wm9713_remove(struct platform_device *pdev)
 
 static struct platform_driver mioa701_wm9713_driver = {
 	.probe		= mioa701_wm9713_probe,
-	.remove		= __devexit_p(mioa701_wm9713_remove),
+	.remove		= mioa701_wm9713_remove,
 	.driver		= {
 		.name		= "mioa701-wm9713",
 		.owner		= THIS_MODULE,

@@ -186,7 +186,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 					   CORE_SB(base, sbtmstatehigh),
 					   NULL);
 		if (regdata & SSB_TMSHIGH_BUSY)
-			brcmf_dbg(ERROR, "core state still busy\n");
+			brcmf_err("core state still busy\n");
 
 		regdata = brcmf_sdio_regrl(sdiodev, CORE_SB(base, sbidlow),
 					   NULL);
@@ -438,7 +438,7 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		ci->ramsize = 0x80000;
 		break;
 	default:
-		brcmf_dbg(ERROR, "chipid 0x%x is not supported\n", ci->chip);
+		brcmf_err("chipid 0x%x is not supported\n", ci->chip);
 		return -ENODEV;
 	}
 
@@ -456,7 +456,7 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		ci->resetcore = brcmf_sdio_ai_resetcore;
 		break;
 	default:
-		brcmf_dbg(ERROR, "socitype %u not supported\n", ci->socitype);
+		brcmf_err("socitype %u not supported\n", ci->socitype);
 		return -ENODEV;
 	}
 
@@ -473,7 +473,7 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
 	brcmf_sdio_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, clkset, &err);
 	if (err) {
-		brcmf_dbg(ERROR, "error writing for HT off\n");
+		brcmf_err("error writing for HT off\n");
 		return err;
 	}
 
@@ -483,7 +483,7 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 				  SBSDIO_FUNC1_CHIPCLKCSR, NULL);
 
 	if ((clkval & ~SBSDIO_AVBITS) != clkset) {
-		brcmf_dbg(ERROR, "ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
+		brcmf_err("ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
 			  clkset, clkval);
 		return -EACCES;
 	}
@@ -493,7 +493,7 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 			!SBSDIO_ALPAV(clkval)),
 			PMU_MAX_TRANSITION_DLY);
 	if (!SBSDIO_ALPAV(clkval)) {
-		brcmf_dbg(ERROR, "timeout on ALPAV wait, clkval 0x%02x\n",
+		brcmf_err("timeout on ALPAV wait, clkval 0x%02x\n",
 			  clkval);
 		return -EBUSY;
 	}
@@ -618,7 +618,7 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		str_shift = 11;
 		break;
 	default:
-		brcmf_dbg(ERROR, "No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
+		brcmf_err("No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
 			  brcmf_sdio_chip_name(ci->chip, chn, 8),
 			  ci->chiprev, ci->pmurev);
 		break;

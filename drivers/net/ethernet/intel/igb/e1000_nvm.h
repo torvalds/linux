@@ -40,4 +40,20 @@ s32  igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 s32  igb_validate_nvm_checksum(struct e1000_hw *hw);
 s32  igb_update_nvm_checksum(struct e1000_hw *hw);
 
+struct e1000_fw_version {
+	u32 etrack_id;
+	u16 eep_major;
+	u16 eep_minor;
+
+	u8 invm_major;
+	u8 invm_minor;
+	u8 invm_img_type;
+
+	bool or_valid;
+	u16 or_major;
+	u16 or_build;
+	u16 or_patch;
+};
+void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers);
+
 #endif

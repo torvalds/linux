@@ -16,8 +16,9 @@
 #include <asm/smp_scu.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
+
+#include "common.h"
+#include "hardware.h"
 
 static void __iomem *scu_base;
 
@@ -91,5 +92,6 @@ struct smp_operations  imx_smp_ops __initdata = {
 	.smp_boot_secondary	= imx_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= imx_cpu_die,
+	.cpu_kill		= imx_cpu_kill,
 #endif
 };

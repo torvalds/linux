@@ -14,8 +14,9 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <mach/common.h>
-#include <mach/mx31.h>
+
+#include "common.h"
+#include "mx31.h"
 
 static const struct of_dev_auxdata imx31_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("fsl,imx31-uart", MX31_UART1_BASE_ADDR,

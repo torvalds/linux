@@ -142,7 +142,7 @@ static struct omap_mbox mbox_dsp_info = {
 
 static struct omap_mbox *omap1_mboxes[] = { &mbox_dsp_info, NULL };
 
-static int __devinit omap1_mbox_probe(struct platform_device *pdev)
+static int omap1_mbox_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int ret;
@@ -165,7 +165,7 @@ static int __devinit omap1_mbox_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit omap1_mbox_remove(struct platform_device *pdev)
+static int omap1_mbox_remove(struct platform_device *pdev)
 {
 	omap_mbox_unregister();
 	iounmap(mbox_base);
@@ -174,7 +174,7 @@ static int __devexit omap1_mbox_remove(struct platform_device *pdev)
 
 static struct platform_driver omap1_mbox_driver = {
 	.probe	= omap1_mbox_probe,
-	.remove	= __devexit_p(omap1_mbox_remove),
+	.remove	= omap1_mbox_remove,
 	.driver	= {
 		.name	= "omap-mailbox",
 	},

@@ -34,6 +34,8 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
+#include "xfs_fsops.h"
+#include "xfs_cksum.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -458,7 +460,8 @@ xfs_log_reserve(
 	tic->t_trans_type = t_type;
 	*ticp = tic;
 
-	xlog_grant_push_ail(log, tic->t_unit_res * tic->t_cnt);
+	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
+					    : tic->t_unit_res);
 
 	trace_xfs_log_reserve(log, tic);
 
@@ -679,24 +682,28 @@ out:
 }
 
 /*
- * Finish the recovery of the file system.  This is separate from
- * the xfs_log_mount() call, because it depends on the code in
- * xfs_mountfs() to read in the root and real-time bitmap inodes
- * between calling xfs_log_mount() and here.
+ * Finish the recovery of the file system.  This is separate from the
+ * xfs_log_mount() call, because it depends on the code in xfs_mountfs() to read
+ * in the root and real-time bitmap inodes between calling xfs_log_mount() and
+ * here.
  *
- * mp		- ubiquitous xfs mount point structure
+ * If we finish recovery successfully, start the background log work. If we are
+ * not doing recovery, then we have a RO filesystem and we don't need to start
+ * it.
  */
 int
 xfs_log_mount_finish(xfs_mount_t *mp)
 {
-	int	error;
+	int	error = 0;
 
-	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
+	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
 		error = xlog_recover_finish(mp->m_log);
-	else {
-		error = 0;
+		if (!error)
+			xfs_log_work_queue(mp);
+	} else {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
+
 
 	return error;
 }
@@ -850,15 +857,49 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 }	/* xfs_log_unmount_write */
 
 /*
- * Deallocate log structures for unmount/relocation.
+ * Empty the log for unmount/freeze.
  *
- * We need to stop the aild from running before we destroy
- * and deallocate the log as the aild references the log.
+ * To do this, we first need to shut down the background log work so it is not
+ * trying to cover the log as we clean up. We then need to unpin all objects in
+ * the log so we can then flush them out. Once they have completed their IO and
+ * run the callbacks removing themselves from the AIL, we can write the unmount
+ * record.
  */
 void
-xfs_log_unmount(xfs_mount_t *mp)
+xfs_log_quiesce(
+	struct xfs_mount	*mp)
 {
-	cancel_delayed_work_sync(&mp->m_sync_work);
+	cancel_delayed_work_sync(&mp->m_log->l_work);
+	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * The superblock buffer is uncached and while xfs_ail_push_all_sync()
+	 * will push it, xfs_wait_buftarg() will not wait for it. Further,
+	 * xfs_buf_iowait() cannot be used because it was pushed with the
+	 * XBF_ASYNC flag set, so we need to use a lock/unlock pair to wait for
+	 * the IO to complete.
+	 */
+	xfs_ail_push_all_sync(mp->m_ail);
+	xfs_wait_buftarg(mp->m_ddev_targp);
+	xfs_buf_lock(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
+
+	xfs_log_unmount_write(mp);
+}
+
+/*
+ * Shut down and release the AIL and Log.
+ *
+ * During unmount, we need to ensure we flush all the dirty metadata objects
+ * from the AIL so that the log is empty before we write the unmount record to
+ * the log. Once this is done, we can tear down the AIL and the log.
+ */
+void
+xfs_log_unmount(
+	struct xfs_mount	*mp)
+{
+	xfs_log_quiesce(mp);
+
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
 }
@@ -1090,8 +1131,7 @@ xlog_iodone(xfs_buf_t *bp)
 	 * with it being freed after writing the unmount record to the
 	 * log.
 	 */
-
-}	/* xlog_iodone */
+}
 
 /*
  * Return size of each in-core log record buffer.
@@ -1161,6 +1201,40 @@ done:
 }	/* xlog_get_iclog_buffer_size */
 
 
+void
+xfs_log_work_queue(
+	struct xfs_mount        *mp)
+{
+	queue_delayed_work(mp->m_log_workqueue, &mp->m_log->l_work,
+				msecs_to_jiffies(xfs_syncd_centisecs * 10));
+}
+
+/*
+ * Every sync period we need to unpin all items in the AIL and push them to
+ * disk. If there is nothing dirty, then we might need to cover the log to
+ * indicate that the filesystem is idle.
+ */
+void
+xfs_log_worker(
+	struct work_struct	*work)
+{
+	struct xlog		*log = container_of(to_delayed_work(work),
+						struct xlog, l_work);
+	struct xfs_mount	*mp = log->l_mp;
+
+	/* dgc: errors ignored - not fatal and nowhere to report them */
+	if (xfs_log_need_covered(mp))
+		xfs_fs_log_dummy(mp);
+	else
+		xfs_log_force(mp, 0);
+
+	/* start pushing all the metadata that is currently dirty */
+	xfs_ail_push_all(mp->m_ail);
+
+	/* queue us up again */
+	xfs_log_work_queue(mp);
+}
+
 /*
  * This routine initializes some of the log structure for a given mount point.
  * Its primary purpose is to fill in enough, so recovery can occur.  However,
@@ -1195,6 +1269,7 @@ xlog_alloc_log(
 	log->l_logBBsize   = num_bblks;
 	log->l_covered_state = XLOG_STATE_COVER_IDLE;
 	log->l_flags	   |= XLOG_ACTIVE_RECOVERY;
+	INIT_DELAYED_WORK(&log->l_work, xfs_log_worker);
 
 	log->l_prev_block  = -1;
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
@@ -1417,6 +1492,84 @@ xlog_grant_push_ail(
 }
 
 /*
+ * Stamp cycle number in every block
+ */
+STATIC void
+xlog_pack_data(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			roundoff)
+{
+	int			i, j, k;
+	int			size = iclog->ic_offset + roundoff;
+	__be32			cycle_lsn;
+	xfs_caddr_t		dp;
+
+	cycle_lsn = CYCLE_LSN_DISK(iclog->ic_header.h_lsn);
+
+	dp = iclog->ic_datap;
+	for (i = 0; i < BTOBB(size); i++) {
+		if (i >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE))
+			break;
+		iclog->ic_header.h_cycle_data[i] = *(__be32 *)dp;
+		*(__be32 *)dp = cycle_lsn;
+		dp += BBSIZE;
+	}
+
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+		xlog_in_core_2_t *xhdr = iclog->ic_data;
+
+		for ( ; i < BTOBB(size); i++) {
+			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			xhdr[j].hic_xheader.xh_cycle_data[k] = *(__be32 *)dp;
+			*(__be32 *)dp = cycle_lsn;
+			dp += BBSIZE;
+		}
+
+		for (i = 1; i < log->l_iclog_heads; i++)
+			xhdr[i].hic_xheader.xh_cycle = cycle_lsn;
+	}
+}
+
+/*
+ * Calculate the checksum for a log buffer.
+ *
+ * This is a little more complicated than it should be because the various
+ * headers and the actual data are non-contiguous.
+ */
+__le32
+xlog_cksum(
+	struct xlog		*log,
+	struct xlog_rec_header	*rhead,
+	char			*dp,
+	int			size)
+{
+	__uint32_t		crc;
+
+	/* first generate the crc for the record header ... */
+	crc = xfs_start_cksum((char *)rhead,
+			      sizeof(struct xlog_rec_header),
+			      offsetof(struct xlog_rec_header, h_crc));
+
+	/* ... then for additional cycle data for v2 logs ... */
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+		union xlog_in_core2 *xhdr = (union xlog_in_core2 *)rhead;
+		int		i;
+
+		for (i = 1; i < log->l_iclog_heads; i++) {
+			crc = crc32c(crc, &xhdr[i].hic_xheader,
+				     sizeof(struct xlog_rec_ext_header));
+		}
+	}
+
+	/* ... and finally for the payload */
+	crc = crc32c(crc, dp, size);
+
+	return xfs_end_cksum(crc);
+}
+
+/*
  * The bdstrat callback function for log bufs. This gives us a central
  * place to trap bufs in case we get hit by a log I/O error and need to
  * shutdown. Actually, in practice, even when we didn't get a log error,
@@ -1476,7 +1629,6 @@ xlog_sync(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog)
 {
-	xfs_caddr_t	dptr;		/* pointer to byte sized element */
 	xfs_buf_t	*bp;
 	int		i;
 	uint		count;		/* byte count of bwrite */
@@ -1485,6 +1637,7 @@ xlog_sync(
 	int		split = 0;	/* split write into two regions */
 	int		error;
 	int		v2 = xfs_sb_version_haslogv2(&log->l_mp->m_sb);
+	int		size;
 
 	XFS_STATS_INC(xs_log_writes);
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
@@ -1515,13 +1668,10 @@ xlog_sync(
 	xlog_pack_data(log, iclog, roundoff); 
 
 	/* real byte length */
-	if (v2) {
-		iclog->ic_header.h_len =
-			cpu_to_be32(iclog->ic_offset + roundoff);
-	} else {
-		iclog->ic_header.h_len =
-			cpu_to_be32(iclog->ic_offset);
-	}
+	size = iclog->ic_offset;
+	if (v2)
+		size += roundoff;
+	iclog->ic_header.h_len = cpu_to_be32(size);
 
 	bp = iclog->ic_bp;
 	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn)));
@@ -1530,12 +1680,36 @@ xlog_sync(
 
 	/* Do we need to split this write into 2 parts? */
 	if (XFS_BUF_ADDR(bp) + BTOBB(count) > log->l_logBBsize) {
+		char		*dptr;
+
 		split = count - (BBTOB(log->l_logBBsize - XFS_BUF_ADDR(bp)));
 		count = BBTOB(log->l_logBBsize - XFS_BUF_ADDR(bp));
-		iclog->ic_bwritecnt = 2;	/* split into 2 writes */
+		iclog->ic_bwritecnt = 2;
+
+		/*
+		 * Bump the cycle numbers at the start of each block in the
+		 * part of the iclog that ends up in the buffer that gets
+		 * written to the start of the log.
+		 *
+		 * Watch out for the header magic number case, though.
+		 */
+		dptr = (char *)&iclog->ic_header + count;
+		for (i = 0; i < split; i += BBSIZE) {
+			__uint32_t cycle = be32_to_cpu(*(__be32 *)dptr);
+			if (++cycle == XLOG_HEADER_MAGIC_NUM)
+				cycle++;
+			*(__be32 *)dptr = cpu_to_be32(cycle);
+
+			dptr += BBSIZE;
+		}
 	} else {
 		iclog->ic_bwritecnt = 1;
 	}
+
+	/* calculcate the checksum */
+	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
+					    iclog->ic_datap, size);
+
 	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
@@ -1589,19 +1763,6 @@ xlog_sync(
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 			bp->b_flags |= XBF_FUA;
-		dptr = bp->b_addr;
-		/*
-		 * Bump the cycle numbers at the start of each block
-		 * since this part of the buffer is at the start of
-		 * a new cycle.  Watch out for the header magic number
-		 * case, though.
-		 */
-		for (i = 0; i < split; i += BBSIZE) {
-			be32_add_cpu((__be32 *)dptr, 1);
-			if (be32_to_cpu(*(__be32 *)dptr) == XLOG_HEADER_MAGIC_NUM)
-				be32_add_cpu((__be32 *)dptr, 1);
-			dptr += BBSIZE;
-		}
 
 		ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 		ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
@@ -1617,7 +1778,6 @@ xlog_sync(
 	}
 	return 0;
 }	/* xlog_sync */
-
 
 /*
  * Deallocate a log structure
@@ -3713,3 +3873,4 @@ xlog_iclogs_empty(
 	} while (iclog != log->l_iclog);
 	return 1;
 }
+

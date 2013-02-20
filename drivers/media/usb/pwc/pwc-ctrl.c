@@ -179,6 +179,8 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 		return -EINVAL;
 	if (frames < 4)
 		frames = 4;
+	else if (size > PSZ_QCIF && frames > 15)
+		frames = 15;
 	else if (frames > 25)
 		frames = 25;
 	frames = frames2frames[frames];

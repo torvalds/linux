@@ -137,7 +137,7 @@
 128	64	rt_sigtimedwait		sys_rt_sigtimedwait
 129	64	rt_sigqueueinfo		sys_rt_sigqueueinfo
 130	common	rt_sigsuspend		sys_rt_sigsuspend
-131	64	sigaltstack		stub_sigaltstack
+131	64	sigaltstack		sys_sigaltstack
 132	common	utime			sys_utime
 133	common	mknod			sys_mknod
 134	64	uselib
@@ -319,6 +319,7 @@
 310	64	process_vm_readv	sys_process_vm_readv
 311	64	process_vm_writev	sys_process_vm_writev
 312	common	kcmp			sys_kcmp
+313	common	finit_module		sys_finit_module
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
@@ -337,7 +338,7 @@
 522	x32	rt_sigpending		sys32_rt_sigpending
 523	x32	rt_sigtimedwait		compat_sys_rt_sigtimedwait
 524	x32	rt_sigqueueinfo		sys32_rt_sigqueueinfo
-525	x32	sigaltstack		stub_x32_sigaltstack
+525	x32	sigaltstack		compat_sys_sigaltstack
 526	x32	timer_create		compat_sys_timer_create
 527	x32	mq_notify		compat_sys_mq_notify
 528	x32	kexec_load		compat_sys_kexec_load

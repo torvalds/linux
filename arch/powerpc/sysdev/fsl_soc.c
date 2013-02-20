@@ -253,6 +253,7 @@ struct platform_diu_data_ops diu_ops;
 EXPORT_SYMBOL(diu_ops);
 #endif
 
+#ifdef CONFIG_EPAPR_PARAVIRT
 /*
  * Restart the current partition
  *
@@ -278,3 +279,4 @@ void fsl_hv_halt(void)
 	pr_info("hv exit\n");
 	fh_partition_stop(-1);
 }
+#endif

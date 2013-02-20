@@ -256,8 +256,7 @@ static irqreturn_t i8259_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit
-txx9_i8259_irq_setup(int irq)
+static int txx9_i8259_irq_setup(int irq)
 {
 	int err;
 
@@ -269,7 +268,7 @@ txx9_i8259_irq_setup(int irq)
 	return err;
 }
 
-static void __devinit quirk_slc90e66_bridge(struct pci_dev *dev)
+static void quirk_slc90e66_bridge(struct pci_dev *dev)
 {
 	int irq;	/* PCI/ISA Bridge interrupt */
 	u8 reg_64;
@@ -304,7 +303,7 @@ static void __devinit quirk_slc90e66_bridge(struct pci_dev *dev)
 	smsc_fdc37m81x_config_end();
 }
 
-static void __devinit quirk_slc90e66_ide(struct pci_dev *dev)
+static void quirk_slc90e66_ide(struct pci_dev *dev)
 {
 	unsigned char dat;
 	int regs[2] = {0x41, 0x43};
@@ -339,16 +338,16 @@ static void __devinit quirk_slc90e66_ide(struct pci_dev *dev)
 }
 #endif /* CONFIG_TOSHIBA_FPCIB0 */
 
-static void __devinit tc35815_fixup(struct pci_dev *dev)
+static void tc35815_fixup(struct pci_dev *dev)
 {
-	/* This device may have PM registers but not they are not suported. */
+	/* This device may have PM registers but not they are not supported. */
 	if (dev->pm_cap) {
 		dev_info(&dev->dev, "PM disabled\n");
 		dev->pm_cap = 0;
 	}
 }
 
-static void __devinit final_fixup(struct pci_dev *dev)
+static void final_fixup(struct pci_dev *dev)
 {
 	unsigned char bist;
 

@@ -29,6 +29,17 @@ OPTIONS
 -v::
 --verbose::
 	Be more verbose.
+-i::
+--input=::
+	Input file name. (default: stdin)
+-o::
+--output=::
+	Output file name. (default: stdout)
+-s::
+--sched-stat::
+	Merge sched_stat and sched_switch for getting events where and how long
+	tasks slept. sched_switch contains a callchain where a task slept and
+	sched_stat contains a timeslice how long a task slept.
 
 SEE ALSO
 --------

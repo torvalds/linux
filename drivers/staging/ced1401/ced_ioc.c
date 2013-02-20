@@ -341,7 +341,7 @@ bool Is1401(DEVICE_EXTENSION * pdx)
 		}
 
 		if (iReturn == 0)	// if all is OK...
-			iReturn = state == 0;	// then sucess is that the state is 0
+			iReturn = state == 0;	// then success is that the state is 0
 	} else
 		iReturn = 0;	// we failed
 	pdx->bForceReset = false;	// Clear forced reset flag now
@@ -565,7 +565,7 @@ int LineCount(DEVICE_EXTENSION * pdx)
 			if (dwIndex >= INBUF_SZ)	// see if we fall off buff
 				dwIndex = 0;
 		}
-		while (dwIndex != dwEnd);	// go to last avaliable
+		while (dwIndex != dwEnd);	// go to last available
 	}
 
 	spin_unlock_irq(&pdx->charInLock);
@@ -697,8 +697,7 @@ static int SetArea(DEVICE_EXTENSION * pdx, int nArea, char __user * puBuf,
 		return -EFAULT;	// ...then we are done
 
 	// Now allocate space to hold the page pointer and virtual address pointer tables
-	pPages =
-	    (struct page **)kmalloc(len * sizeof(struct page *), GFP_KERNEL);
+	pPages = kmalloc(len * sizeof(struct page *), GFP_KERNEL);
 	if (!pPages) {
 		iReturn = U14ERR_NOMEMORY;
 		goto error;
@@ -913,18 +912,24 @@ int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
 		iReturn = U14ERR_BADAREA;
 	else {
 		// Return the best information we have - we don't have physical addresses
-		TGET_TX_BLOCK tx;
-		memset(&tx, 0, sizeof(tx));	// clean out local work structure
-		tx.size = pdx->rTransDef[dwIdent].dwLength;
-		tx.linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
-		tx.avail = GET_TX_MAXENTRIES;	// how many blocks we could return
-		tx.used = 1;	// number we actually return
-		tx.entries[0].physical =
-		    (long long)(tx.linear + pdx->StagedOffset);
-		tx.entries[0].size = tx.size;
+		TGET_TX_BLOCK *tx;
 
-		if (copy_to_user(pTX, &tx, sizeof(tx)))
+		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
+		if (!tx) {
+			mutex_unlock(&pdx->io_mutex);
+			return -ENOMEM;
+		}
+		tx->size = pdx->rTransDef[dwIdent].dwLength;
+		tx->linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
+		tx->avail = GET_TX_MAXENTRIES;	// how many blocks we could return
+		tx->used = 1;	// number we actually return
+		tx->entries[0].physical =
+		    (long long)(tx->linear + pdx->StagedOffset);
+		tx->entries[0].size = tx->size;
+
+		if (copy_to_user(pTX, tx, sizeof(*tx)))
 			iReturn = -EFAULT;
+		kfree(tx);
 	}
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
@@ -1508,7 +1513,7 @@ int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 		iReturn = U14ERR_BADAREA;
 
 	if (copy_to_user(pCB, &cb, sizeof(cb)))
-		return -EFAULT;
+		iReturn = -EFAULT;
 
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;

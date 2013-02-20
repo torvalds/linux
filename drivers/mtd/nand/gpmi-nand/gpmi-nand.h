@@ -130,7 +130,6 @@ struct gpmi_nand_data {
 	/* System Interface */
 	struct device		*dev;
 	struct platform_device	*pdev;
-	struct gpmi_nand_platform_data	*pdata;
 
 	/* Resources */
 	struct resources	resources;

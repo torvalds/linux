@@ -117,8 +117,6 @@ Configuration options: not applicable, uses PCI auto config
 
 #define DAQBOARD2000_FIRMWARE		"daqboard2000_firmware.bin"
 
-#define PCI_VENDOR_ID_IOTECH		0x1616
-
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x0002	/* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4 	0x0004	/* Daqboard/2000 - 4 Dacs */
 
@@ -690,15 +688,14 @@ static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int daqboard2000_attach_pci(struct comedi_device *dev,
-				   struct pci_dev *pcidev)
+static int daqboard2000_auto_attach(struct comedi_device *dev,
+					      unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct daq200_boardtype *board;
 	struct daqboard2000_private *devpriv;
 	struct comedi_subdevice *s;
 	int result;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	board = daqboard2000_find_boardinfo(dev, pcidev);
 	if (!board)
@@ -706,10 +703,10 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	result = alloc_private(dev, sizeof(*devpriv));
-	if (result < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	devpriv = dev->private;
+	dev->private = devpriv;
 
 	result = comedi_pci_enable(pcidev, dev->driver->driver_name);
 	if (result < 0)
@@ -792,17 +789,17 @@ static void daqboard2000_detach(struct comedi_device *dev)
 static struct comedi_driver daqboard2000_driver = {
 	.driver_name	= "daqboard2000",
 	.module		= THIS_MODULE,
-	.attach_pci	= daqboard2000_attach_pci,
+	.auto_attach	= daqboard2000_auto_attach,
 	.detach		= daqboard2000_detach,
 };
 
-static int __devinit daqboard2000_pci_probe(struct pci_dev *dev,
+static int daqboard2000_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &daqboard2000_driver);
 }
 
-static void __devexit daqboard2000_pci_remove(struct pci_dev *dev)
+static void daqboard2000_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -817,7 +814,7 @@ static struct pci_driver daqboard2000_pci_driver = {
 	.name		= "daqboard2000",
 	.id_table	= daqboard2000_pci_table,
 	.probe		= daqboard2000_pci_probe,
-	.remove		= __devexit_p(daqboard2000_pci_remove),
+	.remove		= daqboard2000_pci_remove,
 };
 module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 

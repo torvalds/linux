@@ -154,6 +154,12 @@ config OMAP_32K_TIMER
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
 	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4/5.
 
+	  On OMAP2PLUS this value is only used for CONFIG_HZ and
+	  CLOCK_TICK_RATE compile time calculation.
+	  The actual timer selection is done in the board file
+	  through the (DT_)MACHINE_START structure.
+
+
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
 	depends on ARCH_OMAP3 && PM

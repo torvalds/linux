@@ -33,6 +33,7 @@ struct usbnet {
 	wait_queue_head_t	*wait;
 	struct mutex		phy_mutex;
 	unsigned char		suspend_count;
+	unsigned char		pkt_cnt, pkt_err;
 
 	/* i/o info: pipes etc */
 	unsigned		in, out;
@@ -69,6 +70,8 @@ struct usbnet {
 #		define EVENT_DEV_ASLEEP 6
 #		define EVENT_DEV_OPEN	7
 #		define EVENT_DEVICE_REPORT_IDLE	8
+#		define EVENT_NO_RUNTIME_PM	9
+#		define EVENT_RX_KILL	10
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -106,6 +109,7 @@ struct driver_info {
  */
 #define FLAG_MULTI_PACKET	0x2000
 #define FLAG_RX_ASSEMBLE	0x4000	/* rx packets may span >1 frames */
+#define FLAG_NOARP		0x8000	/* device can't do ARP */
 
 	/* init device ... can sleep, or cause probe() failure */
 	int	(*bind)(struct usbnet *, struct usb_interface *);
@@ -163,6 +167,16 @@ extern int usbnet_resume(struct usb_interface *);
 extern void usbnet_disconnect(struct usb_interface *);
 extern void usbnet_device_suggests_idle(struct usbnet *dev);
 
+extern int usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, void *data, u16 size);
+extern int usbnet_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, const void *data, u16 size);
+extern int usbnet_read_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, void *data, u16 size);
+extern int usbnet_write_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, const void *data, u16 size);
+extern int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, const void *data, u16 size);
 
 /* Drivers that reuse some of the standard USB CDC infrastructure
  * (notably, using multiple interfaces according to the CDC
@@ -229,5 +243,7 @@ extern u32 usbnet_get_msglevel(struct net_device *);
 extern void usbnet_set_msglevel(struct net_device *, u32);
 extern void usbnet_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 extern int usbnet_nway_reset(struct net_device *net);
+
+extern int usbnet_manage_power(struct usbnet *, int);
 
 #endif /* __LINUX_USB_USBNET_H */

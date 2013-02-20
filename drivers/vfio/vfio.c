@@ -191,6 +191,17 @@ static void vfio_container_put(struct vfio_container *container)
 	kref_put(&container->kref, vfio_container_release);
 }
 
+static void vfio_group_unlock_and_free(struct vfio_group *group)
+{
+	mutex_unlock(&vfio.group_lock);
+	/*
+	 * Unregister outside of lock.  A spurious callback is harmless now
+	 * that the group is no longer in vfio.group_list.
+	 */
+	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
+	kfree(group);
+}
+
 /**
  * Group objects - create, release, get, put, search
  */
@@ -229,8 +240,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 
 	minor = vfio_alloc_group_minor(group);
 	if (minor < 0) {
-		mutex_unlock(&vfio.group_lock);
-		kfree(group);
+		vfio_group_unlock_and_free(group);
 		return ERR_PTR(minor);
 	}
 
@@ -239,8 +249,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 		if (tmp->iommu_group == iommu_group) {
 			vfio_group_get(tmp);
 			vfio_free_group_minor(minor);
-			mutex_unlock(&vfio.group_lock);
-			kfree(group);
+			vfio_group_unlock_and_free(group);
 			return tmp;
 		}
 	}
@@ -249,8 +258,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 			    group, "%d", iommu_group_id(iommu_group));
 	if (IS_ERR(dev)) {
 		vfio_free_group_minor(minor);
-		mutex_unlock(&vfio.group_lock);
-		kfree(group);
+		vfio_group_unlock_and_free(group);
 		return (struct vfio_group *)dev; /* ERR_PTR */
 	}
 
@@ -274,16 +282,7 @@ static void vfio_group_release(struct kref *kref)
 	device_destroy(vfio.class, MKDEV(MAJOR(vfio.devt), group->minor));
 	list_del(&group->vfio_next);
 	vfio_free_group_minor(group->minor);
-
-	mutex_unlock(&vfio.group_lock);
-
-	/*
-	 * Unregister outside of lock.  A spurious callback is harmless now
-	 * that the group is no longer in vfio.group_list.
-	 */
-	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
-
-	kfree(group);
+	vfio_group_unlock_and_free(group);
 }
 
 static void vfio_group_put(struct vfio_group *group)
@@ -466,8 +465,9 @@ static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
+	struct device_driver *drv = ACCESS_ONCE(dev->driver);
 
-	if (!dev->driver || vfio_whitelisted_driver(dev->driver))
+	if (!drv || vfio_whitelisted_driver(drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);

@@ -19,6 +19,7 @@ bpf-direct-objs := bpf-direct.o
 
 # Try to match the kernel target.
 ifndef CONFIG_64BIT
+ifndef CROSS_COMPILE
 
 # s390 has -m31 flag to build 31 bit binaries
 ifndef CONFIG_S390
@@ -34,6 +35,7 @@ HOSTCFLAGS_bpf-fancy.o += $(MFLAG)
 HOSTLOADLIBES_bpf-direct += $(MFLAG)
 HOSTLOADLIBES_bpf-fancy += $(MFLAG)
 HOSTLOADLIBES_dropper += $(MFLAG)
+endif
 endif
 
 # Tell kbuild to always build the programs

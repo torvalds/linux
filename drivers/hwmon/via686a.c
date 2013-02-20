@@ -339,7 +339,7 @@ struct via686a_data {
 static struct pci_dev *s_bridge;	/* pointer to the (only) via686a */
 
 static int via686a_probe(struct platform_device *pdev);
-static int __devexit via686a_remove(struct platform_device *pdev);
+static int via686a_remove(struct platform_device *pdev);
 
 static inline int via686a_read_value(struct via686a_data *data, u8 reg)
 {
@@ -677,12 +677,12 @@ static struct platform_driver via686a_driver = {
 		.name	= "via686a",
 	},
 	.probe		= via686a_probe,
-	.remove		= __devexit_p(via686a_remove),
+	.remove		= via686a_remove,
 };
 
 
 /* This is called when the module is loaded */
-static int __devinit via686a_probe(struct platform_device *pdev)
+static int via686a_probe(struct platform_device *pdev)
 {
 	struct via686a_data *data;
 	struct resource *res;
@@ -728,7 +728,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit via686a_remove(struct platform_device *pdev)
+static int via686a_remove(struct platform_device *pdev)
 {
 	struct via686a_data *data = platform_get_drvdata(pdev);
 
@@ -745,7 +745,7 @@ static void via686a_update_fan_div(struct via686a_data *data)
 	data->fan_div[1] = reg >> 6;
 }
 
-static void __devinit via686a_init_device(struct via686a_data *data)
+static void via686a_init_device(struct via686a_data *data)
 {
 	u8 reg;
 
@@ -833,7 +833,7 @@ static DEFINE_PCI_DEVICE_TABLE(via686a_pci_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, via686a_pci_ids);
 
-static int __devinit via686a_device_add(unsigned short address)
+static int via686a_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -874,7 +874,7 @@ exit:
 	return err;
 }
 
-static int __devinit via686a_pci_probe(struct pci_dev *dev,
+static int via686a_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address, val;

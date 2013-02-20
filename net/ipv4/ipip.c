@@ -138,22 +138,7 @@ struct ipip_net {
 static int ipip_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_setup(struct net_device *dev);
 static void ipip_dev_free(struct net_device *dev);
-
-/*
- * Locking : hash tables are protected by RCU and RTNL
- */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
-
-/* often modified stats are per cpu, other are shared (netdev->stats) */
-struct pcpu_tstats {
-	u64	rx_packets;
-	u64	rx_bytes;
-	u64	tx_packets;
-	u64	tx_bytes;
-	struct u64_stats_sync	syncp;
-};
+static struct rtnl_link_ops ipip_link_ops __read_mostly;
 
 static struct rtnl_link_stats64 *ipip_get_stats64(struct net_device *dev,
 						  struct rtnl_link_stats64 *tot)
@@ -197,16 +182,16 @@ static struct ip_tunnel *ipip_tunnel_lookup(struct net *net,
 	struct ip_tunnel *t;
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r_l[h0 ^ h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r_l[h0 ^ h1])
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r[h0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r[h0])
 		if (remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_l[h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_l[h1])
 		if (local == t->parms.iph.saddr && (t->dev->flags&IFF_UP))
 			return t;
 
@@ -264,6 +249,32 @@ static void ipip_tunnel_link(struct ipip_net *ipn, struct ip_tunnel *t)
 	rcu_assign_pointer(*tp, t);
 }
 
+static int ipip_tunnel_create(struct net_device *dev)
+{
+	struct ip_tunnel *t = netdev_priv(dev);
+	struct net *net = dev_net(dev);
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
+	int err;
+
+	err = ipip_tunnel_init(dev);
+	if (err < 0)
+		goto out;
+
+	err = register_netdevice(dev);
+	if (err < 0)
+		goto out;
+
+	strcpy(t->parms.name, dev->name);
+	dev->rtnl_link_ops = &ipip_link_ops;
+
+	dev_hold(dev);
+	ipip_tunnel_link(ipn, t);
+	return 0;
+
+out:
+	return err;
+}
+
 static struct ip_tunnel *ipip_tunnel_locate(struct net *net,
 		struct ip_tunnel_parm *parms, int create)
 {
@@ -298,16 +309,9 @@ static struct ip_tunnel *ipip_tunnel_locate(struct net *net,
 	nt = netdev_priv(dev);
 	nt->parms = *parms;
 
-	if (ipip_tunnel_init(dev) < 0)
+	if (ipip_tunnel_create(dev) < 0)
 		goto failed_free;
 
-	if (register_netdevice(dev) < 0)
-		goto failed_free;
-
-	strcpy(nt->parms.name, dev->name);
-
-	dev_hold(dev);
-	ipip_tunnel_link(ipn, nt);
 	return nt;
 
 failed_free:
@@ -463,7 +467,6 @@ drop:
 static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct pcpu_tstats *tstats;
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 	u8     tos = tunnel->parms.iph.tos;
 	__be16 df = tiph->frag_off;
@@ -477,6 +480,10 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int    mtu;
 
 	if (skb->protocol != htons(ETH_P_IP))
+		goto tx_error;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    skb_checksum_help(skb))
 		goto tx_error;
 
 	if (tos & 1)
@@ -586,9 +593,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	old_iph->ttl;
 
-	nf_reset(skb);
-	tstats = this_cpu_ptr(dev->tstats);
-	__IPTUNNEL_XMIT(tstats, &dev->stats);
+	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -635,6 +640,28 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 	dev->iflink = tunnel->parms.link;
 }
 
+static void ipip_tunnel_update(struct ip_tunnel *t, struct ip_tunnel_parm *p)
+{
+	struct net *net = dev_net(t->dev);
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
+
+	ipip_tunnel_unlink(ipn, t);
+	synchronize_net();
+	t->parms.iph.saddr = p->iph.saddr;
+	t->parms.iph.daddr = p->iph.daddr;
+	memcpy(t->dev->dev_addr, &p->iph.saddr, 4);
+	memcpy(t->dev->broadcast, &p->iph.daddr, 4);
+	ipip_tunnel_link(ipn, t);
+	t->parms.iph.ttl = p->iph.ttl;
+	t->parms.iph.tos = p->iph.tos;
+	t->parms.iph.frag_off = p->iph.frag_off;
+	if (t->parms.link != p->link) {
+		t->parms.link = p->link;
+		ipip_tunnel_bind_dev(t->dev);
+	}
+	netdev_state_change(t->dev);
+}
+
 static int
 ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -664,7 +691,7 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 
 		err = -EFAULT;
@@ -693,29 +720,13 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					break;
 				}
 				t = netdev_priv(dev);
-				ipip_tunnel_unlink(ipn, t);
-				synchronize_net();
-				t->parms.iph.saddr = p.iph.saddr;
-				t->parms.iph.daddr = p.iph.daddr;
-				memcpy(dev->dev_addr, &p.iph.saddr, 4);
-				memcpy(dev->broadcast, &p.iph.daddr, 4);
-				ipip_tunnel_link(ipn, t);
-				netdev_state_change(dev);
 			}
+
+			ipip_tunnel_update(t, &p);
 		}
 
 		if (t) {
 			err = 0;
-			if (cmd == SIOCCHGTUNNEL) {
-				t->parms.iph.ttl = p.iph.ttl;
-				t->parms.iph.tos = p.iph.tos;
-				t->parms.iph.frag_off = p.iph.frag_off;
-				if (t->parms.link != p.link) {
-					t->parms.link = p.link;
-					ipip_tunnel_bind_dev(dev);
-					netdev_state_change(dev);
-				}
-			}
 			if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
 				err = -EFAULT;
 		} else
@@ -724,7 +735,7 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case SIOCDELTUNNEL:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 
 		if (dev == ipn->fb_tunnel_dev) {
@@ -773,6 +784,11 @@ static void ipip_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+#define IPIP_FEATURES (NETIF_F_SG |		\
+		       NETIF_F_FRAGLIST |	\
+		       NETIF_F_HIGHDMA |	\
+		       NETIF_F_HW_CSUM)
+
 static void ipip_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip_netdev_ops;
@@ -787,6 +803,9 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 	dev->features		|= NETIF_F_LLTX;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+
+	dev->features		|= IPIP_FEATURES;
+	dev->hw_features	|= IPIP_FEATURES;
 }
 
 static int ipip_tunnel_init(struct net_device *dev)
@@ -828,6 +847,142 @@ static int __net_init ipip_fb_tunnel_init(struct net_device *dev)
 	rcu_assign_pointer(ipn->tunnels_wc[0], tunnel);
 	return 0;
 }
+
+static void ipip_netlink_parms(struct nlattr *data[],
+			       struct ip_tunnel_parm *parms)
+{
+	memset(parms, 0, sizeof(*parms));
+
+	parms->iph.version = 4;
+	parms->iph.protocol = IPPROTO_IPIP;
+	parms->iph.ihl = 5;
+
+	if (!data)
+		return;
+
+	if (data[IFLA_IPTUN_LINK])
+		parms->link = nla_get_u32(data[IFLA_IPTUN_LINK]);
+
+	if (data[IFLA_IPTUN_LOCAL])
+		parms->iph.saddr = nla_get_be32(data[IFLA_IPTUN_LOCAL]);
+
+	if (data[IFLA_IPTUN_REMOTE])
+		parms->iph.daddr = nla_get_be32(data[IFLA_IPTUN_REMOTE]);
+
+	if (data[IFLA_IPTUN_TTL]) {
+		parms->iph.ttl = nla_get_u8(data[IFLA_IPTUN_TTL]);
+		if (parms->iph.ttl)
+			parms->iph.frag_off = htons(IP_DF);
+	}
+
+	if (data[IFLA_IPTUN_TOS])
+		parms->iph.tos = nla_get_u8(data[IFLA_IPTUN_TOS]);
+
+	if (!data[IFLA_IPTUN_PMTUDISC] || nla_get_u8(data[IFLA_IPTUN_PMTUDISC]))
+		parms->iph.frag_off = htons(IP_DF);
+}
+
+static int ipip_newlink(struct net *src_net, struct net_device *dev,
+			struct nlattr *tb[], struct nlattr *data[])
+{
+	struct net *net = dev_net(dev);
+	struct ip_tunnel *nt;
+
+	nt = netdev_priv(dev);
+	ipip_netlink_parms(data, &nt->parms);
+
+	if (ipip_tunnel_locate(net, &nt->parms, 0))
+		return -EEXIST;
+
+	return ipip_tunnel_create(dev);
+}
+
+static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
+			   struct nlattr *data[])
+{
+	struct ip_tunnel *t;
+	struct ip_tunnel_parm p;
+	struct net *net = dev_net(dev);
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
+
+	if (dev == ipn->fb_tunnel_dev)
+		return -EINVAL;
+
+	ipip_netlink_parms(data, &p);
+
+	if (((dev->flags & IFF_POINTOPOINT) && !p.iph.daddr) ||
+	    (!(dev->flags & IFF_POINTOPOINT) && p.iph.daddr))
+		return -EINVAL;
+
+	t = ipip_tunnel_locate(net, &p, 0);
+
+	if (t) {
+		if (t->dev != dev)
+			return -EEXIST;
+	} else
+		t = netdev_priv(dev);
+
+	ipip_tunnel_update(t, &p);
+	return 0;
+}
+
+static size_t ipip_get_size(const struct net_device *dev)
+{
+	return
+		/* IFLA_IPTUN_LINK */
+		nla_total_size(4) +
+		/* IFLA_IPTUN_LOCAL */
+		nla_total_size(4) +
+		/* IFLA_IPTUN_REMOTE */
+		nla_total_size(4) +
+		/* IFLA_IPTUN_TTL */
+		nla_total_size(1) +
+		/* IFLA_IPTUN_TOS */
+		nla_total_size(1) +
+		/* IFLA_IPTUN_PMTUDISC */
+		nla_total_size(1) +
+		0;
+}
+
+static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct ip_tunnel_parm *parm = &tunnel->parms;
+
+	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
+	    nla_put_be32(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
+	    nla_put_be32(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
+	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->iph.ttl) ||
+	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos) ||
+	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
+		       !!(parm->iph.frag_off & htons(IP_DF))))
+		goto nla_put_failure;
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static const struct nla_policy ipip_policy[IFLA_IPTUN_MAX + 1] = {
+	[IFLA_IPTUN_LINK]		= { .type = NLA_U32 },
+	[IFLA_IPTUN_LOCAL]		= { .type = NLA_U32 },
+	[IFLA_IPTUN_REMOTE]		= { .type = NLA_U32 },
+	[IFLA_IPTUN_TTL]		= { .type = NLA_U8 },
+	[IFLA_IPTUN_TOS]		= { .type = NLA_U8 },
+	[IFLA_IPTUN_PMTUDISC]		= { .type = NLA_U8 },
+};
+
+static struct rtnl_link_ops ipip_link_ops __read_mostly = {
+	.kind		= "ipip",
+	.maxtype	= IFLA_IPTUN_MAX,
+	.policy		= ipip_policy,
+	.priv_size	= sizeof(struct ip_tunnel),
+	.setup		= ipip_tunnel_setup,
+	.newlink	= ipip_newlink,
+	.changelink	= ipip_changelink,
+	.get_size	= ipip_get_size,
+	.fill_info	= ipip_fill_info,
+};
 
 static struct xfrm_tunnel ipip_handler __read_mostly = {
 	.handler	=	ipip_rcv,
@@ -925,14 +1080,26 @@ static int __init ipip_init(void)
 		return err;
 	err = xfrm4_tunnel_register(&ipip_handler, AF_INET);
 	if (err < 0) {
-		unregister_pernet_device(&ipip_net_ops);
 		pr_info("%s: can't register tunnel\n", __func__);
+		goto xfrm_tunnel_failed;
 	}
+	err = rtnl_link_register(&ipip_link_ops);
+	if (err < 0)
+		goto rtnl_link_failed;
+
+out:
 	return err;
+
+rtnl_link_failed:
+	xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
+xfrm_tunnel_failed:
+	unregister_pernet_device(&ipip_net_ops);
+	goto out;
 }
 
 static void __exit ipip_fini(void)
 {
+	rtnl_link_unregister(&ipip_link_ops);
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
 		pr_info("%s: can't deregister tunnel\n", __func__);
 

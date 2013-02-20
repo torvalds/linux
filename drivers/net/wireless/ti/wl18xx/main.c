@@ -1499,7 +1499,7 @@ static int wl18xx_setup(struct wl1271 *wl)
 	return 0;
 }
 
-static int __devinit wl18xx_probe(struct platform_device *pdev)
+static int wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
 	struct ieee80211_hw *hw;
@@ -1528,7 +1528,7 @@ out:
 	return ret;
 }
 
-static const struct platform_device_id wl18xx_id_table[] __devinitconst = {
+static const struct platform_device_id wl18xx_id_table[] = {
 	{ "wl18xx", 0 },
 	{  } /* Terminating Entry */
 };
@@ -1536,7 +1536,7 @@ MODULE_DEVICE_TABLE(platform, wl18xx_id_table);
 
 static struct platform_driver wl18xx_driver = {
 	.probe		= wl18xx_probe,
-	.remove		= __devexit_p(wlcore_remove),
+	.remove		= wlcore_remove,
 	.id_table	= wl18xx_id_table,
 	.driver = {
 		.name	= "wl18xx_driver",

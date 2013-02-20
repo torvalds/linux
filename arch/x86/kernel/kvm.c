@@ -42,6 +42,8 @@
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
+#include <asm/kvm_guest.h>
+#include <asm/context_tracking.h>
 
 static int kvmapf = 1;
 
@@ -61,6 +63,15 @@ static int parse_no_stealacc(char *arg)
 }
 
 early_param("no-steal-acc", parse_no_stealacc);
+
+static int kvmclock_vsyscall = 1;
+static int parse_no_kvmclock_vsyscall(char *arg)
+{
+        kvmclock_vsyscall = 0;
+        return 0;
+}
+
+early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 
 static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
 static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
@@ -110,11 +121,8 @@ void kvm_async_pf_task_wait(u32 token)
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
 	struct kvm_task_sleep_node n, *e;
 	DEFINE_WAIT(wait);
-	int cpu, idle;
 
-	cpu = get_cpu();
-	idle = idle_cpu(cpu);
-	put_cpu();
+	rcu_irq_enter();
 
 	spin_lock(&b->lock);
 	e = _find_apf_task(b, token);
@@ -123,12 +131,14 @@ void kvm_async_pf_task_wait(u32 token)
 		hlist_del(&e->link);
 		kfree(e);
 		spin_unlock(&b->lock);
+
+		rcu_irq_exit();
 		return;
 	}
 
 	n.token = token;
 	n.cpu = smp_processor_id();
-	n.halted = idle || preempt_count() > 1;
+	n.halted = is_idle_task(current) || preempt_count() > 1;
 	init_waitqueue_head(&n.wq);
 	hlist_add_head(&n.link, &b->list);
 	spin_unlock(&b->lock);
@@ -147,13 +157,16 @@ void kvm_async_pf_task_wait(u32 token)
 			/*
 			 * We cannot reschedule. So halt.
 			 */
+			rcu_irq_exit();
 			native_safe_halt();
+			rcu_irq_enter();
 			local_irq_disable();
 		}
 	}
 	if (!n.halted)
 		finish_wait(&n.wq, &wait);
 
+	rcu_irq_exit();
 	return;
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
@@ -247,10 +260,10 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
-		rcu_irq_enter();
+		exception_enter(regs);
 		exit_idle();
 		kvm_async_pf_task_wait((u32)read_cr2());
-		rcu_irq_exit();
+		exception_exit(regs);
 		break;
 	case KVM_PV_REASON_PAGE_READY:
 		rcu_irq_enter();
@@ -470,6 +483,9 @@ void __init kvm_guest_init(void)
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
+
+	if (kvmclock_vsyscall)
+		kvm_setup_vsyscall_timeinfo();
 
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;

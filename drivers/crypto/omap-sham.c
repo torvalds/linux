@@ -37,8 +37,7 @@
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 
-#include <plat/cpu.h>
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 #include <mach/irqs.h>
 
 #define SHA_REG_DIGEST(x)		(0x00 + ((x) * 0x04))
@@ -1138,7 +1137,7 @@ static void omap_sham_dma_cleanup(struct omap_sham_dev *dd)
 	}
 }
 
-static int __devinit omap_sham_probe(struct platform_device *pdev)
+static int omap_sham_probe(struct platform_device *pdev)
 {
 	struct omap_sham_dev *dd;
 	struct device *dev = &pdev->dev;
@@ -1251,7 +1250,7 @@ data_err:
 	return err;
 }
 
-static int __devexit omap_sham_remove(struct platform_device *pdev)
+static int omap_sham_remove(struct platform_device *pdev)
 {
 	static struct omap_sham_dev *dd;
 	int i;
@@ -1288,13 +1287,6 @@ static struct platform_driver omap_sham_driver = {
 static int __init omap_sham_mod_init(void)
 {
 	pr_info("loading %s driver\n", "omap-sham");
-
-	if (!cpu_class_is_omap2() ||
-		(omap_type() != OMAP2_DEVICE_TYPE_SEC &&
-			omap_type() != OMAP2_DEVICE_TYPE_EMU)) {
-		pr_err("Unsupported cpu\n");
-		return -ENODEV;
-	}
 
 	return platform_driver_register(&omap_sham_driver);
 }

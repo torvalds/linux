@@ -201,7 +201,7 @@ static const struct iio_info ad9832_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad9832_probe(struct spi_device *spi)
+static int ad9832_probe(struct spi_device *spi)
 {
 	struct ad9832_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -324,7 +324,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad9832_remove(struct spi_device *spi)
+static int ad9832_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad9832_state *st = iio_priv(indio_dev);
@@ -352,7 +352,7 @@ static struct spi_driver ad9832_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9832_probe,
-	.remove		= __devexit_p(ad9832_remove),
+	.remove		= ad9832_remove,
 	.id_table	= ad9832_id,
 };
 module_spi_driver(ad9832_driver);

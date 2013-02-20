@@ -974,7 +974,7 @@ struct console early_dbgp_console = {
 	.index =	-1,
 };
 
-#if IS_ENABLED(CONFIG_USB_EHCI_HCD)
+#if IS_ENABLED(CONFIG_USB)
 int dbgp_reset_prep(struct usb_hcd *hcd)
 {
 	int ret = xen_dbgp_reset_prep(hcd);
@@ -1008,7 +1008,7 @@ int dbgp_external_startup(struct usb_hcd *hcd)
 	return xen_dbgp_external_startup(hcd) ?: _dbgp_external_startup();
 }
 EXPORT_SYMBOL_GPL(dbgp_external_startup);
-#endif /* USB_EHCI_HCD */
+#endif /* USB */
 
 #ifdef CONFIG_KGDB
 

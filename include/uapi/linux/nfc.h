@@ -60,6 +60,13 @@
  *      target mode.
  * @NFC_EVENT_DEVICE_DEACTIVATED: event emitted when the adapter is deactivated
  *      from target mode.
+ * @NFC_CMD_LLC_GET_PARAMS: request LTO, RW, and MIUX parameters for a device
+ * @NFC_CMD_LLC_SET_PARAMS: set one or more of LTO, RW, and MIUX parameters for
+ *	a device. LTO must be set before the link is up otherwise -EINPROGRESS
+ *	is returned. RW and MIUX can be set at anytime and will be passed in
+ *	subsequent CONNECT and CC messages.
+ *	If one of the passed parameters is wrong none is set and -EINVAL is
+ *	returned.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -77,6 +84,8 @@ enum nfc_commands {
 	NFC_EVENT_TARGET_LOST,
 	NFC_EVENT_TM_ACTIVATED,
 	NFC_EVENT_TM_DEACTIVATED,
+	NFC_CMD_LLC_GET_PARAMS,
+	NFC_CMD_LLC_SET_PARAMS,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -102,6 +111,9 @@ enum nfc_commands {
  * @NFC_ATTR_RF_MODE: Initiator or target
  * @NFC_ATTR_IM_PROTOCOLS: Initiator mode protocols to poll for
  * @NFC_ATTR_TM_PROTOCOLS: Target mode protocols to listen for
+ * @NFC_ATTR_LLC_PARAM_LTO: Link TimeOut parameter
+ * @NFC_ATTR_LLC_PARAM_RW: Receive Window size parameter
+ * @NFC_ATTR_LLC_PARAM_MIUX: MIU eXtension parameter
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -119,6 +131,9 @@ enum nfc_attrs {
 	NFC_ATTR_DEVICE_POWERED,
 	NFC_ATTR_IM_PROTOCOLS,
 	NFC_ATTR_TM_PROTOCOLS,
+	NFC_ATTR_LLC_PARAM_LTO,
+	NFC_ATTR_LLC_PARAM_RW,
+	NFC_ATTR_LLC_PARAM_MIUX,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

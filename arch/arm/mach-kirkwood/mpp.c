@@ -30,8 +30,8 @@ static unsigned int __init kirkwood_variant(void)
 	if (dev == MV88F6180_DEV_ID)
 		return MPP_F6180_MASK;
 
-	printk(KERN_ERR "MPP setup: unknown kirkwood variant "
-			"(dev %#x rev %#x)\n", dev, rev);
+	pr_err("MPP setup: unknown kirkwood variant (dev %#x rev %#x)\n",
+	       dev, rev);
 	return 0;
 }
 

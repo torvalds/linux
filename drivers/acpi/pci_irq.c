@@ -184,7 +184,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 	}
 }
 
-static int acpi_pci_irq_add_entry(acpi_handle handle, struct pci_bus *bus,
+static int acpi_pci_irq_add_entry(acpi_handle handle, int segment, int bus,
 				  struct acpi_pci_routing_table *prt)
 {
 	struct acpi_prt_entry *entry;
@@ -198,8 +198,8 @@ static int acpi_pci_irq_add_entry(acpi_handle handle, struct pci_bus *bus,
 	 * 1=INTA, 2=INTB.  We use the PCI encoding throughout, so convert
 	 * it here.
 	 */
-	entry->id.segment = pci_domain_nr(bus);
-	entry->id.bus = bus->number;
+	entry->id.segment = segment;
+	entry->id.bus = bus;
 	entry->id.device = (prt->address >> 16) & 0xFFFF;
 	entry->pin = prt->pin + 1;
 
@@ -244,7 +244,7 @@ static int acpi_pci_irq_add_entry(acpi_handle handle, struct pci_bus *bus,
 	return 0;
 }
 
-int acpi_pci_irq_add_prt(acpi_handle handle, struct pci_bus *bus)
+int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -273,7 +273,7 @@ int acpi_pci_irq_add_prt(acpi_handle handle, struct pci_bus *bus)
 
 	entry = buffer.pointer;
 	while (entry && (entry->length > 0)) {
-		acpi_pci_irq_add_entry(handle, bus, entry);
+		acpi_pci_irq_add_entry(handle, segment, bus, entry);
 		entry = (struct acpi_pci_routing_table *)
 		    ((unsigned long)entry + entry->length);
 	}
@@ -282,17 +282,16 @@ int acpi_pci_irq_add_prt(acpi_handle handle, struct pci_bus *bus)
 	return 0;
 }
 
-void acpi_pci_irq_del_prt(struct pci_bus *bus)
+void acpi_pci_irq_del_prt(int segment, int bus)
 {
 	struct acpi_prt_entry *entry, *tmp;
 
 	printk(KERN_DEBUG
 	       "ACPI: Delete PCI Interrupt Routing Table for %04x:%02x\n",
-	       pci_domain_nr(bus), bus->number);
+	       segment, bus);
 	spin_lock(&acpi_prt_lock);
 	list_for_each_entry_safe(entry, tmp, &acpi_prt_list, list) {
-		if (pci_domain_nr(bus) == entry->id.segment
-			&& bus->number == entry->id.bus) {
+		if (segment == entry->id.segment && bus == entry->id.bus) {
 			list_del(&entry->list);
 			kfree(entry);
 		}
@@ -459,19 +458,19 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 */
 	if (gsi < 0) {
 		u32 dev_gsi;
-		dev_warn(&dev->dev, "PCI INT %c: no GSI", pin_name(pin));
 		/* Interrupt Line values above 0xF are forbidden */
 		if (dev->irq > 0 && (dev->irq <= 0xF) &&
 		    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-			printk(" - using ISA IRQ %d\n", dev->irq);
+			dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+				 pin_name(pin), dev->irq);
 			acpi_register_gsi(&dev->dev, dev_gsi,
 					  ACPI_LEVEL_SENSITIVE,
 					  ACPI_ACTIVE_LOW);
-			return 0;
 		} else {
-			printk("\n");
-			return 0;
+			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
+				 pin_name(pin));
 		}
+		return 0;
 	}
 
 	rc = acpi_register_gsi(&dev->dev, gsi, triggering, polarity);
@@ -493,11 +492,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		(polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
 
 	return 0;
-}
-
-/* FIXME: implement x86/x86_64 version */
-void __attribute__ ((weak)) acpi_unregister_gsi(u32 i)
-{
 }
 
 void acpi_pci_irq_disable(struct pci_dev *dev)

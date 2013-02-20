@@ -354,7 +354,7 @@ static void ieee802154_fake_setup(struct net_device *dev)
 }
 
 
-static int __devinit ieee802154fake_probe(struct platform_device *pdev)
+static int ieee802154fake_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct fakehard_priv *priv;
@@ -412,7 +412,7 @@ out:
 	return err;
 }
 
-static int __devexit ieee802154fake_remove(struct platform_device *pdev)
+static int ieee802154fake_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	unregister_netdev(dev);
@@ -423,7 +423,7 @@ static struct platform_device *ieee802154fake_dev;
 
 static struct platform_driver ieee802154fake_driver = {
 	.probe = ieee802154fake_probe,
-	.remove = __devexit_p(ieee802154fake_remove),
+	.remove = ieee802154fake_remove,
 	.driver = {
 			.name = "ieee802154hardmac",
 			.owner = THIS_MODULE,

@@ -89,10 +89,6 @@ static void pci_free_dynids(struct pci_driver *drv)
 	spin_unlock(&drv->dynids.lock);
 }
 
-/*
- * Dynamic device ID manipulation via sysfs is disabled for !CONFIG_HOTPLUG
- */
-#ifdef CONFIG_HOTPLUG
 /**
  * store_new_id - sysfs frontend to pci_add_dynid()
  * @driver: target device driver
@@ -191,10 +187,6 @@ static struct driver_attribute pci_drv_attrs[] = {
 	__ATTR_NULL,
 };
 
-#else
-#define pci_drv_attrs	NULL
-#endif /* CONFIG_HOTPLUG */
-
 /**
  * pci_match_id - See if a pci device matches a given pci_id table
  * @ids: array of PCI device id structures to search in
@@ -256,31 +248,26 @@ struct drv_dev_and_id {
 static long local_pci_probe(void *_ddi)
 {
 	struct drv_dev_and_id *ddi = _ddi;
-	struct device *dev = &ddi->dev->dev;
-	struct device *parent = dev->parent;
+	struct pci_dev *pci_dev = ddi->dev;
+	struct pci_driver *pci_drv = ddi->drv;
+	struct device *dev = &pci_dev->dev;
 	int rc;
 
-	/* The parent bridge must be in active state when probing */
-	if (parent)
-		pm_runtime_get_sync(parent);
-	/* Unbound PCI devices are always set to disabled and suspended.
-	 * During probe, the device is set to enabled and active and the
-	 * usage count is incremented.  If the driver supports runtime PM,
-	 * it should call pm_runtime_put_noidle() in its probe routine and
-	 * pm_runtime_get_noresume() in its remove routine.
+	/*
+	 * Unbound PCI devices are always put in D0, regardless of
+	 * runtime PM status.  During probe, the device is set to
+	 * active and the usage count is incremented.  If the driver
+	 * supports runtime PM, it should call pm_runtime_put_noidle()
+	 * in its probe routine and pm_runtime_get_noresume() in its
+	 * remove routine.
 	 */
-	pm_runtime_get_noresume(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	rc = ddi->drv->probe(ddi->dev, ddi->id);
+	pm_runtime_get_sync(dev);
+	pci_dev->driver = pci_drv;
+	rc = pci_drv->probe(pci_dev, ddi->id);
 	if (rc) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pci_dev->driver = NULL;
+		pm_runtime_put_sync(dev);
 	}
-	if (parent)
-		pm_runtime_put(parent);
 	return rc;
 }
 
@@ -330,10 +317,8 @@ __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 		id = pci_match_device(drv, pci_dev);
 		if (id)
 			error = pci_call_probe(drv, pci_dev, id);
-		if (error >= 0) {
-			pci_dev->driver = drv;
+		if (error >= 0)
 			error = 0;
-		}
 	}
 	return error;
 }
@@ -369,9 +354,7 @@ static int pci_device_remove(struct device * dev)
 	}
 
 	/* Undo the runtime PM settings in local_pci_probe() */
-	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_sync(dev);
 
 	/*
 	 * If the device is still on, set the power state as "unknown",
@@ -994,6 +977,13 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	pci_power_t prev = pci_dev->current_state;
 	int error;
 
+	/*
+	 * If pci_dev->driver is not set (unbound), the device should
+	 * always remain in D0 regardless of the runtime PM status
+	 */
+	if (!pci_dev->driver)
+		return 0;
+
 	if (!pm || !pm->runtime_suspend)
 		return -ENOSYS;
 
@@ -1015,10 +1005,10 @@ static int pci_pm_runtime_suspend(struct device *dev)
 		return 0;
 	}
 
-	if (!pci_dev->state_saved)
+	if (!pci_dev->state_saved) {
 		pci_save_state(pci_dev);
-
-	pci_finish_runtime_suspend(pci_dev);
+		pci_finish_runtime_suspend(pci_dev);
+	}
 
 	return 0;
 }
@@ -1028,6 +1018,13 @@ static int pci_pm_runtime_resume(struct device *dev)
 	int rc;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	/*
+	 * If pci_dev->driver is not set (unbound), the device should
+	 * always remain in D0 regardless of the runtime PM status
+	 */
+	if (!pci_dev->driver)
+		return 0;
 
 	if (!pm || !pm->runtime_resume)
 		return -ENOSYS;
@@ -1046,7 +1043,15 @@ static int pci_pm_runtime_resume(struct device *dev)
 
 static int pci_pm_runtime_idle(struct device *dev)
 {
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	/*
+	 * If pci_dev->driver is not set (unbound), the device should
+	 * always remain in D0 regardless of the runtime PM status
+	 */
+	if (!pci_dev->driver)
+		goto out;
 
 	if (!pm)
 		return -ENOSYS;
@@ -1057,8 +1062,8 @@ static int pci_pm_runtime_idle(struct device *dev)
 			return ret;
 	}
 
+out:
 	pm_runtime_suspend(dev);
-
 	return 0;
 }
 
@@ -1223,12 +1228,38 @@ void pci_dev_put(struct pci_dev *dev)
 		put_device(&dev->dev);
 }
 
-#ifndef CONFIG_HOTPLUG
-int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	return -ENODEV;
+	struct pci_dev *pdev;
+
+	if (!dev)
+		return -ENODEV;
+
+	pdev = to_pci_dev(dev);
+	if (!pdev)
+		return -ENODEV;
+
+	if (add_uevent_var(env, "PCI_CLASS=%04X", pdev->class))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "PCI_ID=%04X:%04X", pdev->vendor, pdev->device))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "PCI_SUBSYS_ID=%04X:%04X", pdev->subsystem_vendor,
+			   pdev->subsystem_device))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "PCI_SLOT_NAME=%s", pci_name(pdev)))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "MODALIAS=pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x",
+			   pdev->vendor, pdev->device,
+			   pdev->subsystem_vendor, pdev->subsystem_device,
+			   (u8)(pdev->class >> 16), (u8)(pdev->class >> 8),
+			   (u8)(pdev->class)))
+		return -ENOMEM;
+	return 0;
 }
-#endif
 
 struct bus_type pci_bus_type = {
 	.name		= "pci",

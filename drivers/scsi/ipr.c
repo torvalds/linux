@@ -8296,7 +8296,7 @@ static pci_ers_result_t ipr_pci_error_detected(struct pci_dev *pdev,
  * Return value:
  * 	0 on success / -EIO on failure
  **/
-static int __devinit ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
+static int ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 {
 	int rc = 0;
 	unsigned long host_lock_flags = 0;
@@ -8425,7 +8425,7 @@ static void ipr_free_all_resources(struct ipr_ioa_cfg *ioa_cfg)
  * Return value:
  * 	0 on success / -ENOMEM on allocation failure
  **/
-static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
+static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 {
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioarcb *ioarcb;
@@ -8497,7 +8497,7 @@ static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
  * Return value:
  * 	0 on success / non-zero for error
  **/
-static int __devinit ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
+static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 {
 	struct pci_dev *pdev = ioa_cfg->pdev;
 	int i, rc = -ENOMEM;
@@ -8601,7 +8601,7 @@ out_free_res_entries:
  * Return value:
  * 	none
  **/
-static void __devinit ipr_initialize_bus_attr(struct ipr_ioa_cfg *ioa_cfg)
+static void ipr_initialize_bus_attr(struct ipr_ioa_cfg *ioa_cfg)
 {
 	int i;
 
@@ -8625,8 +8625,8 @@ static void __devinit ipr_initialize_bus_attr(struct ipr_ioa_cfg *ioa_cfg)
  * Return value:
  * 	none
  **/
-static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
-				       struct Scsi_Host *host, struct pci_dev *pdev)
+static void ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
+			     struct Scsi_Host *host, struct pci_dev *pdev)
 {
 	const struct ipr_interrupt_offsets *p;
 	struct ipr_interrupts *t;
@@ -8712,7 +8712,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  * 	ptr to chip information on success / NULL on failure
  **/
-static const struct ipr_chip_t * __devinit
+static const struct ipr_chip_t *
 ipr_get_chip_info(const struct pci_device_id *dev_id)
 {
 	int i;
@@ -8734,7 +8734,7 @@ ipr_get_chip_info(const struct pci_device_id *dev_id)
  * Return value:
  * 	0 on success / non-zero on failure
  **/
-static irqreturn_t __devinit ipr_test_intr(int irq, void *devp)
+static irqreturn_t ipr_test_intr(int irq, void *devp)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
 	unsigned long lock_flags = 0;
@@ -8761,8 +8761,7 @@ static irqreturn_t __devinit ipr_test_intr(int irq, void *devp)
  * Return value:
  * 	0 on success / non-zero on failure
  **/
-static int __devinit ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg,
-				  struct pci_dev *pdev)
+static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 {
 	int rc;
 	volatile u32 int_reg;
@@ -8815,8 +8814,8 @@ static int __devinit ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  * 	0 on success / non-zero on failure
  **/
-static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
-				   const struct pci_device_id *dev_id)
+static int ipr_probe_ioa(struct pci_dev *pdev,
+			 const struct pci_device_id *dev_id)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct Scsi_Host *host;
@@ -9113,7 +9112,7 @@ static void __ipr_remove(struct pci_dev *pdev)
  * Return value:
  * 	none
  **/
-static void __devexit ipr_remove(struct pci_dev *pdev)
+static void ipr_remove(struct pci_dev *pdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 
@@ -9136,8 +9135,7 @@ static void __devexit ipr_remove(struct pci_dev *pdev)
  * Return value:
  * 	0 on success / non-zero on failure
  **/
-static int __devinit ipr_probe(struct pci_dev *pdev,
-			       const struct pci_device_id *dev_id)
+static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	int rc;
@@ -9218,7 +9216,7 @@ static void ipr_shutdown(struct pci_dev *pdev)
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
 }
 
-static struct pci_device_id ipr_pci_table[] __devinitdata = {
+static struct pci_device_id ipr_pci_table[] = {
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5702, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
@@ -9305,7 +9303,7 @@ static struct pci_driver ipr_driver = {
 	.name = IPR_NAME,
 	.id_table = ipr_pci_table,
 	.probe = ipr_probe,
-	.remove = __devexit_p(ipr_remove),
+	.remove = ipr_remove,
 	.shutdown = ipr_shutdown,
 	.err_handler = &ipr_err_handler,
 };

@@ -57,8 +57,8 @@ config PARPORT_SERIAL
 	  will be called parport_serial.
 
 config PARPORT_PC_FIFO
-	bool "Use FIFO/DMA if available (EXPERIMENTAL)"
-	depends on PARPORT_PC && EXPERIMENTAL
+	bool "Use FIFO/DMA if available"
+	depends on PARPORT_PC
 	help
 	  Many parallel port chipsets provide hardware that can speed up
 	  printing. Say Y here if you want to take advantage of that.
@@ -70,8 +70,8 @@ config PARPORT_PC_FIFO
 	  specify which IRQ/DMA to use.
 
 config PARPORT_PC_SUPERIO
-	bool "SuperIO chipset support (EXPERIMENTAL)"
-	depends on PARPORT_PC && EXPERIMENTAL
+	bool "SuperIO chipset support"
+	depends on PARPORT_PC
 	help
 	  Saying Y here enables some probes for Super-IO chipsets in order to
 	  find out things like base addresses, IRQ lines and DMA channels.  It
@@ -85,8 +85,8 @@ config PARPORT_PC_PCMCIA
 	  ports. If unsure, say N.
 
 config PARPORT_IP32
-	tristate "SGI IP32 builtin port (EXPERIMENTAL)"
-	depends on SGI_IP32 && EXPERIMENTAL
+	tristate "SGI IP32 builtin port"
+	depends on SGI_IP32
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need support for the parallel port on
@@ -126,8 +126,8 @@ config PARPORT_GSC
 	select PARPORT_NOT_PC
 
 config PARPORT_SUNBPP
-	tristate "Sparc hardware (EXPERIMENTAL)"
-	depends on SBUS && EXPERIMENTAL
+	tristate "Sparc hardware"
+	depends on SBUS
 	select PARPORT_NOT_PC
 	help
 	  This driver provides support for the bidirectional parallel port

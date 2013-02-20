@@ -157,7 +157,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 	ent->map = SCOM_MAP_INVALID;
 	spin_lock_init(&ent->lock);
 	snprintf(ent->name, 8, "scom%d", i);
-	ent->blob.data = dn->full_name;
+	ent->blob.data = (void*) dn->full_name;
 	ent->blob.size = strlen(dn->full_name);
 
 	dir = debugfs_create_dir(ent->name, root);

@@ -234,10 +234,9 @@ static void gelic_card_free_chain(struct gelic_card *card,
  *
  * returns 0 on success, <0 on failure
  */
-static int __devinit gelic_card_init_chain(struct gelic_card *card,
-					   struct gelic_descr_chain *chain,
-					   struct gelic_descr *start_descr,
-					   int no)
+static int gelic_card_init_chain(struct gelic_card *card,
+				 struct gelic_descr_chain *chain,
+				 struct gelic_descr *start_descr, int no)
 {
 	int i;
 	struct gelic_descr *descr;
@@ -428,7 +427,7 @@ rewind:
  *
  * returns 0 on success, < 0 on failure
  */
-static int __devinit gelic_card_alloc_rx_skbs(struct gelic_card *card)
+static int gelic_card_alloc_rx_skbs(struct gelic_card *card)
 {
 	struct gelic_descr_chain *chain;
 	int ret;
@@ -1468,8 +1467,8 @@ static const struct net_device_ops gelic_netdevice_ops = {
  *
  * fills out function pointers in the net_device structure
  */
-static void __devinit gelic_ether_setup_netdev_ops(struct net_device *netdev,
-						   struct napi_struct *napi)
+static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
+					 struct napi_struct *napi)
 {
 	netdev->watchdog_timeo = GELIC_NET_WATCHDOG_TIMEOUT;
 	/* NAPI */
@@ -1489,8 +1488,7 @@ static void __devinit gelic_ether_setup_netdev_ops(struct net_device *netdev,
  * gelic_ether_setup_netdev initializes the net_device structure
  * and register it.
  **/
-int __devinit gelic_net_setup_netdev(struct net_device *netdev,
-				     struct gelic_card *card)
+int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 {
 	int status;
 	u64 v1, v2;
@@ -1542,7 +1540,7 @@ int __devinit gelic_net_setup_netdev(struct net_device *netdev,
  * the card and net_device structures are linked to each other
  */
 #define GELIC_ALIGN (32)
-static struct gelic_card * __devinit gelic_alloc_card_net(struct net_device **netdev)
+static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 {
 	struct gelic_card *card;
 	struct gelic_port *port;
@@ -1593,7 +1591,7 @@ static struct gelic_card * __devinit gelic_alloc_card_net(struct net_device **ne
 	return card;
 }
 
-static void __devinit gelic_card_get_vlan_info(struct gelic_card *card)
+static void gelic_card_get_vlan_info(struct gelic_card *card)
 {
 	u64 v1, v2;
 	int status;
@@ -1667,7 +1665,7 @@ static void __devinit gelic_card_get_vlan_info(struct gelic_card *card)
 /**
  * ps3_gelic_driver_probe - add a device to the control of this driver
  */
-static int __devinit ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
+static int ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 {
 	struct gelic_card *card;
 	struct net_device *netdev;

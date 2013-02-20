@@ -265,13 +265,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_offer_channel *offer;
 	struct vmbus_channel *newchannel;
-	uuid_le *guidtype;
-	uuid_le *guidinstance;
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
-
-	guidtype = &offer->offer.if_type;
-	guidinstance = &offer->offer.if_instance;
 
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
@@ -470,7 +465,6 @@ static void vmbus_onversion_response(
 {
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
-	struct vmbus_channel_initiate_contact *initiate;
 	struct vmbus_channel_version_response *version_response;
 	unsigned long flags;
 
@@ -484,8 +478,6 @@ static void vmbus_onversion_response(
 
 		if (requestheader->msgtype ==
 		    CHANNELMSG_INITIATE_CONTACT) {
-			initiate =
-			(struct vmbus_channel_initiate_contact *)requestheader;
 			memcpy(&msginfo->response.version_response,
 			      version_response,
 			      sizeof(struct vmbus_channel_version_response));

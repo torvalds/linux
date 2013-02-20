@@ -19,6 +19,7 @@ config MIPS
 	select HAVE_KRETPROBES
 	select HAVE_DEBUG_KMEMLEAK
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
@@ -38,8 +39,8 @@ config MIPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
-	select MODULES_USE_ELF_REL
-	select MODULES_USE_ELF_RELA if 64BIT
+	select MODULES_USE_ELF_REL if MODULES
+	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 
 menu "Machine selection"
 
@@ -53,8 +54,8 @@ choice
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
 	select 64BIT_PHYS_ADDR
-	select CEVT_R4K_LIB
-	select CSRC_R4K_LIB
+	select CEVT_R4K
+	select CSRC_R4K
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -105,16 +106,16 @@ config ATH79
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select FW_CFE
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
-	select CFE
 	help
 	 Support for BCM47XX based boards
 
@@ -191,8 +192,8 @@ config MACH_DECSTATION
 
 config MACH_JAZZ
 	bool "Jazz family of machines"
-	select ARC
-	select ARC32
+	select FW_ARC
+	select FW_ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select CEVT_R4K
 	select CSRC_R4K
@@ -415,27 +416,6 @@ config PMC_MSP
 	  of integrated peripherals, interfaces and DSPs in addition to
 	  a variety of MIPS cores.
 
-config PMC_YOSEMITE
-	bool "PMC-Sierra Yosemite eval board"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_COHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_CPU_RM9K
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM9000
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_SMP
-	help
-	  Yosemite is an evaluation board for the RM9000x2 processor
-	  manufactured by PMC-Sierra.
-
 config POWERTV
 	bool "Cisco PowerTV"
 	select BOOT_ELF32
@@ -456,8 +436,8 @@ config POWERTV
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
-	select ARC
-	select ARC32
+	select FW_ARC
+	select FW_ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -496,8 +476,8 @@ config SGI_IP22
 
 config SGI_IP27
 	bool "SGI IP27 (Origin200/2000)"
-	select ARC
-	select ARC64
+	select FW_ARC
+	select FW_ARC64
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
 	select DMA_COHERENT
@@ -517,8 +497,8 @@ config SGI_IP27
 config SGI_IP28
 	bool "SGI IP28 (Indigo2 R10k) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select ARC
-	select ARC64
+	select FW_ARC
+	select FW_ARC64
 	select BOOT_ELF64
 	select CEVT_R4K
 	select CSRC_R4K
@@ -553,8 +533,8 @@ config SGI_IP28
 
 config SGI_IP32
 	bool "SGI IP32 (O2)"
-	select ARC
-	select ARC32
+	select FW_ARC
+	select FW_ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -672,8 +652,8 @@ config SIBYTE_BIGSUR
 
 config SNI_RM
 	bool "SNI RM200/300/400"
-	select ARC if CPU_LITTLE_ENDIAN
-	select ARC32 if CPU_LITTLE_ENDIAN
+	select FW_ARC if CPU_LITTLE_ENDIAN
+	select FW_ARC32 if CPU_LITTLE_ENDIAN
 	select SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
@@ -774,6 +754,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select EDAC_SUPPORT
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
@@ -817,7 +798,7 @@ config NLM_XLR_BOARD
 	select CSRC_R4K
 	select IRQ_CPU
 	select ARCH_SUPPORTS_MSI
-	select ZONE_DMA if 64BIT
+	select ZONE_DMA32 if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
 	select USB_ARCH_HAS_OHCI if USB_SUPPORT
@@ -845,7 +826,7 @@ config NLM_XLP_BOARD
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_CPU
-	select ZONE_DMA if 64BIT
+	select ZONE_DMA32 if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
 	select USE_OF
@@ -906,7 +887,7 @@ config SCHED_OMIT_FRAME_POINTER
 #
 # Select some configuration options automatically based on user selections.
 #
-config ARC
+config FW_ARC
 	bool
 
 config ARCH_MAY_HAVE_PC_FDC
@@ -924,11 +905,7 @@ config CEVT_DS1287
 config CEVT_GT641XX
 	bool
 
-config CEVT_R4K_LIB
-	bool
-
 config CEVT_R4K
-	select CEVT_R4K_LIB
 	bool
 
 config CEVT_SB1250
@@ -946,11 +923,7 @@ config CSRC_IOASIC
 config CSRC_POWERTV
 	bool
 
-config CSRC_R4K_LIB
-	bool
-
 config CSRC_R4K
-	select CSRC_R4K_LIB
 	bool
 
 config CSRC_SB1250
@@ -961,7 +934,7 @@ config GPIO_TXX9
 	select ARCH_REQUIRE_GPIOLIB
 	bool
 
-config CFE
+config FW_CFE
 	bool
 
 config ARCH_DMA_ADDR_T_64BIT
@@ -1077,13 +1050,13 @@ config SYS_SUPPORTS_HUGETLBFS
 	depends on CPU_SUPPORTS_HUGEPAGES && 64BIT
 	default y
 
+config MIPS_HUGE_TLB_SUPPORT
+	def_bool HUGETLB_PAGE || TRANSPARENT_HUGEPAGE
+
 config IRQ_CPU
 	bool
 
 config IRQ_CPU_RM7K
-	bool
-
-config IRQ_CPU_RM9K
 	bool
 
 config IRQ_MSP_SLP
@@ -1109,10 +1082,6 @@ config PCI_GT64XXX_PCI0
 
 config NO_EXCEPT_FILL
 	bool
-
-config MIPS_RM9122
-	bool
-	select SERIAL_RM9000
 
 config SOC_EMMA2RH
 	bool
@@ -1159,9 +1128,6 @@ config SOC_PNX8550
 config SWAP_IO_SPACE
 	bool
 
-config SERIAL_RM9000
-	bool
-
 config SGI_HAS_INDYDOG
 	bool
 
@@ -1183,7 +1149,7 @@ config SGI_HAS_I8042
 config DEFAULT_SGI_PARTITION
 	bool
 
-config ARC32
+config FW_ARC32
 	bool
 
 config SNIPROM
@@ -1216,7 +1182,7 @@ config ARC_PROMLIB
 	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP28 || SGI_IP32
 	default y
 
-config ARC64
+config FW_ARC64
 	bool
 
 config BOOT_ELF64
@@ -1368,6 +1334,7 @@ config CPU_R4X00
 	depends on SYS_HAS_CPU_R4X00
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  MIPS Technologies R4000-series processors other than 4300, including
 	  the R4000, R4400, R4600, and 4700.
@@ -1378,12 +1345,14 @@ config CPU_TX49XX
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HUGEPAGES
 
 config CPU_R5000
 	bool "R5000"
 	depends on SYS_HAS_CPU_R5000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
@@ -1392,6 +1361,7 @@ config CPU_R5432
 	depends on SYS_HAS_CPU_R5432
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HUGEPAGES
 
 config CPU_R5500
 	bool "R5500"
@@ -1417,6 +1387,7 @@ config CPU_NEVADA
 	depends on SYS_HAS_CPU_NEVADA
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
 
@@ -1437,6 +1408,7 @@ config CPU_R10000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  MIPS Technologies R10000-series processors.
 
@@ -1447,15 +1419,7 @@ config CPU_RM7000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
-
-config CPU_RM9000
-	bool "RM9000"
-	depends on SYS_HAS_CPU_RM9000
-	select CPU_HAS_PREFETCH
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HIGHMEM
-	select WEAK_ORDERING
+	select CPU_SUPPORTS_HUGEPAGES
 
 config CPU_SB1
 	bool "SB1"
@@ -1463,6 +1427,7 @@ config CPU_SB1
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
 	select WEAK_ORDERING
 
 config CPU_CAVIUM_OCTEON
@@ -1526,9 +1491,9 @@ config CPU_XLR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
-	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  Netlogic Microsystems XLR/XLS processors.
 
@@ -1542,6 +1507,7 @@ config CPU_XLP
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
+	select CPU_MIPSR2
 	help
 	  Netlogic Microsystems XLP processors.
 endchoice
@@ -1589,6 +1555,7 @@ config CPU_LOONGSON2
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
 
 config CPU_LOONGSON1
 	bool
@@ -1673,9 +1640,6 @@ config SYS_HAS_CPU_R10000
 config SYS_HAS_CPU_RM7000
 	bool
 
-config SYS_HAS_CPU_RM9000
-	bool
-
 config SYS_HAS_CPU_SB1
 	bool
 
@@ -1755,7 +1719,7 @@ config CPU_SUPPORTS_UNCACHED_ACCELERATED
 	bool
 config MIPS_PGD_C0_CONTEXT
 	bool
-	default y if 64BIT && CPU_MIPSR2
+	default y if 64BIT && CPU_MIPSR2 && !CPU_XLP
 
 #
 # Set to y for ptrace access to watch registers.
@@ -2186,7 +2150,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON)
+	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -2363,6 +2327,29 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
+
+config CRASH_DUMP
+	  bool "Kernel crash dumps"
+	  help
+	  Generate crash dump after being started by kexec.
+	  This should be normally only set in special crash dump kernels
+	  which are loaded in the main kernel with kexec-tools into
+	  a specially reserved region and then later executed after
+	  a crash by kdump/kexec. The crash dump kernel must be compiled
+	  to a memory address not used by the main kernel or firmware using
+	  PHYSICAL_START.
+
+config PHYSICAL_START
+	  hex "Physical address where the kernel is loaded"
+	  default "0xffffffff84000000" if 64BIT
+	  default "0x84000000" if 32BIT
+	  depends on CRASH_DUMP
+	  help
+	  This gives the CKSEG0 or KSEG0 address where the kernel is loaded.
+	  If you plan to use kernel for capturing the crash dump change
+	  this value to start of the reserved region (the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel).
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -2569,6 +2556,8 @@ source "arch/mips/kernel/cpufreq/Kconfig"
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig"
 

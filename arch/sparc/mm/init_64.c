@@ -87,8 +87,8 @@ static unsigned long cpu_pgsz_mask;
 
 #define MAX_BANKS	32
 
-static struct linux_prom64_registers pavail[MAX_BANKS] __devinitdata;
-static int pavail_ents __devinitdata;
+static struct linux_prom64_registers pavail[MAX_BANKS];
+static int pavail_ents;
 
 static int cmp_p64(const void *a, const void *b)
 {
@@ -624,7 +624,7 @@ static void __init inherit_prom_mappings(void)
 void prom_world(int enter)
 {
 	if (!enter)
-		set_fs((mm_segment_t) { get_thread_current_ds() });
+		set_fs(get_fs());
 
 	__asm__ __volatile__("flushw");
 }
@@ -1931,7 +1931,7 @@ void __init paging_init(void)
 	printk("Booting Linux...\n");
 }
 
-int __devinit page_in_phys_avail(unsigned long paddr)
+int page_in_phys_avail(unsigned long paddr)
 {
 	int i;
 

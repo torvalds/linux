@@ -47,6 +47,7 @@ config HID_SENSOR_ALS
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID ALS"
 	help
 	  Say yes here to build support for the HID SENSOR

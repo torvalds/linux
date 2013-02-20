@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <asm/checksum.h>
-#include <asm/pgtable.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/ftrace.h>
 
@@ -31,8 +31,6 @@ extern long __strnlen_user_asm(const char *s);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
-
-EXPORT_SYMBOL(kernel_thread);
 
 /*
  * Functions that operate on entire pages.  Mostly used by memory management.

@@ -203,7 +203,7 @@ sys_call_table:
 	PTR	sys_creat
 	PTR	sys_link
 	PTR	sys_unlink			/* 4010 */
-	PTR	sys32_execve
+	PTR	compat_sys_execve
 	PTR	sys_chdir
 	PTR	compat_sys_time
 	PTR	sys_mknod
@@ -540,4 +540,5 @@ sys_call_table:
 	PTR	compat_sys_process_vm_readv	/* 4345 */
 	PTR	compat_sys_process_vm_writev
 	PTR	sys_kcmp
+	PTR	sys_finit_module
 	.size	sys_call_table,.-sys_call_table

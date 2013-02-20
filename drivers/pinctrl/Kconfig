@@ -181,14 +181,18 @@ config PINCTRL_COH901
 
 config PINCTRL_SAMSUNG
 	bool
-	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_EXYNOS4
-	bool "Pinctrl driver data for Exynos4 SoC"
+config PINCTRL_EXYNOS
+	bool "Pinctrl driver data for Samsung EXYNOS SoCs"
 	depends on OF && GPIOLIB
 	select PINCTRL_SAMSUNG
+
+config PINCTRL_EXYNOS5440
+	bool "Samsung EXYNOS5440 SoC pinctrl driver"
+	select PINMUX
+	select PINCONF
 
 source "drivers/pinctrl/mvebu/Kconfig"
 

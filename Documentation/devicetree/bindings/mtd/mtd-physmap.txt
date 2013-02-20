@@ -23,6 +23,9 @@ file systems on embedded devices.
    unaligned accesses as implemented in the JFFS2 code via memcpy().
    By defining "no-unaligned-direct-access", the flash will not be
    exposed directly to the MTD users (e.g. JFFS2) any more.
+ - linux,mtd-name: allow to specify the mtd name for retro capability with
+   physmap-flash drivers as boot loader pass the mtd partition via the old
+   device name physmap-flash.
 
 For JEDEC compatible devices, the following additional properties
 are defined:

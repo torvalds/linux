@@ -462,7 +462,7 @@ static void subscr_named_msg_event(void *usr_handle,
 		kfree(subscriber);
 		return;
 	}
-	tipc_connect2port(subscriber->port_ref, orig);
+	tipc_connect(subscriber->port_ref, orig);
 
 	/* Lock server port (& save lock address for future use) */
 	subscriber->lock = tipc_port_lock(subscriber->port_ref)->lock;

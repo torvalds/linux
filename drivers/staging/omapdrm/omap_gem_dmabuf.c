@@ -191,13 +191,13 @@ struct dma_buf_ops omap_dmabuf_ops = {
 		.mmap = omap_gem_dmabuf_mmap,
 };
 
-struct dma_buf * omap_gem_prime_export(struct drm_device *dev,
+struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags)
 {
-	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, 0600);
+	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, flags);
 }
 
-struct drm_gem_object * omap_gem_prime_import(struct drm_device *dev,
+struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer)
 {
 	struct drm_gem_object *obj;
@@ -207,7 +207,12 @@ struct drm_gem_object * omap_gem_prime_import(struct drm_device *dev,
 		obj = buffer->priv;
 		/* is it from our device? */
 		if (obj->dev == dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
 			drm_gem_object_reference(obj);
+			dma_buf_put(buffer);
 			return obj;
 		}
 	}

@@ -22,22 +22,22 @@
 
 #include "pinctrl-mvebu.h"
 
-#define DOVE_SB_REGS_VIRT_BASE		0xfde00000
-#define DOVE_MPP_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE | 0xd0200)
+#define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfde00000)
+#define DOVE_MPP_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE + 0xd0200)
 #define DOVE_PMU_MPP_GENERAL_CTRL	(DOVE_MPP_VIRT_BASE + 0x10)
 #define  DOVE_AU0_AC97_SEL		BIT(16)
-#define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE | 0xe802C)
+#define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE + 0xe802C)
 #define  DOVE_TWSI_ENABLE_OPTION1	BIT(7)
-#define DOVE_GLOBAL_CONFIG_2		(DOVE_SB_REGS_VIRT_BASE | 0xe8030)
+#define DOVE_GLOBAL_CONFIG_2		(DOVE_SB_REGS_VIRT_BASE + 0xe8030)
 #define  DOVE_TWSI_ENABLE_OPTION2	BIT(20)
 #define  DOVE_TWSI_ENABLE_OPTION3	BIT(21)
 #define  DOVE_TWSI_OPTION3_GPIO		BIT(22)
-#define DOVE_SSP_CTRL_STATUS_1		(DOVE_SB_REGS_VIRT_BASE | 0xe8034)
+#define DOVE_SSP_CTRL_STATUS_1		(DOVE_SB_REGS_VIRT_BASE + 0xe8034)
 #define  DOVE_SSP_ON_AU1		BIT(0)
-#define DOVE_MPP_GENERAL_VIRT_BASE	(DOVE_SB_REGS_VIRT_BASE | 0xe803c)
+#define DOVE_MPP_GENERAL_VIRT_BASE	(DOVE_SB_REGS_VIRT_BASE + 0xe803c)
 #define  DOVE_AU1_SPDIFO_GPIO_EN	BIT(1)
 #define  DOVE_NAND_GPIO_EN		BIT(0)
-#define DOVE_GPIO_LO_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE | 0xd0400)
+#define DOVE_GPIO_LO_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE + 0xd0400)
 #define DOVE_MPP_CTRL4_VIRT_BASE	(DOVE_GPIO_LO_VIRT_BASE + 0x40)
 #define  DOVE_SPI_GPIO_SEL		BIT(5)
 #define  DOVE_UART1_GPIO_SEL		BIT(4)
@@ -233,6 +233,14 @@ static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	unsigned long sspc1 = readl(DOVE_SSP_CTRL_STATUS_1);
 	unsigned long gmpp = readl(DOVE_MPP_GENERAL_VIRT_BASE);
 	unsigned long gcfg2 = readl(DOVE_GLOBAL_CONFIG_2);
+
+	/*
+	 * clear all audio1 related bits before configure
+	 */
+	gcfg2 &= ~DOVE_TWSI_OPTION3_GPIO;
+	gmpp &= ~DOVE_AU1_SPDIFO_GPIO_EN;
+	sspc1 &= ~DOVE_SSP_ON_AU1;
+	mpp4 &= ~DOVE_AU1_GPIO_SEL;
 
 	if (config & BIT(0))
 		gcfg2 |= DOVE_TWSI_OPTION3_GPIO;
@@ -571,29 +579,32 @@ static struct mvebu_pinctrl_soc_info dove_pinctrl_info = {
 
 static struct clk *clk;
 
-static struct of_device_id dove_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id dove_pinctrl_of_match[] = {
 	{ .compatible = "marvell,dove-pinctrl", .data = &dove_pinctrl_info },
 	{ }
 };
 
-static int __devinit dove_pinctrl_probe(struct platform_device *pdev)
+static int dove_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(dove_pinctrl_of_match, &pdev->dev);
-	pdev->dev.platform_data = match->data;
+	pdev->dev.platform_data = (void *)match->data;
 
 	/*
 	 * General MPP Configuration Register is part of pdma registers.
 	 * grab clk to make sure it is ticking.
 	 */
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Unable to get pdma clock");
+		return PTR_RET(clk);
+	}
+	clk_prepare_enable(clk);
 
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit dove_pinctrl_remove(struct platform_device *pdev)
+static int dove_pinctrl_remove(struct platform_device *pdev)
 {
 	int ret;
 
@@ -610,7 +621,7 @@ static struct platform_driver dove_pinctrl_driver = {
 		.of_match_table = of_match_ptr(dove_pinctrl_of_match),
 	},
 	.probe = dove_pinctrl_probe,
-	.remove = __devexit_p(dove_pinctrl_remove),
+	.remove = dove_pinctrl_remove,
 };
 
 module_platform_driver(dove_pinctrl_driver);

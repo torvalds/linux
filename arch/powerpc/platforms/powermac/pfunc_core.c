@@ -686,7 +686,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 	int count = 0;
 
 	for (pp = dev->node->properties; pp != 0; pp = pp->next) {
-		char *name;
+		const char *name;
 		if (strncmp(pp->name, PP_PREFIX, plen) != 0)
 			continue;
 		name = pp->name + plen;

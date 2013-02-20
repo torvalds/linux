@@ -22,6 +22,7 @@
 #include <linux/console.h>
 #include <linux/pfn.h>
 #include <linux/debugfs.h>
+#include <linux/kexec.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -536,11 +537,63 @@ static void __init arch_mem_init(char **cmdline_p)
 	}
 
 	bootmem_init();
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		reserve_bootmem(crashk_res.start,
+				crashk_res.end - crashk_res.start + 1,
+				BOOTMEM_DEFAULT);
+#endif
 	device_tree_init();
 	sparse_init();
 	plat_swiotlb_setup();
 	paging_init();
 }
+
+#ifdef CONFIG_KEXEC
+static inline unsigned long long get_total_mem(void)
+{
+	unsigned long long total;
+
+	total = max_pfn - min_low_pfn;
+	return total << PAGE_SHIFT;
+}
+
+static void __init mips_parse_crashkernel(void)
+{
+	unsigned long long total_mem;
+	unsigned long long crash_size, crash_base;
+	int ret;
+
+	total_mem = get_total_mem();
+	ret = parse_crashkernel(boot_command_line, total_mem,
+				&crash_size, &crash_base);
+	if (ret != 0 || crash_size <= 0)
+		return;
+
+	crashk_res.start = crash_base;
+	crashk_res.end   = crash_base + crash_size - 1;
+}
+
+static void __init request_crashkernel(struct resource *res)
+{
+	int ret;
+
+	ret = request_resource(res, &crashk_res);
+	if (!ret)
+		pr_info("Reserving %ldMB of memory at %ldMB for crashkernel\n",
+			(unsigned long)((crashk_res.end -
+				crashk_res.start + 1) >> 20),
+			(unsigned long)(crashk_res.start  >> 20));
+}
+#else /* !defined(CONFIG_KEXEC)  */
+static void __init mips_parse_crashkernel(void)
+{
+}
+
+static void __init request_crashkernel(struct resource *res)
+{
+}
+#endif /* !defined(CONFIG_KEXEC)  */
 
 static void __init resource_init(void)
 {
@@ -557,6 +610,8 @@ static void __init resource_init(void)
 	/*
 	 * Request address space for all standard RAM.
 	 */
+	mips_parse_crashkernel();
+
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		struct resource *res;
 		unsigned long start, end;
@@ -593,6 +648,7 @@ static void __init resource_init(void)
 		 */
 		request_resource(res, &code_resource);
 		request_resource(res, &data_resource);
+		request_crashkernel(res);
 	}
 }
 

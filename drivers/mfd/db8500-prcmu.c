@@ -2524,7 +2524,7 @@ static bool read_mailbox_0(void)
 
 		for (n = 0; n < NUM_PRCMU_WAKEUPS; n++) {
 			if (ev & prcmu_irq_bit[n])
-				generic_handle_irq(IRQ_PRCMU_BASE + n);
+				generic_handle_irq(irq_find_mapping(db8500_irq_domain, n));
 		}
 		r = true;
 		break;
@@ -2737,27 +2737,38 @@ static int db8500_irq_map(struct irq_domain *d, unsigned int virq,
 }
 
 static struct irq_domain_ops db8500_irq_ops = {
-        .map    = db8500_irq_map,
-        .xlate  = irq_domain_xlate_twocell,
+	.map    = db8500_irq_map,
+	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int db8500_irq_init(struct device_node *np)
 {
-	db8500_irq_domain = irq_domain_add_legacy(
-		np, NUM_PRCMU_WAKEUPS, IRQ_PRCMU_BASE,
-		0, &db8500_irq_ops, NULL);
+	int irq_base = 0;
+	int i;
+
+	/* In the device tree case, just take some IRQs */
+	if (!np)
+		irq_base = IRQ_PRCMU_BASE;
+
+	db8500_irq_domain = irq_domain_add_simple(
+		np, NUM_PRCMU_WAKEUPS, irq_base,
+		&db8500_irq_ops, NULL);
 
 	if (!db8500_irq_domain) {
 		pr_err("Failed to create irqdomain\n");
 		return -ENOSYS;
 	}
 
+	/* All wakeups will be used, so create mappings for all */
+	for (i = 0; i < NUM_PRCMU_WAKEUPS; i++)
+		irq_create_mapping(db8500_irq_domain, i);
+
 	return 0;
 }
 
 void __init db8500_prcmu_early_init(void)
 {
-	if (cpu_is_u8500v2()) {
+	if (cpu_is_u8500v2() || cpu_is_u9540()) {
 		void *tcpm_base = ioremap_nocache(U8500_PRCMU_TCPM_BASE, SZ_4K);
 
 		if (tcpm_base != NULL) {
@@ -2775,7 +2786,11 @@ void __init db8500_prcmu_early_init(void)
 			iounmap(tcpm_base);
 		}
 
-		tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE);
+		if (cpu_is_u9540())
+			tcdm_base = ioremap_nocache(U8500_PRCMU_TCDM_BASE,
+						SZ_4K + SZ_8K) + SZ_8K;
+		else
+			tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE);
 	} else {
 		pr_err("prcmu: Unsupported chip version\n");
 		BUG();
@@ -3088,7 +3103,7 @@ static void db8500_prcmu_update_cpufreq(void)
  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
  *
  */
-static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
+static int db8500_prcmu_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *ab8500_platdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;

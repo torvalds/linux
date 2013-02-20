@@ -20,10 +20,6 @@
 #ifndef __CSR_WIFI_HIP_UNIFI_UDI_H__
 #define __CSR_WIFI_HIP_UNIFI_UDI_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_signals.h"
 
@@ -67,10 +63,5 @@ s32 unifi_print_status(card_t *card, char *str, s32 *remain);
             remain -= written;                                      \
         }                                                           \
     } while (0)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __CSR_WIFI_HIP_UNIFI_UDI_H__ */

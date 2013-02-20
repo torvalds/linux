@@ -486,7 +486,7 @@ static unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
 }
 
 
-static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
+static int mc13892_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13892 = dev_get_drvdata(pdev->dev.parent);
@@ -588,7 +588,7 @@ err_unlock:
 	return ret;
 }
 
-static int __devexit mc13892_regulator_remove(struct platform_device *pdev)
+static int mc13892_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	int i;
@@ -606,7 +606,7 @@ static struct platform_driver mc13892_regulator_driver = {
 		.name	= "mc13892-regulator",
 		.owner	= THIS_MODULE,
 	},
-	.remove	= __devexit_p(mc13892_regulator_remove),
+	.remove	= mc13892_regulator_remove,
 	.probe	= mc13892_regulator_probe,
 };
 

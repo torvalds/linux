@@ -70,7 +70,8 @@ nv_pclass(struct nouveau_object *parent, u32 oclass)
 }
 
 struct nouveau_omthds {
-	u32 method;
+	u32 start;
+	u32 limit;
 	int (*call)(struct nouveau_object *, u32, void *, u32);
 };
 
@@ -81,12 +82,12 @@ struct nouveau_ofuncs {
 	void (*dtor)(struct nouveau_object *);
 	int  (*init)(struct nouveau_object *);
 	int  (*fini)(struct nouveau_object *, bool suspend);
-	u8   (*rd08)(struct nouveau_object *, u32 offset);
-	u16  (*rd16)(struct nouveau_object *, u32 offset);
-	u32  (*rd32)(struct nouveau_object *, u32 offset);
-	void (*wr08)(struct nouveau_object *, u32 offset, u8 data);
-	void (*wr16)(struct nouveau_object *, u32 offset, u16 data);
-	void (*wr32)(struct nouveau_object *, u32 offset, u32 data);
+	u8   (*rd08)(struct nouveau_object *, u64 offset);
+	u16  (*rd16)(struct nouveau_object *, u64 offset);
+	u32  (*rd32)(struct nouveau_object *, u64 offset);
+	void (*wr08)(struct nouveau_object *, u64 offset, u8 data);
+	void (*wr16)(struct nouveau_object *, u64 offset, u16 data);
+	void (*wr32)(struct nouveau_object *, u64 offset, u32 data);
 };
 
 static inline struct nouveau_ofuncs *
@@ -109,21 +110,27 @@ int nouveau_object_del(struct nouveau_object *, u32 parent, u32 handle);
 void nouveau_object_debug(void);
 
 static inline int
-nv_call(void *obj, u32 mthd, u32 data)
+nv_exec(void *obj, u32 mthd, void *data, u32 size)
 {
 	struct nouveau_omthds *method = nv_oclass(obj)->omthds;
 
 	while (method && method->call) {
-		if (method->method == mthd)
-			return method->call(obj, mthd, &data, sizeof(data));
+		if (mthd >= method->start && mthd <= method->limit)
+			return method->call(obj, mthd, data, size);
 		method++;
 	}
 
 	return -EINVAL;
 }
 
+static inline int
+nv_call(void *obj, u32 mthd, u32 data)
+{
+	return nv_exec(obj, mthd, &data, sizeof(data));
+}
+
 static inline u8
-nv_ro08(void *obj, u32 addr)
+nv_ro08(void *obj, u64 addr)
 {
 	u8 data = nv_ofuncs(obj)->rd08(obj, addr);
 	nv_spam(obj, "nv_ro08 0x%08x 0x%02x\n", addr, data);
@@ -131,7 +138,7 @@ nv_ro08(void *obj, u32 addr)
 }
 
 static inline u16
-nv_ro16(void *obj, u32 addr)
+nv_ro16(void *obj, u64 addr)
 {
 	u16 data = nv_ofuncs(obj)->rd16(obj, addr);
 	nv_spam(obj, "nv_ro16 0x%08x 0x%04x\n", addr, data);
@@ -139,7 +146,7 @@ nv_ro16(void *obj, u32 addr)
 }
 
 static inline u32
-nv_ro32(void *obj, u32 addr)
+nv_ro32(void *obj, u64 addr)
 {
 	u32 data = nv_ofuncs(obj)->rd32(obj, addr);
 	nv_spam(obj, "nv_ro32 0x%08x 0x%08x\n", addr, data);
@@ -147,28 +154,28 @@ nv_ro32(void *obj, u32 addr)
 }
 
 static inline void
-nv_wo08(void *obj, u32 addr, u8 data)
+nv_wo08(void *obj, u64 addr, u8 data)
 {
 	nv_spam(obj, "nv_wo08 0x%08x 0x%02x\n", addr, data);
 	nv_ofuncs(obj)->wr08(obj, addr, data);
 }
 
 static inline void
-nv_wo16(void *obj, u32 addr, u16 data)
+nv_wo16(void *obj, u64 addr, u16 data)
 {
 	nv_spam(obj, "nv_wo16 0x%08x 0x%04x\n", addr, data);
 	nv_ofuncs(obj)->wr16(obj, addr, data);
 }
 
 static inline void
-nv_wo32(void *obj, u32 addr, u32 data)
+nv_wo32(void *obj, u64 addr, u32 data)
 {
 	nv_spam(obj, "nv_wo32 0x%08x 0x%08x\n", addr, data);
 	nv_ofuncs(obj)->wr32(obj, addr, data);
 }
 
 static inline u32
-nv_mo32(void *obj, u32 addr, u32 mask, u32 data)
+nv_mo32(void *obj, u64 addr, u32 mask, u32 data)
 {
 	u32 temp = nv_ro32(obj, addr);
 	nv_wo32(obj, addr, (temp & ~mask) | data);
