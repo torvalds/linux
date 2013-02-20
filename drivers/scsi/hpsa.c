@@ -3014,6 +3014,13 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	if (iocommand.buf_size > 0) {
 		temp64.val = pci_map_single(h->pdev, buff,
 			iocommand.buf_size, PCI_DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(&h->pdev->dev, temp64.val)) {
+			c->SG[0].Addr.lower = 0;
+			c->SG[0].Addr.upper = 0;
+			c->SG[0].Len = 0;
+			rc = -ENOMEM;
+			goto out;
+		}
 		c->SG[0].Addr.lower = temp64.val32.lower;
 		c->SG[0].Addr.upper = temp64.val32.upper;
 		c->SG[0].Len = iocommand.buf_size;
@@ -3135,6 +3142,15 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		for (i = 0; i < sg_used; i++) {
 			temp64.val = pci_map_single(h->pdev, buff[i],
 				    buff_size[i], PCI_DMA_BIDIRECTIONAL);
+			if (dma_mapping_error(&h->pdev->dev, temp64.val)) {
+				c->SG[i].Addr.lower = 0;
+				c->SG[i].Addr.upper = 0;
+				c->SG[i].Len = 0;
+				hpsa_pci_unmap(h->pdev, c, i,
+					PCI_DMA_BIDIRECTIONAL);
+				status = -ENOMEM;
+				goto cleanup1;
+			}
 			c->SG[i].Addr.lower = temp64.val32.lower;
 			c->SG[i].Addr.upper = temp64.val32.upper;
 			c->SG[i].Len = buff_size[i];
