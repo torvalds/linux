@@ -1495,7 +1495,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 	unsigned int i;
 	int cleaned_count = 0;
 	bool cleaned = false;
-	unsigned int total_rx_bytes=0, total_rx_packets=0;
+	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
@@ -2489,7 +2489,7 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 	switch (itr_setting) {
 	case lowest_latency:
 		/* handle TSO and jumbo frames */
-		if (bytes/packets > 8000)
+		if (bytes / packets > 8000)
 			retval = bulk_latency;
 		else if ((packets < 5) && (bytes > 512))
 			retval = low_latency;
@@ -2497,13 +2497,13 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 	case low_latency:  /* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
 			/* this if handles the TSO accounting */
-			if (bytes/packets > 8000)
+			if (bytes / packets > 8000)
 				retval = bulk_latency;
-			else if ((packets < 10) || ((bytes/packets) > 1200))
+			else if ((packets < 10) || ((bytes / packets) > 1200))
 				retval = bulk_latency;
 			else if ((packets > 35))
 				retval = lowest_latency;
-		} else if (bytes/packets > 2000) {
+		} else if (bytes / packets > 2000) {
 			retval = bulk_latency;
 		} else if (packets <= 2 && bytes < 512) {
 			retval = lowest_latency;
@@ -5346,7 +5346,7 @@ static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 		return 0;
 
 	{
-		const struct iphdr *ip = (struct iphdr *)((u8 *)skb->data+14);
+		const struct iphdr *ip = (struct iphdr *)((u8 *)skb->data + 14);
 		struct udphdr *udp;
 
 		if (ip->protocol != IPPROTO_UDP)

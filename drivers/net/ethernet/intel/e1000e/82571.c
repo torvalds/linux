@@ -847,7 +847,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 
 	for (i = 0; i < words; i++) {
 		eewr = ((data[i] << E1000_NVM_RW_REG_DATA) |
-			((offset+i) << E1000_NVM_RW_ADDR_SHIFT) |
+			((offset + i) << E1000_NVM_RW_ADDR_SHIFT) |
 			E1000_NVM_RW_REG_START);
 
 		ret_val = e1000e_poll_eerd_eewr_done(hw, E1000_NVM_POLL_WRITE);

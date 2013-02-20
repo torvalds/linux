@@ -39,7 +39,7 @@
 
 #include "e1000.h"
 
-enum {NETDEV_STATS, E1000_STATS};
+enum { NETDEV_STATS, E1000_STATS };
 
 struct e1000_stats {
 	char stat_string[ETH_GSTRING_LEN];

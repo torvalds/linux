@@ -1756,7 +1756,7 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 		if (phy_status & BMSR_LSTATUS)
 			break;
 		if (usec_interval >= 1000)
-			mdelay(usec_interval/1000);
+			mdelay(usec_interval / 1000);
 		else
 			udelay(usec_interval);
 	}

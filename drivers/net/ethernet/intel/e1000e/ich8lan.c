@@ -61,15 +61,15 @@
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
 	struct ich8_hsfsts {
-		u16 flcdone    :1; /* bit 0 Flash Cycle Done */
-		u16 flcerr     :1; /* bit 1 Flash Cycle Error */
-		u16 dael       :1; /* bit 2 Direct Access error Log */
-		u16 berasesz   :2; /* bit 4:3 Sector Erase Size */
-		u16 flcinprog  :1; /* bit 5 flash cycle in Progress */
-		u16 reserved1  :2; /* bit 13:6 Reserved */
-		u16 reserved2  :6; /* bit 13:6 Reserved */
-		u16 fldesvalid :1; /* bit 14 Flash Descriptor Valid */
-		u16 flockdn    :1; /* bit 15 Flash Config Lock-Down */
+		u16 flcdone:1;	/* bit 0 Flash Cycle Done */
+		u16 flcerr:1;	/* bit 1 Flash Cycle Error */
+		u16 dael:1;	/* bit 2 Direct Access error Log */
+		u16 berasesz:2;	/* bit 4:3 Sector Erase Size */
+		u16 flcinprog:1;	/* bit 5 flash cycle in Progress */
+		u16 reserved1:2;	/* bit 13:6 Reserved */
+		u16 reserved2:6;	/* bit 13:6 Reserved */
+		u16 fldesvalid:1;	/* bit 14 Flash Descriptor Valid */
+		u16 flockdn:1;	/* bit 15 Flash Config Lock-Down */
 	} hsf_status;
 	u16 regval;
 };
@@ -78,11 +78,11 @@ union ich8_hws_flash_status {
 /* Offset 06h FLCTL */
 union ich8_hws_flash_ctrl {
 	struct ich8_hsflctl {
-		u16 flcgo      :1;   /* 0 Flash Cycle Go */
-		u16 flcycle    :2;   /* 2:1 Flash Cycle */
-		u16 reserved   :5;   /* 7:3 Reserved  */
-		u16 fldbcount  :2;   /* 9:8 Flash Data Byte Count */
-		u16 flockdn    :6;   /* 15:10 Reserved */
+		u16 flcgo:1;	/* 0 Flash Cycle Go */
+		u16 flcycle:2;	/* 2:1 Flash Cycle */
+		u16 reserved:5;	/* 7:3 Reserved  */
+		u16 fldbcount:2;	/* 9:8 Flash Data Byte Count */
+		u16 flockdn:6;	/* 15:10 Reserved */
 	} hsf_ctrl;
 	u16 regval;
 };
@@ -90,10 +90,10 @@ union ich8_hws_flash_ctrl {
 /* ICH Flash Region Access Permissions */
 union ich8_hws_flash_regacc {
 	struct ich8_flracc {
-		u32 grra      :8; /* 0:7 GbE region Read Access */
-		u32 grwa      :8; /* 8:15 GbE region Write Access */
-		u32 gmrag     :8; /* 23:16 GbE Master Read Access Grant */
-		u32 gmwag     :8; /* 31:24 GbE Master Write Access Grant */
+		u32 grra:8;	/* 0:7 GbE region Read Access */
+		u32 grwa:8;	/* 8:15 GbE region Write Access */
+		u32 gmrag:8;	/* 23:16 GbE Master Read Access Grant */
+		u32 gmwag:8;	/* 31:24 GbE Master Write Access Grant */
 	} hsf_flregacc;
 	u16 regval;
 };
@@ -1773,7 +1773,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		 * SHRAL/H) and initial CRC values to the MAC
 		 */
 		for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
-			u8 mac_addr[ETH_ALEN] = {0};
+			u8 mac_addr[ETH_ALEN] = { 0 };
 			u32 addr_high, addr_low;
 
 			addr_high = er32(RAH(i));
@@ -2449,8 +2449,8 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = 0;
 	for (i = 0; i < words; i++) {
-		if (dev_spec->shadow_ram[offset+i].modified) {
-			data[i] = dev_spec->shadow_ram[offset+i].value;
+		if (dev_spec->shadow_ram[offset + i].modified) {
+			data[i] = dev_spec->shadow_ram[offset + i].value;
 		} else {
 			ret_val = e1000_read_flash_word_ich8lan(hw,
 								act_offset + i,
@@ -2713,8 +2713,8 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	nvm->ops.acquire(hw);
 
 	for (i = 0; i < words; i++) {
-		dev_spec->shadow_ram[offset+i].modified = true;
-		dev_spec->shadow_ram[offset+i].value = data[i];
+		dev_spec->shadow_ram[offset + i].modified = true;
+		dev_spec->shadow_ram[offset + i].value = data[i];
 	}
 
 	nvm->ops.release(hw);
@@ -3001,7 +3001,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 
 		hsflctl.regval = er16flash(ICH_FLASH_HSFCTL);
 		/* 0b/1b corresponds to 1 or 2 byte size, respectively. */
-		hsflctl.hsf_ctrl.fldbcount = size -1;
+		hsflctl.hsf_ctrl.fldbcount = size - 1;
 		hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_WRITE;
 		ew16flash(ICH_FLASH_HSFCTL, hsflctl.regval);
 

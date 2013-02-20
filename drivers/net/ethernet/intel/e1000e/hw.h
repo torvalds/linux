@@ -167,7 +167,7 @@ enum e1000_1000t_rx_status {
 	e1000_1000t_rx_status_undefined = 0xFF
 };
 
-enum e1000_rev_polarity{
+enum e1000_rev_polarity {
 	e1000_rev_polarity_normal = 0,
 	e1000_rev_polarity_reversed,
 	e1000_rev_polarity_undefined = 0xFF
