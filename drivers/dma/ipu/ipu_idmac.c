@@ -1756,7 +1756,7 @@ err_noirq:
 	return ret;
 }
 
-static int __exit ipu_remove(struct platform_device *pdev)
+static int ipu_remove(struct platform_device *pdev)
 {
 	struct ipu *ipu = platform_get_drvdata(pdev);
 
@@ -1781,7 +1781,7 @@ static struct platform_driver ipu_platform_driver = {
 		.name	= "ipu-core",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ipu_remove),
+	.remove		= ipu_remove,
 };
 
 static int __init ipu_init(void)

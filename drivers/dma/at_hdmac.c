@@ -1407,7 +1407,7 @@ err_kfree:
 	return err;
 }
 
-static int __exit at_dma_remove(struct platform_device *pdev)
+static int at_dma_remove(struct platform_device *pdev)
 {
 	struct at_dma		*atdma = platform_get_drvdata(pdev);
 	struct dma_chan		*chan, *_chan;
@@ -1565,7 +1565,7 @@ static const struct dev_pm_ops at_dma_dev_pm_ops = {
 };
 
 static struct platform_driver at_dma_driver = {
-	.remove		= __exit_p(at_dma_remove),
+	.remove		= at_dma_remove,
 	.shutdown	= at_dma_shutdown,
 	.id_table	= atdma_devtypes,
 	.driver = {
