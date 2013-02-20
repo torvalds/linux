@@ -855,8 +855,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	disk_super = p + (bytenr & ~PAGE_CACHE_MASK);
 
 	if (btrfs_super_bytenr(disk_super) != bytenr ||
-	    strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
-		    sizeof(disk_super->magic)))
+	    disk_super->magic != cpu_to_le64(BTRFS_MAGIC))
 		goto error_unmap;
 
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
