@@ -323,7 +323,8 @@ static int intel_msic_init_devices(struct intel_msic *msic)
 	if (pdata->ocd) {
 		unsigned gpio = pdata->ocd->gpio;
 
-		ret = gpio_request_one(gpio, GPIOF_IN, "ocd_gpio");
+		ret = devm_gpio_request_one(&pdev->dev, gpio,
+					GPIOF_IN, "ocd_gpio");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register OCD GPIO\n");
 			return ret;
@@ -332,7 +333,6 @@ static int intel_msic_init_devices(struct intel_msic *msic)
 		ret = gpio_to_irq(gpio);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "no IRQ number for OCD GPIO\n");
-			gpio_free(gpio);
 			return ret;
 		}
 
@@ -359,8 +359,6 @@ static int intel_msic_init_devices(struct intel_msic *msic)
 
 fail:
 	mfd_remove_devices(&pdev->dev);
-	if (pdata->ocd)
-		gpio_free(pdata->ocd->gpio);
 
 	return ret;
 }
@@ -368,12 +366,8 @@ fail:
 static void intel_msic_remove_devices(struct intel_msic *msic)
 {
 	struct platform_device *pdev = msic->pdev;
-	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
 
 	mfd_remove_devices(&pdev->dev);
-
-	if (pdata->ocd)
-		gpio_free(pdata->ocd->gpio);
 }
 
 static int intel_msic_probe(struct platform_device *pdev)
