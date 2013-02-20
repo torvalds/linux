@@ -162,14 +162,6 @@ config USB_EHCI_HCD_OMAP
 	  Enables support for the on-chip EHCI controller on
 	  OMAP3 and later chips.
 
-config USB_EHCI_HCD_ORION
-        tristate  "Support for Marvell Orion on-chip EHCI USB controller"
-        depends on USB_EHCI_HCD && PLAT_ORION
-        default y
-        ---help---
-          Enables support for the on-chip EHCI controller on
-          Morvell Orion chips.
-
 config USB_EHCI_HCD_VT8500
         tristate "Support for VT8500 on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && ARCH_VT8500
