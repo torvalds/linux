@@ -1145,10 +1145,12 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 	struct arizona_fll_cfg ref, sync;
 	int ret;
 
-	if (fll->fref == Fref && fll->fout == Fout)
-		return 0;
-
 	if (fll->ref_src < 0 || fll->ref_src == source) {
+		if (fll->sync_src == -1 &&
+		    fll->ref_src == source && fll->ref_freq == Fref &&
+		    fll->fout == Fout)
+			return 0;
+
 		if (Fout) {
 			ret = arizona_calc_fll(fll, &ref, Fref, Fout);
 			if (ret != 0)
@@ -1159,6 +1161,10 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		fll->ref_src = source;
 		fll->ref_freq = Fref;
 	} else {
+		if (fll->sync_src == source &&
+		    fll->sync_freq == Fref && fll->fout == Fout)
+			return 0;
+
 		if (Fout) {
 			ret = arizona_calc_fll(fll, &ref, fll->ref_freq, Fout);
 			if (ret != 0)
@@ -1172,15 +1178,13 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		fll->sync_src = source;
 		fll->sync_freq = Fref;
 	}
+	fll->fout = Fout;
 
 	if (Fout) {
 		arizona_enable_fll(fll, &ref, &sync);
 	} else {
 		arizona_disable_fll(fll);
 	}
-
-	fll->fref = Fref;
-	fll->fout = Fout;
 
 	return 0;
 }
