@@ -17,7 +17,7 @@ Cf. include/trace/events/power.h for the events definitions.
 1. Power state switch events
 ============================
 
-1.1 New trace API
+1.1 Trace API
 -----------------
 
 A 'cpu' event class gathers the CPU-related events: cpuidle and
@@ -40,31 +40,6 @@ means that the system exits the previous idle state.
 The event which has 'state=4294967295' in the trace is very important to the user
 space tools which are using it to detect the end of the current state, and so to
 correctly draw the states diagrams and to calculate accurate statistics etc.
-
-1.2 DEPRECATED trace API
-------------------------
-
-A new Kconfig option CONFIG_EVENT_POWER_TRACING_DEPRECATED with the default value of
-'y' has been created. This allows the legacy trace power API to be used conjointly
-with the new trace API.
-The Kconfig option, the old trace API (in include/trace/events/power.h) and the
-old trace points will disappear in a future release (namely 2.6.41).
-
-power_start		"type=%lu state=%lu cpu_id=%lu"
-power_frequency		"type=%lu state=%lu cpu_id=%lu"
-power_end		"cpu_id=%lu"
-
-The 'type' parameter takes one of those macros:
- . POWER_NONE	= 0,
- . POWER_CSTATE	= 1,	/* C-State */
- . POWER_PSTATE	= 2,	/* Frequency change or DVFS */
-
-The 'state' parameter is set depending on the type:
- . Target C-state for type=POWER_CSTATE,
- . Target frequency for type=POWER_PSTATE,
-
-power_end is used to indicate the exit of a state, corresponding to the latest
-power_start event.
 
 2. Clocks events
 ================

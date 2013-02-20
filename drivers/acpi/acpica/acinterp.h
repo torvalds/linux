@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -458,7 +458,7 @@ void acpi_ex_reacquire_interpreter(void);
 
 void acpi_ex_relinquish_interpreter(void);
 
-void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
+u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 
 void acpi_ex_acquire_global_lock(u32 rule);
 

@@ -1051,7 +1051,6 @@ cpu_init (void)
 		max_num_phys_stacked = num_phys_stacked;
 	}
 	platform_cpu_init();
-	pm_idle = default_idle;
 }
 
 void __init

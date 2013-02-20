@@ -1118,7 +1118,7 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	return 0;
 }
 
-static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
+static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
@@ -1250,7 +1250,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	return 0;
 
 error:
-	toshiba_acpi_remove(acpi_dev, 0);
+	toshiba_acpi_remove(acpi_dev);
 	return ret;
 }
 

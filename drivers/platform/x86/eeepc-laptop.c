@@ -1501,7 +1501,7 @@ fail_platform:
 	return result;
 }
 
-static int eeepc_acpi_remove(struct acpi_device *device, int type)
+static int eeepc_acpi_remove(struct acpi_device *device)
 {
 	struct eeepc_laptop *eeepc = acpi_driver_data(device);
 

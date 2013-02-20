@@ -2,6 +2,19 @@
 # x86 CPU Frequency scaling drivers
 #
 
+config X86_INTEL_PSTATE
+       bool "Intel P state control"
+       depends on X86
+       help
+          This driver provides a P state for Intel core processors.
+	  The driver implements an internal governor and will become
+          the scaling driver and governor for Sandy bridge processors.
+
+	  When this driver is enabled it will become the perferred
+          scaling driver for Sandy bridge processors.
+
+	  If in doubt, say N.
+
 config X86_PCC_CPUFREQ
 	tristate "Processor Clocking Control interface driver"
 	depends on ACPI && ACPI_PROCESSOR
