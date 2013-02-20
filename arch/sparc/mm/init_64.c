@@ -2718,14 +2718,28 @@ static void context_reload(void *__data)
 		load_secondary_context(mm);
 }
 
-void hugetlb_setup(struct mm_struct *mm)
+void hugetlb_setup(struct pt_regs *regs)
 {
-	struct tsb_config *tp = &mm->context.tsb_block[MM_TSB_HUGE];
+	struct mm_struct *mm = current->mm;
+	struct tsb_config *tp;
 
-	if (likely(tp->tsb != NULL))
-		return;
+	if (in_atomic() || !mm) {
+		const struct exception_table_entry *entry;
 
-	tsb_grow(mm, MM_TSB_HUGE, 0);
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
+		pr_alert("Unexpected HugeTLB setup in atomic context.\n");
+		die_if_kernel("HugeTSB in atomic", regs);
+	}
+
+	tp = &mm->context.tsb_block[MM_TSB_HUGE];
+	if (likely(tp->tsb == NULL))
+		tsb_grow(mm, MM_TSB_HUGE, 0);
+
 	tsb_context_switch(mm);
 	smp_tsb_sync(mm);
 
