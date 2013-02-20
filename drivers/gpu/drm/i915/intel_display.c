@@ -4036,13 +4036,16 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 	}
 }
 
-static bool ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
-					struct intel_crtc_config *pipe_config)
+#define RETRY 1
+static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
+				       struct intel_crtc_config *pipe_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	int target_clock, lane, link_bw;
+	bool setup_ok, needs_recompute = false;
 
+retry:
 	/* FDI is a binary signal running at ~2.7GHz, encoding
 	 * each output octet as 10 bits. The actual frequency
 	 * is stored as a divider into a 100MHz clock, and the
@@ -4067,12 +4070,26 @@ static bool ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, target_clock,
 			       link_bw, &pipe_config->fdi_m_n);
 
-	return ironlake_check_fdi_lanes(intel_crtc->base.dev,
-					intel_crtc->pipe, pipe_config);
+	setup_ok = ironlake_check_fdi_lanes(intel_crtc->base.dev,
+					    intel_crtc->pipe, pipe_config);
+	if (!setup_ok && pipe_config->pipe_bpp > 6*3) {
+		pipe_config->pipe_bpp -= 2*3;
+		DRM_DEBUG_KMS("fdi link bw constraint, reducing pipe bpp to %i\n",
+			      pipe_config->pipe_bpp);
+		needs_recompute = true;
+		pipe_config->bw_constrained = true;
+
+		goto retry;
+	}
+
+	if (needs_recompute)
+		return RETRY;
+
+	return setup_ok ? 0 : -EINVAL;
 }
 
-static bool intel_crtc_compute_config(struct drm_crtc *crtc,
-				      struct intel_crtc_config *pipe_config)
+static int intel_crtc_compute_config(struct drm_crtc *crtc,
+				     struct intel_crtc_config *pipe_config)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
@@ -4081,7 +4098,7 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 		/* FDI link clock is fixed at 2.7G */
 		if (pipe_config->requested_mode.clock * 3
 		    > IRONLAKE_FDI_FREQ * 4)
-			return false;
+			return -EINVAL;
 	}
 
 	/* All interlaced capable intel hw wants timings in frames. Note though
@@ -4095,7 +4112,7 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 	 */
 	if ((INTEL_INFO(dev)->gen > 4 || IS_G4X(dev)) &&
 		adjusted_mode->hsync_start == adjusted_mode->hdisplay)
-		return false;
+		return -EINVAL;
 
 	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) && pipe_config->pipe_bpp > 10*3) {
 		pipe_config->pipe_bpp = 10*3; /* 12bpc is gen5+ */
@@ -4108,7 +4125,7 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 	if (pipe_config->has_pch_encoder)
 		return ironlake_fdi_compute_config(to_intel_crtc(crtc), pipe_config);
 
-	return true;
+	return 0;
 }
 
 static int valleyview_get_display_clock_speed(struct drm_device *dev)
@@ -7708,7 +7725,8 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config *pipe_config;
-	int plane_bpp;
+	int plane_bpp, ret = -EINVAL;
+	bool retry = true;
 
 	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
 	if (!pipe_config)
@@ -7721,6 +7739,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	if (plane_bpp < 0)
 		goto fail;
 
+encoder_retry:
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
@@ -7749,10 +7768,23 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!(intel_crtc_compute_config(crtc, pipe_config))) {
+	ret = intel_crtc_compute_config(crtc, pipe_config);
+	if (ret < 0) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;
 	}
+
+	if (ret == RETRY) {
+		if (WARN(!retry, "loop in pipe configuration computation\n")) {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		DRM_DEBUG_KMS("CRTC bw constrained, retrying\n");
+		retry = false;
+		goto encoder_retry;
+	}
+
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	pipe_config->dither = pipe_config->pipe_bpp != plane_bpp;
@@ -7762,7 +7794,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	return pipe_config;
 fail:
 	kfree(pipe_config);
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(ret);
 }
 
 /* Computes which crtcs are affected and sets the relevant bits in the mask. For

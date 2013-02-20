@@ -248,7 +248,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	else
 		lvds_bpp = 6*3;
 
-	if (lvds_bpp != pipe_config->pipe_bpp) {
+	if (lvds_bpp != pipe_config->pipe_bpp && !pipe_config->bw_constrained) {
 		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
 			      pipe_config->pipe_bpp, lvds_bpp);
 		pipe_config->pipe_bpp = lvds_bpp;

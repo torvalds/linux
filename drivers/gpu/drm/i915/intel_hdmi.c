@@ -784,6 +784,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	int clock_12bpc = pipe_config->requested_mode.clock * 3 / 2;
+	int desired_bpp;
 
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -808,16 +809,21 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && clock_12bpc <= 225000
 	    && HAS_PCH_SPLIT(dev)) {
-		DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
-		pipe_config->pipe_bpp = 12*3;
+		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
+		desired_bpp = 12*3;
 
 		/* Need to adjust the port link by 1.5x for 12bpc. */
 		adjusted_mode->clock = clock_12bpc;
 		pipe_config->pixel_target_clock =
 			pipe_config->requested_mode.clock;
 	} else {
-		DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
-		pipe_config->pipe_bpp = 8*3;
+		DRM_DEBUG_KMS("picking bpc to 8 for HDMI output\n");
+		desired_bpp = 8*3;
+	}
+
+	if (!pipe_config->bw_constrained) {
+		DRM_DEBUG_KMS("forcing pipe bpc to %i for HDMI\n", desired_bpp);
+		pipe_config->pipe_bpp = desired_bpp;
 	}
 
 	if (adjusted_mode->clock > 225000) {

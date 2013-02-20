@@ -223,6 +223,13 @@ struct intel_crtc_config {
 	/* Controls for the clock computation, to override various stages. */
 	bool clock_set;
 
+	/*
+	 * crtc bandwidth limit, don't increase pipe bpp or clock if not really
+	 * required. This is set in the 2nd loop of calling encoder's
+	 * ->compute_config if the first pick doesn't work out.
+	 */
+	bool bw_constrained;
+
 	/* Settings for the intel dpll used on pretty much everything but
 	 * haswell. */
 	struct dpll dpll;
