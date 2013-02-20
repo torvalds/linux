@@ -34,30 +34,19 @@ swap_ulong(volatile unsigned long *ptr, unsigned long val)
 	return val;
 }
 
-void __cpuinit smp4m_callin(void)
+void __cpuinit sun4m_cpu_pre_starting(void *arg)
+{
+}
+
+void __cpuinit sun4m_cpu_pre_online(void *arg)
 {
 	int cpuid = hard_smp_processor_id();
 
-	local_ops->cache_all();
-	local_ops->tlb_all();
-
-	notify_cpu_starting(cpuid);
-
-	register_percpu_ce(cpuid);
-
-	calibrate_delay();
-	smp_store_cpu_info(cpuid);
-
-	local_ops->cache_all();
-	local_ops->tlb_all();
-
-	/*
-	 * Unblock the master CPU _only_ when the scheduler state
-	 * of all secondary CPUs will be up-to-date, so after
-	 * the SMP initialization the master will be just allowed
-	 * to call the scheduler code.
+	/* Allow master to continue. The master will then give us the
+	 * go-ahead by setting the smp_commenced_mask and will wait without
+	 * timeouts until our setup is completed fully (signified by
+	 * our bit being set in the cpu_online_mask).
 	 */
-	/* Allow master to continue. */
 	swap_ulong(&cpu_callin_map[cpuid], 1);
 
 	/* XXX: What's up with all the flushes? */
@@ -75,10 +64,6 @@ void __cpuinit smp4m_callin(void)
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		mb();
-
-	local_irq_enable();
-
-	set_cpu_online(cpuid, true);
 }
 
 /*
