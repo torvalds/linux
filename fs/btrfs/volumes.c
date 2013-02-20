@@ -3837,10 +3837,6 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	 */
 	data_stripes = num_stripes / ncopies;
 
-	if (stripe_size * ndevs > max_chunk_size * ncopies) {
-		stripe_size = max_chunk_size * ncopies;
-		do_div(stripe_size, ndevs);
-	}
 	if (type & BTRFS_BLOCK_GROUP_RAID5) {
 		raid_stripe_len = find_raid56_stripe_len(ndevs - 1,
 				 btrfs_super_stripesize(info->super_copy));
@@ -3851,6 +3847,27 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 				 btrfs_super_stripesize(info->super_copy));
 		data_stripes = num_stripes - 2;
 	}
+
+	/*
+	 * Use the number of data stripes to figure out how big this chunk
+	 * is really going to be in terms of logical address space,
+	 * and compare that answer with the max chunk size
+	 */
+	if (stripe_size * data_stripes > max_chunk_size) {
+		u64 mask = (1ULL << 24) - 1;
+		stripe_size = max_chunk_size;
+		do_div(stripe_size, data_stripes);
+
+		/* bump the answer up to a 16MB boundary */
+		stripe_size = (stripe_size + mask) & ~mask;
+
+		/* but don't go higher than the limits we found
+		 * while searching for free extents
+		 */
+		if (stripe_size > devices_info[ndevs-1].max_avail)
+			stripe_size = devices_info[ndevs-1].max_avail;
+	}
+
 	do_div(stripe_size, dev_stripes);
 
 	/* align to BTRFS_STRIPE_LEN */
