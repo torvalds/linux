@@ -24,21 +24,33 @@
 
 #include <engine/disp.h>
 
+#include <core/event.h>
+#include <core/class.h>
+
 struct nv04_disp_priv {
 	struct nouveau_disp base;
 };
 
 static struct nouveau_oclass
 nv04_disp_sclass[] = {
+	{ NV04_DISP_CLASS, &nouveau_object_ofuncs },
 	{},
 };
 
+/*******************************************************************************
+ * Display engine implementation
+ ******************************************************************************/
+
 static void
-nv04_disp_intr_vblank(struct nv04_disp_priv *priv, int crtc)
+nv04_disp_vblank_enable(struct nouveau_event *event, int head)
 {
-	struct nouveau_disp *disp = &priv->base;
-	if (disp->vblank.notify)
-		disp->vblank.notify(disp->vblank.data, crtc);
+	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000001);
+}
+
+static void
+nv04_disp_vblank_disable(struct nouveau_event *event, int head)
+{
+	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000000);
 }
 
 static void
@@ -49,25 +61,25 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	u32 crtc1 = nv_rd32(priv, 0x602100);
 
 	if (crtc0 & 0x00000001) {
-		nv04_disp_intr_vblank(priv, 0);
+		nouveau_event_trigger(priv->base.vblank, 0);
 		nv_wr32(priv, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
-		nv04_disp_intr_vblank(priv, 1);
+		nouveau_event_trigger(priv->base.vblank, 1);
 		nv_wr32(priv, 0x602100, 0x00000001);
 	}
 }
 
 static int
 nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+	       struct nouveau_oclass *oclass, void *data, u32 size,
+	       struct nouveau_object **pobject)
 {
 	struct nv04_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, "DISPLAY",
+	ret = nouveau_disp_create(parent, engine, oclass, 2, "DISPLAY",
 				  "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -75,6 +87,9 @@ nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	nv_engine(priv)->sclass = nv04_disp_sclass;
 	nv_subdev(priv)->intr = nv04_disp_intr;
+	priv->base.vblank->priv = priv;
+	priv->base.vblank->enable = nv04_disp_vblank_enable;
+	priv->base.vblank->disable = nv04_disp_vblank_disable;
 	return 0;
 }
 
