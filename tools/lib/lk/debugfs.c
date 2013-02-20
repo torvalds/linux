@@ -11,7 +11,6 @@
 #include "debugfs.h"
 
 char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
-char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
 static const char * const debugfs_known_mountpoints[] = {
 	"/sys/kernel/debug/",
@@ -75,14 +74,7 @@ int debugfs_valid_mountpoint(const char *debugfs)
 	return 0;
 }
 
-static void debugfs_set_tracing_events_path(const char *mountpoint)
-{
-	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
-		 mountpoint, "tracing/events");
-}
-
 /* mount the debugfs somewhere if it's not mounted */
-
 char *debugfs_mount(const char *mountpoint)
 {
 	/* see if it's already mounted */
@@ -105,12 +97,5 @@ char *debugfs_mount(const char *mountpoint)
 	debugfs_found = true;
 	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
 out:
-	debugfs_set_tracing_events_path(debugfs_mountpoint);
 	return debugfs_mountpoint;
-}
-
-void debugfs_set_path(const char *mountpoint)
-{
-	snprintf(debugfs_mountpoint, sizeof(debugfs_mountpoint), "%s", mountpoint);
-	debugfs_set_tracing_events_path(mountpoint);
 }

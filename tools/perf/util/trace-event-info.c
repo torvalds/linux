@@ -80,7 +80,7 @@ static void *malloc_or_die(unsigned int size)
 
 static const char *find_debugfs(void)
 {
-	const char *path = debugfs_mount(NULL);
+	const char *path = perf_debugfs_mount(NULL);
 
 	if (!path)
 		die("Your kernel not support debugfs filesystem");
