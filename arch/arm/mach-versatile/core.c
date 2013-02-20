@@ -36,6 +36,7 @@
 #include <linux/gfp.h>
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
+#include <linux/bitops.h>
 
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
@@ -65,16 +66,28 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
+/* These PIC IRQs are valid in each configuration */
+#define PIC_VALID_ALL	BIT(SIC_INT_KMI0) | BIT(SIC_INT_KMI1) | \
+			BIT(SIC_INT_SCI3) | BIT(SIC_INT_UART3) | \
+			BIT(SIC_INT_CLCD) | BIT(SIC_INT_TOUCH) | \
+			BIT(SIC_INT_KEYPAD) | BIT(SIC_INT_DoC) | \
+			BIT(SIC_INT_USB) | BIT(SIC_INT_PCI0) | \
+			BIT(SIC_INT_PCI1) | BIT(SIC_INT_PCI2) | \
+			BIT(SIC_INT_PCI3)
 #if 1
 #define IRQ_MMCI0A	IRQ_VICSOURCE22
 #define IRQ_AACI	IRQ_VICSOURCE24
 #define IRQ_ETH		IRQ_VICSOURCE25
 #define PIC_MASK	0xFFD00000
+#define PIC_VALID	PIC_VALID_ALL
 #else
 #define IRQ_MMCI0A	IRQ_SIC_MMCI0A
 #define IRQ_AACI	IRQ_SIC_AACI
 #define IRQ_ETH		IRQ_SIC_ETH
 #define PIC_MASK	0
+#define PIC_VALID	PIC_VALID_ALL | BIT(SIC_INT_MMCI0A) | \
+			BIT(SIC_INT_MMCI1A) | BIT(SIC_INT_AACI) | \
+			BIT(SIC_INT_ETH)
 #endif
 
 /* Lookup table for finding a DT node that represents the vic instance */
@@ -102,7 +115,7 @@ void __init versatile_init_irq(void)
 					      VERSATILE_SIC_BASE);
 
 	fpga_irq_init(VA_SIC_BASE, "SIC", IRQ_SIC_START,
-		IRQ_VICSOURCE31, ~PIC_MASK, np);
+		IRQ_VICSOURCE31, PIC_VALID, np);
 
 	/*
 	 * Interrupts on secondary controller from 0 to 8 are routed to
