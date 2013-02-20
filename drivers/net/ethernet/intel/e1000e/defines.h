@@ -216,6 +216,8 @@
 #define E1000_CTRL_MEHE     0x00080000  /* Memory Error Handling Enable */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
+#define E1000_CTRL_ADVD3WUC 0x00100000  /* D3 WUC */
+#define E1000_CTRL_EN_PHY_PWR_MGMT 0x00200000 /* PHY PM enable */
 #define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
 #define E1000_CTRL_RST      0x04000000  /* Global reset */
 #define E1000_CTRL_RFCE     0x08000000  /* Receive Flow Control enable */
@@ -310,6 +312,7 @@
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
+#define E1000_SCTL_ENABLE_SERDES_LOOPBACK	0x0410
 
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */

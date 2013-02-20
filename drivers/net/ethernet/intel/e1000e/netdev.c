@@ -1957,7 +1957,6 @@ static void e1000_configure_msix(struct e1000_adapter *adapter)
 		ew32(RFCTL, rfctl);
 	}
 
-#define E1000_IVAR_INT_ALLOC_VALID	0x8
 	/* Configure Rx vector */
 	rx_ring->ims_val = E1000_IMS_RXQ0;
 	adapter->eiac_mask |= rx_ring->ims_val;
@@ -5911,10 +5910,6 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake,
 		}
 
 		ctrl = er32(CTRL);
-		/* advertise wake from D3Cold */
-		#define E1000_CTRL_ADVD3WUC 0x00100000
-		/* phy power management enable */
-		#define E1000_CTRL_EN_PHY_PWR_MGMT 0x00200000
 		ctrl |= E1000_CTRL_ADVD3WUC;
 		if (!(adapter->flags2 & FLAG2_HAS_PHY_WAKEUP))
 			ctrl |= E1000_CTRL_EN_PHY_PWR_MGMT;

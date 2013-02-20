@@ -1432,8 +1432,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 	/* special write to serdes control register to enable SerDes analog
 	 * loopback
 	 */
-#define E1000_SERDES_LB_ON 0x410
-	ew32(SCTL, E1000_SERDES_LB_ON);
+	ew32(SCTL, E1000_SCTL_ENABLE_SERDES_LOOPBACK);
 	e1e_flush();
 	usleep_range(10000, 20000);
 
@@ -1527,8 +1526,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82572:
 		if (hw->phy.media_type == e1000_media_type_fiber ||
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {
-#define E1000_SERDES_LB_OFF 0x400
-			ew32(SCTL, E1000_SERDES_LB_OFF);
+			ew32(SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 			e1e_flush();
 			usleep_range(10000, 20000);
 			break;
