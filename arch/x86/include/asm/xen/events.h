@@ -16,4 +16,7 @@ static inline int xen_irqs_disabled(struct pt_regs *regs)
 	return raw_irqs_disabled_flags(regs->flags);
 }
 
+/* No need for a barrier -- XCHG is a barrier on x86. */
+#define xchg_xen_ulong(ptr, val) xchg((ptr), (val))
+
 #endif /* _ASM_X86_XEN_EVENTS_H */
