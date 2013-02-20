@@ -1752,6 +1752,8 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 static struct mmc_host *reset_host;
 static void sdio_card_reset_worker(struct work_struct *work)
 {
+	struct mmc_host *target = reset_host;
+
 	/* The actual reset operation must be run outside of driver thread.
 	 * This is because mmc_remove_host() will cause the device to be
 	 * instantly destroyed, and the driver then needs to end its thread,
@@ -1761,10 +1763,10 @@ static void sdio_card_reset_worker(struct work_struct *work)
 	 */
 
 	pr_err("Resetting card...\n");
-	mmc_remove_host(reset_host);
+	mmc_remove_host(target);
 	/* 20ms delay is based on experiment with sdhci controller */
 	mdelay(20);
-	mmc_add_host(reset_host);
+	mmc_add_host(target);
 }
 static DECLARE_WORK(card_reset_work, sdio_card_reset_worker);
 
@@ -1772,9 +1774,6 @@ static DECLARE_WORK(card_reset_work, sdio_card_reset_worker);
 static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
-
-	if (work_pending(&card_reset_work))
-		return;
 
 	reset_host = card->func->card->host;
 	schedule_work(&card_reset_work);

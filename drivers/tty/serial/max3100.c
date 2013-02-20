@@ -179,8 +179,7 @@ static void max3100_work(struct work_struct *w);
 
 static void max3100_dowork(struct max3100_port *s)
 {
-	if (!s->force_end_work && !work_pending(&s->work) &&
-	    !freezing(current) && !s->suspending)
+	if (!s->force_end_work && !freezing(current) && !s->suspending)
 		queue_work(s->workqueue, &s->work);
 }
 

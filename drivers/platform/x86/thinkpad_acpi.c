@@ -4877,8 +4877,7 @@ static int __init light_init(struct ibm_init_struct *iibm)
 static void light_exit(void)
 {
 	led_classdev_unregister(&tpacpi_led_thinklight.led_classdev);
-	if (work_pending(&tpacpi_led_thinklight.work))
-		flush_workqueue(tpacpi_wq);
+	flush_workqueue(tpacpi_wq);
 }
 
 static int light_read(struct seq_file *m)
