@@ -56,7 +56,7 @@ int ssb_pci_switch_coreidx(struct ssb_bus *bus, u8 coreidx)
 	}
 	return 0;
 error:
-	ssb_printk(KERN_ERR PFX "Failed to switch to core %u\n", coreidx);
+	ssb_err("Failed to switch to core %u\n", coreidx);
 	return -ENODEV;
 }
 
@@ -67,10 +67,9 @@ int ssb_pci_switch_core(struct ssb_bus *bus,
 	unsigned long flags;
 
 #if SSB_VERBOSE_PCICORESWITCH_DEBUG
-	ssb_printk(KERN_INFO PFX
-		   "Switching to %s core, index %d\n",
-		   ssb_core_name(dev->id.coreid),
-		   dev->core_index);
+	ssb_info("Switching to %s core, index %d\n",
+		 ssb_core_name(dev->id.coreid),
+		 dev->core_index);
 #endif
 
 	spin_lock_irqsave(&bus->bar_lock, flags);
@@ -287,7 +286,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	u32 spromctl;
 	u16 size = bus->sprom_size;
 
-	ssb_printk(KERN_NOTICE PFX "Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	ssb_notice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
 	if (err)
 		goto err_ctlreg;
@@ -295,17 +294,17 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	err = pci_write_config_dword(pdev, SSB_SPROMCTL, spromctl);
 	if (err)
 		goto err_ctlreg;
-	ssb_printk(KERN_NOTICE PFX "[ 0%%");
+	ssb_notice("[ 0%%");
 	msleep(500);
 	for (i = 0; i < size; i++) {
 		if (i == size / 4)
-			ssb_printk("25%%");
+			ssb_cont("25%%");
 		else if (i == size / 2)
-			ssb_printk("50%%");
+			ssb_cont("50%%");
 		else if (i == (size * 3) / 4)
-			ssb_printk("75%%");
+			ssb_cont("75%%");
 		else if (i % 2)
-			ssb_printk(".");
+			ssb_cont(".");
 		writew(sprom[i], bus->mmio + bus->sprom_offset + (i * 2));
 		mmiowb();
 		msleep(20);
@@ -318,12 +317,12 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	if (err)
 		goto err_ctlreg;
 	msleep(500);
-	ssb_printk("100%% ]\n");
-	ssb_printk(KERN_NOTICE PFX "SPROM written.\n");
+	ssb_cont("100%% ]\n");
+	ssb_notice("SPROM written\n");
 
 	return 0;
 err_ctlreg:
-	ssb_printk(KERN_ERR PFX "Could not access SPROM control register.\n");
+	ssb_err("Could not access SPROM control register.\n");
 	return err;
 }
 
@@ -735,7 +734,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 	memset(out, 0, sizeof(*out));
 
 	out->revision = in[size - 1] & 0x00FF;
-	ssb_dprintk(KERN_DEBUG PFX "SPROM revision %d detected.\n", out->revision);
+	ssb_dbg("SPROM revision %d detected\n", out->revision);
 	memset(out->et0mac, 0xFF, 6);		/* preset et0 and et1 mac */
 	memset(out->et1mac, 0xFF, 6);
 
@@ -744,7 +743,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 		 * number stored in the SPROM.
 		 * Always extract r1. */
 		out->revision = 1;
-		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
+		ssb_dbg("SPROM treated as revision %d\n", out->revision);
 	}
 
 	switch (out->revision) {
@@ -761,9 +760,8 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 		sprom_extract_r8(out, in);
 		break;
 	default:
-		ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
-			   " revision %d detected. Will extract"
-			   " v1\n", out->revision);
+		ssb_warn("Unsupported SPROM revision %d detected. Will extract v1\n",
+			 out->revision);
 		out->revision = 1;
 		sprom_extract_r123(out, in);
 	}
@@ -783,7 +781,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	u16 *buf;
 
 	if (!ssb_is_sprom_available(bus)) {
-		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
+		ssb_err("No SPROM available!\n");
 		return -ENODEV;
 	}
 	if (bus->chipco.dev) {	/* can be unavailable! */
@@ -802,7 +800,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	} else {
 		bus->sprom_offset = SSB_SPROM_BASE1;
 	}
-	ssb_dprintk(KERN_INFO PFX "SPROM offset is 0x%x\n", bus->sprom_offset);
+	ssb_dbg("SPROM offset is 0x%x\n", bus->sprom_offset);
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
@@ -827,18 +825,15 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 			 * available for this device in some other storage */
 			err = ssb_fill_sprom_with_fallback(bus, sprom);
 			if (err) {
-				ssb_printk(KERN_WARNING PFX "WARNING: Using"
-					   " fallback SPROM failed (err %d)\n",
-					   err);
+				ssb_warn("WARNING: Using fallback SPROM failed (err %d)\n",
+					 err);
 			} else {
-				ssb_dprintk(KERN_DEBUG PFX "Using SPROM"
-					    " revision %d provided by"
-					    " platform.\n", sprom->revision);
+				ssb_dbg("Using SPROM revision %d provided by platform\n",
+					sprom->revision);
 				err = 0;
 				goto out_free;
 			}
-			ssb_printk(KERN_WARNING PFX "WARNING: Invalid"
-				   " SPROM CRC (corrupt SPROM)\n");
+			ssb_warn("WARNING: Invalid SPROM CRC (corrupt SPROM)\n");
 		}
 	}
 	err = sprom_extract(bus, sprom, buf, bus->sprom_size);
