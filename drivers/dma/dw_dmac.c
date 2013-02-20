@@ -1001,6 +1001,13 @@ static inline void convert_burst(u32 *maxburst)
 		*maxburst = 0;
 }
 
+static inline void convert_slave_id(struct dw_dma_chan *dwc)
+{
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
+
+	dwc->dma_sconfig.slave_id -= dw->request_line_base;
+}
+
 static int
 set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 {
@@ -1015,6 +1022,7 @@ set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 
 	convert_burst(&dwc->dma_sconfig.src_maxburst);
 	convert_burst(&dwc->dma_sconfig.dst_maxburst);
+	convert_slave_id(dwc);
 
 	return 0;
 }
@@ -1628,6 +1636,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 
 static int dw_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *match;
 	struct dw_dma_platform_data *pdata;
 	struct resource		*io;
 	struct dw_dma		*dw;
@@ -1710,6 +1719,11 @@ static int dw_probe(struct platform_device *pdev)
 		dw->nr_masters = pdata->nr_masters;
 		memcpy(dw->data_width, pdata->data_width, 4);
 	}
+
+	/* Get the base request line if set */
+	match = platform_get_device_id(pdev);
+	if (match)
+		dw->request_line_base = (unsigned int)match->driver_data;
 
 	/* Calculate all channel mask before DMA setup */
 	dw->all_chan_mask = (1 << nr_channels) - 1;
@@ -1906,7 +1920,8 @@ MODULE_DEVICE_TABLE(of, dw_dma_id_table);
 #endif
 
 static const struct platform_device_id dw_dma_ids[] = {
-	{ "INTL9C60", 0 },
+	/* Name,	Request Line Base */
+	{ "INTL9C60",	(kernel_ulong_t)16 },
 	{ }
 };
 
