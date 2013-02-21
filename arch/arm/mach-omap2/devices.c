@@ -69,7 +69,7 @@ static int __init omap3_l3_init(void)
 
 	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
-postcore_initcall(omap3_l3_init);
+omap_postcore_initcall(omap3_l3_init);
 
 static int __init omap4_l3_init(void)
 {
@@ -104,7 +104,7 @@ static int __init omap4_l3_init(void)
 
 	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
-postcore_initcall(omap4_l3_init);
+omap_postcore_initcall(omap4_l3_init);
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
@@ -779,4 +779,4 @@ static int __init omap2_init_devices(void)
 
 	return 0;
 }
-arch_initcall(omap2_init_devices);
+omap_arch_initcall(omap2_init_devices);

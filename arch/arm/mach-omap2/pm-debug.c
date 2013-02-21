@@ -279,6 +279,6 @@ static int __init pm_dbg_init(void)
 
 	return 0;
 }
-arch_initcall(pm_dbg_init);
+omap_arch_initcall(pm_dbg_init);
 
 #endif

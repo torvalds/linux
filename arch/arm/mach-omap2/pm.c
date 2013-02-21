@@ -336,7 +336,7 @@ static int __init omap2_common_pm_init(void)
 
 	return 0;
 }
-postcore_initcall(omap2_common_pm_init);
+omap_postcore_initcall(omap2_common_pm_init);
 
 int __init omap2_common_pm_late_init(void)
 {

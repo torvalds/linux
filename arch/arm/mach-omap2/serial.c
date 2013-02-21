@@ -254,7 +254,7 @@ static int __init omap_serial_early_init(void)
 
 	return 0;
 }
-core_initcall(omap_serial_early_init);
+omap_core_initcall(omap_serial_early_init);
 
 /**
  * omap_serial_init_port() - initialize single serial port

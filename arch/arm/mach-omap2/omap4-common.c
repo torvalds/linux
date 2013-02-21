@@ -226,7 +226,7 @@ static int __init omap_l2_cache_init(void)
 
 	return 0;
 }
-early_initcall(omap_l2_cache_init);
+omap_early_initcall(omap_l2_cache_init);
 #endif
 
 void __iomem *omap4_get_sar_ram_base(void)
@@ -254,7 +254,7 @@ static int __init omap4_sar_ram_init(void)
 
 	return 0;
 }
-early_initcall(omap4_sar_ram_init);
+omap_early_initcall(omap4_sar_ram_init);
 
 void __init omap_gic_of_init(void)
 {

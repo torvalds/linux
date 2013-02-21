@@ -23,6 +23,7 @@
 
 #include <linux/omap-dma.h>
 
+#include "soc.h"
 #include "omap_device.h"
 
 /*
@@ -118,4 +119,4 @@ static int __init omap2_mcbsp_init(void)
 
 	return 0;
 }
-arch_initcall(omap2_mcbsp_init);
+omap_arch_initcall(omap2_mcbsp_init);

@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/iommu-omap.h>
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
@@ -61,7 +62,7 @@ static int __init omap_iommu_init(void)
 	return omap_hwmod_for_each_by_class("mmu", omap_iommu_dev_init, NULL);
 }
 /* must be ready before omap3isp is probed */
-subsys_initcall(omap_iommu_init);
+omap_subsys_initcall(omap_iommu_init);
 
 static void __exit omap_iommu_exit(void)
 {

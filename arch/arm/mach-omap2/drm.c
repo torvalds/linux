@@ -63,6 +63,6 @@ static int __init omap_init_drm(void)
 
 }
 
-arch_initcall(omap_init_drm);
+omap_arch_initcall(omap_init_drm);
 
 #endif

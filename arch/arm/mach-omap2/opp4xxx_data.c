@@ -177,4 +177,4 @@ int __init omap4_opp_init(void)
 			ARRAY_SIZE(omap446x_opp_def_list));
 	return r;
 }
-device_initcall(omap4_opp_init);
+omap_device_initcall(omap4_opp_init);

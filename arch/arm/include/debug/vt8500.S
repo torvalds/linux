@@ -1,20 +1,24 @@
-/*
- * arch/arm/mach-vt8500/include/mach/debug-macro.S
+/* 
+ * Debugging macro include header
  *
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
- *
- * Debugging macro include header
+ *    Moved from arch/arm/mach-vt8500/include/mach/debug-macro.S
+ *    Minor changes for readability.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
-*/
+ */
 
+#define DEBUG_LL_PHYS_BASE		0xD8000000
+#define DEBUG_LL_VIRT_BASE		0xF8000000
+#define DEBUG_LL_UART_OFFSET		0x00200000
+
+#if defined(CONFIG_DEBUG_VT8500_UART0)
 	.macro	addruart, rp, rv, tmp
-	mov	\rp,      #0x00200000
-	orr	\rv, \rp, #0xf8000000
-	orr	\rp, \rp, #0xd8000000
+	mov	\rp,      #DEBUG_LL_UART_OFFSET
+	orr	\rv, \rp, #DEBUG_LL_VIRT_BASE
+	orr	\rp, \rp, #DEBUG_LL_PHYS_BASE
 	.endm
 
 	.macro	senduart,rd,rx
@@ -29,3 +33,5 @@
 
 	.macro	waituart,rd,rx
 	.endm
+
+#endif

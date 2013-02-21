@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/hwspinlock.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
@@ -57,4 +58,4 @@ static int __init hwspinlocks_init(void)
 	return retval;
 }
 /* early board code might need to reserve specific hwspinlock instances */
-postcore_initcall(hwspinlocks_init);
+omap_postcore_initcall(hwspinlocks_init);
