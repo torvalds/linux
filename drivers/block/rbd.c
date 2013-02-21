@@ -1226,13 +1226,22 @@ static void obj_request_done_init(struct rbd_obj_request *obj_request)
 
 static void obj_request_done_set(struct rbd_obj_request *obj_request)
 {
-	atomic_set(&obj_request->done, 1);
-	smp_wmb();
+	int done;
+
+	done = atomic_inc_return(&obj_request->done);
+	if (done > 1) {
+		struct rbd_img_request *img_request = obj_request->img_request;
+		struct rbd_device *rbd_dev;
+
+		rbd_dev = img_request ? img_request->rbd_dev : NULL;
+		rbd_warn(rbd_dev, "obj_request %p was already done\n",
+			obj_request);
+	}
 }
 
 static bool obj_request_done_test(struct rbd_obj_request *obj_request)
 {
-	smp_rmb();
+	smp_mb();
 	return atomic_read(&obj_request->done) != 0;
 }
 
