@@ -134,7 +134,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 
 	if (cs->port.count == 1) {
 		tty_port_tty_set(&cs->port, tty);
-		tty->low_latency = 1;
+		cs->port.low_latency = 1;
 	}
 
 	mutex_unlock(&cs->mutex);
@@ -546,16 +546,8 @@ void gigaset_if_free(struct cardstate *cs)
 void gigaset_if_receive(struct cardstate *cs,
 			unsigned char *buffer, size_t len)
 {
-	struct tty_struct *tty = tty_port_tty_get(&cs->port);
-
-	if (tty == NULL) {
-		gig_dbg(DEBUG_IF, "receive on closed device");
-		return;
-	}
-
-	tty_insert_flip_string(tty, buffer, len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&cs->port, buffer, len);
+	tty_flip_buffer_push(&cs->port);
 }
 EXPORT_SYMBOL_GPL(gigaset_if_receive);
 

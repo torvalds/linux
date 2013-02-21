@@ -802,6 +802,7 @@ config I2C_PARPORT_LIGHT
 
 config I2C_TAOS_EVM
 	tristate "TAOS evaluation module"
+	depends on TTY
 	select SERIO
 	select SERIO_SERPORT
 	default n

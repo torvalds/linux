@@ -11,8 +11,8 @@
  *  (at your option) any later version.
  */
 
-#ifndef __SCCNXP_H
-#define __SCCNXP_H
+#ifndef _PLATFORM_DATA_SERIAL_SCCNXP_H_
+#define _PLATFORM_DATA_SERIAL_SCCNXP_H_
 
 #define SCCNXP_MAX_UARTS	2
 
@@ -84,6 +84,8 @@ struct sccnxp_pdata {
 	const u8		reg_shift;
 	/* Modem control lines configuration */
 	const u32		mctrl_cfg[SCCNXP_MAX_UARTS];
+	/* Timer value for polling mode (usecs) */
+	const unsigned int	poll_time_us;
 	/* Called during startup */
 	void (*init)(void);
 	/* Called before finish */

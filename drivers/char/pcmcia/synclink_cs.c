@@ -210,7 +210,7 @@ typedef struct _mgslpc_info {
 	char testing_irq;
 	unsigned int init_error;	/* startup error (DIAGS)	*/
 
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 
 	struct	_input_signal_events	input_signal_events;
@@ -765,9 +765,6 @@ static void bh_handler(struct work_struct *work)
 	struct tty_struct *tty;
 	int action;
 
-	if (!info)
-		return;
-
 	if (debug_level >= DEBUG_LEVEL_BH)
 		printk( "%s(%d):bh_handler(%s) entry\n",
 			__FILE__,__LINE__,info->device_name);
@@ -886,20 +883,13 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 	issue_command(info, CHA, CMD_RXFIFO);
 }
 
-static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
+static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 {
+	struct tty_port *port = &info->port;
 	unsigned char data, status, flag;
 	int fifo_count;
 	int work = 0;
  	struct mgsl_icount *icount = &info->icount;
-
-	if (!tty) {
-		/* tty is not available anymore */
-		issue_command(info, CHA, CMD_RXRESET);
-		if (debug_level >= DEBUG_LEVEL_ISR)
-			printk("%s(%d):rx_ready_async(tty=NULL)\n",__FILE__,__LINE__);
-		return;
-	}
 
 	if (tcd) {
 		/* early termination, get FIFO count from RBCL register */
@@ -913,7 +903,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	} else
 		fifo_count = 32;
 
-	tty_buffer_request_room(tty, fifo_count);
+	tty_buffer_request_room(port, fifo_count);
 	/* Flush received async data to receive data buffer. */
 	while (fifo_count) {
 		data   = read_reg(info, CHA + RXFIFO);
@@ -944,7 +934,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 			else if (status & BIT6)
 				flag = TTY_FRAME;
 		}
-		work += tty_insert_flip_char(tty, data, flag);
+		work += tty_insert_flip_char(port, data, flag);
 	}
 	issue_command(info, CHA, CMD_RXFIFO);
 
@@ -957,7 +947,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	}
 
 	if (work)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 }
 
 
@@ -1217,7 +1207,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 				if (info->params.mode == MGSL_MODE_HDLC)
 					rx_ready_hdlc(info, isr & IRQ_RXEOM);
 				else
-					rx_ready_async(info, isr & IRQ_RXEOM, tty);
+					rx_ready_async(info, isr & IRQ_RXEOM);
 			}
 
 			/* transmit IRQs */
@@ -1353,7 +1343,7 @@ static void shutdown(MGSLPC_INFO * info, struct tty_struct *tty)
 	reset_device(info);
 
  	if (!tty || tty->termios.c_cflag & HUPCL) {
- 		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 	}
 
@@ -1415,12 +1405,12 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 
 	cflag = tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
 
@@ -2311,7 +2301,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 	 	set_signals(info);
 		spin_unlock_irqrestore(&info->lock,flags);
@@ -2474,9 +2464,9 @@ static void dtr_rts(struct tty_port *port, int onoff)
 
 	spin_lock_irqsave(&info->lock,flags);
 	if (onoff)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -2521,7 +2511,7 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 		goto cleanup;
 	}
 
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {
@@ -2674,6 +2664,14 @@ static int rx_alloc_buffers(MGSLPC_INFO *info)
 	if (info->rx_buf == NULL)
 		return -ENOMEM;
 
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->rx_buf);
+		info->rx_buf = NULL;
+		return -ENOMEM;
+	}
+	
 	rx_reset_buffers(info);
 	return 0;
 }
@@ -2682,6 +2680,8 @@ static void rx_free_buffers(MGSLPC_INFO *info)
 {
 	kfree(info->rx_buf);
 	info->rx_buf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 static int claim_resources(MGSLPC_INFO *info)
@@ -3575,8 +3575,8 @@ static void get_signals(MGSLPC_INFO *info)
 {
 	unsigned char status = 0;
 
-	/* preserve DTR and RTS */
-	info->serial_signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* preserve RTS and DTR */
+	info->serial_signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	if (read_reg(info, CHB + VSTR) & BIT7)
 		info->serial_signals |= SerialSignal_DCD;
@@ -3590,7 +3590,7 @@ static void get_signals(MGSLPC_INFO *info)
 		info->serial_signals |= SerialSignal_DSR;
 }
 
-/* Set the state of DTR and RTS based on contents of
+/* Set the state of RTS and DTR based on contents of
  * serial_signals member of device extension.
  */
 static void set_signals(MGSLPC_INFO *info)
@@ -4009,8 +4009,8 @@ static int hdlcdev_open(struct net_device *dev)
 		spin_unlock_irqrestore(&info->netlock, flags);
 		return rc;
 	}
-	/* assert DTR and RTS, apply hardware settings */
-	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	mgslpc_program_hw(info, tty);
 	tty_kref_put(tty);
 

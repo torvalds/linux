@@ -2035,25 +2035,23 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 	tty = tty_port_tty_get(&serial->port);
 
 	/* Push data to tty */
-	if (tty) {
-		write_length_remaining = urb->actual_length -
-			serial->curr_rx_urb_offset;
-		D1("data to push to tty");
-		while (write_length_remaining) {
-			if (test_bit(TTY_THROTTLED, &tty->flags)) {
-				tty_kref_put(tty);
-				return -1;
-			}
-			curr_write_len =  tty_insert_flip_string
-				(tty, urb->transfer_buffer +
-				 serial->curr_rx_urb_offset,
-				 write_length_remaining);
-			serial->curr_rx_urb_offset += curr_write_len;
-			write_length_remaining -= curr_write_len;
-			tty_flip_buffer_push(tty);
+	write_length_remaining = urb->actual_length -
+		serial->curr_rx_urb_offset;
+	D1("data to push to tty");
+	while (write_length_remaining) {
+		if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
+			tty_kref_put(tty);
+			return -1;
 		}
-		tty_kref_put(tty);
+		curr_write_len = tty_insert_flip_string(&serial->port,
+			urb->transfer_buffer + serial->curr_rx_urb_offset,
+			write_length_remaining);
+		serial->curr_rx_urb_offset += curr_write_len;
+		write_length_remaining -= curr_write_len;
+		tty_flip_buffer_push(&serial->port);
 	}
+	tty_kref_put(tty);
+
 	if (write_length_remaining == 0) {
 		serial->curr_rx_urb_offset = 0;
 		serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 0;

@@ -127,7 +127,12 @@ extern void pid_ns_release_proc(struct pid_namespace *ns);
  * proc_tty.c
  */
 struct tty_driver;
+#ifdef CONFIG_TTY
 extern void proc_tty_init(void);
+#else
+static inline void proc_tty_init(void)
+{ }
+#endif
 extern void proc_tty_register_driver(struct tty_driver *driver);
 extern void proc_tty_unregister_driver(struct tty_driver *driver);
 

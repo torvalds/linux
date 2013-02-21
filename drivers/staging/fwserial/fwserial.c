@@ -500,15 +500,10 @@ static void fwtty_do_hangup(struct work_struct *work)
 static void fwtty_emit_breaks(struct work_struct *work)
 {
 	struct fwtty_port *port = to_port(to_delayed_work(work), emit_breaks);
-	struct tty_struct *tty;
 	static const char buf[16];
 	unsigned long now = jiffies;
 	unsigned long elapsed = now - port->break_last;
 	int n, t, c, brk = 0;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	/* generate breaks at the line rate (but at least 1) */
 	n = (elapsed * port->cps) / HZ + 1;
@@ -518,15 +513,14 @@ static void fwtty_emit_breaks(struct work_struct *work)
 
 	while (n) {
 		t = min(n, 16);
-		c = tty_insert_flip_string_fixed_flag(tty, buf, TTY_BREAK, t);
+		c = tty_insert_flip_string_fixed_flag(&port->port, buf,
+				TTY_BREAK, t);
 		n -= c;
 		brk += c;
 		if (c < t)
 			break;
 	}
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 
 	if (port->mstatus & (UART_LSR_BI << 24))
 		schedule_delayed_work(&port->emit_breaks, FREQ_BREAKS);
@@ -540,13 +534,9 @@ static void fwtty_pushrx(struct work_struct *work)
 	struct buffered_rx *buf, *next;
 	int n, c = 0;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	spin_lock_bh(&port->lock);
 	list_for_each_entry_safe(buf, next, &port->buf_list, list) {
-		n = tty_insert_flip_string_fixed_flag(tty, buf->data,
+		n = tty_insert_flip_string_fixed_flag(&port->port, buf->data,
 						      TTY_NORMAL, buf->n);
 		c += n;
 		port->buffered -= n;
@@ -555,7 +545,11 @@ static void fwtty_pushrx(struct work_struct *work)
 				memmove(buf->data, buf->data + n, buf->n - n);
 				buf->n -= n;
 			}
-			__fwtty_throttle(port, tty);
+			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				__fwtty_throttle(port, tty);
+				tty_kref_put(tty);
+			}
 			break;
 		} else {
 			list_del(&buf->list);
@@ -563,13 +557,11 @@ static void fwtty_pushrx(struct work_struct *work)
 		}
 	}
 	if (c > 0)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 
 	if (list_empty(&port->buf_list))
 		clear_bit(BUFFERING_RX, &port->flags);
 	spin_unlock_bh(&port->lock);
-
-	tty_kref_put(tty);
 }
 
 static int fwtty_buffer_rx(struct fwtty_port *port, unsigned char *d, size_t n)
@@ -607,10 +599,6 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	unsigned lsr;
 	int err = 0;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return -ENOENT;
-
 	fwtty_dbg(port, "%d", n);
 	profile_size_distrib(port->stats.reads, n);
 
@@ -630,7 +618,7 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 
 	lsr &= port->status_mask;
 	if (lsr & ~port->ignore_mask & UART_LSR_OE) {
-		if (!tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
+		if (!tty_insert_flip_char(&port->port, 0, TTY_OVERRUN)) {
 			err = -EIO;
 			goto out;
 		}
@@ -644,18 +632,23 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	}
 
 	if (!test_bit(BUFFERING_RX, &port->flags)) {
-		c = tty_insert_flip_string_fixed_flag(tty, data, TTY_NORMAL, n);
+		c = tty_insert_flip_string_fixed_flag(&port->port, data,
+				TTY_NORMAL, n);
 		if (c > 0)
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->port);
 		n -= c;
 
 		if (n) {
 			/* start buffering and throttling */
 			n -= fwtty_buffer_rx(port, &data[c], n);
 
-			spin_lock_bh(&port->lock);
-			__fwtty_throttle(port, tty);
-			spin_unlock_bh(&port->lock);
+			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				spin_lock_bh(&port->lock);
+				__fwtty_throttle(port, tty);
+				spin_unlock_bh(&port->lock);
+				tty_kref_put(tty);
+			}
 		}
 	} else
 		n -= fwtty_buffer_rx(port, data, n);
@@ -666,8 +659,6 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	}
 
 out:
-	tty_kref_put(tty);
-
 	port->icount.rx += len;
 	port->stats.lost += n;
 	return err;

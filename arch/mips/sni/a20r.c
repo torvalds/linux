@@ -118,7 +118,7 @@ static struct resource sc26xx_rsrc[] = {
 	}
 };
 
-#include <linux/platform_data/sccnxp.h>
+#include <linux/platform_data/serial-sccnxp.h>
 
 static struct sccnxp_pdata sccnxp_data = {
 	.reg_shift	= 2,

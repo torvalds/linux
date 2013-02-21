@@ -617,7 +617,7 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -EINTR;
+			return -ERESTARTSYS;
 	}
 
 	tty_set_termios(tty, &tmp_termios);
@@ -684,7 +684,7 @@ static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -EINTR;
+			return -ERESTARTSYS;
 	}
 
 	mutex_lock(&tty->termios_mutex);
@@ -1096,12 +1096,16 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 	ld = tty_ldisc_ref_wait(tty);
 	switch (arg) {
 	case TCIFLUSH:
-		if (ld && ld->ops->flush_buffer)
+		if (ld && ld->ops->flush_buffer) {
 			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
 		break;
 	case TCIOFLUSH:
-		if (ld && ld->ops->flush_buffer)
+		if (ld && ld->ops->flush_buffer) {
 			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
 		/* fall through */
 	case TCOFLUSH:
 		tty_driver_flush_buffer(tty);

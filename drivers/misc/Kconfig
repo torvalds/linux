@@ -127,7 +127,7 @@ config PHANTOM
 
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
-	depends on PCI
+	depends on PCI && TTY
 	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
