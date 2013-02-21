@@ -805,8 +805,16 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
         	rk30_mux_api_set(rksdmmc0_gpio_init.data0_gpio.iomux.name, rksdmmc0_gpio_init.data0_gpio.iomux.fmux);
         	#endif
 
-            //IO voltage(vccio);sdcard must set the voltage to 3.3v
+            //IO voltage(vccio);
+            #ifdef RK31SDK_SET_SDMMC0_PIN_VOLTAGE
+                if(rk31sdk_get_sdmmc0_pin_io_voltage() > 3.0)
+                    SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_33)); //set SDMMC0 pin to 3.3v
+                else
+                    SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_18));//set SDMMC0 pin to 1.8v
+            #else
+            //default set the voltage of SDMMC0 to 3.3V
             SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_33));
+            #endif
     
             //sdmmc drive strength control
             SDMMC_write_grf_reg(GRF_IO_CON2, (SDMMC0_DRIVER_STRENGTH_MASK |SDMMC0_DRIVER_STRENGTH_8MA));
