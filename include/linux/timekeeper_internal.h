@@ -20,6 +20,8 @@ struct timekeeper {
 	u32			shift;
 	/* Number of clock cycles in one NTP interval. */
 	cycle_t			cycle_interval;
+	/* Last cycle value (also stored in clock->cycle_last) */
+	cycle_t			cycle_last;
 	/* Number of clock shifted nano seconds in one NTP interval. */
 	u64			xtime_interval;
 	/* shifted nano seconds left over when rounding cycle_interval */

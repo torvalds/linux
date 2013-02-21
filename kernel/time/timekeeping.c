@@ -101,7 +101,7 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 
 	old_clock = tk->clock;
 	tk->clock = clock;
-	clock->cycle_last = clock->read(clock);
+	tk->cycle_last = clock->cycle_last = clock->read(clock);
 
 	/* Do the ns -> cycle conversion first, using original mult */
 	tmp = NTP_INTERVAL_LENGTH;
@@ -266,7 +266,7 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 	clock = tk->clock;
 	cycle_now = clock->read(clock);
 	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-	clock->cycle_last = cycle_now;
+	tk->cycle_last = clock->cycle_last = cycle_now;
 
 	tk->xtime_nsec += cycle_delta * tk->mult;
 
