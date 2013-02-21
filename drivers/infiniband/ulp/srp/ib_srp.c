@@ -734,6 +734,7 @@ static int srp_reconnect_target(struct srp_target_port *target)
 
 	scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
 			    SDEV_TRANSPORT_OFFLINE);
+	target->transport_offline = !!ret;
 
 	if (ret)
 		goto err;
@@ -1352,6 +1353,12 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	struct ib_device *dev;
 	unsigned long flags;
 	int len;
+
+	if (unlikely(target->transport_offline)) {
+		scmnd->result = DID_NO_CONNECT << 16;
+		scmnd->scsi_done(scmnd);
+		return 0;
+	}
 
 	spin_lock_irqsave(&target->lock, flags);
 	iu = __srp_get_tx_iu(target, SRP_IU_CMD);
