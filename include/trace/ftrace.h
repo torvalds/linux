@@ -227,29 +227,18 @@ static notrace enum print_line_t					\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 			 struct trace_event *trace_event)		\
 {									\
-	struct ftrace_event_call *event;				\
 	struct trace_seq *s = &iter->seq;				\
+	struct trace_seq __maybe_unused *p = &iter->tmp_seq;		\
 	struct ftrace_raw_##call *field;				\
-	struct trace_entry *entry;					\
-	struct trace_seq *p = &iter->tmp_seq;				\
 	int ret;							\
 									\
-	event = container_of(trace_event, struct ftrace_event_call,	\
-			     event);					\
+	field = (typeof(field))iter->ent;				\
 									\
-	entry = iter->ent;						\
-									\
-	if (entry->type != event->event.type) {				\
-		WARN_ON_ONCE(1);					\
-		return TRACE_TYPE_UNHANDLED;				\
-	}								\
-									\
-	field = (typeof(field))entry;					\
-									\
-	trace_seq_init(p);						\
-	ret = trace_seq_printf(s, "%s: ", event->name);			\
+	ret = ftrace_raw_output_prep(iter, trace_event);		\
 	if (ret)							\
-		ret = trace_seq_printf(s, print);			\
+		return ret;						\
+									\
+	ret = trace_seq_printf(s, print);				\
 	if (!ret)							\
 		return TRACE_TYPE_PARTIAL_LINE;				\
 									\

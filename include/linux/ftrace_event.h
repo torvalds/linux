@@ -38,6 +38,12 @@ const char *ftrace_print_symbols_seq_u64(struct trace_seq *p,
 const char *ftrace_print_hex_seq(struct trace_seq *p,
 				 const unsigned char *buf, int len);
 
+struct trace_iterator;
+struct trace_event;
+
+int ftrace_raw_output_prep(struct trace_iterator *iter,
+			   struct trace_event *event);
+
 /*
  * The trace entry - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
@@ -94,8 +100,6 @@ enum trace_iter_flags {
 	TRACE_FILE_TIME_IN_NS	= 4,
 };
 
-
-struct trace_event;
 
 typedef enum print_line_t (*trace_print_func)(struct trace_iterator *iter,
 				      int flags, struct trace_event *event);
