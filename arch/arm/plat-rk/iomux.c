@@ -133,10 +133,16 @@ static unsigned int default_mode[] = {
 
 	#if defined(CONFIG_UART2_RK29) || (CONFIG_RK_DEBUG_UART == 2)
         UART2_SIN, UART2_SOUT,
+	#ifdef CONFIG_UART2_CTS_RTS_RK29
+	UART2_CTSN, UART2_RTSN,
+	#endif
 	#endif
 
 	#if defined(CONFIG_UART3_RK29) || (CONFIG_RK_DEBUG_UART == 3)
         UART3_SIN, UART3_SOUT,
+	#ifdef CONFIG_UART3_CTS_RTS_RK29
+	UART3_CTSN, UART3_RTSN,
+	#endif
 	#endif
 
 	#ifdef CONFIG_SPIM0_RK29
