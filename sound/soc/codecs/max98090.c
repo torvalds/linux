@@ -1701,9 +1701,8 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		 * seen for the case of TDM mode. The remaining cases have
 		 * normal logic.
 		 */
-		if (max98090->tdm_slots > 1) {
+		if (max98090->tdm_slots > 1)
 			regval ^= M98090_BCI_MASK;
-		}
 
 		snd_soc_write(codec,
 			M98090_REG_INTERFACE_FORMAT, regval);
@@ -2057,17 +2056,14 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 	if (!active)
 		return IRQ_NONE;
 
-	if (active & M98090_CLD_MASK) {
+	if (active & M98090_CLD_MASK)
 		dev_err(codec->dev, "M98090_CLD_MASK\n");
-	}
 
-	if (active & M98090_SLD_MASK) {
+	if (active & M98090_SLD_MASK)
 		dev_dbg(codec->dev, "M98090_SLD_MASK\n");
-	}
 
-	if (active & M98090_ULK_MASK) {
+	if (active & M98090_ULK_MASK)
 		dev_err(codec->dev, "M98090_ULK_MASK\n");
-	}
 
 	if (active & M98090_JDET_MASK) {
 		dev_dbg(codec->dev, "M98090_JDET_MASK\n");
@@ -2078,13 +2074,11 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 			msecs_to_jiffies(100));
 	}
 
-	if (active & M98090_DRCACT_MASK) {
+	if (active & M98090_DRCACT_MASK)
 		dev_dbg(codec->dev, "M98090_DRCACT_MASK\n");
-	}
 
-	if (active & M98090_DRCCLP_MASK) {
+	if (active & M98090_DRCCLP_MASK)
 		dev_err(codec->dev, "M98090_DRCCLP_MASK\n");
-	}
 
 	return IRQ_HANDLED;
 }
