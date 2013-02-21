@@ -47,7 +47,17 @@ static inline void opstate_init(void)
 	return;
 }
 
+/* Max length of a DIMM label*/
 #define EDAC_MC_LABEL_LEN	31
+
+/* Maximum size of the location string */
+#define LOCATION_SIZE 80
+
+/* Defines the maximum number of labels that can be reported */
+#define EDAC_MAX_LABELS		8
+
+/* String used to join two or more labels */
+#define OTHER_LABEL " or "
 
 /**
  * enum dev_type - describe the type of memory DRAM chips used at the stick
@@ -553,6 +563,46 @@ struct errcount_attribute_data {
 	int layer0, layer1, layer2;
 };
 
+/**
+ * edac_raw_error_desc - Raw error report structure
+ * @grain:			minimum granularity for an error report, in bytes
+ * @error_count:		number of errors of the same type
+ * @top_layer:			top layer of the error (layer[0])
+ * @mid_layer:			middle layer of the error (layer[1])
+ * @low_layer:			low layer of the error (layer[2])
+ * @page_frame_number:		page where the error happened
+ * @offset_in_page:		page offset
+ * @syndrome:			syndrome of the error (or 0 if unknown or if
+ * 				the syndrome is not applicable)
+ * @msg:			error message
+ * @location:			location of the error
+ * @label:			label of the affected DIMM(s)
+ * @other_detail:		other driver-specific detail about the error
+ * @enable_per_layer_report:	if false, the error affects all layers
+ *				(typically, a memory controller error)
+ */
+struct edac_raw_error_desc {
+	/*
+	 * NOTE: everything before grain won't be cleaned by
+	 * edac_raw_error_desc_clean()
+	 */
+	char location[LOCATION_SIZE];
+	char label[(EDAC_MC_LABEL_LEN + 1 + sizeof(OTHER_LABEL)) * EDAC_MAX_LABELS];
+	long grain;
+
+	/* the vars below and grain will be cleaned on every new error report */
+	u16 error_count;
+	int top_layer;
+	int mid_layer;
+	int low_layer;
+	unsigned long page_frame_number;
+	unsigned long offset_in_page;
+	unsigned long syndrome;
+	const char *msg;
+	const char *other_detail;
+	bool enable_per_layer_report;
+};
+
 /* MEMORY controller information structure
  */
 struct mem_ctl_info {
@@ -659,6 +709,12 @@ struct mem_ctl_info {
 
 	/* work struct for this MC */
 	struct delayed_work work;
+
+	/*
+	 * Used to report an error - by being at the global struct
+	 * makes the memory allocated by the EDAC core
+	 */
+	struct edac_raw_error_desc error_desc;
 
 	/* the internal state of this controller instance */
 	int op_state;
