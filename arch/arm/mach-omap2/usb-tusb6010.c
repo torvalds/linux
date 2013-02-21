@@ -26,6 +26,15 @@
 static u8		async_cs, sync_cs;
 static unsigned		refclk_psec;
 
+static struct gpmc_settings tusb_async = {
+	.mux_add_data	= GPMC_MUX_AD,
+};
+
+static struct gpmc_settings tusb_sync = {
+	.sync_read	= true,
+	.sync_write	= true,
+	.mux_add_data	= GPMC_MUX_AD,
+};
 
 /* NOTE:  timings are from tusb 6010 datasheet Rev 1.8, 12-Sept 2006 */
 
@@ -36,8 +45,6 @@ static int tusb_set_async_mode(unsigned sysclk_ps)
 	unsigned		t_acsnh_advnh = sysclk_ps + 3000;
 
 	memset(&dev_t, 0, sizeof(dev_t));
-
-	dev_t.mux = true;
 
 	dev_t.t_ceasu = 8 * 1000;
 	dev_t.t_avdasu = t_acsnh_advnh - 7000;
@@ -52,7 +59,7 @@ static int tusb_set_async_mode(unsigned sysclk_ps)
 	dev_t.t_wpl = 300;
 	dev_t.cyc_aavdh_we = 1;
 
-	gpmc_calc_timings(&t, &dev_t);
+	gpmc_calc_timings(&t, &tusb_async, &dev_t);
 
 	return gpmc_cs_set_timings(async_cs, &t);
 }
@@ -64,10 +71,6 @@ static int tusb_set_sync_mode(unsigned sysclk_ps)
 	unsigned		t_scsnh_advnh = sysclk_ps + 3000;
 
 	memset(&dev_t, 0, sizeof(dev_t));
-
-	dev_t.mux = true;
-	dev_t.sync_read = true;
-	dev_t.sync_write = true;
 
 	dev_t.clk = 11100;
 	dev_t.t_bacc = 1000;
@@ -84,7 +87,7 @@ static int tusb_set_sync_mode(unsigned sysclk_ps)
 	dev_t.cyc_wpl = 6;
 	dev_t.t_ce_rdyz = 7000;
 
-	gpmc_calc_timings(&t, &dev_t);
+	gpmc_calc_timings(&t, &tusb_sync, &dev_t);
 
 	return gpmc_cs_set_timings(sync_cs, &t);
 }

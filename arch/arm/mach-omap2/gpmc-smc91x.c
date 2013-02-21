@@ -104,7 +104,7 @@ static int smc91c96_gpmc_retime(void)
 	dev_t.t_cez_w = t4_w * 1000;
 	dev_t.t_wr_cycle = (t20 - t3) * 1000;
 
-	gpmc_calc_timings(&t, &dev_t);
+	gpmc_calc_timings(&t, NULL, &dev_t);
 
 	return gpmc_cs_set_timings(gpmc_cfg->cs, &t);
 }

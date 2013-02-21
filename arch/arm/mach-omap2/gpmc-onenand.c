@@ -47,6 +47,15 @@ static struct platform_device gpmc_onenand_device = {
 	.resource	= &gpmc_onenand_resource,
 };
 
+static struct gpmc_settings onenand_async = {
+	.mux_add_data	= GPMC_MUX_AD,
+};
+
+static struct gpmc_settings onenand_sync = {
+	.burst_read	= true,
+	.mux_add_data	= GPMC_MUX_AD,
+};
+
 static void omap2_onenand_calc_async_timings(struct gpmc_timings *t)
 {
 	struct gpmc_device_timings dev_t;
@@ -63,7 +72,6 @@ static void omap2_onenand_calc_async_timings(struct gpmc_timings *t)
 
 	memset(&dev_t, 0, sizeof(dev_t));
 
-	dev_t.mux = true;
 	dev_t.t_avdp_r = max_t(int, t_avdp, t_cer) * 1000;
 	dev_t.t_avdp_w = dev_t.t_avdp_r;
 	dev_t.t_aavdh = t_aavdh * 1000;
@@ -75,7 +83,7 @@ static void omap2_onenand_calc_async_timings(struct gpmc_timings *t)
 	dev_t.t_wpl = t_wpl * 1000;
 	dev_t.t_wph = t_wph * 1000;
 
-	gpmc_calc_timings(t, &dev_t);
+	gpmc_calc_timings(t, &onenand_async, &dev_t);
 }
 
 static int gpmc_set_async_mode(int cs, struct gpmc_timings *t)
@@ -235,10 +243,8 @@ static void omap2_onenand_calc_sync_timings(struct gpmc_timings *t,
 	/* Set synchronous read timings */
 	memset(&dev_t, 0, sizeof(dev_t));
 
-	dev_t.mux = true;
-	dev_t.sync_read = true;
 	if (onenand_flags & ONENAND_FLAG_SYNCWRITE) {
-		dev_t.sync_write = true;
+		onenand_sync.sync_write = true;
 	} else {
 		dev_t.t_avdp_w = max(t_avdp, t_cer) * 1000;
 		dev_t.t_wpl = t_wpl * 1000;
@@ -261,7 +267,7 @@ static void omap2_onenand_calc_sync_timings(struct gpmc_timings *t,
 	dev_t.cyc_aavdh_oe = 1;
 	dev_t.t_rdyo = t_rdyo * 1000 + min_gpmc_clk_period;
 
-	gpmc_calc_timings(t, &dev_t);
+	gpmc_calc_timings(t, &onenand_sync, &dev_t);
 }
 
 static int gpmc_set_sync_mode(int cs, struct gpmc_timings *t)

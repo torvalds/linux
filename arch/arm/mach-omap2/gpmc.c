@@ -817,9 +817,9 @@ static u32 gpmc_round_ps_to_sync_clk(u32 time_ps, u32 sync_clk)
 
 /* XXX: can the cycles be avoided ? */
 static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+				       struct gpmc_device_timings *dev_t,
+				       bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_rd_off */
@@ -872,9 +872,9 @@ static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					struct gpmc_device_timings *dev_t,
+					bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_wr_off */
@@ -934,9 +934,9 @@ static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					struct gpmc_device_timings *dev_t,
+					bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_rd_off */
@@ -974,9 +974,9 @@ static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_async_write_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					 struct gpmc_device_timings *dev_t,
+					 bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_wr_off */
@@ -1046,7 +1046,8 @@ static int gpmc_calc_sync_common_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
-			struct gpmc_device_timings *dev_t)
+				    struct gpmc_device_timings *dev_t,
+				    bool sync)
 {
 	u32 temp;
 
@@ -1060,7 +1061,7 @@ static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
 				gpmc_t->cs_on + dev_t->t_ce_avd);
 	gpmc_t->adv_on = gpmc_round_ps_to_ticks(temp);
 
-	if (dev_t->sync_write || dev_t->sync_read)
+	if (sync)
 		gpmc_calc_sync_common_timings(gpmc_t, dev_t);
 
 	return 0;
@@ -1095,21 +1096,29 @@ static void gpmc_convert_ps_to_ns(struct gpmc_timings *t)
 }
 
 int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
-			struct gpmc_device_timings *dev_t)
+		      struct gpmc_settings *gpmc_s,
+		      struct gpmc_device_timings *dev_t)
 {
+	bool mux = false, sync = false;
+
+	if (gpmc_s) {
+		mux = gpmc_s->mux_add_data ? true : false;
+		sync = (gpmc_s->sync_read || gpmc_s->sync_write);
+	}
+
 	memset(gpmc_t, 0, sizeof(*gpmc_t));
 
-	gpmc_calc_common_timings(gpmc_t, dev_t);
+	gpmc_calc_common_timings(gpmc_t, dev_t, sync);
 
-	if (dev_t->sync_read)
-		gpmc_calc_sync_read_timings(gpmc_t, dev_t);
+	if (gpmc_s && gpmc_s->sync_read)
+		gpmc_calc_sync_read_timings(gpmc_t, dev_t, mux);
 	else
-		gpmc_calc_async_read_timings(gpmc_t, dev_t);
+		gpmc_calc_async_read_timings(gpmc_t, dev_t, mux);
 
-	if (dev_t->sync_write)
-		gpmc_calc_sync_write_timings(gpmc_t, dev_t);
+	if (gpmc_s && gpmc_s->sync_write)
+		gpmc_calc_sync_write_timings(gpmc_t, dev_t, mux);
 	else
-		gpmc_calc_async_write_timings(gpmc_t, dev_t);
+		gpmc_calc_async_write_timings(gpmc_t, dev_t, mux);
 
 	/* TODO: remove, see function definition */
 	gpmc_convert_ps_to_ns(gpmc_t);

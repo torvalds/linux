@@ -60,8 +60,8 @@
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
 #define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
 #define GPMC_CONFIG1_MUXNONMUX          GPMC_CONFIG1_MUXTYPE(0)
-#define GPMC_CONFIG1_MUXAAD             GPMC_CONFIG1_MUXTYPE(1)
-#define GPMC_CONFIG1_MUXADDDATA         GPMC_CONFIG1_MUXTYPE(2)
+#define GPMC_CONFIG1_MUXAAD             GPMC_CONFIG1_MUXTYPE(GPMC_MUX_AAD)
+#define GPMC_CONFIG1_MUXADDDATA         GPMC_CONFIG1_MUXTYPE(GPMC_MUX_AD)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
 #define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
@@ -76,6 +76,8 @@
 #define GPMC_IRQ_FIFOEVENTENABLE	0x01
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
+#define GPMC_MUX_AAD			1	/* Addr-Addr-Data multiplex */
+#define GPMC_MUX_AD			2	/* Addr-Data multiplex */
 
 /* bool type time settings */
 struct gpmc_bool_timings {
@@ -181,10 +183,6 @@ struct gpmc_device_timings {
 	u8 cyc_wpl;	/* write deassertion time in cycles */
 	u32 cyc_iaa;	/* initial access time in cycles */
 
-	bool mux;	/* address & data muxed */
-	bool sync_write;/* synchronous write */
-	bool sync_read;	/* synchronous read */
-
 	/* extra delays */
 	bool ce_xdelay;
 	bool avd_xdelay;
@@ -192,8 +190,24 @@ struct gpmc_device_timings {
 	bool we_xdelay;
 };
 
+struct gpmc_settings {
+	bool burst_wrap;	/* enables wrap bursting */
+	bool burst_read;	/* enables read page/burst mode */
+	bool burst_write;	/* enables write page/burst mode */
+	bool device_nand;	/* device is NAND */
+	bool sync_read;		/* enables synchronous reads */
+	bool sync_write;	/* enables synchronous writes */
+	bool wait_on_read;	/* monitor wait on reads */
+	bool wait_on_write;	/* monitor wait on writes */
+	u32 burst_len;		/* page/burst length */
+	u32 device_width;	/* device bus width (8 or 16 bit) */
+	u32 mux_add_data;	/* multiplex address & data */
+	u32 wait_pin;		/* wait-pin to be used */
+};
+
 extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t);
+			     struct gpmc_settings *gpmc_s,
+			     struct gpmc_device_timings *dev_t);
 
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
 extern int gpmc_get_client_irq(unsigned irq_config);
