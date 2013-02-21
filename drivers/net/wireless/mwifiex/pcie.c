@@ -908,17 +908,8 @@ static int mwifiex_pcie_delete_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
-	u32 rdptr;
 
-	/* Read the TX ring read pointer set by firmware */
-	if (mwifiex_read_reg(adapter, reg->tx_rdptr, &rdptr)) {
-		dev_err(adapter->dev,
-			"Flush TXBD: failed to read reg->tx_rdptr\n");
-		return -1;
-	}
-
-	if (!mwifiex_pcie_txbd_empty(card, rdptr)) {
+	if (!mwifiex_pcie_txbd_empty(card, card->txbd_rdptr)) {
 		card->txbd_flush = 1;
 		/* write pointer already set at last send
 		 * send dnld-rdy intr again, wait for completion.
