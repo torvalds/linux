@@ -21,10 +21,12 @@
 #include <linux/sched.h>
 #include <linux/watchdog.h>
 
-#include "mei_dev.h"
-#include "hw.h"
-#include "interface.h"
 #include <linux/mei.h>
+
+#include "mei_dev.h"
+#include "hbm.h"
+#include "hw-me.h"
+#include "client.h"
 
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
@@ -62,30 +64,41 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  */
 int mei_wd_host_init(struct mei_device *dev)
 {
-	int id;
-	mei_cl_init(&dev->wd_cl, dev);
+	struct mei_cl *cl = &dev->wd_cl;
+	int i;
+	int ret;
 
-	/* look for WD client and connect to it */
-	dev->wd_cl.state = MEI_FILE_DISCONNECTED;
+	mei_cl_init(cl, dev);
+
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
 	dev->wd_state = MEI_WD_IDLE;
 
-	/* Connect WD ME client to the host client */
-	id = mei_me_cl_link(dev, &dev->wd_cl,
-				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-	if (id < 0) {
+	/* check for valid client id */
+	i = mei_me_cl_by_uuid(dev, &mei_wd_guid);
+	if (i < 0) {
 		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
 		return -ENOENT;
 	}
 
-	if (mei_connect(dev, &dev->wd_cl)) {
+	cl->me_client_id = dev->me_clients[i].client_id;
+
+	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
+
+	if (ret < 0) {
+		dev_info(&dev->pdev->dev, "wd: failed link client\n");
+		return -ENOENT;
+	}
+
+	cl->state = MEI_FILE_CONNECTING;
+
+	if (mei_hbm_cl_connect_req(dev, cl)) {
 		dev_err(&dev->pdev->dev, "wd: failed to connect to the client\n");
-		dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-		dev->wd_cl.host_client_id = 0;
+		cl->state = MEI_FILE_DISCONNECTED;
+		cl->host_client_id = 0;
 		return -EIO;
 	}
-	dev->wd_cl.timer_count = MEI_CONNECT_TIMEOUT;
+	cl->timer_count = MEI_CONNECT_TIMEOUT;
 
 	return 0;
 }
@@ -101,22 +114,21 @@ int mei_wd_host_init(struct mei_device *dev)
  */
 int mei_wd_send(struct mei_device *dev)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr hdr;
 
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	mei_hdr->host_addr = dev->wd_cl.host_client_id;
-	mei_hdr->me_addr = dev->wd_cl.me_client_id;
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	hdr.host_addr = dev->wd_cl.host_client_id;
+	hdr.me_addr = dev->wd_cl.me_client_id;
+	hdr.msg_complete = 1;
+	hdr.reserved = 0;
 
 	if (!memcmp(dev->wd_data, mei_start_wd_params, MEI_WD_HDR_SIZE))
-		mei_hdr->length = MEI_WD_START_MSG_SIZE;
+		hdr.length = MEI_WD_START_MSG_SIZE;
 	else if (!memcmp(dev->wd_data, mei_stop_wd_params, MEI_WD_HDR_SIZE))
-		mei_hdr->length = MEI_WD_STOP_MSG_SIZE;
+		hdr.length = MEI_WD_STOP_MSG_SIZE;
 	else
 		return -EINVAL;
 
-	return mei_write_message(dev, mei_hdr, dev->wd_data, mei_hdr->length);
+	return mei_write_message(dev, &hdr, dev->wd_data);
 }
 
 /**
@@ -141,16 +153,16 @@ int mei_wd_stop(struct mei_device *dev)
 
 	dev->wd_state = MEI_WD_STOPPING;
 
-	ret = mei_flow_ctrl_creds(dev, &dev->wd_cl);
+	ret = mei_cl_flow_ctrl_creds(&dev->wd_cl);
 	if (ret < 0)
 		goto out;
 
-	if (ret && dev->mei_host_buffer_is_empty) {
+	if (ret && dev->hbuf_is_ready) {
 		ret = 0;
-		dev->mei_host_buffer_is_empty = false;
+		dev->hbuf_is_ready = false;
 
 		if (!mei_wd_send(dev)) {
-			ret = mei_flow_ctrl_reduce(dev, &dev->wd_cl);
+			ret = mei_cl_flow_ctrl_reduce(&dev->wd_cl);
 			if (ret)
 				goto out;
 		} else {
@@ -270,10 +282,9 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 	dev->wd_state = MEI_WD_RUNNING;
 
 	/* Check if we can send the ping to HW*/
-	if (dev->mei_host_buffer_is_empty &&
-		mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+	if (dev->hbuf_is_ready && mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
 
-		dev->mei_host_buffer_is_empty = false;
+		dev->hbuf_is_ready = false;
 		dev_dbg(&dev->pdev->dev, "wd: sending ping\n");
 
 		if (mei_wd_send(dev)) {
@@ -282,9 +293,9 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 			goto end;
 		}
 
-		if (mei_flow_ctrl_reduce(dev, &dev->wd_cl)) {
+		if (mei_cl_flow_ctrl_reduce(&dev->wd_cl)) {
 			dev_err(&dev->pdev->dev,
-				"wd: mei_flow_ctrl_reduce() failed.\n");
+				"wd: mei_cl_flow_ctrl_reduce() failed.\n");
 			ret = -EIO;
 			goto end;
 		}

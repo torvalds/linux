@@ -399,7 +399,7 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 {
 	unsigned long p = *ppos;
 	ssize_t low_count, read, sz;
-	char * kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
+	char *kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
 	int err = 0;
 
 	read = 0;
@@ -527,7 +527,7 @@ static ssize_t write_kmem(struct file *file, const char __user *buf,
 	unsigned long p = *ppos;
 	ssize_t wrote = 0;
 	ssize_t virtr = 0;
-	char * kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
+	char *kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
 	int err = 0;
 
 	if (p < (unsigned long) high_memory) {
@@ -595,7 +595,7 @@ static ssize_t write_port(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	unsigned long i = *ppos;
-	const char __user * tmp = buf;
+	const char __user *tmp = buf;
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
@@ -729,7 +729,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	return ret;
 }
 
-static int open_port(struct inode * inode, struct file * filp)
+static int open_port(struct inode *inode, struct file *filp)
 {
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
@@ -898,7 +898,7 @@ static int __init chr_dev_init(void)
 			continue;
 
 		/*
-		 * Create /dev/port? 
+		 * Create /dev/port?
 		 */
 		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
 			continue;
