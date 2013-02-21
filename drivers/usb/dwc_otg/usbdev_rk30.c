@@ -357,12 +357,12 @@ void usb20host_soft_reset(void)
     cru_set_soft_reset(SOFT_RST_USBOTG1, true);
     cru_set_soft_reset(SOFT_RST_USBPHY1, true);
     cru_set_soft_reset(SOFT_RST_OTGC1, true);
-    udelay(1);
+    udelay(5);
 
     cru_set_soft_reset(SOFT_RST_USBOTG1, false);
     cru_set_soft_reset(SOFT_RST_USBPHY1, false);
     cru_set_soft_reset(SOFT_RST_OTGC1, false);
-    mdelay(1);
+    mdelay(2);
 }
 void usb20host_clock_init(void* pdata)
 {
@@ -473,8 +473,34 @@ struct platform_device device_usb20_host = {
 	},
 };
 #endif
+static struct resource resources_hsusb_host[] = {
+    {
+        .start = IRQ_HSIC,
+        .end   = IRQ_HSIC,
+        .flags = IORESOURCE_IRQ,
+    },
+    {
+        .start = RK30_HSIC_PHYS,
+        .end   = RK30_HSIC_PHYS + RK30_HSIC_SIZE - 1,
+        .flags = IORESOURCE_MEM,
+    },
+};
+
+struct platform_device device_hsusb_host = {
+    .name           = "rk_hsusb_host",
+    .id             = -1,
+    .num_resources  = ARRAY_SIZE(resources_hsusb_host),
+    .resource       = resources_hsusb_host,
+    .dev            = {
+        .coherent_dma_mask      = 0xffffffff,
+    },
+};
+
 static int __init usbdev_init_devices(void)
 {
+#ifdef CONFIG_USB_EHCI_RK
+	platform_device_register(&device_hsusb_host);
+#endif
 #ifdef CONFIG_USB20_OTG
 	platform_device_register(&device_usb20_otg);
 #endif
