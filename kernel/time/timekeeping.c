@@ -1250,15 +1250,16 @@ static inline void accumulate_nsecs_to_secs(struct timekeeper *tk)
 static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 						u32 shift)
 {
+	cycle_t interval = tk->cycle_interval << shift;
 	u64 raw_nsecs;
 
 	/* If the offset is smaller then a shifted interval, do nothing */
-	if (offset < tk->cycle_interval<<shift)
+	if (offset < interval)
 		return offset;
 
 	/* Accumulate one shifted interval */
-	offset -= tk->cycle_interval << shift;
-	tk->clock->cycle_last += tk->cycle_interval << shift;
+	offset -= interval;
+	tk->clock->cycle_last += interval;
 
 	tk->xtime_nsec += tk->xtime_interval << shift;
 	accumulate_nsecs_to_secs(tk);
