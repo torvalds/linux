@@ -265,7 +265,8 @@ static int parse_reply_info_extra(void **p, void *end,
 {
 	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_READDIR)
+	else if (info->head->op == CEPH_MDS_OP_READDIR ||
+		 info->head->op == CEPH_MDS_OP_LSSNAP)
 		return parse_reply_info_dir(p, end, info, features);
 	else if (info->head->op == CEPH_MDS_OP_CREATE)
 		return parse_reply_info_create(p, end, info, features);
