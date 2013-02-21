@@ -38,6 +38,21 @@
 */
 #define RK29SDK_SD_CARD_PWR_EN                  RK30_PIN3_PA1
 #define RK29SDK_SD_CARD_PWR_EN_LEVEL            GPIO_LOW 
+double rk31sdk_get_sdmmc0_pin_io_voltage(void)
+{
+    double voltage;
+#define RK31SDK_SET_SDMMC0_PIN_VOLTAGE
+
+    /******************************************************************************
+    **  Please tell me how much voltage of your SDMMC0-pin in your project. 
+    **
+    **     例如: 有的项目，它的SDMMC0所在的RK主控的IO组，想用1.8V, 而卡本身用3.3V, 
+    **  而中间通过个电平转换.那么，您此时，应该设置下面的voltage值为 1.8
+    ******************************************************************************/
+    voltage = 3.3;  
+
+    return voltage;
+}
 
 /*
 * define the card-detect-pin.
