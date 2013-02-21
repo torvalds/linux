@@ -95,7 +95,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.5.02 The last modify date is 2013-01-29"
+#define RK29_SDMMC_VERSION "Ver.5.03 The last modify date is 2013-02-21"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -117,6 +117,13 @@ int debug_level = 5;
 #define RK29_MAX_SDIO_FREQ   45000000    //set max-sdio-frequency 45Mhz in MTK module.
 #else
 #define RK29_MAX_SDIO_FREQ   25000000    //set max-sdio-frequency 25Mhz at the present time
+#endif
+
+//use the new iomux-API
+#if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
+#define DRIVER_SDMMC_USE_NEW_IOMUX_API 1
+#else
+#define DRIVER_SDMMC_USE_NEW_IOMUX_API 0
 #endif
 
 enum {
@@ -1955,17 +1962,22 @@ int rk29_sdmmc_hw_init(void *data)
     host->ctype = SDMMC_CTYPE_1BIT;
     host->set_iomux(host->pdev->id, host->ctype);
     
-    if( pdata && pdata->sd_vcc_reset ){
-	int cdetect = gpio_get_value(host->det_pin.io) ;
-	if(host->det_pin.enable){
-                cdetect = cdetect?1:0;
-       }else{
+    if( pdata && pdata->sd_vcc_reset )
+    {
+	    int cdetect = gpio_get_value(host->det_pin.io) ;
+	    if(host->det_pin.enable)
+	    {
+	        cdetect = cdetect?1:0;
+        }
+        else
+        {
                 cdetect = cdetect?0:1;
-       }
+        }
        
-	if( cdetect ){
-		pdata->sd_vcc_reset();
-	}
+	    if( cdetect )
+	    {
+		    pdata->sd_vcc_reset();
+	    }
     }
   
     /* reset controller */
@@ -3795,6 +3807,12 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
 		enable_irq_wake(host->gpio_irq);
     }
+#elif DRIVER_SDMMC_USE_NEW_IOMUX_API
+    if(RK29_CTRL_SDMMC_ID == host->pdev->id)
+    {
+        iomux_set(MMC0_DETN);
+    }
+
 #endif
 	
 #if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
@@ -3824,6 +3842,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
         } 
         disable_irq_nosync(host->sdio_irq);   
     }
+
 #endif
     
     /* setup sdmmc1 wifi card detect change */
@@ -3959,7 +3978,7 @@ static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
 	int ret = 0;
 #if !defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
     rk29_sdmmc_enable_irq(host,false);
-    #if (defined(SDMMC_USE_NEW_IOMUX_API) && SDMMC_USE_NEW_IOMUX_API)
+    #if DRIVER_SDMMC_USE_NEW_IOMUX_API
     //need not to change mode to gpio.
     #else
     rk29_mux_api_set(host->det_pin.iomux.name, host->det_pin.iomux.fgpio);
@@ -3986,7 +4005,7 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	disable_irq_wake(host->gpio_irq);
 	free_irq(host->gpio_irq,host);
 	gpio_free(host->det_pin.io);
-	#if (defined(SDMMC_USE_NEW_IOMUX_API)&& SDMMC_USE_NEW_IOMUX_API)
+	#if DRIVER_SDMMC_USE_NEW_IOMUX_API
 	iomux_set(MMC0_DETN);
 	#else
     rk29_mux_api_set(host->det_pin.iomux.name, host->det_pin.iomux.fmux);
