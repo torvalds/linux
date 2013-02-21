@@ -162,12 +162,13 @@ static struct loop_func_table *xfer_funcs[MAX_LO_CRYPT] = {
 
 static loff_t get_size(loff_t offset, loff_t sizelimit, struct file *file)
 {
-	loff_t size, loopsize;
+	loff_t loopsize;
 
 	/* Compute loopsize in bytes */
-	size = i_size_read(file->f_mapping->host);
-	loopsize = size - offset;
-	/* offset is beyond i_size, wierd but possible */
+	loopsize = i_size_read(file->f_mapping->host);
+	if (offset > 0)
+		loopsize -= offset;
+	/* offset is beyond i_size, weird but possible */
 	if (loopsize < 0)
 		return 0;
 
