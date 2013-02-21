@@ -5984,16 +5984,10 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
-	struct cfg80211_crypto_settings crypto;
 	struct ieee80211_channel *chan;
-	const u8 *bssid, *ssid, *ie = NULL, *prev_bssid = NULL;
-	int err, ssid_len, ie_len = 0;
-	bool use_mfp = false;
-	u32 flags = 0;
-	struct ieee80211_ht_cap *ht_capa = NULL;
-	struct ieee80211_ht_cap *ht_capa_mask = NULL;
-	struct ieee80211_vht_cap *vht_capa = NULL;
-	struct ieee80211_vht_cap *vht_capa_mask = NULL;
+	struct cfg80211_assoc_request req = {};
+	const u8 *bssid, *ssid;
+	int err, ssid_len = 0;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
@@ -6021,54 +6015,58 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
 	if (info->attrs[NL80211_ATTR_USE_MFP]) {
 		enum nl80211_mfp mfp =
 			nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
 		if (mfp == NL80211_MFP_REQUIRED)
-			use_mfp = true;
+			req.use_mfp = true;
 		else if (mfp != NL80211_MFP_NO)
 			return -EINVAL;
 	}
 
 	if (info->attrs[NL80211_ATTR_PREV_BSSID])
-		prev_bssid = nla_data(info->attrs[NL80211_ATTR_PREV_BSSID]);
+		req.prev_bssid = nla_data(info->attrs[NL80211_ATTR_PREV_BSSID]);
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_HT]))
-		flags |= ASSOC_REQ_DISABLE_HT;
+		req.flags |= ASSOC_REQ_DISABLE_HT;
 
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY_MASK])
-		ht_capa_mask =
-			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY_MASK]);
+		memcpy(&req.ht_capa_mask,
+		       nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY_MASK]),
+		       sizeof(req.ht_capa_mask));
 
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY]) {
-		if (!ht_capa_mask)
+		if (!info->attrs[NL80211_ATTR_HT_CAPABILITY_MASK])
 			return -EINVAL;
-		ht_capa = nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
+		memcpy(&req.ht_capa,
+		       nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]),
+		       sizeof(req.ht_capa));
 	}
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_VHT]))
-		flags |= ASSOC_REQ_DISABLE_VHT;
+		req.flags |= ASSOC_REQ_DISABLE_VHT;
 
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
-		vht_capa_mask =
-			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]);
+		memcpy(&req.vht_capa_mask,
+		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]),
+		       sizeof(req.vht_capa_mask));
 
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY]) {
-		if (!vht_capa_mask)
+		if (!info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
 			return -EINVAL;
-		vht_capa = nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
+		memcpy(&req.vht_capa,
+		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]),
+		       sizeof(req.vht_capa));
 	}
 
-	err = nl80211_crypto_settings(rdev, info, &crypto, 1);
+	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);
 	if (!err)
-		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
-					  ssid, ssid_len, ie, ie_len, use_mfp,
-					  &crypto, flags, ht_capa, ht_capa_mask,
-					  vht_capa, vht_capa_mask);
+		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid,
+					  ssid, ssid_len, &req);
 
 	return err;
 }

@@ -363,26 +363,18 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
-			  const u8 *bssid, const u8 *prev_bssid,
+			  const u8 *bssid,
 			  const u8 *ssid, int ssid_len,
-			  const u8 *ie, int ie_len, bool use_mfp,
-			  struct cfg80211_crypto_settings *crypt,
-			  u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			  struct ieee80211_ht_cap *ht_capa_mask,
-			  struct ieee80211_vht_cap *vht_capa,
-			  struct ieee80211_vht_cap *vht_capa_mask)
+			  struct cfg80211_assoc_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_assoc_request req;
 	int err;
 	bool was_connected = false;
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	memset(&req, 0, sizeof(req));
-
-	if (wdev->current_bss && prev_bssid &&
-	    ether_addr_equal(wdev->current_bss->pub.bssid, prev_bssid)) {
+	if (wdev->current_bss && req->prev_bssid &&
+	    ether_addr_equal(wdev->current_bss->pub.bssid, req->prev_bssid)) {
 		/*
 		 * Trying to reassociate: Allow this to proceed and let the old
 		 * association to be dropped when the new one is completed.
@@ -394,47 +386,30 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	} else if (wdev->current_bss)
 		return -EALREADY;
 
-	req.ie = ie;
-	req.ie_len = ie_len;
-	memcpy(&req.crypto, crypt, sizeof(req.crypto));
-	req.use_mfp = use_mfp;
-	req.prev_bssid = prev_bssid;
-	req.flags = assoc_flags;
-	if (ht_capa)
-		memcpy(&req.ht_capa, ht_capa, sizeof(req.ht_capa));
-	if (ht_capa_mask)
-		memcpy(&req.ht_capa_mask, ht_capa_mask,
-		       sizeof(req.ht_capa_mask));
-	cfg80211_oper_and_ht_capa(&req.ht_capa_mask,
+	cfg80211_oper_and_ht_capa(&req->ht_capa_mask,
 				  rdev->wiphy.ht_capa_mod_mask);
-	if (vht_capa)
-		memcpy(&req.vht_capa, vht_capa, sizeof(req.vht_capa));
-	if (vht_capa_mask)
-		memcpy(&req.vht_capa_mask, vht_capa_mask,
-		       sizeof(req.vht_capa_mask));
-	cfg80211_oper_and_vht_capa(&req.vht_capa_mask,
+	cfg80211_oper_and_vht_capa(&req->vht_capa_mask,
 				   rdev->wiphy.vht_capa_mod_mask);
 
-	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
-				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-	if (!req.bss) {
+	req->bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
+				    WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+	if (!req->bss) {
 		if (was_connected)
 			wdev->sme_state = CFG80211_SME_CONNECTED;
 		return -ENOENT;
 	}
 
-	err = cfg80211_can_use_chan(rdev, wdev, req.bss->channel,
-				    CHAN_MODE_SHARED);
+	err = cfg80211_can_use_chan(rdev, wdev, chan, CHAN_MODE_SHARED);
 	if (err)
 		goto out;
 
-	err = rdev_assoc(rdev, dev, &req);
+	err = rdev_assoc(rdev, dev, req);
 
 out:
 	if (err) {
 		if (was_connected)
 			wdev->sme_state = CFG80211_SME_CONNECTED;
-		cfg80211_put_bss(&rdev->wiphy, req.bss);
+		cfg80211_put_bss(&rdev->wiphy, req->bss);
 	}
 
 	return err;
@@ -443,24 +418,17 @@ out:
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
 			struct ieee80211_channel *chan,
-			const u8 *bssid, const u8 *prev_bssid,
+			const u8 *bssid,
 			const u8 *ssid, int ssid_len,
-			const u8 *ie, int ie_len, bool use_mfp,
-			struct cfg80211_crypto_settings *crypt,
-			u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			struct ieee80211_ht_cap *ht_capa_mask,
-			struct ieee80211_vht_cap *vht_capa,
-			struct ieee80211_vht_cap *vht_capa_mask)
+			struct cfg80211_assoc_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
 	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
-	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
-				    ssid, ssid_len, ie, ie_len, use_mfp, crypt,
-				    assoc_flags, ht_capa, ht_capa_mask,
-				    vht_capa, vht_capa_mask);
+	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid,
+				    ssid, ssid_len, req);
 	wdev_unlock(wdev);
 	mutex_unlock(&rdev->devlist_mtx);
 

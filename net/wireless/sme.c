@@ -159,7 +159,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_connect_params *params;
-	const u8 *prev_bssid = NULL;
+	struct cfg80211_assoc_request req = {};
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -186,18 +186,20 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
 		if (wdev->conn->prev_bssid_valid)
-			prev_bssid = wdev->conn->prev_bssid;
-		err = __cfg80211_mlme_assoc(rdev, wdev->netdev,
-					    params->channel, params->bssid,
-					    prev_bssid,
-					    params->ssid, params->ssid_len,
-					    params->ie, params->ie_len,
-					    params->mfp != NL80211_MFP_NO,
-					    &params->crypto,
-					    params->flags, &params->ht_capa,
-					    &params->ht_capa_mask,
-					    &params->vht_capa,
-					    &params->vht_capa_mask);
+			req.prev_bssid = wdev->conn->prev_bssid;
+		req.ie = params->ie;
+		req.ie_len = params->ie_len;
+		req.use_mfp = params->mfp != NL80211_MFP_NO;
+		req.crypto = params->crypto;
+		req.flags = params->flags;
+		req.ht_capa = params->ht_capa;
+		req.ht_capa_mask = params->ht_capa_mask;
+		req.vht_capa = params->vht_capa;
+		req.vht_capa_mask = params->vht_capa_mask;
+
+		err = __cfg80211_mlme_assoc(rdev, wdev->netdev, params->channel,
+					    params->bssid, params->ssid,
+					    params->ssid_len, &req);
 		if (err)
 			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,
