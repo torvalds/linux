@@ -188,6 +188,8 @@ size_t strnlen_user_std(size_t size, const char __user *src)
 	register unsigned long reg0 asm("0") = 0UL;
 	unsigned long tmp1, tmp2;
 
+	if (unlikely(!size))
+		return 0;
 	asm volatile(
 		"   la    %2,0(%1)\n"
 		"   la    %3,0(%0,%1)\n"

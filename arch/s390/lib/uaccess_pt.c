@@ -172,6 +172,8 @@ static size_t strnlen_user_pt(size_t count, const char __user *src)
 	unsigned long offset, done, len, kaddr;
 	size_t len_str;
 
+	if (unlikely(!count))
+		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return strnlen((const char __kernel __force *) src, count) + 1;
 	done = 0;
@@ -202,6 +204,8 @@ static size_t strncpy_from_user_pt(size_t count, const char __user *src,
 {
 	size_t n = strnlen_user_pt(count, src);
 
+	if (unlikely(!count))
+		return 0;
 	if (!n)
 		return -EFAULT;
 	if (n > count)
