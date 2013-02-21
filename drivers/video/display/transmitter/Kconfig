@@ -11,10 +11,6 @@ config RK610_LVDS
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
 		
-config TC358768_RGB2MIPI
-	bool "toshiba RGB to MIPI DSI"
-	help
-	"a chip that change RGB interface parallel signal into DSI serial signal"
 
 config DP_ANX6345
 	bool "RGB to Display Port transmitter anx6345,anx9804,anx9805 support"
@@ -23,3 +19,17 @@ config DP501
 	bool"RGB to Display Port transmitter dp501 support"
 	
 endchoice
+
+config MIPI_DSI
+	bool "RGB to MIPI DSI"
+			
+config TC358768_RGB2MIPI
+	bool "toshiba TC358768 RGB to MIPI DSI"
+	depends on MIPI_DSI
+	help
+	"a chip that change RGB interface parallel signal into DSI serial signal"
+config SSD2828_RGB2MIPI
+	bool "solomon SSD2828 RGB to MIPI DSI"
+	depends on MIPI_DSI
+	help
+	"a chip that change RGB interface parallel signal into DSI serial signal"

@@ -12,8 +12,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- 
-#include "tc358768.h"
+#include <linux/fb.h>
+#include <linux/delay.h>
+#include <linux/rk_fb.h>
+#include <mach/gpio.h>
+#include <mach/iomux.h>
+#include <mach/board.h>
+#include <linux/rk_screen.h>
+#include <linux/ktime.h>
+#include "mipi_dsi.h"
+
+#define CONFIG_TC358768_I2C     1
+#define CONFIG_TC358768_I2C_CLK     400*1000
+
 
 #if 0
 #define dsi_debug   printk
@@ -22,9 +33,9 @@
 #endif
 
 #ifdef CONFIG_TC358768_I2C
-struct tc358768_t *tc358768 = NULL;
-struct i2c_client *tc358768_client = NULL;
-struct mipi_dsi_t *dsi;
+static struct tc358768_t *tc358768 = NULL;
+static struct i2c_client *tc358768_client = NULL;
+static struct mipi_dsi_ops tc358768_ops;
 
 
 u32 i2c_write_32bits(u32 value) 
@@ -89,7 +100,7 @@ int tc358768_gpio_init(void *data) {
 	if(reset->reset_pin > INVALID_GPIO) {
 		ret = gpio_request(reset->reset_pin, "tc358768_reset");
 		if (ret != 0) {
-			gpio_free(reset->reset_pin);
+			//gpio_free(reset->reset_pin);
 			printk("%s: request TC358768_RST_PIN error\n", __func__);
 		} else {
 			if(reset->mux_name)
@@ -101,7 +112,7 @@ int tc358768_gpio_init(void *data) {
 	if(vdd->enable_pin > INVALID_GPIO) {
 		ret = gpio_request(vdd->enable_pin, "tc358768_vddc");
 		if (ret != 0) {
-			gpio_free(vdd->enable_pin);
+			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vddc_PIN error\n", __func__);
 		} else {
 			if(vdd->mux_name)
@@ -114,7 +125,7 @@ int tc358768_gpio_init(void *data) {
 	if(vdd->enable_pin > INVALID_GPIO) {
 		ret = gpio_request(vdd->enable_pin, "tc358768_vddio");
 		if (ret != 0) {
-			gpio_free(vdd->enable_pin);
+			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vddio_PIN error\n", __func__);
 		} else {
 			if(vdd->mux_name)
@@ -127,7 +138,7 @@ int tc358768_gpio_init(void *data) {
 	if(vdd->enable_pin > INVALID_GPIO) {
 		ret = gpio_request(vdd->enable_pin, "tc358768_vdd_mipi");
 		if (ret != 0) {
-			gpio_free(vdd->enable_pin);
+			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vdd_mipi_PIN error\n", __func__);
 		} else {
 			if(vdd->mux_name)
@@ -142,12 +153,18 @@ int tc358768_gpio_init(void *data) {
 int tc358768_gpio_deinit(void *data) {
 	struct reset_t *reset = &tc358768->reset;
 	struct power_t *vdd = &tc358768->vddc;
+	gpio_direction_input(reset->reset_pin);
 	gpio_free(reset->reset_pin);
 	
+	gpio_direction_input(vdd->enable_pin);
+	gpio_free(vdd->enable_pin);
+	
 	vdd = &tc358768->vddio;
+	gpio_direction_input(vdd->enable_pin);
 	gpio_free(vdd->enable_pin);
 	
 	vdd = &tc358768->vdd_mipi;
+	gpio_direction_input(vdd->enable_pin);
 	gpio_free(vdd->enable_pin);
 	return 0;
 }
@@ -195,10 +212,12 @@ int tc358768_vdd_disable(void *data) {
 }
 
 
-int tc358768_power_up(void *data) {
+int tc358768_power_up(void) {
+
 	int ret = 0;
 	struct tc358768_t *tc = (struct tc358768_t *)tc358768;
 	
+	tc358768_gpio_init(NULL);
 	tc->vddc.enable(&tc->vddc);
 	tc->vdd_mipi.enable(&tc->vdd_mipi);
 	tc->vddio.enable(&tc->vddio);
@@ -207,13 +226,15 @@ int tc358768_power_up(void *data) {
 	return ret;
 }
 
-int tc358768_power_down(void *data) {
+int tc358768_power_down(void) {
+
 	int ret = 0;
 	struct tc358768_t *tc = (struct tc358768_t *)tc358768;
 	
 	tc->vddio.disable(&tc->vddio);
 	tc->vdd_mipi.disable(&tc->vdd_mipi);
 	tc->vddc.disable(&tc->vddc);
+	tc358768_gpio_deinit(NULL);
 	
 	return ret;
 }
@@ -222,7 +243,6 @@ static int tc358768_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did) 
 {
     struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-    
     int ret = 0;
 
     if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
@@ -230,13 +250,14 @@ static int tc358768_probe(struct i2c_client *client,
         	 "I2C-Adapter doesn't support I2C_FUNC_I2C\n");
         return -EIO;
     }
+    
     tc358768 = (struct tc358768_t *)client->dev.platform_data;
     if(!tc358768) {
     	ret = -1;
     	printk("%s:%d tc358768 is null\n", __func__, __LINE__);
     	return ret;
     }	
-    
+
     tc358768_client = client;
     if(!tc358768_client) {
     	ret = -1;
@@ -272,9 +293,7 @@ static int tc358768_probe(struct i2c_client *client,
     	tc358768->vdd_mipi.enable = tc358768_vdd_enable;    
     if(!tc358768->vdd_mipi.disable)
     	tc358768->vdd_mipi.disable = tc358768_vdd_disable;
-    	
-    dsi->chip = tc358768; 	
-    	
+   
     return ret;
 }
 static int tc358768_remove(struct i2c_client *client)
@@ -666,24 +685,50 @@ int mipi_dsi_read_dcs_packet(unsigned char *data, int n) {
 	return 0;
 }
 
+int tc358768_get_id(void) {
+	
+	int id = -1;
+	
+	tc358768_power_up();
+	id = tc358768_rd_reg_32bits(0);
+	return id;
+}
 
-int tc358768_init(struct mipi_dsi_t *pram) {
-	int ret = 0;
-	dsi = pram;
-	if(!dsi)
-		return -1;
-	dsi->id = 0x4401;
-	dsi->dsi_init = _tc358768_wr_regs_32bits;
-	dsi->dsi_hs_start = _tc358768_wr_regs_32bits;
-	dsi->dsi_send_dcs_packet = mipi_dsi_send_dcs_packet;
-	dsi->dsi_read_dcs_packet = mipi_dsi_read_dcs_packet;
+static struct mipi_dsi_ops tc358768_ops = {
+	.id = 0x4401,
+	.name = "tc358768a",
+	.get_id = tc358768_get_id,
+	.dsi_set_regs = _tc358768_wr_regs_32bits,
+	.dsi_send_dcs_packet = mipi_dsi_send_dcs_packet,
+	.dsi_read_dcs_packet = mipi_dsi_read_dcs_packet,
+	.power_up = tc358768_power_up,
+	.power_down = tc358768_power_down,
+	
+};
+
+static int __init tc358768_module_init(void)
+{
 #ifdef CONFIG_TC358768_I2C    
     i2c_add_driver(&tc358768_driver);
-#endif    
-	tc358768_gpio_init(NULL);
-	return 0;
-exit_init:
-	//tc358768_power_down(NULL);
-	tc358768_gpio_deinit(NULL);
-	return -1;
+    
+	if(!tc358768 || !tc358768_client)
+		return -1;
+#endif		
+		
+	register_dsi_ops(&tc358768_ops);
+	if(tc358768->id > 0)
+		tc358768_ops.id = tc358768->id;
+    return 0;
 }
+
+static void __exit tc358768_module_exit(void)
+{
+	del_dsi_ops(&tc358768_ops);
+#ifdef CONFIG_TC358768_I2C
+	i2c_del_driver(&tc358768_driver);
+#endif
+}
+
+subsys_initcall_sync(tc358768_module_init);
+//module_exit(tc358768_module_init);
+module_exit(tc358768_module_exit);
