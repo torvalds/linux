@@ -1,3 +1,5 @@
+#include <linux/irqchip/arm-gic.h>
+
 #define VCPU_USR_REG(_reg_nr)	(VCPU_USR_REGS + (_reg_nr * 4))
 #define VCPU_USR_SP		(VCPU_USR_REG(13))
 #define VCPU_USR_LR		(VCPU_USR_REG(14))
@@ -298,6 +300,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	str	r11, [vcpu, #CP15_OFFSET(c6_IFAR)]
 	str	r12, [vcpu, #CP15_OFFSET(c12_VBAR)]
 	.endif
+
+	mrc	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+
+	.if \store_to_vcpu == 0
+	push	{r2}
+	.else
+	str	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	.endif
 .endm
 
 /*
@@ -308,6 +318,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro write_cp15_state read_from_vcpu
+	.if \read_from_vcpu == 0
+	pop	{r2}
+	.else
+	ldr	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	.endif
+
+	mcr	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+
 	.if \read_from_vcpu == 0
 	pop	{r2-r12}
 	.else
@@ -369,6 +387,49 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro save_vgic_state
+#ifdef CONFIG_KVM_ARM_VGIC
+	/* Get VGIC VCTRL base into r2 */
+	ldr	r2, [vcpu, #VCPU_KVM]
+	ldr	r2, [r2, #KVM_VGIC_VCTRL]
+	cmp	r2, #0
+	beq	2f
+
+	/* Compute the address of struct vgic_cpu */
+	add	r11, vcpu, #VCPU_VGIC_CPU
+
+	/* Save all interesting registers */
+	ldr	r3, [r2, #GICH_HCR]
+	ldr	r4, [r2, #GICH_VMCR]
+	ldr	r5, [r2, #GICH_MISR]
+	ldr	r6, [r2, #GICH_EISR0]
+	ldr	r7, [r2, #GICH_EISR1]
+	ldr	r8, [r2, #GICH_ELRSR0]
+	ldr	r9, [r2, #GICH_ELRSR1]
+	ldr	r10, [r2, #GICH_APR]
+
+	str	r3, [r11, #VGIC_CPU_HCR]
+	str	r4, [r11, #VGIC_CPU_VMCR]
+	str	r5, [r11, #VGIC_CPU_MISR]
+	str	r6, [r11, #VGIC_CPU_EISR]
+	str	r7, [r11, #(VGIC_CPU_EISR + 4)]
+	str	r8, [r11, #VGIC_CPU_ELRSR]
+	str	r9, [r11, #(VGIC_CPU_ELRSR + 4)]
+	str	r10, [r11, #VGIC_CPU_APR]
+
+	/* Clear GICH_HCR */
+	mov	r5, #0
+	str	r5, [r2, #GICH_HCR]
+
+	/* Save list registers */
+	add	r2, r2, #GICH_LR0
+	add	r3, r11, #VGIC_CPU_LR
+	ldr	r4, [r11, #VGIC_CPU_NR_LR]
+1:	ldr	r6, [r2], #4
+	str	r6, [r3], #4
+	subs	r4, r4, #1
+	bne	1b
+2:
+#endif
 .endm
 
 /*
@@ -377,6 +438,109 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro restore_vgic_state
+#ifdef CONFIG_KVM_ARM_VGIC
+	/* Get VGIC VCTRL base into r2 */
+	ldr	r2, [vcpu, #VCPU_KVM]
+	ldr	r2, [r2, #KVM_VGIC_VCTRL]
+	cmp	r2, #0
+	beq	2f
+
+	/* Compute the address of struct vgic_cpu */
+	add	r11, vcpu, #VCPU_VGIC_CPU
+
+	/* We only restore a minimal set of registers */
+	ldr	r3, [r11, #VGIC_CPU_HCR]
+	ldr	r4, [r11, #VGIC_CPU_VMCR]
+	ldr	r8, [r11, #VGIC_CPU_APR]
+
+	str	r3, [r2, #GICH_HCR]
+	str	r4, [r2, #GICH_VMCR]
+	str	r8, [r2, #GICH_APR]
+
+	/* Restore list registers */
+	add	r2, r2, #GICH_LR0
+	add	r3, r11, #VGIC_CPU_LR
+	ldr	r4, [r11, #VGIC_CPU_NR_LR]
+1:	ldr	r6, [r3], #4
+	str	r6, [r2], #4
+	subs	r4, r4, #1
+	bne	1b
+2:
+#endif
+.endm
+
+#define CNTHCTL_PL1PCTEN	(1 << 0)
+#define CNTHCTL_PL1PCEN		(1 << 1)
+
+/*
+ * Save the timer state onto the VCPU and allow physical timer/counter access
+ * for the host.
+ *
+ * Assumes vcpu pointer in vcpu reg
+ * Clobbers r2-r5
+ */
+.macro save_timer_state
+#ifdef CONFIG_KVM_ARM_TIMER
+	ldr	r4, [vcpu, #VCPU_KVM]
+	ldr	r2, [r4, #KVM_TIMER_ENABLED]
+	cmp	r2, #0
+	beq	1f
+
+	mrc	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+	str	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
+	bic	r2, #1			@ Clear ENABLE
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+	isb
+
+	mrrc	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	ldr	r4, =VCPU_TIMER_CNTV_CVAL
+	add	r5, vcpu, r4
+	strd	r2, r3, [r5]
+
+1:
+#endif
+	@ Allow physical timer/counter access for the host
+	mrc	p15, 4, r2, c14, c1, 0	@ CNTHCTL
+	orr	r2, r2, #(CNTHCTL_PL1PCEN | CNTHCTL_PL1PCTEN)
+	mcr	p15, 4, r2, c14, c1, 0	@ CNTHCTL
+.endm
+
+/*
+ * Load the timer state from the VCPU and deny physical timer/counter access
+ * for the host.
+ *
+ * Assumes vcpu pointer in vcpu reg
+ * Clobbers r2-r5
+ */
+.macro restore_timer_state
+	@ Disallow physical timer access for the guest
+	@ Physical counter access is allowed
+	mrc	p15, 4, r2, c14, c1, 0	@ CNTHCTL
+	orr	r2, r2, #CNTHCTL_PL1PCTEN
+	bic	r2, r2, #CNTHCTL_PL1PCEN
+	mcr	p15, 4, r2, c14, c1, 0	@ CNTHCTL
+
+#ifdef CONFIG_KVM_ARM_TIMER
+	ldr	r4, [vcpu, #VCPU_KVM]
+	ldr	r2, [r4, #KVM_TIMER_ENABLED]
+	cmp	r2, #0
+	beq	1f
+
+	ldr	r2, [r4, #KVM_TIMER_CNTVOFF]
+	ldr	r3, [r4, #(KVM_TIMER_CNTVOFF + 4)]
+	mcrr	p15, 4, r2, r3, c14	@ CNTVOFF
+
+	ldr	r4, =VCPU_TIMER_CNTV_CVAL
+	add	r5, vcpu, r4
+	ldrd	r2, r3, [r5]
+	mcrr	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	isb
+
+	ldr	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
+	and	r2, r2, #3
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+1:
+#endif
 .endm
 
 .equ vmentry,	0

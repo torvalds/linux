@@ -45,7 +45,8 @@
 #define c13_TID_URW	23	/* Thread ID, User R/W */
 #define c13_TID_URO	24	/* Thread ID, User R/O */
 #define c13_TID_PRIV	25	/* Thread ID, Privileged */
-#define NR_CP15_REGS	26	/* Number of regs (incl. invalid) */
+#define c14_CNTKCTL	26	/* Timer Control Register (PL1) */
+#define NR_CP15_REGS	27	/* Number of regs (incl. invalid) */
 
 #define ARM_EXCEPTION_RESET	  0
 #define ARM_EXCEPTION_UNDEFINED   1

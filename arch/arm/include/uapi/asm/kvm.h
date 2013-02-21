@@ -65,6 +65,22 @@ struct kvm_regs {
 #define KVM_ARM_TARGET_CORTEX_A15	0
 #define KVM_ARM_NUM_TARGETS		1
 
+/* KVM_ARM_SET_DEVICE_ADDR ioctl id encoding */
+#define KVM_ARM_DEVICE_TYPE_SHIFT	0
+#define KVM_ARM_DEVICE_TYPE_MASK	(0xffff << KVM_ARM_DEVICE_TYPE_SHIFT)
+#define KVM_ARM_DEVICE_ID_SHIFT		16
+#define KVM_ARM_DEVICE_ID_MASK		(0xffff << KVM_ARM_DEVICE_ID_SHIFT)
+
+/* Supported device IDs */
+#define KVM_ARM_DEVICE_VGIC_V2		0
+
+/* Supported VGIC address types  */
+#define KVM_VGIC_V2_ADDR_TYPE_DIST	0
+#define KVM_VGIC_V2_ADDR_TYPE_CPU	1
+
+#define KVM_VGIC_V2_DIST_SIZE		0x1000
+#define KVM_VGIC_V2_CPU_SIZE		0x2000
+
 #define KVM_ARM_VCPU_POWER_OFF		0 /* CPU is started in OFF state */
 
 struct kvm_vcpu_init {

@@ -222,6 +222,10 @@ static const struct coproc_reg cp15_regs[] = {
 			NULL, reset_unknown, c13_TID_URO },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 4), is32,
 			NULL, reset_unknown, c13_TID_PRIV },
+
+	/* CNTKCTL: swapped by interrupt.S. */
+	{ CRn(14), CRm( 1), Op1( 0), Op2( 0), is32,
+			NULL, reset_val, c14_CNTKCTL, 0x00000000 },
 };
 
 /* Target specific emulation tables */
