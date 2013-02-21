@@ -36,6 +36,9 @@ typedef int (*clk_dvfs_target_callback)(struct clk *clk, unsigned long rate,
  * @dvfs_mutex:		Lock
  * @vd_dvfs_target:	Callback function	
  */
+ #define VD_VOL_LIST_CNT (200)
+ #define VD_LIST_RELATION_L 0
+ #define VD_LIST_RELATION_H 1
 
 struct vd_node {
 	char			*name;
@@ -48,6 +51,8 @@ struct vd_node {
 	struct list_head	req_volt_list;
 	//struct mutex		dvfs_mutex;
 	vd_dvfs_target_callback	vd_dvfs_target;
+	unsigned n_voltages;
+	int volt_list[VD_VOL_LIST_CNT];
 };
 
 /**
@@ -166,6 +171,8 @@ struct dvfs_arm_table {
 #define dvfs_regulator_put(regu) regulator_put((regu))
 #define dvfs_regulator_set_voltage(regu,min_uV,max_uV) regulator_set_voltage((regu),(min_uV),(max_uV))
 #define dvfs_regulator_get_voltage(regu) regulator_get_voltage((regu))
+#define dvfs_regulator_list_voltage(regu,selector) regulator_list_voltage((regu),(selector))
+#define dvfs_regulator_count_voltages(regu) regulator_count_voltages((regu))
 
 #define dvfs_clk_get(a,b) clk_get((a),(b))
 #define dvfs_clk_get_rate_kz(a) (clk_get_rate((a))/1000)
@@ -201,8 +208,8 @@ int rk_regist_vd(struct vd_node *vd);
 int rk_regist_pd(struct pd_node_lookup *pd_lookup);
 int rk_regist_clk(struct clk_node *dvfs_clk);
 int rk_regist_depends(struct depend_lookup *dep_node);
-struct clk_node *dvfs_get_dvfs_clk_byname(char *name) ;
-
+struct clk_node *dvfs_get_dvfs_clk_byname(char *name);
+int vd_regulator_round_volt(struct vd_node *vd, int volt,int flags);
 
 /******************************************************************************/
 

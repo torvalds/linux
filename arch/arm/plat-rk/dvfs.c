@@ -40,6 +40,9 @@ static int dump_dbg_map(char *buf);
 #define get_volt_up_delay(new_volt, old_volt)	\
 	((new_volt) > (old_volt) ? (((new_volt) - (old_volt)) >> 9) : 0)
 
+
+
+/**************************************vd regulator functions***************************************/
 int dvfs_regulator_set_voltage_readback(struct regulator *regulator, int min_uV, int max_uV)
 {
 	int ret = 0, read_back = 0;
@@ -70,6 +73,104 @@ void clk_enable_dvfs_regulator_check(struct vd_node *vd)
 	vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
 }
 
+static void dvfs_get_vd_regulator_volt_list(struct vd_node *vd)
+{
+	unsigned i,selector=dvfs_regulator_count_voltages(vd->regulator);
+	int sel_volt=0;
+	
+	if(selector>VD_VOL_LIST_CNT)
+		selector=VD_VOL_LIST_CNT;
+	
+	mutex_unlock(&mutex);
+	for (i = 0; i<selector; i++) {
+		sel_volt=dvfs_regulator_list_voltage(vd->regulator,i);
+		if(sel_volt<=0)
+		{	
+			DVFS_WARNING("%s : selector=%u,but volt <=0\n",vd->name,i);
+			break;
+		}
+		vd->volt_list[i]=sel_volt;	
+		printk("%s:selector=%u,volt %d\n",vd->name,i,sel_volt);
+	}
+	vd->n_voltages=selector;
+	mutex_unlock(&mutex);
+}
+
+// >= volt
+static int vd_regulator_round_volt_max(struct vd_node *vd, int volt)
+{
+	int sel_volt;
+	unsigned i;
+	
+	for (i = 0; i<vd->n_voltages; i++) {
+		sel_volt=vd->volt_list[i];
+		if(sel_volt<=0)
+		{	
+			DVFS_WARNING("%s:list_volt : selector=%u,but volt <=0\n",__FUNCTION__,i);
+			return -1;
+		}
+		if(sel_volt>=volt)
+		 return sel_volt;	
+	}
+	return -1;
+}
+// >=volt
+static int vd_regulator_round_volt_min(struct vd_node *vd, int volt)
+{
+	int sel_volt;
+	unsigned i;
+	
+	for (i = 0; i<vd->n_voltages; i++) {
+		sel_volt=vd->volt_list[i];
+		if(sel_volt<=0)
+		{	
+			DVFS_WARNING("%s:list_volt : selector=%u,but volt <=0\n",__FUNCTION__,i);
+			return -1;
+		}
+		if(sel_volt>volt)
+		{
+			if(i>0)
+				return vd->volt_list[i-1];
+			else
+				return -1;
+		}	
+	}
+	return -1;
+}
+
+// >=volt
+int vd_regulator_round_volt(struct vd_node *vd, int volt,int flags)
+{
+	if(!vd->n_voltages)
+		return -1;
+	if(flags==VD_LIST_RELATION_L)
+		return vd_regulator_round_volt_min(vd,volt);
+	else
+		return vd_regulator_round_volt_max(vd,volt);	
+}
+EXPORT_SYMBOL(vd_regulator_round_volt);
+
+
+static void dvfs_table_round_volt(struct clk_node  *dvfs_clk)
+{
+	int i,test_volt;
+
+	if(!dvfs_clk->dvfs_table||!dvfs_clk->vd||IS_ERR_OR_NULL(dvfs_clk->vd->regulator))
+		return;
+	mutex_lock(&mutex);
+	for (i = 0; (dvfs_clk->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+
+		test_volt=vd_regulator_round_volt(dvfs_clk->vd,dvfs_clk->dvfs_table[i].index,VD_LIST_RELATION_H);
+		if(test_volt<=0)
+		{	
+			DVFS_WARNING("clk %s:round_volt : is %d,but list <=0\n",dvfs_clk->name,dvfs_clk->dvfs_table[i].index);
+			break;
+		}
+		printk("clk %s:round_volt %d to %d\n",dvfs_clk->name,dvfs_clk->dvfs_table[i].index,test_volt);
+		dvfs_clk->dvfs_table[i].index=test_volt;		
+	}
+	mutex_unlock(&mutex);
+}
 struct regulator *dvfs_get_regulator(char *regulator_name) 
 {
 	struct vd_node *vd;
@@ -81,6 +182,7 @@ struct regulator *dvfs_get_regulator(char *regulator_name)
 	return NULL;
 }
 
+/**************************************dvfs clocks functions***************************************/
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
 {
 	struct clk_node *dvfs_clk;
@@ -134,6 +236,38 @@ int dvfs_set_rate(struct clk *clk, unsigned long rate)
 	return ret;
 }
 
+static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
+{
+	int i;
+	long temp_rate;
+	int rate;
+	int flags;
+	
+	if(!dvfs_clk->dvfs_table||dvfs_clk->clk==NULL||is_suport_round_rate(dvfs_clk->clk)<0)
+		return;
+	
+	mutex_lock(&mutex);
+	for (i = 0; (dvfs_clk->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		//ddr rate = real rate+flags
+		flags=dvfs_clk->dvfs_table[i].frequency%1000;
+		rate=(dvfs_clk->dvfs_table[i].frequency/1000)*1000;
+		temp_rate=clk_round_rate(dvfs_clk->clk,rate*1000);
+		if(temp_rate<=0)
+		{	
+			DVFS_WARNING("clk %s:round_clk_rate : is %d,but round <=0",dvfs_clk->name,dvfs_clk->dvfs_table[i].frequency);
+			break;
+		}
+		temp_rate=(temp_rate/1000)+flags;
+		
+		printk("clk %s round_clk_rate %d to %d\n",
+			dvfs_clk->name,dvfs_clk->dvfs_table[i].frequency,(int)(temp_rate));
+		
+		dvfs_clk->dvfs_table[i].frequency=temp_rate;		
+	}
+	mutex_unlock(&mutex);
+}
+
+/***************************************************************************************************/
 static int dvfs_clk_get_ref_volt_depend(struct depend_list *depend, int rate_khz,
 		struct cpufreq_frequency_table *clk_fv)
 {
@@ -251,6 +385,7 @@ void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callba
 	dvfs_clk->clk_dvfs_target = clk_dvfs_target;
 }
 
+/************************************************ freq volt table************************************/
 struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk) 
 {
 	struct clk_node *info = clk_get_dvfs_info(clk);
@@ -302,6 +437,8 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 	DVFS_DBG("%s,clk %s,limit max=%lu,min=%lu\n",__FUNCTION__,info->name,info->max_rate,info->min_rate);
 
 	mutex_unlock(&mutex);
+	dvfs_table_round_clk_rate(info);
+	dvfs_table_round_volt(info);
 	return 0;
 }
 EXPORT_SYMBOL(dvfs_set_freq_volt_table);
@@ -359,8 +496,6 @@ int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table,
 }
 
 
-
-
 int clk_enable_dvfs(struct clk *clk)
 {
 	struct clk_node *dvfs_clk;
@@ -383,6 +518,7 @@ int clk_enable_dvfs(struct clk *clk)
 			if (!IS_ERR_OR_NULL(dvfs_clk->vd->regulator)) {
 				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
 				clk_enable_dvfs_regulator_check(dvfs_clk->vd);
+				dvfs_get_vd_regulator_volt_list(dvfs_clk->vd);
 			} else {
 				//dvfs_clk->vd->regulator = NULL;
 				dvfs_clk->enable_dvfs = 0;
@@ -394,6 +530,8 @@ int clk_enable_dvfs(struct clk *clk)
 			// DVFS_DBG("%s(%s) vd volt=%u\n",__func__,dvfs_clk->name,dvfs_clk->vd->cur_volt);
 		}
 
+		dvfs_table_round_clk_rate(dvfs_clk);
+		dvfs_table_round_volt(dvfs_clk);
 		dvfs_clk->set_freq = dvfs_clk_get_rate_kz(clk);
 		// DVFS_DBG("%s ,%s get freq%u!\n",__func__,dvfs_clk->name,dvfs_clk->set_freq);
 
