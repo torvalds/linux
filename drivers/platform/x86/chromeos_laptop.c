@@ -25,6 +25,8 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 
+#define ATMEL_TP_I2C_ADDR	0x4b
+#define ATMEL_TP_I2C_BL_ADDR	0x25
 #define CYAPA_TP_I2C_ADDR	0x67
 #define ISL_ALS_I2C_ADDR	0x44
 #define TAOS_ALS_I2C_ADDR	0x29
@@ -56,6 +58,12 @@ static struct i2c_board_info __initdata tsl2583_als_device = {
 
 static struct i2c_board_info __initdata tsl2563_als_device = {
 	I2C_BOARD_INFO("tsl2563", TAOS_ALS_I2C_ADDR),
+};
+
+static struct i2c_board_info __initdata atmel_224s_tp_device = {
+	I2C_BOARD_INFO("atmel_mxt_tp", ATMEL_TP_I2C_ADDR),
+	.platform_data = NULL,
+	.flags		= I2C_CLIENT_WAKE,
 };
 
 static struct i2c_client __init *__add_probed_i2c_device(
@@ -161,6 +169,19 @@ static int __init setup_cyapa_smbus_tp(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init setup_atmel_224s_tp(const struct dmi_system_id *id)
+{
+	const unsigned short addr_list[] = { ATMEL_TP_I2C_BL_ADDR,
+					     ATMEL_TP_I2C_ADDR,
+					     I2C_CLIENT_END };
+
+	/* add atmel mxt touchpad on VGA DDC GMBus */
+	tp = add_probed_i2c_device("trackpad", I2C_ADAPTER_VGADDC,
+				   &atmel_224s_tp_device, addr_list);
+	return 0;
+}
+
+
 static int __init setup_isl29018_als(const struct dmi_system_id *id)
 {
 	/* add isl29018 light sensor */
@@ -190,6 +211,14 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lumpy"),
 		},
 		.callback = setup_cyapa_smbus_tp,
+	},
+	{
+		.ident = "Chromebook Pixel - Touchpad",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
+		},
+		.callback = setup_atmel_224s_tp,
 	},
 	{
 		.ident = "Samsung Series 5 550 - Light Sensor",
