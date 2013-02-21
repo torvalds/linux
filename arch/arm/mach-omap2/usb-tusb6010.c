@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -27,12 +28,21 @@ static u8		async_cs, sync_cs;
 static unsigned		refclk_psec;
 
 static struct gpmc_settings tusb_async = {
+	.wait_on_read	= true,
+	.wait_on_write	= true,
+	.device_width	= GPMC_DEVWIDTH_16BIT,
 	.mux_add_data	= GPMC_MUX_AD,
 };
 
 static struct gpmc_settings tusb_sync = {
+	.burst_read	= true,
+	.burst_write	= true,
 	.sync_read	= true,
 	.sync_write	= true,
+	.wait_on_read	= true,
+	.wait_on_write	= true,
+	.burst_len	= GPMC_BURST_16,
+	.device_width	= GPMC_DEVWIDTH_16BIT,
 	.mux_add_data	= GPMC_MUX_AD,
 };
 
@@ -168,18 +178,12 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		return status;
 	}
 	tusb_resources[0].end = tusb_resources[0].start + 0x9ff;
+	tusb_async.wait_pin = waitpin;
 	async_cs = async;
-	gpmc_cs_write_reg(async, GPMC_CS_CONFIG1,
-			  GPMC_CONFIG1_PAGE_LEN(2)
-			| GPMC_CONFIG1_WAIT_READ_MON
-			| GPMC_CONFIG1_WAIT_WRITE_MON
-			| GPMC_CONFIG1_WAIT_PIN_SEL(waitpin)
-			| GPMC_CONFIG1_READTYPE_ASYNC
-			| GPMC_CONFIG1_WRITETYPE_ASYNC
-			| GPMC_CONFIG1_DEVICESIZE_16
-			| GPMC_CONFIG1_DEVICETYPE_NOR
-			| GPMC_CONFIG1_MUXADDDATA);
 
+	status = gpmc_cs_program_settings(async_cs, &tusb_async);
+	if (status < 0)
+		return status;
 
 	/* SYNC region, primarily for DMA */
 	status = gpmc_cs_request(sync, SZ_16M, (unsigned long *)
@@ -189,21 +193,12 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		return status;
 	}
 	tusb_resources[1].end = tusb_resources[1].start + 0x9ff;
+	tusb_sync.wait_pin = waitpin;
 	sync_cs = sync;
-	gpmc_cs_write_reg(sync, GPMC_CS_CONFIG1,
-			  GPMC_CONFIG1_READMULTIPLE_SUPP
-			| GPMC_CONFIG1_READTYPE_SYNC
-			| GPMC_CONFIG1_WRITEMULTIPLE_SUPP
-			| GPMC_CONFIG1_WRITETYPE_SYNC
-			| GPMC_CONFIG1_PAGE_LEN(2)
-			| GPMC_CONFIG1_WAIT_READ_MON
-			| GPMC_CONFIG1_WAIT_WRITE_MON
-			| GPMC_CONFIG1_WAIT_PIN_SEL(waitpin)
-			| GPMC_CONFIG1_DEVICESIZE_16
-			| GPMC_CONFIG1_DEVICETYPE_NOR
-			| GPMC_CONFIG1_MUXADDDATA
-			/* fclk divider gets set later */
-			);
+
+	status = gpmc_cs_program_settings(sync_cs, &tusb_sync);
+	if (status < 0)
+		return status;
 
 	/* IRQ */
 	status = gpio_request_one(irq, GPIOF_IN, "TUSB6010 irq");
