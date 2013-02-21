@@ -1755,7 +1755,7 @@ static inline int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 static inline int qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
-	return adapter->ahw->hw_ops->config_loopback(adapter, mode);
+	return adapter->ahw->hw_ops->clear_loopback(adapter, mode);
 }
 
 static inline int qlcnic_nic_set_promisc(struct qlcnic_adapter *adapter,
