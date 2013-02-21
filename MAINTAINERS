@@ -7600,8 +7600,8 @@ S:	Odd Fixes
 F:	drivers/staging/sm7xxfb/
 
 STAGING - SOFTLOGIC 6x10 MPEG CODEC
-M:	Ben Collins <bcollins@bluecherry.net>
-S:	Odd Fixes
+M:	Ismael Luceno <ismael.luceno@corp.bluecherry.net>
+S:	Supported
 F:	drivers/staging/media/solo6x10/
 
 STAGING - SPEAKUP CONSOLE SPEECH DRIVER
