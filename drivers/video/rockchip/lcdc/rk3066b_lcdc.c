@@ -530,7 +530,7 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 		LcdWrReg(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		LcdWrReg(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
 		// enable win1 color key and set the color to black(rgb=0)
-		LcdMskReg(lcdc_dev,WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(0) | v_KEYCOLOR(0));
+		LcdMskReg(lcdc_dev,WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 		LcdWrReg(lcdc_dev,WIN1_VIR,v_VIRWIDTH(xvir));
 		
 		//LCDC_REG_CFG_DONE(); 
