@@ -67,8 +67,6 @@ struct timekeeper {
 	/* Offset clock monotonic -> clock tai */
 	ktime_t			offs_tai;
 
-	/* Seqlock for all timekeeper values */
-	seqlock_t		lock;
 };
 
 static inline struct timespec tk_xtime(struct timekeeper *tk)
