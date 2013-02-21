@@ -264,7 +264,7 @@ void DumpFullPacket(UCHAR *pBuf, UINT nPktLen)
  * pPhsdeviceExtension - ptr to Device extension containing PHS Classifier rules and PHS Rules , RX, TX buffer etc
  *
  * Returns:
- * TRUE(1)	-If allocation of memory was success full.
+ * TRUE(1)	-If allocation of memory was successful.
  * FALSE	-If allocation of memory fails.
  */
 int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
