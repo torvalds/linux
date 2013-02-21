@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <asm/system_misc.h>
 
+#include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
 #include "powerdomain.h"
@@ -98,13 +99,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	 * further down in the code path
 	 */
 	if (!strncmp(pwrdm->name, "cpu", 3))
-		return 0;
-
-	/*
-	 * FIXME: Remove this check when core retention is supported
-	 * Only MPUSS power domain is added in the list.
-	 */
-	if (strcmp(pwrdm->name, "mpu_pwrdm"))
 		return 0;
 
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);

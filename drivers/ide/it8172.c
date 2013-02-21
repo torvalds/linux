@@ -115,7 +115,7 @@ static const struct ide_port_ops it8172_port_ops = {
 	.set_dma_mode	= it8172_set_dma_mode,
 };
 
-static const struct ide_port_info it8172_port_info __devinitconst = {
+static const struct ide_port_info it8172_port_info = {
 	.name		= DRV_NAME,
 	.port_ops	= &it8172_port_ops,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x00, 0x00, 0x00} },
@@ -125,8 +125,7 @@ static const struct ide_port_info it8172_port_info __devinitconst = {
 	.udma_mask	= ATA_UDMA2,
 };
 
-static int __devinit it8172_init_one(struct pci_dev *dev,
-					const struct pci_device_id *id)
+static int it8172_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
 		return -ENODEV; /* IT8172 is more than an IDE controller */

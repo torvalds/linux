@@ -554,7 +554,7 @@ static struct uart_driver vt8500_uart_driver = {
 	.cons		= VT8500_CONSOLE,
 };
 
-static int __devinit vt8500_serial_probe(struct platform_device *pdev)
+static int vt8500_serial_probe(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port;
 	struct resource *mmres, *irqres;
@@ -566,10 +566,6 @@ static int __devinit vt8500_serial_probe(struct platform_device *pdev)
 	irqres = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!mmres || !irqres)
 		return -ENODEV;
-
-	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
-	if (!vt8500_port)
-		return -ENOMEM;
 
 	if (np)
 		port = of_alias_get_id(np, "serial");
@@ -593,6 +589,10 @@ static int __devinit vt8500_serial_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
+	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
+	if (!vt8500_port)
+		return -ENOMEM;
+
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
 	vt8500_port->uart.mapbase = mmres->start;
@@ -604,7 +604,7 @@ static int __devinit vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 
 	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
-	if (vt8500_port->clk) {
+	if (!IS_ERR(vt8500_port->clk)) {
 		vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
 	} else {
 		/* use the default of 24Mhz if not specified and warn */
@@ -634,7 +634,7 @@ err:
 	return ret;
 }
 
-static int __devexit vt8500_serial_remove(struct platform_device *pdev)
+static int vt8500_serial_remove(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
 
@@ -652,7 +652,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver vt8500_platform_driver = {
 	.probe  = vt8500_serial_probe,
-	.remove = __devexit_p(vt8500_serial_remove),
+	.remove = vt8500_serial_remove,
 	.driver = {
 		.name = "vt8500_serial",
 		.owner = THIS_MODULE,

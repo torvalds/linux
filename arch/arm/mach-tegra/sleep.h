@@ -17,7 +17,7 @@
 #ifndef __MACH_TEGRA_SLEEP_H
 #define __MACH_TEGRA_SLEEP_H
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #define TEGRA_ARM_PERIF_VIRT (TEGRA_ARM_PERIF_BASE - IO_CPU_PHYS \
 					+ IO_CPU_VIRT)
@@ -71,7 +71,41 @@
 	str	\tmp2, [\tmp1]			@ invalidate SCU tags for CPU
 	dsb
 .endm
+
+/* Macro to resume & re-enable L2 cache */
+#ifndef L2X0_CTRL_EN
+#define L2X0_CTRL_EN	1
+#endif
+
+#ifdef CONFIG_CACHE_L2X0
+.macro l2_cache_resume, tmp1, tmp2, tmp3, phys_l2x0_saved_regs
+	adr	\tmp1, \phys_l2x0_saved_regs
+	ldr	\tmp1, [\tmp1]
+	ldr	\tmp2, [\tmp1, #L2X0_R_PHY_BASE]
+	ldr	\tmp3, [\tmp2, #L2X0_CTRL]
+	tst	\tmp3, #L2X0_CTRL_EN
+	bne	exit_l2_resume
+	ldr	\tmp3, [\tmp1, #L2X0_R_TAG_LATENCY]
+	str	\tmp3, [\tmp2, #L2X0_TAG_LATENCY_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_DATA_LATENCY]
+	str	\tmp3, [\tmp2, #L2X0_DATA_LATENCY_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_PREFETCH_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_PREFETCH_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_PWR_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_POWER_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_AUX_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_AUX_CTRL]
+	mov	\tmp3, #L2X0_CTRL_EN
+	str	\tmp3, [\tmp2, #L2X0_CTRL]
+exit_l2_resume:
+.endm
+#else /* CONFIG_CACHE_L2X0 */
+.macro l2_cache_resume, tmp1, tmp2, tmp3, phys_l2x0_saved_regs
+.endm
+#endif /* CONFIG_CACHE_L2X0 */
 #else
+void tegra_resume(void);
+int tegra_sleep_cpu_finish(unsigned long);
 
 #ifdef CONFIG_HOTPLUG_CPU
 void tegra20_hotplug_init(void);
@@ -80,6 +114,9 @@ void tegra30_hotplug_init(void);
 static inline void tegra20_hotplug_init(void) {}
 static inline void tegra30_hotplug_init(void) {}
 #endif
+
+int tegra30_sleep_cpu_secondary_finish(unsigned long);
+void tegra30_tear_down_cpu(void);
 
 #endif
 #endif

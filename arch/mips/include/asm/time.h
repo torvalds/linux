@@ -50,10 +50,8 @@ extern int (*perf_irq)(void);
 /*
  * Initialize the calling CPU's compare interrupt as clockevent device
  */
-#ifdef CONFIG_CEVT_R4K_LIB
 extern unsigned int __weak get_c0_compare_int(void);
 extern int r4k_clockevent_init(void);
-#endif
 
 static inline int mips_clockevent_init(void)
 {
@@ -71,7 +69,7 @@ static inline int mips_clockevent_init(void)
 /*
  * Initialize the count register as a clocksource
  */
-#ifdef CONFIG_CSRC_R4K_LIB
+#ifdef CONFIG_CSRC_R4K
 extern int init_r4k_clocksource(void);
 #endif
 

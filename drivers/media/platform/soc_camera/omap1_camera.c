@@ -34,12 +34,13 @@
 #include <media/videobuf-dma-contig.h>
 #include <media/videobuf-dma-sg.h>
 
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 
 
 #define DRIVER_NAME		"omap1-camera"
 #define DRIVER_VERSION		"0.0.2"
 
+#define OMAP_DMA_CAMERA_IF_RX		20
 
 /*
  * ---------------------------------------------------------------------------
@@ -1215,9 +1216,9 @@ static int set_mbus_format(struct omap1_cam_dev *pcdev, struct device *dev,
 }
 
 static int omap1_cam_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *crop)
+			       const struct v4l2_crop *crop)
 {
-	struct v4l2_rect *rect = &crop->c;
+	const struct v4l2_rect *rect = &crop->c;
 	const struct soc_camera_format_xlate *xlate = icd->current_fmt;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;

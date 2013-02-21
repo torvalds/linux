@@ -95,7 +95,7 @@ struct nfc_genl_data {
 };
 
 struct nfc_dev {
-	unsigned int idx;
+	int idx;
 	u32 target_next_idx;
 	struct nfc_target *targets;
 	int n_targets;

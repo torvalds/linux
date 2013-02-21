@@ -148,6 +148,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 #define compat_start_thread(regs, ip, usp) do { \
 		regs->pc = ptr_to_compat_reg((void *)(ip)); \
 		regs->sp = ptr_to_compat_reg((void *)(usp)); \
+		single_step_execve();	\
 	} while (0)
 
 /*
@@ -168,5 +169,7 @@ do { \
 #define COMPAT_ELF_ET_DYN_BASE (0xffffffff / 3 * 2)
 
 #endif /* CONFIG_COMPAT */
+
+#define CORE_DUMP_USE_REGSET
 
 #endif /* _ASM_TILE_ELF_H */

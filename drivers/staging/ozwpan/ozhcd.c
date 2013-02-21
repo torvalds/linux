@@ -278,8 +278,7 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
 			g_link_pool_size++;
 		}
 		spin_unlock_irqrestore(&g_link_lock, irq_state);
-		if (urbl)
-			kfree(urbl);
+		kfree(urbl);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -2304,8 +2303,8 @@ error:
  */
 void oz_hcd_term(void)
 {
-	tasklet_disable(&g_urb_process_tasklet);
-	tasklet_disable(&g_urb_cancel_tasklet);
+	tasklet_kill(&g_urb_process_tasklet);
+	tasklet_kill(&g_urb_cancel_tasklet);
 	platform_device_unregister(g_plat_dev);
 	platform_driver_unregister(&g_oz_plat_drv);
 	oz_trace("Pending urbs:%d\n", atomic_read(&g_pending_urbs));

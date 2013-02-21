@@ -93,7 +93,7 @@ struct lm3642_chip_data {
 };
 
 /* chip initialize */
-static int __devinit lm3642_chip_init(struct lm3642_chip_data *chip)
+static int lm3642_chip_init(struct lm3642_chip_data *chip)
 {
 	int ret;
 	struct lm3642_platform_data *pdata = chip->pdata;
@@ -201,13 +201,13 @@ static ssize_t lm3642_torch_pin_store(struct device *dev,
 	return size;
 out:
 	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 out_strtoint:
 	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return size;
+	return ret;
 }
 
-static DEVICE_ATTR(torch_pin, 0666, NULL, lm3642_torch_pin_store);
+static DEVICE_ATTR(torch_pin, S_IWUSR, NULL, lm3642_torch_pin_store);
 
 static void lm3642_deferred_torch_brightness_set(struct work_struct *work)
 {
@@ -258,13 +258,13 @@ static ssize_t lm3642_strobe_pin_store(struct device *dev,
 	return size;
 out:
 	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 out_strtoint:
 	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return size;
+	return ret;
 }
 
-static DEVICE_ATTR(strobe_pin, 0666, NULL, lm3642_strobe_pin_store);
+static DEVICE_ATTR(strobe_pin, S_IWUSR, NULL, lm3642_strobe_pin_store);
 
 static void lm3642_deferred_strobe_brightness_set(struct work_struct *work)
 {
@@ -313,7 +313,7 @@ static const struct regmap_config lm3642_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int __devinit lm3642_probe(struct i2c_client *client,
+static int lm3642_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm3642_platform_data *pdata = client->dev.platform_data;
@@ -420,7 +420,7 @@ err_out:
 	return err;
 }
 
-static int __devexit lm3642_remove(struct i2c_client *client)
+static int lm3642_remove(struct i2c_client *client)
 {
 	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
 
@@ -450,7 +450,7 @@ static struct i2c_driver lm3642_i2c_driver = {
 		   .pm = NULL,
 		   },
 	.probe = lm3642_probe,
-	.remove = __devexit_p(lm3642_remove),
+	.remove = lm3642_remove,
 	.id_table = lm3642_id,
 };
 

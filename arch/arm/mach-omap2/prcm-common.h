@@ -406,11 +406,6 @@
 #define OMAP3430_EN_CORE_MASK				(1 << 0)
 
 
-/*
- * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
- * submodule to exit hardreset
- */
-#define MAX_MODULE_HARDRESET_WAIT		10000
 
 /*
  * Maximum time(us) it takes to output the signal WUCLKOUT of the last
@@ -419,24 +414,7 @@
  * microseconds on OMAP4, so this timeout may be too high.
  */
 #define MAX_IOPAD_LATCH_TIME			100
-
 # ifndef __ASSEMBLER__
-extern void __iomem *prm_base;
-extern void __iomem *cm_base;
-extern void __iomem *cm2_base;
-extern void __iomem *prcm_mpu_base;
-
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
-extern void omap_prm_base_init(void);
-extern void omap_cm_base_init(void);
-#else
-static inline void omap_prm_base_init(void)
-{
-}
-static inline void omap_cm_base_init(void)
-{
-}
-#endif
 
 /**
  * struct omap_prcm_irq - describes a PRCM interrupt bit

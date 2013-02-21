@@ -33,13 +33,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/board-pcm038.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
-#include <mach/ulpi.h>
-
+#include "board-pcm038.h"
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
+#include "ulpi.h"
 
 static const int pcm038_pins[] __initconst = {
 	/* UART1 */
@@ -212,7 +211,7 @@ static const struct spi_imx_master pcm038_spi0_data __initconst = {
 
 static struct regulator_consumer_supply sdhc1_consumers[] = {
 	{
-		.dev_name = "mxc-mmc.1",
+		.dev_name = "imx21-mmc.1",
 		.supply	= "sdhc_vcc",
 	},
 };

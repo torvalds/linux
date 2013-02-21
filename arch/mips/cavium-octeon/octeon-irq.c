@@ -1266,7 +1266,6 @@ static void __init octeon_irq_init_ciu(void)
 		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_TIMER0, 0, i + 52);
 
 	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB0, 0, 56);
-	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_BOOTDMA, 0, 63);
 
 	/* CIU_1 */
 	for (i = 0; i < 16; i++)

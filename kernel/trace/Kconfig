@@ -119,6 +119,7 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
+	select IRQ_WORK
 
 config GENERIC_TRACER
 	bool

@@ -30,7 +30,7 @@ void cb710_pci_update_config_reg(struct pci_dev *pdev,
 EXPORT_SYMBOL_GPL(cb710_pci_update_config_reg);
 
 /* Some magic writes based on Windows driver init code */
-static int __devinit cb710_pci_configure(struct pci_dev *pdev)
+static int cb710_pci_configure(struct pci_dev *pdev)
 {
 	unsigned int devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
 	struct pci_dev *pdev0;
@@ -96,7 +96,7 @@ static void cb710_release_slot(struct device *dev)
 #endif
 }
 
-static int __devinit cb710_register_slot(struct cb710_chip *chip,
+static int cb710_register_slot(struct cb710_chip *chip,
 	unsigned slot_mask, unsigned io_offset, const char *name)
 {
 	int nr = chip->slots;
@@ -201,7 +201,7 @@ static int cb710_resume(struct pci_dev *pdev)
 
 #endif /* CONFIG_PM */
 
-static int __devinit cb710_probe(struct pci_dev *pdev,
+static int cb710_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	struct cb710_chip *chip;
@@ -305,7 +305,7 @@ unreg_mmc:
 	return err;
 }
 
-static void __devexit cb710_remove_one(struct pci_dev *pdev)
+static void cb710_remove_one(struct pci_dev *pdev)
 {
 	struct cb710_chip *chip = pci_get_drvdata(pdev);
 	unsigned long flags;
@@ -332,7 +332,7 @@ static struct pci_driver cb710_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = cb710_pci_tbl,
 	.probe = cb710_probe,
-	.remove = __devexit_p(cb710_remove_one),
+	.remove = cb710_remove_one,
 #ifdef CONFIG_PM
 	.suspend = cb710_suspend,
 	.resume = cb710_resume,

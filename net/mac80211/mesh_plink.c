@@ -19,12 +19,6 @@
 #define mod_plink_timer(s, t) (mod_timer(&s->plink_timer, \
 				jiffies + HZ * t / 1000))
 
-#define dot11MeshMaxRetries(s) (s->u.mesh.mshcfg.dot11MeshMaxRetries)
-#define dot11MeshRetryTimeout(s) (s->u.mesh.mshcfg.dot11MeshRetryTimeout)
-#define dot11MeshConfirmTimeout(s) (s->u.mesh.mshcfg.dot11MeshConfirmTimeout)
-#define dot11MeshHoldingTimeout(s) (s->u.mesh.mshcfg.dot11MeshHoldingTimeout)
-#define dot11MeshMaxPeerLinks(s) (s->u.mesh.mshcfg.dot11MeshMaxPeerLinks)
-
 /* We only need a valid sta if user configured a minimum rssi_threshold. */
 #define rssi_threshold_check(sta, sdata) \
 		(sdata->u.mesh.mshcfg.rssi_threshold == 0 ||\
@@ -50,14 +44,14 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 static inline
 u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_inc(&sdata->u.mesh.mshstats.estab_plinks);
+	atomic_inc(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata);
 }
 
 static inline
 u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_dec(&sdata->u.mesh.mshstats.estab_plinks);
+	atomic_dec(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata);
 }
 
@@ -117,7 +111,7 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
-	if (sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
+	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
 	rcu_read_lock();
@@ -126,14 +120,14 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 		    sta->plink_state != NL80211_PLINK_ESTAB)
 			continue;
 
-		switch (sta->ch_type) {
-		case NL80211_CHAN_NO_HT:
+		switch (sta->ch_width) {
+		case NL80211_CHAN_WIDTH_20_NOHT:
 			mpl_dbg(sdata,
 				"mesh_plink %pM: nonHT sta (%pM) is present\n",
 				sdata->vif.addr, sta->sta.addr);
 			non_ht_sta = true;
 			goto out;
-		case NL80211_CHAN_HT20:
+		case NL80211_CHAN_WIDTH_20:
 			mpl_dbg(sdata,
 				"mesh_plink %pM: HT20 sta (%pM) is present\n",
 				sdata->vif.addr, sta->sta.addr);
@@ -148,7 +142,7 @@ out:
 	if (non_ht_sta)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED;
 	else if (ht20_sta &&
-		 sdata->vif.bss_conf.channel_type > NL80211_CHAN_HT20)
+		 sdata->vif.bss_conf.chandef.width > NL80211_CHAN_WIDTH_20)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_20MHZ;
 	else
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
@@ -252,6 +246,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.self_prot.action_code = action;
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
+		enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+
 		/* capability info */
 		pos = skb_put(skb, 2);
 		memset(pos, 0, 2);
@@ -260,10 +256,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			pos = skb_put(skb, 2);
 			memcpy(pos + 2, &plid, 2);
 		}
-		if (ieee80211_add_srates_ie(sdata, skb, true,
-					    local->oper_channel->band) ||
-		    ieee80211_add_ext_srates_ie(sdata, skb, true,
-						local->oper_channel->band) ||
+		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
+		    ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata))
@@ -343,7 +337,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 				       struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = local->oper_channel->band;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u32 rates, basic_rates = 0;
 	struct sta_info *sta;
@@ -378,7 +372,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem &&
-	    sdata->vif.bss_conf.channel_type != NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
 						  &sta->sta.ht_cap);
@@ -386,15 +380,19 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
 
 	if (elems->ht_operation) {
+		struct cfg80211_chan_def chandef;
+
 		if (!(elems->ht_operation->ht_param &
 		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
 			sta->sta.ht_cap.cap &=
 					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		sta->ch_type =
-			ieee80211_ht_oper_to_channel_type(elems->ht_operation);
+		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
+					     elems->ht_operation, &chandef);
+		sta->ch_width = chandef.width;
 	}
 
-	rate_control_rate_init(sta);
+	if (insert)
+		rate_control_rate_init(sta);
 	spin_unlock_bh(&sta->lock);
 
 	if (insert && sta_info_insert(sta))
@@ -430,6 +428,7 @@ static void mesh_plink_timer(unsigned long data)
 	struct sta_info *sta;
 	__le16 llid, plid, reason;
 	struct ieee80211_sub_if_data *sdata;
+	struct mesh_config *mshcfg;
 
 	/*
 	 * This STA is valid because sta_info_destroy() will
@@ -456,12 +455,13 @@ static void mesh_plink_timer(unsigned long data)
 	llid = sta->llid;
 	plid = sta->plid;
 	sdata = sta->sdata;
+	mshcfg = &sdata->u.mesh.mshcfg;
 
 	switch (sta->plink_state) {
 	case NL80211_PLINK_OPN_RCVD:
 	case NL80211_PLINK_OPN_SNT:
 		/* retry timer */
-		if (sta->plink_retries < dot11MeshMaxRetries(sdata)) {
+		if (sta->plink_retries < mshcfg->dot11MeshMaxRetries) {
 			u32 rand;
 			mpl_dbg(sta->sdata,
 				"Mesh plink for %pM (retry, timeout): %d %d\n",
@@ -484,7 +484,7 @@ static void mesh_plink_timer(unsigned long data)
 		if (!reason)
 			reason = cpu_to_le16(WLAN_REASON_MESH_CONFIRM_TIMEOUT);
 		sta->plink_state = NL80211_PLINK_HOLDING;
-		mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
+		mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
 		spin_unlock_bh(&sta->lock);
 		mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
 				    sta->sta.addr, llid, plid, reason);
@@ -543,7 +543,7 @@ int mesh_plink_open(struct sta_info *sta)
 		return -EBUSY;
 	}
 	sta->plink_state = NL80211_PLINK_OPN_SNT;
-	mesh_plink_timer_set(sta, dot11MeshRetryTimeout(sdata));
+	mesh_plink_timer_set(sta, sdata->u.mesh.mshcfg.dot11MeshRetryTimeout);
 	spin_unlock_bh(&sta->lock);
 	mpl_dbg(sdata,
 		"Mesh plink: starting establishment with %pM\n",
@@ -570,6 +570,7 @@ void mesh_plink_block(struct sta_info *sta)
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
 			 size_t len, struct ieee80211_rx_status *rx_status)
 {
+	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
 	struct ieee802_11_elems elems;
 	struct sta_info *sta;
 	enum plink_event event;
@@ -777,7 +778,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->plid = plid;
 			get_random_bytes(&llid, 2);
 			sta->llid = llid;
-			mesh_plink_timer_set(sta, dot11MeshRetryTimeout(sdata));
+			mesh_plink_timer_set(sta,
+					     mshcfg->dot11MeshRetryTimeout);
 			spin_unlock_bh(&sta->lock);
 			mesh_plink_frame_tx(sdata,
 					    WLAN_SP_MESH_PEERING_OPEN,
@@ -803,7 +805,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->reason = reason;
 			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
-					     dot11MeshHoldingTimeout(sdata)))
+					     mshcfg->dot11MeshHoldingTimeout))
 				sta->ignore_plink_timer = true;
 
 			llid = sta->llid;
@@ -825,7 +827,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		case CNF_ACPT:
 			sta->plink_state = NL80211_PLINK_CNF_RCVD;
 			if (!mod_plink_timer(sta,
-					     dot11MeshConfirmTimeout(sdata)))
+					     mshcfg->dot11MeshConfirmTimeout))
 				sta->ignore_plink_timer = true;
 
 			spin_unlock_bh(&sta->lock);
@@ -847,7 +849,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->reason = reason;
 			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
-					     dot11MeshHoldingTimeout(sdata)))
+					     mshcfg->dot11MeshHoldingTimeout))
 				sta->ignore_plink_timer = true;
 
 			llid = sta->llid;
@@ -888,7 +890,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->reason = reason;
 			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
-					     dot11MeshHoldingTimeout(sdata)))
+					     mshcfg->dot11MeshHoldingTimeout))
 				sta->ignore_plink_timer = true;
 
 			llid = sta->llid;
@@ -923,7 +925,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			changed |= __mesh_plink_deactivate(sta);
 			sta->plink_state = NL80211_PLINK_HOLDING;
 			llid = sta->llid;
-			mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
+			mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
 			spin_unlock_bh(&sta->lock);
 			changed |= mesh_set_ht_prot_mode(sdata);
 			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,

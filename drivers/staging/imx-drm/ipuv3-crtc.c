@@ -116,7 +116,7 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	dev_info(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
+	dev_dbg(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -452,7 +452,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	int ret;
 
 	ipu_crtc->ipu_ch = ipu_idmac_get(ipu, pdata->dma[0]);
-	if (IS_ERR_OR_NULL(ipu_crtc->ipu_ch)) {
+	if (IS_ERR(ipu_crtc->ipu_ch)) {
 		ret = PTR_ERR(ipu_crtc->ipu_ch);
 		goto err_out;
 	}
@@ -472,7 +472,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	if (pdata->dp >= 0) {
 		ipu_crtc->dp = ipu_dp_get(ipu, pdata->dp);
 		if (IS_ERR(ipu_crtc->dp)) {
-			ret = PTR_ERR(ipu_crtc->ipu_ch);
+			ret = PTR_ERR(ipu_crtc->dp);
 			goto err_out;
 		}
 	}
@@ -530,7 +530,7 @@ err_put_resources:
 	return ret;
 }
 
-static int __devinit ipu_drm_probe(struct platform_device *pdev)
+static int ipu_drm_probe(struct platform_device *pdev)
 {
 	struct ipu_client_platformdata *pdata = pdev->dev.platform_data;
 	struct ipu_crtc *ipu_crtc;
@@ -548,13 +548,15 @@ static int __devinit ipu_drm_probe(struct platform_device *pdev)
 	ipu_crtc->dev = &pdev->dev;
 
 	ret = ipu_crtc_init(ipu_crtc, pdata);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, ipu_crtc);
 
 	return 0;
 }
 
-static int __devexit ipu_drm_remove(struct platform_device *pdev)
+static int ipu_drm_remove(struct platform_device *pdev)
 {
 	struct ipu_crtc *ipu_crtc = platform_get_drvdata(pdev);
 
@@ -570,7 +572,7 @@ static struct platform_driver ipu_drm_driver = {
 		.name = "imx-ipuv3-crtc",
 	},
 	.probe = ipu_drm_probe,
-	.remove = __devexit_p(ipu_drm_remove),
+	.remove = ipu_drm_remove,
 };
 module_platform_driver(ipu_drm_driver);
 

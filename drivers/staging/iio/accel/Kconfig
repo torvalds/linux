@@ -6,8 +6,8 @@ menu "Accelerometers"
 config ADIS16201
 	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
 	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_SW_RING if IIO_BUFFER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices adis16201 dual-axis
 	  digital inclinometer and accelerometer.
@@ -15,8 +15,8 @@ config ADIS16201
 config ADIS16203
 	tristate "Analog Devices ADIS16203 Programmable 360 Degrees Inclinometer"
 	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_SW_RING if IIO_BUFFER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices adis16203 Programmable
 	  360 Degrees Inclinometer.
@@ -24,8 +24,8 @@ config ADIS16203
 config ADIS16204
 	tristate "Analog Devices ADIS16204 Programmable High-g Digital Impact Sensor and Recorder"
 	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_SW_RING if IIO_BUFFER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices adis16204 Programmable
 	  High-g Digital Impact Sensor and Recorder.
@@ -33,8 +33,8 @@ config ADIS16204
 config ADIS16209
 	tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
 	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_SW_RING if IIO_BUFFER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices adis16209 dual-axis digital inclinometer
 	  and accelerometer.
@@ -42,6 +42,7 @@ config ADIS16209
 config ADIS16220
 	tristate "Analog Devices ADIS16220 Programmable Digital Vibration Sensor"
 	depends on SPI
+	select IIO_ADIS_LIB
 	help
 	  Say yes here to build support for Analog Devices adis16220 programmable
 	  digital vibration sensor.
@@ -49,8 +50,8 @@ config ADIS16220
 config ADIS16240
 	tristate "Analog Devices ADIS16240 Programmable Impact Sensor and Recorder"
 	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_SW_RING if IIO_BUFFER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices adis16240 programmable
 	  impact Sensor and recorder.

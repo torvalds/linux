@@ -46,7 +46,7 @@
 
 #define DRIVER_NAME		"Mantis Core"
 
-int __devinit mantis_pci_init(struct mantis_pci *mantis)
+int mantis_pci_init(struct mantis_pci *mantis)
 {
 	u8 latency;
 	struct mantis_hwconfig *config	= mantis->hwconfig;

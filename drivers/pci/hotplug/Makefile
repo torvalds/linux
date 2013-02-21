@@ -18,6 +18,7 @@ obj-$(CONFIG_HOTPLUG_PCI_RPA)		+= rpaphp.o
 obj-$(CONFIG_HOTPLUG_PCI_RPA_DLPAR)	+= rpadlpar_io.o
 obj-$(CONFIG_HOTPLUG_PCI_SGI)		+= sgi_hotplug.o
 obj-$(CONFIG_HOTPLUG_PCI_ACPI)		+= acpiphp.o
+obj-$(CONFIG_HOTPLUG_PCI_S390)		+= s390_pci_hpc.o
 
 # acpiphp_ibm extends acpiphp, so should be linked afterwards.
 

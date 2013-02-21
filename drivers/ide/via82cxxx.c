@@ -403,7 +403,7 @@ static const struct ide_port_ops via_port_ops = {
 	.cable_detect		= via82cxxx_cable_detect,
 };
 
-static const struct ide_port_info via82cxxx_chipset __devinitconst = {
+static const struct ide_port_info via82cxxx_chipset = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_via82cxxx,
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
@@ -416,7 +416,7 @@ static const struct ide_port_info via82cxxx_chipset __devinitconst = {
 	.mwdma_mask	= ATA_MWDMA2,
 };
 
-static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct pci_dev *isa = NULL;
 	struct via_isa_bridge *via_config;
@@ -489,7 +489,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	return rc;
 }
 
-static void __devexit via_remove(struct pci_dev *dev)
+static void via_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
@@ -514,7 +514,7 @@ static struct pci_driver via_pci_driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
-	.remove		= __devexit_p(via_remove),
+	.remove		= via_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

@@ -156,12 +156,12 @@ sub asn1_extract($$@)
 
 	if ($l == 0x1) {
 	    $len = unpack("C", substr(${$cursor->[2]}, $cursor->[0], 1));
-	} elsif ($l = 0x2) {
+	} elsif ($l == 0x2) {
 	    $len = unpack("n", substr(${$cursor->[2]}, $cursor->[0], 2));
-	} elsif ($l = 0x3) {
+	} elsif ($l == 0x3) {
 	    $len = unpack("C", substr(${$cursor->[2]}, $cursor->[0], 1)) << 16;
 	    $len = unpack("n", substr(${$cursor->[2]}, $cursor->[0] + 1, 2));
-	} elsif ($l = 0x4) {
+	} elsif ($l == 0x4) {
 	    $len = unpack("N", substr(${$cursor->[2]}, $cursor->[0], 4));
 	} else {
 	    die $x509, ": ", $cursor->[0], ": ASN.1 element too long (", $l, ")\n";

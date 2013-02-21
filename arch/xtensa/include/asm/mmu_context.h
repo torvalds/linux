@@ -107,7 +107,7 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
-                             struct task_struct *tsk)
+			     struct task_struct *tsk)
 {
 	unsigned long asid = asid_cache;
 

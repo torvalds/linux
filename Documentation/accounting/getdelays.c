@@ -51,7 +51,6 @@ int dbg;
 int print_delays;
 int print_io_accounting;
 int print_task_context_switch_counts;
-__u64 stime, utime;
 
 #define PRINTF(fmt, arg...) {			\
 	    if (dbg) {				\

@@ -111,7 +111,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 
 	/* It is more difficult to avoid calling this function than to
 	 call it and ignore errors. */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1) == -EFAULT)
 		goto badframe;
 
 	return rval;
@@ -354,7 +354,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, int in_syscall)
+asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
 	/*
 	 * We want the common case to go fast, which

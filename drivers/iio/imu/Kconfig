@@ -1,0 +1,27 @@
+#
+# IIO imu drivers configuration
+#
+menu "Inertial measurement units"
+
+config ADIS16480
+	tristate "Analog Devices ADIS16480 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
+	  ADIS16485, ADIS16488 inertial sensors.
+
+endmenu
+
+config IIO_ADIS_LIB
+	tristate
+	help
+	  A set of IO helper functions for the Analog Devices ADIS* device family.
+
+config IIO_ADIS_LIB_BUFFER
+	bool
+	select IIO_TRIGGERED_BUFFER
+	help
+	  A set of buffer helper functions for the Analog Devices ADIS* device
+	  family.

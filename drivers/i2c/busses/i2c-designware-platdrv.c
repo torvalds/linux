@@ -50,7 +50,7 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 	return clk_get_rate(dev->clk)/1000;
 }
 
-static int __devinit dw_i2c_probe(struct platform_device *pdev)
+static int dw_i2c_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
@@ -169,7 +169,7 @@ err_release_region:
 	return r;
 }
 
-static int __devexit dw_i2c_remove(struct platform_device *pdev)
+static int dw_i2c_remove(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 	struct resource *mem;
@@ -228,7 +228,7 @@ static SIMPLE_DEV_PM_OPS(dw_i2c_dev_pm_ops, dw_i2c_suspend, dw_i2c_resume);
 MODULE_ALIAS("platform:i2c_designware");
 
 static struct platform_driver dw_i2c_driver = {
-	.remove		= __devexit_p(dw_i2c_remove),
+	.remove		= dw_i2c_remove,
 	.driver		= {
 		.name	= "i2c_designware",
 		.owner	= THIS_MODULE,

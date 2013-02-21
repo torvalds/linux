@@ -212,10 +212,10 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	}
 	dev->iobase = iobase;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

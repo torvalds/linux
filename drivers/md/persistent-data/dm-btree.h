@@ -35,7 +35,7 @@ struct dm_transaction_manager;
  */
 
 /*
- * Infomation about the values stored within the btree.
+ * Information about the values stored within the btree.
  */
 struct dm_btree_value_type {
 	void *context;

@@ -539,6 +539,13 @@
 #define TCR_FIE		0x00800000	/* FIT Interrupt Enable */
 #define TCR_ARE		0x00400000	/* Auto Reload Enable */
 
+#ifdef CONFIG_E500
+#define TCR_GET_WP(tcr)  ((((tcr) & 0xC0000000) >> 30) | \
+			      (((tcr) & 0x1E0000) >> 15))
+#else
+#define TCR_GET_WP(tcr)  (((tcr) & 0xC0000000) >> 30)
+#endif
+
 /* Bit definitions for the TSR. */
 #define TSR_ENW		0x80000000	/* Enable Next Watchdog */
 #define TSR_WIS		0x40000000	/* WDT Interrupt Status */

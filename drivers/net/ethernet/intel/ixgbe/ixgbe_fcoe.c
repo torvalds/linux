@@ -800,6 +800,10 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 		return -EINVAL;
 
 	e_info(drv, "Enabling FCoE offload features.\n");
+
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		e_warn(probe, "Enabling FCoE on PF will disable legacy VFs\n");
+
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_stop(netdev);
 

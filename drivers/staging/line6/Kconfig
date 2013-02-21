@@ -23,32 +23,6 @@ menuconfig LINE6_USB
 
 if LINE6_USB
 
-config LINE6_USB_DEBUG
-	bool "print debug messages"
-	default n
-	help
-	  Say Y here to write debug messages to the syslog.
-
-	  If unsure, say N.
-
-config LINE6_USB_DUMP_CTRL
-	bool "dump control messages"
-	default n
-	help
-	  Say Y here to write control messages sent to and received from
-	  Line6 devices to the syslog.
-
-	  If unsure, say N.
-
-config LINE6_USB_DUMP_MIDI
-	bool "dump MIDI messages"
-	default n
-	help
-	  Say Y here to write MIDI messages sent to and received from
-	  Line6 devices to the syslog.
-
-	  If unsure, say N.
-
 config LINE6_USB_DUMP_PCM
 	bool "dump PCM data"
 	default n
@@ -56,17 +30,6 @@ config LINE6_USB_DUMP_PCM
 	  Say Y here to write PCM data sent to and received from Line6
 	  devices to the syslog. This will produce a huge amount of
 	  syslog data during playback and capture.
-
-	  If unsure, say N.
-
-config LINE6_USB_RAW
-	bool "raw data communication"
-	default n
-	help
-	  Say Y here to create special files which allow to send raw data
-	  to the device. This bypasses any sanity checks, so if you discover
-	  the code to erase the firmware, feel free to render your device
-	  useless, but only after reading the GPL section "NO WARRANTY".
 
 	  If unsure, say N.
 

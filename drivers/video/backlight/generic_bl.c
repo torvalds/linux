@@ -97,8 +97,8 @@ static int genericbl_probe(struct platform_device *pdev)
 	props.max_brightness = machinfo->max_intensity;
 	bd = backlight_device_register(name, &pdev->dev, NULL, &genericbl_ops,
 				       &props);
-	if (IS_ERR (bd))
-		return PTR_ERR (bd);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 
 	platform_set_drvdata(pdev, bd);
 

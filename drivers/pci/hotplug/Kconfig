@@ -151,4 +151,15 @@ config HOTPLUG_PCI_SGI
 
 	  When in doubt, say N.
 
+config HOTPLUG_PCI_S390
+	tristate "System z PCI Hotplug Support"
+	depends on S390 && 64BIT
+	help
+	  Say Y here if you want to use the System z PCI Hotplug
+	  driver for PCI devices. Without this driver it is not
+	  possible to access stand-by PCI functions nor to deconfigure
+	  PCI functions.
+
+	  When in doubt, say Y.
+
 endif # HOTPLUG_PCI

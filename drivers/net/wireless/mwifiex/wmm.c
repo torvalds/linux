@@ -483,7 +483,7 @@ mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
 	struct sk_buff *skb, *tmp;
 
 	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp)
-		mwifiex_write_data_complete(adapter, skb, -1);
+		mwifiex_write_data_complete(adapter, skb, 0, -1);
 }
 
 /*
@@ -650,7 +650,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 
 	if (!priv->media_connected && !mwifiex_is_skb_mgmt_frame(skb)) {
 		dev_dbg(adapter->dev, "data: drop packet in disconnect\n");
-		mwifiex_write_data_complete(adapter, skb, -1);
+		mwifiex_write_data_complete(adapter, skb, 0, -1);
 		return;
 	}
 
@@ -680,7 +680,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 
 	if (!ra_list) {
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
-		mwifiex_write_data_complete(adapter, skb, -1);
+		mwifiex_write_data_complete(adapter, skb, 0, -1);
 		return;
 	}
 
@@ -1090,7 +1090,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 		if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
 			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 					       ra_list_flags);
-			mwifiex_write_data_complete(adapter, skb, -1);
+			mwifiex_write_data_complete(adapter, skb, 0, -1);
 			return;
 		}
 
@@ -1195,7 +1195,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 		if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
 			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 					       ra_list_flags);
-			mwifiex_write_data_complete(adapter, skb, -1);
+			mwifiex_write_data_complete(adapter, skb, 0, -1);
 			return;
 		}
 
@@ -1209,7 +1209,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 		adapter->data_sent = false;
 		dev_err(adapter->dev, "host_to_card failed: %#x\n", ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
-		mwifiex_write_data_complete(adapter, skb, ret);
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
 		adapter->data_sent = false;

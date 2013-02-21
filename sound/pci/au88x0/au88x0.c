@@ -78,7 +78,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 	}
 }
 
-static void __devinit snd_vortex_workaround(struct pci_dev *vortex, int fix)
+static void snd_vortex_workaround(struct pci_dev *vortex, int fix)
 {
 	struct pci_dev *via = NULL;
 
@@ -137,7 +137,7 @@ static int snd_vortex_dev_free(struct snd_device *device)
 
 // chip-specific constructor
 // (see "Management of Cards and Components")
-static int __devinit
+static int
 snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 {
 	vortex_t *chip;
@@ -234,7 +234,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 }
 
 // constructor -- see "Constructor" sub-section
-static int __devinit
+static int
 snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -368,7 +368,7 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 }
 
 // destructor -- see "Destructor" sub-section
-static void __devexit snd_vortex_remove(struct pci_dev *pci)
+static void snd_vortex_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -379,7 +379,7 @@ static struct pci_driver vortex_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vortex_ids,
 	.probe = snd_vortex_probe,
-	.remove = __devexit_p(snd_vortex_remove),
+	.remove = snd_vortex_remove,
 };
 
 module_pci_driver(vortex_driver);

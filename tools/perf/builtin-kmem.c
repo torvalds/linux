@@ -477,7 +477,7 @@ static void sort_result(void)
 	__sort_result(&root_caller_stat, &root_caller_sorted, &caller_sort);
 }
 
-static int __cmd_kmem(const char *input_name)
+static int __cmd_kmem(void)
 {
 	int err = -EINVAL;
 	struct perf_session *session;
@@ -743,7 +743,6 @@ static int __cmd_record(int argc, const char **argv)
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const default_sort_order = "frag,hit,bytes";
-	const char *input_name = NULL;
 	const struct option kmem_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_CALLBACK_NOOPT(0, "caller", NULL, NULL,
@@ -779,7 +778,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (list_empty(&alloc_sort))
 			setup_sorting(&alloc_sort, default_sort_order);
 
-		return __cmd_kmem(input_name);
+		return __cmd_kmem();
 	} else
 		usage_with_options(kmem_usage, kmem_options);
 

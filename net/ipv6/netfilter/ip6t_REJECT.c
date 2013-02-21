@@ -132,6 +132,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	ip6h->saddr = oip6h->daddr;
 	ip6h->daddr = oip6h->saddr;
 
+	skb_reset_transport_header(nskb);
 	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;

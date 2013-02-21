@@ -847,19 +847,6 @@ static void wusb_dev_bos_rm(struct wusb_dev *wusb_dev)
 	wusb_dev->wusb_cap_descr = NULL;
 };
 
-static struct usb_wireless_cap_descriptor wusb_cap_descr_default = {
-	.bLength = sizeof(wusb_cap_descr_default),
-	.bDescriptorType = USB_DT_DEVICE_CAPABILITY,
-	.bDevCapabilityType = USB_CAP_TYPE_WIRELESS_USB,
-
-	.bmAttributes = USB_WIRELESS_BEACON_NONE,
-	.wPHYRates = cpu_to_le16(USB_WIRELESS_PHY_53),
-	.bmTFITXPowerInfo = 0,
-	.bmFFITXPowerInfo = 0,
-	.bmBandGroup = cpu_to_le16(0x0001),	/* WUSB1.0[7.4.1] bottom */
-	.bReserved = 0
-};
-
 /*
  * USB stack's device addition Notifier Callback
  *

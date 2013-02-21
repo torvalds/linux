@@ -82,21 +82,17 @@ static void lt3593_led_set(struct led_classdev *led_cdev,
 	schedule_work(&led_dat->work);
 }
 
-static int __devinit create_lt3593_led(const struct gpio_led *template,
+static int create_lt3593_led(const struct gpio_led *template,
 	struct lt3593_led_data *led_dat, struct device *parent)
 {
 	int ret, state;
 
 	/* skip leds on GPIOs that aren't available */
 	if (!gpio_is_valid(template->gpio)) {
-		printk(KERN_INFO "%s: skipping unavailable LT3593 LED at gpio %d (%s)\n",
+		dev_info(parent, "%s: skipping unavailable LT3593 LED at gpio %d (%s)\n",
 				KBUILD_MODNAME, template->gpio, template->name);
 		return 0;
 	}
-
-	ret = gpio_request(template->gpio, template->name);
-	if (ret < 0)
-		return ret;
 
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
@@ -110,24 +106,21 @@ static int __devinit create_lt3593_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_direction_output(led_dat->gpio, state);
+	ret = devm_gpio_request_one(parent, template->gpio,
+				    GPIOF_DIR_OUT | state, template->name);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	INIT_WORK(&led_dat->work, lt3593_led_work);
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
-	printk(KERN_INFO "%s: registered LT3593 LED '%s' at GPIO %d\n",
+	dev_info(parent, "%s: registered LT3593 LED '%s' at GPIO %d\n",
 		KBUILD_MODNAME, template->name, template->gpio);
 
 	return 0;
-
-err:
-	gpio_free(led_dat->gpio);
-	return ret;
 }
 
 static void delete_lt3593_led(struct lt3593_led_data *led)
@@ -137,10 +130,9 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
-	gpio_free(led->gpio);
 }
 
-static int __devinit lt3593_led_probe(struct platform_device *pdev)
+static int lt3593_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct lt3593_led_data *leds_data;
@@ -173,7 +165,7 @@ err:
 	return ret;
 }
 
-static int __devexit lt3593_led_remove(struct platform_device *pdev)
+static int lt3593_led_remove(struct platform_device *pdev)
 {
 	int i;
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
@@ -189,7 +181,7 @@ static int __devexit lt3593_led_remove(struct platform_device *pdev)
 
 static struct platform_driver lt3593_led_driver = {
 	.probe		= lt3593_led_probe,
-	.remove		= __devexit_p(lt3593_led_remove),
+	.remove		= lt3593_led_remove,
 	.driver		= {
 		.name	= "leds-lt3593",
 		.owner	= THIS_MODULE,

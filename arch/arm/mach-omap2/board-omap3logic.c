@@ -34,16 +34,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "gpmc-smsc911x.h"
-#include <plat/gpmc.h>
-#include <plat/sdrc.h>
-#include <plat/usb.h>
-
 #include "common.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
 #define OMAP3LOGIC_SMSC911X_CS			1
 
@@ -235,7 +232,7 @@ MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.init_machine	= omap3logic_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
@@ -248,5 +245,5 @@ MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.init_machine	= omap3logic_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

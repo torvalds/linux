@@ -60,9 +60,9 @@ static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
 module_param(auto_fw_reset, int, 0644);
 MODULE_PARM_DESC(auto_fw_reset,"Auto firmware reset (0=disabled, 1=enabled");
 
-static int __devinit netxen_nic_probe(struct pci_dev *pdev,
+static int netxen_nic_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent);
-static void __devexit netxen_nic_remove(struct pci_dev *pdev);
+static void netxen_nic_remove(struct pci_dev *pdev);
 static int netxen_nic_open(struct net_device *netdev);
 static int netxen_nic_close(struct net_device *netdev);
 static netdev_tx_t netxen_nic_xmit_frame(struct sk_buff *,
@@ -1397,7 +1397,7 @@ static void netxen_mask_aer_correctable(struct netxen_adapter *adapter)
 }
 #endif
 
-static int __devinit
+static int
 netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -1569,7 +1569,7 @@ void netxen_cleanup_minidump(struct netxen_adapter *adapter)
 	}
 }
 
-static void __devexit netxen_nic_remove(struct pci_dev *pdev)
+static void netxen_nic_remove(struct pci_dev *pdev)
 {
 	struct netxen_adapter *adapter;
 	struct net_device *netdev;
@@ -1963,10 +1963,12 @@ unwind:
 	while (--i >= 0) {
 		nf = &pbuf->frag_array[i+1];
 		pci_unmap_page(pdev, nf->dma, nf->length, PCI_DMA_TODEVICE);
+		nf->dma = 0ULL;
 	}
 
 	nf = &pbuf->frag_array[0];
 	pci_unmap_single(pdev, nf->dma, skb_headlen(skb), PCI_DMA_TODEVICE);
+	nf->dma = 0ULL;
 
 out_err:
 	return -ENOMEM;
@@ -3350,7 +3352,7 @@ static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,
 	.id_table = netxen_pci_tbl,
 	.probe = netxen_nic_probe,
-	.remove = __devexit_p(netxen_nic_remove),
+	.remove = netxen_nic_remove,
 #ifdef CONFIG_PM
 	.suspend = netxen_nic_suspend,
 	.resume = netxen_nic_resume,

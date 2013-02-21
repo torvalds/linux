@@ -574,54 +574,6 @@ static void n8x0_panel_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->lock);
 }
 
-static int n8x0_panel_suspend(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = get_drv_data(dssdev);
-
-	dev_dbg(&dssdev->dev, "suspend\n");
-
-	mutex_lock(&ddata->lock);
-
-	rfbi_bus_lock();
-
-	n8x0_panel_power_off(dssdev);
-
-	rfbi_bus_unlock();
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	mutex_unlock(&ddata->lock);
-
-	return 0;
-}
-
-static int n8x0_panel_resume(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = get_drv_data(dssdev);
-	int r;
-
-	dev_dbg(&dssdev->dev, "resume\n");
-
-	mutex_lock(&ddata->lock);
-
-	rfbi_bus_lock();
-
-	r = n8x0_panel_power_on(dssdev);
-
-	rfbi_bus_unlock();
-
-	if (r) {
-		mutex_unlock(&ddata->lock);
-		return r;
-	}
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	mutex_unlock(&ddata->lock);
-
-	return 0;
-}
-
 static void n8x0_panel_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
@@ -683,8 +635,6 @@ static struct omap_dss_driver n8x0_panel_driver = {
 
 	.enable		= n8x0_panel_enable,
 	.disable	= n8x0_panel_disable,
-	.suspend	= n8x0_panel_suspend,
-	.resume		= n8x0_panel_resume,
 
 	.update		= n8x0_panel_update,
 	.sync		= n8x0_panel_sync,
@@ -702,18 +652,25 @@ static struct omap_dss_driver n8x0_panel_driver = {
 
 static int mipid_spi_probe(struct spi_device *spi)
 {
+	int r;
+
 	dev_dbg(&spi->dev, "mipid_spi_probe\n");
 
 	spi->mode = SPI_MODE_0;
 
 	s_drv_data.spidev = spi;
 
-	return 0;
+	r = omap_dss_register_driver(&n8x0_panel_driver);
+	if (r)
+		pr_err("n8x0_panel: dss driver registration failed\n");
+
+	return r;
 }
 
 static int mipid_spi_remove(struct spi_device *spi)
 {
 	dev_dbg(&spi->dev, "mipid_spi_remove\n");
+	omap_dss_unregister_driver(&n8x0_panel_driver);
 	return 0;
 }
 
@@ -723,36 +680,8 @@ static struct spi_driver mipid_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= mipid_spi_probe,
-	.remove	= __devexit_p(mipid_spi_remove),
+	.remove	= mipid_spi_remove,
 };
+module_spi_driver(mipid_spi_driver);
 
-static int __init n8x0_panel_drv_init(void)
-{
-	int r;
-
-	r = spi_register_driver(&mipid_spi_driver);
-	if (r) {
-		pr_err("n8x0_panel: spi driver registration failed\n");
-		return r;
-	}
-
-	r = omap_dss_register_driver(&n8x0_panel_driver);
-	if (r) {
-		pr_err("n8x0_panel: dss driver registration failed\n");
-		spi_unregister_driver(&mipid_spi_driver);
-		return r;
-	}
-
-	return 0;
-}
-
-static void __exit n8x0_panel_drv_exit(void)
-{
-	spi_unregister_driver(&mipid_spi_driver);
-
-	omap_dss_unregister_driver(&n8x0_panel_driver);
-}
-
-module_init(n8x0_panel_drv_init);
-module_exit(n8x0_panel_drv_exit);
 MODULE_LICENSE("GPL");

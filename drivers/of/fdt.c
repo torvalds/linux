@@ -186,6 +186,8 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 			 */
 			fpsize = 1;
 			allocl = 2;
+			l = 1;
+			*pathp = '\0';
 		} else {
 			/* account for '/' and path size minus terminal 0
 			 * already in 'l'
@@ -198,10 +200,10 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 	np = unflatten_dt_alloc(&mem, sizeof(struct device_node) + allocl,
 				__alignof__(struct device_node));
 	if (allnextpp) {
+		char *fn;
 		memset(np, 0, sizeof(*np));
-		np->full_name = ((char *)np) + sizeof(struct device_node);
+		np->full_name = fn = ((char *)np) + sizeof(*np);
 		if (new_format) {
-			char *fn = np->full_name;
 			/* rebuild full path for new format */
 			if (dad && dad->parent) {
 				strcpy(fn, dad->full_name);
@@ -215,9 +217,9 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 				fn += strlen(fn);
 			}
 			*(fn++) = '/';
-			memcpy(fn, pathp, l);
-		} else
-			memcpy(np->full_name, pathp, l);
+		}
+		memcpy(fn, pathp, l);
+
 		prev_pp = &np->properties;
 		**allnextpp = np;
 		*allnextpp = &np->allnext;
@@ -459,7 +461,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 
 	do {
 		u32 tag = be32_to_cpup((__be32 *)p);
-		char *pathp;
+		const char *pathp;
 
 		p += 4;
 		if (tag == OF_DT_END_NODE) {
@@ -486,14 +488,8 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 		depth++;
 		pathp = (char *)p;
 		p = ALIGN(p + strlen(pathp) + 1, 4);
-		if ((*pathp) == '/') {
-			char *lp, *np;
-			for (lp = NULL, np = pathp; *np; np++)
-				if ((*np) == '/')
-					lp = np+1;
-			if (lp != NULL)
-				pathp = lp;
-		}
+		if (*pathp == '/')
+			pathp = kbasename(pathp);
 		rc = it(p, pathp, depth, data);
 		if (rc != 0)
 			break;
@@ -710,7 +706,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
  */
 void __init unflatten_device_tree(void)
 {
-	__unflatten_device_tree(initial_boot_params, &allnodes,
+	__unflatten_device_tree(initial_boot_params, &of_allnodes,
 				early_init_dt_alloc_memory_arch);
 
 	/* Get pointer to "/chosen" and "/aliasas" nodes for use everywhere */

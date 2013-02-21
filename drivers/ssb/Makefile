@@ -15,6 +15,7 @@ ssb-$(CONFIG_SSB_DRIVER_MIPS)		+= driver_mipscore.o
 ssb-$(CONFIG_SSB_DRIVER_EXTIF)		+= driver_extif.o
 ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o
 ssb-$(CONFIG_SSB_DRIVER_GIGE)		+= driver_gige.o
+ssb-$(CONFIG_SSB_DRIVER_GPIO)		+= driver_gpio.o
 
 # b43 pci-ssb-bridge driver
 # Not strictly a part of SSB, but kept here for convenience

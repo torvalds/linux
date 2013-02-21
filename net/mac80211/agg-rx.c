@@ -118,7 +118,7 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 		return;
 	}
 
-	for (i = 0; i < STA_TID_NUM; i++)
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 		if (ba_rx_bitmap & BIT(i))
 			set_bit(i, sta->ampdu_mlme.tid_rx_stop_requested);
 

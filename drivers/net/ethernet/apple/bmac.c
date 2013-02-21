@@ -1244,7 +1244,7 @@ static const struct net_device_ops bmac_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
+static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	int j, rev, ret;
 	struct bmac_data *bp;
@@ -1602,7 +1602,7 @@ bmac_proc_info(char *buffer, char **start, off_t offset, int length)
 }
 #endif
 
-static int __devexit bmac_remove(struct macio_dev *mdev)
+static int bmac_remove(struct macio_dev *mdev)
 {
 	struct net_device *dev = macio_get_drvdata(mdev);
 	struct bmac_data *bp = netdev_priv(dev);

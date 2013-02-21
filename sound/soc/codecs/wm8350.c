@@ -1500,7 +1500,7 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
 
-	ret = regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
+	ret = devm_regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
 				 priv->supplies);
 	if (ret != 0)
 		return ret;
@@ -1607,8 +1607,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
-	regulator_bulk_free(ARRAY_SIZE(priv->supplies), priv->supplies);
-
 	return 0;
 }
 
@@ -1627,13 +1625,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
 };
 
-static int __devinit wm8350_probe(struct platform_device *pdev)
+static int wm8350_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8350,
 			&wm8350_dai, 1);
 }
 
-static int __devexit wm8350_remove(struct platform_device *pdev)
+static int wm8350_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1645,7 +1643,7 @@ static struct platform_driver wm8350_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_probe,
-	.remove = __devexit_p(wm8350_remove),
+	.remove = wm8350_remove,
 };
 
 module_platform_driver(wm8350_codec_driver);

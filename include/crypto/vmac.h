@@ -56,6 +56,8 @@ typedef u64 vmac_t;
 struct vmac_ctx_t {
 	struct crypto_cipher *child;
 	struct vmac_ctx __vmac_ctx;
+	u8 partial[VMAC_NHBYTES];	/* partial block */
+	int partial_size;		/* size of the partial block */
 };
 
 #endif /* __CRYPTO_VMAC_H */

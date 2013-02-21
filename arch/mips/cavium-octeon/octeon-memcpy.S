@@ -79,11 +79,6 @@
 /*
  * Only on the 64-bit kernel we can made use of 64-bit registers.
  */
-#ifdef CONFIG_64BIT
-#define USE_DOUBLE
-#endif
-
-#ifdef USE_DOUBLE
 
 #define LOAD   ld
 #define LOADL  ldl
@@ -118,26 +113,6 @@
 #define t5	$13
 #define t6	$14
 #define t7	$15
-
-#else
-
-#define LOAD   lw
-#define LOADL  lwl
-#define LOADR  lwr
-#define STOREL swl
-#define STORER swr
-#define STORE  sw
-#define ADD    addu
-#define SUB    subu
-#define SRL    srl
-#define SLL    sll
-#define SRA    sra
-#define SLLV   sllv
-#define SRLV   srlv
-#define NBYTES 4
-#define LOG_NBYTES 2
-
-#endif /* USE_DOUBLE */
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
@@ -395,12 +370,10 @@ EXC(	 sb	t0, N(dst), s_exc_p1)
 
 	COPY_BYTE(0)
 	COPY_BYTE(1)
-#ifdef USE_DOUBLE
 	COPY_BYTE(2)
 	COPY_BYTE(3)
 	COPY_BYTE(4)
 	COPY_BYTE(5)
-#endif
 EXC(	lb	t0, NBYTES-2(src), l_exc)
 	SUB	len, len, 1
 	jr	ra

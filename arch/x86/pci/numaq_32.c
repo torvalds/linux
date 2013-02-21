@@ -116,7 +116,7 @@ static const struct pci_raw_ops pci_direct_conf1_mq = {
 };
 
 
-static void __devinit pci_fixup_i450nx(struct pci_dev *d)
+static void pci_fixup_i450nx(struct pci_dev *d)
 {
 	/*
 	 * i450NX -- Find and scan all secondary buses on all PXB's.

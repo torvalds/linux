@@ -370,4 +370,6 @@ void cvmx_bootmem_lock(void);
  */
 void cvmx_bootmem_unlock(void);
 
+extern struct cvmx_bootmem_desc *cvmx_bootmem_get_desc(void);
+
 #endif /*   __CVMX_BOOTMEM_H__ */

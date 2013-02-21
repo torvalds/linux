@@ -1118,7 +1118,6 @@ EXPORT_SYMBOL_GPL(tty_perform_flush);
 int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	unsigned long flags;
 	int retval;
 
 	switch (cmd) {
@@ -1153,26 +1152,6 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		return 0;
 	case TCFLSH:
 		return tty_perform_flush(tty, arg);
-	case TIOCPKT:
-	{
-		int pktmode;
-
-		if (tty->driver->type != TTY_DRIVER_TYPE_PTY ||
-		    tty->driver->subtype != PTY_TYPE_MASTER)
-			return -ENOTTY;
-		if (get_user(pktmode, (int __user *) arg))
-			return -EFAULT;
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		if (pktmode) {
-			if (!tty->packet) {
-				tty->packet = 1;
-				tty->link->ctrl_status = 0;
-			}
-		} else
-			tty->packet = 0;
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		return 0;
-	}
 	default:
 		/* Try the mode commands */
 		return tty_mode_ioctl(tty, file, cmd, arg);

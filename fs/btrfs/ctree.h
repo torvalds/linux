@@ -48,7 +48,7 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAGIC "_BHRfS_M"
 
-#define BTRFS_MAX_MIRRORS 2
+#define BTRFS_MAX_MIRRORS 3
 
 #define BTRFS_MAX_LEVEL 8
 
@@ -142,6 +142,8 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_EMPTY_SUBVOL_DIR_OBJECTID 2
 
+#define BTRFS_DEV_REPLACE_DEVID 0
+
 /*
  * the max metadata block size.  This limit is somewhat artificial,
  * but the memmove costs go through the roof for larger blocks.
@@ -171,6 +173,9 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 
 /* four bytes for CRC32 */
 #define BTRFS_EMPTY_DIR_SIZE 0
+
+/* spefic to btrfs_map_block(), therefore not in include/linux/blk_types.h */
+#define REQ_GET_READ_MIRRORS	(1 << 30)
 
 #define BTRFS_FT_UNKNOWN	0
 #define BTRFS_FT_REG_FILE	1
@@ -413,7 +418,7 @@ struct btrfs_root_backup {
 	__le64 bytes_used;
 	__le64 num_devices;
 	/* future */
-	__le64 unsed_64[4];
+	__le64 unused_64[4];
 
 	u8 tree_root_level;
 	u8 chunk_root_level;
@@ -571,6 +576,7 @@ struct btrfs_path {
 	unsigned int skip_locking:1;
 	unsigned int leave_spinning:1;
 	unsigned int search_commit_root:1;
+	unsigned int really_keep_locks:1;
 };
 
 /*
@@ -883,6 +889,59 @@ struct btrfs_dev_stats_item {
 	 * the existing values unchanged
 	 */
 	__le64 values[BTRFS_DEV_STAT_VALUES_MAX];
+} __attribute__ ((__packed__));
+
+#define BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_ALWAYS	0
+#define BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_AVOID	1
+#define BTRFS_DEV_REPLACE_ITEM_STATE_NEVER_STARTED	0
+#define BTRFS_DEV_REPLACE_ITEM_STATE_STARTED		1
+#define BTRFS_DEV_REPLACE_ITEM_STATE_SUSPENDED		2
+#define BTRFS_DEV_REPLACE_ITEM_STATE_FINISHED		3
+#define BTRFS_DEV_REPLACE_ITEM_STATE_CANCELED		4
+
+struct btrfs_dev_replace {
+	u64 replace_state;	/* see #define above */
+	u64 time_started;	/* seconds since 1-Jan-1970 */
+	u64 time_stopped;	/* seconds since 1-Jan-1970 */
+	atomic64_t num_write_errors;
+	atomic64_t num_uncorrectable_read_errors;
+
+	u64 cursor_left;
+	u64 committed_cursor_left;
+	u64 cursor_left_last_write_of_item;
+	u64 cursor_right;
+
+	u64 cont_reading_from_srcdev_mode;	/* see #define above */
+
+	int is_valid;
+	int item_needs_writeback;
+	struct btrfs_device *srcdev;
+	struct btrfs_device *tgtdev;
+
+	pid_t lock_owner;
+	atomic_t nesting_level;
+	struct mutex lock_finishing_cancel_unmount;
+	struct mutex lock_management_lock;
+	struct mutex lock;
+
+	struct btrfs_scrub_progress scrub_progress;
+};
+
+struct btrfs_dev_replace_item {
+	/*
+	 * grow this item struct at the end for future enhancements and keep
+	 * the existing values unchanged
+	 */
+	__le64 src_devid;
+	__le64 cursor_left;
+	__le64 cursor_right;
+	__le64 cont_reading_from_srcdev_mode;
+
+	__le64 replace_state;
+	__le64 time_started;
+	__le64 time_stopped;
+	__le64 num_write_errors;
+	__le64 num_uncorrectable_read_errors;
 } __attribute__ ((__packed__));
 
 /* different types of block groups (and chunks) */
@@ -1333,6 +1392,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers generic_worker;
 	struct btrfs_workers workers;
 	struct btrfs_workers delalloc_workers;
+	struct btrfs_workers flush_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_meta_workers;
 	struct btrfs_workers endio_meta_write_workers;
@@ -1429,6 +1489,8 @@ struct btrfs_fs_info {
 	struct rw_semaphore scrub_super_lock;
 	int scrub_workers_refcnt;
 	struct btrfs_workers scrub_workers;
+	struct btrfs_workers scrub_wr_completion_workers;
+	struct btrfs_workers scrub_nocow_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	u32 check_integrity_print_mask;
@@ -1470,6 +1532,11 @@ struct btrfs_fs_info {
 	int backup_root_index;
 
 	int num_tolerated_disk_barrier_failures;
+
+	/* device replace state */
+	struct btrfs_dev_replace dev_replace;
+
+	atomic_t mutually_exclusive_operation_running;
 };
 
 /*
@@ -1579,7 +1646,7 @@ struct btrfs_root {
 
 	int force_cow;
 
-	spinlock_t root_times_lock;
+	spinlock_t root_item_lock;
 };
 
 struct btrfs_ioctl_defrag_range_args {
@@ -1723,6 +1790,12 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_DEV_STATS_KEY	249
 
 /*
+ * Persistantly stores the device replace state in the device tree.
+ * The key is built like this: (0, BTRFS_DEV_REPLACE_KEY, 0).
+ */
+#define BTRFS_DEV_REPLACE_KEY	250
+
+/*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
@@ -1787,7 +1860,7 @@ struct btrfs_map_token {
 
 static inline void btrfs_init_map_token (struct btrfs_map_token *token)
 {
-	memset(token, 0, sizeof(*token));
+	token->kaddr = NULL;
 }
 
 /* some macros to generate set/get funcs for the struct fields.  This
@@ -2755,6 +2828,49 @@ BTRFS_SETGET_FUNCS(qgroup_limit_rsv_rfer, struct btrfs_qgroup_limit_item,
 BTRFS_SETGET_FUNCS(qgroup_limit_rsv_excl, struct btrfs_qgroup_limit_item,
 		   rsv_excl, 64);
 
+/* btrfs_dev_replace_item */
+BTRFS_SETGET_FUNCS(dev_replace_src_devid,
+		   struct btrfs_dev_replace_item, src_devid, 64);
+BTRFS_SETGET_FUNCS(dev_replace_cont_reading_from_srcdev_mode,
+		   struct btrfs_dev_replace_item, cont_reading_from_srcdev_mode,
+		   64);
+BTRFS_SETGET_FUNCS(dev_replace_replace_state, struct btrfs_dev_replace_item,
+		   replace_state, 64);
+BTRFS_SETGET_FUNCS(dev_replace_time_started, struct btrfs_dev_replace_item,
+		   time_started, 64);
+BTRFS_SETGET_FUNCS(dev_replace_time_stopped, struct btrfs_dev_replace_item,
+		   time_stopped, 64);
+BTRFS_SETGET_FUNCS(dev_replace_num_write_errors, struct btrfs_dev_replace_item,
+		   num_write_errors, 64);
+BTRFS_SETGET_FUNCS(dev_replace_num_uncorrectable_read_errors,
+		   struct btrfs_dev_replace_item, num_uncorrectable_read_errors,
+		   64);
+BTRFS_SETGET_FUNCS(dev_replace_cursor_left, struct btrfs_dev_replace_item,
+		   cursor_left, 64);
+BTRFS_SETGET_FUNCS(dev_replace_cursor_right, struct btrfs_dev_replace_item,
+		   cursor_right, 64);
+
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_src_devid,
+			 struct btrfs_dev_replace_item, src_devid, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cont_reading_from_srcdev_mode,
+			 struct btrfs_dev_replace_item,
+			 cont_reading_from_srcdev_mode, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_replace_state,
+			 struct btrfs_dev_replace_item, replace_state, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_time_started,
+			 struct btrfs_dev_replace_item, time_started, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_time_stopped,
+			 struct btrfs_dev_replace_item, time_stopped, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_num_write_errors,
+			 struct btrfs_dev_replace_item, num_write_errors, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_num_uncorrectable_read_errors,
+			 struct btrfs_dev_replace_item,
+			 num_uncorrectable_read_errors, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_left,
+			 struct btrfs_dev_replace_item, cursor_left, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
+			 struct btrfs_dev_replace_item, cursor_right, 64);
+
 static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -2900,6 +3016,18 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
+
+enum btrfs_reserve_flush_enum {
+	/* If we are in the transaction, we can't flush anything.*/
+	BTRFS_RESERVE_NO_FLUSH,
+	/*
+	 * Flushing delalloc may cause deadlock somewhere, in this
+	 * case, use FLUSH LIMIT
+	 */
+	BTRFS_RESERVE_FLUSH_LIMIT,
+	BTRFS_RESERVE_FLUSH_ALL,
+};
+
 int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
@@ -2919,19 +3047,13 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root,
 void btrfs_free_block_rsv(struct btrfs_root *root,
 			  struct btrfs_block_rsv *rsv);
 int btrfs_block_rsv_add(struct btrfs_root *root,
-			struct btrfs_block_rsv *block_rsv,
-			u64 num_bytes);
-int btrfs_block_rsv_add_noflush(struct btrfs_root *root,
-				struct btrfs_block_rsv *block_rsv,
-				u64 num_bytes);
+			struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+			enum btrfs_reserve_flush_enum flush);
 int btrfs_block_rsv_check(struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv, int min_factor);
 int btrfs_block_rsv_refill(struct btrfs_root *root,
-			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved);
-int btrfs_block_rsv_refill_noflush(struct btrfs_root *root,
-				   struct btrfs_block_rsv *block_rsv,
-				   u64 min_reserved);
+			   struct btrfs_block_rsv *block_rsv, u64 min_reserved,
+			   enum btrfs_reserve_flush_enum flush);
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
 			    struct btrfs_block_rsv *dst_rsv,
 			    u64 num_bytes);
@@ -2955,6 +3077,7 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range);
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
+int __get_raid_index(u64 flags);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);
@@ -3065,6 +3188,9 @@ static inline int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 }
 
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
+int btrfs_next_leaf_write(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, struct btrfs_path *path,
+			  int del);
 int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 			u64 time_seq);
 static inline int btrfs_next_old_item(struct btrfs_root *root,
@@ -3157,6 +3283,8 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root);
 
 /* dir-item.c */
+int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
+			  const char *name, int name_len);
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, const char *name,
 			  int name_len, struct inode *dir,
@@ -3256,6 +3384,7 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
 			     u64 bytenr, int mod);
+u64 btrfs_file_extent_length(struct btrfs_path *path);
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_ordered_sum *sums);
@@ -3271,6 +3400,19 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit);
 /* inode.c */
+struct btrfs_delalloc_work {
+	struct inode *inode;
+	int wait;
+	int delay_iput;
+	struct completion completion;
+	struct list_head list;
+	struct btrfs_work work;
+};
+
+struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
+						    int wait, int delay_iput);
+void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work);
+
 struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *page,
 					   size_t pg_offset, u64 start, u64 len,
 					   int create);
@@ -3370,9 +3512,12 @@ void btrfs_get_block_group_info(struct list_head *groups_list,
 				struct btrfs_ioctl_space_info *space);
 
 /* file.c */
+int btrfs_auto_defrag_init(void);
+void btrfs_auto_defrag_exit(void);
 int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 			   struct inode *inode);
 int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info);
+void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info);
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			     int skip_pinned);
@@ -3519,15 +3664,16 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending);
 
 /* scrub.c */
-int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
-		    struct btrfs_scrub_progress *progress, int readonly);
+int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
+		    u64 end, struct btrfs_scrub_progress *progress,
+		    int readonly, int is_dev_replace);
 void btrfs_scrub_pause(struct btrfs_root *root);
 void btrfs_scrub_pause_super(struct btrfs_root *root);
 void btrfs_scrub_continue(struct btrfs_root *root);
 void btrfs_scrub_continue_super(struct btrfs_root *root);
-int __btrfs_scrub_cancel(struct btrfs_fs_info *info);
-int btrfs_scrub_cancel(struct btrfs_root *root);
-int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev);
+int btrfs_scrub_cancel(struct btrfs_fs_info *info);
+int btrfs_scrub_cancel_dev(struct btrfs_fs_info *info,
+			   struct btrfs_device *dev);
 int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid);
 int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
 			 struct btrfs_scrub_progress *progress);

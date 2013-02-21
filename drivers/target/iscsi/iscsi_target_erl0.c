@@ -410,11 +410,11 @@ static int iscsit_dataout_pre_datapduinorder_yes(
 	/*
 	 * For DataSequenceInOrder=Yes: If the offset is greater than the global
 	 * DataPDUInOrder=Yes offset counter in struct iscsi_cmd a protcol error has
-	 * occured and fail the connection.
+	 * occurred and fail the connection.
 	 *
 	 * For DataSequenceInOrder=No: If the offset is greater than the per
 	 * sequence DataPDUInOrder=Yes offset counter in struct iscsi_seq a protocol
-	 * error has occured and fail the connection.
+	 * error has occurred and fail the connection.
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
 		if (be32_to_cpu(hdr->offset) != cmd->write_data_done) {
@@ -801,7 +801,7 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 {
 	int tpg_active;
 	/*
-	 * Only start Time2Retain timer when the assoicated TPG is still in
+	 * Only start Time2Retain timer when the associated TPG is still in
 	 * an ACTIVE (eg: not disabled or shutdown) state.
 	 */
 	spin_lock(&ISCSI_TPG_S(sess)->tpg_state_lock);

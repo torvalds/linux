@@ -1237,7 +1237,6 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 {
 	struct radeon_bo_va *bo_va;
 
-	BUG_ON(!atomic_read(&bo->tbo.reserved));
 	list_for_each_entry(bo_va, &bo->va, bo_list) {
 		bo_va->valid = false;
 	}

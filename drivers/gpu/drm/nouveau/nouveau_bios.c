@@ -624,206 +624,6 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	return 0;
 }
 
-/* BIT 'U'/'d' table encoder subtables have hashes matching them to
- * a particular set of encoders.
- *
- * This function returns true if a particular DCB entry matches.
- */
-bool
-bios_encoder_match(struct dcb_output *dcb, u32 hash)
-{
-	if ((hash & 0x000000f0) != (dcb->location << 4))
-		return false;
-	if ((hash & 0x0000000f) != dcb->type)
-		return false;
-	if (!(hash & (dcb->or << 16)))
-		return false;
-
-	switch (dcb->type) {
-	case DCB_OUTPUT_TMDS:
-	case DCB_OUTPUT_LVDS:
-	case DCB_OUTPUT_DP:
-		if (hash & 0x00c00000) {
-			if (!(hash & (dcb->sorconf.link << 22)))
-				return false;
-		}
-	default:
-		return true;
-	}
-}
-
-int
-nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
-			       struct dcb_output *dcbent, int crtc)
-{
-	/*
-	 * The display script table is located by the BIT 'U' table.
-	 *
-	 * It contains an array of pointers to various tables describing
-	 * a particular output type.  The first 32-bits of the output
-	 * tables contains similar information to a DCB entry, and is
-	 * used to decide whether that particular table is suitable for
-	 * the output you want to access.
-	 *
-	 * The "record header length" field here seems to indicate the
-	 * offset of the first configuration entry in the output tables.
-	 * This is 10 on most cards I've seen, but 12 has been witnessed
-	 * on DP cards, and there's another script pointer within the
-	 * header.
-	 *
-	 * offset + 0   ( 8 bits): version
-	 * offset + 1   ( 8 bits): header length
-	 * offset + 2   ( 8 bits): record length
-	 * offset + 3   ( 8 bits): number of records
-	 * offset + 4   ( 8 bits): record header length
-	 * offset + 5   (16 bits): pointer to first output script table
-	 */
-
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvbios *bios = &drm->vbios;
-	uint8_t *table = &bios->data[bios->display.script_table_ptr];
-	uint8_t *otable = NULL;
-	uint16_t script;
-	int i;
-
-	if (!bios->display.script_table_ptr) {
-		NV_ERROR(drm, "No pointer to output script table\n");
-		return 1;
-	}
-
-	/*
-	 * Nothing useful has been in any of the pre-2.0 tables I've seen,
-	 * so until they are, we really don't need to care.
-	 */
-	if (table[0] < 0x20)
-		return 1;
-
-	if (table[0] != 0x20 && table[0] != 0x21) {
-		NV_ERROR(drm, "Output script table version 0x%02x unknown\n",
-			 table[0]);
-		return 1;
-	}
-
-	/*
-	 * The output script tables describing a particular output type
-	 * look as follows:
-	 *
-	 * offset + 0   (32 bits): output this table matches (hash of DCB)
-	 * offset + 4   ( 8 bits): unknown
-	 * offset + 5   ( 8 bits): number of configurations
-	 * offset + 6   (16 bits): pointer to some script
-	 * offset + 8   (16 bits): pointer to some script
-	 *
-	 * headerlen == 10
-	 * offset + 10           : configuration 0
-	 *
-	 * headerlen == 12
-	 * offset + 10           : pointer to some script
-	 * offset + 12           : configuration 0
-	 *
-	 * Each config entry is as follows:
-	 *
-	 * offset + 0   (16 bits): unknown, assumed to be a match value
-	 * offset + 2   (16 bits): pointer to script table (clock set?)
-	 * offset + 4   (16 bits): pointer to script table (reset?)
-	 *
-	 * There doesn't appear to be a count value to say how many
-	 * entries exist in each script table, instead, a 0 value in
-	 * the first 16-bit word seems to indicate both the end of the
-	 * list and the default entry.  The second 16-bit word in the
-	 * script tables is a pointer to the script to execute.
-	 */
-
-	NV_DEBUG(drm, "Searching for output entry for %d %d %d\n",
-			dcbent->type, dcbent->location, dcbent->or);
-	for (i = 0; i < table[3]; i++) {
-		otable = ROMPTR(dev, table[table[1] + (i * table[2])]);
-		if (otable && bios_encoder_match(dcbent, ROM32(otable[0])))
-			break;
-	}
-
-	if (!otable) {
-		NV_DEBUG(drm, "failed to match any output table\n");
-		return 1;
-	}
-
-	if (pclk < -2 || pclk > 0) {
-		/* Try to find matching script table entry */
-		for (i = 0; i < otable[5]; i++) {
-			if (ROM16(otable[table[4] + i*6]) == type)
-				break;
-		}
-
-		if (i == otable[5]) {
-			NV_ERROR(drm, "Table 0x%04x not found for %d/%d, "
-				      "using first\n",
-				 type, dcbent->type, dcbent->or);
-			i = 0;
-		}
-	}
-
-	if (pclk == 0) {
-		script = ROM16(otable[6]);
-		if (!script) {
-			NV_DEBUG(drm, "output script 0 not found\n");
-			return 1;
-		}
-
-		NV_DEBUG(drm, "0x%04X: parsing output script 0\n", script);
-		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
-	} else
-	if (pclk == -1) {
-		script = ROM16(otable[8]);
-		if (!script) {
-			NV_DEBUG(drm, "output script 1 not found\n");
-			return 1;
-		}
-
-		NV_DEBUG(drm, "0x%04X: parsing output script 1\n", script);
-		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
-	} else
-	if (pclk == -2) {
-		if (table[4] >= 12)
-			script = ROM16(otable[10]);
-		else
-			script = 0;
-		if (!script) {
-			NV_DEBUG(drm, "output script 2 not found\n");
-			return 1;
-		}
-
-		NV_DEBUG(drm, "0x%04X: parsing output script 2\n", script);
-		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
-	} else
-	if (pclk > 0) {
-		script = ROM16(otable[table[4] + i*6 + 2]);
-		if (script)
-			script = clkcmptable(bios, script, pclk);
-		if (!script) {
-			NV_DEBUG(drm, "clock script 0 not found\n");
-			return 1;
-		}
-
-		NV_DEBUG(drm, "0x%04X: parsing clock script 0\n", script);
-		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
-	} else
-	if (pclk < 0) {
-		script = ROM16(otable[table[4] + i*6 + 4]);
-		if (script)
-			script = clkcmptable(bios, script, -pclk);
-		if (!script) {
-			NV_DEBUG(drm, "clock script 1 not found\n");
-			return 1;
-		}
-
-		NV_DEBUG(drm, "0x%04X: parsing clock script 1\n", script);
-		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
-	}
-
-	return 0;
-}
-
-
 int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, int pxclk)
 {
 	/*
@@ -1212,31 +1012,6 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	return 0;
 }
 
-static int
-parse_bit_U_tbl_entry(struct drm_device *dev, struct nvbios *bios,
-		      struct bit_entry *bitentry)
-{
-	/*
-	 * Parses the pointer to the G80 output script tables
-	 *
-	 * Starting at bitentry->offset:
-	 *
-	 * offset + 0  (16 bits): output script table pointer
-	 */
-
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	uint16_t outputscripttableptr;
-
-	if (bitentry->length != 3) {
-		NV_ERROR(drm, "Do not understand BIT U table\n");
-		return -EINVAL;
-	}
-
-	outputscripttableptr = ROM16(bios->data[bitentry->offset]);
-	bios->display.script_table_ptr = outputscripttableptr;
-	return 0;
-}
-
 struct bit_table {
 	const char id;
 	int (* const parse_fn)(struct drm_device *, struct nvbios *, struct bit_entry *);
@@ -1313,7 +1088,6 @@ parse_bit_structure(struct nvbios *bios, const uint16_t bitoffset)
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('M', M)); /* memory? */
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('L', lvds));
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('T', tmds));
-	parse_bit_table(bios, bitoffset, &BIT_TABLE('U', U));
 
 	return 0;
 }
@@ -2324,7 +2098,7 @@ nouveau_run_vbios_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
-	int i, ret = 0;
+	int ret = 0;
 
 	/* Reset the BIOS head to 0. */
 	bios->state.crtchead = 0;
@@ -2335,13 +2109,6 @@ nouveau_run_vbios_init(struct drm_device *dev)
 	if (bios->execute) {
 		bios->fp.last_script_invoc = 0;
 		bios->fp.lvds_init_run = false;
-	}
-
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		for (i = 0; bios->execute && i < bios->dcb.entries; i++) {
-			nouveau_bios_run_display_table(dev, 0, 0,
-						       &bios->dcb.entry[i], -1);
-		}
 	}
 
 	return ret;

@@ -41,6 +41,7 @@
 
 #define SO_ATTACH_FILTER	0x001a
 #define SO_DETACH_FILTER        0x001b
+#define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_PEERNAME		0x001c
 #define SO_TIMESTAMP		0x001d

@@ -90,6 +90,7 @@ config MPIC
 config PPC_EPAPR_HV_PIC
 	bool
 	default n
+	select EPAPR_PARAVIRT
 
 config MPIC_WEIRD
 	bool

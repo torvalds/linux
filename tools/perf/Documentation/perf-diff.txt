@@ -72,6 +72,66 @@ OPTIONS
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
 
+-b::
+--baseline-only::
+        Show only items with match in baseline.
+
+-c::
+--compute::
+        Differential computation selection - delta,ratio,wdiff (default is delta).
+        If '+' is specified as a first character, the output is sorted based
+        on the computation results.
+        See COMPARISON METHODS section for more info.
+
+-p::
+--period::
+        Show period values for both compared hist entries.
+
+-F::
+--formula::
+        Show formula for given computation.
+
+COMPARISON METHODS
+------------------
+delta
+~~~~~
+If specified the 'Delta' column is displayed with value 'd' computed as:
+
+  d = A->period_percent - B->period_percent
+
+with:
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period_percent being the % of the hist entry period value within
+    single data file
+
+ratio
+~~~~~
+If specified the 'Ratio' column is displayed with value 'r' computed as:
+
+  r = A->period / B->period
+
+with:
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period being the hist entry period value
+
+wdiff
+~~~~~
+If specified the 'Weighted diff' column is displayed with value 'd' computed as:
+
+   d = B->period * WEIGHT-A - A->period * WEIGHT-B
+
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period being the hist entry period value
+
+  - WEIGHT-A/WEIGHT-B being user suplied weights in the the '-c' option
+    behind ':' separator like '-c wdiff:1,2'.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]

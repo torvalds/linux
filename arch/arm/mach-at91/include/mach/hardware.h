@@ -90,9 +90,6 @@
 #define AT91_SRAM_MAX		SZ_1M
 #define AT91_VIRT_BASE		(AT91_IO_VIRT_BASE - AT91_SRAM_MAX)
 
-/* Serial ports */
-#define ATMEL_MAX_UART		7		/* 6 USART3's and one DBGU port (SAM9260) */
-
 /* External Memory Map */
 #define AT91_CHIPSELECT_0	0x10000000
 #define AT91_CHIPSELECT_1	0x20000000

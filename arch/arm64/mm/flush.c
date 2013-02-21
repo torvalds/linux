@@ -27,20 +27,11 @@
 
 #include "mm.h"
 
-void flush_cache_mm(struct mm_struct *mm)
-{
-}
-
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		       unsigned long end)
 {
 	if (vma->vm_flags & VM_EXEC)
 		__flush_icache_all();
-}
-
-void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr,
-		      unsigned long pfn)
-{
 }
 
 static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,

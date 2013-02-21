@@ -237,7 +237,7 @@ static int mlx4_en_dcbnl_ieee_setmaxrate(struct net_device *dev,
 	if (err)
 		return err;
 
-	memcpy(priv->maxrate, tmp, sizeof(*priv->maxrate));
+	memcpy(priv->maxrate, tmp, sizeof(priv->maxrate));
 
 	return 0;
 }

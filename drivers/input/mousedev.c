@@ -12,8 +12,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define MOUSEDEV_MINOR_BASE	32
-#define MOUSEDEV_MINORS		32
-#define MOUSEDEV_MIX		31
+#define MOUSEDEV_MINORS		31
+#define MOUSEDEV_MIX		63
 
 #include <linux/sched.h>
 #include <linux/slab.h>

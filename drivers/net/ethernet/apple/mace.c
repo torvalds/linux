@@ -106,7 +106,7 @@ static const struct net_device_ops mace_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
+static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct device_node *mace = macio_get_of_node(mdev);
 	struct net_device *dev;
@@ -271,7 +271,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	return rc;
 }
 
-static int __devexit mace_remove(struct macio_dev *mdev)
+static int mace_remove(struct macio_dev *mdev)
 {
 	struct net_device *dev = macio_get_drvdata(mdev);
 	struct mace_data *mp;

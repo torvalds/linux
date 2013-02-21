@@ -204,7 +204,7 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 	return rc;
 }
 
-int
+void
 cifs_set_port(struct sockaddr *addr, const unsigned short int port)
 {
 	switch (addr->sa_family) {
@@ -214,19 +214,7 @@ cifs_set_port(struct sockaddr *addr, const unsigned short int port)
 	case AF_INET6:
 		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
 		break;
-	default:
-		return 0;
 	}
-	return 1;
-}
-
-int
-cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
-		   const unsigned short int port)
-{
-	if (!cifs_convert_address(dst, src, len))
-		return 0;
-	return cifs_set_port(dst, port);
 }
 
 /*****************************************************************************

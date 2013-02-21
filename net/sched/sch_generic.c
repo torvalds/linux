@@ -53,20 +53,19 @@ static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
 	struct sk_buff *skb = q->gso_skb;
+	const struct netdev_queue *txq = q->dev_queue;
 
 	if (unlikely(skb)) {
-		struct net_device *dev = qdisc_dev(q);
-		struct netdev_queue *txq;
-
 		/* check the reason of requeuing without tx lock first */
-		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+		txq = netdev_get_tx_queue(txq->dev, skb_get_queue_mapping(skb));
 		if (!netif_xmit_frozen_or_stopped(txq)) {
 			q->gso_skb = NULL;
 			q->q.qlen--;
 		} else
 			skb = NULL;
 	} else {
-		skb = q->dequeue(q);
+		if (!(q->flags & TCQ_F_ONETXQUEUE) || !netif_xmit_frozen_or_stopped(txq))
+			skb = q->dequeue(q);
 	}
 
 	return skb;
@@ -686,6 +685,8 @@ static void attach_one_default_qdisc(struct net_device *dev,
 			netdev_info(dev, "activation failed\n");
 			return;
 		}
+		if (!netif_is_multiqueue(dev))
+			qdisc->flags |= TCQ_F_ONETXQUEUE;
 	}
 	dev_queue->qdisc_sleeping = qdisc;
 }

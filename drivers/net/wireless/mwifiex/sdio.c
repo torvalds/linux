@@ -161,7 +161,6 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
 	mmc_pm_flag_t pm_flag = 0;
-	int hs_actived = 0;
 	int i;
 	int ret = 0;
 
@@ -188,11 +187,13 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	adapter = card->adapter;
 
 	/* Enable the Host Sleep */
-	hs_actived = mwifiex_enable_hs(adapter);
-	if (hs_actived) {
-		pr_debug("cmd: suspend with MMC_PM_KEEP_POWER\n");
-		ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (!mwifiex_enable_hs(adapter)) {
+		dev_err(adapter->dev, "cmd: failed to suspend\n");
+		return -EFAULT;
 	}
+
+	dev_dbg(adapter->dev, "cmd: suspend with MMC_PM_KEEP_POWER\n");
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 
 	/* Indicate device suspended */
 	adapter->is_suspended = true;
@@ -905,8 +906,8 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 /*
  * SDIO interrupt handler.
  *
- * This function reads the interrupt status from firmware and assigns
- * the main process in workqueue which will handle the interrupt.
+ * This function reads the interrupt status from firmware and handles
+ * the interrupt in current thread (ksdioirqd) right away.
  */
 static void
 mwifiex_sdio_interrupt(struct sdio_func *func)
@@ -929,7 +930,7 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 		adapter->ps_state = PS_STATE_AWAKE;
 
 	mwifiex_interrupt_status(adapter);
-	queue_work(adapter->workqueue, &adapter->main_work);
+	mwifiex_main_process(adapter);
 }
 
 /*
@@ -1748,6 +1749,37 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 		port, card->mp_data_port_mask);
 }
 
+static struct mmc_host *reset_host;
+static void sdio_card_reset_worker(struct work_struct *work)
+{
+	/* The actual reset operation must be run outside of driver thread.
+	 * This is because mmc_remove_host() will cause the device to be
+	 * instantly destroyed, and the driver then needs to end its thread,
+	 * leading to a deadlock.
+	 *
+	 * We run it in a totally independent workqueue.
+	 */
+
+	pr_err("Resetting card...\n");
+	mmc_remove_host(reset_host);
+	/* 20ms delay is based on experiment with sdhci controller */
+	mdelay(20);
+	mmc_add_host(reset_host);
+}
+static DECLARE_WORK(card_reset_work, sdio_card_reset_worker);
+
+/* This function resets the card */
+static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
+{
+	struct sdio_mmc_card *card = adapter->card;
+
+	if (work_pending(&card_reset_work))
+		return;
+
+	reset_host = card->func->card->host;
+	schedule_work(&card_reset_work);
+}
+
 static struct mwifiex_if_ops sdio_ops = {
 	.init_if = mwifiex_init_sdio,
 	.cleanup_if = mwifiex_cleanup_sdio,
@@ -1766,6 +1798,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cleanup_mpa_buf = mwifiex_cleanup_mpa_buf,
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
+	.card_reset = mwifiex_sdio_card_reset,
 };
 
 /*
@@ -1803,6 +1836,7 @@ mwifiex_sdio_cleanup_module(void)
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
+	cancel_work_sync(&card_reset_work);
 	sdio_unregister_driver(&mwifiex_sdio);
 }
 

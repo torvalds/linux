@@ -2023,7 +2023,7 @@ static struct cxgb4vf_debugfs_entry debugfs_files[] = {
  * Set up out /sys/kernel/debug/cxgb4vf sub-nodes.  We assume that the
  * directory (debugfs_root) has already been set up.
  */
-static int __devinit setup_debugfs(struct adapter *adapter)
+static int setup_debugfs(struct adapter *adapter)
 {
 	int i;
 
@@ -2064,7 +2064,7 @@ static void cleanup_debugfs(struct adapter *adapter)
  * adapter parameters we're going to be using and initialize basic adapter
  * hardware support.
  */
-static int __devinit adap_init0(struct adapter *adapter)
+static int adap_init0(struct adapter *adapter)
 {
 	struct vf_resources *vfres = &adapter->params.vfres;
 	struct sge_params *sge_params = &adapter->params.sge;
@@ -2266,7 +2266,7 @@ static inline void init_rspq(struct sge_rspq *rspq, u8 timer_idx,
  * be modified by the admin via ethtool and cxgbtool prior to the adapter
  * being brought up for the first time.
  */
-static void __devinit cfg_queues(struct adapter *adapter)
+static void cfg_queues(struct adapter *adapter)
 {
 	struct sge *s = &adapter->sge;
 	int q10g, n10g, qidx, pidx, qs;
@@ -2361,7 +2361,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
  * Reduce the number of Ethernet queues across all ports to at most n.
  * n provides at least one queue per port.
  */
-static void __devinit reduce_ethqs(struct adapter *adapter, int n)
+static void reduce_ethqs(struct adapter *adapter, int n)
 {
 	int i;
 	struct port_info *pi;
@@ -2400,7 +2400,7 @@ static void __devinit reduce_ethqs(struct adapter *adapter, int n)
  * for our "extras".  Note that this process may lower the maximum number of
  * allowed Queue Sets ...
  */
-static int __devinit enable_msix(struct adapter *adapter)
+static int enable_msix(struct adapter *adapter)
 {
 	int i, err, want, need;
 	struct msix_entry entries[MSIX_ENTRIES];
@@ -2462,8 +2462,8 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
  * state needed to manage the device.  This routine is called "init_one" in
  * the PF Driver ...
  */
-static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int cxgb4vf_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	static int version_printed;
 
@@ -2769,7 +2769,7 @@ err_disable_device:
  * "probe" routine and quiesce the device (disable interrupts, etc.).  (Note
  * that this is called "remove_one" in the PF Driver.)
  */
-static void __devexit cxgb4vf_pci_remove(struct pci_dev *pdev)
+static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
@@ -2835,7 +2835,7 @@ static void __devexit cxgb4vf_pci_remove(struct pci_dev *pdev)
  * "Shutdown" quiesce the device, stopping Ingress Packet and Interrupt
  * delivery.
  */
-static void __devexit cxgb4vf_pci_shutdown(struct pci_dev *pdev)
+static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 {
 	struct adapter *adapter;
 	int pidx;
@@ -2905,8 +2905,8 @@ static struct pci_driver cxgb4vf_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= cxgb4vf_pci_tbl,
 	.probe		= cxgb4vf_pci_probe,
-	.remove		= __devexit_p(cxgb4vf_pci_remove),
-	.shutdown	= __devexit_p(cxgb4vf_pci_shutdown),
+	.remove		= cxgb4vf_pci_remove,
+	.shutdown	= cxgb4vf_pci_shutdown,
 };
 
 /*

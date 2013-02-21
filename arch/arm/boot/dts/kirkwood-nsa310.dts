@@ -1,0 +1,144 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+
+/ {
+	model = "ZyXEL NSA310";
+	compatible = "zyxel,nsa310", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	ocp@f1000000 {
+
+		serial@12000 {
+			clock-frequency = <200000000>;
+			status = "ok";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		i2c@11000 {
+			status = "okay";
+		};
+
+		nand@3000000 {
+			status = "okay";
+			chip-delay = <35>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0x0100000>;
+				read-only;
+			};
+			partition@100000 {
+				label = "uboot_env";
+				reg = <0x0100000 0x0080000>;
+			};
+			partition@180000 {
+				label = "key_store";
+				reg = <0x0180000 0x0080000>;
+			};
+			partition@200000 {
+				label = "info";
+				reg = <0x0200000 0x0080000>;
+			};
+			partition@280000 {
+				label = "etc";
+				reg = <0x0280000 0x0a00000>;
+			};
+			partition@c80000 {
+				label = "kernel_1";
+				reg = <0x0c80000 0x0a00000>;
+			};
+			partition@1680000 {
+				label = "rootfs1";
+				reg = <0x1680000 0x2fc0000>;
+			};
+			partition@4640000 {
+				label = "kernel_2";
+				reg = <0x4640000 0x0a00000>;
+			};
+			partition@5040000 {
+				label = "rootfs2";
+				reg = <0x5040000 0x2fc0000>;
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Power Button";
+			linux,code = <116>;
+			gpios = <&gpio1 14 0>;
+		};
+		button@2 {
+			label = "Copy Button";
+			linux,code = <133>;
+			gpios = <&gpio1 5 1>;
+		};
+		button@3 {
+			label = "Reset Button";
+			linux,code = <0x198>;
+			gpios = <&gpio1 4 1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-sys {
+			label = "nsa310:green:sys";
+			gpios = <&gpio0 28 0>;
+		};
+		red-sys {
+			label = "nsa310:red:sys";
+			gpios = <&gpio0 29 0>;
+		};
+		green-hdd {
+			label = "nsa310:green:hdd";
+			gpios = <&gpio1 9 0>;
+		};
+		red-hdd {
+			label = "nsa310:red:hdd";
+			gpios = <&gpio1 10 0>;
+		};
+		green-esata {
+			label = "nsa310:green:esata";
+			gpios = <&gpio0 12 0>;
+		};
+		red-esata {
+			label = "nsa310:red:esata";
+			gpios = <&gpio0 13 0>;
+		};
+		green-usb {
+			label = "nsa310:green:usb";
+			gpios = <&gpio0 15 0>;
+		};
+		red-usb {
+			label = "nsa310:red:usb";
+			gpios = <&gpio0 16 0>;
+		};
+		green-copy {
+			label = "nsa310:green:copy";
+			gpios = <&gpio1 7 0>;
+		};
+		red-copy {
+			label = "nsa310:red:copy";
+			gpios = <&gpio1 8 0>;
+		};
+	};
+};

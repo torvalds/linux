@@ -377,7 +377,7 @@ static struct regmap_irq_chip da9055_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(da9055_irqs),
 };
 
-int __devinit da9055_device_init(struct da9055 *da9055)
+int da9055_device_init(struct da9055 *da9055)
 {
 	struct da9055_pdata *pdata = da9055->dev->platform_data;
 	int ret;
@@ -412,7 +412,7 @@ err:
 	return ret;
 }
 
-void __devexit da9055_device_exit(struct da9055 *da9055)
+void da9055_device_exit(struct da9055 *da9055)
 {
 	regmap_del_irq_chip(da9055->chip_irq, da9055->irq_data);
 	mfd_remove_devices(da9055->dev);

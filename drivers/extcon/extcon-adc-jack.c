@@ -91,7 +91,7 @@ static irqreturn_t adc_jack_irq_thread(int irq, void *_data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit adc_jack_probe(struct platform_device *pdev)
+static int adc_jack_probe(struct platform_device *pdev)
 {
 	struct adc_jack_data *data;
 	struct adc_jack_pdata *pdata = pdev->dev.platform_data;
@@ -175,7 +175,7 @@ out:
 	return err;
 }
 
-static int __devexit adc_jack_remove(struct platform_device *pdev)
+static int adc_jack_remove(struct platform_device *pdev)
 {
 	struct adc_jack_data *data = platform_get_drvdata(pdev);
 
@@ -188,7 +188,7 @@ static int __devexit adc_jack_remove(struct platform_device *pdev)
 
 static struct platform_driver adc_jack_driver = {
 	.probe          = adc_jack_probe,
-	.remove         = __devexit_p(adc_jack_remove),
+	.remove         = adc_jack_remove,
 	.driver         = {
 		.name   = "adc-jack",
 		.owner  = THIS_MODULE,

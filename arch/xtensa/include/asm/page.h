@@ -29,19 +29,19 @@
  * PAGE_SHIFT determines the page size
  */
 
-#define PAGE_SHIFT		12
-#define PAGE_SIZE		(__XTENSA_UL_CONST(1) << PAGE_SHIFT)
-#define PAGE_MASK		(~(PAGE_SIZE-1))
+#define PAGE_SHIFT	12
+#define PAGE_SIZE	(__XTENSA_UL_CONST(1) << PAGE_SHIFT)
+#define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #ifdef CONFIG_MMU
-#define PAGE_OFFSET		XCHAL_KSEG_CACHED_VADDR
-#define MAX_MEM_PFN		XCHAL_KSEG_SIZE
+#define PAGE_OFFSET	XCHAL_KSEG_CACHED_VADDR
+#define MAX_MEM_PFN	XCHAL_KSEG_SIZE
 #else
-#define PAGE_OFFSET		0
-#define MAX_MEM_PFN		(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#define PAGE_OFFSET	0
+#define MAX_MEM_PFN	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
 #endif
 
-#define PGTABLE_START		0x80000000
+#define PGTABLE_START	0x80000000
 
 /*
  * Cache aliasing:
@@ -161,7 +161,9 @@ extern void copy_user_page(void*, void*, unsigned long, struct page*);
 
 #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
-#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
+#define pfn_valid(pfn) \
+	((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
+
 #ifdef CONFIG_DISCONTIGMEM
 # error CONFIG_DISCONTIGMEM not supported
 #endif

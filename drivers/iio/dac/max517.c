@@ -156,7 +156,7 @@ static const struct iio_chan_spec max517_channels[] = {
 	MAX517_CHANNEL(1)
 };
 
-static int __devinit max517_probe(struct i2c_client *client,
+static int max517_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct max517_data *data;
@@ -210,7 +210,7 @@ exit:
 	return err;
 }
 
-static int __devexit max517_remove(struct i2c_client *client)
+static int max517_remove(struct i2c_client *client)
 {
 	iio_device_unregister(i2c_get_clientdata(client));
 	iio_device_free(i2c_get_clientdata(client));
@@ -232,7 +232,7 @@ static struct i2c_driver max517_driver = {
 		.pm		= MAX517_PM_OPS,
 	},
 	.probe		= max517_probe,
-	.remove		=  __devexit_p(max517_remove),
+	.remove		= max517_remove,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

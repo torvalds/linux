@@ -67,7 +67,8 @@
  * These bits overlap with the hardware bits but the naming is preserved for
  * consistency with the classic page table format.
  */
-#define L_PTE_PRESENT		(_AT(pteval_t, 3) << 0)		/* Valid */
+#define L_PTE_VALID		(_AT(pteval_t, 1) << 0)		/* Valid */
+#define L_PTE_PRESENT		(_AT(pteval_t, 3) << 0)		/* Present */
 #define L_PTE_FILE		(_AT(pteval_t, 1) << 2)		/* only when !PRESENT */
 #define L_PTE_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
 #define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)		/* AP[2] */
@@ -76,6 +77,7 @@
 #define L_PTE_XN		(_AT(pteval_t, 1) << 54)	/* XN */
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)	/* unused */
 #define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)	/* unused */
+#define L_PTE_NONE		(_AT(pteval_t, 1) << 57)	/* PROT_NONE */
 
 /*
  * To be used in assembly code with the upper page attributes.

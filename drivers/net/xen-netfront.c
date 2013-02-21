@@ -452,27 +452,83 @@ static void xennet_make_frags(struct sk_buff *skb, struct net_device *dev,
 	/* Grant backend access to each skb fragment page. */
 	for (i = 0; i < frags; i++) {
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+		struct page *page = skb_frag_page(frag);
 
-		tx->flags |= XEN_NETTXF_more_data;
+		len = skb_frag_size(frag);
+		offset = frag->page_offset;
 
-		id = get_id_from_freelist(&np->tx_skb_freelist, np->tx_skbs);
-		np->tx_skbs[id].skb = skb_get(skb);
-		tx = RING_GET_REQUEST(&np->tx, prod++);
-		tx->id = id;
-		ref = gnttab_claim_grant_reference(&np->gref_tx_head);
-		BUG_ON((signed short)ref < 0);
+		/* Data must not cross a page boundary. */
+		BUG_ON(len + offset > PAGE_SIZE<<compound_order(page));
 
-		mfn = pfn_to_mfn(page_to_pfn(skb_frag_page(frag)));
-		gnttab_grant_foreign_access_ref(ref, np->xbdev->otherend_id,
-						mfn, GNTMAP_readonly);
+		/* Skip unused frames from start of page */
+		page += offset >> PAGE_SHIFT;
+		offset &= ~PAGE_MASK;
 
-		tx->gref = np->grant_tx_ref[id] = ref;
-		tx->offset = frag->page_offset;
-		tx->size = skb_frag_size(frag);
-		tx->flags = 0;
+		while (len > 0) {
+			unsigned long bytes;
+
+			BUG_ON(offset >= PAGE_SIZE);
+
+			bytes = PAGE_SIZE - offset;
+			if (bytes > len)
+				bytes = len;
+
+			tx->flags |= XEN_NETTXF_more_data;
+
+			id = get_id_from_freelist(&np->tx_skb_freelist,
+						  np->tx_skbs);
+			np->tx_skbs[id].skb = skb_get(skb);
+			tx = RING_GET_REQUEST(&np->tx, prod++);
+			tx->id = id;
+			ref = gnttab_claim_grant_reference(&np->gref_tx_head);
+			BUG_ON((signed short)ref < 0);
+
+			mfn = pfn_to_mfn(page_to_pfn(page));
+			gnttab_grant_foreign_access_ref(ref,
+							np->xbdev->otherend_id,
+							mfn, GNTMAP_readonly);
+
+			tx->gref = np->grant_tx_ref[id] = ref;
+			tx->offset = offset;
+			tx->size = bytes;
+			tx->flags = 0;
+
+			offset += bytes;
+			len -= bytes;
+
+			/* Next frame */
+			if (offset == PAGE_SIZE && len) {
+				BUG_ON(!PageCompound(page));
+				page++;
+				offset = 0;
+			}
+		}
 	}
 
 	np->tx.req_prod_pvt = prod;
+}
+
+/*
+ * Count how many ring slots are required to send the frags of this
+ * skb. Each frag might be a compound page.
+ */
+static int xennet_count_skb_frag_slots(struct sk_buff *skb)
+{
+	int i, frags = skb_shinfo(skb)->nr_frags;
+	int pages = 0;
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+		unsigned long size = skb_frag_size(frag);
+		unsigned long offset = frag->page_offset;
+
+		/* Skip unused frames from start of page */
+		offset &= ~PAGE_MASK;
+
+		pages += PFN_UP(offset + size);
+	}
+
+	return pages;
 }
 
 static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -487,23 +543,23 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	grant_ref_t ref;
 	unsigned long mfn;
 	int notify;
-	int frags = skb_shinfo(skb)->nr_frags;
+	int slots;
 	unsigned int offset = offset_in_page(data);
 	unsigned int len = skb_headlen(skb);
 	unsigned long flags;
 
-	frags += DIV_ROUND_UP(offset + len, PAGE_SIZE);
-	if (unlikely(frags > MAX_SKB_FRAGS + 1)) {
-		printk(KERN_ALERT "xennet: skb rides the rocket: %d frags\n",
-		       frags);
-		dump_stack();
+	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE) +
+		xennet_count_skb_frag_slots(skb);
+	if (unlikely(slots > MAX_SKB_FRAGS + 1)) {
+		net_alert_ratelimited(
+			"xennet: skb rides the rocket: %d slots\n", slots);
 		goto drop;
 	}
 
 	spin_lock_irqsave(&np->tx_lock, flags);
 
 	if (unlikely(!netif_carrier_ok(dev) ||
-		     (frags > 1 && !xennet_can_sg(dev)) ||
+		     (slots > 1 && !xennet_can_sg(dev)) ||
 		     netif_needs_gso(skb, netif_skb_features(skb)))) {
 		spin_unlock_irqrestore(&np->tx_lock, flags);
 		goto drop;
@@ -959,29 +1015,10 @@ err:
 		i = xennet_fill_frags(np, skb, &tmpq);
 
 		/*
-		 * Truesize approximates the size of true data plus
-		 * any supervisor overheads. Adding hypervisor
-		 * overheads has been shown to significantly reduce
-		 * achievable bandwidth with the default receive
-		 * buffer size. It is therefore not wise to account
-		 * for it here.
-		 *
-		 * After alloc_skb(RX_COPY_THRESHOLD), truesize is set
-		 * to RX_COPY_THRESHOLD + the supervisor
-		 * overheads. Here, we add the size of the data pulled
-		 * in xennet_fill_frags().
-		 *
-		 * We also adjust for any unused space in the main
-		 * data area by subtracting (RX_COPY_THRESHOLD -
-		 * len). This is especially important with drivers
-		 * which split incoming packets into header and data,
-		 * using only 66 bytes of the main data area (see the
-		 * e1000 driver for example.)  On such systems,
-		 * without this last adjustement, our achievable
-		 * receive throughout using the standard receive
-		 * buffer size was cut by 25%(!!!).
-		 */
-		skb->truesize += skb->data_len - RX_COPY_THRESHOLD;
+                 * Truesize is the actual allocation size, even if the
+                 * allocation is only partially used.
+                 */
+		skb->truesize += PAGE_SIZE * skb_shinfo(skb)->nr_frags;
 		skb->len += skb->data_len;
 
 		if (rx->flags & XEN_NETRXF_csum_blank)
@@ -1255,7 +1292,7 @@ static const struct net_device_ops xennet_netdev_ops = {
 #endif
 };
 
-static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev)
+static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 {
 	int i, err;
 	struct net_device *netdev;
@@ -1351,8 +1388,8 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
  * structures and the ring buffers for communication with the backend, and
  * inform the backend of the appropriate details for those.
  */
-static int __devinit netfront_probe(struct xenbus_device *dev,
-				    const struct xenbus_device_id *id)
+static int netfront_probe(struct xenbus_device *dev,
+			  const struct xenbus_device_id *id)
 {
 	int err;
 	struct net_device *netdev;
@@ -1911,7 +1948,7 @@ static const struct xenbus_device_id netfront_ids[] = {
 };
 
 
-static int __devexit xennet_remove(struct xenbus_device *dev)
+static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
@@ -1934,7 +1971,7 @@ static int __devexit xennet_remove(struct xenbus_device *dev)
 
 static DEFINE_XENBUS_DRIVER(netfront, ,
 	.probe = netfront_probe,
-	.remove = __devexit_p(xennet_remove),
+	.remove = xennet_remove,
 	.resume = netfront_resume,
 	.otherend_changed = netback_changed,
 );

@@ -36,6 +36,11 @@ FEXPORT(ret_from_exception)
 FEXPORT(ret_from_irq)
 	LONG_S	s0, TI_REGS($28)
 FEXPORT(__ret_from_irq)
+/*
+ * We can be coming here from a syscall done in the kernel space,
+ * e.g. a failed kernel_execve().
+ */
+resume_userspace_check:
 	LONG_L	t0, PT_STATUS(sp)		# returning to kernel mode?
 	andi	t0, t0, KU_USER
 	beqz	t0, resume_kernel
@@ -64,6 +69,12 @@ need_resched:
 	jal	preempt_schedule_irq
 	b	need_resched
 #endif
+
+FEXPORT(ret_from_kernel_thread)
+	jal	schedule_tail		# a0 = struct task_struct *prev
+	move	a0, s1
+	jal	s0
+	j	syscall_exit
 
 FEXPORT(ret_from_fork)
 	jal	schedule_tail		# a0 = struct task_struct *prev
@@ -162,7 +173,7 @@ work_notifysig:				# deal with pending signals and
 	move	a0, sp
 	li	a1, 0
 	jal	do_notify_resume	# a2 already loaded
-	j	resume_userspace
+	j	resume_userspace_check
 
 FEXPORT(syscall_exit_partial)
 	local_irq_disable		# make sure need_resched doesn't

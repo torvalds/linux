@@ -968,7 +968,7 @@ static void iop_adma_issue_pending(struct dma_chan *chan)
  */
 #define IOP_ADMA_TEST_SIZE 2000
 
-static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
+static int iop_adma_memcpy_self_test(struct iop_adma_device *device)
 {
 	int i;
 	void *src, *dest;
@@ -1042,7 +1042,7 @@ out:
 }
 
 #define IOP_ADMA_NUM_SRC_TEST 4 /* must be <= 15 */
-static int __devinit
+static int
 iop_adma_xor_val_self_test(struct iop_adma_device *device)
 {
 	int i, src_idx;
@@ -1243,7 +1243,7 @@ out:
 }
 
 #ifdef CONFIG_RAID6_PQ
-static int __devinit
+static int
 iop_adma_pq_zero_sum_self_test(struct iop_adma_device *device)
 {
 	/* combined sources, software pq results, and extra hw pq results */
@@ -1406,7 +1406,7 @@ out:
 }
 #endif
 
-static int __devexit iop_adma_remove(struct platform_device *dev)
+static int iop_adma_remove(struct platform_device *dev)
 {
 	struct iop_adma_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
@@ -1429,7 +1429,7 @@ static int __devexit iop_adma_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit iop_adma_probe(struct platform_device *pdev)
+static int iop_adma_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret = 0, i;
@@ -1711,7 +1711,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 
 static struct platform_driver iop_adma_driver = {
 	.probe		= iop_adma_probe,
-	.remove		= __devexit_p(iop_adma_remove),
+	.remove		= iop_adma_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "iop-adma",

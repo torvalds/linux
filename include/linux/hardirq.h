@@ -4,6 +4,7 @@
 #include <linux/preempt.h>
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
+#include <linux/vtime.h>
 #include <asm/hardirq.h>
 
 /*
@@ -129,16 +130,6 @@ extern void synchronize_irq(unsigned int irq);
 # define synchronize_irq(irq)	barrier()
 #endif
 
-struct task_struct;
-
-#if !defined(CONFIG_VIRT_CPU_ACCOUNTING) && !defined(CONFIG_IRQ_TIME_ACCOUNTING)
-static inline void vtime_account(struct task_struct *tsk)
-{
-}
-#else
-extern void vtime_account(struct task_struct *tsk);
-#endif
-
 #if defined(CONFIG_TINY_RCU) || defined(CONFIG_TINY_PREEMPT_RCU)
 
 static inline void rcu_nmi_enter(void)
@@ -162,7 +153,7 @@ extern void rcu_nmi_exit(void);
  */
 #define __irq_enter()					\
 	do {						\
-		vtime_account(current);		\
+		vtime_account_irq_enter(current);	\
 		add_preempt_count(HARDIRQ_OFFSET);	\
 		trace_hardirq_enter();			\
 	} while (0)
@@ -178,7 +169,7 @@ extern void irq_enter(void);
 #define __irq_exit()					\
 	do {						\
 		trace_hardirq_exit();			\
-		vtime_account(current);		\
+		vtime_account_irq_exit(current);	\
 		sub_preempt_count(HARDIRQ_OFFSET);	\
 	} while (0)
 

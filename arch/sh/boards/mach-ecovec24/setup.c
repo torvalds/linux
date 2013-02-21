@@ -70,6 +70,16 @@
  *                                  OFF-ON : MMC
  */
 
+/*
+ * FSI - DA7210
+ *
+ * it needs amixer settings for playing
+ *
+ * amixer set 'HeadPhone' 80
+ * amixer set 'Out Mixer Left DAC Left' on
+ * amixer set 'Out Mixer Right DAC Right' on
+ */
+
 /* Heartbeat */
 static unsigned char led_pos[] = { 0, 1, 2, 3 };
 
@@ -329,11 +339,6 @@ static int ecovec24_set_brightness(int brightness)
 	return 0;
 }
 
-static int ecovec24_get_brightness(void)
-{
-	return gpio_get_value(GPIO_PTR1);
-}
-
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -347,7 +352,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
 			.set_brightness = ecovec24_set_brightness,
-			.get_brightness = ecovec24_get_brightness,
 		},
 	}
 };

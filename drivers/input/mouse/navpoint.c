@@ -206,7 +206,7 @@ static void navpoint_close(struct input_dev *input)
 	navpoint_down(navpoint);
 }
 
-static int __devinit navpoint_probe(struct platform_device *pdev)
+static int navpoint_probe(struct platform_device *pdev)
 {
 	const struct navpoint_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
@@ -299,7 +299,7 @@ err_free_gpio:
 	return error;
 }
 
-static int __devexit navpoint_remove(struct platform_device *pdev)
+static int navpoint_remove(struct platform_device *pdev)
 {
 	const struct navpoint_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
@@ -353,7 +353,7 @@ static SIMPLE_DEV_PM_OPS(navpoint_pm_ops, navpoint_suspend, navpoint_resume);
 
 static struct platform_driver navpoint_driver = {
 	.probe		= navpoint_probe,
-	.remove		= __devexit_p(navpoint_remove),
+	.remove		= navpoint_remove,
 	.driver = {
 		.name	= "navpoint",
 		.owner	= THIS_MODULE,

@@ -73,9 +73,9 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
-	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
+	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
+	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
 
 	return Clock;
 }
@@ -101,35 +101,35 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
-	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
+	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
+	sr_data = XGI_CRT1Table[index].CR[5];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[0];
+	cr_data = XGI_CRT1Table[index].CR[0];
 
 	/* Horizontal total */
 	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
 	A = HT + 5;
 
-	HDE = (XGI_Pr->RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
+	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[3];
+	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
 	F = HRS - E - 3;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
+	cr_data = XGI_CRT1Table[index].CR[1];
 
 	/* Horizontal blank start */
 	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[6];
+	sr_data = XGI_CRT1Table[index].CR[6];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[2];
+	cr_data = XGI_CRT1Table[index].CR[2];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[4];
+	cr_data2 = XGI_CRT1Table[index].CR[4];
 
 	/* Horizontal blank end */
 	HBE = (cr_data & 0x1f) | ((unsigned short) (cr_data2 & 0x80) >> 2)
@@ -150,11 +150,11 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*right_margin = F * 8;
 	*hsync_len = C * 8;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[14];
+	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[8];
+	cr_data = XGI_CRT1Table[index].CR[8];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[9];
+	cr_data2 = XGI_CRT1Table[index].CR[9];
 
 	/* Vertical total */
 	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
@@ -162,10 +162,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x01) << 10);
 	A = VT + 2;
 
-	VDE = XGI_Pr->RefIndex[RefreshRateTableIndex].YRes - 1;
+	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
 	E = VDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10];
+	cr_data = XGI_CRT1Table[index].CR[10];
 
 	/* Vertical retrace (=sync) start */
 	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
@@ -173,23 +173,23 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x08) << 7);
 	F = VRS + 1 - E;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[12];
+	cr_data = XGI_CRT1Table[index].CR[12];
 
-	cr_data3 = (XGI_Pr->XGINEWUB_CRT1Table[index].CR[14] & 0x80) << 5;
+	cr_data3 = (XGI_CRT1Table[index].CR[14] & 0x80) << 5;
 
 	/* Vertical blank start */
 	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
 			| ((unsigned short) (cr_data3 & 0x20) << 4)
 			| ((unsigned short) (sr_data & 0x04) << 8);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[13];
+	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
 	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
 	temp = VBE - ((E - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[11];
+	cr_data = XGI_CRT1Table[index].CR[11];
 
 	/* Vertical retrace (=sync) end */
 	VRE = (cr_data & 0x0f) | ((sr_data & 0x20) >> 1);
@@ -202,25 +202,25 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*lower_margin = F;
 	*vsync_len = C;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
 		*sync &= ~FB_SYNC_VERT_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_VERT_HIGH_ACT;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
 		*sync &= ~FB_SYNC_HOR_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_HOR_HIGH_ACT;
 
 	*vmode = FB_VMODE_NONINTERLACED;
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
 		*vmode = FB_VMODE_INTERLACED;
 	else {
 		j = 0;
-		while (XGI_Pr->EModeIDTable[j].Ext_ModeID != 0xff) {
-			if (XGI_Pr->EModeIDTable[j].Ext_ModeID ==
-			    XGI_Pr->RefIndex[RefreshRateTableIndex].ModeID) {
-				if (XGI_Pr->EModeIDTable[j].Ext_ModeFlag &
+		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
+			if (XGI330_EModeIDTable[j].Ext_ModeID ==
+			    XGI330_RefIndex[RefreshRateTableIndex].ModeID) {
+				if (XGI330_EModeIDTable[j].Ext_ModeFlag &
 				    DoubleScanMode) {
 					*vmode = FB_VMODE_DOUBLE;
 				}
@@ -1695,7 +1695,7 @@ static int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static int __devinit xgifb_probe(struct pci_dev *pdev,
+static int xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	u8 reg, reg1;
@@ -2103,7 +2103,7 @@ error:
 /*                PCI DEVICE HANDLING                */
 /*****************************************************/
 
-static void __devexit xgifb_remove(struct pci_dev *pdev)
+static void xgifb_remove(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct fb_info *fb_info = xgifb_info->fb_info;
@@ -2127,7 +2127,7 @@ static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
 	.id_table = xgifb_pci_table,
 	.probe = xgifb_probe,
-	.remove = __devexit_p(xgifb_remove)
+	.remove = xgifb_remove
 };
 
 

@@ -203,7 +203,7 @@ static int lp8788_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 			       ARRAY_SIZE(lp8788_devs), NULL, 0, NULL);
 }
 
-static int __devexit lp8788_remove(struct i2c_client *cl)
+static int lp8788_remove(struct i2c_client *cl)
 {
 	struct lp8788 *lp = i2c_get_clientdata(cl);
 
@@ -224,7 +224,7 @@ static struct i2c_driver lp8788_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lp8788_probe,
-	.remove = __devexit_p(lp8788_remove),
+	.remove = lp8788_remove,
 	.id_table = lp8788_ids,
 };
 

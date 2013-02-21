@@ -70,6 +70,9 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *attr)
 	int err;
 	u8 pnaddr;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -229,6 +232,9 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *attr)
 	struct rtmsg *rtm;
 	int err;
 	u8 dst;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;

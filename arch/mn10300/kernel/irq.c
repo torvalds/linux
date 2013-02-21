@@ -142,57 +142,11 @@ mn10300_cpupic_setaffinity(struct irq_data *d, const struct cpumask *mask,
 			   bool force)
 {
 	unsigned long flags;
-	int err;
 
 	flags = arch_local_cli_save();
-
-	/* check irq no */
-	switch (d->irq) {
-	case TMJCIRQ:
-	case RESCHEDULE_IPI:
-	case CALL_FUNC_SINGLE_IPI:
-	case LOCAL_TIMER_IPI:
-	case FLUSH_CACHE_IPI:
-	case CALL_FUNCTION_NMI_IPI:
-	case DEBUGGER_NMI_IPI:
-#ifdef CONFIG_MN10300_TTYSM0
-	case SC0RXIRQ:
-	case SC0TXIRQ:
-#ifdef CONFIG_MN10300_TTYSM0_TIMER8
-	case TM8IRQ:
-#elif CONFIG_MN10300_TTYSM0_TIMER2
-	case TM2IRQ:
-#endif /* CONFIG_MN10300_TTYSM0_TIMER8 */
-#endif /* CONFIG_MN10300_TTYSM0 */
-
-#ifdef CONFIG_MN10300_TTYSM1
-	case SC1RXIRQ:
-	case SC1TXIRQ:
-#ifdef CONFIG_MN10300_TTYSM1_TIMER12
-	case TM12IRQ:
-#elif defined(CONFIG_MN10300_TTYSM1_TIMER9)
-	case TM9IRQ:
-#elif defined(CONFIG_MN10300_TTYSM1_TIMER3)
-	case TM3IRQ:
-#endif /* CONFIG_MN10300_TTYSM1_TIMER12 */
-#endif /* CONFIG_MN10300_TTYSM1 */
-
-#ifdef CONFIG_MN10300_TTYSM2
-	case SC2RXIRQ:
-	case SC2TXIRQ:
-	case TM10IRQ:
-#endif /* CONFIG_MN10300_TTYSM2 */
-		err = -1;
-		break;
-
-	default:
-		set_bit(d->irq, irq_affinity_request);
-		err = 0;
-		break;
-	}
-
+	set_bit(d->irq, irq_affinity_request);
 	arch_local_irq_restore(flags);
-	return err;
+	return 0;
 }
 #endif /* CONFIG_SMP */
 

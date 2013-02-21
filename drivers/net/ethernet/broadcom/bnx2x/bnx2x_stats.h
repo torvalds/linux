@@ -203,6 +203,7 @@ struct bnx2x_eth_stats {
 	/* Recovery */
 	u32 recoverable_error;
 	u32 unrecoverable_error;
+	u32 driver_filtered_tx_pkt;
 	/* src: Clear-on-Read register; Will not survive PMF Migration */
 	u32 eee_tx_lpi;
 };
@@ -264,6 +265,7 @@ struct bnx2x_eth_q_stats {
 	u32 total_tpa_aggregated_frames_lo;
 	u32 total_tpa_bytes_hi;
 	u32 total_tpa_bytes_lo;
+	u32 driver_filtered_tx_pkt;
 };
 
 struct bnx2x_eth_stats_old {
@@ -315,6 +317,7 @@ struct bnx2x_eth_q_stats_old {
 	u32 rx_err_discard_pkt_old;
 	u32 rx_skb_alloc_failed_old;
 	u32 hw_csum_err_old;
+	u32 driver_filtered_tx_pkt_old;
 };
 
 struct bnx2x_net_stats_old {

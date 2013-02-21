@@ -3,6 +3,7 @@
 #
 
 obj-$(CONFIG_FEC) += fec.o
+obj-$(CONFIG_FEC_PTP) += fec_ptp.o
 obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx.o
 ifeq ($(CONFIG_FEC_MPC52xx_MDIO),y)
 	obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx_phy.o

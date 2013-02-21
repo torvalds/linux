@@ -385,12 +385,13 @@ EXPORT_SYMBOL_GPL(ci13xxx_add_device);
 
 void ci13xxx_remove_device(struct platform_device *pdev)
 {
+	int id = pdev->id;
 	platform_device_unregister(pdev);
-	ida_simple_remove(&ci_ida, pdev->id);
+	ida_simple_remove(&ci_ida, id);
 }
 EXPORT_SYMBOL_GPL(ci13xxx_remove_device);
 
-static int __devinit ci_hdrc_probe(struct platform_device *pdev)
+static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct ci13xxx	*ci;
@@ -508,7 +509,7 @@ rm_wq:
 	return ret;
 }
 
-static int __devexit ci_hdrc_remove(struct platform_device *pdev)
+static int ci_hdrc_remove(struct platform_device *pdev)
 {
 	struct ci13xxx *ci = platform_get_drvdata(pdev);
 
@@ -523,7 +524,7 @@ static int __devexit ci_hdrc_remove(struct platform_device *pdev)
 
 static struct platform_driver ci_hdrc_driver = {
 	.probe	= ci_hdrc_probe,
-	.remove	= __devexit_p(ci_hdrc_remove),
+	.remove	= ci_hdrc_remove,
 	.driver	= {
 		.name	= "ci_hdrc",
 	},

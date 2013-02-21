@@ -1831,7 +1831,7 @@ static struct vpfe_device *vpfe_initialize(void)
  * itself to the V4L2 driver and initializes fields of each
  * device objects
  */
-static __devinit int vpfe_probe(struct platform_device *pdev)
+static int vpfe_probe(struct platform_device *pdev)
 {
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *vpfe_cfg;
@@ -2038,7 +2038,7 @@ probe_free_dev_mem:
 /*
  * vpfe_remove : It un-register device from V4L2 driver
  */
-static int __devexit vpfe_remove(struct platform_device *pdev)
+static int vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe_dev = platform_get_drvdata(pdev);
 
@@ -2075,7 +2075,7 @@ static struct platform_driver vpfe_driver = {
 		.pm = &vpfe_dev_pm_ops,
 	},
 	.probe = vpfe_probe,
-	.remove = __devexit_p(vpfe_remove),
+	.remove = vpfe_remove,
 };
 
 module_platform_driver(vpfe_driver);

@@ -30,15 +30,15 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/usb.h>
 #include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
+#include <linux/omap-dma.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "gpmc.h"
 #include "gpmc-smc91x.h"
 
+#include "soc.h"
 #include "board-flash.h"
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"
@@ -157,6 +157,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device sdp3430_dvi_device = {
@@ -597,5 +598,5 @@ MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	.init_machine	= omap_3430sdp_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

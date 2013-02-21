@@ -345,17 +345,17 @@ static int find_gid_port(struct ib_device *device, union ib_gid *gid, u8 port_nu
 
 	err = ib_query_port(device, port_num, &props);
 	if (err)
-		return 1;
+		return err;
 
 	for (i = 0; i < props.gid_tbl_len; ++i) {
 		err = ib_query_gid(device, port_num, i, &tmp);
 		if (err)
-			return 1;
+			return err;
 		if (!memcmp(&tmp, gid, sizeof tmp))
 			return 0;
 	}
 
-	return -EAGAIN;
+	return -EADDRNOTAVAIL;
 }
 
 static int cma_acquire_dev(struct rdma_id_private *id_priv)
@@ -388,8 +388,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 				if (!ret) {
 					id_priv->id.port_num = port;
 					goto out;
-				} else if (ret == 1)
-					break;
+				}
 			}
 		}
 	}

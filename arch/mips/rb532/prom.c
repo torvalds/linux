@@ -72,12 +72,11 @@ void __init prom_setup_cmdline(void)
 	static char cmd_line[COMMAND_LINE_SIZE] __initdata;
 	char *cp, *board;
 	int prom_argc;
-	char **prom_argv, **prom_envp;
+	char **prom_argv;
 	int i;
 
 	prom_argc = fw_arg0;
 	prom_argv = (char **) fw_arg1;
-	prom_envp = (char **) fw_arg2;
 
 	cp = cmd_line;
 		/* Note: it is common that parameters start

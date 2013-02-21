@@ -802,10 +802,13 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* setup affinity mask and node */
 	if (cpu != -1)
 		cpumask_set_cpu(cpu, &q_vector->affinity_mask);
-	else
-		cpumask_copy(&q_vector->affinity_mask, cpu_online_mask);
 	q_vector->numa_node = node;
 
+#ifdef CONFIG_IXGBE_DCA
+	/* initialize CPU for DCA */
+	q_vector->cpu = -1;
+
+#endif
 	/* initialize NAPI */
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
@@ -820,6 +823,21 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 
 	/* initialize pointer to rings */
 	ring = q_vector->ring;
+
+	/* intialize ITR */
+	if (txr_count && !rxr_count) {
+		/* tx only vector */
+		if (adapter->tx_itr_setting == 1)
+			q_vector->itr = IXGBE_10K_ITR;
+		else
+			q_vector->itr = adapter->tx_itr_setting;
+	} else {
+		/* rx or rx/tx vector */
+		if (adapter->rx_itr_setting == 1)
+			q_vector->itr = IXGBE_20K_ITR;
+		else
+			q_vector->itr = adapter->rx_itr_setting;
+	}
 
 	while (txr_count) {
 		/* assign generic ring traits */

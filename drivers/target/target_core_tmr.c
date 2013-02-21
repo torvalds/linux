@@ -3,8 +3,7 @@
  *
  * This file contains SPC-3 task management infrastructure
  *
- * Copyright (c) 2009,2010 Rising Tide Systems
- * Copyright (c) 2009,2010 Linux-iSCSI.org
+ * (c) Copyright 2009-2012 RisingTide Systems LLC.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -371,7 +370,7 @@ int core_tmr_lun_reset(
 	 * which the command was received shall be completed with TASK ABORTED
 	 * status (see SAM-4).
 	 */
-	tas = dev->se_sub_dev->se_dev_attrib.emulate_tas;
+	tas = dev->dev_attrib.emulate_tas;
 	/*
 	 * Determine if this se_tmr is coming from a $FABRIC_MOD
 	 * or struct se_device passthrough..
@@ -399,10 +398,10 @@ int core_tmr_lun_reset(
 	 * LOGICAL UNIT RESET
 	 */
 	if (!preempt_and_abort_list &&
-	     (dev->dev_flags & DF_SPC2_RESERVATIONS)) {
+	     (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
 		dev->dev_reserved_node_acl = NULL;
-		dev->dev_flags &= ~DF_SPC2_RESERVATIONS;
+		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
 	}

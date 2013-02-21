@@ -401,12 +401,14 @@ static int hdpvr_probe(struct usb_interface *interface,
 	client = hdpvr_register_ir_rx_i2c(dev);
 	if (!client) {
 		v4l2_err(&dev->v4l2_dev, "i2c IR RX device register failed\n");
+		retval = -ENODEV;
 		goto reg_fail;
 	}
 
 	client = hdpvr_register_ir_tx_i2c(dev);
 	if (!client) {
 		v4l2_err(&dev->v4l2_dev, "i2c IR TX device register failed\n");
+		retval = -ENODEV;
 		goto reg_fail;
 	}
 #endif

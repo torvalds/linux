@@ -161,6 +161,6 @@ EXPORT_SYMBOL(free_cpumask_var);
  */
 void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 {
-	free_bootmem((unsigned long)mask, cpumask_size());
+	free_bootmem(__pa(mask), cpumask_size());
 }
 #endif

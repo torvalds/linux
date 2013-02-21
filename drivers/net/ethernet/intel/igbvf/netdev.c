@@ -47,7 +47,7 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "2.0.1-k"
+#define DRV_VERSION "2.0.2-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -107,12 +107,19 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
+	u16 vid;
+
 	if (status & E1000_RXD_STAT_VP) {
-		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		if ((adapter->flags & IGBVF_FLAG_RX_LB_VLAN_BSWAP) &&
+		    (status & E1000_RXDEXT_STATERR_LB))
+			vid = be16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		else
+			vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 		if (test_bit(vid, adapter->active_vlans))
 			__vlan_hwaccel_put_tag(skb, vid);
 	}
-	netif_receive_skb(skb);
+
+	napi_gro_receive(&adapter->rx_ring->napi, skb);
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -184,6 +191,13 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				             buffer_info->page_offset,
 				             PAGE_SIZE / 2,
 					     DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev,
+					      buffer_info->page_dma)) {
+				__free_page(buffer_info->page);
+				buffer_info->page = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				break;
+			}
 		}
 
 		if (!buffer_info->skb) {
@@ -197,6 +211,12 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 			buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 			                                  bufsz,
 							  DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+				dev_kfree_skb(buffer_info->skb);
+				buffer_info->skb = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				goto no_buffers;
+			}
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
@@ -1078,7 +1098,7 @@ out:
  * igbvf_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  **/
-static int __devinit igbvf_alloc_queues(struct igbvf_adapter *adapter)
+static int igbvf_alloc_queues(struct igbvf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -1530,7 +1550,7 @@ void igbvf_reinit_locked(struct igbvf_adapter *adapter)
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  **/
-static int __devinit igbvf_sw_init(struct igbvf_adapter *adapter)
+static int igbvf_sw_init(struct igbvf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	s32 rc;
@@ -2598,8 +2618,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  **/
-static int __devinit igbvf_probe(struct pci_dev *pdev,
-                                 const struct pci_device_id *ent)
+static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct igbvf_adapter *adapter;
@@ -2754,6 +2773,10 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
 
+	/* set hardware-specific flags */
+	if (adapter->hw.mac.type == e1000_vfadapt_i350)
+		adapter->flags |= IGBVF_FLAG_RX_LB_VLAN_BSWAP;
+
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
@@ -2794,7 +2817,7 @@ err_dma:
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  **/
-static void __devexit igbvf_remove(struct pci_dev *pdev)
+static void igbvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
@@ -2851,7 +2874,7 @@ static struct pci_driver igbvf_driver = {
 	.name     = igbvf_driver_name,
 	.id_table = igbvf_pci_tbl,
 	.probe    = igbvf_probe,
-	.remove   = __devexit_p(igbvf_remove),
+	.remove   = igbvf_remove,
 #ifdef CONFIG_PM
 	/* Power Management Hooks */
 	.suspend  = igbvf_suspend,

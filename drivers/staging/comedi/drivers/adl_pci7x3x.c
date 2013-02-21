@@ -168,16 +168,15 @@ static const void *adl_pci7x3x_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
-				  struct pci_dev *pcidev)
+static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
+					     unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct adl_pci7x3x_boardinfo *board;
 	struct comedi_subdevice *s;
 	int subdev;
 	int nchan;
 	int ret;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	board = adl_pci7x3x_find_boardinfo(dev, pcidev);
 	if (!board)
@@ -293,17 +292,17 @@ static void adl_pci7x3x_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci7x3x_driver = {
 	.driver_name	= "adl_pci7x3x",
 	.module		= THIS_MODULE,
-	.attach_pci	= adl_pci7x3x_attach_pci,
+	.auto_attach	= adl_pci7x3x_auto_attach,
 	.detach		= adl_pci7x3x_detach,
 };
 
-static int __devinit adl_pci7x3x_pci_probe(struct pci_dev *dev,
+static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver);
 }
 
-static void __devexit adl_pci7x3x_pci_remove(struct pci_dev *dev)
+static void adl_pci7x3x_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -323,7 +322,7 @@ static struct pci_driver adl_pci7x3x_pci_driver = {
 	.name		= "adl_pci7x3x",
 	.id_table	= adl_pci7x3x_pci_table,
 	.probe		= adl_pci7x3x_pci_probe,
-	.remove		= __devexit_p(adl_pci7x3x_pci_remove),
+	.remove		= adl_pci7x3x_pci_remove,
 };
 module_comedi_pci_driver(adl_pci7x3x_driver, adl_pci7x3x_pci_driver);
 

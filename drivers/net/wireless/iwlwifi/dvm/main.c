@@ -185,7 +185,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		rate = info->control.rates[0].idx;
 
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-					      priv->eeprom_data->valid_tx_ant);
+					      priv->nvm_data->valid_tx_ant);
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* In mac80211, rates for 5 GHz start at 0 */
@@ -511,7 +511,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 		return;
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
-	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	iwlagn_dev_txfifo_flush(priv);
 }
 
 /*
@@ -776,7 +776,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	ieee80211_wake_queues(priv->hw);
 
 	/* Configure Tx antenna selection based on H/W config */
-	iwlagn_send_tx_ant_config(priv, priv->eeprom_data->valid_tx_ant);
+	iwlagn_send_tx_ant_config(priv, priv->nvm_data->valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =
@@ -1191,36 +1191,38 @@ static void iwl_option_config(struct iwl_priv *priv)
 
 static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
-	u16 radio_cfg;
+	struct iwl_nvm_data *data = priv->nvm_data;
+	char *debug_msg;
 
-	priv->eeprom_data->sku = priv->eeprom_data->sku;
-
-	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	if (data->sku_cap_11n_enable &&
 	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
 
-	if (!priv->eeprom_data->sku) {
+	if (!data->sku_cap_11n_enable && !data->sku_cap_band_24GHz_enable &&
+	    !data->sku_cap_band_52GHz_enable) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
-
-	radio_cfg = priv->eeprom_data->radio_cfg;
+	debug_msg = "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n";
+	IWL_DEBUG_INFO(priv, debug_msg,
+		       data->sku_cap_band_24GHz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_band_52GHz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_11n_enable ? "" : "NOT", "enabled");
 
 	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->eeprom_data->valid_tx_ant);
+		num_of_ant(data->valid_tx_ant);
 	if (priv->cfg->rx_with_siso_diversity)
 		priv->hw_params.rx_chains_num = 1;
 	else
 		priv->hw_params.rx_chains_num =
-			num_of_ant(priv->eeprom_data->valid_rx_ant);
+			num_of_ant(data->valid_rx_ant);
 
-	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-		 priv->eeprom_data->valid_tx_ant,
-		 priv->eeprom_data->valid_rx_ant);
+	IWL_DEBUG_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		       data->valid_tx_ant,
+		       data->valid_rx_ant);
 
 	return 0;
 }
@@ -1235,7 +1237,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
-	struct iwl_trans_config trans_cfg;
+	struct iwl_trans_config trans_cfg = {};
 	static const u8 no_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
 		REPLY_RX_MPDU_CMD,
@@ -1334,6 +1336,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* Configure transport layer */
 	iwl_trans_configure(priv->trans, &trans_cfg);
 
+	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(priv->hw, priv->trans->dev);
@@ -1377,24 +1382,24 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_hw(priv->trans, false);
 
-	priv->eeprom_data = iwl_parse_eeprom_data(priv->trans->dev, priv->cfg,
+	priv->nvm_data = iwl_parse_eeprom_data(priv->trans->dev, priv->cfg,
 						  priv->eeprom_blob,
 						  priv->eeprom_blob_size);
-	if (!priv->eeprom_data)
+	if (!priv->nvm_data)
 		goto out_free_eeprom_blob;
 
-	if (iwl_eeprom_check_version(priv->eeprom_data, priv->trans))
+	if (iwl_nvm_check_version(priv->nvm_data, priv->trans))
 		goto out_free_eeprom;
 
 	if (iwl_eeprom_init_hw_params(priv))
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	memcpy(priv->addresses[0].addr, priv->eeprom_data->hw_addr, ETH_ALEN);
+	memcpy(priv->addresses[0].addr, priv->nvm_data->hw_addr, ETH_ALEN);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
 	priv->hw->wiphy->addresses = priv->addresses;
 	priv->hw->wiphy->n_addresses = 1;
-	num_mac = priv->eeprom_data->n_hw_addrs;
+	num_mac = priv->nvm_data->n_hw_addrs;
 	if (num_mac > 1) {
 		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
 		       ETH_ALEN);
@@ -1407,7 +1412,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	iwl_set_hw_params(priv);
 
-	if (!(priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
+	if (!(priv->nvm_data->sku_cap_ipan_enable)) {
 		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
@@ -1489,7 +1494,7 @@ out_destroy_workqueue:
 out_free_eeprom_blob:
 	kfree(priv->eeprom_blob);
 out_free_eeprom:
-	iwl_free_eeprom_data(priv->eeprom_data);
+	iwl_free_nvm_data(priv->nvm_data);
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
@@ -1508,12 +1513,8 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_tt_exit(priv);
 
-	/*This will stop the queues, move the device to low power state */
-	priv->ucode_loaded = false;
-	iwl_trans_stop_device(priv->trans);
-
 	kfree(priv->eeprom_blob);
-	iwl_free_eeprom_data(priv->eeprom_data);
+	iwl_free_nvm_data(priv->nvm_data);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
@@ -1927,8 +1928,6 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->status);
 
-	wake_up(&priv->trans->wait_command_queue);
-
 	if (!ondemand) {
 		/*
 		 * If firmware keep reloading, then it indicate something
@@ -1989,7 +1988,6 @@ static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 static void iwl_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-	u16 radio_cfg = priv->eeprom_data->radio_cfg;
 
 	/* SKU Control */
 	iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
@@ -2001,13 +1999,13 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
 
 	/* write radio config values to register */
-	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
+	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {
 		u32 reg_val =
-			EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <<
+			priv->nvm_data->radio_cfg_type <<
 				CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE |
-			EEPROM_RF_CFG_STEP_MSK(radio_cfg) <<
+			priv->nvm_data->radio_cfg_step <<
 				CSR_HW_IF_CONFIG_REG_POS_PHY_STEP |
-			EEPROM_RF_CFG_DASH_MSK(radio_cfg) <<
+			priv->nvm_data->radio_cfg_dash <<
 				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
 
 		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
@@ -2016,9 +2014,9 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
 
 		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
-			 EEPROM_RF_CFG_TYPE_MSK(radio_cfg),
-			 EEPROM_RF_CFG_STEP_MSK(radio_cfg),
-			 EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+			 priv->nvm_data->radio_cfg_type,
+			 priv->nvm_data->radio_cfg_step,
+			 priv->nvm_data->radio_cfg_dash);
 	} else {
 		WARN_ON(1);
 	}
@@ -2152,8 +2150,6 @@ static int __init iwl_init(void)
 {
 
 	int ret;
-	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {

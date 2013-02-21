@@ -943,7 +943,7 @@ static const struct mmc_host_ops au1xmmc_ops = {
 	.enable_sdio_irq = au1xmmc_enable_sdio_irq,
 };
 
-static int __devinit au1xmmc_probe(struct platform_device *pdev)
+static int au1xmmc_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct au1xmmc_host *host;
@@ -1114,7 +1114,7 @@ out0:
 	return ret;
 }
 
-static int __devexit au1xmmc_remove(struct platform_device *pdev)
+static int au1xmmc_remove(struct platform_device *pdev)
 {
 	struct au1xmmc_host *host = platform_get_drvdata(pdev);
 

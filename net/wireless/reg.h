@@ -81,7 +81,7 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  */
 void regulatory_hint_11d(struct wiphy *wiphy,
 			 enum ieee80211_band band,
-			 u8 *country_ie,
+			 const u8 *country_ie,
 			 u8 country_ie_len);
 
 /**

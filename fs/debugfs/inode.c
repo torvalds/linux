@@ -59,7 +59,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 		case S_IFDIR:
 			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
-			inode->i_private = NULL;
 
 			/* directory inodes start off with i_nlink == 2
 			 * (for "." entry) */
@@ -177,7 +176,7 @@ static int debugfs_parse_options(char *data, struct debugfs_mount_opts *opts)
 			opts->uid = uid;
 			break;
 		case Opt_gid:
-			if (match_octal(&args[0], &option))
+			if (match_int(&args[0], &option))
 				return -EINVAL;
 			gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(gid))

@@ -89,7 +89,7 @@ INT vendorextnIoctl(struct bcm_mini_adapter *Adapter, UINT cmd, ULONG arg)
 //
 //------------------------------------------------------------------
 
-INT vendorextnReadSection(PVOID  pContext, PUCHAR pBuffer, FLASH2X_SECTION_VAL SectionVal,
+INT vendorextnReadSection(PVOID  pContext, PUCHAR pBuffer, enum bcm_flash2x_section_val SectionVal,
 			UINT offset, UINT numOfBytes)
 {
 	return STATUS_FAILURE;
@@ -114,7 +114,7 @@ INT vendorextnReadSection(PVOID  pContext, PUCHAR pBuffer, FLASH2X_SECTION_VAL S
 //		STATUS_SUCCESS/STATUS_FAILURE
 //
 //------------------------------------------------------------------
-INT vendorextnWriteSection(PVOID  pContext, PUCHAR pBuffer, FLASH2X_SECTION_VAL SectionVal,
+INT vendorextnWriteSection(PVOID  pContext, PUCHAR pBuffer, enum bcm_flash2x_section_val SectionVal,
 			UINT offset, UINT numOfBytes, BOOLEAN bVerify)
 {
 	return STATUS_FAILURE;
@@ -138,7 +138,7 @@ INT vendorextnWriteSection(PVOID  pContext, PUCHAR pBuffer, FLASH2X_SECTION_VAL 
 //		STATUS_SUCCESS/STATUS_FAILURE
 //
 //------------------------------------------------------------------
-INT vendorextnWriteSectionWithoutErase(PVOID  pContext, PUCHAR pBuffer, FLASH2X_SECTION_VAL SectionVal,
+INT vendorextnWriteSectionWithoutErase(PVOID  pContext, PUCHAR pBuffer, enum bcm_flash2x_section_val SectionVal,
 			UINT offset, UINT numOfBytes)
 {
 	return STATUS_FAILURE;

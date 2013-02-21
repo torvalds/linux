@@ -1590,7 +1590,7 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 	} else if (rpath || rino) {
 		*ino = rino;
 		*ppath = rpath;
-		*pathlen = strlen(rpath);
+		*pathlen = rpath ? strlen(rpath) : 0;
 		dout(" path %.*s\n", *pathlen, rpath);
 	}
 
@@ -1876,9 +1876,14 @@ finish:
 static void __wake_requests(struct ceph_mds_client *mdsc,
 			    struct list_head *head)
 {
-	struct ceph_mds_request *req, *nreq;
+	struct ceph_mds_request *req;
+	LIST_HEAD(tmp_list);
 
-	list_for_each_entry_safe(req, nreq, head, r_wait) {
+	list_splice_init(head, &tmp_list);
+
+	while (!list_empty(&tmp_list)) {
+		req = list_entry(tmp_list.next,
+				 struct ceph_mds_request, r_wait);
 		list_del_init(&req->r_wait);
 		__do_request(mdsc, req);
 	}

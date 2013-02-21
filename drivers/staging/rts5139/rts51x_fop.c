@@ -70,7 +70,7 @@ static int rts51x_sd_direct_cmnd(struct rts51x_chip *chip,
 	switch (dir) {
 	case 0:
 		/* No data */
-		retval = ext_sd_execute_no_data(chip, chip->card2lun[SD_CARD],
+		retval = ext_rts51x_sd_execute_no_data(chip, chip->card2lun[SD_CARD],
 						cmd_idx, standby, acmd,
 						rsp_code, arg);
 		if (retval != TRANSPORT_GOOD)
@@ -83,7 +83,7 @@ static int rts51x_sd_direct_cmnd(struct rts51x_chip *chip,
 		if (!buf)
 			TRACE_RET(chip, STATUS_NOMEM);
 
-		retval = ext_sd_execute_read_data(chip, chip->card2lun[SD_CARD],
+		retval = ext_rts51x_sd_execute_read_data(chip, chip->card2lun[SD_CARD],
 						  cmd_idx, cmd12, standby, acmd,
 						  rsp_code, arg, len, buf,
 						  cmnd->buf_len, 0);
@@ -117,7 +117,7 @@ static int rts51x_sd_direct_cmnd(struct rts51x_chip *chip,
 		}
 
 		retval =
-		    ext_sd_execute_write_data(chip, chip->card2lun[SD_CARD],
+		    ext_rts51x_sd_execute_write_data(chip, chip->card2lun[SD_CARD],
 					      cmd_idx, cmd12, standby, acmd,
 					      rsp_code, arg, len, buf,
 					      cmnd->buf_len, 0);

@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <pthread.h>
 #include "callchain.h"
+#include "header.h"
 
 extern struct callchain_param callchain_param;
 
@@ -114,6 +115,9 @@ bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
+void hists__match(struct hists *leader, struct hists *other);
+int hists__link(struct hists *leader, struct hists *other);
+
 struct perf_hpp {
 	char *buf;
 	size_t size;
@@ -140,8 +144,12 @@ enum {
 	PERF_HPP__OVERHEAD_GUEST_US,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
+	PERF_HPP__PERIOD_BASELINE,
 	PERF_HPP__DELTA,
+	PERF_HPP__RATIO,
+	PERF_HPP__WEIGHTED_DIFF,
 	PERF_HPP__DISPL,
+	PERF_HPP__FORMULA,
 
 	PERF_HPP__MAX_INDEX
 };
@@ -153,21 +161,27 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 
 struct perf_evlist;
 
+struct hist_browser_timer {
+	void (*timer)(void *arg);
+	void *arg;
+	int refresh;
+};
+
 #ifdef NEWT_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
-			     void(*timer)(void *arg), void *arg, int delay_secs);
+			     struct hist_browser_timer *hbt);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int refresh);
+				  struct hist_browser_timer *hbt,
+				  struct perf_session_env *env);
+int script_browse(const char *script_opt);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  void(*timer)(void *arg) __maybe_unused,
-				  void *arg __maybe_unused,
-				  int refresh __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  struct perf_session_env *env __maybe_unused)
 {
 	return 0;
 }
@@ -175,28 +189,29 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 static inline int hist_entry__tui_annotate(struct hist_entry *self
 					   __maybe_unused,
 					   int evidx __maybe_unused,
-					   void(*timer)(void *arg)
-					   __maybe_unused,
-					   void *arg __maybe_unused,
-					   int delay_secs __maybe_unused)
+					   struct hist_browser_timer *hbt
+					   __maybe_unused)
 {
 	return 0;
 }
+
+static inline int script_browse(const char *script_opt __maybe_unused)
+{
+	return 0;
+}
+
 #define K_LEFT -1
 #define K_RIGHT -2
 #endif
 
 #ifdef GTK2_SUPPORT
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int refresh);
+				  struct hist_browser_timer *hbt __maybe_unused);
 #else
 static inline
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  void(*timer)(void *arg) __maybe_unused,
-				  void *arg __maybe_unused,
-				  int refresh __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -204,4 +219,8 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 
 unsigned int hists__sort_list_width(struct hists *self);
 
+double perf_diff__compute_delta(struct hist_entry *he);
+double perf_diff__compute_ratio(struct hist_entry *he);
+s64 perf_diff__compute_wdiff(struct hist_entry *he);
+int perf_diff__formula(char *buf, size_t size, struct hist_entry *he);
 #endif	/* __PERF_HIST_H */

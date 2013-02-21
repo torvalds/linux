@@ -597,6 +597,7 @@ static void port_release(struct device *dev)
 	kfifo_free(&port->write_fifo);
 	kfree(port->interrupt_in_buffer);
 	kfree(port->interrupt_out_buffer);
+	tty_port_destroy(&port->port);
 	kfree(port);
 }
 

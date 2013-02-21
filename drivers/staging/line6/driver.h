@@ -20,12 +20,11 @@
 
 #define DRIVER_NAME "line6usb"
 
-#if defined(CONFIG_LINE6_USB_DUMP_CTRL) || defined(CONFIG_LINE6_USB_DUMP_MIDI) || defined(CONFIG_LINE6_USB_DUMP_PCM)
+#if defined(CONFIG_LINE6_USB_DUMP_PCM)
 #define CONFIG_LINE6_USB_DUMP_ANY
 #endif
 
 #define LINE6_TIMEOUT 1
-#define LINE6_MAX_DEVICES 8
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
 
@@ -53,12 +52,6 @@
 
 #define LINE6_CHANNEL_MASK 0x0f
 
-#ifdef CONFIG_LINE6_USB_DEBUG
-#define DEBUG_MESSAGES(x) (x)
-#else
-#define DEBUG_MESSAGES(x)
-#endif
-
 #define MISSING_CASE	\
 	printk(KERN_ERR "line6usb driver bug: missing case in %s:%d\n", \
 		__FILE__, __LINE__)
@@ -78,7 +71,6 @@ do {					\
 } while (0)
 
 extern const unsigned char line6_midi_id[3];
-extern struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
 
 static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;

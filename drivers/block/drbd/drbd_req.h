@@ -77,40 +77,41 @@
  */
 
 enum drbd_req_event {
-	created,
-	to_be_send,
-	to_be_submitted,
+	CREATED,
+	TO_BE_SENT,
+	TO_BE_SUBMITTED,
 
 	/* XXX yes, now I am inconsistent...
 	 * these are not "events" but "actions"
 	 * oh, well... */
-	queue_for_net_write,
-	queue_for_net_read,
-	queue_for_send_oos,
+	QUEUE_FOR_NET_WRITE,
+	QUEUE_FOR_NET_READ,
+	QUEUE_FOR_SEND_OOS,
 
-	send_canceled,
-	send_failed,
-	handed_over_to_network,
-	oos_handed_to_network,
-	connection_lost_while_pending,
-	read_retry_remote_canceled,
-	recv_acked_by_peer,
-	write_acked_by_peer,
-	write_acked_by_peer_and_sis, /* and set_in_sync */
-	conflict_discarded_by_peer,
-	neg_acked,
-	barrier_acked, /* in protocol A and B */
-	data_received, /* (remote read) */
+	SEND_CANCELED,
+	SEND_FAILED,
+	HANDED_OVER_TO_NETWORK,
+	OOS_HANDED_TO_NETWORK,
+	CONNECTION_LOST_WHILE_PENDING,
+	READ_RETRY_REMOTE_CANCELED,
+	RECV_ACKED_BY_PEER,
+	WRITE_ACKED_BY_PEER,
+	WRITE_ACKED_BY_PEER_AND_SIS, /* and set_in_sync */
+	CONFLICT_RESOLVED,
+	POSTPONE_WRITE,
+	NEG_ACKED,
+	BARRIER_ACKED, /* in protocol A and B */
+	DATA_RECEIVED, /* (remote read) */
 
-	read_completed_with_error,
-	read_ahead_completed_with_error,
-	write_completed_with_error,
-	abort_disk_io,
-	completed_ok,
-	resend,
-	fail_frozen_disk_io,
-	restart_frozen_disk_io,
-	nothing, /* for tracing only */
+	READ_COMPLETED_WITH_ERROR,
+	READ_AHEAD_COMPLETED_WITH_ERROR,
+	WRITE_COMPLETED_WITH_ERROR,
+	ABORT_DISK_IO,
+	COMPLETED_OK,
+	RESEND,
+	FAIL_FROZEN_DISK_IO,
+	RESTART_FROZEN_DISK_IO,
+	NOTHING,
 };
 
 /* encoding of request states for now.  we don't actually need that many bits.
@@ -142,8 +143,8 @@ enum drbd_req_state_bits {
 	 *        recv_ack (B) or implicit "ack" (A),
 	 *        still waiting for the barrier ack.
 	 *        master_bio may already be completed and invalidated.
-	 * 11100: write_acked (C),
-	 *        data_received (for remote read, any protocol)
+	 * 11100: write acked (C),
+	 *        data received (for remote read, any protocol)
 	 *        or finally the barrier ack has arrived (B,A)...
 	 *        request can be freed
 	 * 01100: neg-acked (write, protocol C)
@@ -198,6 +199,22 @@ enum drbd_req_state_bits {
 
 	/* Should call drbd_al_complete_io() for this request... */
 	__RQ_IN_ACT_LOG,
+
+	/* The peer has sent a retry ACK */
+	__RQ_POSTPONED,
+
+	/* would have been completed,
+	 * but was not, because of drbd_suspended() */
+	__RQ_COMPLETION_SUSP,
+
+	/* We expect a receive ACK (wire proto B) */
+	__RQ_EXP_RECEIVE_ACK,
+
+	/* We expect a write ACK (wite proto C) */
+	__RQ_EXP_WRITE_ACK,
+
+	/* waiting for a barrier ack, did an extra kref_get */
+	__RQ_EXP_BARR_ACK,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -219,56 +236,16 @@ enum drbd_req_state_bits {
 
 #define RQ_WRITE           (1UL << __RQ_WRITE)
 #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+#define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
+#define RQ_COMPLETION_SUSP (1UL << __RQ_COMPLETION_SUSP)
+#define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)
+#define RQ_EXP_WRITE_ACK   (1UL << __RQ_EXP_WRITE_ACK)
+#define RQ_EXP_BARR_ACK    (1UL << __RQ_EXP_BARR_ACK)
 
 /* For waking up the frozen transfer log mod_req() has to return if the request
    should be counted in the epoch object*/
-#define MR_WRITE_SHIFT 0
-#define MR_WRITE       (1 << MR_WRITE_SHIFT)
-#define MR_READ_SHIFT  1
-#define MR_READ        (1 << MR_READ_SHIFT)
-
-/* epoch entries */
-static inline
-struct hlist_head *ee_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	BUG_ON(mdev->ee_hash_s == 0);
-	return mdev->ee_hash +
-		((unsigned int)(sector>>HT_SHIFT) % mdev->ee_hash_s);
-}
-
-/* transfer log (drbd_request objects) */
-static inline
-struct hlist_head *tl_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	BUG_ON(mdev->tl_hash_s == 0);
-	return mdev->tl_hash +
-		((unsigned int)(sector>>HT_SHIFT) % mdev->tl_hash_s);
-}
-
-/* application reads (drbd_request objects) */
-static struct hlist_head *ar_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	return mdev->app_reads_hash
-		+ ((unsigned int)(sector) % APP_R_HSIZE);
-}
-
-/* when we receive the answer for a read request,
- * verify that we actually know about it */
-static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
-	u64 id, sector_t sector)
-{
-	struct hlist_head *slot = ar_hash_slot(mdev, sector);
-	struct hlist_node *n;
-	struct drbd_request *req;
-
-	hlist_for_each_entry(req, n, slot, collision) {
-		if ((unsigned long)req == (unsigned long)id) {
-			D_ASSERT(req->sector == sector);
-			return req;
-		}
-	}
-	return NULL;
-}
+#define MR_WRITE       1
+#define MR_READ        2
 
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {
@@ -278,39 +255,8 @@ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bi
 	req->private_bio = bio;
 
 	bio->bi_private  = req;
-	bio->bi_end_io   = drbd_endio_pri;
+	bio->bi_end_io   = drbd_request_endio;
 	bio->bi_next     = NULL;
-}
-
-static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
-	struct bio *bio_src)
-{
-	struct drbd_request *req =
-		mempool_alloc(drbd_request_mempool, GFP_NOIO);
-	if (likely(req)) {
-		drbd_req_make_private_bio(req, bio_src);
-
-		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
-		req->mdev        = mdev;
-		req->master_bio  = bio_src;
-		req->epoch       = 0;
-		req->sector      = bio_src->bi_sector;
-		req->size        = bio_src->bi_size;
-		INIT_HLIST_NODE(&req->collision);
-		INIT_LIST_HEAD(&req->tl_requests);
-		INIT_LIST_HEAD(&req->w.list);
-	}
-	return req;
-}
-
-static inline void drbd_req_free(struct drbd_request *req)
-{
-	mempool_free(req, drbd_request_mempool);
-}
-
-static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
-{
-	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
 }
 
 /* Short lived temporary struct on the stack.
@@ -321,6 +267,8 @@ struct bio_and_error {
 	int error;
 };
 
+extern void start_new_tl_epoch(struct drbd_tconn *tconn);
+extern void drbd_req_destroy(struct kref *kref);
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
 extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
@@ -328,13 +276,17 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 extern void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m);
 extern void request_timer_fn(unsigned long data);
-extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
+extern void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
+extern void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
+
+/* this is in drbd_main.c */
+extern void drbd_restart_request(struct drbd_request *req);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
 static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct bio_and_error m;
 	int rv;
 
@@ -354,13 +306,13 @@ static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	unsigned long flags;
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct bio_and_error m;
 	int rv;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	rv = __req_mod(req, what, &m);
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
@@ -368,7 +320,7 @@ static inline int req_mod(struct drbd_request *req,
 	return rv;
 }
 
-static inline bool drbd_should_do_remote(union drbd_state s)
+static inline bool drbd_should_do_remote(union drbd_dev_state s)
 {
 	return s.pdsk == D_UP_TO_DATE ||
 		(s.pdsk >= D_INCONSISTENT &&
@@ -378,7 +330,7 @@ static inline bool drbd_should_do_remote(union drbd_state s)
 	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
 	   states. */
 }
-static inline bool drbd_should_send_oos(union drbd_state s)
+static inline bool drbd_should_send_out_of_sync(union drbd_dev_state s)
 {
 	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
 	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary

@@ -33,10 +33,10 @@
 
 #include "i740_reg.h"
 
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 #ifdef CONFIG_MTRR
-static int mtrr __devinitdata = 1;
+static int mtrr = 1;
 #endif
 
 struct i740fb_par {
@@ -91,7 +91,7 @@ struct i740fb_par {
 #define DACSPEED24_SD	128
 #define DACSPEED32	86
 
-static struct fb_fix_screeninfo i740fb_fix __devinitdata = {
+static struct fb_fix_screeninfo i740fb_fix = {
 	.id =		"i740fb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -163,7 +163,7 @@ static int i740fb_ddc_getsda(void *data)
 	return !!(i740inreg(par, XRX, REG_DDC_STATE) & DDC_SDA);
 }
 
-static int __devinit i740fb_setup_ddc_bus(struct fb_info *info)
+static int i740fb_setup_ddc_bus(struct fb_info *info)
 {
 	struct i740fb_par *par = info->par;
 
@@ -1007,8 +1007,7 @@ static struct fb_ops i740fb_ops = {
 
 /* ------------------------------------------------------------------------- */
 
-static int __devinit i740fb_probe(struct pci_dev *dev,
-				  const struct pci_device_id *ent)
+static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct i740fb_par *par;
@@ -1174,7 +1173,7 @@ err_enable_device:
 	return ret;
 }
 
-static void __devexit i740fb_remove(struct pci_dev *dev)
+static void i740fb_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -1275,7 +1274,7 @@ static struct pci_driver i740fb_driver = {
 	.name		= "i740fb",
 	.id_table	= i740fb_id_table,
 	.probe		= i740fb_probe,
-	.remove		= __devexit_p(i740fb_remove),
+	.remove		= i740fb_remove,
 	.suspend	= i740fb_suspend,
 	.resume		= i740fb_resume,
 };

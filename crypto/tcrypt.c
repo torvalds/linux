@@ -971,11 +971,13 @@ static int do_test(int m)
 	case 3:
 		ret += tcrypt_test("ecb(des)");
 		ret += tcrypt_test("cbc(des)");
+		ret += tcrypt_test("ctr(des)");
 		break;
 
 	case 4:
 		ret += tcrypt_test("ecb(des3_ede)");
 		ret += tcrypt_test("cbc(des3_ede)");
+		ret += tcrypt_test("ctr(des3_ede)");
 		break;
 
 	case 5:
@@ -1479,6 +1481,10 @@ static int do_test(int m)
 		test_hash_speed("ghash-generic", sec, hash_speed_template_16);
 		if (mode > 300 && mode < 400) break;
 
+	case 319:
+		test_hash_speed("crc32c", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
 	case 399:
 		break;
 
@@ -1719,6 +1725,29 @@ static int do_test(int m)
 		test_acipher_speed("xts(cast6)", ENCRYPT, sec, NULL, 0,
 				   speed_template_32_64);
 		test_acipher_speed("xts(cast6)", DECRYPT, sec, NULL, 0,
+				   speed_template_32_64);
+		break;
+
+	case 508:
+		test_acipher_speed("ecb(camellia)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ecb(camellia)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("cbc(camellia)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("cbc(camellia)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ctr(camellia)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ctr(camellia)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("lrw(camellia)", ENCRYPT, sec, NULL, 0,
+				   speed_template_32_48);
+		test_acipher_speed("lrw(camellia)", DECRYPT, sec, NULL, 0,
+				   speed_template_32_48);
+		test_acipher_speed("xts(camellia)", ENCRYPT, sec, NULL, 0,
+				   speed_template_32_64);
+		test_acipher_speed("xts(camellia)", DECRYPT, sec, NULL, 0,
 				   speed_template_32_64);
 		break;
 

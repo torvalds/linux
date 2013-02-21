@@ -50,6 +50,6 @@ BUILTIN_DTB := y
 else
 BUILTIN_DTB := n
 endif
-core-$(BUILTIN_DTB) += arch/openrisc/boot/
+core-$(BUILTIN_DTB) += arch/openrisc/boot/dts/
 
 all: vmlinux

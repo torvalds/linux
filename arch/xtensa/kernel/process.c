@@ -108,7 +108,7 @@ void coprocessor_flush_all(struct thread_info *ti)
 
 void cpu_idle(void)
 {
-  	local_irq_enable();
+	local_irq_enable();
 
 	/* endless idle loop with no priority at all */
 	while (1) {
@@ -199,8 +199,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
-		unsigned long thread_fn_arg,
-		struct task_struct *p, struct pt_regs *unused)
+		unsigned long thread_fn_arg, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -363,13 +362,4 @@ void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
 int dump_fpu(void)
 {
 	return 0;
-}
-
-asmlinkage
-long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
-                  void __user *parent_tid, void *child_tls,
-                  void __user *child_tid, long a5,
-                  struct pt_regs *regs)
-{
-        return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }

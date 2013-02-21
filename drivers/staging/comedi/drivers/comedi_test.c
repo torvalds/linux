@@ -252,55 +252,28 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->convert_src == TRIG_NOW) {
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->convert_src == TRIG_NOW)
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < nano_per_micro) {
-			cmd->scan_begin_arg = nano_per_micro;
-			err++;
-		}
-		if (cmd->convert_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->chanlist_len;
-			err++;
-		}
-	}
-	/*
-	 * XXX these checks are generic and should go in core if not there
-	 * already
-	 */
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 nano_per_micro);
+		if (cmd->convert_src == TRIG_TIMER)
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->chanlist_len);
 	}
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -372,7 +345,7 @@ static int waveform_ai_cancel(struct comedi_device *dev,
 	struct waveform_private *devpriv = dev->private;
 
 	devpriv->timer_running = 0;
-	del_timer(&devpriv->timer);
+	del_timer_sync(&devpriv->timer);
 	return 0;
 }
 
@@ -414,10 +387,10 @@ static int waveform_attach(struct comedi_device *dev,
 
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* set default amplitude and period */
 	if (amplitude <= 0)

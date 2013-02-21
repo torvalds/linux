@@ -417,16 +417,6 @@ local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 
-#ifdef CONFIG_SECCOMP
-	tst	r10, #_TIF_SECCOMP
-	beq	1f
-	mov	r0, scno
-	bl	__secure_computing	
-	add	r0, sp, #S_R0 + S_OFF		@ pointer to regs
-	ldmia	r0, {r0 - r3}			@ have to reload r0 - r3
-1:
-#endif
-
 	tst	r10, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
 	bne	__sys_trace
 
@@ -458,11 +448,13 @@ __sys_trace:
 	ldmccia	r1, {r0 - r6}			@ have to reload r0 - r6
 	stmccia	sp, {r4, r5}			@ and update the stack args
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
-	b	2b
+	cmp	scno, #-1			@ skip the syscall?
+	bne	2b
+	add	sp, sp, #S_OFF			@ restore stack
+	b	ret_slow_syscall
 
 __sys_trace_return:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
-	mov	r1, scno
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall
@@ -509,22 +501,6 @@ sys_syscall:
 		ldrlo	pc, [tbl, scno, lsl #2]
 		b	sys_ni_syscall
 ENDPROC(sys_syscall)
-
-sys_fork_wrapper:
-		add	r0, sp, #S_OFF
-		b	sys_fork
-ENDPROC(sys_fork_wrapper)
-
-sys_vfork_wrapper:
-		add	r0, sp, #S_OFF
-		b	sys_vfork
-ENDPROC(sys_vfork_wrapper)
-
-sys_clone_wrapper:
-		add	ip, sp, #S_OFF
-		str	ip, [sp, #4]
-		b	sys_clone
-ENDPROC(sys_clone_wrapper)
 
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF

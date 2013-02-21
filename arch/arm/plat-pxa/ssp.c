@@ -72,7 +72,7 @@ void pxa_ssp_free(struct ssp_device *ssp)
 }
 EXPORT_SYMBOL(pxa_ssp_free);
 
-static int __devinit pxa_ssp_probe(struct platform_device *pdev)
+static int pxa_ssp_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource *res;
@@ -164,7 +164,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit pxa_ssp_remove(struct platform_device *pdev)
+static int pxa_ssp_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct ssp_device *ssp;
@@ -199,7 +199,7 @@ static const struct platform_device_id ssp_id_table[] = {
 
 static struct platform_driver pxa_ssp_driver = {
 	.probe		= pxa_ssp_probe,
-	.remove		= __devexit_p(pxa_ssp_remove),
+	.remove		= pxa_ssp_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-ssp",

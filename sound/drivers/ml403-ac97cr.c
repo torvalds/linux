@@ -1063,7 +1063,7 @@ snd_ml403_ac97cr_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 	return;
 }
 
-static int __devinit
+static int
 snd_ml403_ac97cr_chip_init(struct snd_ml403_ac97cr *ml403_ac97cr)
 {
 	unsigned long end_time;
@@ -1108,7 +1108,7 @@ static int snd_ml403_ac97cr_dev_free(struct snd_device *snddev)
 	return snd_ml403_ac97cr_free(ml403_ac97cr);
 }
 
-static int __devinit
+static int
 snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 			struct snd_ml403_ac97cr **rml403_ac97cr)
 {
@@ -1204,7 +1204,7 @@ static void snd_ml403_ac97cr_mixer_free(struct snd_ac97 *ac97)
 	PDEBUG(INIT_INFO, "mixer_free(): (done)\n");
 }
 
-static int __devinit
+static int
 snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 {
 	struct snd_ac97_bus *bus;
@@ -1237,7 +1237,7 @@ snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 	return err;
 }
 
-static int __devinit
+static int
 snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device,
 		     struct snd_pcm **rpcm)
 {
@@ -1268,7 +1268,7 @@ snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device,
 	return 0;
 }
 
-static int __devinit snd_ml403_ac97cr_probe(struct platform_device *pfdev)
+static int snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 {
 	struct snd_card *card;
 	struct snd_ml403_ac97cr *ml403_ac97cr = NULL;

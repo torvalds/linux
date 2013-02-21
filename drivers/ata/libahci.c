@@ -1384,7 +1384,7 @@ int ahci_pmp_retry_softreset(struct ata_link *link, unsigned int *class,
 	if (rc == -EIO) {
 		irq_sts = readl(port_mmio + PORT_IRQ_STAT);
 		if (irq_sts & PORT_IRQ_BAD_PMP) {
-			ata_link_printk(link, KERN_WARNING,
+			ata_link_warn(link,
 					"applying PMP SRST workaround "
 					"and retrying\n");
 			rc = ahci_do_softreset(link, class, 0, deadline,
@@ -1951,13 +1951,13 @@ static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep)
 	/* Use the nominal value 10 ms if the read MDAT is zero,
 	 * the nominal value of DETO is 20 ms.
 	 */
-	if (dev->sata_settings[ATA_LOG_DEVSLP_VALID] &
+	if (dev->devslp_timing[ATA_LOG_DEVSLP_VALID] &
 	    ATA_LOG_DEVSLP_VALID_MASK) {
-		mdat = dev->sata_settings[ATA_LOG_DEVSLP_MDAT] &
+		mdat = dev->devslp_timing[ATA_LOG_DEVSLP_MDAT] &
 		       ATA_LOG_DEVSLP_MDAT_MASK;
 		if (!mdat)
 			mdat = 10;
-		deto = dev->sata_settings[ATA_LOG_DEVSLP_DETO];
+		deto = dev->devslp_timing[ATA_LOG_DEVSLP_DETO];
 		if (!deto)
 			deto = 20;
 	} else {

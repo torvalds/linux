@@ -36,13 +36,13 @@ static struct snd_soc_dai_driver ads117x_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_ads117x;
 
-static __devinit int ads117x_probe(struct platform_device *pdev)
+static int ads117x_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_ads117x, &ads117x_dai, 1);
 }
 
-static int __devexit ads117x_remove(struct platform_device *pdev)
+static int ads117x_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -55,7 +55,7 @@ static struct platform_driver ads117x_codec_driver = {
 	},
 
 	.probe = ads117x_probe,
-	.remove = __devexit_p(ads117x_remove),
+	.remove = ads117x_remove,
 };
 
 module_platform_driver(ads117x_codec_driver);

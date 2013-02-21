@@ -266,6 +266,19 @@ num_subarch_entries = (. - subarch_entries) / 4
 	jmp default_entry
 #endif /* CONFIG_PARAVIRT */
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
+ * up already except stack. We just set up stack here. Then call
+ * start_secondary().
+ */
+ENTRY(start_cpu0)
+	movl stack_start, %ecx
+	movl %ecx, %esp
+	jmp  *(initial_code)
+ENDPROC(start_cpu0)
+#endif
+
 /*
  * Non-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
@@ -287,13 +300,19 @@ ENTRY(startup_32_smp)
 	leal -__PAGE_OFFSET(%ecx),%esp
 
 default_entry:
+#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+			 X86_CR0_PG)
+	movl $(CR0_STATE & ~X86_CR0_PG),%eax
+	movl %eax,%cr0
+
 /*
  *	New page tables may be in 4Mbyte page mode and may
  *	be using the global pages. 
  *
  *	NOTE! If we are on a 486 we may have no cr4 at all!
- *	Specifically, cr4 exists if and only if CPUID exists,
- *	which in turn exists if and only if EFLAGS.ID exists.
+ *	Specifically, cr4 exists if and only if CPUID exists
+ *	and has flags other than the FPU flag set.
  */
 	movl $X86_EFLAGS_ID,%ecx
 	pushl %ecx
@@ -307,6 +326,11 @@ default_entry:
 	xorl %edx,%eax
 	testl %ecx,%eax
 	jz 6f			# No ID flag = no CPUID = no CR4
+
+	movl $1,%eax
+	cpuid
+	andl $~1,%edx		# Ignore CPUID.FPU
+	jz 6f			# No flags or only CPUID.FPU = no CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
@@ -346,8 +370,7 @@ default_entry:
  */
 	movl $pa(initial_page_table), %eax
 	movl %eax,%cr3		/* set the page table pointer.. */
-	movl %cr0,%eax
-	orl  $X86_CR0_PG,%eax
+	movl $CR0_STATE,%eax
 	movl %eax,%cr0		/* ..and set paging (PG) bit */
 	ljmp $__BOOT_CS,$1f	/* Clear prefetch and normalize %eip */
 1:

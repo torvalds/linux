@@ -14,7 +14,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "prm2xxx_3xxx.h"
+#include "prm2xxx.h"
 
 /* Bits shared between registers */
 
@@ -107,12 +107,14 @@
 #define OMAP2420_CLKOUT2_EN_MASK			(1 << 15)
 #define OMAP2420_CLKOUT2_DIV_SHIFT			11
 #define OMAP2420_CLKOUT2_DIV_MASK			(0x7 << 11)
+#define OMAP2420_CLKOUT2_DIV_WIDTH			3
 #define OMAP2420_CLKOUT2_SOURCE_SHIFT			8
 #define OMAP2420_CLKOUT2_SOURCE_MASK			(0x3 << 8)
 #define OMAP24XX_CLKOUT_EN_SHIFT			7
 #define OMAP24XX_CLKOUT_EN_MASK				(1 << 7)
 #define OMAP24XX_CLKOUT_DIV_SHIFT			3
 #define OMAP24XX_CLKOUT_DIV_MASK			(0x7 << 3)
+#define OMAP24XX_CLKOUT_DIV_WIDTH			3
 #define OMAP24XX_CLKOUT_SOURCE_SHIFT			0
 #define OMAP24XX_CLKOUT_SOURCE_MASK			(0x3 << 0)
 
@@ -209,9 +211,13 @@
 
 /* RM_RSTST_WKUP specific bits */
 /* 2430 calls EXTWMPU_RST "EXTWARM_RST" and GLOBALWMPU_RST "GLOBALWARM_RST" */
+#define OMAP24XX_EXTWMPU_RST_SHIFT			6
 #define OMAP24XX_EXTWMPU_RST_MASK			(1 << 6)
+#define OMAP24XX_SECU_WD_RST_SHIFT			5
 #define OMAP24XX_SECU_WD_RST_MASK			(1 << 5)
+#define OMAP24XX_MPU_WD_RST_SHIFT			4
 #define OMAP24XX_MPU_WD_RST_MASK			(1 << 4)
+#define OMAP24XX_SECU_VIOL_RST_SHIFT			3
 #define OMAP24XX_SECU_VIOL_RST_MASK			(1 << 3)
 
 /* PM_WKEN_WKUP specific bits */

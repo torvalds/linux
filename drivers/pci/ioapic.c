@@ -27,7 +27,7 @@ struct ioapic {
 	u32		gsi_base;
 };
 
-static int __devinit ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	acpi_handle handle;
 	acpi_status status;
@@ -88,7 +88,7 @@ exit_free:
 	return -ENODEV;
 }
 
-static void __devexit ioapic_remove(struct pci_dev *dev)
+static void ioapic_remove(struct pci_dev *dev)
 {
 	struct ioapic *ioapic = pci_get_drvdata(dev);
 
@@ -110,7 +110,7 @@ static struct pci_driver ioapic_driver = {
 	.name		= "ioapic",
 	.id_table	= ioapic_devices,
 	.probe		= ioapic_probe,
-	.remove		= __devexit_p(ioapic_remove),
+	.remove		= ioapic_remove,
 };
 
 static int __init ioapic_init(void)
@@ -125,3 +125,5 @@ static void __exit ioapic_exit(void)
 
 module_init(ioapic_init);
 module_exit(ioapic_exit);
+
+MODULE_LICENSE("GPL");

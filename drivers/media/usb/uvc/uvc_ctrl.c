@@ -927,7 +927,7 @@ static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 	int ret;
 
 	if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0)
-		return -EINVAL;
+		return -EACCES;
 
 	if (!ctrl->loaded) {
 		ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR, ctrl->entity->id,
@@ -1431,8 +1431,10 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 	int ret;
 
 	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
-	if (ctrl == NULL || (ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR) == 0)
+	if (ctrl == NULL)
 		return -EINVAL;
+	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
+		return -EACCES;
 
 	/* Clamp out of range values. */
 	switch (mapping->v4l2_type) {
@@ -1452,8 +1454,12 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 		if (step == 0)
 			step = 1;
 
-		xctrl->value = min + (xctrl->value - min + step/2) / step * step;
-		xctrl->value = clamp(xctrl->value, min, max);
+		xctrl->value = min + ((u32)(xctrl->value - min) + step / 2)
+			     / step * step;
+		if (mapping->data_type == UVC_CTRL_DATA_TYPE_SIGNED)
+			xctrl->value = clamp(xctrl->value, min, max);
+		else
+			xctrl->value = clamp_t(u32, xctrl->value, min, max);
 		value = xctrl->value;
 		break;
 

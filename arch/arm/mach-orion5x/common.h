@@ -12,6 +12,8 @@ void orion5x_map_io(void);
 void orion5x_init_early(void);
 void orion5x_init_irq(void);
 void orion5x_init(void);
+void orion5x_id(u32 *dev, u32 *rev, char **dev_name);
+void clk_init(void);
 extern int orion5x_tclk;
 extern struct sys_timer orion5x_timer;
 
@@ -53,6 +55,13 @@ void orion5x_pci_set_cardbus_mode(void);
 int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 int orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+
+/* board init functions for boards not fully converted to fdt */
+#ifdef CONFIG_MACH_EDMINI_V2_DT
+void edmini_v2_init(void);
+#else
+static inline void edmini_v2_init(void) {};
+#endif
 
 struct meminfo;
 struct tag;

@@ -27,7 +27,6 @@ struct k_sigaction {
 };
 
 #include <asm/sigcontext.h>
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_SIGNAL_H */

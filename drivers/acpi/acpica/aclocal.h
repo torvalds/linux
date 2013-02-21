@@ -262,10 +262,10 @@ struct acpi_create_field_info {
 };
 
 typedef
-acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
+acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 
 /*
- * Bitmapped ACPI types.  Used internally only
+ * Bitmapped ACPI types. Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -486,8 +486,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-		struct acpi_gpe_block_info *gpe_block, void *context);
+typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					 gpe_xrupt_info,
+					 struct acpi_gpe_block_info *gpe_block,
+					 void *context);
 
 /* Information about each particular fixed event */
 
@@ -582,7 +584,7 @@ struct acpi_pscope_state {
 };
 
 /*
- * Thread state - one per thread across multiple walk states.  Multiple walk
+ * Thread state - one per thread across multiple walk states. Multiple walk
  * states are created when there are nested control methods executing.
  */
 struct acpi_thread_state {
@@ -645,7 +647,7 @@ union acpi_generic_state {
  *
  ****************************************************************************/
 
-typedef acpi_status(*ACPI_EXECUTE_OP) (struct acpi_walk_state * walk_state);
+typedef acpi_status(*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 /* Address Range info block */
 
@@ -1031,6 +1033,7 @@ struct acpi_db_method_info {
 	acpi_handle method;
 	acpi_handle main_thread_gate;
 	acpi_handle thread_complete_gate;
+	acpi_handle info_gate;
 	acpi_thread_id *threads;
 	u32 num_threads;
 	u32 num_created;
@@ -1041,6 +1044,7 @@ struct acpi_db_method_info {
 	u32 num_loops;
 	char pathname[128];
 	char **args;
+	acpi_object_type *types;
 
 	/*
 	 * Arguments to be passed to method for the command

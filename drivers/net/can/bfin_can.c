@@ -531,7 +531,7 @@ static const struct net_device_ops bfin_can_netdev_ops = {
 	.ndo_start_xmit         = bfin_can_start_xmit,
 };
 
-static int __devinit bfin_can_probe(struct platform_device *pdev)
+static int bfin_can_probe(struct platform_device *pdev)
 {
 	int err;
 	struct net_device *dev;
@@ -611,7 +611,7 @@ exit:
 	return err;
 }
 
-static int __devexit bfin_can_remove(struct platform_device *pdev)
+static int bfin_can_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = dev_get_drvdata(&pdev->dev);
 	struct bfin_can_priv *priv = netdev_priv(dev);
@@ -677,7 +677,7 @@ static int bfin_can_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_can_driver = {
 	.probe = bfin_can_probe,
-	.remove = __devexit_p(bfin_can_remove),
+	.remove = bfin_can_remove,
 	.suspend = bfin_can_suspend,
 	.resume = bfin_can_resume,
 	.driver = {
@@ -691,3 +691,4 @@ module_platform_driver(bfin_can_driver);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Blackfin on-chip CAN netdevice driver");
+MODULE_ALIAS("platform:" DRV_NAME);

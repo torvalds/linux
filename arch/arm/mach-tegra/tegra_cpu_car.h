@@ -30,6 +30,12 @@
  *	CPU clock un-gate
  * disable_clock:
  *	CPU clock gate
+ * rail_off_ready:
+ *	CPU is ready for rail off
+ * suspend:
+ *	save the clock settings when CPU go into low-power state
+ * resume:
+ *	restore the clock settings when CPU exit low-power state
  */
 struct tegra_cpu_car_ops {
 	void (*wait_for_reset)(u32 cpu);
@@ -37,6 +43,11 @@ struct tegra_cpu_car_ops {
 	void (*out_of_reset)(u32 cpu);
 	void (*enable_clock)(u32 cpu);
 	void (*disable_clock)(u32 cpu);
+#ifdef CONFIG_PM_SLEEP
+	bool (*rail_off_ready)(void);
+	void (*suspend)(void);
+	void (*resume)(void);
+#endif
 };
 
 extern struct tegra_cpu_car_ops *tegra_cpu_car_ops;
@@ -80,6 +91,32 @@ static inline void tegra_disable_cpu_clock(u32 cpu)
 
 	tegra_cpu_car_ops->disable_clock(cpu);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static inline bool tegra_cpu_rail_off_ready(void)
+{
+	if (WARN_ON(!tegra_cpu_car_ops->rail_off_ready))
+		return false;
+
+	return tegra_cpu_car_ops->rail_off_ready();
+}
+
+static inline void tegra_cpu_clock_suspend(void)
+{
+	if (WARN_ON(!tegra_cpu_car_ops->suspend))
+		return;
+
+	tegra_cpu_car_ops->suspend();
+}
+
+static inline void tegra_cpu_clock_resume(void)
+{
+	if (WARN_ON(!tegra_cpu_car_ops->resume))
+		return;
+
+	tegra_cpu_car_ops->resume();
+}
+#endif
 
 void tegra20_cpu_car_ops_init(void);
 void tegra30_cpu_car_ops_init(void);

@@ -476,7 +476,7 @@ static void fixed_event_count(u32 event_number)
 	return;
 }
 
-static void acpi_gbl_event_handler(u32 event_type, acpi_handle device,
+static void acpi_global_event_handler(u32 event_type, acpi_handle device,
 	u32 event_number, void *context)
 {
 	if (event_type == ACPI_EVENT_TYPE_GPE)
@@ -638,7 +638,7 @@ void acpi_irq_stats_init(void)
 	if (all_counters == NULL)
 		goto fail;
 
-	status = acpi_install_global_event_handler(acpi_gbl_event_handler, NULL);
+	status = acpi_install_global_event_handler(acpi_global_event_handler, NULL);
 	if (ACPI_FAILURE(status))
 		goto fail;
 

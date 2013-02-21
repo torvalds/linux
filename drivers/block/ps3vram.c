@@ -536,7 +536,7 @@ static const struct file_operations ps3vram_proc_fops = {
 	.release	= single_release,
 };
 
-static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
+static void ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	struct proc_dir_entry *pde;
@@ -618,7 +618,7 @@ static void ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	} while (bio);
 }
 
-static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
+static int ps3vram_probe(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv;
 	int error, status;

@@ -452,7 +452,7 @@ static size_t gelic_wl_synthesize_ie(u8 *buf,
 	if (rsn)
 		*buf++ = WLAN_EID_RSN;
 	else
-		*buf++ = WLAN_EID_GENERIC;
+		*buf++ = WLAN_EID_VENDOR_SPECIFIC;
 
 	/* length filed; set later */
 	buf++;
@@ -540,7 +540,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 			break;
 
 		switch (item_id) {
-		case WLAN_EID_GENERIC:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if ((OUI_LEN + 1 <= item_len) &&
 			    !memcmp(pos, wpa_oui, OUI_LEN) &&
 			    pos[OUI_LEN] == 0x01) {
@@ -2305,7 +2305,7 @@ static const struct iw_handler_def gelic_wl_wext_handler_def = {
 	.get_wireless_stats	= gelic_wl_get_wireless_stats,
 };
 
-static struct net_device * __devinit gelic_wl_alloc(struct gelic_card *card)
+static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 {
 	struct net_device *netdev;
 	struct gelic_port *port;
@@ -2582,7 +2582,7 @@ static const struct ethtool_ops gelic_wl_ethtool_ops = {
 	.get_link	= gelic_wl_get_link,
 };
 
-static void __devinit gelic_wl_setup_netdev_ops(struct net_device *netdev)
+static void gelic_wl_setup_netdev_ops(struct net_device *netdev)
 {
 	struct gelic_wl_info *wl;
 	wl = port_wl(netdev_priv(netdev));
@@ -2598,7 +2598,7 @@ static void __devinit gelic_wl_setup_netdev_ops(struct net_device *netdev)
 /*
  * driver probe/remove
  */
-int __devinit gelic_wl_driver_probe(struct gelic_card *card)
+int gelic_wl_driver_probe(struct gelic_card *card)
 {
 	int ret;
 	struct net_device *netdev;

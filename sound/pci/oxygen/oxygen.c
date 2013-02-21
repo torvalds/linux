@@ -756,8 +756,8 @@ static const struct oxygen_model model_generic = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
-static int __devinit get_oxygen_model(struct oxygen *chip,
-				      const struct pci_device_id *id)
+static int get_oxygen_model(struct oxygen *chip,
+			    const struct pci_device_id *id)
 {
 	static const char *const names[] = {
 		[MODEL_MERIDIAN]	= "AuzenTech X-Meridian",
@@ -848,8 +848,8 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 	return 0;
 }
 
-static int __devinit generic_oxygen_probe(struct pci_dev *pci,
-					  const struct pci_device_id *pci_id)
+static int generic_oxygen_probe(struct pci_dev *pci,
+				const struct pci_device_id *pci_id)
 {
 	static int dev;
 	int err;
@@ -871,7 +871,7 @@ static struct pci_driver oxygen_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = oxygen_ids,
 	.probe = generic_oxygen_probe,
-	.remove = __devexit_p(oxygen_pci_remove),
+	.remove = oxygen_pci_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &oxygen_pci_pm,

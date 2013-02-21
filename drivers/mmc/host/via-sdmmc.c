@@ -1082,7 +1082,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	msleep(1);
 }
 
-static int __devinit via_sd_probe(struct pci_dev *pcidev,
+static int via_sd_probe(struct pci_dev *pcidev,
 				    const struct pci_device_id *id)
 {
 	struct mmc_host *mmc;
@@ -1176,7 +1176,7 @@ disable:
 	return ret;
 }
 
-static void __devexit via_sd_remove(struct pci_dev *pcidev)
+static void via_sd_remove(struct pci_dev *pcidev)
 {
 	struct via_crdr_mmc_host *sdhost = pci_get_drvdata(pcidev);
 	unsigned long flags;
@@ -1332,7 +1332,7 @@ static struct pci_driver via_sd_driver = {
 	.name = DRV_NAME,
 	.id_table = via_ids,
 	.probe = via_sd_probe,
-	.remove = __devexit_p(via_sd_remove),
+	.remove = via_sd_remove,
 	.suspend = via_sd_suspend,
 	.resume = via_sd_resume,
 };

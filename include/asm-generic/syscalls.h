@@ -8,26 +8,6 @@
  * Calling conventions for these system calls can differ, so
  * it's possible to override them.
  */
-#ifndef sys_clone
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
-			void __user *parent_tid, void __user *child_tid,
-			struct pt_regs *regs);
-#endif
-
-#ifndef sys_fork
-asmlinkage long sys_fork(struct pt_regs *regs);
-#endif
-
-#ifndef sys_vfork
-asmlinkage long sys_vfork(struct pt_regs *regs);
-#endif
-
-#ifndef sys_execve
-asmlinkage long sys_execve(const char __user *filename,
-			   const char __user *const __user *argv,
-			   const char __user *const __user *envp,
-			   struct pt_regs *regs);
-#endif
 
 #ifndef sys_mmap2
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
@@ -41,9 +21,11 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long fd, off_t pgoff);
 #endif
 
+#ifndef CONFIG_GENERIC_SIGALTSTACK
 #ifndef sys_sigaltstack
 asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
 			struct pt_regs *);
+#endif
 #endif
 
 #ifndef sys_rt_sigreturn

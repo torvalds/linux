@@ -1180,7 +1180,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 }
 
@@ -1194,7 +1194,7 @@ void __init smp_setup_processor_id(void)
 		xcall_deliver_impl = hypervisor_xcall_deliver;
 }
 
-void __devinit smp_fill_in_sib_core_maps(void)
+void smp_fill_in_sib_core_maps(void)
 {
 	unsigned int i;
 

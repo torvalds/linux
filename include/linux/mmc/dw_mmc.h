@@ -229,8 +229,9 @@ struct dw_mci_board {
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
 
-	unsigned int caps;	/* Capabilities */
-	unsigned int caps2;	/* More capabilities */
+	u32 caps;	/* Capabilities */
+	u32 caps2;	/* More capabilities */
+	u32 pm_caps;	/* PM capabilities */
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
 	 * but note that this may not be reliable after a bootloader has used

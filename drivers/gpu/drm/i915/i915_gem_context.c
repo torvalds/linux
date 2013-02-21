@@ -146,7 +146,7 @@ create_hw_context(struct drm_device *dev,
 	struct i915_hw_context *ctx;
 	int ret, id;
 
-	ctx = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -410,9 +410,8 @@ static int do_switch(struct i915_hw_context *to)
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from_obj != NULL) {
-		u32 seqno = i915_gem_next_request_seqno(ring);
 		from_obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		i915_gem_object_move_to_active(from_obj, ring, seqno);
+		i915_gem_object_move_to_active(from_obj, ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be

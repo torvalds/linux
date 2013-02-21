@@ -28,7 +28,7 @@ ENTRY(sys32_open_wrapper)
 	llgtr	%r2,%r2			# const char *
 	lgfr	%r3,%r3			# int
 	lgfr	%r4,%r4			# int
-	jg	sys_open		# branch to system call
+	jg	compat_sys_open		# branch to system call
 
 ENTRY(sys32_close_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -1659,3 +1659,9 @@ ENTRY(sys_kcmp_wrapper)
 	llgfr	%r5,%r5			# unsigned long
 	llgfr	%r6,%r6			# unsigned long
 	jg	sys_kcmp
+
+ENTRY(sys_finit_module_wrapper)
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char __user *
+	lgfr	%r4,%r4			# int
+	jg	sys_finit_module

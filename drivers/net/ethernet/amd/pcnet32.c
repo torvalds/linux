@@ -1443,7 +1443,7 @@ static const struct ethtool_ops pcnet32_ethtool_ops = {
 /* only probes for non-PCI devices, the rest are handled by
  * pci_register_driver via pcnet32_probe_pci */
 
-static void __devinit pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
+static void pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
 {
 	unsigned int *port, ioaddr;
 
@@ -1462,7 +1462,7 @@ static void __devinit pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
 	}
 }
 
-static int __devinit
+static int
 pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned long ioaddr;
@@ -1521,7 +1521,7 @@ static const struct net_device_ops pcnet32_netdev_ops = {
  *  Called from both pcnet32_probe_vlbus and pcnet_probe_pci.
  *  pdev will be NULL when called from pcnet32_probe_vlbus.
  */
-static int __devinit
+static int
 pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 {
 	struct pcnet32_private *lp;
@@ -2823,7 +2823,7 @@ static int pcnet32_pm_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static void __devexit pcnet32_remove_one(struct pci_dev *pdev)
+static void pcnet32_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -2844,7 +2844,7 @@ static void __devexit pcnet32_remove_one(struct pci_dev *pdev)
 static struct pci_driver pcnet32_driver = {
 	.name = DRV_NAME,
 	.probe = pcnet32_probe_pci,
-	.remove = __devexit_p(pcnet32_remove_one),
+	.remove = pcnet32_remove_one,
 	.id_table = pcnet32_pci_tbl,
 	.suspend = pcnet32_pm_suspend,
 	.resume = pcnet32_pm_resume,

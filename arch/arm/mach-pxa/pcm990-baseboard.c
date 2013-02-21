@@ -26,6 +26,7 @@
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/pwm_backlight.h>
 
+#include <media/mt9v022.h>
 #include <media/soc_camera.h>
 
 #include <linux/platform_data/camera-pxa.h>
@@ -468,6 +469,10 @@ static struct i2c_board_info __initdata pcm990_i2c_devices[] = {
 	},
 };
 
+static struct mt9v022_platform_data mt9v022_pdata = {
+	.y_skip_top = 1,
+};
+
 static struct i2c_board_info pcm990_camera_i2c[] = {
 	{
 		I2C_BOARD_INFO("mt9v022", 0x48),
@@ -480,6 +485,7 @@ static struct soc_camera_link iclink[] = {
 	{
 		.bus_id			= 0, /* Must match with the camera ID */
 		.board_info		= &pcm990_camera_i2c[0],
+		.priv			= &mt9v022_pdata,
 		.i2c_adapter_id		= 0,
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,

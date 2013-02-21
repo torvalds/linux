@@ -57,7 +57,7 @@ boot := arch/microblaze/boot
 DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
 
 ifneq ($(DTB),)
-	core-y	+= $(boot)/
+	core-y	+= $(boot)/dts/
 endif
 
 # defines filename extension depending memory management type

@@ -64,6 +64,10 @@ static int nf_conntrack_helper_init_sysctl(struct net *net)
 
 	table[0].data = &net->ct.sysctl_auto_assign_helper;
 
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		table[0].procname = NULL;
+
 	net->ct.helper_sysctl_header =
 		register_net_sysctl(net, "net/netfilter", table);
 
@@ -232,7 +236,9 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 		/* We only allow helper re-assignment of the same sort since
 		 * we cannot reallocate the helper extension area.
 		 */
-		if (help->helper != helper) {
+		struct nf_conntrack_helper *tmp = rcu_dereference(help->helper);
+
+		if (tmp && tmp->help != helper->help) {
 			RCU_INIT_POINTER(help->helper, NULL);
 			goto out;
 		}

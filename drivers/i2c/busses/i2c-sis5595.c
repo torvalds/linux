@@ -142,7 +142,7 @@ static void sis5595_write(u8 reg, u8 data)
 	outb(data, sis5595_base + SMB_DAT);
 }
 
-static int __devinit sis5595_setup(struct pci_dev *SIS5595_dev)
+static int sis5595_setup(struct pci_dev *SIS5595_dev)
 {
 	u16 a;
 	u8 val;
@@ -376,7 +376,7 @@ static DEFINE_PCI_DEVICE_TABLE(sis5595_ids) = {
 
 MODULE_DEVICE_TABLE (pci, sis5595_ids);
 
-static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err;
 

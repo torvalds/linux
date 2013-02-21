@@ -82,23 +82,6 @@ struct hid_sensor_hub_callbacks_list {
 	void *priv;
 };
 
-static int sensor_hub_check_for_sensor_page(struct hid_device *hdev)
-{
-	int i;
-	int ret = -EINVAL;
-
-	for (i = 0; i < hdev->maxcollection; i++) {
-		struct hid_collection *col = &hdev->collection[i];
-		if (col->type == HID_COLLECTION_PHYSICAL &&
-		   (col->usage & HID_USAGE_PAGE) == HID_UP_SENSOR) {
-			ret = 0;
-			break;
-		}
-	}
-
-	return ret;
-}
-
 static struct hid_report *sensor_hub_report(int id, struct hid_device *hdev,
 						int dir)
 {
@@ -437,9 +420,6 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 	ptr = raw_data;
 	ptr++; /*Skip report id*/
 
-	if (!report)
-		goto err_report;
-
 	spin_lock_irqsave(&pdata->lock, flags);
 
 	for (i = 0; i < report->maxfield; ++i) {
@@ -485,7 +465,6 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 				callback->pdev);
 	spin_unlock_irqrestore(&pdata->lock, flags);
 
-err_report:
 	return 1;
 }
 
@@ -522,10 +501,6 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err_free;
-	}
-	if (sensor_hub_check_for_sensor_page(hdev) < 0) {
-		hid_err(hdev, "sensor page not found\n");
 		goto err_free;
 	}
 	INIT_LIST_HEAD(&hdev->inputs);
@@ -630,16 +605,7 @@ static void sensor_hub_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id sensor_hub_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_INTEL_8086,
-			USB_DEVICE_ID_SENSOR_HUB_1020) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_INTEL_8087,
-			USB_DEVICE_ID_SENSOR_HUB_1020) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_INTEL_8086,
-			USB_DEVICE_ID_SENSOR_HUB_09FA) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_INTEL_8087,
-			USB_DEVICE_ID_SENSOR_HUB_09FA) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_STANTUM_STM,
-			USB_DEVICE_ID_SENSOR_HUB_7014) },
+	{ HID_DEVICE(BUS_USB, HID_GROUP_SENSOR_HUB, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sensor_hub_devices);

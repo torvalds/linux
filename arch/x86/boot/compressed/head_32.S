@@ -35,11 +35,11 @@ ENTRY(startup_32)
 #ifdef CONFIG_EFI_STUB
 	jmp	preferred_addr
 
-	.balign	0x10
 	/*
 	 * We don't need the return address, so set up the stack so
-	 * efi_main() can find its arugments.
+	 * efi_main() can find its arguments.
 	 */
+ENTRY(efi_pe_entry)
 	add	$0x4, %esp
 
 	call	make_boot_params
@@ -50,8 +50,10 @@ ENTRY(startup_32)
 	pushl	%eax
 	pushl	%esi
 	pushl	%ecx
+	sub	$0x4, %esp
 
-	.org 0x30,0x90
+ENTRY(efi_stub_entry)
+	add	$0x4, %esp
 	call	efi_main
 	cmpl	$0, %eax
 	movl	%eax, %esi

@@ -526,6 +526,57 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return 0;
 }
 
+static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+{
+	/*
+	 * Don't forget to update Documentation/ on changes.
+	 */
+	static const char mnemonics[BITS_PER_LONG][2] = {
+		/*
+		 * In case if we meet a flag we don't know about.
+		 */
+		[0 ... (BITS_PER_LONG-1)] = "??",
+
+		[ilog2(VM_READ)]	= "rd",
+		[ilog2(VM_WRITE)]	= "wr",
+		[ilog2(VM_EXEC)]	= "ex",
+		[ilog2(VM_SHARED)]	= "sh",
+		[ilog2(VM_MAYREAD)]	= "mr",
+		[ilog2(VM_MAYWRITE)]	= "mw",
+		[ilog2(VM_MAYEXEC)]	= "me",
+		[ilog2(VM_MAYSHARE)]	= "ms",
+		[ilog2(VM_GROWSDOWN)]	= "gd",
+		[ilog2(VM_PFNMAP)]	= "pf",
+		[ilog2(VM_DENYWRITE)]	= "dw",
+		[ilog2(VM_LOCKED)]	= "lo",
+		[ilog2(VM_IO)]		= "io",
+		[ilog2(VM_SEQ_READ)]	= "sr",
+		[ilog2(VM_RAND_READ)]	= "rr",
+		[ilog2(VM_DONTCOPY)]	= "dc",
+		[ilog2(VM_DONTEXPAND)]	= "de",
+		[ilog2(VM_ACCOUNT)]	= "ac",
+		[ilog2(VM_NORESERVE)]	= "nr",
+		[ilog2(VM_HUGETLB)]	= "ht",
+		[ilog2(VM_NONLINEAR)]	= "nl",
+		[ilog2(VM_ARCH_1)]	= "ar",
+		[ilog2(VM_DONTDUMP)]	= "dd",
+		[ilog2(VM_MIXEDMAP)]	= "mm",
+		[ilog2(VM_HUGEPAGE)]	= "hg",
+		[ilog2(VM_NOHUGEPAGE)]	= "nh",
+		[ilog2(VM_MERGEABLE)]	= "mg",
+	};
+	size_t i;
+
+	seq_puts(m, "VmFlags: ");
+	for (i = 0; i < BITS_PER_LONG; i++) {
+		if (vma->vm_flags & (1UL << i)) {
+			seq_printf(m, "%c%c ",
+				   mnemonics[i][0], mnemonics[i][1]);
+		}
+	}
+	seq_putc(m, '\n');
+}
+
 static int show_smap(struct seq_file *m, void *v, int is_pid)
 {
 	struct proc_maps_private *priv = m->private;
@@ -580,6 +631,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
 	if (vma->vm_flags & VM_NONLINEAR)
 		seq_printf(m, "Nonlinear:      %8lu kB\n",
 				mss.nonlinear >> 10);
+
+	show_smap_vma_flags(m, vma);
 
 	if (m->count < m->size)  /* vma is copied successfully */
 		m->version = (vma != get_gate_vma(task->mm))
@@ -643,7 +696,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	spinlock_t *ptl;
 	struct page *page;
 
-	split_huge_page_pmd(walk->mm, pmd);
+	split_huge_page_pmd(vma, addr, pmd);
 	if (pmd_trans_unstable(pmd))
 		return 0;
 
@@ -1126,7 +1179,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
 		return NULL;
 
 	nid = page_to_nid(page);
-	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
+	if (!node_isset(nid, node_states[N_MEMORY]))
 		return NULL;
 
 	return page;
@@ -1225,7 +1278,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	walk.mm = mm;
 
 	pol = get_vma_policy(task, vma, vma->vm_start);
-	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+	mpol_to_str(buffer, sizeof(buffer), pol);
 	mpol_cond_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
@@ -1279,7 +1332,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	if (md->writeback)
 		seq_printf(m, " writeback=%lu", md->writeback);
 
-	for_each_node_state(n, N_HIGH_MEMORY)
+	for_each_node_state(n, N_MEMORY)
 		if (md->node[n])
 			seq_printf(m, " N%d=%lu", n, md->node[n]);
 out:

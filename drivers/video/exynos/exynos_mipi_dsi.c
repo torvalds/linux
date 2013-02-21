@@ -490,7 +490,7 @@ err_platform_get_irq:
 	return ret;
 }
 
-static int __devexit exynos_mipi_dsi_remove(struct platform_device *pdev)
+static int exynos_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct mipi_dsim_device *dsim = platform_get_drvdata(pdev);
 	struct mipi_dsim_ddi *dsim_ddi, *next;
@@ -595,7 +595,7 @@ static const struct dev_pm_ops exynos_mipi_dsi_pm_ops = {
 
 static struct platform_driver exynos_mipi_dsi_driver = {
 	.probe = exynos_mipi_dsi_probe,
-	.remove = __devexit_p(exynos_mipi_dsi_remove),
+	.remove = exynos_mipi_dsi_remove,
 	.driver = {
 		   .name = "exynos-mipi-dsim",
 		   .owner = THIS_MODULE,

@@ -22,6 +22,7 @@
 #include <mach/time.h>
 #include <mach/da8xx.h>
 #include <mach/cpuidle.h>
+#include <mach/sram.h>
 
 #include "clock.h"
 #include "asp.h"
@@ -32,6 +33,7 @@
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
 #define DA8XX_RTC_BASE			0x01c23000
+#define DA8XX_PRUSS_MEM_BASE		0x01c30000
 #define DA8XX_MMCSD0_BASE		0x01c40000
 #define DA8XX_SPI0_BASE			0x01c41000
 #define DA830_SPI1_BASE			0x01e12000
@@ -518,29 +520,78 @@ void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 	}
 }
 
-static const struct display_panel disp_panel = {
-	QVGA,
-	16,
-	16,
-	COLOR_ACTIVE,
+static struct resource da8xx_pruss_resources[] = {
+	{
+		.start	= DA8XX_PRUSS_MEM_BASE,
+		.end	= DA8XX_PRUSS_MEM_BASE + 0xFFFF,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT0,
+		.end	= IRQ_DA8XX_EVTOUT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT1,
+		.end	= IRQ_DA8XX_EVTOUT1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT2,
+		.end	= IRQ_DA8XX_EVTOUT2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT3,
+		.end	= IRQ_DA8XX_EVTOUT3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT4,
+		.end	= IRQ_DA8XX_EVTOUT4,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT5,
+		.end	= IRQ_DA8XX_EVTOUT5,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT6,
+		.end	= IRQ_DA8XX_EVTOUT6,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EVTOUT7,
+		.end	= IRQ_DA8XX_EVTOUT7,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
+static struct uio_pruss_pdata da8xx_uio_pruss_pdata = {
+	.pintc_base	= 0x4000,
+};
+
+static struct platform_device da8xx_uio_pruss_dev = {
+	.name		= "pruss_uio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(da8xx_pruss_resources),
+	.resource	= da8xx_pruss_resources,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &da8xx_uio_pruss_pdata,
+	}
+};
+
+int __init da8xx_register_uio_pruss(void)
+{
+	da8xx_uio_pruss_pdata.sram_pool = sram_get_gen_pool();
+	return platform_device_register(&da8xx_uio_pruss_dev);
+}
+
 static struct lcd_ctrl_config lcd_cfg = {
-	&disp_panel,
-	.ac_bias		= 255,
-	.ac_bias_intrpt		= 0,
-	.dma_burst_sz		= 16,
+	.panel_shade		= COLOR_ACTIVE,
 	.bpp			= 16,
-	.fdd			= 255,
-	.tft_alt_mode		= 0,
-	.stn_565_mode		= 0,
-	.mono_8bit_mode		= 0,
-	.invert_line_clock	= 1,
-	.invert_frm_clock	= 1,
-	.sync_edge		= 0,
-	.sync_ctrl		= 1,
-	.raster_order		= 0,
-	.fifo_th		= 6,
 };
 
 struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {
@@ -674,7 +725,7 @@ static struct resource da8xx_rtc_resources[] = {
 };
 
 static struct platform_device da8xx_rtc_device = {
-	.name           = "omap_rtc",
+	.name           = "da830-rtc",
 	.id             = -1,
 	.num_resources	= ARRAY_SIZE(da8xx_rtc_resources),
 	.resource	= da8xx_rtc_resources,
@@ -683,17 +734,6 @@ static struct platform_device da8xx_rtc_device = {
 int da8xx_register_rtc(void)
 {
 	int ret;
-	void __iomem *base;
-
-	base = ioremap(DA8XX_RTC_BASE, SZ_4K);
-	if (WARN_ON(!base))
-		return -ENOMEM;
-
-	/* Unlock the rtc's registers */
-	__raw_writel(0x83e70b13, base + 0x6c);
-	__raw_writel(0x95a4f1e0, base + 0x70);
-
-	iounmap(base);
 
 	ret = platform_device_register(&da8xx_rtc_device);
 	if (!ret)
@@ -900,7 +940,7 @@ static int da850_sata_init(struct device *dev, void __iomem *addr)
 	if (IS_ERR(da850_sata_clk))
 		return PTR_ERR(da850_sata_clk);
 
-	ret = clk_enable(da850_sata_clk);
+	ret = clk_prepare_enable(da850_sata_clk);
 	if (ret)
 		goto err0;
 
@@ -931,7 +971,7 @@ static int da850_sata_init(struct device *dev, void __iomem *addr)
 	return 0;
 
 err1:
-	clk_disable(da850_sata_clk);
+	clk_disable_unprepare(da850_sata_clk);
 err0:
 	clk_put(da850_sata_clk);
 	return ret;
@@ -939,7 +979,7 @@ err0:
 
 static void da850_sata_exit(struct device *dev)
 {
-	clk_disable(da850_sata_clk);
+	clk_disable_unprepare(da850_sata_clk);
 	clk_put(da850_sata_clk);
 }
 

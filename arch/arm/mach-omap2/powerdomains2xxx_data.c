@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include "soc.h"
 #include "powerdomain.h"
 #include "powerdomains2xxx_3xxx_data.h"
 

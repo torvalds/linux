@@ -198,7 +198,7 @@ static void encode_filename3(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	BUG_ON(length > NFS3_MAXNAMLEN);
+	WARN_ON_ONCE(length > NFS3_MAXNAMLEN);
 	p = xdr_reserve_space(xdr, 4 + length);
 	xdr_encode_opaque(p, name, length);
 }
@@ -238,7 +238,6 @@ out_overflow:
 static void encode_nfspath3(struct xdr_stream *xdr, struct page **pages,
 			    const u32 length)
 {
-	BUG_ON(length > NFS3_MAXPATHLEN);
 	encode_uint32(xdr, length);
 	xdr_write_pages(xdr, pages, 0, length);
 }
@@ -388,7 +387,6 @@ out_overflow:
  */
 static void encode_ftype3(struct xdr_stream *xdr, const u32 type)
 {
-	BUG_ON(type > NF3FIFO);
 	encode_uint32(xdr, type);
 }
 
@@ -443,7 +441,7 @@ static void encode_nfs_fh3(struct xdr_stream *xdr, const struct nfs_fh *fh)
 {
 	__be32 *p;
 
-	BUG_ON(fh->size > NFS3_FHSIZE);
+	WARN_ON_ONCE(fh->size > NFS3_FHSIZE);
 	p = xdr_reserve_space(xdr, 4 + fh->size);
 	xdr_encode_opaque(p, fh->data, fh->size);
 }
@@ -1339,6 +1337,7 @@ static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
 	error = nfsacl_encode(xdr->buf, base, args->inode,
 			    (args->mask & NFS_ACL) ?
 			    args->acl_access : NULL, 1, 0);
+	/* FIXME: this is just broken */
 	BUG_ON(error < 0);
 	error = nfsacl_encode(xdr->buf, base + error, args->inode,
 			    (args->mask & NFS_DFACL) ?

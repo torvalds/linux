@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/highmem.h>
 
 #include "igb.h"
 
@@ -1623,6 +1624,20 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 		reg &= ~E1000_CONNSW_ENRGSRC;
 		wr32(E1000_CONNSW, reg);
 
+		/* Unset sigdetect for SERDES loopback on
+		 * 82580 and i350 devices.
+		 */
+		switch (hw->mac.type) {
+		case e1000_82580:
+		case e1000_i350:
+			reg = rd32(E1000_PCS_CFG0);
+			reg |= E1000_PCS_CFG_IGN_SD;
+			wr32(E1000_PCS_CFG0, reg);
+			break;
+		default:
+			break;
+		}
+
 		/* Set PCS register for forced speed */
 		reg = rd32(E1000_PCS_LCTL);
 		reg &= ~E1000_PCS_LCTL_AN_ENABLE;     /* Disable Autoneg*/
@@ -1685,16 +1700,24 @@ static void igb_create_lbtest_frame(struct sk_buff *skb,
 	memset(&skb->data[frame_size + 12], 0xAF, 1);
 }
 
-static int igb_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
+static int igb_check_lbtest_frame(struct igb_rx_buffer *rx_buffer,
+				  unsigned int frame_size)
 {
-	frame_size /= 2;
-	if (*(skb->data + 3) == 0xFF) {
-		if ((*(skb->data + frame_size + 10) == 0xBE) &&
-		   (*(skb->data + frame_size + 12) == 0xAF)) {
-			return 0;
-		}
-	}
-	return 13;
+	unsigned char *data;
+	bool match = true;
+
+	frame_size >>= 1;
+
+	data = kmap(rx_buffer->page);
+
+	if (data[3] != 0xFF ||
+	    data[frame_size + 10] != 0xBE ||
+	    data[frame_size + 12] != 0xAF)
+		match = false;
+
+	kunmap(rx_buffer->page);
+
+	return match;
 }
 
 static int igb_clean_test_rings(struct igb_ring *rx_ring,
@@ -1704,9 +1727,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
-	struct netdev_queue *txq;
 	u16 rx_ntc, tx_ntc, count = 0;
-	unsigned int total_bytes = 0, total_packets = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
@@ -1717,21 +1738,24 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* check rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
-		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(rx_ring->dev,
-				 rx_buffer_info->dma,
-				 IGB_RX_HDR_LEN,
-				 DMA_FROM_DEVICE);
-		rx_buffer_info->dma = 0;
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer_info->dma,
+					IGB_RX_BUFSZ,
+					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
-		if (!igb_check_lbtest_frame(rx_buffer_info->skb, size))
+		if (igb_check_lbtest_frame(rx_buffer_info, size))
 			count++;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer_info->dma,
+					   IGB_RX_BUFSZ,
+					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
-		total_bytes += tx_buffer_info->bytecount;
-		total_packets += tx_buffer_info->gso_segs;
 		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
 		/* increment rx/tx next to clean counters */
@@ -1746,8 +1770,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 	}
 
-	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
-	netdev_tx_completed_queue(txq, total_packets, total_bytes);
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	/* re-map buffers to ring, store next to clean values */
 	igb_alloc_rx_buffers(rx_ring, count);
@@ -1957,54 +1980,6 @@ static void igb_diag_test(struct net_device *netdev,
 	msleep_interruptible(4 * 1000);
 }
 
-static int igb_wol_exclusion(struct igb_adapter *adapter,
-			     struct ethtool_wolinfo *wol)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	int retval = 1; /* fail by default */
-
-	switch (hw->device_id) {
-	case E1000_DEV_ID_82575GB_QUAD_COPPER:
-		/* WoL not supported */
-		wol->supported = 0;
-		break;
-	case E1000_DEV_ID_82575EB_FIBER_SERDES:
-	case E1000_DEV_ID_82576_FIBER:
-	case E1000_DEV_ID_82576_SERDES:
-		/* Wake events not supported on port B */
-		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1) {
-			wol->supported = 0;
-			break;
-		}
-		/* return success for non excluded adapter ports */
-		retval = 0;
-		break;
-	case E1000_DEV_ID_82576_QUAD_COPPER:
-	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
-		/* quad port adapters only support WoL on port A */
-		if (!(adapter->flags & IGB_FLAG_QUAD_PORT_A)) {
-			wol->supported = 0;
-			break;
-		}
-		/* return success for non excluded adapter ports */
-		retval = 0;
-		break;
-	default:
-		/* dual port cards only support WoL on port A from now on
-		 * unless it was enabled in the eeprom for port B
-		 * so exclude FUNC_1 ports from having WoL enabled */
-		if ((rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) &&
-		    !adapter->eeprom_wol) {
-			wol->supported = 0;
-			break;
-		}
-
-		retval = 0;
-	}
-
-	return retval;
-}
-
 static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2014,10 +1989,7 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	                 WAKE_PHY;
 	wol->wolopts = 0;
 
-	/* this function will set ->supported = 0 and return 1 if wol is not
-	 * supported by this hardware */
-	if (igb_wol_exclusion(adapter, wol) ||
-	    !device_can_wakeup(&adapter->pdev->dev))
+	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return;
 
 	/* apply any specific unsupported masks here */
@@ -2045,8 +2017,7 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE))
 		return -EOPNOTSUPP;
 
-	if (igb_wol_exclusion(adapter, wol) ||
-	    !device_can_wakeup(&adapter->pdev->dev))
+	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return wol->wolopts ? -EOPNOTSUPP : 0;
 
 	/* these settings will always override what we currently have */
@@ -2301,7 +2272,6 @@ static int igb_get_ts_info(struct net_device *dev,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
-#ifdef CONFIG_IGB_PTP
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
@@ -2337,10 +2307,286 @@ static int igb_get_ts_info(struct net_device *dev,
 				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		return 0;
-#endif /* CONFIG_IGB_PTP */
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+static int igb_get_rss_hash_opts(struct igb_adapter *adapter,
+				 struct ethtool_rxnfc *cmd)
+{
+	cmd->data = 0;
+
+	/* Report default options for RSS on igb */
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+	case UDP_V4_FLOW:
+		if (adapter->flags & IGB_FLAG_RSS_FIELD_IPV4_UDP)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case IPV4_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case TCP_V6_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+	case UDP_V6_FLOW:
+		if (adapter->flags & IGB_FLAG_RSS_FIELD_IPV6_UDP)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV6_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int igb_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			   u32 *rule_locs)
+{
+	struct igb_adapter *adapter = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_queues;
+		ret = 0;
+		break;
+	case ETHTOOL_GRXFH:
+		ret = igb_get_rss_hash_opts(adapter, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+#define UDP_RSS_FLAGS (IGB_FLAG_RSS_FIELD_IPV4_UDP | \
+		       IGB_FLAG_RSS_FIELD_IPV6_UDP)
+static int igb_set_rss_hash_opt(struct igb_adapter *adapter,
+				struct ethtool_rxnfc *nfc)
+{
+	u32 flags = adapter->flags;
+
+	/* RSS does not support anything other than hashing
+	 * to queues on src and dst IPs and ports
+	 */
+	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
+			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		return -EINVAL;
+
+	switch (nfc->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    !(nfc->data & RXH_L4_B_0_1) ||
+		    !(nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	case UDP_V4_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			flags &= ~IGB_FLAG_RSS_FIELD_IPV4_UDP;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			flags |= IGB_FLAG_RSS_FIELD_IPV4_UDP;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case UDP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			flags &= ~IGB_FLAG_RSS_FIELD_IPV6_UDP;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			flags |= IGB_FLAG_RSS_FIELD_IPV6_UDP;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    (nfc->data & RXH_L4_B_0_1) ||
+		    (nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* if we changed something we need to update flags */
+	if (flags != adapter->flags) {
+		struct e1000_hw *hw = &adapter->hw;
+		u32 mrqc = rd32(E1000_MRQC);
+
+		if ((flags & UDP_RSS_FLAGS) &&
+		    !(adapter->flags & UDP_RSS_FLAGS))
+			dev_err(&adapter->pdev->dev,
+				"enabling UDP RSS: fragmented packets may arrive out of order to the stack above\n");
+
+		adapter->flags = flags;
+
+		/* Perform hash on these packet types */
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4 |
+			E1000_MRQC_RSS_FIELD_IPV4_TCP |
+			E1000_MRQC_RSS_FIELD_IPV6 |
+			E1000_MRQC_RSS_FIELD_IPV6_TCP;
+
+		mrqc &= ~(E1000_MRQC_RSS_FIELD_IPV4_UDP |
+			  E1000_MRQC_RSS_FIELD_IPV6_UDP);
+
+		if (flags & IGB_FLAG_RSS_FIELD_IPV4_UDP)
+			mrqc |= E1000_MRQC_RSS_FIELD_IPV4_UDP;
+
+		if (flags & IGB_FLAG_RSS_FIELD_IPV6_UDP)
+			mrqc |= E1000_MRQC_RSS_FIELD_IPV6_UDP;
+
+		wr32(E1000_MRQC, mrqc);
+	}
+
+	return 0;
+}
+
+static int igb_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct igb_adapter *adapter = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		ret = igb_set_rss_hash_opt(adapter, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ipcnfg, eeer;
+
+	if ((hw->mac.type < e1000_i350) ||
+	    (hw->phy.media_type != e1000_media_type_copper))
+		return -EOPNOTSUPP;
+
+	edata->supported = (SUPPORTED_1000baseT_Full |
+			    SUPPORTED_100baseT_Full);
+
+	ipcnfg = rd32(E1000_IPCNFG);
+	eeer = rd32(E1000_EEER);
+
+	/* EEE status on negotiated link */
+	if (ipcnfg & E1000_IPCNFG_EEE_1G_AN)
+		edata->advertised = ADVERTISED_1000baseT_Full;
+
+	if (ipcnfg & E1000_IPCNFG_EEE_100M_AN)
+		edata->advertised |= ADVERTISED_100baseT_Full;
+
+	if (eeer & E1000_EEER_EEE_NEG)
+		edata->eee_active = true;
+
+	edata->eee_enabled = !hw->dev_spec._82575.eee_disable;
+
+	if (eeer & E1000_EEER_TX_LPI_EN)
+		edata->tx_lpi_enabled = true;
+
+	/* Report correct negotiated EEE status for devices that
+	 * wrongly report EEE at half-duplex
+	 */
+	if (adapter->link_duplex == HALF_DUPLEX) {
+		edata->eee_enabled = false;
+		edata->eee_active = false;
+		edata->tx_lpi_enabled = false;
+		edata->advertised &= ~edata->advertised;
+	}
+
+	return 0;
+}
+
+static int igb_set_eee(struct net_device *netdev,
+		       struct ethtool_eee *edata)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_curr;
+	s32 ret_val;
+
+	if ((hw->mac.type < e1000_i350) ||
+	    (hw->phy.media_type != e1000_media_type_copper))
+		return -EOPNOTSUPP;
+
+	ret_val = igb_get_eee(netdev, &eee_curr);
+	if (ret_val)
+		return ret_val;
+
+	if (eee_curr.eee_enabled) {
+		if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE tx-lpi is not supported\n");
+			return -EINVAL;
+		}
+
+		/* Tx LPI timer is not implemented currently */
+		if (edata->tx_lpi_timer) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE Tx LPI timer is not supported\n");
+			return -EINVAL;
+		}
+
+		if (eee_curr.advertised != edata->advertised) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE Advertisement is not supported\n");
+			return -EINVAL;
+		}
+
+	} else if (!edata->eee_enabled) {
+		dev_err(&adapter->pdev->dev,
+			"Setting EEE options are not supported with EEE disabled\n");
+			return -EINVAL;
+		}
+
+	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
+		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
+		igb_set_eee_i350(hw);
+
+		/* reset link */
+		if (!netif_running(netdev))
+			igb_reset(adapter);
+	}
+
+	return 0;
 }
 
 static int igb_ethtool_begin(struct net_device *netdev)
@@ -2383,6 +2629,10 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_coalesce           = igb_get_coalesce,
 	.set_coalesce           = igb_set_coalesce,
 	.get_ts_info            = igb_get_ts_info,
+	.get_rxnfc		= igb_get_rxnfc,
+	.set_rxnfc		= igb_set_rxnfc,
+	.get_eee		= igb_get_eee,
+	.set_eee		= igb_set_eee,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };

@@ -14,7 +14,6 @@
  * ---------------------------------------------------------------------------
  */
 
-#include <linux/version.h>
 #include "csr_wifi_hip_unifiversion.h"
 #include "unifi_priv.h"
 #include "csr_wifi_hip_conversions.h"
@@ -413,8 +412,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
                                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                          0xc0, 0xa8, 0x00, 0x02};
 
-    func_enter();
-
     csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], sizeof(arp_req));
     if (csrResult != CSR_RESULT_SUCCESS)
     {
@@ -479,8 +476,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
         unifi_net_data_free(priv, &bulkdata.d[0]);
         return;
     }
-
-    func_exit();
 
 }
 #endif /* CSR_WIFI_SEND_GRATUITOUS_ARP */
@@ -2102,7 +2097,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
     u8 freeSlotFound = FALSE;
     CsrWifiRouterCtrlStaInfo_t *newRecord = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
-    CsrTime currentTime, currentTimeHi;
+    u32 currentTime, currentTimeHi;
     unsigned long lock_flags;
 
     if (req->interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
@@ -2296,8 +2291,8 @@ static void check_inactivity_timer_expire_func(unsigned long data)
     struct unifi_priv *priv;
     CsrWifiRouterCtrlStaInfo_t *sta_record = NULL;
     u8 i = 0;
-    CsrTime now;
-    CsrTime inactive_time;
+    u32 now;
+    u32 inactive_time;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *) data;
 
     if (!interfacePriv)
@@ -2329,11 +2324,11 @@ static void check_inactivity_timer_expire_func(unsigned long data)
             if (sta_record->lastActivity > now)
             {
                 /* simple timer wrap (for 1 wrap) */
-                inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
+                inactive_time = CsrTimeAdd((u32)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
             }
             else
             {
-                inactive_time = (CsrTime)CsrTimeSub(now, sta_record->lastActivity);
+                inactive_time = (u32)CsrTimeSub(now, sta_record->lastActivity);
             }
 
             if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
@@ -2410,8 +2405,6 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
     u16 interfaceTag;
     struct list_head send_cfm_list;
     u8 j;
-
-    func_enter();
 
     if(!staInfo) {
         return;

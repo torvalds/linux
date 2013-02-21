@@ -444,7 +444,7 @@ static irqreturn_t nes_interrupt(int irq, void *dev_id)
 /**
  * nes_probe - Device initialization
  */
-static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
+static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
 	struct nes_device *nesdev = NULL;
@@ -749,7 +749,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 /**
  * nes_remove - unload from kernel
  */
-static void __devexit nes_remove(struct pci_dev *pcidev)
+static void nes_remove(struct pci_dev *pcidev)
 {
 	struct nes_device *nesdev = pci_get_drvdata(pcidev);
 	struct net_device *netdev;
@@ -810,7 +810,7 @@ static struct pci_driver nes_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = nes_pci_table,
 	.probe = nes_probe,
-	.remove = __devexit_p(nes_remove),
+	.remove = nes_remove,
 };
 
 static ssize_t nes_show_adapter(struct device_driver *ddp, char *buf)

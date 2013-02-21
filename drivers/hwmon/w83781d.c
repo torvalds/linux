@@ -1764,7 +1764,7 @@ w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
 	return 0;
 }
 
-static int __devinit
+static int
 w83781d_isa_probe(struct platform_device *pdev)
 {
 	int err, reg;
@@ -1824,7 +1824,7 @@ w83781d_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit
+static int
 w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
@@ -1842,7 +1842,7 @@ static struct platform_driver w83781d_isa_driver = {
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,
-	.remove = __devexit_p(w83781d_isa_remove),
+	.remove = w83781d_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */

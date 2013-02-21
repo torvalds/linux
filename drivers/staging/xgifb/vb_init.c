@@ -94,8 +94,8 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
 		      0x18,
 		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x01);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[0]);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[1]);
+	xgifb_reg_set(P3c4, 0x16, 0x03);
+	xgifb_reg_set(P3c4, 0x16, 0x83);
 	mdelay(1);
 	xgifb_reg_set(P3c4, 0x1B, 0x03);
 	udelay(500);
@@ -103,8 +103,8 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
 		      0x18,
 		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x00);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[2]);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[3]);
+	xgifb_reg_set(P3c4, 0x16, 0x03);
+	xgifb_reg_set(P3c4, 0x16, 0x83);
 	xgifb_reg_set(P3c4, 0x1B, 0x00);
 }
 
@@ -124,13 +124,13 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x2E,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR2E);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR2E);
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x2F,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR2F);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR2F);
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x30,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR30);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR30);
 
 	/* When XG42 ECLK = MCLK = 207MHz, Set SR32 D[1:0] = 10b */
 	/* Modify SR32 value, when MCLK=207MHZ, ELCK=250MHz,
@@ -138,10 +138,10 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 	if (HwDeviceExtension->jChipType == XG42) {
 		if ((pVBInfo->MCLKData[pVBInfo->ram_type].SR28 == 0x1C) &&
 		    (pVBInfo->MCLKData[pVBInfo->ram_type].SR29 == 0x01) &&
-		    (((pVBInfo->ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
-		      (pVBInfo->ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
-		     ((pVBInfo->ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
-		      (pVBInfo->ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
+		    (((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
+		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
+		     ((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
+		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
 			xgifb_reg_set(pVBInfo->P3c4,
 				      0x32,
 				      ((unsigned char) xgifb_reg_get(
@@ -429,7 +429,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	temp2 = 0;
 	for (i = 0; i < 4; i++) {
 		/* CR6B DQS fine tune delay */
-		temp = pVBInfo->CR6B[pVBInfo->ram_type][i];
+		temp = XGI340_CR6B[pVBInfo->ram_type][i];
 		for (j = 0; j < 4; j++) {
 			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
 			temp2 |= temp1;
@@ -444,7 +444,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	temp2 = 0;
 	for (i = 0; i < 4; i++) {
 		/* CR6E DQM fine tune delay */
-		temp = pVBInfo->CR6E[pVBInfo->ram_type][i];
+		temp = 0;
 		for (j = 0; j < 4; j++) {
 			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
 			temp2 |= temp1;
@@ -463,7 +463,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		temp2 = 0;
 		for (i = 0; i < 8; i++) {
 			/* CR6F DQ fine tune delay */
-			temp = pVBInfo->CR6F[pVBInfo->ram_type][8 * k + i];
+			temp = 0;
 			for (j = 0; j < 4; j++) {
 				temp1 = (temp >> (2 * j)) & 0x03;
 				temp2 |= temp1;
@@ -486,7 +486,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	temp2 = 0x80;
 	/* CR89 terminator type select */
-	temp = pVBInfo->CR89[pVBInfo->ram_type][0];
+	temp = 0;
 	for (j = 0; j < 4; j++) {
 		temp1 = (temp >> (2 * j)) & 0x03;
 		temp2 |= temp1;
@@ -496,7 +496,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		temp2 += 0x10;
 	}
 
-	temp = pVBInfo->CR89[pVBInfo->ram_type][1];
+	temp = 0;
 	temp1 = temp & 0x03;
 	temp2 |= temp1;
 	xgifb_reg_set(P3d4, 0x89, temp2);
@@ -1378,17 +1378,17 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 		for (i = 0x47; i <= 0x4C; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[i - 0x47]);
+				      XGI340_AGPReg[i - 0x47]);
 
 		for (i = 0x70; i <= 0x71; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[6 + i - 0x70]);
+				      XGI340_AGPReg[6 + i - 0x70]);
 
 		for (i = 0x74; i <= 0x77; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[8 + i - 0x74]);
+				      XGI340_AGPReg[8 + i - 0x74]);
 
 		pci_read_config_dword(pdev, 0x50, &Temp);
 		Temp >>= 20;
@@ -1401,7 +1401,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	/* Set PCI */
 	xgifb_reg_set(pVBInfo->P3c4, 0x23, XGI330_SR23);
 	xgifb_reg_set(pVBInfo->P3c4, 0x24, XGI330_SR24);
-	xgifb_reg_set(pVBInfo->P3c4, 0x25, XGI330_SR25);
+	xgifb_reg_set(pVBInfo->P3c4, 0x25, 0);
 
 	if (HwDeviceExtension->jChipType < XG20) {
 		/* Set VB */
@@ -1482,11 +1482,8 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	XGINew_SetDRAMSize_340(xgifb_info, HwDeviceExtension, pVBInfo);
 
-	xgifb_reg_set(pVBInfo->P3c4,
-		      0x22,
-		      (unsigned char) ((pVBInfo->SR22) & 0xFE));
-
-	xgifb_reg_set(pVBInfo->P3c4, 0x21, pVBInfo->SR21);
+	xgifb_reg_set(pVBInfo->P3c4, 0x22, 0xfa);
+	xgifb_reg_set(pVBInfo->P3c4, 0x21, 0xa3);
 
 	XGINew_ChkSenseStatus(HwDeviceExtension, pVBInfo);
 	XGINew_SetModeScratch(HwDeviceExtension, pVBInfo);

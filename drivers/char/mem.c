@@ -48,7 +48,7 @@ static inline unsigned long size_inside_page(unsigned long start,
 }
 
 #ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE
-static inline int valid_phys_addr_range(unsigned long addr, size_t count)
+static inline int valid_phys_addr_range(phys_addr_t addr, size_t count)
 {
 	return addr + count <= __pa(high_memory);
 }
@@ -96,7 +96,7 @@ void __weak unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 static ssize_t read_mem(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	unsigned long p = *ppos;
+	phys_addr_t p = *ppos;
 	ssize_t read, sz;
 	char *ptr;
 
@@ -153,7 +153,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 static ssize_t write_mem(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	unsigned long p = *ppos;
+	phys_addr_t p = *ppos;
 	ssize_t written, sz;
 	unsigned long copied;
 	void *ptr;
@@ -226,7 +226,7 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  *
  */
 #ifdef pgprot_noncached
-static int uncached_access(struct file *file, unsigned long addr)
+static int uncached_access(struct file *file, phys_addr_t addr)
 {
 #if defined(CONFIG_IA64)
 	/*
@@ -258,7 +258,7 @@ static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
 {
 #ifdef pgprot_noncached
-	unsigned long offset = pfn << PAGE_SHIFT;
+	phys_addr_t offset = pfn << PAGE_SHIFT;
 
 	if (uncached_access(file, offset))
 		return pgprot_noncached(vma_prot);

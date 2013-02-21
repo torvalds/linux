@@ -1004,7 +1004,7 @@ static int snd_mixart_chip_dev_free(struct snd_device *device)
 
 /*
  */
-static int __devinit snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int idx)
+static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int idx)
 {
 	int err;
 	struct snd_mixart *chip;
@@ -1180,7 +1180,7 @@ static void snd_mixart_proc_read(struct snd_info_entry *entry,
 	} /* endif elf loaded */
 }
 
-static void __devinit snd_mixart_proc_init(struct snd_mixart *chip)
+static void snd_mixart_proc_init(struct snd_mixart *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1209,8 +1209,8 @@ static void __devinit snd_mixart_proc_init(struct snd_mixart *chip)
 /*
  *    probe function - creates the card manager
  */
-static int __devinit snd_mixart_probe(struct pci_dev *pci,
-				      const struct pci_device_id *pci_id)
+static int snd_mixart_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct mixart_mgr *mgr;
@@ -1374,7 +1374,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_mixart_remove(struct pci_dev *pci)
+static void snd_mixart_remove(struct pci_dev *pci)
 {
 	snd_mixart_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1384,7 +1384,7 @@ static struct pci_driver mixart_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_mixart_ids,
 	.probe = snd_mixart_probe,
-	.remove = __devexit_p(snd_mixart_remove),
+	.remove = snd_mixart_remove,
 };
 
 module_pci_driver(mixart_driver);

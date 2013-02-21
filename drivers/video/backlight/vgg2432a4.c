@@ -26,7 +26,7 @@
 
 /* Device initialisation sequences */
 
-static struct ili9320_reg vgg_init1[] = {
+static const struct ili9320_reg vgg_init1[] = {
 	{
 		.address = ILI9320_POWER1,
 		.value	 = ILI9320_POWER1_AP(0) | ILI9320_POWER1_BT(0),
@@ -43,7 +43,7 @@ static struct ili9320_reg vgg_init1[] = {
 	},
 };
 
-static struct ili9320_reg vgg_init2[] = {
+static const struct ili9320_reg vgg_init2[] = {
 	{
 		.address = ILI9320_POWER1,
 		.value   = (ILI9320_POWER1_AP(3) | ILI9320_POWER1_APE |
@@ -54,7 +54,7 @@ static struct ili9320_reg vgg_init2[] = {
 	}
 };
 
-static struct ili9320_reg vgg_gamma[] = {
+static const struct ili9320_reg vgg_gamma[] = {
 	{
 		.address = ILI9320_GAMMA1,
 		.value	 = 0x0000,
@@ -89,7 +89,7 @@ static struct ili9320_reg vgg_gamma[] = {
 
 };
 
-static struct ili9320_reg vgg_init0[] = {
+static const struct ili9320_reg vgg_init0[] = {
 	[0]	= {
 		/* set direction and scan mode gate */
 		.address = ILI9320_DRIVER,
@@ -217,7 +217,7 @@ static int vgg2432a4_resume(struct spi_device *spi)
 }
 #else
 #define vgg2432a4_suspend	NULL
-#define vgg2432a4_resume 	NULL
+#define vgg2432a4_resume	NULL
 #endif
 
 static struct ili9320_client vgg2432a4_client = {
@@ -227,7 +227,7 @@ static struct ili9320_client vgg2432a4_client = {
 
 /* Device probe */
 
-static int __devinit vgg2432a4_probe(struct spi_device *spi)
+static int vgg2432a4_probe(struct spi_device *spi)
 {
 	int ret;
 
@@ -240,7 +240,7 @@ static int __devinit vgg2432a4_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit vgg2432a4_remove(struct spi_device *spi)
+static int vgg2432a4_remove(struct spi_device *spi)
 {
 	return ili9320_remove(dev_get_drvdata(&spi->dev));
 }
@@ -256,7 +256,7 @@ static struct spi_driver vgg2432a4_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= vgg2432a4_probe,
-	.remove		= __devexit_p(vgg2432a4_remove),
+	.remove		= vgg2432a4_remove,
 	.shutdown	= vgg2432a4_shutdown,
 	.suspend	= vgg2432a4_suspend,
 	.resume		= vgg2432a4_resume,

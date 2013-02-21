@@ -368,7 +368,7 @@ static void nvec_power_poll(struct work_struct *work)
 	schedule_delayed_work(to_delayed_work(work), msecs_to_jiffies(5000));
 };
 
-static int __devinit nvec_power_probe(struct platform_device *pdev)
+static int nvec_power_probe(struct platform_device *pdev)
 {
 	struct power_supply *psy;
 	struct nvec_power *power;
@@ -407,7 +407,7 @@ static int __devinit nvec_power_probe(struct platform_device *pdev)
 	return power_supply_register(&pdev->dev, psy);
 }
 
-static int __devexit nvec_power_remove(struct platform_device *pdev)
+static int nvec_power_remove(struct platform_device *pdev)
 {
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
@@ -425,7 +425,7 @@ static int __devexit nvec_power_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_power_driver = {
 	.probe = nvec_power_probe,
-	.remove = __devexit_p(nvec_power_remove),
+	.remove = nvec_power_remove,
 	.driver = {
 		   .name = "nvec-power",
 		   .owner = THIS_MODULE,
