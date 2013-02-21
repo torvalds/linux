@@ -550,6 +550,13 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 	sector_t stripe;
 	int dev;
 	int slot = 0;
+	int last_far_set_start, last_far_set_size;
+
+	last_far_set_start = (geo->raid_disks / geo->far_set_size) - 1;
+	last_far_set_start *= geo->far_set_size;
+
+	last_far_set_size = geo->far_set_size;
+	last_far_set_size += (geo->raid_disks % geo->far_set_size);
 
 	/* now calculate first sector/dev */
 	chunk = r10bio->sector >> geo->chunk_shift;
@@ -575,9 +582,16 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 		for (f = 1; f < geo->far_copies; f++) {
 			set = d / geo->far_set_size;
 			d += geo->near_copies;
-			d %= geo->far_set_size;
-			d += geo->far_set_size * set;
 
+			if ((geo->raid_disks % geo->far_set_size) &&
+			    (d > last_far_set_start)) {
+				d -= last_far_set_start;
+				d %= last_far_set_size;
+				d += last_far_set_start;
+			} else {
+				d %= geo->far_set_size;
+				d += geo->far_set_size * set;
+			}
 			s += geo->stride;
 			r10bio->devs[slot].devnum = d;
 			r10bio->devs[slot].addr = s;
@@ -615,6 +629,18 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
 	struct geom *geo = &conf->geo;
 	int far_set_start = (dev / geo->far_set_size) * geo->far_set_size;
 	int far_set_size = geo->far_set_size;
+	int last_far_set_start;
+
+	if (geo->raid_disks % geo->far_set_size) {
+		last_far_set_start = (geo->raid_disks / geo->far_set_size) - 1;
+		last_far_set_start *= geo->far_set_size;
+
+		if (dev >= last_far_set_start) {
+			far_set_size = geo->far_set_size;
+			far_set_size += (geo->raid_disks % geo->far_set_size);
+			far_set_start = last_far_set_start;
+		}
+	}
 
 	offset = sector & geo->chunk_mask;
 	if (geo->far_offset) {
