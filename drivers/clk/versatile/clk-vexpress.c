@@ -11,14 +11,13 @@
  * Copyright (C) 2012 ARM Limited
  */
 
+#include <linux/amba/sp810.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/vexpress.h>
-
-#include <asm/hardware/sp810.h>
 
 static struct clk *vexpress_sp810_timerclken[4];
 static DEFINE_SPINLOCK(vexpress_sp810_lock);
