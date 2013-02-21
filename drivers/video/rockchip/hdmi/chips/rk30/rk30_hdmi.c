@@ -295,5 +295,5 @@ static void __exit rk30_hdmi_exit(void)
 
 
 //fs_initcall(rk30_hdmi_init);
-module_init(rk30_hdmi_init);
+device_initcall_sync(rk30_hdmi_init);
 module_exit(rk30_hdmi_exit);

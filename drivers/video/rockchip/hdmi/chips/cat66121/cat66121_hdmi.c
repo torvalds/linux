@@ -332,6 +332,6 @@ static void __exit cat66121_hdmi_exit(void)
     i2c_del_driver(&cat66121_hdmi_i2c_driver);
 }
 
-module_init(cat66121_hdmi_init);
-//fs_initcall(cat66121_init);
+//module_init(cat66121_hdmi_init);
+device_initcall_sync(cat66121_hdmi_init);
 module_exit(cat66121_hdmi_exit);
