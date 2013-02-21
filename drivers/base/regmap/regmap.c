@@ -999,6 +999,8 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		if (!async)
 			return -ENOMEM;
 
+		trace_regmap_async_write_start(map->dev, reg, val_len);
+
 		async->work_buf = kzalloc(map->format.buf_size,
 					  GFP_KERNEL | GFP_DMA);
 		if (!async->work_buf) {
@@ -1640,6 +1642,8 @@ void regmap_async_complete_cb(struct regmap_async *async, int ret)
 	struct regmap *map = async->map;
 	bool wake;
 
+	trace_regmap_async_io_complete(map->dev);
+
 	spin_lock(&map->async_lock);
 
 	list_del(&async->list);
@@ -1686,12 +1690,16 @@ int regmap_async_complete(struct regmap *map)
 	if (!map->bus->async_write)
 		return 0;
 
+	trace_regmap_async_complete_start(map->dev);
+
 	wait_event(map->async_waitq, regmap_async_is_done(map));
 
 	spin_lock_irqsave(&map->async_lock, flags);
 	ret = map->async_ret;
 	map->async_ret = 0;
 	spin_unlock_irqrestore(&map->async_lock, flags);
+
+	trace_regmap_async_complete_done(map->dev);
 
 	return ret;
 }
