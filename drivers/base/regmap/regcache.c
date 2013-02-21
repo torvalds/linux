@@ -45,8 +45,8 @@ static int regcache_hw_init(struct regmap *map)
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf)
 			return -EINVAL;
-		ret = regmap_bulk_read(map, 0, tmp_buf,
-				       map->num_reg_defaults_raw);
+		ret = regmap_raw_read(map, 0, tmp_buf,
+				      map->num_reg_defaults_raw);
 		map->cache_bypass = cache_bypass;
 		if (ret < 0) {
 			kfree(tmp_buf);
@@ -421,6 +421,13 @@ bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 	if (regcache_get_val(map, base, idx) == val)
 		return true;
 
+	/* Use device native format if possible */
+	if (map->format.format_val) {
+		map->format.format_val(base + (map->cache_word_size * idx),
+				       val, 0);
+		return false;
+	}
+
 	switch (map->cache_word_size) {
 	case 1: {
 		u8 *cache = base;
@@ -448,6 +455,11 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 {
 	if (!base)
 		return -EINVAL;
+
+	/* Use device native format if possible */
+	if (map->format.parse_val)
+		return map->format.parse_val(base +
+					     (map->cache_word_size * idx));
 
 	switch (map->cache_word_size) {
 	case 1: {
