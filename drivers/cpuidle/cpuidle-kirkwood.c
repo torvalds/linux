@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/cpuidle.h>
@@ -21,16 +22,17 @@
 #include <linux/export.h>
 #include <asm/proc-fns.h>
 #include <asm/cpuidle.h>
-#include <mach/kirkwood.h>
 
 #define KIRKWOOD_MAX_STATES	2
 
+static void __iomem *ddr_operation_base;
+
 /* Actual code that puts the SoC in different idle states */
 static int kirkwood_enter_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
+			       struct cpuidle_driver *drv,
 			       int index)
 {
-	writel(0x7, DDR_OPERATION_BASE);
+	writel(0x7, ddr_operation_base);
 	cpu_do_idle();
 
 	return index;
@@ -51,13 +53,22 @@ static struct cpuidle_driver kirkwood_idle_driver = {
 	},
 	.state_count = KIRKWOOD_MAX_STATES,
 };
+static struct cpuidle_device *device;
 
 static DEFINE_PER_CPU(struct cpuidle_device, kirkwood_cpuidle_device);
 
 /* Initialize CPU idle by registering the idle states */
-static int kirkwood_init_cpuidle(void)
+static int kirkwood_cpuidle_probe(struct platform_device *pdev)
 {
-	struct cpuidle_device *device;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -EINVAL;
+
+	ddr_operation_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!ddr_operation_base)
+		return -EADDRNOTAVAIL;
 
 	device = &per_cpu(kirkwood_cpuidle_device, smp_processor_id());
 	device->state_count = KIRKWOOD_MAX_STATES;
@@ -70,4 +81,26 @@ static int kirkwood_init_cpuidle(void)
 	return 0;
 }
 
-device_initcall(kirkwood_init_cpuidle);
+int kirkwood_cpuidle_remove(struct platform_device *pdev)
+{
+	cpuidle_unregister_device(device);
+	cpuidle_unregister_driver(&kirkwood_idle_driver);
+
+	return 0;
+}
+
+static struct platform_driver kirkwood_cpuidle_driver = {
+	.probe = kirkwood_cpuidle_probe,
+	.remove = kirkwood_cpuidle_remove,
+	.driver = {
+		   .name = "kirkwood_cpuidle",
+		   .owner = THIS_MODULE,
+		   },
+};
+
+module_platform_driver(kirkwood_cpuidle_driver);
+
+MODULE_AUTHOR("Andrew Lunn <andrew@lunn.ch>");
+MODULE_DESCRIPTION("Kirkwood cpu idle driver");
+MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:kirkwood-cpuidle");

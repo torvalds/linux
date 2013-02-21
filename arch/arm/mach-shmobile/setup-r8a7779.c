@@ -91,8 +91,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(88), gic_spi(88),
-			    gic_spi(88), gic_spi(88) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(88)),
 };
 
 static struct platform_device scif0_device = {
@@ -109,8 +108,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(89), gic_spi(89),
-			    gic_spi(89), gic_spi(89) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(89)),
 };
 
 static struct platform_device scif1_device = {
@@ -127,8 +125,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(90), gic_spi(90),
-			    gic_spi(90), gic_spi(90) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(90)),
 };
 
 static struct platform_device scif2_device = {
@@ -145,8 +142,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(91), gic_spi(91),
-			    gic_spi(91), gic_spi(91) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(91)),
 };
 
 static struct platform_device scif3_device = {
@@ -163,8 +159,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(92), gic_spi(92),
-			    gic_spi(92), gic_spi(92) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(92)),
 };
 
 static struct platform_device scif4_device = {
@@ -181,8 +176,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(93), gic_spi(93),
-			    gic_spi(93), gic_spi(93) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(93)),
 };
 
 static struct platform_device scif5_device = {

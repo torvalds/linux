@@ -529,8 +529,13 @@ static void __init mityomapl138_init(void)
 
 	mityomapl138_setup_nand();
 
-	ret = da8xx_register_spi(1, mityomapl138_spi_flash_info,
-			       ARRAY_SIZE(mityomapl138_spi_flash_info));
+	ret = spi_register_board_info(mityomapl138_spi_flash_info,
+				      ARRAY_SIZE(mityomapl138_spi_flash_info));
+	if (ret)
+		pr_warn("spi info registration failed: %d\n", ret);
+
+	ret = da8xx_register_spi_bus(1,
+				     ARRAY_SIZE(mityomapl138_spi_flash_info));
 	if (ret)
 		pr_warning("spi 1 registration failed: %d\n", ret);
 

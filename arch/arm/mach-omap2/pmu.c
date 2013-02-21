@@ -48,8 +48,7 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 		}
 	}
 
-	omap_pmu_dev = omap_device_build_ss(dev_name, -1, oh, oh_num, NULL, 0,
-					    NULL, 0, 0);
+	omap_pmu_dev = omap_device_build_ss(dev_name, -1, oh, oh_num, NULL, 0);
 	WARN(IS_ERR(omap_pmu_dev), "Can't build omap_device for %s.\n",
 	     dev_name);
 

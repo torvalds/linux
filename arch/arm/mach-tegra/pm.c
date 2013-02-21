@@ -24,6 +24,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
@@ -35,8 +36,8 @@
 #include "iomap.h"
 #include "reset.h"
 #include "flowctrl.h"
+#include "fuse.h"
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 #define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
 
@@ -173,6 +174,8 @@ bool tegra_set_cpu_in_lp2(int phy_cpu_id)
 
 	if ((phy_cpu_id == 0) && cpumask_equal(cpu_lp2_mask, cpu_online_mask))
 		last_cpu = true;
+	else if (tegra_chip_id == TEGRA20 && phy_cpu_id == 1)
+		tegra20_cpu_set_resettable_soon();
 
 	spin_unlock(&tegra_lp2_lock);
 	return last_cpu;

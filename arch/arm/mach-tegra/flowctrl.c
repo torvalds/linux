@@ -25,6 +25,7 @@
 
 #include "flowctrl.h"
 #include "iomap.h"
+#include "fuse.h"
 
 static u8 flowctrl_offset_halt_cpu[] = {
 	FLOW_CTRL_HALT_CPU0_EVENTS,
@@ -75,11 +76,26 @@ void flowctrl_cpu_suspend_enter(unsigned int cpuid)
 	int i;
 
 	reg = flowctrl_read_cpu_csr(cpuid);
-	reg &= ~TEGRA30_FLOW_CTRL_CSR_WFE_BITMAP;	/* clear wfe bitmap */
-	reg &= ~TEGRA30_FLOW_CTRL_CSR_WFI_BITMAP;	/* clear wfi bitmap */
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		/* clear wfe bitmap */
+		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFE_BITMAP;
+		/* clear wfi bitmap */
+		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFI_BITMAP;
+		/* pwr gating on wfe */
+		reg |= TEGRA20_FLOW_CTRL_CSR_WFE_CPU0 << cpuid;
+		break;
+	case TEGRA30:
+		/* clear wfe bitmap */
+		reg &= ~TEGRA30_FLOW_CTRL_CSR_WFE_BITMAP;
+		/* clear wfi bitmap */
+		reg &= ~TEGRA30_FLOW_CTRL_CSR_WFI_BITMAP;
+		/* pwr gating on wfi */
+		reg |= TEGRA30_FLOW_CTRL_CSR_WFI_CPU0 << cpuid;
+		break;
+	}
 	reg |= FLOW_CTRL_CSR_INTR_FLAG;			/* clear intr flag */
 	reg |= FLOW_CTRL_CSR_EVENT_FLAG;		/* clear event flag */
-	reg |= TEGRA30_FLOW_CTRL_CSR_WFI_CPU0 << cpuid;	/* pwr gating on wfi */
 	reg |= FLOW_CTRL_CSR_ENABLE;			/* pwr gating */
 	flowctrl_write_cpu_csr(cpuid, reg);
 
@@ -99,8 +115,20 @@ void flowctrl_cpu_suspend_exit(unsigned int cpuid)
 
 	/* Disable powergating via flow controller for CPU0 */
 	reg = flowctrl_read_cpu_csr(cpuid);
-	reg &= ~TEGRA30_FLOW_CTRL_CSR_WFE_BITMAP;	/* clear wfe bitmap */
-	reg &= ~TEGRA30_FLOW_CTRL_CSR_WFI_BITMAP;	/* clear wfi bitmap */
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		/* clear wfe bitmap */
+		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFE_BITMAP;
+		/* clear wfi bitmap */
+		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFI_BITMAP;
+		break;
+	case TEGRA30:
+		/* clear wfe bitmap */
+		reg &= ~TEGRA30_FLOW_CTRL_CSR_WFE_BITMAP;
+		/* clear wfi bitmap */
+		reg &= ~TEGRA30_FLOW_CTRL_CSR_WFI_BITMAP;
+		break;
+	}
 	reg &= ~FLOW_CTRL_CSR_ENABLE;			/* clear enable */
 	reg |= FLOW_CTRL_CSR_INTR_FLAG;			/* clear intr */
 	reg |= FLOW_CTRL_CSR_EVENT_FLAG;		/* clear event */

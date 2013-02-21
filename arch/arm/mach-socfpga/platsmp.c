@@ -47,16 +47,19 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
-	memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
+	if (cpu1start_addr) {
+		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-	__raw_writel(virt_to_phys(secondary_startup), (sys_manager_base_addr+0x10));
+		__raw_writel(virt_to_phys(socfpga_secondary_startup),
+			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
 
-	flush_cache_all();
-	smp_wmb();
-	outer_clean_range(0, trampoline_size);
+		flush_cache_all();
+		smp_wmb();
+		outer_clean_range(0, trampoline_size);
 
-	/* This will release CPU #1 out of reset.*/
-	__raw_writel(0, rst_manager_base_addr + 0x10);
+		/* This will release CPU #1 out of reset.*/
+		__raw_writel(0, rst_manager_base_addr + 0x10);
+	}
 
 	return 0;
 }

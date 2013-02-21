@@ -19,6 +19,7 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
@@ -30,7 +31,6 @@
 #include "fuse.h"
 #include "flowctrl.h"
 #include "reset.h"
-#include "tegra_cpu_car.h"
 
 #include "common.h"
 #include "iomap.h"
@@ -38,7 +38,6 @@
 extern void tegra_secondary_startup(void);
 
 static cpumask_t tegra_cpu_init_mask;
-static void __iomem *scu_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE);
 
 #define EVP_CPU_RESET_VECTOR \
 	(IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE) + 0x100)
@@ -177,34 +176,16 @@ done:
 	return status;
 }
 
-/*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
- */
-static void __init tegra_smp_init_cpus(void)
-{
-	unsigned int i, ncores = scu_get_core_count(scu_base);
-
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
-			ncores, nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
 static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* Always mark the boot CPU (CPU0) as initialized. */
 	cpumask_set_cpu(0, &tegra_cpu_init_mask);
 
-	scu_enable(scu_base);
+	if (scu_a9_has_base())
+		scu_enable(IO_ADDRESS(scu_a9_get_base()));
 }
 
 struct smp_operations tegra_smp_ops __initdata = {
-	.smp_init_cpus		= tegra_smp_init_cpus,
 	.smp_prepare_cpus	= tegra_smp_prepare_cpus,
 	.smp_secondary_init	= tegra_secondary_init,
 	.smp_boot_secondary	= tegra_boot_secondary,

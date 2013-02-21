@@ -12,8 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #include "drm.h"
 #include "dc.h"
