@@ -418,25 +418,22 @@ EXPORT_SYMBOL_GPL(regcache_cache_bypass);
 bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val)
 {
+	if (regcache_get_val(map, base, idx) == val)
+		return true;
+
 	switch (map->cache_word_size) {
 	case 1: {
 		u8 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
 	case 2: {
 		u16 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
 	case 4: {
 		u32 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
