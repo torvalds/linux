@@ -82,4 +82,6 @@ __attribute__((__section__(".arch.info.init"))) = {	\
 };
 
 extern struct machine_desc *setup_machine_fdt(void *dt);
+extern void __init copy_devtree(void);
+
 #endif

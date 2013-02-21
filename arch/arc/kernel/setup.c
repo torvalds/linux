@@ -354,6 +354,8 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_arch_memory();
 
+	/* copy flat DT out of .init and then unflatten it */
+	copy_devtree();
 	unflatten_device_tree();
 
 	/* Can be issue if someone passes cmd line arg "ro"
