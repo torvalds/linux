@@ -343,6 +343,23 @@ void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 		p1[i] &= p2[i];
 }
 
+/*  Do a logical ht_capa &= ht_capa_mask.  */
+void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
+				const struct ieee80211_vht_cap *vht_capa_mask)
+{
+	int i;
+	u8 *p1, *p2;
+	if (!vht_capa_mask) {
+		memset(vht_capa, 0, sizeof(*vht_capa));
+		return;
+	}
+
+	p1 = (u8*)(vht_capa);
+	p2 = (u8*)(vht_capa_mask);
+	for (i = 0; i < sizeof(*vht_capa); i++)
+		p1[i] &= p2[i];
+}
+
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
@@ -351,7 +368,9 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  const u8 *ie, int ie_len, bool use_mfp,
 			  struct cfg80211_crypto_settings *crypt,
 			  u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			  struct ieee80211_ht_cap *ht_capa_mask)
+			  struct ieee80211_ht_cap *ht_capa_mask,
+			  struct ieee80211_vht_cap *vht_capa,
+			  struct ieee80211_vht_cap *vht_capa_mask)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_assoc_request req;
@@ -388,6 +407,13 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 		       sizeof(req.ht_capa_mask));
 	cfg80211_oper_and_ht_capa(&req.ht_capa_mask,
 				  rdev->wiphy.ht_capa_mod_mask);
+	if (vht_capa)
+		memcpy(&req.vht_capa, vht_capa, sizeof(req.vht_capa));
+	if (vht_capa_mask)
+		memcpy(&req.vht_capa_mask, vht_capa_mask,
+		       sizeof(req.vht_capa_mask));
+	cfg80211_oper_and_vht_capa(&req.vht_capa_mask,
+				   rdev->wiphy.vht_capa_mod_mask);
 
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
@@ -422,7 +448,9 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			const u8 *ie, int ie_len, bool use_mfp,
 			struct cfg80211_crypto_settings *crypt,
 			u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			struct ieee80211_ht_cap *ht_capa_mask)
+			struct ieee80211_ht_cap *ht_capa_mask,
+			struct ieee80211_vht_cap *vht_capa,
+			struct ieee80211_vht_cap *vht_capa_mask)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -431,7 +459,8 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	wdev_lock(wdev);
 	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
 				    ssid, ssid_len, ie, ie_len, use_mfp, crypt,
-				    assoc_flags, ht_capa, ht_capa_mask);
+				    assoc_flags, ht_capa, ht_capa_mask,
+				    vht_capa, vht_capa_mask);
 	wdev_unlock(wdev);
 	mutex_unlock(&rdev->devlist_mtx);
 

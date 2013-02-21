@@ -195,7 +195,9 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    params->mfp != NL80211_MFP_NO,
 					    &params->crypto,
 					    params->flags, &params->ht_capa,
-					    &params->ht_capa_mask);
+					    &params->ht_capa_mask,
+					    &params->vht_capa,
+					    &params->vht_capa_mask);
 		if (err)
 			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,

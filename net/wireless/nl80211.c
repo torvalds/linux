@@ -371,6 +371,10 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_STA_CAPABILITY] = { .type = NLA_U16 },
 	[NL80211_ATTR_STA_EXT_CAPABILITY] = { .type = NLA_BINARY, },
 	[NL80211_ATTR_SPLIT_WIPHY_DUMP] = { .type = NLA_FLAG, },
+	[NL80211_ATTR_DISABLE_VHT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_VHT_CAPABILITY_MASK] = {
+		.len = NL80211_VHT_CAPABILITY_LEN,
+	},
 };
 
 /* policy for the key attributes */
@@ -1520,6 +1524,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 		     nla_put(msg, NL80211_ATTR_EXT_CAPA_MASK,
 			     dev->wiphy.extended_capabilities_len,
 			     dev->wiphy.extended_capabilities_mask)))
+			goto nla_put_failure;
+
+		if (dev->wiphy.vht_capa_mod_mask &&
+		    nla_put(msg, NL80211_ATTR_VHT_CAPABILITY_MASK,
+			    sizeof(*dev->wiphy.vht_capa_mod_mask),
+			    dev->wiphy.vht_capa_mod_mask))
 			goto nla_put_failure;
 
 		/* done */
@@ -5982,6 +5992,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	u32 flags = 0;
 	struct ieee80211_ht_cap *ht_capa = NULL;
 	struct ieee80211_ht_cap *ht_capa_mask = NULL;
+	struct ieee80211_vht_cap *vht_capa = NULL;
+	struct ieee80211_vht_cap *vht_capa_mask = NULL;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
@@ -6038,12 +6050,25 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		ht_capa = nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 	}
 
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_VHT]))
+		flags |= ASSOC_REQ_DISABLE_VHT;
+
+	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
+		vht_capa_mask =
+			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]);
+
+	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY]) {
+		if (!vht_capa_mask)
+			return -EINVAL;
+		vht_capa = nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
+	}
+
 	err = nl80211_crypto_settings(rdev, info, &crypto, 1);
 	if (!err)
 		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
 					  ssid, ssid_len, ie, ie_len, use_mfp,
-					  &crypto, flags, ht_capa,
-					  ht_capa_mask);
+					  &crypto, flags, ht_capa, ht_capa_mask,
+					  vht_capa, vht_capa_mask);
 
 	return err;
 }
@@ -6621,6 +6646,24 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 		memcpy(&connect.ht_capa,
 		       nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]),
 		       sizeof(connect.ht_capa));
+	}
+
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_VHT]))
+		connect.flags |= ASSOC_REQ_DISABLE_VHT;
+
+	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
+		memcpy(&connect.vht_capa_mask,
+		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]),
+		       sizeof(connect.vht_capa_mask));
+
+	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY]) {
+		if (!info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]) {
+			kfree(connkeys);
+			return -EINVAL;
+		}
+		memcpy(&connect.vht_capa,
+		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]),
+		       sizeof(connect.vht_capa));
 	}
 
 	err = cfg80211_connect(rdev, dev, &connect, connkeys);
