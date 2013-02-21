@@ -31,7 +31,6 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -419,7 +418,7 @@ static int dsps_musb_init(struct musb *musb)
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv))
-		return -ENODEV;
+		return -EPROBE_DEFER;
 
 	/* Returns zero if e.g. not clocked */
 	rev = dsps_readl(reg_base, wrp->revision);

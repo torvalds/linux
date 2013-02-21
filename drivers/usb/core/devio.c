@@ -40,6 +40,7 @@
 #include <linux/signal.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */
@@ -1077,7 +1078,7 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 	if (!intf || !intf->dev.driver)
 		ret = -ENODATA;
 	else {
-		strncpy(gd.driver, intf->dev.driver->name,
+		strlcpy(gd.driver, intf->dev.driver->name,
 				sizeof(gd.driver));
 		ret = (copy_to_user(arg, &gd, sizeof(gd)) ? -EFAULT : 0);
 	}

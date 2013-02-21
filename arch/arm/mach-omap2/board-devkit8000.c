@@ -29,6 +29,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/phy.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -622,6 +623,7 @@ static void __init devkit8000_init(void)
 
 	omap_ads7846_init(2, OMAP3_DEVKIT_TS_GPIO, 0, NULL);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	board_nand_init(devkit8000_nand_partitions,

@@ -18,6 +18,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -134,6 +135,7 @@ static void __init rm680_init(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }

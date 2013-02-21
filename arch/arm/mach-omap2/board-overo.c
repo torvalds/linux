@@ -36,6 +36,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/phy.h>
 
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
@@ -499,6 +500,7 @@ static void __init overo_init(void)
 				  mt46h32m32lf6_sdrc_params);
 	board_nand_init(overo_nand_partitions,
 			ARRAY_SIZE(overo_nand_partitions), NAND_CS, 0, NULL);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	overo_spi_init();

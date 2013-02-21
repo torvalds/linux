@@ -41,6 +41,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/mmc/host.h>
 #include <linux/export.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -734,6 +735,7 @@ static void __init omap3_evm_init(void)
 		omap_mux_init_gpio(135, OMAP_PIN_OUTPUT);
 		usbhs_bdata.reset_gpio_port[1] = 135;
 	}
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
 	board_nand_init(omap3evm_nand_partitions,
