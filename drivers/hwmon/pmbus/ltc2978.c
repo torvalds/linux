@@ -326,7 +326,7 @@ static int ltc2978_probe(struct i2c_client *client,
 	data->temp_max = 0x7c00;
 	data->temp2_max = 0x7c00;
 
-	switch (id->driver_data) {
+	switch (data->id) {
 	case ltc2978:
 		info->read_word_data = ltc2978_read_word_data;
 		info->pages = 8;
