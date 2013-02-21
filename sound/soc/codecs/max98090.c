@@ -507,16 +507,16 @@ static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const char * max98090_perf_pwr_text[] =
+static const char *max98090_perf_pwr_text[] =
 	{ "High Performance", "Low Power" };
-static const char * max98090_pwr_perf_text[] =
+static const char *max98090_pwr_perf_text[] =
 	{ "Low Power", "High Performance" };
 
 static const struct soc_enum max98090_vcmbandgap_enum =
 	SOC_ENUM_SINGLE(M98090_REG_BIAS_CONTROL, M98090_VCM_MODE_SHIFT,
 		ARRAY_SIZE(max98090_pwr_perf_text), max98090_pwr_perf_text);
 
-static const char * max98090_osr128_text[] = { "64*fs", "128*fs" };
+static const char *max98090_osr128_text[] = { "64*fs", "128*fs" };
 
 static const struct soc_enum max98090_osr128_enum =
 	SOC_ENUM_SINGLE(M98090_REG_ADC_CONTROL, M98090_OSR128_SHIFT,
@@ -533,28 +533,28 @@ static const struct soc_enum max98090_filter_dmic34mode_enum =
 		M98090_FLT_DMIC34MODE_SHIFT,
 		ARRAY_SIZE(max98090_mode_text), max98090_mode_text);
 
-static const char * max98090_drcatk_text[] =
+static const char *max98090_drcatk_text[] =
 	{ "0.5ms", "1ms", "5ms", "10ms", "25ms", "50ms", "100ms", "200ms" };
 
 static const struct soc_enum max98090_drcatk_enum =
 	SOC_ENUM_SINGLE(M98090_REG_DRC_TIMING, M98090_DRCATK_SHIFT,
 		ARRAY_SIZE(max98090_drcatk_text), max98090_drcatk_text);
 
-static const char * max98090_drcrls_text[] =
+static const char *max98090_drcrls_text[] =
 	{ "8s", "4s", "2s", "1s", "0.5s", "0.25s", "0.125s", "0.0625s" };
 
 static const struct soc_enum max98090_drcrls_enum =
 	SOC_ENUM_SINGLE(M98090_REG_DRC_TIMING, M98090_DRCRLS_SHIFT,
 		ARRAY_SIZE(max98090_drcrls_text), max98090_drcrls_text);
 
-static const char * max98090_alccmp_text[] =
+static const char *max98090_alccmp_text[] =
 	{ "1:1", "1:1.5", "1:2", "1:4", "1:INF" };
 
 static const struct soc_enum max98090_alccmp_enum =
 	SOC_ENUM_SINGLE(M98090_REG_DRC_COMPRESSOR, M98090_DRCCMP_SHIFT,
 		ARRAY_SIZE(max98090_alccmp_text), max98090_alccmp_text);
 
-static const char * max98090_drcexp_text[] = { "1:1", "2:1", "3:1" };
+static const char *max98090_drcexp_text[] = { "1:1", "2:1", "3:1" };
 
 static const struct soc_enum max98090_drcexp_enum =
 	SOC_ENUM_SINGLE(M98090_REG_DRC_EXPANDER, M98090_DRCEXP_SHIFT,
@@ -857,7 +857,7 @@ static const struct soc_enum mic2_mux_enum =
 static const struct snd_kcontrol_new max98090_mic2_mux =
 	SOC_DAPM_ENUM("MIC2 Mux", mic2_mux_enum);
 
-static const char * max98090_micpre_text[] = { "Off", "On" };
+static const char *max98090_micpre_text[] = { "Off", "On" };
 
 static const struct soc_enum max98090_pa1en_enum =
 	SOC_ENUM_SINGLE(M98090_REG_MIC1_INPUT_LEVEL, M98090_MIC_PA1EN_SHIFT,
