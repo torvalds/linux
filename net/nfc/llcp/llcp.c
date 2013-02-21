@@ -68,7 +68,8 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 	}
 }
 
-static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
+static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
+				    int err)
 {
 	struct sock *sk;
 	struct hlist_node *tmp;
@@ -100,7 +101,10 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 
 				nfc_llcp_accept_unlink(accept_sk);
 
+				if (err)
+					accept_sk->sk_err = err;
 				accept_sk->sk_state = LLCP_CLOSED;
+				accept_sk->sk_state_change(sk);
 
 				bh_unlock_sock(accept_sk);
 
@@ -123,7 +127,10 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 			continue;
 		}
 
+		if (err)
+			sk->sk_err = err;
 		sk->sk_state = LLCP_CLOSED;
+		sk->sk_state_change(sk);
 
 		bh_unlock_sock(sk);
 
@@ -150,8 +157,9 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 
 		nfc_llcp_socket_purge(llcp_sock);
 
+		if (err)
+			sk->sk_err = err;
 		sk->sk_state = LLCP_CLOSED;
-
 		sk->sk_state_change(sk);
 
 		bh_unlock_sock(sk);
@@ -173,7 +181,7 @@ struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local)
 
 static void local_cleanup(struct nfc_llcp_local *local, bool listen)
 {
-	nfc_llcp_socket_release(local, listen);
+	nfc_llcp_socket_release(local, listen, ENXIO);
 	del_timer_sync(&local->link_timer);
 	skb_queue_purge(&local->tx_queue);
 	cancel_work_sync(&local->tx_work);
@@ -1382,7 +1390,7 @@ void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 		return;
 
 	/* Close and purge all existing sockets */
-	nfc_llcp_socket_release(local, true);
+	nfc_llcp_socket_release(local, true, 0);
 }
 
 void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
