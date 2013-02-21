@@ -28,9 +28,10 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/sched_clock.h>
+#include <linux/percpu.h>
+#include <linux/time-armada-370-xp.h>
 
 #include <asm/localtimer.h>
-#include <linux/percpu.h>
 /*
  * Timer block registers.
  */
