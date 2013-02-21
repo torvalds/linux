@@ -1156,14 +1156,12 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 	if (fqname[0] == ':') {
 		char *ns_name;
 		name = aa_split_fqname(fqname, &ns_name);
-		if (ns_name) {
-			/* released below */
-			ns = aa_find_namespace(root, ns_name);
-			if (!ns) {
-				info = "namespace does not exist";
-				error = -ENOENT;
-				goto fail;
-			}
+		/* released below */
+		ns = aa_find_namespace(root, ns_name);
+		if (!ns) {
+			info = "namespace does not exist";
+			error = -ENOENT;
+			goto fail;
 		}
 	} else
 		/* released below */
