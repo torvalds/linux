@@ -110,10 +110,6 @@ static inline u32 cstamp_delta(unsigned long cstamp)
 	return (cstamp - INITIAL_JIFFIES) * 100UL / HZ;
 }
 
-#define ADDRCONF_TIMER_FUZZ_MINUS	(HZ > 50 ? HZ/50 : 1)
-#define ADDRCONF_TIMER_FUZZ		(HZ / 4)
-#define ADDRCONF_TIMER_FUZZ_MAX		(HZ)
-
 #ifdef CONFIG_SYSCTL
 static void addrconf_sysctl_register(struct inet6_dev *idev);
 static void addrconf_sysctl_unregister(struct inet6_dev *idev);
@@ -248,6 +244,9 @@ const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+const struct in6_addr in6addr_interfacelocal_allnodes = IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
+const struct in6_addr in6addr_interfacelocal_allrouters = IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
+const struct in6_addr in6addr_sitelocal_allrouters = IN6ADDR_SITELOCAL_ALLROUTERS_INIT;
 
 /* Check if a valid qdisc is available */
 static inline bool addrconf_qdisc_ok(const struct net_device *dev)
@@ -432,6 +431,9 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	/* protected by rtnl_lock */
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
 
+	/* Join interface-local all-node multicast group */
+	ipv6_dev_mc_inc(dev, &in6addr_interfacelocal_allnodes);
+
 	/* Join all-node multicast group */
 	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
@@ -615,10 +617,15 @@ static void dev_forward_change(struct inet6_dev *idev)
 	if (idev->cnf.forwarding)
 		dev_disable_lro(dev);
 	if (dev->flags & IFF_MULTICAST) {
-		if (idev->cnf.forwarding)
+		if (idev->cnf.forwarding) {
 			ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
-		else
+			ipv6_dev_mc_inc(dev, &in6addr_interfacelocal_allrouters);
+			ipv6_dev_mc_inc(dev, &in6addr_sitelocal_allrouters);
+		} else {
 			ipv6_dev_mc_dec(dev, &in6addr_linklocal_allrouters);
+			ipv6_dev_mc_dec(dev, &in6addr_interfacelocal_allrouters);
+			ipv6_dev_mc_dec(dev, &in6addr_sitelocal_allrouters);
+		}
 	}
 
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
@@ -1051,7 +1058,7 @@ retry:
 		ipv6_add_addr(idev, &addr, tmp_plen,
 			      ipv6_addr_type(&addr)&IPV6_ADDR_SCOPE_MASK,
 			      addr_flags) : NULL;
-	if (!ift || IS_ERR(ift)) {
+	if (IS_ERR_OR_NULL(ift)) {
 		in6_ifa_put(ifp);
 		in6_dev_put(idev);
 		pr_info("%s: retry temporary address regeneration\n", __func__);
@@ -2080,7 +2087,7 @@ ok:
 						    addr_type&IPV6_ADDR_SCOPE_MASK,
 						    addr_flags);
 
-			if (!ifp || IS_ERR(ifp)) {
+			if (IS_ERR_OR_NULL(ifp)) {
 				in6_dev_put(in6_dev);
 				return;
 			}
@@ -3318,14 +3325,14 @@ static const struct file_operations if6_fops = {
 
 static int __net_init if6_proc_net_init(struct net *net)
 {
-	if (!proc_net_fops_create(net, "if_inet6", S_IRUGO, &if6_fops))
+	if (!proc_create("if_inet6", S_IRUGO, net->proc_net, &if6_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 static void __net_exit if6_proc_net_exit(struct net *net)
 {
-       proc_net_remove(net, "if_inet6");
+	remove_proc_entry("if_inet6", net->proc_net);
 }
 
 static struct pernet_operations if6_proc_net_ops = {

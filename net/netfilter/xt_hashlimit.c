@@ -867,7 +867,7 @@ static int __net_init hashlimit_proc_net_init(struct net *net)
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	hashlimit_net->ip6t_hashlimit = proc_mkdir("ip6t_hashlimit", net->proc_net);
 	if (!hashlimit_net->ip6t_hashlimit) {
-		proc_net_remove(net, "ipt_hashlimit");
+		remove_proc_entry("ipt_hashlimit", net->proc_net);
 		return -ENOMEM;
 	}
 #endif
@@ -897,9 +897,9 @@ static void __net_exit hashlimit_proc_net_exit(struct net *net)
 	hashlimit_net->ip6t_hashlimit = NULL;
 	mutex_unlock(&hashlimit_mutex);
 
-	proc_net_remove(net, "ipt_hashlimit");
+	remove_proc_entry("ipt_hashlimit", net->proc_net);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-	proc_net_remove(net, "ip6t_hashlimit");
+	remove_proc_entry("ip6t_hashlimit", net->proc_net);
 #endif
 }
 

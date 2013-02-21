@@ -900,8 +900,6 @@ static void sco_conn_ready(struct sco_conn *conn)
 
 	BT_DBG("conn %p", conn);
 
-	sco_conn_lock(conn);
-
 	if (sk) {
 		sco_sock_clear_timer(sk);
 		bh_lock_sock(sk);
@@ -909,9 +907,13 @@ static void sco_conn_ready(struct sco_conn *conn)
 		sk->sk_state_change(sk);
 		bh_unlock_sock(sk);
 	} else {
+		sco_conn_lock(conn);
+
 		parent = sco_get_sock_listen(conn->src);
-		if (!parent)
-			goto done;
+		if (!parent) {
+			sco_conn_unlock(conn);
+			return;
+		}
 
 		bh_lock_sock(parent);
 
@@ -919,7 +921,8 @@ static void sco_conn_ready(struct sco_conn *conn)
 				    BTPROTO_SCO, GFP_ATOMIC);
 		if (!sk) {
 			bh_unlock_sock(parent);
-			goto done;
+			sco_conn_unlock(conn);
+			return;
 		}
 
 		sco_sock_init(sk, parent);
@@ -939,10 +942,9 @@ static void sco_conn_ready(struct sco_conn *conn)
 		parent->sk_data_ready(parent, 1);
 
 		bh_unlock_sock(parent);
-	}
 
-done:
-	sco_conn_unlock(conn);
+		sco_conn_unlock(conn);
+	}
 }
 
 /* ----- SCO interface with lower layer (HCI) ----- */

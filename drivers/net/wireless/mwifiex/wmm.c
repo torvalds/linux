@@ -109,12 +109,9 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
 	struct mwifiex_ra_list_tbl *ra_list;
 
 	ra_list = kzalloc(sizeof(struct mwifiex_ra_list_tbl), GFP_ATOMIC);
-
-	if (!ra_list) {
-		dev_err(adapter->dev, "%s: failed to alloc ra_list\n",
-			__func__);
+	if (!ra_list)
 		return NULL;
-	}
+
 	INIT_LIST_HEAD(&ra_list->list);
 	skb_queue_head_init(&ra_list->skb_head);
 
@@ -568,6 +565,8 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 	mwifiex_wmm_delete_all_ralist(priv);
 	memcpy(tos_to_tid, ac_to_tid, sizeof(tos_to_tid));
 
+	if (priv->adapter->if_ops.clean_pcie_ring)
+		priv->adapter->if_ops.clean_pcie_ring(priv->adapter);
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
 
@@ -1206,13 +1205,15 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 				       ra_list_flags);
 		break;
 	case -1:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		dev_err(adapter->dev, "host_to_card failed: %#x\n", ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 	default:
 		break;
 	}

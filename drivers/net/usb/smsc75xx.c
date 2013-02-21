@@ -1393,13 +1393,11 @@ static int smsc75xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	dev->data[0] = (unsigned long)kzalloc(sizeof(struct smsc75xx_priv),
-		GFP_KERNEL);
+					      GFP_KERNEL);
 
 	pdata = (struct smsc75xx_priv *)(dev->data[0]);
-	if (!pdata) {
-		netdev_warn(dev->net, "Unable to allocate smsc75xx_priv\n");
+	if (!pdata)
 		return -ENOMEM;
-	}
 
 	pdata->dev = dev;
 

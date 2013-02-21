@@ -29,6 +29,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/hash.h>
+#include <linux/ethtool.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/ip.h>
@@ -392,7 +393,8 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 }
 
 /* Delete entry (via netlink) */
-static int vxlan_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
+static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
+			    struct net_device *dev,
 			    const unsigned char *addr)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -1271,6 +1273,18 @@ static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static void vxlan_get_drvinfo(struct net_device *netdev,
+			      struct ethtool_drvinfo *drvinfo)
+{
+	strlcpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
+}
+
+static const struct ethtool_ops vxlan_ethtool_ops = {
+	.get_drvinfo	= vxlan_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+};
+
 static int vxlan_newlink(struct net *net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
@@ -1347,6 +1361,8 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 		vxlan->port_min = ntohs(p->low);
 		vxlan->port_max = ntohs(p->high);
 	}
+
+	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
 
 	err = register_netdevice(dev);
 	if (!err)

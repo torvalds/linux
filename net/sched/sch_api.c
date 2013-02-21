@@ -493,7 +493,7 @@ void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
-void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
 {
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
@@ -502,10 +502,10 @@ void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 	qdisc_throttled(wd->qdisc);
 
 	hrtimer_start(&wd->timer,
-		      ns_to_ktime(PSCHED_TICKS2NS(expires)),
+		      ns_to_ktime(expires),
 		      HRTIMER_MODE_ABS);
 }
-EXPORT_SYMBOL(qdisc_watchdog_schedule);
+EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
@@ -1768,7 +1768,7 @@ static int __net_init psched_net_init(struct net *net)
 {
 	struct proc_dir_entry *e;
 
-	e = proc_net_fops_create(net, "psched", 0, &psched_fops);
+	e = proc_create("psched", 0, net->proc_net, &psched_fops);
 	if (e == NULL)
 		return -ENOMEM;
 
@@ -1777,7 +1777,7 @@ static int __net_init psched_net_init(struct net *net)
 
 static void __net_exit psched_net_exit(struct net *net)
 {
-	proc_net_remove(net, "psched");
+	remove_proc_entry("psched", net->proc_net);
 }
 #else
 static int __net_init psched_net_init(struct net *net)

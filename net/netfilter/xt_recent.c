@@ -643,7 +643,7 @@ static void __net_exit recent_proc_net_exit(struct net *net)
 	recent_net->xt_recent = NULL;
 	spin_unlock_bh(&recent_lock);
 
-	proc_net_remove(net, "xt_recent");
+	remove_proc_entry("xt_recent", net->proc_net);
 }
 #else
 static inline int recent_proc_net_init(struct net *net)

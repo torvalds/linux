@@ -275,10 +275,8 @@ static int ks8995_probe(struct spi_device *spi)
 	pdata = spi->dev.platform_data;
 
 	ks = kzalloc(sizeof(*ks), GFP_KERNEL);
-	if (!ks) {
-		dev_err(&spi->dev, "no memory for private data\n");
+	if (!ks)
 		return -ENOMEM;
-	}
 
 	mutex_init(&ks->lock);
 	ks->pdata = pdata;

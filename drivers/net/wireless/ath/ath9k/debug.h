@@ -23,6 +23,7 @@
 
 struct ath_txq;
 struct ath_buf;
+struct fft_sample_tlv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
@@ -218,6 +219,7 @@ struct ath_tx_stats {
  * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
  * @rx_beacons:  No. of beacons received.
  * @rx_frags:  No. of rx-fragements received.
+ * @rx_spectral: No of spectral packets received.
  */
 struct ath_rx_stats {
 	u32 rx_pkts_all;
@@ -236,6 +238,7 @@ struct ath_rx_stats {
 	u32 rx_too_many_frags_err;
 	u32 rx_beacons;
 	u32 rx_frags;
+	u32 rx_spectral;
 };
 
 struct ath_stats {
@@ -321,6 +324,10 @@ void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
 			      struct dentry *dir);
+
+void ath_debug_send_fft_sample(struct ath_softc *sc,
+			       struct fft_sample_tlv *fft_sample);
+
 #else
 
 #define RX_STAT_INC(c) /* NOP */

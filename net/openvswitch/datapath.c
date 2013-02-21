@@ -301,7 +301,7 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 	struct sk_buff *segs, *nskb;
 	int err;
 
-	segs = skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM);
+	segs = __skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM, false);
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
@@ -1989,10 +1989,9 @@ static struct pernet_operations ovs_net_ops = {
 
 static int __init dp_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 

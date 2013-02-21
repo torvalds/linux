@@ -1702,7 +1702,7 @@ struct rtl_works {
 
 struct rtl_debug {
 	u32 dbgp_type[DBGP_TYPE_MAX];
-	u32 global_debuglevel;
+	int global_debuglevel;
 	u64 global_debugcomponents;
 
 	/* add for proc debug */

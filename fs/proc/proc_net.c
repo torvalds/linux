@@ -177,20 +177,6 @@ const struct file_operations proc_net_operations = {
 	.readdir	= proc_tgid_net_readdir,
 };
 
-
-struct proc_dir_entry *proc_net_fops_create(struct net *net,
-	const char *name, umode_t mode, const struct file_operations *fops)
-{
-	return proc_create(name, mode, net->proc_net, fops);
-}
-EXPORT_SYMBOL_GPL(proc_net_fops_create);
-
-void proc_net_remove(struct net *net, const char *name)
-{
-	remove_proc_entry(name, net->proc_net);
-}
-EXPORT_SYMBOL_GPL(proc_net_remove);
-
 static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *netd, *net_statd;

@@ -878,8 +878,8 @@ static int w90p910_ether_ioctl(struct net_device *dev,
 static void w90p910_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int w90p910_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

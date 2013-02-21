@@ -61,7 +61,5 @@ void ath6kl_cfg80211_cleanup(struct ath6kl *ar);
 
 struct ath6kl *ath6kl_cfg80211_create(void);
 void ath6kl_cfg80211_destroy(struct ath6kl *ar);
-/* TODO: remove this once ath6kl_vif_cleanup() is moved to cfg80211.c */
-void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif, bool enable);
 
 #endif /* ATH6KL_CFG80211_H */

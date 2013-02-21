@@ -1200,6 +1200,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
 
 	skb_reset_network_header(skb);
