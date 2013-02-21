@@ -53,9 +53,6 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 {
 	int err;
 
-	if (!access_ok (VERIFY_WRITE, to, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
 	/* If you change siginfo_t structure, please be sure
 	   this code is fixed accordingly.
 	   It should never copy any pad contained in the structure
@@ -109,9 +106,6 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 {
 	int err;
 	u32 tmp;
-
-	if (!access_ok (VERIFY_READ, from, sizeof(compat_siginfo_t)))
-		return -EFAULT;
 
 	err = __get_user(to->si_signo, &from->si_signo);
 	err |= __get_user(to->si_errno, &from->si_errno);
@@ -244,8 +238,6 @@ asmlinkage long sys32_sigreturn(void)
 	sigframe32 __user *frame = (sigframe32 __user *)regs->gprs[15];
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE32))
 		goto badframe;
 	set_current_blocked(&set);
@@ -265,8 +257,6 @@ asmlinkage long sys32_rt_sigreturn(void)
 	rt_sigframe32 __user *frame = (rt_sigframe32 __user *)regs->gprs[15];
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 	set_current_blocked(&set);
@@ -325,8 +315,6 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 			sigset_t *set, struct pt_regs * regs)
 {
 	sigframe32 __user *frame = get_sigframe(ka, regs, sizeof(sigframe32));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(sigframe32)))
-		goto give_sigsegv;
 
 	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
@@ -391,8 +379,6 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 {
 	int err = 0;
 	rt_sigframe32 __user *frame = get_sigframe(ka, regs, sizeof(rt_sigframe32));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(rt_sigframe32)))
-		goto give_sigsegv;
 
 	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
