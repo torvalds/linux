@@ -404,7 +404,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 	} else { /* use FMR for multiple dma entries */
 		iser_page_vec_build(mem, ib_conn->page_vec, ibdev);
 		err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
-		if (err) {
+		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
 			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n",
 				 mem->dma_nents,
