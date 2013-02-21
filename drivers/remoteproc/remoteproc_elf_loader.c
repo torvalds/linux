@@ -304,9 +304,34 @@ rproc_elf_find_rsc_table(struct rproc *rproc, const struct firmware *fw,
 	return table;
 }
 
+/**
+ * rproc_elf_find_loaded_rsc_table() - find the loaded resource table
+ * @rproc: the rproc handle
+ * @fw: the ELF firmware image
+ *
+ * This function finds the location of the loaded resource table. Don't
+ * call this function if the table wasn't loaded yet - it's a bug if you do.
+ *
+ * Returns the pointer to the resource table if it is found or NULL otherwise.
+ * If the table wasn't loaded yet the result is unspecified.
+ */
+static struct resource_table *
+rproc_elf_find_loaded_rsc_table(struct rproc *rproc, const struct firmware *fw)
+{
+	struct elf32_hdr *ehdr = (struct elf32_hdr *)fw->data;
+	struct elf32_shdr *shdr;
+
+	shdr = find_table(&rproc->dev, ehdr, fw->size);
+	if (!shdr)
+		return NULL;
+
+	return rproc_da_to_va(rproc, shdr->sh_addr, shdr->sh_size);
+}
+
 const struct rproc_fw_ops rproc_elf_fw_ops = {
 	.load = rproc_elf_load_segments,
 	.find_rsc_table = rproc_elf_find_rsc_table,
+	.find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table,
 	.sanity_check = rproc_elf_sanity_check,
 	.get_boot_addr = rproc_elf_get_boot_addr
 };
