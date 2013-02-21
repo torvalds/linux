@@ -40,10 +40,10 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 /* PMU admin */
 const char *perf_pmu_name(void)
 {
-	if (metag_pmu)
-		return metag_pmu->pmu.name;
+	if (!metag_pmu)
+		return NULL;
 
-	return NULL;
+	return metag_pmu->name;
 }
 EXPORT_SYMBOL_GPL(perf_pmu_name);
 
@@ -171,6 +171,7 @@ static int metag_pmu_event_init(struct perf_event *event)
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 	case PERF_TYPE_HW_CACHE:
+	case PERF_TYPE_RAW:
 		err = _hw_perf_event_init(event);
 		break;
 
@@ -556,6 +557,10 @@ static int _hw_perf_event_init(struct perf_event *event)
 		if (err)
 			return err;
 		break;
+
+	case PERF_TYPE_RAW:
+		mapping = attr->config;
+		break;
 	}
 
 	/* Return early if the event is unsupported */
@@ -623,7 +628,7 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 
 	/* Check for a core internal or performance channel event. */
 	if (tmp) {
-		void *perf_addr = (void *)PERF_COUNT(idx);
+		void *perf_addr;
 
 		/*
 		 * Anything other than a cycle count will write the low-
@@ -637,9 +642,14 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 		case 0xf0:
 			perf_addr = (void *)PERF_CHAN(idx);
 			break;
+
+		default:
+			perf_addr = NULL;
+			break;
 		}
 
-		metag_out32((config & 0x0f), perf_addr);
+		if (perf_addr)
+			metag_out32((config & 0x0f), perf_addr);
 
 		/*
 		 * Now we use the high nibble as the performance event to
@@ -848,7 +858,7 @@ static int __init init_hw_perf_events(void)
 			metag_pmu->max_period = 0;
 		}
 
-		metag_pmu->name = "Meta 2";
+		metag_pmu->name = "meta2";
 		metag_pmu->version = version;
 		metag_pmu->pmu = pmu;
 	}
