@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
+#include <mach/gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -1776,6 +1777,7 @@ int spi_sunxi_register_spidev(void)
     int spi_dev_num = 0;
     int ret = 0;
     int i = 0;
+    unsigned int irq_gpio = 0;
     char spi_board_name[32] = {0};
     struct spi_board_info* board;
 
@@ -1824,6 +1826,12 @@ int spi_sunxi_register_spidev(void)
             spi_msg("Get spi devices mode failed\n");
             goto fail;
         }
+	ret = script_parser_fetch(spi_board_name, "irq_gpio", (void*)&irq_gpio, sizeof(unsigned int));
+	if (ret != SCRIPT_PARSER_OK) {
+		spi_msg("%s irq gpio not used\n", spi_board_name);
+		board->irq = -1;
+	} else if(gpio_request(irq_gpio, spi_board_name) == 0)
+		board->irq = gpio_to_irq(irq_gpio);
         /*
         ret = script_parser_fetch(spi_board_name, "full_duplex", &board->full_duplex, sizeof(int));
         if(ret != SCRIPT_PARSER_OK) {
