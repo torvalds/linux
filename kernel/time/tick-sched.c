@@ -565,19 +565,14 @@ void tick_nohz_idle_enter(void)
  */
 void tick_nohz_irq_exit(void)
 {
-	unsigned long flags;
 	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
 
 	if (!ts->inidle)
 		return;
 
-	local_irq_save(flags);
-
-	/* Cancel the timer because CPU already waken up from the C-states */
+	/* Cancel the timer because CPU already waken up from the C-states*/
 	menu_hrtimer_cancel();
 	__tick_nohz_idle_enter(ts);
-
-	local_irq_restore(flags);
 }
 
 /**
