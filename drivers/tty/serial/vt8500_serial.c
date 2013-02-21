@@ -604,7 +604,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 
 	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
-	if (vt8500_port->clk) {
+	if (!IS_ERR(vt8500_port->clk)) {
 		vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
 	} else {
 		/* use the default of 24Mhz if not specified and warn */

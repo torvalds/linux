@@ -1543,7 +1543,21 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 	return r;
 }
 
-static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
+#define DM_PARAMS_VMALLOC	0x0001	/* Params alloced with vmalloc not kmalloc */
+#define DM_WIPE_BUFFER		0x0010	/* Wipe input buffer before returning from ioctl */
+
+static void free_params(struct dm_ioctl *param, size_t param_size, int param_flags)
+{
+	if (param_flags & DM_WIPE_BUFFER)
+		memset(param, 0, param_size);
+
+	if (param_flags & DM_PARAMS_VMALLOC)
+		vfree(param);
+	else
+		kfree(param);
+}
+
+static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param, int *param_flags)
 {
 	struct dm_ioctl tmp, *dmi;
 	int secure_data;
@@ -1556,7 +1570,21 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 
 	secure_data = tmp.flags & DM_SECURE_DATA_FLAG;
 
-	dmi = vmalloc(tmp.data_size);
+	*param_flags = secure_data ? DM_WIPE_BUFFER : 0;
+
+	/*
+	 * Try to avoid low memory issues when a device is suspended.
+	 * Use kmalloc() rather than vmalloc() when we can.
+	 */
+	dmi = NULL;
+	if (tmp.data_size <= KMALLOC_MAX_SIZE)
+		dmi = kmalloc(tmp.data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+
+	if (!dmi) {
+		dmi = __vmalloc(tmp.data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
+		*param_flags |= DM_PARAMS_VMALLOC;
+	}
+
 	if (!dmi) {
 		if (secure_data && clear_user(user, tmp.data_size))
 			return -EFAULT;
@@ -1566,6 +1594,14 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 	if (copy_from_user(dmi, user, tmp.data_size))
 		goto bad;
 
+	/*
+	 * Abort if something changed the ioctl data while it was being copied.
+	 */
+	if (dmi->data_size != tmp.data_size) {
+		DMERR("rejecting ioctl: data size modified while processing parameters");
+		goto bad;
+	}
+
 	/* Wipe the user buffer so we do not return it to userspace */
 	if (secure_data && clear_user(user, tmp.data_size))
 		goto bad;
@@ -1574,9 +1610,8 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 	return 0;
 
 bad:
-	if (secure_data)
-		memset(dmi, 0, tmp.data_size);
-	vfree(dmi);
+	free_params(dmi, tmp.data_size, *param_flags);
+
 	return -EFAULT;
 }
 
@@ -1613,7 +1648,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
-	int wipe_buffer;
+	int param_flags;
 	unsigned int cmd;
 	struct dm_ioctl *uninitialized_var(param);
 	ioctl_fn fn = NULL;
@@ -1649,24 +1684,14 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	}
 
 	/*
-	 * Trying to avoid low memory issues when a device is
-	 * suspended.
-	 */
-	current->flags |= PF_MEMALLOC;
-
-	/*
 	 * Copy the parameters into kernel space.
 	 */
-	r = copy_params(user, &param);
-
-	current->flags &= ~PF_MEMALLOC;
+	r = copy_params(user, &param, &param_flags);
 
 	if (r)
 		return r;
 
 	input_param_size = param->data_size;
-	wipe_buffer = param->flags & DM_SECURE_DATA_FLAG;
-
 	r = validate_params(cmd, param);
 	if (r)
 		goto out;
@@ -1681,10 +1706,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 		r = -EFAULT;
 
 out:
-	if (wipe_buffer)
-		memset(param, 0, input_param_size);
-
-	vfree(param);
+	free_params(param, input_param_size, param_flags);
 	return r;
 }
 

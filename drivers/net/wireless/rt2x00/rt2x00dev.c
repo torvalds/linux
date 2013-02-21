@@ -685,6 +685,14 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	 * to mac80211.
 	 */
 	rx_status = IEEE80211_SKB_RXCB(entry->skb);
+
+	/* Ensure that all fields of rx_status are initialized
+	 * properly. The skb->cb array was used for driver
+	 * specific informations, so rx_status might contain
+	 * garbage.
+	 */
+	memset(rx_status, 0, sizeof(*rx_status));
+
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->band = rt2x00dev->curr_band;
 	rx_status->freq = rt2x00dev->curr_freq;

@@ -1106,7 +1106,7 @@ EXPORT_SYMBOL_GPL(regmap_raw_write);
  * @val_count: Number of registers to write
  *
  * This function is intended to be used for writing a large block of
- * data to be device either in single transfer or multiple transfer.
+ * data to the device either in single transfer or multiple transfer.
  *
  * A value of zero will be returned on success, a negative errno will
  * be returned in error cases.

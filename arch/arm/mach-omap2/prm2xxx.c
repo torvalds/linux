@@ -18,15 +18,22 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include "soc.h"
 #include "common.h"
-#include <plat/cpu.h>
-
 #include "vp.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "prm2xxx.h"
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
+
+/*
+ * OMAP24xx PM_PWSTCTRL_*.POWERSTATE and PM_PWSTST_*.LASTSTATEENTERED bits -
+ * these are reversed from the bits used on OMAP3+
+ */
+#define OMAP24XX_PWRDM_POWER_ON			0x0
+#define OMAP24XX_PWRDM_POWER_RET		0x1
+#define OMAP24XX_PWRDM_POWER_OFF		0x3
 
 /*
  * omap2xxx_prm_reset_src_map - map from bits in the PRM_RSTST_WKUP
@@ -69,6 +76,34 @@ static u32 omap2xxx_prm_read_reset_sources(void)
 }
 
 /**
+ * omap2xxx_pwrst_to_common_pwrst - convert OMAP2xxx pwrst to common pwrst
+ * @omap2xxx_pwrst: OMAP2xxx hardware power state to convert
+ *
+ * Return the common power state bits corresponding to the OMAP2xxx
+ * hardware power state bits @omap2xxx_pwrst, or -EINVAL upon error.
+ */
+static int omap2xxx_pwrst_to_common_pwrst(u8 omap2xxx_pwrst)
+{
+	u8 pwrst;
+
+	switch (omap2xxx_pwrst) {
+	case OMAP24XX_PWRDM_POWER_OFF:
+		pwrst = PWRDM_POWER_OFF;
+		break;
+	case OMAP24XX_PWRDM_POWER_RET:
+		pwrst = PWRDM_POWER_RET;
+		break;
+	case OMAP24XX_PWRDM_POWER_ON:
+		pwrst = PWRDM_POWER_ON;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return pwrst;
+}
+
+/**
  * omap2xxx_prm_dpll_reset - use DPLL reset to reboot the OMAP SoC
  *
  * Set the DPLL reset bit, which should reboot the SoC.  This is the
@@ -98,10 +133,56 @@ int omap2xxx_clkdm_wakeup(struct clockdomain *clkdm)
 	return 0;
 }
 
+static int omap2xxx_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	u8 omap24xx_pwrst;
+
+	switch (pwrst) {
+	case PWRDM_POWER_OFF:
+		omap24xx_pwrst = OMAP24XX_PWRDM_POWER_OFF;
+		break;
+	case PWRDM_POWER_RET:
+		omap24xx_pwrst = OMAP24XX_PWRDM_POWER_RET;
+		break;
+	case PWRDM_POWER_ON:
+		omap24xx_pwrst = OMAP24XX_PWRDM_POWER_ON;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+				   (omap24xx_pwrst << OMAP_POWERSTATE_SHIFT),
+				   pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+	return 0;
+}
+
+static int omap2xxx_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+{
+	u8 omap2xxx_pwrst;
+
+	omap2xxx_pwrst = omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+						       OMAP2_PM_PWSTCTRL,
+						       OMAP_POWERSTATE_MASK);
+
+	return omap2xxx_pwrst_to_common_pwrst(omap2xxx_pwrst);
+}
+
+static int omap2xxx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+{
+	u8 omap2xxx_pwrst;
+
+	omap2xxx_pwrst = omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+						       OMAP2_PM_PWSTST,
+						       OMAP_POWERSTATEST_MASK);
+
+	return omap2xxx_pwrst_to_common_pwrst(omap2xxx_pwrst);
+}
+
 struct pwrdm_ops omap2_pwrdm_operations = {
-	.pwrdm_set_next_pwrst	= omap2_pwrdm_set_next_pwrst,
-	.pwrdm_read_next_pwrst	= omap2_pwrdm_read_next_pwrst,
-	.pwrdm_read_pwrst	= omap2_pwrdm_read_pwrst,
+	.pwrdm_set_next_pwrst	= omap2xxx_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= omap2xxx_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= omap2xxx_pwrdm_read_pwrst,
 	.pwrdm_set_logic_retst	= omap2_pwrdm_set_logic_retst,
 	.pwrdm_set_mem_onst	= omap2_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst	= omap2_pwrdm_set_mem_retst,

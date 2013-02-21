@@ -132,7 +132,7 @@ static struct clk fixed_pciexclkp = {
 	.rate = 100000000,	/* 100 MHz reference clock */
 };
 
-static void __devinit sh7786_pci_fixup(struct pci_dev *dev)
+static void sh7786_pci_fixup(struct pci_dev *dev)
 {
 	/*
 	 * Prevent enumeration of root complex resources.

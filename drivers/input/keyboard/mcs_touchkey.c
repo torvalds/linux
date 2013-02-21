@@ -97,7 +97,7 @@ static irqreturn_t mcs_touchkey_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mcs_touchkey_probe(struct i2c_client *client,
+static int mcs_touchkey_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	const struct mcs_platform_data *pdata;
@@ -200,7 +200,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit mcs_touchkey_remove(struct i2c_client *client)
+static int mcs_touchkey_remove(struct i2c_client *client)
 {
 	struct mcs_touchkey_data *data = i2c_get_clientdata(client);
 
@@ -270,7 +270,7 @@ static struct i2c_driver mcs_touchkey_driver = {
 		.pm	= &mcs_touchkey_pm_ops,
 	},
 	.probe		= mcs_touchkey_probe,
-	.remove		= __devexit_p(mcs_touchkey_remove),
+	.remove		= mcs_touchkey_remove,
 	.shutdown       = mcs_touchkey_shutdown,
 	.id_table	= mcs_touchkey_id,
 };

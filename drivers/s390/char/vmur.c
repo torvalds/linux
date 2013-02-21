@@ -74,7 +74,7 @@ static struct ccw_driver ur_driver = {
 	.set_online	= ur_set_online,
 	.set_offline	= ur_set_offline,
 	.freeze		= ur_pm_suspend,
-	.int_class	= IOINT_VMR,
+	.int_class	= IRQIO_VMR,
 };
 
 static DEFINE_MUTEX(vmur_mutex);

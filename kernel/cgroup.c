@@ -1333,7 +1333,6 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	if (ret)
 		goto out_unlock;
 
-	/* See feature-removal-schedule.txt */
 	if (opts.subsys_mask != root->actual_subsys_mask || opts.release_agent)
 		pr_warning("cgroup: option changes via remount are deprecated (pid=%d comm=%s)\n",
 			   task_tgid_nr(current), current->comm);
@@ -3409,7 +3408,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 {
 	struct cgroup_pidlist *l;
 	/* don't need task_nsproxy() if we're looking at ourself */
-	struct pid_namespace *ns = current->nsproxy->pid_ns;
+	struct pid_namespace *ns = task_active_pid_ns(current);
 
 	/*
 	 * We can't drop the pidlist_mutex before taking the l->mutex in case

@@ -139,7 +139,7 @@ static void lpc32xx_kscan_close(struct input_dev *dev)
 	clk_disable_unprepare(kscandat->clk);
 }
 
-static int __devinit lpc32xx_parse_dt(struct device *dev,
+static int lpc32xx_parse_dt(struct device *dev,
 				      struct lpc32xx_kscan_drv *kscandat)
 {
 	struct device_node *np = dev->of_node;
@@ -166,7 +166,7 @@ static int __devinit lpc32xx_parse_dt(struct device *dev,
 	return 0;
 }
 
-static int __devinit lpc32xx_kscan_probe(struct platform_device *pdev)
+static int lpc32xx_kscan_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat;
 	struct input_dev *input;
@@ -310,7 +310,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit lpc32xx_kscan_remove(struct platform_device *pdev)
+static int lpc32xx_kscan_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat = platform_get_drvdata(pdev);
 
@@ -377,7 +377,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_kscan_match);
 
 static struct platform_driver lpc32xx_kscan_driver = {
 	.probe		= lpc32xx_kscan_probe,
-	.remove		= __devexit_p(lpc32xx_kscan_remove),
+	.remove		= lpc32xx_kscan_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

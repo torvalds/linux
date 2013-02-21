@@ -52,7 +52,7 @@ int pcf50633_bl_set_brightness_limit(struct pcf50633 *pcf, unsigned int limit)
 	pcf_bl->brightness_limit = limit & 0x3f;
 	backlight_update_status(pcf_bl->bl);
 
-    return 0;
+	return 0;
 }
 
 static int pcf50633_bl_update_status(struct backlight_device *bl)
@@ -136,8 +136,10 @@ static int pcf50633_bl_probe(struct platform_device *pdev)
 
 	pcf50633_reg_write(pcf_bl->pcf, PCF50633_REG_LEDDIM, pdata->ramp_time);
 
-	/* Should be different from bl_props.brightness, so we do not exit
-	 * update_status early the first time it's called */
+	/*
+	 * Should be different from bl_props.brightness, so we do not exit
+	 * update_status early the first time it's called
+	 */
 	pcf_bl->brightness = pcf_bl->bl->props.brightness + 1;
 
 	backlight_update_status(pcf_bl->bl);

@@ -2386,8 +2386,6 @@ static const struct of_device_id smc91x_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, smc91x_match);
-#else
-#define smc91x_match NULL
 #endif
 
 static struct dev_pm_ops smc_drv_pm_ops = {
@@ -2402,7 +2400,7 @@ static struct platform_driver smc_driver = {
 		.name	= CARDNAME,
 		.owner	= THIS_MODULE,
 		.pm	= &smc_drv_pm_ops,
-		.of_match_table = smc91x_match,
+		.of_match_table = of_match_ptr(smc91x_match),
 	},
 };
 

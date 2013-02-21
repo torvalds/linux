@@ -159,7 +159,7 @@ static struct platform_device smdkv310_lcd_lte480wv = {
 	.dev.platform_data	= &smdkv310_lcd_lte480wv_data,
 };
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
 	.panel	= {
 		.timing	= {
@@ -402,7 +402,7 @@ static void __init smdkv310_machine_init(void)
 	samsung_bl_set(&smdkv310_bl_gpio_info, &smdkv310_bl_data);
 	pwm_add_table(smdkv310_pwm_lookup, ARRAY_SIZE(smdkv310_pwm_lookup));
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
 #else

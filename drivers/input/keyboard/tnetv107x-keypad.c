@@ -153,7 +153,7 @@ static void keypad_stop(struct input_dev *dev)
 	clk_disable(kp->clk);
 }
 
-static int __devinit keypad_probe(struct platform_device *pdev)
+static int keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keypad_platform_data *pdata;
 	const struct matrix_keymap_data *keymap_data;
@@ -301,7 +301,7 @@ error_res:
 	return error;
 }
 
-static int __devexit keypad_remove(struct platform_device *pdev)
+static int keypad_remove(struct platform_device *pdev)
 {
 	struct keypad_data *kp = platform_get_drvdata(pdev);
 
@@ -319,7 +319,7 @@ static int __devexit keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver keypad_driver = {
 	.probe		= keypad_probe,
-	.remove		= __devexit_p(keypad_remove),
+	.remove		= keypad_remove,
 	.driver.name	= "tnetv107x-keypad",
 	.driver.owner	= THIS_MODULE,
 };

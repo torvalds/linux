@@ -295,10 +295,10 @@ struct clk sh7372_pllc2_clk = {
 };
 
 /* External input clock (pin name: FSIACK/FSIBCK ) */
-struct clk sh7372_fsiack_clk = {
+static struct clk fsiack_clk = {
 };
 
-struct clk sh7372_fsibck_clk = {
+static struct clk fsibck_clk = {
 };
 
 static struct clk *main_clks[] = {
@@ -314,8 +314,8 @@ static struct clk *main_clks[] = {
 	&pllc1_clk,
 	&pllc1_div2_clk,
 	&sh7372_pllc2_clk,
-	&sh7372_fsiack_clk,
-	&sh7372_fsibck_clk,
+	&fsiack_clk,
+	&fsibck_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -399,14 +399,14 @@ static struct clk *hdmi_parent[] = {
 static struct clk *fsiackcr_parent[] = {
 	[0] = &pllc1_div2_clk,
 	[1] = &sh7372_pllc2_clk,
-	[2] = &sh7372_fsiack_clk, /* external input for FSI A */
+	[2] = &fsiack_clk, /* external input for FSI A */
 	[3] = NULL,	/* setting prohibited */
 };
 
 static struct clk *fsibckcr_parent[] = {
 	[0] = &pllc1_div2_clk,
 	[1] = &sh7372_pllc2_clk,
-	[2] = &sh7372_fsibck_clk, /* external input for FSI B */
+	[2] = &fsibck_clk, /* external input for FSI B */
 	[3] = NULL,	/* setting prohibited */
 };
 
@@ -507,8 +507,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
 	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
-	CLKDEV_CON_ID("fsidiva", &fsidivs[FSIDIV_A]),
-	CLKDEV_CON_ID("fsidivb", &fsidivs[FSIDIV_B]),
+	CLKDEV_CON_ID("fsiack", &fsiack_clk),
+	CLKDEV_CON_ID("fsibck", &fsibck_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
@@ -606,8 +606,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("spu2", "sh_fsi2", &mstp_clks[MSTP223]),
 	CLKDEV_ICK_ID("diva", "sh_fsi2", &fsidivs[FSIDIV_A]),
 	CLKDEV_ICK_ID("divb", "sh_fsi2", &fsidivs[FSIDIV_B]),
-	CLKDEV_ICK_ID("xcka", "sh_fsi2", &sh7372_fsiack_clk),
-	CLKDEV_ICK_ID("xckb", "sh_fsi2", &sh7372_fsibck_clk),
+	CLKDEV_ICK_ID("xcka", "sh_fsi2", &fsiack_clk),
+	CLKDEV_ICK_ID("xckb", "sh_fsi2", &fsibck_clk),
 };
 
 void __init sh7372_clock_init(void)

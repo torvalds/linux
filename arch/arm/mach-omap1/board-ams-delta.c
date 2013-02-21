@@ -160,7 +160,7 @@ static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_usb_config ams_delta_usb_config = {
+static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 2,

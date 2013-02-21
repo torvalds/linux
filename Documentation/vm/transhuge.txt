@@ -116,6 +116,13 @@ echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
+By default kernel tries to use huge zero page on read page fault.
+It's possible to disable huge zero page by writing 0 or enable it
+back by writing 1:
+
+echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
+echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
+
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
 be automatically shutdown if it's set to "never".
@@ -197,6 +204,14 @@ thp_split is incremented every time a huge page is split into base
 	pages. This can happen for a variety of reasons but a common
 	reason is that a huge page is old and is being reclaimed.
 
+thp_zero_page_alloc is incremented every time a huge zero page is
+	successfully allocated. It includes allocations which where
+	dropped due race with other allocation. Note, it doesn't count
+	every map of the huge zero page, only its allocation.
+
+thp_zero_page_alloc_failed is incremented if kernel fails to allocate
+	huge zero page and falls back to using small pages.
+
 As the system ages, allocating huge pages may be expensive as the
 system uses memory compaction to copy data around memory to free a
 huge page for use. There are some counters in /proc/vmstat to help
@@ -276,7 +291,7 @@ unaffected. libhugetlbfs will also work fine as usual.
 == Graceful fallback ==
 
 Code walking pagetables but unware about huge pmds can simply call
-split_huge_page_pmd(mm, pmd) where the pmd is the one returned by
+split_huge_page_pmd(vma, addr, pmd) where the pmd is the one returned by
 pmd_offset. It's trivial to make the code transparent hugepage aware
 by just grepping for "pmd_offset" and adding split_huge_page_pmd where
 missing after pmd_offset returns the pmd. Thanks to the graceful
@@ -299,7 +314,7 @@ diff --git a/mm/mremap.c b/mm/mremap.c
 		return NULL;
 
 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_pmd(mm, pmd);
++	split_huge_page_pmd(vma, addr, pmd);
 	if (pmd_none_or_clear_bad(pmd))
 		return NULL;
 

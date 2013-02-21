@@ -698,10 +698,10 @@ static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
 	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_therm *therm = nouveau_therm(drm->device);
 
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
 	struct device *hwmon_dev;
 	int ret = 0;
 

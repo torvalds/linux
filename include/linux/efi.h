@@ -29,7 +29,12 @@
 #define EFI_UNSUPPORTED		( 3 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BAD_BUFFER_SIZE     ( 4 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BUFFER_TOO_SMALL	( 5 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_NOT_READY		( 6 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_DEVICE_ERROR	( 7 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_WRITE_PROTECTED	( 8 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_SECURITY_VIOLATION	(26 | (1UL << (BITS_PER_LONG-1)))
 
 typedef unsigned long efi_status_t;
 typedef u8 efi_bool_t;
@@ -195,6 +200,77 @@ typedef struct {
 	void *set_mem;
 	void *create_event_ex;
 } efi_boot_services_t;
+
+typedef enum {
+	EfiPciIoWidthUint8,
+	EfiPciIoWidthUint16,
+	EfiPciIoWidthUint32,
+	EfiPciIoWidthUint64,
+	EfiPciIoWidthFifoUint8,
+	EfiPciIoWidthFifoUint16,
+	EfiPciIoWidthFifoUint32,
+	EfiPciIoWidthFifoUint64,
+	EfiPciIoWidthFillUint8,
+	EfiPciIoWidthFillUint16,
+	EfiPciIoWidthFillUint32,
+	EfiPciIoWidthFillUint64,
+	EfiPciIoWidthMaximum
+} EFI_PCI_IO_PROTOCOL_WIDTH;
+
+typedef enum {
+	EfiPciIoAttributeOperationGet,
+	EfiPciIoAttributeOperationSet,
+	EfiPciIoAttributeOperationEnable,
+	EfiPciIoAttributeOperationDisable,
+	EfiPciIoAttributeOperationSupported,
+    EfiPciIoAttributeOperationMaximum
+} EFI_PCI_IO_PROTOCOL_ATTRIBUTE_OPERATION;
+
+
+typedef struct {
+	void *read;
+	void *write;
+} efi_pci_io_protocol_access_t;
+
+typedef struct {
+	void *poll_mem;
+	void *poll_io;
+	efi_pci_io_protocol_access_t mem;
+	efi_pci_io_protocol_access_t io;
+	efi_pci_io_protocol_access_t pci;
+	void *copy_mem;
+	void *map;
+	void *unmap;
+	void *allocate_buffer;
+	void *free_buffer;
+	void *flush;
+	void *get_location;
+	void *attributes;
+	void *get_bar_attributes;
+	void *set_bar_attributes;
+	uint64_t romsize;
+	void *romimage;
+} efi_pci_io_protocol;
+
+#define EFI_PCI_IO_ATTRIBUTE_ISA_MOTHERBOARD_IO 0x0001
+#define EFI_PCI_IO_ATTRIBUTE_ISA_IO 0x0002
+#define EFI_PCI_IO_ATTRIBUTE_VGA_PALETTE_IO 0x0004
+#define EFI_PCI_IO_ATTRIBUTE_VGA_MEMORY 0x0008
+#define EFI_PCI_IO_ATTRIBUTE_VGA_IO 0x0010
+#define EFI_PCI_IO_ATTRIBUTE_IDE_PRIMARY_IO 0x0020
+#define EFI_PCI_IO_ATTRIBUTE_IDE_SECONDARY_IO 0x0040
+#define EFI_PCI_IO_ATTRIBUTE_MEMORY_WRITE_COMBINE 0x0080
+#define EFI_PCI_IO_ATTRIBUTE_IO 0x0100
+#define EFI_PCI_IO_ATTRIBUTE_MEMORY 0x0200
+#define EFI_PCI_IO_ATTRIBUTE_BUS_MASTER 0x0400
+#define EFI_PCI_IO_ATTRIBUTE_MEMORY_CACHED 0x0800
+#define EFI_PCI_IO_ATTRIBUTE_MEMORY_DISABLE 0x1000
+#define EFI_PCI_IO_ATTRIBUTE_EMBEDDED_DEVICE 0x2000
+#define EFI_PCI_IO_ATTRIBUTE_EMBEDDED_ROM 0x4000
+#define EFI_PCI_IO_ATTRIBUTE_DUAL_ADDRESS_CYCLE 0x8000
+#define EFI_PCI_IO_ATTRIBUTE_ISA_IO_16 0x10000
+#define EFI_PCI_IO_ATTRIBUTE_VGA_PALETTE_IO_16 0x20000
+#define EFI_PCI_IO_ATTRIBUTE_VGA_IO_16 0x40000
 
 /*
  * Types and defines for EFI ResetSystem
@@ -542,18 +618,30 @@ extern int __init efi_setup_pcdp_console(char *);
 #endif
 
 /*
- * We play games with efi_enabled so that the compiler will, if possible, remove
- * EFI-related code altogether.
+ * We play games with efi_enabled so that the compiler will, if
+ * possible, remove EFI-related code altogether.
  */
+#define EFI_BOOT		0	/* Were we booted from EFI? */
+#define EFI_SYSTEM_TABLES	1	/* Can we use EFI system tables? */
+#define EFI_CONFIG_TABLES	2	/* Can we use EFI config tables? */
+#define EFI_RUNTIME_SERVICES	3	/* Can we use runtime services? */
+#define EFI_MEMMAP		4	/* Can we use EFI memory map? */
+#define EFI_64BIT		5	/* Is the firmware 64-bit? */
+
 #ifdef CONFIG_EFI
 # ifdef CONFIG_X86
-   extern int efi_enabled;
-   extern bool efi_64bit;
+extern int efi_enabled(int facility);
 # else
-#  define efi_enabled 1
+static inline int efi_enabled(int facility)
+{
+	return 1;
+}
 # endif
 #else
-# define efi_enabled 0
+static inline int efi_enabled(int facility)
+{
+	return 0;
+}
 #endif
 
 /*
@@ -658,6 +746,7 @@ struct efivars {
 	spinlock_t lock;
 	struct list_head list;
 	struct kset *kset;
+	struct kobject *kobject;
 	struct bin_attribute *new_var, *del_var;
 	const struct efivar_operations *ops;
 	struct efivar_entry *walk_entry;

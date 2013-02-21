@@ -132,7 +132,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
-static void __devinit cpu_pmu_init(struct arm_pmu *cpu_pmu)
+static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int cpu;
 	for_each_possible_cpu(cpu) {
@@ -178,7 +178,7 @@ static struct notifier_block __cpuinitdata cpu_pmu_hotplug_notifier = {
 /*
  * PMU platform driver and devicetree bindings.
  */
-static struct of_device_id __devinitdata cpu_pmu_of_device_ids[] = {
+static struct of_device_id cpu_pmu_of_device_ids[] = {
 	{.compatible = "arm,cortex-a15-pmu",	.data = armv7_a15_pmu_init},
 	{.compatible = "arm,cortex-a9-pmu",	.data = armv7_a9_pmu_init},
 	{.compatible = "arm,cortex-a8-pmu",	.data = armv7_a8_pmu_init},
@@ -190,7 +190,7 @@ static struct of_device_id __devinitdata cpu_pmu_of_device_ids[] = {
 	{},
 };
 
-static struct platform_device_id __devinitdata cpu_pmu_plat_device_ids[] = {
+static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{.name = "arm-pmu"},
 	{},
 };
@@ -198,7 +198,7 @@ static struct platform_device_id __devinitdata cpu_pmu_plat_device_ids[] = {
 /*
  * CPU PMU identification and probing.
  */
-static int __devinit probe_current_pmu(struct arm_pmu *pmu)
+static int probe_current_pmu(struct arm_pmu *pmu)
 {
 	int cpu = get_cpu();
 	unsigned long cpuid = read_cpuid_id();
@@ -252,7 +252,7 @@ static int __devinit probe_current_pmu(struct arm_pmu *pmu)
 	return ret;
 }
 
-static int __devinit cpu_pmu_device_probe(struct platform_device *pdev)
+static int cpu_pmu_device_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	int (*init_fn)(struct arm_pmu *);

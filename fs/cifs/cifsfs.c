@@ -54,7 +54,6 @@
 #endif
 
 int cifsFYI = 0;
-int cifsERROR = 1;
 int traceSMB = 0;
 bool enable_oplocks = true;
 unsigned int linuxExtEnabled = 1;
@@ -229,7 +228,6 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
-	cifs_inode->leave_pages_clean = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 	cifs_inode->uniqueid = 0;
@@ -695,13 +693,13 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return written;
 }
 
-static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
+static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 {
 	/*
-	 * origin == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
+	 * whence == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
 	 * the cached file length
 	 */
-	if (origin != SEEK_SET && origin != SEEK_CUR) {
+	if (whence != SEEK_SET && whence != SEEK_CUR) {
 		int rc;
 		struct inode *inode = file->f_path.dentry->d_inode;
 
@@ -728,7 +726,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		if (rc < 0)
 			return (loff_t)rc;
 	}
-	return generic_file_llseek(file, offset, origin);
+	return generic_file_llseek(file, offset, whence);
 }
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)

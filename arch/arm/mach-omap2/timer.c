@@ -165,17 +165,13 @@ static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
 	struct device_node *np;
 
 	for_each_matching_node(np, match) {
-		if (!of_device_is_available(np)) {
-			of_node_put(np);
+		if (!of_device_is_available(np))
 			continue;
-		}
 
-		if (property && !of_get_property(np, property, NULL)) {
-			of_node_put(np);
+		if (property && !of_get_property(np, property, NULL))
 			continue;
-		}
 
-		prom_add_property(np, &device_disabled);
+		of_add_property(np, &device_disabled);
 		return np;
 	}
 
@@ -190,7 +186,7 @@ static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
  * kernel registering these devices remove them dynamically from the device
  * tree on boot.
  */
-void __init omap_dmtimer_init(void)
+static void __init omap_dmtimer_init(void)
 {
 	struct device_node *np;
 
@@ -210,7 +206,7 @@ void __init omap_dmtimer_init(void)
  *
  * Get the timer errata flags that are specific to the OMAP device being used.
  */
-u32 __init omap_dm_timer_get_errata(void)
+static u32 __init omap_dm_timer_get_errata(void)
 {
 	if (cpu_is_omap24xx())
 		return 0;
@@ -392,7 +388,7 @@ static struct of_device_id omap_counter_match[] __initdata = {
 };
 
 /* Setup free-running counter for clocksource */
-static int __init omap2_sync32k_clocksource_init(void)
+static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 {
 	int ret;
 	struct device_node *np = NULL;

@@ -167,7 +167,7 @@ static void mma8450_close(struct input_polled_dev *dev)
 /*
  * I2C init/probing/exit functions
  */
-static int __devinit mma8450_probe(struct i2c_client *c,
+static int mma8450_probe(struct i2c_client *c,
 				   const struct i2c_device_id *id)
 {
 	struct input_polled_dev *idev;
@@ -212,7 +212,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit mma8450_remove(struct i2c_client *c)
+static int mma8450_remove(struct i2c_client *c)
 {
 	struct mma8450 *m = i2c_get_clientdata(c);
 	struct input_polled_dev *idev = m->idev;
@@ -243,7 +243,7 @@ static struct i2c_driver mma8450_driver = {
 		.of_match_table = mma8450_dt_ids,
 	},
 	.probe		= mma8450_probe,
-	.remove		= __devexit_p(mma8450_remove),
+	.remove		= mma8450_remove,
 	.id_table	= mma8450_id,
 };
 

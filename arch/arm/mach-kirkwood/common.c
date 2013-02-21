@@ -260,8 +260,8 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, "orion_nand", runit);
 	orion_clkdev_add(NULL, "mvsdio", sdio);
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
-	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".0", xor0);
-	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".1", xor1);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0", xor0);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "kirkwood-i2s", audio);

@@ -13,11 +13,12 @@
 #include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <linux/memblock.h>
-#include <linux/of_fdt.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <mach/map.h>
+#include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
 #include <plat/regs-serial.h>
@@ -124,6 +125,28 @@ static void __init exynos5_dt_map_io(void)
 
 static void __init exynos5_dt_machine_init(void)
 {
+	struct device_node *i2c_np;
+	const char *i2c_compat = "samsung,s3c2440-i2c";
+	unsigned int tmp;
+
+	/*
+	 * Exynos5's legacy i2c controller and new high speed i2c
+	 * controller have muxed interrupt sources. By default the
+	 * interrupts for 4-channel HS-I2C controller are enabled.
+	 * If node for first four channels of legacy i2c controller
+	 * are available then re-configure the interrupts via the
+	 * system register.
+	 */
+	for_each_compatible_node(i2c_np, NULL, i2c_compat) {
+		if (of_device_is_available(i2c_np)) {
+			if (of_alias_get_id(i2c_np, "i2c") < 4) {
+				tmp = readl(EXYNOS5_SYS_I2C_CFG);
+				writel(tmp & ~(0x1 << of_alias_get_id(i2c_np, "i2c")),
+						EXYNOS5_SYS_I2C_CFG);
+			}
+		}
+	}
+
 	if (of_machine_is_compatible("samsung,exynos5250"))
 		of_platform_populate(NULL, of_default_bus_match_table,
 				     exynos5250_auxdata_lookup, NULL);
@@ -140,6 +163,7 @@ static char const *exynos5_dt_compat[] __initdata = {
 
 static void __init exynos5_reserve(void)
 {
+#ifdef CONFIG_S5P_DEV_MFC
 	struct s5p_mfc_dt_meminfo mfc_mem;
 
 	/* Reserve memory for MFC only if it's available */
@@ -147,6 +171,7 @@ static void __init exynos5_reserve(void)
 	if (of_scan_flat_dt(s5p_fdt_find_mfc_mem, &mfc_mem))
 		s5p_mfc_reserve_mem(mfc_mem.roff, mfc_mem.rsize, mfc_mem.loff,
 				mfc_mem.lsize);
+#endif
 }
 
 DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")

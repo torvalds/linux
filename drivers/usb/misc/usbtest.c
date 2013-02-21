@@ -2179,7 +2179,7 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 		if (dev->out_pipe == 0 || !param->length || param->sglen < 4)
 			break;
 		retval = 0;
-		dev_info(&intf->dev, "TEST 17:  unlink from %d queues of "
+		dev_info(&intf->dev, "TEST 24:  unlink from %d queues of "
 				"%d %d-byte writes\n",
 				param->iterations, param->sglen, param->length);
 		for (i = param->iterations; retval == 0 && i > 0; --i) {

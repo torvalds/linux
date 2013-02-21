@@ -465,7 +465,6 @@ ENTRY(_switch_to)
 
 ENTRY(ret_from_fork)
 	addk	r5, r0, r3
-	addk	r6, r0, r1
 	brlid	r15, schedule_tail
 	nop
 	swi	r31, r1, PT_R31		/* save r31 in user context. */

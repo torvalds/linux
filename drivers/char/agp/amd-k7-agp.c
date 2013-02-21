@@ -405,8 +405,8 @@ static struct agp_device_ids amd_agp_device_ids[] =
 	{ }, /* dummy final entry, always present */
 };
 
-static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int agp_amdk7_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;

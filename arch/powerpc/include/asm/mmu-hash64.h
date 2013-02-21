@@ -121,6 +121,16 @@ extern char initial_stab[];
 #define PP_RXRX 3	/* Supervisor read,       User read */
 #define PP_RXXX	(HPTE_R_PP0 | 2)	/* Supervisor read, user none */
 
+/* Fields for tlbiel instruction in architecture 2.06 */
+#define TLBIEL_INVAL_SEL_MASK	0xc00	/* invalidation selector */
+#define  TLBIEL_INVAL_PAGE	0x000	/* invalidate a single page */
+#define  TLBIEL_INVAL_SET_LPID	0x800	/* invalidate a set for current LPID */
+#define  TLBIEL_INVAL_SET	0xc00	/* invalidate a set for all LPIDs */
+#define TLBIEL_INVAL_SET_MASK	0xfff000	/* set number to inval. */
+#define TLBIEL_INVAL_SET_SHIFT	12
+
+#define POWER7_TLB_SETS		128	/* # sets in POWER7 TLB */
+
 #ifndef __ASSEMBLY__
 
 struct hash_pte {

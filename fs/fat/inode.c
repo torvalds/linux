@@ -26,6 +26,7 @@
 #include <linux/writeback.h>
 #include <linux/log2.h>
 #include <linux/hash.h>
+#include <linux/blkdev.h>
 #include <asm/unaligned.h>
 #include "fat.h"
 
@@ -725,7 +726,8 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 	if (opts->allow_utime)
 		seq_printf(m, ",allow_utime=%04o", opts->allow_utime);
 	if (sbi->nls_disk)
-		seq_printf(m, ",codepage=%s", sbi->nls_disk->charset);
+		/* strip "cp" prefix from displayed option */
+		seq_printf(m, ",codepage=%s", &sbi->nls_disk->charset[2]);
 	if (isvfat) {
 		if (sbi->nls_io)
 			seq_printf(m, ",iocharset=%s", sbi->nls_io->charset);
@@ -777,8 +779,12 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 	}
 	if (opts->flush)
 		seq_puts(m, ",flush");
-	if (opts->tz_utc)
-		seq_puts(m, ",tz=UTC");
+	if (opts->tz_set) {
+		if (opts->time_offset)
+			seq_printf(m, ",time_offset=%d", opts->time_offset);
+		else
+			seq_puts(m, ",tz=UTC");
+	}
 	if (opts->errors == FAT_ERRORS_CONT)
 		seq_puts(m, ",errors=continue");
 	else if (opts->errors == FAT_ERRORS_PANIC)
@@ -800,7 +806,8 @@ enum {
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
 	Opt_obsolete, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
-	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_nfs, Opt_err,
+	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_nfs, Opt_time_offset,
+	Opt_err,
 };
 
 static const match_table_t fat_tokens = {
@@ -825,6 +832,7 @@ static const match_table_t fat_tokens = {
 	{Opt_immutable, "sys_immutable"},
 	{Opt_flush, "flush"},
 	{Opt_tz_utc, "tz=UTC"},
+	{Opt_time_offset, "time_offset=%d"},
 	{Opt_err_cont, "errors=continue"},
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
@@ -909,7 +917,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->utf8 = opts->unicode_xlate = 0;
 	opts->numtail = 1;
 	opts->usefree = opts->nocase = 0;
-	opts->tz_utc = 0;
+	opts->tz_set = 0;
 	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
 	*debug = 0;
@@ -965,48 +973,57 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 		case Opt_uid:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_uid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(opts->fs_uid))
-				return 0;
+				return -EINVAL;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(opts->fs_gid))
-				return 0;
+				return -EINVAL;
 			break;
 		case Opt_umask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_fmask = opts->fs_dmask = option;
 			break;
 		case Opt_dmask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_dmask = option;
 			break;
 		case Opt_fmask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_fmask = option;
 			break;
 		case Opt_allow_utime:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->allow_utime = option & (S_IWGRP | S_IWOTH);
 			break;
 		case Opt_codepage:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->codepage = option;
 			break;
 		case Opt_flush:
 			opts->flush = 1;
 			break;
+		case Opt_time_offset:
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			if (option < -12 * 60 || option > 12 * 60)
+				return -EINVAL;
+			opts->tz_set = 1;
+			opts->time_offset = option;
+			break;
 		case Opt_tz_utc:
-			opts->tz_utc = 1;
+			opts->tz_set = 1;
+			opts->time_offset = 0;
 			break;
 		case Opt_err_cont:
 			opts->errors = FAT_ERRORS_CONT;
@@ -1327,7 +1344,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sbi->dir_entries = get_unaligned_le16(&b->dir_entries);
 	if (sbi->dir_entries & (sbi->dir_per_block - 1)) {
 		if (!silent)
-			fat_msg(sb, KERN_ERR, "bogus directroy-entries per block"
+			fat_msg(sb, KERN_ERR, "bogus directory-entries per block"
 			       " (%u)", sbi->dir_entries);
 		brelse(bh);
 		goto out_invalid;
@@ -1429,6 +1446,14 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	if (!sb->s_root) {
 		fat_msg(sb, KERN_ERR, "get root inode failed");
 		goto out_fail;
+	}
+
+	if (sbi->options.discard) {
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+		if (!blk_queue_discard(q))
+			fat_msg(sb, KERN_WARNING,
+					"mounting with \"discard\" option, but "
+					"the device does not support discard");
 	}
 
 	return 0;

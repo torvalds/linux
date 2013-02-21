@@ -369,11 +369,10 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	 * We do take care of PMTU discovery (RFC1191) special case :
 	 * we can receive locally generated ICMP messages while socket is held.
 	 */
-	if (sock_owned_by_user(sk) &&
-	    type != ICMP_DEST_UNREACH &&
-	    code != ICMP_FRAG_NEEDED)
-		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
-
+	if (sock_owned_by_user(sk)) {
+		if (!(type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED))
+			NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
+	}
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
 
@@ -1767,10 +1766,8 @@ exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 put_and_exit:
-	tcp_clear_xmit_timers(newsk);
-	tcp_cleanup_congestion_control(newsk);
-	bh_unlock_sock(newsk);
-	sock_put(newsk);
+	inet_csk_prepare_forced_close(newsk);
+	tcp_done(newsk);
 	goto exit;
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);

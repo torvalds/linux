@@ -127,7 +127,7 @@
 
 static volatile unsigned char *fm2fb_reg;
 
-static struct fb_fix_screeninfo fb_fix __devinitdata = {
+static struct fb_fix_screeninfo fb_fix = {
 	.smem_len =	FRAMEMASTER_REG,
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -136,12 +136,12 @@ static struct fb_fix_screeninfo fb_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static int fm2fb_mode __devinitdata = -1;
+static int fm2fb_mode = -1;
 
 #define FM2FB_MODE_PAL	0
 #define FM2FB_MODE_NTSC	1
 
-static struct fb_var_screeninfo fb_var_modes[] __devinitdata = {
+static struct fb_var_screeninfo fb_var_modes[] = {
     {
 	/* 768 x 576, 32 bpp (PAL) */
 	768, 576, 768, 576, 0, 0, 32, 0,
@@ -211,10 +211,9 @@ static int fm2fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
      *  Initialisation
      */
 
-static int __devinit fm2fb_probe(struct zorro_dev *z,
-				 const struct zorro_device_id *id);
+static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id);
 
-static struct zorro_device_id fm2fb_devices[] __devinitdata = {
+static struct zorro_device_id fm2fb_devices[] = {
 	{ ZORRO_PROD_BSC_FRAMEMASTER_II },
 	{ ZORRO_PROD_HELFRICH_RAINBOW_II },
 	{ 0 }
@@ -227,8 +226,7 @@ static struct zorro_driver fm2fb_driver = {
 	.probe		= fm2fb_probe,
 };
 
-static int __devinit fm2fb_probe(struct zorro_dev *z,
-				 const struct zorro_device_id *id)
+static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id)
 {
 	struct fb_info *info;
 	unsigned long *ptr;

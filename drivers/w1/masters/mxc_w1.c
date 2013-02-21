@@ -191,7 +191,7 @@ static struct platform_driver mxc_w1_driver = {
 		   .name = "mxc_w1",
 	},
 	.probe = mxc_w1_probe,
-	.remove = __devexit_p(mxc_w1_remove),
+	.remove = mxc_w1_remove,
 };
 module_platform_driver(mxc_w1_driver);
 

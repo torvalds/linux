@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(viafb_gpio_lookup);
 /*
  * Platform device stuff.
  */
-static __devinit int viafb_gpio_probe(struct platform_device *platdev)
+static int viafb_gpio_probe(struct platform_device *platdev)
 {
 	struct viafb_dev *vdev = platdev->dev.platform_data;
 	struct via_port_cfg *port_cfg = vdev->port_cfg;

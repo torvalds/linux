@@ -206,6 +206,7 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 				struct device_node *node)
 {
 	struct vic_device *v;
+	int i;
 
 	if (vic_id >= ARRAY_SIZE(vic_devices)) {
 		printk(KERN_ERR "%s: too few VICs, increase CONFIG_ARM_VIC_NR\n", __func__);
@@ -220,6 +221,10 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	vic_id++;
 	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
 					  &vic_irqdomain_ops, v);
+	/* create an IRQ mapping for each valid IRQ */
+	for (i = 0; i < fls(valid_sources); i++)
+		if (valid_sources & (1 << i))
+			irq_create_mapping(v->domain, i);
 }
 
 static void vic_ack_irq(struct irq_data *d)
@@ -416,9 +421,9 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 		return -EIO;
 
 	/*
-	 * Passing -1 as first IRQ makes the simple domain allocate descriptors
+	 * Passing 0 as first IRQ makes the simple domain allocate descriptors
 	 */
-	__vic_init(regs, -1, ~0, ~0, node);
+	__vic_init(regs, 0, ~0, ~0, node);
 
 	return 0;
 }

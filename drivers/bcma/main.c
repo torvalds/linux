@@ -164,6 +164,11 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			bcma_err(bus, "Error registering NAND flash\n");
 	}
 #endif
+	err = bcma_gpio_init(&bus->drv_cc);
+	if (err == -ENOTSUPP)
+		bcma_debug(bus, "GPIO driver not activated\n");
+	else if (err)
+		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
 
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
 		err = bcma_chipco_watchdog_register(&bus->drv_cc);
@@ -187,7 +192,7 @@ static void bcma_unregister_cores(struct bcma_bus *bus)
 		platform_device_unregister(bus->drv_cc.watchdog);
 }
 
-int __devinit bcma_bus_register(struct bcma_bus *bus)
+int bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;

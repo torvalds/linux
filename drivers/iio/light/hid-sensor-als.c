@@ -245,7 +245,7 @@ static int als_parse_report(struct platform_device *pdev,
 }
 
 /* Function to initialize the processing for usage id */
-static int __devinit hid_als_probe(struct platform_device *pdev)
+static int hid_als_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	static const char *name = "als";
@@ -341,7 +341,7 @@ error_ret:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int __devinit hid_als_remove(struct platform_device *pdev)
+static int hid_als_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);

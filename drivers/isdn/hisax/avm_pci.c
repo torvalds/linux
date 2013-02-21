@@ -718,7 +718,7 @@ AVM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-static int __devinit avm_setup_rest(struct IsdnCardState *cs)
+static int avm_setup_rest(struct IsdnCardState *cs)
 {
 	u_int val, ver;
 
@@ -770,16 +770,16 @@ static int __devinit avm_setup_rest(struct IsdnCardState *cs)
 
 #ifndef __ISAPNP__
 
-static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
+static int avm_pnp_setup(struct IsdnCardState *cs)
 {
 	return (1);	/* no-op: success */
 }
 
 #else
 
-static struct pnp_card *pnp_avm_c __devinitdata = NULL;
+static struct pnp_card *pnp_avm_c = NULL;
 
-static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
+static int avm_pnp_setup(struct IsdnCardState *cs)
 {
 	struct pnp_dev *pnp_avm_d = NULL;
 
@@ -825,16 +825,16 @@ static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
 
 #ifndef CONFIG_PCI
 
-static int __devinit avm_pci_setup(struct IsdnCardState *cs)
+static int avm_pci_setup(struct IsdnCardState *cs)
 {
 	return (1);	/* no-op: success */
 }
 
 #else
 
-static struct pci_dev *dev_avm __devinitdata = NULL;
+static struct pci_dev *dev_avm = NULL;
 
-static int __devinit avm_pci_setup(struct IsdnCardState *cs)
+static int avm_pci_setup(struct IsdnCardState *cs)
 {
 	if ((dev_avm = hisax_find_pci_device(PCI_VENDOR_ID_AVM,
 					     PCI_DEVICE_ID_AVM_A1, dev_avm))) {
@@ -867,8 +867,7 @@ static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 
 #endif /* CONFIG_PCI */
 
-int __devinit
-setup_avm_pcipnp(struct IsdnCard *card)
+int setup_avm_pcipnp(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];

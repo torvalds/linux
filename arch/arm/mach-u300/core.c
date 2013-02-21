@@ -27,7 +27,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/fsmc.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-u300.h>
@@ -249,6 +248,18 @@ static struct resource rtc_resources[] = {
  * but these are not yet used by the driver.
  */
 static struct resource fsmc_resources[] = {
+	{
+		.name  = "nand_addr",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "nand_cmd",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
 	{
 		.name  = "nand_data",
 		.start = U300_NAND_CS0_PHYS_BASE,
@@ -1492,8 +1503,6 @@ static struct fsmc_nand_platform_data nand_platform_data = {
 	.nr_partitions = ARRAY_SIZE(u300_partitions),
 	.options = NAND_SKIP_BBTSCAN,
 	.width = FSMC_NAND_BW8,
-	.ale_off = PLAT_NAND_ALE,
-	.cle_off = PLAT_NAND_CLE,
 };
 
 static struct platform_device nand_device = {
@@ -1542,39 +1551,6 @@ static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	PIN_MAP_CONFIGS_PIN_DEFAULT("mmci", "pinctrl-u300", "PIO MS INS",
 				    pin_highz_conf),
 };
-
-struct u300_mux_hog {
-	struct device *dev;
-	struct pinctrl *p;
-};
-
-static struct u300_mux_hog u300_mux_hogs[] = {
-	{
-		.dev = &uart0_device.dev,
-	},
-	{
-		.dev = &mmcsd_device.dev,
-	},
-};
-
-static int __init u300_pinctrl_fetch(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
-		struct pinctrl *p;
-
-		p = pinctrl_get_select_default(u300_mux_hogs[i].dev);
-		if (IS_ERR(p)) {
-			pr_err("u300: could not get pinmux hog for dev %s\n",
-			       dev_name(u300_mux_hogs[i].dev));
-			continue;
-		}
-		u300_mux_hogs[i].p = p;
-	}
-	return 0;
-}
-subsys_initcall(u300_pinctrl_fetch);
 
 /*
  * Notice that AMBA devices are initialized before platform devices.

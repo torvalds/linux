@@ -77,13 +77,11 @@ static void wiphy_dev_release(struct device *dev)
 	cfg80211_dev_free(rdev);
 }
 
-#ifdef CONFIG_HOTPLUG
 static int wiphy_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	/* TODO, we probably need stuff here */
 	return 0;
 }
-#endif
 
 static int wiphy_suspend(struct device *dev, pm_message_t state)
 {
@@ -134,9 +132,7 @@ struct class ieee80211_class = {
 	.owner = THIS_MODULE,
 	.dev_release = wiphy_dev_release,
 	.dev_attrs = ieee80211_dev_attrs,
-#ifdef CONFIG_HOTPLUG
 	.dev_uevent = wiphy_uevent,
-#endif
 	.suspend = wiphy_suspend,
 	.resume = wiphy_resume,
 	.ns_type = &net_ns_type_operations,

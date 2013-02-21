@@ -3722,7 +3722,7 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.ngroups = ARRAY_SIZE(tegra30_groups),
 };
 
-static int __devinit tegra30_pinctrl_probe(struct platform_device *pdev)
+static int tegra30_pinctrl_probe(struct platform_device *pdev)
 {
 	return tegra_pinctrl_probe(pdev, &tegra30_pinctrl);
 }

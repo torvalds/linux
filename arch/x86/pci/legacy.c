@@ -10,7 +10,7 @@
  * Discover remaining PCI buses in case there are peer host bridges.
  * We use the number of last PCI bus provided by the PCI BIOS.
  */
-static void __devinit pcibios_fixup_peer_bridges(void)
+static void pcibios_fixup_peer_bridges(void)
 {
 	int n;
 
@@ -34,7 +34,7 @@ int __init pci_legacy_init(void)
 	return 0;
 }
 
-void __devinit pcibios_scan_specific_bus(int busn)
+void pcibios_scan_specific_bus(int busn)
 {
 	int devfn;
 	long node;

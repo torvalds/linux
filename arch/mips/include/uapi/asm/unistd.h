@@ -368,16 +368,17 @@
 #define __NR_process_vm_readv		(__NR_Linux + 345)
 #define __NR_process_vm_writev		(__NR_Linux + 346)
 #define __NR_kcmp			(__NR_Linux + 347)
+#define __NR_finit_module		(__NR_Linux + 348)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		347
+#define __NR_Linux_syscalls		348
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		347
+#define __NR_O32_Linux_syscalls		348
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -692,16 +693,17 @@
 #define __NR_process_vm_readv		(__NR_Linux + 304)
 #define __NR_process_vm_writev		(__NR_Linux + 305)
 #define __NR_kcmp			(__NR_Linux + 306)
+#define __NR_finit_module		(__NR_Linux + 307)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		306
+#define __NR_Linux_syscalls		307
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		306
+#define __NR_64_Linux_syscalls		307
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -1021,15 +1023,16 @@
 #define __NR_process_vm_readv		(__NR_Linux + 309)
 #define __NR_process_vm_writev		(__NR_Linux + 310)
 #define __NR_kcmp			(__NR_Linux + 311)
+#define __NR_finit_module		(__NR_Linux + 312)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		311
+#define __NR_Linux_syscalls		312
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		311
+#define __NR_N32_Linux_syscalls		312
 
 #endif /* _UAPI_ASM_UNISTD_H */

@@ -112,17 +112,6 @@ static void __init mipid_dev_init(void)
 	omapfb_set_lcd_config(&nokia770_lcd_config);
 }
 
-static void __init ads7846_dev_init(void)
-{
-	if (gpio_request(ADS7846_PENDOWN_GPIO, "ADS7846 pendown") < 0)
-		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(ADS7846_PENDOWN_GPIO);
-}
-
 static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = {
 	.x_max		= 0x0fff,
 	.y_max		= 0x0fff,
@@ -131,7 +120,7 @@ static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = 
 	.debounce_max	= 10,
 	.debounce_tol	= 3,
 	.debounce_rep	= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
+	.gpio_pendown	= ADS7846_PENDOWN_GPIO,
 };
 
 static struct spi_board_info nokia770_spi_board_info[] __initdata = {
@@ -241,7 +230,6 @@ static void __init omap_nokia770_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	hwa742_dev_init();
-	ads7846_dev_init();
 	mipid_dev_init();
 	omap1_usb_init(&nokia770_usb_config);
 	nokia770_mmc_init();

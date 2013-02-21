@@ -21,9 +21,11 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long fd, off_t pgoff);
 #endif
 
+#ifndef CONFIG_GENERIC_SIGALTSTACK
 #ifndef sys_sigaltstack
 asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
 			struct pt_regs *);
+#endif
 #endif
 
 #ifndef sys_rt_sigreturn

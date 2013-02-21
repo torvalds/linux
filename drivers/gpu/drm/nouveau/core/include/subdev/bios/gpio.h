@@ -25,9 +25,11 @@ struct dcb_gpio_func {
 	u8 param;
 };
 
-u16 dcb_gpio_table(struct nouveau_bios *);
-u16 dcb_gpio_entry(struct nouveau_bios *, int idx, int ent, u8 *ver);
-int dcb_gpio_parse(struct nouveau_bios *, int idx, u8 func, u8 line,
+u16 dcb_gpio_table(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
+u16 dcb_gpio_entry(struct nouveau_bios *, int idx, int ent, u8 *ver, u8 *len);
+u16 dcb_gpio_parse(struct nouveau_bios *, int idx, int ent, u8 *ver, u8 *len,
 		   struct dcb_gpio_func *);
+u16 dcb_gpio_match(struct nouveau_bios *, int idx, u8 func, u8 line,
+		   u8 *ver, u8 *len, struct dcb_gpio_func *);
 
 #endif

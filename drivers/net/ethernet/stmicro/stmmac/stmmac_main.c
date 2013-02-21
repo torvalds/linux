@@ -2194,18 +2194,20 @@ int stmmac_restore(struct net_device *ndev)
  */
 static int __init stmmac_init(void)
 {
-	int err_plt = 0;
-	int err_pci = 0;
+	int ret;
 
-	err_plt = stmmac_register_platform();
-	err_pci = stmmac_register_pci();
-
-	if ((err_pci) && (err_plt)) {
-		pr_err("stmmac: driver registration failed\n");
-		return -EINVAL;
-	}
-
+	ret = stmmac_register_platform();
+	if (ret)
+		goto err;
+	ret = stmmac_register_pci();
+	if (ret)
+		goto err_pci;
 	return 0;
+err_pci:
+	stmmac_unregister_platform();
+err:
+	pr_err("stmmac: driver registration failed\n");
+	return ret;
 }
 
 static void __exit stmmac_exit(void)

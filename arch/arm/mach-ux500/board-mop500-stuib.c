@@ -77,9 +77,6 @@ static struct i2c_board_info __initdata mop500_i2c0_devices_stuib[] = {
  * BU21013 ROHM touchscreen interface on the STUIBs
  */
 
-/* tracks number of bu21013 devices being enabled */
-static int bu21013_devices;
-
 #define TOUCH_GPIO_PIN  84
 
 #define TOUCH_XMAX	384
@@ -88,73 +85,8 @@ static int bu21013_devices;
 #define PRCMU_CLOCK_OCR		0x1CC
 #define TSC_EXT_CLOCK_9_6MHZ	0x840000
 
-/**
- * bu21013_gpio_board_init : configures the touch panel.
- * @reset_pin: reset pin number
- * This function can be used to configures
- * the voltage and reset the touch panel controller.
- */
-static int bu21013_gpio_board_init(int reset_pin)
-{
-	int retval = 0;
-
-	bu21013_devices++;
-	if (bu21013_devices == 1) {
-		retval = gpio_request(reset_pin, "touchp_reset");
-		if (retval) {
-			printk(KERN_ERR "Unable to request gpio reset_pin");
-			return retval;
-		}
-		retval = gpio_direction_output(reset_pin, 1);
-		if (retval < 0) {
-			printk(KERN_ERR "%s: gpio direction failed\n",
-					__func__);
-			return retval;
-		}
-	}
-
-	return retval;
-}
-
-/**
- * bu21013_gpio_board_exit : deconfigures the touch panel controller
- * @reset_pin: reset pin number
- * This function can be used to deconfigures the chip selection
- * for touch panel controller.
- */
-static int bu21013_gpio_board_exit(int reset_pin)
-{
-	int retval = 0;
-
-	if (bu21013_devices == 1) {
-		retval = gpio_direction_output(reset_pin, 0);
-		if (retval < 0) {
-			printk(KERN_ERR "%s: gpio direction failed\n",
-					__func__);
-			return retval;
-		}
-		gpio_set_value(reset_pin, 0);
-	}
-	bu21013_devices--;
-
-	return retval;
-}
-
-/**
- * bu21013_read_pin_val : get the interrupt pin value
- * This function can be used to get the interrupt pin value for touch panel
- * controller.
- */
-static int bu21013_read_pin_val(void)
-{
-	return gpio_get_value(TOUCH_GPIO_PIN);
-}
-
 static struct bu21013_platform_device tsc_plat_device = {
-	.cs_en = bu21013_gpio_board_init,
-	.cs_dis = bu21013_gpio_board_exit,
-	.irq_read_val = bu21013_read_pin_val,
-	.irq = NOMADIK_GPIO_TO_IRQ(TOUCH_GPIO_PIN),
+	.touch_pin = TOUCH_GPIO_PIN,
 	.touch_x_max = TOUCH_XMAX,
 	.touch_y_max = TOUCH_YMAX,
 	.ext_clk = false,
@@ -171,7 +103,6 @@ static struct i2c_board_info __initdata u8500_i2c3_devices_stuib[] = {
 		I2C_BOARD_INFO("bu21013_tp", 0x5D),
 		.platform_data = &tsc_plat_device,
 	},
-
 };
 
 void __init mop500_stuib_init(void)

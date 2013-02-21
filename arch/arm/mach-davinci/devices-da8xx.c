@@ -589,29 +589,9 @@ int __init da8xx_register_uio_pruss(void)
 	return platform_device_register(&da8xx_uio_pruss_dev);
 }
 
-static const struct display_panel disp_panel = {
-	QVGA,
-	16,
-	16,
-	COLOR_ACTIVE,
-};
-
 static struct lcd_ctrl_config lcd_cfg = {
-	&disp_panel,
-	.ac_bias		= 255,
-	.ac_bias_intrpt		= 0,
-	.dma_burst_sz		= 16,
+	.panel_shade		= COLOR_ACTIVE,
 	.bpp			= 16,
-	.fdd			= 255,
-	.tft_alt_mode		= 0,
-	.stn_565_mode		= 0,
-	.mono_8bit_mode		= 0,
-	.invert_line_clock	= 1,
-	.invert_frm_clock	= 1,
-	.sync_edge		= 0,
-	.sync_ctrl		= 1,
-	.raster_order		= 0,
-	.fifo_th		= 6,
 };
 
 struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {
@@ -745,7 +725,7 @@ static struct resource da8xx_rtc_resources[] = {
 };
 
 static struct platform_device da8xx_rtc_device = {
-	.name           = "omap_rtc",
+	.name           = "da830-rtc",
 	.id             = -1,
 	.num_resources	= ARRAY_SIZE(da8xx_rtc_resources),
 	.resource	= da8xx_rtc_resources,
@@ -754,17 +734,6 @@ static struct platform_device da8xx_rtc_device = {
 int da8xx_register_rtc(void)
 {
 	int ret;
-	void __iomem *base;
-
-	base = ioremap(DA8XX_RTC_BASE, SZ_4K);
-	if (WARN_ON(!base))
-		return -ENOMEM;
-
-	/* Unlock the rtc's registers */
-	__raw_writel(0x83e70b13, base + 0x6c);
-	__raw_writel(0x95a4f1e0, base + 0x70);
-
-	iounmap(base);
 
 	ret = platform_device_register(&da8xx_rtc_device);
 	if (!ret)

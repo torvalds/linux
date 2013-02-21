@@ -398,6 +398,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	do_gart_setup(gart, NULL);
 
 	gart_handle = gart;
+	bus_set_iommu(&platform_bus_type, &gart_iommu_ops);
 	return 0;
 
 fail:
@@ -430,7 +431,7 @@ const struct dev_pm_ops tegra_gart_pm_ops = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id tegra_gart_of_match[] __devinitdata = {
+static struct of_device_id tegra_gart_of_match[] = {
 	{ .compatible = "nvidia,tegra20-gart", },
 	{ },
 };
@@ -448,9 +449,8 @@ static struct platform_driver tegra_gart_driver = {
 	},
 };
 
-static int __devinit tegra_gart_init(void)
+static int tegra_gart_init(void)
 {
-	bus_set_iommu(&platform_bus_type, &gart_iommu_ops);
 	return platform_driver_register(&tegra_gart_driver);
 }
 

@@ -1331,16 +1331,23 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 		}
 		channels = (hdr->bLength - 7) / csize - 1;
 		bmaControls = hdr->bmaControls;
+		if (hdr->bLength < 7 + csize) {
+			snd_printk(KERN_ERR "usbaudio: unit %u: "
+				   "invalid UAC_FEATURE_UNIT descriptor\n",
+				   unitid);
+			return -EINVAL;
+		}
 	} else {
 		struct uac2_feature_unit_descriptor *ftr = _ftr;
 		csize = 4;
 		channels = (hdr->bLength - 6) / 4 - 1;
 		bmaControls = ftr->bmaControls;
-	}
-
-	if (hdr->bLength < 7 || !csize || hdr->bLength < 7 + csize) {
-		snd_printk(KERN_ERR "usbaudio: unit %u: invalid UAC_FEATURE_UNIT descriptor\n", unitid);
-		return -EINVAL;
+		if (hdr->bLength < 6 + csize) {
+			snd_printk(KERN_ERR "usbaudio: unit %u: "
+				   "invalid UAC_FEATURE_UNIT descriptor\n",
+				   unitid);
+			return -EINVAL;
+		}
 	}
 
 	/* parse the source unit */

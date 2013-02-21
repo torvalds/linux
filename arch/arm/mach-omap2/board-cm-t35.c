@@ -241,6 +241,7 @@ static struct omap_dss_device cm_t35_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= CM_T35_DVI_EN_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device cm_t35_dvi_device = {

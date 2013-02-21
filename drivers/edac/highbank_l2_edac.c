@@ -50,7 +50,7 @@ static irqreturn_t highbank_l2_err_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit highbank_l2_err_probe(struct platform_device *pdev)
+static int highbank_l2_err_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci;
 	struct hb_l2_drvdata *drvdata;

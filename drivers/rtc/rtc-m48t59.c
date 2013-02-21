@@ -383,7 +383,7 @@ static struct bin_attribute m48t59_nvram_attr = {
 	.write = m48t59_nvram_write,
 };
 
-static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
+static int m48t59_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 	struct m48t59_private *m48t59 = NULL;
@@ -501,7 +501,7 @@ out:
 	return ret;
 }
 
-static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
+static int m48t59_rtc_remove(struct platform_device *pdev)
 {
 	struct m48t59_private *m48t59 = platform_get_drvdata(pdev);
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
@@ -527,7 +527,7 @@ static struct platform_driver m48t59_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t59_rtc_probe,
-	.remove		= __devexit_p(m48t59_rtc_remove),
+	.remove		= m48t59_rtc_remove,
 };
 
 module_platform_driver(m48t59_rtc_driver);

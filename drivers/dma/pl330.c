@@ -2988,7 +2988,7 @@ probe_err1:
 	return ret;
 }
 
-static int __devexit pl330_remove(struct amba_device *adev)
+static int pl330_remove(struct amba_device *adev)
 {
 	struct dma_pl330_dmac *pdmac = amba_get_drvdata(adev);
 	struct dma_pl330_chan *pch, *_p;

@@ -193,23 +193,10 @@ static void sched_feat_disable(int i) { };
 static void sched_feat_enable(int i) { };
 #endif /* HAVE_JUMP_LABEL */
 
-static ssize_t
-sched_feat_write(struct file *filp, const char __user *ubuf,
-		size_t cnt, loff_t *ppos)
+static int sched_feat_set(char *cmp)
 {
-	char buf[64];
-	char *cmp;
-	int neg = 0;
 	int i;
-
-	if (cnt > 63)
-		cnt = 63;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-	cmp = strstrip(buf);
+	int neg = 0;
 
 	if (strncmp(cmp, "NO_", 3) == 0) {
 		neg = 1;
@@ -229,6 +216,27 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 		}
 	}
 
+	return i;
+}
+
+static ssize_t
+sched_feat_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	char *cmp;
+	int i;
+
+	if (cnt > 63)
+		cnt = 63;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+	cmp = strstrip(buf);
+
+	i = sched_feat_set(cmp);
 	if (i == __SCHED_FEAT_NR)
 		return -EINVAL;
 
@@ -923,6 +931,13 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 		rq->skip_clock_update = 1;
 }
 
+static ATOMIC_NOTIFIER_HEAD(task_migration_notifier);
+
+void register_task_migration_notifier(struct notifier_block *n)
+{
+	atomic_notifier_chain_register(&task_migration_notifier, n);
+}
+
 #ifdef CONFIG_SMP
 void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
@@ -953,10 +968,18 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	trace_sched_migrate_task(p, new_cpu);
 
 	if (task_cpu(p) != new_cpu) {
+		struct task_migration_notifier tmn;
+
 		if (p->sched_class->migrate_task_rq)
 			p->sched_class->migrate_task_rq(p, new_cpu);
 		p->se.nr_migrations++;
 		perf_sw_event(PERF_COUNT_SW_CPU_MIGRATIONS, 1, NULL, 0);
+
+		tmn.task = p;
+		tmn.from_cpu = task_cpu(p);
+		tmn.to_cpu = new_cpu;
+
+		atomic_notifier_call_chain(&task_migration_notifier, 0, &tmn);
 	}
 
 	__set_task_cpu(p, new_cpu);
@@ -1500,7 +1523,8 @@ out:
  */
 int wake_up_process(struct task_struct *p)
 {
-	return try_to_wake_up(p, TASK_ALL, 0);
+	WARN_ON(task_is_stopped_or_traced(p));
+	return try_to_wake_up(p, TASK_NORMAL, 0);
 }
 EXPORT_SYMBOL(wake_up_process);
 
@@ -1545,7 +1569,40 @@ static void __sched_fork(struct task_struct *p)
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
 #endif
+
+#ifdef CONFIG_NUMA_BALANCING
+	if (p->mm && atomic_read(&p->mm->mm_users) == 1) {
+		p->mm->numa_next_scan = jiffies;
+		p->mm->numa_next_reset = jiffies;
+		p->mm->numa_scan_seq = 0;
+	}
+
+	p->node_stamp = 0ULL;
+	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
+	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
+	p->numa_work.next = &p->numa_work;
+#endif /* CONFIG_NUMA_BALANCING */
 }
+
+#ifdef CONFIG_NUMA_BALANCING
+#ifdef CONFIG_SCHED_DEBUG
+void set_numabalancing_state(bool enabled)
+{
+	if (enabled)
+		sched_feat_set("NUMA");
+	else
+		sched_feat_set("NO_NUMA");
+}
+#else
+__read_mostly bool numabalancing_enabled;
+
+void set_numabalancing_state(bool enabled)
+{
+	numabalancing_enabled = enabled;
+}
+#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_NUMA_BALANCING */
 
 /*
  * fork()/clone()-time setup:
@@ -4041,8 +4098,14 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 		goto out_free_cpus_allowed;
 	}
 	retval = -EPERM;
-	if (!check_same_owner(p) && !ns_capable(task_user_ns(p), CAP_SYS_NICE))
-		goto out_unlock;
+	if (!check_same_owner(p)) {
+		rcu_read_lock();
+		if (!ns_capable(__task_cred(p)->user_ns, CAP_SYS_NICE)) {
+			rcu_read_unlock();
+			goto out_unlock;
+		}
+		rcu_read_unlock();
+	}
 
 	retval = security_task_setscheduler(p);
 	if (retval)

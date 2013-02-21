@@ -292,7 +292,7 @@ static const struct iio_info ad7298_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad7298_probe(struct spi_device *spi)
+static int ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
@@ -370,7 +370,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad7298_remove(struct spi_device *spi)
+static int ad7298_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7298_state *st = iio_priv(indio_dev);
@@ -398,7 +398,7 @@ static struct spi_driver ad7298_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7298_probe,
-	.remove		= __devexit_p(ad7298_remove),
+	.remove		= ad7298_remove,
 	.id_table	= ad7298_id,
 };
 module_spi_driver(ad7298_driver);

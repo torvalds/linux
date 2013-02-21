@@ -1601,8 +1601,10 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	info->thread = NULL;
 
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
-	if (psinfo == NULL)
+	if (psinfo == NULL) {
+		info->psinfo.data = NULL; /* So we don't free this wrongly */
 		return 0;
+	}
 
 	fill_note(&info->psinfo, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
 

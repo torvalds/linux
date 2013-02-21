@@ -354,7 +354,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err_map;
 	}
 
-	clk_enable(wdt_clock);
+	clk_prepare_enable(wdt_clock);
 
 	ret = s3c2410wdt_cpufreq_register();
 	if (ret < 0) {
@@ -421,7 +421,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	s3c2410wdt_cpufreq_deregister();
 
  err_clk:
-	clk_disable(wdt_clock);
+	clk_disable_unprepare(wdt_clock);
 	clk_put(wdt_clock);
 	wdt_clock = NULL;
 
@@ -445,7 +445,7 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 
 	s3c2410wdt_cpufreq_deregister();
 
-	clk_disable(wdt_clock);
+	clk_disable_unprepare(wdt_clock);
 	clk_put(wdt_clock);
 	wdt_clock = NULL;
 

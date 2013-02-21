@@ -12,6 +12,8 @@ apparmor.txt
 	- documentation on the AppArmor security extension.
 credentials.txt
 	- documentation about credentials in Linux.
+keys-ecryptfs.txt
+	- description of the encryption keys for the ecryptfs filesystem.
 keys-request-key.txt
 	- description of the kernel key request service.
 keys-trusted-encrypted.txt

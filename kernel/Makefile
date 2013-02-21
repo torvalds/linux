@@ -54,7 +54,7 @@ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
 obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
 obj-$(CONFIG_UID16) += uid16.o
 obj-$(CONFIG_MODULES) += module.o
-obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o
+obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o modsign_certificate.o
 obj-$(CONFIG_KALLSYMS) += kallsyms.o
 obj-$(CONFIG_BSD_PROCESS_ACCT) += acct.o
 obj-$(CONFIG_KEXEC) += kexec.o
@@ -137,10 +137,14 @@ ifeq ($(CONFIG_MODULE_SIG),y)
 #
 # Pull the signing certificate and any extra certificates into the kernel
 #
-extra_certificates:
-	touch $@
 
-kernel/modsign_pubkey.o: signing_key.x509 extra_certificates
+quiet_cmd_touch = TOUCH   $@
+      cmd_touch = touch   $@
+
+extra_certificates:
+	$(call cmd,touch)
+
+kernel/modsign_certificate.o: signing_key.x509 extra_certificates
 
 ###############################################################################
 #

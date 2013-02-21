@@ -34,10 +34,6 @@ config PMC_MSP7120_FPGA
 
 endchoice
 
-config HYPERTRANSPORT
-	bool "Hypertransport Support for PMC-Sierra Yosemite"
-	depends on PMC_YOSEMITE
-
 config MSP_HAS_USB
 	boolean
 	depends on PMC_MSP

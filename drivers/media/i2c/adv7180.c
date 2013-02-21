@@ -540,8 +540,8 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 	return 0;
 }
 
-static __devinit int adv7180_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int adv7180_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct adv7180_state *state;
 	struct v4l2_subdev *sd;
@@ -587,7 +587,7 @@ err:
 	return ret;
 }
 
-static __devexit int adv7180_remove(struct i2c_client *client)
+static int adv7180_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
@@ -652,7 +652,7 @@ static struct i2c_driver adv7180_driver = {
 		   .name = KBUILD_MODNAME,
 		   },
 	.probe = adv7180_probe,
-	.remove = __devexit_p(adv7180_remove),
+	.remove = adv7180_remove,
 #ifdef CONFIG_PM
 	.suspend = adv7180_suspend,
 	.resume = adv7180_resume,

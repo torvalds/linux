@@ -184,7 +184,7 @@ struct rmc_entry {
 };
 
 struct mesh_rmc {
-	struct rmc_entry bucket[RMC_BUCKETS];
+	struct list_head bucket[RMC_BUCKETS];
 	u32 idx_mask;
 };
 

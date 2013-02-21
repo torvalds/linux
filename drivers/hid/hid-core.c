@@ -729,7 +729,7 @@ static int hid_scan_report(struct hid_device *hid)
 			item.type == HID_ITEM_TYPE_MAIN &&
 			item.tag == HID_MAIN_ITEM_TAG_BEGIN_COLLECTION &&
 			(item_udata(&item) & 0xff) == HID_COLLECTION_PHYSICAL &&
-			hid->bus == BUS_USB)
+			(hid->bus == BUS_USB || hid->bus == BUS_I2C))
 			hid->group = HID_GROUP_SENSOR_HUB;
 	}
 

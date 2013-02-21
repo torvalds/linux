@@ -468,7 +468,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dirty_info_property,
 				      1);
 
@@ -485,7 +485,7 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 		return -EINVAL;
 	}
 
-	if (!(dev_priv->fifo.capabilities & SVGA_FIFO_CAP_SCREEN_OBJECT_2)) {
+	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {
 		DRM_INFO("Not using screen objects,"
 			 " missing cap SCREEN_OBJECT_2\n");
 		return -ENOSYS;

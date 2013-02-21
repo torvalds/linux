@@ -445,11 +445,8 @@ int acpi_power_resource_register_device(struct device *dev, acpi_handle handle)
 		return -ENODEV;
 
 	ret = acpi_bus_get_device(handle, &acpi_dev);
-	if (ret)
-		goto no_power_resource;
-
-	if (!acpi_dev->power.flags.power_resources)
-		goto no_power_resource;
+	if (ret || !acpi_dev->power.flags.power_resources)
+		return -ENODEV;
 
 	powered_device = kzalloc(sizeof(*powered_device), GFP_KERNEL);
 	if (!powered_device)
@@ -471,10 +468,6 @@ int acpi_power_resource_register_device(struct device *dev, acpi_handle handle)
 	}
 
 	return ret;
-
-no_power_resource:
-	printk(KERN_DEBUG PREFIX "Invalid Power Resource to register!\n");
-	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(acpi_power_resource_register_device);
 

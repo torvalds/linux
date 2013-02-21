@@ -390,6 +390,7 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	spin_lock_init(&ichx_priv.lock);
 	res_base = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_GPIO);
 	ichx_priv.use_gpio = ich_info->use_gpio;
 	err = ichx_gpio_request_regions(res_base, pdev->name,

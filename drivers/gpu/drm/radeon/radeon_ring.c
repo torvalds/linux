@@ -770,22 +770,30 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	int ridx = *(int*)node->info_ent->data;
 	struct radeon_ring *ring = &rdev->ring[ridx];
 	unsigned count, i, j;
+	u32 tmp;
 
 	radeon_ring_free_size(rdev, ring);
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
-	seq_printf(m, "wptr(0x%04x): 0x%08x\n", ring->wptr_reg, RREG32(ring->wptr_reg));
-	seq_printf(m, "rptr(0x%04x): 0x%08x\n", ring->rptr_reg, RREG32(ring->rptr_reg));
+	tmp = RREG32(ring->wptr_reg) >> ring->ptr_reg_shift;
+	seq_printf(m, "wptr(0x%04x): 0x%08x [%5d]\n", ring->wptr_reg, tmp, tmp);
+	tmp = RREG32(ring->rptr_reg) >> ring->ptr_reg_shift;
+	seq_printf(m, "rptr(0x%04x): 0x%08x [%5d]\n", ring->rptr_reg, tmp, tmp);
 	if (ring->rptr_save_reg) {
 		seq_printf(m, "rptr next(0x%04x): 0x%08x\n", ring->rptr_save_reg,
 			   RREG32(ring->rptr_save_reg));
 	}
-	seq_printf(m, "driver's copy of the wptr: 0x%08x\n", ring->wptr);
-	seq_printf(m, "driver's copy of the rptr: 0x%08x\n", ring->rptr);
+	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n", ring->wptr, ring->wptr);
+	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n", ring->rptr, ring->rptr);
+	seq_printf(m, "last semaphore signal addr : 0x%016llx\n", ring->last_semaphore_signal_addr);
+	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n", ring->last_semaphore_wait_addr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
-	i = ring->rptr;
-	for (j = 0; j <= count; j++) {
-		seq_printf(m, "r[%04d]=0x%08x\n", i, ring->ring[i]);
+	/* print 8 dw before current rptr as often it's the last executed
+	 * packet that is the root issue
+	 */
+	i = (ring->rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
+	for (j = 0; j <= (count + 32); j++) {
+		seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
 		i = (i + 1) & ring->ptr_mask;
 	}
 	return 0;
@@ -794,11 +802,15 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 static int radeon_ring_type_gfx_index = RADEON_RING_TYPE_GFX_INDEX;
 static int cayman_ring_type_cp1_index = CAYMAN_RING_TYPE_CP1_INDEX;
 static int cayman_ring_type_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
+static int radeon_ring_type_dma1_index = R600_RING_TYPE_DMA_INDEX;
+static int radeon_ring_type_dma2_index = CAYMAN_RING_TYPE_DMA1_INDEX;
 
 static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_ring_type_gfx_index},
 	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp1_index},
 	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp2_index},
+	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma1_index},
+	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma2_index},
 };
 
 static int radeon_debugfs_sa_info(struct seq_file *m, void *data)

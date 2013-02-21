@@ -439,8 +439,7 @@ int pcic_present(void)
 	return pcic0_up;
 }
 
-static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
-				    struct pci_dev *pdev)
+static int pdev_to_pnode(struct linux_pbm_info *pbm, struct pci_dev *pdev)
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];
 	int err;
@@ -595,7 +594,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 /*
  * Normally called from {do_}pci_scan_bus...
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;

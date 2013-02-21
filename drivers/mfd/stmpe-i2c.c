@@ -82,11 +82,13 @@ static const struct i2c_device_id stmpe_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, stmpe_id);
 
 static struct i2c_driver stmpe_i2c_driver = {
-	.driver.name	= "stmpe-i2c",
-	.driver.owner	= THIS_MODULE,
+	.driver = {
+		.name = "stmpe-i2c",
+		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
-	.driver.pm	= &stmpe_dev_pm_ops,
+		.pm = &stmpe_dev_pm_ops,
 #endif
+	},
 	.probe		= stmpe_i2c_probe,
 	.remove		= stmpe_i2c_remove,
 	.id_table	= stmpe_i2c_id,

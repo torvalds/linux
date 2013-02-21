@@ -1068,13 +1068,16 @@ static void __init_refok pcifront_backend_changed(struct xenbus_device *xdev,
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateConnected:
 		pcifront_try_connect(pdev);
 		break;
 
+	case XenbusStateClosed:
+		if (xdev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's CLOSING state -- fallthrough */
 	case XenbusStateClosing:
 		dev_warn(&xdev->dev, "backend going away!\n");
 		pcifront_try_disconnect(pdev);

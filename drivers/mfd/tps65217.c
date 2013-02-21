@@ -160,6 +160,7 @@ static int tps65217_probe(struct i2c_client *client,
 	unsigned int version;
 	unsigned int chip_id = ids->driver_data;
 	const struct of_device_id *match;
+	bool status_off = false;
 	int ret;
 
 	if (client->dev.of_node) {
@@ -170,6 +171,8 @@ static int tps65217_probe(struct i2c_client *client,
 			return -EINVAL;
 		}
 		chip_id = (unsigned int)match->data;
+		status_off = of_property_read_bool(client->dev.of_node,
+					"ti,pmic-shutdown-controller");
 	}
 
 	if (!chip_id) {
@@ -205,6 +208,15 @@ static int tps65217_probe(struct i2c_client *client,
 		dev_err(tps->dev, "Failed to read revision register: %d\n",
 			ret);
 		return ret;
+	}
+
+	/* Set the PMIC to shutdown on PWR_EN toggle */
+	if (status_off) {
+		ret = tps65217_set_bits(tps, TPS65217_REG_STATUS,
+				TPS65217_STATUS_OFF, TPS65217_STATUS_OFF,
+				TPS65217_PROTECT_NONE);
+		if (ret)
+			dev_warn(tps->dev, "unable to set the status OFF\n");
 	}
 
 	dev_info(tps->dev, "TPS65217 ID %#x version 1.%d\n",

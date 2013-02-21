@@ -104,8 +104,7 @@ static struct sas_domain_function_template pm8001_transport_ops = {
  *@pm8001_ha: our hba structure.
  *@phy_id: phy id.
  */
-static void __devinit pm8001_phy_init(struct pm8001_hba_info *pm8001_ha,
-	int phy_id)
+static void pm8001_phy_init(struct pm8001_hba_info *pm8001_ha, int phy_id)
 {
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -195,7 +194,7 @@ static irqreturn_t pm8001_interrupt(int irq, void *opaque)
  * @pm8001_ha:our hba structure.
  *
  */
-static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
+static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	spin_lock_init(&pm8001_ha->lock);
@@ -360,8 +359,9 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
  * @ent: ent
  * @shost: scsi host struct which has been initialized before.
  */
-static struct pm8001_hba_info *__devinit
-pm8001_pci_alloc(struct pci_dev *pdev, u32 chip_id, struct Scsi_Host *shost)
+static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
+						u32 chip_id,
+						struct Scsi_Host *shost)
 {
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
@@ -433,8 +433,8 @@ static int pci_go_44(struct pci_dev *pdev)
  * @shost: scsi host which has been allocated outside.
  * @chip_info: our ha struct.
  */
-static int __devinit pm8001_prep_sas_ha_init(struct Scsi_Host * shost,
-	const struct pm8001_chip_info *chip_info)
+static int pm8001_prep_sas_ha_init(struct Scsi_Host *shost,
+				   const struct pm8001_chip_info *chip_info)
 {
 	int phy_nr, port_nr;
 	struct asd_sas_phy **arr_phy;
@@ -479,8 +479,8 @@ exit:
  * @shost: scsi host which has been allocated outside
  * @chip_info: our ha struct.
  */
-static void  __devinit pm8001_post_sas_ha_init(struct Scsi_Host *shost,
-	const struct pm8001_chip_info *chip_info)
+static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
+				     const struct pm8001_chip_info *chip_info)
 {
 	int i = 0;
 	struct pm8001_hba_info *pm8001_ha;
@@ -615,8 +615,8 @@ intx:
  * pci driver it is invoked, all struct an hardware initilization should be done
  * here, also, register interrupt
  */
-static int __devinit pm8001_pci_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int pm8001_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	unsigned int rc;
 	u32	pci_reg;
@@ -707,7 +707,7 @@ err_out_enable:
 	return rc;
 }
 
-static void __devexit pm8001_pci_remove(struct pci_dev *pdev)
+static void pm8001_pci_remove(struct pci_dev *pdev)
 {
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha;
@@ -842,7 +842,7 @@ err_out_enable:
 	return rc;
 }
 
-static struct pci_device_id __devinitdata pm8001_pci_table[] = {
+static struct pci_device_id pm8001_pci_table[] = {
 	{
 		PCI_VDEVICE(PMC_Sierra, 0x8001), chip_8001
 	},
@@ -857,7 +857,7 @@ static struct pci_driver pm8001_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pm8001_pci_table,
 	.probe		= pm8001_pci_probe,
-	.remove		= __devexit_p(pm8001_pci_remove),
+	.remove		= pm8001_pci_remove,
 	.suspend	= pm8001_pci_suspend,
 	.resume		= pm8001_pci_resume,
 };

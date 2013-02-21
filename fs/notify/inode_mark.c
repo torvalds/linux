@@ -63,8 +63,8 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = mark->i.inode;
 
+	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&mark->group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 
@@ -99,8 +99,16 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 
 	list_for_each_entry_safe(mark, lmark, &free_list, i.free_i_list) {
-		fsnotify_destroy_mark(mark);
+		struct fsnotify_group *group;
+
+		spin_lock(&mark->lock);
+		fsnotify_get_group(mark->group);
+		group = mark->group;
+		spin_unlock(&mark->lock);
+
+		fsnotify_destroy_mark(mark, group);
 		fsnotify_put_mark(mark);
+		fsnotify_put_group(group);
 	}
 }
 
@@ -116,8 +124,9 @@ void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-struct fsnotify_mark *fsnotify_find_inode_mark_locked(struct fsnotify_group *group,
-						      struct inode *inode)
+static struct fsnotify_mark *fsnotify_find_inode_mark_locked(
+		struct fsnotify_group *group,
+		struct inode *inode)
 {
 	struct fsnotify_mark *mark;
 	struct hlist_node *pos;
@@ -191,8 +200,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 

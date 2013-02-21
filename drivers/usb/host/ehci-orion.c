@@ -325,7 +325,7 @@ static int __exit ehci_orion_drv_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:orion-ehci");
 
-static const struct of_device_id ehci_orion_dt_ids[] __devinitdata = {
+static const struct of_device_id ehci_orion_dt_ids[] = {
 	{ .compatible = "marvell,orion-ehci", },
 	{},
 };

@@ -1010,13 +1010,13 @@ out:
 	return err;
 }
 
-void __devinit c2_init_qp_table(struct c2_dev *c2dev)
+void c2_init_qp_table(struct c2_dev *c2dev)
 {
 	spin_lock_init(&c2dev->qp_table.lock);
 	idr_init(&c2dev->qp_table.idr);
 }
 
-void __devexit c2_cleanup_qp_table(struct c2_dev *c2dev)
+void c2_cleanup_qp_table(struct c2_dev *c2dev)
 {
 	idr_destroy(&c2dev->qp_table.idr);
 }

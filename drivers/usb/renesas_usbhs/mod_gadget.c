@@ -545,15 +545,6 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	return 0;
 }
 
-static void usbhsg_uep_init(struct usbhsg_gpriv *gpriv)
-{
-	int i;
-	struct usbhsg_uep *uep;
-
-	usbhsg_for_each_uep_with_dcp(uep, gpriv, i)
-		uep->pipe = NULL;
-}
-
 /*
  *
  *		usb_ep_ops
@@ -610,7 +601,12 @@ static int usbhsg_ep_disable(struct usb_ep *ep)
 {
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 
-	return usbhsg_pipe_disable(uep);
+	usbhsg_pipe_disable(uep);
+
+	uep->pipe->mod_private	= NULL;
+	uep->pipe		= NULL;
+
+	return 0;
 }
 
 static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
@@ -761,9 +757,8 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	usbhs_pipe_init(priv,
 			usbhsg_dma_map_ctrl);
 	usbhs_fifo_init(priv);
-	usbhsg_uep_init(gpriv);
 
-	/* dcp init */
+	/* dcp init instead of usbhsg_ep_enable() */
 	dcp->pipe		= usbhs_dcp_malloc(priv);
 	dcp->pipe->mod_private	= dcp;
 	usbhs_pipe_config_update(dcp->pipe, 0, 0, 64);
@@ -825,7 +820,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	usbhs_sys_set_test_mode(priv, 0);
 	usbhs_sys_function_ctrl(priv, 0);
 
-	usbhsg_pipe_disable(dcp);
+	usbhsg_ep_disable(&dcp->ep);
 
 	dev_dbg(dev, "stop gadget\n");
 
@@ -998,6 +993,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	 */
 	usbhsg_for_each_uep_with_dcp(uep, gpriv, i) {
 		uep->gpriv	= gpriv;
+		uep->pipe	= NULL;
 		snprintf(uep->ep_name, EP_NAME_SIZE, "ep%d", i);
 
 		uep->ep.name		= uep->ep_name;

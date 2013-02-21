@@ -80,6 +80,8 @@ static struct sleep_save exynos5_clock_save[] = {
 	SAVE_ITEM(EXYNOS5_VPLL_CON0),
 	SAVE_ITEM(EXYNOS5_VPLL_CON1),
 	SAVE_ITEM(EXYNOS5_VPLL_CON2),
+	SAVE_ITEM(EXYNOS5_PWR_CTRL1),
+	SAVE_ITEM(EXYNOS5_PWR_CTRL2),
 };
 #endif
 
@@ -661,15 +663,20 @@ static struct clk exynos5_init_clocks_off[] = {
 		.ctrlbit	= (1 << 15),
 	}, {
 		.name		= "sata",
-		.devname	= "ahci",
+		.devname	= "exynos5-sata",
+		.parent         = &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 6),
 	}, {
-		.name		= "sata_phy",
+		.name		= "sata-phy",
+		.devname	= "exynos5-sata-phy",
+		.parent         = &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 24),
 	}, {
-		.name		= "sata_phy_i2c",
+		.name		= "i2c",
+		.devname	= "exynos5-sata-phy-i2c",
+		.parent         = &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 25),
 	}, {
@@ -692,6 +699,11 @@ static struct clk exynos5_init_clocks_off[] = {
 		.devname	= "exynos5-mixer",
 		.enable		= exynos5_clk_ip_disp1_ctrl,
 		.ctrlbit	= (1 << 5),
+	}, {
+		.name		= "dp",
+		.devname	= "exynos-dp",
+		.enable		= exynos5_clk_ip_disp1_ctrl,
+		.ctrlbit	= (1 << 4),
 	}, {
 		.name		= "jpeg",
 		.enable		= exynos5_clk_ip_gen_ctrl,
@@ -1239,6 +1251,16 @@ static struct clksrc_clk exynos5_clksrcs[] = {
 		.sources = &exynos5_clkset_aclk,
 		.reg_src = { .reg = EXYNOS5_CLKSRC_TOP0, .shift = 20, .size = 1 },
 		.reg_div = { .reg = EXYNOS5_CLKDIV_TOP0, .shift = 24, .size = 3 },
+	}, {
+		.clk	= {
+			.name		= "sclk_sata",
+			.devname	= "exynos5-sata",
+			.enable		= exynos5_clksrc_mask_fsys_ctrl,
+			.ctrlbit	= (1 << 24),
+		},
+		.sources = &exynos5_clkset_aclk,
+		.reg_src = { .reg = EXYNOS5_CLKSRC_FSYS, .shift = 24, .size = 1 },
+		.reg_div = { .reg = EXYNOS5_CLKDIV_FSYS0, .shift = 20, .size = 4 },
 	}, {
 		.clk	= {
 			.name		= "sclk_gscl_wrap",

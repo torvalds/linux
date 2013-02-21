@@ -398,7 +398,8 @@ static int tpa6130a2_probe(struct i2c_client *client,
 						TPA6130A2_MUTE_L;
 
 	if (data->power_gpio >= 0) {
-		ret = gpio_request(data->power_gpio, "tpa6130a2 enable");
+		ret = devm_gpio_request(dev, data->power_gpio,
+					"tpa6130a2 enable");
 		if (ret < 0) {
 			dev_err(dev, "Failed to request power GPIO (%d)\n",
 				data->power_gpio);
@@ -419,16 +420,16 @@ static int tpa6130a2_probe(struct i2c_client *client,
 		break;
 	}
 
-	data->supply = regulator_get(dev, regulator);
+	data->supply = devm_regulator_get(dev, regulator);
 	if (IS_ERR(data->supply)) {
 		ret = PTR_ERR(data->supply);
 		dev_err(dev, "Failed to request supply: %d\n", ret);
-		goto err_regulator;
+		goto err_gpio;
 	}
 
 	ret = tpa6130a2_power(1);
 	if (ret != 0)
-		goto err_power;
+		goto err_gpio;
 
 
 	/* Read version */
@@ -440,15 +441,10 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	/* Disable the chip */
 	ret = tpa6130a2_power(0);
 	if (ret != 0)
-		goto err_power;
+		goto err_gpio;
 
 	return 0;
 
-err_power:
-	regulator_put(data->supply);
-err_regulator:
-	if (data->power_gpio >= 0)
-		gpio_free(data->power_gpio);
 err_gpio:
 	tpa6130a2_client = NULL;
 
@@ -457,14 +453,7 @@ err_gpio:
 
 static int tpa6130a2_remove(struct i2c_client *client)
 {
-	struct tpa6130a2_data *data = i2c_get_clientdata(client);
-
 	tpa6130a2_power(0);
-
-	if (data->power_gpio >= 0)
-		gpio_free(data->power_gpio);
-
-	regulator_put(data->supply);
 	tpa6130a2_client = NULL;
 
 	return 0;

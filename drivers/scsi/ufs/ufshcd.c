@@ -1811,8 +1811,7 @@ static int ufshcd_set_dma_mask(struct ufs_hba *hba)
  *
  * Returns 0 on success, non-zero value on failure
  */
-static int __devinit
-ufshcd_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int ufshcd_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct Scsi_Host *host;
 	struct ufs_hba *hba;
@@ -1947,7 +1946,7 @@ static struct pci_driver ufshcd_pci_driver = {
 	.name = UFSHCD,
 	.id_table = ufshcd_pci_tbl,
 	.probe = ufshcd_probe,
-	.remove = __devexit_p(ufshcd_remove),
+	.remove = ufshcd_remove,
 	.shutdown = ufshcd_shutdown,
 #ifdef CONFIG_PM
 	.suspend = ufshcd_suspend,

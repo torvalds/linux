@@ -368,7 +368,7 @@ static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 }
 
 /* Instantiate the I2C IR receiver device, if present */
-void __devinit init_bttv_i2c_ir(struct bttv *btv)
+void init_bttv_i2c_ir(struct bttv *btv)
 {
 	const unsigned short addr_list[] = {
 		0x1a, 0x18, 0x64, 0x30, 0x71,
@@ -411,7 +411,7 @@ void __devinit init_bttv_i2c_ir(struct bttv *btv)
 	return;
 }
 
-int __devexit fini_bttv_i2c(struct bttv *btv)
+int fini_bttv_i2c(struct bttv *btv)
 {
 	if (0 != btv->i2c_rc)
 		return 0;

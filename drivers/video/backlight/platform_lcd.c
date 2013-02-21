@@ -27,7 +27,7 @@ struct platform_lcd {
 	struct plat_lcd_data	*pdata;
 
 	unsigned int		 power;
-	unsigned int		 suspended : 1;
+	unsigned int		 suspended:1;
 };
 
 static inline struct platform_lcd *to_our_lcd(struct lcd_device *lcd)

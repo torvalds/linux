@@ -73,14 +73,6 @@
 #define	MAX_READY_WAIT_JIFFIES	(40 * HZ)	/* M25P16 specs 40s max chip erase */
 #define	MAX_CMD_SIZE		5
 
-#ifdef CONFIG_M25PXX_USE_FAST_READ
-#define OPCODE_READ 	OPCODE_FAST_READ
-#define FAST_READ_DUMMY_BYTE 1
-#else
-#define OPCODE_READ 	OPCODE_NORM_READ
-#define FAST_READ_DUMMY_BYTE 0
-#endif
-
 #define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
 
 /****************************************************************************/
@@ -93,6 +85,7 @@ struct m25p {
 	u16			addr_width;
 	u8			erase_opcode;
 	u8			*command;
+	bool			fast_read;
 };
 
 static inline struct m25p *mtd_to_m25p(struct mtd_info *mtd)
@@ -168,6 +161,7 @@ static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
 {
 	switch (JEDEC_MFR(jedec_id)) {
 	case CFI_MFR_MACRONIX:
+	case 0xEF /* winbond */:
 		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
 		return spi_write(flash->spi, flash->command, 1);
 	default:
@@ -342,6 +336,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct m25p *flash = mtd_to_m25p(mtd);
 	struct spi_transfer t[2];
 	struct spi_message m;
+	uint8_t opcode;
 
 	pr_debug("%s: %s from 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)from, len);
@@ -354,7 +349,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	 * Should add 1 byte DUMMY_BYTE.
 	 */
 	t[0].tx_buf = flash->command;
-	t[0].len = m25p_cmdsz(flash) + FAST_READ_DUMMY_BYTE;
+	t[0].len = m25p_cmdsz(flash) + (flash->fast_read ? 1 : 0);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
@@ -376,12 +371,14 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	 */
 
 	/* Set up the write data buffer. */
-	flash->command[0] = OPCODE_READ;
+	opcode = flash->fast_read ? OPCODE_FAST_READ : OPCODE_NORM_READ;
+	flash->command[0] = opcode;
 	m25p_addr2cmd(flash, from, flash->command);
 
 	spi_sync(flash->spi, &m);
 
-	*retlen = m.actual_length - m25p_cmdsz(flash) - FAST_READ_DUMMY_BYTE;
+	*retlen = m.actual_length - m25p_cmdsz(flash) -
+			(flash->fast_read ? 1 : 0);
 
 	mutex_unlock(&flash->lock);
 
@@ -664,7 +661,8 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 
 	/* Micron */
-	{ "n25q128",  INFO(0x20ba18, 0, 64 * 1024, 256, 0) },
+	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024, 256, 0) },
+	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024, 256, 0) },
 	{ "n25q256a", INFO(0x20ba19, 0, 64 * 1024, 512, SECT_4K) },
 
 	/* Spansion -- single (large) sector size only, at least
@@ -745,6 +743,8 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
+	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
+	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512, SECT_4K) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
 	{ "cat25c11", CAT25_INFO(  16, 8, 16, 1) },
@@ -756,7 +756,7 @@ static const struct spi_device_id m25p_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
 
-static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
+static const struct spi_device_id *jedec_probe(struct spi_device *spi)
 {
 	int			tmp;
 	u8			code = OPCODE_RDID;
@@ -801,7 +801,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
  * matches what the READ command supports, at least until this driver
  * understands FAST_READ (for clocks over 25 MHz).
  */
-static int __devinit m25p_probe(struct spi_device *spi)
+static int m25p_probe(struct spi_device *spi)
 {
 	const struct spi_device_id	*id = spi_get_device_id(spi);
 	struct flash_platform_data	*data;
@@ -809,9 +809,10 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	struct flash_info		*info;
 	unsigned			i;
 	struct mtd_part_parser_data	ppdata;
+	struct device_node __maybe_unused *np = spi->dev.of_node;
 
 #ifdef CONFIG_MTD_OF_PARTS
-	if (!of_device_is_available(spi->dev.of_node))
+	if (!of_device_is_available(np))
 		return -ENODEV;
 #endif
 
@@ -863,7 +864,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash = kzalloc(sizeof *flash, GFP_KERNEL);
 	if (!flash)
 		return -ENOMEM;
-	flash->command = kmalloc(MAX_CMD_SIZE + FAST_READ_DUMMY_BYTE, GFP_KERNEL);
+	flash->command = kmalloc(MAX_CMD_SIZE + (flash->fast_read ? 1 : 0),
+					GFP_KERNEL);
 	if (!flash->command) {
 		kfree(flash);
 		return -ENOMEM;
@@ -920,6 +922,16 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->page_size = info->page_size;
 	flash->mtd.writebufsize = flash->page_size;
 
+	flash->fast_read = false;
+#ifdef CONFIG_OF
+	if (np && of_property_read_bool(np, "m25p,fast-read"))
+		flash->fast_read = true;
+#endif
+
+#ifdef CONFIG_M25PXX_USE_FAST_READ
+	flash->fast_read = true;
+#endif
+
 	if (info->addr_width)
 		flash->addr_width = info->addr_width;
 	else {
@@ -961,7 +973,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 }
 
 
-static int __devexit m25p_remove(struct spi_device *spi)
+static int m25p_remove(struct spi_device *spi)
 {
 	struct m25p	*flash = dev_get_drvdata(&spi->dev);
 	int		status;
@@ -983,7 +995,7 @@ static struct spi_driver m25p80_driver = {
 	},
 	.id_table	= m25p_ids,
 	.probe	= m25p_probe,
-	.remove	= __devexit_p(m25p_remove),
+	.remove	= m25p_remove,
 
 	/* REVISIT: many of these chips have deep power-down modes, which
 	 * should clearly be entered on suspend() to minimize power use.

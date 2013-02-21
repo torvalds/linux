@@ -190,6 +190,7 @@ struct be_eq_obj {
 
 	u8 idx;			/* array index */
 	u16 tx_budget;
+	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
 } ____cacheline_aligned_in_smp;
@@ -616,7 +617,7 @@ static inline bool be_error(struct be_adapter *adapter)
 	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
 }
 
-static inline bool be_crit_error(struct be_adapter *adapter)
+static inline bool be_hw_error(struct be_adapter *adapter)
 {
 	return adapter->eeh_error || adapter->hw_error;
 }

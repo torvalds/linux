@@ -118,6 +118,7 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= DSS_ENABLE_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device omap3_stalker_dvi_device = {

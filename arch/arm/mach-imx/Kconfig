@@ -841,8 +841,6 @@ config SOC_IMX6Q
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select ARM_ERRATA_743622
-	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
@@ -853,6 +851,7 @@ config SOC_IMX6Q
 	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
 	select HAVE_SMP
 	select MFD_SYSCON
 	select PINCTRL

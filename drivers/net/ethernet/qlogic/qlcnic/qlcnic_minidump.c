@@ -197,7 +197,7 @@ static u32 qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
 	int i, k, timeout = 0;
 	void __iomem *base = adapter->ahw->pci_base0;
 	u32 addr, data;
-	u8 opcode, no_ops;
+	u8 no_ops;
 	struct __ctrl *ctr = &entry->region.ctrl;
 	struct qlcnic_dump_template_hdr *t_hdr = adapter->ahw->fw_dump.tmpl_hdr;
 
@@ -206,7 +206,6 @@ static u32 qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
 
 	for (i = 0; i < no_ops; i++) {
 		k = 0;
-		opcode = 0;
 		for (k = 0; k < 8; k++) {
 			if (!(ctr->opcode & (1 << k)))
 				continue;

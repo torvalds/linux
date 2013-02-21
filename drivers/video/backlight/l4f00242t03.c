@@ -4,7 +4,7 @@
  * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Copyright (c) 2009 Alberto Panizzo <maramaopercheseimorto@gmail.com>
- * 	Inspired by Marek Vasut work in l4f00242t03.c
+ *	Inspired by Marek Vasut work in l4f00242t03.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,7 +32,6 @@ struct l4f00242t03_priv {
 	struct regulator *io_reg;
 	struct regulator *core_reg;
 };
-
 
 static void l4f00242t03_reset(unsigned int gpio)
 {

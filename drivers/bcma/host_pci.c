@@ -155,8 +155,8 @@ static const struct bcma_host_ops bcma_host_pci_ops = {
 	.awrite32	= bcma_host_pci_awrite32,
 };
 
-static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *id)
+static int bcma_host_pci_probe(struct pci_dev *dev,
+			       const struct pci_device_id *id)
 {
 	struct bcma_bus *bus;
 	int err = -ENOMEM;
@@ -226,7 +226,7 @@ err_kfree_bus:
 	return err;
 }
 
-static void __devexit bcma_host_pci_remove(struct pci_dev *dev)
+static void bcma_host_pci_remove(struct pci_dev *dev)
 {
 	struct bcma_bus *bus = pci_get_drvdata(dev);
 
@@ -284,7 +284,7 @@ static struct pci_driver bcma_pci_bridge_driver = {
 	.name = "bcma-pci-bridge",
 	.id_table = bcma_pci_bridge_tbl,
 	.probe = bcma_host_pci_probe,
-	.remove = __devexit_p(bcma_host_pci_remove),
+	.remove = bcma_host_pci_remove,
 	.driver.pm = BCMA_PM_OPS,
 };
 

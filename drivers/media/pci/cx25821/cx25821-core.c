@@ -1361,8 +1361,8 @@ struct cx25821_dev *cx25821_dev_get(struct pci_dev *pci)
 }
 EXPORT_SYMBOL(cx25821_dev_get);
 
-static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
-				     const struct pci_device_id *pci_id)
+static int cx25821_initdev(struct pci_dev *pci_dev,
+			   const struct pci_device_id *pci_id)
 {
 	struct cx25821_dev *dev;
 	int err = 0;
@@ -1433,7 +1433,7 @@ fail_free:
 	return err;
 }
 
-static void __devexit cx25821_finidev(struct pci_dev *pci_dev)
+static void cx25821_finidev(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct cx25821_dev *dev = get_cx25821(v4l2_dev);
@@ -1478,7 +1478,7 @@ static struct pci_driver cx25821_pci_driver = {
 	.name = "cx25821",
 	.id_table = cx25821_pci_tbl,
 	.probe = cx25821_initdev,
-	.remove = __devexit_p(cx25821_finidev),
+	.remove = cx25821_finidev,
 	/* TODO */
 	.suspend = NULL,
 	.resume = NULL,

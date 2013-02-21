@@ -798,7 +798,7 @@ err_release_region:
 
 }
 
-static int __devexit td_remove(struct platform_device *pdev)
+static int td_remove(struct platform_device *pdev)
 {
 	struct timb_dma *td = platform_get_drvdata(pdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);

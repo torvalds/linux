@@ -231,7 +231,7 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	 * we shouldn't allow anything to go through for a bypassing queue.
 	 */
 	if (unlikely(blk_queue_bypass(q)))
-		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
+		return ERR_PTR(blk_queue_dying(q) ? -EINVAL : -EBUSY);
 	return __blkg_lookup_create(blkcg, q, NULL);
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);

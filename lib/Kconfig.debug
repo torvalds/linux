@@ -134,7 +134,7 @@ config DEBUG_SECTION_MISMATCH
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
 	  In the code, functions and variables are annotated with
-	  __init, __devinit, etc. (see the full list in include/linux/init.h),
+	  __init, __cpuinit, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
@@ -1192,14 +1192,14 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
-config PSERIES_RECONFIG_NOTIFIER_ERROR_INJECT
-	tristate "pSeries reconfig notifier error injection module"
-	depends on PPC_PSERIES && NOTIFIER_ERROR_INJECTION
+config OF_RECONFIG_NOTIFIER_ERROR_INJECT
+	tristate "OF reconfig notifier error injection module"
+	depends on OF_DYNAMIC && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  pSeries reconfig notifier chain callbacks.  It is controlled
+	  OF reconfig notifier chain callbacks.  It is controlled
 	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/pSeries-reconfig/
+	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".

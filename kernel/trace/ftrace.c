@@ -2675,12 +2675,12 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 }
 
 loff_t
-ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
+ftrace_regex_lseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t ret;
 
 	if (file->f_mode & FMODE_READ)
-		ret = seq_lseek(file, offset, origin);
+		ret = seq_lseek(file, offset, whence);
 	else
 		file->f_pos = ret = 1;
 
@@ -3998,7 +3998,7 @@ static int ftrace_module_notify(struct notifier_block *self,
 
 struct notifier_block ftrace_module_nb = {
 	.notifier_call = ftrace_module_notify,
-	.priority = 0,
+	.priority = INT_MAX,	/* Run before anything that can use kprobes */
 };
 
 extern unsigned long __start_mcount_loc[];

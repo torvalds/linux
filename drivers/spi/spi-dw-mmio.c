@@ -26,7 +26,7 @@ struct dw_spi_mmio {
 	struct clk     *clk;
 };
 
-static int __devinit dw_spi_mmio_probe(struct platform_device *pdev)
+static int dw_spi_mmio_probe(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio;
 	struct dw_spi *dws;
@@ -106,7 +106,7 @@ err_end:
 	return ret;
 }
 
-static int __devexit dw_spi_mmio_remove(struct platform_device *pdev)
+static int dw_spi_mmio_remove(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 	struct resource *mem;
@@ -129,7 +129,7 @@ static int __devexit dw_spi_mmio_remove(struct platform_device *pdev)
 
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
-	.remove		= __devexit_p(dw_spi_mmio_remove),
+	.remove		= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,

@@ -45,7 +45,6 @@
 			reg = <1>;
 		};
 
-/* A7s disabled till big.LITTLE patches are available...
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -63,7 +62,6 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
 		};
-*/
 	};
 
 	memory@80000000 {

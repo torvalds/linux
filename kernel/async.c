@@ -86,18 +86,27 @@ static atomic_t entry_count;
  */
 static async_cookie_t  __lowest_in_progress(struct async_domain *running)
 {
+	async_cookie_t first_running = next_cookie;	/* infinity value */
+	async_cookie_t first_pending = next_cookie;	/* ditto */
 	struct async_entry *entry;
 
+	/*
+	 * Both running and pending lists are sorted but not disjoint.
+	 * Take the first cookies from both and return the min.
+	 */
 	if (!list_empty(&running->domain)) {
 		entry = list_first_entry(&running->domain, typeof(*entry), list);
-		return entry->cookie;
+		first_running = entry->cookie;
 	}
 
-	list_for_each_entry(entry, &async_pending, list)
-		if (entry->running == running)
-			return entry->cookie;
+	list_for_each_entry(entry, &async_pending, list) {
+		if (entry->running == running) {
+			first_pending = entry->cookie;
+			break;
+		}
+	}
 
-	return next_cookie;	/* "infinity" value */
+	return min(first_running, first_pending);
 }
 
 static async_cookie_t  lowest_in_progress(struct async_domain *running)
@@ -118,13 +127,17 @@ static void async_run_entry_fn(struct work_struct *work)
 {
 	struct async_entry *entry =
 		container_of(work, struct async_entry, work);
+	struct async_entry *pos;
 	unsigned long flags;
 	ktime_t uninitialized_var(calltime), delta, rettime;
 	struct async_domain *running = entry->running;
 
-	/* 1) move self to the running queue */
+	/* 1) move self to the running queue, make sure it stays sorted */
 	spin_lock_irqsave(&async_lock, flags);
-	list_move_tail(&entry->list, &running->domain);
+	list_for_each_entry_reverse(pos, &running->domain, list)
+		if (entry->cookie < pos->cookie)
+			break;
+	list_move_tail(&entry->list, &pos->list);
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* 2) run (and print duration) */
@@ -195,6 +208,9 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct a
 		list_add_tail(&running->node, &async_domains);
 	atomic_inc(&entry_count);
 	spin_unlock_irqrestore(&async_lock, flags);
+
+	/* mark that this task has queued an async job, used by module init */
+	current->flags |= PF_USED_ASYNC;
 
 	/* schedule for execution */
 	queue_work(system_unbound_wq, &entry->work);

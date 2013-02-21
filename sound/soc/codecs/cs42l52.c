@@ -737,7 +737,7 @@ static const struct cs42l52_clk_para clk_map_table[] = {
 
 static int cs42l52_get_clk(int mclk, int rate)
 {
-	int i, ret = 0;
+	int i, ret = -EINVAL;
 	u_int mclk1, mclk2 = 0;
 
 	for (i = 0; i < ARRAY_SIZE(clk_map_table); i++) {
@@ -749,8 +749,6 @@ static int cs42l52_get_clk(int mclk, int rate)
 			}
 		}
 	}
-	if (ret > ARRAY_SIZE(clk_map_table))
-		return -EINVAL;
 	return ret;
 }
 

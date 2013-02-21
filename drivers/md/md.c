@@ -452,7 +452,7 @@ void md_flush_request(struct mddev *mddev, struct bio *bio)
 	spin_lock_irq(&mddev->write_lock);
 	wait_event_lock_irq(mddev->sb_wait,
 			    !mddev->flush_bio,
-			    mddev->write_lock, /*nothing*/);
+			    mddev->write_lock);
 	mddev->flush_bio = bio;
 	spin_unlock_irq(&mddev->write_lock);
 
@@ -1414,12 +1414,11 @@ static __le32 calc_sb_1_csum(struct mdp_superblock_1 * sb)
 	unsigned long long newcsum;
 	int size = 256 + le32_to_cpu(sb->max_dev)*2;
 	__le32 *isuper = (__le32*)sb;
-	int i;
 
 	disk_csum = sb->sb_csum;
 	sb->sb_csum = 0;
 	newcsum = 0;
-	for (i=0; size>=4; size -= 4 )
+	for (; size >= 4; size -= 4)
 		newcsum += le32_to_cpu(*isuper++);
 
 	if (size == 2)
@@ -4753,6 +4752,8 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 	}
 	mddev_get(mddev);
 	spin_unlock(&all_mddevs_lock);
+	if (entry->store == new_dev_store)
+		flush_workqueue(md_misc_wq);
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
@@ -6346,24 +6347,23 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	 * Commands dealing with the RAID driver but not any
 	 * particular array:
 	 */
-	switch (cmd)
-	{
-		case RAID_VERSION:
-			err = get_version(argp);
-			goto done;
+	switch (cmd) {
+	case RAID_VERSION:
+		err = get_version(argp);
+		goto done;
 
-		case PRINT_RAID_DEBUG:
-			err = 0;
-			md_print_devices();
-			goto done;
+	case PRINT_RAID_DEBUG:
+		err = 0;
+		md_print_devices();
+		goto done;
 
 #ifndef MODULE
-		case RAID_AUTORUN:
-			err = 0;
-			autostart_arrays(arg);
-			goto done;
+	case RAID_AUTORUN:
+		err = 0;
+		autostart_arrays(arg);
+		goto done;
 #endif
-		default:;
+	default:;
 	}
 
 	/*
@@ -6398,6 +6398,10 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		goto abort;
 	}
 
+	if (cmd == ADD_NEW_DISK)
+		/* need to ensure md_delayed_delete() has completed */
+		flush_workqueue(md_misc_wq);
+
 	err = mddev_lock(mddev);
 	if (err) {
 		printk(KERN_INFO 
@@ -6406,50 +6410,44 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		goto abort;
 	}
 
-	switch (cmd)
-	{
-		case SET_ARRAY_INFO:
-			{
-				mdu_array_info_t info;
-				if (!arg)
-					memset(&info, 0, sizeof(info));
-				else if (copy_from_user(&info, argp, sizeof(info))) {
-					err = -EFAULT;
-					goto abort_unlock;
-				}
-				if (mddev->pers) {
-					err = update_array_info(mddev, &info);
-					if (err) {
-						printk(KERN_WARNING "md: couldn't update"
-						       " array info. %d\n", err);
-						goto abort_unlock;
-					}
-					goto done_unlock;
-				}
-				if (!list_empty(&mddev->disks)) {
-					printk(KERN_WARNING
-					       "md: array %s already has disks!\n",
-					       mdname(mddev));
-					err = -EBUSY;
-					goto abort_unlock;
-				}
-				if (mddev->raid_disks) {
-					printk(KERN_WARNING
-					       "md: array %s already initialised!\n",
-					       mdname(mddev));
-					err = -EBUSY;
-					goto abort_unlock;
-				}
-				err = set_array_info(mddev, &info);
-				if (err) {
-					printk(KERN_WARNING "md: couldn't set"
-					       " array info. %d\n", err);
-					goto abort_unlock;
-				}
+	if (cmd == SET_ARRAY_INFO) {
+		mdu_array_info_t info;
+		if (!arg)
+			memset(&info, 0, sizeof(info));
+		else if (copy_from_user(&info, argp, sizeof(info))) {
+			err = -EFAULT;
+			goto abort_unlock;
+		}
+		if (mddev->pers) {
+			err = update_array_info(mddev, &info);
+			if (err) {
+				printk(KERN_WARNING "md: couldn't update"
+				       " array info. %d\n", err);
+				goto abort_unlock;
 			}
 			goto done_unlock;
-
-		default:;
+		}
+		if (!list_empty(&mddev->disks)) {
+			printk(KERN_WARNING
+			       "md: array %s already has disks!\n",
+			       mdname(mddev));
+			err = -EBUSY;
+			goto abort_unlock;
+		}
+		if (mddev->raid_disks) {
+			printk(KERN_WARNING
+			       "md: array %s already initialised!\n",
+			       mdname(mddev));
+			err = -EBUSY;
+			goto abort_unlock;
+		}
+		err = set_array_info(mddev, &info);
+		if (err) {
+			printk(KERN_WARNING "md: couldn't set"
+			       " array info. %d\n", err);
+			goto abort_unlock;
+		}
+		goto done_unlock;
 	}
 
 	/*
@@ -6468,52 +6466,51 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	/*
 	 * Commands even a read-only array can execute:
 	 */
-	switch (cmd)
-	{
-		case GET_BITMAP_FILE:
-			err = get_bitmap_file(mddev, argp);
+	switch (cmd) {
+	case GET_BITMAP_FILE:
+		err = get_bitmap_file(mddev, argp);
+		goto done_unlock;
+
+	case RESTART_ARRAY_RW:
+		err = restart_array(mddev);
+		goto done_unlock;
+
+	case STOP_ARRAY:
+		err = do_md_stop(mddev, 0, bdev);
+		goto done_unlock;
+
+	case STOP_ARRAY_RO:
+		err = md_set_readonly(mddev, bdev);
+		goto done_unlock;
+
+	case BLKROSET:
+		if (get_user(ro, (int __user *)(arg))) {
+			err = -EFAULT;
+			goto done_unlock;
+		}
+		err = -EINVAL;
+
+		/* if the bdev is going readonly the value of mddev->ro
+		 * does not matter, no writes are coming
+		 */
+		if (ro)
 			goto done_unlock;
 
-		case RESTART_ARRAY_RW:
+		/* are we are already prepared for writes? */
+		if (mddev->ro != 1)
+			goto done_unlock;
+
+		/* transitioning to readauto need only happen for
+		 * arrays that call md_write_start
+		 */
+		if (mddev->pers) {
 			err = restart_array(mddev);
-			goto done_unlock;
-
-		case STOP_ARRAY:
-			err = do_md_stop(mddev, 0, bdev);
-			goto done_unlock;
-
-		case STOP_ARRAY_RO:
-			err = md_set_readonly(mddev, bdev);
-			goto done_unlock;
-
-		case BLKROSET:
-			if (get_user(ro, (int __user *)(arg))) {
-				err = -EFAULT;
-				goto done_unlock;
+			if (err == 0) {
+				mddev->ro = 2;
+				set_disk_ro(mddev->gendisk, 0);
 			}
-			err = -EINVAL;
-
-			/* if the bdev is going readonly the value of mddev->ro
-			 * does not matter, no writes are coming
-			 */
-			if (ro)
-				goto done_unlock;
-
-			/* are we are already prepared for writes? */
-			if (mddev->ro != 1)
-				goto done_unlock;
-
-			/* transitioning to readauto need only happen for
-			 * arrays that call md_write_start
-			 */
-			if (mddev->pers) {
-				err = restart_array(mddev);
-				if (err == 0) {
-					mddev->ro = 2;
-					set_disk_ro(mddev->gendisk, 0);
-				}
-			}
-			goto done_unlock;
+		}
+		goto done_unlock;
 	}
 
 	/*
@@ -6535,37 +6532,36 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		}
 	}
 
-	switch (cmd)
+	switch (cmd) {
+	case ADD_NEW_DISK:
 	{
-		case ADD_NEW_DISK:
-		{
-			mdu_disk_info_t info;
-			if (copy_from_user(&info, argp, sizeof(info)))
-				err = -EFAULT;
-			else
-				err = add_new_disk(mddev, &info);
-			goto done_unlock;
-		}
+		mdu_disk_info_t info;
+		if (copy_from_user(&info, argp, sizeof(info)))
+			err = -EFAULT;
+		else
+			err = add_new_disk(mddev, &info);
+		goto done_unlock;
+	}
 
-		case HOT_REMOVE_DISK:
-			err = hot_remove_disk(mddev, new_decode_dev(arg));
-			goto done_unlock;
+	case HOT_REMOVE_DISK:
+		err = hot_remove_disk(mddev, new_decode_dev(arg));
+		goto done_unlock;
 
-		case HOT_ADD_DISK:
-			err = hot_add_disk(mddev, new_decode_dev(arg));
-			goto done_unlock;
+	case HOT_ADD_DISK:
+		err = hot_add_disk(mddev, new_decode_dev(arg));
+		goto done_unlock;
 
-		case RUN_ARRAY:
-			err = do_md_run(mddev);
-			goto done_unlock;
+	case RUN_ARRAY:
+		err = do_md_run(mddev);
+		goto done_unlock;
 
-		case SET_BITMAP_FILE:
-			err = set_bitmap_file(mddev, (int)arg);
-			goto done_unlock;
+	case SET_BITMAP_FILE:
+		err = set_bitmap_file(mddev, (int)arg);
+		goto done_unlock;
 
-		default:
-			err = -EINVAL;
-			goto abort_unlock;
+	default:
+		err = -EINVAL;
+		goto abort_unlock;
 	}
 
 done_unlock:
@@ -7184,6 +7180,7 @@ void md_done_sync(struct mddev *mddev, int blocks, int ok)
 	wake_up(&mddev->recovery_wait);
 	if (!ok) {
 		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+		set_bit(MD_RECOVERY_ERROR, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 		// stop recovery, signal do_sync ....
 	}
@@ -7281,6 +7278,7 @@ EXPORT_SYMBOL_GPL(md_allow_write);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
+#define UPDATE_FREQUENCY (5*60*HZ)
 void md_do_sync(struct md_thread *thread)
 {
 	struct mddev *mddev = thread->mddev;
@@ -7289,6 +7287,7 @@ void md_do_sync(struct md_thread *thread)
 		 window;
 	sector_t max_sectors,j, io_sectors;
 	unsigned long mark[SYNC_MARKS];
+	unsigned long update_time;
 	sector_t mark_cnt[SYNC_MARKS];
 	int last_mark,m;
 	struct list_head *tmp;
@@ -7448,6 +7447,7 @@ void md_do_sync(struct md_thread *thread)
 	mddev->curr_resync_completed = j;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	md_new_event(mddev);
+	update_time = jiffies;
 
 	blk_start_plug(&plug);
 	while (j < max_sectors) {
@@ -7459,6 +7459,7 @@ void md_do_sync(struct md_thread *thread)
 		    ((mddev->curr_resync > mddev->curr_resync_completed &&
 		      (mddev->curr_resync - mddev->curr_resync_completed)
 		      > (max_sectors >> 4)) ||
+		     time_after_eq(jiffies, update_time + UPDATE_FREQUENCY) ||
 		     (j - mddev->curr_resync_completed)*2
 		     >= mddev->resync_max - mddev->curr_resync_completed
 			    )) {
@@ -7466,6 +7467,10 @@ void md_do_sync(struct md_thread *thread)
 			wait_event(mddev->recovery_wait,
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed = j;
+			if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
+			    j > mddev->recovery_cp)
+				mddev->recovery_cp = j;
+			update_time = jiffies;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
@@ -7570,8 +7575,13 @@ void md_do_sync(struct md_thread *thread)
 					printk(KERN_INFO
 					       "md: checkpointing %s of %s.\n",
 					       desc, mdname(mddev));
-					mddev->recovery_cp =
-						mddev->curr_resync_completed;
+					if (test_bit(MD_RECOVERY_ERROR,
+						&mddev->recovery))
+						mddev->recovery_cp =
+							mddev->curr_resync_completed;
+					else
+						mddev->recovery_cp =
+							mddev->curr_resync;
 				}
 			} else
 				mddev->recovery_cp = MaxSector;

@@ -864,7 +864,6 @@ END(stub_\func)
 	FORK_LIKE  clone
 	FORK_LIKE  fork
 	FORK_LIKE  vfork
-	PTREGSCALL stub_sigaltstack, sys_sigaltstack, %rdx
 	PTREGSCALL stub_iopl, sys_iopl, %rsi
 
 ENTRY(ptregscall_common)
@@ -913,8 +912,6 @@ ENTRY(stub_rt_sigreturn)
 END(stub_rt_sigreturn)
 
 #ifdef CONFIG_X86_X32_ABI
-	PTREGSCALL stub_x32_sigaltstack, sys32_sigaltstack, %rdx
-
 ENTRY(stub_x32_rt_sigreturn)
 	CFI_STARTPROC
 	addq $8, %rsp
@@ -1784,6 +1781,7 @@ first_nmi:
 	 * Leave room for the "copied" frame
 	 */
 	subq $(5*8), %rsp
+	CFI_ADJUST_CFA_OFFSET 5*8
 
 	/* Copy the stack frame to the Saved frame */
 	.rept 5
@@ -1866,10 +1864,8 @@ end_repeat_nmi:
 nmi_swapgs:
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
-	RESTORE_ALL 8
-
-	/* Pop the extra iret frame */
-	addq $(5*8), %rsp
+	/* Pop the extra iret frame at once */
+	RESTORE_ALL 6*8
 
 	/* Clear the NMI executing stack variable */
 	movq $0, 5*8(%rsp)

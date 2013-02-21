@@ -240,6 +240,7 @@ static struct omap_dss_device omap3_evm_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= OMAP3EVM_DVI_PANEL_EN_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device omap3_evm_dvi_device = {

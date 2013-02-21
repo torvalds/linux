@@ -40,6 +40,7 @@ nv98_mc_intr[] = {
 	{ 0x00400000, NVDEV_ENGINE_COPY0 },	/* NVA3-     */
 	{ 0x04000000, NVDEV_ENGINE_DISP },
 	{ 0x80000000, NVDEV_ENGINE_SW },
+	{ 0x0040d101, NVDEV_SUBDEV_FB },
 	{},
 };
 

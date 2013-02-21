@@ -300,6 +300,12 @@ ENTRY(startup_32_smp)
 	leal -__PAGE_OFFSET(%ecx),%esp
 
 default_entry:
+#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+			 X86_CR0_PG)
+	movl $(CR0_STATE & ~X86_CR0_PG),%eax
+	movl %eax,%cr0
+
 /*
  *	New page tables may be in 4Mbyte page mode and may
  *	be using the global pages. 
@@ -364,8 +370,7 @@ default_entry:
  */
 	movl $pa(initial_page_table), %eax
 	movl %eax,%cr3		/* set the page table pointer.. */
-	movl %cr0,%eax
-	orl  $X86_CR0_PG,%eax
+	movl $CR0_STATE,%eax
 	movl %eax,%cr0		/* ..and set paging (PG) bit */
 	ljmp $__BOOT_CS,$1f	/* Clear prefetch and normalize %eip */
 1:

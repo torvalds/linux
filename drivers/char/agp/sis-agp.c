@@ -154,7 +154,7 @@ static int sis_broken_chipsets[] = {
 	0 // terminator
 };
 
-static void __devinit sis_get_driver(struct agp_bridge_data *bridge)
+static void sis_get_driver(struct agp_bridge_data *bridge)
 {
 	int i;
 
@@ -180,8 +180,7 @@ static void __devinit sis_get_driver(struct agp_bridge_data *bridge)
 }
 
 
-static int __devinit agp_sis_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int agp_sis_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;

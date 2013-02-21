@@ -21,17 +21,17 @@
 	};
 
 	soc {
-		aipi@10000000 { /* aipi */
-
+		aipi@10000000 { /* aipi1 */
 			uart1: serial@1000a000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
+		};
 
-			fec@1002b000 {
+		aipi@10020000 { /* aipi2 */
+			ethernet@1002b000 {
 				status = "okay";
 			};
 		};
 	};
-
 };

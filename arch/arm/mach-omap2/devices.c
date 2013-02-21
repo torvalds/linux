@@ -203,6 +203,16 @@ static struct resource omap3isp_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
+		.start		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE,
+		.end		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE + 3,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL,
+		.end		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL + 3,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
 		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
@@ -216,7 +226,7 @@ static struct platform_device omap3isp_device = {
 };
 
 static struct omap_iommu_arch_data omap3_isp_iommu = {
-	.name = "isp",
+	.name = "mmu_isp",
 };
 
 int omap3_init_camera(struct isp_platform_data *pdata)
@@ -629,7 +639,7 @@ static int count_ocp2scp_devices(struct omap_ocp2scp_dev *ocp2scp_dev)
 	return cnt;
 }
 
-static void omap_init_ocp2scp(void)
+static void __init omap_init_ocp2scp(void)
 {
 	struct omap_hwmod	*oh;
 	struct platform_device	*pdev;

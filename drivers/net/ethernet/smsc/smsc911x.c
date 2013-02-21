@@ -2575,11 +2575,13 @@ static const struct dev_pm_ops smsc911x_pm_ops = {
 #define SMSC911X_PM_OPS NULL
 #endif
 
+#ifdef CONFIG_OF
 static const struct of_device_id smsc911x_dt_ids[] = {
 	{ .compatible = "smsc,lan9115", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, smsc911x_dt_ids);
+#endif
 
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
@@ -2588,7 +2590,7 @@ static struct platform_driver smsc911x_driver = {
 		.name	= SMSC_CHIPNAME,
 		.owner	= THIS_MODULE,
 		.pm	= SMSC911X_PM_OPS,
-		.of_match_table = smsc911x_dt_ids,
+		.of_match_table = of_match_ptr(smsc911x_dt_ids),
 	},
 };
 

@@ -944,12 +944,13 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 					  addr,
 					  perfect_filter_register_address+(mc_index * 8),
 					  mc_nic_index);
-				macaddr_high  = ((u16) addr[0]) << 8;
-				macaddr_high += (u16) addr[1];
-				macaddr_low   = ((u32) addr[2]) << 24;
-				macaddr_low  += ((u32) addr[3]) << 16;
-				macaddr_low  += ((u32) addr[4]) << 8;
-				macaddr_low  += (u32) addr[5];
+				macaddr_high  = ((u8) addr[0]) << 8;
+				macaddr_high += (u8) addr[1];
+				macaddr_low   = ((u8) addr[2]) << 24;
+				macaddr_low  += ((u8) addr[3]) << 16;
+				macaddr_low  += ((u8) addr[4]) << 8;
+				macaddr_low  += (u8) addr[5];
+
 				nes_write_indexed(nesdev,
 						perfect_filter_register_address+(mc_index * 8),
 						macaddr_low);

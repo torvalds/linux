@@ -40,7 +40,7 @@ static const struct rfkill_ops rfkill_ops = {
 	.set_block = rfkill_set_block,
 };
 
-static int __devinit xo1_rfkill_probe(struct platform_device *pdev)
+static int xo1_rfkill_probe(struct platform_device *pdev)
 {
 	struct rfkill *rfk;
 	int r;
@@ -60,7 +60,7 @@ static int __devinit xo1_rfkill_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit xo1_rfkill_remove(struct platform_device *pdev)
+static int xo1_rfkill_remove(struct platform_device *pdev)
 {
 	struct rfkill *rfk = platform_get_drvdata(pdev);
 	rfkill_unregister(rfk);
@@ -74,7 +74,7 @@ static struct platform_driver xo1_rfkill_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= xo1_rfkill_probe,
-	.remove		= __devexit_p(xo1_rfkill_remove),
+	.remove		= xo1_rfkill_remove,
 };
 
 module_platform_driver(xo1_rfkill_driver);

@@ -21,6 +21,7 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/err.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
@@ -101,14 +102,10 @@ static int create_gpio_led(const struct gpio_led *template,
 
 	/* skip leds that aren't available */
 	if (!gpio_is_valid(template->gpio)) {
-		printk(KERN_INFO "Skipping unavailable LED gpio %d (%s)\n",
+		dev_info(parent, "Skipping unavailable LED gpio %d (%s)\n",
 				template->gpio, template->name);
 		return 0;
 	}
-
-	ret = gpio_request(template->gpio, template->name);
-	if (ret < 0)
-		return ret;
 
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
@@ -129,20 +126,20 @@ static int create_gpio_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_direction_output(led_dat->gpio, led_dat->active_low ^ state);
+	ret = devm_gpio_request_one(parent, template->gpio,
+				    (led_dat->active_low ^ state) ?
+				    GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+				    template->name);
 	if (ret < 0)
-		goto err;
-		
+		return ret;
+
 	INIT_WORK(&led_dat->work, gpio_led_work);
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-err:
-	gpio_free(led_dat->gpio);
-	return ret;
 }
 
 static void delete_gpio_led(struct gpio_led_data *led)
@@ -151,7 +148,6 @@ static void delete_gpio_led(struct gpio_led_data *led)
 		return;
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
-	gpio_free(led->gpio);
 }
 
 struct gpio_leds_priv {
@@ -176,12 +172,16 @@ static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 	/* count LEDs in this device, so we know how much to allocate */
 	count = of_get_child_count(np);
 	if (!count)
-		return NULL;
+		return ERR_PTR(-ENODEV);
+
+	for_each_child_of_node(np, child)
+		if (of_get_gpio(child, 0) == -EPROBE_DEFER)
+			return ERR_PTR(-EPROBE_DEFER);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof_gpio_leds_priv(count),
 			GFP_KERNEL);
 	if (!priv)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	for_each_child_of_node(np, child) {
 		struct gpio_led led = {};
@@ -216,7 +216,7 @@ static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 err:
 	for (count = priv->num_leds - 2; count >= 0; count--)
 		delete_gpio_led(&priv->leds[count]);
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static const struct of_device_id of_gpio_leds_match[] = {
@@ -226,7 +226,7 @@ static const struct of_device_id of_gpio_leds_match[] = {
 #else /* CONFIG_OF_GPIO */
 static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 #endif /* CONFIG_OF_GPIO */
 
@@ -264,8 +264,8 @@ static int gpio_led_probe(struct platform_device *pdev)
 		}
 	} else {
 		priv = gpio_leds_create_of(pdev);
-		if (!priv)
-			return -ENODEV;
+		if (IS_ERR(priv))
+			return PTR_ERR(priv);
 	}
 
 	platform_set_drvdata(pdev, priv);

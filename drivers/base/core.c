@@ -171,6 +171,27 @@ ssize_t device_show_int(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(device_show_int);
 
+ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t size)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	if (strtobool(buf, ea->var) < 0)
+		return -EINVAL;
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(device_store_bool);
+
+ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", *(bool *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(device_show_bool);
+
 /**
  *	device_release - free device structure.
  *	@kobj:	device's kobject.

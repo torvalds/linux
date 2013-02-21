@@ -660,11 +660,11 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_mtrl = IXGBE_RXMTRL_V1_SYNC_MSG;
+		tsync_rx_mtrl |= IXGBE_RXMTRL_V1_SYNC_MSG;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_mtrl = IXGBE_RXMTRL_V1_DELAY_REQ_MSG;
+		tsync_rx_mtrl |= IXGBE_RXMTRL_V1_DELAY_REQ_MSG;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:

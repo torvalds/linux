@@ -736,13 +736,6 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
-		if (error)
-			return error;
-	}
-
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 	return 0;

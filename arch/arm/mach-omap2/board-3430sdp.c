@@ -157,6 +157,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device sdp3430_dvi_device = {

@@ -38,6 +38,8 @@ enum nvbios_pll_type {
 	PLL_UNK42  = 0x42,
 	PLL_VPLL0  = 0x80,
 	PLL_VPLL1  = 0x81,
+	PLL_VPLL2  = 0x82,
+	PLL_VPLL3  = 0x83,
 	PLL_MAX    = 0xff
 };
 

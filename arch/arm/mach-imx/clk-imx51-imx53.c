@@ -269,9 +269,9 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[usboh3_per_gate], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usboh3_per_gate], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usboh3_per_gate], "per", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ipg", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ahb", "imx-udc-mx51");
 	clk_register_clkdev(clk[nfc_gate], NULL, "imx51-nand");
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
@@ -319,6 +319,7 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 			unsigned long rate_ckih1, unsigned long rate_ckih2)
 {
 	int i;
+	u32 val;
 	struct device_node *np;
 
 	clk[pll1_sw] = imx_clk_pllv2("pll1_sw", "osc", MX51_DPLL1_BASE);
@@ -389,6 +390,21 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_prepare_enable(clk[iim_gate]);
 	imx_print_silicon_rev("i.MX51", mx51_revision());
 	clk_disable_unprepare(clk[iim_gate]);
+
+	/*
+	 * Reference Manual says: Functionality of CCDR[18] and CLPCR[23] is no
+	 * longer supported. Set to one for better power saving.
+	 *
+	 * The effect of not setting these bits is that MIPI clocks can't be
+	 * enabled without the IPU clock being enabled aswell.
+	 */
+	val = readl(MXC_CCM_CCDR);
+	val |= 1 << 18;
+	writel(val, MXC_CCM_CCDR);
+
+	val = readl(MXC_CCM_CLPCR);
+	val |= 1 << 23;
+	writel(val, MXC_CCM_CLPCR);
 
 	return 0;
 }

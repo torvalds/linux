@@ -225,6 +225,7 @@ alloc_holder:
 	mutex_unlock(&group->notification_mutex);
 
 	wake_up(&group->notification_waitq);
+	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
 	return return_event;
 }
 

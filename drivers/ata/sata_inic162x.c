@@ -273,12 +273,10 @@ static void inic_reset_port(void __iomem *port_base)
 static int inic_scr_read(struct ata_link *link, unsigned sc_reg, u32 *val)
 {
 	void __iomem *scr_addr = inic_port_base(link->ap) + PORT_SCR;
-	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
 		return -EINVAL;
 
-	addr = scr_addr + scr_map[sc_reg] * 4;
 	*val = readl(scr_addr + scr_map[sc_reg] * 4);
 
 	/* this controller has stuck DIAG.N, ignore it */

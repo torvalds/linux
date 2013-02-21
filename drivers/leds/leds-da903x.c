@@ -2,10 +2,10 @@
  * LEDs driver for Dialog Semiconductor DA9030/DA9034
  *
  * Copyright (C) 2008 Compulab, Ltd.
- * 	Mike Rapoport <mike@compulab.co.il>
+ *	Mike Rapoport <mike@compulab.co.il>
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -85,7 +85,7 @@ static void da903x_led_set(struct led_classdev *led_cdev,
 			   enum led_brightness value)
 {
 	struct da903x_led *led;
-	
+
 	led = container_of(led_cdev, struct da903x_led, cdev);
 	led->new_brightness = value;
 	schedule_work(&led->work);
@@ -156,7 +156,7 @@ static struct platform_driver da903x_led_driver = {
 module_platform_driver(da903x_led_driver);
 
 MODULE_DESCRIPTION("LEDs driver for Dialog Semiconductor DA9030/DA9034");
-MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>"
-	      "Mike Rapoport <mike@compulab.co.il>");
+MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
+MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:da903x-led");

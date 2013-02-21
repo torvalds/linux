@@ -1375,7 +1375,7 @@ static void cmsg_quirks(struct eeepc_laptop *eeepc)
 	cmsg_quirk(eeepc, CM_ASL_TPD, "TPD");
 }
 
-static int __devinit eeepc_acpi_init(struct eeepc_laptop *eeepc)
+static int eeepc_acpi_init(struct eeepc_laptop *eeepc)
 {
 	unsigned int init_flags;
 	int result;
@@ -1407,7 +1407,7 @@ static int __devinit eeepc_acpi_init(struct eeepc_laptop *eeepc)
 	return 0;
 }
 
-static void __devinit eeepc_enable_camera(struct eeepc_laptop *eeepc)
+static void eeepc_enable_camera(struct eeepc_laptop *eeepc)
 {
 	/*
 	 * If the following call to set_acpi() fails, it's because there's no
@@ -1419,7 +1419,7 @@ static void __devinit eeepc_enable_camera(struct eeepc_laptop *eeepc)
 
 static bool eeepc_device_present;
 
-static int __devinit eeepc_acpi_add(struct acpi_device *device)
+static int eeepc_acpi_add(struct acpi_device *device)
 {
 	struct eeepc_laptop *eeepc;
 	int result;

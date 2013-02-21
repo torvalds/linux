@@ -163,6 +163,9 @@ struct br_port_msg {
 
 struct br_mdb_entry {
 	__u32 ifindex;
+#define MDB_TEMPORARY 0
+#define MDB_PERMANENT 1
+	__u8 state;
 	struct {
 		union {
 			__be32	ip4;

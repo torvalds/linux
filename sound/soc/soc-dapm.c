@@ -1023,7 +1023,7 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
-			ret = regulator_allow_bypass(w->regulator, true);
+			ret = regulator_allow_bypass(w->regulator, false);
 			if (ret != 0)
 				dev_warn(w->dapm->dev,
 					 "ASoC: Failed to bypass %s: %d\n",
@@ -1033,7 +1033,7 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 		return regulator_enable(w->regulator);
 	} else {
 		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
-			ret = regulator_allow_bypass(w->regulator, false);
+			ret = regulator_allow_bypass(w->regulator, true);
 			if (ret != 0)
 				dev_warn(w->dapm->dev,
 					 "ASoC: Failed to unbypass %s: %d\n",
@@ -3038,6 +3038,14 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
 				w->name, ret);
 			return NULL;
+		}
+
+		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+			ret = regulator_allow_bypass(w->regulator, true);
+			if (ret != 0)
+				dev_warn(w->dapm->dev,
+					 "ASoC: Failed to unbypass %s: %d\n",
+					 w->name, ret);
 		}
 		break;
 	case snd_soc_dapm_clock_supply:

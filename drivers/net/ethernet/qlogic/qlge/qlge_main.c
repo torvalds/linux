@@ -4678,7 +4678,7 @@ static int qlge_probe(struct pci_dev *pdev,
 	qdev = netdev_priv(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN |
+		NETIF_F_TSO | NETIF_F_TSO_ECN |
 		NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
 	ndev->features = ndev->hw_features |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;

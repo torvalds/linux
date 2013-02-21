@@ -521,7 +521,7 @@ static unsigned char pcie_link_speed[] = {
 
 void pcie_update_link_speed(struct pci_bus *bus, u16 linksta)
 {
-	bus->cur_bus_speed = pcie_link_speed[linksta & 0xf];
+	bus->cur_bus_speed = pcie_link_speed[linksta & PCI_EXP_LNKSTA_CLS];
 }
 EXPORT_SYMBOL_GPL(pcie_update_link_speed);
 
@@ -579,14 +579,16 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 	if (pos) {
 		u16 status;
 		enum pci_bus_speed max;
-		pci_read_config_word(bridge, pos + 2, &status);
 
-		if (status & 0x8000) {
+		pci_read_config_word(bridge, pos + PCI_X_BRIDGE_SSTATUS,
+				     &status);
+
+		if (status & PCI_X_SSTATUS_533MHZ) {
 			max = PCI_SPEED_133MHz_PCIX_533;
-		} else if (status & 0x4000) {
+		} else if (status & PCI_X_SSTATUS_266MHZ) {
 			max = PCI_SPEED_133MHz_PCIX_266;
-		} else if (status & 0x0002) {
-			if (((status >> 12) & 0x3) == 2) {
+		} else if (status & PCI_X_SSTATUS_133MHZ) {
+			if ((status & PCI_X_SSTATUS_VERS) == PCI_X_SSTATUS_V2) {
 				max = PCI_SPEED_133MHz_PCIX_ECC;
 			} else {
 				max = PCI_SPEED_133MHz_PCIX;
@@ -596,7 +598,8 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		}
 
 		bus->max_bus_speed = max;
-		bus->cur_bus_speed = pcix_bus_speed[(status >> 6) & 0xf];
+		bus->cur_bus_speed = pcix_bus_speed[
+			(status & PCI_X_SSTATUS_FREQ) >> 6];
 
 		return;
 	}
@@ -607,7 +610,7 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		u16 linksta;
 
 		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
-		bus->max_bus_speed = pcie_link_speed[linkcap & 0xf];
+		bus->max_bus_speed = pcie_link_speed[linkcap & PCI_EXP_LNKCAP_SLS];
 
 		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
 		pcie_update_link_speed(bus, linksta);
@@ -975,6 +978,7 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->sysdata = dev->bus->sysdata;
 	dev->dev.parent = dev->bus->bridge;
 	dev->dev.bus = &pci_bus_type;
+	dev->dev.type = &pci_dev_type;
 	dev->hdr_type = hdr_type & 0x7f;
 	dev->multifunction = !!(hdr_type & 0x80);
 	dev->error_state = pci_channel_io_normal;
@@ -1888,6 +1892,28 @@ unsigned int __ref pci_rescan_bus_bridge_resize(struct pci_dev *bridge)
 
 	return max;
 }
+
+/**
+ * pci_rescan_bus - scan a PCI bus for devices.
+ * @bus: PCI bus to scan
+ *
+ * Scan a PCI bus and child buses for new devices, adds them,
+ * and enables them.
+ *
+ * Returns the max number of subordinate bus discovered.
+ */
+unsigned int __ref pci_rescan_bus(struct pci_bus *bus)
+{
+	unsigned int max;
+
+	max = pci_scan_child_bus(bus);
+	pci_assign_unassigned_bus_resources(bus);
+	pci_enable_bridges(bus);
+	pci_bus_add_devices(bus);
+
+	return max;
+}
+EXPORT_SYMBOL_GPL(pci_rescan_bus);
 
 EXPORT_SYMBOL(pci_add_new_bus);
 EXPORT_SYMBOL(pci_scan_slot);

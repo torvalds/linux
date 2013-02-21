@@ -506,7 +506,7 @@ static inline void bus_error030 (struct frame *fp)
 		addr -= 2;
 
 	if (buserr_type & SUN3_BUSERR_INVALID) {
-		if (!mmu_emu_handle_fault (fp->un.fmtb.daddr, 1, 0))
+		if (!mmu_emu_handle_fault(addr, 1, 0))
 			do_page_fault (&fp->ptregs, addr, 0);
        } else {
 #ifdef DEBUG

@@ -1191,9 +1191,9 @@ static int __net_init sctp_net_init(struct net *net)
 	net->sctp.cookie_preserve_enable 	= 1;
 
 	/* Default sctp sockets to use md5 as their hmac alg */
-#if defined (CONFIG_CRYPTO_MD5)
+#if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
 	net->sctp.sctp_hmac_alg			= "md5";
-#elif defined (CONFIG_CRYPTO_SHA1)
+#elif defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_SHA1)
 	net->sctp.sctp_hmac_alg			= "sha1";
 #else
 	net->sctp.sctp_hmac_alg			= NULL;

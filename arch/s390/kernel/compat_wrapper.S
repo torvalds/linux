@@ -1659,3 +1659,9 @@ ENTRY(sys_kcmp_wrapper)
 	llgfr	%r5,%r5			# unsigned long
 	llgfr	%r6,%r6			# unsigned long
 	jg	sys_kcmp
+
+ENTRY(sys_finit_module_wrapper)
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char __user *
+	lgfr	%r4,%r4			# int
+	jg	sys_finit_module

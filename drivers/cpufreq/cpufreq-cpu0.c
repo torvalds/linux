@@ -71,12 +71,15 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 	}
 
 	if (cpu_reg) {
+		rcu_read_lock();
 		opp = opp_find_freq_ceil(cpu_dev, &freq_Hz);
 		if (IS_ERR(opp)) {
+			rcu_read_unlock();
 			pr_err("failed to find OPP for %ld\n", freq_Hz);
 			return PTR_ERR(opp);
 		}
 		volt = opp_get_voltage(opp);
+		rcu_read_unlock();
 		tol = volt * voltage_tolerance / 100;
 		volt_old = regulator_get_voltage(cpu_reg);
 	}
@@ -236,12 +239,14 @@ static int cpu0_cpufreq_driver_init(void)
 		 */
 		for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++)
 			;
+		rcu_read_lock();
 		opp = opp_find_freq_exact(cpu_dev,
 				freq_table[0].frequency * 1000, true);
 		min_uV = opp_get_voltage(opp);
 		opp = opp_find_freq_exact(cpu_dev,
 				freq_table[i-1].frequency * 1000, true);
 		max_uV = opp_get_voltage(opp);
+		rcu_read_unlock();
 		ret = regulator_set_voltage_time(cpu_reg, min_uV, max_uV);
 		if (ret > 0)
 			transition_latency += ret * 1000;

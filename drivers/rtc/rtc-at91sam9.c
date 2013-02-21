@@ -289,7 +289,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 /*
  * Initialize and install RTC driver
  */
-static int __devinit at91_rtc_probe(struct platform_device *pdev)
+static int at91_rtc_probe(struct platform_device *pdev)
 {
 	struct resource	*r, *r_gpbr;
 	struct sam9_rtc	*rtc;
@@ -387,7 +387,7 @@ fail:
 /*
  * Disable and remove the RTC driver
  */
-static int __devexit at91_rtc_remove(struct platform_device *pdev)
+static int at91_rtc_remove(struct platform_device *pdev)
 {
 	struct sam9_rtc	*rtc = platform_get_drvdata(pdev);
 	u32		mr = rtt_readl(rtc, MR);
@@ -463,7 +463,7 @@ static int at91_rtc_resume(struct platform_device *pdev)
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
-	.remove		= __devexit_p(at91_rtc_remove),
+	.remove		= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
 	.suspend	= at91_rtc_suspend,
 	.resume		= at91_rtc_resume,

@@ -175,7 +175,7 @@ xfs_buf_get_maps(
 	bp->b_map_count = map_count;
 
 	if (map_count == 1) {
-		bp->b_maps = &bp->b_map;
+		bp->b_maps = &bp->__b_map;
 		return 0;
 	}
 
@@ -193,7 +193,7 @@ static void
 xfs_buf_free_maps(
 	struct xfs_buf	*bp)
 {
-	if (bp->b_maps != &bp->b_map) {
+	if (bp->b_maps != &bp->__b_map) {
 		kmem_free(bp->b_maps);
 		bp->b_maps = NULL;
 	}
@@ -377,8 +377,8 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	start = BBTOB(bp->b_map.bm_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_map.bm_bn + bp->b_length) + PAGE_SIZE - 1)
+	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
@@ -487,6 +487,7 @@ _xfs_buf_find(
 	struct rb_node		*parent;
 	xfs_buf_t		*bp;
 	xfs_daddr_t		blkno = map[0].bm_bn;
+	xfs_daddr_t		eofs;
 	int			numblks = 0;
 	int			i;
 
@@ -497,6 +498,23 @@ _xfs_buf_find(
 	/* Check for IOs smaller than the sector size / not sector aligned */
 	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
 	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
+
+	/*
+	 * Corrupted block numbers can get through to here, unfortunately, so we
+	 * have to check that the buffer falls within the filesystem bounds.
+	 */
+	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
+	if (blkno >= eofs) {
+		/*
+		 * XXX (dgc): we should really be returning EFSCORRUPTED here,
+		 * but none of the higher level infrastructure supports
+		 * returning a specific error on buffer lookup failures.
+		 */
+		xfs_alert(btp->bt_mount,
+			  "%s: Block out of range: block 0x%llx, EOFS 0x%llx ",
+			  __func__, blkno, eofs);
+		return NULL;
+	}
 
 	/* get tree root */
 	pag = xfs_perag_get(btp->bt_mount,
@@ -640,7 +658,7 @@ _xfs_buf_read(
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
-	ASSERT(bp->b_map.bm_bn != XFS_BUF_DADDR_NULL);
+	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
@@ -1487,6 +1505,8 @@ restart:
 	while (!list_empty(&btp->bt_lru)) {
 		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
 		if (atomic_read(&bp->b_hold) > 1) {
+			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+			list_move_tail(&bp->b_lru, &btp->bt_lru);
 			spin_unlock(&btp->bt_lru_lock);
 			delay(100);
 			goto restart;
@@ -1709,7 +1729,7 @@ xfs_buf_cmp(
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
 	xfs_daddr_t		diff;
 
-	diff = ap->b_map.bm_bn - bp->b_map.bm_bn;
+	diff = ap->b_maps[0].bm_bn - bp->b_maps[0].bm_bn;
 	if (diff < 0)
 		return -1;
 	if (diff > 0)

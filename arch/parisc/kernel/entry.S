@@ -1865,7 +1865,7 @@ syscall_restore:
 
 	/* Are we being ptraced? */
 	ldw	TASK_FLAGS(%r1),%r19
-	ldi	(_TIF_SINGLESTEP|_TIF_BLOCKSTEP),%r2
+	ldi	_TIF_SYSCALL_TRACE_MASK,%r2
 	and,COND(=)	%r19,%r2,%r0
 	b,n	syscall_restore_rfi
 
@@ -1978,15 +1978,23 @@ syscall_restore_rfi:
 	/* sr2 should be set to zero for userspace syscalls */
 	STREG	%r0,TASK_PT_SR2(%r1)
 
-pt_regs_ok:
 	LDREG	TASK_PT_GR31(%r1),%r2
-	depi	3,31,2,%r2			   /* ensure return to user mode. */
-	STREG	%r2,TASK_PT_IAOQ0(%r1)
+	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	STREG   %r2,TASK_PT_IAOQ0(%r1)
 	ldo	4(%r2),%r2
 	STREG	%r2,TASK_PT_IAOQ1(%r1)
-	copy	%r25,%r16
 	b	intr_restore
-	nop
+	copy	%r25,%r16
+
+pt_regs_ok:
+	LDREG	TASK_PT_IAOQ0(%r1),%r2
+	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	STREG	%r2,TASK_PT_IAOQ0(%r1)
+	LDREG	TASK_PT_IAOQ1(%r1),%r2
+	depi	3,31,2,%r2
+	STREG	%r2,TASK_PT_IAOQ1(%r1)
+	b	intr_restore
+	copy	%r25,%r16
 
 	.import schedule,code
 syscall_do_resched:

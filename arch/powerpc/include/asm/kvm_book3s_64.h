@@ -50,6 +50,15 @@ extern int kvm_hpt_order;		/* order of preallocated HPTs */
 #define HPTE_V_HVLOCK	0x40UL
 #define HPTE_V_ABSENT	0x20UL
 
+/*
+ * We use this bit in the guest_rpte field of the revmap entry
+ * to indicate a modified HPTE.
+ */
+#define HPTE_GR_MODIFIED	(1ul << 62)
+
+/* These bits are reserved in the guest view of the HPTE */
+#define HPTE_GR_RESERVED	HPTE_GR_MODIFIED
+
 static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 {
 	unsigned long tmp, old;
@@ -60,7 +69,7 @@ static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 		     "	ori	%0,%0,%4\n"
 		     "  stdcx.	%0,0,%2\n"
 		     "	beq+	2f\n"
-		     "	li	%1,%3\n"
+		     "	mr	%1,%3\n"
 		     "2:	isync"
 		     : "=&r" (tmp), "=&r" (old)
 		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
@@ -235,6 +244,28 @@ static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
 	if (pagesize <= PAGE_SIZE)
 		return 1;
 	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
+}
+
+/*
+ * This works for 4k, 64k and 16M pages on POWER7,
+ * and 4k and 16M pages on PPC970.
+ */
+static inline unsigned long slb_pgsize_encoding(unsigned long psize)
+{
+	unsigned long senc = 0;
+
+	if (psize > 0x1000) {
+		senc = SLB_VSID_L;
+		if (psize == 0x10000)
+			senc |= SLB_VSID_LP_01;
+	}
+	return senc;
+}
+
+static inline int is_vrma_hpte(unsigned long hpte_v)
+{
+	return (hpte_v & ~0xffffffUL) ==
+		(HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)));
 }
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

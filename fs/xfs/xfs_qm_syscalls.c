@@ -784,11 +784,11 @@ xfs_qm_scall_getquota(
 	     (XFS_IS_OQUOTA_ENFORCED(mp) &&
 			(dst->d_flags & (FS_PROJ_QUOTA | FS_GROUP_QUOTA)))) &&
 	    dst->d_id != 0) {
-		if (((int) dst->d_bcount > (int) dst->d_blk_softlimit) &&
+		if ((dst->d_bcount > dst->d_blk_softlimit) &&
 		    (dst->d_blk_softlimit > 0)) {
 			ASSERT(dst->d_btimer != 0);
 		}
-		if (((int) dst->d_icount > (int) dst->d_ino_softlimit) &&
+		if ((dst->d_icount > dst->d_ino_softlimit) &&
 		    (dst->d_ino_softlimit > 0)) {
 			ASSERT(dst->d_itimer != 0);
 		}

@@ -15,6 +15,7 @@
 #include <linux/backlight.h>
 #include <linux/err.h>
 #include <linux/platform_data/lp855x.h>
+#include <linux/pwm.h>
 
 /* Registers */
 #define BRIGHTNESS_CTRL		0x00
@@ -34,22 +35,19 @@ struct lp855x {
 	struct i2c_client *client;
 	struct backlight_device *bl;
 	struct device *dev;
-	struct mutex xfer_lock;
 	struct lp855x_platform_data *pdata;
+	struct pwm_device *pwm;
 };
 
 static int lp855x_read_byte(struct lp855x *lp, u8 reg, u8 *data)
 {
 	int ret;
 
-	mutex_lock(&lp->xfer_lock);
 	ret = i2c_smbus_read_byte_data(lp->client, reg);
 	if (ret < 0) {
-		mutex_unlock(&lp->xfer_lock);
 		dev_err(lp->dev, "failed to read 0x%.2x\n", reg);
 		return ret;
 	}
-	mutex_unlock(&lp->xfer_lock);
 
 	*data = (u8)ret;
 	return 0;
@@ -57,13 +55,7 @@ static int lp855x_read_byte(struct lp855x *lp, u8 reg, u8 *data)
 
 static int lp855x_write_byte(struct lp855x *lp, u8 reg, u8 data)
 {
-	int ret;
-
-	mutex_lock(&lp->xfer_lock);
-	ret = i2c_smbus_write_byte_data(lp->client, reg, data);
-	mutex_unlock(&lp->xfer_lock);
-
-	return ret;
+	return i2c_smbus_write_byte_data(lp->client, reg, data);
 }
 
 static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
@@ -121,6 +113,28 @@ static int lp855x_init_registers(struct lp855x *lp)
 	return ret;
 }
 
+static void lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
+{
+	unsigned int period = lp->pdata->period_ns;
+	unsigned int duty = br * period / max_br;
+	struct pwm_device *pwm;
+
+	/* request pwm device with the consumer name */
+	if (!lp->pwm) {
+		pwm = devm_pwm_get(lp->dev, lp->chipname);
+		if (IS_ERR(pwm))
+			return;
+
+		lp->pwm = pwm;
+	}
+
+	pwm_config(lp->pwm, duty, period);
+	if (duty)
+		pwm_enable(lp->pwm);
+	else
+		pwm_disable(lp->pwm);
+}
+
 static int lp855x_bl_update_status(struct backlight_device *bl)
 {
 	struct lp855x *lp = bl_get_data(bl);
@@ -130,12 +144,10 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 		bl->props.brightness = 0;
 
 	if (mode == PWM_BASED) {
-		struct lp855x_pwm_data *pd = &lp->pdata->pwm_data;
 		int br = bl->props.brightness;
 		int max_br = bl->props.max_brightness;
 
-		if (pd->pwm_set_intensity)
-			pd->pwm_set_intensity(br, max_br);
+		lp855x_pwm_ctrl(lp, br, max_br);
 
 	} else if (mode == REGISTER_BASED) {
 		u8 val = bl->props.brightness;
@@ -150,14 +162,7 @@ static int lp855x_bl_get_brightness(struct backlight_device *bl)
 	struct lp855x *lp = bl_get_data(bl);
 	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
 
-	if (mode == PWM_BASED) {
-		struct lp855x_pwm_data *pd = &lp->pdata->pwm_data;
-		int max_br = bl->props.max_brightness;
-
-		if (pd->pwm_get_intensity)
-			bl->props.brightness = pd->pwm_get_intensity(max_br);
-
-	} else if (mode == REGISTER_BASED) {
+	if (mode == REGISTER_BASED) {
 		u8 val = 0;
 
 		lp855x_read_byte(lp, BRIGHTNESS_CTRL, &val);
@@ -265,8 +270,6 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lp->chipname = id->name;
 	lp->chip_id = id->driver_data;
 	i2c_set_clientdata(cl, lp);
-
-	mutex_init(&lp->xfer_lock);
 
 	ret = lp855x_init_registers(lp);
 	if (ret) {

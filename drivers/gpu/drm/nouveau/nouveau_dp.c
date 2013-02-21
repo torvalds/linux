@@ -30,60 +30,17 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <core/class.h>
+
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
-
-u8 *
-nouveau_dp_bios_data(struct drm_device *dev, struct dcb_output *dcb, u8 **entry)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct bit_entry d;
-	u8 *table;
-	int i;
-
-	if (bit_table(dev, 'd', &d)) {
-		NV_ERROR(drm, "BIT 'd' table not found\n");
-		return NULL;
-	}
-
-	if (d.version != 1) {
-		NV_ERROR(drm, "BIT 'd' table version %d unknown\n", d.version);
-		return NULL;
-	}
-
-	table = ROMPTR(dev, d.data[0]);
-	if (!table) {
-		NV_ERROR(drm, "displayport table pointer invalid\n");
-		return NULL;
-	}
-
-	switch (table[0]) {
-	case 0x20:
-	case 0x21:
-	case 0x30:
-	case 0x40:
-		break;
-	default:
-		NV_ERROR(drm, "displayport table 0x%02x unknown\n", table[0]);
-		return NULL;
-	}
-
-	for (i = 0; i < table[3]; i++) {
-		*entry = ROMPTR(dev, table[table[1] + (i * table[2])]);
-		if (*entry && bios_encoder_match(dcb, ROM32((*entry)[0])))
-			return table;
-	}
-
-	NV_ERROR(drm, "displayport encoder table not found\n");
-	return NULL;
-}
 
 /******************************************************************************
  * link training
  *****************************************************************************/
 struct dp_state {
 	struct nouveau_i2c_port *auxch;
-	struct dp_train_func *func;
+	struct nouveau_object *core;
 	struct dcb_output *dcb;
 	int crtc;
 	u8 *dpcd;
@@ -97,13 +54,20 @@ static void
 dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	u8 sink[2];
+	u32 data;
 
 	NV_DEBUG(drm, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
 	/* set desired link configuration on the source */
-	dp->func->link_set(dev, dp->dcb, dp->crtc, dp->link_nr, dp->link_bw,
-			   dp->dpcd[2] & DP_ENHANCED_FRAME_CAP);
+	data = ((dp->link_bw / 27000) << 8) | dp->link_nr;
+	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)
+		data |= NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH;
+
+	nv_call(dp->core, NV94_DISP_SOR_DP_LNKCTL + moff, data);
 
 	/* inform the sink of the new configuration */
 	sink[0] = dp->link_bw / 27000;
@@ -118,11 +82,14 @@ static void
 dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 pattern)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	u8 sink_tp;
 
 	NV_DEBUG(drm, "training pattern %d\n", pattern);
 
-	dp->func->train_set(dev, dp->dcb, pattern);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff, pattern);
 
 	nv_rdaux(dp->auxch, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 	sink_tp &= ~DP_TRAINING_PATTERN_MASK;
@@ -134,6 +101,9 @@ static int
 dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	int i;
 
 	for (i = 0; i < dp->link_nr; i++) {
@@ -148,7 +118,8 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 		NV_DEBUG(drm, "config lane %d %02x\n", i, dp->conf[i]);
-		dp->func->train_adj(dev, dp->dcb, i, lvsw, lpre);
+
+		nv_call(dp->core, NV94_DISP_SOR_DP_DRVCTL(i) + moff, (lvsw << 8) | lpre);
 	}
 
 	return nv_wraux(dp->auxch, DP_TRAINING_LANE0_SET, dp->conf, 4);
@@ -234,59 +205,32 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 }
 
 static void
-dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
+dp_link_train_init(struct drm_device *dev, struct dp_state *dp, bool spread)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30) {
-			if (enable) script = ROM16(entry[12]);
-			else        script = ROM16(entry[14]);
-		} else
-		if (table[0] == 0x40) {
-			if (enable) script = ROM16(entry[11]);
-			else        script = ROM16(entry[13]);
-		}
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
-}
-
-static void
-dp_link_train_init(struct drm_device *dev, struct dp_state *dp)
-{
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[6]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[5]);
-	}
-
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff, (spread ?
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON :
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF) |
+			  NV94_DISP_SOR_DP_TRAIN_OP_INIT);
 }
 
 static void
 dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[8]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[7]);
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff,
+			  NV94_DISP_SOR_DP_TRAIN_OP_FINI);
 }
 
 static bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
-		      struct dp_train_func *func)
+		      struct nouveau_object *core)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -304,7 +248,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	if (!dp.auxch)
 		return false;
 
-	dp.func = func;
+	dp.core = core;
 	dp.dcb = nv_encoder->dcb;
 	dp.crtc = nv_crtc->index;
 	dp.dpcd = nv_encoder->dp.dpcd;
@@ -318,11 +262,8 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	 */
 	gpio->irq(gpio, 0, nv_connector->hpd, 0xff, false);
 
-	/* enable down-spreading, if possible */
-	dp_set_downspread(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
-
-	/* execute pre-train script from vbios */
-	dp_link_train_init(dev, &dp);
+	/* enable down-spreading and execute pre-train script from vbios */
+	dp_link_train_init(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)
@@ -365,7 +306,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 
 void
 nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
-		struct dp_train_func *func)
+		struct nouveau_object *core)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
@@ -385,7 +326,7 @@ nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
 	nv_wraux(auxch, DP_SET_POWER, &status, 1);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		nouveau_dp_link_train(encoder, datarate, func);
+		nouveau_dp_link_train(encoder, datarate, core);
 }
 
 static void

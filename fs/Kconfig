@@ -28,8 +28,8 @@ config FS_MBCACHE
 	tristate
 	default y if EXT2_FS=y && EXT2_FS_XATTR
 	default y if EXT3_FS=y && EXT3_FS_XATTR
-	default y if EXT4_FS=y && EXT4_FS_XATTR
-	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+	default y if EXT4_FS=y
+	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS
 
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"
@@ -67,16 +67,6 @@ source "fs/quota/Kconfig"
 
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
-
-config CUSE
-	tristate "Character device in Userspace support"
-	depends on FUSE_FS
-	help
-	  This FUSE extension allows character devices to be
-	  implemented in userspace.
-
-	  If you want to develop or use userspace character device
-	  based on CUSE, answer Y or M.
 
 config GENERIC_ACL
 	bool
@@ -220,6 +210,7 @@ source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
+source "fs/f2fs/Kconfig"
 
 endif # MISC_FILESYSTEMS
 

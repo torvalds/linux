@@ -744,7 +744,7 @@ static int gpmc_setup_irq(void)
 	return request_irq(gpmc_irq, gpmc_handle_irq, 0, "gpmc", NULL);
 }
 
-static __devexit int gpmc_free_irq(void)
+static int gpmc_free_irq(void)
 {
 	int i;
 
@@ -762,7 +762,7 @@ static __devexit int gpmc_free_irq(void)
 	return 0;
 }
 
-static void __devexit gpmc_mem_exit(void)
+static void gpmc_mem_exit(void)
 {
 	int cs;
 
@@ -774,7 +774,7 @@ static void __devexit gpmc_mem_exit(void)
 
 }
 
-static int __devinit gpmc_mem_init(void)
+static int gpmc_mem_init(void)
 {
 	int cs, rc;
 	unsigned long boot_rom_space = 0;
@@ -1121,7 +1121,7 @@ int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 	return 0;
 }
 
-static __devinit int gpmc_probe(struct platform_device *pdev)
+static int gpmc_probe(struct platform_device *pdev)
 {
 	int rc;
 	u32 l;
@@ -1177,7 +1177,7 @@ static __devinit int gpmc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int gpmc_remove(struct platform_device *pdev)
+static int gpmc_remove(struct platform_device *pdev)
 {
 	gpmc_free_irq();
 	gpmc_mem_exit();
@@ -1187,7 +1187,7 @@ static __devexit int gpmc_remove(struct platform_device *pdev)
 
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
-	.remove		= __devexit_p(gpmc_remove),
+	.remove		= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
 		.owner	= THIS_MODULE,

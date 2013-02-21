@@ -1790,6 +1790,45 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA_2,
 			 PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE,
 			 quirk_tc86c001_ide);
 
+/*
+ * PLX PCI 9050 PCI Target bridge controller has an errata that prevents the
+ * local configuration registers accessible via BAR0 (memory) or BAR1 (i/o)
+ * being read correctly if bit 7 of the base address is set.
+ * The BAR0 or BAR1 region may be disabled (size 0) or enabled (size 128).
+ * Re-allocate the regions to a 256-byte boundary if necessary.
+ */
+static void quirk_plx_pci9050(struct pci_dev *dev)
+{
+	unsigned int bar;
+
+	/* Fixed in revision 2 (PCI 9052). */
+	if (dev->revision >= 2)
+		return;
+	for (bar = 0; bar <= 1; bar++)
+		if (pci_resource_len(dev, bar) == 0x80 &&
+		    (pci_resource_start(dev, bar) & 0x80)) {
+			struct resource *r = &dev->resource[bar];
+			dev_info(&dev->dev,
+				 "Re-allocating PLX PCI 9050 BAR %u to length 256 to avoid bit 7 bug\n",
+				 bar);
+			r->start = 0;
+			r->end = 0xff;
+		}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
+			 quirk_plx_pci9050);
+/*
+ * The following Meilhaus (vendor ID 0x1402) device IDs (amongst others)
+ * may be using the PLX PCI 9050: 0x0630, 0x0940, 0x0950, 0x0960, 0x100b,
+ * 0x1400, 0x140a, 0x140b, 0x14e0, 0x14ea, 0x14eb, 0x1604, 0x1608, 0x160c,
+ * 0x168f, 0x2000, 0x2600, 0x3000, 0x810a, 0x810b.
+ *
+ * Currently, device IDs 0x2000 and 0x2600 are used by the Comedi "me_daq"
+ * driver.
+ */
+DECLARE_PCI_FIXUP_HEADER(0x1402, 0x2000, quirk_plx_pci9050);
+DECLARE_PCI_FIXUP_HEADER(0x1402, 0x2600, quirk_plx_pci9050);
+
 static void quirk_netmos(struct pci_dev *dev)
 {
 	unsigned int num_parallel = (dev->subsystem_device & 0xf0) >> 4;
@@ -2686,7 +2725,7 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 	if (PCI_FUNC(dev->devfn))
 		return;
 	/*
-	 * RICOH 0xe823 SD/MMC card reader fails to recognize
+	 * RICOH 0xe822 and 0xe823 SD/MMC card readers fail to recognize
 	 * certain types of SD/MMC cards. Lowering the SD base
 	 * clock frequency from 200Mhz to 50Mhz fixes this issue.
 	 *
@@ -2697,7 +2736,8 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 	 * 0xf9  - Key register for 0x150
 	 * 0xfc  - key register for 0xe1
 	 */
-	if (dev->device == PCI_DEVICE_ID_RICOH_R5CE823) {
+	if (dev->device == PCI_DEVICE_ID_RICOH_R5CE822 ||
+	    dev->device == PCI_DEVICE_ID_RICOH_R5CE823) {
 		pci_write_config_byte(dev, 0xf9, 0xfc);
 		pci_write_config_byte(dev, 0x150, 0x10);
 		pci_write_config_byte(dev, 0xf9, 0x00);
@@ -2724,6 +2764,8 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE822, ricoh_mmc_fixup_r5c832);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE822, ricoh_mmc_fixup_r5c832);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE823, ricoh_mmc_fixup_r5c832);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE823, ricoh_mmc_fixup_r5c832);
 #endif /*CONFIG_MMC_RICOH_MMC*/

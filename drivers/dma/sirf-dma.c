@@ -655,7 +655,7 @@ irq_dispose:
 	return ret;
 }
 
-static int __devexit sirfsoc_dma_remove(struct platform_device *op)
+static int sirfsoc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);

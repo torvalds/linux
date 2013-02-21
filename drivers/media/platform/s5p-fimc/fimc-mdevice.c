@@ -213,7 +213,7 @@ static int fimc_pipeline_close(struct fimc_pipeline *p)
  * @pipeline: video pipeline structure
  * @on: passed as the s_stream call argument
  */
-int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
+static int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
 {
 	int i, ret;
 
@@ -547,7 +547,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (ret)
 			break;
 
-		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]",
+		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]\n",
 			  source->name, flags ? '=' : '-', sink->name);
 
 		if (flags == 0 || sensor == NULL)
@@ -593,7 +593,7 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 {
 	struct media_entity *source, *sink;
 	unsigned int flags = MEDIA_LNK_FL_ENABLED;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < FIMC_LITE_MAX_DEVS; i++) {
 		struct fimc_lite *fimc = fmd->fimc_lite[i];
@@ -1000,7 +1000,7 @@ err_md:
 	return ret;
 }
 
-static int __devexit fimc_md_remove(struct platform_device *pdev)
+static int fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
@@ -1015,7 +1015,7 @@ static int __devexit fimc_md_remove(struct platform_device *pdev)
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= __devexit_p(fimc_md_remove),
+	.remove		= fimc_md_remove,
 	.driver = {
 		.name	= "s5p-fimc-md",
 		.owner	= THIS_MODULE,

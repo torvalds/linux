@@ -22,6 +22,7 @@
 
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
@@ -629,7 +630,10 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	if (clk == pcr->cur_clock)
 		return 0;
 
-	N = (u8)(clk - 2);
+	if (pcr->ops->conv_clk_and_div_n)
+		N = (u8)pcr->ops->conv_clk_and_div_n(clk, CLK_TO_DIV_N);
+	else
+		N = (u8)(clk - 2);
 	if ((clk <= 2) || (N > max_N))
 		return -EINVAL;
 
@@ -640,7 +644,14 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	/* Make sure that the SSC clock div_n is equal or greater than min_N */
 	div = CLK_DIV_1;
 	while ((N < min_N) && (div < max_div)) {
-		N = (N + 2) * 2 - 2;
+		if (pcr->ops->conv_clk_and_div_n) {
+			int dbl_clk = pcr->ops->conv_clk_and_div_n(N,
+					DIV_N_TO_CLK) * 2;
+			N = (u8)pcr->ops->conv_clk_and_div_n(dbl_clk,
+					CLK_TO_DIV_N);
+		} else {
+			N = (N + 2) * 2 - 2;
+		}
 		div++;
 	}
 	dev_dbg(&(pcr->pci->dev), "N = %d, div = %d\n", N, div);
@@ -701,6 +712,15 @@ int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_card_power_off);
+
+int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	if (pcr->ops->switch_output_voltage)
+		return pcr->ops->switch_output_voltage(pcr, voltage);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_switch_output_voltage);
 
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr)
 {
@@ -766,10 +786,10 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
-	if (card_detect & SD_EXIST)
+	if ((card_detect & SD_EXIST) && pcr->slots[RTSX_SD_CARD].card_event)
 		pcr->slots[RTSX_SD_CARD].card_event(
 				pcr->slots[RTSX_SD_CARD].p_dev);
-	if (card_detect & MS_EXIST)
+	if ((card_detect & MS_EXIST) && pcr->slots[RTSX_MS_CARD].card_event)
 		pcr->slots[RTSX_MS_CARD].card_event(
 				pcr->slots[RTSX_MS_CARD].p_dev);
 }
@@ -997,8 +1017,8 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-static int __devinit rtsx_pci_probe(struct pci_dev *pcidev,
-				    const struct pci_device_id *id)
+static int rtsx_pci_probe(struct pci_dev *pcidev,
+			  const struct pci_device_id *id)
 {
 	struct rtsx_pcr *pcr;
 	struct pcr_handle *handle;
@@ -1122,7 +1142,7 @@ disable:
 	return ret;
 }
 
-static void __devexit rtsx_pci_remove(struct pci_dev *pcidev)
+static void rtsx_pci_remove(struct pci_dev *pcidev)
 {
 	struct pcr_handle *handle = pci_get_drvdata(pcidev);
 	struct rtsx_pcr *pcr = handle->pcr;
@@ -1240,7 +1260,7 @@ static struct pci_driver rtsx_pci_driver = {
 	.name = DRV_NAME_RTSX_PCI,
 	.id_table = rtsx_pci_ids,
 	.probe = rtsx_pci_probe,
-	.remove = __devexit_p(rtsx_pci_remove),
+	.remove = rtsx_pci_remove,
 	.suspend = rtsx_pci_suspend,
 	.resume = rtsx_pci_resume,
 };

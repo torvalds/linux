@@ -72,7 +72,7 @@ enum hp_wmi_event_ids {
 	HPWMI_LOCK_SWITCH = 7,
 };
 
-static int __devinit hp_wmi_bios_setup(struct platform_device *device);
+static int hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
 static int hp_wmi_resume_handler(struct device *device);
 
@@ -619,7 +619,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_tablet);
 }
 
-static int __devinit hp_wmi_rfkill_setup(struct platform_device *device)
+static int hp_wmi_rfkill_setup(struct platform_device *device)
 {
 	int err;
 	int wireless = 0;
@@ -698,7 +698,7 @@ register_wifi_error:
 	return err;
 }
 
-static int __devinit hp_wmi_rfkill2_setup(struct platform_device *device)
+static int hp_wmi_rfkill2_setup(struct platform_device *device)
 {
 	int err, i;
 	struct bios_rfkill2_state state;
@@ -778,7 +778,7 @@ fail:
 	return err;
 }
 
-static int __devinit hp_wmi_bios_setup(struct platform_device *device)
+static int hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
 

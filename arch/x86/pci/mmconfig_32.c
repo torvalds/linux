@@ -142,7 +142,7 @@ void __init pci_mmcfg_arch_free(void)
 {
 }
 
-int __devinit pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
+int pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
 {
 	return 0;
 }

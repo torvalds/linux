@@ -16,6 +16,8 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 
+#define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
+
 /*
  * DMA-consistent mapping functions.
  */
@@ -98,8 +100,8 @@ dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
 }
 
 static inline void
-dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
-		enum dma_data_direction direction)
+dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
+		           size_t size, enum dma_data_direction direction)
 {
 	consistent_sync((void *)bus_to_virt(dma_handle), size, direction);
 }

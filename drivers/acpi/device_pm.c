@@ -358,8 +358,7 @@ static struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
-	return handle && ACPI_SUCCESS(acpi_bus_get_device(handle, &adev)) ?
-		adev : NULL;
+	return handle && !acpi_bus_get_device(handle, &adev) ? adev : NULL;
 }
 
 /**

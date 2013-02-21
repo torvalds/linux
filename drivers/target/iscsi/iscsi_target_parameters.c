@@ -154,22 +154,18 @@ static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *para
 	}
 	INIT_LIST_HEAD(&param->p_list);
 
-	param->name = kzalloc(strlen(name) + 1, GFP_KERNEL);
+	param->name = kstrdup(name, GFP_KERNEL);
 	if (!param->name) {
 		pr_err("Unable to allocate memory for parameter name.\n");
 		goto out;
 	}
 
-	param->value = kzalloc(strlen(value) + 1, GFP_KERNEL);
+	param->value = kstrdup(value, GFP_KERNEL);
 	if (!param->value) {
 		pr_err("Unable to allocate memory for parameter value.\n");
 		goto out;
 	}
 
-	memcpy(param->name, name, strlen(name));
-	param->name[strlen(name)] = '\0';
-	memcpy(param->value, value, strlen(value));
-	param->value[strlen(value)] = '\0';
 	param->phase		= phase;
 	param->scope		= scope;
 	param->sender		= sender;
@@ -635,11 +631,8 @@ void iscsi_release_param_list(struct iscsi_param_list *param_list)
 		list_del(&param->p_list);
 
 		kfree(param->name);
-		param->name = NULL;
 		kfree(param->value);
-		param->value = NULL;
 		kfree(param);
-		param = NULL;
 	}
 
 	iscsi_release_extra_responses(param_list);
@@ -687,14 +680,11 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 {
 	kfree(param->value);
 
-	param->value = kzalloc(strlen(value) + 1, GFP_KERNEL);
+	param->value = kstrdup(value, GFP_KERNEL);
 	if (!param->value) {
 		pr_err("Unable to allocate memory for value.\n");
 		return -ENOMEM;
 	}
-
-	memcpy(param->value, value, strlen(value));
-	param->value[strlen(value)] = '\0';
 
 	pr_debug("iSCSI Parameter updated to %s=%s\n",
 			param->name, param->value);

@@ -511,6 +511,16 @@ static int configure_sync_endpoint(struct snd_usb_substream *subs)
 	struct snd_usb_substream *sync_subs =
 		&subs->stream->substream[subs->direction ^ 1];
 
+	if (subs->sync_endpoint->type != SND_USB_ENDPOINT_TYPE_DATA ||
+	    !subs->stream)
+		return snd_usb_endpoint_set_params(subs->sync_endpoint,
+						   subs->pcm_format,
+						   subs->channels,
+						   subs->period_bytes,
+						   subs->cur_rate,
+						   subs->cur_audiofmt,
+						   NULL);
+
 	/* Try to find the best matching audioformat. */
 	list_for_each_entry(fp, &sync_subs->fmt_list, list) {
 		int score = match_endpoint_audioformats(fp, subs->cur_audiofmt,

@@ -958,6 +958,9 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 		return -EINVAL;
 	}
 
+	if (!dev)
+		return -EINVAL;
+
 	dev->cpu = pr->id;
 
 	if (max_cstate == 0)
@@ -1149,6 +1152,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 		}
 
 		/* Populate Updated C-state information */
+		acpi_processor_get_power_info(pr);
 		acpi_processor_setup_cpuidle_states(pr);
 
 		/* Enable all cpuidle devices */

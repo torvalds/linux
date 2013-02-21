@@ -8,6 +8,7 @@
 #ifndef __DEVICES_DB8500_H
 #define __DEVICES_DB8500_H
 
+#include <linux/platform_data/usb-musb-ux500.h>
 #include <mach/irqs.h>
 #include "devices-common.h"
 

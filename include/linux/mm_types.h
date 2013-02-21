@@ -128,10 +128,7 @@ struct page {
 		};
 
 		struct list_head list;	/* slobs list of pages */
-		struct {		/* slab fields */
-			struct kmem_cache *slab_cache;
-			struct slab *slab_page;
-		};
+		struct slab *slab_page; /* slab fields */
 	};
 
 	/* Remainder is not double word aligned */
@@ -146,7 +143,7 @@ struct page {
 #if USE_SPLIT_PTLOCKS
 		spinlock_t ptl;
 #endif
-		struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
 		struct page *first_page;	/* Compound tail pages */
 	};
 
@@ -174,6 +171,10 @@ struct page {
 	 * is a pointer to such a status block. NULL if not tracked.
 	 */
 	void *shadow;
+#endif
+
+#ifdef CONFIG_NUMA_BALANCING
+	int _last_nid;
 #endif
 }
 /*
@@ -411,8 +412,35 @@ struct mm_struct {
 #ifdef CONFIG_CPUMASK_OFFSTACK
 	struct cpumask cpumask_allocation;
 #endif
+#ifdef CONFIG_NUMA_BALANCING
+	/*
+	 * numa_next_scan is the next time when the PTEs will me marked
+	 * pte_numa to gather statistics and migrate pages to new nodes
+	 * if necessary
+	 */
+	unsigned long numa_next_scan;
+
+	/* numa_next_reset is when the PTE scanner period will be reset */
+	unsigned long numa_next_reset;
+
+	/* Restart point for scanning and setting pte_numa */
+	unsigned long numa_scan_offset;
+
+	/* numa_scan_seq prevents two threads setting pte_numa */
+	int numa_scan_seq;
+
+	/*
+	 * The first node a task was scheduled on. If a task runs on
+	 * a different node than Make PTE Scan Go Now.
+	 */
+	int first_nid;
+#endif
 	struct uprobes_state uprobes_state;
 };
+
+/* first nid will either be a valid NID or one of these values */
+#define NUMA_PTE_SCAN_INIT	-1
+#define NUMA_PTE_SCAN_ACTIVE	-2
 
 static inline void mm_init_cpumask(struct mm_struct *mm)
 {

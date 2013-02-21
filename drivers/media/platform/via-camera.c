@@ -1324,7 +1324,7 @@ static struct video_device viacam_v4l_template = {
 #define VIACAM_SERIAL_CREG 0x46
 #define VIACAM_SERIAL_BIT 0x40
 
-static __devinit bool viacam_serial_is_enabled(void)
+static bool viacam_serial_is_enabled(void)
 {
 	struct pci_bus *pbus = pci_find_bus(0, 0);
 	u8 cbyte;
@@ -1353,7 +1353,7 @@ static struct ov7670_config sensor_cfg = {
 	.clock_speed = 90,
 };
 
-static __devinit int viacam_probe(struct platform_device *pdev)
+static int viacam_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct i2c_adapter *sensor_adapter;
@@ -1490,7 +1490,7 @@ out_unregister:
 	return ret;
 }
 
-static __devexit int viacam_remove(struct platform_device *pdev)
+static int viacam_remove(struct platform_device *pdev)
 {
 	struct via_camera *cam = via_cam_info;
 	struct viafb_dev *viadev = pdev->dev.platform_data;

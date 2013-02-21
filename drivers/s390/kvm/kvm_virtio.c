@@ -392,7 +392,7 @@ static void kvm_extint_handler(struct ext_code ext_code,
 
 	if ((ext_code.subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_VRT]++;
+	inc_irq_stat(IRQEXT_VRT);
 
 	/* The LSB might be overloaded, we have to mask it */
 	vq = (struct virtqueue *)(param64 & ~1UL);

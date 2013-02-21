@@ -446,12 +446,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
-	capability.disable=
-			[SECURITY] Disable capabilities.  This would normally
-			be used only if an alternative security model is to be
-			configured.  Potentially dangerous and should only be
-			used if you are entirely sure of the consequences.
-
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
 
@@ -1503,9 +1497,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	mem=nn[KMG]	[KNL,BOOT] Force usage of a specific amount of memory
 			Amount of memory to be used when the kernel is not able
 			to see the whole system memory or for test.
-			[X86-32] Use together with memmap= to avoid physical
-			address space collisions. Without memmap= PCI devices
-			could be placed at addresses belonging to unused RAM.
+			[X86] Work as limiting max address. Use together
+			with memmap= to avoid physical address space collisions.
+			Without memmap= PCI devices could be placed at addresses
+			belonging to unused RAM.
 
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
@@ -2031,6 +2026,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			just like you compile the kernel NR_CPUS=n
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+
+	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
+			Allowed values are enable and disable
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
 			one of ['zone', 'node', 'default'] can be specified

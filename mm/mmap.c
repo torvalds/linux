@@ -736,7 +736,7 @@ again:			remove_next = 1 + (end > next->vm_end);
 	if (anon_vma) {
 		VM_BUG_ON(adjust_next && next->anon_vma &&
 			  anon_vma != next->anon_vma);
-		anon_vma_lock(anon_vma);
+		anon_vma_lock_write(anon_vma);
 		anon_vma_interval_tree_pre_update_vma(vma);
 		if (adjust_next)
 			anon_vma_interval_tree_pre_update_vma(next);
@@ -1488,7 +1488,11 @@ munmap_back:
 		 *
 		 * Answer: Yes, several device drivers can do it in their
 		 *         f_op->mmap method. -DaveM
+		 * Bug: If addr is changed, prev, rb_link, rb_parent should
+		 *      be updated for vma_link()
 		 */
+		WARN_ON_ONCE(addr != vma->vm_start);
+
 		addr = vma->vm_start;
 		pgoff = vma->vm_pgoff;
 		vm_flags = vma->vm_flags;
@@ -2065,6 +2069,18 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 		if (vma->vm_pgoff + (size >> PAGE_SHIFT) >= vma->vm_pgoff) {
 			error = acct_stack_growth(vma, size, grow);
 			if (!error) {
+				/*
+				 * vma_gap_update() doesn't support concurrent
+				 * updates, but we only hold a shared mmap_sem
+				 * lock here, so we need to protect against
+				 * concurrent vma expansions.
+				 * vma_lock_anon_vma() doesn't help here, as
+				 * we don't guarantee that all growable vmas
+				 * in a mm share the same root anon vma.
+				 * So, we reuse mm->page_table_lock to guard
+				 * against concurrent vma expansions.
+				 */
+				spin_lock(&vma->vm_mm->page_table_lock);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_end = address;
 				anon_vma_interval_tree_post_update_vma(vma);
@@ -2072,6 +2088,8 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 					vma_gap_update(vma->vm_next);
 				else
 					vma->vm_mm->highest_vm_end = address;
+				spin_unlock(&vma->vm_mm->page_table_lock);
+
 				perf_event_mmap(vma);
 			}
 		}
@@ -2122,11 +2140,25 @@ int expand_downwards(struct vm_area_struct *vma,
 		if (grow <= vma->vm_pgoff) {
 			error = acct_stack_growth(vma, size, grow);
 			if (!error) {
+				/*
+				 * vma_gap_update() doesn't support concurrent
+				 * updates, but we only hold a shared mmap_sem
+				 * lock here, so we need to protect against
+				 * concurrent vma expansions.
+				 * vma_lock_anon_vma() doesn't help here, as
+				 * we don't guarantee that all growable vmas
+				 * in a mm share the same root anon vma.
+				 * So, we reuse mm->page_table_lock to guard
+				 * against concurrent vma expansions.
+				 */
+				spin_lock(&vma->vm_mm->page_table_lock);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_start = address;
 				vma->vm_pgoff -= grow;
 				anon_vma_interval_tree_post_update_vma(vma);
 				vma_gap_update(vma);
+				spin_unlock(&vma->vm_mm->page_table_lock);
+
 				perf_event_mmap(vma);
 			}
 		}
@@ -2854,15 +2886,15 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
 		 * The LSB of head.next can't change from under us
 		 * because we hold the mm_all_locks_mutex.
 		 */
-		mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
+		down_write_nest_lock(&anon_vma->root->rwsem, &mm->mmap_sem);
 		/*
 		 * We can safely modify head.next after taking the
-		 * anon_vma->root->mutex. If some other vma in this mm shares
+		 * anon_vma->root->rwsem. If some other vma in this mm shares
 		 * the same anon_vma we won't take it again.
 		 *
 		 * No need of atomic instructions here, head.next
 		 * can't change from under us thanks to the
-		 * anon_vma->root->mutex.
+		 * anon_vma->root->rwsem.
 		 */
 		if (__test_and_set_bit(0, (unsigned long *)
 				       &anon_vma->root->rb_root.rb_node))
@@ -2964,7 +2996,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
 		 *
 		 * No need of atomic instructions here, head.next
 		 * can't change from under us until we release the
-		 * anon_vma->root->mutex.
+		 * anon_vma->root->rwsem.
 		 */
 		if (!__test_and_clear_bit(0, (unsigned long *)
 					  &anon_vma->root->rb_root.rb_node))

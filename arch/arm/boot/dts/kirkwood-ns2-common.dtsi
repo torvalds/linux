@@ -1,4 +1,5 @@
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	chosen {
@@ -6,6 +7,21 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = < &pmx_spi &pmx_twsi0 &pmx_uart0
+					&pmx_ns2_sata0 &pmx_ns2_sata1>;
+			pinctrl-names = "default";
+
+			pmx_ns2_sata0: pmx-ns2-sata0 {
+				marvell,pins = "mpp21";
+				marvell,function = "sata0";
+			};
+			pmx_ns2_sata1: pmx-ns2-sata1 {
+				marvell,pins = "mpp20";
+				marvell,function = "sata1";
+			};
+		};
+
 		serial@12000 {
 			clock-frequency = <166666667>;
 			status = "okay";

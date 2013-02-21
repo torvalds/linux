@@ -2,40 +2,60 @@
 #define _ASM_IRQ_H
 
 #include <linux/hardirq.h>
+#include <linux/percpu.h>
+#include <linux/cache.h>
 #include <linux/types.h>
 
-enum interruption_class {
+enum interruption_main_class {
 	EXTERNAL_INTERRUPT,
 	IO_INTERRUPT,
-	EXTINT_CLK,
-	EXTINT_EXC,
-	EXTINT_EMS,
-	EXTINT_TMR,
-	EXTINT_TLA,
-	EXTINT_PFL,
-	EXTINT_DSD,
-	EXTINT_VRT,
-	EXTINT_SCP,
-	EXTINT_IUC,
-	EXTINT_CMS,
-	EXTINT_CMC,
-	EXTINT_CMR,
-	IOINT_CIO,
-	IOINT_QAI,
-	IOINT_DAS,
-	IOINT_C15,
-	IOINT_C70,
-	IOINT_TAP,
-	IOINT_VMR,
-	IOINT_LCS,
-	IOINT_CLW,
-	IOINT_CTC,
-	IOINT_APB,
-	IOINT_ADM,
-	IOINT_CSC,
-	NMI_NMI,
-	NR_IRQS,
+	NR_IRQS
 };
+
+enum interruption_class {
+	IRQEXT_CLK,
+	IRQEXT_EXC,
+	IRQEXT_EMS,
+	IRQEXT_TMR,
+	IRQEXT_TLA,
+	IRQEXT_PFL,
+	IRQEXT_DSD,
+	IRQEXT_VRT,
+	IRQEXT_SCP,
+	IRQEXT_IUC,
+	IRQEXT_CMS,
+	IRQEXT_CMC,
+	IRQEXT_CMR,
+	IRQIO_CIO,
+	IRQIO_QAI,
+	IRQIO_DAS,
+	IRQIO_C15,
+	IRQIO_C70,
+	IRQIO_TAP,
+	IRQIO_VMR,
+	IRQIO_LCS,
+	IRQIO_CLW,
+	IRQIO_CTC,
+	IRQIO_APB,
+	IRQIO_ADM,
+	IRQIO_CSC,
+	IRQIO_PCI,
+	IRQIO_MSI,
+	NMI_NMI,
+	CPU_RST,
+	NR_ARCH_IRQS
+};
+
+struct irq_stat {
+	unsigned int irqs[NR_ARCH_IRQS];
+};
+
+DECLARE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
+
+static __always_inline void inc_irq_stat(enum interruption_class irq)
+{
+	__get_cpu_var(irq_stat).irqs[irq]++;
+}
 
 struct ext_code {
 	unsigned short subcode;
@@ -50,5 +70,15 @@ void service_subclass_irq_register(void);
 void service_subclass_irq_unregister(void);
 void measurement_alert_subclass_register(void);
 void measurement_alert_subclass_unregister(void);
+
+#ifdef CONFIG_LOCKDEP
+#  define disable_irq_nosync_lockdep(irq)	disable_irq_nosync(irq)
+#  define disable_irq_nosync_lockdep_irqsave(irq, flags) \
+						disable_irq_nosync(irq)
+#  define disable_irq_lockdep(irq)		disable_irq(irq)
+#  define enable_irq_lockdep(irq)		enable_irq(irq)
+#  define enable_irq_lockdep_irqrestore(irq, flags) \
+						enable_irq(irq)
+#endif
 
 #endif /* _ASM_IRQ_H */

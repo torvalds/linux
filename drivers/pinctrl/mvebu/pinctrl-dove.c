@@ -579,29 +579,32 @@ static struct mvebu_pinctrl_soc_info dove_pinctrl_info = {
 
 static struct clk *clk;
 
-static struct of_device_id dove_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id dove_pinctrl_of_match[] = {
 	{ .compatible = "marvell,dove-pinctrl", .data = &dove_pinctrl_info },
 	{ }
 };
 
-static int __devinit dove_pinctrl_probe(struct platform_device *pdev)
+static int dove_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(dove_pinctrl_of_match, &pdev->dev);
-	pdev->dev.platform_data = match->data;
+	pdev->dev.platform_data = (void *)match->data;
 
 	/*
 	 * General MPP Configuration Register is part of pdma registers.
 	 * grab clk to make sure it is ticking.
 	 */
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Unable to get pdma clock");
+		return PTR_RET(clk);
+	}
+	clk_prepare_enable(clk);
 
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit dove_pinctrl_remove(struct platform_device *pdev)
+static int dove_pinctrl_remove(struct platform_device *pdev)
 {
 	int ret;
 
@@ -618,7 +621,7 @@ static struct platform_driver dove_pinctrl_driver = {
 		.of_match_table = of_match_ptr(dove_pinctrl_of_match),
 	},
 	.probe = dove_pinctrl_probe,
-	.remove = __devexit_p(dove_pinctrl_remove),
+	.remove = dove_pinctrl_remove,
 };
 
 module_platform_driver(dove_pinctrl_driver);

@@ -20,6 +20,15 @@
 #include "clock44xx.h"
 #include "cm-regbits-44xx.h"
 
+/*
+ * Maximum DPLL input frequency (FINT) and output frequency (FOUT) that
+ * can supported when using the DPLL low-power mode. Frequencies are
+ * defined in OMAP4430/60 Public TRM section 3.6.3.3.2 "Enable Control,
+ * Status, and Low-Power Operation Mode".
+ */
+#define OMAP4_DPLL_LP_FINT_MAX	1000000
+#define OMAP4_DPLL_LP_FOUT_MAX	100000000
+
 /* Supported only on OMAP4 */
 int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
 {
@@ -82,6 +91,31 @@ const struct clk_hw_omap_ops clkhwops_omap4_dpllmx = {
 };
 
 /**
+ * omap4_dpll_lpmode_recalc - compute DPLL low-power setting
+ * @dd: pointer to the dpll data structure
+ *
+ * Calculates if low-power mode can be enabled based upon the last
+ * multiplier and divider values calculated. If low-power mode can be
+ * enabled, then the bit to enable low-power mode is stored in the
+ * last_rounded_lpmode variable. This implementation is based upon the
+ * criteria for enabling low-power mode as described in the OMAP4430/60
+ * Public TRM section 3.6.3.3.2 "Enable Control, Status, and Low-Power
+ * Operation Mode".
+ */
+static void omap4_dpll_lpmode_recalc(struct dpll_data *dd)
+{
+	long fint, fout;
+
+	fint = __clk_get_rate(dd->clk_ref) / (dd->last_rounded_n + 1);
+	fout = fint * dd->last_rounded_m;
+
+	if ((fint < OMAP4_DPLL_LP_FINT_MAX) && (fout < OMAP4_DPLL_LP_FOUT_MAX))
+		dd->last_rounded_lpmode = 1;
+	else
+		dd->last_rounded_lpmode = 0;
+}
+
+/**
  * omap4_dpll_regm4xen_recalc - compute DPLL rate, considering REGM4XEN bit
  * @clk: struct clk * of the DPLL to compute the rate for
  *
@@ -130,7 +164,6 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 				    unsigned long *parent_rate)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
-	u32 v;
 	struct dpll_data *dd;
 	long r;
 
@@ -139,18 +172,31 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 
 	dd = clk->dpll_data;
 
-	/* regm4xen adds a multiplier of 4 to DPLL calculations */
-	v = __raw_readl(dd->control_reg) & OMAP4430_DPLL_REGM4XEN_MASK;
+	dd->last_rounded_m4xen = 0;
 
-	if (v)
-		target_rate = target_rate / OMAP4430_REGM4XEN_MULT;
-
+	/*
+	 * First try to compute the DPLL configuration for
+	 * target rate without using the 4X multiplier.
+	 */
 	r = omap2_dpll_round_rate(hw, target_rate, NULL);
+	if (r != ~0)
+		goto out;
+
+	/*
+	 * If we did not find a valid DPLL configuration, try again, but
+	 * this time see if using the 4X multiplier can help. Enabling the
+	 * 4X multiplier is equivalent to dividing the target rate by 4.
+	 */
+	r = omap2_dpll_round_rate(hw, target_rate / OMAP4430_REGM4XEN_MULT,
+				  NULL);
 	if (r == ~0)
 		return r;
 
-	if (v)
-		clk->dpll_data->last_rounded_rate *= OMAP4430_REGM4XEN_MULT;
+	dd->last_rounded_rate *= OMAP4430_REGM4XEN_MULT;
+	dd->last_rounded_m4xen = 1;
 
-	return clk->dpll_data->last_rounded_rate;
+out:
+	omap4_dpll_lpmode_recalc(dd);
+
+	return dd->last_rounded_rate;
 }

@@ -162,11 +162,9 @@ static struct vme_driver pio2_driver = {
 
 static int __init pio2_init(void)
 {
-	int retval = 0;
-
 	if (bus_num == 0) {
 		pr_err("No cards, skipping registration\n");
-		goto err_nocard;
+		return -ENODEV;
 	}
 
 	if (bus_num > PIO2_CARDS_MAX) {
@@ -176,15 +174,7 @@ static int __init pio2_init(void)
 	}
 
 	/* Register the PIO2 driver */
-	retval = vme_register_driver(&pio2_driver, bus_num);
-	if (retval != 0)
-		goto err_reg;
-
-	return retval;
-
-err_reg:
-err_nocard:
-	return retval;
+	return  vme_register_driver(&pio2_driver, bus_num);
 }
 
 static int pio2_match(struct vme_dev *vdev)

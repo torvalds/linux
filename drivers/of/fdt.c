@@ -488,14 +488,8 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 		depth++;
 		pathp = (char *)p;
 		p = ALIGN(p + strlen(pathp) + 1, 4);
-		if ((*pathp) == '/') {
-			const char *lp, *np;
-			for (lp = NULL, np = pathp; *np; np++)
-				if ((*np) == '/')
-					lp = np+1;
-			if (lp != NULL)
-				pathp = lp;
-		}
+		if (*pathp == '/')
+			pathp = kbasename(pathp);
 		rc = it(p, pathp, depth, data);
 		if (rc != 0)
 			break;

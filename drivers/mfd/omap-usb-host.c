@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
-#include <plat/cpu.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/usb-omap.h>
 #include <linux/pm_runtime.h>
@@ -384,7 +383,7 @@ static void omap_usbhs_init(struct device *dev)
 			reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 
 		/* Bypass the TLL module for PHY mode operation */
-		if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
+		if (pdata->single_ulpi_bypass) {
 			dev_dbg(dev, "OMAP3 ES version <= ES2.1\n");
 			if (is_ehci_phy_mode(pdata->port_mode[0]) ||
 				is_ehci_phy_mode(pdata->port_mode[1]) ||

@@ -139,9 +139,9 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[usb_div_post], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[usb_gate], "ahb", "mxc-ehci.2");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div_post], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usb_gate], "ahb", "fsl-usb2-udc");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usb_div_post], "per", "imx-udc-mx27");
+	clk_register_clkdev(clk[usb_gate], "ahb", "imx-udc-mx27");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
 	/* i.mx31 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_gate], "per", "imx21-uart.0");

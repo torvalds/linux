@@ -94,8 +94,6 @@ static void iwl_pcie_set_pwr_vmain(struct iwl_trans *trans)
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
 static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
@@ -111,9 +109,7 @@ static void iwl_pcie_apm_config(struct iwl_trans *trans)
 	 *    power savings, even without L1.
 	 */
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
-
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+	if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
 		/* L1-ASPM enabled; disable(!) L0S */
 		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 		dev_info(trans->dev, "L1 Enabled; Disabling L0S\n");
@@ -122,7 +118,7 @@ static void iwl_pcie_apm_config(struct iwl_trans *trans)
 		iwl_clear_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 		dev_info(trans->dev, "L1 Disabled; Enabling L0S\n");
 	}
-	trans->pm_support = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	trans->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 }
 
 /*

@@ -319,7 +319,7 @@ static void ts5500_disable_irq(struct ts5500_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int __devinit ts5500_dio_probe(struct platform_device *pdev)
+static int ts5500_dio_probe(struct platform_device *pdev)
 {
 	enum ts5500_blocks block = platform_get_device_id(pdev)->driver_data;
 	struct ts5500_dio_platform_data *pdata = pdev->dev.platform_data;
@@ -432,7 +432,7 @@ cleanup:
 	return ret;
 }
 
-static int __devexit ts5500_dio_remove(struct platform_device *pdev)
+static int ts5500_dio_remove(struct platform_device *pdev)
 {
 	struct ts5500_priv *priv = platform_get_drvdata(pdev);
 
@@ -455,7 +455,7 @@ static struct platform_driver ts5500_dio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ts5500_dio_probe,
-	.remove = __devexit_p(ts5500_dio_remove),
+	.remove = ts5500_dio_remove,
 	.id_table = ts5500_dio_ids,
 };
 

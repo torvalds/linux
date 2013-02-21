@@ -1,7 +1,7 @@
 /*
  *   S/390 common I/O routines -- channel subsystem call
  *
- *    Copyright IBM Corp. 1999, 2010
+ *    Copyright IBM Corp. 1999,2012
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/pci.h>
 
 #include <asm/cio.h>
 #include <asm/chpid.h>
@@ -260,26 +261,46 @@ __get_chpid_from_lir(void *data)
 	return (u16) (lir->indesc[0]&0x000000ff);
 }
 
-struct chsc_sei_area {
-	struct chsc_header request;
+struct chsc_sei_nt0_area {
+	u8  flags;
+	u8  vf;				/* validity flags */
+	u8  rs;				/* reporting source */
+	u8  cc;				/* content code */
+	u16 fla;			/* full link address */
+	u16 rsid;			/* reporting source id */
 	u32 reserved1;
 	u32 reserved2;
-	u32 reserved3;
-	struct chsc_header response;
-	u32 reserved4;
-	u8  flags;
-	u8  vf;		/* validity flags */
-	u8  rs;		/* reporting source */
-	u8  cc;		/* content code */
-	u16 fla;	/* full link address */
-	u16 rsid;	/* reporting source id */
-	u32 reserved5;
-	u32 reserved6;
-	u8 ccdf[4096 - 16 - 24];	/* content-code dependent field */
 	/* ccdf has to be big enough for a link-incident record */
-} __attribute__ ((packed));
+	u8  ccdf[PAGE_SIZE - 24 - 16];	/* content-code dependent field */
+} __packed;
 
-static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
+struct chsc_sei_nt2_area {
+	u8  flags;			/* p and v bit */
+	u8  reserved1;
+	u8  reserved2;
+	u8  cc;				/* content code */
+	u32 reserved3[13];
+	u8  ccdf[PAGE_SIZE - 24 - 56];	/* content-code dependent field */
+} __packed;
+
+#define CHSC_SEI_NT0	(1ULL << 63)
+#define CHSC_SEI_NT2	(1ULL << 61)
+
+struct chsc_sei {
+	struct chsc_header request;
+	u32 reserved1;
+	u64 ntsm;			/* notification type mask */
+	struct chsc_header response;
+	u32 :24;
+	u8 nt;
+	union {
+		struct chsc_sei_nt0_area nt0_area;
+		struct chsc_sei_nt2_area nt2_area;
+		u8 nt_area[PAGE_SIZE - 24];
+	} u;
+} __packed;
+
+static void chsc_process_sei_link_incident(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_id chpid;
 	int id;
@@ -298,7 +319,7 @@ static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 	}
 }
 
-static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_res_acc(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_link link;
 	struct chp_id chpid;
@@ -330,7 +351,7 @@ static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 	s390_process_res_acc(&link);
 }
 
-static void chsc_process_sei_chp_avail(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_chp_avail(struct chsc_sei_nt0_area *sei_area)
 {
 	struct channel_path *chp;
 	struct chp_id chpid;
@@ -366,7 +387,7 @@ struct chp_config_data {
 	u8 pc;
 };
 
-static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_chp_config(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_config_data *data;
 	struct chp_id chpid;
@@ -398,7 +419,7 @@ static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 	}
 }
 
-static void chsc_process_sei_scm_change(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_scm_change(struct chsc_sei_nt0_area *sei_area)
 {
 	int ret;
 
@@ -412,13 +433,26 @@ static void chsc_process_sei_scm_change(struct chsc_sei_area *sei_area)
 			      " failed (rc=%d).\n", ret);
 }
 
-static void chsc_process_sei(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_nt2(struct chsc_sei_nt2_area *sei_area)
 {
-	/* Check if we might have lost some information. */
-	if (sei_area->flags & 0x40) {
-		CIO_CRW_EVENT(2, "chsc: event overflow\n");
-		css_schedule_eval_all();
+#ifdef CONFIG_PCI
+	switch (sei_area->cc) {
+	case 1:
+		zpci_event_error(sei_area->ccdf);
+		break;
+	case 2:
+		zpci_event_availability(sei_area->ccdf);
+		break;
+	default:
+		CIO_CRW_EVENT(2, "chsc: unhandled sei content code %d\n",
+			      sei_area->cc);
+		break;
 	}
+#endif
+}
+
+static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
+{
 	/* which kind of information was stored? */
 	switch (sei_area->cc) {
 	case 1: /* link incident*/
@@ -443,9 +477,51 @@ static void chsc_process_sei(struct chsc_sei_area *sei_area)
 	}
 }
 
+static int __chsc_process_crw(struct chsc_sei *sei, u64 ntsm)
+{
+	do {
+		memset(sei, 0, sizeof(*sei));
+		sei->request.length = 0x0010;
+		sei->request.code = 0x000e;
+		sei->ntsm = ntsm;
+
+		if (chsc(sei))
+			break;
+
+		if (sei->response.code == 0x0001) {
+			CIO_CRW_EVENT(2, "chsc: sei successful\n");
+
+			/* Check if we might have lost some information. */
+			if (sei->u.nt0_area.flags & 0x40) {
+				CIO_CRW_EVENT(2, "chsc: event overflow\n");
+				css_schedule_eval_all();
+			}
+
+			switch (sei->nt) {
+			case 0:
+				chsc_process_sei_nt0(&sei->u.nt0_area);
+				break;
+			case 2:
+				chsc_process_sei_nt2(&sei->u.nt2_area);
+				break;
+			default:
+				CIO_CRW_EVENT(2, "chsc: unhandled nt=%d\n",
+					      sei->nt);
+				break;
+			}
+		} else {
+			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
+				      sei->response.code);
+			break;
+		}
+	} while (sei->u.nt0_area.flags & 0x80);
+
+	return 0;
+}
+
 static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
-	struct chsc_sei_area *sei_area;
+	struct chsc_sei *sei;
 
 	if (overflow) {
 		css_schedule_eval_all();
@@ -459,25 +535,10 @@ static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 		return;
 	/* Access to sei_page is serialized through machine check handler
 	 * thread, so no need for locking. */
-	sei_area = sei_page;
+	sei = sei_page;
 
 	CIO_TRACE_EVENT(2, "prcss");
-	do {
-		memset(sei_area, 0, sizeof(*sei_area));
-		sei_area->request.length = 0x0010;
-		sei_area->request.code = 0x000e;
-		if (chsc(sei_area))
-			break;
-
-		if (sei_area->response.code == 0x0001) {
-			CIO_CRW_EVENT(4, "chsc: sei successful\n");
-			chsc_process_sei(sei_area);
-		} else {
-			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
-				      sei_area->response.code);
-			break;
-		}
-	} while (sei_area->flags & 0x80);
+	__chsc_process_crw(sei, CHSC_SEI_NT0 | CHSC_SEI_NT2);
 }
 
 void chsc_chp_online(struct chp_id chpid)
