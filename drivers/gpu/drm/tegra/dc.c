@@ -500,7 +500,7 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 		tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KVB);
 
 		value |= CSC_ENABLE;
-	} else if (bpp < 24) {
+	} else if (window->bits_per_pixel < 24) {
 		value |= COLOR_EXPAND;
 	}
 
