@@ -552,14 +552,13 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 	for (n = 0; n < geo->near_copies; n++) {
 		int d = dev;
 		sector_t s = sector;
-		r10bio->devs[slot].addr = sector;
 		r10bio->devs[slot].devnum = d;
+		r10bio->devs[slot].addr = s;
 		slot++;
 
 		for (f = 1; f < geo->far_copies; f++) {
 			d += geo->near_copies;
-			if (d >= geo->raid_disks)
-				d -= geo->raid_disks;
+			d %= geo->raid_disks;
 			s += geo->stride;
 			r10bio->devs[slot].devnum = d;
 			r10bio->devs[slot].addr = s;
