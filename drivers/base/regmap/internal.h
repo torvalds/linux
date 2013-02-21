@@ -188,10 +188,10 @@ int regcache_write(struct regmap *map,
 			unsigned int reg, unsigned int value);
 int regcache_sync(struct regmap *map);
 
-unsigned int regcache_get_val(const void *base, unsigned int idx,
-			      unsigned int word_size);
-bool regcache_set_val(void *base, unsigned int idx,
-		      unsigned int val, unsigned int word_size);
+unsigned int regcache_get_val(struct regmap *map, const void *base,
+			      unsigned int idx);
+bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+		      unsigned int val);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
