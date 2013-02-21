@@ -655,6 +655,16 @@ config HID_TOPSEED
 	Say Y if you have a TopSeed Cyberlink or BTC Emprex or Conceptronic
 	CLLRCMCE remote control.
 
+config HID_THINGM
+	tristate "ThingM blink(1) USB RGB LED"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	---help---
+	Support for the ThingM blink(1) USB RGB LED. This driver registers a
+	Linux LED class instance, plus additional sysfs attributes to control
+	RGB colors, fade time and playing. The device is exposed through hidraw
+	to access other functions.
+
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
 	depends on USB_HID
@@ -719,7 +729,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on USB_HID
+	depends on USB_HID && GENERIC_HARDIRQS
 	select MFD_CORE
 	default n
 	-- help---

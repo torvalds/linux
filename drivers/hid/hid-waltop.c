@@ -779,17 +779,6 @@ static struct hid_driver waltop_driver = {
 	.report_fixup = waltop_report_fixup,
 	.raw_event = waltop_raw_event,
 };
+module_hid_driver(waltop_driver);
 
-static int __init waltop_init(void)
-{
-	return hid_register_driver(&waltop_driver);
-}
-
-static void __exit waltop_exit(void)
-{
-	hid_unregister_driver(&waltop_driver);
-}
-
-module_init(waltop_init);
-module_exit(waltop_exit);
 MODULE_LICENSE("GPL");

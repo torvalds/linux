@@ -196,17 +196,6 @@ static struct hid_driver samsung_driver = {
 	.input_mapping = samsung_input_mapping,
 	.probe = samsung_probe,
 };
+module_hid_driver(samsung_driver);
 
-static int __init samsung_init(void)
-{
-	return hid_register_driver(&samsung_driver);
-}
-
-static void __exit samsung_exit(void)
-{
-	hid_unregister_driver(&samsung_driver);
-}
-
-module_init(samsung_init);
-module_exit(samsung_exit);
 MODULE_LICENSE("GPL");
