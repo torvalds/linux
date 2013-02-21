@@ -73,7 +73,12 @@ static int clk_super_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct tegra_clk_super_mux *mux = to_clk_super_mux(hw);
 	u32 val, state;
+	int err = 0;
 	u8 parent_index, shift;
+	unsigned long flags = 0;
+
+	if (mux->lock)
+		spin_lock_irqsave(mux->lock, flags);
 
 	val = readl_relaxed(mux->reg);
 	state = val & SUPER_STATE_MASK;
@@ -92,8 +97,10 @@ static int clk_super_set_parent(struct clk_hw *hw, u8 index)
 					       (index == mux->pllx_index))) {
 		parent_index = clk_super_get_parent(hw);
 		if ((parent_index == mux->div2_index) ||
-		    (parent_index == mux->pllx_index))
-			return -EINVAL;
+		    (parent_index == mux->pllx_index)) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		val ^= SUPER_LP_DIV2_BYPASS;
 		writel_relaxed(val, mux->reg);
@@ -107,7 +114,12 @@ static int clk_super_set_parent(struct clk_hw *hw, u8 index)
 
 	writel_relaxed(val, mux->reg);
 	udelay(2);
-	return 0;
+
+out:
+	if (mux->lock)
+		spin_unlock_irqrestore(mux->lock, flags);
+
+	return err;
 }
 
 const struct clk_ops tegra_clk_super_ops = {

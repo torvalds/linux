@@ -194,6 +194,7 @@ static void __iomem *clk_base;
 static void __iomem *pmc_base;
 
 static DEFINE_SPINLOCK(pll_div_lock);
+static DEFINE_SPINLOCK(sysrate_lock);
 
 #define TEGRA_INIT_DATA_MUX(_name, _con_id, _dev_id, _parents, _offset,	\
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
@@ -239,8 +240,8 @@ enum tegra20_clk {
 	uartb = 96, vfir, spdif_in, spdif_out, vi, vi_sensor, tvo, cve,
 	osc, clk_32k, clk_m, sclk, cclk, hclk, pclk, blink, pll_a, pll_a_out0,
 	pll_c, pll_c_out1, pll_d, pll_d_out0, pll_e, pll_m, pll_m_out1,
-	pll_p, pll_p_out1, pll_p_out2, pll_p_out3, pll_p_out4, pll_u,
-	pll_x, audio, pll_ref, twd, clk_max,
+	pll_p, pll_p_out1, pll_p_out2, pll_p_out3, pll_p_out4, pll_s, pll_u,
+	pll_x, cop, audio, pll_ref, twd, clk_max,
 };
 
 static struct clk *clks[clk_max];
@@ -768,19 +769,21 @@ static void tegra20_super_clk_init(void)
 
 	/* HCLK */
 	clk = clk_register_divider(NULL, "hclk_div", "sclk", 0,
-				   clk_base + CLK_SYSTEM_RATE, 4, 2, 0, NULL);
+				   clk_base + CLK_SYSTEM_RATE, 4, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "hclk", "hclk_div", CLK_SET_RATE_PARENT,
 				clk_base + CLK_SYSTEM_RATE, 7,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "hclk", NULL);
 	clks[hclk] = clk;
 
 	/* PCLK */
 	clk = clk_register_divider(NULL, "pclk_div", "hclk", 0,
-				   clk_base + CLK_SYSTEM_RATE, 0, 2, 0, NULL);
+				   clk_base + CLK_SYSTEM_RATE, 0, 2, 0,
+				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "pclk", "pclk_div", CLK_SET_RATE_PARENT,
 				clk_base + CLK_SYSTEM_RATE, 3,
-				CLK_GATE_SET_TO_DISABLE, NULL);
+				CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	clk_register_clkdev(clk, "pclk", NULL);
 	clks[pclk] = clk;
 
@@ -1251,8 +1254,11 @@ static __initdata struct tegra_clk_init_table init_table[] = {
 	{csite, clk_max, 0, 1},
 	{emc, clk_max, 0, 1},
 	{cclk, clk_max, 0, 1},
-	{uarta, pll_p, 0, 1},
-	{uartd, pll_p, 0, 1},
+	{uarta, pll_p, 0, 0},
+	{uartb, pll_p, 0, 0},
+	{uartc, pll_p, 0, 0},
+	{uartd, pll_p, 0, 0},
+	{uarte, pll_p, 0, 0},
 	{usbd, clk_max, 12000000, 0},
 	{usb2, clk_max, 12000000, 0},
 	{usb3, clk_max, 12000000, 0},
