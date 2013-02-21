@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#include <linux/init.h>
+
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
-#include <linux/ioport.h>
 #include <mach/r8a7779.h>
+
+#include "sh_pfc.h"
 
 #define CPU_32_PORT(fn, pfx, sfx)				\
 	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),	\
@@ -2600,24 +2600,8 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-static struct resource r8a7779_pfc_resources[] = {
-	[0] = {
-		.start	= 0xfffc0000,
-		.end	= 0xfffc023b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0xffc40000,
-		.end	= 0xffc46fff,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct pinmux_info r8a7779_pinmux_info = {
+struct sh_pfc_soc_info r8a7779_pinmux_info = {
 	.name = "r8a7779_pfc",
-
-	.resource = r8a7779_pfc_resources,
-	.num_resources = ARRAY_SIZE(r8a7779_pfc_resources),
 
 	.unlock_reg = 0xfffc0000, /* PMMR */
 
@@ -2638,8 +2622,3 @@ static struct pinmux_info r8a7779_pinmux_info = {
 	.gpio_data = pinmux_data,
 	.gpio_data_size = ARRAY_SIZE(pinmux_data),
 };
-
-void r8a7779_pinmux_init(void)
-{
-	register_pinmux(&r8a7779_pinmux_info);
-}

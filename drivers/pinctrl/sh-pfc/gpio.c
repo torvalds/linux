@@ -8,16 +8,18 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#define pr_fmt(fmt) "sh_pfc " KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
+#define pr_fmt(fmt) KBUILD_MODNAME " gpio: " fmt
+
+#include <linux/device.h>
 #include <linux/gpio.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/sh_pfc.h>
+
+#include "core.h"
 
 struct sh_pfc_chip {
 	struct sh_pfc		*pfc;
@@ -49,7 +51,7 @@ static void sh_gpio_set_value(struct sh_pfc *pfc, unsigned gpio, int value)
 	struct pinmux_data_reg *dr = NULL;
 	int bit = 0;
 
-	if (!pfc || sh_pfc_get_data_reg(pfc, gpio, &dr, &bit) != 0)
+	if (sh_pfc_get_data_reg(pfc, gpio, &dr, &bit) != 0)
 		BUG();
 	else
 		sh_pfc_write_bit(dr, bit, value);
@@ -60,7 +62,7 @@ static int sh_gpio_get_value(struct sh_pfc *pfc, unsigned gpio)
 	struct pinmux_data_reg *dr = NULL;
 	int bit = 0;
 
-	if (!pfc || sh_pfc_get_data_reg(pfc, gpio, &dr, &bit) != 0)
+	if (sh_pfc_get_data_reg(pfc, gpio, &dr, &bit) != 0)
 		return -EINVAL;
 
 	return sh_pfc_read_bit(dr, bit);
@@ -103,11 +105,11 @@ static int sh_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 		if (pos <= 0 || !enum_id)
 			break;
 
-		for (i = 0; i < pfc->gpio_irq_size; i++) {
-			enum_ids = pfc->gpio_irq[i].enum_ids;
+		for (i = 0; i < pfc->info->gpio_irq_size; i++) {
+			enum_ids = pfc->info->gpio_irq[i].enum_ids;
 			for (k = 0; enum_ids[k]; k++) {
 				if (enum_ids[k] == enum_id)
-					return pfc->gpio_irq[i].irq;
+					return pfc->info->gpio_irq[i].irq;
 			}
 		}
 	}
@@ -128,12 +130,12 @@ static void sh_pfc_gpio_setup(struct sh_pfc_chip *chip)
 	gc->set = sh_gpio_set;
 	gc->to_irq = sh_gpio_to_irq;
 
-	WARN_ON(pfc->first_gpio != 0); /* needs testing */
+	WARN_ON(pfc->info->first_gpio != 0); /* needs testing */
 
-	gc->label = pfc->name;
+	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->first_gpio;
-	gc->ngpio = (pfc->last_gpio - pfc->first_gpio) + 1;
+	gc->base = pfc->info->first_gpio;
+	gc->ngpio = (pfc->info->last_gpio - pfc->info->first_gpio) + 1;
 }
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
@@ -141,7 +143,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	struct sh_pfc_chip *chip;
 	int ret;
 
-	chip = kzalloc(sizeof(struct sh_pfc_chip), GFP_KERNEL);
+	chip = devm_kzalloc(pfc->dev, sizeof(*chip), GFP_KERNEL);
 	if (unlikely(!chip))
 		return -ENOMEM;
 
@@ -151,90 +153,26 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 	ret = gpiochip_add(&chip->gpio_chip);
 	if (unlikely(ret < 0))
-		kfree(chip);
+		return ret;
+
+	pfc->gpio = chip;
 
 	pr_info("%s handling gpio %d -> %d\n",
-		pfc->name, pfc->first_gpio, pfc->last_gpio);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(sh_pfc_register_gpiochip);
-
-static int sh_pfc_gpio_match(struct gpio_chip *gc, void *data)
-{
-	return !!strstr(gc->label, data);
-}
-
-static int sh_pfc_gpio_probe(struct platform_device *pdev)
-{
-	struct sh_pfc_chip *chip;
-	struct gpio_chip *gc;
-
-	gc = gpiochip_find("_pfc", sh_pfc_gpio_match);
-	if (unlikely(!gc)) {
-		pr_err("Cant find gpio chip\n");
-		return -ENODEV;
-	}
-
-	chip = gpio_to_pfc_chip(gc);
-	platform_set_drvdata(pdev, chip);
-
-	pr_info("attaching to GPIO chip %s\n", chip->pfc->name);
+		pfc->info->name, pfc->info->first_gpio,
+		pfc->info->last_gpio);
 
 	return 0;
 }
 
-static int sh_pfc_gpio_remove(struct platform_device *pdev)
+int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
 {
-	struct sh_pfc_chip *chip = platform_get_drvdata(pdev);
+	struct sh_pfc_chip *chip = pfc->gpio;
 	int ret;
 
 	ret = gpiochip_remove(&chip->gpio_chip);
 	if (unlikely(ret < 0))
 		return ret;
 
-	kfree(chip);
+	pfc->gpio = NULL;
 	return 0;
 }
-
-static struct platform_driver sh_pfc_gpio_driver = {
-	.probe		= sh_pfc_gpio_probe,
-	.remove		= sh_pfc_gpio_remove,
-	.driver		= {
-		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_device sh_pfc_gpio_device = {
-	.name		= KBUILD_MODNAME,
-	.id		= -1,
-};
-
-static int __init sh_pfc_gpio_init(void)
-{
-	int rc;
-
-	rc = platform_driver_register(&sh_pfc_gpio_driver);
-	if (likely(!rc)) {
-		rc = platform_device_register(&sh_pfc_gpio_device);
-		if (unlikely(rc))
-			platform_driver_unregister(&sh_pfc_gpio_driver);
-	}
-
-	return rc;
-}
-
-static void __exit sh_pfc_gpio_exit(void)
-{
-	platform_device_unregister(&sh_pfc_gpio_device);
-	platform_driver_unregister(&sh_pfc_gpio_driver);
-}
-
-module_init(sh_pfc_gpio_init);
-module_exit(sh_pfc_gpio_exit);
-
-MODULE_AUTHOR("Magnus Damm, Paul Mundt");
-MODULE_DESCRIPTION("GPIO driver for SuperH pin function controller");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:pfc-gpio");
