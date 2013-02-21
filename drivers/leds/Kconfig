@@ -154,7 +154,7 @@ config LEDS_HP6XX
 config LEDS_PCA9532
 	tristate "LED driver for PCA9532 dimmer"
 	depends on LEDS_CLASS
-	depends on I2C && INPUT && EXPERIMENTAL
+	depends on I2C && INPUT
 	help
 	  This option enables support for NXP pca9532
 	  LED controller. It is generally only useful

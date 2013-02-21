@@ -277,7 +277,6 @@ config P5040_DS
 
 config PPC_QEMU_E500
 	bool "QEMU generic e500 platform"
-	depends on EXPERIMENTAL
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for running as a QEMU guest using

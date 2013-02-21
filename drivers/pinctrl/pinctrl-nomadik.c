@@ -1362,9 +1362,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	if (secondary_irq >= 0 && !pdata->get_secondary_status)
 		return -EINVAL;
 
-	base = devm_request_and_ioremap(&dev->dev, res);
-	if (!base)
-		return -ENOMEM;
+	base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk))

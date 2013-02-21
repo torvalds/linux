@@ -123,8 +123,7 @@ config IFB
 source "drivers/net/team/Kconfig"
 
 config MACVLAN
-	tristate "MAC-VLAN support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "MAC-VLAN support"
 	---help---
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
@@ -138,7 +137,7 @@ config MACVLAN
 	  will be called macvlan.
 
 config MACVTAP
-	tristate "MAC-VLAN based tap driver (EXPERIMENTAL)"
+	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
 	help
 	  This adds a specialized tap character device driver that is based
@@ -234,8 +233,8 @@ config VETH
 	  versa.
 
 config VIRTIO_NET
-	tristate "Virtio network driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "Virtio network driver"
+	depends on VIRTIO
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.

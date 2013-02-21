@@ -1042,11 +1042,10 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->regs = devm_request_and_ioremap(&pdev->dev, res);
+	i2c->regs = devm_ioremap_resource(&pdev->dev, res);
 
-	if (i2c->regs == NULL) {
-		dev_err(&pdev->dev, "cannot map IO\n");
-		ret = -ENXIO;
+	if (IS_ERR(i2c->regs)) {
+		ret = PTR_ERR(i2c->regs);
 		goto err_clk;
 	}
 

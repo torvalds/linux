@@ -396,8 +396,8 @@ extern int class_for_each_device(struct class *class, struct device *start,
 				 void *data,
 				 int (*fn)(struct device *dev, void *data));
 extern struct device *class_find_device(struct class *class,
-					struct device *start, void *data,
-					int (*match)(struct device *, void *));
+					struct device *start, const void *data,
+					int (*match)(struct device *, const void *));
 
 struct class_attribute {
 	struct attribute attr;
@@ -574,6 +574,7 @@ extern int devres_release_group(struct device *dev, void *id);
 extern void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp);
 extern void devm_kfree(struct device *dev, void *p);
 
+void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
 void __iomem *devm_request_and_ioremap(struct device *dev,
 			struct resource *res);
 

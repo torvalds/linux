@@ -155,14 +155,14 @@ config CIFS_DFS_UPCALL
 	    points. If unsure, say N.
 
 config CIFS_NFSD_EXPORT
-	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL && BROKEN
+	  bool "Allow nfsd to export CIFS file system"
+	  depends on CIFS && BROKEN
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB2
-	bool "SMB2 network file system support (EXPERIMENTAL)"
-	depends on CIFS && EXPERIMENTAL && INET
+	bool "SMB2 network file system support"
+	depends on CIFS && INET
 	select NLS
 	select KEYS
 	select FSCACHE

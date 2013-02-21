@@ -523,9 +523,7 @@ static int omap2430_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
-	glue->control_otghs = devm_request_and_ioremap(&pdev->dev, res);
-	if (glue->control_otghs == NULL)
-		dev_dbg(&pdev->dev, "Failed to obtain control memory\n");
+	glue->control_otghs = devm_ioremap_resource(&pdev->dev, res);
 
 	if (np) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);

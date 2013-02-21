@@ -34,8 +34,8 @@ config ATP
 	  will be called atp.
 
 config 8139CP
-	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support"
+	depends on PCI
 	select CRC32
 	select NET_CORE
 	select MII

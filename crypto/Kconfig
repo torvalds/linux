@@ -134,8 +134,8 @@ config CRYPTO_NULL
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
 config CRYPTO_PCRYPT
-	tristate "Parallel crypto engine (EXPERIMENTAL)"
-	depends on SMP && EXPERIMENTAL
+	tristate "Parallel crypto engine"
+	depends on SMP
 	select PADATA
 	select CRYPTO_MANAGER
 	select CRYPTO_AEAD
@@ -292,7 +292,6 @@ config CRYPTO_HMAC
 
 config CRYPTO_XCBC
 	tristate "XCBC support"
-	depends on EXPERIMENTAL
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
@@ -303,7 +302,6 @@ config CRYPTO_XCBC
 
 config CRYPTO_VMAC
 	tristate "VMAC support"
-	depends on EXPERIMENTAL
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
@@ -932,8 +930,7 @@ config CRYPTO_KHAZAD
 	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
 
 config CRYPTO_SALSA20
-	tristate "Salsa20 stream cipher algorithm (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Salsa20 stream cipher algorithm"
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.
@@ -945,9 +942,8 @@ config CRYPTO_SALSA20
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_SALSA20_586
-	tristate "Salsa20 stream cipher algorithm (i586) (EXPERIMENTAL)"
+	tristate "Salsa20 stream cipher algorithm (i586)"
 	depends on (X86 || UML_X86) && !64BIT
-	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.
@@ -959,9 +955,8 @@ config CRYPTO_SALSA20_586
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_SALSA20_X86_64
-	tristate "Salsa20 stream cipher algorithm (x86_64) (EXPERIMENTAL)"
+	tristate "Salsa20 stream cipher algorithm (x86_64)"
 	depends on (X86 || UML_X86) && 64BIT
-	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.

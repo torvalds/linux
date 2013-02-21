@@ -1753,14 +1753,4 @@ static struct platform_driver m66592_driver = {
 	},
 };
 
-static int __init m66592_udc_init(void)
-{
-	return platform_driver_probe(&m66592_driver, m66592_probe);
-}
-module_init(m66592_udc_init);
-
-static void __exit m66592_udc_cleanup(void)
-{
-	platform_driver_unregister(&m66592_driver);
-}
-module_exit(m66592_udc_cleanup);
+module_platform_driver_probe(m66592_driver, m66592_probe);

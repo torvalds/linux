@@ -268,18 +268,11 @@ static inline bool _the_same_or_null(const u8 *a1, unsigned a1_len,
 	return 0 == memcmp(a1, a2, a1_len);
 }
 
-struct find_oud_t {
-	const struct osd_dev_info *odi;
-	struct device *dev;
-	struct osd_uld_device *oud;
-} ;
-
-int _mach_odi(struct device *dev, void *find_data)
+static int _match_odi(struct device *dev, const void *find_data)
 {
 	struct osd_uld_device *oud = container_of(dev, struct osd_uld_device,
 						  class_dev);
-	struct find_oud_t *fot = find_data;
-	const struct osd_dev_info *odi = fot->odi;
+	const struct osd_dev_info *odi = find_data;
 
 	if (_the_same_or_null(oud->odi.systemid, oud->odi.systemid_len,
 			      odi->systemid, odi->systemid_len) &&
@@ -287,7 +280,6 @@ int _mach_odi(struct device *dev, void *find_data)
 			      odi->osdname, odi->osdname_len)) {
 		OSD_DEBUG("found device sysid_len=%d osdname=%d\n",
 			  odi->systemid_len, odi->osdname_len);
-		fot->oud = oud;
 		return 1;
 	} else {
 		return 0;
@@ -301,19 +293,19 @@ int _mach_odi(struct device *dev, void *find_data)
  */
 struct osd_dev *osduld_info_lookup(const struct osd_dev_info *odi)
 {
-	struct find_oud_t find = {.odi = odi};
-
-	find.dev = class_find_device(&osd_uld_class, NULL, &find, _mach_odi);
-	if (likely(find.dev)) {
+	struct device *dev = class_find_device(&osd_uld_class, NULL, odi, _match_odi);
+	if (likely(dev)) {
 		struct osd_dev_handle *odh = kzalloc(sizeof(*odh), GFP_KERNEL);
+		struct osd_uld_device *oud = container_of(dev,
+			struct osd_uld_device, class_dev);
 
 		if (unlikely(!odh)) {
-			put_device(find.dev);
+			put_device(dev);
 			return ERR_PTR(-ENOMEM);
 		}
 
-		odh->od = find.oud->od;
-		odh->oud = find.oud;
+		odh->od = oud->od;
+		odh->oud = oud;
 
 		return &odh->od;
 	}

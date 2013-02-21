@@ -555,8 +555,7 @@ config NR_CPUS
           with working support have a maximum of 4 CPUs.
 
 config ARCH_DISCONTIGMEM_ENABLE
-	bool "Discontiguous Memory Support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Discontiguous Memory Support"
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)

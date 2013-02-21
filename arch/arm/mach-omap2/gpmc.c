@@ -1134,11 +1134,9 @@ static int gpmc_probe(struct platform_device *pdev)
 	phys_base = res->start;
 	mem_size = resource_size(res);
 
-	gpmc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!gpmc_base) {
-		dev_err(&pdev->dev, "error: request memory / ioremap\n");
-		return -EADDRNOTAVAIL;
-	}
+	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(gpmc_base))
+		return PTR_ERR(gpmc_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL)

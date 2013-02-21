@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -257,9 +258,9 @@ static int tegra_ahb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	ahb->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ahb->regs)
-		return -EBUSY;
+	ahb->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ahb->regs))
+		return PTR_ERR(ahb->regs);
 
 	ahb->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ahb);

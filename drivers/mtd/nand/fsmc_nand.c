@@ -937,42 +937,35 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	host->data_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->data_va) {
-		dev_err(&pdev->dev, "data ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->data_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->data_va))
+		return PTR_ERR(host->data_va);
+	
 	host->data_pa = (dma_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
 	if (!res)
 		return -EINVAL;
 
-	host->addr_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->addr_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->addr_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->addr_va))
+		return PTR_ERR(host->addr_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
 	if (!res)
 		return -EINVAL;
 
-	host->cmd_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->cmd_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->cmd_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->cmd_va))
+		return PTR_ERR(host->cmd_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fsmc_regs");
 	if (!res)
 		return -EINVAL;
 
-	host->regs_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->regs_va) {
-		dev_err(&pdev->dev, "regs ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->regs_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->regs_va))
+		return PTR_ERR(host->regs_va);
 
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {

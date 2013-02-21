@@ -1136,10 +1136,9 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	g2d->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!g2d->regs) {
-		dev_err(dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
+	g2d->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(g2d->regs)) {
+		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
 	}
 

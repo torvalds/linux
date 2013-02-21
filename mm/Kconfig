@@ -1,6 +1,6 @@
 config SELECT_MEMORY_MODEL
 	def_bool y
-	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+	depends on ARCH_SELECT_MEMORY_MODEL
 
 choice
 	prompt "Memory model"

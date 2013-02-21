@@ -1259,9 +1259,9 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENXIO;
 
-	hdmi->regs = devm_request_and_ioremap(&pdev->dev, regs);
-	if (!hdmi->regs)
-		return -EADDRNOTAVAIL;
+	hdmi->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(hdmi->regs))
+		return PTR_ERR(hdmi->regs);
 
 	err = platform_get_irq(pdev, 0);
 	if (err < 0)

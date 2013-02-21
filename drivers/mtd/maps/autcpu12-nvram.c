@@ -16,6 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/err.h>
 #include <linux/sizes.h>
 
 #include <linux/types.h>
@@ -55,12 +56,10 @@ static int autcpu12_nvram_probe(struct platform_device *pdev)
 	priv->map.bankwidth	= 4;
 	priv->map.phys		= res->start;
 	priv->map.size		= resource_size(res);
-	priv->map.virt		= devm_request_and_ioremap(&pdev->dev, res);
+	priv->map.virt = devm_ioremap_resource(&pdev->dev, res);
 	strcpy((char *)priv->map.name, res->name);
-	if (!priv->map.virt) {
-		dev_err(&pdev->dev, "failed to remap mem resource\n");
-		return -EBUSY;
-	}
+	if (IS_ERR(priv->map.virt))
+		return PTR_ERR(priv->map.virt);
 
 	simple_map_init(&priv->map);
 

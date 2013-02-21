@@ -5,10 +5,7 @@
 config NET_VENDOR_8390
 	bool "National Semi-conductor 8390 devices"
 	default y
-	depends on NET_VENDOR_NATSEMI && (AMIGA_PCMCIA || PCI || SUPERH || \
-		   ISA || MAC || M32R || MACH_TX49XX || \
-		   H8300 || ARM || MIPS || ZORRO || PCMCIA || \
-		   EXPERIMENTAL)
+	depends on NET_VENDOR_NATSEMI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from

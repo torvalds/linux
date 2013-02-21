@@ -1103,11 +1103,9 @@ omap_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dev->base) {
-		dev_err(&pdev->dev, "I2C region already claimed\n");
-		return -ENOMEM;
-	}
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 
 	match = of_match_device(of_match_ptr(omap_i2c_of_match), &pdev->dev);
 	if (match) {

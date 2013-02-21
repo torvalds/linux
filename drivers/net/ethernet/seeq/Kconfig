@@ -6,7 +6,6 @@ config NET_VENDOR_SEEQ
 	bool "SEEQ devices"
 	default y
 	depends on HAS_IOMEM
-	depends on (ARM && ARCH_ACORN) || SGI_HAS_SEEQ || EXPERIMENTAL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from

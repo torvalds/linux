@@ -291,7 +291,7 @@ config SSFDC
 
 config SM_FTL
 	tristate "SmartMedia/xD new translation layer"
-	depends on EXPERIMENTAL && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	select MTD_NAND_ECC
 	help

@@ -134,15 +134,14 @@ EXPORT_SYMBOL_GPL(dma_buf_export);
  */
 int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 {
-	int error, fd;
+	int fd;
 
 	if (!dmabuf || !dmabuf->file)
 		return -EINVAL;
 
-	error = get_unused_fd_flags(flags);
-	if (error < 0)
-		return error;
-	fd = error;
+	fd = get_unused_fd_flags(flags);
+	if (fd < 0)
+		return fd;
 
 	fd_install(fd, dmabuf->file);
 

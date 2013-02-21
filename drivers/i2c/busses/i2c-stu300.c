@@ -888,11 +888,11 @@ stu300_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENOENT;
 
-	dev->virtbase = devm_request_and_ioremap(&pdev->dev, res);
+	dev->virtbase = devm_ioremap_resource(&pdev->dev, res);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
-	if (!dev->virtbase)
-		return -ENOMEM;
+	if (IS_ERR(dev->virtbase))
+		return PTR_ERR(dev->virtbase);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, dev->irq, stu300_irh, 0, NAME, dev);

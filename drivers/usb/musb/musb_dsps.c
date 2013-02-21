@@ -500,10 +500,9 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	resources[0].end = resources[0].start + SZ_4 - 1;
 	resources[0].flags = IORESOURCE_MEM;
 
-	glue->usb_ctrl[id] = devm_request_and_ioremap(&pdev->dev, resources);
-	if (glue->usb_ctrl[id] == NULL) {
-		dev_err(dev, "Failed to obtain usb_ctrl%d memory\n", id);
-		ret = -ENODEV;
+	glue->usb_ctrl[id] = devm_ioremap_resource(&pdev->dev, resources);
+	if (IS_ERR(glue->usb_ctrl[id])) {
+		ret = PTR_ERR(glue->usb_ctrl[id]);
 		goto err0;
 	}
 

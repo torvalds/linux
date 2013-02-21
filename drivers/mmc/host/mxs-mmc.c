@@ -614,9 +614,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
-	ssp->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!ssp->base) {
-		ret = -EADDRNOTAVAIL;
+	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(ssp->base)) {
+		ret = PTR_ERR(ssp->base);
 		goto out_mmc_free;
 	}
 

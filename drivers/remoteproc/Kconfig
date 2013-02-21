@@ -1,16 +1,14 @@
-menu "Remoteproc drivers (EXPERIMENTAL)"
+menu "Remoteproc drivers"
 
 # REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
 	tristate
-	depends on EXPERIMENTAL
 	depends on HAS_DMA
 	select FW_CONFIG
 	select VIRTIO
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
-	depends on EXPERIMENTAL
 	depends on HAS_DMA
 	depends on ARCH_OMAP4
 	depends on OMAP_IOMMU
@@ -32,7 +30,6 @@ config OMAP_REMOTEPROC
 
 config STE_MODEM_RPROC
 	tristate "STE-Modem remoteproc support"
-	depends on EXPERIMENTAL
 	depends on HAS_DMA
 	select REMOTEPROC
 	default n

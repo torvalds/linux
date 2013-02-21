@@ -21,8 +21,8 @@ config ARM_S3C2416_CPUFREQ
 	  If in doubt, say N.
 
 config ARM_S3C2416_CPUFREQ_VCORESCALE
-	bool "Allow voltage scaling for S3C2416 arm core (EXPERIMENTAL)"
-	depends on ARM_S3C2416_CPUFREQ && REGULATOR && EXPERIMENTAL
+	bool "Allow voltage scaling for S3C2416 arm core"
+	depends on ARM_S3C2416_CPUFREQ && REGULATOR
 	help
 	  Enable CPU voltage scaling when entering the dvs mode.
 	  It uses information gathered through existing hardware and

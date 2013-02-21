@@ -386,11 +386,9 @@ static int s3c_adc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	adc->regs = devm_request_and_ioremap(dev, regs);
-	if (!adc->regs) {
-		dev_err(dev, "failed to map registers\n");
-		return -ENXIO;
-	}
+	adc->regs = devm_ioremap_resource(dev, regs);
+	if (IS_ERR(adc->regs))
+		return PTR_ERR(adc->regs);
 
 	ret = regulator_enable(adc->vdd);
 	if (ret)

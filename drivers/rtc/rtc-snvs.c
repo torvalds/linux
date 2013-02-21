@@ -252,9 +252,9 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!data->ioaddr)
-		return -EADDRNOTAVAIL;
+	data->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->ioaddr))
+		return PTR_ERR(data->ioaddr);
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)

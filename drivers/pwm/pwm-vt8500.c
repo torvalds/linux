@@ -178,9 +178,9 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	chip->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!chip->base)
-		return -EADDRNOTAVAIL;
+	chip->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(chip->base))
+		return PTR_ERR(chip->base);
 
 	ret = clk_prepare(chip->clk);
 	if (ret < 0) {

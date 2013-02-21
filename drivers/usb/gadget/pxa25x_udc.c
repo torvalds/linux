@@ -2100,6 +2100,8 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	int retval, irq;
 	u32 chiprev;
 
+	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
+
 	/* insist on Intel/ARM/XScale */
 	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
@@ -2346,18 +2348,7 @@ static struct platform_driver udc_driver = {
 	},
 };
 
-static int __init udc_init(void)
-{
-	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
-	return platform_driver_probe(&udc_driver, pxa25x_udc_probe);
-}
-module_init(udc_init);
-
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver_probe(udc_driver, pxa25x_udc_probe);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Frank Becker, Robert Schwebel, David Brownell");

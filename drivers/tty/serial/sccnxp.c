@@ -15,6 +15,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/console.h>
@@ -875,10 +876,9 @@ static int sccnxp_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!membase) {
-		dev_err(&pdev->dev, "Failed to ioremap\n");
-		ret = -EIO;
+	membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(membase)) {
+		ret = PTR_ERR(membase);
 		goto err_out;
 	}
 

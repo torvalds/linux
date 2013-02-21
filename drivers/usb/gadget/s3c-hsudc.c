@@ -1295,10 +1295,9 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	hsudc->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hsudc->regs) {
-		dev_err(dev, "error mapping device register area\n");
-		ret = -EBUSY;
+	hsudc->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsudc->regs)) {
+		ret = PTR_ERR(hsudc->regs);
 		goto err_res;
 	}
 
