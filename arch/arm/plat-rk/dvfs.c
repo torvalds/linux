@@ -90,7 +90,7 @@ static void dvfs_get_vd_regulator_volt_list(struct vd_node *vd)
 			break;
 		}
 		vd->volt_list[i]=sel_volt;	
-		printk("%s:selector=%u,volt %d\n",vd->name,i,sel_volt);
+		DVFS_DBG("%s:selector=%u,volt %d\n",vd->name,i,sel_volt);
 	}
 	vd->n_voltages=selector;
 	mutex_unlock(&mutex);
@@ -166,7 +166,7 @@ static void dvfs_table_round_volt(struct clk_node  *dvfs_clk)
 			DVFS_WARNING("clk %s:round_volt : is %d,but list <=0\n",dvfs_clk->name,dvfs_clk->dvfs_table[i].index);
 			break;
 		}
-		printk("clk %s:round_volt %d to %d\n",dvfs_clk->name,dvfs_clk->dvfs_table[i].index,test_volt);
+		DVFS_DBG("clk %s:round_volt %d to %d\n",dvfs_clk->name,dvfs_clk->dvfs_table[i].index,test_volt);
 		dvfs_clk->dvfs_table[i].index=test_volt;		
 	}
 	mutex_unlock(&mutex);
@@ -259,7 +259,7 @@ static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
 		}
 		temp_rate=(temp_rate/1000)+flags;
 		
-		printk("clk %s round_clk_rate %d to %d\n",
+		DVFS_DBG("clk %s round_clk_rate %d to %d\n",
 			dvfs_clk->name,dvfs_clk->dvfs_table[i].frequency,(int)(temp_rate));
 		
 		dvfs_clk->dvfs_table[i].frequency=temp_rate;		
