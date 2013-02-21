@@ -1203,8 +1203,7 @@ static void i5100_remove_one(struct pci_dev *pdev)
 
 	priv = mci->pvt_info;
 
-	if (priv->debugfs)
-		debugfs_remove_recursive(priv->debugfs);
+	debugfs_remove_recursive(priv->debugfs);
 
 	priv->scrub_enable = 0;
 	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
@@ -1246,8 +1245,7 @@ static int __init i5100_init(void)
 
 static void __exit i5100_exit(void)
 {
-	if (i5100_debugfs)
-		debugfs_remove(i5100_debugfs);
+	debugfs_remove(i5100_debugfs);
 
 	pci_unregister_driver(&i5100_driver);
 }
