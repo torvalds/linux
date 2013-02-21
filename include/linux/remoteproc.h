@@ -469,8 +469,6 @@ struct rproc_vring {
  * @rproc: the rproc handle
  * @vdev: the virio device
  * @vring: the vrings for this vdev
- * @dfeatures: virtio device features
- * @gfeatures: virtio guest features
  * @rsc_offset: offset of the vdev's resource entry
  */
 struct rproc_vdev {
@@ -478,8 +476,6 @@ struct rproc_vdev {
 	struct rproc *rproc;
 	struct virtio_device vdev;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
-	unsigned long dfeatures;
-	unsigned long gfeatures;
 	u32 rsc_offset;
 };
 
