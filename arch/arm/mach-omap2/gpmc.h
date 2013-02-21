@@ -76,6 +76,11 @@
 #define GPMC_IRQ_FIFOEVENTENABLE	0x01
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
+#define GPMC_BURST_4			4	/* 4 word burst */
+#define GPMC_BURST_8			8	/* 8 word burst */
+#define GPMC_BURST_16			16	/* 16 word burst */
+#define GPMC_DEVWIDTH_8BIT		1	/* 8-bit device width */
+#define GPMC_DEVWIDTH_16BIT		2	/* 16-bit device width */
 #define GPMC_MUX_AAD			1	/* Addr-Addr-Data multiplex */
 #define GPMC_MUX_AD			2	/* Addr-Data multiplex */
 
@@ -217,6 +222,7 @@ extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
 extern int gpmc_calc_divider(unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
+extern int gpmc_cs_program_settings(int cs, struct gpmc_settings *p);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern void omap3_gpmc_save_context(void);

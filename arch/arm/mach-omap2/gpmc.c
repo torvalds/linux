@@ -107,6 +107,7 @@
 
 #define	GPMC_HAS_WR_ACCESS		0x1
 #define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
+#define	GPMC_HAS_MUX_AAD		0x4
 
 #define GPMC_NR_WAITPINS		4
 
@@ -1126,6 +1127,90 @@ int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 	return 0;
 }
 
+/**
+ * gpmc_cs_program_settings - programs non-timing related settings
+ * @cs:		GPMC chip-select to program
+ * @p:		pointer to GPMC settings structure
+ *
+ * Programs non-timing related settings for a GPMC chip-select, such as
+ * bus-width, burst configuration, etc. Function should be called once
+ * for each chip-select that is being used and must be called before
+ * calling gpmc_cs_set_timings() as timing parameters in the CONFIG1
+ * register will be initialised to zero by this function. Returns 0 on
+ * success and appropriate negative error code on failure.
+ */
+int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
+{
+	u32 config1;
+
+	if ((!p->device_width) || (p->device_width > GPMC_DEVWIDTH_16BIT)) {
+		pr_err("%s: invalid width %d!", __func__, p->device_width);
+		return -EINVAL;
+	}
+
+	/* Address-data multiplexing not supported for NAND devices */
+	if (p->device_nand && p->mux_add_data) {
+		pr_err("%s: invalid configuration!\n", __func__);
+		return -EINVAL;
+	}
+
+	if ((p->mux_add_data > GPMC_MUX_AD) ||
+	    ((p->mux_add_data == GPMC_MUX_AAD) &&
+	     !(gpmc_capability & GPMC_HAS_MUX_AAD))) {
+		pr_err("%s: invalid multiplex configuration!\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Page/burst mode supports lengths of 4, 8 and 16 bytes */
+	if (p->burst_read || p->burst_write) {
+		switch (p->burst_len) {
+		case GPMC_BURST_4:
+		case GPMC_BURST_8:
+		case GPMC_BURST_16:
+			break;
+		default:
+			pr_err("%s: invalid page/burst-length (%d)\n",
+			       __func__, p->burst_len);
+			return -EINVAL;
+		}
+	}
+
+	if ((p->wait_on_read || p->wait_on_write) &&
+	    (p->wait_pin > gpmc_nr_waitpins)) {
+		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
+		return -EINVAL;
+	}
+
+	config1 = GPMC_CONFIG1_DEVICESIZE((p->device_width - 1));
+
+	if (p->sync_read)
+		config1 |= GPMC_CONFIG1_READTYPE_SYNC;
+	if (p->sync_write)
+		config1 |= GPMC_CONFIG1_WRITETYPE_SYNC;
+	if (p->wait_on_read)
+		config1 |= GPMC_CONFIG1_WAIT_READ_MON;
+	if (p->wait_on_write)
+		config1 |= GPMC_CONFIG1_WAIT_WRITE_MON;
+	if (p->wait_on_read || p->wait_on_write)
+		config1 |= GPMC_CONFIG1_WAIT_PIN_SEL(p->wait_pin);
+	if (p->device_nand)
+		config1	|= GPMC_CONFIG1_DEVICETYPE(GPMC_DEVICETYPE_NAND);
+	if (p->mux_add_data)
+		config1	|= GPMC_CONFIG1_MUXTYPE(p->mux_add_data);
+	if (p->burst_read)
+		config1 |= GPMC_CONFIG1_READMULTIPLE_SUPP;
+	if (p->burst_write)
+		config1 |= GPMC_CONFIG1_WRITEMULTIPLE_SUPP;
+	if (p->burst_read || p->burst_write) {
+		config1 |= GPMC_CONFIG1_PAGE_LEN(p->burst_len >> 3);
+		config1 |= p->burst_wrap ? GPMC_CONFIG1_WRAPBURST_SUPP : 0;
+	}
+
+	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, config1);
+
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,omap2420-gpmc" },
@@ -1372,8 +1457,23 @@ static int gpmc_probe(struct platform_device *pdev)
 	gpmc_dev = &pdev->dev;
 
 	l = gpmc_read_reg(GPMC_REVISION);
+
+	/*
+	 * FIXME: Once device-tree migration is complete the below flags
+	 * should be populated based upon the device-tree compatible
+	 * string. For now just use the IP revision. OMAP3+ devices have
+	 * the wr_access and wr_data_mux_bus register fields. OMAP4+
+	 * devices support the addr-addr-data multiplex protocol.
+	 *
+	 * GPMC IP revisions:
+	 * - OMAP24xx			= 2.0
+	 * - OMAP3xxx			= 5.0
+	 * - OMAP44xx/54xx/AM335x	= 6.0
+	 */
 	if (GPMC_REVISION_MAJOR(l) > 0x4)
 		gpmc_capability = GPMC_HAS_WR_ACCESS | GPMC_HAS_WR_DATA_MUX_BUS;
+	if (GPMC_REVISION_MAJOR(l) > 0x5)
+		gpmc_capability |= GPMC_HAS_MUX_AAD;
 	dev_info(gpmc_dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
 		 GPMC_REVISION_MINOR(l));
 
