@@ -148,6 +148,26 @@ static int __init find_i2c_adapter_num(enum i2c_adapter_type type)
 }
 
 /*
+ * Takes a list of addresses in addrs as such :
+ * { addr1, ... , addrn, I2C_CLIENT_END };
+ * add_probed_i2c_device will use i2c_new_probed_device
+ * and probe for devices at all of the addresses listed.
+ * Returns NULL if no devices found.
+ * See Documentation/i2c/instantiating-devices for more information.
+ */
+static __init struct i2c_client *add_probed_i2c_device(
+		const char *name,
+		enum i2c_adapter_type type,
+		struct i2c_board_info *info,
+		const unsigned short *addrs)
+{
+	return __add_probed_i2c_device(name,
+				       find_i2c_adapter_num(type),
+				       info,
+				       addrs);
+}
+
+/*
  * Probes for a device at a single address, the one provided by
  * info->addr.
  * Returns NULL if no device found.
