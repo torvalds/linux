@@ -201,6 +201,7 @@ enum storvsc_request_type {
 #define SRB_STATUS_AUTOSENSE_VALID	0x80
 #define SRB_STATUS_INVALID_LUN	0x20
 #define SRB_STATUS_SUCCESS	0x01
+#define SRB_STATUS_ABORTED	0x02
 #define SRB_STATUS_ERROR	0x04
 
 /*
@@ -294,6 +295,25 @@ struct storvsc_scan_work {
 	struct Scsi_Host *host;
 	uint lun;
 };
+
+static void storvsc_device_scan(struct work_struct *work)
+{
+	struct storvsc_scan_work *wrk;
+	uint lun;
+	struct scsi_device *sdev;
+
+	wrk = container_of(work, struct storvsc_scan_work, work);
+	lun = wrk->lun;
+
+	sdev = scsi_device_lookup(wrk->host, 0, 0, lun);
+	if (!sdev)
+		goto done;
+	scsi_rescan_device(&sdev->sdev_gendev);
+	scsi_device_put(sdev);
+
+done:
+	kfree(wrk);
+}
 
 static void storvsc_bus_scan(struct work_struct *work)
 {
@@ -791,7 +811,18 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 		do_work = true;
 		process_err_fn = storvsc_remove_lun;
 		break;
+	case (SRB_STATUS_ABORTED | SRB_STATUS_AUTOSENSE_VALID):
+		if ((asc == 0x2a) && (ascq == 0x9)) {
+			do_work = true;
+			process_err_fn = storvsc_device_scan;
+			/*
+			 * Retry the I/O that trigerred this.
+			 */
+			set_host_byte(scmnd, DID_REQUEUE);
+		}
+		break;
 	}
+
 	if (!do_work)
 		return;
 
