@@ -122,8 +122,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	linear_offset = y * fb->pitches[0] + x * pixel_size;
 	sprsurf_offset =
-		intel_gen4_compute_offset_xtiled(&x, &y,
-						 pixel_size, fb->pitches[0]);
+		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
+					       pixel_size, fb->pitches[0]);
 	linear_offset -= sprsurf_offset;
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
@@ -287,8 +287,8 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	linear_offset = y * fb->pitches[0] + x * pixel_size;
 	dvssurf_offset =
-		intel_gen4_compute_offset_xtiled(&x, &y,
-						 pixel_size, fb->pitches[0]);
+		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
+					       pixel_size, fb->pitches[0]);
 	linear_offset -= dvssurf_offset;
 
 	if (obj->tiling_mode != I915_TILING_NONE)
