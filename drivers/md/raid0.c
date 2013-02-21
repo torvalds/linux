@@ -175,7 +175,13 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			rdev1->new_raid_disk = j;
 		}
 
-		if (j < 0 || j >= mddev->raid_disks) {
+		if (j < 0) {
+			printk(KERN_ERR
+			       "md/raid0:%s: remove inactive devices before converting to RAID0\n",
+			       mdname(mddev));
+			goto abort;
+		}
+		if (j >= mddev->raid_disks) {
 			printk(KERN_ERR "md/raid0:%s: bad disk number %d - "
 			       "aborting!\n", mdname(mddev), j);
 			goto abort;
