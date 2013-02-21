@@ -47,10 +47,9 @@ static struct platform_device gpmc_onenand_device = {
 	.resource	= &gpmc_onenand_resource,
 };
 
-static struct gpmc_timings omap2_onenand_calc_async_timings(void)
+static void omap2_onenand_calc_async_timings(struct gpmc_timings *t)
 {
 	struct gpmc_device_timings dev_t;
-	struct gpmc_timings t;
 
 	const int t_cer = 15;
 	const int t_avdp = 12;
@@ -76,9 +75,7 @@ static struct gpmc_timings omap2_onenand_calc_async_timings(void)
 	dev_t.t_wpl = t_wpl * 1000;
 	dev_t.t_wph = t_wph * 1000;
 
-	gpmc_calc_timings(&t, &dev_t);
-
-	return t;
+	gpmc_calc_timings(t, &dev_t);
 }
 
 static int gpmc_set_async_mode(int cs, struct gpmc_timings *t)
@@ -158,12 +155,11 @@ static int omap2_onenand_get_freq(struct omap_onenand_platform_data *cfg,
 	return freq;
 }
 
-static struct gpmc_timings
-omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
-				int freq)
+static void omap2_onenand_calc_sync_timings(struct gpmc_timings *t,
+					    unsigned int flags,
+					    int freq)
 {
 	struct gpmc_device_timings dev_t;
-	struct gpmc_timings t;
 	const int t_cer  = 15;
 	const int t_avdp = 12;
 	const int t_cez  = 20; /* max of t_cez, t_oez */
@@ -172,9 +168,9 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 	int min_gpmc_clk_period, t_ces, t_avds, t_avdh, t_ach, t_aavdh, t_rdyo;
 	int div, gpmc_clk_ns;
 
-	if (cfg->flags & ONENAND_SYNC_READ)
+	if (flags & ONENAND_SYNC_READ)
 		onenand_flags = ONENAND_FLAG_SYNCREAD;
-	else if (cfg->flags & ONENAND_SYNC_READWRITE)
+	else if (flags & ONENAND_SYNC_READWRITE)
 		onenand_flags = ONENAND_FLAG_SYNCREAD | ONENAND_FLAG_SYNCWRITE;
 
 	switch (freq) {
@@ -265,9 +261,7 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 	dev_t.cyc_aavdh_oe = 1;
 	dev_t.t_rdyo = t_rdyo * 1000 + min_gpmc_clk_period;
 
-	gpmc_calc_timings(&t, &dev_t);
-
-	return t;
+	gpmc_calc_timings(t, &dev_t);
 }
 
 static int gpmc_set_sync_mode(int cs, struct gpmc_timings *t)
@@ -300,7 +294,7 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 
 	omap2_onenand_set_async_mode(onenand_base);
 
-	t = omap2_onenand_calc_async_timings();
+	omap2_onenand_calc_async_timings(&t);
 
 	ret = gpmc_set_async_mode(gpmc_onenand_data->cs, &t);
 	if (ret < 0)
@@ -322,7 +316,7 @@ static int omap2_onenand_setup_sync(void __iomem *onenand_base, int *freq_ptr)
 		set_onenand_cfg(onenand_base);
 	}
 
-	t = omap2_onenand_calc_sync_timings(gpmc_onenand_data, freq);
+	omap2_onenand_calc_sync_timings(&t, gpmc_onenand_data->flags, freq);
 
 	ret = gpmc_set_sync_mode(gpmc_onenand_data->cs, &t);
 	if (ret < 0)
