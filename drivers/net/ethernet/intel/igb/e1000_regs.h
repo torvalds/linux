@@ -365,6 +365,10 @@
 #define E1000_IPCNFG	0x0E38 /* Internal PHY Configuration */
 #define E1000_EEER	0x0E30 /* Energy Efficient Ethernet */
 #define E1000_EEE_SU	0X0E34 /* EEE Setup */
+#define E1000_EMIADD	0x10   /* Extended Memory Indirect Address */
+#define E1000_EMIDATA	0x11   /* Extended Memory Indirect Data */
+#define E1000_MMDAC	13     /* MMD Access Control */
+#define E1000_MMDAAD	14     /* MMD Access Address/Data */
 
 /* Thermal Sensor Register */
 #define E1000_THSTAT	0x08110 /* Thermal Sensor Status */

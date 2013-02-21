@@ -885,6 +885,10 @@
 #define E1000_EEER_LPI_FC            0x00040000  /* EEE Enable on FC */
 #define E1000_EEE_SU_LPI_CLK_STP     0X00800000  /* EEE LPI Clock Stop */
 #define E1000_EEER_EEE_NEG           0x20000000  /* EEE capability nego */
+#define E1000_EEE_LP_ADV_ADDR_I350   0x040F      /* EEE LP Advertisement */
+#define E1000_EEE_LP_ADV_DEV_I210    7           /* EEE LP Adv Device */
+#define E1000_EEE_LP_ADV_ADDR_I210   61          /* EEE LP Adv Register */
+#define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, no post increment */
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000

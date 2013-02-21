@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/highmem.h>
+#include <linux/mdio.h>
 
 #include "igb.h"
 
@@ -2533,7 +2534,8 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ipcnfg, eeer;
+	u32 ipcnfg, eeer, ret_val;
+	u16 phy_data;
 
 	if ((hw->mac.type < e1000_i350) ||
 	    (hw->phy.media_type != e1000_media_type_copper))
@@ -2551,6 +2553,32 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 
 	if (ipcnfg & E1000_IPCNFG_EEE_100M_AN)
 		edata->advertised |= ADVERTISED_100baseT_Full;
+
+	/* EEE Link Partner Advertised */
+	switch (hw->mac.type) {
+	case e1000_i350:
+		ret_val = igb_read_emi_reg(hw, E1000_EEE_LP_ADV_ADDR_I350,
+					   &phy_data);
+		if (ret_val)
+			return -ENODATA;
+
+		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+		break;
+	case e1000_i210:
+	case e1000_i211:
+		ret_val = igb_read_xmdio_reg(hw, E1000_EEE_LP_ADV_ADDR_I210,
+					     E1000_EEE_LP_ADV_DEV_I210,
+					     &phy_data);
+		if (ret_val)
+			return -ENODATA;
+
+		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+		break;
+	default:
+		break;
+	}
 
 	if (eeer & E1000_EEER_EEE_NEG)
 		edata->eee_active = true;
