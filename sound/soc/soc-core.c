@@ -1107,6 +1107,10 @@ static int soc_probe_codec(struct snd_soc_card *card,
 				"ASoC: failed to probe CODEC %d\n", ret);
 			goto err_probe;
 		}
+		WARN(codec->dapm.idle_bias_off &&
+			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
+			"codec %s can not start from non-off bias"
+			" with idle_bias_off==1\n", codec->name);
 	}
 
 	/* If the driver didn't set I/O up try regmap */
@@ -3122,8 +3126,11 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	if (!codec->using_regmap)
 		return -EINVAL;
 
-	data = ucontrol->value.bytes.data;
 	len = params->num_regs * codec->val_bytes;
+
+	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * If we've got a mask then we need to preserve the register
@@ -3136,10 +3143,6 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 			return ret;
 
 		val &= params->mask;
-
-		data = kmemdup(data, len, GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
 
 		switch (codec->val_bytes) {
 		case 1:
@@ -3162,8 +3165,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	ret = regmap_raw_write(codec->control_data, params->base,
 			       data, len);
 
-	if (params->mask)
-		kfree(data);
+	kfree(data);
 
 	return ret;
 }
@@ -3540,12 +3542,20 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
  * snd_soc_dai_digital_mute - configure DAI system or master clock.
  * @dai: DAI
  * @mute: mute enable
+ * @direction: stream to mute
  *
  * Mutes the DAI DAC.
  */
-int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
+int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
+			     int direction)
 {
-	if (dai->driver && dai->driver->ops->digital_mute)
+	if (!dai->driver)
+		return -ENOTSUPP;
+
+	if (dai->driver->ops->mute_stream)
+		return dai->driver->ops->mute_stream(dai, mute, direction);
+	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		 dai->driver->ops->digital_mute)
 		return dai->driver->ops->digital_mute(dai, mute);
 	else
 		return -ENOTSUPP;
@@ -4207,6 +4217,113 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing);
+
+unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
+				     const char *prefix)
+{
+	int ret, i;
+	char prop[128];
+	unsigned int format = 0;
+	int bit, frame;
+	const char *str;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_fmt_table[] = {
+		{ "i2s",	SND_SOC_DAIFMT_I2S },
+		{ "right_j",	SND_SOC_DAIFMT_RIGHT_J },
+		{ "left_j",	SND_SOC_DAIFMT_LEFT_J },
+		{ "dsp_a",	SND_SOC_DAIFMT_DSP_A },
+		{ "dsp_b",	SND_SOC_DAIFMT_DSP_B },
+		{ "ac97",	SND_SOC_DAIFMT_AC97 },
+		{ "pdm",	SND_SOC_DAIFMT_PDM},
+		{ "msb",	SND_SOC_DAIFMT_MSB },
+		{ "lsb",	SND_SOC_DAIFMT_LSB },
+	};
+
+	if (!prefix)
+		prefix = "";
+
+	/*
+	 * check "[prefix]format = xxx"
+	 * SND_SOC_DAIFMT_FORMAT_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sformat", prefix);
+	ret = of_property_read_string(np, prop, &str);
+	if (ret == 0) {
+		for (i = 0; i < ARRAY_SIZE(of_fmt_table); i++) {
+			if (strcmp(str, of_fmt_table[i].name) == 0) {
+				format |= of_fmt_table[i].val;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * check "[prefix]continuous-clock"
+	 * SND_SOC_DAIFMT_CLOCK_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%scontinuous-clock", prefix);
+	if (of_get_property(np, prop, NULL))
+		format |= SND_SOC_DAIFMT_CONT;
+	else
+		format |= SND_SOC_DAIFMT_GATED;
+
+	/*
+	 * check "[prefix]bitclock-inversion"
+	 * check "[prefix]frame-inversion"
+	 * SND_SOC_DAIFMT_INV_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-inversion", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+
+	snprintf(prop, sizeof(prop), "%sframe-inversion", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+
+	switch ((bit << 4) + frame) {
+	case 0x11:
+		format |= SND_SOC_DAIFMT_IB_IF;
+		break;
+	case 0x10:
+		format |= SND_SOC_DAIFMT_IB_NF;
+		break;
+	case 0x01:
+		format |= SND_SOC_DAIFMT_NB_IF;
+		break;
+	default:
+		/* SND_SOC_DAIFMT_NB_NF is default */
+		break;
+	}
+
+	/*
+	 * check "[prefix]bitclock-master"
+	 * check "[prefix]frame-master"
+	 * SND_SOC_DAIFMT_MASTER_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-master", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+
+	snprintf(prop, sizeof(prop), "%sframe-master", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+
+	switch ((bit << 4) + frame) {
+	case 0x11:
+		format |= SND_SOC_DAIFMT_CBM_CFM;
+		break;
+	case 0x10:
+		format |= SND_SOC_DAIFMT_CBM_CFS;
+		break;
+	case 0x01:
+		format |= SND_SOC_DAIFMT_CBS_CFM;
+		break;
+	default:
+		format |= SND_SOC_DAIFMT_CBS_CFS;
+		break;
+	}
+
+	return format;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
 
 static int __init snd_soc_init(void)
 {

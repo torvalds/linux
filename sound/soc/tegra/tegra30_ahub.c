@@ -580,7 +580,7 @@ err_clk_put_apbif:
 	clk_put(ahub->clk_apbif);
 err_clk_put_d_audio:
 	clk_put(ahub->clk_d_audio);
-	ahub = 0;
+	ahub = NULL;
 err:
 	return ret;
 }
@@ -597,7 +597,7 @@ static int tegra30_ahub_remove(struct platform_device *pdev)
 	clk_put(ahub->clk_apbif);
 	clk_put(ahub->clk_d_audio);
 
-	ahub = 0;
+	ahub = NULL;
 
 	return 0;
 }

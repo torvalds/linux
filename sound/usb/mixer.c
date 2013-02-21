@@ -807,6 +807,7 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 {
 	switch (cval->mixer->chip->usb_id) {
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
+	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
 		if (strcmp(kctl->id.name, "Effect Duration") == 0) {
 			cval->min = 0x0000;
 			cval->max = 0xffff;

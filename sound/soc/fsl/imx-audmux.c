@@ -176,7 +176,7 @@ static inline void audmux_debugfs_remove(void)
 }
 #endif
 
-enum imx_audmux_type {
+static enum imx_audmux_type {
 	IMX21_AUDMUX,
 	IMX31_AUDMUX,
 } audmux_type;

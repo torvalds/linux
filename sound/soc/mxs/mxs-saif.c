@@ -32,7 +32,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/saif.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/mxs.h>
@@ -662,46 +661,40 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
-	struct mxs_saif_platform_data *pdata;
 	struct pinctrl *pinctrl;
 	int ret = 0;
+	struct device_node *master;
 
-
-	if (!np && pdev->id >= ARRAY_SIZE(mxs_saif))
+	if (!np)
 		return -EINVAL;
 
 	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
-	if (np) {
-		struct device_node *master;
-		saif->id = of_alias_get_id(np, "saif");
-		if (saif->id < 0)
-			return saif->id;
-		/*
-		 * If there is no "fsl,saif-master" phandle, it's a saif
-		 * master.  Otherwise, it's a slave and its phandle points
-		 * to the master.
-		 */
-		master = of_parse_phandle(np, "fsl,saif-master", 0);
-		if (!master) {
-			saif->master_id = saif->id;
-		} else {
-			saif->master_id = of_alias_get_id(master, "saif");
-			if (saif->master_id < 0)
-				return saif->master_id;
-		}
+	ret = of_alias_get_id(np, "saif");
+	if (ret < 0)
+		return ret;
+	else
+		saif->id = ret;
+
+	/*
+	 * If there is no "fsl,saif-master" phandle, it's a saif
+	 * master.  Otherwise, it's a slave and its phandle points
+	 * to the master.
+	 */
+	master = of_parse_phandle(np, "fsl,saif-master", 0);
+	if (!master) {
+		saif->master_id = saif->id;
 	} else {
-		saif->id = pdev->id;
-		pdata = pdev->dev.platform_data;
-		if (pdata && !pdata->master_mode)
-			saif->master_id = pdata->master_id;
+		ret = of_alias_get_id(master, "saif");
+		if (ret < 0)
+			return ret;
 		else
-			saif->master_id = saif->id;
+			saif->master_id = ret;
 	}
 
-	if (saif->master_id < 0 || saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+	if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
 		dev_err(&pdev->dev, "get wrong master id\n");
 		return -EINVAL;
 	}
