@@ -256,7 +256,7 @@ void __init early_init_devtree(void *params)
 static void __init copy_devtree(void)
 {
 	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 0);
+			be32_to_cpu(initial_boot_params->totalsize), 8);
 	if (alloc) {
 		memcpy(alloc, initial_boot_params,
 				be32_to_cpu(initial_boot_params->totalsize));
