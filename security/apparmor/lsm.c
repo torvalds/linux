@@ -909,8 +909,11 @@ static int __init apparmor_init(void)
 
 	error = register_security(&apparmor_ops);
 	if (error) {
+		struct cred *cred = (struct cred *)current->real_cred;
+		aa_free_task_context(cred->security);
+		cred->security = NULL;
 		AA_ERROR("Unable to register AppArmor\n");
-		goto set_init_cxt_out;
+		goto register_security_out;
 	}
 
 	/* Report that AppArmor successfully initialized */
@@ -923,9 +926,6 @@ static int __init apparmor_init(void)
 		aa_info_message("AppArmor initialized");
 
 	return error;
-
-set_init_cxt_out:
-	aa_free_task_context(current->real_cred->security);
 
 register_security_out:
 	aa_free_root_ns();
