@@ -649,9 +649,10 @@ extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 extern void intel_update_linetime_watermarks(struct drm_device *dev, int pipe,
 			 struct drm_display_mode *mode);
 
-extern unsigned long intel_gen4_compute_offset_xtiled(int *x, int *y,
-						      unsigned int bpp,
-						      unsigned int pitch);
+extern unsigned long intel_gen4_compute_page_offset(int *x, int *y,
+						    unsigned int tiling_mode,
+						    unsigned int bpp,
+						    unsigned int pitch);
 
 extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
