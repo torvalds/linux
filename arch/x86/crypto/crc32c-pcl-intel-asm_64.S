@@ -1,9 +1,10 @@
 /*
  * Implement fast CRC32C with PCLMULQDQ instructions. (x86_64)
  *
- * The white paper on CRC32C calculations with PCLMULQDQ instruction can be
+ * The white papers on CRC32C calculations with PCLMULQDQ instruction can be
  * downloaded from:
- * http://download.intel.com/design/intarch/papers/323405.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polynomial-crc32-instruction-paper.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-paper.pdf
  *
  * Copyright (C) 2012 Intel Corporation.
  *
