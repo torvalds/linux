@@ -37,12 +37,27 @@ config LCDC0_RK3066B
         help
            Support lcdc0 if you say y here
 
+config RK3066B_LCDC0_IO_18V
+        bool "lcdc0 1.8v io support"
+        depends on LCDC0_RK3066B
+        default n
+        help
+         LCDC0 io voltage is 1.8V if you say y here,the default voltage is 3.3V
+
 config LCDC1_RK3066B
         bool "lcdc1 support"
         depends on LCDC_RK3066B
         default n
         help
            Support lcdc1 if you say y here
+
+config RK3066B_LCDC1_IO_18V
+        bool "lcdc1 1.8v io support"
+        depends on LCDC1_RK3066B
+        default n
+        help
+         LCDC1 io voltage is 1.8V if you say y here,the default voltage is 3.3V
+
 
 config LCDC_RK3188
         bool "rk3188 lcdc support"

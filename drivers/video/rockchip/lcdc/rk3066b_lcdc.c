@@ -47,6 +47,8 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
+	int v;
+	
 	if(lcdc_dev->id == 0) //lcdc0
 	{
 		lcdc_dev->pd = clk_get(NULL,"pd_lcdc0");
@@ -76,8 +78,27 @@ static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	clk_enable(lcdc_dev->dclk);
 	lcdc_dev->clk_on = 1;
 
+	if(lcdc_dev->id == 0)
+	{
+		#if defined(CONFIG_RK3066B_LCDC0_IO_18V)
+		v = 0x40004000;               //bit14: 1,1.8v;0,3.3v
+		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+		#else
+		v = 0x40000000;              
+		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+		#endif
+	}
+
 	if(lcdc_dev->id == 1) //iomux for lcdc1
 	{
+		#if defined(CONFIG_RK3066B_LCDC1_IO_18V)
+		v = 0x80008000;               //bit14: 1,1.8v;0,3.3v
+		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+		#else
+		v = 0x80000000;
+		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+		#endif
+		
 		iomux_set(LCDC1_DCLK);
 		iomux_set(LCDC1_DEN);
 		iomux_set(LCDC1_HSYNC);
