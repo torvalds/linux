@@ -732,7 +732,7 @@ static inline void spitz_lcd_init(void) {}
 #endif
 
 /******************************************************************************
- * Framebuffer
+ * NAND Flash
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_SHARPSL) || defined(CONFIG_MTD_NAND_SHARPSL_MODULE)
 static struct mtd_partition spitz_nand_partitions[] = {
@@ -858,7 +858,7 @@ static inline void spitz_nor_init(void) {}
 #endif
 
 /******************************************************************************
- * GPIO expander
+ * I2C devices
  ******************************************************************************/
 #if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
 static struct pca953x_platform_data akita_pca953x_pdata = {

@@ -48,7 +48,8 @@ static int s3c2412_cpu_suspend(unsigned long arg)
 
 	s3c2412_sleep_enter();
 
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 static void s3c2412_pm_prepare(void)

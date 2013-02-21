@@ -296,7 +296,8 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 
 	/* we should never get past here */
 
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 /* mapping of interrupts to parts of the wakeup mask */

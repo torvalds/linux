@@ -245,6 +245,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __bus_to_pfn(x)	__phys_to_pfn(x)
 #endif
 
+#ifdef CONFIG_VIRT_TO_BUS
 static inline __deprecated unsigned long virt_to_bus(void *x)
 {
 	return __virt_to_bus((unsigned long)x);
@@ -254,6 +255,7 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 {
 	return (void *)__bus_to_virt(x);
 }
+#endif
 
 /*
  * Conversion between a struct page and a physical address.

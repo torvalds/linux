@@ -866,7 +866,7 @@
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <0 118 0x04 0 119 0x04>;
-				clocks = <&clks 117>, <&clks 117>, <&clks 177>;
+				clocks = <&clks 117>, <&clks 117>, <&clks 190>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};

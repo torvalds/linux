@@ -24,9 +24,6 @@
 
 #include "generic.h"
 
-
-#warning "include/asm/arch-sa1100/ide.h needs fixing for lart"
-
 static struct mcp_plat_data lart_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,

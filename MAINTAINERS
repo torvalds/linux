@@ -1256,12 +1256,17 @@ M:	Tony Prisk <linux@prisktech.co.nz>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-vt8500/
+F:	drivers/clocksource/vt8500_timer.c
+F:	drivers/gpio/gpio-vt8500.c
+F:	drivers/mmc/host/wmt-sdmmc.c
+F:	drivers/pwm/pwm-vt8500.c
+F:	drivers/rtc/rtc-vt8500.c
+F:	drivers/tty/serial/vt8500_serial.c
+F:	drivers/usb/host/ehci-vt8500.c
+F:	drivers/usb/host/uhci-platform.c
 F:	drivers/video/vt8500lcdfb.*
 F:	drivers/video/wm8505fb*
 F:	drivers/video/wmt_ge_rops.*
-F:	drivers/tty/serial/vt8500_serial.c
-F:	drivers/rtc/rtc-vt8500.c
-F:	drivers/mmc/host/wmt-sdmmc.c
 
 ARM/ZIPIT Z2 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>
@@ -1269,6 +1274,14 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/z2.c
 F:	arch/arm/mach-pxa/include/mach/z2.h
+
+ARM/ZYNQ ARCHITECTURE
+M:	Michal Simek <michal.simek@xilinx.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://wiki.xilinx.com
+T:	git git://git.xilinx.com/linux-xlnx.git
+S:	Supported
+F:	arch/arm/mach-zynq/
 
 ARM64 PORT (AARCH64 ARCHITECTURE)
 M:	Catalin Marinas <catalin.marinas@arm.com>
