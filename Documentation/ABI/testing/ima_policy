@@ -18,17 +18,21 @@ Description:
 		rule format: action [condition ...]
 
 		action: measure | dont_measure | appraise | dont_appraise | audit
-		condition:= base | lsm
-			base:	[[func=] [mask=] [fsmagic=] [uid=] [fowner]]
+		condition:= base | lsm  [option]
+			base:	[[func=] [mask=] [fsmagic=] [fsuuid=] [uid=]
+				 [fowner]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
 				 [obj_user=] [obj_role=] [obj_type=]]
+			option:	[[appraise_type=]]
 
-		base: 	func:= [BPRM_CHECK][FILE_MMAP][FILE_CHECK][MODULE_CHECK]
+		base: 	func:= [BPRM_CHECK][MMAP_CHECK][FILE_CHECK][MODULE_CHECK]
 			mask:= [MAY_READ] [MAY_WRITE] [MAY_APPEND] [MAY_EXEC]
 			fsmagic:= hex value
+			fsuuid:= file system UUID (e.g 8bcbe394-4f13-4144-be8e-5aa9ea2ce2f6)
 			uid:= decimal value
 			fowner:=decimal value
 		lsm:  	are LSM specific
+		option:	appraise_type:= [imasig]
 
 		default policy:
 			# PROC_SUPER_MAGIC
