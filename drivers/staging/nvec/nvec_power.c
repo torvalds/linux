@@ -22,6 +22,8 @@
 
 #include "nvec.h"
 
+#define GET_SYSTEM_STATUS 0x00
+
 struct nvec_power {
 	struct notifier_block notifier;
 	struct delayed_work poller;
@@ -111,7 +113,7 @@ static const int bat_init[] = {
 static void get_bat_mfg_data(struct nvec_power *power)
 {
 	int i;
-	char buf[] = { '\x02', '\x00' };
+	char buf[] = { NVEC_BAT, SLOT_STATUS };
 
 	for (i = 0; i < ARRAY_SIZE(bat_init); i++) {
 		buf[1] = bat_init[i];
@@ -348,7 +350,7 @@ static int const bat_iter[] = {
 
 static void nvec_power_poll(struct work_struct *work)
 {
-	char buf[] = { '\x01', '\x00' };
+	char buf[] = { NVEC_SYS, GET_SYSTEM_STATUS };
 	struct nvec_power *power = container_of(work, struct nvec_power,
 						poller.work);
 
@@ -361,7 +363,7 @@ static void nvec_power_poll(struct work_struct *work)
 
 /* select a battery request function via round robin
    doing it all at once seems to overload the power supply */
-	buf[0] = '\x02';	/* battery */
+	buf[0] = NVEC_BAT;
 	buf[1] = bat_iter[counter++];
 	nvec_write_async(power->nvec, buf, 2);
 

@@ -418,7 +418,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	omap_fb = kzalloc(sizeof(*omap_fb), GFP_KERNEL);
 	if (!omap_fb) {
-		dev_err(dev->dev, "could not allocate fb\n");
 		ret = -ENOMEM;
 		goto fail;
 	}

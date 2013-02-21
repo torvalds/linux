@@ -761,8 +761,6 @@ static int vme_user_probe(struct vme_dev *vdev)
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
 		if (image[i].kern_buf == NULL) {
-			dev_warn(&vdev->dev,
-				 "Unable to allocate memory for master window buffers\n");
 			err = -ENOMEM;
 			goto err_master_buf;
 		}

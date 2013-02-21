@@ -72,9 +72,16 @@ enum nvec_msg_category  {
 	NVEC_MSG_TX,
 };
 
-static const unsigned char EC_DISABLE_EVENT_REPORTING[3] = "\x04\x00\x00";
-static const unsigned char EC_ENABLE_EVENT_REPORTING[3]  = "\x04\x00\x01";
-static const unsigned char EC_GET_FIRMWARE_VERSION[2]    = "\x07\x15";
+enum nvec_sleep_subcmds {
+	GLOBAL_EVENTS,
+	AP_PWR_DOWN,
+	AP_SUSPEND,
+};
+
+#define CNF_EVENT_REPORTING 0x01
+#define GET_FIRMWARE_VERSION 0x15
+#define LID_SWITCH BIT(1)
+#define PWR_BUTTON BIT(15)
 
 static struct nvec_chip *nvec_power_handle;
 
@@ -316,6 +323,41 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 	return msg;
 }
 EXPORT_SYMBOL(nvec_write_sync);
+
+/**
+ * nvec_toggle_global_events - enables or disables global event reporting
+ * @nvec: nvec handle
+ * @state: true for enable, false for disable
+ *
+ * This switches on/off global event reports by the embedded controller.
+ */
+static void nvec_toggle_global_events(struct nvec_chip *nvec, bool state)
+{
+	unsigned char global_events[] = { NVEC_SLEEP, GLOBAL_EVENTS, state };
+
+	nvec_write_async(nvec, global_events, 3);
+}
+
+/**
+ * nvec_event_mask - fill the command string with event bitfield
+ * ev: points to event command string
+ * mask: bit to insert into the event mask
+ *
+ * Configure event command expects a 32 bit bitfield which describes
+ * which events to enable. The bitfield has the following structure
+ * (from highest byte to lowest):
+ *	system state bits 7-0
+ *	system state bits 15-8
+ *	oem system state bits 7-0
+ *	oem system state bits 15-8
+ */
+static void nvec_event_mask(char *ev, u32 mask)
+{
+	ev[3] = mask >> 16 && 0xff;
+	ev[4] = mask >> 24 && 0xff;
+	ev[5] = mask >> 0  && 0xff;
+	ev[6] = mask >> 8  && 0xff;
+}
 
 /**
  * nvec_request_master - Process outgoing messages
@@ -711,8 +753,10 @@ static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 
 static void nvec_power_off(void)
 {
-	nvec_write_async(nvec_power_handle, EC_DISABLE_EVENT_REPORTING, 3);
-	nvec_write_async(nvec_power_handle, "\x04\x01", 2);
+	char ap_pwr_down[] = { NVEC_SLEEP, AP_PWR_DOWN };
+
+	nvec_toggle_global_events(nvec_power_handle, false);
+	nvec_write_async(nvec_power_handle, ap_pwr_down, 2);
 }
 
 static int tegra_nvec_probe(struct platform_device *pdev)
@@ -724,6 +768,9 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	struct nvec_msg *msg;
 	struct resource *res;
 	void __iomem *base;
+	char	get_firmware_version[] = { NVEC_CNTL, GET_FIRMWARE_VERSION },
+		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
+		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
 	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (nvec == NULL) {
@@ -813,8 +860,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 
 
 	/* enable event reporting */
-	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING,
-			 sizeof(EC_ENABLE_EVENT_REPORTING));
+	nvec_toggle_global_events(nvec, true);
 
 	nvec->nvec_status_notifier.notifier_call = nvec_status_notifier;
 	nvec_register_notifier(nvec, &nvec->nvec_status_notifier, 0);
@@ -823,8 +869,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	pm_power_off = nvec_power_off;
 
 	/* Get Firmware Version */
-	msg = nvec_write_sync(nvec, EC_GET_FIRMWARE_VERSION,
-		sizeof(EC_GET_FIRMWARE_VERSION));
+	msg = nvec_write_sync(nvec, get_firmware_version, 2);
 
 	if (msg) {
 		dev_warn(nvec->dev, "ec firmware version %02x.%02x.%02x / %02x\n",
@@ -839,13 +884,15 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		dev_err(nvec->dev, "error adding subdevices\n");
 
 	/* unmute speakers? */
-	nvec_write_async(nvec, "\x0d\x10\x59\x95", 4);
+	nvec_write_async(nvec, unmute_speakers, 4);
 
 	/* enable lid switch event */
-	nvec_write_async(nvec, "\x01\x01\x01\x00\x00\x02\x00", 7);
+	nvec_event_mask(enable_event, LID_SWITCH);
+	nvec_write_async(nvec, enable_event, 7);
 
 	/* enable power button event */
-	nvec_write_async(nvec, "\x01\x01\x01\x00\x00\x80\x00", 7);
+	nvec_event_mask(enable_event, PWR_BUTTON);
+	nvec_write_async(nvec, enable_event, 7);
 
 	return 0;
 }
@@ -854,7 +901,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
-	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
+	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
@@ -868,13 +915,14 @@ static int nvec_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 	struct nvec_msg *msg;
+	char ap_suspend[] = { NVEC_SLEEP, AP_SUSPEND };
 
 	dev_dbg(nvec->dev, "suspending\n");
 
 	/* keep these sync or you'll break suspend */
-	msg = nvec_write_sync(nvec, EC_DISABLE_EVENT_REPORTING, 3);
-	nvec_msg_free(nvec, msg);
-	msg = nvec_write_sync(nvec, "\x04\x02", 2);
+	nvec_toggle_global_events(nvec, false);
+
+	msg = nvec_write_sync(nvec, ap_suspend, sizeof(ap_suspend));
 	nvec_msg_free(nvec, msg);
 
 	nvec_disable_i2c_slave(nvec);
@@ -889,7 +937,7 @@ static int nvec_resume(struct device *dev)
 
 	dev_dbg(nvec->dev, "resuming\n");
 	tegra_init_i2c_slave(nvec);
-	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING, 3);
+	nvec_toggle_global_events(nvec, true);
 
 	return 0;
 }

@@ -3012,16 +3012,16 @@ int node_find_addr(struct node_mgr *node_mgr, u32 sym_addr,
 	struct node_object *node_obj;
 	int status = -ENOENT;
 
-	pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x,  %s)\n", __func__,
-			(unsigned int) node_mgr,
-			sym_addr, offset_range,
-			(unsigned int) sym_addr_output, sym_name);
-
 	list_for_each_entry(node_obj, &node_mgr->node_list, list_elem) {
 		status = nldr_find_addr(node_obj->nldr_node_obj, sym_addr,
 			offset_range, sym_addr_output, sym_name);
-		if (!status)
+		if (!status) {
+			pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x, %s)\n", __func__,
+				 (unsigned int) node_mgr,
+				 sym_addr, offset_range,
+				 (unsigned int) sym_addr_output, sym_name);
 			break;
+		}
 	}
 
 	return status;

@@ -20,6 +20,7 @@
 #include "../config.h"
 #endif
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -35,10 +36,9 @@
 #include <tcpd.h>
 #endif
 
-#define _GNU_SOURCE
 #include <getopt.h>
-#include <glib.h>
 #include <signal.h>
+#include <poll.h>
 
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
@@ -48,7 +48,7 @@
 #define PROGNAME "usbipd"
 #define MAXSOCKFD 20
 
-GMainLoop *main_loop;
+#define MAIN_LOOP_TIMEOUT 10
 
 static const char usbip_version_string[] = PACKAGE_STRING;
 
@@ -310,30 +310,22 @@ static int do_accept(int listenfd)
 	return connfd;
 }
 
-gboolean process_request(GIOChannel *gio, GIOCondition condition,
-			 gpointer unused_data)
+int process_request(int listenfd)
 {
-	int listenfd;
+	pid_t childpid;
 	int connfd;
 
-	(void) unused_data;
-
-	if (condition & (G_IO_ERR | G_IO_HUP | G_IO_NVAL)) {
-		err("unknown condition");
-		BUG();
-	}
-
-	if (condition & G_IO_IN) {
-		listenfd = g_io_channel_unix_get_fd(gio);
-		connfd = do_accept(listenfd);
-		if (connfd < 0)
-			return TRUE;
-
+	connfd = do_accept(listenfd);
+	if (connfd < 0)
+		return -1;
+	childpid = fork();
+	if (childpid == 0) {
+		close(listenfd);
 		recv_pdu(connfd);
-		close(connfd);
+		exit(0);
 	}
-
-	return TRUE;
+	close(connfd);
+	return 0;
 }
 
 static void log_addrinfo(struct addrinfo *ai)
@@ -418,10 +410,7 @@ static struct addrinfo *do_getaddrinfo(char *host, int ai_family)
 
 static void signal_handler(int i)
 {
-	dbg("received signal: code %d", i);
-
-	if (main_loop)
-		g_main_loop_quit(main_loop);
+	dbg("received '%s' signal", strsignal(i));
 }
 
 static void set_signal(void)
@@ -433,14 +422,19 @@ static void set_signal(void)
 	sigemptyset(&act.sa_mask);
 	sigaction(SIGTERM, &act, NULL);
 	sigaction(SIGINT, &act, NULL);
+	act.sa_handler = SIG_IGN;
+	sigaction(SIGCLD, &act, NULL);
 }
 
-static int do_standalone_mode(gboolean daemonize)
+static int do_standalone_mode(int daemonize)
 {
 	struct addrinfo *ai_head;
 	int sockfdlist[MAXSOCKFD];
 	int nsockfd;
-	int i;
+	int i, terminate;
+	struct pollfd *fds;
+	struct timespec timeout;
+	sigset_t sigmask;
 
 	if (usbip_names_init(USBIDS_FILE))
 		err("failed to open %s", USBIDS_FILE);
@@ -456,7 +450,7 @@ static int do_standalone_mode(gboolean daemonize)
 			err("daemonizing failed: %s", strerror(errno));
 			return -1;
 		}
-
+		umask(0);
 		usbip_use_syslog = 1;
 	}
 	set_signal();
@@ -472,20 +466,40 @@ static int do_standalone_mode(gboolean daemonize)
 		err("failed to open a listening socket");
 		return -1;
 	}
-
+	fds = calloc(nsockfd, sizeof(struct pollfd));
 	for (i = 0; i < nsockfd; i++) {
-		GIOChannel *gio;
+		fds[i].fd = sockfdlist[i];
+		fds[i].events = POLLIN;
+	}
+	timeout.tv_sec = MAIN_LOOP_TIMEOUT;
+	timeout.tv_nsec = 0;
 
-		gio = g_io_channel_unix_new(sockfdlist[i]);
-		g_io_add_watch(gio, (G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL),
-			       process_request, NULL);
+	sigfillset(&sigmask);
+	sigdelset(&sigmask, SIGTERM);
+	sigdelset(&sigmask, SIGINT);
+
+	terminate = 0;
+	while (!terminate) {
+		int r;
+
+		r = ppoll(fds, nsockfd, &timeout, &sigmask);
+		if (r < 0) {
+			dbg("%s", strerror(errno));
+			terminate = 1;
+		} else if (r) {
+			for (i = 0; i < nsockfd; i++) {
+				if (fds[i].revents & POLLIN) {
+					dbg("read event on fd[%d]=%d",
+					    i, sockfdlist[i]);
+					process_request(sockfdlist[i]);
+				}
+			}
+		} else
+			dbg("heartbeat timeout on ppoll()");
 	}
 
-	main_loop = g_main_loop_new(FALSE, FALSE);
-	g_main_loop_run(main_loop);
-
 	info("shutting down " PROGNAME);
-
+	free(fds);
 	freeaddrinfo(ai_head);
 	usbip_host_driver_close();
 	usbip_names_free();
@@ -509,7 +523,7 @@ int main(int argc, char *argv[])
 		cmd_version
 	} cmd;
 
-	gboolean daemonize = FALSE;
+	int daemonize = 0;
 	int opt, rc = -1;
 
 	usbip_use_stderr = 1;
@@ -527,7 +541,7 @@ int main(int argc, char *argv[])
 
 		switch (opt) {
 		case 'D':
-			daemonize = TRUE;
+			daemonize = 1;
 			break;
 		case 'd':
 			usbip_use_debug = 1;

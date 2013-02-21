@@ -697,7 +697,7 @@ static void staged_callback(struct urb *pUrb)
 	// in Allowi as if it were protected by the char lock. In any case, most systems will
 	// not be upset by char input during DMA... sigh. Needs sorting out.
 	if (bRestartCharInput)	// may be out of date, but...
-		Allowi(pdx, true);	// ...Allowi tests a lock too.
+		Allowi(pdx);	// ...Allowi tests a lock too.
 	dev_dbg(&pdx->interface->dev, "%s done", __func__);
 }
 
@@ -1172,7 +1172,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 	pdx->bReadCharsPending = false;	// No longer have a pending read
 	spin_unlock(&pdx->charInLock);	// already at irq level
 
-	Allowi(pdx, true);	// see if we can do the next one
+	Allowi(pdx);	// see if we can do the next one
 }
 
 /****************************************************************************
@@ -1182,7 +1182,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 ** we can pick up any inward transfers. This can be called in multiple contexts
 ** so we use the irqsave version of the spinlock.
 ****************************************************************************/
-int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
+int Allowi(DEVICE_EXTENSION * pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned long flags;
@@ -1211,9 +1211,7 @@ int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
 				 pdx, pdx->bInterval);
 		pdx->pUrbCharIn->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;	// short xfers are OK by default
 		usb_anchor_urb(pdx->pUrbCharIn, &pdx->submitted);	// in case we need to kill it
-		iReturn =
-		    usb_submit_urb(pdx->pUrbCharIn,
-				   bInCallback ? GFP_ATOMIC : GFP_KERNEL);
+		iReturn = usb_submit_urb(pdx->pUrbCharIn, GFP_ATOMIC);
 		if (iReturn) {
 			usb_unanchor_urb(pdx->pUrbCharIn);	// remove from list of active Urbs
 			pdx->bPipeError[nPipe] = 1;	// Flag an error to be handled later
@@ -1393,10 +1391,8 @@ static int ced_probe(struct usb_interface *interface,
 
 	// allocate memory for our device extension and initialize it
 	pdx = kzalloc(sizeof(*pdx), GFP_KERNEL);
-	if (!pdx) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!pdx)
 		goto error;
-	}
 
 	for (i = 0; i < MAX_TRANSAREAS; ++i)	// Initialise the wait queues
 	{

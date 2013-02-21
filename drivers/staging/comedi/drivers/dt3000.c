@@ -55,9 +55,11 @@ AO commands are not supported.
 
 #define DEBUG 1
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 
@@ -856,11 +858,6 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &dt3000_driver);
 }
 
-static void dt3000_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001_PGL) },
@@ -877,7 +874,7 @@ static struct pci_driver dt3000_pci_driver = {
 	.name		= "dt3000",
 	.id_table	= dt3000_pci_table,
 	.probe		= dt3000_pci_probe,
-	.remove		= dt3000_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 

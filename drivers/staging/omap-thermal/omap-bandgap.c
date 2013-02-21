@@ -568,8 +568,6 @@ int omap_bandgap_read_update_interval(struct omap_bandgap *bg_ptr, int id,
 
 	tsr = bg_ptr->conf->sensors[id].registers;
 	time = omap_bandgap_readl(bg_ptr, tsr->bgap_counter);
-	if (ret)
-		return ret;
 	time = (time & tsr->counter_mask) >> __ffs(tsr->counter_mask);
 	time = time * 1000 / bg_ptr->clk_rate;
 

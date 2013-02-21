@@ -335,10 +335,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	DBG("load: dev=%p", dev);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev->dev, "could not allocate priv\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->omaprev = pdata->omaprev;
 
@@ -368,6 +366,9 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		/* well, limp along without an fbdev.. maybe X11 will work? */
 	}
 
+	/* store off drm_device for use in pm ops */
+	dev_set_drvdata(dev->dev, dev);
+
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
@@ -392,6 +393,8 @@ static int dev_unload(struct drm_device *dev)
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
+
+	dev_set_drvdata(dev->dev, NULL);
 
 	return 0;
 }
@@ -558,10 +561,19 @@ static int pdev_remove(struct platform_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops omapdrm_pm_ops = {
+	.resume = omap_gem_resume,
+};
+#endif
+
 struct platform_driver pdev = {
 		.driver = {
 			.name = DRIVER_NAME,
 			.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+			.pm = &omapdrm_pm_ops,
+#endif
 		},
 		.probe = pdev_probe,
 		.remove = pdev_remove,

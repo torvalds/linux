@@ -1,3 +1,5 @@
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
@@ -50,11 +52,6 @@ static int apci1564_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1564_driver);
 }
 
-static void apci1564_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci1564_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1006) },
 	{ 0 }
@@ -65,7 +62,7 @@ static struct pci_driver apci1564_pci_driver = {
 	.name		= "addi_apci_1564",
 	.id_table	= apci1564_pci_table,
 	.probe		= apci1564_pci_probe,
-	.remove		= apci1564_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1564_driver, apci1564_pci_driver);
 

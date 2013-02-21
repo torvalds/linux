@@ -59,6 +59,8 @@ struct tcm {
 	u16 width, height;	/* container dimensions */
 	int lut_id;		/* Lookup table identifier */
 
+	unsigned int y_offset;	/* offset to use for y coordinates */
+
 	/* 'pvt' structure shall contain any tcm details (attr) along with
 	linked list of allocated areas and mutex for mutually exclusive access
 	to the list.  It may also contain copies of width and height to notice

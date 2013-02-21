@@ -56,16 +56,13 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Export Functions  --------------------------*/
 
 
-BOOL
-FIRMWAREbDownload(
-     PSDevice pDevice
-    )
+int FIRMWAREbDownload(struct vnt_private *pDevice)
 {
 	struct device *dev = &pDevice->usb->dev;
 	const struct firmware *fw;
 	int NdisStatus;
 	void *pBuffer = NULL;
-	BOOL result = FALSE;
+	bool result = false;
 	u16 wLength;
 	int ii, rc;
 
@@ -102,7 +99,7 @@ FIRMWAREbDownload(
 			goto free_fw;
         }
 
-	result = TRUE;
+	result = true;
 free_fw:
 	release_firmware(fw);
 
@@ -114,12 +111,9 @@ out:
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
-BOOL
-FIRMWAREbBrach2Sram(
-     PSDevice pDevice
-    )
+int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
 {
-    int NdisStatus;
+	int NdisStatus;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
 
@@ -132,17 +126,14 @@ FIRMWAREbBrach2Sram(
                                     );
 
     if (NdisStatus != STATUS_SUCCESS) {
-        return (FALSE);
+        return (false);
     } else {
-        return (TRUE);
+        return (true);
     }
 }
 
 
-BOOL
-FIRMWAREbCheckVersion(
-     PSDevice pDevice
-    )
+int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 {
 	int ntStatus;
 
@@ -156,17 +147,17 @@ FIRMWAREbCheckVersion(
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (ntStatus != STATUS_SUCCESS) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Invalid.\n");
-        return FALSE;
+        return false;
     }
     if (pDevice->wFirmwareVersion == 0xFFFF) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"In Loader.\n");
-        return FALSE;
+        return false;
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (pDevice->wFirmwareVersion < FIRMWARE_VERSION) {
         // branch to loader for download new firmware
         FIRMWAREbBrach2Sram(pDevice);
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }

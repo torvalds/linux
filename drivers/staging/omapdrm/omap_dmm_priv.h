@@ -118,6 +118,11 @@ struct pat {
 #define DESCR_SIZE 128
 #define REFILL_BUFFER_SIZE ((4 * 128 * 256) + (3 * DESCR_SIZE))
 
+/* For OMAP5, a fixed offset is added to all Y coordinates for 1D buffers.
+ * This is used in programming to address the upper portion of the LUT
+*/
+#define OMAP5_LUT_OFFSET       128
+
 struct dmm;
 
 struct dmm_txn {

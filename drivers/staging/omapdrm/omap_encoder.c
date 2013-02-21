@@ -147,10 +147,8 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	struct omap_encoder *omap_encoder;
 
 	omap_encoder = kzalloc(sizeof(*omap_encoder), GFP_KERNEL);
-	if (!omap_encoder) {
-		dev_err(dev->dev, "could not allocate encoder\n");
+	if (!omap_encoder)
 		goto fail;
-	}
 
 	omap_encoder->dssdev = dssdev;
 

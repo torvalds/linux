@@ -10,13 +10,6 @@ config ADIS16060
 	  Say yes here to build support for Analog Devices adis16060 wide bandwidth
 	  yaw rate gyroscope with SPI.
 
-config ADIS16080
-	tristate "Analog Devices ADIS16080/100 Yaw Rate Gyroscope with SPI driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices adis16080/100 Yaw Rate
-	  Gyroscope with SPI.
-
 config ADIS16130
 	tristate "Analog Devices ADIS16130 High Precision Angular Rate Sensor driver"
 	depends on SPI
@@ -35,15 +28,5 @@ config ADIS16260
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adis16260.
-
-config ADXRS450
-	tristate "Analog Devices ADXRS450/3 Digital Output Gyroscope SPI driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices ADXRS450 and ADXRS453
-	  programmable digital output gyroscope.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called adxrs450.
 
 endmenu

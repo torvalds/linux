@@ -157,4 +157,42 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 */
 int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 			u32 field_index, s32 *value);
+
+/* hid-sensor-attributes */
+
+/* Common hid sensor iio structure */
+struct hid_sensor_common {
+	struct hid_sensor_hub_device *hsdev;
+	struct platform_device *pdev;
+	unsigned usage_id;
+	bool data_ready;
+	struct hid_sensor_hub_attribute_info poll;
+	struct hid_sensor_hub_attribute_info report_state;
+	struct hid_sensor_hub_attribute_info power_state;
+	struct hid_sensor_hub_attribute_info sensitivity;
+};
+
+/*Convert from hid unit expo to regular exponent*/
+static inline int hid_sensor_convert_exponent(int unit_expo)
+{
+	if (unit_expo < 0x08)
+		return unit_expo;
+	else if (unit_expo <= 0x0f)
+		return -(0x0f-unit_expo+1);
+	else
+		return 0;
+}
+
+int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
+					u32 usage_id,
+					struct hid_sensor_common *st);
+int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
+					int val1, int val2);
+int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
+					int *val1, int *val2);
+int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
+					int val1, int val2);
+int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
+					int *val1, int *val2);
+
 #endif
