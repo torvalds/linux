@@ -59,9 +59,6 @@
 #define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
 #define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
-#define GPMC_CONFIG1_MUXNONMUX          GPMC_CONFIG1_MUXTYPE(0)
-#define GPMC_CONFIG1_MUXAAD             GPMC_CONFIG1_MUXTYPE(GPMC_MUX_AAD)
-#define GPMC_CONFIG1_MUXADDDATA         GPMC_CONFIG1_MUXTYPE(GPMC_MUX_AD)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
 #define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
@@ -227,6 +224,6 @@ extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
-extern int gpmc_cs_configure(int cs, int cmd, int wval);
+extern int gpmc_configure(int cmd, int wval);
 
 #endif

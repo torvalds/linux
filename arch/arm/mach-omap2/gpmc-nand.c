@@ -154,7 +154,7 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 		if (err < 0)
 			goto out_free_cs;
 
-		err = gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_WP, 0);
+		err = gpmc_configure(GPMC_CONFIG_WP, 0);
 		if (err < 0)
 			goto out_free_cs;
 	}

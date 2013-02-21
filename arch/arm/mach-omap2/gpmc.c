@@ -550,16 +550,14 @@ void gpmc_cs_free(int cs)
 EXPORT_SYMBOL(gpmc_cs_free);
 
 /**
- * gpmc_cs_configure - write request to configure gpmc
- * @cs: chip select number
+ * gpmc_configure - write request to configure gpmc
  * @cmd: command type
  * @wval: value to write
  * @return status of the operation
  */
-int gpmc_cs_configure(int cs, int cmd, int wval)
+int gpmc_configure(int cmd, int wval)
 {
-	int err = 0;
-	u32 regval = 0;
+	u32 regval;
 
 	switch (cmd) {
 	case GPMC_ENABLE_IRQ:
@@ -579,47 +577,14 @@ int gpmc_cs_configure(int cs, int cmd, int wval)
 		gpmc_write_reg(GPMC_CONFIG, regval);
 		break;
 
-	case GPMC_CONFIG_RDY_BSY:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-		if (wval)
-			regval |= WR_RD_PIN_MONITORING;
-		else
-			regval &= ~WR_RD_PIN_MONITORING;
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
-	case GPMC_CONFIG_DEV_SIZE:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		/* clear 2 target bits */
-		regval &= ~GPMC_CONFIG1_DEVICESIZE(3);
-
-		/* set the proper value */
-		regval |= GPMC_CONFIG1_DEVICESIZE(wval);
-
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
-	case GPMC_CONFIG_DEV_TYPE:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-		/* clear 4 target bits */
-		regval &= ~(GPMC_CONFIG1_DEVICETYPE(3) |
-			    GPMC_CONFIG1_MUXTYPE(3));
-		/* set the proper value */
-		regval |= GPMC_CONFIG1_DEVICETYPE(wval);
-		if (wval == GPMC_DEVICETYPE_NOR)
-			regval |= GPMC_CONFIG1_MUXADDDATA;
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
 	default:
-		printk(KERN_ERR "gpmc_configure_cs: Not supported\n");
-		err = -EINVAL;
+		pr_err("%s: command not supported\n", __func__);
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
-EXPORT_SYMBOL(gpmc_cs_configure);
+EXPORT_SYMBOL(gpmc_configure);
 
 void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 {
