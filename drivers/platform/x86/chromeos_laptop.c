@@ -181,14 +181,22 @@ static __init struct i2c_client *add_probed_i2c_device(
  * info->addr.
  * Returns NULL if no device found.
  */
-static struct i2c_client __init *add_smbus_device(const char *name,
-						  struct i2c_board_info *info)
+static __init struct i2c_client *add_i2c_device(const char *name,
+						enum i2c_adapter_type type,
+						struct i2c_board_info *info)
 {
 	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
 	return __add_probed_i2c_device(name,
-				       find_i2c_adapter_num(I2C_ADAPTER_SMBUS),
+				       find_i2c_adapter_num(type),
 				       info,
 				       addr_list);
+}
+
+
+static struct i2c_client __init *add_smbus_device(const char *name,
+						  struct i2c_board_info *info)
+{
+	return add_i2c_device(name, I2C_ADAPTER_SMBUS, info);
 }
 
 static int __init setup_cyapa_smbus_tp(const struct dmi_system_id *id)
