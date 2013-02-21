@@ -1782,6 +1782,15 @@ fec_probe(struct platform_device *pdev)
 		fep->phy_interface = ret;
 	}
 
+	fep->bufdesc_ex =
+		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
+	if (fep->bufdesc_ex)
+		fec_ptp_init(ndev, pdev);
+
+	ret = fec_enet_init(ndev);
+	if (ret)
+		goto failed_init;
+
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
@@ -1819,8 +1828,6 @@ fec_probe(struct platform_device *pdev)
 	}
 
 	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
-	fep->bufdesc_ex =
-		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
 	if (IS_ERR(fep->clk_ptp)) {
 		ret = PTR_ERR(fep->clk_ptp);
 		fep->bufdesc_ex = 0;
@@ -1843,13 +1850,6 @@ fec_probe(struct platform_device *pdev)
 
 	fec_reset_phy(pdev);
 
-	if (fep->bufdesc_ex)
-		fec_ptp_init(ndev, pdev);
-
-	ret = fec_enet_init(ndev);
-	if (ret)
-		goto failed_init;
-
 	ret = fec_enet_mii_init(pdev);
 	if (ret)
 		goto failed_mii_init;
@@ -1866,7 +1866,6 @@ fec_probe(struct platform_device *pdev)
 failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
-failed_init:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -1881,6 +1880,7 @@ failed_clk:
 	}
 failed_irq:
 	iounmap(fep->hwp);
+failed_init:
 failed_ioremap:
 	free_netdev(ndev);
 failed_alloc_etherdev:
@@ -1899,17 +1899,17 @@ fec_drv_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		int irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 	del_timer_sync(&fep->time_keep);
 	clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		int irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
 	iounmap(fep->hwp);
 	free_netdev(ndev);
 
