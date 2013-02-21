@@ -474,10 +474,8 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_D15_NAF15, NULL);
 	gpio_request(GPIO_FN_CS5A_, NULL);
 	gpio_request(GPIO_FN_WE0__FWE, NULL);
-	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
-	gpio_direction_input(GPIO_PORT144);
-	gpio_request(GPIO_PORT145, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT145, 1);
+	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* KEYSC */
 	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
@@ -509,8 +507,7 @@ static void __init kota2_init(void)
 	gpio_request(GPIO_FN_MMCD0_6, NULL);
 	gpio_request(GPIO_FN_MMCD0_7, NULL);
 	gpio_request(GPIO_FN_MMCCMD0, NULL);
-	gpio_request(GPIO_PORT208, NULL); /* Reset */
-	gpio_direction_output(GPIO_PORT208, 1);
+	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* SDHI0 (microSD) */
 	gpio_request(GPIO_FN_SDHICD0_PU, NULL);
