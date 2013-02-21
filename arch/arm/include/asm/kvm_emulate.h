@@ -158,4 +158,9 @@ static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
 }
 
+static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */
