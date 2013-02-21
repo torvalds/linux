@@ -142,6 +142,17 @@ struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local)
 	return local;
 }
 
+static void local_cleanup(struct nfc_llcp_local *local, bool listen)
+{
+	nfc_llcp_socket_release(local, listen);
+	del_timer_sync(&local->link_timer);
+	skb_queue_purge(&local->tx_queue);
+	cancel_work_sync(&local->tx_work);
+	cancel_work_sync(&local->rx_work);
+	cancel_work_sync(&local->timeout_work);
+	kfree_skb(local->rx_pending);
+}
+
 static void local_release(struct kref *ref)
 {
 	struct nfc_llcp_local *local;
@@ -149,13 +160,7 @@ static void local_release(struct kref *ref)
 	local = container_of(ref, struct nfc_llcp_local, ref);
 
 	list_del(&local->list);
-	nfc_llcp_socket_release(local, false);
-	del_timer_sync(&local->link_timer);
-	skb_queue_purge(&local->tx_queue);
-	cancel_work_sync(&local->tx_work);
-	cancel_work_sync(&local->rx_work);
-	cancel_work_sync(&local->timeout_work);
-	kfree_skb(local->rx_pending);
+	local_cleanup(local, false);
 	kfree(local);
 }
 
@@ -1426,6 +1431,8 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 		pr_debug("No such device\n");
 		return;
 	}
+
+	local_cleanup(local, false);
 
 	nfc_llcp_local_put(local);
 }
