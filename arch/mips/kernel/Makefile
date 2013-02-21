@@ -27,6 +27,7 @@ obj-$(CONFIG_CSRC_IOASIC)	+= csrc-ioasic.o
 obj-$(CONFIG_CSRC_POWERTV)	+= csrc-powertv.o
 obj-$(CONFIG_CSRC_R4K)		+= csrc-r4k.o
 obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
+obj-$(CONFIG_CSRC_GIC)		+= csrc-gic.o
 obj-$(CONFIG_SYNC_R4K)		+= sync-r4k.o
 
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
@@ -97,5 +98,36 @@ obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event_mipsxx.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
+
+#
+# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is safe
+# to enable DSP assembler support here even if the MIPS Release 2 CPU we
+# are targetting does not support DSP because all code-paths making use of
+# it properly check that the running CPU *actually does* support these
+# instructions.
+#
+ifeq ($(CONFIG_CPU_MIPSR2), y)
+CFLAGS_DSP 			= -DHAVE_AS_DSP
+
+#
+# Check if assembler supports DSP ASE
+#
+ifeq ($(call cc-option-yn,-mdsp), y)
+CFLAGS_DSP			+= -mdsp
+endif
+
+#
+# Check if assembler supports DSP ASE Rev2
+#
+ifeq ($(call cc-option-yn,-mdspr2), y)
+CFLAGS_DSP			+= -mdspr2
+endif
+
+CFLAGS_signal.o			= $(CFLAGS_DSP)
+CFLAGS_signal32.o		= $(CFLAGS_DSP)
+CFLAGS_process.o		= $(CFLAGS_DSP)
+CFLAGS_branch.o			= $(CFLAGS_DSP)
+CFLAGS_ptrace.o			= $(CFLAGS_DSP)
+endif
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

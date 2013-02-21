@@ -64,7 +64,7 @@ void nlm_xlr_uart_out(struct uart_port *p, int offset, int value)
 		.iotype		= UPIO_MEM32,		\
 		.flags		= (UPF_SKIP_TEST |	\
 			 UPF_FIXED_TYPE | UPF_BOOT_AUTOCONF),\
-		.uartclk	= PIC_CLKS_PER_SEC,	\
+		.uartclk	= PIC_CLK_HZ,		\
 		.type		= PORT_16550A,		\
 		.serial_in	= nlm_xlr_uart_in,	\
 		.serial_out	= nlm_xlr_uart_out,	\

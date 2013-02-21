@@ -649,7 +649,11 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 			status = STS_PCD;
 		}
 	}
-	/* FIXME autosuspend idle root hubs */
+
+	/* If a resume is in progress, make sure it can finish */
+	if (ehci->resuming_ports)
+		mod_timer(&hcd->rh_timer, jiffies + msecs_to_jiffies(25));
+
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return status ? retval : 0;
 }
@@ -851,6 +855,7 @@ static int ehci_hub_control (
 				/* resume signaling for 20 msec */
 				ehci->reset_done[wIndex] = jiffies
 						+ msecs_to_jiffies(20);
+				usb_hcd_start_port_resume(&hcd->self, wIndex);
 				/* check the port again */
 				mod_timer(&ehci_to_hcd(ehci)->rh_timer,
 						ehci->reset_done[wIndex]);
@@ -862,6 +867,7 @@ static int ehci_hub_control (
 				clear_bit(wIndex, &ehci->suspended_ports);
 				set_bit(wIndex, &ehci->port_c_suspend);
 				ehci->reset_done[wIndex] = 0;
+				usb_hcd_end_port_resume(&hcd->self, wIndex);
 
 				/* stop resume signaling */
 				temp = ehci_readl(ehci, status_reg);
@@ -950,6 +956,7 @@ static int ehci_hub_control (
 			ehci->reset_done[wIndex] = 0;
 			if (temp & PORT_PE)
 				set_bit(wIndex, &ehci->port_c_suspend);
+			usb_hcd_end_port_resume(&hcd->self, wIndex);
 		}
 
 		if (temp & PORT_OC)

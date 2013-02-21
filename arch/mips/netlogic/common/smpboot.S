@@ -69,6 +69,12 @@
 #endif
 	mtcr	t1, t0
 
+	li	t0, ICU_DEFEATURE
+	mfcr	t1, t0
+	ori	t1, 0x1000	/* Enable Icache partitioning */
+	mtcr	t1, t0
+
+
 #ifdef XLP_AX_WORKAROUND
 	li	t0, SCHED_DEFEATURE
 	lui	t1, 0x0100	/* Disable BRU accepting ALU ops */

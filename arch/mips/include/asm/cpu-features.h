@@ -98,6 +98,9 @@
 #ifndef cpu_has_rixi
 #define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
 #endif
+#ifndef cpu_has_mmips
+#define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
+#endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
@@ -271,6 +274,10 @@
 
 #ifndef cpu_has_perf_cntr_intr_bit
 #define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
+#endif
+
+#ifndef cpu_has_vz
+#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

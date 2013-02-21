@@ -8,8 +8,8 @@
  *  option) any later version.
  */
 
-#ifndef __NVRAM_H
-#define __NVRAM_H
+#ifndef __BCM47XX_NVRAM_H
+#define __BCM47XX_NVRAM_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -32,12 +32,9 @@ struct nvram_header {
 #define NVRAM_MAX_VALUE_LEN 255
 #define NVRAM_MAX_PARAM_LEN 64
 
-#define NVRAM_ERR_INV_PARAM	-8
-#define NVRAM_ERR_ENVNOTFOUND	-9
+extern int bcm47xx_nvram_getenv(char *name, char *val, size_t val_len);
 
-extern int nvram_getenv(char *name, char *val, size_t val_len);
-
-static inline void nvram_parse_macaddr(char *buf, u8 macaddr[6])
+static inline void bcm47xx_nvram_parse_macaddr(char *buf, u8 macaddr[6])
 {
 	if (strchr(buf, ':'))
 		sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &macaddr[0],
@@ -51,4 +48,4 @@ static inline void nvram_parse_macaddr(char *buf, u8 macaddr[6])
 		printk(KERN_WARNING "Can not parse mac address: %s\n", buf);
 }
 
-#endif
+#endif /* __BCM47XX_NVRAM_H */

@@ -35,10 +35,11 @@
 #ifndef _ASM_NLM_XLR_PIC_H
 #define _ASM_NLM_XLR_PIC_H
 
-#define PIC_CLKS_PER_SEC		66666666ULL
+#define PIC_CLK_HZ			66666666
 /* PIC hardware interrupt numbers */
 #define PIC_IRT_WD_INDEX		0
 #define PIC_IRT_TIMER_0_INDEX		1
+#define PIC_IRT_TIMER_INDEX(i)		((i) + PIC_IRT_TIMER_0_INDEX)
 #define PIC_IRT_TIMER_1_INDEX		2
 #define PIC_IRT_TIMER_2_INDEX		3
 #define PIC_IRT_TIMER_3_INDEX		4
@@ -99,6 +100,7 @@
 
 /* PIC Registers */
 #define PIC_CTRL			0x00
+#define PIC_CTRL_STE			8	/* timer enable start bit */
 #define PIC_IPI				0x04
 #define PIC_INT_ACK			0x06
 
@@ -251,12 +253,52 @@ nlm_pic_ack(uint64_t base, int irt)
 }
 
 static inline void
-nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
+nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt, int en)
 {
 	nlm_write_reg(base, PIC_IRT_0(irt), (1u << hwt));
 	/* local scheduling, invalid, level by default */
 	nlm_write_reg(base, PIC_IRT_1(irt),
-		(1 << 30) | (1 << 6) | irq);
+		(en << 30) | (1 << 6) | irq);
+}
+
+static inline uint64_t
+nlm_pic_read_timer(uint64_t base, int timer)
+{
+	uint32_t up1, up2, low;
+
+	up1 = nlm_read_reg(base, PIC_TIMER_COUNT_1(timer));
+	low = nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+	up2 = nlm_read_reg(base, PIC_TIMER_COUNT_1(timer));
+
+	if (up1 != up2) /* wrapped, get the new low */
+		low = nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+	return ((uint64_t)up2 << 32) | low;
+
+}
+
+static inline uint32_t
+nlm_pic_read_timer32(uint64_t base, int timer)
+{
+	return nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+}
+
+static inline void
+nlm_pic_set_timer(uint64_t base, int timer, uint64_t value, int irq, int cpu)
+{
+	uint32_t up, low;
+	uint64_t pic_ctrl = nlm_read_reg(base, PIC_CTRL);
+	int en;
+
+	en = (irq > 0);
+	up = value >> 32;
+	low = value & 0xFFFFFFFF;
+	nlm_write_reg(base, PIC_TIMER_MAXVAL_0(timer), low);
+	nlm_write_reg(base, PIC_TIMER_MAXVAL_1(timer), up);
+	nlm_pic_init_irt(base, PIC_IRT_TIMER_INDEX(timer), irq, cpu, 0);
+
+	/* enable the timer */
+	pic_ctrl |= (1 << (PIC_CTRL_STE + timer));
+	nlm_write_reg(base, PIC_CTRL, pic_ctrl);
 }
 #endif
 #endif /* _ASM_NLM_XLR_PIC_H */

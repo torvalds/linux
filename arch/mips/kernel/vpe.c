@@ -697,18 +697,7 @@ static int vpe_run(struct vpe * v)
 	dmt_flag = dmt();
 	vpeflags = dvpe();
 
-	if (!list_empty(&v->tc)) {
-		if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
-			evpe(vpeflags);
-			emt(dmt_flag);
-			local_irq_restore(flags);
-
-			printk(KERN_WARNING
-			       "VPE loader: TC %d is already in use.\n",
-			       v->tc->index);
-			return -ENOEXEC;
-		}
-	} else {
+	if (list_empty(&v->tc)) {
 		evpe(vpeflags);
 		emt(dmt_flag);
 		local_irq_restore(flags);
@@ -719,6 +708,8 @@ static int vpe_run(struct vpe * v)
 
 		return -ENOEXEC;
 	}
+
+	t = list_first_entry(&v->tc, struct tc, tc);
 
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);

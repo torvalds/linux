@@ -641,11 +641,10 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 
 out:
 	rbuf = transport_kmap_data_sg(cmd);
-	if (!rbuf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	if (!ret)
 		target_complete_cmd(cmd, GOOD);
@@ -851,7 +850,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
-	unsigned char *buf, *map_buf;
+	unsigned char buf[SE_MODE_PAGE_BUF], *rbuf;
 	int type = dev->transport->get_device_type(dev);
 	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
 	bool dbd = !!(cdb[1] & 0x08);
@@ -863,26 +862,8 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	int ret;
 	int i;
 
-	map_buf = transport_kmap_data_sg(cmd);
-	if (!map_buf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	/*
-	 * If SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is not set, then we
-	 * know we actually allocated a full page.  Otherwise, if the
-	 * data buffer is too small, allocate a temporary buffer so we
-	 * don't have to worry about overruns in all our INQUIRY
-	 * emulation handling.
-	 */
-	if (cmd->data_length < SE_MODE_PAGE_BUF &&
-	    (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)) {
-		buf = kzalloc(SE_MODE_PAGE_BUF, GFP_KERNEL);
-		if (!buf) {
-			transport_kunmap_data_sg(cmd);
-			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		}
-	} else {
-		buf = map_buf;
-	}
+	memset(buf, 0, SE_MODE_PAGE_BUF);
+
 	/*
 	 * Skip over MODE DATA LENGTH + MEDIUM TYPE fields to byte 3 for
 	 * MODE_SENSE_10 and byte 2 for MODE_SENSE (6).
@@ -934,8 +915,6 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	if (page == 0x3f) {
 		if (subpage != 0x00 && subpage != 0xff) {
 			pr_warn("MODE_SENSE: Invalid subpage code: 0x%02x\n", subpage);
-			kfree(buf);
-			transport_kunmap_data_sg(cmd);
 			return TCM_INVALID_CDB_FIELD;
 		}
 
@@ -972,7 +951,6 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
 		       page, subpage);
 
-	transport_kunmap_data_sg(cmd);
 	return TCM_UNKNOWN_MODE_PAGE;
 
 set_length:
@@ -981,12 +959,12 @@ set_length:
 	else
 		buf[0] = length - 1;
 
-	if (buf != map_buf) {
-		memcpy(map_buf, buf, cmd->data_length);
-		kfree(buf);
+	rbuf = transport_kmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, SE_MODE_PAGE_BUF, cmd->data_length));
+		transport_kunmap_data_sg(cmd);
 	}
 
-	transport_kunmap_data_sg(cmd);
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }

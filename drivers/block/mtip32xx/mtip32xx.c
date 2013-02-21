@@ -626,12 +626,13 @@ static void mtip_timeout_function(unsigned long int data)
 		}
 	}
 
-	if (cmdto_cnt && !test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
+	if (cmdto_cnt) {
 		print_tags(port->dd, "timed out", tagaccum, cmdto_cnt);
-
-		mtip_restart_port(port);
+		if (!test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
+			mtip_restart_port(port);
+			wake_up_interruptible(&port->svc_wait);
+		}
 		clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
-		wake_up_interruptible(&port->svc_wait);
 	}
 
 	if (port->ic_pause_timer) {
@@ -3887,7 +3888,12 @@ static int mtip_block_remove(struct driver_data *dd)
 	 * Delete our gendisk structure. This also removes the device
 	 * from /dev
 	 */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
@@ -3921,7 +3927,13 @@ static int mtip_block_shutdown(struct driver_data *dd)
 		"Shutting down %s ...\n", dd->disk->disk_name);
 
 	/* Delete our gendisk structure, and cleanup the blk queue. */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
+
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);

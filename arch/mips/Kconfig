@@ -107,12 +107,14 @@ config ATH79
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select FW_CFE
 	select HW_HAS_PCI
 	select IRQ_CPU
+	select NO_EXCEPT_FILL
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -294,6 +296,7 @@ config MIPS_MALTA
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select CSRC_GIC
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
@@ -424,6 +427,22 @@ config POWERTV
 	select USB_OHCI_LITTLE_ENDIAN
 	help
 	  This enables support for the Cisco PowerTV Platform.
+
+config RALINK
+	bool "Ralink based machines"
+	select CEVT_R4K
+	select CSRC_R4K
+	select BOOT_RAW
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select USE_OF
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+	select HAVE_MACH_CLKDEV
+	select CLKDEV_LOOKUP
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
@@ -837,6 +856,7 @@ source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/powertv/Kconfig"
+source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
@@ -915,6 +935,9 @@ config CSRC_POWERTV
 	bool
 
 config CSRC_R4K
+	bool
+
+config CSRC_GIC
 	bool
 
 config CSRC_SB1250

@@ -934,7 +934,7 @@ static struct regulator_desc regulators[] = {
 };
 
 #ifdef CONFIG_OF
-static int max8997_pmic_dt_parse_dvs_gpio(struct max8997_dev *iodev,
+static int max8997_pmic_dt_parse_dvs_gpio(struct platform_device *pdev,
 			struct max8997_platform_data *pdata,
 			struct device_node *pmic_np)
 {
@@ -944,7 +944,7 @@ static int max8997_pmic_dt_parse_dvs_gpio(struct max8997_dev *iodev,
 		gpio = of_get_named_gpio(pmic_np,
 					"max8997,pmic-buck125-dvs-gpios", i);
 		if (!gpio_is_valid(gpio)) {
-			dev_err(iodev->dev, "invalid gpio[%d]: %d\n", i, gpio);
+			dev_err(&pdev->dev, "invalid gpio[%d]: %d\n", i, gpio);
 			return -EINVAL;
 		}
 		pdata->buck125_gpios[i] = gpio;
@@ -952,22 +952,23 @@ static int max8997_pmic_dt_parse_dvs_gpio(struct max8997_dev *iodev,
 	return 0;
 }
 
-static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
+static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct max8997_platform_data *pdata)
 {
+	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *pmic_np, *regulators_np, *reg_np;
 	struct max8997_regulator_data *rdata;
 	unsigned int i, dvs_voltage_nr = 1, ret;
 
 	pmic_np = iodev->dev->of_node;
 	if (!pmic_np) {
-		dev_err(iodev->dev, "could not find pmic sub-node\n");
+		dev_err(&pdev->dev, "could not find pmic sub-node\n");
 		return -ENODEV;
 	}
 
 	regulators_np = of_find_node_by_name(pmic_np, "regulators");
 	if (!regulators_np) {
-		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		dev_err(&pdev->dev, "could not find regulators sub-node\n");
 		return -EINVAL;
 	}
 
@@ -976,11 +977,10 @@ static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
 	for_each_child_of_node(regulators_np, reg_np)
 		pdata->num_regulators++;
 
-	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
-		dev_err(iodev->dev, "could not allocate memory for "
-						"regulator data\n");
+		dev_err(&pdev->dev, "could not allocate memory for regulator data\n");
 		return -ENOMEM;
 	}
 
@@ -991,14 +991,14 @@ static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
-			dev_warn(iodev->dev, "don't know how to configure "
-				"regulator %s\n", reg_np->name);
+			dev_warn(&pdev->dev, "don't know how to configure regulator %s\n",
+				 reg_np->name);
 			continue;
 		}
 
 		rdata->id = i;
-		rdata->initdata = of_get_regulator_init_data(
-						iodev->dev, reg_np);
+		rdata->initdata = of_get_regulator_init_data(&pdev->dev,
+							     reg_np);
 		rdata->reg_node = reg_np;
 		rdata++;
 	}
@@ -1014,7 +1014,7 @@ static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
 
 	if (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
 						pdata->buck5_gpiodvs) {
-		ret = max8997_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
+		ret = max8997_pmic_dt_parse_dvs_gpio(pdev, pdata, pmic_np);
 		if (ret)
 			return -EINVAL;
 
@@ -1025,8 +1025,7 @@ static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
 		} else {
 			if (pdata->buck125_default_idx >= 8) {
 				pdata->buck125_default_idx = 0;
-				dev_info(iodev->dev, "invalid value for "
-				"default dvs index, using 0 instead\n");
+				dev_info(&pdev->dev, "invalid value for default dvs index, using 0 instead\n");
 			}
 		}
 
@@ -1040,28 +1039,28 @@ static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck1-dvs-voltage",
 				pdata->buck1_voltage, dvs_voltage_nr)) {
-		dev_err(iodev->dev, "buck1 voltages not specified\n");
+		dev_err(&pdev->dev, "buck1 voltages not specified\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck2-dvs-voltage",
 				pdata->buck2_voltage, dvs_voltage_nr)) {
-		dev_err(iodev->dev, "buck2 voltages not specified\n");
+		dev_err(&pdev->dev, "buck2 voltages not specified\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck5-dvs-voltage",
 				pdata->buck5_voltage, dvs_voltage_nr)) {
-		dev_err(iodev->dev, "buck5 voltages not specified\n");
+		dev_err(&pdev->dev, "buck5 voltages not specified\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
 #else
-static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
+static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct max8997_platform_data *pdata)
 {
 	return 0;
@@ -1085,7 +1084,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	}
 
 	if (iodev->dev->of_node) {
-		ret = max8997_pmic_dt_parse_pdata(iodev, pdata);
+		ret = max8997_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
 	}

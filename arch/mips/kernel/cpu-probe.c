@@ -201,6 +201,7 @@ void __init check_wait(void)
 		break;
 
 	case CPU_M14KC:
+	case CPU_M14KEC:
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_1004K:
@@ -467,6 +468,10 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->ases |= MIPS_ASE_MIPSMT;
 	if (config3 & MIPS_CONF3_ULRI)
 		c->options |= MIPS_CPU_ULRI;
+	if (config3 & MIPS_CONF3_ISA)
+		c->options |= MIPS_CPU_MICROMIPS;
+	if (config3 & MIPS_CONF3_VZ)
+		c->ases |= MIPS_ASE_VZ;
 
 	return config3 & MIPS_CONF_M;
 }
@@ -866,9 +871,12 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "MIPS 20Kc";
 		break;
 	case PRID_IMP_24K:
-	case PRID_IMP_24KE:
 		c->cputype = CPU_24K;
 		__cpu_name[cpu] = "MIPS 24Kc";
+		break;
+	case PRID_IMP_24KE:
+		c->cputype = CPU_24K;
+		__cpu_name[cpu] = "MIPS 24KEc";
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
@@ -885,6 +893,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_M14KC:
 		c->cputype = CPU_M14KC;
 		__cpu_name[cpu] = "MIPS M14Kc";
+		break;
+	case PRID_IMP_M14KEC:
+		c->cputype = CPU_M14KEC;
+		__cpu_name[cpu] = "MIPS M14KEc";
 		break;
 	case PRID_IMP_1004K:
 		c->cputype = CPU_1004K;

@@ -70,7 +70,7 @@ static void __init nlm_early_serial_setup(void)
 	s.iotype	= UPIO_MEM32;
 	s.regshift	= 2;
 	s.irq		= PIC_UART_0_IRQ;
-	s.uartclk	= PIC_CLKS_PER_SEC;
+	s.uartclk	= PIC_CLK_HZ;
 	s.serial_in	= nlm_xlr_uart_in;
 	s.serial_out	= nlm_xlr_uart_out;
 	s.mapbase	= uart_base;

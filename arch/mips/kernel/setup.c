@@ -480,34 +480,75 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+#ifdef CONFIG_PROC_VMCORE
+unsigned long setup_elfcorehdr, setup_elfcorehdr_size;
+static int __init early_parse_elfcorehdr(char *p)
+{
+	int i;
+
+	setup_elfcorehdr = memparse(p, &p);
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		unsigned long start = boot_mem_map.map[i].addr;
+		unsigned long end = (boot_mem_map.map[i].addr +
+				     boot_mem_map.map[i].size);
+		if (setup_elfcorehdr >= start && setup_elfcorehdr < end) {
+			/*
+			 * Reserve from the elf core header to the end of
+			 * the memory segment, that should all be kdump
+			 * reserved memory.
+			 */
+			setup_elfcorehdr_size = end - setup_elfcorehdr;
+			break;
+		}
+	}
+	/*
+	 * If we don't find it in the memory map, then we shouldn't
+	 * have to worry about it, as the new kernel won't use it.
+	 */
+	return 0;
+}
+early_param("elfcorehdr", early_parse_elfcorehdr);
+#endif
+
+static void __init arch_mem_addpart(phys_t mem, phys_t end, int type)
+{
+	phys_t size;
+	int i;
+
+	size = end - mem;
+	if (!size)
+		return;
+
+	/* Make sure it is in the boot_mem_map */
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		if (mem >= boot_mem_map.map[i].addr &&
+		    mem < (boot_mem_map.map[i].addr +
+			   boot_mem_map.map[i].size))
+			return;
+	}
+	add_memory_region(mem, size, type);
+}
+
 static void __init arch_mem_init(char **cmdline_p)
 {
-	phys_t init_mem, init_end, init_size;
-
 	extern void plat_mem_setup(void);
 
 	/* call board setup routine */
 	plat_mem_setup();
 
-	init_mem = PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT;
-	init_end = PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT;
-	init_size = init_end - init_mem;
-	if (init_size) {
-		/* Make sure it is in the boot_mem_map */
-		int i, found;
-		found = 0;
-		for (i = 0; i < boot_mem_map.nr_map; i++) {
-			if (init_mem >= boot_mem_map.map[i].addr &&
-			    init_mem < (boot_mem_map.map[i].addr +
-					boot_mem_map.map[i].size)) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
-			add_memory_region(init_mem, init_size,
-					  BOOT_MEM_INIT_RAM);
-	}
+	/*
+	 * Make sure all kernel memory is in the maps.  The "UP" and
+	 * "DOWN" are opposite for initdata since if it crosses over
+	 * into another memory section you don't want that to be
+	 * freed when the initdata is freed.
+	 */
+	arch_mem_addpart(PFN_DOWN(__pa_symbol(&_text)) << PAGE_SHIFT,
+			 PFN_UP(__pa_symbol(&_edata)) << PAGE_SHIFT,
+			 BOOT_MEM_RAM);
+	arch_mem_addpart(PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT,
+			 PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT,
+			 BOOT_MEM_INIT_RAM);
 
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
@@ -537,6 +578,14 @@ static void __init arch_mem_init(char **cmdline_p)
 	}
 
 	bootmem_init();
+#ifdef CONFIG_PROC_VMCORE
+	if (setup_elfcorehdr && setup_elfcorehdr_size) {
+		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
+		       setup_elfcorehdr, setup_elfcorehdr_size);
+		reserve_bootmem(setup_elfcorehdr, setup_elfcorehdr_size,
+				BOOTMEM_DEFAULT);
+	}
+#endif
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
 		reserve_bootmem(crashk_res.start,
