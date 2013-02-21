@@ -16,8 +16,8 @@
 #ifdef LIBELF_SUPPORT
 #include <libelf.h>
 #include <gelf.h>
-#include <elf.h>
 #endif
+#include <elf.h>
 
 #include "dso.h"
 
@@ -96,7 +96,8 @@ struct symbol_conf {
 			initialized,
 			kptr_restrict,
 			annotate_asm_raw,
-			annotate_src;
+			annotate_src,
+			event_group;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -120,6 +121,8 @@ struct symbol_conf {
 };
 
 extern struct symbol_conf symbol_conf;
+extern int vmlinux_path__nr_entries;
+extern char **vmlinux_path;
 
 static inline void *symbol__priv(struct symbol *sym)
 {
@@ -223,6 +226,8 @@ size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
+bool symbol__restricted_filename(const char *filename,
+				 const char *restricted_filename);
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, symbol_filter_t filter,

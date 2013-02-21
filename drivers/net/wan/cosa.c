@@ -795,8 +795,8 @@ static ssize_t cosa_read(struct file *file,
 	if (mutex_lock_interruptible(&chan->rlock))
 		return -ERESTARTSYS;
 	
-	if ((chan->rxdata = kmalloc(COSA_MTU, GFP_DMA|GFP_KERNEL)) == NULL) {
-		pr_info("%s: cosa_read() - OOM\n", cosa->name);
+	chan->rxdata = kmalloc(COSA_MTU, GFP_DMA|GFP_KERNEL);
+	if (chan->rxdata == NULL) {
 		mutex_unlock(&chan->rlock);
 		return -ENOMEM;
 	}
@@ -874,9 +874,8 @@ static ssize_t cosa_write(struct file *file,
 		count = COSA_MTU;
 	
 	/* Allocate the buffer */
-	if ((kbuf = kmalloc(count, GFP_KERNEL|GFP_DMA)) == NULL) {
-		pr_notice("%s: cosa_write() OOM - dropping packet\n",
-			  cosa->name);
+	kbuf = kmalloc(count, GFP_KERNEL|GFP_DMA);
+	if (kbuf == NULL) {
 		up(&chan->wsem);
 		return -ENOMEM;
 	}

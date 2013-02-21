@@ -90,26 +90,8 @@ static struct platform_device snowball_gpio_en_3v3_regulator_dev = {
        },
 };
 
-static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
+static struct abx500_gpio_platform_data ab8500_gpio_pdata = {
 	.gpio_base		= MOP500_AB8500_PIN_GPIO(1),
-	.irq_base		= MOP500_AB8500_VIR_GPIO_IRQ_BASE,
-	/* config_reg is the initial configuration of ab8500 pins.
-	 * The pins can be configured as GPIO or alt functions based
-	 * on value present in GpioSel1 to GpioSel6 and AlternatFunction
-	 * register. This is the array of 7 configuration settings.
-	 * One has to compile time decide these settings. Below is the
-	 * explanation of these setting
-	 * GpioSel1 = 0x00 => Pins GPIO1 to GPIO8 are not used as GPIO
-	 * GpioSel2 = 0x1E => Pins GPIO10 to GPIO13 are configured as GPIO
-	 * GpioSel3 = 0x80 => Pin GPIO24 is configured as GPIO
-	 * GpioSel4 = 0x01 => Pin GPIo25 is configured as GPIO
-	 * GpioSel5 = 0x7A => Pins GPIO34, GPIO36 to GPIO39 are conf as GPIO
-	 * GpioSel6 = 0x00 => Pins GPIO41 & GPIo42 are not configured as GPIO
-	 * AlternaFunction = 0x00 => If Pins GPIO10 to 13 are not configured
-	 * as GPIO then this register selectes the alternate fucntions
-	 */
-	.config_reg		= {0x00, 0x1E, 0x80, 0x01,
-					0x7A, 0x00, 0x00},
 };
 
 /* ab8500-codec */

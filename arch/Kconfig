@@ -76,6 +76,15 @@ config OPTPROBES
 	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
 
+config KPROBES_ON_FTRACE
+	def_bool y
+	depends on KPROBES && HAVE_KPROBES_ON_FTRACE
+	depends on DYNAMIC_FTRACE_WITH_REGS
+	help
+	 If function tracer is enabled and the arch supports full
+	 passing of pt_regs to function tracing, then kprobes can
+	 optimize on top of function tracing.
+
 config UPROBES
 	bool "Transparent user-space probes (EXPERIMENTAL)"
 	depends on UPROBE_EVENT && PERF_EVENTS
@@ -156,6 +165,9 @@ config HAVE_KRETPROBES
 	bool
 
 config HAVE_OPTPROBES
+	bool
+
+config HAVE_KPROBES_ON_FTRACE
 	bool
 
 config HAVE_NMI_WATCHDOG

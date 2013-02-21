@@ -309,7 +309,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_wp	= 63,
 		.deferred	= true,
 	},
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	{
 		.name		= "wl1271",
 		.mmc		= 2,
@@ -450,7 +450,7 @@ static struct regulator_init_data omap3evm_vio = {
 	.consumer_supplies	= omap3evm_vio_supply,
 };
 
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 
 #define OMAP3EVM_WLAN_PMENA_GPIO	(150)
 #define OMAP3EVM_WLAN_IRQ_GPIO		(149)
@@ -563,7 +563,7 @@ static struct omap_board_mux omap35x_board_mux[] __initdata = {
 				OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(GPMC_WAIT2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
 				OMAP_PIN_OFF_NONE),
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	/* WLAN IRQ - GPIO 149 */
 	OMAP3_MUX(UART1_RTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 
@@ -601,7 +601,7 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(SYS_BOOT4, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(SYS_BOOT5, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	/* WLAN IRQ - GPIO 149 */
 	OMAP3_MUX(UART1_RTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 
@@ -637,7 +637,7 @@ static struct gpio omap3_evm_ehci_gpios[] __initdata = {
 
 static void __init omap3_evm_wl12xx_init(void)
 {
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	int ret;
 
 	/* WL12xx WLAN Init */

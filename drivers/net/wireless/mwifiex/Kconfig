@@ -20,12 +20,12 @@ config MWIFIEX_SDIO
 	  mwifiex_sdio.
 
 config MWIFIEX_PCIE
-	tristate "Marvell WiFi-Ex Driver for PCIE 8766"
+	tristate "Marvell WiFi-Ex Driver for PCIE 8766/8897"
 	depends on MWIFIEX && PCI
 	select FW_LOADER
 	---help---
 	  This adds support for wireless adapters based on Marvell
-	  8766 chipset with PCIe interface.
+	  8766/8897 chipsets with PCIe interface.
 
 	  If you choose to build it as a module, it will be called
 	  mwifiex_pcie.

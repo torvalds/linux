@@ -77,11 +77,6 @@ static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 	return (struct ipv6hdr *)skb_transport_header(skb);
 }
 
-static inline __u8 ipv6_tclass(const struct ipv6hdr *iph)
-{
-	return (ntohl(*(__be32 *)iph) >> 20) & 0xff;
-}
-
 /* 
    This structure contains results of exthdrs parsing
    as offsets from skb->nh.
@@ -89,7 +84,7 @@ static inline __u8 ipv6_tclass(const struct ipv6hdr *iph)
 
 struct inet6_skb_parm {
 	int			iif;
-	__u16			ra;
+	__be16			ra;
 	__u16			hop;
 	__u16			dst0;
 	__u16			srcrt;
@@ -105,6 +100,7 @@ struct inet6_skb_parm {
 #define IP6SKB_XFRM_TRANSFORMED	1
 #define IP6SKB_FORWARDED	2
 #define IP6SKB_REROUTED		4
+#define IP6SKB_ROUTERALERT	8
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
@@ -218,7 +214,7 @@ struct ipv6_pinfo {
 
 	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;
-	struct ipv6_fl_socklist *ipv6_fl_list;
+	struct ipv6_fl_socklist __rcu *ipv6_fl_list;
 
 	struct ipv6_txoptions	*opt;
 	struct sk_buff		*pktoptions;

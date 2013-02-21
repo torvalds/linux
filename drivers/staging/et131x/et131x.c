@@ -3560,15 +3560,15 @@ static void et131x_get_regs(struct net_device *netdev,
 	regs_buff[num++] = readl(&aregs->rxdma.fbr1_min_des);
 }
 
-#define ET131X_DRVINFO_LEN 32 /* value from ethtool.h */
 static void et131x_get_drvinfo(struct net_device *netdev,
 			       struct ethtool_drvinfo *info)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(info->driver, DRIVER_NAME, ET131X_DRVINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ET131X_DRVINFO_LEN);
-	strncpy(info->bus_info, pci_name(adapter->pdev), ET131X_DRVINFO_LEN);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
 }
 
 static struct ethtool_ops et131x_ethtool_ops = {
@@ -3917,7 +3917,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	}
 
 	phydev = phy_connect(netdev, dev_name(&phydev->dev),
-			&et131x_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");

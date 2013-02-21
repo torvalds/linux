@@ -471,7 +471,6 @@ static LIST_HEAD(unoptimizing_list);
 
 static void kprobe_optimizer(struct work_struct *work);
 static DECLARE_DELAYED_WORK(optimizing_work, kprobe_optimizer);
-static DECLARE_COMPLETION(optimizer_comp);
 #define OPTIMIZE_DELAY 5
 
 /*
@@ -552,8 +551,7 @@ static __kprobes void do_free_cleaned_kprobes(struct list_head *free_list)
 /* Start optimizer after OPTIMIZE_DELAY passed */
 static __kprobes void kick_kprobe_optimizer(void)
 {
-	if (!delayed_work_pending(&optimizing_work))
-		schedule_delayed_work(&optimizing_work, OPTIMIZE_DELAY);
+	schedule_delayed_work(&optimizing_work, OPTIMIZE_DELAY);
 }
 
 /* Kprobe jump optimizer */
@@ -592,16 +590,25 @@ static __kprobes void kprobe_optimizer(struct work_struct *work)
 	/* Step 5: Kick optimizer again if needed */
 	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
 		kick_kprobe_optimizer();
-	else
-		/* Wake up all waiters */
-		complete_all(&optimizer_comp);
 }
 
 /* Wait for completing optimization and unoptimization */
 static __kprobes void wait_for_kprobe_optimizer(void)
 {
-	if (delayed_work_pending(&optimizing_work))
-		wait_for_completion(&optimizer_comp);
+	mutex_lock(&kprobe_mutex);
+
+	while (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list)) {
+		mutex_unlock(&kprobe_mutex);
+
+		/* this will also make optimizing_work execute immmediately */
+		flush_delayed_work(&optimizing_work);
+		/* @optimizing_work might not have been queued yet, relax */
+		cpu_relax();
+
+		mutex_lock(&kprobe_mutex);
+	}
+
+	mutex_unlock(&kprobe_mutex);
 }
 
 /* Optimize kprobe if p is ready to be optimized */
@@ -919,7 +926,7 @@ static __kprobes struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 }
 #endif /* CONFIG_OPTPROBES */
 
-#ifdef KPROBES_CAN_USE_FTRACE
+#ifdef CONFIG_KPROBES_ON_FTRACE
 static struct ftrace_ops kprobe_ftrace_ops __read_mostly = {
 	.func = kprobe_ftrace_handler,
 	.flags = FTRACE_OPS_FL_SAVE_REGS,
@@ -964,7 +971,7 @@ static void __kprobes disarm_kprobe_ftrace(struct kprobe *p)
 			   (unsigned long)p->addr, 1, 0);
 	WARN(ret < 0, "Failed to disarm kprobe-ftrace at %p (%d)\n", p->addr, ret);
 }
-#else	/* !KPROBES_CAN_USE_FTRACE */
+#else	/* !CONFIG_KPROBES_ON_FTRACE */
 #define prepare_kprobe(p)	arch_prepare_kprobe(p)
 #define arm_kprobe_ftrace(p)	do {} while (0)
 #define disarm_kprobe_ftrace(p)	do {} while (0)
@@ -1414,12 +1421,12 @@ static __kprobes int check_kprobe_address_safe(struct kprobe *p,
 	 */
 	ftrace_addr = ftrace_location((unsigned long)p->addr);
 	if (ftrace_addr) {
-#ifdef KPROBES_CAN_USE_FTRACE
+#ifdef CONFIG_KPROBES_ON_FTRACE
 		/* Given address is not on the instruction boundary */
 		if ((unsigned long)p->addr != ftrace_addr)
 			return -EILSEQ;
 		p->flags |= KPROBE_FLAG_FTRACE;
-#else	/* !KPROBES_CAN_USE_FTRACE */
+#else	/* !CONFIG_KPROBES_ON_FTRACE */
 		return -EINVAL;
 #endif
 	}

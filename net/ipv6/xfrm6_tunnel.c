@@ -72,7 +72,7 @@ static inline unsigned int xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *ad
 {
 	unsigned int h;
 
-	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
+	h = ipv6_addr_hash((const struct in6_addr *)addr);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	h &= XFRM6_TUNNEL_SPI_BYADDR_HSIZE - 1;
@@ -94,7 +94,7 @@ static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(struct net *net, const
 	hlist_for_each_entry_rcu(x6spi, pos,
 			     &xfrm6_tn->spi_byaddr[xfrm6_tunnel_spi_hash_byaddr(saddr)],
 			     list_byaddr) {
-		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0)
+		if (xfrm6_addr_equal(&x6spi->addr, saddr))
 			return x6spi;
 	}
 
@@ -211,7 +211,7 @@ static void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 				  &xfrm6_tn->spi_byaddr[xfrm6_tunnel_spi_hash_byaddr(saddr)],
 				  list_byaddr)
 	{
-		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0) {
+		if (xfrm6_addr_equal(&x6spi->addr, saddr)) {
 			if (atomic_dec_and_test(&x6spi->refcnt)) {
 				hlist_del_rcu(&x6spi->list_byaddr);
 				hlist_del_rcu(&x6spi->list_byspi);

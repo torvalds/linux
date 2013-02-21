@@ -1305,6 +1305,16 @@ static int power_pmu_event_idx(struct perf_event *event)
 	return event->hw.idx;
 }
 
+ssize_t power_events_sysfs_show(struct device *dev,
+				struct device_attribute *attr, char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
+
+	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+}
+
 struct pmu power_pmu = {
 	.pmu_enable	= power_pmu_enable,
 	.pmu_disable	= power_pmu_disable,
@@ -1536,6 +1546,8 @@ int __cpuinit register_power_pmu(struct power_pmu *pmu)
 	ppmu = pmu;
 	pr_info("%s performance monitor hardware support registered\n",
 		pmu->name);
+
+	power_pmu.attr_groups = ppmu->attr_groups;
 
 #ifdef MSR_HV
 	/*

@@ -60,11 +60,6 @@
 #define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
 #define MLX4_FS_NUM_MCG			(1 << 17)
 
-enum {
-	MLX4_FS_L2_HASH = 0,
-	MLX4_FS_L2_L3_L4_HASH,
-};
-
 #define MLX4_NUM_UP		8
 #define MLX4_NUM_TC		8
 #define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
@@ -658,11 +653,6 @@ struct mlx4_set_port_rqp_calc_context {
 	__be32 mcast;
 };
 
-struct mlx4_mac_entry {
-	u64 mac;
-	u64 reg_id;
-};
-
 struct mlx4_port_info {
 	struct mlx4_dev	       *dev;
 	int			port;
@@ -672,7 +662,6 @@ struct mlx4_port_info {
 	char			dev_mtu_name[16];
 	struct device_attribute port_mtu_attr;
 	struct mlx4_mac_table	mac_table;
-	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
 	int			base_qpn;
 };
@@ -696,9 +685,12 @@ struct mlx4_steer {
 
 struct mlx4_net_trans_rule_hw_ctrl {
 	__be32 ctrl;
-	__be32 vf_vep_port;
+	u8 rsvd1;
+	u8 funcid;
+	u8 vep;
+	u8 port;
 	__be32 qpn;
-	__be32 reserved;
+	__be32 rsvd2;
 };
 
 struct mlx4_net_trans_rule_hw_ib {
@@ -918,7 +910,6 @@ int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
 int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
 void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
-int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		     int start_index, int npages, u64 *page_list);
 int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);

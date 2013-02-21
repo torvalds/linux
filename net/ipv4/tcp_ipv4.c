@@ -657,7 +657,8 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 		 * no RST generated if md5 hash doesn't match.
 		 */
 		sk1 = __inet_lookup_listener(dev_net(skb_dst(skb)->dev),
-					     &tcp_hashinfo, ip_hdr(skb)->daddr,
+					     &tcp_hashinfo, ip_hdr(skb)->saddr,
+					     th->source, ip_hdr(skb)->daddr,
 					     ntohs(th->source), inet_iif(skb));
 		/* don't send rst if it can't find key */
 		if (!sk1)
@@ -725,7 +726,7 @@ release_sk1:
  */
 
 static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
-			    u32 win, u32 ts, int oif,
+			    u32 win, u32 tsval, u32 tsecr, int oif,
 			    struct tcp_md5sig_key *key,
 			    int reply_flags, u8 tos)
 {
@@ -746,12 +747,12 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 
 	arg.iov[0].iov_base = (unsigned char *)&rep;
 	arg.iov[0].iov_len  = sizeof(rep.th);
-	if (ts) {
+	if (tsecr) {
 		rep.opt[0] = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
 				   (TCPOPT_TIMESTAMP << 8) |
 				   TCPOLEN_TIMESTAMP);
-		rep.opt[1] = htonl(tcp_time_stamp);
-		rep.opt[2] = htonl(ts);
+		rep.opt[1] = htonl(tsval);
+		rep.opt[2] = htonl(tsecr);
 		arg.iov[0].iov_len += TCPOLEN_TSTAMP_ALIGNED;
 	}
 
@@ -766,7 +767,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (key) {
-		int offset = (ts) ? 3 : 0;
+		int offset = (tsecr) ? 3 : 0;
 
 		rep.opt[offset++] = htonl((TCPOPT_NOP << 24) |
 					  (TCPOPT_NOP << 16) |
@@ -801,6 +802,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 
 	tcp_v4_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
+			tcp_time_stamp + tcptw->tw_ts_offset,
 			tcptw->tw_ts_recent,
 			tw->tw_bound_dev_if,
 			tcp_twsk_md5_key(tcptw),
@@ -820,6 +822,7 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 	tcp_v4_send_ack(skb, (sk->sk_state == TCP_LISTEN) ?
 			tcp_rsk(req)->snt_isn + 1 : tcp_sk(sk)->snd_nxt,
 			tcp_rsk(req)->rcv_nxt, req->rcv_wnd,
+			tcp_time_stamp,
 			req->ts_recent,
 			0,
 			tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&ip_hdr(skb)->daddr,
@@ -1570,7 +1573,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	if (!want_cookie || tmp_opt.tstamp_ok)
-		TCP_ECN_create_request(req, skb);
+		TCP_ECN_create_request(req, skb, sock_net(sk));
 
 	if (want_cookie) {
 		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
@@ -2077,6 +2080,7 @@ do_time_wait:
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(dev_net(skb->dev),
 							&tcp_hashinfo,
+							iph->saddr, th->source,
 							iph->daddr, th->dest,
 							inet_iif(skb));
 		if (sk2) {
@@ -2612,7 +2616,7 @@ EXPORT_SYMBOL(tcp_proc_register);
 
 void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 {
-	proc_net_remove(net, afinfo->name);
+	remove_proc_entry(afinfo->name, net->proc_net);
 }
 EXPORT_SYMBOL(tcp_proc_unregister);
 
@@ -2891,6 +2895,7 @@ EXPORT_SYMBOL(tcp_prot);
 
 static int __net_init tcp_sk_init(struct net *net)
 {
+	net->ipv4.sysctl_tcp_ecn = 2;
 	return 0;
 }
 

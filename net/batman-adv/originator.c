@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -29,14 +29,10 @@
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
 
-static void batadv_purge_orig(struct work_struct *work);
+/* hash class keys */
+static struct lock_class_key batadv_orig_hash_lock_class_key;
 
-static void batadv_start_purge_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->orig_work, batadv_purge_orig);
-	queue_delayed_work(batadv_event_workqueue,
-			   &bat_priv->orig_work, msecs_to_jiffies(1000));
-}
+static void batadv_purge_orig(struct work_struct *work);
 
 /* returns 1 if they are the same originator */
 static int batadv_compare_orig(const struct hlist_node *node, const void *data2)
@@ -57,7 +53,14 @@ int batadv_originator_init(struct batadv_priv *bat_priv)
 	if (!bat_priv->orig_hash)
 		goto err;
 
-	batadv_start_purge_timer(bat_priv);
+	batadv_hash_set_lock_class(bat_priv->orig_hash,
+				   &batadv_orig_hash_lock_class_key);
+
+	INIT_DELAYED_WORK(&bat_priv->orig_work, batadv_purge_orig);
+	queue_delayed_work(batadv_event_workqueue,
+			   &bat_priv->orig_work,
+			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
+
 	return 0;
 
 err:
@@ -178,7 +181,6 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(orig_node, node, node_tmp,
 					  head, hash_entry) {
-
 			hlist_del_rcu(node);
 			batadv_orig_node_free_ref(orig_node);
 		}
@@ -285,7 +287,6 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
-
 		last_seen = neigh_node->last_seen;
 		if_incoming = neigh_node->if_incoming;
 
@@ -293,7 +294,6 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 		    (if_incoming->if_status == BATADV_IF_INACTIVE) ||
 		    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
 		    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED)) {
-
 			if ((if_incoming->if_status == BATADV_IF_INACTIVE) ||
 			    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
 			    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED))
@@ -393,7 +393,9 @@ static void batadv_purge_orig(struct work_struct *work)
 	delayed_work = container_of(work, struct delayed_work, work);
 	bat_priv = container_of(delayed_work, struct batadv_priv, orig_work);
 	_batadv_purge_orig(bat_priv);
-	batadv_start_purge_timer(bat_priv);
+	queue_delayed_work(batadv_event_workqueue,
+			   &bat_priv->orig_work,
+			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
 }
 
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv)

@@ -151,13 +151,11 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * structure hang around in memory since we know
 	 * the tranport is going away.
 	 */
-	if (timer_pending(&transport->T3_rtx_timer) &&
-	    del_timer(&transport->T3_rtx_timer))
+	if (del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
-	if (timer_pending(&transport->proto_unreach_timer) &&
-	    del_timer(&transport->proto_unreach_timer))
+	if (del_timer(&transport->proto_unreach_timer))
 		sctp_association_put(transport->asoc);
 
 	sctp_transport_put(transport);
@@ -168,10 +166,6 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
 	struct sctp_transport *transport;
 
 	transport = container_of(head, struct sctp_transport, rcu);
-	if (transport->asoc)
-		sctp_association_put(transport->asoc);
-
-	sctp_packet_free(&transport->packet);
 
 	dst_release(transport->dst);
 	kfree(transport);
@@ -186,6 +180,11 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
 
 	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
+
+	sctp_packet_free(&transport->packet);
+
+	if (transport->asoc)
+		sctp_association_put(transport->asoc);
 }
 
 /* Start T3_rtx timer if it is not already running and update the heartbeat
@@ -654,10 +653,9 @@ void sctp_transport_reset(struct sctp_transport *t)
 void sctp_transport_immediate_rtx(struct sctp_transport *t)
 {
 	/* Stop pending T3_rtx_timer */
-	if (timer_pending(&t->T3_rtx_timer)) {
-		(void)del_timer(&t->T3_rtx_timer);
+	if (del_timer(&t->T3_rtx_timer))
 		sctp_transport_put(t);
-	}
+
 	sctp_retransmit(&t->asoc->outqueue, t, SCTP_RTXR_T3_RTX);
 	if (!timer_pending(&t->T3_rtx_timer)) {
 		if (!mod_timer(&t->T3_rtx_timer, jiffies + t->rto))

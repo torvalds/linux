@@ -742,6 +742,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = m->msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
 	if (vlan)
 		macvlan_start_xmit(skb, vlan->dev);

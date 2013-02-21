@@ -1236,10 +1236,7 @@ struct sctp_endpoint {
 	 *	      Discussion in [RFC1750] can be helpful in
 	 *	      selection of the key.
 	 */
-	__u8 secret_key[SCTP_HOW_MANY_SECRETS][SCTP_SECRET_SIZE];
-	int current_key;
-	int last_key;
-	int key_changed_at;
+	__u8 secret_key[SCTP_SECRET_SIZE];
 
  	/* digest:  This is a digest of the sctp cookie.  This field is
  	 * 	    only used on the receive path when we try to validate

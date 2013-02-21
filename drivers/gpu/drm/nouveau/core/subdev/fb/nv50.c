@@ -99,7 +99,7 @@ nv50_fb_vram_init(struct nouveau_fb *pfb)
 	struct nouveau_bios *bios = nouveau_bios(device);
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 size;
+	u32 size, tags = 0;
 	int ret;
 
 	pfb->ram.size = nv_rd32(pfb, 0x10020c);
@@ -140,10 +140,11 @@ nv50_fb_vram_init(struct nouveau_fb *pfb)
 			return ret;
 
 		pfb->ram.ranks = (nv_rd32(pfb, 0x100200) & 0x4) ? 2 : 1;
+		tags = nv_rd32(pfb, 0x100320);
 		break;
 	}
 
-	return nv_rd32(pfb, 0x100320);
+	return tags;
 }
 
 static int

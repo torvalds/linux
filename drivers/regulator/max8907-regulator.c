@@ -224,11 +224,11 @@ static struct of_regulator_match max8907_matches[] = {
 
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
+	struct device_node *np, *regulators;
 	int ret;
 
-	if (!pdev->dev.parent->of_node)
+	np = of_node_get(pdev->dev.parent->of_node);
+	if (!np)
 		return 0;
 
 	regulators = of_find_node_by_name(np, "regulators");
@@ -239,6 +239,7 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 
 	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);

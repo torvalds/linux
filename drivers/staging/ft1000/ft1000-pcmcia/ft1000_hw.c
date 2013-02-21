@@ -2077,11 +2077,12 @@ static void ft1000_get_drvinfo(struct net_device *dev,
 	struct ft1000_info *ft_info;
 	ft_info = netdev_priv(dev);
 
-	snprintf(info->driver, 32, "ft1000");
-	snprintf(info->bus_info, ETHTOOL_BUSINFO_LEN, "PCMCIA 0x%lx",
+	strlcpy(info->driver, "ft1000", sizeof(info->driver));
+	snprintf(info->bus_info, sizeof(info->bus_info), "PCMCIA 0x%lx",
 		 dev->base_addr);
-	snprintf(info->fw_version, 32, "%d.%d.%d.%d", ft_info->DspVer[0],
-		 ft_info->DspVer[1], ft_info->DspVer[2], ft_info->DspVer[3]);
+	snprintf(info->fw_version, sizeof(info->fw_version), "%d.%d.%d.%d",
+		 ft_info->DspVer[0], ft_info->DspVer[1], ft_info->DspVer[2],
+		 ft_info->DspVer[3]);
 }
 
 static u32 ft1000_get_link(struct net_device *dev)

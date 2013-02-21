@@ -4027,8 +4027,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_GET(
-						  FW_PFVF_CMD_CMASK_MASK),
+						  FW_PFVF_CMD_CMASK_MASK,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
@@ -5142,7 +5141,7 @@ static int __init cxgb4_init_module(void)
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (!cxgb4_debugfs_root)
-		pr_warning("could not create debugfs entry, continuing\n");
+		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)

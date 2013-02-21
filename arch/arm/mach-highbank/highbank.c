@@ -25,9 +25,11 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/amba/bus.h>
+#include <linux/clk-provider.h>
 
 #include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
@@ -59,7 +61,7 @@ static void __init highbank_scu_map_io(void)
 
 void highbank_set_cpu_jump(int cpu, void *jump_addr)
 {
-	cpu = cpu_logical_map(cpu);
+	cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0);
 	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
 	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
 	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
@@ -116,7 +118,7 @@ static void __init highbank_timer_init(void)
 	WARN_ON(!timer_base);
 	irq = irq_of_parse_and_map(np, 0);
 
-	highbank_clocks_init();
+	of_clk_init(NULL);
 	lookup.clk = of_clk_get(np, 0);
 	clkdev_add(&lookup);
 

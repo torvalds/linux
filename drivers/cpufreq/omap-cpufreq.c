@@ -214,10 +214,8 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	 * interface to handle this scenario. Additional is_smp() check
 	 * is to keep SMP_ON_UP build working.
 	 */
-	if (is_smp()) {
-		policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
+	if (is_smp())
 		cpumask_setall(policy->cpus);
-	}
 
 	/* FIXME: what's the actual transition time? */
 	policy->cpuinfo.transition_latency = 300 * 1000;

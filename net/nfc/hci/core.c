@@ -57,6 +57,8 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 	int r = 0;
 
 	mutex_lock(&hdev->msg_tx_mutex);
+	if (hdev->shutting_down)
+		goto exit;
 
 	if (hdev->cmd_pending_msg) {
 		if (timer_pending(&hdev->cmd_timer) == 0) {
@@ -295,6 +297,12 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		goto exit;
 	}
 
+	if (hdev->ops->event_received) {
+		r = hdev->ops->event_received(hdev, gate, event, skb);
+		if (r <= 0)
+			goto exit_noskb;
+	}
+
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
 		if (skb->len < 1) {	/* no status data? */
@@ -320,17 +328,15 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		r = nfc_hci_target_discovered(hdev, gate);
 		break;
 	default:
-		if (hdev->ops->event_received) {
-			hdev->ops->event_received(hdev, gate, event, skb);
-			return;
-		}
-
+		pr_info("Discarded unknown event %x to gate %x\n", event, gate);
+		r = -EINVAL;
 		break;
 	}
 
 exit:
 	kfree_skb(skb);
 
+exit_noskb:
 	if (r) {
 		/* TODO: There was an error dispatching the event,
 		 * how to propagate up to nfc core?
@@ -669,8 +675,10 @@ static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	if (hdev->ops->tm_send)
 		return hdev->ops->tm_send(hdev, skb);
-	else
-		return -ENOTSUPP;
+
+	kfree_skb(skb);
+
+	return -ENOTSUPP;
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,
@@ -787,7 +795,9 @@ static struct nfc_ops hci_nfc_ops = {
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
+					    unsigned long quirks,
 					    u32 protocols,
+					    u32 supported_se,
 					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,
@@ -813,7 +823,7 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 		return NULL;
 	}
 
-	hdev->ndev = nfc_allocate_device(&hci_nfc_ops, protocols,
+	hdev->ndev = nfc_allocate_device(&hci_nfc_ops, protocols, supported_se,
 					 tx_headroom + HCI_CMDS_HEADROOM,
 					 tx_tailroom);
 	if (!hdev->ndev) {
@@ -829,6 +839,8 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 	nfc_set_drvdata(hdev->ndev, hdev);
 
 	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+
+	hdev->quirks = quirks;
 
 	return hdev;
 }
@@ -868,6 +880,28 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 {
 	struct hci_msg *msg, *n;
 
+	mutex_lock(&hdev->msg_tx_mutex);
+
+	if (hdev->cmd_pending_msg) {
+		if (hdev->cmd_pending_msg->cb)
+			hdev->cmd_pending_msg->cb(
+					     hdev->cmd_pending_msg->cb_context,
+					     NULL, -ESHUTDOWN);
+		kfree(hdev->cmd_pending_msg);
+		hdev->cmd_pending_msg = NULL;
+	}
+
+	hdev->shutting_down = true;
+
+	mutex_unlock(&hdev->msg_tx_mutex);
+
+	del_timer_sync(&hdev->cmd_timer);
+	cancel_work_sync(&hdev->msg_tx_work);
+
+	cancel_work_sync(&hdev->msg_rx_work);
+
+	nfc_unregister_device(hdev->ndev);
+
 	skb_queue_purge(&hdev->rx_hcp_frags);
 	skb_queue_purge(&hdev->msg_rx_queue);
 
@@ -876,13 +910,6 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 		skb_queue_purge(&msg->msg_frags);
 		kfree(msg);
 	}
-
-	del_timer_sync(&hdev->cmd_timer);
-
-	nfc_unregister_device(hdev->ndev);
-
-	cancel_work_sync(&hdev->msg_tx_work);
-	cancel_work_sync(&hdev->msg_rx_work);
 }
 EXPORT_SYMBOL(nfc_hci_unregister_device);
 

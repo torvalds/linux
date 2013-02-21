@@ -7,6 +7,8 @@
  *
  * DS2786 added by Yulia Vilensky <vilensky@compulab.co.il>
  *
+ * UEvent sending added by Evgeny Romanov <romanov@neurosoft.ru>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -19,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/swab.h>
 #include <linux/i2c.h>
+#include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
@@ -40,6 +43,8 @@
 
 #define DS2786_CURRENT_UNITS	25
 
+#define DS278x_DELAY		1000
+
 struct ds278x_info;
 
 struct ds278x_battery_ops {
@@ -54,8 +59,11 @@ struct ds278x_info {
 	struct i2c_client	*client;
 	struct power_supply	battery;
 	struct ds278x_battery_ops  *ops;
+	struct delayed_work	bat_work;
 	int			id;
 	int                     rsns;
+	int			capacity;
+	int			status;		/* State Of Charge */
 };
 
 static DEFINE_IDR(battery_id);
@@ -220,6 +228,8 @@ static int ds278x_get_status(struct ds278x_info *info, int *status)
 	if (err)
 		return err;
 
+	info->capacity = capacity;
+
 	if (capacity == 100)
 		*status = POWER_SUPPLY_STATUS_FULL;
 	else if (current_uA == 0)
@@ -267,6 +277,27 @@ static int ds278x_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static void ds278x_bat_update(struct ds278x_info *info)
+{
+	int old_status = info->status;
+	int old_capacity = info->capacity;
+
+	ds278x_get_status(info, &info->status);
+
+	if ((old_status != info->status) || (old_capacity != info->capacity))
+		power_supply_changed(&info->battery);
+}
+
+static void ds278x_bat_work(struct work_struct *work)
+{
+	struct ds278x_info *info;
+
+	info = container_of(work, struct ds278x_info, bat_work.work);
+	ds278x_bat_update(info);
+
+	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
+}
+
 static enum power_supply_property ds278x_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY,
@@ -295,9 +326,38 @@ static int ds278x_battery_remove(struct i2c_client *client)
 	idr_remove(&battery_id, info->id);
 	mutex_unlock(&battery_lock);
 
+	cancel_delayed_work(&info->bat_work);
+
 	kfree(info);
 	return 0;
 }
+
+#ifdef CONFIG_PM
+
+static int ds278x_suspend(struct i2c_client *client,
+		pm_message_t state)
+{
+	struct ds278x_info *info = i2c_get_clientdata(client);
+
+	cancel_delayed_work(&info->bat_work);
+	return 0;
+}
+
+static int ds278x_resume(struct i2c_client *client)
+{
+	struct ds278x_info *info = i2c_get_clientdata(client);
+
+	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
+	return 0;
+}
+
+#else
+
+#define ds278x_suspend NULL
+#define ds278x_resume NULL
+
+#endif /* CONFIG_PM */
+
 
 enum ds278x_num_id {
 	DS2782 = 0,
@@ -368,10 +428,17 @@ static int ds278x_battery_probe(struct i2c_client *client,
 	info->ops  = &ds278x_ops[id->driver_data];
 	ds278x_power_supply_init(&info->battery);
 
+	info->capacity = 100;
+	info->status = POWER_SUPPLY_STATUS_FULL;
+
+	INIT_DELAYED_WORK(&info->bat_work, ds278x_bat_work);
+
 	ret = power_supply_register(&client->dev, &info->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed to register battery\n");
 		goto fail_register;
+	} else {
+		schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	}
 
 	return 0;
@@ -401,6 +468,8 @@ static struct i2c_driver ds278x_battery_driver = {
 	},
 	.probe		= ds278x_battery_probe,
 	.remove		= ds278x_battery_remove,
+	.suspend	= ds278x_suspend,
+	.resume		= ds278x_resume,
 	.id_table	= ds278x_id,
 };
 module_i2c_driver(ds278x_battery_driver);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,6 +218,18 @@ acpi_ns_check_parameter_count(char *pathname,
 			      u32 user_param_count,
 			      const union acpi_predefined_info *info);
 
+acpi_status
+acpi_ns_check_object_type(struct acpi_predefined_data *data,
+			  union acpi_operand_object **return_object_ptr,
+			  u32 expected_btypes, u32 package_index);
+
+/*
+ * nsprepkg - Validation of predefined name packages
+ */
+acpi_status
+acpi_ns_check_package(struct acpi_predefined_data *data,
+		      union acpi_operand_object **return_object_ptr);
+
 /*
  * nsnames - Name and Scope manipulation
  */
@@ -333,8 +345,6 @@ acpi_ns_install_node(struct acpi_walk_state *walk_state,
 /*
  * nsutils - Utility functions
  */
-u8 acpi_ns_valid_root_prefix(char prefix);
-
 acpi_object_type acpi_ns_get_type(struct acpi_namespace_node *node);
 
 u32 acpi_ns_local(acpi_object_type type);

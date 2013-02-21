@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -276,7 +276,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 		/* Invalid field access type */
 
 		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
-		return_UINT32(0);
+		return_VALUE(0);
 	}
 
 	if (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD) {
@@ -289,7 +289,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	}
 
 	*return_byte_alignment = byte_alignment;
-	return_UINT32(bit_length);
+	return_VALUE(bit_length);
 }
 
 /*******************************************************************************

@@ -10,7 +10,7 @@
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
 {
-	return (opt >= MRT6_BASE) && (opt <= MRT6_BASE + 10);
+	return (opt >= MRT6_BASE) && (opt <= MRT6_MAX);
 }
 #else
 static inline int ip6_mroute_opt(int opt)

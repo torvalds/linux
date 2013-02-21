@@ -150,7 +150,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_RSS			= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
-	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3
+	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3,
+	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4
 };
 
 enum {
@@ -955,9 +956,8 @@ int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mo
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
-int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
-int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn);
-void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn);
+int mlx4_get_base_qpn(struct mlx4_dev *dev, u8 port);
+int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap);
 int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);

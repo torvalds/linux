@@ -844,6 +844,7 @@ static int swim_floppy_init(struct swim_priv *swd)
 		swd->unit[drive].swd = swd;
 	}
 
+	spin_lock_init(&swd->lock);
 	swd->queue = blk_init_queue(do_fd_request, &swd->lock);
 	if (!swd->queue) {
 		err = -ENOMEM;

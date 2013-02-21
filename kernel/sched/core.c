@@ -83,7 +83,7 @@
 #endif
 
 #include "sched.h"
-#include "../workqueue_sched.h"
+#include "../workqueue_internal.h"
 #include "../smpboot.h"
 
 #define CREATE_TRACE_POINTS
@@ -4371,7 +4371,7 @@ bool __sched yield_to(struct task_struct *p, bool preempt)
 	struct task_struct *curr = current;
 	struct rq *rq, *p_rq;
 	unsigned long flags;
-	bool yielded = 0;
+	int yielded = 0;
 
 	local_irq_save(flags);
 	rq = this_rq();
@@ -4667,6 +4667,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	 */
 	idle->sched_class = &idle_sched_class;
 	ftrace_graph_init_idle_task(idle, cpu);
+	vtime_init_idle(idle);
 #if defined(CONFIG_SMP)
 	sprintf(idle->comm, "%s/%d", INIT_TASK_COMM, cpu);
 #endif
@@ -7160,7 +7161,6 @@ static void free_sched_group(struct task_group *tg)
 struct task_group *sched_create_group(struct task_group *parent)
 {
 	struct task_group *tg;
-	unsigned long flags;
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
@@ -7172,6 +7172,17 @@ struct task_group *sched_create_group(struct task_group *parent)
 	if (!alloc_rt_sched_group(tg, parent))
 		goto err;
 
+	return tg;
+
+err:
+	free_sched_group(tg);
+	return ERR_PTR(-ENOMEM);
+}
+
+void sched_online_group(struct task_group *tg, struct task_group *parent)
+{
+	unsigned long flags;
+
 	spin_lock_irqsave(&task_group_lock, flags);
 	list_add_rcu(&tg->list, &task_groups);
 
@@ -7181,12 +7192,6 @@ struct task_group *sched_create_group(struct task_group *parent)
 	INIT_LIST_HEAD(&tg->children);
 	list_add_rcu(&tg->siblings, &parent->children);
 	spin_unlock_irqrestore(&task_group_lock, flags);
-
-	return tg;
-
-err:
-	free_sched_group(tg);
-	return ERR_PTR(-ENOMEM);
 }
 
 /* rcu callback to free various structures associated with a task group */
@@ -7199,6 +7204,12 @@ static void free_sched_group_rcu(struct rcu_head *rhp)
 /* Destroy runqueue etc associated with a task group */
 void sched_destroy_group(struct task_group *tg)
 {
+	/* wait for possible concurrent references to cfs_rqs complete */
+	call_rcu(&tg->rcu, free_sched_group_rcu);
+}
+
+void sched_offline_group(struct task_group *tg)
+{
 	unsigned long flags;
 	int i;
 
@@ -7210,9 +7221,6 @@ void sched_destroy_group(struct task_group *tg)
 	list_del_rcu(&tg->list);
 	list_del_rcu(&tg->siblings);
 	spin_unlock_irqrestore(&task_group_lock, flags);
-
-	/* wait for possible concurrent references to cfs_rqs complete */
-	call_rcu(&tg->rcu, free_sched_group_rcu);
 }
 
 /* change task's runqueue when it moves between groups.
@@ -7508,6 +7516,25 @@ static int sched_rt_global_constraints(void)
 }
 #endif /* CONFIG_RT_GROUP_SCHED */
 
+int sched_rr_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret;
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	/* make sure that internally we keep jiffies */
+	/* also, writing zero resets timeslice to default */
+	if (!ret && write) {
+		sched_rr_timeslice = sched_rr_timeslice <= 0 ?
+			RR_TIMESLICE : msecs_to_jiffies(sched_rr_timeslice);
+	}
+	mutex_unlock(&mutex);
+	return ret;
+}
+
 int sched_rt_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
@@ -7564,11 +7591,31 @@ static struct cgroup_subsys_state *cpu_cgroup_css_alloc(struct cgroup *cgrp)
 	return &tg->css;
 }
 
+static int cpu_cgroup_css_online(struct cgroup *cgrp)
+{
+	struct task_group *tg = cgroup_tg(cgrp);
+	struct task_group *parent;
+
+	if (!cgrp->parent)
+		return 0;
+
+	parent = cgroup_tg(cgrp->parent);
+	sched_online_group(tg, parent);
+	return 0;
+}
+
 static void cpu_cgroup_css_free(struct cgroup *cgrp)
 {
 	struct task_group *tg = cgroup_tg(cgrp);
 
 	sched_destroy_group(tg);
+}
+
+static void cpu_cgroup_css_offline(struct cgroup *cgrp)
+{
+	struct task_group *tg = cgroup_tg(cgrp);
+
+	sched_offline_group(tg);
 }
 
 static int cpu_cgroup_can_attach(struct cgroup *cgrp,
@@ -7926,6 +7973,8 @@ struct cgroup_subsys cpu_cgroup_subsys = {
 	.name		= "cpu",
 	.css_alloc	= cpu_cgroup_css_alloc,
 	.css_free	= cpu_cgroup_css_free,
+	.css_online	= cpu_cgroup_css_online,
+	.css_offline	= cpu_cgroup_css_offline,
 	.can_attach	= cpu_cgroup_can_attach,
 	.attach		= cpu_cgroup_attach,
 	.exit		= cpu_cgroup_exit,

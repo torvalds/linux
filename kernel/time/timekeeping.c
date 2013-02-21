@@ -29,6 +29,9 @@ static struct timekeeper timekeeper;
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
 
+/* Flag for if there is a persistent clock on this platform */
+bool __read_mostly persistent_clock_exist = false;
+
 static inline void tk_normalize_xtime(struct timekeeper *tk)
 {
 	while (tk->xtime_nsec >= ((u64)NSEC_PER_SEC << tk->shift)) {
@@ -264,18 +267,17 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 }
 
 /**
- * getnstimeofday - Returns the time of day in a timespec
+ * __getnstimeofday - Returns the time of day in a timespec.
  * @ts:		pointer to the timespec to be set
  *
- * Returns the time of day in a timespec.
+ * Updates the time of day in the timespec.
+ * Returns 0 on success, or -ve when suspended (timespec will be undefined).
  */
-void getnstimeofday(struct timespec *ts)
+int __getnstimeofday(struct timespec *ts)
 {
 	struct timekeeper *tk = &timekeeper;
 	unsigned long seq;
 	s64 nsecs = 0;
-
-	WARN_ON(timekeeping_suspended);
 
 	do {
 		seq = read_seqbegin(&tk->lock);
@@ -287,6 +289,26 @@ void getnstimeofday(struct timespec *ts)
 
 	ts->tv_nsec = 0;
 	timespec_add_ns(ts, nsecs);
+
+	/*
+	 * Do not bail out early, in case there were callers still using
+	 * the value, even in the face of the WARN_ON.
+	 */
+	if (unlikely(timekeeping_suspended))
+		return -EAGAIN;
+	return 0;
+}
+EXPORT_SYMBOL(__getnstimeofday);
+
+/**
+ * getnstimeofday - Returns the time of day in a timespec.
+ * @ts:		pointer to the timespec to be set
+ *
+ * Returns the time of day in a timespec (WARN if suspended).
+ */
+void getnstimeofday(struct timespec *ts)
+{
+	WARN_ON(__getnstimeofday(ts));
 }
 EXPORT_SYMBOL(getnstimeofday);
 
@@ -640,12 +662,14 @@ void __init timekeeping_init(void)
 	struct timespec now, boot, tmp;
 
 	read_persistent_clock(&now);
+
 	if (!timespec_valid_strict(&now)) {
 		pr_warn("WARNING: Persistent clock returned invalid value!\n"
 			"         Check your CMOS/BIOS settings.\n");
 		now.tv_sec = 0;
 		now.tv_nsec = 0;
-	}
+	} else if (now.tv_sec || now.tv_nsec)
+		persistent_clock_exist = true;
 
 	read_boot_clock(&boot);
 	if (!timespec_valid_strict(&boot)) {
@@ -718,11 +742,12 @@ void timekeeping_inject_sleeptime(struct timespec *delta)
 {
 	struct timekeeper *tk = &timekeeper;
 	unsigned long flags;
-	struct timespec ts;
 
-	/* Make sure we don't set the clock twice */
-	read_persistent_clock(&ts);
-	if (!(ts.tv_sec == 0 && ts.tv_nsec == 0))
+	/*
+	 * Make sure we don't set the clock twice, as timekeeping_resume()
+	 * already did it
+	 */
+	if (has_persistent_clock())
 		return;
 
 	write_seqlock_irqsave(&tk->lock, flags);

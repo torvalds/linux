@@ -387,7 +387,6 @@ static const struct bin_table bin_net_ipv4_table[] = {
 	{ CTL_INT,	NET_TCP_MODERATE_RCVBUF,		"tcp_moderate_rcvbuf" },
 	{ CTL_INT,	NET_TCP_TSO_WIN_DIVISOR,		"tcp_tso_win_divisor" },
 	{ CTL_STR,	NET_TCP_CONG_CONTROL,			"tcp_congestion_control" },
-	{ CTL_INT,	NET_TCP_ABC,				"tcp_abc" },
 	{ CTL_INT,	NET_TCP_MTU_PROBING,			"tcp_mtu_probing" },
 	{ CTL_INT,	NET_TCP_BASE_MSS,			"tcp_base_mss" },
 	{ CTL_INT,	NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS,	"tcp_workaround_signed_windows" },

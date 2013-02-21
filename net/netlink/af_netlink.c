@@ -2145,7 +2145,7 @@ static const struct net_proto_family netlink_family_ops = {
 static int __net_init netlink_net_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	if (!proc_net_fops_create(net, "netlink", 0, &netlink_seq_fops))
+	if (!proc_create("netlink", 0, net->proc_net, &netlink_seq_fops))
 		return -ENOMEM;
 #endif
 	return 0;
@@ -2154,7 +2154,7 @@ static int __net_init netlink_net_init(struct net *net)
 static void __net_exit netlink_net_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	proc_net_remove(net, "netlink");
+	remove_proc_entry("netlink", net->proc_net);
 #endif
 }
 
@@ -2185,7 +2185,6 @@ static struct pernet_operations __net_initdata netlink_net_ops = {
 
 static int __init netlink_proto_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int i;
 	unsigned long limit;
 	unsigned int order;
@@ -2194,7 +2193,7 @@ static int __init netlink_proto_init(void)
 	if (err != 0)
 		goto out;
 
-	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
 	if (!nl_table)

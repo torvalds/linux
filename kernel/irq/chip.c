@@ -90,6 +90,29 @@ int irq_set_handler_data(unsigned int irq, void *data)
 EXPORT_SYMBOL(irq_set_handler_data);
 
 /**
+ *	irq_set_msi_desc_off - set MSI descriptor data for an irq at offset
+ *	@irq_base:	Interrupt number base
+ *	@irq_offset:	Interrupt number offset
+ *	@entry:		Pointer to MSI descriptor data
+ *
+ *	Set the MSI descriptor entry for an irq at offset
+ */
+int irq_set_msi_desc_off(unsigned int irq_base, unsigned int irq_offset,
+			 struct msi_desc *entry)
+{
+	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq_base + irq_offset, &flags, IRQ_GET_DESC_CHECK_GLOBAL);
+
+	if (!desc)
+		return -EINVAL;
+	desc->irq_data.msi_desc = entry;
+	if (entry && !irq_offset)
+		entry->irq = irq_base;
+	irq_put_desc_unlock(desc, flags);
+	return 0;
+}
+
+/**
  *	irq_set_msi_desc - set MSI descriptor data for an irq
  *	@irq:	Interrupt number
  *	@entry:	Pointer to MSI descriptor data
@@ -98,16 +121,7 @@ EXPORT_SYMBOL(irq_set_handler_data);
  */
 int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry)
 {
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, IRQ_GET_DESC_CHECK_GLOBAL);
-
-	if (!desc)
-		return -EINVAL;
-	desc->irq_data.msi_desc = entry;
-	if (entry)
-		entry->irq = irq;
-	irq_put_desc_unlock(desc, flags);
-	return 0;
+	return irq_set_msi_desc_off(irq, 0, entry);
 }
 
 /**

@@ -977,11 +977,12 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	struct port *port = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u:%u:%u:%u",
 		 port->firmware[0], port->firmware[1],
 		 port->firmware[2], port->firmware[3]);
-	strcpy(info->bus_info, "internal");
+	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
 }
 
 static int ixp4xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1450,7 +1451,7 @@ static int eth_init_one(struct platform_device *pdev)
 
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
 		mdio_bus->id, plat->phy);
-	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
+	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link,
 				   PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(port->phydev)) {
 		err = PTR_ERR(port->phydev);

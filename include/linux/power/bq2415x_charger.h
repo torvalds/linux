@@ -75,7 +75,8 @@
 
 /* Supported modes with maximal current limit */
 enum bq2415x_mode {
-	BQ2415X_MODE_NONE,		/* unknown or no charger (100mA) */
+	BQ2415X_MODE_OFF,		/* offline mode (charger disabled) */
+	BQ2415X_MODE_NONE,		/* unknown charger (100mA) */
 	BQ2415X_MODE_HOST_CHARGER,	/* usb host/hub charger (500mA) */
 	BQ2415X_MODE_DEDICATED_CHARGER, /* dedicated charger (unlimited) */
 	BQ2415X_MODE_BOOST,		/* boost mode (charging disabled) */

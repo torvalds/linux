@@ -269,9 +269,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 	u32 speed;
 	unsigned long command;
 
-	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
-	if (!speed)
-		speed = tsd->spi_max_frequency;
+	speed = t->speed_hz;
 	if (speed != tsd->cur_speed) {
 		clk_set_rate(tsd->clk, speed);
 		tsd->cur_speed = speed;
@@ -317,6 +315,15 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 	tsd->command_reg = command;
 
 	return  tegra_sflash_start_cpu_based_transfer(tsd, t);
+}
+
+static int tegra_sflash_setup(struct spi_device *spi)
+{
+	struct tegra_sflash_data *tsd = spi_master_get_devdata(spi->master);
+
+	/* Set speed to the spi max fequency if spi device has not set */
+	spi->max_speed_hz = spi->max_speed_hz ? : tsd->spi_max_frequency;
+	return 0;
 }
 
 static int tegra_sflash_transfer_one_message(struct spi_master *master,
@@ -492,6 +499,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
+	master->setup = tegra_sflash_setup;
 	master->transfer_one_message = tegra_sflash_transfer_one_message;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;

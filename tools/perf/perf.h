@@ -1,10 +1,6 @@
 #ifndef _PERF_PERF_H
 #define _PERF_PERF_H
 
-struct winsize;
-
-void get_term_dimensions(struct winsize *ws);
-
 #include <asm/unistd.h>
 
 #if defined(__i386__)
@@ -106,32 +102,6 @@ void get_term_dimensions(struct winsize *ws);
 #include <linux/perf_event.h>
 #include "util/types.h"
 #include <stdbool.h>
-
-struct perf_mmap {
-	void			*base;
-	int			mask;
-	unsigned int		prev;
-};
-
-static inline unsigned int perf_mmap__read_head(struct perf_mmap *mm)
-{
-	struct perf_event_mmap_page *pc = mm->base;
-	int head = pc->data_head;
-	rmb();
-	return head;
-}
-
-static inline void perf_mmap__write_tail(struct perf_mmap *md,
-					 unsigned long tail)
-{
-	struct perf_event_mmap_page *pc = md->base;
-
-	/*
-	 * ensure all reads are done before we write the tail out.
-	 */
-	/* mb(); */
-	pc->data_tail = tail;
-}
 
 /*
  * prctl(PR_TASK_PERF_EVENTS_DISABLE) will (cheaply) disable all
@@ -237,8 +207,6 @@ struct perf_record_opts {
 	bool	     raw_samples;
 	bool	     sample_address;
 	bool	     sample_time;
-	bool	     sample_id_all_missing;
-	bool	     exclude_guest_missing;
 	bool	     period;
 	unsigned int freq;
 	unsigned int mmap_pages;

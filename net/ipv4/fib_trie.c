@@ -2607,31 +2607,31 @@ static const struct file_operations fib_route_fops = {
 
 int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_net_fops_create(net, "fib_trie", S_IRUGO, &fib_trie_fops))
+	if (!proc_create("fib_trie", S_IRUGO, net->proc_net, &fib_trie_fops))
 		goto out1;
 
-	if (!proc_net_fops_create(net, "fib_triestat", S_IRUGO,
-				  &fib_triestat_fops))
+	if (!proc_create("fib_triestat", S_IRUGO, net->proc_net,
+			 &fib_triestat_fops))
 		goto out2;
 
-	if (!proc_net_fops_create(net, "route", S_IRUGO, &fib_route_fops))
+	if (!proc_create("route", S_IRUGO, net->proc_net, &fib_route_fops))
 		goto out3;
 
 	return 0;
 
 out3:
-	proc_net_remove(net, "fib_triestat");
+	remove_proc_entry("fib_triestat", net->proc_net);
 out2:
-	proc_net_remove(net, "fib_trie");
+	remove_proc_entry("fib_trie", net->proc_net);
 out1:
 	return -ENOMEM;
 }
 
 void __net_exit fib_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "fib_trie");
-	proc_net_remove(net, "fib_triestat");
-	proc_net_remove(net, "route");
+	remove_proc_entry("fib_trie", net->proc_net);
+	remove_proc_entry("fib_triestat", net->proc_net);
+	remove_proc_entry("route", net->proc_net);
 }
 
 #endif /* CONFIG_PROC_FS */

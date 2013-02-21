@@ -39,12 +39,6 @@ int nr_l1stack_tasks;
 void *l1_stack_base;
 unsigned long l1_stack_len;
 
-/*
- * Powermanagement idle function, if any..
- */
-void (*pm_idle)(void) = NULL;
-EXPORT_SYMBOL(pm_idle);
-
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
@@ -81,7 +75,6 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		void (*idle)(void) = pm_idle;
 
 #ifdef CONFIG_HOTPLUG_CPU
 		if (cpu_is_offline(smp_processor_id()))

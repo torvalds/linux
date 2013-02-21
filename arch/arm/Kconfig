@@ -36,7 +36,6 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
 	select HAVE_IDE if PCI || ISA || PCMCIA
-	select HAVE_IRQ_WORK
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
@@ -1620,6 +1619,16 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
+config ARM_PSCI
+	bool "Support for the ARM Power State Coordination Interface (PSCI)"
+	depends on CPU_V7
+	help
+	  Say Y here if you want Linux to communicate with system firmware
+	  implementing the PSCI specification for CPU-centric power
+	  management operations described in ARM document number ARM DEN
+	  0022A ("Power State Coordination Interface System Software on
+	  ARM processors").
+
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP
@@ -1637,7 +1646,7 @@ config ARCH_NR_GPIO
 	default 355 if ARCH_U8500
 	default 264 if MACH_H4700
 	default 512 if SOC_OMAP5
-	default 288 if ARCH_VT8500
+	default 288 if ARCH_VT8500 || ARCH_SUNXI
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
@@ -1654,6 +1663,9 @@ config HZ
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
 	default 100
+
+config SCHED_HRTICK
+	def_bool HIGH_RES_TIMERS
 
 config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode"
@@ -2322,3 +2334,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/arm/kvm/Kconfig"

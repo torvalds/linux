@@ -115,6 +115,12 @@ SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
 }
 
 /*
+ * Indicates if there is an offset between the system clock and the hardware
+ * clock/persistent clock/rtc.
+ */
+int persistent_clock_is_local;
+
+/*
  * Adjust the time obtained from the CMOS to be UTC time instead of
  * local time.
  *
@@ -135,6 +141,8 @@ static inline void warp_clock(void)
 	struct timespec adjust;
 
 	adjust = current_kernel_time();
+	if (sys_tz.tz_minuteswest != 0)
+		persistent_clock_is_local = 1;
 	adjust.tv_sec += sys_tz.tz_minuteswest * 60;
 	do_settimeofday(&adjust);
 }

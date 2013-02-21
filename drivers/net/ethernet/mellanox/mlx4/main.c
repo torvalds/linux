@@ -1415,22 +1415,6 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		if (mlx4_is_master(dev))
 			mlx4_parav_master_pf_caps(dev);
 
-		priv->fs_hash_mode = MLX4_FS_L2_HASH;
-
-		switch (priv->fs_hash_mode) {
-		case MLX4_FS_L2_HASH:
-			init_hca.fs_hash_enable_bits = 0;
-			break;
-
-		case MLX4_FS_L2_L3_L4_HASH:
-			/* Enable flow steering with
-			 * udp unicast and tcp unicast
-			 */
-			init_hca.fs_hash_enable_bits =
-				MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN;
-			break;
-		}
-
 		profile = default_profile;
 		if (dev->caps.steering_mode ==
 		    MLX4_STEERING_MODE_DEVICE_MANAGED)
@@ -1849,12 +1833,9 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	info->dev = dev;
 	info->port = port;
 	if (!mlx4_is_slave(dev)) {
-		INIT_RADIX_TREE(&info->mac_tree, GFP_KERNEL);
 		mlx4_init_mac_table(dev, &info->mac_table);
 		mlx4_init_vlan_table(dev, &info->vlan_table);
-		info->base_qpn =
-			dev->caps.reserved_qps_base[MLX4_QP_REGION_ETH_ADDR] +
-			(port - 1) * (1 << log_num_mac);
+		info->base_qpn = mlx4_get_base_qpn(dev, port);
 	}
 
 	sprintf(info->dev_name, "mlx4_port%d", port);
@@ -2070,10 +2051,8 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	/* Allow large DMA segments, up to the firmware limit of 1 GB */
 	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
 
-	priv = kzalloc(sizeof *priv, GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		dev_err(&pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
@@ -2162,7 +2141,8 @@ slave_start:
 			dev->num_slaves = MLX4_MAX_NUM_SLAVES;
 		else {
 			dev->num_slaves = 0;
-			if (mlx4_multi_func_init(dev)) {
+			err = mlx4_multi_func_init(dev);
+			if (err) {
 				mlx4_err(dev, "Failed to init slave mfunc"
 					 " interface, aborting.\n");
 				goto err_cmd;
@@ -2186,7 +2166,8 @@ slave_start:
 	/* In master functions, the communication channel must be initialized
 	 * after obtaining its address from fw */
 	if (mlx4_is_master(dev)) {
-		if (mlx4_multi_func_init(dev)) {
+		err = mlx4_multi_func_init(dev);
+		if (err) {
 			mlx4_err(dev, "Failed to init master mfunc"
 				 "interface, aborting.\n");
 			goto err_close;
@@ -2203,6 +2184,7 @@ slave_start:
 	mlx4_enable_msi_x(dev);
 	if ((mlx4_is_mfunc(dev)) &&
 	    !(dev->flags & MLX4_FLAG_MSI_X)) {
+		err = -ENOSYS;
 		mlx4_err(dev, "INTx is not supported in multi-function mode."
 			 " aborting.\n");
 		goto err_free_eq;

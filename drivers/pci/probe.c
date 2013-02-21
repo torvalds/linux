@@ -1280,7 +1280,6 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* Power Management */
 	pci_pm_init(dev);
-	platform_pci_wakeup_init(dev);
 
 	/* Vital Product Data */
 	pci_vpd_pci22_init(dev);

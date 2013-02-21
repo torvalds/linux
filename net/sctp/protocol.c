@@ -595,7 +595,7 @@ static void sctp_v4_ecn_capable(struct sock *sk)
 	INET_ECN_xmit(sk);
 }
 
-void sctp_addr_wq_timeout_handler(unsigned long arg)
+static void sctp_addr_wq_timeout_handler(unsigned long arg)
 {
 	struct net *net = (struct net *)arg;
 	struct sctp_sockaddr_entry *addrw, *temp;

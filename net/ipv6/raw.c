@@ -1292,7 +1292,7 @@ static const struct file_operations raw6_seq_fops = {
 
 static int __net_init raw6_init_net(struct net *net)
 {
-	if (!proc_net_fops_create(net, "raw6", S_IRUGO, &raw6_seq_fops))
+	if (!proc_create("raw6", S_IRUGO, net->proc_net, &raw6_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -1300,7 +1300,7 @@ static int __net_init raw6_init_net(struct net *net)
 
 static void __net_exit raw6_exit_net(struct net *net)
 {
-	proc_net_remove(net, "raw6");
+	remove_proc_entry("raw6", net->proc_net);
 }
 
 static struct pernet_operations raw6_net_ops = {

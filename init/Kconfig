@@ -20,12 +20,8 @@ config CONSTRUCTORS
 	bool
 	depends on !UML
 
-config HAVE_IRQ_WORK
-	bool
-
 config IRQ_WORK
 	bool
-	depends on HAVE_IRQ_WORK
 
 config BUILDTIME_EXTABLE_SORT
 	bool
@@ -326,10 +322,13 @@ source "kernel/time/Kconfig"
 
 menu "CPU/Task time and stats accounting"
 
+config VIRT_CPU_ACCOUNTING
+	bool
+
 choice
 	prompt "Cputime accounting"
 	default TICK_CPU_ACCOUNTING if !PPC64
-	default VIRT_CPU_ACCOUNTING if PPC64
+	default VIRT_CPU_ACCOUNTING_NATIVE if PPC64
 
 # Kind of a stub config for the pure tick based cputime accounting
 config TICK_CPU_ACCOUNTING
@@ -342,9 +341,10 @@ config TICK_CPU_ACCOUNTING
 
 	  If unsure, say Y.
 
-config VIRT_CPU_ACCOUNTING
+config VIRT_CPU_ACCOUNTING_NATIVE
 	bool "Deterministic task and CPU time accounting"
 	depends on HAVE_VIRT_CPU_ACCOUNTING
+	select VIRT_CPU_ACCOUNTING
 	help
 	  Select this option to enable more accurate task and CPU time
 	  accounting.  This is done by reading a CPU counter on each
@@ -353,6 +353,23 @@ config VIRT_CPU_ACCOUNTING
 	  small performance impact.  In the case of s390 or IBM POWER > 5,
 	  this also enables accounting of stolen time on logically-partitioned
 	  systems.
+
+config VIRT_CPU_ACCOUNTING_GEN
+	bool "Full dynticks CPU time accounting"
+	depends on HAVE_CONTEXT_TRACKING && 64BIT
+	select VIRT_CPU_ACCOUNTING
+	select CONTEXT_TRACKING
+	help
+	  Select this option to enable task and CPU time accounting on full
+	  dynticks systems. This accounting is implemented by watching every
+	  kernel-user boundaries using the context tracking subsystem.
+	  The accounting is thus performed at the expense of some significant
+	  overhead.
+
+	  For now this is only useful if you are working on the full
+	  dynticks subsystem development.
+
+	  If unsure, say N.
 
 config IRQ_TIME_ACCOUNTING
 	bool "Fine granularity task level IRQ time accounting"
@@ -453,13 +470,15 @@ config TREE_RCU
 
 config TREE_PREEMPT_RCU
 	bool "Preemptible tree-based hierarchical RCU"
-	depends on PREEMPT && SMP
+	depends on PREEMPT
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
 	  thousands of CPUs, but for which real-time response
 	  is also required.  It also scales down nicely to
 	  smaller systems.
+
+	  Select this option if you are unsure.
 
 config TINY_RCU
 	bool "UP-only small-memory-footprint RCU"
@@ -485,6 +504,14 @@ config PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
+
+config RCU_STALL_COMMON
+	def_bool ( TREE_RCU || TREE_PREEMPT_RCU || RCU_TRACE )
+	help
+	  This option enables RCU CPU stall code that is common between
+	  the TINY and TREE variants of RCU.  The purpose is to allow
+	  the tiny variants to disable RCU CPU stall warnings, while
+	  making these warnings mandatory for the tree variants.
 
 config CONTEXT_TRACKING
        bool
@@ -1263,6 +1290,7 @@ config HOTPLUG
 config PRINTK
 	default y
 	bool "Enable support for printk" if EXPERT
+	select IRQ_WORK
 	help
 	  This option enables normal printk support. Removing it
 	  eliminates most of the message strings from the kernel image

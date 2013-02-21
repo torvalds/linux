@@ -2402,7 +2402,7 @@ static int __net_init unix_net_init(struct net *net)
 		goto out;
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_net_fops_create(net, "unix", 0, &unix_seq_fops)) {
+	if (!proc_create("unix", 0, net->proc_net, &unix_seq_fops)) {
 		unix_sysctl_unregister(net);
 		goto out;
 	}
@@ -2415,7 +2415,7 @@ out:
 static void __net_exit unix_net_exit(struct net *net)
 {
 	unix_sysctl_unregister(net);
-	proc_net_remove(net, "unix");
+	remove_proc_entry("unix", net->proc_net);
 }
 
 static struct pernet_operations unix_net_ops = {
@@ -2426,9 +2426,8 @@ static struct pernet_operations unix_net_ops = {
 static int __init af_unix_init(void)
 {
 	int rc = -1;
-	struct sk_buff *dummy_skb;
 
-	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	rc = proto_register(&unix_proto, 1);
 	if (rc != 0) {

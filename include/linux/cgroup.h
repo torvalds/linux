@@ -203,6 +203,7 @@ struct cgroup {
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
+	struct work_struct free_work;
 
 	/* List of events which userspace want to receive */
 	struct list_head event_list;
@@ -558,6 +559,7 @@ static inline struct cgroup* task_cgroup(struct task_struct *task,
 
 struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 					  struct cgroup *cgroup);
+struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
 
 /**
  * cgroup_for_each_descendant_pre - pre-order walk of a cgroup's descendants
@@ -706,7 +708,6 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id);
 static inline int cgroup_init_early(void) { return 0; }
 static inline int cgroup_init(void) { return 0; }
 static inline void cgroup_fork(struct task_struct *p) {}
-static inline void cgroup_fork_callbacks(struct task_struct *p) {}
 static inline void cgroup_post_fork(struct task_struct *p) {}
 static inline void cgroup_exit(struct task_struct *p, int callbacks) {}
 

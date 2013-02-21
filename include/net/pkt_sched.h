@@ -65,8 +65,14 @@ struct qdisc_watchdog {
 };
 
 extern void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-extern void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
-				    psched_time_t expires);
+extern void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
+
+static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
+					   psched_time_t expires)
+{
+	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires));
+}
+
 extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
 
 extern struct Qdisc_ops pfifo_qdisc_ops;
