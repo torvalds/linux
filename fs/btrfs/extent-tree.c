@@ -3715,19 +3715,19 @@ again:
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
 	trans->allocating_chunk = false;
-	if (ret < 0 && ret != -ENOSPC)
-		goto out;
 
 	spin_lock(&space_info->lock);
+	if (ret < 0 && ret != -ENOSPC)
+		goto out;
 	if (ret)
 		space_info->full = 1;
 	else
 		ret = 1;
 
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
+out:
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
-out:
 	mutex_unlock(&fs_info->chunk_mutex);
 	return ret;
 }
