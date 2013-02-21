@@ -238,6 +238,14 @@ static int __init setup_isl29018_als(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init setup_isl29023_als(const struct dmi_system_id *id)
+{
+	/* add isl29023 light sensor on Panel GMBus */
+	als = add_i2c_device("lightsensor", I2C_ADAPTER_PANEL,
+			     &isl_als_device);
+	return 0;
+}
+
 static int __init setup_tsl2583_als(const struct dmi_system_id *id)
 {
 	/* add tsl2583 light sensor on smbus */
@@ -284,6 +292,14 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lumpy"),
 		},
 		.callback = setup_isl29018_als,
+	},
+	{
+		.ident = "Chromebook Pixel - Light Sensor",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
+		},
+		.callback = setup_isl29023_als,
 	},
 	{
 		.ident = "Acer C7 Chromebook - Touchpad",
