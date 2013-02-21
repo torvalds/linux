@@ -6227,13 +6227,6 @@ static struct sk_buff *igb_build_rx_buffer(struct igb_ring *rx_ring,
 	/* If we spanned a buffer we have a huge mess so test for it */
 	BUG_ON(unlikely(!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP)));
 
-	/* Guarantee this function can be used by verifying buffer sizes */
-	BUILD_BUG_ON(SKB_WITH_OVERHEAD(IGB_RX_BUFSZ) < (NET_SKB_PAD +
-							NET_IP_ALIGN +
-							IGB_TS_HDR_LEN +
-							ETH_FRAME_LEN +
-							ETH_FCS_LEN));
-
 	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
 	page = rx_buffer->page;
 	prefetchw(page);
