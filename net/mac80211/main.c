@@ -501,6 +501,27 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 	},
 };
 
+static const struct ieee80211_vht_cap mac80211_vht_capa_mod_mask = {
+	.vht_cap_info =
+		cpu_to_le32(IEEE80211_VHT_CAP_RXLDPC |
+			    IEEE80211_VHT_CAP_SHORT_GI_80 |
+			    IEEE80211_VHT_CAP_SHORT_GI_160 |
+			    IEEE80211_VHT_CAP_RXSTBC_1 |
+			    IEEE80211_VHT_CAP_RXSTBC_2 |
+			    IEEE80211_VHT_CAP_RXSTBC_3 |
+			    IEEE80211_VHT_CAP_RXSTBC_4 |
+			    IEEE80211_VHT_CAP_TXSTBC |
+			    IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+			    IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+			    IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN |
+			    IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN |
+			    IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK),
+	.supp_mcs = {
+		.rx_mcs_map = cpu_to_le16(~0),
+		.tx_mcs_map = cpu_to_le16(~0),
+	},
+};
+
 static const u8 extended_capabilities[] = {
 	0, 0, 0, 0, 0, 0, 0,
 	WLAN_EXT_CAPA8_OPMODE_NOTIF,
@@ -609,6 +630,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					 IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH;
 	local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
+	wiphy->vht_capa_mod_mask = &mac80211_vht_capa_mod_mask;
 
 	INIT_LIST_HEAD(&local->interfaces);
 

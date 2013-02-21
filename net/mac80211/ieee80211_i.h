@@ -479,6 +479,8 @@ struct ieee80211_if_managed {
 
 	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
+	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
+	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
 };
 
 struct ieee80211_if_ibss {
@@ -1441,6 +1443,8 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
 				 enum ieee80211_band band, bool nss_only);
+void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_sta_vht_cap *vht_cap);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

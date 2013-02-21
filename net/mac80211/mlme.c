@@ -609,6 +609,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
 	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
+	ieee80211_apply_vhtcap_overrides(sdata, &vht_cap);
 
 	/* determine capability flags */
 	cap = vht_cap.cap;
@@ -1802,9 +1803,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.p2p_ctwindow = 0;
 	sdata->vif.bss_conf.p2p_oppps = false;
 
-	/* on the next assoc, re-program HT parameters */
+	/* on the next assoc, re-program HT/VHT parameters */
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
+	memset(&ifmgd->vht_capa, 0, sizeof(ifmgd->vht_capa));
+	memset(&ifmgd->vht_capa_mask, 0, sizeof(ifmgd->vht_capa_mask));
 
 	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
 
@@ -4071,6 +4074,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 	}
 
+	if (req->flags & ASSOC_REQ_DISABLE_VHT)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
@@ -4093,6 +4099,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
 	memcpy(&ifmgd->ht_capa_mask, &req->ht_capa_mask,
 	       sizeof(ifmgd->ht_capa_mask));
+
+	memcpy(&ifmgd->vht_capa, &req->vht_capa, sizeof(ifmgd->vht_capa));
+	memcpy(&ifmgd->vht_capa_mask, &req->vht_capa_mask,
+	       sizeof(ifmgd->vht_capa_mask));
 
 	if (req->ie && req->ie_len) {
 		memcpy(assoc_data->ie, req->ie, req->ie_len);
