@@ -33,7 +33,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n
