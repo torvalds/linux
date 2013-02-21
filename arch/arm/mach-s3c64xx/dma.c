@@ -28,9 +28,9 @@
 #include <mach/map.h>
 #include <mach/irqs.h>
 
-#include <mach/regs-sys.h>
-
 #include <asm/hardware/pl080.h>
+
+#include "regs-sys.h"
 
 /* dma channel state information */
 

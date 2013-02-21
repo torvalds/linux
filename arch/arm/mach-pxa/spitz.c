@@ -986,7 +986,7 @@ MACHINE_START(SPITZ, "SHARP Spitz")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,
 MACHINE_END
 #endif
@@ -1000,7 +1000,7 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,
 MACHINE_END
 #endif
@@ -1014,7 +1014,7 @@ MACHINE_START(AKITA, "SHARP Akita")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,
 MACHINE_END
 #endif

@@ -1183,7 +1183,7 @@ static struct clk tegra_dsib = {
 	.num_parents = ARRAY_SIZE(mux_plld_out0_plld2_out0),
 };
 
-struct clk *tegra_list_clks[] = {
+static struct clk *tegra_list_clks[] = {
 	&tegra_apbdma,
 	&tegra_rtc,
 	&tegra_kbc,
@@ -1289,7 +1289,7 @@ struct clk *tegra_list_clks[] = {
  * configuration.  List those here to register them twice in the clock lookup
  * table under two names.
  */
-struct clk_duplicate tegra_clk_duplicates[] = {
+static struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("uarta",  "serial8250.0", NULL),
 	CLK_DUPLICATE("uartb",  "serial8250.1", NULL),
 	CLK_DUPLICATE("uartc",  "serial8250.2", NULL),
@@ -1340,7 +1340,7 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pll_d2_out0", "hdmi", "parent"),
 };
 
-struct clk *tegra_ptr_clks[] = {
+static struct clk *tegra_ptr_clks[] = {
 	&tegra_clk_32k,
 	&tegra_clk_m,
 	&tegra_clk_m_div2,

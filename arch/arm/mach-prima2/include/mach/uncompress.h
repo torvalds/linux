@@ -17,8 +17,6 @@ void arch_decomp_setup(void)
 {
 }
 
-#define arch_decomp_wdog()
-
 static __inline__ void putc(char c)
 {
 	/*

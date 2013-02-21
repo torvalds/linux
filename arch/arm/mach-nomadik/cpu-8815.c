@@ -25,13 +25,13 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
+#include <linux/irqchip/arm-vic.h>
 #include <linux/platform_data/clk-nomadik.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/vic.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>

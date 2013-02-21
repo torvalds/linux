@@ -34,7 +34,8 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 #include <mach/pm-core.h>
-#include <mach/pmu.h>
+
+#include "common.h"
 
 static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },

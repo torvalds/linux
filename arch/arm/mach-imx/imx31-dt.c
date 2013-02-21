@@ -38,26 +38,22 @@ static void __init imx31_dt_init(void)
 			     imx31_auxdata_lookup, NULL);
 }
 
-static void __init imx31_timer_init(void)
-{
-	mx31_clocks_init_dt();
-}
-
-static struct sys_timer imx31_timer = {
-	.init = imx31_timer_init,
-};
-
 static const char *imx31_dt_board_compat[] __initdata = {
 	"fsl,imx31",
 	NULL
 };
+
+static void __init imx31_dt_timer_init(void)
+{
+	mx31_clocks_init_dt();
+}
 
 DT_MACHINE_START(IMX31_DT, "Freescale i.MX31 (Device Tree Support)")
 	.map_io		= mx31_map_io,
 	.init_early	= imx31_init_early,
 	.init_irq	= mx31_init_irq,
 	.handle_irq	= imx31_handle_irq,
-	.timer		= &imx31_timer,
+	.init_time	= imx31_dt_timer_init,
 	.init_machine	= imx31_dt_init,
 	.dt_compat	= imx31_dt_board_compat,
 	.restart	= mxc_restart,

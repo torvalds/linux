@@ -107,7 +107,7 @@ static const struct of_device_id osctimer_ids[] __initconst = {
 	{},
 };
 
-static void __init timer_init(void)
+void __init dw_apb_timer_init(void)
 {
 	struct device_node *event_timer, *source_timer;
 
@@ -125,7 +125,3 @@ static void __init timer_init(void)
 
 	init_sched_clock();
 }
-
-struct sys_timer dw_apb_timer = {
-	.init = timer_init,
-};

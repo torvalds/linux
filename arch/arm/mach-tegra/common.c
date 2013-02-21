@@ -21,10 +21,9 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/of_irq.h>
+#include <linux/irqchip.h>
 
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 
 #include <mach/powergate.h>
 
@@ -37,6 +36,7 @@
 #include "apbio.h"
 #include "sleep.h"
 #include "pm.h"
+#include "reset.h"
 
 /*
  * Storage for debug-macro.S's state.
@@ -57,15 +57,10 @@ u32 tegra_uart_config[4] = {
 };
 
 #ifdef CONFIG_OF
-static const struct of_device_id tegra_dt_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
-	{ }
-};
-
 void __init tegra_dt_init_irq(void)
 {
 	tegra_init_irq();
-	of_irq_init(tegra_dt_irq_match);
+	irqchip_init();
 }
 #endif
 
@@ -137,6 +132,7 @@ static void __init tegra_init_cache(void)
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void __init tegra20_init_early(void)
 {
+	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra2_init_clocks();
@@ -150,6 +146,7 @@ void __init tegra20_init_early(void)
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 void __init tegra30_init_early(void)
 {
+	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra30_init_clocks();

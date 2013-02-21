@@ -1,3 +1,6 @@
+config CLKSRC_OF
+	bool
+
 config CLKSRC_I8253
 	bool
 
@@ -23,6 +26,9 @@ config ARMADA_370_XP_TIMER
 	bool
 
 config SUNXI_TIMER
+	bool
+
+config VT8500_TIMER
 	bool
 
 config CLKSRC_NOMADIK_MTU

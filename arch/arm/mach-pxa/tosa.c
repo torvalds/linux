@@ -982,6 +982,6 @@ MACHINE_START(TOSA, "SHARP Tosa")
 	.init_irq       = pxa25x_init_irq,
 	.handle_irq       = pxa25x_handle_irq,
 	.init_machine   = tosa_init,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= tosa_restart,
 MACHINE_END

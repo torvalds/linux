@@ -8,35 +8,24 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/pci.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/mvebu.h>
-#include <linux/ata_platform.h>
-#include <linux/gpio.h>
+#include <linux/dma-mapping.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <asm/page.h>
-#include <asm/setup.h>
-#include <asm/timex.h>
+#include <linux/platform_data/dma-mv_xor.h>
+#include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_device.h>
 #include <asm/hardware/cache-tauros2.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/mach/pci.h>
-#include <mach/dove.h>
-#include <mach/pm.h>
 #include <mach/bridge-regs.h>
-#include <asm/mach/arch.h>
-#include <linux/irq.h>
-#include <plat/time.h>
-#include <linux/platform_data/usb-ehci-orion.h>
-#include <linux/platform_data/dma-mv_xor.h>
-#include <plat/irq.h>
+#include <mach/pm.h>
 #include <plat/common.h>
-#include <plat/addr-map.h>
+#include <plat/irq.h>
+#include <plat/time.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -242,16 +231,12 @@ static int __init dove_find_tclk(void)
 	return 166666667;
 }
 
-static void __init dove_timer_init(void)
+void __init dove_timer_init(void)
 {
 	dove_tclk = dove_find_tclk();
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, dove_tclk);
 }
-
-struct sys_timer dove_timer = {
-	.init = dove_timer_init,
-};
 
 /*****************************************************************************
  * Cryptographic Engines and Security Accelerator (CESA)
@@ -454,7 +439,7 @@ DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
 	.map_io		= dove_map_io,
 	.init_early	= dove_init_early,
 	.init_irq	= orion_dt_init_irq,
-	.timer		= &dove_timer,
+	.init_time	= dove_timer_init,
 	.init_machine	= dove_dt_init,
 	.restart	= dove_restart,
 	.dt_compat	= dove_dt_board_compat,

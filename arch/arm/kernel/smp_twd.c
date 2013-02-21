@@ -24,7 +24,6 @@
 
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
-#include <asm/hardware/gic.h>
 
 /* set up by the platform code */
 static void __iomem *twd_base;

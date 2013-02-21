@@ -40,7 +40,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -197,7 +196,7 @@ static struct platform_device snowball_sbnet_dev = {
 	},
 };
 
-static struct ab8500_platform_data ab8500_platdata = {
+struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator_reg_init = ab8500_regulator_reg_init,
 	.num_regulator_reg_init	= ARRAY_SIZE(ab8500_regulator_reg_init),
@@ -633,6 +632,7 @@ static void __init mop500_init_machine(void)
 	int i2c0_devs;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
 	mop500_pinmaps_init();
@@ -667,6 +667,7 @@ static void __init snowball_init_machine(void)
 	struct device *parent = NULL;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	snowball_pinmaps_init();
 	parent = u8500_init_devices(&ab8500_platdata);
 
@@ -692,6 +693,7 @@ static void __init hrefv60_init_machine(void)
 	int i2c0_devs;
 	int i;
 
+	platform_device_register(&db8500_prcmu_device);
 	/*
 	 * The HREFv60 board removed a GPIO expander and routed
 	 * all these GPIO pins to the internal GPIO controller
@@ -733,8 +735,7 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &ux500_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
 MACHINE_END
@@ -743,8 +744,7 @@ MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
 	.atag_offset	= 0x100,
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
-	.timer		= &ux500_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
 MACHINE_END
@@ -754,8 +754,7 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.smp		= smp_ops(ux500_smp_ops),
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
-	.timer		= &ux500_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= ux500_timer_init,
 	.init_machine	= hrefv60_init_machine,
 	.init_late	= ux500_init_late,
 MACHINE_END
@@ -766,8 +765,7 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &ux500_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= ux500_timer_init,
 	.init_machine	= snowball_init_machine,
 	.init_late	= NULL,
 MACHINE_END

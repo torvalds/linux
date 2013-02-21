@@ -14,7 +14,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/platform_data/mmc-mvsdio.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data mplcec4_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(1),
