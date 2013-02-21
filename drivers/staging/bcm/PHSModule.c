@@ -46,22 +46,22 @@ static ULONG PhsDeCompress(void *pvContext,
 #define OUT
 
 /*
-Function:	PHSTransmit
-Description:	This routine handle PHS(Payload Header Suppression for Tx path.
-	It extracts a fragment of the NDIS_PACKET containing the header
-	to be suppressed. It then suppresses the header by invoking PHS exported compress routine.
-	The header data after suppression is copied back to the NDIS_PACKET.
-
-Input parameters:		IN struct bcm_mini_adapter *Adapter         - Miniport Adapter Context
-				IN Packet - NDIS packet containing data to be transmitted
-				IN USHORT Vcid - vcid pertaining to connection on which the packet is being sent.Used to
-					identify PHS rule to be applied.
-				B_UINT16 uiClassifierRuleID - Classifier Rule ID
-				BOOLEAN bHeaderSuppressionEnabled - indicates if header suprression is enabled for SF.
-
-Return:				STATUS_SUCCESS - If the send was successful.
-				Other  - If an error occurred.
-*/
+ * Function: PHSTransmit
+ * Description:	This routine handle PHS(Payload Header Suppression for Tx path.
+ *	It extracts a fragment of the NDIS_PACKET containing the header
+ *	to be suppressed. It then suppresses the header by invoking PHS exported compress routine.
+ *	The header data after suppression is copied back to the NDIS_PACKET.
+ *
+ * Input parameters: IN struct bcm_mini_adapter *Adapter         - Miniport Adapter Context
+ *	IN Packet - NDIS packet containing data to be transmitted
+ *	IN USHORT Vcid - vcid pertaining to connection on which the packet is being sent.Used to
+ *		identify PHS rule to be applied.
+ *	B_UINT16 uiClassifierRuleID - Classifier Rule ID
+ *	BOOLEAN bHeaderSuppressionEnabled - indicates if header suprression is enabled for SF.
+ *
+ * Return:	STATUS_SUCCESS - If the send was successful.
+ *	Other  - If an error occurred.
+ */
 
 int PHSTransmit(struct bcm_mini_adapter *Adapter,
 		struct sk_buff **pPacket,
@@ -71,7 +71,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 		UINT *PacketLen,
 		UCHAR bEthCSSupport)
 {
-	//PHS Sepcific
+	/* PHS Sepcific */
 	UINT unPHSPktHdrBytesCopied = 0;
 	UINT unPhsOldHdrSize = 0;
 	UINT unPHSNewPktHeaderLen = 0;
@@ -92,14 +92,14 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	if (!bEthCSSupport)
 		BytesToRemove = ETH_HLEN;
 	/*
-	  Accumulate the header upto the size we support suppression
-	  from NDIS packet
-	*/
+	 * Accumulate the header upto the size we support suppression
+	 * from NDIS packet
+	 */
 
 	usPacketType = ((struct ethhdr *)(Packet->data))->h_proto;
 
 	pucPHSPktHdrInBuf = Packet->data + BytesToRemove;
-	//considering data after ethernet header
+	/* considering data after ethernet header */
 	if ((*PacketLen - BytesToRemove) < MAX_PHS_LENGTHS)
 		unPHSPktHdrBytesCopied = (*PacketLen - BytesToRemove);
 	else
@@ -108,8 +108,10 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	if ((unPHSPktHdrBytesCopied > 0) &&
 		(unPHSPktHdrBytesCopied <= MAX_PHS_LENGTHS)) {
 
-		// Step 2 Suppress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
-		// Suppress only if IP Header and PHS Enabled For the Service Flow
+		/*
+		 * Step 2 Suppress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
+		 * Suppress only if IP Header and PHS Enabled For the Service Flow
+		 */
 		if (((usPacketType == ETHERNET_FRAMETYPE_IPV4) ||
 				(usPacketType == ETHERNET_FRAMETYPE_IPV6)) &&
 			(bHeaderSuppressionEnabled)) {
@@ -156,7 +158,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 
 				return STATUS_SUCCESS;
 			} else {
-				//if one byte headroom is not available, increase it through skb_cow
+				/* if one byte headroom is not available, increase it through skb_cow */
 				if (!(skb_headroom(Packet) > 0)) {
 
 					if (skb_cow(Packet, 1)) {
@@ -166,7 +168,11 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 				}
 				skb_push(Packet, 1);
 
-				// CAUTION: The MAC Header is getting corrupted here for IP CS - can be saved by copying 14 Bytes.  not needed .... hence corrupting it.
+				/*
+				 * CAUTION: The MAC Header is getting corrupted
+				 * here for IP CS - can be saved by copying 14
+				 * Bytes.  not needed .... hence corrupting it.
+				 */
 				*(Packet->data + BytesToRemove) = bPHSI;
 				return STATUS_SUCCESS;
 			}
@@ -179,7 +185,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 		}
 	}
 
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"PHSTransmit : Dumping data packet After PHS");
+	/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"PHSTransmit : Dumping data packet After PHS"); */
 	return STATUS_SUCCESS;
 }
 
@@ -203,7 +209,7 @@ int PHSReceive(struct bcm_mini_adapter *Adapter,
 
 	pucInBuff = packet->data;
 
-	//Restore  PHS suppressed header
+	/* Restore PHS suppressed header */
 	nStandardPktHdrLen = packet->len;
 	ulPhsStatus = PhsDeCompress(&Adapter->stBCMPhsContext,
 				usVcid,
@@ -248,19 +254,19 @@ void DumpFullPacket(UCHAR *pBuf, UINT nPktLen)
 	BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, pBuf, nPktLen);
 }
 
-//-----------------------------------------------------------------------------
-// Procedure:   phs_init
-//
-// Description: This routine is responsible for allocating memory for classifier and
-// PHS rules.
-//
-// Arguments:
-// pPhsdeviceExtension - ptr to Device extension containing PHS Classifier rules and PHS Rules , RX, TX buffer etc
-//
-// Returns:
-// TRUE(1)	-If allocation of memory was success full.
-// FALSE	-If allocation of memory fails.
-//-----------------------------------------------------------------------------
+/*
+ * Procedure:   phs_init
+ *
+ * Description: This routine is responsible for allocating memory for classifier and
+ * PHS rules.
+ *
+ * Arguments:
+ * pPhsdeviceExtension - ptr to Device extension containing PHS Classifier rules and PHS Rules , RX, TX buffer etc
+ *
+ * Returns:
+ * TRUE(1)	-If allocation of memory was success full.
+ * FALSE	-If allocation of memory fails.
+ */
 int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
 {
 	int i;
@@ -327,25 +333,24 @@ int PhsCleanup(IN struct bcm_phs_extension *pPHSDeviceExt)
 	return 0;
 }
 
-//PHS functions
-/*++
-PhsUpdateClassifierRule
-
-Routine Description:
-    Exported function to add or modify a PHS Rule.
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context
-	IN B_UINT16 uiVcid    - The Service Flow ID for which the PHS rule applies
-	IN B_UINT16  uiClsId   - The Classifier ID within the Service Flow for which the PHS rule applies.
-	IN struct bcm_phs_rule *psPhsRule - The PHS Rule strcuture to be added to the PHS Rule table.
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
+/*
+ * PHS functions
+ * PhsUpdateClassifierRule
+ *
+ * Routine Description:
+ *   Exported function to add or modify a PHS Rule.
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context
+ *	IN B_UINT16 uiVcid    - The Service Flow ID for which the PHS rule applies
+ *	IN B_UINT16  uiClsId   - The Classifier ID within the Service Flow for which the PHS rule applies.
+ *	IN struct bcm_phs_rule *psPhsRule - The PHS Rule strcuture to be added to the PHS Rule table.
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsUpdateClassifierRule(IN void *pvContext,
 			IN B_UINT16 uiVcid ,
 			IN B_UINT16 uiClsId   ,
@@ -386,24 +391,22 @@ ULONG PhsUpdateClassifierRule(IN void *pvContext,
 	return lStatus;
 }
 
-/*++
-PhsDeletePHSRule
-
-Routine Description:
-   Deletes the specified phs Rule within Vcid
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context
-	IN B_UINT16  uiVcid    - The Service Flow ID for which the PHS rule applies
-	IN B_UINT8  u8PHSI   - the PHS Index identifying PHS rule to be deleted.
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
-
+/*
+ * PhsDeletePHSRule
+ *
+ * Routine Description:
+ *   Deletes the specified phs Rule within Vcid
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context
+ *	IN B_UINT16  uiVcid    - The Service Flow ID for which the PHS rule applies
+ *	IN B_UINT8  u8PHSI   - the PHS Index identifying PHS rule to be deleted.
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI)
 {
 	ULONG lStatus = 0;
@@ -416,7 +419,7 @@ ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "======>\n");
 
 	if (pDeviceExtension) {
-		//Retrieve the SFID Entry Index for requested Service Flow
+		/* Retrieve the SFID Entry Index for requested Service Flow */
 		nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable, uiVcid, &pstServiceFlowEntry);
 
 		if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
@@ -446,23 +449,22 @@ ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI
 	return lStatus;
 }
 
-/*++
-PhsDeleteClassifierRule
-
-Routine Description:
-    Exported function to Delete a PHS Rule for the SFID,CLSID Pair.
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context
-	IN B_UINT16  uiVcid    - The Service Flow ID for which the PHS rule applies
-	IN B_UINT16  uiClsId   - The Classifier ID within the Service Flow for which the PHS rule applies.
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
+/*
+ * PhsDeleteClassifierRule
+ *
+ * Routine Description:
+ *    Exported function to Delete a PHS Rule for the SFID,CLSID Pair.
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context
+ *	IN B_UINT16  uiVcid    - The Service Flow ID for which the PHS rule applies
+ *	IN B_UINT16  uiClsId   - The Classifier ID within the Service Flow for which the PHS rule applies.
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT16 uiClsId)
 {
 	ULONG lStatus = 0;
@@ -473,7 +475,7 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 	struct bcm_phs_extension *pDeviceExtension = (struct bcm_phs_extension *)pvContext;
 
 	if (pDeviceExtension) {
-		//Retrieve the SFID Entry Index for requested Service Flow
+		/* Retrieve the SFID Entry Index for requested Service Flow */
 		nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable, uiVcid, &pstServiceFlowEntry);
 		if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "SFID Match Failed\n");
@@ -505,22 +507,21 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 	return lStatus;
 }
 
-/*++
-PhsDeleteSFRules
-
-Routine Description:
-    Exported function to Delete a all PHS Rules for the SFID.
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context
-	IN B_UINT16 uiVcid   - The Service Flow ID for which the PHS rules need to be deleted
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
+/*
+ * PhsDeleteSFRules
+ *
+ * Routine Description:
+ *    Exported function to Delete a all PHS Rules for the SFID.
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context
+ *	IN B_UINT16 uiVcid   - The Service Flow ID for which the PHS rules need to be deleted
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 {
 	ULONG lStatus = 0;
@@ -533,7 +534,7 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "====>\n");
 
 	if (pDeviceExtension) {
-		//Retrieve the SFID Entry Index for requested Service Flow
+		/* Retrieve the SFID Entry Index for requested Service Flow */
 		nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
 					uiVcid, &pstServiceFlowEntry);
 		if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
@@ -575,27 +576,26 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 	return lStatus;
 }
 
-/*++
-PhsCompress
-
-Routine Description:
-    Exported function to compress the data using PHS.
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context.
-	IN B_UINT16 uiVcid    - The Service Flow ID to which current packet header compression applies.
-	IN UINT  uiClsId   - The Classifier ID to which current packet header compression applies.
-	IN void *pvInputBuffer - The Input buffer containg packet header data
-	IN void *pvOutputBuffer - The output buffer returned by this function after PHS
-	IN UINT *pOldHeaderSize  - The actual size of the header before PHS
-	IN UINT *pNewHeaderSize - The new size of the header after applying PHS
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
+/*
+ * PhsCompress
+ *
+ * Routine Description:
+ *    Exported function to compress the data using PHS.
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context.
+ *	IN B_UINT16 uiVcid    - The Service Flow ID to which current packet header compression applies.
+ *	IN UINT  uiClsId   - The Classifier ID to which current packet header compression applies.
+ *	IN void *pvInputBuffer - The Input buffer containg packet header data
+ *	IN void *pvOutputBuffer - The output buffer returned by this function after PHS
+ *	IN UINT *pOldHeaderSize  - The actual size of the header before PHS
+ *	IN UINT *pNewHeaderSize - The new size of the header after applying PHS
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsCompress(IN void *pvContext,
 		IN B_UINT16 uiVcid,
 		IN B_UINT16 uiClsId,
@@ -620,7 +620,7 @@ ULONG PhsCompress(IN void *pvContext,
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL, "Suppressing header\n");
 
-	//Retrieve the SFID Entry Index for requested Service Flow
+	/* Retrieve the SFID Entry Index for requested Service Flow */
 	nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
 				uiVcid, &pstServiceFlowEntry);
 	if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
@@ -638,7 +638,7 @@ ULONG PhsCompress(IN void *pvContext,
 		return lStatus;
 	}
 
-	//get rule from SF id,Cls ID pair and proceed
+	/* get rule from SF id,Cls ID pair and proceed */
 	pstPhsRule = pstClassifierEntry->pstPhsRule;
 	if (!ValidatePHSRuleComplete(pstPhsRule)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "PHS Rule Defined For Classifier But Not Complete\n");
@@ -646,7 +646,7 @@ ULONG PhsCompress(IN void *pvContext,
 		return lStatus;
 	}
 
-	//Compress Packet
+	/* Compress Packet */
 	lStatus = phs_compress(pstPhsRule, (PUCHAR)pvInputBuffer,
 			(PUCHAR)pvOutputBuffer, pOldHeaderSize, pNewHeaderSize);
 
@@ -659,25 +659,24 @@ ULONG PhsCompress(IN void *pvContext,
 	return lStatus;
 }
 
-/*++
-PhsDeCompress
-
-Routine Description:
-    Exported function to restore the packet header in Rx path.
-
-Arguments:
-	IN void* pvContext - PHS Driver Specific Context.
-	IN B_UINT16 uiVcid    - The Service Flow ID to which current packet header restoration applies.
-	IN  void *pvInputBuffer - The Input buffer containg suppressed packet header data
-	OUT void *pvOutputBuffer - The output buffer returned by this function after restoration
-	OUT UINT *pHeaderSize   - The packet header size after restoration is returned in this parameter.
-
-Return Value:
-
-    0 if successful,
-    >0 Error.
-
---*/
+/*
+ * PhsDeCompress
+ *
+ * Routine Description:
+ *    Exported function to restore the packet header in Rx path.
+ *
+ * Arguments:
+ *	IN void* pvContext - PHS Driver Specific Context.
+ *	IN B_UINT16 uiVcid    - The Service Flow ID to which current packet header restoration applies.
+ *	IN  void *pvInputBuffer - The Input buffer containg suppressed packet header data
+ *	OUT void *pvOutputBuffer - The output buffer returned by this function after restoration
+ *	OUT UINT *pHeaderSize   - The packet header size after restoration is returned in this parameter.
+ *
+ * Return Value:
+ *
+ * 0 if successful,
+ * >0 Error.
+ */
 ULONG PhsDeCompress(IN void *pvContext,
 		IN B_UINT16 uiVcid,
 		IN void *pvInputBuffer,
@@ -705,7 +704,7 @@ ULONG PhsDeCompress(IN void *pvContext,
 	if (phsi == UNCOMPRESSED_PACKET)
 		return STATUS_PHS_NOCOMPRESSION;
 
-	//Retrieve the SFID Entry Index for requested Service Flow
+	/* Retrieve the SFID Entry Index for requested Service Flow */
 	nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
 				uiVcid, &pstServiceFlowEntry);
 	if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
@@ -716,7 +715,7 @@ ULONG PhsDeCompress(IN void *pvContext,
 	nPhsRuleIndex = GetPhsRuleEntry(pstServiceFlowEntry->pstClassifierTable, phsi,
 					eActiveClassifierRuleContext, &pstPhsRule);
 	if (nPhsRuleIndex == PHS_INVALID_TABLE_INDEX) {
-		//Phs Rule does not exist in  active rules table. Lets try in the old rules table.
+		/* Phs Rule does not exist in  active rules table. Lets try in the old rules table. */
 		nPhsRuleIndex = GetPhsRuleEntry(pstServiceFlowEntry->pstClassifierTable,
 						phsi, eOldClassifierRuleContext, &pstPhsRule);
 		if (nPhsRuleIndex == PHS_INVALID_TABLE_INDEX)
@@ -732,18 +731,17 @@ ULONG PhsDeCompress(IN void *pvContext,
 	return STATUS_PHS_COMPRESSED;
 }
 
-//-----------------------------------------------------------------------------
-// Procedure:   free_phs_serviceflow_rules
-//
-// Description: This routine is responsible for freeing memory allocated for PHS rules.
-//
-// Arguments:
-// rules	- ptr to S_SERVICEFLOW_TABLE structure.
-//
-// Returns:
-// Does not return any value.
-//-----------------------------------------------------------------------------
-
+/*
+ * Procedure:   free_phs_serviceflow_rules
+ *
+ * Description: This routine is responsible for freeing memory allocated for PHS rules.
+ *
+ * Arguments:
+ * rules	- ptr to S_SERVICEFLOW_TABLE structure.
+ *
+ * Returns:
+ * Does not return any value.
+ */
 static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesTable)
 {
 	int i, j;
@@ -794,17 +792,17 @@ static BOOLEAN ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
 {
 	if (psPhsRule) {
 		if (!psPhsRule->u8PHSI) {
-			// PHSI is not valid
+			/* PHSI is not valid */
 			return FALSE;
 		}
 
 		if (!psPhsRule->u8PHSS) {
-			//PHSS Is Undefined
+			/* PHSS Is Undefined */
 			return FALSE;
 		}
 
-		//Check if PHSF is defines for the PHS Rule
-		if (!psPhsRule->u8PHSFLength) // If any part of PHSF is valid then Rule contains valid PHSF
+		/* Check if PHSF is defines for the PHS Rule */
+		if (!psPhsRule->u8PHSFLength) /* If any part of PHSF is valid then Rule contains valid PHSF */
 			return FALSE;
 
 		return TRUE;
@@ -892,7 +890,7 @@ UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiClsId,
 	int iSfIndex;
 	BOOLEAN bFreeEntryFound = FALSE;
 
-	//Check for a free entry in SFID table
+	/* Check for a free entry in SFID table */
 	for (iSfIndex = 0; iSfIndex < MAX_SERVICEFLOWS; iSfIndex++) {
 		if (!psServiceFlowTable->stSFList[iSfIndex].bUsed) {
 			bFreeEntryFound = TRUE;
@@ -907,7 +905,7 @@ UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiClsId,
 	uiStatus = CreateClassifierPHSRule(uiClsId, psaClassifiertable, psPhsRule,
 					eActiveClassifierRuleContext, u8AssociatedPHSI);
 	if (uiStatus == PHS_SUCCESS) {
-		//Add entry at free index to the SF
+		/* Add entry at free index to the SF */
 		psServiceFlowTable->stSFList[iSfIndex].bUsed = TRUE;
 		psServiceFlowTable->stSFList[iSfIndex].uiVcid = uiVcid;
 	}
@@ -940,9 +938,9 @@ UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
 
 	if (nClassifierIndex == PHS_INVALID_TABLE_INDEX) {
 		/*
-		  The Classifier doesn't exist. So its a new classifier being added.
-		  Add new entry to associate PHS Rule to the Classifier
-		*/
+		 * The Classifier doesn't exist. So its a new classifier being added.
+		 * Add new entry to associate PHS Rule to the Classifier
+		 */
 
 		uiStatus = CreateClassifierPHSRule(uiClsId, psaClassifiertable,
 						psPhsRule,
@@ -952,53 +950,51 @@ UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
 	}
 
 	/*
-	  The Classifier exists.The PHS Rule for this classifier
-	  is being modified
-	*/
+	 * The Classifier exists.The PHS Rule for this classifier
+	 * is being modified
+	 */
 
 	if (pstClassifierEntry->u8PHSI == psPhsRule->u8PHSI) {
 		if (pstClassifierEntry->pstPhsRule == NULL)
 			return ERR_PHS_INVALID_PHS_RULE;
 
 		/*
-		  This rule already exists if any fields are changed for this PHS
-		  rule update them.
-		*/
+		 * This rule already exists if any fields are changed for this PHS
+		 * rule update them.
+		 */
 		/* If any part of PHSF is valid then we update PHSF */
 		if (psPhsRule->u8PHSFLength) {
-			//update PHSF
+			/* update PHSF */
 			memcpy(pstClassifierEntry->pstPhsRule->u8PHSF,
 				psPhsRule->u8PHSF, MAX_PHS_LENGTHS);
 		}
 
 		if (psPhsRule->u8PHSFLength) {
-			//update PHSFLen
+			/* update PHSFLen */
 			pstClassifierEntry->pstPhsRule->u8PHSFLength = psPhsRule->u8PHSFLength;
 		}
 
 		if (psPhsRule->u8PHSMLength) {
-			//update PHSM
+			/* update PHSM */
 			memcpy(pstClassifierEntry->pstPhsRule->u8PHSM,
 				psPhsRule->u8PHSM, MAX_PHS_LENGTHS);
 		}
 
 		if (psPhsRule->u8PHSMLength) {
-			//update PHSM Len
+			/* update PHSM Len */
 			pstClassifierEntry->pstPhsRule->u8PHSMLength =
 				psPhsRule->u8PHSMLength;
 		}
 
 		if (psPhsRule->u8PHSS) {
-			//update PHSS
+			/* update PHSS */
 			pstClassifierEntry->pstPhsRule->u8PHSS = psPhsRule->u8PHSS;
 		}
 
-		//update PHSV
+		/* update PHSV */
 		pstClassifierEntry->pstPhsRule->u8PHSV = psPhsRule->u8PHSV;
 	} else {
-		/*
-		  A new rule is being set for this classifier.
-		*/
+		/* A new rule is being set for this classifier. */
 		uiStatus = UpdateClassifierPHSRule(uiClsId, pstClassifierEntry,
 						psaClassifiertable, psPhsRule, u8AssociatedPHSI);
 	}
@@ -1024,8 +1020,10 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 		return ERR_INVALID_CLASSIFIERTABLE_FOR_SF;
 
 	if (eClsContext == eOldClassifierRuleContext) {
-		/* If An Old Entry for this classifier ID already exists in the
-		   old rules table replace it. */
+		/*
+		 * If An Old Entry for this classifier ID already exists in the
+		 * old rules table replace it.
+		 */
 
 		iClassifierIndex =
 			GetClassifierEntry(psaClassifiertable, uiClsId,
@@ -1033,17 +1031,15 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 
 		if (iClassifierIndex != PHS_INVALID_TABLE_INDEX) {
 			/*
-			  The Classifier already exists in the old rules table
-			  Lets replace the old classifier with the new one.
-			*/
+			 * The Classifier already exists in the old rules table
+			 * Lets replace the old classifier with the new one.
+			 */
 			bFreeEntryFound = TRUE;
 		}
 	}
 
 	if (!bFreeEntryFound) {
-		/*
-		  Continue to search for a free location to add the rule
-		*/
+		/* Continue to search for a free location to add the rule */
 		for (iClassifierIndex = 0; iClassifierIndex <
 			     MAX_PHSRULE_PER_SF; iClassifierIndex++) {
 			if (eClsContext == eActiveClassifierRuleContext)
@@ -1063,7 +1059,7 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 		if (eClsContext == eActiveClassifierRuleContext)
 			return ERR_CLSASSIFIER_TABLE_FULL;
 		else {
-			//Lets replace the oldest rule if we are looking in old Rule table
+			/* Lets replace the oldest rule if we are looking in old Rule table */
 			if (psaClassifiertable->uiOldestPhsRuleIndex >= MAX_PHSRULE_PER_SF)
 				psaClassifiertable->uiOldestPhsRuleIndex = 0;
 
@@ -1111,11 +1107,11 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 
 	psPhsRule->u8RefCnt = 0;
 
-	/* Step 1 Deref Any Exisiting PHS Rule in this classifier Entry*/
+	/* Step 1 Deref Any Exisiting PHS Rule in this classifier Entry */
 	bPHSRuleOrphaned = DerefPhsRule(uiClsId, psaClassifiertable,
 					pstClassifierEntry->pstPhsRule);
 
-	//Step 2 Search if there is a PHS Rule with u8AssociatedPHSI in Classifier table for this SF
+	/* Step 2 Search if there is a PHS Rule with u8AssociatedPHSI in Classifier table for this SF */
 	nPhsRuleIndex = GetPhsRuleEntry(psaClassifiertable, u8AssociatedPHSI,
 					eActiveClassifierRuleContext, &pstAddPhsRule);
 	if (PHS_INVALID_TABLE_INDEX == nPhsRuleIndex) {
@@ -1127,7 +1123,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 			return ERR_PHS_INVALID_PHS_RULE;
 		}
 
-		//Step 2.a PHS Rule Does Not Exist .Create New PHS Rule for uiClsId
+		/* Step 2.a PHS Rule Does Not Exist .Create New PHS Rule for uiClsId */
 		if (FALSE == bPHSRuleOrphaned) {
 
 			pstClassifierEntry->pstPhsRule = kmalloc(sizeof(struct bcm_phs_rule), GFP_KERNEL);
@@ -1136,7 +1132,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 		}
 		memcpy(pstClassifierEntry->pstPhsRule, psPhsRule, sizeof(struct bcm_phs_rule));
 	} else {
-		//Step 2.b PHS Rule  Exists Tie uiClsId with the existing PHS Rule
+		/* Step 2.b PHS Rule  Exists Tie uiClsId with the existing PHS Rule */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\nTying Classifier to Existing PHS Rule");
 		if (bPHSRuleOrphaned) {
 			kfree(pstClassifierEntry->pstPhsRule);
@@ -1163,9 +1159,11 @@ static BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId, struct bcm_phs_classifier_tabl
 		pstPhsRule->u8RefCnt--;
 
 	if (0 == pstPhsRule->u8RefCnt) {
-		/*if(pstPhsRule->u8PHSI)
-		//Store the currently active rule into the old rules list
-		CreateClassifierPHSRule(uiClsId,psaClassifiertable,pstPhsRule,eOldClassifierRuleContext,pstPhsRule->u8PHSI);*/
+		/*
+		 * if(pstPhsRule->u8PHSI)
+		 * Store the currently active rule into the old rules list
+		 * CreateClassifierPHSRule(uiClsId,psaClassifiertable,pstPhsRule,eOldClassifierRuleContext,pstPhsRule->u8PHSI);
+		 */
 		return TRUE;
 	} else
 		return FALSE;
@@ -1225,23 +1223,22 @@ void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Procedure:   phs_decompress
-//
-// Description: This routine restores the static fields within the packet.
-//
-// Arguments:
-//	in_buf			- ptr to incoming packet buffer.
-//	out_buf			- ptr to output buffer where the suppressed header is copied.
-//	decomp_phs_rules - ptr to PHS rule.
-//	header_size		- ptr to field which holds the phss or phsf_length.
-//
-// Returns:
-//	size -The number of bytes of dynamic fields present with in the incoming packet
-//			header.
-//	0	-If PHS rule is NULL.If PHSI is 0 indicateing packet as uncompressed.
-//-----------------------------------------------------------------------------
-
+/*
+ * Procedure:   phs_decompress
+ *
+ * Description: This routine restores the static fields within the packet.
+ *
+ * Arguments:
+ *	in_buf			- ptr to incoming packet buffer.
+ *	out_buf			- ptr to output buffer where the suppressed header is copied.
+ *	decomp_phs_rules - ptr to PHS rule.
+ *	header_size		- ptr to field which holds the phss or phsf_length.
+ *
+ * Returns:
+ *	size -The number of bytes of dynamic fields present with in the incoming packet
+ *			header.
+ *	0	-If PHS rule is NULL.If PHSI is 0 indicateing packet as uncompressed.
+ */
 int phs_decompress(unsigned char *in_buf,
 		unsigned char *out_buf,
 		struct bcm_phs_rule *decomp_phs_rules,
@@ -1263,8 +1260,10 @@ int phs_decompress(unsigned char *in_buf,
 		return 0;
 
 	tmp_memb = decomp_phs_rules;
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nDECOMP:In phs_decompress PHSI 1  %d",phsi));
-	//*header_size = tmp_memb->u8PHSFLength;
+	/*
+	 * BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nDECOMP:In phs_decompress PHSI 1  %d",phsi));
+	 * header_size = tmp_memb->u8PHSFLength;
+	 */
 	phss = tmp_memb->u8PHSS;
 	phsf = tmp_memb->u8PHSF;
 	phsm = tmp_memb->u8PHSM;
@@ -1272,7 +1271,10 @@ int phs_decompress(unsigned char *in_buf,
 	if (phss > MAX_PHS_LENGTHS)
 		phss = MAX_PHS_LENGTHS;
 
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nDECOMP:In phs_decompress PHSI  %d phss %d index %d",phsi,phss,index));
+	/*
+	 * BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nDECOMP:
+	 * In phs_decompress PHSI  %d phss %d index %d",phsi,phss,index));
+	 */
 	while ((phss > 0) && (size < in_buf_len)) {
 		bit = ((*phsm << i) & SUPPRESS);
 
@@ -1302,26 +1304,26 @@ int phs_decompress(unsigned char *in_buf,
 	return size;
 }
 
-//-----------------------------------------------------------------------------
-// Procedure:   phs_compress
-//
-// Description: This routine suppresses the static fields within the packet.Before
-// that it will verify the fields to be suppressed with the corresponding fields in the
-// phsf. For verification it checks the phsv field of PHS rule. If set and verification
-// succeeds it suppresses the field.If any one static field is found different none of
-// the static fields are suppressed then the packet is sent as uncompressed packet with
-// phsi=0.
-//
-// Arguments:
-//	phs_rule - ptr to PHS rule.
-//	in_buf		- ptr to incoming packet buffer.
-//	out_buf		- ptr to output buffer where the suppressed header is copied.
-//	header_size	- ptr to field which holds the phss.
-//
-// Returns:
-//	size-The number of bytes copied into the output buffer i.e dynamic fields
-//	0	-If PHS rule is NULL.If PHSV field is not set.If the verification fails.
-//-----------------------------------------------------------------------------
+/*
+ * Procedure:   phs_compress
+ *
+ * Description: This routine suppresses the static fields within the packet.Before
+ * that it will verify the fields to be suppressed with the corresponding fields in the
+ * phsf. For verification it checks the phsv field of PHS rule. If set and verification
+ * succeeds it suppresses the field.If any one static field is found different none of
+ * the static fields are suppressed then the packet is sent as uncompressed packet with
+ * phsi=0.
+ *
+ * Arguments:
+ *	phs_rule - ptr to PHS rule.
+ *	in_buf		- ptr to incoming packet buffer.
+ *	out_buf		- ptr to output buffer where the suppressed header is copied.
+ *	header_size	- ptr to field which holds the phss.
+ *
+ * Returns:
+ *	size-The number of bytes copied into the output buffer i.e dynamic fields
+ *	0	-If PHS rule is NULL.If PHSV field is not set.If the verification fails.
+ */
 static int phs_compress(struct bcm_phs_rule *phs_rule,
 			unsigned char *in_buf,
 			unsigned char *out_buf,
@@ -1343,7 +1345,7 @@ static int phs_compress(struct bcm_phs_rule *phs_rule,
 	else
 		*header_size = *new_header_size;
 
-	//To copy PHSI
+	/* To copy PHSI */
 	out_buf++;
 	suppress = verify_suppress_phsf(in_buf, out_buf, phs_rule->u8PHSF,
 					phs_rule->u8PHSM, phs_rule->u8PHSS,
@@ -1360,26 +1362,25 @@ static int phs_compress(struct bcm_phs_rule *phs_rule,
 	return suppress;
 }
 
-//-----------------------------------------------------------------------------
-// Procedure:	verify_suppress_phsf
-//
-// Description: This routine verifies the fields of the packet and if all the
-// static fields are equal it adds the phsi of that PHS rule.If any static
-// field differs it woun't suppress any field.
-//
-// Arguments:
-// rules_set	- ptr to classifier_rules.
-// in_buffer	- ptr to incoming packet buffer.
-// out_buffer	- ptr to output buffer where the suppressed header is copied.
-// phsf			- ptr to phsf.
-// phsm			- ptr to phsm.
-// phss			- variable holding phss.
-//
-// Returns:
-//	size-The number of bytes copied into the output buffer i.e dynamic fields.
-//	0	-Packet has failed the verification.
-//-----------------------------------------------------------------------------
-
+/*
+ * Procedure:	verify_suppress_phsf
+ *
+ * Description: This routine verifies the fields of the packet and if all the
+ * static fields are equal it adds the phsi of that PHS rule.If any static
+ * field differs it woun't suppress any field.
+ *
+ * Arguments:
+ * rules_set	- ptr to classifier_rules.
+ * in_buffer	- ptr to incoming packet buffer.
+ * out_buffer	- ptr to output buffer where the suppressed header is copied.
+ * phsf			- ptr to phsf.
+ * phsm			- ptr to phsm.
+ * phss			- variable holding phss.
+ *
+ * Returns:
+ *	size-The number of bytes copied into the output buffer i.e dynamic fields.
+ *	0	-Packet has failed the verification.
+ */
 static int verify_suppress_phsf(unsigned char *in_buffer,
 				unsigned char *out_buffer,
 				unsigned char *phsf,
