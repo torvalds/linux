@@ -133,6 +133,35 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 	}
 
 	write_unlock(&local->sockets.lock);
+
+	/*
+	 * If we want to keep the listening sockets alive,
+	 * we don't touch the RAW ones.
+	 */
+	if (listen == true)
+		return;
+
+	write_lock(&local->raw_sockets.lock);
+
+	sk_for_each_safe(sk, tmp, &local->raw_sockets.head) {
+		llcp_sock = nfc_llcp_sock(sk);
+
+		bh_lock_sock(sk);
+
+		nfc_llcp_socket_purge(llcp_sock);
+
+		sk->sk_state = LLCP_CLOSED;
+
+		sk->sk_state_change(sk);
+
+		bh_unlock_sock(sk);
+
+		sock_orphan(sk);
+
+		sk_del_node_init(sk);
+	}
+
+	write_unlock(&local->raw_sockets.lock);
 }
 
 struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local)
