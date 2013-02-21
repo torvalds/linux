@@ -224,9 +224,6 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	}
 	notifyid = ret;
 
-	/* Store largest notifyid */
-	rproc->max_notifyid = max(rproc->max_notifyid, notifyid);
-
 	dev_dbg(dev, "vring%d: va %p dma %llx size %x idr %d\n", i, va,
 				(unsigned long long)dma, size, notifyid);
 
@@ -268,25 +265,13 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	return 0;
 }
 
-static int rproc_max_notifyid(int id, void *p, void *data)
-{
-	int *maxid = data;
-	*maxid = max(*maxid, id);
-	return 0;
-}
-
 void rproc_free_vring(struct rproc_vring *rvring)
 {
 	int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 	struct rproc *rproc = rvring->rvdev->rproc;
-	int maxid = 0;
 
 	dma_free_coherent(rproc->dev.parent, size, rvring->va, rvring->dma);
 	idr_remove(&rproc->notifyids, rvring->notifyid);
-
-	/* Find the largest remaining notifyid */
-	idr_for_each(&rproc->notifyids, rproc_max_notifyid, &maxid);
-	rproc->max_notifyid = maxid;
 }
 
 /**
@@ -669,6 +654,15 @@ free_carv:
 	return ret;
 }
 
+static int rproc_count_vrings(struct rproc *rproc, struct fw_rsc_vdev *rsc,
+				 int avail)
+{
+	/* Summarize the number of notification IDs */
+	rproc->max_notifyid += rsc->num_of_vrings;
+
+	return 0;
+}
+
 /*
  * A lookup table for resource handlers. The indices are defined in
  * enum fw_resource_type.
@@ -682,6 +676,10 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 
 static rproc_handle_resource_t rproc_vdev_handler[RSC_LAST] = {
 	[RSC_VDEV] = (rproc_handle_resource_t)rproc_handle_vdev,
+};
+
+static rproc_handle_resource_t rproc_count_vrings_handler[RSC_LAST] = {
+	[RSC_VDEV] = (rproc_handle_resource_t)rproc_count_vrings,
 };
 
 /* handle firmware resource entries before booting the remote processor */
@@ -857,6 +855,11 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	table = rproc_find_rsc_table(rproc, fw,  &tablesz);
 	if (!table)
 		goto out;
+
+	/* count the number of notify-ids */
+	rproc->max_notifyid = -1;
+	ret = rproc_handle_resources(rproc, table, tablesz,
+				    rproc_count_vrings_handler);
 
 	/* look for virtio devices and register them */
 	ret = rproc_handle_resources(rproc, table, tablesz, rproc_vdev_handler);

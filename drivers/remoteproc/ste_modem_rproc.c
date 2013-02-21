@@ -213,7 +213,7 @@ static int sproc_start(struct rproc *rproc)
 	}
 
 	/* Subscribe to notifications */
-	for (i = 0; i < rproc->max_notifyid; i++) {
+	for (i = 0; i <= rproc->max_notifyid; i++) {
 		err = sproc->mdev->ops.kick_subscribe(sproc->mdev, i);
 		if (err) {
 			sproc_err(sproc,
