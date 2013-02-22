@@ -515,6 +515,9 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 
 	copy_from_user_state(x, p);
 
+	if (attrs[XFRMA_SA_EXTRA_FLAGS])
+		x->props.extra_flags = nla_get_u32(attrs[XFRMA_SA_EXTRA_FLAGS]);
+
 	if ((err = attach_aead(&x->aead, &x->props.ealgo,
 			       attrs[XFRMA_ALG_AEAD])))
 		goto error;
@@ -778,6 +781,13 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	int ret = 0;
 
 	copy_to_user_state(x, p);
+
+	if (x->props.extra_flags) {
+		ret = nla_put_u32(skb, XFRMA_SA_EXTRA_FLAGS,
+				  x->props.extra_flags);
+		if (ret)
+			goto out;
+	}
 
 	if (x->coaddr) {
 		ret = nla_put(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr);
@@ -2302,6 +2312,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_MARK]		= { .len = sizeof(struct xfrm_mark) },
 	[XFRMA_TFCPAD]		= { .type = NLA_U32 },
 	[XFRMA_REPLAY_ESN_VAL]	= { .len = sizeof(struct xfrm_replay_state_esn) },
+	[XFRMA_SA_EXTRA_FLAGS]	= { .type = NLA_U32 },
 };
 
 static struct xfrm_link {
@@ -2495,6 +2506,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 				    x->security->ctx_len);
 	if (x->coaddr)
 		l += nla_total_size(sizeof(*x->coaddr));
+	if (x->props.extra_flags)
+		l += nla_total_size(sizeof(x->props.extra_flags));
 
 	/* Must count x->lastused as it may become non-zero behind our back. */
 	l += nla_total_size(sizeof(u64));
