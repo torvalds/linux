@@ -766,7 +766,7 @@ static int s6e63m0_probe(struct spi_device *spi)
 	 * know that.
 	 */
 	lcd->gamma_table_count =
-	    sizeof(gamma_table) / (MAX_GAMMA_LEVEL * sizeof(int));
+	    sizeof(gamma_table) / (MAX_GAMMA_LEVEL * sizeof(int *));
 
 	ret = device_create_file(&(spi->dev), &dev_attr_gamma_mode);
 	if (ret < 0)
