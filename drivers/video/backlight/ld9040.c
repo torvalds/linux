@@ -513,13 +513,8 @@ gamma_err:
 
 static int ld9040_gamma_ctl(struct ld9040 *lcd, int gamma)
 {
-	int ret = 0;
-
-	ret = _ld9040_gamma_ctl(lcd, gamma_table.gamma_22_table[gamma]);
-
-	return ret;
+	return _ld9040_gamma_ctl(lcd, gamma_table.gamma_22_table[gamma]);
 }
-
 
 static int ld9040_ldi_init(struct ld9040 *lcd)
 {
@@ -549,11 +544,7 @@ static int ld9040_ldi_init(struct ld9040 *lcd)
 
 static int ld9040_ldi_enable(struct ld9040 *lcd)
 {
-	int ret = 0;
-
-	ret = ld9040_panel_send_sequence(lcd, seq_display_on);
-
-	return ret;
+	return ld9040_panel_send_sequence(lcd, seq_display_on);
 }
 
 static int ld9040_ldi_disable(struct ld9040 *lcd)
@@ -696,7 +687,6 @@ static const struct backlight_ops ld9040_backlight_ops  = {
 	.update_status = ld9040_set_brightness,
 };
 
-
 static int ld9040_probe(struct spi_device *spi)
 {
 	int ret = 0;
@@ -802,7 +792,6 @@ static int ld9040_remove(struct spi_device *spi)
 #if defined(CONFIG_PM)
 static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	int ret = 0;
 	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
@@ -811,21 +800,16 @@ static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
 	 * when lcd panel is suspend, lcd panel becomes off
 	 * regardless of status.
 	 */
-	ret = ld9040_power(lcd, FB_BLANK_POWERDOWN);
-
-	return ret;
+	return ld9040_power(lcd, FB_BLANK_POWERDOWN);
 }
 
 static int ld9040_resume(struct spi_device *spi)
 {
-	int ret = 0;
 	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
-	ret = ld9040_power(lcd, FB_BLANK_UNBLANK);
-
-	return ret;
+	return ld9040_power(lcd, FB_BLANK_UNBLANK);
 }
 #else
 #define ld9040_suspend		NULL
