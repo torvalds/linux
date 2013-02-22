@@ -14,7 +14,7 @@ menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers"
 	depends on HAS_IOMEM
 	depends on BLOCK
-	depends on !(M32R || M68K) || BROKEN
+	depends on !(M32R || M68K || S390) || BROKEN
 	select SCSI
 	---help---
 	  If you want to use a ATA hard disk, ATA tape drive, ATA CD-ROM or

@@ -50,7 +50,7 @@ static __always_inline unsigned long follow_table(struct mm_struct *mm,
 	ptep = pte_offset_map(pmd, addr);
 	if (!pte_present(*ptep))
 		return -0x11UL;
-	if (write && !pte_write(*ptep))
+	if (write && (!pte_write(*ptep) || !pte_dirty(*ptep)))
 		return -0x04UL;
 
 	return (pte_val(*ptep) & PAGE_MASK) + (addr & ~PAGE_MASK);
