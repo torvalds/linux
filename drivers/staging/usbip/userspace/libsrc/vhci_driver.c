@@ -36,7 +36,7 @@ static struct usbip_imported_device *imported_device_init(struct usbip_imported_
 				goto err;
 
 			memcpy(new_cdev, cdev, sizeof(*new_cdev));
-			dlist_unshift(idev->cdev_list, (void*) new_cdev);
+			dlist_unshift(idev->cdev_list, (void *) new_cdev);
 		}
 	}
 
