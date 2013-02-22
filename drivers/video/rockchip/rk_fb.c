@@ -745,7 +745,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		
 	}
 #endif
-	printk("hdmi connect to lcdc%d\n",dev_drv->id);
+	printk("hdmi %s lcdc%d\n",enable?"connect to":"remove from",dev_drv->id);
 	
 	if(inf->num_lcdc == 1)
 	{
@@ -858,7 +858,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 		info->fbops->fb_pan_display(hdmi_var,info);
 	#endif 
-
+	info->fbops->fb_ioctl(info,RK_FBIOSET_CONFIG_DONE,NULL);
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	if(!enable)
 		rk29_backlight_set(1);

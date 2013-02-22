@@ -891,20 +891,22 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 				return -EFAULT;
 			break;
 		case RK_FBIOSET_CONFIG_DONE:
-			if (copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs)))
-				return -EFAULT;
 			rk3188_lcdc_alpha_cfg(lcdc_dev);
 			lcdc_cfg_done(lcdc_dev);
-			if(dev_drv->wait_fs)
-			{
-				spin_lock_irqsave(&dev_drv->cpl_lock,flags);
-				init_completion(&dev_drv->frame_done);
-				spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-				timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
-				if(!timeout&&(!dev_drv->frame_done.done))
+
+			if (!copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs)))
+                        {
+				if(dev_drv->wait_fs)
 				{
-					printk(KERN_ERR "wait for new frame start time out!\n");
-					return -ETIMEDOUT;
+					spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+					init_completion(&dev_drv->frame_done);
+					spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+					timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
+					if(!timeout&&(!dev_drv->frame_done.done))
+					{
+						printk(KERN_ERR "wait for new frame start time out!\n");
+						return -ETIMEDOUT;
+					}
 				}
 			}
 			break;
