@@ -22,7 +22,7 @@ config XTENSA
 	  configurable and extensible.  The Linux port to the Xtensa
 	  architecture supports all processor configurations and extensions,
 	  with reasonable minimum requirements.  The Xtensa Linux project has
-	  a home page at <http://xtensa.sourceforge.net/>.
+	  a home page at <http://www.linux-xtensa.org/>.
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y

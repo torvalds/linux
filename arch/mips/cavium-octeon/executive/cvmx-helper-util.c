@@ -175,7 +175,7 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
  *               Packets will begin slowly dropping when there are less than
  *               this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
+ *               All incoming packets will be dropped when there are less
  *               than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
@@ -210,7 +210,7 @@ int cvmx_helper_setup_red_queue(int queue, int pass_thresh, int drop_thresh)
  *               Packets will begin slowly dropping when there are less than
  *               this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
+ *               All incoming packets will be dropped when there are less
  *               than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
