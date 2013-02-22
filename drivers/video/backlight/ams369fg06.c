@@ -513,7 +513,7 @@ static int ams369fg06_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_UNBLANK;
 	}
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 
 	dev_info(&spi->dev, "ams369fg06 panel driver has been probed.\n");
 
@@ -526,7 +526,7 @@ out_lcd_unregister:
 
 static int ams369fg06_remove(struct spi_device *spi)
 {
-	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
+	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	ams369fg06_power(lcd, FB_BLANK_POWERDOWN);
 	backlight_device_unregister(lcd->bd);
@@ -538,7 +538,7 @@ static int ams369fg06_remove(struct spi_device *spi)
 #if defined(CONFIG_PM)
 static int ams369fg06_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
+	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
 
@@ -551,7 +551,7 @@ static int ams369fg06_suspend(struct spi_device *spi, pm_message_t mesg)
 
 static int ams369fg06_resume(struct spi_device *spi)
 {
-	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
+	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
@@ -564,7 +564,7 @@ static int ams369fg06_resume(struct spi_device *spi)
 
 static void ams369fg06_shutdown(struct spi_device *spi)
 {
-	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
+	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	ams369fg06_power(lcd, FB_BLANK_POWERDOWN);
 }
