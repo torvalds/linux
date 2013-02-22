@@ -278,14 +278,9 @@ static int lp8788_alarm_irq_register(struct platform_device *pdev,
 
 	rtc->irq = irq_create_mapping(irqdm, irq);
 
-	return request_threaded_irq(rtc->irq, NULL, lp8788_alarm_irq_handler,
+	return devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+				lp8788_alarm_irq_handler,
 				0, LP8788_ALM_IRQ, rtc);
-}
-
-static void lp8788_alarm_irq_unregister(struct lp8788_rtc *rtc)
-{
-	if (rtc->irq)
-		free_irq(rtc->irq, rtc);
 }
 
 static int lp8788_rtc_probe(struct platform_device *pdev)
@@ -321,7 +316,6 @@ static int lp8788_rtc_remove(struct platform_device *pdev)
 {
 	struct lp8788_rtc *rtc = platform_get_drvdata(pdev);
 
-	lp8788_alarm_irq_unregister(rtc);
 	rtc_device_unregister(rtc->rdev);
 	platform_set_drvdata(pdev, NULL);
 
