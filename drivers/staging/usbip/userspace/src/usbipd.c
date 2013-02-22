@@ -60,7 +60,7 @@ static const char usbipd_help_string[] =
 	"	-d, --debug				\n"
 	"		Print debugging information.	\n"
 	"						\n"
-	"	-h, --help 				\n"
+	"	-h, --help				\n"
 	"		Print this help.		\n"
 	"						\n"
 	"	-v, --version				\n"
@@ -446,7 +446,7 @@ static int do_standalone_mode(int daemonize)
 	}
 
 	if (daemonize) {
-		if (daemon(0,0) < 0) {
+		if (daemon(0, 0) < 0) {
 			err("daemonizing failed: %s", strerror(errno));
 			return -1;
 		}
