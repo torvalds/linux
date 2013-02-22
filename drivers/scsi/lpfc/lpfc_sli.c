@@ -6644,7 +6644,7 @@ static int
 lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		       uint32_t flag)
 {
-	MAILBOX_t *mb;
+	MAILBOX_t *mbx;
 	struct lpfc_sli *psli = &phba->sli;
 	uint32_t status, evtctr;
 	uint32_t ha_copy, hc_copy;
@@ -6698,7 +6698,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 
 	psli = &phba->sli;
 
-	mb = &pmbox->u.mb;
+	mbx = &pmbox->u.mb;
 	status = MBX_SUCCESS;
 
 	if (phba->link_state == LPFC_HBA_ERROR) {
@@ -6713,7 +6713,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		goto out_not_finished;
 	}
 
-	if (mb->mbxCommand != MBX_KILL_BOARD && flag & MBX_NOWAIT) {
+	if (mbx->mbxCommand != MBX_KILL_BOARD && flag & MBX_NOWAIT) {
 		if (lpfc_readl(phba->HCregaddr, &hc_copy) ||
 			!(hc_copy & HC_MBINT_ENA)) {
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
@@ -6767,7 +6767,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				"(%d):0308 Mbox cmd issue - BUSY Data: "
 				"x%x x%x x%x x%x\n",
 				pmbox->vport ? pmbox->vport->vpi : 0xffffff,
-				mb->mbxCommand, phba->pport->port_state,
+				mbx->mbxCommand, phba->pport->port_state,
 				psli->sli_flag, flag);
 
 		psli->slistat.mbox_busy++;
@@ -6777,15 +6777,15 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			lpfc_debugfs_disc_trc(pmbox->vport,
 				LPFC_DISC_TRC_MBOX_VPORT,
 				"MBOX Bsy vport:  cmd:x%x mb:x%x x%x",
-				(uint32_t)mb->mbxCommand,
-				mb->un.varWords[0], mb->un.varWords[1]);
+				(uint32_t)mbx->mbxCommand,
+				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 		else {
 			lpfc_debugfs_disc_trc(phba->pport,
 				LPFC_DISC_TRC_MBOX,
 				"MBOX Bsy:        cmd:x%x mb:x%x x%x",
-				(uint32_t)mb->mbxCommand,
-				mb->un.varWords[0], mb->un.varWords[1]);
+				(uint32_t)mbx->mbxCommand,
+				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 
 		return MBX_BUSY;
@@ -6796,7 +6796,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 	/* If we are not polling, we MUST be in SLI2 mode */
 	if (flag != MBX_POLL) {
 		if (!(psli->sli_flag & LPFC_SLI_ACTIVE) &&
-		    (mb->mbxCommand != MBX_KILL_BOARD)) {
+		    (mbx->mbxCommand != MBX_KILL_BOARD)) {
 			psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 			/* Mbox command <mbxCommand> cannot issue */
@@ -6818,23 +6818,23 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			"(%d):0309 Mailbox cmd x%x issue Data: x%x x%x "
 			"x%x\n",
 			pmbox->vport ? pmbox->vport->vpi : 0,
-			mb->mbxCommand, phba->pport->port_state,
+			mbx->mbxCommand, phba->pport->port_state,
 			psli->sli_flag, flag);
 
-	if (mb->mbxCommand != MBX_HEARTBEAT) {
+	if (mbx->mbxCommand != MBX_HEARTBEAT) {
 		if (pmbox->vport) {
 			lpfc_debugfs_disc_trc(pmbox->vport,
 				LPFC_DISC_TRC_MBOX_VPORT,
 				"MBOX Send vport: cmd:x%x mb:x%x x%x",
-				(uint32_t)mb->mbxCommand,
-				mb->un.varWords[0], mb->un.varWords[1]);
+				(uint32_t)mbx->mbxCommand,
+				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 		else {
 			lpfc_debugfs_disc_trc(phba->pport,
 				LPFC_DISC_TRC_MBOX,
 				"MBOX Send:       cmd:x%x mb:x%x x%x",
-				(uint32_t)mb->mbxCommand,
-				mb->un.varWords[0], mb->un.varWords[1]);
+				(uint32_t)mbx->mbxCommand,
+				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 	}
 
@@ -6842,12 +6842,12 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 	evtctr = psli->slistat.mbox_event;
 
 	/* next set own bit for the adapter and copy over command word */
-	mb->mbxOwner = OWN_CHIP;
+	mbx->mbxOwner = OWN_CHIP;
 
 	if (psli->sli_flag & LPFC_SLI_ACTIVE) {
 		/* Populate mbox extension offset word. */
 		if (pmbox->in_ext_byte_len || pmbox->out_ext_byte_len) {
-			*(((uint32_t *)mb) + pmbox->mbox_offset_word)
+			*(((uint32_t *)mbx) + pmbox->mbox_offset_word)
 				= (uint8_t *)phba->mbox_ext
 				  - (uint8_t *)phba->mbox;
 		}
@@ -6859,11 +6859,11 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				pmbox->in_ext_byte_len);
 		}
 		/* Copy command data to host SLIM area */
-		lpfc_sli_pcimem_bcopy(mb, phba->mbox, MAILBOX_CMD_SIZE);
+		lpfc_sli_pcimem_bcopy(mbx, phba->mbox, MAILBOX_CMD_SIZE);
 	} else {
 		/* Populate mbox extension offset word. */
 		if (pmbox->in_ext_byte_len || pmbox->out_ext_byte_len)
-			*(((uint32_t *)mb) + pmbox->mbox_offset_word)
+			*(((uint32_t *)mbx) + pmbox->mbox_offset_word)
 				= MAILBOX_HBA_EXT_OFFSET;
 
 		/* Copy the mailbox extension data */
@@ -6873,24 +6873,24 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				pmbox->context2, pmbox->in_ext_byte_len);
 
 		}
-		if (mb->mbxCommand == MBX_CONFIG_PORT) {
+		if (mbx->mbxCommand == MBX_CONFIG_PORT) {
 			/* copy command data into host mbox for cmpl */
-			lpfc_sli_pcimem_bcopy(mb, phba->mbox, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(mbx, phba->mbox, MAILBOX_CMD_SIZE);
 		}
 
 		/* First copy mbox command data to HBA SLIM, skip past first
 		   word */
 		to_slim = phba->MBslimaddr + sizeof (uint32_t);
-		lpfc_memcpy_to_slim(to_slim, &mb->un.varWords[0],
+		lpfc_memcpy_to_slim(to_slim, &mbx->un.varWords[0],
 			    MAILBOX_CMD_SIZE - sizeof (uint32_t));
 
 		/* Next copy over first word, with mbxOwner set */
-		ldata = *((uint32_t *)mb);
+		ldata = *((uint32_t *)mbx);
 		to_slim = phba->MBslimaddr;
 		writel(ldata, to_slim);
 		readl(to_slim); /* flush */
 
-		if (mb->mbxCommand == MBX_CONFIG_PORT) {
+		if (mbx->mbxCommand == MBX_CONFIG_PORT) {
 			/* switch over to host mailbox */
 			psli->sli_flag |= LPFC_SLI_ACTIVE;
 		}
@@ -6965,7 +6965,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				/* First copy command data */
 				word0 = *((uint32_t *)phba->mbox);
 				word0 = le32_to_cpu(word0);
-				if (mb->mbxCommand == MBX_CONFIG_PORT) {
+				if (mbx->mbxCommand == MBX_CONFIG_PORT) {
 					MAILBOX_t *slimmb;
 					uint32_t slimword0;
 					/* Check real SLIM for any errors */
@@ -6992,7 +6992,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 
 		if (psli->sli_flag & LPFC_SLI_ACTIVE) {
 			/* copy results back to user */
-			lpfc_sli_pcimem_bcopy(phba->mbox, mb, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(phba->mbox, mbx, MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
 			if (pmbox->out_ext_byte_len && pmbox->context2) {
 				lpfc_sli_pcimem_bcopy(phba->mbox_ext,
@@ -7001,7 +7001,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			}
 		} else {
 			/* First copy command data */
-			lpfc_memcpy_from_slim(mb, phba->MBslimaddr,
+			lpfc_memcpy_from_slim(mbx, phba->MBslimaddr,
 							MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
 			if (pmbox->out_ext_byte_len && pmbox->context2) {
@@ -7016,7 +7016,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		readl(phba->HAregaddr); /* flush */
 
 		psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
-		status = mb->mbxStatus;
+		status = mbx->mbxStatus;
 	}
 
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
