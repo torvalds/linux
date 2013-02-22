@@ -1899,4 +1899,9 @@ static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
 		return VGACNTRL;
 }
 
+static inline void __user *to_user_ptr(u64 address)
+{
+	return (void __user *)(uintptr_t)address;
+}
+
 #endif

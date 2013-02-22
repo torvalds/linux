@@ -305,7 +305,7 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	int remain, ret;
 
-	user_relocs = (void __user *)(uintptr_t)entry->relocs_ptr;
+	user_relocs = to_user_ptr(entry->relocs_ptr);
 
 	remain = entry->relocation_count;
 	while (remain) {
@@ -618,7 +618,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		u64 invalid_offset = (u64)-1;
 		int j;
 
-		user_relocs = (void __user *)(uintptr_t)exec[i].relocs_ptr;
+		user_relocs = to_user_ptr(exec[i].relocs_ptr);
 
 		if (copy_from_user(reloc+total, user_relocs,
 				   exec[i].relocation_count * sizeof(*reloc))) {
@@ -734,7 +734,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		char __user *ptr = (char __user *)(uintptr_t)exec[i].relocs_ptr;
+		char __user *ptr = to_user_ptr(exec[i].relocs_ptr);
 		int length; /* limited by fault_in_pages_readable() */
 
 		if (exec[i].flags & __EXEC_OBJECT_UNKNOWN_FLAGS)
@@ -944,9 +944,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 
 		if (copy_from_user(cliprects,
-				     (struct drm_clip_rect __user *)(uintptr_t)
-				     args->cliprects_ptr,
-				     sizeof(*cliprects)*args->num_cliprects)) {
+				   to_user_ptr(args->cliprects_ptr),
+				   sizeof(*cliprects)*args->num_cliprects)) {
 			ret = -EFAULT;
 			goto pre_mutex_err;
 		}
@@ -1110,7 +1109,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 	ret = copy_from_user(exec_list,
-			     (void __user *)(uintptr_t)args->buffers_ptr,
+			     to_user_ptr(args->buffers_ptr),
 			     sizeof(*exec_list) * args->buffer_count);
 	if (ret != 0) {
 		DRM_DEBUG("copy %d exec entries failed %d\n",
@@ -1149,7 +1148,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		for (i = 0; i < args->buffer_count; i++)
 			exec_list[i].offset = exec2_list[i].offset;
 		/* ... and back out to userspace */
-		ret = copy_to_user((void __user *)(uintptr_t)args->buffers_ptr,
+		ret = copy_to_user(to_user_ptr(args->buffers_ptr),
 				   exec_list,
 				   sizeof(*exec_list) * args->buffer_count);
 		if (ret) {
@@ -1190,8 +1189,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 	ret = copy_from_user(exec2_list,
-			     (struct drm_i915_relocation_entry __user *)
-			     (uintptr_t) args->buffers_ptr,
+			     to_user_ptr(args->buffers_ptr),
 			     sizeof(*exec2_list) * args->buffer_count);
 	if (ret != 0) {
 		DRM_DEBUG("copy %d exec entries failed %d\n",
@@ -1203,7 +1201,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	ret = i915_gem_do_execbuffer(dev, data, file, args, exec2_list);
 	if (!ret) {
 		/* Copy the new buffer offsets back to the user's exec list. */
-		ret = copy_to_user((void __user *)(uintptr_t)args->buffers_ptr,
+		ret = copy_to_user(to_user_ptr(args->buffers_ptr),
 				   exec2_list,
 				   sizeof(*exec2_list) * args->buffer_count);
 		if (ret) {

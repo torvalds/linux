@@ -414,7 +414,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	struct scatterlist *sg;
 	int i;
 
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
+	user_data = to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
@@ -522,7 +522,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (!access_ok(VERIFY_WRITE,
-		       (char __user *)(uintptr_t)args->data_ptr,
+		       to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
@@ -613,7 +613,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	if (ret)
 		goto out_unpin;
 
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
+	user_data = to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	offset = obj->gtt_offset + args->offset;
@@ -735,7 +735,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int i;
 	struct scatterlist *sg;
 
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
+	user_data = to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
@@ -867,11 +867,11 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (!access_ok(VERIFY_READ,
-		       (char __user *)(uintptr_t)args->data_ptr,
+		       to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
-	ret = fault_in_multipages_readable((char __user *)(uintptr_t)args->data_ptr,
+	ret = fault_in_multipages_readable(to_user_ptr(args->data_ptr),
 					   args->size);
 	if (ret)
 		return -EFAULT;
@@ -4327,7 +4327,7 @@ i915_gem_phys_pwrite(struct drm_device *dev,
 		     struct drm_file *file_priv)
 {
 	void *vaddr = obj->phys_obj->handle->vaddr + args->offset;
-	char __user *user_data = (char __user *) (uintptr_t) args->data_ptr;
+	char __user *user_data = to_user_ptr(args->data_ptr);
 
 	if (__copy_from_user_inatomic_nocache(vaddr, user_data, args->size)) {
 		unsigned long unwritten;
