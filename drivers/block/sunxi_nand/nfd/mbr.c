@@ -124,6 +124,7 @@ int mbr2disks(struct nand_disk* disk_array)
 	disk_array[part_index].size = DiskSize;
 	part_index++;
 
+#ifdef CONFIG_ANDROID
 	if(_get_mbr()){
 		printk("get mbr error\n" );
 		return part_index;
@@ -146,6 +147,7 @@ int mbr2disks(struct nand_disk* disk_array)
 	_free_mbr();
 	PRINT("The %d disk size = %lu\n", part_index - 1, disk_array[part_index - 1].size);
 	PRINT("part total count = %d\n", part_index);
+#endif
 
 	return part_index;
 }
