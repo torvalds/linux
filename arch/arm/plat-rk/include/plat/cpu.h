@@ -74,9 +74,15 @@ static inline bool soc_is_rk3108(void)
 {
 	return (((readl_relaxed(RK30_GPIO1_BASE + GPIO_EXT_PORT) >> 22) & 3) == 1);
 }
+
+static inline bool soc_is_rk3168m(void)
+{
+	return (((readl_relaxed(RK30_GPIO1_BASE + GPIO_EXT_PORT) >> 22) & 3) == 3);
+}
 #else
 static inline bool soc_is_rk3066b(void) { return false; }
 static inline bool soc_is_rk3108(void) { return false; }
+static inline bool soc_is_rk3168m(void) { return false; }
 #endif
 static inline bool soc_is_rk3168(void) { return soc_is_rk3108(); }
 
