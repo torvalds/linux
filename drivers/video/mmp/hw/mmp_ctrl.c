@@ -535,6 +535,12 @@ static int mmphw_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MMP_DISP_SPI
+	ret = lcd_spi_register(ctrl);
+	if (ret < 0)
+		goto failed_path_init;
+#endif
+
 	dev_info(ctrl->dev, "device init done\n");
 
 	return 0;

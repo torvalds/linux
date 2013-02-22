@@ -1967,4 +1967,8 @@ static inline struct lcd_regs *path_regs(struct mmp_path *path)
 		return NULL;
 	}
 }
+
+#ifdef CONFIG_MMP_DISP_SPI
+extern int lcd_spi_register(struct mmphw_ctrl *ctrl);
+#endif
 #endif	/* _MMP_CTRL_H_ */
