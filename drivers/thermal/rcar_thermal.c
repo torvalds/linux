@@ -145,6 +145,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	struct device *dev = rcar_priv_to_dev(priv);
 	int i;
 	int ctemp, old, new;
+	int ret = -EINVAL;
 
 	mutex_lock(&priv->lock);
 
@@ -174,7 +175,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 
 	if (!ctemp) {
 		dev_err(dev, "thermal sensor was broken\n");
-		return -EINVAL;
+		goto err_out_unlock;
 	}
 
 	/*
@@ -192,10 +193,10 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	dev_dbg(dev, "thermal%d  %d -> %d\n", priv->id, priv->ctemp, ctemp);
 
 	priv->ctemp = ctemp;
-
+	ret = 0;
+err_out_unlock:
 	mutex_unlock(&priv->lock);
-
-	return 0;
+	return ret;
 }
 
 static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
