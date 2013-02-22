@@ -283,19 +283,7 @@ static struct platform_driver rtc_device_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static __init int ds2404_init(void)
-{
-	return platform_driver_register(&rtc_device_driver);
-}
-
-static __exit void ds2404_exit(void)
-{
-	platform_driver_unregister(&rtc_device_driver);
-}
-
-module_init(ds2404_init);
-module_exit(ds2404_exit);
+module_platform_driver(rtc_device_driver);
 
 MODULE_DESCRIPTION("DS2404 RTC");
 MODULE_AUTHOR("Sven Schnelle");
