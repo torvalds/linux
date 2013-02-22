@@ -413,7 +413,7 @@ xfs_iomap_prealloc_size(
 		 * have a large file on a small filesystem and the above
 		 * lowspace thresholds are smaller than MAXEXTLEN.
 		 */
-		while (alloc_blocks >= freesp)
+		while (alloc_blocks && alloc_blocks >= freesp)
 			alloc_blocks >>= 4;
 	}
 
