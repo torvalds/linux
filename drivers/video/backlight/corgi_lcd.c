@@ -337,7 +337,7 @@ static void corgi_lcd_power_off(struct corgi_lcd *lcd)
 
 static int corgi_lcd_set_mode(struct lcd_device *ld, struct fb_videomode *m)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&ld->dev);
+	struct corgi_lcd *lcd = lcd_get_data(ld);
 	int mode = CORGI_LCD_MODE_QVGA;
 
 	if (m->xres == 640 || m->xres == 480)
@@ -364,7 +364,7 @@ static int corgi_lcd_set_mode(struct lcd_device *ld, struct fb_videomode *m)
 
 static int corgi_lcd_set_power(struct lcd_device *ld, int power)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&ld->dev);
+	struct corgi_lcd *lcd = lcd_get_data(ld);
 
 	if (POWER_IS_ON(power) && !POWER_IS_ON(lcd->power))
 		corgi_lcd_power_on(lcd);
@@ -378,7 +378,7 @@ static int corgi_lcd_set_power(struct lcd_device *ld, int power)
 
 static int corgi_lcd_get_power(struct lcd_device *ld)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&ld->dev);
+	struct corgi_lcd *lcd = lcd_get_data(ld);
 
 	return lcd->power;
 }
