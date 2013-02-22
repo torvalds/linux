@@ -444,7 +444,7 @@
 	};
 
 	sdhci@c8000600 {
-		cd-gpios = <&gpio 23 0>; /* gpio PC7 */
+		cd-gpios = <&gpio 23 1>; /* gpio PC7 */
 	};
 
 	sound {
