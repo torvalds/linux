@@ -491,9 +491,11 @@ static void parse(FILE *f)
 	while (fgets(buf, sizeof(buf), f)) {
 		linectr++;
 		/* remove line ends */
-		if ((cp = strchr(buf, 13)))
+		cp = strchr(buf, 13);
+		if (cp)
 			*cp = 0;
-		if ((cp = strchr(buf, 10)))
+		cp = strchr(buf, 10);
+		if (cp)
 			*cp = 0;
 		if (buf[0] == '#' || !buf[0])
 			continue;
@@ -857,9 +859,10 @@ int names_init(char *n)
 {
 	FILE *f;
 
-	if (!(f = fopen(n, "r"))) {
+	f = fopen(n, "r");
+	if (!f)
 		return errno;
-	}
+
 	parse(f);
 	fclose(f);
 	return 0;
