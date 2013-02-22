@@ -460,7 +460,7 @@ static const struct backlight_ops corgi_bl_ops = {
 #ifdef CONFIG_PM
 static int corgi_lcd_suspend(struct spi_device *spi, pm_message_t state)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
+	struct corgi_lcd *lcd = spi_get_drvdata(spi);
 
 	corgibl_flags |= CORGIBL_SUSPENDED;
 	corgi_bl_set_intensity(lcd, 0);
@@ -470,7 +470,7 @@ static int corgi_lcd_suspend(struct spi_device *spi, pm_message_t state)
 
 static int corgi_lcd_resume(struct spi_device *spi)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
+	struct corgi_lcd *lcd = spi_get_drvdata(spi);
 
 	corgibl_flags &= ~CORGIBL_SUSPENDED;
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
@@ -577,7 +577,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 
 	lcd->kick_battery = pdata->kick_battery;
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
 	backlight_update_status(lcd->bl_dev);
 
@@ -594,7 +594,7 @@ err_unregister_lcd:
 
 static int corgi_lcd_remove(struct spi_device *spi)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
+	struct corgi_lcd *lcd = spi_get_drvdata(spi);
 
 	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
 	lcd->bl_dev->props.brightness = 0;
