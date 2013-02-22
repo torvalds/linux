@@ -126,6 +126,14 @@ config LCD_AMS369FG06
 	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LMS501KF03
+	tristate "LMS501KF03 LCD Driver"
+	depends on SPI
+	default n
+	help
+	  If you have an LMS501KF03 LCD Panel, say Y to enable its
+	  LCD control driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
