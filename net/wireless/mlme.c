@@ -187,30 +187,6 @@ void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 }
 EXPORT_SYMBOL(cfg80211_send_disassoc);
 
-void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
-				 size_t len)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_send_unprot_deauth(dev);
-	nl80211_send_unprot_deauth(rdev, dev, buf, len, GFP_ATOMIC);
-}
-EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
-
-void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
-				   size_t len)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_send_unprot_disassoc(dev);
-	nl80211_send_unprot_disassoc(rdev, dev, buf, len, GFP_ATOMIC);
-}
-EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
-
 void cfg80211_send_auth_timeout(struct net_device *dev, const u8 *addr)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -577,62 +553,6 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 	}
 }
 
-void cfg80211_ready_on_channel(struct wireless_dev *wdev, u64 cookie,
-			       struct ieee80211_channel *chan,
-			       unsigned int duration, gfp_t gfp)
-{
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_ready_on_channel(wdev, cookie, chan, duration);
-	nl80211_send_remain_on_channel(rdev, wdev, cookie, chan, duration, gfp);
-}
-EXPORT_SYMBOL(cfg80211_ready_on_channel);
-
-void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
-					struct ieee80211_channel *chan,
-					gfp_t gfp)
-{
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_ready_on_channel_expired(wdev, cookie, chan);
-	nl80211_send_remain_on_channel_cancel(rdev, wdev, cookie, chan, gfp);
-}
-EXPORT_SYMBOL(cfg80211_remain_on_channel_expired);
-
-void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
-		      struct station_info *sinfo, gfp_t gfp)
-{
-	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_new_sta(dev, mac_addr, sinfo);
-	nl80211_send_sta_event(rdev, dev, mac_addr, sinfo, gfp);
-}
-EXPORT_SYMBOL(cfg80211_new_sta);
-
-void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
-{
-	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_del_sta(dev, mac_addr);
-	nl80211_send_sta_del_event(rdev, dev, mac_addr, gfp);
-}
-EXPORT_SYMBOL(cfg80211_del_sta);
-
-void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
-			  enum nl80211_connect_failed_reason reason,
-			  gfp_t gfp)
-{
-	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	nl80211_send_conn_failed_event(rdev, dev, mac_addr, reason, gfp);
-}
-EXPORT_SYMBOL(cfg80211_conn_failed);
-
 struct cfg80211_mgmt_registration {
 	struct list_head list;
 
@@ -908,85 +828,6 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 	return result;
 }
 EXPORT_SYMBOL(cfg80211_rx_mgmt);
-
-void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
-			     const u8 *buf, size_t len, bool ack, gfp_t gfp)
-{
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_mgmt_tx_status(wdev, cookie, ack);
-
-	/* Indicate TX status of the Action frame to user space */
-	nl80211_send_mgmt_tx_status(rdev, wdev, cookie, buf, len, ack, gfp);
-}
-EXPORT_SYMBOL(cfg80211_mgmt_tx_status);
-
-void cfg80211_cqm_rssi_notify(struct net_device *dev,
-			      enum nl80211_cqm_rssi_threshold_event rssi_event,
-			      gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_cqm_rssi_notify(dev, rssi_event);
-
-	/* Indicate roaming trigger event to user space */
-	nl80211_send_cqm_rssi_notify(rdev, dev, rssi_event, gfp);
-}
-EXPORT_SYMBOL(cfg80211_cqm_rssi_notify);
-
-void cfg80211_cqm_pktloss_notify(struct net_device *dev,
-				 const u8 *peer, u32 num_packets, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_cqm_pktloss_notify(dev, peer, num_packets);
-
-	/* Indicate roaming trigger event to user space */
-	nl80211_send_cqm_pktloss_notify(rdev, dev, peer, num_packets, gfp);
-}
-EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);
-
-void cfg80211_cqm_txe_notify(struct net_device *dev,
-			     const u8 *peer, u32 num_packets,
-			     u32 rate, u32 intvl, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	nl80211_send_cqm_txe_notify(rdev, dev, peer, num_packets,
-				    rate, intvl, gfp);
-}
-EXPORT_SYMBOL(cfg80211_cqm_txe_notify);
-
-void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
-			       const u8 *replay_ctr, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_gtk_rekey_notify(dev, bssid);
-	nl80211_gtk_rekey_notify(rdev, dev, bssid, replay_ctr, gfp);
-}
-EXPORT_SYMBOL(cfg80211_gtk_rekey_notify);
-
-void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
-				     const u8 *bssid, bool preauth, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_pmksa_candidate_notify(dev, index, bssid, preauth);
-	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
-}
-EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
 
 void cfg80211_dfs_channels_update_work(struct work_struct *work)
 {
