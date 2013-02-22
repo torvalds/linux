@@ -454,10 +454,7 @@ static struct platform_driver pxa_rtc_driver = {
 
 static int __init pxa_rtc_init(void)
 {
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx())
-		return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
-
-	return -ENODEV;
+	return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
 }
 
 static void __exit pxa_rtc_exit(void)
