@@ -53,7 +53,7 @@
 
 #define FEATURE_8_WAKEUP_FILTERS	(0x01)
 #define FEATURE_PHY_NLP_CROSSOVER	(0x02)
-#define FEATURE_AUTOSUSPEND		(0x04)
+#define FEATURE_REMOTE_WAKEUP		(0x04)
 
 #define SUSPEND_SUSPEND0		(0x01)
 #define SUSPEND_SUSPEND1		(0x02)
@@ -1146,7 +1146,7 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	    (val == ID_REV_CHIP_ID_89530_) || (val == ID_REV_CHIP_ID_9730_))
 		pdata->features = (FEATURE_8_WAKEUP_FILTERS |
 			FEATURE_PHY_NLP_CROSSOVER |
-			FEATURE_AUTOSUSPEND);
+			FEATURE_REMOTE_WAKEUP);
 	else if (val == ID_REV_CHIP_ID_9512_)
 		pdata->features = FEATURE_8_WAKEUP_FILTERS;
 
@@ -1378,7 +1378,7 @@ static int smsc95xx_autosuspend(struct usbnet *dev, u32 link_up)
 	if (!link_up) {
 		/* link is down so enter EDPD mode, but only if device can
 		 * reliably resume from it.  This check should be redundant
-		 * as current FEATURE_AUTOSUSPEND parts also support
+		 * as current FEATURE_REMOTE_WAKEUP parts also support
 		 * FEATURE_PHY_NLP_CROSSOVER but it's included for clarity */
 		if (!(pdata->features & FEATURE_PHY_NLP_CROSSOVER)) {
 			netdev_warn(dev->net, "EDPD not supported\n");
@@ -1433,7 +1433,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	link_up = smsc95xx_link_ok_nopm(dev);
 
 	if (message.event == PM_EVENT_AUTO_SUSPEND &&
-	    (pdata->features & FEATURE_AUTOSUSPEND)) {
+	    (pdata->features & FEATURE_REMOTE_WAKEUP)) {
 		ret = smsc95xx_autosuspend(dev, link_up);
 		goto done;
 	}
@@ -1870,11 +1870,11 @@ static int smsc95xx_manage_power(struct usbnet *dev, int on)
 
 	dev->intf->needs_remote_wakeup = on;
 
-	if (pdata->features & FEATURE_AUTOSUSPEND)
+	if (pdata->features & FEATURE_REMOTE_WAKEUP)
 		return 0;
 
-	/* this chip revision doesn't support autosuspend */
-	netdev_info(dev->net, "hardware doesn't support USB autosuspend\n");
+	/* this chip revision isn't capable of remote wakeup */
+	netdev_info(dev->net, "hardware isn't capable of remote wakeup\n");
 
 	if (on)
 		usb_autopm_get_interface_no_resume(dev->intf);
