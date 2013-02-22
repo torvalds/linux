@@ -66,20 +66,6 @@ struct lp855x {
 	struct pwm_device *pwm;
 };
 
-static int lp855x_read_byte(struct lp855x *lp, u8 reg, u8 *data)
-{
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(lp->client, reg);
-	if (ret < 0) {
-		dev_err(lp->dev, "failed to read 0x%.2x\n", reg);
-		return ret;
-	}
-
-	*data = (u8)ret;
-	return 0;
-}
-
 static int lp855x_write_byte(struct lp855x *lp, u8 reg, u8 data)
 {
 	return i2c_smbus_write_byte_data(lp->client, reg, data);
@@ -274,16 +260,6 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 
 static int lp855x_bl_get_brightness(struct backlight_device *bl)
 {
-	struct lp855x *lp = bl_get_data(bl);
-	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
-
-	if (mode == REGISTER_BASED) {
-		u8 val = 0;
-
-		lp855x_read_byte(lp, lp->cfg->reg_brightness, &val);
-		bl->props.brightness = val;
-	}
-
 	return bl->props.brightness;
 }
 
