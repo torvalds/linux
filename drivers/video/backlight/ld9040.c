@@ -78,7 +78,7 @@ static void ld9040_regulator_enable(struct ld9040 *lcd)
 
 		lcd->enabled = true;
 	}
-	mdelay(pd->power_on_delay);
+	msleep(pd->power_on_delay);
 out:
 	mutex_unlock(&lcd->lock);
 }
@@ -474,8 +474,9 @@ static int ld9040_panel_send_sequence(struct ld9040 *lcd,
 			ret = ld9040_spi_write(lcd, wbuf[i], wbuf[i+1]);
 			if (ret)
 				break;
-		} else
-			udelay(wbuf[i+1]*1000);
+		} else {
+			msleep(wbuf[i+1]);
+		}
 		i += 2;
 	}
 
@@ -539,7 +540,7 @@ static int ld9040_ldi_init(struct ld9040 *lcd)
 	for (i = 0; i < ARRAY_SIZE(init_seq); i++) {
 		ret = ld9040_panel_send_sequence(lcd, init_seq[i]);
 		/* workaround: minimum delay time for transferring CMD */
-		udelay(300);
+		usleep_range(300, 310);
 		if (ret)
 			break;
 	}
@@ -584,7 +585,7 @@ static int ld9040_power_on(struct ld9040 *lcd)
 		return -EFAULT;
 	} else {
 		pd->reset(lcd->ld);
-		mdelay(pd->reset_delay);
+		msleep(pd->reset_delay);
 	}
 
 	ret = ld9040_ldi_init(lcd);
@@ -619,7 +620,7 @@ static int ld9040_power_off(struct ld9040 *lcd)
 		return -EIO;
 	}
 
-	mdelay(pd->power_off_delay);
+	msleep(pd->power_off_delay);
 
 	/* lcd power off */
 	ld9040_regulator_disable(lcd);
