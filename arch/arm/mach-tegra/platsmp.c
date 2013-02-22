@@ -124,6 +124,9 @@ remove_clamps:
 
 	/* Remove I/O clamps. */
 	ret = tegra_powergate_remove_clamping(pwrgateid);
+	if (ret)
+		return ret;
+
 	udelay(10);
 
 	/* Clear flow controller CSR. */
