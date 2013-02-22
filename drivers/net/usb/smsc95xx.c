@@ -1247,10 +1247,12 @@ static int smsc95xx_enter_suspend0(struct usbnet *dev)
 
 	/* read back PM_CTRL */
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
+	if (ret < 0)
+		return ret;
 
 	pdata->suspend_flags |= SUSPEND_SUSPEND0;
 
-	return ret;
+	return 0;
 }
 
 static int smsc95xx_enter_suspend1(struct usbnet *dev)
@@ -1293,10 +1295,12 @@ static int smsc95xx_enter_suspend1(struct usbnet *dev)
 	val |= (PM_CTL_WUPS_ED_ | PM_CTL_ED_EN_);
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
+	if (ret < 0)
+		return ret;
 
 	pdata->suspend_flags |= SUSPEND_SUSPEND1;
 
-	return ret;
+	return 0;
 }
 
 static int smsc95xx_enter_suspend2(struct usbnet *dev)
@@ -1313,10 +1317,12 @@ static int smsc95xx_enter_suspend2(struct usbnet *dev)
 	val |= PM_CTL_SUS_MODE_2;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
+	if (ret < 0)
+		return ret;
 
 	pdata->suspend_flags |= SUSPEND_SUSPEND2;
 
-	return ret;
+	return 0;
 }
 
 static int smsc95xx_enter_suspend3(struct usbnet *dev)
