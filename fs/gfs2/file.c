@@ -483,7 +483,7 @@ out:
 	gfs2_holder_uninit(&gh);
 	if (ret == 0) {
 		set_page_dirty(page);
-		wait_on_page_writeback(page);
+		wait_for_stable_page(page);
 	}
 	sb_end_pagefault(inode->i_sb);
 	return block_page_mkwrite_return(ret);

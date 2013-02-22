@@ -413,12 +413,6 @@ config TILE_USB
 	  Provides USB host adapter support for the built-in EHCI and OHCI
 	  interfaces on TILE-Gx chips.
 
-# USB OHCI needs the bounce pool since tilegx will often have more
-# than 4GB of memory, but we don't currently use the IOTLB to present
-# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-config NEED_BOUNCE_POOL
-	def_bool USB_OHCI_HCD
-
 source "drivers/pci/hotplug/Kconfig"
 
 endmenu

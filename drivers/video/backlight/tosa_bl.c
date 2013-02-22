@@ -54,7 +54,7 @@ static void tosa_bl_set_backlight(struct tosa_bl_data *data, int brightness)
 static int tosa_bl_update_status(struct backlight_device *dev)
 {
 	struct backlight_properties *props = &dev->props;
-	struct tosa_bl_data *data = dev_get_drvdata(&dev->dev);
+	struct tosa_bl_data *data = bl_get_data(dev);
 	int power = max(props->power, props->fb_blank);
 	int brightness = props->brightness;
 

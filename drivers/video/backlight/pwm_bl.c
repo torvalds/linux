@@ -37,7 +37,7 @@ struct pwm_bl_data {
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int max = bl->props.max_brightness;
 
@@ -83,7 +83,7 @@ static int pwm_backlight_get_brightness(struct backlight_device *bl)
 static int pwm_backlight_check_fb(struct backlight_device *bl,
 				  struct fb_info *info)
 {
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	return !pb->check_fb || pb->check_fb(pb->dev, info);
 }
@@ -264,7 +264,7 @@ err_alloc:
 static int pwm_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	backlight_device_unregister(bl);
 	pwm_config(pb->pwm, 0, pb->period);
@@ -278,7 +278,7 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 static int pwm_backlight_suspend(struct device *dev)
 {
 	struct backlight_device *bl = dev_get_drvdata(dev);
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	if (pb->notify)
 		pb->notify(pb->dev, 0);

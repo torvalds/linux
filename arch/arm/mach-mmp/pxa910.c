@@ -134,6 +134,9 @@ PXA910_DEVICE(pwm2, "pxa910-pwm", 1, NONE, 0xd401a400, 0x10);
 PXA910_DEVICE(pwm3, "pxa910-pwm", 2, NONE, 0xd401a800, 0x10);
 PXA910_DEVICE(pwm4, "pxa910-pwm", 3, NONE, 0xd401ac00, 0x10);
 PXA910_DEVICE(nand, "pxa3xx-nand", -1, NAND, 0xd4283000, 0x80, 97, 99);
+PXA910_DEVICE(disp, "mmp-disp", 0, LCD, 0xd420b000, 0x1ec);
+PXA910_DEVICE(fb, "mmp-fb", -1, NONE, 0, 0);
+PXA910_DEVICE(panel, "tpo-hvga", -1, NONE, 0, 0);
 
 struct resource pxa910_resource_gpio[] = {
 	{

@@ -131,6 +131,12 @@
 			clocks = <&coreclk 0>;
 			status = "disabled";
 		};
+
+		rtc@10300 {
+			compatible = "marvell,orion-rtc";
+			reg = <0xd0010300 0x20>;
+			interrupts = <50>;
+		};
 	};
 };
 
