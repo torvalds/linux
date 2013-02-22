@@ -1,1 +1,1 @@
-obj-y += core.o fb/
+obj-y += core.o hw/ fb/
