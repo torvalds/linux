@@ -213,7 +213,7 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
@@ -222,7 +222,7 @@ struct ieee80211_hdr_3addr {
 	u8 addr2[6];
 	u8 addr3[6];
 	__le16 seq_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
@@ -232,7 +232,7 @@ struct ieee80211_qos_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 /**
  * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
@@ -609,7 +609,7 @@ struct ieee80211s_hdr {
 	__le32 seqnum;
 	u8 eaddr1[6];
 	u8 eaddr2[6];
-} __packed;
+} __packed __aligned(2);
 
 /* Mesh flags */
 #define MESH_FLAGS_AE_A4 	0x1
@@ -903,7 +903,7 @@ struct ieee80211_mgmt {
 			} u;
 		} __packed action;
 	} u;
-} __packed;
+} __packed __aligned(2);
 
 /* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
@@ -934,20 +934,20 @@ struct ieee80211_rts {
 	__le16 duration;
 	u8 ra[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
 	u8 ra[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_pspoll {
 	__le16 frame_control;
 	__le16 aid;
 	u8 bssid[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 /* TDLS */
 
