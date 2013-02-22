@@ -59,7 +59,7 @@
 	.offset	= DWC3_ ##nm - DWC3_GLOBALS_REGS_START,	\
 }
 
-static struct debugfs_reg32 dwc3_regs[] = {
+static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GSBUSCFG0),
 	dump_register(GSBUSCFG1),
 	dump_register(GTXTHRCFG),
