@@ -1234,11 +1234,8 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
 		 * than capable of reclaiming unused space. */
-		if (la_dinode)
-			kfree(la_dinode);
-
-		if (tl_dinode)
-			kfree(tl_dinode);
+		kfree(la_dinode);
+		kfree(tl_dinode);
 
 		if (qrec)
 			ocfs2_free_quota_recovery(qrec);
@@ -1408,8 +1405,7 @@ bail:
 
 	mutex_unlock(&osb->recovery_lock);
 
-	if (rm_quota)
-		kfree(rm_quota);
+	kfree(rm_quota);
 
 	/* no one is callint kthread_stop() for us so the kthread() api
 	 * requires that we call do_exit().  And it isn't exported, but
