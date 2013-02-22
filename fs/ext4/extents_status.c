@@ -456,6 +456,9 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	es_debug("add [%u/%u) %llu %llx to extent status tree of inode %lu\n",
 		 lblk, len, pblk, status, inode->i_ino);
 
+	if (!len)
+		return 0;
+
 	BUG_ON(end < lblk);
 
 	newes.es_lblk = lblk;
@@ -648,6 +651,9 @@ int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	trace_ext4_es_remove_extent(inode, lblk, len);
 	es_debug("remove [%u/%u) from extent status tree of inode %lu\n",
 		 lblk, len, inode->i_ino);
+
+	if (!len)
+		return err;
 
 	end = lblk + len - 1;
 	BUG_ON(end < lblk);
