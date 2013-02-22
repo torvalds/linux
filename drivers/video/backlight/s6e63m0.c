@@ -793,7 +793,7 @@ static int s6e63m0_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_UNBLANK;
 	}
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 
 	dev_info(&spi->dev, "s6e63m0 panel driver has been probed.\n");
 
@@ -806,7 +806,7 @@ out_lcd_unregister:
 
 static int s6e63m0_remove(struct spi_device *spi)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 	device_remove_file(&spi->dev, &dev_attr_gamma_table);
@@ -820,7 +820,7 @@ static int s6e63m0_remove(struct spi_device *spi)
 #if defined(CONFIG_PM)
 static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
 
@@ -833,7 +833,7 @@ static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 
 static int s6e63m0_resume(struct spi_device *spi)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
@@ -847,7 +847,7 @@ static int s6e63m0_resume(struct spi_device *spi)
 /* Power down all displays on reboot, poweroff or halt. */
 static void s6e63m0_shutdown(struct spi_device *spi)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
