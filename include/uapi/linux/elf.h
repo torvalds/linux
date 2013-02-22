@@ -49,14 +49,14 @@ typedef __s64	Elf64_Sxword;
  *
  * Specifications are available in:
  *
- * - Sun microsystems: Linker and Libraries.
- *   Part No: 817-1984-17, September 2008.
- *   URL: http://docs.sun.com/app/docs/doc/817-1984
+ * - Oracle: Linker and Libraries.
+ *   Part No: 817–1984–19, August 2011.
+ *   http://docs.oracle.com/cd/E18752_01/pdf/817-1984.pdf
  *
  * - System V ABI AMD64 Architecture Processor Supplement
- *   Draft Version 0.99.,
- *   May 11, 2009.
- *   URL: http://www.x86-64.org/
+ *   Draft Version 0.99.4,
+ *   January 13, 2010.
+ *   http://www.cs.washington.edu/education/courses/cse351/12wi/supp-docs/abi.pdf
  */
 #define PN_XNUM 0xffff
 

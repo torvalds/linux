@@ -11,7 +11,7 @@ menuconfig IPV6
 	  You will still be able to do traditional IPv4 networking as well.
 
 	  For general information about IPv6, see
-	  <http://playground.sun.com/pub/ipng/html/ipng-main.html>.
+	  <https://en.wikipedia.org/wiki/IPv6>.
 	  For Linux IPv6 development information, see <http://www.linux-ipv6.org>.
 	  For specific information about IPv6 under Linux, read the HOWTO at
 	  <http://www.bieringer.de/linux/IPv6/>.
