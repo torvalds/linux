@@ -581,6 +581,7 @@ int __init hidraw_init(void)
 	if (result < 0)
 		goto error_class;
 
+	printk(KERN_INFO "hidraw: raw HID events driver (C) Jiri Kosina\n");
 out:
 	return result;
 
