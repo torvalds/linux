@@ -1123,10 +1123,12 @@ static int ath6kl_sdio_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
 
 	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
 					  HIF_WR_SYNC_BYTE_INC);
-	if (ret)
+	if (ret) {
 		ath6kl_err("unable to send the bmi data to the device\n");
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)

@@ -1569,11 +1569,9 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 		goto err_power_off;
 
 	/* Do we need to finish the BMI phase */
-	/* FIXME: return error from ath6kl_bmi_done() */
-	if (ath6kl_bmi_done(ar)) {
-		ret = -EIO;
+	ret = ath6kl_bmi_done(ar);
+	if (ret)
 		goto err_power_off;
-	}
 
 	/*
 	 * The reason we have to wait for the target here is that the
