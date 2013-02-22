@@ -5021,6 +5021,10 @@ L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org
 S:	Maintained
 F:	include/linux/mm.h
+F:	include/linux/gfp.h
+F:	include/linux/mmzone.h
+F:	include/linux/memory_hotplug.h
+F:	include/linux/vmalloc.h
 F:	mm/
 
 MEMORY RESOURCE CONTROLLER
