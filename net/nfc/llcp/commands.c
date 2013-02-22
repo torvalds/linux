@@ -319,9 +319,9 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	struct sk_buff *skb;
 	u8 *service_name_tlv = NULL, service_name_tlv_length;
 	u8 *miux_tlv = NULL, miux_tlv_length;
-	u8 *rw_tlv = NULL, rw_tlv_length;
+	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0;
+	u16 size = 0, miux;
 
 	pr_debug("Sending CONNECT\n");
 
@@ -337,11 +337,15 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		size += service_name_tlv_length;
 	}
 
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
+	/* If the socket parameters are not set, use the local ones */
+	miux = sock->miux > LLCP_MAX_MIUX ? local->miux : sock->miux;
+	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
+
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
 				      &miux_tlv_length);
 	size += miux_tlv_length;
 
-	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &local->rw, 0, &rw_tlv_length);
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
 	size += rw_tlv_length;
 
 	pr_debug("SKB size %d SN length %zu\n", size, sock->service_name_len);
@@ -378,9 +382,9 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	struct nfc_llcp_local *local;
 	struct sk_buff *skb;
 	u8 *miux_tlv = NULL, miux_tlv_length;
-	u8 *rw_tlv = NULL, rw_tlv_length;
+	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0;
+	u16 size = 0, miux;
 
 	pr_debug("Sending CC\n");
 
@@ -388,11 +392,15 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	if (local == NULL)
 		return -ENODEV;
 
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
+	/* If the socket parameters are not set, use the local ones */
+	miux = sock->miux > LLCP_MAX_MIUX ? local->miux : sock->miux;
+	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
+
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
 				      &miux_tlv_length);
 	size += miux_tlv_length;
 
-	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &local->rw, 0, &rw_tlv_length);
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
 	size += rw_tlv_length;
 
 	skb = llcp_allocate_pdu(sock, LLCP_PDU_CC, size);

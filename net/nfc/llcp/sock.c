@@ -290,6 +290,9 @@ static int nfc_llcp_setsockopt(struct socket *sock, int level, int optname,
 
 	release_sock(sk);
 
+	pr_debug("%p rw %d miux %d\n", llcp_sock,
+		 llcp_sock->rw, llcp_sock->miux);
+
 	return err;
 }
 
@@ -915,6 +918,8 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 
 	llcp_sock->ssap = 0;
 	llcp_sock->dsap = LLCP_SAP_SDP;
+	llcp_sock->rw = LLCP_MAX_RW + 1;
+	llcp_sock->miux = LLCP_MAX_MIUX + 1;
 	llcp_sock->remote_rw = LLCP_DEFAULT_RW;
 	llcp_sock->remote_miu = LLCP_DEFAULT_MIU;
 	llcp_sock->send_n = llcp_sock->send_ack_n = 0;
