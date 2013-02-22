@@ -27,6 +27,7 @@
 
 struct tps65910_rtc {
 	struct rtc_device	*rtc;
+	int irq;
 	/* To store the list of enabled interrupts */
 	u32 irqstat;
 };
@@ -273,7 +274,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "IRQ is not free.\n");
 		return ret;
 	}
-	device_init_wakeup(&pdev->dev, 1);
+	tps_rtc->irq = irq;
+	device_set_wakeup_capable(&pdev->dev, 1);
 
 	tps_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 		&tps65910_rtc_ops, THIS_MODULE);
@@ -308,8 +310,12 @@ static int tps65910_rtc_remove(struct platform_device *pdev)
 static int tps65910_rtc_suspend(struct device *dev)
 {
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
+	struct tps65910_rtc *tps_rtc = dev_get_drvdata(dev);
 	u8 alarm = TPS65910_RTC_INTERRUPTS_IT_ALARM;
 	int ret;
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(tps_rtc->irq);
 
 	/* Store current list of enabled interrupts*/
 	ret = regmap_read(tps->regmap, TPS65910_RTC_INTERRUPTS,
@@ -324,6 +330,10 @@ static int tps65910_rtc_suspend(struct device *dev)
 static int tps65910_rtc_resume(struct device *dev)
 {
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
+	struct tps65910_rtc *tps_rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(tps_rtc->irq);
 
 	/* Restore list of enabled interrupts before suspend */
 	return regmap_write(tps->regmap, TPS65910_RTC_INTERRUPTS,
