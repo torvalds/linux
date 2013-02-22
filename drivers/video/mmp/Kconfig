@@ -6,5 +6,6 @@ menuconfig MMP_DISP
 
 if MMP_DISP
 source "drivers/video/mmp/hw/Kconfig"
+source "drivers/video/mmp/panel/Kconfig"
 source "drivers/video/mmp/fb/Kconfig"
 endif
