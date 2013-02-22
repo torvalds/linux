@@ -1782,8 +1782,49 @@ fec_probe(struct platform_device *pdev)
 		fep->phy_interface = ret;
 	}
 
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto failed_pin;
+	}
+
+	fep->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(fep->clk_ipg)) {
+		ret = PTR_ERR(fep->clk_ipg);
+		goto failed_clk;
+	}
+
+	fep->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(fep->clk_ahb)) {
+		ret = PTR_ERR(fep->clk_ahb);
+		goto failed_clk;
+	}
+
+	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
 	fep->bufdesc_ex =
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
+	if (IS_ERR(fep->clk_ptp)) {
+		ret = PTR_ERR(fep->clk_ptp);
+		fep->bufdesc_ex = 0;
+	}
+
+	clk_prepare_enable(fep->clk_ahb);
+	clk_prepare_enable(fep->clk_ipg);
+	if (!IS_ERR(fep->clk_ptp))
+		clk_prepare_enable(fep->clk_ptp);
+
+	reg_phy = devm_regulator_get(&pdev->dev, "phy");
+	if (!IS_ERR(reg_phy)) {
+		ret = regulator_enable(reg_phy);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to enable phy regulator: %d\n", ret);
+			goto failed_regulator;
+		}
+	}
+
+	fec_reset_phy(pdev);
+
 	if (fep->bufdesc_ex)
 		fec_ptp_init(ndev, pdev);
 
@@ -1809,47 +1850,6 @@ fec_probe(struct platform_device *pdev)
 		}
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto failed_pin;
-	}
-
-	fep->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(fep->clk_ipg)) {
-		ret = PTR_ERR(fep->clk_ipg);
-		goto failed_clk;
-	}
-
-	fep->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(fep->clk_ahb)) {
-		ret = PTR_ERR(fep->clk_ahb);
-		goto failed_clk;
-	}
-
-	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
-	if (IS_ERR(fep->clk_ptp)) {
-		ret = PTR_ERR(fep->clk_ptp);
-		fep->bufdesc_ex = 0;
-	}
-
-	clk_prepare_enable(fep->clk_ahb);
-	clk_prepare_enable(fep->clk_ipg);
-	if (!IS_ERR(fep->clk_ptp))
-		clk_prepare_enable(fep->clk_ptp);
-
-	reg_phy = devm_regulator_get(&pdev->dev, "phy");
-	if (!IS_ERR(reg_phy)) {
-		ret = regulator_enable(reg_phy);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to enable phy regulator: %d\n", ret);
-			goto failed_regulator;
-		}
-	}
-
-	fec_reset_phy(pdev);
-
 	ret = fec_enet_mii_init(pdev);
 	if (ret)
 		goto failed_mii_init;
@@ -1866,6 +1866,13 @@ fec_probe(struct platform_device *pdev)
 failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
+failed_init:
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
+failed_irq:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -1873,14 +1880,7 @@ failed_regulator:
 		clk_disable_unprepare(fep->clk_ptp);
 failed_pin:
 failed_clk:
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
-failed_irq:
 	iounmap(fep->hwp);
-failed_init:
 failed_ioremap:
 	free_netdev(ndev);
 failed_alloc_etherdev:
