@@ -1882,8 +1882,10 @@ int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask, u16 index)
 
 		if (!new_dev_maps)
 			new_dev_maps = kzalloc(maps_sz, GFP_KERNEL);
-		if (!new_dev_maps)
+		if (!new_dev_maps) {
+			mutex_unlock(&xps_map_mutex);
 			return -ENOMEM;
+		}
 
 		map = dev_maps ? xmap_dereference(dev_maps->cpu_map[cpu]) :
 				 NULL;
