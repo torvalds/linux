@@ -1418,15 +1418,6 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	u32 val, link_up;
 	int ret;
 
-	/* TODO: don't indicate this feature to usb framework if
-	 * our current hardware doesn't have the capability
-	 */
-	if ((message.event == PM_EVENT_AUTO_SUSPEND) &&
-	    (!(pdata->features & FEATURE_AUTOSUSPEND))) {
-		netdev_warn(dev->net, "autosuspend not supported\n");
-		return -EBUSY;
-	}
-
 	ret = usbnet_suspend(intf, message);
 	if (ret < 0) {
 		netdev_warn(dev->net, "usbnet_suspend error\n");
@@ -1441,7 +1432,8 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	/* determine if link is up using only _nopm functions */
 	link_up = smsc95xx_link_ok_nopm(dev);
 
-	if (message.event == PM_EVENT_AUTO_SUSPEND) {
+	if (message.event == PM_EVENT_AUTO_SUSPEND &&
+	    (pdata->features & FEATURE_AUTOSUSPEND)) {
 		ret = smsc95xx_autosuspend(dev, link_up);
 		goto done;
 	}
