@@ -98,17 +98,6 @@ static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	return 0;
 }
 
-static int mfd_remove(struct pci_dev *pdev)
-{
-	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
-
-	if (!mfd)
-		return -ENODEV;
-	list_del(&mfd->list);
-	kfree(mfd);
-	return 0;
-}
-
 /* This function is exported and is not expected to fail */
 u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 		       enum sta2x11_mfd_plat_dev index)
