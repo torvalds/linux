@@ -1931,6 +1931,12 @@ sub process {
 			      "use the SSYNC() macro in asm/blackfin.h\n" . $herevet);
 		}
 
+# check for old HOTPLUG __dev<foo> section markings
+		if ($line =~ /\b(__dev(init|exit)(data|const|))\b/) {
+			WARN("HOTPLUG_SECTION",
+			     "Using $1 is unnecessary\n" . $herecurr);
+		}
+
 # Check for potential 'bare' types
 		my ($stat, $cond, $line_nr_next, $remain_next, $off_next,
 		    $realline_next);
