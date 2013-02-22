@@ -289,25 +289,25 @@ static int get_nports(void)
 
 static int get_hc_busid(char *sysfs_mntpath, char *hc_busid)
 {
-        struct sysfs_driver *sdriver;
-        char sdriver_path[SYSFS_PATH_MAX];
+	struct sysfs_driver *sdriver;
+	char sdriver_path[SYSFS_PATH_MAX];
 
 	struct sysfs_device *hc_dev;
 	struct dlist *hc_devs;
 
 	int found = 0;
 
-        snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/%s/%s/%s", sysfs_mntpath,
-		 SYSFS_BUS_NAME, USBIP_VHCI_BUS_TYPE, SYSFS_DRIVERS_NAME,
-		 USBIP_VHCI_DRV_NAME);
+	snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/%s/%s/%s", sysfs_mntpath,
+	SYSFS_BUS_NAME, USBIP_VHCI_BUS_TYPE, SYSFS_DRIVERS_NAME,
+	USBIP_VHCI_DRV_NAME);
 
-        sdriver = sysfs_open_driver_path(sdriver_path);
-        if (!sdriver) {
+	sdriver = sysfs_open_driver_path(sdriver_path);
+	if (!sdriver) {
 		dbg("sysfs_open_driver_path failed: %s", sdriver_path);
-                dbg("make sure " USBIP_CORE_MOD_NAME ".ko and "
+		dbg("make sure " USBIP_CORE_MOD_NAME ".ko and "
 		    USBIP_VHCI_DRV_NAME ".ko are loaded!");
-                return -1;
-        }
+		return -1;
+	}
 
 	hc_devs = sysfs_get_driver_devices(sdriver);
 	if (!hc_devs) {

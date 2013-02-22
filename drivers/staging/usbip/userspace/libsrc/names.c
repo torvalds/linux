@@ -22,8 +22,8 @@
  */
 
 /*
- * 	Copyright (C) 2005 Takahiro Hirofuchi
- * 		- names_deinit() is added.
+ *	Copyright (C) 2005 Takahiro Hirofuchi
+ *		- names_deinit() is added.
  */
 
 /*****************************************************************************/
@@ -82,9 +82,9 @@ struct audioterminal {
 };
 
 struct genericstrtable {
-        struct genericstrtable *next;
-        unsigned int num;
-        char name[1];
+	struct genericstrtable *next;
+	unsigned int num;
+	char name[1];
 };
 
 /* ---------------------------------------------------------------------- */
@@ -124,12 +124,12 @@ static struct genericstrtable *countrycodes[HASHSZ] = { NULL, };
 
 static const char *names_genericstrtable(struct genericstrtable *t[HASHSZ], unsigned int index)
 {
-        struct genericstrtable *h;
+	struct genericstrtable *h;
 
-        for (h = t[hashnum(index)]; h; h = h->next)
-                if (h->num == index)
-                        return h->name;
-        return NULL;
+	for (h = t[hashnum(index)]; h; h = h->next)
+		if (h->num == index)
+			return h->name;
+	return NULL;
 }
 
 const char *names_hid(u_int8_t hidd)
@@ -409,20 +409,20 @@ static int new_audioterminal(const char *name, u_int16_t termt)
 
 static int new_genericstrtable(struct genericstrtable *t[HASHSZ], const char *name, unsigned int index)
 {
-        struct genericstrtable *g;
+	struct genericstrtable *g;
 	unsigned int h = hashnum(index);
 
-        for (g = t[h]; g; g = g->next)
-                if (g->num == index)
-                        return -1;
-        g = my_malloc(sizeof(struct genericstrtable) + strlen(name));
-        if (!g)
-                return -1;
-        strcpy(g->name, name);
-        g->num = index;
-        g->next = t[h];
-        t[h] = g;
-        return 0;
+	for (g = t[h]; g; g = g->next)
+		if (g->num == index)
+			return -1;
+	g = my_malloc(sizeof(struct genericstrtable) + strlen(name));
+	if (!g)
+		return -1;
+	strcpy(g->name, name);
+	g->num = index;
+	g->next = t[h];
+	t[h] = g;
+	return 0;
 }
 
 static int new_hid(const char *name, u_int8_t hidd)
@@ -485,92 +485,92 @@ static void parse(FILE *f)
 		if (buf[0] == '#' || !buf[0])
 			continue;
 		cp = buf;
-                if (buf[0] == 'P' && buf[1] == 'H' && buf[2] == 'Y' && buf[3] == 'S' && buf[4] == 'D' &&
-                    buf[5] == 'E' && buf[6] == 'S' && /*isspace(buf[7])*/ buf[7] == ' ') {
-                        cp = buf + 8;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid Physdes type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid Physdes type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_physdes(cp, u))
-                                fprintf(stderr, "Duplicate Physdes  type spec at line %u terminal type %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u physdes type %02x %s\n", linectr, u, cp));
-                        continue;
+		if (buf[0] == 'P' && buf[1] == 'H' && buf[2] == 'Y' && buf[3] == 'S' && buf[4] == 'D' &&
+			buf[5] == 'E' && buf[6] == 'S' && /*isspace(buf[7])*/ buf[7] == ' ') {
+			cp = buf + 8;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid Physdes type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid Physdes type at line %u\n", linectr);
+				continue;
+			}
+			if (new_physdes(cp, u))
+				fprintf(stderr, "Duplicate Physdes  type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u physdes type %02x %s\n", linectr, u, cp));
+			continue;
 
-                }
-                if (buf[0] == 'P' && buf[1] == 'H' && buf[2] == 'Y' && /*isspace(buf[3])*/ buf[3] == ' ') {
-                        cp = buf + 4;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid PHY type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid PHY type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_physdes(cp, u))
-                                fprintf(stderr, "Duplicate PHY type spec at line %u terminal type %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u PHY type %02x %s\n", linectr, u, cp));
-                        continue;
+		}
+		if (buf[0] == 'P' && buf[1] == 'H' && buf[2] == 'Y' && /*isspace(buf[3])*/ buf[3] == ' ') {
+			cp = buf + 4;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid PHY type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid PHY type at line %u\n", linectr);
+				continue;
+			}
+			if (new_physdes(cp, u))
+				fprintf(stderr, "Duplicate PHY type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u PHY type %02x %s\n", linectr, u, cp));
+			continue;
 
-                }
-                if (buf[0] == 'B' && buf[1] == 'I' && buf[2] == 'A' && buf[3] == 'S' && /*isspace(buf[4])*/ buf[4] == ' ') {
-                        cp = buf + 5;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid BIAS type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid BIAS type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_bias(cp, u))
-                                fprintf(stderr, "Duplicate BIAS  type spec at line %u terminal type %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u BIAS type %02x %s\n", linectr, u, cp));
-                        continue;
+		}
+		if (buf[0] == 'B' && buf[1] == 'I' && buf[2] == 'A' && buf[3] == 'S' && /*isspace(buf[4])*/ buf[4] == ' ') {
+			cp = buf + 5;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid BIAS type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid BIAS type at line %u\n", linectr);
+				continue;
+			}
+			if (new_bias(cp, u))
+				fprintf(stderr, "Duplicate BIAS  type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u BIAS type %02x %s\n", linectr, u, cp));
+			continue;
 
-                }
-                if (buf[0] == 'L' && /*isspace(buf[1])*/ buf[1] == ' ') {
-                        cp =  buf+2;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid LANGID spec at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid LANGID spec at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_langid(cp, u))
-                                fprintf(stderr, "Duplicate LANGID spec at line %u language-id %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u LANGID %02x %s\n", linectr, u, cp));
-                        lasthut = lastclass = lastvendor = lastsubclass = -1;
-                        lastlang = u;
-                        continue;
-                }
+		}
+		if (buf[0] == 'L' && /*isspace(buf[1])*/ buf[1] == ' ') {
+			cp =  buf+2;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid LANGID spec at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid LANGID spec at line %u\n", linectr);
+				continue;
+			}
+			if (new_langid(cp, u))
+				fprintf(stderr, "Duplicate LANGID spec at line %u language-id %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u LANGID %02x %s\n", linectr, u, cp));
+			lasthut = lastclass = lastvendor = lastsubclass = -1;
+			lastlang = u;
+			continue;
+		}
 		if (buf[0] == 'C' && /*isspace(buf[1])*/ buf[1] == ' ') {
 			/* class spec */
 			cp = buf+2;
@@ -617,24 +617,24 @@ static void parse(FILE *f)
 		}
 		if (buf[0] == 'H' && buf[1] == 'C' && buf[2] == 'C' && isspace(buf[3])) {
 			/* HID Descriptor bCountryCode */
-                        cp =  buf+3;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid HID country code at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 10);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid HID country code at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_countrycode(cp, u))
-                                fprintf(stderr, "Duplicate HID country code at line %u country %02u %s\n", linectr, u, cp);
-                        DBG(printf("line %5u keyboard country code %02u %s\n", linectr, u, cp));
-                        continue;
+			cp =  buf+3;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid HID country code at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 10);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid HID country code at line %u\n", linectr);
+				continue;
+			}
+			if (new_countrycode(cp, u))
+				fprintf(stderr, "Duplicate HID country code at line %u country %02u %s\n", linectr, u, cp);
+			DBG(printf("line %5u keyboard country code %02u %s\n", linectr, u, cp));
+			continue;
 		}
 		if (isxdigit(*cp)) {
 			/* vendor */
@@ -680,10 +680,10 @@ static void parse(FILE *f)
 				continue;
 			}
 			if (lastlang != -1) {
-                                if (new_langid(cp, lastlang+(u<<10)))
-                                        fprintf(stderr, "Duplicate LANGID Usage Spec at line %u\n", linectr);
-                                continue;
-                        }
+				if (new_langid(cp, lastlang+(u<<10)))
+					fprintf(stderr, "Duplicate LANGID Usage Spec at line %u\n", linectr);
+				continue;
+			}
 			fprintf(stderr, "Product/Subclass spec without prior Vendor/Class spec at line %u\n", linectr);
 			continue;
 		}
@@ -707,70 +707,70 @@ static void parse(FILE *f)
 		}
 		if (buf[0] == 'H' && buf[1] == 'I' && buf[2] == 'D' && /*isspace(buf[3])*/ buf[3] == ' ') {
 			cp = buf + 4;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid HID type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid HID type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_hid(cp, u))
-                                fprintf(stderr, "Duplicate HID type spec at line %u terminal type %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u HID type %02x %s\n", linectr, u, cp));
-                        continue;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid HID type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid HID type at line %u\n", linectr);
+				continue;
+			}
+			if (new_hid(cp, u))
+				fprintf(stderr, "Duplicate HID type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u HID type %02x %s\n", linectr, u, cp));
+			continue;
 
 		}
-                if (buf[0] == 'H' && buf[1] == 'U' && buf[2] == 'T' && /*isspace(buf[3])*/ buf[3] == ' ') {
-                        cp = buf + 4;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid HUT type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid HUT type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_huts(cp, u))
-                                fprintf(stderr, "Duplicate HUT type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+		if (buf[0] == 'H' && buf[1] == 'U' && buf[2] == 'T' && /*isspace(buf[3])*/ buf[3] == ' ') {
+			cp = buf + 4;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid HUT type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid HUT type at line %u\n", linectr);
+				continue;
+			}
+			if (new_huts(cp, u))
+				fprintf(stderr, "Duplicate HUT type spec at line %u terminal type %04x %s\n", linectr, u, cp);
 			lastlang = lastclass = lastvendor = lastsubclass = -1;
 			lasthut = u;
-                        DBG(printf("line %5u HUT type %02x %s\n", linectr, u, cp));
-                        continue;
+			DBG(printf("line %5u HUT type %02x %s\n", linectr, u, cp));
+			continue;
 
-                }
-                if (buf[0] == 'R' && buf[1] == ' ') {
-                        cp = buf + 2;
-                        while (isspace(*cp))
-                                cp++;
-                        if (!isxdigit(*cp)) {
-                                fprintf(stderr, "Invalid Report type at line %u\n", linectr);
-                                continue;
-                        }
-                        u = strtoul(cp, &cp, 16);
-                        while (isspace(*cp))
-                                cp++;
-                        if (!*cp) {
-                                fprintf(stderr, "Invalid Report type at line %u\n", linectr);
-                                continue;
-                        }
-                        if (new_reporttag(cp, u))
-                                fprintf(stderr, "Duplicate Report type spec at line %u terminal type %04x %s\n", linectr, u, cp);
-                        DBG(printf("line %5u Report type %02x %s\n", linectr, u, cp));
-                        continue;
+		}
+		if (buf[0] == 'R' && buf[1] == ' ') {
+			cp = buf + 2;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid Report type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid Report type at line %u\n", linectr);
+				continue;
+			}
+			if (new_reporttag(cp, u))
+				fprintf(stderr, "Duplicate Report type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u Report type %02x %s\n", linectr, u, cp));
+			continue;
 
-                }
-                if (buf[0] == 'V' && buf[1] == 'T') {
+		}
+		if (buf[0] == 'V' && buf[1] == 'T') {
 			/* add here */
 			continue;
 		}
