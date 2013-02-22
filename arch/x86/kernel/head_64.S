@@ -336,6 +336,7 @@ early_idt_handlers:
 	i = i + 1
 	.endr
 
+/* This is global to keep gas from relaxing the jumps */
 ENTRY(early_idt_handler)
 	cld
 
@@ -404,6 +405,7 @@ ENTRY(early_idt_handler)
 	addq $16,%rsp		# drop vector number and error code
 	decl early_recursion_flag(%rip)
 	INTERRUPT_RETURN
+ENDPROC(early_idt_handler)
 
 	__INITDATA
 
