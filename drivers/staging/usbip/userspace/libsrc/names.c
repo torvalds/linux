@@ -472,7 +472,7 @@ static void parse(FILE *f)
 {
 	char buf[512], *cp;
 	unsigned int linectr = 0;
-	int lastvendor = -1, lastclass = -1, lastsubclass = -1, lasthut=-1, lastlang=-1;
+	int lastvendor = -1, lastclass = -1, lastsubclass = -1, lasthut = -1, lastlang = -1;
 	unsigned int u;
 
 	while (fgets(buf, sizeof(buf), f)) {

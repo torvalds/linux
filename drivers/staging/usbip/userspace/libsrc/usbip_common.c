@@ -44,7 +44,7 @@ static struct portst_string portst_strings[] = {
 
 const char *usbip_status_string(int32_t status)
 {
-	for (int i=0; portst_strings[i].desc != NULL; i++)
+	for (int i = 0; portst_strings[i].desc != NULL; i++)
 		if (portst_strings[i].num == status)
 			return portst_strings[i].desc;
 
@@ -53,7 +53,7 @@ const char *usbip_status_string(int32_t status)
 
 const char *usbip_speed_string(int num)
 {
-	for (int i=0; speed_strings[i].speed != NULL; i++)
+	for (int i = 0; speed_strings[i].speed != NULL; i++)
 		if (speed_strings[i].num == num)
 			return speed_strings[i].desc;
 
@@ -172,7 +172,7 @@ int read_attr_speed(struct sysfs_device *dev)
 err:
 	sysfs_close_attribute(attr);
 
-	for (int i=0; speed_strings[i].speed != NULL; i++) {
+	for (int i = 0; speed_strings[i].speed != NULL; i++) {
 		if (!strcmp(speed, speed_strings[i].speed))
 			return speed_strings[i].num;
 	}
