@@ -1091,6 +1091,9 @@ config PLAT_RK
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
+	select SYNC
+	select SW_SYNC
+	select SW_SYNC_USER
 
 config PLAT_VERSATILE
 	bool
