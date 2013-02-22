@@ -405,6 +405,13 @@ config BACKLIGHT_TPS65217
 	  If you have a Texas Instruments TPS65217 say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_AS3711
+	tristate "AS3711 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_AS3711
+	help
+	  If you have an Austrian Microsystems AS3711 say Y to enable the
+	  backlight driver.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT
