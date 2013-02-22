@@ -104,29 +104,45 @@ static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
 				    unsigned int magic)
 {
 	struct arizona *arizona = info->arizona;
-	unsigned int val;
 	int ret;
 
 	mutex_lock(&arizona->dapm->card->dapm_mutex);
 
-	ret = regmap_read(arizona->regmap, ARIZONA_OUTPUT_ENABLES_1, &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read output enables: %d\n",
-			ret);
-		val = 0;
+	arizona->hpdet_magic = magic;
+
+	/* Keep the HP output stages disabled while doing the magic */
+	if (magic) {
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT1L_ENA |
+					 ARIZONA_OUT1R_ENA, 0);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				"Failed to disable headphone outputs: %d\n",
+				 ret);
 	}
 
-	if (!(val & (ARIZONA_OUT1L_ENA | ARIZONA_OUT1R_ENA))) {
-		ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000,
-					 magic);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do magic: %d\n",
+	ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000,
+				 magic);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to do magic: %d\n",
 				 ret);
 
-		ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000,
-					 magic);
+	ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000,
+				 magic);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to do magic: %d\n",
+			 ret);
+
+	/* Restore the desired state while not doing the magic */
+	if (!magic) {
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT1L_ENA |
+					 ARIZONA_OUT1R_ENA, arizona->hp_ena);
 		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do magic: %d\n",
+			dev_warn(arizona->dev,
+				 "Failed to restore headphone outputs: %d\n",
 				 ret);
 	}
 
