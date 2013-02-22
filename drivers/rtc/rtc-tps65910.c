@@ -28,8 +28,6 @@
 struct tps65910_rtc {
 	struct rtc_device	*rtc;
 	int irq;
-	/* To store the list of enabled interrupts */
-	u32 irqstat;
 };
 
 /* Total number of RTC registers needed to set time*/
@@ -309,35 +307,20 @@ static int tps65910_rtc_remove(struct platform_device *pdev)
 
 static int tps65910_rtc_suspend(struct device *dev)
 {
-	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	struct tps65910_rtc *tps_rtc = dev_get_drvdata(dev);
-	u8 alarm = TPS65910_RTC_INTERRUPTS_IT_ALARM;
-	int ret;
 
 	if (device_may_wakeup(dev))
 		enable_irq_wake(tps_rtc->irq);
-
-	/* Store current list of enabled interrupts*/
-	ret = regmap_read(tps->regmap, TPS65910_RTC_INTERRUPTS,
-		&tps->rtc->irqstat);
-	if (ret < 0)
-		return ret;
-
-	/* Enable RTC ALARM interrupt only */
-	return regmap_write(tps->regmap, TPS65910_RTC_INTERRUPTS, alarm);
+	return 0;
 }
 
 static int tps65910_rtc_resume(struct device *dev)
 {
-	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	struct tps65910_rtc *tps_rtc = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(tps_rtc->irq);
-
-	/* Restore list of enabled interrupts before suspend */
-	return regmap_write(tps->regmap, TPS65910_RTC_INTERRUPTS,
-		tps->rtc->irqstat);
+	return 0;
 }
 
 static const struct dev_pm_ops tps65910_rtc_pm_ops = {
