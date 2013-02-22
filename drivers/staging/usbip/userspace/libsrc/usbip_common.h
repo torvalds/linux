@@ -132,7 +132,8 @@ struct usbip_usb_device {
 void dump_usb_interface(struct usbip_usb_interface *);
 void dump_usb_device(struct usbip_usb_device *);
 int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev);
-int read_attr_value(struct sysfs_device *dev, const char *name, const char *format);
+int read_attr_value(struct sysfs_device *dev, const char *name,
+		    const char *format);
 int read_usb_interface(struct usbip_usb_device *udev, int i,
 		       struct usbip_usb_interface *uinf);
 
@@ -141,7 +142,9 @@ const char *usbip_status_string(int32_t status);
 
 int usbip_names_init(char *);
 void usbip_names_free(void);
-void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t product);
-void usbip_names_get_class(char *buff, size_t size, uint8_t class, uint8_t subclass, uint8_t protocol);
+void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
+			     uint16_t product);
+void usbip_names_get_class(char *buff, size_t size, uint8_t class,
+			   uint8_t subclass, uint8_t protocol);
 
 #endif /* __USBIP_COMMON_H */

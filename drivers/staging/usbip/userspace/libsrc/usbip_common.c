@@ -109,7 +109,8 @@ void dump_usb_device(struct usbip_usb_device *udev)
 }
 
 
-int read_attr_value(struct sysfs_device *dev, const char *name, const char *format)
+int read_attr_value(struct sysfs_device *dev, const char *name,
+		    const char *format)
 {
 	char attrpath[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
@@ -180,8 +181,11 @@ err:
 	return USB_SPEED_UNKNOWN;
 }
 
-#define READ_ATTR(object, type, dev, name, format)\
-	do { (object)->name = (type) read_attr_value(dev, to_string(name), format); } while (0)
+#define READ_ATTR(object, type, dev, name, format)			      \
+	do {								      \
+		(object)->name = (type) read_attr_value(dev, to_string(name), \
+							format);	      \
+	} while (0)
 
 
 int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
@@ -245,7 +249,8 @@ void usbip_names_free()
 	names_free();
 }
 
-void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t product)
+void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
+			     uint16_t product)
 {
 	const char *prod, *vend;
 
@@ -261,7 +266,8 @@ void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t 
 	snprintf(buff, size, "%s : %s (%04x:%04x)", vend, prod, vendor, product);
 }
 
-void usbip_names_get_class(char *buff, size_t size, uint8_t class, uint8_t subclass, uint8_t protocol)
+void usbip_names_get_class(char *buff, size_t size, uint8_t class,
+			   uint8_t subclass, uint8_t protocol)
 {
 	const char *c, *s, *p;
 

@@ -10,7 +10,8 @@
 
 struct usbip_vhci_driver *vhci_driver;
 
-static struct usbip_imported_device *imported_device_init(struct usbip_imported_device *idev, char *busid)
+static struct usbip_imported_device *
+imported_device_init(struct usbip_imported_device *idev, char *busid)
 {
 	struct sysfs_device *sudev;
 
@@ -29,8 +30,10 @@ static struct usbip_imported_device *imported_device_init(struct usbip_imported_
 		if (!strncmp(cdev->dev_path, idev->udev.path,
 			     strlen(idev->udev.path))) {
 			struct usbip_class_device *new_cdev;
-
-			/* alloc and copy because dlist is linked from only one list */
+			/*
+			 * alloc and copy because dlist is linked
+			 * from only one list
+			 */
 			new_cdev = calloc(1, sizeof(*new_cdev));
 			if (!new_cdev)
 				goto err;
@@ -101,7 +104,8 @@ static int parse_status(char *value)
 				return -1;
 			}
 
-			if (idev->status != VDEV_ST_NULL && idev->status != VDEV_ST_NOTASSIGNED) {
+			if (idev->status != VDEV_ST_NULL
+			    && idev->status != VDEV_ST_NOTASSIGNED) {
 				idev = imported_device_init(idev, lbusid);
 				if (!idev) {
 					dbg("imported_device_init failed");
@@ -126,8 +130,10 @@ static int parse_status(char *value)
 
 static int check_usbip_device(struct sysfs_class_device *cdev)
 {
-	char class_path[SYSFS_PATH_MAX]; /* /sys/class/video4linux/video0/device */
-	char dev_path[SYSFS_PATH_MAX];	 /* /sys/devices/platform/vhci_hcd/usb6/6-1:1.1 */
+	/* /sys/class/video4linux/video0/device */
+	char class_path[SYSFS_PATH_MAX];
+	/* /sys/devices/platform/vhci_hcd/usb6/6-1:1.1 */
+	char dev_path[SYSFS_PATH_MAX];
 	int ret;
 	struct usbip_class_device *usbip_cdev;
 
