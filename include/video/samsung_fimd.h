@@ -176,6 +176,8 @@
 /* WINCONx */
 
 #define WINCON(_win)				(0x20 + ((_win) * 4))
+#define WINCONx_CSCCON_EQ601			(0x0 << 28)
+#define WINCONx_CSCCON_EQ709			(0x1 << 28)
 #define WINCONx_CSCWIDTH_MASK			(0x3 << 26)
 #define WINCONx_CSCWIDTH_SHIFT			26
 #define WINCONx_CSCWIDTH_WIDE			(0x0 << 26)
