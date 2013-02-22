@@ -593,7 +593,7 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 		else
 			ret = put_compat_rusage(&ru, uru);
 		if (ret)
-			return ret;
+			return -EFAULT;
 	}
 
 	BUG_ON(info.si_code & __SI_MASK);
