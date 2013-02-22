@@ -17,13 +17,23 @@
 #include <linux/platform_data/lp855x.h>
 #include <linux/pwm.h>
 
-/* Registers */
-#define BRIGHTNESS_CTRL		0x00
-#define DEVICE_CTRL		0x01
-#define EEPROM_START		0xA0
-#define EEPROM_END		0xA7
-#define EPROM_START		0xA0
-#define EPROM_END		0xAF
+/* LP8550/1/2/3/6 Registers */
+#define LP855X_BRIGHTNESS_CTRL		0x00
+#define LP855X_DEVICE_CTRL		0x01
+#define LP855X_EEPROM_START		0xA0
+#define LP855X_EEPROM_END		0xA7
+#define LP8556_EPROM_START		0xA0
+#define LP8556_EPROM_END		0xAF
+
+/* LP8557 Registers */
+#define LP8557_BL_CMD			0x00
+#define LP8557_BL_MASK			0x01
+#define LP8557_BL_ON			0x01
+#define LP8557_BL_OFF			0x00
+#define LP8557_BRIGHTNESS_CTRL		0x04
+#define LP8557_CONFIG			0x10
+#define LP8557_EPROM_START		0x10
+#define LP8557_EPROM_END		0x1E
 
 #define BUF_SIZE		20
 #define DEFAULT_BL_NAME		"lcd-backlight"
@@ -75,6 +85,24 @@ static int lp855x_write_byte(struct lp855x *lp, u8 reg, u8 data)
 	return i2c_smbus_write_byte_data(lp->client, reg, data);
 }
 
+static int lp855x_update_bit(struct lp855x *lp, u8 reg, u8 mask, u8 data)
+{
+	int ret;
+	u8 tmp;
+
+	ret = i2c_smbus_read_byte_data(lp->client, reg);
+	if (ret < 0) {
+		dev_err(lp->dev, "failed to read 0x%.2x\n", reg);
+		return ret;
+	}
+
+	tmp = (u8)ret;
+	tmp &= ~mask;
+	tmp |= data & mask;
+
+	return lp855x_write_byte(lp, reg, tmp);
+}
+
 static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
 {
 	u8 start, end;
@@ -84,12 +112,16 @@ static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
 	case LP8551:
 	case LP8552:
 	case LP8553:
-		start = EEPROM_START;
-		end = EEPROM_END;
+		start = LP855X_EEPROM_START;
+		end = LP855X_EEPROM_END;
 		break;
 	case LP8556:
-		start = EPROM_START;
-		end = EPROM_END;
+		start = LP8556_EPROM_START;
+		end = LP8556_EPROM_END;
+		break;
+	case LP8557:
+		start = LP8557_EPROM_START;
+		end = LP8557_EPROM_END;
 		break;
 	default:
 		return false;
@@ -98,9 +130,30 @@ static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
 	return (addr >= start && addr <= end);
 }
 
+static int lp8557_bl_off(struct lp855x *lp)
+{
+	/* BL_ON = 0 before updating EPROM settings */
+	return lp855x_update_bit(lp, LP8557_BL_CMD, LP8557_BL_MASK,
+				LP8557_BL_OFF);
+}
+
+static int lp8557_bl_on(struct lp855x *lp)
+{
+	/* BL_ON = 1 after updating EPROM settings */
+	return lp855x_update_bit(lp, LP8557_BL_CMD, LP8557_BL_MASK,
+				LP8557_BL_ON);
+}
+
 static struct lp855x_device_config lp855x_dev_cfg = {
-	.reg_brightness = BRIGHTNESS_CTRL,
-	.reg_devicectrl = DEVICE_CTRL,
+	.reg_brightness = LP855X_BRIGHTNESS_CTRL,
+	.reg_devicectrl = LP855X_DEVICE_CTRL,
+};
+
+static struct lp855x_device_config lp8557_dev_cfg = {
+	.reg_brightness = LP8557_BRIGHTNESS_CTRL,
+	.reg_devicectrl = LP8557_CONFIG,
+	.pre_init_device = lp8557_bl_off,
+	.post_init_device = lp8557_bl_on,
 };
 
 /*
@@ -122,6 +175,9 @@ static int lp855x_configure(struct lp855x *lp)
 	switch (lp->chip_id) {
 	case LP8550 ... LP8556:
 		lp->cfg = &lp855x_dev_cfg;
+		break;
+	case LP8557:
+		lp->cfg = &lp8557_dev_cfg;
 		break;
 	default:
 		return -EINVAL;
@@ -210,7 +266,7 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 
 	} else if (mode == REGISTER_BASED) {
 		u8 val = bl->props.brightness;
-		lp855x_write_byte(lp, BRIGHTNESS_CTRL, val);
+		lp855x_write_byte(lp, lp->cfg->reg_brightness, val);
 	}
 
 	return 0;
@@ -224,7 +280,7 @@ static int lp855x_bl_get_brightness(struct backlight_device *bl)
 	if (mode == REGISTER_BASED) {
 		u8 val = 0;
 
-		lp855x_read_byte(lp, BRIGHTNESS_CTRL, &val);
+		lp855x_read_byte(lp, lp->cfg->reg_brightness, &val);
 		bl->props.brightness = val;
 	}
 
@@ -376,6 +432,7 @@ static const struct i2c_device_id lp855x_ids[] = {
 	{"lp8552", LP8552},
 	{"lp8553", LP8553},
 	{"lp8556", LP8556},
+	{"lp8557", LP8557},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp855x_ids);
