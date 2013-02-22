@@ -101,7 +101,7 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 	}
 }
 
-static inline void
+static void
 ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->irq_mask & mask) != mask) {
