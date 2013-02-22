@@ -1474,6 +1474,11 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 */
 	blk_queue_bounce(q, &bio);
 
+	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
+		bio_endio(bio, -EIO);
+		return;
+	}
+
 	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
@@ -1713,9 +1718,6 @@ generic_make_request_checks(struct bio *bio)
 	 * of partition p to block n+start(p) of the disk.
 	 */
 	blk_partition_remap(bio);
-
-	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
-		goto end_io;
 
 	if (bio_check_eod(bio, nr_sectors))
 		goto end_io;
