@@ -1183,17 +1183,17 @@ int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 	if (source < 0)
 		return -EINVAL;
 
-	if (fll->ref_src == source && fll->ref_freq == Fref &&
-	    fll->fout == Fout)
+	if (fll->ref_src == source && fll->ref_freq == Fref)
 		return 0;
 
-	if (Fout) {
-		ret = arizona_calc_fll(fll, &ref, Fref, Fout);
+	if (fll->fout) {
+		ret = arizona_calc_fll(fll, &ref, Fref, fll->fout);
 		if (ret != 0)
 			return ret;
 
 		if (fll->sync_src >= 0) {
-			ret = arizona_calc_fll(fll, &sync, fll->sync_freq, Fout);
+			ret = arizona_calc_fll(fll, &sync, fll->sync_freq,
+					       fll->fout);
 			if (ret != 0)
 				return ret;
 		}
@@ -1201,12 +1201,9 @@ int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 
 	fll->ref_src = source;
 	fll->ref_freq = Fref;
-	fll->fout = Fout;
 
-	if (Fout) {
+	if (fll->fout) {
 		arizona_enable_fll(fll, &ref, &sync);
-	} else {
-		arizona_disable_fll(fll);
 	}
 
 	return 0;
