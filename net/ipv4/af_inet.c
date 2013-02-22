@@ -1332,8 +1332,10 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 			if (skb->next != NULL)
 				iph->frag_off |= htons(IP_MF);
 			offset += (skb->len - skb->mac_len - iph->ihl * 4);
-		} else
-			iph->id = htons(id++);
+		} else  {
+			if (!(iph->frag_off & htons(IP_DF)))
+				iph->id = htons(id++);
+		}
 		iph->tot_len = htons(skb->len - skb->mac_len);
 		iph->check = 0;
 		iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
