@@ -777,12 +777,17 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 				} else {
 					volt_dep = volt + dep_biger_than_clk;
 				}
-			} else {
+			} else if (volt < volt_dep){
 				if (volt == volt_new) {
 					volt_dep = volt + dep_biger_than_clk;
 				} else {
 					volt = volt_dep + clk_biger_than_dep;
 				}
+			} else {
+				if (volt != volt_new)
+					volt = volt_dep + clk_biger_than_dep;
+				if (volt_dep != volt_dep_new)
+					volt_dep = volt + dep_biger_than_clk;
 			}
 			volt = volt > volt_new ? volt_new : volt;
 			volt_dep = volt_dep > volt_dep_new ? volt_dep_new : volt_dep;
@@ -796,12 +801,17 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 				} else {
 					volt = volt_dep - dep_biger_than_clk;
 				}
-			} else {
+			} else if (volt < volt_dep){
 				if (volt_dep == volt_dep_new) {
 					volt = volt_dep - dep_biger_than_clk;
 				} else {
 					volt_dep = volt - clk_biger_than_dep;
 				}
+			} else {
+				if (volt != volt_new)
+					volt = volt_dep - dep_biger_than_clk;
+				if (volt_dep != volt_dep_new)
+					volt_dep = volt - clk_biger_than_dep;
 			}
 			volt = volt < volt_new ? volt_new : volt;
 			volt_dep = volt_dep < volt_dep_new ? volt_dep_new : volt_dep;
