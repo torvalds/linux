@@ -370,7 +370,7 @@ static int lms501kf03_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_UNBLANK;
 	}
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 
 	dev_info(&spi->dev, "lms501kf03 panel driver has been probed.\n");
 
@@ -379,7 +379,7 @@ static int lms501kf03_probe(struct spi_device *spi)
 
 static int lms501kf03_remove(struct spi_device *spi)
 {
-	struct lms501kf03 *lcd = dev_get_drvdata(&spi->dev);
+	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->ld);
@@ -391,7 +391,7 @@ static int lms501kf03_remove(struct spi_device *spi)
 
 static int lms501kf03_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	struct lms501kf03 *lcd = dev_get_drvdata(&spi->dev);
+	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
 
@@ -404,7 +404,7 @@ static int lms501kf03_suspend(struct spi_device *spi, pm_message_t mesg)
 
 static int lms501kf03_resume(struct spi_device *spi)
 {
-	struct lms501kf03 *lcd = dev_get_drvdata(&spi->dev);
+	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
@@ -417,7 +417,7 @@ static int lms501kf03_resume(struct spi_device *spi)
 
 static void lms501kf03_shutdown(struct spi_device *spi)
 {
-	struct lms501kf03 *lcd = dev_get_drvdata(&spi->dev);
+	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
 }
