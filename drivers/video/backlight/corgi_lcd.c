@@ -391,7 +391,7 @@ static struct lcd_ops corgi_lcd_ops = {
 
 static int corgi_bl_get_intensity(struct backlight_device *bd)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&bd->dev);
+	struct corgi_lcd *lcd = bl_get_data(bd);
 
 	return lcd->intensity;
 }
@@ -423,7 +423,7 @@ static int corgi_bl_set_intensity(struct corgi_lcd *lcd, int intensity)
 
 static int corgi_bl_update_status(struct backlight_device *bd)
 {
-	struct corgi_lcd *lcd = dev_get_drvdata(&bd->dev);
+	struct corgi_lcd *lcd = bl_get_data(bd);
 	int intensity = bd->props.brightness;
 
 	if (bd->props.power != FB_BLANK_UNBLANK)
