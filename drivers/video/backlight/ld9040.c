@@ -755,7 +755,7 @@ static int ld9040_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_UNBLANK;
 	}
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 
 	dev_info(&spi->dev, "ld9040 panel driver has been probed.\n");
 	return 0;
@@ -770,7 +770,7 @@ out_free_regulator:
 
 static int ld9040_remove(struct spi_device *spi)
 {
-	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
+	struct ld9040 *lcd = spi_get_drvdata(spi);
 
 	ld9040_power(lcd, FB_BLANK_POWERDOWN);
 	backlight_device_unregister(lcd->bd);
@@ -783,7 +783,7 @@ static int ld9040_remove(struct spi_device *spi)
 #if defined(CONFIG_PM)
 static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
+	struct ld9040 *lcd = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
 
@@ -796,7 +796,7 @@ static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
 
 static int ld9040_resume(struct spi_device *spi)
 {
-	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
+	struct ld9040 *lcd = spi_get_drvdata(spi);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
@@ -810,7 +810,7 @@ static int ld9040_resume(struct spi_device *spi)
 /* Power down all displays on reboot, poweroff or halt. */
 static void ld9040_shutdown(struct spi_device *spi)
 {
-	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
+	struct ld9040 *lcd = spi_get_drvdata(spi);
 
 	ld9040_power(lcd, FB_BLANK_POWERDOWN);
 }
