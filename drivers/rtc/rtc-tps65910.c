@@ -22,6 +22,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tps65910.h>
 
@@ -304,7 +305,6 @@ static int tps65910_rtc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-
 static int tps65910_rtc_suspend(struct device *dev)
 {
 	struct tps65910_rtc *tps_rtc = dev_get_drvdata(dev);
@@ -322,16 +322,11 @@ static int tps65910_rtc_resume(struct device *dev)
 		disable_irq_wake(tps_rtc->irq);
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops tps65910_rtc_pm_ops = {
-	.suspend	= tps65910_rtc_suspend,
-	.resume		= tps65910_rtc_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(tps65910_rtc_suspend, tps65910_rtc_resume)
 };
-
-#define DEV_PM_OPS     (&tps65910_rtc_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
-#endif
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
@@ -339,7 +334,7 @@ static struct platform_driver tps65910_rtc_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "tps65910-rtc",
-		.pm	= DEV_PM_OPS,
+		.pm	= &tps65910_rtc_pm_ops,
 	},
 };
 
