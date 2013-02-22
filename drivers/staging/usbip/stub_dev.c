@@ -114,8 +114,10 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 
 		spin_unlock_irq(&sdev->ud.lock);
 
-		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
-		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
+		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud,
+						  "stub_rx");
+		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud,
+						  "stub_tx");
 
 		spin_lock_irq(&sdev->ud.lock);
 		sdev->ud.status = SDEV_ST_USED;
