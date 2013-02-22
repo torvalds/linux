@@ -667,28 +667,31 @@ int dwc3_debugfs_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-#if IS_ENABLED(CONFIG_USB_DWC3_GADGET)
-	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_mode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)) {
+		file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_mode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
 
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_testmode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
+			IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
+		file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_testmode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 
-	file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_link_state_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+		file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_link_state_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
-#endif
 
 	return 0;
 
