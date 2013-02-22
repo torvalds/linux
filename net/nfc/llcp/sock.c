@@ -223,6 +223,121 @@ error:
 	return ret;
 }
 
+static int nfc_llcp_setsockopt(struct socket *sock, int level, int optname,
+			       char __user *optval, unsigned int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	u32 opt;
+	int err = 0;
+
+	pr_debug("%p optname %d\n", sk, optname);
+
+	if (level != SOL_NFC)
+		return -ENOPROTOOPT;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case NFC_LLCP_RW:
+		if (sk->sk_state == LLCP_CONNECTED ||
+		    sk->sk_state == LLCP_BOUND ||
+		    sk->sk_state == LLCP_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt > LLCP_MAX_RW) {
+			err = -EINVAL;
+			break;
+		}
+
+		llcp_sock->rw = (u8) opt;
+
+		break;
+
+	case NFC_LLCP_MIUX:
+		if (sk->sk_state == LLCP_CONNECTED ||
+		    sk->sk_state == LLCP_BOUND ||
+		    sk->sk_state == LLCP_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt > LLCP_MAX_MIUX) {
+			err = -EINVAL;
+			break;
+		}
+
+		llcp_sock->miux = (u16) opt;
+
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+
+	return err;
+}
+
+static int nfc_llcp_getsockopt(struct socket *sock, int level, int optname,
+			       char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	int len, err = 0;
+
+	pr_debug("%p optname %d\n", sk, optname);
+
+	if (level != SOL_NFC)
+		return -ENOPROTOOPT;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	len = min_t(u32, len, sizeof(u32));
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case NFC_LLCP_RW:
+		if (put_user(llcp_sock->rw, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
+	case NFC_LLCP_MIUX:
+		if (put_user(llcp_sock->miux, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+
+	return err;
+}
+
 void nfc_llcp_accept_unlink(struct sock *sk)
 {
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -735,8 +850,8 @@ static const struct proto_ops llcp_sock_ops = {
 	.ioctl          = sock_no_ioctl,
 	.listen         = llcp_sock_listen,
 	.shutdown       = sock_no_shutdown,
-	.setsockopt     = sock_no_setsockopt,
-	.getsockopt     = sock_no_getsockopt,
+	.setsockopt     = nfc_llcp_setsockopt,
+	.getsockopt     = nfc_llcp_getsockopt,
 	.sendmsg        = llcp_sock_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
 	.mmap           = sock_no_mmap,

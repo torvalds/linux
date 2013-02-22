@@ -220,4 +220,8 @@ struct sockaddr_nfc_llcp {
 #define NFC_LLCP_DIRECTION_RX		0x00
 #define NFC_LLCP_DIRECTION_TX		0x01
 
+/* socket option names */
+#define NFC_LLCP_RW   0
+#define NFC_LLCP_MIUX 1
+
 #endif /*__LINUX_NFC_H */
