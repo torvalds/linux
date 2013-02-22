@@ -143,7 +143,7 @@ static const char *edac_caps[] = {
  * and the per-dimm/per-rank one
  */
 #define DEVICE_ATTR_LEGACY(_name, _mode, _show, _store) \
-	struct device_attribute dev_attr_legacy_##_name = __ATTR(_name, _mode, _show, _store)
+	static struct device_attribute dev_attr_legacy_##_name = __ATTR(_name, _mode, _show, _store)
 
 struct dev_ch_attribute {
 	struct device_attribute attr;
