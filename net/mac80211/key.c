@@ -440,32 +440,6 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	key->sdata = sdata;
 	key->sta = sta;
 
-	if (sta) {
-		/*
-		 * some hardware cannot handle TKIP with QoS, so
-		 * we indicate whether QoS could be in use.
-		 */
-		if (test_sta_flag(sta, WLAN_STA_WME))
-			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
-	} else {
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			struct sta_info *ap;
-
-			/*
-			 * We're getting a sta pointer in, so must be under
-			 * appropriate locking for sta_info_get().
-			 */
-
-			/* same here, the AP could be using QoS */
-			ap = sta_info_get(key->sdata, key->sdata->u.mgd.bssid);
-			if (ap) {
-				if (test_sta_flag(ap, WLAN_STA_WME))
-					key->conf.flags |=
-						IEEE80211_KEY_FLAG_WMM_STA;
-			}
-		}
-	}
-
 	mutex_lock(&sdata->local->key_mtx);
 
 	if (sta && pairwise)
