@@ -3476,6 +3476,12 @@ sub process {
 			     "unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
 		}
 
+# check for alloc argument mismatch
+		if ($line =~ /\b(kcalloc|kmalloc_array)\s*\(\s*sizeof\b/) {
+			WARN("ALLOC_ARRAY_ARGS",
+			     "$1 uses number as first arg, sizeof is generally wrong\n" . $herecurr);
+		}
+
 # check for multiple semicolons
 		if ($line =~ /;\s*;\s*$/) {
 			WARN("ONE_SEMICOLON",
