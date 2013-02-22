@@ -35,35 +35,59 @@ Required properties:
 
 Timing properties for child nodes. All are optional and default to 0.
 
- - gpmc,sync-clk:	Minimum clock period for synchronous mode, in picoseconds
+ - gpmc,sync-clk-ps:	Minimum clock period for synchronous mode, in picoseconds
 
- Chip-select signal timings corresponding to GPMC_CONFIG2:
- - gpmc,cs-on:		Assertion time
- - gpmc,cs-rd-off:	Read deassertion time
- - gpmc,cs-wr-off:	Write deassertion time
+ Chip-select signal timings (in nanoseconds) corresponding to GPMC_CONFIG2:
+ - gpmc,cs-on-ns:	Assertion time
+ - gpmc,cs-rd-off-ns:	Read deassertion time
+ - gpmc,cs-wr-off-ns:	Write deassertion time
 
- ADV signal timings corresponding to GPMC_CONFIG3:
- - gpmc,adv-on:		Assertion time
- - gpmc,adv-rd-off:	Read deassertion time
- - gpmc,adv-wr-off:	Write deassertion time
+ ADV signal timings (in nanoseconds) corresponding to GPMC_CONFIG3:
+ - gpmc,adv-on-ns:	Assertion time
+ - gpmc,adv-rd-off-ns:	Read deassertion time
+ - gpmc,adv-wr-off-ns:	Write deassertion time
 
- WE signals timings corresponding to GPMC_CONFIG4:
- - gpmc,we-on:		Assertion time
- - gpmc,we-off:		Deassertion time
+ WE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
+ - gpmc,we-on-ns	Assertion time
+ - gpmc,we-off-ns:	Deassertion time
 
- OE signals timings corresponding to GPMC_CONFIG4:
- - gpmc,oe-on:		Assertion time
- - gpmc,oe-off:		Deassertion time
+ OE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
+ - gpmc,oe-on-ns:	Assertion time
+ - gpmc,oe-off-ns:	Deassertion time
 
- Access time and cycle time timings corresponding to GPMC_CONFIG5:
- - gpmc,page-burst-access: Multiple access word delay
- - gpmc,access:		Start-cycle to first data valid delay
- - gpmc,rd-cycle:	Total read cycle time
- - gpmc,wr-cycle:	Total write cycle time
+ Access time and cycle time timings (in nanoseconds) corresponding to
+ GPMC_CONFIG5:
+ - gpmc,page-burst-access-ns: 	Multiple access word delay
+ - gpmc,access-ns:		Start-cycle to first data valid delay
+ - gpmc,rd-cycle-ns:		Total read cycle time
+ - gpmc,wr-cycle-ns:		Total write cycle time
+ - gpmc,bus-turnaround-ns:	Turn-around time between successive accesses
+ - gpmc,cycle2cycle-delay-ns:	Delay between chip-select pulses
+ - gpmc,clk-activation-ns: 	GPMC clock activation time
+ - gpmc,wait-monitoring-ns:	Start of wait monitoring with regard to valid
+				data
+
+Boolean timing parameters. If property is present parameter enabled and
+disabled if omitted:
+ - gpmc,adv-extra-delay:	ADV signal is delayed by half GPMC clock
+ - gpmc,cs-extra-delay:		CS signal is delayed by half GPMC clock
+ - gpmc,cycle2cycle-diffcsen:	Add "cycle2cycle-delay" between successive
+				accesses to a different CS
+ - gpmc,cycle2cycle-samecsen:	Add "cycle2cycle-delay" between successive
+				accesses to the same CS
+ - gpmc,oe-extra-delay:		OE signal is delayed by half GPMC clock
+ - gpmc,we-extra-delay:		WE signal is delayed by half GPMC clock
+ - gpmc,time-para-granularity:	Multiply all access times by 2
 
 The following are only applicable to OMAP3+ and AM335x:
- - gpmc,wr-access
- - gpmc,wr-data-mux-bus
+ - gpmc,wr-access-ns:		In synchronous write mode, for single or
+				burst accesses, defines the number of
+				GPMC_FCLK cycles from start access time
+				to the GPMC_CLK rising edge used by the
+				memory device for the first data capture.
+ - gpmc,wr-data-mux-bus-ns:	In address-data multiplex mode, specifies
+				the time when the first data is driven on
+				the address-data bus.
 
 GPMC chip-select settings properties for child nodes. All are optional.
 

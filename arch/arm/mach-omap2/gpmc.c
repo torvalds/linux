@@ -1230,67 +1230,67 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 						struct gpmc_timings *gpmc_t)
 {
-	u32 val;
+	struct gpmc_bool_timings *p;
+
+	if (!np || !gpmc_t)
+		return;
 
 	memset(gpmc_t, 0, sizeof(*gpmc_t));
 
 	/* minimum clock period for syncronous mode */
-	if (!of_property_read_u32(np, "gpmc,sync-clk", &val))
-		gpmc_t->sync_clk = val;
+	of_property_read_u32(np, "gpmc,sync-clk-ps", &gpmc_t->sync_clk);
 
 	/* chip select timtings */
-	if (!of_property_read_u32(np, "gpmc,cs-on", &val))
-		gpmc_t->cs_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,cs-rd-off", &val))
-		gpmc_t->cs_rd_off = val;
-
-	if (!of_property_read_u32(np, "gpmc,cs-wr-off", &val))
-		gpmc_t->cs_wr_off = val;
+	of_property_read_u32(np, "gpmc,cs-on-ns", &gpmc_t->cs_on);
+	of_property_read_u32(np, "gpmc,cs-rd-off-ns", &gpmc_t->cs_rd_off);
+	of_property_read_u32(np, "gpmc,cs-wr-off-ns", &gpmc_t->cs_wr_off);
 
 	/* ADV signal timings */
-	if (!of_property_read_u32(np, "gpmc,adv-on", &val))
-		gpmc_t->adv_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,adv-rd-off", &val))
-		gpmc_t->adv_rd_off = val;
-
-	if (!of_property_read_u32(np, "gpmc,adv-wr-off", &val))
-		gpmc_t->adv_wr_off = val;
+	of_property_read_u32(np, "gpmc,adv-on-ns", &gpmc_t->adv_on);
+	of_property_read_u32(np, "gpmc,adv-rd-off-ns", &gpmc_t->adv_rd_off);
+	of_property_read_u32(np, "gpmc,adv-wr-off-ns", &gpmc_t->adv_wr_off);
 
 	/* WE signal timings */
-	if (!of_property_read_u32(np, "gpmc,we-on", &val))
-		gpmc_t->we_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,we-off", &val))
-		gpmc_t->we_off = val;
+	of_property_read_u32(np, "gpmc,we-on-ns", &gpmc_t->we_on);
+	of_property_read_u32(np, "gpmc,we-off-ns", &gpmc_t->we_off);
 
 	/* OE signal timings */
-	if (!of_property_read_u32(np, "gpmc,oe-on", &val))
-		gpmc_t->oe_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,oe-off", &val))
-		gpmc_t->oe_off = val;
+	of_property_read_u32(np, "gpmc,oe-on-ns", &gpmc_t->oe_on);
+	of_property_read_u32(np, "gpmc,oe-off-ns", &gpmc_t->oe_off);
 
 	/* access and cycle timings */
-	if (!of_property_read_u32(np, "gpmc,page-burst-access", &val))
-		gpmc_t->page_burst_access = val;
+	of_property_read_u32(np, "gpmc,page-burst-access-ns",
+			     &gpmc_t->page_burst_access);
+	of_property_read_u32(np, "gpmc,access-ns", &gpmc_t->access);
+	of_property_read_u32(np, "gpmc,rd-cycle-ns", &gpmc_t->rd_cycle);
+	of_property_read_u32(np, "gpmc,wr-cycle-ns", &gpmc_t->wr_cycle);
+	of_property_read_u32(np, "gpmc,bus-turnaround-ns",
+			     &gpmc_t->bus_turnaround);
+	of_property_read_u32(np, "gpmc,cycle2cycle-delay-ns",
+			     &gpmc_t->cycle2cycle_delay);
+	of_property_read_u32(np, "gpmc,wait-monitoring-ns",
+			     &gpmc_t->wait_monitoring);
+	of_property_read_u32(np, "gpmc,clk-activation-ns",
+			     &gpmc_t->clk_activation);
 
-	if (!of_property_read_u32(np, "gpmc,access", &val))
-		gpmc_t->access = val;
+	/* only applicable to OMAP3+ */
+	of_property_read_u32(np, "gpmc,wr-access-ns", &gpmc_t->wr_access);
+	of_property_read_u32(np, "gpmc,wr-data-mux-bus-ns",
+			     &gpmc_t->wr_data_mux_bus);
 
-	if (!of_property_read_u32(np, "gpmc,rd-cycle", &val))
-		gpmc_t->rd_cycle = val;
+	/* bool timing parameters */
+	p = &gpmc_t->bool_timings;
 
-	if (!of_property_read_u32(np, "gpmc,wr-cycle", &val))
-		gpmc_t->wr_cycle = val;
-
-	/* only for OMAP3430 */
-	if (!of_property_read_u32(np, "gpmc,wr-access", &val))
-		gpmc_t->wr_access = val;
-
-	if (!of_property_read_u32(np, "gpmc,wr-data-mux-bus", &val))
-		gpmc_t->wr_data_mux_bus = val;
+	p->cycle2cyclediffcsen =
+		of_property_read_bool(np, "gpmc,cycle2cycle-diffcsen");
+	p->cycle2cyclesamecsen =
+		of_property_read_bool(np, "gpmc,cycle2cycle-samecsen");
+	p->we_extra_delay = of_property_read_bool(np, "gpmc,we-extra-delay");
+	p->oe_extra_delay = of_property_read_bool(np, "gpmc,oe-extra-delay");
+	p->adv_extra_delay = of_property_read_bool(np, "gpmc,adv-extra-delay");
+	p->cs_extra_delay = of_property_read_bool(np, "gpmc,cs-extra-delay");
+	p->time_para_granularity =
+		of_property_read_bool(np, "gpmc,time-para-granularity");
 }
 
 #ifdef CONFIG_MTD_NAND
