@@ -105,7 +105,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	return 0;
 }
 
-sector_t spc_get_write_same_sectors(struct se_cmd *cmd)
+sector_t sbc_get_write_same_sectors(struct se_cmd *cmd)
 {
 	u32 num_blocks;
 
@@ -126,7 +126,7 @@ sector_t spc_get_write_same_sectors(struct se_cmd *cmd)
 	return cmd->se_dev->transport->get_blocks(cmd->se_dev) -
 		cmd->t_task_lba + 1;
 }
-EXPORT_SYMBOL(spc_get_write_same_sectors);
+EXPORT_SYMBOL(sbc_get_write_same_sectors);
 
 static sense_reason_t
 sbc_emulate_noop(struct se_cmd *cmd)
@@ -233,7 +233,7 @@ static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
 static sense_reason_t
 sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *ops)
 {
-	unsigned int sectors = spc_get_write_same_sectors(cmd);
+	unsigned int sectors = sbc_get_write_same_sectors(cmd);
 
 	if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
 		pr_err("WRITE_SAME PBDATA and LBDATA"

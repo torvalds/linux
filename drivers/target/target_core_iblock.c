@@ -473,7 +473,7 @@ iblock_execute_write_same_unmap(struct se_cmd *cmd)
 	int rc;
 
 	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-			spc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
+			sbc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
 	if (rc < 0) {
 		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -491,7 +491,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	struct bio *bio;
 	struct bio_list list;
 	sector_t block_lba = cmd->t_task_lba;
-	sector_t sectors = spc_get_write_same_sectors(cmd);
+	sector_t sectors = sbc_get_write_same_sectors(cmd);
 
 	sg = &cmd->t_data_sg[0];
 

@@ -381,7 +381,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 	struct scatterlist *sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	sector_t nolb = spc_get_write_same_sectors(cmd);
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	loff_t pos = cmd->t_task_lba * se_dev->dev_attrib.block_size;
 	unsigned int len, len_tmp, iov_num;
 	int i, rc;
