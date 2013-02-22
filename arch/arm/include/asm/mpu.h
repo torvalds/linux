@@ -50,6 +50,9 @@
 /* Maximum number of regions Linux is interested in */
 #define MPU_MAX_REGIONS		16
 
+#define MPU_DATA_SIDE		0
+#define MPU_INSTR_SIDE		1
+
 #ifndef __ASSEMBLY__
 
 struct mpu_rgn {
