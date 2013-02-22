@@ -43,7 +43,6 @@
 
 #define MIN_BRIGHTNESS		0
 #define MAX_BRIGHTNESS		24
-#define power_is_on(pwr)	((pwr) <= FB_BLANK_NORMAL)
 
 struct ld9040 {
 	struct device			*dev;
@@ -567,15 +566,17 @@ static int ld9040_ldi_disable(struct ld9040 *lcd)
 	return ret;
 }
 
+static int ld9040_power_is_on(int power)
+{
+	return power <= FB_BLANK_NORMAL;
+}
+
 static int ld9040_power_on(struct ld9040 *lcd)
 {
 	int ret = 0;
-	struct lcd_platform_data *pd = NULL;
+	struct lcd_platform_data *pd;
+
 	pd = lcd->lcd_pd;
-	if (!pd) {
-		dev_err(lcd->dev, "platform data is NULL.\n");
-		return -EFAULT;
-	}
 
 	/* lcd power on */
 	ld9040_regulator_enable(lcd);
@@ -605,14 +606,10 @@ static int ld9040_power_on(struct ld9040 *lcd)
 
 static int ld9040_power_off(struct ld9040 *lcd)
 {
-	int ret = 0;
-	struct lcd_platform_data *pd = NULL;
+	int ret;
+	struct lcd_platform_data *pd;
 
 	pd = lcd->lcd_pd;
-	if (!pd) {
-		dev_err(lcd->dev, "platform data is NULL.\n");
-		return -EFAULT;
-	}
 
 	ret = ld9040_ldi_disable(lcd);
 	if (ret) {
@@ -632,9 +629,9 @@ static int ld9040_power(struct ld9040 *lcd, int power)
 {
 	int ret = 0;
 
-	if (power_is_on(power) && !power_is_on(lcd->power))
+	if (ld9040_power_is_on(power) && !ld9040_power_is_on(lcd->power))
 		ret = ld9040_power_on(lcd);
-	else if (!power_is_on(power) && power_is_on(lcd->power))
+	else if (!ld9040_power_is_on(power) && ld9040_power_is_on(lcd->power))
 		ret = ld9040_power_off(lcd);
 
 	if (!ret)
@@ -773,8 +770,9 @@ static int ld9040_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_POWERDOWN;
 
 		ld9040_power(lcd, FB_BLANK_UNBLANK);
-	} else
+	} else {
 		lcd->power = FB_BLANK_UNBLANK;
+	}
 
 	dev_set_drvdata(&spi->dev, lcd);
 
