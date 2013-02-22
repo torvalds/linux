@@ -285,7 +285,8 @@ static int tps80031_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = request_threaded_irq(rtc->irq, NULL, tps80031_rtc_irq,
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+			tps80031_rtc_irq,
 			IRQF_ONESHOT | IRQF_EARLY_RESUME,
 			dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
@@ -302,7 +303,6 @@ static int tps80031_rtc_remove(struct platform_device *pdev)
 {
 	struct tps80031_rtc *rtc = platform_get_drvdata(pdev);
 
-	free_irq(rtc->irq, rtc);
 	rtc_device_unregister(rtc->rtc);
 	return 0;
 }
