@@ -142,7 +142,7 @@ int rk31sdk_get_sdio_wifi_voltage(void)
 #if defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
     voltage = 1800 ; //power 1800mV
     
-#elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)||defined(CONFIG_MT6620)
+#elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)
     voltage = 1800 ; //power 1800V
 #elif defined(CONFIG_MT6620) 
     voltage = 2800 ; //power 2800V
