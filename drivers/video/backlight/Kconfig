@@ -134,6 +134,13 @@ config LCD_LMS501KF03
 	  If you have an LMS501KF03 LCD Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_HX8357
+	tristate "Himax HX-8357 LCD Driver"
+	depends on SPI
+	help
+	  If you have a HX-8357 LCD panel, say Y to enable its LCD control
+	  driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
