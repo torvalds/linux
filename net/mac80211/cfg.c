@@ -254,7 +254,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 		goto out_unlock;
 	}
 
-	__ieee80211_key_free(key);
+	__ieee80211_key_free(key, true);
 
 	ret = 0;
  out_unlock:
