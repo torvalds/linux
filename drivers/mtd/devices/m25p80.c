@@ -741,7 +741,6 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
 	{ "320s33b",  INFO(0x898912, 0, 64 * 1024,  64, 0) },
 	{ "640s33b",  INFO(0x898913, 0, 64 * 1024, 128, 0) },
-	{ "n25q064",  INFO(0x20ba17, 0, 64 * 1024, 128, 0) },
 
 	/* Macronix */
 	{ "mx25l2005a",  INFO(0xc22012, 0, 64 * 1024,   4, SECT_4K) },
@@ -757,6 +756,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "mx66l51235l", INFO(0xc2201a, 0, 64 * 1024, 1024, 0) },
 
 	/* Micron */
+	{ "n25q064",  INFO(0x20ba17, 0, 64 * 1024, 128, 0) },
 	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024, 256, 0) },
 	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024, 256, 0) },
 	{ "n25q256a", INFO(0x20ba19, 0, 64 * 1024, 512, SECT_4K) },
