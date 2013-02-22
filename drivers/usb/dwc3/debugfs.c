@@ -577,6 +577,12 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	case DWC3_LINK_STATE_LPBK:
 		seq_printf(s, "Loopback\n");
 		break;
+	case DWC3_LINK_STATE_RESET:
+		seq_printf(s, "Reset\n");
+		break;
+	case DWC3_LINK_STATE_RESUME:
+		seq_printf(s, "Resume\n");
+		break;
 	default:
 		seq_printf(s, "UNKNOWN %d\n", reg);
 	}
