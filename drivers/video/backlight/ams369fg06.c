@@ -210,8 +210,9 @@ static int ams369fg06_panel_send_sequence(struct ams369fg06 *lcd,
 			ret = ams369fg06_spi_write(lcd, wbuf[i], wbuf[i+1]);
 			if (ret)
 				break;
-		} else
-			mdelay(wbuf[i+1]);
+		} else {
+			msleep(wbuf[i+1]);
+		}
 		i += 2;
 	}
 
@@ -339,7 +340,7 @@ static int ams369fg06_power_on(struct ams369fg06 *lcd)
 		return -EFAULT;
 	} else {
 		pd->power_on(lcd->ld, 1);
-		mdelay(pd->power_on_delay);
+		msleep(pd->power_on_delay);
 	}
 
 	if (!pd->reset) {
@@ -347,7 +348,7 @@ static int ams369fg06_power_on(struct ams369fg06 *lcd)
 		return -EFAULT;
 	} else {
 		pd->reset(lcd->ld);
-		mdelay(pd->reset_delay);
+		msleep(pd->reset_delay);
 	}
 
 	ret = ams369fg06_ldi_init(lcd);
@@ -389,7 +390,7 @@ static int ams369fg06_power_off(struct ams369fg06 *lcd)
 		return -EIO;
 	}
 
-	mdelay(pd->power_off_delay);
+	msleep(pd->power_off_delay);
 
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
