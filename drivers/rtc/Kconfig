@@ -204,6 +204,12 @@ config RTC_DRV_DS3232
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
 
+config RTC_DRV_LP8788
+	tristate "TI LP8788 RTC driver"
+	depends on MFD_LP8788
+	help
+	  Say Y to enable support for the LP8788 RTC/ALARM driver.
+
 config RTC_DRV_MAX6900
 	tristate "Maxim MAX6900"
 	help
