@@ -189,8 +189,8 @@ static int dw_mci_exynos_setup_bus(struct dw_mci *host,
 	return 0;
 }
 
-/* Exynos5250 controller specific capabilities */
-static unsigned long exynos5250_dwmmc_caps[4] = {
+/* Common capabilities of Exynos4/Exynos5 SoC */
+static unsigned long exynos_dwmmc_caps[4] = {
 	MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR |
 		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -198,8 +198,8 @@ static unsigned long exynos5250_dwmmc_caps[4] = {
 	MMC_CAP_CMD23,
 };
 
-static const struct dw_mci_drv_data exynos5250_drv_data = {
-	.caps			= exynos5250_dwmmc_caps,
+static const struct dw_mci_drv_data exynos_drv_data = {
+	.caps			= exynos_dwmmc_caps,
 	.init			= dw_mci_exynos_priv_init,
 	.setup_clock		= dw_mci_exynos_setup_clock,
 	.prepare_command	= dw_mci_exynos_prepare_command,
@@ -209,8 +209,10 @@ static const struct dw_mci_drv_data exynos5250_drv_data = {
 };
 
 static const struct of_device_id dw_mci_exynos_match[] = {
+	{ .compatible = "samsung,exynos4412-dw-mshc",
+			.data = &exynos_drv_data, },
 	{ .compatible = "samsung,exynos5250-dw-mshc",
-			.data = &exynos5250_drv_data, },
+			.data = &exynos_drv_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_exynos_match);
