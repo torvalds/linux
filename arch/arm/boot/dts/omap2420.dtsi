@@ -29,6 +29,17 @@
 			pinctrl-single,function-mask = <0x3f>;
 		};
 
+		gpmc: gpmc@6800a000 {
+			compatible = "ti,omap2420-gpmc";
+			reg = <0x6800a000 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <20>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			ti,hwmods = "gpmc";
+		};
+
 		mcbsp1: mcbsp@48074000 {
 			compatible = "ti,omap2420-mcbsp";
 			reg = <0x48074000 0xff>;

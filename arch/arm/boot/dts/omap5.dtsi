@@ -208,6 +208,17 @@
 			#interrupt-cells = <1>;
 		};
 
+		gpmc: gpmc@50000000 {
+			compatible = "ti,omap4430-gpmc";
+			reg = <0x50000000 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <0 20 0x4>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			ti,hwmods = "gpmc";
+		};
+
 		i2c1: i2c@48070000 {
 			compatible = "ti,omap4-i2c";
 			reg = <0x48070000 0x100>;
