@@ -2794,6 +2794,7 @@ static int dsi_vc_enable(struct platform_device *dsidev, int channel,
 
 static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r;
 
 	DSSDBG("Initial config of virtual channel %d", channel);
@@ -2818,6 +2819,8 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = no dma */
 
 	dsi_write_reg(dsidev, DSI_VC_CTRL(channel), r);
+
+	dsi->vc[channel].source = DSI_VC_SOURCE_L4;
 }
 
 static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
