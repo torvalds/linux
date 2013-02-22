@@ -766,8 +766,6 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 	ui_cb->dsap = dsap;
 	ui_cb->ssap = ssap;
 
-	printk("%s %d %d\n", __func__, dsap, ssap);
-
 	pr_debug("%d %d\n", dsap, ssap);
 
 	/* We're looking for a bound socket, not a client one */
