@@ -349,12 +349,14 @@ static const struct dev_pm_ops sa1100_rtc_pm_ops = {
 };
 #endif
 
+#ifdef CONFIG_OF
 static struct of_device_id sa1100_rtc_dt_ids[] = {
 	{ .compatible = "mrvl,sa1100-rtc", },
 	{ .compatible = "mrvl,mmp-rtc", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sa1100_rtc_dt_ids);
+#endif
 
 static struct platform_driver sa1100_rtc_driver = {
 	.probe		= sa1100_rtc_probe,
@@ -364,7 +366,7 @@ static struct platform_driver sa1100_rtc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &sa1100_rtc_pm_ops,
 #endif
-		.of_match_table = sa1100_rtc_dt_ids,
+		.of_match_table = of_match_ptr(sa1100_rtc_dt_ids),
 	},
 };
 
