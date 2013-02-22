@@ -584,7 +584,7 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 		seq_printf(s, "Resume\n");
 		break;
 	default:
-		seq_printf(s, "UNKNOWN %d\n", reg);
+		seq_printf(s, "UNKNOWN %d\n", state);
 	}
 
 	return 0;
