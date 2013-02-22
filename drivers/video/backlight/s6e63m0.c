@@ -827,44 +827,26 @@ static int s6e63m0_remove(struct spi_device *spi)
 }
 
 #if defined(CONFIG_PM)
-static unsigned int before_power;
-
 static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	int ret = 0;
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 
 	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
-
-	before_power = lcd->power;
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
 	 * regardless of status.
 	 */
-	ret = s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
-
-	return ret;
+	return s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
 
 static int s6e63m0_resume(struct spi_device *spi)
 {
-	int ret = 0;
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 
-	/*
-	 * after suspended, if lcd panel status is FB_BLANK_UNBLANK
-	 * (at that time, before_power is FB_BLANK_UNBLANK) then
-	 * it changes that status to FB_BLANK_POWERDOWN to get lcd on.
-	 */
-	if (before_power == FB_BLANK_UNBLANK)
-		lcd->power = FB_BLANK_POWERDOWN;
+	lcd->power = FB_BLANK_POWERDOWN;
 
-	dev_dbg(&spi->dev, "before_power = %d\n", before_power);
-
-	ret = s6e63m0_power(lcd, before_power);
-
-	return ret;
+	return s6e63m0_power(lcd, FB_BLANK_UNBLANK);
 }
 #else
 #define s6e63m0_suspend		NULL
