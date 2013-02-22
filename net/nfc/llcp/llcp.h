@@ -104,8 +104,10 @@ struct nfc_llcp_sock {
 	u8 dsap;
 	char *service_name;
 	size_t service_name_len;
-	u8 rw;
-	u16 miu;
+
+	/* Remote link parameters */
+	u8 remote_rw;
+	u16 remote_miu;
 
 	/* Link variables */
 	u8 send_n;

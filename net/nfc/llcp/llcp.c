@@ -865,7 +865,7 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock = nfc_llcp_sock(new_sk);
 	new_sock->dev = local->dev;
 	new_sock->local = nfc_llcp_local_get(local);
-	new_sock->miu = local->remote_miu;
+	new_sock->remote_miu = local->remote_miu;
 	new_sock->nfc_protocol = sock->nfc_protocol;
 	new_sock->dsap = ssap;
 	new_sock->target_idx = local->target_idx;
@@ -919,11 +919,11 @@ int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
 
 	pr_debug("Remote ready %d tx queue len %d remote rw %d",
 		 sock->remote_ready, skb_queue_len(&sock->tx_pending_queue),
-		 sock->rw);
+		 sock->remote_rw);
 
 	/* Try to queue some I frames for transmission */
 	while (sock->remote_ready &&
-	       skb_queue_len(&sock->tx_pending_queue) < sock->rw) {
+	       skb_queue_len(&sock->tx_pending_queue) < sock->remote_rw) {
 		struct sk_buff *pdu;
 
 		pdu = skb_dequeue(&sock->tx_queue);

@@ -184,10 +184,10 @@ int nfc_llcp_parse_connection_tlv(struct nfc_llcp_sock *sock,
 
 		switch (type) {
 		case LLCP_TLV_MIUX:
-			sock->miu = llcp_tlv_miux(tlv) + 128;
+			sock->remote_miu = llcp_tlv_miux(tlv) + 128;
 			break;
 		case LLCP_TLV_RW:
-			sock->rw = llcp_tlv_rw(tlv);
+			sock->remote_rw = llcp_tlv_rw(tlv);
 			break;
 		case LLCP_TLV_SN:
 			break;
@@ -200,7 +200,8 @@ int nfc_llcp_parse_connection_tlv(struct nfc_llcp_sock *sock,
 		tlv += length + 2;
 	}
 
-	pr_debug("sock %p rw %d miu %d\n", sock, sock->rw, sock->miu);
+	pr_debug("sock %p rw %d miu %d\n", sock,
+		 sock->remote_rw, sock->remote_miu);
 
 	return 0;
 }
@@ -532,8 +533,8 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	/* Remote is ready but has not acknowledged our frames */
 	if((sock->remote_ready &&
-	    skb_queue_len(&sock->tx_pending_queue) >= sock->rw &&
-	    skb_queue_len(&sock->tx_queue) >= 2 * sock->rw)) {
+	    skb_queue_len(&sock->tx_pending_queue) >= sock->remote_rw &&
+	    skb_queue_len(&sock->tx_queue) >= 2 * sock->remote_rw)) {
 		pr_err("Pending queue is full %d frames\n",
 		       skb_queue_len(&sock->tx_pending_queue));
 		return -ENOBUFS;
@@ -541,7 +542,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	/* Remote is not ready and we've been queueing enough frames */
 	if ((!sock->remote_ready &&
-	     skb_queue_len(&sock->tx_queue) >= 2 * sock->rw)) {
+	     skb_queue_len(&sock->tx_queue) >= 2 * sock->remote_rw)) {
 		pr_err("Tx queue is full %d frames\n",
 		       skb_queue_len(&sock->tx_queue));
 		return -ENOBUFS;
@@ -561,7 +562,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	while (remaining_len > 0) {
 
-		frag_len = min_t(size_t, sock->miu, remaining_len);
+		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);
@@ -621,7 +622,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 
 	while (remaining_len > 0) {
 
-		frag_len = min_t(size_t, sock->miu, remaining_len);
+		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);
