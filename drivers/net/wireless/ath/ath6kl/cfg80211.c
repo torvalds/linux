@@ -402,7 +402,7 @@ static bool ath6kl_is_valid_iftype(struct ath6kl *ar, enum nl80211_iftype type,
 	if (type == NL80211_IFTYPE_STATION ||
 	    type == NL80211_IFTYPE_AP || type == NL80211_IFTYPE_ADHOC) {
 		for (i = 0; i < ar->vif_max; i++) {
-			if ((ar->avail_idx_map >> i) & BIT(0)) {
+			if ((ar->avail_idx_map) & BIT(i)) {
 				*if_idx = i;
 				return true;
 			}
@@ -412,7 +412,7 @@ static bool ath6kl_is_valid_iftype(struct ath6kl *ar, enum nl80211_iftype type,
 	if (type == NL80211_IFTYPE_P2P_CLIENT ||
 	    type == NL80211_IFTYPE_P2P_GO) {
 		for (i = ar->max_norm_iface; i < ar->vif_max; i++) {
-			if ((ar->avail_idx_map >> i) & BIT(0)) {
+			if ((ar->avail_idx_map) & BIT(i)) {
 				*if_idx = i;
 				return true;
 			}
