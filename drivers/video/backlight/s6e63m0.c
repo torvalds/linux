@@ -406,8 +406,9 @@ static int s6e63m0_panel_send_sequence(struct s6e63m0 *lcd,
 			ret = s6e63m0_spi_write(lcd, wbuf[i], wbuf[i+1]);
 			if (ret)
 				break;
-		} else
-			udelay(wbuf[i+1]*1000);
+		} else {
+			msleep(wbuf[i+1]);
+		}
 		i += 2;
 	}
 
@@ -523,7 +524,7 @@ static int s6e63m0_power_on(struct s6e63m0 *lcd)
 		return -EFAULT;
 	} else {
 		pd->power_on(lcd->ld, 1);
-		mdelay(pd->power_on_delay);
+		msleep(pd->power_on_delay);
 	}
 
 	if (!pd->reset) {
@@ -531,7 +532,7 @@ static int s6e63m0_power_on(struct s6e63m0 *lcd)
 		return -EFAULT;
 	} else {
 		pd->reset(lcd->ld);
-		mdelay(pd->reset_delay);
+		msleep(pd->reset_delay);
 	}
 
 	ret = s6e63m0_ldi_init(lcd);
@@ -573,7 +574,7 @@ static int s6e63m0_power_off(struct s6e63m0 *lcd)
 		return -EIO;
 	}
 
-	mdelay(pd->power_off_delay);
+	msleep(pd->power_off_delay);
 
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
