@@ -49,7 +49,7 @@ static void l4f00242t03_reset(unsigned int gpio)
 static void l4f00242t03_lcd_init(struct spi_device *spi)
 {
 	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 	const u16 cmd[] = { 0x36, param(0), 0x3A, param(0x60) };
 
 	dev_dbg(&spi->dev, "initializing LCD\n");
@@ -70,7 +70,7 @@ static void l4f00242t03_lcd_init(struct spi_device *spi)
 static void l4f00242t03_lcd_powerdown(struct spi_device *spi)
 {
 	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "Powering down LCD\n");
 
@@ -168,7 +168,7 @@ static int l4f00242t03_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(&spi->dev, priv);
+	spi_set_drvdata(spi, priv);
 	spi->bits_per_word = 9;
 	spi_setup(spi);
 
@@ -231,12 +231,12 @@ err1:
 
 static int l4f00242t03_remove(struct spi_device *spi)
 {
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(priv->ld);
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 
 	regulator_put(priv->io_reg);
 	regulator_put(priv->core_reg);
@@ -246,7 +246,7 @@ static int l4f00242t03_remove(struct spi_device *spi)
 
 static void l4f00242t03_shutdown(struct spi_device *spi)
 {
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	if (priv)
 		l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
