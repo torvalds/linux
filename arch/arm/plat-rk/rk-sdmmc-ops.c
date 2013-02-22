@@ -15,7 +15,7 @@
  **************************************************************************************************/
 
 //use the new iomux-API
-#if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
+#if 1//defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
 #define SDMMC_USE_NEW_IOMUX_API 1
 #else
 #define SDMMC_USE_NEW_IOMUX_API 0
@@ -63,14 +63,14 @@
 
 int rk31sdk_wifi_voltage_select(void)
 {
-    double voltage;
+    int voltage;
     int voltage_flag = 0;
 
     voltage = rk31sdk_get_sdio_wifi_voltage();
    
-     if(voltage >= 2.7)
+     if(voltage >= 2700)
         voltage_flag = 0;
-     else if(voltage <= 2.0)
+     else if(voltage <= 2000)
         voltage_flag = 1;
      else
         voltage_flag = 1;
@@ -777,6 +777,10 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
     	    break;
     	case 0xFFFF: //gpio_reset
     	{
+    	    #if (!!SDMMC_USE_NEW_IOMUX_API) && !defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    	    iomux_set(MMC0_DETN);
+    	    #endif
+    	    
     	    #if !(!!SDMMC_USE_NEW_IOMUX_API)
             rk30_mux_api_set(rksdmmc0_gpio_init.power_en_gpio.iomux.name, rksdmmc0_gpio_init.power_en_gpio.iomux.fgpio);
             #endif
@@ -807,7 +811,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
 
             //IO voltage(vccio);
             #ifdef RK31SDK_SET_SDMMC0_PIN_VOLTAGE
-                if(rk31sdk_get_sdmmc0_pin_io_voltage() > 3.0)
+                if(rk31sdk_get_sdmmc0_pin_io_voltage() > 2700)
                     SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_33)); //set SDMMC0 pin to 3.3v
                 else
                     SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_18));//set SDMMC0 pin to 1.8v
