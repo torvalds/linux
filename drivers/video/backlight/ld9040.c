@@ -710,17 +710,15 @@ static int ld9040_probe(struct spi_device *spi)
 
 	mutex_init(&lcd->lock);
 
-	ret = regulator_bulk_get(lcd->dev, ARRAY_SIZE(supplies), supplies);
+	ret = devm_regulator_bulk_get(lcd->dev, ARRAY_SIZE(supplies), supplies);
 	if (ret) {
 		dev_err(lcd->dev, "Failed to get regulators: %d\n", ret);
 		return ret;
 	}
 
 	ld = lcd_device_register("ld9040", &spi->dev, lcd, &ld9040_lcd_ops);
-	if (IS_ERR(ld)) {
-		ret = PTR_ERR(ld);
-		goto out_free_regulator;
-	}
+	if (IS_ERR(ld))
+		return PTR_ERR(ld);
 
 	lcd->ld = ld;
 
@@ -762,8 +760,6 @@ static int ld9040_probe(struct spi_device *spi)
 
 out_unregister_lcd:
 	lcd_device_unregister(lcd->ld);
-out_free_regulator:
-	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 
 	return ret;
 }
@@ -775,7 +771,6 @@ static int ld9040_remove(struct spi_device *spi)
 	ld9040_power(lcd, FB_BLANK_POWERDOWN);
 	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
-	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 
 	return 0;
 }
