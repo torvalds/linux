@@ -1535,7 +1535,9 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 
 	ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 
+	rtnl_lock();
 	ath6kl_cfg80211_vif_cleanup(vif);
+	rtnl_unlock();
 
 	return 0;
 }
