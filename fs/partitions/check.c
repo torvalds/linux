@@ -38,6 +38,7 @@
 #include "efi.h"
 #include "karma.h"
 #include "sysv68.h"
+#include "sunxi_nand.h"
 
 #ifdef CONFIG_BLK_DEV_MD
 extern void md_autodetect_dev(dev_t dev);
@@ -111,6 +112,9 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #endif
 #ifdef CONFIG_SYSV68_PARTITION
 	sysv68_partition,
+#endif
+#ifdef CONFIG_SUNXI_NAND
+	sunxi_nand_partition,
 #endif
 	NULL
 };
