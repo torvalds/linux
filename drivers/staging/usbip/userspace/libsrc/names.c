@@ -246,7 +246,7 @@ struct pool {
 	void *mem;
 };
 
-static struct pool *pool_head = NULL;
+static struct pool *pool_head;
 
 static void *my_malloc(size_t size)
 {

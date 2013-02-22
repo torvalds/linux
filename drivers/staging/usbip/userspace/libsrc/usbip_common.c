@@ -8,9 +8,9 @@
 #undef  PROGNAME
 #define PROGNAME "libusbip"
 
-int usbip_use_syslog = 0;
-int usbip_use_stderr = 0;
-int usbip_use_debug  = 0;
+int usbip_use_syslog;
+int usbip_use_stderr;
+int usbip_use_debug;
 
 struct speed_string {
 	int num;
