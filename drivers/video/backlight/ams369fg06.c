@@ -421,7 +421,7 @@ static int ams369fg06_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0;
 	int brightness = bd->props.brightness;
-	struct ams369fg06 *lcd = dev_get_drvdata(&bd->dev);
+	struct ams369fg06 *lcd = bl_get_data(bd);
 
 	if (brightness < MIN_BRIGHTNESS ||
 		brightness > bd->props.max_brightness) {
