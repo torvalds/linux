@@ -836,13 +836,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		rcu_barrier();
 		sta_info_flush_cleanup(sdata);
 
-		skb_queue_purge(&sdata->skb_queue);
-
 		/*
 		 * Free all remaining keys, there shouldn't be any,
 		 * except maybe in WDS mode?
 		 */
 		ieee80211_free_keys(sdata);
+
+		/* fall through */
+	case NL80211_IFTYPE_AP:
+		skb_queue_purge(&sdata->skb_queue);
 
 		drv_remove_interface_debugfs(local, sdata);
 
