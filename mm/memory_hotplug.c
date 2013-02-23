@@ -1700,9 +1700,12 @@ static int check_cpu_on_node(void *data)
 /* offline the node if all memory sections of this node are removed */
 static void try_offline_node(int nid)
 {
-	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	unsigned long start_pfn = pgdat->node_start_pfn;
+	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
 	unsigned long pfn;
+	struct page *pgdat_page = virt_to_page(pgdat);
+	int i;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		unsigned long section_nr = pfn_to_section_nr(pfn);
@@ -1720,7 +1723,7 @@ static void try_offline_node(int nid)
 		return;
 	}
 
-	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
+	if (stop_machine(check_cpu_on_node, pgdat, NULL))
 		return;
 
 	/*
@@ -1729,6 +1732,27 @@ static void try_offline_node(int nid)
 	 */
 	node_set_offline(nid);
 	unregister_one_node(nid);
+
+	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
+		/* node data is allocated from boot memory */
+		return;
+
+	/* free waittable in each zone */
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		struct zone *zone = pgdat->node_zones + i;
+
+		if (zone->wait_table)
+			vfree(zone->wait_table);
+	}
+
+	/*
+	 * Since there is no way to guarentee the address of pgdat/zone is not
+	 * on stack of any kernel threads or used by other kernel objects
+	 * without reference counting or other symchronizing method, do not
+	 * reset node_data and free pgdat here. Just reset it to 0 and reuse
+	 * the memory when the node is online again.
+	 */
+	memset(pgdat, 0, sizeof(*pgdat));
 }
 
 int __ref remove_memory(int nid, u64 start, u64 size)
