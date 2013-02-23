@@ -1830,7 +1830,7 @@ int split_huge_page(struct page *page)
 
 	BUG_ON(PageCompound(page));
 out_unlock:
-	anon_vma_unlock(anon_vma);
+	anon_vma_unlock_write(anon_vma);
 	put_anon_vma(anon_vma);
 out:
 	return ret;
@@ -2322,7 +2322,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
-		anon_vma_unlock(vma->anon_vma);
+		anon_vma_unlock_write(vma->anon_vma);
 		goto out;
 	}
 
@@ -2330,7 +2330,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * All pages are isolated and locked so anon_vma rmap
 	 * can't run anymore.
 	 */
-	anon_vma_unlock(vma->anon_vma);
+	anon_vma_unlock_write(vma->anon_vma);
 
 	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
 	pte_unmap(pte);
