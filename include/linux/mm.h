@@ -677,25 +677,14 @@ static inline int page_last_nid(struct page *page)
 	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
 }
 
-static inline int page_xchg_last_nid(struct page *page, int nid)
-{
-	unsigned long old_flags, flags;
-	int last_nid;
-
-	do {
-		old_flags = flags = page->flags;
-		last_nid = page_last_nid(page);
-
-		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
-		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
-	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
-
-	return last_nid;
-}
+extern int page_xchg_last_nid(struct page *page, int nid);
 
 static inline void reset_page_last_nid(struct page *page)
 {
-	page_xchg_last_nid(page, (1 << LAST_NID_SHIFT) - 1);
+	int nid = (1 << LAST_NID_SHIFT) - 1;
+
+	page->flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
+	page->flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
 }
 #endif /* LAST_NID_NOT_IN_PAGE_FLAGS */
 #else
