@@ -138,8 +138,7 @@
 #define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
-/*
- * Use byte values for the following shift parameters
+/* Use byte values for the following shift parameters
  * Usage:
  *     psrctl |= (((ROUNDUP(value0, 128) >> E1000_PSRCTL_BSIZE0_SHIFT) &
  *                  E1000_PSRCTL_BSIZE0_MASK) |
@@ -382,8 +381,7 @@
 #define E1000_EICR_OTHER        0x80000000 /* Interrupt Cause Active */
 /* TCP Timer */
 
-/*
- * This defines the bits that are set in the Interrupt Mask
+/* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXT0   = Receiver Timer Interrupt (ring 0)
  *   o TXDW   = Transmit Descriptor Written Back
@@ -440,8 +438,7 @@
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
 /* Receive Address */
-/*
- * Number of high/low register pairs in the RAR. The RAR (Receive Address
+/* Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * Technically, we have 16 spots.  However, we reserve one of these spots
  * (RAR[15]) for our directed address used by controllers with
@@ -760,8 +757,7 @@
 #define MAX_PHY_MULTI_PAGE_REG 0xF
 
 /* Bit definitions for valid PHY IDs. */
-/*
- * I = Integrated
+/* I = Integrated
  * E = External
  */
 #define M88E1111_I_PHY_ID    0x01410CC0
@@ -791,8 +787,7 @@
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
-/*
- * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold
+/* 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold
  * 0=Normal 10BASE-T Rx Threshold
  */
 /* 1=5-bit interface in 100BASE-TX, 0=MII interface in 100BASE-TX */
@@ -802,8 +797,7 @@
 #define M88E1000_PSSR_REV_POLARITY       0x0002 /* 1=Polarity reversed */
 #define M88E1000_PSSR_DOWNSHIFT          0x0020 /* 1=Downshifted */
 #define M88E1000_PSSR_MDIX               0x0040 /* 1=MDIX; 0=MDI */
-/*
- * 0 = <50M
+/* 0 = <50M
  * 1 = 50-80M
  * 2 = 80-110M
  * 3 = 110-140M
@@ -816,20 +810,17 @@
 #define M88E1000_PSSR_CABLE_LENGTH_SHIFT 7
 
 /* M88E1000 Extended PHY Specific Control Register */
-/*
- * 1 = Lost lock detect enabled.
+/* 1 = Lost lock detect enabled.
  * Will assert lost lock and bring
  * link down if idle not seen
  * within 1ms in 1000BASE-T
  */
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the master
  */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the slave
  */
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK  0x0300
@@ -844,8 +835,7 @@
 
 /* i347-AT4 Extended PHY Specific Control Register */
 
-/*
- *  Number of times we will attempt to autonegotiate before downshifting if we
+/*  Number of times we will attempt to autonegotiate before downshifting if we
  *  are the master
  */
 #define I347AT4_PSCR_DOWNSHIFT_ENABLE 0x0800

@@ -289,15 +289,14 @@ static s32 igb_ready_nvm_eeprom(struct e1000_hw *hw)
 		udelay(1);
 		timeout = NVM_MAX_RETRY_SPI;
 
-		/*
-		 * Read "Status Register" repeatedly until the LSB is cleared.
+		/* Read "Status Register" repeatedly until the LSB is cleared.
 		 * The EEPROM will signal that the command has been completed
 		 * by clearing bit 0 of the internal status register.  If it's
 		 * not cleared within 'timeout', then error out.
 		 */
 		while (timeout) {
 			igb_shift_out_eec_bits(hw, NVM_RDSR_OPCODE_SPI,
-						 hw->nvm.opcode_bits);
+					       hw->nvm.opcode_bits);
 			spi_stat_reg = (u8)igb_shift_in_eec_bits(hw, 8);
 			if (!(spi_stat_reg & NVM_STATUS_RDY_SPI))
 				break;
@@ -335,8 +334,7 @@ s32 igb_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u16 word_in;
 	u8 read_opcode = NVM_READ_OPCODE_SPI;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -363,8 +361,7 @@ s32 igb_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	igb_shift_out_eec_bits(hw, read_opcode, nvm->opcode_bits);
 	igb_shift_out_eec_bits(hw, (u16)(offset*2), nvm->address_bits);
 
-	/*
-	 * Read the data.  SPI NVMs increment the address with each byte
+	/* Read the data.  SPI NVMs increment the address with each byte
 	 * read and will roll over if reading beyond the end.  This allows
 	 * us to read the whole NVM from any offset
 	 */
@@ -395,8 +392,7 @@ s32 igb_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u32 i, eerd = 0;
 	s32 ret_val = 0;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -408,7 +404,7 @@ s32 igb_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 	for (i = 0; i < words; i++) {
 		eerd = ((offset+i) << E1000_NVM_RW_ADDR_SHIFT) +
-		       E1000_NVM_RW_REG_START;
+			E1000_NVM_RW_REG_START;
 
 		wr32(E1000_EERD, eerd);
 		ret_val = igb_poll_eerd_eewr_done(hw, E1000_NVM_POLL_READ);
@@ -441,8 +437,7 @@ s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	s32 ret_val = -E1000_ERR_NVM;
 	u16 widx = 0;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -472,8 +467,7 @@ s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 		igb_standby_nvm(hw);
 
-		/*
-		 * Some SPI eeproms use the 8th address bit embedded in the
+		/* Some SPI eeproms use the 8th address bit embedded in the
 		 * opcode
 		 */
 		if ((nvm->address_bits == 8) && (offset >= 128))
@@ -538,8 +532,7 @@ s32 igb_read_part_string(struct e1000_hw *hw, u8 *part_num, u32 part_num_size)
 		goto out;
 	}
 
-	/*
-	 * if nvm_data is not ptr guard the PBA must be in legacy format which
+	/* if nvm_data is not ptr guard the PBA must be in legacy format which
 	 * means pointer is actually our second data word for the PBA number
 	 * and we can decode it into an ascii string
 	 */

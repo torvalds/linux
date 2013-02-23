@@ -248,15 +248,15 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct e1000_hw *hw = &adapter->hw;
 
 	/* When SoL/IDER sessions are active, autoneg/speed/duplex
-	 * cannot be changed */
+	 * cannot be changed
+	 */
 	if (igb_check_reset_block(hw)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot change link characteristics when SoL/IDER is active.\n");
 		return -EINVAL;
 	}
 
-	/*
-	 * MDI setting is only allowed when autoneg enabled because
+	/* MDI setting is only allowed when autoneg enabled because
 	 * some hardware doesn't allow MDI setting when speed or
 	 * duplex is forced.
 	 */
@@ -305,8 +305,7 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	/* MDI-X => 2; MDI => 1; Auto => 3 */
 	if (ecmd->eth_tp_mdix_ctrl) {
-		/*
-		 * fix up the value for auto (3 => 0) as zero is mapped
+		/* fix up the value for auto (3 => 0) as zero is mapped
 		 * internally to auto
 		 */
 		if (ecmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO)
@@ -331,8 +330,7 @@ static u32 igb_get_link(struct net_device *netdev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
-	/*
-	 * If the link is not reported up to netdev, interrupts are disabled,
+	/* If the link is not reported up to netdev, interrupts are disabled,
 	 * and so the physical link state may have changed since we last
 	 * looked. Set get_link_status to make sure that the true link
 	 * state is interrogated, rather than pulling a cached and possibly
@@ -452,7 +450,8 @@ static void igb_get_regs(struct net_device *netdev,
 
 	/* Interrupt */
 	/* Reading EICS for EICR because they read the
-	 * same but EICS does not clear on read */
+	 * same but EICS does not clear on read
+	 */
 	regs_buff[13] = rd32(E1000_EICS);
 	regs_buff[14] = rd32(E1000_EICS);
 	regs_buff[15] = rd32(E1000_EIMS);
@@ -460,7 +459,8 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[17] = rd32(E1000_EIAC);
 	regs_buff[18] = rd32(E1000_EIAM);
 	/* Reading ICS for ICR because they read the
-	 * same but ICS does not clear on read */
+	 * same but ICS does not clear on read
+	 */
 	regs_buff[19] = rd32(E1000_ICS);
 	regs_buff[20] = rd32(E1000_ICS);
 	regs_buff[21] = rd32(E1000_IMS);
@@ -710,12 +710,12 @@ static int igb_get_eeprom(struct net_device *netdev,
 
 	if (hw->nvm.type == e1000_nvm_eeprom_spi)
 		ret_val = hw->nvm.ops.read(hw, first_word,
-					    last_word - first_word + 1,
-					    eeprom_buff);
+					   last_word - first_word + 1,
+					   eeprom_buff);
 	else {
 		for (i = 0; i < last_word - first_word + 1; i++) {
 			ret_val = hw->nvm.ops.read(hw, first_word + i, 1,
-						    &eeprom_buff[i]);
+						   &eeprom_buff[i]);
 			if (ret_val)
 				break;
 		}
@@ -762,15 +762,17 @@ static int igb_set_eeprom(struct net_device *netdev,
 	ptr = (void *)eeprom_buff;
 
 	if (eeprom->offset & 1) {
-		/* need read/modify/write of first changed EEPROM word */
-		/* only the second byte of the word is being modified */
+		/* need read/modify/write of first changed EEPROM word
+		 * only the second byte of the word is being modified
+		 */
 		ret_val = hw->nvm.ops.read(hw, first_word, 1,
 					    &eeprom_buff[0]);
 		ptr++;
 	}
 	if (((eeprom->offset + eeprom->len) & 1) && (ret_val == 0)) {
-		/* need read/modify/write of last changed EEPROM word */
-		/* only the first byte of the word is being modified */
+		/* need read/modify/write of last changed EEPROM word
+		 * only the first byte of the word is being modified
+		 */
 		ret_val = hw->nvm.ops.read(hw, last_word, 1,
 				   &eeprom_buff[last_word - first_word]);
 	}
@@ -785,10 +787,11 @@ static int igb_set_eeprom(struct net_device *netdev,
 		eeprom_buff[i] = cpu_to_le16(eeprom_buff[i]);
 
 	ret_val = hw->nvm.ops.write(hw, first_word,
-				     last_word - first_word + 1, eeprom_buff);
+				    last_word - first_word + 1, eeprom_buff);
 
 	/* Update the checksum over the first part of the EEPROM if needed
-	 * and flush shadow RAM for 82573 controllers */
+	 * and flush shadow RAM for 82573 controllers
+	 */
 	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
 		hw->nvm.ops.update(hw);
 
@@ -805,8 +808,7 @@ static void igb_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->driver,  igb_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, igb_driver_version, sizeof(drvinfo->version));
 
-	/*
-	 * EEPROM image version # is reported as firmware version # for
+	/* EEPROM image version # is reported as firmware version # for
 	 * 82575 controllers
 	 */
 	strlcpy(drvinfo->fw_version, adapter->fw_version,
@@ -869,9 +871,11 @@ static int igb_set_ringparam(struct net_device *netdev,
 	}
 
 	if (adapter->num_tx_queues > adapter->num_rx_queues)
-		temp_ring = vmalloc(adapter->num_tx_queues * sizeof(struct igb_ring));
+		temp_ring = vmalloc(adapter->num_tx_queues *
+				    sizeof(struct igb_ring));
 	else
-		temp_ring = vmalloc(adapter->num_rx_queues * sizeof(struct igb_ring));
+		temp_ring = vmalloc(adapter->num_rx_queues *
+				    sizeof(struct igb_ring));
 
 	if (!temp_ring) {
 		err = -ENOMEM;
@@ -880,10 +884,9 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 	igb_down(adapter);
 
-	/*
-	 * We can't just free everything and then setup again,
+	/* We can't just free everything and then setup again,
 	 * because the ISRs in MSI-X mode get passed pointers
-	 * to the tx and rx ring structs.
+	 * to the Tx and Rx ring structs.
 	 */
 	if (new_tx_count != adapter->tx_ring_count) {
 		for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -1745,8 +1748,8 @@ static int igb_check_lbtest_frame(struct igb_rx_buffer *rx_buffer,
 }
 
 static int igb_clean_test_rings(struct igb_ring *rx_ring,
-                                struct igb_ring *tx_ring,
-                                unsigned int size)
+				struct igb_ring *tx_ring,
+				unsigned int size)
 {
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
@@ -1759,7 +1762,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 
 	while (igb_test_staterr(rx_desc, E1000_RXD_STAT_DD)) {
-		/* check rx buffer */
+		/* check Rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
 		/* sync Rx buffer for CPU read */
@@ -1778,11 +1781,11 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 					   IGB_RX_BUFSZ,
 					   DMA_FROM_DEVICE);
 
-		/* unmap buffer on tx side */
+		/* unmap buffer on Tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
 		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
-		/* increment rx/tx next to clean counters */
+		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
 		if (rx_ntc == rx_ring->count)
 			rx_ntc = 0;
@@ -1823,8 +1826,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 	igb_create_lbtest_frame(skb, size);
 	skb_put(skb, size);
 
-	/*
-	 * Calculate the loop count based on the largest descriptor ring
+	/* Calculate the loop count based on the largest descriptor ring
 	 * The idea is to wrap the largest ring a number of times using 64
 	 * send/receive pairs during each loop
 	 */
@@ -1851,7 +1853,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 			break;
 		}
 
-		/* allow 200 milliseconds for packets to go from tx to rx */
+		/* allow 200 milliseconds for packets to go from Tx to Rx */
 		msleep(200);
 
 		good_cnt = igb_clean_test_rings(rx_ring, tx_ring, size);
@@ -1870,7 +1872,8 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 {
 	/* PHY loopback cannot be performed if SoL/IDER
-	 * sessions are active */
+	 * sessions are active
+	 */
 	if (igb_check_reset_block(&adapter->hw)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot do PHY loopback test when SoL/IDER is active.\n");
@@ -1901,7 +1904,8 @@ static int igb_link_test(struct igb_adapter *adapter, u64 *data)
 		hw->mac.serdes_has_link = false;
 
 		/* On some blade server designs, link establishment
-		 * could take as long as 2-3 minutes */
+		 * could take as long as 2-3 minutes
+		 */
 		do {
 			hw->mac.ops.check_for_link(&adapter->hw);
 			if (hw->mac.serdes_has_link)
@@ -1944,7 +1948,8 @@ static void igb_diag_test(struct net_device *netdev,
 		igb_power_up_link(adapter);
 
 		/* Link test performed before hardware reset so autoneg doesn't
-		 * interfere with test result */
+		 * interfere with test result
+		 */
 		if (igb_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -2009,8 +2014,8 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	wol->supported = WAKE_UCAST | WAKE_MCAST |
-	                 WAKE_BCAST | WAKE_MAGIC |
-	                 WAKE_PHY;
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
 	wol->wolopts = 0;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
@@ -2285,7 +2290,7 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			sprintf(p, "rx_queue_%u_alloc_failed", i);
 			p += ETH_GSTRING_LEN;
 		}
-/*		BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
+		/* BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}
 }
@@ -2384,7 +2389,7 @@ static int igb_get_rss_hash_opts(struct igb_adapter *adapter,
 }
 
 static int igb_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			   u32 *rule_locs)
+			 u32 *rule_locs)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
@@ -2715,32 +2720,32 @@ static void igb_ethtool_complete(struct net_device *netdev)
 }
 
 static const struct ethtool_ops igb_ethtool_ops = {
-	.get_settings           = igb_get_settings,
-	.set_settings           = igb_set_settings,
-	.get_drvinfo            = igb_get_drvinfo,
-	.get_regs_len           = igb_get_regs_len,
-	.get_regs               = igb_get_regs,
-	.get_wol                = igb_get_wol,
-	.set_wol                = igb_set_wol,
-	.get_msglevel           = igb_get_msglevel,
-	.set_msglevel           = igb_set_msglevel,
-	.nway_reset             = igb_nway_reset,
-	.get_link               = igb_get_link,
-	.get_eeprom_len         = igb_get_eeprom_len,
-	.get_eeprom             = igb_get_eeprom,
-	.set_eeprom             = igb_set_eeprom,
-	.get_ringparam          = igb_get_ringparam,
-	.set_ringparam          = igb_set_ringparam,
-	.get_pauseparam         = igb_get_pauseparam,
-	.set_pauseparam         = igb_set_pauseparam,
-	.self_test              = igb_diag_test,
-	.get_strings            = igb_get_strings,
-	.set_phys_id            = igb_set_phys_id,
-	.get_sset_count         = igb_get_sset_count,
-	.get_ethtool_stats      = igb_get_ethtool_stats,
-	.get_coalesce           = igb_get_coalesce,
-	.set_coalesce           = igb_set_coalesce,
-	.get_ts_info            = igb_get_ts_info,
+	.get_settings		= igb_get_settings,
+	.set_settings		= igb_set_settings,
+	.get_drvinfo		= igb_get_drvinfo,
+	.get_regs_len		= igb_get_regs_len,
+	.get_regs		= igb_get_regs,
+	.get_wol		= igb_get_wol,
+	.set_wol		= igb_set_wol,
+	.get_msglevel		= igb_get_msglevel,
+	.set_msglevel		= igb_set_msglevel,
+	.nway_reset		= igb_nway_reset,
+	.get_link		= igb_get_link,
+	.get_eeprom_len		= igb_get_eeprom_len,
+	.get_eeprom		= igb_get_eeprom,
+	.set_eeprom		= igb_set_eeprom,
+	.get_ringparam		= igb_get_ringparam,
+	.set_ringparam		= igb_set_ringparam,
+	.get_pauseparam		= igb_get_pauseparam,
+	.set_pauseparam		= igb_set_pauseparam,
+	.self_test		= igb_diag_test,
+	.get_strings		= igb_get_strings,
+	.set_phys_id		= igb_set_phys_id,
+	.get_sset_count		= igb_get_sset_count,
+	.get_ethtool_stats	= igb_get_ethtool_stats,
+	.get_coalesce		= igb_get_coalesce,
+	.set_coalesce		= igb_set_coalesce,
+	.get_ts_info		= igb_get_ts_info,
 	.get_rxnfc		= igb_get_rxnfc,
 	.set_rxnfc		= igb_set_rxnfc,
 	.get_eee		= igb_get_eee,

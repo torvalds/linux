@@ -44,54 +44,54 @@
 
 struct igb_adapter;
 
-#define E1000_PCS_CFG_IGN_SD               1
+#define E1000_PCS_CFG_IGN_SD	1
 
 /* Interrupt defines */
-#define IGB_START_ITR                    648 /* ~6000 ints/sec */
-#define IGB_4K_ITR                       980
-#define IGB_20K_ITR                      196
-#define IGB_70K_ITR                       56
+#define IGB_START_ITR		648 /* ~6000 ints/sec */
+#define IGB_4K_ITR		980
+#define IGB_20K_ITR		196
+#define IGB_70K_ITR		56
 
 /* TX/RX descriptor defines */
-#define IGB_DEFAULT_TXD                  256
-#define IGB_DEFAULT_TX_WORK		 128
-#define IGB_MIN_TXD                       80
-#define IGB_MAX_TXD                     4096
+#define IGB_DEFAULT_TXD		256
+#define IGB_DEFAULT_TX_WORK	128
+#define IGB_MIN_TXD		80
+#define IGB_MAX_TXD		4096
 
-#define IGB_DEFAULT_RXD                  256
-#define IGB_MIN_RXD                       80
-#define IGB_MAX_RXD                     4096
+#define IGB_DEFAULT_RXD		256
+#define IGB_MIN_RXD		80
+#define IGB_MAX_RXD		4096
 
-#define IGB_DEFAULT_ITR                    3 /* dynamic */
-#define IGB_MAX_ITR_USECS              10000
-#define IGB_MIN_ITR_USECS                 10
-#define NON_Q_VECTORS                      1
-#define MAX_Q_VECTORS                      8
+#define IGB_DEFAULT_ITR		3 /* dynamic */
+#define IGB_MAX_ITR_USECS	10000
+#define IGB_MIN_ITR_USECS	10
+#define NON_Q_VECTORS		1
+#define MAX_Q_VECTORS		8
 
 /* Transmit and receive queues */
-#define IGB_MAX_RX_QUEUES                  8
-#define IGB_MAX_RX_QUEUES_82575            4
-#define IGB_MAX_RX_QUEUES_I211             2
-#define IGB_MAX_TX_QUEUES                  8
-#define IGB_MAX_VF_MC_ENTRIES              30
-#define IGB_MAX_VF_FUNCTIONS               8
-#define IGB_MAX_VFTA_ENTRIES               128
-#define IGB_82576_VF_DEV_ID                0x10CA
-#define IGB_I350_VF_DEV_ID                 0x1520
+#define IGB_MAX_RX_QUEUES	8
+#define IGB_MAX_RX_QUEUES_82575	4
+#define IGB_MAX_RX_QUEUES_I211	2
+#define IGB_MAX_TX_QUEUES	8
+#define IGB_MAX_VF_MC_ENTRIES	30
+#define IGB_MAX_VF_FUNCTIONS	8
+#define IGB_MAX_VFTA_ENTRIES	128
+#define IGB_82576_VF_DEV_ID	0x10CA
+#define IGB_I350_VF_DEV_ID	0x1520
 
 /* NVM version defines */
-#define IGB_MAJOR_MASK			0xF000
-#define IGB_MINOR_MASK			0x0FF0
-#define IGB_BUILD_MASK			0x000F
-#define IGB_COMB_VER_MASK		0x00FF
-#define IGB_MAJOR_SHIFT			12
-#define IGB_MINOR_SHIFT			4
-#define IGB_COMB_VER_SHFT		8
-#define IGB_NVM_VER_INVALID		0xFFFF
-#define IGB_ETRACK_SHIFT		16
-#define NVM_ETRACK_WORD			0x0042
-#define NVM_COMB_VER_OFF		0x0083
-#define NVM_COMB_VER_PTR		0x003d
+#define IGB_MAJOR_MASK		0xF000
+#define IGB_MINOR_MASK		0x0FF0
+#define IGB_BUILD_MASK		0x000F
+#define IGB_COMB_VER_MASK	0x00FF
+#define IGB_MAJOR_SHIFT		12
+#define IGB_MINOR_SHIFT		4
+#define IGB_COMB_VER_SHFT	8
+#define IGB_NVM_VER_INVALID	0xFFFF
+#define IGB_ETRACK_SHIFT	16
+#define NVM_ETRACK_WORD		0x0042
+#define NVM_COMB_VER_OFF	0x0083
+#define NVM_COMB_VER_PTR	0x003d
 
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
@@ -121,14 +121,14 @@ struct vf_data_storage {
  *           descriptors until either it has this many to write back, or the
  *           ITR timer expires.
  */
-#define IGB_RX_PTHRESH                     8
-#define IGB_RX_HTHRESH                     8
-#define IGB_TX_PTHRESH                     8
-#define IGB_TX_HTHRESH                     1
-#define IGB_RX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
-					     adapter->msix_entries) ? 1 : 4)
-#define IGB_TX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
-					     adapter->msix_entries) ? 1 : 16)
+#define IGB_RX_PTHRESH	8
+#define IGB_RX_HTHRESH	8
+#define IGB_TX_PTHRESH	8
+#define IGB_TX_HTHRESH	1
+#define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
+			  adapter->msix_entries) ? 1 : 4)
+#define IGB_TX_WTHRESH	((hw->mac.type == e1000_82576 && \
+			  adapter->msix_entries) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
@@ -140,17 +140,17 @@ struct vf_data_storage {
 #define IGB_RX_BUFSZ		IGB_RXBUFFER_2048
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
-#define IGB_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+#define IGB_RX_BUFFER_WRITE	16 /* Must be power of 2 */
 
-#define AUTO_ALL_MODES            0
-#define IGB_EEPROM_APME         0x0400
+#define AUTO_ALL_MODES		0
+#define IGB_EEPROM_APME		0x0400
 
 #ifndef IGB_MASTER_SLAVE
 /* Switch to override PHY master/slave setting */
 #define IGB_MASTER_SLAVE	e1000_ms_hw_default
 #endif
 
-#define IGB_MNG_VLAN_NONE -1
+#define IGB_MNG_VLAN_NONE	-1
 
 enum igb_tx_flags {
 	/* cmd_type flags */
@@ -164,11 +164,10 @@ enum igb_tx_flags {
 };
 
 /* VLAN info */
-#define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
+#define IGB_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT	16
 
-/*
- * The largest size we can write to the descriptor is 65535.  In order to
+/* The largest size we can write to the descriptor is 65535.  In order to
  * maintain a power of two alignment we have to limit ourselves to 32K.
  */
 #define IGB_MAX_TXD_PWR	15
@@ -187,7 +186,8 @@ enum igb_tx_flags {
 #define IGB_SFF_8472_UNSUP		0x00
 
 /* wrapper around a pointer to a socket buffer,
- * so a DMA handle can be stored along with the buffer */
+ * so a DMA handle can be stored along with the buffer
+ */
 struct igb_tx_buffer {
 	union e1000_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
@@ -306,11 +306,11 @@ enum e1000_ring_flags_t {
 
 #define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
-#define IGB_RX_DESC(R, i)	    \
+#define IGB_RX_DESC(R, i)	\
 	(&(((union e1000_adv_rx_desc *)((R)->desc))[i]))
-#define IGB_TX_DESC(R, i)	    \
+#define IGB_TX_DESC(R, i)	\
 	(&(((union e1000_adv_tx_desc *)((R)->desc))[i]))
-#define IGB_TX_CTXTDESC(R, i)	    \
+#define IGB_TX_CTXTDESC(R, i)	\
 	(&(((struct e1000_adv_tx_context_desc *)((R)->desc))[i]))
 
 /* igb_test_staterr - tests bits within Rx descriptor status and error fields */
@@ -469,12 +469,12 @@ struct igb_adapter {
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 
 /* DMA Coalescing defines */
-#define IGB_MIN_TXPBSIZE           20408
-#define IGB_TX_BUF_4096            4096
-#define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
+#define IGB_MIN_TXPBSIZE	20408
+#define IGB_TX_BUF_4096		4096
+#define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coal Flush */
 
-#define IGB_82576_TSYNC_SHIFT 19
-#define IGB_TS_HDR_LEN        16
+#define IGB_82576_TSYNC_SHIFT	19
+#define IGB_TS_HDR_LEN		16
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
