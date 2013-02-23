@@ -405,6 +405,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 		return;
 	}
 
+	spin_lock_init(&pc_host->cfgspace_lock);
+
 	pc->host_controller = pc_host;
 	pc_host->pci_controller.io_resource = &pc_host->io_resource;
 	pc_host->pci_controller.mem_resource = &pc_host->mem_resource;
