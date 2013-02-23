@@ -142,16 +142,72 @@ static inline int save_add_info(void) {return 0;}
 #endif
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-static void __init handle_movablemem(int node, u64 start, u64 end)
+static void __init
+handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
 {
-	int overlap;
+	int overlap, i;
 	unsigned long start_pfn, end_pfn;
 
 	start_pfn = PFN_DOWN(start);
 	end_pfn = PFN_UP(end);
 
 	/*
-	 * For movablecore_map=nn[KMG]@ss[KMG]:
+	 * For movablemem_map=acpi:
+	 *
+	 * SRAT:		|_____| |_____| |_________| |_________| ......
+	 * node id:                0       1         1           2
+	 * hotpluggable:	   n       y         y           n
+	 * movablemem_map:	        |_____| |_________|
+	 *
+	 * Using movablemem_map, we can prevent memblock from allocating memory
+	 * on ZONE_MOVABLE at boot time.
+	 *
+	 * Before parsing SRAT, memblock has already reserve some memory ranges
+	 * for other purposes, such as for kernel image. We cannot prevent
+	 * kernel from using these memory, so we need to exclude these memory
+	 * even if it is hotpluggable.
+	 * Furthermore, to ensure the kernel has enough memory to boot, we make
+	 * all the memory on the node which the kernel resides in
+	 * un-hotpluggable.
+	 */
+	if (hotpluggable && movablemem_map.acpi) {
+		/* Exclude ranges reserved by memblock. */
+		struct memblock_type *rgn = &memblock.reserved;
+
+		for (i = 0; i < rgn->cnt; i++) {
+			if (end <= rgn->regions[i].base ||
+			    start >= rgn->regions[i].base +
+			    rgn->regions[i].size)
+				continue;
+
+			/*
+			 * If the memory range overlaps the memory reserved by
+			 * memblock, then the kernel resides in this node.
+			 */
+			node_set(node, movablemem_map.numa_nodes_kernel);
+
+			goto out;
+		}
+
+		/*
+		 * If the kernel resides in this node, then the whole node
+		 * should not be hotpluggable.
+		 */
+		if (node_isset(node, movablemem_map.numa_nodes_kernel))
+			goto out;
+
+		insert_movablemem_map(start_pfn, end_pfn);
+
+		/*
+		 * numa_nodes_hotplug nodemask represents which nodes are put
+		 * into movablemem_map.map[].
+		 */
+		node_set(node, movablemem_map.numa_nodes_hotplug);
+		goto out;
+	}
+
+	/*
+	 * For movablemem_map=nn[KMG]@ss[KMG]:
 	 *
 	 * SRAT:		|_____| |_____| |_________| |_________| ......
 	 * node id:		   0       1         1           2
@@ -160,6 +216,8 @@ static void __init handle_movablemem(int node, u64 start, u64 end)
 	 *
 	 * Using movablemem_map, we can prevent memblock from allocating memory
 	 * on ZONE_MOVABLE at boot time.
+	 *
+	 * NOTE: In this case, SRAT info will be ingored.
 	 */
 	overlap = movablemem_map_overlap(start_pfn, end_pfn);
 	if (overlap >= 0) {
@@ -187,9 +245,12 @@ static void __init handle_movablemem(int node, u64 start, u64 end)
 			 */
 			insert_movablemem_map(start_pfn, end_pfn);
 	}
+out:
+	return;
 }
 #else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-static inline void handle_movablemem(int node, u64 start, u64 end)
+static inline void
+handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
 {
 }
 #endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
@@ -234,7 +295,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	       (unsigned long long) start, (unsigned long long) end - 1,
 	       hotpluggable ? "Hot Pluggable": "");
 
-	handle_movablemem(node, start, end);
+	handle_movablemem(node, start, end, hotpluggable);
 
 	return 0;
 out_err_bad_srat:
