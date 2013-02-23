@@ -562,21 +562,21 @@ ENDPROC(__und_usr)
 	@ Fall-through from Thumb-2 __und_usr
 	@
 #ifdef CONFIG_NEON
+	get_thread_info r10			@ get current thread
 	adr	r6, .LCneon_thumb_opcodes
 	b	2f
 #endif
 call_fpe:
+	get_thread_info r10			@ get current thread
 #ifdef CONFIG_NEON
 	adr	r6, .LCneon_arm_opcodes
-2:
-	ldr	r7, [r6], #4			@ mask value
-	cmp	r7, #0				@ end mask?
-	beq	1f
-	and	r8, r0, r7
+2:	ldr	r5, [r6], #4			@ mask value
 	ldr	r7, [r6], #4			@ opcode bits matching in mask
+	cmp	r5, #0				@ end mask?
+	beq	1f
+	and	r8, r0, r5
 	cmp	r8, r7				@ NEON instruction?
 	bne	2b
-	get_thread_info r10
 	mov	r7, #1
 	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
 	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
@@ -586,7 +586,6 @@ call_fpe:
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	moveq	pc, lr
-	get_thread_info r10			@ get current thread
 	and	r8, r0, #0x00000f00		@ mask out CP number
  THUMB(	lsr	r8, r8, #8		)
 	mov	r7, #1
