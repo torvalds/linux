@@ -1460,7 +1460,7 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
 	return ret;
 }
 
-int remove_memory(u64 start, u64 size)
+int __ref remove_memory(u64 start, u64 size)
 {
 	unsigned long start_pfn, end_pfn;
 	int ret = 0;
@@ -1509,6 +1509,9 @@ repeat:
 		unlock_memory_hotplug();
 		return ret;
 	}
+
+	/* remove memmap entry */
+	firmware_map_remove(start, start + size, "System RAM");
 
 	unlock_memory_hotplug();
 
