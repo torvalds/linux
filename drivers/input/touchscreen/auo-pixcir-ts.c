@@ -511,8 +511,21 @@ static int auo_pixcir_probe(struct i2c_client *client,
 		goto err_gpio_dir;
 	}
 
-	if (pdata->init_hw)
-		pdata->init_hw(client);
+	ret = gpio_request(pdata->gpio_rst, "auo_pixcir_ts_rst");
+	if (ret) {
+		dev_err(&client->dev, "request of gpio %d failed, %d\n",
+			pdata->gpio_rst, ret);
+		goto err_gpio_dir;
+	}
+
+	ret = gpio_direction_output(pdata->gpio_rst, 1);
+	if (ret) {
+		dev_err(&client->dev, "setting direction of gpio %d failed %d\n",
+			pdata->gpio_rst, ret);
+		goto err_gpio_rst;
+	}
+
+	msleep(200);
 
 	ts->client = client;
 	ts->touch_ind_mode = 0;
@@ -597,8 +610,9 @@ err_input_register:
 err_fw_vers:
 	input_free_device(input_dev);
 err_input_alloc:
-	if (pdata->exit_hw)
-		pdata->exit_hw(client);
+	gpio_set_value(pdata->gpio_rst, 0);
+err_gpio_rst:
+	gpio_free(pdata->gpio_rst);
 err_gpio_dir:
 	gpio_free(pdata->gpio_int);
 err_gpio_int:
@@ -616,8 +630,8 @@ static int auo_pixcir_remove(struct i2c_client *client)
 
 	input_unregister_device(ts->input);
 
-	if (pdata->exit_hw)
-		pdata->exit_hw(client);
+	gpio_set_value(pdata->gpio_rst, 0);
+	gpio_free(pdata->gpio_rst);
 
 	gpio_free(pdata->gpio_int);
 
