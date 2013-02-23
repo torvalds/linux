@@ -32,15 +32,16 @@
 /*
  * page->flags layout:
  *
- * There are three possibilities for how page->flags get
- * laid out.  The first is for the normal case, without
- * sparsemem.  The second is for sparsemem when there is
- * plenty of space for node and section.  The last is when
- * we have run out of space and have to fall back to an
- * alternate (slower) way of determining the node.
+ * There are five possibilities for how page->flags get laid out.  The first
+ * pair is for the normal case without sparsemem. The second pair is for
+ * sparsemem when there is plenty of space for node and section information.
+ * The last is when there is insufficient space in page->flags and a separate
+ * lookup is necessary.
  *
- * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE | ... | FLAGS |
- * classic sparse with space for node:| SECTION | NODE | ZONE | ... | FLAGS |
+ * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |          ... | FLAGS |
+ *         " plus space for last_nid: |       NODE     | ZONE | LAST_NID ... | FLAGS |
+ * classic sparse with space for node:| SECTION | NODE | ZONE |          ... | FLAGS |
+ *         " plus space for last_nid: | SECTION | NODE | ZONE | LAST_NID ... | FLAGS |
  * classic sparse no space for node:  | SECTION |     ZONE    | ... | FLAGS |
  */
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
@@ -60,12 +61,28 @@
 #define NODES_WIDTH		0
 #endif
 
+#ifdef CONFIG_NUMA_BALANCING
+#define LAST_NID_SHIFT NODES_SHIFT
+#else
+#define LAST_NID_SHIFT 0
+#endif
+
+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_NID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+#define LAST_NID_WIDTH LAST_NID_SHIFT
+#else
+#define LAST_NID_WIDTH 0
+#endif
+
 /*
  * We are going to use the flags for the page to node mapping if its in
  * there.  This includes the case where there is no node, so it is implicit.
  */
 #if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
 #define NODE_NOT_IN_PAGE_FLAGS
+#endif
+
+#if defined(CONFIG_NUMA_BALANCING) && LAST_NID_WIDTH == 0
+#define LAST_NID_NOT_IN_PAGE_FLAGS
 #endif
 
 #endif /* _LINUX_PAGE_FLAGS_LAYOUT */

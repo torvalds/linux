@@ -174,7 +174,7 @@ struct page {
 	void *shadow;
 #endif
 
-#ifdef CONFIG_NUMA_BALANCING
+#ifdef LAST_NID_NOT_IN_PAGE_FLAGS
 	int _last_nid;
 #endif
 }
