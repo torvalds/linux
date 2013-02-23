@@ -277,6 +277,6 @@ static void __exit rk610_hdmi_exit(void)
     i2c_del_driver(&rk610_hdmi_i2c_driver);
 }
 
-module_init(rk610_hdmi_init);
-//fs_initcall(rk610_init);
+//module_init(rk610_hdmi_init);
+device_initcall_sync(rk610_init);
 module_exit(rk610_hdmi_exit);
