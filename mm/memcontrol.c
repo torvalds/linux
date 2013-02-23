@@ -1574,7 +1574,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 	}
 	rcu_read_unlock();
 
-	printk(KERN_INFO "Task in %s killed", memcg_name);
+	pr_info("Task in %s killed", memcg_name);
 
 	rcu_read_lock();
 	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
@@ -1587,19 +1587,18 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 	/*
 	 * Continues from above, so we don't need an KERN_ level
 	 */
-	printk(KERN_CONT " as a result of limit of %s\n", memcg_name);
+	pr_cont(" as a result of limit of %s\n", memcg_name);
 done:
 
-	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+	pr_info("memory: usage %llukB, limit %llukB, failcnt %llu\n",
 		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
 		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
 		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
-		"failcnt %llu\n",
+	pr_info("memory+swap: usage %llukB, limit %llukB, failcnt %llu\n",
 		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
 		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
 		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
-	printk(KERN_INFO "kmem: usage %llukB, limit %llukB, failcnt %llu\n",
+	pr_info("kmem: usage %llukB, limit %llukB, failcnt %llu\n",
 		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
 		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
 		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
@@ -4426,8 +4425,8 @@ void mem_cgroup_print_bad_page(struct page *page)
 
 	pc = lookup_page_cgroup_used(page);
 	if (pc) {
-		printk(KERN_ALERT "pc:%p pc->flags:%lx pc->mem_cgroup:%p\n",
-		       pc, pc->flags, pc->mem_cgroup);
+		pr_alert("pc:%p pc->flags:%lx pc->mem_cgroup:%p\n",
+			 pc, pc->flags, pc->mem_cgroup);
 	}
 }
 #endif
