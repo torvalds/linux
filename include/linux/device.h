@@ -567,6 +567,10 @@ extern void devm_kfree(struct device *dev, void *p);
 void __iomem *devm_request_and_ioremap(struct device *dev,
 			struct resource *res);
 
+/* allows to add/remove a custom action to devres stack */
+int devm_add_action(struct device *dev, void (*action)(void *), void *data);
+void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
+
 struct device_dma_parameters {
 	/*
 	 * a low level driver may set these to teach IOMMU code about
