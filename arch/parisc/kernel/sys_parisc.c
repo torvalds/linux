@@ -94,11 +94,12 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 {
 	if (len > TASK_SIZE)
 		return -ENOMEM;
-	/* Might want to check for cache aliasing issues for MAP_FIXED case
-	 * like ARM or MIPS ??? --BenH.
-	 */
-	if (flags & MAP_FIXED)
+	if (flags & MAP_FIXED) {
+		if ((flags & MAP_SHARED) &&
+		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
+			return -EINVAL;
 		return addr;
+	}
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
 
@@ -210,6 +211,13 @@ asmlinkage long parisc_sync_file_range(int fd,
 {
 	return sys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
 			(loff_t)hi_nbytes << 32 | lo_nbytes, flags);
+}
+
+asmlinkage long parisc_fallocate(int fd, int mode, u32 offhi, u32 offlo,
+				u32 lenhi, u32 lenlo)
+{
+        return sys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
+                             ((u64)lenhi << 32) | lenlo);
 }
 
 asmlinkage unsigned long sys_alloc_hugepages(int key, unsigned long addr, unsigned long len, int prot, int flag)

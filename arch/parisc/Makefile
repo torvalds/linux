@@ -32,11 +32,6 @@ ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1 -m64
 WIDTH		:= 64
-
-# FIXME: if no default set, should really try to locate dynamically
-ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE	:= hppa64-linux-gnu-
-endif
 else # 32-bit
 WIDTH		:=
 endif
@@ -44,6 +39,10 @@ endif
 # attempt to help out folks who are cross-compiling
 ifeq ($(NATIVE),1)
 CROSS_COMPILE	:= hppa$(WIDTH)-linux-
+else
+ ifeq ($(CROSS_COMPILE),)
+ CROSS_COMPILE	:= hppa$(WIDTH)-linux-gnu-
+ endif
 endif
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
@@ -64,6 +63,10 @@ cflags-y	+= -mdisable-fpregs
 ifndef CONFIG_FUNCTION_TRACER
   cflags-y	+= -ffunction-sections
 endif
+
+# Use long jumps instead of long branches (needed if your linker fails to
+# link a too big vmlinux executable)
+cflags-$(CONFIG_MLONGCALLS)	+= -mlong-calls
 
 # select which processor to optimise for
 cflags-$(CONFIG_PA7100)		+= -march=1.1 -mschedule=7100
