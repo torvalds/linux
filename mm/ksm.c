@@ -1342,16 +1342,6 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 			return NULL;
 		}
 
-		/*
-		 * If tree_page has been migrated to another NUMA node, it
-		 * will be flushed out and put into the right unstable tree
-		 * next time: only merge with it if merge_across_nodes.
-		 */
-		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
-			put_page(tree_page);
-			return NULL;
-		}
-
 		ret = memcmp_pages(page, tree_page);
 
 		parent = *new;
@@ -1361,6 +1351,15 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 		} else if (ret > 0) {
 			put_page(tree_page);
 			new = &parent->rb_right;
+		} else if (!ksm_merge_across_nodes &&
+			   page_to_nid(tree_page) != nid) {
+			/*
+			 * If tree_page has been migrated to another NUMA node,
+			 * it will be flushed out and put in the right unstable
+			 * tree next time: only merge with it when across_nodes.
+			 */
+			put_page(tree_page);
+			return NULL;
 		} else {
 			*tree_pagep = tree_page;
 			return tree_rmap_item;
