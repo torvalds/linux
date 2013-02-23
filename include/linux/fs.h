@@ -2277,6 +2277,7 @@ static inline void i_readcount_inc(struct inode *inode)
 extern int do_pipe_flags(int *, int);
 
 extern int kernel_read(struct file *, loff_t, char *, unsigned long);
+extern ssize_t kernel_write(struct file *, const char *, size_t, loff_t);
 extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
