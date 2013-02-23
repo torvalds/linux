@@ -4974,8 +4974,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 {
 	int ret = -EINVAL;
 #ifdef CONFIG_MEMCG_KMEM
-	bool must_inc_static_branch = false;
-
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 	/*
 	 * For simplicity, we won't allow this to be disabled.  It also can't
@@ -5004,7 +5002,13 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 			res_counter_set_limit(&memcg->kmem, RESOURCE_MAX);
 			goto out;
 		}
-		must_inc_static_branch = true;
+		static_key_slow_inc(&memcg_kmem_enabled_key);
+		/*
+		 * setting the active bit after the inc will guarantee no one
+		 * starts accounting before all call sites are patched
+		 */
+		memcg_kmem_set_active(memcg);
+
 		/*
 		 * kmem charges can outlive the cgroup. In the case of slab
 		 * pages, for instance, a page contain objects from various
@@ -5017,27 +5021,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 out:
 	mutex_unlock(&set_limit_mutex);
 	mutex_unlock(&memcg_create_mutex);
-
-	/*
-	 * We are by now familiar with the fact that we can't inc the static
-	 * branch inside cgroup_lock. See disarm functions for details. A
-	 * worker here is overkill, but also wrong: After the limit is set, we
-	 * must start accounting right away. Since this operation can't fail,
-	 * we can safely defer it to here - no rollback will be needed.
-	 *
-	 * The boolean used to control this is also safe, because
-	 * KMEM_ACCOUNTED_ACTIVATED guarantees that only one process will be
-	 * able to set it to true;
-	 */
-	if (must_inc_static_branch) {
-		static_key_slow_inc(&memcg_kmem_enabled_key);
-		/*
-		 * setting the active bit after the inc will guarantee no one
-		 * starts accounting before all call sites are patched
-		 */
-		memcg_kmem_set_active(memcg);
-	}
-
 #endif
 	return ret;
 }
