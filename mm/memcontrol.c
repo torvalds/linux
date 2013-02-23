@@ -6830,10 +6830,12 @@ static void __init enable_swap_cgroup(void)
 #endif
 
 /*
- * The rest of init is performed during ->css_alloc() for root css which
- * happens before initcalls.  hotcpu_notifier() can't be done together as
- * it would introduce circular locking by adding cgroup_lock -> cpu hotplug
- * dependency.  Do it from a subsys_initcall().
+ * subsys_initcall() for memory controller.
+ *
+ * Some parts like hotcpu_notifier() have to be initialized from this context
+ * because of lock dependencies (cgroup_lock -> cpu hotplug) but basically
+ * everything that doesn't depend on a specific mem_cgroup structure should
+ * be initialized from here.
  */
 static int __init mem_cgroup_init(void)
 {
