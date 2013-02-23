@@ -840,7 +840,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 		/*
 		 * Free all remaining keys, there shouldn't be any,
-		 * except maybe group keys in AP more or WDS?
+		 * except maybe in WDS mode?
 		 */
 		ieee80211_free_keys(sdata);
 
