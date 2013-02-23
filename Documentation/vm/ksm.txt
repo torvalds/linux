@@ -60,10 +60,18 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
 
 merge_across_nodes - specifies if pages from different numa nodes can be merged.
                    When set to 0, ksm merges only pages which physically
-                   reside in the memory area of same NUMA node. It brings
-                   lower latency to access to shared page. Value can be
-                   changed only when there is no ksm shared pages in system.
-                   Default: 1
+                   reside in the memory area of same NUMA node. That brings
+                   lower latency to access of shared pages. Systems with more
+                   nodes, at significant NUMA distances, are likely to benefit
+                   from the lower latency of setting 0. Smaller systems, which
+                   need to minimize memory usage, are likely to benefit from
+                   the greater sharing of setting 1 (default). You may wish to
+                   compare how your system performs under each setting, before
+                   deciding on which to use. merge_across_nodes setting can be
+                   changed only when there are no ksm shared pages in system:
+                   set run 2 to unmerge pages first, then to 1 after changing
+                   merge_across_nodes, to remerge according to the new setting.
+                   Default: 1 (merging across nodes as in earlier releases)
 
 run              - set 0 to stop ksmd from running but keep merged pages,
                    set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",

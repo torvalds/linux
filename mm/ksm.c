@@ -87,6 +87,9 @@
  *    take 10 attempts to find a page in the unstable tree, once it is found,
  *    it is secured in the stable tree.  (When we scan a new page, we first
  *    compare it against the stable tree, and then against the unstable tree.)
+ *
+ * If the merge_across_nodes tunable is unset, then KSM maintains multiple
+ * stable trees and multiple unstable trees: one of each for each NUMA node.
  */
 
 /**
@@ -526,7 +529,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * a page to put something that might look like our key in page->mapping.
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
-static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
+static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
 {
 	struct page *page;
 	void *expected_mapping;
@@ -575,7 +578,7 @@ again:
 		goto stale;
 	}
 
-	if (locked) {
+	if (lock_it) {
 		lock_page(page);
 		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
 			unlock_page(page);
@@ -705,10 +708,17 @@ static int remove_stable_node(struct stable_node *stable_node)
 		return 0;
 	}
 
-	if (WARN_ON_ONCE(page_mapped(page)))
-		err = -EBUSY;
-	else {
+	if (WARN_ON_ONCE(page_mapped(page))) {
 		/*
+		 * This should not happen: but if it does, just refuse to let
+		 * merge_across_nodes be switched - there is no need to panic.
+		 */
+		err = -EBUSY;
+	} else {
+		/*
+		 * The stable node did not yet appear stale to get_ksm_page(),
+		 * since that allows for an unmapped ksm page to be recognized
+		 * right up until it is freed; but the node is safe to remove.
 		 * This page might be in a pagevec waiting to be freed,
 		 * or it might be PageSwapCache (perhaps under writeback),
 		 * or it might have been removed from swapcache a moment ago.
