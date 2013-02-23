@@ -499,6 +499,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * In which case we can trust the content of the page, and it
  * returns the gotten page; but if the page has now been zapped,
  * remove the stale node from the stable tree and return NULL.
+ * But beware, the stable node's page might be being migrated.
  *
  * You would expect the stable_node to hold a reference to the ksm page.
  * But if it increments the page's count, swapping out has to wait for
@@ -509,44 +510,77 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * pointing back to this stable node.  This relies on freeing a PageAnon
  * page to reset its page->mapping to NULL, and relies on no other use of
  * a page to put something that might look like our key in page->mapping.
- *
- * include/linux/pagemap.h page_cache_get_speculative() is a good reference,
- * but this is different - made simpler by ksm_thread_mutex being held, but
- * interesting for assuming that no other use of the struct page could ever
- * put our expected_mapping into page->mapping (or a field of the union which
- * coincides with page->mapping).
- *
- * Note: it is possible that get_ksm_page() will return NULL one moment,
- * then page the next, if the page is in between page_freeze_refs() and
- * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
 static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
 {
 	struct page *page;
 	void *expected_mapping;
+	unsigned long kpfn;
 
-	page = pfn_to_page(stable_node->kpfn);
 	expected_mapping = (void *)stable_node +
 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
-	if (page->mapping != expected_mapping)
+again:
+	kpfn = ACCESS_ONCE(stable_node->kpfn);
+	page = pfn_to_page(kpfn);
+
+	/*
+	 * page is computed from kpfn, so on most architectures reading
+	 * page->mapping is naturally ordered after reading node->kpfn,
+	 * but on Alpha we need to be more careful.
+	 */
+	smp_read_barrier_depends();
+	if (ACCESS_ONCE(page->mapping) != expected_mapping)
 		goto stale;
-	if (!get_page_unless_zero(page))
-		goto stale;
-	if (page->mapping != expected_mapping) {
+
+	/*
+	 * We cannot do anything with the page while its refcount is 0.
+	 * Usually 0 means free, or tail of a higher-order page: in which
+	 * case this node is no longer referenced, and should be freed;
+	 * however, it might mean that the page is under page_freeze_refs().
+	 * The __remove_mapping() case is easy, again the node is now stale;
+	 * but if page is swapcache in migrate_page_move_mapping(), it might
+	 * still be our page, in which case it's essential to keep the node.
+	 */
+	while (!get_page_unless_zero(page)) {
+		/*
+		 * Another check for page->mapping != expected_mapping would
+		 * work here too.  We have chosen the !PageSwapCache test to
+		 * optimize the common case, when the page is or is about to
+		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
+		 * in the freeze_refs section of __remove_mapping(); but Anon
+		 * page->mapping reset to NULL later, in free_pages_prepare().
+		 */
+		if (!PageSwapCache(page))
+			goto stale;
+		cpu_relax();
+	}
+
+	if (ACCESS_ONCE(page->mapping) != expected_mapping) {
 		put_page(page);
 		goto stale;
 	}
+
 	if (locked) {
 		lock_page(page);
-		if (page->mapping != expected_mapping) {
+		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
 			unlock_page(page);
 			put_page(page);
 			goto stale;
 		}
 	}
 	return page;
+
 stale:
+	/*
+	 * We come here from above when page->mapping or !PageSwapCache
+	 * suggests that the node is stale; but it might be under migration.
+	 * We need smp_rmb(), matching the smp_wmb() in ksm_migrate_page(),
+	 * before checking whether node->kpfn has been changed.
+	 */
+	smp_rmb();
+	if (ACCESS_ONCE(stable_node->kpfn) != kpfn)
+		goto again;
 	remove_node_from_stable_tree(stable_node);
 	return NULL;
 }
@@ -1103,15 +1137,25 @@ static struct page *stable_tree_search(struct page *page)
 			return NULL;
 
 		ret = memcmp_pages(page, tree_page);
+		put_page(tree_page);
 
-		if (ret < 0) {
-			put_page(tree_page);
+		if (ret < 0)
 			node = node->rb_left;
-		} else if (ret > 0) {
-			put_page(tree_page);
+		else if (ret > 0)
 			node = node->rb_right;
-		} else
+		else {
+			/*
+			 * Lock and unlock the stable_node's page (which
+			 * might already have been migrated) so that page
+			 * migration is sure to notice its raised count.
+			 * It would be more elegant to return stable_node
+			 * than kpage, but that involves more changes.
+			 */
+			tree_page = get_ksm_page(stable_node, true);
+			if (tree_page)
+				unlock_page(tree_page);
 			return tree_page;
+		}
 	}
 
 	return NULL;
@@ -1903,6 +1947,14 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 	if (stable_node) {
 		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
 		stable_node->kpfn = page_to_pfn(newpage);
+		/*
+		 * newpage->mapping was set in advance; now we need smp_wmb()
+		 * to make sure that the new stable_node->kpfn is visible
+		 * to get_ksm_page() before it can see that oldpage->mapping
+		 * has gone stale (or that PageSwapCache has been cleared).
+		 */
+		smp_wmb();
+		set_page_stable_node(oldpage, NULL);
 	}
 }
 #endif /* CONFIG_MIGRATION */
