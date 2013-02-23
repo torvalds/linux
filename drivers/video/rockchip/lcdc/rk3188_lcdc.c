@@ -30,7 +30,6 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include <mach/iomux.h>
-#include "../hdmi/rk_hdmi.h"
 #include "rk3188_lcdc.h"
 
 
@@ -140,10 +139,14 @@ static int rk3188_lcdc_alpha_cfg(struct rk3188_lcdc_device *lcdc_dev)
 	return 0;
 }
 
-static int rk3188_lcdc_reg_update(struct rk3188_lcdc_device *lcdc_dev)
+static int rk3188_lcdc_reg_update(struct rk_lcdc_device_driver *dev_drv)
 {
+	struct rk3188_lcdc_device *lcdc_dev = 
+		container_of(dev_drv,struct rk3188_lcdc_device,driver);
 	struct layer_par *win0 =  lcdc_dev->driver.layer_par[0];
 	struct layer_par *win1 =  lcdc_dev->driver.layer_par[1];
+	int timeout;
+	unsigned long flags;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -173,7 +176,20 @@ static int rk3188_lcdc_reg_update(struct rk3188_lcdc_device *lcdc_dev)
 		
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	
+	if(dev_drv->wait_fs)
+	{
+		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+		init_completion(&dev_drv->frame_done);
+		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
+		if(!timeout&&(!dev_drv->frame_done.done))
+		{
+			printk(KERN_ERR "wait for new frame start time out!\n");
+			return -ETIMEDOUT;
+		}
+	}
+	DBG(2,"%s for lcdc%d\n",__func__,lcdc_dev->id);
+	return 0;
 	
 }
 static int rk3188_lcdc_reg_resume(struct rk3188_lcdc_device *lcdc_dev)
@@ -427,7 +443,6 @@ static void rk3188_lcdc_deint(struct rk3188_lcdc_device * lcdc_dev)
 	else   //clk already disabled 
 	{
 		spin_unlock(&lcdc_dev->reg_lock);
-		return 0;
 	}
 	mdelay(1);
 	
@@ -750,19 +765,6 @@ static  int win0_display(struct rk3188_lcdc_device *lcdc_dev,struct layer_par *p
 	{
 		par->y_addr = y_addr;
 		par->uv_addr = uv_addr;
- #if defined(CONFIG_RK_HDMI)
- #if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-        if(lcdc_dev->driver.screen_ctr_info->prop == EXTEND)
-        {
-            if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-            {
-            	lcdc_writel(lcdc_dev, WIN0_YRGB_MST0, y_addr);
-		lcdc_writel(lcdc_dev, WIN0_CBR_MST0, uv_addr);	
-                lcdc_cfg_done(lcdc_dev);
-            }
-        }
- #endif 
- #endif
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -782,18 +784,6 @@ static  int win1_display(struct rk3188_lcdc_device *lcdc_dev,struct layer_par *p
 	if(likely(lcdc_dev->clk_on))
 	{
 		par->y_addr = y_addr;
- #if defined(CONFIG_RK_HDMI)
- #if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-        if(lcdc_dev->driver.screen_ctr_info->prop == EXTEND)
-        {
-            if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-            {
-            	lcdc_writel(lcdc_dev,WIN1_MST,y_addr);
-                lcdc_cfg_done(lcdc_dev);
-            }
-        }
- #endif 
- #endif
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -889,8 +879,7 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int enable;
-	unsigned long flags;
-	int timeout;
+	
 	switch(cmd)
 	{
 		case RK_FBIOGET_PANEL_SIZE:    //get panel size
@@ -898,24 +887,6 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
                 	panel_size[1] = lcdc_dev->screen->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 
 				return -EFAULT;
-			break;
-		case RK_FBIOSET_CONFIG_DONE:
-			rk3188_lcdc_reg_update(lcdc_dev);
-			if (!copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs)))
-                        {
-				if(dev_drv->wait_fs)
-				{
-					spin_lock_irqsave(&dev_drv->cpl_lock,flags);
-					init_completion(&dev_drv->frame_done);
-					spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-					timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
-					if(!timeout&&(!dev_drv->frame_done.done))
-					{
-						printk(KERN_ERR "wait for new frame start time out!\n");
-						return -ETIMEDOUT;
-					}
-				}
-			}
 			break;
 		default:
 			break;
@@ -1313,6 +1284,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.load_screen		= rk3188_load_screen,
 	.set_par       		= rk3188_lcdc_set_par,
 	.pan_display            = rk3188_lcdc_pan_display,
+	.lcdc_reg_update	= rk3188_lcdc_reg_update,
 	.blank         		= rk3188_lcdc_blank,
 	.ioctl			= rk3188_lcdc_ioctl,
 	.suspend		= rk3188_lcdc_early_suspend,
