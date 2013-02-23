@@ -1513,6 +1513,8 @@ repeat:
 	/* remove memmap entry */
 	firmware_map_remove(start, start + size, "System RAM");
 
+	arch_remove_memory(start, size);
+
 	unlock_memory_hotplug();
 
 	return 0;
