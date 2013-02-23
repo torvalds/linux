@@ -278,5 +278,5 @@ static void __exit rk610_hdmi_exit(void)
 }
 
 //module_init(rk610_hdmi_init);
-device_initcall_sync(rk610_init);
+device_initcall_sync(rk610_hdmi_init);
 module_exit(rk610_hdmi_exit);
