@@ -174,17 +174,16 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
+#ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
+extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+#else
 static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
 {
 }
-static inline void put_page_bootmem(struct page *page)
-{
-}
-#else
-extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
-extern void put_page_bootmem(struct page *page);
 #endif
+extern void put_page_bootmem(struct page *page);
+extern void get_page_bootmem(unsigned long ingo, struct page *page,
+			     unsigned long type);
 
 /*
  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
