@@ -416,7 +416,14 @@ static int do_mlock(unsigned long start, size_t len, int on)
 	return error;
 }
 
-static int do_mlock_pages(unsigned long start, size_t len, int ignore_errors)
+/*
+ * __mm_populate - populate and/or mlock pages within a range of address space.
+ *
+ * This is used to implement mlock() and the MAP_POPULATE / MAP_LOCKED mmap
+ * flags. VMAs must be already marked with the desired vm_flags, and
+ * mmap_sem must not be held.
+ */
+int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long end, nstart, nend;
@@ -498,7 +505,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 		error = do_mlock(start, len, 1);
 	up_write(&current->mm->mmap_sem);
 	if (!error)
-		error = do_mlock_pages(start, len, 0);
+		error = __mm_populate(start, len, 0);
 	return error;
 }
 
@@ -564,10 +571,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 	    capable(CAP_IPC_LOCK))
 		ret = do_mlockall(flags);
 	up_write(&current->mm->mmap_sem);
-	if (!ret && (flags & MCL_CURRENT)) {
-		/* Ignore errors */
-		do_mlock_pages(0, TASK_SIZE, 1);
-	}
+	if (!ret && (flags & MCL_CURRENT))
+		mm_populate(0, TASK_SIZE);
 out:
 	return ret;
 }

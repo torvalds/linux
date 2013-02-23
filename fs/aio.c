@@ -103,6 +103,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 	unsigned nr_events = ctx->max_reqs;
 	unsigned long size;
 	int nr_pages;
+	bool populate;
 
 	/* Compensate for the ring buffer's head/tail overlap entry */
 	nr_events += 2;	/* 1 is required, 2 for good luck */
@@ -129,7 +130,8 @@ static int aio_setup_ring(struct kioctx *ctx)
 	down_write(&ctx->mm->mmap_sem);
 	info->mmap_base = do_mmap_pgoff(NULL, 0, info->mmap_size, 
 					PROT_READ|PROT_WRITE,
-					MAP_ANONYMOUS|MAP_PRIVATE, 0);
+					MAP_ANONYMOUS|MAP_PRIVATE, 0,
+					&populate);
 	if (IS_ERR((void *)info->mmap_base)) {
 		up_write(&ctx->mm->mmap_sem);
 		info->mmap_size = 0;
@@ -147,6 +149,8 @@ static int aio_setup_ring(struct kioctx *ctx)
 		aio_free_ring(ctx);
 		return -EAGAIN;
 	}
+	if (populate)
+		mm_populate(info->mmap_base, info->mmap_size);
 
 	ctx->user_id = info->mmap_base;
 
