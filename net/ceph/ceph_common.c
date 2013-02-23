@@ -601,10 +601,8 @@ static int __init init_ceph_lib(void)
 	if (ret < 0)
 		goto out_crypto;
 
-	pr_info("loaded (mon/osd proto %d/%d, osdmap %d/%d %d/%d)\n",
-		CEPH_MONC_PROTOCOL, CEPH_OSDC_PROTOCOL,
-		CEPH_OSDMAP_VERSION, CEPH_OSDMAP_VERSION_EXT,
-		CEPH_OSDMAP_INC_VERSION, CEPH_OSDMAP_INC_VERSION_EXT);
+	pr_info("loaded (mon/osd proto %d/%d)\n",
+		CEPH_MONC_PROTOCOL, CEPH_OSDC_PROTOCOL);
 
 	return 0;
 

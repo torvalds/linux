@@ -9,14 +9,6 @@
 #include <linux/ceph/msgr.h>
 
 /*
- * osdmap encoding versions
- */
-#define CEPH_OSDMAP_INC_VERSION     5
-#define CEPH_OSDMAP_INC_VERSION_EXT 6
-#define CEPH_OSDMAP_VERSION         5
-#define CEPH_OSDMAP_VERSION_EXT     6
-
-/*
  * fs id
  */
 struct ceph_fsid {
@@ -91,21 +83,6 @@ struct ceph_pg_v1 {
 
 #define CEPH_PG_TYPE_REP     1
 #define CEPH_PG_TYPE_RAID4   2
-#define CEPH_PG_POOL_VERSION 2
-struct ceph_pg_pool {
-	__u8 type;                /* CEPH_PG_TYPE_* */
-	__u8 size;                /* number of osds in each pg */
-	__u8 crush_ruleset;       /* crush placement rule */
-	__u8 object_hash;         /* hash mapping object name to ps */
-	__le32 pg_num, pgp_num;   /* number of pg's */
-	__le32 lpg_num, lpgp_num; /* number of localized pg's */
-	__le32 last_change;       /* most recent epoch changed */
-	__le64 snap_seq;          /* seq for per-pool snapshot */
-	__le32 snap_epoch;        /* epoch of last snap */
-	__le32 num_snaps;
-	__le32 num_removed_snap_intervals; /* if non-empty, NO per-pool snaps */
-	__le64 auid;               /* who owns the pg */
-} __attribute__ ((packed));
 
 /*
  * stable_mod func is used to control number of placement groups.

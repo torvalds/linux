@@ -25,10 +25,20 @@ struct ceph_pg {
 
 struct ceph_pg_pool_info {
 	struct rb_node node;
-	int id;
-	struct ceph_pg_pool v;
-	int pg_num_mask, pgp_num_mask, lpg_num_mask, lpgp_num_mask;
+	s64 id;
+	u8 type;
+	u8 size;
+	u8 crush_ruleset;
+	u8 object_hash;
+	u32 pg_num, pgp_num;
+	int pg_num_mask, pgp_num_mask;
+	u64 flags;
 	char *name;
+};
+
+struct ceph_object_locator {
+	uint64_t pool;
+	char *key;
 };
 
 struct ceph_pg_mapping {
