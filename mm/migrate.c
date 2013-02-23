@@ -1497,7 +1497,7 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 					  __GFP_NOWARN) &
 					 ~GFP_IOFS, 0);
 	if (newpage)
-		page_xchg_last_nid(newpage, page_last_nid(page));
+		page_nid_xchg_last(newpage, page_nid_last(page));
 
 	return newpage;
 }
@@ -1681,7 +1681,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	if (!new_page)
 		goto out_fail;
 
-	page_xchg_last_nid(new_page, page_last_nid(page));
+	page_nid_xchg_last(new_page, page_nid_last(page));
 
 	isolated = numamigrate_isolate_page(pgdat, page);
 	if (!isolated) {

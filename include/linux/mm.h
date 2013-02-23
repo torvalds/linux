@@ -367,7 +367,7 @@ static inline struct page *compound_head(struct page *page)
  * both from it and to it can be tracked, using atomic_inc_and_test
  * and atomic_add_negative(-1).
  */
-static inline void reset_page_mapcount(struct page *page)
+static inline void page_mapcount_reset(struct page *page)
 {
 	atomic_set(&(page)->_mapcount, -1);
 }
@@ -658,28 +658,28 @@ static inline int page_to_nid(const struct page *page)
 
 #ifdef CONFIG_NUMA_BALANCING
 #ifdef LAST_NID_NOT_IN_PAGE_FLAGS
-static inline int page_xchg_last_nid(struct page *page, int nid)
+static inline int page_nid_xchg_last(struct page *page, int nid)
 {
 	return xchg(&page->_last_nid, nid);
 }
 
-static inline int page_last_nid(struct page *page)
+static inline int page_nid_last(struct page *page)
 {
 	return page->_last_nid;
 }
-static inline void reset_page_last_nid(struct page *page)
+static inline void page_nid_reset_last(struct page *page)
 {
 	page->_last_nid = -1;
 }
 #else
-static inline int page_last_nid(struct page *page)
+static inline int page_nid_last(struct page *page)
 {
 	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
 }
 
-extern int page_xchg_last_nid(struct page *page, int nid);
+extern int page_nid_xchg_last(struct page *page, int nid);
 
-static inline void reset_page_last_nid(struct page *page)
+static inline void page_nid_reset_last(struct page *page)
 {
 	int nid = (1 << LAST_NID_SHIFT) - 1;
 
@@ -688,17 +688,17 @@ static inline void reset_page_last_nid(struct page *page)
 }
 #endif /* LAST_NID_NOT_IN_PAGE_FLAGS */
 #else
-static inline int page_xchg_last_nid(struct page *page, int nid)
+static inline int page_nid_xchg_last(struct page *page, int nid)
 {
 	return page_to_nid(page);
 }
 
-static inline int page_last_nid(struct page *page)
+static inline int page_nid_last(struct page *page)
 {
 	return page_to_nid(page);
 }
 
-static inline void reset_page_last_nid(struct page *page)
+static inline void page_nid_reset_last(struct page *page)
 {
 }
 #endif

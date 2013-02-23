@@ -98,14 +98,14 @@ void lruvec_init(struct lruvec *lruvec)
 }
 
 #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_NID_NOT_IN_PAGE_FLAGS)
-int page_xchg_last_nid(struct page *page, int nid)
+int page_nid_xchg_last(struct page *page, int nid)
 {
 	unsigned long old_flags, flags;
 	int last_nid;
 
 	do {
 		old_flags = flags = page->flags;
-		last_nid = page_last_nid(page);
+		last_nid = page_nid_last(page);
 
 		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
 		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;

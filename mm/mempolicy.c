@@ -2316,7 +2316,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * it less likely we act on an unlikely task<->page
 		 * relation.
 		 */
-		last_nid = page_xchg_last_nid(page, polnid);
+		last_nid = page_nid_xchg_last(page, polnid);
 		if (last_nid != polnid)
 			goto out;
 	}
