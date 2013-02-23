@@ -971,7 +971,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 	struct shm_file_data *sfd;
 	struct path path;
 	fmode_t f_mode;
-	bool populate = false;
+	unsigned long populate = 0;
 
 	err = -EINVAL;
 	if (shmid < 0)
@@ -1078,7 +1078,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 invalid:
 	up_write(&current->mm->mmap_sem);
 	if (populate)
-		mm_populate(addr, size);
+		mm_populate(addr, populate);
 
 out_fput:
 	fput(file);
