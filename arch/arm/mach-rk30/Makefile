@@ -9,7 +9,12 @@ CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 obj-y += ddr.o
 obj-y += devices.o
 obj-y += io.o
-obj-$(CONFIG_ARCH_RK30XX) += iomux.o
+ifeq ($(CONFIG_ARCH_RK30XX),y)
+obj-y += iomux.o
+obj-$(CONFIG_CPU_FREQ) += cpufreq.o
+else
+obj-$(CONFIG_CPU_FREQ) += ../mach-rk3188/cpufreq.o
+endif
 obj-y += pmu.o
 obj-y += reset.o
 obj-y += timer.o
@@ -19,7 +24,6 @@ obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
-obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
