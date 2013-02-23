@@ -141,11 +141,65 @@ static inline int save_add_info(void) {return 1;}
 static inline int save_add_info(void) {return 0;}
 #endif
 
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+static void __init handle_movablemem(int node, u64 start, u64 end)
+{
+	int overlap;
+	unsigned long start_pfn, end_pfn;
+
+	start_pfn = PFN_DOWN(start);
+	end_pfn = PFN_UP(end);
+
+	/*
+	 * For movablecore_map=nn[KMG]@ss[KMG]:
+	 *
+	 * SRAT:		|_____| |_____| |_________| |_________| ......
+	 * node id:		   0       1         1           2
+	 * user specified:	          |__|                 |___|
+	 * movablemem_map:		  |___| |_________|    |______| ......
+	 *
+	 * Using movablemem_map, we can prevent memblock from allocating memory
+	 * on ZONE_MOVABLE at boot time.
+	 */
+	overlap = movablemem_map_overlap(start_pfn, end_pfn);
+	if (overlap >= 0) {
+		/*
+		 * If part of this range is in movablemem_map, we need to
+		 * add the range after it to extend the range to the end
+		 * of the node, because from the min address specified to
+		 * the end of the node will be ZONE_MOVABLE.
+		 */
+		start_pfn = max(start_pfn,
+			    movablemem_map.map[overlap].start_pfn);
+		insert_movablemem_map(start_pfn, end_pfn);
+
+		/*
+		 * Set the nodemask, so that if the address range on one node
+		 * is not continuse, we can add the subsequent ranges on the
+		 * same node into movablemem_map.
+		 */
+		node_set(node, movablemem_map.numa_nodes_hotplug);
+	} else {
+		if (node_isset(node, movablemem_map.numa_nodes_hotplug))
+			/*
+			 * Insert the range if we already have movable ranges
+			 * on the same node.
+			 */
+			insert_movablemem_map(start_pfn, end_pfn);
+	}
+}
+#else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+static inline void handle_movablemem(int node, u64 start, u64 end)
+{
+}
+#endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
 int __init
 acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	u64 start, end;
+	u32 hotpluggable;
 	int node, pxm;
 
 	if (srat_disabled())
@@ -154,7 +208,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		goto out_err_bad_srat;
 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
 		goto out_err;
-	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
+	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
+	if (hotpluggable && !save_add_info())
 		goto out_err;
 
 	start = ma->base_address;
@@ -174,9 +229,12 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 
 	node_set(node, numa_nodes_parsed);
 
-	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
+	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
 	       node, pxm,
-	       (unsigned long long) start, (unsigned long long) end - 1);
+	       (unsigned long long) start, (unsigned long long) end - 1,
+	       hotpluggable ? "Hot Pluggable": "");
+
+	handle_movablemem(node, start, end);
 
 	return 0;
 out_err_bad_srat:

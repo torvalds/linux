@@ -5176,6 +5176,36 @@ early_param("kernelcore", cmdline_parse_kernelcore);
 early_param("movablecore", cmdline_parse_movablecore);
 
 /**
+ * movablemem_map_overlap() - Check if a range overlaps movablemem_map.map[].
+ * @start_pfn:	start pfn of the range to be checked
+ * @end_pfn: 	end pfn of the range to be checked (exclusive)
+ *
+ * This function checks if a given memory range [start_pfn, end_pfn) overlaps
+ * the movablemem_map.map[] array.
+ *
+ * Return: index of the first overlapped element in movablemem_map.map[]
+ *         or -1 if they don't overlap each other.
+ */
+int __init movablemem_map_overlap(unsigned long start_pfn,
+				   unsigned long end_pfn)
+{
+	int overlap;
+
+	if (!movablemem_map.nr_map)
+		return -1;
+
+	for (overlap = 0; overlap < movablemem_map.nr_map; overlap++)
+		if (start_pfn < movablemem_map.map[overlap].end_pfn)
+			break;
+
+	if (overlap == movablemem_map.nr_map ||
+	    end_pfn <= movablemem_map.map[overlap].start_pfn)
+		return -1;
+
+	return overlap;
+}
+
+/**
  * insert_movablemem_map - Insert a memory range in to movablemem_map.map.
  * @start_pfn:	start pfn of the range
  * @end_pfn:	end pfn of the range
@@ -5183,8 +5213,8 @@ early_param("movablecore", cmdline_parse_movablecore);
  * This function will also merge the overlapped ranges, and sort the array
  * by start_pfn in monotonic increasing order.
  */
-static void __init insert_movablemem_map(unsigned long start_pfn,
-					  unsigned long end_pfn)
+void __init insert_movablemem_map(unsigned long start_pfn,
+				  unsigned long end_pfn)
 {
 	int pos, overlap;
 

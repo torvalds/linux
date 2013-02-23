@@ -1368,8 +1368,13 @@ struct movablemem_entry {
 struct movablemem_map {
 	int nr_map;
 	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
+	nodemask_t numa_nodes_hotplug;	/* on which nodes we specify memory */
 };
 
+extern void __init insert_movablemem_map(unsigned long start_pfn,
+					 unsigned long end_pfn);
+extern int __init movablemem_map_overlap(unsigned long start_pfn,
+					 unsigned long end_pfn);
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 #if !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) && \
