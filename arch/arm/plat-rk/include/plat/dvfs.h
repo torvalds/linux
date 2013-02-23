@@ -43,6 +43,8 @@ typedef int (*clk_dvfs_target_callback)(struct clk *clk, unsigned long rate,
 struct vd_node {
 	char			*name;
 	char			*regulator_name;
+	int			volt_time_flag;// =0 ,is no initing checking ,>0 ,support,<0 not support
+	int			mode_flag;// =0 ,is no initing checking ,>0 ,support,<0 not support
 	int			cur_volt;
 	int			volt_set_flag;
 	struct regulator	*regulator;
@@ -171,6 +173,9 @@ struct dvfs_arm_table {
 #define dvfs_regulator_put(regu) regulator_put((regu))
 #define dvfs_regulator_set_voltage(regu,min_uV,max_uV) regulator_set_voltage((regu),(min_uV),(max_uV))
 #define dvfs_regulator_get_voltage(regu) regulator_get_voltage((regu))
+#define dvfs_regulator_set_voltage_time(regu, old_uV, new_uV) regulator_set_voltage_time((regu), (old_uV), (new_uV))
+#define dvfs_regulator_set_mode(regu, mode) regulator_set_mode((regu), (mode))
+#define dvfs_regulator_get_mode(regu) regulator_get_mode((regu))
 #define dvfs_regulator_list_voltage(regu,selector) regulator_list_voltage((regu),(selector))
 #define dvfs_regulator_count_voltages(regu) regulator_count_voltages((regu))
 

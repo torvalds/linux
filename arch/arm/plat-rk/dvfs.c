@@ -43,6 +43,31 @@ static int dump_dbg_map(char *buf);
 
 
 /**************************************vd regulator functions***************************************/
+static void dvfs_volt_up_delay(struct vd_node *vd,int new_volt, int old_volt)
+{
+	int u_time;
+	if(new_volt<=old_volt)
+		return;
+	if(vd->volt_time_flag>0)	
+		u_time=regulator_set_voltage_time(vd->regulator,old_volt,new_volt);
+	else
+		u_time=-1;		
+	if(u_time<0)// regulator is not suported time,useing default time
+	{
+		DVFS_DBG("%s:vd %s is not suported getting delay time,so we use default\n",
+				__FUNCTION__,vd->name);
+		u_time=((new_volt) - (old_volt)) >> 9;
+	}
+	DVFS_DBG("%s:vd %s volt %d to %d delay %d us\n",__FUNCTION__,vd->name,
+		old_volt,new_volt,u_time);
+	if (u_time >= 1000) {
+		mdelay(u_time / 1000);
+		udelay(u_time % 1000);
+		DVFS_ERR("regulator set vol delay is larger 1ms,old is %d,new is %d\n",old_volt,new_volt);
+	} else if (u_time) {
+		udelay(u_time);
+	}			
+}
 int dvfs_regulator_set_voltage_readback(struct regulator *regulator, int min_uV, int max_uV)
 {
 	int ret = 0, read_back = 0;
@@ -170,6 +195,50 @@ static void dvfs_table_round_volt(struct clk_node  *dvfs_clk)
 		dvfs_clk->dvfs_table[i].index=test_volt;		
 	}
 	mutex_unlock(&mutex);
+}
+void dvfs_vd_get_regulator_volt_time_info(struct vd_node *vd)
+{
+	if(vd->volt_time_flag<=0)// check regulator support get uping vol timer
+	{
+		vd->volt_time_flag=dvfs_regulator_set_voltage_time(vd->regulator,vd->cur_volt,vd->cur_volt+200*1000);
+		if(vd->volt_time_flag<0)
+		{
+			DVFS_DBG("%s,vd %s volt_time is no support\n",__FUNCTION__,vd->name);
+		}
+		else
+		{
+			DVFS_DBG("%s,vd %s volt_time is support,up 200mv need delay %d us\n",__FUNCTION__,vd->name,vd->volt_time_flag);
+
+		}	
+	}
+}
+
+void dvfs_vd_get_regulator_mode_info(struct vd_node *vd)
+{
+	//REGULATOR_MODE_FAST
+	if(vd->mode_flag<=0)// check regulator support get uping vol timer
+	{
+		vd->mode_flag=dvfs_regulator_get_mode(vd->regulator);
+		if(vd->mode_flag==REGULATOR_MODE_FAST||vd->mode_flag==REGULATOR_MODE_NORMAL
+			||vd->mode_flag==REGULATOR_MODE_IDLE||vd->mode_flag==REGULATOR_MODE_STANDBY)
+		{
+			if(dvfs_regulator_set_mode(vd->regulator,vd->mode_flag)<0)
+			{
+				vd->mode_flag=0;// check again
+			}
+			
+		}
+		if(vd->mode_flag>0)
+		{
+			DVFS_DBG("%s,vd %s mode(now is %d) support\n",__FUNCTION__,vd->name,vd->mode_flag);
+		}
+		else
+		{
+			DVFS_DBG("%s,vd %s mode is not support now check\n",__FUNCTION__,vd->name);
+
+		}
+		
+	}
 }
 struct regulator *dvfs_get_regulator(char *regulator_name) 
 {
@@ -519,6 +588,8 @@ int clk_enable_dvfs(struct clk *clk)
 				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
 				clk_enable_dvfs_regulator_check(dvfs_clk->vd);
 				dvfs_get_vd_regulator_volt_list(dvfs_clk->vd);
+				dvfs_vd_get_regulator_volt_time_info(dvfs_clk->vd);
+				//dvfs_vd_get_regulator_mode_info(dvfs_clk->vd);
 			} else {
 				//dvfs_clk->vd->regulator = NULL;
 				dvfs_clk->enable_dvfs = 0;
@@ -626,7 +697,9 @@ int rk_regist_vd(struct vd_node *vd)
 	list_add(&vd->node, &rk_dvfs_tree);
 	INIT_LIST_HEAD(&vd->pd_list);
 	INIT_LIST_HEAD(&vd->req_volt_list);
-
+	vd->mode_flag=0;
+	vd->volt_time_flag=0;
+	vd->n_voltages=0;
 	mutex_unlock(&mutex);
 	return 0;
 }
@@ -825,7 +898,8 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 		if (vd_clk->cur_volt != volt) {
 			DVFS_DBG("\t\t%s:%d->%d\n", vd_clk->name, vd_clk->cur_volt, volt);
 			ret = dvfs_regulator_set_voltage_readback(regulator, volt, volt);
-			udelay(get_volt_up_delay(volt, volt_pre));
+			//udelay(get_volt_up_delay(volt, volt_pre));
+			dvfs_volt_up_delay(vd_clk,volt, volt_pre);
 			if (ret < 0) {
 				DVFS_ERR("%s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n",
 						__func__, vd_clk->name, ret, volt_new, volt_old);
@@ -836,7 +910,8 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 		if (vd_dep->cur_volt != volt_dep) {
 			DVFS_DBG("\t\t%s:%d->%d\n", vd_dep->name, vd_dep->cur_volt, volt_dep);
 			ret = dvfs_regulator_set_voltage_readback(regulator_dep, volt_dep, volt_dep);
-			udelay(get_volt_up_delay(volt_dep, volt_dep_pre));
+			//udelay(get_volt_up_delay(volt_dep, volt_dep_pre));
+			dvfs_volt_up_delay(vd_dep,volt_dep, volt_dep_pre);
 			if (ret < 0) {
 				DVFS_ERR("depend %s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n",
 						__func__, vd_dep->name, ret, volt_dep_new, volt_dep_old);
@@ -887,7 +962,8 @@ int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new)
 	DVFS_DBG("ENTER %s, volt=%d(old=%d)\n", __func__, volt_new, vd_clk->cur_volt);
 	if (!IS_ERR_OR_NULL(vd_clk->regulator)) {
 		ret = dvfs_regulator_set_voltage_readback(vd_clk->regulator, volt_new, volt_new);
-		udelay(get_volt_up_delay(volt_new, vd_clk->cur_volt));
+		//udelay(get_volt_up_delay(volt_new, vd_clk->cur_volt));
+		dvfs_volt_up_delay(vd_clk,volt_new, vd_clk->cur_volt);
 		if (ret < 0) {
 			vd_clk->volt_set_flag = DVFS_SET_VOLT_FAILURE;
 			DVFS_ERR("%s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n",
@@ -947,7 +1023,8 @@ int dvfs_scale_volt_bystep(struct vd_node *vd_clk, struct vd_node *vd_dep, int v
 		if (vd_clk->cur_volt != volt_new_corrected) {
 			DVFS_DBG("%s:%d->%d\n", vd_clk->name, vd_clk->cur_volt, volt_new_corrected);
 			ret = dvfs_regulator_set_voltage_readback(regulator, volt_new_corrected, volt_new_corrected);
-			udelay(get_volt_up_delay(volt_new_corrected, vd_clk->cur_volt));
+			//udelay(get_volt_up_delay(volt_new_corrected, vd_clk->cur_volt));
+			dvfs_volt_up_delay(vd_clk,volt_new_corrected, vd_clk->cur_volt);
 			if (ret < 0) {
 				DVFS_ERR("%s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n",
 						__func__, vd_clk->name, ret, volt_new_corrected, vd_clk->cur_volt);
@@ -958,7 +1035,8 @@ int dvfs_scale_volt_bystep(struct vd_node *vd_clk, struct vd_node *vd_dep, int v
 		if (vd_dep->cur_volt != volt_dep_new_corrected) {
 			DVFS_DBG("%s:%d->%d\n", vd_clk->name, vd_clk->cur_volt, volt_dep_new_corrected);
 			ret = dvfs_regulator_set_voltage_readback(regulator_dep, volt_dep_new_corrected, volt_dep_new_corrected);
-			udelay(get_volt_up_delay(volt_dep_new_corrected, vd_dep->cur_volt));
+			//udelay(get_volt_up_delay(volt_dep_new_corrected, vd_dep->cur_volt));
+			dvfs_volt_up_delay(vd_dep,volt_dep_new_corrected, vd_dep->cur_volt);
 			if (ret < 0) {
 				DVFS_ERR("depend %s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n",
 						__func__, vd_dep->name, ret, volt_dep_new_corrected, vd_dep->cur_volt);
