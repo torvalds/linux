@@ -615,10 +615,11 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
 }
 static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
-	return; /* XXX: Not implemented yet */
+	vmemmap_free(memmap, nr_pages);
 }
 static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 {
+	vmemmap_free(memmap, nr_pages);
 }
 #else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)

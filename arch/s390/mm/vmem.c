@@ -268,6 +268,10 @@ out:
 	return ret;
 }
 
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
+}
+
 /*
  * Add memory segment to the segment list if it doesn't overlap with
  * an already present segment.

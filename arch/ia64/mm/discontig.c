@@ -823,4 +823,7 @@ int __meminit vmemmap_populate(struct page *start_page,
 	return vmemmap_populate_basepages(start_page, size, node);
 }
 
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
+}
 #endif
