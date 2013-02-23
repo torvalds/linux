@@ -274,6 +274,9 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+	struct fb_info * info2 = NULL;
+	struct rk_lcdc_device_driver * dev_drv1  = NULL;
 	u32 yuv_phy[2];
 	int  layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	int enable; // enable fb:1 enable;0 disable 
@@ -326,6 +329,24 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 				return -EFAULT;
 			dev_drv->vsync_info.active = enable;
 			break;
+		case RK_FBIOSET_CONFIG_DONE:
+			copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs));
+			if(dev_drv->lcdc_reg_update)
+				dev_drv->lcdc_reg_update(dev_drv);
+	#if defined(CONFIG_RK_HDMI)
+		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+			{
+				if(inf->num_fb >= 2)
+				{
+					info2 = inf->fb[inf->num_fb>>1];
+					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+					if(dev_drv1->lcdc_reg_update)
+						dev_drv1->lcdc_reg_update(dev_drv1);
+				}
+			}
+		#endif 
+	#endif
         	default:
 			dev_drv->ioctl(dev_drv,cmd,arg,layer_id);
             		break;
@@ -1080,6 +1101,8 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 		dev_drv->read_dsp_lut   = def_drv->read_dsp_lut;
 	if(def_drv->lcdc_hdmi_process)
 		dev_drv->lcdc_hdmi_process = def_drv->lcdc_hdmi_process;
+	if(def_drv->lcdc_reg_update)
+		dev_drv->lcdc_reg_update = def_drv->lcdc_reg_update;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
