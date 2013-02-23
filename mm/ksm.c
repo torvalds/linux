@@ -1830,31 +1830,36 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 #endif /* CONFIG_MIGRATION */
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static struct stable_node *ksm_check_stable_tree(unsigned long start_pfn,
-						 unsigned long end_pfn)
+static void ksm_check_stable_tree(unsigned long start_pfn,
+				  unsigned long end_pfn)
 {
+	struct stable_node *stable_node;
 	struct rb_node *node;
 	int nid;
 
-	for (nid = 0; nid < nr_node_ids; nid++)
-		for (node = rb_first(&root_stable_tree[nid]); node;
-				node = rb_next(node)) {
-			struct stable_node *stable_node;
-
+	for (nid = 0; nid < nr_node_ids; nid++) {
+		node = rb_first(&root_stable_tree[nid]);
+		while (node) {
 			stable_node = rb_entry(node, struct stable_node, node);
 			if (stable_node->kpfn >= start_pfn &&
-			    stable_node->kpfn < end_pfn)
-				return stable_node;
+			    stable_node->kpfn < end_pfn) {
+				/*
+				 * Don't get_ksm_page, page has already gone:
+				 * which is why we keep kpfn instead of page*
+				 */
+				remove_node_from_stable_tree(stable_node);
+				node = rb_first(&root_stable_tree[nid]);
+			} else
+				node = rb_next(node);
+			cond_resched();
 		}
-
-	return NULL;
+	}
 }
 
 static int ksm_memory_callback(struct notifier_block *self,
 			       unsigned long action, void *arg)
 {
 	struct memory_notify *mn = arg;
-	struct stable_node *stable_node;
 
 	switch (action) {
 	case MEM_GOING_OFFLINE:
@@ -1874,11 +1879,12 @@ static int ksm_memory_callback(struct notifier_block *self,
 		/*
 		 * Most of the work is done by page migration; but there might
 		 * be a few stable_nodes left over, still pointing to struct
-		 * pages which have been offlined: prune those from the tree.
+		 * pages which have been offlined: prune those from the tree,
+		 * otherwise get_ksm_page() might later try to access a
+		 * non-existent struct page.
 		 */
-		while ((stable_node = ksm_check_stable_tree(mn->start_pfn,
-					mn->start_pfn + mn->nr_pages)) != NULL)
-			remove_node_from_stable_tree(stable_node);
+		ksm_check_stable_tree(mn->start_pfn,
+				      mn->start_pfn + mn->nr_pages);
 		/* fallthrough */
 
 	case MEM_CANCEL_OFFLINE:
