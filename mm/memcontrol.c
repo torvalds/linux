@@ -1396,17 +1396,6 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 	return inactive * inactive_ratio < active;
 }
 
-int mem_cgroup_inactive_file_is_low(struct lruvec *lruvec)
-{
-	unsigned long active;
-	unsigned long inactive;
-
-	inactive = mem_cgroup_get_lru_size(lruvec, LRU_INACTIVE_FILE);
-	active = mem_cgroup_get_lru_size(lruvec, LRU_ACTIVE_FILE);
-
-	return (active > inactive);
-}
-
 #define mem_cgroup_from_res_counter(counter, member)	\
 	container_of(counter, struct mem_cgroup, member)
 

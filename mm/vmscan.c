@@ -1579,16 +1579,6 @@ static inline int inactive_anon_is_low(struct lruvec *lruvec)
 }
 #endif
 
-static int inactive_file_is_low_global(struct zone *zone)
-{
-	unsigned long active, inactive;
-
-	active = zone_page_state(zone, NR_ACTIVE_FILE);
-	inactive = zone_page_state(zone, NR_INACTIVE_FILE);
-
-	return (active > inactive);
-}
-
 /**
  * inactive_file_is_low - check if file pages need to be deactivated
  * @lruvec: LRU vector to check
@@ -1605,10 +1595,13 @@ static int inactive_file_is_low_global(struct zone *zone)
  */
 static int inactive_file_is_low(struct lruvec *lruvec)
 {
-	if (!mem_cgroup_disabled())
-		return mem_cgroup_inactive_file_is_low(lruvec);
+	unsigned long inactive;
+	unsigned long active;
 
-	return inactive_file_is_low_global(lruvec_zone(lruvec));
+	inactive = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+	active = get_lru_size(lruvec, LRU_ACTIVE_FILE);
+
+	return active > inactive;
 }
 
 static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
