@@ -26,7 +26,7 @@
  *                the allocation to memory nodes instead
  *
  * preferred       Try a specific node first before normal fallback.
- *                As a special case node -1 here means do the allocation
+ *                As a special case NUMA_NO_NODE here means do the allocation
  *                on the local CPU. This is normally identical to default,
  *                but useful to set in a VMA when you have a non default
  *                process policy.
@@ -127,7 +127,7 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
 
 	if (!pol) {
 		node = numa_node_id();
-		if (node != -1)
+		if (node != NUMA_NO_NODE)
 			pol = &preferred_node_policy[node];
 
 		/* preferred_node_policy is not initialised early in boot */
@@ -258,7 +258,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	struct mempolicy *policy;
 
 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
-		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
+		 mode, flags, nodes ? nodes_addr(*nodes)[0] : NUMA_NO_NODE);
 
 	if (mode == MPOL_DEFAULT) {
 		if (nodes && !nodes_empty(*nodes))
@@ -1221,7 +1221,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
 		 start, start + len, mode, mode_flags,
-		 nmask ? nodes_addr(*nmask)[0] : -1);
+		 nmask ? nodes_addr(*nmask)[0] : NUMA_NO_NODE);
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
 
@@ -2488,7 +2488,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
 		 vma->vm_pgoff,
 		 sz, npol ? npol->mode : -1,
 		 npol ? npol->flags : -1,
-		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
+		 npol ? nodes_addr(npol->v.nodes)[0] : NUMA_NO_NODE);
 
 	if (npol) {
 		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);

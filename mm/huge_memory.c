@@ -2376,7 +2376,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 	struct page *page;
 	unsigned long _address;
 	spinlock_t *ptl;
-	int node = -1;
+	int node = NUMA_NO_NODE;
 
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 
@@ -2406,7 +2406,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 		 * be more sophisticated and look at more pages,
 		 * but isn't for now.
 		 */
-		if (node == -1)
+		if (node == NUMA_NO_NODE)
 			node = page_to_nid(page);
 		VM_BUG_ON(PageCompound(page));
 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
