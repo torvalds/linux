@@ -1461,7 +1461,7 @@ int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
  * pages. Currently it only checks the watermarks which crude
  */
 static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
-				   int nr_migrate_pages)
+				   unsigned long nr_migrate_pages)
 {
 	int z;
 	for (z = pgdat->nr_zones - 1; z >= 0; z--) {
@@ -1559,8 +1559,10 @@ int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
 {
 	int ret = 0;
 
+	VM_BUG_ON(compound_order(page) && !PageTransHuge(page));
+
 	/* Avoid migrating to a node that is nearly full */
-	if (migrate_balanced_pgdat(pgdat, 1)) {
+	if (migrate_balanced_pgdat(pgdat, 1UL << compound_order(page))) {
 		int page_lru;
 
 		if (isolate_lru_page(page)) {
