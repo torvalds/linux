@@ -31,6 +31,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/input/auo-pixcir-ts.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 /*
  * Coordinate calculation:
@@ -479,19 +481,72 @@ unlock:
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops, auo_pixcir_suspend,
-			 auo_pixcir_resume);
+static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
+			 auo_pixcir_suspend, auo_pixcir_resume);
+
+#ifdef CONFIG_OF
+static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
+{
+	struct auo_pixcir_ts_platdata *pdata;
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate platform data\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->gpio_int = of_get_gpio(np, 0);
+	if (!gpio_is_valid(pdata->gpio_int)) {
+		dev_err(dev, "failed to get interrupt gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata->gpio_rst = of_get_gpio(np, 1);
+	if (!gpio_is_valid(pdata->gpio_rst)) {
+		dev_err(dev, "failed to get reset gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "x-size", &pdata->x_max)) {
+		dev_err(dev, "failed to get x-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "y-size", &pdata->y_max)) {
+		dev_err(dev, "failed to get y-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* default to asserting the interrupt when the screen is touched */
+	pdata->int_setting = AUO_PIXCIR_INT_TOUCH_IND;
+
+	return pdata;
+}
+#else
+static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
 
 static int auo_pixcir_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata;
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
+		pdata = auo_pixcir_parse_dt(&client->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	ts = kzalloc(sizeof(struct auo_pixcir_ts), GFP_KERNEL);
 	if (!ts)
@@ -647,11 +702,20 @@ static const struct i2c_device_id auo_pixcir_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, auo_pixcir_idtable);
 
+#ifdef CONFIG_OF
+static struct of_device_id auo_pixcir_ts_dt_idtable[] = {
+	{ .compatible = "auo,auo_pixcir_ts" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, auo_pixcir_ts_dt_idtable);
+#endif
+
 static struct i2c_driver auo_pixcir_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "auo_pixcir_ts",
 		.pm	= &auo_pixcir_pm_ops,
+		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
 	.probe		= auo_pixcir_probe,
 	.remove		= auo_pixcir_remove,
