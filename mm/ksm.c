@@ -514,15 +514,14 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * but this is different - made simpler by ksm_thread_mutex being held, but
  * interesting for assuming that no other use of the struct page could ever
  * put our expected_mapping into page->mapping (or a field of the union which
- * coincides with page->mapping).  The RCU calls are not for KSM at all, but
- * to keep the page_count protocol described with page_cache_get_speculative.
+ * coincides with page->mapping).
  *
  * Note: it is possible that get_ksm_page() will return NULL one moment,
  * then page the next, if the page is in between page_freeze_refs() and
  * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
-static struct page *get_ksm_page(struct stable_node *stable_node)
+static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
 {
 	struct page *page;
 	void *expected_mapping;
@@ -530,7 +529,6 @@ static struct page *get_ksm_page(struct stable_node *stable_node)
 	page = pfn_to_page(stable_node->kpfn);
 	expected_mapping = (void *)stable_node +
 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
-	rcu_read_lock();
 	if (page->mapping != expected_mapping)
 		goto stale;
 	if (!get_page_unless_zero(page))
@@ -539,10 +537,16 @@ static struct page *get_ksm_page(struct stable_node *stable_node)
 		put_page(page);
 		goto stale;
 	}
-	rcu_read_unlock();
+	if (locked) {
+		lock_page(page);
+		if (page->mapping != expected_mapping) {
+			unlock_page(page);
+			put_page(page);
+			goto stale;
+		}
+	}
 	return page;
 stale:
-	rcu_read_unlock();
 	remove_node_from_stable_tree(stable_node);
 	return NULL;
 }
@@ -558,11 +562,10 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		struct page *page;
 
 		stable_node = rmap_item->head;
-		page = get_ksm_page(stable_node);
+		page = get_ksm_page(stable_node, true);
 		if (!page)
 			goto out;
 
-		lock_page(page);
 		hlist_del(&rmap_item->hlist);
 		unlock_page(page);
 		put_page(page);
@@ -1042,7 +1045,7 @@ static struct page *stable_tree_search(struct page *page)
 
 		cond_resched();
 		stable_node = rb_entry(node, struct stable_node, node);
-		tree_page = get_ksm_page(stable_node);
+		tree_page = get_ksm_page(stable_node, false);
 		if (!tree_page)
 			return NULL;
 
@@ -1086,7 +1089,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 
 		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
-		tree_page = get_ksm_page(stable_node);
+		tree_page = get_ksm_page(stable_node, false);
 		if (!tree_page)
 			return NULL;
 
