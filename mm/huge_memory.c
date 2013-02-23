@@ -105,7 +105,6 @@ static int set_recommended_min_free_kbytes(void)
 	struct zone *zone;
 	int nr_zones = 0;
 	unsigned long recommended_min;
-	extern int min_free_kbytes;
 
 	if (!khugepaged_enabled())
 		return 0;
