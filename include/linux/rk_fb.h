@@ -192,26 +192,36 @@ typedef enum _TRSP_MODE
 } TRSP_MODE;
 
 struct layer_par {
-    char name[5];
-    int id;
-    bool state; 	//on or off
-    u32	pseudo_pal[16];
-    u32 y_offset;       //yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx
-    u32 c_offset;     //cb cr offset--->LCDC_WINx_CBR_MSTx
-    u32 xpos;         //start point in panel  --->LCDC_WINx_DSP_ST
-    u32 ypos;
-    u16 xsize;        // display window width/height  -->LCDC_WINx_DSP_INFO
-    u16 ysize;          
-    u16 xact;        //origin display window size -->LCDC_WINx_ACT_INFO
-    u16 yact;
-    u16 xvir;       //virtual width/height     -->LCDC_WINx_VIR
-    u16 yvir;
-    unsigned long smem_start;
-    unsigned long cbr_start;  // Cbr memory start address
-    enum data_format format;
-	
-    bool support_3d;
-    
+	char name[5];
+	int id;
+	bool state; 	//on or off
+	u32	pseudo_pal[16];
+	u32 y_offset;       //yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx
+	u32 c_offset;     //cb cr offset--->LCDC_WINx_CBR_MSTx
+	u32 xpos;         //start point in panel  --->LCDC_WINx_DSP_ST
+	u32 ypos;
+	u16 xsize;        // display window width/height  -->LCDC_WINx_DSP_INFO
+	u16 ysize;          
+	u16 xact;        //origin display window size -->LCDC_WINx_ACT_INFO
+	u16 yact;
+	u16 xvir;       //virtual width/height     -->LCDC_WINx_VIR
+	u16 yvir;
+	unsigned long smem_start;
+	unsigned long cbr_start;  // Cbr memory start address
+	enum data_format format;
+
+	bool support_3d;
+    	u32 scale_yrgb_x;
+	u32 scale_yrgb_y;
+	u32 scale_cbcr_x;
+	u32 scale_cbcr_y;
+	u32 dsp_stx;
+	u32 dsp_sty;
+	u32 vir_stride;
+	u32 y_addr;
+	u32 uv_addr;
+	u8 fmt_cfg;
+	u8 swap_rb;
 };
 
 struct rk_lcdc_device_driver{

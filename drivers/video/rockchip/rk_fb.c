@@ -1241,6 +1241,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 			fb_inf->fb[0]->fbops->fb_pan_display(&(fb_inf->fb[0]->var), fb_inf->fb[0]);
 		}
 #endif
+	fb_inf->fb[0]->fbops->fb_ioctl(fb_inf->fb[0],RK_FBIOSET_CONFIG_DONE,NULL);
 		
     }
 #endif
