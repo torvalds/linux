@@ -122,13 +122,25 @@ struct ksm_scan {
 /**
  * struct stable_node - node of the stable rbtree
  * @node: rb node of this ksm page in the stable tree
+ * @head: (overlaying parent) &migrate_nodes indicates temporarily on that list
+ * @list: linked into migrate_nodes, pending placement in the proper node tree
  * @hlist: hlist head of rmap_items using this ksm page
- * @kpfn: page frame number of this ksm page
+ * @kpfn: page frame number of this ksm page (perhaps temporarily on wrong nid)
+ * @nid: NUMA node id of stable tree in which linked (may not match kpfn)
  */
 struct stable_node {
-	struct rb_node node;
+	union {
+		struct rb_node node;	/* when node of stable tree */
+		struct {		/* when listed for migration */
+			struct list_head *head;
+			struct list_head list;
+		};
+	};
 	struct hlist_head hlist;
 	unsigned long kpfn;
+#ifdef CONFIG_NUMA
+	int nid;
+#endif
 };
 
 /**
@@ -168,6 +180,9 @@ struct rmap_item {
 /* The stable and unstable tree heads */
 static struct rb_root root_unstable_tree[MAX_NUMNODES];
 static struct rb_root root_stable_tree[MAX_NUMNODES];
+
+/* Recently migrated nodes of stable tree, pending proper placement */
+static LIST_HEAD(migrate_nodes);
 
 #define MM_SLOTS_HASH_BITS 10
 static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
@@ -309,11 +324,6 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 {
 	mm_slot->mm = mm;
 	hash_add(mm_slots_hash, &mm_slot->link, (unsigned long)mm);
-}
-
-static inline int in_stable_tree(struct rmap_item *rmap_item)
-{
-	return rmap_item->address & STABLE_FLAG;
 }
 
 /*
@@ -476,7 +486,6 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 {
 	struct rmap_item *rmap_item;
 	struct hlist_node *hlist;
-	int nid;
 
 	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
 		if (rmap_item->hlist.next)
@@ -488,8 +497,11 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 		cond_resched();
 	}
 
-	nid = get_kpfn_nid(stable_node->kpfn);
-	rb_erase(&stable_node->node, &root_stable_tree[nid]);
+	if (stable_node->head == &migrate_nodes)
+		list_del(&stable_node->list);
+	else
+		rb_erase(&stable_node->node,
+			 &root_stable_tree[NUMA(stable_node->nid)]);
 	free_stable_node(stable_node);
 }
 
@@ -712,6 +724,7 @@ static int remove_stable_node(struct stable_node *stable_node)
 static int remove_all_stable_nodes(void)
 {
 	struct stable_node *stable_node;
+	struct list_head *this, *next;
 	int nid;
 	int err = 0;
 
@@ -725,6 +738,12 @@ static int remove_all_stable_nodes(void)
 			}
 			cond_resched();
 		}
+	}
+	list_for_each_safe(this, next, &migrate_nodes) {
+		stable_node = list_entry(this, struct stable_node, list);
+		if (remove_stable_node(stable_node))
+			err = -EBUSY;
+		cond_resched();
 	}
 	return err;
 }
@@ -1113,25 +1132,30 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
  */
 static struct page *stable_tree_search(struct page *page)
 {
-	struct rb_node *node;
-	struct stable_node *stable_node;
 	int nid;
+	struct rb_node **new;
+	struct rb_node *parent;
+	struct stable_node *stable_node;
+	struct stable_node *page_node;
 
-	stable_node = page_stable_node(page);
-	if (stable_node) {			/* ksm page forked */
+	page_node = page_stable_node(page);
+	if (page_node && page_node->head != &migrate_nodes) {
+		/* ksm page forked */
 		get_page(page);
 		return page;
 	}
 
 	nid = get_kpfn_nid(page_to_pfn(page));
-	node = root_stable_tree[nid].rb_node;
+again:
+	new = &root_stable_tree[nid].rb_node;
+	parent = NULL;
 
-	while (node) {
+	while (*new) {
 		struct page *tree_page;
 		int ret;
 
 		cond_resched();
-		stable_node = rb_entry(node, struct stable_node, node);
+		stable_node = rb_entry(*new, struct stable_node, node);
 		tree_page = get_ksm_page(stable_node, false);
 		if (!tree_page)
 			return NULL;
@@ -1139,10 +1163,11 @@ static struct page *stable_tree_search(struct page *page)
 		ret = memcmp_pages(page, tree_page);
 		put_page(tree_page);
 
+		parent = *new;
 		if (ret < 0)
-			node = node->rb_left;
+			new = &parent->rb_left;
 		else if (ret > 0)
-			node = node->rb_right;
+			new = &parent->rb_right;
 		else {
 			/*
 			 * Lock and unlock the stable_node's page (which
@@ -1152,13 +1177,49 @@ static struct page *stable_tree_search(struct page *page)
 			 * than kpage, but that involves more changes.
 			 */
 			tree_page = get_ksm_page(stable_node, true);
-			if (tree_page)
+			if (tree_page) {
 				unlock_page(tree_page);
-			return tree_page;
+				if (get_kpfn_nid(stable_node->kpfn) !=
+						NUMA(stable_node->nid)) {
+					put_page(tree_page);
+					goto replace;
+				}
+				return tree_page;
+			}
+			/*
+			 * There is now a place for page_node, but the tree may
+			 * have been rebalanced, so re-evaluate parent and new.
+			 */
+			if (page_node)
+				goto again;
+			return NULL;
 		}
 	}
 
-	return NULL;
+	if (!page_node)
+		return NULL;
+
+	list_del(&page_node->list);
+	DO_NUMA(page_node->nid = nid);
+	rb_link_node(&page_node->node, parent, new);
+	rb_insert_color(&page_node->node, &root_stable_tree[nid]);
+	get_page(page);
+	return page;
+
+replace:
+	if (page_node) {
+		list_del(&page_node->list);
+		DO_NUMA(page_node->nid = nid);
+		rb_replace_node(&stable_node->node,
+				&page_node->node, &root_stable_tree[nid]);
+		get_page(page);
+	} else {
+		rb_erase(&stable_node->node, &root_stable_tree[nid]);
+		page = NULL;
+	}
+	stable_node->head = &migrate_nodes;
+	list_add(&stable_node->list, stable_node->head);
+	return page;
 }
 
 /*
@@ -1215,6 +1276,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 	INIT_HLIST_HEAD(&stable_node->hlist);
 	stable_node->kpfn = kpfn;
 	set_page_stable_node(kpage, stable_node);
+	DO_NUMA(stable_node->nid = nid);
 	rb_link_node(&stable_node->node, parent, new);
 	rb_insert_color(&stable_node->node, &root_stable_tree[nid]);
 
@@ -1311,11 +1373,6 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
 static void stable_tree_append(struct rmap_item *rmap_item,
 			       struct stable_node *stable_node)
 {
-	/*
-	 * Usually rmap_item->nid is already set correctly,
-	 * but it may be wrong after switching merge_across_nodes.
-	 */
-	DO_NUMA(rmap_item->nid = get_kpfn_nid(stable_node->kpfn));
 	rmap_item->head = stable_node;
 	rmap_item->address |= STABLE_FLAG;
 	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
@@ -1344,10 +1401,29 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	unsigned int checksum;
 	int err;
 
-	remove_rmap_item_from_tree(rmap_item);
+	stable_node = page_stable_node(page);
+	if (stable_node) {
+		if (stable_node->head != &migrate_nodes &&
+		    get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid)) {
+			rb_erase(&stable_node->node,
+				 &root_stable_tree[NUMA(stable_node->nid)]);
+			stable_node->head = &migrate_nodes;
+			list_add(&stable_node->list, stable_node->head);
+		}
+		if (stable_node->head != &migrate_nodes &&
+		    rmap_item->head == stable_node)
+			return;
+	}
 
 	/* We first start with searching the page inside the stable tree */
 	kpage = stable_tree_search(page);
+	if (kpage == page && rmap_item->head == stable_node) {
+		put_page(kpage);
+		return;
+	}
+
+	remove_rmap_item_from_tree(rmap_item);
+
 	if (kpage) {
 		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
 		if (!err) {
@@ -1463,6 +1539,27 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
 		 * so we don't IPI too often when pages_to_scan is set low).
 		 */
 		lru_add_drain_all();
+
+		/*
+		 * Whereas stale stable_nodes on the stable_tree itself
+		 * get pruned in the regular course of stable_tree_search(),
+		 * those moved out to the migrate_nodes list can accumulate:
+		 * so prune them once before each full scan.
+		 */
+		if (!ksm_merge_across_nodes) {
+			struct stable_node *stable_node;
+			struct list_head *this, *next;
+			struct page *page;
+
+			list_for_each_safe(this, next, &migrate_nodes) {
+				stable_node = list_entry(this,
+						struct stable_node, list);
+				page = get_ksm_page(stable_node, false);
+				if (page)
+					put_page(page);
+				cond_resched();
+			}
+		}
 
 		for (nid = 0; nid < nr_node_ids; nid++)
 			root_unstable_tree[nid] = RB_ROOT;
@@ -1586,8 +1683,7 @@ static void ksm_do_scan(unsigned int scan_npages)
 		rmap_item = scan_get_next_rmap_item(&page);
 		if (!rmap_item)
 			return;
-		if (!PageKsm(page) || !in_stable_tree(rmap_item))
-			cmp_and_merge_page(page, rmap_item);
+		cmp_and_merge_page(page, rmap_item);
 		put_page(page);
 	}
 }
@@ -1964,6 +2060,7 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
 				  unsigned long end_pfn)
 {
 	struct stable_node *stable_node;
+	struct list_head *this, *next;
 	struct rb_node *node;
 	int nid;
 
@@ -1983,6 +2080,13 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
 				node = rb_next(node);
 			cond_resched();
 		}
+	}
+	list_for_each_safe(this, next, &migrate_nodes) {
+		stable_node = list_entry(this, struct stable_node, list);
+		if (stable_node->kpfn >= start_pfn &&
+		    stable_node->kpfn < end_pfn)
+			remove_node_from_stable_tree(stable_node);
+		cond_resched();
 	}
 }
 
