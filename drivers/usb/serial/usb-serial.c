@@ -256,22 +256,18 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
  * serial_down - shut down hardware
  * @tport: tty port to shut down
  *
- * Shut down a USB serial port unless it is the console.  We never
- * shut down the console hardware as it will always be in use. Serialized
- * against activate by the tport mutex and kept to matching open/close pairs
+ * Shut down a USB serial port. Serialized against activate by the
+ * tport mutex and kept to matching open/close pairs
  * of calls by the ASYNCB_INITIALIZED flag.
+ *
+ * Not called if tty is console.
  */
 static void serial_down(struct tty_port *tport)
 {
 	struct usb_serial_port *port =
 		container_of(tport, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = port->serial->type;
-	/*
-	 * The console is magical.  Do not hang up the console hardware
-	 * or there will be tears.
-	 */
-	if (port->port.console)
-		return;
+
 	if (drv->close)
 		drv->close(port);
 }
