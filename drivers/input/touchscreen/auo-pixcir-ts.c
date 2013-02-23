@@ -111,6 +111,7 @@
 struct auo_pixcir_ts {
 	struct i2c_client	*client;
 	struct input_dev	*input;
+	const struct auo_pixcir_ts_platdata *pdata;
 	char			phys[32];
 
 	/* special handling for touch_indicate interupt mode */
@@ -132,7 +133,7 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 				   struct auo_point_t *point)
 {
 	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	uint8_t raw_coord[8];
 	uint8_t raw_area[4];
 	int i, ret;
@@ -178,8 +179,7 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 {
 	struct auo_pixcir_ts *ts = dev_id;
-	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	struct auo_point_t point[AUO_PIXCIR_REPORT_POINTS];
 	int i;
 	int ret;
@@ -290,7 +290,7 @@ static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
 					   int int_setting)
 {
 	struct i2c_client *client = ts->client;
-	struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_INT_SETTING);
@@ -527,6 +527,7 @@ static int auo_pixcir_probe(struct i2c_client *client,
 
 	msleep(200);
 
+	ts->pdata = pdata;
 	ts->client = client;
 	ts->touch_ind_mode = 0;
 	init_waitqueue_head(&ts->wait);
@@ -624,7 +625,7 @@ err_gpio_int:
 static int auo_pixcir_remove(struct i2c_client *client)
 {
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 
 	free_irq(client->irq, ts);
 
