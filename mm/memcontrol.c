@@ -488,6 +488,13 @@ enum res_type {
 #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
 #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
 
+/*
+ * The memcg_create_mutex will be held whenever a new cgroup is created.
+ * As a consequence, any change that needs to protect against new child cgroups
+ * appearing has to hold it as well.
+ */
+static DEFINE_MUTEX(memcg_create_mutex);
+
 static void mem_cgroup_get(struct mem_cgroup *memcg);
 static void mem_cgroup_put(struct mem_cgroup *memcg);
 
@@ -4778,8 +4785,8 @@ static inline bool __memcg_has_children(struct mem_cgroup *memcg)
 }
 
 /*
- * Must be called with cgroup_lock held, unless the cgroup is guaranteed to be
- * already dead (in mem_cgroup_force_empty(), for instance).  This is different
+ * Must be called with memcg_create_mutex held, unless the cgroup is guaranteed
+ * to be already dead (as in mem_cgroup_force_empty, for instance).  This is
  * from mem_cgroup_count_children(), in the sense that we don't really care how
  * many children we have; we only need to know if we have any.  It also counts
  * any memcg without hierarchy as infertile.
@@ -4859,7 +4866,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
 	if (parent)
 		parent_memcg = mem_cgroup_from_cont(parent);
 
-	cgroup_lock();
+	mutex_lock(&memcg_create_mutex);
 
 	if (memcg->use_hierarchy == val)
 		goto out;
@@ -4882,7 +4889,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
 		retval = -EINVAL;
 
 out:
-	cgroup_unlock();
+	mutex_unlock(&memcg_create_mutex);
 
 	return retval;
 }
@@ -4981,14 +4988,8 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 	 *
 	 * After it first became limited, changes in the value of the limit are
 	 * of course permitted.
-	 *
-	 * Taking the cgroup_lock is really offensive, but it is so far the only
-	 * way to guarantee that no children will appear. There are plenty of
-	 * other offenders, and they should all go away. Fine grained locking
-	 * is probably the way to go here. When we are fully hierarchical, we
-	 * can also get rid of the use_hierarchy check.
 	 */
-	cgroup_lock();
+	mutex_lock(&memcg_create_mutex);
 	mutex_lock(&set_limit_mutex);
 	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
 		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
@@ -5015,7 +5016,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 		ret = res_counter_set_limit(&memcg->kmem, val);
 out:
 	mutex_unlock(&set_limit_mutex);
-	cgroup_unlock();
+	mutex_unlock(&memcg_create_mutex);
 
 	/*
 	 * We are by now familiar with the fact that we can't inc the static
@@ -5396,17 +5397,17 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
 
 	parent = mem_cgroup_from_cont(cgrp->parent);
 
-	cgroup_lock();
+	mutex_lock(&memcg_create_mutex);
 
 	/* If under hierarchy, only empty-root can set this value */
 	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
-		cgroup_unlock();
+		mutex_unlock(&memcg_create_mutex);
 		return -EINVAL;
 	}
 
 	memcg->swappiness = val;
 
-	cgroup_unlock();
+	mutex_unlock(&memcg_create_mutex);
 
 	return 0;
 }
@@ -5732,16 +5733,16 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
 
 	parent = mem_cgroup_from_cont(cgrp->parent);
 
-	cgroup_lock();
+	mutex_lock(&memcg_create_mutex);
 	/* oom-kill-disable is a flag for subhierarchy. */
 	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
-		cgroup_unlock();
+		mutex_unlock(&memcg_create_mutex);
 		return -EINVAL;
 	}
 	memcg->oom_kill_disable = val;
 	if (!val)
 		memcg_oom_recover(memcg);
-	cgroup_unlock();
+	mutex_unlock(&memcg_create_mutex);
 	return 0;
 }
 
@@ -6170,6 +6171,7 @@ mem_cgroup_css_online(struct cgroup *cont)
 	if (!cont->parent)
 		return 0;
 
+	mutex_lock(&memcg_create_mutex);
 	memcg = mem_cgroup_from_cont(cont);
 	parent = mem_cgroup_from_cont(cont->parent);
 
@@ -6203,6 +6205,7 @@ mem_cgroup_css_online(struct cgroup *cont)
 	}
 
 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+	mutex_unlock(&memcg_create_mutex);
 	if (error) {
 		/*
 		 * We call put now because our (and parent's) refcnts
