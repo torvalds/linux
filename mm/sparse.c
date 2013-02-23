@@ -783,7 +783,7 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 
 	for (i = 0; i < PAGES_PER_SECTION; i++) {
 		if (PageHWPoison(&memmap[i])) {
-			atomic_long_sub(1, &mce_bad_pages);
+			atomic_long_sub(1, &num_poisoned_pages);
 			ClearPageHWPoison(&memmap[i]);
 		}
 	}
