@@ -901,8 +901,7 @@ error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
 		rollback_node_hotadd(nid, pgdat);
-	if (res)
-		release_memory_resource(res);
+	release_memory_resource(res);
 
 out:
 	unlock_memory_hotplug();
