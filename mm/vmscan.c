@@ -1973,18 +1973,17 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 			shrink_lruvec(lruvec, sc);
 
 			/*
-			 * Limit reclaim has historically picked one
-			 * memcg and scanned it with decreasing
-			 * priority levels until nr_to_reclaim had
-			 * been reclaimed.  This priority cycle is
-			 * thus over after a single memcg.
-			 *
-			 * Direct reclaim and kswapd, on the other
-			 * hand, have to scan all memory cgroups to
-			 * fulfill the overall scan target for the
+			 * Direct reclaim and kswapd have to scan all memory
+			 * cgroups to fulfill the overall scan target for the
 			 * zone.
+			 *
+			 * Limit reclaim, on the other hand, only cares about
+			 * nr_to_reclaim pages to be reclaimed and it will
+			 * retry with decreasing priority if one round over the
+			 * whole hierarchy is not sufficient.
 			 */
-			if (!global_reclaim(sc)) {
+			if (!global_reclaim(sc) &&
+					sc->nr_reclaimed >= sc->nr_to_reclaim) {
 				mem_cgroup_iter_break(root, memcg);
 				break;
 			}
