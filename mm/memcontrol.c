@@ -6093,7 +6093,7 @@ err_cleanup:
 static struct cgroup_subsys_state * __ref
 mem_cgroup_css_alloc(struct cgroup *cont)
 {
-	struct mem_cgroup *memcg, *parent;
+	struct mem_cgroup *memcg;
 	long error = -ENOMEM;
 	int node;
 
@@ -6108,7 +6108,7 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 	/* root ? */
 	if (cont->parent == NULL) {
 		int cpu;
-		parent = NULL;
+
 		if (mem_cgroup_soft_limit_tree_init())
 			goto free_out;
 		root_mem_cgroup = memcg;
@@ -6117,13 +6117,43 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 						&per_cpu(memcg_stock, cpu);
 			INIT_WORK(&stock->work, drain_local_stock);
 		}
-	} else {
-		parent = mem_cgroup_from_cont(cont->parent);
-		memcg->use_hierarchy = parent->use_hierarchy;
-		memcg->oom_kill_disable = parent->oom_kill_disable;
+
+		res_counter_init(&memcg->res, NULL);
+		res_counter_init(&memcg->memsw, NULL);
+		res_counter_init(&memcg->kmem, NULL);
 	}
 
-	if (parent && parent->use_hierarchy) {
+	memcg->last_scanned_node = MAX_NUMNODES;
+	INIT_LIST_HEAD(&memcg->oom_notify);
+	atomic_set(&memcg->refcnt, 1);
+	memcg->move_charge_at_immigrate = 0;
+	mutex_init(&memcg->thresholds_lock);
+	spin_lock_init(&memcg->move_lock);
+
+	return &memcg->css;
+
+free_out:
+	__mem_cgroup_free(memcg);
+	return ERR_PTR(error);
+}
+
+static int
+mem_cgroup_css_online(struct cgroup *cont)
+{
+	struct mem_cgroup *memcg, *parent;
+	int error = 0;
+
+	if (!cont->parent)
+		return 0;
+
+	memcg = mem_cgroup_from_cont(cont);
+	parent = mem_cgroup_from_cont(cont->parent);
+
+	memcg->use_hierarchy = parent->use_hierarchy;
+	memcg->oom_kill_disable = parent->oom_kill_disable;
+	memcg->swappiness = mem_cgroup_swappiness(parent);
+
+	if (parent->use_hierarchy) {
 		res_counter_init(&memcg->res, &parent->res);
 		res_counter_init(&memcg->memsw, &parent->memsw);
 		res_counter_init(&memcg->kmem, &parent->kmem);
@@ -6144,18 +6174,9 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 		 * much sense so let cgroup subsystem know about this
 		 * unfortunate state in our controller.
 		 */
-		if (parent && parent != root_mem_cgroup)
+		if (parent != root_mem_cgroup)
 			mem_cgroup_subsys.broken_hierarchy = true;
 	}
-	memcg->last_scanned_node = MAX_NUMNODES;
-	INIT_LIST_HEAD(&memcg->oom_notify);
-
-	if (parent)
-		memcg->swappiness = mem_cgroup_swappiness(parent);
-	atomic_set(&memcg->refcnt, 1);
-	memcg->move_charge_at_immigrate = 0;
-	mutex_init(&memcg->thresholds_lock);
-	spin_lock_init(&memcg->move_lock);
 
 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
 	if (error) {
@@ -6165,12 +6186,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 		 * call __mem_cgroup_free, so return directly
 		 */
 		mem_cgroup_put(memcg);
-		return ERR_PTR(error);
 	}
-	return &memcg->css;
-free_out:
-	__mem_cgroup_free(memcg);
-	return ERR_PTR(error);
+	return error;
 }
 
 static void mem_cgroup_css_offline(struct cgroup *cont)
@@ -6780,6 +6797,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.name = "memory",
 	.subsys_id = mem_cgroup_subsys_id,
 	.css_alloc = mem_cgroup_css_alloc,
+	.css_online = mem_cgroup_css_online,
 	.css_offline = mem_cgroup_css_offline,
 	.css_free = mem_cgroup_css_free,
 	.can_attach = mem_cgroup_can_attach,
