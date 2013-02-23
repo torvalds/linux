@@ -124,6 +124,7 @@ void __ref put_page_bootmem(struct page *page)
 		mutex_lock(&ppb_lock);
 		__free_pages_bootmem(page, 0);
 		mutex_unlock(&ppb_lock);
+		totalram_pages++;
 	}
 
 }
