@@ -6046,18 +6046,6 @@ struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
 }
 EXPORT_SYMBOL(parent_mem_cgroup);
 
-#ifdef CONFIG_MEMCG_SWAP
-static void __init enable_swap_cgroup(void)
-{
-	if (!mem_cgroup_disabled() && really_do_swap_account)
-		do_swap_account = 1;
-}
-#else
-static void __init enable_swap_cgroup(void)
-{
-}
-#endif
-
 static int mem_cgroup_soft_limit_tree_init(void)
 {
 	struct mem_cgroup_tree_per_node *rtpn;
@@ -6111,7 +6099,6 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 	/* root ? */
 	if (cont->parent == NULL) {
 		int cpu;
-		enable_swap_cgroup();
 		parent = NULL;
 		if (mem_cgroup_soft_limit_tree_init())
 			goto free_out;
@@ -6800,12 +6787,19 @@ __setup("swapaccount=", enable_swap_account);
 
 static void __init memsw_file_init(void)
 {
-	if (really_do_swap_account)
-		WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys,
-					memsw_cgroup_files));
+	WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys, memsw_cgroup_files));
 }
+
+static void __init enable_swap_cgroup(void)
+{
+	if (!mem_cgroup_disabled() && really_do_swap_account) {
+		do_swap_account = 1;
+		memsw_file_init();
+	}
+}
+
 #else
-static void __init memsw_file_init(void)
+static void __init enable_swap_cgroup(void)
 {
 }
 #endif
@@ -6819,7 +6813,7 @@ static void __init memsw_file_init(void)
 static int __init mem_cgroup_init(void)
 {
 	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
-	memsw_file_init();
+	enable_swap_cgroup();
 	return 0;
 }
 subsys_initcall(mem_cgroup_init);
