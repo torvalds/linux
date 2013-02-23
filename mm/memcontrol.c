@@ -2296,6 +2296,17 @@ static void drain_local_stock(struct work_struct *dummy)
 	clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
 }
 
+static void __init memcg_stock_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct memcg_stock_pcp *stock =
+					&per_cpu(memcg_stock, cpu);
+		INIT_WORK(&stock->work, drain_local_stock);
+	}
+}
+
 /*
  * Cache charges(val) which is from res_counter, to local per_cpu area.
  * This will be consumed by consume_stock() function, later.
@@ -6092,15 +6103,7 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 
 	/* root ? */
 	if (cont->parent == NULL) {
-		int cpu;
-
 		root_mem_cgroup = memcg;
-		for_each_possible_cpu(cpu) {
-			struct memcg_stock_pcp *stock =
-						&per_cpu(memcg_stock, cpu);
-			INIT_WORK(&stock->work, drain_local_stock);
-		}
-
 		res_counter_init(&memcg->res, NULL);
 		res_counter_init(&memcg->memsw, NULL);
 		res_counter_init(&memcg->kmem, NULL);
@@ -6837,6 +6840,7 @@ static int __init mem_cgroup_init(void)
 	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
 	enable_swap_cgroup();
 	mem_cgroup_soft_limit_tree_init();
+	memcg_stock_init();
 	return 0;
 }
 subsys_initcall(mem_cgroup_init);
