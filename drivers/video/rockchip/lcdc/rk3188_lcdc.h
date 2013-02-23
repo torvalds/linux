@@ -313,7 +313,9 @@ struct rk3188_lcdc_device{
 	struct clk		*hclk;				//lcdc AHP clk
 	struct clk		*dclk;				//lcdc dclk
 	struct clk		*aclk;				//lcdc share memory frequency
-	u32 pixclock;				
+	u32 pixclock;	
+
+	u32 standby;						//1:standby,0:wrok
 };
 
 
@@ -366,7 +368,7 @@ static inline void  lcdc_msk_reg(struct rk3188_lcdc_device *lcdc_dev,u32 offset,
 static inline void lcdc_cfg_done(struct rk3188_lcdc_device *lcdc_dev) 
 {
 	writel_relaxed(0x01,lcdc_dev->regs+REG_CFG_DONE); 
-	dsb();						
+	dsb();	
 } 
 
 #endif
