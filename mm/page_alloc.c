@@ -5806,9 +5806,11 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 				    0, false, MIGRATE_SYNC,
 				    MR_CMA);
 	}
-
-	putback_movable_pages(&cc->migratepages);
-	return ret > 0 ? 0 : ret;
+	if (ret < 0) {
+		putback_movable_pages(&cc->migratepages);
+		return ret;
+	}
+	return 0;
 }
 
 /**
