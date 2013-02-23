@@ -504,6 +504,13 @@ static int auo_pixcir_probe(struct i2c_client *client,
 		goto err_gpio_int;
 	}
 
+	ret = gpio_direction_input(pdata->gpio_int);
+	if (ret) {
+		dev_err(&client->dev, "setting direction of gpio %d failed %d\n",
+			pdata->gpio_int, ret);
+		goto err_gpio_dir;
+	}
+
 	if (pdata->init_hw)
 		pdata->init_hw(client);
 
@@ -592,6 +599,7 @@ err_fw_vers:
 err_input_alloc:
 	if (pdata->exit_hw)
 		pdata->exit_hw(client);
+err_gpio_dir:
 	gpio_free(pdata->gpio_int);
 err_gpio_int:
 	kfree(ts);
