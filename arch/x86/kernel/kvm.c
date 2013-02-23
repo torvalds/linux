@@ -20,6 +20,7 @@
  *   Authors: Anthony Liguori <aliguori@us.ibm.com>
  */
 
+#include <linux/context_tracking.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/kvm_para.h>
@@ -43,7 +44,6 @@
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
 #include <asm/kvm_guest.h>
-#include <asm/context_tracking.h>
 
 static int kvmapf = 1;
 
