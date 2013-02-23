@@ -155,9 +155,8 @@ void munlock_vma_page(struct page *page)
  *
  * vma->vm_mm->mmap_sem must be held for at least read.
  */
-static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				    unsigned long start, unsigned long end,
-				    int *nonblocking)
+long __mlock_vma_pages_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end, int *nonblocking)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start;
@@ -200,56 +199,6 @@ static int __mlock_posix_error_return(long retval)
 	else if (retval == -ENOMEM)
 		retval = -EAGAIN;
 	return retval;
-}
-
-/**
- * mlock_vma_pages_range() - mlock pages in specified vma range.
- * @vma - the vma containing the specfied address range
- * @start - starting address in @vma to mlock
- * @end   - end address [+1] in @vma to mlock
- *
- * For mmap()/mremap()/expansion of mlocked vma.
- *
- * return 0 on success for "normal" vmas.
- *
- * return number of pages [> 0] to be removed from locked_vm on success
- * of "special" vmas.
- */
-long mlock_vma_pages_range(struct vm_area_struct *vma,
-			unsigned long start, unsigned long end)
-{
-	int nr_pages = (end - start) / PAGE_SIZE;
-	BUG_ON(!(vma->vm_flags & VM_LOCKED));
-
-	/*
-	 * filter unlockable vmas
-	 */
-	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-		goto no_mlock;
-
-	if (!((vma->vm_flags & VM_DONTEXPAND) ||
-			is_vm_hugetlb_page(vma) ||
-			vma == get_gate_vma(current->mm))) {
-
-		__mlock_vma_pages_range(vma, start, end, NULL);
-
-		/* Hide errors from mmap() and other callers */
-		return 0;
-	}
-
-	/*
-	 * User mapped kernel pages or huge pages:
-	 * make these pages present to populate the ptes, but
-	 * fall thru' to reset VM_LOCKED--no need to unlock, and
-	 * return nr_pages so these don't get counted against task's
-	 * locked limit.  huge pages are already counted against
-	 * locked vm limit.
-	 */
-	make_pages_present(start, end);
-
-no_mlock:
-	vma->vm_flags &= ~VM_LOCKED;	/* and don't come back! */
-	return nr_pages;		/* error or pages NOT mlocked */
 }
 
 /*
@@ -303,7 +252,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
  *
  * Filters out "special" vmas -- VM_LOCKED never gets set for these, and
  * munlock is a no-op.  However, for some special vmas, we go ahead and
- * populate the ptes via make_pages_present().
+ * populate the ptes.
  *
  * For vmas that pass the filters, merge/split as appropriate.
  */
