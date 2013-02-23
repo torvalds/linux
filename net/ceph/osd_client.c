@@ -914,7 +914,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 			 struct ceph_osd_request *req, int force_resend)
 {
 	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
-	struct ceph_pg_v1 pgid;
+	struct ceph_pg pgid;
 	int acting[CEPH_PG_MAX_SIZE];
 	int o = -1, num = 0;
 	int err;
@@ -926,7 +926,8 @@ static int __map_request(struct ceph_osd_client *osdc,
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;
 	}
-	pgid = reqhead->layout.ol_pgid;
+	pgid.pool = le32_to_cpu(reqhead->layout.ol_pgid.pool);
+	pgid.seed = le16_to_cpu(reqhead->layout.ol_pgid.ps);
 	req->r_pgid = pgid;
 
 	err = ceph_calc_pg_acting(osdc->osdmap, pgid, acting);
@@ -943,8 +944,8 @@ static int __map_request(struct ceph_osd_client *osdc,
 	    (req->r_osd == NULL && o == -1))
 		return 0;  /* no change */
 
-	dout("map_request tid %llu pgid %d.%x osd%d (was osd%d)\n",
-	     req->r_tid, le32_to_cpu(pgid.pool), le16_to_cpu(pgid.ps), o,
+	dout("map_request tid %llu pgid %lld.%x osd%d (was osd%d)\n",
+	     req->r_tid, pgid.pool, pgid.seed, o,
 	     req->r_osd ? req->r_osd->o_osd : -1);
 
 	/* record full pg acting set */

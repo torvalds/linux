@@ -350,14 +350,15 @@ bad:
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
  * to a set of osds)
  */
-static int pgid_cmp(struct ceph_pg_v1 l, struct ceph_pg_v1 r)
+static int pgid_cmp(struct ceph_pg l, struct ceph_pg r)
 {
-	u64 a = *(u64 *)&l;
-	u64 b = *(u64 *)&r;
-
-	if (a < b)
+	if (l.pool < r.pool)
 		return -1;
-	if (a > b)
+	if (l.pool > r.pool)
+		return 1;
+	if (l.seed < r.seed)
+		return -1;
+	if (l.seed > r.seed)
 		return 1;
 	return 0;
 }
@@ -389,7 +390,7 @@ static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 }
 
 static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
-						   struct ceph_pg_v1 pgid)
+						   struct ceph_pg pgid)
 {
 	struct rb_node *n = root->rb_node;
 	struct ceph_pg_mapping *pg;
@@ -403,25 +404,26 @@ static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
 		} else if (c > 0) {
 			n = n->rb_right;
 		} else {
-			dout("__lookup_pg_mapping %llx got %p\n",
-			     *(u64 *)&pgid, pg);
+			dout("__lookup_pg_mapping %lld.%x got %p\n",
+			     pgid.pool, pgid.seed, pg);
 			return pg;
 		}
 	}
 	return NULL;
 }
 
-static int __remove_pg_mapping(struct rb_root *root, struct ceph_pg_v1 pgid)
+static int __remove_pg_mapping(struct rb_root *root, struct ceph_pg pgid)
 {
 	struct ceph_pg_mapping *pg = __lookup_pg_mapping(root, pgid);
 
 	if (pg) {
-		dout("__remove_pg_mapping %llx %p\n", *(u64 *)&pgid, pg);
+		dout("__remove_pg_mapping %lld.%x %p\n", pgid.pool, pgid.seed,
+		     pg);
 		rb_erase(&pg->node, root);
 		kfree(pg);
 		return 0;
 	}
-	dout("__remove_pg_mapping %llx dne\n", *(u64 *)&pgid);
+	dout("__remove_pg_mapping %lld.%x dne\n", pgid.pool, pgid.seed);
 	return -ENOENT;
 }
 
@@ -721,11 +723,14 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	ceph_decode_32_safe(p, end, len, bad);
 	for (i = 0; i < len; i++) {
 		int n, j;
-		struct ceph_pg_v1 pgid;
+		struct ceph_pg pgid;
+		struct ceph_pg_v1 pgid_v1;
 		struct ceph_pg_mapping *pg;
 
 		ceph_decode_need(p, end, sizeof(u32) + sizeof(u64), bad);
-		ceph_decode_copy(p, &pgid, sizeof(pgid));
+		ceph_decode_copy(p, &pgid_v1, sizeof(pgid_v1));
+		pgid.pool = le32_to_cpu(pgid_v1.pool);
+		pgid.seed = le16_to_cpu(pgid_v1.ps);
 		n = ceph_decode_32(p);
 		err = -EINVAL;
 		if (n > (UINT_MAX - sizeof(*pg)) / sizeof(u32))
@@ -743,7 +748,8 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		err = __insert_pg_mapping(pg, &map->pg_temp);
 		if (err)
 			goto bad;
-		dout(" added pg_temp %llx len %d\n", *(u64 *)&pgid, len);
+		dout(" added pg_temp %lld.%x len %d\n", pgid.pool, pgid.seed,
+		     len);
 	}
 
 	/* crush */
@@ -944,10 +950,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	while (len--) {
 		struct ceph_pg_mapping *pg;
 		int j;
-		struct ceph_pg_v1 pgid;
+		struct ceph_pg_v1 pgid_v1;
+		struct ceph_pg pgid;
 		u32 pglen;
 		ceph_decode_need(p, end, sizeof(u64) + sizeof(u32), bad);
-		ceph_decode_copy(p, &pgid, sizeof(pgid));
+		ceph_decode_copy(p, &pgid_v1, sizeof(pgid_v1));
+		pgid.pool = le32_to_cpu(pgid_v1.pool);
+		pgid.seed = le16_to_cpu(pgid_v1.ps);
 		pglen = ceph_decode_32(p);
 
 		if (pglen) {
@@ -973,8 +982,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 				kfree(pg);
 				goto bad;
 			}
-			dout(" added pg_temp %llx len %d\n", *(u64 *)&pgid,
-			     pglen);
+			dout(" added pg_temp %lld.%x len %d\n", pgid.pool,
+			     pgid.seed, pglen);
 		} else {
 			/* remove */
 			__remove_pg_mapping(&map->pg_temp, pgid);
@@ -1079,26 +1088,25 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 			    struct ceph_osdmap *osdmap)
 {
 	unsigned int num, num_mask;
-	struct ceph_pg_v1 pgid;
-	int poolid = le32_to_cpu(fl->fl_pg_pool);
+	struct ceph_pg pgid;
 	struct ceph_pg_pool_info *pool;
-	unsigned int ps;
 
 	BUG_ON(!osdmap);
 
-	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	pgid.pool = le32_to_cpu(fl->fl_pg_pool);
+	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
 	if (!pool)
 		return -EIO;
-	ps = ceph_str_hash(pool->v.object_hash, oid, strlen(oid));
+	pgid.seed = ceph_str_hash(pool->v.object_hash, oid, strlen(oid));
 	num = le32_to_cpu(pool->v.pg_num);
 	num_mask = pool->pg_num_mask;
 
-	pgid.ps = cpu_to_le16(ps);
-	pgid.preferred = cpu_to_le16(-1);
-	pgid.pool = fl->fl_pg_pool;
-	dout("calc_object_layout '%s' pgid %d.%x\n", oid, poolid, ps);
+	dout("calc_object_layout '%s' pgid %lld.%x\n", oid, pgid.pool,
+	     pgid.seed);
 
-	ol->ol_pgid = pgid;
+	ol->ol_pgid.ps = cpu_to_le16(pgid.seed);
+	ol->ol_pgid.pool = fl->fl_pg_pool;
+	ol->ol_pgid.preferred = cpu_to_le16(-1);
 	ol->ol_stripe_unit = fl->fl_object_stripe_unit;
 	return 0;
 }
@@ -1108,7 +1116,7 @@ EXPORT_SYMBOL(ceph_calc_object_layout);
  * Calculate raw osd vector for the given pgid.  Return pointer to osd
  * array, or NULL on failure.
  */
-static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
+static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 			int *osds, int *num)
 {
 	struct ceph_pg_mapping *pg;
@@ -1116,8 +1124,8 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
 	int ruleno;
 	unsigned int poolid, ps, pps, t, r;
 
-	poolid = le32_to_cpu(pgid.pool);
-	ps = le16_to_cpu(pgid.ps);
+	poolid = pgid.pool;
+	ps = pgid.seed;
 
 	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
 	if (!pool)
@@ -1126,7 +1134,7 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
 	/* pg_temp? */
 	t = ceph_stable_mod(ps, le32_to_cpu(pool->v.pg_num),
 			    pool->pgp_num_mask);
-	pgid.ps = cpu_to_le16(t);
+	pgid.seed = t;
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		*num = pg->len;
@@ -1163,7 +1171,7 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
 /*
  * Return acting set for given pgid.
  */
-int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
+int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 			int *acting)
 {
 	int rawosds[CEPH_PG_MAX_SIZE], *osds;
@@ -1184,7 +1192,7 @@ int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid,
 /*
  * Return primary osd for given pgid, or -1 if none.
  */
-int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg_v1 pgid)
+int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg pgid)
 {
 	int rawosds[CEPH_PG_MAX_SIZE], *osds;
 	int i, num = CEPH_PG_MAX_SIZE;

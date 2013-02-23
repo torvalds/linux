@@ -131,10 +131,9 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 		req = rb_entry(p, struct ceph_osd_request, r_node);
 
-		seq_printf(s, "%lld\tosd%d\t%d.%x\t", req->r_tid,
+		seq_printf(s, "%lld\tosd%d\t%lld.%x\t", req->r_tid,
 			   req->r_osd ? req->r_osd->o_osd : -1,
-			   le32_to_cpu(req->r_pgid.pool),
-			   le16_to_cpu(req->r_pgid.ps));
+			   req->r_pgid.pool, req->r_pgid.seed);
 
 		head = req->r_request->front.iov_base;
 		op = (void *)(head + 1);

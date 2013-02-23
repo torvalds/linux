@@ -186,7 +186,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_object_layout ol;
-	struct ceph_pg_v1 pgid;
+	struct ceph_pg pgid;
 	int r;
 
 	/* copy and validate */
@@ -212,7 +212,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	ceph_calc_object_layout(&ol, dl.object_name, &ci->i_layout,
 				osdc->osdmap);
 
-	pgid = ol.ol_pgid;
+	pgid.pool = le32_to_cpu(ol.ol_pgid.pool);
+	pgid.seed = le16_to_cpu(ol.ol_pgid.ps);
 	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
 	if (dl.osd >= 0) {
 		struct ceph_entity_addr *a =

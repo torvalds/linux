@@ -18,6 +18,11 @@
  * The map can be updated either via an incremental map (diff) describing
  * the change between two successive epochs, or as a fully encoded map.
  */
+struct ceph_pg {
+	uint64_t pool;
+	uint32_t seed;
+};
+
 struct ceph_pg_pool_info {
 	struct rb_node node;
 	int id;
@@ -28,7 +33,7 @@ struct ceph_pg_pool_info {
 
 struct ceph_pg_mapping {
 	struct rb_node node;
-	struct ceph_pg_v1 pgid;
+	struct ceph_pg pgid;
 	int len;
 	int osds[];
 };
@@ -119,10 +124,10 @@ extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
 				   struct ceph_file_layout *fl,
 				   struct ceph_osdmap *osdmap);
 extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap,
-			       struct ceph_pg_v1 pgid,
+			       struct ceph_pg pgid,
 			       int *acting);
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
-				struct ceph_pg_v1 pgid);
+				struct ceph_pg pgid);
 
 extern const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id);
 extern int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name);
