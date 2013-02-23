@@ -5247,13 +5247,10 @@ static void __setup_per_zone_wmarks(void)
 			 * deltas controls asynch page reclaim, and so should
 			 * not be capped for highmem.
 			 */
-			int min_pages;
+			unsigned long min_pages;
 
 			min_pages = zone->present_pages / 1024;
-			if (min_pages < SWAP_CLUSTER_MAX)
-				min_pages = SWAP_CLUSTER_MAX;
-			if (min_pages > 128)
-				min_pages = 128;
+			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
 			zone->watermark[WMARK_MIN] = min_pages;
 		} else {
 			/*
