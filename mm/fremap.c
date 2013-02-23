@@ -160,13 +160,9 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	/*
 	 * Make sure the vma is shared, that it supports prefaulting,
 	 * and that the remapped range is valid and fully within
-	 * the single existing vma.  vm_private_data is used as a
-	 * swapout cursor in a VM_NONLINEAR vma.
+	 * the single existing vma.
 	 */
 	if (!vma || !(vma->vm_flags & VM_SHARED))
-		goto out;
-
-	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
 		goto out;
 
 	if (!vma->vm_ops || !vma->vm_ops->remap_pages)
@@ -177,6 +173,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 
 	/* Must set VM_NONLINEAR before any pages are populated. */
 	if (!(vma->vm_flags & VM_NONLINEAR)) {
+		/*
+		 * vm_private_data is used as a swapout cursor
+		 * in a VM_NONLINEAR vma.
+		 */
+		if (vma->vm_private_data)
+			goto out;
+
 		/* Don't need a nonlinear mapping, exit success */
 		if (pgoff == linear_page_index(vma, start)) {
 			err = 0;
@@ -184,6 +187,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 		}
 
 		if (!has_write_lock) {
+get_write_lock:
 			up_read(&mm->mmap_sem);
 			down_write(&mm->mmap_sem);
 			has_write_lock = 1;
@@ -199,7 +203,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 			unsigned long addr;
 			struct file *file = get_file(vma->vm_file);
 
-			flags &= MAP_NONBLOCK;
+			flags = (flags & MAP_NONBLOCK) | MAP_POPULATE;
 			addr = mmap_region(file, start, size,
 					flags, vma->vm_flags, pgoff);
 			fput(file);
@@ -225,6 +229,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 		 * drop PG_Mlocked flag for over-mapped range
 		 */
 		vm_flags_t saved_flags = vma->vm_flags;
+		if (!has_write_lock)
+			goto get_write_lock;
 		munlock_vma_pages_range(vma, start, start + size);
 		vma->vm_flags = saved_flags;
 	}
@@ -232,13 +238,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	mmu_notifier_invalidate_range_start(mm, start, start + size);
 	err = vma->vm_ops->remap_pages(vma, start, size, pgoff);
 	mmu_notifier_invalidate_range_end(mm, start, start + size);
-	if (!err && !(flags & MAP_NONBLOCK)) {
+	if (!err) {
 		if (vma->vm_flags & VM_LOCKED) {
 			/*
 			 * might be mapping previously unmapped range of file
 			 */
 			mlock_vma_pages_range(vma, start, start + size);
-		} else {
+		} else if (!(flags & MAP_NONBLOCK)) {
 			if (unlikely(has_write_lock)) {
 				downgrade_write(&mm->mmap_sem);
 				has_write_lock = 0;
