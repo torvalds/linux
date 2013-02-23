@@ -7330,7 +7330,7 @@ vmcs12_guest_cr4(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
  * exit-information fields only. Other fields are modified by L1 with VMWRITE,
  * which already writes to vmcs12 directly.
  */
-void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
+static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	/* update guest state fields: */
 	vmcs12->guest_cr0 = vmcs12_guest_cr0(vcpu, vmcs12);
@@ -7421,7 +7421,8 @@ void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
  * Failures During or After Loading Guest State").
  * This function should be called when the active VMCS is L1's (vmcs01).
  */
-void load_vmcs12_host_state(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
+static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
+				   struct vmcs12 *vmcs12)
 {
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER)
 		vcpu->arch.efer = vmcs12->host_ia32_efer;
