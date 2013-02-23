@@ -340,9 +340,9 @@ static int do_mlock(unsigned long start, size_t len, int on)
 
 		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
 
-		newflags = vma->vm_flags | VM_LOCKED;
-		if (!on)
-			newflags &= ~VM_LOCKED;
+		newflags = vma->vm_flags & ~VM_LOCKED;
+		if (on)
+			newflags |= VM_LOCKED | VM_POPULATE;
 
 		tmp = vma->vm_end;
 		if (tmp > end)
@@ -402,7 +402,8 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 		 * range with the first VMA. Also, skip undesirable VMA types.
 		 */
 		nend = min(end, vma->vm_end);
-		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+		if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_POPULATE)) !=
+		    VM_POPULATE)
 			continue;
 		if (nstart < vma->vm_start)
 			nstart = vma->vm_start;
@@ -475,18 +476,18 @@ static int do_mlockall(int flags)
 	struct vm_area_struct * vma, * prev = NULL;
 
 	if (flags & MCL_FUTURE)
-		current->mm->def_flags |= VM_LOCKED;
+		current->mm->def_flags |= VM_LOCKED | VM_POPULATE;
 	else
-		current->mm->def_flags &= ~VM_LOCKED;
+		current->mm->def_flags &= ~(VM_LOCKED | VM_POPULATE);
 	if (flags == MCL_FUTURE)
 		goto out;
 
 	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
 		vm_flags_t newflags;
 
-		newflags = vma->vm_flags | VM_LOCKED;
-		if (!(flags & MCL_CURRENT))
-			newflags &= ~VM_LOCKED;
+		newflags = vma->vm_flags & ~VM_LOCKED;
+		if (flags & MCL_CURRENT)
+			newflags |= VM_LOCKED | VM_POPULATE;
 
 		/* Ignore errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
