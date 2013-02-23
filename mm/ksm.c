@@ -644,6 +644,57 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
 /*
  * Only called through the sysfs control interface:
  */
+static int remove_stable_node(struct stable_node *stable_node)
+{
+	struct page *page;
+	int err;
+
+	page = get_ksm_page(stable_node, true);
+	if (!page) {
+		/*
+		 * get_ksm_page did remove_node_from_stable_tree itself.
+		 */
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(page_mapped(page)))
+		err = -EBUSY;
+	else {
+		/*
+		 * This page might be in a pagevec waiting to be freed,
+		 * or it might be PageSwapCache (perhaps under writeback),
+		 * or it might have been removed from swapcache a moment ago.
+		 */
+		set_page_stable_node(page, NULL);
+		remove_node_from_stable_tree(stable_node);
+		err = 0;
+	}
+
+	unlock_page(page);
+	put_page(page);
+	return err;
+}
+
+static int remove_all_stable_nodes(void)
+{
+	struct stable_node *stable_node;
+	int nid;
+	int err = 0;
+
+	for (nid = 0; nid < nr_node_ids; nid++) {
+		while (root_stable_tree[nid].rb_node) {
+			stable_node = rb_entry(root_stable_tree[nid].rb_node,
+						struct stable_node, node);
+			if (remove_stable_node(stable_node)) {
+				err = -EBUSY;
+				break;	/* proceed to next nid */
+			}
+			cond_resched();
+		}
+	}
+	return err;
+}
+
 static int unmerge_and_remove_all_rmap_items(void)
 {
 	struct mm_slot *mm_slot;
@@ -691,6 +742,8 @@ static int unmerge_and_remove_all_rmap_items(void)
 		}
 	}
 
+	/* Clean up stable nodes, but don't worry if some are still busy */
+	remove_all_stable_nodes();
 	ksm_scan.seqnr = 0;
 	return 0;
 
@@ -1586,11 +1639,19 @@ int __ksm_enter(struct mm_struct *mm)
 	spin_lock(&ksm_mmlist_lock);
 	insert_to_mm_slots_hash(mm, mm_slot);
 	/*
-	 * Insert just behind the scanning cursor, to let the area settle
+	 * When KSM_RUN_MERGE (or KSM_RUN_STOP),
+	 * insert just behind the scanning cursor, to let the area settle
 	 * down a little; when fork is followed by immediate exec, we don't
 	 * want ksmd to waste time setting up and tearing down an rmap_list.
+	 *
+	 * But when KSM_RUN_UNMERGE, it's important to insert ahead of its
+	 * scanning cursor, otherwise KSM pages in newly forked mms will be
+	 * missed: then we might as well insert at the end of the list.
 	 */
-	list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
+	if (ksm_run & KSM_RUN_UNMERGE)
+		list_add_tail(&mm_slot->mm_list, &ksm_mm_head.mm_list);
+	else
+		list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
 	spin_unlock(&ksm_mmlist_lock);
 
 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
@@ -1640,10 +1701,24 @@ void __ksm_exit(struct mm_struct *mm)
 	}
 }
 
-struct page *ksm_does_need_to_copy(struct page *page,
+struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
+	struct anon_vma *anon_vma = page_anon_vma(page);
 	struct page *new_page;
+
+	if (PageKsm(page)) {
+		if (page_stable_node(page) &&
+		    !(ksm_run & KSM_RUN_UNMERGE))
+			return page;	/* no need to copy it */
+	} else if (!anon_vma) {
+		return page;		/* no need to copy it */
+	} else if (anon_vma->root == vma->anon_vma->root &&
+		 page->index == linear_page_index(vma, address)) {
+		return page;		/* still no need to copy it */
+	}
+	if (!PageUptodate(page))
+		return page;		/* let do_swap_page report the error */
 
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 	if (new_page) {
@@ -2024,7 +2099,7 @@ static ssize_t merge_across_nodes_store(struct kobject *kobj,
 
 	mutex_lock(&ksm_thread_mutex);
 	if (ksm_merge_across_nodes != knob) {
-		if (ksm_pages_shared)
+		if (ksm_pages_shared || remove_all_stable_nodes())
 			err = -EBUSY;
 		else
 			ksm_merge_across_nodes = knob;
