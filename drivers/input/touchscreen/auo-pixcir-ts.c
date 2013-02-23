@@ -533,13 +533,21 @@ static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
 }
 #endif
 
+static void auo_pixcir_reset(void *data)
+{
+	struct auo_pixcir_ts *ts = data;
+
+	gpio_set_value(ts->pdata->gpio_rst, 0);
+}
+
 static int auo_pixcir_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+			    const struct i2c_device_id *id)
 {
 	const struct auo_pixcir_ts_platdata *pdata;
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
-	int ret;
+	int version;
+	int error;
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
@@ -548,60 +556,30 @@ static int auo_pixcir_probe(struct i2c_client *client,
 			return PTR_ERR(pdata);
 	}
 
-	ts = kzalloc(sizeof(struct auo_pixcir_ts), GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev,
+			  sizeof(struct auo_pixcir_ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
-	ret = gpio_request(pdata->gpio_int, "auo_pixcir_ts_int");
-	if (ret) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			pdata->gpio_int, ret);
-		goto err_gpio_int;
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev) {
+		dev_err(&client->dev, "could not allocate input device\n");
+		return -ENOMEM;
 	}
-
-	ret = gpio_direction_input(pdata->gpio_int);
-	if (ret) {
-		dev_err(&client->dev, "setting direction of gpio %d failed %d\n",
-			pdata->gpio_int, ret);
-		goto err_gpio_dir;
-	}
-
-	ret = gpio_request(pdata->gpio_rst, "auo_pixcir_ts_rst");
-	if (ret) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			pdata->gpio_rst, ret);
-		goto err_gpio_dir;
-	}
-
-	ret = gpio_direction_output(pdata->gpio_rst, 1);
-	if (ret) {
-		dev_err(&client->dev, "setting direction of gpio %d failed %d\n",
-			pdata->gpio_rst, ret);
-		goto err_gpio_rst;
-	}
-
-	msleep(200);
 
 	ts->pdata = pdata;
 	ts->client = client;
+	ts->input = input_dev;
 	ts->touch_ind_mode = 0;
+	ts->stopped = true;
 	init_waitqueue_head(&ts->wait);
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
 
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		dev_err(&client->dev, "could not allocate input device\n");
-		goto err_input_alloc;
-	}
-
-	ts->input = input_dev;
-
 	input_dev->name = "AUO-Pixcir touchscreen";
 	input_dev->phys = ts->phys;
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 
 	input_dev->open = auo_pixcir_input_open;
 	input_dev->close = auo_pixcir_input_close;
@@ -626,72 +604,70 @@ static int auo_pixcir_probe(struct i2c_client *client,
 			     AUO_PIXCIR_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 
-	ret = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_VERSION);
-	if (ret < 0)
-		goto err_fw_vers;
-	dev_info(&client->dev, "firmware version 0x%X\n", ret);
-
-	ret = auo_pixcir_int_config(ts, pdata->int_setting);
-	if (ret)
-		goto err_fw_vers;
-
 	input_set_drvdata(ts->input, ts);
-	ts->stopped = true;
 
-	ret = request_threaded_irq(client->irq, NULL, auo_pixcir_interrupt,
-				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				   input_dev->name, ts);
-	if (ret) {
-		dev_err(&client->dev, "irq %d requested failed\n", client->irq);
-		goto err_fw_vers;
+	error = devm_gpio_request_one(&client->dev, pdata->gpio_int,
+				      GPIOF_DIR_IN, "auo_pixcir_ts_int");
+	if (error) {
+		dev_err(&client->dev, "request of gpio %d failed, %d\n",
+			pdata->gpio_int, error);
+		return error;
+	}
+
+	error = devm_gpio_request_one(&client->dev, pdata->gpio_rst,
+				      GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
+				      "auo_pixcir_ts_rst");
+	if (error) {
+		dev_err(&client->dev, "request of gpio %d failed, %d\n",
+			pdata->gpio_rst, error);
+		return error;
+	}
+
+	error = devm_add_action(&client->dev, auo_pixcir_reset, ts);
+	if (error) {
+		auo_pixcir_reset(ts);
+		dev_err(&client->dev, "failed to register reset action, %d\n",
+			error);
+		return error;
+	}
+
+	msleep(200);
+
+	version = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_VERSION);
+	if (version < 0) {
+		error = version;
+		return error;
+	}
+
+	dev_info(&client->dev, "firmware version 0x%X\n", version);
+
+	error = auo_pixcir_int_config(ts, pdata->int_setting);
+	if (error)
+		return error;
+
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, auo_pixcir_interrupt,
+					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					  input_dev->name, ts);
+	if (error) {
+		dev_err(&client->dev, "irq %d requested failed, %d\n",
+			client->irq, error);
+		return error;
 	}
 
 	/* stop device and put it into deep sleep until it is opened */
-	ret = auo_pixcir_stop(ts);
-	if (ret < 0)
-		goto err_input_register;
+	error = auo_pixcir_stop(ts);
+	if (error)
+		return error;
 
-	ret = input_register_device(input_dev);
-	if (ret) {
-		dev_err(&client->dev, "could not register input device\n");
-		goto err_input_register;
+	error = input_register_device(input_dev);
+	if (error) {
+		dev_err(&client->dev, "could not register input device, %d\n",
+			error);
+		return error;
 	}
 
 	i2c_set_clientdata(client, ts);
-
-	return 0;
-
-err_input_register:
-	free_irq(client->irq, ts);
-err_fw_vers:
-	input_free_device(input_dev);
-err_input_alloc:
-	gpio_set_value(pdata->gpio_rst, 0);
-err_gpio_rst:
-	gpio_free(pdata->gpio_rst);
-err_gpio_dir:
-	gpio_free(pdata->gpio_int);
-err_gpio_int:
-	kfree(ts);
-
-	return ret;
-}
-
-static int auo_pixcir_remove(struct i2c_client *client)
-{
-	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
-	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
-
-	free_irq(client->irq, ts);
-
-	input_unregister_device(ts->input);
-
-	gpio_set_value(pdata->gpio_rst, 0);
-	gpio_free(pdata->gpio_rst);
-
-	gpio_free(pdata->gpio_int);
-
-	kfree(ts);
 
 	return 0;
 }
@@ -718,7 +694,6 @@ static struct i2c_driver auo_pixcir_driver = {
 		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
 	.probe		= auo_pixcir_probe,
-	.remove		= auo_pixcir_remove,
 	.id_table	= auo_pixcir_idtable,
 };
 
