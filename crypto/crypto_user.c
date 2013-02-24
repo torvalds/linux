@@ -440,7 +440,7 @@ static const struct nla_policy crypto_policy[CRYPTOCFGA_MAX+1] = {
 
 #undef MSGSIZE
 
-static struct crypto_link {
+static const struct crypto_link {
 	int (*doit)(struct sk_buff *, struct nlmsghdr *, struct nlattr **);
 	int (*dump)(struct sk_buff *, struct netlink_callback *);
 	int (*done)(struct netlink_callback *);
@@ -456,7 +456,7 @@ static struct crypto_link {
 static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct nlattr *attrs[CRYPTOCFGA_MAX+1];
-	struct crypto_link *link;
+	const struct crypto_link *link;
 	int type, err;
 
 	type = nlh->nlmsg_type;
