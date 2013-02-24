@@ -1161,6 +1161,12 @@ int max_width, max_height;</synopsis>
             any new rendering to the frame buffer until the page flip completes.
           </para>
           <para>
+            If a page flip can be successfully scheduled the driver must set the
+            <code>drm_crtc-&lt;fb</code> field to the new framebuffer pointed to
+            by <code>fb</code>. This is important so that the reference counting
+            on framebuffers stays balanced.
+          </para>
+          <para>
             If a page flip is already pending, the
             <methodname>page_flip</methodname> operation must return
             -<errorname>EBUSY</errorname>.
