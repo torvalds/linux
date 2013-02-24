@@ -1142,14 +1142,6 @@ static const struct fimc_pix_limit s5p_pix_limit[4] = {
 		.out_rot_en_w	= 1280,
 		.out_rot_dis_w	= 1920,
 	},
-	[3] = {
-		.scaler_en_w	= 1920,
-		.scaler_dis_w	= 8192,
-		.in_rot_en_h	= 1366,
-		.in_rot_dis_w	= 8192,
-		.out_rot_en_w	= 1366,
-		.out_rot_dis_w	= 1920,
-	},
 };
 
 static const struct fimc_variant fimc0_variant_s5p = {
@@ -1204,27 +1196,6 @@ static const struct fimc_variant fimc2_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static const struct fimc_variant fimc0_variant_exynos4210 = {
-	.has_inp_rot	 = 1,
-	.has_out_rot	 = 1,
-	.has_cam_if	 = 1,
-	.has_mainscaler_ext = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 2,
-	.min_vsize_align = 1,
-	.pix_limit	 = &s5p_pix_limit[1],
-};
-
-static const struct fimc_variant fimc3_variant_exynos4210 = {
-	.has_mainscaler_ext = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 2,
-	.min_vsize_align = 1,
-	.pix_limit	 = &s5p_pix_limit[3],
-};
-
 /* S5PC100 */
 static const struct fimc_drvdata fimc_drvdata_s5p = {
 	.variant = {
@@ -1252,12 +1223,6 @@ static const struct fimc_drvdata fimc_drvdata_s5pv210 = {
 
 /* EXYNOS4210, S5PV310, S5PC210 */
 static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
-	.variant = {
-		[0] = &fimc0_variant_exynos4210,
-		[1] = &fimc0_variant_exynos4210,
-		[2] = &fimc0_variant_exynos4210,
-		[3] = &fimc3_variant_exynos4210,
-	},
 	.num_entities	= 4,
 	.lclk_frequency = 166000000UL,
 	.dma_pix_hoff	= 1,
