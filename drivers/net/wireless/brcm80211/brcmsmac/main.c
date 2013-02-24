@@ -7810,9 +7810,14 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 
 	/* read the ucode version if we have not yet done so */
 	if (wlc->ucode_rev == 0) {
-		wlc->ucode_rev =
-		    brcms_b_read_shm(wlc->hw, M_BOM_REV_MAJOR) << NBITS(u16);
-		wlc->ucode_rev |= brcms_b_read_shm(wlc->hw, M_BOM_REV_MINOR);
+		u16 rev;
+		u16 patch;
+
+		rev = brcms_b_read_shm(wlc->hw, M_BOM_REV_MAJOR);
+		patch = brcms_b_read_shm(wlc->hw, M_BOM_REV_MINOR);
+		wlc->ucode_rev = (rev << NBITS(u16)) | patch;
+		snprintf(wlc->wiphy->fw_version,
+			 sizeof(wlc->wiphy->fw_version), "%u.%u", rev, patch);
 	}
 
 	/* ..now really unleash hell (allow the MAC out of suspend) */
