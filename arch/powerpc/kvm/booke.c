@@ -1442,6 +1442,12 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
 		break;
 #endif
+	case KVM_REG_PPC_TCR:
+		r = put_user(vcpu->arch.tcr, (u32 __user *)(long)reg->addr);
+		break;
+	case KVM_REG_PPC_TSR:
+		r = put_user(vcpu->arch.tsr, (u32 __user *)(long)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -1485,6 +1491,30 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		break;
 	}
 #endif
+	case KVM_REG_PPC_OR_TSR: {
+		u32 tsr_bits;
+		r = get_user(tsr_bits, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tsr_bits(vcpu, tsr_bits);
+		break;
+	}
+	case KVM_REG_PPC_CLEAR_TSR: {
+		u32 tsr_bits;
+		r = get_user(tsr_bits, (u32 __user *)(long)reg->addr);
+		kvmppc_clr_tsr_bits(vcpu, tsr_bits);
+		break;
+	}
+	case KVM_REG_PPC_TSR: {
+		u32 tsr;
+		r = get_user(tsr, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tsr(vcpu, tsr);
+		break;
+	}
+	case KVM_REG_PPC_TCR: {
+		u32 tcr;
+		r = get_user(tcr, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tcr(vcpu, tcr);
+		break;
+	}
 	default:
 		break;
 	}
