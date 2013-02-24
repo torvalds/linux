@@ -1601,8 +1601,7 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 		spin_unlock_irqrestore(&ibdev->sriov.going_down_lock, flags);
 	}
 out:
-	if (dm)
-		kfree(dm);
+	kfree(dm);
 	return;
 }
 
