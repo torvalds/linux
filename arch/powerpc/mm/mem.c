@@ -195,13 +195,10 @@ void __init do_init_bootmem(void)
 	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
 	boot_mapsize = init_bootmem_node(NODE_DATA(0), start >> PAGE_SHIFT, min_low_pfn, max_low_pfn);
 
-	/* Add active regions with valid PFNs */
-	for_each_memblock(memory, reg) {
-		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock_region_memory_base_pfn(reg);
-		end_pfn = memblock_region_memory_end_pfn(reg);
-		memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
-	}
+	/* Place all memblock_regions in the same node and merge contiguous
+	 * memblock_regions
+	 */
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
 
 	/* Add all physical memory to the bootmem map, mark each area
 	 * present.

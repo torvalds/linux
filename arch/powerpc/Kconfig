@@ -142,6 +142,7 @@ config PPC
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS
+	select ARCH_USE_BUILTIN_BSWAP
 
 config EARLY_PRINTK
 	bool
@@ -273,6 +274,10 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
 
+config PPC_EMULATE_SSTEP
+	bool
+	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -305,6 +310,14 @@ config MATH_EMULATION
 	  say Y here, the kernel will include code to emulate a floating-point
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
+
+config PPC_TRANSACTIONAL_MEM
+       bool "Transactional Memory support for POWERPC"
+       depends on PPC_BOOK3S_64
+       depends on SMP
+       default n
+       ---help---
+         Support user-mode Transactional Memory on POWERPC.
 
 config 8XX_MINIMAL_FPEMU
 	bool "Minimal math emulation for 8xx"

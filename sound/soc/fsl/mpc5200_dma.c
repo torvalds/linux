@@ -14,8 +14,8 @@
 
 #include <sound/soc.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/gen_bd.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/gen_bd.h>
 #include <asm/mpc52xx_psc.h>
 
 #include "mpc5200_dma.h"
