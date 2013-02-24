@@ -166,12 +166,6 @@ asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *arg)
 			       a.offset>>PAGE_SHIFT);
 }
 
-asmlinkage long sys32_mprotect(unsigned long start, size_t len,
-			       unsigned long prot)
-{
-	return sys_mprotect(start, len, prot);
-}
-
 asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int __user *stat_addr,
 			      int options)
 {
@@ -198,11 +192,6 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.
  */
-long sys32_kill(int pid, int sig)
-{
-	return sys_kill(pid, sig);
-}
-
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
 			__u32 len_low, __u32 len_high, int advice)
 {

@@ -30,7 +30,6 @@ asmlinkage long sys32_fstatat(unsigned int, const char __user *,
 			      struct stat64 __user *, int);
 struct mmap_arg_struct32;
 asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
-asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
 asmlinkage long sys32_alarm(unsigned int);
 
@@ -42,7 +41,6 @@ asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
 
 asmlinkage long sys32_personality(unsigned long);
 
-long sys32_kill(int, int);
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
 long sys32_vm86_warning(void);
 

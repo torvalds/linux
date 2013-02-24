@@ -43,7 +43,7 @@
 34	i386	nice			sys_nice
 35	i386	ftime
 36	i386	sync			sys_sync
-37	i386	kill			sys_kill			sys32_kill
+37	i386	kill			sys_kill
 38	i386	rename			sys_rename
 39	i386	mkdir			sys_mkdir
 40	i386	rmdir			sys_rmdir
@@ -131,7 +131,7 @@
 122	i386	uname			sys_newuname
 123	i386	modify_ldt		sys_modify_ldt
 124	i386	adjtimex		sys_adjtimex			compat_sys_adjtimex
-125	i386	mprotect		sys_mprotect			sys32_mprotect
+125	i386	mprotect		sys_mprotect
 126	i386	sigprocmask		sys_sigprocmask			compat_sys_sigprocmask
 127	i386	create_module
 128	i386	init_module		sys_init_module
