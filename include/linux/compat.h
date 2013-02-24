@@ -432,10 +432,9 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 /*
  * epoll (fs/eventpoll.c) compat bits follow ...
  */
-struct epoll_event;
-#define compat_epoll_event	epoll_event
+struct epoll_event;	/* fortunately, this one is fixed-layout */
 asmlinkage long compat_sys_epoll_pwait(int epfd,
-			struct compat_epoll_event __user *events,
+			struct epoll_event __user *events,
 			int maxevents, int timeout,
 			const compat_sigset_t __user *sigmask,
 			compat_size_t sigsetsize);

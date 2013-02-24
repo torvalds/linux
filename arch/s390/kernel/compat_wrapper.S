@@ -1270,16 +1270,6 @@ ENTRY(sys_getcpu_wrapper)
 	llgtr	%r4,%r4			# struct getcpu_cache *
 	jg	sys_getcpu
 
-ENTRY(compat_sys_epoll_pwait_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct compat_epoll_event *
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	llgtr	%r6,%r6			# compat_sigset_t *
-	llgf	%r0,164(%r15)		# compat_size_t
-	stg	%r0,160(%r15)
-	jg	compat_sys_epoll_pwait
-
 ENTRY(compat_sys_utimes_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_timeval *
