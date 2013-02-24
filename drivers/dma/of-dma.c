@@ -172,8 +172,8 @@ EXPORT_SYMBOL_GPL(of_dma_controller_free);
  * specifiers, matches the name provided. Returns 0 if the name matches and
  * a valid pointer to the DMA specifier is found. Otherwise returns -ENODEV.
  */
-static int of_dma_match_channel(struct device_node *np, char *name, int index,
-				struct of_phandle_args *dma_spec)
+static int of_dma_match_channel(struct device_node *np, const char *name,
+				int index, struct of_phandle_args *dma_spec)
 {
 	const char *s;
 
@@ -198,7 +198,7 @@ static int of_dma_match_channel(struct device_node *np, char *name, int index,
  * Returns pointer to appropriate dma channel on success or NULL on error.
  */
 struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
-					      char *name)
+					      const char *name)
 {
 	struct of_phandle_args	dma_spec;
 	struct of_dma		*ofdma;

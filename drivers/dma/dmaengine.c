@@ -555,7 +555,7 @@ EXPORT_SYMBOL_GPL(__dma_request_channel);
  * @dev:	pointer to client device structure
  * @name:	slave channel name
  */
-struct dma_chan *dma_request_slave_channel(struct device *dev, char *name)
+struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name)
 {
 	/* If device-tree is present get slave info from here */
 	if (dev->of_node)
