@@ -6082,10 +6082,10 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
  */
 static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 {
-	u32 exit_reason = vmcs_read32(VM_EXIT_REASON);
 	u32 intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	u32 exit_reason = vmx->exit_reason;
 
 	if (vmx->nested.nested_run_pending)
 		return 0;
@@ -7399,7 +7399,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	/* update exit information fields: */
 
-	vmcs12->vm_exit_reason  = vmcs_read32(VM_EXIT_REASON);
+	vmcs12->vm_exit_reason  = to_vmx(vcpu)->exit_reason;
 	vmcs12->exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	vmcs12->vm_exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
