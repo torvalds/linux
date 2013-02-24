@@ -1148,6 +1148,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static void kvmppc_set_tsr(struct kvm_vcpu *vcpu, u32 new_tsr)
+{
+	u32 old_tsr = vcpu->arch.tsr;
+
+	vcpu->arch.tsr = new_tsr;
+
+	if ((old_tsr ^ vcpu->arch.tsr) & (TSR_ENW | TSR_WIS))
+		arm_next_watchdog(vcpu);
+
+	update_timer_ints(vcpu);
+}
+
 /* Initial guest state: 16MB mapping 0 -> 0, PC = 0, MSR = 0, R1 = 16MB */
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
@@ -1287,16 +1299,8 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 		kvmppc_emulate_dec(vcpu);
 	}
 
-	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
-		u32 old_tsr = vcpu->arch.tsr;
-
-		vcpu->arch.tsr = sregs->u.e.tsr;
-
-		if ((old_tsr ^ vcpu->arch.tsr) & (TSR_ENW | TSR_WIS))
-			arm_next_watchdog(vcpu);
-
-		update_timer_ints(vcpu);
-	}
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR)
+		kvmppc_set_tsr(vcpu, sregs->u.e.tsr);
 
 	return 0;
 }
