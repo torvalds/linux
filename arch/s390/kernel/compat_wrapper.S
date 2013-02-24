@@ -1299,12 +1299,6 @@ ENTRY(compat_sys_utimensat_wrapper)
 	lgfr	%r5,%r5			# int
 	jg	compat_sys_utimensat
 
-ENTRY(compat_sys_signalfd_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_sigset_t *
-	llgfr	%r4,%r4			# compat_size_t
-	jg	compat_sys_signalfd
-
 ENTRY(sys_eventfd_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_eventfd
@@ -1322,13 +1316,6 @@ ENTRY(sys_timerfd_create_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
 	jg	sys_timerfd_create
-
-ENTRY(compat_sys_signalfd4_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_sigset_t *
-	llgfr	%r4,%r4			# compat_size_t
-	lgfr	%r5,%r5			# int
-	jg	compat_sys_signalfd4
 
 ENTRY(sys_eventfd2_wrapper)
 	llgfr	%r2,%r2			# unsigned int
