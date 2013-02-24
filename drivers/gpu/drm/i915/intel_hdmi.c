@@ -793,28 +793,6 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
-{
-	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = hdmi_to_dig_port(intel_hdmi);
-	uint32_t bit;
-
-	switch (intel_dig_port->port) {
-	case PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS;
-		break;
-	case PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS;
-		break;
-	default:
-		bit = 0;
-		break;
-	}
-
-	return I915_READ(PORT_HOTPLUG_STAT) & bit;
-}
-
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
@@ -826,13 +804,6 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
-
-
-	if (IS_G4X(dev) && !g4x_hdmi_connected(intel_hdmi))
-		return status;
-	else if (HAS_PCH_SPLIT(dev) &&
-		 !ibx_digital_port_connected(dev_priv, intel_dig_port))
-		 return status;
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
