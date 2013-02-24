@@ -23,6 +23,7 @@ struct sunxi_gpio_data {
 	script_gpio_set_t info;
 	char pin_name[16];
 	char led_name[64];
+	char trigger_name[64];
 };
 
 struct gpio_led_data {
@@ -399,6 +400,13 @@ static int __init sunxi_leds_init(void)
 		err = script_parser_fetch("leds_para", key, &value, 1);
 		if (err == 0 && value)
 			dleds_i->active_low = 1;
+
+		sprintf(key, "leds_trigger_%d", i + 1); value = 0;
+		err = script_parser_fetch("leds_para", key,
+					  (int *)leds_i->trigger_name,
+					  sizeof(leds_i->trigger_name)/sizeof(int));
+		if (err == 0)
+			dleds_i->default_trigger = leds_i->trigger_name;
 
 		leds_i++;
 		dleds_i++;
