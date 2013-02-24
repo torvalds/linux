@@ -76,7 +76,7 @@
 	ENTRY_SAME(socket)
 	/* struct stat is MAYBE identical wide and narrow ?? */
 	ENTRY_COMP(newstat)
-	ENTRY_DIFF(lseek)
+	ENTRY_COMP(lseek)
 	ENTRY_SAME(getpid)		/* 20 */
 	/* the 'void * data' parameter may need re-packing in wide */
 	ENTRY_COMP(mount)

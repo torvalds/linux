@@ -27,7 +27,7 @@ SYSCALL(sys_chmod,sys_chmod,sys32_chmod_wrapper)		/* 15 */
 SYSCALL(sys_lchown16,sys_ni_syscall,sys32_lchown16_wrapper)	/* old lchown16 syscall*/
 NI_SYSCALL							/* old break syscall holder */
 NI_SYSCALL							/* old stat syscall holder */
-SYSCALL(sys_lseek,sys_lseek,sys32_lseek_wrapper)
+SYSCALL(sys_lseek,sys_lseek,compat_sys_lseek)
 SYSCALL(sys_getpid,sys_getpid,sys_getpid)			/* 20 */
 SYSCALL(sys_mount,sys_mount,sys32_mount_wrapper)
 SYSCALL(sys_oldumount,sys_oldumount,sys32_oldumount_wrapper)

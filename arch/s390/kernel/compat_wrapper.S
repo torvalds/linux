@@ -67,12 +67,6 @@ ENTRY(sys32_lchown16_wrapper)
 	llgfr	%r4,%r4			# __kernel_old_uid_emu31_t
 	jg	sys32_lchown16		# branch to system call
 
-ENTRY(sys32_lseek_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	lgfr	%r3,%r3			# off_t
-	llgfr	%r4,%r4			# unsigned int
-	jg	sys_lseek		# branch to system call
-
 #sys32_getpid_wrapper				# void
 
 ENTRY(sys32_mount_wrapper)

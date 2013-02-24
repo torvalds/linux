@@ -146,12 +146,6 @@ asmlinkage long compat_sys_sendfile64_wrapper(u32 out_fd, u32 in_fd,
 			    (off_t __user *)offset, count);
 }
 
-off_t ppc32_lseek(unsigned int fd, u32 offset, unsigned int origin)
-{
-	/* sign extend n */
-	return sys_lseek(fd, (int)offset, origin);
-}
-
 long compat_sys_truncate(const char __user * path, u32 length)
 {
 	/* sign extend length */

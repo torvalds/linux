@@ -40,7 +40,7 @@ __SYSCALL(15,  sys_chmod)
 __SYSCALL(16,  sys_lchown16)
 __SYSCALL(17,  sys_ni_syscall)			/* 17 was sys_break */
 __SYSCALL(18,  sys_ni_syscall)			/* 18 was sys_stat */
-__SYSCALL(19,  compat_sys_lseek_wrapper)
+__SYSCALL(19,  compat_sys_lseek)
 __SYSCALL(20,  sys_getpid)
 __SYSCALL(21,  compat_sys_mount)
 __SYSCALL(22,  sys_ni_syscall)			/* 22 was sys_umount */

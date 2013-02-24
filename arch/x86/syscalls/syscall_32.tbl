@@ -25,7 +25,7 @@
 16	i386	lchown			sys_lchown16
 17	i386	break
 18	i386	oldstat			sys_stat
-19	i386	lseek			sys_lseek			sys32_lseek
+19	i386	lseek			sys_lseek			compat_sys_lseek
 20	i386	getpid			sys_getpid
 21	i386	mount			sys_mount			compat_sys_mount
 22	i386	umount			sys_oldumount
