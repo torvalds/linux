@@ -1222,7 +1222,9 @@ good_area:
 dotraplinkage void __kprobes
 do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	__do_page_fault(regs, error_code);
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
