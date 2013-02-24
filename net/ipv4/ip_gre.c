@@ -735,7 +735,7 @@ drop:
 	return 0;
 }
 
-static struct sk_buff *handle_offloads(struct sk_buff *skb)
+static struct sk_buff *handle_offloads(struct ip_tunnel *tunnel, struct sk_buff *skb)
 {
 	int err;
 
@@ -745,8 +745,12 @@ static struct sk_buff *handle_offloads(struct sk_buff *skb)
 			goto error;
 		skb_shinfo(skb)->gso_type |= SKB_GSO_GRE;
 		return skb;
-	}
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		   tunnel->parms.o_flags&GRE_CSUM) {
+		err = skb_checksum_help(skb);
+		if (unlikely(err))
+			goto error;
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
 		skb->ip_summed = CHECKSUM_NONE;
 
 	return skb;
@@ -776,7 +780,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	int    err;
 	int    pkt_len;
 
-	skb = handle_offloads(skb);
+	skb = handle_offloads(tunnel, skb);
 	if (IS_ERR(skb)) {
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
