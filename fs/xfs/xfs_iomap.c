@@ -325,7 +325,7 @@ xfs_iomap_eof_want_preallocate(
  * rather than falling short due to things like stripe unit/width alignment of
  * real extents.
  */
-STATIC int
+STATIC xfs_fsblock_t
 xfs_iomap_eof_prealloc_initial_size(
 	struct xfs_mount	*mp,
 	struct xfs_inode	*ip,
