@@ -348,7 +348,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
 	}
 
-	avi_if.body.avi.VIC = drm_mode_cea_vic(adjusted_mode);
+	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
 
 	intel_set_infoframe(encoder, &avi_if);
 }
@@ -781,7 +781,7 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		if (intel_hdmi->has_hdmi_sink &&
-		    drm_mode_cea_vic(adjusted_mode) > 1)
+		    drm_match_cea_mode(adjusted_mode) > 1)
 			intel_hdmi->color_range = SDVO_COLOR_RANGE_16_235;
 		else
 			intel_hdmi->color_range = 0;

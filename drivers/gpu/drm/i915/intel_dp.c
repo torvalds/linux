@@ -770,7 +770,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 		 * CEA-861-E - 5.1 Default Encoding Parameters
 		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
 		 */
-		if (bpp != 18 && drm_mode_cea_vic(adjusted_mode) > 1)
+		if (bpp != 18 && drm_match_cea_mode(adjusted_mode) > 1)
 			intel_dp->color_range = DP_COLOR_RANGE_16_235;
 		else
 			intel_dp->color_range = 0;
