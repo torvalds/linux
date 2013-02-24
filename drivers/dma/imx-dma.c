@@ -859,8 +859,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 
 	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
 
-	if (imxdmac->sg_list)
-		kfree(imxdmac->sg_list);
+	kfree(imxdmac->sg_list);
 
 	imxdmac->sg_list = kcalloc(periods + 1,
 			sizeof(struct scatterlist), GFP_KERNEL);
