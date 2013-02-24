@@ -195,7 +195,7 @@ SYSCALL(sys_getcwd,sys_getcwd,sys32_getcwd_wrapper)
 SYSCALL(sys_capget,sys_capget,sys32_capget_wrapper)
 SYSCALL(sys_capset,sys_capset,sys32_capset_wrapper)		/* 185 */
 SYSCALL(sys_sigaltstack,sys_sigaltstack,compat_sys_sigaltstack)
-SYSCALL(sys_sendfile,sys_sendfile64,sys32_sendfile_wrapper)
+SYSCALL(sys_sendfile,sys_sendfile64,compat_sys_sendfile)
 NI_SYSCALL							/* streams1 */
 NI_SYSCALL							/* streams2 */
 SYSCALL(sys_vfork,sys_vfork,sys_vfork)				/* 190 */
@@ -231,7 +231,7 @@ SYSCALL(sys_madvise,sys_madvise,sys32_madvise_wrapper)
 SYSCALL(sys_getdents64,sys_getdents64,sys32_getdents64_wrapper)	/* 220 */
 SYSCALL(sys_fcntl64,sys_ni_syscall,compat_sys_fcntl64_wrapper)
 SYSCALL(sys_readahead,sys_readahead,sys32_readahead_wrapper)
-SYSCALL(sys_sendfile64,sys_ni_syscall,sys32_sendfile64_wrapper)
+SYSCALL(sys_sendfile64,sys_ni_syscall,compat_sys_sendfile64)
 SYSCALL(sys_setxattr,sys_setxattr,sys32_setxattr_wrapper)
 SYSCALL(sys_lsetxattr,sys_lsetxattr,sys32_lsetxattr_wrapper)	/* 225 */
 SYSCALL(sys_fsetxattr,sys_fsetxattr,sys32_fsetxattr_wrapper)

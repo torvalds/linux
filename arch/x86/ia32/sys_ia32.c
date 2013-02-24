@@ -194,26 +194,6 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
 }
 
 
-asmlinkage long sys32_sendfile(int out_fd, int in_fd,
-			       compat_off_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
-			   count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-	return ret;
-}
-
 /*
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.

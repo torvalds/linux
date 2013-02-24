@@ -399,7 +399,7 @@ sys_call_table:
 	PTR	sys_capget
 	PTR	sys_capset			/* 4205 */
 	PTR	compat_sys_sigaltstack
-	PTR	sys_32_sendfile
+	PTR	compat_sys_sendfile
 	PTR	sys_ni_syscall
 	PTR	sys_ni_syscall
 	PTR	sys_mips_mmap2			/* 4210 */

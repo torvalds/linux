@@ -60,25 +60,6 @@ asmlinkage long sys32_unimplemented(int r26, int r25, int r24, int r23,
     return -ENOSYS;
 }
 
-/* Note: it is necessary to treat out_fd and in_fd as unsigned ints, with the
- * corresponding cast to a signed int to insure that the proper conversion
- * (sign extension) between the register representation of a signed int (msr in
- * 32-bit mode) and the register representation of a signed int (msr in 64-bit
- * mode) is performed.
- */
-asmlinkage long sys32_sendfile(u32 out_fd, u32 in_fd,
-			       compat_off_t __user *offset, compat_size_t count)
-{
-	return compat_sys_sendfile((int)out_fd, (int)in_fd, offset, count);
-}
-
-asmlinkage long sys32_sendfile64(u32 out_fd, u32 in_fd,
-				 compat_loff_t __user *offset, compat_size_t count)
-{
-	return sys_sendfile64((int)out_fd, (int)in_fd,
-				(loff_t __user *)offset, count);
-}
-
 asmlinkage long sys32_semctl(int semid, int semnum, int cmd, union semun arg)
 {
         union semun u;

@@ -128,24 +128,6 @@ long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t pt
 }
 #endif
 
-/* Note: it is necessary to treat out_fd and in_fd as unsigned ints, 
- * with the corresponding cast to a signed int to insure that the 
- * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
- * and the register representation of a signed int (msr in 64-bit mode) is performed.
- */
-asmlinkage long compat_sys_sendfile_wrapper(u32 out_fd, u32 in_fd,
-					    compat_off_t __user *offset, u32 count)
-{
-	return compat_sys_sendfile((int)out_fd, (int)in_fd, offset, count);
-}
-
-asmlinkage long compat_sys_sendfile64_wrapper(u32 out_fd, u32 in_fd,
-					      compat_loff_t __user *offset, u32 count)
-{
-	return sys_sendfile((int)out_fd, (int)in_fd,
-			    (off_t __user *)offset, count);
-}
-
 unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff)

@@ -198,7 +198,7 @@
 	ENTRY_SAME(madvise)
 	ENTRY_SAME(clone_wrapper)	/* 120 */
 	ENTRY_SAME(setdomainname)
-	ENTRY_DIFF(sendfile)
+	ENTRY_COMP(sendfile)
 	/* struct sockaddr... */
 	ENTRY_SAME(recvfrom)
 	/* struct timex contains longs */
@@ -304,7 +304,7 @@
 	ENTRY_SAME(gettid)
 	ENTRY_OURS(readahead)
 	ENTRY_SAME(tkill)
-	ENTRY_DIFF(sendfile64)
+	ENTRY_COMP(sendfile64)
 	ENTRY_COMP(futex)		/* 210 */
 	ENTRY_COMP(sched_setaffinity)
 	ENTRY_COMP(sched_getaffinity)

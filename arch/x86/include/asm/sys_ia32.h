@@ -41,7 +41,6 @@ asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
 
 asmlinkage long sys32_personality(unsigned long);
-asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
 
 long sys32_kill(int, int);
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);

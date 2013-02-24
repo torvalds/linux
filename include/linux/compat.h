@@ -670,6 +670,8 @@ asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
 
 asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
 				    compat_off_t __user *offset, compat_size_t count);
+asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
+				    compat_loff_t __user *offset, compat_size_t count);
 asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
 				       compat_stack_t __user *uoss_ptr);
 

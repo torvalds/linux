@@ -226,26 +226,6 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 	return ret;
 }
 
-SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,
-	compat_off_t __user *, offset, s32, count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL, count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-
-	return ret;
-}
-
 asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
 				   size_t count)
 {

@@ -106,10 +106,6 @@ long sys32_pread64(unsigned int fd, char __user *ubuf, size_t count,
 long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 		    size_t count, u32 poshi, u32 poslo);
 compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count);
-long sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset,
-		    size_t count);
-long sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset,
-		      s32 count);
 long sys32_stat64(const char __user * filename, struct stat64_emu31 __user * statbuf);
 long sys32_lstat64(const char __user * filename,
 		   struct stat64_emu31 __user * statbuf);

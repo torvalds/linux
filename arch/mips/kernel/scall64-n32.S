@@ -143,7 +143,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_setitimer
 	PTR	sys_alarm
 	PTR	sys_getpid
-	PTR	sys_32_sendfile
+	PTR	compat_sys_sendfile
 	PTR	sys_socket			/* 6040 */
 	PTR	sys_connect
 	PTR	sys_accept

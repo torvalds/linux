@@ -666,13 +666,6 @@ ENTRY(sys32_capset_wrapper)
 	llgtr	%r3,%r3			# const cap_user_data_t
 	jg	sys_capset		# branch to system call
 
-ENTRY(sys32_sendfile_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# __kernel_off_emu31_t *
-	llgfr	%r5,%r5			# size_t
-	jg	sys32_sendfile		# branch to system call
-
 #sys32_vfork_wrapper			# done in vfork_glue
 
 ENTRY(sys32_truncate64_wrapper)
@@ -1347,13 +1340,6 @@ ENTRY(sys32_readahead_wrapper)
 	llgfr	%r4,%r4			# u32
 	lgfr	%r5,%r5			# s32
 	jg	sys32_readahead		# branch to system call
-
-ENTRY(sys32_sendfile64_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# compat_loff_t *
-	lgfr	%r5,%r5			# s32
-	jg	sys32_sendfile64	# branch to system call
 
 ENTRY(sys_tkill_wrapper)
 	lgfr	%r2,%r2			# pid_t

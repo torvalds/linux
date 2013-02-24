@@ -193,7 +193,7 @@
 184	i386	capget			sys_capget
 185	i386	capset			sys_capset
 186	i386	sigaltstack		sys_sigaltstack			compat_sys_sigaltstack
-187	i386	sendfile		sys_sendfile			sys32_sendfile
+187	i386	sendfile		sys_sendfile			compat_sys_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
 190	i386	vfork			sys_vfork			stub32_vfork
