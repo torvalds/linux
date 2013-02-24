@@ -549,7 +549,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 	rmode = devm_kzalloc(&pdev->dev, sizeof(*rmode) *
 				pdata->num_regulators, GFP_KERNEL);
-	if (!rdata) {
+	if (!rmode) {
 		dev_err(iodev->dev,
 			"could not allocate memory for regulator mode\n");
 		return -ENOMEM;
