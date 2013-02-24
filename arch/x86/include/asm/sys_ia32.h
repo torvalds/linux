@@ -31,15 +31,10 @@ asmlinkage long sys32_fstatat(unsigned int, const char __user *,
 struct mmap_arg_struct32;
 asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
 
-asmlinkage long sys32_alarm(unsigned int);
-
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int __user *, int);
-asmlinkage long sys32_sysfs(int, u32, u32);
 
 asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
-
-asmlinkage long sys32_personality(unsigned long);
 
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
 long sys32_vm86_warning(void);
