@@ -68,11 +68,11 @@ struct sigaltstack;
 #include <linux/types.h>
 #include <linux/aio_abi.h>
 #include <linux/capability.h>
+#include <linux/signal.h>
 #include <linux/list.h>
 #include <linux/bug.h>
 #include <linux/sem.h>
 #include <asm/siginfo.h>
-#include <asm/signal.h>
 #include <linux/unistd.h>
 #include <linux/quota.h>
 #include <linux/key.h>
@@ -300,10 +300,8 @@ asmlinkage long sys_personality(unsigned int personality);
 asmlinkage long sys_sigpending(old_sigset_t __user *set);
 asmlinkage long sys_sigprocmask(int how, old_sigset_t __user *set,
 				old_sigset_t __user *oset);
-#ifdef CONFIG_GENERIC_SIGALTSTACK
 asmlinkage long sys_sigaltstack(const struct sigaltstack __user *uss,
 				struct sigaltstack __user *uoss);
-#endif
 
 asmlinkage long sys_getitimer(int which, struct itimerval __user *value);
 asmlinkage long sys_setitimer(int which,
@@ -377,6 +375,27 @@ asmlinkage long sys_init_module(void __user *umod, unsigned long len,
 asmlinkage long sys_delete_module(const char __user *name_user,
 				unsigned int flags);
 
+#ifdef CONFIG_OLD_SIGSUSPEND
+asmlinkage long sys_sigsuspend(old_sigset_t mask);
+#endif
+
+#ifdef CONFIG_OLD_SIGSUSPEND3
+asmlinkage long sys_sigsuspend(int unused1, int unused2, old_sigset_t mask);
+#endif
+
+asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
+
+#ifdef CONFIG_OLD_SIGACTION
+asmlinkage long sys_sigaction(int, const struct old_sigaction __user *,
+				struct old_sigaction __user *);
+#endif
+
+#ifndef CONFIG_ODD_RT_SIGACTION
+asmlinkage long sys_rt_sigaction(int,
+				 const struct sigaction __user *,
+				 struct sigaction __user *,
+				 size_t);
+#endif
 asmlinkage long sys_rt_sigprocmask(int how, sigset_t __user *set,
 				sigset_t __user *oset, size_t sigsetsize);
 asmlinkage long sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize);

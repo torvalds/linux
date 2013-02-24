@@ -51,59 +51,6 @@ struct rt_signal_frame {
 void do_signal(int restart, struct pt_regs *regs);
 void keep_debug_flags(unsigned long oldccs, unsigned long oldspc,
 		      struct pt_regs *regs);
-/*
- * Swap in the new signal mask, and wait for a signal. Define some
- * dummy arguments to be able to reach the regs argument.
- */
-int
-sys_sigsuspend(old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-int
-sys_sigaction(int signal, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
-{
-	int retval;
-	struct k_sigaction newk;
-	struct k_sigaction oldk;
-
-	if (act) {
-		old_sigset_t mask;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(newk.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(newk.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(newk.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-
-		siginitset(&newk.sa.sa_mask, mask);
-	}
-
-	retval = do_sigaction(signal, act ? &newk : NULL, oact ? &oldk : NULL);
-
-	if (!retval && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(oldk.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(oldk.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(oldk.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(oldk.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-
-	}
-
-	return retval;
-}
-
-int
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
 
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
@@ -135,11 +82,9 @@ badframe:
 	return 1;
 }
 
-/* Define some dummy arguments to be able to reach the regs argument. */
-asmlinkage int
-sys_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
-	      struct pt_regs *regs)
+asmlinkage int sys_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 	struct signal_frame __user *frame;
 	unsigned long oldspc = regs->spc;
@@ -178,11 +123,9 @@ badframe:
 	return 0;
 }
 
-/* Define some dummy variables to be able to reach the regs argument. */
-asmlinkage int
-sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
-		 struct pt_regs *regs)
+asmlinkage int sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 	struct rt_signal_frame __user *frame;
 	unsigned long oldspc = regs->spc;
@@ -209,7 +152,7 @@ sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, rdusp()) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	keep_debug_flags(oldccs, oldspc, regs);
@@ -371,6 +314,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __save_altstack(&frame->uc.uc_stack, rdusp());
 
 	if (err)
 		goto give_sigsegv;

@@ -143,6 +143,8 @@ config PPC
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS
 	select ARCH_USE_BUILTIN_BSWAP
+	select OLD_SIGSUSPEND
+	select OLD_SIGACTION if PPC32
 
 config EARLY_PRINTK
 	bool
@@ -153,6 +155,7 @@ config COMPAT
 	default y if PPC64
 	select COMPAT_BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 
 config SYSVIPC_COMPAT
 	bool

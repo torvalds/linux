@@ -57,10 +57,7 @@
 #undef DEBUG_SIG
 
 #ifdef CONFIG_PPC64
-#define sys_sigsuspend	compat_sys_sigsuspend
-#define sys_rt_sigsuspend	compat_sys_rt_sigsuspend
 #define sys_rt_sigreturn	compat_sys_rt_sigreturn
-#define sys_sigaction	compat_sys_sigaction
 #define sys_swapcontext	compat_sys_swapcontext
 #define sys_sigreturn	compat_sys_sigreturn
 
@@ -68,6 +65,8 @@
 #define sigcontext	sigcontext32
 #define mcontext	mcontext32
 #define ucontext	ucontext32
+
+#define __save_altstack __compat_save_altstack
 
 /*
  * Userspace code may pass a ucontext which doesn't include VSX added
@@ -131,23 +130,6 @@ static inline int get_sigset_t(sigset_t *set,
 	return 0;
 }
 
-static inline int get_old_sigaction(struct k_sigaction *new_ka,
-		struct old_sigaction __user *act)
-{
-	compat_old_sigset_t mask;
-	compat_uptr_t handler, restorer;
-
-	if (get_user(handler, &act->sa_handler) ||
-	    __get_user(restorer, &act->sa_restorer) ||
-	    __get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
-	    __get_user(mask, &act->sa_mask))
-		return -EFAULT;
-	new_ka->sa.sa_handler = compat_ptr(handler);
-	new_ka->sa.sa_restorer = compat_ptr(restorer);
-	siginitset(&new_ka->sa.sa_mask, mask);
-	return 0;
-}
-
 #define to_user_ptr(p)		ptr_to_compat(p)
 #define from_user_ptr(p)	compat_ptr(p)
 
@@ -197,21 +179,6 @@ static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
 	return copy_from_user(set, uset, sizeof(*uset));
 }
 
-static inline int get_old_sigaction(struct k_sigaction *new_ka,
-		struct old_sigaction __user *act)
-{
-	old_sigset_t mask;
-
-	if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-			__get_user(new_ka->sa.sa_handler, &act->sa_handler) ||
-			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer) ||
-			__get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
-			__get_user(mask, &act->sa_mask))
-		return -EFAULT;
-	siginitset(&new_ka->sa.sa_mask, mask);
-	return 0;
-}
-
 #define to_user_ptr(p)		((unsigned long)(p))
 #define from_user_ptr(p)	((void __user *)(p))
 
@@ -235,49 +202,7 @@ static inline int restore_general_regs(struct pt_regs *regs,
 		return -EFAULT;
 	return 0;
 }
-
-#endif /* CONFIG_PPC64 */
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-long sys_sigsuspend(old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-long sys_sigaction(int sig, struct old_sigaction __user *act,
-		struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-#ifdef CONFIG_PPC64
-	if (sig < 0)
-		sig = -sig;
 #endif
-
-	if (act) {
-		if (get_old_sigaction(&new_ka, act))
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(to_user_ptr(old_ka.sa.sa_handler),
-			    &oact->sa_handler) ||
-		    __put_user(to_user_ptr(old_ka.sa.sa_restorer),
-			    &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
 
 /*
  * When we have signals to deliver, we set up on the
@@ -951,89 +876,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 #endif
 
 #ifdef CONFIG_PPC64
-long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
-		struct sigaction32 __user *oact, size_t sigsetsize)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (act) {
-		compat_uptr_t handler;
-
-		ret = get_user(handler, &act->sa_handler);
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		ret |= get_sigset_t(&new_ka.sa.sa_mask, &act->sa_mask);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		if (ret)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		ret = put_user(to_user_ptr(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-	}
-	return ret;
-}
-
-/*
- * Note: it is necessary to treat how as an unsigned int, with the
- * corresponding cast to a signed int to insure that the proper
- * conversion (sign extension) between the register representation
- * of a signed int (msr in 32-bit mode) and the register representation
- * of a signed int (msr in 64-bit mode) is performed.
- */
-long compat_sys_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
-		compat_sigset_t __user *oset, size_t sigsetsize)
-{
-	sigset_t s;
-	sigset_t __user *up;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set) {
-		if (get_sigset_t(&s, set))
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	/* This is valid because of the set_fs() */
-	up = (sigset_t __user *) &s;
-	ret = sys_rt_sigprocmask((int)how, set ? up : NULL, oset ? up : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-	if (ret)
-		return ret;
-	if (oset) {
-		if (put_sigset_t(oset, &s))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-long compat_sys_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
-{
-	sigset_t s;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_rt_sigpending((sigset_t __user *) &s, sigsetsize);
-	set_fs(old_fs);
-	if (!ret) {
-		if (put_sigset_t(set, &s))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-
 int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s)
 {
 	int err;
@@ -1102,79 +944,6 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 
 	return 0;
 }
-
-/*
- * Note: it is necessary to treat pid and sig as unsigned ints, with the
- * corresponding cast to a signed int to insure that the proper conversion
- * (sign extension) between the register representation of a signed int
- * (msr in 32-bit mode) and the register representation of a signed int
- * (msr in 64-bit mode) is performed.
- */
-long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	ret = copy_siginfo_from_user32(&info, uinfo);
-	if (unlikely(ret))
-		return ret;
-
-	set_fs (KERNEL_DS);
-	/* The __user pointer cast is valid becasuse of the set_fs() */
-	ret = sys_rt_sigqueueinfo((int)pid, (int)sig, (siginfo_t __user *) &info);
-	set_fs (old_fs);
-	return ret;
-}
-/*
- *  Start Alternate signal stack support
- *
- *  System Calls
- *       sigaltatck               compat_sys_sigaltstack
- */
-
-int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
-		      int r6, int r7, int r8, struct pt_regs *regs)
-{
-	stack_32_t __user * newstack = compat_ptr(__new);
-	stack_32_t __user * oldstack = compat_ptr(__old);
-	stack_t uss, uoss;
-	int ret;
-	mm_segment_t old_fs;
-	unsigned long sp;
-	compat_uptr_t ss_sp;
-
-	/*
-	 * set sp to the user stack on entry to the system call
-	 * the system call router sets R9 to the saved registers
-	 */
-	sp = regs->gpr[1];
-
-	/* Put new stack info in local 64 bit stack struct */
-	if (newstack) {
-		if (get_user(ss_sp, &newstack->ss_sp) ||
-		    __get_user(uss.ss_flags, &newstack->ss_flags) ||
-		    __get_user(uss.ss_size, &newstack->ss_size))
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ss_sp);
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid because of the set_fs() */
-	ret = do_sigaltstack(
-		newstack ? (stack_t __user *) &uss : NULL,
-		oldstack ? (stack_t __user *) &uoss : NULL,
-		sp);
-	set_fs(old_fs);
-	/* Copy the stack information to the user output buffer */
-	if (!ret && oldstack  &&
-		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
-		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
-		 __put_user(uoss.ss_size, &oldstack->ss_size)))
-		return -EFAULT;
-	return ret;
-}
 #endif /* CONFIG_PPC64 */
 
 /*
@@ -1202,10 +971,7 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	/* Put the siginfo & fill in most of the ucontext */
 	if (copy_siginfo_to_user(&rt_sf->info, info)
 	    || __put_user(0, &rt_sf->uc.uc_flags)
-	    || __put_user(current->sas_ss_sp, &rt_sf->uc.uc_stack.ss_sp)
-	    || __put_user(sas_ss_flags(regs->gpr[1]),
-			  &rt_sf->uc.uc_stack.ss_flags)
-	    || __put_user(current->sas_ss_size, &rt_sf->uc.uc_stack.ss_size)
+	    || __save_altstack(&rt_sf->uc.uc_stack, regs->gpr[1])
 	    || __put_user(to_user_ptr(&rt_sf->uc.uc_mcontext),
 		    &rt_sf->uc.uc_regs)
 	    || put_sigset_t(&rt_sf->uc.uc_sigmask, oldset))
@@ -1494,14 +1260,11 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	 * change it.  -- paulus
 	 */
 #ifdef CONFIG_PPC64
-	/*
-	 * We use the compat_sys_ version that does the 32/64 bits conversion
-	 * and takes userland pointer directly. What about error checking ?
-	 * nobody does any...
-	 */
-	compat_sys_sigaltstack((u32)(u64)&rt_sf->uc.uc_stack, 0, 0, 0, 0, 0, regs);
+	if (compat_restore_altstack(&rt_sf->uc.uc_stack))
+		goto bad;
 #else
-	do_sigaltstack(&rt_sf->uc.uc_stack, NULL, regs->gpr[1]);
+	if (restore_altstack(&rt_sf->uc.uc_stack))
+		goto bad;
 #endif
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
@@ -1617,7 +1380,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	 * always done it up until now so it is probably better not to
 	 * change it.  -- paulus
 	 */
-	do_sigaltstack(&ctx->uc_stack, NULL, regs->gpr[1]);
+	restore_altstack(&ctx->uc_stack);
 
 	set_thread_flag(TIF_RESTOREALL);
  out:

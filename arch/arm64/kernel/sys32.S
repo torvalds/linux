@@ -39,11 +39,6 @@ compat_sys_rt_sigreturn_wrapper:
 	b	compat_sys_rt_sigreturn
 ENDPROC(compat_sys_rt_sigreturn_wrapper)
 
-compat_sys_sigaltstack_wrapper:
-	ldr	x2, [sp, #S_COMPAT_SP]
-	b	compat_do_sigaltstack
-ENDPROC(compat_sys_sigaltstack_wrapper)
-
 compat_sys_statfs64_wrapper:
 	mov	w3, #84
 	cmp	w1, #88

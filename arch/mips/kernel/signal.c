@@ -247,34 +247,11 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
  */
 
 #ifdef CONFIG_TRAD_SIGNALS
-asmlinkage int sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
+SYSCALL_DEFINE1(sigsuspend, sigset_t __user *, uset)
 {
-	sigset_t newset;
-	sigset_t __user *uset;
-
-	uset = (sigset_t __user *) regs.regs[4];
-	if (copy_from_user(&newset, uset, sizeof(sigset_t)))
-		return -EFAULT;
-	return sigsuspend(&newset);
+	return sys_rt_sigsuspend(uset, sizeof(sigset_t));
 }
 #endif
-
-asmlinkage int sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
-{
-	sigset_t newset;
-	sigset_t __user *unewset;
-	size_t sigsetsize;
-
-	/* XXX Don't preclude handling different sized sigset_t's.  */
-	sigsetsize = regs.regs[5];
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	unewset = (sigset_t __user *) regs.regs[4];
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	return sigsuspend(&newset);
-}
 
 #ifdef CONFIG_TRAD_SIGNALS
 SYSCALL_DEFINE3(sigaction, int, sig, const struct sigaction __user *, act,
@@ -316,15 +293,6 @@ SYSCALL_DEFINE3(sigaction, int, sig, const struct sigaction __user *, act,
 	return ret;
 }
 #endif
-
-asmlinkage int sys_sigaltstack(nabi_no_regargs struct pt_regs regs)
-{
-	const stack_t __user *uss = (const stack_t __user *) regs.regs[4];
-	stack_t __user *uoss = (stack_t __user *) regs.regs[5];
-	unsigned long usp = regs.regs[29];
-
-	return do_sigaltstack(uss, uoss, usp);
-}
 
 #ifdef CONFIG_TRAD_SIGNALS
 asmlinkage void sys_sigreturn(nabi_no_regargs struct pt_regs regs)
@@ -382,9 +350,8 @@ asmlinkage void sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	else if (sig)
 		force_sig(sig, current);
 
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack(&frame->rs_uc.uc_stack, NULL, regs.regs[29]);
+	if (restore_altstack(&frame->rs_uc.uc_stack))
+		goto badframe;
 
 	/*
 	 * Don't let your children do this ...
@@ -461,12 +428,7 @@ static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(NULL, &frame->rs_uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp,
-	                  &frame->rs_uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->regs[29]),
-	                  &frame->rs_uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size,
-	                  &frame->rs_uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]);
 	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
 

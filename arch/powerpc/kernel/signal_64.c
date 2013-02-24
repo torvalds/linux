@@ -676,10 +676,8 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (restore_sigcontext(regs, NULL, 1, &uc->uc_mcontext))
 		goto badframe;
 
-	/* do_sigaltstack expects a __user pointer and won't modify
-	 * what's in there anyway
-	 */
-	do_sigaltstack(&uc->uc_stack, NULL, regs->gpr[1]);
+	if (restore_altstack(&uc->uc_stack))
+		goto badframe;
 
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
@@ -723,10 +721,7 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->gpr[1]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->gpr[1]);
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(regs->msr)) {
 		/* The ucontext_t passed to userland points to the second

@@ -194,7 +194,7 @@ einval:	li	v0, -ENOSYS
 sys_call_table:
 	PTR	sys32_syscall			/* 4000 */
 	PTR	sys_exit
-	PTR	sys_fork
+	PTR	__sys_fork
 	PTR	sys_read
 	PTR	sys_write
 	PTR	compat_sys_open			/* 4005 */
@@ -312,7 +312,7 @@ sys_call_table:
 	PTR	sys_32_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
-	PTR	sys32_clone			/* 4120 */
+	PTR	__sys_clone			/* 4120 */
 	PTR	sys_setdomainname
 	PTR	sys_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */
@@ -357,7 +357,7 @@ sys_call_table:
 	PTR	sys_sched_yield
 	PTR	sys_sched_get_priority_max
 	PTR	sys_sched_get_priority_min
-	PTR	sys_32_sched_rr_get_interval 	/* 4165 */
+	PTR	compat_sys_sched_rr_get_interval 	/* 4165 */
 	PTR	compat_sys_nanosleep
 	PTR	sys_mremap
 	PTR	sys_accept
@@ -386,19 +386,19 @@ sys_call_table:
 	PTR	sys_getresgid
 	PTR	sys_prctl
 	PTR	sys32_rt_sigreturn
-	PTR	sys_32_rt_sigaction
-	PTR	sys_32_rt_sigprocmask 		/* 4195 */
-	PTR	sys_32_rt_sigpending
+	PTR	compat_sys_rt_sigaction
+	PTR	compat_sys_rt_sigprocmask 	/* 4195 */
+	PTR	compat_sys_rt_sigpending
 	PTR	compat_sys_rt_sigtimedwait
-	PTR	sys_32_rt_sigqueueinfo
-	PTR	sys32_rt_sigsuspend
+	PTR	compat_sys_rt_sigqueueinfo
+	PTR	compat_sys_rt_sigsuspend
 	PTR	sys_32_pread			/* 4200 */
 	PTR	sys_32_pwrite
 	PTR	sys_chown
 	PTR	sys_getcwd
 	PTR	sys_capget
 	PTR	sys_capset			/* 4205 */
-	PTR	sys32_sigaltstack
+	PTR	compat_sys_sigaltstack
 	PTR	sys_32_sendfile
 	PTR	sys_ni_syscall
 	PTR	sys_ni_syscall
@@ -430,7 +430,7 @@ sys_call_table:
 	PTR	sys_fremovexattr		/* 4235 */
 	PTR	sys_tkill
 	PTR	sys_sendfile64
-	PTR	sys_32_futex
+	PTR	compat_sys_futex
 	PTR	compat_sys_sched_setaffinity
 	PTR	compat_sys_sched_getaffinity	/* 4240 */
 	PTR	compat_sys_io_setup
@@ -470,7 +470,7 @@ sys_call_table:
 	PTR	compat_sys_mq_notify		/* 4275 */
 	PTR	compat_sys_mq_getsetattr
 	PTR	sys_ni_syscall			/* sys_vserver */
-	PTR	sys_32_waitid
+	PTR	compat_sys_waitid
 	PTR	sys_ni_syscall			/* available, was setaltroot */
 	PTR	sys_add_key			/* 4280 */
 	PTR	sys_request_key

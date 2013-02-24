@@ -50,6 +50,8 @@ config CRIS
 	select GENERIC_CMOS_UPDATE
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS2
+	select OLD_SIGSUSPEND
+	select OLD_SIGACTION
 
 config HZ
 	int

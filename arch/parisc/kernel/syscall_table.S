@@ -252,7 +252,7 @@
 	ENTRY_SAME(mremap)
 	ENTRY_SAME(setresuid)
 	ENTRY_SAME(getresuid)		/* 165 */
-	ENTRY_DIFF(sigaltstack_wrapper)
+	ENTRY_COMP(sigaltstack)
 	ENTRY_SAME(ni_syscall)		/* query_module */
 	ENTRY_SAME(poll)
 	/* structs contain pointers and an in_addr... */
@@ -262,9 +262,9 @@
 	ENTRY_SAME(prctl)
 	/* signals need a careful review */
 	ENTRY_SAME(rt_sigreturn_wrapper)
-	ENTRY_DIFF(rt_sigaction)
-	ENTRY_DIFF(rt_sigprocmask)	/* 175 */
-	ENTRY_DIFF(rt_sigpending)
+	ENTRY_COMP(rt_sigaction)
+	ENTRY_COMP(rt_sigprocmask)	/* 175 */
+	ENTRY_COMP(rt_sigpending)
 	ENTRY_COMP(rt_sigtimedwait)
 	/* even though the struct siginfo_t is different, it appears like
 	 * all the paths use values which should be same wide and narrow.

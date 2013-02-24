@@ -156,7 +156,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	*childregs = *regs;
 	childregs->regs[7] = 0;	/* Clear error flag */
 	childregs->regs[2] = 0;	/* Child gets zero as return value */
-	childregs->regs[29] = usp;
+	if (usp)
+		childregs->regs[29] = usp;
 	ti->addr_limit = USER_DS;
 
 	p->thread.reg29 = (unsigned long) childregs;

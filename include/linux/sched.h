@@ -2182,7 +2182,6 @@ extern struct sigqueue *sigqueue_alloc(void);
 extern void sigqueue_free(struct sigqueue *);
 extern int send_sigqueue(struct sigqueue *,  struct task_struct *, int group);
 extern int do_sigaction(int, struct k_sigaction *, struct k_sigaction *);
-extern int do_sigaltstack(const stack_t __user *, stack_t __user *, unsigned long);
 
 static inline void restore_saved_sigmask(void)
 {
@@ -2226,6 +2225,17 @@ static inline int sas_ss_flags(unsigned long sp)
 {
 	return (current->sas_ss_size == 0 ? SS_DISABLE
 		: on_sig_stack(sp) ? SS_ONSTACK : 0);
+}
+
+static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
+{
+	if (unlikely((ksig->ka.sa.sa_flags & SA_ONSTACK)) && ! sas_ss_flags(sp))
+#ifdef CONFIG_STACK_GROWSUP
+		return current->sas_ss_sp;
+#else
+		return current->sas_ss_sp + current->sas_ss_size;
+#endif
+	return sp;
 }
 
 /*
