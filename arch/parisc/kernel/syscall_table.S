@@ -165,8 +165,8 @@
 	ENTRY_SAME(mmap2)
 	ENTRY_SAME(mmap)		/* 90 */
 	ENTRY_SAME(munmap)
-	ENTRY_SAME(truncate)
-	ENTRY_SAME(ftruncate)
+	ENTRY_COMP(truncate)
+	ENTRY_COMP(ftruncate)
 	ENTRY_SAME(fchmod)
 	ENTRY_SAME(fchown)		/* 95 */
 	ENTRY_SAME(getpriority)

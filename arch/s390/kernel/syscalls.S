@@ -100,8 +100,8 @@ SYSCALL(sys_reboot,sys_reboot,sys32_reboot_wrapper)
 SYSCALL(sys_ni_syscall,sys_ni_syscall,old32_readdir_wrapper)	/* old readdir syscall */
 SYSCALL(sys_old_mmap,sys_old_mmap,old32_mmap_wrapper)		/* 90 */
 SYSCALL(sys_munmap,sys_munmap,sys32_munmap_wrapper)
-SYSCALL(sys_truncate,sys_truncate,sys32_truncate_wrapper)
-SYSCALL(sys_ftruncate,sys_ftruncate,sys32_ftruncate_wrapper)
+SYSCALL(sys_truncate,sys_truncate,compat_sys_truncate)
+SYSCALL(sys_ftruncate,sys_ftruncate,compat_sys_ftruncate)
 SYSCALL(sys_fchmod,sys_fchmod,sys32_fchmod_wrapper)
 SYSCALL(sys_fchown16,sys_ni_syscall,sys32_fchown16_wrapper)	/* 95 old fchown16 syscall*/
 SYSCALL(sys_getpriority,sys_getpriority,sys32_getpriority_wrapper)

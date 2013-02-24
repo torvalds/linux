@@ -325,16 +325,6 @@ ENTRY(sys32_munmap_wrapper)
 	llgfr	%r3,%r3			# size_t
 	jg	sys_munmap		# branch to system call
 
-ENTRY(sys32_truncate_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# long
-	jg	sys_truncate		# branch to system call
-
-ENTRY(sys32_ftruncate_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	jg	sys_ftruncate		# branch to system call
-
 ENTRY(sys32_fchmod_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# mode_t

@@ -113,8 +113,8 @@ __SYSCALL(88,  sys_reboot)
 __SYSCALL(89,  sys_ni_syscall)			/* 89 was sys_readdir */
 __SYSCALL(90,  sys_ni_syscall)			/* 90 was sys_mmap */
 __SYSCALL(91,  sys_munmap)
-__SYSCALL(92,  sys_truncate)
-__SYSCALL(93,  sys_ftruncate)
+__SYSCALL(92,  compat_sys_truncate)
+__SYSCALL(93,  compat_sys_ftruncate)
 __SYSCALL(94,  sys_fchmod)
 __SYSCALL(95,  sys_fchown16)
 __SYSCALL(96,  sys_getpriority)
