@@ -232,7 +232,7 @@ struct bt_sock_list {
 };
 
 int  bt_sock_register(int proto, const struct net_proto_family *ops);
-int  bt_sock_unregister(int proto);
+void bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
 int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
