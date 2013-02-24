@@ -337,7 +337,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct rt_sigframe *frame;
 	int err = 0;
 	int signal;
-	unsigned long sp, ra;
+	unsigned long sp, ra, tp;
 
 	sp = regs->areg[1];
 
@@ -395,7 +395,8 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Return context not modified until this point.
 	 */
 
-	/* Set up registers for signal handler */
+	/* Set up registers for signal handler; preserve the threadptr */
+	tp = regs->threadptr;
 	start_thread(regs, (unsigned long) ka->sa.sa_handler,
 		     (unsigned long) frame);
 
@@ -406,6 +407,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->areg[6] = (unsigned long) signal;
 	regs->areg[7] = (unsigned long) &frame->info;
 	regs->areg[8] = (unsigned long) &frame->uc;
+	regs->threadptr = tp;
 
 	/* Set access mode to USER_DS.  Nomenclature is outdated, but
 	 * functionality is used in uaccess.h

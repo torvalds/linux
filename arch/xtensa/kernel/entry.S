@@ -130,6 +130,11 @@ _user_exception:
 	s32i	a3, a1, PT_SAR
 	s32i	a2, a1, PT_ICOUNTLEVEL
 
+#if XCHAL_HAVE_THREADPTR
+	rur	a2, threadptr
+	s32i	a2, a1, PT_THREADPTR
+#endif
+
 	/* Rotate ws so that the current windowbase is at bit0. */
 	/* Assume ws = xxwww1yyyy. Rotate ws right, so that a2 = yyyyxxwww1 */
 
@@ -509,6 +514,11 @@ user_exception_exit:
 	 *	 frame where we had loaded a2), or at least the lower 4 bits
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
+
+#if XCHAL_HAVE_THREADPTR
+	l32i	a3, a1, PT_THREADPTR
+	wur	a3, threadptr
+#endif
 
 2:	j	common_exception_exit
 
@@ -1955,7 +1965,7 @@ ENTRY(_switch_to)
 	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
-	/* restore context of the task that 'next' addresses */
+	/* restore context of the task 'next' */
 
 	l32i	a0, a13, THREAD_RA	# restore return address
 	l32i	a1, a13, THREAD_SP	# restore stack pointer

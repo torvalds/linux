@@ -66,6 +66,7 @@ int ptrace_getregs(struct task_struct *child, void __user *uregs)
 	__put_user(regs->lcount, &gregset->lcount);
 	__put_user(regs->windowstart, &gregset->windowstart);
 	__put_user(regs->windowbase, &gregset->windowbase);
+	__put_user(regs->threadptr, &gregset->threadptr);
 
 	for (i = 0; i < XCHAL_NUM_AREGS; i++)
 		__put_user(regs->areg[i],
@@ -92,6 +93,7 @@ int ptrace_setregs(struct task_struct *child, void __user *uregs)
 	__get_user(regs->lcount, &gregset->lcount);
 	__get_user(ws, &gregset->windowstart);
 	__get_user(wb, &gregset->windowbase);
+	__get_user(regs->threadptr, &gregset->threadptr);
 
 	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
 
