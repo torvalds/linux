@@ -1212,7 +1212,7 @@ static void isp1301_release(struct device *dev)
 
 static struct isp1301 *the_transceiver;
 
-static int __exit isp1301_remove(struct i2c_client *i2c)
+static int isp1301_remove(struct i2c_client *i2c)
 {
 	struct isp1301	*isp;
 
@@ -1634,7 +1634,7 @@ static struct i2c_driver isp1301_driver = {
 		.name	= "isp1301_omap",
 	},
 	.probe		= isp1301_probe,
-	.remove		= __exit_p(isp1301_remove),
+	.remove		= isp1301_remove,
 	.id_table	= isp1301_id,
 };
 
