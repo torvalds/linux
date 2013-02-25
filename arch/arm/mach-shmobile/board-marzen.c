@@ -67,7 +67,7 @@ static struct resource smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= gic_spi(28), /* IRQ 1 */
+		.start		= gic_iid(0x3c), /* IRQ 1 */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -97,7 +97,7 @@ static struct resource sdhi0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(104),
+		.start	= gic_iid(0x88),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -215,7 +215,7 @@ static struct resource ehci0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(44),
+		.start	= gic_iid(0x4c),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -239,7 +239,7 @@ static struct resource ehci1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(45),
+		.start	= gic_iid(0x4d),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -269,7 +269,7 @@ static struct resource ohci0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(44),
+		.start	= gic_iid(0x4c),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -293,7 +293,7 @@ static struct resource ohci1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(45),
+		.start	= gic_iid(0x4d),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
