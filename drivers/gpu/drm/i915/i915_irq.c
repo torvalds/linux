@@ -1321,7 +1321,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	kref_init(&error->ref);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
-	error->ccid = I915_READ(CCID);
+	if (HAS_HW_CONTEXTS(dev))
+		error->ccid = I915_READ(CCID);
 
 	if (HAS_PCH_SPLIT(dev))
 		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
