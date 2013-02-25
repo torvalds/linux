@@ -33,6 +33,7 @@
 #include <linux/falloc.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
+#include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -525,6 +526,115 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 }
 
 static sense_reason_t
+fd_execute_unmap(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct fd_dev *fd_dev = FD_DEV(dev);
+	struct file *file = fd_dev->fd_file;
+	struct inode *inode = file->f_mapping->host;
+	unsigned char *buf, *ptr = NULL;
+	sector_t lba;
+	int size;
+	u32 range;
+	sense_reason_t ret = 0;
+	int dl, bd_dl, err;
+
+	/* We never set ANC_SUP */
+	if (cmd->t_task_cdb[1])
+		return TCM_INVALID_CDB_FIELD;
+
+	if (cmd->data_length == 0) {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+		return 0;
+	}
+
+	if (cmd->data_length < 8) {
+		pr_warn("UNMAP parameter list length %u too small\n",
+			cmd->data_length);
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
+	}
+
+	buf = transport_kmap_data_sg(cmd);
+	if (!buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	dl = get_unaligned_be16(&buf[0]);
+	bd_dl = get_unaligned_be16(&buf[2]);
+
+	size = cmd->data_length - 8;
+	if (bd_dl > size)
+		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
+			cmd->data_length, bd_dl);
+	else
+		size = bd_dl;
+
+	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
+		ret = TCM_INVALID_PARAMETER_LIST;
+		goto err;
+	}
+
+	/* First UNMAP block descriptor starts at 8 byte offset */
+	ptr = &buf[8];
+	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
+		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
+
+	while (size >= 16) {
+		lba = get_unaligned_be64(&ptr[0]);
+		range = get_unaligned_be32(&ptr[8]);
+		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
+				 (unsigned long long)lba, range);
+
+		if (range > dev->dev_attrib.max_unmap_lba_count) {
+			ret = TCM_INVALID_PARAMETER_LIST;
+			goto err;
+		}
+
+		if (lba + range > dev->transport->get_blocks(dev) + 1) {
+			ret = TCM_ADDRESS_OUT_OF_RANGE;
+			goto err;
+		}
+
+		if (S_ISBLK(inode->i_mode)) {
+			/* The backend is block device, use discard */
+			struct block_device *bdev = inode->i_bdev;
+
+			err = blkdev_issue_discard(bdev, lba, range, GFP_KERNEL, 0);
+			if (err < 0) {
+				pr_err("FILEIO: blkdev_issue_discard() failed: %d\n",
+						err);
+				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+				goto err;
+			}
+		} else {
+			/* The backend is normal file, use fallocate */
+			loff_t pos = lba * dev->dev_attrib.block_size;
+			unsigned int len = range * dev->dev_attrib.block_size;
+			int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
+
+			if (!file->f_op->fallocate) {
+				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+				goto err;
+			}
+			err = file->f_op->fallocate(file, mode, pos, len);
+			if (err < 0) {
+				pr_warn("FILEIO: fallocate() failed: %d\n", err);
+				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+				goto err;
+			}
+		}
+
+		ptr += 16;
+		size -= 16;
+	}
+
+err:
+	transport_kunmap_data_sg(cmd);
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
+	return ret;
+}
+
+static sense_reason_t
 fd_execute_rw(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
@@ -684,6 +794,7 @@ static struct sbc_ops fd_sbc_ops = {
 	.execute_sync_cache	= fd_execute_sync_cache,
 	.execute_write_same	= fd_execute_write_same,
 	.execute_write_same_unmap = fd_execute_write_same_unmap,
+	.execute_unmap		= fd_execute_unmap,
 };
 
 static sense_reason_t
