@@ -10,6 +10,7 @@ obj-$(CONFIG_MFD_SM501)		+= sm501.o
 obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 obj-$(CONFIG_MFD_CROS_EC)	+= cros_ec.o
 obj-$(CONFIG_MFD_CROS_EC_I2C)	+= cros_ec_i2c.o
+obj-$(CONFIG_MFD_CROS_EC_SPI)	+= cros_ec_spi.o
 
 rtsx_pci-objs			:= rtsx_pcr.o rts5209.o rts5229.o rtl8411.o rts5227.o
 obj-$(CONFIG_MFD_RTSX_PCI)	+= rtsx_pci.o
