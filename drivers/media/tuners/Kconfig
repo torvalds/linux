@@ -215,6 +215,13 @@ config MEDIA_TUNER_FC2580
 	help
 	  FCI FC2580 silicon tuner driver.
 
+config MEDIA_TUNER_M88TS2022
+	tristate "Montage M88TS2022 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Montage M88TS2022 silicon tuner driver.
+
 config MEDIA_TUNER_TUA9001
 	tristate "Infineon TUA 9001 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
