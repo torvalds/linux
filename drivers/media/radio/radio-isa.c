@@ -51,8 +51,8 @@ static int radio_isa_querycap(struct file *file, void  *priv,
 	strlcpy(v->card, isa->drv->card, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", isa->v4l2_dev.name);
 
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->device_caps = v->capabilities | V4L2_CAP_DEVICE_CAPS;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
