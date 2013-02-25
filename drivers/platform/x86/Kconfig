@@ -299,8 +299,8 @@ config IDEAPAD_LAPTOP
 	depends on ACPI
 	depends on RFKILL && INPUT
 	depends on SERIO_I8042
+	depends on BACKLIGHT_CLASS_DEVICE
 	select INPUT_SPARSEKMAP
-	select BACKLIGHT_CLASS_DEVICE
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
