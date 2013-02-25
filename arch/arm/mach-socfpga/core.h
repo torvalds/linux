@@ -37,6 +37,12 @@ extern void socfpga_secondary_startup(void);
 /* System Manager bits */
 #define RSTMGR_CTRL_SWCOLDRSTREQ	0x1	/* Cold Reset */
 #define RSTMGR_CTRL_SWWARMRSTREQ	0x2	/* Warm Reset */
+/*MPU Module Reset Register */
+ #define RSTMGR_MPUMODRST_CPU0	0x1	/*CPU0 Reset*/
+ #define RSTMGR_MPUMODRST_CPU1	0x2	/*CPU1 Reset*/
+ #define RSTMGR_MPUMODRST_WDS		0x4	/*Watchdog Reset*/
+ #define RSTMGR_MPUMODRST_SCUPER	0x8	/*SCU and periphs reset*/
+ #define RSTMGR_MPUMODRST_L2		0x10	/*L2 Cache reset*/
 
 #define SYSMGR_EMACGRP_CTRL_OFFSET 0x60
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
