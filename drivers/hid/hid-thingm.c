@@ -12,7 +12,6 @@
 #include <linux/hid.h>
 #include <linux/leds.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 
 #include "hid-ids.h"
 

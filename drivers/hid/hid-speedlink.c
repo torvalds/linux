@@ -16,10 +16,8 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 
 #include "hid-ids.h"
-#include "usbhid/usbhid.h"
 
 static const struct hid_device_id speedlink_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_X_TENSIONS, USB_DEVICE_ID_SPEEDLINK_VAD_CEZANNE)},
