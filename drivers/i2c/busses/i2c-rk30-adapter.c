@@ -553,9 +553,15 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
                                 msgs[0].addr, i2c->state, i2c->is_busy, error, i2c->complete_what, i2c_readl(i2c->regs + I2C_IPD));  
                         //rk30_show_regs(i2c);
                         error = -ETIMEDOUT;
-                        msleep(msleep_time);
+			if(in_atomic())
+				mdelay(msleep_time);
+			else
+                        	msleep(msleep_time);
                         rk30_i2c_send_stop(i2c);
-                        msleep(1);
+			if(in_atomic())
+				mdelay(1);
+			else
+                        	msleep(1);
                 }
                 else
                         i2c_dbg(i2c->dev, "Addr[0x%02x] wait event timeout, but transfer complete\n", i2c->addr);  
@@ -586,7 +592,10 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
         clk_enable(i2c->clk);
 #ifdef I2C_CHECK_IDLE
         while(retry-- && ((state = rk30_i2c_check_idle(i2c)) != I2C_IDLE)){
-                msleep(10);
+		if(in_atomic())
+			mdelay(10);
+		else
+                	msleep(10);
         }
         if(retry == 0){
                 dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
