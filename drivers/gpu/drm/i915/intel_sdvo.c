@@ -2779,6 +2779,9 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 			SDVOB_HOTPLUG_INT_STATUS_I915 : SDVOC_HOTPLUG_INT_STATUS_I915;
 	}
 
+	/* Only enable the hotplug irq if we need it, to work around noisy
+	 * hotplug lines.
+	 */
 	if (intel_sdvo->hotplug_active)
 		intel_encoder->hpd_pin = HPD_SDVO_B ? HPD_SDVO_B : HPD_SDVO_C;
 
@@ -2809,12 +2812,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	 * cloning for SDVO encoders.
 	 */
 	intel_sdvo->base.cloneable = false;
-
-	/* Only enable the hotplug irq if we need it, to work around noisy
-	 * hotplug lines.
-	 */
-	if (intel_sdvo->hotplug_active)
-		dev_priv->hotplug_supported_mask |= hotplug_mask;
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
 
