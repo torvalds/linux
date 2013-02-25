@@ -2410,7 +2410,7 @@ static struct pxa_udc memory = {
  * Perform basic init : allocates udc clock, creates sysfs files, requests
  * irq.
  */
-static int __init pxa_udc_probe(struct platform_device *pdev)
+static int pxa_udc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
@@ -2612,6 +2612,7 @@ static struct platform_driver udc_driver = {
 		.name	= "pxa27x-udc",
 		.owner	= THIS_MODULE,
 	},
+	.probe		= pxa_udc_probe,
 	.remove		= __exit_p(pxa_udc_remove),
 	.shutdown	= pxa_udc_shutdown,
 #ifdef CONFIG_PM
@@ -2620,17 +2621,7 @@ static struct platform_driver udc_driver = {
 #endif
 };
 
-static int __init udc_init(void)
-{
-	return platform_driver_probe(&udc_driver, pxa_udc_probe);
-}
-module_init(udc_init);
-
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Robert Jarzmik");
