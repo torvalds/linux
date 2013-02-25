@@ -103,8 +103,10 @@
 #define AB8500_IT_LATCHHIER1_REG	0x60
 #define AB8500_IT_LATCHHIER2_REG	0x61
 #define AB8500_IT_LATCHHIER3_REG	0x62
+#define AB8540_IT_LATCHHIER4_REG	0x63
 
 #define AB8500_IT_LATCHHIER_NUM		3
+#define AB8540_IT_LATCHHIER_NUM		4
 
 #define AB8500_REV_REG			0x80
 #define AB8500_IC_NAME_REG		0x82
@@ -141,6 +143,12 @@ static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 /* AB9540 / AB8505 support */
 static const int ab9540_irq_regoffset[AB9540_NUM_IRQ_REGS] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21, 12, 13, 24, 5, 22, 23
+};
+
+/* AB8540 support */
+static const int ab8540_irq_regoffset[AB8540_NUM_IRQ_REGS] = {
+	0, 1, 2, 3, 4, -1, -1, -1, -1, 11, 18, 19, 20, 21, 12, 13, 24, 5, 22, 23,
+	25, 26, 27, 28, 29, 30, 31,
 };
 
 static const char ab8500_version_str[][7] = {
@@ -360,6 +368,9 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 			is_ab8500_1p1_or_earlier(ab8500))
 			continue;
 
+		if (ab8500->irq_reg_offset[i] < 0)
+			continue;
+
 		ab8500->oldmask[i] = new;
 
 		reg = AB8500_IT_MASK1_REG + ab8500->irq_reg_offset[i];
@@ -431,6 +442,18 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_set_type		= ab8500_irq_set_type,
 };
 
+static void update_latch_offset(u8 *offset, int i)
+{
+	/* Fix inconsistent ITFromLatch25 bit mapping... */
+	if (unlikely(*offset == 17))
+			*offset = 24;
+	/* Fix inconsistent ab8540 bit mapping... */
+	if (unlikely(*offset == 16))
+			*offset = 25;
+	if ((i==3) && (*offset >= 24))
+			*offset += 2;
+}
+
 static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 					int latch_offset, u8 latch_val)
 {
@@ -482,9 +505,7 @@ static int ab8500_handle_hierarchical_latch(struct ab8500 *ab8500,
 		latch_bit = __ffs(hier_val);
 		latch_offset = (hier_offset << 3) + latch_bit;
 
-		/* Fix inconsistent ITFromLatch25 bit mapping... */
-		if (unlikely(latch_offset == 17))
-			latch_offset = 24;
+		update_latch_offset(&latch_offset, hier_offset);
 
 		status = get_register_interruptible(ab8500,
 				AB8500_INTERRUPT,
@@ -512,7 +533,7 @@ static irqreturn_t ab8500_hierarchical_irq(int irq, void *dev)
 	dev_vdbg(ab8500->dev, "interrupt\n");
 
 	/*  Hierarchical interrupt version */
-	for (i = 0; i < AB8500_IT_LATCHHIER_NUM; i++) {
+	for (i = 0; i < (ab8500->it_latchhier_num); i++) {
 		int status;
 		u8 hier_val;
 
@@ -565,6 +586,9 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 		if (regoffset == 11 && is_ab8500_1p1_or_earlier(ab8500))
 			continue;
 
+		if (regoffset < 0)
+			continue;
+
 		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
 			AB8500_IT_LATCH1_REG + regoffset, &value);
 		if (status < 0 || value == 0)
@@ -615,7 +639,9 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 {
 	int num_irqs;
 
-	if (is_ab9540(ab8500))
+	if (is_ab8540(ab8500))
+		num_irqs = AB8540_NR_IRQS;
+	else if (is_ab9540(ab8500))
 		num_irqs = AB9540_NR_IRQS;
 	else if (is_ab8505(ab8500))
 		num_irqs = AB8505_NR_IRQS;
@@ -1552,13 +1578,20 @@ static int ab8500_probe(struct platform_device *pdev)
 			ab8500->chip_id >> 4,
 			ab8500->chip_id & 0x0F);
 
-	/* Configure AB8500 or AB9540 IRQ */
-	if (is_ab9540(ab8500) || is_ab8505(ab8500)) {
+	/* Configure AB8540 */
+	if (is_ab8540(ab8500)) {
+		ab8500->mask_size = AB8540_NUM_IRQ_REGS;
+		ab8500->irq_reg_offset = ab8540_irq_regoffset;
+		ab8500->it_latchhier_num = AB8540_IT_LATCHHIER_NUM;
+	}/* Configure AB8500 or AB9540 IRQ */
+	else if (is_ab9540(ab8500) || is_ab8505(ab8500)) {
 		ab8500->mask_size = AB9540_NUM_IRQ_REGS;
 		ab8500->irq_reg_offset = ab9540_irq_regoffset;
+		ab8500->it_latchhier_num = AB8500_IT_LATCHHIER_NUM;
 	} else {
 		ab8500->mask_size = AB8500_NUM_IRQ_REGS;
 		ab8500->irq_reg_offset = ab8500_irq_regoffset;
+		ab8500->it_latchhier_num = AB8500_IT_LATCHHIER_NUM;
 	}
 	ab8500->mask = devm_kzalloc(&pdev->dev, ab8500->mask_size, GFP_KERNEL);
 	if (!ab8500->mask)
@@ -1618,6 +1651,9 @@ static int ab8500_probe(struct platform_device *pdev)
 		 */
 		if (ab8500->irq_reg_offset[i] == 11 &&
 				is_ab8500_1p1_or_earlier(ab8500))
+			continue;
+
+		if (ab8500->irq_reg_offset[i] < 0)
 			continue;
 
 		get_register_interruptible(ab8500, AB8500_INTERRUPT,

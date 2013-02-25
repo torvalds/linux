@@ -362,6 +362,7 @@ struct ab8500 {
 	u8 *oldmask;
 	int mask_size;
 	const int *irq_reg_offset;
+	int it_latchhier_num;
 };
 
 struct regulator_reg_init;
