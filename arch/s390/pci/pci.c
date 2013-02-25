@@ -249,10 +249,9 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 	if (zdev->fmb)
 		return -EINVAL;
 
-	zdev->fmb = kmem_cache_alloc(zdev_fmb_cache, GFP_KERNEL);
+	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
 	if (!zdev->fmb)
 		return -ENOMEM;
-	memset(zdev->fmb, 0, sizeof(*zdev->fmb));
 	WARN_ON((u64) zdev->fmb & 0xf);
 
 	args.fmb_addr = virt_to_phys(zdev->fmb);
