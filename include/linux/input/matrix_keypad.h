@@ -81,4 +81,23 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 			       unsigned short *keymap,
 			       struct input_dev *input_dev);
 
+#ifdef CONFIG_OF
+/**
+ * matrix_keypad_parse_of_params() - Read parameters from matrix-keypad node
+ *
+ * @dev: Device containing of_node
+ * @rows: Returns number of matrix rows
+ * @cols: Returns number of matrix columns
+ * @return 0 if OK, <0 on error
+ */
+int matrix_keypad_parse_of_params(struct device *dev,
+				  unsigned int *rows, unsigned int *cols);
+#else
+static inline int matrix_keypad_parse_of_params(struct device *dev,
+				  unsigned int *rows, unsigned int *cols)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_OF */
+
 #endif /* _MATRIX_KEYPAD_H */
