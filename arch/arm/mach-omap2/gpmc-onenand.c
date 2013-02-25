@@ -272,6 +272,10 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 	struct gpmc_timings t;
 	int ret;
 
+	if (gpmc_onenand_data->of_node)
+		gpmc_read_settings_dt(gpmc_onenand_data->of_node,
+				      &onenand_async);
+
 	omap2_onenand_set_async_mode(onenand_base);
 
 	omap2_onenand_calc_async_timings(&t);
@@ -300,12 +304,17 @@ static int omap2_onenand_setup_sync(void __iomem *onenand_base, int *freq_ptr)
 		set_onenand_cfg(onenand_base);
 	}
 
-	/*
-	 * FIXME: Appears to be legacy code from initial ONENAND commit.
-	 * Unclear what boards this is for and if this can be removed.
-	 */
-	if (!cpu_is_omap34xx())
-		onenand_sync.wait_on_read = true;
+	if (gpmc_onenand_data->of_node) {
+		gpmc_read_settings_dt(gpmc_onenand_data->of_node,
+				      &onenand_sync);
+	} else {
+		/*
+		 * FIXME: Appears to be legacy code from initial ONENAND commit.
+		 * Unclear what boards this is for and if this can be removed.
+		 */
+		if (!cpu_is_omap34xx())
+			onenand_sync.wait_on_read = true;
+	}
 
 	omap2_onenand_calc_sync_timings(&t, gpmc_onenand_data->flags, freq);
 
