@@ -168,6 +168,7 @@ struct intel_encoder {
 	 * it is connected to in the pipe parameter. */
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	int crtc_mask;
+	enum hpd_pin hpd_pin;
 };
 
 struct intel_panel {

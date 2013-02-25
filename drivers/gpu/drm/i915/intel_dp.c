@@ -2821,18 +2821,22 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	/* Set up the DDC bus. */
 	switch (port) {
 	case PORT_A:
+		intel_encoder->hpd_pin = HPD_PORT_A;
 		name = "DPDDC-A";
 		break;
 	case PORT_B:
 		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		name = "DPDDC-B";
 		break;
 	case PORT_C:
 		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_C;
 		name = "DPDDC-C";
 		break;
 	case PORT_D:
 		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_D;
 		name = "DPDDC-D";
 		break;
 	default:

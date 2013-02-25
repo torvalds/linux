@@ -86,6 +86,19 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
+enum hpd_pin {
+	HPD_NONE = 0,
+	HPD_PORT_A = HPD_NONE, /* PORT_A is internal */
+	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
+	HPD_CRT,
+	HPD_SDVO_B,
+	HPD_SDVO_C,
+	HPD_PORT_B,
+	HPD_PORT_C,
+	HPD_PORT_D,
+	HPD_NUM_PINS
+};
+
 #define I915_GEM_GPU_DOMAINS \
 	(I915_GEM_DOMAIN_RENDER | \
 	 I915_GEM_DOMAIN_SAMPLER | \

@@ -988,17 +988,21 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	switch (port) {
 	case PORT_B:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_C:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
+		intel_encoder->hpd_pin = HPD_PORT_C;
 		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_D:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
+		intel_encoder->hpd_pin = HPD_PORT_D;
 		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
 		break;
 	case PORT_A:
+		intel_encoder->hpd_pin = HPD_PORT_A;
 		/* Internal port only for eDP. */
 	default:
 		BUG();
