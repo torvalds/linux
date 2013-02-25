@@ -101,7 +101,7 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 	                                      //- 1--use Cdtech chip; 0--unuse CDT chip
 
     //power, PMU_EN//hjc test
-    #define RK30SDK_WIFI_GPIO_POWER_N                   RK30_PIN1_PA4          
+    #define RK30SDK_WIFI_GPIO_POWER_N                   RK30_PIN0_PB5          
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE        GPIO_HIGH        
     //reset, DAIRST,SYSRST_B
     #define RK30SDK_WIFI_GPIO_RESET_N                   RK30_PIN3_PD0
@@ -145,7 +145,7 @@ int rk31sdk_get_sdio_wifi_voltage(void)
 #elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)
     voltage = 1800 ; //power 1800V
 #elif defined(CONFIG_MT6620) 
-    voltage = 2800 ; //power 2800V
+    voltage = 1800 ; //power 2800V
 #elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  
     voltage = 3300 ; //power 3300V
 #else
