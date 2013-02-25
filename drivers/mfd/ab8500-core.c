@@ -1016,6 +1016,30 @@ static struct resource ab8505_iddet_resources[] = {
 		.end   = AB8505_INT_KEYSTUCK,
 		.flags = IORESOURCE_IRQ,
 	},
+	{
+		.name = "VBUS_DET_R",
+		.start = AB8500_INT_VBUS_DET_R,
+		.end = AB8500_INT_VBUS_DET_R,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name = "VBUS_DET_F",
+		.start = AB8500_INT_VBUS_DET_F,
+		.end = AB8500_INT_VBUS_DET_F,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name = "ID_DET_PLUGR",
+		.start = AB8500_INT_ID_DET_PLUGR,
+		.end = AB8500_INT_ID_DET_PLUGR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name = "ID_DET_PLUGF",
+		.start = AB8500_INT_ID_DET_PLUGF,
+		.end = AB8500_INT_ID_DET_PLUGF,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct resource ab8500_temp_resources[] = {
