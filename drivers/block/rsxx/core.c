@@ -161,9 +161,9 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 }
 
 /*----------------- Card Event Handler -------------------*/
-static char *rsxx_card_state_to_str(unsigned int state)
+static const char * const rsxx_card_state_to_str(unsigned int state)
 {
-	static char *state_strings[] = {
+	static const char * const state_strings[] = {
 		"Unknown", "Shutdown", "Starting", "Formatting",
 		"Uninitialized", "Good", "Shutting Down",
 		"Fault", "Read Only Fault", "dStroying"

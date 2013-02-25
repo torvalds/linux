@@ -432,16 +432,6 @@ static void rsxx_issue_dmas(struct work_struct *work)
 
 	/* Let HW know we've queued commands. */
 	if (cmds_pending) {
-		/*
-		 * We must guarantee that the CPU writes to 'ctrl->cmd.buf'
-		 * (which is in PCI-consistent system-memory) from the loop
-		 * above make it into the coherency domain before the
-		 * following PIO "trigger" updating the cmd.idx.  A WMB is
-		 * sufficient. We need not explicitly CPU cache-flush since
-		 * the memory is a PCI-consistent (ie; coherent) mapping.
-		 */
-		wmb();
-
 		atomic_add(cmds_pending, &ctrl->stats.hw_q_depth);
 		mod_timer(&ctrl->activity_timer,
 			  jiffies + DMA_ACTIVITY_TIMEOUT);
@@ -797,8 +787,6 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 	}
 	iowrite32(ctrl->cmd.idx, ctrl->regmap + HW_CMD_IDX);
 	iowrite32(ctrl->cmd.idx, ctrl->regmap + SW_CMD_IDX);
-
-	wmb();
 
 	return 0;
 }

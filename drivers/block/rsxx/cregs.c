@@ -126,13 +126,6 @@ static void creg_issue_cmd(struct rsxx_cardinfo *card, struct creg_cmd *cmd)
 					  cmd->buf, cmd->stream);
 	}
 
-	/*
-	 * Data copy must complete before initiating the command. This is
-	 * needed for weakly ordered processors (i.e. PowerPC), so that all
-	 * neccessary registers are written before we kick the hardware.
-	 */
-	wmb();
-
 	/* Setting the valid bit will kick off the command. */
 	iowrite32(cmd->op, card->regmap + CREG_CMD);
 }
@@ -399,12 +392,12 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 		return st;
 
 	/*
-	 * This timeout is neccessary for unresponsive hardware. The additional
+	 * This timeout is necessary for unresponsive hardware. The additional
 	 * 20 seconds to used to guarantee that each cregs requests has time to
 	 * complete.
 	 */
-	timeout = msecs_to_jiffies((CREG_TIMEOUT_MSEC *
-				card->creg_ctrl.q_depth) + 20000);
+	timeout = msecs_to_jiffies(CREG_TIMEOUT_MSEC *
+				   card->creg_ctrl.q_depth + 20000);
 
 	/*
 	 * The creg interface is guaranteed to complete. It has a timeout

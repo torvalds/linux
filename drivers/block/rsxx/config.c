@@ -29,10 +29,8 @@
 #include "rsxx_priv.h"
 #include "rsxx_cfg.h"
 
-static void initialize_config(void *config)
+static void initialize_config(struct rsxx_card_cfg *cfg)
 {
-	struct rsxx_card_cfg *cfg = config;
-
 	cfg->hdr.version = RSXX_CFG_VERSION;
 
 	cfg->data.block_size        = RSXX_HW_BLK_SIZE;
@@ -181,7 +179,7 @@ int rsxx_load_config(struct rsxx_cardinfo *card)
 	} else {
 		dev_info(CARD_TO_DEV(card),
 			"Initializing card configuration.\n");
-		initialize_config(card);
+		initialize_config(&card->config);
 		st = rsxx_save_config(card);
 		if (st)
 			return st;
