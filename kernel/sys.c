@@ -351,7 +351,9 @@ void kernel_restart(char *cmd)
 	restart_dbg("%s->%d->cmd=%s",__FUNCTION__,__LINE__,cmd);
 	
 	kernel_restart_prepare(cmd);
+#ifndef CONFIG_PLAT_RK
 	disable_nonboot_cpus();
+#endif
 	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
 	else
