@@ -851,7 +851,7 @@ static int pm2xxx_wall_charger_suspend(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
+static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		const struct i2c_device_id *id)
 {
 	struct pm2xxx_platform_data *pl_data = i2c_client->dev.platform_data;
@@ -1021,7 +1021,7 @@ free_device_info:
 	return ret;
 }
 
-static int __devexit pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
+static int pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 {
 	struct pm2xxx_charger *pm2 = i2c_get_clientdata(i2c_client);
 
@@ -1058,7 +1058,7 @@ MODULE_DEVICE_TABLE(i2c, pm2xxx_id);
 
 static struct i2c_driver pm2xxx_charger_driver = {
 	.probe = pm2xxx_wall_charger_probe,
-	.remove = __devexit_p(pm2xxx_wall_charger_remove),
+	.remove = pm2xxx_wall_charger_remove,
 	.suspend = pm2xxx_wall_charger_suspend,
 	.resume = pm2xxx_wall_charger_resume,
 	.driver = {
