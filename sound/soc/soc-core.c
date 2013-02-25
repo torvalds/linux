@@ -4022,8 +4022,8 @@ int snd_soc_register_codec(struct device *dev,
 	/* create CODEC component name */
 	codec->name = fmt_single_name(dev, &codec->id);
 	if (codec->name == NULL) {
-		kfree(codec);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_codec;
 	}
 
 	if (codec_drv->compress_type)
@@ -4062,7 +4062,7 @@ int snd_soc_register_codec(struct device *dev,
 						      reg_size, GFP_KERNEL);
 			if (!codec->reg_def_copy) {
 				ret = -ENOMEM;
-				goto fail;
+				goto fail_codec_name;
 			}
 		}
 	}
@@ -4096,8 +4096,9 @@ int snd_soc_register_codec(struct device *dev,
 	dev_dbg(codec->dev, "ASoC: Registered codec '%s'\n", codec->name);
 	return 0;
 
-fail:
+fail_codec_name:
 	kfree(codec->name);
+fail_codec:
 	kfree(codec);
 	return ret;
 }
