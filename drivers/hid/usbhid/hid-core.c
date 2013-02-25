@@ -705,7 +705,7 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 	return 0;
 }
 
-int usbhid_wait_io(struct hid_device *hid)
+static int usbhid_wait_io(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
@@ -719,7 +719,6 @@ int usbhid_wait_io(struct hid_device *hid)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(usbhid_wait_io);
 
 static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
 {

@@ -119,7 +119,7 @@ static inline int ntrig_get_mode(struct hid_device *hdev)
 		return -EINVAL;
 
 	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
-	usbhid_wait_io(hdev);
+	hid_hw_wait(hdev);
 	return (int)report->field[0]->value[0];
 }
 
@@ -937,7 +937,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (report) {
 		/* Let the device settle to ensure the wakeup message gets
 		 * through */
-		usbhid_wait_io(hdev);
+		hid_hw_wait(hdev);
 		hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
 
 		/*

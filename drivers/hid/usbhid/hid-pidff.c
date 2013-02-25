@@ -471,13 +471,13 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 
 	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] = 0;
 	pidff->block_load_status->value[0] = 0;
-	usbhid_wait_io(pidff->hid);
+	hid_hw_wait(pidff->hid);
 
 	for (j = 0; j < 60; j++) {
 		hid_dbg(pidff->hid, "pid_block_load requested\n");
 		hid_hw_request(pidff->hid, pidff->reports[PID_BLOCK_LOAD],
 				HID_REQ_GET_REPORT);
-		usbhid_wait_io(pidff->hid);
+		hid_hw_wait(pidff->hid);
 		if (pidff->block_load_status->value[0] ==
 		    pidff->status_id[PID_BLOCK_LOAD_SUCCESS]) {
 			hid_dbg(pidff->hid, "device reported free memory: %d bytes\n",
@@ -551,7 +551,7 @@ static int pidff_erase_effect(struct input_dev *dev, int effect_id)
 		effect_id, pidff->pid_id[effect_id]);
 	/* Wait for the queue to clear. We do not want a full fifo to
 	   prevent the effect removal. */
-	usbhid_wait_io(pidff->hid);
+	hid_hw_wait(pidff->hid);
 	pidff_playback_pid(pidff, pid_id, 0);
 	pidff_erase_pid(pidff, pid_id);
 
@@ -1159,18 +1159,18 @@ static void pidff_reset(struct pidff_device *pidff)
 	pidff->device_control->value[0] = pidff->control_id[PID_RESET];
 	/* We reset twice as sometimes hid_wait_io isn't waiting long enough */
 	hid_hw_request(hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
-	usbhid_wait_io(hid);
+	hid_hw_wait(hid);
 	hid_hw_request(hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
-	usbhid_wait_io(hid);
+	hid_hw_wait(hid);
 
 	pidff->device_control->value[0] =
 		pidff->control_id[PID_ENABLE_ACTUATORS];
 	hid_hw_request(hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
-	usbhid_wait_io(hid);
+	hid_hw_wait(hid);
 
 	/* pool report is sometimes messed up, refetch it */
 	hid_hw_request(hid, pidff->reports[PID_POOL], HID_REQ_GET_REPORT);
-	usbhid_wait_io(hid);
+	hid_hw_wait(hid);
 
 	if (pidff->pool[PID_SIMULTANEOUS_MAX].value) {
 		while (pidff->pool[PID_SIMULTANEOUS_MAX].value[0] < 2) {
@@ -1183,7 +1183,7 @@ static void pidff_reset(struct pidff_device *pidff)
 			hid_dbg(pidff->hid, "pid_pool requested again\n");
 			hid_hw_request(hid, pidff->reports[PID_POOL],
 					  HID_REQ_GET_REPORT);
-			usbhid_wait_io(hid);
+			hid_hw_wait(hid);
 		}
 	}
 }

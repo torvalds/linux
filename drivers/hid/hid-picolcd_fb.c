@@ -19,7 +19,6 @@
 
 #include <linux/hid.h>
 #include <linux/vmalloc.h>
-#include "usbhid/usbhid.h"
 
 #include <linux/fb.h>
 #include <linux/module.h>
@@ -269,7 +268,7 @@ static void picolcd_fb_update(struct fb_info *info)
 				mutex_unlock(&info->lock);
 				if (!data)
 					return;
-				usbhid_wait_io(data->hdev);
+				hid_hw_wait(data->hdev);
 				mutex_lock(&info->lock);
 				n = 0;
 			}
@@ -287,7 +286,7 @@ static void picolcd_fb_update(struct fb_info *info)
 		spin_unlock_irqrestore(&fbdata->lock, flags);
 		mutex_unlock(&info->lock);
 		if (data)
-			usbhid_wait_io(data->hdev);
+			hid_hw_wait(data->hdev);
 		return;
 	}
 out:

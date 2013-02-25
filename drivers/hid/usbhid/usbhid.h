@@ -34,7 +34,6 @@
 #include <linux/input.h>
 
 /*  API provided by hid-core.c for USB HID drivers */
-int usbhid_wait_io(struct hid_device* hid);
 void usbhid_close(struct hid_device *hid);
 int usbhid_open(struct hid_device *hid);
 void usbhid_init_reports(struct hid_device *hid);

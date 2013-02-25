@@ -18,7 +18,6 @@
  */
 #include <linux/device.h>
 #include <linux/hid.h>
-#include "usbhid/usbhid.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
@@ -204,7 +203,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	}
 	hid_set_field(report->field[field_index], 0, value);
 	hid_hw_request(hsdev->hdev, report, HID_REQ_SET_REPORT);
-	usbhid_wait_io(hsdev->hdev);
+	hid_hw_wait(hsdev->hdev);
 
 done_proc:
 	mutex_unlock(&data->mutex);
@@ -227,7 +226,7 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 	hid_hw_request(hsdev->hdev, report, HID_REQ_GET_REPORT);
-	usbhid_wait_io(hsdev->hdev);
+	hid_hw_wait(hsdev->hdev);
 	*value = report->field[field_index]->value[0];
 
 done_proc:
