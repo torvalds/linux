@@ -24,14 +24,12 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
-
-#include <asm/byteorder.h>
-#include <mach/hardware.h>
+#include <linux/byteorder/generic.h>
+#include <linux/platform_data/pxa2xx_udc.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <mach/udc.h>
 
 #include "pxa27x_udc.h"
 
@@ -2624,14 +2622,9 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	if (!cpu_is_pxa27x() && !cpu_is_pxa3xx())
-		return -ENODEV;
-
-	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
 	return platform_driver_probe(&udc_driver, pxa_udc_probe);
 }
 module_init(udc_init);
-
 
 static void __exit udc_exit(void)
 {
