@@ -380,6 +380,21 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
+iblock_do_unmap(struct se_cmd *cmd, struct block_device *bdev,
+		sector_t lba, sector_t nolb)
+{
+	int ret;
+
+	ret = blkdev_issue_discard(bdev, lba, nolb, GFP_KERNEL, 0);
+	if (ret < 0) {
+		pr_err("blkdev_issue_discard() failed: %d\n", ret);
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
+
+	return 0;
+}
+
+static sense_reason_t
 iblock_execute_unmap(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -389,7 +404,7 @@ iblock_execute_unmap(struct se_cmd *cmd)
 	int size;
 	u32 range;
 	sense_reason_t ret = 0;
-	int dl, bd_dl, err;
+	int dl, bd_dl;
 
 	/* We never set ANC_SUP */
 	if (cmd->t_task_cdb[1])
@@ -446,14 +461,9 @@ iblock_execute_unmap(struct se_cmd *cmd)
 			goto err;
 		}
 
-		err = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
-					   GFP_KERNEL, 0);
-		if (err < 0) {
-			pr_err("blkdev_issue_discard() failed: %d\n",
-					err);
-			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		ret = iblock_do_unmap(cmd, ib_dev->ibd_bd, lba, range);
+		if (ret)
 			goto err;
-		}
 
 		ptr += 16;
 		size -= 16;
@@ -469,15 +479,14 @@ err:
 static sense_reason_t
 iblock_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
-	int rc;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
+	sector_t lba = cmd->t_task_lba;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	int ret;
 
-	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-			sbc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
-	if (rc < 0) {
-		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
+	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
+	if (ret)
+		return ret;
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
