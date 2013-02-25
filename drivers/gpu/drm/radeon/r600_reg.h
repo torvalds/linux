@@ -34,6 +34,9 @@
 #define R600_RCU_INDEX                      0x0100
 #define R600_RCU_DATA                       0x0104
 
+#define R600_UVD_CTX_INDEX                  0xf4a0
+#define R600_UVD_CTX_DATA                   0xf4a4
+
 #define R600_MC_VM_FB_LOCATION			0x2180
 #define		R600_MC_FB_BASE_MASK			0x0000FFFF
 #define		R600_MC_FB_BASE_SHIFT			0
