@@ -202,27 +202,29 @@ fault:
 static size_t strncpy_from_user_pt(size_t count, const char __user *src,
 				   char *dst)
 {
-	size_t n = strnlen_user_pt(count, src);
+	size_t done, len, offset, len_str;
 
 	if (unlikely(!count))
 		return 0;
-	if (!n)
-		return -EFAULT;
-	if (n > count)
-		n = count;
 	if (segment_eq(get_fs(), KERNEL_DS)) {
-		memcpy(dst, (const char __kernel __force *) src, n);
-		if (dst[n-1] == '\0')
-			return n-1;
-		else
-			return n;
+		len = strnlen((const char __kernel __force *) src, count) + 1;
+		if (len > count)
+			len = count;
+		memcpy(dst, (const char __kernel __force *) src, len);
+		return (dst[len - 1] == '\0') ? len - 1 : len;
 	}
-	if (__user_copy_pt((unsigned long) src, dst, n, 0))
-		return -EFAULT;
-	if (dst[n-1] == '\0')
-		return n-1;
-	else
-		return n;
+	done = 0;
+	do {
+		offset = (size_t)src & ~PAGE_MASK;
+		len = min(count - done, PAGE_SIZE - offset);
+		if (__user_copy_pt((unsigned long) src, dst, len, 0))
+			return -EFAULT;
+		len_str = strnlen(dst, len);
+		done += len_str;
+		src += len_str;
+		dst += len_str;
+	} while ((len_str == len) && (done < count));
+	return done;
 }
 
 static size_t copy_in_user_pt(size_t n, void __user *to,

@@ -206,38 +206,24 @@ size_t strnlen_user_std(size_t size, const char __user *src)
 	return size;
 }
 
-size_t strncpy_from_user_std(size_t size, const char __user *src, char *dst)
+size_t strncpy_from_user_std(size_t count, const char __user *src, char *dst)
 {
-	register unsigned long reg0 asm("0") = 0UL;
-	unsigned long tmp1, tmp2;
+	size_t done, len, offset, len_str;
 
-	asm volatile(
-		"   la    %3,0(%1)\n"
-		"   la    %4,0(%0,%1)\n"
-		"   sacf  256\n"
-		"0: srst  %4,%3\n"
-		"   jo    0b\n"
-		"   sacf  0\n"
-		"   la    %0,0(%4)\n"
-		"   jh    1f\n"		/* found \0 in string ? */
-		"  "AHI"  %4,1\n"	/* include \0 in copy */
-		"1:"SLR"  %0,%1\n"	/* %0 = return length (without \0) */
-		"  "SLR"  %4,%1\n"	/* %4 = copy length (including \0) */
-		"2: mvcp  0(%4,%2),0(%1),%5\n"
-		"   jz    9f\n"
-		"3:"AHI"  %4,-256\n"
-		"   la    %1,256(%1)\n"
-		"   la    %2,256(%2)\n"
-		"4: mvcp  0(%4,%2),0(%1),%5\n"
-		"   jnz   3b\n"
-		"   j     9f\n"
-		"7: sacf  0\n"
-		"8:"LHI"  %0,%6\n"
-		"9:\n"
-		EX_TABLE(0b,7b) EX_TABLE(2b,8b) EX_TABLE(4b,8b)
-		: "+a" (size), "+a" (src), "+d" (dst), "=a" (tmp1), "=a" (tmp2)
-		: "d" (reg0), "K" (-EFAULT) : "cc", "memory");
-	return size;
+	if (unlikely(!count))
+		return 0;
+	done = 0;
+	do {
+		offset = (size_t)src & ~PAGE_MASK;
+		len = min(count - done, PAGE_SIZE - offset);
+		if (copy_from_user_std(len, src, dst))
+			return -EFAULT;
+		len_str = strnlen(dst, len);
+		done += len_str;
+		src += len_str;
+		dst += len_str;
+	} while ((len_str == len) && (done < count));
+	return done;
 }
 
 #define __futex_atomic_op(insn, ret, oldval, newval, uaddr, oparg)	\
