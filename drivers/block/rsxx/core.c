@@ -538,9 +538,6 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	rsxx_disable_ier_and_isr(card, CR_INTR_EVENT);
 	spin_unlock_irqrestore(&card->irq_lock, flags);
 
-	/* Prevent work_structs from re-queuing themselves. */
-	card->halt = 1;
-
 	cancel_work_sync(&card->event_work);
 
 	rsxx_destroy_dev(card);
@@ -549,6 +546,10 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	spin_lock_irqsave(&card->irq_lock, flags);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
 	spin_unlock_irqrestore(&card->irq_lock, flags);
+
+	/* Prevent work_structs from re-queuing themselves. */
+	card->halt = 1;
+
 	free_irq(dev->irq, card);
 
 	if (!force_legacy)
