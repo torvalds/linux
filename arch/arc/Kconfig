@@ -19,13 +19,11 @@ config ARC
 	select GENERIC_KERNEL_EXECVE
 	select GENERIC_KERNEL_THREAD
 	select GENERIC_PENDING_IRQ if SMP
-	select GENERIC_SIGALTSTACK
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_IOREMAP_PROT
-	select HAVE_IRQ_WORK
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_MEMBLOCK
@@ -75,9 +73,6 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config NO_DMA
 	def_bool n
-
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
