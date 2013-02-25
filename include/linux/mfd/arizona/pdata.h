@@ -128,6 +128,9 @@ struct arizona_pdata {
 	/** Use the headphone detect circuit to identify the accessory */
 	bool hpdet_acc_id;
 
+	/** Check for line output with HPDET method */
+	bool hpdet_acc_id_line;
+
 	/** GPIO used for mic isolation with HPDET */
 	int hpdet_id_gpio;
 
