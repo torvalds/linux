@@ -356,6 +356,28 @@ static struct em28xx_reg_seq c3tech_digital_duo_digital[] = {
 	{	-1,			-1,	-1,	-1},
 };
 
+/*
+ * 2013:0258 PCTV DVB-S2 Stick (461e)
+ * GPIO 0 = POWER_ON
+ * GPIO 1 = BOOST
+ * GPIO 2 = VUV_LNB (red LED)
+ * GPIO 3 = #EXT_12V
+ * GPIO 4 = INT_DEM
+ * GPIO 5 = INT_LNB
+ * GPIO 6 = #RESET_DEM
+ * GPIO 7 = P07_LED (green LED)
+ */
+static struct em28xx_reg_seq pctv_461e[] = {
+	{EM2874_R80_GPIO_P0_CTRL,      0x7f, 0xff,    0},
+	{0x0d,                 0xff, 0xff,    0},
+	{EM2874_R80_GPIO_P0_CTRL,      0x3f, 0xff,  100}, /* reset demod */
+	{EM2874_R80_GPIO_P0_CTRL,      0x7f, 0xff,  200}, /* reset demod */
+	{0x0d,                 0x42, 0xff,    0},
+	{EM2874_R80_GPIO_P0_CTRL,      0xeb, 0xff,    0},
+	{EM2874_R5F_TS_ENABLE, 0x84, 0x84,    0}, /* parallel? | null discard */
+	{                  -1,   -1,   -1,   -1},
+};
+
 #if 0
 static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
 	{EM2874_R80_GPIO_P0_CTRL,	0x6f,	0xff,	10},
@@ -2125,6 +2147,17 @@ struct em28xx_board em28xx_boards[] = {
 		.buttons = speedlink_vad_laplace_buttons,
 		.leds = speedlink_vad_laplace_leds,
 	},
+	/* 2013:0258 PCTV DVB-S2 Stick (461e)
+	 * Empia EM28178, Montage M88DS3103, Montage M88TS2022, Allegro A8293 */
+	[EM28178_BOARD_PCTV_461E] = {
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (461e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_461e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -2294,6 +2327,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x1ae7, 0x9004),
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
+	{ USB_DEVICE(0x2013, 0x0258),
+			.driver_info = EM28178_BOARD_PCTV_461E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

@@ -51,6 +51,8 @@
 #include "a8293.h"
 #include "qt1010.h"
 #include "mb86a20s.h"
+#include "m88ds3103.h"
+#include "m88ts2022.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -808,6 +810,19 @@ static struct tda18271_config c3tech_duo_tda18271_config = {
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
+static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
+	.i2c_addr = 0x68,
+	.clock = 27000000,
+	.i2c_wr_max = 33,
+	.clock_out = 0,
+	.ts_mode = M88DS3103_TS_PARALLEL_16,
+	.agc = 0x99,
+};
+
+static const struct m88ts2022_config em28xx_m88ts2022_config = {
+	.i2c_addr = 0x60,
+	.clock = 27000000,
+};
 
 /* ------------------------------------------------------------------ */
 
@@ -1328,6 +1343,44 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				&kworld_ub435q_v2_config)) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM28178_BOARD_PCTV_461E:
+		{
+			/* demod I2C adapter */
+			struct i2c_adapter *i2c_adapter;
+
+			/* attach demod */
+			dvb->fe[0] = dvb_attach(m88ds3103_attach,
+					&pctv_461e_m88ds3103_config,
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&i2c_adapter);
+			if (dvb->fe[0] == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			/* attach tuner */
+			if (!dvb_attach(m88ts2022_attach, dvb->fe[0],
+					i2c_adapter,
+					&em28xx_m88ts2022_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			/* delegate signal strength measurement to tuner */
+			dvb->fe[0]->ops.read_signal_strength =
+					dvb->fe[0]->ops.tuner_ops.get_rf_strength;
+
+			/* attach SEC */
+			if (!dvb_attach(a8293_attach, dvb->fe[0],
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_a8293_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -ENODEV;
+				goto out_free;
+			}
 		}
 		break;
 	default:
