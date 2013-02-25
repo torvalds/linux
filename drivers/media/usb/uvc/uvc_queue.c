@@ -115,11 +115,27 @@ static int uvc_buffer_finish(struct vb2_buffer *vb)
 	return 0;
 }
 
+static void uvc_wait_prepare(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+
+	mutex_unlock(&queue->mutex);
+}
+
+static void uvc_wait_finish(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+
+	mutex_lock(&queue->mutex);
+}
+
 static struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
 	.buf_queue = uvc_buffer_queue,
 	.buf_finish = uvc_buffer_finish,
+	.wait_prepare = uvc_wait_prepare,
+	.wait_finish = uvc_wait_finish,
 };
 
 int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,

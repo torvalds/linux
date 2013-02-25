@@ -6,7 +6,7 @@
       <refnamediv>
 	<refname id="V4L2-PIX-FMT-NV12M"><constant>V4L2_PIX_FMT_NV12M</constant></refname>
 	<refname id="V4L2-PIX-FMT-NV21M"><constant>V4L2_PIX_FMT_NV21M</constant></refname>
-	<refname id="V4L2-PIX-FMT-NV12MT_16X16"><constant>V4L2_PIX_FMT_NV12MT_16X16</constant></refname>
+	<refname id="V4L2-PIX-FMT-NV12MT-16X16"><constant>V4L2_PIX_FMT_NV12MT_16X16</constant></refname>
 	<refpurpose>Variation of <constant>V4L2_PIX_FMT_NV12</constant> and <constant>V4L2_PIX_FMT_NV21</constant> with planes
 	  non contiguous in memory. </refpurpose>
       </refnamediv>

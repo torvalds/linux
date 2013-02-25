@@ -98,7 +98,7 @@ static int go7007_open(struct file *file)
 
 	if (go->status != STATUS_ONLINE)
 		return -EBUSY;
-	gofh = kmalloc(sizeof(struct go7007_file), GFP_KERNEL);
+	gofh = kzalloc(sizeof(struct go7007_file), GFP_KERNEL);
 	if (gofh == NULL)
 		return -ENOMEM;
 	++go->ref_count;
@@ -953,6 +953,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 	}
 	mutex_unlock(&go->hw_lock);
 	mutex_unlock(&gofh->lock);
+	call_all(&go->v4l2_dev, video, s_stream, 1);
 
 	return retval;
 }
@@ -968,6 +969,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	mutex_lock(&gofh->lock);
 	go7007_streamoff(go);
 	mutex_unlock(&gofh->lock);
+	call_all(&go->v4l2_dev, video, s_stream, 0);
 
 	return 0;
 }
@@ -1811,8 +1813,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
-	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
-	       go->video_dev->name, video_device_node_name(go->video_dev));
+	dev_info(go->dev, "registered device %s [v4l2]\n",
+		 video_device_node_name(go->video_dev));
 
 	return 0;
 }
@@ -1832,5 +1834,6 @@ void go7007_v4l2_remove(struct go7007 *go)
 	mutex_unlock(&go->hw_lock);
 	if (go->video_dev)
 		video_unregister_device(go->video_dev);
-	v4l2_device_unregister(&go->v4l2_dev);
+	if (go->status != STATUS_SHUTDOWN)
+		v4l2_device_unregister(&go->v4l2_dev);
 }

@@ -1406,28 +1406,15 @@ static const char *isp_clocks[] = {
 	"l3_ick",
 };
 
-static void isp_put_clocks(struct isp_device *isp)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(isp_clocks); ++i) {
-		if (isp->clock[i]) {
-			clk_put(isp->clock[i]);
-			isp->clock[i] = NULL;
-		}
-	}
-}
-
 static int isp_get_clocks(struct isp_device *isp)
 {
 	struct clk *clk;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isp_clocks); ++i) {
-		clk = clk_get(isp->dev, isp_clocks[i]);
+		clk = devm_clk_get(isp->dev, isp_clocks[i]);
 		if (IS_ERR(clk)) {
 			dev_err(isp->dev, "clk_get %s failed\n", isp_clocks[i]);
-			isp_put_clocks(isp);
 			return PTR_ERR(clk);
 		}
 
@@ -1993,7 +1980,6 @@ error_csiphy:
 static int isp_remove(struct platform_device *pdev)
 {
 	struct isp_device *isp = platform_get_drvdata(pdev);
-	int i;
 
 	isp_unregister_entities(isp);
 	isp_cleanup_modules(isp);
@@ -2003,26 +1989,6 @@ static int isp_remove(struct platform_device *pdev)
 	iommu_domain_free(isp->domain);
 	isp->domain = NULL;
 	omap3isp_put(isp);
-
-	free_irq(isp->irq_num, isp);
-	isp_put_clocks(isp);
-
-	for (i = 0; i < OMAP3_ISP_IOMEM_LAST; i++) {
-		if (isp->mmio_base[i]) {
-			iounmap(isp->mmio_base[i]);
-			isp->mmio_base[i] = NULL;
-		}
-
-		if (isp->mmio_base_phys[i]) {
-			release_mem_region(isp->mmio_base_phys[i],
-					   isp->mmio_size[i]);
-			isp->mmio_base_phys[i] = 0;
-		}
-	}
-
-	regulator_put(isp->isp_csiphy1.vdd);
-	regulator_put(isp->isp_csiphy2.vdd);
-	kfree(isp);
 
 	return 0;
 }
@@ -2041,7 +2007,8 @@ static int isp_map_mem_resource(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	if (!request_mem_region(mem->start, resource_size(mem), pdev->name)) {
+	if (!devm_request_mem_region(isp->dev, mem->start, resource_size(mem),
+				     pdev->name)) {
 		dev_err(isp->dev,
 			"cannot reserve camera register I/O region\n");
 		return -ENODEV;
@@ -2050,8 +2017,9 @@ static int isp_map_mem_resource(struct platform_device *pdev,
 	isp->mmio_size[res] = resource_size(mem);
 
 	/* map the region */
-	isp->mmio_base[res] = ioremap_nocache(isp->mmio_base_phys[res],
-					      isp->mmio_size[res]);
+	isp->mmio_base[res] = devm_ioremap_nocache(isp->dev,
+						   isp->mmio_base_phys[res],
+						   isp->mmio_size[res]);
 	if (!isp->mmio_base[res]) {
 		dev_err(isp->dev, "cannot map camera register I/O region\n");
 		return -ENODEV;
@@ -2081,7 +2049,7 @@ static int isp_probe(struct platform_device *pdev)
 	if (pdata == NULL)
 		return -EINVAL;
 
-	isp = kzalloc(sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
 		dev_err(&pdev->dev, "could not allocate memory\n");
 		return -ENOMEM;
@@ -2104,8 +2072,8 @@ static int isp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, isp);
 
 	/* Regulators */
-	isp->isp_csiphy1.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY1");
-	isp->isp_csiphy2.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY2");
+	isp->isp_csiphy1.vdd = devm_regulator_get(&pdev->dev, "VDD_CSIPHY1");
+	isp->isp_csiphy2.vdd = devm_regulator_get(&pdev->dev, "VDD_CSIPHY2");
 
 	/* Clocks
 	 *
@@ -2180,7 +2148,8 @@ static int isp_probe(struct platform_device *pdev)
 		goto detach_dev;
 	}
 
-	if (request_irq(isp->irq_num, isp_isr, IRQF_SHARED, "OMAP3 ISP", isp)) {
+	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
+			     "OMAP3 ISP", isp)) {
 		dev_err(isp->dev, "Unable to request IRQ\n");
 		ret = -EINVAL;
 		goto detach_dev;
@@ -2189,7 +2158,7 @@ static int isp_probe(struct platform_device *pdev)
 	/* Entities */
 	ret = isp_initialize_modules(isp);
 	if (ret < 0)
-		goto error_irq;
+		goto detach_dev;
 
 	ret = isp_register_entities(isp);
 	if (ret < 0)
@@ -2202,8 +2171,6 @@ static int isp_probe(struct platform_device *pdev)
 
 error_modules:
 	isp_cleanup_modules(isp);
-error_irq:
-	free_irq(isp->irq_num, isp);
 detach_dev:
 	iommu_detach_device(isp->domain, &pdev->dev);
 free_domain:
@@ -2211,26 +2178,9 @@ free_domain:
 error_isp:
 	omap3isp_put(isp);
 error:
-	isp_put_clocks(isp);
-
-	for (i = 0; i < OMAP3_ISP_IOMEM_LAST; i++) {
-		if (isp->mmio_base[i]) {
-			iounmap(isp->mmio_base[i]);
-			isp->mmio_base[i] = NULL;
-		}
-
-		if (isp->mmio_base_phys[i]) {
-			release_mem_region(isp->mmio_base_phys[i],
-					   isp->mmio_size[i]);
-			isp->mmio_base_phys[i] = 0;
-		}
-	}
-	regulator_put(isp->isp_csiphy2.vdd);
-	regulator_put(isp->isp_csiphy1.vdd);
 	platform_set_drvdata(pdev, NULL);
 
 	mutex_destroy(&isp->isp_mutex);
-	kfree(isp);
 
 	return ret;
 }
