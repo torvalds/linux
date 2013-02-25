@@ -480,8 +480,9 @@ fd_execute_write_same(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-fd_do_unmap(struct se_cmd *cmd, struct file *file, sector_t lba, sector_t nolb)
+fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
 {
+	struct file *file = priv;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
@@ -542,84 +543,9 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 static sense_reason_t
 fd_execute_unmap(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-	struct fd_dev *fd_dev = FD_DEV(dev);
-	struct file *file = fd_dev->fd_file;
-	unsigned char *buf, *ptr = NULL;
-	sector_t lba;
-	int size;
-	u32 range;
-	sense_reason_t ret = 0;
-	int dl, bd_dl;
+	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
 
-	/* We never set ANC_SUP */
-	if (cmd->t_task_cdb[1])
-		return TCM_INVALID_CDB_FIELD;
-
-	if (cmd->data_length == 0) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
-
-	if (cmd->data_length < 8) {
-		pr_warn("UNMAP parameter list length %u too small\n",
-			cmd->data_length);
-		return TCM_PARAMETER_LIST_LENGTH_ERROR;
-	}
-
-	buf = transport_kmap_data_sg(cmd);
-	if (!buf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	dl = get_unaligned_be16(&buf[0]);
-	bd_dl = get_unaligned_be16(&buf[2]);
-
-	size = cmd->data_length - 8;
-	if (bd_dl > size)
-		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
-			cmd->data_length, bd_dl);
-	else
-		size = bd_dl;
-
-	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
-		ret = TCM_INVALID_PARAMETER_LIST;
-		goto err;
-	}
-
-	/* First UNMAP block descriptor starts at 8 byte offset */
-	ptr = &buf[8];
-	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
-		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
-
-	while (size >= 16) {
-		lba = get_unaligned_be64(&ptr[0]);
-		range = get_unaligned_be32(&ptr[8]);
-		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
-				 (unsigned long long)lba, range);
-
-		if (range > dev->dev_attrib.max_unmap_lba_count) {
-			ret = TCM_INVALID_PARAMETER_LIST;
-			goto err;
-		}
-
-		if (lba + range > dev->transport->get_blocks(dev) + 1) {
-			ret = TCM_ADDRESS_OUT_OF_RANGE;
-			goto err;
-		}
-
-		ret = fd_do_unmap(cmd, file, lba, range);
-		if (ret)
-			goto err;
-
-		ptr += 16;
-		size -= 16;
-	}
-
-err:
-	transport_kunmap_data_sg(cmd);
-	if (!ret)
-		target_complete_cmd(cmd, GOOD);
-	return ret;
+	return sbc_execute_unmap(cmd, fd_do_unmap, file);
 }
 
 static sense_reason_t
