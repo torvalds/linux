@@ -742,6 +742,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlyprintk=	[X86,SH,BLACKFIN]
 			earlyprintk=vga
+			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
@@ -758,6 +759,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			The VGA output is eventually overwritten by the real
 			console.
+
+			The xen output can only be used by Xen PV guests.
 
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
