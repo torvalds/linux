@@ -120,13 +120,14 @@ static u32 hsw_infoframe_enable(struct dip_infoframe *frame)
 	}
 }
 
-static u32 hsw_infoframe_data_reg(struct dip_infoframe *frame, enum pipe pipe)
+static u32 hsw_infoframe_data_reg(struct dip_infoframe *frame,
+				  enum transcoder cpu_transcoder)
 {
 	switch (frame->type) {
 	case DIP_TYPE_AVI:
-		return HSW_TVIDEO_DIP_AVI_DATA(pipe);
+		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder);
 	case DIP_TYPE_SPD:
-		return HSW_TVIDEO_DIP_SPD_DATA(pipe);
+		return HSW_TVIDEO_DIP_SPD_DATA(cpu_transcoder);
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
 		return 0;
@@ -293,8 +294,8 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
-	u32 data_reg = hsw_infoframe_data_reg(frame, intel_crtc->pipe);
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(intel_crtc->cpu_transcoder);
+	u32 data_reg = hsw_infoframe_data_reg(frame, intel_crtc->cpu_transcoder);
 	unsigned int i, len = DIP_HEADER_SIZE + frame->len;
 	u32 val = I915_READ(ctl_reg);
 
@@ -568,7 +569,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-	u32 reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 reg = HSW_TVIDEO_DIP_CTL(intel_crtc->cpu_transcoder);
 	u32 val = I915_READ(reg);
 
 	assert_hdmi_port_disabled(intel_hdmi);
