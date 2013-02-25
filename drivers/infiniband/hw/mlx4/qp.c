@@ -1747,7 +1747,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	int spc;
 	int i;
 	int err = 0;
-	u16 vlan;
+	u16 vlan = 0xffff;
 	bool is_eth;
 	bool is_vlan = false;
 	bool is_grh;
