@@ -480,25 +480,16 @@ fd_execute_write_same(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-fd_execute_write_same_unmap(struct se_cmd *cmd)
+fd_do_unmap(struct se_cmd *cmd, struct file *file, sector_t lba, sector_t nolb)
 {
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *fd_dev = FD_DEV(se_dev);
-	struct file *file = fd_dev->fd_file;
 	struct inode *inode = file->f_mapping->host;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	int ret;
-
-	if (!nolb) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
 
 	if (S_ISBLK(inode->i_mode)) {
 		/* The backend is block device, use discard */
 		struct block_device *bdev = inode->i_bdev;
 
-		ret = blkdev_issue_discard(bdev, cmd->t_task_lba,
+		ret = blkdev_issue_discard(bdev, lba,
 				nolb, GFP_KERNEL, 0);
 		if (ret < 0) {
 			pr_warn("FILEIO: blkdev_issue_discard() failed: %d\n",
@@ -507,7 +498,8 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 		}
 	} else {
 		/* The backend is normal file, use fallocate */
-		loff_t pos = cmd->t_task_lba * se_dev->dev_attrib.block_size;
+		struct se_device *se_dev = cmd->se_dev;
+		loff_t pos = lba * se_dev->dev_attrib.block_size;
 		unsigned int len = nolb * se_dev->dev_attrib.block_size;
 		int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
 
@@ -521,6 +513,28 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 		}
 	}
 
+	return 0;
+}
+
+static sense_reason_t
+fd_execute_write_same_unmap(struct se_cmd *cmd)
+{
+	struct se_device *se_dev = cmd->se_dev;
+	struct fd_dev *fd_dev = FD_DEV(se_dev);
+	struct file *file = fd_dev->fd_file;
+	sector_t lba = cmd->t_task_lba;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	int ret;
+
+	if (!nolb) {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+		return 0;
+	}
+
+	ret = fd_do_unmap(cmd, file, lba, nolb);
+	if (ret)
+		return ret;
+
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
@@ -531,13 +545,12 @@ fd_execute_unmap(struct se_cmd *cmd)
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct file *file = fd_dev->fd_file;
-	struct inode *inode = file->f_mapping->host;
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;
 	int size;
 	u32 range;
 	sense_reason_t ret = 0;
-	int dl, bd_dl, err;
+	int dl, bd_dl;
 
 	/* We never set ANC_SUP */
 	if (cmd->t_task_cdb[1])
@@ -594,34 +607,9 @@ fd_execute_unmap(struct se_cmd *cmd)
 			goto err;
 		}
 
-		if (S_ISBLK(inode->i_mode)) {
-			/* The backend is block device, use discard */
-			struct block_device *bdev = inode->i_bdev;
-
-			err = blkdev_issue_discard(bdev, lba, range, GFP_KERNEL, 0);
-			if (err < 0) {
-				pr_err("FILEIO: blkdev_issue_discard() failed: %d\n",
-						err);
-				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-				goto err;
-			}
-		} else {
-			/* The backend is normal file, use fallocate */
-			loff_t pos = lba * dev->dev_attrib.block_size;
-			unsigned int len = range * dev->dev_attrib.block_size;
-			int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
-
-			if (!file->f_op->fallocate) {
-				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-				goto err;
-			}
-			err = file->f_op->fallocate(file, mode, pos, len);
-			if (err < 0) {
-				pr_warn("FILEIO: fallocate() failed: %d\n", err);
-				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-				goto err;
-			}
-		}
+		ret = fd_do_unmap(cmd, file, lba, range);
+		if (ret)
+			goto err;
 
 		ptr += 16;
 		size -= 16;
