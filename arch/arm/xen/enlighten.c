@@ -59,14 +59,16 @@ static int map_foreign_page(unsigned long lpfn, unsigned long fgmfn,
 	};
 	xen_ulong_t idx = fgmfn;
 	xen_pfn_t gpfn = lpfn;
+	int err = 0;
 
 	set_xen_guest_handle(xatp.idxs, &idx);
 	set_xen_guest_handle(xatp.gpfns, &gpfn);
+	set_xen_guest_handle(xatp.errs, &err);
 
 	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
-	if (rc) {
-		pr_warn("Failed to map pfn to mfn rc:%d pfn:%lx mfn:%lx\n",
-			rc, lpfn, fgmfn);
+	if (rc || err) {
+		pr_warn("Failed to map pfn to mfn rc:%d:%d pfn:%lx mfn:%lx\n",
+			rc, err, lpfn, fgmfn);
 		return 1;
 	}
 	return 0;
