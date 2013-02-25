@@ -1668,7 +1668,7 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 static int s3c2410_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
-	struct s3c2410_udc *udc = to_s3c2410(g)
+	struct s3c2410_udc *udc = to_s3c2410(g);
 
 	dprintk(DEBUG_NORMAL, "%s() '%s'\n", __func__, driver->driver.name);
 
