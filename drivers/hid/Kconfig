@@ -99,7 +99,7 @@ config HID_A4TECH
 
 config HID_ACRUX
 	tristate "ACRUX game controller support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Say Y here if you want to enable support for ACRUX game controllers.
 
@@ -151,7 +151,7 @@ config HID_CHICONY
 
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
-	depends on USB_HID && SND
+	depends on HID && SND
 	select SND_RAWMIDI
 	---help---
 	Support for Prodikeys PC-MIDI Keyboard device support.
@@ -173,7 +173,7 @@ config HID_CYPRESS
 
 config HID_DRAGONRISE
 	tristate "DragonRise Inc. game controller"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Say Y here if you have DragonRise Inc. game controllers.
 	These might be branded as:
@@ -192,7 +192,7 @@ config DRAGONRISE_FF
 
 config HID_EMS_FF
 	tristate "EMS Production Inc. force feedback support"
-	depends on USB_HID
+	depends on HID
 	select INPUT_FF_MEMLESS
 	---help---
 	Say Y here if you want to enable force feedback support for devices by
@@ -215,7 +215,7 @@ config HID_EZKEY
 
 config HID_HOLTEK
 	tristate "Holtek HID devices"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Support for Holtek based devices:
 	  - Holtek On Line Grip based game controller
@@ -239,7 +239,7 @@ config HID_KEYTOUCH
 
 config HID_KYE
 	tristate "KYE/Genius devices"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Support for KYE/Genius devices not fully compliant with HID standard:
 	- Ergo Mouse
@@ -397,7 +397,7 @@ config HID_MONTEREY
 
 config HID_MULTITOUCH
 	tristate "HID Multitouch panels"
-	depends on USB_HID
+	depends on HID
 	---help---
 	  Generic support for HID multitouch panels.
 
@@ -458,7 +458,7 @@ config HID_ORTEK
 
 config HID_PANTHERLORD
 	tristate "Pantherlord/GreenAsia game controller"
-	depends on USB_HID
+	depends on HID
 	---help---
 	  Say Y here if you have a PantherLord/GreenAsia based game controller
 	  or adapter.
@@ -592,13 +592,13 @@ config HID_SONY
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Support for Steelseries SRW-S1 steering wheel
 
@@ -610,7 +610,7 @@ config HID_SUNPLUS
 
 config HID_GREENASIA
 	tristate "GreenAsia (Product ID 0x12) game controller support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	  Say Y here if you have a GreenAsia (Product ID 0x12) based game
 	  controller or adapter.
@@ -632,7 +632,7 @@ config HID_HYPERV_MOUSE
 
 config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	Support for SmartJoy PLUS PS2/USB adapter, Super Dual Box,
 	Super Joy Box 3 Pro, Super Dual Box Pro, and Super Joy Box 5 Pro.
@@ -673,7 +673,7 @@ config HID_THINGM
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
 	  a THRUSTMASTER Ferrari GT Rumble Wheel.
@@ -715,7 +715,7 @@ config HID_WIIMOTE_EXT
 
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"
-	depends on USB_HID
+	depends on HID
 	---help---
 	  Say Y here if you have a Zeroplus based game controller.
 
@@ -735,7 +735,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on USB_HID && GENERIC_HARDIRQS
+	depends on HID && GENERIC_HARDIRQS
 	select MFD_CORE
 	default n
 	-- help---

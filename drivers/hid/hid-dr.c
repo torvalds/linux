@@ -29,14 +29,12 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 
 #include "hid-ids.h"
 
 #ifdef CONFIG_DRAGONRISE_FF
-#include "usbhid/usbhid.h"
 
 struct drff_device {
 	struct hid_report *report;
@@ -68,7 +66,7 @@ static int drff_play(struct input_dev *dev, void *data,
 		drff->report->field[0]->value[1] = 0x00;
 		drff->report->field[0]->value[2] = weak;
 		drff->report->field[0]->value[4] = strong;
-		usbhid_submit_report(hid, drff->report, USB_DIR_OUT);
+		hid_hw_request(hid, drff->report, HID_REQ_SET_REPORT);
 
 		drff->report->field[0]->value[0] = 0xfa;
 		drff->report->field[0]->value[1] = 0xfe;
@@ -80,7 +78,7 @@ static int drff_play(struct input_dev *dev, void *data,
 	drff->report->field[0]->value[2] = 0x00;
 	drff->report->field[0]->value[4] = 0x00;
 	dbg_hid("running with 0x%02x 0x%02x", strong, weak);
-	usbhid_submit_report(hid, drff->report, USB_DIR_OUT);
+	hid_hw_request(hid, drff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -132,7 +130,7 @@ static int drff_init(struct hid_device *hid)
 	drff->report->field[0]->value[4] = 0x00;
 	drff->report->field[0]->value[5] = 0x00;
 	drff->report->field[0]->value[6] = 0x00;
-	usbhid_submit_report(hid, drff->report, USB_DIR_OUT);
+	hid_hw_request(hid, drff->report, HID_REQ_SET_REPORT);
 
 	hid_info(hid, "Force Feedback for DragonRise Inc. "
 		 "game controllers by Richard Walmsley <richwalm@gmail.com>\n");

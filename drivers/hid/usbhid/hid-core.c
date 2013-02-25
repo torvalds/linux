@@ -639,7 +639,7 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	}
 }
 
-void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
+static void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 	unsigned long flags;
@@ -648,7 +648,6 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 	__usbhid_submit_report(hid, report, dir);
 	spin_unlock_irqrestore(&usbhid->lock, flags);
 }
-EXPORT_SYMBOL_GPL(usbhid_submit_report);
 
 /* Workqueue routine to send requests to change LEDs */
 static void hid_led(struct work_struct *work)

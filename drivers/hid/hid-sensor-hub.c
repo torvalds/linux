@@ -18,7 +18,6 @@
  */
 #include <linux/device.h>
 #include <linux/hid.h>
-#include <linux/usb.h>
 #include "usbhid/usbhid.h"
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -204,7 +203,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 	hid_set_field(report->field[field_index], 0, value);
-	usbhid_submit_report(hsdev->hdev, report, USB_DIR_OUT);
+	hid_hw_request(hsdev->hdev, report, HID_REQ_SET_REPORT);
 	usbhid_wait_io(hsdev->hdev);
 
 done_proc:
@@ -227,7 +226,7 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		ret = -EINVAL;
 		goto done_proc;
 	}
-	usbhid_submit_report(hsdev->hdev, report, USB_DIR_IN);
+	hid_hw_request(hsdev->hdev, report, HID_REQ_GET_REPORT);
 	usbhid_wait_io(hsdev->hdev);
 	*value = report->field[field_index]->value[0];
 
@@ -262,7 +261,7 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 		spin_unlock_irqrestore(&data->lock, flags);
 		goto err_free;
 	}
-	usbhid_submit_report(hsdev->hdev, report, USB_DIR_IN);
+	hid_hw_request(hsdev->hdev, report, HID_REQ_GET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	wait_for_completion_interruptible_timeout(&data->pending.ready, HZ*5);
 	switch (data->pending.raw_size) {
