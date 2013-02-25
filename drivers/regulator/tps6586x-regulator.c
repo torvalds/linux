@@ -304,13 +304,11 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	}
 
 	err = of_regulator_match(&pdev->dev, regs, tps6586x_matches, num);
+	of_node_put(regs);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Regulator match failed, e %d\n", err);
-		of_node_put(regs);
 		return NULL;
 	}
-
-	of_node_put(regs);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
