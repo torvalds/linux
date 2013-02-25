@@ -21,6 +21,14 @@ config MFD_88PM860X
 	  select individual components like voltage regulators, RTC and
 	  battery-charger under the corresponding menus.
 
+config MFD_CROS_EC
+	tristate "Support ChromeOS Embedded Controller"
+	help
+	  If you say Y here you get support for the ChromeOS Embedded
+	  Controller (EC) providing keyboard, battery and power services.
+	  You also ned to enable the driver for the bus you are using. The
+	  protocol for talking to the EC is defined by the bus driver.
+
 config MFD_88PM800
 	tristate "Support Marvell 88PM800"
 	depends on I2C=y && GENERIC_HARDIRQS
