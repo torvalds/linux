@@ -33,7 +33,27 @@
 # this program.
 
 config SCSI_UFSHCD
-	tristate "Universal Flash Storage host controller driver"
-	depends on PCI && SCSI
+	tristate "Universal Flash Storage Controller Driver Core"
+	depends on SCSI
 	---help---
-	This is a generic driver which supports PCIe UFS Host controllers.
+	This selects the support for UFS devices in Linux, say Y and make
+	  sure that you know the name of your UFS host adapter (the card
+	  inside your computer that "speaks" the UFS protocol, also
+	  called UFS Host Controller), because you will be asked for it.
+	  The module will be called ufshcd.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/scsi/ufs.txt>.
+	  However, do not compile this as a module if your root file system
+	  (the one containing the directory /) is located on a UFS device.
+
+config SCSI_UFSHCD_PCI
+	tristate "PCI bus based UFS Controller support"
+	depends on SCSI_UFSHCD && PCI
+	---help---
+	This selects the PCI UFS Host Controller Interface. Select this if
+	you have UFS Host Controller with PCI Interface.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.

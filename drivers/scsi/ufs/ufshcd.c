@@ -1,5 +1,5 @@
 /*
- * Universal Flash Storage Host controller driver
+ * Universal Flash Storage Host controller driver Core
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
@@ -33,35 +33,7 @@
  * this program.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/workqueue.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/wait.h>
-#include <linux/bitops.h>
-
-#include <asm/irq.h>
-#include <asm/byteorder.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_eh.h>
-
-#include "ufs.h"
-#include "ufshci.h"
-
-#define UFSHCD "ufshcd"
-#define UFSHCD_DRIVER_VERSION "0.1"
+#include "ufshcd.h"
 
 enum {
 	UFSHCD_MAX_CHANNEL	= 0,
@@ -89,124 +61,6 @@ enum {
 enum {
 	INT_AGGR_RESET,
 	INT_AGGR_CONFIG,
-};
-
-/**
- * struct uic_command - UIC command structure
- * @command: UIC command
- * @argument1: UIC command argument 1
- * @argument2: UIC command argument 2
- * @argument3: UIC command argument 3
- * @cmd_active: Indicate if UIC command is outstanding
- * @result: UIC command result
- */
-struct uic_command {
-	u32 command;
-	u32 argument1;
-	u32 argument2;
-	u32 argument3;
-	int cmd_active;
-	int result;
-};
-
-/**
- * struct ufs_hba - per adapter private structure
- * @mmio_base: UFSHCI base register address
- * @ucdl_base_addr: UFS Command Descriptor base address
- * @utrdl_base_addr: UTP Transfer Request Descriptor base address
- * @utmrdl_base_addr: UTP Task Management Descriptor base address
- * @ucdl_dma_addr: UFS Command Descriptor DMA address
- * @utrdl_dma_addr: UTRDL DMA address
- * @utmrdl_dma_addr: UTMRDL DMA address
- * @host: Scsi_Host instance of the driver
- * @dev: device handle
- * @lrb: local reference block
- * @outstanding_tasks: Bits representing outstanding task requests
- * @outstanding_reqs: Bits representing outstanding transfer requests
- * @capabilities: UFS Controller Capabilities
- * @nutrs: Transfer Request Queue depth supported by controller
- * @nutmrs: Task Management Queue depth supported by controller
- * @ufs_version: UFS Version to which controller complies
- * @irq: Irq number of the controller
- * @active_uic_cmd: handle of active UIC command
- * @ufshcd_tm_wait_queue: wait queue for task management
- * @tm_condition: condition variable for task management
- * @ufshcd_state: UFSHCD states
- * @int_enable_mask: Interrupt Mask Bits
- * @uic_workq: Work queue for UIC completion handling
- * @feh_workq: Work queue for fatal controller error handling
- * @errors: HBA errors
- */
-struct ufs_hba {
-	void __iomem *mmio_base;
-
-	/* Virtual memory reference */
-	struct utp_transfer_cmd_desc *ucdl_base_addr;
-	struct utp_transfer_req_desc *utrdl_base_addr;
-	struct utp_task_req_desc *utmrdl_base_addr;
-
-	/* DMA memory reference */
-	dma_addr_t ucdl_dma_addr;
-	dma_addr_t utrdl_dma_addr;
-	dma_addr_t utmrdl_dma_addr;
-
-	struct Scsi_Host *host;
-	struct device *dev;
-
-	struct ufshcd_lrb *lrb;
-
-	unsigned long outstanding_tasks;
-	unsigned long outstanding_reqs;
-
-	u32 capabilities;
-	int nutrs;
-	int nutmrs;
-	u32 ufs_version;
-	unsigned int irq;
-
-	struct uic_command active_uic_cmd;
-	wait_queue_head_t ufshcd_tm_wait_queue;
-	unsigned long tm_condition;
-
-	u32 ufshcd_state;
-	u32 int_enable_mask;
-
-	/* Work Queues */
-	struct work_struct uic_workq;
-	struct work_struct feh_workq;
-
-	/* HBA Errors */
-	u32 errors;
-};
-
-/**
- * struct ufshcd_lrb - local reference block
- * @utr_descriptor_ptr: UTRD address of the command
- * @ucd_cmd_ptr: UCD address of the command
- * @ucd_rsp_ptr: Response UPIU address for this command
- * @ucd_prdt_ptr: PRDT address of the command
- * @cmd: pointer to SCSI command
- * @sense_buffer: pointer to sense buffer address of the SCSI command
- * @sense_bufflen: Length of the sense buffer
- * @scsi_status: SCSI status of the command
- * @command_type: SCSI, UFS, Query.
- * @task_tag: Task tag of the command
- * @lun: LUN of the command
- */
-struct ufshcd_lrb {
-	struct utp_transfer_req_desc *utr_descriptor_ptr;
-	struct utp_upiu_cmd *ucd_cmd_ptr;
-	struct utp_upiu_rsp *ucd_rsp_ptr;
-	struct ufshcd_sg_entry *ucd_prdt_ptr;
-
-	struct scsi_cmnd *cmd;
-	u8 *sense_buffer;
-	unsigned int sense_bufflen;
-	int scsi_status;
-
-	int command_type;
-	int task_tag;
-	unsigned int lun;
 };
 
 /**
@@ -419,15 +273,6 @@ static void ufshcd_enable_run_stop_reg(struct ufs_hba *hba)
 	writel(UTP_TRANSFER_REQ_LIST_RUN_STOP_BIT,
 	       (hba->mmio_base +
 		REG_UTP_TRANSFER_REQ_LIST_RUN_STOP));
-}
-
-/**
- * ufshcd_hba_stop - Send controller to reset state
- * @hba: per adapter instance
- */
-static inline void ufshcd_hba_stop(struct ufs_hba *hba)
-{
-	writel(CONTROLLER_DISABLE, (hba->mmio_base + REG_CONTROLLER_ENABLE));
 }
 
 /**
@@ -1681,15 +1526,6 @@ static struct scsi_host_template ufshcd_driver_template = {
 };
 
 /**
- * ufshcd_pci_shutdown - main function to put the controller in reset state
- * @pdev: pointer to PCI device handle
- */
-static void ufshcd_pci_shutdown(struct pci_dev *pdev)
-{
-	ufshcd_hba_stop((struct ufs_hba *)pci_get_drvdata(pdev));
-}
-
-/**
  * ufshcd_suspend - suspend power management function
  * @hba: per adapter instance
  * @state: power state
@@ -1732,43 +1568,6 @@ int ufshcd_resume(struct ufs_hba *hba)
 }
 EXPORT_SYMBOL_GPL(ufshcd_resume);
 
-#ifdef CONFIG_PM
-/**
- * ufshcd_pci_suspend - suspend power management function
- * @pdev: pointer to PCI device handle
- * @state: power state
- *
- * Returns -ENOSYS
- */
-static int ufshcd_pci_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	/*
-	 * TODO:
-	 * 1. Call ufshcd_suspend
-	 * 2. Do bus specific power management
-	 */
-
-	return -ENOSYS;
-}
-
-/**
- * ufshcd_pci_resume - resume power management function
- * @pdev: pointer to PCI device handle
- *
- * Returns -ENOSYS
- */
-static int ufshcd_pci_resume(struct pci_dev *pdev)
-{
-	/*
-	 * TODO:
-	 * 1. Call ufshcd_resume
-	 * 2. Do bus specific wake up
-	 */
-
-	return -ENOSYS;
-}
-#endif /* CONFIG_PM */
-
 /**
  * ufshcd_hba_free - free allocated memory for
  *			host memory space data structures
@@ -1797,44 +1596,6 @@ void ufshcd_remove(struct ufs_hba *hba)
 	scsi_host_put(hba->host);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
-
-/**
- * ufshcd_pci_remove - de-allocate PCI/SCSI host and host memory space
- *		data structure memory
- * @pdev - pointer to PCI handle
- */
-static void ufshcd_pci_remove(struct pci_dev *pdev)
-{
-	struct ufs_hba *hba = pci_get_drvdata(pdev);
-
-	disable_irq(pdev->irq);
-	free_irq(pdev->irq, hba);
-	ufshcd_remove(hba);
-	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
-}
-
-/**
- * ufshcd_set_dma_mask - Set dma mask based on the controller
- *			 addressing capability
- * @pdev: PCI device structure
- *
- * Returns 0 for success, non-zero for failure
- */
-static int ufshcd_set_dma_mask(struct pci_dev *pdev)
-{
-	int err;
-
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-		&& !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-		return 0;
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	return err;
-}
 
 /**
  * ufshcd_init - Driver initialization routine
@@ -1952,90 +1713,8 @@ out_error:
 }
 EXPORT_SYMBOL_GPL(ufshcd_init);
 
-/**
- * ufshcd_pci_probe - probe routine of the driver
- * @pdev: pointer to PCI device handle
- * @id: PCI device id
- *
- * Returns 0 on success, non-zero value on failure
- */
-static int ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	struct ufs_hba *hba;
-	void __iomem *mmio_base;
-	int err;
-
-	err = pci_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_device failed\n");
-		goto out_error;
-	}
-
-	pci_set_master(pdev);
-
-	err = pci_request_regions(pdev, UFSHCD);
-	if (err < 0) {
-		dev_err(&pdev->dev, "request regions failed\n");
-		goto out_disable;
-	}
-
-	mmio_base = pci_ioremap_bar(pdev, 0);
-	if (!mmio_base) {
-		dev_err(&pdev->dev, "memory map failed\n");
-		err = -ENOMEM;
-		goto out_release_regions;
-	}
-
-	err = ufshcd_set_dma_mask(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "set dma mask failed\n");
-		goto out_iounmap;
-	}
-
-	err = ufshcd_init(&pdev->dev, &hba, mmio_base, pdev->irq);
-	if (err) {
-		dev_err(&pdev->dev, "Initialization failed\n");
-		goto out_iounmap;
-	}
-
-	pci_set_drvdata(pdev, hba);
-
-	return 0;
-
-out_iounmap:
-	iounmap(mmio_base);
-out_release_regions:
-	pci_release_regions(pdev);
-out_disable:
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
-out_error:
-	return err;
-}
-
-static DEFINE_PCI_DEVICE_TABLE(ufshcd_pci_tbl) = {
-	{ PCI_VENDOR_ID_SAMSUNG, 0xC00C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ }	/* terminate list */
-};
-
-MODULE_DEVICE_TABLE(pci, ufshcd_pci_tbl);
-
-static struct pci_driver ufshcd_pci_driver = {
-	.name = UFSHCD,
-	.id_table = ufshcd_pci_tbl,
-	.probe = ufshcd_pci_probe,
-	.remove = ufshcd_pci_remove,
-	.shutdown = ufshcd_pci_shutdown,
-#ifdef CONFIG_PM
-	.suspend = ufshcd_pci_suspend,
-	.resume = ufshcd_pci_resume,
-#endif
-};
-
-module_pci_driver(ufshcd_pci_driver);
-
 MODULE_AUTHOR("Santosh Yaragnavi <santosh.sy@samsung.com>");
 MODULE_AUTHOR("Vinayak Holikatti <h.vinayak@samsung.com>");
-MODULE_DESCRIPTION("Generic UFS host controller driver");
+MODULE_DESCRIPTION("Generic UFS host controller driver Core");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(UFSHCD_DRIVER_VERSION);
