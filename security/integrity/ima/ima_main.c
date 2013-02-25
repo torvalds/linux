@@ -284,7 +284,8 @@ int ima_module_check(struct file *file)
 {
 	if (!file) {
 #ifndef CONFIG_MODULE_SIG_FORCE
-		if (ima_appraise & IMA_APPRAISE_MODULES)
+		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
+		    (ima_appraise & IMA_APPRAISE_ENFORCE))
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
 #endif
 		return 0;	/* We rely on module signature checking */
