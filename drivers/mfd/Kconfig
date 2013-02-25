@@ -29,6 +29,16 @@ config MFD_CROS_EC
 	  You also ned to enable the driver for the bus you are using. The
 	  protocol for talking to the EC is defined by the bus driver.
 
+config MFD_CROS_EC_I2C
+	tristate "ChromeOS Embedded Controller (I2C)"
+	depends on MFD_CROS_EC && I2C
+
+	help
+	  If you say Y here, you get support for talking to the ChromeOS
+	  EC through an I2C bus. This uses a simple byte-level protocol with
+	  a checksum. Failing accesses will be retried three times to
+	  improve reliability.
+
 config MFD_88PM800
 	tristate "Support Marvell 88PM800"
 	depends on I2C=y && GENERIC_HARDIRQS
