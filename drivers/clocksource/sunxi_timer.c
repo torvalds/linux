@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sunxi_timer.h>
-#include <linux/clk-provider.h>
+#include <linux/clk/sunxi.h>
 
 #define TIMER_CTL_REG		0x00
 #define TIMER_CTL_ENABLE		(1 << 0)
@@ -123,7 +123,7 @@ void __init sunxi_timer_init(void)
 	if (irq <= 0)
 		panic("Can't parse IRQ");
 
-	of_clk_init(NULL);
+	sunxi_init_clocks();
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk))
