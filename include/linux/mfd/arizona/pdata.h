@@ -56,6 +56,8 @@
 #define ARIZONA_DMIC_MICBIAS2 2
 #define ARIZONA_DMIC_MICBIAS3 3
 
+#define ARIZONA_MAX_MICBIAS 3
+
 #define ARIZONA_INMODE_DIFF 0
 #define ARIZONA_INMODE_SE   1
 #define ARIZONA_INMODE_DMIC 2
@@ -70,6 +72,13 @@
 #define ARIZONA_MAX_PDM_SPK 2
 
 struct regulator_init_data;
+
+struct arizona_micbias {
+	int mV;                    /** Regulated voltage */
+	unsigned int ext_cap:1;    /** External capacitor fitted */
+	unsigned int discharge:1;  /** Actively discharge */
+	unsigned int fast_start:1; /** Enable aggressive startup ramp rate */
+};
 
 struct arizona_micd_config {
 	unsigned int src;
@@ -135,6 +144,9 @@ struct arizona_pdata {
 
 	/** Reference voltage for DMIC inputs */
 	int dmic_ref[ARIZONA_MAX_INPUT];
+
+	/** MICBIAS configurations */
+	struct arizona_micbias micbias[ARIZONA_MAX_MICBIAS];
 
 	/** Mode of input structures */
 	int inmode[ARIZONA_MAX_INPUT];
