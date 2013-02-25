@@ -3054,6 +3054,11 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			dev->wait_after_write = 0;
 			dev->eeprom_addrwidth_16bit = 1;
 			break;
+		case CHIP_ID_EM28178:
+			chip_name = "em28178";
+			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
+			break;
 		case CHIP_ID_EM2883:
 			chip_name = "em2882/3";
 			dev->wait_after_write = 0;

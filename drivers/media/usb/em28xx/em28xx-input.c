@@ -442,6 +442,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 	case CHIP_ID_EM2884:
 	case CHIP_ID_EM2874:
 	case CHIP_ID_EM28174:
+	case CHIP_ID_EM28178:
 		return em2874_ir_change_protocol(rc_dev, rc_type);
 	default:
 		printk("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
@@ -734,6 +735,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM2884:
 		case CHIP_ID_EM2874:
 		case CHIP_ID_EM28174:
+		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
 			rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC |
 					     RC_BIT_RC6_0;
