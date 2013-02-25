@@ -26,6 +26,28 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
+enum sta2x11_mfd_plat_dev {
+	sta2x11_sctl = 0,
+	sta2x11_gpio,
+	sta2x11_scr,
+	sta2x11_time,
+	sta2x11_apbreg,
+	sta2x11_apb_soc_regs,
+	sta2x11_vic,
+	sta2x11_n_mfd_plat_devs,
+};
+
+#define STA2X11_MFD_SCTL_NAME	       "sta2x11-sctl"
+#define STA2X11_MFD_GPIO_NAME	       "sta2x11-gpio"
+#define STA2X11_MFD_SCR_NAME	       "sta2x11-scr"
+#define STA2X11_MFD_TIME_NAME	       "sta2x11-time"
+#define STA2X11_MFD_APBREG_NAME	       "sta2x11-apbreg"
+#define STA2X11_MFD_APB_SOC_REGS_NAME  "sta2x11-apb-soc-regs"
+#define STA2X11_MFD_VIC_NAME	       "sta2x11-vic"
+
+extern u32
+__sta2x11_mfd_mask(struct pci_dev *, u32, u32, u32, enum sta2x11_mfd_plat_dev);
+
 /*
  * The MFD PCI block includes the GPIO peripherals and other register blocks.
  * For GPIO, we have 32*4 bits (I use "gsta" for "gpio sta2x11".)
@@ -182,7 +204,11 @@ struct sta2x11_gpio_pdata {
  * The APB bridge has its own registers, needed by our users as well.
  * They are accessed with the following read/mask/write function.
  */
-u32 sta2x11_apbreg_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val);
+static inline u32
+sta2x11_apbreg_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
+{
+	return __sta2x11_mfd_mask(pdev, reg, mask, val, sta2x11_apbreg);
+}
 
 /* CAN and MLB */
 #define APBREG_BSR	0x00	/* Bridge Status Reg */
@@ -211,19 +237,45 @@ u32 sta2x11_apbreg_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val);
  * The system controller has its own registers. Some of these are accessed
  * by out users as well, using the following read/mask/write/function
  */
-u32 sta2x11_sctl_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val);
+static inline
+u32 sta2x11_sctl_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
+{
+	return __sta2x11_mfd_mask(pdev, reg, mask, val, sta2x11_sctl);
+}
 
 #define SCTL_SCCTL		0x00	/* System controller control register */
 #define SCTL_ARMCFG		0x04	/* ARM configuration register */
 #define SCTL_SCPLLCTL		0x08	/* PLL control status register */
+
+#define SCTL_SCPLLCTL_AUDIO_PLL_PD	     BIT(1)
+#define SCTL_SCPLLCTL_FRAC_CONTROL	     BIT(3)
+#define SCTL_SCPLLCTL_STRB_BYPASS	     BIT(6)
+#define SCTL_SCPLLCTL_STRB_INPUT	     BIT(8)
+
 #define SCTL_SCPLLFCTRL		0x0c	/* PLL frequency control register */
+
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_NDIV_MASK	0xff
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_NDIV_SHIFT	  10
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_IDF_MASK	   7
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_IDF_SHIFT	  21
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_ODF_MASK	   7
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_ODF_SHIFT	  18
+#define SCTL_SCPLLFCTRL_DITHER_DISABLE_MASK     0x03
+#define SCTL_SCPLLFCTRL_DITHER_DISABLE_SHIFT       4
+
+
 #define SCTL_SCRESFRACT		0x10	/* PLL fractional input register */
+
+#define SCTL_SCRESFRACT_MASK	0x0000ffff
+
+
 #define SCTL_SCRESCTRL1		0x14	/* Peripheral reset control 1 */
 #define SCTL_SCRESXTRL2		0x18	/* Peripheral reset control 2 */
 #define SCTL_SCPEREN0		0x1c	/* Peripheral clock enable register 0 */
 #define SCTL_SCPEREN1		0x20	/* Peripheral clock enable register 1 */
 #define SCTL_SCPEREN2		0x24	/* Peripheral clock enable register 2 */
 #define SCTL_SCGRST		0x28	/* Peripheral global reset */
+#define SCTL_SCPCIECSBRST       0x2c    /* PCIe PAB CSB reset status register */
 #define SCTL_SCPCIPMCR1		0x30	/* PCI power management control 1 */
 #define SCTL_SCPCIPMCR2		0x34	/* PCI power management control 2 */
 #define SCTL_SCPCIPMSR1		0x38	/* PCI power management status 1 */
@@ -320,5 +372,147 @@ u32 sta2x11_sctl_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val);
 #define SCTL_SCPEREN1_I2C2		(1 << 15)
 #define SCTL_SCPEREN1_I2C3		(1 << 16)
 #define SCTL_SCPEREN1_USB_PHY		(1 << 17)
+
+/*
+ * APB-SOC registers
+ */
+static inline
+u32 sta2x11_apb_soc_regs_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
+{
+	return __sta2x11_mfd_mask(pdev, reg, mask, val, sta2x11_apb_soc_regs);
+}
+
+#define PCIE_EP1_FUNC3_0_INTR_REG	0x000
+#define PCIE_EP1_FUNC7_4_INTR_REG	0x004
+#define PCIE_EP2_FUNC3_0_INTR_REG	0x008
+#define PCIE_EP2_FUNC7_4_INTR_REG	0x00c
+#define PCIE_EP3_FUNC3_0_INTR_REG	0x010
+#define PCIE_EP3_FUNC7_4_INTR_REG	0x014
+#define PCIE_EP4_FUNC3_0_INTR_REG	0x018
+#define PCIE_EP4_FUNC7_4_INTR_REG	0x01c
+#define PCIE_INTR_ENABLE0_REG		0x020
+#define PCIE_INTR_ENABLE1_REG		0x024
+#define PCIE_EP1_FUNC_TC_REG		0x028
+#define PCIE_EP2_FUNC_TC_REG		0x02c
+#define PCIE_EP3_FUNC_TC_REG		0x030
+#define PCIE_EP4_FUNC_TC_REG		0x034
+#define PCIE_EP1_FUNC_F_REG		0x038
+#define PCIE_EP2_FUNC_F_REG		0x03c
+#define PCIE_EP3_FUNC_F_REG		0x040
+#define PCIE_EP4_FUNC_F_REG		0x044
+#define PCIE_PAB_AMBA_SW_RST_REG	0x048
+#define PCIE_PM_STATUS_0_PORT_0_4	0x04c
+#define PCIE_PM_STATUS_7_0_EP1		0x050
+#define PCIE_PM_STATUS_7_0_EP2		0x054
+#define PCIE_PM_STATUS_7_0_EP3		0x058
+#define PCIE_PM_STATUS_7_0_EP4		0x05c
+#define PCIE_DEV_ID_0_EP1_REG		0x060
+#define PCIE_CC_REV_ID_0_EP1_REG	0x064
+#define PCIE_DEV_ID_1_EP1_REG		0x068
+#define PCIE_CC_REV_ID_1_EP1_REG	0x06c
+#define PCIE_DEV_ID_2_EP1_REG		0x070
+#define PCIE_CC_REV_ID_2_EP1_REG	0x074
+#define PCIE_DEV_ID_3_EP1_REG		0x078
+#define PCIE_CC_REV_ID_3_EP1_REG	0x07c
+#define PCIE_DEV_ID_4_EP1_REG		0x080
+#define PCIE_CC_REV_ID_4_EP1_REG	0x084
+#define PCIE_DEV_ID_5_EP1_REG		0x088
+#define PCIE_CC_REV_ID_5_EP1_REG	0x08c
+#define PCIE_DEV_ID_6_EP1_REG		0x090
+#define PCIE_CC_REV_ID_6_EP1_REG	0x094
+#define PCIE_DEV_ID_7_EP1_REG		0x098
+#define PCIE_CC_REV_ID_7_EP1_REG	0x09c
+#define PCIE_DEV_ID_0_EP2_REG		0x0a0
+#define PCIE_CC_REV_ID_0_EP2_REG	0x0a4
+#define PCIE_DEV_ID_1_EP2_REG		0x0a8
+#define PCIE_CC_REV_ID_1_EP2_REG	0x0ac
+#define PCIE_DEV_ID_2_EP2_REG		0x0b0
+#define PCIE_CC_REV_ID_2_EP2_REG	0x0b4
+#define PCIE_DEV_ID_3_EP2_REG		0x0b8
+#define PCIE_CC_REV_ID_3_EP2_REG	0x0bc
+#define PCIE_DEV_ID_4_EP2_REG		0x0c0
+#define PCIE_CC_REV_ID_4_EP2_REG	0x0c4
+#define PCIE_DEV_ID_5_EP2_REG		0x0c8
+#define PCIE_CC_REV_ID_5_EP2_REG	0x0cc
+#define PCIE_DEV_ID_6_EP2_REG		0x0d0
+#define PCIE_CC_REV_ID_6_EP2_REG	0x0d4
+#define PCIE_DEV_ID_7_EP2_REG		0x0d8
+#define PCIE_CC_REV_ID_7_EP2_REG	0x0dC
+#define PCIE_DEV_ID_0_EP3_REG		0x0e0
+#define PCIE_CC_REV_ID_0_EP3_REG	0x0e4
+#define PCIE_DEV_ID_1_EP3_REG		0x0e8
+#define PCIE_CC_REV_ID_1_EP3_REG	0x0ec
+#define PCIE_DEV_ID_2_EP3_REG		0x0f0
+#define PCIE_CC_REV_ID_2_EP3_REG	0x0f4
+#define PCIE_DEV_ID_3_EP3_REG		0x0f8
+#define PCIE_CC_REV_ID_3_EP3_REG	0x0fc
+#define PCIE_DEV_ID_4_EP3_REG		0x100
+#define PCIE_CC_REV_ID_4_EP3_REG	0x104
+#define PCIE_DEV_ID_5_EP3_REG		0x108
+#define PCIE_CC_REV_ID_5_EP3_REG	0x10c
+#define PCIE_DEV_ID_6_EP3_REG		0x110
+#define PCIE_CC_REV_ID_6_EP3_REG	0x114
+#define PCIE_DEV_ID_7_EP3_REG		0x118
+#define PCIE_CC_REV_ID_7_EP3_REG	0x11c
+#define PCIE_DEV_ID_0_EP4_REG		0x120
+#define PCIE_CC_REV_ID_0_EP4_REG	0x124
+#define PCIE_DEV_ID_1_EP4_REG		0x128
+#define PCIE_CC_REV_ID_1_EP4_REG	0x12c
+#define PCIE_DEV_ID_2_EP4_REG		0x130
+#define PCIE_CC_REV_ID_2_EP4_REG	0x134
+#define PCIE_DEV_ID_3_EP4_REG		0x138
+#define PCIE_CC_REV_ID_3_EP4_REG	0x13c
+#define PCIE_DEV_ID_4_EP4_REG		0x140
+#define PCIE_CC_REV_ID_4_EP4_REG	0x144
+#define PCIE_DEV_ID_5_EP4_REG		0x148
+#define PCIE_CC_REV_ID_5_EP4_REG	0x14c
+#define PCIE_DEV_ID_6_EP4_REG		0x150
+#define PCIE_CC_REV_ID_6_EP4_REG	0x154
+#define PCIE_DEV_ID_7_EP4_REG		0x158
+#define PCIE_CC_REV_ID_7_EP4_REG	0x15c
+#define PCIE_SUBSYS_VEN_ID_REG		0x160
+#define PCIE_COMMON_CLOCK_CONFIG_0_4_0	0x164
+#define PCIE_MIPHYP_SSC_EN_REG		0x168
+#define PCIE_MIPHYP_ADDR_REG		0x16c
+#define PCIE_L1_ASPM_READY_REG		0x170
+#define PCIE_EXT_CFG_RDY_REG		0x174
+#define PCIE_SoC_INT_ROUTER_STATUS0_REG 0x178
+#define PCIE_SoC_INT_ROUTER_STATUS1_REG 0x17c
+#define PCIE_SoC_INT_ROUTER_STATUS2_REG 0x180
+#define PCIE_SoC_INT_ROUTER_STATUS3_REG 0x184
+#define DMA_IP_CTRL_REG			0x324
+#define DISP_BRIDGE_PU_PD_CTRL_REG	0x328
+#define VIP_PU_PD_CTRL_REG		0x32c
+#define USB_MLB_PU_PD_CTRL_REG		0x330
+#define SDIO_PU_PD_MISCFUNC_CTRL_REG1	0x334
+#define SDIO_PU_PD_MISCFUNC_CTRL_REG2	0x338
+#define UART_PU_PD_CTRL_REG		0x33c
+#define ARM_Lock			0x340
+#define SYS_IO_CHAR_REG1		0x344
+#define SYS_IO_CHAR_REG2		0x348
+#define SATA_CORE_ID_REG		0x34c
+#define SATA_CTRL_REG			0x350
+#define I2C_HSFIX_MISC_REG		0x354
+#define SPARE2_RESERVED			0x358
+#define SPARE3_RESERVED			0x35c
+#define MASTER_LOCK_REG			0x368
+#define SYSTEM_CONFIG_STATUS_REG	0x36c
+#define MSP_CLK_CTRL_REG		0x39c
+#define COMPENSATION_REG1		0x3c4
+#define COMPENSATION_REG2		0x3c8
+#define COMPENSATION_REG3		0x3cc
+#define TEST_CTL_REG			0x3d0
+
+/*
+ * SECR (OTP) registers
+ */
+#define STA2X11_SECR_CR			0x00
+#define STA2X11_SECR_FVR0		0x10
+#define STA2X11_SECR_FVR1		0x14
+
+extern int sta2x11_mfd_get_regs_data(struct platform_device *pdev,
+				     enum sta2x11_mfd_plat_dev index,
+				     void __iomem **regs,
+				     spinlock_t **lock);
 
 #endif /* __STA2X11_MFD_H */

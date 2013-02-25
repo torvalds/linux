@@ -30,70 +30,108 @@
 
 #include <linux/dma-buf.h>
 
-static struct sg_table *exynos_pages_to_sg(struct page **pages, int nr_pages,
-		unsigned int page_size)
+struct exynos_drm_dmabuf_attachment {
+	struct sg_table sgt;
+	enum dma_data_direction dir;
+};
+
+static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
+					struct device *dev,
+					struct dma_buf_attachment *attach)
 {
-	struct sg_table *sgt = NULL;
-	struct scatterlist *sgl;
-	int i, ret;
+	struct exynos_drm_dmabuf_attachment *exynos_attach;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt)
-		goto out;
+	exynos_attach = kzalloc(sizeof(*exynos_attach), GFP_KERNEL);
+	if (!exynos_attach)
+		return -ENOMEM;
 
-	ret = sg_alloc_table(sgt, nr_pages, GFP_KERNEL);
-	if (ret)
-		goto err_free_sgt;
+	exynos_attach->dir = DMA_NONE;
+	attach->priv = exynos_attach;
 
-	if (page_size < PAGE_SIZE)
-		page_size = PAGE_SIZE;
+	return 0;
+}
 
-	for_each_sg(sgt->sgl, sgl, nr_pages, i)
-		sg_set_page(sgl, pages[i], page_size, 0);
+static void exynos_gem_detach_dma_buf(struct dma_buf *dmabuf,
+					struct dma_buf_attachment *attach)
+{
+	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
+	struct sg_table *sgt;
 
-	return sgt;
+	if (!exynos_attach)
+		return;
 
-err_free_sgt:
-	kfree(sgt);
-	sgt = NULL;
-out:
-	return NULL;
+	sgt = &exynos_attach->sgt;
+
+	if (exynos_attach->dir != DMA_NONE)
+		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+				exynos_attach->dir);
+
+	sg_free_table(sgt);
+	kfree(exynos_attach);
+	attach->priv = NULL;
 }
 
 static struct sg_table *
 		exynos_gem_map_dma_buf(struct dma_buf_attachment *attach,
 					enum dma_data_direction dir)
 {
+	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
 	struct exynos_drm_gem_obj *gem_obj = attach->dmabuf->priv;
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
+	struct scatterlist *rd, *wr;
 	struct sg_table *sgt = NULL;
-	unsigned int npages;
-	int nents;
+	unsigned int i;
+	int nents, ret;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
 
-	mutex_lock(&dev->struct_mutex);
+	if (WARN_ON(dir == DMA_NONE))
+		return ERR_PTR(-EINVAL);
+
+	/* just return current sgt if already requested. */
+	if (exynos_attach->dir == dir)
+		return &exynos_attach->sgt;
+
+	/* reattaching is not allowed. */
+	if (WARN_ON(exynos_attach->dir != DMA_NONE))
+		return ERR_PTR(-EBUSY);
 
 	buf = gem_obj->buffer;
+	if (!buf) {
+		DRM_ERROR("buffer is null.\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
-	/* there should always be pages allocated. */
-	if (!buf->pages) {
-		DRM_ERROR("pages is null.\n");
+	sgt = &exynos_attach->sgt;
+
+	ret = sg_alloc_table(sgt, buf->sgt->orig_nents, GFP_KERNEL);
+	if (ret) {
+		DRM_ERROR("failed to alloc sgt.\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	mutex_lock(&dev->struct_mutex);
+
+	rd = buf->sgt->sgl;
+	wr = sgt->sgl;
+	for (i = 0; i < sgt->orig_nents; ++i) {
+		sg_set_page(wr, sg_page(rd), rd->length, rd->offset);
+		rd = sg_next(rd);
+		wr = sg_next(wr);
+	}
+
+	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
+	if (!nents) {
+		DRM_ERROR("failed to map sgl with iommu.\n");
+		sgt = ERR_PTR(-EIO);
 		goto err_unlock;
 	}
 
-	npages = buf->size / buf->page_size;
+	exynos_attach->dir = dir;
+	attach->priv = exynos_attach;
 
-	sgt = exynos_pages_to_sg(buf->pages, npages, buf->page_size);
-	if (!sgt) {
-		DRM_DEBUG_PRIME("exynos_pages_to_sg returned NULL!\n");
-		goto err_unlock;
-	}
-	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-
-	DRM_DEBUG_PRIME("npages = %d buffer size = 0x%lx page_size = 0x%lx\n",
-			npages, buf->size, buf->page_size);
+	DRM_DEBUG_PRIME("buffer size = 0x%lx\n", buf->size);
 
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
@@ -104,10 +142,7 @@ static void exynos_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 						struct sg_table *sgt,
 						enum dma_data_direction dir)
 {
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-	sg_free_table(sgt);
-	kfree(sgt);
-	sgt = NULL;
+	/* Nothing to do. */
 }
 
 static void exynos_dmabuf_release(struct dma_buf *dmabuf)
@@ -169,6 +204,8 @@ static int exynos_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 }
 
 static struct dma_buf_ops exynos_dmabuf_ops = {
+	.attach			= exynos_gem_attach_dma_buf,
+	.detach			= exynos_gem_detach_dma_buf,
 	.map_dma_buf		= exynos_gem_map_dma_buf,
 	.unmap_dma_buf		= exynos_gem_unmap_dma_buf,
 	.kmap			= exynos_gem_dmabuf_kmap,
@@ -196,7 +233,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	struct scatterlist *sgl;
 	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct exynos_drm_gem_buf *buffer;
-	struct page *page;
 	int ret;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
@@ -233,38 +269,27 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 		goto err_unmap_attach;
 	}
 
-	buffer->pages = kzalloc(sizeof(*page) * sgt->nents, GFP_KERNEL);
-	if (!buffer->pages) {
-		DRM_ERROR("failed to allocate pages.\n");
+	exynos_gem_obj = exynos_drm_gem_init(drm_dev, dma_buf->size);
+	if (!exynos_gem_obj) {
 		ret = -ENOMEM;
 		goto err_free_buffer;
 	}
 
-	exynos_gem_obj = exynos_drm_gem_init(drm_dev, dma_buf->size);
-	if (!exynos_gem_obj) {
-		ret = -ENOMEM;
-		goto err_free_pages;
-	}
-
 	sgl = sgt->sgl;
 
-	if (sgt->nents == 1) {
-		buffer->dma_addr = sg_dma_address(sgt->sgl);
-		buffer->size = sg_dma_len(sgt->sgl);
+	buffer->size = dma_buf->size;
+	buffer->dma_addr = sg_dma_address(sgl);
 
+	if (sgt->nents == 1) {
 		/* always physically continuous memory if sgt->nents is 1. */
 		exynos_gem_obj->flags |= EXYNOS_BO_CONTIG;
 	} else {
-		unsigned int i = 0;
-
-		buffer->dma_addr = sg_dma_address(sgl);
-		while (i < sgt->nents) {
-			buffer->pages[i] = sg_page(sgl);
-			buffer->size += sg_dma_len(sgl);
-			sgl = sg_next(sgl);
-			i++;
-		}
-
+		/*
+		 * this case could be CONTIG or NONCONTIG type but for now
+		 * sets NONCONTIG.
+		 * TODO. we have to find a way that exporter can notify
+		 * the type of its own buffer to importer.
+		 */
 		exynos_gem_obj->flags |= EXYNOS_BO_NONCONTIG;
 	}
 
@@ -277,9 +302,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	return &exynos_gem_obj->base;
 
-err_free_pages:
-	kfree(buffer->pages);
-	buffer->pages = NULL;
 err_free_buffer:
 	kfree(buffer);
 	buffer = NULL;

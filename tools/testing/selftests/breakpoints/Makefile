@@ -17,7 +17,7 @@ else
 endif
 
 run_tests:
-	./breakpoint_test
+	@./breakpoint_test || echo "breakpoints selftests: [FAIL]"
 
 clean:
 	rm -fr breakpoint_test

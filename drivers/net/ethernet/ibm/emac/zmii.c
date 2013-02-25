@@ -82,7 +82,7 @@ static inline u32 zmii_mode_mask(int mode, int input)
 	}
 }
 
-int __devinit zmii_attach(struct platform_device *ofdev, int input, int *mode)
+int zmii_attach(struct platform_device *ofdev, int input, int *mode)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct zmii_regs __iomem *p = dev->base;
@@ -231,7 +231,7 @@ void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 	return regs + 1;
 }
 
-static int __devinit zmii_probe(struct platform_device *ofdev)
+static int zmii_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct zmii_instance *dev;
@@ -282,7 +282,7 @@ static int __devinit zmii_probe(struct platform_device *ofdev)
 	return rc;
 }
 
-static int __devexit zmii_remove(struct platform_device *ofdev)
+static int zmii_remove(struct platform_device *ofdev)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 

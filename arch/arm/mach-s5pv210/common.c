@@ -43,6 +43,7 @@
 #include <plat/iic-core.h>
 #include <plat/keypad-core.h>
 #include <plat/tv-core.h>
+#include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
@@ -168,8 +169,6 @@ void __init s5pv210_init_io(struct map_desc *mach_desc, int size)
 
 void __init s5pv210_map_io(void)
 {
-	init_consistent_dma_size(14 << 20);
-
 	/* initialise device information early */
 	s5pv210_default_sdhci0();
 	s5pv210_default_sdhci1();
@@ -196,6 +195,8 @@ void __init s5pv210_map_io(void)
 
 	/* setup TV devices */
 	s5p_hdmi_setname("s5pv210-hdmi");
+
+	s3c64xx_spi_setname("s5pv210-spi");
 }
 
 void __init s5pv210_init_clocks(int xtal)

@@ -16,6 +16,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/irq.h>
 #include <linux/platform_data/clk-ux500.h>
 
 #include <asm/hardware/gic.h>
@@ -24,6 +25,8 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+
+#include "board-mop500.h"
 
 void __iomem *_PRCMU_BASE;
 
@@ -81,6 +84,7 @@ void __init ux500_init_irq(void)
 
 void __init ux500_init_late(void)
 {
+	mop500_uib_init();
 }
 
 static const char * __init ux500_get_machine(void)

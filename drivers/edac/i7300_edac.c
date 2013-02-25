@@ -197,8 +197,8 @@ static const char *ferr_fat_fbd_name[] = {
 	[0]  = "Memory Write error on non-redundant retry or "
 	       "FBD configuration Write error on retry",
 };
-#define GET_FBD_FAT_IDX(fbderr)	(fbderr & (3 << 28))
-#define FERR_FAT_FBD_ERR_MASK ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3))
+#define GET_FBD_FAT_IDX(fbderr)	(((fbderr) >> 28) & 3)
+#define FERR_FAT_FBD_ERR_MASK ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 22))
 
 #define FERR_NF_FBD	0xa0
 static const char *ferr_nf_fbd_name[] = {
@@ -225,7 +225,7 @@ static const char *ferr_nf_fbd_name[] = {
 	[1]  = "Aliased Uncorrectable Non-Mirrored Demand Data ECC",
 	[0]  = "Uncorrectable Data ECC on Replay",
 };
-#define GET_FBD_NF_IDX(fbderr)	(fbderr & (3 << 28))
+#define GET_FBD_NF_IDX(fbderr)	(((fbderr) >> 28) & 3)
 #define FERR_NF_FBD_ERR_MASK ((1 << 24) | (1 << 23) | (1 << 22) | (1 << 21) |\
 			      (1 << 18) | (1 << 17) | (1 << 16) | (1 << 15) |\
 			      (1 << 14) | (1 << 13) | (1 << 11) | (1 << 10) |\
@@ -464,7 +464,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		errnum = find_first_bit(&errors,
 					ARRAY_SIZE(ferr_nf_fbd_name));
 		specific = GET_ERR_FROM_TABLE(ferr_nf_fbd_name, errnum);
-		branch = (GET_FBD_FAT_IDX(error_reg) == 2) ? 1 : 0;
+		branch = (GET_FBD_NF_IDX(error_reg) == 2) ? 1 : 0;
 
 		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 			REDMEMA, &syndrome);

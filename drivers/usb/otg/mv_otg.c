@@ -958,16 +958,4 @@ static struct platform_driver mv_otg_driver = {
 	.resume = mv_otg_resume,
 #endif
 };
-
-static int __init mv_otg_init(void)
-{
-	return platform_driver_register(&mv_otg_driver);
-}
-
-static void __exit mv_otg_exit(void)
-{
-	platform_driver_unregister(&mv_otg_driver);
-}
-
-module_init(mv_otg_init);
-module_exit(mv_otg_exit);
+module_platform_driver(mv_otg_driver);

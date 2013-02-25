@@ -72,7 +72,7 @@ static struct mfd_cell vx855_cells[] = {
 	},
 };
 
-static __devinit int vx855_probe(struct pci_dev *pdev,
+static int vx855_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
 	int ret;
@@ -112,7 +112,7 @@ out:
 	return ret;
 }
 
-static void __devexit vx855_remove(struct pci_dev *pdev)
+static void vx855_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	pci_disable_device(pdev);
@@ -128,7 +128,7 @@ static struct pci_driver vx855_pci_driver = {
 	.name		= "vx855",
 	.id_table	= vx855_pci_tbl,
 	.probe		= vx855_probe,
-	.remove		= __devexit_p(vx855_remove),
+	.remove		= vx855_remove,
 };
 
 module_pci_driver(vx855_pci_driver);

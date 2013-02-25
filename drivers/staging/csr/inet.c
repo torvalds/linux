@@ -93,14 +93,12 @@ static struct notifier_block uf_inetaddr_notifier = {
 
 void uf_register_inet_notifier(void)
 {
-    if (atomic_inc_return(&inet_notif_refs) == 1) {
-        register_inetaddr_notifier(&uf_inetaddr_notifier);
-    }
+	if (atomic_inc_return(&inet_notif_refs) == 1)
+		register_inetaddr_notifier(&uf_inetaddr_notifier);
 }
 
 void uf_unregister_inet_notifier(void)
 {
-    if (atomic_dec_return(&inet_notif_refs) == 0) {
-        unregister_inetaddr_notifier(&uf_inetaddr_notifier);
-    }
+	if (atomic_dec_return(&inet_notif_refs) == 0)
+		unregister_inetaddr_notifier(&uf_inetaddr_notifier);
 }

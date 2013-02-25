@@ -559,7 +559,7 @@ static void mtip_timeout_function(unsigned long int data)
 	struct mtip_cmd *command;
 	int tag, cmdto_cnt = 0;
 	unsigned int bit, group;
-	unsigned int num_command_slots = port->dd->slot_groups * 32;
+	unsigned int num_command_slots;
 	unsigned long to, tagaccum[SLOTBITS_IN_LONGS];
 
 	if (unlikely(!port))
@@ -572,6 +572,7 @@ static void mtip_timeout_function(unsigned long int data)
 	}
 	/* clear the tag accumulator */
 	memset(tagaccum, 0, SLOTBITS_IN_LONGS * sizeof(long));
+	num_command_slots = port->dd->slot_groups * 32;
 
 	for (tag = 0; tag < num_command_slots; tag++) {
 		/*
@@ -2035,8 +2036,9 @@ static unsigned int implicit_sector(unsigned char command,
 	}
 	return rv;
 }
-
-static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
+static void mtip_set_timeout(struct driver_data *dd,
+					struct host_to_dev_fis *fis,
+					unsigned int *timeout, u8 erasemode)
 {
 	switch (fis->command) {
 	case ATA_CMD_DOWNLOAD_MICRO:
@@ -2044,7 +2046,10 @@ static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
 		break;
 	case ATA_CMD_SEC_ERASE_UNIT:
 	case 0xFC:
-		*timeout = 240000; /* 4 minutes */
+		if (erasemode)
+			*timeout = ((*(dd->port->identify + 90) * 2) * 60000);
+		else
+			*timeout = ((*(dd->port->identify + 89) * 2) * 60000);
 		break;
 	case ATA_CMD_STANDBYNOW1:
 		*timeout = 120000;  /* 2 minutes */
@@ -2087,6 +2092,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	unsigned int transfer_size;
 	unsigned long task_file_data;
 	int intotal = outtotal + req_task->out_size;
+	int erasemode = 0;
 
 	taskout = req_task->out_size;
 	taskin = req_task->in_size;
@@ -2212,7 +2218,13 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		fis.lba_hi,
 		fis.device);
 
-	mtip_set_timeout(&fis, &timeout);
+	/* check for erase mode support during secure erase.*/
+	if ((fis.command == ATA_CMD_SEC_ERASE_UNIT) && outbuf &&
+					(outbuf[0] & MTIP_SEC_ERASE_MODE)) {
+		erasemode = 1;
+	}
+
+	mtip_set_timeout(dd, &fis, &timeout, erasemode);
 
 	/* Determine the correct transfer size.*/
 	if (force_single_sector)
@@ -2428,7 +2440,7 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  * return value
  *	None
  */
-static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
+static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
 			      int nsect, int nents, int tag, void *callback,
 			      void *data, int dir)
 {
@@ -2436,6 +2448,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	struct mtip_port *port = dd->port;
 	struct mtip_cmd *command = &port->commands[tag];
 	int dma_dir = (dir == READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	u64 start = sector;
 
 	/* Map the scatter list for DMA access */
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
@@ -2454,8 +2467,12 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	fis->opts        = 1 << 7;
 	fis->command     =
 		(dir == READ ? ATA_CMD_FPDMA_READ : ATA_CMD_FPDMA_WRITE);
-	*((unsigned int *) &fis->lba_low) = (start & 0xFFFFFF);
-	*((unsigned int *) &fis->lba_low_ex) = ((start >> 24) & 0xFFFFFF);
+	fis->lba_low     = start & 0xFF;
+	fis->lba_mid     = (start >> 8) & 0xFF;
+	fis->lba_hi      = (start >> 16) & 0xFF;
+	fis->lba_low_ex  = (start >> 24) & 0xFF;
+	fis->lba_mid_ex  = (start >> 32) & 0xFF;
+	fis->lba_hi_ex   = (start >> 40) & 0xFF;
 	fis->device	 = 1 << 6;
 	fis->features    = nsect & 0xFF;
 	fis->features_ex = (nsect >> 8) & 0xFF;

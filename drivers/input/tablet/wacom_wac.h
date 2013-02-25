@@ -26,9 +26,11 @@
 #define WACOM_PKGLEN_BBPEN	10
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
+#define WACOM_PKGLEN_MTTPC	40
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
+#define WACOM_BYTES_PER_24HDT_PACKET	14
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -49,6 +51,7 @@
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_TPC1FGE		18
+#define WACOM_REPORT_24HDT		1
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -81,10 +84,12 @@ enum {
 	WACOM_MO,
 	WIRELESS,
 	BAMBOO_PT,
+	WACOM_24HDT,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,
 	MTSCREEN,
+	MTTPC,
 	MAX_TYPE
 };
 
@@ -109,6 +114,8 @@ struct wacom_features {
 	int distance_fuzz;
 	unsigned quirks;
 	unsigned touch_max;
+	int oVid;
+	int oPid;
 };
 
 struct wacom_shared {

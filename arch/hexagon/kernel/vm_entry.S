@@ -1,7 +1,7 @@
 /*
  * Event entry/exit for Hexagon
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -266,4 +266,8 @@ _K_enter_machcheck:
 	.globl ret_from_fork
 ret_from_fork:
 	call schedule_tail
+	P0 = cmp.eq(R24, #0);
+	if P0 jump return_from_syscall
+	R0 = R25;
+	callr R24
 	jump return_from_syscall

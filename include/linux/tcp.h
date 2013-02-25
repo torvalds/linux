@@ -35,6 +35,16 @@ static inline unsigned int tcp_hdrlen(const struct sk_buff *skb)
 	return tcp_hdr(skb)->doff * 4;
 }
 
+static inline struct tcphdr *inner_tcp_hdr(const struct sk_buff *skb)
+{
+	return (struct tcphdr *)skb_inner_transport_header(skb);
+}
+
+static inline unsigned int inner_tcp_hdrlen(const struct sk_buff *skb)
+{
+	return inner_tcp_hdr(skb)->doff * 4;
+}
+
 static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 {
 	return (tcp_hdr(skb)->doff - 5) * 4;
@@ -191,7 +201,8 @@ struct tcp_sock {
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
 		early_retrans_delayed:1, /* Delayed ER timer installed */
 		syn_data:1,	/* SYN includes data */
-		syn_fastopen:1;	/* SYN includes Fast Open option */
+		syn_fastopen:1,	/* SYN includes Fast Open option */
+		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/

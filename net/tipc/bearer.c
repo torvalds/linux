@@ -279,113 +279,28 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 }
 
 /*
- * bearer_push(): Resolve bearer congestion. Force the waiting
- * links to push out their unsent packets, one packet per link
- * per iteration, until all packets are gone or congestion reoccurs.
- * 'tipc_net_lock' is read_locked when this function is called
- * bearer.lock must be taken before calling
- * Returns binary true(1) ore false(0)
- */
-static int bearer_push(struct tipc_bearer *b_ptr)
-{
-	u32 res = 0;
-	struct tipc_link *ln, *tln;
-
-	if (b_ptr->blocked)
-		return 0;
-
-	while (!list_empty(&b_ptr->cong_links) && (res != PUSH_FAILED)) {
-		list_for_each_entry_safe(ln, tln, &b_ptr->cong_links, link_list) {
-			res = tipc_link_push_packet(ln);
-			if (res == PUSH_FAILED)
-				break;
-			if (res == PUSH_FINISHED)
-				list_move_tail(&ln->link_list, &b_ptr->links);
-		}
-	}
-	return list_empty(&b_ptr->cong_links);
-}
-
-void tipc_bearer_lock_push(struct tipc_bearer *b_ptr)
-{
-	spin_lock_bh(&b_ptr->lock);
-	bearer_push(b_ptr);
-	spin_unlock_bh(&b_ptr->lock);
-}
-
-
-/*
- * Interrupt enabling new requests after bearer congestion or blocking:
+ * Interrupt enabling new requests after bearer blocking:
  * See bearer_send().
  */
-void tipc_continue(struct tipc_bearer *b_ptr)
+void tipc_continue(struct tipc_bearer *b)
 {
-	spin_lock_bh(&b_ptr->lock);
-	if (!list_empty(&b_ptr->cong_links))
-		tipc_k_signal((Handler)tipc_bearer_lock_push, (unsigned long)b_ptr);
-	b_ptr->blocked = 0;
-	spin_unlock_bh(&b_ptr->lock);
+	spin_lock_bh(&b->lock);
+	b->blocked = 0;
+	spin_unlock_bh(&b->lock);
 }
 
 /*
- * Schedule link for sending of messages after the bearer
- * has been deblocked by 'continue()'. This method is called
- * when somebody tries to send a message via this link while
- * the bearer is congested. 'tipc_net_lock' is in read_lock here
- * bearer.lock is busy
+ * tipc_bearer_blocked - determines if bearer is currently blocked
  */
-static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr,
-						struct tipc_link *l_ptr)
+int tipc_bearer_blocked(struct tipc_bearer *b)
 {
-	list_move_tail(&l_ptr->link_list, &b_ptr->cong_links);
-}
+	int res;
 
-/*
- * Schedule link for sending of messages after the bearer
- * has been deblocked by 'continue()'. This method is called
- * when somebody tries to send a message via this link while
- * the bearer is congested. 'tipc_net_lock' is in read_lock here,
- * bearer.lock is free
- */
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
-{
-	spin_lock_bh(&b_ptr->lock);
-	tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
-	spin_unlock_bh(&b_ptr->lock);
-}
+	spin_lock_bh(&b->lock);
+	res = b->blocked;
+	spin_unlock_bh(&b->lock);
 
-
-/*
- * tipc_bearer_resolve_congestion(): Check if there is bearer congestion,
- * and if there is, try to resolve it before returning.
- * 'tipc_net_lock' is read_locked when this function is called
- */
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
-					struct tipc_link *l_ptr)
-{
-	int res = 1;
-
-	if (list_empty(&b_ptr->cong_links))
-		return 1;
-	spin_lock_bh(&b_ptr->lock);
-	if (!bearer_push(b_ptr)) {
-		tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
-		res = 0;
-	}
-	spin_unlock_bh(&b_ptr->lock);
 	return res;
-}
-
-/**
- * tipc_bearer_congested - determines if bearer is currently congested
- */
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
-{
-	if (unlikely(b_ptr->blocked))
-		return 1;
-	if (likely(list_empty(&b_ptr->cong_links)))
-		return 0;
-	return !tipc_bearer_resolve_congestion(b_ptr, l_ptr);
 }
 
 /**
@@ -489,7 +404,6 @@ restart:
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->active = 1;
 	b_ptr->priority = priority;
-	INIT_LIST_HEAD(&b_ptr->cong_links);
 	INIT_LIST_HEAD(&b_ptr->links);
 	spin_lock_init(&b_ptr->lock);
 
@@ -528,7 +442,6 @@ int tipc_block_bearer(const char *name)
 	pr_info("Blocking bearer <%s>\n", name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
-	list_splice_init(&b_ptr->cong_links, &b_ptr->links);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		struct tipc_node *n_ptr = l_ptr->owner;
 
@@ -555,7 +468,6 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
 	b_ptr->media->disable_bearer(b_ptr);
-	list_splice_init(&b_ptr->cong_links, &b_ptr->links);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}

@@ -30,13 +30,9 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
-#include <linux/mfd/dbx500-prcmu.h>
-
+#include <linux/platform_data/pinctrl-nomadik.h>
 #include <asm/mach/irq.h>
-
-#include <plat/pincfg.h>
-#include <plat/gpio-nomadik.h>
-
+#include <mach/irqs.h>
 #include "pinctrl-nomadik.h"
 
 /*
@@ -46,8 +42,6 @@
  *
  * Symbols in this file are called "nmk_gpio" for "nomadik gpio"
  */
-
-#define NMK_GPIO_PER_CHIP	32
 
 struct nmk_gpio_chip {
 	struct gpio_chip chip;
@@ -73,10 +67,18 @@ struct nmk_gpio_chip {
 	u32 lowemi;
 };
 
+/**
+ * struct nmk_pinctrl - state container for the Nomadik pin controller
+ * @dev: containing device pointer
+ * @pctl: corresponding pin controller device
+ * @soc: SoC data for this specific chip
+ * @prcm_base: PRCM register range virtual base
+ */
 struct nmk_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
 	const struct nmk_pinctrl_soc_data *soc;
+	void __iomem *prcm_base;
 };
 
 static struct nmk_gpio_chip *
@@ -238,6 +240,15 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
 }
 
+static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
+{
+	u32 val;
+
+	val = readl(reg);
+	val = ((val & ~mask) | (value & mask));
+	writel(val, reg);
+}
+
 static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	unsigned offset, unsigned alt_num)
 {
@@ -276,8 +287,8 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 			if (pin_desc->altcx[i].used == true) {
 				reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 				bit = pin_desc->altcx[i].control_bit;
-				if (prcmu_read(reg) & BIT(bit)) {
-					prcmu_write_masked(reg, BIT(bit), 0);
+				if (readl(npct->prcm_base + reg) & BIT(bit)) {
+					nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 					dev_dbg(npct->dev,
 						"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
 						offset, i+1);
@@ -305,8 +316,8 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 		if (pin_desc->altcx[i].used == true) {
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
-			if (prcmu_read(reg) & BIT(bit)) {
-				prcmu_write_masked(reg, BIT(bit), 0);
+			if (readl(npct->prcm_base + reg) & BIT(bit)) {
+				nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 				dev_dbg(npct->dev,
 					"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
 					offset, i+1);
@@ -318,7 +329,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	bit = pin_desc->altcx[alt_index].control_bit;
 	dev_dbg(npct->dev, "PRCM GPIOCR: pin %i: alternate-C%i has been selected\n",
 		offset, alt_index+1);
-	prcmu_write_masked(reg, BIT(bit), BIT(bit));
+	nmk_write_masked(npct->prcm_base + reg, BIT(bit), BIT(bit));
 }
 
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
@@ -523,7 +534,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
  * and its sleep mode based on the specified configuration.  The @cfg is
  * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
  * are constructed using, and can be further enhanced with, the macros in
- * plat/pincfg.h.
+ * <linux/platform_data/pinctrl-nomadik.h>
  *
  * If a pin's mode is set to GPIO, it is configured as an input to avoid
  * side-effects.  The gpio can be manipulated later using standard GPIO API
@@ -661,6 +672,35 @@ int nmk_gpio_set_mode(int gpio, int gpio_mode)
 	return 0;
 }
 EXPORT_SYMBOL(nmk_gpio_set_mode);
+
+static int nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpio)
+{
+	int i;
+	u16 reg;
+	u8 bit;
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	const struct prcm_gpiocr_altcx_pin_desc *pin_desc;
+	const u16 *gpiocr_regs;
+
+	for (i = 0; i < npct->soc->npins_altcx; i++) {
+		if (npct->soc->altcx_pins[i].pin == gpio)
+			break;
+	}
+	if (i == npct->soc->npins_altcx)
+		return NMK_GPIO_ALT_C;
+
+	pin_desc = npct->soc->altcx_pins + i;
+	gpiocr_regs = npct->soc->prcm_gpiocr_registers;
+	for (i = 0; i < PRCM_IDX_GPIOCR_ALTC_MAX; i++) {
+		if (pin_desc->altcx[i].used == true) {
+			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
+			bit = pin_desc->altcx[i].control_bit;
+			if (readl(npct->prcm_base + reg) & BIT(bit))
+				return NMK_GPIO_ALT_C+i+1;
+		}
+	}
+	return NMK_GPIO_ALT_C;
+}
 
 int nmk_gpio_get_mode(int gpio)
 {
@@ -1043,15 +1083,16 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	return irq_find_mapping(nmk_chip->domain, offset);
+	return irq_create_mapping(nmk_chip->domain, offset);
 }
 
 #ifdef CONFIG_DEBUG_FS
 
 #include <linux/seq_file.h>
 
-static void nmk_gpio_dbg_show_one(struct seq_file *s, struct gpio_chip *chip,
-				  unsigned offset, unsigned gpio)
+static void nmk_gpio_dbg_show_one(struct seq_file *s,
+	struct pinctrl_dev *pctldev, struct gpio_chip *chip,
+	unsigned offset, unsigned gpio)
 {
 	const char *label = gpiochip_is_requested(chip, offset);
 	struct nmk_gpio_chip *nmk_chip =
@@ -1065,12 +1106,18 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s, struct gpio_chip *chip,
 		[NMK_GPIO_ALT_A]	= "altA",
 		[NMK_GPIO_ALT_B]	= "altB",
 		[NMK_GPIO_ALT_C]	= "altC",
+		[NMK_GPIO_ALT_C+1]	= "altC1",
+		[NMK_GPIO_ALT_C+2]	= "altC2",
+		[NMK_GPIO_ALT_C+3]	= "altC3",
+		[NMK_GPIO_ALT_C+4]	= "altC4",
 	};
 
 	clk_enable(nmk_chip->clk);
 	is_out = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & bit);
 	pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
 	mode = nmk_gpio_get_mode(gpio);
+	if ((mode == NMK_GPIO_ALT_C) && pctldev)
+		mode = nmk_prcm_gpiocr_get_mode(pctldev, gpio);
 
 	seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
 		   gpio, label ?: "(none)",
@@ -1114,13 +1161,14 @@ static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	unsigned		gpio = chip->base;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
-		nmk_gpio_dbg_show_one(s, chip, i, gpio);
+		nmk_gpio_dbg_show_one(s, NULL, chip, i, gpio);
 		seq_printf(s, "\n");
 	}
 }
 
 #else
 static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
+					 struct pinctrl_dev *pctldev,
 					 struct gpio_chip *chip,
 					 unsigned offset, unsigned gpio)
 {
@@ -1237,8 +1285,8 @@ void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up)
 	}
 }
 
-int nmk_gpio_irq_map(struct irq_domain *d, unsigned int irq,
-			  irq_hw_number_t hwirq)
+static int nmk_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+			    irq_hw_number_t hwirq)
 {
 	struct nmk_gpio_chip *nmk_chip = d->host_data;
 
@@ -1268,6 +1316,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
+	int irq_start = 0;
 	int irq;
 	int ret;
 
@@ -1371,19 +1420,11 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, nmk_chip);
 
-	if (np) {
-		/* The DT case will just grab a set of IRQ numbers */
-		nmk_chip->domain = irq_domain_add_linear(np, NMK_GPIO_PER_CHIP,
-				&nmk_gpio_irq_simple_ops, nmk_chip);
-	} else {
-		/* Non-DT legacy mode, use hardwired IRQ numbers */
-		int irq_start;
-
+	if (!np)
 		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
-		nmk_chip->domain = irq_domain_add_simple(NULL,
+	nmk_chip->domain = irq_domain_add_simple(np,
 				NMK_GPIO_PER_CHIP, irq_start,
 				&nmk_gpio_irq_simple_ops, nmk_chip);
-	}
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
@@ -1458,7 +1499,7 @@ static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		return;
 	}
 	chip = range->gc;
-	nmk_gpio_dbg_show_one(s, chip, offset - chip->base, offset);
+	nmk_gpio_dbg_show_one(s, pctldev, chip, offset - chip->base, offset);
 }
 
 static struct pinctrl_ops nmk_pinctrl_ops = {
@@ -1629,9 +1670,9 @@ static void nmk_pmx_disable(struct pinctrl_dev *pctldev,
 	dev_dbg(npct->dev, "disable group %s, %u pins\n", g->name, g->npins);
 }
 
-int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
-			    struct pinctrl_gpio_range *range,
-			    unsigned offset)
+static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
+				   struct pinctrl_gpio_range *range,
+				   unsigned offset)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
@@ -1660,9 +1701,9 @@ int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
-			   struct pinctrl_gpio_range *range,
-			   unsigned offset)
+static void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned offset)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
@@ -1680,17 +1721,15 @@ static struct pinmux_ops nmk_pinmux_ops = {
 	.gpio_disable_free = nmk_gpio_disable_free,
 };
 
-int nmk_pin_config_get(struct pinctrl_dev *pctldev,
-		       unsigned pin,
-		       unsigned long *config)
+static int nmk_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
+			      unsigned long *config)
 {
 	/* Not implemented */
 	return -EINVAL;
 }
 
-int nmk_pin_config_set(struct pinctrl_dev *pctldev,
-		       unsigned pin,
-		       unsigned long config)
+static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
+			      unsigned long config)
 {
 	static const char *pullnames[] = {
 		[NMK_GPIO_PULL_NONE]	= "none",
@@ -1812,6 +1851,7 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct device_node *np = pdev->dev.of_node;
 	struct nmk_pinctrl *npct;
+	struct resource *res;
 	unsigned int version = 0;
 	int i;
 
@@ -1821,9 +1861,14 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 
 	if (platid)
 		version = platid->driver_data;
-	else if (np)
-		version = (unsigned int)
-			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
+	else if (np) {
+		const struct of_device_id *match;
+
+		match = of_match_device(nmk_pinctrl_match, &pdev->dev);
+		if (!match)
+			return -ENODEV;
+		version = (unsigned int) match->data;
+	}
 
 	/* Poke in other ASIC variants here */
 	if (version == PINCTRL_NMK_STN8815)
@@ -1833,22 +1878,37 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	if (version == PINCTRL_NMK_DB8540)
 		nmk_pinctrl_db8540_init(&npct->soc);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		npct->prcm_base = devm_ioremap(&pdev->dev, res->start,
+					       resource_size(res));
+		if (!npct->prcm_base) {
+			dev_err(&pdev->dev,
+				"failed to ioremap PRCM registers\n");
+			return -ENOMEM;
+		}
+	} else {
+		dev_info(&pdev->dev,
+			 "No PRCM base, assume no ALT-Cx control is available\n");
+	}
+
 	/*
 	 * We need all the GPIO drivers to probe FIRST, or we will not be able
 	 * to obtain references to the struct gpio_chip * for them, and we
 	 * need this to proceed.
 	 */
 	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
-		if (!nmk_gpio_chips[i]) {
+		if (!nmk_gpio_chips[npct->soc->gpio_ranges[i].id]) {
 			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
 			return -EPROBE_DEFER;
 		}
-		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;
+		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[npct->soc->gpio_ranges[i].id]->chip;
 	}
 
 	nmk_pinctrl_desc.pins = npct->soc->pins;
 	nmk_pinctrl_desc.npins = npct->soc->npins;
 	npct->dev = &pdev->dev;
+
 	npct->pctl = pinctrl_register(&nmk_pinctrl_desc, &pdev->dev, npct);
 	if (!npct->pctl) {
 		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
@@ -1883,6 +1943,7 @@ static const struct platform_device_id nmk_pinctrl_id[] = {
 	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
 	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
 	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
+	{ }
 };
 
 static struct platform_driver nmk_pinctrl_driver = {

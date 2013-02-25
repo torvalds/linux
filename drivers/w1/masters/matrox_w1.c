@@ -48,14 +48,14 @@ static struct pci_device_id matrox_w1_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, matrox_w1_tbl);
 
-static int __devinit matrox_w1_probe(struct pci_dev *, const struct pci_device_id *);
-static void __devexit matrox_w1_remove(struct pci_dev *);
+static int matrox_w1_probe(struct pci_dev *, const struct pci_device_id *);
+static void matrox_w1_remove(struct pci_dev *);
 
 static struct pci_driver matrox_w1_pci_driver = {
 	.name = "matrox_w1",
 	.id_table = matrox_w1_tbl,
 	.probe = matrox_w1_probe,
-	.remove = __devexit_p(matrox_w1_remove),
+	.remove = matrox_w1_remove,
 };
 
 /*
@@ -152,7 +152,7 @@ static void matrox_w1_hw_init(struct matrox_device *dev)
 	matrox_w1_write_reg(dev, MATROX_GET_CONTROL, 0x00);
 }
 
-static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct matrox_device *dev;
 	int err;
@@ -220,7 +220,7 @@ err_out_free_device:
 	return err;
 }
 
-static void __devexit matrox_w1_remove(struct pci_dev *pdev)
+static void matrox_w1_remove(struct pci_dev *pdev)
 {
 	struct matrox_device *dev = pci_get_drvdata(pdev);
 

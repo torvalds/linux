@@ -584,6 +584,8 @@ int register_lines(struct line_driver *line_driver,
 		printk(KERN_ERR "register_lines : can't register %s driver\n",
 		       line_driver->name);
 		put_tty_driver(driver);
+		for (i = 0; i < nlines; i++)
+			tty_port_destroy(&lines[i].port);
 		return err;
 	}
 

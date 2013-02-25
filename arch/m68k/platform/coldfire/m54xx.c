@@ -14,16 +14,42 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/clk.h>
 #include <linux/bootmem.h>
 #include <asm/pgalloc.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/m54xxsim.h>
 #include <asm/mcfuart.h>
+#include <asm/mcfclk.h>
 #include <asm/m54xxgpt.h>
+#include <asm/mcfclk.h>
 #ifdef CONFIG_MMU
 #include <asm/mmu_context.h>
 #endif
+
+/***************************************************************************/
+
+DEFINE_CLK(pll, "pll.0", MCF_CLK);
+DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
+DEFINE_CLK(mcfslt0, "mcfslt.0", MCF_BUSCLK);
+DEFINE_CLK(mcfslt1, "mcfslt.1", MCF_BUSCLK);
+DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
+DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
+DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
+DEFINE_CLK(mcfuart3, "mcfuart.3", MCF_BUSCLK);
+
+struct clk *mcf_clks[] = {
+	&clk_pll,
+	&clk_sys,
+	&clk_mcfslt0,
+	&clk_mcfslt1,
+	&clk_mcfuart0,
+	&clk_mcfuart1,
+	&clk_mcfuart2,
+	&clk_mcfuart3,
+	NULL
+};
 
 /***************************************************************************/
 

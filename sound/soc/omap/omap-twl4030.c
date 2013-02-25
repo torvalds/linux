@@ -107,7 +107,7 @@ static struct snd_soc_card omap_twl4030_card = {
 	.num_links = ARRAY_SIZE(omap_twl4030_dai_links),
 };
 
-static __devinit int omap_twl4030_probe(struct platform_device *pdev)
+static int omap_twl4030_probe(struct platform_device *pdev)
 {
 	struct omap_tw4030_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
@@ -154,7 +154,7 @@ static __devinit int omap_twl4030_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit omap_twl4030_remove(struct platform_device *pdev)
+static int omap_twl4030_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -177,7 +177,7 @@ static struct platform_driver omap_twl4030_driver = {
 		.of_match_table = omap_twl4030_of_match,
 	},
 	.probe = omap_twl4030_probe,
-	.remove = __devexit_p(omap_twl4030_remove),
+	.remove = omap_twl4030_remove,
 };
 
 module_platform_driver(omap_twl4030_driver);

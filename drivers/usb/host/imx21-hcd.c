@@ -1680,7 +1680,7 @@ static int imx21_hc_reset(struct usb_hcd *hcd)
 	return 0;
 }
 
-static int __devinit imx21_hc_start(struct usb_hcd *hcd)
+static int imx21_hc_start(struct usb_hcd *hcd)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
 	unsigned long flags;

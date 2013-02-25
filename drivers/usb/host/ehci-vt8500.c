@@ -19,22 +19,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-static int ehci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int rc = 0;
-
-	if (!udev->parent) /* udev is root hub itself, impossible */
-		rc = -1;
-	/* we only support lpm device connected to root hub yet */
-	if (ehci->has_lpm && !udev->parent->parent) {
-		rc = ehci_lpm_set_da(ehci, udev->devnum, udev->portnum);
-		if (!rc)
-			rc = ehci_lpm_check(ehci, udev->portnum);
-	}
-	return rc;
-}
-
 static const struct hc_driver vt8500_ehci_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "VT8500 EHCI",
@@ -77,13 +61,10 @@ static const struct hc_driver vt8500_ehci_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 
-	/*
-	 * call back when device connected and addressed
-	 */
-	.update_device =	ehci_update_device,
-
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
+
+static u64 vt8500_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 {
@@ -94,6 +75,14 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &vt8500_ehci_dma_mask;
 
 	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
 		pr_debug("resource[1] is not IORESOURCE_IRQ");

@@ -451,7 +451,7 @@ static int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 	th_zone->cool_dev_size++;
 
 	th_zone->therm_dev = thermal_zone_device_register(sensor_conf->name,
-			EXYNOS_ZONE_COUNT, 0, NULL, &exynos_dev_ops, 0,
+			EXYNOS_ZONE_COUNT, 0, NULL, &exynos_dev_ops, NULL, 0,
 			IDLE_INTERVAL);
 
 	if (IS_ERR(th_zone->therm_dev)) {
@@ -815,7 +815,7 @@ static struct platform_device_id exynos_tmu_driver_ids[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(platform, exynos4_tmu_driver_ids);
+MODULE_DEVICE_TABLE(platform, exynos_tmu_driver_ids);
 
 static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 			struct platform_device *pdev)

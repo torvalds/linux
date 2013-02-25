@@ -371,7 +371,7 @@ static void rio_switch_init(struct rio_dev *rdev, int do_enum)
  * device to the RIO device list.  Creates the generic sysfs nodes
  * for an RIO device.
  */
-static int __devinit rio_add_device(struct rio_dev *rdev)
+static int rio_add_device(struct rio_dev *rdev)
 {
 	int err;
 
@@ -463,7 +463,7 @@ inline int rio_enable_rx_tx_port(struct rio_mport *port,
  * to a RIO device on success or NULL on failure.
  *
  */
-static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
+static struct rio_dev *rio_setup_device(struct rio_net *net,
 					struct rio_mport *port, u16 destid,
 					u8 hopcount, int do_enum)
 {
@@ -837,7 +837,7 @@ static u16 rio_get_host_deviceid_lock(struct rio_mport *port, u8 hopcount)
  * Recursively enumerates a RIO network.  Transactions are sent via the
  * master port passed in @port.
  */
-static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
+static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			 u8 hopcount, struct rio_dev *prev, int prev_port)
 {
 	struct rio_dev *rdev;
@@ -1044,7 +1044,7 @@ static int rio_enum_complete(struct rio_mport *port)
  * Recursively discovers a RIO network.  Transactions are sent via the
  * master port passed in @port.
  */
-static int __devinit
+static int
 rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 	      u8 hopcount, struct rio_dev *prev, int prev_port)
 {
@@ -1151,7 +1151,7 @@ static int rio_mport_is_active(struct rio_mport *port)
  * network list of associated master ports. Returns a
  * RIO network pointer on success or %NULL on failure.
  */
-static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port,
+static struct rio_net *rio_alloc_net(struct rio_mport *port,
 					       int do_enum, u16 start)
 {
 	struct rio_net *net;
@@ -1266,7 +1266,7 @@ static void rio_pw_enable(struct rio_mport *port, int enable)
  * link, then start recursive peer enumeration. Returns %0 if
  * enumeration succeeds or %-EBUSY if enumeration fails.
  */
-int __devinit rio_enum_mport(struct rio_mport *mport)
+int rio_enum_mport(struct rio_mport *mport)
 {
 	struct rio_net *net = NULL;
 	int rc = 0;
@@ -1369,7 +1369,7 @@ static void rio_build_route_tables(struct rio_net *net)
  * peer discovery. Returns %0 if discovery succeeds or %-EBUSY
  * on failure.
  */
-int __devinit rio_disc_mport(struct rio_mport *mport)
+int rio_disc_mport(struct rio_mport *mport)
 {
 	struct rio_net *net = NULL;
 	unsigned long to_end;

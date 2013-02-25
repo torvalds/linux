@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/dma/ipu-dma.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -24,7 +25,6 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 
-#include <mach/ipu.h>
 #include <linux/platform_data/camera-mx3.h>
 #include <linux/platform_data/dma-imx.h>
 
@@ -799,9 +799,10 @@ static inline void stride_align(__u32 *width)
  * default g_crop and cropcap from soc_camera.c
  */
 static int mx3_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+			       const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);

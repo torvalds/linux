@@ -548,14 +548,17 @@ static int bfin_mac_ethtool_setwol(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 	struct ethtool_ts_info *info)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_SYS_HARDWARE;
-	info->phc_index = -1;
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->phc_index = lp->phc_index;
 	info->tx_types =
 		(1 << HWTSTAMP_TX_OFF) |
 		(1 << HWTSTAMP_TX_ON);
@@ -566,6 +569,7 @@ static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
 	return 0;
 }
+#endif
 
 static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_settings = bfin_mac_ethtool_getsettings,
@@ -574,7 +578,9 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
 	.get_wol = bfin_mac_ethtool_getwol,
 	.set_wol = bfin_mac_ethtool_setwol,
+#ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 	.get_ts_info = bfin_mac_ethtool_get_ts_info,
+#endif
 };
 
 /**************************************************************************/
@@ -648,6 +654,20 @@ static int bfin_mac_set_mac_address(struct net_device *dev, void *p)
 
 #ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 #define bfin_mac_hwtstamp_is_none(cfg) ((cfg) == HWTSTAMP_FILTER_NONE)
+
+static u32 bfin_select_phc_clock(u32 input_clk, unsigned int *shift_result)
+{
+	u32 ipn = 1000000000UL / input_clk;
+	u32 ppn = 1;
+	unsigned int shift = 0;
+
+	while (ppn <= ipn) {
+		ppn <<= 1;
+		shift++;
+	}
+	*shift_result = shift;
+	return 1000000000UL / ppn;
+}
 
 static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 		struct ifreq *ifr, int cmd)
@@ -798,33 +818,12 @@ static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 		bfin_read_EMAC_PTP_TXSNAPLO();
 		bfin_read_EMAC_PTP_TXSNAPHI();
 
-		/*
-		 * Set registers so that rollover occurs soon to test this.
-		 */
-		bfin_write_EMAC_PTP_TIMELO(0x00000000);
-		bfin_write_EMAC_PTP_TIMEHI(0xFF800000);
-
 		SSYNC();
-
-		lp->compare.last_update = 0;
-		timecounter_init(&lp->clock,
-				&lp->cycles,
-				ktime_to_ns(ktime_get_real()));
-		timecompare_update(&lp->compare, 0);
 	}
 
 	lp->stamp_cfg = config;
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
-}
-
-static void bfin_dump_hwtamp(char *s, ktime_t *hw, ktime_t *ts, struct timecompare *cmp)
-{
-	ktime_t sys = ktime_get_real();
-
-	pr_debug("%s %s hardware:%d,%d transform system:%d,%d system:%d,%d, cmp:%lld, %lld\n",
-			__func__, s, hw->tv.sec, hw->tv.nsec, ts->tv.sec, ts->tv.nsec, sys.tv.sec,
-			sys.tv.nsec, cmp->offset, cmp->skew);
 }
 
 static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
@@ -857,15 +856,9 @@ static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 			regval = bfin_read_EMAC_PTP_TXSNAPLO();
 			regval |= (u64)bfin_read_EMAC_PTP_TXSNAPHI() << 32;
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			ns = timecounter_cyc2time(&lp->clock,
-					regval);
-			timecompare_update(&lp->compare, ns);
+			ns = regval << lp->shift;
 			shhwtstamps.hwtstamp = ns_to_ktime(ns);
-			shhwtstamps.syststamp =
-				timecompare_transform(&lp->compare, ns);
 			skb_tstamp_tx(skb, &shhwtstamps);
-
-			bfin_dump_hwtamp("TX", &shhwtstamps.hwtstamp, &shhwtstamps.syststamp, &lp->compare);
 		}
 	}
 }
@@ -888,55 +881,184 @@ static void bfin_rx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 
 	regval = bfin_read_EMAC_PTP_RXSNAPLO();
 	regval |= (u64)bfin_read_EMAC_PTP_RXSNAPHI() << 32;
-	ns = timecounter_cyc2time(&lp->clock, regval);
-	timecompare_update(&lp->compare, ns);
+	ns = regval << lp->shift;
 	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 	shhwtstamps->hwtstamp = ns_to_ktime(ns);
-	shhwtstamps->syststamp = timecompare_transform(&lp->compare, ns);
-
-	bfin_dump_hwtamp("RX", &shhwtstamps->hwtstamp, &shhwtstamps->syststamp, &lp->compare);
 }
-
-/*
- * bfin_read_clock - read raw cycle counter (to be used by time counter)
- */
-static cycle_t bfin_read_clock(const struct cyclecounter *tc)
-{
-	u64 stamp;
-
-	stamp =  bfin_read_EMAC_PTP_TIMELO();
-	stamp |= (u64)bfin_read_EMAC_PTP_TIMEHI() << 32ULL;
-
-	return stamp;
-}
-
-#define PTP_CLK 25000000
 
 static void bfin_mac_hwtstamp_init(struct net_device *netdev)
 {
 	struct bfin_mac_local *lp = netdev_priv(netdev);
-	u64 append;
+	u64 addend, ppb;
+	u32 input_clk, phc_clk;
 
 	/* Initialize hardware timer */
-	append = PTP_CLK * (1ULL << 32);
-	do_div(append, get_sclk());
-	bfin_write_EMAC_PTP_ADDEND((u32)append);
+	input_clk = get_sclk();
+	phc_clk = bfin_select_phc_clock(input_clk, &lp->shift);
+	addend = phc_clk * (1ULL << 32);
+	do_div(addend, input_clk);
+	bfin_write_EMAC_PTP_ADDEND((u32)addend);
 
-	memset(&lp->cycles, 0, sizeof(lp->cycles));
-	lp->cycles.read = bfin_read_clock;
-	lp->cycles.mask = CLOCKSOURCE_MASK(64);
-	lp->cycles.mult = 1000000000 / PTP_CLK;
-	lp->cycles.shift = 0;
-
-	/* Synchronize our NIC clock against system wall clock */
-	memset(&lp->compare, 0, sizeof(lp->compare));
-	lp->compare.source = &lp->clock;
-	lp->compare.target = ktime_get_real;
-	lp->compare.num_samples = 10;
+	lp->addend = addend;
+	ppb = 1000000000ULL * input_clk;
+	do_div(ppb, phc_clk);
+	lp->max_ppb = ppb - 1000000000ULL - 1ULL;
 
 	/* Initialize hwstamp config */
 	lp->stamp_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
 	lp->stamp_cfg.tx_type = HWTSTAMP_TX_OFF;
+}
+
+static u64 bfin_ptp_time_read(struct bfin_mac_local *lp)
+{
+	u64 ns;
+	u32 lo, hi;
+
+	lo = bfin_read_EMAC_PTP_TIMELO();
+	hi = bfin_read_EMAC_PTP_TIMEHI();
+
+	ns = ((u64) hi) << 32;
+	ns |= lo;
+	ns <<= lp->shift;
+
+	return ns;
+}
+
+static void bfin_ptp_time_write(struct bfin_mac_local *lp, u64 ns)
+{
+	u32 hi, lo;
+
+	ns >>= lp->shift;
+	hi = ns >> 32;
+	lo = ns & 0xffffffff;
+
+	bfin_write_EMAC_PTP_TIMELO(lo);
+	bfin_write_EMAC_PTP_TIMEHI(hi);
+}
+
+/* PTP Hardware Clock operations */
+
+static int bfin_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+{
+	u64 adj;
+	u32 diff, addend;
+	int neg_adj = 0;
+	struct bfin_mac_local *lp =
+		container_of(ptp, struct bfin_mac_local, caps);
+
+	if (ppb < 0) {
+		neg_adj = 1;
+		ppb = -ppb;
+	}
+	addend = lp->addend;
+	adj = addend;
+	adj *= ppb;
+	diff = div_u64(adj, 1000000000ULL);
+
+	addend = neg_adj ? addend - diff : addend + diff;
+
+	bfin_write_EMAC_PTP_ADDEND(addend);
+
+	return 0;
+}
+
+static int bfin_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
+{
+	s64 now;
+	unsigned long flags;
+	struct bfin_mac_local *lp =
+		container_of(ptp, struct bfin_mac_local, caps);
+
+	spin_lock_irqsave(&lp->phc_lock, flags);
+
+	now = bfin_ptp_time_read(lp);
+	now += delta;
+	bfin_ptp_time_write(lp, now);
+
+	spin_unlock_irqrestore(&lp->phc_lock, flags);
+
+	return 0;
+}
+
+static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+{
+	u64 ns;
+	u32 remainder;
+	unsigned long flags;
+	struct bfin_mac_local *lp =
+		container_of(ptp, struct bfin_mac_local, caps);
+
+	spin_lock_irqsave(&lp->phc_lock, flags);
+
+	ns = bfin_ptp_time_read(lp);
+
+	spin_unlock_irqrestore(&lp->phc_lock, flags);
+
+	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
+	ts->tv_nsec = remainder;
+	return 0;
+}
+
+static int bfin_ptp_settime(struct ptp_clock_info *ptp,
+			   const struct timespec *ts)
+{
+	u64 ns;
+	unsigned long flags;
+	struct bfin_mac_local *lp =
+		container_of(ptp, struct bfin_mac_local, caps);
+
+	ns = ts->tv_sec * 1000000000ULL;
+	ns += ts->tv_nsec;
+
+	spin_lock_irqsave(&lp->phc_lock, flags);
+
+	bfin_ptp_time_write(lp, ns);
+
+	spin_unlock_irqrestore(&lp->phc_lock, flags);
+
+	return 0;
+}
+
+static int bfin_ptp_enable(struct ptp_clock_info *ptp,
+			  struct ptp_clock_request *rq, int on)
+{
+	return -EOPNOTSUPP;
+}
+
+static struct ptp_clock_info bfin_ptp_caps = {
+	.owner		= THIS_MODULE,
+	.name		= "BF518 clock",
+	.max_adj	= 0,
+	.n_alarm	= 0,
+	.n_ext_ts	= 0,
+	.n_per_out	= 0,
+	.pps		= 0,
+	.adjfreq	= bfin_ptp_adjfreq,
+	.adjtime	= bfin_ptp_adjtime,
+	.gettime	= bfin_ptp_gettime,
+	.settime	= bfin_ptp_settime,
+	.enable		= bfin_ptp_enable,
+};
+
+static int bfin_phc_init(struct net_device *netdev, struct device *dev)
+{
+	struct bfin_mac_local *lp = netdev_priv(netdev);
+
+	lp->caps = bfin_ptp_caps;
+	lp->caps.max_adj = lp->max_ppb;
+	lp->clock = ptp_clock_register(&lp->caps, dev);
+	if (IS_ERR(lp->clock))
+		return PTR_ERR(lp->clock);
+
+	lp->phc_index = ptp_clock_index(lp->clock);
+	spin_lock_init(&lp->phc_lock);
+
+	return 0;
+}
+
+static void bfin_phc_release(struct bfin_mac_local *lp)
+{
+	ptp_clock_unregister(lp->clock);
 }
 
 #else
@@ -945,6 +1067,8 @@ static void bfin_mac_hwtstamp_init(struct net_device *netdev)
 # define bfin_mac_hwtstamp_ioctl(dev, ifr, cmd) (-EOPNOTSUPP)
 # define bfin_rx_hwtstamp(dev, skb)
 # define bfin_tx_hwtstamp(dev, skb)
+# define bfin_phc_init(netdev, dev) 0
+# define bfin_phc_release(lp)
 #endif
 
 static inline void _tx_reclaim_skb(void)
@@ -1479,7 +1603,7 @@ static const struct net_device_ops bfin_mac_netdev_ops = {
 #endif
 };
 
-static int __devinit bfin_mac_probe(struct platform_device *pdev)
+static int bfin_mac_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct bfin_mac_local *lp;
@@ -1579,12 +1703,17 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	}
 
 	bfin_mac_hwtstamp_init(ndev);
+	if (bfin_phc_init(ndev, &pdev->dev)) {
+		dev_err(&pdev->dev, "Cannot register PHC device!\n");
+		goto out_err_phc;
+	}
 
 	/* now, print out the card info, in a short format.. */
 	netdev_info(ndev, "%s, Version %s\n", DRV_DESC, DRV_VERSION);
 
 	return 0;
 
+out_err_phc:
 out_err_reg_ndev:
 	free_irq(IRQ_MAC_RX, ndev);
 out_err_request_irq:
@@ -1598,10 +1727,12 @@ out_err_probe_mac:
 	return rc;
 }
 
-static int __devexit bfin_mac_remove(struct platform_device *pdev)
+static int bfin_mac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct bfin_mac_local *lp = netdev_priv(ndev);
+
+	bfin_phc_release(lp);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -1655,7 +1786,7 @@ static int bfin_mac_resume(struct platform_device *pdev)
 #define bfin_mac_resume NULL
 #endif	/* CONFIG_PM */
 
-static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
+static int bfin_mii_bus_probe(struct platform_device *pdev)
 {
 	struct mii_bus *miibus;
 	struct bfin_mii_bus_platform_data *mii_bus_pd;
@@ -1733,7 +1864,7 @@ out_err_alloc:
 	return rc;
 }
 
-static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
+static int bfin_mii_bus_remove(struct platform_device *pdev)
 {
 	struct mii_bus *miibus = platform_get_drvdata(pdev);
 	struct bfin_mii_bus_platform_data *mii_bus_pd =
@@ -1750,7 +1881,7 @@ static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_mii_bus_driver = {
 	.probe = bfin_mii_bus_probe,
-	.remove = __devexit_p(bfin_mii_bus_remove),
+	.remove = bfin_mii_bus_remove,
 	.driver = {
 		.name = "bfin_mii_bus",
 		.owner	= THIS_MODULE,
@@ -1759,7 +1890,7 @@ static struct platform_driver bfin_mii_bus_driver = {
 
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,
-	.remove = __devexit_p(bfin_mac_remove),
+	.remove = bfin_mac_remove,
 	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
 	.driver = {

@@ -448,7 +448,7 @@ static struct snd_soc_dai_driver omap_dmic_dai = {
 	.ops = &omap_dmic_dai_ops,
 };
 
-static __devinit int asoc_dmic_probe(struct platform_device *pdev)
+static int asoc_dmic_probe(struct platform_device *pdev)
 {
 	struct omap_dmic *dmic;
 	struct resource *res;
@@ -464,9 +464,9 @@ static __devinit int asoc_dmic_probe(struct platform_device *pdev)
 
 	mutex_init(&dmic->mutex);
 
-	dmic->fclk = clk_get(dmic->dev, "dmic_fck");
+	dmic->fclk = clk_get(dmic->dev, "fck");
 	if (IS_ERR(dmic->fclk)) {
-		dev_err(dmic->dev, "cant get dmic_fck\n");
+		dev_err(dmic->dev, "cant get fck\n");
 		return -ENODEV;
 	}
 
@@ -518,7 +518,7 @@ err_put_clk:
 	return ret;
 }
 
-static int __devexit asoc_dmic_remove(struct platform_device *pdev)
+static int asoc_dmic_remove(struct platform_device *pdev)
 {
 	struct omap_dmic *dmic = platform_get_drvdata(pdev);
 
@@ -541,7 +541,7 @@ static struct platform_driver asoc_dmic_driver = {
 		.of_match_table = omap_dmic_of_match,
 	},
 	.probe = asoc_dmic_probe,
-	.remove = __devexit_p(asoc_dmic_remove),
+	.remove = asoc_dmic_remove,
 };
 
 module_platform_driver(asoc_dmic_driver);

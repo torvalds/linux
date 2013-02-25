@@ -55,16 +55,6 @@ struct snd_line6_midi {
 	wait_queue_head_t send_wait;
 
 	/**
-		 Bit mask for output MIDI channels.
-	*/
-	unsigned short midi_mask_transmit;
-
-	/**
-		 Bit mask for input MIDI channels.
-	*/
-	unsigned short midi_mask_receive;
-
-	/**
 		 Buffer for incoming MIDI stream.
 	*/
 	struct MidiBuffer midibuf_in;

@@ -667,10 +667,10 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 							 OMAP_DSP_MEM3_SIZE);
 		host_res->per_base = ioremap(OMAP_PER_CM_BASE,
 						OMAP_PER_CM_SIZE);
-		host_res->per_pm_base = (u32) ioremap(OMAP_PER_PRM_BASE,
-							 OMAP_PER_PRM_SIZE);
-		host_res->core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
-							  OMAP_CORE_PRM_SIZE);
+		host_res->per_pm_base = ioremap(OMAP_PER_PRM_BASE,
+						OMAP_PER_PRM_SIZE);
+		host_res->core_pm_base = ioremap(OMAP_CORE_PRM_BASE,
+							OMAP_CORE_PRM_SIZE);
 		host_res->dmmu_base = ioremap(OMAP_DMMU_BASE,
 						 OMAP_DMMU_SIZE);
 

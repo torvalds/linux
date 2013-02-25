@@ -153,7 +153,7 @@ abort:
 	return ret;
 }
 
-static int __devinit sch5627_read_limits(struct sch5627_data *data)
+static int sch5627_read_limits(struct sch5627_data *data)
 {
 	int i, val;
 
@@ -465,7 +465,7 @@ static int sch5627_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit sch5627_probe(struct platform_device *pdev)
+static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
 	int err, build_code, build_id, hwmon_rev, val;

@@ -401,7 +401,7 @@ static int msm_hs_request_port(struct uart_port *port)
 	return 0;
 }
 
-static int __devexit msm_hs_remove(struct platform_device *pdev)
+static int msm_hs_remove(struct platform_device *pdev)
 {
 
 	struct msm_hs_port *msm_uport;
@@ -1521,7 +1521,7 @@ err_msm_hs_init_clk:
 }
 
 /* Initialize tx and rx data structures */
-static int __devinit uartdm_init_port(struct uart_port *uport)
+static int uartdm_init_port(struct uart_port *uport)
 {
 	int ret = 0;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
@@ -1614,7 +1614,7 @@ err_tx_command_ptr_ptr:
 	return ret;
 }
 
-static int __devinit msm_hs_probe(struct platform_device *pdev)
+static int msm_hs_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct uart_port *uport;
@@ -1838,7 +1838,7 @@ static const struct dev_pm_ops msm_hs_dev_pm_ops = {
 
 static struct platform_driver msm_serial_hs_platform_driver = {
 	.probe = msm_hs_probe,
-	.remove = __devexit_p(msm_hs_remove),
+	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
 		.owner = THIS_MODULE,

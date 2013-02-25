@@ -85,4 +85,30 @@ struct exynos_drm_hdmi_pdata {
 	int (*get_hpd)(void);
 };
 
+/**
+ * Platform Specific Structure for DRM based IPP.
+ *
+ * @inv_pclk: if set 1. invert pixel clock
+ * @inv_vsync: if set 1. invert vsync signal for wb
+ * @inv_href: if set 1. invert href signal
+ * @inv_hsync: if set 1. invert hsync signal for wb
+ */
+struct exynos_drm_ipp_pol {
+	unsigned int inv_pclk;
+	unsigned int inv_vsync;
+	unsigned int inv_href;
+	unsigned int inv_hsync;
+};
+
+/**
+ * Platform Specific Structure for DRM based FIMC.
+ *
+ * @pol: current hardware block polarity settings.
+ * @clk_rate: current hardware clock rate.
+ */
+struct exynos_drm_fimc_pdata {
+	struct exynos_drm_ipp_pol pol;
+	int clk_rate;
+};
+
 #endif	/* _EXYNOS_DRM_H_ */

@@ -645,11 +645,17 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct soc_camera_device *icd = file->private_data;
-	int err = -EINVAL;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
+	dev_dbg(icd->pdev, "read called, buf %p\n", buf);
+
+	if (ici->ops->init_videobuf2 && icd->vb2_vidq.io_modes & VB2_READ)
+		return vb2_read(&icd->vb2_vidq, buf, count, ppos,
+				file->f_flags & O_NONBLOCK);
 
 	dev_err(icd->pdev, "camera device read not implemented\n");
 
-	return err;
+	return -EINVAL;
 }
 
 static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1048,10 +1054,8 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
-			int ret;
-
 			icd->parent = ici->v4l2_dev.dev;
-			ret = soc_camera_probe(icd);
+			soc_camera_probe(icd);
 		}
 	}
 

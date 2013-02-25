@@ -39,6 +39,11 @@ nouveau_gpuobj_destroy(struct nouveau_gpuobj *gpuobj)
 			nv_wo32(gpuobj, i, 0x00000000);
 	}
 
+	if (gpuobj->node) {
+		nouveau_mm_free(&nv_gpuobj(gpuobj->parent)->heap,
+				&gpuobj->node);
+	}
+
 	if (gpuobj->heap.block_size)
 		nouveau_mm_fini(&gpuobj->heap);
 
@@ -178,7 +183,7 @@ _nouveau_gpuobj_fini(struct nouveau_object *object, bool suspend)
 }
 
 u32
-_nouveau_gpuobj_rd32(struct nouveau_object *object, u32 addr)
+_nouveau_gpuobj_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_gpuobj *gpuobj = nv_gpuobj(object);
 	struct nouveau_ofuncs *pfuncs = nv_ofuncs(gpuobj->parent);
@@ -188,7 +193,7 @@ _nouveau_gpuobj_rd32(struct nouveau_object *object, u32 addr)
 }
 
 void
-_nouveau_gpuobj_wr32(struct nouveau_object *object, u32 addr, u32 data)
+_nouveau_gpuobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_gpuobj *gpuobj = nv_gpuobj(object);
 	struct nouveau_ofuncs *pfuncs = nv_ofuncs(gpuobj->parent);

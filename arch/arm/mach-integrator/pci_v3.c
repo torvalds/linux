@@ -191,12 +191,9 @@ static void __iomem *v3_open_config_window(struct pci_bus *bus,
 	/*
 	 * Trap out illegal values
 	 */
-	if (offset > 255)
-		BUG();
-	if (busnr > 255)
-		BUG();
-	if (devfn > 255)
-		BUG();
+	BUG_ON(offset > 255);
+	BUG_ON(busnr > 255);
+	BUG_ON(devfn > 255);
 
 	if (busnr == 0) {
 		int slot = PCI_SLOT(devfn);
@@ -388,9 +385,10 @@ static int __init pci_v3_setup_resources(struct pci_sys_data *sys)
  * means I can't get additional information on the reason for the pm2fb
  * problems.  I suppose I'll just have to mind-meld with the machine. ;)
  */
-#define SC_PCI     __io_address(INTEGRATOR_SC_PCIENABLE)
-#define SC_LBFADDR __io_address(INTEGRATOR_SC_BASE + 0x20)
-#define SC_LBFCODE __io_address(INTEGRATOR_SC_BASE + 0x24)
+static void __iomem *ap_syscon_base;
+#define INTEGRATOR_SC_PCIENABLE_OFFSET	0x18
+#define INTEGRATOR_SC_LBFADDR_OFFSET	0x20
+#define INTEGRATOR_SC_LBFCODE_OFFSET	0x24
 
 static int
 v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
@@ -401,13 +399,13 @@ v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	char buf[128];
 
 	sprintf(buf, "V3 fault: addr 0x%08lx, FSR 0x%03x, PC 0x%08lx [%08lx] LBFADDR=%08x LBFCODE=%02x ISTAT=%02x\n",
-		addr, fsr, pc, instr, __raw_readl(SC_LBFADDR), __raw_readl(SC_LBFCODE) & 255,
+		addr, fsr, pc, instr, __raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFADDR_OFFSET), __raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFCODE_OFFSET) & 255,
 		v3_readb(V3_LB_ISTAT));
 	printk(KERN_DEBUG "%s", buf);
 #endif
 
 	v3_writeb(V3_LB_ISTAT, 0);
-	__raw_writel(3, SC_PCI);
+	__raw_writel(3, ap_syscon_base + INTEGRATOR_SC_PCIENABLE_OFFSET);
 
 	/*
 	 * If the instruction being executed was a read,
@@ -449,15 +447,15 @@ static irqreturn_t v3_irq(int dummy, void *devid)
 
 	sprintf(buf, "V3 int %d: pc=0x%08lx [%08lx] LBFADDR=%08x LBFCODE=%02x "
 		"ISTAT=%02x\n", IRQ_AP_V3INT, pc, instr,
-		__raw_readl(SC_LBFADDR),
-		__raw_readl(SC_LBFCODE) & 255,
+		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFADDR_OFFSET),
+		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFCODE_OFFSET) & 255,
 		v3_readb(V3_LB_ISTAT));
 	printascii(buf);
 #endif
 
 	v3_writew(V3_PCI_STAT, 0xf000);
 	v3_writeb(V3_LB_ISTAT, 0);
-	__raw_writel(3, SC_PCI);
+	__raw_writel(3, ap_syscon_base + INTEGRATOR_SC_PCIENABLE_OFFSET);
 
 #ifdef CONFIG_DEBUG_LL
 	/*
@@ -480,6 +478,10 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 	if (nr == 0) {
 		sys->mem_offset = PHYS_PCI_MEM_BASE;
 		ret = pci_v3_setup_resources(sys);
+		/* Remap the Integrator system controller */
+		ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
+		if (!ap_syscon_base)
+			return -EINVAL;
 	}
 
 	return ret;
@@ -568,7 +570,7 @@ void __init pci_v3_preinit(void)
 	v3_writeb(V3_LB_ISTAT, 0);
 	v3_writew(V3_LB_CFG, v3_readw(V3_LB_CFG) | (1 << 10));
 	v3_writeb(V3_LB_IMASK, 0x28);
-	__raw_writel(3, SC_PCI);
+	__raw_writel(3, ap_syscon_base + INTEGRATOR_SC_PCIENABLE_OFFSET);
 
 	/*
 	 * Grab the PCI error interrupt.

@@ -14,6 +14,8 @@ config XTENSA
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select CLONE_BACKWARDS
+	select IRQ_DOMAIN
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -147,6 +149,15 @@ config XTENSA_PLATFORM_S6105
 	select SERIAL_CONSOLE
 	select NO_IOPORT
 
+config XTENSA_PLATFORM_XTFPGA
+	bool "XTFPGA"
+	select SERIAL_CONSOLE
+	select ETHOC
+	select XTENSA_CALIBRATE_CCOUNT
+	help
+	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
+	  This hardware is capable of running a full Linux distribution.
+
 endchoice
 
 
@@ -173,6 +184,17 @@ config CMDLINE
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
+
+config BUILTIN_DTB
+	string "DTB to build into the kernel image"
+	depends on OF
 
 source "mm/Kconfig"
 

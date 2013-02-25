@@ -191,9 +191,8 @@ EXPORT_SYMBOL(dma_release_from_coherent);
  * This checks whether the memory was allocated from the per-device
  * coherent memory pool and if so, maps that memory to the provided vma.
  *
- * Returns 1 if we correctly mapped the memory, or 0 if
- * dma_release_coherent() should proceed with mapping memory from
- * generic pools.
+ * Returns 1 if we correctly mapped the memory, or 0 if the caller should
+ * proceed with mapping memory from generic pools.
  */
 int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
 			   void *vaddr, size_t size, int *ret)

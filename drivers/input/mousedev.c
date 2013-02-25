@@ -12,8 +12,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define MOUSEDEV_MINOR_BASE	32
-#define MOUSEDEV_MINORS		32
-#define MOUSEDEV_MIX		31
+#define MOUSEDEV_MINORS		31
+#define MOUSEDEV_MIX		63
 
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -523,7 +523,6 @@ static int mousedev_release(struct inode *inode, struct file *file)
 	kfree(client);
 
 	mousedev_close_device(mousedev);
-	put_device(&mousedev->dev);
 
 	return 0;
 }
@@ -558,7 +557,6 @@ static int mousedev_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 	nonseekable_open(inode, file);
 
-	get_device(&mousedev->dev);
 	return 0;
 
  err_free_client:
@@ -892,6 +890,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 	}
 
 	cdev_init(&mousedev->cdev, &mousedev_fops);
+	mousedev->cdev.kobj.parent = &mousedev->dev.kobj;
 	error = cdev_add(&mousedev->cdev, mousedev->dev.devt, 1);
 	if (error)
 		goto err_unregister_handle;

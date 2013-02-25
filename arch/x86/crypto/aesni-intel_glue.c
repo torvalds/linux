@@ -515,6 +515,11 @@ static int xts_aesni_setkey(struct crypto_tfm *tfm, const u8 *key,
 }
 
 
+static void aesni_xts_tweak(void *ctx, u8 *out, const u8 *in)
+{
+	aesni_enc(ctx, out, in);
+}
+
 static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
@@ -525,7 +530,7 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		.tbuflen = sizeof(buf),
 
 		.tweak_ctx = aes_ctx(ctx->raw_tweak_ctx),
-		.tweak_fn = XTS_TWEAK_CAST(aesni_enc),
+		.tweak_fn = aesni_xts_tweak,
 		.crypt_ctx = aes_ctx(ctx->raw_crypt_ctx),
 		.crypt_fn = lrw_xts_encrypt_callback,
 	};
@@ -550,7 +555,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		.tbuflen = sizeof(buf),
 
 		.tweak_ctx = aes_ctx(ctx->raw_tweak_ctx),
-		.tweak_fn = XTS_TWEAK_CAST(aesni_enc),
+		.tweak_fn = aesni_xts_tweak,
 		.crypt_ctx = aes_ctx(ctx->raw_crypt_ctx),
 		.crypt_fn = lrw_xts_decrypt_callback,
 	};

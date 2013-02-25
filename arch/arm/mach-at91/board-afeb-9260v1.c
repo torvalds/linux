@@ -43,9 +43,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
-
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 

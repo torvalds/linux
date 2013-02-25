@@ -425,8 +425,10 @@ static int ReadEEProm(struct i2c_adapter *adapter,
 		status = i2c_read_eeprom(adapter, 0x50, Addr, data, Length);
 		if (!status) {
 			*pLength = EETag[2];
+#if 0
 			if (Length < EETag[2])
-				; /*status=STATUS_BUFFER_OVERFLOW; */
+				status = STATUS_BUFFER_OVERFLOW;
+#endif
 		}
 	}
 	return status;

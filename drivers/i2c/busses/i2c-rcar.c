@@ -642,7 +642,7 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->io = devm_ioremap(dev, res->start, resource_size(res));
+	priv->io = devm_request_and_ioremap(dev, res);
 	if (!priv->io) {
 		dev_err(dev, "cannot ioremap\n");
 		return -ENODEV;
@@ -693,7 +693,7 @@ static int __devexit rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver rcar_i2c_drv = {
+static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
 		.owner	= THIS_MODULE,
@@ -702,7 +702,7 @@ static struct platform_driver rcar_i2c_drv = {
 	.remove		= __devexit_p(rcar_i2c_remove),
 };
 
-module_platform_driver(rcar_i2c_drv);
+module_platform_driver(rcar_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Renesas R-Car I2C bus driver");

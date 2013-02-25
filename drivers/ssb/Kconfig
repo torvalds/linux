@@ -160,4 +160,13 @@ config SSB_DRIVER_GIGE
 
 	  If unsure, say N
 
+config SSB_DRIVER_GPIO
+	bool "SSB GPIO driver"
+	depends on SSB
+	select GPIOLIB
+	help
+	  Driver to provide access to the GPIO pins on the bus.
+
+	  If unsure, say N
+
 endmenu

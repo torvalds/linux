@@ -111,7 +111,7 @@ static void rc5t583_gpio_free(struct gpio_chip *gc, unsigned offset)
 	rc5t583_set_bits(parent, RC5T583_GPIO_PGSEL, BIT(offset));
 }
 
-static int __devinit rc5t583_gpio_probe(struct platform_device *pdev)
+static int rc5t583_gpio_probe(struct platform_device *pdev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);
@@ -146,7 +146,7 @@ static int __devinit rc5t583_gpio_probe(struct platform_device *pdev)
 	return gpiochip_add(&rc5t583_gpio->gpio_chip);
 }
 
-static int __devexit rc5t583_gpio_remove(struct platform_device *pdev)
+static int rc5t583_gpio_remove(struct platform_device *pdev)
 {
 	struct rc5t583_gpio *rc5t583_gpio = platform_get_drvdata(pdev);
 
@@ -159,7 +159,7 @@ static struct platform_driver rc5t583_gpio_driver = {
 		.owner   = THIS_MODULE,
 	},
 	.probe		= rc5t583_gpio_probe,
-	.remove		= __devexit_p(rc5t583_gpio_remove),
+	.remove		= rc5t583_gpio_remove,
 };
 
 static int __init rc5t583_gpio_init(void)

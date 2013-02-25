@@ -37,6 +37,7 @@
 #include "ivtv-streams.h"
 #include "ivtv-fileops.h"
 #include "ivtv-alsa.h"
+#include "ivtv-alsa-pcm.h"
 
 static unsigned int pcm_debug;
 module_param(pcm_debug, int, 0644);
@@ -69,8 +70,9 @@ static struct snd_pcm_hardware snd_ivtv_hw_capture = {
 	.periods_max = 98,		/* 12544, */
 };
 
-void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc, u8 *pcm_data,
-				 size_t num_bytes)
+static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
+					u8 *pcm_data,
+					size_t num_bytes)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;

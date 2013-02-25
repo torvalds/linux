@@ -303,7 +303,7 @@ static struct sram_channel cx23887_sram_channels[] = {
 	},
 };
 
-void cx23885_irq_add(struct cx23885_dev *dev, u32 mask)
+static void cx23885_irq_add(struct cx23885_dev *dev, u32 mask)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
@@ -1516,8 +1516,7 @@ int cx23885_restart_queue(struct cx23885_tsport *port,
 			buf = list_entry(q->queued.next, struct cx23885_buffer,
 					 vb.queue);
 			if (NULL == prev) {
-				list_del(&buf->vb.queue);
-				list_add_tail(&buf->vb.queue, &q->active);
+				list_move_tail(&buf->vb.queue, &q->active);
 				cx23885_start_dma(port, q, buf);
 				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
@@ -1528,8 +1527,7 @@ int cx23885_restart_queue(struct cx23885_tsport *port,
 			} else if (prev->vb.width  == buf->vb.width  &&
 				   prev->vb.height == buf->vb.height &&
 				   prev->fmt       == buf->fmt) {
-				list_del(&buf->vb.queue);
-				list_add_tail(&buf->vb.queue, &q->active);
+				list_move_tail(&buf->vb.queue, &q->active);
 				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);

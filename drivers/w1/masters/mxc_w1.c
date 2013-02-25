@@ -103,7 +103,7 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 	return ((__raw_readb(ctrl_addr)) >> 3) & 0x1;
 }
 
-static int __devinit mxc_w1_probe(struct platform_device *pdev)
+static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
 	struct resource *res;
@@ -117,9 +117,9 @@ static int __devinit mxc_w1_probe(struct platform_device *pdev)
 	if (!mdev)
 		return -ENOMEM;
 
-	mdev->clk = clk_get(&pdev->dev, "owire");
-	if (!mdev->clk) {
-		err = -ENODEV;
+	mdev->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mdev->clk)) {
+		err = PTR_ERR(mdev->clk);
 		goto failed_clk;
 	}
 
@@ -134,7 +134,7 @@ static int __devinit mxc_w1_probe(struct platform_device *pdev)
 
 	mdev->regs = ioremap(res->start, resource_size(res));
 	if (!mdev->regs) {
-		printk(KERN_ERR "Cannot map frame buffer registers\n");
+		dev_err(&pdev->dev, "Cannot map mxc_w1 registers\n");
 		goto failed_ioremap;
 	}
 
@@ -167,7 +167,7 @@ failed_clk:
 /*
  * disassociate the w1 device from the driver
  */
-static int __devexit mxc_w1_remove(struct platform_device *pdev)
+static int mxc_w1_remove(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -191,21 +191,9 @@ static struct platform_driver mxc_w1_driver = {
 		   .name = "mxc_w1",
 	},
 	.probe = mxc_w1_probe,
-	.remove = mxc_w1_remove,
+	.remove = __devexit_p(mxc_w1_remove),
 };
-
-static int __init mxc_w1_init(void)
-{
-	return platform_driver_register(&mxc_w1_driver);
-}
-
-static void mxc_w1_exit(void)
-{
-	platform_driver_unregister(&mxc_w1_driver);
-}
-
-module_init(mxc_w1_init);
-module_exit(mxc_w1_exit);
+module_platform_driver(mxc_w1_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale Semiconductors Inc");

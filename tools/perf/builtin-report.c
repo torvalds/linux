@@ -33,13 +33,13 @@
 #include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "arch/common.h"
 
 #include <linux/bitmap.h>
 
 struct perf_report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
-	char const		*input_name;
 	bool			force, use_tui, use_gtk, use_stdio;
 	bool			hide_unresolved;
 	bool			dont_use_callchains;
@@ -428,10 +428,11 @@ static int __cmd_report(struct perf_report *rep)
 	if (use_browser > 0) {
 		if (use_browser == 1) {
 			perf_evlist__tui_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL,
+						      &session->header.env);
 		} else if (use_browser == 2) {
 			perf_evlist__gtk_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL);
 		}
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
@@ -556,8 +557,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
 			.comm		 = perf_event__process_comm,
-			.exit		 = perf_event__process_task,
-			.fork		 = perf_event__process_task,
+			.exit		 = perf_event__process_exit,
+			.fork		 = perf_event__process_fork,
 			.lost		 = perf_event__process_lost,
 			.read		 = process_read_event,
 			.attr		 = perf_event__process_attr,
@@ -570,7 +571,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		.pretty_printing_style	 = "normal",
 	};
 	const struct option options[] = {
-	OPT_STRING('i', "input", &report.input_name, "file",
+	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
@@ -656,13 +657,13 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 
-	if (!report.input_name || !strlen(report.input_name)) {
+	if (!input_name || !strlen(input_name)) {
 		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
-			report.input_name = "-";
+			input_name = "-";
 		else
-			report.input_name = "perf.data";
+			input_name = "perf.data";
 	}
-	session = perf_session__new(report.input_name, O_RDONLY,
+	session = perf_session__new(input_name, O_RDONLY,
 				    report.force, false, &report.tool);
 	if (session == NULL)
 		return -ENOMEM;
@@ -687,7 +688,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	}
 
-	if (strcmp(report.input_name, "-") != 0)
+	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
 	else {
 		use_browser = 0;

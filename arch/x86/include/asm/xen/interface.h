@@ -51,18 +51,19 @@
  * with Xen so that on ARM we can have one ABI that works for 32 and 64
  * bit guests. */
 typedef unsigned long xen_pfn_t;
+#define PRI_xen_pfn "lx"
 typedef unsigned long xen_ulong_t;
+#define PRI_xen_ulong "lx"
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint,  unsigned int);
-__DEFINE_GUEST_HANDLE(ulong, unsigned long);
 DEFINE_GUEST_HANDLE(char);
 DEFINE_GUEST_HANDLE(int);
-DEFINE_GUEST_HANDLE(long);
 DEFINE_GUEST_HANDLE(void);
 DEFINE_GUEST_HANDLE(uint64_t);
 DEFINE_GUEST_HANDLE(uint32_t);
 DEFINE_GUEST_HANDLE(xen_pfn_t);
+DEFINE_GUEST_HANDLE(xen_ulong_t);
 #endif
 
 #ifndef HYPERVISOR_VIRT_START

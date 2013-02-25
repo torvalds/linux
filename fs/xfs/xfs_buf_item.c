@@ -526,7 +526,25 @@ xfs_buf_item_unpin(
 		}
 		xfs_buf_relse(bp);
 	} else if (freed && remove) {
+		/*
+		 * There are currently two references to the buffer - the active
+		 * LRU reference and the buf log item. What we are about to do
+		 * here - simulate a failed IO completion - requires 3
+		 * references.
+		 *
+		 * The LRU reference is removed by the xfs_buf_stale() call. The
+		 * buf item reference is removed by the xfs_buf_iodone()
+		 * callback that is run by xfs_buf_do_callbacks() during ioend
+		 * processing (via the bp->b_iodone callback), and then finally
+		 * the ioend processing will drop the IO reference if the buffer
+		 * is marked XBF_ASYNC.
+		 *
+		 * Hence we need to take an additional reference here so that IO
+		 * completion processing doesn't free the buffer prematurely.
+		 */
 		xfs_buf_lock(bp);
+		xfs_buf_hold(bp);
+		bp->b_flags |= XBF_ASYNC;
 		xfs_buf_ioerror(bp, EIO);
 		XFS_BUF_UNDONE(bp);
 		xfs_buf_stale(bp);

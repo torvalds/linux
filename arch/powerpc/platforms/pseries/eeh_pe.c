@@ -449,7 +449,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev, int purge_pe)
 			if (list_empty(&pe->edevs)) {
 				cnt = 0;
 				list_for_each_entry(child, &pe->child_list, child) {
-					if (!(pe->type & EEH_PE_INVALID)) {
+					if (!(child->type & EEH_PE_INVALID)) {
 						cnt++;
 						break;
 					}

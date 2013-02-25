@@ -54,7 +54,7 @@ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
 obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
 obj-$(CONFIG_UID16) += uid16.o
 obj-$(CONFIG_MODULES) += module.o
-obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o
+obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o modsign_certificate.o
 obj-$(CONFIG_KALLSYMS) += kallsyms.o
 obj-$(CONFIG_BSD_PROCESS_ACCT) += acct.o
 obj-$(CONFIG_KEXEC) += kexec.o
@@ -110,6 +110,7 @@ obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
 obj-$(CONFIG_PADATA) += padata.o
 obj-$(CONFIG_CRASH_DUMP) += crash_dump.o
 obj-$(CONFIG_JUMP_LABEL) += jump_label.o
+obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
 
 $(obj)/configs.o: $(obj)/config_data.h
 
@@ -136,10 +137,14 @@ ifeq ($(CONFIG_MODULE_SIG),y)
 #
 # Pull the signing certificate and any extra certificates into the kernel
 #
-extra_certificates:
-	touch $@
 
-kernel/modsign_pubkey.o: signing_key.x509 extra_certificates
+quiet_cmd_touch = TOUCH   $@
+      cmd_touch = touch   $@
+
+extra_certificates:
+	$(call cmd,touch)
+
+kernel/modsign_certificate.o: signing_key.x509 extra_certificates
 
 ###############################################################################
 #
@@ -174,10 +179,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "###"
 	@echo "### If this takes a long time, you might wish to run rngd in the"
 	@echo "### background to keep the supply of entropy topped up.  It"
-	@echo "### needs to be run as root, and should use a hardware random"
-	@echo "### number generator if one is available, eg:"
-	@echo "###"
-	@echo "###     rngd -r /dev/hwrandom"
+	@echo "### needs to be run as root, and uses a hardware random"
+	@echo "### number generator if one is available."
 	@echo "###"
 	openssl req -new -nodes -utf8 $(sign_key_with_hash) -days 36500 -batch \
 		-x509 -config x509.genkey \

@@ -52,9 +52,9 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_EARLY_PRINTK
-char *stdout;
+static char *stdout;
 
-int __init early_init_dt_scan_chosen_serial(unsigned long node,
+static int __init early_init_dt_scan_chosen_serial(unsigned long node,
 				const char *uname, int depth, void *data)
 {
 	unsigned long l;

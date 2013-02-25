@@ -85,16 +85,10 @@
 .align 2
 startup_kdump_relocated:
 	basr	%r13,0
-0:
-	mvc	0(8,%r0),.Lrestart_psw-0b(%r13)	# Setup restart PSW
-	sam31					# Switch to 31 bit addr mode
-	sr	%r1,%r1				# Erase register r1
-	sr	%r2,%r2				# Erase register r2
-	sigp	%r1,%r2,SIGP_SET_ARCHITECTURE	# Switch to 31 bit arch mode
-	lpsw	0				# Start new kernel...
+0:	lpswe	.Lrestart_psw-0b(%r13)		# Start new kernel...
 .align	8
 .Lrestart_psw:
-	.long	0x00080000,0x80000000 + startup
+	.quad	0x0000000080000000,0x0000000000000000 + startup
 #else
 .align 2
 .Lep_startup_kdump:

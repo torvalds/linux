@@ -629,10 +629,27 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_SIGP_STOP:
 	case KVM_S390_RESTART:
-	case KVM_S390_INT_EXTERNAL_CALL:
-	case KVM_S390_INT_EMERGENCY:
 		VCPU_EVENT(vcpu, 3, "inject: type %x", s390int->type);
 		inti->type = s390int->type;
+		break;
+	case KVM_S390_INT_EXTERNAL_CALL:
+		if (s390int->parm & 0xffff0000) {
+			kfree(inti);
+			return -EINVAL;
+		}
+		VCPU_EVENT(vcpu, 3, "inject: external call source-cpu:%u",
+			   s390int->parm);
+		inti->type = s390int->type;
+		inti->extcall.code = s390int->parm;
+		break;
+	case KVM_S390_INT_EMERGENCY:
+		if (s390int->parm & 0xffff0000) {
+			kfree(inti);
+			return -EINVAL;
+		}
+		VCPU_EVENT(vcpu, 3, "inject: emergency %u\n", s390int->parm);
+		inti->type = s390int->type;
+		inti->emerg.code = s390int->parm;
 		break;
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:

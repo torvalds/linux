@@ -176,6 +176,7 @@ struct brcms_pub {
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 
 	struct wl_cnt *_cnt;	/* low-level counters in driver */
+	struct dentry *dbgfs_dir;
 };
 
 enum wlc_par_id {
@@ -199,43 +200,6 @@ enum wlc_par_id {
 
 /* WL11N Support */
 #define AMPDU_AGG_HOST	1
-
-/* pri is priority encoded in the packet. This maps the Packet priority to
- * enqueue precedence as defined in wlc_prec_map
- */
-extern const u8 wlc_prio2prec_map[];
-#define BRCMS_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
-
-#define	BRCMS_PREC_COUNT	16	/* Max precedence level implemented */
-
-/* Mask to describe all precedence levels */
-#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
-
-/*
- * This maps priority to one precedence higher - Used by PS-Poll response
- * packets to simulate enqueue-at-head operation, but still maintain the
- * order on the queue
- */
-#define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
-					    BRCMS_PREC_COUNT - 1)
-
-/* Define a bitmap of precedences comprised by each AC */
-#define BRCMS_PREC_BMP_AC_BE	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BE)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_EE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_EE)))
-#define BRCMS_PREC_BMP_AC_BK	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BK)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BK)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NONE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NONE)))
-#define BRCMS_PREC_BMP_AC_VI	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_CL)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_CL)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VI)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VI)))
-#define BRCMS_PREC_BMP_AC_VO	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VO)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VO)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NC)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NC)))
 
 /* network protection config */
 #define	BRCMS_PROT_G_SPEC		1	/* SPEC g protection */
@@ -319,9 +283,9 @@ extern void brcms_c_intrson(struct brcms_c_info *wlc);
 extern u32 brcms_c_intrsoff(struct brcms_c_info *wlc);
 extern void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask);
 extern bool brcms_c_intrsupd(struct brcms_c_info *wlc);
-extern bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc);
+extern bool brcms_c_isr(struct brcms_c_info *wlc);
 extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
-extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
+extern bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
 extern bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid);

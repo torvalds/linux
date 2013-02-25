@@ -74,18 +74,9 @@ ENTRY(wakeup_start)
 
 	lidtl	wakeup_idt
 
-	/* Clear the EFLAGS but remember if we have EFLAGS.ID */
-	movl $X86_EFLAGS_ID, %ecx
-	pushl %ecx
-	popfl
-	pushfl
-	popl %edi
+	/* Clear the EFLAGS */
 	pushl $0
 	popfl
-	pushfl
-	popl %edx
-	xorl %edx, %edi
-	andl %ecx, %edi		/* %edi is zero iff CPUID & %cr4 are missing */
 
 	/* Check header signature... */
 	movl	signature, %eax
@@ -120,12 +111,12 @@ ENTRY(wakeup_start)
 	movl	%eax, %cr3
 
 	btl	$WAKEUP_BEHAVIOR_RESTORE_CR4, %edi
-	jz	1f
+	jnc	1f
 	movl	pmode_cr4, %eax
 	movl	%eax, %cr4
 1:
 	btl	$WAKEUP_BEHAVIOR_RESTORE_EFER, %edi
-	jz	1f
+	jnc	1f
 	movl	pmode_efer, %eax
 	movl	pmode_efer + 4, %edx
 	movl	$MSR_EFER, %ecx

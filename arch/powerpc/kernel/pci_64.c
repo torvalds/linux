@@ -74,8 +74,6 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-#ifdef CONFIG_HOTPLUG
-
 int pcibios_unmap_io_space(struct pci_bus *bus)
 {
 	struct pci_controller *hose;
@@ -123,8 +121,6 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
-
-#endif /* CONFIG_HOTPLUG */
 
 static int __devinit pcibios_map_phb_io_space(struct pci_controller *hose)
 {

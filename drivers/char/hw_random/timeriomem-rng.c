@@ -130,7 +130,7 @@ failed:
 	return ret;
 }
 
-static int __devexit timeriomem_rng_remove(struct platform_device *pdev)
+static int timeriomem_rng_remove(struct platform_device *pdev)
 {
 	del_timer_sync(&timeriomem_rng_timer);
 	hwrng_unregister(&timeriomem_rng_ops);

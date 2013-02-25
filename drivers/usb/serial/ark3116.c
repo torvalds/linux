@@ -37,11 +37,6 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-/*
- * Version information
- */
-
-#define DRIVER_VERSION "v0.7"
 #define DRIVER_AUTHOR "Bart Hartgers <bart.hartgers+ark3116@gmail.com>"
 #define DRIVER_DESC "USB ARK3116 serial/IrDA driver"
 #define DRIVER_DEV_DESC "ARK3116 RS232/IrDA"
@@ -125,9 +120,6 @@ static inline int calc_divisor(int bps)
 
 static int ark3116_attach(struct usb_serial *serial)
 {
-	struct usb_serial_port *port = serial->port[0];
-	struct ark3116_private *priv;
-
 	/* make sure we have our end-points */
 	if ((serial->num_bulk_in == 0) ||
 	    (serial->num_bulk_out == 0) ||
@@ -142,8 +134,15 @@ static int ark3116_attach(struct usb_serial *serial)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct ark3116_private),
-		       GFP_KERNEL);
+	return 0;
+}
+
+static int ark3116_port_probe(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct ark3116_private *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -198,18 +197,15 @@ static int ark3116_attach(struct usb_serial *serial)
 	return 0;
 }
 
-static void ark3116_release(struct usb_serial *serial)
+static int ark3116_port_remove(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 
 	/* device is closed, so URBs and DMA should be down */
-
-	usb_set_serial_port_data(port, NULL);
-
 	mutex_destroy(&priv->hw_lock);
-
 	kfree(priv);
+
+	return 0;
 }
 
 static void ark3116_init_termios(struct tty_struct *tty)
@@ -723,7 +719,8 @@ static struct usb_serial_driver ark3116_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		ark3116_attach,
-	.release =		ark3116_release,
+	.port_probe =		ark3116_port_probe,
+	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,
 	.init_termios =		ark3116_init_termios,
 	.ioctl =		ark3116_ioctl,

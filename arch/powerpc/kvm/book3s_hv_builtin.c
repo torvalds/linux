@@ -157,8 +157,8 @@ static void __init kvm_linear_init_one(ulong size, int count, int type)
 	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
 	for (i = 0; i < count; ++i) {
 		linear = alloc_bootmem_align(size, size);
-		pr_info("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
-			size >> 20);
+		pr_debug("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
+			 size >> 20);
 		linear_info[i].base_virt = linear;
 		linear_info[i].base_pfn = __pa(linear) >> PAGE_SHIFT;
 		linear_info[i].npages = npages;

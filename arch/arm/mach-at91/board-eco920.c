@@ -24,12 +24,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 #include <mach/cpu.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 static void __init eco920_init_early(void)

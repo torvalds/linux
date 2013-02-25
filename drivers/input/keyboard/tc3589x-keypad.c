@@ -299,7 +299,7 @@ static void tc3589x_keypad_close(struct input_dev *input)
 	tc3589x_keypad_disable(keypad);
 }
 
-static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
+static int tc3589x_keypad_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc_keypad *keypad;
@@ -382,7 +382,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit tc3589x_keypad_remove(struct platform_device *pdev)
+static int tc3589x_keypad_remove(struct platform_device *pdev)
 {
 	struct tc_keypad *keypad = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -448,7 +448,7 @@ static struct platform_driver tc3589x_keypad_driver = {
 		.pm	= &tc3589x_keypad_dev_pm_ops,
 	},
 	.probe	= tc3589x_keypad_probe,
-	.remove	= __devexit_p(tc3589x_keypad_remove),
+	.remove	= tc3589x_keypad_remove,
 };
 module_platform_driver(tc3589x_keypad_driver);
 

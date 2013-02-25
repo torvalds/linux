@@ -15,13 +15,17 @@
 #include <asm/compiler.h>
 #include <asm/war.h>
 
-inline void __delay(unsigned int loops)
+void __delay(unsigned long loops)
 {
 	__asm__ __volatile__ (
 	"	.set	noreorder				\n"
 	"	.align	3					\n"
 	"1:	bnez	%0, 1b					\n"
+#if __SIZEOF_LONG__ == 4
 	"	subu	%0, 1					\n"
+#else
+	"	dsubu	%0, 1					\n"
+#endif
 	"	.set	reorder					\n"
 	: "=r" (loops)
 	: "0" (loops));

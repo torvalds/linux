@@ -180,9 +180,9 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
 	struct ctnl_timeout *timeout;
 	struct nf_conn_timeout *timeout_ext;
-	const struct ipt_entry *e = par->entryinfo;
 	struct nf_conntrack_l4proto *l4proto;
 	int ret = 0;
+	u8 proto;
 
 	rcu_read_lock();
 	timeout_find_get = rcu_dereference(nf_ct_timeout_find_get_hook);
@@ -192,9 +192,11 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 		goto out;
 	}
 
-	if (e->ip.invflags & IPT_INV_PROTO) {
+	proto = xt_ct_find_proto(par);
+	if (!proto) {
 		ret = -EINVAL;
-		pr_info("You cannot use inversion on L4 protocol\n");
+		pr_info("You must specify a L4 protocol, and not use "
+			"inversions on it.\n");
 		goto out;
 	}
 
@@ -214,7 +216,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 	/* Make sure the timeout policy matches any existing protocol tracker,
 	 * otherwise default to generic.
 	 */
-	l4proto = __nf_ct_l4proto_find(par->family, e->ip.proto);
+	l4proto = __nf_ct_l4proto_find(par->family, proto);
 	if (timeout->l4proto->l4proto != l4proto->l4proto) {
 		ret = -EINVAL;
 		pr_info("Timeout policy `%s' can only be used by L4 protocol "

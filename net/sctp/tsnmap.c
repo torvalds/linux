@@ -272,7 +272,7 @@ __u16 sctp_tsnmap_pending(struct sctp_tsnmap *map)
 	__u32 max_tsn = map->max_tsn_seen;
 	__u32 base_tsn = map->base_tsn;
 	__u16 pending_data;
-	u32 gap, i;
+	u32 gap;
 
 	pending_data = max_tsn - cum_tsn;
 	gap = max_tsn - base_tsn;
@@ -280,11 +280,7 @@ __u16 sctp_tsnmap_pending(struct sctp_tsnmap *map)
 	if (gap == 0 || gap >= map->len)
 		goto out;
 
-	for (i = 0; i < gap+1; i++) {
-		if (test_bit(i, map->tsn_map))
-			pending_data--;
-	}
-
+	pending_data -= bitmap_weight(map->tsn_map, gap + 1);
 out:
 	return pending_data;
 }

@@ -15,8 +15,9 @@
 
 #include <asm/pmu.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "soc.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
 
 static char *omap2_pmu_oh_names[] = {"mpu"};
 static char *omap3_pmu_oh_names[] = {"mpu", "debugss"};
@@ -56,8 +57,6 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 
 	if (IS_ERR(omap_pmu_dev))
 		return PTR_ERR(omap_pmu_dev);
-
-	pm_runtime_enable(&omap_pmu_dev->dev);
 
 	return 0;
 }

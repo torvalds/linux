@@ -249,7 +249,7 @@ static const struct agp_bridge_driver ali_m1541_bridge = {
 };
 
 
-static struct agp_device_ids ali_agp_device_ids[] __devinitdata =
+static struct agp_device_ids ali_agp_device_ids[] =
 {
 	{
 		.device_id	= PCI_DEVICE_ID_AL_M1541,
@@ -374,7 +374,7 @@ found:
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_ali_remove(struct pci_dev *pdev)
+static void agp_ali_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

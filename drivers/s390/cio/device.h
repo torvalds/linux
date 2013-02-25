@@ -142,9 +142,7 @@ int ccw_device_notify(struct ccw_device *, int);
 void ccw_device_set_disconnected(struct ccw_device *cdev);
 void ccw_device_set_notoper(struct ccw_device *cdev);
 
-/* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);
-extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
 
 /* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);

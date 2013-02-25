@@ -672,6 +672,8 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			    iter->rt6i_idev == rt->rt6i_idev &&
 			    ipv6_addr_equal(&iter->rt6i_gateway,
 					    &rt->rt6i_gateway)) {
+				if (rt->rt6i_nsiblings)
+					rt->rt6i_nsiblings = 0;
 				if (!(iter->rt6i_flags & RTF_EXPIRES))
 					return -EEXIST;
 				if (!(rt->rt6i_flags & RTF_EXPIRES))
@@ -680,6 +682,21 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 					rt6_set_expires(iter, rt->dst.expires);
 				return -EEXIST;
 			}
+			/* If we have the same destination and the same metric,
+			 * but not the same gateway, then the route we try to
+			 * add is sibling to this route, increment our counter
+			 * of siblings, and later we will add our route to the
+			 * list.
+			 * Only static routes (which don't have flag
+			 * RTF_EXPIRES) are used for ECMPv6.
+			 *
+			 * To avoid long list, we only had siblings if the
+			 * route have a gateway.
+			 */
+			if (rt->rt6i_flags & RTF_GATEWAY &&
+			    !(rt->rt6i_flags & RTF_EXPIRES) &&
+			    !(iter->rt6i_flags & RTF_EXPIRES))
+				rt->rt6i_nsiblings++;
 		}
 
 		if (iter->rt6i_metric > rt->rt6i_metric)
@@ -691,6 +708,35 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	/* Reset round-robin state, if necessary */
 	if (ins == &fn->leaf)
 		fn->rr_ptr = NULL;
+
+	/* Link this route to others same route. */
+	if (rt->rt6i_nsiblings) {
+		unsigned int rt6i_nsiblings;
+		struct rt6_info *sibling, *temp_sibling;
+
+		/* Find the first route that have the same metric */
+		sibling = fn->leaf;
+		while (sibling) {
+			if (sibling->rt6i_metric == rt->rt6i_metric) {
+				list_add_tail(&rt->rt6i_siblings,
+					      &sibling->rt6i_siblings);
+				break;
+			}
+			sibling = sibling->dst.rt6_next;
+		}
+		/* For each sibling in the list, increment the counter of
+		 * siblings. BUG() if counters does not match, list of siblings
+		 * is broken!
+		 */
+		rt6i_nsiblings = 0;
+		list_for_each_entry_safe(sibling, temp_sibling,
+					 &rt->rt6i_siblings, rt6i_siblings) {
+			sibling->rt6i_nsiblings++;
+			BUG_ON(sibling->rt6i_nsiblings != rt->rt6i_nsiblings);
+			rt6i_nsiblings++;
+		}
+		BUG_ON(rt6i_nsiblings != rt->rt6i_nsiblings);
+	}
 
 	/*
 	 *	insert node
@@ -1192,6 +1238,17 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	/* Reset round-robin state, if necessary */
 	if (fn->rr_ptr == rt)
 		fn->rr_ptr = NULL;
+
+	/* Remove this entry from other siblings */
+	if (rt->rt6i_nsiblings) {
+		struct rt6_info *sibling, *next_sibling;
+
+		list_for_each_entry_safe(sibling, next_sibling,
+					 &rt->rt6i_siblings, rt6i_siblings)
+			sibling->rt6i_nsiblings--;
+		rt->rt6i_nsiblings = 0;
+		list_del_init(&rt->rt6i_siblings);
+	}
 
 	/* Adjust walkers */
 	read_lock(&fib6_walker_lock);

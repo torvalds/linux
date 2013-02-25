@@ -236,7 +236,6 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 intr_index;
 	u32 have_shift = 0;
 	struct fsl_msi_cascade_data *cascade_data;
-	unsigned int ret;
 
 	cascade_data = irq_get_handler_data(irq);
 	msi_data = cascade_data->msi_data;
@@ -268,7 +267,9 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	case FSL_PIC_IP_IPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs, msir_index * 0x4);
 		break;
-	case FSL_PIC_IP_VMPIC:
+#ifdef CONFIG_EPAPR_PARAVIRT
+	case FSL_PIC_IP_VMPIC: {
+		unsigned int ret;
 		ret = fh_vmpic_get_msir(virq_to_hw(irq), &msir_value);
 		if (ret) {
 			pr_err("fsl-msi: fh_vmpic_get_msir() failed for "
@@ -276,6 +277,8 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 			msir_value = 0;
 		}
 		break;
+	}
+#endif
 	}
 
 	while (msir_value) {
@@ -508,10 +511,12 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 		.compatible = "fsl,ipic-msi",
 		.data = &ipic_msi_feature,
 	},
+#ifdef CONFIG_EPAPR_PARAVIRT
 	{
 		.compatible = "fsl,vmpic-msi",
 		.data = &vmpic_msi_feature,
 	},
+#endif
 	{}
 };
 

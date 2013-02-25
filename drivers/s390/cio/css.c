@@ -377,7 +377,11 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch_err(schid, &schib) || !css_sch_is_valid(&schib)) {
+	if (stsch_err(schid, &schib)) {
+		/* Subchannel is not provided. */
+		return -ENXIO;
+	}
+	if (!css_sch_is_valid(&schib)) {
 		/* Unusable - ignore. */
 		return 0;
 	}
@@ -536,6 +540,7 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 		case -ENOMEM:
 		case -EIO:
 			/* These should abort looping */
+			idset_sch_del_subseq(slow_subchannel_set, schid);
 			break;
 		default:
 			rc = 0;

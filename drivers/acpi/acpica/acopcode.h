@@ -54,7 +54,7 @@
 #define _UNK                        0x6B
 
 /*
- * Reserved ASCII characters.  Do not use any of these for
+ * Reserved ASCII characters. Do not use any of these for
  * internal opcodes, since they are used to differentiate
  * name strings from AML opcodes
  */
@@ -63,7 +63,7 @@
 #define _PFX                        0x6D
 
 /*
- * All AML opcodes and the parse-time arguments for each.  Used by the AML
+ * All AML opcodes and the parse-time arguments for each. Used by the AML
  * parser  Each list is compressed into a 32-bit number and stored in the
  * master opcode table (in psopcode.c).
  */
@@ -193,7 +193,7 @@
 #define ARGP_ZERO_OP                    ARG_NONE
 
 /*
- * All AML opcodes and the runtime arguments for each.  Used by the AML
+ * All AML opcodes and the runtime arguments for each. Used by the AML
  * interpreter  Each list is compressed into a 32-bit number and stored
  * in the master opcode table (in psopcode.c).
  *

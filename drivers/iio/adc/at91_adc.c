@@ -46,7 +46,6 @@ struct at91_adc_state {
 	struct clk		*clk;
 	bool			done;
 	int			irq;
-	bool			irq_enabled;
 	u16			last_value;
 	struct mutex		lock;
 	u8			num_channels;
@@ -66,7 +65,6 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *idev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(idev);
-	struct iio_buffer *buffer = idev->buffer;
 	int i, j = 0;
 
 	for (i = 0; i < idev->masklength; i++) {
@@ -82,10 +80,9 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	buffer->access->store_to(buffer, (u8 *)st->buffer);
+	iio_push_to_buffers(indio_dev, (u8 *)st->buffer);
 
 	iio_trigger_notify_done(idev->trig);
-	st->irq_enabled = true;
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_ADC_LCDR);
@@ -106,7 +103,6 @@ static irqreturn_t at91_adc_eoc_trigger(int irq, void *private)
 
 	if (iio_buffer_enabled(idev)) {
 		disable_irq_nosync(irq);
-		st->irq_enabled = false;
 		iio_trigger_poll(idev->trig, iio_get_time_ns());
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_LCDR);

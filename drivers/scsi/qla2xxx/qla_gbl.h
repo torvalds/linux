@@ -416,7 +416,7 @@ extern int qla2x00_request_irqs(struct qla_hw_data *, struct rsp_que *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
-extern char *qla2x00_get_link_speed_str(struct qla_hw_data *);
+extern const char *qla2x00_get_link_speed_str(struct qla_hw_data *, uint16_t);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.
@@ -598,7 +598,6 @@ extern void qla82xx_init_flags(struct qla_hw_data *);
 
 /* ISP 8021 hardware related */
 extern void qla82xx_set_drv_active(scsi_qla_host_t *);
-extern void qla82xx_crb_win_unlock(struct qla_hw_data *);
 extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
 extern int qla82xx_rdmem(struct qla_hw_data *, u64, void *, int);

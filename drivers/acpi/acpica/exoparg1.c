@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
@@ -606,7 +605,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * Set result to ONES (TRUE) if Value == 0.  Note:
+		 * Set result to ONES (TRUE) if Value == 0. Note:
 		 * return_desc->Integer.Value is initially == 0 (FALSE) from above.
 		 */
 		if (!operand[0]->integer.value) {
@@ -618,7 +617,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 	case AML_INCREMENT_OP:	/* Increment (Operand)  */
 
 		/*
-		 * Create a new integer.  Can't just get the base integer and
+		 * Create a new integer. Can't just get the base integer and
 		 * increment it because it may be an Arg or Field.
 		 */
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
@@ -686,7 +685,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/*
 		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value.  For example, we don't
+		 * get the associated object, not its value. For example, we don't
 		 * want to resolve a field_unit to its value, we want the actual
 		 * field_unit object.
 		 */
@@ -727,7 +726,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/*
 		 * The type of the base object must be integer, buffer, string, or
-		 * package.  All others are not supported.
+		 * package. All others are not supported.
 		 *
 		 * NOTE: Integer is not specifically supported by the ACPI spec,
 		 * but is supported implicitly via implicit operand conversion.
@@ -965,7 +964,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				case ACPI_TYPE_PACKAGE:
 
 					/*
-					 * Return the referenced element of the package.  We must
+					 * Return the referenced element of the package. We must
 					 * add another reference to the referenced object, however.
 					 */
 					return_desc =

@@ -32,7 +32,7 @@ int uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length);
 #include "csr_wifi_sme_lib.h"
 
 void CsrWifiRouterTransportInit(unifi_priv_t *priv);
-void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, size_t bufferLength);
+void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8 *buffer, size_t bufferLength);
 void CsrWifiRouterTransportDeInit(unifi_priv_t *priv);
 
 #endif /* __LINUX_SME_USERSPACE_H__ */

@@ -310,7 +310,7 @@ struct gnttab_setup_table {
     uint32_t nr_frames;
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
-    GUEST_HANDLE(ulong) frame_list;
+    GUEST_HANDLE(xen_pfn_t) frame_list;
 };
 DEFINE_GUEST_HANDLE_STRUCT(gnttab_setup_table);
 

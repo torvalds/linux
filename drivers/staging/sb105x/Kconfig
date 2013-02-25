@@ -1,0 +1,9 @@
+config SB105X
+	tristate "SystemBase PCI Multiport UART"
+	select SERIAL_CORE
+	depends on PCI
+	help
+	  A driver for the SystemBase Multi-2/PCI serial card
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "sb105x".

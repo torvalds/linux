@@ -2399,7 +2399,7 @@ static void udc_handle_ep0_setup(struct lpc32xx_udc *udc)
 
 		if (i < 0) {
 			/* setup processing failed, force stall */
-			dev_err(udc->dev,
+			dev_dbg(udc->dev,
 				"req %02x.%02x protocol STALL; stat %d\n",
 				reqtype, req, i);
 			udc->ep0state = WAIT_FOR_SETUP;
@@ -2930,10 +2930,10 @@ static void vbus_work(struct work_struct *work)
 
 		/* Get the VBUS status from the transceiver */
 		value = i2c_smbus_read_byte_data(udc->isp1301_i2c_client,
-						 ISP1301_I2C_OTG_CONTROL_2);
+						 ISP1301_I2C_INTERRUPT_SOURCE);
 
 		/* VBUS on or off? */
-		if (value & OTG_B_SESS_VLD)
+		if (value & INT_SESS_VLD)
 			udc->vbus = 1;
 		else
 			udc->vbus = 0;
@@ -3352,7 +3352,7 @@ phy_fail:
 	return retval;
 }
 
-static int __devexit lpc32xx_udc_remove(struct platform_device *pdev)
+static int lpc32xx_udc_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_udc *udc = platform_get_drvdata(pdev);
 
@@ -3447,7 +3447,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_udc_of_match);
 #endif
 
 static struct platform_driver lpc32xx_udc_driver = {
-	.remove		= __devexit_p(lpc32xx_udc_remove),
+	.remove		= lpc32xx_udc_remove,
 	.shutdown	= lpc32xx_udc_shutdown,
 	.suspend	= lpc32xx_udc_suspend,
 	.resume		= lpc32xx_udc_resume,

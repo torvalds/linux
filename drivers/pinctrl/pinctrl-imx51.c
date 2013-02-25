@@ -1286,7 +1286,7 @@ static struct imx_pinctrl_soc_info imx51_pinctrl_info = {
 	.npin_regs = ARRAY_SIZE(imx51_pin_regs),
 };
 
-static struct of_device_id imx51_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id imx51_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx51-iomuxc", },
 	{ /* sentinel */ }
 };
@@ -1303,7 +1303,7 @@ static struct platform_driver imx51_pinctrl_driver = {
 		.of_match_table = of_match_ptr(imx51_pinctrl_of_match),
 	},
 	.probe = imx51_pinctrl_probe,
-	.remove = __devexit_p(imx_pinctrl_remove),
+	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx51_pinctrl_init(void)

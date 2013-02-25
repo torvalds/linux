@@ -174,7 +174,7 @@ static int cmdline_init(struct pevent *pevent)
 	return 0;
 }
 
-static char *find_cmdline(struct pevent *pevent, int pid)
+static const char *find_cmdline(struct pevent *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -2602,6 +2602,9 @@ find_func_handler(struct pevent *pevent, char *func_name)
 {
 	struct pevent_function_handler *func;
 
+	if (!pevent)
+		return NULL;
+
 	for (func = pevent->func_handlers; func; func = func->next) {
 		if (strcmp(func->name, func_name) == 0)
 			break;
@@ -2634,7 +2637,7 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	struct print_arg *farg;
 	enum event_type type;
 	char *token;
-	char *test;
+	const char *test;
 	int i;
 
 	arg->type = PRINT_FUNC;
@@ -3886,7 +3889,7 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 			  struct event_format *event, struct print_arg *arg)
 {
 	unsigned char *buf;
-	char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+	const char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
 
 	if (arg->type == PRINT_FUNC) {
 		process_defined_func(s, data, size, event, arg);
@@ -3928,7 +3931,8 @@ static int is_printable_array(char *p, unsigned int len)
 	return 1;
 }
 
-static void print_event_fields(struct trace_seq *s, void *data, int size,
+static void print_event_fields(struct trace_seq *s, void *data,
+			       int size __maybe_unused,
 			       struct event_format *event)
 {
 	struct format_field *field;
@@ -4405,7 +4409,7 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record)
 {
-	static char *spaces = "                    "; /* 20 spaces */
+	static const char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
 	unsigned long secs;
 	unsigned long usecs;
@@ -4938,6 +4942,9 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 		goto event_alloc_failed;
 	}
 
+	/* Add pevent to event so that it can be referenced */
+	event->pevent = pevent;
+
 	ret = event_read_format(event);
 	if (ret < 0) {
 		ret = PEVENT_ERRNO__READ_FORMAT_FAILED;
@@ -5041,9 +5048,6 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 	if (event == NULL)
 		return ret;
 
-	/* Add pevent to event so that it can be referenced */
-	event->pevent = pevent;
-
 	if (add_event(pevent, event)) {
 		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
 		goto event_add_failed;
@@ -5067,8 +5071,8 @@ static const char * const pevent_error_str[] = {
 };
 #undef _PE
 
-int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
-		    char *buf, size_t buflen)
+int pevent_strerror(struct pevent *pevent __maybe_unused,
+		    enum pevent_errno errnum, char *buf, size_t buflen)
 {
 	int idx;
 	const char *msg;
@@ -5097,6 +5101,7 @@ int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
 	case PEVENT_ERRNO__READ_FORMAT_FAILED:
 	case PEVENT_ERRNO__READ_PRINT_FAILED:
 	case PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED:
+	case PEVENT_ERRNO__INVALID_ARG_TYPE:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 
@@ -5359,7 +5364,7 @@ int pevent_register_print_function(struct pevent *pevent,
 		if (type == PEVENT_FUNC_ARG_VOID)
 			break;
 
-		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
+		if (type >= PEVENT_FUNC_ARG_MAX_TYPES) {
 			do_warning("Invalid argument type %d", type);
 			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
@@ -5557,7 +5562,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->func_map) {
-		for (i = 0; i < pevent->func_count; i++) {
+		for (i = 0; i < (int)pevent->func_count; i++) {
 			free(pevent->func_map[i].func);
 			free(pevent->func_map[i].mod);
 		}
@@ -5579,7 +5584,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->printk_map) {
-		for (i = 0; i < pevent->printk_count; i++)
+		for (i = 0; i < (int)pevent->printk_count; i++)
 			free(pevent->printk_map[i].printk);
 		free(pevent->printk_map);
 	}

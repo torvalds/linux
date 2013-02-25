@@ -28,7 +28,7 @@ struct omap_dss_device;
  * @power_down_gpio: gpio number for PD pin (or -1 if not available)
  */
 struct tfp410_platform_data {
-	u16 i2c_bus_num;
+	int i2c_bus_num;
 	int power_down_gpio;
 };
 

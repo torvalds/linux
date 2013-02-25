@@ -216,7 +216,7 @@ static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	twl6040_disconnect_pin(dapm, pdata->has_hf, "Ext Spk");
 	twl6040_disconnect_pin(dapm, pdata->has_ep, "Earphone Spk");
 	twl6040_disconnect_pin(dapm, pdata->has_aux, "Line Out");
-	twl6040_disconnect_pin(dapm, pdata->has_vibra, "Vinrator");
+	twl6040_disconnect_pin(dapm, pdata->has_vibra, "Vibrator");
 	twl6040_disconnect_pin(dapm, pdata->has_hsmic, "Headset Mic");
 	twl6040_disconnect_pin(dapm, pdata->has_mainmic, "Main Handset Mic");
 	twl6040_disconnect_pin(dapm, pdata->has_submic, "Sub Handset Mic");
@@ -273,7 +273,7 @@ static struct snd_soc_card omap_abe_card = {
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
-static __devinit int omap_abe_probe(struct platform_device *pdev)
+static int omap_abe_probe(struct platform_device *pdev)
 {
 	struct omap_abe_twl6040_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
@@ -331,8 +331,8 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 			num_links = 1;
 		}
 
-		of_property_read_u32(node, "ti,jack-detection",
-				     &priv->jack_detection);
+		priv->jack_detection = of_property_read_bool(node,
+							   "ti,jack-detection");
 		of_property_read_u32(node, "ti,mclk-freq",
 				     &priv->mclk_freq);
 		if (!priv->mclk_freq) {
@@ -390,7 +390,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit omap_abe_remove(struct platform_device *pdev)
+static int omap_abe_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
@@ -417,7 +417,7 @@ static struct platform_driver omap_abe_driver = {
 		.of_match_table = omap_abe_of_match,
 	},
 	.probe = omap_abe_probe,
-	.remove = __devexit_p(omap_abe_remove),
+	.remove = omap_abe_remove,
 };
 
 module_platform_driver(omap_abe_driver);

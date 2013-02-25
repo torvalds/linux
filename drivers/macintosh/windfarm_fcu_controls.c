@@ -593,19 +593,7 @@ static struct i2c_driver wf_fcu_driver = {
 	.id_table	= wf_fcu_id,
 };
 
-static int __init wf_fcu_init(void)
-{
-	return i2c_add_driver(&wf_fcu_driver);
-}
-
-static void __exit wf_fcu_exit(void)
-{
-	i2c_del_driver(&wf_fcu_driver);
-}
-
-
-module_init(wf_fcu_init);
-module_exit(wf_fcu_exit);
+module_i2c_driver(wf_fcu_driver);
 
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("FCU control objects for PowerMacs thermal control");

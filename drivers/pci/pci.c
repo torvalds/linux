@@ -86,7 +86,7 @@ enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
  * the dfl or actual value as it sees fit.  Don't forget this is
  * measured in 32-bit words, not bytes.
  */
-u8 pci_dfl_cache_line_size __devinitdata = L1_CACHE_BYTES >> 2;
+u8 pci_dfl_cache_line_size = L1_CACHE_BYTES >> 2;
 u8 pci_cache_line_size;
 
 /*
@@ -1333,6 +1333,19 @@ void pcim_pin_device(struct pci_dev *pdev)
 		dr->pinned = 1;
 }
 
+/*
+ * pcibios_add_device - provide arch specific hooks when adding device dev
+ * @dev: the PCI device being added
+ *
+ * Permits the platform to provide architecture specific functionality when
+ * devices are added. This is the default implementation. Architecture
+ * implementations can override this.
+ */
+int __weak pcibios_add_device (struct pci_dev *dev)
+{
+	return 0;
+}
+
 /**
  * pcibios_disable_device - disable arch specific PCI resources for device dev
  * @dev: the PCI device to disable
@@ -1578,15 +1591,25 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 
-	/* PCI (as opposed to PCIe) PME requires that the device have
-	   its PME# line hooked up correctly. Not all hardware vendors
-	   do this, so the PME never gets delivered and the device
-	   remains asleep. The easiest way around this is to
-	   periodically walk the list of suspended devices and check
-	   whether any have their PME flag set. The assumption is that
-	   we'll wake up often enough anyway that this won't be a huge
-	   hit, and the power savings from the devices will still be a
-	   win. */
+	/*
+	 * PCI (as opposed to PCIe) PME requires that the device have
+	 * its PME# line hooked up correctly. Not all hardware vendors
+	 * do this, so the PME never gets delivered and the device
+	 * remains asleep. The easiest way around this is to
+	 * periodically walk the list of suspended devices and check
+	 * whether any have their PME flag set. The assumption is that
+	 * we'll wake up often enough anyway that this won't be a huge
+	 * hit, and the power savings from the devices will still be a
+	 * win.
+	 *
+	 * Although PCIe uses in-band PME message instead of PME# line
+	 * to report PME, PME does not work for some PCIe devices in
+	 * reality.  For example, there are devices that set their PME
+	 * status bits, but don't really bother to send a PME message;
+	 * there are PCI Express Root Ports that don't bother to
+	 * trigger interrupts when they receive PME messages from the
+	 * devices below.  So PME poll is used for PCIe devices too.
+	 */
 
 	if (dev->pme_poll) {
 		struct pci_pme_device *pme_dev;
@@ -1858,6 +1881,38 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_dev_run_wake);
 
+void pci_config_pm_runtime_get(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
+
+	if (parent)
+		pm_runtime_get_sync(parent);
+	pm_runtime_get_noresume(dev);
+	/*
+	 * pdev->current_state is set to PCI_D3cold during suspending,
+	 * so wait until suspending completes
+	 */
+	pm_runtime_barrier(dev);
+	/*
+	 * Only need to resume devices in D3cold, because config
+	 * registers are still accessible for devices suspended but
+	 * not in D3cold.
+	 */
+	if (pdev->current_state == PCI_D3cold)
+		pm_runtime_resume(dev);
+}
+
+void pci_config_pm_runtime_put(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
+
+	pm_runtime_put(dev);
+	if (parent)
+		pm_runtime_put_sync(parent);
+}
+
 /**
  * pci_pm_init - Initialize PM functions of given PCI device
  * @dev: PCI device to handle.
@@ -1868,6 +1923,8 @@ void pci_pm_init(struct pci_dev *dev)
 	u16 pmc;
 
 	pm_runtime_forbid(&dev->dev);
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
 	device_enable_async_suspend(&dev->dev);
 	dev->wakeup_prepared = false;
 
@@ -3825,7 +3882,7 @@ static int __init pci_resource_alignment_sysfs_init(void)
 
 late_initcall(pci_resource_alignment_sysfs_init);
 
-static void __devinit pci_no_domains(void)
+static void pci_no_domains(void)
 {
 #ifdef CONFIG_PCI_DOMAINS
 	pci_domains_supported = 0;
@@ -3833,14 +3890,13 @@ static void __devinit pci_no_domains(void)
 }
 
 /**
- * pci_ext_cfg_enabled - can we access extended PCI config space?
- * @dev: The PCI device of the root bridge.
+ * pci_ext_cfg_avail - can we access extended PCI config space?
  *
  * Returns 1 if we can access PCI extended config space (offsets
  * greater than 0xff). This is the default implementation. Architecture
  * implementations can override this.
  */
-int __weak pci_ext_cfg_avail(struct pci_dev *dev)
+int __weak pci_ext_cfg_avail(void)
 {
 	return 1;
 }

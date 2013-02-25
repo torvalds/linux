@@ -21,17 +21,10 @@ struct ehci_sh_priv {
 static int ehci_sh_reset(struct usb_hcd *hcd)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int ret;
 
 	ehci->caps = hcd->regs;
 
-	ret = ehci_setup(hcd);
-	if (unlikely(ret))
-		return ret;
-
-	ehci_port_power(ehci, 0);
-
-	return ret;
+	return ehci_setup(hcd);
 }
 
 static const struct hc_driver ehci_sh_hc_driver = {

@@ -43,6 +43,8 @@
 #else
 #define STACK_TOP		STACK_TOP_MAX
 #endif /* CONFIG_COMPAT */
+
+#define ARCH_LOW_ADDRESS_LIMIT	PHYS_MASK
 #endif /* __KERNEL__ */
 
 struct debug_info {
@@ -92,30 +94,20 @@ static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
-	unsigned long *stack = (unsigned long *)sp;
-
 	start_thread_common(regs, pc);
 	regs->pstate = PSR_MODE_EL0t;
 	regs->sp = sp;
-	regs->regs[2] = stack[2];	/* x2 (envp) */
-	regs->regs[1] = stack[1];	/* x1 (argv) */
-	regs->regs[0] = stack[0];	/* x0 (argc) */
 }
 
 #ifdef CONFIG_COMPAT
 static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 				       unsigned long sp)
 {
-	unsigned int *stack = (unsigned int *)sp;
-
 	start_thread_common(regs, pc);
 	regs->pstate = COMPAT_PSR_MODE_USR;
 	if (pc & 1)
 		regs->pstate |= COMPAT_PSR_T_BIT;
 	regs->compat_sp = sp;
-	regs->regs[2] = stack[2];	/* x2 (envp) */
-	regs->regs[1] = stack[1];	/* x1 (argv) */
-	regs->regs[0] = stack[0];	/* x0 (argc) */
 }
 #endif
 
@@ -135,11 +127,6 @@ unsigned long get_wchan(struct task_struct *p);
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
-
-/*
- * Create a new kernel thread
- */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)

@@ -28,7 +28,6 @@
 
 #include <plat/dmtimer.h>
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
@@ -480,18 +479,7 @@ struct platform_driver lirc_rx51_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init lirc_rx51_init(void)
-{
-	return platform_driver_register(&lirc_rx51_platform_driver);
-}
-module_init(lirc_rx51_init);
-
-static void __exit lirc_rx51_exit(void)
-{
-	platform_driver_unregister(&lirc_rx51_platform_driver);
-}
-module_exit(lirc_rx51_exit);
+module_platform_driver(lirc_rx51_platform_driver);
 
 MODULE_DESCRIPTION("LIRC TX driver for Nokia RX51");
 MODULE_AUTHOR("Nokia Corporation");

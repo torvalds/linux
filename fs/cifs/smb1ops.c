@@ -575,37 +575,6 @@ cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSSMBQFileInfo(xid, tcon, fid->netfid, data);
 }
 
-static char *
-cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
-{
-	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
-	int dfsplen;
-	char *full_path = NULL;
-
-	/* if no prefix path, simply set path to the root of share to "" */
-	if (pplen == 0) {
-		full_path = kzalloc(1, GFP_KERNEL);
-		return full_path;
-	}
-
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
-		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
-	else
-		dfsplen = 0;
-
-	full_path = kmalloc(dfsplen + pplen + 1, GFP_KERNEL);
-	if (full_path == NULL)
-		return full_path;
-
-	if (dfsplen)
-		strncpy(full_path, tcon->treeName, dfsplen);
-	strncpy(full_path + dfsplen, vol->prepath, pplen);
-	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
-	full_path[dfsplen + pplen] = 0; /* add trailing null */
-	return full_path;
-}
-
 static void
 cifs_clear_stats(struct cifs_tcon *tcon)
 {
@@ -766,7 +735,6 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
-	FILE_BASIC_INFO info_buf;
 
 	/* if the file is already open for write, just use that fileid */
 	open_file = find_writable_file(cinode, true);
@@ -817,7 +785,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	netpid = current->tgid;
 
 set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, tcon, &info_buf, netfid, netpid);
+	rc = CIFSSMBSetFileInfo(xid, tcon, buf, netfid, netpid);
 	if (!rc)
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 
@@ -944,7 +912,6 @@ struct smb_version_operations smb1_operations = {
 	.set_path_size = CIFSSMBSetEOF,
 	.set_file_size = CIFSSMBSetFileSize,
 	.set_file_info = smb_set_file_info,
-	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,

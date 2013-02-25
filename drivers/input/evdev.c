@@ -292,7 +292,6 @@ static int evdev_release(struct inode *inode, struct file *file)
 	kfree(client);
 
 	evdev_close_device(evdev);
-	put_device(&evdev->dev);
 
 	return 0;
 }
@@ -331,7 +330,6 @@ static int evdev_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 	nonseekable_open(inode, file);
 
-	get_device(&evdev->dev);
 	return 0;
 
  err_free_client:
@@ -1001,6 +999,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 		goto err_free_evdev;
 
 	cdev_init(&evdev->cdev, &evdev_fops);
+	evdev->cdev.kobj.parent = &evdev->dev.kobj;
 	error = cdev_add(&evdev->cdev, evdev->dev.devt, 1);
 	if (error)
 		goto err_unregister_handle;

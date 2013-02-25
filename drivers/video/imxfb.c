@@ -33,7 +33,6 @@
 #include <linux/math64.h>
 
 #include <linux/platform_data/video-imxfb.h>
-#include <mach/hardware.h>
 
 /*
  * Complain if VAR is out of range.
@@ -53,8 +52,8 @@
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
 
-#define YMAX_MASK       (cpu_is_mx1() ? 0x1ff : 0x3ff)
-#define SIZE_YMAX(y)	((y) & YMAX_MASK)
+#define YMAX_MASK_IMX1	0x1ff
+#define YMAX_MASK_IMX21	0x3ff
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -128,12 +127,18 @@ struct imxfb_rgb {
 	struct fb_bitfield	transp;
 };
 
+enum imxfb_type {
+	IMX1_FB,
+	IMX21_FB,
+};
+
 struct imxfb_info {
 	struct platform_device  *pdev;
 	void __iomem		*regs;
 	struct clk		*clk_ipg;
 	struct clk		*clk_ahb;
 	struct clk		*clk_per;
+	enum imxfb_type		devtype;
 
 	/*
 	 * These are the addresses we mapped
@@ -167,6 +172,24 @@ struct imxfb_info {
 	void (*lcd_power)(int);
 	void (*backlight_power)(int);
 };
+
+static struct platform_device_id imxfb_devtype[] = {
+	{
+		.name = "imx1-fb",
+		.driver_data = IMX1_FB,
+	}, {
+		.name = "imx21-fb",
+		.driver_data = IMX21_FB,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imxfb_devtype);
+
+static inline int is_imx1_fb(struct imxfb_info *fbi)
+{
+	return fbi->devtype == IMX1_FB;
+}
 
 #define IMX_NAME	"IMX"
 
@@ -366,7 +389,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 16:
 	default:
-		if (cpu_is_mx1())
+		if (is_imx1_fb(fbi))
 			pcr |= PCR_BPIX_12;
 		else
 			pcr |= PCR_BPIX_16;
@@ -596,6 +619,7 @@ static struct fb_ops imxfb_ops = {
 static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
+	u32 ymax_mask = is_imx1_fb(fbi) ? YMAX_MASK_IMX1 : YMAX_MASK_IMX21;
 
 	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
 		var->xres, var->hsync_len,
@@ -617,7 +641,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (var->right_margin > 255)
 		printk(KERN_ERR "%s: invalid right_margin %d\n",
 			info->fix.id, var->right_margin);
-	if (var->yres < 1 || var->yres > YMAX_MASK)
+	if (var->yres < 1 || var->yres > ymax_mask)
 		printk(KERN_ERR "%s: invalid yres %d\n",
 			info->fix.id, var->yres);
 	if (var->vsync_len > 100)
@@ -645,7 +669,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		VCR_V_WAIT_2(var->upper_margin),
 		fbi->regs + LCDC_VCR);
 
-	writel(SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres),
+	writel(SIZE_XMAX(var->xres) | (var->yres & ymax_mask),
 			fbi->regs + LCDC_SIZE);
 
 	writel(fbi->pcr, fbi->regs + LCDC_PCR);
@@ -765,6 +789,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fbi = info->par;
+	fbi->devtype = pdev->id_entry->driver_data;
 
 	if (!fb_mode)
 		fb_mode = pdata->mode[0].mode.name;
@@ -939,6 +964,7 @@ static struct platform_driver imxfb_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
+	.id_table	= imxfb_devtype,
 };
 
 static int imxfb_setup(void)

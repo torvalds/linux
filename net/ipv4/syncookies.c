@@ -340,7 +340,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	}
 
 	req->expires	= 0UL;
-	req->retrans	= 0;
+	req->num_retrans = 0;
 
 	/*
 	 * We need to lookup the route here to get at the correct

@@ -417,7 +417,6 @@ uvc_register_video(struct uvc_device *uvc)
 		return -ENOMEM;
 
 	video->parent = &cdev->gadget->dev;
-	video->minor = -1;
 	video->fops = &uvc_v4l2_fops;
 	video->release = video_device_release;
 	strncpy(video->name, cdev->gadget->name, sizeof(video->name));
@@ -577,27 +576,15 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	INFO(cdev, "uvc_function_unbind\n");
 
-	if (uvc->vdev) {
-		if (uvc->vdev->minor == -1)
-			video_device_release(uvc->vdev);
-		else
-			video_unregister_device(uvc->vdev);
-		uvc->vdev = NULL;
-	}
+	video_unregister_device(uvc->vdev);
+	uvc->control_ep->driver_data = NULL;
+	uvc->video.ep->driver_data = NULL;
 
-	if (uvc->control_ep)
-		uvc->control_ep->driver_data = NULL;
-	if (uvc->video.ep)
-		uvc->video.ep->driver_data = NULL;
+	uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id = 0;
+	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
+	kfree(uvc->control_buf);
 
-	if (uvc->control_req) {
-		usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
-		kfree(uvc->control_buf);
-	}
-
-	kfree(f->descriptors);
-	kfree(f->hs_descriptors);
-	kfree(f->ss_descriptors);
+	usb_free_all_descriptors(f);
 
 	kfree(uvc);
 }
@@ -663,49 +650,40 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	/* sanity check the streaming endpoint module parameters */
 	if (streaming_maxpacket > 1024)
 		streaming_maxpacket = 1024;
+	/*
+	 * Fill in the HS descriptors from the module parameters for the Video
+	 * Streaming endpoint.
+	 * NOTE: We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	uvc_hs_streaming_ep.wMaxPacketSize = streaming_maxpacket;
+	uvc_hs_streaming_ep.wMaxPacketSize |= streaming_mult << 11;
+	uvc_hs_streaming_ep.bInterval = streaming_interval;
+	uvc_hs_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
 
-	/* Copy descriptors for FS. */
-	f->descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
+	/*
+	 * Fill in the SS descriptors from the module parameters for the Video
+	 * Streaming endpoint.
+	 * NOTE: We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	uvc_ss_streaming_ep.wMaxPacketSize = streaming_maxpacket;
+	uvc_ss_streaming_ep.bInterval = streaming_interval;
+	uvc_ss_streaming_comp.bmAttributes = streaming_mult;
+	uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
+	uvc_ss_streaming_comp.wBytesPerInterval =
+		streaming_maxpacket * (streaming_mult + 1) *
+		(streaming_maxburst + 1);
+	uvc_ss_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
 
-	/* support high speed hardware */
-	if (gadget_is_dualspeed(cdev->gadget)) {
-		/*
-		 * Fill in the HS descriptors from the module parameters for the
-		 * Video Streaming endpoint.
-		 * NOTE: We assume that the user knows what they are doing and
-		 * won't give parameters that their UDC doesn't support.
-		 */
-		uvc_hs_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-		uvc_hs_streaming_ep.wMaxPacketSize |= streaming_mult << 11;
-		uvc_hs_streaming_ep.bInterval = streaming_interval;
-		uvc_hs_streaming_ep.bEndpointAddress =
-				uvc_fs_streaming_ep.bEndpointAddress;
-
-		/* Copy descriptors. */
+	/* Copy descriptors */
+	f->fs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
+	if (gadget_is_dualspeed(cdev->gadget))
 		f->hs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_HIGH);
-	}
-
-	/* support super speed hardware */
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		/*
-		 * Fill in the SS descriptors from the module parameters for the
-		 * Video Streaming endpoint.
-		 * NOTE: We assume that the user knows what they are doing and
-		 * won't give parameters that their UDC doesn't support.
-		 */
-		uvc_ss_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-		uvc_ss_streaming_ep.bInterval = streaming_interval;
-		uvc_ss_streaming_comp.bmAttributes = streaming_mult;
-		uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
-		uvc_ss_streaming_comp.wBytesPerInterval =
-			streaming_maxpacket * (streaming_mult + 1) *
-			(streaming_maxburst + 1);
-		uvc_ss_streaming_ep.bEndpointAddress =
-				uvc_fs_streaming_ep.bEndpointAddress;
-
-		/* Copy descriptors. */
+	if (gadget_is_superspeed(c->cdev->gadget))
 		f->ss_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER);
-	}
 
 	/* Preallocate control endpoint request. */
 	uvc->control_req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
@@ -740,7 +718,20 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 error:
-	uvc_function_unbind(c, f);
+	if (uvc->vdev)
+		video_device_release(uvc->vdev);
+
+	if (uvc->control_ep)
+		uvc->control_ep->driver_data = NULL;
+	if (uvc->video.ep)
+		uvc->video.ep->driver_data = NULL;
+
+	if (uvc->control_req) {
+		usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
+		kfree(uvc->control_buf);
+	}
+
+	usb_free_all_descriptors(f);
 	return ret;
 }
 
@@ -808,25 +799,16 @@ uvc_bind_config(struct usb_configuration *c,
 	uvc->desc.hs_streaming = hs_streaming;
 	uvc->desc.ss_streaming = ss_streaming;
 
-	/* maybe allocate device-global string IDs, and patch descriptors */
+	/* Allocate string descriptor numbers. */
 	if (uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id == 0) {
-		/* Allocate string descriptor numbers. */
-		ret = usb_string_id(c->cdev);
-		if (ret < 0)
+		ret = usb_string_ids_tab(c->cdev, uvc_en_us_strings);
+		if (ret)
 			goto error;
-		uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id = ret;
-		uvc_iad.iFunction = ret;
-
-		ret = usb_string_id(c->cdev);
-		if (ret < 0)
-			goto error;
-		uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = ret;
-		uvc_control_intf.iInterface = ret;
-
-		ret = usb_string_id(c->cdev);
-		if (ret < 0)
-			goto error;
-		uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id = ret;
+		uvc_iad.iFunction =
+			uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id;
+		uvc_control_intf.iInterface =
+			uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id;
+		ret = uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id;
 		uvc_streaming_intf_alt0.iInterface = ret;
 		uvc_streaming_intf_alt1.iInterface = ret;
 	}

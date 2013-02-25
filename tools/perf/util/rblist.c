@@ -44,6 +44,7 @@ int rblist__add_node(struct rblist *rblist, const void *new_entry)
 void rblist__remove_node(struct rblist *rblist, struct rb_node *rb_node)
 {
 	rb_erase(rb_node, &rblist->entries);
+	--rblist->nr_entries;
 	rblist->node_delete(rblist, rb_node);
 }
 
@@ -87,8 +88,7 @@ void rblist__delete(struct rblist *rblist)
 		while (next) {
 			pos = next;
 			next = rb_next(pos);
-			rb_erase(pos, &rblist->entries);
-			rblist->node_delete(rblist, pos);
+			rblist__remove_node(rblist, pos);
 		}
 		free(rblist);
 	}

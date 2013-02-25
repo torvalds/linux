@@ -379,25 +379,6 @@ static long rtc_dev_ioctl(struct file *file,
 		err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
 		break;
 
-#if 0
-	case RTC_EPOCH_SET:
-#ifndef rtc_epoch
-		/*
-		 * There were no RTC clocks before 1900.
-		 */
-		if (arg < 1900) {
-			err = -EINVAL;
-			break;
-		}
-		rtc_epoch = arg;
-		err = 0;
-#endif
-		break;
-
-	case RTC_EPOCH_READ:
-		err = put_user(rtc_epoch, (unsigned long __user *)uarg);
-		break;
-#endif
 	case RTC_WKALM_SET:
 		mutex_unlock(&rtc->ops_lock);
 		if (copy_from_user(&alarm, uarg, sizeof(alarm)))

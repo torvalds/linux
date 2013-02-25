@@ -27,10 +27,9 @@
 #include <linux/clkdev.h>
 #include <linux/clk.h>
 
-#include <mach/iomap.h>
-
 #include "clock.h"
 #include "fuse.h"
+#include "iomap.h"
 #include "tegra2_emc.h"
 #include "tegra_cpu_car.h"
 

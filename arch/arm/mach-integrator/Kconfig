@@ -8,6 +8,7 @@ config ARCH_INTEGRATOR_AP
 	select MIGHT_HAVE_PCI
 	select SERIAL_AMBA_PL010
 	select SERIAL_AMBA_PL010_CONSOLE
+	select SOC_BUS
 	help
 	  Include support for the ARM(R) Integrator/AP and
 	  Integrator/PP2 platforms.
@@ -19,6 +20,7 @@ config ARCH_INTEGRATOR_CP
 	select PLAT_VERSATILE_CLCD
 	select SERIAL_AMBA_PL011
 	select SERIAL_AMBA_PL011_CONSOLE
+	select SOC_BUS
 	help
 	  Include support for the ARM(R) Integrator CP platform.
 

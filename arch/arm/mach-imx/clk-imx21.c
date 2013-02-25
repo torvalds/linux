@@ -25,9 +25,9 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 #define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR + (off)))
 
@@ -156,16 +156,16 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[cspi2_ipg_gate], "ipg", "imx21-cspi.1");
 	clk_register_clkdev(clk[per2], "per", "imx21-cspi.2");
 	clk_register_clkdev(clk[cspi3_ipg_gate], "ipg", "imx21-cspi.2");
-	clk_register_clkdev(clk[per3], "per", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_hclk_gate], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[per3], "per", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_hclk_gate], "ahb", "imx21-fb.0");
 	clk_register_clkdev(clk[usb_gate], "per", "imx21-hcd.0");
 	clk_register_clkdev(clk[usb_hclk_gate], "ahb", "imx21-hcd.0");
-	clk_register_clkdev(clk[nfc_gate], NULL, "mxc_nand.0");
-	clk_register_clkdev(clk[dma_hclk_gate], "ahb", "imx-dma");
-	clk_register_clkdev(clk[dma_gate], "ipg", "imx-dma");
+	clk_register_clkdev(clk[nfc_gate], NULL, "imx21-nand.0");
+	clk_register_clkdev(clk[dma_hclk_gate], "ahb", "imx21-dma");
+	clk_register_clkdev(clk[dma_gate], "ipg", "imx21-dma");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[i2c_gate], NULL, "imx-i2c.0");
+	clk_register_clkdev(clk[i2c_gate], NULL, "imx21-i2c.0");
 	clk_register_clkdev(clk[kpp_gate], NULL, "mxc-keypad");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
 	clk_register_clkdev(clk[brom_gate], "brom", NULL);

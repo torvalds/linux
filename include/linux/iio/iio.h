@@ -410,6 +410,7 @@ struct iio_buffer_setup_ops {
  *			and owner
  * @event_interface:	[INTERN] event chrdevs associated with interrupt lines
  * @buffer:		[DRIVER] any buffer present
+ * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
@@ -448,6 +449,7 @@ struct iio_dev {
 	struct iio_event_interface	*event_interface;
 
 	struct iio_buffer		*buffer;
+	struct list_head		buffer_list;
 	int				scan_bytes;
 	struct mutex			mlock;
 
@@ -617,5 +619,24 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 	return NULL;
 };
 #endif
+
+int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
+	int *fract);
+
+/**
+ * IIO_DEGREE_TO_RAD() - Convert degree to rad
+ * @deg: A value in degree
+ *
+ * Returns the given value converted from degree to rad
+ */
+#define IIO_DEGREE_TO_RAD(deg) (((deg) * 314159ULL + 9000000ULL) / 18000000ULL)
+
+/**
+ * IIO_G_TO_M_S_2() - Convert g to meter / second**2
+ * @g: A value in g
+ *
+ * Returns the given value converted from g to meter / second**2
+ */
+#define IIO_G_TO_M_S_2(g) ((g) * 980665ULL / 100000ULL)
 
 #endif /* _INDUSTRIAL_IO_H_ */

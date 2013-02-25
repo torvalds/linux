@@ -273,36 +273,16 @@ nlm_pic_read_irt(uint64_t base, int irt_index)
 	return nlm_read_pic_reg(base, PIC_IRT(irt_index));
 }
 
-static inline uint64_t
-nlm_pic_read_control(uint64_t base)
-{
-	return nlm_read_pic_reg(base, PIC_CTRL);
-}
-
-static inline void
-nlm_pic_write_control(uint64_t base, uint64_t control)
-{
-	nlm_write_pic_reg(base, PIC_CTRL, control);
-}
-
-static inline void
-nlm_pic_update_control(uint64_t base, uint64_t control)
-{
-	uint64_t val;
-
-	val = nlm_read_pic_reg(base, PIC_CTRL);
-	nlm_write_pic_reg(base, PIC_CTRL, control | val);
-}
-
 static inline void
 nlm_set_irt_to_cpu(uint64_t base, int irt, int cpu)
 {
 	uint64_t val;
 
 	val = nlm_read_pic_reg(base, PIC_IRT(irt));
-	val |= cpu & 0xf;
-	if (cpu > 15)
-		val |= 1 << 16;
+	/* clear cpuset and mask */
+	val &= ~((0x7ull << 16) | 0xffff);
+	/* set DB, cpuset and cpumask */
+	val |= (1 << 19) | ((cpu >> 4) << 16) | (1 << (cpu & 0xf));
 	nlm_write_pic_reg(base, PIC_IRT(irt), val);
 }
 
@@ -369,7 +349,7 @@ nlm_pic_enable_irt(uint64_t base, int irt)
 static inline void
 nlm_pic_disable_irt(uint64_t base, int irt)
 {
-	uint32_t reg;
+	uint64_t reg;
 
 	reg = nlm_read_pic_reg(base, PIC_IRT(irt));
 	nlm_write_pic_reg(base, PIC_IRT(irt), reg & ~((uint64_t)1 << 31));
@@ -379,15 +359,9 @@ static inline void
 nlm_pic_send_ipi(uint64_t base, int hwt, int irq, int nmi)
 {
 	uint64_t ipi;
-	int	node, ncpu;
 
-	node = hwt / 32;
-	ncpu = hwt & 0x1f;
-	ipi = ((uint64_t)nmi << 31) | (irq << 20) | (node << 17) |
-		(1 << (ncpu & 0xf));
-	if (ncpu > 15)
-		ipi |= 0x10000; /* Setting bit 16 to select cpus 16-31 */
-
+	ipi = (nmi << 31) | (irq << 20);
+	ipi |= ((hwt >> 4) << 16) | (1 << (hwt & 0xf)); /* cpuset and mask */
 	nlm_write_pic_reg(base, PIC_IPI_CTL, ipi);
 }
 
@@ -404,12 +378,10 @@ nlm_pic_ack(uint64_t base, int irt_num)
 static inline void
 nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
 {
-	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, 0);
+	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, hwt);
 }
 
-extern uint64_t nlm_pic_base;
 int nlm_irq_to_irt(int irq);
-int nlm_irt_to_irq(int irt);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _NLM_HAL_PIC_H */

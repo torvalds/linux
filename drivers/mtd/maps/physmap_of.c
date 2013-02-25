@@ -77,7 +77,7 @@ static int of_flash_remove(struct platform_device *dev)
 /* Helper function to handle probing of the obsolete "direct-mapped"
  * compatible binding, which has an extra "probe-type" property
  * describing the type of flash probe necessary. */
-static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
+static struct mtd_info *obsolete_probe(struct platform_device *dev,
 						  struct map_info *map)
 {
 	struct device_node *dp = dev->dev.of_node;
@@ -116,7 +116,7 @@ static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
    information. */
 static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot",
 					"ofpart", "ofoldpart", NULL };
-static const char ** __devinit of_get_probes(struct device_node *dp)
+static const char **of_get_probes(struct device_node *dp)
 {
 	const char *cp;
 	int cplen;
@@ -145,14 +145,14 @@ static const char ** __devinit of_get_probes(struct device_node *dp)
 	return res;
 }
 
-static void __devinit of_free_probes(const char **probes)
+static void of_free_probes(const char **probes)
 {
 	if (probes != part_probe_types_def)
 		kfree(probes);
 }
 
 static struct of_device_id of_flash_match[];
-static int __devinit of_flash_probe(struct platform_device *dev)
+static int of_flash_probe(struct platform_device *dev)
 {
 	const char **part_probe_types;
 	const struct of_device_id *match;
@@ -170,6 +170,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	resource_size_t res_size;
 	struct mtd_part_parser_data ppdata;
 	bool map_indirect;
+	const char *mtd_name;
 
 	match = of_match_device(of_flash_match, &dev->dev);
 	if (!match)
@@ -177,6 +178,8 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	probe_type = match->data;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
+
+	of_property_read_string(dp, "linux,mtd-name", &mtd_name);
 
 	/*
 	 * Get number of "reg" tuples. Scan for MTD devices on area's
@@ -234,7 +237,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 			goto err_out;
 		}
 
-		info->list[i].map.name = dev_name(&dev->dev);
+		info->list[i].map.name = mtd_name ?: dev_name(&dev->dev);
 		info->list[i].map.phys = res.start;
 		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = be32_to_cpup(width);
@@ -282,6 +285,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	}
 
 	err = 0;
+	info->cmtd = NULL;
 	if (info->list_size == 1) {
 		info->cmtd = info->list[0].mtd;
 	} else if (info->list_size > 1) {
@@ -290,9 +294,10 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 		 */
 		info->cmtd = mtd_concat_create(mtd_list, info->list_size,
 					       dev_name(&dev->dev));
-		if (info->cmtd == NULL)
-			err = -ENXIO;
 	}
+	if (info->cmtd == NULL)
+		err = -ENXIO;
+
 	if (err)
 		goto err_out;
 

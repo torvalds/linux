@@ -191,7 +191,7 @@ static struct regmap_config pcf50633_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit pcf50633_probe(struct i2c_client *client,
+static int pcf50633_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct pcf50633 *pcf;
@@ -275,7 +275,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit pcf50633_remove(struct i2c_client *client)
+static int pcf50633_remove(struct i2c_client *client)
 {
 	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int i;
@@ -308,7 +308,7 @@ static struct i2c_driver pcf50633_driver = {
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
-	.remove = __devexit_p(pcf50633_remove),
+	.remove = pcf50633_remove,
 };
 
 static int __init pcf50633_init(void)

@@ -944,8 +944,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* board config */
 	dev->board = pci_id->driver_data;
-	if (card[dev->nr] >= 0 &&
-	    card[dev->nr] < saa7134_bcount)
+	if ((unsigned)card[dev->nr] < saa7134_bcount)
 		dev->board = card[dev->nr];
 	if (SAA7134_BOARD_UNKNOWN == dev->board)
 		must_configure_manually(0);

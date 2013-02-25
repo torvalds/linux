@@ -102,7 +102,7 @@ static int fs_enet_fec_mii_reset(struct mii_bus *bus)
 }
 
 static struct of_device_id fs_enet_mdio_fec_match[];
-static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
+static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct resource res;

@@ -32,6 +32,9 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 #define arch_ptrace_stop(exit_code, info) \
 	synchronize_user_stack()
 
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
+
 struct global_reg_snapshot {
 	unsigned long		tstate;
 	unsigned long		tpc;
@@ -42,11 +45,20 @@ struct global_reg_snapshot {
 	struct thread_info	*thread;
 	unsigned long		pad1;
 };
-extern struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 
-#define force_successful_syscall_return()	    \
-do {	current_thread_info()->syscall_noerror = 1; \
-} while (0)
+struct global_pmu_snapshot {
+	unsigned long		pcr[4];
+	unsigned long		pic[4];
+};
+
+union global_cpu_snapshot {
+	struct global_reg_snapshot	reg;
+	struct global_pmu_snapshot	pmu;
+};
+
+extern union global_cpu_snapshot global_cpu_snapshot[NR_CPUS];
+
+#define force_successful_syscall_return() set_thread_noerror(1)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
 #define instruction_pointer_set(regs, val) ((regs)->tpc = (val))
@@ -88,6 +100,9 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 
 #define arch_ptrace_stop(exit_code, info) \
 	synchronize_user_stack()
+
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
 
 #define user_mode(regs) (!((regs)->psr & PSR_PS))
 #define instruction_pointer(regs) ((regs)->pc)

@@ -450,14 +450,15 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 
 	cp->file = files[1];
 
-	replace_fd(0, files[0], 0);
+	err = replace_fd(0, files[0], 0);
+	fput(files[0]);
 	/* and disallow core files too */
 	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
 
-	return 0;
+	return err;
 }
 
-void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
+void do_coredump(siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -473,7 +474,7 @@ void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
-		.regs = regs,
+		.regs = signal_pt_regs(),
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid

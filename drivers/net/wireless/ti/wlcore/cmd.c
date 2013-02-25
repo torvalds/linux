@@ -1038,11 +1038,13 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u16 template_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
 
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
-				     ie, ie_len);
+				     ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
 	}
+	if (ie_len)
+		memcpy(skb_put(skb, ie_len), ie, ie_len);
 
 	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 

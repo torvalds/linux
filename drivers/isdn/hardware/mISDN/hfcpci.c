@@ -490,7 +490,7 @@ receive_dmsg(struct hfc_pci *hc)
 		    (df->data[le16_to_cpu(zp->z1)])) {
 			if (dch->debug & DEBUG_HW)
 				printk(KERN_DEBUG
-				       "empty_fifo hfcpci paket inv. len "
+				       "empty_fifo hfcpci packet inv. len "
 				       "%d or crc %d\n",
 				       rcnt,
 				       df->data[le16_to_cpu(zp->z1)]);

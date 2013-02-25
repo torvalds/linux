@@ -391,7 +391,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 		break;
 	}
 
-	iio_push_to_buffer(indio_dev->buffer, (uint8_t *)data);
+	iio_push_to_buffers(indio_dev, (uint8_t *)data);
 
 	iio_trigger_notify_done(indio_dev->trig);
 	sigma_delta->irq_dis = false;

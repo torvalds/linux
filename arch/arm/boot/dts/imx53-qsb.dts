@@ -60,10 +60,17 @@
 							697  0x80000000	/* MX53_PAD_EIM_DA12__GPIO3_12 */
 							701  0x80000000	/* MX53_PAD_EIM_DA13__GPIO3_13 */
 							868  0x80000000	/* MX53_PAD_PATA_DA_0__GPIO7_6 */
+							1149 0x80000000 /* MX53_PAD_GPIO_16__GPIO7_11 */
+						>;
+					};
+
+					led_pin_gpio7_7: led_gpio7_7@0 {
+						fsl,pins = <
 							873  0x80000000	/* MX53_PAD_PATA_DA_1__GPIO7_7 */
 						>;
 					};
 				};
+
 			};
 
 			uart1: serial@53fbc000 {
@@ -100,76 +107,93 @@
 				pmic: dialog@48 {
 					compatible = "dlg,da9053-aa", "dlg,da9052";
 					reg = <0x48>;
+					interrupt-parent = <&gpio7>;
+					interrupts = <11 0x8>; /* low-level active IRQ at GPIO7_11 */
 
 					regulators {
-						buck0 {
+						buck1_reg: buck1 {
 							regulator-min-microvolt = <500000>;
 							regulator-max-microvolt = <2075000>;
+							regulator-always-on;
 						};
 
-						buck1 {
+						buck2_reg: buck2 {
 							regulator-min-microvolt = <500000>;
 							regulator-max-microvolt = <2075000>;
+							regulator-always-on;
 						};
 
-						buck2 {
+						buck3_reg: buck3 {
 							regulator-min-microvolt = <925000>;
 					                regulator-max-microvolt = <2500000>;
+							regulator-always-on;
 						};
 
-						buck3 {
+						buck4_reg: buck4 {
 							regulator-min-microvolt = <925000>;
 					                regulator-max-microvolt = <2500000>;
+							regulator-always-on;
 						};
 
-						ldo4 {
+						ldo1_reg: ldo1 {
 							regulator-min-microvolt = <600000>;
 							regulator-max-microvolt = <1800000>;
+							regulator-boot-on;
+							regulator-always-on;
 						};
 
-						ldo5 {
+						ldo2_reg: ldo2 {
+							regulator-min-microvolt = <600000>;
+							regulator-max-microvolt = <1800000>;
+							regulator-always-on;
+						};
+
+						ldo3_reg: ldo3 {
 							regulator-min-microvolt = <600000>;
 					                regulator-max-microvolt = <1800000>;
+							regulator-always-on;
 						};
 
-						ldo6 {
+						ldo4_reg: ldo4 {
 							regulator-min-microvolt = <1725000>;
 					                regulator-max-microvolt = <3300000>;
+							regulator-always-on;
 						};
 
-						ldo7 {
+						ldo5_reg: ldo5 {
 							regulator-min-microvolt = <1725000>;
 					                regulator-max-microvolt = <3300000>;
+							regulator-always-on;
 						};
 
-						ldo8 {
+						ldo6_reg: ldo6 {
 							regulator-min-microvolt = <1200000>;
 					                regulator-max-microvolt = <3600000>;
+							regulator-always-on;
 						};
 
-						ldo9 {
+						ldo7_reg: ldo7 {
 							regulator-min-microvolt = <1200000>;
 					                regulator-max-microvolt = <3600000>;
+							regulator-always-on;
 						};
 
-						ldo10 {
+						ldo8_reg: ldo8 {
 							regulator-min-microvolt = <1200000>;
 					                regulator-max-microvolt = <3600000>;
+							regulator-always-on;
 						};
 
-						ldo11 {
+						ldo9_reg: ldo9 {
 							regulator-min-microvolt = <1200000>;
 					                regulator-max-microvolt = <3600000>;
+							regulator-always-on;
 						};
 
-						ldo12 {
+						ldo10_reg: ldo10 {
 							regulator-min-microvolt = <1250000>;
 					                regulator-max-microvolt = <3650000>;
-						};
-
-						ldo13 {
-							regulator-min-microvolt = <1200000>;
-					                regulator-max-microvolt = <3600000>;
+							regulator-always-on;
 						};
 					};
 				};
@@ -216,6 +240,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio7_7>;
 
 		user {
 			label = "Heartbeat";

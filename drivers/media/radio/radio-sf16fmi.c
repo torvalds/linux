@@ -64,7 +64,7 @@ bool pnp_attached;
 #define FMI_BIT_VOL_SW		(1 << 3)
 #define FMI_BIT_TUN_STRQ	(1 << 4)
 
-void fmi_set_pins(void *handle, u8 pins)
+static void fmi_set_pins(void *handle, u8 pins)
 {
 	struct fmi *fmi = handle;
 	u8 bits = FMI_BIT_TUN_STRQ;

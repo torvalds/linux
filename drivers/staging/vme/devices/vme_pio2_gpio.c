@@ -186,7 +186,7 @@ int pio2_gpio_reset(struct pio2_card *card)
 	return 0;
 }
 
-int __devinit pio2_gpio_init(struct pio2_card *card)
+int pio2_gpio_init(struct pio2_card *card)
 {
 	int retval = 0;
 	char *label;

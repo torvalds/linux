@@ -1,0 +1,22 @@
+GPIO line that should be set high/low to power off a device
+
+Required properties:
+- compatible : should be "gpio-poweroff".
+- gpios : The GPIO to set high/low, see "gpios property" in
+  Documentation/devicetree/bindings/gpio/gpio.txt. If the pin should be
+  low to power down the board set it to "Active Low", otherwise set
+  gpio to "Active High".
+
+Optional properties:
+- input : Initially configure the GPIO line as an input. Only reconfigure
+  it to an output when the pm_power_off function is called. If this optional
+  property is not specified, the GPIO is initialized as an output in its
+  inactive state.
+
+
+Examples:
+
+gpio-poweroff {
+	compatible = "gpio-poweroff";
+	gpios = <&gpio 4 0>; /* GPIO 4 Active Low */
+};

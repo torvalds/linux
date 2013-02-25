@@ -499,13 +499,13 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id of_gpio_fan_match[] __devinitdata = {
+static struct of_device_id of_gpio_fan_match[] = {
 	{ .compatible = "gpio-fan", },
 	{},
 };
 #endif /* CONFIG_OF_GPIO */
 
-static int __devinit gpio_fan_probe(struct platform_device *pdev)
+static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_fan_data *fan_data;
@@ -581,7 +581,7 @@ err_free_alarm:
 	return err;
 }
 
-static int __devexit gpio_fan_remove(struct platform_device *pdev)
+static int gpio_fan_remove(struct platform_device *pdev)
 {
 	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
 
@@ -626,11 +626,13 @@ static SIMPLE_DEV_PM_OPS(gpio_fan_pm, gpio_fan_suspend, gpio_fan_resume);
 
 static struct platform_driver gpio_fan_driver = {
 	.probe		= gpio_fan_probe,
-	.remove		= __devexit_p(gpio_fan_remove),
+	.remove		= gpio_fan_remove,
 	.driver	= {
 		.name	= "gpio-fan",
 		.pm	= GPIO_FAN_PM,
+#ifdef CONFIG_OF_GPIO
 		.of_match_table = of_match_ptr(of_gpio_fan_match),
+#endif
 	},
 };
 

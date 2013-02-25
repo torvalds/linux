@@ -280,6 +280,27 @@ int ima_file_check(struct file *file, int mask)
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
+/**
+ * ima_module_check - based on policy, collect/store/appraise measurement.
+ * @file: pointer to the file to be measured/appraised
+ *
+ * Measure/appraise kernel modules based on policy.
+ *
+ * Always return 0 and audit dentry_open failures.
+ * Return code is based upon measurement appraisal.
+ */
+int ima_module_check(struct file *file)
+{
+	int rc;
+
+	if (!file)
+		rc = INTEGRITY_UNKNOWN;
+	else
+		rc = process_measurement(file, file->f_dentry->d_name.name,
+					 MAY_EXEC, MODULE_CHECK);
+	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
+}
+
 static int __init init_ima(void)
 {
 	int error;

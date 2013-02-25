@@ -222,7 +222,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 	return retval;
 }
 
-static int __devexit ne3210_eisa_remove (struct device *device)
+static int ne3210_eisa_remove(struct device *device)
 {
 	struct net_device  *dev    = dev_get_drvdata(device);
 	unsigned long       ioaddr = to_eisa_device (device)->base_addr;
@@ -324,7 +324,7 @@ static struct eisa_driver ne3210_eisa_driver = {
 	.driver   = {
 		.name   = "ne3210",
 		.probe  = ne3210_eisa_probe,
-		.remove = __devexit_p (ne3210_eisa_remove),
+		.remove = ne3210_eisa_remove,
 	},
 };
 

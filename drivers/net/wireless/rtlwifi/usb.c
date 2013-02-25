@@ -673,7 +673,7 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 		set_hal_start(rtlhal);
 
 		/* Start bulk IN */
-		_rtl_usb_receive(hw);
+		err = _rtl_usb_receive(hw);
 	}
 
 	return err;
@@ -940,7 +940,7 @@ static struct rtl_intf_ops rtl_usb_ops = {
 	.waitq_insert = rtl_usb_tx_chk_waitq_insert,
 };
 
-int __devinit rtl_usb_probe(struct usb_interface *intf,
+int rtl_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	int err;

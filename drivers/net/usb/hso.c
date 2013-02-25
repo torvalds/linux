@@ -2274,6 +2274,7 @@ static void hso_serial_common_free(struct hso_serial *serial)
 	/* unlink and free TX URB */
 	usb_free_urb(serial->tx_urb);
 	kfree(serial->tx_data);
+	tty_port_destroy(&serial->port);
 }
 
 static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
@@ -2283,11 +2284,11 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	int minor;
 	int i;
 
+	tty_port_init(&serial->port);
+
 	minor = get_free_serial_index();
 	if (minor < 0)
 		goto exit;
-
-	tty_port_init(&serial->port);
 
 	/* register our minor number */
 	serial->parent->dev = tty_port_register_device(&serial->port, tty_drv,

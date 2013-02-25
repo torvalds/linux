@@ -18,9 +18,8 @@
 
 #include "common.h"
 #include "gpmc-smc91x.h"
-#include <plat/usb.h>
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "board-flash.h"
 #include "mux.h"
@@ -213,5 +212,5 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.init_machine	= omap_sdp_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/omap-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
@@ -792,7 +793,7 @@ isp_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 }
 
 static int
-isp_video_set_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+isp_video_set_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct isp_video *video = video_drvdata(file);
 	struct v4l2_subdev *subdev;
@@ -1391,7 +1392,8 @@ int omap3isp_video_register(struct isp_video *video, struct v4l2_device *vdev)
 
 	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
-		printk(KERN_ERR "%s: could not register video device (%d)\n",
+		dev_err(video->isp->dev,
+			"%s: could not register video device (%d)\n",
 			__func__, ret);
 
 	return ret;

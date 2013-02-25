@@ -19,7 +19,6 @@
 #include <linux/suspend.h>
 
 #include <asm/proc-fns.h>
-#include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
 #include "core.h"
@@ -35,8 +34,6 @@ static int highbank_pm_enter(suspend_state_t state)
 {
 	hignbank_set_pwr_suspend();
 	highbank_set_cpu_jump(0, cpu_resume);
-
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
 	cpu_suspend(0, highbank_suspend_finish);
 
 	return 0;

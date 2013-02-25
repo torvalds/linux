@@ -89,7 +89,7 @@
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
 typedef struct {
-    unsigned long seg;
+	unsigned long seg;
 } mm_segment_t;
 
 struct thread_struct {
@@ -145,13 +145,14 @@ struct thread_struct {
  *       set_thread_state in signal.c depends on it.
  */
 #define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
-                       (1 << PS_CALLINC_SHIFT) |			\
-                       (USER_RING << PS_RING_SHIFT) |			\
-                       (1 << PS_UM_BIT) |				\
-                       (1 << PS_EXCM_BIT))
+		       (1 << PS_CALLINC_SHIFT) |			\
+		       (USER_RING << PS_RING_SHIFT) |			\
+		       (1 << PS_UM_BIT) |				\
+		       (1 << PS_EXCM_BIT))
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
+	memset(regs, 0, sizeof(*regs)); \
 	regs->pc = new_pc; \
 	regs->ps = USER_PS_VALUE; \
 	regs->areg[1] = new_sp; \
@@ -167,9 +168,6 @@ struct mm_struct;
 
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
-
-/* Create a kernel thread without removing it from tasklists */
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)	do { } while(0)

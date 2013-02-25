@@ -97,9 +97,37 @@ struct osd_dev_handle {
 
 static DEFINE_IDA(osd_minor_ida);
 
+/*
+ * scsi sysfs attribute operations
+ */
+static ssize_t osdname_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct osd_uld_device *ould = container_of(dev, struct osd_uld_device,
+						   class_dev);
+	return sprintf(buf, "%s\n", ould->odi.osdname);
+}
+
+static ssize_t systemid_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct osd_uld_device *ould = container_of(dev, struct osd_uld_device,
+						   class_dev);
+
+	memcpy(buf, ould->odi.systemid, ould->odi.systemid_len);
+	return ould->odi.systemid_len;
+}
+
+static struct device_attribute osd_uld_attrs[] = {
+	__ATTR(osdname, S_IRUGO, osdname_show, NULL),
+	__ATTR(systemid, S_IRUGO, systemid_show, NULL),
+	__ATTR_NULL,
+};
+
 static struct class osd_uld_class = {
 	.owner		= THIS_MODULE,
 	.name		= "scsi_osd",
+	.dev_attrs	= osd_uld_attrs,
 };
 
 /*

@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 
 #include "am35xx-emac.h"
 #include "mux.h"
@@ -94,5 +93,5 @@ MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.init_machine	= am3517_crane_init,
 	.init_late	= am35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

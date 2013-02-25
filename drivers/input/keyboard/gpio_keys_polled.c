@@ -103,8 +103,7 @@ static void gpio_keys_polled_close(struct input_polled_dev *dev)
 }
 
 #ifdef CONFIG_OF
-static struct gpio_keys_platform_data * __devinit
-gpio_keys_polled_get_devtree_pdata(struct device *dev)
+static struct gpio_keys_platform_data *gpio_keys_polled_get_devtree_pdata(struct device *dev)
 {
 	struct device_node *node, *pp;
 	struct gpio_keys_platform_data *pdata;
@@ -196,7 +195,7 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 }
 #endif
 
-static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
+static int gpio_keys_polled_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);
@@ -246,7 +245,6 @@ static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
 
 	input = poll_dev->input;
 
-	input->evbit[0] = BIT(EV_KEY);
 	input->name = pdev->name;
 	input->phys = DRV_NAME"/input0";
 	input->dev.parent = &pdev->dev;
@@ -255,6 +253,10 @@ static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
 	input->id.vendor = 0x0001;
 	input->id.product = 0x0001;
 	input->id.version = 0x0100;
+
+	__set_bit(EV_KEY, input->evbit);
+	if (pdata->rep)
+		__set_bit(EV_REP, input->evbit);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
@@ -268,18 +270,10 @@ static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
 			goto err_free_gpio;
 		}
 
-		error = gpio_request(gpio,
-				     button->desc ? button->desc : DRV_NAME);
+		error = gpio_request_one(gpio, GPIOF_IN,
+					 button->desc ?: DRV_NAME);
 		if (error) {
 			dev_err(dev, "unable to claim gpio %u, err=%d\n",
-				gpio, error);
-			goto err_free_gpio;
-		}
-
-		error = gpio_direction_input(gpio);
-		if (error) {
-			dev_err(dev,
-				"unable to set direction on gpio %u, err=%d\n",
 				gpio, error);
 			goto err_free_gpio;
 		}
@@ -329,7 +323,7 @@ err_free_pdata:
 	return error;
 }
 
-static int __devexit gpio_keys_polled_remove(struct platform_device *pdev)
+static int gpio_keys_polled_remove(struct platform_device *pdev)
 {
 	struct gpio_keys_polled_dev *bdev = platform_get_drvdata(pdev);
 	const struct gpio_keys_platform_data *pdata = bdev->pdata;
@@ -357,7 +351,7 @@ static int __devexit gpio_keys_polled_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_keys_polled_driver = {
 	.probe	= gpio_keys_polled_probe,
-	.remove	= __devexit_p(gpio_keys_polled_remove),
+	.remove	= gpio_keys_polled_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -251,13 +251,15 @@ syscall_badsys:
 	.global ret_from_fork
 ret_from_fork:
 	call   schedule_tail
+	mov	r12, 0
+	rjmp	syscall_return
 
-	/* check for syscall tracing */
-	get_thread_info r0
-	ld.w	r1, r0[TI_flags]
-	andl	r1, _TIF_ALLWORK_MASK, COH
-	brne	syscall_exit_work
-	rjmp    syscall_exit_cont
+	.global ret_from_kernel_thread
+ret_from_kernel_thread:
+	call   schedule_tail
+	mov	r12, r0
+	mov	lr, r2	/* syscall_return */
+	mov	pc, r1
 
 syscall_trace_enter:
 	pushm	r8-r12

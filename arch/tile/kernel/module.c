@@ -24,16 +24,6 @@
 #include <asm/homecache.h>
 #include <arch/opcode.h>
 
-#ifdef __tilegx__
-# define Elf_Rela Elf64_Rela
-# define ELF_R_SYM ELF64_R_SYM
-# define ELF_R_TYPE ELF64_R_TYPE
-#else
-# define Elf_Rela Elf32_Rela
-# define ELF_R_SYM ELF32_R_SYM
-# define ELF_R_TYPE ELF32_R_TYPE
-#endif
-
 #ifdef MODULE_DEBUG
 #define DEBUGP printk
 #else
@@ -52,8 +42,6 @@ void *module_alloc(unsigned long size)
 	int i = 0;
 	int npages;
 
-	if (size == 0)
-		return NULL;
 	npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	pages = kmalloc(npages * sizeof(struct page *), GFP_KERNEL);
 	if (pages == NULL)

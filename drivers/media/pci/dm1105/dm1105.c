@@ -736,7 +736,7 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
+static int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct rc_dev *dev;
 	int err = -ENOMEM;
@@ -776,7 +776,7 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 	return 0;
 }
 
-void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)
+static void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)
 {
 	rc_unregister_device(dm1105->ir.dev);
 }
@@ -1128,8 +1128,10 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	INIT_WORK(&dev->work, dm1105_dmx_buffer);
 	sprintf(dev->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
 	dev->wq = create_singlethread_workqueue(dev->wqn);
-	if (!dev->wq)
+	if (!dev->wq) {
+		ret = -ENOMEM;
 		goto err_dvb_net;
+	}
 
 	ret = request_irq(pdev->irq, dm1105_irq, IRQF_SHARED,
 						DRIVER_NAME, dev);

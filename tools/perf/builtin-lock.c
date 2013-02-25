@@ -335,8 +335,6 @@ alloc_failed:
 	return NULL;
 }
 
-static const char *input_name;
-
 struct trace_lock_handler {
 	int (*acquire_event)(struct perf_evsel *evsel,
 			     struct perf_sample *sample);

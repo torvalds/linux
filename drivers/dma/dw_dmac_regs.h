@@ -98,9 +98,17 @@ struct dw_dma_regs {
 	u32	DW_PARAMS;
 };
 
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+#define dma_readl_native ioread32be
+#define dma_writel_native iowrite32be
+#else
+#define dma_readl_native readl
+#define dma_writel_native writel
+#endif
+
 /* To access the registers in early stage of probe */
 #define dma_read_byaddr(addr, name) \
-	readl((addr) + offsetof(struct dw_dma_regs, name))
+	dma_readl_native((addr) + offsetof(struct dw_dma_regs, name))
 
 /* Bitfields in DW_PARAMS */
 #define DW_PARAMS_NR_CHAN	8		/* number of channels */
@@ -216,9 +224,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	readl(&(__dwc_regs(dwc)->name))
+	dma_readl_native(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	writel((val), &(__dwc_regs(dwc)->name))
+	dma_writel_native((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -246,9 +254,9 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	readl(&(__dw_regs(dw)->name))
+	dma_readl_native(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	writel((val), &(__dw_regs(dw)->name))
+	dma_writel_native((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))

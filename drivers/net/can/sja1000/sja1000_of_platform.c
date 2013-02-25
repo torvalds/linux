@@ -42,6 +42,8 @@
 #include <linux/can/dev.h>
 
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/prom.h>
 
 #include "sja1000.h"
@@ -59,16 +61,16 @@ MODULE_LICENSE("GPL v2");
 
 static u8 sja1000_ofp_read_reg(const struct sja1000_priv *priv, int reg)
 {
-	return in_8(priv->reg_base + reg);
+	return ioread8(priv->reg_base + reg);
 }
 
 static void sja1000_ofp_write_reg(const struct sja1000_priv *priv,
 				  int reg, u8 val)
 {
-	out_8(priv->reg_base + reg, val);
+	iowrite8(val, priv->reg_base + reg);
 }
 
-static int __devexit sja1000_ofp_remove(struct platform_device *ofdev)
+static int sja1000_ofp_remove(struct platform_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct sja1000_priv *priv = netdev_priv(dev);
@@ -88,7 +90,7 @@ static int __devexit sja1000_ofp_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devinit sja1000_ofp_probe(struct platform_device *ofdev)
+static int sja1000_ofp_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev;
@@ -119,7 +121,7 @@ static int __devinit sja1000_ofp_probe(struct platform_device *ofdev)
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (irq == 0) {
 		dev_err(&ofdev->dev, "no irq found\n");
 		err = -ENODEV;
 		goto exit_unmap_mem;
@@ -204,7 +206,7 @@ exit_release_mem:
 	return err;
 }
 
-static struct of_device_id __devinitdata sja1000_ofp_table[] = {
+static struct of_device_id sja1000_ofp_table[] = {
 	{.compatible = "nxp,sja1000"},
 	{},
 };
@@ -217,7 +219,7 @@ static struct platform_driver sja1000_ofp_driver = {
 		.of_match_table = sja1000_ofp_table,
 	},
 	.probe = sja1000_ofp_probe,
-	.remove = __devexit_p(sja1000_ofp_remove),
+	.remove = sja1000_ofp_remove,
 };
 
 module_platform_driver(sja1000_ofp_driver);

@@ -34,12 +34,12 @@ struct exynos_drm_gem_buf *exynos_drm_init_buf(struct drm_device *dev,
 void exynos_drm_fini_buf(struct drm_device *dev,
 				struct exynos_drm_gem_buf *buffer);
 
-/* allocate physical memory region and setup sgt and pages. */
+/* allocate physical memory region and setup sgt. */
 int exynos_drm_alloc_buf(struct drm_device *dev,
 				struct exynos_drm_gem_buf *buf,
 				unsigned int flags);
 
-/* release physical memory region, sgt and pages. */
+/* release physical memory region, and sgt. */
 void exynos_drm_free_buf(struct drm_device *dev,
 				unsigned int flags,
 				struct exynos_drm_gem_buf *buffer);

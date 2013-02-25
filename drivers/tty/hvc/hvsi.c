@@ -1218,6 +1218,7 @@ static int __init hvsi_console_init(void)
 		if (hp->virq == 0) {
 			printk(KERN_ERR "%s: couldn't create irq mapping for 0x%x\n",
 				__func__, irq[0]);
+			tty_port_destroy(&hp->port);
 			continue;
 		}
 

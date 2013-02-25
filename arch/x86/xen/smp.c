@@ -254,7 +254,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	xen_init_lock_cpu(0);
 
-	smp_store_cpu_info(0);
+	smp_store_boot_cpu_info();
 	cpu_data(0).x86_max_cores = 1;
 
 	for_each_possible_cpu(i) {

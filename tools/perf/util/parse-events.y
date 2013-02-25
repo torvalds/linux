@@ -352,12 +352,30 @@ PE_NAME '=' PE_VALUE
 	$$ = term;
 }
 |
+PE_NAME '=' PE_VALUE_SYM_HW
+{
+	struct parse_events__term *term;
+	int config = $3 & 255;
+
+	ABORT_ON(parse_events__term_sym_hw(&term, $1, config));
+	$$ = term;
+}
+|
 PE_NAME
 {
 	struct parse_events__term *term;
 
 	ABORT_ON(parse_events__term_num(&term, PARSE_EVENTS__TERM_TYPE_USER,
 					$1, 1));
+	$$ = term;
+}
+|
+PE_VALUE_SYM_HW
+{
+	struct parse_events__term *term;
+	int config = $1 & 255;
+
+	ABORT_ON(parse_events__term_sym_hw(&term, NULL, config));
 	$$ = term;
 }
 |

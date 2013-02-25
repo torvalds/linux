@@ -663,18 +663,6 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 				 &mpc52xx_ata_sht);
 }
 
-static struct mpc52xx_ata_priv *
-mpc52xx_ata_remove_one(struct device *dev)
-{
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct mpc52xx_ata_priv *priv = host->private_data;
-
-	ata_host_detach(host);
-
-	return priv;
-}
-
-
 /* ======================================================================== */
 /* OF Platform driver                                                       */
 /* ======================================================================== */
@@ -815,11 +803,12 @@ mpc52xx_ata_probe(struct platform_device *op)
 static int
 mpc52xx_ata_remove(struct platform_device *op)
 {
-	struct mpc52xx_ata_priv *priv;
+	struct ata_host *host = platform_get_drvdata(op);
+	struct mpc52xx_ata_priv *priv = host->private_data;
 	int task_irq;
 
 	/* Deregister the ATA interface */
-	priv = mpc52xx_ata_remove_one(&op->dev);
+	ata_platform_remove_one(op);
 
 	/* Clean up DMA */
 	task_irq = bcom_get_task_irq(priv->dmatsk);

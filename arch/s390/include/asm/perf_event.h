@@ -9,7 +9,7 @@
 #include <asm/cpu_mf.h>
 
 /* CPU-measurement counter facility */
-#define PERF_CPUM_CF_MAX_CTR		160
+#define PERF_CPUM_CF_MAX_CTR		256
 
 /* Per-CPU flags for PMU states */
 #define PMU_F_RESERVED			0x1000

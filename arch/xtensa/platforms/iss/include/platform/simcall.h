@@ -74,11 +74,11 @@ static inline int __simc(int a, int b, int c, int d, int e, int f)
 			"mov %1, a3\n"
 			: "=a" (ret), "=a" (errno), "+r"(a1), "+r"(b1)
 			: "r"(c1), "r"(d1), "r"(e1), "r"(f1)
-			: );
+			: "memory");
 	return ret;
 }
 
-static inline int simc_open(char *file, int flags, int mode)
+static inline int simc_open(const char *file, int flags, int mode)
 {
 	return __simc(SYS_open, (int) file, flags, mode, 0, 0);
 }
@@ -98,7 +98,7 @@ static inline int simc_read(int fd, void *buf, size_t count)
 	return __simc(SYS_read, fd, (int) buf, count, 0, 0);
 }
 
-static inline int simc_write(int fd, void *buf, size_t count)
+static inline int simc_write(int fd, const void *buf, size_t count)
 {
 	return __simc(SYS_write, fd, (int) buf, count, 0, 0);
 }

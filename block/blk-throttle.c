@@ -302,7 +302,7 @@ static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
 		/* if %NULL and @q is alive, fall back to root_tg */
 		if (!IS_ERR(blkg))
 			tg = blkg_to_tg(blkg);
-		else if (!blk_queue_dead(q))
+		else if (!blk_queue_dying(q))
 			tg = td_root_tg(td);
 	}
 

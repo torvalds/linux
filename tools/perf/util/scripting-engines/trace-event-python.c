@@ -32,7 +32,6 @@
 #include "../event.h"
 #include "../thread.h"
 #include "../trace-event.h"
-#include "../evsel.h"
 
 PyMODINIT_FUNC initperf_trace_context(void);
 

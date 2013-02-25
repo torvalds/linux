@@ -710,27 +710,6 @@ static void acx_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static int acx_panel_suspend(struct omap_dss_device *dssdev)
-{
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	acx_panel_power_off(dssdev);
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	return 0;
-}
-
-static int acx_panel_resume(struct omap_dss_device *dssdev)
-{
-	int r;
-
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	r = acx_panel_power_on(dssdev);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-	return 0;
-}
-
 static void acx_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -752,8 +731,6 @@ static struct omap_dss_driver acx_panel_driver = {
 
 	.enable		= acx_panel_enable,
 	.disable	= acx_panel_disable,
-	.suspend	= acx_panel_suspend,
-	.resume		= acx_panel_resume,
 
 	.set_timings	= acx_panel_set_timings,
 	.check_timings	= acx_panel_check_timings,

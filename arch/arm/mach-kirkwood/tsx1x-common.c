@@ -7,6 +7,7 @@
 #include <linux/serial_reg.h>
 #include <mach/kirkwood.h>
 #include "common.h"
+#include "tsx1x-common.h"
 
 /*
  * QNAP TS-x1x Boards flash
@@ -29,7 +30,7 @@
  *
  ***************************************************************************/
 
-struct mtd_partition qnap_tsx1x_partitions[] = {
+static struct mtd_partition qnap_tsx1x_partitions[] = {
 	{
 		.name		= "U-Boot",
 		.size		= 0x00080000,
@@ -58,14 +59,14 @@ struct mtd_partition qnap_tsx1x_partitions[] = {
 	},
 };
 
-const struct flash_platform_data qnap_tsx1x_flash = {
+static const struct flash_platform_data qnap_tsx1x_flash = {
 	.type		= "m25p128",
 	.name		= "spi_flash",
 	.parts		= qnap_tsx1x_partitions,
 	.nr_parts	= ARRAY_SIZE(qnap_tsx1x_partitions),
 };
 
-struct spi_board_info __initdata qnap_tsx1x_spi_slave_info[] = {
+static struct spi_board_info __initdata qnap_tsx1x_spi_slave_info[] = {
 	{
 		.modalias	= "m25p80",
 		.platform_data	= &qnap_tsx1x_flash,

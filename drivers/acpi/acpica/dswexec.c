@@ -57,7 +57,7 @@ ACPI_MODULE_NAME("dswexec")
 /*
  * Dispatch table for opcode classes
  */
-static ACPI_EXECUTE_OP acpi_gbl_op_type_dispatch[] = {
+static acpi_execute_op acpi_gbl_op_type_dispatch[] = {
 	acpi_ex_opcode_0A_0T_1R,
 	acpi_ex_opcode_1A_0T_0R,
 	acpi_ex_opcode_1A_0T_1R,
@@ -204,7 +204,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
  * RETURN:      Status
  *
  * DESCRIPTION: Descending callback used during the execution of control
- *              methods.  This is where most operators and operands are
+ *              methods. This is where most operators and operands are
  *              dispatched to the interpreter.
  *
  ****************************************************************************/
@@ -297,7 +297,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 		if (walk_state->walk_type & ACPI_WALK_METHOD) {
 			/*
 			 * Found a named object declaration during method execution;
-			 * we must enter this object into the namespace.  The created
+			 * we must enter this object into the namespace. The created
 			 * object is temporary and will be deleted upon completion of
 			 * the execution of this method.
 			 *
@@ -348,7 +348,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
  * RETURN:      Status
  *
  * DESCRIPTION: Ascending callback used during the execution of control
- *              methods.  The only thing we really need to do here is to
+ *              methods. The only thing we really need to do here is to
  *              notice the beginning of IF, ELSE, and WHILE blocks.
  *
  ****************************************************************************/
@@ -432,7 +432,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		if (ACPI_SUCCESS(status)) {
 			/*
 			 * Dispatch the request to the appropriate interpreter handler
-			 * routine.  There is one routine per opcode "type" based upon the
+			 * routine. There is one routine per opcode "type" based upon the
 			 * number of opcode arguments and return type.
 			 */
 			status =

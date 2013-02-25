@@ -29,6 +29,7 @@
  */
 
 #include "cx23885.h"
+#include "cx23885-f300.h"
 
 #define F300_DATA	GPIO_0
 #define F300_RESET	GPIO_1

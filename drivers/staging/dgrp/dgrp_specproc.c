@@ -39,6 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 #include "dgrp_common.h"
@@ -228,6 +229,9 @@ static void register_proc_table(struct dgrp_proc_entry *table,
 	int len;
 	mode_t mode;
 
+	if (table == NULL)
+		return;
+
 	for (; table->id; table++) {
 		/* Can't do anything without a proc name. */
 		if (!table->name)
@@ -295,6 +299,9 @@ static void unregister_proc_table(struct dgrp_proc_entry *table,
 {
 	struct proc_dir_entry *de;
 	struct nd_struct *tmp;
+
+	if (table == NULL)
+		return;
 
 	list_for_each_entry(tmp, &nd_struct_list, list) {
 		if ((table == dgrp_net_table) && (tmp->nd_net_de)) {
@@ -622,8 +629,6 @@ static int info_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "version: %s\n", DIGI_VERSION);
 	seq_puts(m, "register_with_sysfs: 1\n");
-	seq_printf(m, "rawreadok: 0x%08x\t(%d)\n",
-		   dgrp_rawreadok, dgrp_rawreadok);
 	seq_printf(m, "pollrate: 0x%08x\t(%d)\n",
 		   dgrp_poll_tick, dgrp_poll_tick);
 
@@ -747,6 +752,8 @@ static int dgrp_add_id(long id)
 
 	return 0;
 
+	/* FIXME this guy should free the tty driver stored in nd and destroy
+	 * all channel ports */
 error_out:
 	kfree(nd);
 	return ret;

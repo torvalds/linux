@@ -633,7 +633,7 @@ static struct regulator_desc regulators[] = {
 	}
 };
 
-static __devinit int max8998_pmic_probe(struct platform_device *pdev)
+static int max8998_pmic_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -818,7 +818,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit max8998_pmic_remove(struct platform_device *pdev)
+static int max8998_pmic_remove(struct platform_device *pdev)
 {
 	struct max8998_data *max8998 = platform_get_drvdata(pdev);
 	struct regulator_dev **rdev = max8998->rdev;
@@ -842,7 +842,7 @@ static struct platform_driver max8998_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8998_pmic_probe,
-	.remove = __devexit_p(max8998_pmic_remove),
+	.remove = max8998_pmic_remove,
 	.id_table = max8998_pmic_id,
 };
 

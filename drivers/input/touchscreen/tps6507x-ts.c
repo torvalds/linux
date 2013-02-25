@@ -345,7 +345,7 @@ err0:
 	return error;
 }
 
-static int __devexit tps6507x_ts_remove(struct platform_device *pdev)
+static int tps6507x_ts_remove(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = platform_get_drvdata(pdev);
 	struct tps6507x_ts *tsc = tps6507x_dev->ts;
@@ -367,7 +367,7 @@ static struct platform_driver tps6507x_ts_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps6507x_ts_probe,
-	.remove = __devexit_p(tps6507x_ts_remove),
+	.remove = tps6507x_ts_remove,
 };
 module_platform_driver(tps6507x_ts_driver);
 

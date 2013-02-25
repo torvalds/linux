@@ -97,10 +97,10 @@ struct cs5535audio {
 extern const struct dev_pm_ops snd_cs5535audio_pm;
 
 #ifdef CONFIG_OLPC
-void __devinit olpc_prequirks(struct snd_card *card,
-		struct snd_ac97_template *ac97);
-int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
-void __devexit olpc_quirks_cleanup(void);
+void olpc_prequirks(struct snd_card *card,
+		    struct snd_ac97_template *ac97);
+int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
+void olpc_quirks_cleanup(void);
 void olpc_analog_input(struct snd_ac97 *ac97, int on);
 void olpc_mic_bias(struct snd_ac97 *ac97, int on);
 
@@ -133,7 +133,7 @@ static inline void olpc_capture_open(struct snd_ac97 *ac97) { }
 static inline void olpc_capture_close(struct snd_ac97 *ac97) { }
 #endif
 
-int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);
+int snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);
 
 #endif /* __SOUND_CS5535AUDIO_H */
 

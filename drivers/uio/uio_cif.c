@@ -40,7 +40,7 @@ static irqreturn_t hilscher_handler(int irq, struct uio_info *dev_info)
 	return IRQ_HANDLED;
 }
 
-static int __devinit hilscher_pci_probe(struct pci_dev *dev,
+static int hilscher_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	struct uio_info *info;
@@ -112,7 +112,7 @@ static void hilscher_pci_remove(struct pci_dev *dev)
 	kfree (info);
 }
 
-static struct pci_device_id hilscher_pci_ids[] __devinitdata = {
+static struct pci_device_id hilscher_pci_ids[] = {
 	{
 		.vendor =	PCI_VENDOR_ID_PLX,
 		.device =	PCI_DEVICE_ID_PLX_9030,

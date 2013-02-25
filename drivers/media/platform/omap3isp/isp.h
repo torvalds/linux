@@ -31,11 +31,9 @@
 #include <media/v4l2-device.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
-#include <linux/iommu.h>
-#include <plat/iommu.h>
-#include <plat/iovmm.h>
 
 #include "ispstat.h"
 #include "ispccdc.h"
@@ -72,6 +70,8 @@ enum isp_mem_resources {
 	OMAP3_ISP_IOMEM_CSI2C_REGS1,
 	OMAP3_ISP_IOMEM_CSIPHY1,
 	OMAP3_ISP_IOMEM_CSI2C_REGS2,
+	OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE,
+	OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL,
 	OMAP3_ISP_IOMEM_LAST
 };
 
@@ -127,9 +127,6 @@ struct isp_reg {
 
 struct isp_platform_callback {
 	u32 (*set_xclk)(struct isp_device *isp, u32 xclk, u8 xclksel);
-	int (*csiphy_config)(struct isp_csiphy *phy,
-			     struct isp_csiphy_dphy_cfg *dphy,
-			     struct isp_csiphy_lanes_cfg *lanes);
 };
 
 /*

@@ -43,10 +43,6 @@
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.01"
 #define DRIVER_AUTHOR "Matthias Bruestle"
 #define DRIVER_DESC "REINER SCT cyberJack pinpad/e-com USB Chipcard Reader Driver"
 
@@ -55,9 +51,9 @@
 #define CYBERJACK_PRODUCT_ID	0x0100
 
 /* Function prototypes */
-static int cyberjack_startup(struct usb_serial *serial);
 static void cyberjack_disconnect(struct usb_serial *serial);
-static void cyberjack_release(struct usb_serial *serial);
+static int cyberjack_port_probe(struct usb_serial_port *port);
+static int cyberjack_port_remove(struct usb_serial_port *port);
 static int  cyberjack_open(struct tty_struct *tty,
 	struct usb_serial_port *port);
 static void cyberjack_close(struct usb_serial_port *port);
@@ -83,9 +79,9 @@ static struct usb_serial_driver cyberjack_device = {
 	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_ports =		1,
-	.attach =		cyberjack_startup,
 	.disconnect =		cyberjack_disconnect,
-	.release =		cyberjack_release,
+	.port_probe =		cyberjack_port_probe,
+	.port_remove =		cyberjack_port_remove,
 	.open =			cyberjack_open,
 	.close =		cyberjack_close,
 	.write =		cyberjack_write,
@@ -107,36 +103,35 @@ struct cyberjack_private {
 	short		wrsent;		/* Data already sent */
 };
 
-/* do some startup allocations not currently performed by usb_serial_probe() */
-static int cyberjack_startup(struct usb_serial *serial)
+static int cyberjack_port_probe(struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
-	int i;
+	int result;
 
-	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct cyberjack_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	/* set initial values */
 	spin_lock_init(&priv->lock);
 	priv->rdtodo = 0;
 	priv->wrfilled = 0;
 	priv->wrsent = 0;
-	usb_set_serial_port_data(serial->port[0], priv);
 
-	init_waitqueue_head(&serial->port[0]->write_wait);
+	usb_set_serial_port_data(port, priv);
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		int result;
-		result = usb_submit_urb(serial->port[i]->interrupt_in_urb,
-					GFP_KERNEL);
-		if (result)
-			dev_err(&serial->dev->dev,
-				"usb_submit_urb(read int) failed\n");
-		dev_dbg(&serial->dev->dev, "%s - usb_submit_urb(int urb)\n",
-			__func__);
-	}
+	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+	if (result)
+		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
+
+	return 0;
+}
+
+static int cyberjack_port_remove(struct usb_serial_port *port)
+{
+	struct cyberjack_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
 
 	return 0;
 }
@@ -147,16 +142,6 @@ static void cyberjack_disconnect(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; ++i)
 		usb_kill_urb(serial->port[i]->interrupt_in_urb);
-}
-
-static void cyberjack_release(struct usb_serial *serial)
-{
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		/* My special items, the standard routines free my urbs */
-		kfree(usb_get_serial_port_data(serial->port[i]));
-	}
 }
 
 static int  cyberjack_open(struct tty_struct *tty,
@@ -452,5 +437,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

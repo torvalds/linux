@@ -4,7 +4,7 @@
 
 menuconfig ISDN
 	bool "ISDN support"
-	depends on NET
+	depends on NET && NETDEVICES
 	depends on !S390 && !UML
 	---help---
 	  ISDN ("Integrated Services Digital Network", called RNIS in France)

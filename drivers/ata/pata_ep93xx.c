@@ -822,8 +822,7 @@ static int ep93xx_pata_softreset(struct ata_link *al, unsigned int *classes,
 	rc = ep93xx_pata_bus_softreset(ap, devmask, deadline);
 	/* if link is ocuppied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(al))) {
-		ata_link_printk(al, KERN_ERR, "SRST failed (errno=%d)\n",
-				rc);
+		ata_link_err(al, "SRST failed (errno=%d)\n", rc);
 		return rc;
 	}
 
@@ -857,8 +856,7 @@ static void ep93xx_pata_drain_fifo(struct ata_queued_cmd *qc)
 
 	/* Can become DEBUG later */
 	if (count)
-		ata_port_printk(ap, KERN_DEBUG,
-				"drained %d bytes to clear DRQ.\n", count);
+		ata_port_dbg(ap, "drained %d bytes to clear DRQ.\n", count);
 
 }
 

@@ -424,7 +424,7 @@ static void snd_ca0106_proc_i2c_write(struct snd_info_entry *entry,
         }
 }
 
-int __devinit snd_ca0106_proc_init(struct snd_ca0106 * emu)
+int snd_ca0106_proc_init(struct snd_ca0106 *emu)
 {
 	struct snd_info_entry *entry;
 	

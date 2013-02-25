@@ -327,7 +327,7 @@ static void htcpld_chip_reset(struct i2c_client *client)
 		client, (chip_data->cache_out = chip_data->reset));
 }
 
-static int __devinit htcpld_setup_chip_irq(
+static int htcpld_setup_chip_irq(
 		struct platform_device *pdev,
 		int chip_index)
 {
@@ -361,7 +361,7 @@ static int __devinit htcpld_setup_chip_irq(
 	return ret;
 }
 
-static int __devinit htcpld_register_chip_i2c(
+static int htcpld_register_chip_i2c(
 		struct platform_device *pdev,
 		int chip_index)
 {
@@ -419,7 +419,7 @@ static int __devinit htcpld_register_chip_i2c(
 	return 0;
 }
 
-static void __devinit htcpld_unregister_chip_i2c(
+static void htcpld_unregister_chip_i2c(
 		struct platform_device *pdev,
 		int chip_index)
 {
@@ -434,7 +434,7 @@ static void __devinit htcpld_unregister_chip_i2c(
 		i2c_unregister_device(chip->client);
 }
 
-static int __devinit htcpld_register_chip_gpio(
+static int htcpld_register_chip_gpio(
 		struct platform_device *pdev,
 		int chip_index)
 {
@@ -501,7 +501,7 @@ static int __devinit htcpld_register_chip_gpio(
 	return 0;
 }
 
-static int __devinit htcpld_setup_chips(struct platform_device *pdev)
+static int htcpld_setup_chips(struct platform_device *pdev)
 {
 	struct htcpld_data *htcpld;
 	struct device *dev = &pdev->dev;
@@ -563,7 +563,7 @@ static int __devinit htcpld_setup_chips(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit htcpld_core_probe(struct platform_device *pdev)
+static int htcpld_core_probe(struct platform_device *pdev)
 {
 	struct htcpld_data *htcpld;
 	struct device *dev = &pdev->dev;

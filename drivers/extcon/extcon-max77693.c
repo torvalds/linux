@@ -239,25 +239,19 @@ const char *max77693_extcon_cable[] = {
 static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		enum max77693_muic_adc_debounce_time time)
 {
-	int ret = 0;
-	u8 ctrl3;
+	int ret;
 
 	switch (time) {
 	case ADC_DEBOUNCE_TIME_5MS:
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = max77693_read_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, &ctrl3);
-		ctrl3 &= ~CONTROL3_ADCDBSET_MASK;
-		ctrl3 |= (time << CONTROL3_ADCDBSET_SHIFT);
-
-		ret = max77693_write_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, ctrl3);
-		if (ret) {
+		ret = max77693_update_reg(info->max77693->regmap_muic,
+					  MAX77693_MUIC_REG_CTRL3,
+					  time << CONTROL3_ADCDBSET_SHIFT,
+					  CONTROL3_ADCDBSET_MASK);
+		if (ret)
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			ret = -EINVAL;
-		}
 		break;
 	default:
 		dev_err(info->dev, "invalid ADC debounce time\n");
@@ -654,24 +648,26 @@ out:
 	return ret;
 }
 
-static int __devinit max77693_muic_probe(struct platform_device *pdev)
+static int max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
+	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
 	int ret, i;
 	u8 id;
 
-	info = kzalloc(sizeof(struct max77693_muic_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max77693_muic_info),
+				   GFP_KERNEL);
 	if (!info) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		ret = -ENOMEM;
-		goto err_kfree;
+		return -ENOMEM;
 	}
 	info->dev = &pdev->dev;
 	info->max77693 = max77693;
-	if (info->max77693->regmap_muic)
+	if (info->max77693->regmap_muic) {
 		dev_dbg(&pdev->dev, "allocate register map\n");
-	else {
+	} else {
 		info->max77693->regmap_muic = devm_regmap_init_i2c(
 						info->max77693->muic,
 						&max77693_muic_regmap_config);
@@ -679,7 +675,7 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 			ret = PTR_ERR(info->max77693->regmap_muic);
 			dev_err(max77693->dev,
 				"failed to allocate register map: %d\n", ret);
-			goto err_regmap;
+			return ret;
 		}
 	}
 	platform_set_drvdata(pdev, info);
@@ -690,11 +686,13 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	/* Support irq domain for MAX77693 MUIC device */
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
 		struct max77693_muic_irq *muic_irq = &muic_irqs[i];
-		int virq = 0;
+		unsigned int virq = 0;
 
 		virq = irq_create_mapping(max77693->irq_domain, muic_irq->irq);
-		if (!virq)
+		if (!virq) {
+			ret = -EINVAL;
 			goto err_irq;
+		}
 		muic_irq->virq = virq;
 
 		ret = request_threaded_irq(virq, NULL,
@@ -706,14 +704,13 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 				" error :%d)\n",
 				muic_irq->irq, ret);
 
-			for (i = i - 1; i >= 0; i--)
-				free_irq(muic_irq->virq, info);
 			goto err_irq;
 		}
 	}
 
 	/* Initialize extcon device */
-	info->edev = kzalloc(sizeof(struct extcon_dev), GFP_KERNEL);
+	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
+				  GFP_KERNEL);
 	if (!info->edev) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
@@ -724,7 +721,32 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	ret = extcon_dev_register(info->edev, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		goto err_extcon;
+		goto err_irq;
+	}
+
+	/* Initialize MUIC register by using platform data */
+	for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
+		enum max77693_irq_source irq_src = MAX77693_IRQ_GROUP_NR;
+
+		max77693_write_reg(info->max77693->regmap_muic,
+				muic_pdata->init_data[i].addr,
+				muic_pdata->init_data[i].data);
+
+		switch (muic_pdata->init_data[i].addr) {
+		case MAX77693_MUIC_REG_INTMASK1:
+			irq_src = MUIC_INT1;
+			break;
+		case MAX77693_MUIC_REG_INTMASK2:
+			irq_src = MUIC_INT2;
+			break;
+		case MAX77693_MUIC_REG_INTMASK3:
+			irq_src = MUIC_INT3;
+			break;
+		}
+
+		if (irq_src < MAX77693_IRQ_GROUP_NR)
+			info->max77693->irq_masks_cur[irq_src]
+				= muic_pdata->init_data[i].data;
 	}
 
 	/* Check revision number of MUIC device*/
@@ -732,7 +754,7 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -744,16 +766,13 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_extcon:
-	kfree(info->edev);
 err_irq:
-err_regmap:
-	kfree(info);
-err_kfree:
+	while (--i >= 0)
+		free_irq(muic_irqs[i].virq, info);
 	return ret;
 }
 
-static int __devexit max77693_muic_remove(struct platform_device *pdev)
+static int max77693_muic_remove(struct platform_device *pdev)
 {
 	struct max77693_muic_info *info = platform_get_drvdata(pdev);
 	int i;
@@ -762,7 +781,6 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	extcon_dev_unregister(info->edev);
-	kfree(info);
 
 	return 0;
 }
@@ -773,7 +791,7 @@ static struct platform_driver max77693_muic_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max77693_muic_probe,
-	.remove		= __devexit_p(max77693_muic_remove),
+	.remove		= max77693_muic_remove,
 };
 
 module_platform_driver(max77693_muic_driver);

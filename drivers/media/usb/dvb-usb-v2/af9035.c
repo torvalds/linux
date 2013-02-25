@@ -1023,10 +1023,10 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 		switch (tmp) {
 		case 0: /* NEC */
 		default:
-			rc->allowed_protos = RC_TYPE_NEC;
+			rc->allowed_protos = RC_BIT_NEC;
 			break;
 		case 1: /* RC6 */
-			rc->allowed_protos = RC_TYPE_RC6;
+			rc->allowed_protos = RC_BIT_RC6_MCE;
 			break;
 		}
 

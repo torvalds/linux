@@ -104,7 +104,8 @@ static inline void __invalidate_icache_page_alias(unsigned long virt,
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page*);
 extern void flush_cache_range(struct vm_area_struct*, ulong, ulong);
-extern void flush_cache_page(struct vm_area_struct*, unsigned long, unsigned long);
+extern void flush_cache_page(struct vm_area_struct*,
+			     unsigned long, unsigned long);
 
 #else
 
@@ -165,7 +166,7 @@ extern void copy_from_user_page(struct vm_area_struct*, struct page*,
 static inline u32 xtensa_get_cacheattr(void)
 {
 	u32 r;
-	asm volatile("	rsr %0, CACHEATTR" : "=a"(r));
+	asm volatile("	rsr %0, cacheattr" : "=a"(r));
 	return r;
 }
 

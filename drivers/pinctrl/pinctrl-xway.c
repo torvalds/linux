@@ -17,8 +17,6 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/device.h>
-#include <linux/module.h>
-#include <linux/io.h>
 #include <linux/platform_device.h>
 
 #include "pinctrl-lantiq.h"
@@ -524,7 +522,7 @@ static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-struct pinconf_ops xway_pinconf_ops = {
+static struct pinconf_ops xway_pinconf_ops = {
 	.pin_config_get	= xway_pinconf_get,
 	.pin_config_set	= xway_pinconf_set,
 };

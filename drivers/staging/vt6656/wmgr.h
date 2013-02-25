@@ -89,44 +89,44 @@ typedef void (*TimerFunction)(unsigned long);
 
 //+++ NDIS related
 
-typedef unsigned char NDIS_802_11_MAC_ADDRESS[ETH_ALEN];
+typedef u8 NDIS_802_11_MAC_ADDRESS[ETH_ALEN];
 typedef struct _NDIS_802_11_AI_REQFI
 {
-    unsigned short Capabilities;
-    unsigned short ListenInterval;
+	u16 Capabilities;
+	u16 ListenInterval;
     NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
 } NDIS_802_11_AI_REQFI, *PNDIS_802_11_AI_REQFI;
 
 typedef struct _NDIS_802_11_AI_RESFI
 {
-    unsigned short Capabilities;
-    unsigned short StatusCode;
-    unsigned short AssociationId;
+	u16 Capabilities;
+	u16 StatusCode;
+	u16 AssociationId;
 } NDIS_802_11_AI_RESFI, *PNDIS_802_11_AI_RESFI;
 
 typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
 {
-    unsigned long                   Length;
-    unsigned short                  AvailableRequestFixedIEs;
-    NDIS_802_11_AI_REQFI    RequestFixedIEs;
-    unsigned long                   RequestIELength;
-    unsigned long                   OffsetRequestIEs;
-    unsigned short                  AvailableResponseFixedIEs;
-    NDIS_802_11_AI_RESFI    ResponseFixedIEs;
-    unsigned long                   ResponseIELength;
-    unsigned long                   OffsetResponseIEs;
+	u32 Length;
+	u16 AvailableRequestFixedIEs;
+	NDIS_802_11_AI_REQFI RequestFixedIEs;
+	u32 RequestIELength;
+	u32 OffsetRequestIEs;
+	u16 AvailableResponseFixedIEs;
+	NDIS_802_11_AI_RESFI ResponseFixedIEs;
+	u32 ResponseIELength;
+	u32 OffsetResponseIEs;
 } NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
 
 
 
 typedef struct tagSAssocInfo {
-    NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
-    BYTE                                    abyIEs[WLAN_BEACON_FR_MAXLEN+WLAN_BEACON_FR_MAXLEN];
-    // store ReqIEs set by OID_802_11_ASSOCIATION_INFORMATION
-    unsigned long                                   RequestIELength;
-    BYTE                                    abyReqIEs[WLAN_BEACON_FR_MAXLEN];
+	NDIS_802_11_ASSOCIATION_INFORMATION AssocInfo;
+	u8 abyIEs[WLAN_BEACON_FR_MAXLEN+WLAN_BEACON_FR_MAXLEN];
+	/* store ReqIEs set by OID_802_11_ASSOCIATION_INFORMATION */
+	u32 RequestIELength;
+	u8 abyReqIEs[WLAN_BEACON_FR_MAXLEN];
 } SAssocInfo, *PSAssocInfo;
-//---
+
 
 
 

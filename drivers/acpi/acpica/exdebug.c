@@ -145,10 +145,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_BUFFER:
 
 		acpi_os_printf("[0x%.2X]\n", (u32)source_desc->buffer.length);
-		acpi_ut_dump_buffer2(source_desc->buffer.pointer,
-				     (source_desc->buffer.length < 256) ?
-				     source_desc->buffer.length : 256,
-				     DB_BYTE_DISPLAY);
+		acpi_ut_dump_buffer(source_desc->buffer.pointer,
+				    (source_desc->buffer.length < 256) ?
+				    source_desc->buffer.length : 256,
+				    DB_BYTE_DISPLAY, 0);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -190,7 +190,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 			acpi_os_printf("Table Index 0x%X\n",
 				       source_desc->reference.value);
-			return;
+			return_VOID;
 
 		default:
 			break;

@@ -14,6 +14,12 @@
 	compatible = "ti,omap2420", "ti,omap2";
 
 	ocp {
+		counter32k: counter@48004000 {
+			compatible = "ti,omap-counter32k";
+			reg = <0x48004000 0x20>;
+			ti,hwmods = "counter_32k";
+		};
+
 		omap2420_pmx: pinmux@48000030 {
 			compatible = "ti,omap2420-padconf", "pinctrl-single";
 			reg = <0x48000030 0x0113>;
@@ -30,7 +36,6 @@
 			interrupts = <59>, /* TX interrupt */
 				     <60>; /* RX interrupt */
 			interrupt-names = "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,hwmods = "mcbsp1";
 		};
 
@@ -41,8 +46,15 @@
 			interrupts = <62>, /* TX interrupt */
 				     <63>; /* RX interrupt */
 			interrupt-names = "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,hwmods = "mcbsp2";
+		};
+
+		timer1: timer@48028000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48028000 0x400>;
+			interrupts = <37>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
 		};
 	};
 };

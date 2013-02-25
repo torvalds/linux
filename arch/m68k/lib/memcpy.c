@@ -10,7 +10,7 @@
 void *memcpy(void *to, const void *from, size_t n)
 {
 	void *xto = to;
-	size_t temp, temp1;
+	size_t temp;
 
 	if (!n)
 		return xto;
@@ -47,6 +47,7 @@ void *memcpy(void *to, const void *from, size_t n)
 		for (; temp; temp--)
 			*lto++ = *lfrom++;
 #else
+		size_t temp1;
 		asm volatile (
 			"	movel %2,%3\n"
 			"	andw  #7,%3\n"

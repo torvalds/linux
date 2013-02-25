@@ -405,7 +405,7 @@ struct snd_soc_dai_driver mmp_sspa_dai = {
 	.ops = &mmp_sspa_dai_ops,
 };
 
-static __devinit int asoc_mmp_sspa_probe(struct platform_device *pdev)
+static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 {
 	struct sspa_priv *priv;
 	struct resource *res;
@@ -453,7 +453,7 @@ static __devinit int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &mmp_sspa_dai);
 }
 
-static int __devexit asoc_mmp_sspa_remove(struct platform_device *pdev)
+static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 {
 	struct sspa_priv *priv = platform_get_drvdata(pdev);
 
@@ -470,7 +470,7 @@ static struct platform_driver asoc_mmp_sspa_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = asoc_mmp_sspa_probe,
-	.remove = __devexit_p(asoc_mmp_sspa_remove),
+	.remove = asoc_mmp_sspa_remove,
 };
 
 module_platform_driver(asoc_mmp_sspa_driver);

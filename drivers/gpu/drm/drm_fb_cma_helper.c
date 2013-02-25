@@ -206,7 +206,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	size_t size;
 	int ret;
 
-	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d\n",
+	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 			sizes->surface_width, sizes->surface_height,
 			sizes->surface_bpp);
 
@@ -220,7 +220,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	obj = drm_gem_cma_create(dev, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		return -ENOMEM;
 
 	fbi = framebuffer_alloc(0, dev->dev);

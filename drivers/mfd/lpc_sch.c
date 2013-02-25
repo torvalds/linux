@@ -83,7 +83,7 @@ static DEFINE_PCI_DEVICE_TABLE(lpc_sch_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, lpc_sch_ids);
 
-static int __devinit lpc_sch_probe(struct pci_dev *dev,
+static int lpc_sch_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	unsigned int base_addr_cfg;
@@ -164,7 +164,7 @@ out_dev:
 	return ret;
 }
 
-static void __devexit lpc_sch_remove(struct pci_dev *dev)
+static void lpc_sch_remove(struct pci_dev *dev)
 {
 	mfd_remove_devices(&dev->dev);
 }
@@ -173,7 +173,7 @@ static struct pci_driver lpc_sch_driver = {
 	.name		= "lpc_sch",
 	.id_table	= lpc_sch_ids,
 	.probe		= lpc_sch_probe,
-	.remove		= __devexit_p(lpc_sch_remove),
+	.remove		= lpc_sch_remove,
 };
 
 module_pci_driver(lpc_sch_driver);

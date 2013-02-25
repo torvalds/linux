@@ -59,6 +59,13 @@ struct popc_6insn_patch_entry {
 extern struct popc_6insn_patch_entry __popc_6insn_patch,
 	__popc_6insn_patch_end;
 
+struct pause_patch_entry {
+	unsigned int	addr;
+	unsigned int	insns[3];
+};
+extern struct pause_patch_entry __pause_3insn_patch,
+	__pause_3insn_patch_end;
+
 extern void __init per_cpu_patch(void);
 extern void sun4v_patch_1insn_range(struct sun4v_1insn_patch_entry *,
 				    struct sun4v_1insn_patch_entry *);

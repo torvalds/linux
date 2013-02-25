@@ -29,10 +29,6 @@ atomic_t nr_free_contexts;
 struct mm_struct *context_mm[LAST_CONTEXT+1];
 extern unsigned long num_pages;
 
-void free_initmem(void)
-{
-}
-
 /*
  * ColdFire paging_init derived from sun3.
  */

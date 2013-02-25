@@ -23,7 +23,6 @@ config MYRI10GE
 	depends on PCI && INET
 	select FW_LOADER
 	select CRC32
-	select INET_LRO
 	---help---
 	  This driver supports Myricom Myri-10G Dual Protocol interface in
 	  Ethernet mode. If the eeprom on your board is not recent enough,

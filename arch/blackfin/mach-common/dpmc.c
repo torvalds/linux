@@ -157,24 +157,7 @@ struct platform_driver bfin_dpmc_device_driver = {
 		.name = DRIVER_NAME,
 	}
 };
-
-/**
- *	bfin_dpmc_init - Init driver
- */
-static int __init bfin_dpmc_init(void)
-{
-	return platform_driver_register(&bfin_dpmc_device_driver);
-}
-module_init(bfin_dpmc_init);
-
-/**
- *	bfin_dpmc_exit - break down driver
- */
-static void __exit bfin_dpmc_exit(void)
-{
-	platform_driver_unregister(&bfin_dpmc_device_driver);
-}
-module_exit(bfin_dpmc_exit);
+module_platform_driver(bfin_dpmc_device_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("cpu power management driver for Blackfin");

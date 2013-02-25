@@ -57,7 +57,6 @@
 #define OTI6858_DESCRIPTION \
 	"Ours Technology Inc. OTi-6858 USB to serial adapter driver"
 #define OTI6858_AUTHOR "Tomasz Michal Lukaszewski <FIXME@FIXME>"
-#define OTI6858_VERSION "0.2"
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(OTI6858_VENDOR_ID, OTI6858_PRODUCT_ID) },
@@ -137,8 +136,8 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty);
 static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
-static int oti6858_startup(struct usb_serial *serial);
-static void oti6858_release(struct usb_serial *serial);
+static int oti6858_port_probe(struct usb_serial_port *port);
+static int oti6858_port_remove(struct usb_serial_port *port);
 
 /* device info */
 static struct usb_serial_driver oti6858_device = {
@@ -161,8 +160,8 @@ static struct usb_serial_driver oti6858_device = {
 	.write_bulk_callback =	oti6858_write_bulk_callback,
 	.write_room =		oti6858_write_room,
 	.chars_in_buffer =	oti6858_chars_in_buffer,
-	.attach =		oti6858_startup,
-	.release =		oti6858_release,
+	.port_probe =		oti6858_port_probe,
+	.port_remove =		oti6858_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -331,36 +330,33 @@ static void send_data(struct work_struct *work)
 	usb_serial_port_softint(port);
 }
 
-static int oti6858_startup(struct usb_serial *serial)
+static int oti6858_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct oti6858_private *priv;
-	int i;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct oti6858_private), GFP_KERNEL);
-		if (!priv)
-			break;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		spin_lock_init(&priv->lock);
-		init_waitqueue_head(&priv->intr_wait);
-/*		INIT_WORK(&priv->setup_work, setup_line, serial->port[i]); */
-/*		INIT_WORK(&priv->write_work, send_data, serial->port[i]); */
-		priv->port = port;
-		INIT_DELAYED_WORK(&priv->delayed_setup_work, setup_line);
-		INIT_DELAYED_WORK(&priv->delayed_write_work, send_data);
+	spin_lock_init(&priv->lock);
+	init_waitqueue_head(&priv->intr_wait);
+	priv->port = port;
+	INIT_DELAYED_WORK(&priv->delayed_setup_work, setup_line);
+	INIT_DELAYED_WORK(&priv->delayed_write_work, send_data);
 
-		usb_set_serial_port_data(serial->port[i], priv);
-	}
-	if (i == serial->num_ports)
-		return 0;
+	usb_set_serial_port_data(port, priv);
 
-	for (--i; i >= 0; --i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	return -ENOMEM;
+	return 0;
+}
+
+static int oti6858_port_remove(struct usb_serial_port *port)
+{
+	struct oti6858_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 static int oti6858_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -709,15 +705,6 @@ static int oti6858_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
-
-static void oti6858_release(struct usb_serial *serial)
-{
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i)
-		kfree(usb_get_serial_port_data(serial->port[i]));
-}
-
 static void oti6858_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port =  urb->context;
@@ -911,5 +898,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(OTI6858_DESCRIPTION);
 MODULE_AUTHOR(OTI6858_AUTHOR);
-MODULE_VERSION(OTI6858_VERSION);
 MODULE_LICENSE("GPL");

@@ -1,5 +1,6 @@
 /*
- * Frame buffer device for IBM GXT4500P and GXT6000P display adaptors
+ * Frame buffer device for IBM GXT4500P/6500P and GXT4000P/6000P
+ * display adaptors
  *
  * Copyright (C) 2006 Paul Mackerras, IBM Corp. <paulus@samba.org>
  */
@@ -14,6 +15,8 @@
 #include <linux/string.h>
 
 #define PCI_DEVICE_ID_IBM_GXT4500P	0x21c
+#define PCI_DEVICE_ID_IBM_GXT6500P	0x21b
+#define PCI_DEVICE_ID_IBM_GXT4000P	0x16e
 #define PCI_DEVICE_ID_IBM_GXT6000P	0x170
 
 /* GXT4500P registers */
@@ -173,6 +176,8 @@ static const struct fb_videomode defaultmode __devinitconst = {
 /* List of supported cards */
 enum gxt_cards {
 	GXT4500P,
+	GXT6500P,
+	GXT4000P,
 	GXT6000P
 };
 
@@ -182,6 +187,8 @@ static const struct cardinfo {
 	const char *cardname;
 } cardinfo[] = {
 	[GXT4500P] = { .refclk_ps = 9259, .cardname = "IBM GXT4500P" },
+	[GXT6500P] = { .refclk_ps = 9259, .cardname = "IBM GXT6500P" },
+	[GXT4000P] = { .refclk_ps = 40000, .cardname = "IBM GXT4000P" },
 	[GXT6000P] = { .refclk_ps = 40000, .cardname = "IBM GXT6000P" },
 };
 
@@ -736,6 +743,10 @@ static void __devexit gxt4500_remove(struct pci_dev *pdev)
 static const struct pci_device_id gxt4500_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_GXT4500P),
 	  .driver_data = GXT4500P },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_GXT6500P),
+	  .driver_data = GXT6500P },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_GXT4000P),
+	  .driver_data = GXT4000P },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_GXT6000P),
 	  .driver_data = GXT6000P },
 	{ 0 }
@@ -768,7 +779,7 @@ static void __exit gxt4500_exit(void)
 module_exit(gxt4500_exit);
 
 MODULE_AUTHOR("Paul Mackerras <paulus@samba.org>");
-MODULE_DESCRIPTION("FBDev driver for IBM GXT4500P/6000P");
+MODULE_DESCRIPTION("FBDev driver for IBM GXT4500P/6500P and GXT4000P/6000P");
 MODULE_LICENSE("GPL");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\"");

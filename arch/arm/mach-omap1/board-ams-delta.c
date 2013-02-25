@@ -444,16 +444,28 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
 };
 
+static struct platform_device ams_delta_audio_device = {
+	.name   = "ams-delta-audio",
+	.id     = -1,
+};
+
+static struct platform_device cx20442_codec_device = {
+	.name   = "cx20442-codec",
+	.id     = -1,
+};
+
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
+	&ams_delta_audio_device,
 };
 
 static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
+	&cx20442_codec_device,
 };
 
 static void __init ams_delta_init(void)
@@ -613,7 +625,6 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
 	.init_late	= ams_delta_init_late,

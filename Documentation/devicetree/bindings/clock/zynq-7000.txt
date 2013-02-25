@@ -1,0 +1,55 @@
+Device Tree Clock bindings for the Zynq 7000 EPP
+
+The Zynq EPP has several different clk providers, each with there own bindings.
+The purpose of this document is to document their usage.
+
+See clock_bindings.txt for more information on the generic clock bindings.
+See Chapter 25 of Zynq TRM for more information about Zynq clocks.
+
+== PLLs ==
+
+Used to describe the ARM_PLL, DDR_PLL, and IO_PLL.
+
+Required properties:
+- #clock-cells : shall be 0 (only one clock is output from this node)
+- compatible : "xlnx,zynq-pll"
+- reg : pair of u32 values, which are the address offsets within the SLCR
+        of the relevant PLL_CTRL register and PLL_CFG register respectively
+- clocks : phandle for parent clock.  should be the phandle for ps_clk
+
+Optional properties:
+- clock-output-names : name of the output clock
+
+Example:
+	armpll: armpll {
+		#clock-cells = <0>;
+		compatible = "xlnx,zynq-pll";
+		clocks = <&ps_clk>;
+		reg = <0x100 0x110>;
+		clock-output-names = "armpll";
+	};
+
+== Peripheral clocks ==
+
+Describes clock node for the SDIO, SMC, SPI, QSPI, and UART clocks.
+
+Required properties:
+- #clock-cells : shall be 1
+- compatible : "xlnx,zynq-periph-clock"
+- reg : a single u32 value, describing the offset within the SLCR where
+        the CLK_CTRL register is found for this peripheral
+- clocks : phandle for parent clocks.  should hold phandles for
+           the IO_PLL, ARM_PLL, and DDR_PLL in order
+- clock-output-names : names of the output clock(s).  For peripherals that have
+                       two output clocks (for example, the UART), two clocks
+                       should be listed.
+
+Example:
+	uart_clk: uart_clk {
+		#clock-cells = <1>;
+		compatible = "xlnx,zynq-periph-clock";
+		clocks = <&iopll &armpll &ddrpll>;
+		reg = <0x154>;
+		clock-output-names = "uart0_ref_clk",
+				     "uart1_ref_clk";
+	};

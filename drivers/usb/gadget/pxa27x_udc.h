@@ -418,7 +418,7 @@ struct udc_stats {
  * @irq: udc irq
  * @clk: udc clock
  * @usb_gadget: udc gadget structure
- * @driver: bound gadget (zero, g_ether, g_file_storage, ...)
+ * @driver: bound gadget (zero, g_ether, g_mass_storage, ...)
  * @dev: device
  * @mach: machine info, used to activate specific GPIO
  * @transceiver: external transceiver to handle vbus sense and D+ pullup

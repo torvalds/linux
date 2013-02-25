@@ -555,6 +555,7 @@ static int __init simrs_init(void)
 	return 0;
 err_free_tty:
 	put_tty_driver(hp_simserial_driver);
+	tty_port_destroy(&state->port);
 	return retval;
 }
 

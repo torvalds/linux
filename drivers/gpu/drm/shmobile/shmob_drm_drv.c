@@ -201,6 +201,8 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
+	platform_set_drvdata(pdev, sdev);
+
 done:
 	if (ret)
 		shmob_drm_unload(dev);
@@ -299,11 +301,9 @@ static struct drm_driver shmob_drm_driver = {
 #if CONFIG_PM_SLEEP
 static int shmob_drm_pm_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *ddev = platform_get_drvdata(pdev);
-	struct shmob_drm_device *sdev = ddev->dev_private;
+	struct shmob_drm_device *sdev = dev_get_drvdata(dev);
 
-	drm_kms_helper_poll_disable(ddev);
+	drm_kms_helper_poll_disable(sdev->ddev);
 	shmob_drm_crtc_suspend(&sdev->crtc);
 
 	return 0;
@@ -311,9 +311,7 @@ static int shmob_drm_pm_suspend(struct device *dev)
 
 static int shmob_drm_pm_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *ddev = platform_get_drvdata(pdev);
-	struct shmob_drm_device *sdev = ddev->dev_private;
+	struct shmob_drm_device *sdev = dev_get_drvdata(dev);
 
 	mutex_lock(&sdev->ddev->mode_config.mutex);
 	shmob_drm_crtc_resume(&sdev->crtc);

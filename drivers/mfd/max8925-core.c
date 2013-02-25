@@ -19,12 +19,12 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8925.h>
 
-static struct resource bk_resources[] __devinitdata = {
+static struct resource bk_resources[] = {
 	{ 0x84, 0x84, "mode control", IORESOURCE_REG, },
 	{ 0x85, 0x85, "control",      IORESOURCE_REG, },
 };
 
-static struct mfd_cell bk_devs[] __devinitdata = {
+static struct mfd_cell bk_devs[] = {
 	{
 		.name		= "max8925-backlight",
 		.num_resources	= ARRAY_SIZE(bk_resources),
@@ -110,99 +110,99 @@ static struct mfd_cell onkey_devs[] = {
 	},
 };
 
-static struct resource sd1_resources[] __devinitdata = {
+static struct resource sd1_resources[] = {
 	{0x06, 0x06, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource sd2_resources[] __devinitdata = {
+static struct resource sd2_resources[] = {
 	{0x09, 0x09, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource sd3_resources[] __devinitdata = {
+static struct resource sd3_resources[] = {
 	{0x0c, 0x0c, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource ldo1_resources[] __devinitdata = {
+static struct resource ldo1_resources[] = {
 	{0x1a, 0x1a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo2_resources[] __devinitdata = {
+static struct resource ldo2_resources[] = {
 	{0x1e, 0x1e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo3_resources[] __devinitdata = {
+static struct resource ldo3_resources[] = {
 	{0x22, 0x22, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo4_resources[] __devinitdata = {
+static struct resource ldo4_resources[] = {
 	{0x26, 0x26, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo5_resources[] __devinitdata = {
+static struct resource ldo5_resources[] = {
 	{0x2a, 0x2a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo6_resources[] __devinitdata = {
+static struct resource ldo6_resources[] = {
 	{0x2e, 0x2e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo7_resources[] __devinitdata = {
+static struct resource ldo7_resources[] = {
 	{0x32, 0x32, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo8_resources[] __devinitdata = {
+static struct resource ldo8_resources[] = {
 	{0x36, 0x36, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo9_resources[] __devinitdata = {
+static struct resource ldo9_resources[] = {
 	{0x3a, 0x3a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo10_resources[] __devinitdata = {
+static struct resource ldo10_resources[] = {
 	{0x3e, 0x3e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo11_resources[] __devinitdata = {
+static struct resource ldo11_resources[] = {
 	{0x42, 0x42, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo12_resources[] __devinitdata = {
+static struct resource ldo12_resources[] = {
 	{0x46, 0x46, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo13_resources[] __devinitdata = {
+static struct resource ldo13_resources[] = {
 	{0x4a, 0x4a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo14_resources[] __devinitdata = {
+static struct resource ldo14_resources[] = {
 	{0x4e, 0x4e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo15_resources[] __devinitdata = {
+static struct resource ldo15_resources[] = {
 	{0x52, 0x52, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo16_resources[] __devinitdata = {
+static struct resource ldo16_resources[] = {
 	{0x12, 0x12, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo17_resources[] __devinitdata = {
+static struct resource ldo17_resources[] = {
 	{0x16, 0x16, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo18_resources[] __devinitdata = {
+static struct resource ldo18_resources[] = {
 	{0x74, 0x74, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo19_resources[] __devinitdata = {
+static struct resource ldo19_resources[] = {
 	{0x5e, 0x5e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo20_resources[] __devinitdata = {
+static struct resource ldo20_resources[] = {
 	{0x9e, 0x9e, "ldov", IORESOURCE_REG, },
 };
 
-static struct mfd_cell reg_devs[] __devinitdata = {
+static struct mfd_cell reg_devs[] = {
 	{
 		.name = "max8925-regulator",
 		.id = 0,
@@ -714,7 +714,7 @@ tsc_irq:
 	return 0;
 }
 
-static void __devinit init_regulator(struct max8925_chip *chip,
+static void init_regulator(struct max8925_chip *chip,
 				     struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -821,7 +821,7 @@ static void __devinit init_regulator(struct max8925_chip *chip,
 	}
 }
 
-int __devinit max8925_device_init(struct max8925_chip *chip,
+int max8925_device_init(struct max8925_chip *chip,
 				  struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -901,7 +901,7 @@ out:
 	return ret;
 }
 
-void __devexit max8925_device_exit(struct max8925_chip *chip)
+void max8925_device_exit(struct max8925_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);

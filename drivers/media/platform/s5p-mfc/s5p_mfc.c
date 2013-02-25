@@ -381,11 +381,8 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		ctx->consumed_stream += s5p_mfc_hw_call(dev->mfc_ops,
 						get_consumed_stream, dev);
 		if (ctx->codec_mode != S5P_MFC_CODEC_H264_DEC &&
-			s5p_mfc_hw_call(dev->mfc_ops,
-				get_dec_frame_type, dev) ==
-					S5P_FIMV_DECODE_FRAME_P_FRAME
-					&& ctx->consumed_stream + STUFF_BYTE <
-					src_buf->b->v4l2_planes[0].bytesused) {
+			ctx->consumed_stream + STUFF_BYTE <
+			src_buf->b->v4l2_planes[0].bytesused) {
 			/* Run MFC again on the same buffer */
 			mfc_debug(2, "Running again the same buffer\n");
 			ctx->after_packed_pb = 1;

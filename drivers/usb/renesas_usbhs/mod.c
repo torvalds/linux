@@ -151,7 +151,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 		goto mod_init_host_err;
 
 	/* irq settings */
-	ret = request_irq(priv->irq, usbhs_interrupt,
+	ret = devm_request_irq(dev, priv->irq, usbhs_interrupt,
 			  priv->irqflags, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "irq request err\n");
@@ -172,7 +172,6 @@ void usbhs_mod_remove(struct usbhs_priv *priv)
 {
 	usbhs_mod_host_remove(priv);
 	usbhs_mod_gadget_remove(priv);
-	free_irq(priv->irq, priv);
 }
 
 /*
@@ -273,9 +272,9 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	usbhs_write(priv, INTSTS0, ~irq_state.intsts0 & INTSTS0_MAGIC);
 	usbhs_write(priv, INTSTS1, ~irq_state.intsts1 & INTSTS1_MAGIC);
 
-	usbhs_write(priv, BRDYSTS, 0);
-	usbhs_write(priv, NRDYSTS, 0);
-	usbhs_write(priv, BEMPSTS, 0);
+	usbhs_write(priv, BRDYSTS, ~irq_state.brdysts);
+	usbhs_write(priv, NRDYSTS, ~irq_state.nrdysts);
+	usbhs_write(priv, BEMPSTS, ~irq_state.bempsts);
 
 	/*
 	 * call irq callback functions

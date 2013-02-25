@@ -1011,7 +1011,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		local_irq_save(flags);
 
 		now = apic->lapic_timer.timer.base->get_time();
-		guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+		guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu, native_read_tsc());
 		if (likely(tscdeadline > guest_tsc)) {
 			ns = (tscdeadline - guest_tsc) * 1000000ULL;
 			do_div(ns, this_tsc_khz);
@@ -1311,7 +1311,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	vcpu->arch.apic_base = value;
 	if (apic_x2apic_mode(apic)) {
 		u32 id = kvm_apic_id(apic);
-		u32 ldr = ((id & ~0xf) << 16) | (1 << (id & 0xf));
+		u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
 		kvm_apic_set_ldr(apic, ldr);
 	}
 	apic->base_address = apic->vcpu->arch.apic_base &

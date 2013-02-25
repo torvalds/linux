@@ -185,8 +185,7 @@
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
-/*
- * Use byte values for the following shift parameters
+/* Use byte values for the following shift parameters
  * Usage:
  *     psrctl |= (((ROUNDUP(value0, 128) >> E1000_PSRCTL_BSIZE0_SHIFT) &
  *                  E1000_PSRCTL_BSIZE0_MASK) |
@@ -242,8 +241,7 @@
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
 
-/*
- * Bit definitions for the Management Data IO (MDIO) and Management Data
+/* Bit definitions for the Management Data IO (MDIO) and Management Data
  * Clock (MDC) pins in the Device Control Register.
  */
 
@@ -424,8 +422,7 @@
 #define E1000_PBA_ECC_STAT_CLR      0x00000002 /* Clear ECC error counter */
 #define E1000_PBA_ECC_INT_EN        0x00000004 /* Enable ICR bit 5 for ECC */
 
-/*
- * This defines the bits that are set in the Interrupt Mask
+/* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXT0   = Receiver Timer Interrupt (ring 0)
  *   o TXDW   = Transmit Descriptor Written Back
@@ -475,8 +472,7 @@
 /* 802.1q VLAN Packet Size */
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
-/* Receive Address */
-/*
+/* Receive Address
  * Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * Technically, we have 16 spots.  However, we reserve one of these spots
@@ -723,8 +719,7 @@
 #define MAX_PHY_REG_ADDRESS    0x1F  /* 5 bit address bus (0-0x1F) */
 #define MAX_PHY_MULTI_PAGE_REG 0xF
 
-/* Bit definitions for valid PHY IDs. */
-/*
+/* Bit definitions for valid PHY IDs.
  * I = Integrated
  * E = External
  */
@@ -762,8 +757,7 @@
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
-/*
- * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
+/* 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
  * 0=Normal 10BASE-T Rx Threshold
  */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX 0x0800 /* 1=Assert CRS on Transmit */
@@ -779,14 +773,12 @@
 
 #define M88E1000_PSSR_CABLE_LENGTH_SHIFT 7
 
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the master
  */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
-/*
- * Number of times we will attempt to autonegotiate before downshifting if we
+/* Number of times we will attempt to autonegotiate before downshifting if we
  * are the slave
  */
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK  0x0300
@@ -808,8 +800,7 @@
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
                            ((reg) & MAX_PHY_REG_ADDRESS))
 
-/*
- * Bits...
+/* Bits...
  * 15-5: page
  * 4-0: register offset
  */

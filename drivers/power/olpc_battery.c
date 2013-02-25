@@ -598,7 +598,7 @@ static int olpc_battery_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit olpc_battery_probe(struct platform_device *pdev)
+static int olpc_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	uint8_t status;
@@ -659,7 +659,7 @@ battery_failed:
 	return ret;
 }
 
-static int __devexit olpc_battery_remove(struct platform_device *pdev)
+static int olpc_battery_remove(struct platform_device *pdev)
 {
 	device_remove_file(olpc_bat.dev, &olpc_bat_error);
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
@@ -681,7 +681,7 @@ static struct platform_driver olpc_battery_driver = {
 		.of_match_table = olpc_battery_ids,
 	},
 	.probe = olpc_battery_probe,
-	.remove = __devexit_p(olpc_battery_remove),
+	.remove = olpc_battery_remove,
 	.suspend = olpc_battery_suspend,
 };
 

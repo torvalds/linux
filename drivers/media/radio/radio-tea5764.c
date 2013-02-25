@@ -145,7 +145,7 @@ struct tea5764_device {
 };
 
 /* I2C code related */
-int tea5764_i2c_read(struct tea5764_device *radio)
+static int tea5764_i2c_read(struct tea5764_device *radio)
 {
 	int i;
 	u16 *p = (u16 *) &radio->regs;
@@ -165,7 +165,7 @@ int tea5764_i2c_read(struct tea5764_device *radio)
 	return 0;
 }
 
-int tea5764_i2c_write(struct tea5764_device *radio)
+static int tea5764_i2c_write(struct tea5764_device *radio)
 {
 	struct tea5764_write_regs wr;
 	struct tea5764_regs *r = &radio->regs;

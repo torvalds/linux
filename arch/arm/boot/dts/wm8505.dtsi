@@ -71,13 +71,13 @@
 		ehci@d8007100 {
 			compatible = "via,vt8500-ehci";
 			reg = <0xd8007100 0x200>;
-			interrupts = <43>;
+			interrupts = <1>;
 		};
 
 		uhci@d8007300 {
 			compatible = "platform-uhci";
 			reg = <0xd8007300 0x200>;
-			interrupts = <43>;
+			interrupts = <0>;
 		};
 
 		fb@d8050800 {

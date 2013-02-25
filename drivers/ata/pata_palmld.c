@@ -111,9 +111,7 @@ err1:
 
 static __devexit int palmld_pata_remove(struct platform_device *dev)
 {
-	struct ata_host *host = platform_get_drvdata(dev);
-
-	ata_host_detach(host);
+	ata_platform_remove_one(dev);
 
 	/* power down the HDD */
 	gpio_set_value(GPIO_NR_PALMLD_IDE_PWEN, 0);

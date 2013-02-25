@@ -49,7 +49,7 @@ static inline void i8042_write_command(int val)
 #define OBP_PS2MS_NAME1		"kdmouse"
 #define OBP_PS2MS_NAME2		"mouse"
 
-static int __devinit sparc_i8042_probe(struct platform_device *op)
+static int sparc_i8042_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 
@@ -80,7 +80,7 @@ static int __devinit sparc_i8042_probe(struct platform_device *op)
 	return 0;
 }
 
-static int __devexit sparc_i8042_remove(struct platform_device *op)
+static int sparc_i8042_remove(struct platform_device *op)
 {
 	of_iounmap(kbd_res, kbd_iobase, 8);
 
@@ -102,7 +102,7 @@ static struct platform_driver sparc_i8042_driver = {
 		.of_match_table = sparc_i8042_match,
 	},
 	.probe		= sparc_i8042_probe,
-	.remove		= __devexit_p(sparc_i8042_remove),
+	.remove		= sparc_i8042_remove,
 };
 
 static int __init i8042_platform_init(void)

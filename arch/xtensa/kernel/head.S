@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheasm.h>
+#include <asm/initialize_mmu.h>
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -47,32 +48,35 @@
 	 */
 
 	__HEAD
-	.globl _start
-_start:	_j	2f
+ENTRY(_start)
+
+	_j	2f
 	.align	4
 1:	.word	_startup
 2:	l32r	a0, 1b
 	jx	a0
 
+ENDPROC(_start)
+
 	.section .init.text, "ax"
-	.align 4
-_startup:
+
+ENTRY(_startup)
 
 	/* Disable interrupts and exceptions. */
 
 	movi	a0, LOCKLEVEL
-	wsr	a0, PS
+	wsr	a0, ps
 
 	/* Preserve the pointer to the boot parameter list in EXCSAVE_1 */
 
-	wsr	a2, EXCSAVE_1
+	wsr	a2, excsave1
 
 	/* Start with a fresh windowbase and windowstart.  */
 
 	movi	a1, 1
 	movi	a0, 0
-	wsr	a1, WINDOWSTART
-	wsr	a0, WINDOWBASE
+	wsr	a1, windowstart
+	wsr	a0, windowbase
 	rsync
 
 	/* Set a0 to 0 for the remaining initialization. */
@@ -82,46 +86,46 @@ _startup:
 	/* Clear debugging registers. */
 
 #if XCHAL_HAVE_DEBUG
-	wsr	a0, IBREAKENABLE
-	wsr	a0, ICOUNT
+	wsr	a0, ibreakenable
+	wsr	a0, icount
 	movi	a1, 15
-	wsr	a0, ICOUNTLEVEL
+	wsr	a0, icountlevel
 
 	.set	_index, 0
 	.rept	XCHAL_NUM_DBREAK - 1
-	wsr	a0, DBREAKC + _index
+	wsr	a0, SREG_DBREAKC + _index
 	.set	_index, _index + 1
 	.endr
 #endif
 
 	/* Clear CCOUNT (not really necessary, but nice) */
 
-	wsr	a0, CCOUNT	# not really necessary, but nice
+	wsr	a0, ccount	# not really necessary, but nice
 
 	/* Disable zero-loops. */
 
 #if XCHAL_HAVE_LOOPS
-	wsr	a0, LCOUNT
+	wsr	a0, lcount
 #endif
 
 	/* Disable all timers. */
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_TIMERS - 1
-	wsr	a0, CCOMPARE + _index
+	.rept	XCHAL_NUM_TIMERS
+	wsr	a0, SREG_CCOMPARE + _index
 	.set	_index, _index + 1
 	.endr
 
 	/* Interrupt initialization. */
 
 	movi	a2, XCHAL_INTTYPE_MASK_SOFTWARE | XCHAL_INTTYPE_MASK_EXTERN_EDGE
-	wsr	a0, INTENABLE
-	wsr	a2, INTCLEAR
+	wsr	a0, intenable
+	wsr	a2, intclear
 
 	/* Disable coprocessors. */
 
-#if XCHAL_CP_NUM > 0
-	wsr	a0, CPENABLE
+#if XCHAL_HAVE_CP
+	wsr	a0, cpenable
 #endif
 
 	/* Set PS.INTLEVEL=1, PS.WOE=0, kernel stack, PS.EXCM=0
@@ -132,7 +136,7 @@ _startup:
 	 */
 
 	movi	a1, 1
-	wsr	a1, PS
+	wsr	a1, ps
 	rsync
 
 	/*  Initialize the caches.
@@ -151,6 +155,8 @@ _startup:
 	___invalidate_icache_all a2 a3
 
 	isync
+
+	initialize_mmu
 
 	/* Unpack data sections
 	 *
@@ -206,18 +212,18 @@ _startup:
 	addi	a1, a1, KERNEL_STACK_SIZE
 
 	movi	a2, 0x00040001		# WOE=1, INTLEVEL=1, UM=0
-	wsr	a2, PS			# (enable reg-windows; progmode stack)
+	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync
 
 	/* Set up EXCSAVE[DEBUGLEVEL] to point to the Debug Exception Handler.*/
 
 	movi	a2, debug_exception
-	wsr	a2, EXCSAVE + XCHAL_DEBUGLEVEL
+	wsr	a2, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 
 	/* Set up EXCSAVE[1] to point to the exc_table. */
 
 	movi	a6, exc_table
-	xsr	a6, EXCSAVE_1
+	xsr	a6, excsave1
 
 	/* init_arch kick-starts the linux kernel */
 
@@ -230,6 +236,7 @@ _startup:
 should_never_return:
 	j	should_never_return
 
+ENDPROC(_startup)
 
 /*
  * BSS section
@@ -239,6 +246,8 @@ __PAGE_ALIGNED_BSS
 #ifdef CONFIG_MMU
 ENTRY(swapper_pg_dir)
 	.fill	PAGE_SIZE, 1, 0
+END(swapper_pg_dir)
 #endif
 ENTRY(empty_zero_page)
 	.fill	PAGE_SIZE, 1, 0
+END(empty_zero_page)

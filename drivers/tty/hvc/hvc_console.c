@@ -424,7 +424,6 @@ static void hvc_hangup(struct tty_struct *tty)
 {
 	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
-	int temp_open_count;
 
 	if (!hp)
 		return;
@@ -444,7 +443,6 @@ static void hvc_hangup(struct tty_struct *tty)
 		return;
 	}
 
-	temp_open_count = hp->port.count;
 	hp->port.count = 0;
 	spin_unlock_irqrestore(&hp->port.lock, flags);
 	tty_port_tty_set(&hp->port, NULL);
@@ -453,11 +451,6 @@ static void hvc_hangup(struct tty_struct *tty)
 
 	if (hp->ops->notifier_hangup)
 		hp->ops->notifier_hangup(hp, hp->data);
-
-	while(temp_open_count) {
-		--temp_open_count;
-		tty_port_put(&hp->port);
-	}
 }
 
 /*
