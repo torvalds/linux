@@ -662,6 +662,7 @@ struct hid_driver {
  * @hidinput_input_event: event input event (e.g. ff or leds)
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
+ * @request: send report request to device (e.g. feature report)
  */
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
@@ -676,6 +677,10 @@ struct hid_ll_driver {
 			unsigned int code, int value);
 
 	int (*parse)(struct hid_device *hdev);
+
+	void (*request)(struct hid_device *hdev,
+			struct hid_report *report, int reqtype);
+
 };
 
 #define	PM_HINT_FULLON	1<<5
@@ -881,6 +886,21 @@ static inline void hid_hw_close(struct hid_device *hdev)
 static inline int hid_hw_power(struct hid_device *hdev, int level)
 {
 	return hdev->ll_driver->power ? hdev->ll_driver->power(hdev, level) : 0;
+}
+
+
+/**
+ * hid_hw_request - send report request to device
+ *
+ * @hdev: hid device
+ * @report: report to send
+ * @reqtype: hid request type
+ */
+static inline void hid_hw_request(struct hid_device *hdev,
+				  struct hid_report *report, int reqtype)
+{
+	if (hdev->ll_driver->request)
+		hdev->ll_driver->request(hdev, report, reqtype);
 }
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
