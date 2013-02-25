@@ -32,7 +32,6 @@
 #include <media/s5p_fimc.h>
 
 #include "fimc-mdevice.h"
-#include "fimc-core.h"
 #include "fimc-lite.h"
 #include "fimc-lite-reg.h"
 

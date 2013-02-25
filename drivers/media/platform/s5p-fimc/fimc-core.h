@@ -137,37 +137,6 @@ enum fimc_color_fmt {
 #define	FIMC_COLOR_RANGE_NARROW		(1 << 3)
 
 /**
- * struct fimc_fmt - the driver's internal color format data
- * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @name: format description
- * @fourcc: the fourcc code for this format, 0 if not applicable
- * @color: the corresponding fimc_color_fmt
- * @memplanes: number of physically non-contiguous data planes
- * @colplanes: number of physically contiguous data planes
- * @depth: per plane driver's private 'number of bits per pixel'
- * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
- * @flags: flags indicating which operation mode format applies to
- */
-struct fimc_fmt {
-	enum v4l2_mbus_pixelcode mbus_code;
-	char	*name;
-	u32	fourcc;
-	u32	color;
-	u16	memplanes;
-	u16	colplanes;
-	u8	depth[VIDEO_MAX_PLANES];
-	u16	mdataplanes;
-	u16	flags;
-#define FMT_FLAGS_CAM		(1 << 0)
-#define FMT_FLAGS_M2M_IN	(1 << 1)
-#define FMT_FLAGS_M2M_OUT	(1 << 2)
-#define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
-#define FMT_HAS_ALPHA		(1 << 3)
-#define FMT_FLAGS_COMPRESSED	(1 << 4)
-#define FMT_FLAGS_WRITEBACK	(1 << 5)
-};
-
-/**
  * struct fimc_dma_offset - pixel offset information for DMA
  * @y_h:	y value horizontal offset
  * @y_v:	y value vertical offset

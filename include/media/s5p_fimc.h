@@ -13,6 +13,7 @@
 #define S5P_FIMC_H_
 
 #include <media/media-entity.h>
+#include <media/v4l2-mediabus.h>
 
 /*
  * Enumeration of data inputs to the camera subsystem.
@@ -92,6 +93,39 @@ struct s5p_platform_fimc {
  * at begining of the frame transmission.
  */
 #define S5P_FIMC_TX_END_NOTIFY _IO('e', 0)
+
+#define FIMC_MAX_PLANES	3
+
+/**
+ * struct fimc_fmt - color format data structure
+ * @mbus_code: media bus pixel code, -1 if not applicable
+ * @name: format description
+ * @fourcc: fourcc code for this format, 0 if not applicable
+ * @color: the driver's private color format id
+ * @memplanes: number of physically non-contiguous data planes
+ * @colplanes: number of physically contiguous data planes
+ * @depth: per plane driver's private 'number of bits per pixel'
+ * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
+ * @flags: flags indicating which operation mode format applies to
+ */
+struct fimc_fmt {
+	enum v4l2_mbus_pixelcode mbus_code;
+	char	*name;
+	u32	fourcc;
+	u32	color;
+	u16	memplanes;
+	u16	colplanes;
+	u8	depth[FIMC_MAX_PLANES];
+	u16	mdataplanes;
+	u16	flags;
+#define FMT_FLAGS_CAM		(1 << 0)
+#define FMT_FLAGS_M2M_IN	(1 << 1)
+#define FMT_FLAGS_M2M_OUT	(1 << 2)
+#define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
+#define FMT_HAS_ALPHA		(1 << 3)
+#define FMT_FLAGS_COMPRESSED	(1 << 4)
+#define FMT_FLAGS_WRITEBACK	(1 << 5)
+};
 
 enum fimc_subdev_index {
 	IDX_SENSOR,
