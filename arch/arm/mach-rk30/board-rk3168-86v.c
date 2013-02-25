@@ -1886,17 +1886,17 @@ static struct cpufreq_frequency_table dvfs_arm_table[] = {
 	{.frequency = 816 * 1000,       .index = 1000 * 1000},
 	{.frequency = 1008 * 1000,      .index = 1075 * 1000},
 	{.frequency = 1200 * 1000,      .index = 1150 * 1000},
-	{.frequency = 1416 * 1000,      .index = 1250 * 1000},
+	//{.frequency = 1416 * 1000,      .index = 1250 * 1000},
 	//{.frequency = 1608 * 1000,      .index = 1300 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 	{.frequency = 100 * 1000,	.index = 1000 * 1000},
-	{.frequency = 200 * 1000,	.index = 1025 * 1000},
+	{.frequency = 200 * 1000,	.index = 1000 * 1000},
 	{.frequency = 266 * 1000,	.index = 1050 * 1000},
-	{.frequency = 300 * 1000,	.index = 1100 * 1000},
-	{.frequency = 400 * 1000,	.index = 1200 * 1000},
+	{.frequency = 300 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1100 * 1000},
 	//{.frequency = 600 * 1000,	.index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
