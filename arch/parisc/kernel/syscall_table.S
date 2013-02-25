@@ -318,7 +318,7 @@
 	ENTRY_SAME(alloc_hugepages)	/* 220 */
 	ENTRY_SAME(free_hugepages)
 	ENTRY_SAME(exit_group)
-	ENTRY_DIFF(lookup_dcookie)
+	ENTRY_COMP(lookup_dcookie)
 	ENTRY_SAME(epoll_create)
 	ENTRY_SAME(epoll_ctl)		/* 225 */
 	ENTRY_SAME(epoll_wait)

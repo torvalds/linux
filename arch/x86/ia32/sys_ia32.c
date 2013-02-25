@@ -226,12 +226,6 @@ long sys32_vm86_warning(void)
 	return -ENOSYS;
 }
 
-long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
-			  char __user *buf, size_t len)
-{
-	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
-}
-
 asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
 				   size_t count)
 {

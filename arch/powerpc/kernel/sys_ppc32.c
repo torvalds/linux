@@ -177,13 +177,6 @@ asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long h
 	return sys_ftruncate(fd, (high << 32) | low);
 }
 
-long ppc32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
-			  size_t len)
-{
-	return sys_lookup_dcookie((u64)cookie_high << 32 | cookie_low,
-				  buf, len);
-}
-
 long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 		     size_t len, int advice)
 {

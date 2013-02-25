@@ -259,7 +259,7 @@
 250	i386	fadvise64		sys_fadvise64			sys32_fadvise64
 # 251 is available for reuse (was briefly sys_set_zone_reclaim)
 252	i386	exit_group		sys_exit_group
-253	i386	lookup_dcookie		sys_lookup_dcookie		sys32_lookup_dcookie
+253	i386	lookup_dcookie		sys_lookup_dcookie		compat_sys_lookup_dcookie
 254	i386	epoll_create		sys_epoll_create
 255	i386	epoll_ctl		sys_epoll_ctl
 256	i386	epoll_wait		sys_epoll_wait

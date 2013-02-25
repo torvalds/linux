@@ -303,14 +303,6 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-long sys32_lookup_dcookie(unsigned long cookie_high,
-			  unsigned long cookie_low,
-			  char __user *buf, size_t len)
-{
-	return sys_lookup_dcookie((cookie_high << 32) | cookie_low,
-				  buf, len);
-}
-
 long compat_sync_file_range(int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, int flags)
 {
 	return sys_sync_file_range(fd,

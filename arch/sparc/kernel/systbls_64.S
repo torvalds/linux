@@ -59,7 +59,7 @@ sys_call_table32:
 /*190*/	.word sys_init_module, sys_sparc64_personality, sys_remap_file_pages, sys_epoll_create, sys_epoll_ctl
 	.word sys_epoll_wait, sys_ioprio_set, sys_getppid, compat_sys_sparc_sigaction, sys_sgetmask
 /*200*/	.word sys_ssetmask, sys_sigsuspend, compat_sys_newlstat, sys_uselib, compat_sys_old_readdir
-	.word sys32_readahead, sys32_socketcall, sys_syslog, sys32_lookup_dcookie, sys32_fadvise64
+	.word sys32_readahead, sys32_socketcall, sys_syslog, compat_sys_lookup_dcookie, sys32_fadvise64
 /*210*/	.word sys32_fadvise64_64, sys_tgkill, sys_waitpid, sys_swapoff, compat_sys_sysinfo
 	.word compat_sys_ipc, sys32_sigreturn, sys_clone, sys_ioprio_get, compat_sys_adjtimex
 /*220*/	.word compat_sys_sigprocmask, sys_ni_syscall, sys_delete_module, sys_ni_syscall, sys_getpgid

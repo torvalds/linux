@@ -45,7 +45,6 @@ asmlinkage long sys32_personality(unsigned long);
 long sys32_kill(int, int);
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
 long sys32_vm86_warning(void);
-long sys32_lookup_dcookie(u32, u32, char __user *, size_t);
 
 asmlinkage ssize_t sys32_readahead(int, unsigned, unsigned, size_t);
 asmlinkage long sys32_sync_file_range(int, unsigned, unsigned,

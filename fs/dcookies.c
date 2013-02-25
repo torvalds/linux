@@ -25,6 +25,7 @@
 #include <linux/dcookies.h>
 #include <linux/mutex.h>
 #include <linux/path.h>
+#include <linux/compat.h>
 #include <asm/uaccess.h>
 
 /* The dcookies are allocated from a kmem_cache and
@@ -201,6 +202,17 @@ out:
 	mutex_unlock(&dcookie_mutex);
 	return err;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf, size_t, len)
+{
+#ifdef __BIG_ENDIAN
+	return sys_lookup_dcookie(((u64)w0 << 32) | w1, buf, len);
+#else
+	return sys_lookup_dcookie(((u64)w1 << 32) | w0, buf, len);
+#endif
+}
+#endif
 
 static int dcookie_init(void)
 {

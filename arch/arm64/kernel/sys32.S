@@ -84,13 +84,6 @@ compat_sys_readahead_wrapper:
 	b	sys_readahead
 ENDPROC(compat_sys_readahead_wrapper)
 
-compat_sys_lookup_dcookie:
-	orr	x0, x0, x1, lsl #32
-	mov	w1, w2
-	mov	w2, w3
-	b	sys_lookup_dcookie
-ENDPROC(compat_sys_lookup_dcookie)
-
 compat_sys_fadvise64_64_wrapper:
 	mov	w6, w1
 	orr	x1, x2, x3, lsl #32

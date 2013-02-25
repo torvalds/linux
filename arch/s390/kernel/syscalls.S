@@ -118,7 +118,7 @@ SYSCALL(sys_newstat,sys_newstat,compat_sys_newstat_wrapper)
 SYSCALL(sys_newlstat,sys_newlstat,compat_sys_newlstat_wrapper)
 SYSCALL(sys_newfstat,sys_newfstat,compat_sys_newfstat_wrapper)
 NI_SYSCALL							/* old uname syscall */
-SYSCALL(sys_lookup_dcookie,sys_lookup_dcookie,sys32_lookup_dcookie_wrapper)	/* 110 */
+SYSCALL(sys_lookup_dcookie,sys_lookup_dcookie,compat_sys_lookup_dcookie)	/* 110 */
 SYSCALL(sys_vhangup,sys_vhangup,sys_vhangup)
 NI_SYSCALL							/* old "idle" system call */
 NI_SYSCALL							/* vm86old for i386 */

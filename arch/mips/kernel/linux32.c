@@ -259,12 +259,6 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 			     merge_64(len_a4, len_a5));
 }
 
-asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
-	size_t len)
-{
-	return sys_lookup_dcookie(merge_64(a0, a1), buf, len);
-}
-
 SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,
 		u64, a3, u64, a4, int, dfd, const char	__user *, pathname)
 {

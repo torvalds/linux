@@ -75,13 +75,6 @@ asmlinkage long sys32_semctl(int semid, int semnum, int cmd, union semun arg)
 	return sys_semctl (semid, semnum, cmd, arg);
 }
 
-long sys32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
-			  size_t len)
-{
-	return sys_lookup_dcookie((u64)cookie_high << 32 | cookie_low,
-				  buf, len);
-}
-
 asmlinkage long compat_sys_fanotify_mark(int fan_fd, int flags, u32 mask_hi,
 					 u32 mask_lo, int fd,
 					 const char __user *pathname)
