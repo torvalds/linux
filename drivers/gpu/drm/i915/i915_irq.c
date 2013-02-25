@@ -956,24 +956,23 @@ static void i915_get_extra_instdone(struct drm_device *dev,
 
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
-i915_error_object_create(struct drm_i915_private *dev_priv,
-			 struct drm_i915_gem_object *src)
+i915_error_object_create_sized(struct drm_i915_private *dev_priv,
+			       struct drm_i915_gem_object *src,
+			       const int num_pages)
 {
 	struct drm_i915_error_object *dst;
-	int i, count;
+	int i;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	count = src->base.size / PAGE_SIZE;
-
-	dst = kmalloc(sizeof(*dst) + count * sizeof(u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
 	reloc_offset = src->gtt_offset;
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < num_pages; i++) {
 		unsigned long flags;
 		void *d;
 
@@ -1023,7 +1022,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = count;
+	dst->page_count = num_pages;
 	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
@@ -1034,6 +1033,9 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
+#define i915_error_object_create(dev_priv, src) \
+	i915_error_object_create_sized((dev_priv), (src), \
+				       (src)->base.size>>PAGE_SHIFT)
 
 static void
 i915_error_object_free(struct drm_i915_error_object *obj)
