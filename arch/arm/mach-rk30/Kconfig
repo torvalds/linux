@@ -139,4 +139,6 @@ config MACH_RK3168_DS1006H
 config MACH_RK3168_86V
 	bool "RK3168 86V Board"
 
+config MACH_RK3168_86V_OLD
+        bool "RK3168 86V  Old Board"
 endchoice
