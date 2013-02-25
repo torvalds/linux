@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/input/mt.h>
-#include "usbhid/usbhid.h"
 
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
@@ -907,7 +906,7 @@ static int mt_resume(struct hid_device *hdev)
 
 	intf = to_usb_interface(hdev->dev.parent);
 	interface = intf->cur_altsetting;
-	dev = hid_to_usb_dev(hdev);
+	dev = interface_to_usbdev(intf);
 
 	/* Some Elan legacy devices require SET_IDLE to be set on resume.
 	 * It should be safe to send it to other devices too.
