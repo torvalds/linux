@@ -813,7 +813,7 @@ static void prepare_write_message(struct ceph_connection *con)
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
 	     le32_to_cpu(m->hdr.front_len), le32_to_cpu(m->hdr.middle_len),
 	     le32_to_cpu(m->hdr.data_len),
-	     m->nr_pages);
+	     m->page_count);
 	BUG_ON(le32_to_cpu(m->hdr.front_len) != m->front.iov_len);
 
 	/* tag + hdr + front + middle */
@@ -1072,7 +1072,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	const size_t trail_off = data_len - trail_len;
 
 	dout("write_partial_msg_pages %p msg %p page %d/%d offset %d\n",
-	     con, msg, con->out_msg_pos.page, msg->nr_pages,
+	     con, msg, con->out_msg_pos.page, msg->page_count,
 	     con->out_msg_pos.page_pos);
 
 	/*
@@ -2715,9 +2715,10 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	m->middle = NULL;
 
 	/* data */
-	m->nr_pages = 0;
+	m->page_count = 0;
 	m->page_alignment = 0;
 	m->pages = NULL;
+	m->pagelist_count = 0;
 	m->pagelist = NULL;
 #ifdef	CONFIG_BLOCK
 	m->bio = NULL;
@@ -2890,13 +2891,14 @@ void ceph_msg_last_put(struct kref *kref)
 		ceph_buffer_put(m->middle);
 		m->middle = NULL;
 	}
-	m->nr_pages = 0;
+	m->page_count = 0;
 	m->pages = NULL;
 
 	if (m->pagelist) {
 		ceph_pagelist_release(m->pagelist);
 		kfree(m->pagelist);
 		m->pagelist = NULL;
+		m->pagelist_count = 0;
 	}
 
 	m->trail = NULL;
@@ -2910,8 +2912,8 @@ EXPORT_SYMBOL(ceph_msg_last_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
-	pr_debug("msg_dump %p (front_max %d nr_pages %d)\n", msg,
-		 msg->front_max, msg->nr_pages);
+	pr_debug("msg_dump %p (front_max %d page_count %d)\n", msg,
+		 msg->front_max, msg->page_count);
 	print_hex_dump(KERN_DEBUG, "header: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       &msg->hdr, sizeof(msg->hdr), true);

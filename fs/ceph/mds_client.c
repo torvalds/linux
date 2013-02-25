@@ -1719,7 +1719,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
 	msg->pages = req->r_pages;
-	msg->nr_pages = req->r_num_pages;
+	msg->page_count = req->r_num_pages;
 	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
 	msg->hdr.data_off = cpu_to_le16(0);
 
@@ -2600,10 +2600,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	}
 
 	reply->pagelist = pagelist;
+	reply->pagelist_count = calc_pages_for(0, pagelist->length);
 	if (recon_state.flock)
 		reply->hdr.version = cpu_to_le16(2);
 	reply->hdr.data_len = cpu_to_le32(pagelist->length);
-	reply->nr_pages = calc_pages_for(0, pagelist->length);
 	ceph_con_send(&session->s_con, reply);
 
 	mutex_unlock(&session->s_mutex);

@@ -75,9 +75,10 @@ struct ceph_msg {
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 	struct page **pages;            /* data payload.  NOT OWNER. */
-	unsigned nr_pages;              /* size of page array */
+	unsigned page_count;		/* size of page array */
 	unsigned page_alignment;        /* io offset in first page */
 	struct ceph_pagelist *pagelist; /* instead of pages */
+	unsigned int pagelist_count;	/* number of pages in pagelist */
 
 	struct ceph_connection *con;
 	struct list_head list_head;
