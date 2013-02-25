@@ -1264,6 +1264,7 @@ static struct hid_ll_driver usb_hid_driver = {
 	.power = usbhid_power,
 	.hidinput_input_event = usb_hidinput_input_event,
 	.request = usbhid_request,
+	.wait = usbhid_wait_io,
 };
 
 static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *id)

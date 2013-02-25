@@ -663,6 +663,7 @@ struct hid_driver {
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
+ * @wait: wait for buffered io to complete (send/recv reports)
  */
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
@@ -680,6 +681,8 @@ struct hid_ll_driver {
 
 	void (*request)(struct hid_device *hdev,
 			struct hid_report *report, int reqtype);
+
+	int (*wait)(struct hid_device *hdev);
 
 };
 
@@ -901,6 +904,17 @@ static inline void hid_hw_request(struct hid_device *hdev,
 {
 	if (hdev->ll_driver->request)
 		hdev->ll_driver->request(hdev, report, reqtype);
+}
+
+/**
+ * hid_hw_wait - wait for buffered io to complete
+ *
+ * @hdev: hid device
+ */
+static inline void hid_hw_wait(struct hid_device *hdev)
+{
+	if (hdev->ll_driver->wait)
+		hdev->ll_driver->wait(hdev);
 }
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
