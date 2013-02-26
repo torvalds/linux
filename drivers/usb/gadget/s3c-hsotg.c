@@ -2927,7 +2927,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 	hsotg->driver = driver;
 	hsotg->gadget.dev.driver = &driver->driver;
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
-	hsotg->gadget.dev.dma_mask = hsotg->dev->dma_mask;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
@@ -3534,8 +3533,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
-	hsotg->gadget.dev.parent = dev;
-	hsotg->gadget.dev.dma_mask = dev->dma_mask;
 	hsotg->gadget.dev.release = s3c_hsotg_release;
 
 	/* reset the system */
