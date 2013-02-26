@@ -2138,9 +2138,6 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
 
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
 
