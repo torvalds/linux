@@ -1238,15 +1238,4 @@ static struct pci_driver c2_pci_driver = {
 	.remove = c2_remove,
 };
 
-static int __init c2_init_module(void)
-{
-	return pci_register_driver(&c2_pci_driver);
-}
-
-static void __exit c2_exit_module(void)
-{
-	pci_unregister_driver(&c2_pci_driver);
-}
-
-module_init(c2_init_module);
-module_exit(c2_exit_module);
+module_pci_driver(c2_pci_driver);
