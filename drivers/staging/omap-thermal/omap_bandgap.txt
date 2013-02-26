@@ -49,3 +49,12 @@ bandgap {
 	interrupts = <0 126 4>; /* talert */
 	ti,tshut-gpio = <86>;
 };
+
+OMAP5430:
+bandgap {
+	reg = <0x4a0021e0 0xc
+		0x4a00232c 0xc
+		0x4a002380 0x2c
+		0x4a0023C0 0x3c>;
+	compatible = "ti,omap5430-bandgap";
+};
