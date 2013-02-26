@@ -118,7 +118,7 @@ static struct ct36x_platform_data ct36x_info = {
 		.gpio = TOUCH_INT_PIN,
 		.active_low = 1,
 	},
-	.orientation = {1, 0, 1, 0},
+	.orientation = {1, 0, 0, 1},
 };
 #endif
 static struct spi_board_info board_spi_devices[] = {

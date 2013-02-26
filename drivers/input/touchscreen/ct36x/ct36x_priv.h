@@ -22,12 +22,27 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-#if 0
+//#if 1
+//#define ct36x_dbg(ts, format, arg...)            \
+//	        dev_printk(KERN_INFO , ts->dev , format , ## arg)
+//#else
+//#define ct36x_dbg(ts, format, arg...)
+//#endif
+int ct36x_dbg_level = 0;
+module_param_named(dbg_level, ct36x_dbg_level, int, 0644);
+#if 1
 #define ct36x_dbg(ts, format, arg...)            \
-	        dev_printk(KERN_INFO , ts->dev , format , ## arg)
-#else
-#define ct36x_dbg(ts, format, arg...)
+	do { \
+		if (ct36x_dbg_level) { \
+			dev_printk(KERN_INFO , ts->dev , format , ## arg) ;\
+		} \
+	} while (0)
+#else 
+#define DBG(x...)
 #endif
+
+
+
 
 #define CT36X_I2C_RATE	(200 * 1000)
 struct ct36x_data;

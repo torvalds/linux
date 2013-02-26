@@ -174,27 +174,44 @@ static void ct363_report(struct ct36x_data *ts)
 		return;
 	}
 
-
+       int t ,m;
+       if(ct36x_dbg_level==2)
+       for(t=0;t< ts->point_num;t++){
+            ct36x_dbg(ts, "CT363buf[%d]: ", t);
+            for(m=0;m<6;m++){
+                    ct36x_dbg(ts, " 0x%x  %x  %x  %x  %x  %x  %x  %x ",ct363->pts[t].xhi,
+                                                                                               ct363->pts[t].yhi,
+                                                                                               ct363->pts[t].ylo,
+                                                                                               ct363->pts[t].xlo,
+                                                                                               ct363->pts[t].status,
+                                                                                               ct363->pts[t].id,
+                                                                                               ct363->pts[t].area,
+                                                                                               ct363->pts[t].pressure);
+             }
+             ct36x_dbg(ts, " \n ");
+       }
+       
 	ct363->press = 0;
 	for(i = 0; i < ts->point_num; i++){
 		if((ct363->pts[i].xhi != 0xFF && ct363->pts[i].yhi != 0xFF) &&
 			(ct363->pts[i].status == 1 || ct363->pts[i].status == 2)){
 			x = (ct363->pts[i].xhi<<4)|(ct363->pts[i].xlo&0xF);
 			y = (ct363->pts[i].yhi<<4)|(ct363->pts[i].ylo&0xF);
+
 			ct363->x = ts->orientation[0] * x + ts->orientation[1] * y;
 			ct363->y = ts->orientation[2] * x + ts->orientation[3] * y;
-			if(ct363->x < 0)
-				ct363->x = ts->x_max - ct363->x;
-			if(ct363->y < 0)
-				ct363->y = ts->y_max - ct363->y;
 
+                   if( (ct363->x > ts->x_max) || (ct363->y > ts->y_max) || (ct363->x < 0) || (ct363->y < 0) ){
+                          continue ;
+                    }
+                   
 			input_mt_slot(ts->input, ct363->pts[i].id - 1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 			input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, 1);
-			input_report_abs(ts->input, ABS_MT_POSITION_X, x);
-			input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
+			input_report_abs(ts->input, ABS_MT_POSITION_X, ct363->x);
+			input_report_abs(ts->input, ABS_MT_POSITION_Y, ct363->y);
 			input_report_abs(ts->input, ABS_MT_PRESSURE, ct363->pts[i].pressure);
-			ct36x_dbg(ts, "CT363 report value: x: %d, y:%d\n", ct363->x, ct363->y);
+			ct36x_dbg(ts, "CT363 report value: id: %d,  x: %d, y:%d\n",ct363->pts[i].id - 1, ct363->x, ct363->y);
 
 			sync = 1;
 			ct363->press |= 0x01 << (ct363->pts[i].id - 1);

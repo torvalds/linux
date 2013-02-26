@@ -101,7 +101,7 @@ static int ct36x_add_client(void)
 static irqreturn_t ct36x_irq_handler(int irq, void *data)
 {
 	struct ct36x_data *ts = data;
-
+      ct36x_dbg(ts, "----------- ct36x_irq_handler -----------\n");
 	//disable_irq(ts->irq);
 	if(ts->ops->report)
 		ts->ops->report(ts);
@@ -216,7 +216,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	register_early_suspend(&ts->early_suspend);
 #endif
 	ts->irq = gpio_to_irq(ts->irq_io.gpio);
-	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_ONESHOT, CT36X_NAME, ts);	
+	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_TRIGGER_FALLING|IRQF_ONESHOT, CT36X_NAME, ts);
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to request threaded irq\n");
 		goto err_request_threaded_irq;
