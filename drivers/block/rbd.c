@@ -1274,42 +1274,30 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 		complete_all(&obj_request->completion);
 }
 
-static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request,
-				struct ceph_osd_op *op)
+static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p\n", __func__, obj_request);
 	obj_request_done_set(obj_request);
 }
 
-static void rbd_osd_read_callback(struct rbd_obj_request *obj_request,
-				struct ceph_osd_op *op)
+static void rbd_osd_read_callback(struct rbd_obj_request *obj_request)
 {
-	u64 xferred;
 
-	/*
-	 * We support a 64-bit length, but ultimately it has to be
-	 * passed to blk_end_request(), which takes an unsigned int.
-	 */
-	xferred = le64_to_cpu(op->extent.length);
-	rbd_assert(xferred < (u64) UINT_MAX);
 	dout("%s: obj %p result %d %llu/%llu\n", __func__, obj_request,
-		obj_request->result, xferred, obj_request->length);
+		obj_request->result, obj_request->xferred, obj_request->length);
 	if (obj_request->result == (s32) -ENOENT) {
 		zero_bio_chain(obj_request->bio_list, 0);
 		obj_request->result = 0;
-	} else if (xferred < obj_request->length && !obj_request->result) {
-		zero_bio_chain(obj_request->bio_list, xferred);
-		xferred = obj_request->length;
+	} else if (obj_request->xferred < obj_request->length &&
+			!obj_request->result) {
+		zero_bio_chain(obj_request->bio_list, obj_request->xferred);
+		obj_request->xferred = obj_request->length;
 	}
-	obj_request->xferred = xferred;
 	obj_request_done_set(obj_request);
 }
 
-static void rbd_osd_write_callback(struct rbd_obj_request *obj_request,
-				struct ceph_osd_op *op)
+static void rbd_osd_write_callback(struct rbd_obj_request *obj_request)
 {
-
-	obj_request->xferred = le64_to_cpu(op->extent.length);
 	dout("%s: obj %p result %d %llu/%llu\n", __func__, obj_request,
 		obj_request->result, obj_request->xferred, obj_request->length);
 
@@ -1331,8 +1319,7 @@ static void rbd_osd_write_callback(struct rbd_obj_request *obj_request,
  * For a simple stat call there's nothing to do.  We'll do more if
  * this is part of a write sequence for a layered image.
  */
-static void rbd_osd_stat_callback(struct rbd_obj_request *obj_request,
-				struct ceph_osd_op *op)
+static void rbd_osd_stat_callback(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p\n", __func__, obj_request);
 	obj_request_done_set(obj_request);
@@ -1352,7 +1339,6 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	rbd_assert(!!obj_request->img_request ^
 				(obj_request->which == BAD_WHICH));
 
-	obj_request->xferred = le32_to_cpu(msg->hdr.data_len);
 	reply_head = msg->front.iov_base;
 	obj_request->result = (s32) le32_to_cpu(reply_head->result);
 	obj_request->version = le64_to_cpu(osd_req->r_reassert_version.version);
@@ -1360,22 +1346,29 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	num_ops = le32_to_cpu(reply_head->num_ops);
 	WARN_ON(num_ops != 1);	/* For now */
 
+	/*
+	 * We support a 64-bit length, but ultimately it has to be
+	 * passed to blk_end_request(), which takes an unsigned int.
+	 */
 	op = &reply_head->ops[0];
+	obj_request->xferred = le64_to_cpu(op->extent.length);
+	rbd_assert(obj_request->xferred < (u64) UINT_MAX);
+
 	opcode = le16_to_cpu(op->op);
 	switch (opcode) {
 	case CEPH_OSD_OP_READ:
-		rbd_osd_read_callback(obj_request, op);
+		rbd_osd_read_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_WRITE:
-		rbd_osd_write_callback(obj_request, op);
+		rbd_osd_write_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_STAT:
-		rbd_osd_stat_callback(obj_request, op);
+		rbd_osd_stat_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_CALL:
 	case CEPH_OSD_OP_NOTIFY_ACK:
 	case CEPH_OSD_OP_WATCH:
-		rbd_osd_trivial_callback(obj_request, op);
+		rbd_osd_trivial_callback(obj_request);
 		break;
 	default:
 		rbd_warn(NULL, "%s: unsupported op %hu\n",
