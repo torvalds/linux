@@ -2265,7 +2265,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	udc->gadget.dev.release = gadget_release;
 	udc->gadget.name = driver_name;		/* gadget name */
 
 	eps_init(udc);
@@ -2305,7 +2304,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 	else
 		udc->vbus_active = 1;
 
-	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &udc->gadget,
+			gadget_release);
 	if (retval)
 		goto err_create_workqueue;
 
