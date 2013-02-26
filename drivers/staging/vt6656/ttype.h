@@ -37,9 +37,6 @@
 
 /****** Common pointer types ***********************************************/
 
-typedef u32 ULONG_PTR;
-typedef u32 DWORD_PTR;
-
 // boolean pointer
 
 #endif /* __TTYPE_H__ */

@@ -430,7 +430,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 	unsigned int uLen = pRSNWPA->len + 2;
 
 	if (uLen <= (uIELength -
-		     (unsigned int) (ULONG_PTR) ((u8 *) pRSNWPA - pbyIEs))) {
+		     (unsigned int) (u32) ((u8 *) pRSNWPA - pbyIEs))) {
 		pBSSList->wWPALen = uLen;
 		memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
 		WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -443,7 +443,7 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 	unsigned int uLen = pRSN->len + 2;
 
 	if (uLen <= (uIELength -
-		     (unsigned int) (ULONG_PTR) ((u8 *) pRSN - pbyIEs))) {
+		     (unsigned int) (u32) ((u8 *) pRSN - pbyIEs))) {
 		pBSSList->wRSNLen = uLen;
 		memcpy(pBSSList->byRSNIE, pRSN, uLen);
 		WPA2vParseRSN(pBSSList, pRSN);
@@ -592,7 +592,7 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
    if (pRSNWPA != NULL) {
 	unsigned int uLen = pRSNWPA->len + 2;
 	if (uLen <= (uIELength -
-		     (unsigned int) (ULONG_PTR) ((u8 *) pRSNWPA - pbyIEs))) {
+		     (unsigned int) (u32) ((u8 *) pRSNWPA - pbyIEs))) {
 		pBSSList->wWPALen = uLen;
 		memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
 		WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -604,7 +604,7 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
     if (pRSN != NULL) {
 	unsigned int uLen = pRSN->len + 2;
 	if (uLen <= (uIELength -
-			(unsigned int) (ULONG_PTR) ((u8 *) pRSN - pbyIEs))) {
+			(unsigned int) (u32) ((u8 *) pRSN - pbyIEs))) {
 		pBSSList->wRSNLen = uLen;
 		memcpy(pBSSList->byRSNIE, pRSN, uLen);
 		WPA2vParseRSN(pBSSList, pRSN);
