@@ -1824,9 +1824,6 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		goto err_mem;
 	}
 
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 
