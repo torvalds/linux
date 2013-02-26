@@ -603,6 +603,12 @@ static inline int fnic_import_rq_eth_pkt(struct fnic *fnic, struct sk_buff *skb)
 		skb_reset_mac_header(skb);
 	}
 	if (eh->h_proto == htons(ETH_P_FIP)) {
+		if (!(fnic->config.flags & VFCF_FIP_CAPABLE)) {
+			printk(KERN_ERR "Dropped FIP frame, as firmware "
+					"uses non-FIP mode, Enable FIP "
+					"using UCSM\n");
+			goto drop;
+		}
 		skb_queue_tail(&fnic->fip_frame_queue, skb);
 		queue_work(fnic_fip_queue, &fnic->fip_frame_work);
 		return 1;		/* let caller know packet was used */
