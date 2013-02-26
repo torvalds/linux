@@ -87,6 +87,11 @@
 		#size-cells = <1>;
 		ranges;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
+		reg = <0x44000000 0x2000>,
+		      <0x44800000 0x3000>,
+		      <0x45000000 0x4000>;
+		interrupts = <0 9 0x4>,
+			     <0 10 0x4>;
 
 		counter32k: counter@4ae04000 {
 			compatible = "ti,omap-counter32k";
