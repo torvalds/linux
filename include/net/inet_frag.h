@@ -114,7 +114,13 @@ static inline void init_frag_mem_limit(struct netns_frags *nf)
 
 static inline int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	return percpu_counter_sum_positive(&nf->mem);
+	int res;
+
+	local_bh_disable();
+	res = percpu_counter_sum_positive(&nf->mem);
+	local_bh_enable();
+
+	return res;
 }
 
 static inline void inet_frag_lru_move(struct inet_frag_queue *q)

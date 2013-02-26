@@ -33,6 +33,7 @@
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/ip.h>
+#include <net/ipip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/rtnetlink.h>
@@ -962,13 +963,13 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->daddr	= dst;
 	iph->saddr	= fl4.saddr;
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
+	tunnel_ip_select_ident(skb, old_iph, &rt->dst);
 
 	vxlan_set_owner(dev, skb);
 
 	/* See iptunnel_xmit() */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		skb->ip_summed = CHECKSUM_NONE;
-	ip_select_ident(iph, &rt->dst, NULL);
 
 	err = ip_local_out(skb);
 	if (likely(net_xmit_eval(err) == 0)) {

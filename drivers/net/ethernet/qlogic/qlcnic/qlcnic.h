@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 1
-#define _QLCNIC_LINUX_SUBVERSION 34
-#define QLCNIC_LINUX_VERSIONID  "5.1.34"
+#define _QLCNIC_LINUX_SUBVERSION 35
+#define QLCNIC_LINUX_VERSIONID  "5.1.35"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -1755,7 +1755,7 @@ static inline int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 static inline int qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
-	return adapter->ahw->hw_ops->config_loopback(adapter, mode);
+	return adapter->ahw->hw_ops->clear_loopback(adapter, mode);
 }
 
 static inline int qlcnic_nic_set_promisc(struct qlcnic_adapter *adapter,
