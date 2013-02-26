@@ -1264,7 +1264,6 @@ static int mv_u3d_start(struct usb_gadget *g,
 	/* hook up the driver ... */
 	driver->driver.bus = NULL;
 	u3d->driver = driver;
-	u3d->gadget.dev.driver = &driver->driver;
 
 	u3d->ep0_dir = USB_DIR_OUT;
 
@@ -1302,7 +1301,6 @@ static int mv_u3d_stop(struct usb_gadget *g,
 
 	spin_unlock_irqrestore(&u3d->lock, flags);
 
-	u3d->gadget.dev.driver = NULL;
 	u3d->driver = NULL;
 
 	return 0;
