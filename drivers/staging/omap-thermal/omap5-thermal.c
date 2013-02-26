@@ -323,8 +323,8 @@ const struct omap_bandgap_data omap5430_data = {
 			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
 			OMAP_BANDGAP_FEATURE_COUNTER |
 			OMAP_BANDGAP_FEATURE_CLK_CTRL,
-	.fclock_name = "ts_clk_div_ck",
-	.div_ck_name = "ts_clk_div_ck",
+	.fclock_name = "l3instr_ts_gclk_div",
+	.div_ck_name = "l3instr_ts_gclk_div",
 	.conv_table = omap5430_adc_to_temp,
 	.expose_sensor = omap_thermal_expose_sensor,
 	.remove_sensor = omap_thermal_remove_sensor,
