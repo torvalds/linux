@@ -1154,7 +1154,6 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 		return -EBUSY;
 
 	hsudc->driver = driver;
-	hsudc->gadget.dev.driver = &driver->driver;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsudc->supplies),
 				    hsudc->supplies);
@@ -1190,7 +1189,6 @@ err_otg:
 	regulator_bulk_disable(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:
 	hsudc->driver = NULL;
-	hsudc->gadget.dev.driver = NULL;
 	return ret;
 }
 
@@ -1208,7 +1206,6 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 
 	spin_lock_irqsave(&hsudc->lock, flags);
 	hsudc->driver = NULL;
-	hsudc->gadget.dev.driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
 
