@@ -75,12 +75,44 @@ static int omap_bandgap_power(struct omap_bandgap *bg_ptr, bool on)
 	return 0;
 }
 
+static u32 omap_bandgap_read_temp(struct omap_bandgap *bg_ptr, int id)
+{
+	struct temp_sensor_registers *tsr;
+	u32 temp, ctrl, reg;
+
+	tsr = bg_ptr->conf->sensors[id].registers;
+	reg = tsr->temp_sensor_ctrl;
+
+	if (OMAP_BANDGAP_HAS(bg_ptr, FREEZE_BIT)) {
+		ctrl = omap_bandgap_readl(bg_ptr, tsr->bgap_mask_ctrl);
+		ctrl |= tsr->mask_freeze_mask;
+		omap_bandgap_writel(bg_ptr, ctrl, tsr->bgap_mask_ctrl);
+		/*
+		 * In case we cannot read from cur_dtemp / dtemp_0,
+		 * then we read from the last valid temp read
+		 */
+		reg = tsr->ctrl_dtemp_1;
+	}
+
+	/* read temperature */
+	temp = omap_bandgap_readl(bg_ptr, reg);
+	temp &= tsr->bgap_dtemp_mask;
+
+	if (OMAP_BANDGAP_HAS(bg_ptr, FREEZE_BIT)) {
+		ctrl = omap_bandgap_readl(bg_ptr, tsr->bgap_mask_ctrl);
+		ctrl &= ~tsr->mask_freeze_mask;
+		omap_bandgap_writel(bg_ptr, ctrl, tsr->bgap_mask_ctrl);
+	}
+
+	return temp;
+}
+
 /* This is the Talert handler. Call it only if HAS(TALERT) is set */
 static irqreturn_t talert_irq_handler(int irq, void *data)
 {
 	struct omap_bandgap *bg_ptr = data;
 	struct temp_sensor_registers *tsr;
-	u32 t_hot = 0, t_cold = 0, temp, ctrl;
+	u32 t_hot = 0, t_cold = 0, ctrl;
 	int i;
 
 	bg_ptr = data;
@@ -117,10 +149,6 @@ static irqreturn_t talert_irq_handler(int irq, void *data)
 			"%s: IRQ from %s sensor: hotevent %d coldevent %d\n",
 			__func__, bg_ptr->conf->sensors[i].domain,
 			t_hot, t_cold);
-
-		/* read temperature */
-		temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
-		temp &= tsr->bgap_dtemp_mask;
 
 		/* report temperature to whom may concern */
 		if (bg_ptr->conf->report_temperature)
@@ -190,11 +218,11 @@ static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 	u32 temp, reg_val;
 
 	/* Read the current on die temperature */
-	tsr = bg_ptr->conf->sensors[id].registers;
-	temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
-	temp &= tsr->bgap_dtemp_mask;
+	temp = omap_bandgap_read_temp(bg_ptr, id);
 
+	tsr = bg_ptr->conf->sensors[id].registers;
 	reg_val = omap_bandgap_readl(bg_ptr, tsr->bgap_mask_ctrl);
+
 	if (temp < t_hot)
 		reg_val |= tsr->mask_hot_mask;
 	else
@@ -625,8 +653,9 @@ int omap_bandgap_read_temperature(struct omap_bandgap *bg_ptr, int id,
 		return ret;
 
 	tsr = bg_ptr->conf->sensors[id].registers;
-	temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
-	temp &= tsr->bgap_dtemp_mask;
+	mutex_lock(&bg_ptr->bg_mutex);
+	temp = omap_bandgap_read_temp(bg_ptr, id);
+	mutex_unlock(&bg_ptr->bg_mutex);
 
 	ret |= adc_to_temp_conversion(bg_ptr, id, temp, &temp);
 	if (ret)
@@ -694,12 +723,11 @@ omap_bandgap_force_single_read(struct omap_bandgap *bg_ptr, int id)
 	temp |= 1 << __ffs(tsr->bgap_soc_mask);
 	omap_bandgap_writel(bg_ptr, temp, tsr->temp_sensor_ctrl);
 	/* Wait until DTEMP is updated */
-	temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
-	temp &= (tsr->bgap_dtemp_mask);
-	while ((temp == 0) && --counter) {
-		temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
-		temp &= (tsr->bgap_dtemp_mask);
-	}
+	temp = omap_bandgap_read_temp(bg_ptr, id);
+
+	while ((temp == 0) && --counter)
+		temp = omap_bandgap_read_temp(bg_ptr, id);
+
 	/* Start of Conversion = 0 */
 	temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
 	temp &= ~(1 << __ffs(tsr->bgap_soc_mask));

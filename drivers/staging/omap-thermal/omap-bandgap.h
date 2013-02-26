@@ -442,6 +442,7 @@ struct omap_bandgap_data {
 #define OMAP_BANDGAP_FEATURE_COUNTER		(1 << 4)
 #define OMAP_BANDGAP_FEATURE_POWER_SWITCH	(1 << 5)
 #define OMAP_BANDGAP_FEATURE_CLK_CTRL		(1 << 6)
+#define OMAP_BANDGAP_FEATURE_FREEZE_BIT		(1 << 7)
 #define OMAP_BANDGAP_HAS(b, f)			\
 			((b)->conf->features & OMAP_BANDGAP_FEATURE_ ## f)
 	unsigned int			features;

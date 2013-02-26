@@ -319,6 +319,7 @@ omap5430_adc_to_temp[
 /* TODO : Need to update the slope/constant for ES2.0 silicon */
 const struct omap_bandgap_data omap5430_data = {
 	.features = OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
+			OMAP_BANDGAP_FEATURE_FREEZE_BIT |
 			OMAP_BANDGAP_FEATURE_TALERT,
 	.fclock_name = "l3instr_ts_gclk_div",
 	.div_ck_name = "l3instr_ts_gclk_div",
