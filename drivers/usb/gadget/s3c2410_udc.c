@@ -1674,7 +1674,6 @@ static int s3c2410_udc_start(struct usb_gadget *g,
 
 	/* Hook the driver */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 
 	/* Enable udc */
 	s3c2410_udc_enable(udc);
