@@ -1946,6 +1946,9 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
+extern void radeon_program_register_sequence(struct radeon_device *rdev,
+					     const u32 *registers,
+					     const u32 array_size);
 
 /*
  * vm
