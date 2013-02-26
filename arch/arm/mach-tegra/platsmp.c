@@ -26,11 +26,10 @@
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 
-#include <mach/powergate.h>
-
 #include "fuse.h"
 #include "flowctrl.h"
 #include "reset.h"
+#include "pmc.h"
 
 #include "common.h"
 #include "iomap.h"
@@ -80,14 +79,10 @@ static int tegra20_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	int ret, pwrgateid;
+	int ret;
 	unsigned long timeout;
 
 	cpu = cpu_logical_map(cpu);
-	pwrgateid = tegra_cpu_powergate_id(cpu);
-	if (pwrgateid < 0)
-		return pwrgateid;
-
 	tegra_put_cpu_in_reset(cpu);
 	flowctrl_write_cpu_halt(cpu, 0);
 
@@ -108,7 +103,7 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (cpumask_test_cpu(cpu, &tegra_cpu_init_mask)) {
 		timeout = jiffies + msecs_to_jiffies(50);
 		do {
-			if (tegra_powergate_is_powered(pwrgateid))
+			if (tegra_pmc_cpu_is_powered(cpu))
 				goto remove_clamps;
 			udelay(10);
 		} while (time_before(jiffies, timeout));
@@ -120,14 +115,14 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * be un-gated by un-toggling the power gate register
 	 * manually.
 	 */
-	if (!tegra_powergate_is_powered(pwrgateid)) {
-		ret = tegra_powergate_power_on(pwrgateid);
+	if (!tegra_pmc_cpu_is_powered(cpu)) {
+		ret = tegra_pmc_cpu_power_on(cpu);
 		if (ret)
 			return ret;
 
 		/* Wait for the power to come up. */
 		timeout = jiffies + msecs_to_jiffies(100);
-		while (tegra_powergate_is_powered(pwrgateid)) {
+		while (tegra_pmc_cpu_is_powered(cpu)) {
 			if (time_after(jiffies, timeout))
 				return -ETIMEDOUT;
 			udelay(10);
@@ -140,7 +135,7 @@ remove_clamps:
 	udelay(10);
 
 	/* Remove I/O clamps. */
-	ret = tegra_powergate_remove_clamping(pwrgateid);
+	ret = tegra_pmc_cpu_remove_clamping(cpu);
 	if (ret)
 		return ret;
 
