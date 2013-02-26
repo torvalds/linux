@@ -1418,7 +1418,6 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	fusb300->gadget.ops = &fusb300_gadget_ops;
 
 	fusb300->gadget.max_speed = USB_SPEED_HIGH;
-	fusb300->gadget.dev.release = pdev->dev.release;
 	fusb300->gadget.name = udc_name;
 	fusb300->reg = reg;
 
