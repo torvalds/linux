@@ -1471,7 +1471,6 @@ static int m66592_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	m66592->driver = driver;
-	m66592->gadget.dev.driver = &driver->driver;
 
 	m66592_bset(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 	if (m66592_read(m66592, M66592_INTSTS0) & M66592_VBSTS) {
@@ -1494,7 +1493,6 @@ static int m66592_udc_stop(struct usb_gadget *g,
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
 	driver->unbind(&m66592->gadget);
-	m66592->gadget.dev.driver = NULL;
 
 	init_controller(m66592);
 	disable_controller(m66592);
