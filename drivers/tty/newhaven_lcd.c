@@ -1,6 +1,6 @@
 /*
  * TTY on a LCD connected to I2C
- * Supports Newhaven NHD‐0216K3Z‐NSW‐BBW
+ * Supports Newhaven NHD-0216K3Z-NSW-BBW
  *
  *  Copyright (C) 2013 Altera Corporation.  All rights reserved.
  *
@@ -480,7 +480,7 @@ static int __exit lcd_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id lcd_of_match[] = {
-	{ .compatible = "newhaven,nhd‐0216k3z‐nsw‐bbw", },
+	{ .compatible = "newhaven,nhd-0216k3z-nsw-bbw", },
 };
 
 static const struct i2c_device_id lcd_id[] = {
