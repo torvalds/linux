@@ -2833,7 +2833,7 @@ static int smiapp_probe(struct i2c_client *client,
 				 sensor->src->pads, 0);
 }
 
-static int __exit smiapp_remove(struct i2c_client *client)
+static int smiapp_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
@@ -2881,7 +2881,7 @@ static struct i2c_driver smiapp_i2c_driver = {
 		.pm = &smiapp_pm_ops,
 	},
 	.probe	= smiapp_probe,
-	.remove	= __exit_p(smiapp_remove),
+	.remove	= smiapp_remove,
 	.id_table = smiapp_id_table,
 };
 
