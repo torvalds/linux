@@ -120,7 +120,6 @@ static int rk3188_lcdc_alpha_cfg(struct rk3188_lcdc_device *lcdc_dev)
 		lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN0_ALPHA_MODE | m_ALPHA_MODE_SEL0 |
 			m_ALPHA_MODE_SEL1,v_WIN0_ALPHA_MODE(1) | v_ALPHA_MODE_SEL0(1) |
 			v_ALPHA_MODE_SEL1(0));//default set to per-pixel alpha	
-		lcdc_writel(lcdc_dev,WIN1_COLOR_KEY,v_COLOR_KEY_EN(0)| v_COLOR_KEY_VAL(0));
 	}
 	else if((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2) && (win1_alpha_en))
 	{
@@ -128,15 +127,7 @@ static int rk3188_lcdc_alpha_cfg(struct rk3188_lcdc_device *lcdc_dev)
 				v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(1));
 		lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN1_ALPHA_MODE | m_ALPHA_MODE_SEL0 |
 			m_ALPHA_MODE_SEL1,v_WIN1_ALPHA_MODE(1) | v_ALPHA_MODE_SEL0(1) |
-			v_ALPHA_MODE_SEL1(0));//default set to per-pixel alpha
-		lcdc_writel(lcdc_dev,WIN1_COLOR_KEY,v_COLOR_KEY_EN(0)| v_COLOR_KEY_VAL(0));
-	}
-	else if((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2) && (!win1_alpha_en))
-	{
-		lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN,
-				v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(0));
-		lcdc_writel(lcdc_dev,WIN1_COLOR_KEY,v_COLOR_KEY_EN(1)| v_COLOR_KEY_VAL(0));
-		
+			v_ALPHA_MODE_SEL1(0));//default set to per-pixel alpha	
 	}
 	else
 	{
