@@ -8,7 +8,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define GC_THREAD_NAME	"f2fs_gc_task"
 #define GC_THREAD_MIN_WB_PAGES		1	/*
 						 * a threshold to determine
 						 * whether IO subsystem is idle
@@ -22,15 +21,6 @@
 
 /* Search max. number of dirty segments to select a victim segment */
 #define MAX_VICTIM_SEARCH	20
-
-enum {
-	GC_NONE = 0,
-	GC_ERROR,
-	GC_OK,
-	GC_NEXT,
-	GC_BLOCKED,
-	GC_DONE,
-};
 
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
@@ -103,15 +93,4 @@ static inline int is_idle(struct f2fs_sb_info *sbi)
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct request_list *rl = &q->root_rl;
 	return !(rl->count[BLK_RW_SYNC]) && !(rl->count[BLK_RW_ASYNC]);
-}
-
-static inline bool should_do_checkpoint(struct f2fs_sb_info *sbi)
-{
-	unsigned int pages_per_sec = sbi->segs_per_sec *
-					(1 << sbi->log_blocks_per_seg);
-	int node_secs = ((get_pages(sbi, F2FS_DIRTY_NODES) + pages_per_sec - 1)
-			>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-	int dent_secs = ((get_pages(sbi, F2FS_DIRTY_DENTS) + pages_per_sec - 1)
-			>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-	return free_sections(sbi) <= (node_secs + 2 * dent_secs + 2);
 }
