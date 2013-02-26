@@ -1939,7 +1939,6 @@ static int fsl_udc_start(struct usb_gadget *g,
 	driver->driver.bus = NULL;
 	/* hook up the driver */
 	udc_controller->driver = driver;
-	udc_controller->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver)) {
@@ -1955,7 +1954,6 @@ static int fsl_udc_start(struct usb_gadget *g,
 			if (retval < 0) {
 				ERR("can't bind to transceiver\n");
 				driver->unbind(&udc_controller->gadget);
-				udc_controller->gadget.dev.driver = 0;
 				udc_controller->driver = 0;
 				return retval;
 			}
@@ -1998,7 +1996,6 @@ static int fsl_udc_stop(struct usb_gadget *g,
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
-	udc_controller->gadget.dev.driver = NULL;
 	udc_controller->driver = NULL;
 
 	return 0;
