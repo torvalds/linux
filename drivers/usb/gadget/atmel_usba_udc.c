@@ -1784,7 +1784,6 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 
 	udc->devstatus = 1 << USB_DEVICE_SELF_POWERED;
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	clk_enable(udc->pclk);
@@ -1826,7 +1825,6 @@ static int atmel_usba_stop(struct usb_gadget *gadget,
 	toggle_bias(0);
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	clk_disable(udc->hclk);
