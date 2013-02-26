@@ -166,15 +166,23 @@ static void usb_udc_release(struct device *dev)
 }
 
 static const struct attribute_group *usb_udc_attr_groups[];
+
+static void usb_udc_nop_release(struct device *dev)
+{
+	dev_vdbg(dev, "%s\n", __func__);
+}
+
 /**
- * usb_add_gadget_udc - adds a new gadget to the udc class driver list
- * @parent: the parent device to this udc. Usually the controller
- * driver's device.
- * @gadget: the gadget to be added to the list
+ * usb_add_gadget_udc_release - adds a new gadget to the udc class driver list
+ * @parent: the parent device to this udc. Usually the controller driver's
+ * device.
+ * @gadget: the gadget to be added to the list.
+ * @release: a gadget release function.
  *
  * Returns zero on success, negative errno otherwise.
  */
-int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
+int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
+		void (*release)(struct device *dev))
 {
 	struct usb_udc		*udc;
 	int			ret = -ENOMEM;
@@ -189,6 +197,13 @@ int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 	dma_set_coherent_mask(&gadget->dev, parent->coherent_dma_mask);
 	gadget->dev.dma_parms = parent->dma_parms;
 	gadget->dev.dma_mask = parent->dma_mask;
+
+	if (release) {
+		gadget->dev.release = release;
+	} else {
+		if (!gadget->dev.release)
+			gadget->dev.release = usb_udc_nop_release;
+	}
 
 	ret = device_register(&gadget->dev);
 	if (ret)
@@ -230,6 +245,20 @@ err2:
 
 err1:
 	return ret;
+}
+EXPORT_SYMBOL_GPL(usb_add_gadget_udc_release);
+
+/**
+ * usb_add_gadget_udc - adds a new gadget to the udc class driver list
+ * @parent: the parent device to this udc. Usually the controller
+ * driver's device.
+ * @gadget: the gadget to be added to the list
+ *
+ * Returns zero on success, negative errno otherwise.
+ */
+int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
+{
+	return usb_add_gadget_udc_release(parent, gadget, NULL);
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 
