@@ -43,7 +43,7 @@ omap5430_mpu_temp_sensor_registers = {
 	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_MPU_MASK,
 
 
-	.bgap_counter = OMAP5430_BGAP_COUNTER_MPU_OFFSET,
+	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
 
 	.bgap_threshold = OMAP5430_BGAP_THRESHOLD_MPU_OFFSET,
@@ -87,7 +87,7 @@ omap5430_gpu_temp_sensor_registers = {
 	.mask_clear_mask = OMAP5430_MASK_CLEAR_GPU_MASK,
 	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_GPU_MASK,
 
-	.bgap_counter = OMAP5430_BGAP_COUNTER_GPU_OFFSET,
+	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
 
 	.bgap_threshold = OMAP5430_BGAP_THRESHOLD_GPU_OFFSET,
@@ -132,7 +132,7 @@ omap5430_core_temp_sensor_registers = {
 	.mask_clear_mask = OMAP5430_MASK_CLEAR_CORE_MASK,
 	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_CORE_MASK,
 
-	.bgap_counter = OMAP5430_BGAP_COUNTER_CORE_OFFSET,
+	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
 
 	.bgap_threshold = OMAP5430_BGAP_THRESHOLD_CORE_OFFSET,
