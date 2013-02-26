@@ -322,19 +322,9 @@ config CRYPTO_CRC32C
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  Module will be crc32c.
 
-config CRYPTO_CRC32C_X86_64
-	bool
-	depends on X86 && 64BIT
-	select CRYPTO_HASH
-	help
-	  In Intel processor with SSE4.2 supported, the processor will
-	  support CRC32C calculation using hardware accelerated CRC32
-	  instruction optimized with PCLMULQDQ instruction when available.
-
 config CRYPTO_CRC32C_INTEL
 	tristate "CRC32c INTEL hardware acceleration"
 	depends on X86
-	select CRYPTO_CRC32C_X86_64 if 64BIT
 	select CRYPTO_HASH
 	help
 	  In Intel processor with SSE4.2 supported, the processor will
