@@ -930,7 +930,7 @@ repeat:
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	err = read_node_page(page, READA);
+	err = read_node_page(page, READ_SYNC);
 	if (err) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
