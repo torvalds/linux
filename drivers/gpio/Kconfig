@@ -30,6 +30,9 @@ config ARCH_REQUIRE_GPIOLIB
 	  Selecting this from the architecture code will cause the gpiolib
 	  code to always get built in.
 
+config GPIO_DEVRES
+	def_bool y
+	depends on HAS_IOMEM
 
 
 menuconfig GPIOLIB
@@ -297,6 +300,14 @@ config GPIO_GE_FPGA
 	  This driver provides basic support (configure as input or output, read
 	  and write pin state) for GPIO implemented in a number of GE single
 	  board computers.
+
+config GPIO_LYNXPOINT
+	bool "Intel Lynxpoint GPIO support"
+	depends on ACPI
+	select IRQ_DOMAIN
+	help
+	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
+	  Requires ACPI device enumeration code to set up a platform device.
 
 comment "I2C GPIO expanders:"
 
