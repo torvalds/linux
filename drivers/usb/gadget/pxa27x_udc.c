@@ -2453,8 +2453,6 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		goto err_map;
 	}
 
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = NULL;
 	udc->vbus_sensed = 0;
 
 	the_controller = udc;
