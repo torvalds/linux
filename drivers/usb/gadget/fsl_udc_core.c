@@ -2493,7 +2493,6 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 	/* Setup gadget.dev and register with kernel */
 	dev_set_name(&udc_controller->gadget.dev, "gadget");
-	udc_controller->gadget.dev.release = fsl_udc_release;
 	udc_controller->gadget.dev.of_node = pdev->dev.of_node;
 
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver))
@@ -2530,7 +2529,8 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	ret = usb_add_gadget_udc(&pdev->dev, &udc_controller->gadget);
+	ret = usb_add_gadget_udc_release(&pdev->dev, &udc_controller->gadget,
+			fsl_udc_release);
 	if (ret)
 		goto err_del_udc;
 
