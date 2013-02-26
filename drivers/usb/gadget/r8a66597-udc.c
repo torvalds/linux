@@ -1915,7 +1915,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;
 	r8a66597->gadget.max_speed = USB_SPEED_HIGH;
-	r8a66597->gadget.dev.release = pdev->dev.release;
 	r8a66597->gadget.name = udc_name;
 
 	init_timer(&r8a66597->timer);
