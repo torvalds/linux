@@ -3,10 +3,13 @@
 Required properties:
 - compatible: Should be "fsl,<chip>-i2c"
 - reg: Should contain registers location and length
-- interrupts: Should contain ERROR and DMA interrupts
+- interrupts: Should contain ERROR interrupt number
 - clock-frequency: Desired I2C bus clock frequency in Hz.
                    Only 100000Hz and 400000Hz modes are supported.
-- fsl,i2c-dma-channel: APBX DMA channel for the I2C
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and I2C DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: Must be "rx-tx".
 
 Examples:
 
@@ -15,7 +18,8 @@ i2c0: i2c@80058000 {
 	#size-cells = <0>;
 	compatible = "fsl,imx28-i2c";
 	reg = <0x80058000 2000>;
-	interrupts = <111 68>;
+	interrupts = <111>;
 	clock-frequency = <100000>;
-	fsl,i2c-dma-channel = <6>;
+	dmas = <&dma_apbx 6>;
+	dma-names = "rx-tx";
 };
