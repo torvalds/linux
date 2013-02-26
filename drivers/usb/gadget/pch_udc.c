@@ -2988,7 +2988,6 @@ static int pch_udc_start(struct usb_gadget *g,
 
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/* get ready for ep0 traffic */
 	pch_udc_setup_ep0(dev);
@@ -3009,7 +3008,6 @@ static int pch_udc_stop(struct usb_gadget *g,
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 
 	/* Assures that there are no pending requests with this driver */
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	dev->connected = 0;
 
