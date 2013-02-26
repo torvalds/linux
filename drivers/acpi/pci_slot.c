@@ -329,19 +329,8 @@ static struct dmi_system_id acpi_pci_slot_dmi_table[] __initdata = {
 	{}
 };
 
-static int __init
-acpi_pci_slot_init(void)
+void __init acpi_pci_slot_init(void)
 {
 	dmi_check_system(acpi_pci_slot_dmi_table);
 	acpi_pci_register_driver(&acpi_pci_slot_driver);
-	return 0;
 }
-
-static void __exit
-acpi_pci_slot_exit(void)
-{
-	acpi_pci_unregister_driver(&acpi_pci_slot_driver);
-}
-
-module_init(acpi_pci_slot_init);
-module_exit(acpi_pci_slot_exit);
