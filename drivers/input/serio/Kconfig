@@ -244,4 +244,14 @@ config SERIO_ARC_PS2
 	  To compile this driver as a module, choose M here; the module
 	  will be called arc_ps2.
 
+config SERIO_APBPS2
+	tristate "GRLIB APBPS2 PS/2 keyboard/mouse controller"
+	depends on OF
+	help
+	  Say Y here if you want support for GRLIB APBPS2 peripherals used
+	  to connect to PS/2 keyboard and/or mouse.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called apbps2.
+
 endif
