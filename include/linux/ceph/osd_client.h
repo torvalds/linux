@@ -47,6 +47,9 @@ struct ceph_osd {
 	struct list_head o_keepalive_item;
 };
 
+
+#define CEPH_OSD_MAX_OP 10
+
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
@@ -63,9 +66,23 @@ struct ceph_osd_request {
 	struct ceph_connection *r_con_filling_msg;
 
 	struct ceph_msg  *r_request, *r_reply;
-	int               r_result;
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
+	int               r_num_ops;
+
+	/* encoded message content */
+	struct ceph_osd_op *r_request_ops;
+	/* these are updated on each send */
+	__le32           *r_request_osdmap_epoch;
+	__le32           *r_request_flags;
+	__le64           *r_request_pool;
+	void             *r_request_pgid;
+	__le32           *r_request_attempts;
+	struct ceph_eversion *r_request_reassert_version;
+
+	int               r_result;
+	int               r_reply_op_len[CEPH_OSD_MAX_OP];
+	s32               r_reply_op_result[CEPH_OSD_MAX_OP];
 	int               r_got_reply;
 	int		  r_linger;
 

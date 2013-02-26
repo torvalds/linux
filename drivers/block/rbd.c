@@ -196,7 +196,7 @@ struct rbd_obj_request {
 
 	u64			xferred;	/* bytes transferred */
 	u64			version;
-	s32			result;
+	int			result;
 	atomic_t		done;
 
 	rbd_obj_callback_t	callback;
@@ -1282,12 +1282,19 @@ static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request)
 
 static void rbd_osd_read_callback(struct rbd_obj_request *obj_request)
 {
-
 	dout("%s: obj %p result %d %llu/%llu\n", __func__, obj_request,
 		obj_request->result, obj_request->xferred, obj_request->length);
-	if (obj_request->result == (s32) -ENOENT) {
+	/*
+	 * ENOENT means a hole in the object.  We zero-fill the
+	 * entire length of the request.  A short read also implies
+	 * zero-fill to the end of the request.  Either way we
+	 * update the xferred count to indicate the whole request
+	 * was satisfied.
+	 */
+	if (obj_request->result == -ENOENT) {
 		zero_bio_chain(obj_request->bio_list, 0);
 		obj_request->result = 0;
+		obj_request->xferred = obj_request->length;
 	} else if (obj_request->xferred < obj_request->length &&
 			!obj_request->result) {
 		zero_bio_chain(obj_request->bio_list, obj_request->xferred);
@@ -1298,20 +1305,14 @@ static void rbd_osd_read_callback(struct rbd_obj_request *obj_request)
 
 static void rbd_osd_write_callback(struct rbd_obj_request *obj_request)
 {
-	dout("%s: obj %p result %d %llu/%llu\n", __func__, obj_request,
-		obj_request->result, obj_request->xferred, obj_request->length);
-
-	/* A short write really shouldn't occur.  Warn if we see one */
-
-	if (obj_request->xferred != obj_request->length) {
-		struct rbd_img_request *img_request = obj_request->img_request;
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = img_request ? img_request->rbd_dev : NULL;
-		rbd_warn(rbd_dev, "wrote %llu want %llu\n",
-			obj_request->xferred, obj_request->length);
-	}
-
+	dout("%s: obj %p result %d %llu\n", __func__, obj_request,
+		obj_request->result, obj_request->length);
+	/*
+	 * There is no such thing as a successful short write.
+	 * Our xferred value is the number of bytes transferred
+	 * back.  Set it to our originally-requested length.
+	 */
+	obj_request->xferred = obj_request->length;
 	obj_request_done_set(obj_request);
 }
 
@@ -1329,9 +1330,6 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 				struct ceph_msg *msg)
 {
 	struct rbd_obj_request *obj_request = osd_req->r_priv;
-	struct ceph_osd_reply_head *reply_head;
-	struct ceph_osd_op *op;
-	u32 num_ops;
 	u16 opcode;
 
 	dout("%s: osd_req %p msg %p\n", __func__, osd_req, msg);
@@ -1339,22 +1337,19 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	rbd_assert(!!obj_request->img_request ^
 				(obj_request->which == BAD_WHICH));
 
-	reply_head = msg->front.iov_base;
-	obj_request->result = (s32) le32_to_cpu(reply_head->result);
+	if (osd_req->r_result < 0)
+		obj_request->result = osd_req->r_result;
 	obj_request->version = le64_to_cpu(osd_req->r_reassert_version.version);
 
-	num_ops = le32_to_cpu(reply_head->num_ops);
-	WARN_ON(num_ops != 1);	/* For now */
+	WARN_ON(osd_req->r_num_ops != 1);	/* For now */
 
 	/*
 	 * We support a 64-bit length, but ultimately it has to be
 	 * passed to blk_end_request(), which takes an unsigned int.
 	 */
-	op = &reply_head->ops[0];
-	obj_request->xferred = le64_to_cpu(op->extent.length);
+	obj_request->xferred = osd_req->r_reply_op_len[0];
 	rbd_assert(obj_request->xferred < (u64) UINT_MAX);
-
-	opcode = le16_to_cpu(op->op);
+	opcode = osd_req->r_request_ops[0].op;
 	switch (opcode) {
 	case CEPH_OSD_OP_READ:
 		rbd_osd_read_callback(obj_request);
@@ -1719,6 +1714,7 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 		more = blk_end_request(img_request->rq, result, xferred);
 		which++;
 	}
+
 	rbd_assert(more ^ (which == img_request->obj_request_count));
 	img_request->next_completion = which;
 out:

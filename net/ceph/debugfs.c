@@ -123,10 +123,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 	mutex_lock(&osdc->request_mutex);
 	for (p = rb_first(&osdc->requests); p; p = rb_next(p)) {
 		struct ceph_osd_request *req;
-		struct ceph_osd_request_head *head;
-		struct ceph_osd_op *op;
-		int num_ops;
-		int opcode, olen;
+		int opcode;
 		int i;
 
 		req = rb_entry(p, struct ceph_osd_request, r_node);
@@ -135,13 +132,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 			   req->r_osd ? req->r_osd->o_osd : -1,
 			   req->r_pgid.pool, req->r_pgid.seed);
 
-		head = req->r_request->front.iov_base;
-		op = (void *)(head + 1);
-
-		num_ops = le16_to_cpu(head->num_ops);
-		olen = le32_to_cpu(head->object_len);
-		seq_printf(s, "%.*s", olen,
-			   (const char *)(head->ops + num_ops));
+		seq_printf(s, "%.*s", req->r_oid_len, req->r_oid);
 
 		if (req->r_reassert_version.epoch)
 			seq_printf(s, "\t%u'%llu",
@@ -150,10 +141,9 @@ static int osdc_show(struct seq_file *s, void *pp)
 		else
 			seq_printf(s, "\t");
 
-		for (i = 0; i < num_ops; i++) {
-			opcode = le16_to_cpu(op->op);
+		for (i = 0; i < req->r_num_ops; i++) {
+			opcode = le16_to_cpu(req->r_request_ops[i].op);
 			seq_printf(s, "\t%s", ceph_osd_op_name(opcode));
-			op++;
 		}
 
 		seq_printf(s, "\n");

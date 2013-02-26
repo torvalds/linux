@@ -416,43 +416,5 @@ struct ceph_osd_op {
 	__le32 payload_len;
 } __attribute__ ((packed));
 
-/*
- * osd request message header.  each request may include multiple
- * ceph_osd_op object operations.
- */
-struct ceph_osd_request_head {
-	__le32 client_inc;                 /* client incarnation */
-	struct ceph_object_layout layout;  /* pgid */
-	__le32 osdmap_epoch;               /* client's osdmap epoch */
-
-	__le32 flags;
-
-	struct ceph_timespec mtime;        /* for mutations only */
-	struct ceph_eversion reassert_version; /* if we are replaying op */
-
-	__le32 object_len;     /* length of object name */
-
-	__le64 snapid;         /* snapid to read */
-	__le64 snap_seq;       /* writer's snap context */
-	__le32 num_snaps;
-
-	__le16 num_ops;
-	struct ceph_osd_op ops[];  /* followed by ops[], obj, ticket, snaps */
-} __attribute__ ((packed));
-
-struct ceph_osd_reply_head {
-	__le32 client_inc;                /* client incarnation */
-	__le32 flags;
-	struct ceph_object_layout layout;
-	__le32 osdmap_epoch;
-	struct ceph_eversion reassert_version; /* for replaying uncommitted */
-
-	__le32 result;                    /* result code */
-
-	__le32 object_len;                /* length of object name */
-	__le32 num_ops;
-	struct ceph_osd_op ops[0];  /* ops[], object */
-} __attribute__ ((packed));
-
 
 #endif

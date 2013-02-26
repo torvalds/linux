@@ -236,15 +236,9 @@ static int ceph_readpage(struct file *filp, struct page *page)
 static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 {
 	struct inode *inode = req->r_inode;
-	struct ceph_osd_reply_head *replyhead;
-	int rc, bytes;
+	int rc = req->r_result;
+	int bytes = le32_to_cpu(msg->hdr.data_len);
 	int i;
-
-	/* parse reply */
-	replyhead = msg->front.iov_base;
-	WARN_ON(le32_to_cpu(replyhead->num_ops) == 0);
-	rc = le32_to_cpu(replyhead->result);
-	bytes = le32_to_cpu(msg->hdr.data_len);
 
 	dout("finish_read %p req %p rc %d bytes %d\n", inode, req, rc, bytes);
 
@@ -553,26 +547,17 @@ static void writepages_finish(struct ceph_osd_request *req,
 			      struct ceph_msg *msg)
 {
 	struct inode *inode = req->r_inode;
-	struct ceph_osd_reply_head *replyhead;
-	struct ceph_osd_op *op;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	unsigned wrote;
 	struct page *page;
 	int i;
 	struct ceph_snap_context *snapc = req->r_snapc;
 	struct address_space *mapping = inode->i_mapping;
-	__s32 rc = -EIO;
-	u64 bytes = 0;
+	int rc = req->r_result;
+	u64 bytes = le64_to_cpu(req->r_request_ops[0].extent.length);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	long writeback_stat;
 	unsigned issued = ceph_caps_issued(ci);
-
-	/* parse reply */
-	replyhead = msg->front.iov_base;
-	WARN_ON(le32_to_cpu(replyhead->num_ops) == 0);
-	op = (void *)(replyhead + 1);
-	rc = le32_to_cpu(replyhead->result);
-	bytes = le64_to_cpu(op->extent.length);
 
 	if (rc >= 0) {
 		/*
@@ -740,8 +725,6 @@ retry:
 		struct page *page;
 		int want;
 		u64 offset, len;
-		struct ceph_osd_request_head *reqhead;
-		struct ceph_osd_op *op;
 		long writeback_stat;
 
 		next = 0;
@@ -905,10 +888,8 @@ get_more_pages:
 
 		/* revise final length, page count */
 		req->r_num_pages = locked_pages;
-		reqhead = req->r_request->front.iov_base;
-		op = (void *)(reqhead + 1);
-		op->extent.length = cpu_to_le64(len);
-		op->payload_len = cpu_to_le32(len);
+		req->r_request_ops[0].extent.length = cpu_to_le64(len);
+		req->r_request_ops[0].payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);
 
 		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
