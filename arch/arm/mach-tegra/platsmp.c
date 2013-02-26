@@ -146,6 +146,12 @@ remove_clamps:
 	return 0;
 }
 
+static int tegra114_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	cpu = cpu_logical_map(cpu);
+	return tegra_pmc_cpu_power_on(cpu);
+}
+
 static int __cpuinit tegra_boot_secondary(unsigned int cpu,
 					  struct task_struct *idle)
 {
@@ -153,6 +159,8 @@ static int __cpuinit tegra_boot_secondary(unsigned int cpu,
 		return tegra20_boot_secondary(cpu, idle);
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
 		return tegra30_boot_secondary(cpu, idle);
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
+		return tegra114_boot_secondary(cpu, idle);
 
 	return -EINVAL;
 }
