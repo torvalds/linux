@@ -980,7 +980,7 @@ static void __init free_iommu_all(void)
  *     BIOS should disable L2B micellaneous clock gating by setting
  *     L2_L2B_CK_GATE_CONTROL[CKGateL2BMiscDisable](D0F2xF4_x90[2]) = 1b
  */
-static void __init amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
+static void amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
 {
 	u32 value;
 
