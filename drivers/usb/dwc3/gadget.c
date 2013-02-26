@@ -1690,12 +1690,8 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 	}
 }
 
-static void dwc3_gadget_release(struct device *dev)
-{
-	dev_dbg(dev, "%s\n", __func__);
-}
-
 /* -------------------------------------------------------------------------- */
+
 static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		struct dwc3_request *req, struct dwc3_trb *trb,
 		const struct dwc3_event_depevt *event, int status)
@@ -2568,7 +2564,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	dwc->gadget.max_speed		= USB_SPEED_SUPER;
 	dwc->gadget.speed		= USB_SPEED_UNKNOWN;
 	dwc->gadget.sg_supported	= true;
-	dwc->gadget.dev.release		= dwc3_gadget_release;
 	dwc->gadget.name		= "dwc3-gadget";
 
 	/*
