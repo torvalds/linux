@@ -1819,7 +1819,6 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 
 	udc->driver = driver;
 	driver->driver.bus = NULL;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.dev.of_node = udc->dev->of_node;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1841,7 +1840,6 @@ static int bcm63xx_udc_stop(struct usb_gadget *gadget,
 	spin_lock_irqsave(&udc->lock, flags);
 
 	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
 
 	/*
 	 * If we switch the PHY too abruptly after dropping D+, the host
