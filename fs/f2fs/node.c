@@ -384,7 +384,7 @@ got:
 /*
  * Caller should call f2fs_put_dnode(dn).
  */
-int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int ro)
+int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct page *npage[4];
@@ -411,7 +411,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int ro)
 	for (i = 1; i <= level; i++) {
 		bool done = false;
 
-		if (!nids[i] && !ro) {
+		if (!nids[i] && mode == ALLOC_NODE) {
 			mutex_lock_op(sbi, NODE_NEW);
 
 			/* alloc new node */
@@ -434,7 +434,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int ro)
 			alloc_nid_done(sbi, nids[i]);
 			mutex_unlock_op(sbi, NODE_NEW);
 			done = true;
-		} else if (ro && i == level && level > 1) {
+		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
 			npage[i] = get_node_page_ra(parent, offset[i - 1]);
 			if (IS_ERR(npage[i])) {
 				err = PTR_ERR(npage[i]);

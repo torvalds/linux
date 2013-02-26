@@ -247,7 +247,7 @@ static void do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		end = start + ADDRS_PER_BLOCK;
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	if (get_dnode_of_data(&dn, start, 0))
+	if (get_dnode_of_data(&dn, start, ALLOC_NODE))
 		return;
 
 	wait_on_page_writeback(dn.node_page);
