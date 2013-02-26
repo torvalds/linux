@@ -416,11 +416,6 @@ MODULE_DEVICE_TABLE(usb, s2255_table);
 /* JPEG formats must be defined last to support jpeg_enable parameter */
 static const struct s2255_fmt formats[] = {
 	{
-		.name = "4:2:2, planar, YUV422P",
-		.fourcc = V4L2_PIX_FMT_YUV422P,
-		.depth = 16
-
-	}, {
 		.name = "4:2:2, packed, YUYV",
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.depth = 16
@@ -429,6 +424,11 @@ static const struct s2255_fmt formats[] = {
 		.name = "4:2:2, packed, UYVY",
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.depth = 16
+	}, {
+		.name = "4:2:2, planar, YUV422P",
+		.fourcc = V4L2_PIX_FMT_YUV422P,
+		.depth = 16
+
 	}, {
 		.name = "8bpp GREY",
 		.fourcc = V4L2_PIX_FMT_GREY,
