@@ -1922,7 +1922,6 @@ static int amd5536_udc_start(struct usb_gadget *g,
 
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/* Some gadget drivers use both ep0 directions.
 	 * NOTE: to gadget driver, ep0 is just one endpoint...
@@ -1973,7 +1972,6 @@ static int amd5536_udc_stop(struct usb_gadget *g,
 	shutdown(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	/* set SD */
