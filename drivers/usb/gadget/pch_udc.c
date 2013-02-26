@@ -3193,8 +3193,6 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	if (retval)
 		goto finished;
 
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = KBUILD_MODNAME;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
