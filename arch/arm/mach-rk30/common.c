@@ -59,6 +59,9 @@ static void __init rk30_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask, data_latency_ctrl;
+#if defined(CONFIG_ARCH_RK3188)
+	data_latency_ctrl = L2_LATENCY(2, 3, 1);
+#else
 	unsigned int max_cpu_freq = 1608000; // kHz
 	struct cpufreq_frequency_table *table = NULL;
 	struct clk *clk_cpu;
@@ -84,6 +87,7 @@ static void __init rk30_l2_cache_init(void)
 		data_latency_ctrl = L2_LATENCY(5, 8, 1);
 	else
 		data_latency_ctrl = L2_LATENCY(6, 8, 1);
+#endif
 
 	writel_relaxed(L2_LATENCY(1, 1, 1), RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
 	writel_relaxed(data_latency_ctrl, RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
