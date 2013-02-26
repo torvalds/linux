@@ -1346,6 +1346,7 @@ static ssize_t show_chip_id(struct device *dev,
 	struct ab8500 *ab8500;
 
 	ab8500 = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%#x\n", ab8500 ? ab8500->chip_id : -EINVAL);
 }
 
@@ -1676,7 +1677,7 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	/*  Activate this feature only in ab9540 */
 	/*  till tests are done on ab8500 1p2 or later*/
-	if (is_ab9540(ab8500)) {
+	if (is_ab9540(ab8500) || is_ab8540(ab8500))
 		ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
 						ab8500_hierarchical_irq,
 						IRQF_ONESHOT | IRQF_NO_SUSPEND,
@@ -1719,7 +1720,8 @@ static int ab8500_probe(struct platform_device *pdev)
 			dev_err(ab8500->dev, "error adding bm devices\n");
 	}
 
-	if (is_ab9540(ab8500))
+	if (((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
+			ab8500->chip_id >= AB8500_CUT2P0) || is_ab8540(ab8500))
 		ret = sysfs_create_group(&ab8500->dev->kobj,
 					&ab9540_attr_group);
 	else
@@ -1735,7 +1737,8 @@ static int ab8500_remove(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = platform_get_drvdata(pdev);
 
-	if (is_ab9540(ab8500))
+	if (((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
+			ab8500->chip_id >= AB8500_CUT2P0) || is_ab8540(ab8500))
 		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
 	else
 		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);

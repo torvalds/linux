@@ -1943,6 +1943,8 @@ static int ab8500_debug_probe(struct platform_device *plf)
 		num_interrupt_lines = AB8505_NR_IRQS;
 	else if (is_ab9540(ab8500))
 		num_interrupt_lines = AB9540_NR_IRQS;
+	else if (is_ab8540(ab8500))
+		num_interrupt_lines = AB8540_NR_IRQS;
 
 	file = debugfs_create_file("interrupts", (S_IRUGO),
 	    ab8500_dir, &plf->dev, &ab8500_interrupts_fops);
