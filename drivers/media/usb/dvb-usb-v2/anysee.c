@@ -46,8 +46,8 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
-	u8 *rbuf, u8 rlen)
+static int anysee_ctrl_msg(struct dvb_usb_device *d,
+		u8 *sbuf, u8 slen, u8 *rbuf, u8 rlen)
 {
 	struct anysee_state *state = d_to_priv(d);
 	int act_len, ret, i;
@@ -84,16 +84,16 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 				d->props->generic_bulk_ctrl_endpoint),
 				state->buf, sizeof(state->buf), &act_len, 2000);
 		if (ret) {
-			dev_dbg(&d->udev->dev, "%s: recv bulk message " \
-					"failed=%d\n", __func__, ret);
+			dev_dbg(&d->udev->dev,
+					"%s: recv bulk message failed=%d\n",
+					__func__, ret);
 		} else {
 			dev_dbg(&d->udev->dev, "%s: <<< %*ph\n", __func__,
 					rlen, state->buf);
 
 			if (state->buf[63] != 0x4f)
-				dev_dbg(&d->udev->dev, "%s: cmd failed\n",
-						__func__);
-
+				dev_dbg(&d->udev->dev,
+						"%s: cmd failed\n", __func__);
 			break;
 		}
 	}
@@ -881,9 +881,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (!adap->fe[0]) {
 		/* we have no frontend :-( */
 		ret = -ENODEV;
-		dev_err(&d->udev->dev, "%s: Unsupported Anysee version. " \
-				"Please report the " \
-				"<linux-media@vger.kernel.org>.\n",
+		dev_err(&d->udev->dev,
+				"%s: Unsupported Anysee version. Please report the <linux-media@vger.kernel.org>.\n",
 				KBUILD_MODNAME);
 	}
 error:
