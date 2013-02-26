@@ -106,6 +106,8 @@ config I2C_I801
 	    Panther Point (PCH)
 	    Lynx Point (PCH)
 	    Lynx Point-LP (PCH)
+	    Avoton (SOC)
+	    Wellsburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -120,6 +122,16 @@ config I2C_ISCH
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-isch.
+
+config I2C_ISMT
+	tristate "Intel iSMT SMBus Controller"
+	depends on PCI && X86
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  iSMT SMBus host controller interface.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called i2c-ismt.
 
 config I2C_PIIX4
 	tristate "Intel PIIX4 and compatible (ATI/AMD/Serverworks/Broadcom/SMSC)"
@@ -186,11 +198,11 @@ config I2C_SIS5595
 	  will be called i2c-sis5595.
 
 config I2C_SIS630
-	tristate "SiS 630/730"
+	tristate "SiS 630/730/964"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the
-	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+	  SiS630, SiS730 and SiS964 SMBus (a subset of I2C) interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis630.
@@ -318,6 +330,18 @@ config I2C_AU1550
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
+
+config I2C_BCM2835
+	tristate "Broadcom BCM2835 I2C controller"
+	depends on ARCH_BCM2835
+	help
+	  If you say yes to this option, support will be included for the
+	  BCM2835 I2C controller.
+
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-bcm2835.
 
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
