@@ -471,7 +471,7 @@ ssize_t usb_udc_##param##_show(struct device *dev,			\
 	return snprintf(buf, PAGE_SIZE, "%s\n",				\
 			usb_speed_string(udc->gadget->param));		\
 }									\
-static DEVICE_ATTR(name, S_IRUSR, usb_udc_##param##_show, NULL)
+static DEVICE_ATTR(name, S_IRUGO, usb_udc_##param##_show, NULL)
 
 static USB_UDC_SPEED_ATTR(current_speed, speed);
 static USB_UDC_SPEED_ATTR(maximum_speed, max_speed);
