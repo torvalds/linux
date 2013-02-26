@@ -648,12 +648,6 @@ efivar_unregister(struct efivar_entry *var)
 	kobject_put(&var->kobj);
 }
 
-static int efivarfs_file_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static int efi_status_to_err(efi_status_t status)
 {
 	int err;
@@ -872,7 +866,7 @@ static struct super_block *efivarfs_sb;
 static const struct inode_operations efivarfs_dir_inode_operations;
 
 static const struct file_operations efivarfs_file_operations = {
-	.open	= efivarfs_file_open,
+	.open	= simple_open,
 	.read	= efivarfs_file_read,
 	.write	= efivarfs_file_write,
 	.llseek	= no_llseek,
