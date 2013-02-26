@@ -6983,7 +6983,7 @@ static void __exit bypass_cleanup_module(void)
 /*	spin_lock_irqsave(&bpvm_lock, flags);
 	rcu_read_lock(); */
 		bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-/*	spin_unlock_irqrestore(&bpvm_lock, flags);        
+/*	spin_unlock_irqrestore(&bpvm_lock, flags);
 	rcu_read_unlock(); */
 #endif
 		remove_bypass_wd_auto(&bpctl_dev_arr[i]);
@@ -7006,7 +7006,7 @@ static void __exit bypass_cleanup_module(void)
 		kfree(bpctl_dev_arr);
 
 /*
-* Unregister the device                             
+* Unregister the device
 */
 	unregister_chrdev(major_num, DEVICE_NAME);
 }
