@@ -2233,7 +2233,6 @@ static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 	ret->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	ret->gadget.dev.release = net2272_gadget_release;
 	ret->gadget.name = driver_name;
 
 	return ret;
@@ -2273,7 +2272,8 @@ net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 	if (ret)
 		goto err_irq;
 
-	ret = usb_add_gadget_udc(dev->dev, &dev->gadget);
+	ret = usb_add_gadget_udc_release(dev->dev, &dev->gadget,
+			net2272_gadget_release);
 	if (ret)
 		goto err_add_udc;
 
