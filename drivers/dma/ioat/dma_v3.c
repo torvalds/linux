@@ -1331,15 +1331,9 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	}
 
 
-	if (is_raid_device) {
-		dma->device_tx_status = ioat3_tx_status;
-		device->cleanup_fn = ioat3_cleanup_event;
-		device->timer_fn = ioat3_timer_event;
-	} else {
-		dma->device_tx_status = ioat_dma_tx_status;
-		device->cleanup_fn = ioat2_cleanup_event;
-		device->timer_fn = ioat2_timer_event;
-	}
+	dma->device_tx_status = ioat3_tx_status;
+	device->cleanup_fn = ioat3_cleanup_event;
+	device->timer_fn = ioat3_timer_event;
 
 	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
 	dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
