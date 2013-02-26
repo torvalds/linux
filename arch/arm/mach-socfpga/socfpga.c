@@ -94,16 +94,6 @@ static void __init socfpga_scu_map_io(void)
 	iotable_init(&scu_io_desc, 1);
 }
 
-static void __init init_socfpga_vt(void)
-{
-	cpu1start_addr = 0xffd08010;
-}
-
-static void __init init_socfpga(void)
-{
-	cpu1start_addr = 0xffd080c4;
-}
-
 static void __init enable_periphs(void)
 {
 	/* Release all peripherals from reset.*/
@@ -228,6 +218,11 @@ static void __init socfpga_sysmgr_init(void)
 	struct device_node *np;
 
 	np = of_find_compatible_node(NULL, NULL, "altr,sys-mgr");
+
+	if (of_property_read_u32(np, "cpu1-start-addr",
+			(u32 *) &cpu1start_addr))
+		pr_err("SMP: Need cpu1-start-addr in device tree.\n");
+
 	sys_manager_base_addr = of_iomap(np, 0);
 
 	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
@@ -264,11 +259,6 @@ static void __init socfpga_init_irq(void)
 {
 	irqchip_init();
 	socfpga_sysmgr_init();
-
-	if (of_machine_is_compatible("altr,socfpga-vt"))
-		init_socfpga_vt();
-	else
-		init_socfpga();
 
 	socfpga_init_clocks();
 	twd_local_timer_of_register();

@@ -20,7 +20,7 @@
 
 / {
 	model = "Altera SOCFPGA Emulator";
-	compatible = "altr,socfpga-ice";
+	compatible = "altr,socfpga-ice", "altr,socfpga";
 
 	chosen {
 		bootargs = "console=ttyS0,4800";
@@ -93,6 +93,10 @@
 					};
 				};
 			};
+
+		sysmgr@ffd08000 {
+			cpu1-start-addr = <0xffd080c4>;
+		};
 
 		timer0@ffc08000 {
 			clock-frequency = <77161>;

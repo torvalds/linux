@@ -135,6 +135,9 @@
 						reg = <0x0 0x1000000>;
 					};
 				};
+
+		i2c0: i2c@ffc04000 {
+			speed-mode = <0>;
 		};
 
 		leds {
