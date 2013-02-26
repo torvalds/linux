@@ -2296,7 +2296,6 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	driver->driver.bus = NULL;
 	/* hook up the driver */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.speed = driver->max_speed;
 
 	/* Enable IRQ reg and Set usbcmd reg EN bit */
@@ -2338,7 +2337,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
