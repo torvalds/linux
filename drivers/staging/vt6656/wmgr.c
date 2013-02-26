@@ -543,9 +543,9 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (u16)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (u16)uNodeIndex;
         // check if ERP support
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
            pMgmt->sNodeDBTable[uNodeIndex].bERPExist = true;
@@ -691,9 +691,9 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (u16)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (u16)uNodeIndex;
 
         // if suppurt ERP
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
@@ -2843,9 +2843,9 @@ static void s_vMgrFormatTIM(struct vnt_manager *pMgmt, PWLAN_IE_TIM pTIM)
         if (byMap) {
             if (!bStartFound) {
                 bStartFound = true;
-                wStartIndex = (WORD)ii;
+                wStartIndex = (u16)ii;
             }
-            wEndIndex = (WORD)ii;
+            wEndIndex = (u16)ii;
         }
     }
 
@@ -2917,7 +2917,7 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
         ));
 
     if (pDevice->bEnablePSMode) {
-        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_PWRMGT(1));
+        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((u16)WLAN_SET_FC_PWRMGT(1));
     }
 
     memcpy( sFrame.pHdr->sA3.abyAddr1, abyBroadcastAddr, WLAN_ADDR_LEN);
@@ -2988,11 +2988,11 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
             // Pairwise Key Cipher Suite
             sFrame.pRSNWPA->wPKCount = 0;
             // Auth Key Management Suite
-            *((PWORD)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
+            *((u16 *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
 
             // RSN Capabilites
-            *((PWORD)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
+            *((u16 *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
             sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         }
@@ -3089,7 +3089,7 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
 
     if (byPHYType == BB_TYPE_11B) {
-        *sFrame.pwCapInfo &= cpu_to_le16((WORD)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
+        *sFrame.pwCapInfo &= cpu_to_le16((u16)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
     }
 
     // Copy SSID
@@ -3322,7 +3322,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
                 (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
                (pMgmt->pCurrBSS != NULL)) {
 	unsigned int ii;
-        PWORD               pwPMKID;
+        u16 *               pwPMKID;
 
         // WPA IE
         sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -3387,7 +3387,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
         if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == true) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
             pbyRSN = &sFrame.pRSN->abyRSN[18];
-            pwPMKID = (PWORD)pbyRSN; // Point to PMKID count
+            pwPMKID = (u16 *)pbyRSN; // Point to PMKID count
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
 	for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
@@ -3578,7 +3578,7 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
                 (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
                (pMgmt->pCurrBSS != NULL)) {
 	unsigned int ii;
-        PWORD               pwPMKID;
+        u16 *               pwPMKID;
 
         /* WPA IE */
         sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
@@ -3643,7 +3643,7 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
         if ((pDevice->gsPMKID.BSSIDInfoCount > 0) && (pDevice->bRoaming == true) && (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
             pbyRSN = &sFrame.pRSN->abyRSN[18];
-            pwPMKID = (PWORD)pbyRSN; // Point to PMKID count
+            pwPMKID = (u16 *)pbyRSN; // Point to PMKID count
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
@@ -3719,7 +3719,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((u16)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
@@ -3788,7 +3788,7 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((u16)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);

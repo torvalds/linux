@@ -62,7 +62,7 @@ typedef struct tagSKeyItem
     u8        abyKey[MAX_KEY_LEN];
 	u64 KeyRSC;
     DWORD       dwTSC47_16;
-    WORD        wTSC15_0;
+    u16        wTSC15_0;
     u8        byCipherSuite;
     u8        byReserved0;
     DWORD       dwKeyIndex;
@@ -77,7 +77,7 @@ typedef struct tagSKeyTable
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
     DWORD       dwGTKeyIndex;            // GroupTransmitKey Index
     bool        bInUse;
-    WORD        wKeyCtl;
+    u16        wKeyCtl;
     bool        bSoftWEP;
     u8        byReserved1[6];
 } SKeyTable, *PSKeyTable; //352

@@ -311,14 +311,14 @@ typedef struct tagSQuietControl {
     bool        bEnable;
     DWORD       dwStartTime;
     u8        byPeriod;
-    WORD        wDuration;
+    u16        wDuration;
 } SQuietControl, *PSQuietControl;
 
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
-    WORD        wFmSequence;
+    u16        wFmSequence;
     u8        abyAddr2[ETH_ALEN];
-    WORD        wFrameCtl;
+    u16        wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
@@ -335,8 +335,8 @@ typedef struct tagSCache{
  */
 typedef struct tagSDeFragControlBlock
 {
-    WORD            wSequence;
-    WORD            wFragNum;
+    u16            wSequence;
+    u16            wFragNum;
     u8            abyAddr2[ETH_ALEN];
 	unsigned int            uLifetime;
     struct sk_buff* skb;

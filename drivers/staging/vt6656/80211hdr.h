@@ -155,22 +155,22 @@
 #ifdef __BIG_ENDIAN
 
 /* GET & SET Frame Control bit */
-#define WLAN_GET_FC_PRVER(n)    ((((WORD)(n) >> 8) & (BIT0 | BIT1))
-#define WLAN_GET_FC_FTYPE(n)    ((((WORD)(n) >> 8) & (BIT2 | BIT3)) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)   ((((WORD)(n) >> 8) \
+#define WLAN_GET_FC_PRVER(n)    ((((u16)(n) >> 8) & (BIT0 | BIT1))
+#define WLAN_GET_FC_FTYPE(n)    ((((u16)(n) >> 8) & (BIT2 | BIT3)) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)   ((((u16)(n) >> 8) \
 				  & (BIT4|BIT5|BIT6|BIT7)) >> 4)
-#define WLAN_GET_FC_TODS(n)     ((((WORD)(n) << 8) & (BIT8)) >> 8)
-#define WLAN_GET_FC_FROMDS(n)   ((((WORD)(n) << 8) & (BIT9)) >> 9)
-#define WLAN_GET_FC_MOREFRAG(n) ((((WORD)(n) << 8) & (BIT10)) >> 10)
-#define WLAN_GET_FC_RETRY(n)    ((((WORD)(n) << 8) & (BIT11)) >> 11)
-#define WLAN_GET_FC_PWRMGT(n)   ((((WORD)(n) << 8) & (BIT12)) >> 12)
-#define WLAN_GET_FC_MOREDATA(n) ((((WORD)(n) << 8) & (BIT13)) >> 13)
-#define WLAN_GET_FC_ISWEP(n)    ((((WORD)(n) << 8) & (BIT14)) >> 14)
-#define WLAN_GET_FC_ORDER(n)    ((((WORD)(n) << 8) & (BIT15)) >> 15)
+#define WLAN_GET_FC_TODS(n)     ((((u16)(n) << 8) & (BIT8)) >> 8)
+#define WLAN_GET_FC_FROMDS(n)   ((((u16)(n) << 8) & (BIT9)) >> 9)
+#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n) << 8) & (BIT10)) >> 10)
+#define WLAN_GET_FC_RETRY(n)    ((((u16)(n) << 8) & (BIT11)) >> 11)
+#define WLAN_GET_FC_PWRMGT(n)   ((((u16)(n) << 8) & (BIT12)) >> 12)
+#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n) << 8) & (BIT13)) >> 13)
+#define WLAN_GET_FC_ISWEP(n)    ((((u16)(n) << 8) & (BIT14)) >> 14)
+#define WLAN_GET_FC_ORDER(n)    ((((u16)(n) << 8) & (BIT15)) >> 15)
 
 /* Sequence Field bit */
-#define WLAN_GET_SEQ_FRGNUM(n) (((WORD)(n) >> 8) & (BIT0|BIT1|BIT2|BIT3))
-#define WLAN_GET_SEQ_SEQNUM(n) ((((WORD)(n) >> 8) \
+#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n) >> 8) & (BIT0|BIT1|BIT2|BIT3))
+#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n) >> 8) \
 				 & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
 
 /* Capability Field bit */
@@ -190,21 +190,21 @@
 #else
 
 /* GET & SET Frame Control bit */
-#define WLAN_GET_FC_PRVER(n)    (((WORD)(n)) & (BIT0 | BIT1))
-#define WLAN_GET_FC_FTYPE(n)    ((((WORD)(n)) & (BIT2 | BIT3)) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)   ((((WORD)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
-#define WLAN_GET_FC_TODS(n)     ((((WORD)(n)) & (BIT8)) >> 8)
-#define WLAN_GET_FC_FROMDS(n)   ((((WORD)(n)) & (BIT9)) >> 9)
-#define WLAN_GET_FC_MOREFRAG(n) ((((WORD)(n)) & (BIT10)) >> 10)
-#define WLAN_GET_FC_RETRY(n)    ((((WORD)(n)) & (BIT11)) >> 11)
-#define WLAN_GET_FC_PWRMGT(n)   ((((WORD)(n)) & (BIT12)) >> 12)
-#define WLAN_GET_FC_MOREDATA(n) ((((WORD)(n)) & (BIT13)) >> 13)
-#define WLAN_GET_FC_ISWEP(n)    ((((WORD)(n)) & (BIT14)) >> 14)
-#define WLAN_GET_FC_ORDER(n)    ((((WORD)(n)) & (BIT15)) >> 15)
+#define WLAN_GET_FC_PRVER(n)    (((u16)(n)) & (BIT0 | BIT1))
+#define WLAN_GET_FC_FTYPE(n)    ((((u16)(n)) & (BIT2 | BIT3)) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)   ((((u16)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
+#define WLAN_GET_FC_TODS(n)     ((((u16)(n)) & (BIT8)) >> 8)
+#define WLAN_GET_FC_FROMDS(n)   ((((u16)(n)) & (BIT9)) >> 9)
+#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n)) & (BIT10)) >> 10)
+#define WLAN_GET_FC_RETRY(n)    ((((u16)(n)) & (BIT11)) >> 11)
+#define WLAN_GET_FC_PWRMGT(n)   ((((u16)(n)) & (BIT12)) >> 12)
+#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n)) & (BIT13)) >> 13)
+#define WLAN_GET_FC_ISWEP(n)    ((((u16)(n)) & (BIT14)) >> 14)
+#define WLAN_GET_FC_ORDER(n)    ((((u16)(n)) & (BIT15)) >> 15)
 
 /* Sequence Field bit */
-#define WLAN_GET_SEQ_FRGNUM(n) (((WORD)(n)) & (BIT0|BIT1|BIT2|BIT3))
-#define WLAN_GET_SEQ_SEQNUM(n) ((((WORD)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
+#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n)) & (BIT0|BIT1|BIT2|BIT3))
+#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
 
 /* Capability Field bit */
 #define WLAN_GET_CAP_INFO_ESS(n)           ((n) & BIT0)
@@ -235,20 +235,20 @@
 #define WLAN_SET_CAP_INFO_DSSSOFDM(n)      ((n) << 13)
 #define WLAN_SET_CAP_INFO_GRPACK(n)        ((n) << 14)
 
-#define WLAN_SET_FC_PRVER(n)    ((WORD)(n))
-#define WLAN_SET_FC_FTYPE(n)    (((WORD)(n)) << 2)
-#define WLAN_SET_FC_FSTYPE(n)   (((WORD)(n)) << 4)
-#define WLAN_SET_FC_TODS(n)     (((WORD)(n)) << 8)
-#define WLAN_SET_FC_FROMDS(n)   (((WORD)(n)) << 9)
-#define WLAN_SET_FC_MOREFRAG(n) (((WORD)(n)) << 10)
-#define WLAN_SET_FC_RETRY(n)    (((WORD)(n)) << 11)
-#define WLAN_SET_FC_PWRMGT(n)   (((WORD)(n)) << 12)
-#define WLAN_SET_FC_MOREDATA(n) (((WORD)(n)) << 13)
-#define WLAN_SET_FC_ISWEP(n)    (((WORD)(n)) << 14)
-#define WLAN_SET_FC_ORDER(n)    (((WORD)(n)) << 15)
+#define WLAN_SET_FC_PRVER(n)    ((u16)(n))
+#define WLAN_SET_FC_FTYPE(n)    (((u16)(n)) << 2)
+#define WLAN_SET_FC_FSTYPE(n)   (((u16)(n)) << 4)
+#define WLAN_SET_FC_TODS(n)     (((u16)(n)) << 8)
+#define WLAN_SET_FC_FROMDS(n)   (((u16)(n)) << 9)
+#define WLAN_SET_FC_MOREFRAG(n) (((u16)(n)) << 10)
+#define WLAN_SET_FC_RETRY(n)    (((u16)(n)) << 11)
+#define WLAN_SET_FC_PWRMGT(n)   (((u16)(n)) << 12)
+#define WLAN_SET_FC_MOREDATA(n) (((u16)(n)) << 13)
+#define WLAN_SET_FC_ISWEP(n)    (((u16)(n)) << 14)
+#define WLAN_SET_FC_ORDER(n)    (((u16)(n)) << 15)
 
-#define WLAN_SET_SEQ_FRGNUM(n) ((WORD)(n))
-#define WLAN_SET_SEQ_SEQNUM(n) (((WORD)(n)) << 4)
+#define WLAN_SET_SEQ_FRGNUM(n) ((u16)(n))
+#define WLAN_SET_SEQ_SEQNUM(n) (((u16)(n)) << 4)
 
 /* ERP Field bit */
 
@@ -284,8 +284,8 @@ typedef struct {
 
 typedef struct tagWLAN_80211HDR_A2 {
 
-    WORD    wFrameCtl;
-    WORD    wDurationID;
+    u16    wFrameCtl;
+    u16    wDurationID;
     u8    abyAddr1[WLAN_ADDR_LEN];
     u8    abyAddr2[WLAN_ADDR_LEN];
 
@@ -294,24 +294,24 @@ WLAN_80211HDR_A2, *PWLAN_80211HDR_A2;
 
 typedef struct tagWLAN_80211HDR_A3 {
 
-    WORD    wFrameCtl;
-    WORD    wDurationID;
+    u16    wFrameCtl;
+    u16    wDurationID;
     u8    abyAddr1[WLAN_ADDR_LEN];
     u8    abyAddr2[WLAN_ADDR_LEN];
     u8    abyAddr3[WLAN_ADDR_LEN];
-    WORD    wSeqCtl;
+    u16    wSeqCtl;
 
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A3, *PWLAN_80211HDR_A3;
 
 typedef struct tagWLAN_80211HDR_A4 {
 
-    WORD    wFrameCtl;
-    WORD    wDurationID;
+    u16    wFrameCtl;
+    u16    wDurationID;
     u8    abyAddr1[WLAN_ADDR_LEN];
     u8    abyAddr2[WLAN_ADDR_LEN];
     u8    abyAddr3[WLAN_ADDR_LEN];
-    WORD    wSeqCtl;
+    u16    wSeqCtl;
     u8    abyAddr4[WLAN_ADDR_LEN];
 
 } __attribute__ ((__packed__))

@@ -242,7 +242,7 @@ static int hostap_add_sta(struct vnt_private *pDevice,
     pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
             WLAN_GET_CAP_INFO_SHORTPREAMBLE(pMgmt->sNodeDBTable[uNodeIndex].wCapInfo);
 
-    pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)param->u.add_sta.aid;
+    pMgmt->sNodeDBTable[uNodeIndex].wAID = (u16)param->u.add_sta.aid;
 
     pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = jiffies;
 

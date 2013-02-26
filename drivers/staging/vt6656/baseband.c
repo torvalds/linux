@@ -655,7 +655,7 @@ u8 abyVT3184_VT3226D0[] = {
         0x00,
 };
 
-const WORD awcFrameTime[MAX_RATE] =
+const u16 awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
 
 /*---------------------  Static Functions  --------------------------*/
@@ -694,7 +694,7 @@ BBuGetFrameTime(
      u8 byPreambleType,
      u8 byPktType,
      unsigned int cbFrameLength,
-     WORD wRate
+     u16 wRate
     )
 {
     unsigned int uFrameTime;
@@ -900,11 +900,11 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
         *pbyPhySrv = 0x00;
         if (bExtBit)
             *pbyPhySrv = *pbyPhySrv | 0x80;
-        *pwPhyLen = (WORD) cbUsCount;
+        *pwPhyLen = (u16) cbUsCount;
     }
     else {
         *pbyPhySrv = 0x00;
-        *pwPhyLen = (WORD)cbFrameLength;
+        *pwPhyLen = (u16)cbFrameLength;
     }
 }
 
@@ -940,7 +940,7 @@ void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
 
     CONTROLnsRequestOut(pDevice,
                     MESSAGE_TYPE_SET_ANTMD,
-                    (WORD) byAntennaMode,
+                    (u16) byAntennaMode,
                     0,
                     0,
                     NULL);
@@ -963,10 +963,10 @@ void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
 int BBbVT3184Init(struct vnt_private *pDevice)
 {
 	int ntStatus;
-    WORD                    wLength;
+    u16                    wLength;
     u8 *                   pbyAddr;
     u8 *                   pbyAgc;
-    WORD                    wLengthAgc;
+    u16                    wLengthAgc;
     u8                    abyArray[256];
 
     ntStatus = CONTROLnsRequestIn(pDevice,

@@ -86,7 +86,7 @@ typedef struct tagSERPObject {
 
 typedef struct tagSRSNCapObject {
     bool    bRSNCapExist;
-    WORD    wRSNCap;
+    u16    wRSNCap;
 } SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
@@ -99,12 +99,12 @@ typedef struct tagKnownBSS {
     u8            abyExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     unsigned int            uRSSI;
     u8            bySQ;
-    WORD            wBeaconInterval;
-    WORD            wCapInfo;
+    u16            wBeaconInterval;
+    u16            wCapInfo;
     u8            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     u8            byRxRate;
 
-//    WORD            wATIMWindow;
+//    u16            wATIMWindow;
     u8            byRSSIStatCnt;
     signed long            ldBmMAX;
     signed long            ldBmAverage[RSSI_STAT_COUNT];
@@ -116,9 +116,9 @@ typedef struct tagKnownBSS {
     bool            bWPAValid;
     u8            byGKType;
     u8            abyPKType[4];
-    WORD            wPKCount;
+    u16            wPKCount;
     u8            abyAuthType[4];
-    WORD            wAuthCount;
+    u16            wAuthCount;
     u8            byDefaultK_as_PK;
     u8            byReplayIdx;
     //--
@@ -126,16 +126,16 @@ typedef struct tagKnownBSS {
     //++ WPA2 informations
     bool            bWPA2Valid;
     u8            byCSSGK;
-    WORD            wCSSPKCount;
+    u16            wCSSPKCount;
     u8            abyCSSPK[4];
-    WORD            wAKMSSAuthCount;
+    u16            wAKMSSAuthCount;
     u8            abyAKMSSAuthType[4];
 
     //++  wpactl
     u8            byWPAIE[MAX_WPA_IE_LEN];
     u8            byRSNIE[MAX_WPA_IE_LEN];
-    WORD            wWPALen;
-    WORD            wRSNLen;
+    u16            wWPALen;
+    u16            wRSNLen;
 
     // Clear count
     unsigned int            uClearCount;
@@ -171,22 +171,22 @@ typedef struct tagKnownNodeDB {
     u8            abyMACAddr[WLAN_ADDR_LEN];
     u8            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     u8            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-    WORD            wTxDataRate;
+    u16            wTxDataRate;
     bool            bShortPreamble;
     bool            bERPExist;
     bool            bShortSlotTime;
     unsigned int            uInActiveCount;
-    WORD            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
-    WORD            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
-    WORD            wSuppRate;
+    u16            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
+    u16            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
+    u16            wSuppRate;
     u8            byTopOFDMBasicRate;//Records the highest basic rate in OFDM mode
     u8            byTopCCKBasicRate; //Records the highest basic rate in CCK mode
 
     // For AP mode
     struct sk_buff_head sTxPSQueue;
-    WORD            wCapInfo;
-    WORD            wListenInterval;
-    WORD            wAID;
+    u16            wCapInfo;
+    u16            wListenInterval;
+    u16            wAID;
     NODE_STATE      eNodeState;
     bool            bPSEnable;
     bool            bRxPSPoll;
@@ -194,7 +194,7 @@ typedef struct tagKnownNodeDB {
     unsigned long           ulLastRxJiffer;
     u8            bySuppRate;
     DWORD           dwFlags;
-    WORD            wEnQueueCnt;
+    u16            wEnQueueCnt;
 
     bool            bOnFly;
     unsigned long long       KeyRSC;
@@ -202,7 +202,7 @@ typedef struct tagKnownNodeDB {
     DWORD           dwKeyIndex;
     u8            byCipherSuite;
     DWORD           dwTSC47_16;
-    WORD            wTSC15_0;
+    u16            wTSC15_0;
     unsigned int            uWepKeyLength;
     u8            abyWepKey[WLAN_WEPMAX_KEYLEN];
     //

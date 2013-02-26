@@ -100,7 +100,7 @@ BBuGetFrameTime(
      u8 byPreambleType,
      u8 byFreqType,
      unsigned int cbFrameLength,
-     WORD wRate
+     u16 wRate
     );
 
 void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,

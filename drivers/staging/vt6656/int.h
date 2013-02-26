@@ -37,16 +37,16 @@
 typedef struct tagSINTData {
 	u8 byTSR0;
 	u8 byPkt0;
-	WORD wTime0;
+	u16 wTime0;
 	u8 byTSR1;
 	u8 byPkt1;
-	WORD wTime1;
+	u16 wTime1;
 	u8 byTSR2;
 	u8 byPkt2;
-	WORD wTime2;
+	u16 wTime2;
 	u8 byTSR3;
 	u8 byPkt3;
-	WORD wTime3;
+	u16 wTime3;
 	u64 qwTSF;
 	u8 byISR0;
 	u8 byISR1;

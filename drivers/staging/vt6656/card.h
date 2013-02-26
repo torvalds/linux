@@ -70,10 +70,10 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 		u64 qwBSSTimestamp, u64 qwLocalTSF);
 bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF);
 bool CARDbClearCurrentTSF(struct vnt_private *pDevice);
-void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, WORD wBeaconInterval);
+void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, u16 wBeaconInterval);
 void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
-			 WORD wBeaconInterval);
-u64 CARDqGetNextTBTT(u64 qwTSF, WORD wBeaconInterval);
+			 u16 wBeaconInterval);
+u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval);
 u64 CARDqGetTSFOffset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
 int CARDbRadioPowerOff(struct vnt_private *pDevice);
 int CARDbRadioPowerOn(struct vnt_private *pDevice);

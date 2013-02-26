@@ -37,24 +37,24 @@
 #define LOBYTE(w)           ((u8)(w))
 #endif
 #if !defined(HIBYTE)
-#define HIBYTE(w)           ((u8)(((WORD)(w) >> 8) & 0xFF))
+#define HIBYTE(w)           ((u8)(((u16)(w) >> 8) & 0xFF))
 #endif
 
 #if !defined(LOWORD)
-#define LOWORD(d)           ((WORD)(d))
+#define LOWORD(d)           ((u16)(d))
 #endif
 #if !defined(HIWORD)
-#define HIWORD(d)           ((WORD)((((DWORD)(d)) >> 16) & 0xFFFF))
+#define HIWORD(d)           ((u16)((((DWORD)(d)) >> 16) & 0xFFFF))
 #endif
 
 #define LODWORD(q)          ((q).u.dwLowDword)
 #define HIDWORD(q)          ((q).u.dwHighDword)
 
 #if !defined(MAKEWORD)
-#define MAKEWORD(lb, hb)    ((WORD)(((u8)(lb)) | (((WORD)((u8)(hb))) << 8)))
+#define MAKEWORD(lb, hb)    ((u16)(((u8)(lb)) | (((u16)((u8)(hb))) << 8)))
 #endif
 #if !defined(MAKEDWORD)
-#define MAKEDWORD(lw, hw)   ((DWORD)(((WORD)(lw)) | (((DWORD)((WORD)(hw))) << 16)))
+#define MAKEDWORD(lw, hw)   ((DWORD)(((u16)(lw)) | (((DWORD)((u16)(hw))) << 16)))
 #endif
 
 #endif /* __TMACRO_H__ */

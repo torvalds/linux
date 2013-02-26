@@ -86,34 +86,34 @@
 //      2048 bits = 256 bytes = 128 words
 //
 typedef struct tagSSromReg {
-    u8    abyPAR[6];                  // 0x00 (WORD)
+    u8    abyPAR[6];                  // 0x00 (u16)
 
-    WORD    wSUB_VID;                   // 0x03 (WORD)
-    WORD    wSUB_SID;
+    u16    wSUB_VID;                   // 0x03 (u16)
+    u16    wSUB_SID;
 
-    u8    byBCFG0;                    // 0x05 (WORD)
+    u8    byBCFG0;                    // 0x05 (u16)
     u8    byBCFG1;
 
-    u8    byFCR0;                     // 0x06 (WORD)
+    u8    byFCR0;                     // 0x06 (u16)
     u8    byFCR1;
-    u8    byPMC0;                     // 0x07 (WORD)
+    u8    byPMC0;                     // 0x07 (u16)
     u8    byPMC1;
-    u8    byMAXLAT;                   // 0x08 (WORD)
+    u8    byMAXLAT;                   // 0x08 (u16)
     u8    byMINGNT;
-    u8    byCFG0;                     // 0x09 (WORD)
+    u8    byCFG0;                     // 0x09 (u16)
     u8    byCFG1;
-    WORD    wCISPTR;                    // 0x0A (WORD)
-    WORD    wRsv0;                      // 0x0B (WORD)
-    WORD    wRsv1;                      // 0x0C (WORD)
-    u8    byBBPAIR;                   // 0x0D (WORD)
+    u16    wCISPTR;                    // 0x0A (u16)
+    u16    wRsv0;                      // 0x0B (u16)
+    u16    wRsv1;                      // 0x0C (u16)
+    u8    byBBPAIR;                   // 0x0D (u16)
     u8    byRFTYPE;
-    u8    byMinChannel;               // 0x0E (WORD)
+    u8    byMinChannel;               // 0x0E (u16)
     u8    byMaxChannel;
-    u8    bySignature;                // 0x0F (WORD)
+    u8    bySignature;                // 0x0F (u16)
     u8    byCheckSum;
 
-    u8    abyReserved0[96];           // 0x10 (WORD)
-    u8    abyCIS[128];                // 0x80 (WORD)
+    u8    abyReserved0[96];           // 0x10 (u16)
+    u8    abyCIS[128];                // 0x80 (u16)
 } SSromReg, *PSSromReg;
 
 /*---------------------  Export Macros ------------------------------*/

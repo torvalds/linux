@@ -229,8 +229,8 @@ typedef struct tagSISRCounters {
 //
 typedef struct tagSTxPktInfo {
     u8    byBroadMultiUni;
-    WORD    wLength;
-    WORD    wFIFOCtl;
+    u16    wLength;
+    u16    wFIFOCtl;
     u8    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
 

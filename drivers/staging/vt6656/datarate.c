@@ -153,12 +153,12 @@ DATARATEbyGetRateIdx (
  * Return Value: RateIdx
  *
 -*/
-WORD
+u16
 RATEwGetRateIdx(
      u8 byRate
     )
 {
-    WORD    ii;
+    u16    ii;
 
     /* erase BasicRate flag */
     byRate = byRate & 0x7F;
@@ -336,7 +336,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
     for (ii = 0; ii < MAX_RATE; ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
             if (bAutoRate[ii] == true) {
-                wIdxUpRate = (WORD) ii;
+                wIdxUpRate = (u16) ii;
             }
         } else {
             bAutoRate[ii] = false;
@@ -363,7 +363,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
              (bAutoRate[ii]==true) ) {
             dwThroughput = dwThroughputTbl[ii];
-            wIdxDownRate = (WORD) ii;
+            wIdxDownRate = (u16) ii;
         }
     }
     psNodeDBTable->wTxDataRate = wIdxDownRate;

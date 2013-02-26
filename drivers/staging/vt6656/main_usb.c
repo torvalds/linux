@@ -418,7 +418,7 @@ static int device_init_registers(struct vnt_private *pDevice,
         pDevice->bNonERPPresent = false;
         pDevice->bBarkerPreambleMd = false;
         if ( pDevice->bFixRate ) {
-            pDevice->wCurrentRate = (WORD) pDevice->uConnectionRate;
+            pDevice->wCurrentRate = (u16) pDevice->uConnectionRate;
         } else {
             if ( pDevice->byBBType == BB_TYPE_11B )
                 pDevice->wCurrentRate = RATE_11M;

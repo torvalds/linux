@@ -231,7 +231,7 @@ void AESv128(u8 *key, u8 *data, u8 *ciphertext)
  *
  */
 
-bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, WORD wFrameSize)
+bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 {
 	u8            abyNonce[13];
 	u8            MIC_IV[16];
@@ -246,17 +246,17 @@ bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, WORD wFrameSize)
 	PS802_11Header  pMACHeader = (PS802_11Header) pbyFrame;
 	u8 *           pbyIV;
 	u8 *           pbyPayload;
-	WORD            wHLen = 22;
+	u16            wHLen = 22;
 	/* 8 is IV, 8 is MIC, 4 is CRC */
-	WORD            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;
+	u16            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;
 	bool            bA4 = false;
 	u8            byTmp;
-	WORD            wCnt;
+	u16            wCnt;
 	int             ii, jj, kk;
 
 	pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-	if (WLAN_GET_FC_TODS(*(PWORD) pbyFrame) &&
-	    WLAN_GET_FC_FROMDS(*(PWORD) pbyFrame)) {
+	if (WLAN_GET_FC_TODS(*(u16 *) pbyFrame) &&
+	    WLAN_GET_FC_FROMDS(*(u16 *) pbyFrame)) {
 		bA4 = true;
 		pbyIV += 6;             /* 6 is 802.11 address4 */
 		wHLen += 6;

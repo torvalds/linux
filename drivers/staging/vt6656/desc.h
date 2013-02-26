@@ -147,38 +147,38 @@
  * RsvTime buffer header
  */
 typedef struct tagSRrvTime_gRTS {
-    WORD        wRTSTxRrvTime_ba;
-    WORD        wRTSTxRrvTime_aa;
-    WORD        wRTSTxRrvTime_bb;
-    WORD        wReserved;
-    WORD        wTxRrvTime_b;
-    WORD        wTxRrvTime_a;
+    u16        wRTSTxRrvTime_ba;
+    u16        wRTSTxRrvTime_aa;
+    u16        wRTSTxRrvTime_bb;
+    u16        wReserved;
+    u16        wTxRrvTime_b;
+    u16        wTxRrvTime_a;
 } __attribute__ ((__packed__))
 SRrvTime_gRTS, *PSRrvTime_gRTS;
 
 typedef const SRrvTime_gRTS *PCSRrvTime_gRTS;
 
 typedef struct tagSRrvTime_gCTS {
-    WORD        wCTSTxRrvTime_ba;
-    WORD        wReserved;
-    WORD        wTxRrvTime_b;
-    WORD        wTxRrvTime_a;
+    u16        wCTSTxRrvTime_ba;
+    u16        wReserved;
+    u16        wTxRrvTime_b;
+    u16        wTxRrvTime_a;
 } __attribute__ ((__packed__))
 SRrvTime_gCTS, *PSRrvTime_gCTS;
 
 typedef const SRrvTime_gCTS *PCSRrvTime_gCTS;
 
 typedef struct tagSRrvTime_ab {
-    WORD        wRTSTxRrvTime;
-    WORD        wTxRrvTime;
+    u16        wRTSTxRrvTime;
+    u16        wTxRrvTime;
 } __attribute__ ((__packed__))
 SRrvTime_ab, *PSRrvTime_ab;
 
 typedef const SRrvTime_ab *PCSRrvTime_ab;
 
 typedef struct tagSRrvTime_atim {
-    WORD        wCTSTxRrvTime_ba;
-    WORD        wTxRrvTime_a;
+    u16        wCTSTxRrvTime_ba;
+    u16        wTxRrvTime_a;
 } __attribute__ ((__packed__))
 SRrvTime_atim, *PSRrvTime_atim;
 
@@ -188,8 +188,8 @@ typedef const SRrvTime_atim *PCSRrvTime_atim;
  * RTS buffer header
  */
 typedef struct tagSRTSData {
-    WORD    wFrameControl;
-    WORD    wDurationID;
+    u16    wFrameControl;
+    u16    wDurationID;
     u8    abyRA[ETH_ALEN];
     u8    abyTA[ETH_ALEN];
 } __attribute__ ((__packed__))
@@ -200,14 +200,14 @@ typedef const SRTSData *PCSRTSData;
 typedef struct tagSRTS_g {
     u8        bySignalField_b;
     u8        byServiceField_b;
-    WORD        wTransmitLength_b;
+    u16        wTransmitLength_b;
     u8        bySignalField_a;
     u8        byServiceField_a;
-    WORD        wTransmitLength_a;
-    WORD        wDuration_ba;
-    WORD        wDuration_aa;
-    WORD        wDuration_bb;
-    WORD        wReserved;
+    u16        wTransmitLength_a;
+    u16        wDuration_ba;
+    u16        wDuration_aa;
+    u16        wDuration_bb;
+    u16        wReserved;
     SRTSData    Data;
 } __attribute__ ((__packed__))
 SRTS_g, *PSRTS_g;
@@ -216,18 +216,18 @@ typedef const SRTS_g *PCSRTS_g;
 typedef struct tagSRTS_g_FB {
     u8        bySignalField_b;
     u8        byServiceField_b;
-    WORD        wTransmitLength_b;
+    u16        wTransmitLength_b;
     u8        bySignalField_a;
     u8        byServiceField_a;
-    WORD        wTransmitLength_a;
-    WORD        wDuration_ba;
-    WORD        wDuration_aa;
-    WORD        wDuration_bb;
-    WORD        wReserved;
-    WORD        wRTSDuration_ba_f0;
-    WORD        wRTSDuration_aa_f0;
-    WORD        wRTSDuration_ba_f1;
-    WORD        wRTSDuration_aa_f1;
+    u16        wTransmitLength_a;
+    u16        wDuration_ba;
+    u16        wDuration_aa;
+    u16        wDuration_bb;
+    u16        wReserved;
+    u16        wRTSDuration_ba_f0;
+    u16        wRTSDuration_aa_f0;
+    u16        wRTSDuration_ba_f1;
+    u16        wRTSDuration_aa_f1;
     SRTSData    Data;
 } __attribute__ ((__packed__))
 SRTS_g_FB, *PSRTS_g_FB;
@@ -237,9 +237,9 @@ typedef const SRTS_g_FB *PCSRTS_g_FB;
 typedef struct tagSRTS_ab {
     u8        bySignalField;
     u8        byServiceField;
-    WORD        wTransmitLength;
-    WORD        wDuration;
-    WORD        wReserved;
+    u16        wTransmitLength;
+    u16        wDuration;
+    u16        wReserved;
     SRTSData    Data;
 } __attribute__ ((__packed__))
 SRTS_ab, *PSRTS_ab;
@@ -249,11 +249,11 @@ typedef const SRTS_ab *PCSRTS_ab;
 typedef struct tagSRTS_a_FB {
     u8        bySignalField;
     u8        byServiceField;
-    WORD        wTransmitLength;
-    WORD        wDuration;
-    WORD        wReserved;
-    WORD        wRTSDuration_f0;
-    WORD        wRTSDuration_f1;
+    u16        wTransmitLength;
+    u16        wDuration;
+    u16        wReserved;
+    u16        wRTSDuration_f0;
+    u16        wRTSDuration_f1;
     SRTSData    Data;
 } __attribute__ ((__packed__))
 SRTS_a_FB, *PSRTS_a_FB;
@@ -264,19 +264,19 @@ typedef const SRTS_a_FB *PCSRTS_a_FB;
  * CTS buffer header
  */
 typedef struct tagSCTSData {
-    WORD    wFrameControl;
-    WORD    wDurationID;
+    u16    wFrameControl;
+    u16    wDurationID;
     u8    abyRA[ETH_ALEN];
-    WORD    wReserved;
+    u16    wReserved;
 } __attribute__ ((__packed__))
 SCTSData, *PSCTSData;
 
 typedef struct tagSCTS {
     u8        bySignalField_b;
     u8        byServiceField_b;
-    WORD        wTransmitLength_b;
-    WORD        wDuration_ba;
-    WORD        wReserved;
+    u16        wTransmitLength_b;
+    u16        wDuration_ba;
+    u16        wReserved;
     SCTSData    Data;
 } __attribute__ ((__packed__))
 SCTS, *PSCTS;
@@ -286,11 +286,11 @@ typedef const SCTS *PCSCTS;
 typedef struct tagSCTS_FB {
     u8        bySignalField_b;
     u8        byServiceField_b;
-    WORD        wTransmitLength_b;
-    WORD        wDuration_ba;
-    WORD        wReserved;
-    WORD        wCTSDuration_ba_f0;
-    WORD        wCTSDuration_ba_f1;
+    u16        wTransmitLength_b;
+    u16        wDuration_ba;
+    u16        wReserved;
+    u16        wCTSDuration_ba_f0;
+    u16        wCTSDuration_ba_f1;
     SCTSData    Data;
 } __attribute__ ((__packed__))
 SCTS_FB, *PSCTS_FB;
@@ -302,17 +302,17 @@ typedef const SCTS_FB *PCSCTS_FB;
  */
 typedef struct tagSTxBufHead {
 	u32 adwTxKey[4];
-    WORD    wFIFOCtl;
-    WORD    wTimeStamp;
-    WORD    wFragCtl;
-    WORD    wReserved;
+    u16    wFIFOCtl;
+    u16    wTimeStamp;
+    u16    wFragCtl;
+    u16    wReserved;
 } __attribute__ ((__packed__))
 STxBufHead, *PSTxBufHead;
 typedef const STxBufHead *PCSTxBufHead;
 
 typedef struct tagSTxShortBufHead {
-    WORD    wFIFOCtl;
-    WORD    wTimeStamp;
+    u16    wFIFOCtl;
+    u16    wTimeStamp;
 } __attribute__ ((__packed__))
 STxShortBufHead, *PSTxShortBufHead;
 typedef const STxShortBufHead *PCSTxShortBufHead;
@@ -323,14 +323,14 @@ typedef const STxShortBufHead *PCSTxShortBufHead;
 typedef struct tagSTxDataHead_g {
     u8    bySignalField_b;
     u8    byServiceField_b;
-    WORD    wTransmitLength_b;
+    u16    wTransmitLength_b;
     u8    bySignalField_a;
     u8    byServiceField_a;
-    WORD    wTransmitLength_a;
-    WORD    wDuration_b;
-    WORD    wDuration_a;
-    WORD    wTimeStampOff_b;
-    WORD    wTimeStampOff_a;
+    u16    wTransmitLength_a;
+    u16    wDuration_b;
+    u16    wDuration_a;
+    u16    wTimeStampOff_b;
+    u16    wTimeStampOff_a;
 } __attribute__ ((__packed__))
 STxDataHead_g, *PSTxDataHead_g;
 
@@ -339,16 +339,16 @@ typedef const STxDataHead_g *PCSTxDataHead_g;
 typedef struct tagSTxDataHead_g_FB {
     u8    bySignalField_b;
     u8    byServiceField_b;
-    WORD    wTransmitLength_b;
+    u16    wTransmitLength_b;
     u8    bySignalField_a;
     u8    byServiceField_a;
-    WORD    wTransmitLength_a;
-    WORD    wDuration_b;
-    WORD    wDuration_a;
-    WORD    wDuration_a_f0;
-    WORD    wDuration_a_f1;
-    WORD    wTimeStampOff_b;
-    WORD    wTimeStampOff_a;
+    u16    wTransmitLength_a;
+    u16    wDuration_b;
+    u16    wDuration_a;
+    u16    wDuration_a_f0;
+    u16    wDuration_a_f1;
+    u16    wTimeStampOff_b;
+    u16    wTimeStampOff_a;
 } __attribute__ ((__packed__))
 STxDataHead_g_FB, *PSTxDataHead_g_FB;
 typedef const STxDataHead_g_FB *PCSTxDataHead_g_FB;
@@ -356,9 +356,9 @@ typedef const STxDataHead_g_FB *PCSTxDataHead_g_FB;
 typedef struct tagSTxDataHead_ab {
     u8    bySignalField;
     u8    byServiceField;
-    WORD    wTransmitLength;
-    WORD    wDuration;
-    WORD    wTimeStampOff;
+    u16    wTransmitLength;
+    u16    wDuration;
+    u16    wTimeStampOff;
 } __attribute__ ((__packed__))
 STxDataHead_ab, *PSTxDataHead_ab;
 typedef const STxDataHead_ab *PCSTxDataHead_ab;
@@ -366,11 +366,11 @@ typedef const STxDataHead_ab *PCSTxDataHead_ab;
 typedef struct tagSTxDataHead_a_FB {
     u8    bySignalField;
     u8    byServiceField;
-    WORD    wTransmitLength;
-    WORD    wDuration;
-    WORD    wTimeStampOff;
-    WORD    wDuration_f0;
-    WORD    wDuration_f1;
+    u16    wTransmitLength;
+    u16    wDuration;
+    u16    wTimeStampOff;
+    u16    wDuration_f0;
+    u16    wDuration_f1;
 } __attribute__ ((__packed__))
 STxDataHead_a_FB, *PSTxDataHead_a_FB;
 typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
@@ -403,7 +403,7 @@ SSecretKey;
 
 typedef struct tagSKeyEntry {
     u8  abyAddrHi[2];
-    WORD  wKCTL;
+    u16  wKCTL;
     u8  abyAddrLo[4];
 	u32 dwKey0[4];
 	u32 dwKey1[4];

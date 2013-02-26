@@ -77,7 +77,7 @@ typedef struct tagCMD_ITEM {
     bool     bNeedRadioOFF;
     bool     bRadioCmd;
     bool     bForceSCAN;
-    WORD     wDeAuthenReason;
+    u16     wDeAuthenReason;
 } CMD_ITEM, *PCMD_ITEM;
 
 // Command state

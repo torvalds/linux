@@ -184,7 +184,7 @@ static unsigned int rotr1(unsigned int a)
 void TKIPvMixKey(
     u8 *   pbyTKey,
     u8 *   pbyTA,
-    WORD    wTSC15_0,
+    u16    wTSC15_0,
     DWORD   dwTSC47_16,
     u8 *   pbyRC4Key
     )

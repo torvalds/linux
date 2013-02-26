@@ -72,14 +72,14 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 
-const WORD             awHWRetry0[5][5] = {
+const u16             awHWRetry0[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
                                             {RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
                                             {RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
                                            };
-const WORD             awHWRetry1[5][5] = {
+const u16             awHWRetry1[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
@@ -1205,7 +1205,7 @@ void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice,
 
     byPktNum = (byPktNO & 0x0F) >> 4;
     byTxRetry = (byTSR & 0xF0) >> 4;
-    wRate = (WORD) (byPktNO & 0xF0) >> 4;
+    wRate = (u16) (byPktNO & 0xF0) >> 4;
     wFIFOCtl = pStatistic->abyTxPktInfo[byPktNum].wFIFOCtl;
     pbyDestAddr = (u8 *) &( pStatistic->abyTxPktInfo[byPktNum].abyDestAddr[0]);
 

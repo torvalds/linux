@@ -88,7 +88,7 @@ void MACvSetMultiAddrByHash(struct vnt_private *pDevice, u8 byHashIdx)
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE_MASK,
-                        (WORD) (MAC_REG_MAR0 + uByteIdx),
+                        (u16) (MAC_REG_MAR0 + uByteIdx),
                         MESSAGE_REQUEST_MACREG,
                         2,
                         pbyData);
@@ -117,7 +117,7 @@ void MACvWriteMultiAddr(struct vnt_private *pDevice, u32 uByteIdx, u8 byData)
     byData1 = byData;
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE,
-                        (WORD) (MAC_REG_MAR0 + uByteIdx),
+                        (u16) (MAC_REG_MAR0 + uByteIdx),
                         MESSAGE_REQUEST_MACREG,
                         1,
                         &byData1);
@@ -310,7 +310,7 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_SETKEY,
                         wOffset,
-                        (WORD)uKeyIdx,
+                        (u16)uKeyIdx,
                         24,
                         pbyData
                         );

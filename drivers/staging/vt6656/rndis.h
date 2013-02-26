@@ -103,7 +103,7 @@ typedef struct _RSP_CARD_INIT
 
 typedef struct _CMD_SET_KEY
 {
-    WORD        wKCTL;
+    u16        wKCTL;
     u8        abyMacAddr[6];
     u8        abyKey[16];
 } CMD_SET_KEY, *PCMD_SET_KEY;
@@ -147,12 +147,12 @@ typedef struct _CMD_CHANGE_BBTYPE
     DWORD       dwRSPINF_b_2;
     DWORD       dwRSPINF_b_55;
     DWORD       dwRSPINF_b_11;
-    WORD        wRSPINF_a[9];
+    u16        wRSPINF_a[9];
 } CMD_CHANGE_BBTYPE, *PCMD_CHANGE_BBTYPE;
 
 /*---------------------  Export Macros -------------------------*/
 
-#define EXCH_WORD(w) ((WORD)((WORD)(w)<<8) | (WORD)((WORD)(w)>>8))
+#define EXCH_WORD(w) ((u16)((u16)(w)<<8) | (u16)((u16)(w)>>8))
 
 /*---------------------  Export Variables  --------------------------*/
 

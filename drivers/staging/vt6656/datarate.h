@@ -84,7 +84,7 @@ RATEuSetIE(
      unsigned int                uRateLen
     );
 
-WORD
+u16
 RATEwGetRateIdx(
      u8 byRate
     );

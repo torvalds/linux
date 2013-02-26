@@ -155,11 +155,11 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
         cbHeaderSize += 6;
     } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
-        pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+        pwType = (u16 *) (pbyRxBufferAddr + cbHeaderSize);
 	if ((*pwType == cpu_to_be16(ETH_P_IPX)) ||
 	    (*pwType == cpu_to_le16(0xF380))) {
 		cbHeaderSize -= 8;
-            pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+            pwType = (u16 *) (pbyRxBufferAddr + cbHeaderSize);
             if (bIsWEP) {
                 if (bExtIV) {
                     *pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
@@ -174,7 +174,7 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
     }
     else {
         cbHeaderSize -= 2;
-        pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+        pwType = (u16 *) (pbyRxBufferAddr + cbHeaderSize);
         if (bIsWEP) {
             if (bExtIV) {
                 *pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
@@ -328,7 +328,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     //real Frame Size = USBFrameSize -4WbkStatus - 4RxStatus - 8TSF - 4RSR - 4SQ3 - ?Padding
     //if SQ3 the range is 24~27, if no SQ3 the range is 20~23
     //real Frame size in PLCPLength field.
-    pwPLCP_Length = (PWORD) (pbyDAddress + 6);
+    pwPLCP_Length = (u16 *) (pbyDAddress + 6);
     //Fix hardware bug => PLCP_Length error
     if ( ((BytesToIndicate - (*pwPLCP_Length)) > 27) ||
          ((BytesToIndicate - (*pwPLCP_Length)) < 24) ||
@@ -625,7 +625,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
    	    u8  Protocol_Version;    //802.1x Authentication
 	    u8  Packet_Type;           //802.1x Authentication
 	    u8  Descriptor_type;
-             WORD Key_info;
+             u16 Key_info;
               if (bIsWEP)
                   cbIVOffset = 8;
               else
@@ -837,12 +837,12 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     if ((pKey != NULL) && ((pKey->byCipherSuite == KEY_CTL_TKIP) ||
                            (pKey->byCipherSuite == KEY_CTL_CCMP))) {
         if (bIsWEP) {
-            WORD        wLocalTSC15_0 = 0;
+            u16        wLocalTSC15_0 = 0;
             DWORD       dwLocalTSC47_16 = 0;
 	    unsigned long long       RSC = 0;
             // endian issues
 	    RSC = *((unsigned long long *) &(pKey->KeyRSC));
-            wLocalTSC15_0 = (WORD) RSC;
+            wLocalTSC15_0 = (u16) RSC;
             dwLocalTSC47_16 = (DWORD) (RSC>>16);
 
             RSC = dwRxTSC47_16;
@@ -1047,8 +1047,8 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     *pdwRxTSC47_16 = 0;
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-    if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
-         WLAN_GET_FC_FROMDS(*(PWORD)pbyFrame) ) {
+    if ( WLAN_GET_FC_TODS(*(u16 *)pbyFrame) &&
+         WLAN_GET_FC_FROMDS(*(u16 *)pbyFrame) ) {
          pbyIV += 6;             // 6 is 802.11 address4
          PayloadLen -= 6;
     }
@@ -1141,7 +1141,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
         } else {
-            *pwRxTSC15_0 = cpu_to_le16(*(PWORD)pbyIV);
+            *pwRxTSC15_0 = cpu_to_le16(*(u16 *)pbyIV);
         }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TSC0_15: %x\n", *pwRxTSC15_0);
 
@@ -1183,8 +1183,8 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
 	*pdwRxTSC47_16 = 0;
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-    if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
-         WLAN_GET_FC_FROMDS(*(PWORD)pbyFrame) ) {
+    if ( WLAN_GET_FC_TODS(*(u16 *)pbyFrame) &&
+         WLAN_GET_FC_FROMDS(*(u16 *)pbyFrame) ) {
          pbyIV += 6;             // 6 is 802.11 address4
          PayloadLen -= 6;
     }
@@ -1241,7 +1241,7 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
         } else {
-            *pwRxTSC15_0 = cpu_to_le16(*(PWORD)pbyIV);
+            *pwRxTSC15_0 = cpu_to_le16(*(u16 *)pbyIV);
         }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TSC0_15: %x\n", *pwRxTSC15_0);
 

@@ -1147,7 +1147,7 @@ int bScheduleCommand(struct vnt_private *pDevice,
                 break;
 /*
             case WLAN_CMD_DEAUTH:
-                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].wDeAuthenReason = *((PWORD)pbyItem0);
+                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].wDeAuthenReason = *((u16 *)pbyItem0);
                 break;
 */
 

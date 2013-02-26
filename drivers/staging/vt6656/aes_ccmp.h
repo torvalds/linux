@@ -41,6 +41,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, WORD wFrameSize);
+bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize);
 
 #endif /* __AES_CCMP_H__ */
