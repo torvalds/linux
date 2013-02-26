@@ -2628,7 +2628,6 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed = USB_SPEED_FULL;
 	udc->gadget.name = driver_name;
-	udc->gadget.dev.release = omap_udc_release;
 	udc->transceiver = xceiv;
 
 	/* ep0 is special; put it right after the SETUP buffer */
@@ -2902,7 +2901,8 @@ bad_on_1710:
 	}
 
 	create_proc_file();
-	status = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	status = usb_add_gadget_udc_release(&pdev->dev, &udc->gadget,
+			omap_udc_release);
 	if (status)
 		goto cleanup4;
 
