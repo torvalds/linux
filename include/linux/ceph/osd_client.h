@@ -82,6 +82,7 @@ struct ceph_osd_request {
 
 	char              r_oid[MAX_OBJ_NAME_SIZE];          /* object name */
 	int               r_oid_len;
+	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
 	struct ceph_file_layout r_file_layout;

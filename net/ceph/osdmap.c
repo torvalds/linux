@@ -1095,32 +1095,24 @@ EXPORT_SYMBOL(ceph_calc_file_object_mapping);
  * calculate an object layout (i.e. pgid) from an oid,
  * file_layout, and osdmap
  */
-int ceph_calc_object_layout(struct ceph_object_layout *ol,
+int ceph_calc_object_layout(struct ceph_pg *pg,
 			    const char *oid,
 			    struct ceph_file_layout *fl,
 			    struct ceph_osdmap *osdmap)
 {
 	unsigned int num, num_mask;
-	struct ceph_pg pgid;
 	struct ceph_pg_pool_info *pool;
 
 	BUG_ON(!osdmap);
-
-	pgid.pool = le32_to_cpu(fl->fl_pg_pool);
-	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
+	pg->pool = le32_to_cpu(fl->fl_pg_pool);
+	pool = __lookup_pg_pool(&osdmap->pg_pools, pg->pool);
 	if (!pool)
 		return -EIO;
-	pgid.seed = ceph_str_hash(pool->object_hash, oid, strlen(oid));
+	pg->seed = ceph_str_hash(pool->object_hash, oid, strlen(oid));
 	num = pool->pg_num;
 	num_mask = pool->pg_num_mask;
 
-	dout("calc_object_layout '%s' pgid %lld.%x\n", oid, pgid.pool,
-	     pgid.seed);
-
-	ol->ol_pgid.ps = cpu_to_le16(pgid.seed);
-	ol->ol_pgid.pool = fl->fl_pg_pool;
-	ol->ol_pgid.preferred = cpu_to_le16(-1);
-	ol->ol_stripe_unit = fl->fl_object_stripe_unit;
+	dout("calc_object_layout '%s' pgid %lld.%x\n", oid, pg->pool, pg->seed);
 	return 0;
 }
 EXPORT_SYMBOL(ceph_calc_object_layout);

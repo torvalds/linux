@@ -913,21 +913,18 @@ EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 static int __map_request(struct ceph_osd_client *osdc,
 			 struct ceph_osd_request *req, int force_resend)
 {
-	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
 	struct ceph_pg pgid;
 	int acting[CEPH_PG_MAX_SIZE];
 	int o = -1, num = 0;
 	int err;
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
-	err = ceph_calc_object_layout(&reqhead->layout, req->r_oid,
+	err = ceph_calc_object_layout(&pgid, req->r_oid,
 				      &req->r_file_layout, osdc->osdmap);
 	if (err) {
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;
 	}
-	pgid.pool = le32_to_cpu(reqhead->layout.ol_pgid.pool);
-	pgid.seed = le16_to_cpu(reqhead->layout.ol_pgid.ps);
 	req->r_pgid = pgid;
 
 	err = ceph_calc_pg_acting(osdc->osdmap, pgid, acting);
@@ -1000,9 +997,15 @@ static void __send_request(struct ceph_osd_client *osdc,
 	     req, req->r_tid, req->r_osd->o_osd, req->r_flags);
 
 	reqhead = req->r_request->front.iov_base;
+	reqhead->snapid = cpu_to_le64(req->r_snapid);
 	reqhead->osdmap_epoch = cpu_to_le32(osdc->osdmap->epoch);
 	reqhead->flags |= cpu_to_le32(req->r_flags);  /* e.g., RETRY */
 	reqhead->reassert_version = req->r_reassert_version;
+
+	reqhead->layout.ol_pgid.ps = cpu_to_le16(req->r_pgid.seed);
+	reqhead->layout.ol_pgid.pool = cpu_to_le32(req->r_pgid.pool);
+	reqhead->layout.ol_pgid.preferred = cpu_to_le16(-1);
+	reqhead->layout.ol_stripe_unit = 0;
 
 	req->r_stamp = jiffies;
 	list_move_tail(&req->r_req_lru_item, &osdc->req_lru);
