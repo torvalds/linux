@@ -4407,7 +4407,7 @@ static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 	 * rights to do so.
 	 */
 	if (preserve) {
-		if ((current_fsuid() != inode->i_uid) && !capable(CAP_CHOWN))
+		if (!uid_eq(current_fsuid(), inode->i_uid) && !capable(CAP_CHOWN))
 			return -EPERM;
 		if (!in_group_p(inode->i_gid) && !capable(CAP_CHOWN))
 			return -EPERM;

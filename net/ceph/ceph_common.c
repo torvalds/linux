@@ -15,6 +15,8 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
+#include <linux/nsproxy.h>
+#include <net/net_namespace.h>
 
 
 #include <linux/ceph/ceph_features.h>
@@ -291,6 +293,9 @@ ceph_parse_options(char *options, const char *dev_name,
 	const char *c;
 	int err = -ENOMEM;
 	substring_t argstr[MAX_OPT_ARGS];
+
+	if (current->nsproxy->net_ns != &init_net)
+		return ERR_PTR(-EINVAL);
 
 	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
 	if (!opt)

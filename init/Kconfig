@@ -1032,6 +1032,13 @@ config USER_NS
 	help
 	  This allows containers, i.e. vservers, to use user namespaces
 	  to provide different user info for different servers.
+
+	  When user namespaces are enabled in the kernel it is
+	  recommended that the MEMCG and MEMCG_KMEM options also be
+	  enabled and that user-space use the memory control groups to
+	  limit the amount of memory a memory unprivileged users can
+	  use.
+
 	  If unsure, say N.
 
 config PID_NS
@@ -1060,20 +1067,7 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# Networking
-	depends on NET_9P = n
-
 	# Filesystems
-	depends on 9P_FS = n
-	depends on AFS_FS = n
-	depends on CEPH_FS = n
-	depends on CIFS = n
-	depends on CODA_FS = n
-	depends on GFS2_FS = n
-	depends on NCP_FS = n
-	depends on NFSD = n
-	depends on NFS_FS = n
-	depends on OCFS2_FS = n
 	depends on XFS_FS = n
 
 config UIDGID_STRICT_TYPE_CHECKS

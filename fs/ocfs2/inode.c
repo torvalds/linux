@@ -269,8 +269,8 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	inode->i_generation = le32_to_cpu(fe->i_generation);
 	inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 	inode->i_mode = le16_to_cpu(fe->i_mode);
-	inode->i_uid = le32_to_cpu(fe->i_uid);
-	inode->i_gid = le32_to_cpu(fe->i_gid);
+	i_uid_write(inode, le32_to_cpu(fe->i_uid));
+	i_gid_write(inode, le32_to_cpu(fe->i_gid));
 
 	/* Fast symlinks will have i_size but no allocated clusters. */
 	if (S_ISLNK(inode->i_mode) && !fe->i_clusters) {
@@ -1259,8 +1259,8 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 
 	fe->i_size = cpu_to_le64(i_size_read(inode));
 	ocfs2_set_links_count(fe, inode->i_nlink);
-	fe->i_uid = cpu_to_le32(inode->i_uid);
-	fe->i_gid = cpu_to_le32(inode->i_gid);
+	fe->i_uid = cpu_to_le32(i_uid_read(inode));
+	fe->i_gid = cpu_to_le32(i_gid_read(inode));
 	fe->i_mode = cpu_to_le16(inode->i_mode);
 	fe->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
 	fe->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
@@ -1290,8 +1290,8 @@ void ocfs2_refresh_inode(struct inode *inode,
 	ocfs2_set_inode_flags(inode);
 	i_size_write(inode, le64_to_cpu(fe->i_size));
 	set_nlink(inode, ocfs2_read_links_count(fe));
-	inode->i_uid = le32_to_cpu(fe->i_uid);
-	inode->i_gid = le32_to_cpu(fe->i_gid);
+	i_uid_write(inode, le32_to_cpu(fe->i_uid));
+	i_gid_write(inode, le32_to_cpu(fe->i_gid));
 	inode->i_mode = le16_to_cpu(fe->i_mode);
 	if (S_ISLNK(inode->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
 		inode->i_blocks = 0;

@@ -48,8 +48,8 @@ struct nfs_fattr {
 	unsigned int		valid;		/* which fields are valid */
 	umode_t			mode;
 	__u32			nlink;
-	__u32			uid;
-	__u32			gid;
+	kuid_t			uid;
+	kgid_t			gid;
 	dev_t			rdev;
 	__u64			size;
 	union {
