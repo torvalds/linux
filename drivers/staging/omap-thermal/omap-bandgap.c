@@ -179,7 +179,7 @@ int adc_to_temp_conversion(struct omap_bandgap *bg_ptr, int id, int adc_val,
 	if (adc_val < ts_data->adc_start_val || adc_val > ts_data->adc_end_val)
 		return -ERANGE;
 
-	*t = bg_ptr->conv_table[adc_val - ts_data->adc_start_val];
+	*t = bg_ptr->conf->conv_table[adc_val - ts_data->adc_start_val];
 
 	return 0;
 }
@@ -188,17 +188,18 @@ static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
 				  int *adc)
 {
 	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[i].ts_data;
+	const int *conv_table = bg_ptr->conf->conv_table;
 	int high, low, mid;
 
 	low = 0;
 	high = ts_data->adc_end_val - ts_data->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < bg_ptr->conv_table[low] || temp > bg_ptr->conv_table[high])
+	if (temp < conv_table[low] || temp > conv_table[high])
 		return -EINVAL;
 
 	while (low < high) {
-		if (temp < bg_ptr->conv_table[mid])
+		if (temp < conv_table[mid])
 			high = mid - 1;
 		else
 			low = mid + 1;
@@ -911,7 +912,6 @@ int omap_bandgap_probe(struct platform_device *pdev)
 		goto free_irqs;
 	}
 
-	bg_ptr->conv_table = bg_ptr->conf->conv_table;
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		struct temp_sensor_registers *tsr;
 		u32 val;

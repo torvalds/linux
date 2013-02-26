@@ -369,7 +369,6 @@ struct omap_bandgap {
 	struct omap_bandgap_data	*conf;
 	struct clk			*fclock;
 	struct clk			*div_clk;
-	const int			*conv_table;
 	struct mutex			bg_mutex; /* Mutex for irq and PM */
 	int				irq;
 	int				tshut_gpio;
