@@ -1279,19 +1279,6 @@ void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 		gfs2_glock_dq(&ghs[num_gh]);
 }
 
-/**
- * gfs2_glock_dq_uninit_m - release multiple glocks
- * @num_gh: the number of structures
- * @ghs: an array of struct gfs2_holder structures
- *
- */
-
-void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
-{
-	while (num_gh--)
-		gfs2_glock_dq_uninit(&ghs[num_gh]);
-}
-
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
 	unsigned long delay = 0;
