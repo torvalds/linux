@@ -58,7 +58,8 @@
 #define RK_FBIOGET_ENABLE		0x5020
 #define RK_FBIOSET_CONFIG_DONE		0x4628
 #define RK_FBIOSET_VSYNC_ENABLE		0x4629
-#define RK_FBIOPUT_NUM_BUFFERS 	0x4625
+#define RK_FBIOPUT_NUM_BUFFERS 		0x4625
+#define RK_FBIOPUT_COLOR_KEY_CFG	0x4626
 
 
 /********************************************************************
@@ -180,6 +181,12 @@ struct rk_fb_vsync {
 	struct task_struct	*thread;
 };
 
+struct color_key_cfg {
+	u32 win0_color_key_cfg;
+	u32 win1_color_key_cfg;
+	u32 win2_color_key_cfg;
+};
+
 typedef enum _TRSP_MODE
 {
     TRSP_CLOSE = 0,
@@ -223,6 +230,7 @@ struct layer_par {
 	u8 fmt_cfg;
 	u8 swap_rb;
 };
+
 
 struct rk_lcdc_device_driver{
 	char name[6];
