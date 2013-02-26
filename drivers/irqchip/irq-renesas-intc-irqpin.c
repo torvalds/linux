@@ -199,6 +199,11 @@ static void intc_irqpin_irq_enable_force(struct irq_data *d)
 	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
 	intc_irqpin_irq_enable(d);
+
+	/* enable interrupt through parent interrupt controller,
+	 * assumes non-shared interrupt with 1:1 mapping
+	 * needed for busted IRQs on some SoCs like sh73a0
+	 */
 	irq_get_chip(irq)->irq_unmask(irq_get_irq_data(irq));
 }
 
@@ -207,6 +212,10 @@ static void intc_irqpin_irq_disable_force(struct irq_data *d)
 	struct intc_irqpin_priv *p = irq_data_get_irq_chip_data(d);
 	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
+	/* disable interrupt through parent interrupt controller,
+	 * assumes non-shared interrupt with 1:1 mapping
+	 * needed for busted IRQs on some SoCs like sh73a0
+	 */
 	irq_get_chip(irq)->irq_mask(irq_get_irq_data(irq));
 	intc_irqpin_irq_disable(d);
 }
