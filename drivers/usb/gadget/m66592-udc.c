@@ -1606,7 +1606,6 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	m66592->gadget.ops = &m66592_gadget_ops;
 	m66592->gadget.max_speed = USB_SPEED_HIGH;
-	m66592->gadget.dev.release = pdev->dev.release;
 	m66592->gadget.name = udc_name;
 
 	init_timer(&m66592->timer);
