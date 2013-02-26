@@ -400,5 +400,9 @@ extern int dvb_usbv2_reset_resume(struct usb_interface *);
 /* the generic read/write method for device control */
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
+/* caller must hold lock when locked versions are called */
+extern int dvb_usbv2_generic_rw_locked(struct dvb_usb_device *,
+		u8 *, u16, u8 *, u16);
+extern int dvb_usbv2_generic_write_locked(struct dvb_usb_device *, u8 *, u16);
 
 #endif
