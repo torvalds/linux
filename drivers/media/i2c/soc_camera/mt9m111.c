@@ -701,11 +701,11 @@ static int mt9m111_set_global_gain(struct mt9m111 *mt9m111, int gain)
 	return reg_write(GLOBAL_GAIN, val);
 }
 
-static int mt9m111_set_autoexposure(struct mt9m111 *mt9m111, int on)
+static int mt9m111_set_autoexposure(struct mt9m111 *mt9m111, int val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
 
-	if (on)
+	if (val == V4L2_EXPOSURE_AUTO)
 		return reg_set(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOEXPO_EN);
 	return reg_clear(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOEXPO_EN);
 }
