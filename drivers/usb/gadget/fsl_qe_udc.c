@@ -2521,7 +2521,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 
 	/* name: Identifies the controller hardware type. */
 	udc->gadget.name = driver_name;
-	udc->gadget.dev.release = qe_udc_release;
 	udc->gadget.dev.parent = &ofdev->dev;
 
 	/* initialize qe_ep struct */
@@ -2585,7 +2584,8 @@ static int qe_udc_probe(struct platform_device *ofdev)
 		goto err5;
 	}
 
-	ret = usb_add_gadget_udc(&ofdev->dev, &udc->gadget);
+	ret = usb_add_gadget_udc_release(&ofdev->dev, &udc->gadget,
+			qe_udc_release);
 	if (ret)
 		goto err6;
 
