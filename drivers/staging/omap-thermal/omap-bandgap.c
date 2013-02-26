@@ -133,6 +133,9 @@ static irqreturn_t talert_irq_handler(int irq, void *data)
 /* This is the Tshut handler. Call it only if HAS(TSHUT) is set */
 static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
 {
+	pr_emerg("%s: TSHUT temperature reached. Needs shut down...\n",
+		 __func__);
+
 	orderly_poweroff(true);
 
 	return IRQ_HANDLED;
