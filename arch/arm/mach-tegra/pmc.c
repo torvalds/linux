@@ -36,6 +36,8 @@ static inline void tegra_pmc_writel(u32 val, u32 reg)
 
 #ifdef CONFIG_OF
 static const struct of_device_id matches[] __initconst = {
+	{ .compatible = "nvidia,tegra114-pmc" },
+	{ .compatible = "nvidia,tegra30-pmc" },
 	{ .compatible = "nvidia,tegra20-pmc" },
 	{ }
 };
