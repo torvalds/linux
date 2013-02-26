@@ -3431,7 +3431,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 	int ret = 0, committed = 0, alloc_chunk = 1;
 
 	/* make sure bytes are sectorsize aligned */
-	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
+	bytes = ALIGN(bytes, root->sectorsize);
 
 	if (root == root->fs_info->tree_root ||
 	    BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID) {
@@ -3526,7 +3526,7 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes)
 	struct btrfs_space_info *data_sinfo;
 
 	/* make sure bytes are sectorsize aligned */
-	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
+	bytes = ALIGN(bytes, root->sectorsize);
 
 	data_sinfo = root->fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
@@ -5607,10 +5607,7 @@ static u64 stripe_align(struct btrfs_root *root,
 			struct btrfs_block_group_cache *cache,
 			u64 val, u64 num_bytes)
 {
-	u64 mask;
-	u64 ret;
-	mask = ((u64)root->stripesize - 1);
-	ret = (val + mask) & ~mask;
+	u64 ret = ALIGN(val, root->stripesize);
 	return ret;
 }
 
