@@ -1756,11 +1756,6 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static void mv_u3d_gadget_release(struct device *dev)
-{
-	dev_dbg(dev, "%s\n", __func__);
-}
-
 static int mv_u3d_remove(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = platform_get_drvdata(dev);
@@ -1953,7 +1948,6 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	u3d->gadget.dev.release = mv_u3d_gadget_release;
 	u3d->gadget.name = driver_name;		/* gadget name */
 
 	mv_u3d_eps_init(u3d);
