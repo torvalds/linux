@@ -2779,6 +2779,7 @@ destroy_wq:
 error:
 	usb_free_urb(dev->in_urb);
 	usb_free_urb(dev->out_urb);
+	usb_put_dev(dev->udev);
 	kfree(dev);
 	return rc;
 }
