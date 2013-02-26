@@ -471,7 +471,7 @@ static struct pwm_chip *of_node_to_pwmchip(struct device_node *np)
 }
 
 /**
- * of_pwm_request() - request a PWM via the PWM framework
+ * of_pwm_get() - request a PWM via the PWM framework
  * @np: device node to get the PWM from
  * @con_id: consumer name
  *
@@ -486,8 +486,7 @@ static struct pwm_chip *of_node_to_pwmchip(struct device_node *np)
  * becomes mandatory for devices that look up the PWM device via the con_id
  * parameter.
  */
-static struct pwm_device *of_pwm_request(struct device_node *np,
-					 const char *con_id)
+struct pwm_device *of_pwm_get(struct device_node *np, const char *con_id)
 {
 	struct pwm_device *pwm = NULL;
 	struct of_phandle_args args;
@@ -545,6 +544,7 @@ put:
 
 	return pwm;
 }
+EXPORT_SYMBOL_GPL(of_pwm_get);
 
 /**
  * pwm_add_table() - register PWM device consumers
@@ -587,7 +587,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 
 	/* look up via DT first */
 	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
-		return of_pwm_request(dev->of_node, con_id);
+		return of_pwm_get(dev->of_node, con_id);
 
 	/*
 	 * We look up the provider in the static table typically provided by
@@ -707,6 +707,36 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(devm_pwm_get);
+
+/**
+ * devm_of_pwm_get() - resource managed of_pwm_get()
+ * @dev: device for PWM consumer
+ * @np: device node to get the PWM from
+ * @con_id: consumer name
+ *
+ * This function performs like of_pwm_get() but the acquired PWM device will
+ * automatically be released on driver detach.
+ */
+struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
+				   const char *con_id)
+{
+	struct pwm_device **ptr, *pwm;
+
+	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	pwm = of_pwm_get(np, con_id);
+	if (!IS_ERR(pwm)) {
+		*ptr = pwm;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return pwm;
+}
+EXPORT_SYMBOL_GPL(devm_of_pwm_get);
 
 static int devm_pwm_match(struct device *dev, void *res, void *data)
 {
