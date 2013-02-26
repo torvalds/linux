@@ -52,6 +52,8 @@ struct usb_req {
 };
 
 struct state {
+#define BUF_LEN 64
+	u8 buf[BUF_LEN];
 	u8 seq; /* packet sequence number */
 	bool dual_mode;
 	struct af9033_config af9033_config[2];
