@@ -923,7 +923,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 	dd->flags &= ~(BIT(FLAGS_BUSY) | BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
-	pm_runtime_put_sync(dd->dev);
+	pm_runtime_put(dd->dev);
 
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
