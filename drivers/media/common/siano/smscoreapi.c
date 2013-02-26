@@ -719,8 +719,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		dma_free_coherent(NULL, coredev->common_buffer_size,
 			coredev->common_buffer, coredev->common_buffer_phys);
 
-	if (coredev->fw_buf != NULL)
-		kfree(coredev->fw_buf);
+	kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);
 	kfree(coredev);
