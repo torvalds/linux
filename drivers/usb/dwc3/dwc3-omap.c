@@ -309,7 +309,6 @@ static int dwc3_omap_remove_core(struct device *dev, void *c)
 
 static int dwc3_omap_probe(struct platform_device *pdev)
 {
-	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
 	struct device_node	*node = pdev->dev.of_node;
 
 	struct dwc3_omap	*omap;
@@ -325,6 +324,11 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	void __iomem		*base;
 	void			*context;
+
+	if (!node) {
+		dev_err(dev, "device node not found\n");
+		return -EINVAL;
+	}
 
 	omap = devm_kzalloc(dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
@@ -387,12 +391,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	reg = dwc3_omap_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
 
-	if (node)
-		of_property_read_u32(node, "utmi-mode", &utmi_mode);
-	else if (pdata)
-		utmi_mode = pdata->utmi_mode;
-	else
-		dev_dbg(dev, "missing platform data\n");
+	of_property_read_u32(node, "utmi-mode", &utmi_mode);
 
 	switch (utmi_mode) {
 	case DWC3_OMAP_UTMI_MODE_SW:
@@ -435,13 +434,10 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_1, reg);
 
-	if (node) {
-		ret = of_platform_populate(node, NULL, NULL, dev);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"failed to add create dwc3 core\n");
-			return ret;
-		}
+	ret = of_platform_populate(node, NULL, NULL, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to create dwc3 core\n");
+		return ret;
 	}
 
 	return 0;
