@@ -135,6 +135,8 @@ enum cal_channels {
 struct adc_cal_data {
 	s64 gain;
 	s64 offset;
+	u16 otp_calib_hi;
+	u16 otp_calib_lo;
 };
 
 /**
@@ -829,6 +831,12 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 			vmain_high = (((gpadc_cal[1] & 0xFF) << 2) |
 				((gpadc_cal[2] & 0xC0) >> 6));
 			vmain_low = ((gpadc_cal[2] & 0x3E) >> 1);
+
+			gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_hi =
+				(u16)vmain_high;
+			gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_lo =
+				(u16)vmain_low;
+
 			gpadc->cal_data[ADC_INPUT_VMAIN].gain = CALIB_SCALE *
 				(19500 - 315) / (vmain_high - vmain_low);
 			gpadc->cal_data[ADC_INPUT_VMAIN].offset = CALIB_SCALE *
@@ -855,6 +863,11 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 				((gpadc_otp4[1] & 0xFE) >> 1));
 			ibat_low = (((gpadc_otp4[1] & 0x01) << 5) |
 				((gpadc_otp4[2] & 0xF8) >> 3));
+
+			gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_hi =
+				(u16)ibat_high;
+			gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_lo =
+				(u16)ibat_low;
 
 			V_gain = ((IBAT_VDROP_H - IBAT_VDROP_L)
 				<< CALIB_SHIFT_IBAT) / (ibat_high - ibat_low);
@@ -892,6 +905,11 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 				((gpadc_cal[2] & 0xC0) >> 6));
 			vmain_low = ((gpadc_cal[2] & 0x3E) >> 1);
 
+			gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_hi =
+				(u16)vmain_high;
+			gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_lo =
+				(u16)vmain_low;
+
 			gpadc->cal_data[ADC_INPUT_VMAIN].gain = CALIB_SCALE *
 				(19500 - 315) / (vmain_high - vmain_low);
 
@@ -902,11 +920,15 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 			gpadc->cal_data[ADC_INPUT_VMAIN].gain = 0;
 		}
 	}
+
 	/* Calculate gain and offset for BTEMP if all reads succeeded */
 	if (!(ret[2] < 0 || ret[3] < 0 || ret[4] < 0)) {
 		btemp_high = (((gpadc_cal[2] & 0x01) << 9) |
 			(gpadc_cal[3] << 1) | ((gpadc_cal[4] & 0x80) >> 7));
 		btemp_low = ((gpadc_cal[4] & 0x7C) >> 2);
+
+		gpadc->cal_data[ADC_INPUT_BTEMP].otp_calib_hi = (u16)btemp_high;
+		gpadc->cal_data[ADC_INPUT_BTEMP].otp_calib_lo = (u16)btemp_low;
 
 		gpadc->cal_data[ADC_INPUT_BTEMP].gain =
 			CALIB_SCALE * (1300 - 21) / (btemp_high - btemp_low);
@@ -921,6 +943,9 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 	if (!(ret[4] < 0 || ret[5] < 0 || ret[6] < 0)) {
 		vbat_high = (((gpadc_cal[4] & 0x03) << 8) | gpadc_cal[5]);
 		vbat_low = ((gpadc_cal[6] & 0xFC) >> 2);
+
+		gpadc->cal_data[ADC_INPUT_VBAT].otp_calib_hi = (u16)vbat_high;
+		gpadc->cal_data[ADC_INPUT_VBAT].otp_calib_lo = (u16)vbat_low;
 
 		gpadc->cal_data[ADC_INPUT_VBAT].gain = CALIB_SCALE *
 			(4700 - 2380) /	(vbat_high - vbat_low);
@@ -1129,6 +1154,25 @@ static int __init ab8500_gpadc_init(void)
 static void __exit ab8500_gpadc_exit(void)
 {
 	platform_driver_unregister(&ab8500_gpadc_driver);
+}
+
+/**
+ * ab8540_gpadc_get_otp() - returns OTP values
+ *
+ */
+void ab8540_gpadc_get_otp(struct ab8500_gpadc *gpadc,
+			u16 *vmain_l, u16 *vmain_h, u16 *btemp_l, u16 *btemp_h,
+			u16 *vbat_l, u16 *vbat_h, u16 *ibat_l, u16 *ibat_h)
+{
+	*vmain_l = gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_lo;
+	*vmain_h = gpadc->cal_data[ADC_INPUT_VMAIN].otp_calib_hi;
+	*btemp_l = gpadc->cal_data[ADC_INPUT_BTEMP].otp_calib_lo;
+	*btemp_h = gpadc->cal_data[ADC_INPUT_BTEMP].otp_calib_hi;
+	*vbat_l = gpadc->cal_data[ADC_INPUT_VBAT].otp_calib_lo;
+	*vbat_h = gpadc->cal_data[ADC_INPUT_VBAT].otp_calib_hi;
+	*ibat_l = gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_lo;
+	*ibat_h = gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_hi;
+	return ;
 }
 
 subsys_initcall_sync(ab8500_gpadc_init);

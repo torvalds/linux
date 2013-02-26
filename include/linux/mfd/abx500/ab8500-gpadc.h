@@ -68,5 +68,8 @@ int ab8500_gpadc_double_read_raw(struct ab8500_gpadc *gpadc, u8 channel,
 		int *ibat);
 int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 		u8 channel, int ad_value);
+void ab8540_gpadc_get_otp(struct ab8500_gpadc *gpadc,
+			u16 *vmain_l, u16 *vmain_h, u16 *btemp_l, u16 *btemp_h,
+			u16 *vbat_l, u16 *vbat_h, u16 *ibat_l, u16 *ibat_h);
 
 #endif /* _AB8500_GPADC_H */

@@ -1633,6 +1633,254 @@ static const struct file_operations ab8500_gpadc_die_temp_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int ab8540_gpadc_xtal_temp_print(struct seq_file *s, void *p)
+{
+	int xtal_temp_raw;
+	int xtal_temp_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	xtal_temp_raw = ab8500_gpadc_read_raw(gpadc, XTAL_TEMP,
+		avg_sample, trig_edge, trig_timer, conv_type);
+	xtal_temp_convert = ab8500_gpadc_ad_to_voltage(gpadc, XTAL_TEMP,
+		xtal_temp_raw);
+
+	return seq_printf(s, "%d,0x%X\n",
+			xtal_temp_convert, xtal_temp_raw);
+}
+
+static int ab8540_gpadc_xtal_temp_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8540_gpadc_xtal_temp_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_xtal_temp_fops = {
+	.open = ab8540_gpadc_xtal_temp_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_vbat_true_meas_print(struct seq_file *s, void *p)
+{
+	int vbat_true_meas_raw;
+	int vbat_true_meas_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	vbat_true_meas_raw = ab8500_gpadc_read_raw(gpadc, VBAT_TRUE_MEAS,
+		avg_sample, trig_edge, trig_timer, conv_type);
+	vbat_true_meas_convert = ab8500_gpadc_ad_to_voltage(gpadc, VBAT_TRUE_MEAS,
+		vbat_true_meas_raw);
+
+	return seq_printf(s, "%d,0x%X\n",
+			vbat_true_meas_convert, vbat_true_meas_raw);
+}
+
+static int ab8540_gpadc_vbat_true_meas_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, ab8540_gpadc_vbat_true_meas_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_vbat_true_meas_fops = {
+	.open = ab8540_gpadc_vbat_true_meas_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_bat_ctrl_and_ibat_print(struct seq_file *s, void *p)
+{
+	int bat_ctrl_raw;
+	int bat_ctrl_convert;
+	int ibat_raw;
+	int ibat_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	bat_ctrl_raw = ab8500_gpadc_double_read_raw(gpadc, BAT_CTRL_AND_IBAT,
+		avg_sample, trig_edge, trig_timer, conv_type, &ibat_raw);
+
+	bat_ctrl_convert = ab8500_gpadc_ad_to_voltage(gpadc, BAT_CTRL,
+		bat_ctrl_raw);
+	ibat_convert = ab8500_gpadc_ad_to_voltage(gpadc, IBAT_VIRTUAL_CHANNEL,
+		ibat_raw);
+
+	return seq_printf(s, "%d,0x%X\n"  "%d,0x%X\n",
+			bat_ctrl_convert, bat_ctrl_raw,
+			ibat_convert, ibat_raw);
+}
+
+static int ab8540_gpadc_bat_ctrl_and_ibat_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, ab8540_gpadc_bat_ctrl_and_ibat_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_bat_ctrl_and_ibat_fops = {
+	.open = ab8540_gpadc_bat_ctrl_and_ibat_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_vbat_meas_and_ibat_print(struct seq_file *s, void *p)
+{
+	int vbat_meas_raw;
+	int vbat_meas_convert;
+	int ibat_raw;
+	int ibat_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	vbat_meas_raw = ab8500_gpadc_double_read_raw(gpadc, VBAT_MEAS_AND_IBAT,
+		avg_sample, trig_edge, trig_timer, conv_type, &ibat_raw);
+	vbat_meas_convert = ab8500_gpadc_ad_to_voltage(gpadc, MAIN_BAT_V,
+		vbat_meas_raw);
+	ibat_convert = ab8500_gpadc_ad_to_voltage(gpadc, IBAT_VIRTUAL_CHANNEL,
+		ibat_raw);
+
+	return seq_printf(s, "%d,0x%X\n"  "%d,0x%X\n",
+			vbat_meas_convert, vbat_meas_raw,
+			ibat_convert, ibat_raw);
+}
+
+static int ab8540_gpadc_vbat_meas_and_ibat_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, ab8540_gpadc_vbat_meas_and_ibat_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_vbat_meas_and_ibat_fops = {
+	.open = ab8540_gpadc_vbat_meas_and_ibat_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_vbat_true_meas_and_ibat_print(struct seq_file *s, void *p)
+{
+	int vbat_true_meas_raw;
+	int vbat_true_meas_convert;
+	int ibat_raw;
+	int ibat_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	vbat_true_meas_raw = ab8500_gpadc_double_read_raw(gpadc,
+			VBAT_TRUE_MEAS_AND_IBAT, avg_sample, trig_edge,
+			trig_timer, conv_type, &ibat_raw);
+	vbat_true_meas_convert = ab8500_gpadc_ad_to_voltage(gpadc,
+			VBAT_TRUE_MEAS, vbat_true_meas_raw);
+	ibat_convert = ab8500_gpadc_ad_to_voltage(gpadc, IBAT_VIRTUAL_CHANNEL,
+		ibat_raw);
+
+	return seq_printf(s, "%d,0x%X\n"  "%d,0x%X\n",
+			vbat_true_meas_convert, vbat_true_meas_raw,
+			ibat_convert, ibat_raw);
+}
+
+static int ab8540_gpadc_vbat_true_meas_and_ibat_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, ab8540_gpadc_vbat_true_meas_and_ibat_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_vbat_true_meas_and_ibat_fops = {
+	.open = ab8540_gpadc_vbat_true_meas_and_ibat_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_bat_temp_and_ibat_print(struct seq_file *s, void *p)
+{
+	int bat_temp_raw;
+	int bat_temp_convert;
+	int ibat_raw;
+	int ibat_convert;
+	struct ab8500_gpadc *gpadc;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	bat_temp_raw = ab8500_gpadc_double_read_raw(gpadc, BAT_TEMP_AND_IBAT,
+		avg_sample, trig_edge, trig_timer, conv_type, &ibat_raw);
+	bat_temp_convert = ab8500_gpadc_ad_to_voltage(gpadc, BTEMP_BALL,
+		bat_temp_raw);
+	ibat_convert = ab8500_gpadc_ad_to_voltage(gpadc, IBAT_VIRTUAL_CHANNEL,
+		ibat_raw);
+
+	return seq_printf(s, "%d,0x%X\n"  "%d,0x%X\n",
+			bat_temp_convert, bat_temp_raw,
+			ibat_convert, ibat_raw);
+}
+
+static int ab8540_gpadc_bat_temp_and_ibat_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, ab8540_gpadc_bat_temp_and_ibat_print,
+			inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_bat_temp_and_ibat_fops = {
+	.open = ab8540_gpadc_bat_temp_and_ibat_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8540_gpadc_otp_cal_print(struct seq_file *s, void *p)
+{
+	struct ab8500_gpadc *gpadc;
+	u16 vmain_l, vmain_h, btemp_l, btemp_h;
+	u16 vbat_l, vbat_h, ibat_l, ibat_h;
+
+	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+	ab8540_gpadc_get_otp(gpadc, &vmain_l, &vmain_h, &btemp_l, &btemp_h,
+			&vbat_l, &vbat_h, &ibat_l, &ibat_h);
+	return seq_printf(s, "VMAIN_L:0x%X\n"
+			"VMAIN_H:0x%X\n"
+			"BTEMP_L:0x%X\n"
+			"BTEMP_H:0x%X\n"
+			"VBAT_L:0x%X\n"
+			"VBAT_H:0x%X\n"
+			"IBAT_L:0x%X\n"
+			"IBAT_H:0x%X\n"
+			,
+			vmain_l,
+			vmain_h,
+			btemp_l,
+			btemp_h,
+			vbat_l,
+			vbat_h,
+			ibat_l,
+			ibat_h);
+}
+
+static int ab8540_gpadc_otp_cal_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8540_gpadc_otp_cal_print, inode->i_private);
+}
+
+static const struct file_operations ab8540_gpadc_otp_calib_fops = {
+	.open = ab8540_gpadc_otp_cal_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static int ab8500_gpadc_avg_sample_print(struct seq_file *s, void *p)
 {
 	return seq_printf(s, "%d\n", avg_sample);
@@ -2386,7 +2634,43 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	    ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_die_temp_fops);
 	if (!file)
 		goto err;
-
+	if (is_ab8540(ab8500)) {
+		file = debugfs_create_file("xtal_temp", (S_IRUGO | S_IWUGO),
+			ab8500_gpadc_dir, &plf->dev, &ab8540_gpadc_xtal_temp_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("vbattruemeas", (S_IRUGO | S_IWUGO),
+			ab8500_gpadc_dir, &plf->dev,
+			&ab8540_gpadc_vbat_true_meas_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("batctrl_and_ibat",
+				(S_IRUGO | S_IWUGO), ab8500_gpadc_dir,
+				&plf->dev, &ab8540_gpadc_bat_ctrl_and_ibat_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("vbatmeas_and_ibat",
+				(S_IRUGO | S_IWUGO), ab8500_gpadc_dir,
+				&plf->dev,
+				&ab8540_gpadc_vbat_meas_and_ibat_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("vbattruemeas_and_ibat",
+				(S_IRUGO | S_IWUGO), ab8500_gpadc_dir,
+				&plf->dev,
+				&ab8540_gpadc_vbat_true_meas_and_ibat_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("battemp_and_ibat",
+				(S_IRUGO | S_IWUGO), ab8500_gpadc_dir,
+				&plf->dev, &ab8540_gpadc_bat_temp_and_ibat_fops);
+		if (!file)
+			goto err;
+		file = debugfs_create_file("otp_calib", (S_IRUGO | S_IWUGO),
+			ab8500_gpadc_dir, &plf->dev, &ab8540_gpadc_otp_calib_fops);
+		if (!file)
+			goto err;
+	}
 	file = debugfs_create_file("avg_sample", (S_IRUGO | S_IWUGO),
 		ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_avg_sample_fops);
 	if (!file)
