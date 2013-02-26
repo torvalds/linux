@@ -195,7 +195,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_obj->handle->vaddr;
 	else
-		regs = io_mapping_map_wc(dev_priv->mm.gtt_mapping,
+		regs = io_mapping_map_wc(dev_priv->gtt.mappable,
 					 overlay->reg_bo->gtt_offset);
 
 	return regs;
@@ -1045,13 +1045,13 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	}
 
 	if (!(put_image_rec->flags & I915_OVERLAY_ENABLE)) {
-		mutex_lock(&dev->mode_config.mutex);
+		drm_modeset_lock_all(dev);
 		mutex_lock(&dev->struct_mutex);
 
 		ret = intel_overlay_switch_off(overlay);
 
 		mutex_unlock(&dev->struct_mutex);
-		mutex_unlock(&dev->mode_config.mutex);
+		drm_modeset_unlock_all(dev);
 
 		return ret;
 	}
@@ -1075,7 +1075,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_free;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	mutex_lock(&dev->struct_mutex);
 
 	if (new_bo->tiling_mode) {
@@ -1157,7 +1157,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	mutex_unlock(&dev->struct_mutex);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	kfree(params);
 
@@ -1165,7 +1165,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 	drm_gem_object_unreference_unlocked(&new_bo->base);
 out_free:
 	kfree(params);
@@ -1241,7 +1241,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 		return -ENODEV;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	mutex_lock(&dev->struct_mutex);
 
 	ret = -EINVAL;
@@ -1307,7 +1307,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	ret = 0;
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
@@ -1333,8 +1333,10 @@ void intel_setup_overlay(struct drm_device *dev)
 
 	overlay->dev = dev;
 
-	reg_bo = i915_gem_alloc_object(dev, PAGE_SIZE);
-	if (!reg_bo)
+	reg_bo = i915_gem_object_create_stolen(dev, PAGE_SIZE);
+	if (reg_bo == NULL)
+		reg_bo = i915_gem_alloc_object(dev, PAGE_SIZE);
+	if (reg_bo == NULL)
 		goto out_free;
 	overlay->reg_bo = reg_bo;
 
@@ -1432,7 +1434,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 		regs = (struct overlay_registers __iomem *)
 			overlay->reg_bo->phys_obj->handle->vaddr;
 	else
-		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+		regs = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
 						overlay->reg_bo->gtt_offset);
 
 	return regs;

@@ -959,13 +959,13 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (new_backup && new_backup != res->backup) {
 
 		if (res->backup) {
-			BUG_ON(atomic_read(&res->backup->base.reserved) == 0);
+			BUG_ON(!ttm_bo_is_reserved(&res->backup->base));
 			list_del_init(&res->mob_head);
 			vmw_dmabuf_unreference(&res->backup);
 		}
 
 		res->backup = vmw_dmabuf_reference(new_backup);
-		BUG_ON(atomic_read(&new_backup->base.reserved) == 0);
+		BUG_ON(!ttm_bo_is_reserved(&new_backup->base));
 		list_add_tail(&res->mob_head, &new_backup->res_list);
 	}
 	if (new_backup)

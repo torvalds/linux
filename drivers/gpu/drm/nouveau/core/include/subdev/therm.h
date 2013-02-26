@@ -4,10 +4,10 @@
 #include <core/device.h>
 #include <core/subdev.h>
 
-enum nouveau_therm_fan_mode {
-	FAN_CONTROL_NONE = 0,
-	FAN_CONTROL_MANUAL = 1,
-	FAN_CONTROL_NR,
+enum nouveau_therm_mode {
+	NOUVEAU_THERM_CTRL_NONE = 0,
+	NOUVEAU_THERM_CTRL_MANUAL = 1,
+	NOUVEAU_THERM_CTRL_AUTO = 2,
 };
 
 enum nouveau_therm_attr_type {
@@ -28,6 +28,11 @@ enum nouveau_therm_attr_type {
 struct nouveau_therm {
 	struct nouveau_subdev base;
 
+	int (*pwm_ctrl)(struct nouveau_therm *, int line, bool);
+	int (*pwm_get)(struct nouveau_therm *, int line, u32 *, u32 *);
+	int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
+	int (*pwm_clock)(struct nouveau_therm *);
+
 	int (*fan_get)(struct nouveau_therm *);
 	int (*fan_set)(struct nouveau_therm *, int);
 	int (*fan_sense)(struct nouveau_therm *);
@@ -46,13 +51,29 @@ nouveau_therm(void *obj)
 }
 
 #define nouveau_therm_create(p,e,o,d)                                          \
-	nouveau_subdev_create((p), (e), (o), 0, "THERM", "therm", d)
-#define nouveau_therm_destroy(p)                                               \
-	nouveau_subdev_destroy(&(p)->base)
+	nouveau_therm_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nouveau_therm_destroy(p) ({                                            \
+	struct nouveau_therm *therm = (p);                                     \
+        _nouveau_therm_dtor(nv_object(therm));                                 \
+})
+#define nouveau_therm_init(p) ({                                               \
+	struct nouveau_therm *therm = (p);                                     \
+        _nouveau_therm_init(nv_object(therm));                                 \
+})
+#define nouveau_therm_fini(p,s) ({                                             \
+	struct nouveau_therm *therm = (p);                                     \
+        _nouveau_therm_init(nv_object(therm), (s));                            \
+})
 
-#define _nouveau_therm_dtor _nouveau_subdev_dtor
+int  nouveau_therm_create_(struct nouveau_object *, struct nouveau_object *,
+			   struct nouveau_oclass *, int, void **);
+void _nouveau_therm_dtor(struct nouveau_object *);
+int  _nouveau_therm_init(struct nouveau_object *);
+int  _nouveau_therm_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;
+extern struct nouveau_oclass nva3_therm_oclass;
+extern struct nouveau_oclass nvd0_therm_oclass;
 
 #endif

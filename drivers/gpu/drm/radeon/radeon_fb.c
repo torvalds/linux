@@ -187,9 +187,10 @@ out_unref:
 	return ret;
 }
 
-static int radeonfb_create(struct radeon_fbdev *rfbdev,
+static int radeonfb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
 {
+	struct radeon_fbdev *rfbdev = (struct radeon_fbdev *)helper;
 	struct radeon_device *rdev = rfbdev->rdev;
 	struct fb_info *info;
 	struct drm_framebuffer *fb = NULL;
@@ -293,26 +294,11 @@ out_unref:
 	}
 	if (fb && ret) {
 		drm_gem_object_unreference(gobj);
+		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
 	}
 	return ret;
-}
-
-static int radeon_fb_find_or_create_single(struct drm_fb_helper *helper,
-					   struct drm_fb_helper_surface_size *sizes)
-{
-	struct radeon_fbdev *rfbdev = (struct radeon_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = radeonfb_create(rfbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
 }
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev)
@@ -339,6 +325,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 		rfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
+	drm_framebuffer_unregister_private(&rfb->base);
 	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
@@ -347,7 +334,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 	.gamma_set = radeon_crtc_fb_gamma_set,
 	.gamma_get = radeon_crtc_fb_gamma_get,
-	.fb_probe = radeon_fb_find_or_create_single,
+	.fb_probe = radeonfb_create,
 };
 
 int radeon_fbdev_init(struct radeon_device *rdev)
@@ -377,6 +364,10 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(rdev->ddev);
+
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;
 }

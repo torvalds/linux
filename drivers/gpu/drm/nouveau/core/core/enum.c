@@ -40,14 +40,15 @@ nouveau_enum_find(const struct nouveau_enum *en, u32 value)
 	return NULL;
 }
 
-void
+const struct nouveau_enum *
 nouveau_enum_print(const struct nouveau_enum *en, u32 value)
 {
 	en = nouveau_enum_find(en, value);
 	if (en)
-		printk("%s", en->name);
+		pr_cont("%s", en->name);
 	else
-		printk("(unknown enum 0x%08x)", value);
+		pr_cont("(unknown enum 0x%08x)", value);
+	return en;
 }
 
 void
@@ -55,7 +56,7 @@ nouveau_bitfield_print(const struct nouveau_bitfield *bf, u32 value)
 {
 	while (bf->name) {
 		if (value & bf->mask) {
-			printk(" %s", bf->name);
+			pr_cont(" %s", bf->name);
 			value &= ~bf->mask;
 		}
 
@@ -63,5 +64,5 @@ nouveau_bitfield_print(const struct nouveau_bitfield *bf, u32 value)
 	}
 
 	if (value)
-		printk(" (unknown bits 0x%08x)", value);
+		pr_cont(" (unknown bits 0x%08x)", value);
 }
