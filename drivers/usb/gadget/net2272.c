@@ -1467,7 +1467,6 @@ static int net2272_start(struct usb_gadget *_gadget,
 	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -1510,7 +1509,6 @@ static int net2272_stop(struct usb_gadget *_gadget,
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	dev_dbg(dev->dev, "unregistered driver '%s'\n", driver->driver.name);
