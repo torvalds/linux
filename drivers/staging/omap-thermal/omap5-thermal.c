@@ -27,7 +27,6 @@ static struct temp_sensor_registers
 omap5430_mpu_temp_sensor_registers = {
 	.temp_sensor_ctrl = OMAP5430_TEMP_SENSOR_MPU_OFFSET,
 	.bgap_tempsoff_mask = OMAP5430_BGAP_TEMPSOFF_MASK,
-	.bgap_soc_mask = OMAP5430_BGAP_TEMP_SENSOR_SOC_MASK,
 	.bgap_eocz_mask = OMAP5430_BGAP_TEMP_SENSOR_EOCZ_MASK,
 	.bgap_dtemp_mask = OMAP5430_BGAP_TEMP_SENSOR_DTEMP_MASK,
 
@@ -35,8 +34,6 @@ omap5430_mpu_temp_sensor_registers = {
 	.mask_hot_mask = OMAP5430_MASK_HOT_MPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_MPU_MASK,
 
-	.bgap_mode_ctrl = OMAP5430_BGAP_COUNTER_MPU_OFFSET,
-	.mode_ctrl_mask = OMAP5430_REPEAT_MODE_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_MPU_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -66,16 +63,12 @@ static struct temp_sensor_registers
 omap5430_gpu_temp_sensor_registers = {
 	.temp_sensor_ctrl = OMAP5430_TEMP_SENSOR_GPU_OFFSET,
 	.bgap_tempsoff_mask = OMAP5430_BGAP_TEMPSOFF_MASK,
-	.bgap_soc_mask = OMAP5430_BGAP_TEMP_SENSOR_SOC_MASK,
 	.bgap_eocz_mask = OMAP5430_BGAP_TEMP_SENSOR_EOCZ_MASK,
 	.bgap_dtemp_mask = OMAP5430_BGAP_TEMP_SENSOR_DTEMP_MASK,
 
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_GPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_GPU_MASK,
-
-	.bgap_mode_ctrl = OMAP5430_BGAP_COUNTER_GPU_OFFSET,
-	.mode_ctrl_mask = OMAP5430_REPEAT_MODE_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_GPU_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -105,16 +98,12 @@ static struct temp_sensor_registers
 omap5430_core_temp_sensor_registers = {
 	.temp_sensor_ctrl = OMAP5430_TEMP_SENSOR_CORE_OFFSET,
 	.bgap_tempsoff_mask = OMAP5430_BGAP_TEMPSOFF_MASK,
-	.bgap_soc_mask = OMAP5430_BGAP_TEMP_SENSOR_SOC_MASK,
 	.bgap_eocz_mask = OMAP5430_BGAP_TEMP_SENSOR_EOCZ_MASK,
 	.bgap_dtemp_mask = OMAP5430_BGAP_TEMP_SENSOR_DTEMP_MASK,
 
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_CORE_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_CORE_MASK,
-
-	.bgap_mode_ctrl = OMAP5430_BGAP_COUNTER_CORE_OFFSET,
-	.mode_ctrl_mask = OMAP5430_REPEAT_MODE_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_CORE_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
