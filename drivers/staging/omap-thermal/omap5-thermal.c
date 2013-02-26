@@ -71,8 +71,8 @@ omap5430_gpu_temp_sensor_registers = {
 	.bgap_dtemp_mask = OMAP5430_BGAP_TEMP_SENSOR_DTEMP_MASK,
 
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
-	.mask_hot_mask = OMAP5430_MASK_HOT_MM_MASK,
-	.mask_cold_mask = OMAP5430_MASK_COLD_MM_MASK,
+	.mask_hot_mask = OMAP5430_MASK_HOT_GPU_MASK,
+	.mask_cold_mask = OMAP5430_MASK_COLD_GPU_MASK,
 
 	.bgap_mode_ctrl = OMAP5430_BGAP_COUNTER_GPU_OFFSET,
 	.mode_ctrl_mask = OMAP5430_REPEAT_MODE_MASK,
@@ -91,8 +91,8 @@ omap5430_gpu_temp_sensor_registers = {
 	.bgap_status = OMAP5430_BGAP_STATUS_OFFSET,
 	.status_clean_stop_mask = 0x0,
 	.status_bgap_alert_mask = OMAP5430_BGAP_ALERT_MASK,
-	.status_hot_mask = OMAP5430_HOT_MM_FLAG_MASK,
-	.status_cold_mask = OMAP5430_COLD_MM_FLAG_MASK,
+	.status_hot_mask = OMAP5430_HOT_GPU_FLAG_MASK,
+	.status_cold_mask = OMAP5430_COLD_GPU_FLAG_MASK,
 
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_GPU,
 };
