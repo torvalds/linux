@@ -36,6 +36,7 @@ struct kiocb {
 	struct kioctx		*ki_ctx;	/* NULL for sync ops */
 	kiocb_cancel_fn		*ki_cancel;
 	void			(*ki_dtor)(struct kiocb *);
+	void			*private;
 
 	union {
 		void __user		*user;
@@ -44,15 +45,7 @@ struct kiocb {
 
 	__u64			ki_user_data;	/* user's data for completion */
 	loff_t			ki_pos;
-
-	void			*private;
-	/* State that we remember to be able to restart/retry  */
-	unsigned short		ki_opcode;
-	size_t			ki_nbytes; 	/* copy of iocb->aio_nbytes */
-	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
-	struct iovec		ki_inline_vec;	/* inline vector */
- 	struct iovec		*ki_iovec;
- 	unsigned long		ki_nr_segs;
+	size_t			ki_nbytes;	/* copy of iocb->aio_nbytes */
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
