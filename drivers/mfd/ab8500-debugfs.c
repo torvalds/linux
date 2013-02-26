@@ -101,6 +101,11 @@ static int num_irqs;
 static struct device_attribute **dev_attr;
 static char **event_name;
 
+static u8 avg_sample = SAMPLE_16;
+static u8 trig_edge = RISING_EDGE;
+static u8 conv_type = ADC_SW;
+static u8 trig_timer;
+
 /**
  * struct ab8500_reg_range
  * @first: the first address of the range
@@ -808,9 +813,10 @@ static int ab8500_gpadc_bat_ctrl_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	bat_ctrl_raw = ab8500_gpadc_read_raw(gpadc, BAT_CTRL);
+	bat_ctrl_raw = ab8500_gpadc_read_raw(gpadc, BAT_CTRL,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	bat_ctrl_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-			BAT_CTRL, bat_ctrl_raw);
+		BAT_CTRL, bat_ctrl_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			bat_ctrl_convert, bat_ctrl_raw);
@@ -836,9 +842,10 @@ static int ab8500_gpadc_btemp_ball_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	btemp_ball_raw = ab8500_gpadc_read_raw(gpadc, BTEMP_BALL);
+	btemp_ball_raw = ab8500_gpadc_read_raw(gpadc, BTEMP_BALL,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	btemp_ball_convert = ab8500_gpadc_ad_to_voltage(gpadc, BTEMP_BALL,
-			btemp_ball_raw);
+		btemp_ball_raw);
 
 	return seq_printf(s,
 			"%d,0x%X\n", btemp_ball_convert, btemp_ball_raw);
@@ -865,9 +872,10 @@ static int ab8500_gpadc_main_charger_v_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	main_charger_v_raw = ab8500_gpadc_read_raw(gpadc, MAIN_CHARGER_V);
+	main_charger_v_raw = ab8500_gpadc_read_raw(gpadc, MAIN_CHARGER_V,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	main_charger_v_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-			MAIN_CHARGER_V, main_charger_v_raw);
+		MAIN_CHARGER_V, main_charger_v_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			main_charger_v_convert, main_charger_v_raw);
@@ -895,9 +903,10 @@ static int ab8500_gpadc_acc_detect1_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	acc_detect1_raw = ab8500_gpadc_read_raw(gpadc, ACC_DETECT1);
+	acc_detect1_raw = ab8500_gpadc_read_raw(gpadc, ACC_DETECT1,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	acc_detect1_convert = ab8500_gpadc_ad_to_voltage(gpadc, ACC_DETECT1,
-			acc_detect1_raw);
+		acc_detect1_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			acc_detect1_convert, acc_detect1_raw);
@@ -925,9 +934,10 @@ static int ab8500_gpadc_acc_detect2_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	acc_detect2_raw = ab8500_gpadc_read_raw(gpadc, ACC_DETECT2);
+	acc_detect2_raw = ab8500_gpadc_read_raw(gpadc, ACC_DETECT2,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	acc_detect2_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-	    ACC_DETECT2, acc_detect2_raw);
+		ACC_DETECT2, acc_detect2_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			acc_detect2_convert, acc_detect2_raw);
@@ -955,9 +965,10 @@ static int ab8500_gpadc_aux1_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	aux1_raw = ab8500_gpadc_read_raw(gpadc, ADC_AUX1);
+	aux1_raw = ab8500_gpadc_read_raw(gpadc, ADC_AUX1,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	aux1_convert = ab8500_gpadc_ad_to_voltage(gpadc, ADC_AUX1,
-			aux1_raw);
+		aux1_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			aux1_convert, aux1_raw);
@@ -983,9 +994,10 @@ static int ab8500_gpadc_aux2_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	aux2_raw = ab8500_gpadc_read_raw(gpadc, ADC_AUX2);
+	aux2_raw = ab8500_gpadc_read_raw(gpadc, ADC_AUX2,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	aux2_convert = ab8500_gpadc_ad_to_voltage(gpadc, ADC_AUX2,
-			aux2_raw);
+		aux2_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			aux2_convert, aux2_raw);
@@ -1011,9 +1023,10 @@ static int ab8500_gpadc_main_bat_v_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	main_bat_v_raw = ab8500_gpadc_read_raw(gpadc, MAIN_BAT_V);
+	main_bat_v_raw = ab8500_gpadc_read_raw(gpadc, MAIN_BAT_V,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	main_bat_v_convert = ab8500_gpadc_ad_to_voltage(gpadc, MAIN_BAT_V,
-			main_bat_v_raw);
+		main_bat_v_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			main_bat_v_convert, main_bat_v_raw);
@@ -1040,9 +1053,10 @@ static int ab8500_gpadc_vbus_v_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	vbus_v_raw = ab8500_gpadc_read_raw(gpadc, VBUS_V);
+	vbus_v_raw =  ab8500_gpadc_read_raw(gpadc, VBUS_V,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	vbus_v_convert = ab8500_gpadc_ad_to_voltage(gpadc, VBUS_V,
-			vbus_v_raw);
+		vbus_v_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			vbus_v_convert, vbus_v_raw);
@@ -1068,9 +1082,10 @@ static int ab8500_gpadc_main_charger_c_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	main_charger_c_raw = ab8500_gpadc_read_raw(gpadc, MAIN_CHARGER_C);
+	main_charger_c_raw = ab8500_gpadc_read_raw(gpadc, MAIN_CHARGER_C,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	main_charger_c_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-			MAIN_CHARGER_C, main_charger_c_raw);
+		MAIN_CHARGER_C, main_charger_c_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			main_charger_c_convert, main_charger_c_raw);
@@ -1098,9 +1113,10 @@ static int ab8500_gpadc_usb_charger_c_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	usb_charger_c_raw = ab8500_gpadc_read_raw(gpadc, USB_CHARGER_C);
+	usb_charger_c_raw = ab8500_gpadc_read_raw(gpadc, USB_CHARGER_C,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	usb_charger_c_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-	    USB_CHARGER_C, usb_charger_c_raw);
+		USB_CHARGER_C, usb_charger_c_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			usb_charger_c_convert, usb_charger_c_raw);
@@ -1128,9 +1144,10 @@ static int ab8500_gpadc_bk_bat_v_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	bk_bat_v_raw = ab8500_gpadc_read_raw(gpadc, BK_BAT_V);
+	bk_bat_v_raw = ab8500_gpadc_read_raw(gpadc, BK_BAT_V,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	bk_bat_v_convert = ab8500_gpadc_ad_to_voltage(gpadc,
-			BK_BAT_V, bk_bat_v_raw);
+		BK_BAT_V, bk_bat_v_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			bk_bat_v_convert, bk_bat_v_raw);
@@ -1156,9 +1173,10 @@ static int ab8500_gpadc_die_temp_print(struct seq_file *s, void *p)
 	struct ab8500_gpadc *gpadc;
 
 	gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-	die_temp_raw = ab8500_gpadc_read_raw(gpadc, DIE_TEMP);
+	die_temp_raw = ab8500_gpadc_read_raw(gpadc, DIE_TEMP,
+		avg_sample, trig_edge, trig_timer, conv_type);
 	die_temp_convert = ab8500_gpadc_ad_to_voltage(gpadc, DIE_TEMP,
-			die_temp_raw);
+		die_temp_raw);
 
 	return seq_printf(s, "%d,0x%X\n",
 			die_temp_convert, die_temp_raw);
@@ -1172,6 +1190,208 @@ static int ab8500_gpadc_die_temp_open(struct inode *inode, struct file *file)
 static const struct file_operations ab8500_gpadc_die_temp_fops = {
 	.open = ab8500_gpadc_die_temp_open,
 	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8500_gpadc_avg_sample_print(struct seq_file *s, void *p)
+{
+	return seq_printf(s, "%d\n", avg_sample);
+}
+
+static int ab8500_gpadc_avg_sample_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_gpadc_avg_sample_print,
+			inode->i_private);
+}
+
+static ssize_t ab8500_gpadc_avg_sample_write(struct file *file,
+	const char __user *user_buf,
+	size_t count, loff_t *ppos)
+{
+	struct device *dev = ((struct seq_file *)(file->private_data))->private;
+	char buf[32];
+	int buf_size;
+	unsigned long user_avg_sample;
+	int err;
+
+	/* Get userspace string and assure termination */
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	err = strict_strtoul(buf, 0, &user_avg_sample);
+	if (err)
+		return -EINVAL;
+	if ((user_avg_sample == SAMPLE_1) || (user_avg_sample == SAMPLE_4)
+			|| (user_avg_sample == SAMPLE_8)
+			|| (user_avg_sample == SAMPLE_16)) {
+		avg_sample = (u8) user_avg_sample;
+	} else {
+		dev_err(dev, "debugfs error input: "
+			"should be egal to 1, 4, 8 or 16\n");
+		return -EINVAL;
+	}
+	return buf_size;
+}
+
+static const struct file_operations ab8500_gpadc_avg_sample_fops = {
+	.open = ab8500_gpadc_avg_sample_open,
+	.read = seq_read,
+	.write = ab8500_gpadc_avg_sample_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8500_gpadc_trig_edge_print(struct seq_file *s, void *p)
+{
+	return seq_printf(s, "%d\n", trig_edge);
+}
+
+static int ab8500_gpadc_trig_edge_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_gpadc_trig_edge_print,
+			inode->i_private);
+}
+
+static ssize_t ab8500_gpadc_trig_edge_write(struct file *file,
+	const char __user *user_buf,
+	size_t count, loff_t *ppos)
+{
+	struct device *dev = ((struct seq_file *)(file->private_data))->private;
+	char buf[32];
+	int buf_size;
+	unsigned long user_trig_edge;
+	int err;
+
+	/* Get userspace string and assure termination */
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	err = strict_strtoul(buf, 0, &user_trig_edge);
+	if (err)
+		return -EINVAL;
+	if ((user_trig_edge == RISING_EDGE)
+			|| (user_trig_edge == FALLING_EDGE)) {
+		trig_edge = (u8) user_trig_edge;
+	} else {
+		dev_err(dev, "Wrong input:\n"
+			"Enter 0. Rising edge\n"
+			"Enter 1. Falling edge\n");
+		return -EINVAL;
+	}
+	return buf_size;
+}
+
+static const struct file_operations ab8500_gpadc_trig_edge_fops = {
+	.open = ab8500_gpadc_trig_edge_open,
+	.read = seq_read,
+	.write = ab8500_gpadc_trig_edge_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8500_gpadc_trig_timer_print(struct seq_file *s, void *p)
+{
+	return seq_printf(s, "%d\n", trig_timer);
+}
+
+static int ab8500_gpadc_trig_timer_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_gpadc_trig_timer_print,
+			inode->i_private);
+}
+
+static ssize_t ab8500_gpadc_trig_timer_write(struct file *file,
+	const char __user *user_buf,
+	size_t count, loff_t *ppos)
+{
+	struct device *dev = ((struct seq_file *)(file->private_data))->private;
+	char buf[32];
+	int buf_size;
+	unsigned long user_trig_timer;
+	int err;
+
+	/* Get userspace string and assure termination */
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	err = strict_strtoul(buf, 0, &user_trig_timer);
+	if (err)
+		return -EINVAL;
+	if ((user_trig_timer >= 0) && (user_trig_timer <= 255)) {
+		trig_timer = (u8) user_trig_timer;
+	} else {
+		dev_err(dev, "debugfs error input: "
+			"should be beetween 0 to 255\n");
+		return -EINVAL;
+	}
+	return buf_size;
+}
+
+static const struct file_operations ab8500_gpadc_trig_timer_fops = {
+	.open = ab8500_gpadc_trig_timer_open,
+	.read = seq_read,
+	.write = ab8500_gpadc_trig_timer_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8500_gpadc_conv_type_print(struct seq_file *s, void *p)
+{
+	return seq_printf(s, "%d\n", conv_type);
+}
+
+static int ab8500_gpadc_conv_type_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_gpadc_conv_type_print,
+			inode->i_private);
+}
+
+static ssize_t ab8500_gpadc_conv_type_write(struct file *file,
+	const char __user *user_buf,
+	size_t count, loff_t *ppos)
+{
+	struct device *dev = ((struct seq_file *)(file->private_data))->private;
+	char buf[32];
+	int buf_size;
+	unsigned long user_conv_type;
+	int err;
+
+	/* Get userspace string and assure termination */
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	err = strict_strtoul(buf, 0, &user_conv_type);
+	if (err)
+		return -EINVAL;
+	if ((user_conv_type == ADC_SW)
+			|| (user_conv_type == ADC_HW)) {
+		conv_type = (u8) user_conv_type;
+	} else {
+		dev_err(dev, "Wrong input:\n"
+			"Enter 0. ADC SW conversion\n"
+			"Enter 1. ADC HW conversion\n");
+		return -EINVAL;
+	}
+	return buf_size;
+}
+
+static const struct file_operations ab8500_gpadc_conv_type_fops = {
+	.open = ab8500_gpadc_conv_type_open,
+	.read = seq_read,
+	.write = ab8500_gpadc_conv_type_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
@@ -1719,6 +1939,26 @@ static int ab8500_debug_probe(struct platform_device *plf)
 
 	file = debugfs_create_file("die_temp", (S_IRUGO | S_IWUSR),
 	    ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_die_temp_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("avg_sample", (S_IRUGO | S_IWUGO),
+		ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_avg_sample_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("trig_edge", (S_IRUGO | S_IWUGO),
+		ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_trig_edge_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("trig_timer", (S_IRUGO | S_IWUGO),
+		ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_trig_timer_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("conv_type", (S_IRUGO | S_IWUGO),
+		ab8500_gpadc_dir, &plf->dev, &ab8500_gpadc_conv_type_fops);
 	if (!file)
 		goto err;
 

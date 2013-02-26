@@ -55,13 +55,18 @@
 #define EN_VTVOUT			0x02
 #define EN_GPADC			0x01
 #define DIS_GPADC			0x00
-#define SW_AVG_16			0x60
+#define AVG_1				0x00
+#define AVG_4				0x20
+#define AVG_8				0x40
+#define AVG_16				0x60
 #define ADC_SW_CONV			0x04
 #define EN_ICHAR			0x80
 #define BTEMP_PULL_UP			0x08
 #define EN_BUF				0x40
 #define DIS_ZERO			0x00
 #define GPADC_BUSY			0x01
+#define EN_FALLING			0x10
+#define EN_TRIG_EDGE			0x02
 
 /* GPADC constants from AB8500 spec, UM0836 */
 #define ADC_RESOLUTION			1024
@@ -116,7 +121,10 @@ struct adc_cal_data {
  *				the completion of gpadc conversion
  * @ab8500_gpadc_lock:		structure of type mutex
  * @regu:			pointer to the struct regulator
- * @irq:			interrupt number that is used by gpadc
+ * @irq_sw:			interrupt number that is used by gpadc for Sw
+ *				conversion
+ * @irq_hw:			interrupt number that is used by gpadc for Hw
+ *				conversion
  * @cal_data			array of ADC calibration data structs
  */
 struct ab8500_gpadc {
@@ -126,7 +134,8 @@ struct ab8500_gpadc {
 	struct completion ab8500_gpadc_complete;
 	struct mutex ab8500_gpadc_lock;
 	struct regulator *regu;
-	int irq;
+	int irq_sw;
+	int irq_hw;
 	struct adc_cal_data cal_data[NBR_CAL_INPUTS];
 };
 
@@ -244,30 +253,35 @@ int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc, u8 channel,
 EXPORT_SYMBOL(ab8500_gpadc_ad_to_voltage);
 
 /**
- * ab8500_gpadc_convert() - gpadc conversion
+ * ab8500_gpadc_sw_hw_convert() - gpadc conversion
  * @channel:	analog channel to be converted to digital data
+ * @avg_sample:  number of ADC sample to average
+ * @trig_egde:  selected ADC trig edge
+ * @trig_timer: selected ADC trigger delay timer
+ * @conv_type: selected conversion type (HW or SW conversion)
  *
  * This function converts the selected analog i/p to digital
  * data.
  */
-int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 channel)
+int ab8500_gpadc_sw_hw_convert(struct ab8500_gpadc *gpadc, u8 channel,
+		u8 avg_sample, u8 trig_edge, u8 trig_timer, u8 conv_type)
 {
 	int ad_value;
 	int voltage;
 
-	ad_value = ab8500_gpadc_read_raw(gpadc, channel);
-
-	/* On failure retry a second time */
+	ad_value = ab8500_gpadc_read_raw(gpadc, channel, avg_sample,
+			trig_edge, trig_timer, conv_type);
+/* On failure retry a second time */
 	if (ad_value < 0)
-		ad_value = ab8500_gpadc_read_raw(gpadc, channel);
-
-	if (ad_value < 0) {
-		dev_err(gpadc->dev, "GPADC raw value failed ch: %d\n", channel);
+		ad_value = ab8500_gpadc_read_raw(gpadc, channel, avg_sample,
+			trig_edge, trig_timer, conv_type);
+if (ad_value < 0) {
+		dev_err(gpadc->dev, "GPADC raw value failed ch: %d\n",
+				channel);
 		return ad_value;
 	}
 
 	voltage = ab8500_gpadc_ad_to_voltage(gpadc, channel, ad_value);
-
 	if (voltage < 0)
 		dev_err(gpadc->dev, "GPADC to voltage conversion failed ch:"
 			" %d AD: 0x%x\n", channel, ad_value);
@@ -279,11 +293,16 @@ EXPORT_SYMBOL(ab8500_gpadc_convert);
 /**
  * ab8500_gpadc_read_raw() - gpadc read
  * @channel:	analog channel to be read
+ * @avg_sample:  number of ADC sample to average
+ * @trig_edge:  selected trig edge
+ * @trig_timer: selected ADC trigger delay timer
+ * @conv_type: selected conversion type (HW or SW conversion)
  *
- * This function obtains the raw ADC value, this then needs
- * to be converted by calling ab8500_gpadc_ad_to_voltage()
+ * This function obtains the raw ADC value for an hardware conversion,
+ * this then needs to be converted by calling ab8500_gpadc_ad_to_voltage()
  */
-int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
+int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel,
+		u8 avg_sample, u8 trig_edge, u8 trig_timer, u8 conv_type)
 {
 	int ret;
 	int looplimit = 0;
@@ -293,7 +312,6 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		return -ENODEV;
 
 	mutex_lock(&gpadc->ab8500_gpadc_lock);
-
 	/* Enable VTVout LDO this is required for GPADC */
 	pm_runtime_get_sync(gpadc->dev);
 
@@ -321,9 +339,29 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		goto out;
 	}
 
-	/* Select the channel source and set average samples to 16 */
-	ret = abx500_set_register_interruptible(gpadc->dev, AB8500_GPADC,
-		AB8500_GPADC_CTRL2_REG, (channel | SW_AVG_16));
+	/* Select the channel source and set average samples */
+	switch (avg_sample) {
+	case SAMPLE_1:
+		val = channel | AVG_1;
+		break;
+	case SAMPLE_4:
+		val = channel | AVG_4;
+		break;
+	case SAMPLE_8:
+		val = channel | AVG_8;
+		break;
+	default:
+		val = channel | AVG_16;
+		break;
+
+	}
+
+	if (conv_type == ADC_HW)
+		ret = abx500_set_register_interruptible(gpadc->dev,
+				AB8500_GPADC, AB8500_GPADC_CTRL3_REG, val);
+	else
+		ret = abx500_set_register_interruptible(gpadc->dev,
+				AB8500_GPADC, AB8500_GPADC_CTRL2_REG, val);
 	if (ret < 0) {
 		dev_err(gpadc->dev,
 			"gpadc_conversion: set avg samples failed\n");
@@ -335,22 +373,43 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 	 * charging current sense if it needed, ABB 3.0 needs some special
 	 * treatment too.
 	 */
+	if ((conv_type == ADC_HW) && (trig_edge)) {
+		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+			EN_FALLING, EN_FALLING);
+
+	}
 	switch (channel) {
 	case MAIN_CHARGER_C:
 	case USB_CHARGER_C:
-		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
-			AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
-			EN_BUF | EN_ICHAR,
-			EN_BUF | EN_ICHAR);
-		break;
-	case BTEMP_BALL:
-		if (!is_ab8500_2p0_or_earlier(gpadc->parent)) {
-			/* Turn on btemp pull-up on ABB 3.0 */
+		if (conv_type == ADC_HW)
 			ret = abx500_mask_and_set_register_interruptible(
 				gpadc->dev,
 				AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
-				EN_BUF | BTEMP_PULL_UP,
-				EN_BUF | BTEMP_PULL_UP);
+				EN_BUF | EN_ICHAR | EN_TRIG_EDGE,
+				EN_BUF | EN_ICHAR | EN_TRIG_EDGE);
+		else
+			ret = abx500_mask_and_set_register_interruptible(
+				gpadc->dev,
+				AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+				EN_BUF | EN_ICHAR,
+				EN_BUF | EN_ICHAR);
+		break;
+	case BTEMP_BALL:
+		if (!is_ab8500_2p0_or_earlier(gpadc->parent)) {
+			if (conv_type == ADC_HW)
+				/* Turn on btemp pull-up on ABB 3.0 */
+				ret = abx500_mask_and_set_register_interruptible
+					(gpadc->dev,
+					AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+					EN_BUF | BTEMP_PULL_UP | EN_TRIG_EDGE,
+					EN_BUF | BTEMP_PULL_UP | EN_TRIG_EDGE);
+			else
+				ret = abx500_mask_and_set_register_interruptible
+					(gpadc->dev,
+					AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+					EN_BUF | BTEMP_PULL_UP,
+					EN_BUF | BTEMP_PULL_UP);
 
 		 /*
 		  * Delay might be needed for ABB8500 cut 3.0, if not, remove
@@ -361,8 +420,17 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		}
 		/* Intentional fallthrough */
 	default:
-		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
-			AB8500_GPADC, AB8500_GPADC_CTRL1_REG, EN_BUF, EN_BUF);
+		if (conv_type == ADC_HW)
+			ret = abx500_mask_and_set_register_interruptible(
+				gpadc->dev,
+				AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+				EN_BUF | EN_TRIG_EDGE,
+				EN_BUF | EN_TRIG_EDGE);
+		else
+			ret = abx500_mask_and_set_register_interruptible(
+				gpadc->dev,
+				AB8500_GPADC,
+				AB8500_GPADC_CTRL1_REG, EN_BUF, EN_BUF);
 		break;
 	}
 	if (ret < 0) {
@@ -371,36 +439,83 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		goto out;
 	}
 
-	ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
-		AB8500_GPADC, AB8500_GPADC_CTRL1_REG, ADC_SW_CONV, ADC_SW_CONV);
-	if (ret < 0) {
-		dev_err(gpadc->dev,
-			"gpadc_conversion: start s/w conversion failed\n");
-		goto out;
+	/* Set trigger delay timer */
+	if (conv_type == ADC_HW) {
+		ret = abx500_set_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_AUTO_TIMER_REG, trig_timer);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: trig timer failed\n");
+			goto out;
+		}
 	}
+
+	/* Start SW conversion */
+	if (conv_type == ADC_SW) {
+		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+			ADC_SW_CONV, ADC_SW_CONV);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: start s/w conv failed\n");
+			goto out;
+		}
+	}
+
 	/* wait for completion of conversion */
-	if (!wait_for_completion_timeout(&gpadc->ab8500_gpadc_complete,
-					 msecs_to_jiffies(CONVERSION_TIME))) {
-		dev_err(gpadc->dev,
-			"timeout: didn't receive GPADC conversion interrupt\n");
-		ret = -EINVAL;
-		goto out;
+	if (conv_type == ADC_HW) {
+		if (!wait_for_completion_timeout(&gpadc->ab8500_gpadc_complete,
+			2*HZ)) {
+				dev_err(gpadc->dev,
+					"timeout didn't receive"
+					" hw GPADC conv interrupt\n");
+				ret = -EINVAL;
+				goto out;
+		}
+	} else {
+		if (!wait_for_completion_timeout(&gpadc->ab8500_gpadc_complete,
+			msecs_to_jiffies(CONVERSION_TIME))) {
+				dev_err(gpadc->dev,
+					"timeout didn't receive"
+					" sw GPADC conv interrupt\n");
+				ret = -EINVAL;
+				goto out;
+		}
 	}
 
 	/* Read the converted RAW data */
-	ret = abx500_get_register_interruptible(gpadc->dev, AB8500_GPADC,
-		AB8500_GPADC_MANDATAL_REG, &low_data);
-	if (ret < 0) {
-		dev_err(gpadc->dev, "gpadc_conversion: read low data failed\n");
-		goto out;
-	}
+	if (conv_type == ADC_HW) {
+		ret = abx500_get_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_AUTODATAL_REG, &low_data);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: read hw low data failed\n");
+			goto out;
+		}
 
-	ret = abx500_get_register_interruptible(gpadc->dev, AB8500_GPADC,
-		AB8500_GPADC_MANDATAH_REG, &high_data);
-	if (ret < 0) {
-		dev_err(gpadc->dev,
-			"gpadc_conversion: read high data failed\n");
-		goto out;
+		ret = abx500_get_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_AUTODATAH_REG, &high_data);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: read hw high data failed\n");
+			goto out;
+		}
+	} else {
+		ret = abx500_get_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_MANDATAL_REG, &low_data);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: read sw low data failed\n");
+			goto out;
+		}
+
+		ret = abx500_get_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_MANDATAH_REG, &high_data);
+		if (ret < 0) {
+			dev_err(gpadc->dev,
+				"gpadc_conversion: read sw high data failed\n");
+			goto out;
+		}
 	}
 
 	/* Disable GPADC */
@@ -411,6 +526,7 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		goto out;
 	}
 
+	/* Disable VTVout LDO this is required for GPADC */
 	pm_runtime_mark_last_busy(gpadc->dev);
 	pm_runtime_put_autosuspend(gpadc->dev);
 
@@ -427,9 +543,7 @@ out:
 	 */
 	(void) abx500_set_register_interruptible(gpadc->dev, AB8500_GPADC,
 		AB8500_GPADC_CTRL1_REG, DIS_GPADC);
-
 	pm_runtime_put(gpadc->dev);
-
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
 	dev_err(gpadc->dev,
 		"gpadc_conversion: Failed to AD convert channel %d\n", channel);
@@ -438,16 +552,16 @@ out:
 EXPORT_SYMBOL(ab8500_gpadc_read_raw);
 
 /**
- * ab8500_bm_gpswadcconvend_handler() - isr for s/w gpadc conversion completion
+ * ab8500_bm_gpadcconvend_handler() - isr for gpadc conversion completion
  * @irq:	irq number
  * @data:	pointer to the data passed during request irq
  *
- * This is a interrupt service routine for s/w gpadc conversion completion.
+ * This is a interrupt service routine for gpadc conversion completion.
  * Notifies the gpadc completion is completed and the converted raw value
  * can be read from the registers.
  * Returns IRQ status(IRQ_HANDLED)
  */
-static irqreturn_t ab8500_bm_gpswadcconvend_handler(int irq, void *_gpadc)
+static irqreturn_t ab8500_bm_gpadcconvend_handler(int irq, void *_gpadc)
 {
 	struct ab8500_gpadc *gpadc = _gpadc;
 
@@ -646,11 +760,19 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	gpadc->irq = platform_get_irq_byname(pdev, "SW_CONV_END");
-	if (gpadc->irq < 0) {
-		dev_err(&pdev->dev, "failed to get platform irq-%d\n",
-			gpadc->irq);
-		ret = gpadc->irq;
+	gpadc->irq_sw = platform_get_irq_byname(pdev, "SW_CONV_END");
+	if (gpadc->irq_sw < 0) {
+		dev_err(gpadc->dev, "failed to get platform irq-%d\n",
+			gpadc->irq_sw);
+		ret = gpadc->irq_sw;
+		goto fail;
+	}
+
+	gpadc->irq_hw = platform_get_irq_byname(pdev, "HW_CONV_END");
+	if (gpadc->irq_hw < 0) {
+		dev_err(gpadc->dev, "failed to get platform irq-%d\n",
+			gpadc->irq_hw);
+		ret = gpadc->irq_hw;
 		goto fail;
 	}
 
@@ -661,14 +783,21 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	/* Initialize completion used to notify completion of conversion */
 	init_completion(&gpadc->ab8500_gpadc_complete);
 
-	/* Register interrupt  - SwAdcComplete */
-	ret = request_threaded_irq(gpadc->irq, NULL,
-		ab8500_bm_gpswadcconvend_handler,
-		IRQF_ONESHOT | IRQF_NO_SUSPEND | IRQF_SHARED,
-				"ab8500-gpadc", gpadc);
+	/* Register interrupts */
+	ret = request_threaded_irq(gpadc->irq_sw, NULL,
+		ab8500_bm_gpadcconvend_handler,
+		IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-sw", gpadc);
 	if (ret < 0) {
 		dev_err(gpadc->dev, "Failed to register interrupt, irq: %d\n",
-			gpadc->irq);
+			gpadc->irq_sw);
+		goto fail;
+	}
+	ret = request_threaded_irq(gpadc->irq_hw, NULL,
+		ab8500_bm_gpadcconvend_handler,
+		IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-hw", gpadc);
+	if (ret < 0) {
+		dev_err(gpadc->dev, "Failed to register interrupt, irq: %d\n",
+			gpadc->irq_hw);
 		goto fail;
 	}
 
@@ -694,7 +823,8 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	dev_dbg(gpadc->dev, "probe success\n");
 	return 0;
 fail_irq:
-	free_irq(gpadc->irq, gpadc);
+	free_irq(gpadc->irq_sw, gpadc);
+	free_irq(gpadc->irq_hw, gpadc);
 fail:
 	kfree(gpadc);
 	gpadc = NULL;
@@ -708,7 +838,8 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	/* remove this gpadc entry from the list */
 	list_del(&gpadc->node);
 	/* remove interrupt  - completion of Sw ADC conversion */
-	free_irq(gpadc->irq, gpadc);
+	free_irq(gpadc->irq_sw, gpadc);
+	free_irq(gpadc->irq_hw, gpadc);
 
 	pm_runtime_get_sync(gpadc->dev);
 	pm_runtime_disable(gpadc->dev);
@@ -757,6 +888,7 @@ subsys_initcall_sync(ab8500_gpadc_init);
 module_exit(ab8500_gpadc_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Arun R Murthy, Daniel Willerud, Johan Palsson");
+MODULE_AUTHOR("Arun R Murthy, Daniel Willerud, Johan Palsson,"
+		"M'boumba Cedric Madianga");
 MODULE_ALIAS("platform:ab8500_gpadc");
 MODULE_DESCRIPTION("AB8500 GPADC driver");
