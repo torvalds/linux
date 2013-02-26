@@ -961,14 +961,8 @@ static ssize_t inject_enable_write(struct file *file, const char __user *data,
 	return count;
 }
 
-static int inject_enable_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations i5100_inject_enable_fops = {
-	.open = inject_enable_open,
+	.open = simple_open,
 	.write = inject_enable_write,
 	.llseek = generic_file_llseek,
 };
