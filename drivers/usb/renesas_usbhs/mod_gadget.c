@@ -845,7 +845,6 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 
 	/* first hook up the driver ... */
 	gpriv->driver = driver;
-	gpriv->gadget.dev.driver = &driver->driver;
 
 	return usbhsg_try_start(priv, USBHSG_STATUS_REGISTERD);
 }
@@ -861,7 +860,6 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 		return -EINVAL;
 
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
-	gpriv->gadget.dev.driver = NULL;
 	gpriv->driver = NULL;
 
 	return 0;
