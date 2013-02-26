@@ -979,9 +979,8 @@ static int devm_pinctrl_match(struct device *dev, void *res, void *data)
  */
 void devm_pinctrl_put(struct pinctrl *p)
 {
-	WARN_ON(devres_destroy(p->dev, devm_pinctrl_release,
+	WARN_ON(devres_release(p->dev, devm_pinctrl_release,
 			       devm_pinctrl_match, p));
-	pinctrl_put(p);
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_put);
 
