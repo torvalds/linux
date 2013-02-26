@@ -1352,7 +1352,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 	/* hook up the driver ... */
 	driver->driver.bus = NULL;
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 
 	udc->usb_state = USB_STATE_ATTACHED;
 	udc->ep0_state = WAIT_FOR_SETUP;
@@ -1367,7 +1366,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 			dev_err(&udc->dev->dev,
 				"unable to register peripheral to otg\n");
 			udc->driver = NULL;
-			udc->gadget.dev.driver = NULL;
 			return retval;
 		}
 	}
@@ -1403,7 +1401,6 @@ static int mv_udc_stop(struct usb_gadget *gadget,
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	/* unbind gadget driver */
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	return 0;
