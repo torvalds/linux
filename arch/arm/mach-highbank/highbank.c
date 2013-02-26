@@ -168,7 +168,7 @@ static void __init highbank_init(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
-	if (of_machine_is_compatible("calxeda,highbank"))
+	if (psci_ops.cpu_suspend)
 		platform_device_register(&highbank_cpuidle_device);
 }
 

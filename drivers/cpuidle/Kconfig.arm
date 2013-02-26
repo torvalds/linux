@@ -4,7 +4,7 @@
 
 config ARM_HIGHBANK_CPUIDLE
 	bool "CPU Idle Driver for Calxeda processors"
-	depends on ARCH_HIGHBANK
+	depends on ARM_PSCI
 	select ARM_CPU_SUSPEND
 	help
 	  Select this to enable cpuidle on Calxeda processors.
