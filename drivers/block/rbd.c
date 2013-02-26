@@ -1264,13 +1264,6 @@ static bool obj_request_done_test(struct rbd_obj_request *obj_request)
 	return atomic_read(&obj_request->done) != 0;
 }
 
-static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request,
-				struct ceph_osd_op *op)
-{
-	dout("%s: obj %p\n", __func__, obj_request);
-	obj_request_done_set(obj_request);
-}
-
 static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p cb %p\n", __func__, obj_request,
@@ -1279,6 +1272,13 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 		obj_request->callback(obj_request);
 	else
 		complete_all(&obj_request->completion);
+}
+
+static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request,
+				struct ceph_osd_op *op)
+{
+	dout("%s: obj %p\n", __func__, obj_request);
+	obj_request_done_set(obj_request);
 }
 
 static void rbd_osd_read_callback(struct rbd_obj_request *obj_request,
