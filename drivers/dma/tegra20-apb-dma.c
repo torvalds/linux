@@ -63,6 +63,9 @@
 #define TEGRA_APBDMA_STATUS_COUNT_SHIFT		2
 #define TEGRA_APBDMA_STATUS_COUNT_MASK		0xFFFC
 
+#define TEGRA_APBDMA_CHAN_CSRE			0x00C
+#define TEGRA_APBDMA_CHAN_CSRE_PAUSE		(1 << 31)
+
 /* AHB memory address */
 #define TEGRA_APBDMA_CHAN_AHBPTR		0x010
 
@@ -113,10 +116,12 @@ struct tegra_dma;
  * tegra_dma_chip_data Tegra chip specific DMA data
  * @nr_channels: Number of channels available in the controller.
  * @max_dma_count: Maximum DMA transfer count supported by DMA controller.
+ * @support_channel_pause: Support channel wise pause of dma.
  */
 struct tegra_dma_chip_data {
 	int nr_channels;
 	int max_dma_count;
+	bool support_channel_pause;
 };
 
 /* DMA channel registers */
@@ -355,6 +360,32 @@ static void tegra_dma_global_resume(struct tegra_dma_channel *tdc)
 	spin_unlock(&tdma->global_lock);
 }
 
+static void tegra_dma_pause(struct tegra_dma_channel *tdc,
+	bool wait_for_burst_complete)
+{
+	struct tegra_dma *tdma = tdc->tdma;
+
+	if (tdma->chip_data->support_channel_pause) {
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_CSRE,
+				TEGRA_APBDMA_CHAN_CSRE_PAUSE);
+		if (wait_for_burst_complete)
+			udelay(TEGRA_APBDMA_BURST_COMPLETE_TIME);
+	} else {
+		tegra_dma_global_pause(tdc, wait_for_burst_complete);
+	}
+}
+
+static void tegra_dma_resume(struct tegra_dma_channel *tdc)
+{
+	struct tegra_dma *tdma = tdc->tdma;
+
+	if (tdma->chip_data->support_channel_pause) {
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_CSRE, 0);
+	} else {
+		tegra_dma_global_resume(tdc);
+	}
+}
+
 static void tegra_dma_stop(struct tegra_dma_channel *tdc)
 {
 	u32 csr;
@@ -410,7 +441,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 	 * If there is already IEC status then interrupt handler need to
 	 * load new configuration.
 	 */
-	tegra_dma_global_pause(tdc, false);
+	tegra_dma_pause(tdc, false);
 	status  = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
 
 	/*
@@ -420,7 +451,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 	if (status & TEGRA_APBDMA_STATUS_ISE_EOC) {
 		dev_err(tdc2dev(tdc),
 			"Skipping new configuration as interrupt is pending\n");
-		tegra_dma_global_resume(tdc);
+		tegra_dma_resume(tdc);
 		return;
 	}
 
@@ -431,7 +462,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 				nsg_req->ch_regs.csr | TEGRA_APBDMA_CSR_ENB);
 	nsg_req->configured = true;
 
-	tegra_dma_global_resume(tdc);
+	tegra_dma_resume(tdc);
 }
 
 static void tdc_start_head_req(struct tegra_dma_channel *tdc)
@@ -692,7 +723,7 @@ static void tegra_dma_terminate_all(struct dma_chan *dc)
 		goto skip_dma_stop;
 
 	/* Pause DMA before checking the queue status */
-	tegra_dma_global_pause(tdc, true);
+	tegra_dma_pause(tdc, true);
 
 	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
 	if (status & TEGRA_APBDMA_STATUS_ISE_EOC) {
@@ -710,7 +741,7 @@ static void tegra_dma_terminate_all(struct dma_chan *dc)
 		sgreq->dma_desc->bytes_transferred +=
 				get_current_xferred_count(tdc, sgreq, status);
 	}
-	tegra_dma_global_resume(tdc);
+	tegra_dma_resume(tdc);
 
 skip_dma_stop:
 	tegra_dma_abort_all(tdc);
@@ -738,7 +769,6 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 
 	ret = dma_cookie_status(dc, cookie, txstate);
 	if (ret == DMA_SUCCESS) {
-		dma_set_residue(txstate, 0);
 		spin_unlock_irqrestore(&tdc->lock, flags);
 		return ret;
 	}
@@ -1180,6 +1210,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 static const struct tegra_dma_chip_data tegra20_dma_chip_data = {
 	.nr_channels		= 16,
 	.max_dma_count		= 1024UL * 64,
+	.support_channel_pause	= false,
 };
 
 #if defined(CONFIG_OF)
@@ -1187,10 +1218,22 @@ static const struct tegra_dma_chip_data tegra20_dma_chip_data = {
 static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.nr_channels		= 32,
 	.max_dma_count		= 1024UL * 64,
+	.support_channel_pause	= false,
 };
+
+/* Tegra114 specific DMA controller information */
+static const struct tegra_dma_chip_data tegra114_dma_chip_data = {
+	.nr_channels		= 32,
+	.max_dma_count		= 1024UL * 64,
+	.support_channel_pause	= true,
+};
+
 
 static const struct of_device_id tegra_dma_of_match[] = {
 	{
+		.compatible = "nvidia,tegra114-apbdma",
+		.data = &tegra114_dma_chip_data,
+	}, {
 		.compatible = "nvidia,tegra30-apbdma",
 		.data = &tegra30_dma_chip_data,
 	}, {

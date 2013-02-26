@@ -1,4 +1,4 @@
-/* arch/arm/include/asm/hardware/pl080.h
+/* include/linux/amba/pl080.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
