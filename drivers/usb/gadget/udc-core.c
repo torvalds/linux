@@ -185,6 +185,10 @@ int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 
 	dev_set_name(&gadget->dev, "gadget");
 
+	dma_set_coherent_mask(&gadget->dev, parent->coherent_dma_mask);
+	gadget->dev.dma_parms = parent->dma_parms;
+	gadget->dev.dma_mask = parent->dma_mask;
+
 	ret = device_register(&gadget->dev);
 	if (ret)
 		goto err2;
