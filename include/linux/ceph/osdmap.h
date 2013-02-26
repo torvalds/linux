@@ -23,6 +23,8 @@ struct ceph_pg {
 	uint32_t seed;
 };
 
+#define CEPH_POOL_FLAG_HASHPSPOOL  1
+
 struct ceph_pg_pool_info {
 	struct rb_node node;
 	s64 id;

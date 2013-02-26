@@ -1127,18 +1127,16 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	struct ceph_pg_mapping *pg;
 	struct ceph_pg_pool_info *pool;
 	int ruleno;
-	unsigned int poolid, ps, pps, t, r;
+	int r;
+	u32 pps;
 
-	poolid = pgid.pool;
-	ps = pgid.seed;
-
-	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
 	if (!pool)
 		return NULL;
 
 	/* pg_temp? */
-	t = ceph_stable_mod(ps, pool->pg_num, pool->pgp_num_mask);
-	pgid.seed = t;
+	pgid.seed = ceph_stable_mod(pgid.seed, pool->pg_num,
+				    pool->pgp_num_mask);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		*num = pg->len;
@@ -1149,20 +1147,35 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	ruleno = crush_find_rule(osdmap->crush, pool->crush_ruleset,
 				 pool->type, pool->size);
 	if (ruleno < 0) {
-		pr_err("no crush rule pool %d ruleset %d type %d size %d\n",
-		       poolid, pool->crush_ruleset, pool->type,
+		pr_err("no crush rule pool %lld ruleset %d type %d size %d\n",
+		       pgid.pool, pool->crush_ruleset, pool->type,
 		       pool->size);
 		return NULL;
 	}
 
-	pps = ceph_stable_mod(ps, pool->pgp_num, pool->pgp_num_mask);
-	pps += poolid;
+	if (pool->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
+		/* hash pool id and seed sothat pool PGs do not overlap */
+		pps = crush_hash32_2(CRUSH_HASH_RJENKINS1,
+				     ceph_stable_mod(pgid.seed, pool->pgp_num,
+						     pool->pgp_num_mask),
+				     pgid.pool);
+	} else {
+		/*
+		 * legacy ehavior: add ps and pool together.  this is
+		 * not a great approach because the PGs from each pool
+		 * will overlap on top of each other: 0.5 == 1.4 ==
+		 * 2.3 == ...
+		 */
+		pps = ceph_stable_mod(pgid.seed, pool->pgp_num,
+				      pool->pgp_num_mask) +
+			(unsigned)pgid.pool;
+	}
 	r = crush_do_rule(osdmap->crush, ruleno, pps, osds,
 			  min_t(int, pool->size, *num),
 			  osdmap->osd_weight);
 	if (r < 0) {
-		pr_err("error %d from crush rule: pool %d ruleset %d type %d"
-		       " size %d\n", r, poolid, pool->crush_ruleset,
+		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
+		       " size %d\n", r, pgid.pool, pool->crush_ruleset,
 		       pool->type, pool->size);
 		return NULL;
 	}
