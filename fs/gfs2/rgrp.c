@@ -2180,13 +2180,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	if (dinode)
 		gfs2_trans_add_unrevoke(sdp, block, 1);
 
-	/*
-	 * This needs reviewing to see why we cannot do the quota change
-	 * at this point in the dinode case.
-	 */
-	if (ndata)
-		gfs2_quota_change(ip, ndata, ip->i_inode.i_uid,
-				  ip->i_inode.i_gid);
+	gfs2_quota_change(ip, *nblocks, ip->i_inode.i_uid, ip->i_inode.i_gid);
 
 	rbm.rgd->rd_free_clone -= *nblocks;
 	trace_gfs2_block_alloc(ip, rbm.rgd, block, *nblocks,
