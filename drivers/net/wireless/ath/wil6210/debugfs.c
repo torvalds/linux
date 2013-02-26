@@ -312,14 +312,6 @@ static const struct file_operations fops_memread = {
 	.llseek		= seq_lseek,
 };
 
-static int wil_default_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
@@ -361,7 +353,7 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_ioblob = {
 	.read =		wil_read_file_ioblob,
-	.open =		wil_default_open,
+	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
@@ -396,7 +388,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 
 static const struct file_operations fops_reset = {
 	.write = wil_write_file_reset,
-	.open  = wil_default_open,
+	.open  = simple_open,
 };
 /*---------Tx descriptor------------*/
 
@@ -526,7 +518,7 @@ static ssize_t wil_write_file_ssid(struct file *file, const char __user *buf,
 static const struct file_operations fops_ssid = {
 	.read = wil_read_file_ssid,
 	.write = wil_write_file_ssid,
-	.open  = wil_default_open,
+	.open  = simple_open,
 };
 
 /*----------------*/
