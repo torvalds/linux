@@ -198,12 +198,10 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 	gadget->dev.dma_parms = parent->dma_parms;
 	gadget->dev.dma_mask = parent->dma_mask;
 
-	if (release) {
+	if (release)
 		gadget->dev.release = release;
-	} else {
-		if (!gadget->dev.release)
-			gadget->dev.release = usb_udc_nop_release;
-	}
+	else
+		gadget->dev.release = usb_udc_nop_release;
 
 	ret = device_register(&gadget->dev);
 	if (ret)
