@@ -3268,7 +3268,6 @@ static int udc_probe(struct udc *dev)
 	dev->gadget.ops = &udc_ops;
 
 	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
 
@@ -3292,7 +3291,8 @@ static int udc_probe(struct udc *dev)
 		"driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
-	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto finished;
 
