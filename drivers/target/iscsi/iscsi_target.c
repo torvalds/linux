@@ -264,15 +264,49 @@ int iscsit_deaccess_np(struct iscsi_np *np, struct iscsi_portal_group *tpg)
 	return 0;
 }
 
-static struct iscsi_np *iscsit_get_np(
+bool iscsit_check_np_match(
 	struct __kernel_sockaddr_storage *sockaddr,
+	struct iscsi_np *np,
 	int network_transport)
 {
 	struct sockaddr_in *sock_in, *sock_in_e;
 	struct sockaddr_in6 *sock_in6, *sock_in6_e;
-	struct iscsi_np *np;
-	int ip_match = 0;
+	bool ip_match = false;
 	u16 port;
+
+	if (sockaddr->ss_family == AF_INET6) {
+		sock_in6 = (struct sockaddr_in6 *)sockaddr;
+		sock_in6_e = (struct sockaddr_in6 *)&np->np_sockaddr;
+
+		if (!memcmp(&sock_in6->sin6_addr.in6_u,
+			    &sock_in6_e->sin6_addr.in6_u,
+			    sizeof(struct in6_addr)))
+			ip_match = true;
+
+		port = ntohs(sock_in6->sin6_port);
+	} else {
+		sock_in = (struct sockaddr_in *)sockaddr;
+		sock_in_e = (struct sockaddr_in *)&np->np_sockaddr;
+
+		if (sock_in->sin_addr.s_addr == sock_in_e->sin_addr.s_addr)
+			ip_match = true;
+
+		port = ntohs(sock_in->sin_port);
+	}
+
+	if ((ip_match == true) && (np->np_port == port) &&
+	    (np->np_network_transport == network_transport))
+		return true;
+
+	return false;
+}
+
+static struct iscsi_np *iscsit_get_np(
+	struct __kernel_sockaddr_storage *sockaddr,
+	int network_transport)
+{
+	struct iscsi_np *np;
+	bool match;
 
 	spin_lock_bh(&np_lock);
 	list_for_each_entry(np, &g_np_list, np_list) {
@@ -282,29 +316,8 @@ static struct iscsi_np *iscsit_get_np(
 			continue;
 		}
 
-		if (sockaddr->ss_family == AF_INET6) {
-			sock_in6 = (struct sockaddr_in6 *)sockaddr;
-			sock_in6_e = (struct sockaddr_in6 *)&np->np_sockaddr;
-
-			if (!memcmp(&sock_in6->sin6_addr.in6_u,
-				    &sock_in6_e->sin6_addr.in6_u,
-				    sizeof(struct in6_addr)))
-				ip_match = 1;
-
-			port = ntohs(sock_in6->sin6_port);
-		} else {
-			sock_in = (struct sockaddr_in *)sockaddr;
-			sock_in_e = (struct sockaddr_in *)&np->np_sockaddr;
-
-			if (sock_in->sin_addr.s_addr ==
-			    sock_in_e->sin_addr.s_addr)
-				ip_match = 1;
-
-			port = ntohs(sock_in->sin_port);
-		}
-
-		if ((ip_match == 1) && (np->np_port == port) &&
-		    (np->np_network_transport == network_transport)) {
+		match = iscsit_check_np_match(sockaddr, np, network_transport);
+		if (match == true) {
 			/*
 			 * Increment the np_exports reference count now to
 			 * prevent iscsit_del_np() below from being called
