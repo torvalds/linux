@@ -48,6 +48,8 @@
 #include "rga_mmu_info.h"
 #include "RGA_API.h"
 
+#define RGA_TEST_CASE 0
+    
 #define RGA_TEST 0
 #define RGA_TEST_TIME 0
 #define RGA_TEST_FLUSH_TIME 0
@@ -637,6 +639,10 @@ static void rga_try_set_reg(void)
             /* All CMD finish int */
             rga_write(rga_read(RGA_INT)|(0x1<<10)|(0x1<<8), RGA_INT);
 
+            #if RGA_TEST_TIME
+            rga_start = ktime_get();
+            #endif
+
             /* Start proc */
             atomic_set(&reg->session->done, 0);
             rga_write(0x1, RGA_CMD_CTRL);
@@ -874,11 +880,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     printk("*** rga_blit_sync proc ***\n");
     print_info(req);
     #endif
-
-    #if RGA_TEST_TIME
-    rga_start = ktime_get();
-    #endif
-
+    
     ret = rga_blit(session, req);
     if(ret < 0)
     {
@@ -1282,7 +1284,9 @@ static int __init rga_init(void)
         atomic_set(&rga_session_global.num_done, 0);
     }
 
-    //rga_test_0();
+    #if RGA_TEST_CASE
+    rga_test_0();
+    #endif
 
 	INFO("Module initialized.\n");
 
@@ -1310,19 +1314,16 @@ static void __exit rga_exit(void)
 }
 
 
-#if 0
+#if RGA_TEST_CASE
 
-#if 1
 extern struct fb_info * rk_get_fb(int fb_id);
 EXPORT_SYMBOL(rk_get_fb);
 
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-#endif
-
-unsigned int src_buf[1920*1080];
-unsigned int dst_buf[1920*1080];
+unsigned int src_buf[1920*1080 * 2];
+unsigned int dst_buf[1920*1080 * 2];
 
 void rga_test_0(void)
 {
@@ -1370,37 +1371,37 @@ void rga_test_0(void)
     printk("************ RGA_TEST ************\n");
     printk("********************************\n\n");
 
-    req.src.act_w = 1280;
-    req.src.act_h = 720;
+    req.src.act_w = 1920;
+    req.src.act_h = 1080;
 
-    req.src.vir_w = 1280;
-    req.src.vir_h = 720;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src + 128) & 0xffffffc0;
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.vir_w = 1920;
+    req.src.vir_h = 1080;
+    req.src.yrgb_addr = ((uint32_t)(virt_to_phys(src + 1024)) & 0xfffff000);// & 0xffffffc0;
+    req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 1080*1920);
     req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = 0;
+    req.src.format = RK_FORMAT_YCbCr_420_SP;
 
-    req.dst.act_w = 1280;
-    req.dst.act_h = 720;
+    req.dst.act_w = 1920;
+    req.dst.act_h = 1080;
 
-    req.dst.vir_w = 1280;
-    req.dst.vir_h = 720;
+    req.dst.vir_w = 1920;
+    req.dst.vir_h = 1080;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst) + 8;
+    req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst + 256)) & 0xfffff000;
 
     //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
-    req.clip.xmax = 1279;
+    req.clip.xmax = 1919;
     req.clip.ymin = 0;
-    req.clip.ymax = 719;
+    req.clip.ymax = 1079;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
 
     //req.rotate_mode = 1;
-   // req.scale_mode = 2;
+    //req.scale_mode = 2;
 
     //req.alpha_rop_flag = 1;
     //req.alpha_rop_mode = 0x19;
@@ -1413,6 +1414,7 @@ void rga_test_0(void)
     //req.mmu_info.mmu_en = 1;
 
     printk("src = %.8x\n", req.src.yrgb_addr);
+    printk("src = %.8x\n", req.src.uv_addr);
     printk("dst = %.8x\n", req.dst.yrgb_addr);
 
     rga_blit_sync(&session, &req);
