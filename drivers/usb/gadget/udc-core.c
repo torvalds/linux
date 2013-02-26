@@ -247,6 +247,7 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
+	udc->gadget->dev.driver = NULL;
 }
 
 /**
@@ -296,6 +297,7 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 
 	udc->driver = driver;
 	udc->dev.driver = &driver->driver;
+	udc->gadget->dev.driver = &driver->driver;
 
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)
@@ -314,6 +316,7 @@ err1:
 			udc->driver->function, ret);
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
+	udc->gadget->dev.driver = NULL;
 	return ret;
 }
 
