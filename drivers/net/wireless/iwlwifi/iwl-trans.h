@@ -217,7 +217,11 @@ struct iwl_device_cmd {
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
 
-#define IWL_MAX_CMD_TFDS	2
+/*
+ * number of transfer buffers (fragments) per transmit frame descriptor;
+ * this is just the driver's idea, the hardware supports 20
+ */
+#define IWL_MAX_CMD_TBS_PER_TFD	2
 
 /**
  * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
@@ -254,15 +258,15 @@ enum iwl_hcmd_dataflag {
  * @id: id of the host command
  */
 struct iwl_host_cmd {
-	const void *data[IWL_MAX_CMD_TFDS];
+	const void *data[IWL_MAX_CMD_TBS_PER_TFD];
 	struct iwl_rx_packet *resp_pkt;
 	unsigned long _rx_page_addr;
 	u32 _rx_page_order;
 	int handler_status;
 
 	u32 flags;
-	u16 len[IWL_MAX_CMD_TFDS];
-	u8 dataflags[IWL_MAX_CMD_TFDS];
+	u16 len[IWL_MAX_CMD_TBS_PER_TFD];
+	u8 dataflags[IWL_MAX_CMD_TBS_PER_TFD];
 	u8 id;
 };
 
