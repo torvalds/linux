@@ -2631,12 +2631,7 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed = USB_SPEED_FULL;
 	udc->gadget.name = driver_name;
-
 	udc->gadget.dev.release = omap_udc_release;
-	udc->gadget.dev.parent = &odev->dev;
-	if (use_dma)
-		udc->gadget.dev.dma_mask = odev->dev.dma_mask;
-
 	udc->transceiver = xceiv;
 
 	/* ep0 is special; put it right after the SETUP buffer */
