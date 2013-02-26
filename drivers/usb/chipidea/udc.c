@@ -1717,9 +1717,6 @@ static int udc_start(struct ci13xxx *ci)
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 
-	ci->gadget.dev.dma_mask = dev->dma_mask;
-	ci->gadget.dev.coherent_dma_mask = dev->coherent_dma_mask;
-	ci->gadget.dev.parent   = dev;
 	ci->gadget.dev.release  = udc_release;
 
 	/* alloc resources */
