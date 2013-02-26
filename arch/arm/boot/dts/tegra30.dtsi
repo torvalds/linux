@@ -424,7 +424,7 @@
 	};
 
 	pmc {
-		compatible = "nvidia,tegra20-pmc", "nvidia,tegra30-pmc";
+		compatible = "nvidia,tegra30-pmc";
 		reg = <0x7000e400 0x400>;
 	};
 
