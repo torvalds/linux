@@ -512,11 +512,11 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* synchronise with the rendering channel, if necessary */
 	if (likely(chan)) {
-		ret = RING_SPACE(chan, 10);
-		if (ret)
-			return ret;
-
 		if (nv_mclass(chan->object) < NV84_CHANNEL_IND_CLASS) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				return ret;
+
 			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, sync->sem.offset);
@@ -525,13 +525,17 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			BEGIN_NV04(chan, 0, NV11_SUBCHAN_SEMAPHORE_OFFSET, 2);
 			OUT_RING  (chan, sync->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
-			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-			OUT_RING  (chan, NvSema);
 		} else
 		if (nv_mclass(chan->object) < NVC0_CHANNEL_IND_CLASS) {
 			u64 offset = nv84_fence_crtc(chan, nv_crtc->index);
 			offset += sync->sem.offset;
 
+			ret = RING_SPACE(chan, 12);
+			if (ret)
+				return ret;
+
+			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
+			OUT_RING  (chan, chan->vram);
 			BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
@@ -545,6 +549,10 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		} else {
 			u64 offset = nv84_fence_crtc(chan, nv_crtc->index);
 			offset += sync->sem.offset;
+
+			ret = RING_SPACE(chan, 10);
+			if (ret)
+				return ret;
 
 			BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
