@@ -522,7 +522,7 @@ static void s2255_timer(unsigned long user_data)
 
 
 /* this loads the firmware asynchronously.
-   Originally this was done synchroously in probe.
+   Originally this was done synchronously in probe.
    But it is better to load it asynchronously here than block
    inside the probe function. Blocking inside probe affects boot time.
    FW loading is triggered by the timer in the probe function
@@ -1157,6 +1157,8 @@ static int s2255_set_mode(struct s2255_channel *channel,
 	__le32 *buffer;
 	unsigned long chn_rev;
 	struct s2255_dev *dev = to_s2255_dev(channel->vdev.v4l2_dev);
+	int i;
+
 	chn_rev = G_chnmap[channel->idx];
 	dprintk(3, "%s channel: %d\n", __func__, channel->idx);
 	/* if JPEG, set the quality */
@@ -1179,7 +1181,8 @@ static int s2255_set_mode(struct s2255_channel *channel,
 	buffer[0] = IN_DATA_TOKEN;
 	buffer[1] = (__le32) cpu_to_le32(chn_rev);
 	buffer[2] = CMD_SET_MODE;
-	memcpy(&buffer[3], &channel->mode, sizeof(struct s2255_mode));
+	for (i = 0; i < sizeof(struct s2255_mode) / sizeof(u32); i++)
+		buffer[3 + i] = cpu_to_le32(((u32 *)&channel->mode)[i]);
 	channel->setmode_ready = 0;
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
 	if (debug)
@@ -2511,7 +2514,7 @@ static int s2255_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 	atomic_set(&dev->num_channels, 0);
-	dev->pid = id->idProduct;
+	dev->pid = le16_to_cpu(id->idProduct);
 	dev->fw_data = kzalloc(sizeof(struct s2255_fw), GFP_KERNEL);
 	if (!dev->fw_data)
 		goto errorFWDATA1;
@@ -2581,7 +2584,7 @@ static int s2255_probe(struct usb_interface *interface,
 		/* make sure firmware is the latest */
 		__le32 *pRel;
 		pRel = (__le32 *) &dev->fw_data->fw->data[fw_size - 4];
-		printk(KERN_INFO "s2255 dsp fw version %x\n", *pRel);
+		printk(KERN_INFO "s2255 dsp fw version %x\n", le32_to_cpu(*pRel));
 		dev->dsp_fw_ver = le32_to_cpu(*pRel);
 		if (dev->dsp_fw_ver < S2255_CUR_DSP_FWVER)
 			printk(KERN_INFO "s2255: f2255usb.bin out of date.\n");
