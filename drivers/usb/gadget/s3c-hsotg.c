@@ -2925,7 +2925,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 	driver->driver.bus = NULL;
 	hsotg->driver = driver;
-	hsotg->gadget.dev.driver = &driver->driver;
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
@@ -2942,7 +2941,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 err:
 	hsotg->driver = NULL;
-	hsotg->gadget.dev.driver = NULL;
 	return ret;
 }
 
@@ -2977,7 +2975,6 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 
 	hsotg->driver = NULL;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
-	hsotg->gadget.dev.driver = NULL;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
