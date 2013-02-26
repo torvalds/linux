@@ -1338,7 +1338,6 @@ static int imx_udc_start(struct usb_gadget *gadget,
 	imx_usb = container_of(gadget, struct imx_udc_struct, gadget);
 	/* first hook up the driver ... */
 	imx_usb->driver = driver;
-	imx_usb->gadget.dev.driver = &driver->driver;
 
 	D_INI(imx_usb->dev, "<%s> registered gadget driver '%s'\n",
 		__func__, driver->driver.name);
@@ -1358,7 +1357,6 @@ static int imx_udc_stop(struct usb_gadget *gadget,
 	imx_udc_disable(imx_usb);
 	del_timer(&imx_usb->timer);
 
-	imx_usb->gadget.dev.driver = NULL;
 	imx_usb->driver = NULL;
 
 	D_INI(imx_usb->dev, "<%s> unregistered gadget driver '%s'\n",
