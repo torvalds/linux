@@ -52,7 +52,6 @@
 #include <linux/of_platform.h>
 
 #include <linux/usb/otg.h>
-#include <linux/usb/nop-usb-xceiv.h>
 
 /*
  * All these registers belong to OMAP's Wrapper around the
@@ -117,8 +116,6 @@ struct dwc3_omap {
 	/* device lock */
 	spinlock_t		lock;
 
-	struct platform_device	*usb2_phy;
-	struct platform_device	*usb3_phy;
 	struct device		*dev;
 
 	int			irq;
@@ -192,60 +189,6 @@ void dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
 	return;
 }
 EXPORT_SYMBOL_GPL(dwc3_omap_mailbox);
-
-static int dwc3_omap_register_phys(struct dwc3_omap *omap)
-{
-	struct nop_usb_xceiv_platform_data pdata;
-	struct platform_device	*pdev;
-	int			ret;
-
-	memset(&pdata, 0x00, sizeof(pdata));
-
-	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
-	if (!pdev)
-		return -ENOMEM;
-
-	omap->usb2_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB2;
-
-	ret = platform_device_add_data(omap->usb2_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err1;
-
-	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
-	if (!pdev) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	omap->usb3_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB3;
-
-	ret = platform_device_add_data(omap->usb3_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err2;
-
-	ret = platform_device_add(omap->usb2_phy);
-	if (ret)
-		goto err2;
-
-	ret = platform_device_add(omap->usb3_phy);
-	if (ret)
-		goto err3;
-
-	return 0;
-
-err3:
-	platform_device_del(omap->usb2_phy);
-
-err2:
-	platform_device_put(omap->usb3_phy);
-
-err1:
-	platform_device_put(omap->usb2_phy);
-
-	return ret;
-}
 
 static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 {
@@ -356,12 +299,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = dwc3_omap_register_phys(omap);
-	if (ret) {
-		dev_err(dev, "couldn't register PHYs\n");
-		return ret;
-	}
-
 	context = devm_kzalloc(dev, resource_size(res), GFP_KERNEL);
 	if (!context) {
 		dev_err(dev, "couldn't allocate dwc3 context memory\n");
@@ -445,10 +382,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 static int dwc3_omap_remove(struct platform_device *pdev)
 {
-	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
-
-	platform_device_unregister(omap->usb2_phy);
-	platform_device_unregister(omap->usb3_phy);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
