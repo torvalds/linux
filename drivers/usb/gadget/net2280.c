@@ -1896,7 +1896,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	retval = device_create_file (&dev->pdev->dev, &dev_attr_function);
 	if (retval) goto err_unbind;
@@ -1925,7 +1924,6 @@ err_func:
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 err_unbind:
 	driver->unbind (&dev->gadget);
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	return retval;
 }
@@ -1961,7 +1959,6 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	stop_activity (dev, driver);
 	spin_unlock_irqrestore (&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	net2280_led_active (dev, 0);
