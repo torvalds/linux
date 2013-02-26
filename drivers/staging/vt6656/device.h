@@ -66,7 +66,6 @@
  */
 
 #include "device_cfg.h"
-#include "ttype.h"
 #include "80211hdr.h"
 #include "tether.h"
 #include "wmgr.h"

@@ -30,7 +30,6 @@
 #ifndef __TKIP_H__
 #define __TKIP_H__
 
-#include "ttype.h"
 #include "tether.h"
 
 /*---------------------  Export Definitions -------------------------*/

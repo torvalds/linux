@@ -28,8 +28,6 @@
 #ifndef __80211HDR_H__
 #define __80211HDR_H__
 
-#include "ttype.h"
-
 /*---------------------  Export Definitions -------------------------*/
 
 /* bit type */

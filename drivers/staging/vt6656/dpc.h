@@ -29,7 +29,6 @@
 #ifndef __DPC_H__
 #define __DPC_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "wcmd.h"
 

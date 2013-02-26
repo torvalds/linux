@@ -30,7 +30,6 @@
 #ifndef __USBPIPE_H__
 #define __USBPIPE_H__
 
-#include "ttype.h"
 #include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/

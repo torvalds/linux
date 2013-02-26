@@ -29,7 +29,6 @@
 #ifndef __WCTL_H__
 #define __WCTL_H__
 
-#include "ttype.h"
 #include "tether.h"
 #include "device.h"
 

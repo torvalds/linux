@@ -29,7 +29,7 @@
 #ifndef __TCRC_H__
 #define __TCRC_H__
 
-#include "ttype.h"
+#include <linux/types.h>
 
 /*---------------------  Export Definitions -------------------------*/
 

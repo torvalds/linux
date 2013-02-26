@@ -34,7 +34,6 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "tmacro.h"
 

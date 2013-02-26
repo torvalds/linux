@@ -31,7 +31,6 @@
 #ifndef __80211MGR_H__
 #define __80211MGR_H__
 
-#include "ttype.h"
 #include "80211hdr.h"
 
 /*---------------------  Export Definitions -------------------------*/

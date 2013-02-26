@@ -31,7 +31,6 @@
 #ifndef __WPA2_H__
 #define __WPA2_H__
 
-#include "ttype.h"
 #include "80211mgr.h"
 #include "80211hdr.h"
 #include "bssdb.h"

@@ -31,6 +31,8 @@
 #ifndef __MICHAEL_H__
 #define __MICHAEL_H__
 
+#include <linux/types.h>
+
 /*---------------------  Export Definitions -------------------------*/
 
 /*---------------------  Export Types  ------------------------------*/

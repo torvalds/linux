@@ -31,7 +31,6 @@
 #define _CHANNEL_H_
 
 #include "device.h"
-#include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 

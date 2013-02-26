@@ -38,7 +38,6 @@
  *
  */
 
-#include "ttype.h"
 #include "tmacro.h"
 #include "device.h"
 #include "mac.h"

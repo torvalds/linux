@@ -30,7 +30,6 @@
 #ifndef __CONTROL_H__
 #define __CONTROL_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "usbpipe.h"
 

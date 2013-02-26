@@ -29,8 +29,6 @@
 #ifndef __IOCMD_H__
 #define __IOCMD_H__
 
-#include "ttype.h"
-
 /*---------------------  Export Definitions -------------------------*/
 
 // ioctl Command code

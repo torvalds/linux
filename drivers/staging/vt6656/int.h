@@ -30,7 +30,6 @@
 #ifndef __INT_H__
 #define __INT_H__
 
-#include "ttype.h"
 #include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/

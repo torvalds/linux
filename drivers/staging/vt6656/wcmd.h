@@ -28,7 +28,7 @@
 
 #ifndef __WCMD_H__
 #define __WCMD_H__
-#include "ttype.h"
+
 #include "80211hdr.h"
 #include "80211mgr.h"
 

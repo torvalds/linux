@@ -30,7 +30,7 @@
 #ifndef __RC4_H__
 #define __RC4_H__
 
-#include "ttype.h"
+#include <linux/types.h>
 
 /*---------------------  Export Definitions -------------------------*/
 /*---------------------  Export Types  ------------------------------*/

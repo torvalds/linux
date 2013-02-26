@@ -30,7 +30,6 @@
 #define __TETHER_H__
 
 #include <linux/if_ether.h>
-#include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 //

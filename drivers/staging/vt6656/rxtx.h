@@ -29,7 +29,6 @@
 #ifndef __RXTX_H__
 #define __RXTX_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "wcmd.h"
 

@@ -29,7 +29,6 @@
 #ifndef __CARD_H__
 #define __CARD_H__
 #include "device.h"
-#include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 

@@ -31,7 +31,6 @@
 #ifndef __WPA_H__
 #define __WPA_H__
 
-#include "ttype.h"
 #include "80211hdr.h"
 
 /*---------------------  Export Definitions -------------------------*/

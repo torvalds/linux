@@ -37,7 +37,6 @@
  *
  */
 
-#include "ttype.h"
 #include "mac.h"
 #include "device.h"
 #include "wmgr.h"

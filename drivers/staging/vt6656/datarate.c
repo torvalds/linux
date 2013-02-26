@@ -33,7 +33,6 @@
  *
  */
 
-#include "ttype.h"
 #include "tmacro.h"
 #include "mac.h"
 #include "80211mgr.h"

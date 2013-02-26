@@ -33,7 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include "ttype.h"
+
 #include "tether.h"
 
 /* max transmit or receive buffer size */

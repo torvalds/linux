@@ -30,7 +30,6 @@
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#include "ttype.h"
 #include "tether.h"
 #include "80211mgr.h"
 

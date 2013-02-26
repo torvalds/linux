@@ -32,7 +32,6 @@
  *
  */
 
-#include "ttype.h"
 #include "tmacro.h"
 #include "tether.h"
 #include "device.h"
