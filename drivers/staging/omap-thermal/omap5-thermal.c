@@ -260,7 +260,8 @@ const struct omap_bandgap_data omap5430_data = {
 	.features = OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
 			OMAP_BANDGAP_FEATURE_TALERT |
 			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
-			OMAP_BANDGAP_FEATURE_COUNTER,
+			OMAP_BANDGAP_FEATURE_COUNTER |
+			OMAP_BANDGAP_FEATURE_CLK_CTRL,
 	.fclock_name = "ts_clk_div_ck",
 	.div_ck_name = "ts_clk_div_ck",
 	.conv_table = omap5430_adc_to_temp,

@@ -69,6 +69,7 @@ omap4430_adc_to_temp[OMAP4430_ADC_END_VALUE - OMAP4430_ADC_START_VALUE + 1] = {
 /* OMAP4430 data */
 const struct omap_bandgap_data omap4430_data = {
 	.features = OMAP_BANDGAP_FEATURE_MODE_CONFIG |
+			OMAP_BANDGAP_FEATURE_CLK_CTRL |
 			OMAP_BANDGAP_FEATURE_POWER_SWITCH,
 	.fclock_name = "bandgap_fclk",
 	.div_ck_name = "bandgap_fclk",
@@ -207,6 +208,7 @@ const struct omap_bandgap_data omap4460_data = {
 			OMAP_BANDGAP_FEATURE_TALERT |
 			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
 			OMAP_BANDGAP_FEATURE_POWER_SWITCH |
+			OMAP_BANDGAP_FEATURE_CLK_CTRL |
 			OMAP_BANDGAP_FEATURE_COUNTER,
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",
@@ -236,6 +238,7 @@ const struct omap_bandgap_data omap4470_data = {
 			OMAP_BANDGAP_FEATURE_TALERT |
 			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
 			OMAP_BANDGAP_FEATURE_POWER_SWITCH |
+			OMAP_BANDGAP_FEATURE_CLK_CTRL |
 			OMAP_BANDGAP_FEATURE_COUNTER,
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",

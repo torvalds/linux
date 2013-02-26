@@ -914,7 +914,9 @@ int omap_bandgap_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot re-set clock rate. Continuing\n");
 
 	bg_ptr->clk_rate = clk_rate;
-	clk_enable(bg_ptr->fclock);
+	if (OMAP_BANDGAP_HAS(bg_ptr, CLK_CTRL))
+		clk_enable(bg_ptr->fclock);
+
 
 	mutex_init(&bg_ptr->bg_mutex);
 	bg_ptr->dev = &pdev->dev;
@@ -982,7 +984,8 @@ int omap_bandgap_probe(struct platform_device *pdev)
 	return 0;
 
 disable_clk:
-	clk_disable(bg_ptr->fclock);
+	if (OMAP_BANDGAP_HAS(bg_ptr, CLK_CTRL))
+		clk_disable(bg_ptr->fclock);
 put_clks:
 	clk_put(bg_ptr->fclock);
 	clk_put(bg_ptr->div_clk);
@@ -1012,7 +1015,8 @@ int omap_bandgap_remove(struct platform_device *pdev)
 
 	omap_bandgap_power(bg_ptr, false);
 
-	clk_disable(bg_ptr->fclock);
+	if (OMAP_BANDGAP_HAS(bg_ptr, CLK_CTRL))
+		clk_disable(bg_ptr->fclock);
 	clk_put(bg_ptr->fclock);
 	clk_put(bg_ptr->div_clk);
 
@@ -1109,7 +1113,9 @@ static int omap_bandgap_suspend(struct device *dev)
 
 	err = omap_bandgap_save_ctxt(bg_ptr);
 	omap_bandgap_power(bg_ptr, false);
-	clk_disable(bg_ptr->fclock);
+
+	if (OMAP_BANDGAP_HAS(bg_ptr, CLK_CTRL))
+		clk_disable(bg_ptr->fclock);
 
 	return err;
 }
@@ -1118,7 +1124,9 @@ static int omap_bandgap_resume(struct device *dev)
 {
 	struct omap_bandgap *bg_ptr = dev_get_drvdata(dev);
 
-	clk_enable(bg_ptr->fclock);
+	if (OMAP_BANDGAP_HAS(bg_ptr, CLK_CTRL))
+		clk_enable(bg_ptr->fclock);
+
 	omap_bandgap_power(bg_ptr, true);
 
 	return omap_bandgap_restore_ctxt(bg_ptr);
