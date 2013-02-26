@@ -92,7 +92,7 @@ typedef struct tagSMib2Counter {
     signed long    ifType;
     signed long    ifMtu;
     DWORD   ifSpeed;
-    BYTE    ifPhysAddress[ETH_ALEN];
+    u8    ifPhysAddress[ETH_ALEN];
     signed long    ifAdminStatus;
     signed long    ifOperStatus;
     DWORD   ifLastChange;
@@ -228,10 +228,10 @@ typedef struct tagSISRCounters {
 // Tx packet information
 //
 typedef struct tagSTxPktInfo {
-    BYTE    byBroadMultiUni;
+    u8    byBroadMultiUni;
     WORD    wLength;
     WORD    wFIFOCtl;
-    BYTE    abyDestAddr[ETH_ALEN];
+    u8    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
 
 
@@ -318,8 +318,8 @@ typedef struct tagSStatCounter {
     DWORD   dwCntRxFrmLength;
     DWORD   dwCntTxBufLength;
 
-    BYTE    abyCntRxPattern[16];
-    BYTE    abyCntTxPattern[16];
+    u8    abyCntRxPattern[16];
+    u8    abyCntTxPattern[16];
 
 
 
@@ -376,30 +376,30 @@ typedef struct tagSStatCounter {
 void STAvClearAllCounter(PSStatCounter pStatistic);
 
 void STAvUpdateIsrStatCounter(PSStatCounter pStatistic,
-			      BYTE byIsr0,
-			      BYTE byIsr1);
+			      u8 byIsr0,
+			      u8 byIsr1);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
-			     BYTE byRSR, BYTE byNewRSR, BYTE byRxSts,
-			     BYTE byRxRate, PBYTE pbyBuffer,
+			     u8 byRSR, u8 byNewRSR, u8 byRxSts,
+			     u8 byRxRate, u8 * pbyBuffer,
 			     unsigned int cbFrameLength);
 
 void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
-			       BYTE byRSR, BYTE byNewRSR, BYTE byRxSts,
-			       BYTE byRxRate, PBYTE pbyBuffer,
+			       u8 byRSR, u8 byNewRSR, u8 byRxSts,
+			       u8 byRxRate, u8 * pbyBuffer,
 			       unsigned int cbFrameLength);
 
-void STAvUpdateTDStatCounter(PSStatCounter pStatistic, BYTE byPktNum,
-			     BYTE byRate, BYTE byTSR);
+void STAvUpdateTDStatCounter(PSStatCounter pStatistic, u8 byPktNum,
+			     u8 byRate, u8 byTSR);
 
 void
 STAvUpdate802_11Counter(
     PSDot11Counters         p802_11Counter,
     PSStatCounter           pStatistic,
-    BYTE                    byRTSSuccess,
-    BYTE                    byRTSFail,
-    BYTE                    byACKFail,
-    BYTE                    byFCSErr
+    u8                    byRTSSuccess,
+    u8                    byRTSFail,
+    u8                    byACKFail,
+    u8                    byFCSErr
     );
 
 void STAvClear802_11Counter(PSDot11Counters p802_11Counter);

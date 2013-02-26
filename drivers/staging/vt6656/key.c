@@ -79,7 +79,7 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
             pTable->KeyTable[i].bInUse = false;
             pTable->KeyTable[i].wKeyCtl = 0;
             pTable->KeyTable[i].bSoftWEP = false;
-            pbyData[wLength++] = (BYTE) i;
+            pbyData[wLength++] = (u8) i;
             //MACvDisableKeyEntry(pDevice, i);
         }
     }
@@ -130,9 +130,9 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
         pTable->KeyTable[i].wKeyCtl = 0;
         pTable->KeyTable[i].dwGTKeyIndex = 0;
         pTable->KeyTable[i].bSoftWEP = false;
-        pbyData[i] = (BYTE) i;
+        pbyData[i] = (u8) i;
     }
-    pbyData[i] = (BYTE) i;
+    pbyData[i] = (u8) i;
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_CLRKEYENTRY,
                         0,

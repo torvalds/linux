@@ -45,12 +45,12 @@
 /*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 
-const BYTE abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
-const BYTE abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
-const BYTE abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
-const BYTE abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
-const BYTE abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
-const BYTE abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
+const u8 abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
+const u8 abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
+const u8 abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
+const u8 abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
+const u8 abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
+const u8 abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 
 
 /*+
@@ -112,7 +112,7 @@ WPA_ParseRSN(
 {
     PWLAN_IE_RSN_AUTH  pIE_RSN_Auth = NULL;
     int                i, j, m, n = 0;
-    PBYTE              pbyCaps;
+    u8 *              pbyCaps;
 
     WPA_ClearRSN(pBSSList);
 
@@ -209,7 +209,7 @@ WPA_ParseRSN(
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
 
             if(pRSN->len+2 >= 14+4+(m+n)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*n)+Cap(2)
-                pbyCaps = (PBYTE)pIE_RSN_Auth->AuthKSList[n].abyOUI;
+                pbyCaps = (u8 *)pIE_RSN_Auth->AuthKSList[n].abyOUI;
                 pBSSList->byDefaultK_as_PK = (*pbyCaps) & WPA_GROUPFLAG;
                 pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
                 pBSSList->sRSNCapObj.bRSNCapExist = true;
@@ -241,13 +241,13 @@ WPA_ParseRSN(
 -*/
 bool
 WPA_SearchRSN(
-    BYTE                byCmd,
-    BYTE                byEncrypt,
+    u8                byCmd,
+    u8                byEncrypt,
      PKnownBSS        pBSSList
     )
 {
     int ii;
-    BYTE byPKType = WPA_NONE;
+    u8 byPKType = WPA_NONE;
 
     if (pBSSList->bWPAValid == false)
         return false;

@@ -258,8 +258,8 @@ static void usb_device_reset(struct vnt_private *pDevice);
 static void
 device_set_options(struct vnt_private *pDevice) {
 
-    BYTE    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    BYTE    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
+    u8    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    u8    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
     u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
 
     memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
@@ -366,8 +366,8 @@ static int device_init_registers(struct vnt_private *pDevice,
         }
     }
 
-    sInitCmd.byInitClass = (BYTE)InitType;
-    sInitCmd.bExistSWNetAddr = (BYTE) pDevice->bExistSWNetAddr;
+    sInitCmd.byInitClass = (u8)InitType;
+    sInitCmd.bExistSWNetAddr = (u8) pDevice->bExistSWNetAddr;
     for (ii = 0; ii < 6; ii++)
 	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
     sInitCmd.byShortRetryLimit = pDevice->byShortRetryLimit;
@@ -379,7 +379,7 @@ static int device_init_registers(struct vnt_private *pDevice,
                                     0,
                                     0,
                                     sizeof(CMD_CARD_INIT),
-                                    (PBYTE) &(sInitCmd));
+                                    (u8 *) &(sInitCmd));
 
     if ( ntStatus != STATUS_SUCCESS ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail \n");
@@ -388,7 +388,7 @@ static int device_init_registers(struct vnt_private *pDevice,
     }
     if (InitType == DEVICE_INIT_COLD) {
 
-        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (PBYTE) &(sInitRsp));
+        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
 
         if (ntStatus != STATUS_SUCCESS) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Cardinit request in status fail!\n");
@@ -1470,8 +1470,8 @@ static void device_set_multi(struct net_device *dev)
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
         }
         for (ii = 0; ii < 4; ii++) {
-             MACvWriteMultiAddr(pDevice, ii, *((PBYTE)&mc_filter[0] + ii));
-             MACvWriteMultiAddr(pDevice, ii+ 4, *((PBYTE)&mc_filter[1] + ii));
+             MACvWriteMultiAddr(pDevice, ii, *((u8 *)&mc_filter[0] + ii));
+             MACvWriteMultiAddr(pDevice, ii+ 4, *((u8 *)&mc_filter[1] + ii));
         }
         pDevice->byRxMode &= ~(RCR_UNICAST);
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);

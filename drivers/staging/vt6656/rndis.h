@@ -74,43 +74,43 @@
 
 typedef struct _CMD_MESSAGE
 {
-    BYTE        byData[256];
+    u8        byData[256];
 } CMD_MESSAGE, *PCMD_MESSAGE;
 
 typedef struct _CMD_WRITE_MASK
 {
-    BYTE        byData;
-    BYTE        byMask;
+    u8        byData;
+    u8        byMask;
 } CMD_WRITE_MASK, *PCMD_WRITE_MASK;
 
 typedef struct _CMD_CARD_INIT
 {
-    BYTE        byInitClass;
-    BYTE        bExistSWNetAddr;
-    BYTE        bySWNetAddr[6];
-    BYTE        byShortRetryLimit;
-    BYTE        byLongRetryLimit;
+    u8        byInitClass;
+    u8        bExistSWNetAddr;
+    u8        bySWNetAddr[6];
+    u8        byShortRetryLimit;
+    u8        byLongRetryLimit;
 } CMD_CARD_INIT, *PCMD_CARD_INIT;
 
 typedef struct _RSP_CARD_INIT
 {
-    BYTE        byStatus;
-    BYTE        byNetAddr[6];
-    BYTE        byRFType;
-    BYTE        byMinChannel;
-    BYTE        byMaxChannel;
+    u8        byStatus;
+    u8        byNetAddr[6];
+    u8        byRFType;
+    u8        byMinChannel;
+    u8        byMaxChannel;
 } RSP_CARD_INIT, *PRSP_CARD_INIT;
 
 typedef struct _CMD_SET_KEY
 {
     WORD        wKCTL;
-    BYTE        abyMacAddr[6];
-    BYTE        abyKey[16];
+    u8        abyMacAddr[6];
+    u8        abyKey[16];
 } CMD_SET_KEY, *PCMD_SET_KEY;
 
 typedef struct _CMD_CLRKEY_ENTRY
 {
-    BYTE        abyKeyEntry[11];
+    u8        abyKeyEntry[11];
 } CMD_CLRKEY_ENTRY, *PCMD_CLRKEY_ENTRY;
 
 typedef struct _CMD_WRITE_MISCFF
@@ -120,29 +120,29 @@ typedef struct _CMD_WRITE_MISCFF
 
 typedef struct _CMD_SET_TSFTBTT
 {
-    BYTE        abyTSF_TBTT[8];
+    u8        abyTSF_TBTT[8];
 } CMD_SET_TSFTBTT, *PCMD_SET_TSFTBTT;
 
 typedef struct _CMD_SET_SSTIFS
 {
-    BYTE        bySIFS;
-    BYTE        byDIFS;
-    BYTE        byEIFS;
-    BYTE        bySlotTime;
-    BYTE        byCwMax_Min;
-    BYTE        byBBCR10;
+    u8        bySIFS;
+    u8        byDIFS;
+    u8        byEIFS;
+    u8        bySlotTime;
+    u8        byCwMax_Min;
+    u8        byBBCR10;
 } CMD_SET_SSTIFS, *PCMD_SET_SSTIFS;
 
 typedef struct _CMD_CHANGE_BBTYPE
 {
-    BYTE        bySIFS;
-    BYTE        byDIFS;
-    BYTE        byEIFS;
-    BYTE        bySlotTime;
-    BYTE        byCwMax_Min;
-    BYTE        byBBCR10;
-    BYTE        byBB_BBType;    //CR88
-    BYTE        byMAC_BBType;
+    u8        bySIFS;
+    u8        byDIFS;
+    u8        byEIFS;
+    u8        bySlotTime;
+    u8        byCwMax_Min;
+    u8        byBBCR10;
+    u8        byBB_BBType;    //CR88
+    u8        byMAC_BBType;
     DWORD       dwRSPINF_b_1;
     DWORD       dwRSPINF_b_2;
     DWORD       dwRSPINF_b_55;

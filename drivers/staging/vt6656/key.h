@@ -59,27 +59,27 @@ typedef struct tagSKeyItem
 {
     bool        bKeyValid;
 	u32 uKeyLength;
-    BYTE        abyKey[MAX_KEY_LEN];
+    u8        abyKey[MAX_KEY_LEN];
 	u64 KeyRSC;
     DWORD       dwTSC47_16;
     WORD        wTSC15_0;
-    BYTE        byCipherSuite;
-    BYTE        byReserved0;
+    u8        byCipherSuite;
+    u8        byReserved0;
     DWORD       dwKeyIndex;
     void *pvKeyTable;
 } SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
 {
-    BYTE        abyBSSID[ETH_ALEN];  /* 6 */
-    BYTE        byReserved0[2];              //8
+    u8        abyBSSID[ETH_ALEN];  /* 6 */
+    u8        byReserved0[2];              //8
     SKeyItem    PairwiseKey;
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
     DWORD       dwGTKeyIndex;            // GroupTransmitKey Index
     bool        bInUse;
     WORD        wKeyCtl;
     bool        bSoftWEP;
-    BYTE        byReserved1[6];
+    u8        byReserved1[6];
 } SKeyTable, *PSKeyTable; //352
 
 typedef struct tagSKeyManagement

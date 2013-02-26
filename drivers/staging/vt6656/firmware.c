@@ -142,7 +142,7 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
                                     0,
                                     MESSAGE_REQUEST_VERSION,
                                     2,
-                                    (PBYTE) &(pDevice->wFirmwareVersion));
+                                    (u8 *) &(pDevice->wFirmwareVersion));
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (ntStatus != STATUS_SUCCESS) {

@@ -61,14 +61,14 @@
  * Return Value: Hash value
  *
  */
-BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr)
+u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr)
 {
 	int     ii;
-	BYTE    byTmpHash;
-	BYTE    byHash = 0;
+	u8    byTmpHash;
+	u8    byHash = 0;
 
 	/* get the least 6-bits from CRC generator */
-	byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
+	byTmpHash = (u8)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
 			0xFFFFFFFFL) & 0x3F);
 	/* reverse most bit to least bit */
 	for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {
@@ -96,7 +96,7 @@ BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr)
  * Return Value: true if ok; false if error.
  *
  */
-bool ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength)
+bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength)
 {
 	DWORD dwCRC;
 

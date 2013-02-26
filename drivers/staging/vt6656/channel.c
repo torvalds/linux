@@ -116,10 +116,10 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
  ************************************************************************/
 static  struct
 {
-    BYTE    byChannelCountryCode;             /* The country code         */
+    u8    byChannelCountryCode;             /* The country code         */
     char    chCountryCode[2];
-    BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
-    BYTE    byPower[CB_MAX_CHANNEL];
+    u8    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
+    u8    byPower[CB_MAX_CHANNEL];
 }   ChannelRuleTab[] =
 {
 /************************************************************************
@@ -425,7 +425,7 @@ exit:
 bool
 CHvChannelGetList (
       unsigned int       uCountryCodeIdx,
-     PBYTE      pbyChannelTable
+     u8 *      pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
@@ -508,10 +508,10 @@ void CHvInitChannelTable(struct vnt_private *pDevice)
     }
 }
 
-BYTE CHbyGetChannelMapping(BYTE byChannelNumber)
+u8 CHbyGetChannelMapping(u8 byChannelNumber)
 {
-BYTE    ii;
-BYTE    byCHMapping = 0;
+u8    ii;
+u8    byCHMapping = 0;
 
 	for (ii = 1; ii <= CB_MAX_CHANNEL; ii++) {
 		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)

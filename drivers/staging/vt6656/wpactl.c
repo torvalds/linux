@@ -72,10 +72,10 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 	struct viawget_wpa_param *param = ctx;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	DWORD dwKeyIndex = 0;
-	BYTE abyKey[MAX_KEY_LEN];
-	BYTE abySeq[MAX_KEY_LEN];
+	u8 abyKey[MAX_KEY_LEN];
+	u8 abySeq[MAX_KEY_LEN];
 	u64 KeyRSC;
-	BYTE byKeyDecMode = KEY_CTL_WEP;
+	u8 byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu;
 	int ii;
@@ -108,7 +108,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 			return -EINVAL;
 		} else {
 			if (param->u.wpa_key.set_tx) {
-				pDevice->byKeyIndex = (BYTE)dwKeyIndex;
+				pDevice->byKeyIndex = (u8)dwKeyIndex;
 				pDevice->bTransmitKey = true;
 				dwKeyIndex |= (1 << 31);
 			}
@@ -204,7 +204,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		if ((KeybSetAllGroupKey(pDevice, &(pDevice->sKey), dwKeyIndex,
 							param->u.wpa_key.key_len,
 							&KeyRSC,
-							(PBYTE)abyKey,
+							(u8 *)abyKey,
 							byKeyDecMode
 					) == true) &&
 			(KeybSetDefaultKey(pDevice,
@@ -212,7 +212,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 					dwKeyIndex,
 					param->u.wpa_key.key_len,
 					&KeyRSC,
-					(PBYTE)abyKey,
+					(u8 *)abyKey,
 					byKeyDecMode
 				) == true) ) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
@@ -234,7 +234,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		}
 		if (KeybSetKey(pDevice, &(pDevice->sKey), &param->addr[0],
 				dwKeyIndex, param->u.wpa_key.key_len,
-				&KeyRSC, (PBYTE)abyKey, byKeyDecMode
+				&KeyRSC, (u8 *)abyKey, byKeyDecMode
 				) == true) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 		} else {
@@ -250,7 +250,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		}
 	} // BSSID not 0xffffffffffff
 	if ((ret == 0) && ((param->u.wpa_key.set_tx) != 0)) {
-		pDevice->byKeyIndex = (BYTE)param->u.wpa_key.key_index;
+		pDevice->byKeyIndex = (u8)param->u.wpa_key.key_index;
 		pDevice->bTransmitKey = true;
 	}
 	pDevice->bEncryptionEnable = true;

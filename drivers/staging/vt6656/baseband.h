@@ -97,8 +97,8 @@
 
 unsigned int
 BBuGetFrameTime(
-     BYTE byPreambleType,
-     BYTE byFreqType,
+     u8 byPreambleType,
+     u8 byFreqType,
      unsigned int cbFrameLength,
      WORD wRate
     );

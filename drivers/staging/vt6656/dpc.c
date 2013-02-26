@@ -64,7 +64,7 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-const BYTE acbyRxRate[MAX_RATE] =
+const u8 acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 
 
@@ -74,12 +74,12 @@ const BYTE acbyRxRate[MAX_RATE] =
 
 /*---------------------  Static Functions  --------------------------*/
 
-static BYTE s_byGetRateIdx(BYTE byRate);
+static u8 s_byGetRateIdx(u8 byRate);
 
 static
 void
 s_vGetDASA(
-      PBYTE pbyRxBufferAddr,
+      u8 * pbyRxBufferAddr,
      unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     );
@@ -135,7 +135,7 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
 
     pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
 
-    s_vGetDASA((PBYTE)pMACHeader, &cbHeaderSize, &pDevice->sRxEthHeader);
+    s_vGetDASA((u8 *)pMACHeader, &cbHeaderSize, &pDevice->sRxEthHeader);
 
     if (bIsWEP) {
         if (bExtIV) {
@@ -150,7 +150,7 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
         cbHeaderSize += WLAN_HDR_ADDR3_LEN;
     };
 
-    pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
+    pbyRxBuffer = (u8 *) (pbyRxBufferAddr + cbHeaderSize);
     if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
         cbHeaderSize += 6;
     } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
@@ -188,7 +188,7 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
     }
 
     cbHeaderSize -= (ETH_ALEN * 2);
-    pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
+    pbyRxBuffer = (u8 *) (pbyRxBufferAddr + cbHeaderSize);
     for (ii = 0; ii < ETH_ALEN; ii++)
         *pbyRxBuffer++ = pDevice->sRxEthHeader.abyDstAddr[ii];
     for (ii = 0; ii < ETH_ALEN; ii++)
@@ -200,9 +200,9 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
 
 
 
-static BYTE s_byGetRateIdx(BYTE byRate)
+static u8 s_byGetRateIdx(u8 byRate)
 {
-    BYTE    byRateIdx;
+    u8    byRateIdx;
 
     for (byRateIdx = 0; byRateIdx <MAX_RATE ; byRateIdx++) {
         if (acbyRxRate[byRateIdx%MAX_RATE] == byRate)
@@ -215,7 +215,7 @@ static BYTE s_byGetRateIdx(BYTE byRate)
 static
 void
 s_vGetDASA (
-      PBYTE pbyRxBufferAddr,
+      u8 * pbyRxBufferAddr,
      unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     )
@@ -321,7 +321,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         return false;
     }
 
-    pbyDAddress = (PBYTE)(skb->data);
+    pbyDAddress = (u8 *)(skb->data);
     pbyRxSts = pbyDAddress+4;
     pbyRxRate = pbyDAddress+5;
 
@@ -407,7 +407,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
-    if (!compare_ether_addr((PBYTE)&(pDevice->sRxEthHeader.abySrcAddr[0]),
+    if (!compare_ether_addr((u8 *)&(pDevice->sRxEthHeader.abySrcAddr[0]),
 			    pDevice->abyCurrentNetAddr))
         return false;
 
@@ -415,7 +415,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
             p802_11Header = (PS802_11Header) (pbyFrame);
             // get SA NodeIndex
-            if (BSSbIsSTAInNodeDB(pDevice, (PBYTE)(p802_11Header->abyAddr2), &iSANodeIndex)) {
+            if (BSSbIsSTAInNodeDB(pDevice, (u8 *)(p802_11Header->abyAddr2), &iSANodeIndex)) {
                 pMgmt->sNodeDBTable[iSANodeIndex].ulLastRxJiffer = jiffies;
                 pMgmt->sNodeDBTable[iSANodeIndex].uInActiveCount = 0;
             }
@@ -529,8 +529,8 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         // Handle Control & Manage Frame
 
         if (IS_TYPE_MGMT((pbyFrame))) {
-            PBYTE pbyData1;
-            PBYTE pbyData2;
+            u8 * pbyData1;
+            u8 * pbyData2;
 
             pRxPacket = &(pRCB->sMngPacket);
             pRxPacket->p80211Header = (PUWLAN_80211HDR)(pbyFrame);
@@ -622,9 +622,9 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             }
    //mike add:station mode check eapol-key challenge--->
    	  {
-   	    BYTE  Protocol_Version;    //802.1x Authentication
-	    BYTE  Packet_Type;           //802.1x Authentication
-	    BYTE  Descriptor_type;
+   	    u8  Protocol_Version;    //802.1x Authentication
+	    u8  Packet_Type;           //802.1x Authentication
+	    u8  Descriptor_type;
              WORD Key_info;
               if (bIsWEP)
                   cbIVOffset = 8;
@@ -703,7 +703,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     // -----------------------------------------------
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == true)){
-        BYTE    abyMacHdr[24];
+        u8    abyMacHdr[24];
 
         // Only 802.1x packet incoming allowed
         if (bIsWEP)
@@ -776,11 +776,11 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             }
 
             MIC_vInit(dwMICKey0, dwMICKey1);
-            MIC_vAppend((PBYTE)&(pDevice->sRxEthHeader.abyDstAddr[0]), 12);
+            MIC_vAppend((u8 *)&(pDevice->sRxEthHeader.abyDstAddr[0]), 12);
             dwMIC_Priority = 0;
-            MIC_vAppend((PBYTE)&dwMIC_Priority, 4);
+            MIC_vAppend((u8 *)&dwMIC_Priority, 4);
             // 4 is Rcv buffer header, 24 is MAC Header, and 8 is IV and Ext IV.
-            MIC_vAppend((PBYTE)(skb->data + 8 + WLAN_HDR_ADDR3_LEN + 8),
+            MIC_vAppend((u8 *)(skb->data + 8 + WLAN_HDR_ADDR3_LEN + 8),
                         FrameSize - WLAN_HDR_ADDR3_LEN - 8);
             MIC_vGetMIC(&dwLocalMIC_L, &dwLocalMIC_R);
             MIC_vUnInit();
@@ -877,7 +877,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     } // ----- End of Reply Counter Check --------------------------
 
 
-    s_vProcessRxMACHeader(pDevice, (PBYTE)(skb->data+8), FrameSize, bIsWEP, bExtIV, &cbHeaderOffset);
+    s_vProcessRxMACHeader(pDevice, (u8 *)(skb->data+8), FrameSize, bIsWEP, bExtIV, &cbHeaderOffset);
     FrameSize -= cbHeaderOffset;
     cbHeaderOffset += 8;        // 8 is Rcv buffer header
 
@@ -946,7 +946,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                     // reason = (6) class 2 received from nonauth sta
                     vMgrDeAuthenBeginSta(pDevice,
                                          pMgmt,
-                                         (PBYTE)(p802_11Header->abyAddr2),
+                                         (u8 *)(p802_11Header->abyAddr2),
                                          (WLAN_MGMT_REASON_CLASS2_NONAUTH),
                                          &Status
                                          );
@@ -958,7 +958,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                     // reason = (7) class 3 received from nonassoc sta
                     vMgrDisassocBeginSta(pDevice,
                                          pMgmt,
-                                         (PBYTE)(p802_11Header->abyAddr2),
+                                         (u8 *)(p802_11Header->abyAddr2),
                                          (WLAN_MGMT_REASON_CLASS3_NONASSOC),
                                          &Status
                                          );
@@ -1011,7 +1011,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
             else {
                   vMgrDeAuthenBeginSta(pDevice,
                                        pMgmt,
-                                       (PBYTE)(p802_11Header->abyAddr2),
+                                       (u8 *)(p802_11Header->abyAddr2),
                                        (WLAN_MGMT_REASON_CLASS2_NONAUTH),
                                        &Status
                                        );
@@ -1301,7 +1301,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     if (FrameSize > CB_MAX_BUF_SIZE)
         return false;
     // check DA
-    if (is_multicast_ether_addr((PBYTE)(skb->data+cbHeaderOffset))) {
+    if (is_multicast_ether_addr((u8 *)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
            skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
@@ -1326,7 +1326,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     }
     else {
         // check if relay
-        if (BSSbIsSTAInNodeDB(pDevice, (PBYTE)(skb->data+cbHeaderOffset), &iDANodeIndex)) {
+        if (BSSbIsSTAInNodeDB(pDevice, (u8 *)(skb->data+cbHeaderOffset), &iDANodeIndex)) {
             if (pMgmt->sNodeDBTable[iDANodeIndex].eNodeState >= NODE_ASSOC) {
                 if (pMgmt->sNodeDBTable[iDANodeIndex].bPSEnable) {
                     // queue this skb until next PS tx, and then release.
@@ -1356,7 +1356,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
             iDANodeIndex = 0;
 
         if ((pDevice->uAssocCount > 1) && (iDANodeIndex >= 0)) {
-		bRelayPacketSend(pDevice, (PBYTE) (skb->data + cbHeaderOffset),
+		bRelayPacketSend(pDevice, (u8 *) (skb->data + cbHeaderOffset),
 				 FrameSize, (unsigned int) iDANodeIndex);
         }
 

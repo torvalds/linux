@@ -212,7 +212,7 @@ typedef struct _DEFAULT_CONFIG {
  */
 typedef struct {
     unsigned int            uDataLen;
-    PBYTE           pDataBuf;
+    u8 *           pDataBuf;
   /* struct urb *pUrb; */
     bool            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
@@ -310,14 +310,14 @@ typedef struct tagSPMKIDCandidateEvent {
 typedef struct tagSQuietControl {
     bool        bEnable;
     DWORD       dwStartTime;
-    BYTE        byPeriod;
+    u8        byPeriod;
     WORD        wDuration;
 } SQuietControl, *PSQuietControl;
 
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
     WORD        wFmSequence;
-    BYTE        abyAddr2[ETH_ALEN];
+    u8        abyAddr2[ETH_ALEN];
     WORD        wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
@@ -337,10 +337,10 @@ typedef struct tagSDeFragControlBlock
 {
     WORD            wSequence;
     WORD            wFragNum;
-    BYTE            abyAddr2[ETH_ALEN];
+    u8            abyAddr2[ETH_ALEN];
 	unsigned int            uLifetime;
     struct sk_buff* skb;
-    PBYTE           pbyRxBuffer;
+    u8 *           pbyRxBuffer;
     unsigned int            cbFrameLength;
     bool            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;

@@ -120,8 +120,8 @@
 // Ethernet packet
 //
 typedef struct tagSEthernetHeader {
-    BYTE    abyDstAddr[ETH_ALEN];
-    BYTE    abySrcAddr[ETH_ALEN];
+    u8    abyDstAddr[ETH_ALEN];
+    u8    abySrcAddr[ETH_ALEN];
     WORD    wType;
 } __attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
@@ -131,8 +131,8 @@ SEthernetHeader, *PSEthernetHeader;
 // 802_3 packet
 //
 typedef struct tagS802_3Header {
-    BYTE    abyDstAddr[ETH_ALEN];
-    BYTE    abySrcAddr[ETH_ALEN];
+    u8    abyDstAddr[ETH_ALEN];
+    u8    abySrcAddr[ETH_ALEN];
     WORD    wLen;
 } __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
@@ -143,11 +143,11 @@ S802_3Header, *PS802_3Header;
 typedef struct tagS802_11Header {
     WORD    wFrameCtl;
     WORD    wDurationID;
-    BYTE    abyAddr1[ETH_ALEN];
-    BYTE    abyAddr2[ETH_ALEN];
-    BYTE    abyAddr3[ETH_ALEN];
+    u8    abyAddr1[ETH_ALEN];
+    u8    abyAddr2[ETH_ALEN];
+    u8    abyAddr3[ETH_ALEN];
     WORD    wSeqCtl;
-    BYTE    abyAddr4[ETH_ALEN];
+    u8    abyAddr4[ETH_ALEN];
 } __attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;
 
@@ -159,8 +159,8 @@ S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Functions  --------------------------*/
 
-BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
-//BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
-bool ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
+u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr);
+//u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);
+bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength);
 
 #endif /* __TETHER_H__ */

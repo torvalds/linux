@@ -57,7 +57,7 @@
 
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
-const BYTE acbyIERate[MAX_RATE] =
+const u8 acbyIERate[MAX_RATE] =
 {0x02, 0x04, 0x0B, 0x16, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
 
 #define AUTORATE_TXOK_CNT       0x0400
@@ -70,7 +70,7 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable);
 
 void s_vResetCounter(PKnownNodeDB psNodeDBTable)
 {
-    BYTE            ii;
+    u8            ii;
 
     /* clear statistics counter for auto_rate */
     for (ii = 0; ii <= MAX_RATE; ii++) {
@@ -92,19 +92,19 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
  *
  * Parameters:
  *  In:
- *      BYTE    - Rate value in SuppRates IE or ExtSuppRates IE
+ *      u8    - Rate value in SuppRates IE or ExtSuppRates IE
  *  Out:
  *      none
  *
  * Return Value: RateIdx
  *
 -*/
-BYTE
+u8
 DATARATEbyGetRateIdx (
-     BYTE byRate
+     u8 byRate
     )
 {
-    BYTE    ii;
+    u8    ii;
 
     /* erase BasicRate flag */
     byRate = byRate & 0x7F;
@@ -146,7 +146,7 @@ DATARATEbyGetRateIdx (
  *
  * Parameters:
  *  In:
- *      BYTE    - Rate value in SuppRates IE or ExtSuppRates IE
+ *      u8    - Rate value in SuppRates IE or ExtSuppRates IE
  *  Out:
  *      none
  *
@@ -155,7 +155,7 @@ DATARATEbyGetRateIdx (
 -*/
 WORD
 RATEwGetRateIdx(
-     BYTE byRate
+     u8 byRate
     )
 {
     WORD    ii;
@@ -216,7 +216,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
     }
 
     for (ii = 0; ii < uRateLen; ii++) {
-    	byRate = (BYTE)(pItemRates->abyRates[ii]);
+    	byRate = (u8)(pItemRates->abyRates[ii]);
         if (WLAN_MGMT_IS_BASICRATE(byRate) &&
             (bUpdateBasicRate == true))  {
 	  /*
@@ -226,7 +226,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
 		CARDbAddBasicRate((void *)pDevice, RATEwGetRateIdx(byRate));
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", RATEwGetRateIdx(byRate));
         }
-        byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
+        byRate = (u8)(pItemRates->abyRates[ii]&0x7F);
         if (byHighSuppRate == 0)
             byHighSuppRate = byRate;
         if (byRate > byHighSuppRate)
@@ -242,7 +242,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
             uExtRateLen = WLAN_RATES_MAXLEN;
 
         for (ii = 0; ii < uExtRateLen ; ii++) {
-            byRate = (BYTE)(pItemExtRates->abyRates[ii]);
+            byRate = (u8)(pItemExtRates->abyRates[ii]);
 	    /* select highest basic rate */
             if (WLAN_MGMT_IS_BASICRATE(pItemExtRates->abyRates[ii])) {
 	      /*
@@ -252,7 +252,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
 		    CARDbAddBasicRate((void *)pDevice, RATEwGetRateIdx(byRate));
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", RATEwGetRateIdx(byRate));
             }
-            byRate = (BYTE)(pItemExtRates->abyRates[ii]&0x7F);
+            byRate = (u8)(pItemExtRates->abyRates[ii]&0x7F);
             if (byHighSuppRate == 0)
                 byHighSuppRate = byRate;
             if (byRate > byHighSuppRate)
@@ -400,7 +400,7 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
  * Return Value: None
  *
 -*/
-BYTE
+u8
 RATEuSetIE (
      PWLAN_IE_SUPP_RATES pSrcRates,
      PWLAN_IE_SUPP_RATES pDstRates,
@@ -423,6 +423,6 @@ RATEuSetIE (
             }
         }
     }
-    return (BYTE)uRateCnt;
+    return (u8)uRateCnt;
 }
 

@@ -34,10 +34,10 @@
 /****** Common helper macros ***********************************************/
 
 #if !defined(LOBYTE)
-#define LOBYTE(w)           ((BYTE)(w))
+#define LOBYTE(w)           ((u8)(w))
 #endif
 #if !defined(HIBYTE)
-#define HIBYTE(w)           ((BYTE)(((WORD)(w) >> 8) & 0xFF))
+#define HIBYTE(w)           ((u8)(((WORD)(w) >> 8) & 0xFF))
 #endif
 
 #if !defined(LOWORD)
@@ -51,7 +51,7 @@
 #define HIDWORD(q)          ((q).u.dwHighDword)
 
 #if !defined(MAKEWORD)
-#define MAKEWORD(lb, hb)    ((WORD)(((BYTE)(lb)) | (((WORD)((BYTE)(hb))) << 8)))
+#define MAKEWORD(lb, hb)    ((WORD)(((u8)(lb)) | (((WORD)((u8)(hb))) << 8)))
 #endif
 #if !defined(MAKEDWORD)
 #define MAKEDWORD(lw, hw)   ((DWORD)(((WORD)(lw)) | (((DWORD)((WORD)(hw))) << 16)))

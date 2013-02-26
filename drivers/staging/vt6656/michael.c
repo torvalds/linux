@@ -26,8 +26,8 @@
  * Date: Sep 4, 2002
  *
  * Functions:
- *      s_dwGetUINT32 - Convert from BYTE[] to DWORD in a portable way
- *      s_vPutUINT32 - Convert from DWORD to BYTE[] in a portable way
+ *      s_dwGetUINT32 - Convert from u8[] to DWORD in a portable way
+ *      s_vPutUINT32 - Convert from DWORD to u8[] in a portable way
  *      s_vClear - Reset the state to the empty message.
  *      s_vSetKey - Set the key.
  *      MIC_vInit - Set the key.
@@ -48,16 +48,16 @@
 
 /*---------------------  Static Functions  --------------------------*/
 /*
- * static DWORD s_dwGetUINT32(BYTE * p);         Get DWORD from
+ * static DWORD s_dwGetUINT32(u8 * p);         Get DWORD from
  *							4 bytes LSByte first
- * static void s_vPutUINT32(BYTE* p, DWORD val); Put DWORD into
+ * static void s_vPutUINT32(u8* p, DWORD val); Put DWORD into
  *							4 bytes LSByte first
  */
 static void s_vClear(void);		/* Clear the internal message,
 					 * resets the object to the
 					 * state just after construction. */
 static void s_vSetKey(DWORD dwK0, DWORD dwK1);
-static void s_vAppendByte(BYTE b);	/* Add a single byte to the internal
+static void s_vAppendByte(u8 b);	/* Add a single byte to the internal
 					 * message */
 
 /*---------------------  Export Variables  --------------------------*/
@@ -69,8 +69,8 @@ static unsigned int   nBytesInM;	/* # bytes in M */
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-static DWORD s_dwGetUINT32 (BYTE * p)
-// Convert from BYTE[] to DWORD in a portable way
+static DWORD s_dwGetUINT32 (u8 * p)
+// Convert from u8[] to DWORD in a portable way
 {
 	DWORD res = 0;
 	unsigned int i;
@@ -79,12 +79,12 @@ static DWORD s_dwGetUINT32 (BYTE * p)
 	return res;
 }
 
-static void s_vPutUINT32(BYTE *p, DWORD val)
-// Convert from DWORD to BYTE[] in a portable way
+static void s_vPutUINT32(u8 *p, DWORD val)
+// Convert from DWORD to u8[] in a portable way
 {
 	unsigned int i;
 	for (i = 0; i < 4; i++) {
-		*p++ = (BYTE) (val & 0xff);
+		*p++ = (u8) (val & 0xff);
 		val >>= 8;
 	}
 }
@@ -108,7 +108,7 @@ static void s_vSetKey(DWORD dwK0, DWORD dwK1)
 	s_vClear();
 }
 
-static void s_vAppendByte(BYTE b)
+static void s_vAppendByte(u8 b)
 {
 	/* Append the byte to our word-sized buffer */
 	M |= b << (8*nBytesInM);
@@ -148,7 +148,7 @@ void MIC_vUnInit(void)
 	s_vClear();
 }
 
-void MIC_vAppend(PBYTE src, unsigned int nBytes)
+void MIC_vAppend(u8 * src, unsigned int nBytes)
 {
     /* This is simple */
 	while (nBytes > 0) {

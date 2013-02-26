@@ -169,10 +169,10 @@ void MACvSetMISCFifo(struct vnt_private *pDevice, u16 wOffset, u32 dwData)
 
     if (wOffset > 273)
         return;
-    pbyData[0] = (BYTE)dwData;
-    pbyData[1] = (BYTE)(dwData>>8);
-    pbyData[2] = (BYTE)(dwData>>16);
-    pbyData[3] = (BYTE)(dwData>>24);
+    pbyData[0] = (u8)dwData;
+    pbyData[1] = (u8)(dwData>>8);
+    pbyData[2] = (u8)(dwData>>16);
+    pbyData[3] = (u8)(dwData>>24);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE_MISCFF,
@@ -203,7 +203,7 @@ void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
 	u8 byData;
 
 
-    byData = (BYTE) uEntryIdx;
+    byData = (u8) uEntryIdx;
 
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
@@ -294,16 +294,16 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
     }
 */
-    pbyKey = (PBYTE)pdwKey;
+    pbyKey = (u8 *)pdwKey;
 
-    pbyData[0] = (BYTE)dwData1;
-    pbyData[1] = (BYTE)(dwData1>>8);
-    pbyData[2] = (BYTE)(dwData1>>16);
-    pbyData[3] = (BYTE)(dwData1>>24);
-    pbyData[4] = (BYTE)dwData2;
-    pbyData[5] = (BYTE)(dwData2>>8);
-    pbyData[6] = (BYTE)(dwData2>>16);
-    pbyData[7] = (BYTE)(dwData2>>24);
+    pbyData[0] = (u8)dwData1;
+    pbyData[1] = (u8)(dwData1>>8);
+    pbyData[2] = (u8)(dwData1>>16);
+    pbyData[3] = (u8)(dwData1>>24);
+    pbyData[4] = (u8)dwData2;
+    pbyData[5] = (u8)(dwData2>>8);
+    pbyData[6] = (u8)(dwData2>>16);
+    pbyData[7] = (u8)(dwData2>>24);
     for (ii = 8; ii < 24; ii++)
 	pbyData[ii] = *pbyKey++;
 
@@ -358,8 +358,8 @@ void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
 	u8 pbyData[2];
 
 
-    pbyData[0] = (BYTE)(wData & 0xff);
-    pbyData[1] = (BYTE)(wData >> 8);
+    pbyData[0] = (u8)(wData & 0xff);
+    pbyData[1] = (u8)(wData >> 8);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE,
@@ -376,12 +376,12 @@ void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
 	u8 pbyData[6];
 
 
-    pbyData[0] = *((PBYTE)pbyEtherAddr);
-    pbyData[1] = *((PBYTE)pbyEtherAddr+1);
-    pbyData[2] = *((PBYTE)pbyEtherAddr+2);
-    pbyData[3] = *((PBYTE)pbyEtherAddr+3);
-    pbyData[4] = *((PBYTE)pbyEtherAddr+4);
-    pbyData[5] = *((PBYTE)pbyEtherAddr+5);
+    pbyData[0] = *((u8 *)pbyEtherAddr);
+    pbyData[1] = *((u8 *)pbyEtherAddr+1);
+    pbyData[2] = *((u8 *)pbyEtherAddr+2);
+    pbyData[3] = *((u8 *)pbyEtherAddr+3);
+    pbyData[4] = *((u8 *)pbyEtherAddr+4);
+    pbyData[5] = *((u8 *)pbyEtherAddr+5);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE,

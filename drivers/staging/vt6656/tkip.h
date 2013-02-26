@@ -47,11 +47,11 @@
 /*---------------------  Export Functions  --------------------------*/
 
 void TKIPvMixKey(
-    PBYTE   pbyTKey,
-    PBYTE   pbyTA,
+    u8 *   pbyTKey,
+    u8 *   pbyTA,
     WORD    wTSC15_0,
     DWORD   dwTSC47_16,
-    PBYTE   pbyRC4Key
+    u8 *   pbyRC4Key
     );
 
 #endif /* __TKIP_H__ */

@@ -41,14 +41,14 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Variables  --------------------------*/
 
-const BYTE abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
-const BYTE abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const BYTE abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
-const BYTE abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
-const BYTE abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
+const u8 abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
+const u8 abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+const u8 abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
+const u8 abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
+const u8 abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 
-const BYTE abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const BYTE abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
+const u8 abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+const u8 abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
 
 /*---------------------  Static Functions  --------------------------*/
@@ -114,7 +114,7 @@ WPA2vParseRSN (
 {
     int                 i, j;
     WORD                m = 0, n = 0;
-    PBYTE               pbyOUI;
+    u8 *               pbyOUI;
     bool                bUseGK = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
@@ -167,7 +167,7 @@ WPA2vParseRSN (
             j = 0;
             pbyOUI = &(pRSN->abyRSN[6]);
 
-            for (i = 0; (i < pBSSNode->wCSSPKCount) && (j < sizeof(pBSSNode->abyCSSPK)/sizeof(BYTE)); i++) {
+            for (i = 0; (i < pBSSNode->wCSSPKCount) && (j < sizeof(pBSSNode->abyCSSPK)/sizeof(u8)); i++) {
 
                 if (pRSN->len >= 8+i*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*i)
                     if ( !memcmp(pbyOUI, abyOUIGK, 4)) {
@@ -218,7 +218,7 @@ WPA2vParseRSN (
             pBSSNode->wAKMSSAuthCount = *((PWORD) &(pRSN->abyRSN[6+4*m]));
             j = 0;
             pbyOUI = &(pRSN->abyRSN[8+4*m]);
-            for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(BYTE)); i++) {
+            for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(u8)); i++) {
                 if (pRSN->len >= 10+(m+i)*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSS(2)+AKS(4*i)
                     if ( !memcmp(pbyOUI, abyOUI8021X, 4))
                         pBSSNode->abyAKMSSAuthType[j++] = WLAN_11i_AKMSS_802_1X;
@@ -274,7 +274,7 @@ unsigned int WPA2uSetIEs(void *pMgmtHandle, PWLAN_IE_RSN pRSNIEs)
          (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
         (pMgmt->pCurrBSS != NULL)) {
         /* WPA2 IE */
-        pbyBuffer = (PBYTE) pRSNIEs;
+        pbyBuffer = (u8 *) pRSNIEs;
         pRSNIEs->byElementID = WLAN_EID_RSN;
         pRSNIEs->len = 6; //Version(2)+GK(4)
         pRSNIEs->wVersion = 1;

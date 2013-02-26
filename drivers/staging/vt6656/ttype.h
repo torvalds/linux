@@ -35,7 +35,6 @@
 
 /****** Simple typedefs  ***************************************************/
 
-typedef u8 BYTE;
 typedef u16 WORD;
 typedef u32 DWORD;
 
@@ -45,8 +44,6 @@ typedef u32 ULONG_PTR;
 typedef u32 DWORD_PTR;
 
 // boolean pointer
-
-typedef BYTE *           PBYTE;
 
 typedef WORD *           PWORD;
 

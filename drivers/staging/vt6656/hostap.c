@@ -491,7 +491,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 
     dwKeyIndex = (DWORD)(param->u.crypt.idx);
     if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
-        pDevice->byKeyIndex = (BYTE)dwKeyIndex;
+        pDevice->byKeyIndex = (u8)dwKeyIndex;
         pDevice->bTransmitKey = true;
         dwKeyIndex |= (1 << 31);
     }
@@ -515,7 +515,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 			&param->sta_addr[0],
 			dwKeyIndex & ~(USE_KEYRSC),
 			param->u.crypt.key_len,
-			&KeyRSC, (PBYTE)abyKey,
+			&KeyRSC, (u8 *)abyKey,
 			KEY_CTL_WEP
                            ) == true) {
 
@@ -585,7 +585,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
                        dwKeyIndex,
                        param->u.crypt.key_len,
 			&KeyRSC,
-                       (PBYTE)abyKey,
+                       (u8 *)abyKey,
                         byKeyDecMode
                        ) == true) {
 
@@ -670,7 +670,7 @@ static int hostap_get_encryption(struct vnt_private *pDevice,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: %d\n", iNodeIndex);
     memset(param->u.crypt.seq, 0, 8);
     for (ii = 0 ; ii < 8 ; ii++) {
-        param->u.crypt.seq[ii] = (BYTE)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
+        param->u.crypt.seq[ii] = (u8)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
     }
 
 	return ret;

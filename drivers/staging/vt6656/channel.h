@@ -38,7 +38,7 @@
 /*---------------------  Export Classes  ----------------------------*/
 
 typedef struct tagSChannelTblElement {
-    BYTE    byChannelNumber;
+    u8    byChannelNumber;
     unsigned int    uFrequency;
     bool    bValid;
 } SChannelTblElement, *PSChannelTblElement;
@@ -49,8 +49,8 @@ typedef struct tagSChannelTblElement {
 
 bool    ChannelValid(unsigned int CountryCode, unsigned int ChannelNum);
 void    CHvInitChannelTable(struct vnt_private *pDevice);
-BYTE    CHbyGetChannelMapping(BYTE byChannelNumber);
+u8    CHbyGetChannelMapping(u8 byChannelNumber);
 
-bool CHvChannelGetList(unsigned int uCountryCodeIdx, PBYTE pbyChannelTable);
+bool CHvChannelGetList(unsigned int uCountryCodeIdx, u8 * pbyChannelTable);
 
 #endif  /* _CHANNEL_H_ */
