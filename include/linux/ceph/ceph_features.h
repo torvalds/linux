@@ -12,12 +12,28 @@
 #define CEPH_FEATURE_MONNAMES       (1<<5)
 #define CEPH_FEATURE_RECONNECT_SEQ  (1<<6)
 #define CEPH_FEATURE_DIRLAYOUTHASH  (1<<7)
-/* bits 8-17 defined by user-space; not supported yet here */
+#define CEPH_FEATURE_OBJECTLOCATOR  (1<<8)
+#define CEPH_FEATURE_PGID64         (1<<9)
+#define CEPH_FEATURE_INCSUBOSDMAP   (1<<10)
+#define CEPH_FEATURE_PGPOOL3        (1<<11)
+#define CEPH_FEATURE_OSDREPLYMUX    (1<<12)
+#define CEPH_FEATURE_OSDENC         (1<<13)
+#define CEPH_FEATURE_OMAP           (1<<14)
+#define CEPH_FEATURE_MONENC         (1<<15)
+#define CEPH_FEATURE_QUERY_T        (1<<16)
+#define CEPH_FEATURE_INDEP_PG_MAP   (1<<17)
 #define CEPH_FEATURE_CRUSH_TUNABLES (1<<18)
-/* bits 19-24 defined by user-space; not supported yet here */
+#define CEPH_FEATURE_CHUNKY_SCRUB   (1<<19)
+#define CEPH_FEATURE_MON_NULLROUTE  (1<<20)
+#define CEPH_FEATURE_MON_GV         (1<<21)
+#define CEPH_FEATURE_BACKFILL_RESERVATION (1<<22)
+#define CEPH_FEATURE_MSG_AUTH	    (1<<23)
+#define CEPH_FEATURE_RECOVERY_RESERVATION (1<<24)
 #define CEPH_FEATURE_CRUSH_TUNABLES2 (1<<25)
-/* bit 26 defined by user-space; not supported yet here */
-#define CEPH_FEATURE_REPLY_CREATE_INODE (1<<27)
+#define CEPH_FEATURE_CREATEPOOLID   (1<<26)
+#define CEPH_FEATURE_REPLY_CREATE_INODE   (1<<27)
+#define CEPH_FEATURE_OSD_HBMSGS     (1<<28)
+#define CEPH_FEATURE_MDSENC         (1<<29)
 
 /*
  * Features supported.
