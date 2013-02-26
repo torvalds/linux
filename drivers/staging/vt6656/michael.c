@@ -26,8 +26,8 @@
  * Date: Sep 4, 2002
  *
  * Functions:
- *      s_dwGetUINT32 - Convert from u8[] to DWORD in a portable way
- *      s_vPutUINT32 - Convert from DWORD to u8[] in a portable way
+ *      s_dwGetUINT32 - Convert from u8[] to u32 in a portable way
+ *      s_vPutUINT32 - Convert from u32 to u8[] in a portable way
  *      s_vClear - Reset the state to the empty message.
  *      s_vSetKey - Set the key.
  *      MIC_vInit - Set the key.
@@ -48,39 +48,39 @@
 
 /*---------------------  Static Functions  --------------------------*/
 /*
- * static DWORD s_dwGetUINT32(u8 * p);         Get DWORD from
+ * static u32 s_dwGetUINT32(u8 * p);         Get u32 from
  *							4 bytes LSByte first
- * static void s_vPutUINT32(u8* p, DWORD val); Put DWORD into
+ * static void s_vPutUINT32(u8* p, u32 val); Put u32 into
  *							4 bytes LSByte first
  */
 static void s_vClear(void);		/* Clear the internal message,
 					 * resets the object to the
 					 * state just after construction. */
-static void s_vSetKey(DWORD dwK0, DWORD dwK1);
+static void s_vSetKey(u32 dwK0, u32 dwK1);
 static void s_vAppendByte(u8 b);	/* Add a single byte to the internal
 					 * message */
 
 /*---------------------  Export Variables  --------------------------*/
-static DWORD  L, R;		/* Current state */
-static DWORD  K0, K1;		/* Key */
-static DWORD  M;		/* Message accumulator (single word) */
+static u32  L, R;		/* Current state */
+static u32  K0, K1;		/* Key */
+static u32  M;		/* Message accumulator (single word) */
 static unsigned int   nBytesInM;	/* # bytes in M */
 
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-static DWORD s_dwGetUINT32 (u8 * p)
-// Convert from u8[] to DWORD in a portable way
+static u32 s_dwGetUINT32 (u8 * p)
+// Convert from u8[] to u32 in a portable way
 {
-	DWORD res = 0;
+	u32 res = 0;
 	unsigned int i;
 	for (i = 0; i < 4; i++)
 		res |= (*p++) << (8*i);
 	return res;
 }
 
-static void s_vPutUINT32(u8 *p, DWORD val)
-// Convert from DWORD to u8[] in a portable way
+static void s_vPutUINT32(u8 *p, u32 val)
+// Convert from u32 to u8[] in a portable way
 {
 	unsigned int i;
 	for (i = 0; i < 4; i++) {
@@ -99,7 +99,7 @@ static void s_vClear(void)
 	M = 0;
 }
 
-static void s_vSetKey(DWORD dwK0, DWORD dwK1)
+static void s_vSetKey(u32 dwK0, u32 dwK1)
 {
 	/* Set the key */
 	K0 = dwK0;
@@ -130,7 +130,7 @@ static void s_vAppendByte(u8 b)
 	}
 }
 
-void MIC_vInit(DWORD dwK0, DWORD dwK1)
+void MIC_vInit(u32 dwK0, u32 dwK1)
 {
 	/* Set the key */
 	s_vSetKey(dwK0, dwK1);
@@ -157,7 +157,7 @@ void MIC_vAppend(u8 * src, unsigned int nBytes)
 	}
 }
 
-void MIC_vGetMIC(PDWORD pdwL, PDWORD pdwR)
+void MIC_vGetMIC(u32 * pdwL, u32 * pdwR)
 {
 	/* Append the minimum padding */
 	s_vAppendByte(0x5a);

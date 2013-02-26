@@ -489,7 +489,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
             param->u.crypt.key_len
            );
 
-    dwKeyIndex = (DWORD)(param->u.crypt.idx);
+    dwKeyIndex = (u32)(param->u.crypt.idx);
     if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
         pDevice->byKeyIndex = (u8)dwKeyIndex;
         pDevice->bTransmitKey = true;

@@ -193,15 +193,15 @@ typedef struct tagKnownNodeDB {
     u8            byAuthSequence;
     unsigned long           ulLastRxJiffer;
     u8            bySuppRate;
-    DWORD           dwFlags;
+    u32           dwFlags;
     u16            wEnQueueCnt;
 
     bool            bOnFly;
     unsigned long long       KeyRSC;
     u8            byKeyIndex;
-    DWORD           dwKeyIndex;
+    u32           dwKeyIndex;
     u8            byCipherSuite;
-    DWORD           dwTSC47_16;
+    u32           dwTSC47_16;
     u16            wTSC15_0;
     unsigned int            uWepKeyLength;
     u8            abyWepKey[WLAN_WEPMAX_KEYLEN];

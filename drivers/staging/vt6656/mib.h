@@ -40,7 +40,7 @@
 // USB counter
 //
 typedef struct tagSUSBCounter {
-    DWORD dwCrc;
+    u32 dwCrc;
 
 } SUSBCounter, *PSUSBCounter;
 
@@ -91,24 +91,24 @@ typedef struct tagSMib2Counter {
                                         // e.g. "interface 1"
     signed long    ifType;
     signed long    ifMtu;
-    DWORD   ifSpeed;
+    u32   ifSpeed;
     u8    ifPhysAddress[ETH_ALEN];
     signed long    ifAdminStatus;
     signed long    ifOperStatus;
-    DWORD   ifLastChange;
-    DWORD   ifInOctets;
-    DWORD   ifInUcastPkts;
-    DWORD   ifInNUcastPkts;
-    DWORD   ifInDiscards;
-    DWORD   ifInErrors;
-    DWORD   ifInUnknownProtos;
-    DWORD   ifOutOctets;
-    DWORD   ifOutUcastPkts;
-    DWORD   ifOutNUcastPkts;
-    DWORD   ifOutDiscards;
-    DWORD   ifOutErrors;
-    DWORD   ifOutQLen;
-    DWORD   ifSpecific;
+    u32   ifLastChange;
+    u32   ifInOctets;
+    u32   ifInUcastPkts;
+    u32   ifInNUcastPkts;
+    u32   ifInDiscards;
+    u32   ifInErrors;
+    u32   ifInUnknownProtos;
+    u32   ifOutOctets;
+    u32   ifOutUcastPkts;
+    u32   ifOutNUcastPkts;
+    u32   ifOutDiscards;
+    u32   ifOutErrors;
+    u32   ifOutQLen;
+    u32   ifSpecific;
 } SMib2Counter, *PSMib2Counter;
 
 // Value in the ifType entry
@@ -125,26 +125,26 @@ typedef struct tagSMib2Counter {
 //
 typedef struct tagSRmonCounter {
     signed long    etherStatsIndex;
-    DWORD   etherStatsDataSource;
-    DWORD   etherStatsDropEvents;
-    DWORD   etherStatsOctets;
-    DWORD   etherStatsPkts;
-    DWORD   etherStatsBroadcastPkts;
-    DWORD   etherStatsMulticastPkts;
-    DWORD   etherStatsCRCAlignErrors;
-    DWORD   etherStatsUndersizePkts;
-    DWORD   etherStatsOversizePkts;
-    DWORD   etherStatsFragments;
-    DWORD   etherStatsJabbers;
-    DWORD   etherStatsCollisions;
-    DWORD   etherStatsPkt64Octets;
-    DWORD   etherStatsPkt65to127Octets;
-    DWORD   etherStatsPkt128to255Octets;
-    DWORD   etherStatsPkt256to511Octets;
-    DWORD   etherStatsPkt512to1023Octets;
-    DWORD   etherStatsPkt1024to1518Octets;
-    DWORD   etherStatsOwners;
-    DWORD   etherStatsStatus;
+    u32   etherStatsDataSource;
+    u32   etherStatsDropEvents;
+    u32   etherStatsOctets;
+    u32   etherStatsPkts;
+    u32   etherStatsBroadcastPkts;
+    u32   etherStatsMulticastPkts;
+    u32   etherStatsCRCAlignErrors;
+    u32   etherStatsUndersizePkts;
+    u32   etherStatsOversizePkts;
+    u32   etherStatsFragments;
+    u32   etherStatsJabbers;
+    u32   etherStatsCollisions;
+    u32   etherStatsPkt64Octets;
+    u32   etherStatsPkt65to127Octets;
+    u32   etherStatsPkt128to255Octets;
+    u32   etherStatsPkt256to511Octets;
+    u32   etherStatsPkt512to1023Octets;
+    u32   etherStatsPkt1024to1518Octets;
+    u32   etherStatsOwners;
+    u32   etherStatsStatus;
 } SRmonCounter, *PSRmonCounter;
 
 //
@@ -192,27 +192,27 @@ typedef struct tagSCustomCounters {
 typedef struct tagSISRCounters {
     unsigned long   Length;
 
-    DWORD   dwIsrTx0OK;
-    DWORD   dwIsrAC0TxOK;
-    DWORD   dwIsrBeaconTxOK;
-    DWORD   dwIsrRx0OK;
-    DWORD   dwIsrTBTTInt;
-    DWORD   dwIsrSTIMERInt;
-    DWORD   dwIsrWatchDog;
-    DWORD   dwIsrUnrecoverableError;
-    DWORD   dwIsrSoftInterrupt;
-    DWORD   dwIsrMIBNearfull;
-    DWORD   dwIsrRxNoBuf;
+    u32   dwIsrTx0OK;
+    u32   dwIsrAC0TxOK;
+    u32   dwIsrBeaconTxOK;
+    u32   dwIsrRx0OK;
+    u32   dwIsrTBTTInt;
+    u32   dwIsrSTIMERInt;
+    u32   dwIsrWatchDog;
+    u32   dwIsrUnrecoverableError;
+    u32   dwIsrSoftInterrupt;
+    u32   dwIsrMIBNearfull;
+    u32   dwIsrRxNoBuf;
 
-    DWORD   dwIsrUnknown;               // unknown interrupt count
+    u32   dwIsrUnknown;               // unknown interrupt count
 
-    DWORD   dwIsrRx1OK;
-    DWORD   dwIsrATIMTxOK;
-    DWORD   dwIsrSYNCTxOK;
-    DWORD   dwIsrCFPEnd;
-    DWORD   dwIsrATIMEnd;
-    DWORD   dwIsrSYNCFlushOK;
-    DWORD   dwIsrSTIMER1Int;
+    u32   dwIsrRx1OK;
+    u32   dwIsrATIMTxOK;
+    u32   dwIsrSYNCTxOK;
+    u32   dwIsrCFPEnd;
+    u32   dwIsrATIMEnd;
+    u32   dwIsrSYNCFlushOK;
+    u32   dwIsrSTIMER1Int;
     /////////////////////////////////////
 } SISRCounters, *PSISRCounters;
 
@@ -248,34 +248,34 @@ typedef struct tagSStatCounter {
 
     // RSR status count
     //
-    DWORD   dwRsrFrmAlgnErr;
-    DWORD   dwRsrErr;
-    DWORD   dwRsrCRCErr;
-    DWORD   dwRsrCRCOk;
-    DWORD   dwRsrBSSIDOk;
-    DWORD   dwRsrADDROk;
-    DWORD   dwRsrBCNSSIDOk;
-    DWORD   dwRsrLENErr;
-    DWORD   dwRsrTYPErr;
+    u32   dwRsrFrmAlgnErr;
+    u32   dwRsrErr;
+    u32   dwRsrCRCErr;
+    u32   dwRsrCRCOk;
+    u32   dwRsrBSSIDOk;
+    u32   dwRsrADDROk;
+    u32   dwRsrBCNSSIDOk;
+    u32   dwRsrLENErr;
+    u32   dwRsrTYPErr;
 
-    DWORD   dwNewRsrDECRYPTOK;
-    DWORD   dwNewRsrCFP;
-    DWORD   dwNewRsrUTSF;
-    DWORD   dwNewRsrHITAID;
-    DWORD   dwNewRsrHITAID0;
+    u32   dwNewRsrDECRYPTOK;
+    u32   dwNewRsrCFP;
+    u32   dwNewRsrUTSF;
+    u32   dwNewRsrHITAID;
+    u32   dwNewRsrHITAID0;
 
-    DWORD   dwRsrLong;
-    DWORD   dwRsrRunt;
+    u32   dwRsrLong;
+    u32   dwRsrRunt;
 
-    DWORD   dwRsrRxControl;
-    DWORD   dwRsrRxData;
-    DWORD   dwRsrRxManage;
+    u32   dwRsrRxControl;
+    u32   dwRsrRxData;
+    u32   dwRsrRxManage;
 
-    DWORD   dwRsrRxPacket;
-    DWORD   dwRsrRxOctet;
-    DWORD   dwRsrBroadcast;
-    DWORD   dwRsrMulticast;
-    DWORD   dwRsrDirected;
+    u32   dwRsrRxPacket;
+    u32   dwRsrRxOctet;
+    u32   dwRsrBroadcast;
+    u32   dwRsrMulticast;
+    u32   dwRsrDirected;
     // 64-bit OID
     unsigned long long   ullRsrOK;
 
@@ -287,36 +287,36 @@ typedef struct tagSStatCounter {
     unsigned long long   ullRxMulticastFrames;
     unsigned long long   ullRxDirectedFrames;
 
-    DWORD   dwRsrRxFragment;
-    DWORD   dwRsrRxFrmLen64;
-    DWORD   dwRsrRxFrmLen65_127;
-    DWORD   dwRsrRxFrmLen128_255;
-    DWORD   dwRsrRxFrmLen256_511;
-    DWORD   dwRsrRxFrmLen512_1023;
-    DWORD   dwRsrRxFrmLen1024_1518;
+    u32   dwRsrRxFragment;
+    u32   dwRsrRxFrmLen64;
+    u32   dwRsrRxFrmLen65_127;
+    u32   dwRsrRxFrmLen128_255;
+    u32   dwRsrRxFrmLen256_511;
+    u32   dwRsrRxFrmLen512_1023;
+    u32   dwRsrRxFrmLen1024_1518;
 
     // TSR status count
     //
-    DWORD   dwTsrTotalRetry;        // total collision retry count
-    DWORD   dwTsrOnceRetry;         // this packet only occur one collision
-    DWORD   dwTsrMoreThanOnceRetry; // this packet occur more than one collision
-    DWORD   dwTsrRetry;             // this packet has ever occur collision,
+    u32   dwTsrTotalRetry;        // total collision retry count
+    u32   dwTsrOnceRetry;         // this packet only occur one collision
+    u32   dwTsrMoreThanOnceRetry; // this packet occur more than one collision
+    u32   dwTsrRetry;             // this packet has ever occur collision,
                                          // that is (dwTsrOnceCollision0 + dwTsrMoreThanOnceCollision0)
-    DWORD   dwTsrACKData;
-    DWORD   dwTsrErr;
-    DWORD   dwAllTsrOK;
-    DWORD   dwTsrRetryTimeout;
-    DWORD   dwTsrTransmitTimeout;
+    u32   dwTsrACKData;
+    u32   dwTsrErr;
+    u32   dwAllTsrOK;
+    u32   dwTsrRetryTimeout;
+    u32   dwTsrTransmitTimeout;
 
-    DWORD   dwTsrTxPacket;
-    DWORD   dwTsrTxOctet;
-    DWORD   dwTsrBroadcast;
-    DWORD   dwTsrMulticast;
-    DWORD   dwTsrDirected;
+    u32   dwTsrTxPacket;
+    u32   dwTsrTxOctet;
+    u32   dwTsrBroadcast;
+    u32   dwTsrMulticast;
+    u32   dwTsrDirected;
 
     // RD/TD count
-    DWORD   dwCntRxFrmLength;
-    DWORD   dwCntTxBufLength;
+    u32   dwCntRxFrmLength;
+    u32   dwCntTxBufLength;
 
     u8    abyCntRxPattern[16];
     u8    abyCntTxPattern[16];
@@ -324,9 +324,9 @@ typedef struct tagSStatCounter {
 
 
     // Software check....
-    DWORD   dwCntRxDataErr;             // rx buffer data software compare CRC err count
-    DWORD   dwCntDecryptErr;            // rx buffer data software compare CRC err count
-    DWORD   dwCntRxICVErr;              // rx buffer data software compare CRC err count
+    u32   dwCntRxDataErr;             // rx buffer data software compare CRC err count
+    u32   dwCntDecryptErr;            // rx buffer data software compare CRC err count
+    u32   dwCntRxICVErr;              // rx buffer data software compare CRC err count
 
 
     // 64-bit OID
@@ -341,9 +341,9 @@ typedef struct tagSStatCounter {
     unsigned long long   ullTxDirectedBytes;
 
     // for autorate
-    DWORD   dwTxOk[MAX_RATE+1];
-    DWORD   dwTxFail[MAX_RATE+1];
-    DWORD   dwTxRetryCount[8];
+    u32   dwTxOk[MAX_RATE+1];
+    u32   dwTxFail[MAX_RATE+1];
+    u32   dwTxRetryCount[8];
 
     STxPktInfo  abyTxPktInfo[16];
 

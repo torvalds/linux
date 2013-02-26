@@ -324,7 +324,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
         //=======================================================================
         // Append ICV after payload
         dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
-        pdwICV = (PDWORD)(pbyPayloadHead + wPayloadSize);
+        pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
         // RC4 encryption
@@ -335,7 +335,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
         //=======================================================================
         //Append ICV after payload
         dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
-        pdwICV = (PDWORD)(pbyPayloadHead + wPayloadSize);
+        pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
         // RC4 encryption
@@ -1516,12 +1516,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
 	}
         else if ((pTransmitKey->dwKeyIndex & AUTHENTICATOR_KEY) != 0) {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
+            dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+            dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
         }
         else {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[24]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[28]);
+            dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[24]);
+            dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[28]);
         }
         // DO Software Michael
         MIC_vInit(dwMICKey0, dwMICKey1);
@@ -1541,8 +1541,8 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
         MIC_vAppend(pbyPayloadHead, cbFrameBodySize);
 
-        pdwMIC_L = (PDWORD)(pbyPayloadHead + cbFrameBodySize);
-        pdwMIC_R = (PDWORD)(pbyPayloadHead + cbFrameBodySize + 4);
+        pdwMIC_L = (u32 *)(pbyPayloadHead + cbFrameBodySize);
+        pdwMIC_R = (u32 *)(pbyPayloadHead + cbFrameBodySize + 4);
 
         MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
         MIC_vUnInit();
@@ -1570,13 +1570,13 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
     if (pDevice->bSoftwareGenCrcErr == true) {
 	unsigned int cbLen;
-        PDWORD pdwCRC;
+        u32 * pdwCRC;
 
         dwCRC = 0xFFFFFFFFL;
         cbLen = cbFrameSize - cbFCSlen;
         // calculate CRC, and wrtie CRC value to end of TD
         dwCRC = CRCdwGetCrc32Ex(pbyMacHdr, cbLen, dwCRC);
-        pdwCRC = (PDWORD)(pbyMacHdr + cbLen);
+        pdwCRC = (u32 *)(pbyMacHdr + cbLen);
         // finally, we must invert dwCRC to get the correct answer
         *pdwCRC = ~dwCRC;
         // Force Error
@@ -2359,8 +2359,8 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
         if ((pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
 
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
+            dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+            dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
 
             // DO Software Michael
             MIC_vInit(dwMICKey0, dwMICKey1);
@@ -2374,8 +2374,8 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
             MIC_vAppend((pbyTxBufferAddr + uLength), cbFrameBodySize);
 
-            pdwMIC_L = (PDWORD)(pbyTxBufferAddr + uLength + cbFrameBodySize);
-            pdwMIC_R = (PDWORD)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
+            pdwMIC_L = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize);
+            pdwMIC_R = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
 
             MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
             MIC_vUnInit();

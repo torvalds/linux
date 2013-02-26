@@ -750,28 +750,28 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     // Soft MIC
     if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
         if (bIsWEP) {
-            PDWORD          pdwMIC_L;
-            PDWORD          pdwMIC_R;
-            DWORD           dwMIC_Priority;
-            DWORD           dwMICKey0 = 0, dwMICKey1 = 0;
-            DWORD           dwLocalMIC_L = 0;
-            DWORD           dwLocalMIC_R = 0;
+            u32 *          pdwMIC_L;
+            u32 *          pdwMIC_R;
+            u32           dwMIC_Priority;
+            u32           dwMICKey0 = 0, dwMICKey1 = 0;
+            u32           dwLocalMIC_L = 0;
+            u32           dwLocalMIC_R = 0;
 
 
             if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-                dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[24]));
-                dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[28]));
+                dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[24]));
+                dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[28]));
             }
             else {
                 if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[16]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[20]));
+                    dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[16]));
+                    dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[20]));
                 } else if ((pKey->dwKeyIndex & BIT28) == 0) {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[16]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[20]));
+                    dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[16]));
+                    dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[20]));
                 } else {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[24]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[28]));
+                    dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[24]));
+                    dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[28]));
                 }
             }
 
@@ -785,8 +785,8 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             MIC_vGetMIC(&dwLocalMIC_L, &dwLocalMIC_R);
             MIC_vUnInit();
 
-            pdwMIC_L = (PDWORD)(skb->data + 8 + FrameSize);
-            pdwMIC_R = (PDWORD)(skb->data + 8 + FrameSize + 4);
+            pdwMIC_L = (u32 *)(skb->data + 8 + FrameSize);
+            pdwMIC_R = (u32 *)(skb->data + 8 + FrameSize + 4);
 
 
             if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) || (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
@@ -838,12 +838,12 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
                            (pKey->byCipherSuite == KEY_CTL_CCMP))) {
         if (bIsWEP) {
             u16        wLocalTSC15_0 = 0;
-            DWORD       dwLocalTSC47_16 = 0;
+            u32       dwLocalTSC47_16 = 0;
 	    unsigned long long       RSC = 0;
             // endian issues
 	    RSC = *((unsigned long long *) &(pKey->KeyRSC));
             wLocalTSC15_0 = (u16) RSC;
-            dwLocalTSC47_16 = (DWORD) (RSC>>16);
+            dwLocalTSC47_16 = (u32) (RSC>>16);
 
             RSC = dwRxTSC47_16;
             RSC <<= 16;
@@ -1136,7 +1136,7 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         // TKIP/AES
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
-        *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
+        *pdwRxTSC47_16 = cpu_to_le32(*(u32 *)(pbyIV + 4));
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %x\n", *pdwRxTSC47_16);
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
@@ -1235,7 +1235,7 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
         // TKIP/AES
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
-        *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
+        *pdwRxTSC47_16 = cpu_to_le32(*(u32 *)(pbyIV + 4));
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %x\n", *pdwRxTSC47_16);
 
         if (byDecMode == KEY_CTL_TKIP) {

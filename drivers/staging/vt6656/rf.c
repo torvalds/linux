@@ -842,7 +842,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 
         case RF_AIROHA7230:
             {
-                DWORD       dwMax7230Pwr;
+                u32       dwMax7230Pwr;
 
                 if (uRATE <= RATE_11M) { //RobertYu:20060426, for better 11b mask
                     bResult &= IFRFbWriteEmbedded(pDevice, 0x111BB900+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW);
@@ -864,7 +864,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 
         case RF_VT3226: //RobertYu:20051111, VT3226C0 and before
         {
-            DWORD       dwVT3226Pwr;
+            u32       dwVT3226Pwr;
 
             if (pDevice->byCurPwr >= VT3226_PWR_IDX_LEN)
                 return false;
@@ -876,7 +876,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 
         case RF_VT3226D0: //RobertYu:20051228
         {
-            DWORD       dwVT3226Pwr;
+            u32       dwVT3226Pwr;
 
             if (pDevice->byCurPwr >= VT3226_PWR_IDX_LEN)
                 return false;
@@ -921,7 +921,7 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
         //{{RobertYu:20060609
         case RF_VT3342A0:
         {
-            DWORD       dwVT3342Pwr;
+            u32       dwVT3342Pwr;
 
             if (pDevice->byCurPwr >= VT3342_PWR_IDX_LEN)
                 return false;

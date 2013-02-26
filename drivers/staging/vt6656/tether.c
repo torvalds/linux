@@ -98,10 +98,10 @@ u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr)
  */
 bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength)
 {
-	DWORD dwCRC;
+	u32 dwCRC;
 
 	dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
-	if (cpu_to_le32(*((PDWORD)(pbyBuffer + cbFrameLength - 4))) != dwCRC)
+	if (cpu_to_le32(*((u32 *)(pbyBuffer + cbFrameLength - 4))) != dwCRC)
 		return false;
 	return true;
 }

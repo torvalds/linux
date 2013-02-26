@@ -108,9 +108,9 @@ u8 dot3_table[256] = {
 
 static void xor_128(u8 *a, u8 *b, u8 *out)
 {
-	PDWORD dwPtrA = (PDWORD) a;
-	PDWORD dwPtrB = (PDWORD) b;
-	PDWORD dwPtrOut = (PDWORD) out;
+	u32 * dwPtrA = (u32 *) a;
+	u32 * dwPtrB = (u32 *) b;
+	u32 * dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
@@ -121,9 +121,9 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {
-	PDWORD dwPtrA = (PDWORD) a;
-	PDWORD dwPtrB = (PDWORD) b;
-	PDWORD dwPtrOut = (PDWORD) out;
+	u32 * dwPtrA = (u32 *) a;
+	u32 * dwPtrB = (u32 *) b;
+	u32 * dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }

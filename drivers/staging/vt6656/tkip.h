@@ -50,7 +50,7 @@ void TKIPvMixKey(
     u8 *   pbyTKey,
     u8 *   pbyTA,
     u16    wTSC15_0,
-    DWORD   dwTSC47_16,
+    u32   dwTSC47_16,
     u8 *   pbyRC4Key
     );
 

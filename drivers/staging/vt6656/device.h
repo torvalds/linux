@@ -309,7 +309,7 @@ typedef struct tagSPMKIDCandidateEvent {
 
 typedef struct tagSQuietControl {
     bool        bEnable;
-    DWORD       dwStartTime;
+    u32       dwStartTime;
     u8        byPeriod;
     u16        wDuration;
 } SQuietControl, *PSQuietControl;

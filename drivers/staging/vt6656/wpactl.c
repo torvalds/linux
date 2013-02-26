@@ -71,7 +71,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 {
 	struct viawget_wpa_param *param = ctx;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	DWORD dwKeyIndex = 0;
+	u32 dwKeyIndex = 0;
 	u8 abyKey[MAX_KEY_LEN];
 	u8 abySeq[MAX_KEY_LEN];
 	u64 KeyRSC;
@@ -101,7 +101,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 
 	memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
 
-	dwKeyIndex = (DWORD)(param->u.wpa_key.key_index);
+	dwKeyIndex = (u32)(param->u.wpa_key.key_index);
 
 	if (param->u.wpa_key.alg_name == WPA_ALG_WEP) {
 		if (dwKeyIndex > 3) {

@@ -115,7 +115,7 @@ typedef struct _CMD_CLRKEY_ENTRY
 
 typedef struct _CMD_WRITE_MISCFF
 {
-    DWORD       adwMiscFFData[22][4];  //a key entry has only 22 dwords
+    u32       adwMiscFFData[22][4];  //a key entry has only 22 dwords
 } CMD_WRITE_MISCFF, *PCMD_WRITE_MISCFF;
 
 typedef struct _CMD_SET_TSFTBTT
@@ -143,10 +143,10 @@ typedef struct _CMD_CHANGE_BBTYPE
     u8        byBBCR10;
     u8        byBB_BBType;    //CR88
     u8        byMAC_BBType;
-    DWORD       dwRSPINF_b_1;
-    DWORD       dwRSPINF_b_2;
-    DWORD       dwRSPINF_b_55;
-    DWORD       dwRSPINF_b_11;
+    u32       dwRSPINF_b_1;
+    u32       dwRSPINF_b_2;
+    u32       dwRSPINF_b_55;
+    u32       dwRSPINF_b_11;
     u16        wRSPINF_a[9];
 } CMD_CHANGE_BBTYPE, *PCMD_CHANGE_BBTYPE;
 
