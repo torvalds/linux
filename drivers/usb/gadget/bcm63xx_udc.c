@@ -2304,17 +2304,6 @@ static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
  ***********************************************************************/
 
 /**
- * bcm63xx_udc_gadget_release - Called from device_release().
- * @dev: Unused.
- *
- * We get a warning if this function doesn't exist, but it's empty because
- * we don't have to free any of the memory allocated with the devm_* APIs.
- */
-static void bcm63xx_udc_gadget_release(struct device *dev)
-{
-}
-
-/**
  * bcm63xx_udc_probe - Initialize a new instance of the UDC.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  *
@@ -2369,7 +2358,6 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 
 	udc->gadget.ops = &bcm63xx_udc_ops;
 	udc->gadget.name = dev_name(dev);
-	udc->gadget.dev.release = bcm63xx_udc_gadget_release;
 
 	if (!pd->use_fullspeed && !use_fullspeed)
 		udc->gadget.max_speed = USB_SPEED_HIGH;
