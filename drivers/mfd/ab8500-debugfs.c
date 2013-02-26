@@ -1244,6 +1244,79 @@ static int ab8500_hwreg_open(struct inode *inode, struct file *file)
 	return single_open(file, ab8500_hwreg_print, inode->i_private);
 }
 
+#define AB8500_SUPPLY_CONTROL_CONFIG_1 0x01
+#define AB8500_SUPPLY_CONTROL_REG 0x00
+#define AB8500_FIRST_SIM_REG 0x80
+#define AB8500_LAST_SIM_REG 0x8B
+#define AB8505_LAST_SIM_REG 0x8C
+
+static int ab8500_print_modem_registers(struct seq_file *s, void *p)
+{
+	struct device *dev = s->private;
+	struct ab8500 *ab8500;
+	int err;
+	u8 value;
+	u8 orig_value;
+	u32 bank = AB8500_REGU_CTRL2;
+	u32 last_sim_reg = AB8500_LAST_SIM_REG;
+	u32 reg;
+
+	ab8500 = dev_get_drvdata(dev->parent);
+	dev_warn(dev, "WARNING! This operation can interfer with modem side\n"
+		"and should only be done with care\n");
+
+	err = abx500_get_register_interruptible(dev,
+		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG, &orig_value);
+	if (err < 0) {
+		dev_err(dev, "ab->read fail %d\n", err);
+		return err;
+	}
+	/* Config 1 will allow APE side to read SIM registers */
+	err = abx500_set_register_interruptible(dev,
+		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG,
+		AB8500_SUPPLY_CONTROL_CONFIG_1);
+	if (err < 0) {
+		dev_err(dev, "ab->write fail %d\n", err);
+		return err;
+	}
+
+	seq_printf(s, " bank 0x%02X:\n", bank);
+
+	if (is_ab9540(ab8500) || is_ab8505(ab8500))
+		last_sim_reg = AB8505_LAST_SIM_REG;
+
+	for (reg = AB8500_FIRST_SIM_REG; reg <= last_sim_reg; reg++) {
+		err = abx500_get_register_interruptible(dev,
+			bank, reg, &value);
+		if (err < 0) {
+			dev_err(dev, "ab->read fail %d\n", err);
+			return err;
+		}
+		err = seq_printf(s, "  [0x%02X/0x%02X]: 0x%02X\n",
+			bank, reg, value);
+	}
+	err = abx500_set_register_interruptible(dev,
+		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG, orig_value);
+	if (err < 0) {
+		dev_err(dev, "ab->write fail %d\n", err);
+		return err;
+	}
+	return 0;
+}
+
+static int ab8500_modem_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_print_modem_registers, inode->i_private);
+}
+
+static const struct file_operations ab8500_modem_fops = {
+	.open = ab8500_modem_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static int ab8500_gpadc_bat_ctrl_print(struct seq_file *s, void *p)
 {
 	int bat_ctrl_raw;
@@ -2567,6 +2640,11 @@ static int ab8500_debug_probe(struct platform_device *plf)
 
 	file = debugfs_create_file("hwreg", (S_IRUGO | S_IWUSR),
 	    ab8500_dir, &plf->dev, &ab8500_hwreg_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("all-modem-registers", (S_IRUGO | S_IWUGO),
+		ab8500_dir, &plf->dev, &ab8500_modem_fops);
 	if (!file)
 		goto err;
 
