@@ -935,11 +935,6 @@ static int dummy_udc_stop(struct usb_gadget *g,
 
 /* The gadget structure is stored inside the hcd structure and will be
  * released along with it. */
-static void dummy_gadget_release(struct device *dev)
-{
-	return;
-}
-
 static void init_dummy_udc_hw(struct dummy *dum)
 {
 	int i;
@@ -983,7 +978,6 @@ static int dummy_udc_probe(struct platform_device *pdev)
 	dum->gadget.max_speed = USB_SPEED_SUPER;
 
 	dum->gadget.dev.parent = &pdev->dev;
-	dum->gadget.dev.release = dummy_gadget_release;
 	init_dummy_udc_hw(dum);
 
 	rc = usb_add_gadget_udc(&pdev->dev, &dum->gadget);
