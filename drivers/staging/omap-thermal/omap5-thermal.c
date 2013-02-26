@@ -20,8 +20,12 @@
 #include "omap-thermal.h"
 
 /*
- * omap5430 has one instance of thermal sensor for MPU
- * need to describe the individual bit fields
+ * OMAP5430 has three instances of thermal sensor for MPU, GPU & CORE,
+ * need to describe the individual registers and bit fields.
+ */
+
+/*
+ * OMAP5430 MPU thermal sensor register offset and bit-fields
  */
 static struct temp_sensor_registers
 omap5430_mpu_temp_sensor_registers = {
@@ -33,6 +37,10 @@ omap5430_mpu_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_MPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_MPU_MASK,
+	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
+	.mask_freeze_mask = OMAP5430_MASK_FREEZE_MPU_MASK,
+	.mask_clear_mask = OMAP5430_MASK_CLEAR_MPU_MASK,
+	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_MPU_MASK,
 
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_MPU_OFFSET,
@@ -52,12 +60,17 @@ omap5430_mpu_temp_sensor_registers = {
 	.status_hot_mask = OMAP5430_HOT_MPU_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_MPU_FLAG_MASK,
 
+	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_MPU_OFFSET,
+	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_MPU_0_OFFSET,
+	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_MPU_1_OFFSET,
+	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_MPU_2_OFFSET,
+	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_MPU_3_OFFSET,
+	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_MPU_4_OFFSET,
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_MPU,
 };
 
 /*
- * omap5430 has one instance of thermal sensor for GPU
- * need to describe the individual bit fields
+ * OMAP5430 GPU thermal sensor register offset and bit-fields
  */
 static struct temp_sensor_registers
 omap5430_gpu_temp_sensor_registers = {
@@ -69,6 +82,10 @@ omap5430_gpu_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_GPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_GPU_MASK,
+	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
+	.mask_freeze_mask = OMAP5430_MASK_FREEZE_GPU_MASK,
+	.mask_clear_mask = OMAP5430_MASK_CLEAR_GPU_MASK,
+	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_GPU_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_GPU_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -87,12 +104,18 @@ omap5430_gpu_temp_sensor_registers = {
 	.status_hot_mask = OMAP5430_HOT_GPU_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_GPU_FLAG_MASK,
 
+	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_GPU_OFFSET,
+	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_GPU_0_OFFSET,
+	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_GPU_1_OFFSET,
+	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_GPU_2_OFFSET,
+	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_GPU_3_OFFSET,
+	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_GPU_4_OFFSET,
+
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_GPU,
 };
 
 /*
- * omap5430 has one instance of thermal sensor for CORE
- * need to describe the individual bit fields
+ * OMAP5430 CORE thermal sensor register offset and bit-fields
  */
 static struct temp_sensor_registers
 omap5430_core_temp_sensor_registers = {
@@ -104,6 +127,10 @@ omap5430_core_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_CORE_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_CORE_MASK,
+	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
+	.mask_freeze_mask = OMAP5430_MASK_FREEZE_CORE_MASK,
+	.mask_clear_mask = OMAP5430_MASK_CLEAR_CORE_MASK,
+	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_CORE_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_COUNTER_CORE_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -121,6 +148,13 @@ omap5430_core_temp_sensor_registers = {
 	.status_bgap_alert_mask = OMAP5430_BGAP_ALERT_MASK,
 	.status_hot_mask = OMAP5430_HOT_CORE_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_CORE_FLAG_MASK,
+
+	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_CORE_OFFSET,
+	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_CORE_0_OFFSET,
+	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_CORE_1_OFFSET,
+	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_CORE_2_OFFSET,
+	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_CORE_3_OFFSET,
+	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_CORE_4_OFFSET,
 
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_CORE,
 };
@@ -281,6 +315,8 @@ omap5430_adc_to_temp[
 	123800, 1242000, 124600, 124900, 125000, 125000,
 };
 
+/* OMAP54xx ES2.0 data */
+/* TODO : Need to update the slope/constant for ES2.0 silicon */
 const struct omap_bandgap_data omap5430_data = {
 	.features = OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
 			OMAP_BANDGAP_FEATURE_TALERT |
