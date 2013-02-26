@@ -2067,7 +2067,6 @@ static int omap_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	if (udc->dc_clk != NULL)
@@ -2083,7 +2082,6 @@ static int omap_udc_start(struct usb_gadget *g,
 			ERR("can't bind to transceiver\n");
 			if (driver->unbind) {
 				driver->unbind(&udc->gadget);
-				udc->gadget.dev.driver = NULL;
 				udc->driver = NULL;
 			}
 			goto done;
@@ -2129,7 +2127,6 @@ static int omap_udc_stop(struct usb_gadget *g,
 	udc_quiesce(udc);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	if (udc->dc_clk != NULL)
