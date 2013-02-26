@@ -1263,7 +1263,6 @@ static int pxa25x_udc_start(struct usb_gadget *g,
 
 	/* first hook up the driver ... */
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 	dev->pullup = 1;
 
 	/* ... then enable host detection and ep0; and we're ready
@@ -1325,7 +1324,6 @@ static int pxa25x_udc_stop(struct usb_gadget*g,
 	if (!IS_ERR_OR_NULL(dev->transceiver))
 		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	dump_state(dev);
