@@ -509,6 +509,7 @@ config RCU_USER_QS
 config CONTEXT_TRACKING_FORCE
 	bool "Force context tracking"
 	depends on CONTEXT_TRACKING
+	default CONTEXT_TRACKING
 	help
 	  Probe on user/kernel boundaries by default in order to
 	  test the features that rely on it such as userspace RCU extended
