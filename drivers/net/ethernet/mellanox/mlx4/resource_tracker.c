@@ -1231,14 +1231,14 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 
 	switch (op) {
 	case RES_OP_RESERVE:
-		index = __mlx4_mr_reserve(dev);
+		index = __mlx4_mpt_reserve(dev);
 		if (index == -1)
 			break;
 		id = index & mpt_mask(dev);
 
 		err = add_res_range(dev, slave, id, 1, RES_MPT, index);
 		if (err) {
-			__mlx4_mr_release(dev, index);
+			__mlx4_mpt_release(dev, index);
 			break;
 		}
 		set_param_l(out_param, index);
@@ -1251,7 +1251,7 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		err = __mlx4_mr_alloc_icm(dev, mpt->key);
+		err = __mlx4_mpt_alloc_icm(dev, mpt->key);
 		if (err) {
 			res_abort_move(dev, slave, RES_MPT, id);
 			return err;
@@ -1586,7 +1586,7 @@ static int mpt_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		err = rem_res_range(dev, slave, id, 1, RES_MPT, 0);
 		if (err)
 			break;
-		__mlx4_mr_release(dev, index);
+		__mlx4_mpt_release(dev, index);
 		break;
 	case RES_OP_MAP_ICM:
 			index = get_param_l(&in_param);
@@ -1596,7 +1596,7 @@ static int mpt_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 			if (err)
 				return err;
 
-			__mlx4_mr_free_icm(dev, mpt->key);
+			__mlx4_mpt_free_icm(dev, mpt->key);
 			res_end_move(dev, slave, RES_MPT, id);
 			return err;
 		break;
@@ -1796,6 +1796,26 @@ static int mr_get_mtt_size(struct mlx4_mpt_entry *mpt)
 	return be32_to_cpu(mpt->mtt_sz);
 }
 
+static u32 mr_get_pd(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->pd_flags) & 0x00ffffff;
+}
+
+static int mr_is_fmr(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->pd_flags) & MLX4_MPT_PD_FLAG_FAST_REG;
+}
+
+static int mr_is_bind_enabled(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->flags) & MLX4_MPT_FLAG_BIND_ENABLE;
+}
+
+static int mr_is_region(struct mlx4_mpt_entry *mpt)
+{
+	return be32_to_cpu(mpt->flags) & MLX4_MPT_FLAG_REGION;
+}
+
 static int qp_get_mtt_addr(struct mlx4_qp_context *qpc)
 {
 	return be32_to_cpu(qpc->mtt_base_addr_l) & 0xfffffff8;
@@ -1856,11 +1876,40 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	int mtt_base = mr_get_mtt_addr(inbox->buf) / dev->caps.mtt_entry_sz;
 	int phys;
 	int id;
+	u32 pd;
+	int pd_slave;
 
 	id = index & mpt_mask(dev);
 	err = mr_res_start_move_to(dev, slave, id, RES_MPT_HW, &mpt);
 	if (err)
 		return err;
+
+	/* Disable memory windows for VFs. */
+	if (!mr_is_region(inbox->buf)) {
+		err = -EPERM;
+		goto ex_abort;
+	}
+
+	/* Make sure that the PD bits related to the slave id are zeros. */
+	pd = mr_get_pd(inbox->buf);
+	pd_slave = (pd >> 17) & 0x7f;
+	if (pd_slave != 0 && pd_slave != slave) {
+		err = -EPERM;
+		goto ex_abort;
+	}
+
+	if (mr_is_fmr(inbox->buf)) {
+		/* FMR and Bind Enable are forbidden in slave devices. */
+		if (mr_is_bind_enabled(inbox->buf)) {
+			err = -EPERM;
+			goto ex_abort;
+		}
+		/* FMR and Memory Windows are also forbidden. */
+		if (!mr_is_region(inbox->buf)) {
+			err = -EPERM;
+			goto ex_abort;
+		}
+	}
 
 	phys = mr_phys_mpt(inbox->buf);
 	if (!phys) {
@@ -3480,7 +3529,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 			while (state != 0) {
 				switch (state) {
 				case RES_MPT_RESERVED:
-					__mlx4_mr_release(dev, mpt->key);
+					__mlx4_mpt_release(dev, mpt->key);
 					spin_lock_irq(mlx4_tlock(dev));
 					rb_erase(&mpt->com.node,
 						 &tracker->res_tree[RES_MPT]);
@@ -3491,7 +3540,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 					break;
 
 				case RES_MPT_MAPPED:
-					__mlx4_mr_free_icm(dev, mpt->key);
+					__mlx4_mpt_free_icm(dev, mpt->key);
 					state = RES_MPT_RESERVED;
 					break;
 
