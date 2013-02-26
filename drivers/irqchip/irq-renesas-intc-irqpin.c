@@ -57,13 +57,13 @@ struct intc_irqpin_iomem {
 	unsigned long (*read)(void __iomem *iomem);
 	void (*write)(void __iomem *iomem, unsigned long data);
 	int width;
-};  
+};
 
 struct intc_irqpin_irq {
 	int hw_irq;
 	int irq;
 	struct intc_irqpin_priv *p;
-};  
+};
 
 struct intc_irqpin_priv {
 	struct intc_irqpin_iomem iomem[INTC_IRQPIN_REG_NR];
@@ -99,6 +99,7 @@ static inline unsigned long intc_irqpin_read(struct intc_irqpin_priv *p,
 					     int reg)
 {
 	struct intc_irqpin_iomem *i = &p->iomem[reg];
+
 	return i->read(i->iomem);
 }
 
@@ -106,6 +107,7 @@ static inline void intc_irqpin_write(struct intc_irqpin_priv *p,
 				     int reg, unsigned long data)
 {
 	struct intc_irqpin_iomem *i = &p->iomem[reg];
+
 	i->write(i->iomem, data);
 }
 
@@ -405,7 +407,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "irq base mismatch (%d/%d)\n",
 				 p->config.irq_base, k);
 	}
-	
+
 	return 0;
 
 err3:
