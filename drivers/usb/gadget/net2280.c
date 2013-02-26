@@ -2707,7 +2707,6 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = driver_name;
 
 	/* now all the pci goodies ... */
@@ -2819,7 +2818,8 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	retval = device_create_file (&pdev->dev, &dev_attr_registers);
 	if (retval) goto done;
 
-	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto done;
 	return 0;
