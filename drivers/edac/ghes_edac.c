@@ -523,9 +523,9 @@ EXPORT_SYMBOL_GPL(ghes_edac_register);
 void ghes_edac_unregister(struct ghes *ghes)
 {
 	struct mem_ctl_info *mci;
-	struct ghes_edac_pvt *pvt;
+	struct ghes_edac_pvt *pvt, *tmp;
 
-	list_for_each_entry(pvt, &ghes_reglist, list) {
+	list_for_each_entry_safe(pvt, tmp, &ghes_reglist, list) {
 		if (ghes == pvt->ghes) {
 			mci = pvt->mci;
 			edac_mc_del_mc(mci->pdev);
