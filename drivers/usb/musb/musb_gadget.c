@@ -1691,13 +1691,6 @@ static const struct usb_gadget_ops musb_gadget_operations = {
  * all peripheral ports are external...
  */
 
-static void musb_gadget_release(struct device *dev)
-{
-	/* kref_put(WHAT) */
-	dev_dbg(dev, "%s\n", __func__);
-}
-
-
 static void
 init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
 {
@@ -1782,7 +1775,6 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
 	/* this "gadget" abstracts/virtualizes the controller */
-	musb->g.dev.release = musb_gadget_release;
 	musb->g.name = musb_driver_name;
 	musb->g.is_otg = 1;
 
