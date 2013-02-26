@@ -275,7 +275,7 @@ static const char *kvm_bus_name(struct virtio_device *vdev)
 /*
  * The config ops structure as defined by virtio config
  */
-static struct virtio_config_ops kvm_vq_configspace_ops = {
+static const struct virtio_config_ops kvm_vq_configspace_ops = {
 	.get_features = kvm_get_features,
 	.finalize_features = kvm_finalize_features,
 	.get = kvm_get,
