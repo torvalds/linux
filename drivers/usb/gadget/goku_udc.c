@@ -51,8 +51,6 @@
 #define	DRIVER_DESC		"TC86C001 USB Device Controller"
 #define	DRIVER_VERSION		"30-Oct 2003"
 
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
-
 static const char driver_name [] = "goku_udc";
 static const char driver_desc [] = DRIVER_DESC;
 
@@ -275,7 +273,6 @@ goku_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 	return &req->req;
 }
