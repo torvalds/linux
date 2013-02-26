@@ -53,8 +53,8 @@
  * using 2 wire for device control, so we cache them instead.
  */
 static const struct reg_default wm8960_reg_defaults[] = {
-	{  0x0, 0x0097 },
-	{  0x1, 0x0097 },
+	{  0x0, 0x00a7 },
+	{  0x1, 0x00a7 },
 	{  0x2, 0x0000 },
 	{  0x3, 0x0000 },
 	{  0x4, 0x0000 },
