@@ -879,6 +879,7 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int enable;
+	struct color_key_cfg clr_key_cfg;
 	
 	switch(cmd)
 	{
@@ -888,6 +889,13 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
             		if(copy_to_user(argp, panel_size, 8)) 
 				return -EFAULT;
 			break;
+		case RK_FBIOPUT_COLOR_KEY_CFG:
+			if(copy_from_user(&clr_key_cfg,argp,sizeof(struct color_key_cfg ))) 
+				return -EFAULT;
+			lcdc_writel(lcdc_dev,WIN0_COLOR_KEY,clr_key_cfg.win0_color_key_cfg);
+			lcdc_writel(lcdc_dev,WIN1_COLOR_KEY,clr_key_cfg.win1_color_key_cfg);
+			break;
+			
 		default:
 			break;
 	}
