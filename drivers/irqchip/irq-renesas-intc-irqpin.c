@@ -61,7 +61,8 @@ struct intc_irqpin_iomem {
 
 struct intc_irqpin_irq {
 	int hw_irq;
-	int irq;
+	int requested_irq;
+	int domain_irq;
 	struct intc_irqpin_priv *p;
 };
 
@@ -171,8 +172,7 @@ static int intc_irqpin_set_sense(struct intc_irqpin_priv *p, int irq, int value)
 static void intc_irqpin_dbg(struct intc_irqpin_irq *i, char *str)
 {
 	dev_dbg(&i->p->pdev->dev, "%s (%d:%d:%d)\n",
-		str, i->irq, i->hw_irq,
-		irq_find_mapping(i->p->irq_domain, i->hw_irq));
+		str, i->requested_irq, i->hw_irq, i->domain_irq);
 }
 
 static void intc_irqpin_irq_enable(struct irq_data *d)
@@ -196,7 +196,7 @@ static void intc_irqpin_irq_disable(struct irq_data *d)
 static void intc_irqpin_irq_enable_force(struct irq_data *d)
 {
 	struct intc_irqpin_priv *p = irq_data_get_irq_chip_data(d);
-	int irq = p->irq[irqd_to_hwirq(d)].irq;
+	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
 	intc_irqpin_irq_enable(d);
 	irq_get_chip(irq)->irq_unmask(irq_get_irq_data(irq));
@@ -205,7 +205,7 @@ static void intc_irqpin_irq_enable_force(struct irq_data *d)
 static void intc_irqpin_irq_disable_force(struct irq_data *d)
 {
 	struct intc_irqpin_priv *p = irq_data_get_irq_chip_data(d);
-	int irq = p->irq[irqd_to_hwirq(d)].irq;
+	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
 	irq_get_chip(irq)->irq_mask(irq_get_irq_data(irq));
 	intc_irqpin_irq_disable(d);
@@ -246,7 +246,7 @@ static irqreturn_t intc_irqpin_irq_handler(int irq, void *dev_id)
 	if (intc_irqpin_read(p, INTC_IRQPIN_REG_SOURCE) & bit) {
 		intc_irqpin_write(p, INTC_IRQPIN_REG_SOURCE, ~bit);
 		intc_irqpin_dbg(i, "demux2");
-		generic_handle_irq(irq_find_mapping(p->irq_domain, i->hw_irq));
+		generic_handle_irq(i->domain_irq);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -256,6 +256,9 @@ static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 				      irq_hw_number_t hw)
 {
 	struct intc_irqpin_priv *p = h->host_data;
+
+	p->irq[hw].domain_irq = virq;
+	p->irq[hw].hw_irq = hw;
 
 	intc_irqpin_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
@@ -314,9 +317,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 		if (!irq)
 			break;
 
-		p->irq[k].hw_irq = k;
 		p->irq[k].p = p;
-		p->irq[k].irq = irq->start;
+		p->irq[k].requested_irq = irq->start;
 	}
 
 	p->number_of_irqs = k;
@@ -389,7 +391,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	/* request and set priority on interrupts one by one */
 	for (k = 0; k < p->number_of_irqs; k++) {
-		if (request_irq(p->irq[k].irq, intc_irqpin_irq_handler,
+		if (request_irq(p->irq[k].requested_irq,
+				intc_irqpin_irq_handler,
 				0, name, &p->irq[k])) {
 			dev_err(&pdev->dev, "failed to request low IRQ\n");
 			ret = -ENOENT;
@@ -402,17 +405,16 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	/* warn in case of mismatch if irq base is specified */
 	if (p->config.irq_base) {
-		k = irq_find_mapping(p->irq_domain, 0);
-		if (p->config.irq_base != k)
+		if (p->config.irq_base != p->irq[0].domain_irq)
 			dev_warn(&pdev->dev, "irq base mismatch (%d/%d)\n",
-				 p->config.irq_base, k);
+				 p->config.irq_base, p->irq[0].domain_irq);
 	}
 
 	return 0;
 
 err3:
 	for (; k >= 0; k--)
-		free_irq(p->irq[k - 1].irq, &p->irq[k - 1]);
+		free_irq(p->irq[k - 1].requested_irq, &p->irq[k - 1]);
 
 	irq_domain_remove(p->irq_domain);
 err2:
@@ -430,7 +432,7 @@ static int intc_irqpin_remove(struct platform_device *pdev)
 	int k;
 
 	for (k = 0; k < p->number_of_irqs; k++)
-		free_irq(p->irq[k].irq, &p->irq[k]);
+		free_irq(p->irq[k].requested_irq, &p->irq[k]);
 
 	irq_domain_remove(p->irq_domain);
 
