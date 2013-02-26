@@ -1351,7 +1351,6 @@ static int goku_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/*
 	 * then enable host detection and ep0; and we're ready
@@ -1391,7 +1390,6 @@ static int goku_udc_stop(struct usb_gadget *g,
 	dev->driver = NULL;
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	dev->gadget.dev.driver = NULL;
 
 	return 0;
 }
