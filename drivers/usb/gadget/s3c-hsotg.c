@@ -3444,16 +3444,6 @@ static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 }
 
 /**
- * s3c_hsotg_release - release callback for hsotg device
- * @dev: Device to for which release is called
- *
- * Nothing to do as the resource is allocated using devm_ API.
- */
-static void s3c_hsotg_release(struct device *dev)
-{
-}
-
-/**
  * s3c_hsotg_probe - probe function for hsotg driver
  * @pdev: The platform information for the driver
  */
@@ -3530,7 +3520,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
-	hsotg->gadget.dev.release = s3c_hsotg_release;
 
 	/* reset the system */
 
