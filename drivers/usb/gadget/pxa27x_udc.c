@@ -1809,7 +1809,6 @@ static int pxa27x_udc_start(struct usb_gadget *g,
 
 	/* first hook up the driver ... */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	dplus_pullup(udc, 1);
 
 	if (!IS_ERR_OR_NULL(udc->transceiver)) {
@@ -1827,7 +1826,6 @@ static int pxa27x_udc_start(struct usb_gadget *g,
 
 fail:
 	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
 	return retval;
 }
 
