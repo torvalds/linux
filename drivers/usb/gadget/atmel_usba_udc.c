@@ -1885,9 +1885,6 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "FIFO at 0x%08lx mapped at %p\n",
 		 (unsigned long)fifo->start, udc->fifo);
 
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
 	platform_set_drvdata(pdev, udc);
 
 	/* Make sure we start from a clean slate */
