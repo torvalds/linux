@@ -1689,16 +1689,6 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
 }
 
 /**
- * udc_release: driver release function
- * @dev: device
- *
- * Currently does nothing
- */
-static void udc_release(struct device *dev)
-{
-}
-
-/**
  * udc_start: initialize gadget role
  * @ci: chipidea controller
  */
@@ -1716,8 +1706,6 @@ static int udc_start(struct ci13xxx *ci)
 	ci->gadget.name         = ci->platdata->name;
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
-
-	ci->gadget.dev.release  = udc_release;
 
 	/* alloc resources */
 	ci->qh_pool = dma_pool_create("ci13xxx_qh", dev,
