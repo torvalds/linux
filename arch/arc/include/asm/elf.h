@@ -9,14 +9,11 @@
 #ifndef __ASM_ARC_ELF_H
 #define __ASM_ARC_ELF_H
 
-#include <asm/ptrace.h>
+#include <linux/types.h>
+#include <uapi/asm/elf.h>
 
+/* These ELF defines belong to uapi but libc elf.h already defines them */
 #define EM_ARCOMPACT		93
-
-/* Machine specific ELF Hdr flags */
-#define EF_ARC_OSABI_MSK	0x00000f00
-#define EF_ARC_OSABI_ORIG	0x00000000   /* MUST be zero for back-compat */
-#define EF_ARC_OSABI_CURRENT	0x00000300   /* v3 (no legacy syscalls) */
 
 /* ARC Relocations (kernel Modules only) */
 #define  R_ARC_32		0x4
@@ -24,24 +21,7 @@
 #define  R_ARC_S25H_PCREL	0x10
 #define  R_ARC_S25W_PCREL	0x11
 
-typedef unsigned long elf_greg_t;
-typedef unsigned long elf_fpregset_t;
-
-#define ELF_NGREG	(sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
-
-/*
- * To ensure that
- *  -we don't load something for the wrong architecture.
- *  -The userspace is using the correct syscall ABI
- */
-struct elf32_hdr;
-extern int elf_check_arch(const struct elf32_hdr *);
-#define elf_check_arch	elf_check_arch
-
-/*
- * These are used to set parameters in the core dumps.
- */
+/*to set parameters in the core dumps */
 #define ELF_ARCH		EM_ARCOMPACT
 #define ELF_CLASS		ELFCLASS32
 
@@ -51,7 +31,14 @@ extern int elf_check_arch(const struct elf32_hdr *);
 #define ELF_DATA		ELFDATA2LSB
 #endif
 
-#ifdef __KERNEL__
+/*
+ * To ensure that
+ *  -we don't load something for the wrong architecture.
+ *  -The userspace is using the correct syscall ABI
+ */
+struct elf32_hdr;
+extern int elf_check_arch(const struct elf32_hdr *);
+#define elf_check_arch	elf_check_arch
 
 #define CORE_DUMP_USE_REGSET
 
@@ -87,7 +74,5 @@ extern int elf_check_arch(const struct elf32_hdr *);
 
 #define SET_PERSONALITY(ex) \
 	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
-
-#endif  /* __KERNEL__ */
 
 #endif
