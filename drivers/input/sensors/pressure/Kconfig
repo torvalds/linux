@@ -1,0 +1,14 @@
+#
+# pressure sensor drivers configuration
+#
+
+menuconfig PRESSURE_DEVICE
+	bool "pressure sensor device support"
+	default n
+
+if PRESSURE_DEVICE
+ config PR_MS5607
+ bool "pressure sensor ms5607"
+ default n
+ 
+endif

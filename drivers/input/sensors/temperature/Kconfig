@@ -4,4 +4,11 @@
 
 menuconfig TEMPERATURE_DEVICE
 	bool "temperature sensor device support"
-	default n	
+	default n
+
+if TEMPERATURE_DEVICE
+ config TMP_MS5607
+ bool "temperature sensor ms5607"
+ default n
+ 
+endif

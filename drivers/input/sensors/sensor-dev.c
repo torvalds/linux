@@ -43,7 +43,7 @@
 #define DBG(x...)
 #endif
 
-#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.0 2013-2-18"
+#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.1 add pressure and temperature support 2013-2-27"
 
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
@@ -306,6 +306,8 @@ static int sensor_irq_init(struct i2c_client *client)
 		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL))
 		disable_irq_nosync(client->irq);//disable irq
 		if(((sensor->pdata->type == SENSOR_TYPE_LIGHT) || (sensor->pdata->type == SENSOR_TYPE_PROXIMITY))&& (!(sensor->ops->trig & IRQF_SHARED)))	
+		disable_irq_nosync(client->irq);//disable irq	
+		if(((sensor->pdata->type == SENSOR_TYPE_TEMPERATURE) || (sensor->pdata->type == SENSOR_TYPE_PRESSURE))&& (!(sensor->ops->trig & IRQF_SHARED)))		
 		disable_irq_nosync(client->irq);//disable irq
 		printk("%s:use irq=%d\n",__func__,irq);
 	}
@@ -961,14 +963,184 @@ static int temperature_dev_release(struct inode *inode, struct file *file)
 static long temperature_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
-	//struct i2c_client *client = sensor->client;
-	//void __user *argp = (void __user *)arg;
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
+	struct i2c_client *client = sensor->client;
+	unsigned int *argp = (unsigned int *)arg;	
 	int result = 0;
+
+	switch(cmd)
+	{
+		case TEMPERATURE_IOCTL_GET_ENABLED:
+			*argp = sensor->status_cur;
+			break;
+		case TEMPERATURE_IOCTL_ENABLE:		
+			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
+			mutex_lock(&sensor->operation_mutex);	 
+			if(*(unsigned int *)argp)
+			{
+				if(sensor->status_cur == SENSOR_OFF)
+				{
+					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
+					mutex_unlock(&sensor->operation_mutex);
+					printk("%s:fail to active sensor,ret=%d\n",__func__,result);	     
+					goto error;	      
+					}	
+					if(sensor->pdata->irq_enable)
+					{
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+							enable_irq(client->irq);	//enable irq
+						}
+					}	
+					else
+					{
+						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
+						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+					}
+					
+					sensor->status_cur = SENSOR_ON;
+				}	
+			}
+			else
+			{
+				if(sensor->status_cur == SENSOR_ON)
+				{
+					if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
+					mutex_unlock(&sensor->operation_mutex); 	     
+					goto error;
+					}
+					
+					if(sensor->pdata->irq_enable)
+					{				
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+							disable_irq_nosync(client->irq);//disable irq
+						}
+					}
+					else
+					cancel_delayed_work_sync(&sensor->delaywork);	
+					
+					sensor->status_cur = SENSOR_OFF;
+				}
+			}
+			mutex_unlock(&sensor->operation_mutex);
+			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE OK\n", __func__);
+			break;
+		
+		default:
+			break;
+	}
 	
+error:
+	return result;
+}
+
+
+static int pressure_dev_open(struct inode *inode, struct file *file)
+{
+	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
+	//struct i2c_client *client = sensor->client;
+
+	int result = 0;
+
 
 	return result;
 }
+
+
+static int pressure_dev_release(struct inode *inode, struct file *file)
+{
+	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
+	//struct i2c_client *client = sensor->client;
+
+	int result = 0;
+
+
+	return result;
+}
+
+
+/* ioctl - I/O control */
+static long pressure_dev_ioctl(struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
+	struct i2c_client *client = sensor->client;
+	unsigned int *argp = (unsigned int *)arg;	
+	int result = 0;
+
+	switch(cmd)
+	{
+		case PRESSURE_IOCTL_GET_ENABLED:
+			*argp = sensor->status_cur;
+			break;
+		case PRESSURE_IOCTL_ENABLE:		
+			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
+			mutex_lock(&sensor->operation_mutex);	 
+			if(*(unsigned int *)argp)
+			{
+				if(sensor->status_cur == SENSOR_OFF)
+				{
+					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
+					mutex_unlock(&sensor->operation_mutex);
+					printk("%s:fail to active sensor,ret=%d\n",__func__,result);	     
+					goto error;	      
+					}	
+					if(sensor->pdata->irq_enable)
+					{
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+							enable_irq(client->irq);	//enable irq
+						}
+					}	
+					else
+					{
+						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
+						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+					}
+					
+					sensor->status_cur = SENSOR_ON;
+				}	
+			}
+			else
+			{
+				if(sensor->status_cur == SENSOR_ON)
+				{
+					if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
+					mutex_unlock(&sensor->operation_mutex); 	     
+					goto error;
+					}
+					
+					if(sensor->pdata->irq_enable)
+					{				
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+							disable_irq_nosync(client->irq);//disable irq
+						}
+					}
+					else
+					cancel_delayed_work_sync(&sensor->delaywork);	
+					
+					sensor->status_cur = SENSOR_OFF;
+				}
+			}
+			mutex_unlock(&sensor->operation_mutex);
+			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE OK\n", __func__);
+			break;
+		
+		default:
+			break;
+	}
+	
+error:
+	return result;
+}
+
+
 
 
 static int sensor_misc_device_register(struct sensor_private_data *sensor, int type)
@@ -1085,6 +1257,26 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 
 				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
 				sensor->miscdev.name = "temperature";
+				sensor->miscdev.fops = &sensor->fops;
+			}	
+			else
+			{
+				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+
+			}
+				
+			break;
+
+		case SENSOR_TYPE_PRESSURE:
+			if(!sensor->ops->misc_dev)
+			{
+				sensor->fops.owner = THIS_MODULE;
+				sensor->fops.unlocked_ioctl = pressure_dev_ioctl;
+				sensor->fops.open = pressure_dev_open;
+				sensor->fops.release = pressure_dev_release;
+
+				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+				sensor->miscdev.name = "pressure";
 				sensor->miscdev.fops = &sensor->fops;
 			}	
 			else
@@ -1299,6 +1491,11 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 			set_bit(EV_ABS, sensor->input_dev->evbit);		
 			input_set_abs_params(sensor->input_dev, ABS_THROTTLE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
 			break;
+		case SENSOR_TYPE_PRESSURE:				
+			sensor->input_dev->name = "pressure";
+			set_bit(EV_ABS, sensor->input_dev->evbit);		
+			input_set_abs_params(sensor->input_dev, ABS_PRESSURE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+			break;
 		default:
 			printk("%s:unknow sensor type=%d\n",__func__,type);
 			break;
@@ -1426,8 +1623,15 @@ static const struct i2c_device_id sensor_id[] = {
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	
 	{"ps_stk3171", PROXIMITY_ID_STK3171},
 	{"ps_ap321xx", PROXIMITY_ID_AP321XX},
+	
 	/*temperature*/
-	{"temperature", TEMPERATURE_ID_ALL},
+	{"temperature", TEMPERATURE_ID_ALL},	
+	{"tmp_ms5607", TEMPERATURE_ID_MS5607},
+
+	/*pressure*/
+	{"pressure", PRESSURE_ID_ALL},
+	{"pr_ms5607", PRESSURE_ID_MS5607},
+	
 	{},
 };
 
