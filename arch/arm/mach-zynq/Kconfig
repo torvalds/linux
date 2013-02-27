@@ -5,6 +5,8 @@ config ARCH_ZYNQ
 	select COMMON_CLK
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select ICST
 	select MIGHT_HAVE_CACHE_L2X0
 	select USE_OF
