@@ -1178,7 +1178,7 @@ static int __init pscsi_module_init(void)
 	return transport_subsystem_register(&pscsi_template);
 }
 
-static void pscsi_module_exit(void)
+static void __exit pscsi_module_exit(void)
 {
 	transport_subsystem_release(&pscsi_template);
 }
