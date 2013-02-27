@@ -590,7 +590,7 @@ static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
 {
 	struct c67x00_td *td;
 	struct c67x00_urb_priv *urbp = urb->hcpriv;
-	const __u8 active_flag = 1, retry_cnt = 1;
+	const __u8 active_flag = 1, retry_cnt = 3;
 	__u8 cmd = 0;
 	int tt = 0;
 
