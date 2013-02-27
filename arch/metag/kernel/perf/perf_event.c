@@ -643,13 +643,15 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 		config = tmp >> 4;
 	}
 
-	/*
-	 * Enabled counters start from 0. Early cores clear the count on
-	 * write but newer cores don't, so we make sure that the count is
-	 * set to 0.
-	 */
 	tmp = ((config & 0xf) << 28) |
 			((1 << 24) << cpu_2_hwthread_id[get_cpu()]);
+	if (metag_pmu->max_period)
+		/*
+		 * Cores supporting overflow interrupts may have had the counter
+		 * set to a specific value that needs preserving.
+		 */
+		tmp |= metag_in32(PERF_COUNT(idx)) & 0x00ffffff;
+
 	metag_out32(tmp, PERF_COUNT(idx));
 unlock:
 	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
@@ -764,10 +766,16 @@ static irqreturn_t metag_pmu_counter_overflow(int irq, void *dev)
 
 	/*
 	 * Enable the counter again once core overflow processing has
-	 * completed.
+	 * completed. Note the counter value may have been modified while it was
+	 * inactive to set it up ready for the next interrupt.
 	 */
-	if (!perf_event_overflow(event, &sampledata, regs))
+	if (!perf_event_overflow(event, &sampledata, regs)) {
+		__global_lock2(flags);
+		counter = (counter & 0xff000000) |
+			  (metag_in32(PERF_COUNT(idx)) & 0x00ffffff);
 		metag_out32(counter, PERF_COUNT(idx));
+		__global_unlock2(flags);
+	}
 
 	return IRQ_HANDLED;
 }
