@@ -224,33 +224,31 @@ static void od_dbs_timer(struct work_struct *work)
 			cpu);
 	struct dbs_data *dbs_data = dbs_info->cdbs.cur_policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-	int delay, sample_type = core_dbs_info->sample_type;
-	bool eval_load;
+	int delay = 0, sample_type = core_dbs_info->sample_type;
 
 	mutex_lock(&core_dbs_info->cdbs.timer_mutex);
-	eval_load = need_load_eval(&core_dbs_info->cdbs,
-			od_tuners->sampling_rate);
+	if (!need_load_eval(&core_dbs_info->cdbs, od_tuners->sampling_rate))
+		goto max_delay;
 
 	/* Common NORMAL_SAMPLE setup */
 	core_dbs_info->sample_type = OD_NORMAL_SAMPLE;
 	if (sample_type == OD_SUB_SAMPLE) {
 		delay = core_dbs_info->freq_lo_jiffies;
-		if (eval_load)
-			__cpufreq_driver_target(core_dbs_info->cdbs.cur_policy,
-						core_dbs_info->freq_lo,
-						CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(core_dbs_info->cdbs.cur_policy,
+				core_dbs_info->freq_lo, CPUFREQ_RELATION_H);
 	} else {
-		if (eval_load)
-			dbs_check_cpu(dbs_data, cpu);
+		dbs_check_cpu(dbs_data, cpu);
 		if (core_dbs_info->freq_lo) {
 			/* Setup timer for SUB_SAMPLE */
 			core_dbs_info->sample_type = OD_SUB_SAMPLE;
 			delay = core_dbs_info->freq_hi_jiffies;
-		} else {
-			delay = delay_for_sampling_rate(od_tuners->sampling_rate
-						* core_dbs_info->rate_mult);
 		}
 	}
+
+max_delay:
+	if (!delay)
+		delay = delay_for_sampling_rate(od_tuners->sampling_rate
+				* core_dbs_info->rate_mult);
 
 	schedule_delayed_work_on(smp_processor_id(), dw, delay);
 	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
