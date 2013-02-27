@@ -553,6 +553,7 @@ retry:
 		cap->implemented = 0;
 		cap->mds = mds;
 		cap->mds_wanted = 0;
+		cap->mseq = 0;
 
 		cap->ci = ci;
 		__insert_cap_node(ci, cap);
@@ -628,7 +629,10 @@ retry:
 	cap->cap_id = cap_id;
 	cap->issued = issued;
 	cap->implemented |= issued;
-	cap->mds_wanted |= wanted;
+	if (mseq > cap->mseq)
+		cap->mds_wanted = wanted;
+	else
+		cap->mds_wanted |= wanted;
 	cap->seq = seq;
 	cap->issue_seq = seq;
 	cap->mseq = mseq;
