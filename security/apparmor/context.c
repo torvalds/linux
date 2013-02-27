@@ -93,7 +93,7 @@ struct aa_profile *aa_get_task_profile(struct task_struct *task)
  */
 int aa_replace_current_profile(struct aa_profile *profile)
 {
-	struct aa_task_cxt *cxt = current_cred()->security;
+	struct aa_task_cxt *cxt = current_cxt();
 	struct cred *new;
 	BUG_ON(!profile);
 
@@ -104,7 +104,7 @@ int aa_replace_current_profile(struct aa_profile *profile)
 	if (!new)
 		return -ENOMEM;
 
-	cxt = new->security;
+	cxt = cred_cxt(new);
 	if (unconfined(profile) || (cxt->profile->ns != profile->ns))
 		/* if switching to unconfined or a different profile namespace
 		 * clear out context state
@@ -136,7 +136,7 @@ int aa_set_current_onexec(struct aa_profile *profile)
 	if (!new)
 		return -ENOMEM;
 
-	cxt = new->security;
+	cxt = cred_cxt(new);
 	aa_get_profile(profile);
 	aa_put_profile(cxt->onexec);
 	cxt->onexec = profile;
@@ -163,7 +163,7 @@ int aa_set_current_hat(struct aa_profile *profile, u64 token)
 		return -ENOMEM;
 	BUG_ON(!profile);
 
-	cxt = new->security;
+	cxt = cred_cxt(new);
 	if (!cxt->previous) {
 		/* transfer refcount */
 		cxt->previous = cxt->profile;
@@ -200,7 +200,7 @@ int aa_restore_previous_profile(u64 token)
 	if (!new)
 		return -ENOMEM;
 
-	cxt = new->security;
+	cxt = cred_cxt(new);
 	if (cxt->token != token) {
 		abort_creds(new);
 		return -EACCES;

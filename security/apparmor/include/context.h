@@ -21,6 +21,9 @@
 
 #include "policy.h"
 
+#define cred_cxt(X) (X)->security
+#define current_cxt() cred_cxt(current_cred())
+
 /* struct aa_file_cxt - the AppArmor context the file was opened in
  * @perms: the permission the file was opened with
  *
@@ -93,7 +96,7 @@ struct aa_profile *aa_get_task_profile(struct task_struct *task);
  */
 static inline struct aa_profile *aa_cred_profile(const struct cred *cred)
 {
-	struct aa_task_cxt *cxt = cred->security;
+	struct aa_task_cxt *cxt = cred_cxt(cred);
 	BUG_ON(!cxt || !cxt->profile);
 	return aa_newest_version(cxt->profile);
 }
@@ -145,7 +148,7 @@ static inline struct aa_profile *__aa_current_profile(void)
  */
 static inline struct aa_profile *aa_current_profile(void)
 {
-	const struct aa_task_cxt *cxt = current_cred()->security;
+	const struct aa_task_cxt *cxt = current_cxt();
 	struct aa_profile *profile;
 	BUG_ON(!cxt || !cxt->profile);
 
