@@ -113,7 +113,7 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 		.address = AD5933_REG_TEMP_DATA,
 		.scan_type = {
 			.sign = 's',
@@ -125,8 +125,8 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "real_raw",
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+		BIT(IIO_CHAN_INFO_SCALE),
 		.address = AD5933_REG_REAL_DATA,
 		.scan_index = 0,
 		.scan_type = {
@@ -139,8 +139,8 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "imag_raw",
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+		BIT(IIO_CHAN_INFO_SCALE),
 		.address = AD5933_REG_IMAG_DATA,
 		.scan_index = 1,
 		.scan_type = {
