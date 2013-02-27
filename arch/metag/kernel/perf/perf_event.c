@@ -211,7 +211,7 @@ again:
 	/*
 	 * Calculate the delta and add it to the counter.
 	 */
-	delta = new_raw_count - prev_raw_count;
+	delta = (new_raw_count - prev_raw_count) & MAX_PERIOD;
 
 	local64_add(delta, &event->count);
 }
