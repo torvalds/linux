@@ -28,7 +28,7 @@
 struct rsxx_dma {
 	struct list_head	 list;
 	u8			 cmd;
-	unsigned int		 laddr;     /* Logical address on the ramsan */
+	unsigned int		 laddr;     /* Logical address */
 	struct {
 		u32		 off;
 		u32		 cnt;

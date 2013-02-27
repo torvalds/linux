@@ -3242,6 +3242,12 @@ F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
 
+FLASHSYSTEM DRIVER (IBM FlashSystem 70/80 PCI SSD Flash Card)
+M:	Joshua Morris <josh.h.morris@us.ibm.com>
+M:	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
+S:	Maintained
+F:	drivers/block/rsxx/
+
 FLOPPY DRIVER
 M:	Jiri Kosina <jkosina@suse.cz>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
@@ -6515,12 +6521,6 @@ M:	Nick Piggin <npiggin@kernel.dk>
 S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
-
-RAMSAM DRIVER (IBM RamSan 70/80 PCI SSD Flash Card)
-M:	Joshua Morris <josh.h.morris@us.ibm.com>
-M:	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
-S:	Maintained
-F:	drivers/block/rsxx/
 
 RANDOM NUMBER DRIVER
 M:	Theodore Ts'o" <tytso@mit.edu>
