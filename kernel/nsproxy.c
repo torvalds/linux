@@ -148,7 +148,8 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	 * means share undolist with parent, so we must forbid using
 	 * it along with CLONE_NEWIPC.
 	 */
-	if ((flags & CLONE_NEWIPC) && (flags & CLONE_SYSVSEM)) {
+	if ((flags & (CLONE_NEWIPC | CLONE_SYSVSEM)) ==
+		(CLONE_NEWIPC | CLONE_SYSVSEM)) {
 		err = -EINVAL;
 		goto out;
 	}
