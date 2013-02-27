@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra 8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -135,11 +135,11 @@ struct pm8001_dispatch {
 	void (*chip_rst)(struct pm8001_hba_info *pm8001_ha);
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_iounmap)(struct pm8001_hba_info *pm8001_ha);
-	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha);
+	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	u32 (*is_our_interupt)(struct pm8001_hba_info *pm8001_ha);
-	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha);
-	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha);
-	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha);
+	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha, u8 vec);
+	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
+	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*make_prd)(struct scatterlist *scatter, int nr, void *prd);
 	int (*smp_req)(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_ccb_info *ccb);
@@ -562,6 +562,56 @@ void pm8001_open_reject_retry(
 int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi, u32 *pphys_addr_lo,
 	u32 mem_size, u32 align);
+
+/********** functions common to spc & spcv - begins ************/
+void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
+int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
+			struct inbound_queue_table *circularQ,
+			u32 opCode, void *payload, u32 responseQueue);
+int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
+				u16 messageSize, void **messagePtr);
+u32 pm8001_mpi_msg_free_set(struct pm8001_hba_info *pm8001_ha, void *pMsg,
+			struct outbound_queue_table *circularQ, u8 bc);
+u32 pm8001_mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
+			struct outbound_queue_table *circularQ,
+			void **messagePtr1, u8 *pBC);
+int pm8001_chip_set_dev_state_req(struct pm8001_hba_info *pm8001_ha,
+			struct pm8001_device *pm8001_dev, u32 state);
+int pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
+					void *payload);
+int pm8001_chip_fw_flash_update_build(struct pm8001_hba_info *pm8001_ha,
+					void *fw_flash_updata_info, u32 tag);
+int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
+int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
+int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
+				struct pm8001_ccb_info *ccb,
+				struct pm8001_tmf_task *tmf);
+int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
+				struct pm8001_device *pm8001_dev,
+				u8 flag, u32 task_tag, u32 cmd_tag);
+int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha, u32 device_id);
+void pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd);
+void pm8001_work_fn(struct work_struct *work);
+int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha,
+					void *data, int handler);
+void pm8001_mpi_set_dev_state_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_get_lrate_mode(struct pm8001_phy *phy, u8 link_rate);
+void pm8001_get_attached_sas_addr(struct pm8001_phy *phy, u8 *sas_addr);
+void pm8001_bytes_dmaed(struct pm8001_hba_info *pm8001_ha, int i);
+int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+int pm8001_mpi_dereg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha , void *piomb);
+int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+/*********** functions common to spc & spcv - ends ************/
 
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 

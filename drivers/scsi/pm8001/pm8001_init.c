@@ -165,7 +165,7 @@ static void pm8001_tasklet(unsigned long opaque)
 	pm8001_ha = (struct pm8001_hba_info *)opaque;
 	if (unlikely(!pm8001_ha))
 		BUG_ON(1);
-	PM8001_CHIP_DISP->isr(pm8001_ha);
+	PM8001_CHIP_DISP->isr(pm8001_ha, 0);
 }
 #endif
 
@@ -189,7 +189,7 @@ static irqreturn_t pm8001_interrupt(int irq, void *opaque)
 #ifdef PM8001_USE_TASKLET
 	tasklet_schedule(&pm8001_ha->tasklet);
 #else
-	ret = PM8001_CHIP_DISP->isr(pm8001_ha);
+	ret = PM8001_CHIP_DISP->isr(pm8001_ha, 0);
 #endif
 	return ret;
 }
@@ -420,6 +420,12 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 	pm8001_ha->id = pm8001_id++;
 	pm8001_ha->logging_level = 0x01;
 	sprintf(pm8001_ha->name, "%s%d", DRV_NAME, pm8001_ha->id);
+	/* IOMB size is 128 for 8088/89 controllers */
+	if (pm8001_ha->chip_id != chip_8001)
+		pm8001_ha->iomb_size = IOMB_SIZE_SPCV;
+	else
+		pm8001_ha->iomb_size = IOMB_SIZE_SPC;
+
 #ifdef PM8001_USE_TASKLET
 	tasklet_init(&pm8001_ha->tasklet, pm8001_tasklet,
 		(unsigned long)pm8001_ha);
@@ -722,7 +728,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_shost;
 
-	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha);
+	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, 0);
 	pm8001_init_sas_add(pm8001_ha);
 	pm8001_post_sas_ha_init(shost, chip);
 	rc = sas_register_ha(SHOST_TO_SAS_HA(shost));
@@ -758,7 +764,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 	sas_remove_host(pm8001_ha->shost);
 	list_del(&pm8001_ha->list);
 	scsi_remove_host(pm8001_ha->shost);
-	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha);
+	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
 
 #ifdef PM8001_USE_MSIX
@@ -802,7 +808,7 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		printk(KERN_ERR " PCI PM not supported\n");
 		return -ENODEV;
 	}
-	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha);
+	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
 #ifdef PM8001_USE_MSIX
 	for (i = 0; i < pm8001_ha->number_of_intr; i++)
@@ -863,7 +869,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
 	if (rc)
 		goto err_out_disable;
-	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha);
+	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0);
 	rc = pm8001_request_irq(pm8001_ha);
 	if (rc)
 		goto err_out_disable;
@@ -871,7 +877,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	tasklet_init(&pm8001_ha->tasklet, pm8001_tasklet,
 		    (unsigned long)pm8001_ha);
 	#endif
-	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha);
+	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, 0);
 	scsi_unblock_requests(pm8001_ha->shost);
 	return 0;
 
