@@ -829,7 +829,6 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	if (IS_ERR(bdev)) {
 		ret = PTR_ERR(bdev);
-		printk(KERN_INFO "btrfs: open %s failed\n", path);
 		goto error;
 	}
 
