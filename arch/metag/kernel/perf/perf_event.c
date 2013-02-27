@@ -634,7 +634,7 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 			break;
 		}
 
-		metag_out32((tmp & 0x0f), perf_addr);
+		metag_out32((config & 0x0f), perf_addr);
 
 		/*
 		 * Now we use the high nibble as the performance event to
