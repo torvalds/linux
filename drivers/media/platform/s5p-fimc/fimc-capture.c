@@ -286,8 +286,8 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		fimc_activate_capture(ctx);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_call(fimc, set_stream,
-					   &fimc->pipeline, 1);
+			return fimc_pipeline_call(fimc, set_stream,
+						  &fimc->pipeline, 1);
 	}
 
 	return 0;
@@ -443,12 +443,17 @@ static void buffer_queue(struct vb2_buffer *vb)
 	if (vb2_is_streaming(&vid_cap->vbq) &&
 	    vid_cap->active_buf_cnt >= min_bufs &&
 	    !test_and_set_bit(ST_CAPT_STREAM, &fimc->state)) {
+		int ret;
+
 		fimc_activate_capture(ctx);
 		spin_unlock_irqrestore(&fimc->slock, flags);
 
-		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_call(fimc, set_stream,
-					   &fimc->pipeline, 1);
+		if (test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
+			return;
+
+		ret = fimc_pipeline_call(fimc, set_stream, &fimc->pipeline, 1);
+		if (ret < 0)
+			v4l2_err(&vid_cap->vfd, "stream on failed: %d\n", ret);
 		return;
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
