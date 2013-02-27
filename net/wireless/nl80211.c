@@ -557,18 +557,6 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 	if ((chan->flags & IEEE80211_CHAN_RADAR) &&
 	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_RADAR))
 		goto nla_put_failure;
-	if ((chan->flags & IEEE80211_CHAN_NO_HT40MINUS) &&
-	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_HT40_MINUS))
-		goto nla_put_failure;
-	if ((chan->flags & IEEE80211_CHAN_NO_HT40PLUS) &&
-	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_HT40_PLUS))
-		goto nla_put_failure;
-	if ((chan->flags & IEEE80211_CHAN_NO_80MHZ) &&
-	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_80MHZ))
-		goto nla_put_failure;
-	if ((chan->flags & IEEE80211_CHAN_NO_160MHZ) &&
-	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_160MHZ))
-		goto nla_put_failure;
 
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
 			DBM_TO_MBM(chan->max_power)))
@@ -1308,15 +1296,6 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 portid, u32 seq, int flag
 	    dev->wiphy.max_acl_mac_addrs &&
 	    nla_put_u32(msg, NL80211_ATTR_MAC_ACL_MAX,
 			dev->wiphy.max_acl_mac_addrs))
-		goto nla_put_failure;
-
-	if (dev->wiphy.extended_capabilities &&
-	    (nla_put(msg, NL80211_ATTR_EXT_CAPA,
-		     dev->wiphy.extended_capabilities_len,
-		     dev->wiphy.extended_capabilities) ||
-	     nla_put(msg, NL80211_ATTR_EXT_CAPA_MASK,
-		     dev->wiphy.extended_capabilities_len,
-		     dev->wiphy.extended_capabilities_mask)))
 		goto nla_put_failure;
 
 	return genlmsg_end(msg, hdr);
