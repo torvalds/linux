@@ -664,6 +664,7 @@ struct hid_driver {
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
  * @wait: wait for buffered io to complete (send/recv reports)
+ * @idle: send idle request to device
  */
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
@@ -683,6 +684,7 @@ struct hid_ll_driver {
 			struct hid_report *report, int reqtype);
 
 	int (*wait)(struct hid_device *hdev);
+	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 
 };
 
@@ -904,6 +906,23 @@ static inline void hid_hw_request(struct hid_device *hdev,
 {
 	if (hdev->ll_driver->request)
 		hdev->ll_driver->request(hdev, report, reqtype);
+}
+
+/**
+ * hid_hw_idle - send idle request to device
+ *
+ * @hdev: hid device
+ * @report: report to control
+ * @idle: idle state
+ * @reqtype: hid request type
+ */
+static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
+		int reqtype)
+{
+	if (hdev->ll_driver->idle)
+		return hdev->ll_driver->idle(hdev, report, idle, reqtype);
+
+	return 0;
 }
 
 /**
