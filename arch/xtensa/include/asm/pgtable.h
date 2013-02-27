@@ -410,6 +410,10 @@ typedef pte_t *pte_addr_t;
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTEP_MKDIRTY
 #define __HAVE_ARCH_PTE_SAME
+/* We provide our own get_unmapped_area to cope with
+ * SHM area cache aliasing for userland.
+ */
+#define HAVE_ARCH_UNMAPPED_AREA
 
 #include <asm-generic/pgtable.h>
 
