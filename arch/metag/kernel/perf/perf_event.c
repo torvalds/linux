@@ -240,8 +240,10 @@ int metag_pmu_event_set_period(struct perf_event *event,
 	if (left > (s64)metag_pmu->max_period)
 		left = metag_pmu->max_period;
 
-	if (metag_pmu->write)
-		metag_pmu->write(idx, (u64)(-left) & MAX_PERIOD);
+	if (metag_pmu->write) {
+		local64_set(&hwc->prev_count, -(s32)left);
+		metag_pmu->write(idx, -left & MAX_PERIOD);
+	}
 
 	perf_event_update_userpage(event);
 
@@ -651,6 +653,12 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 		 * set to a specific value that needs preserving.
 		 */
 		tmp |= metag_in32(PERF_COUNT(idx)) & 0x00ffffff;
+	else
+		/*
+		 * Older cores reset the counter on write, so prev_count needs
+		 * resetting too so we can calculate a correct delta.
+		 */
+		local64_set(&event->prev_count, 0);
 
 	metag_out32(tmp, PERF_COUNT(idx));
 unlock:
