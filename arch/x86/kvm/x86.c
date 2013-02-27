@@ -6935,16 +6935,17 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
-				struct kvm_memory_slot old)
+				const struct kvm_memory_slot *old,
+				enum kvm_mr_change change)
 {
 
-	int nr_mmu_pages = 0, npages = mem->memory_size >> PAGE_SHIFT;
+	int nr_mmu_pages = 0;
 
-	if ((mem->slot >= KVM_USER_MEM_SLOTS) && old.npages && !npages) {
+	if ((mem->slot >= KVM_USER_MEM_SLOTS) && (change == KVM_MR_DELETE)) {
 		int ret;
 
-		ret = vm_munmap(old.userspace_addr,
-				old.npages * PAGE_SIZE);
+		ret = vm_munmap(old->userspace_addr,
+				old->npages * PAGE_SIZE);
 		if (ret < 0)
 			printk(KERN_WARNING
 			       "kvm_vm_ioctl_set_memory_region: "
@@ -6961,13 +6962,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * Existing largepage mappings are destroyed here and new ones will
 	 * not be created until the end of the logging.
 	 */
-	if (npages && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES))
+	if ((change != KVM_MR_DELETE) && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES))
 		kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	/*
 	 * If memory slot is created, or moved, we need to clear all
 	 * mmio sptes.
 	 */
-	if (npages && old.base_gfn != mem->guest_phys_addr >> PAGE_SHIFT) {
+	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
 		kvm_mmu_zap_all(kvm);
 		kvm_reload_remote_mmus(kvm);
 	}

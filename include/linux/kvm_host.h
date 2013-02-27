@@ -483,7 +483,8 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				enum kvm_mr_change change);
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
-				struct kvm_memory_slot old);
+				const struct kvm_memory_slot *old,
+				enum kvm_mr_change change);
 bool kvm_largepages_enabled(void);
 void kvm_disable_largepages(void);
 /* flush all memory translations */
