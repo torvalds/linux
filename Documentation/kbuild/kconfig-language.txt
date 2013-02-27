@@ -388,26 +388,3 @@ config FOO
 	depends on BAR && m
 
 limits FOO to module (=m) or disabled (=n).
-
-Kconfig symbol existence
-~~~~~~~~~~~~~~~~~~~~~~~~
-The following two methods produce the same kconfig symbol dependencies
-but differ greatly in kconfig symbol existence (production) in the
-generated config file.
-
-case 1:
-
-config FOO
-	tristate "about foo"
-	depends on BAR
-
-vs. case 2:
-
-if BAR
-config FOO
-	tristate "about foo"
-endif
-
-In case 1, the symbol FOO will always exist in the config file (given
-no other dependencies).  In case 2, the symbol FOO will only exist in
-the config file if BAR is enabled.
