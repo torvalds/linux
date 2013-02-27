@@ -1447,6 +1447,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, int err)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
+	DEFINE_WAIT(wait);
 
 	WARN_ON(trans->use_count > 1);
 
@@ -1455,8 +1456,13 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 	spin_lock(&root->fs_info->trans_lock);
 	list_del_init(&cur_trans->list);
 	if (cur_trans == root->fs_info->running_transaction) {
+		root->fs_info->trans_no_join = 1;
+		spin_unlock(&root->fs_info->trans_lock);
+		wait_event(cur_trans->writer_wait,
+			   atomic_read(&cur_trans->num_writers) == 1);
+
+		spin_lock(&root->fs_info->trans_lock);
 		root->fs_info->running_transaction = NULL;
-		root->fs_info->trans_no_join = 0;
 	}
 	spin_unlock(&root->fs_info->trans_lock);
 
