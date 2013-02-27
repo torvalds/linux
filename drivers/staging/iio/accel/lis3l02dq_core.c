@@ -501,12 +501,6 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-#define LIS3L02DQ_INFO_MASK				\
-	(IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-	 IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
-	 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
-	 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT)
-
 #define LIS3L02DQ_EVENT_MASK					\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |	\
 	 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
@@ -516,7 +510,10 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 		.type = IIO_ACCEL,				\
 		.modified = 1,					\
 		.channel2 = mod,				\
-		.info_mask =  LIS3L02DQ_INFO_MASK,		\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+			BIT(IIO_CHAN_INFO_CALIBSCALE) |		\
+			BIT(IIO_CHAN_INFO_CALIBBIAS),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 		.address = index,				\
 		.scan_index = index,				\
 		.scan_type = {					\
