@@ -742,9 +742,6 @@ static int btrfs_clean_quota_tree(struct btrfs_trans_handle *trans,
 	int ret;
 	int nr = 0;
 
-	if (!root)
-		return -EINVAL;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
