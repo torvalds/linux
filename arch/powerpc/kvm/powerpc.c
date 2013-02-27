@@ -412,8 +412,8 @@ int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
-				   struct kvm_memory_slot old,
-				   struct kvm_userspace_memory_region *mem)
+				   struct kvm_userspace_memory_region *mem,
+				   enum kvm_mr_change change)
 {
 	return kvmppc_core_prepare_memory_region(kvm, memslot, mem);
 }

@@ -856,7 +856,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		slots = old_memslots;
 	}
 
-	r = kvm_arch_prepare_memory_region(kvm, &new, old, mem);
+	r = kvm_arch_prepare_memory_region(kvm, &new, mem, change);
 	if (r)
 		goto out_slots;
 
