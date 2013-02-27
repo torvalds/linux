@@ -48,8 +48,7 @@ enum chip_flavors {
 	chip_8018,
 	chip_8019
 };
-#define USI_MAX_MEMCNT			9
-#define PM8001_MAX_DMA_SG		SG_ALL
+
 enum phy_speed {
 	PHY_SPEED_15 = 0x01,
 	PHY_SPEED_30 = 0x02,
@@ -87,13 +86,16 @@ enum port_type {
 #define	PM8001_MAX_DEVICES	 2048	/* max supported device */
 #define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
 
+#define USI_MAX_MEMCNT_BASE	4
+#define IB			(USI_MAX_MEMCNT_BASE + 1)
+#define CI			(IB + PM8001_MAX_SPCV_INB_NUM)
+#define OB			(CI + PM8001_MAX_SPCV_INB_NUM)
+#define PI			(OB + PM8001_MAX_SPCV_OUTB_NUM)
+#define USI_MAX_MEMCNT		(PI + PM8001_MAX_SPCV_OUTB_NUM)
+#define PM8001_MAX_DMA_SG	SG_ALL
 enum memory_region_num {
 	AAP1 = 0x0, /* application acceleration processor */
 	IOP,	    /* IO processor */
-	CI,	    /* consumer index */
-	PI,	    /* producer index */
-	IB,	    /* inbound queue */
-	OB,	    /* outbound queue */
 	NVMD,	    /* NVM device */
 	DEV_MEM,    /* memory for devices */
 	CCB_MEM,    /* memory for command control block */

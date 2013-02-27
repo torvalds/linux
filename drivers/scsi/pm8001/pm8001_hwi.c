@@ -151,10 +151,9 @@ static void read_general_status_table(struct pm8001_hba_info *pm8001_ha)
  */
 static void read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
-	int inbQ_num = 1;
 	int i;
 	void __iomem *address = pm8001_ha->inbnd_q_tbl_addr;
-	for (i = 0; i < inbQ_num; i++) {
+	for (i = 0; i < PM8001_MAX_INB_NUM; i++) {
 		u32 offset = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar =
 		      get_pci_bar_index(pm8001_mr32(address, (offset + 0x14)));
@@ -169,10 +168,9 @@ static void read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
  */
 static void read_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
-	int outbQ_num = 1;
 	int i;
 	void __iomem *address = pm8001_ha->outbnd_q_tbl_addr;
-	for (i = 0; i < outbQ_num; i++) {
+	for (i = 0; i < PM8001_MAX_OUTB_NUM; i++) {
 		u32 offset = i * 0x24;
 		pm8001_ha->outbnd_q_tbl[i].ci_pci_bar =
 		      get_pci_bar_index(pm8001_mr32(address, (offset + 0x14)));
@@ -225,19 +223,19 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->inbnd_q_tbl[i].element_pri_size_cnt	=
 			PM8001_MPI_QUEUE | (64 << 16) | (0x00<<30);
 		pm8001_ha->inbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[IB].phys_addr_hi;
+			pm8001_ha->memoryMap.region[IB + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].lower_base_addr	=
-		pm8001_ha->memoryMap.region[IB].phys_addr_lo;
+		pm8001_ha->memoryMap.region[IB + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[IB].virt_ptr;
+			(u8 *)pm8001_ha->memoryMap.region[IB + i].virt_ptr;
 		pm8001_ha->inbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[IB].total_len;
+			pm8001_ha->memoryMap.region[IB + i].total_len;
 		pm8001_ha->inbnd_q_tbl[i].ci_upper_base_addr	=
-			pm8001_ha->memoryMap.region[CI].phys_addr_hi;
+			pm8001_ha->memoryMap.region[CI + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].ci_lower_base_addr	=
-			pm8001_ha->memoryMap.region[CI].phys_addr_lo;
+			pm8001_ha->memoryMap.region[CI + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].ci_virt		=
-			pm8001_ha->memoryMap.region[CI].virt_ptr;
+			pm8001_ha->memoryMap.region[CI + i].virt_ptr;
 		offsetib = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressib,
@@ -251,21 +249,21 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->outbnd_q_tbl[i].element_size_cnt	=
 			PM8001_MPI_QUEUE | (64 << 16) | (0x01<<30);
 		pm8001_ha->outbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[OB].phys_addr_hi;
+			pm8001_ha->memoryMap.region[OB + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].lower_base_addr	=
-			pm8001_ha->memoryMap.region[OB].phys_addr_lo;
+			pm8001_ha->memoryMap.region[OB + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[OB].virt_ptr;
+			(u8 *)pm8001_ha->memoryMap.region[OB + i].virt_ptr;
 		pm8001_ha->outbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[OB].total_len;
+			pm8001_ha->memoryMap.region[OB + i].total_len;
 		pm8001_ha->outbnd_q_tbl[i].pi_upper_base_addr	=
-			pm8001_ha->memoryMap.region[PI].phys_addr_hi;
+			pm8001_ha->memoryMap.region[PI + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].pi_lower_base_addr	=
-			pm8001_ha->memoryMap.region[PI].phys_addr_lo;
+			pm8001_ha->memoryMap.region[PI + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].interrup_vec_cnt_delay	=
-			0 | (10 << 16) | (0 << 24);
+			0 | (10 << 16) | (i << 24);
 		pm8001_ha->outbnd_q_tbl[i].pi_virt		=
-			pm8001_ha->memoryMap.region[PI].virt_ptr;
+			pm8001_ha->memoryMap.region[PI + i].virt_ptr;
 		offsetob = i * 0x24;
 		pm8001_ha->outbnd_q_tbl[i].ci_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressob,
@@ -641,6 +639,7 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
  */
 static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 {
+	u8 i = 0;
 	/* check the firmware status */
 	if (-1 == check_fw_ready(pm8001_ha)) {
 		PM8001_FAIL_DBG(pm8001_ha,
@@ -657,8 +656,10 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	read_outbnd_queue_table(pm8001_ha);
 	/* update main config table ,inbound table and outbound table */
 	update_main_config_table(pm8001_ha);
-	update_inbnd_queue_table(pm8001_ha, 0);
-	update_outbnd_queue_table(pm8001_ha, 0);
+	for (i = 0; i < PM8001_MAX_INB_NUM; i++)
+		update_inbnd_queue_table(pm8001_ha, i);
+	for (i = 0; i < PM8001_MAX_OUTB_NUM; i++)
+		update_outbnd_queue_table(pm8001_ha, i);
 	mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
 	/* 7->130ms, 34->500ms, 119->1.5s */
 	mpi_set_open_retry_interval_reg(pm8001_ha, 119);

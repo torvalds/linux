@@ -199,10 +199,14 @@ static irqreturn_t pm8001_interrupt(int irq, void *opaque)
  * @pm8001_ha:our hba structure.
  *
  */
-static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
+static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
+			const struct pci_device_id *ent)
 {
 	int i;
 	spin_lock_init(&pm8001_ha->lock);
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("pm8001_alloc: PHY:%x\n",
+				pm8001_ha->chip->n_phy));
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		pm8001_phy_init(pm8001_ha, i);
 		pm8001_ha->port[i].wide_port_phymap = 0;
@@ -226,30 +230,57 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->memoryMap.region[IOP].total_len = PM8001_EVENT_LOG_SIZE;
 	pm8001_ha->memoryMap.region[IOP].alignment = 32;
 
-	/* MPI Memory region 3 for consumer Index of inbound queues */
-	pm8001_ha->memoryMap.region[CI].num_elements = 1;
-	pm8001_ha->memoryMap.region[CI].element_size = 4;
-	pm8001_ha->memoryMap.region[CI].total_len = 4;
-	pm8001_ha->memoryMap.region[CI].alignment = 4;
+	for (i = 0; i < PM8001_MAX_SPCV_INB_NUM; i++) {
+		/* MPI Memory region 3 for consumer Index of inbound queues */
+		pm8001_ha->memoryMap.region[CI+i].num_elements = 1;
+		pm8001_ha->memoryMap.region[CI+i].element_size = 4;
+		pm8001_ha->memoryMap.region[CI+i].total_len = 4;
+		pm8001_ha->memoryMap.region[CI+i].alignment = 4;
 
-	/* MPI Memory region 4 for producer Index of outbound queues */
-	pm8001_ha->memoryMap.region[PI].num_elements = 1;
-	pm8001_ha->memoryMap.region[PI].element_size = 4;
-	pm8001_ha->memoryMap.region[PI].total_len = 4;
-	pm8001_ha->memoryMap.region[PI].alignment = 4;
+		if ((ent->driver_data) != chip_8001) {
+			/* MPI Memory region 5 inbound queues */
+			pm8001_ha->memoryMap.region[IB+i].num_elements =
+						PM8001_MPI_QUEUE;
+			pm8001_ha->memoryMap.region[IB+i].element_size = 128;
+			pm8001_ha->memoryMap.region[IB+i].total_len =
+						PM8001_MPI_QUEUE * 128;
+			pm8001_ha->memoryMap.region[IB+i].alignment = 128;
+		} else {
+			pm8001_ha->memoryMap.region[IB+i].num_elements =
+						PM8001_MPI_QUEUE;
+			pm8001_ha->memoryMap.region[IB+i].element_size = 64;
+			pm8001_ha->memoryMap.region[IB+i].total_len =
+						PM8001_MPI_QUEUE * 64;
+			pm8001_ha->memoryMap.region[IB+i].alignment = 64;
+		}
+	}
 
-	/* MPI Memory region 5 inbound queues */
-	pm8001_ha->memoryMap.region[IB].num_elements = PM8001_MPI_QUEUE;
-	pm8001_ha->memoryMap.region[IB].element_size = 64;
-	pm8001_ha->memoryMap.region[IB].total_len = PM8001_MPI_QUEUE * 64;
-	pm8001_ha->memoryMap.region[IB].alignment = 64;
+	for (i = 0; i < PM8001_MAX_SPCV_OUTB_NUM; i++) {
+		/* MPI Memory region 4 for producer Index of outbound queues */
+		pm8001_ha->memoryMap.region[PI+i].num_elements = 1;
+		pm8001_ha->memoryMap.region[PI+i].element_size = 4;
+		pm8001_ha->memoryMap.region[PI+i].total_len = 4;
+		pm8001_ha->memoryMap.region[PI+i].alignment = 4;
 
-	/* MPI Memory region 6 outbound queues */
-	pm8001_ha->memoryMap.region[OB].num_elements = PM8001_MPI_QUEUE;
-	pm8001_ha->memoryMap.region[OB].element_size = 64;
-	pm8001_ha->memoryMap.region[OB].total_len = PM8001_MPI_QUEUE * 64;
-	pm8001_ha->memoryMap.region[OB].alignment = 64;
+		if (ent->driver_data != chip_8001) {
+			/* MPI Memory region 6 Outbound queues */
+			pm8001_ha->memoryMap.region[OB+i].num_elements =
+						PM8001_MPI_QUEUE;
+			pm8001_ha->memoryMap.region[OB+i].element_size = 128;
+			pm8001_ha->memoryMap.region[OB+i].total_len =
+						PM8001_MPI_QUEUE * 128;
+			pm8001_ha->memoryMap.region[OB+i].alignment = 128;
+		} else {
+			/* MPI Memory region 6 Outbound queues */
+			pm8001_ha->memoryMap.region[OB+i].num_elements =
+						PM8001_MPI_QUEUE;
+			pm8001_ha->memoryMap.region[OB+i].element_size = 64;
+			pm8001_ha->memoryMap.region[OB+i].total_len =
+						PM8001_MPI_QUEUE * 64;
+			pm8001_ha->memoryMap.region[OB+i].alignment = 64;
+		}
 
+	}
 	/* Memory region write DMA*/
 	pm8001_ha->memoryMap.region[NVMD].num_elements = 1;
 	pm8001_ha->memoryMap.region[NVMD].element_size = 4096;
@@ -343,10 +374,12 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 				ioremap(pm8001_ha->io_mem[logicalBar].membase,
 				pm8001_ha->io_mem[logicalBar].memsize);
 			PM8001_INIT_DBG(pm8001_ha,
-				pm8001_printk("PCI: bar %d, logicalBar %d "
-				"virt_addr=%lx,len=%d\n", bar, logicalBar,
-				(unsigned long)
-				pm8001_ha->io_mem[logicalBar].memvirtaddr,
+				pm8001_printk("PCI: bar %d, logicalBar %d ",
+				bar, logicalBar));
+			PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
+				"base addr %llx virt_addr=%llx len=%d\n",
+				(u64)pm8001_ha->io_mem[logicalBar].membase,
+				(u64)pm8001_ha->io_mem[logicalBar].memvirtaddr,
 				pm8001_ha->io_mem[logicalBar].memsize));
 		} else {
 			pm8001_ha->io_mem[logicalBar].membase	= 0;
@@ -365,8 +398,9 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
  * @shost: scsi host struct which has been initialized before.
  */
 static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
-						u32 chip_id,
-						struct Scsi_Host *shost)
+				 const struct pci_device_id *ent,
+				struct Scsi_Host *shost)
+
 {
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
@@ -378,7 +412,7 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 
 	pm8001_ha->pdev = pdev;
 	pm8001_ha->dev = &pdev->dev;
-	pm8001_ha->chip_id = chip_id;
+	pm8001_ha->chip_id = ent->driver_data;
 	pm8001_ha->chip = &pm8001_chips[pm8001_ha->chip_id];
 	pm8001_ha->irq = pdev->irq;
 	pm8001_ha->sas = sha;
@@ -391,7 +425,7 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 		(unsigned long)pm8001_ha);
 #endif
 	pm8001_ioremap(pm8001_ha);
-	if (!pm8001_alloc(pm8001_ha))
+	if (!pm8001_alloc(pm8001_ha, ent))
 		return pm8001_ha;
 	pm8001_free(pm8001_ha);
 	return NULL;
@@ -669,7 +703,8 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_free;
 	}
 	pci_set_drvdata(pdev, SHOST_TO_SAS_HA(shost));
-	pm8001_ha = pm8001_pci_alloc(pdev, chip_8001, shost);
+	/* ent->driver variable is used to differentiate between controllers */
+	pm8001_ha = pm8001_pci_alloc(pdev, ent, shost);
 	if (!pm8001_ha) {
 		rc = -ENOMEM;
 		goto err_out_free;
