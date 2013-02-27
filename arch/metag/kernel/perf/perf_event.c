@@ -617,9 +617,7 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 		WARN_ONCE((config != 0x100),
 			"invalid configuration (%d) for counter (%d)\n",
 			config, idx);
-
-		/* Reset the cycle count */
-		__core_reg_set(TXTACTCYC, 0);
+		local64_set(&event->prev_count, __core_reg_get(TXTACTCYC));
 		goto unlock;
 	}
 
@@ -708,9 +706,8 @@ static u64 metag_pmu_read_counter(int idx)
 {
 	u32 tmp = 0;
 
-	/* The act of reading the cycle counter also clears it */
 	if (METAG_INST_COUNTER == idx) {
-		__core_reg_swap(TXTACTCYC, tmp);
+		tmp = __core_reg_get(TXTACTCYC);
 		goto out;
 	}
 
