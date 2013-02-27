@@ -504,6 +504,7 @@ struct kvm_vcpu_arch {
 	u32 tlbcfg[4];
 	u32 mmucfg;
 	u32 epr;
+	u32 crit_save;
 	struct kvmppc_booke_debug_reg dbg_reg;
 #endif
 	gpa_t paddr_accessed;
