@@ -241,20 +241,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 	return 0;
 }
-#define IWL_HW_REV_ID_RAINBOW	0x2
-#define IWL_PROJ_TYPE_LHP	0x5
-
-static u32 iwl_mvm_build_phy_cfg(struct iwl_mvm *mvm)
-{
-	struct iwl_nvm_data *data = mvm->nvm_data;
-	/* Temp calls to static definitions, will be changed to CSR calls */
-	u8 hw_rev_id = IWL_HW_REV_ID_RAINBOW;
-	u8 project_type = IWL_PROJ_TYPE_LHP;
-
-	return data->radio_cfg_dash | (data->radio_cfg_step << 2) |
-		(hw_rev_id << 4) | ((project_type & 0x7f) << 6) |
-		(data->valid_tx_ant << 16) | (data->valid_rx_ant << 20);
-}
 
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
@@ -262,7 +248,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	enum iwl_ucode_type ucode_type = mvm->cur_ucode;
 
 	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_build_phy_cfg(mvm));
+	phy_cfg_cmd.phy_cfg = cpu_to_le32(mvm->fw->phy_config);
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =
