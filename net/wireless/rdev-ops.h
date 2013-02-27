@@ -887,4 +887,17 @@ static inline int rdev_set_mac_acl(struct cfg80211_registered_device *rdev,
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
+
+static inline int rdev_update_ft_ies(struct cfg80211_registered_device *rdev,
+				     struct net_device *dev,
+				     struct cfg80211_update_ft_ies_params *ftie)
+{
+	int ret;
+
+	trace_rdev_update_ft_ies(&rdev->wiphy, dev, ftie);
+	ret = rdev->ops->update_ft_ies(&rdev->wiphy, dev, ftie);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
 #endif /* __CFG80211_RDEV_OPS */

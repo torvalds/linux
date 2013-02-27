@@ -629,6 +629,14 @@
  *	i.e. features for the nl80211 protocol rather than device features.
  *	Returns the features in the %NL80211_ATTR_PROTOCOL_FEATURES bitmap.
  *
+ * @NL80211_CMD_UPDATE_FT_IES: Pass down the most up-to-date Fast Transition
+ *	Information Element to the WLAN driver
+ *
+ * @NL80211_CMD_FT_EVENT: Send a Fast transition event from the WLAN driver
+ *	to the supplicant. This will carry the target AP's MAC address along
+ *	with the relevant Information Elements. This event is used to report
+ *	received FT IEs (MDIE, FTIE, RSN IE, TIE, RICIE).
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -784,6 +792,9 @@ enum nl80211_commands {
 	NL80211_CMD_RADAR_DETECT,
 
 	NL80211_CMD_GET_PROTOCOL_FEATURES,
+
+	NL80211_CMD_UPDATE_FT_IES,
+	NL80211_CMD_FT_EVENT,
 
 	/* add new commands above here */
 
@@ -1396,6 +1407,11 @@ enum nl80211_commands {
  *	receiving the data for a single wiphy split across multiple
  *	messages, given with wiphy dump message
  *
+ * @NL80211_ATTR_MDID: Mobility Domain Identifier
+ *
+ * @NL80211_ATTR_IE_RIC: Resource Information Container Information
+ *	Element
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1687,6 +1703,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_DISABLE_VHT,
 	NL80211_ATTR_VHT_CAPABILITY_MASK,
+
+	NL80211_ATTR_MDID,
+	NL80211_ATTR_IE_RIC,
 
 	/* add attributes here, update the policy in nl80211.c */
 
