@@ -695,6 +695,11 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EBADF;
 			break;
 		}
+		if (!(in_egroup_p(file->f_dentry->d_inode->i_gid) ||
+				capable(CAP_SYSLOG))) {
+			ret = -EPERM;
+			break;
+		}
 		list_for_each_entry(reader, &log->readers, list)
 			reader->r_off = log->w_off;
 		log->head = log->w_off;
