@@ -109,9 +109,9 @@ struct fimd_context {
 
 #ifdef CONFIG_OF
 static const struct of_device_id fimd_driver_dt_match[] = {
-	{ .compatible = "samsung,exynos4-fimd",
+	{ .compatible = "samsung,exynos4210-fimd",
 	  .data = &exynos4_fimd_driver_data },
-	{ .compatible = "samsung,exynos5-fimd",
+	{ .compatible = "samsung,exynos5250-fimd",
 	  .data = &exynos5_fimd_driver_data },
 	{},
 };
