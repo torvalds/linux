@@ -419,8 +419,6 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 
 static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 
-#define SCA3000_INFO_MASK			\
-	IIO_CHAN_INFO_RAW_SEPARATE_BIT | IIO_CHAN_INFO_SCALE_SHARED_BIT
 #define SCA3000_EVENT_MASK					\
 	(IIO_EV_BIT(IIO_EV_TYPE_MAG, IIO_EV_DIR_RISING))
 
@@ -429,7 +427,8 @@ static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 		.type = IIO_ACCEL,				\
 		.modified = 1,					\
 		.channel2 = mod,				\
-		.info_mask = SCA3000_INFO_MASK,			\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),\
 		.address = index,				\
 		.scan_index = index,				\
 		.scan_type = {					\
