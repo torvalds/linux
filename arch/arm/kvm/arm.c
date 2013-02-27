@@ -220,14 +220,6 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-			       struct kvm_userspace_memory_region *mem,
-			       struct kvm_memory_slot old,
-			       int user_alloc)
-{
-	return 0;
-}
-
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
 				   struct kvm_userspace_memory_region *mem,
