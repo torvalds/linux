@@ -446,6 +446,11 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
 
+	/* Send TX valid antennas before triggering calibrations */
+	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	if (ret)
+		goto error;
+
 	/* Override the calibrations from TLV and the const of fw */
 	iwl_set_default_calib_trigger(mvm);
 
