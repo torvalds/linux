@@ -452,6 +452,24 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 	return slot;
 }
 
+/*
+ * KVM_SET_USER_MEMORY_REGION ioctl allows the following operations:
+ * - create a new memory slot
+ * - delete an existing memory slot
+ * - modify an existing memory slot
+ *   -- move it in the guest physical memory space
+ *   -- just change its flags
+ *
+ * Since flags can be changed by some of these operations, the following
+ * differentiation is the best we can do for __kvm_set_memory_region():
+ */
+enum kvm_mr_change {
+	KVM_MR_CREATE,
+	KVM_MR_DELETE,
+	KVM_MR_MOVE,
+	KVM_MR_FLAGS_ONLY,
+};
+
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem);
 int __kvm_set_memory_region(struct kvm *kvm,
