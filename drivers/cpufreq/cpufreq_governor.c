@@ -178,20 +178,38 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 }
 EXPORT_SYMBOL_GPL(dbs_check_cpu);
 
-static inline void dbs_timer_init(struct dbs_data *dbs_data, int cpu,
-				  unsigned int sampling_rate)
+static inline void __gov_queue_work(int cpu, struct dbs_data *dbs_data,
+		unsigned int delay)
 {
-	int delay = delay_for_sampling_rate(sampling_rate);
 	struct cpu_dbs_common_info *cdbs = dbs_data->cdata->get_cpu_cdbs(cpu);
 
-	schedule_delayed_work_on(cpu, &cdbs->work, delay);
+	mod_delayed_work_on(cpu, system_wq, &cdbs->work, delay);
 }
 
-static inline void dbs_timer_exit(struct dbs_data *dbs_data, int cpu)
+void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
+		unsigned int delay, bool all_cpus)
 {
-	struct cpu_dbs_common_info *cdbs = dbs_data->cdata->get_cpu_cdbs(cpu);
+	int i;
 
-	cancel_delayed_work_sync(&cdbs->work);
+	if (!all_cpus) {
+		__gov_queue_work(smp_processor_id(), dbs_data, delay);
+	} else {
+		for_each_cpu(i, policy->cpus)
+			__gov_queue_work(i, dbs_data, delay);
+	}
+}
+EXPORT_SYMBOL_GPL(gov_queue_work);
+
+static inline void gov_cancel_work(struct dbs_data *dbs_data,
+		struct cpufreq_policy *policy)
+{
+	struct cpu_dbs_common_info *cdbs;
+	int i;
+
+	for_each_cpu(i, policy->cpus) {
+		cdbs = dbs_data->cdata->get_cpu_cdbs(i);
+		cancel_delayed_work_sync(&cdbs->work);
+	}
 }
 
 /* Will return if we need to evaluate cpu load again or not */
@@ -380,16 +398,15 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		/* Initiate timer time stamp */
 		cpu_cdbs->time_stamp = ktime_get();
 
-		for_each_cpu(j, policy->cpus)
-			dbs_timer_init(dbs_data, j, sampling_rate);
+		gov_queue_work(dbs_data, policy,
+				delay_for_sampling_rate(sampling_rate), true);
 		break;
 
 	case CPUFREQ_GOV_STOP:
 		if (dbs_data->cdata->governor == GOV_CONSERVATIVE)
 			cs_dbs_info->enable = 0;
 
-		for_each_cpu(j, policy->cpus)
-			dbs_timer_exit(dbs_data, j);
+		gov_cancel_work(dbs_data, policy);
 
 		mutex_lock(&dbs_data->mutex);
 		mutex_destroy(&cpu_cdbs->timer_mutex);

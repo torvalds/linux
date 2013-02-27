@@ -107,7 +107,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 static void cs_dbs_timer(struct work_struct *work)
 {
-	struct delayed_work *dw = to_delayed_work(work);
 	struct cs_cpu_dbs_info_s *dbs_info = container_of(work,
 			struct cs_cpu_dbs_info_s, cdbs.work.work);
 	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
@@ -116,12 +115,15 @@ static void cs_dbs_timer(struct work_struct *work)
 	struct dbs_data *dbs_data = dbs_info->cdbs.cur_policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	int delay = delay_for_sampling_rate(cs_tuners->sampling_rate);
+	bool modify_all = true;
 
 	mutex_lock(&core_dbs_info->cdbs.timer_mutex);
-	if (need_load_eval(&core_dbs_info->cdbs, cs_tuners->sampling_rate))
+	if (!need_load_eval(&core_dbs_info->cdbs, cs_tuners->sampling_rate))
+		modify_all = false;
+	else
 		dbs_check_cpu(dbs_data, cpu);
 
-	schedule_delayed_work_on(smp_processor_id(), dw, delay);
+	gov_queue_work(dbs_data, dbs_info->cdbs.cur_policy, delay, modify_all);
 	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
 }
 
