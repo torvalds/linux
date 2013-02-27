@@ -529,6 +529,8 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 static int apparmor_setprocattr(struct task_struct *task, char *name,
 				void *value, size_t size)
 {
+	struct common_audit_data sa;
+	struct apparmor_audit_data aad = {0,};
 	char *command, *args = value;
 	size_t arg_size;
 	int error;
@@ -572,28 +574,31 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 		} else if (strcmp(command, "permprofile") == 0) {
 			error = aa_setprocattr_changeprofile(args, !AA_ONEXEC,
 							     AA_DO_TEST);
-		} else {
-			struct common_audit_data sa;
-			struct apparmor_audit_data aad = {0,};
-			sa.type = LSM_AUDIT_DATA_NONE;
-			sa.aad = &aad;
-			aad.op = OP_SETPROCATTR;
-			aad.info = name;
-			aad.error = -EINVAL;
-			return aa_audit(AUDIT_APPARMOR_DENIED,
-					__aa_current_profile(), GFP_KERNEL,
-					&sa, NULL);
-		}
+		} else
+			goto fail;
 	} else if (strcmp(name, "exec") == 0) {
-		error = aa_setprocattr_changeprofile(args, AA_ONEXEC,
-						     !AA_DO_TEST);
-	} else {
+		if (strcmp(command, "exec") == 0)
+			error = aa_setprocattr_changeprofile(args, AA_ONEXEC,
+							     !AA_DO_TEST);
+		else
+			goto fail;
+	} else
 		/* only support the "current" and "exec" process attributes */
 		return -EINVAL;
-	}
+
 	if (!error)
 		error = size;
 	return error;
+
+fail:
+	sa.type = LSM_AUDIT_DATA_NONE;
+	sa.aad = &aad;
+	aad.profile = aa_current_profile();
+	aad.op = OP_SETPROCATTR;
+	aad.info = name;
+	aad.error = -EINVAL;
+	aa_audit_msg(AUDIT_APPARMOR_DENIED, &sa, NULL);
+	return -EINVAL;
 }
 
 static int apparmor_task_setrlimit(struct task_struct *task,
