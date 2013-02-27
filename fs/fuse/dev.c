@@ -532,7 +532,7 @@ void fuse_request_send_background_locked(struct fuse_conn *fc,
 
 void fuse_force_forget(struct file *file, u64 nodeid)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	struct fuse_forget_in inarg;
