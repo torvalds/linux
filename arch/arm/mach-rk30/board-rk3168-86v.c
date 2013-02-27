@@ -1484,9 +1484,9 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 		.max_uv         = 1100000,
 	},
 	{
-		.name          = "vdd2",    //ddr
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
+		.name          = "vdd_cpu",    //arm
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
 		.name          = "vio",   //vcc_io
@@ -1496,20 +1496,20 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 	
 };
 static  struct pmu_info  tps65910_ldo_info[] = {
-	{
+/*	{
 		.name          = "vpll",   //vdd10
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-	},
+	},*/
 	{
 		.name          = "vdig1",    //vcc18_cif
 		.min_uv          = 1800000,
 		.max_uv         = 1800000,
 	},
 	{
-		.name          = "vdig2",   //vdd_jetta
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 	},
 	{
 		.name          = "vaux1",   //vcc28_cif
@@ -1517,7 +1517,7 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 2800000,
 	},
 	{
-		.name          = "vaux2",   //vcca33
+		.name          = "vaux2",   //vcc33
 		.min_uv          = 3300000,
 		.max_uv         = 3300000,
 	},
@@ -1527,7 +1527,7 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 3300000,
 	},
 	{
-		.name          = "vmmc",   //vcc30
+		.name          = "vmmc",   //vcca30
 		.min_uv          = 3000000,
 		.max_uv         = 3000000,
 	},
