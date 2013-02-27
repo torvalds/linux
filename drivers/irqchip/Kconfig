@@ -29,6 +29,10 @@ config RENESAS_INTC_IRQPIN
 	bool
 	select IRQ_DOMAIN
 
+config RENESAS_IRQC
+	bool
+	select IRQ_DOMAIN
+
 config VERSATILE_FPGA_IRQ
 	bool
 	select IRQ_DOMAIN
