@@ -1526,6 +1526,7 @@ struct iwl_compressed_ba_resp {
 	__le16 scd_ssn;
 	u8 txed;	/* number of frames sent */
 	u8 txed_2_done; /* number of frames acked */
+	__le16 reserved1;
 } __packed;
 
 /*
