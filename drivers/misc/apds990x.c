@@ -700,9 +700,6 @@ static ssize_t apds990x_lux_calib_store(struct device *dev,
 	if (strict_strtoul(buf, 0, &value))
 		return -EINVAL;
 
-	if (chip->lux_calib > APDS_RANGE)
-		return -EINVAL;
-
 	chip->lux_calib = value;
 
 	return len;
