@@ -214,6 +214,7 @@ again:
 	delta = (new_raw_count - prev_raw_count) & MAX_PERIOD;
 
 	local64_add(delta, &event->count);
+	local64_sub(delta, &hwc->period_left);
 }
 
 int metag_pmu_event_set_period(struct perf_event *event,
@@ -222,6 +223,10 @@ int metag_pmu_event_set_period(struct perf_event *event,
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
+
+	/* The period may have been changed */
+	if (unlikely(period != hwc->last_period))
+		left += period - hwc->last_period;
 
 	if (unlikely(left <= -period)) {
 		left = period;
