@@ -40,6 +40,17 @@ static void pl011_printch(char ch)
 		;
 }
 
+/*
+ * Semihosting-based debug console
+ */
+static void smh_printch(char ch)
+{
+	asm volatile("mov  x1, %0\n"
+		     "mov  x0, #3\n"
+		     "hlt  0xf000\n"
+		     : : "r" (&ch) : "x0", "x1", "memory");
+}
+
 struct earlycon_match {
 	const char *name;
 	void (*printch)(char ch);
@@ -47,6 +58,7 @@ struct earlycon_match {
 
 static const struct earlycon_match earlycon_match[] __initconst = {
 	{ .name = "pl011", .printch = pl011_printch, },
+	{ .name = "smh", .printch = smh_printch, },
 	{}
 };
 
