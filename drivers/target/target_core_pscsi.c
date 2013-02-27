@@ -840,14 +840,14 @@ static void pscsi_bi_endio(struct bio *bio, int error)
 	bio_put(bio);
 }
 
-static inline struct bio *pscsi_get_bio(int sg_num)
+static inline struct bio *pscsi_get_bio(int nr_vecs)
 {
 	struct bio *bio;
 	/*
 	 * Use bio_malloc() following the comment in for bio -> struct request
 	 * in block/blk-core.c:blk_make_request()
 	 */
-	bio = bio_kmalloc(GFP_KERNEL, sg_num);
+	bio = bio_kmalloc(GFP_KERNEL, nr_vecs);
 	if (!bio) {
 		pr_err("PSCSI: bio_kmalloc() failed\n");
 		return NULL;
