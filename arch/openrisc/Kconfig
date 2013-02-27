@@ -26,10 +26,6 @@ config OPENRISC
 config MMU
 	def_bool y
 
-config SYMBOL_PREFIX
-        string
-        default ""
-
 config HAVE_DMA_ATTRS
 	def_bool y
 
