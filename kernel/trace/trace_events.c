@@ -1473,6 +1473,28 @@ __trace_add_new_event(struct ftrace_event_call *call,
 	return event_create_dir(tr->event_dir, file, id, enable, filter, format);
 }
 
+/*
+ * Just create a decriptor for early init. A descriptor is required
+ * for enabling events at boot. We want to enable events before
+ * the filesystem is initialized.
+ */
+static __init int
+__trace_early_add_new_event(struct ftrace_event_call *call,
+			    struct trace_array *tr)
+{
+	struct ftrace_event_file *file;
+
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	if (!file)
+		return -ENOMEM;
+
+	file->event_call = call;
+	file->tr = tr;
+	list_add(&file->list, &tr->events);
+
+	return 0;
+}
+
 struct ftrace_module_file_ops;
 static void __add_event_to_tracers(struct ftrace_event_call *call,
 				   struct ftrace_module_file_ops *file_ops);
@@ -1709,6 +1731,56 @@ __trace_add_event_dirs(struct trace_array *tr)
 	}
 }
 
+/*
+ * The top level array has already had its ftrace_event_file
+ * descriptors created in order to allow for early events to
+ * be recorded. This function is called after the debugfs has been
+ * initialized, and we now have to create the files associated
+ * to the events.
+ */
+static __init void
+__trace_early_add_event_dirs(struct trace_array *tr)
+{
+	struct ftrace_event_file *file;
+	int ret;
+
+
+	list_for_each_entry(file, &tr->events, list) {
+		ret = event_create_dir(tr->event_dir, file,
+				       &ftrace_event_id_fops,
+				       &ftrace_enable_fops,
+				       &ftrace_event_filter_fops,
+				       &ftrace_event_format_fops);
+		if (ret < 0)
+			pr_warning("Could not create directory for event %s\n",
+				   file->event_call->name);
+	}
+}
+
+/*
+ * For early boot up, the top trace array requires to have
+ * a list of events that can be enabled. This must be done before
+ * the filesystem is set up in order to allow events to be traced
+ * early.
+ */
+static __init void
+__trace_early_add_events(struct trace_array *tr)
+{
+	struct ftrace_event_call *call;
+	int ret;
+
+	list_for_each_entry(call, &ftrace_events, list) {
+		/* Early boot up should not have any modules loaded */
+		if (WARN_ON_ONCE(call->mod))
+			continue;
+
+		ret = __trace_early_add_new_event(call, tr);
+		if (ret < 0)
+			pr_warning("Could not create early event %s\n",
+				   call->name);
+	}
+}
+
 /* Remove the event directory structure for a trace directory. */
 static void
 __trace_remove_event_dirs(struct trace_array *tr)
@@ -1763,25 +1835,23 @@ static __init int setup_trace_event(char *str)
 }
 __setup("trace_event=", setup_trace_event);
 
-int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
+/* Expects to have event_mutex held when called */
+static int
+create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 {
 	struct dentry *d_events;
 	struct dentry *entry;
-
-	mutex_lock(&event_mutex);
 
 	entry = debugfs_create_file("set_event", 0644, parent,
 				    tr, &ftrace_set_event_fops);
 	if (!entry) {
 		pr_warning("Could not create debugfs 'set_event' entry\n");
-		mutex_unlock(&event_mutex);
 		return -ENOMEM;
 	}
 
 	d_events = debugfs_create_dir("events", parent);
 	if (!d_events) {
 		pr_warning("Could not create debugfs 'events' directory\n");
-		mutex_unlock(&event_mutex);
 		return -ENOMEM;
 	}
 
@@ -1798,13 +1868,64 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 			  tr, &ftrace_tr_enable_fops);
 
 	tr->event_dir = d_events;
+
+	return 0;
+}
+
+/**
+ * event_trace_add_tracer - add a instance of a trace_array to events
+ * @parent: The parent dentry to place the files/directories for events in
+ * @tr: The trace array associated with these events
+ *
+ * When a new instance is created, it needs to set up its events
+ * directory, as well as other files associated with events. It also
+ * creates the event hierachry in the @parent/events directory.
+ *
+ * Returns 0 on success.
+ */
+int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
+{
+	int ret;
+
+	mutex_lock(&event_mutex);
+
+	ret = create_event_toplevel_files(parent, tr);
+	if (ret)
+		goto out_unlock;
+
 	down_write(&trace_event_mutex);
 	__trace_add_event_dirs(tr);
 	up_write(&trace_event_mutex);
 
+ out_unlock:
 	mutex_unlock(&event_mutex);
 
-	return 0;
+	return ret;
+}
+
+/*
+ * The top trace array already had its file descriptors created.
+ * Now the files themselves need to be created.
+ */
+static __init int
+early_event_add_tracer(struct dentry *parent, struct trace_array *tr)
+{
+	int ret;
+
+	mutex_lock(&event_mutex);
+
+	ret = create_event_toplevel_files(parent, tr);
+	if (ret)
+		goto out_unlock;
+
+	down_write(&trace_event_mutex);
+	__trace_early_add_event_dirs(tr);
+	up_write(&trace_event_mutex);
+
+ out_unlock:
+	mutex_unlock(&event_mutex);
+
+	return ret;
 }
 
 int event_trace_del_tracer(struct trace_array *tr)
@@ -1841,6 +1962,14 @@ static __init int event_trace_enable(void)
 		if (!ret)
 			list_add(&call->list, &ftrace_events);
 	}
+
+	/*
+	 * We need the top trace array to have a working set of trace
+	 * points at early init, before the debug files and directories
+	 * are created. Create the file entries now, and attach them
+	 * to the actual file dentries later.
+	 */
+	__trace_early_add_events(tr);
 
 	while (true) {
 		token = strsep(&buf, ",");
@@ -1882,7 +2011,7 @@ static __init int event_trace_init(void)
 	if (trace_define_common_fields())
 		pr_warning("tracing: Failed to allocate common fields");
 
-	ret = event_trace_add_tracer(d_tracer, tr);
+	ret = early_event_add_tracer(d_tracer, tr);
 	if (ret)
 		return ret;
 
