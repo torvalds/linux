@@ -3253,6 +3253,11 @@ void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	if (btrfs_root_refs(&root->root_item) == 0)
 		synchronize_srcu(&fs_info->subvol_srcu);
 
+	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		btrfs_free_log(NULL, root);
+		btrfs_free_log_root_tree(NULL, fs_info);
+	}
+
 	__btrfs_remove_free_space_cache(root->free_ino_pinned);
 	__btrfs_remove_free_space_cache(root->free_ino_ctl);
 	free_fs_root(root);

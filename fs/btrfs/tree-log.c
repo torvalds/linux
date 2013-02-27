@@ -2466,8 +2466,10 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 		.process_func = process_one_buffer
 	};
 
-	ret = walk_log_tree(trans, log, &wc);
-	BUG_ON(ret);
+	if (trans) {
+		ret = walk_log_tree(trans, log, &wc);
+		BUG_ON(ret);
+	}
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
