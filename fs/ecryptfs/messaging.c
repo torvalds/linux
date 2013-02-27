@@ -283,7 +283,7 @@ ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
 	int rc;
 
 	rc = ecryptfs_find_daemon_by_euid(&daemon);
-	if (rc || !daemon) {
+	if (rc) {
 		rc = -ENOTCONN;
 		goto out;
 	}
