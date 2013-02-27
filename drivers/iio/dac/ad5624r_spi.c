@@ -174,8 +174,8 @@ static const struct iio_chan_spec_ext_info ad5624r_ext_info[] = {
 	.indexed = 1, \
 	.output = 1, \
 	.channel = (_chan), \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-		     IIO_CHAN_INFO_SCALE_SHARED_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.address = (_chan), \
 	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits)), \
 	.ext_info = ad5624r_ext_info, \
