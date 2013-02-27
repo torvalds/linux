@@ -715,7 +715,8 @@ static u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs)
 
 static u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg)
 {
-	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
+	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_RADDR,
+			       ((reg & 0x000FFFFF) | (3 << 24)));
 	return iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
 }
 
@@ -723,7 +724,7 @@ static void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr,
 				      u32 val)
 {
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WADDR,
-			       ((addr & 0x0000FFFF) | (3 << 24)));
+			       ((addr & 0x000FFFFF) | (3 << 24)));
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
