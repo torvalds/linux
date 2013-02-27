@@ -952,7 +952,6 @@ fail:
 	while (*hbio) {
 		bio = *hbio;
 		*hbio = (*hbio)->bi_next;
-		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1092,7 +1091,6 @@ fail_free_bio:
 	while (hbio) {
 		struct bio *bio = hbio;
 		hbio = hbio->bi_next;
-		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
