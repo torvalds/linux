@@ -875,7 +875,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		slots = old_memslots;
 	}
 
-	r = kvm_arch_prepare_memory_region(kvm, &new, old, mem, user_alloc);
+	r = kvm_arch_prepare_memory_region(kvm, &new, old, mem);
 	if (r)
 		goto out_slots;
 
@@ -915,7 +915,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	old_memslots = install_new_memslots(kvm, slots, &new);
 
-	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
+	kvm_arch_commit_memory_region(kvm, mem, old);
 
 	kvm_free_physmem_slot(&old, &new);
 	kfree(old_memslots);

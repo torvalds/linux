@@ -6907,8 +6907,7 @@ out_free:
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
 				struct kvm_memory_slot old,
-				struct kvm_userspace_memory_region *mem,
-				bool user_alloc)
+				struct kvm_userspace_memory_region *mem)
 {
 	int npages = memslot->npages;
 
@@ -6938,8 +6937,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
-				struct kvm_memory_slot old,
-				bool user_alloc)
+				struct kvm_memory_slot old)
 {
 
 	int nr_mmu_pages = 0, npages = mem->memory_size >> PAGE_SHIFT;
