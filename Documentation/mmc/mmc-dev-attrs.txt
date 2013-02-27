@@ -22,6 +22,7 @@ All attributes are read-only.
 	manfid			Manufacturer ID (from CID Register)
 	name			Product Name (from CID Register)
 	oemid			OEM/Application ID (from CID Register)
+	prv			Product Revision (from CID Register) (SD and MMCv4 only)
 	serial			Product Serial Number (from CID Register)
 	erase_size		Erase group size
 	preferred_erase_size	Preferred erase size
