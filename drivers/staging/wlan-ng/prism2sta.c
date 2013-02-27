@@ -1170,6 +1170,9 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 		result = &inf->info.chinforesult.result[n];
 		chan = le16_to_cpu(result->chid) - 1;
 
+		if (chan < 0 || chan >= HFA384x_CHINFORESULT_MAX)
+			continue;
+
 		chinforesult = &hw->channel_info.results.result[chan];
 		chinforesult->chid = chan;
 		chinforesult->anl = le16_to_cpu(result->anl);
