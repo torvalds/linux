@@ -590,6 +590,13 @@
 			ti,timer-pwm;
 		};
 
+		wdt2: wdt@4ae14000 {
+			compatible = "ti,omap5-wdt", "ti,omap3-wdt";
+			reg = <0x4ae14000 0x80>;
+			interrupts = <0 80 0x4>;
+			ti,hwmods = "wd_timer2";
+		};
+
 		emif1: emif@0x4c000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif1";
