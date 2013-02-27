@@ -920,10 +920,10 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 			st->ad9523_channels[i].channel = chan->channel_num;
 			st->ad9523_channels[i].extend_name =
 				chan->extended_name;
-			st->ad9523_channels[i].info_mask =
-				IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_PHASE_SEPARATE_BIT |
-				IIO_CHAN_INFO_FREQUENCY_SEPARATE_BIT;
+			st->ad9523_channels[i].info_mask_separate =
+				BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_PHASE) |
+				BIT(IIO_CHAN_INFO_FREQUENCY);
 		}
 	}
 
