@@ -88,4 +88,11 @@
 		compatible = "renesas,rcar-thermal";
 		reg = <0xffc48000 0x38>;
 	};
+
+	sata: sata@fc600000 {
+		compatible = "renesas,rcar-sata";
+		reg = <0xfc600000 0x2000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 100 0x4>;
+	};
 };
