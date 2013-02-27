@@ -22,9 +22,9 @@
 #include <linux/slab.h>
 
 #include <asm/core_reg.h>
-#include <asm/hwthread.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/processor.h>
 
 #include "perf_event.h"
 
@@ -651,7 +651,7 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 	}
 
 	tmp = ((config & 0xf) << 28) |
-			((1 << 24) << cpu_2_hwthread_id[get_cpu()]);
+			((1 << 24) << hard_processor_id());
 	if (metag_pmu->max_period)
 		/*
 		 * Cores supporting overflow interrupts may have had the counter
