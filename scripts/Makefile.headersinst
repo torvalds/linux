@@ -7,14 +7,14 @@
 #
 # ==========================================================================
 
-# called may set destination dir (when installing to asm/)
-_dst := $(or $(destination-y),$(dst),$(obj))
-
 # generated header directory
 gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
 
 kbuild-file := $(srctree)/$(obj)/Kbuild
 include $(kbuild-file)
+
+# called may set destination dir (when installing to asm/)
+_dst := $(or $(destination-y),$(dst),$(obj))
 
 old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
 ifneq ($(wildcard $(old-kbuild-file)),)
