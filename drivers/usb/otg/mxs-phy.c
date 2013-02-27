@@ -127,6 +127,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct clk *clk;
 	struct mxs_phy *mxs_phy;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -166,11 +167,19 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &mxs_phy->phy);
 
+	ret = usb_add_phy_dev(&mxs_phy->phy);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int mxs_phy_remove(struct platform_device *pdev)
 {
+	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
+
+	usb_remove_phy(&mxs_phy->phy);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
