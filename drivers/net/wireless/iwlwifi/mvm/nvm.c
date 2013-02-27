@@ -74,6 +74,9 @@ static const int nvm_to_read[] = {
 	NVM_SECTION_TYPE_PRODUCTION,
 };
 
+/* Default NVM size to read */
+#define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024);
+
 /* used to simplify the shared operations on NCM_ACCESS_CMD versions */
 union iwl_nvm_access_cmd {
 	struct iwl_nvm_access_cmd_ver1 ver1;
@@ -193,9 +196,9 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 	int ret;
 	bool old_eeprom = mvm->cfg->device_family != IWL_DEVICE_FAMILY_7000;
 
-	length = (iwlwifi_mod_params.amsdu_size_8K ? (8 * 1024) : (4 * 1024))
-		- sizeof(union iwl_nvm_access_cmd)
-		- sizeof(struct iwl_rx_packet);
+	/* Set nvm section read length */
+	length = IWL_NVM_DEFAULT_CHUNK_SIZE;
+
 	/*
 	 * if length is greater than EEPROM size, truncate it because uCode
 	 * doesn't check it by itself, and exit the loop when reached.
