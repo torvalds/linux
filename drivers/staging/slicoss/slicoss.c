@@ -999,7 +999,8 @@ static void slic_link_upr_complete(struct adapter *adapter, u32 isr)
 	if ((isr & ISR_UPCERR) || (isr & ISR_UPCBSY)) {
 		struct slic_shmem *pshmem;
 
-		pshmem = (struct slic_shmem *)adapter->phys_shmem;
+		pshmem = (struct slic_shmem *)(unsigned long)
+			 adapter->phys_shmem;
 #if BITS_PER_LONG == 64
 		slic_upr_queue_request(adapter,
 				       SLIC_UPR_RLSR,
@@ -1631,10 +1632,11 @@ retry_rcvqfill:
 #endif
 		skb = alloc_skb(SLIC_RCVQ_RCVBUFSIZE, GFP_ATOMIC);
 		if (skb) {
-			paddr = (void *)pci_map_single(adapter->pcidev,
-							  skb->data,
-							  SLIC_RCVQ_RCVBUFSIZE,
-							  PCI_DMA_FROMDEVICE);
+			paddr = (void *)(unsigned long)
+				pci_map_single(adapter->pcidev,
+					       skb->data,
+					       SLIC_RCVQ_RCVBUFSIZE,
+					       PCI_DMA_FROMDEVICE);
 			paddrl = SLIC_GET_ADDR_LOW(paddr);
 			paddrh = SLIC_GET_ADDR_HIGH(paddr);
 
@@ -1781,8 +1783,9 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
 	struct slic_rcvbuf *rcvbuf = (struct slic_rcvbuf *)skb->head;
 	struct device *dev;
 
-	paddr = (void *)pci_map_single(adapter->pcidev, skb->head,
-				  SLIC_RCVQ_RCVBUFSIZE, PCI_DMA_FROMDEVICE);
+	paddr = (void *)(unsigned long)
+		pci_map_single(adapter->pcidev, skb->head,
+			       SLIC_RCVQ_RCVBUFSIZE, PCI_DMA_FROMDEVICE);
 	rcvbuf->status = 0;
 	skb->next = NULL;
 
@@ -2279,7 +2282,7 @@ static void slic_link_event_handler(struct adapter *adapter)
 		return;
 	}
 
-	pshmem = (struct slic_shmem *)adapter->phys_shmem;
+	pshmem = (struct slic_shmem *)(unsigned long)adapter->phys_shmem;
 
 #if BITS_PER_LONG == 64
 	status = slic_upr_request(adapter,
@@ -2306,7 +2309,7 @@ static void slic_init_cleanup(struct adapter *adapter)
 				    sizeof(struct slic_shmem),
 				    adapter->pshmem, adapter->phys_shmem);
 		adapter->pshmem = NULL;
-		adapter->phys_shmem = (dma_addr_t) NULL;
+		adapter->phys_shmem = (dma_addr_t)(unsigned long)NULL;
 	}
 
 	if (adapter->pingtimerset) {
@@ -2880,7 +2883,8 @@ static int slic_if_init(struct adapter *adapter)
 	mdelay(1);
 
 	if (!adapter->isp_initialized) {
-		pshmem = (struct slic_shmem *)adapter->phys_shmem;
+		pshmem = (struct slic_shmem *)(unsigned long)
+			 adapter->phys_shmem;
 
 		spin_lock_irqsave(&adapter->bit64reglock.lock,
 					adapter->bit64reglock.flags);
@@ -3282,7 +3286,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		}
 		slic_reg32_write(&slic_regs->slic_icr, ICR_INT_OFF, FLUSH);
 		mdelay(1);
-		pshmem = (struct slic_shmem *)adapter->phys_shmem;
+		pshmem = (struct slic_shmem *)(unsigned long)
+			 adapter->phys_shmem;
 
 		spin_lock_irqsave(&adapter->bit64reglock.lock,
 					adapter->bit64reglock.flags);
