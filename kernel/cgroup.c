@@ -2645,7 +2645,7 @@ static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, un
  */
 static inline struct cftype *__file_cft(struct file *file)
 {
-	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
+	if (file_inode(file)->i_fop != &cgroup_file_operations)
 		return ERR_PTR(-EINVAL);
 	return __d_cft(file->f_dentry);
 }
@@ -3902,7 +3902,7 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
 
 	/* the process need read permission on control file */
 	/* AV: shouldn't we check that it's been opened for read instead? */
-	ret = inode_permission(cfile->f_path.dentry->d_inode, MAY_READ);
+	ret = inode_permission(file_inode(cfile), MAY_READ);
 	if (ret < 0)
 		goto fail;
 
@@ -5489,7 +5489,7 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
 	struct inode *inode;
 	struct cgroup_subsys_state *css;
 
-	inode = f->f_dentry->d_inode;
+	inode = file_inode(f);
 	/* check in cgroup filesystem dir */
 	if (inode->i_op != &cgroup_dir_inode_operations)
 		return ERR_PTR(-EBADF);

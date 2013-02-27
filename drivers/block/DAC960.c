@@ -6547,7 +6547,7 @@ static ssize_t dac960_user_command_proc_write(struct file *file,
 				       const char __user *Buffer,
 				       size_t Count, loff_t *pos)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) PDE(file->f_path.dentry->d_inode)->data;
+  DAC960_Controller_T *Controller = (DAC960_Controller_T *) PDE(file_inode(file))->data;
   unsigned char CommandBuffer[80];
   int Length;
   if (Count > sizeof(CommandBuffer)-1) return -EINVAL;

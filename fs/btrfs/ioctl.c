@@ -152,7 +152,7 @@ void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
 
 static int btrfs_ioctl_getflags(struct file *file, void __user *arg)
 {
-	struct btrfs_inode *ip = BTRFS_I(file->f_path.dentry->d_inode);
+	struct btrfs_inode *ip = BTRFS_I(file_inode(file));
 	unsigned int flags = btrfs_flags_to_ioctl(ip->flags);
 
 	if (copy_to_user(arg, &flags, sizeof(flags)))
@@ -177,7 +177,7 @@ static int check_flags(unsigned int flags)
 
 static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_inode *ip = BTRFS_I(inode);
 	struct btrfs_root *root = ip->root;
 	struct btrfs_trans_handle *trans;
@@ -310,7 +310,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 static int btrfs_ioctl_getversion(struct file *file, int __user *arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	return put_user(inode->i_generation, arg);
 }
@@ -1320,7 +1320,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	u64 new_size;
 	u64 old_size;
 	u64 devid = 1;
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device = NULL;
@@ -1489,8 +1489,8 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 			goto out_drop_write;
 		}
 
-		src_inode = src.file->f_path.dentry->d_inode;
-		if (src_inode->i_sb != file->f_path.dentry->d_inode->i_sb) {
+		src_inode = file_inode(src.file);
+		if (src_inode->i_sb != file_inode(file)->i_sb) {
 			printk(KERN_INFO "btrfs: Snapshot src from "
 			       "another FS\n");
 			ret = -EINVAL;
@@ -1582,7 +1582,7 @@ out:
 static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
 						void __user *arg)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 	u64 flags = 0;
@@ -1604,7 +1604,7 @@ static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
 static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 					      void __user *arg)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	u64 root_flags;
@@ -1898,7 +1898,7 @@ static noinline int btrfs_ioctl_tree_search(struct file *file,
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
-	inode = fdentry(file)->d_inode;
+	inode = file_inode(file);
 	ret = search_ioctl(inode, args);
 	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
 		ret = -EFAULT;
@@ -2008,7 +2008,7 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
-	inode = fdentry(file)->d_inode;
+	inode = file_inode(file);
 
 	if (args->treeid == 0)
 		args->treeid = BTRFS_I(inode)->root->root_key.objectid;
@@ -2184,7 +2184,7 @@ out:
 
 static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_defrag_range_args *range;
 	int ret;
@@ -2244,7 +2244,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			/* the rest are all set to zero by kzalloc */
 			range->len = (u64)-1;
 		}
-		ret = btrfs_defrag_file(fdentry(file)->d_inode, file,
+		ret = btrfs_defrag_file(file_inode(file), file,
 					range, 0, 0);
 		if (ret > 0)
 			ret = 0;
@@ -2292,7 +2292,7 @@ out:
 
 static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
 
@@ -2415,7 +2415,7 @@ out:
 static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				       u64 off, u64 olen, u64 destoff)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct fd src_file;
 	struct inode *src;
@@ -2461,7 +2461,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (src_file.file->f_path.mnt != file->f_path.mnt)
 		goto out_fput;
 
-	src = src_file.file->f_dentry->d_inode;
+	src = file_inode(src_file.file);
 
 	ret = -EINVAL;
 	if (src == inode)
@@ -2823,7 +2823,7 @@ static long btrfs_ioctl_clone_range(struct file *file, void __user *argp)
  */
 static long btrfs_ioctl_trans_start(struct file *file)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -2863,7 +2863,7 @@ out:
 
 static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_root *new_root;
 	struct btrfs_dir_item *di;
@@ -3087,7 +3087,7 @@ out:
  */
 long btrfs_ioctl_trans_end(struct file *file)
 {
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 
@@ -3149,7 +3149,7 @@ static noinline long btrfs_ioctl_wait_sync(struct btrfs_root *root,
 
 static long btrfs_ioctl_scrub(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_scrub_args *sa;
 	int ret;
 
@@ -3440,7 +3440,7 @@ void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 
 static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_ioctl_balance_args *bargs;
 	struct btrfs_balance_control *bctl;
@@ -3630,7 +3630,7 @@ out:
 
 static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_quota_ctl_args *sa;
 	struct btrfs_trans_handle *trans = NULL;
 	int ret;
@@ -3689,7 +3689,7 @@ drop_write:
 
 static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_qgroup_assign_args *sa;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -3736,7 +3736,7 @@ drop_write:
 
 static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_qgroup_create_args *sa;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -3787,7 +3787,7 @@ drop_write:
 
 static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_qgroup_limit_args *sa;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -3837,7 +3837,7 @@ static long btrfs_ioctl_set_received_subvol(struct file *file,
 					    void __user *arg)
 {
 	struct btrfs_ioctl_received_subvol_args *sa = NULL;
-	struct inode *inode = fdentry(file)->d_inode;
+	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_root_item *root_item = &root->root_item;
 	struct btrfs_trans_handle *trans;
@@ -3917,7 +3917,7 @@ out:
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {

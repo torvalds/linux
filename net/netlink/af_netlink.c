@@ -809,7 +809,7 @@ static struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
 
 struct sock *netlink_getsockbyfilp(struct file *filp)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct sock *sock;
 
 	if (!S_ISSOCK(inode->i_mode))

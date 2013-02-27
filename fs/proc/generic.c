@@ -42,7 +42,7 @@ static ssize_t
 __proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
-	struct inode * inode = file->f_path.dentry->d_inode;
+	struct inode * inode = file_inode(file);
 	char 	*page;
 	ssize_t	retval=0;
 	int	eof=0;
@@ -188,7 +188,7 @@ static ssize_t
 proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 
 	spin_lock(&pde->pde_unload_lock);
@@ -209,7 +209,7 @@ static ssize_t
 proc_file_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 
 	if (pde->write_proc) {
@@ -412,8 +412,7 @@ static const struct dentry_operations proc_dentry_operations =
 struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		struct dentry *dentry)
 {
-	struct inode *inode = NULL;
-	int error = -ENOENT;
+	struct inode *inode;
 
 	spin_lock(&proc_subdir_lock);
 	for (de = de->subdir; de ; de = de->next) {
@@ -422,22 +421,16 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
-			error = -ENOMEM;
 			inode = proc_get_inode(dir->i_sb, de);
-			goto out_unlock;
+			if (!inode)
+				return ERR_PTR(-ENOMEM);
+			d_set_d_op(dentry, &proc_dentry_operations);
+			d_add(dentry, inode);
+			return NULL;
 		}
 	}
 	spin_unlock(&proc_subdir_lock);
-out_unlock:
-
-	if (inode) {
-		d_set_d_op(dentry, &proc_dentry_operations);
-		d_add(dentry, inode);
-		return NULL;
-	}
-	if (de)
-		pde_put(de);
-	return ERR_PTR(error);
+	return ERR_PTR(-ENOENT);
 }
 
 struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
@@ -460,7 +453,7 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 {
 	unsigned int ino;
 	int i;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret = 0;
 
 	ino = inode->i_ino;
@@ -522,7 +515,7 @@ out:
 
 int proc_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	return proc_readdir_de(PDE(inode), filp, dirent, filldir);
 }

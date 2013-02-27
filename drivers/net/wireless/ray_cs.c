@@ -2778,7 +2778,7 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 		nr = nr * 10 + c;
 		p++;
 	} while (--len);
-	*(int *)PDE(file->f_path.dentry->d_inode)->data = nr;
+	*(int *)PDE(file_inode(file))->data = nr;
 	return count;
 }
 

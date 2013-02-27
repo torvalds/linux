@@ -2927,7 +2927,7 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 				     u32 new_cluster, u32 new_len)
 {
 	int ret = 0, partial;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
 	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
@@ -3020,7 +3020,7 @@ int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
 				    u32 new_cluster, u32 new_len)
 {
 	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
 	int i, blocks = ocfs2_clusters_to_blocks(sb, new_len);

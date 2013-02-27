@@ -979,7 +979,7 @@ static void kill_suid(struct dentry *dentry)
  */
 static int wait_for_concurrent_writes(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	static ino_t last_ino;
 	static dev_t last_dev;
 	int err = 0;
@@ -1070,7 +1070,7 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		return err;
 
-	inode = file->f_path.dentry->d_inode;
+	inode = file_inode(file);
 
 	/* Get readahead parameters */
 	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
@@ -1957,7 +1957,7 @@ static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
 	offset = *offsetp;
 
 	while (1) {
-		struct inode *dir_inode = file->f_path.dentry->d_inode;
+		struct inode *dir_inode = file_inode(file);
 		unsigned int reclen;
 
 		cdp->err = nfserr_eof; /* will be cleared on successful read */

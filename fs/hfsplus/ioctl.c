@@ -59,7 +59,7 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 
 static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	unsigned int flags = 0;
 
@@ -75,7 +75,7 @@ static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 
 static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	unsigned int flags;
 	int err = 0;

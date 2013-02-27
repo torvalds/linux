@@ -117,7 +117,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 
 static int qnx6_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *s = inode->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 	loff_t pos = filp->f_pos & (QNX6_DIR_ENTRY_SIZE - 1);

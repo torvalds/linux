@@ -478,7 +478,7 @@ out:
 static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 		size_t count, loff_t *ppos, int write)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	ssize_t error;
@@ -542,7 +542,7 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 
 static unsigned int proc_sys_poll(struct file *filp, poll_table *wait)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	unsigned int ret = DEFAULT_POLLMASK;

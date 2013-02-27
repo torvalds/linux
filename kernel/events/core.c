@@ -3691,7 +3691,7 @@ unlock:
 
 static int perf_fasync(int fd, struct file *filp, int on)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct perf_event *event = filp->private_data;
 	int retval;
 

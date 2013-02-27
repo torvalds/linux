@@ -2541,7 +2541,7 @@ static int copy_module_from_fd(int fd, struct load_info *info)
 	if (err)
 		goto out;
 
-	err = vfs_getattr(file->f_vfsmnt, file->f_dentry, &stat);
+	err = vfs_getattr(&file->f_path, &stat);
 	if (err)
 		goto out;
 

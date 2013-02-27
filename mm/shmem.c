@@ -1294,7 +1294,7 @@ unlock:
 
 static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	int error;
 	int ret = VM_FAULT_LOCKED;
 
@@ -1312,14 +1312,14 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 #ifdef CONFIG_NUMA
 static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
 {
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	return mpol_set_shared_policy(&SHMEM_I(inode)->policy, vma, mpol);
 }
 
 static struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
 					  unsigned long addr)
 {
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	pgoff_t index;
 
 	index = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -1329,7 +1329,7 @@ static struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
 
 int shmem_lock(struct file *file, int lock, struct user_struct *user)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int retval = -ENOMEM;
 
@@ -1464,7 +1464,7 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 
 static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct address_space *mapping = inode->i_mapping;
 	pgoff_t index;
 	unsigned long offset;
@@ -1807,7 +1807,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 							 loff_t len)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 	struct shmem_falloc shmem_falloc;
 	pgoff_t start, index, end;
@@ -2350,7 +2350,7 @@ static int shmem_encode_fh(struct inode *inode, __u32 *fh, int *len,
 {
 	if (*len < 3) {
 		*len = 3;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	if (inode_unhashed(inode)) {
@@ -2879,6 +2879,16 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
+static char *shmem_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "/%s (deleted)",
+				dentry->d_name.name);
+}
+
+static struct dentry_operations anon_ops = {
+	.d_dname = shmem_dname
+};
+
 /**
  * shmem_file_setup - get an unlinked file living in tmpfs
  * @name: name for dentry (to be seen in /proc/<pid>/maps
@@ -2887,15 +2897,14 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
  */
 struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
 {
-	int error;
-	struct file *file;
+	struct file *res;
 	struct inode *inode;
 	struct path path;
-	struct dentry *root;
+	struct super_block *sb;
 	struct qstr this;
 
 	if (IS_ERR(shm_mnt))
-		return (void *)shm_mnt;
+		return ERR_CAST(shm_mnt);
 
 	if (size < 0 || size > MAX_LFS_FILESIZE)
 		return ERR_PTR(-EINVAL);
@@ -2903,18 +2912,19 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	if (shmem_acct_size(flags, size))
 		return ERR_PTR(-ENOMEM);
 
-	error = -ENOMEM;
+	res = ERR_PTR(-ENOMEM);
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = 0; /* will go */
-	root = shm_mnt->mnt_root;
-	path.dentry = d_alloc(root, &this);
+	sb = shm_mnt->mnt_sb;
+	path.dentry = d_alloc_pseudo(sb, &this);
 	if (!path.dentry)
 		goto put_memory;
+	d_set_d_op(path.dentry, &anon_ops);
 	path.mnt = mntget(shm_mnt);
 
-	error = -ENOSPC;
-	inode = shmem_get_inode(root->d_sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
+	res = ERR_PTR(-ENOSPC);
+	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
 	if (!inode)
 		goto put_dentry;
 
@@ -2923,23 +2933,23 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	clear_nlink(inode);	/* It is unlinked */
 #ifndef CONFIG_MMU
 	error = ramfs_nommu_expand_for_mapping(inode, size);
+	res = ERR_PTR(error);
 	if (error)
 		goto put_dentry;
 #endif
 
-	error = -ENFILE;
-	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
+	res = alloc_file(&path, FMODE_WRITE | FMODE_READ,
 		  &shmem_file_operations);
-	if (!file)
+	if (IS_ERR(res))
 		goto put_dentry;
 
-	return file;
+	return res;
 
 put_dentry:
 	path_put(&path);
 put_memory:
 	shmem_unacct_size(flags, size);
-	return ERR_PTR(error);
+	return res;
 }
 EXPORT_SYMBOL_GPL(shmem_file_setup);
 

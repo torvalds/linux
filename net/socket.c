@@ -369,16 +369,15 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
-	if (unlikely(!file)) {
+	if (unlikely(IS_ERR(file))) {
 		/* drop dentry, keep inode */
 		ihold(path.dentry->d_inode);
 		path_put(&path);
-		return ERR_PTR(-ENFILE);
+		return file;
 	}
 
 	sock->file = file;
 	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
-	file->f_pos = 0;
 	file->private_data = sock;
 	return file;
 }

@@ -228,7 +228,7 @@ SYSCALL_ALIAS(sys_ftruncate64, SyS_ftruncate64);
 
 int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	long ret;
 
 	if (offset < 0 || len <= 0)
@@ -426,7 +426,7 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 	if (!f.file)
 		goto out;
 
-	inode = f.file->f_path.dentry->d_inode;
+	inode = file_inode(f.file);
 
 	error = -ENOTDIR;
 	if (!S_ISDIR(inode->i_mode))
@@ -689,7 +689,7 @@ static int do_dentry_open(struct file *f,
 		f->f_mode = FMODE_PATH;
 
 	path_get(&f->f_path);
-	inode = f->f_path.dentry->d_inode;
+	inode = file_inode(f);
 	if (f->f_mode & FMODE_WRITE) {
 		error = __get_file_write_access(inode, f->f_path.mnt);
 		if (error)
@@ -699,7 +699,6 @@ static int do_dentry_open(struct file *f,
 	}
 
 	f->f_mapping = inode->i_mapping;
-	f->f_pos = 0;
 	file_sb_list_add(f, inode->i_sb);
 
 	if (unlikely(f->f_mode & FMODE_PATH)) {
@@ -810,23 +809,22 @@ struct file *dentry_open(const struct path *path, int flags,
 	/* We must always pass in a valid mount pointer. */
 	BUG_ON(!path->mnt);
 
-	error = -ENFILE;
 	f = get_empty_filp();
-	if (f == NULL)
-		return ERR_PTR(error);
-
-	f->f_flags = flags;
-	f->f_path = *path;
-	error = do_dentry_open(f, NULL, cred);
-	if (!error) {
-		error = open_check_o_direct(f);
-		if (error) {
-			fput(f);
+	if (!IS_ERR(f)) {
+		f->f_flags = flags;
+		f->f_path = *path;
+		error = do_dentry_open(f, NULL, cred);
+		if (!error) {
+			/* from now on we need fput() to dispose of f */
+			error = open_check_o_direct(f);
+			if (error) {
+				fput(f);
+				f = ERR_PTR(error);
+			}
+		} else { 
+			put_filp(f);
 			f = ERR_PTR(error);
 		}
-	} else { 
-		put_filp(f);
-		f = ERR_PTR(error);
 	}
 	return f;
 }

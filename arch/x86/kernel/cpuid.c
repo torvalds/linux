@@ -85,7 +85,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 {
 	char __user *tmp = buf;
 	struct cpuid_regs cmd;
-	int cpu = iminor(file->f_path.dentry->d_inode);
+	int cpu = iminor(file_inode(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
 	int err = 0;
@@ -116,7 +116,7 @@ static int cpuid_open(struct inode *inode, struct file *file)
 	unsigned int cpu;
 	struct cpuinfo_x86 *c;
 
-	cpu = iminor(file->f_path.dentry->d_inode);
+	cpu = iminor(file_inode(file));
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;	/* No such CPU */
 

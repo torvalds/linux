@@ -393,7 +393,7 @@ more:
 static ssize_t ceph_sync_read(struct file *file, char __user *data,
 			      unsigned len, loff_t *poff, int *checkeof)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct page **pages;
 	u64 off = *poff;
 	int num_pages, ret;
@@ -466,7 +466,7 @@ static void sync_write_commit(struct ceph_osd_request *req,
 static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 			       size_t left, loff_t *offset)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_osd_request *req;
@@ -483,7 +483,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 
-	if (ceph_snap(file->f_dentry->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	dout("sync_write on file %p %lld~%u %s\n", file, *offset,
@@ -637,7 +637,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_file_info *fi = filp->private_data;
 	loff_t *ppos = &iocb->ki_pos;
 	size_t len = iov->iov_len;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	void __user *base = iov->iov_base;
 	ssize_t ret;
@@ -707,7 +707,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;

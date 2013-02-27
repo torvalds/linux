@@ -852,7 +852,7 @@ static ssize_t dispatch_proc_write(struct file *file,
 			const char __user *userbuf,
 			size_t count, loff_t *pos)
 {
-	struct ibm_struct *ibm = PDE(file->f_path.dentry->d_inode)->data;
+	struct ibm_struct *ibm = PDE(file_inode(file))->data;
 	char *kernbuf;
 	int ret;
 

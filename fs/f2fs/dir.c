@@ -600,7 +600,7 @@ bool f2fs_empty_dir(struct inode *dir)
 static int f2fs_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
 	unsigned long pos = file->f_pos;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	unsigned long npages = dir_blocks(inode);
 	unsigned char *types = NULL;
 	unsigned int bit_pos = 0, start_bit_pos = 0;

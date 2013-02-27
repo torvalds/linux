@@ -270,7 +270,7 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 		 * the expected virt_size for struct file w/o a backing struct
 		 * block_device.
 		 */
-		if (S_ISBLK(fd->f_dentry->d_inode->i_mode)) {
+		if (S_ISBLK(file_inode(fd)->i_mode)) {
 			if (ret < 0 || ret != cmd->data_length) {
 				pr_err("%s() returned %d, expecting %u for "
 						"S_ISBLK\n", __func__, ret,

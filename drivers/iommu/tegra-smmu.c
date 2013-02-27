@@ -968,7 +968,6 @@ static ssize_t smmu_debugfs_stats_write(struct file *file,
 {
 	struct smmu_debugfs_info *info;
 	struct smmu_device *smmu;
-	struct dentry *dent;
 	int i;
 	enum {
 		_OFF = 0,
@@ -996,8 +995,7 @@ static ssize_t smmu_debugfs_stats_write(struct file *file,
 	if (i == ARRAY_SIZE(command))
 		return -EINVAL;
 
-	dent = file->f_dentry;
-	info = dent->d_inode->i_private;
+	info = file_inode(file)->i_private;
 	smmu = info->smmu;
 
 	offs = SMMU_CACHE_CONFIG(info->cache);
@@ -1032,15 +1030,11 @@ static ssize_t smmu_debugfs_stats_write(struct file *file,
 
 static int smmu_debugfs_stats_show(struct seq_file *s, void *v)
 {
-	struct smmu_debugfs_info *info;
-	struct smmu_device *smmu;
-	struct dentry *dent;
+	struct smmu_debugfs_info *info = s->private;
+	struct smmu_device *smmu = info->smmu;
 	int i;
 	const char * const stats[] = { "hit", "miss", };
 
-	dent = d_find_alias(s->private);
-	info = dent->d_inode->i_private;
-	smmu = info->smmu;
 
 	for (i = 0; i < ARRAY_SIZE(stats); i++) {
 		u32 val;
@@ -1054,14 +1048,12 @@ static int smmu_debugfs_stats_show(struct seq_file *s, void *v)
 			stats[i], val, offs);
 	}
 	seq_printf(s, "\n");
-	dput(dent);
-
 	return 0;
 }
 
 static int smmu_debugfs_stats_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, smmu_debugfs_stats_show, inode);
+	return single_open(file, smmu_debugfs_stats_show, inode->i_private);
 }
 
 static const struct file_operations smmu_debugfs_stats_fops = {

@@ -70,7 +70,7 @@ static ssize_t
 read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 {
 	struct bin_buffer *bb = file->private_data;
-	int size = file->f_path.dentry->d_inode->i_size;
+	int size = file_inode(file)->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	char *temp;
@@ -140,7 +140,7 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 		     size_t bytes, loff_t *off)
 {
 	struct bin_buffer *bb = file->private_data;
-	int size = file->f_path.dentry->d_inode->i_size;
+	int size = file_inode(file)->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	char *temp;
@@ -469,7 +469,7 @@ void unmap_bin_file(struct sysfs_dirent *attr_sd)
 	mutex_lock(&sysfs_bin_lock);
 
 	hlist_for_each_entry(bb, tmp, &attr_sd->s_bin_attr.buffers, list) {
-		struct inode *inode = bb->file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(bb->file);
 
 		unmap_mapping_range(inode->i_mapping, 0, 0, 1);
 	}

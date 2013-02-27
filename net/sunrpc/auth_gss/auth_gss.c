@@ -620,7 +620,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	const void *p, *end;
 	void *buf;
 	struct gss_upcall_msg *gss_msg;
-	struct rpc_pipe *pipe = RPC_I(filp->f_dentry->d_inode)->pipe;
+	struct rpc_pipe *pipe = RPC_I(file_inode(filp))->pipe;
 	struct gss_cl_ctx *ctx;
 	uid_t id;
 	kuid_t uid;

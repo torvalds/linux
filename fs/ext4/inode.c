@@ -2948,7 +2948,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private, int ret,
 			    bool is_async)
 {
-	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(iocb->ki_filp);
         ext4_io_end_t *io_end = iocb->private;
 
 	/* if not async direct IO or dio with 0 bytes write, just return */
@@ -3483,7 +3483,7 @@ int ext4_can_truncate(struct inode *inode)
 
 int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
@@ -4855,7 +4855,7 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long len;
 	int ret;
 	struct file *file = vma->vm_file;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	handle_t *handle;
 	get_block_t *get_block;
