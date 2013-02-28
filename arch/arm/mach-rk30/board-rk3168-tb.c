@@ -62,7 +62,6 @@
 #if defined(CONFIG_GPS_RK)
 #include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
 #endif
-
 #if defined(CONFIG_MU509)
 #include <linux/mu509.h>
 #endif
@@ -76,6 +75,9 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
 
+#if defined(CONFIG_MT6620)
+#include <linux/gps.h>
+#endif
 #include "board-rk3168-tb-camera.c"
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
@@ -1254,9 +1256,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
 #endif
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)||defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	&rk29sdk_wifi_device,
 #endif
+
+#if defined(CONFIG_MT6620)
+    &mt3326_device_gps,
+#endif   
+
 #ifdef CONFIG_RK29_SUPPORT_MODEM
 	&rk30_device_modem,
 #endif
@@ -1982,8 +1989,14 @@ static void __init machine_rk30_board_init(void)
 	rk_platform_add_display_devices();
 	board_usb_detect_init(RK30_PIN0_PA7);
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 	rk29sdk_wifi_bt_gpio_control_init();
+#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    rk29sdk_wifi_combo_module_gpio_init();
+#endif
+
+#if defined(CONFIG_MT6620)
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 48*1000000);
 #endif
 }
 
