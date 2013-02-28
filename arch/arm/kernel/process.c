@@ -279,7 +279,9 @@ void machine_shutdown(void)
 	 * thread that might wind up blocking on
 	 * one of the stopped CPUs.
 	 */
+#ifndef CONFIG_PLAT_RK
 	preempt_disable();
+#endif
 
 	smp_send_stop();
 #endif
