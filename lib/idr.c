@@ -157,18 +157,18 @@ static void idr_mark_full(struct idr_layer **pa, int id)
 	struct idr_layer *p = pa[0];
 	int l = 0;
 
-	__set_bit(id & IDR_MASK, &p->bitmap);
+	__set_bit(id & IDR_MASK, p->bitmap);
 	/*
 	 * If this layer is full mark the bit in the layer above to
 	 * show that this part of the radix tree is full.  This may
 	 * complete the layer above and require walking up the radix
 	 * tree.
 	 */
-	while (p->bitmap == IDR_FULL) {
+	while (bitmap_full(p->bitmap, IDR_SIZE)) {
 		if (!(p = pa[++l]))
 			break;
 		id = id >> IDR_BITS;
-		__set_bit((id & IDR_MASK), &p->bitmap);
+		__set_bit((id & IDR_MASK), p->bitmap);
 	}
 }
 
@@ -221,7 +221,6 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa,
 	int n, m, sh;
 	struct idr_layer *p, *new;
 	int l, id, oid;
-	unsigned long bm;
 
 	id = *starting_id;
  restart:
@@ -233,8 +232,7 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa,
 		 * We run around this while until we reach the leaf node...
 		 */
 		n = (id >> (IDR_BITS*l)) & IDR_MASK;
-		bm = ~p->bitmap;
-		m = find_next_bit(&bm, IDR_SIZE, n);
+		m = find_next_zero_bit(p->bitmap, IDR_SIZE, n);
 		if (m == IDR_SIZE) {
 			/* no space available go back to previous layer. */
 			l++;
@@ -326,7 +324,8 @@ build_up:
 			for (new = p; p && p != idp->top; new = p) {
 				p = p->ary[0];
 				new->ary[0] = NULL;
-				new->bitmap = new->count = 0;
+				new->count = 0;
+				bitmap_clear(new->bitmap, 0, IDR_SIZE);
 				__move_to_free_list(idp, new);
 			}
 			spin_unlock_irqrestore(&idp->lock, flags);
@@ -335,8 +334,8 @@ build_up:
 		new->ary[0] = p;
 		new->count = 1;
 		new->layer = layers-1;
-		if (p->bitmap == IDR_FULL)
-			__set_bit(0, &new->bitmap);
+		if (bitmap_full(p->bitmap, IDR_SIZE))
+			__set_bit(0, new->bitmap);
 		p = new;
 	}
 	rcu_assign_pointer(idp->top, p);
@@ -517,14 +516,14 @@ static void sub_remove(struct idr *idp, int shift, int id)
 
 	while ((shift > 0) && p) {
 		n = (id >> shift) & IDR_MASK;
-		__clear_bit(n, &p->bitmap);
+		__clear_bit(n, p->bitmap);
 		*++paa = &p->ary[n];
 		p = p->ary[n];
 		shift -= IDR_BITS;
 	}
 	n = id & IDR_MASK;
-	if (likely(p != NULL && test_bit(n, &p->bitmap))){
-		__clear_bit(n, &p->bitmap);
+	if (likely(p != NULL && test_bit(n, p->bitmap))) {
+		__clear_bit(n, p->bitmap);
 		rcu_assign_pointer(p->ary[n], NULL);
 		to_free = NULL;
 		while(*paa && ! --((**paa)->count)){
@@ -567,7 +566,8 @@ void idr_remove(struct idr *idp, int id)
 		p = idp->top->ary[0];
 		rcu_assign_pointer(idp->top, p);
 		--idp->layers;
-		to_free->bitmap = to_free->count = 0;
+		to_free->count = 0;
+		bitmap_clear(to_free->bitmap, 0, IDR_SIZE);
 		free_layer(to_free);
 	}
 	while (idp->id_free_cnt >= MAX_IDR_FREE) {
@@ -827,7 +827,7 @@ void *idr_replace(struct idr *idp, void *ptr, int id)
 	}
 
 	n = id & IDR_MASK;
-	if (unlikely(p == NULL || !test_bit(n, &p->bitmap)))
+	if (unlikely(p == NULL || !test_bit(n, p->bitmap)))
 		return ERR_PTR(-ENOENT);
 
 	old_p = p->ary[n];
@@ -1024,7 +1024,7 @@ void ida_remove(struct ida *ida, int id)
 	/* clear full bits while looking up the leaf idr_layer */
 	while ((shift > 0) && p) {
 		n = (idr_id >> shift) & IDR_MASK;
-		__clear_bit(n, &p->bitmap);
+		__clear_bit(n, p->bitmap);
 		p = p->ary[n];
 		shift -= IDR_BITS;
 	}
@@ -1033,7 +1033,7 @@ void ida_remove(struct ida *ida, int id)
 		goto err;
 
 	n = idr_id & IDR_MASK;
-	__clear_bit(n, &p->bitmap);
+	__clear_bit(n, p->bitmap);
 
 	bitmap = (void *)p->ary[n];
 	if (!test_bit(offset, bitmap->bitmap))
@@ -1042,7 +1042,7 @@ void ida_remove(struct ida *ida, int id)
 	/* update bitmap and remove it if empty */
 	__clear_bit(offset, bitmap->bitmap);
 	if (--bitmap->nr_busy == 0) {
-		__set_bit(n, &p->bitmap);	/* to please idr_remove() */
+		__set_bit(n, p->bitmap);	/* to please idr_remove() */
 		idr_remove(&ida->idr, idr_id);
 		free_bitmap(ida, bitmap);
 	}

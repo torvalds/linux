@@ -19,18 +19,8 @@
 
 #if BITS_PER_LONG == 32
 # define IDR_BITS 5
-# define IDR_FULL 0xfffffffful
-/* We can only use two of the bits in the top level because there is
-   only one possible bit in the top level (5 bits * 7 levels = 35
-   bits, but you only use 31 bits in the id). */
-# define TOP_LEVEL_FULL (IDR_FULL >> 30)
 #elif BITS_PER_LONG == 64
 # define IDR_BITS 6
-# define IDR_FULL 0xfffffffffffffffful
-/* We can only use two of the bits in the top level because there is
-   only one possible bit in the top level (6 bits * 6 levels = 36
-   bits, but you only use 31 bits in the id). */
-# define TOP_LEVEL_FULL (IDR_FULL >> 62)
 #else
 # error "BITS_PER_LONG is not 32 or 64"
 #endif
@@ -39,7 +29,7 @@
 #define IDR_MASK ((1 << IDR_BITS)-1)
 
 struct idr_layer {
-	unsigned long		bitmap;	/* A zero bit means "space here" */
+	DECLARE_BITMAP(bitmap, IDR_SIZE); /* A zero bit means "space here" */
 	struct idr_layer __rcu	*ary[1<<IDR_BITS];
 	int			count;	/* When zero, we can release it */
 	int			layer;	/* distance from leaf */
