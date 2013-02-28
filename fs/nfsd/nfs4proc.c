@@ -1282,12 +1282,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		if (op->status)
 			goto encode_op;
 
-		if (opdesc->op_func) {
-			if (opdesc->op_get_currentstateid)
-				opdesc->op_get_currentstateid(cstate, &op->u);
-			op->status = opdesc->op_func(rqstp, cstate, &op->u);
-		} else
-			BUG_ON(op->status == nfs_ok);
+		if (opdesc->op_get_currentstateid)
+			opdesc->op_get_currentstateid(cstate, &op->u);
+		op->status = opdesc->op_func(rqstp, cstate, &op->u);
 
 		if (!op->status) {
 			if (opdesc->op_set_currentstateid)
