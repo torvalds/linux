@@ -334,9 +334,7 @@ static inline void invoke_softirq(void)
 void irq_exit(void)
 {
 #ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
-	unsigned long flags;
-
-	local_irq_save(flags);
+	local_irq_disable();
 #else
 	WARN_ON_ONCE(!irqs_disabled());
 #endif
@@ -353,9 +351,6 @@ void irq_exit(void)
 		tick_nohz_irq_exit();
 #endif
 	rcu_irq_exit();
-#ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
-	local_irq_restore(flags);
-#endif
 }
 
 /*
