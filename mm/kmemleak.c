@@ -436,7 +436,7 @@ static int get_object(struct kmemleak_object *object)
  */
 static void free_object_rcu(struct rcu_head *rcu)
 {
-	struct hlist_node *elem, *tmp;
+	struct hlist_node *tmp;
 	struct kmemleak_scan_area *area;
 	struct kmemleak_object *object =
 		container_of(rcu, struct kmemleak_object, rcu);
@@ -445,8 +445,8 @@ static void free_object_rcu(struct rcu_head *rcu)
 	 * Once use_count is 0 (guaranteed by put_object), there is no other
 	 * code accessing this object, hence no need for locking.
 	 */
-	hlist_for_each_entry_safe(area, elem, tmp, &object->area_list, node) {
-		hlist_del(elem);
+	hlist_for_each_entry_safe(area, tmp, &object->area_list, node) {
+		hlist_del(&area->node);
 		kmem_cache_free(scan_area_cache, area);
 	}
 	kmem_cache_free(object_cache, object);
@@ -1177,7 +1177,6 @@ static void scan_block(void *_start, void *_end,
 static void scan_object(struct kmemleak_object *object)
 {
 	struct kmemleak_scan_area *area;
-	struct hlist_node *elem;
 	unsigned long flags;
 
 	/*
@@ -1205,7 +1204,7 @@ static void scan_object(struct kmemleak_object *object)
 			spin_lock_irqsave(&object->lock, flags);
 		}
 	} else
-		hlist_for_each_entry(area, elem, &object->area_list, node)
+		hlist_for_each_entry(area, &object->area_list, node)
 			scan_block((void *)area->start,
 				   (void *)(area->start + area->size),
 				   object, 0);

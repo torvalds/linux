@@ -800,11 +800,10 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 static struct bsg_device *__bsg_get_device(int minor, struct request_queue *q)
 {
 	struct bsg_device *bd;
-	struct hlist_node *entry;
 
 	mutex_lock(&bsg_mutex);
 
-	hlist_for_each_entry(bd, entry, bsg_dev_idx_hash(minor), dev_list) {
+	hlist_for_each_entry(bd, bsg_dev_idx_hash(minor), dev_list) {
 		if (bd->queue == q) {
 			atomic_inc(&bd->ref_count);
 			goto found;

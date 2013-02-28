@@ -127,9 +127,8 @@ static struct dbell_entry *dbell_index_table_find(u32 idx)
 {
 	u32 bucket = VMCI_DOORBELL_HASH(idx);
 	struct dbell_entry *dbell;
-	struct hlist_node *node;
 
-	hlist_for_each_entry(dbell, node, &vmci_doorbell_it.entries[bucket],
+	hlist_for_each_entry(dbell, &vmci_doorbell_it.entries[bucket],
 			     node) {
 		if (idx == dbell->idx)
 			return dbell;
@@ -359,12 +358,10 @@ static void dbell_fire_entries(u32 notify_idx)
 {
 	u32 bucket = VMCI_DOORBELL_HASH(notify_idx);
 	struct dbell_entry *dbell;
-	struct hlist_node *node;
 
 	spin_lock_bh(&vmci_doorbell_it.lock);
 
-	hlist_for_each_entry(dbell, node,
-			     &vmci_doorbell_it.entries[bucket], node) {
+	hlist_for_each_entry(dbell, &vmci_doorbell_it.entries[bucket], node) {
 		if (dbell->idx == notify_idx &&
 		    atomic_read(&dbell->active) == 1) {
 			if (dbell->run_delayed) {

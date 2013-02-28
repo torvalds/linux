@@ -84,7 +84,6 @@ __be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 					struct nfs_fh *f)
 {
-	struct hlist_node *pos;
 	struct nlm_file	*file;
 	unsigned int	hash;
 	__be32		nfserr;
@@ -96,7 +95,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
-	hlist_for_each_entry(file, pos, &nlm_files[hash], f_list)
+	hlist_for_each_entry(file, &nlm_files[hash], f_list)
 		if (!nfs_compare_fh(&file->f_handle, f))
 			goto found;
 
@@ -248,13 +247,13 @@ static int
 nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 		int (*is_failover_file)(void *data, struct nlm_file *file))
 {
-	struct hlist_node *pos, *next;
+	struct hlist_node *next;
 	struct nlm_file	*file;
 	int i, ret = 0;
 
 	mutex_lock(&nlm_file_mutex);
 	for (i = 0; i < FILE_NRHASH; i++) {
-		hlist_for_each_entry_safe(file, pos, next, &nlm_files[i], f_list) {
+		hlist_for_each_entry_safe(file, next, &nlm_files[i], f_list) {
 			if (is_failover_file && !is_failover_file(data, file))
 				continue;
 			file->f_count++;

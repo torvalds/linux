@@ -640,11 +640,10 @@ static struct sock *pep_find_pipe(const struct hlist_head *hlist,
 					const struct sockaddr_pn *dst,
 					u8 pipe_handle)
 {
-	struct hlist_node *node;
 	struct sock *sknode;
 	u16 dobj = pn_sockaddr_get_object(dst);
 
-	sk_for_each(sknode, node, hlist) {
+	sk_for_each(sknode, hlist) {
 		struct pep_sock *pnnode = pep_sk(sknode);
 
 		/* Ports match, but addresses might not: */

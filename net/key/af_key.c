@@ -225,7 +225,6 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 {
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *sk;
-	struct hlist_node *node;
 	struct sk_buff *skb2 = NULL;
 	int err = -ESRCH;
 
@@ -236,7 +235,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 		return -ENOMEM;
 
 	rcu_read_lock();
-	sk_for_each_rcu(sk, node, &net_pfkey->table) {
+	sk_for_each_rcu(sk, &net_pfkey->table) {
 		struct pfkey_sock *pfk = pfkey_sk(sk);
 		int err2;
 

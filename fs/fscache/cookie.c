@@ -237,13 +237,12 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 				struct fscache_cookie *cookie)
 {
 	struct fscache_object *object;
-	struct hlist_node *_n;
 	int ret;
 
 	_enter("%p,%p{%s}", cache, cookie, cookie->def->name);
 
 	spin_lock(&cookie->lock);
-	hlist_for_each_entry(object, _n, &cookie->backing_objects,
+	hlist_for_each_entry(object, &cookie->backing_objects,
 			     cookie_link) {
 		if (object->cache == cache)
 			goto object_already_extant;
@@ -311,7 +310,6 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 {
 	struct fscache_object *p;
 	struct fscache_cache *cache = object->cache;
-	struct hlist_node *_n;
 	int ret;
 
 	_enter("{%s},{OBJ%x}", cookie->def->name, object->debug_id);
@@ -321,7 +319,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	/* there may be multiple initial creations of this object, but we only
 	 * want one */
 	ret = -EEXIST;
-	hlist_for_each_entry(p, _n, &cookie->backing_objects, cookie_link) {
+	hlist_for_each_entry(p, &cookie->backing_objects, cookie_link) {
 		if (p->cache == object->cache) {
 			if (p->state >= FSCACHE_OBJECT_DYING)
 				ret = -ENOBUFS;
@@ -331,7 +329,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 	/* pin the parent object */
 	spin_lock_nested(&cookie->parent->lock, 1);
-	hlist_for_each_entry(p, _n, &cookie->parent->backing_objects,
+	hlist_for_each_entry(p, &cookie->parent->backing_objects,
 			     cookie_link) {
 		if (p->cache == object->cache) {
 			if (p->state >= FSCACHE_OBJECT_DYING) {
@@ -435,7 +433,6 @@ EXPORT_SYMBOL(__fscache_wait_on_invalidate);
 void __fscache_update_cookie(struct fscache_cookie *cookie)
 {
 	struct fscache_object *object;
-	struct hlist_node *_p;
 
 	fscache_stat(&fscache_n_updates);
 
@@ -452,7 +449,7 @@ void __fscache_update_cookie(struct fscache_cookie *cookie)
 	spin_lock(&cookie->lock);
 
 	/* update the index entry on disk in each cache backing this cookie */
-	hlist_for_each_entry(object, _p,
+	hlist_for_each_entry(object,
 			     &cookie->backing_objects, cookie_link) {
 		fscache_raise_event(object, FSCACHE_OBJECT_EV_UPDATE);
 	}

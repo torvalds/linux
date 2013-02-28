@@ -86,9 +86,8 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 	struct net_bridge_mdb_htable *mdb, struct br_ip *dst, int hash)
 {
 	struct net_bridge_mdb_entry *mp;
-	struct hlist_node *p;
 
-	hlist_for_each_entry_rcu(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
+	hlist_for_each_entry_rcu(mp, &mdb->mhash[hash], hlist[mdb->ver]) {
 		if (br_ip_equal(&mp->addr, dst))
 			return mp;
 	}
@@ -178,13 +177,12 @@ static int br_mdb_copy(struct net_bridge_mdb_htable *new,
 		       int elasticity)
 {
 	struct net_bridge_mdb_entry *mp;
-	struct hlist_node *p;
 	int maxlen;
 	int len;
 	int i;
 
 	for (i = 0; i < old->max; i++)
-		hlist_for_each_entry(mp, p, &old->mhash[i], hlist[old->ver])
+		hlist_for_each_entry(mp, &old->mhash[i], hlist[old->ver])
 			hlist_add_head(&mp->hlist[new->ver],
 				       &new->mhash[br_ip_hash(new, &mp->addr)]);
 
@@ -194,7 +192,7 @@ static int br_mdb_copy(struct net_bridge_mdb_htable *new,
 	maxlen = 0;
 	for (i = 0; i < new->max; i++) {
 		len = 0;
-		hlist_for_each_entry(mp, p, &new->mhash[i], hlist[new->ver])
+		hlist_for_each_entry(mp, &new->mhash[i], hlist[new->ver])
 			len++;
 		if (len > maxlen)
 			maxlen = len;
@@ -510,14 +508,13 @@ static struct net_bridge_mdb_entry *br_multicast_get_group(
 {
 	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
-	struct hlist_node *p;
 	unsigned int count = 0;
 	unsigned int max;
 	int elasticity;
 	int err;
 
 	mdb = rcu_dereference_protected(br->mdb, 1);
-	hlist_for_each_entry(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
+	hlist_for_each_entry(mp, &mdb->mhash[hash], hlist[mdb->ver]) {
 		count++;
 		if (unlikely(br_ip_equal(group, &mp->addr)))
 			return mp;
@@ -882,10 +879,10 @@ void br_multicast_disable_port(struct net_bridge_port *port)
 {
 	struct net_bridge *br = port->br;
 	struct net_bridge_port_group *pg;
-	struct hlist_node *p, *n;
+	struct hlist_node *n;
 
 	spin_lock(&br->multicast_lock);
-	hlist_for_each_entry_safe(pg, p, n, &port->mglist, mglist)
+	hlist_for_each_entry_safe(pg, n, &port->mglist, mglist)
 		br_multicast_del_pg(br, pg);
 
 	if (!hlist_unhashed(&port->rlist))
@@ -1025,12 +1022,12 @@ static void br_multicast_add_router(struct net_bridge *br,
 				    struct net_bridge_port *port)
 {
 	struct net_bridge_port *p;
-	struct hlist_node *n, *slot = NULL;
+	struct hlist_node *slot = NULL;
 
-	hlist_for_each_entry(p, n, &br->router_list, rlist) {
+	hlist_for_each_entry(p, &br->router_list, rlist) {
 		if ((unsigned long) port >= (unsigned long) p)
 			break;
-		slot = n;
+		slot = &p->rlist;
 	}
 
 	if (slot)
@@ -1653,7 +1650,7 @@ void br_multicast_stop(struct net_bridge *br)
 {
 	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
-	struct hlist_node *p, *n;
+	struct hlist_node *n;
 	u32 ver;
 	int i;
 
@@ -1670,7 +1667,7 @@ void br_multicast_stop(struct net_bridge *br)
 
 	ver = mdb->ver;
 	for (i = 0; i < mdb->max; i++) {
-		hlist_for_each_entry_safe(mp, p, n, &mdb->mhash[i],
+		hlist_for_each_entry_safe(mp, n, &mdb->mhash[i],
 					  hlist[ver]) {
 			del_timer(&mp->timer);
 			call_rcu_bh(&mp->rcu, br_multicast_free_group);

@@ -2204,10 +2204,9 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 {
 	struct rdma_id_private *cur_id;
 	struct sockaddr *addr, *cur_addr;
-	struct hlist_node *node;
 
 	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
-	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
+	hlist_for_each_entry(cur_id, &bind_list->owners, node) {
 		if (id_priv == cur_id)
 			continue;
 

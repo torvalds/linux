@@ -614,10 +614,9 @@ struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 {
 	unsigned int hash = vnet_hashfn(skb->data);
 	struct hlist_head *hp = &vp->port_hash[hash];
-	struct hlist_node *n;
 	struct vnet_port *port;
 
-	hlist_for_each_entry(port, n, hp, hash) {
+	hlist_for_each_entry(port, hp, hash) {
 		if (ether_addr_equal(port->raddr, skb->data))
 			return port;
 	}

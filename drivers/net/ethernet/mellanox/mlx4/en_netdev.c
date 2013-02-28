@@ -225,11 +225,10 @@ static inline struct mlx4_en_filter *
 mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 		    __be16 src_port, __be16 dst_port)
 {
-	struct hlist_node *elem;
 	struct mlx4_en_filter *filter;
 	struct mlx4_en_filter *ret = NULL;
 
-	hlist_for_each_entry(filter, elem,
+	hlist_for_each_entry(filter,
 			     filter_hash_bucket(priv, src_ip, dst_ip,
 						src_port, dst_port),
 			     filter_chain) {
@@ -574,13 +573,13 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 
 	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *n, *tmp;
+		struct hlist_node *tmp;
 		struct hlist_head *bucket;
 		unsigned int mac_hash;
 
 		mac_hash = priv->dev->dev_addr[MLX4_EN_MAC_HASH_IDX];
 		bucket = &priv->mac_hash[mac_hash];
-		hlist_for_each_entry_safe(entry, n, tmp, bucket, hlist) {
+		hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
 			if (ether_addr_equal_64bits(entry->mac,
 						    priv->dev->dev_addr)) {
 				en_dbg(DRV, priv, "Releasing qp: port %d, MAC %pM, qpn %d\n",
@@ -609,11 +608,11 @@ static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
 		struct hlist_head *bucket;
 		unsigned int mac_hash;
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *n, *tmp;
+		struct hlist_node *tmp;
 		u64 prev_mac_u64 = mlx4_en_mac_to_u64(prev_mac);
 
 		bucket = &priv->mac_hash[prev_mac[MLX4_EN_MAC_HASH_IDX]];
-		hlist_for_each_entry_safe(entry, n, tmp, bucket, hlist) {
+		hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
 			if (ether_addr_equal_64bits(entry->mac, prev_mac)) {
 				mlx4_en_uc_steer_release(priv, entry->mac,
 							 qpn, entry->reg_id);
@@ -1019,7 +1018,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 {
 	struct netdev_hw_addr *ha;
 	struct mlx4_mac_entry *entry;
-	struct hlist_node *n, *tmp;
+	struct hlist_node *tmp;
 	bool found;
 	u64 mac;
 	int err = 0;
@@ -1035,7 +1034,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 	/* find what to remove */
 	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
 		bucket = &priv->mac_hash[i];
-		hlist_for_each_entry_safe(entry, n, tmp, bucket, hlist) {
+		hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
 			found = false;
 			netdev_for_each_uc_addr(ha, dev) {
 				if (ether_addr_equal_64bits(entry->mac,
@@ -1078,7 +1077,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 	netdev_for_each_uc_addr(ha, dev) {
 		found = false;
 		bucket = &priv->mac_hash[ha->addr[MLX4_EN_MAC_HASH_IDX]];
-		hlist_for_each_entry(entry, n, bucket, hlist) {
+		hlist_for_each_entry(entry, bucket, hlist) {
 			if (ether_addr_equal_64bits(entry->mac, ha->addr)) {
 				found = true;
 				break;

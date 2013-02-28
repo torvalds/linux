@@ -227,12 +227,11 @@ static void stop_tracking_chunk(struct dm_snapshot *s, struct bio *bio)
 static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
 {
 	struct dm_snap_tracked_chunk *c;
-	struct hlist_node *hn;
 	int found = 0;
 
 	spin_lock_irq(&s->tracked_chunk_lock);
 
-	hlist_for_each_entry(c, hn,
+	hlist_for_each_entry(c,
 	    &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)], node) {
 		if (c->chunk == chunk) {
 			found = 1;

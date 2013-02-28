@@ -288,10 +288,10 @@ static struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
 {
 	struct elevator_queue *e = q->elevator;
 	struct hlist_head *hash_list = &e->hash[ELV_HASH_FN(offset)];
-	struct hlist_node *entry, *next;
+	struct hlist_node *next;
 	struct request *rq;
 
-	hlist_for_each_entry_safe(rq, entry, next, hash_list, hash) {
+	hlist_for_each_entry_safe(rq, next, hash_list, hash) {
 		BUG_ON(!ELV_ON_HASH(rq));
 
 		if (unlikely(!rq_mergeable(rq))) {

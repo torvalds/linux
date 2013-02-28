@@ -2197,13 +2197,13 @@ static int ixgbe_get_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 	union ixgbe_atr_input *mask = &adapter->fdir_mask;
 	struct ethtool_rx_flow_spec *fsp =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
-	struct hlist_node *node, *node2;
+	struct hlist_node *node2;
 	struct ixgbe_fdir_filter *rule = NULL;
 
 	/* report total rule count */
 	cmd->data = (1024 << adapter->fdir_pballoc) - 2;
 
-	hlist_for_each_entry_safe(rule, node, node2,
+	hlist_for_each_entry_safe(rule, node2,
 				  &adapter->fdir_filter_list, fdir_node) {
 		if (fsp->location <= rule->sw_idx)
 			break;
@@ -2264,14 +2264,14 @@ static int ixgbe_get_ethtool_fdir_all(struct ixgbe_adapter *adapter,
 				      struct ethtool_rxnfc *cmd,
 				      u32 *rule_locs)
 {
-	struct hlist_node *node, *node2;
+	struct hlist_node *node2;
 	struct ixgbe_fdir_filter *rule;
 	int cnt = 0;
 
 	/* report total rule count */
 	cmd->data = (1024 << adapter->fdir_pballoc) - 2;
 
-	hlist_for_each_entry_safe(rule, node, node2,
+	hlist_for_each_entry_safe(rule, node2,
 				  &adapter->fdir_filter_list, fdir_node) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
@@ -2358,19 +2358,19 @@ static int ixgbe_update_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 					   u16 sw_idx)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct hlist_node *node, *node2, *parent;
-	struct ixgbe_fdir_filter *rule;
+	struct hlist_node *node2;
+	struct ixgbe_fdir_filter *rule, *parent;
 	int err = -EINVAL;
 
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry_safe(rule, node, node2,
+	hlist_for_each_entry_safe(rule, node2,
 				  &adapter->fdir_filter_list, fdir_node) {
 		/* hash found, or no matching entry */
 		if (rule->sw_idx >= sw_idx)
 			break;
-		parent = node;
+		parent = rule;
 	}
 
 	/* if there is an old rule occupying our place remove it */
@@ -2399,7 +2399,7 @@ static int ixgbe_update_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_after(parent, &input->fdir_node);
+		hlist_add_after(&parent->fdir_node, &input->fdir_node);
 	else
 		hlist_add_head(&input->fdir_node,
 			       &adapter->fdir_filter_list);

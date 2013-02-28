@@ -57,7 +57,6 @@ int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb, bool relax)
 {
 	struct sock *sk2;
-	struct hlist_node *node;
 	int reuse = sk->sk_reuse;
 	int reuseport = sk->sk_reuseport;
 	kuid_t uid = sock_i_uid((struct sock *)sk);
@@ -69,7 +68,7 @@ int inet_csk_bind_conflict(const struct sock *sk,
 	 * one this bucket belongs to.
 	 */
 
-	sk_for_each_bound(sk2, node, &tb->owners) {
+	sk_for_each_bound(sk2, &tb->owners) {
 		if (sk != sk2 &&
 		    !inet_v6_ipv6only(sk2) &&
 		    (!sk->sk_bound_dev_if ||
@@ -95,7 +94,7 @@ int inet_csk_bind_conflict(const struct sock *sk,
 			}
 		}
 	}
-	return node != NULL;
+	return sk2 != NULL;
 }
 EXPORT_SYMBOL_GPL(inet_csk_bind_conflict);
 
@@ -106,7 +105,6 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_bind_hashbucket *head;
-	struct hlist_node *node;
 	struct inet_bind_bucket *tb;
 	int ret, attempts = 5;
 	struct net *net = sock_net(sk);
@@ -129,7 +127,7 @@ again:
 			head = &hashinfo->bhash[inet_bhashfn(net, rover,
 					hashinfo->bhash_size)];
 			spin_lock(&head->lock);
-			inet_bind_bucket_for_each(tb, node, &head->chain)
+			inet_bind_bucket_for_each(tb, &head->chain)
 				if (net_eq(ib_net(tb), net) && tb->port == rover) {
 					if (((tb->fastreuse > 0 &&
 					      sk->sk_reuse &&
@@ -183,7 +181,7 @@ have_snum:
 		head = &hashinfo->bhash[inet_bhashfn(net, snum,
 				hashinfo->bhash_size)];
 		spin_lock(&head->lock);
-		inet_bind_bucket_for_each(tb, node, &head->chain)
+		inet_bind_bucket_for_each(tb, &head->chain)
 			if (net_eq(ib_net(tb), net) && tb->port == snum)
 				goto tb_found;
 	}
