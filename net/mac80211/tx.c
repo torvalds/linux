@@ -785,11 +785,19 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 
 	/*
 	 * Packet injection may want to control the sequence
-	 * number, if we have no matching interface then we
-	 * neither assign one ourselves nor ask the driver to.
+	 * number, so if an injected packet is found, skip
+	 * renumbering it. Also make the packet NO_ACK to avoid
+	 * excessive retries (ACKing and retrying should be
+	 * handled by the injecting application).
+	 * FIXME This may break hostapd and some other injectors.
+	 * This should be done using a radiotap flag.
 	 */
-	if (unlikely(info->control.vif->type == NL80211_IFTYPE_MONITOR))
+	if (unlikely((info->flags & IEEE80211_TX_CTL_INJECTED) &&
+	   !(tx->sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES))) {
+		if (!ieee80211_has_morefrags(hdr->frame_control))
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
 		return TX_CONTINUE;
+	}
 
 	if (unlikely(ieee80211_is_ctl(hdr->frame_control)))
 		return TX_CONTINUE;
