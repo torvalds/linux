@@ -6532,7 +6532,17 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			mddev->ro = 0;
 			sysfs_notify_dirent_safe(mddev->sysfs_state);
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			md_wakeup_thread(mddev->thread);
+			/* mddev_unlock will wake thread */
+			/* If a device failed while we were read-only, we
+			 * need to make sure the metadata is updated now.
+			 */
+			if (test_bit(MD_CHANGE_DEVS, &mddev->flags)) {
+				mddev_unlock(mddev);
+				wait_event(mddev->sb_wait,
+					   !test_bit(MD_CHANGE_DEVS, &mddev->flags) &&
+					   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
+				mddev_lock(mddev);
+			}
 		} else {
 			err = -EROFS;
 			goto abort_unlock;
