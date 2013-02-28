@@ -90,8 +90,17 @@ static struct i2c_driver tpm_tis_i2c_driver;
 static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 {
 
-	struct i2c_msg msg1 = { tpm_dev.client->addr, 0, 1, &addr };
-	struct i2c_msg msg2 = { tpm_dev.client->addr, I2C_M_RD, len, buffer };
+	struct i2c_msg msg1 = {
+		.addr = tpm_dev.client->addr,
+		.len = 1,
+		.buf = &addr
+	};
+	struct i2c_msg msg2 = {
+		.addr = tpm_dev.client->addr,
+		.flags = I2C_M_RD,
+		.len = len,
+		.buf = buffer
+	};
 
 	int rc;
 	int count;
@@ -138,7 +147,11 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 	int rc = -EIO;
 	int count;
 
-	struct i2c_msg msg1 = { tpm_dev.client->addr, 0, len + 1, tpm_dev.buf };
+	struct i2c_msg msg1 = {
+		.addr = tpm_dev.client->addr,
+		.len = len + 1,
+		.buf = tpm_dev.buf
+	};
 
 	if (len > TPM_BUFSIZE)
 		return -EINVAL;
