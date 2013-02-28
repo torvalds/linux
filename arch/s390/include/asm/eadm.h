@@ -98,7 +98,7 @@ struct scm_device {
 #define OP_STATE_TEMP_ERR	2
 #define OP_STATE_PERM_ERR	3
 
-enum scm_event {SCM_CHANGE};
+enum scm_event {SCM_CHANGE, SCM_AVAIL};
 
 struct scm_driver {
 	struct device_driver drv;
