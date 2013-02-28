@@ -752,7 +752,7 @@ Example 1:
 		dma_unmap_single(dma_handle1);
 	map_error_handling1:
 
-Example 2: (if buffers are allocated a loop, unmap all mapped buffers when
+Example 2: (if buffers are allocated in a loop, unmap all mapped buffers when
 	    mapping error is detected in the middle)
 
 	dma_addr_t dma_addr;
