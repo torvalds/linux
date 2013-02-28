@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
+#include <linux/efi.h>
 #include <acpi/video.h>
 
 /*
@@ -1543,6 +1544,9 @@ static int __init samsung_init(void)
 {
 	struct samsung_laptop *samsung;
 	int ret;
+
+	if (efi_enabled(EFI_BOOT))
+		return -ENODEV;
 
 	quirks = &samsung_unknown;
 	if (!force && !dmi_check_system(samsung_dmi_table))

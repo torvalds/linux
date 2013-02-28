@@ -57,12 +57,12 @@ config RTL8192CU
 
 config RTLWIFI
 	tristate
-	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE
+	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE || RTL8723AE
 	default m
 
 config RTLWIFI_DEBUG
 	bool "Additional debugging output"
-	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE
+	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE || RTL8723AE
 	default y
 
 config RTL8192C_COMMON

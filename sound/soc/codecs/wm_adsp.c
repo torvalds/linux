@@ -324,7 +324,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 
 		if (reg) {
 			buf = kmemdup(region->data, le32_to_cpu(region->len),
-				      GFP_KERNEL);
+				      GFP_KERNEL | GFP_DMA);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
 				return -ENOMEM;
@@ -396,7 +396,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	hdr = (void*)&firmware->data[0];
 	if (memcmp(hdr->magic, "WMDR", 4) != 0) {
 		adsp_err(dsp, "%s: invalid magic\n", file);
-		return -EINVAL;
+		goto out_fw;
 	}
 
 	adsp_dbg(dsp, "%s: v%d.%d.%d\n", file,
@@ -439,7 +439,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 
 		if (reg) {
 			buf = kmemdup(blk->data, le32_to_cpu(blk->len),
-				      GFP_KERNEL);
+				      GFP_KERNEL | GFP_DMA);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
 				return -ENOMEM;

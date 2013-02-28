@@ -24,7 +24,7 @@ config DRM_EXYNOS_DMABUF
 
 config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
-	depends on DRM_EXYNOS && !FB_S3C
+	depends on DRM_EXYNOS && !FB_S3C && !ARCH_MULTIPLATFORM
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
@@ -48,7 +48,7 @@ config DRM_EXYNOS_G2D
 
 config DRM_EXYNOS_IPP
 	bool "Exynos DRM IPP"
-	depends on DRM_EXYNOS
+	depends on DRM_EXYNOS && !ARCH_MULTIPLATFORM
 	help
 	  Choose this option if you want to use IPP feature for DRM.
 

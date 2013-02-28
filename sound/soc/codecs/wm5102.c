@@ -896,8 +896,7 @@ static const unsigned int wm5102_aec_loopback_values[] = {
 
 static const struct soc_enum wm5102_aec_loopback =
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
-			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT,
-			      ARIZONA_AEC_LOOPBACK_SRC_MASK,
+			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
 			      ARRAY_SIZE(wm5102_aec_loopback_texts),
 			      wm5102_aec_loopback_texts,
 			      wm5102_aec_loopback_values);

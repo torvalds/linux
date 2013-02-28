@@ -272,8 +272,6 @@ struct abx500_bm_data {
 	const struct abx500_fg_parameters *fg_params;
 };
 
-extern struct abx500_bm_data ab8500_bm_data;
-
 enum {
 	NTC_EXTERNAL = 0,
 	NTC_INTERNAL,

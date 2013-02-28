@@ -540,13 +540,24 @@ static int i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 {
 	struct i2c_client *client = hid->driver_data;
 	int report_id = buf[0];
+	int ret;
 
 	if (report_type == HID_INPUT_REPORT)
 		return -EINVAL;
 
-	return i2c_hid_set_report(client,
+	if (report_id) {
+		buf++;
+		count--;
+	}
+
+	ret = i2c_hid_set_report(client,
 				report_type == HID_FEATURE_REPORT ? 0x03 : 0x02,
 				report_id, buf, count);
+
+	if (report_id && ret >= 0)
+		ret++; /* add report_id to the number of transfered bytes */
+
+	return ret;
 }
 
 static int i2c_hid_parse(struct hid_device *hid)
