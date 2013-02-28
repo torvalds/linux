@@ -195,14 +195,18 @@ void scm_request_requeue(struct scm_request *scmrq)
 
 	scm_release_cluster(scmrq);
 	blk_requeue_request(bdev->rq, scmrq->request);
+	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
 	scm_ensure_queue_restart(bdev);
 }
 
 void scm_request_finish(struct scm_request *scmrq)
 {
+	struct scm_blk_dev *bdev = scmrq->bdev;
+
 	scm_release_cluster(scmrq);
 	blk_end_request_all(scmrq->request, scmrq->error);
+	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
 }
 
@@ -231,11 +235,13 @@ static void scm_blk_request(struct request_queue *rq)
 			return;
 		}
 		if (scm_need_cluster_request(scmrq)) {
+			atomic_inc(&bdev->queued_reqs);
 			blk_start_request(req);
 			scm_initiate_cluster_request(scmrq);
 			return;
 		}
 		scm_request_prepare(scmrq);
+		atomic_inc(&bdev->queued_reqs);
 		blk_start_request(req);
 
 		ret = scm_start_aob(scmrq->aob);
@@ -244,7 +250,6 @@ static void scm_blk_request(struct request_queue *rq)
 			scm_request_requeue(scmrq);
 			return;
 		}
-		atomic_inc(&bdev->queued_reqs);
 	}
 }
 
@@ -310,7 +315,6 @@ static void scm_blk_tasklet(struct scm_blk_dev *bdev)
 		}
 
 		scm_request_finish(scmrq);
-		atomic_dec(&bdev->queued_reqs);
 		spin_lock_irqsave(&bdev->lock, flags);
 	}
 	spin_unlock_irqrestore(&bdev->lock, flags);
