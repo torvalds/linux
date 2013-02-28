@@ -60,6 +60,16 @@ static int idr_max(int layers)
 	return (1 << bits) - 1;
 }
 
+/*
+ * Prefix mask for an idr_layer at @layer.  For layer 0, the prefix mask is
+ * all bits except for the lower IDR_BITS.  For layer 1, 2 * IDR_BITS, and
+ * so on.
+ */
+static int idr_layer_prefix_mask(int layer)
+{
+	return ~idr_max(layer + 1);
+}
+
 static struct idr_layer *get_from_free_list(struct idr *idp)
 {
 	struct idr_layer *p;
@@ -272,6 +282,7 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa,
 			if (!new)
 				return -ENOMEM;
 			new->layer = l-1;
+			new->prefix = id & idr_layer_prefix_mask(new->layer);
 			rcu_assign_pointer(p->ary[m], new);
 			p->count++;
 		}
@@ -313,6 +324,7 @@ build_up:
 			 * upwards.
 			 */
 			p->layer++;
+			WARN_ON_ONCE(p->prefix);
 			continue;
 		}
 		if (!(new = idr_layer_alloc(gfp_mask, layer_idr))) {
@@ -334,6 +346,7 @@ build_up:
 		new->ary[0] = p;
 		new->count = 1;
 		new->layer = layers-1;
+		new->prefix = id & idr_layer_prefix_mask(new->layer);
 		if (bitmap_full(p->bitmap, IDR_SIZE))
 			__set_bit(0, new->bitmap);
 		p = new;
