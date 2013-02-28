@@ -137,21 +137,15 @@ static int ipp_create_id(struct idr *id_idr, struct mutex *lock, void *obj,
 
 	DRM_DEBUG_KMS("%s\n", __func__);
 
-again:
-	/* ensure there is space available to allocate a handle */
-	if (idr_pre_get(id_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("failed to get idr.\n");
-		return -ENOMEM;
-	}
-
 	/* do the allocation under our mutexlock */
 	mutex_lock(lock);
-	ret = idr_get_new_above(id_idr, obj, 1, (int *)idp);
+	ret = idr_alloc(id_idr, obj, 1, 0, GFP_KERNEL);
 	mutex_unlock(lock);
-	if (ret == -EAGAIN)
-		goto again;
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	*idp = ret;
+	return 0;
 }
 
 static void *ipp_find_obj(struct idr *id_idr, struct mutex *lock, u32 id)
