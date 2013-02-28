@@ -3583,6 +3583,10 @@ check_rsp_state:
 				spin_lock_bh(&cmd->istate_lock);
 				cmd->i_state = ISTATE_SENT_STATUS;
 				spin_unlock_bh(&cmd->istate_lock);
+
+				if (atomic_read(&conn->check_immediate_queue))
+					return 1;
+
 				continue;
 			} else if (ret == 2) {
 				/* Still must send status,
@@ -3672,7 +3676,7 @@ check_rsp_state:
 		}
 
 		if (atomic_read(&conn->check_immediate_queue))
-			break;
+			return 1;
 	}
 
 	return 0;
@@ -3716,12 +3720,15 @@ restart:
 		     signal_pending(current))
 			goto transport_err;
 
+get_immediate:
 		ret = handle_immediate_queue(conn);
 		if (ret < 0)
 			goto transport_err;
 
 		ret = handle_response_queue(conn);
-		if (ret == -EAGAIN)
+		if (ret == 1)
+			goto get_immediate;
+		else if (ret == -EAGAIN)
 			goto restart;
 		else if (ret < 0)
 			goto transport_err;
