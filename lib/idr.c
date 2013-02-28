@@ -137,8 +137,10 @@ static void idr_layer_rcu_free(struct rcu_head *head)
 	kmem_cache_free(idr_layer_cache, layer);
 }
 
-static inline void free_layer(struct idr_layer *p)
+static inline void free_layer(struct idr *idr, struct idr_layer *p)
 {
+	if (idr->hint && idr->hint == p)
+		RCU_INIT_POINTER(idr->hint, NULL);
 	call_rcu(&p->rcu_head, idr_layer_rcu_free);
 }
 
@@ -363,8 +365,12 @@ build_up:
  * @id and @pa are from a successful allocation from idr_get_empty_slot().
  * Install the user pointer @ptr and mark the slot full.
  */
-static void idr_fill_slot(void *ptr, int id, struct idr_layer **pa)
+static void idr_fill_slot(struct idr *idr, void *ptr, int id,
+			  struct idr_layer **pa)
 {
+	/* update hint used for lookup, cleared from free_layer() */
+	rcu_assign_pointer(idr->hint, pa[0]);
+
 	rcu_assign_pointer(pa[0]->ary[id & IDR_MASK], (struct idr_layer *)ptr);
 	pa[0]->count++;
 	idr_mark_full(pa, id);
@@ -397,7 +403,7 @@ int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id)
 	if (rv < 0)
 		return rv == -ENOMEM ? -EAGAIN : rv;
 
-	idr_fill_slot(ptr, rv, pa);
+	idr_fill_slot(idp, ptr, rv, pa);
 	*id = rv;
 	return 0;
 }
@@ -504,7 +510,7 @@ int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 	if (unlikely(id > max))
 		return -ENOSPC;
 
-	idr_fill_slot(ptr, id, pa);
+	idr_fill_slot(idr, ptr, id, pa);
 	return id;
 }
 EXPORT_SYMBOL_GPL(idr_alloc);
@@ -541,14 +547,14 @@ static void sub_remove(struct idr *idp, int shift, int id)
 		to_free = NULL;
 		while(*paa && ! --((**paa)->count)){
 			if (to_free)
-				free_layer(to_free);
+				free_layer(idp, to_free);
 			to_free = **paa;
 			**paa-- = NULL;
 		}
 		if (!*paa)
 			idp->layers = 0;
 		if (to_free)
-			free_layer(to_free);
+			free_layer(idp, to_free);
 	} else
 		idr_remove_warning(id);
 }
@@ -581,7 +587,7 @@ void idr_remove(struct idr *idp, int id)
 		--idp->layers;
 		to_free->count = 0;
 		bitmap_clear(to_free->bitmap, 0, IDR_SIZE);
-		free_layer(to_free);
+		free_layer(idp, to_free);
 	}
 	while (idp->id_free_cnt >= MAX_IDR_FREE) {
 		p = get_from_free_list(idp);
@@ -622,7 +628,7 @@ void __idr_remove_all(struct idr *idp)
 		/* Get the highest bit that the above add changed from 0->1. */
 		while (n < fls(id ^ bt_mask)) {
 			if (p)
-				free_layer(p);
+				free_layer(idp, p);
 			n += IDR_BITS;
 			p = *--paa;
 		}
@@ -655,19 +661,7 @@ void idr_destroy(struct idr *idp)
 }
 EXPORT_SYMBOL(idr_destroy);
 
-/**
- * idr_find - return pointer for given id
- * @idp: idr handle
- * @id: lookup key
- *
- * Return the pointer given the id it has been registered with.  A %NULL
- * return indicates that @id is not valid or you passed %NULL in
- * idr_get_new().
- *
- * This function can be called under rcu_read_lock(), given that the leaf
- * pointers lifetimes are correctly managed.
- */
-void *idr_find(struct idr *idp, int id)
+void *idr_find_slowpath(struct idr *idp, int id)
 {
 	int n;
 	struct idr_layer *p;
@@ -691,7 +685,7 @@ void *idr_find(struct idr *idp, int id)
 	}
 	return((void *)p);
 }
-EXPORT_SYMBOL(idr_find);
+EXPORT_SYMBOL(idr_find_slowpath);
 
 /**
  * idr_for_each - iterate through all stored pointers

@@ -37,6 +37,7 @@ struct idr_layer {
 };
 
 struct idr {
+	struct idr_layer __rcu	*hint;	/* the last layer allocated from */
 	struct idr_layer __rcu	*top;
 	struct idr_layer	*id_free;
 	int			layers;	/* only valid w/o concurrent changes */
@@ -71,7 +72,7 @@ struct idr {
  * This is what we export.
  */
 
-void *idr_find(struct idr *idp, int id);
+void *idr_find_slowpath(struct idr *idp, int id);
 int idr_pre_get(struct idr *idp, gfp_t gfp_mask);
 int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
 void idr_preload(gfp_t gfp_mask);
@@ -94,6 +95,28 @@ void idr_init(struct idr *idp);
 static inline void idr_preload_end(void)
 {
 	preempt_enable();
+}
+
+/**
+ * idr_find - return pointer for given id
+ * @idp: idr handle
+ * @id: lookup key
+ *
+ * Return the pointer given the id it has been registered with.  A %NULL
+ * return indicates that @id is not valid or you passed %NULL in
+ * idr_get_new().
+ *
+ * This function can be called under rcu_read_lock(), given that the leaf
+ * pointers lifetimes are correctly managed.
+ */
+static inline void *idr_find(struct idr *idr, int id)
+{
+	struct idr_layer *hint = rcu_dereference_raw(idr->hint);
+
+	if (hint && (id & ~IDR_MASK) == hint->prefix)
+		return rcu_dereference_raw(hint->ary[id & IDR_MASK]);
+
+	return idr_find_slowpath(idr, id);
 }
 
 /**
