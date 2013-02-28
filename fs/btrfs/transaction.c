@@ -1082,7 +1082,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = pending->error = -ENOMEM;
-		goto path_alloc_fail;
+		return ret;
 	}
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
@@ -1279,8 +1279,6 @@ no_free_objectid:
 	kfree(new_root_item);
 root_item_alloc_fail:
 	btrfs_free_path(path);
-path_alloc_fail:
-	btrfs_block_rsv_release(root, &pending->block_rsv, (u64)-1);
 	return ret;
 }
 
