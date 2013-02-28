@@ -3981,8 +3981,6 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 	list_del(&eb->leak_list);
 	spin_unlock_irqrestore(&leak_lock, flags);
 #endif
-	if (eb->pages && eb->pages != eb->inline_pages)
-		kfree(eb->pages);
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
@@ -4023,19 +4021,12 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_set(&eb->refs, 1);
 	atomic_set(&eb->io_pages, 0);
 
-	if (len > MAX_INLINE_EXTENT_BUFFER_SIZE) {
-		struct page **pages;
-		int num_pages = (len + PAGE_CACHE_SIZE - 1) >>
-			PAGE_CACHE_SHIFT;
-		pages = kzalloc(num_pages, mask);
-		if (!pages) {
-			__free_extent_buffer(eb);
-			return NULL;
-		}
-		eb->pages = pages;
-	} else {
-		eb->pages = eb->inline_pages;
-	}
+	/*
+	 * Sanity checks, currently the maximum is 64k covered by 16x 4k pages
+	 */
+	BUILD_BUG_ON(BTRFS_MAX_METADATA_BLOCKSIZE
+		> MAX_INLINE_EXTENT_BUFFER_SIZE);
+	BUG_ON(len > MAX_INLINE_EXTENT_BUFFER_SIZE);
 
 	return eb;
 }

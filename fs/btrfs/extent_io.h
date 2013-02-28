@@ -158,8 +158,7 @@ struct extent_buffer {
 	 */
 	wait_queue_head_t read_lock_wq;
 	wait_queue_head_t lock_wq;
-	struct page *inline_pages[INLINE_EXTENT_BUFFER_PAGES];
-	struct page **pages;
+	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
