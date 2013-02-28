@@ -278,7 +278,8 @@ void   rfcomm_session_getaddr(struct rfcomm_session *s, bdaddr_t *src,
 
 static inline void rfcomm_session_hold(struct rfcomm_session *s)
 {
-	atomic_inc(&s->refcnt);
+	if (s)
+		atomic_inc(&s->refcnt);
 }
 
 /* ---- RFCOMM sockets ---- */
