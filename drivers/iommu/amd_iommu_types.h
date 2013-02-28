@@ -701,13 +701,6 @@ extern int amd_iommu_max_glx_val;
  */
 extern void iommu_flush_all_caches(struct amd_iommu *iommu);
 
-/* takes bus and device/function and returns the device id
- * FIXME: should that be in generic PCI code? */
-static inline u16 calc_devid(u8 bus, u8 devfn)
-{
-	return (((u16)bus) << 8) | devfn;
-}
-
 static inline int get_ioapic_devid(int id)
 {
 	struct devid_map *entry;
