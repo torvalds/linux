@@ -74,24 +74,13 @@ void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
  */
 static int drm_ctxbitmap_next(struct drm_device * dev)
 {
-	int new_id;
 	int ret;
 
-again:
-	if (idr_pre_get(&dev->ctx_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("Out of memory expanding drawable idr\n");
-		return -ENOMEM;
-	}
 	mutex_lock(&dev->struct_mutex);
-	ret = idr_get_new_above(&dev->ctx_idr, NULL,
-				DRM_RESERVED_CONTEXTS, &new_id);
+	ret = idr_alloc(&dev->ctx_idr, NULL, DRM_RESERVED_CONTEXTS, 0,
+			GFP_KERNEL);
 	mutex_unlock(&dev->struct_mutex);
-	if (ret == -EAGAIN)
-		goto again;
-	else if (ret)
-		return ret;
-
-	return new_id;
+	return ret;
 }
 
 /**
