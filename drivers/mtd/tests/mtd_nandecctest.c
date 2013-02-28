@@ -256,7 +256,7 @@ static int nand_ecc_test_run(const size_t size)
 		goto error;
 	}
 
-	get_random_bytes(correct_data, size);
+	prandom_bytes(correct_data, size);
 	__nand_calculate_ecc(correct_data, size, correct_ecc);
 
 	for (i = 0; i < ARRAY_SIZE(nand_ecc_test); i++) {
