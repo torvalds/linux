@@ -157,14 +157,30 @@ int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf)
 {
 	int ret;
-
+#if 0                    
 	mutex_lock(&tps65910->io_mutex);
 	
 	ret = tps65910->read(tps65910, reg, count, buf);
 
 	mutex_unlock(&tps65910->io_mutex);
+#else    
+	int i;             //Solve communication conflict when rk610 and 65910 on the same i2c 
 
-	return ret;
+	mutex_lock(&tps65910->io_mutex);
+	for(i=0; i<count; i++){
+		ret = tps65910_read(tps65910, reg+i);
+		if(ret < 0){
+			printk("%s: failed read reg 0x%0x, ret = %d\n", __FUNCTION__, reg+i, ret);
+			mutex_unlock(&tps65910->io_mutex);
+			return ret;
+		}else{
+			buf[i] = ret & 0x000000FF;
+		}
+	}
+	mutex_unlock(&tps65910->io_mutex);
+#endif
+	return 0;
+
 }
 EXPORT_SYMBOL_GPL(tps65910_bulk_read);
 
@@ -172,14 +188,28 @@ int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf)
 {
 	int ret;
-
+#if 0
 	mutex_lock(&tps65910->io_mutex);
 	
 	ret = tps65910->write(tps65910, reg, count, buf);
 
 	mutex_unlock(&tps65910->io_mutex);
+#else
+	int i;       // //Solve communication conflict when rk610 and 65910 on the same i2c 
 
-	return ret;
+	mutex_lock(&tps65910->io_mutex);
+	for(i=0; i<count; i++){
+		ret = tps65910_write(tps65910, reg+i, buf[i]);
+		if(ret < 0){
+			printk("%s: failed write reg=0x%0x, val=0x%0x, ret = %d\n", __FUNCTION__, reg+i, buf[i], ret);
+			mutex_unlock(&tps65910->io_mutex);
+			return ret;
+		}
+	}
+	mutex_unlock(&tps65910->io_mutex);
+#endif
+	return 0;
+
 }
 EXPORT_SYMBOL_GPL(tps65910_bulk_write);
 
