@@ -7054,6 +7054,7 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	else
 		ErrorCode =  0;
       }
+      break;
       default:
 	ErrorCode = -ENOTTY;
     }
