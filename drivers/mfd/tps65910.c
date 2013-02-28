@@ -157,13 +157,8 @@ int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf)
 {
 	int ret;
-#if 0                    
-	mutex_lock(&tps65910->io_mutex);
-	
-	ret = tps65910->read(tps65910, reg, count, buf);
-
-	mutex_unlock(&tps65910->io_mutex);
-#else    
+                    
+#if defined(CONFIG_MFD_RK610)    
 	int i;             //Solve communication conflict when rk610 and 65910 on the same i2c 
 
 	mutex_lock(&tps65910->io_mutex);
@@ -178,6 +173,12 @@ int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
 		}
 	}
 	mutex_unlock(&tps65910->io_mutex);
+#else
+	mutex_lock(&tps65910->io_mutex);
+	
+	ret = tps65910->read(tps65910, reg, count, buf);
+
+	mutex_unlock(&tps65910->io_mutex);
 #endif
 	return 0;
 
@@ -188,13 +189,8 @@ int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf)
 {
 	int ret;
-#if 0
-	mutex_lock(&tps65910->io_mutex);
 	
-	ret = tps65910->write(tps65910, reg, count, buf);
-
-	mutex_unlock(&tps65910->io_mutex);
-#else
+#if defined(CONFIG_MFD_RK610)    
 	int i;       // //Solve communication conflict when rk610 and 65910 on the same i2c 
 
 	mutex_lock(&tps65910->io_mutex);
@@ -206,6 +202,12 @@ int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
 			return ret;
 		}
 	}
+	mutex_unlock(&tps65910->io_mutex);
+#else
+	mutex_lock(&tps65910->io_mutex);
+	
+	ret = tps65910->write(tps65910, reg, count, buf);
+
 	mutex_unlock(&tps65910->io_mutex);
 #endif
 	return 0;
