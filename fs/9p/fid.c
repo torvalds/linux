@@ -41,10 +41,15 @@
  *
  */
 
+static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
+{
+	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
+}
+
 void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 {
 	spin_lock(&dentry->d_lock);
-	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
+	__add_fid(dentry, fid);
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -198,8 +203,17 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	}
 	kfree(wnames);
 fid_out:
-	if (!IS_ERR(fid))
-		v9fs_fid_add(dentry, fid);
+	if (!IS_ERR(fid)) {
+		spin_lock(&dentry->d_lock);
+		if (d_unhashed(dentry)) {
+			spin_unlock(&dentry->d_lock);
+			p9_client_clunk(fid);
+			fid = ERR_PTR(-ENOENT);
+		} else {
+			__add_fid(dentry, fid);
+			spin_unlock(&dentry->d_lock);
+		}
+	}
 err_out:
 	up_read(&v9ses->rename_sem);
 	return fid;
