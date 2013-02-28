@@ -13,10 +13,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define TMR_RUNNING_HK	0
-#define TMR_RUNNING_MP	1
-#define TMR_RUNNING_MPR	2
-
 static int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
@@ -49,11 +45,6 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
-
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
-		return;
-	}
 
 	ieee80211_queue_work(&local->hw, &sdata->work);
 }
@@ -479,15 +470,8 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 static void ieee80211_mesh_path_root_timer(unsigned long data)
@@ -495,16 +479,10 @@ static void ieee80211_mesh_path_root_timer(unsigned long data)
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 
 	set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
@@ -621,35 +599,6 @@ static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
 	mod_timer(&ifmsh->mesh_path_root_timer,
 		  round_jiffies(TU_TO_EXP_TIME(interval)));
 }
-
-#ifdef CONFIG_PM
-void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	/* use atomic bitops in case all timers fire at the same time */
-
-	if (del_timer_sync(&ifmsh->housekeeping_timer))
-		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
-	if (del_timer_sync(&ifmsh->mesh_path_timer))
-		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
-	if (del_timer_sync(&ifmsh->mesh_path_root_timer))
-		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
-}
-
-void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	if (test_and_clear_bit(TMR_RUNNING_HK, &ifmsh->timers_running))
-		add_timer(&ifmsh->housekeeping_timer);
-	if (test_and_clear_bit(TMR_RUNNING_MP, &ifmsh->timers_running))
-		add_timer(&ifmsh->mesh_path_timer);
-	if (test_and_clear_bit(TMR_RUNNING_MPR, &ifmsh->timers_running))
-		add_timer(&ifmsh->mesh_path_root_timer);
-	ieee80211_mesh_root_setup(ifmsh);
-}
-#endif
 
 static int
 ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
@@ -871,8 +820,6 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
 	ieee80211_configure_filter(local);
-
-	sdata->u.mesh.timers_running = 0;
 }
 
 static void

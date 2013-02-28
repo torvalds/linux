@@ -534,10 +534,8 @@ static void mesh_plink_timer(unsigned long data)
 	 */
 	sta = (struct sta_info *) data;
 
-	if (sta->sdata->local->quiescing) {
-		sta->plink_timer_was_running = true;
+	if (sta->sdata->local->quiescing)
 		return;
-	}
 
 	spin_lock_bh(&sta->lock);
 	if (sta->ignore_plink_timer) {
@@ -597,29 +595,6 @@ static void mesh_plink_timer(unsigned long data)
 		break;
 	}
 }
-
-#ifdef CONFIG_PM
-void mesh_plink_quiesce(struct sta_info *sta)
-{
-	if (!ieee80211_vif_is_mesh(&sta->sdata->vif))
-		return;
-
-	/* no kernel mesh sta timers have been initialized */
-	if (sta->sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
-		return;
-
-	if (del_timer_sync(&sta->plink_timer))
-		sta->plink_timer_was_running = true;
-}
-
-void mesh_plink_restart(struct sta_info *sta)
-{
-	if (sta->plink_timer_was_running) {
-		add_timer(&sta->plink_timer);
-		sta->plink_timer_was_running = false;
-	}
-}
-#endif
 
 static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 {

@@ -543,8 +543,6 @@ struct ieee80211_if_mesh {
 	struct timer_list mesh_path_timer;
 	struct timer_list mesh_path_root_timer;
 
-	unsigned long timers_running;
-
 	unsigned long wrkq_flags;
 
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
