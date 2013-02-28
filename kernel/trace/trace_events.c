@@ -72,13 +72,8 @@ static int __trace_define_field(struct list_head *head, const char *type,
 	if (!field)
 		goto err;
 
-	field->name = kstrdup(name, GFP_KERNEL);
-	if (!field->name)
-		goto err;
-
-	field->type = kstrdup(type, GFP_KERNEL);
-	if (!field->type)
-		goto err;
+	field->name = name;
+	field->type = type;
 
 	if (filter_type == FILTER_OTHER)
 		field->filter_type = filter_assign_type(type);
@@ -94,8 +89,6 @@ static int __trace_define_field(struct list_head *head, const char *type,
 	return 0;
 
 err:
-	if (field)
-		kfree(field->name);
 	kmem_cache_free(field_cachep, field);
 
 	return -ENOMEM;
@@ -146,8 +139,6 @@ void trace_destroy_fields(struct ftrace_event_call *call)
 	head = trace_get_fields(call);
 	list_for_each_entry_safe(field, next, head, link) {
 		list_del(&field->link);
-		kfree(field->type);
-		kfree(field->name);
 		kmem_cache_free(field_cachep, field);
 	}
 }
@@ -286,7 +277,6 @@ static void __put_system(struct event_subsystem *system)
 		kfree(filter->filter_string);
 		kfree(filter);
 	}
-	kfree(system->name);
 	kfree(system);
 }
 
@@ -1202,10 +1192,7 @@ create_new_subsystem(const char *name)
 		return NULL;
 
 	system->ref_count = 1;
-	system->name = kstrdup(name, GFP_KERNEL);
-
-	if (!system->name)
-		goto out_free;
+	system->name = name;
 
 	system->filter = NULL;
 
@@ -1218,7 +1205,6 @@ create_new_subsystem(const char *name)
 	return system;
 
  out_free:
-	kfree(system->name);
 	kfree(system);
 	return NULL;
 }

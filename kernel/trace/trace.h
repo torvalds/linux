@@ -887,8 +887,8 @@ enum {
 
 struct ftrace_event_field {
 	struct list_head	link;
-	char			*name;
-	char			*type;
+	const char		*name;
+	const char		*type;
 	int			filter_type;
 	int			offset;
 	int			size;
