@@ -4389,6 +4389,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	info->iter.tr		= tr;
 	info->iter.cpu_file	= tc->cpu;
+	info->iter.trace	= tr->current_trace;
 	info->spare		= NULL;
 	/* Force reading ring buffer for first read */
 	info->read		= (unsigned int)-1;
@@ -4428,18 +4429,29 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	if (info->read < PAGE_SIZE)
 		goto read;
 
+ again:
 	trace_access_lock(iter->cpu_file);
 	ret = ring_buffer_read_page(iter->tr->buffer,
 				    &info->spare,
 				    count,
 				    iter->cpu_file, 0);
 	trace_access_unlock(iter->cpu_file);
-	if (ret < 0)
+
+	if (ret < 0) {
+		if (trace_empty(iter)) {
+			if ((filp->f_flags & O_NONBLOCK))
+				return -EAGAIN;
+			iter->trace->wait_pipe(iter);
+			if (signal_pending(current))
+				return -EINTR;
+			goto again;
+		}
 		return 0;
+	}
 
 	info->read = 0;
 
-read:
+ read:
 	size = PAGE_SIZE - info->read;
 	if (size > count)
 		size = count;
@@ -4616,7 +4628,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			ret = -EAGAIN;
 			goto out;
 		}
-		default_wait_pipe(iter);
+		iter->trace->wait_pipe(iter);
 		if (signal_pending(current)) {
 			ret = -EINTR;
 			goto out;
