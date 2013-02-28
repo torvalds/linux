@@ -25,7 +25,6 @@
 
 /**
  * struct v9fs_dentry - 9p private data stored in dentry d_fsdata
- * @lock: protects the fidlist
  * @fidlist: list of FIDs currently associated with this dentry
  *
  * This structure defines the 9p private data associated with
@@ -35,11 +34,12 @@
  * inodes in order to more closely map functionality to the Plan 9
  * expected behavior for FID reclaimation and tracking.
  *
+ * Protected by ->d_lock of dentry it belongs to.
+ *
  * See Also: Mapping FIDs to Linux VFS model in
  * Design and Implementation of the Linux 9P File System documentation
  */
 struct v9fs_dentry {
-	spinlock_t lock; /* protect fidlist */
 	struct list_head fidlist;
 };
 
