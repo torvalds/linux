@@ -596,7 +596,8 @@ static void sunxi_hcd_free_temp_setup(struct urb *urb)
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_SETUP))
 		return;
 
-	temp = container_of(urb->transfer_buffer, struct temp_buffer, data);
+	temp = container_of((void *)urb->setup_packet, struct temp_buffer,
+			    data);
 
 	urb->setup_packet = temp->old_buffer;
 	kfree(temp->kmalloc_ptr);
