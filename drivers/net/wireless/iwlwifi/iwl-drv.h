@@ -63,6 +63,8 @@
 #ifndef __iwl_drv_h__
 #define __iwl_drv_h__
 
+#include <linux/module.h>
+
 /* for all modules */
 #define DRV_NAME        "iwlwifi"
 #define IWLWIFI_VERSION "in-tree:"
@@ -122,5 +124,18 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
  * call this function and then do the bus related operations only.
  */
 void iwl_drv_stop(struct iwl_drv *drv);
+
+/*
+ * exported symbol management
+ *
+ * The driver can be split into multiple modules, in which case some symbols
+ * must be exported for the sub-modules. However, if it's not split and
+ * everything is built-in, then we can avoid that.
+ */
+#ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
+#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_GPL(sym)
+#else
+#define IWL_EXPORT_SYMBOL(sym)
+#endif
 
 #endif /* __iwl_drv_h__ */

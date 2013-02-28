@@ -62,6 +62,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
 
@@ -389,4 +390,4 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 
 	return data;
 }
-EXPORT_SYMBOL_GPL(iwl_parse_nvm_data);
+IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);

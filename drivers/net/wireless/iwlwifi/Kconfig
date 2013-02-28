@@ -58,6 +58,12 @@ config IWLMVM
 
 	  Say yes if you have such a device.
 
+# don't call it _MODULE -- will confuse Kconfig/fixdep/...
+config IWLWIFI_OPMODE_MODULAR
+	bool
+	default y if IWLDVM=m
+	default y if IWLMVM=m
+
 comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
 	depends on IWLWIFI && IWLDVM=n && IWLMVM=n
 

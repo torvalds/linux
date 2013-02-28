@@ -1111,7 +1111,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.wd_disable = true,
 	/* the rest are 0 by default */
 };
-EXPORT_SYMBOL_GPL(iwlwifi_mod_params);
+IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 {
@@ -1135,7 +1135,7 @@ int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_register);
+IWL_EXPORT_SYMBOL(iwl_opmode_register);
 
 void iwl_opmode_deregister(const char *name)
 {
@@ -1157,7 +1157,7 @@ void iwl_opmode_deregister(const char *name)
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_deregister);
+IWL_EXPORT_SYMBOL(iwl_opmode_deregister);
 
 static int __init iwl_drv_init(void)
 {

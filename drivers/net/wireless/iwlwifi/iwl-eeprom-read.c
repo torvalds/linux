@@ -63,6 +63,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
+#include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "iwl-eeprom-read.h"
 #include "iwl-io.h"
@@ -460,4 +461,4 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iwl_read_eeprom);
+IWL_EXPORT_SYMBOL(iwl_read_eeprom);

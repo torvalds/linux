@@ -62,6 +62,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-eeprom-parse.h"
 
@@ -909,7 +910,7 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	kfree(data);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(iwl_parse_eeprom_data);
+IWL_EXPORT_SYMBOL(iwl_parse_eeprom_data);
 
 /* helper functions */
 int iwl_nvm_check_version(struct iwl_nvm_data *data,
@@ -928,4 +929,4 @@ int iwl_nvm_check_version(struct iwl_nvm_data *data,
 		data->calib_version,  trans->cfg->nvm_calib_ver);
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(iwl_nvm_check_version);
+IWL_EXPORT_SYMBOL(iwl_nvm_check_version);
