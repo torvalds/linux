@@ -568,9 +568,17 @@ config SUN3I_NANDFLASH_TEST
 	  Nand flash test driver for SUN3I
 
 config SUNXI_NAND
-        depends on BLOCK
+	depends on BLOCK
 	depends on ARCH_SUN4I || ARCH_SUN5I
-        tristate "SUNXI Nandflash Driver"
+	tristate "SUNXI Nandflash Driver"
+
+config SUNXI_NAND_COMPAT_DEV
+	depends on SUNXI_NAND
+	bool "Create old nand device names (nanda-nandz)"
+	default y
+	---help---
+	  This is the traditional device naming on sunxi platform.
+	  If unsure, say Y.
 
 config SUNXI_NAND_TEST
 	depends on SUNXI_NAND

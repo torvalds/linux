@@ -124,7 +124,7 @@ int mbr2disks(struct nand_disk* disk_array)
 	disk_array[part_index].size = DiskSize;
 	part_index++;
 
-#ifdef CONFIG_ANDROID
+#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
 	if(_get_mbr()){
 		printk("get mbr error\n" );
 		return part_index;
