@@ -192,11 +192,9 @@ static int it913x_init(struct dvb_frontend *fe)
 
 	if (state->config->chip_ver == 2) {
 		ret = it913x_wr_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);
-		ret |= it913x_wr_reg(state, PRO_LINK, PADODPU, 0x0);
-		ret |= it913x_wr_reg(state, PRO_LINK, AGC_O_D, 0x0);
+		if (ret < 0)
+			return -ENODEV;
 	}
-	if (ret < 0)
-		return -ENODEV;
 
 	reg = it913x_rd_reg(state, 0xec86);
 	switch (reg) {
@@ -251,6 +249,12 @@ static int it913x_init(struct dvb_frontend *fe)
 			udelay(2000);
 		}
 	}
+
+	/* Power Up Tuner - common all versions */
+	ret = it913x_wr_reg(state, PRO_DMOD, 0xec40, 0x1);
+	ret |= it913x_wr_reg(state, PRO_DMOD, 0xfba8, 0x0);
+	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec57, 0x0);
+	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec58, 0x0);
 
 	return it913x_wr_reg(state, PRO_DMOD, 0xed81, val);
 }
