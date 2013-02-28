@@ -84,6 +84,7 @@ struct btrfs_trans_handle {
 
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
+	struct inode *dir;
 	struct btrfs_root *root;
 	struct btrfs_root *snap;
 	struct btrfs_qgroup_inherit *inherit;

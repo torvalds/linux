@@ -1068,7 +1068,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct inode *parent_inode;
 	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
-	struct dentry *parent;
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
@@ -1126,8 +1125,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	trans->bytes_reserved = trans->block_rsv->reserved;
 
 	dentry = pending->dentry;
-	parent = dget_parent(dentry);
-	parent_inode = parent->d_inode;
+	parent_inode = pending->dir;
 	parent_root = BTRFS_I(parent_inode)->root;
 	record_root_in_trans(trans, parent_root);
 
@@ -1275,7 +1273,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 fail:
-	dput(parent);
 	trans->block_rsv = rsv;
 	trans->bytes_reserved = 0;
 no_free_objectid:
