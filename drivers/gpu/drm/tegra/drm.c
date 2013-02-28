@@ -615,10 +615,13 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
 	{ .compatible = "nvidia,tegra20-hdmi", },
 	{ .compatible = "nvidia,tegra20-gr2d", },
+	{ .compatible = "nvidia,tegra20-gr3d", },
 	{ .compatible = "nvidia,tegra30-dc", },
 	{ .compatible = "nvidia,tegra30-hdmi", },
 	{ .compatible = "nvidia,tegra30-gr2d", },
+	{ .compatible = "nvidia,tegra30-gr3d", },
 	{ .compatible = "nvidia,tegra114-hdmi", },
+	{ .compatible = "nvidia,tegra114-gr3d", },
 	{ /* sentinel */ }
 };
 
@@ -649,8 +652,14 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		goto unregister_hdmi;
 
+	err = platform_driver_register(&tegra_gr3d_driver);
+	if (err < 0)
+		goto unregister_gr2d;
+
 	return 0;
 
+unregister_gr2d:
+	platform_driver_unregister(&tegra_gr2d_driver);
 unregister_hdmi:
 	platform_driver_unregister(&tegra_hdmi_driver);
 unregister_dc:
@@ -663,6 +672,7 @@ module_init(host1x_drm_init);
 
 static void __exit host1x_drm_exit(void)
 {
+	platform_driver_unregister(&tegra_gr3d_driver);
 	platform_driver_unregister(&tegra_gr2d_driver);
 	platform_driver_unregister(&tegra_hdmi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
