@@ -1180,7 +1180,6 @@ static void rproc_type_release(struct device *dev)
 
 	rproc_delete_debug_dir(rproc);
 
-	idr_remove_all(&rproc->notifyids);
 	idr_destroy(&rproc->notifyids);
 
 	if (rproc->index >= 0)
