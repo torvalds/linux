@@ -278,24 +278,15 @@ build_up:
 	return(v);
 }
 
-static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
+/*
+ * @id and @pa are from a successful allocation from idr_get_empty_slot().
+ * Install the user pointer @ptr and mark the slot full.
+ */
+static void idr_fill_slot(void *ptr, int id, struct idr_layer **pa)
 {
-	struct idr_layer *pa[MAX_IDR_LEVEL];
-	int id;
-
-	id = idr_get_empty_slot(idp, starting_id, pa);
-	if (id >= 0) {
-		/*
-		 * Successfully found an empty slot.  Install the user
-		 * pointer and mark the slot full.
-		 */
-		rcu_assign_pointer(pa[0]->ary[id & IDR_MASK],
-				(struct idr_layer *)ptr);
-		pa[0]->count++;
-		idr_mark_full(pa, id);
-	}
-
-	return id;
+	rcu_assign_pointer(pa[0]->ary[id & IDR_MASK], (struct idr_layer *)ptr);
+	pa[0]->count++;
+	idr_mark_full(pa, id);
 }
 
 /**
@@ -318,11 +309,14 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
  */
 int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id)
 {
+	struct idr_layer *pa[MAX_IDR_LEVEL];
 	int rv;
 
-	rv = idr_get_new_above_int(idp, ptr, starting_id);
+	rv = idr_get_empty_slot(idp, starting_id, pa);
 	if (rv < 0)
 		return rv == -ENOMEM ? -EAGAIN : rv;
+
+	idr_fill_slot(ptr, rv, pa);
 	*id = rv;
 	return 0;
 }
