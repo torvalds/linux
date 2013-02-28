@@ -865,9 +865,11 @@ char *ppsize(char *buf, unsigned long long size)
  * and can be long lived.
  * This changes an device->flag, is triggered by drbd internals,
  * and should be short-lived. */
+/* It needs to be a counter, since multiple threads might
+   independently suspend and resume IO. */
 void drbd_suspend_io(struct drbd_device *device)
 {
-	set_bit(SUSPEND_IO, &device->flags);
+	atomic_inc(&device->suspend_cnt);
 	if (drbd_suspended(device))
 		return;
 	wait_event(device->misc_wait, !atomic_read(&device->ap_bio_cnt));
@@ -875,8 +877,8 @@ void drbd_suspend_io(struct drbd_device *device)
 
 void drbd_resume_io(struct drbd_device *device)
 {
-	clear_bit(SUSPEND_IO, &device->flags);
-	wake_up(&device->misc_wait);
+	if (atomic_dec_and_test(&device->suspend_cnt))
+		wake_up(&device->misc_wait);
 }
 
 /**

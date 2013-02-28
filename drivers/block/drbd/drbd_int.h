@@ -500,7 +500,6 @@ enum {
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
 
-	SUSPEND_IO,		/* suspend application io */
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
@@ -880,6 +879,7 @@ struct drbd_device {
 	atomic_t rs_pending_cnt; /* RS request/data packets on the wire */
 	atomic_t unacked_cnt;	 /* Need to send replies for */
 	atomic_t local_cnt;	 /* Waiting for local completion */
+	atomic_t suspend_cnt;
 
 	/* Interval tree of pending local requests */
 	struct rb_root read_requests;
@@ -2263,7 +2263,7 @@ static inline bool may_inc_ap_bio(struct drbd_device *device)
 
 	if (drbd_suspended(device))
 		return false;
-	if (test_bit(SUSPEND_IO, &device->flags))
+	if (atomic_read(&device->suspend_cnt))
 		return false;
 
 	/* to avoid potential deadlock or bitmap corruption,

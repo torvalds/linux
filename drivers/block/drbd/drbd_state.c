@@ -1484,7 +1484,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 	D_ASSERT(device, current == first_peer_device(device)->connection->worker.task);
 
 	/* open coded non-blocking drbd_suspend_io(device); */
-	set_bit(SUSPEND_IO, &device->flags);
+	atomic_inc(&device->suspend_cnt);
 
 	drbd_bm_lock(device, why, flags);
 	rv = io_fn(device);
