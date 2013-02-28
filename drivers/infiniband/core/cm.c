@@ -390,7 +390,7 @@ static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 
 	id = idr_alloc(&cm.local_id_table, cm_id_priv, next_id, 0, GFP_NOWAIT);
 	if (id >= 0)
-		next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
+		next_id = max(id + 1, 0);
 
 	spin_unlock_irqrestore(&cm.lock, flags);
 	idr_preload_end();
