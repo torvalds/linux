@@ -46,10 +46,9 @@ static int is_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 	int r = 0;
 	unsigned bucket = dm_hash_block(b, DM_HASH_MASK);
 	struct shadow_info *si;
-	struct hlist_node *n;
 
 	spin_lock(&tm->lock);
-	hlist_for_each_entry(si, n, tm->buckets + bucket, hlist)
+	hlist_for_each_entry(si, tm->buckets + bucket, hlist)
 		if (si->where == b) {
 			r = 1;
 			break;
@@ -81,14 +80,14 @@ static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 static void wipe_shadow_table(struct dm_transaction_manager *tm)
 {
 	struct shadow_info *si;
-	struct hlist_node *n, *tmp;
+	struct hlist_node *tmp;
 	struct hlist_head *bucket;
 	int i;
 
 	spin_lock(&tm->lock);
 	for (i = 0; i < DM_HASH_SIZE; i++) {
 		bucket = tm->buckets + i;
-		hlist_for_each_entry_safe(si, n, tmp, bucket, hlist)
+		hlist_for_each_entry_safe(si, tmp, bucket, hlist)
 			kfree(si);
 
 		INIT_HLIST_HEAD(bucket);

@@ -106,9 +106,8 @@ static struct dm_bio_prison_cell *__search_bucket(struct hlist_head *bucket,
 						  struct dm_cell_key *key)
 {
 	struct dm_bio_prison_cell *cell;
-	struct hlist_node *tmp;
 
-	hlist_for_each_entry(cell, tmp, bucket, list)
+	hlist_for_each_entry(cell, bucket, list)
 		if (keys_equal(&cell->key, key))
 			return cell;
 

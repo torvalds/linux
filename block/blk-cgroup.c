@@ -357,7 +357,6 @@ static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 	int i;
 
 	mutex_lock(&blkcg_pol_mutex);
@@ -368,7 +367,7 @@ static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 	 * stat updates.  This is a debug feature which shouldn't exist
 	 * anyway.  If you get hit by a race, retry.
 	 */
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
 
@@ -415,11 +414,10 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 		       bool show_total)
 {
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 	u64 total = 0;
 
 	spin_lock_irq(&blkcg->lock);
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node)
 		if (blkcg_policy_enabled(blkg->q, pol))
 			total += prfill(sf, blkg->pd[pol->plid], data);
 	spin_unlock_irq(&blkcg->lock);

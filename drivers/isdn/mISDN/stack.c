@@ -64,12 +64,11 @@ unlock:
 static void
 send_socklist(struct mISDN_sock_list *sl, struct sk_buff *skb)
 {
-	struct hlist_node	*node;
 	struct sock		*sk;
 	struct sk_buff		*cskb = NULL;
 
 	read_lock(&sl->lock);
-	sk_for_each(sk, node, &sl->head) {
+	sk_for_each(sk, &sl->head) {
 		if (sk->sk_state != MISDN_BOUND)
 			continue;
 		if (!cskb)

@@ -1391,24 +1391,23 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (!idr_pre_get(&sg_index_idr, GFP_KERNEL)) {
-		printk(KERN_WARNING "idr expansion Sg_device failure\n");
-		error = -ENOMEM;
-		goto out;
-	}
-
+	idr_preload(GFP_KERNEL);
 	write_lock_irqsave(&sg_index_lock, iflags);
 
-	error = idr_get_new(&sg_index_idr, sdp, &k);
-	if (error) {
-		write_unlock_irqrestore(&sg_index_lock, iflags);
-		printk(KERN_WARNING "idr allocation Sg_device failure: %d\n",
-		       error);
-		goto out;
+	error = idr_alloc(&sg_index_idr, sdp, 0, SG_MAX_DEVS, GFP_NOWAIT);
+	if (error < 0) {
+		if (error == -ENOSPC) {
+			sdev_printk(KERN_WARNING, scsidp,
+				    "Unable to attach sg device type=%d, minor number exceeds %d\n",
+				    scsidp->type, SG_MAX_DEVS - 1);
+			error = -ENODEV;
+		} else {
+			printk(KERN_WARNING
+			       "idr allocation Sg_device failure: %d\n", error);
+		}
+		goto out_unlock;
 	}
-
-	if (unlikely(k >= SG_MAX_DEVS))
-		goto overflow;
+	k = error;
 
 	SCSI_LOG_TIMEOUT(3, printk("sg_alloc: dev=%d \n", k));
 	sprintf(disk->disk_name, "sg%d", k);
@@ -1420,25 +1419,17 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	sdp->sg_tablesize = queue_max_segments(q);
 	sdp->index = k;
 	kref_init(&sdp->d_ref);
-
-	write_unlock_irqrestore(&sg_index_lock, iflags);
-
 	error = 0;
- out:
+
+out_unlock:
+	write_unlock_irqrestore(&sg_index_lock, iflags);
+	idr_preload_end();
+
 	if (error) {
 		kfree(sdp);
 		return ERR_PTR(error);
 	}
 	return sdp;
-
- overflow:
-	idr_remove(&sg_index_idr, k);
-	write_unlock_irqrestore(&sg_index_lock, iflags);
-	sdev_printk(KERN_WARNING, scsidp,
-		    "Unable to attach sg device type=%d, minor "
-		    "number exceeds %d\n", scsidp->type, SG_MAX_DEVS - 1);
-	error = -ENODEV;
-	goto out;
 }
 
 static int

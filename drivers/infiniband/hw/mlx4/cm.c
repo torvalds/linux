@@ -203,7 +203,7 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 static struct id_map_entry *
 id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 {
-	int ret, id;
+	int ret;
 	static int next_id;
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
@@ -220,25 +220,23 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	ent->dev = to_mdev(ibdev);
 	INIT_DELAYED_WORK(&ent->timeout, id_map_ent_timeout);
 
-	do {
-		spin_lock(&to_mdev(ibdev)->sriov.id_map_lock);
-		ret = idr_get_new_above(&sriov->pv_id_table, ent,
-					next_id, &id);
-		if (!ret) {
-			next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
-			ent->pv_cm_id = (u32)id;
-			sl_id_map_add(ibdev, ent);
-		}
+	idr_preload(GFP_KERNEL);
+	spin_lock(&to_mdev(ibdev)->sriov.id_map_lock);
 
-		spin_unlock(&sriov->id_map_lock);
-	} while (ret == -EAGAIN && idr_pre_get(&sriov->pv_id_table, GFP_KERNEL));
-	/*the function idr_get_new_above can return -ENOSPC, so don't insert in that case.*/
-	if (!ret) {
-		spin_lock(&sriov->id_map_lock);
+	ret = idr_alloc(&sriov->pv_id_table, ent, next_id, 0, GFP_NOWAIT);
+	if (ret >= 0) {
+		next_id = max(ret + 1, 0);
+		ent->pv_cm_id = (u32)ret;
+		sl_id_map_add(ibdev, ent);
 		list_add_tail(&ent->list, &sriov->cm_list);
-		spin_unlock(&sriov->id_map_lock);
-		return ent;
 	}
+
+	spin_unlock(&sriov->id_map_lock);
+	idr_preload_end();
+
+	if (ret >= 0)
+		return ent;
+
 	/*error flow*/
 	kfree(ent);
 	mlx4_ib_warn(ibdev, "No more space in the idr (err:0x%x)\n", ret);

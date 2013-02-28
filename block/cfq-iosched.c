@@ -1435,7 +1435,6 @@ static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 
 	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
 		return -EINVAL;
@@ -1443,7 +1442,7 @@ static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 	spin_lock_irq(&blkcg->lock);
 	blkcg->cfq_weight = (unsigned int)val;
 
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 		struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
 		if (cfqg && !cfqg->dev_weight)

@@ -75,7 +75,7 @@ Throttling/Upper Limit policy
         mount -t cgroup -o blkio none /sys/fs/cgroup/blkio
 
 - Specify a bandwidth rate on particular device for root group. The format
-  for policy is "<major>:<minor>  <byes_per_second>".
+  for policy is "<major>:<minor>  <bytes_per_second>".
 
         echo "8:16  1048576" > /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
 
