@@ -50,6 +50,7 @@
 #include "tda10071.h"
 #include "a8293.h"
 #include "qt1010.h"
+#include "mb86a20s.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -766,8 +767,24 @@ static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
 };
 static struct qt1010_config em28xx_qt1010_config = {
 	.i2c_address = 0x62
-
 };
+
+static const struct mb86a20s_config c3tech_duo_mb86a20s_config = {
+	.demod_address = 0x10,
+	.is_serial = true,
+};
+
+static struct tda18271_std_map mb86a20s_tda18271_config = {
+	.dvbt_6   = { .if_freq = 4000, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+};
+
+static struct tda18271_config c3tech_duo_tda18271_config = {
+	.std_map = &mb86a20s_tda18271_config,
+	.gate    = TDA18271_GATE_DIGITAL,
+	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
+};
+
 
 /* ------------------------------------------------------------------ */
 
@@ -1176,6 +1193,15 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 0);
 
+		break;
+	case EM2884_BOARD_C3TECH_DIGITAL_DUO:
+		dvb->fe[0] = dvb_attach(mb86a20s_attach,
+					   &c3tech_duo_mb86a20s_config,
+					   &dev->i2c_adap[dev->def_i2c_bus]);
+		if (dvb->fe[0] != NULL)
+			dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+				   &dev->i2c_adap[dev->def_i2c_bus],
+				   &c3tech_duo_tda18271_config);
 		break;
 	case EM28174_BOARD_PCTV_460E:
 		/* attach demod */

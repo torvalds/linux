@@ -129,6 +129,7 @@
 #define EM2884_BOARD_PCTV_510E			  85
 #define EM2884_BOARD_PCTV_520E			  86
 #define EM2884_BOARD_TERRATEC_HTC_USB_XS	  87
+#define EM2884_BOARD_C3TECH_DIGITAL_DUO		  88
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

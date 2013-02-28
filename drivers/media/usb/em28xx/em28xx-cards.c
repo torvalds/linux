@@ -345,6 +345,18 @@ static struct em28xx_reg_seq pctv_460e[] = {
 	{             -1,   -1,   -1,  -1},
 };
 
+static struct em28xx_reg_seq c3tech_digital_duo_digital[] = {
+	{EM2874_R80_GPIO,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO,	0xfd,	0xff,	10}, /* xc5000 reset */
+	{EM2874_R80_GPIO,	0xf9,	0xff,	35},
+	{EM2874_R80_GPIO,	0xfd,	0xff,	10},
+	{EM2874_R80_GPIO,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO,	0xfe,	0xff,	10},
+	{EM2874_R80_GPIO,	0xbe,	0xff,	10},
+	{EM2874_R80_GPIO,	0xfe,	0xff,	20},
+	{ -1,			-1,	-1,	-1},
+};
+
 #if 0
 static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
 	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
@@ -977,6 +989,16 @@ struct em28xx_board em28xx_boards[] = {
 		.def_i2c_bus  = 1,
 		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	[EM2884_BOARD_C3TECH_DIGITAL_DUO] = {
+		.name         = "C3 Tech Digital Duo HDTV/SDTV USB",
+		.has_dvb      = 1,
+		/* FIXME: Add analog support - need a saa7136 driver */
+		.tuner_type = TUNER_ABSENT,	/* Digital-only TDA18271HD */
+		.ir_codes     = RC_MAP_EMPTY,
+		.def_i2c_bus  = 1,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE,
+		.dvb_gpio     = c3tech_digital_duo_digital,
 	},
 	[EM2884_BOARD_CINERGY_HTC_STICK] = {
 		.name         = "Terratec Cinergy HTC Stick",
@@ -2144,6 +2166,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28174_BOARD_PCTV_460E },
 	{ USB_DEVICE(0x2040, 0x1605),
 			.driver_info = EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C },
+	{ USB_DEVICE(0x1b80, 0xe755),
+			.driver_info = EM2884_BOARD_C3TECH_DIGITAL_DUO },
 	{ USB_DEVICE(0xeb1a, 0x5006),
 			.driver_info = EM2860_BOARD_HT_VIDBOX_NW03 },
 	{ USB_DEVICE(0x1b80, 0xe309), /* Sveon STV40 */
