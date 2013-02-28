@@ -240,7 +240,7 @@ static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
 		struct cs_cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(cs_cpu_dbs_info, j);
 		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-						&dbs_info->cdbs.prev_cpu_wall);
+					&dbs_info->cdbs.prev_cpu_wall, 0);
 		if (cs_tuners->ignore_nice)
 			dbs_info->cdbs.prev_cpu_nice =
 				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
