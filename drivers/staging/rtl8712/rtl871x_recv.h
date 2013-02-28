@@ -9,9 +9,6 @@
 #define RXFRAME_ALIGN	8
 #define RXFRAME_ALIGN_SZ	(1 << RXFRAME_ALIGN)
 
-#define MAX_RXFRAME_CNT	512
-#define MAX_RX_NUMBLKS		(32)
-#define RECVFRAME_HDR_ALIGN 128
 #define MAX_SUBFRAME_COUNT	64
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
