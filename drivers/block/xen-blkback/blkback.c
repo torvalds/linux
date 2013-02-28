@@ -904,7 +904,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		pr_debug(DRV_PFX "access denied: %s of [%llu,%llu] on dev=%04x\n",
 			 operation == READ ? "read" : "write",
 			 preq.sector_number,
-			 preq.sector_number + preq.nr_sects, preq.dev);
+			 preq.sector_number + preq.nr_sects,
+			 blkif->vbd.pdevice);
 		goto fail_response;
 	}
 
