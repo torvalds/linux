@@ -49,6 +49,9 @@ enum chips { ltc2978, ltc3880 };
 #define LTC3880_ID			0x4000
 #define LTC3880_ID_MASK			0xff00
 
+#define LTC2978_NUM_PAGES		8
+#define LTC3880_NUM_PAGES		2
+
 /*
  * LTC2978 clears peak data whenever the CLEAR_FAULTS command is executed, which
  * happens pretty much each time chip data is updated. Raw peak data therefore
@@ -56,13 +59,14 @@ enum chips { ltc2978, ltc3880 };
  * internal cache of measured peak data, which is only cleared if an explicit
  * "clear peak" command is executed for the sensor in question.
  */
+
 struct ltc2978_data {
 	enum chips id;
-	int vin_min, vin_max;
-	int temp_min, temp_max[2];
-	int vout_min[8], vout_max[8];
-	int iout_max[2];
-	int temp2_max;
+	u16 vin_min, vin_max;
+	u16 temp_min, temp_max[LTC3880_NUM_PAGES];
+	u16 vout_min[LTC2978_NUM_PAGES], vout_max[LTC2978_NUM_PAGES];
+	u16 iout_max[LTC3880_NUM_PAGES];
+	u16 temp2_max;
 	struct pmbus_driver_info info;
 };
 
@@ -323,6 +327,8 @@ static int ltc2978_probe(struct i2c_client *client,
 
 	data->vin_min = 0x7bff;
 	data->vin_max = 0x7c00;
+	for (i = 0; i < ARRAY_SIZE(data->vout_min); i++)
+		data->vout_min[i] = 0xffff;
 	data->temp_min = 0x7bff;
 	for (i = 0; i < ARRAY_SIZE(data->temp_max); i++)
 		data->temp_max[i] = 0x7c00;
@@ -331,18 +337,18 @@ static int ltc2978_probe(struct i2c_client *client,
 	switch (data->id) {
 	case ltc2978:
 		info->read_word_data = ltc2978_read_word_data;
-		info->pages = 8;
+		info->pages = LTC2978_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
 		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
 		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
-		for (i = 1; i < 8; i++) {
+		for (i = 1; i < LTC2978_NUM_PAGES; i++) {
 			info->func[i] = PMBUS_HAVE_VOUT
 			  | PMBUS_HAVE_STATUS_VOUT;
 		}
 		break;
 	case ltc3880:
 		info->read_word_data = ltc3880_read_word_data;
-		info->pages = 2;
+		info->pages = LTC3880_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
 		  | PMBUS_HAVE_STATUS_INPUT
 		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
@@ -359,9 +365,6 @@ static int ltc2978_probe(struct i2c_client *client,
 	default:
 		return -ENODEV;
 	}
-	for (i = 0; i < info->pages; i++)
-		data->vout_min[i] = 0xffff;
-
 	return pmbus_do_probe(client, id, info);
 }
 
