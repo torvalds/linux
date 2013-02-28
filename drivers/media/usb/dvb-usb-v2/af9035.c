@@ -978,20 +978,6 @@ static const struct fc0012_config af9035_fc0012_config[] = {
 	}
 };
 
-static struct ite_config af9035_it913x_config = {
-	.chip_ver = 0x02,
-	.chip_type = 0x9135,
-	.firmware = 0x00000000,
-	.firmware_ver = 1,
-	.adc_x2 = 1,
-	.tuner_id_0 = 0x00,
-	.tuner_id_1 = 0x00,
-	.dual_mode = 0x00,
-	.adf = 0x00,
-	/* option to read SIGNAL_LEVEL */
-	.read_slevel = 0,
-};
-
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct state *state = adap_to_priv(adap);
@@ -1159,15 +1145,13 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 	case AF9033_TUNER_IT9135_38:
 	case AF9033_TUNER_IT9135_51:
 	case AF9033_TUNER_IT9135_52:
-		af9035_it913x_config.chip_ver = 0x01;
 	case AF9033_TUNER_IT9135_60:
 	case AF9033_TUNER_IT9135_61:
 	case AF9033_TUNER_IT9135_62:
-		af9035_it913x_config.tuner_id_0 = state->af9033_config[0].tuner;
 		/* attach tuner */
 		fe = dvb_attach(it913x_attach, adap->fe[0], &d->i2c_adap,
 				state->af9033_config[adap->id].i2c_addr,
-				&af9035_it913x_config);
+				state->af9033_config[0].tuner);
 		break;
 	default:
 		fe = NULL;

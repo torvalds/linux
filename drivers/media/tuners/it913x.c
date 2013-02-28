@@ -25,7 +25,8 @@
 struct it913x_state {
 	struct dvb_frontend frontend;
 	struct i2c_adapter *i2c_adap;
-	struct ite_config *config;
+	u8 chip_ver;
+	u8 firmware_ver;
 	u8 i2c_addr;
 	u32 frequency;
 	fe_modulation_t constellation;
@@ -156,7 +157,7 @@ static int it913x_init(struct dvb_frontend *fe)
 	u8 b[2];
 
 	/* v1 or v2 tuner script */
-	if (state->config->chip_ver > 1)
+	if (state->chip_ver > 1)
 		ret = it913x_script_loader(state, it9135_v2);
 	else
 		ret = it913x_script_loader(state, it9135_v1);
@@ -190,7 +191,7 @@ static int it913x_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	if (state->config->chip_ver == 2) {
+	if (state->chip_ver == 2) {
 		ret = it913x_wr_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);
 		if (ret < 0)
 			return -ENODEV;
@@ -237,7 +238,7 @@ static int it913x_init(struct dvb_frontend *fe)
 	state->tun_fn_min /= (state->tun_fdiv * nv_val);
 	pr_debug("Tuner fn_min %d\n", state->tun_fn_min);
 
-	if (state->config->chip_ver > 1)
+	if (state->chip_ver > 1)
 		msleep(50);
 	else {
 		for (i = 0; i < 50; i++) {
@@ -276,7 +277,7 @@ static int it9137_set_params(struct dvb_frontend *fe)
 	u8 lna_band;
 	u8 bw;
 
-	if (state->config->firmware_ver == 1)
+	if (state->firmware_ver == 1)
 		set_tuner = set_it9135_template;
 	else
 		set_tuner = set_it9137_template;
@@ -440,40 +441,47 @@ static const struct dvb_tuner_ops it913x_tuner_ops = {
 };
 
 struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c_adap, u8 i2c_addr, struct ite_config *config)
+		struct i2c_adapter *i2c_adap, u8 i2c_addr, u8 config)
 {
 	struct it913x_state *state = NULL;
-	int ret;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct it913x_state), GFP_KERNEL);
 	if (state == NULL)
 		return NULL;
-	if (config == NULL)
-		goto error;
 
 	state->i2c_adap = i2c_adap;
 	state->i2c_addr = i2c_addr;
-	state->config = config;
 
-	switch (state->config->tuner_id_0) {
+	switch (config) {
+	case IT9135_38:
 	case IT9135_51:
 	case IT9135_52:
+		state->chip_ver = 0x01;
+		break;
 	case IT9135_60:
 	case IT9135_61:
 	case IT9135_62:
-		state->tuner_type = state->config->tuner_id_0;
+		state->chip_ver = 0x02;
 		break;
 	default:
-	case IT9135_38:
-		state->tuner_type = IT9135_38;
+		dev_dbg(&i2c_adap->dev,
+				"%s: invalid config=%02x\n", __func__, config);
+		goto error;
 	}
+
+	state->tuner_type = config;
+	state->firmware_ver = 1;
 
 	fe->tuner_priv = state;
 	memcpy(&fe->ops.tuner_ops, &it913x_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
 
-	pr_info("%s: ITE Tech IT913X attached\n", KBUILD_MODNAME);
+	dev_info(&i2c_adap->dev,
+			"%s: ITE Tech IT913X successfully attached\n",
+			KBUILD_MODNAME);
+	dev_dbg(&i2c_adap->dev, "%s: config=%02x chip_ver=%02x\n",
+			__func__, config, state->chip_ver);
 
 	return fe;
 error:

@@ -25,27 +25,17 @@
 
 #include "dvb_frontend.h"
 
-struct ite_config {
-	u8 chip_ver;
-	u16 chip_type;
-	u32 firmware;
-	u8 firmware_ver;
-	u8 adc_x2;
-	u8 tuner_id_0;
-	u8 tuner_id_1;
-	u8 dual_mode;
-	u8 adf;
-	/* option to read SIGNAL_LEVEL */
-	u8 read_slevel;
-};
-
 #if defined(CONFIG_MEDIA_TUNER_IT913X) || \
 	(defined(CONFIG_MEDIA_TUNER_IT913X_MODULE) && defined(MODULE))
 extern struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c_adap, u8 i2c_addr, struct ite_config *config);
+	struct i2c_adapter *i2c_adap,
+	u8 i2c_addr,
+	u8 config);
 #else
 static inline struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c_adap, u8 i2c_addr, struct ite_config *config)
+	struct i2c_adapter *i2c_adap,
+	u8 i2c_addr,
+	u8 config)
 {
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
