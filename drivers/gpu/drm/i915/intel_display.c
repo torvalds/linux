@@ -71,8 +71,24 @@ typedef struct intel_limit intel_limit_t;
 struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
 	intel_p2_t	    p2;
-	bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
-			int, int, intel_clock_t *, intel_clock_t *);
+	/**
+	 * find_pll() - Find the best values for the PLL
+	 * @limit: limits for the PLL
+	 * @crtc: current CRTC
+	 * @target: target frequency in kHz
+	 * @refclk: reference clock frequency in kHz
+	 * @match_clock: if provided, @best_clock P divider must
+	 *               match the P divider from @match_clock
+	 *               used for LVDS downclocking
+	 * @best_clock: best PLL values found
+	 *
+	 * Returns true on success, false on failure.
+	 */
+	bool (*find_pll)(const intel_limit_t *limit,
+			 struct drm_crtc *crtc,
+			 int target, int refclk,
+			 intel_clock_t *match_clock,
+			 intel_clock_t *best_clock);
 };
 
 /* FDI */
