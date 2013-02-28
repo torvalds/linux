@@ -839,7 +839,11 @@ err_gpio_request_failed:
 	input_mt_init_slots(ts->input_dev, ts->max_touch_num);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
+#ifdef CONFIG_MACH_RK3168_86V_OLD
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, 415, 0, 0);	
+#else
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
+#endif
 	//printk("\n\nhjc:%s,x_max=%d,y_max=%d\n",__func__,ts->abs_x_max,ts->abs_y_max);
 	
 	
