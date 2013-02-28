@@ -131,8 +131,10 @@ arch/arm/mach-rk29/*.h
 arch/arm/mach-rk29/*.S
 arch/arm/mach-rk29/Makefile*
 arch/arm/mach-rk29/include
+arch/arm/mach-rk30/*rk3168m*
 arch/arm/mach-rk*/*-fpga*
 arch/arm/configs/rk29_*
+arch/arm/configs/rk3168m_*
 arch/arm/configs/*_fpga_*
 )
 # ---------------------------------------------------------------------------
