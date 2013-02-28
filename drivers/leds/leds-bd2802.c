@@ -732,7 +732,7 @@ failed_unregister_dev_file:
 	return ret;
 }
 
-static int __exit bd2802_remove(struct i2c_client *client)
+static int bd2802_remove(struct i2c_client *client)
 {
 	struct bd2802_led *led = i2c_get_clientdata(client);
 	int i;
@@ -804,7 +804,7 @@ static struct i2c_driver bd2802_i2c_driver = {
 		.pm	= BD2802_PM,
 	},
 	.probe		= bd2802_probe,
-	.remove		= __exit_p(bd2802_remove),
+	.remove		= bd2802_remove,
 	.id_table	= bd2802_id,
 };
 
