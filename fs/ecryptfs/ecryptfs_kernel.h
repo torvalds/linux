@@ -172,6 +172,19 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE 24
 #define ECRYPTFS_ENCRYPTED_DENTRY_NAME_LEN (18 + 1 + 4 + 1 + 32)
 
+#ifdef CONFIG_ECRYPT_FS_MESSAGING
+# define ECRYPTFS_VERSIONING_MASK_MESSAGING (ECRYPTFS_VERSIONING_DEVMISC \
+					     | ECRYPTFS_VERSIONING_PUBKEY)
+#else
+# define ECRYPTFS_VERSIONING_MASK_MESSAGING 0
+#endif
+
+#define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
+				  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
+				  | ECRYPTFS_VERSIONING_XATTR \
+				  | ECRYPTFS_VERSIONING_MULTKEY \
+				  | ECRYPTFS_VERSIONING_MASK_MESSAGING \
+				  | ECRYPTFS_VERSIONING_FILENAME_ENCRYPTION)
 struct ecryptfs_key_sig {
 	struct list_head crypt_stat_list;
 	char keysig[ECRYPTFS_SIG_SIZE_HEX + 1];
@@ -399,7 +412,9 @@ struct ecryptfs_daemon {
 	struct hlist_node euid_chain;
 };
 
+#ifdef CONFIG_ECRYPT_FS_MESSAGING
 extern struct mutex ecryptfs_daemon_hash_mux;
+#endif
 
 static inline size_t
 ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
@@ -604,6 +619,7 @@ int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
+#ifdef CONFIG_ECRYPT_FS_MESSAGING
 int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 			      struct ecryptfs_message *msg, u32 seq);
 int ecryptfs_send_message(char *data, int data_len,
@@ -612,6 +628,24 @@ int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
 			       struct ecryptfs_message **emsg);
 int ecryptfs_init_messaging(void);
 void ecryptfs_release_messaging(void);
+#else
+static inline int ecryptfs_init_messaging(void)
+{
+	return 0;
+}
+static inline void ecryptfs_release_messaging(void)
+{ }
+static inline int ecryptfs_send_message(char *data, int data_len,
+					struct ecryptfs_msg_ctx **msg_ctx)
+{
+	return -ENOTCONN;
+}
+static inline int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
+					     struct ecryptfs_message **emsg)
+{
+	return -ENOMSG;
+}
+#endif
 
 void
 ecryptfs_write_header_metadata(char *virt,
@@ -649,12 +683,11 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode);
 struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index);
-int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
-int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon);
 int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 				 size_t *length_size);
 int ecryptfs_write_packet_length(char *dest, size_t size,
 				 size_t *packet_size_length);
+#ifdef CONFIG_ECRYPT_FS_MESSAGING
 int ecryptfs_init_ecryptfs_miscdev(void);
 void ecryptfs_destroy_ecryptfs_miscdev(void);
 int ecryptfs_send_miscdev(char *data, size_t data_size,
@@ -663,6 +696,9 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx);
 int
 ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, struct file *file);
+int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
+int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon);
+#endif
 int ecryptfs_init_kthread(void);
 void ecryptfs_destroy_kthread(void);
 int ecryptfs_privileged_open(struct file **lower_file,
