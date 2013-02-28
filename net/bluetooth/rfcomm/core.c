@@ -627,9 +627,6 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s)
 
 	list_del(&s->list);
 
-	if (state == BT_CONNECTED)
-		rfcomm_send_disc(s, 0);
-
 	rfcomm_session_clear_timer(s);
 	sock_release(s->sock);
 	kfree(s);
