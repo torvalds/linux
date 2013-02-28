@@ -54,12 +54,12 @@ int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 		if (!dent)
 			return -ENOMEM;
 
-		INIT_LIST_HEAD(&dent->fidlist);
+		INIT_HLIST_HEAD(&dent->fidlist);
 		dentry->d_fsdata = dent;
 	}
 
 	spin_lock(&dentry->d_lock);
-	list_add(&fid->dlist, &dent->fidlist);
+	hlist_add_head(&fid->dlist, &dent->fidlist);
 	spin_unlock(&dentry->d_lock);
 
 	return 0;
@@ -84,8 +84,9 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 	dent = (struct v9fs_dentry *) dentry->d_fsdata;
 	ret = NULL;
 	if (dent) {
+		struct hlist_node *n;
 		spin_lock(&dentry->d_lock);
-		list_for_each_entry(fid, &dent->fidlist, dlist) {
+		hlist_for_each_entry(fid, n, &dent->fidlist, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
 				break;

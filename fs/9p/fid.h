@@ -40,7 +40,7 @@
  * Design and Implementation of the Linux 9P File System documentation
  */
 struct v9fs_dentry {
-	struct list_head fidlist;
+	struct hlist_head fidlist;
 };
 
 struct p9_fid *v9fs_fid_lookup(struct dentry *dentry);
