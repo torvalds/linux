@@ -351,6 +351,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	if (status)
 		goto out;
+	if (open->op_xdr_error) {
+		status = open->op_xdr_error;
+		goto out;
+	}
 
 	status = nfsd4_check_open_attributes(rqstp, cstate, open);
 	if (status)
@@ -414,6 +418,24 @@ out:
 	else
 		nfs4_unlock_state();
 	return status;
+}
+
+/*
+ * OPEN is the only seqid-mutating operation whose decoding can fail
+ * with a seqid-mutating error (specifically, decoding of user names in
+ * the attributes).  Therefore we have to do some processing to look up
+ * the stateowner so that we can bump the seqid.
+ */
+static __be32 nfsd4_open_omfg(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_op *op)
+{
+	struct nfsd4_open *open = (struct nfsd4_open *)&op->u;
+
+	if (!seqid_mutating_err(ntohl(op->status)))
+		return op->status;
+	if (nfsd4_has_session(cstate))
+		return op->status;
+	open->op_xdr_error = op->status;
+	return nfsd4_open(rqstp, cstate, open);
 }
 
 /*
@@ -1244,8 +1266,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		 * for example, if there is a miscellaneous XDR error
 		 * it will be set to nfserr_bad_xdr.
 		 */
-		if (op->status)
+		if (op->status) {
+			if (op->opnum == OP_OPEN)
+				op->status = nfsd4_open_omfg(rqstp, cstate, op);
 			goto encode_op;
+		}
 
 		/* We must be able to encode a successful response to
 		 * this operation, with enough room left over to encode a
