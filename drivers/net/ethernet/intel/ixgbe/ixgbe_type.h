@@ -2998,6 +2998,7 @@ struct ixgbe_hw {
 	bool				force_full_reset;
 	bool				allow_unsupported_sfp;
 	bool				mng_fw_enabled;
+	bool				wol_supported;
 };
 
 struct ixgbe_info {

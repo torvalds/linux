@@ -1051,8 +1051,11 @@ mac_reset_top:
 		/* If MNG FW is running on a multi-speed device that
 		 * doesn't autoneg with out driver support we need to
 		 * leave LMS in the state it was before we MAC reset.
+		 * Likewise if we support WoL we don't want change the
+		 * LMS state either.
 		 */
-		if (hw->phy.multispeed_fiber && hw->mng_fw_enabled)
+		if ((hw->phy.multispeed_fiber && hw->mng_fw_enabled) ||
+		    hw->wol_supported)
 			hw->mac.orig_autoc =
 				(hw->mac.orig_autoc & ~IXGBE_AUTOC_LMS_MASK) |
 				curr_lms;
