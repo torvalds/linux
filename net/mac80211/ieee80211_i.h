@@ -492,8 +492,6 @@ struct ieee80211_if_ibss {
 
 	u32 basic_rates;
 
-	bool timer_running;
-
 	bool fixed_bssid;
 	bool fixed_channel;
 	bool privacy;
@@ -1293,8 +1291,6 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params);
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
