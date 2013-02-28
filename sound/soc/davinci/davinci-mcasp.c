@@ -235,6 +235,10 @@
 #define DISMOD		(val)(val<<2)
 #define TXSTATE		BIT(4)
 #define RXSTATE		BIT(5)
+#define SRMOD_MASK	3
+#define SRMOD_INACTIVE	0
+#define SRMOD_TX	1
+#define SRMOD_RX	2
 
 /*
  * DAVINCI_MCASP_LBCTL_REG - Loop Back Control Register Bits
@@ -657,12 +661,15 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 	return 0;
 }
 
-static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
+static int davinci_hw_common_param(struct davinci_audio_dev *dev, int stream,
+				    int channels)
 {
 	int i;
 	u8 tx_ser = 0;
 	u8 rx_ser = 0;
-
+	u8 ser;
+	u8 slots = dev->tdm_slots;
+	u8 max_active_serializers = (channels + slots - 1) / slots;
 	/* Default configuration */
 	mcasp_set_bits(dev->base + DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
 
@@ -680,16 +687,42 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 	}
 
 	for (i = 0; i < dev->num_serializer; i++) {
+		if (dev->serial_dir[i] == TX_MODE)
+			tx_ser++;
+		if (dev->serial_dir[i] == RX_MODE)
+			rx_ser++;
+	}
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ser = tx_ser;
+	else
+		ser = rx_ser;
+
+	if (ser < max_active_serializers) {
+		dev_warn(dev->dev, "stream has more channels (%d) than are "
+			"enabled in mcasp (%d)\n", channels, ser * slots);
+		return -EINVAL;
+	}
+
+	tx_ser = 0;
+	rx_ser = 0;
+
+	for (i = 0; i < dev->num_serializer; i++) {
 		mcasp_set_bits(dev->base + DAVINCI_MCASP_XRSRCTL_REG(i),
 					dev->serial_dir[i]);
-		if (dev->serial_dir[i] == TX_MODE) {
+		if (dev->serial_dir[i] == TX_MODE &&
+					tx_ser < max_active_serializers) {
 			mcasp_set_bits(dev->base + DAVINCI_MCASP_PDIR_REG,
 					AXR(i));
 			tx_ser++;
-		} else if (dev->serial_dir[i] == RX_MODE) {
+		} else if (dev->serial_dir[i] == RX_MODE &&
+					rx_ser < max_active_serializers) {
 			mcasp_clr_bits(dev->base + DAVINCI_MCASP_PDIR_REG,
 					AXR(i));
 			rx_ser++;
+		} else {
+			mcasp_mod_bits(dev->base + DAVINCI_MCASP_XRSRCTL_REG(i),
+					SRMOD_INACTIVE, SRMOD_MASK);
 		}
 	}
 
@@ -729,6 +762,8 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
 		}
 	}
+
+	return 0;
 }
 
 static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
@@ -812,8 +847,14 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 					&dev->dma_params[substream->stream];
 	int word_length;
 	u8 fifo_level;
+	u8 slots = dev->tdm_slots;
+	int channels;
+	struct snd_interval *pcm_channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+	channels = pcm_channels->min;
 
-	davinci_hw_common_param(dev, substream->stream);
+	if (davinci_hw_common_param(dev, substream->stream, channels) == -EINVAL)
+		return -EINVAL;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		fifo_level = dev->txnumevt;
 	else
@@ -862,6 +903,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		dma_params->acnt = dma_params->data_type;
 
 	dma_params->fifo_level = fifo_level;
+	dma_params->active_serializers = (channels + slots - 1) / slots;
 	davinci_config_channel_size(dev, word_length);
 
 	return 0;
@@ -936,13 +978,13 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 		.name		= "davinci-mcasp.0",
 		.playback	= {
 			.channels_min	= 2,
-			.channels_max 	= 2,
+			.channels_max	= 32 * 16,
 			.rates 		= DAVINCI_MCASP_RATES,
 			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
 		.capture 	= {
 			.channels_min 	= 2,
-			.channels_max 	= 2,
+			.channels_max	= 32 * 16,
 			.rates 		= DAVINCI_MCASP_RATES,
 			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
@@ -1015,8 +1057,16 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 		pdata->op_mode = val;
 
 	ret = of_property_read_u32(np, "tdm-slots", &val);
-	if (ret >= 0)
+	if (ret >= 0) {
+		if (val < 2 || val > 32) {
+			dev_err(&pdev->dev,
+				"tdm-slots must be in rage [2-32]\n");
+			ret = -EINVAL;
+			goto nodata;
+		}
+
 		pdata->tdm_slots = val;
+	}
 
 	ret = of_property_read_u32(np, "num-serializer", &val);
 	if (ret >= 0)

@@ -181,6 +181,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	unsigned short acnt;
 	unsigned int count;
 	unsigned int fifo_level;
+	unsigned char serializers = prtd->params->active_serializers;
 
 	period_size = snd_pcm_lib_period_bytes(substream);
 	dma_offset = prtd->period * period_size;
@@ -194,14 +195,14 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	data_type = prtd->params->data_type;
 	count = period_size / data_type;
 	if (fifo_level)
-		count /= fifo_level;
+		count /= fifo_level * serializers;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		src = dma_pos;
 		dst = prtd->params->dma_addr;
 		src_bidx = data_type;
-		dst_bidx = 0;
-		src_cidx = data_type * fifo_level;
+		dst_bidx = 4;
+		src_cidx = data_type * fifo_level * serializers;
 		dst_cidx = 0;
 	} else {
 		src = prtd->params->dma_addr;
@@ -209,7 +210,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		src_bidx = 0;
 		dst_bidx = data_type;
 		src_cidx = 0;
-		dst_cidx = data_type * fifo_level;
+		dst_cidx = data_type * fifo_level * serializers;
 	}
 
 	acnt = prtd->params->acnt;
@@ -223,9 +224,10 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		edma_set_transfer_params(prtd->asp_link[0], acnt, count, 1, 0,
 							ASYNC);
 	else
-		edma_set_transfer_params(prtd->asp_link[0], acnt, fifo_level,
-							count, fifo_level,
-							ABSYNC);
+		edma_set_transfer_params(prtd->asp_link[0], acnt,
+						fifo_level * serializers,
+						count, fifo_level * serializers,
+						ABSYNC);
 }
 
 static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
