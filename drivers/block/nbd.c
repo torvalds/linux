@@ -564,6 +564,7 @@ static int nbd_thread(void *data)
  */
 
 static void do_nbd_request(struct request_queue *q)
+		__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct request *req;
 	
