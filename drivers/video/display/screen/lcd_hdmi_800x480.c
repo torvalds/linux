@@ -123,8 +123,10 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			0 
-#ifdef  CONFIG_HDMI_DUAL_DISP
+#define SWAP_RB			0
+ 
+#if  ( defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& defined(CONFIG_RK610_LVDS) ) || defined(CONFIG_HDMI_DUAL_DISP)
+
 static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 {
     screen->s_clk_inv = S_DCLK_POL;
