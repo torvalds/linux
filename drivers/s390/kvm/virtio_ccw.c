@@ -77,6 +77,7 @@ struct virtio_ccw_vq_info {
 	void *queue;
 	struct vq_info_block *info_block;
 	struct list_head node;
+	long cookie;
 };
 
 #define KVM_VIRTIO_CCW_RING_ALIGN 4096
@@ -145,15 +146,18 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 }
 
 static inline long do_kvm_notify(struct subchannel_id schid,
-				 unsigned long queue_index)
+				 unsigned long queue_index,
+				 long cookie)
 {
 	register unsigned long __nr asm("1") = KVM_S390_VIRTIO_CCW_NOTIFY;
 	register struct subchannel_id __schid asm("2") = schid;
 	register unsigned long __index asm("3") = queue_index;
 	register long __rc asm("2");
+	register long __cookie asm("4") = cookie;
 
 	asm volatile ("diag 2,4,0x500\n"
-		      : "=d" (__rc) : "d" (__nr), "d" (__schid), "d" (__index)
+		      : "=d" (__rc) : "d" (__nr), "d" (__schid), "d" (__index),
+		      "d"(__cookie)
 		      : "memory", "cc");
 	return __rc;
 }
@@ -166,7 +170,8 @@ static void virtio_ccw_kvm_notify(struct virtqueue *vq)
 
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
-	do_kvm_notify(schid, virtqueue_get_queue_index(vq));
+	info->cookie = do_kvm_notify(schid, virtqueue_get_queue_index(vq),
+				     info->cookie);
 }
 
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,
