@@ -98,6 +98,7 @@ static const char *nbdcmd_to_ascii(int cmd)
 	case  NBD_CMD_READ: return "read";
 	case NBD_CMD_WRITE: return "write";
 	case  NBD_CMD_DISC: return "disconnect";
+	case NBD_CMD_FLUSH: return "flush";
 	case  NBD_CMD_TRIM: return "trim/discard";
 	}
 	return "invalid";
@@ -244,8 +245,15 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 
 	request.magic = htonl(NBD_REQUEST_MAGIC);
 	request.type = htonl(nbd_cmd(req));
-	request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
-	request.len = htonl(size);
+
+	if (nbd_cmd(req) == NBD_CMD_FLUSH) {
+		/* Other values are reserved for FLUSH requests.  */
+		request.from = 0;
+		request.len = 0;
+	} else {
+		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
+		request.len = htonl(size);
+	}
 	memcpy(request.handle, &req, sizeof(req));
 
 	dprintk(DBG_TX, "%s: request %p: sending control (%s@%llu,%uB)\n",
@@ -482,6 +490,11 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 		}
 	}
 
+	if (req->cmd_flags & REQ_FLUSH) {
+		BUG_ON(unlikely(blk_rq_sectors(req)));
+		nbd_cmd(req) = NBD_CMD_FLUSH;
+	}
+
 	req->errors = 0;
 
 	mutex_lock(&nbd->tx_lock);
@@ -684,6 +697,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		if (nbd->flags & NBD_FLAG_SEND_TRIM)
 			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
 				nbd->disk->queue);
+		if (nbd->flags & NBD_FLAG_SEND_FLUSH)
+			blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
+		else
+			blk_queue_flush(nbd->disk->queue, 0);
 
 		thread = kthread_create(nbd_thread, nbd, nbd->disk->disk_name);
 		if (IS_ERR(thread)) {
@@ -705,6 +722,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 		if (file)
 			fput(file);
+		nbd->flags = 0;
 		nbd->bytesize = 0;
 		bdev->bd_inode->i_size = 0;
 		set_capacity(nbd->disk, 0);
