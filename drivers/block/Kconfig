@@ -556,6 +556,14 @@ config SUN5I_NANDFLASH
 config SUNXI_NAND
         tristate
 
+config SUNXI_NAND_COMPAT_DEV
+	depends on SUNXI_NAND
+	bool "Create old nand device names (nanda-nandz)"
+	default y
+	---help---
+	  This is the traditional device naming on sunxi platform.
+	  If unsure, say Y.
+
 config SUNXI_NAND_TEST
 	depends on SUNXI_NAND
 	tristate "SUNXI Nandflash Test Driver "
