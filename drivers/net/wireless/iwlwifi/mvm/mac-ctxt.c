@@ -855,10 +855,10 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
  */
 static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
-					 struct iwl_mac_data_ap *ctxt_ap)
+					 struct iwl_mac_data_ap *ctxt_ap,
+					 bool add)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 curr_dev_time;
 
 	ctxt_ap->bi = cpu_to_le32(vif->bss_conf.beacon_int);
 	ctxt_ap->bi_reciprocal =
@@ -870,10 +870,19 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 					       vif->bss_conf.dtim_period));
 
 	ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
-	curr_dev_time = iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
-	ctxt_ap->beacon_time = cpu_to_le32(curr_dev_time);
 
-	ctxt_ap->beacon_tsf = cpu_to_le64(curr_dev_time);
+	/*
+	 * Only read the system time when the MAC is being added, when we
+	 * just modify the MAC then we should keep the time -- the firmware
+	 * can otherwise have a "jumping" TBTT.
+	 */
+	if (add)
+		mvmvif->ap_beacon_time =
+			iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
+
+	ctxt_ap->beacon_time = cpu_to_le32(mvmvif->ap_beacon_time);
+
+	ctxt_ap->beacon_tsf = 0; /* unused */
 
 	/* TODO: Assume that the beacon id == mac context id */
 	ctxt_ap->beacon_template = cpu_to_le32(mvmvif->id);
@@ -894,7 +903,8 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	/* Fill the data specific for ap mode */
-	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap);
+	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap,
+				     action == FW_CTXT_ACTION_ADD);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -911,7 +921,8 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	/* Fill the data specific for GO mode */
-	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap);
+	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap,
+				     action == FW_CTXT_ACTION_ADD);
 
 	cmd.go.ctwin = cpu_to_le32(vif->bss_conf.p2p_ctwindow);
 	cmd.go.opp_ps_enabled = cpu_to_le32(!!vif->bss_conf.p2p_oppps);

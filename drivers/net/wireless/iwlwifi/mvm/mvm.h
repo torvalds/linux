@@ -174,6 +174,8 @@ struct iwl_mvm_vif {
 	bool uploaded;
 	bool ap_active;
 
+	u32 ap_beacon_time;
+
 	enum iwl_tsf_id tsf_id;
 
 	/*
