@@ -242,8 +242,6 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 	if (result)
 		goto out;
 
-	*rimage = image;
-
 	/*
 	 * Find a location for the control code buffer, and add it
 	 * the vector of segments so that it's pages will also be
