@@ -1214,6 +1214,10 @@ static bool          si_tryacpi = 1;
 #ifdef CONFIG_DMI
 static bool          si_trydmi = 1;
 #endif
+static bool          si_tryplatform = 1;
+#ifdef CONFIG_PCI
+static bool          si_trypci = 1;
+#endif
 static bool          si_trydefaults = 1;
 static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
@@ -1253,6 +1257,15 @@ MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
 module_param_named(trydmi, si_trydmi, bool, 0);
 MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via DMI");
+#endif
+module_param_named(tryplatform, si_tryplatform, bool, 0);
+MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+		 " default scan of the interfaces identified via platform"
+		 " interfaces like openfirmware");
+#ifdef CONFIG_PCI
+module_param_named(trypci, si_trypci, bool, 0);
+MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+		 " default scan of the interfaces identified via pci");
 #endif
 module_param_named(trydefaults, si_trydefaults, bool, 0);
 MODULE_PARM_DESC(trydefaults, "Setting this to 'false' will disable the"
@@ -3387,12 +3400,14 @@ static int init_ipmi_si(void)
 		return 0;
 	initialized = 1;
 
-	rv = platform_driver_register(&ipmi_driver);
-	if (rv) {
-		printk(KERN_ERR PFX "Unable to register driver: %d\n", rv);
-		return rv;
+	if (si_tryplatform) {
+		rv = platform_driver_register(&ipmi_driver);
+		if (rv) {
+			printk(KERN_ERR PFX "Unable to register "
+			       "driver: %d\n", rv);
+			return rv;
+		}
 	}
-
 
 	/* Parse out the si_type string into its components. */
 	str = si_type_str;
@@ -3416,11 +3431,14 @@ static int init_ipmi_si(void)
 		return 0;
 
 #ifdef CONFIG_PCI
-	rv = pci_register_driver(&ipmi_pci_driver);
-	if (rv)
-		printk(KERN_ERR PFX "Unable to register PCI driver: %d\n", rv);
-	else
-		pci_registered = 1;
+	if (si_trypci) {
+		rv = pci_register_driver(&ipmi_pci_driver);
+		if (rv)
+			printk(KERN_ERR PFX "Unable to register "
+			       "PCI driver: %d\n", rv);
+		else
+			pci_registered = 1;
+	}
 #endif
 
 #ifdef CONFIG_ACPI
