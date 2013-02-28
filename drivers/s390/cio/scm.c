@@ -211,7 +211,7 @@ static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 		goto out;
 	scmdrv = to_scm_drv(scmdev->dev.driver);
 	if (changed && scmdrv->notify)
-		scmdrv->notify(scmdev);
+		scmdrv->notify(scmdev, SCM_CHANGE);
 out:
 	device_unlock(&scmdev->dev);
 	if (changed)

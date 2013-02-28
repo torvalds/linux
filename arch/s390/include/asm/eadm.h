@@ -96,11 +96,13 @@ struct scm_device {
 #define OP_STATE_TEMP_ERR	2
 #define OP_STATE_PERM_ERR	3
 
+enum scm_event {SCM_CHANGE};
+
 struct scm_driver {
 	struct device_driver drv;
 	int (*probe) (struct scm_device *scmdev);
 	int (*remove) (struct scm_device *scmdev);
-	void (*notify) (struct scm_device *scmdev);
+	void (*notify) (struct scm_device *scmdev, enum scm_event event);
 	void (*handler) (struct scm_device *scmdev, void *data, int error);
 };
 
