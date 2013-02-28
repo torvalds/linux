@@ -841,7 +841,6 @@ inst_out:
 	if (!IS_ERR(res))
 		return res;
 	result = PTR_ERR(res);
-	iput(inode);
 error:
 	p9_client_clunk(fid);
 
