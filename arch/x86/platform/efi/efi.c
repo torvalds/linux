@@ -85,7 +85,7 @@ int efi_enabled(int facility)
 }
 EXPORT_SYMBOL(efi_enabled);
 
-static bool disable_runtime = false;
+static bool __initdata disable_runtime = false;
 static int __init setup_noefi(char *arg)
 {
 	disable_runtime = true;
