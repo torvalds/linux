@@ -361,8 +361,6 @@ static void __init v2m_init(void)
 	for (i = 0; i < ARRAY_SIZE(v2m_amba_devs); i++)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
 
-	pm_power_off = vexpress_power_off;
-
 	ct_desc->init_tile();
 }
 
@@ -374,7 +372,6 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_irq	= v2m_init_irq,
 	.init_time	= v2m_timer_init,
 	.init_machine	= v2m_init,
-	.restart	= vexpress_restart,
 MACHINE_END
 
 static struct map_desc v2m_rs1_io_desc __initdata = {
@@ -464,7 +461,6 @@ static void __init v2m_dt_init(void)
 {
 	l2x0_of_init(0x00400000, 0xfe0fffff);
 	of_platform_populate(NULL, v2m_dt_bus_match, NULL, NULL);
-	pm_power_off = vexpress_power_off;
 }
 
 static const char * const v2m_dt_match[] __initconst = {
@@ -481,5 +477,4 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.init_irq	= irqchip_init,
 	.init_time	= v2m_dt_timer_init,
 	.init_machine	= v2m_dt_init,
-	.restart	= vexpress_restart,
 MACHINE_END
