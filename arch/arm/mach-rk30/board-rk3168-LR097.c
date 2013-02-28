@@ -415,7 +415,7 @@ static struct sensor_platform_data lis3dh_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
         .init_platform_hw = lis3dh_init_platform_hw,
-	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+	.orientation = {1, 0, 0, 0, 0, -1, 0, -1, 0},
 };
 #endif
 #if defined(CONFIG_CHARGER_CW2015)
