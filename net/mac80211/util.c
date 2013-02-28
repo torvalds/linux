@@ -1534,11 +1534,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_IDLE |
 			  BSS_CHANGED_TXPOWER;
 
-#ifdef CONFIG_PM
-		if (local->resuming && !reconfig_due_to_wowlan)
-			sdata->vif.bss_conf = sdata->suspend_bss_conf;
-#endif
-
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			changed |= BSS_CHANGED_ASSOC |
@@ -1678,28 +1673,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		switch(sdata->vif.type) {
-		case NL80211_IFTYPE_STATION:
-			ieee80211_sta_restart(sdata);
-			break;
-		case NL80211_IFTYPE_ADHOC:
-			ieee80211_ibss_restart(sdata);
-			break;
-		case NL80211_IFTYPE_MESH_POINT:
-			ieee80211_mesh_restart(sdata);
-			break;
-		default:
-			break;
-		}
-	}
-
 	mod_timer(&local->sta_cleanup, jiffies + 1);
-
-	mutex_lock(&local->sta_mtx);
-	list_for_each_entry(sta, &local->sta_list, list)
-		mesh_plink_restart(sta);
-	mutex_unlock(&local->sta_mtx);
 #else
 	WARN_ON(1);
 #endif

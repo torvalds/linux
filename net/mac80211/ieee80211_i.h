@@ -768,10 +768,6 @@ struct ieee80211_sub_if_data {
 	} debugfs;
 #endif
 
-#ifdef CONFIG_PM
-	struct ieee80211_bss_conf suspend_bss_conf;
-#endif
-
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
 };

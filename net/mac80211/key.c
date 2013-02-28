@@ -566,20 +566,6 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_iter_keys);
 
-void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_key *key;
-
-	ASSERT_RTNL();
-
-	mutex_lock(&sdata->local->key_mtx);
-
-	list_for_each_entry(key, &sdata->key_list, list)
-		ieee80211_key_disable_hw_accel(key);
-
-	mutex_unlock(&sdata->local->key_mtx);
-}
-
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key, *tmp;

@@ -6,32 +6,11 @@
 #include "driver-ops.h"
 #include "led.h"
 
-/* return value indicates whether the driver should be further notified */
-static void ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
-{
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_STATION:
-		ieee80211_sta_quiesce(sdata);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		ieee80211_ibss_quiesce(sdata);
-		break;
-	case NL80211_IFTYPE_MESH_POINT:
-		ieee80211_mesh_quiesce(sdata);
-		break;
-	default:
-		break;
-	}
-
-	cancel_work_sync(&sdata->work);
-}
-
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	struct ieee80211_chanctx *ctx;
 
 	if (!local->open_count)
 		goto suspend;
@@ -95,16 +74,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			WARN_ON(err != 1);
 			return err;
 		} else {
-			list_for_each_entry(sdata, &local->interfaces, list)
-				if (ieee80211_sdata_running(sdata))
-					ieee80211_quiesce(sdata);
 			goto suspend;
 		}
 	}
-
-	/* disable keys */
-	list_for_each_entry(sdata, &local->interfaces, list)
-		ieee80211_disable_keys(sdata);
 
 	/* tear down aggregation sessions and remove STAs */
 	mutex_lock(&local->sta_mtx);
@@ -117,100 +89,25 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 				WARN_ON(drv_sta_state(local, sta->sdata, sta,
 						      state, state - 1));
 		}
-
-		mesh_plink_quiesce(sta);
 	}
 	mutex_unlock(&local->sta_mtx);
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		static u8 zero_addr[ETH_ALEN] = {};
-		u32 changed = 0;
-
 		if (!ieee80211_sdata_running(sdata))
 			continue;
-
-		switch (sdata->vif.type) {
-		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_MONITOR:
-			/* skip these */
-			continue;
-		case NL80211_IFTYPE_STATION:
-			if (sdata->vif.bss_conf.assoc)
-				changed = BSS_CHANGED_ASSOC |
-					  BSS_CHANGED_BSSID |
-					  BSS_CHANGED_IDLE;
-			break;
-		case NL80211_IFTYPE_AP:
-		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_MESH_POINT:
-			if (sdata->vif.bss_conf.enable_beacon)
-				changed = BSS_CHANGED_BEACON_ENABLED;
-			break;
-		default:
-			break;
-		}
-
-		ieee80211_quiesce(sdata);
-
-		sdata->suspend_bss_conf = sdata->vif.bss_conf;
-		memset(&sdata->vif.bss_conf, 0, sizeof(sdata->vif.bss_conf));
-		sdata->vif.bss_conf.idle = true;
-		if (sdata->suspend_bss_conf.bssid)
-			sdata->vif.bss_conf.bssid = zero_addr;
-
-		/* disable beaconing or remove association */
-		ieee80211_bss_info_change_notify(sdata, changed);
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP &&
-		    rcu_access_pointer(sdata->u.ap.beacon))
-			drv_stop_ap(local, sdata);
-
-		if (local->use_chanctx) {
-			struct ieee80211_chanctx_conf *conf;
-
-			mutex_lock(&local->chanctx_mtx);
-			conf = rcu_dereference_protected(
-					sdata->vif.chanctx_conf,
-					lockdep_is_held(&local->chanctx_mtx));
-			if (conf) {
-				ctx = container_of(conf,
-						   struct ieee80211_chanctx,
-						   conf);
-				drv_unassign_vif_chanctx(local, sdata, ctx);
-			}
-
-			mutex_unlock(&local->chanctx_mtx);
-		}
 		drv_remove_interface(local, sdata);
 	}
 
 	sdata = rtnl_dereference(local->monitor_sdata);
-	if (sdata) {
-		if (local->use_chanctx) {
-			struct ieee80211_chanctx_conf *conf;
-
-			mutex_lock(&local->chanctx_mtx);
-			conf = rcu_dereference_protected(
-					sdata->vif.chanctx_conf,
-					lockdep_is_held(&local->chanctx_mtx));
-			if (conf) {
-				ctx = container_of(conf,
-						   struct ieee80211_chanctx,
-						   conf);
-				drv_unassign_vif_chanctx(local, sdata, ctx);
-			}
-
-			mutex_unlock(&local->chanctx_mtx);
-		}
-
+	if (sdata)
 		drv_remove_interface(local, sdata);
-	}
 
-	mutex_lock(&local->chanctx_mtx);
-	list_for_each_entry(ctx, &local->chanctx_list, list)
-		drv_remove_chanctx(local, ctx);
-	mutex_unlock(&local->chanctx_mtx);
+	/*
+	 * We disconnected on all interfaces before suspend, all channel
+	 * contexts should be released.
+	 */
+	WARN_ON(!list_empty(&local->chanctx_list));
 
 	/* stop hardware - this must stop RX */
 	if (local->open_count)
