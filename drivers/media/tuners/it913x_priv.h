@@ -34,21 +34,9 @@
 #define IT9135_61 0x61
 #define IT9135_62 0x62
 
-#define I2C_BASE_ADDR		0x10
-#define DEV_0			0x0
-#define DEV_1			0x10
 #define PRO_LINK		0x0
 #define PRO_DMOD		0x1
-#define DEV_0_DMOD		(PRO_DMOD << 0x7)
-#define DEV_1_DMOD		(DEV_0_DMOD | DEV_1)
-#define CHIP2_I2C_ADDR		0x3a
-
-#define	PADODPU			0xd827
-#define THIRDODPU		0xd828
-#define AGC_O_D			0xd829
-
 #define TRIGGER_OFSM		0x0000
-
 
 struct it913xset {	u32 pro;
 			u32 address;

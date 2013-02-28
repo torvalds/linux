@@ -23,25 +23,15 @@
 #include "it913x_priv.h"
 
 struct it913x_state {
-	struct dvb_frontend frontend;
 	struct i2c_adapter *i2c_adap;
-	u8 chip_ver;
-	u8 firmware_ver;
 	u8 i2c_addr;
-	u32 frequency;
-	fe_modulation_t constellation;
-	fe_transmit_mode_t transmission_mode;
-	u8 priority;
-	u32 crystalFrequency;
-	u32 adcFrequency;
+	u8 chip_ver;
 	u8 tuner_type;
-	struct adctable *table;
-	fe_status_t it913x_status;
+	u8 firmware_ver;
 	u16 tun_xtal;
 	u8 tun_fdiv;
 	u8 tun_clk_mode;
 	u32 tun_fn_min;
-	u32 ucblocks;
 };
 
 /* read multiple registers */
