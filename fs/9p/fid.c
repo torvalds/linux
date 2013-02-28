@@ -41,12 +41,11 @@
  *
  */
 
-int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
+void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 {
 	spin_lock(&dentry->d_lock);
 	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
 	spin_unlock(&dentry->d_lock);
-	return 0;
 }
 
 /**

@@ -692,9 +692,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 				   "inode creation failed %d\n", err);
 			goto error;
 		}
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		d_instantiate(dentry, inode);
 	}
 	return ofid;
@@ -830,9 +828,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = NULL;
 		goto error;
 	}
-	result = v9fs_fid_add(dentry, fid);
-	if (result < 0)
-		goto error_iput;
+	v9fs_fid_add(dentry, fid);
 inst_out:
 	/*
 	 * If we had a rename on the server and a parallel lookup
@@ -845,7 +841,6 @@ inst_out:
 	if (!IS_ERR(res))
 		return res;
 	result = PTR_ERR(res);
-error_iput:
 	iput(inode);
 error:
 	p9_client_clunk(fid);
