@@ -757,6 +757,6 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_evm_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -161,6 +161,6 @@ MACHINE_START(VSTMS, "VSTMS")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END

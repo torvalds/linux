@@ -274,8 +274,3 @@ void __init at91rm9200_timer_init(void)
 	/* register clocksource */
 	clocksource_register_hz(&clk32k, AT91_SLOW_CLOCK);
 }
-
-struct sys_timer at91rm9200_timer = {
-	.init		= at91rm9200_timer_init,
-};
-

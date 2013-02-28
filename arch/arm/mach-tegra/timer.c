@@ -168,7 +168,7 @@ static const struct of_device_id rtc_match[] __initconst = {
 	{}
 };
 
-static void __init tegra_init_timer(void)
+void __init tegra_init_timer(void)
 {
 	struct device_node *np;
 	struct clk *clk;
@@ -272,10 +272,6 @@ static void __init tegra_init_timer(void)
 #endif
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
-
-struct sys_timer tegra_sys_timer = {
-	.init = tegra_init_timer,
-};
 
 #ifdef CONFIG_PM
 static u32 usec_config;

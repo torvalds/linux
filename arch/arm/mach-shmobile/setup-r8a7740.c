@@ -705,12 +705,6 @@ void __init r8a7740_add_standard_devices(void)
 	rmobile_add_device_to_domain("A3SP",	&i2c1_device);
 }
 
-static void __init r8a7740_earlytimer_init(void)
-{
-	r8a7740_clock_init(0);
-	shmobile_earlytimer_init();
-}
-
 void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
@@ -718,9 +712,6 @@ void __init r8a7740_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
-
-	/* override timer setup with soc-specific code */
-	shmobile_timer.init = r8a7740_earlytimer_init;
 }
 
 #ifdef CONFIG_USE_OF
@@ -763,7 +754,7 @@ DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= r8a7740_add_standard_devices_dt,
-	.timer		= &shmobile_timer,
+	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a7740_boards_compat_dt,
 MACHINE_END
 

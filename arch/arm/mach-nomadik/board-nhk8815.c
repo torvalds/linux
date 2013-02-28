@@ -267,10 +267,6 @@ static void __init nomadik_timer_init(void)
 	nmdk_timer_init(io_p2v(NOMADIK_MTU0_BASE), IRQ_MTU0);
 }
 
-static struct sys_timer nomadik_timer = {
-	.init	= nomadik_timer_init,
-};
-
 static struct i2c_board_info __initdata nhk8815_i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("stw4811", 0x2d),
@@ -353,7 +349,7 @@ MACHINE_START(NOMADIK, "NHK8815")
 	.map_io		= cpu8815_map_io,
 	.init_irq	= cpu8815_init_irq,
 	.handle_irq	= vic_handle_irq,
-	.timer		= &nomadik_timer,
+	.init_time	= nomadik_timer_init,
 	.init_machine	= nhk8815_platform_init,
 	.restart	= cpu8815_restart,
 MACHINE_END

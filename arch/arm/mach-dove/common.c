@@ -231,16 +231,12 @@ static int __init dove_find_tclk(void)
 	return 166666667;
 }
 
-static void __init dove_timer_init(void)
+void __init dove_timer_init(void)
 {
 	dove_tclk = dove_find_tclk();
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, dove_tclk);
 }
-
-struct sys_timer dove_timer = {
-	.init = dove_timer_init,
-};
 
 /*****************************************************************************
  * Cryptographic Engines and Security Accelerator (CESA)
@@ -443,7 +439,7 @@ DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
 	.map_io		= dove_map_io,
 	.init_early	= dove_init_early,
 	.init_irq	= orion_dt_init_irq,
-	.timer		= &dove_timer,
+	.init_time	= dove_timer_init,
 	.init_machine	= dove_dt_init,
 	.restart	= dove_restart,
 	.dt_compat	= dove_dt_board_compat,

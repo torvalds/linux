@@ -226,10 +226,6 @@ static void __init dsmg600_timer_init(void)
     ixp4xx_timer_init();
 }
 
-static struct sys_timer dsmg600_timer = {
-    .init   = dsmg600_timer_init,
-};
-
 static void __init dsmg600_init(void)
 {
 	ixp4xx_sys_init();
@@ -282,7 +278,7 @@ MACHINE_START(DSMG600, "D-Link DSM-G600 RevA")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &dsmg600_timer,
+	.init_time	= dsmg600_timer_init,
 	.init_machine	= dsmg600_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
