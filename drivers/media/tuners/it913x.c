@@ -156,22 +156,22 @@ static int it913x_init(struct dvb_frontend *fe)
 
 	/* LNA Scripts */
 	switch (state->tuner_type) {
-	case IT9135_51:
+	case AF9033_TUNER_IT9135_51:
 		set_lna = it9135_51;
 		break;
-	case IT9135_52:
+	case AF9033_TUNER_IT9135_52:
 		set_lna = it9135_52;
 		break;
-	case IT9135_60:
+	case AF9033_TUNER_IT9135_60:
 		set_lna = it9135_60;
 		break;
-	case IT9135_61:
+	case AF9033_TUNER_IT9135_61:
 		set_lna = it9135_61;
 		break;
-	case IT9135_62:
+	case AF9033_TUNER_IT9135_62:
 		set_lna = it9135_62;
 		break;
-	case IT9135_38:
+	case AF9033_TUNER_IT9135_38:
 	default:
 		set_lna = it9135_38;
 	}
@@ -444,14 +444,14 @@ struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
 	state->i2c_addr = i2c_addr;
 
 	switch (config) {
-	case IT9135_38:
-	case IT9135_51:
-	case IT9135_52:
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
 		state->chip_ver = 0x01;
 		break;
-	case IT9135_60:
-	case IT9135_61:
-	case IT9135_62:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
 		state->chip_ver = 0x02;
 		break;
 	default:

@@ -24,15 +24,7 @@
 #define IT913X_PRIV_H
 
 #include "it913x.h"
-
-/* Build in tuner types */
-#define IT9137 0x38
-#define IT9135_38 0x38
-#define IT9135_51 0x51
-#define IT9135_52 0x52
-#define IT9135_60 0x60
-#define IT9135_61 0x61
-#define IT9135_62 0x62
+#include "af9033.h"
 
 #define PRO_LINK		0x0
 #define PRO_DMOD		0x1
