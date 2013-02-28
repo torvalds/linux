@@ -824,7 +824,6 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		p9_client_clunk(fid);
 		return ERR_CAST(inode);
 	}
-	v9fs_fid_add(dentry, fid);
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -833,7 +832,11 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	 * k/b.
 	 */
 	res = d_materialise_unique(dentry, inode);
-	if (IS_ERR(res))
+	if (!res)
+		v9fs_fid_add(dentry, fid);
+	else if (!IS_ERR(res))
+		v9fs_fid_add(res, fid);
+	else
 		p9_client_clunk(fid);
 	return res;
 }
