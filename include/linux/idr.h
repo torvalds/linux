@@ -17,14 +17,13 @@
 #include <linux/init.h>
 #include <linux/rcupdate.h>
 
-#if BITS_PER_LONG == 32
-# define IDR_BITS 5
-#elif BITS_PER_LONG == 64
-# define IDR_BITS 6
-#else
-# error "BITS_PER_LONG is not 32 or 64"
-#endif
-
+/*
+ * We want shallower trees and thus more bits covered at each layer.  8
+ * bits gives us large enough first layer for most use cases and maximum
+ * tree depth of 4.  Each idr_layer is slightly larger than 2k on 64bit and
+ * 1k on 32bit.
+ */
+#define IDR_BITS 8
 #define IDR_SIZE (1 << IDR_BITS)
 #define IDR_MASK ((1 << IDR_BITS)-1)
 
