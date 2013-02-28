@@ -87,17 +87,17 @@ static void cs_check_cpu(int cpu, unsigned int load)
 	 * safe, we focus 10 points under the threshold.
 	 */
 	if (load < (cs_tuners->down_threshold - 10)) {
-		freq_target = (cs_tuners->freq_step * policy->max) / 100;
-
-		dbs_info->requested_freq -= freq_target;
-		if (dbs_info->requested_freq < policy->min)
-			dbs_info->requested_freq = policy->min;
-
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
 		if (policy->cur == policy->min)
 			return;
+
+		freq_target = (cs_tuners->freq_step * policy->max) / 100;
+
+		dbs_info->requested_freq -= freq_target;
+		if (dbs_info->requested_freq < policy->min)
+			dbs_info->requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_H);
