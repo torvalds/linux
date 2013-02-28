@@ -43,25 +43,9 @@
 
 int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 {
-	struct v9fs_dentry *dent;
-
-	p9_debug(P9_DEBUG_VFS, "fid %d dentry %s\n",
-		 fid->fid, dentry->d_name.name);
-
-	dent = dentry->d_fsdata;
-	if (!dent) {
-		dent = kmalloc(sizeof(struct v9fs_dentry), GFP_KERNEL);
-		if (!dent)
-			return -ENOMEM;
-
-		INIT_HLIST_HEAD(&dent->fidlist);
-		dentry->d_fsdata = dent;
-	}
-
 	spin_lock(&dentry->d_lock);
-	hlist_add_head(&fid->dlist, &dent->fidlist);
+	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
 	spin_unlock(&dentry->d_lock);
-
 	return 0;
 }
 
@@ -75,18 +59,18 @@ int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 
 static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 {
-	struct v9fs_dentry *dent;
 	struct p9_fid *fid, *ret;
 
 	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p) uid %d any %d\n",
 		 dentry->d_name.name, dentry, from_kuid(&init_user_ns, uid),
 		 any);
-	dent = (struct v9fs_dentry *) dentry->d_fsdata;
 	ret = NULL;
-	if (dent) {
+	/* we'll recheck under lock if there's anything to look in */
+	if (dentry->d_fsdata) {
+		struct hlist_head *h = (struct hlist_head *)&dentry->d_fsdata;
 		struct hlist_node *n;
 		spin_lock(&dentry->d_lock);
-		hlist_for_each_entry(fid, n, &dent->fidlist, dlist) {
+		hlist_for_each_entry(fid, n, h, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
 				break;
