@@ -1,7 +1,7 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -Wall
 
-test_objs = open-unlink
+test_objs = open-unlink create-read
 
 all: $(test_objs)
 

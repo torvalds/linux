@@ -70,6 +70,12 @@ test_create_empty()
 	fi
 }
 
+test_create_read()
+{
+	local file=$efivarfs_mount/$FUNCNAME-$test_guid
+	./create-read $file
+}
+
 test_delete()
 {
 	local attrs='\x07\x00\x00\x00'
@@ -125,6 +131,7 @@ rc=0
 
 run_test test_create
 run_test test_create_empty
+run_test test_create_read
 run_test test_delete
 run_test test_zero_size_delete
 run_test test_open_unlink
