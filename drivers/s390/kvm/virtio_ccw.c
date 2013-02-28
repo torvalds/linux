@@ -31,6 +31,7 @@
 #include <asm/irq.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
+#include <asm/virtio-ccw.h>
 
 /*
  * virtio related functions
@@ -79,10 +80,6 @@ struct virtio_ccw_vq_info {
 	struct list_head node;
 	long cookie;
 };
-
-#define KVM_VIRTIO_CCW_RING_ALIGN 4096
-
-#define KVM_S390_VIRTIO_CCW_NOTIFY 3
 
 #define CCW_CMD_SET_VQ 0x13
 #define CCW_CMD_VDEV_RESET 0x33
