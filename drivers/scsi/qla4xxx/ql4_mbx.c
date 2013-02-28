@@ -44,6 +44,30 @@ void qla4xxx_process_mbox_intr(struct scsi_qla_host *ha, int out_count)
 }
 
 /**
+ * qla4xxx_is_intr_poll_mode – Are we allowed to poll for interrupts?
+ * @ha: Pointer to host adapter structure.
+ * @ret: 1=polling mode, 0=non-polling mode
+ **/
+static int qla4xxx_is_intr_poll_mode(struct scsi_qla_host *ha)
+{
+	int rval = 1;
+
+	if (is_qla8032(ha)) {
+		if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
+		    test_bit(AF_83XX_MBOX_INTR_ON, &ha->flags))
+			rval = 0;
+	} else {
+		if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
+		    test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
+		    test_bit(AF_ONLINE, &ha->flags) &&
+		    !test_bit(AF_HA_REMOVAL, &ha->flags))
+			rval = 0;
+	}
+
+	return rval;
+}
+
+/**
  * qla4xxx_mailbox_command - issues mailbox commands
  * @ha: Pointer to host adapter structure.
  * @inCount: number of mailbox registers to load.
@@ -153,33 +177,28 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	/*
 	 * Wait for completion: Poll or completion queue
 	 */
-	if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
-	    test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
-	    test_bit(AF_ONLINE, &ha->flags) &&
-	    !test_bit(AF_HA_REMOVAL, &ha->flags)) {
-		/* Do not poll for completion. Use completion queue */
-		set_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
-		wait_for_completion_timeout(&ha->mbx_intr_comp, MBOX_TOV * HZ);
-		clear_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
-	} else {
+	if (qla4xxx_is_intr_poll_mode(ha)) {
 		/* Poll for command to complete */
 		wait_count = jiffies + MBOX_TOV * HZ;
 		while (test_bit(AF_MBOX_COMMAND_DONE, &ha->flags) == 0) {
 			if (time_after_eq(jiffies, wait_count))
 				break;
-
 			/*
 			 * Service the interrupt.
 			 * The ISR will save the mailbox status registers
 			 * to a temporary storage location in the adapter
 			 * structure.
 			 */
-
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 			ha->isp_ops->process_mailbox_interrupt(ha, outCount);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			msleep(10);
 		}
+	} else {
+		/* Do not poll for completion. Use completion queue */
+		set_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
+		wait_for_completion_timeout(&ha->mbx_intr_comp, MBOX_TOV * HZ);
+		clear_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
 	}
 
 	/* Check for mailbox timeout. */
@@ -678,8 +697,24 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		return QLA_ERROR;
 	}
 
-	ql4_printk(KERN_INFO, ha, "%ld firmware IOCBs available (%d).\n",
-	    ha->host_no, mbox_sts[2]);
+	/* High-water mark of IOCBs */
+	ha->iocb_hiwat = mbox_sts[2];
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: firmware IOCBs available = %d\n", __func__,
+			  ha->iocb_hiwat));
+
+	if (ha->iocb_hiwat > IOCB_HIWAT_CUSHION)
+		ha->iocb_hiwat -= IOCB_HIWAT_CUSHION;
+
+	/* Ideally, we should not enter this code, as the # of firmware
+	 * IOCBs is hard-coded in the firmware. We set a default
+	 * iocb_hiwat here just in case */
+	if (ha->iocb_hiwat == 0) {
+		ha->iocb_hiwat = REQUEST_QUEUE_DEPTH / 4;
+		DEBUG2(ql4_printk(KERN_WARNING, ha,
+				  "%s: Setting IOCB's to = %d\n", __func__,
+				  ha->iocb_hiwat));
+	}
 
 	return QLA_SUCCESS;
 }

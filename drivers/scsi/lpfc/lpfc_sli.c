@@ -124,10 +124,17 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 
 	/* Ring Doorbell */
 	doorbell.word0 = 0;
-	bf_set(lpfc_wq_doorbell_num_posted, &doorbell, 1);
-	bf_set(lpfc_wq_doorbell_index, &doorbell, host_index);
-	bf_set(lpfc_wq_doorbell_id, &doorbell, q->queue_id);
-	writel(doorbell.word0, q->phba->sli4_hba.WQDBregaddr);
+	if (q->db_format == LPFC_DB_LIST_FORMAT) {
+		bf_set(lpfc_wq_db_list_fm_num_posted, &doorbell, 1);
+		bf_set(lpfc_wq_db_list_fm_index, &doorbell, host_index);
+		bf_set(lpfc_wq_db_list_fm_id, &doorbell, q->queue_id);
+	} else if (q->db_format == LPFC_DB_RING_FORMAT) {
+		bf_set(lpfc_wq_db_ring_fm_num_posted, &doorbell, 1);
+		bf_set(lpfc_wq_db_ring_fm_id, &doorbell, q->queue_id);
+	} else {
+		return -EINVAL;
+	}
+	writel(doorbell.word0, q->db_regaddr);
 
 	return 0;
 }
@@ -456,10 +463,20 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	/* Ring The Header Receive Queue Doorbell */
 	if (!(hq->host_index % hq->entry_repost)) {
 		doorbell.word0 = 0;
-		bf_set(lpfc_rq_doorbell_num_posted, &doorbell,
-		       hq->entry_repost);
-		bf_set(lpfc_rq_doorbell_id, &doorbell, hq->queue_id);
-		writel(doorbell.word0, hq->phba->sli4_hba.RQDBregaddr);
+		if (hq->db_format == LPFC_DB_RING_FORMAT) {
+			bf_set(lpfc_rq_db_ring_fm_num_posted, &doorbell,
+			       hq->entry_repost);
+			bf_set(lpfc_rq_db_ring_fm_id, &doorbell, hq->queue_id);
+		} else if (hq->db_format == LPFC_DB_LIST_FORMAT) {
+			bf_set(lpfc_rq_db_list_fm_num_posted, &doorbell,
+			       hq->entry_repost);
+			bf_set(lpfc_rq_db_list_fm_index, &doorbell,
+			       hq->host_index);
+			bf_set(lpfc_rq_db_list_fm_id, &doorbell, hq->queue_id);
+		} else {
+			return -EINVAL;
+		}
+		writel(doorbell.word0, hq->db_regaddr);
 	}
 	return put_index;
 }
@@ -4939,7 +4956,7 @@ out_free_mboxq:
 static void
 lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 {
-	uint8_t fcp_eqidx;
+	int fcp_eqidx;
 
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
@@ -5622,6 +5639,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		}
 		/* RPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_rpi;
+		if (count <= 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3279 Invalid provisioning of "
+					"rpi:%d\n", count);
+			rc = -EINVAL;
+			goto err_exit;
+		}
 		base = phba->sli4_hba.max_cfg_param.rpi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
 		phba->sli4_hba.rpi_bmask = kzalloc(longs *
@@ -5644,6 +5668,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 
 		/* VPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_vpi;
+		if (count <= 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3280 Invalid provisioning of "
+					"vpi:%d\n", count);
+			rc = -EINVAL;
+			goto free_rpi_ids;
+		}
 		base = phba->sli4_hba.max_cfg_param.vpi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
 		phba->vpi_bmask = kzalloc(longs *
@@ -5666,6 +5697,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 
 		/* XRIs. */
 		count = phba->sli4_hba.max_cfg_param.max_xri;
+		if (count <= 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3281 Invalid provisioning of "
+					"xri:%d\n", count);
+			rc = -EINVAL;
+			goto free_vpi_ids;
+		}
 		base = phba->sli4_hba.max_cfg_param.xri_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
 		phba->sli4_hba.xri_bmask = kzalloc(longs *
@@ -5689,6 +5727,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 
 		/* VFIs. */
 		count = phba->sli4_hba.max_cfg_param.max_vfi;
+		if (count <= 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3282 Invalid provisioning of "
+					"vfi:%d\n", count);
+			rc = -EINVAL;
+			goto free_xri_ids;
+		}
 		base = phba->sli4_hba.max_cfg_param.vfi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
 		phba->sli4_hba.vfi_bmask = kzalloc(longs *
@@ -8370,7 +8415,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 		 * This is a continuation of a commandi,(CX) so this
 		 * sglq is on the active list
 		 */
-		sglq = __lpfc_get_active_sglq(phba, piocb->sli4_xritag);
+		sglq = __lpfc_get_active_sglq(phba, piocb->sli4_lxritag);
 		if (!sglq)
 			return IOCB_ERROR;
 	}
@@ -8855,12 +8900,6 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->prt[3].type = FC_TYPE_CT;
 			pring->prt[3].lpfc_sli_rcv_unsol_event =
 			    lpfc_ct_unsol_event;
-			/* abort unsolicited sequence */
-			pring->prt[4].profile = 0;	/* Mask 4 */
-			pring->prt[4].rctl = FC_RCTL_BA_ABTS;
-			pring->prt[4].type = FC_TYPE_BLS;
-			pring->prt[4].lpfc_sli_rcv_unsol_event =
-			    lpfc_sli4_ct_abort_unsol_event;
 			break;
 		}
 		totiocbsize += (pring->sli.sli3.numCiocb *
@@ -11873,7 +11912,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	struct lpfc_eqe *eqe;
 	unsigned long iflag;
 	int ecount = 0;
-	uint32_t fcp_eqidx;
+	int fcp_eqidx;
 
 	/* Get the driver's phba structure from the dev_id */
 	fcp_eq_hdl = (struct lpfc_fcp_eq_hdl *)dev_id;
@@ -11975,7 +12014,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 	struct lpfc_hba  *phba;
 	irqreturn_t hba_irq_rc;
 	bool hba_handled = false;
-	uint32_t fcp_eqidx;
+	int fcp_eqidx;
 
 	/* Get the driver's phba structure from the dev_id */
 	phba = (struct lpfc_hba *)dev_id;
@@ -12093,6 +12132,54 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 	return queue;
 out_fail:
 	lpfc_sli4_queue_free(queue);
+	return NULL;
+}
+
+/**
+ * lpfc_dual_chute_pci_bar_map - Map pci base address register to host memory
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @pci_barset: PCI BAR set flag.
+ *
+ * This function shall perform iomap of the specified PCI BAR address to host
+ * memory address if not already done so and return it. The returned host
+ * memory address can be NULL.
+ */
+static void __iomem *
+lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
+{
+	struct pci_dev *pdev;
+	unsigned long bar_map, bar_map_len;
+
+	if (!phba->pcidev)
+		return NULL;
+	else
+		pdev = phba->pcidev;
+
+	switch (pci_barset) {
+	case WQ_PCI_BAR_0_AND_1:
+		if (!phba->pci_bar0_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
+			phba->pci_bar0_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar0_memmap_p;
+	case WQ_PCI_BAR_2_AND_3:
+		if (!phba->pci_bar2_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
+			phba->pci_bar2_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar2_memmap_p;
+	case WQ_PCI_BAR_4_AND_5:
+		if (!phba->pci_bar4_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
+			phba->pci_bar4_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar4_memmap_p;
+	default:
+		break;
+	}
 	return NULL;
 }
 
@@ -12673,6 +12760,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 	struct dma_address *page;
+	void __iomem *bar_memmap_p;
+	uint32_t db_offset;
+	uint16_t pci_barset;
 
 	/* sanity check on queue memory */
 	if (!wq || !cq)
@@ -12696,6 +12786,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		    cq->queue_id);
 	bf_set(lpfc_mbox_hdr_version, &shdr->request,
 	       phba->sli4_hba.pc_sli4_params.wqv);
+
 	if (phba->sli4_hba.pc_sli4_params.wqv == LPFC_Q_CREATE_VERSION_1) {
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
@@ -12723,6 +12814,10 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		page[dmabuf->buffer_tag].addr_lo = putPaddrLow(dmabuf->phys);
 		page[dmabuf->buffer_tag].addr_hi = putPaddrHigh(dmabuf->phys);
 	}
+
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_wq_create_dua, &wq_create->u.request, 1);
+
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
@@ -12739,6 +12834,47 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	if (wq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;
+	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
+		wq->db_format = bf_get(lpfc_mbx_wq_create_db_format,
+				       &wq_create->u.response);
+		if ((wq->db_format != LPFC_DB_LIST_FORMAT) &&
+		    (wq->db_format != LPFC_DB_RING_FORMAT)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3265 WQ[%d] doorbell format not "
+					"supported: x%x\n", wq->queue_id,
+					wq->db_format);
+			status = -EINVAL;
+			goto out;
+		}
+		pci_barset = bf_get(lpfc_mbx_wq_create_bar_set,
+				    &wq_create->u.response);
+		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
+		if (!bar_memmap_p) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3263 WQ[%d] failed to memmap pci "
+					"barset:x%x\n", wq->queue_id,
+					pci_barset);
+			status = -ENOMEM;
+			goto out;
+		}
+		db_offset = wq_create->u.response.doorbell_offset;
+		if ((db_offset != LPFC_ULP0_WQ_DOORBELL) &&
+		    (db_offset != LPFC_ULP1_WQ_DOORBELL)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3252 WQ[%d] doorbell offset not "
+					"supported: x%x\n", wq->queue_id,
+					db_offset);
+			status = -EINVAL;
+			goto out;
+		}
+		wq->db_regaddr = bar_memmap_p + db_offset;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3264 WQ[%d]: barset:x%x, offset:x%x\n",
+				wq->queue_id, pci_barset, db_offset);
+	} else {
+		wq->db_format = LPFC_DB_LIST_FORMAT;
+		wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	}
 	wq->type = LPFC_WQ;
 	wq->assoc_qid = cq->queue_id;
@@ -12816,6 +12952,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
+	void __iomem *bar_memmap_p;
+	uint32_t db_offset;
+	uint16_t pci_barset;
 
 	/* sanity check on queue memory */
 	if (!hrq || !drq || !cq)
@@ -12894,6 +13033,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		rq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
 					putPaddrHigh(dmabuf->phys);
 	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_rq_create_dua, &rq_create->u.request, 1);
+
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
@@ -12910,6 +13052,50 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	if (hrq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;
+	}
+
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
+		hrq->db_format = bf_get(lpfc_mbx_rq_create_db_format,
+					&rq_create->u.response);
+		if ((hrq->db_format != LPFC_DB_LIST_FORMAT) &&
+		    (hrq->db_format != LPFC_DB_RING_FORMAT)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3262 RQ [%d] doorbell format not "
+					"supported: x%x\n", hrq->queue_id,
+					hrq->db_format);
+			status = -EINVAL;
+			goto out;
+		}
+
+		pci_barset = bf_get(lpfc_mbx_rq_create_bar_set,
+				    &rq_create->u.response);
+		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
+		if (!bar_memmap_p) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3269 RQ[%d] failed to memmap pci "
+					"barset:x%x\n", hrq->queue_id,
+					pci_barset);
+			status = -ENOMEM;
+			goto out;
+		}
+
+		db_offset = rq_create->u.response.doorbell_offset;
+		if ((db_offset != LPFC_ULP0_RQ_DOORBELL) &&
+		    (db_offset != LPFC_ULP1_RQ_DOORBELL)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3270 RQ[%d] doorbell offset not "
+					"supported: x%x\n", hrq->queue_id,
+					db_offset);
+			status = -EINVAL;
+			goto out;
+		}
+		hrq->db_regaddr = bar_memmap_p + db_offset;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3266 RQ[qid:%d]: barset:x%x, offset:x%x\n",
+				hrq->queue_id, pci_barset, db_offset);
+	} else {
+		hrq->db_format = LPFC_DB_RING_FORMAT;
+		hrq->db_regaddr = phba->sli4_hba.RQDBregaddr;
 	}
 	hrq->type = LPFC_HRQ;
 	hrq->assoc_qid = cq->queue_id;
@@ -12976,6 +13162,8 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		rq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
 					putPaddrHigh(dmabuf->phys);
 	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_rq_create_dua, &rq_create->u.request, 1);
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr = (union lpfc_sli4_cfg_shdr *) &rq_create->header.cfg_shdr;
@@ -14063,6 +14251,40 @@ lpfc_sli4_abort_partial_seq(struct lpfc_vport *vport,
 }
 
 /**
+ * lpfc_sli4_abort_ulp_seq - Abort assembled unsol sequence from ulp
+ * @vport: pointer to a vitural port
+ * @dmabuf: pointer to a dmabuf that describes the FC sequence
+ *
+ * This function tries to abort from the assembed sequence from upper level
+ * protocol, described by the information from basic abbort @dmabuf. It
+ * checks to see whether such pending context exists at upper level protocol.
+ * If so, it shall clean up the pending context.
+ *
+ * Return
+ * true  -- if there is matching pending context of the sequence cleaned
+ *          at ulp;
+ * false -- if there is no matching pending context of the sequence present
+ *          at ulp.
+ **/
+static bool
+lpfc_sli4_abort_ulp_seq(struct lpfc_vport *vport, struct hbq_dmabuf *dmabuf)
+{
+	struct lpfc_hba *phba = vport->phba;
+	int handled;
+
+	/* Accepting abort at ulp with SLI4 only */
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return false;
+
+	/* Register all caring upper level protocols to attend abort */
+	handled = lpfc_ct_handle_unsol_abort(phba, dmabuf);
+	if (handled)
+		return true;
+
+	return false;
+}
+
+/**
  * lpfc_sli4_seq_abort_rsp_cmpl - BLS ABORT RSP seq abort iocb complete handler
  * @phba: Pointer to HBA context object.
  * @cmd_iocbq: pointer to the command iocbq structure.
@@ -14077,8 +14299,14 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 			     struct lpfc_iocbq *cmd_iocbq,
 			     struct lpfc_iocbq *rsp_iocbq)
 {
-	if (cmd_iocbq)
+	struct lpfc_nodelist *ndlp;
+
+	if (cmd_iocbq) {
+		ndlp = (struct lpfc_nodelist *)cmd_iocbq->context1;
+		lpfc_nlp_put(ndlp);
+		lpfc_nlp_not_used(ndlp);
 		lpfc_sli_release_iocbq(phba, cmd_iocbq);
+	}
 
 	/* Failure means BLS ABORT RSP did not get delivered to remote node*/
 	if (rsp_iocbq && rsp_iocbq->iocb.ulpStatus)
@@ -14118,9 +14346,10 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
  * event after aborting the sequence handling.
  **/
 static void
-lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
-			struct fc_frame_header *fc_hdr)
+lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
+			struct fc_frame_header *fc_hdr, bool aborted)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *ctiocb = NULL;
 	struct lpfc_nodelist *ndlp;
 	uint16_t oxid, rxid, xri, lxri;
@@ -14135,12 +14364,27 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 	rxid = be16_to_cpu(fc_hdr->fh_rx_id);
 
-	ndlp = lpfc_findnode_did(phba->pport, sid);
+	ndlp = lpfc_findnode_did(vport, sid);
 	if (!ndlp) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
-				"1268 Find ndlp returned NULL for oxid:x%x "
-				"SID:x%x\n", oxid, sid);
-		return;
+		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+					 "1268 Failed to allocate ndlp for "
+					 "oxid:x%x SID:x%x\n", oxid, sid);
+			return;
+		}
+		lpfc_nlp_init(vport, ndlp, sid);
+		/* Put ndlp onto pport node list */
+		lpfc_enqueue_node(vport, ndlp);
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		/* re-setup ndlp without removing from node list */
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+					 "3275 Failed to active ndlp found "
+					 "for oxid:x%x SID:x%x\n", oxid, sid);
+			return;
+		}
 	}
 
 	/* Allocate buffer for rsp iocb */
@@ -14164,7 +14408,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
-	ctiocb->context1 = ndlp;
+	ctiocb->context1 = lpfc_nlp_get(ndlp);
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
@@ -14183,14 +14427,24 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	if (lxri != NO_XRI)
 		lpfc_set_rrq_active(phba, ndlp, lxri,
 			(xri == oxid) ? rxid : oxid, 0);
-	/* If the oxid maps to the FCP XRI range or if it is out of range,
-	 * send a BLS_RJT.  The driver no longer has that exchange.
-	 * Override the IOCB for a BA_RJT.
+	/* For BA_ABTS from exchange responder, if the logical xri with
+	 * the oxid maps to the FCP XRI range, the port no longer has
+	 * that exchange context, send a BLS_RJT. Override the IOCB for
+	 * a BA_RJT.
 	 */
-	if (xri > (phba->sli4_hba.max_cfg_param.max_xri +
-		    phba->sli4_hba.max_cfg_param.xri_base) ||
-	    xri > (lpfc_sli4_get_els_iocb_cnt(phba) +
-		    phba->sli4_hba.max_cfg_param.xri_base)) {
+	if ((fctl & FC_FC_EX_CTX) &&
+	    (lxri > lpfc_sli4_get_els_iocb_cnt(phba))) {
+		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
+		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
+		bf_set(lpfc_rsn_expln, &icmd->un.bls_rsp, FC_BA_RJT_INV_XID);
+		bf_set(lpfc_rsn_code, &icmd->un.bls_rsp, FC_BA_RJT_UNABLE);
+	}
+
+	/* If BA_ABTS failed to abort a partially assembled receive sequence,
+	 * the driver no longer has that exchange, send a BLS_RJT. Override
+	 * the IOCB for a BA_RJT.
+	 */
+	if (aborted == false) {
 		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
 		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
 		bf_set(lpfc_rsn_expln, &icmd->un.bls_rsp, FC_BA_RJT_INV_XID);
@@ -14214,17 +14468,19 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	bf_set(lpfc_abts_oxid, &icmd->un.bls_rsp, oxid);
 
 	/* Xmit CT abts response on exchange <xid> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
-			icmd->un.xseq64.w5.hcsw.Rctl, oxid, phba->link_state);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
+			 icmd->un.xseq64.w5.hcsw.Rctl, oxid, phba->link_state);
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
 	if (rc == IOCB_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-				"2925 Failed to issue CT ABTS RSP x%x on "
-				"xri x%x, Data x%x\n",
-				icmd->un.xseq64.w5.hcsw.Rctl, oxid,
-				phba->link_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2925 Failed to issue CT ABTS RSP x%x on "
+				 "xri x%x, Data x%x\n",
+				 icmd->un.xseq64.w5.hcsw.Rctl, oxid,
+				 phba->link_state);
+		lpfc_nlp_put(ndlp);
+		ctiocb->context1 = NULL;
 		lpfc_sli_release_iocbq(phba, ctiocb);
 	}
 }
@@ -14249,32 +14505,25 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 	struct lpfc_hba *phba = vport->phba;
 	struct fc_frame_header fc_hdr;
 	uint32_t fctl;
-	bool abts_par;
+	bool aborted;
 
 	/* Make a copy of fc_hdr before the dmabuf being released */
 	memcpy(&fc_hdr, dmabuf->hbuf.virt, sizeof(struct fc_frame_header));
 	fctl = sli4_fctl_from_fc_hdr(&fc_hdr);
 
 	if (fctl & FC_FC_EX_CTX) {
-		/*
-		 * ABTS sent by responder to exchange, just free the buffer
-		 */
-		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		/* ABTS by responder to exchange, no cleanup needed */
+		aborted = true;
 	} else {
-		/*
-		 * ABTS sent by initiator to exchange, need to do cleanup
-		 */
-		/* Try to abort partially assembled seq */
-		abts_par = lpfc_sli4_abort_partial_seq(vport, dmabuf);
-
-		/* Send abort to ULP if partially seq abort failed */
-		if (abts_par == false)
-			lpfc_sli4_send_seq_to_ulp(vport, dmabuf);
-		else
-			lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		/* ABTS by initiator to exchange, need to do cleanup */
+		aborted = lpfc_sli4_abort_partial_seq(vport, dmabuf);
+		if (aborted == false)
+			aborted = lpfc_sli4_abort_ulp_seq(vport, dmabuf);
 	}
-	/* Send basic accept (BA_ACC) to the abort requester */
-	lpfc_sli4_seq_abort_rsp(phba, &fc_hdr);
+	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+
+	/* Respond with BA_ACC or BA_RJT accordingly */
+	lpfc_sli4_seq_abort_rsp(vport, &fc_hdr, aborted);
 }
 
 /**
@@ -15307,10 +15556,13 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 {
 	uint16_t next_fcf_index;
 
+initial_priority:
 	/* Search start from next bit of currently registered FCF index */
+	next_fcf_index = phba->fcf.current_rec.fcf_indx;
+
 next_priority:
-	next_fcf_index = (phba->fcf.current_rec.fcf_indx + 1) %
-					LPFC_SLI4_FCF_TBL_INDX_MAX;
+	/* Determine the next fcf index to check */
+	next_fcf_index = (next_fcf_index + 1) % LPFC_SLI4_FCF_TBL_INDX_MAX;
 	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
 				       LPFC_SLI4_FCF_TBL_INDX_MAX,
 				       next_fcf_index);
@@ -15337,7 +15589,7 @@ next_priority:
 		 * at that level and continue the selection process.
 		 */
 		if (lpfc_check_next_fcf_pri_level(phba))
-			goto next_priority;
+			goto initial_priority;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2844 No roundrobin failover FCF available\n");
 		if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX)

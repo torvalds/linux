@@ -22,7 +22,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Jun 04, 2012"
+#define DRV_MODULE_RELDATE	"Dec 21, 2012"
 
 
 static char version[] =
@@ -687,11 +687,16 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 		BNX2FC_HBA_DBG(lport, "FW stat req timed out\n");
 		return bnx2fc_stats;
 	}
-	bnx2fc_stats->invalid_crc_count += fw_stats->rx_stat2.fc_crc_cnt;
-	bnx2fc_stats->tx_frames += fw_stats->tx_stat.fcoe_tx_pkt_cnt;
-	bnx2fc_stats->tx_words += (fw_stats->tx_stat.fcoe_tx_byte_cnt) / 4;
-	bnx2fc_stats->rx_frames += fw_stats->rx_stat0.fcoe_rx_pkt_cnt;
-	bnx2fc_stats->rx_words += (fw_stats->rx_stat0.fcoe_rx_byte_cnt) / 4;
+	BNX2FC_STATS(hba, rx_stat2, fc_crc_cnt);
+	bnx2fc_stats->invalid_crc_count += hba->bfw_stats.fc_crc_cnt;
+	BNX2FC_STATS(hba, tx_stat, fcoe_tx_pkt_cnt);
+	bnx2fc_stats->tx_frames += hba->bfw_stats.fcoe_tx_pkt_cnt;
+	BNX2FC_STATS(hba, tx_stat, fcoe_tx_byte_cnt);
+	bnx2fc_stats->tx_words += ((hba->bfw_stats.fcoe_tx_byte_cnt) / 4);
+	BNX2FC_STATS(hba, rx_stat0, fcoe_rx_pkt_cnt);
+	bnx2fc_stats->rx_frames += hba->bfw_stats.fcoe_rx_pkt_cnt;
+	BNX2FC_STATS(hba, rx_stat0, fcoe_rx_byte_cnt);
+	bnx2fc_stats->rx_words += ((hba->bfw_stats.fcoe_rx_byte_cnt) / 4);
 
 	bnx2fc_stats->dumped_frames = 0;
 	bnx2fc_stats->lip_count = 0;
@@ -700,6 +705,8 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 	bnx2fc_stats->loss_of_signal_count = 0;
 	bnx2fc_stats->prim_seq_protocol_err_count = 0;
 
+	memcpy(&hba->prev_stats, hba->stats_buffer,
+	       sizeof(struct fcoe_statistics_params));
 	return bnx2fc_stats;
 }
 
@@ -2660,7 +2667,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.can_queue		= BNX2FC_CAN_QUEUE,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
-	.max_sectors		= 512,
+	.max_sectors		= 1024,
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

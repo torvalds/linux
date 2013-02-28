@@ -32,14 +32,15 @@
 #include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/blk-iopoll.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.5.4"
-#define IPR_DRIVER_DATE "(July 11, 2012)"
+#define IPR_DRIVER_VERSION "2.6.0"
+#define IPR_DRIVER_DATE "(November 16, 2012)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -82,6 +83,7 @@
 
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C0    0x0352
 #define IPR_SUBS_DEV_ID_57C3    0x0353
 #define IPR_SUBS_DEV_ID_57C4    0x0354
 #define IPR_SUBS_DEV_ID_57C6    0x0357
@@ -94,6 +96,10 @@
 #define IPR_SUBS_DEV_ID_574D    0x0356
 #define IPR_SUBS_DEV_ID_57C8    0x035D
 
+#define IPR_SUBS_DEV_ID_57D5    0x03FB
+#define IPR_SUBS_DEV_ID_57D6    0x03FC
+#define IPR_SUBS_DEV_ID_57D7    0x03FF
+#define IPR_SUBS_DEV_ID_57D8    0x03FE
 #define IPR_NAME				"ipr"
 
 /*
@@ -298,6 +304,9 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
  * Misc literals
  */
 #define IPR_NUM_IOADL_ENTRIES			IPR_MAX_SGLIST
+#define IPR_MAX_MSIX_VECTORS		0x5
+#define IPR_MAX_HRRQ_NUM		0x10
+#define IPR_INIT_HRRQ			0x0
 
 /*
  * Adapter interface types
@@ -404,7 +413,7 @@ struct ipr_config_table_entry64 {
 	__be64 dev_id;
 	__be64 lun;
 	__be64 lun_wwn[2];
-#define IPR_MAX_RES_PATH_LENGTH		24
+#define IPR_MAX_RES_PATH_LENGTH		48
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];
@@ -459,9 +468,39 @@ struct ipr_supported_device {
 	u8 reserved2[16];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hrr_queue {
+	struct ipr_ioa_cfg *ioa_cfg;
+	__be32 *host_rrq;
+	dma_addr_t host_rrq_dma;
+#define IPR_HRRQ_REQ_RESP_HANDLE_MASK	0xfffffffc
+#define IPR_HRRQ_RESP_BIT_SET		0x00000002
+#define IPR_HRRQ_TOGGLE_BIT		0x00000001
+#define IPR_HRRQ_REQ_RESP_HANDLE_SHIFT	2
+#define IPR_ID_HRRQ_SELE_ENABLE		0x02
+	volatile __be32 *hrrq_start;
+	volatile __be32 *hrrq_end;
+	volatile __be32 *hrrq_curr;
+
+	struct list_head hrrq_free_q;
+	struct list_head hrrq_pending_q;
+	spinlock_t _lock;
+	spinlock_t *lock;
+
+	volatile u32 toggle_bit;
+	u32 size;
+	u32 min_cmd_id;
+	u32 max_cmd_id;
+	u8 allow_interrupts:1;
+	u8 ioa_is_dead:1;
+	u8 allow_cmds:1;
+
+	struct blk_iopoll iopoll;
+};
+
 /* Command packet structure */
 struct ipr_cmd_pkt {
-	__be16 reserved;		/* Reserved by IOA */
+	u8 reserved;		/* Reserved by IOA */
+	u8 hrrq_id;
 	u8 request_type;
 #define IPR_RQTYPE_SCSICDB		0x00
 #define IPR_RQTYPE_IOACMD		0x01
@@ -1022,6 +1061,10 @@ struct ipr_hostrcb64_fabric_desc {
 	struct ipr_hostrcb64_config_element elem[1];
 }__attribute__((packed, aligned (8)));
 
+#define for_each_hrrq(hrrq, ioa_cfg) \
+		for (hrrq = (ioa_cfg)->hrrq; \
+			hrrq < ((ioa_cfg)->hrrq + (ioa_cfg)->hrrq_num); hrrq++)
+
 #define for_each_fabric_cfg(fabric, cfg) \
 		for (cfg = (fabric)->elem; \
 			cfg < ((fabric)->elem + be16_to_cpu((fabric)->num_entries)); \
@@ -1308,6 +1351,7 @@ struct ipr_chip_cfg_t {
 	u16 max_cmds;
 	u8 cache_line_size;
 	u8 clear_isr;
+	u32 iopoll_weight;
 	struct ipr_interrupt_offsets regs;
 };
 
@@ -1317,6 +1361,7 @@ struct ipr_chip_t {
 	u16 intr_type;
 #define IPR_USE_LSI			0x00
 #define IPR_USE_MSI			0x01
+#define IPR_USE_MSIX			0x02
 	u16 sis_type;
 #define IPR_SIS32			0x00
 #define IPR_SIS64			0x01
@@ -1375,13 +1420,10 @@ struct ipr_ioa_cfg {
 
 	struct list_head queue;
 
-	u8 allow_interrupts:1;
 	u8 in_reset_reload:1;
 	u8 in_ioa_bringdown:1;
 	u8 ioa_unit_checked:1;
-	u8 ioa_is_dead:1;
 	u8 dump_taken:1;
-	u8 allow_cmds:1;
 	u8 allow_ml_add_del:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
@@ -1413,21 +1455,7 @@ struct ipr_ioa_cfg {
 	char trace_start[8];
 #define IPR_TRACE_START_LABEL			"trace"
 	struct ipr_trace_entry *trace;
-	u32 trace_index:IPR_NUM_TRACE_INDEX_BITS;
-
-	/*
-	 * Queue for free command blocks
-	 */
-	char ipr_free_label[8];
-#define IPR_FREEQ_LABEL			"free-q"
-	struct list_head free_q;
-
-	/*
-	 * Queue for command blocks outstanding to the adapter
-	 */
-	char ipr_pending_label[8];
-#define IPR_PENDQ_LABEL			"pend-q"
-	struct list_head pending_q;
+	atomic_t trace_index;
 
 	char cfg_table_start[8];
 #define IPR_CFG_TBL_START		"cfg"
@@ -1452,16 +1480,10 @@ struct ipr_ioa_cfg {
 	struct list_head hostrcb_free_q;
 	struct list_head hostrcb_pending_q;
 
-	__be32 *host_rrq;
-	dma_addr_t host_rrq_dma;
-#define IPR_HRRQ_REQ_RESP_HANDLE_MASK	0xfffffffc
-#define IPR_HRRQ_RESP_BIT_SET			0x00000002
-#define IPR_HRRQ_TOGGLE_BIT				0x00000001
-#define IPR_HRRQ_REQ_RESP_HANDLE_SHIFT	2
-	volatile __be32 *hrrq_start;
-	volatile __be32 *hrrq_end;
-	volatile __be32 *hrrq_curr;
-	volatile u32 toggle_bit;
+	struct ipr_hrr_queue hrrq[IPR_MAX_HRRQ_NUM];
+	u32 hrrq_num;
+	atomic_t  hrrq_index;
+	u16 identify_hrrq_index;
 
 	struct ipr_bus_attributes bus_attr[IPR_MAX_NUM_BUSES];
 
@@ -1507,6 +1529,17 @@ struct ipr_ioa_cfg {
 	u32 max_cmds;
 	struct ipr_cmnd **ipr_cmnd_list;
 	dma_addr_t *ipr_cmnd_list_dma;
+
+	u16 intr_flag;
+	unsigned int nvectors;
+
+	struct {
+		unsigned short vec;
+		char desc[22];
+	} vectors_info[IPR_MAX_MSIX_VECTORS];
+
+	u32 iopoll_weight;
+
 }; /* struct ipr_ioa_cfg */
 
 struct ipr_cmnd {
@@ -1544,6 +1577,7 @@ struct ipr_cmnd {
 		struct scsi_device *sdev;
 	} u;
 
+	struct ipr_hrr_queue *hrrq;
 	struct ipr_ioa_cfg *ioa_cfg;
 };
 
@@ -1717,7 +1751,8 @@ struct ipr_ucode_image_header {
 	if (ipr_is_device(hostrcb)) {					\
 		if ((hostrcb)->ioa_cfg->sis64) {			\
 			printk(KERN_ERR IPR_NAME ": %s: " fmt, 		\
-				ipr_format_res_path(hostrcb->hcam.u.error64.fd_res_path, \
+				ipr_format_res_path(hostrcb->ioa_cfg,	\
+					hostrcb->hcam.u.error64.fd_res_path, \
 					hostrcb->rp_buffer,		\
 					sizeof(hostrcb->rp_buffer)),	\
 				__VA_ARGS__);				\

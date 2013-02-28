@@ -139,6 +139,10 @@ struct lpfc_queue {
 
 	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
 
+	uint16_t db_format;
+#define LPFC_DB_RING_FORMAT	0x01
+#define LPFC_DB_LIST_FORMAT	0x02
+	void __iomem *db_regaddr;
 	/* For q stats */
 	uint32_t q_cnt_1;
 	uint32_t q_cnt_2;
@@ -507,6 +511,10 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue *els_wq; /* Slow-path ELS work queue */
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
+
+	uint8_t fw_func_mode;	/* FW function protocol mode */
+	uint32_t ulp0_mode;	/* ULP0 protocol mode */
+	uint32_t ulp1_mode;	/* ULP1 protocol mode */
 
 	/* Setup information for various queue parameters */
 	int eq_esize;

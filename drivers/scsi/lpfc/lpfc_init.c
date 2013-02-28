@@ -6229,9 +6229,11 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 			phba->sli4_hba.conf_regs_memmap_p +
 						LPFC_CTL_PORT_SEM_OFFSET;
 		phba->sli4_hba.RQDBregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_RQ_DOORBELL;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_ULP0_RQ_DOORBELL;
 		phba->sli4_hba.WQDBregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_WQ_DOORBELL;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_ULP0_WQ_DOORBELL;
 		phba->sli4_hba.EQCQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_EQCQ_DOORBELL;
 		phba->sli4_hba.MQDBregaddr =
@@ -6285,9 +6287,11 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
 		return -ENODEV;
 
 	phba->sli4_hba.RQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_RQ_DOORBELL);
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_ULP0_RQ_DOORBELL);
 	phba->sli4_hba.WQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_WQ_DOORBELL);
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_ULP0_WQ_DOORBELL);
 	phba->sli4_hba.EQCQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE + LPFC_EQCQ_DOORBELL);
 	phba->sli4_hba.MQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
@@ -6983,6 +6987,19 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 		phba->sli4_hba.fcp_wq = NULL;
 	}
 
+	if (phba->pci_bar0_memmap_p) {
+		iounmap(phba->pci_bar0_memmap_p);
+		phba->pci_bar0_memmap_p = NULL;
+	}
+	if (phba->pci_bar2_memmap_p) {
+		iounmap(phba->pci_bar2_memmap_p);
+		phba->pci_bar2_memmap_p = NULL;
+	}
+	if (phba->pci_bar4_memmap_p) {
+		iounmap(phba->pci_bar4_memmap_p);
+		phba->pci_bar4_memmap_p = NULL;
+	}
+
 	/* Release FCP CQ mapping array */
 	if (phba->sli4_hba.fcp_cq_map != NULL) {
 		kfree(phba->sli4_hba.fcp_cq_map);
@@ -7046,6 +7063,53 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	int rc = -ENOMEM;
 	int fcp_eqidx, fcp_cqidx, fcp_wqidx;
 	int fcp_cq_index = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	LPFC_MBOXQ_t *mboxq;
+	uint32_t length;
+
+	/* Check for dual-ULP support */
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3249 Unable to allocate memory for "
+				"QUERY_FW_CFG mailbox command\n");
+		return -ENOMEM;
+	}
+	length = (sizeof(struct lpfc_mbx_query_fw_config) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_QUERY_FW_CFG,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+			&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3250 QUERY_FW_CFG mailbox failed with status "
+				"x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		if (rc != MBX_TIMEOUT)
+			mempool_free(mboxq, phba->mbox_mem_pool);
+		rc = -ENXIO;
+		goto out_error;
+	}
+
+	phba->sli4_hba.fw_func_mode =
+			mboxq->u.mqe.un.query_fw_cfg.rsp.function_mode;
+	phba->sli4_hba.ulp0_mode = mboxq->u.mqe.un.query_fw_cfg.rsp.ulp0_mode;
+	phba->sli4_hba.ulp1_mode = mboxq->u.mqe.un.query_fw_cfg.rsp.ulp1_mode;
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"3251 QUERY_FW_CFG: func_mode:x%x, ulp0_mode:x%x, "
+			"ulp1_mode:x%x\n", phba->sli4_hba.fw_func_mode,
+			phba->sli4_hba.ulp0_mode, phba->sli4_hba.ulp1_mode);
+
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
 
 	/*
 	 * Set up HBA Event Queues (EQs)
@@ -7657,78 +7721,6 @@ out:
 		rc = -ENODEV;
 
 	return rc;
-}
-
-/**
- * lpfc_sli4_send_nop_mbox_cmds - Send sli-4 nop mailbox commands
- * @phba: pointer to lpfc hba data structure.
- * @cnt: number of nop mailbox commands to send.
- *
- * This routine is invoked to send a number @cnt of NOP mailbox command and
- * wait for each command to complete.
- *
- * Return: the number of NOP mailbox command completed.
- **/
-static int
-lpfc_sli4_send_nop_mbox_cmds(struct lpfc_hba *phba, uint32_t cnt)
-{
-	LPFC_MBOXQ_t *mboxq;
-	int length, cmdsent;
-	uint32_t mbox_tmo;
-	uint32_t rc = 0;
-	uint32_t shdr_status, shdr_add_status;
-	union lpfc_sli4_cfg_shdr *shdr;
-
-	if (cnt == 0) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2518 Requested to send 0 NOP mailbox cmd\n");
-		return cnt;
-	}
-
-	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2519 Unable to allocate memory for issuing "
-				"NOP mailbox command\n");
-		return 0;
-	}
-
-	/* Set up NOP SLI4_CONFIG mailbox-ioctl command */
-	length = (sizeof(struct lpfc_mbx_nop) -
-		  sizeof(struct lpfc_sli4_cfg_mhdr));
-
-	for (cmdsent = 0; cmdsent < cnt; cmdsent++) {
-		lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
-				 LPFC_MBOX_OPCODE_NOP, length,
-				 LPFC_SLI4_MBX_EMBED);
-		if (!phba->sli4_hba.intr_enable)
-			rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-		else {
-			mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
-			rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
-		}
-		if (rc == MBX_TIMEOUT)
-			break;
-		/* Check return status */
-		shdr = (union lpfc_sli4_cfg_shdr *)
-			&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
-		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-					 &shdr->response);
-		if (shdr_status || shdr_add_status || rc) {
-			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-					"2520 NOP mailbox command failed "
-					"status x%x add_status x%x mbx "
-					"status x%x\n", shdr_status,
-					shdr_add_status, rc);
-			break;
-		}
-	}
-
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
-
-	return cmdsent;
 }
 
 /**
@@ -8494,37 +8486,6 @@ lpfc_unset_hba(struct lpfc_hba *phba)
 	lpfc_sli_brdrestart(phba);
 
 	lpfc_sli_disable_intr(phba);
-
-	return;
-}
-
-/**
- * lpfc_sli4_unset_hba - Unset SLI4 hba device initialization.
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to unset the HBA device initialization steps to
- * a device with SLI-4 interface spec.
- **/
-static void
-lpfc_sli4_unset_hba(struct lpfc_hba *phba)
-{
-	struct lpfc_vport *vport = phba->pport;
-	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-
-	spin_lock_irq(shost->host_lock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(shost->host_lock);
-
-	phba->pport->work_port_events = 0;
-
-	/* Stop the SLI4 device port */
-	lpfc_stop_port(phba);
-
-	lpfc_sli4_disable_intr(phba);
-
-	/* Reset SLI4 HBA FCoE function */
-	lpfc_pci_function_reset(phba);
-	lpfc_sli4_queue_destroy(phba);
 
 	return;
 }
@@ -9591,7 +9552,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct Scsi_Host  *shost = NULL;
 	int error, ret;
 	uint32_t cfg_mode, intr_mode;
-	int mcnt;
 	int adjusted_fcp_io_channel;
 
 	/* Allocate memory for HBA structure */
@@ -9680,57 +9640,34 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	shost = lpfc_shost_from_vport(vport); /* save shost for error cleanup */
 	/* Now, trying to enable interrupt and bring up the device */
 	cfg_mode = phba->cfg_use_msi;
-	while (true) {
-		/* Put device to a known state before enabling interrupt */
-		lpfc_stop_port(phba);
-		/* Configure and enable interrupt */
-		intr_mode = lpfc_sli4_enable_intr(phba, cfg_mode);
-		if (intr_mode == LPFC_INTR_ERROR) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0426 Failed to enable interrupt.\n");
-			error = -ENODEV;
-			goto out_free_sysfs_attr;
-		}
-		/* Default to single EQ for non-MSI-X */
-		if (phba->intr_type != MSIX)
-			adjusted_fcp_io_channel = 1;
-		else
-			adjusted_fcp_io_channel = phba->cfg_fcp_io_channel;
-		phba->cfg_fcp_io_channel = adjusted_fcp_io_channel;
-		/* Set up SLI-4 HBA */
-		if (lpfc_sli4_hba_setup(phba)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"1421 Failed to set up hba\n");
-			error = -ENODEV;
-			goto out_disable_intr;
-		}
 
-		/* Send NOP mbx cmds for non-INTx mode active interrupt test */
-		if (intr_mode != 0)
-			mcnt = lpfc_sli4_send_nop_mbox_cmds(phba,
-							    LPFC_ACT_INTR_CNT);
-
-		/* Check active interrupts received only for MSI/MSI-X */
-		if (intr_mode == 0 ||
-		    phba->sli.slistat.sli_intr >= LPFC_ACT_INTR_CNT) {
-			/* Log the current active interrupt mode */
-			phba->intr_mode = intr_mode;
-			lpfc_log_intr_mode(phba, intr_mode);
-			break;
-		}
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"0451 Configure interrupt mode (%d) "
-				"failed active interrupt test.\n",
-				intr_mode);
-		/* Unset the previous SLI-4 HBA setup. */
-		/*
-		 * TODO:  Is this operation compatible with IF TYPE 2
-		 * devices?  All port state is deleted and cleared.
-		 */
-		lpfc_sli4_unset_hba(phba);
-		/* Try next level of interrupt mode */
-		cfg_mode = --intr_mode;
+	/* Put device to a known state before enabling interrupt */
+	lpfc_stop_port(phba);
+	/* Configure and enable interrupt */
+	intr_mode = lpfc_sli4_enable_intr(phba, cfg_mode);
+	if (intr_mode == LPFC_INTR_ERROR) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0426 Failed to enable interrupt.\n");
+		error = -ENODEV;
+		goto out_free_sysfs_attr;
 	}
+	/* Default to single EQ for non-MSI-X */
+	if (phba->intr_type != MSIX)
+		adjusted_fcp_io_channel = 1;
+	else
+		adjusted_fcp_io_channel = phba->cfg_fcp_io_channel;
+	phba->cfg_fcp_io_channel = adjusted_fcp_io_channel;
+	/* Set up SLI-4 HBA */
+	if (lpfc_sli4_hba_setup(phba)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1421 Failed to set up hba\n");
+		error = -ENODEV;
+		goto out_disable_intr;
+	}
+
+	/* Log the current active interrupt mode */
+	phba->intr_mode = intr_mode;
+	lpfc_log_intr_mode(phba, intr_mode);
 
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
