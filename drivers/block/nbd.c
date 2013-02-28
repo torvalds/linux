@@ -703,6 +703,8 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 		mutex_unlock(&nbd->tx_lock);
 
+		if (nbd->flags & NBD_FLAG_READ_ONLY)
+			set_device_ro(bdev, true);
 		if (nbd->flags & NBD_FLAG_SEND_TRIM)
 			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
 				nbd->disk->queue);
@@ -730,6 +732,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		dev_warn(disk_to_dev(nbd->disk), "queue cleared\n");
 		kill_bdev(bdev);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
+		set_device_ro(bdev, false);
 		if (file)
 			fput(file);
 		nbd->flags = 0;
