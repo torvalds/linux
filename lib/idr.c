@@ -317,36 +317,6 @@ int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id)
 }
 EXPORT_SYMBOL(idr_get_new_above);
 
-/**
- * idr_get_new - allocate new idr entry
- * @idp: idr handle
- * @ptr: pointer you want associated with the id
- * @id: pointer to the allocated handle
- *
- * If allocation from IDR's private freelist fails, idr_get_new_above() will
- * return %-EAGAIN.  The caller should retry the idr_pre_get() call to refill
- * IDR's preallocation and then retry the idr_get_new_above() call.
- *
- * If the idr is full idr_get_new_above() will return %-ENOSPC.
- *
- * @id returns a value in the range %0 ... %0x7fffffff
- */
-int idr_get_new(struct idr *idp, void *ptr, int *id)
-{
-	int rv;
-
-	rv = idr_get_new_above_int(idp, ptr, 0);
-	/*
-	 * This is a cheap hack until the IDR code can be fixed to
-	 * return proper error values.
-	 */
-	if (rv < 0)
-		return _idr_rc_to_errno(rv);
-	*id = rv;
-	return 0;
-}
-EXPORT_SYMBOL(idr_get_new);
-
 static void idr_remove_warning(int id)
 {
 	printk(KERN_WARNING
@@ -855,25 +825,6 @@ int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 	return 0;
 }
 EXPORT_SYMBOL(ida_get_new_above);
-
-/**
- * ida_get_new - allocate new ID
- * @ida:	idr handle
- * @p_id:	pointer to the allocated handle
- *
- * Allocate new ID.  It should be called with any required locks.
- *
- * If memory is required, it will return %-EAGAIN, you should unlock
- * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return %-ENOSPC.
- *
- * @p_id returns a value in the range %0 ... %0x7fffffff.
- */
-int ida_get_new(struct ida *ida, int *p_id)
-{
-	return ida_get_new_above(ida, 0, p_id);
-}
-EXPORT_SYMBOL(ida_get_new);
 
 /**
  * ida_remove - remove the given ID
