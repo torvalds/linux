@@ -34,6 +34,8 @@ struct arsb {
 	u32 reserved[4];
 } __packed;
 
+#define EQC_WR_PROHIBIT 22
+
 struct msb {
 	u8 fmt:4;
 	u8 oc:4;
