@@ -433,11 +433,7 @@ void idr_remove(struct idr *idp, int id)
 }
 EXPORT_SYMBOL(idr_remove);
 
-/**
- * idr_remove_all - remove all ids from the given idr tree
- * @idp: idr handle
- */
-void idr_remove_all(struct idr *idp)
+void __idr_remove_all(struct idr *idp)
 {
 	int n, id, max;
 	int bt_mask;
@@ -470,7 +466,7 @@ void idr_remove_all(struct idr *idp)
 	}
 	idp->layers = 0;
 }
-EXPORT_SYMBOL(idr_remove_all);
+EXPORT_SYMBOL(__idr_remove_all);
 
 /**
  * idr_destroy - release all cached layers within an idr tree
@@ -487,7 +483,7 @@ EXPORT_SYMBOL(idr_remove_all);
  */
 void idr_destroy(struct idr *idp)
 {
-	idr_remove_all(idp);
+	__idr_remove_all(idp);
 
 	while (idp->id_free_cnt) {
 		struct idr_layer *p = get_from_free_list(idp);
