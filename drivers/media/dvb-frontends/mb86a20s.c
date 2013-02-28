@@ -31,6 +31,8 @@ struct mb86a20s_state {
 
 	struct dvb_frontend frontend;
 
+	u32 if_freq;
+
 	u32 estimated_rate[3];
 
 	bool need_init;
@@ -47,7 +49,7 @@ struct regdata {
  * Initialization sequence: Use whatevere default values that PV SBTVD
  * does on its initialisation, obtained via USB snoop
  */
-static struct regdata mb86a20s_init[] = {
+static struct regdata mb86a20s_init1[] = {
 	{ 0x70, 0x0f },
 	{ 0x70, 0xff },
 	{ 0x08, 0x01 },
@@ -56,7 +58,9 @@ static struct regdata mb86a20s_init[] = {
 	{ 0x39, 0x01 },
 	{ 0x71, 0x00 },
 	{ 0x28, 0x2a }, { 0x29, 0x00 }, { 0x2a, 0xff }, { 0x2b, 0x80 },
-	{ 0x28, 0x20 }, { 0x29, 0x33 }, { 0x2a, 0xdf }, { 0x2b, 0xa9 },
+};
+
+static struct regdata mb86a20s_init2[] = {
 	{ 0x28, 0x22 }, { 0x29, 0x00 }, { 0x2a, 0x1f }, { 0x2b, 0xf0 },
 	{ 0x3b, 0x21 },
 	{ 0x3c, 0x3a },
@@ -1737,6 +1741,7 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 static int mb86a20s_initfe(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
+	u64 pll;
 	int rc;
 	u8  regD5 = 1;
 
@@ -1746,9 +1751,34 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	/* Initialize the frontend */
-	rc = mb86a20s_writeregdata(state, mb86a20s_init);
+	rc = mb86a20s_writeregdata(state, mb86a20s_init1);
 	if (rc < 0)
 		goto err;
+
+	/* Adjust IF frequency to match tuner */
+	if (fe->ops.tuner_ops.get_if_frequency)
+		fe->ops.tuner_ops.get_if_frequency(fe, &state->if_freq);
+
+	if (!state->if_freq)
+		state->if_freq = 3300000;
+
+	/* pll = freq[Hz] * 2^24/10^6 / 16.285714286 */
+	pll = state->if_freq * 1677721600L;
+	do_div(pll, 1628571429L);
+	rc = mb86a20s_writereg(state, 0x28, 0x20);
+	if (rc < 0)
+		goto err;
+	rc = mb86a20s_writereg(state, 0x29, (pll >> 16) & 0xff);
+	if (rc < 0)
+		goto err;
+	rc = mb86a20s_writereg(state, 0x2a, (pll >> 8) & 0xff);
+	if (rc < 0)
+		goto err;
+	rc = mb86a20s_writereg(state, 0x2b, pll & 0xff);
+	if (rc < 0)
+		goto err;
+	dev_dbg(&state->i2c->dev, "%s: IF=%d, PLL=0x%06llx\n",
+		__func__, state->if_freq, (long long)pll);
 
 	if (!state->config->is_serial) {
 		regD5 &= ~1;
@@ -1760,6 +1790,11 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 		if (rc < 0)
 			goto err;
 	}
+
+	rc = mb86a20s_writeregdata(state, mb86a20s_init2);
+	if (rc < 0)
+		goto err;
+
 
 err:
 	if (fe->ops.i2c_gate_ctrl)
@@ -1779,7 +1814,7 @@ err:
 static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
-	int rc;
+	int rc, if_freq;
 #if 0
 	/*
 	 * FIXME: Properly implement the set frontend properties
@@ -1796,6 +1831,18 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	fe->ops.tuner_ops.set_params(fe);
 
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+
+		/*
+		 * If the IF frequency changed, re-initialize the
+		 * frontend. This is needed by some drivers like tda18271,
+		 * that only sets the IF after receiving a set_params() call
+		 */
+		if (if_freq != state->if_freq)
+			state->need_init = true;
+	}
+
 	/*
 	 * Make it more reliable: if, for some reason, the initial
 	 * device initialization doesn't happen, initialize it when
@@ -1805,6 +1852,8 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	 * the agc callback logic is not called during DVB attach time,
 	 * causing mb86a20s to not be initialized with Kworld SBTVD.
 	 * So, this hack is needed, in order to make Kworld SBTVD to work.
+	 *
+	 * It is also needed to change the IF after the initial init.
 	 */
 	if (state->need_init)
 		mb86a20s_initfe(fe);
