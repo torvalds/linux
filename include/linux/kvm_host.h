@@ -149,6 +149,7 @@ struct kvm_io_bus {
 enum kvm_bus {
 	KVM_MMIO_BUS,
 	KVM_PIO_BUS,
+	KVM_VIRTIO_CCW_NOTIFY_BUS,
 	KVM_NR_BUSES
 };
 
