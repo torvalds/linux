@@ -29,6 +29,50 @@
 			pinctrl-single,function-mask = <0x3f>;
 		};
 
+		gpio1: gpio@48018000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x48018000 0x200>;
+			interrupts = <29>;
+			ti,hwmods = "gpio1";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio2: gpio@4801a000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801a000 0x200>;
+			interrupts = <30>;
+			ti,hwmods = "gpio2";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio3: gpio@4801c000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801c000 0x200>;
+			interrupts = <31>;
+			ti,hwmods = "gpio3";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio4: gpio@4801e000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801e000 0x200>;
+			interrupts = <32>;
+			ti,hwmods = "gpio4";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
 		gpmc: gpmc@6800a000 {
 			compatible = "ti,omap2420-gpmc";
 			reg = <0x6800a000 0x1000>;
