@@ -265,6 +265,9 @@ void __init mpu_setup(void)
 			mpu_max_regions());
 	}
 }
+#else
+static void sanity_check_meminfo_mpu(void) {}
+static void __init mpu_setup(void) {}
 #endif /* CONFIG_ARM_MPU */
 
 void __init arm_mm_memblock_reserve(void)
@@ -286,7 +289,9 @@ void __init arm_mm_memblock_reserve(void)
 
 void __init sanity_check_meminfo(void)
 {
-	phys_addr_t end = bank_phys_end(&meminfo.bank[meminfo.nr_banks - 1]);
+	phys_addr_t end;
+	sanity_check_meminfo_mpu();
+	end = bank_phys_end(&meminfo.bank[meminfo.nr_banks - 1]);
 	high_memory = __va(end - 1) + 1;
 }
 
@@ -297,6 +302,7 @@ void __init sanity_check_meminfo(void)
 void __init paging_init(struct machine_desc *mdesc)
 {
 	early_trap_init((void *)CONFIG_VECTORS_BASE);
+	mpu_setup();
 	bootmem_init();
 }
 
