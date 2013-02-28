@@ -1486,14 +1486,22 @@ struct kvm_ioeventfd {
 	__u8  pad[36];
 };
 
+For the special case of virtio-ccw devices on s390, the ioevent is matched
+to a subchannel/virtqueue tuple instead.
+
 The following flags are defined:
 
 #define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
 #define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
 #define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
+#define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY \
+	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_notify)
 
 If datamatch flag is set, the event will be signaled only if the written value
 to the registered address is equal to datamatch in struct kvm_ioeventfd.
+
+For virtio-ccw devices, addr contains the subchannel id and datamatch the
+virtqueue index.
 
 
 4.60 KVM_DIRTY_TLB

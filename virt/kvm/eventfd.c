@@ -674,15 +674,24 @@ ioeventfd_check_collision(struct kvm *kvm, struct _ioeventfd *p)
 	return false;
 }
 
+static enum kvm_bus ioeventfd_bus_from_flags(__u32 flags)
+{
+	if (flags & KVM_IOEVENTFD_FLAG_PIO)
+		return KVM_PIO_BUS;
+	if (flags & KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY)
+		return KVM_VIRTIO_CCW_NOTIFY_BUS;
+	return KVM_MMIO_BUS;
+}
+
 static int
 kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
-	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
+	enum kvm_bus              bus_idx;
 	struct _ioeventfd        *p;
 	struct eventfd_ctx       *eventfd;
 	int                       ret;
 
+	bus_idx = ioeventfd_bus_from_flags(args->flags);
 	/* must be natural-word sized */
 	switch (args->len) {
 	case 1:
@@ -757,12 +766,12 @@ fail:
 static int
 kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
-	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
+	enum kvm_bus              bus_idx;
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
 	int                       ret = -ENOENT;
 
+	bus_idx = ioeventfd_bus_from_flags(args->flags);
 	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
