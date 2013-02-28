@@ -533,7 +533,14 @@ struct rk29fb_info lcdc0_screen_info = {
 
 #if defined(CONFIG_LCDC1_RK3066B) || defined(CONFIG_LCDC1_RK3188)
 struct rk29fb_info lcdc1_screen_info = {
-	#if defined(CONFIG_RK_HDMI)
+	.prop	   = PRMRY,		//primary display device
+	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
+
+
+	#if 0 // defined(CONFIG_RK_HDMI)
 	.prop		= EXTEND,	//extend display device
 	.lcd_info  = NULL,
 	.set_screen_info = hdmi_init_lcdc,
@@ -625,10 +632,38 @@ static struct platform_device device_lcdc1 = {
 #endif
 
 #if defined(CONFIG_MFD_RK610)
-#define RK610_RST_PIN 			RK30_PIN2_PC5
+#define RK610_RST_PIN 			RK30_PIN2_PD5
+#define RK610_TEST_PIN 			RK30_PIN2_PD6
+#define RK610_ENABLE_PIN 		RK30_PIN0_PC5
 static int rk610_power_on_init(void)
 {
 	int ret;
+	if(RK610_ENABLE_PIN != INVALID_GPIO)
+	{
+		ret = gpio_request(RK610_ENABLE_PIN, "rk610 reset");
+		if (ret)
+		{
+			printk(KERN_ERR "rk610_control_probe request gpio fail\n");
+		}
+		else 
+		{
+			gpio_direction_output(RK610_ENABLE_PIN, GPIO_HIGH);
+			msleep(100);
+		}
+	}
+	if(RK610_TEST_PIN != INVALID_GPIO)
+	{
+		ret = gpio_request(RK610_TEST_PIN, "rk610 reset");
+		if (ret)
+		{
+			printk(KERN_ERR "rk610_control_probe request gpio fail\n");
+		}
+		else 
+		{
+			gpio_direction_output(RK610_TEST_PIN, GPIO_LOW);
+			msleep(100);
+		}
+	}
 	if(RK610_RST_PIN != INVALID_GPIO)
 	{
 		ret = gpio_request(RK610_RST_PIN, "rk610 reset");
@@ -1375,37 +1410,6 @@ static struct i2c_board_info __initdata i2c0_info[] = {
         },
 #endif
 
-#ifdef CONFIG_MFD_RK610
-		{
-			.type			= "rk610_ctl",
-			.addr			= 0x40,
-			.flags			= 0,
-			.platform_data		= &rk610_ctl_pdata,
-		},
-#ifdef CONFIG_RK610_TVOUT
-		{
-			.type			= "rk610_tvout",
-			.addr			= 0x42,
-			.flags			= 0,
-		},
-#endif
-#ifdef CONFIG_HDMI_RK610
-		{
-			.type			= "rk610_hdmi",
-			.addr			= 0x46,
-			.flags			= 0,
-			.irq			= INVALID_GPIO,
-		},
-#endif
-#ifdef CONFIG_SND_SOC_RK610
-		{//RK610_CODEC addr  from 0x60 to 0x80 (0x60~0x80)
-			.type			= "rk610_i2c_codec",
-			.addr			= 0x60,
-			.flags			= 0,
-			.platform_data		= &rk610_codec_pdata,					
-		},
-#endif
-#endif
 
 };
 #endif
@@ -1831,6 +1835,38 @@ static struct i2c_board_info __initdata i2c3_info[] = {
 
 #ifdef CONFIG_I2C4_RK30
 static struct i2c_board_info __initdata i2c4_info[] = {
+#ifdef CONFIG_MFD_RK610
+		{
+			.type			= "rk610_ctl",
+			.addr			= 0x40,
+			.flags			= 0,
+			.platform_data		= &rk610_ctl_pdata,
+		},
+#ifdef CONFIG_RK610_TVOUT
+		{
+			.type			= "rk610_tvout",
+			.addr			= 0x42,
+			.flags			= 0,
+		},
+#endif
+#ifdef CONFIG_HDMI_RK610
+		{
+			.type			= "rk610_hdmi",
+			.addr			= 0x46,
+			.flags			= 0,
+			.irq			= INVALID_GPIO,
+		},
+#endif
+#ifdef CONFIG_SND_SOC_RK610
+		{//RK610_CODEC addr  from 0x60 to 0x80 (0x60~0x80)
+			.type			= "rk610_i2c_codec",
+			.addr			= 0x60,
+			.flags			= 0,
+			.platform_data		= &rk610_codec_pdata,					
+		},
+#endif
+#endif
+
 };
 #endif
 
