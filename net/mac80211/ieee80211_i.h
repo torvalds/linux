@@ -401,7 +401,6 @@ struct ieee80211_if_managed {
 
 	u16 aid;
 
-	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
 	u8 dtim_period;
@@ -1277,8 +1276,6 @@ void
 ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				 const struct ieee80211_channel_sw_ie *sw_elem,
 				 struct ieee80211_bss *bss, u64 timestamp);
-void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
