@@ -446,46 +446,24 @@ static void gfs2_init_dir(struct buffer_head *dibh,
  */
 
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
-			const char *symname, struct buffer_head **bhp)
+			const char *symname)
 {
 	struct gfs2_dinode *di;
 	struct buffer_head *dibh;
 
 	dibh = gfs2_meta_new(ip->i_gl, ip->i_no_addr);
 	gfs2_trans_add_meta(ip->i_gl, dibh);
-	gfs2_metatype_set(dibh, GFS2_METATYPE_DI, GFS2_FORMAT_DI);
-	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	di = (struct gfs2_dinode *)dibh->b_data;
+	gfs2_dinode_out(ip, di);
 
-	di->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
-	di->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
-	di->di_mode = cpu_to_be32(ip->i_inode.i_mode);
-	di->di_uid = cpu_to_be32(i_uid_read(&ip->i_inode));
-	di->di_gid = cpu_to_be32(i_gid_read(&ip->i_inode));
-	di->di_nlink = 0;
-	di->di_size = cpu_to_be64(ip->i_inode.i_size);
-	di->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
-	di->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
-	di->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
-	di->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
 	di->di_major = cpu_to_be32(MAJOR(ip->i_inode.i_rdev));
 	di->di_minor = cpu_to_be32(MINOR(ip->i_inode.i_rdev));
-	di->di_goal_meta = di->di_goal_data = cpu_to_be64(ip->i_no_addr);
-	di->di_generation = cpu_to_be64(ip->i_generation);
-	di->di_flags = cpu_to_be32(ip->i_diskflags);
 	di->__pad1 = 0;
-	di->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) ? GFS2_FORMAT_DE : 0);
-	di->di_height = cpu_to_be16(ip->i_height);
 	di->__pad2 = 0;
 	di->__pad3 = 0;
-	di->di_depth = cpu_to_be16(ip->i_depth);
-	di->di_entries = cpu_to_be32(ip->i_entries);
 	memset(&di->__pad4, 0, sizeof(di->__pad4));
-	di->di_eattr = cpu_to_be64(ip->i_eattr);
-	di->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
-	di->di_mtime_nsec = cpu_to_be32(ip->i_inode.i_mtime.tv_nsec);
-	di->di_ctime_nsec = cpu_to_be32(ip->i_inode.i_ctime.tv_nsec);
 	memset(&di->di_reserved, 0, sizeof(di->di_reserved));
+	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	switch(ip->i_inode.i_mode & S_IFMT) {
 	case S_IFDIR:
@@ -497,8 +475,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
 	}
 
 	set_buffer_uptodate(dibh);
-
-	*bhp = dibh;
+	brelse(dibh);
 }
 
 static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
@@ -531,9 +508,6 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	error = gfs2_dir_add(&dip->i_inode, name, ip);
 	if (error)
 		goto fail_end_trans;
-
-	set_nlink(&ip->i_inode, S_ISDIR(ip->i_inode.i_mode) ? 2 : 1);
-	mark_inode_dirty(&ip->i_inode);
 
 fail_end_trans:
 	gfs2_trans_end(sdp);
@@ -590,7 +564,6 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_glock *io_gl;
 	int error;
-	struct buffer_head *bh = NULL;
 	u32 aflags = 0;
 	int arq;
 
@@ -634,6 +607,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail_free_inode;
 
 	inode->i_mode = mode;
+	set_nlink(inode, S_ISDIR(mode) ? 2 : 1);
 	inode->i_rdev = dev;
 	inode->i_size = size;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -682,7 +656,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	init_dinode(dip, ip, symname, &bh);
+	init_dinode(dip, ip, symname);
 	gfs2_trans_end(sdp);
 
 	error = gfs2_glock_get(sdp, ip->i_no_addr, &gfs2_iopen_glops, CREATE, &io_gl);
@@ -710,7 +684,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock3;
 
-	brelse(bh);
+	mark_inode_dirty(inode);
 	gfs2_glock_dq_uninit(ghs);
 	gfs2_glock_dq_uninit(ghs + 1);
 	d_instantiate(dentry, inode);
@@ -733,12 +707,12 @@ fail_free_inode:
 fail_gunlock:
 	gfs2_glock_dq_uninit(ghs);
 	if (inode && !IS_ERR(inode)) {
+		clear_nlink(inode);
+		mark_inode_dirty(inode);
 		set_bit(GIF_ALLOC_FAILED, &GFS2_I(inode)->i_flags);
 		iput(inode);
 	}
 fail:
-	if (bh)
-		brelse(bh);
 	return error;
 }
 
