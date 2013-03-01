@@ -142,4 +142,13 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 int dm_btree_find_highest_key(struct dm_btree_info *info, dm_block_t root,
 			      uint64_t *result_keys);
 
+/*
+ * Iterate through the a btree, calling fn() on each entry.
+ * It only works for single level trees and is internally recursive, so
+ * monitor stack usage carefully.
+ */
+int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
+		  int (*fn)(void *context, uint64_t *keys, void *leaf),
+		  void *context);
+
 #endif	/* _LINUX_DM_BTREE_H */
