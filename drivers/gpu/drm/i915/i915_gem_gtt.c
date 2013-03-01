@@ -752,7 +752,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
 
-	if (IS_GEN7(dev))
+	if (IS_GEN7(dev) && !IS_VALLEYVIEW(dev))
 		*stolen = gen7_get_stolen_size(snb_gmch_ctl);
 	else
 		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
