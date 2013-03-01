@@ -4282,7 +4282,7 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
-	I915_WRITE_NOTRACE(FORCEWAKE, FORCEWAKE_KERNEL);
+	I915_WRITE_NOTRACE(FORCEWAKE, 1);
 	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
