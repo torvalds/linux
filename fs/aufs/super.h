@@ -266,16 +266,8 @@ static inline struct au_sbinfo *au_sbi(struct super_block *sb)
 /* ---------------------------------------------------------------------- */
 
 #ifdef CONFIG_AUFS_EXPORT
+int au_test_nfsd(void);
 void au_export_init(struct super_block *sb);
-
-static inline int au_test_nfsd(void)
-{
-	struct task_struct *tsk = current;
-
-	return (tsk->flags & PF_KTHREAD)
-		&& !strcmp(tsk->comm, "nfsd");
-}
-
 void au_xigen_inc(struct inode *inode);
 int au_xigen_new(struct inode *inode);
 int au_xigen_set(struct super_block *sb, struct file *base);
@@ -288,8 +280,8 @@ static inline int au_busy_or_stale(void)
 	return -ESTALE;
 }
 #else
-AuStubVoid(au_export_init, struct super_block *sb)
 AuStubInt0(au_test_nfsd, void)
+AuStubVoid(au_export_init, struct super_block *sb)
 AuStubVoid(au_xigen_inc, struct inode *inode)
 AuStubInt0(au_xigen_new, struct inode *inode)
 AuStubInt0(au_xigen_set, struct super_block *sb, struct file *base)
