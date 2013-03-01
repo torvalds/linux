@@ -32,14 +32,6 @@
 #define MBR_SIZE			1024									//mbr size
 #define MBR_RESERVED        (MBR_SIZE - 20 - (MAX_PART_COUNT * 64)) //mbr reserved space
 
-extern struct __NandDriverGlobal_t NandDriverInfo;
-
-extern struct __NandStorageInfo_t  NandStorageInfo;
-
-#define DiskSize  (SECTOR_CNT_OF_SINGLE_PAGE * PAGE_CNT_OF_PHY_BLK * BLOCK_CNT_OF_DIE * \
-            DIE_CNT_OF_CHIP * NandStorageInfo.ChipCnt  / 1024 * DATA_BLK_CNT_OF_ZONE)
-
-
 struct nand_disk{
 	unsigned long size;
 	unsigned long offset;
