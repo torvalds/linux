@@ -302,8 +302,8 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
  *
  */
 
-static int stripe_status(struct dm_target *ti,
-			 status_type_t type, char *result, unsigned int maxlen)
+static void stripe_status(struct dm_target *ti,
+			  status_type_t type, char *result, unsigned int maxlen)
 {
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
 	char buffer[sc->stripes + 1];
@@ -330,7 +330,6 @@ static int stripe_status(struct dm_target *ti,
 			    (unsigned long long)sc->stripe[i].physical_start);
 		break;
 	}
-	return 0;
 }
 
 static int stripe_end_io(struct dm_target *ti, struct bio *bio,
