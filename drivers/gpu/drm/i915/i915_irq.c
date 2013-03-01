@@ -2694,7 +2694,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	u32 enable_mask;
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
 	u32 render_irqs;
-	u16 msid;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
 	enable_mask |= I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
@@ -2709,13 +2708,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	dev_priv->irq_mask = (~enable_mask) |
 		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
 		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-
-	/* Hack for broken MSIs on VLV */
-	pci_write_config_dword(dev_priv->dev->pdev, 0x94, 0xfee00000);
-	pci_read_config_word(dev->pdev, 0x98, &msid);
-	msid &= 0xff; /* mask out delivery bits */
-	msid |= (1<<14);
-	pci_write_config_word(dev_priv->dev->pdev, 0x98, msid);
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
