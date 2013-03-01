@@ -329,6 +329,13 @@ config BATTERY_RK30_ADC_FAC
         help
           Say Y to enable support for the battery on the RK30.
 
+config CW2015_BATTERY
+	tristate "CW2015 battery driver"
+	help
+	  Say Y to enable support for the cw2015 on the Rockchip
+
+
+
 config BATTERY_RK30_AC_CHARGE
         tristate "RK30 AC CHARGE"
         depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
