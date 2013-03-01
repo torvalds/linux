@@ -14,13 +14,6 @@
 
 /*----------------------------------------------------------------*/
 
-struct dm_bio_prison_cell {
-	struct hlist_node list;
-	struct dm_cell_key key;
-	struct bio *holder;
-	struct bio_list bios;
-};
-
 struct dm_bio_prison {
 	spinlock_t lock;
 	mempool_t *cell_pool;

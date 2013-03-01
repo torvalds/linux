@@ -229,6 +229,17 @@ struct thin_c {
 
 /*----------------------------------------------------------------*/
 
+/*
+ * wake_worker() is used when new work is queued and when pool_resume is
+ * ready to continue deferred IO processing.
+ */
+static void wake_worker(struct pool *pool)
+{
+	queue_work(pool->wq, &pool->worker);
+}
+
+/*----------------------------------------------------------------*/
+
 static int bio_detain(struct pool *pool, struct dm_cell_key *key, struct bio *bio,
 		      struct dm_bio_prison_cell **cell_result)
 {
@@ -266,6 +277,19 @@ static void cell_release_no_holder(struct pool *pool,
 {
 	dm_cell_release_no_holder(pool->prison, cell, bios);
 	dm_bio_prison_free_cell(pool->prison, cell);
+}
+
+static void cell_defer_no_holder_no_free(struct thin_c *tc,
+					 struct dm_bio_prison_cell *cell)
+{
+	struct pool *pool = tc->pool;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool->lock, flags);
+	dm_cell_release_no_holder(pool->prison, cell, &pool->deferred_bios);
+	spin_unlock_irqrestore(&pool->lock, flags);
+
+	wake_worker(pool);
 }
 
 static void cell_error(struct pool *pool,
@@ -477,15 +501,6 @@ static void remap_and_issue(struct thin_c *tc, struct bio *bio,
 	issue(tc, bio);
 }
 
-/*
- * wake_worker() is used when new work is queued and when pool_resume is
- * ready to continue deferred IO processing.
- */
-static void wake_worker(struct pool *pool)
-{
-	queue_work(pool->wq, &pool->worker);
-}
-
 /*----------------------------------------------------------------*/
 
 /*
@@ -601,6 +616,7 @@ static void process_prepared_mapping_fail(struct dm_thin_new_mapping *m)
 	list_del(&m->list);
 	mempool_free(m, m->tc->pool->mapping_pool);
 }
+
 static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 {
 	struct thin_c *tc = m->tc;
@@ -1438,7 +1454,8 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 	dm_block_t block = get_bio_block(tc, bio);
 	struct dm_thin_device *td = tc->td;
 	struct dm_thin_lookup_result result;
-	struct dm_bio_prison_cell *cell1, *cell2;
+	struct dm_bio_prison_cell cell1, cell2;
+	struct dm_bio_prison_cell *cell_result;
 	struct dm_cell_key key;
 
 	thin_hook_bio(tc, bio);
@@ -1480,18 +1497,18 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		}
 
 		build_virtual_key(tc->td, block, &key);
-		if (bio_detain(tc->pool, &key, bio, &cell1))
+		if (dm_bio_detain(tc->pool->prison, &key, bio, &cell1, &cell_result))
 			return DM_MAPIO_SUBMITTED;
 
 		build_data_key(tc->td, result.block, &key);
-		if (bio_detain(tc->pool, &key, bio, &cell2)) {
-			cell_defer_no_holder(tc, cell1);
+		if (dm_bio_detain(tc->pool->prison, &key, bio, &cell2, &cell_result)) {
+			cell_defer_no_holder_no_free(tc, &cell1);
 			return DM_MAPIO_SUBMITTED;
 		}
 
 		inc_all_io_entry(tc->pool, bio);
-		cell_defer_no_holder(tc, cell2);
-		cell_defer_no_holder(tc, cell1);
+		cell_defer_no_holder_no_free(tc, &cell2);
+		cell_defer_no_holder_no_free(tc, &cell1);
 
 		remap(tc, bio, result.block);
 		return DM_MAPIO_REMAPPED;
