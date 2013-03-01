@@ -1087,7 +1087,7 @@ static void clone_split_bio(struct dm_target_io *tio, struct bio *bio,
  */
 static void clone_bio(struct dm_target_io *tio, struct bio *bio,
 		      sector_t sector, unsigned short idx,
-		      unsigned short bv_count, unsigned int len)
+		      unsigned short bv_count, unsigned len)
 {
 	struct bio *clone = &tio->clone;
 	unsigned trim = 0;
@@ -1159,17 +1159,23 @@ static int __send_empty_flush(struct clone_info *ci)
 	return 0;
 }
 
-static void __clone_and_map_data_bio(struct clone_info *ci,
-				     struct dm_target *ti)
+static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti,
+				     sector_t sector, int nr_iovecs,
+				     unsigned short idx, unsigned short bv_count,
+				     unsigned offset, unsigned len,
+				     unsigned split_bvec)
 {
 	struct bio *bio = ci->bio;
 	struct dm_target_io *tio;
 
-	tio = alloc_tio(ci, ti, bio->bi_max_vecs, 0);
-	clone_bio(tio, bio, ci->sector, ci->idx, bio->bi_vcnt - ci->idx,
-		  ci->sector_count);
+	tio = alloc_tio(ci, ti, nr_iovecs, 0);
+
+	if (split_bvec)
+		clone_split_bio(tio, bio, sector, idx, offset, len);
+	else
+		clone_bio(tio, bio, sector, idx, bv_count, len);
+
 	__map_bio(tio);
-	ci->sector_count = 0;
 }
 
 typedef unsigned (*get_num_bios_fn)(struct dm_target *ti);
@@ -1238,12 +1244,69 @@ static int __send_write_same(struct clone_info *ci)
 	return __send_changing_extent_only(ci, get_num_write_same_bios, NULL);
 }
 
+/*
+ * Find maximum number of sectors / bvecs we can process with a single bio.
+ */
+static sector_t __len_within_target(struct clone_info *ci, sector_t max, int *idx)
+{
+	struct bio *bio = ci->bio;
+	sector_t bv_len, total_len = 0;
+
+	for (*idx = ci->idx; max && (*idx < bio->bi_vcnt); (*idx)++) {
+		bv_len = to_sector(bio->bi_io_vec[*idx].bv_len);
+
+		if (bv_len > max)
+			break;
+
+		max -= bv_len;
+		total_len += bv_len;
+	}
+
+	return total_len;
+}
+
+static int __split_bvec_across_targets(struct clone_info *ci,
+				       struct dm_target *ti, sector_t max)
+{
+	struct bio *bio = ci->bio;
+	struct bio_vec *bv = bio->bi_io_vec + ci->idx;
+	sector_t remaining = to_sector(bv->bv_len);
+	unsigned offset = 0;
+	sector_t len;
+
+	do {
+		if (offset) {
+			ti = dm_table_find_target(ci->map, ci->sector);
+			if (!dm_target_is_valid(ti))
+				return -EIO;
+
+			max = max_io_len(ci->sector, ti);
+		}
+
+		len = min(remaining, max);
+
+		__clone_and_map_data_bio(ci, ti, ci->sector, 1, ci->idx, 0,
+					 bv->bv_offset + offset, len, 1);
+
+		ci->sector += len;
+		ci->sector_count -= len;
+		offset += to_bytes(len);
+	} while (remaining -= len);
+
+	ci->idx++;
+
+	return 0;
+}
+
+/*
+ * Select the correct strategy for processing a non-flush bio.
+ */
 static int __split_and_process_non_flush(struct clone_info *ci)
 {
 	struct bio *bio = ci->bio;
 	struct dm_target *ti;
-	sector_t len = 0, max;
-	struct dm_target_io *tio;
+	sector_t len, max;
+	int idx;
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD))
 		return __send_discard(ci);
@@ -1256,74 +1319,39 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 
 	max = max_io_len(ci->sector, ti);
 
+	/*
+	 * Optimise for the simple case where we can do all of
+	 * the remaining io with a single clone.
+	 */
 	if (ci->sector_count <= max) {
-		/*
-		 * Optimise for the simple case where we can do all of
-		 * the remaining io with a single clone.
-		 */
-		__clone_and_map_data_bio(ci, ti);
+		__clone_and_map_data_bio(ci, ti, ci->sector, bio->bi_max_vecs,
+					 ci->idx, bio->bi_vcnt - ci->idx, 0,
+					 ci->sector_count, 0);
+		ci->sector_count = 0;
+		return 0;
+	}
 
-	} else if (to_sector(bio->bi_io_vec[ci->idx].bv_len) <= max) {
-		/*
-		 * There are some bvecs that don't span targets.
-		 * Do as many of these as possible.
-		 */
-		int i;
-		sector_t remaining = max;
-		sector_t bv_len;
+	/*
+	 * There are some bvecs that don't span targets.
+	 * Do as many of these as possible.
+	 */
+	if (to_sector(bio->bi_io_vec[ci->idx].bv_len) <= max) {
+		len = __len_within_target(ci, max, &idx);
 
-		for (i = ci->idx; remaining && (i < bio->bi_vcnt); i++) {
-			bv_len = to_sector(bio->bi_io_vec[i].bv_len);
-
-			if (bv_len > remaining)
-				break;
-
-			remaining -= bv_len;
-			len += bv_len;
-		}
-
-		tio = alloc_tio(ci, ti, bio->bi_max_vecs, 0);
-		clone_bio(tio, bio, ci->sector, ci->idx, i - ci->idx, len);
-		__map_bio(tio);
+		__clone_and_map_data_bio(ci, ti, ci->sector, bio->bi_max_vecs,
+					 ci->idx, idx - ci->idx, 0, len, 0);
 
 		ci->sector += len;
 		ci->sector_count -= len;
-		ci->idx = i;
+		ci->idx = idx;
 
-	} else {
-		/*
-		 * Handle a bvec that must be split between two or more targets.
-		 */
-		struct bio_vec *bv = bio->bi_io_vec + ci->idx;
-		sector_t remaining = to_sector(bv->bv_len);
-		unsigned int offset = 0;
-
-		do {
-			if (offset) {
-				ti = dm_table_find_target(ci->map, ci->sector);
-				if (!dm_target_is_valid(ti))
-					return -EIO;
-
-				max = max_io_len(ci->sector, ti);
-			}
-
-			len = min(remaining, max);
-
-			tio = alloc_tio(ci, ti, 1, 0);
-			clone_split_bio(tio, bio, ci->sector, ci->idx,
-					bv->bv_offset + offset, len);
-
-			__map_bio(tio);
-
-			ci->sector += len;
-			ci->sector_count -= len;
-			offset += to_bytes(len);
-		} while (remaining -= len);
-
-		ci->idx++;
+		return 0;
 	}
 
-	return 0;
+	/*
+	 * Handle a bvec that must be split between two or more targets.
+	 */
+	return __split_bvec_across_targets(ci, ti, max);
 }
 
 /*
