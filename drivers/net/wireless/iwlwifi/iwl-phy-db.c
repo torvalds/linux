@@ -136,12 +136,6 @@ struct iwl_calib_res_notif_phy_db {
 	u8 data[];
 } __packed;
 
-#define IWL_PHY_DB_STATIC_PIC cpu_to_le32(0x21436587)
-static inline void iwl_phy_db_test_pic(__le32 pic)
-{
-	WARN_ON(IWL_PHY_DB_STATIC_PIC != pic);
-}
-
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 {
 	struct iwl_phy_db *phy_db = kzalloc(sizeof(struct iwl_phy_db),
@@ -260,11 +254,6 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 			(size - CHANNEL_NUM_SIZE) / phy_db->channel_num;
 	}
 
-	/* Test PIC */
-	if (type != IWL_PHY_DB_CFG)
-		iwl_phy_db_test_pic(*(((__le32 *)phy_db_notif->data) +
-				      (size / sizeof(__le32)) - 1));
-
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB]SET: Type %d , Size: %d\n",
 		       __func__, __LINE__, type, size);
@@ -371,11 +360,6 @@ int iwl_phy_db_get_section_data(struct iwl_phy_db *phy_db,
 		*data = entry->data;
 		*size = entry->size;
 	}
-
-	/* Test PIC */
-	if (type != IWL_PHY_DB_CFG)
-		iwl_phy_db_test_pic(*(((__le32 *)*data) +
-				      (*size / sizeof(__le32)) - 1));
 
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB] GET: Type %d , Size: %d\n",
