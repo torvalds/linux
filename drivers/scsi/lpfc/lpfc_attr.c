@@ -692,7 +692,7 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	 */
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
-		while (pring->txcmplq_cnt) {
+		while (!list_empty(&pring->txcmplq)) {
 			msleep(10);
 			if (cnt++ > 500) {  /* 5 secs */
 				lpfc_printf_log(phba,

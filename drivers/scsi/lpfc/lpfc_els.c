@@ -6225,7 +6225,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		spin_unlock_irq(&phba->hbalock);
 	}
 
-	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt)
+	if (!list_empty(&phba->sli.ring[LPFC_ELS_RING].txcmplq))
 		mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
 }
 
@@ -6279,7 +6279,6 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 			continue;
 
 		list_move_tail(&piocb->list, &completions);
-		pring->txq_cnt--;
 	}
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
@@ -6339,7 +6338,6 @@ lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 		    cmd->ulpCommand == CMD_ABORT_XRI_CN)
 			continue;
 		list_move_tail(&piocb->list, &completions);
-		pring->txq_cnt--;
 	}
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
@@ -8065,7 +8063,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 				rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
-			if (pring->txq_cnt)
+			if (!(list_empty(&pring->txq)))
 				lpfc_worker_wake_up(phba);
 			return;
 		}

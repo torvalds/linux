@@ -226,7 +226,6 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
 			/* It matches, so deque and call compl with anp error */
 			list_move_tail(&iocb->list, &completions);
-			pring->txq_cnt--;
 		}
 	}
 

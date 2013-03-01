@@ -1559,7 +1559,7 @@ lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba)
 		scsi_block_requests(shost);
 	}
 
-	while (pring->txcmplq_cnt) {
+	while (!list_empty(&pring->txcmplq)) {
 		if (i++ > 500)  /* wait up to 5 seconds */
 			break;
 		msleep(10);

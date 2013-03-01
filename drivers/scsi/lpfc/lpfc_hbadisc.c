@@ -696,7 +696,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 							(status &
 							 HA_RXMASK));
 		}
-		if ((phba->sli_rev == LPFC_SLI_REV4) && pring->txq_cnt)
+		if ((phba->sli_rev == LPFC_SLI_REV4) &
+				 (!list_empty(&pring->txq)))
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
@@ -4354,7 +4355,6 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 					   with an error */
 					list_move_tail(&iocb->list,
 						       &completions);
-					pring->txq_cnt--;
 				}
 			}
 			spin_unlock_irq(&phba->hbalock);
@@ -5055,7 +5055,6 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		    (icmd->ulpCommand == CMD_XMIT_ELS_RSP64_CX)) {
 
 			list_move_tail(&iocb->list, &completions);
-			pring->txq_cnt--;
 		}
 	}
 

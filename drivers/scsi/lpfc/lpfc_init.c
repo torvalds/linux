@@ -839,7 +839,6 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 		 * way, nothing should be on txcmplq as it will NEVER complete.
 		 */
 		list_splice_init(&pring->txcmplq, &completions);
-		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&phba->hbalock);
 
 		/* Cancel all the IOCBs from the completions list */
