@@ -1,11 +1,14 @@
-#include <linux/fb.h>
 #include <linux/delay.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
-#include "screen.h"
-#include <linux/hdmi.h>
-#include "../../rk29_fb.h"
+#include <linux/rk_fb.h>
+#if defined(CONFIG_RK_HDMI)
+#include "../../rockchip/hdmi/rk_hdmi.h"
+#endif
+#ifdef CONFIG_RK610_LVDS
+#include "../transmitter/rk610_lcd.h"
+#endif
 
 
 /* Base */
@@ -125,101 +128,109 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			0 
+
+#define DEN_POL		0
+#define VSYNC_POL	0
+#define HSYNC_POL	0
+
+#define SWAP_RB		0
+#define SWAP_RG		0
+#define SWAP_GB		0
+ 
 
 #if  ( defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& defined(CONFIG_RK610_LVDS) ) || defined(CONFIG_HDMI_DUAL_DISP)
 static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 {
-    screen->s_clk_inv = S_DCLK_POL;
-    screen->s_den_inv = 0;
-    screen->s_hv_sync_inv = 0;
-    switch(hdmi_resolution){
-    case HDMI_1920x1080p_60Hz:
-                /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S_OUT_CLK;
-	        screen->s_hsync_len = S_H_PW;
-	        screen->s_left_margin = S_H_BP;
-	        screen->s_right_margin = S_H_FP;
-	        screen->s_hsync_len = S_H_PW;
-	        screen->s_upper_margin = S_V_BP;
-	        screen->s_lower_margin = S_V_FP;
-	        screen->s_vsync_len = S_V_PW;
-	        screen->s_hsync_st = S_H_ST;
-	        screen->s_vsync_st = S_V_ST;
-	        break;
+	screen->s_clk_inv = S_DCLK_POL;
+	screen->s_den_inv = 0;
+	screen->s_hv_sync_inv = 0;
+	switch(hdmi_resolution){
+	case HDMI_1920x1080p_60Hz:
+	        /* Scaler Timing    */
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S_OUT_CLK;
+		screen->s_hsync_len = S_H_PW;
+		screen->s_left_margin = S_H_BP;
+		screen->s_right_margin = S_H_FP;
+		screen->s_hsync_len = S_H_PW;
+		screen->s_upper_margin = S_V_BP;
+		screen->s_lower_margin = S_V_FP;
+		screen->s_vsync_len = S_V_PW;
+		screen->s_hsync_st = S_H_ST;
+		screen->s_vsync_st = S_V_ST;
+		break;
 	case HDMI_1920x1080p_50Hz:
-                /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S1_OUT_CLK;
-	        screen->s_hsync_len = S1_H_PW;
-	        screen->s_left_margin = S1_H_BP;
-	        screen->s_right_margin = S1_H_FP;
-	        screen->s_hsync_len = S1_H_PW;
-	        screen->s_upper_margin = S1_V_BP;
-	        screen->s_lower_margin = S1_V_FP;
-	        screen->s_vsync_len = S1_V_PW;
-	        screen->s_hsync_st = S1_H_ST;
-	        screen->s_vsync_st = S1_V_ST;
-	        break;
+		/* Scaler Timing    */
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S1_OUT_CLK;
+		screen->s_hsync_len = S1_H_PW;
+		screen->s_left_margin = S1_H_BP;
+		screen->s_right_margin = S1_H_FP;
+		screen->s_hsync_len = S1_H_PW;
+		screen->s_upper_margin = S1_V_BP;
+		screen->s_lower_margin = S1_V_FP;
+		screen->s_vsync_len = S1_V_PW;
+		screen->s_hsync_st = S1_H_ST;
+		screen->s_vsync_st = S1_V_ST;
+		break;
 	case HDMI_1280x720p_60Hz:
+		/* Scaler Timing    */
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S2_OUT_CLK;
+		screen->s_hsync_len = S2_H_PW;
+		screen->s_left_margin = S2_H_BP;
+		screen->s_right_margin = S2_H_FP;
+		screen->s_hsync_len = S2_H_PW;
+		screen->s_upper_margin = S2_V_BP;
+		screen->s_lower_margin = S2_V_FP;
+		screen->s_vsync_len = S2_V_PW;
+		screen->s_hsync_st = S2_H_ST;
+		screen->s_vsync_st = S2_V_ST;
+		break;
+	case HDMI_1280x720p_50Hz:
+		/* Scaler Timing    */
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S3_OUT_CLK;
+		screen->s_hsync_len = S3_H_PW;
+		screen->s_left_margin = S3_H_BP;
+		screen->s_right_margin = S3_H_FP;
+		screen->s_hsync_len = S3_H_PW;
+		screen->s_upper_margin = S3_V_BP;
+		screen->s_lower_margin = S3_V_FP;
+		screen->s_vsync_len = S3_V_PW;
+		screen->s_hsync_st = S3_H_ST;
+		screen->s_vsync_st = S3_V_ST;
+		break;
+    case HDMI_720x576p_50Hz_4_3:
+    case HDMI_720x576p_50Hz_16_9:
+		/* Scaler Timing    */
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S4_OUT_CLK;
+		screen->s_hsync_len = S4_H_PW;
+		screen->s_left_margin = S4_H_BP;
+		screen->s_right_margin = S4_H_FP;
+		screen->s_hsync_len = S4_H_PW;
+		screen->s_upper_margin = S4_V_BP;
+		screen->s_lower_margin = S4_V_FP;
+		screen->s_vsync_len = S4_V_PW;
+		screen->s_hsync_st = S4_H_ST;
+		screen->s_vsync_st = S4_V_ST;
+		break;
+    case HDMI_720x480p_60Hz_16_9:
+    case HDMI_720x480p_60Hz_4_3:
                 /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S2_OUT_CLK;
-	        screen->s_hsync_len = S2_H_PW;
-	        screen->s_left_margin = S2_H_BP;
-	        screen->s_right_margin = S2_H_FP;
-	        screen->s_hsync_len = S2_H_PW;
-	        screen->s_upper_margin = S2_V_BP;
-	        screen->s_lower_margin = S2_V_FP;
-	        screen->s_vsync_len = S2_V_PW;
-	        screen->s_hsync_st = S2_H_ST;
-	        screen->s_vsync_st = S2_V_ST;
-	        break;
-    case HDMI_1280x720p_50Hz:
-                /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S3_OUT_CLK;
-	        screen->s_hsync_len = S3_H_PW;
-	        screen->s_left_margin = S3_H_BP;
-	        screen->s_right_margin = S3_H_FP;
-	        screen->s_hsync_len = S3_H_PW;
-	        screen->s_upper_margin = S3_V_BP;
-	        screen->s_lower_margin = S3_V_FP;
-	        screen->s_vsync_len = S3_V_PW;
-	        screen->s_hsync_st = S3_H_ST;
-	        screen->s_vsync_st = S3_V_ST;
-	        break;
-    case HDMI_720x576p_50Hz_4x3:
-    case HDMI_720x576p_50Hz_16x9:
-                /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S4_OUT_CLK;
-	        screen->s_hsync_len = S4_H_PW;
-	        screen->s_left_margin = S4_H_BP;
-	        screen->s_right_margin = S4_H_FP;
-	        screen->s_hsync_len = S4_H_PW;
-	        screen->s_upper_margin = S4_V_BP;
-	        screen->s_lower_margin = S4_V_FP;
-	        screen->s_vsync_len = S4_V_PW;
-	        screen->s_hsync_st = S4_H_ST;
-	        screen->s_vsync_st = S4_V_ST;
-	        break;
-    case HDMI_720x480p_60Hz_16x9:
-    case HDMI_720x480p_60Hz_4x3:
-                /* Scaler Timing    */
-            screen->hdmi_resolution = hdmi_resolution;
-	        screen->s_pixclock = S5_OUT_CLK;
-	        screen->s_hsync_len = S5_H_PW;
-	        screen->s_left_margin = S5_H_BP;
-	        screen->s_right_margin = S5_H_FP;
-	        screen->s_hsync_len = S5_H_PW;
-	        screen->s_upper_margin = S5_V_BP;
-	        screen->s_lower_margin = S5_V_FP;
-	        screen->s_vsync_len = S5_V_PW;
-	        screen->s_hsync_st = S5_H_ST;
-	        screen->s_vsync_st = S5_V_ST;
-	        break;
+		screen->hdmi_resolution = hdmi_resolution;
+		screen->s_pixclock = S5_OUT_CLK;
+		screen->s_hsync_len = S5_H_PW;
+		screen->s_left_margin = S5_H_BP;
+		screen->s_right_margin = S5_H_FP;
+		screen->s_hsync_len = S5_H_PW;
+		screen->s_upper_margin = S5_V_BP;
+		screen->s_lower_margin = S5_V_FP;
+		screen->s_vsync_len = S5_V_PW;
+		screen->s_hsync_st = S5_H_ST;
+		screen->s_vsync_st = S5_V_ST;
+		break;
     default :
             printk("%s lcd not support dual display at this hdmi resolution %d \n",__func__,hdmi_resolution);
             return -1;
@@ -229,50 +240,50 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 	return 0;
 }
 #else
-static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution){}
+static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution){return 0;}
 #endif
 
 void set_lcd_info(struct rk29fb_screen *screen,  struct rk29lcd_info *lcd_info )
 {
-    /* screen type & face */
-    screen->type = OUT_TYPE;
-    screen->face = OUT_FACE;
-    screen->hw_format = OUT_FORMAT;
-    
-    /* Screen size */
-    screen->x_res = H_VD;
-    screen->y_res = V_VD;
+	/* screen type & face */
+	screen->type = OUT_TYPE;
+	screen->face = OUT_FACE;
+	screen->hw_format = OUT_FORMAT;
 
-    screen->width = LCD_WIDTH;
-    screen->height = LCD_HEIGHT;
+	/* Screen size */
+	screen->x_res = H_VD;
+	screen->y_res = V_VD;
 
-    /* Timing */
-    screen->lcdc_aclk = LCDC_ACLK;
-    screen->pixclock = OUT_CLK;
+	screen->width = LCD_WIDTH;
+	screen->height = LCD_HEIGHT;
+
+	/* Timing */
+	screen->lcdc_aclk = LCDC_ACLK;
+	screen->pixclock = OUT_CLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;
 	screen->upper_margin = V_BP;
 	screen->lower_margin = V_FP;
 	screen->vsync_len = V_PW;
-	
+
 	/* Pin polarity */
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	screen->pin_den = 0;
+	screen->pin_hsync = HSYNC_POL;
+	screen->pin_vsync = VSYNC_POL;
+	screen->pin_den = DEN_POL;
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
-    screen->swap_rb = SWAP_RB;
-    screen->swap_rg = 0;
-    screen->swap_gb = 0;
-    screen->swap_delta = 0;
-    screen->swap_dumy = 0;
+	screen->swap_rb = SWAP_RB;
+	screen->swap_rg = SWAP_RG;
+	screen->swap_gb = SWAP_GB;
+	screen->swap_delta = 0;
+	screen->swap_dumy = 0;
 
-    /* Operation function*/
-    screen->init = NULL;
-    screen->standby = NULL;
-    screen->sscreen_get = set_scaler_info;
+	/* Operation function*/
+	screen->init = NULL;
+	screen->standby = NULL;
+	screen->sscreen_get = set_scaler_info;
 #ifdef CONFIG_RK610_LVDS
     screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
