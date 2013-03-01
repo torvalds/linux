@@ -2889,6 +2889,11 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out_free_mem;
 	}
+
+	/* If the VFI is already registered, there is nothing else to do */
+	if (vport->fc_flag & FC_VFI_REGISTERED)
+		goto out_free_mem;
+
 	/* The VPI is implicitly registered when the VFI is registered */
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;

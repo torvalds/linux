@@ -484,6 +484,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	vport->port_state = LPFC_FABRIC_CFG_LINK;
 	memcpy(dmabuf->virt, &phba->fc_fabparam, sizeof(vport->fc_sparam));
 	lpfc_reg_vfi(mboxq, vport, dmabuf->phys);
+
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
 	mboxq->vport = vport;
 	mboxq->context1 = dmabuf;
@@ -698,6 +699,20 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
 			spin_unlock_irq(&phba->hbalock);
 		}
+	}
+
+	/*
+	 * For FC we need to do some special processing because of the SLI
+	 * Port's default settings of the Common Service Parameters.
+	 */
+	if (phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) {
+		/* If physical FC port changed, unreg VFI and ALL VPIs / RPIs */
+		if ((phba->sli_rev == LPFC_SLI_REV4) && fabric_param_changed)
+			lpfc_unregister_fcf_prep(phba);
+
+		/* This should just update the VFI CSPs*/
+		if (vport->fc_flag & FC_VFI_REGISTERED)
+			lpfc_issue_reg_vfi(vport);
 	}
 
 	if (fabric_param_changed &&
