@@ -4772,9 +4772,14 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	 * ret != 0 here means the qgroup reservation failed, we go straight to
 	 * the shared error handling then.
 	 */
-	if (ret == 0)
+	if (ret == 0) {
 		ret = reserve_metadata_bytes(root, block_rsv,
 					     to_reserve, flush);
+		if (ret && root->fs_info->quota_enabled) {
+			btrfs_qgroup_free(root, num_bytes +
+						nr_extents * root->leafsize);
+		}
+	}
 
 	if (ret) {
 		u64 to_free = 0;
@@ -4804,10 +4809,6 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 						      "delalloc",
 						      btrfs_ino(inode),
 						      to_free, 0);
-		}
-		if (root->fs_info->quota_enabled) {
-			btrfs_qgroup_free(root, num_bytes +
-						nr_extents * root->leafsize);
 		}
 		if (delalloc_lock)
 			mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
