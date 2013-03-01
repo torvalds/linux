@@ -26,6 +26,9 @@
 #define PRISON_CELLS 1024
 #define COMMIT_PERIOD HZ
 
+DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
+		"A percentage of time allocated for copy on write");
+
 /*
  * The block size of the device holding pool data must be
  * between 64KB and 1GB.
@@ -1642,7 +1645,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		goto bad_prison;
 	}
 
-	pool->copier = dm_kcopyd_client_create();
+	pool->copier = dm_kcopyd_client_create(&dm_kcopyd_throttle);
 	if (IS_ERR(pool->copier)) {
 		r = PTR_ERR(pool->copier);
 		*error = "Error creating pool's kcopyd client";
