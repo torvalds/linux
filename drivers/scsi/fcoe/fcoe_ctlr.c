@@ -1548,9 +1548,6 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *best = fip->sel_fcf;
-	struct fcoe_fcf *first;
-
-	first = list_first_entry(&fip->fcfs, struct fcoe_fcf, list);
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
 		LIBFCOE_FIP_DBG(fip, "consider FCF fab %16.16llx "
@@ -1568,17 +1565,15 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 					"" : "un");
 			continue;
 		}
-		if (fcf->fabric_name != first->fabric_name ||
-		    fcf->vfid != first->vfid ||
-		    fcf->fc_map != first->fc_map) {
+		if (!best || fcf->pri < best->pri || best->flogi_sent)
+			best = fcf;
+		if (fcf->fabric_name != best->fabric_name ||
+		    fcf->vfid != best->vfid ||
+		    fcf->fc_map != best->fc_map) {
 			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
 					"or FC-MAP\n");
 			return NULL;
 		}
-		if (fcf->flogi_sent)
-			continue;
-		if (!best || fcf->pri < best->pri || best->flogi_sent)
-			best = fcf;
 	}
 	fip->sel_fcf = best;
 	if (best) {
