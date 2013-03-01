@@ -185,7 +185,6 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	u64 len = 1, olen;
 	u64 tmp;
-	struct ceph_object_layout ol;
 	struct ceph_pg pgid;
 	int r;
 
@@ -194,7 +193,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	down_read(&osdc->map_sem);
-	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, &len,
+	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, len,
 					  &dl.object_no, &dl.object_offset,
 					  &olen);
 	if (r < 0)
@@ -209,10 +208,9 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
 		 ceph_ino(inode), dl.object_no);
-	ceph_calc_object_layout(&ol, dl.object_name, &ci->i_layout,
+	ceph_calc_object_layout(&pgid, dl.object_name, &ci->i_layout,
 				osdc->osdmap);
 
-	pgid = ol.ol_pgid;
 	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
 	if (dl.osd >= 0) {
 		struct ceph_entity_addr *a =
