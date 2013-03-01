@@ -1307,7 +1307,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 portid, u32 seq, int flag
 
 static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int idx = 0;
+	int idx = 0, ret;
 	int start = cb->args[0];
 	struct cfg80211_registered_device *dev;
 
@@ -1317,9 +1317,29 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (++idx <= start)
 			continue;
-		if (nl80211_send_wiphy(skb, NETLINK_CB(cb->skb).portid,
-				       cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				       dev) < 0) {
+		ret = nl80211_send_wiphy(skb, NETLINK_CB(cb->skb).portid,
+					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					 dev);
+		if (ret < 0) {
+			/*
+			 * If sending the wiphy data didn't fit (ENOBUFS or
+			 * EMSGSIZE returned), this SKB is still empty (so
+			 * it's not too big because another wiphy dataset is
+			 * already in the skb) and we've not tried to adjust
+			 * the dump allocation yet ... then adjust the alloc
+			 * size to be bigger, and return 1 but with the empty
+			 * skb. This results in an empty message being RX'ed
+			 * in userspace, but that is ignored.
+			 *
+			 * We can then retry with the larger buffer.
+			 */
+			if ((ret == -ENOBUFS || ret == -EMSGSIZE) &&
+			    !skb->len &&
+			    cb->min_dump_alloc < 4096) {
+				cb->min_dump_alloc = 4096;
+				mutex_unlock(&cfg80211_mutex);
+				return 1;
+			}
 			idx--;
 			break;
 		}
@@ -1336,7 +1356,7 @@ static int nl80211_get_wiphy(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *msg;
 	struct cfg80211_registered_device *dev = info->user_ptr[0];
 
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	msg = nlmsg_new(4096, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
