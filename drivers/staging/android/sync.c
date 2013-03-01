@@ -295,6 +295,12 @@ struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
 	list_add(&pt->pt_list, &fence->pt_list_head);
 	sync_pt_activate(pt);
 
+	/*
+	 * signal the fence in case pt was activated before
+	 * sync_pt_activate(pt) was called
+	 */
+	sync_fence_signal_pt(pt);
+
 	return fence;
 }
 EXPORT_SYMBOL(sync_fence_create);
@@ -457,7 +463,13 @@ struct sync_fence *sync_fence_merge(const char *name,
 	if (err < 0)
 		goto err;
 
-	fence->status = sync_fence_get_status(fence);
+	/*
+	 * signal the fence in case one of it's pts were activated before
+	 * they were activated
+	 */
+	sync_fence_signal_pt(list_first_entry(&fence->pt_list_head,
+					      struct sync_pt,
+					      pt_list));
 
 	return fence;
 err:
