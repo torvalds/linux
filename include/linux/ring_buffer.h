@@ -4,6 +4,7 @@
 #include <linux/kmemcheck.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
+#include <linux/poll.h>
 
 struct ring_buffer;
 struct ring_buffer_iter;
@@ -95,6 +96,11 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 	static struct lock_class_key __key;		\
 	__ring_buffer_alloc((size), (flags), &__key);	\
 })
+
+void ring_buffer_wait(struct ring_buffer *buffer, int cpu);
+int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
+			  struct file *filp, poll_table *poll_table);
+
 
 #define RING_BUFFER_ALL_CPUS -1
 
