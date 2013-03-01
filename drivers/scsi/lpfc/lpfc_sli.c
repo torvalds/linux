@@ -5999,9 +5999,9 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 	LIST_HEAD(post_sgl_list);
 	LIST_HEAD(free_sgl_list);
 
-	spin_lock(&phba->hbalock);
+	spin_lock_irq(&phba->hbalock);
 	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &allc_sgl_list);
-	spin_unlock(&phba->hbalock);
+	spin_unlock_irq(&phba->hbalock);
 
 	list_for_each_entry_safe(sglq_entry, sglq_entry_next,
 				 &allc_sgl_list, list) {
@@ -6102,10 +6102,10 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 
 	/* push els sgls posted to the availble list */
 	if (!list_empty(&post_sgl_list)) {
-		spin_lock(&phba->hbalock);
+		spin_lock_irq(&phba->hbalock);
 		list_splice_init(&post_sgl_list,
 				 &phba->sli4_hba.lpfc_sgl_list);
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irq(&phba->hbalock);
 	} else {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3161 Failure to post els sgl to port.\n");

@@ -885,9 +885,9 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 	int num_posted, rc = 0;
 
 	/* get all SCSI buffers need to repost to a local list */
-	spin_lock(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_lock);
 	list_splice_init(&phba->lpfc_scsi_buf_list, &post_sblist);
-	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_lock);
 
 	/* post the list of scsi buffer sgls to port if available */
 	if (!list_empty(&post_sblist)) {
