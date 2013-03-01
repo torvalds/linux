@@ -32,7 +32,6 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 #include <linux/thermal.h>
-#include <linux/spinlock.h>
 #include <linux/reboot.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -348,8 +347,9 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 		tz->ops->notify(tz, trip, trip_type);
 
 	if (trip_type == THERMAL_TRIP_CRITICAL) {
-		pr_emerg("Critical temperature reached(%d C),shutting down\n",
-			 tz->temperature / 1000);
+		dev_emerg(&tz->device,
+			  "critical temperature reached(%d C),shutting down\n",
+			  tz->temperature / 1000);
 		orderly_poweroff(true);
 	}
 }
@@ -371,23 +371,57 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip)
 	monitor_thermal_zone(tz);
 }
 
+static int thermal_zone_get_temp(struct thermal_zone_device *tz,
+				unsigned long *temp)
+{
+	int ret = 0;
+#ifdef CONFIG_THERMAL_EMULATION
+	int count;
+	unsigned long crit_temp = -1UL;
+	enum thermal_trip_type type;
+#endif
+
+	mutex_lock(&tz->lock);
+
+	ret = tz->ops->get_temp(tz, temp);
+#ifdef CONFIG_THERMAL_EMULATION
+	if (!tz->emul_temperature)
+		goto skip_emul;
+
+	for (count = 0; count < tz->trips; count++) {
+		ret = tz->ops->get_trip_type(tz, count, &type);
+		if (!ret && type == THERMAL_TRIP_CRITICAL) {
+			ret = tz->ops->get_trip_temp(tz, count, &crit_temp);
+			break;
+		}
+	}
+
+	if (ret)
+		goto skip_emul;
+
+	if (*temp < crit_temp)
+		*temp = tz->emul_temperature;
+skip_emul:
+#endif
+	mutex_unlock(&tz->lock);
+	return ret;
+}
+
 static void update_temperature(struct thermal_zone_device *tz)
 {
 	long temp;
 	int ret;
 
-	mutex_lock(&tz->lock);
-
-	ret = tz->ops->get_temp(tz, &temp);
+	ret = thermal_zone_get_temp(tz, &temp);
 	if (ret) {
-		pr_warn("failed to read out thermal zone %d\n", tz->id);
-		goto exit;
+		dev_warn(&tz->device, "failed to read out thermal zone %d\n",
+			 tz->id);
+		return;
 	}
 
+	mutex_lock(&tz->lock);
 	tz->last_temperature = tz->temperature;
 	tz->temperature = temp;
-
-exit:
 	mutex_unlock(&tz->lock);
 }
 
@@ -430,10 +464,7 @@ temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 	long temperature;
 	int ret;
 
-	if (!tz->ops->get_temp)
-		return -EPERM;
-
-	ret = tz->ops->get_temp(tz, &temperature);
+	ret = thermal_zone_get_temp(tz, &temperature);
 
 	if (ret)
 		return ret;
@@ -693,6 +724,31 @@ policy_show(struct device *dev, struct device_attribute *devattr, char *buf)
 	return sprintf(buf, "%s\n", tz->governor->name);
 }
 
+#ifdef CONFIG_THERMAL_EMULATION
+static ssize_t
+emul_temp_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
+	int ret = 0;
+	unsigned long temperature;
+
+	if (kstrtoul(buf, 10, &temperature))
+		return -EINVAL;
+
+	if (!tz->ops->set_emul_temp) {
+		mutex_lock(&tz->lock);
+		tz->emul_temperature = temperature;
+		mutex_unlock(&tz->lock);
+	} else {
+		ret = tz->ops->set_emul_temp(tz, temperature);
+	}
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
+#endif/*CONFIG_THERMAL_EMULATION*/
+
 static DEVICE_ATTR(type, 0444, type_show, NULL);
 static DEVICE_ATTR(temp, 0444, temp_show, NULL);
 static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
@@ -835,7 +891,7 @@ temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
 				       temp_input);
 	struct thermal_zone_device *tz = temp->tz;
 
-	ret = tz->ops->get_temp(tz, &temperature);
+	ret = thermal_zone_get_temp(tz, &temperature);
 
 	if (ret)
 		return ret;
@@ -1522,6 +1578,9 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	if (!ops || !ops->get_temp)
 		return ERR_PTR(-EINVAL);
 
+	if (trips > 0 && !ops->get_trip_type)
+		return ERR_PTR(-EINVAL);
+
 	tz = kzalloc(sizeof(struct thermal_zone_device), GFP_KERNEL);
 	if (!tz)
 		return ERR_PTR(-ENOMEM);
@@ -1585,6 +1644,11 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 			goto unregister;
 	}
 
+#ifdef CONFIG_THERMAL_EMULATION
+	result = device_create_file(&tz->device, &dev_attr_emul_temp);
+	if (result)
+		goto unregister;
+#endif
 	/* Create policy attribute */
 	result = device_create_file(&tz->device, &dev_attr_policy);
 	if (result)
@@ -1704,7 +1768,8 @@ static struct genl_multicast_group thermal_event_mcgrp = {
 	.name = THERMAL_GENL_MCAST_GROUP_NAME,
 };
 
-int thermal_generate_netlink_event(u32 orig, enum events event)
+int thermal_generate_netlink_event(struct thermal_zone_device *tz,
+					enum events event)
 {
 	struct sk_buff *skb;
 	struct nlattr *attr;
@@ -1713,6 +1778,9 @@ int thermal_generate_netlink_event(u32 orig, enum events event)
 	int size;
 	int result;
 	static unsigned int thermal_event_seqnum;
+
+	if (!tz)
+		return -EINVAL;
 
 	/* allocate memory */
 	size = nla_total_size(sizeof(struct thermal_genl_event)) +
@@ -1748,7 +1816,7 @@ int thermal_generate_netlink_event(u32 orig, enum events event)
 
 	memset(thermal_event, 0, sizeof(struct thermal_genl_event));
 
-	thermal_event->orig = orig;
+	thermal_event->orig = tz->id;
 	thermal_event->event = event;
 
 	/* send multicast genetlink message */
@@ -1760,7 +1828,7 @@ int thermal_generate_netlink_event(u32 orig, enum events event)
 
 	result = genlmsg_multicast(skb, 0, thermal_event_mcgrp.id, GFP_ATOMIC);
 	if (result)
-		pr_info("failed to send netlink event:%d\n", result);
+		dev_err(&tz->device, "Failed to send netlink event:%d", result);
 
 	return result;
 }
@@ -1800,6 +1868,7 @@ static int __init thermal_init(void)
 		idr_destroy(&thermal_cdev_idr);
 		mutex_destroy(&thermal_idr_lock);
 		mutex_destroy(&thermal_list_lock);
+		return result;
 	}
 	result = genetlink_init();
 	return result;
