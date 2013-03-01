@@ -266,6 +266,13 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	return 0;
 }
 
+void uvc_function_setup_continue(struct uvc_device *uvc)
+{
+	struct usb_composite_dev *cdev = uvc->func.config->cdev;
+
+	usb_composite_setup_continue(cdev);
+}
+
 static int
 uvc_function_get_alt(struct usb_function *f, unsigned interface)
 {
@@ -328,7 +335,7 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		v4l2_event_queue(uvc->vdev, &v4l2_event);
 
 		uvc->state = UVC_STATE_CONNECTED;
-		break;
+		return 0;
 
 	case 1:
 		if (uvc->state != UVC_STATE_CONNECTED)
@@ -345,15 +352,11 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		memset(&v4l2_event, 0, sizeof(v4l2_event));
 		v4l2_event.type = UVC_EVENT_STREAMON;
 		v4l2_event_queue(uvc->vdev, &v4l2_event);
-
-		uvc->state = UVC_STATE_STREAMING;
-		break;
+		return USB_GADGET_DELAYED_STATUS;
 
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static void

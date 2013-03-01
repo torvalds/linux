@@ -253,7 +253,19 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (*type != video->queue.type)
 			return -EINVAL;
 
-		return uvc_video_enable(video, 1);
+		/* Enable UVC video. */
+		ret = uvc_video_enable(video, 1);
+		if (ret < 0)
+			return ret;
+
+		/*
+		 * Complete the alternate setting selection setup phase now that
+		 * userspace is ready to provide video frames.
+		 */
+		uvc_function_setup_continue(uvc);
+		uvc->state = UVC_STATE_STREAMING;
+
+		return 0;
 	}
 
 	case VIDIOC_STREAMOFF:
