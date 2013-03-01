@@ -40,13 +40,6 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	if (!ht_cap->ht_supported)
 		return;
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION) {
-		/* AP interfaces call this code when adding new stations,
-		 * so just silently ignore non station interfaces.
-		 */
-		return;
-	}
-
 	/* NOTE:  If you add more over-rides here, update register_hw
 	 * ht_capa_mod_msk logic in main.c as well.
 	 * And, if this method can ever change ht_cap.ht_supported, fix
@@ -184,9 +177,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
  apply:
 	/*
 	 * If user has specified capability over-rides, take care
-	 * of that here.
+	 * of that if the station we're setting up is the AP that
+	 * we advertised a restricted capability set to.
 	 */
-	ieee80211_apply_htcap_overrides(sdata, &ht_cap);
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
 
 	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
 
