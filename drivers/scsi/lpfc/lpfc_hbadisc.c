@@ -3249,8 +3249,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
 	spin_unlock_irq(shost->host_lock);
 
-	if ((phba->fc_eventTag  < la->eventTag) ||
-	    (phba->fc_eventTag == la->eventTag)) {
+	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
 		if (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)
 			if (phba->fc_eventTag != 0)
@@ -3258,16 +3257,18 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	phba->fc_eventTag = la->eventTag;
-	spin_lock_irq(&phba->hbalock);
-	if (bf_get(lpfc_mbx_read_top_mm, la))
-		phba->sli.sli_flag |= LPFC_MENLO_MAINT;
-	else
-		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
-	spin_unlock_irq(&phba->hbalock);
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		spin_lock_irq(&phba->hbalock);
+		if (bf_get(lpfc_mbx_read_top_mm, la))
+			phba->sli.sli_flag |= LPFC_MENLO_MAINT;
+		else
+			phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	phba->link_events++;
 	if ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP) &&
-	    (!bf_get(lpfc_mbx_read_top_mm, la))) {
+	    !(phba->sli.sli_flag & LPFC_MENLO_MAINT)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3312,8 +3313,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				bf_get(lpfc_mbx_read_top_fa, la));
 		lpfc_mbx_issue_link_down(phba);
 	}
-	if ((bf_get(lpfc_mbx_read_top_mm, la)) &&
-	    (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)) {
+	if ((phba->sli.sli_flag & LPFC_MENLO_MAINT) &&
+	    ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP))) {
 		if (phba->link_state != LPFC_LINK_DOWN) {
 			phba->fc_stat.LinkDown++;
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3341,8 +3342,9 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 
-	if (bf_get(lpfc_mbx_read_top_fa, la)) {
-		if (bf_get(lpfc_mbx_read_top_mm, la))
+	if ((phba->sli_rev < LPFC_SLI_REV4) &&
+	    bf_get(lpfc_mbx_read_top_fa, la)) {
+		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
 			lpfc_issue_clear_la(phba, vport);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"1311 fa %d\n",
