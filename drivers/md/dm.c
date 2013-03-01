@@ -1152,15 +1152,23 @@ static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti
 {
 	struct bio *bio = ci->bio;
 	struct dm_target_io *tio;
+	unsigned target_bio_nr;
+	unsigned num_target_bios = 1;
 
-	tio = alloc_tio(ci, ti, nr_iovecs, 0);
+	/*
+	 * Does the target want to receive duplicate copies of the bio?
+	 */
+	if (bio_data_dir(bio) == WRITE && ti->num_write_bios)
+		num_target_bios = ti->num_write_bios(ti, bio);
 
-	if (split_bvec)
-		clone_split_bio(tio, bio, sector, idx, offset, len);
-	else
-		clone_bio(tio, bio, sector, idx, bv_count, len);
-
-	__map_bio(tio);
+	for (target_bio_nr = 0; target_bio_nr < num_target_bios; target_bio_nr++) {
+		tio = alloc_tio(ci, ti, nr_iovecs, target_bio_nr);
+		if (split_bvec)
+			clone_split_bio(tio, bio, sector, idx, offset, len);
+		else
+			clone_bio(tio, bio, sector, idx, bv_count, len);
+		__map_bio(tio);
+	}
 }
 
 typedef unsigned (*get_num_bios_fn)(struct dm_target *ti);

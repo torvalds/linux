@@ -175,6 +175,14 @@ struct target_type {
 #define DM_TARGET_IMMUTABLE		0x00000004
 #define dm_target_is_immutable(type)	((type)->features & DM_TARGET_IMMUTABLE)
 
+/*
+ * Some targets need to be sent the same WRITE bio severals times so
+ * that they can send copies of it to different devices.  This function
+ * examines any supplied bio and returns the number of copies of it the
+ * target requires.
+ */
+typedef unsigned (*dm_num_write_bios_fn) (struct dm_target *ti, struct bio *bio);
+
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;
@@ -213,6 +221,13 @@ struct dm_target {
 	 * target to use.  dm_per_bio_data returns the data location.
 	 */
 	unsigned per_bio_data_size;
+
+	/*
+	 * If defined, this function is called to find out how many
+	 * duplicate bios should be sent to the target when writing
+	 * data.
+	 */
+	dm_num_write_bios_fn num_write_bios;
 
 	/* target specific data */
 	void *private;
