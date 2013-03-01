@@ -324,7 +324,6 @@ static int sync_fence_copy_pts(struct sync_fence *dst, struct sync_fence *src)
 
 		new_pt->fence = dst;
 		list_add(&new_pt->pt_list, &dst->pt_list_head);
-		sync_pt_activate(new_pt);
 	}
 
 	return 0;
@@ -357,7 +356,6 @@ static int sync_fence_merge_pts(struct sync_fence *dst, struct sync_fence *src)
 					new_pt->fence = dst;
 					list_replace(&dst_pt->pt_list,
 						     &new_pt->pt_list);
-					sync_pt_activate(new_pt);
 					sync_pt_free(dst_pt);
 				}
 				collapsed = true;
@@ -373,7 +371,6 @@ static int sync_fence_merge_pts(struct sync_fence *dst, struct sync_fence *src)
 
 			new_pt->fence = dst;
 			list_add(&new_pt->pt_list, &dst->pt_list_head);
-			sync_pt_activate(new_pt);
 		}
 	}
 
@@ -454,6 +451,7 @@ struct sync_fence *sync_fence_merge(const char *name,
 				    struct sync_fence *a, struct sync_fence *b)
 {
 	struct sync_fence *fence;
+	struct list_head *pos;
 	int err;
 
 	fence = sync_fence_alloc(name);
@@ -467,6 +465,12 @@ struct sync_fence *sync_fence_merge(const char *name,
 	err = sync_fence_merge_pts(fence, b);
 	if (err < 0)
 		goto err;
+
+	list_for_each(pos, &fence->pt_list_head) {
+		struct sync_pt *pt =
+			container_of(pos, struct sync_pt, pt_list);
+		sync_pt_activate(pt);
+	}
 
 	/*
 	 * signal the fence in case one of it's pts were activated before
