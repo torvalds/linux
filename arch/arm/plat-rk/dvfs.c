@@ -106,7 +106,7 @@ static void dvfs_get_vd_regulator_volt_list(struct vd_node *vd)
 	if(selector>VD_VOL_LIST_CNT)
 		selector=VD_VOL_LIST_CNT;
 	
-	mutex_unlock(&mutex);
+	mutex_lock(&mutex);
 	for (i = 0; i<selector; i++) {
 		sel_volt=dvfs_regulator_list_voltage(vd->regulator,i);
 		if(sel_volt<=0)
