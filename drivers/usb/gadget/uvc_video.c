@@ -229,13 +229,18 @@ uvc_video_free_requests(struct uvc_video *video)
 static int
 uvc_video_alloc_requests(struct uvc_video *video)
 {
+	unsigned int req_size;
 	unsigned int i;
 	int ret = -ENOMEM;
 
 	BUG_ON(video->req_size);
 
+	req_size = video->ep->maxpacket
+		 * max_t(unsigned int, video->ep->maxburst, 1)
+		 * (video->ep->mult + 1);
+
 	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
-		video->req_buffer[i] = kmalloc(video->ep->maxpacket, GFP_KERNEL);
+		video->req_buffer[i] = kmalloc(req_size, GFP_KERNEL);
 		if (video->req_buffer[i] == NULL)
 			goto error;
 
@@ -251,7 +256,8 @@ uvc_video_alloc_requests(struct uvc_video *video)
 		list_add_tail(&video->req[i]->list, &video->req_free);
 	}
 
-	video->req_size = video->ep->maxpacket;
+	video->req_size = req_size;
+
 	return 0;
 
 error:
