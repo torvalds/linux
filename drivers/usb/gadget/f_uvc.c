@@ -104,13 +104,22 @@ static struct usb_interface_descriptor uvc_control_intf __initdata = {
 	.iInterface		= 0,
 };
 
-static struct usb_endpoint_descriptor uvc_fs_control_ep __initdata = {
+static struct usb_endpoint_descriptor uvc_control_ep __initdata = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize		= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
 	.bInterval		= 8,
+};
+
+static struct usb_ss_ep_comp_descriptor uvc_ss_control_comp __initdata = {
+	.bLength		= sizeof(uvc_ss_control_comp),
+	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
+	/* The following 3 values can be tweaked if necessary. */
+	.bMaxBurst		= 0,
+	.bmAttributes		= 0,
+	.wBytesPerInterval	= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
 };
 
 static struct uvc_control_endpoint_descriptor uvc_control_cs_ep __initdata = {
@@ -144,7 +153,7 @@ static struct usb_interface_descriptor uvc_streaming_intf_alt1 __initdata = {
 	.iInterface		= 0,
 };
 
-static struct usb_endpoint_descriptor uvc_fs_streaming_ep = {
+static struct usb_endpoint_descriptor uvc_fs_streaming_ep __initdata = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
@@ -153,34 +162,13 @@ static struct usb_endpoint_descriptor uvc_fs_streaming_ep = {
 	.bInterval		= 1,
 };
 
-static struct usb_endpoint_descriptor uvc_hs_streaming_ep = {
+static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
 	.wMaxPacketSize		= cpu_to_le16(1024),
 	.bInterval		= 1,
-};
-
-/* super speed support */
-static struct usb_endpoint_descriptor uvc_ss_control_ep __initdata = {
-	.bLength		= USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType	= USB_DT_ENDPOINT,
-
-	.bEndpointAddress	= USB_DIR_IN,
-	.bmAttributes		= USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize		= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
-	.bInterval		= 8,
-};
-
-static struct usb_ss_ep_comp_descriptor uvc_ss_control_comp __initdata = {
-	.bLength		= sizeof(uvc_ss_control_comp),
-	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
-
-	/* the following 3 values can be tweaked if necessary */
-	.bMaxBurst		= 0,
-	.bmAttributes		= 0,
-	.wBytesPerInterval	= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
 };
 
 static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
@@ -193,11 +181,10 @@ static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
 	.bInterval		= 4,
 };
 
-static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp = {
+static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp __initdata = {
 	.bLength		= sizeof(uvc_ss_streaming_comp),
 	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
-
-	/* the following 3 values can be tweaked if necessary */
+	/* The following 3 values can be tweaked if necessary. */
 	.bMaxBurst		= 0,
 	.bmAttributes		= 0,
 	.wBytesPerInterval	= cpu_to_le16(1024),
@@ -454,7 +441,6 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	const struct uvc_descriptor_header * const *uvc_streaming_cls;
 	const struct usb_descriptor_header * const *uvc_streaming_std;
 	const struct usb_descriptor_header * const *src;
-	static struct usb_endpoint_descriptor *uvc_control_ep;
 	struct usb_descriptor_header **dst;
 	struct usb_descriptor_header **hdr;
 	unsigned int control_size;
@@ -468,14 +454,12 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 		uvc_control_desc = uvc->desc.ss_control;
 		uvc_streaming_cls = uvc->desc.ss_streaming;
 		uvc_streaming_std = uvc_ss_streaming;
-		uvc_control_ep = &uvc_ss_control_ep;
 		break;
 
 	case USB_SPEED_HIGH:
 		uvc_control_desc = uvc->desc.fs_control;
 		uvc_streaming_cls = uvc->desc.hs_streaming;
 		uvc_streaming_std = uvc_hs_streaming;
-		uvc_control_ep = &uvc_fs_control_ep;
 		break;
 
 	case USB_SPEED_FULL:
@@ -483,7 +467,6 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 		uvc_control_desc = uvc->desc.fs_control;
 		uvc_streaming_cls = uvc->desc.fs_streaming;
 		uvc_streaming_std = uvc_fs_streaming;
-		uvc_control_ep = &uvc_fs_control_ep;
 		break;
 	}
 
@@ -494,6 +477,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	 * Class-specific UVC control descriptors
 	 * uvc_control_ep
 	 * uvc_control_cs_ep
+	 * uvc_ss_control_comp (for SS only)
 	 * uvc_streaming_intf_alt0
 	 * Class-specific UVC streaming descriptors
 	 * uvc_{fs|hs}_streaming
@@ -503,7 +487,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	control_size = 0;
 	streaming_size = 0;
 	bytes = uvc_iad.bLength + uvc_control_intf.bLength
-	      + uvc_control_ep->bLength + uvc_control_cs_ep.bLength
+	      + uvc_control_ep.bLength + uvc_control_cs_ep.bLength
 	      + uvc_streaming_intf_alt0.bLength;
 
 	if (speed == USB_SPEED_SUPER) {
@@ -549,7 +533,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	uvc_control_header->bInCollection = 1;
 	uvc_control_header->baInterfaceNr[0] = uvc->streaming_intf;
 
-	UVC_COPY_DESCRIPTOR(mem, dst, uvc_control_ep);
+	UVC_COPY_DESCRIPTOR(mem, dst, &uvc_control_ep);
 	if (speed == USB_SPEED_SUPER)
 		UVC_COPY_DESCRIPTOR(mem, dst, &uvc_ss_control_comp);
 
@@ -619,7 +603,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_fs_streaming_ep.bInterval = streaming_interval;
 
 	/* Allocate endpoints. */
-	ep = usb_ep_autoconfig(cdev->gadget, &uvc_fs_control_ep);
+	ep = usb_ep_autoconfig(cdev->gadget, &uvc_control_ep);
 	if (!ep) {
 		INFO(cdev, "Unable to allocate control EP\n");
 		goto error;
