@@ -1015,7 +1015,10 @@ void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
 {
 	struct device_node *child;
 
-	pdata->id = -1;
+	pdata->id = of_alias_get_id(np, "stmpe-i2c");
+	if (pdata->id < 0)
+		pdata->id = -1;
+
 	pdata->irq_trigger = IRQF_TRIGGER_NONE;
 
 	of_property_read_u32(np, "st,autosleep-timeout",
