@@ -1056,15 +1056,6 @@ void __init setup_arch(char **cmdline_p)
 	setup_bios_corruption_check();
 #endif
 
-	/*
-	 * In the memory hotplug case, the kernel needs info from SRAT to
-	 * determine which memory is hotpluggable before allocating memory
-	 * using memblock.
-	 */
-	acpi_boot_table_init();
-	early_acpi_boot_init();
-	early_parse_srat();
-
 #ifdef CONFIG_X86_32
 	printk(KERN_DEBUG "initial memory mapped: [mem 0x00000000-%#010lx]\n",
 			(max_pfn_mapped<<PAGE_SHIFT) - 1);
@@ -1110,6 +1101,10 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
+	acpi_boot_table_init();
+
+	early_acpi_boot_init();
+
 	initmem_init();
 	memblock_find_dma_reserve();
 

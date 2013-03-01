@@ -92,58 +92,9 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
  *
  * Find @size free area aligned to @align in the specified range and node.
  *
- * If we have CONFIG_HAVE_MEMBLOCK_NODE_MAP defined, we need to check if the
- * memory we found if not in hotpluggable ranges.
- *
  * RETURNS:
  * Found address on success, %0 on failure.
  */
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
-					phys_addr_t end, phys_addr_t size,
-					phys_addr_t align, int nid)
-{
-	phys_addr_t this_start, this_end, cand;
-	u64 i;
-	int curr = movablemem_map.nr_map - 1;
-
-	/* pump up @end */
-	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-		end = memblock.current_limit;
-
-	/* avoid allocating the first page */
-	start = max_t(phys_addr_t, start, PAGE_SIZE);
-	end = max(start, end);
-
-	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
-		this_start = clamp(this_start, start, end);
-		this_end = clamp(this_end, start, end);
-
-restart:
-		if (this_end <= this_start || this_end < size)
-			continue;
-
-		for (; curr >= 0; curr--) {
-			if ((movablemem_map.map[curr].start_pfn << PAGE_SHIFT)
-			    < this_end)
-				break;
-		}
-
-		cand = round_down(this_end - size, align);
-		if (curr >= 0 &&
-		    cand < movablemem_map.map[curr].end_pfn << PAGE_SHIFT) {
-			this_end = movablemem_map.map[curr].start_pfn
-				   << PAGE_SHIFT;
-			goto restart;
-		}
-
-		if (cand >= this_start)
-			return cand;
-	}
-
-	return 0;
-}
-#else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
 					phys_addr_t end, phys_addr_t size,
 					phys_addr_t align, int nid)
@@ -172,7 +123,6 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
 	}
 	return 0;
 }
-#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 /**
  * memblock_find_in_range - find free area in given range

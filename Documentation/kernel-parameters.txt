@@ -1645,42 +1645,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	movablemem_map=acpi
-			[KNL,X86,IA-64,PPC] This parameter is similar to
-			memmap except it specifies the memory map of
-			ZONE_MOVABLE.
-			This option inform the kernel to use Hot Pluggable bit
-			in flags from SRAT from ACPI BIOS to determine which
-			memory devices could be hotplugged. The corresponding
-			memory ranges will be set as ZONE_MOVABLE.
-			NOTE: Whatever node the kernel resides in will always
-			      be un-hotpluggable.
-
-	movablemem_map=nn[KMG]@ss[KMG]
-			[KNL,X86,IA-64,PPC] This parameter is similar to
-			memmap except it specifies the memory map of
-			ZONE_MOVABLE.
-			If user specifies memory ranges, the info in SRAT will
-			be ingored. And it works like the following:
-			- If more ranges are all within one node, then from
-			  lowest ss to the end of the node will be ZONE_MOVABLE.
-			- If a range is within a node, then from ss to the end
-			  of the node will be ZONE_MOVABLE.
-			- If a range covers two or more nodes, then from ss to
-			  the end of the 1st node will be ZONE_MOVABLE, and all
-			  the rest nodes will only have ZONE_MOVABLE.
-			If memmap is specified at the same time, the
-			movablemem_map will be limited within the memmap
-			areas. If kernelcore or movablecore is also specified,
-			movablemem_map will have higher priority to be
-			satisfied. So the administrator should be careful that
-			the amount of movablemem_map areas are not too large.
-			Otherwise kernel won't have enough memory to start.
-			NOTE: We don't stop users specifying the node the
-			      kernel resides in as hotpluggable so that this
-			      option can be used as a workaround of firmware
-                              bugs.
-
 	MTD_Partition=	[MTD]
 			Format: <name>,<region-number>,<size>,<offset>
 

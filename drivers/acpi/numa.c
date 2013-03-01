@@ -282,10 +282,10 @@ acpi_table_parse_srat(enum acpi_srat_type id,
 					    handler, max_entries);
 }
 
-static int srat_mem_cnt;
-
-void __init early_parse_srat(void)
+int __init acpi_numa_init(void)
 {
+	int cnt = 0;
+
 	/*
 	 * Should not limit number with cpu num that is from NR_CPUS or nr_cpus=
 	 * SRAT cpu entries could have different order with that in MADT.
@@ -295,24 +295,21 @@ void __init early_parse_srat(void)
 	/* SRAT: Static Resource Affinity Table */
 	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
 		acpi_table_parse_srat(ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY,
-				      acpi_parse_x2apic_affinity, 0);
+				     acpi_parse_x2apic_affinity, 0);
 		acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
-				      acpi_parse_processor_affinity, 0);
-		srat_mem_cnt = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-						     acpi_parse_memory_affinity,
-						     NR_NODE_MEMBLKS);
+				     acpi_parse_processor_affinity, 0);
+		cnt = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
+					    acpi_parse_memory_affinity,
+					    NR_NODE_MEMBLKS);
 	}
-}
 
-int __init acpi_numa_init(void)
-{
 	/* SLIT: System Locality Information Table */
 	acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit);
 
 	acpi_numa_arch_fixup();
 
-	if (srat_mem_cnt < 0)
-		return srat_mem_cnt;
+	if (cnt < 0)
+		return cnt;
 	else if (!parsed_numa_memblks)
 		return -ENOENT;
 	return 0;
