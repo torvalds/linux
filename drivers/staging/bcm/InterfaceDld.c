@@ -205,30 +205,6 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	return retval;
 }
 
-static int bcm_compare_buff_contents(unsigned char *readbackbuff, unsigned char *buff, unsigned int len)
-{
-	int retval = STATUS_SUCCESS;
-	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	if ((len-sizeof(unsigned int)) < 4) {
-		if (memcmp(readbackbuff , buff, len))
-			retval = -EINVAL;
-	} else {
-		len -= 4;
-
-		while (len) {
-			if (*(unsigned int *)&readbackbuff[len] != *(unsigned int *)&buff[len]) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Firmware Download is not proper");
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Val from Binary %x, Val From Read Back %x ", *(unsigned int *)&buff[len], *(unsigned int*)&readbackbuff[len]);
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "len =%x!!!", len);
-				retval = -EINVAL;
-				break;
-			}
-			len -= 4;
-		}
-	}
-	return retval;
-}
-
 int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
@@ -321,9 +297,11 @@ static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer,
 			break;
 		}
 
-		retval = bcm_compare_buff_contents(readbackbuff, mappedbuffer, len);
-		if (STATUS_SUCCESS != retval)
-			break;
+		if (memcmp(readbackbuff, mappedbuffer, len) != 0) {
+			pr_err("%s() failed.  The firmware doesn't match what was written",
+			       __func__);
+			retval = -EIO;
+		}
 
 		u32StartingAddress += len;
 		u32FirmwareLength -= len;
