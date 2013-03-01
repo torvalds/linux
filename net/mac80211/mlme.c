@@ -647,6 +647,9 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 		our_mcs = (le16_to_cpu(vht_cap.vht_mcs.rx_mcs_map) &
 								mask) >> shift;
 
+		if (our_mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+			continue;
+
 		switch (ap_mcs) {
 		default:
 			if (our_mcs <= ap_mcs)
