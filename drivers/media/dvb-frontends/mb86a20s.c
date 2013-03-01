@@ -335,7 +335,7 @@ static int mb86a20s_read_signal_strength(struct dvb_frontend *fe)
 		rc = mb86a20s_writereg(state, 0x04, 0x20);
 		if (rc < 0)
 			return rc;
-		rc = mb86a20s_writereg(state, 0x04, rf);
+		rc = mb86a20s_writereg(state, 0x05, rf);
 		if (rc < 0)
 			return rc;
 
