@@ -63,6 +63,4 @@ typedef struct tag_MBR{
 	__u8 res[MBR_RESERVED];         // reserved space
 }MBR;
 
-int mbr2disks(struct nand_disk* disk_array);
-
 #endif    //__MBR_H__

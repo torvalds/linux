@@ -56,9 +56,6 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 
-/* +1 for whole nand device /dev/nand file */
-struct nand_disk disk_array[MAX_PART_COUNT+1];
-
 #define BLK_ERR_MSG_ON
 #ifdef  BLK_ERR_MSG_ON
 #define dbg_err(fmt, args...) printk("[NAND]"fmt, ## args)
@@ -904,8 +901,8 @@ static int collect_thread(void *tmparg)
 
 int nand_blk_register(struct nand_blk_ops *nandr)
 {
-	int i,ret;
-	__u32 part_cnt;
+	int ret;
+	struct nand_disk disk_array[1];
 
 	down(&nand_mutex);
 
@@ -966,10 +963,9 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 	//devfs_mk_dir(nandr->name);
 	INIT_LIST_HEAD(&nandr->devs);
 
-	part_cnt = mbr2disks(disk_array);
-	for(i = 0 ; i < part_cnt ; i++){
-		nandr->add_dev(nandr,&(disk_array[i]));
-	}
+	disk_array[0].offset = 0;
+	disk_array[0].size = DiskSize;
+	nandr->add_dev(nandr,disk_array);
 
 	up(&nand_mutex);
 
