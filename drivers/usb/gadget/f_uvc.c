@@ -51,13 +51,11 @@ MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
 
 /* string IDs are assigned dynamically */
 
-#define UVC_STRING_ASSOCIATION_IDX		0
-#define UVC_STRING_CONTROL_IDX			1
-#define UVC_STRING_STREAMING_IDX		2
+#define UVC_STRING_CONTROL_IDX			0
+#define UVC_STRING_STREAMING_IDX		1
 
 static struct usb_string uvc_en_us_strings[] = {
-	[UVC_STRING_ASSOCIATION_IDX].s = "UVC Camera",
-	[UVC_STRING_CONTROL_IDX].s = "Video Control",
+	[UVC_STRING_CONTROL_IDX].s = "UVC Camera",
 	[UVC_STRING_STREAMING_IDX].s = "Video Streaming",
 	{  }
 };
@@ -572,7 +570,7 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	uvc->control_ep->driver_data = NULL;
 	uvc->video.ep->driver_data = NULL;
 
-	uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id = 0;
+	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = 0;
 	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
 	kfree(uvc->control_buf);
 
@@ -796,12 +794,12 @@ uvc_bind_config(struct usb_configuration *c,
 	 * for the first UVC function. UVC functions beyond the first (if any)
 	 * will reuse the same IDs.
 	 */
-	if (uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id == 0) {
+	if (uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id == 0) {
 		ret = usb_string_ids_tab(c->cdev, uvc_en_us_strings);
 		if (ret)
 			goto error;
 		uvc_iad.iFunction =
-			uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id;
+			uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id;
 		uvc_control_intf.iInterface =
 			uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id;
 		ret = uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id;
