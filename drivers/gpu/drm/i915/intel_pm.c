@@ -4271,21 +4271,14 @@ static void __gen6_gt_force_wake_reset(struct drm_i915_private *dev_priv)
 
 static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
-	u32 forcewake_ack;
-
-	if (IS_HASWELL(dev_priv->dev))
-		forcewake_ack = FORCEWAKE_ACK_HSW;
-	else
-		forcewake_ack = FORCEWAKE_ACK;
-
-	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1) == 0,
+	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK) & 1) == 0,
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE, 1);
 	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
 
-	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
+	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK) & 1),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
