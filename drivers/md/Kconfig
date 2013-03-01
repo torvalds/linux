@@ -268,6 +268,19 @@ config DM_DEBUG_BLOCK_STACK_TRACING
 
 	  If unsure, say N.
 
+config DM_CACHE
+       tristate "Cache target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM
+       default n
+       select DM_PERSISTENT_DATA
+       select DM_BIO_PRISON
+       ---help---
+         dm-cache attempts to improve performance of a block device by
+         moving frequently used data to a smaller, higher performance
+         device.  Different 'policy' plugins can be used to change the
+         algorithms used to select which blocks are promoted, demoted,
+         cleaned etc.  It supports writeback and writethrough modes.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
