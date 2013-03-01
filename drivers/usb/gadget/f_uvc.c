@@ -33,19 +33,15 @@ unsigned int uvc_gadget_trace_param;
 /*-------------------------------------------------------------------------*/
 
 /* module parameters specific to the Video streaming endpoint */
-static unsigned streaming_interval = 1;
+static unsigned int streaming_interval = 1;
 module_param(streaming_interval, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(streaming_interval, "1 - 16");
 
-static unsigned streaming_maxpacket = 1024;
+static unsigned int streaming_maxpacket = 1024;
 module_param(streaming_maxpacket, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(streaming_maxpacket, "0 - 1023 (fs), 0 - 1024 (hs/ss)");
+MODULE_PARM_DESC(streaming_maxpacket, "1 - 1023 (FS), 1 - 3072 (hs/ss)");
 
-static unsigned streaming_mult;
-module_param(streaming_mult, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(streaming_mult, "0 - 2 (hs/ss only)");
-
-static unsigned streaming_maxburst;
+static unsigned int streaming_maxburst;
 module_param(streaming_maxburst, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
 
@@ -158,8 +154,11 @@ static struct usb_endpoint_descriptor uvc_fs_streaming_ep __initdata = {
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize		= cpu_to_le16(512),
-	.bInterval		= 1,
+	/* The wMaxPacketSize and bInterval values will be initialized from
+	 * module parameters.
+	 */
+	.wMaxPacketSize		= 0,
+	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
@@ -167,8 +166,11 @@ static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize		= cpu_to_le16(1024),
-	.bInterval		= 1,
+	/* The wMaxPacketSize and bInterval values will be initialized from
+	 * module parameters.
+	 */
+	.wMaxPacketSize		= 0,
+	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
@@ -177,8 +179,11 @@ static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
 
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize		= cpu_to_le16(1024),
-	.bInterval		= 4,
+	/* The wMaxPacketSize and bInterval values will be initialized from
+	 * module parameters.
+	 */
+	.wMaxPacketSize		= 0,
+	.bInterval		= 0,
 };
 
 static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp __initdata = {
@@ -579,28 +584,49 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct uvc_device *uvc = to_uvc(f);
+	unsigned int max_packet_mult;
+	unsigned int max_packet_size;
 	struct usb_ep *ep;
 	int ret = -EINVAL;
 
 	INFO(cdev, "uvc_function_bind\n");
 
-	/* sanity check the streaming endpoint module parameters */
-	if (streaming_interval < 1)
-		streaming_interval = 1;
-	if (streaming_interval > 16)
-		streaming_interval = 16;
-	if (streaming_mult > 2)
-		streaming_mult = 2;
-	if (streaming_maxburst > 15)
-		streaming_maxburst = 15;
-
-	/*
-	 * fill in the FS video streaming specific descriptors from the
-	 * module parameters
+	/* Sanity check the streaming endpoint module parameters.
 	 */
-	uvc_fs_streaming_ep.wMaxPacketSize = streaming_maxpacket > 1023 ?
-						1023 : streaming_maxpacket;
+	streaming_interval = clamp(streaming_interval, 1U, 16U);
+	streaming_maxpacket = clamp(streaming_maxpacket, 1U, 3072U);
+	streaming_maxburst = min(streaming_maxburst, 15U);
+
+	/* Fill in the FS/HS/SS Video Streaming specific descriptors from the
+	 * module parameters.
+	 *
+	 * NOTE: We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	if (streaming_maxpacket <= 1024) {
+		max_packet_mult = 1;
+		max_packet_size = streaming_maxpacket;
+	} else if (streaming_maxpacket <= 2048) {
+		max_packet_mult = 2;
+		max_packet_size = streaming_maxpacket / 2;
+	} else {
+		max_packet_mult = 3;
+		max_packet_size = streaming_maxpacket / 3;
+	}
+
+	uvc_fs_streaming_ep.wMaxPacketSize = min(streaming_maxpacket, 1023U);
 	uvc_fs_streaming_ep.bInterval = streaming_interval;
+
+	uvc_hs_streaming_ep.wMaxPacketSize = max_packet_size;
+	uvc_hs_streaming_ep.wMaxPacketSize |= ((max_packet_mult - 1) << 11);
+	uvc_hs_streaming_ep.bInterval = streaming_interval;
+
+	uvc_ss_streaming_ep.wMaxPacketSize = max_packet_size;
+	uvc_ss_streaming_ep.bInterval = streaming_interval;
+	uvc_ss_streaming_comp.bmAttributes = max_packet_mult - 1;
+	uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
+	uvc_ss_streaming_comp.wBytesPerInterval =
+		max_packet_size * max_packet_mult * streaming_maxburst;
 
 	/* Allocate endpoints. */
 	ep = usb_ep_autoconfig(cdev->gadget, &uvc_control_ep);
@@ -619,6 +645,11 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc->video.ep = ep;
 	ep->driver_data = uvc;
 
+	uvc_hs_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
+	uvc_ss_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
+
 	/* Allocate interface IDs. */
 	if ((ret = usb_interface_id(c, f)) < 0)
 		goto error;
@@ -631,37 +662,6 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_streaming_intf_alt0.bInterfaceNumber = ret;
 	uvc_streaming_intf_alt1.bInterfaceNumber = ret;
 	uvc->streaming_intf = ret;
-
-	/* sanity check the streaming endpoint module parameters */
-	if (streaming_maxpacket > 1024)
-		streaming_maxpacket = 1024;
-	/*
-	 * Fill in the HS descriptors from the module parameters for the Video
-	 * Streaming endpoint.
-	 * NOTE: We assume that the user knows what they are doing and won't
-	 * give parameters that their UDC doesn't support.
-	 */
-	uvc_hs_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-	uvc_hs_streaming_ep.wMaxPacketSize |= streaming_mult << 11;
-	uvc_hs_streaming_ep.bInterval = streaming_interval;
-	uvc_hs_streaming_ep.bEndpointAddress =
-		uvc_fs_streaming_ep.bEndpointAddress;
-
-	/*
-	 * Fill in the SS descriptors from the module parameters for the Video
-	 * Streaming endpoint.
-	 * NOTE: We assume that the user knows what they are doing and won't
-	 * give parameters that their UDC doesn't support.
-	 */
-	uvc_ss_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-	uvc_ss_streaming_ep.bInterval = streaming_interval;
-	uvc_ss_streaming_comp.bmAttributes = streaming_mult;
-	uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
-	uvc_ss_streaming_comp.wBytesPerInterval =
-		streaming_maxpacket * (streaming_mult + 1) *
-		(streaming_maxburst + 1);
-	uvc_ss_streaming_ep.bEndpointAddress =
-		uvc_fs_streaming_ep.bEndpointAddress;
 
 	/* Copy descriptors */
 	f->fs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
