@@ -59,6 +59,7 @@ ste	ST-Ericsson
 stericsson	ST-Ericsson
 ti	Texas Instruments
 toshiba	Toshiba Corporation
+v3	V3 Semiconductor
 via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.

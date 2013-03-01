@@ -473,15 +473,6 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
-/*
- * This is a placeholder that will get deleted when we move the PCI
- * device over to the device tree.
- */
-static struct platform_device pci_v3_device_of = {
-	.name		= "pci-v3",
-	.id		= 0,
-};
-
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
@@ -535,8 +526,6 @@ static void __init ap_init_of(void)
 
 	of_platform_populate(root, of_default_bus_match_table,
 			ap_auxdata_lookup, parent);
-
-	platform_device_register(&pci_v3_device_of);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
