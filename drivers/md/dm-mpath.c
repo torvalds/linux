@@ -905,8 +905,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 		goto bad;
 	}
 
-	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
+	ti->num_flush_bios = 1;
+	ti->num_discard_bios = 1;
 
 	return 0;
 

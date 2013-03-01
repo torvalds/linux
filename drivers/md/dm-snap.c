@@ -1037,7 +1037,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
-	unsigned args_used, num_flush_requests = 1;
+	unsigned args_used, num_flush_bios = 1;
 	fmode_t origin_mode = FMODE_READ;
 
 	if (argc != 4) {
@@ -1047,7 +1047,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	if (dm_target_is_snapshot_merge(ti)) {
-		num_flush_requests = 2;
+		num_flush_bios = 2;
 		origin_mode = FMODE_WRITE;
 	}
 
@@ -1127,7 +1127,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->tracked_chunk_lock);
 
 	ti->private = s;
-	ti->num_flush_requests = num_flush_requests;
+	ti->num_flush_bios = num_flush_bios;
 	ti->per_bio_data_size = sizeof(struct dm_snap_tracked_chunk);
 
 	/* Add snapshot to the list of snapshots for this origin */
@@ -1691,7 +1691,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 	init_tracked_chunk(bio);
 
 	if (bio->bi_rw & REQ_FLUSH) {
-		if (!dm_bio_get_target_request_nr(bio))
+		if (!dm_bio_get_target_bio_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;
@@ -2102,7 +2102,7 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = dev;
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 
 	return 0;
 }

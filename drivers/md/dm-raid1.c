@@ -1072,8 +1072,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto err_free_context;
 
-	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
+	ti->num_flush_bios = 1;
+	ti->num_discard_bios = 1;
 	ti->per_bio_data_size = sizeof(struct dm_raid1_bio_record);
 	ti->discard_zeroes_data_unsupported = true;
 

@@ -1944,7 +1944,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	pt->data_dev = data_dev;
 	pt->low_water_blocks = low_water_blocks;
 	pt->adjusted_pf = pt->requested_pf = pf;
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 
 	/*
 	 * Only need to enable discards if the pool should pass
@@ -1952,7 +1952,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 * processing will cause mappings to be removed from the btree.
 	 */
 	if (pf.discard_enabled && pf.discard_passdown) {
-		ti->num_discard_requests = 1;
+		ti->num_discard_bios = 1;
 
 		/*
 		 * Setting 'discards_supported' circumvents the normal
@@ -2593,17 +2593,17 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (r)
 		goto bad_thin_open;
 
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 	ti->flush_supported = true;
 	ti->per_bio_data_size = sizeof(struct dm_thin_endio_hook);
 
 	/* In case the pool supports discards, pass them on. */
 	if (tc->pool->pf.discard_enabled) {
 		ti->discards_supported = true;
-		ti->num_discard_requests = 1;
+		ti->num_discard_bios = 1;
 		ti->discard_zeroes_data_unsupported = true;
-		/* Discard requests must be split on a block boundary */
-		ti->split_discard_requests = true;
+		/* Discard bios must be split on a block boundary */
+		ti->split_discard_bios = true;
 	}
 
 	dm_put(pool_md);
