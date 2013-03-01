@@ -217,7 +217,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 
 	if (alloc_targets(t, num_targets)) {
 		kfree(t);
-		t = NULL;
 		return -ENOMEM;
 	}
 
