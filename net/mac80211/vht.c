@@ -118,6 +118,8 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct sta_info *sta)
 {
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
+	struct ieee80211_sta_vht_cap own_cap;
+	u32 cap_info, i;
 
 	memset(vht_cap, 0, sizeof(*vht_cap));
 
@@ -133,12 +135,122 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 
 	vht_cap->vht_supported = true;
 
-	vht_cap->cap = le32_to_cpu(vht_cap_ie->vht_cap_info);
+	own_cap = sband->vht_cap;
+	/*
+	 * If user has specified capability overrides, take care
+	 * of that if the station we're setting up is the AP that
+	 * we advertised a restricted capability set to. Override
+	 * our own capabilities and then use those below.
+	 */
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		ieee80211_apply_vhtcap_overrides(sdata, &own_cap);
+
+	/* take some capabilities as-is */
+	cap_info = le32_to_cpu(vht_cap_ie->vht_cap_info);
+	vht_cap->cap = cap_info;
+	vht_cap->cap &= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895 |
+			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
+			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+			IEEE80211_VHT_CAP_RXLDPC |
+			IEEE80211_VHT_CAP_VHT_TXOP_PS |
+			IEEE80211_VHT_CAP_HTC_VHT |
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
+			IEEE80211_VHT_CAP_VHT_LINK_ADAPTATION_VHT_UNSOL_MFB |
+			IEEE80211_VHT_CAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB |
+			IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN |
+			IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN;
+
+	/* and some based on our own capabilities */
+	switch (own_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
+		vht_cap->cap |= cap_info &
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+		break;
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
+		vht_cap->cap |= cap_info &
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+		break;
+	default:
+		/* nothing */
+		break;
+	}
+
+	/* symmetric capabilities */
+	vht_cap->cap |= cap_info & own_cap.cap &
+			(IEEE80211_VHT_CAP_SHORT_GI_80 |
+			 IEEE80211_VHT_CAP_SHORT_GI_160);
+
+	/* remaining ones */
+	if (own_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE) {
+		vht_cap->cap |= cap_info &
+				(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+				 IEEE80211_VHT_CAP_BEAMFORMER_ANTENNAS_MAX |
+				 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MAX);
+	}
+
+	if (own_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)
+		vht_cap->cap |= cap_info &
+				IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+
+	if (own_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)
+		vht_cap->cap |= cap_info &
+				IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+
+	if (own_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)
+		vht_cap->cap |= cap_info &
+				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE;
+
+	if (own_cap.cap & IEEE80211_VHT_CAP_TXSTBC)
+		vht_cap->cap |= cap_info & IEEE80211_VHT_CAP_RXSTBC_MASK;
+
+	if (own_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+		vht_cap->cap |= cap_info & IEEE80211_VHT_CAP_TXSTBC;
 
 	/* Copy peer MCS info, the driver might need them. */
 	memcpy(&vht_cap->vht_mcs, &vht_cap_ie->supp_mcs,
 	       sizeof(struct ieee80211_vht_mcs_info));
 
+	/* but also restrict MCSes */
+	for (i = 0; i < 8; i++) {
+		u16 own_rx, own_tx, peer_rx, peer_tx;
+
+		own_rx = le16_to_cpu(own_cap.vht_mcs.rx_mcs_map);
+		own_rx = (own_rx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+
+		own_tx = le16_to_cpu(own_cap.vht_mcs.tx_mcs_map);
+		own_tx = (own_tx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+
+		peer_rx = le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map);
+		peer_rx = (peer_rx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+
+		peer_tx = le16_to_cpu(vht_cap->vht_mcs.tx_mcs_map);
+		peer_tx = (peer_tx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+
+		if (peer_tx != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			if (own_rx == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+				peer_tx = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+			else if (own_rx < peer_tx)
+				peer_tx = own_rx;
+		}
+
+		if (peer_rx != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			if (own_tx == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+				peer_rx = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+			else if (own_tx < peer_rx)
+				peer_rx = own_tx;
+		}
+
+		vht_cap->vht_mcs.rx_mcs_map &=
+			~cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << i * 2);
+		vht_cap->vht_mcs.rx_mcs_map |= cpu_to_le16(peer_rx << i * 2);
+
+		vht_cap->vht_mcs.tx_mcs_map &=
+			~cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << i * 2);
+		vht_cap->vht_mcs.tx_mcs_map |= cpu_to_le16(peer_tx << i * 2);
+	}
+
+	/* finally set up the bandwidth */
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:

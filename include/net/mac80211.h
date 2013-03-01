@@ -1228,9 +1228,8 @@ enum ieee80211_sta_rx_bandwidth {
  * @addr: MAC address
  * @aid: AID we assigned to the station if we're an AP
  * @supp_rates: Bitmap of supported rates (per band)
- * @ht_cap: HT capabilities of this STA; restricted to our own TX capabilities
- * @vht_cap: VHT capabilities of this STA; Not restricting any capabilities
- * 	of remote STA. Taking as is.
+ * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
+ * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
  * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
