@@ -233,6 +233,7 @@ struct nfs4_layoutget_args {
 	struct inode *inode;
 	struct nfs_open_context *ctx;
 	nfs4_stateid stateid;
+	unsigned long timestamp;
 	struct nfs4_layoutdriver_data layout;
 };
 
