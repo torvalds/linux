@@ -1793,6 +1793,8 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	virt_addr = mboxq->sge_array->addr[0];
 
 	shdr = (union lpfc_sli4_cfg_shdr *)virt_addr;
+	lpfc_sli_pcimem_bcopy(shdr, shdr,
+			      sizeof(union lpfc_sli4_cfg_shdr));
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status) {

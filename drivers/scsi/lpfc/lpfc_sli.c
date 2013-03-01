@@ -15507,11 +15507,18 @@ lpfc_check_next_fcf_pri_level(struct lpfc_hba *phba)
 			LPFC_SLI4_FCF_TBL_INDX_MAX);
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 			"3060 Last IDX %d\n", last_index);
-	if (list_empty(&phba->fcf.fcf_pri_list)) {
+
+	/* Verify the priority list has 2 or more entries */
+	spin_lock_irq(&phba->hbalock);
+	if (list_empty(&phba->fcf.fcf_pri_list) ||
+	    list_is_singular(&phba->fcf.fcf_pri_list)) {
+		spin_unlock_irq(&phba->hbalock);
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
 			"3061 Last IDX %d\n", last_index);
 		return 0; /* Empty rr list */
 	}
+	spin_unlock_irq(&phba->hbalock);
+
 	next_fcf_pri = 0;
 	/*
 	 * Clear the rr_bmask and set all of the bits that are at this
