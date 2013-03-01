@@ -1,5 +1,6 @@
 obj-$(CONFIG_DM_PERSISTENT_DATA) += dm-persistent-data.o
 dm-persistent-data-objs := \
+	dm-array.o \
 	dm-block-manager.o \
 	dm-space-map-common.o \
 	dm-space-map-disk.o \
