@@ -56,6 +56,7 @@ dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-dns320.dtb \
 	kirkwood-dockstar.dtb \
 	kirkwood-dreamplug.dtb \
 	kirkwood-goflexnet.dtb \
+	kirkwood-guruplug-server-plus.dtb \
 	kirkwood-ib62x0.dtb \
 	kirkwood-iconnect.dtb \
 	kirkwood-iomega_ix2_200.dtb \
@@ -78,7 +79,9 @@ dtb-$(CONFIG_ARCH_MSM) += msm8660-surf.dtb \
 	msm8960-cdp.dtb
 dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
 	armada-370-mirabox.dtb \
+	armada-370-rd.dtb \
 	armada-xp-db.dtb \
+	armada-xp-gp.dtb \
 	armada-xp-openblocks-ax3-4.dtb
 dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-karo-tx25.dtb \

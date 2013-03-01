@@ -1,7 +1,10 @@
 /*
- * Device Tree file for Globalscale Mirabox
+ * Device Tree file for Marvell Armada 370 Reference Design board
+ * (RD-88F6710-A1)
  *
- * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ *  Copied from arch/arm/boot/dts/armada-370-db.dts
+ *
+ *  Copyright (C) 2013 Florian Fainelli <florian@openwrt.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -12,8 +15,8 @@
 /include/ "armada-370.dtsi"
 
 / {
-	model = "Globalscale Mirabox";
-	compatible = "globalscale,mirabox", "marvell,armada370", "marvell,armada-370-xp";
+	model = "Marvell Armada 370 Reference Design";
+	compatible = "marvell,a370-rd", "marvell,armada370", "marvell,armada-370-xp";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
@@ -29,10 +32,11 @@
 			clock-frequency = <200000000>;
 			status = "okay";
 		};
-		timer@d0020300 {
-			clock-frequency = <600000000>;
+		sata@d00a0000 {
+			nr-ports = <2>;
 			status = "okay";
 		};
+
 		mdio {
 			phy0: ethernet-phy@0 {
 				reg = <0>;
@@ -42,10 +46,11 @@
 				reg = <1>;
 			};
 		};
+
 		ethernet@d0070000 {
 			status = "okay";
 			phy = <&phy0>;
-			phy-mode = "rgmii-id";
+			phy-mode = "sgmii";
 		};
 		ethernet@d0074000 {
 			status = "okay";
@@ -54,21 +59,10 @@
 		};
 
 		mvsdio@d00d4000 {
-			pinctrl-0 = <&sdio_pins2>;
+			pinctrl-0 = <&sdio_pins1>;
 			pinctrl-names = "default";
 			status = "okay";
-			/*
-			 * No CD or WP GPIOs: SDIO interface used for
-			 * Wifi/Bluetooth chip
-			 */
-		};
-
-		usb@d0050000 {
-			status = "okay";
-		};
-
-		usb@d0051000 {
-			status = "okay";
+			/* No CD or WP GPIOs */
 		};
 	};
 };
