@@ -150,6 +150,11 @@ enum {
 	CGRP_CPUSET_CLONE_CHILDREN,
 };
 
+struct cgroup_name {
+	struct rcu_head rcu_head;
+	char name[];
+};
+
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
@@ -171,6 +176,19 @@ struct cgroup {
 
 	struct cgroup *parent;		/* my parent */
 	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
+
+	/*
+	 * This is a copy of dentry->d_name, and it's needed because
+	 * we can't use dentry->d_name in cgroup_path().
+	 *
+	 * You must acquire rcu_read_lock() to access cgrp->name, and
+	 * the only place that can change it is rename(), which is
+	 * protected by parent dir's i_mutex.
+	 *
+	 * Normally you should use cgroup_name() wrapper rather than
+	 * access it directly.
+	 */
+	struct cgroup_name __rcu *name;
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
@@ -403,6 +421,12 @@ struct cgroup_scanner {
 	struct ptr_heap *heap;
 	void *data;
 };
+
+/* Caller should hold rcu_read_lock() */
+static inline const char *cgroup_name(const struct cgroup *cgrp)
+{
+	return rcu_dereference(cgrp->name)->name;
+}
 
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);

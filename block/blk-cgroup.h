@@ -247,9 +247,7 @@ static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
 	int ret;
 
-	rcu_read_lock();
 	ret = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-	rcu_read_unlock();
 	if (ret)
 		strncpy(buf, "<unavailable>", buflen);
 	return ret;
