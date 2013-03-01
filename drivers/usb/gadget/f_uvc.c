@@ -153,7 +153,8 @@ static struct usb_endpoint_descriptor uvc_fs_streaming_ep __initdata = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
-	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
+	.bmAttributes		= USB_ENDPOINT_SYNC_ASYNC
+				| USB_ENDPOINT_XFER_ISOC,
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
@@ -165,7 +166,8 @@ static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
-	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
+	.bmAttributes		= USB_ENDPOINT_SYNC_ASYNC
+				| USB_ENDPOINT_XFER_ISOC,
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
@@ -178,7 +180,8 @@ static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
 	.bDescriptorType	= USB_DT_ENDPOINT,
 
 	.bEndpointAddress	= USB_DIR_IN,
-	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
+	.bmAttributes		= USB_ENDPOINT_SYNC_ASYNC
+				| USB_ENDPOINT_XFER_ISOC,
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
