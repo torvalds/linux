@@ -4593,7 +4593,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 
 	/* did we read anything? */
 	if (!spd.nr_pages) {
-		if (flags & SPLICE_F_NONBLOCK)
+		if ((file->f_flags & O_NONBLOCK) || (flags & SPLICE_F_NONBLOCK))
 			ret = -EAGAIN;
 		else
 			ret = 0;
