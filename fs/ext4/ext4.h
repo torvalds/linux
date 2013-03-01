@@ -1268,6 +1268,7 @@ struct ext4_sb_info {
 	atomic_t s_mb_preallocated;
 	atomic_t s_mb_discarded;
 	atomic_t s_lock_busy;
+	atomic_t s_extent_cache_cnt;
 
 	/* locality groups */
 	struct ext4_locality_group __percpu *s_locality_groups;
