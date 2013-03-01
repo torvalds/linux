@@ -281,6 +281,16 @@ config DM_CACHE
          algorithms used to select which blocks are promoted, demoted,
          cleaned etc.  It supports writeback and writethrough modes.
 
+config DM_CACHE_MQ
+       tristate "MQ Cache Policy (EXPERIMENTAL)"
+       depends on DM_CACHE
+       default y
+       ---help---
+         A cache policy that uses a multiqueue ordered by recent hit
+         count to select which blocks should be promoted and demoted.
+         This is meant to be a general purpose policy.  It prioritises
+         reads over writes.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
