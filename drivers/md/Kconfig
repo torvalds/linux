@@ -210,7 +210,7 @@ config DM_DEBUG
 
 config DM_BUFIO
        tristate
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       depends on BLK_DEV_DM
        ---help---
 	 This interface allows you to do buffered I/O on a device and acts
 	 as a cache, holding recently-read blocks in memory and performing
@@ -218,7 +218,7 @@ config DM_BUFIO
 
 config DM_BIO_PRISON
        tristate
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       depends on BLK_DEV_DM
        ---help---
 	 Some bio locking schemes used by other device-mapper targets
 	 including thin provisioning.
@@ -251,8 +251,8 @@ config DM_SNAPSHOT
          Allow volume managers to take writable snapshots of a device.
 
 config DM_THIN_PROVISIONING
-       tristate "Thin provisioning target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Thin provisioning target"
+       depends on BLK_DEV_DM
        select DM_PERSISTENT_DATA
        select DM_BIO_PRISON
        ---help---
@@ -302,8 +302,8 @@ config DM_RAID
 	 in one of the available parity distribution methods.
 
 config DM_LOG_USERSPACE
-	tristate "Mirror userspace logging (EXPERIMENTAL)"
-	depends on DM_MIRROR && EXPERIMENTAL && NET
+	tristate "Mirror userspace logging"
+	depends on DM_MIRROR && NET
 	select CONNECTOR
 	---help---
 	  The userspace logging module provides a mechanism for
@@ -350,8 +350,8 @@ config DM_MULTIPATH_ST
 	  If unsure, say N.
 
 config DM_DELAY
-	tristate "I/O delaying target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "I/O delaying target"
+	depends on BLK_DEV_DM
 	---help---
 	A target that delays reads and/or writes and can send
 	them to different devices.  Useful for testing.
@@ -365,14 +365,14 @@ config DM_UEVENT
 	Generate udev events for DM events.
 
 config DM_FLAKEY
-       tristate "Flakey target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Flakey target"
+       depends on BLK_DEV_DM
        ---help---
          A target that intermittently fails I/O for debugging purposes.
 
 config DM_VERITY
-	tristate "Verity target support (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "Verity target support"
+	depends on BLK_DEV_DM
 	select CRYPTO
 	select CRYPTO_HASH
 	select DM_BUFIO
