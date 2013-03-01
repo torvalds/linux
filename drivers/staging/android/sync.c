@@ -520,11 +520,11 @@ static int sync_fence_release(struct inode *inode, struct file *file)
 	struct sync_fence *fence = file->private_data;
 	unsigned long flags;
 
-	sync_fence_free_pts(fence);
-
 	spin_lock_irqsave(&sync_fence_list_lock, flags);
 	list_del(&fence->sync_fence_list);
 	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
+
+	sync_fence_free_pts(fence);
 
 	kfree(fence);
 
