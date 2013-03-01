@@ -330,14 +330,20 @@ static void requeue_io(struct thin_c *tc)
  * target.
  */
 
+static bool block_size_is_power_of_two(struct pool *pool)
+{
+	return pool->sectors_per_block_shift >= 0;
+}
+
 static dm_block_t get_bio_block(struct thin_c *tc, struct bio *bio)
 {
+	struct pool *pool = tc->pool;
 	sector_t block_nr = bio->bi_sector;
 
-	if (tc->pool->sectors_per_block_shift < 0)
-		(void) sector_div(block_nr, tc->pool->sectors_per_block);
+	if (block_size_is_power_of_two(pool))
+		block_nr >>= pool->sectors_per_block_shift;
 	else
-		block_nr >>= tc->pool->sectors_per_block_shift;
+		(void) sector_div(block_nr, pool->sectors_per_block);
 
 	return block_nr;
 }
@@ -348,12 +354,12 @@ static void remap(struct thin_c *tc, struct bio *bio, dm_block_t block)
 	sector_t bi_sector = bio->bi_sector;
 
 	bio->bi_bdev = tc->pool_dev->bdev;
-	if (tc->pool->sectors_per_block_shift < 0)
-		bio->bi_sector = (block * pool->sectors_per_block) +
-				 sector_div(bi_sector, pool->sectors_per_block);
-	else
+	if (block_size_is_power_of_two(pool))
 		bio->bi_sector = (block << pool->sectors_per_block_shift) |
 				(bi_sector & (pool->sectors_per_block - 1));
+	else
+		bio->bi_sector = (block * pool->sectors_per_block) +
+				 sector_div(bi_sector, pool->sectors_per_block);
 }
 
 static void remap_to_origin(struct thin_c *tc, struct bio *bio)
@@ -2423,11 +2429,6 @@ static int pool_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 	bvm->bi_bdev = pt->data_dev->bdev;
 
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
-static bool block_size_is_power_of_two(struct pool *pool)
-{
-	return pool->sectors_per_block_shift >= 0;
 }
 
 static void set_discard_limits(struct pool_c *pt, struct queue_limits *limits)
