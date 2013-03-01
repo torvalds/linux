@@ -967,7 +967,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
 
-	if (is_cpu_edp(intel_dp))
+	if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev))
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 }
 
@@ -1331,7 +1331,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DP_PORT_EN))
 		return false;
 
-	if (is_cpu_edp(intel_dp) && IS_GEN7(dev)) {
+	if (is_cpu_edp(intel_dp) && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
 		*pipe = PORT_TO_PIPE(tmp);
