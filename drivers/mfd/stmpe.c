@@ -1057,6 +1057,9 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 			return -ENOMEM;
 
 		stmpe_of_probe(pdata, np);
+
+		if (of_find_property(np, "interrupts", NULL) == NULL)
+			ci->irq = -1;
 	}
 
 	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
