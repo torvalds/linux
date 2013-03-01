@@ -3300,6 +3300,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	int index = log->log_transid % 2;
 	bool skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
+insert:
 	INIT_LIST_HEAD(&ordered_sums);
 	btrfs_init_map_token(&token);
 	key.objectid = btrfs_ino(inode);
@@ -3315,6 +3316,23 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	leaf = path->nodes[0];
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
+
+	/*
+	 * If we are overwriting an inline extent with a real one then we need
+	 * to just delete the inline extent as it may not be large enough to
+	 * have the entire file_extent_item.
+	 */
+	if (ret && btrfs_token_file_extent_type(leaf, fi, &token) ==
+	    BTRFS_FILE_EXTENT_INLINE) {
+		ret = btrfs_del_item(trans, log, path);
+		btrfs_release_path(path);
+		if (ret) {
+			path->really_keep_locks = 0;
+			return ret;
+		}
+		goto insert;
+	}
+
 	btrfs_set_token_file_extent_generation(leaf, fi, em->generation,
 					       &token);
 	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
