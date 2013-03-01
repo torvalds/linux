@@ -852,7 +852,8 @@ static int dvb_dmxdev_filter_set(struct dmxdev *dmxdev,
 				 struct dmxdev_filter *dmxdevfilter,
 				 struct dmx_sct_filter_params *params)
 {
-	dprintk("function : %s\n", __func__);
+	dprintk("function : %s, PID=0x%04x, flags=%02x, timeout=%d\n",
+		__func__, params->pid, params->flags, params->timeout);
 
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 
