@@ -1560,7 +1560,8 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 	return r;
 }
 
-#define DM_PARAMS_VMALLOC	0x0001	/* Params alloced with vmalloc not kmalloc */
+#define DM_PARAMS_KMALLOC	0x0001	/* Params alloced with kmalloc */
+#define DM_PARAMS_VMALLOC	0x0002	/* Params alloced with vmalloc */
 #define DM_WIPE_BUFFER		0x0010	/* Wipe input buffer before returning from ioctl */
 
 static void free_params(struct dm_ioctl *param, size_t param_size, int param_flags)
@@ -1568,66 +1569,80 @@ static void free_params(struct dm_ioctl *param, size_t param_size, int param_fla
 	if (param_flags & DM_WIPE_BUFFER)
 		memset(param, 0, param_size);
 
+	if (param_flags & DM_PARAMS_KMALLOC)
+		kfree(param);
 	if (param_flags & DM_PARAMS_VMALLOC)
 		vfree(param);
-	else
-		kfree(param);
 }
 
-static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param, int *param_flags)
+static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kernel,
+		       int ioctl_flags,
+		       struct dm_ioctl **param, int *param_flags)
 {
-	struct dm_ioctl tmp, *dmi;
+	struct dm_ioctl *dmi;
 	int secure_data;
+	const size_t minimum_data_size = sizeof(*param_kernel) - sizeof(param_kernel->data);
 
-	if (copy_from_user(&tmp, user, sizeof(tmp) - sizeof(tmp.data)))
+	if (copy_from_user(param_kernel, user, minimum_data_size))
 		return -EFAULT;
 
-	if (tmp.data_size < (sizeof(tmp) - sizeof(tmp.data)))
+	if (param_kernel->data_size < minimum_data_size)
 		return -EINVAL;
 
-	secure_data = tmp.flags & DM_SECURE_DATA_FLAG;
+	secure_data = param_kernel->flags & DM_SECURE_DATA_FLAG;
 
 	*param_flags = secure_data ? DM_WIPE_BUFFER : 0;
+
+	if (ioctl_flags & IOCTL_FLAGS_NO_PARAMS) {
+		dmi = param_kernel;
+		dmi->data_size = minimum_data_size;
+		goto data_copied;
+	}
 
 	/*
 	 * Try to avoid low memory issues when a device is suspended.
 	 * Use kmalloc() rather than vmalloc() when we can.
 	 */
 	dmi = NULL;
-	if (tmp.data_size <= KMALLOC_MAX_SIZE)
-		dmi = kmalloc(tmp.data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
-
-	if (!dmi) {
-		dmi = __vmalloc(tmp.data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
-		*param_flags |= DM_PARAMS_VMALLOC;
+	if (param_kernel->data_size <= KMALLOC_MAX_SIZE) {
+		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+		if (dmi)
+			*param_flags |= DM_PARAMS_KMALLOC;
 	}
 
 	if (!dmi) {
-		if (secure_data && clear_user(user, tmp.data_size))
+		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
+		if (dmi)
+			*param_flags |= DM_PARAMS_VMALLOC;
+	}
+
+	if (!dmi) {
+		if (secure_data && clear_user(user, param_kernel->data_size))
 			return -EFAULT;
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(dmi, user, tmp.data_size))
+	if (copy_from_user(dmi, user, param_kernel->data_size))
 		goto bad;
 
+data_copied:
 	/*
 	 * Abort if something changed the ioctl data while it was being copied.
 	 */
-	if (dmi->data_size != tmp.data_size) {
+	if (dmi->data_size != param_kernel->data_size) {
 		DMERR("rejecting ioctl: data size modified while processing parameters");
 		goto bad;
 	}
 
 	/* Wipe the user buffer so we do not return it to userspace */
-	if (secure_data && clear_user(user, tmp.data_size))
+	if (secure_data && clear_user(user, param_kernel->data_size))
 		goto bad;
 
 	*param = dmi;
 	return 0;
 
 bad:
-	free_params(dmi, tmp.data_size, *param_flags);
+	free_params(dmi, param_kernel->data_size, *param_flags);
 
 	return -EFAULT;
 }
@@ -1671,6 +1686,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	struct dm_ioctl *uninitialized_var(param);
 	ioctl_fn fn = NULL;
 	size_t input_param_size;
+	struct dm_ioctl param_kernel;
 
 	/* only root can play with this */
 	if (!capable(CAP_SYS_ADMIN))
@@ -1704,7 +1720,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	/*
 	 * Copy the parameters into kernel space.
 	 */
-	r = copy_params(user, &param, &param_flags);
+	r = copy_params(user, &param_kernel, ioctl_flags, &param, &param_flags);
 
 	if (r)
 		return r;
