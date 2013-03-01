@@ -146,7 +146,7 @@ static void __exit edac_exit(void)
 /*
  * Inform the kernel of our entry and exit points
  */
-module_init(edac_init);
+subsys_initcall(edac_init);
 module_exit(edac_exit);
 
 MODULE_LICENSE("GPL");
