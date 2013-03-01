@@ -29,6 +29,13 @@
 #include	"../src/include/nand_logic.h"
 #include	"../src/include/nand_scan.h"
 
+extern struct __NandDriverGlobal_t NandDriverInfo;
+
+extern struct __NandStorageInfo_t  NandStorageInfo;
+
+#define DiskSize  (SECTOR_CNT_OF_SINGLE_PAGE * PAGE_CNT_OF_PHY_BLK * BLOCK_CNT_OF_DIE * \
+            DIE_CNT_OF_CHIP * NandStorageInfo.ChipCnt  / 1024 * DATA_BLK_CNT_OF_ZONE)
+
 /*
 typedef struct
 {

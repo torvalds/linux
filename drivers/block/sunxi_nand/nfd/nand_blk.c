@@ -55,8 +55,6 @@
 #include "nand_private.h"
 #include <linux/wait.h>
 #include <linux/sched.h>
-extern struct __NandStorageInfo_t  NandStorageInfo;
-extern struct __NandDriverGlobal_t NandDriverInfo;
 
 /* +1 for whole nand device /dev/nand file */
 struct nand_disk disk_array[MAX_PART_COUNT+1];
