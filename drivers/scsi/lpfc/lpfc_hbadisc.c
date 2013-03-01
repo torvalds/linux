@@ -691,10 +691,12 @@ lpfc_work_done(struct lpfc_hba *phba)
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
-			lpfc_sli_handle_slow_ring_event(phba, pring,
-							(status &
-							 HA_RXMASK));
+			if (phba->link_state >= LPFC_LINK_UP) {
+				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
+				lpfc_sli_handle_slow_ring_event(phba, pring,
+								(status &
+								HA_RXMASK));
+			}
 		}
 		if ((phba->sli_rev == LPFC_SLI_REV4) &
 				 (!list_empty(&pring->txq)))
