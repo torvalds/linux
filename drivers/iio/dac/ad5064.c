@@ -438,6 +438,7 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 {
 	struct iio_dev *indio_dev;
 	struct ad5064_state *st;
+	unsigned int midscale;
 	unsigned int i;
 	int ret;
 
@@ -474,17 +475,19 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 			goto error_free_reg;
 	}
 
-	for (i = 0; i < st->chip_info->num_channels; ++i) {
-		st->pwr_down_mode[i] = AD5064_LDAC_PWRDN_1K;
-		st->dac_cache[i] = 0x8000;
-	}
-
 	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5064_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
+
+	midscale = (1 << indio_dev->channels[0].scan_type.realbits) /  2;
+
+	for (i = 0; i < st->chip_info->num_channels; ++i) {
+		st->pwr_down_mode[i] = AD5064_LDAC_PWRDN_1K;
+		st->dac_cache[i] = midscale;
+	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
