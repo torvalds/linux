@@ -724,9 +724,12 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
+	sb_start_write(inode->i_sb);
 retry_snap:
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
-		return -ENOSPC;
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL)) {
+		ret = -ENOSPC;
+		goto out;
+	}
 	__ceph_do_pending_vmtruncate(inode);
 	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
@@ -750,29 +753,10 @@ retry_snap:
 		ret = ceph_sync_write(file, iov->iov_base, iov->iov_len,
 			&iocb->ki_pos);
 	} else {
-		/*
-		 * buffered write; drop Fw early to avoid slow
-		 * revocation if we get stuck on balance_dirty_pages
-		 */
-		int dirty;
-
-		spin_lock(&ci->i_ceph_lock);
-		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
-		spin_unlock(&ci->i_ceph_lock);
-		ceph_put_cap_refs(ci, got);
-
-		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
-		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
-		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
-		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
-			err = vfs_fsync_range(file, pos, pos + ret - 1, 1);
-			if (err < 0)
-				ret = err;
-		}
-
-		if (dirty)
-			__mark_inode_dirty(inode, dirty);
-		goto out;
+		mutex_lock(&inode->i_mutex);
+		ret = __generic_file_aio_write(iocb, iov, nr_segs,
+					       &iocb->ki_pos);
+		mutex_unlock(&inode->i_mutex);
 	}
 
 	if (ret >= 0) {
@@ -790,12 +774,20 @@ out_put:
 	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
 
+	if (ret >= 0 &&
+	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
+	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
+		err = vfs_fsync_range(file, pos, pos + ret - 1, 1);
+		if (err < 0)
+			ret = err;
+	}
 out:
 	if (ret == -EOLDSNAPC) {
 		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
 		     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len);
 		goto retry_snap;
 	}
+	sb_end_write(inode->i_sb);
 
 	return ret;
 }
