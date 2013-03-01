@@ -291,6 +291,14 @@ config DM_CACHE_MQ
          This is meant to be a general purpose policy.  It prioritises
          reads over writes.
 
+config DM_CACHE_CLEANER
+       tristate "Cleaner Cache Policy (EXPERIMENTAL)"
+       depends on DM_CACHE
+       default y
+       ---help---
+         A simple cache policy that writes back all data to the
+         origin.  Used when decommissioning a dm-cache.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM

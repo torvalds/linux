@@ -53,6 +53,11 @@ since spindles tend to have good bandwidth. The io_tracker counts
 contiguous I/Os to try to spot when the io is in one of these sequential
 modes.
 
+cleaner
+-------
+
+The cleaner writes back all dirty blocks in a cache to decommission it.
+
 Examples
 ========
 
