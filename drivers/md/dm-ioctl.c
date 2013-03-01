@@ -1478,39 +1478,52 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 	return r;
 }
 
+/*
+ * The ioctl parameter block consists of two parts, a dm_ioctl struct
+ * followed by a data buffer.  This flag is set if the second part,
+ * which has a variable size, is not used by the function processing
+ * the ioctl.
+ */
+#define IOCTL_FLAGS_NO_PARAMS	1
+
 /*-----------------------------------------------------------------
  * Implementation of open/close/ioctl on the special char
  * device.
  *---------------------------------------------------------------*/
-static ioctl_fn lookup_ioctl(unsigned int cmd)
+static ioctl_fn lookup_ioctl(unsigned int cmd, int *ioctl_flags)
 {
 	static struct {
 		int cmd;
+		int flags;
 		ioctl_fn fn;
 	} _ioctls[] = {
-		{DM_VERSION_CMD, NULL},	/* version is dealt with elsewhere */
-		{DM_REMOVE_ALL_CMD, remove_all},
-		{DM_LIST_DEVICES_CMD, list_devices},
+		{DM_VERSION_CMD, 0, NULL}, /* version is dealt with elsewhere */
+		{DM_REMOVE_ALL_CMD, IOCTL_FLAGS_NO_PARAMS, remove_all},
+		{DM_LIST_DEVICES_CMD, 0, list_devices},
 
-		{DM_DEV_CREATE_CMD, dev_create},
-		{DM_DEV_REMOVE_CMD, dev_remove},
-		{DM_DEV_RENAME_CMD, dev_rename},
-		{DM_DEV_SUSPEND_CMD, dev_suspend},
-		{DM_DEV_STATUS_CMD, dev_status},
-		{DM_DEV_WAIT_CMD, dev_wait},
+		{DM_DEV_CREATE_CMD, IOCTL_FLAGS_NO_PARAMS, dev_create},
+		{DM_DEV_REMOVE_CMD, IOCTL_FLAGS_NO_PARAMS, dev_remove},
+		{DM_DEV_RENAME_CMD, 0, dev_rename},
+		{DM_DEV_SUSPEND_CMD, IOCTL_FLAGS_NO_PARAMS, dev_suspend},
+		{DM_DEV_STATUS_CMD, IOCTL_FLAGS_NO_PARAMS, dev_status},
+		{DM_DEV_WAIT_CMD, 0, dev_wait},
 
-		{DM_TABLE_LOAD_CMD, table_load},
-		{DM_TABLE_CLEAR_CMD, table_clear},
-		{DM_TABLE_DEPS_CMD, table_deps},
-		{DM_TABLE_STATUS_CMD, table_status},
+		{DM_TABLE_LOAD_CMD, 0, table_load},
+		{DM_TABLE_CLEAR_CMD, IOCTL_FLAGS_NO_PARAMS, table_clear},
+		{DM_TABLE_DEPS_CMD, 0, table_deps},
+		{DM_TABLE_STATUS_CMD, 0, table_status},
 
-		{DM_LIST_VERSIONS_CMD, list_versions},
+		{DM_LIST_VERSIONS_CMD, 0, list_versions},
 
-		{DM_TARGET_MSG_CMD, target_message},
-		{DM_DEV_SET_GEOMETRY_CMD, dev_set_geometry}
+		{DM_TARGET_MSG_CMD, 0, target_message},
+		{DM_DEV_SET_GEOMETRY_CMD, 0, dev_set_geometry}
 	};
 
-	return (cmd >= ARRAY_SIZE(_ioctls)) ? NULL : _ioctls[cmd].fn;
+	if (unlikely(cmd >= ARRAY_SIZE(_ioctls)))
+		return NULL;
+
+	*ioctl_flags = _ioctls[cmd].flags;
+	return _ioctls[cmd].fn;
 }
 
 /*
@@ -1652,6 +1665,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
+	int ioctl_flags;
 	int param_flags;
 	unsigned int cmd;
 	struct dm_ioctl *uninitialized_var(param);
@@ -1681,7 +1695,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	if (cmd == DM_VERSION_CMD)
 		return 0;
 
-	fn = lookup_ioctl(cmd);
+	fn = lookup_ioctl(cmd, &ioctl_flags);
 	if (!fn) {
 		DMWARN("dm_ctl_ioctl: unknown command 0x%x", command);
 		return -ENOTTY;
@@ -1702,6 +1716,10 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 
 	param->data_size = sizeof(*param);
 	r = fn(param, input_param_size);
+
+	if (unlikely(param->flags & DM_BUFFER_FULL_FLAG) &&
+	    unlikely(ioctl_flags & IOCTL_FLAGS_NO_PARAMS))
+		DMERR("ioctl %d tried to output some data but has IOCTL_FLAGS_NO_PARAMS set", cmd);
 
 	/*
 	 * Copy the results back to userland.
