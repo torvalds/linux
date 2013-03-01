@@ -275,6 +275,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_force_wake = 1,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
@@ -285,6 +286,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_force_wake = 1,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
