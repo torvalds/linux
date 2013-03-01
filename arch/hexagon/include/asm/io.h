@@ -40,6 +40,8 @@
 #define IO_SPACE_LIMIT 0xffff
 #define _IO_BASE ((void __iomem *)0xfe000000)
 
+#define IOMEM(x)        ((void __force __iomem *)(x))
+
 extern int remap_area_pages(unsigned long start, unsigned long phys_addr,
 				unsigned long end, unsigned long flags);
 
@@ -174,6 +176,18 @@ static inline void writel(u32 data, volatile void __iomem *addr)
 #define __raw_readb readb
 #define __raw_readw readw
 #define __raw_readl readl
+
+/*
+ * http://comments.gmane.org/gmane.linux.ports.arm.kernel/117626
+ */
+
+#define readb_relaxed __raw_readb
+#define readw_relaxed __raw_readw
+#define readl_relaxed __raw_readl
+
+#define writeb_relaxed __raw_writeb
+#define writew_relaxed __raw_writew
+#define writel_relaxed __raw_writel
 
 /*
  * Need an mtype somewhere in here, for cache type deals?
