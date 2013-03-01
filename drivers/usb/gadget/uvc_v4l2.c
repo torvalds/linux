@@ -177,9 +177,9 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_capability *cap = arg;
 
 		memset(cap, 0, sizeof *cap);
-		strncpy(cap->driver, "g_uvc", sizeof(cap->driver));
-		strncpy(cap->card, cdev->gadget->name, sizeof(cap->card));
-		strncpy(cap->bus_info, dev_name(&cdev->gadget->dev),
+		strlcpy(cap->driver, "g_uvc", sizeof(cap->driver));
+		strlcpy(cap->card, cdev->gadget->name, sizeof(cap->card));
+		strlcpy(cap->bus_info, dev_name(&cdev->gadget->dev),
 			sizeof cap->bus_info);
 		cap->version = DRIVER_VERSION_NUMBER;
 		cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
