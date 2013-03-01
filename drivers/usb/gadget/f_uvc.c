@@ -800,7 +800,10 @@ uvc_bind_config(struct usb_configuration *c,
 	uvc->desc.hs_streaming = hs_streaming;
 	uvc->desc.ss_streaming = ss_streaming;
 
-	/* Allocate string descriptor numbers. */
+	/* String descriptors are global, we only need to allocate string IDs
+	 * for the first UVC function. UVC functions beyond the first (if any)
+	 * will reuse the same IDs.
+	 */
 	if (uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id == 0) {
 		ret = usb_string_ids_tab(c->cdev, uvc_en_us_strings);
 		if (ret)
