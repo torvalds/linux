@@ -872,14 +872,16 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 				xritag, rxid, ndlp->nlp_DID, send_rrq);
 		return -EINVAL;
 	}
-	rrq->send_rrq = send_rrq;
+	if (phba->cfg_enable_rrq == 1)
+		rrq->send_rrq = send_rrq;
+	else
+		rrq->send_rrq = 0;
 	rrq->xritag = xritag;
 	rrq->rrq_stop_time = jiffies + HZ * (phba->fc_ratov + 1);
 	rrq->ndlp = ndlp;
 	rrq->nlp_DID = ndlp->nlp_DID;
 	rrq->vport = ndlp->vport;
 	rrq->rxid = rxid;
-	rrq->send_rrq = send_rrq;
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	empty = list_empty(&phba->active_rrq_list);
 	list_add_tail(&rrq->list, &phba->active_rrq_list);

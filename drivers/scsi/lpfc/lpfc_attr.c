@@ -2306,7 +2306,13 @@ int lpfc_enable_rrq;
 module_param(lpfc_enable_rrq, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_enable_rrq, "Enable RRQ functionality");
 lpfc_param_show(enable_rrq);
-lpfc_param_init(enable_rrq, 0, 0, 1);
+/*
+# lpfc_enable_rrq: Track XRI/OXID reuse after IO failures
+#	0x0 = disabled, XRI/OXID use not tracked.
+#	0x1 = XRI/OXID reuse is timed with ratov, RRQ sent.
+#	0x2 = XRI/OXID reuse is timed with ratov, No RRQ sent.
+*/
+lpfc_param_init(enable_rrq, 2, 0, 2);
 static DEVICE_ATTR(lpfc_enable_rrq, S_IRUGO, lpfc_enable_rrq_show, NULL);
 
 /*
