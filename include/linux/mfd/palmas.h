@@ -221,6 +221,7 @@ struct palmas_clk_platform_data {
 };
 
 struct palmas_platform_data {
+	int irq_flags;
 	int gpio_base;
 
 	/* bit value to be loaded to the POWER_CTRL register */
