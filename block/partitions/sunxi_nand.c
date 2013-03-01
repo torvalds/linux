@@ -4,7 +4,7 @@
  */
 
 #include "check.h"
-#include "sunxi_mbr.h"
+#include <plat/mbr.h>
 #include <linux/crc32.h>
 
 int sunxi_nand_partition(struct parsed_partitions *state)

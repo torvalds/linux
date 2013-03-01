@@ -20,7 +20,7 @@
  * MA 02111-1307 USA
  */
 
-#include "mbr.h"
+#include <plat/mbr.h>
 #include "../src/include/nand_oal.h"
 #include "nand_private.h"
 #include <linux/crc32.h>
