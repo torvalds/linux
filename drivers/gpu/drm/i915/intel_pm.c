@@ -4308,7 +4308,7 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 	else
 		forcewake_ack = FORCEWAKE_MT_ACK;
 
-	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1) == 0,
+	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & FORCEWAKE_KERNEL) == 0,
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
@@ -4316,7 +4316,7 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 	/* something from same cacheline, but !FORCEWAKE_MT */
 	POSTING_READ(ECOBUS);
 
-	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
+	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & FORCEWAKE_KERNEL),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
@@ -4406,13 +4406,13 @@ static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 {
-	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0,
+	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & FORCEWAKE_KERNEL) == 0,
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
 
-	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1),
+	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & FORCEWAKE_KERNEL),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
