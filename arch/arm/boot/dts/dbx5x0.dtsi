@@ -12,7 +12,7 @@
 /include/ "skeleton.dtsi"
 
 / {
-	soc-u9500 {
+	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "stericsson,db8500";

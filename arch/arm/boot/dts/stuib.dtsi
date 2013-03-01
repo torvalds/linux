@@ -10,7 +10,7 @@
  */
 
 / {
-	soc-u9500 {
+	soc {
 		i2c@80004000 {
 			stmpe1601: stmpe1601@40 {
 				compatible = "st,stmpe1601";

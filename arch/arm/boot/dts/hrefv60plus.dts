@@ -24,7 +24,7 @@
 		};
 	};
 
-	soc-u9500 {
+	soc {
 		i2c@80110000 {
 			bu21013_tp@0x5c {
 				reset-gpio = <&gpio4 15 0x4>;

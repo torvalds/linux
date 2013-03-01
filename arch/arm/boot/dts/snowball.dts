@@ -82,7 +82,7 @@
 		};
 	};
 
-	soc-u9500 {
+	soc {
 
 		sound {
 			compatible = "stericsson,snd-soc-mop500";
