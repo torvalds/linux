@@ -725,25 +725,26 @@ void set_part_mod(char *name,int cmd)
 	filp->f_dentry->d_inode->i_bdev->bd_disk->fops->ioctl(filp->f_dentry->d_inode->i_bdev, 0, cmd, 0);
 	filp_close(filp, current->files);
 }
-static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
+static int nand_add_dev(struct nand_blk_ops *nandr)
 {
 	struct nand_blk_dev *dev;
-	struct list_head *this;
 	struct gendisk *gd;
 	unsigned long temp;
 
-	int last_devnum = -1;
-
-	dev = kmalloc(sizeof(struct nand_blk_dev), GFP_KERNEL);
-	if (!dev) {
-		dbg_err("dev: out of memory for data structures\n");
-		return -1;
+	if (!down_trylock(&nand_mutex)) {
+		up(&nand_mutex);
+		BUG();
 	}
+
+	dev = &nandr->dev;
+	if (dev->blkcore_priv)
+		return -EBUSY;
+
 	memset(dev, 0, sizeof(*dev));
 	dev->nandr = nandr;
-	dev->size = part->size;
-	dev->off_size = part->offset;
-	dev->devnum = -1;
+	dev->size = DiskSize;
+	dev->off_size = 0;
+	dev->devnum = 0;
 
 	dev->cylinders = 1024;
 	dev->heads = 16;
@@ -762,60 +763,17 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 		}
 	}
 
-	if (!down_trylock(&nand_mutex)) {
-		up(&nand_mutex);
-		BUG();
-	}
-
-	list_for_each(this, &nandr->devs) {
-		struct nand_blk_dev *tmpdev = list_entry(this, struct nand_blk_dev, list);
-		if (dev->devnum == -1) {
-			/* Use first free number */
-			if (tmpdev->devnum != last_devnum+1) {
-				/* Found a free devnum. Plug it in here */
-				dev->devnum = last_devnum+1;
-				list_add_tail(&dev->list, &tmpdev->list);
-				goto added;
-			}
-		} else if (tmpdev->devnum == dev->devnum) {
-			/* Required number taken */
-			return -EBUSY;
-		} else if (tmpdev->devnum > dev->devnum) {
-			/* Required number was free */
-			list_add_tail(&dev->list, &tmpdev->list);
-			goto added;
-		}
-		last_devnum = tmpdev->devnum;
-	}
-	if (dev->devnum == -1)
-		dev->devnum = last_devnum+1;
-
-	if ((dev->devnum <<nandr->minorbits) > 256) {
-		return -EBUSY;
-	}
-
-	//init_MUTEX(&dev->sem);
-	list_add_tail(&dev->list, &nandr->devs);
-
- added:
-
 	gd = alloc_disk(1 << nandr->minorbits);
 	if (!gd) {
-		list_del(&dev->list);
 		return -ENOMEM;
 	}
 	gd->major = nandr->major;
 	gd->first_minor = (dev->devnum) << nandr->minorbits;
 	gd->fops = &nand_blktrans_ops;
 
-	if (dev->devnum)
-		/* /dev/nand[a-o] */
-		snprintf(gd->disk_name, sizeof(gd->disk_name),
-			 "%s%c", nandr->name, (nandr->minorbits?'a':'0') + dev->devnum-1);
-	else
-		/* /dev/nand */
-		snprintf(gd->disk_name, sizeof(gd->disk_name),
-			 "%s", nandr->name);
+	/* /dev/nand */
+	snprintf(gd->disk_name, sizeof(gd->disk_name),
+		 "%s", nandr->name);
 
 	/* 2.5 has capacity in units of 512 bytes while still
 	   having BLOCK_SIZE_BITS set to 10. Just to keep us amused. */
@@ -824,16 +782,6 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 	gd->private_data = dev;
 	dev->blkcore_priv = gd;
 	gd->queue = nandr->rq;
-
-	/*set rw partition*/
-	if(part->type == PART_NO_ACCESS)
-		dev->disable_access = 1;
-
-	if(part->type == PART_READONLY)
-		dev->readonly = 1;
-
-	if(part->type == PART_WRITEONLY)
-		dev->writeonly = 1;
 
 	if (dev->readonly)
 		set_disk_ro(gd, 1);
@@ -844,13 +792,13 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 static int nand_remove_dev(struct nand_blk_dev *dev)
 {
 	struct gendisk *gd;
-	gd = dev->blkcore_priv;
 
 	if (!down_trylock(&nand_mutex)) {
 		up(&nand_mutex);
 		BUG();
 	}
-	list_del(&dev->list);
+	gd = dev->blkcore_priv;
+	dev->blkcore_priv = NULL;
 	gd->queue = NULL;
 	del_gendisk(gd);
 	put_disk(gd);
@@ -902,7 +850,6 @@ static int collect_thread(void *tmparg)
 int nand_blk_register(struct nand_blk_ops *nandr)
 {
 	int ret;
-	struct nand_disk disk_array[1];
 
 	down(&nand_mutex);
 
@@ -961,11 +908,9 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 	#endif
 
 	//devfs_mk_dir(nandr->name);
-	INIT_LIST_HEAD(&nandr->devs);
+	memset(&nandr->dev,0,sizeof(nandr->dev));
 
-	disk_array[0].offset = 0;
-	disk_array[0].size = DiskSize;
-	nandr->add_dev(nandr,disk_array);
+	nandr->add_dev(nandr);
 
 	up(&nand_mutex);
 
@@ -975,7 +920,6 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 
 void nand_blk_unregister(struct nand_blk_ops *nandr)
 {
-	struct list_head *this, *next;
 	down(&nand_mutex);
 	/* Clean up the kernel thread */
 	nandr->quit = 1;
@@ -988,12 +932,7 @@ void nand_blk_unregister(struct nand_blk_ops *nandr)
 	wait_for_completion(&collect_arg.thread_exit);
 #endif
 	/* Remove it from the list of active majors */
-
-
-	list_for_each_safe(this, next, &nandr->devs) {
-		struct nand_blk_dev *dev = list_entry(this, struct nand_blk_dev, list);
-		nandr->remove_dev(dev);
-	}
+	nandr->remove_dev(&nandr->dev);
 
 	//devfs_remove(nandr->name);
 	blk_cleanup_queue(nandr->rq);
@@ -1001,13 +940,7 @@ void nand_blk_unregister(struct nand_blk_ops *nandr)
 	unregister_blkdev(nandr->major, nandr->name);
 
 	up(&nand_mutex);
-
-	if (!list_empty(&nandr->devs))
-		BUG();
 }
-
-
-
 
 static int nand_getgeo(struct nand_blk_dev *dev,  struct hd_geometry *geo)
 {
