@@ -164,43 +164,43 @@ static struct usb_endpoint_descriptor uvc_hs_streaming_ep = {
 
 /* super speed support */
 static struct usb_endpoint_descriptor uvc_ss_control_ep __initdata = {
-	.bLength =		USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bLength		= USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType	= USB_DT_ENDPOINT,
 
-	.bEndpointAddress =	USB_DIR_IN,
-	.bmAttributes =		USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize =	cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
-	.bInterval =		8,
+	.bEndpointAddress	= USB_DIR_IN,
+	.bmAttributes		= USB_ENDPOINT_XFER_INT,
+	.wMaxPacketSize		= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
+	.bInterval		= 8,
 };
 
 static struct usb_ss_ep_comp_descriptor uvc_ss_control_comp __initdata = {
-	.bLength =		sizeof uvc_ss_control_comp,
-	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bLength		= sizeof(uvc_ss_control_comp),
+	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
 
 	/* the following 3 values can be tweaked if necessary */
-	/* .bMaxBurst =		0, */
-	/* .bmAttributes =	0, */
-	.wBytesPerInterval =	cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
+	.bMaxBurst		= 0,
+	.bmAttributes		= 0,
+	.wBytesPerInterval	= cpu_to_le16(UVC_STATUS_MAX_PACKET_SIZE),
 };
 
 static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
-	.bLength =		USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType =	USB_DT_ENDPOINT,
+	.bLength		= USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType	= USB_DT_ENDPOINT,
 
-	.bEndpointAddress =	USB_DIR_IN,
-	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize =	cpu_to_le16(1024),
-	.bInterval =		4,
+	.bEndpointAddress	= USB_DIR_IN,
+	.bmAttributes		= USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize		= cpu_to_le16(1024),
+	.bInterval		= 4,
 };
 
 static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp = {
-	.bLength =		sizeof uvc_ss_streaming_comp,
-	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bLength		= sizeof(uvc_ss_streaming_comp),
+	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
 
 	/* the following 3 values can be tweaked if necessary */
-	.bMaxBurst =		0,
-	.bmAttributes =	0,
-	.wBytesPerInterval =	cpu_to_le16(1024),
+	.bMaxBurst		= 0,
+	.bmAttributes		= 0,
+	.wBytesPerInterval	= cpu_to_le16(1024),
 };
 
 static const struct usb_descriptor_header * const uvc_fs_streaming[] = {
@@ -514,13 +514,13 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	}
 
 	for (src = (const struct usb_descriptor_header **)uvc_control_desc;
-			*src; ++src) {
+	     *src; ++src) {
 		control_size += (*src)->bLength;
 		bytes += (*src)->bLength;
 		n_desc++;
 	}
 	for (src = (const struct usb_descriptor_header **)uvc_streaming_cls;
-			*src; ++src) {
+	     *src; ++src) {
 		streaming_size += (*src)->bLength;
 		bytes += (*src)->bLength;
 		n_desc++;
@@ -775,23 +775,23 @@ uvc_bind_config(struct usb_configuration *c,
 
 	/* Validate the descriptors. */
 	if (fs_control == NULL || fs_control[0] == NULL ||
-		fs_control[0]->bDescriptorSubType != UVC_VC_HEADER)
+	    fs_control[0]->bDescriptorSubType != UVC_VC_HEADER)
 		goto error;
 
 	if (ss_control == NULL || ss_control[0] == NULL ||
-		ss_control[0]->bDescriptorSubType != UVC_VC_HEADER)
+	    ss_control[0]->bDescriptorSubType != UVC_VC_HEADER)
 		goto error;
 
 	if (fs_streaming == NULL || fs_streaming[0] == NULL ||
-		fs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
+	    fs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
 	if (hs_streaming == NULL || hs_streaming[0] == NULL ||
-		hs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
+	    hs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
 	if (ss_streaming == NULL || ss_streaming[0] == NULL ||
-		ss_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
+	    ss_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
 	uvc->desc.fs_control = fs_control;
