@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Sascha Hauer, Pengutronix
+ * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -13,11 +13,11 @@
 /include/ "imx25.dtsi"
 
 / {
-	model = "Ka-Ro TX25";
-	compatible = "karo,imx25-tx25", "fsl,imx25";
+	model = "Freescale i.MX25 Product Development Kit";
+	compatible = "fsl,imx25-pdk", "fsl,imx25";
 
 	memory {
-		reg = <0x80000000 0x02000000 0x90000000 0x02000000>;
+		reg = <0x80000000 0x4000000>;
 	};
 };
 

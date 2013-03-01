@@ -80,9 +80,17 @@ dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
 	armada-370-mirabox.dtb \
 	armada-xp-db.dtb \
 	armada-xp-openblocks-ax3-4.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx51-babbage.dtb \
+dtb-$(CONFIG_ARCH_MXC) += \
+	imx25-karo-tx25.dtb \
+	imx25-pdk.dtb \
+	imx27-apf27.dtb \
+	imx27-pdk.dtb \
+	imx31-bug.dtb \
+	imx51-apf51.dtb \
+	imx51-babbage.dtb \
 	imx53-ard.dtb \
 	imx53-evk.dtb \
+	imx53-mba53.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
 	imx6q-arm2.dtb \
