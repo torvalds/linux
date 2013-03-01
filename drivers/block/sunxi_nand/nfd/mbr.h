@@ -23,7 +23,7 @@
 #ifndef    __MBR_H__
 #define    __MBR_H__
 
-#include "../include/type_def.h"
+#include <linux/kernel.h>
 
 #define MAX_PART_COUNT		15	 									//max part count
 #define MBR_COPY_NUM        4    									//mbr backup count
