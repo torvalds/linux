@@ -188,13 +188,25 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	struct btrfs_stripe_hash *h;
 	int num_entries = 1 << BTRFS_STRIPE_HASH_TABLE_BITS;
 	int i;
+	int table_size;
 
 	if (info->stripe_hash_table)
 		return 0;
 
-	table = kzalloc(sizeof(*table) + sizeof(*h) * num_entries, GFP_NOFS);
-	if (!table)
-		return -ENOMEM;
+	/*
+	 * The table is large, starting with order 4 and can go as high as
+	 * order 7 in case lock debugging is turned on.
+	 *
+	 * Try harder to allocate and fallback to vmalloc to lower the chance
+	 * of a failing mount.
+	 */
+	table_size = sizeof(*table) + sizeof(*h) * num_entries;
+	table = kzalloc(table_size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!table) {
+		table = vzalloc(table_size);
+		if (!table)
+			return -ENOMEM;
+	}
 
 	spin_lock_init(&table->cache_lock);
 	INIT_LIST_HEAD(&table->stripe_cache);
@@ -209,8 +221,12 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	}
 
 	x = cmpxchg(&info->stripe_hash_table, NULL, table);
-	if (x)
-		kfree(x);
+	if (x) {
+		if (is_vmalloc_addr(x))
+			vfree(x);
+		else
+			kfree(x);
+	}
 	return 0;
 }
 
@@ -420,7 +436,10 @@ void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info)
 	if (!info->stripe_hash_table)
 		return;
 	btrfs_clear_rbio_cache(info);
-	kfree(info->stripe_hash_table);
+	if (is_vmalloc_addr(info->stripe_hash_table))
+		vfree(info->stripe_hash_table);
+	else
+		kfree(info->stripe_hash_table);
 	info->stripe_hash_table = NULL;
 }
 

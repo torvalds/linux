@@ -2197,7 +2197,7 @@ int open_ctree(struct super_block *sb,
 
 	ret = btrfs_alloc_stripe_hash_table(fs_info);
 	if (ret) {
-		err = -ENOMEM;
+		err = ret;
 		goto fail_alloc;
 	}
 
