@@ -2443,15 +2443,8 @@ static void set_discard_limits(struct pool_c *pt, struct queue_limits *limits)
 	if (pt->adjusted_pf.discard_passdown) {
 		data_limits = &bdev_get_queue(pt->data_dev->bdev)->limits;
 		limits->discard_granularity = data_limits->discard_granularity;
-	} else if (block_size_is_power_of_two(pool))
+	} else
 		limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
-	else
-		/*
-		 * Use largest power of 2 that is a factor of sectors_per_block
-		 * but at least DATA_DEV_BLOCK_SIZE_MIN_SECTORS.
-		 */
-		limits->discard_granularity = max(1 << (ffs(pool->sectors_per_block) - 1),
-						  DATA_DEV_BLOCK_SIZE_MIN_SECTORS) << SECTOR_SHIFT;
 }
 
 static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
