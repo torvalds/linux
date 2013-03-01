@@ -549,8 +549,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	UVC_COPY_DESCRIPTORS(mem, dst,
 		(const struct usb_descriptor_header**)uvc_streaming_cls);
 	uvc_streaming_header->wTotalLength = cpu_to_le16(streaming_size);
-	uvc_streaming_header->bEndpointAddress =
-		uvc_fs_streaming_ep.bEndpointAddress;
+	uvc_streaming_header->bEndpointAddress = uvc->video.ep->address;
 
 	UVC_COPY_DESCRIPTORS(mem, dst, uvc_streaming_std);
 
@@ -637,7 +636,14 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc->control_ep = ep;
 	ep->driver_data = uvc;
 
-	ep = usb_ep_autoconfig(cdev->gadget, &uvc_fs_streaming_ep);
+	if (gadget_is_superspeed(c->cdev->gadget))
+		ep = usb_ep_autoconfig_ss(cdev->gadget, &uvc_ss_streaming_ep,
+					  &uvc_ss_streaming_comp);
+	else if (gadget_is_dualspeed(cdev->gadget))
+		ep = usb_ep_autoconfig(cdev->gadget, &uvc_hs_streaming_ep);
+	else
+		ep = usb_ep_autoconfig(cdev->gadget, &uvc_fs_streaming_ep);
+
 	if (!ep) {
 		INFO(cdev, "Unable to allocate streaming EP\n");
 		goto error;
@@ -645,10 +651,9 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc->video.ep = ep;
 	ep->driver_data = uvc;
 
-	uvc_hs_streaming_ep.bEndpointAddress =
-		uvc_fs_streaming_ep.bEndpointAddress;
-	uvc_ss_streaming_ep.bEndpointAddress =
-		uvc_fs_streaming_ep.bEndpointAddress;
+	uvc_fs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
+	uvc_hs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
+	uvc_ss_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 
 	/* Allocate interface IDs. */
 	if ((ret = usb_interface_id(c, f)) < 0)
