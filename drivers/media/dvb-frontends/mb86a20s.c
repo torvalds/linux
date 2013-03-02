@@ -312,7 +312,7 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	dev_dbg(&state->i2c->dev, "%s: Status = 0x%02x (state = %d)\n",
 		 __func__, *status, val);
 
-	return 0;
+	return val;
 }
 
 static int mb86a20s_read_signal_strength(struct dvb_frontend *fe)
@@ -1564,7 +1564,7 @@ static void mb86a20s_stats_not_ready(struct dvb_frontend *fe)
 	}
 }
 
-static int mb86a20s_get_stats(struct dvb_frontend *fe)
+static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1583,6 +1583,14 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 
 	/* Get per-layer stats */
 	mb86a20s_get_blk_error_layer_CNR(fe);
+
+	/*
+	 * At state 7, only CNR is available
+	 * For BER measures, state=9 is required
+	 * FIXME: we may get MER measures with state=8
+	 */
+	if (status_nr < 9)
+		return 0;
 
 	for (i = 0; i < 3; i++) {
 		if (c->isdbt_layer_enabled & (1 << i)) {
@@ -1875,7 +1883,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int rc;
+	int rc, status_nr;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
 
@@ -1883,12 +1891,12 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	/* Get lock */
-	rc = mb86a20s_read_status(fe, status);
-	if (!(*status & FE_HAS_LOCK)) {
+	status_nr = mb86a20s_read_status(fe, status);
+	if (status_nr < 7) {
 		mb86a20s_stats_not_ready(fe);
 		mb86a20s_reset_frontend_cache(fe);
 	}
-	if (rc < 0) {
+	if (status_nr < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't read frontend lock status\n", __func__);
 		goto error;
@@ -1908,7 +1916,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	/* Fill signal strength */
 	c->strength.stat[0].uvalue = rc;
 
-	if (*status & FE_HAS_LOCK) {
+	if (status_nr >= 7) {
 		/* Get TMCC info*/
 		rc = mb86a20s_get_frontend(fe);
 		if (rc < 0) {
@@ -1919,7 +1927,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 		}
 
 		/* Get statistics */
-		rc = mb86a20s_get_stats(fe);
+		rc = mb86a20s_get_stats(fe, status_nr);
 		if (rc < 0 && rc != -EBUSY) {
 			dev_err(&state->i2c->dev,
 				"%s: Can't get FE statistics.\n", __func__);
