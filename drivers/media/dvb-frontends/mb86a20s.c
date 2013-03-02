@@ -34,6 +34,7 @@ struct mb86a20s_state {
 	u32 if_freq;
 
 	u32 estimated_rate[3];
+	unsigned long get_strength_time;
 
 	bool need_init;
 };
@@ -318,8 +319,16 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int mb86a20s_read_signal_strength(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int rc;
 	unsigned rf_max, rf_min, rf;
+
+	if (state->get_strength_time &&
+	   (!time_after(jiffies, state->get_strength_time)))
+		return c->strength.stat[0].uvalue;
+
+	/* Reset its value if an error happen */
+	c->strength.stat[0].uvalue = 0;
 
 	/* Does a binary search to get RF strength */
 	rf_max = 0xfff;
@@ -350,15 +359,19 @@ static int mb86a20s_read_signal_strength(struct dvb_frontend *fe)
 			rf = (rf_max + rf_min) / 2;
 
 			/* Rescale it from 2^12 (4096) to 2^16 */
-			rf <<= (16 - 12);
+			rf = rf << (16 - 12);
+			if (rf)
+				rf |= (1 << 12) - 1;
+
 			dev_dbg(&state->i2c->dev,
 				"%s: signal strength = %d (%d < RF=%d < %d)\n",
 				__func__, rf, rf_min, rf >> 4, rf_max);
-			return rf;
+			c->strength.stat[0].uvalue = rf;
+			state->get_strength_time = jiffies +
+						   msecs_to_jiffies(1000);
+			return 0;
 		}
 	} while (1);
-
-	return 0;
 }
 
 static int mb86a20s_get_modulation(struct mb86a20s_state *state,
@@ -1882,7 +1895,6 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 					  fe_status_t *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int rc, status_nr;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
@@ -1913,8 +1925,6 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 		rc = 0;		/* Status is OK */
 		goto error;
 	}
-	/* Fill signal strength */
-	c->strength.stat[0].uvalue = rc;
 
 	if (status_nr >= 7) {
 		/* Get TMCC info*/
