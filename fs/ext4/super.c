@@ -3933,6 +3933,16 @@ no_journal:
 	if (err)
 		goto failed_mount7;
 
+#ifdef CONFIG_QUOTA
+	/* Enable quota usage during mount. */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA) &&
+	    !(sb->s_flags & MS_RDONLY)) {
+		err = ext4_enable_quotas(sb);
+		if (err)
+			goto failed_mount8;
+	}
+#endif  /* CONFIG_QUOTA */
+
 	EXT4_SB(sb)->s_mount_state |= EXT4_ORPHAN_FS;
 	ext4_orphan_cleanup(sb, es);
 	EXT4_SB(sb)->s_mount_state &= ~EXT4_ORPHAN_FS;
@@ -3949,16 +3959,6 @@ no_journal:
 			descr = " writeback data mode";
 	} else
 		descr = "out journal";
-
-#ifdef CONFIG_QUOTA
-	/* Enable quota usage during mount. */
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA) &&
-	    !(sb->s_flags & MS_RDONLY)) {
-		err = ext4_enable_quotas(sb);
-		if (err)
-			goto failed_mount8;
-	}
-#endif  /* CONFIG_QUOTA */
 
 	if (test_opt(sb, DISCARD)) {
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
