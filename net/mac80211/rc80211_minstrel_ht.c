@@ -26,11 +26,11 @@
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) ((MCS_NBITS + (bps) - 1) / (bps))
 
-/* Transmission time for a packet containing (syms) symbols */
+/* Transmission time (nanoseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
 	(sgi ?								\
-	  ((syms) * 18 + 4) / 5 :	/* syms * 3.6 us */		\
-	  (syms) << 2			/* syms * 4 us */		\
+	  ((syms) * 18000 + 4000) / 5 :	/* syms * 3.6 us */		\
+	  ((syms) * 1000) << 2		/* syms * 4 us */		\
 	)
 
 /* Transmit duration for the raw data part of an average sized packet */
@@ -64,9 +64,9 @@
 }
 
 #define CCK_DURATION(_bitrate, _short, _len)		\
-	(10 /* SIFS */ +				\
+	(1000 * (10 /* SIFS */ +			\
 	 (_short ? 72 + 24 : 144 + 48 ) +		\
-	 (8 * (_len + 4) * 10) / (_bitrate))
+	 (8 * (_len + 4) * 10) / (_bitrate)))
 
 #define CCK_ACK_DURATION(_bitrate, _short)			\
 	(CCK_DURATION((_bitrate > 10 ? 20 : 10), false, 60) +	\
@@ -211,7 +211,8 @@ static void
 minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 {
 	struct minstrel_rate_stats *mr;
-	unsigned int usecs = 0;
+	unsigned int nsecs = 0;
+	unsigned int tp;
 
 	mr = &mi->groups[group].rates[rate];
 
@@ -221,10 +222,12 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 	}
 
 	if (group != MINSTREL_CCK_GROUP)
-		usecs = mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
+		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
-	usecs += minstrel_mcs_groups[group].duration[rate];
-	mr->cur_tp = MINSTREL_TRUNC((1000000 / usecs) * mr->probability);
+	nsecs += minstrel_mcs_groups[group].duration[rate];
+	tp = 1000000 * ((mr->probability * 1000) / nsecs);
+
+	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
 
 /*
@@ -536,7 +539,7 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	mr->retry_updated = true;
 
 	group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
-	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len;
+	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len / 1000;
 
 	/* Contention time for first 2 tries */
 	ctime = (t_slot * cw) >> 1;
