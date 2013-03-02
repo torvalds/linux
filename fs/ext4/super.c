@@ -4543,6 +4543,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			if (!old_opts.s_qf_names[i]) {
 				for (j = 0; j < i; j++)
 					kfree(old_opts.s_qf_names[j]);
+				kfree(orig_data);
 				return -ENOMEM;
 			}
 		} else
