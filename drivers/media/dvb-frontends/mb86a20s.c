@@ -1880,6 +1880,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 
 	rc = mb86a20s_writeregdata(state, mb86a20s_reset_reception);
 	mb86a20s_reset_counters(fe);
+	mb86a20s_stats_not_ready(fe);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
