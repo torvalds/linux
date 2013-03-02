@@ -79,16 +79,6 @@ asmlinkage long sys32_sendfile64(u32 out_fd, u32 in_fd,
 				(loff_t __user *)offset, count);
 }
 
-
-/* lseek() needs a wrapper because 'offset' can be negative, but the top
- * half of the argument has been zeroed by syscall.S.
- */
-
-asmlinkage int sys32_lseek(unsigned int fd, int offset, unsigned int origin)
-{
-	return sys_lseek(fd, offset, origin);
-}
-
 asmlinkage long sys32_semctl(int semid, int semnum, int cmd, union semun arg)
 {
         union semun u;

@@ -284,8 +284,8 @@ sys_call_table:
 	PTR	compat_sys_old_readdir
 	PTR	sys_mips_mmap			/* 4090 */
 	PTR	sys_munmap
-	PTR	sys_truncate
-	PTR	sys_ftruncate
+	PTR	compat_sys_truncate
+	PTR	compat_sys_ftruncate
 	PTR	sys_fchmod
 	PTR	sys_fchown			/* 4095 */
 	PTR	sys_getpriority

@@ -359,6 +359,7 @@ asmlinkage ssize_t compat_sys_preadv(unsigned long fd,
 asmlinkage ssize_t compat_sys_pwritev(unsigned long fd,
 		const struct compat_iovec __user *vec,
 		unsigned long vlen, u32 pos_low, u32 pos_high);
+asmlinkage long comat_sys_lseek(unsigned int, compat_off_t, unsigned int);
 
 asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp);
@@ -535,6 +536,8 @@ asmlinkage long compat_sys_openat(int dfd, const char __user *filename,
 asmlinkage long compat_sys_open_by_handle_at(int mountdirfd,
 					     struct file_handle __user *handle,
 					     int flags);
+asmlinkage long compat_sys_truncate(const char __user *, compat_off_t);
+asmlinkage long compat_sys_ftruncate(unsigned int, compat_ulong_t);
 asmlinkage long compat_sys_pselect6(int n, compat_ulong_t __user *inp,
 				    compat_ulong_t __user *outp,
 				    compat_ulong_t __user *exp,
