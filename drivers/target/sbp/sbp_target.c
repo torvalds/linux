@@ -2598,7 +2598,7 @@ static int __init sbp_init(void)
 	return 0;
 };
 
-static void sbp_exit(void)
+static void __exit sbp_exit(void)
 {
 	sbp_deregister_configfs();
 };
