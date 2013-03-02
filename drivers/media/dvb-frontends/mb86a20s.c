@@ -1854,17 +1854,8 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	fe->ops.tuner_ops.set_params(fe);
 
-	if (fe->ops.tuner_ops.get_if_frequency) {
+	if (fe->ops.tuner_ops.get_if_frequency)
 		fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
-
-		/*
-		 * If the IF frequency changed, re-initialize the
-		 * frontend. This is needed by some drivers like tda18271,
-		 * that only sets the IF after receiving a set_params() call
-		 */
-		if (if_freq != state->if_freq)
-			state->need_init = true;
-	}
 
 	/*
 	 * Make it more reliable: if, for some reason, the initial
@@ -1877,9 +1868,13 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	 * So, this hack is needed, in order to make Kworld SBTVD to work.
 	 *
 	 * It is also needed to change the IF after the initial init.
+	 *
+	 * HACK: Always init the frontend when set_frontend is called:
+	 * it was noticed that, on some devices, it fails to lock on a
+	 * different channel. So, it is better to reset everything, even
+	 * wasting some time, than to loose channel lock.
 	 */
-	if (state->need_init)
-		mb86a20s_initfe(fe);
+	mb86a20s_initfe(fe);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
