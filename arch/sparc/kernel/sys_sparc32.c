@@ -238,7 +238,7 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-long compat_sync_file_range(int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, int flags)
+long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
 {
 	return sys_sync_file_range(fd,
 				   (off_high << 32) | off_low,

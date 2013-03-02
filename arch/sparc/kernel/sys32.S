@@ -48,7 +48,6 @@ SIGN3(sys32_futex, compat_sys_futex, %o1, %o2, %o5)
 SIGN1(sys32_recvfrom, compat_sys_recvfrom, %o0)
 SIGN1(sys32_recvmsg, compat_sys_recvmsg, %o0)
 SIGN1(sys32_sendmsg, compat_sys_sendmsg, %o0)
-SIGN2(sys32_sync_file_range, compat_sync_file_range, %o0, %o5)
 
 	.globl		sys32_mmap2
 sys32_mmap2:
