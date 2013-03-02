@@ -312,8 +312,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
-	/* try to sample up to half of the available rates during each interval */
-	mi->sample_count *= 4;
+	/* try to sample all available rates during each interval */
+	mi->sample_count *= 8;
 
 	cur_prob = 0;
 	cur_prob_tp = 0;
