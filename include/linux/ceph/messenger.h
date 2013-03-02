@@ -64,12 +64,12 @@ struct ceph_messenger {
 	u32 required_features;
 };
 
-#define ceph_msg_has_pages(m)		((m)->pages != NULL)
-#define ceph_msg_has_pagelist(m)	((m)->pagelist != NULL)
+#define ceph_msg_has_pages(m)		((m)->p.pages != NULL)
+#define ceph_msg_has_pagelist(m)	((m)->l.pagelist != NULL)
 #ifdef CONFIG_BLOCK
-#define ceph_msg_has_bio(m)		((m)->bio != NULL)
+#define ceph_msg_has_bio(m)		((m)->b.bio != NULL)
 #endif /* CONFIG_BLOCK */
-#define ceph_msg_has_trail(m)		((m)->trail != NULL)
+#define ceph_msg_has_trail(m)		((m)->t.trail != NULL)
 
 /*
  * a single message.  it contains a header (src, dest, message type, etc.),
@@ -82,16 +82,25 @@ struct ceph_msg {
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 
-	struct page **pages;		/* data payload.  NOT OWNER. */
-	unsigned int page_alignment;	/* io offset in first page */
-	size_t length;			/* # data bytes in array or list */
-	struct ceph_pagelist *pagelist; /* instead of pages */
+	/* data payload */
+	struct {
+		struct page	**pages;	/* NOT OWNER. */
+		size_t		length;		/* # data bytes in array */
+		unsigned int	alignment;	/* first page */
+	} p;
+	struct {
+		struct ceph_pagelist	*pagelist;
+	} l;
 #ifdef CONFIG_BLOCK
-	unsigned int bio_seg;		/* current bio segment */
-	struct bio  *bio;		/* instead of pages/pagelist */
-	struct bio  *bio_iter;		/* bio iterator */
+	struct {
+		struct bio	*bio_iter;	/* iterator */
+		struct bio	*bio;
+		unsigned int	bio_seg;	/* current seg in bio */
+	} b;
 #endif /* CONFIG_BLOCK */
-	struct ceph_pagelist *trail;	/* the trailing part of the data */
+	struct {
+		struct ceph_pagelist *trail;	/* trailing part of data */
+	} t;
 
 	struct ceph_connection *con;
 	struct list_head list_head;	/* links for connection lists */
