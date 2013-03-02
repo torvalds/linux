@@ -2353,12 +2353,6 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	drivers/video/cyber2000fb.*
 
-CYCLADES 2X SYNC CARD DRIVER
-M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
-W:	http://oops.ghostprotocols.net:81/blog
-S:	Maintained
-F:	drivers/net/wan/cycx*
-
 CYCLADES ASYNC MUX DRIVER
 W:	http://www.cyclades.com/
 S:	Orphan
