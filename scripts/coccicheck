@@ -29,8 +29,12 @@ else
     if [ "$KBUILD_EXTMOD" = "" ] ; then
         OPTIONS="-dir $srctree $COCCIINCLUDE"
     else
-        OPTIONS="-dir $KBUILD_EXTMOD -patch $srctree $COCCIINCLUDE"
+        OPTIONS="-dir $KBUILD_EXTMOD $COCCIINCLUDE"
     fi
+fi
+
+if [ "$KBUILD_EXTMOD" != "" ] ; then
+    OPTIONS="-patch $srctree $OPTIONS"
 fi
 
 if [ ! -x "$SPATCH" ]; then
