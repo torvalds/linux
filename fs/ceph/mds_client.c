@@ -3473,6 +3473,28 @@ static int invalidate_authorizer(struct ceph_connection *con)
 	return ceph_monc_validate_auth(&mdsc->fsc->client->monc);
 }
 
+static struct ceph_msg *mds_alloc_msg(struct ceph_connection *con,
+				struct ceph_msg_header *hdr, int *skip)
+{
+	struct ceph_msg *msg;
+	int type = (int) le16_to_cpu(hdr->type);
+	int front_len = (int) le32_to_cpu(hdr->front_len);
+
+	if (con->in_msg)
+		return con->in_msg;
+
+	*skip = 0;
+	msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
+	if (!msg) {
+		pr_err("unable to allocate msg type %d len %d\n",
+		       type, front_len);
+		return NULL;
+	}
+	msg->page_alignment = (unsigned int) le16_to_cpu(hdr->data_off);
+
+	return msg;
+}
+
 static const struct ceph_connection_operations mds_con_ops = {
 	.get = con_get,
 	.put = con_put,
@@ -3481,6 +3503,7 @@ static const struct ceph_connection_operations mds_con_ops = {
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.invalidate_authorizer = invalidate_authorizer,
 	.peer_reset = peer_reset,
+	.alloc_msg = mds_alloc_msg,
 };
 
 /* eof */

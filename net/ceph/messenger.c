@@ -2804,55 +2804,34 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
 static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 {
 	struct ceph_msg_header *hdr = &con->in_hdr;
-	int type = le16_to_cpu(hdr->type);
-	int front_len = le32_to_cpu(hdr->front_len);
 	int middle_len = le32_to_cpu(hdr->middle_len);
 	struct ceph_msg *msg;
 	int ret = 0;
 
 	BUG_ON(con->in_msg != NULL);
+	BUG_ON(!con->ops->alloc_msg);
 
-	if (con->ops->alloc_msg) {
-		mutex_unlock(&con->mutex);
-		msg = con->ops->alloc_msg(con, hdr, skip);
-		mutex_lock(&con->mutex);
-		if (con->state != CON_STATE_OPEN) {
-			if (msg)
-				ceph_msg_put(msg);
-			return -EAGAIN;
-		}
-		con->in_msg = msg;
-		if (con->in_msg) {
-			con->in_msg->con = con->ops->get(con);
-			BUG_ON(con->in_msg->con == NULL);
-		}
-		if (*skip) {
-			con->in_msg = NULL;
-			return 0;
-		}
-		if (!con->in_msg) {
-			con->error_msg =
-				"error allocating memory for incoming message";
-			return -ENOMEM;
-		}
-	}
-	if (!con->in_msg) {
-		mutex_unlock(&con->mutex);
-		msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
-		mutex_lock(&con->mutex);
-		if (!msg) {
-			pr_err("unable to allocate msg type %d len %d\n",
-			       type, front_len);
-			return -ENOMEM;
-		}
-		if (con->state != CON_STATE_OPEN) {
+	mutex_unlock(&con->mutex);
+	msg = con->ops->alloc_msg(con, hdr, skip);
+	mutex_lock(&con->mutex);
+	if (con->state != CON_STATE_OPEN) {
+		if (msg)
 			ceph_msg_put(msg);
-			return -EAGAIN;
-		}
-		con->in_msg = msg;
+		return -EAGAIN;
+	}
+	con->in_msg = msg;
+	if (con->in_msg) {
 		con->in_msg->con = con->ops->get(con);
 		BUG_ON(con->in_msg->con == NULL);
-		con->in_msg->page_alignment = le16_to_cpu(hdr->data_off);
+	}
+	if (*skip) {
+		con->in_msg = NULL;
+		return 0;
+	}
+	if (!con->in_msg) {
+		con->error_msg =
+			"error allocating memory for incoming message";
+		return -ENOMEM;
 	}
 	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 
