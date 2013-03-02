@@ -1195,14 +1195,13 @@ const struct address_space_operations f2fs_node_aops = {
 static struct free_nid *__lookup_free_nid_list(nid_t n, struct list_head *head)
 {
 	struct list_head *this;
-	struct free_nid *i = NULL;
+	struct free_nid *i;
 	list_for_each(this, head) {
 		i = list_entry(this, struct free_nid, list);
 		if (i->nid == n)
-			break;
-		i = NULL;
+			return i;
 	}
-	return i;
+	return NULL;
 }
 
 static void __del_from_free_nid_list(struct free_nid *i)
