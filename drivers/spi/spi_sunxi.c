@@ -1596,8 +1596,13 @@ static struct platform_driver __refdata spi_sunxi_driver = {
 
 /* ---------------- spi resouce and platform data start ---------------------- */
 struct sunxi_spi_platform_data sunxi_spi0_pdata = {
+#if defined CONFIG_ARCH_SUN4I
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+#elif defined CONFIG_ARCH_SUN5I
 	.cs_bitmap  = 0x1,
 	.num_cs		= 1,
+#endif
 	.clk_name = "ahb_spi0",
 };
 static struct resource sunxi_spi0_resources[] = {
@@ -1640,8 +1645,13 @@ static struct platform_device sunxi_spi0_device = {
 };
 
 struct sunxi_spi_platform_data sunxi_spi1_pdata = {
+#if defined CONFIG_ARCH_SUN4I
 	.cs_bitmap	= 0x3,
 	.num_cs		= 2,
+#elif defined CONFIG_ARCH_SUN5I
+	.cs_bitmap	= 0x1,
+	.num_cs		= 1,
+#endif
 	.clk_name = "ahb_spi1",
 };
 static struct resource sunxi_spi1_resources[] = {
@@ -1683,6 +1693,11 @@ static struct platform_device sunxi_spi1_device = {
 	},
 };
 
+struct sunxi_spi_platform_data sunxi_spi2_pdata = {
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+	.clk_name	= "ahb_spi2",
+};
 static struct resource sunxi_spi2_resources[] = {
 	[0] = {
 		.start	= SPI2_BASE_ADDR,
@@ -1708,11 +1723,6 @@ static struct resource sunxi_spi2_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-struct sunxi_spi_platform_data sunxi_spi2_pdata = {
-	.cs_bitmap	= 0x1,
-	.num_cs		= 1,
-	.clk_name = "ahb_spi2",
-};
 static struct platform_device sunxi_spi2_device = {
 #if defined CONFIG_ARCH_SUN4I
 	.name		= "sun4i-spi",
@@ -1728,6 +1738,11 @@ static struct platform_device sunxi_spi2_device = {
 };
 
 #ifdef CONFIG_ARCH_SUN4I
+struct sunxi_spi_platform_data sunxi_spi3_pdata = {
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+	.clk_name	= "ahb_spi3",
+};
 static struct resource sunxi_spi3_resources[] = {
 	[0] = {
 		.start	= SPI3_BASE_ADDR,
@@ -1753,12 +1768,6 @@ static struct resource sunxi_spi3_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-struct sunxi_spi_platform_data sunxi_spi3_pdata = {
-	.cs_bitmap	= 0x1,
-	.num_cs		= 1,
-	.clk_name = "ahb_spi3",
-};
-
 static struct platform_device sunxi_spi3_device = {
 	.name		= "sun4i-spi",
 	.id			= 3,
