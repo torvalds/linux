@@ -35,14 +35,16 @@
 static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	/* nothing to do */
+	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	man->priv = pfb;
 	return 0;
 }
 
 static int
 nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
 {
-	/* nothing to do */
+	man->priv = NULL;
 	return 0;
 }
 
@@ -104,7 +106,8 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 static void
 nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
-	struct nouveau_mm *mm = man->priv;
+	struct nouveau_fb *pfb = man->priv;
+	struct nouveau_mm *mm = &pfb->vram;
 	struct nouveau_mm_node *r;
 	u32 total = 0, free = 0;
 
