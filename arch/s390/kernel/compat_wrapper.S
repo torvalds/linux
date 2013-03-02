@@ -1252,13 +1252,6 @@ ENTRY(sys_tee_wrapper)
 	llgfr	%r5,%r5			# unsigned int
 	jg	sys_tee
 
-ENTRY(compat_sys_vmsplice_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_iovec *
-	llgfr	%r4,%r4			# unsigned int
-	llgfr	%r5,%r5			# unsigned int
-	jg	compat_sys_vmsplice
-
 ENTRY(sys_getcpu_wrapper)
 	llgtr	%r2,%r2			# unsigned *
 	llgtr	%r3,%r3			# unsigned *

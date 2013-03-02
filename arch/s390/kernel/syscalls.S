@@ -317,7 +317,7 @@ SYSCALL(sys_get_robust_list,sys_get_robust_list,compat_sys_get_robust_list)
 SYSCALL(sys_splice,sys_splice,sys_splice_wrapper)
 SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
 SYSCALL(sys_tee,sys_tee,sys_tee_wrapper)
-SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice_wrapper)
+SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice)
 NI_SYSCALL							/* 310 sys_move_pages */
 SYSCALL(sys_getcpu,sys_getcpu,sys_getcpu_wrapper)
 SYSCALL(sys_epoll_pwait,sys_epoll_pwait,compat_sys_epoll_pwait)
