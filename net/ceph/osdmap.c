@@ -1111,27 +1111,22 @@ EXPORT_SYMBOL(ceph_calc_file_object_mapping);
  * calculate an object layout (i.e. pgid) from an oid,
  * file_layout, and osdmap
  */
-int ceph_calc_object_layout(struct ceph_pg *pg,
-			    const char *oid,
-			    struct ceph_file_layout *fl,
-			    struct ceph_osdmap *osdmap)
+int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
+			struct ceph_osdmap *osdmap, uint64_t pool)
 {
-	unsigned int num, num_mask;
-	struct ceph_pg_pool_info *pool;
+	struct ceph_pg_pool_info *pool_info;
 
 	BUG_ON(!osdmap);
-	pg->pool = le32_to_cpu(fl->fl_pg_pool);
-	pool = __lookup_pg_pool(&osdmap->pg_pools, pg->pool);
-	if (!pool)
+	pool_info = __lookup_pg_pool(&osdmap->pg_pools, pool);
+	if (!pool_info)
 		return -EIO;
-	pg->seed = ceph_str_hash(pool->object_hash, oid, strlen(oid));
-	num = pool->pg_num;
-	num_mask = pool->pg_num_mask;
+	pg->pool = pool;
+	pg->seed = ceph_str_hash(pool_info->object_hash, oid, strlen(oid));
 
-	dout("calc_object_layout '%s' pgid %lld.%x\n", oid, pg->pool, pg->seed);
+	dout("%s '%s' pgid %lld.%x\n", __func__, oid, pg->pool, pg->seed);
 	return 0;
 }
-EXPORT_SYMBOL(ceph_calc_object_layout);
+EXPORT_SYMBOL(ceph_calc_ceph_pg);
 
 /*
  * Calculate raw osd vector for the given pgid.  Return pointer to osd

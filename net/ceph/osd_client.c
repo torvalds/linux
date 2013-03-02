@@ -948,8 +948,8 @@ static int __map_request(struct ceph_osd_client *osdc,
 	int err;
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
-	err = ceph_calc_object_layout(&pgid, req->r_oid,
-				      &req->r_file_layout, osdc->osdmap);
+	err = ceph_calc_ceph_pg(&pgid, req->r_oid, osdc->osdmap,
+				ceph_file_layout_pg_pool(req->r_file_layout));
 	if (err) {
 		list_move(&req->r_req_lru_item, &osdc->req_notarget);
 		return err;
