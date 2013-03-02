@@ -36,7 +36,7 @@ static struct resource ath79_uart_resources[] = {
 static struct plat_serial8250_port ath79_uart_data[] = {
 	{
 		.mapbase	= AR71XX_UART_BASE,
-		.irq		= ATH79_MISC_IRQ_UART,
+		.irq		= ATH79_MISC_IRQ(3),
 		.flags		= AR71XX_UART_FLAGS,
 		.iotype		= UPIO_MEM32,
 		.regshift	= 2,
@@ -62,8 +62,8 @@ static struct resource ar933x_uart_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= ATH79_MISC_IRQ_UART,
-		.end	= ATH79_MISC_IRQ_UART,
+		.start	= ATH79_MISC_IRQ(3),
+		.end	= ATH79_MISC_IRQ(3),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -90,7 +90,8 @@ void __init ath79_register_uart(void)
 	if (soc_is_ar71xx() ||
 	    soc_is_ar724x() ||
 	    soc_is_ar913x() ||
-	    soc_is_ar934x()) {
+	    soc_is_ar934x() ||
+	    soc_is_qca955x()) {
 		ath79_uart_data[0].uartclk = clk_get_rate(clk);
 		platform_device_register(&ath79_uart_device);
 	} else if (soc_is_ar933x()) {

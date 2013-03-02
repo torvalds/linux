@@ -49,7 +49,7 @@
 
 #ifdef CONFIG_64BIT
 
-#define prom_is_rex(magic)	1	/* KN04 and KN05 are REX PROMs.  */
+#define prom_is_rex(magic)	1	/* KN04 and KN05 are REX PROMs.	 */
 
 #else /* !CONFIG_64BIT */
 

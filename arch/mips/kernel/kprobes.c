@@ -307,7 +307,7 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs,
 /*
  * Called after single-stepping.  p->addr is the address of the
  * instruction whose first byte has been replaced by the "break 0"
- * instruction.  To avoid the SMP problems that can occur when we
+ * instruction.	 To avoid the SMP problems that can occur when we
  * temporarily put back the original opcode to single-step, we
  * single-stepped a copy of the instruction.  The address of this
  * copy is p->ainsn.insn.
@@ -535,7 +535,7 @@ void jprobe_return_end(void);
 
 void __kprobes jprobe_return(void)
 {
-	/* Assembler quirk necessitates this '0,code' business.  */
+	/* Assembler quirk necessitates this '0,code' business.	 */
 	asm volatile(
 		"break 0,%0\n\t"
 		".globl jprobe_return_end\n"
@@ -614,9 +614,9 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 * We can handle this because:
 	 *     - instances are always inserted at the head of the list
 	 *     - when multiple return probes are registered for the same
-	 *       function, the first instance's ret_addr will point to the
-	 *       real return address, and all the rest will point to
-	 *       kretprobe_trampoline
+	 *	 function, the first instance's ret_addr will point to the
+	 *	 real return address, and all the rest will point to
+	 *	 kretprobe_trampoline
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)

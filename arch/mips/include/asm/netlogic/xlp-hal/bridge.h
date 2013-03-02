@@ -178,9 +178,9 @@
 
 #define nlm_read_bridge_reg(b, r)	nlm_read_reg(b, r)
 #define nlm_write_bridge_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define	nlm_get_bridge_pcibase(node)	\
+#define nlm_get_bridge_pcibase(node)	\
 			nlm_pcicfg_base(XLP_IO_BRIDGE_OFFSET(node))
-#define	nlm_get_bridge_regbase(node)	\
+#define nlm_get_bridge_regbase(node)	\
 			(nlm_get_bridge_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
 #endif /* __ASSEMBLY__ */

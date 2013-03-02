@@ -62,7 +62,7 @@ extern int irq_to_slot[];
  * from the irq value
  */
 #define IRQ_TO_BRIDGE(i)		irq_to_bridge[(i)]
-#define	SLOT_FROM_PCI_IRQ(i)		irq_to_slot[i]
+#define SLOT_FROM_PCI_IRQ(i)		irq_to_slot[i]
 
 static inline int alloc_level(int cpu, int irq)
 {
@@ -281,11 +281,11 @@ static unsigned int startup_bridge_irq(struct irq_data *d)
 	device |= (pin << (pin*3));
 	bridge->b_int_device = device;
 
-        bridge->b_wid_tflush;
+	bridge->b_wid_tflush;
 
 	intr_connect_level(cpu, swlevel);
 
-        return 0;       /* Never anything pending.  */
+	return 0;	/* Never anything pending.  */
 }
 
 /* Shutdown one of the (PCI ...) IRQs routes over a bridge.  */

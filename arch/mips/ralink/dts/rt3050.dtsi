@@ -1,0 +1,106 @@
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ralink,rt3050-soc", "ralink,rt3052-soc";
+
+	cpus {
+		cpu@0 {
+			compatible = "mips,mips24KEc";
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600 init=/init";
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	palmbus@10000000 {
+		compatible = "palmbus";
+		reg = <0x10000000 0x200000>;
+                ranges = <0x0 0x10000000 0x1FFFFF>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysc@0 {
+			compatible = "ralink,rt3052-sysc", "ralink,rt3050-sysc";
+			reg = <0x0 0x100>;
+		};
+
+		timer@100 {
+			compatible = "ralink,rt3052-wdt", "ralink,rt2880-wdt";
+			reg = <0x100 0x100>;
+		};
+
+		intc: intc@200 {
+			compatible = "ralink,rt3052-intc", "ralink,rt2880-intc";
+			reg = <0x200 0x100>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
+		};
+
+		memc@300 {
+			compatible = "ralink,rt3052-memc", "ralink,rt3050-memc";
+			reg = <0x300 0x100>;
+		};
+
+		gpio0: gpio@600 {
+			compatible = "ralink,rt3052-gpio", "ralink,rt2880-gpio";
+			reg = <0x600 0x34>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,ngpio = <24>;
+			ralink,regs = [ 00 04 08 0c
+					20 24 28 2c
+					30 34 ];
+		};
+
+		gpio1: gpio@638 {
+			compatible = "ralink,rt3052-gpio", "ralink,rt2880-gpio";
+			reg = <0x638 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,ngpio = <16>;
+			ralink,regs = [ 00 04 08 0c
+					10 14 18 1c
+					20 24 ];
+		};
+
+		gpio2: gpio@660 {
+			compatible = "ralink,rt3052-gpio", "ralink,rt2880-gpio";
+			reg = <0x660 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,ngpio = <12>;
+			ralink,regs = [ 00 04 08 0c
+					10 14 18 1c
+					20 24 ];
+		};
+
+		uartlite@c00 {
+			compatible = "ralink,rt3052-uart", "ralink,rt2880-uart", "ns16550a";
+			reg = <0xc00 0x100>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <12>;
+
+			reg-shift = <2>;
+		};
+	};
+};
