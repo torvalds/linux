@@ -21,8 +21,17 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
+#include <linux/ctype.h>
 
 #include <scsi/fcoe_sysfs.h>
+#include <scsi/libfcoe.h>
+
+/*
+ * OK to include local libfcoe.h for debug_logging, but cannot include
+ * <scsi/libfcoe.h> otherwise non-netdev based fcoe solutions would have
+ * have to include more than fcoe_sysfs.h.
+ */
+#include "libfcoe.h"
 
 static atomic_t ctlr_num;
 static atomic_t fcf_num;
@@ -71,6 +80,8 @@ MODULE_PARM_DESC(fcf_dev_loss_tmo,
 	((x)->lesb.lesb_err_block)
 #define fcoe_ctlr_fcs_error(x)			\
 	((x)->lesb.lesb_fcs_error)
+#define fcoe_ctlr_enabled(x)			\
+	((x)->enabled)
 #define fcoe_fcf_state(x)			\
 	((x)->state)
 #define fcoe_fcf_fabric_name(x)			\
@@ -210,25 +221,34 @@ static ssize_t show_fcoe_fcf_device_##field(struct device *dev,	\
 #define fcoe_enum_name_search(title, table_type, table)			\
 static const char *get_fcoe_##title##_name(enum table_type table_key)	\
 {									\
-	int i;								\
-	char *name = NULL;						\
-									\
-	for (i = 0; i < ARRAY_SIZE(table); i++) {			\
-		if (table[i].value == table_key) {			\
-			name = table[i].name;				\
-			break;						\
-		}							\
-	}								\
-	return name;							\
+	if (table_key < 0 || table_key >= ARRAY_SIZE(table))		\
+		return NULL;						\
+	return table[table_key];					\
 }
 
-static struct {
-	enum fcf_state value;
-	char           *name;
-} fcf_state_names[] = {
-	{ FCOE_FCF_STATE_UNKNOWN,      "Unknown" },
-	{ FCOE_FCF_STATE_DISCONNECTED, "Disconnected" },
-	{ FCOE_FCF_STATE_CONNECTED,    "Connected" },
+static char *fip_conn_type_names[] = {
+	[ FIP_CONN_TYPE_UNKNOWN ] = "Unknown",
+	[ FIP_CONN_TYPE_FABRIC ]  = "Fabric",
+	[ FIP_CONN_TYPE_VN2VN ]   = "VN2VN",
+};
+fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
+
+static enum fip_conn_type fcoe_parse_mode(const char *buf)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fip_conn_type_names); i++) {
+		if (strcasecmp(buf, fip_conn_type_names[i]) == 0)
+			return i;
+	}
+
+	return FIP_CONN_TYPE_UNKNOWN;
+}
+
+static char *fcf_state_names[] = {
+	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unknown",
+	[ FCOE_FCF_STATE_DISCONNECTED ] = "Disconnected",
+	[ FCOE_FCF_STATE_CONNECTED ]    = "Connected",
 };
 fcoe_enum_name_search(fcf_state, fcf_state, fcf_state_names)
 #define FCOE_FCF_STATE_MAX_NAMELEN 50
@@ -246,17 +266,7 @@ static ssize_t show_fcf_state(struct device *dev,
 }
 static FCOE_DEVICE_ATTR(fcf, state, S_IRUGO, show_fcf_state, NULL);
 
-static struct {
-	enum fip_conn_type value;
-	char               *name;
-} fip_conn_type_names[] = {
-	{ FIP_CONN_TYPE_UNKNOWN, "Unknown" },
-	{ FIP_CONN_TYPE_FABRIC, "Fabric" },
-	{ FIP_CONN_TYPE_VN2VN, "VN2VN" },
-};
-fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
-#define FCOE_CTLR_MODE_MAX_NAMELEN 50
-
+#define FCOE_MAX_MODENAME_LEN 20
 static ssize_t show_ctlr_mode(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
@@ -264,17 +274,116 @@ static ssize_t show_ctlr_mode(struct device *dev,
 	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
 	const char *name;
 
-	if (ctlr->f->get_fcoe_ctlr_mode)
-		ctlr->f->get_fcoe_ctlr_mode(ctlr);
-
 	name = get_fcoe_ctlr_mode_name(ctlr->mode);
 	if (!name)
 		return -EINVAL;
-	return snprintf(buf, FCOE_CTLR_MODE_MAX_NAMELEN,
+	return snprintf(buf, FCOE_MAX_MODENAME_LEN,
 			"%s\n", name);
 }
-static FCOE_DEVICE_ATTR(ctlr, mode, S_IRUGO,
-			show_ctlr_mode, NULL);
+
+static ssize_t store_ctlr_mode(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
+	char mode[FCOE_MAX_MODENAME_LEN + 1];
+
+	if (count > FCOE_MAX_MODENAME_LEN)
+		return -EINVAL;
+
+	strncpy(mode, buf, count);
+
+	if (mode[count - 1] == '\n')
+		mode[count - 1] = '\0';
+	else
+		mode[count] = '\0';
+
+	switch (ctlr->enabled) {
+	case FCOE_CTLR_ENABLED:
+		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.");
+		return -EBUSY;
+	case FCOE_CTLR_DISABLED:
+		if (!ctlr->f->set_fcoe_ctlr_mode) {
+			LIBFCOE_SYSFS_DBG(ctlr,
+					  "Mode change not supported by LLD.");
+			return -ENOTSUPP;
+		}
+
+		ctlr->mode = fcoe_parse_mode(mode);
+		if (ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
+			LIBFCOE_SYSFS_DBG(ctlr,
+					  "Unknown mode %s provided.", buf);
+			return -EINVAL;
+		}
+
+		ctlr->f->set_fcoe_ctlr_mode(ctlr);
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.", buf);
+
+		return count;
+	case FCOE_CTLR_UNUSED:
+	default:
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.");
+		return -ENOTSUPP;
+	};
+}
+
+static FCOE_DEVICE_ATTR(ctlr, mode, S_IRUGO | S_IWUSR,
+			show_ctlr_mode, store_ctlr_mode);
+
+static ssize_t store_ctlr_enabled(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
+	int rc;
+
+	switch (ctlr->enabled) {
+	case FCOE_CTLR_ENABLED:
+		if (*buf == '1')
+			return count;
+		ctlr->enabled = FCOE_CTLR_DISABLED;
+		break;
+	case FCOE_CTLR_DISABLED:
+		if (*buf == '0')
+			return count;
+		ctlr->enabled = FCOE_CTLR_ENABLED;
+		break;
+	case FCOE_CTLR_UNUSED:
+		return -ENOTSUPP;
+	};
+
+	rc = ctlr->f->set_fcoe_ctlr_enabled(ctlr);
+	if (rc)
+		return rc;
+
+	return count;
+}
+
+static char *ctlr_enabled_state_names[] = {
+	[ FCOE_CTLR_ENABLED ]  = "1",
+	[ FCOE_CTLR_DISABLED ] = "0",
+};
+fcoe_enum_name_search(ctlr_enabled_state, ctlr_enabled_state,
+		      ctlr_enabled_state_names)
+#define FCOE_CTLR_ENABLED_MAX_NAMELEN 50
+
+static ssize_t show_ctlr_enabled_state(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
+	const char *name;
+
+	name = get_fcoe_ctlr_enabled_state_name(ctlr->enabled);
+	if (!name)
+		return -EINVAL;
+	return snprintf(buf, FCOE_CTLR_ENABLED_MAX_NAMELEN,
+			"%s\n", name);
+}
+
+static FCOE_DEVICE_ATTR(ctlr, enabled, S_IRUGO | S_IWUSR,
+			show_ctlr_enabled_state,
+			store_ctlr_enabled);
 
 static ssize_t
 store_private_fcoe_ctlr_fcf_dev_loss_tmo(struct device *dev,
@@ -359,6 +468,7 @@ static struct attribute_group fcoe_ctlr_lesb_attr_group = {
 
 static struct attribute *fcoe_ctlr_attrs[] = {
 	&device_attr_fcoe_ctlr_fcf_dev_loss_tmo.attr,
+	&device_attr_fcoe_ctlr_enabled.attr,
 	&device_attr_fcoe_ctlr_mode.attr,
 	NULL,
 };
@@ -443,9 +553,16 @@ struct device_type fcoe_fcf_device_type = {
 	.release = fcoe_fcf_device_release,
 };
 
+struct bus_attribute fcoe_bus_attr_group[] = {
+	__ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store),
+	__ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store),
+	__ATTR_NULL
+};
+
 struct bus_type fcoe_bus_type = {
 	.name = "fcoe",
 	.match = &fcoe_bus_match,
+	.bus_attrs = fcoe_bus_attr_group,
 };
 
 /**
@@ -566,6 +683,7 @@ struct fcoe_ctlr_device *fcoe_ctlr_device_add(struct device *parent,
 
 	ctlr->id = atomic_inc_return(&ctlr_num) - 1;
 	ctlr->f = f;
+	ctlr->mode = FIP_CONN_TYPE_FABRIC;
 	INIT_LIST_HEAD(&ctlr->fcfs);
 	mutex_init(&ctlr->lock);
 	ctlr->dev.parent = parent;

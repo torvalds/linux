@@ -493,6 +493,7 @@ struct ipr_hrr_queue {
 	u8 allow_interrupts:1;
 	u8 ioa_is_dead:1;
 	u8 allow_cmds:1;
+	u8 removing_ioa:1;
 
 	struct blk_iopoll iopoll;
 };
