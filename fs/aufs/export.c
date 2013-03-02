@@ -88,6 +88,21 @@ static int au_test_anon(struct dentry *dentry)
 	return !!(dentry->d_flags & DCACHE_DISCONNECTED);
 }
 
+int au_test_nfsd(void)
+{
+	int ret;
+	struct task_struct *tsk = current;
+	char comm[sizeof(tsk->comm)];
+
+	ret = 0;
+	if (tsk->flags & PF_KTHREAD) {
+		get_task_comm(comm, tsk);
+		ret = !strcmp(comm, "nfsd");
+	}
+
+	return ret;
+}
+
 /* ---------------------------------------------------------------------- */
 /* inode generation external table */
 
