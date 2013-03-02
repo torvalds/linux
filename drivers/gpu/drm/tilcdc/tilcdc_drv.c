@@ -299,11 +299,10 @@ static int tilcdc_irq_postinstall(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	/* enable FIFO underflow irq: */
-	if (priv->rev == 1) {
+	if (priv->rev == 1)
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_UNDERFLOW_INT_ENA);
-	} else {
+	else
 		tilcdc_set(dev, LCDC_INT_ENABLE_SET_REG, LCDC_V2_UNDERFLOW_INT_ENA);
-	}
 
 	return 0;
 }
