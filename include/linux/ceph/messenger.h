@@ -64,6 +64,13 @@ struct ceph_messenger {
 	u32 required_features;
 };
 
+#define ceph_msg_has_pages(m)		((m)->pages != NULL)
+#define ceph_msg_has_pagelist(m)	((m)->pagelist != NULL)
+#ifdef CONFIG_BLOCK
+#define ceph_msg_has_bio(m)		((m)->bio != NULL)
+#endif /* CONFIG_BLOCK */
+#define ceph_msg_has_trail(m)		((m)->trail != NULL)
+
 /*
  * a single message.  it contains a header (src, dest, message type, etc.),
  * footer (crc values, mainly), a "front" message body, and possibly a

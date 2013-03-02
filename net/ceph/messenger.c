@@ -746,12 +746,12 @@ static void prepare_message_data(struct ceph_msg *msg,
 
 	/* initialize page iterator */
 	msg_pos->page = 0;
-	if (msg->pages)
+	if (ceph_msg_has_pages(msg))
 		msg_pos->page_pos = msg->page_alignment;
 	else
 		msg_pos->page_pos = 0;
 #ifdef CONFIG_BLOCK
-	if (msg->bio)
+	if (ceph_msg_has_bio(msg))
 		init_bio_iter(msg->bio, &msg->bio_iter, &msg->bio_seg);
 #endif
 	msg_pos->data_pos = 0;
@@ -1052,14 +1052,16 @@ static void out_msg_pos_next(struct ceph_connection *con, struct page *page,
 	msg_pos->page_pos = 0;
 	msg_pos->page++;
 	msg_pos->did_page_crc = false;
-	if (in_trail)
+	if (in_trail) {
+		BUG_ON(!ceph_msg_has_trail(msg));
 		list_rotate_left(&msg->trail->head);
-	else if (msg->pagelist)
+	} else if (ceph_msg_has_pagelist(msg)) {
 		list_rotate_left(&msg->pagelist->head);
 #ifdef CONFIG_BLOCK
-	else if (msg->bio)
+	} else if (ceph_msg_has_bio(msg)) {
 		iter_bio_next(&msg->bio_iter, &msg->bio_seg);
 #endif
+	}
 }
 
 static void in_msg_pos_next(struct ceph_connection *con, size_t len,
@@ -1114,8 +1116,13 @@ static int write_partial_message_data(struct ceph_connection *con)
 	int ret;
 	int total_max_write;
 	bool in_trail = false;
-	const size_t trail_len = (msg->trail ? msg->trail->length : 0);
-	const size_t trail_off = data_len - trail_len;
+	size_t trail_len = 0;
+	size_t trail_off = data_len;
+
+	if (ceph_msg_has_trail(msg)) {
+		trail_len = msg->trail->length;
+		trail_off -= trail_len;
+	}
 
 	dout("%s %p msg %p page %d offset %d\n", __func__,
 	     con, msg, msg_pos->page, msg_pos->page_pos);
@@ -1140,17 +1147,17 @@ static int write_partial_message_data(struct ceph_connection *con)
 			total_max_write = trail_off - msg_pos->data_pos;
 
 		if (in_trail) {
+			BUG_ON(!ceph_msg_has_trail(msg));
 			total_max_write = data_len - msg_pos->data_pos;
-
 			page = list_first_entry(&msg->trail->head,
 						struct page, lru);
-		} else if (msg->pages) {
+		} else if (ceph_msg_has_pages(msg)) {
 			page = msg->pages[msg_pos->page];
-		} else if (msg->pagelist) {
+		} else if (ceph_msg_has_pagelist(msg)) {
 			page = list_first_entry(&msg->pagelist->head,
 						struct page, lru);
 #ifdef CONFIG_BLOCK
-		} else if (msg->bio) {
+		} else if (ceph_msg_has_bio(msg)) {
 			struct bio_vec *bv;
 
 			bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
@@ -1908,13 +1915,13 @@ static int read_partial_msg_data(struct ceph_connection *con)
 
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	while (msg_pos->data_pos < data_len) {
-		if (msg->pages) {
+		if (ceph_msg_has_pages(msg)) {
 			ret = read_partial_message_pages(con, msg->pages,
 						 data_len, do_datacrc);
 			if (ret <= 0)
 				return ret;
 #ifdef CONFIG_BLOCK
-		} else if (msg->bio) {
+		} else if (ceph_msg_has_bio(msg)) {
 			ret = read_partial_message_bio(con,
 						 data_len, do_datacrc);
 			if (ret <= 0)
@@ -2946,16 +2953,19 @@ void ceph_msg_last_put(struct kref *kref)
 		ceph_buffer_put(m->middle);
 		m->middle = NULL;
 	}
-	m->length = 0;
-	m->pages = NULL;
+	if (ceph_msg_has_pages(m)) {
+		m->length = 0;
+		m->pages = NULL;
+	}
 
-	if (m->pagelist) {
+	if (ceph_msg_has_pagelist(m)) {
 		ceph_pagelist_release(m->pagelist);
 		kfree(m->pagelist);
 		m->pagelist = NULL;
 	}
 
-	m->trail = NULL;
+	if (ceph_msg_has_trail(m))
+		m->trail = NULL;
 
 	if (m->pool)
 		ceph_msgpool_put(m->pool, m);
