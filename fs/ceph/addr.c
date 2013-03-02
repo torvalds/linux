@@ -314,7 +314,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		return PTR_ERR(req);
 
 	/* build page vector */
-	nr_pages = len >> PAGE_CACHE_SHIFT;
+	nr_pages = calc_pages_for(0, len);
 	pages = kmalloc(sizeof(*pages) * nr_pages, GFP_NOFS);
 	ret = -ENOMEM;
 	if (!pages)
