@@ -1546,9 +1546,18 @@ struct ftrace_module_file_ops {
 	struct file_operations		filter;
 };
 
-static struct ftrace_module_file_ops *find_ftrace_file_ops(struct module *mod)
+static struct ftrace_module_file_ops *
+find_ftrace_file_ops(struct ftrace_module_file_ops *file_ops, struct module *mod)
 {
-	struct ftrace_module_file_ops *file_ops;
+	/*
+	 * As event_calls are added in groups by module,
+	 * when we find one file_ops, we don't need to search for
+	 * each call in that module, as the rest should be the
+	 * same. Only search for a new one if the last one did
+	 * not match.
+	 */
+	if (file_ops && mod == file_ops->mod)
+		return file_ops;
 
 	list_for_each_entry(file_ops, &ftrace_module_file_list, list) {
 		if (file_ops->mod == mod)
@@ -1664,15 +1673,34 @@ static int trace_module_notify(struct notifier_block *self,
 
 	return 0;
 }
+
+static int
+__trace_add_new_mod_event(struct ftrace_event_call *call,
+			  struct trace_array *tr,
+			  struct ftrace_module_file_ops *file_ops)
+{
+	return __trace_add_new_event(call, tr,
+				     &file_ops->id, &file_ops->enable,
+				     &file_ops->filter, &file_ops->format);
+}
+
 #else
-static struct ftrace_module_file_ops *find_ftrace_file_ops(struct module *mod)
+static inline struct ftrace_module_file_ops *
+find_ftrace_file_ops(struct ftrace_module_file_ops *file_ops, struct module *mod)
 {
 	return NULL;
 }
-static int trace_module_notify(struct notifier_block *self,
-			       unsigned long val, void *data)
+static inline int trace_module_notify(struct notifier_block *self,
+				      unsigned long val, void *data)
 {
 	return 0;
+}
+static inline int
+__trace_add_new_mod_event(struct ftrace_event_call *call,
+			  struct trace_array *tr,
+			  struct ftrace_module_file_ops *file_ops)
+{
+	return -ENODEV;
 }
 #endif /* CONFIG_MODULES */
 
@@ -1692,20 +1720,11 @@ __trace_add_event_dirs(struct trace_array *tr)
 			 * want the module to disappear when reading one
 			 * of these files). The file_ops keep account of
 			 * the module ref count.
-			 *
-			 * As event_calls are added in groups by module,
-			 * when we find one file_ops, we don't need to search for
-			 * each call in that module, as the rest should be the
-			 * same. Only search for a new one if the last one did
-			 * not match.
 			 */
-			if (!file_ops || call->mod != file_ops->mod)
-				file_ops = find_ftrace_file_ops(call->mod);
+			file_ops = find_ftrace_file_ops(file_ops, call->mod);
 			if (!file_ops)
 				continue; /* Warn? */
-			ret = __trace_add_new_event(call, tr,
-					&file_ops->id, &file_ops->enable,
-					&file_ops->filter, &file_ops->format);
+			ret = __trace_add_new_mod_event(call, tr, file_ops);
 			if (ret < 0)
 				pr_warning("Could not create directory for event %s\n",
 					   call->name);
@@ -1794,9 +1813,7 @@ __add_event_to_tracers(struct ftrace_event_call *call,
 
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
 		if (file_ops)
-			__trace_add_new_event(call, tr,
-					      &file_ops->id, &file_ops->enable,
-					      &file_ops->filter, &file_ops->format);
+			__trace_add_new_mod_event(call, tr, file_ops);
 		else
 			__trace_add_new_event(call, tr,
 					      &ftrace_event_id_fops,
