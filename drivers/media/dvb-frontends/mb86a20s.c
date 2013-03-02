@@ -754,7 +754,6 @@ static int mb86a20s_reset_counters(struct dvb_frontend *fe)
 
 	/* Reset the counters, if the channel changed */
 	if (state->last_frequency != c->frequency) {
-		memset(&c->strength, 0, sizeof(c->strength));
 		memset(&c->cnr, 0, sizeof(c->cnr));
 		memset(&c->pre_bit_error, 0, sizeof(c->pre_bit_error));
 		memset(&c->pre_bit_count, 0, sizeof(c->pre_bit_count));
