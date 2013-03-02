@@ -184,7 +184,7 @@ struct ceph_osd_req_op {
 		} extent;
 		struct {
 			const char *name;
-			const char  *val;
+			const void *val;
 			u32 name_len;
 			u32 value_len;
 			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
@@ -193,7 +193,7 @@ struct ceph_osd_req_op {
 		struct {
 			const char *class_name;
 			const char *method_name;
-			const char *indata;
+			const void *indata;
 			u32 indata_len;
 			__u8 class_len;
 			__u8 method_len;
