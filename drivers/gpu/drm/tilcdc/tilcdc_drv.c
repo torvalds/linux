@@ -75,7 +75,7 @@ static int modeset_init(struct drm_device *dev)
 		mod->funcs->modeset_init(mod, dev);
 	}
 
-	if ((priv->num_encoders = 0) || (priv->num_connectors == 0)) {
+	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
 		/* oh nos! */
 		dev_err(dev->dev, "no encoders/connectors found\n");
 		return -ENXIO;
