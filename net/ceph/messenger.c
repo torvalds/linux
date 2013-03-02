@@ -2699,49 +2699,19 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 {
 	struct ceph_msg *m;
 
-	m = kmalloc(sizeof(*m), flags);
+	m = kzalloc(sizeof(*m), flags);
 	if (m == NULL)
 		goto out;
-	kref_init(&m->kref);
 
-	m->con = NULL;
-	INIT_LIST_HEAD(&m->list_head);
-
-	m->hdr.tid = 0;
 	m->hdr.type = cpu_to_le16(type);
 	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
-	m->hdr.version = 0;
 	m->hdr.front_len = cpu_to_le32(front_len);
-	m->hdr.middle_len = 0;
-	m->hdr.data_len = 0;
-	m->hdr.data_off = 0;
-	m->hdr.reserved = 0;
-	m->footer.front_crc = 0;
-	m->footer.middle_crc = 0;
-	m->footer.data_crc = 0;
-	m->footer.flags = 0;
-	m->front_max = front_len;
-	m->front_is_vmalloc = false;
-	m->more_to_follow = false;
-	m->ack_stamp = 0;
-	m->pool = NULL;
 
-	/* middle */
-	m->middle = NULL;
-
-	/* data */
-	m->page_count = 0;
-	m->page_alignment = 0;
-	m->pages = NULL;
-	m->pagelist = NULL;
-#ifdef	CONFIG_BLOCK
-	m->bio = NULL;
-	m->bio_iter = NULL;
-	m->bio_seg = 0;
-#endif	/* CONFIG_BLOCK */
-	m->trail = NULL;
+	INIT_LIST_HEAD(&m->list_head);
+	kref_init(&m->kref);
 
 	/* front */
+	m->front_max = front_len;
 	if (front_len) {
 		if (front_len > PAGE_CACHE_SIZE) {
 			m->front.iov_base = __vmalloc(front_len, flags,
