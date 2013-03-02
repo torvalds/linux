@@ -420,7 +420,6 @@ __mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
 		return NULL;
 
 	sta->plink_state = NL80211_PLINK_LISTEN;
-	init_timer(&sta->plink_timer);
 
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
