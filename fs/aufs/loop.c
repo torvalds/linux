@@ -51,12 +51,14 @@ int au_test_loopback_kthread(void)
 {
 	int ret;
 	struct task_struct *tsk = current;
+	char c, comm[sizeof(tsk->comm)];
 
 	ret = 0;
 	if (tsk->flags & PF_KTHREAD) {
-		const char c = tsk->comm[4];
+		get_task_comm(comm, tsk);
+		c = comm[4];
 		ret = ('0' <= c && c <= '9'
-		       && !strncmp(tsk->comm, "loop", 4));
+		       && !strncmp(comm, "loop", 4));
 	}
 
 	return ret;
