@@ -30,8 +30,9 @@
 #define pr_fmt(fmt)	AUFS_NAME " %s:%d: " fmt, __func__, __LINE__
 #include <linux/sched.h>
 #undef pr_fmt
-#define pr_fmt(fmt)	AUFS_NAME " %s:%d:%s[%d]: " fmt, \
-		__func__, __LINE__, current->comm, current->pid
+#define pr_fmt(fmt) \
+		AUFS_NAME " %s:%d:%.*s[%d]: " fmt, __func__, __LINE__, \
+		(int)sizeof(current->comm), current->comm, current->pid
 #else
 #include <stdint.h>
 #include <sys/types.h>
