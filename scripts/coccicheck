@@ -11,7 +11,7 @@ else
 	VERBOSE=0
 fi
 
-FLAGS="-very_quiet"
+FLAGS="$SPFLAGS -very_quiet"
 
 # spatch only allows include directories with the syntax "-I include"
 # while gcc also allows "-Iinclude" and "-include include"
