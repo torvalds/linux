@@ -305,7 +305,7 @@ static const struct tilcdc_module_ops panel_module_ops = {
  */
 
 /* maybe move this somewhere common if it is needed by other outputs? */
-static struct tilcdc_panel_info * of_get_panel_info(struct device_node *np)
+static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 {
 	struct device_node *info_np;
 	struct tilcdc_panel_info *info;
