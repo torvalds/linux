@@ -362,7 +362,7 @@ static const struct {
 	uint8_t  rev;
 	uint8_t  save;
 	uint32_t reg;
-} registers[] = 	{
+} registers[] =		{
 #define REG(rev, save, reg) { #reg, rev, save, reg }
 		/* exists in revision 1: */
 		REG(1, false, LCDC_PID_REG),
