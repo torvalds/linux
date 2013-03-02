@@ -3490,7 +3490,6 @@ static struct ceph_msg *mds_alloc_msg(struct ceph_connection *con,
 		       type, front_len);
 		return NULL;
 	}
-	msg->page_alignment = (unsigned int) le16_to_cpu(hdr->data_off);
 
 	return msg;
 }
