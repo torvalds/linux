@@ -1196,7 +1196,7 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 EXPORT_SYMBOL_GPL(rpc_max_payload);
 
 /**
- * rpc_get_timeout - Get timeout for transport in tenths of seconds
+ * rpc_get_timeout - Get timeout for transport in units of HZ
  * @clnt: RPC client to query
  */
 unsigned long rpc_get_timeout(struct rpc_clnt *clnt)
