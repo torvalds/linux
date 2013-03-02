@@ -1268,7 +1268,6 @@ struct ext4_sb_info {
 	atomic_t s_mb_preallocated;
 	atomic_t s_mb_discarded;
 	atomic_t s_lock_busy;
-	atomic_t s_extent_cache_cnt;
 
 	/* locality groups */
 	struct ext4_locality_group __percpu *s_locality_groups;
@@ -1310,6 +1309,7 @@ struct ext4_sb_info {
 	/* Reclaim extents from extent status tree */
 	struct shrinker s_es_shrinker;
 	struct list_head s_es_lru;
+	struct percpu_counter s_extent_cache_cnt;
 	spinlock_t s_es_lru_lock ____cacheline_aligned_in_smp;
 };
 

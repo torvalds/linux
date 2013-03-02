@@ -305,7 +305,7 @@ ext4_es_alloc_extent(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len,
 	 */
 	if (!ext4_es_is_delayed(es)) {
 		EXT4_I(inode)->i_es_lru_nr++;
-		atomic_inc(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
+		percpu_counter_inc(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
 	}
 
 	return es;
@@ -317,7 +317,7 @@ static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 	if (!ext4_es_is_delayed(es)) {
 		BUG_ON(EXT4_I(inode)->i_es_lru_nr == 0);
 		EXT4_I(inode)->i_es_lru_nr--;
-		atomic_dec(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
+		percpu_counter_dec(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
 	}
 
 	kmem_cache_free(ext4_es_cachep, es);
@@ -678,7 +678,7 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	int nr_to_scan = sc->nr_to_scan;
 	int ret, nr_shrunk = 0;
 
-	ret = atomic_read(&sbi->s_extent_cache_cnt);
+	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
 	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
 
 	if (!nr_to_scan)
@@ -711,7 +711,7 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	list_splice_tail(&scanned, &sbi->s_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
 
-	ret = atomic_read(&sbi->s_extent_cache_cnt);
+	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
 	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);
 	return ret;
 }
