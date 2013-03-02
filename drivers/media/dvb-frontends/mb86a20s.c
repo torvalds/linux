@@ -1095,7 +1095,7 @@ static int mb86a20s_get_blk_error(struct dvb_frontend *fe,
 	if (rc < 0)
 		return rc;
 	*error |= rc;
-	dev_err(&state->i2c->dev, "%s: block error for layer %c: %d.\n",
+	dev_dbg(&state->i2c->dev, "%s: block error for layer %c: %d.\n",
 		__func__, 'A' + layer, *error);
 
 	/* Read Bit Count */
@@ -1386,7 +1386,7 @@ static int mb86a20s_get_main_CNR(struct dvb_frontend *fe)
 		return rc;
 
 	if (!(rc & 0x40)) {
-		dev_info(&state->i2c->dev, "%s: CNR is not available yet.\n",
+		dev_dbg(&state->i2c->dev, "%s: CNR is not available yet.\n",
 			 __func__);
 		return -EBUSY;
 	}
@@ -1441,7 +1441,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 
 	/* Check if data is available */
 	if (!(rc & 0x01)) {
-		dev_info(&state->i2c->dev,
+		dev_dbg(&state->i2c->dev,
 			"%s: MER measures aren't available yet.\n", __func__);
 		return -EBUSY;
 	}
