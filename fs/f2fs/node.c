@@ -320,15 +320,14 @@ static int get_node_path(long block, int offset[4], unsigned int noffset[4])
 	noffset[0] = 0;
 
 	if (block < direct_index) {
-		offset[n++] = block;
-		level = 0;
+		offset[n] = block;
 		goto got;
 	}
 	block -= direct_index;
 	if (block < direct_blks) {
 		offset[n++] = NODE_DIR1_BLOCK;
 		noffset[n] = 1;
-		offset[n++] = block;
+		offset[n] = block;
 		level = 1;
 		goto got;
 	}
@@ -336,7 +335,7 @@ static int get_node_path(long block, int offset[4], unsigned int noffset[4])
 	if (block < direct_blks) {
 		offset[n++] = NODE_DIR2_BLOCK;
 		noffset[n] = 2;
-		offset[n++] = block;
+		offset[n] = block;
 		level = 1;
 		goto got;
 	}
@@ -346,7 +345,7 @@ static int get_node_path(long block, int offset[4], unsigned int noffset[4])
 		noffset[n] = 3;
 		offset[n++] = block / direct_blks;
 		noffset[n] = 4 + offset[n - 1];
-		offset[n++] = block % direct_blks;
+		offset[n] = block % direct_blks;
 		level = 2;
 		goto got;
 	}
@@ -356,7 +355,7 @@ static int get_node_path(long block, int offset[4], unsigned int noffset[4])
 		noffset[n] = 4 + dptrs_per_blk;
 		offset[n++] = block / direct_blks;
 		noffset[n] = 5 + dptrs_per_blk + offset[n - 1];
-		offset[n++] = block % direct_blks;
+		offset[n] = block % direct_blks;
 		level = 2;
 		goto got;
 	}
@@ -371,7 +370,7 @@ static int get_node_path(long block, int offset[4], unsigned int noffset[4])
 		noffset[n] = 7 + (dptrs_per_blk * 2) +
 			      offset[n - 2] * (dptrs_per_blk + 1) +
 			      offset[n - 1];
-		offset[n++] = block % direct_blks;
+		offset[n] = block % direct_blks;
 		level = 3;
 		goto got;
 	} else {
