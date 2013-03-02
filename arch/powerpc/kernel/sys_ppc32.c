@@ -117,23 +117,6 @@ long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 			     advice);
 }
 
-asmlinkage long compat_sys_add_key(const char __user *_type,
-			      const char __user *_description,
-			      const void __user *_payload,
-			      u32 plen,
-			      u32 ringid)
-{
-	return sys_add_key(_type, _description, _payload, plen, ringid);
-}
-
-asmlinkage long compat_sys_request_key(const char __user *_type,
-				  const char __user *_description,
-				  const char __user *_callout_info,
-				  u32 destringid)
-{
-	return sys_request_key(_type, _description, _callout_info, destringid);
-}
-
 asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
 				   unsigned offset_hi, unsigned offset_lo,
 				   unsigned nbytes_hi, unsigned nbytes_lo)
