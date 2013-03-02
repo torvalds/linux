@@ -527,19 +527,19 @@ more:
 	buf_align = (unsigned long)data & ~PAGE_MASK;
 	len = left;
 
-	/* write from beginning of first page, regardless of io alignment */
-	page_align = file->f_flags & O_DIRECT ? buf_align : io_align;
-	num_pages = calc_pages_for(page_align, len);
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
 				    ceph_vino(inode), pos, &len,
 				    CEPH_OSD_OP_WRITE, flags,
 				    ci->i_snap_realm->cached_context,
 				    do_sync,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    &mtime, false, page_align);
+				    &mtime, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	/* write from beginning of first page, regardless of io alignment */
+	page_align = file->f_flags & O_DIRECT ? buf_align : io_align;
+	num_pages = calc_pages_for(page_align, len);
 	if (file->f_flags & O_DIRECT) {
 		pages = ceph_get_direct_page_vector(data, num_pages, false);
 		if (IS_ERR(pages)) {
@@ -573,6 +573,7 @@ more:
 	}
 	req->r_pages = pages;
 	req->r_num_pages = num_pages;
+	req->r_page_alignment = page_align;
 	req->r_inode = inode;
 
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);

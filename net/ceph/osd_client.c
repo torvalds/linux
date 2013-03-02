@@ -432,8 +432,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       u32 truncate_seq,
 					       u64 truncate_size,
 					       struct timespec *mtime,
-					       bool use_mempool,
-					       int page_align)
+					       bool use_mempool)
 {
 	struct ceph_osd_req_op ops[2];
 	struct ceph_osd_request *req;
@@ -469,11 +468,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
-
-	/* The alignment may differ from the natural (file) alignment */
-
-	req->r_num_pages = calc_pages_for(page_align, *plen);
-	req->r_page_alignment = page_align;
 
 	ceph_osdc_build_request(req, off, *plen, num_op, ops,
 				snapc, vino.snap, mtime);
@@ -1945,12 +1939,14 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 	req = ceph_osdc_new_request(osdc, layout, vino, off, plen,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, 0, truncate_seq, truncate_size, NULL,
-				    false, page_align);
+				    false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
 	/* it may be a short read due to an object boundary */
 	req->r_pages = pages;
+	req->r_num_pages = calc_pages_for(page_align, *plen);
+	req->r_page_alignment = page_align;
 
 	dout("readpages  final extent is %llu~%llu (%d pages align %d)\n",
 	     off, *plen, req->r_num_pages, page_align);
@@ -1986,14 +1982,15 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
 				    snapc, 0,
 				    truncate_seq, truncate_size, mtime,
-				    true, page_align);
+				    true);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
 	/* it may be a short write due to an object boundary */
 	req->r_pages = pages;
-	dout("writepages %llu~%llu (%d pages)\n", off, len,
-	     req->r_num_pages);
+	req->r_num_pages = calc_pages_for(page_align, len);
+	req->r_page_alignment = page_align;
+	dout("writepages %llu~%llu (%d pages)\n", off, len, req->r_num_pages);
 
 	rc = ceph_osdc_start_request(osdc, req, true);
 	if (!rc)

@@ -309,7 +309,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, 0,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    NULL, false, 0);
+				    NULL, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -338,6 +338,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	}
 	req->r_pages = pages;
 	req->r_num_pages = nr_pages;
+	req->r_page_alignment = 0;
 	req->r_callback = finish_read;
 	req->r_inode = inode;
 
@@ -820,7 +821,7 @@ get_more_pages:
 					    snapc, do_sync,
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
-					    &inode->i_mtime, true, 0);
+					    &inode->i_mtime, true);
 
 				if (IS_ERR(req)) {
 					rc = PTR_ERR(req);
@@ -828,6 +829,8 @@ get_more_pages:
 					break;
 				}
 
+				req->r_num_pages = calc_pages_for(0, len);
+				req->r_page_alignment = 0;
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);
