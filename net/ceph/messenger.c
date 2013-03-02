@@ -2718,7 +2718,6 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	m->page_count = 0;
 	m->page_alignment = 0;
 	m->pages = NULL;
-	m->pagelist_count = 0;
 	m->pagelist = NULL;
 #ifdef	CONFIG_BLOCK
 	m->bio = NULL;
@@ -2898,7 +2897,6 @@ void ceph_msg_last_put(struct kref *kref)
 		ceph_pagelist_release(m->pagelist);
 		kfree(m->pagelist);
 		m->pagelist = NULL;
-		m->pagelist_count = 0;
 	}
 
 	m->trail = NULL;
