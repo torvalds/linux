@@ -80,12 +80,18 @@ static int omap3pandora_hw_params(struct snd_pcm_substream *substream,
 static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
+	int ret;
+
 	/*
 	 * The PCM1773 DAC datasheet requires 1ms delay between switching
 	 * VCC power on/off and /PD pin high/low
 	 */
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		regulator_enable(omap3pandora_dac_reg);
+		ret = regulator_enable(omap3pandora_dac_reg);
+		if (ret) {
+			dev_err(w->dapm.dev, "Failed to power DAC: %d\n", ret);
+			return ret;
+		}
 		mdelay(1);
 		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 1);
 	} else {
