@@ -39,3 +39,5 @@ brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o
 brcmfmac-$(CONFIG_BRCMDBG) += \
 		dhd_dbg.o
+brcmfmac-$(CONFIG_BRCM_TRACING) += \
+		tracepoint.o

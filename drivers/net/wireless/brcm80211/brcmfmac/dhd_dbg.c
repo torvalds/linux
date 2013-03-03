@@ -22,6 +22,7 @@
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
+#include "tracepoint.h"
 
 static struct dentry *root_folder;
 
