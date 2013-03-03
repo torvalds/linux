@@ -1775,7 +1775,7 @@ brcmf_sdbrcm_wait_event_wakeup(struct brcmf_sdio *bus)
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
 static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
-			      uint chan, bool free_pkt)
+			      uint chan)
 {
 	int ret;
 	u8 *frame;
@@ -1805,10 +1805,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 
 			pkt_align(new, pkt->len, BRCMF_SDALIGN);
 			memcpy(new->data, pkt->data, pkt->len);
-			if (free_pkt)
-				brcmu_pkt_buf_free_skb(pkt);
-			/* free the pkt if canned one is not used */
-			free_pkt = true;
+			brcmu_pkt_buf_free_skb(pkt);
 			pkt = new;
 			frame = (u8 *) (pkt->data);
 			/* precondition: (frame % BRCMF_SDALIGN) == 0) */
@@ -1901,10 +1898,6 @@ done:
 	/* restore pkt buffer pointer before calling tx complete routine */
 	skb_pull(pkt, SDPCM_HDRLEN + pad);
 	brcmf_txcomplete(bus->sdiodev->dev, pkt, ret != 0);
-
-	if (free_pkt)
-		brcmu_pkt_buf_free_skb(pkt);
-
 	return ret;
 }
 
@@ -1932,7 +1925,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 		spin_unlock_bh(&bus->txqlock);
 		datalen = pkt->len - SDPCM_HDRLEN;
 
-		ret = brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_DATA_CHANNEL, true);
+		ret = brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_DATA_CHANNEL);
 
 		/* In poll mode, need to check for other events */
 		if (!bus->intr && cnt) {
@@ -2343,7 +2336,6 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	if (!brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec)) {
 		skb_pull(pkt, SDPCM_HDRLEN);
 		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
-		brcmu_pkt_buf_free_skb(pkt);
 		brcmf_err("out of bus->txq !!!\n");
 		ret = -ENOSR;
 	} else {

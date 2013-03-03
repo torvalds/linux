@@ -364,7 +364,7 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
-		return;
+		goto done;
 
 	if (res == 0) {
 		eh = (struct ethhdr *)(txp->data);
@@ -378,6 +378,9 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 	}
 	if (!success)
 		ifp->stats.tx_errors++;
+
+done:
+	brcmu_pkt_buf_free_skb(txp);
 }
 
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
