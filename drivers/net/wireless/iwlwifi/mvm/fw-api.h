@@ -801,6 +801,7 @@ struct iwl_phy_context_cmd {
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
  *	calculation
+ * @mac_active_msk: what MACs were active when the frame was received
  *
  * Before each Rx, the device sends this data. It contains PHY information
  * about the reception of the packet.
@@ -818,7 +819,7 @@ struct iwl_rx_phy_info {
 	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
-	__le16 reserved2;
+	__le16 mac_active_msk;
 	__le16 frame_time;
 } __packed;
 
