@@ -49,7 +49,7 @@ static int container_device_attach(struct acpi_device *device,
 	return 1;
 }
 
-static struct acpi_scan_handler container_device_handler = {
+static struct acpi_scan_handler container_handler = {
 	.ids = container_device_ids,
 	.attach = container_device_attach,
 	.hotplug = {
@@ -60,5 +60,5 @@ static struct acpi_scan_handler container_device_handler = {
 
 void __init acpi_container_init(void)
 {
-	acpi_scan_add_handler(&container_device_handler);
+	acpi_scan_add_handler_with_hotplug(&container_handler, "container");
 }
