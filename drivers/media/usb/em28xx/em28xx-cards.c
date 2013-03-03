@@ -2737,6 +2737,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
 	{
 		struct tveeprom tv;
 
