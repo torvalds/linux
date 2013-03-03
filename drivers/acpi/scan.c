@@ -1673,22 +1673,32 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	return 0;
 }
 
+static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
+				       char *idstr,
+				       const struct acpi_device_id **matchid)
+{
+	const struct acpi_device_id *devid;
+
+	for (devid = handler->ids; devid->id[0]; devid++)
+		if (!strcmp((char *)devid->id, idstr)) {
+			if (matchid)
+				*matchid = devid;
+
+			return true;
+		}
+
+	return false;
+}
+
 static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
 					const struct acpi_device_id **matchid)
 {
 	struct acpi_scan_handler *handler;
 
-	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node) {
-		const struct acpi_device_id *devid;
+	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node)
+		if (acpi_scan_handler_matching(handler, idstr, matchid))
+			return handler;
 
-		for (devid = handler->ids; devid->id[0]; devid++)
-			if (!strcmp((char *)devid->id, idstr)) {
-				if (matchid)
-					*matchid = devid;
-
-				return handler;
-			}
-	}
 	return NULL;
 }
 
