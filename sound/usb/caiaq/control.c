@@ -17,6 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <sound/control.h>

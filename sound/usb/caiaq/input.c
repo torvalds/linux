@@ -16,6 +16,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
+#include <linux/device.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/usb.h>
@@ -340,6 +341,8 @@ static void snd_usb_caiaq_tks4_dispatch(struct snd_usb_caiaqdev *cdev,
 					const unsigned char *buf,
 					unsigned int len)
 {
+	struct device *dev = caiaqdev_to_dev(cdev);
+
 	while (len) {
 		unsigned int i, block_id = (buf[0] << 8) | buf[1];
 
@@ -466,7 +469,7 @@ static void snd_usb_caiaq_tks4_dispatch(struct snd_usb_caiaqdev *cdev,
 			break;
 
 		default:
-			debug("%s(): bogus block (id %d)\n",
+			dev_dbg(dev, "%s(): bogus block (id %d)\n",
 				__func__, block_id);
 			return;
 		}
@@ -500,6 +503,7 @@ static void snd_usb_caiaq_maschine_dispatch(struct snd_usb_caiaqdev *cdev,
 static void snd_usb_caiaq_ep4_reply_dispatch(struct urb *urb)
 {
 	struct snd_usb_caiaqdev *cdev = urb->context;
+	struct device *dev = caiaqdev_to_dev(cdev);
 	unsigned char *buf = urb->transfer_buffer;
 	int ret;
 
@@ -535,7 +539,7 @@ requeue:
 	cdev->ep4_in_urb->actual_length = 0;
 	ret = usb_submit_urb(cdev->ep4_in_urb, GFP_ATOMIC);
 	if (ret < 0)
-		log("unable to submit urb. OOM!?\n");
+		dev_err(dev, "unable to submit urb. OOM!?\n");
 }
 
 static int snd_usb_caiaq_input_open(struct input_dev *idev)

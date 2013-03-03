@@ -16,6 +16,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
+#include <linux/device.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -101,8 +102,9 @@ all_substreams_zero(struct snd_pcm_substream **subs)
 static int stream_start(struct snd_usb_caiaqdev *cdev)
 {
 	int i, ret;
+	struct device *dev = caiaqdev_to_dev(cdev);
 
-	debug("%s(%p)\n", __func__, cdev);
+	dev_dbg(dev, "%s(%p)\n", __func__, cdev);
 
 	if (cdev->streaming)
 		return -EINVAL;
@@ -118,7 +120,8 @@ static int stream_start(struct snd_usb_caiaqdev *cdev)
 	for (i = 0; i < N_URBS; i++) {
 		ret = usb_submit_urb(cdev->data_urbs_in[i], GFP_ATOMIC);
 		if (ret) {
-			log("unable to trigger read #%d! (ret %d)\n", i, ret);
+			dev_err(dev, "unable to trigger read #%d! (ret %d)\n",
+				i, ret);
 			cdev->streaming = 0;
 			return -EPIPE;
 		}
@@ -130,8 +133,9 @@ static int stream_start(struct snd_usb_caiaqdev *cdev)
 static void stream_stop(struct snd_usb_caiaqdev *cdev)
 {
 	int i;
+	struct device *dev = caiaqdev_to_dev(cdev);
 
-	debug("%s(%p)\n", __func__, cdev);
+	dev_dbg(dev, "%s(%p)\n", __func__, cdev);
 	if (!cdev->streaming)
 		return;
 
@@ -150,17 +154,21 @@ static void stream_stop(struct snd_usb_caiaqdev *cdev)
 static int snd_usb_caiaq_substream_open(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(substream);
-	debug("%s(%p)\n", __func__, substream);
+	struct device *dev = caiaqdev_to_dev(cdev);
+
+	dev_dbg(dev, "%s(%p)\n", __func__, substream);
 	substream->runtime->hw = cdev->pcm_info;
 	snd_pcm_limit_hw_rates(substream->runtime);
+
 	return 0;
 }
 
 static int snd_usb_caiaq_substream_close(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(substream);
+	struct device *dev = caiaqdev_to_dev(cdev);
 
-	debug("%s(%p)\n", __func__, substream);
+	dev_dbg(dev, "%s(%p)\n", __func__, substream);
 	if (all_substreams_zero(cdev->sub_playback) &&
 	    all_substreams_zero(cdev->sub_capture)) {
 		/* when the last client has stopped streaming,
@@ -175,14 +183,12 @@ static int snd_usb_caiaq_substream_close(struct snd_pcm_substream *substream)
 static int snd_usb_caiaq_pcm_hw_params(struct snd_pcm_substream *sub,
 				       struct snd_pcm_hw_params *hw_params)
 {
-	debug("%s(%p)\n", __func__, sub);
 	return snd_pcm_lib_malloc_pages(sub, params_buffer_bytes(hw_params));
 }
 
 static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 {
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(sub);
-	debug("%s(%p)\n", __func__, sub);
 	deactivate_substream(cdev, sub);
 	return snd_pcm_lib_free_pages(sub);
 }
@@ -201,8 +207,9 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 	int index = substream->number;
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct device *dev = caiaqdev_to_dev(cdev);
 
-	debug("%s(%p)\n", __func__, substream);
+	dev_dbg(dev, "%s(%p)\n", __func__, substream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		int out_pos;
@@ -283,8 +290,9 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 static int snd_usb_caiaq_pcm_trigger(struct snd_pcm_substream *sub, int cmd)
 {
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(sub);
+	struct device *dev = caiaqdev_to_dev(cdev);
 
-	debug("%s(%p) cmd %d\n", __func__, sub, cmd);
+	dev_dbg(dev, "%s(%p) cmd %d\n", __func__, sub, cmd);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -443,6 +451,7 @@ static void read_in_urb_mode3(struct snd_usb_caiaqdev *cdev,
 			      const struct usb_iso_packet_descriptor *iso)
 {
 	unsigned char *usb_buf = urb->transfer_buffer + iso->offset;
+	struct device *dev = caiaqdev_to_dev(cdev);
 	int stream, i;
 
 	/* paranoia check */
@@ -479,8 +488,8 @@ static void read_in_urb_mode3(struct snd_usb_caiaqdev *cdev,
 				if (usb_buf[i] != ((stream << 1) | c) &&
 				    !cdev->first_packet) {
 					if (!cdev->input_panic)
-						printk(" EXPECTED: %02x got %02x, c %d, stream %d, i %d\n",
-							((stream << 1) | c), usb_buf[i], c, stream, i);
+						dev_warn(dev, " EXPECTED: %02x got %02x, c %d, stream %d, i %d\n",
+							 ((stream << 1) | c), usb_buf[i], c, stream, i);
 					cdev->input_panic = 1;
 				}
 
@@ -497,6 +506,8 @@ static void read_in_urb(struct snd_usb_caiaqdev *cdev,
 			const struct urb *urb,
 			const struct usb_iso_packet_descriptor *iso)
 {
+	struct device *dev = caiaqdev_to_dev(cdev);
+
 	if (!cdev->streaming)
 		return;
 
@@ -516,7 +527,7 @@ static void read_in_urb(struct snd_usb_caiaqdev *cdev,
 	}
 
 	if ((cdev->input_panic || cdev->output_panic) && !cdev->warned) {
-		debug("streaming error detected %s %s\n",
+		dev_warn(dev, "streaming error detected %s %s\n",
 				cdev->input_panic ? "(input)" : "",
 				cdev->output_panic ? "(output)" : "");
 		cdev->warned = 1;
@@ -619,6 +630,7 @@ static void read_completed(struct urb *urb)
 {
 	struct snd_usb_caiaq_cb_info *info = urb->context;
 	struct snd_usb_caiaqdev *cdev;
+	struct device *dev;
 	struct urb *out = NULL;
 	int i, frame, len, send_it = 0, outframe = 0;
 	size_t offset = 0;
@@ -627,6 +639,7 @@ static void read_completed(struct urb *urb)
 		return;
 
 	cdev = info->cdev;
+	dev = caiaqdev_to_dev(cdev);
 
 	if (!cdev->streaming)
 		return;
@@ -639,7 +652,7 @@ static void read_completed(struct urb *urb)
 		}
 
 	if (!out) {
-		log("Unable to find an output urb to use\n");
+		dev_err(dev, "Unable to find an output urb to use\n");
 		goto requeue;
 	}
 
@@ -708,6 +721,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 	int i, frame;
 	struct urb **urbs;
 	struct usb_device *usb_dev = cdev->chip.dev;
+	struct device *dev = caiaqdev_to_dev(cdev);
 	unsigned int pipe;
 
 	pipe = (dir == SNDRV_PCM_STREAM_PLAYBACK) ?
@@ -716,7 +730,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 
 	urbs = kmalloc(N_URBS * sizeof(*urbs), GFP_KERNEL);
 	if (!urbs) {
-		log("unable to kmalloc() urbs, OOM!?\n");
+		dev_err(dev, "unable to kmalloc() urbs, OOM!?\n");
 		*ret = -ENOMEM;
 		return NULL;
 	}
@@ -724,7 +738,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 	for (i = 0; i < N_URBS; i++) {
 		urbs[i] = usb_alloc_urb(FRAMES_PER_URB, GFP_KERNEL);
 		if (!urbs[i]) {
-			log("unable to usb_alloc_urb(), OOM!?\n");
+			dev_err(dev, "unable to usb_alloc_urb(), OOM!?\n");
 			*ret = -ENOMEM;
 			return urbs;
 		}
@@ -732,7 +746,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 		urbs[i]->transfer_buffer =
 			kmalloc(FRAMES_PER_URB * BYTES_PER_FRAME, GFP_KERNEL);
 		if (!urbs[i]->transfer_buffer) {
-			log("unable to kmalloc() transfer buffer, OOM!?\n");
+			dev_err(dev, "unable to kmalloc() transfer buffer, OOM!?\n");
 			*ret = -ENOMEM;
 			return urbs;
 		}
@@ -783,6 +797,7 @@ static void free_urbs(struct urb **urbs)
 int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 {
 	int i, ret;
+	struct device *dev = caiaqdev_to_dev(cdev);
 
 	cdev->n_audio_in  = max(cdev->spec.num_analog_audio_in,
 			       cdev->spec.num_digital_audio_in) /
@@ -792,12 +807,12 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 				CHANNELS_PER_STREAM;
 	cdev->n_streams = max(cdev->n_audio_in, cdev->n_audio_out);
 
-	debug("cdev->n_audio_in = %d\n", cdev->n_audio_in);
-	debug("cdev->n_audio_out = %d\n", cdev->n_audio_out);
-	debug("cdev->n_streams = %d\n", cdev->n_streams);
+	dev_dbg(dev, "cdev->n_audio_in = %d\n", cdev->n_audio_in);
+	dev_dbg(dev, "cdev->n_audio_out = %d\n", cdev->n_audio_out);
+	dev_dbg(dev, "cdev->n_streams = %d\n", cdev->n_streams);
 
 	if (cdev->n_streams > MAX_STREAMS) {
-		log("unable to initialize device, too many streams.\n");
+		dev_err(dev, "unable to initialize device, too many streams.\n");
 		return -EINVAL;
 	}
 
@@ -805,7 +820,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 			cdev->n_audio_out, cdev->n_audio_in, &cdev->pcm);
 
 	if (ret < 0) {
-		log("snd_pcm_new() returned %d\n", ret);
+		dev_err(dev, "snd_pcm_new() returned %d\n", ret);
 		return ret;
 	}
 
@@ -880,7 +895,9 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 
 void snd_usb_caiaq_audio_free(struct snd_usb_caiaqdev *cdev)
 {
-	debug("%s(%p)\n", __func__, cdev);
+	struct device *dev = caiaqdev_to_dev(cdev);
+
+	dev_dbg(dev, "%s(%p)\n", __func__, cdev);
 	stream_stop(cdev);
 	free_urbs(cdev->data_urbs_in);
 	free_urbs(cdev->data_urbs_out);

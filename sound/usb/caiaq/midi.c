@@ -16,6 +16,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
+#include <linux/device.h>
 #include <linux/usb.h>
 #include <linux/gfp.h>
 #include <sound/rawmidi.h>
@@ -65,6 +66,7 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *cdev,
 				    struct snd_rawmidi_substream *substream)
 {
 	int len, ret;
+	struct device *dev = caiaqdev_to_dev(cdev);
 
 	cdev->midi_out_buf[0] = EP1_CMD_MIDI_WRITE;
 	cdev->midi_out_buf[1] = 0; /* port */
@@ -79,9 +81,9 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *cdev,
 
 	ret = usb_submit_urb(&cdev->midi_out_urb, GFP_ATOMIC);
 	if (ret < 0)
-		log("snd_usb_caiaq_midi_send(%p): usb_submit_urb() failed,"
-		    "ret=%d, len=%d\n",
-		    substream, ret, len);
+		dev_err(dev,
+			"snd_usb_caiaq_midi_send(%p): usb_submit_urb() failed,"
+			"ret=%d, len=%d\n", substream, ret, len);
 	else
 		cdev->midi_out_active = 1;
 }
@@ -171,4 +173,3 @@ void snd_usb_caiaq_midi_output_done(struct urb* urb)
 
 	snd_usb_caiaq_midi_send(cdev, cdev->midi_out_substream);
 }
-
