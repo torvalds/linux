@@ -41,14 +41,6 @@ static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define dprintk2(lvl, fmt, args...)			\
-do {							\
-	if (i2c_debug >= lvl) {				\
-		printk(KERN_DEBUG "%s at %s: " fmt,	\
-		       dev->name, __func__ , ##args);	\
-      } 						\
-} while (0)
-
 /*
  * em2800_i2c_send_bytes()
  * send up to 4 bytes to the em2800 i2c device
@@ -295,9 +287,12 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		dprintk2(2, "%s %s addr=%x len=%d:",
-			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
-			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
+		if (i2c_debug >= 2)
+			printk(KERN_DEBUG "%s at %s: %s %s addr=%02x len=%d:",
+			       dev->name, __func__ ,
+			       (msgs[i].flags & I2C_M_RD) ? "read" : "write",
+			       i == num - 1 ? "stop" : "nonstop",
+			       addr, msgs[i].len);
 		if (!msgs[i].len) { /* no len: check only for device presence */
 			if (dev->board.is_em2800)
 				rc = em2800_i2c_check_for_device(dev, addr);
