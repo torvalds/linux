@@ -434,8 +434,12 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			printk("\n");
 	}
 
-	if (em_eeprom->id == 0x9567eb1a)
-		dev->hash = em28xx_hash_mem(eedata, len, 32);
+	if (em_eeprom->id != 0x9567eb1a) {
+		em28xx_errdev("Unknown eeprom type or eeprom corrupted !");
+		return -ENODEV;
+	}
+
+	dev->hash = em28xx_hash_mem(eedata, len, 32);
 
 	em28xx_info("EEPROM ID = 0x%08x, EEPROM hash = 0x%08lx\n",
 		    em_eeprom->id, dev->hash);
