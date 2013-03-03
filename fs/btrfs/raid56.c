@@ -31,6 +31,7 @@
 #include <linux/hash.h>
 #include <linux/list_sort.h>
 #include <linux/raid/xor.h>
+#include <linux/vmalloc.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
