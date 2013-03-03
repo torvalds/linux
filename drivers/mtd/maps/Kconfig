@@ -429,7 +429,7 @@ config MTD_GPIO_ADDR
 
 config MTD_UCLINUX
 	bool "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_RAM=y && (!MMU || COLDFIRE)
+	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
 	help
 	  Map driver to support image based filesystems for uClinux.
 
