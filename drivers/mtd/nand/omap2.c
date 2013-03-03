@@ -1701,8 +1701,9 @@ static int omap3_init_bch(struct mtd_info *mtd, int ecc_opt)
 		elm_node = of_find_node_by_phandle(be32_to_cpup(parp));
 		pdev = of_find_device_by_node(elm_node);
 		info->elm_dev = &pdev->dev;
-		elm_config(info->elm_dev, bch_type);
-		info->is_elm_used = true;
+
+		if (elm_config(info->elm_dev, bch_type) == 0)
+			info->is_elm_used = true;
 	}
 
 	if (info->is_elm_used && (mtd->writesize <= 4096)) {
