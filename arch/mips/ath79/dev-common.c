@@ -102,12 +102,15 @@ void __init ath79_register_uart(void)
 	}
 }
 
-static struct platform_device ath79_wdt_device = {
-	.name		= "ath79-wdt",
-	.id		= -1,
-};
-
 void __init ath79_register_wdt(void)
 {
-	platform_device_register(&ath79_wdt_device);
+	struct resource res;
+
+	memset(&res, 0, sizeof(res));
+
+	res.flags = IORESOURCE_MEM;
+	res.start = AR71XX_RESET_BASE + AR71XX_RESET_REG_WDOG_CTRL;
+	res.end = res.start + 0x8 - 1;
+
+	platform_device_register_simple("ath79-wdt", -1, &res, 1);
 }
