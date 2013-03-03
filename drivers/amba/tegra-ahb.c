@@ -129,7 +129,7 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 	writel(value, ahb->regs + offset);
 }
 
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+#ifdef CONFIG_TEGRA_IOMMU_SMMU
 static int tegra_ahb_match_by_smmu(struct device *dev, void *data)
 {
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);

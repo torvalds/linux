@@ -22,12 +22,14 @@
 	.macro	DBGSTR, str
 #ifdef DEBUG
 	stmfd	sp!, {r0-r3, ip, lr}
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 
@@ -35,12 +37,14 @@
 #ifdef DEBUG
 	stmfd	sp!, {r0-r3, ip, lr}
 	mov	r1, \arg
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 
@@ -50,12 +54,14 @@
 	mov	r3, \arg3
 	mov	r2, \arg2
 	mov	r1, \arg1
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 

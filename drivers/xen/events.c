@@ -840,7 +840,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 
 	if (irq == -1) {
 		irq = xen_allocate_irq_dynamic();
-		if (irq == -1)
+		if (irq < 0)
 			goto out;
 
 		irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
@@ -944,7 +944,7 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 
 	if (irq == -1) {
 		irq = xen_allocate_irq_dynamic();
-		if (irq == -1)
+		if (irq < 0)
 			goto out;
 
 		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,

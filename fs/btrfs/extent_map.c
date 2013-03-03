@@ -288,7 +288,8 @@ out:
 void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
 {
 	clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
-	try_merge_map(tree, em);
+	if (em->in_tree)
+		try_merge_map(tree, em);
 }
 
 /**

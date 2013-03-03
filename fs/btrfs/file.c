@@ -293,15 +293,24 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	struct btrfs_key key;
 	struct btrfs_ioctl_defrag_range_args range;
 	int num_defrag;
+	int index;
+	int ret;
 
 	/* get the inode */
 	key.objectid = defrag->root;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 	key.offset = (u64)-1;
+
+	index = srcu_read_lock(&fs_info->subvol_srcu);
+
 	inode_root = btrfs_read_fs_root_no_name(fs_info, &key);
 	if (IS_ERR(inode_root)) {
-		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
-		return PTR_ERR(inode_root);
+		ret = PTR_ERR(inode_root);
+		goto cleanup;
+	}
+	if (btrfs_root_refs(&inode_root->root_item) == 0) {
+		ret = -ENOENT;
+		goto cleanup;
 	}
 
 	key.objectid = defrag->ino;
@@ -309,9 +318,10 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 	inode = btrfs_iget(fs_info->sb, &key, inode_root, NULL);
 	if (IS_ERR(inode)) {
-		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
-		return PTR_ERR(inode);
+		ret = PTR_ERR(inode);
+		goto cleanup;
 	}
+	srcu_read_unlock(&fs_info->subvol_srcu, index);
 
 	/* do a chunk of defrag */
 	clear_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags);
@@ -346,6 +356,10 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 
 	iput(inode);
 	return 0;
+cleanup:
+	srcu_read_unlock(&fs_info->subvol_srcu, index);
+	kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
+	return ret;
 }
 
 /*
@@ -1594,9 +1608,10 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		if (err < 0 && num_written > 0)
 			num_written = err;
 	}
-out:
+
 	if (sync)
 		atomic_dec(&BTRFS_I(inode)->sync_writers);
+out:
 	sb_end_write(inode->i_sb);
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
