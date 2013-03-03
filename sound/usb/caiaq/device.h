@@ -124,15 +124,15 @@ struct snd_usb_caiaqdev {
 };
 
 struct snd_usb_caiaq_cb_info {
-	struct snd_usb_caiaqdev *dev;
+	struct snd_usb_caiaqdev *cdev;
 	int index;
 };
 
 #define caiaqdev(c) ((struct snd_usb_caiaqdev*)(c)->private_data)
 
-int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev, int rate, int depth, int bbp);
-int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev, int digital, int analog, int erp);
-int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
+int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *cdev, int rate, int depth, int bbp);
+int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *cdev, int digital, int analog, int erp);
+int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *cdev,
 			       unsigned char command,
 			       const unsigned char *buffer,
 			       int len);
