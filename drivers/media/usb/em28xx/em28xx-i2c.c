@@ -370,49 +370,67 @@ static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
 	return (hash >> (32 - bits)) & 0xffffffffUL;
 }
 
+/* Helper function to read data blocks from i2c clients with 8 or 16 bit
+ * address width, 8 bit register width and auto incrementation been activated */
+static int em28xx_i2c_read_block(struct em28xx *dev, u16 addr, bool addr_w16,
+				 u16 len, u8 *data)
+{
+	int remain = len, rsize, rsize_max, ret;
+	u8 buf[2];
+
+	/* Sanity check */
+	if (addr + remain > (addr_w16 * 0xff00 + 0xff + 1))
+		return -EINVAL;
+	/* Select address */
+	buf[0] = addr >> 8;
+	buf[1] = addr & 0xff;
+	ret = i2c_master_send(&dev->i2c_client, buf + !addr_w16, 1 + addr_w16);
+	if (ret < 0)
+		return ret;
+	/* Read data */
+	if (dev->board.is_em2800)
+		rsize_max = 4;
+	else
+		rsize_max = 64;
+	while (remain > 0) {
+		if (remain > rsize_max)
+			rsize = rsize_max;
+		else
+			rsize = remain;
+
+		ret = i2c_master_recv(&dev->i2c_client, data, rsize);
+		if (ret < 0)
+			return ret;
+
+		remain -= rsize;
+		data += rsize;
+	}
+
+	return len;
+}
+
 static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
-	unsigned char buf[2], *p = eedata;
+	unsigned char buf, *p = eedata;
 	struct em28xx_eeprom *em_eeprom = (void *)eedata;
-	int i, err, size = len, block, block_max;
+	int i, err;
 
 	dev->i2c_client.addr = 0xa0 >> 1;
 
 	/* Check if board has eeprom */
-	err = i2c_master_recv(&dev->i2c_client, buf, 0);
+	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
 	if (err < 0) {
 		em28xx_info("board has no eeprom\n");
 		memset(eedata, 0, len);
 		return -ENODEV;
 	}
 
-	/* Select address memory address 0x00(00) */
-	buf[0] = 0;
-	buf[1] = 0;
-	err = i2c_master_send(&dev->i2c_client, buf, 1 + dev->eeprom_addrwidth_16bit);
-	if (err != 1 + dev->eeprom_addrwidth_16bit) {
+	/* Read EEPROM content */
+	err = em28xx_i2c_read_block(dev, 0x0000, dev->eeprom_addrwidth_16bit,
+				    len, p);
+	if (err != len) {
 		em28xx_errdev("failed to read eeprom (err=%d)\n", err);
 		return err;
-	}
-
-	/* Read eeprom content */
-	if (dev->board.is_em2800)
-		block_max = 4;
-	else
-		block_max = 64;
-	while (size > 0) {
-		if (size > block_max)
-			block = block_max;
-		else
-			block = size;
-
-		if (block !=
-		    (err = i2c_master_recv(&dev->i2c_client, p, block))) {
-			em28xx_errdev("i2c eeprom read error (err=%d)\n", err);
-			return err;
-		}
-		size -= block;
-		p += block;
 	}
 
 	/* Display eeprom content */
