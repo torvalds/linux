@@ -272,7 +272,7 @@ static void pkt_set_sum_good(struct sk_buff *skb, bool x)
 	skb->ip_summed = (x ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 }
 
-void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
+void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 			 struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
@@ -280,7 +280,6 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 	brcmf_dbg(CDC, "Enter\n");
 
 	/* Push BDC header used to convey priority for buses that don't */
-
 	skb_push(pktbuf, BDC_HEADER_LEN);
 
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
@@ -291,7 +290,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 
 	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
-	h->data_offset = 0;
+	h->data_offset = offset;
 	BDC_SET_IF_IDX(h, ifidx);
 }
 

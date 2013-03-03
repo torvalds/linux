@@ -231,7 +231,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		atomic_inc(&ifp->pend_8021x_cnt);
 
 	/* If the protocol uses a data header, apply it */
-	brcmf_proto_hdrpush(drvr, ifp->ifidx, skb);
+	brcmf_proto_hdrpush(drvr, ifp->ifidx, 0, skb);
 
 	/* Use bus module to send data frame */
 	ret =  brcmf_bus_txdata(drvr->bus_if, skb);
