@@ -34,6 +34,7 @@
 #include "mac80211_if.h"
 #include "main.h"
 #include "debug.h"
+#include "led.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
 #define BRCMS_FLUSH_TIMEOUT	500 /* msec */
@@ -904,6 +905,7 @@ static void brcms_remove(struct bcma_device *pdev)
 	struct brcms_info *wl = hw->priv;
 
 	if (wl->wlc) {
+		brcms_led_unregister(wl);
 		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 		ieee80211_unregister_hw(hw);
@@ -1151,6 +1153,8 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 		pr_err("%s: brcms_attach failed!\n", __func__);
 		return -ENODEV;
 	}
+	brcms_led_register(wl);
+
 	return 0;
 }
 

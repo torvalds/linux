@@ -20,8 +20,10 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/leds.h>
 
 #include "ucode_loader.h"
+#include "led.h"
 /*
  * Starting index for 5G rates in the
  * legacy rate table.
@@ -81,6 +83,8 @@ struct brcms_info {
 	struct wiphy *wiphy;
 	struct brcms_ucode ucode;
 	bool mute_tx;
+	struct brcms_led radio_led;
+	struct led_classdev led_dev;
 };
 
 /* misc callbacks */
