@@ -439,10 +439,7 @@ struct acpi_bus_type {
 	struct list_head list;
 	const char *name;
 	bool (*match)(struct device *dev);
-	/* For general devices under the bus */
 	int (*find_device) (struct device *, acpi_handle *);
-	/* For bridges, such as PCI root bridge, IDE controller */
-	int (*find_bridge) (struct device *, acpi_handle *);
 	void (*setup)(struct device *);
 	void (*cleanup)(struct device *);
 };

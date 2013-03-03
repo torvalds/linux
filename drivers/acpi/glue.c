@@ -78,22 +78,6 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 	return ret;
 }
 
-static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
-{
-	struct acpi_bus_type *tmp;
-	int ret = -ENODEV;
-
-	down_read(&bus_type_sem);
-	list_for_each_entry(tmp, &bus_type_list, list) {
-		if (tmp->find_bridge && !tmp->find_bridge(dev, handle)) {
-			ret = 0;
-			break;
-		}
-	}
-	up_read(&bus_type_sem);
-	return ret;
-}
-
 static acpi_status do_acpi_find_child(acpi_handle handle, u32 lvl_not_used,
 				      void *addr_p, void **ret_p)
 {
@@ -262,15 +246,7 @@ static int acpi_platform_notify(struct device *dev)
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
-	if (ret) {
-		if (!type) {
-			ret = acpi_find_bridge_device(dev, &handle);
-			if (!ret)
-				ret = acpi_bind_one(dev, handle);
-
-			goto out;
-		}
-
+	if (ret && type) {
 		ret = type->find_device(dev, &handle);
 		if (ret) {
 			DBG("Unable to get handle for %s\n", dev_name(dev));
