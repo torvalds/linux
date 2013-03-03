@@ -372,46 +372,34 @@ static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
 
 static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
-	unsigned char buf, *p = eedata;
+	unsigned char buf[2], *p = eedata;
 	struct em28xx_eeprom *em_eeprom = (void *)eedata;
 	int i, err, size = len, block, block_max;
-
-	if (dev->chip_id == CHIP_ID_EM2874 ||
-	    dev->chip_id == CHIP_ID_EM28174 ||
-	    dev->chip_id == CHIP_ID_EM2884) {
-		/* Empia switched to a 16-bit addressable eeprom in newer
-		   devices.  While we could certainly write a routine to read
-		   the eeprom, there is nothing of use in there that cannot be
-		   accessed through registers, and there is the risk that we
-		   could corrupt the eeprom (since a 16-bit read call is
-		   interpreted as a write call by 8-bit eeproms).
-		*/
-		return 0;
-	}
 
 	dev->i2c_client.addr = 0xa0 >> 1;
 
 	/* Check if board has eeprom */
-	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
+	err = i2c_master_recv(&dev->i2c_client, buf, 0);
 	if (err < 0) {
 		em28xx_info("board has no eeprom\n");
 		memset(eedata, 0, len);
 		return -ENODEV;
 	}
 
-	buf = 0;
-
-	err = i2c_master_send(&dev->i2c_client, &buf, 1);
-	if (err != 1) {
+	/* Select address memory address 0x00(00) */
+	buf[0] = 0;
+	buf[1] = 0;
+	err = i2c_master_send(&dev->i2c_client, buf, 1 + dev->eeprom_addrwidth_16bit);
+	if (err != 1 + dev->eeprom_addrwidth_16bit) {
 		em28xx_errdev("failed to read eeprom (err=%d)\n", err);
 		return err;
 	}
 
+	/* Read eeprom content */
 	if (dev->board.is_em2800)
 		block_max = 4;
 	else
 		block_max = 64;
-
 	while (size > 0) {
 		if (size > block_max)
 			block = block_max;
@@ -426,17 +414,48 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		size -= block;
 		p += block;
 	}
+
+	/* Display eeprom content */
 	for (i = 0; i < len; i++) {
-		if (0 == (i % 16))
-			em28xx_info("i2c eeprom %02x:", i);
+		if (0 == (i % 16)) {
+			if (dev->eeprom_addrwidth_16bit)
+				em28xx_info("i2c eeprom %04x:", i);
+			else
+				em28xx_info("i2c eeprom %02x:", i);
+		}
 		printk(" %02x", eedata[i]);
 		if (15 == (i % 16))
 			printk("\n");
 	}
 
-	if (em_eeprom->id[0] != 0x1a || em_eeprom->id[1] != 0xeb ||
-	    em_eeprom->id[2] != 0x67 || em_eeprom->id[3] != 0x95) {
-		em28xx_errdev("Unknown eeprom type or eeprom corrupted !");
+	if (dev->eeprom_addrwidth_16bit &&
+	    eedata[0] == 0x26 && eedata[3] == 0x00) {
+		/* new eeprom format; size 4-64kb */
+		dev->hash = em28xx_hash_mem(eedata, len, 32);
+		em28xx_info("EEPROM hash = 0x%08lx\n", dev->hash);
+		em28xx_info("EEPROM info: boot page address = 0x%02x04, "
+			    "boot configuration = 0x%02x\n",
+			    eedata[1], eedata[2]);
+		/* boot configuration (address 0x0002):
+		 * [0]   microcode download speed: 1 = 400 kHz; 0 = 100 kHz
+		 * [1]   always selects 12 kb RAM
+		 * [2]   USB device speed: 1 = force Full Speed; 0 = auto detect
+		 * [4]   1 = force fast mode and no suspend for device testing
+		 * [5:7] USB PHY tuning registers; determined by device
+		 *       characterization
+		 */
+
+		/* FIXME:
+		 * - read more than 256 bytes / addresses above 0x00ff
+		 * - find offset for device config dataset and extract it
+		 * - decrypt eeprom data for camera bridges (em25xx, em276x+)
+		 * - use separate/different eeprom hashes (not yet used)
+		 */
+
+		return 0;
+	} else if (em_eeprom->id[0] != 0x1a || em_eeprom->id[1] != 0xeb ||
+		   em_eeprom->id[2] != 0x67 || em_eeprom->id[3] != 0x95) {
+		em28xx_info("unknown eeprom format or eeprom corrupted !\n");
 		return -ENODEV;
 	}
 

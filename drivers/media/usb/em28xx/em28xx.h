@@ -510,6 +510,7 @@ struct em28xx {
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
 	struct i2c_client i2c_client;
+	unsigned char eeprom_addrwidth_16bit:1;
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	int streaming_users;    /* Number of actively streaming users */

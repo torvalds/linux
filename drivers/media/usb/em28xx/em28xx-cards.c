@@ -2183,6 +2183,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
 	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
 };
+/* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
 
 /* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
 static unsigned short saa711x_addrs[] = {
@@ -3019,11 +3020,13 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			chip_name = "em2874";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
 			break;
 		case CHIP_ID_EM28174:
 			chip_name = "em28174";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
 			break;
 		case CHIP_ID_EM2883:
 			chip_name = "em2882/3";
@@ -3033,6 +3036,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			chip_name = "em2884";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
 			break;
 		default:
 			printk(KERN_INFO DRIVER_NAME
