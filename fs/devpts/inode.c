@@ -510,6 +510,7 @@ static struct file_system_type devpts_fs_type = {
 	.fs_flags	= FS_USERNS_MOUNT | FS_USERNS_DEV_MOUNT,
 #endif
 };
+MODULE_ALIAS_FS("devpts");
 
 /*
  * The normal naming convention is simply /dev/pts/<number>; this conforms
