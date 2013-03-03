@@ -7133,7 +7133,6 @@ M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/platform/sh_veu.c
-F:	include/media/sh_veu.h
 
 SH_VOU V4L2 OUTPUT DRIVER
 M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
