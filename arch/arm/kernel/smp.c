@@ -466,8 +466,6 @@ void tick_broadcast(const struct cpumask *mask)
 {
 	smp_cross_call(mask, IPI_TIMER);
 }
-#else
-#define smp_timer_broadcast	NULL
 #endif
 
 static void broadcast_timer_set_mode(enum clock_event_mode mode,
@@ -672,6 +670,9 @@ static int cpufreq_callback(struct notifier_block *nb,
 	int cpu = freq->cpu;
 
 	if (freq->flags & CPUFREQ_CONST_LOOPS)
+		return NOTIFY_OK;
+
+	if (arm_delay_ops.const_clock)
 		return NOTIFY_OK;
 
 	if (!per_cpu(l_p_j_ref, cpu)) {
