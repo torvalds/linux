@@ -692,9 +692,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 				   "inode creation failed %d\n", err);
 			goto error;
 		}
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		d_instantiate(dentry, inode);
 	}
 	return ofid;
@@ -790,7 +788,6 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *dfid, *fid;
 	struct inode *inode;
 	char *name;
-	int result = 0;
 
 	p9_debug(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p flags: %x\n",
 		 dir, dentry->d_name.name, dentry, flags);
@@ -808,13 +805,11 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	name = (char *) dentry->d_name.name;
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
-		result = PTR_ERR(fid);
-		if (result == -ENOENT) {
-			inode = NULL;
-			goto inst_out;
+		if (fid == ERR_PTR(-ENOENT)) {
+			d_add(dentry, NULL);
+			return NULL;
 		}
-
-		return ERR_PTR(result);
+		return ERR_CAST(fid);
 	}
 	/*
 	 * Make sure we don't use a wrong inode due to parallel
@@ -826,14 +821,9 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	else
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
-		result = PTR_ERR(inode);
-		inode = NULL;
-		goto error;
+		p9_client_clunk(fid);
+		return ERR_CAST(inode);
 	}
-	result = v9fs_fid_add(dentry, fid);
-	if (result < 0)
-		goto error_iput;
-inst_out:
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -842,15 +832,13 @@ inst_out:
 	 * k/b.
 	 */
 	res = d_materialise_unique(dentry, inode);
-	if (!IS_ERR(res))
-		return res;
-	result = PTR_ERR(res);
-error_iput:
-	iput(inode);
-error:
-	p9_client_clunk(fid);
-
-	return ERR_PTR(result);
+	if (!res)
+		v9fs_fid_add(dentry, fid);
+	else if (!IS_ERR(res))
+		v9fs_fid_add(res, fid);
+	else
+		p9_client_clunk(fid);
+	return res;
 }
 
 static int

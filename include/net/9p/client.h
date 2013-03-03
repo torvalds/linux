@@ -192,7 +192,7 @@ struct p9_fid {
 	void *rdir;
 
 	struct list_head flist;
-	struct list_head dlist;	/* list of all fids attached to a dentry */
+	struct hlist_node dlist;	/* list of all fids attached to a dentry */
 };
 
 /**
