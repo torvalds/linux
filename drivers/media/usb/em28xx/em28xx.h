@@ -405,15 +405,15 @@ struct em28xx_board {
 };
 
 struct em28xx_eeprom {
-	u32 id;			/* 0x9567eb1a */
-	u16 vendor_ID;
-	u16 product_ID;
+	u8 id[4];			/* 1a eb 67 95 */
+	__le16 vendor_ID;
+	__le16 product_ID;
 
-	u16 chip_conf;
+	__le16 chip_conf;
 
-	u16 board_conf;
+	__le16 board_conf;
 
-	u16 string1, string2, string3;
+	__le16 string1, string2, string3;
 
 	u8 string_idx_table;
 };

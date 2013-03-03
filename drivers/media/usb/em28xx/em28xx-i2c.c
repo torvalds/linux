@@ -434,19 +434,21 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			printk("\n");
 	}
 
-	if (em_eeprom->id != 0x9567eb1a) {
+	if (em_eeprom->id[0] != 0x1a || em_eeprom->id[1] != 0xeb ||
+	    em_eeprom->id[2] != 0x67 || em_eeprom->id[3] != 0x95) {
 		em28xx_errdev("Unknown eeprom type or eeprom corrupted !");
 		return -ENODEV;
 	}
 
 	dev->hash = em28xx_hash_mem(eedata, len, 32);
 
-	em28xx_info("EEPROM ID = 0x%08x, EEPROM hash = 0x%08lx\n",
-		    em_eeprom->id, dev->hash);
+	em28xx_info("EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
+		    em_eeprom->id[0], em_eeprom->id[1],
+		    em_eeprom->id[2], em_eeprom->id[3], dev->hash);
 
 	em28xx_info("EEPROM info:\n");
 
-	switch (em_eeprom->chip_conf >> 4 & 0x3) {
+	switch (le16_to_cpu(em_eeprom->chip_conf) >> 4 & 0x3) {
 	case 0:
 		em28xx_info("\tNo audio on board.\n");
 		break;
@@ -461,13 +463,13 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		break;
 	}
 
-	if (em_eeprom->chip_conf & 1 << 3)
+	if (le16_to_cpu(em_eeprom->chip_conf) & 1 << 3)
 		em28xx_info("\tUSB Remote wakeup capable\n");
 
-	if (em_eeprom->chip_conf & 1 << 2)
+	if (le16_to_cpu(em_eeprom->chip_conf) & 1 << 2)
 		em28xx_info("\tUSB Self power capable\n");
 
-	switch (em_eeprom->chip_conf & 0x3) {
+	switch (le16_to_cpu(em_eeprom->chip_conf) & 0x3) {
 	case 0:
 		em28xx_info("\t500mA max power\n");
 		break;
@@ -483,9 +485,9 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	}
 	em28xx_info("\tTable at offset 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
 		    em_eeprom->string_idx_table,
-		    em_eeprom->string1,
-		    em_eeprom->string2,
-		    em_eeprom->string3);
+		    le16_to_cpu(em_eeprom->string1),
+		    le16_to_cpu(em_eeprom->string2),
+		    le16_to_cpu(em_eeprom->string3));
 
 	return 0;
 }
