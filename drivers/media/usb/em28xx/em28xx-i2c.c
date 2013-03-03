@@ -287,7 +287,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		if (i2c_debug >= 2)
+		if (i2c_debug)
 			printk(KERN_DEBUG "%s at %s: %s %s addr=%02x len=%d:",
 			       dev->name, __func__ ,
 			       (msgs[i].flags & I2C_M_RD) ? "read" : "write",
@@ -299,7 +299,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			else
 				rc = em28xx_i2c_check_for_device(dev, addr);
 			if (rc == -ENODEV) {
-				if (i2c_debug >= 2)
+				if (i2c_debug)
 					printk(" no device\n");
 				return rc;
 			}
@@ -313,13 +313,13 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 				rc = em28xx_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
-			if (i2c_debug >= 2) {
+			if (i2c_debug) {
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
 		} else {
 			/* write bytes */
-			if (i2c_debug >= 2) {
+			if (i2c_debug) {
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
@@ -334,11 +334,11 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 							   i == num - 1);
 		}
 		if (rc < 0) {
-			if (i2c_debug >= 2)
+			if (i2c_debug)
 				printk(" ERROR: %i\n", rc);
 			return rc;
 		}
-		if (i2c_debug >= 2)
+		if (i2c_debug)
 			printk("\n");
 	}
 
