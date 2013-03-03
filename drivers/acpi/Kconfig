@@ -345,9 +345,8 @@ config ACPI_CONTAINER
 	  the module will be called container.
 
 config ACPI_HOTPLUG_MEMORY
-	tristate "Memory Hotplug"
+	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
-	default n
 	help
 	  This driver supports ACPI memory hotplug.  The driver
 	  fields notifications on ACPI memory devices (PNP0C80),
