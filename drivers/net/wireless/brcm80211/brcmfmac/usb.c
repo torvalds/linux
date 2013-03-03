@@ -570,15 +570,17 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	int ret;
 
 	brcmf_dbg(USB, "Enter, skb=%p\n", skb);
-	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP)
-		return -EIO;
+	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP) {
+		ret = -EIO;
+		goto fail;
+	}
 
 	req = brcmf_usb_deq(devinfo, &devinfo->tx_freeq,
 					&devinfo->tx_freecount);
 	if (!req) {
-		brcmu_pkt_buf_free_skb(skb);
 		brcmf_err("no req to send\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	req->skb = skb;
@@ -591,18 +593,21 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	if (ret) {
 		brcmf_err("brcmf_usb_tx usb_submit_urb FAILED\n");
 		brcmf_usb_del_fromq(devinfo, req);
-		brcmu_pkt_buf_free_skb(req->skb);
 		req->skb = NULL;
 		brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req,
-						&devinfo->tx_freecount);
-	} else {
-		if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
-			!devinfo->tx_flowblock) {
-			brcmf_txflowblock(dev, true);
-			devinfo->tx_flowblock = true;
-		}
+			      &devinfo->tx_freecount);
+		goto fail;
 	}
 
+	if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
+	    !devinfo->tx_flowblock) {
+		brcmf_txflowblock(dev, true);
+		devinfo->tx_flowblock = true;
+	}
+	return 0;
+
+fail:
+	brcmf_txcomplete(dev, skb, false);
 	return ret;
 }
 
