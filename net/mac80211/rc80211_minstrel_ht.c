@@ -640,7 +640,6 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (!mi->sample_tries)
 		return -1;
 
-	mi->sample_tries--;
 	mg = &mi->groups[mi->sample_group];
 	sample_idx = sample_table[mg->column][mg->index];
 	mr = &mg->rates[sample_idx];
@@ -677,6 +676,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		if (mi->sample_slow++ > 2)
 			return -1;
 	}
+	mi->sample_tries--;
 
 	return sample_idx;
 }
