@@ -173,6 +173,29 @@ extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
 /* ip address */
 struct ipv4_addr;
 
+/*
+ * bitfield macros using masking and shift
+ *
+ * remark: the mask parameter should be a shifted mask.
+ */
+static inline void brcmu_maskset32(u32 *var, u32 mask, u8 shift, u32 value)
+{
+	value = (value << shift) & mask;
+	*var = (*var & ~mask) | value;
+}
+static inline u32 brcmu_maskget32(u32 var, u32 mask, u8 shift)
+{
+	return (var & mask) >> shift;
+}
+static inline void brcmu_maskset16(u16 *var, u16 mask, u8 shift, u16 value)
+{
+	value = (value << shift) & mask;
+	*var = (*var & ~mask) | value;
+}
+static inline u16 brcmu_maskget16(u16 var, u16 mask, u8 shift)
+{
+	return (var & mask) >> shift;
+}
 
 /* externs */
 /* format/print */
