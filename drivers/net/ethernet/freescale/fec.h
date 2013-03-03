@@ -97,6 +97,13 @@ struct bufdesc {
 	unsigned short cbd_sc;	/* Control and status info */
 	unsigned long cbd_bufaddr;	/* Buffer address */
 };
+#else
+struct bufdesc {
+	unsigned short	cbd_sc;			/* Control and status info */
+	unsigned short	cbd_datlen;		/* Data length */
+	unsigned long	cbd_bufaddr;		/* Buffer address */
+};
+#endif
 
 struct bufdesc_ex {
 	struct bufdesc desc;
@@ -106,14 +113,6 @@ struct bufdesc_ex {
 	unsigned long ts;
 	unsigned short res0[4];
 };
-
-#else
-struct bufdesc {
-	unsigned short	cbd_sc;			/* Control and status info */
-	unsigned short	cbd_datlen;		/* Data length */
-	unsigned long	cbd_bufaddr;		/* Buffer address */
-};
-#endif
 
 /*
  *	The following definitions courtesy of commproc.h, which where
