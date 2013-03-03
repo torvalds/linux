@@ -270,7 +270,7 @@ LEAF(csum_partial)
 #endif
 
 	/* odd buffer alignment? */
-#ifdef CPU_MIPSR2
+#ifdef CONFIG_CPU_MIPSR2
 	wsbh	v1, sum
 	movn	sum, v1, t7
 #else
@@ -670,7 +670,7 @@ EXC(	sb	t0, NBYTES-2(dst), .Ls_exc)
 	addu	sum, v1
 #endif
 
-#ifdef CPU_MIPSR2
+#ifdef CONFIG_CPU_MIPSR2
 	wsbh	v1, sum
 	movn	sum, v1, odd
 #else
