@@ -410,7 +410,7 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 	spin_lock_irqsave(&dca_lock, flags);
 
 	if (list_empty(&dca_domains)) {
-		raw_spin_unlock_irqrestore(&dca_lock, flags);
+		spin_unlock_irqrestore(&dca_lock, flags);
 		return;
 	}
 
