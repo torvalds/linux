@@ -85,6 +85,7 @@ struct minstrel_ht_sta {
 
 	/* best probability rate */
 	unsigned int max_prob_rate;
+	unsigned int max_prob_streams;
 
 	/* time of last status update */
 	unsigned long stats_update;
