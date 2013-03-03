@@ -562,7 +562,9 @@ struct em28xx {
 	/* resources in use */
 	unsigned int resources;
 
-	u8 *eedata;	/* currently always 256 bytes */
+	/* eeprom content */
+	u8 *eedata;
+	u16 eedata_len;
 
 	/* Isoc control struct */
 	struct em28xx_dmaqueue vidq;
