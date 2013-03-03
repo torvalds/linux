@@ -71,13 +71,26 @@ struct brcmf_proto_cdc_dcmd {
 	((hdr)->flags2 = (((hdr)->flags2 & ~BDC_FLAG2_IF_MASK) | \
 	((idx) << BDC_FLAG2_IF_SHIFT)))
 
+/**
+ * struct brcmf_proto_bdc_header - BDC header format
+ *
+ * @flags: flags contain protocol and checksum info.
+ * @priority: 802.1d priority and USB flow control info (bit 4:7).
+ * @flags2: additional flags containing dongle interface index.
+ * @data_offset: start of packet data. header is following by firmware signals.
+ */
 struct brcmf_proto_bdc_header {
 	u8 flags;
-	u8 priority;	/* 802.1d Priority, 4:7 flow control info for usb */
+	u8 priority;
 	u8 flags2;
 	u8 data_offset;
 };
 
+/*
+ * maximum length of firmware signal data between
+ * the BDC header and packet data in the tx path.
+ */
+#define BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES	12
 
 #define RETRIES 2 /* # of retries to retrieve matching dcmd response */
 #define BUS_HEADER_LEN	(16+64)		/* Must be atleast SDPCM_RESERVE
@@ -350,7 +363,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 	}
 
 	drvr->prot = cdc;
-	drvr->hdrlen += BDC_HEADER_LEN;
+	drvr->hdrlen += BDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
 	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;
