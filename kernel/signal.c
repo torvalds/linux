@@ -2653,7 +2653,7 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 	if (oset) {
 		compat_sigset_t old32;
 		sigset_to_compat(&old32, &old_set);
-		if (copy_to_user(oset, &old_set, sizeof(sigset_t)))
+		if (copy_to_user(oset, &old32, sizeof(compat_sigset_t)))
 			return -EFAULT;
 	}
 	return 0;
