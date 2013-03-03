@@ -5204,6 +5204,18 @@ F:	drivers/mtd/
 F:	include/linux/mtd/
 F:	include/uapi/mtd/
 
+METAG ARCHITECTURE
+M:	James Hogan <james.hogan@imgtec.com>
+S:	Supported
+F:	arch/metag/
+F:	Documentation/metag/
+F:	Documentation/devicetree/bindings/metag/
+F:	drivers/clocksource/metag_generic.c
+F:	drivers/irqchip/irq-metag.c
+F:	drivers/irqchip/irq-metag-ext.c
+F:	drivers/tty/metag_da.c
+F:	fs/imgdafs/
+
 MICROBLAZE ARCHITECTURE
 M:	Michal Simek <monstr@monstr.eu>
 L:	microblaze-uclinux@itee.uq.edu.au (moderated for non-subscribers)

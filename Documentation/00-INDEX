@@ -299,6 +299,8 @@ memory-hotplug.txt
 	- Hotpluggable memory support, how to use and current status.
 memory.txt
 	- info on typical Linux memory problems.
+metag/
+	- directory with info about Linux on Meta architecture.
 mips/
 	- directory with info about Linux on MIPS architecture.
 misc-devices/
