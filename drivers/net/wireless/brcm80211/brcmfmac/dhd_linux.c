@@ -40,7 +40,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 /* Error bits */
 int brcmf_msg_level;
-module_param(brcmf_msg_level, int, 0);
+module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(debug, "level of debug output");
 
 /* P2P0 enable */
 static int brcmf_p2p_enable;
