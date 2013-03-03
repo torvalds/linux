@@ -6,7 +6,6 @@
 #include "check.h"
 #include "sunxi_mbr.h"
 
-extern struct nand_disk disk_array[];
 extern __u32 calc_crc32(void * buffer, __u32 length);
 
 int sunxi_nand_partition(struct parsed_partitions *state)
@@ -40,7 +39,7 @@ int sunxi_nand_partition(struct parsed_partitions *state)
 		/* special case: last partition uses up rest of NAND space */
 		__u32 size = mbr->array[part_cnt].lenlo;
 		if (part_cnt == mbr->PartCount - 1)
-			size = disk_array[0].size - mbr->array[part_cnt].addrlo;
+			size = get_capacity(state->bdev->bd_disk) - mbr->array[part_cnt].addrlo;
 		printk(KERN_WARNING "Dev %s: part %d, start %d, size %d\n", b, part_cnt + 1,
 			mbr->array[part_cnt].addrlo, size);
 		put_partition(state, part_cnt + 1, mbr->array[part_cnt].addrlo, size);
