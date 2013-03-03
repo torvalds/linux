@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_dma.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -171,7 +172,13 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 	if (dwc->initialized == true)
 		return;
 
-	if (dws) {
+	if (dws && dws->cfg_hi == ~0 && dws->cfg_lo == ~0) {
+		/* autoconfigure based on request line from DT */
+		if (dwc->direction == DMA_MEM_TO_DEV)
+			cfghi = DWC_CFGH_DST_PER(dwc->request_line);
+		else if (dwc->direction == DMA_DEV_TO_MEM)
+			cfghi = DWC_CFGH_SRC_PER(dwc->request_line);
+	} else if (dws) {
 		/*
 		 * We need controller-specific data to set up slave
 		 * transfers.
@@ -1226,49 +1233,64 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	dev_vdbg(chan2dev(chan), "%s: done\n", __func__);
 }
 
-bool dw_dma_generic_filter(struct dma_chan *chan, void *param)
+struct dw_dma_filter_args {
+	struct dw_dma *dw;
+	unsigned int req;
+	unsigned int src;
+	unsigned int dst;
+};
+
+static bool dw_dma_generic_filter(struct dma_chan *chan, void *param)
 {
+	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 	struct dw_dma *dw = to_dw_dma(chan->device);
-	static struct dw_dma *last_dw;
-	static char *last_bus_id;
-	int i = -1;
+	struct dw_dma_filter_args *fargs = param;
+	struct dw_dma_slave *dws = &dwc->slave;
 
-	/*
-	 * dmaengine framework calls this routine for all channels of all dma
-	 * controller, until true is returned. If 'param' bus_id is not
-	 * registered with a dma controller (dw), then there is no need of
-	 * running below function for all channels of dw.
-	 *
-	 * This block of code does this by saving the parameters of last
-	 * failure. If dw and param are same, i.e. trying on same dw with
-	 * different channel, return false.
-	 */
-	if ((last_dw == dw) && (last_bus_id == param))
-		return false;
-	/*
-	 * Return true:
-	 * - If dw_dma's platform data is not filled with slave info, then all
-	 *   dma controllers are fine for transfer.
-	 * - Or if param is NULL
-	 */
-	if (!dw->sd || !param)
-		return true;
+	/* ensure the device matches our channel */
+        if (chan->device != &fargs->dw->dma)
+                return false;
 
-	while (++i < dw->sd_count) {
-		if (!strcmp(dw->sd[i].bus_id, param)) {
-			chan->private = &dw->sd[i];
-			last_dw = NULL;
-			last_bus_id = NULL;
+	dws->dma_dev	= dw->dma.dev;
+	dws->cfg_hi	= ~0;
+	dws->cfg_lo	= ~0;
+	dws->src_master	= fargs->src;
+	dws->dst_master	= fargs->dst;
 
-			return true;
-		}
-	}
+	dwc->request_line = fargs->req;
 
-	last_dw = dw;
-	last_bus_id = param;
-	return false;
+	chan->private = dws;
+
+	return true;
 }
-EXPORT_SYMBOL(dw_dma_generic_filter);
+
+static struct dma_chan *dw_dma_xlate(struct of_phandle_args *dma_spec,
+					 struct of_dma *ofdma)
+{
+	struct dw_dma *dw = ofdma->of_dma_data;
+	struct dw_dma_filter_args fargs = {
+		.dw = dw,
+	};
+	dma_cap_mask_t cap;
+
+	if (dma_spec->args_count != 3)
+		return NULL;
+
+	fargs.req = be32_to_cpup(dma_spec->args+0);
+	fargs.src = be32_to_cpup(dma_spec->args+1);
+	fargs.dst = be32_to_cpup(dma_spec->args+2);
+
+	if (WARN_ON(fargs.req >= DW_DMA_MAX_NR_REQUESTS ||
+		    fargs.src >= dw->nr_masters ||
+		    fargs.dst >= dw->nr_masters))
+		return NULL;
+
+	dma_cap_zero(cap);
+	dma_cap_set(DMA_SLAVE, cap);
+
+	/* TODO: there should be a simpler way to do this */
+	return dma_request_channel(cap, dw_dma_generic_filter, &fargs);
+}
 
 /* --------------------- Cyclic DMA API extensions -------------------- */
 
@@ -1554,9 +1576,8 @@ static void dw_dma_off(struct dw_dma *dw)
 static struct dw_dma_platform_data *
 dw_dma_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *sn, *cn, *np = pdev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	struct dw_dma_slave *sd;
 	u32 tmp, arr[4];
 
 	if (!np) {
@@ -1568,7 +1589,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "nr_channels", &pdata->nr_channels))
+	if (of_property_read_u32(np, "dma-channels", &pdata->nr_channels))
 		return NULL;
 
 	if (of_property_read_bool(np, "is_private"))
@@ -1583,7 +1604,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "block_size", &tmp))
 		pdata->block_size = tmp;
 
-	if (!of_property_read_u32(np, "nr_masters", &tmp)) {
+	if (!of_property_read_u32(np, "dma-masters", &tmp)) {
 		if (tmp > 4)
 			return NULL;
 
@@ -1594,36 +1615,6 @@ dw_dma_parse_dt(struct platform_device *pdev)
 				pdata->nr_masters))
 		for (tmp = 0; tmp < pdata->nr_masters; tmp++)
 			pdata->data_width[tmp] = arr[tmp];
-
-	/* parse slave data */
-	sn = of_find_node_by_name(np, "slave_info");
-	if (!sn)
-		return pdata;
-
-	/* calculate number of slaves */
-	tmp = of_get_child_count(sn);
-	if (!tmp)
-		return NULL;
-
-	sd = devm_kzalloc(&pdev->dev, sizeof(*sd) * tmp, GFP_KERNEL);
-	if (!sd)
-		return NULL;
-
-	pdata->sd = sd;
-	pdata->sd_count = tmp;
-
-	for_each_child_of_node(sn, cn) {
-		sd->dma_dev = &pdev->dev;
-		of_property_read_string(cn, "bus_id", &sd->bus_id);
-		of_property_read_u32(cn, "cfg_hi", &sd->cfg_hi);
-		of_property_read_u32(cn, "cfg_lo", &sd->cfg_lo);
-		if (!of_property_read_u32(cn, "src_master", &tmp))
-			sd->src_master = tmp;
-
-		if (!of_property_read_u32(cn, "dst_master", &tmp))
-			sd->dst_master = tmp;
-		sd++;
-	}
 
 	return pdata;
 }
@@ -1705,8 +1696,6 @@ static int dw_probe(struct platform_device *pdev)
 	clk_prepare_enable(dw->clk);
 
 	dw->regs = regs;
-	dw->sd = pdata->sd;
-	dw->sd_count = pdata->sd_count;
 
 	/* get hardware configuration parameters */
 	if (autocfg) {
@@ -1837,6 +1826,14 @@ static int dw_probe(struct platform_device *pdev)
 
 	dma_async_device_register(&dw->dma);
 
+	if (pdev->dev.of_node) {
+		err = of_dma_controller_register(pdev->dev.of_node,
+						 dw_dma_xlate, dw);
+		if (err && err != -ENODEV)
+			dev_err(&pdev->dev,
+				"could not register of_dma_controller\n");
+	}
+
 	return 0;
 }
 
@@ -1845,6 +1842,8 @@ static int dw_remove(struct platform_device *pdev)
 	struct dw_dma		*dw = platform_get_drvdata(pdev);
 	struct dw_dma_chan	*dwc, *_dwc;
 
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
 	dw_dma_off(dw);
 	dma_async_device_unregister(&dw->dma);
 
