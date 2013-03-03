@@ -437,7 +437,8 @@ void acpi_remove_dir(struct acpi_device *);
  */
 struct acpi_bus_type {
 	struct list_head list;
-	struct bus_type *bus;
+	const char *name;
+	bool (*match)(struct device *dev);
 	/* For general devices under the bus */
 	int (*find_device) (struct device *, acpi_handle *);
 	/* For bridges, such as PCI root bridge, IDE controller */
