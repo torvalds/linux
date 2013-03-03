@@ -409,11 +409,13 @@ static int em28xx_i2c_read_block(struct em28xx *dev, u16 addr, bool addr_w16,
 	return len;
 }
 
-static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
+static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char **eedata, int len)
 {
-	unsigned char buf, *p = eedata;
-	struct em28xx_eeprom *em_eeprom = (void *)eedata;
+	u8 buf, *data;
+	struct em28xx_eeprom *em_eeprom;
 	int i, err;
+
+	*eedata = NULL;
 
 	dev->i2c_client.addr = 0xa0 >> 1;
 
@@ -421,15 +423,19 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
 	if (err < 0) {
 		em28xx_info("board has no eeprom\n");
-		memset(eedata, 0, len);
 		return -ENODEV;
 	}
 
+	data = kzalloc(len, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
 	/* Read EEPROM content */
 	err = em28xx_i2c_read_block(dev, 0x0000, dev->eeprom_addrwidth_16bit,
-				    len, p);
+				    len, data);
 	if (err != len) {
 		em28xx_errdev("failed to read eeprom (err=%d)\n", err);
+		kfree(data);
 		return err;
 	}
 
@@ -441,19 +447,19 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			else
 				em28xx_info("i2c eeprom %02x:", i);
 		}
-		printk(" %02x", eedata[i]);
+		printk(" %02x", data[i]);
 		if (15 == (i % 16))
 			printk("\n");
 	}
 
 	if (dev->eeprom_addrwidth_16bit &&
-	    eedata[0] == 0x26 && eedata[3] == 0x00) {
+	    data[0] == 0x26 && data[3] == 0x00) {
 		/* new eeprom format; size 4-64kb */
-		dev->hash = em28xx_hash_mem(eedata, len, 32);
+		dev->hash = em28xx_hash_mem(data, len, 32);
 		em28xx_info("EEPROM hash = 0x%08lx\n", dev->hash);
 		em28xx_info("EEPROM info: boot page address = 0x%02x04, "
 			    "boot configuration = 0x%02x\n",
-			    eedata[1], eedata[2]);
+			    data[1], data[2]);
 		/* boot configuration (address 0x0002):
 		 * [0]   microcode download speed: 1 = 400 kHz; 0 = 100 kHz
 		 * [1]   always selects 12 kb RAM
@@ -471,13 +477,16 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		 */
 
 		return 0;
-	} else if (em_eeprom->id[0] != 0x1a || em_eeprom->id[1] != 0xeb ||
-		   em_eeprom->id[2] != 0x67 || em_eeprom->id[3] != 0x95) {
+	} else if (data[0] != 0x1a || data[1] != 0xeb ||
+		   data[2] != 0x67 || data[3] != 0x95) {
 		em28xx_info("unknown eeprom format or eeprom corrupted !\n");
 		return -ENODEV;
 	}
 
-	dev->hash = em28xx_hash_mem(eedata, len, 32);
+	*eedata = data;
+	em_eeprom = (void *)eedata;
+
+	dev->hash = em28xx_hash_mem(data, len, 32);
 
 	em28xx_info("EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
 		    em_eeprom->id[0], em_eeprom->id[1],
@@ -635,7 +644,7 @@ int em28xx_i2c_register(struct em28xx *dev)
 	dev->i2c_client = em28xx_client_template;
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
-	retval = em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
+	retval = em28xx_i2c_eeprom(dev, &dev->eedata, 256);
 	if ((retval < 0) && (retval != -ENODEV)) {
 		em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
 			__func__, retval);

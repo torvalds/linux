@@ -2739,6 +2739,9 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	{
 		struct tveeprom tv;
+
+		if (dev->eedata == NULL)
+			break;
 #if defined(CONFIG_MODULES) && defined(MODULE)
 		request_module("tveeprom");
 #endif
@@ -2792,7 +2795,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
 
-/*
+		/*
 		 * The Dikom DK300 is detected as an Kworld VS-DVB-T 323UR.
 		 *
 		 * This occurs because they share identical USB vendor and
@@ -2826,6 +2829,10 @@ static void em28xx_card_setup(struct em28xx *dev)
 		em28xx_errdev("not to V4L mailing list (and/or to other "
 				"addresses)\n\n");
 	}
+
+	/* Free eeprom data memory */
+	kfree(dev->eedata);
+	dev->eedata = NULL;
 
 	/* Allow override tuner type by a module parameter */
 	if (tuner >= 0)
