@@ -258,11 +258,6 @@ ENTRY(sys32_mmap2_wrapper)
 	llgtr	%r2,%r2			# struct mmap_arg_struct_emu31 *
 	jg	sys32_mmap2			# branch to system call
 
-ENTRY(compat_sys_getrusage_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct rusage_emu31 *
-	jg	compat_sys_getrusage	# branch to system call
-
 ENTRY(compat_sys_gettimeofday_wrapper)
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *

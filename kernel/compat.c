@@ -516,25 +516,6 @@ int put_compat_rusage(const struct rusage *r, struct compat_rusage __user *ru)
 	return 0;
 }
 
-asmlinkage long compat_sys_getrusage(int who, struct compat_rusage __user *ru)
-{
-	struct rusage r;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_getrusage(who, (struct rusage __user *) &r);
-	set_fs(old_fs);
-
-	if (ret)
-		return ret;
-
-	if (put_compat_rusage(&r, ru))
-		return -EFAULT;
-
-	return 0;
-}
-
 COMPAT_SYSCALL_DEFINE4(wait4,
 	compat_pid_t, pid,
 	compat_uint_t __user *, stat_addr,

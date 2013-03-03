@@ -36,7 +36,6 @@ STUB:	sra	REG1, 0, REG1; \
 	jmpl	%g1 + %lo(SYSCALL), %g0; \
 	sra	REG3, 0, REG3
 
-SIGN1(sys32_getrusage, compat_sys_getrusage, %o0)
 SIGN1(sys32_readahead, compat_sys_readahead, %o0)
 SIGN2(sys32_fadvise64, compat_sys_fadvise64, %o0, %o4)
 SIGN2(sys32_fadvise64_64, compat_sys_fadvise64_64, %o0, %o5)
