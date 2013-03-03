@@ -1276,9 +1276,9 @@ static struct dma_chan *dw_dma_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count != 3)
 		return NULL;
 
-	fargs.req = be32_to_cpup(dma_spec->args+0);
-	fargs.src = be32_to_cpup(dma_spec->args+1);
-	fargs.dst = be32_to_cpup(dma_spec->args+2);
+	fargs.req = dma_spec->args[0];
+	fargs.src = dma_spec->args[1];
+	fargs.dst = dma_spec->args[2];
 
 	if (WARN_ON(fargs.req >= DW_DMA_MAX_NR_REQUESTS ||
 		    fargs.src >= dw->nr_masters ||
