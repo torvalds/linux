@@ -197,7 +197,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	struct f2fs_dir_entry *de;
 	struct page *page;
 
-	if (dentry->d_name.len > F2FS_MAX_NAME_LEN)
+	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
