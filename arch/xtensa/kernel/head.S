@@ -86,7 +86,9 @@ ENTRY(_startup)
 	/* Clear debugging registers. */
 
 #if XCHAL_HAVE_DEBUG
+#if XCHAL_NUM_IBREAK > 0
 	wsr	a0, ibreakenable
+#endif
 	wsr	a0, icount
 	movi	a1, 15
 	wsr	a0, icountlevel
