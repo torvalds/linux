@@ -554,7 +554,8 @@ config SUN5I_NANDFLASH
 	  Nand flash driver for A12/A13
 
 config SUNXI_NAND
-        tristate
+	tristate
+	select SUNXI_NAND_PARTITION
 
 config SUNXI_NAND_COMPAT_DEV
 	depends on SUNXI_NAND

@@ -23,45 +23,9 @@
 #include "mbr.h"
 #include "../src/include/nand_oal.h"
 #include "nand_private.h"
+#include <linux/crc32.h>
 
 MBR *mbr;
-
-
-typedef struct tag_CRC32_DATA
-{
-	__u32 CRC;				//int的大小是32位
-	__u32 CRC_32_Tbl[256];	//用来保存码表
-}CRC32_DATA_t;
-
-__u32 calc_crc32(void * buffer, __u32 length)
-{
-	__u32 i, j;
-	CRC32_DATA_t crc32;		//
-	__u32 CRC32 = 0xffffffff; //设置初始值
-	crc32.CRC = 0;
-
-	for( i = 0; i < 256; ++i)//用++i以提高效率
-	{
-		crc32.CRC = i;
-		for( j = 0; j < 8 ; ++j)
-		{
-			//这个循环实际上就是用"计算法"来求取CRC的校验码
-			if(crc32.CRC & 1)
-				crc32.CRC = (crc32.CRC >> 1) ^ 0xEDB88320;
-			else //0xEDB88320就是CRC-32多项表达式的值
-				crc32.CRC >>= 1;
-		}
-		crc32.CRC_32_Tbl[i] = crc32.CRC;
-	}
-
-	CRC32 = 0xffffffff; //设置初始值
-    for( i = 0; i < length; ++i)
-    {
-        CRC32 = crc32.CRC_32_Tbl[(CRC32^((unsigned char*)buffer)[i]) & 0xff] ^ (CRC32>>8);
-    }
-    //return CRC32;
-	return CRC32^0xffffffff;
-}
 
 __s32 _get_mbr(void)
 {
@@ -81,8 +45,9 @@ __s32 _get_mbr(void)
 	{
 		if(LML_Read((MBR_START_ADDRESS + MBR_SIZE*i)/512,MBR_SIZE/512,mbr) == 0)
 		{
+			__u32 iv=0xffffffff;
 			/*checksum*/
-			if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
+			if(*(__u32 *)mbr == (crc32_le(iv,(__u8 *)mbr + 4,MBR_SIZE - 4) ^ iv))
 			{
 				mbr_get_sucess = 1;
 				break;
