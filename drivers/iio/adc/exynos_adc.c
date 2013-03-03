@@ -198,7 +198,7 @@ static const struct iio_info exynos_adc_iio_info = {
 	.indexed = 1,					\
 	.channel = _index,				\
 	.address = _index,				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.datasheet_name = _id,				\
 }
 
