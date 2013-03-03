@@ -63,6 +63,19 @@ int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 	return 0;
 }
 
+int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
+				       const char *hotplug_profile_name)
+{
+	int error;
+
+	error = acpi_scan_add_handler(handler);
+	if (error)
+		return error;
+
+	acpi_sysfs_add_hotplug_profile(&handler->hotplug, hotplug_profile_name);
+	return 0;
+}
+
 /*
  * Creates hid/cid(s) string needed for modalias and uevent
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
@@ -1688,6 +1701,52 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 		}
 
 	return false;
+}
+
+static acpi_status acpi_scan_hotplug_modify(acpi_handle handle,
+					    u32 lvl_not_used, void *data,
+					    void **ret_not_used)
+{
+	struct acpi_scan_handler *handler = data;
+	struct acpi_device_info *info;
+	bool match = false;
+
+	if (ACPI_FAILURE(acpi_get_object_info(handle, &info)))
+		return AE_OK;
+
+	if (info->valid & ACPI_VALID_HID) {
+		char *idstr = info->hardware_id.string;
+		match = acpi_scan_handler_matching(handler, idstr, NULL);
+	}
+	kfree(info);
+	if (!match)
+		return AE_OK;
+
+	if (handler->hotplug.enabled)
+		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					    acpi_hotplug_notify_cb, NULL);
+	else
+		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					   acpi_hotplug_notify_cb);
+
+	return AE_OK;
+}
+
+void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val)
+{
+	struct acpi_scan_handler *handler;
+
+	if (!!hotplug->enabled == !!val)
+		return;
+
+	mutex_lock(&acpi_scan_lock);
+
+	hotplug->enabled = val;
+	handler = container_of(hotplug, struct acpi_scan_handler, hotplug);
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+			    acpi_scan_hotplug_modify, NULL, handler, NULL);
+
+	mutex_unlock(&acpi_scan_lock);
 }
 
 static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,

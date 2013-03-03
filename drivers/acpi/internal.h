@@ -42,6 +42,12 @@ void acpi_container_init(void);
 static inline void acpi_container_init(void) {}
 #endif
 
+void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
+				    const char *name);
+int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
+				       const char *hotplug_profile_name);
+void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
+
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
 int acpi_debugfs_init(void);
