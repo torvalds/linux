@@ -1711,10 +1711,10 @@ int insn_to_mnemonic(unsigned char *instruction, char buf[8])
 	if (!insn)
 		return -ENOENT;
 	if (insn->name[0] == '\0')
-		snprintf(buf, sizeof(buf), "%s",
+		snprintf(buf, 8, "%s",
 			 long_insn_name[(int) insn->name[1]]);
 	else
-		snprintf(buf, sizeof(buf), "%.5s", insn->name);
+		snprintf(buf, 8, "%.5s", insn->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(insn_to_mnemonic);
