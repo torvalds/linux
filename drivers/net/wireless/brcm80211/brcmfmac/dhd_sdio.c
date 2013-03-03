@@ -1546,7 +1546,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 	struct sk_buff_head pktlist;	/* needed for bus interface */
 	u16 pad;		/* Number of pad bytes to read */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
-	int sdret;		/* Return code from calls */
+	int ret;		/* Return code from calls */
 	uint rxcount = 0;	/* Total frames read */
 	struct brcmf_sdio_read *rd = &bus->cur_read, rd_new;
 	u8 head_read = 0;
@@ -1577,15 +1577,15 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		/* read header first for unknow frame length */
 		sdio_claim_host(bus->sdiodev->func[1]);
 		if (!rd->len) {
-			sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
+			ret = brcmf_sdcard_recv_buf(bus->sdiodev,
 						      bus->sdiodev->sbwad,
 						      SDIO_FUNC_2, F2SYNC,
 						      bus->rxhdr,
 						      BRCMF_FIRSTREAD);
 			bus->sdcnt.f2rxhdrs++;
-			if (sdret < 0) {
+			if (ret < 0) {
 				brcmf_err("RXHEADER FAILED: %d\n",
-					  sdret);
+					  ret);
 				bus->sdcnt.rx_hdrfail++;
 				brcmf_sdbrcm_rxfail(bus, true, true);
 				sdio_release_host(bus->sdiodev->func[1]);
@@ -1637,14 +1637,14 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		skb_pull(pkt, head_read);
 		pkt_align(pkt, rd->len_left, BRCMF_SDALIGN);
 
-		sdret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+		ret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
 					      SDIO_FUNC_2, F2SYNC, pkt);
 		bus->sdcnt.f2rxdata++;
 		sdio_release_host(bus->sdiodev->func[1]);
 
-		if (sdret < 0) {
+		if (ret < 0) {
 			brcmf_err("read %d bytes from channel %d failed: %d\n",
-				  rd->len, rd->channel, sdret);
+				  rd->len, rd->channel, ret);
 			brcmu_pkt_buf_free_skb(pkt);
 			sdio_claim_host(bus->sdiodev->func[1]);
 			brcmf_sdbrcm_rxfail(bus, true,

@@ -28,6 +28,7 @@
 #include "dhd.h"
 #include "dhd_proto.h"
 #include "dhd_bus.h"
+#include "fwsignal.h"
 #include "dhd_dbg.h"
 
 struct brcmf_proto_cdc_dcmd {
@@ -294,7 +295,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
+int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 			struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
@@ -341,7 +342,10 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;
 
 	skb_pull(pktbuf, BDC_HEADER_LEN);
-	skb_pull(pktbuf, h->data_offset << 2);
+	if (do_fws)
+		brcmf_fws_hdrpull(drvr, *ifidx, h->data_offset << 2, pktbuf);
+	else
+		skb_pull(pktbuf, h->data_offset << 2);
 
 	if (pktbuf->len == 0)
 		return -ENODATA;

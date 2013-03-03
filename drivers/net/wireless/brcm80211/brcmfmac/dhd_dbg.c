@@ -124,3 +124,44 @@ void brcmf_debugfs_create_sdio_count(struct brcmf_pub *drvr,
 		debugfs_create_file("counters", S_IRUGO, dentry,
 				    sdcnt, &brcmf_debugfs_sdio_counter_ops);
 }
+
+static
+ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
+				     size_t count, loff_t *ppos)
+{
+	struct brcmf_fws_stats *fwstats = f->private_data;
+	char buf[100];
+	int res;
+
+	/* only allow read from start */
+	if (*ppos > 0)
+		return 0;
+
+	res = scnprintf(buf, sizeof(buf),
+			"header_pulls:     %u\n"
+			"header_only_pkt:  %u\n"
+			"tlv_parse_failed: %u\n"
+			"tlv_invalid_type: %u\n",
+			fwstats->header_pulls,
+			fwstats->header_only_pkt,
+			fwstats->tlv_parse_failed,
+			fwstats->tlv_invalid_type);
+
+	return simple_read_from_buffer(data, count, ppos, buf, res);
+}
+
+static const struct file_operations brcmf_debugfs_fws_stats_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = brcmf_debugfs_fws_stats_read
+};
+
+void brcmf_debugfs_create_fws_stats(struct brcmf_pub *drvr,
+				    struct brcmf_fws_stats *stats)
+{
+	struct dentry *dentry =  drvr->dbgfs_dir;
+
+	if (!IS_ERR_OR_NULL(dentry))
+		debugfs_create_file("fws_stats", S_IRUGO, dentry,
+				    stats, &brcmf_debugfs_fws_stats_ops);
+}

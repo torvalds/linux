@@ -132,6 +132,13 @@ struct brcmf_sdio_count {
 	ulong rx_readahead_cnt;	/* packets where header read-ahead was used */
 };
 
+struct brcmf_fws_stats {
+	u32 tlv_parse_failed;
+	u32 tlv_invalid_type;
+	u32 header_only_pkt;
+	u32 header_pulls;
+};
+
 struct brcmf_pub;
 #ifdef DEBUG
 void brcmf_debugfs_init(void);
@@ -141,6 +148,8 @@ void brcmf_debugfs_detach(struct brcmf_pub *drvr);
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
 void brcmf_debugfs_create_sdio_count(struct brcmf_pub *drvr,
 				     struct brcmf_sdio_count *sdcnt);
+void brcmf_debugfs_create_fws_stats(struct brcmf_pub *drvr,
+				    struct brcmf_fws_stats *stats);
 #else
 static inline void brcmf_debugfs_init(void)
 {
@@ -153,6 +162,10 @@ static inline int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 	return 0;
 }
 static inline void brcmf_debugfs_detach(struct brcmf_pub *drvr)
+{
+}
+static inline void brcmf_debugfs_create_fws_stats(struct brcmf_pub *drvr,
+						  struct brcmf_fws_stats *stats)
 {
 }
 #endif

@@ -30,6 +30,7 @@
 #include "p2p.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
+#include "fwsignal.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -283,7 +284,7 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 		skb_unlink(skb, skb_list);
 
 		/* process and remove protocol-specific header */
-		ret = brcmf_proto_hdrpull(drvr, &ifidx, skb);
+		ret = brcmf_proto_hdrpull(drvr, drvr->fw_signals, &ifidx, skb);
 		ifp = drvr->iflist[ifidx];
 
 		if (ret || !ifp || !ifp->ndev) {
@@ -357,20 +358,23 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_if *ifp;
+	int res;
 
-	brcmf_proto_hdrpull(drvr, &ifidx, txp);
+	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
 		return;
 
-	eh = (struct ethhdr *)(txp->data);
-	type = ntohs(eh->h_proto);
+	if (res == 0) {
+		eh = (struct ethhdr *)(txp->data);
+		type = ntohs(eh->h_proto);
 
-	if (type == ETH_P_PAE) {
-		atomic_dec(&ifp->pend_8021x_cnt);
-		if (waitqueue_active(&ifp->pend_8021x_wait))
-			wake_up(&ifp->pend_8021x_wait);
+		if (type == ETH_P_PAE) {
+			atomic_dec(&ifp->pend_8021x_cnt);
+			if (waitqueue_active(&ifp->pend_8021x_wait))
+				wake_up(&ifp->pend_8021x_wait);
+		}
 	}
 	if (!success)
 		ifp->stats.tx_errors++;
@@ -873,6 +877,9 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		goto fail;
 
+	drvr->fw_signals = true;
+	(void)brcmf_fws_init(drvr);
+
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
@@ -889,6 +896,8 @@ fail:
 		brcmf_err("failed: %d\n", ret);
 		if (drvr->config)
 			brcmf_cfg80211_detach(drvr->config);
+		if (drvr->fws)
+			brcmf_fws_deinit(drvr);
 		free_netdev(ifp->ndev);
 		drvr->iflist[0] = NULL;
 		if (p2p_ifp) {
@@ -951,6 +960,9 @@ void brcmf_detach(struct device *dev)
 
 	if (drvr->prot)
 		brcmf_proto_detach(drvr);
+
+	if (drvr->fws)
+		brcmf_fws_deinit(drvr);
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
