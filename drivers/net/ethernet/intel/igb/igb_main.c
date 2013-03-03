@@ -169,6 +169,8 @@ static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac);
 static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 			       int vf, u16 vlan, u8 qos);
 static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
+static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
+				   bool setting);
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
 				 struct ifla_vf_info *ivi);
 static void igb_check_vf_rate_limit(struct igb_adapter *);
@@ -1896,6 +1898,7 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_set_vf_mac		= igb_ndo_set_vf_mac,
 	.ndo_set_vf_vlan	= igb_ndo_set_vf_vlan,
 	.ndo_set_vf_tx_rate	= igb_ndo_set_vf_bw,
+	.ndo_set_vf_spoofchk	= igb_ndo_set_vf_spoofchk,
 	.ndo_get_vf_config	= igb_ndo_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= igb_netpoll,
@@ -5230,6 +5233,9 @@ static int igb_vf_configure(struct igb_adapter *adapter, int vf)
 	eth_zero_addr(mac_addr);
 	igb_set_vf_mac(adapter, vf, mac_addr);
 
+	/* By default spoof check is enabled for all VFs */
+	adapter->vf_data[vf].spoofchk_enabled = true;
+
 	return 0;
 }
 
@@ -7592,6 +7598,33 @@ static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 	return 0;
 }
 
+static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
+				   bool setting)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg_val, reg_offset;
+
+	if (!adapter->vfs_allocated_count)
+		return -EOPNOTSUPP;
+
+	if (vf >= adapter->vfs_allocated_count)
+		return -EINVAL;
+
+	reg_offset = (hw->mac.type == e1000_82576) ? E1000_DTXSWC : E1000_TXSWC;
+	reg_val = rd32(reg_offset);
+	if (setting)
+		reg_val |= ((1 << vf) |
+			    (1 << (vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT)));
+	else
+		reg_val &= ~((1 << vf) |
+			     (1 << (vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT)));
+	wr32(reg_offset, reg_val);
+
+	adapter->vf_data[vf].spoofchk_enabled = setting;
+	return E1000_SUCCESS;
+}
+
 static int igb_ndo_get_vf_config(struct net_device *netdev,
 				 int vf, struct ifla_vf_info *ivi)
 {
@@ -7603,6 +7636,7 @@ static int igb_ndo_get_vf_config(struct net_device *netdev,
 	ivi->tx_rate = adapter->vf_data[vf].tx_rate;
 	ivi->vlan = adapter->vf_data[vf].pf_vlan;
 	ivi->qos = adapter->vf_data[vf].pf_qos;
+	ivi->spoofchk = adapter->vf_data[vf].spoofchk_enabled;
 	return 0;
 }
 
