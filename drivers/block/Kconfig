@@ -570,6 +570,7 @@ config SUN3I_NANDFLASH_TEST
 config SUNXI_NAND
 	depends on BLOCK
 	depends on ARCH_SUN4I || ARCH_SUN5I
+	select SUNXI_NAND_PARTITION
 	tristate "SUNXI Nandflash Driver"
 
 config SUNXI_NAND_COMPAT_DEV

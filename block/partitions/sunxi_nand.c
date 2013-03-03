@@ -5,8 +5,7 @@
 
 #include "check.h"
 #include "sunxi_mbr.h"
-
-extern __u32 calc_crc32(void * buffer, __u32 length);
+#include <linux/crc32.h>
 
 int sunxi_nand_partition(struct parsed_partitions *state)
 {
@@ -24,7 +23,8 @@ int sunxi_nand_partition(struct parsed_partitions *state)
 	bdevname(state->bdev, b);
 
 	for(i = 0; i < MBR_COPY_NUM; i++, mbr++) {
-		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
+		__u32 iv=0xffffffff;
+		if(*(__u32 *)mbr == (crc32_le(iv,(__u8 *)mbr + 4,MBR_SIZE - 4) ^ iv))
 			break;
 		printk(KERN_WARNING "Dev Sunxi %s header: CRC bad for MBR %d\n", b, i);
 	}

@@ -249,3 +249,14 @@ config SYSV68_PARTITION
 	  partition table format used by Motorola Delta machines (using
 	  sysv68).
 	  Otherwise, say N.
+
+config SUNXI_NAND_PARTITION
+	bool "sunxi nand partition table support" if PARTITION_ADVANCED
+	default y if VME
+	select CRC32
+	---help---
+	  This partition scheme is used on Allwinner sunxi nand chips connected
+	  directly to SoC.
+
+	  If unsure say N.
+
