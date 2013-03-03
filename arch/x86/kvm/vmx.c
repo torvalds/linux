@@ -7434,6 +7434,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->host_rsp);
 	kvm_register_write(vcpu, VCPU_REGS_RIP, vmcs12->host_rip);
+	vmx_set_rflags(vcpu, X86_EFLAGS_BIT1);
 	/*
 	 * Note that calling vmx_set_cr0 is important, even if cr0 hasn't
 	 * actually changed, because it depends on the current state of
