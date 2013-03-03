@@ -1197,6 +1197,21 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 EXPORT_SYMBOL_GPL(rpc_max_payload);
 
 /**
+ * rpc_get_timeout - Get timeout for transport in units of HZ
+ * @clnt: RPC client to query
+ */
+unsigned long rpc_get_timeout(struct rpc_clnt *clnt)
+{
+	unsigned long ret;
+
+	rcu_read_lock();
+	ret = rcu_dereference(clnt->cl_xprt)->timeout->to_initval;
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_get_timeout);
+
+/**
  * rpc_force_rebind - force transport to check that remote port is unchanged
  * @clnt: client to rebind
  *
