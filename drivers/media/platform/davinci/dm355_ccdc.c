@@ -85,7 +85,7 @@ static struct ccdc_oper_config {
 			.mfilt1 = CCDC_NO_MEDIAN_FILTER1,
 			.mfilt2 = CCDC_NO_MEDIAN_FILTER2,
 			.alaw = {
-				.gama_wd = 2,
+				.gamma_wd = 2,
 			},
 			.blk_clamp = {
 				.sample_pixel = 1,
@@ -303,8 +303,8 @@ static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
 	}
 
 	if (ccdcparam->alaw.enable) {
-		if (ccdcparam->alaw.gama_wd < CCDC_GAMMA_BITS_13_4 ||
-		    ccdcparam->alaw.gama_wd > CCDC_GAMMA_BITS_09_0) {
+		if (ccdcparam->alaw.gamma_wd < CCDC_GAMMA_BITS_13_4 ||
+		    ccdcparam->alaw.gamma_wd > CCDC_GAMMA_BITS_09_0) {
 			dev_dbg(ccdc_cfg.dev, "Invalid value of ALAW\n");
 			return -EINVAL;
 		}
@@ -680,8 +680,8 @@ static int ccdc_config_raw(void)
 	/* Enable and configure aLaw register if needed */
 	if (config_params->alaw.enable) {
 		val |= (CCDC_ALAW_ENABLE |
-			((config_params->alaw.gama_wd &
-			CCDC_ALAW_GAMA_WD_MASK) <<
+			((config_params->alaw.gamma_wd &
+			CCDC_ALAW_GAMMA_WD_MASK) <<
 			CCDC_GAMMAWD_INPUT_SHIFT));
 	}
 

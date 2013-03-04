@@ -604,7 +604,7 @@ static int isif_config_raw(void)
 	if (module_params->compress.alg == ISIF_ALAW)
 		val |= ISIF_ALAW_ENABLE;
 
-	val |= (params->data_msb << ISIF_ALAW_GAMA_WD_SHIFT);
+	val |= (params->data_msb << ISIF_ALAW_GAMMA_WD_SHIFT);
 	regw(val, CGAMMAWD);
 
 	/* Configure DPCM compression settings */
