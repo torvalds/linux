@@ -537,6 +537,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("AMPDUs Completed:", a_completed);
 	PR("AMPDUs Retried:  ", a_retries);
 	PR("AMPDUs XRetried: ", a_xretries);
+	PR("TXERR Filtered:  ", txerr_filtered);
 	PR("FIFO Underrun:   ", fifo_underrun);
 	PR("TXOP Exceeded:   ", xtxop);
 	PR("TXTIMER Expiry:  ", timer_exp);
@@ -756,6 +757,8 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 			TX_STAT_INC(qnum, completed);
 	}
 
+	if (ts->ts_status & ATH9K_TXERR_FILT)
+		TX_STAT_INC(qnum, txerr_filtered);
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
 		TX_STAT_INC(qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
