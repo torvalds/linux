@@ -128,33 +128,55 @@ static inline unsigned long curr_pageframes_count(void)
 		atomic_read(&zcache_pers_pageframes_atomic);
 };
 /* but for the rest of these, counting races are ok */
-extern ssize_t zcache_flush_total;
-extern ssize_t zcache_flush_found;
-extern ssize_t zcache_flobj_total;
-extern ssize_t zcache_flobj_found;
-extern ssize_t zcache_failed_eph_puts;
-extern ssize_t zcache_failed_pers_puts;
-extern ssize_t zcache_failed_getfreepages;
-extern ssize_t zcache_failed_alloc;
-extern ssize_t zcache_put_to_flush;
-extern ssize_t zcache_compress_poor;
-extern ssize_t zcache_mean_compress_poor;
-extern ssize_t zcache_eph_ate_tail;
-extern ssize_t zcache_eph_ate_tail_failed;
-extern ssize_t zcache_pers_ate_eph;
-extern ssize_t zcache_pers_ate_eph_failed;
-extern ssize_t zcache_evicted_eph_zpages;
-extern ssize_t zcache_evicted_eph_pageframes;
+static ssize_t zcache_flush_total;
+static ssize_t zcache_flush_found;
+static ssize_t zcache_flobj_total;
+static ssize_t zcache_flobj_found;
+static ssize_t zcache_failed_eph_puts;
+static ssize_t zcache_failed_pers_puts;
+static ssize_t zcache_failed_getfreepages;
+static ssize_t zcache_failed_alloc;
+static ssize_t zcache_put_to_flush;
+static ssize_t zcache_compress_poor;
+static ssize_t zcache_mean_compress_poor;
+static ssize_t zcache_eph_ate_tail;
+static ssize_t zcache_eph_ate_tail_failed;
+static ssize_t zcache_pers_ate_eph;
+static ssize_t zcache_pers_ate_eph_failed;
+static ssize_t zcache_evicted_eph_zpages;
+static ssize_t zcache_evicted_eph_pageframes;
+
 extern ssize_t zcache_last_active_file_pageframes;
 extern ssize_t zcache_last_inactive_file_pageframes;
 extern ssize_t zcache_last_active_anon_pageframes;
 extern ssize_t zcache_last_inactive_anon_pageframes;
-extern ssize_t zcache_eph_nonactive_puts_ignored;
-extern ssize_t zcache_pers_nonactive_puts_ignored;
+static ssize_t zcache_eph_nonactive_puts_ignored;
+static ssize_t zcache_pers_nonactive_puts_ignored;
 #ifdef CONFIG_ZCACHE_WRITEBACK
 extern ssize_t zcache_writtenback_pages;
 extern ssize_t zcache_outstanding_writeback_pages;
 #endif
+
+static inline void inc_zcache_flush_total(void) { zcache_flush_total ++; };
+static inline void inc_zcache_flush_found(void) { zcache_flush_found ++; };
+static inline void inc_zcache_flobj_total(void) { zcache_flobj_total ++; };
+static inline void inc_zcache_flobj_found(void) { zcache_flobj_found ++; };
+static inline void inc_zcache_failed_eph_puts(void) { zcache_failed_eph_puts ++; };
+static inline void inc_zcache_failed_pers_puts(void) { zcache_failed_pers_puts ++; };
+static inline void inc_zcache_failed_getfreepages(void) { zcache_failed_getfreepages ++; };
+static inline void inc_zcache_failed_alloc(void) { zcache_failed_alloc ++; };
+static inline void inc_zcache_put_to_flush(void) { zcache_put_to_flush ++; };
+static inline void inc_zcache_compress_poor(void) { zcache_compress_poor ++; };
+static inline void inc_zcache_mean_compress_poor(void) { zcache_mean_compress_poor ++; };
+static inline void inc_zcache_eph_ate_tail(void) { zcache_eph_ate_tail ++; };
+static inline void inc_zcache_eph_ate_tail_failed(void) { zcache_eph_ate_tail_failed ++; };
+static inline void inc_zcache_pers_ate_eph(void) { zcache_pers_ate_eph ++; };
+static inline void inc_zcache_pers_ate_eph_failed(void) { zcache_pers_ate_eph_failed ++; };
+static inline void inc_zcache_evicted_eph_zpages(unsigned zpages) { zcache_evicted_eph_zpages += zpages; };
+static inline void inc_zcache_evicted_eph_pageframes(void) { zcache_evicted_eph_pageframes ++; };
+
+static inline void inc_zcache_eph_nonactive_puts_ignored(void) { zcache_eph_nonactive_puts_ignored ++; };
+static inline void inc_zcache_pers_nonactive_puts_ignored(void) { zcache_pers_nonactive_puts_ignored ++; };
 
 int zcache_debugfs_init(void);
 #else
@@ -184,4 +206,24 @@ static inline int zcache_debugfs_init(void)
 {
 	return 0;
 };
+static inline void inc_zcache_flush_total(void) { };
+static inline void inc_zcache_flush_found(void) { };
+static inline void inc_zcache_flobj_total(void) { };
+static inline void inc_zcache_flobj_found(void) { };
+static inline void inc_zcache_failed_eph_puts(void) { };
+static inline void inc_zcache_failed_pers_puts(void) { };
+static inline void inc_zcache_failed_getfreepages(void) { };
+static inline void inc_zcache_failed_alloc(void) { };
+static inline void inc_zcache_put_to_flush(void) { };
+static inline void inc_zcache_compress_poor(void) { };
+static inline void inc_zcache_mean_compress_poor(void) { };
+static inline void inc_zcache_eph_ate_tail(void) { };
+static inline void inc_zcache_eph_ate_tail_failed(void) { };
+static inline void inc_zcache_pers_ate_eph(void) { };
+static inline void inc_zcache_pers_ate_eph_failed(void) { };
+static inline void inc_zcache_evicted_eph_zpages(unsigned zpages) { };
+static inline void inc_zcache_evicted_eph_pageframes(void) { };
+
+static inline void inc_zcache_eph_nonactive_puts_ignored(void) { };
+static inline void inc_zcache_pers_nonactive_puts_ignored(void) { };
 #endif
