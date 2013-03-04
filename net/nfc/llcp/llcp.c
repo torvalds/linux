@@ -156,6 +156,8 @@ static void local_release(struct kref *ref)
 	cancel_work_sync(&local->rx_work);
 	cancel_work_sync(&local->timeout_work);
 	kfree_skb(local->rx_pending);
+	del_timer_sync(&local->sdreq_timer);
+	cancel_work_sync(&local->sdreq_timeout_work);
 	nfc_llcp_free_sdp_tlv_list(&local->pending_sdreqs);
 	kfree(local);
 }
@@ -222,6 +224,47 @@ static void nfc_llcp_symm_timer(unsigned long data)
 	pr_err("SYMM timeout\n");
 
 	schedule_work(&local->timeout_work);
+}
+
+static void nfc_llcp_sdreq_timeout_work(struct work_struct *work)
+{
+	unsigned long time;
+	HLIST_HEAD(nl_sdres_list);
+	struct hlist_node *n;
+	struct nfc_llcp_sdp_tlv *sdp;
+	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
+						    sdreq_timeout_work);
+
+	mutex_lock(&local->sdreq_lock);
+
+	time = jiffies - msecs_to_jiffies(3 * local->remote_lto);
+
+	hlist_for_each_entry_safe(sdp, n, &local->pending_sdreqs, node) {
+		if (time_after(sdp->time, time))
+			continue;
+
+		sdp->sap = LLCP_SDP_UNBOUND;
+
+		hlist_del(&sdp->node);
+
+		hlist_add_head(&sdp->node, &nl_sdres_list);
+	}
+
+	if (!hlist_empty(&local->pending_sdreqs))
+		mod_timer(&local->sdreq_timer,
+			  jiffies + msecs_to_jiffies(3 * local->remote_lto));
+
+	mutex_unlock(&local->sdreq_lock);
+
+	if (!hlist_empty(&nl_sdres_list))
+		nfc_genl_llc_send_sdres(local->dev, &nl_sdres_list);
+}
+
+static void nfc_llcp_sdreq_timer(unsigned long data)
+{
+	struct nfc_llcp_local *local = (struct nfc_llcp_local *) data;
+
+	schedule_work(&local->sdreq_timeout_work);
 }
 
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev)
@@ -1457,6 +1500,10 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	mutex_init(&local->sdreq_lock);
 	INIT_HLIST_HEAD(&local->pending_sdreqs);
+	init_timer(&local->sdreq_timer);
+	local->sdreq_timer.data = (unsigned long) local;
+	local->sdreq_timer.function = nfc_llcp_sdreq_timer;
+	INIT_WORK(&local->sdreq_timeout_work, nfc_llcp_sdreq_timeout_work);
 
 	list_add(&local->list, &llcp_devices);
 

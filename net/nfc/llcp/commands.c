@@ -174,6 +174,8 @@ struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdreq_tlv(u8 tid, char *uri,
 	sdreq->uri = sdreq->tlv + 3;
 	memcpy(sdreq->uri, uri, uri_len);
 
+	sdreq->time = jiffies;
+
 	INIT_HLIST_NODE(&sdreq->node);
 
 	return sdreq;
@@ -570,6 +572,10 @@ int nfc_llcp_send_snl_sdreq(struct nfc_llcp_local *local,
 		return PTR_ERR(skb);
 
 	mutex_lock(&local->sdreq_lock);
+
+	if (hlist_empty(&local->pending_sdreqs))
+		mod_timer(&local->sdreq_timer,
+			  jiffies + msecs_to_jiffies(3 * local->remote_lto));
 
 	hlist_for_each_entry_safe(sdreq, n, tlv_list, node) {
 		pr_debug("tid %d for %s\n", sdreq->tid, sdreq->uri);
