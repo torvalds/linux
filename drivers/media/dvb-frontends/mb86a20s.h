@@ -21,12 +21,16 @@
 /**
  * struct mb86a20s_config - Define the per-device attributes of the frontend
  *
+ * @fclk:		Clock frequency. If zero, assumes the default
+ *			(32.57142 Mhz)
  * @demod_address:	the demodulator's i2c address
+ * @is_serial:		if true, TS is serial. Otherwise, TS is parallel
  */
 
 struct mb86a20s_config {
-	u8 demod_address;
-	bool is_serial;
+	u32	fclk;
+	u8	demod_address;
+	bool	is_serial;
 };
 
 #if defined(CONFIG_DVB_MB86A20S) || (defined(CONFIG_DVB_MB86A20S_MODULE) \
