@@ -76,6 +76,18 @@ long compat_sys_fallocate(int fd, int mode,
 			     ((loff_t)len_hi << 32) | len_lo);
 }
 
+/*
+ * Avoid bug in generic sys_llseek() that specifies offset_high and
+ * offset_low as "unsigned long", thus making it possible to pass
+ * a sign-extended high 32 bits in offset_low.
+ */
+long compat_sys_llseek(unsigned int fd, unsigned int offset_high,
+		       unsigned int offset_low, loff_t __user * result,
+		       unsigned int origin)
+{
+	return sys_llseek(fd, offset_high, offset_low, result, origin);
+}
+ 
 /* Provide the compat syscall number to call mapping. */
 #undef __SYSCALL
 #define __SYSCALL(nr, call) [nr] = (call),
@@ -83,6 +95,7 @@ long compat_sys_fallocate(int fd, int mode,
 /* See comments in sys.c */
 #define compat_sys_fadvise64_64 sys32_fadvise64_64
 #define compat_sys_readahead sys32_readahead
+#define sys_llseek compat_sys_llseek
 
 /* Call the assembly trampolines where necessary. */
 #define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
