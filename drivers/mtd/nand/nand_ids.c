@@ -10,21 +10,21 @@
  */
 #include <linux/module.h>
 #include <linux/mtd/nand.h>
-/*
-*	Chip ID list
-*
-*	Name. ID code, pagesize, chipsize in MegaByte, eraseblock size,
-*	options
-*
-*	Pagesize; 0, 256, 512
-*	0	get this information from the extended chip ID
-+	256	256 Byte page size
-*	512	512 Byte page size
-*/
-struct nand_flash_dev nand_flash_ids[] = {
+
+#define LP_OPTIONS NAND_SAMSUNG_LP_OPTIONS
+#define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)
+
 #define SP_OPTIONS NAND_NEED_READRDY
 #define SP_OPTIONS16 (SP_OPTIONS | NAND_BUSWIDTH_16)
 
+/*
+ * The chip ID list:
+ *    name, device ID, page size, chip size in MiB, eraseblock size, options
+ *
+ * If page size and eraseblock size are 0, the sizes are taken from the
+ * extended chip ID.
+ */
+struct nand_flash_dev nand_flash_ids[] = {
 #ifdef CONFIG_MTD_NAND_MUSEUM_IDS
 	{"NAND 1MiB 5V 8-bit",		0x6e, 256, 1, 0x1000, SP_OPTIONS},
 	{"NAND 2MiB 5V 8-bit",		0x64, 256, 2, 0x1000, SP_OPTIONS},
@@ -69,11 +69,9 @@ struct nand_flash_dev nand_flash_ids[] = {
 	{"NAND 256MiB 3,3V 8-bit",	0x71, 512, 256, 0x4000, SP_OPTIONS},
 
 	/*
-	 * These are the new chips with large page size. The pagesize and the
-	 * erasesize is determined from the extended id bytes
+	 * These are the new chips with large page size. Their page size and
+	 * eraseblock size are determined from the extended ID bytes.
 	 */
-#define LP_OPTIONS NAND_SAMSUNG_LP_OPTIONS
-#define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)
 
 	/* 512 Megabit */
 	{"NAND 64MiB 1,8V 8-bit",	0xA2, 0,  64, 0, LP_OPTIONS},
@@ -164,9 +162,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	{NULL,}
 };
 
-/*
-*	Manufacturer ID list
-*/
+/* Manufacturer IDs */
 struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_TOSHIBA, "Toshiba"},
 	{NAND_MFR_SAMSUNG, "Samsung"},
