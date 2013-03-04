@@ -228,9 +228,12 @@ static void ccdc_readregs(void)
 static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
 {
 	if (ccdcparam->alaw.enable) {
-		if ((ccdcparam->alaw.gama_wd > CCDC_GAMMA_BITS_09_0) ||
-		    (ccdcparam->alaw.gama_wd < CCDC_GAMMA_BITS_15_6) ||
-		    (ccdcparam->alaw.gama_wd < ccdcparam->data_sz)) {
+		u8 max_gamma = ccdc_gamma_width_max_bit(ccdcparam->alaw.gamma_wd);
+		u8 max_data = ccdc_data_size_max_bit(ccdcparam->data_sz);
+
+		if ((ccdcparam->alaw.gamma_wd > CCDC_GAMMA_BITS_09_0) ||
+		    (ccdcparam->alaw.gamma_wd < CCDC_GAMMA_BITS_15_6) ||
+		    (max_gamma > max_data)) {
 			dev_dbg(ccdc_cfg.dev, "\nInvalid data line select");
 			return -1;
 		}
@@ -560,8 +563,8 @@ void ccdc_config_raw(void)
 
 	/* Enable and configure aLaw register if needed */
 	if (config_params->alaw.enable) {
-		val = ((config_params->alaw.gama_wd &
-		      CCDC_ALAW_GAMA_WD_MASK) | CCDC_ALAW_ENABLE);
+		val = ((config_params->alaw.gamma_wd &
+		      CCDC_ALAW_GAMMA_WD_MASK) | CCDC_ALAW_ENABLE);
 		regw(val, CCDC_ALAW);
 		dev_dbg(ccdc_cfg.dev, "\nWriting 0x%x to ALAW...\n", val);
 	}
