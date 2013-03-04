@@ -1737,18 +1737,7 @@ static struct platform_driver macb_driver = {
 	},
 };
 
-static int __init macb_init(void)
-{
-	return platform_driver_probe(&macb_driver, macb_probe);
-}
-
-static void __exit macb_exit(void)
-{
-	platform_driver_unregister(&macb_driver);
-}
-
-module_init(macb_init);
-module_exit(macb_exit);
+module_platform_driver_probe(macb_driver, macb_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cadence MACB/GEM Ethernet driver");
