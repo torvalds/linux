@@ -86,10 +86,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		if (!usecs)
 			usecs = 1000000;
 
-		/* To avoid rounding issues, probabilities scale from 0 (0%)
-		 * to 18000 (100%) */
 		if (mr->attempts) {
-			mr->cur_prob = (mr->success * 18000) / mr->attempts;
+			mr->cur_prob = MINSTREL_FRAC(mr->success, mr->attempts);
 			mr->succ_hist += mr->success;
 			mr->att_hist += mr->attempts;
 			mr->probability = minstrel_ewma(mr->probability,
@@ -105,7 +103,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 
 		/* Sample less often below the 10% chance of success.
 		 * Sample less often above the 95% chance of success. */
-		if ((mr->probability > 17100) || (mr->probability < 1800)) {
+		if (mr->probability > MINSTREL_FRAC(95, 100) ||
+		    mr->probability < MINSTREL_FRAC(10, 100)) {
 			mr->adjusted_retry_count = mr->retry_count >> 1;
 			if (mr->adjusted_retry_count > 2)
 				mr->adjusted_retry_count = 2;
@@ -300,7 +299,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	/* If we're not using MRR and the sampling rate already
 	 * has a probability of >95%, we shouldn't be attempting
 	 * to use it, as this only wastes precious airtime */
-	if (!mrr && sample && (mi->r[ndx].probability > 17100))
+	if (!mrr && sample && (mi->r[ndx].probability > MINSTREL_FRAC(95, 100)))
 		ndx = mi->max_tp_rate;
 
 	ar[0].idx = mi->r[ndx].rix;

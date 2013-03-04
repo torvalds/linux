@@ -79,9 +79,9 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%3u%s", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));
 
-		tp = mr->cur_tp / ((18000 << 10) / 96);
-		prob = mr->cur_prob / 18;
-		eprob = mr->probability / 18;
+		tp = MINSTREL_TRUNC(mr->cur_tp / 10);
+		prob = MINSTREL_TRUNC(mr->cur_prob * 1000);
+		eprob = MINSTREL_TRUNC(mr->probability * 1000);
 
 		p += sprintf(p, "  %6u.%1u   %6u.%1u   %6u.%1u        "
 				"%3u(%3u)   %8llu    %8llu\n",

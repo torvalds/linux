@@ -16,11 +16,6 @@
 #define MINSTREL_MAX_STREAMS	3
 #define MINSTREL_STREAM_GROUPS	4
 
-/* scaled fraction values */
-#define MINSTREL_SCALE	16
-#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
-#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
-
 #define MCS_GROUP_RATES	8
 
 struct mcs_group {

@@ -11,6 +11,11 @@
 
 #define EWMA_LEVEL 75	/* ewma weighting factor [%] */
 
+/* scaled fraction values */
+#define MINSTREL_SCALE  16
+#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
+#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
+
 /*
  * Perform EWMA (Exponentially Weighted Moving Average) calculation
   */
