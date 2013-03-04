@@ -29,6 +29,8 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 	pci_add_resource_offset(&resources, &info->io_space,
 				info->io_space.start - 0x1000);
 	pci_add_resource(&resources, &info->mem_space);
+	info->busn.flags = IORESOURCE_BUS;
+	pci_add_resource(&resources, &info->busn);
 
 	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
 				     &resources);

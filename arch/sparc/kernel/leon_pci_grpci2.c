@@ -799,6 +799,11 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 	if (request_resource(&ioport_resource, &priv->info.io_space) < 0)
 		goto err4;
 
+	/* setup maximum supported PCI buses */
+	priv->info.busn.name = "GRPCI2 busn";
+	priv->info.busn.start = 0;
+	priv->info.busn.end = 255;
+
 	grpci2_hw_init(priv);
 
 	/*
