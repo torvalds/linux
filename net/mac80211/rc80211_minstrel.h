@@ -69,7 +69,7 @@ struct minstrel_sta_info {
 	unsigned int sample_count;
 	int sample_deferred;
 
-	unsigned int sample_idx;
+	unsigned int sample_row;
 	unsigned int sample_column;
 
 	int n_rates;
