@@ -1562,7 +1562,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		clear_super = true;
 	}
 
+	mutex_unlock(&uuid_mutex);
 	ret = btrfs_shrink_device(device, 0);
+	mutex_lock(&uuid_mutex);
 	if (ret)
 		goto error_undo;
 
