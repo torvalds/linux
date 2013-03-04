@@ -131,7 +131,7 @@ config B43_PHY_LP
 
 config B43_PHY_HT
 	bool "Support for HT-PHY (high throughput) devices"
-	depends on B43
+	depends on B43 && B43_BCMA
 	---help---
 	  Support for the HT-PHY.
 

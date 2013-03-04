@@ -346,6 +346,11 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	u16 tmp;
 	u16 clip_state[3];
 
+	if (dev->dev->bus_type != B43_BUS_BCMA) {
+		b43err(dev->wl, "HT-PHY is supported only on BCMA bus!\n");
+		return -EOPNOTSUPP;
+	}
+
 	b43_phy_ht_tables_init(dev);
 
 	b43_phy_mask(dev, 0x0be, ~0x2);
