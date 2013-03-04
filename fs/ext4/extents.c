@@ -3387,8 +3387,19 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 		"block %llu, max_blocks %u\n", inode->i_ino,
 		  (unsigned long long)ee_block, ee_len);
 
-	/* If extent is larger than requested then split is required */
+	/* If extent is larger than requested it is a clear sign that we still
+	 * have some extent state machine issues left. So extent_split is still
+	 * required.
+	 * TODO: Once all related issues will be fixed this situation should be
+	 * illegal.
+	 */
 	if (ee_block != map->m_lblk || ee_len > map->m_len) {
+#ifdef EXT4_DEBUG
+		ext4_warning("Inode (%ld) finished: extent logical block %llu,"
+			     " len %u; IO logical block %llu, len %u\n",
+			     inode->i_ino, (unsigned long long)ee_block, ee_len,
+			     (unsigned long long)map->m_lblk, map->m_len);
+#endif
 		err = ext4_split_unwritten_extents(handle, inode, map, path,
 						   EXT4_GET_BLOCKS_CONVERT);
 		if (err < 0)
