@@ -161,7 +161,6 @@ struct acpi_device_status {
 
 struct acpi_device_flags {
 	u32 dynamic_status:1;
-	u32 bus_address:1;
 	u32 removable:1;
 	u32 ejectable:1;
 	u32 suprise_removal_ok:1;
@@ -169,7 +168,7 @@ struct acpi_device_flags {
 	u32 performance_manageable:1;
 	u32 eject_pending:1;
 	u32 match_driver:1;
-	u32 reserved:23;
+	u32 reserved:24;
 };
 
 /* File System */
@@ -192,10 +191,17 @@ struct acpi_hardware_id {
 	char *id;
 };
 
+struct acpi_pnp_type {
+	u32 hardware_id:1;
+	u32 bus_address:1;
+	u32 reserved:30;
+};
+
 struct acpi_device_pnp {
-	acpi_bus_id bus_id;	/* Object name */
+	acpi_bus_id bus_id;		/* Object name */
+	struct acpi_pnp_type type;	/* ID type */
 	acpi_bus_address bus_address;	/* _ADR */
-	char *unique_id;	/* _UID */
+	char *unique_id;		/* _UID */
 	struct list_head ids;		/* _HID and _CIDs */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */

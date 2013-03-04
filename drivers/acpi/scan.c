@@ -526,7 +526,7 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
-	if (dev->flags.bus_address)
+	if (dev->pnp.type.bus_address)
 		result = device_create_file(&dev->dev, &dev_attr_adr);
 	if (dev->pnp.unique_id)
 		result = device_create_file(&dev->dev, &dev_attr_uid);
@@ -599,7 +599,7 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 
 	if (dev->pnp.unique_id)
 		device_remove_file(&dev->dev, &dev_attr_uid);
-	if (dev->flags.bus_address)
+	if (dev->pnp.type.bus_address)
 		device_remove_file(&dev->dev, &dev_attr_adr);
 	device_remove_file(&dev->dev, &dev_attr_modalias);
 	device_remove_file(&dev->dev, &dev_attr_hid);
@@ -1406,18 +1406,16 @@ static void acpi_device_get_busid(struct acpi_device *device)
 }
 
 /*
- * acpi_bay_match - see if a device is an ejectable driver bay
+ * acpi_bay_match - see if an acpi object is an ejectable driver bay
  *
  * If an acpi object is ejectable and has one of the ACPI ATA methods defined,
  * then we can safely call it an ejectable drive bay
  */
-static int acpi_bay_match(struct acpi_device *device){
+static int acpi_bay_match(acpi_handle handle)
+{
 	acpi_status status;
-	acpi_handle handle;
 	acpi_handle tmp;
 	acpi_handle phandle;
-
-	handle = device->handle;
 
 	status = acpi_get_handle(handle, "_EJ0", &tmp);
 	if (ACPI_FAILURE(status))
@@ -1442,12 +1440,12 @@ static int acpi_bay_match(struct acpi_device *device){
 }
 
 /*
- * acpi_dock_match - see if a device has a _DCK method
+ * acpi_dock_match - see if an acpi object has a _DCK method
  */
-static int acpi_dock_match(struct acpi_device *device)
+static int acpi_dock_match(acpi_handle handle)
 {
 	acpi_handle tmp;
-	return acpi_get_handle(device->handle, "_DCK", &tmp);
+	return acpi_get_handle(handle, "_DCK", &tmp);
 }
 
 const char *acpi_device_hid(struct acpi_device *device)
@@ -1462,7 +1460,7 @@ const char *acpi_device_hid(struct acpi_device *device)
 }
 EXPORT_SYMBOL(acpi_device_hid);
 
-static void acpi_add_id(struct acpi_device *device, const char *dev_id)
+static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 {
 	struct acpi_hardware_id *id;
 
@@ -1476,7 +1474,8 @@ static void acpi_add_id(struct acpi_device *device, const char *dev_id)
 		return;
 	}
 
-	list_add_tail(&id->list, &device->pnp.ids);
+	list_add_tail(&id->list, &pnp->ids);
+	pnp->type.hardware_id = 1;
 }
 
 /*
@@ -1484,7 +1483,7 @@ static void acpi_add_id(struct acpi_device *device, const char *dev_id)
  * lacks the SMBUS01 HID and the methods do not have the necessary "_"
  * prefix.  Work around this.
  */
-static int acpi_ibm_smbus_match(struct acpi_device *device)
+static int acpi_ibm_smbus_match(acpi_handle handle)
 {
 	acpi_handle h_dummy;
 	struct acpi_buffer path = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -1494,7 +1493,7 @@ static int acpi_ibm_smbus_match(struct acpi_device *device)
 		return -ENODEV;
 
 	/* Look for SMBS object */
-	result = acpi_get_name(device->handle, ACPI_SINGLE_NAME, &path);
+	result = acpi_get_name(handle, ACPI_SINGLE_NAME, &path);
 	if (result)
 		return result;
 
@@ -1505,9 +1504,9 @@ static int acpi_ibm_smbus_match(struct acpi_device *device)
 
 	/* Does it have the necessary (but misnamed) methods? */
 	result = -ENODEV;
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "SBI", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(device->handle, "SBR", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(device->handle, "SBW", &h_dummy)))
+	if (ACPI_SUCCESS(acpi_get_handle(handle, "SBI", &h_dummy)) &&
+	    ACPI_SUCCESS(acpi_get_handle(handle, "SBR", &h_dummy)) &&
+	    ACPI_SUCCESS(acpi_get_handle(handle, "SBW", &h_dummy)))
 		result = 0;
 out:
 	kfree(path.pointer);
@@ -1524,7 +1523,7 @@ static void acpi_device_set_id(struct acpi_device *device)
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_DEVICE:
 		if (ACPI_IS_ROOT_DEVICE(device)) {
-			acpi_add_id(device, ACPI_SYSTEM_HID);
+			acpi_add_id(&device->pnp, ACPI_SYSTEM_HID);
 			break;
 		}
 
@@ -1535,15 +1534,15 @@ static void acpi_device_set_id(struct acpi_device *device)
 		}
 
 		if (info->valid & ACPI_VALID_HID)
-			acpi_add_id(device, info->hardware_id.string);
+			acpi_add_id(&device->pnp, info->hardware_id.string);
 		if (info->valid & ACPI_VALID_CID) {
 			cid_list = &info->compatible_id_list;
 			for (i = 0; i < cid_list->count; i++)
-				acpi_add_id(device, cid_list->ids[i].string);
+				acpi_add_id(&device->pnp, cid_list->ids[i].string);
 		}
 		if (info->valid & ACPI_VALID_ADR) {
 			device->pnp.bus_address = info->address;
-			device->flags.bus_address = 1;
+			device->pnp.type.bus_address = 1;
 		}
 		if (info->valid & ACPI_VALID_UID)
 			device->pnp.unique_id = kstrdup(info->unique_id.string,
@@ -1555,36 +1554,36 @@ static void acpi_device_set_id(struct acpi_device *device)
 		 * Some devices don't reliably have _HIDs & _CIDs, so add
 		 * synthetic HIDs to make sure drivers can find them.
 		 */
-		if (acpi_is_video_device(device))
-			acpi_add_id(device, ACPI_VIDEO_HID);
-		else if (ACPI_SUCCESS(acpi_bay_match(device)))
-			acpi_add_id(device, ACPI_BAY_HID);
-		else if (ACPI_SUCCESS(acpi_dock_match(device)))
-			acpi_add_id(device, ACPI_DOCK_HID);
-		else if (!acpi_ibm_smbus_match(device))
-			acpi_add_id(device, ACPI_SMBUS_IBM_HID);
+		if (acpi_is_video_device(device->handle))
+			acpi_add_id(&device->pnp, ACPI_VIDEO_HID);
+		else if (ACPI_SUCCESS(acpi_bay_match(device->handle)))
+			acpi_add_id(&device->pnp, ACPI_BAY_HID);
+		else if (ACPI_SUCCESS(acpi_dock_match(device->handle)))
+			acpi_add_id(&device->pnp, ACPI_DOCK_HID);
+		else if (!acpi_ibm_smbus_match(device->handle))
+			acpi_add_id(&device->pnp, ACPI_SMBUS_IBM_HID);
 		else if (list_empty(&device->pnp.ids) &&
 			 ACPI_IS_ROOT_DEVICE(device->parent)) {
-			acpi_add_id(device, ACPI_BUS_HID); /* \_SB, LNXSYBUS */
+			acpi_add_id(&device->pnp, ACPI_BUS_HID); /* \_SB, LNXSYBUS */
 			strcpy(device->pnp.device_name, ACPI_BUS_DEVICE_NAME);
 			strcpy(device->pnp.device_class, ACPI_BUS_CLASS);
 		}
 
 		break;
 	case ACPI_BUS_TYPE_POWER:
-		acpi_add_id(device, ACPI_POWER_HID);
+		acpi_add_id(&device->pnp, ACPI_POWER_HID);
 		break;
 	case ACPI_BUS_TYPE_PROCESSOR:
-		acpi_add_id(device, ACPI_PROCESSOR_OBJECT_HID);
+		acpi_add_id(&device->pnp, ACPI_PROCESSOR_OBJECT_HID);
 		break;
 	case ACPI_BUS_TYPE_THERMAL:
-		acpi_add_id(device, ACPI_THERMAL_HID);
+		acpi_add_id(&device->pnp, ACPI_THERMAL_HID);
 		break;
 	case ACPI_BUS_TYPE_POWER_BUTTON:
-		acpi_add_id(device, ACPI_BUTTON_HID_POWERF);
+		acpi_add_id(&device->pnp, ACPI_BUTTON_HID_POWERF);
 		break;
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
-		acpi_add_id(device, ACPI_BUTTON_HID_SLEEPF);
+		acpi_add_id(&device->pnp, ACPI_BUTTON_HID_SLEEPF);
 		break;
 	}
 }

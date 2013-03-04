@@ -204,7 +204,7 @@ extern bool wmi_has_guid(const char *guid);
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
 
 extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
-extern long acpi_is_video_device(struct acpi_device *device);
+extern long acpi_is_video_device(acpi_handle handle);
 extern void acpi_video_dmi_promote_vendor(void);
 extern void acpi_video_dmi_demote_vendor(void);
 extern int acpi_video_backlight_support(void);
@@ -217,7 +217,7 @@ static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
 	return 0;
 }
 
-static inline long acpi_is_video_device(struct acpi_device *device)
+static inline long acpi_is_video_device(acpi_handle handle)
 {
 	return 0;
 }
