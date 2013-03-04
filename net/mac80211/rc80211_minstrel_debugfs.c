@@ -73,8 +73,10 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
 
-		*(p++) = (i == mi->max_tp_rate) ? 'T' : ' ';
-		*(p++) = (i == mi->max_tp_rate2) ? 't' : ' ';
+		*(p++) = (i == mi->max_tp_rate[0]) ? 'A' : ' ';
+		*(p++) = (i == mi->max_tp_rate[1]) ? 'B' : ' ';
+		*(p++) = (i == mi->max_tp_rate[2]) ? 'C' : ' ';
+		*(p++) = (i == mi->max_tp_rate[3]) ? 'D' : ' ';
 		*(p++) = (i == mi->max_prob_rate) ? 'P' : ' ';
 		p += sprintf(p, "%3u%s", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));

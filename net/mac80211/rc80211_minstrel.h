@@ -18,6 +18,9 @@
 #define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
 #define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
 
+/* number of highest throughput rates to consider*/
+#define MAX_THR_RATES 4
+
 /*
  * Perform EWMA (Exponentially Weighted Moving Average) calculation
   */
@@ -65,9 +68,8 @@ struct minstrel_sta_info {
 
 	unsigned int lowest_rix;
 
-	unsigned int max_tp_rate;
-	unsigned int max_tp_rate2;
-	unsigned int max_prob_rate;
+	u8 max_tp_rate[MAX_THR_RATES];
+	u8 max_prob_rate;
 	unsigned int packet_count;
 	unsigned int sample_count;
 	int sample_deferred;
