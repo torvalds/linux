@@ -71,7 +71,7 @@ int acpi_device_add(struct acpi_device *device,
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
-void acpi_free_ids(struct acpi_device *device);
+void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
