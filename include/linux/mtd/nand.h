@@ -145,8 +145,6 @@ typedef enum {
  */
 /* Buswidth is 16 bit */
 #define NAND_BUSWIDTH_16	0x00000002
-/* Device supports partial programming without padding */
-#define NAND_NO_PADDING		0x00000004
 /* Chip has cache program function */
 #define NAND_CACHEPRG		0x00000008
 /* Chip has copy back function */
@@ -171,11 +169,9 @@ typedef enum {
 #define NAND_SUBPAGE_READ	0x00001000
 
 /* Options valid for Samsung large page devices */
-#define NAND_SAMSUNG_LP_OPTIONS \
-	(NAND_NO_PADDING | NAND_CACHEPRG | NAND_COPYBACK)
+#define NAND_SAMSUNG_LP_OPTIONS (NAND_CACHEPRG | NAND_COPYBACK)
 
 /* Macros to identify the above */
-#define NAND_MUST_PAD(chip) (!(chip->options & NAND_NO_PADDING))
 #define NAND_HAS_CACHEPROG(chip) ((chip->options & NAND_CACHEPRG))
 #define NAND_HAS_COPYBACK(chip) ((chip->options & NAND_COPYBACK))
 #define NAND_HAS_SUBPAGE_READ(chip) ((chip->options & NAND_SUBPAGE_READ))
