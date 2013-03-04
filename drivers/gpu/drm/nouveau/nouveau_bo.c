@@ -255,7 +255,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
-	u32 vram_pages = pfb->ram.size >> PAGE_SHIFT;
+	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
 	if (nv_device(drm->device)->card_type == NV_10 &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&

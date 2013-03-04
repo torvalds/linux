@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,63 +24,48 @@
 
 #include "priv.h"
 
-#define NV04_PFB_CFG0						0x00100200
-
-struct nv04_fb_priv {
-	struct nouveau_fb base;
-};
-
-bool
-nv04_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
-{
-	if (!(tile_flags & 0xff00))
-		return true;
-
-	return false;
-}
-
 static int
-nv04_fb_init(struct nouveau_object *object)
+nv1a_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
 {
-	struct nv04_fb_priv *priv = (void *)object;
+	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nouveau_ram *ram;
+	struct pci_dev *bridge;
+	u32 mem, mib;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
+	if (!bridge) {
+		nv_fatal(pfb, "no bridge device\n");
+		return -ENODEV;
+	}
+
+	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
 
-	/* This is what the DDX did for NV_ARCH_04, but a mmio-trace shows
-	 * nvidia reading PFB_CFG_0, then writing back its original value.
-	 * (which was 0x701114 in this case)
-	 */
-	nv_wr32(priv, NV04_PFB_CFG0, 0x1114);
-	return 0;
-}
+	if (nv_device(pfb)->chipset == 0x1a) {
+		pci_read_config_dword(bridge, 0x7c, &mem);
+		mib = ((mem >> 6) & 31) + 1;
+	} else {
+		pci_read_config_dword(bridge, 0x84, &mem);
+		mib = ((mem >> 4) & 127) + 1;
+	}
 
-static int
-nv04_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv04_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &nv04_ram_oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	ram->type = NV_MEM_TYPE_STOLEN;
+	ram->size = mib * 1024 * 1024;
 	return 0;
 }
 
 struct nouveau_oclass
-nv04_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x04),
+nv1a_ram_oclass = {
+	.handle = 0,
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
-		.init = nv04_fb_init,
-		.fini = _nouveau_fb_fini,
-	},
+		.ctor = nv1a_ram_create,
+		.dtor = _nouveau_ram_dtor,
+		.init = _nouveau_ram_init,
+		.fini = _nouveau_ram_fini,
+	}
 };

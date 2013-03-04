@@ -86,8 +86,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nouveau_fb(vma->vm->vmm)->ram.stolen) {
-		phys += nouveau_fb(vma->vm->vmm)->ram.stolen;
+	if (nouveau_fb(vma->vm->vmm)->ram->stolen) {
+		phys += nouveau_fb(vma->vm->vmm)->ram->stolen;
 		target = 3;
 	}
 

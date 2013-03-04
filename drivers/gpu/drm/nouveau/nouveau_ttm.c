@@ -69,7 +69,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	nouveau_mem_node_cleanup(mem->mm_node);
-	pfb->ram.put(pfb, (struct nouveau_mem **)&mem->mm_node);
+	pfb->ram->put(pfb, (struct nouveau_mem **)&mem->mm_node);
 }
 
 static int
@@ -88,7 +88,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 
-	ret = pfb->ram.get(pfb, mem->num_pages << PAGE_SHIFT,
+	ret = pfb->ram->get(pfb, mem->num_pages << PAGE_SHIFT,
 			   mem->page_alignment << PAGE_SHIFT, size_nc,
 			   (nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret) {
@@ -386,7 +386,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available  = nouveau_fb(drm->device)->ram.size;
+	drm->gem.vram_available  = nouveau_fb(drm->device)->ram->size;
 	drm->gem.vram_available -= nouveau_instmem(drm->device)->reserved;
 
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,

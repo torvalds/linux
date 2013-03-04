@@ -24,26 +24,11 @@
  *
  */
 
-#include <subdev/fb.h>
+#include "priv.h"
 
 struct nv44_fb_priv {
 	struct nouveau_fb base;
 };
-
-int
-nv44_fb_vram_init(struct nouveau_fb *pfb)
-{
-	u32 pfb474 = nv_rd32(pfb, 0x100474);
-	if (pfb474 & 0x00000004)
-		pfb->ram.type = NV_MEM_TYPE_GDDR3;
-	if (pfb474 & 0x00000002)
-		pfb->ram.type = NV_MEM_TYPE_DDR2;
-	if (pfb474 & 0x00000001)
-		pfb->ram.type = NV_MEM_TYPE_DDR1;
-
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	return 0;
-}
 
 static void
 nv44_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -87,18 +72,17 @@ nv44_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv44_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &nv44_ram_oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv44_fb_vram_init;
 	priv->base.tile.regions = 12;
 	priv->base.tile.init = nv44_fb_tile_init;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv44_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
+	return 0;
 }
 
 
