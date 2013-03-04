@@ -2755,7 +2755,8 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		}
 
-		sdata = IEEE80211_DEV_TO_SUB_IF(skb->dev);
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			sdata = IEEE80211_DEV_TO_SUB_IF(skb->dev);
 		if (!ieee80211_tx_prepare(sdata, &tx, skb))
 			break;
 		dev_kfree_skb_any(skb);

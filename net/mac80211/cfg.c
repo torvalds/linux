@@ -3290,14 +3290,19 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	int ret = -ENODATA;
 
 	rcu_read_lock();
-	if (local->use_chanctx) {
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-		if (chanctx_conf) {
-			*chandef = chanctx_conf->def;
-			ret = 0;
-		}
-	} else if (local->open_count == local->monitors) {
-		*chandef = local->monitor_chandef;
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (chanctx_conf) {
+		*chandef = chanctx_conf->def;
+		ret = 0;
+	} else if (local->open_count > 0 &&
+		   local->open_count == local->monitors &&
+		   sdata->vif.type == NL80211_IFTYPE_MONITOR) {
+		if (local->use_chanctx)
+			*chandef = local->monitor_chandef;
+		else
+			cfg80211_chandef_create(chandef,
+						local->_oper_channel,
+						local->_oper_channel_type);
 		ret = 0;
 	}
 	rcu_read_unlock();
