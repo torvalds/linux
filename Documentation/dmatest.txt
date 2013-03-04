@@ -58,3 +58,22 @@ the above section "Part 2 - When dmatest is built as a module..."
 In both cases the module parameters are used as initial values for the test case.
 You always could check them at run-time by running
 	% grep -H . /sys/module/dmatest/parameters/*
+
+	Part 4 - Gathering the test results
+
+The module provides a storage for the test results in the memory. The gathered
+data could be used after test is done.
+
+The special file 'results' in the debugfs represents gathered data of the in
+progress test. The messages collected are printed to the kernel log as well.
+
+Example of output:
+	% cat /sys/kernel/debug/dmatest/results
+	dma0chan0-copy0: #1: No errors with src_off=0x7bf dst_off=0x8ad len=0x3fea (0)
+
+The message format is unified across the different types of errors. A number in
+the parens represents additional information, e.g. error code, error counter,
+or status.
+
+Note that the buffer comparison is done in the old way, i.e. data is not
+collected and just printed out.
