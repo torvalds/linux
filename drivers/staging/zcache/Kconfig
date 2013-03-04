@@ -10,6 +10,14 @@ config ZCACHE
 	  memory to store clean page cache pages and swap in RAM,
 	  providing a noticeable reduction in disk I/O.
 
+config ZCACHE_DEBUG
+	bool "Enable debug statistics"
+	depends on DEBUG_FS && ZCACHE
+	default n
+	help
+	  This is used to provide an debugfs directory with counters of
+	  how zcache is doing. You probably want to set this to 'N'.
+
 config RAMSTER
 	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
 	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE=y

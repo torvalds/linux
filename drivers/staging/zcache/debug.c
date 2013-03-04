@@ -1,7 +1,7 @@
 #include <linux/atomic.h>
 #include "debug.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_ZCACHE_DEBUG
 #include <linux/debugfs.h>
 
 #define ATTR(x)  { .name = #x, .val = &zcache_##x, }

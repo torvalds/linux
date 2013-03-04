@@ -306,7 +306,7 @@ static void zcache_free_page(struct page *page)
 		max_pageframes = curr_pageframes;
 	if (curr_pageframes < min_pageframes)
 		min_pageframes = curr_pageframes;
-#ifdef ZCACHE_DEBUG
+#ifdef CONFIG_ZCACHE_DEBUG
 	if (curr_pageframes > 2L || curr_pageframes < -2L) {
 		/* pr_info here */
 	}
@@ -1774,7 +1774,7 @@ static int __init zcache_init(void)
 		old_ops = zcache_cleancache_register_ops();
 		pr_info("%s: cleancache enabled using kernel transcendent "
 			"memory and compression buddies\n", namestr);
-#ifdef ZCACHE_DEBUG
+#ifdef CONFIG_ZCACHE_DEBUG
 		pr_info("%s: cleancache: ignorenonactive = %d\n",
 			namestr, !disable_cleancache_ignore_nonactive);
 #endif
@@ -1789,7 +1789,7 @@ static int __init zcache_init(void)
 			frontswap_tmem_exclusive_gets(true);
 		pr_info("%s: frontswap enabled using kernel transcendent "
 			"memory and compression buddies\n", namestr);
-#ifdef ZCACHE_DEBUG
+#ifdef CONFIG_ZCACHE_DEBUG
 		pr_info("%s: frontswap: excl gets = %d active only = %d\n",
 			namestr, frontswap_has_exclusive_gets,
 			!disable_frontswap_ignore_nonactive);
