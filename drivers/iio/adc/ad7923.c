@@ -199,6 +199,8 @@ static int ad7923_read_raw(struct iio_dev *indio_dev,
 
 		if (chan->address == EXTRACT(ret, 12, 4))
 			*val = EXTRACT(ret, 0, 12);
+		else
+			return -EIO;
 
 		return IIO_VAL_INT;
 	}
