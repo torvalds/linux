@@ -2848,8 +2848,10 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	int err = 0;
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		err = -ENOMEM;
+		goto out_path;
+	}
 
 	rb_node = rb_first(blocks);
 	while (rb_node) {
@@ -2888,10 +2890,11 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		rb_node = rb_next(rb_node);
 	}
 out:
-	free_block_list(blocks);
 	err = finish_pending_nodes(trans, rc, path, err);
 
 	btrfs_free_path(path);
+out_path:
+	free_block_list(blocks);
 	return err;
 }
 
