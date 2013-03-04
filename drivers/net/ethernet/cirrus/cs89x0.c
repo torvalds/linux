@@ -1978,18 +1978,6 @@ static struct platform_driver cs89x0_driver = {
 	.remove	= cs89x0_platform_remove,
 };
 
-static int __init cs89x0_init(void)
-{
-	return platform_driver_probe(&cs89x0_driver, cs89x0_platform_probe);
-}
-
-module_init(cs89x0_init);
-
-static void __exit cs89x0_cleanup(void)
-{
-	platform_driver_unregister(&cs89x0_driver);
-}
-
-module_exit(cs89x0_cleanup);
+module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);
 
 #endif /* CONFIG_CS89x0_PLATFORM */
