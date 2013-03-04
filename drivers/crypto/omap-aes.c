@@ -1248,18 +1248,7 @@ static struct platform_driver omap_aes_driver = {
 	},
 };
 
-static int __init omap_aes_mod_init(void)
-{
-	return  platform_driver_register(&omap_aes_driver);
-}
-
-static void __exit omap_aes_mod_exit(void)
-{
-	platform_driver_unregister(&omap_aes_driver);
-}
-
-module_init(omap_aes_mod_init);
-module_exit(omap_aes_mod_exit);
+module_platform_driver(omap_aes_driver);
 
 MODULE_DESCRIPTION("OMAP AES hw acceleration support.");
 MODULE_LICENSE("GPL v2");
