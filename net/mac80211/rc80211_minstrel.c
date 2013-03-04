@@ -85,7 +85,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		if (!usecs)
 			usecs = 1000000;
 
-		if (mr->attempts) {
+		if (unlikely(mr->attempts > 0)) {
+			mr->sample_skipped = 0;
 			mr->cur_prob = MINSTREL_FRAC(mr->success, mr->attempts);
 			mr->succ_hist += mr->success;
 			mr->att_hist += mr->attempts;
@@ -93,7 +94,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 							mr->cur_prob,
 							EWMA_LEVEL);
 			mr->cur_tp = mr->probability * (1000000 / usecs);
-		}
+		} else
+			mr->sample_skipped++;
 
 		mr->last_success = mr->success;
 		mr->last_attempts = mr->attempts;
@@ -282,9 +284,12 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		rate_sampling = true;
 
 		/* Decide if direct ( 1st mrr stage) or indirect (2nd mrr stage)
-		 * rate sampling method should be used */
+		 * rate sampling method should be used.
+		 * Respect such rates that are not sampled for 20 interations.
+		 */
 		if (mrr_capable &&
-		    msr->perfect_tx_time > mi->r[ndx].perfect_tx_time)
+		    msr->perfect_tx_time > mi->r[ndx].perfect_tx_time &&
+		    msr->sample_skipped < 20)
 				indirect_rate_sampling = true;
 
 		if (!indirect_rate_sampling) {

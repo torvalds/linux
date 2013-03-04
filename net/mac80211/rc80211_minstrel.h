@@ -43,6 +43,7 @@ struct minstrel_rate {
 	u32 attempts;
 	u32 last_attempts;
 	u32 last_success;
+	u8 sample_skipped;
 
 	/* parts per thousand */
 	u32 cur_prob;
