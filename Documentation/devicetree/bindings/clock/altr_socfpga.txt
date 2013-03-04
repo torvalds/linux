@@ -12,7 +12,15 @@ Required properties:
 - reg : shall be the control register offset from CLOCK_MANAGER's base for the clock.
 - clocks : shall be the input parent clock phandle for the clock. This is
 	either an oscillator or a pll output.
+<<<<<<< HEAD
 - #clock-cells : from common clock binding, shall be set to 0.
 
 Optional properties:
 - fixed-divider : If clocks have a fixed divider value, use this property.
+=======
+- #clock-cells : from common clock binding; shall be set to 0.
+
+Optional properties:
+- fixed-divider : If clocks have a fixed divider value, use this property.
+
+>>>>>>> FogBugz #106533: Add clock entries into device tree file.

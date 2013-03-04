@@ -49,7 +49,163 @@ static DEFINE_SPINLOCK(_lock);
 #define CLKMGR_EMAC1_CLK_EN			1
 #define CLKMGR_EMAC0_CLK_EN			0
 
-void __iomem *clk_mgr_base_addr;
+/* Clock Manager offsets */
+#define CLKMGR_CTRL	0x0
+#define CLKMGR_BYPASS 0x4
+
+/* Clock bypass bits */
+#define MAINPLL_BYPASS (1<<0)
+#define SDRAMPLL_BYPASS (1<<1)
+#define SDRAMPLL_SRC_BYPASS (1<<2)
+#define PERPLL_BYPASS (1<<3)
+#define PERPLL_SRC_BYPASS (1<<4)
+
+#define SOCFPGA_PLL_BG_PWRDWN	0x00000001
+#define SOCFPGA_PLL_EXT_ENA	0x00000002
+#define SOCFPGA_PLL_PWR_DOWN	0x00000004
+#define SOCFPGA_PLL_DIVF_MASK 0x0000FFF8
+#define SOCFPGA_PLL_DIVF_SHIFT 3
+#define SOCFPGA_PLL_DIVQ_MASK 0x003F0000
+#define SOCFPGA_PLL_DIVQ_SHIFT 15
+
+extern void __iomem *clk_mgr_base_addr;
+
+struct socfpga_clk {
+	struct clk_hw hw;
+	void __iomem	*reg;
+	char *parent_name;
+	u32 fixed_div;
+};
+#define to_socfpga_clk(p) container_of(p, struct socfpga_clk, hw)
+
+static int clk_pll_enable(struct clk_hw *hwclk)
+{
+	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
+	u32 reg;
+
+	reg = readl(socfpgaclk->reg);
+	reg |= SOCFPGA_PLL_EXT_ENA;
+	writel(reg, socfpgaclk->reg);
+
+	return 0;
+}
+
+static void clk_pll_disable(struct clk_hw *hwclk)
+{
+	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
+	u32 reg;
+
+	reg = readl(socfpgaclk->reg);
+	reg &= ~SOCFPGA_PLL_EXT_ENA;
+	writel(reg, socfpgaclk->reg);
+}
+
+static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
+					 unsigned long parent_rate)
+{
+	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
+	unsigned long divf, divq, vco_freq, reg;
+	unsigned long bypass;
+
+	reg = readl(socfpgaclk->reg);
+	bypass = readl(clk_mgr_base_addr + CLKMGR_BYPASS);
+	if (bypass & MAINPLL_BYPASS)
+		return parent_rate;
+
+	divf = (reg & SOCFPGA_PLL_DIVF_MASK) >> SOCFPGA_PLL_DIVF_SHIFT;
+	divq = (reg & SOCFPGA_PLL_DIVQ_MASK) >> SOCFPGA_PLL_DIVQ_SHIFT;
+	vco_freq = parent_rate * (divf + 1);
+	return vco_freq / (1 << divq);
+}
+
+
+static const struct clk_ops clk_pll_ops = {
+	.enable = clk_pll_enable,
+	.disable = clk_pll_disable,
+	.recalc_rate = clk_pll_recalc_rate,
+};
+
+static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
+					     unsigned long parent_rate)
+{
+	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
+	u32 div;
+
+	if (socfpgaclk->fixed_div)
+		div = socfpgaclk->fixed_div;
+	else
+		div = ((readl(socfpgaclk->reg) & 0x1ff) + 1);
+
+	return parent_rate / div;
+}
+
+static const struct clk_ops periclk_ops = {
+	.recalc_rate = clk_periclk_recalc_rate,
+};
+
+static __init struct clk *socfpga_clk_init(struct device_node *node, const struct clk_ops *ops)
+{
+	u32 reg;
+	struct clk *clk;
+	struct socfpga_clk *socfpga_clk;
+	const char *clk_name = node->name;
+	const char *parent_name;
+	struct clk_init_data init;
+	int rc;
+	u32 fixed_div;
+
+	rc = of_property_read_u32(node, "reg", &reg);
+	if (WARN_ON(rc))
+		return NULL;
+
+	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
+	if (WARN_ON(!socfpga_clk))
+		return NULL;
+
+	socfpga_clk->reg = clk_mgr_base_addr + reg;
+
+	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
+	if (rc)
+		socfpga_clk->fixed_div = 0;
+	else
+		socfpga_clk->fixed_div = fixed_div;
+
+	of_property_read_string(node, "clock-output-names", &clk_name);
+
+	init.name = clk_name;
+	init.ops = ops;
+	init.flags = 0;
+	parent_name = of_clk_get_parent_name(node, 0);
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	socfpga_clk->hw.init = &init;
+
+	clk = clk_register(NULL, &socfpga_clk->hw);
+	if (WARN_ON(IS_ERR(clk))) {
+		kfree(socfpga_clk);
+		return NULL;
+	}
+	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	return clk;
+}
+
+static void __init socfpga_pll_init(struct device_node *node)
+{
+	socfpga_clk_init(node, &clk_pll_ops);
+}
+
+static void __init socfpga_periph_init(struct device_node *node)
+{
+	socfpga_clk_init(node, &periclk_ops);
+}
+
+static const __initconst struct of_device_id clk_match[] = {
+	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
+	{ .compatible = "altr,socfpga-pll-clock", .data = socfpga_pll_init, },
+	{ .compatible = "altr,socfpga-perip-clk", .data = socfpga_periph_init, },
+	{}
+};
 
 void __init socfpga_init_clocks(void)
 {
@@ -96,100 +252,12 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 {
 	u32 reg;
 	struct clk *clk;
-	struct device_node *np;
+	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
-	clk_mgr_base_addr = of_iomap(np, 0);
+	of_clk_init(clk_match);
 
-	clk = clk_register_fixed_rate(NULL, "main_pll_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_MAIN_PLL_CLK);
-	clk_register_clkdev(clk, "main_pll_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "per_pll_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_PER_PLL_CLK);
-	clk_register_clkdev(clk, "per_pll_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "sdram_pll_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_SDRAM_PLL_CLK);
-	clk_register_clkdev(clk, "sdram_pll_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "osc1_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_OSC1_CLK);
-	clk_register_clkdev(clk, "osc1_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "mpu_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_MPU_CLK);
-	clk_register_clkdev(clk, "mpu_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "main_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_MPU_CLK/2);
-	clk_register_clkdev(clk, "main_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "dbg_base_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_MPU_CLK/2);
-	clk_register_clkdev(clk, "dbg_base_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "smp_twd", NULL, CLK_IS_ROOT,
-			SOCFPGA_MPU_CLK/4);
-	clk_register_clkdev(clk, NULL, "smp_twd");
-
-	clk = clk_register_fixed_rate(NULL, "main_qspi_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_MAIN_QSPI_CLK);
-	clk_register_clkdev(clk, "main_qspi_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "main_nand_sdmmc_clk", NULL,
-			CLK_IS_ROOT, SOCFPGA_MAIN_NAND_SDMMC_CLK);
-	clk_register_clkdev(clk, "main_nand_sdmmc_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_S2F_USR_CLK);
-	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "i2c0_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_PER_PLL_CLK);
-	clk_register_clkdev(clk, NULL, "ffc04000.i2c");
-
-	clk = clk_register_fixed_rate(NULL, "i2c1_clk", NULL, CLK_IS_ROOT,
-			SOCFPGA_PER_PLL_CLK);
-	clk_register_clkdev(clk, NULL, "ffc05000.i2c");
-
-	clk = clk_register_gate(NULL, "gmac0_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_EMAC0_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff700000.ethernet");
-
-	clk = clk_register_gate(NULL, "gmac1_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_EMAC1_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff702000.ethernet");
-
-	clk = clk_register_gate(NULL, "spi0_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "fff00000.spi");
-
-	clk = clk_register_gate(NULL, "spi1_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "fff01000.spi");
-
-	clk = clk_register_gate(NULL, "gpio0_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_GPIO_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff708000.gpio");
-
-	clk = clk_register_gate(NULL, "gpio1_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_GPIO_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff709000.gpio");
-
-	clk = clk_register_gate(NULL, "gpio2_clk", "per_pll_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_GPIO_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff70a000.gpio");
-
-	clk = clk_register_gate(NULL, "nand_clk", "main_nand_sdmmc_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_NAND_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff900000.nand");
+	clk = clk_register_fixed_factor(NULL, "smp_twd", "mpuclk", 0, 1, 4);
+	ret = clk_register_clkdev(clk, NULL, "smp_twd");
+	if (ret)
+		pr_err("smp_twd alias not registered\n");
 }

@@ -33,6 +33,14 @@
 	};
 
 	soc {
+		clkmgr@ffd04000 {
+			clocks {
+				osc1 {
+					clock-frequency = <10000000>;
+				};
+			};
+		};
+
 		qspi: spi@ff705000 {
 				compatible = "cadence,qspi";
 				#address-cells = <1>;

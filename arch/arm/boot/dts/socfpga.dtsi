@@ -100,6 +100,158 @@
 		clkmgr@ffd04000 {
 				compatible = "altr,clk-mgr";
 				reg = <0xffd04000 0x1000>;
+
+				clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					osc: osc1 {
+						#clock-cells = <0>;
+						compatible = "fixed-clock";
+					};
+
+					main_pll: main_pll {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-pll-clock";
+						clocks = <&osc>;
+						reg = <0x40>;
+
+						mpuclk: mpuclk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							fixed-divider = <2>;
+							reg = <0x48>;
+						};
+
+						mainclk: mainclk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							fixed-divider = <4>;
+							reg = <0x4C>;
+						};
+
+						dbg_base_clk: dbg_base_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							fixed-divider = <4>;
+							reg = <0x50>;
+						};
+
+						main_qspi_clk: main_qspi_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							reg = <0x54>;
+						};
+
+						main_nand_sdmmc_clk: main_nand_sdmmc_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							reg = <0x58>;
+						};
+
+						cfg_s2f_usr0_clk: cfg_s2f_usr0_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&main_pll>;
+							reg = <0x5C>;
+						};
+					};
+
+					periph_pll: periph_pll {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-pll-clock";
+						clocks = <&osc>;
+						reg = <0x80>;
+
+						emac0_clk: emac0_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x88>;
+						};
+
+						emac1_clk: emac1_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x8C>;
+						};
+
+						per_qspi_clk: per_qsi_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x90>;
+						};
+
+						per_nand_mmc_clk: per_nand_mmc_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x94>;
+						};
+
+						per_base_clk: per_base_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x98>;
+						};
+
+						s2f_usr1_clk: s2f_usr1_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&periph_pll>;
+							reg = <0x9C>;
+						};
+					};
+
+					sdram_pll: sdram_pll {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-pll-clock";
+						clocks = <&osc>;
+						reg = <0xC0>;
+
+						ddr_dqs_clk: ddr_dqs_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&sdram_pll>;
+							reg = <0xC8>;
+						};
+
+						ddr_2x_dqs_clk: ddr_2x_dqs_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&sdram_pll>;
+							reg = <0xCC>;
+						};
+
+						ddr_dq_clk: ddr_dq_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&sdram_pll>;
+							reg = <0xD0>;
+						};
+
+						s2f_usr2_clk: s2f_usr2_clk {
+							#clock-cells = <0>;
+							compatible = "altr,socfpga-perip-clk";
+							clocks = <&sdram_pll>;
+							reg = <0xD4>;
+						};
+					};
+				};
 			};
 
 
@@ -110,6 +262,8 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 			status = "disabled";
+			clocks = <&emac0_clk>;
+			clock-names = "stmmaceth";
 		};
 
 		gmac1: ethernet@ff702000 {
@@ -119,6 +273,8 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 			status = "disabled";
+			clocks = <&emac1_clk>;
+			clock-names = "stmmaceth";
 		};
 
 		gpio0: gpio@ff708000 {
@@ -131,6 +287,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			clocks = <&per_base_clk>;
 		};
 
 		gpio1: gpio@ff709000 {
@@ -143,6 +300,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			clocks = <&per_base_clk>;
 		};
 
 		gpio2: gpio@ff70a000 {
@@ -155,6 +313,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			clocks = <&per_base_clk>;
 		};
 
 		L2: l2-cache@fffef000 {
@@ -209,6 +368,7 @@
 			bus-num = <0>;
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
+			clocks = <&per_base_clk>;
 
 			spidev@0 {
 				compatible = "spidev";
@@ -228,6 +388,7 @@
 			bus-num = <1>;
 			tx-dma-channel = <&pdma 20>;
 			rx-dma-channel = <&pdma 21>;
+			clocks = <&per_base_clk>;
 
 			spidev@0 {
 				compatible = "spidev";
@@ -325,6 +486,7 @@
 			reg = <0xffc04000 0x1000>;
 			interrupts = <0 158 4>;
 			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
 		};
 
 		i2c1: i2c@ffc05000 {
@@ -334,6 +496,7 @@
 			reg = <0xffc05000 0x1000>;
 			interrupts = <0 159 4>;
 			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
 		};
 	};
 };
