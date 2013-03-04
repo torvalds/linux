@@ -527,6 +527,8 @@ fail:
 	if (async_transid) {
 		*async_transid = trans->transid;
 		err = btrfs_commit_transaction_async(trans, root, 1);
+		if (err)
+			err = btrfs_commit_transaction(trans, root);
 	} else {
 		err = btrfs_commit_transaction(trans, root);
 	}
@@ -592,6 +594,8 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		*async_transid = trans->transid;
 		ret = btrfs_commit_transaction_async(trans,
 				     root->fs_info->extent_root, 1);
+		if (ret)
+			ret = btrfs_commit_transaction(trans, root);
 	} else {
 		ret = btrfs_commit_transaction(trans,
 					       root->fs_info->extent_root);
