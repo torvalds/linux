@@ -200,8 +200,8 @@ static int iscsi_target_check_login_request(
 		return -1;
 	}
 
-	req_csg = (login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2;
-	req_nsg = (login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE_MASK);
+	req_csg = ISCSI_LOGIN_CURRENT_STAGE(login_req->flags);
+	req_nsg = ISCSI_LOGIN_NEXT_STAGE(login_req->flags);
 
 	if (req_csg != login->current_stage) {
 		pr_err("Initiator unexpectedly changed login stage"
@@ -681,9 +681,9 @@ static int iscsi_target_do_login(struct iscsi_conn *conn, struct iscsi_login *lo
 			return -1;
 		}
 
-		switch ((login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2) {
+		switch (ISCSI_LOGIN_CURRENT_STAGE(login_req->flags)) {
 		case 0:
-			login_rsp->flags |= (0 & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK);
+			login_rsp->flags &= ~ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK;
 			if (iscsi_target_handle_csg_zero(conn, login) < 0)
 				return -1;
 			break;
@@ -702,8 +702,7 @@ static int iscsi_target_do_login(struct iscsi_conn *conn, struct iscsi_login *lo
 		default:
 			pr_err("Illegal CSG: %d received from"
 				" Initiator, protocol error.\n",
-				(login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK)
-				>> 2);
+				ISCSI_LOGIN_CURRENT_STAGE(login_req->flags));
 			break;
 		}
 
@@ -755,8 +754,7 @@ static int iscsi_target_locate_portal(
 
 	login->first_request	= 1;
 	login->leading_connection = (!login_req->tsih) ? 1 : 0;
-	login->current_stage	=
-		(login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2;
+	login->current_stage	= ISCSI_LOGIN_CURRENT_STAGE(login_req->flags);
 	login->version_min	= login_req->min_version;
 	login->version_max	= login_req->max_version;
 	memcpy(login->isid, login_req->isid, 6);
