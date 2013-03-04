@@ -546,6 +546,30 @@ struct nand_chip {
 #define NAND_MFR_MACRONIX	0xc2
 #define NAND_MFR_EON		0x92
 
+/*
+ * A helper for defining older NAND chips where the second ID byte fully
+ * defined the chip, including the geometry (chip size, eraseblock size, page
+ * size).
+ */
+#define LEGACY_ID_NAND(nm, devid, pagesz, chipsz, erasesz, opts) \
+	{ .name = (nm), .dev_id = (devid), .pagesize = (pagesz), \
+	  .chipsize = (chipsz), .erasesize = (erasesz),          \
+	  .options = (opts) }
+
+/*
+ * A helper for defining newer chips which report their page size and
+ * eraseblock size via the extended ID bytes.
+ *
+ * The real difference between LEGACY_ID_NAND and EXTENDED_ID_NAND is that with
+ * EXTENDED_ID_NAND, manufacturers overloaded the same device ID so that the
+ * device ID now only represented a particular total chip size (and voltage,
+ * buswidth), and the page size, eraseblock size, and OOB size could vary while
+ * using the same device ID.
+ */
+#define EXTENDED_ID_NAND(nm, devid, chipsz, opts)                \
+	{ .name = (nm), .dev_id = (devid), .chipsize = (chipsz), \
+	  .options = (opts) }
+
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
  * @name: a human-readable name of the NAND chip
