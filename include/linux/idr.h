@@ -99,7 +99,7 @@ static inline void idr_preload_end(void)
 
 /**
  * idr_find - return pointer for given id
- * @idp: idr handle
+ * @idr: idr handle
  * @id: lookup key
  *
  * Return the pointer given the id it has been registered with.  A %NULL
