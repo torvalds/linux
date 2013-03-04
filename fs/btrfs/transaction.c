@@ -1457,6 +1457,13 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 	btrfs_abort_transaction(trans, root, err);
 
 	spin_lock(&root->fs_info->trans_lock);
+
+	if (list_empty(&cur_trans->list)) {
+		spin_unlock(&root->fs_info->trans_lock);
+		btrfs_end_transaction(trans, root);
+		return;
+	}
+
 	list_del_init(&cur_trans->list);
 	if (cur_trans == root->fs_info->running_transaction) {
 		root->fs_info->trans_no_join = 1;
