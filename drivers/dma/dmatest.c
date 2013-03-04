@@ -66,6 +66,9 @@ module_param(timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
+/* Maximum amount of mismatched bytes in buffer to print */
+#define MAX_ERROR_COUNT		32
+
 /*
  * Initialization patterns. All bytes in the source buffer has bit 7
  * set, all bytes in the destination buffer has bit 7 cleared.
@@ -249,7 +252,7 @@ static unsigned int dmatest_verify(u8 **bufs, unsigned int start,
 			actual = buf[i];
 			expected = pattern | (~counter & PATTERN_COUNT_MASK);
 			if (actual != expected) {
-				if (error_count < 32)
+				if (error_count < MAX_ERROR_COUNT)
 					dmatest_mismatch(actual, pattern, i,
 							 counter, is_srcbuf);
 				error_count++;
@@ -258,9 +261,9 @@ static unsigned int dmatest_verify(u8 **bufs, unsigned int start,
 		}
 	}
 
-	if (error_count > 32)
+	if (error_count > MAX_ERROR_COUNT)
 		pr_warning("%s: %u errors suppressed\n",
-			current->comm, error_count - 32);
+			current->comm, error_count - MAX_ERROR_COUNT);
 
 	return error_count;
 }
