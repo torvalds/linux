@@ -218,7 +218,6 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 #define STATE_CMD_READOOB      0x00000005 /* read OOB area */
 #define STATE_CMD_ERASE1       0x00000006 /* sector erase first command */
 #define STATE_CMD_STATUS       0x00000007 /* read status */
-#define STATE_CMD_STATUS_M     0x00000008 /* read multi-plane status (isn't implemented) */
 #define STATE_CMD_SEQIN        0x00000009 /* sequential data input */
 #define STATE_CMD_READID       0x0000000A /* read ID */
 #define STATE_CMD_ERASE2       0x0000000B /* sector erase second command */
@@ -406,8 +405,6 @@ static struct nandsim_operations {
 	{OPT_ANY, {STATE_CMD_ERASE1, STATE_ADDR_SEC, STATE_CMD_ERASE2 | ACTION_SECERASE, STATE_READY}},
 	/* Read status */
 	{OPT_ANY, {STATE_CMD_STATUS, STATE_DATAOUT_STATUS, STATE_READY}},
-	/* Read multi-plane status */
-	{OPT_SMARTMEDIA, {STATE_CMD_STATUS_M, STATE_DATAOUT_STATUS_M, STATE_READY}},
 	/* Read ID */
 	{OPT_ANY, {STATE_CMD_READID, STATE_ADDR_ZERO, STATE_DATAOUT_ID, STATE_READY}},
 	/* Large page devices read page */
@@ -1079,8 +1076,6 @@ static char *get_state_name(uint32_t state)
 			return "STATE_CMD_ERASE1";
 		case STATE_CMD_STATUS:
 			return "STATE_CMD_STATUS";
-		case STATE_CMD_STATUS_M:
-			return "STATE_CMD_STATUS_M";
 		case STATE_CMD_SEQIN:
 			return "STATE_CMD_SEQIN";
 		case STATE_CMD_READID:
@@ -1145,7 +1140,6 @@ static int check_command(int cmd)
 	case NAND_CMD_RNDOUTSTART:
 		return 0;
 
-	case NAND_CMD_STATUS_MULTI:
 	default:
 		return 1;
 	}
@@ -1171,8 +1165,6 @@ static uint32_t get_state_by_command(unsigned command)
 			return STATE_CMD_ERASE1;
 		case NAND_CMD_STATUS:
 			return STATE_CMD_STATUS;
-		case NAND_CMD_STATUS_MULTI:
-			return STATE_CMD_STATUS_M;
 		case NAND_CMD_SEQIN:
 			return STATE_CMD_SEQIN;
 		case NAND_CMD_READID:
