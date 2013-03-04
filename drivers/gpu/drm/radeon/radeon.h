@@ -556,6 +556,20 @@ struct radeon_scratch {
 int radeon_scratch_get(struct radeon_device *rdev, uint32_t *reg);
 void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg);
 
+/*
+ * GPU doorbell structures, functions & helpers
+ */
+struct radeon_doorbell {
+	u32			num_pages;
+	bool			free[1024];
+	/* doorbell mmio */
+	resource_size_t			base;
+	resource_size_t			size;
+	void __iomem			*ptr;
+};
+
+int radeon_doorbell_get(struct radeon_device *rdev, u32 *page);
+void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell);
 
 /*
  * IRQS.
@@ -1710,6 +1724,7 @@ struct radeon_device {
 	struct radeon_gart		gart;
 	struct radeon_mode_info		mode_info;
 	struct radeon_scratch		scratch;
+	struct radeon_doorbell		doorbell;
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	wait_queue_head_t		fence_queue;
@@ -1783,6 +1798,9 @@ void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
 u32 r100_io_rreg(struct radeon_device *rdev, u32 reg);
 void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
+u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 offset);
+void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v);
+
 /*
  * Cast helper
  */
@@ -1831,6 +1849,9 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 #define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg), false))
 #define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
 #define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
+
+#define RDOORBELL32(offset) cik_mm_rdoorbell(rdev, (offset))
+#define WDOORBELL32(offset, v) cik_mm_wdoorbell(rdev, (offset), (v))
 
 /*
  * Indirect registers accessor

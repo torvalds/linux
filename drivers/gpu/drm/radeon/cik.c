@@ -121,6 +121,44 @@ u32 cik_get_xclk(struct radeon_device *rdev)
 	return reference_clock;
 }
 
+/**
+ * cik_mm_rdoorbell - read a doorbell dword
+ *
+ * @rdev: radeon_device pointer
+ * @offset: byte offset into the aperture
+ *
+ * Returns the value in the doorbell aperture at the
+ * requested offset (CIK).
+ */
+u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 offset)
+{
+	if (offset < rdev->doorbell.size) {
+		return readl(((void __iomem *)rdev->doorbell.ptr) + offset);
+	} else {
+		DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", offset);
+		return 0;
+	}
+}
+
+/**
+ * cik_mm_wdoorbell - write a doorbell dword
+ *
+ * @rdev: radeon_device pointer
+ * @offset: byte offset into the aperture
+ * @v: value to write
+ *
+ * Writes @v to the doorbell aperture at the
+ * requested offset (CIK).
+ */
+void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v)
+{
+	if (offset < rdev->doorbell.size) {
+		writel(v, ((void __iomem *)rdev->doorbell.ptr) + offset);
+	} else {
+		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", offset);
+	}
+}
+
 #define BONAIRE_IO_MC_REGS_SIZE 36
 
 static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =
