@@ -73,32 +73,44 @@ choice
 config ZEN_DEFAULT
 	bool "Default"
 	---help---
-	  This option sets tunables to default.
+	  Disables ZEN tuning and selects default options.
 
-	    DIRTY_RATIO: 20
-	    BACKGROUND_DIRTY_RATIO: 10
-	   *BFS ONLY*
-	    ISO_CPU: 70
-	    RR_INTERVAL: 6
-	   *CFS ONLY*
-	    SCHED LATENCY: 6 ms
-	    SCHED LATENCY GRANULARITY: 0.75 ms
+	  VM dirty ratio: 20
+	  VM dirty background ratio: 10
+	  Ondemand downsample factor: 1
+
+	  BFS only
+	    ISO task max realtime use: 70%
+	    Scheduling interval: 6 ms
+
+	  CFS only
+	    Scheduling latency: 6 ms
+	    Minimal granularity: 0.75 ms
+	    Wakeup granularity: 1 ms
+	    CPU migration cost: 0.5 ms
+	    Bandwidth slice size: 5 ms
 
 
 config ZEN_CUSTOM
 	bool "Custom"
 	---help---
-	  This option sets tunables to optimal desktop values.
-	  Changes to these values can be adjusted in include/linux/zentune.h
+	  Tunes the kernel for responsiveness at the cost of throughput and power usage.
+	  These values can be adjusted in include/linux/zentune.h
 
-	    DIRTY_RATIO: 50
-	    BACKGROUND_DIRTY_RATIO: 20
-	   *BFS ONLY*
-	    ISO_CPU: 25
-	    RR_INTERVAL: 3
-	   *CFS ONLY*
-	    SCHED LATENCY: 3 ms
-	    SCHED LATENCY GRANULARITY: 0.3 ms
+	  VM dirty ratio: 50
+	  VM dirty background ratio: 20
+	  Ondemand downsample factor: 10
+
+	  BFS only
+	    ISO task max realtime use: 25%
+	    Scheduling interval: 3 ms
+
+	  CFS only
+	    Scheduling latency: 3 ms
+	    Minimal granularity: 0.3 ms
+	    Wakeup granularity: 0.5 ms
+	    CPU migration cost: 0.25 ms
+	    Bandwidth slice size: 3 ms
 
 
 endchoice
