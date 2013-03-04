@@ -309,11 +309,9 @@ static int vt8500_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	gpio_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!gpio_base) {
-		dev_err(&pdev->dev, "Unable to map GPIO registers\n");
-		return -ENOMEM;
-	}
+	gpio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(gpio_base))
+		return PTR_ERR(gpio_base);
 
 	ret = vt8500_add_chips(pdev, gpio_base, of_id->data);
 
