@@ -7449,6 +7449,9 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 			return err;
 	}
 
+	if (setup.user_mpm)
+		cfg.auto_open_plinks = false;
+
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
 		err = nl80211_parse_chandef(rdev, info, &setup.chandef);
 		if (err)

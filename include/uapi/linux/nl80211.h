@@ -2467,8 +2467,10 @@ enum nl80211_mesh_power_mode {
  * @NL80211_MESHCONF_TTL: specifies the value of TTL field set at a source mesh
  *	point.
  *
- * @NL80211_MESHCONF_AUTO_OPEN_PLINKS: whether we should automatically
- *	open peer links when we detect compatible mesh peers.
+ * @NL80211_MESHCONF_AUTO_OPEN_PLINKS: whether we should automatically open
+ *	peer links when we detect compatible mesh peers. Disabled if
+ *	@NL80211_MESH_SETUP_USERSPACE_MPM or @NL80211_MESH_SETUP_USERSPACE_AMPE are
+ *	set.
  *
  * @NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES: the number of action frames
  *	containing a PREQ that an MP can send to a particular destination (path
