@@ -18,7 +18,6 @@
 
 #define AVG_PKT_SIZE	1200
 #define SAMPLE_COLUMNS	10
-#define EWMA_LEVEL		75
 
 /* Number of bits for an average sized packet */
 #define MCS_NBITS (AVG_PKT_SIZE << 3)
@@ -127,15 +126,6 @@ const struct mcs_group minstrel_mcs_groups[] = {
 #define MINSTREL_CCK_GROUP	(ARRAY_SIZE(minstrel_mcs_groups) - 1)
 
 static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES];
-
-/*
- * Perform EWMA (Exponentially Weighted Moving Average) calculation
- */
-static int
-minstrel_ewma(int old, int new, int weight)
-{
-	return (new * (100 - weight) + old * weight) / 100;
-}
 
 /*
  * Look up an MCS group index based on mac80211 rate information

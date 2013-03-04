@@ -9,6 +9,18 @@
 #ifndef __RC_MINSTREL_H
 #define __RC_MINSTREL_H
 
+#define EWMA_LEVEL 75	/* ewma weighting factor [%] */
+
+/*
+ * Perform EWMA (Exponentially Weighted Moving Average) calculation
+  */
+static inline int
+minstrel_ewma(int old, int new, int weight)
+{
+	return (new * (100 - weight) + old * weight) / 100;
+}
+
+
 struct minstrel_rate {
 	int bitrate;
 	int rix;
@@ -73,7 +85,6 @@ struct minstrel_priv {
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;
-	unsigned int ewma_level;
 	unsigned int segment_size;
 	unsigned int update_interval;
 	unsigned int lookaround_rate;

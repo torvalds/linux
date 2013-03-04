@@ -76,7 +76,6 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	u32 max_tp = 0, index_max_tp = 0, index_max_tp2 = 0;
 	u32 max_prob = 0, index_max_prob = 0;
 	u32 usecs;
-	u32 p;
 	int i;
 
 	mi->stats_update = jiffies;
@@ -90,14 +89,13 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		/* To avoid rounding issues, probabilities scale from 0 (0%)
 		 * to 18000 (100%) */
 		if (mr->attempts) {
-			p = (mr->success * 18000) / mr->attempts;
+			mr->cur_prob = (mr->success * 18000) / mr->attempts;
 			mr->succ_hist += mr->success;
 			mr->att_hist += mr->attempts;
-			mr->cur_prob = p;
-			p = ((p * (100 - mp->ewma_level)) + (mr->probability *
-				mp->ewma_level)) / 100;
-			mr->probability = p;
-			mr->cur_tp = p * (1000000 / usecs);
+			mr->probability = minstrel_ewma(mr->probability,
+							mr->cur_prob,
+							EWMA_LEVEL);
+			mr->cur_tp = mr->probability * (1000000 / usecs);
 		}
 
 		mr->last_success = mr->success;
@@ -541,9 +539,6 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	 * is much higher than with mrr */
 	mp->lookaround_rate = 5;
 	mp->lookaround_rate_mrr = 10;
-
-	/* moving average weight for EWMA */
-	mp->ewma_level = 75;
 
 	/* maximum time that the hw is allowed to stay in one MRR segment */
 	mp->segment_size = 6000;
