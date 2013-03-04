@@ -303,6 +303,8 @@ extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
 extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
+extern char * get_format_string(enum data_format,char *fmt);
+
 static int inline rk_fb_calc_fps(rk_screen *screen,u32 pixclock)
 {
 	int x, y;
@@ -402,4 +404,5 @@ static int inline __rk_platform_add_display_devices(struct platform_device *fb,
 
 	return 0;
 }
+
 #endif

@@ -54,16 +54,47 @@ static struct rk_fb_rgb def_rgb_16 = {
 };
 
 
-/***************************************************************************
-fb0-----------lcdc0------------win1  for ui
-fb1-----------lcdc0------------win0  for video,win0 support 3d display
-fb2-----------lcdc1------------win1  for ui
-fb3-----------lcdc1-------------win0 for video ,win0 support 3d display
+char * get_format_string(enum data_format format,char *fmt)
+{
+	if(!fmt)
+		return NULL;
+	switch(format)
+	{
+	case ARGB888:
+		strcpy(fmt,"ARGB888");
+		break;
+	case RGB888:
+		strcpy(fmt,"RGB888");
+		break;
+	case RGB565:
+		strcpy(fmt,"RGB565");
+		break;
+	case YUV420:
+		strcpy(fmt,"YUV420");
+		break;
+	case YUV422:
+		strcpy(fmt,"YUV422");
+		break;
+	case YUV444:
+		strcpy(fmt,"YUV444");
+		break;
+	case XRGB888:
+		strcpy(fmt,"XRGB888");
+		break;
+	case XBGR888:
+		strcpy(fmt,"XBGR888");
+		break;
+	case ABGR888:
+		strcpy(fmt,"XBGR888");
+		break;
+	default:
+		strcpy(fmt,"invalid");
+		break;
+	}
 
-defautl:we alloc three buffer,one for fb0 and fb2 display ui,one for ipp rotate
-        fb1 and fb3 are used for video play,the buffer is alloc by android,and
-        pass the phy addr to fix.smem_start by ioctl
-****************************************************************************/
+	return fmt;
+	
+}
 
 
 
