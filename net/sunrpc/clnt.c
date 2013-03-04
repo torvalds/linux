@@ -1644,22 +1644,26 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	task->tk_status = 0;
-	if (status >= 0 || status == -EAGAIN) {
-		clnt->cl_stats->netreconn++;
-		task->tk_action = call_transmit;
-		return;
-	}
-
 	trace_rpc_connect_status(task, status);
 	switch (status) {
 		/* if soft mounted, test if we've timed out */
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		break;
-	default:
-		rpc_exit(task, -EIO);
+		return;
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task))
+			break;
+		/* retry with existing socket, after a delay */
+	case 0:
+	case -EAGAIN:
+		task->tk_status = 0;
+		clnt->cl_stats->netreconn++;
+		task->tk_action = call_transmit;
+		return;
 	}
+	rpc_exit(task, status);
 }
 
 /*
