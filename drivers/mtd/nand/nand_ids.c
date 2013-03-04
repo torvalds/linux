@@ -25,23 +25,11 @@
  * extended chip ID.
  */
 struct nand_flash_dev nand_flash_ids[] = {
-#ifdef CONFIG_MTD_NAND_MUSEUM_IDS
-	{"NAND 1MiB 5V 8-bit",		0x6e, 256, 1, 0x1000, SP_OPTIONS},
-	{"NAND 2MiB 5V 8-bit",		0x64, 256, 2, 0x1000, SP_OPTIONS},
-	{"NAND 4MiB 5V 8-bit",		0x6b, 512, 4, 0x2000, SP_OPTIONS},
-	{"NAND 1MiB 3,3V 8-bit",	0xe8, 256, 1, 0x1000, SP_OPTIONS},
-	{"NAND 1MiB 3,3V 8-bit",	0xec, 256, 1, 0x1000, SP_OPTIONS},
-	{"NAND 2MiB 3,3V 8-bit",	0xea, 256, 2, 0x1000, SP_OPTIONS},
-	{"NAND 4MiB 3,3V 8-bit",	0xd5, 512, 4, 0x2000, SP_OPTIONS},
-	{"NAND 4MiB 3,3V 8-bit",	0xe3, 512, 4, 0x2000, SP_OPTIONS},
-	{"NAND 4MiB 3,3V 8-bit",	0xe5, 512, 4, 0x2000, SP_OPTIONS},
-	{"NAND 8MiB 3,3V 8-bit",	0xd6, 512, 8, 0x2000, SP_OPTIONS},
-
-	{"NAND 8MiB 1,8V 8-bit",	0x39, 512, 8, 0x2000, SP_OPTIONS},
-	{"NAND 8MiB 3,3V 8-bit",	0xe6, 512, 8, 0x2000, SP_OPTIONS},
-	{"NAND 8MiB 1,8V 16-bit",	0x49, 512, 8, 0x2000, SP_OPTIONS16},
-	{"NAND 8MiB 3,3V 16-bit",	0x59, 512, 8, 0x2000, SP_OPTIONS16},
-#endif
+	{"NAND 4MiB 5V 8-bit",          0x6B, 512, 4, 0x2000, SP_OPTIONS},
+	{"NAND 4MiB 3,3V 8-bit",        0xE3, 512, 4, 0x2000, SP_OPTIONS},
+	{"NAND 4MiB 3,3V 8-bit",        0xE5, 512, 4, 0x2000, SP_OPTIONS},
+	{"NAND 8MiB 3,3V 8-bit",        0xD6, 512, 8, 0x2000, SP_OPTIONS},
+	{"NAND 8MiB 3,3V 8-bit",        0xE6, 512, 8, 0x2000, SP_OPTIONS},
 
 	{"NAND 16MiB 1,8V 8-bit",	0x33, 512, 16, 0x4000, SP_OPTIONS},
 	{"NAND 16MiB 3,3V 8-bit",	0x73, 512, 16, 0x4000, SP_OPTIONS},

@@ -41,14 +41,6 @@ config MTD_SM_COMMON
 	tristate
 	default n
 
-config MTD_NAND_MUSEUM_IDS
-	bool "Enable chip ids for obsolete ancient NAND devices"
-	default n
-	help
-	  Enable this option only when your board has first generation
-	  NAND chips (page size 256 byte, erase size 4-8KiB). The IDs
-	  of these chips were reused by later, larger chips.
-
 config MTD_NAND_DENALI
         tristate "Support Denali NAND controller"
         help
