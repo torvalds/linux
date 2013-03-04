@@ -400,11 +400,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		/*
 		 * rcar_has_irq_support() will be enabled
 		 */
-		common->base = devm_request_and_ioremap(dev, res);
-		if (!common->base) {
-			dev_err(dev, "Unable to ioremap thermal register\n");
-			return -ENOMEM;
-		}
+		common->base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(common->base))
+			return PTR_ERR(common->base);
 
 		/* enable temperature comparation */
 		rcar_thermal_common_write(common, ENR, 0x00030303);
@@ -423,11 +421,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		priv->base = devm_request_and_ioremap(dev, res);
-		if (!priv->base) {
-			dev_err(dev, "Unable to ioremap priv register\n");
-			return -ENOMEM;
-		}
+		priv->base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(priv->base))
+			return PTR_ERR(priv->base);
 
 		priv->common = common;
 		priv->id = i;
