@@ -4780,7 +4780,7 @@ EXPORT_SYMBOL(dev_set_mac_address);
 /**
  *	dev_change_carrier - Change device carrier
  *	@dev: device
- *	@new_carries: new value
+ *	@new_carrier: new value
  *
  *	Change device carrier
  */
