@@ -10,6 +10,7 @@
  * published by the Free Software Foundation
  */
 
+#include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1164,9 +1165,9 @@ static int sh_veu_probe(struct platform_device *pdev)
 
 	veu->is_2h = resource_size(reg_res) == 0x22c;
 
-	veu->base = devm_request_and_ioremap(&pdev->dev, reg_res);
-	if (!veu->base)
-		return -ENOMEM;
+	veu->base = devm_ioremap_resource(&pdev->dev, reg_res);
+	if (IS_ERR(veu->base))
+		return PTR_ERR(veu->base);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, sh_veu_isr, sh_veu_bh,
 					0, "veu", veu);
