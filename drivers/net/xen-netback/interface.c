@@ -132,6 +132,7 @@ static void xenvif_up(struct xenvif *vif)
 static void xenvif_down(struct xenvif *vif)
 {
 	disable_irq(vif->irq);
+	del_timer_sync(&vif->credit_timeout);
 	xen_netbk_deschedule_xenvif(vif);
 	xen_netbk_remove_xenvif(vif);
 }
@@ -361,8 +362,6 @@ void xenvif_disconnect(struct xenvif *vif)
 
 	atomic_dec(&vif->refcnt);
 	wait_event(vif->waiting_to_free, atomic_read(&vif->refcnt) == 0);
-
-	del_timer_sync(&vif->credit_timeout);
 
 	if (vif->irq)
 		unbind_from_irqhandler(vif->irq, vif);
