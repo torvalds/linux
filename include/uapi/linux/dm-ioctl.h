@@ -267,9 +267,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	23
-#define DM_VERSION_PATCHLEVEL	1
-#define DM_VERSION_EXTRA	"-ioctl (2012-12-18)"
+#define DM_VERSION_MINOR	24
+#define DM_VERSION_PATCHLEVEL	0
+#define DM_VERSION_EXTRA	"-ioctl (2013-01-15)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -335,5 +335,10 @@ enum {
  * or requesting sensitive data such as an encryption key.
  */
 #define DM_SECURE_DATA_FLAG		(1 << 15) /* In */
+
+/*
+ * If set, a message generated output data.
+ */
+#define DM_DATA_OUT_FLAG		(1 << 16) /* Out */
 
 #endif				/* _LINUX_DM_IOCTL_H */

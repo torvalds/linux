@@ -514,7 +514,7 @@ error:
  */
 int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 
 	_enter("{%x:%u},%d,{t=%x,fl=%x,r=%Ld:%Ld}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,
@@ -537,7 +537,7 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
  */
 int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 
 	_enter("{%x:%u},%d,{t=%x,fl=%x}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,

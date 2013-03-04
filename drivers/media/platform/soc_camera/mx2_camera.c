@@ -289,7 +289,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 	/*
 	 * This is a generic configuration which is valid for most
 	 * prp input-output format combinations.
-	 * We set the incomming and outgoing pixelformat to a
+	 * We set the incoming and outgoing pixelformat to a
 	 * 16 Bit wide format and adjust the bytesperline
 	 * accordingly. With this configuration the inputdata
 	 * will not be changed by the emma and could be any type

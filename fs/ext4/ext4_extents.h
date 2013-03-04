@@ -193,12 +193,6 @@ static inline unsigned short ext_depth(struct inode *inode)
 	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
 }
 
-static inline void
-ext4_ext_invalidate_cache(struct inode *inode)
-{
-	EXT4_I(inode)->i_cached_extent.ec_len = 0;
-}
-
 static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)
 {
 	/* We can not have an uninitialized extent of zero length! */

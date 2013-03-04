@@ -104,6 +104,7 @@ static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_FAST_REG_MR]			= cpu_to_be32(MLX4_OPCODE_FMR),
 	[IB_WR_MASKED_ATOMIC_CMP_AND_SWP]	= cpu_to_be32(MLX4_OPCODE_MASKED_ATOMIC_CS),
 	[IB_WR_MASKED_ATOMIC_FETCH_AND_ADD]	= cpu_to_be32(MLX4_OPCODE_MASKED_ATOMIC_FA),
+	[IB_WR_BIND_MW]				= cpu_to_be32(MLX4_OPCODE_BIND_MW),
 };
 
 static struct mlx4_ib_sqp *to_msqp(struct mlx4_ib_qp *mqp)
@@ -1746,11 +1747,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	int header_size;
 	int spc;
 	int i;
-	int is_eth;
-	int is_vlan = 0;
-	int is_grh;
-	u16 vlan;
 	int err = 0;
+	u16 vlan = 0xffff;
+	bool is_eth;
+	bool is_vlan = false;
+	bool is_grh;
 
 	send_size = 0;
 	for (i = 0; i < wr->num_sge; ++i)
@@ -1953,9 +1954,12 @@ static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq
 
 static __be32 convert_access(int acc)
 {
-	return (acc & IB_ACCESS_REMOTE_ATOMIC ? cpu_to_be32(MLX4_WQE_FMR_PERM_ATOMIC)       : 0) |
-	       (acc & IB_ACCESS_REMOTE_WRITE  ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_WRITE) : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ   ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_READ)  : 0) |
+	return (acc & IB_ACCESS_REMOTE_ATOMIC ?
+		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC)       : 0) |
+	       (acc & IB_ACCESS_REMOTE_WRITE  ?
+		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE) : 0) |
+	       (acc & IB_ACCESS_REMOTE_READ   ?
+		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ)  : 0) |
 	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  : 0) |
 		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
 }
@@ -1981,12 +1985,28 @@ static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 	fseg->reserved[1]	= 0;
 }
 
+static void set_bind_seg(struct mlx4_wqe_bind_seg *bseg, struct ib_send_wr *wr)
+{
+	bseg->flags1 =
+		convert_access(wr->wr.bind_mw.bind_info.mw_access_flags) &
+		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ  |
+			    MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE |
+			    MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC);
+	bseg->flags2 = 0;
+	if (wr->wr.bind_mw.mw->type == IB_MW_TYPE_2)
+		bseg->flags2 |= cpu_to_be32(MLX4_WQE_BIND_TYPE_2);
+	if (wr->wr.bind_mw.bind_info.mw_access_flags & IB_ZERO_BASED)
+		bseg->flags2 |= cpu_to_be32(MLX4_WQE_BIND_ZERO_BASED);
+	bseg->new_rkey = cpu_to_be32(wr->wr.bind_mw.rkey);
+	bseg->lkey = cpu_to_be32(wr->wr.bind_mw.bind_info.mr->lkey);
+	bseg->addr = cpu_to_be64(wr->wr.bind_mw.bind_info.addr);
+	bseg->length = cpu_to_be64(wr->wr.bind_mw.bind_info.length);
+}
+
 static void set_local_inv_seg(struct mlx4_wqe_local_inval_seg *iseg, u32 rkey)
 {
-	iseg->flags	= 0;
-	iseg->mem_key	= cpu_to_be32(rkey);
-	iseg->guest_id	= 0;
-	iseg->pa	= 0;
+	memset(iseg, 0, sizeof(*iseg));
+	iseg->mem_key = cpu_to_be32(rkey);
 }
 
 static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
@@ -2291,6 +2311,13 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				size += sizeof (struct mlx4_wqe_fmr_seg) / 16;
 				break;
 
+			case IB_WR_BIND_MW:
+				ctrl->srcrb_flags |=
+					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
+				set_bind_seg(wqe, wr);
+				wqe  += sizeof(struct mlx4_wqe_bind_seg);
+				size += sizeof(struct mlx4_wqe_bind_seg) / 16;
+				break;
 			default:
 				/* No extra segments required for sends */
 				break;

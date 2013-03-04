@@ -1249,39 +1249,59 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 	.attr		= powernow_k8_attr,
 };
 
+static void __request_acpi_cpufreq(void)
+{
+	const char *cur_drv, *drv = "acpi-cpufreq";
+
+	cur_drv = cpufreq_get_current_driver();
+	if (!cur_drv)
+		goto request;
+
+	if (strncmp(cur_drv, drv, min_t(size_t, strlen(cur_drv), strlen(drv))))
+		pr_warn(PFX "WTF driver: %s\n", cur_drv);
+
+	return;
+
+ request:
+	pr_warn(PFX "This CPU is not supported anymore, using acpi-cpufreq instead.\n");
+	request_module(drv);
+}
+
 /* driver entry point for init */
 static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
-	int rv;
+	int ret;
 
 	if (static_cpu_has(X86_FEATURE_HW_PSTATE)) {
-		pr_warn(PFX "this CPU is not supported anymore, using acpi-cpufreq instead.\n");
-		request_module("acpi-cpufreq");
+		__request_acpi_cpufreq();
 		return -ENODEV;
 	}
 
 	if (!x86_match_cpu(powernow_k8_ids))
 		return -ENODEV;
 
+	get_online_cpus();
 	for_each_online_cpu(i) {
-		int rc;
-		smp_call_function_single(i, check_supported_cpu, &rc, 1);
-		if (rc == 0)
+		smp_call_function_single(i, check_supported_cpu, &ret, 1);
+		if (!ret)
 			supported_cpus++;
 	}
 
-	if (supported_cpus != num_online_cpus())
+	if (supported_cpus != num_online_cpus()) {
+		put_online_cpus();
 		return -ENODEV;
+	}
+	put_online_cpus();
 
-	rv = cpufreq_register_driver(&cpufreq_amd64_driver);
+	ret = cpufreq_register_driver(&cpufreq_amd64_driver);
+	if (ret)
+		return ret;
 
-	if (!rv)
-		pr_info(PFX "Found %d %s (%d cpu cores) (" VERSION ")\n",
-			num_online_nodes(), boot_cpu_data.x86_model_id,
-			supported_cpus);
+	pr_info(PFX "Found %d %s (%d cpu cores) (" VERSION ")\n",
+		num_online_nodes(), boot_cpu_data.x86_model_id, supported_cpus);
 
-	return rv;
+	return ret;
 }
 
 /* driver entry point for term */

@@ -2986,7 +2986,7 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 
 	retval = qla4_8xxx_device_state_handler(ha);
 
-	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
+	if (retval == QLA_SUCCESS && !test_bit(AF_IRQ_ATTACHED, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
 
 	return retval;
@@ -3427,11 +3427,11 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	}
 
 	/* Make sure we receive the minimum required data to cache internally */
-	if (mbox_sts[4] < offsetof(struct mbx_sys_info, reserved)) {
+	if ((is_qla8032(ha) ? mbox_sts[3] : mbox_sts[4]) <
+	    offsetof(struct mbx_sys_info, reserved)) {
 		DEBUG2(printk("scsi%ld: %s: GET_SYS_INFO data receive"
 		    " error (%x)\n", ha->host_no, __func__, mbox_sts[4]));
 		goto exit_validate_mac82;
-
 	}
 
 	/* Save M.A.C. address & serial_number */
@@ -3463,7 +3463,7 @@ exit_validate_mac82:
 
 /* Interrupt handling helpers. */
 
-int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_enable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3484,7 +3484,7 @@ int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_disable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3509,7 +3509,7 @@ int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
 void
 qla4_82xx_enable_intrs(struct scsi_qla_host *ha)
 {
-	qla4_8xxx_mbx_intr_enable(ha);
+	qla4_8xxx_intr_enable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - reset */
@@ -3522,7 +3522,7 @@ void
 qla4_82xx_disable_intrs(struct scsi_qla_host *ha)
 {
 	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
-		qla4_8xxx_mbx_intr_disable(ha);
+		qla4_8xxx_intr_disable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - set */

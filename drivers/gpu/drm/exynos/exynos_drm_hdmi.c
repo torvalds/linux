@@ -108,25 +108,36 @@ static bool drm_hdmi_is_connected(struct device *dev)
 	return false;
 }
 
-static int drm_hdmi_get_edid(struct device *dev,
-		struct drm_connector *connector, u8 *edid, int len)
+static struct edid *drm_hdmi_get_edid(struct device *dev,
+			struct drm_connector *connector)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (hdmi_ops && hdmi_ops->get_edid)
-		return hdmi_ops->get_edid(ctx->hdmi_ctx->ctx, connector, edid,
-					  len);
+		return hdmi_ops->get_edid(ctx->hdmi_ctx->ctx, connector);
 
-	return 0;
+	return NULL;
 }
 
 static int drm_hdmi_check_timing(struct device *dev, void *timing)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
+	int ret = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/*
+	* Both, mixer and hdmi should be able to handle the requested mode.
+	* If any of the two fails, return mode as BAD.
+	*/
+
+	if (mixer_ops && mixer_ops->check_timing)
+		ret = mixer_ops->check_timing(ctx->mixer_ctx->ctx, timing);
+
+	if (ret)
+		return ret;
 
 	if (hdmi_ops && hdmi_ops->check_timing)
 		return hdmi_ops->check_timing(ctx->hdmi_ctx->ctx, timing);

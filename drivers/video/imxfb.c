@@ -139,6 +139,7 @@ struct imxfb_info {
 	struct clk		*clk_ahb;
 	struct clk		*clk_per;
 	enum imxfb_type		devtype;
+	bool			enabled;
 
 	/*
 	 * These are the addresses we mapped
@@ -536,6 +537,10 @@ static void imxfb_exit_backlight(struct imxfb_info *fbi)
 
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
+
+	if (fbi->enabled)
+		return;
+
 	pr_debug("Enabling LCD controller\n");
 
 	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
@@ -556,6 +561,7 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	clk_prepare_enable(fbi->clk_ipg);
 	clk_prepare_enable(fbi->clk_ahb);
 	clk_prepare_enable(fbi->clk_per);
+	fbi->enabled = true;
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(1);
@@ -565,6 +571,9 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
 {
+	if (!fbi->enabled)
+		return;
+
 	pr_debug("Disabling LCD controller\n");
 
 	if (fbi->backlight_power)
@@ -575,6 +584,7 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	clk_disable_unprepare(fbi->clk_per);
 	clk_disable_unprepare(fbi->clk_ipg);
 	clk_disable_unprepare(fbi->clk_ahb);
+	fbi->enabled = false;
 
 	writel(0, fbi->regs + LCDC_RMCR);
 }
@@ -729,6 +739,8 @@ static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 
 	memset(fbi, 0, sizeof(struct imxfb_info));
 
+	fbi->devtype = pdev->id_entry->driver_data;
+
 	strlcpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
 
 	info->fix.type			= FB_TYPE_PACKED_PIXELS;
@@ -789,7 +801,6 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fbi = info->par;
-	fbi->devtype = pdev->id_entry->driver_data;
 
 	if (!fb_mode)
 		fb_mode = pdata->mode[0].mode.name;

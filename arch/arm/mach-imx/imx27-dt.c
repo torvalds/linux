@@ -39,26 +39,22 @@ static void __init imx27_dt_init(void)
 			     imx27_auxdata_lookup, NULL);
 }
 
-static void __init imx27_timer_init(void)
-{
-	mx27_clocks_init_dt();
-}
-
-static struct sys_timer imx27_timer = {
-	.init = imx27_timer_init,
-};
-
 static const char * const imx27_dt_board_compat[] __initconst = {
 	"fsl,imx27",
 	NULL
 };
+
+static void __init imx27_timer_init(void)
+{
+	mx27_clocks_init_dt();
+}
 
 DT_MACHINE_START(IMX27_DT, "Freescale i.MX27 (Device Tree Support)")
 	.map_io		= mx27_map_io,
 	.init_early	= imx27_init_early,
 	.init_irq	= mx27_init_irq,
 	.handle_irq	= imx27_handle_irq,
-	.timer		= &imx27_timer,
+	.init_time	= imx27_timer_init,
 	.init_machine	= imx27_dt_init,
 	.dt_compat	= imx27_dt_board_compat,
 	.restart	= mxc_restart,

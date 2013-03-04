@@ -80,6 +80,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	int ret;
 	char *name;
 	int i;
+	bool valid_name_found = false;
 
 	/*
 	 * Probe for switch model.
@@ -131,8 +132,13 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		} else {
 			ds->phys_port_mask |= 1 << i;
 		}
+		valid_name_found = true;
 	}
 
+	if (!valid_name_found && i == DSA_MAX_PORTS) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/*
 	 * If the CPU connects to this switch, set the switch tree

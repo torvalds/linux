@@ -38,6 +38,10 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
+#ifdef DEBUG
+#define EHCI_STATS
+#endif
+
 struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
@@ -221,6 +225,9 @@ struct ehci_hcd {			/* one per controller */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
 #endif
+
+	/* platform-specific data -- must come last */
+	unsigned long		priv[0] __aligned(sizeof(s64));
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */

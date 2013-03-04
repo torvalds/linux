@@ -14,6 +14,9 @@
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
 	int		node;		/* NUMA node */
+#ifdef CONFIG_ACPI
+	void		*acpi;		/* ACPI-specific data */
+#endif
 #ifdef CONFIG_X86_64
 	void		*iommu;		/* IOMMU private data */
 #endif
@@ -121,9 +124,12 @@ static inline void x86_restore_msi_irqs(struct pci_dev *dev, int irq)
 #define arch_teardown_msi_irq x86_teardown_msi_irq
 #define arch_restore_msi_irqs x86_restore_msi_irqs
 /* implemented in arch/x86/kernel/apic/io_apic. */
+struct msi_desc;
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);
 void native_teardown_msi_irq(unsigned int irq);
 void native_restore_msi_irqs(struct pci_dev *dev, int irq);
+int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+		  unsigned int irq_base, unsigned int irq_offset);
 /* default to the implementation in drivers/lib/msi.c */
 #define HAVE_DEFAULT_MSI_TEARDOWN_IRQS
 #define HAVE_DEFAULT_MSI_RESTORE_IRQS

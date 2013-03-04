@@ -12,6 +12,7 @@
  *   more details.
  */
 
+#include <linux/export.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <arch/icache.h>
@@ -165,3 +166,4 @@ void finv_buffer_remote(void *buffer, size_t size, int hfh)
 	__insn_mtspr(SPR_DSTREAM_PF, old_dstream_pf);
 #endif
 }
+EXPORT_SYMBOL_GPL(finv_buffer_remote);

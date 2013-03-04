@@ -483,7 +483,7 @@
 	 * B <-> _PAGE_DMB (memory break)
 	 *
 	 * Then incredible subtlety: The access rights are
-	 * _PAGE_GATEWAY _PAGE_EXEC _PAGE_READ
+	 * _PAGE_GATEWAY, _PAGE_EXEC and _PAGE_WRITE
 	 * See 3-14 of the parisc 2.0 manual
 	 *
 	 * Finally, _PAGE_READ goes in the top bit of PL1 (so we
@@ -493,7 +493,7 @@
 
 	/* PAGE_USER indicates the page can be read with user privileges,
 	 * so deposit X1|11 to PL1|PL2 (remember the upper bit of PL1
-	 * contains _PAGE_READ */
+	 * contains _PAGE_READ) */
 	extrd,u,*=      \pte,_PAGE_USER_BIT+32,1,%r0
 	depdi		7,11,3,\prot
 	/* If we're a gateway page, drop PL2 back to zero for promotion
@@ -1748,44 +1748,6 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
 ENDPROC(sys_rt_sigreturn_wrapper)
 
-ENTRY(sys_sigaltstack_wrapper)
-	/* Get the user stack pointer */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r24	/* get pt regs */
-	LDREG	TASK_PT_GR30(%r24),%r24
-	STREG	%r2, -RP_OFFSET(%r30)
-#ifdef CONFIG_64BIT
-	ldo	FRAME_SIZE(%r30), %r30
-	BL	do_sigaltstack,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#else
-	BL	do_sigaltstack,%r2
-	ldo	FRAME_SIZE(%r30), %r30
-#endif
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-	bv	%r0(%r2)
-	nop
-ENDPROC(sys_sigaltstack_wrapper)
-
-#ifdef CONFIG_64BIT
-ENTRY(sys32_sigaltstack_wrapper)
-	/* Get the user stack pointer */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r24
-	LDREG	TASK_PT_GR30(%r24),%r24
-	STREG	%r2, -RP_OFFSET(%r30)
-	ldo	FRAME_SIZE(%r30), %r30
-	BL	do_sigaltstack32,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-	bv	%r0(%r2)
-	nop
-ENDPROC(sys32_sigaltstack_wrapper)
-#endif
-
 ENTRY(syscall_exit)
 	/* NOTE: HP-UX syscalls also come through here
 	 * after hpux_syscall_exit fixes up return
@@ -1865,7 +1827,7 @@ syscall_restore:
 
 	/* Are we being ptraced? */
 	ldw	TASK_FLAGS(%r1),%r19
-	ldi	(_TIF_SINGLESTEP|_TIF_BLOCKSTEP),%r2
+	ldi	_TIF_SYSCALL_TRACE_MASK,%r2
 	and,COND(=)	%r19,%r2,%r0
 	b,n	syscall_restore_rfi
 
@@ -1978,15 +1940,23 @@ syscall_restore_rfi:
 	/* sr2 should be set to zero for userspace syscalls */
 	STREG	%r0,TASK_PT_SR2(%r1)
 
-pt_regs_ok:
 	LDREG	TASK_PT_GR31(%r1),%r2
-	depi	3,31,2,%r2			   /* ensure return to user mode. */
-	STREG	%r2,TASK_PT_IAOQ0(%r1)
+	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	STREG   %r2,TASK_PT_IAOQ0(%r1)
 	ldo	4(%r2),%r2
 	STREG	%r2,TASK_PT_IAOQ1(%r1)
-	copy	%r25,%r16
 	b	intr_restore
-	nop
+	copy	%r25,%r16
+
+pt_regs_ok:
+	LDREG	TASK_PT_IAOQ0(%r1),%r2
+	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	STREG	%r2,TASK_PT_IAOQ0(%r1)
+	LDREG	TASK_PT_IAOQ1(%r1),%r2
+	depi	3,31,2,%r2
+	STREG	%r2,TASK_PT_IAOQ1(%r1)
+	b	intr_restore
+	copy	%r25,%r16
 
 	.import schedule,code
 syscall_do_resched:

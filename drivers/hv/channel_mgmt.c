@@ -257,6 +257,70 @@ static void vmbus_process_offer(struct work_struct *work)
 	}
 }
 
+enum {
+	IDE = 0,
+	SCSI,
+	NIC,
+	MAX_PERF_CHN,
+};
+
+/*
+ * This is an array of device_ids (device types) that are performance critical.
+ * We attempt to distribute the interrupt load for these devices across
+ * all available CPUs.
+ */
+static const struct hv_vmbus_device_id hp_devs[] = {
+	/* IDE */
+	{ HV_IDE_GUID, },
+	/* Storage - SCSI */
+	{ HV_SCSI_GUID, },
+	/* Network */
+	{ HV_NIC_GUID, },
+};
+
+
+/*
+ * We use this state to statically distribute the channel interrupt load.
+ */
+static u32  next_vp;
+
+/*
+ * Starting with Win8, we can statically distribute the incoming
+ * channel interrupt load by binding a channel to VCPU. We
+ * implement here a simple round robin scheme for distributing
+ * the interrupt load.
+ * We will bind channels that are not performance critical to cpu 0 and
+ * performance critical channels (IDE, SCSI and Network) will be uniformly
+ * distributed across all available CPUs.
+ */
+static u32 get_vp_index(uuid_le *type_guid)
+{
+	u32 cur_cpu;
+	int i;
+	bool perf_chn = false;
+	u32 max_cpus = num_online_cpus();
+
+	for (i = IDE; i < MAX_PERF_CHN; i++) {
+		if (!memcmp(type_guid->b, hp_devs[i].guid,
+				 sizeof(uuid_le))) {
+			perf_chn = true;
+			break;
+		}
+	}
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn)) {
+		/*
+		 * Prior to win8, all channel interrupts are
+		 * delivered on cpu 0.
+		 * Also if the channel is not a performance critical
+		 * channel, bind it to cpu 0.
+		 */
+		return 0;
+	}
+	cur_cpu = (++next_vp % max_cpus);
+	return cur_cpu;
+}
+
 /*
  * vmbus_onoffer - Handler for channel offers from vmbus in parent partition.
  *
@@ -274,6 +338,35 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		pr_err("Unable to allocate channel object\n");
 		return;
 	}
+
+	/*
+	 * By default we setup state to enable batched
+	 * reading. A specific service can choose to
+	 * disable this prior to opening the channel.
+	 */
+	newchannel->batched_reading = true;
+
+	/*
+	 * Setup state for signalling the host.
+	 */
+	newchannel->sig_event = (struct hv_input_signal_event *)
+				(ALIGN((unsigned long)
+				&newchannel->sig_buf,
+				HV_HYPERCALL_PARAM_ALIGN));
+
+	newchannel->sig_event->connectionid.asu32 = 0;
+	newchannel->sig_event->connectionid.u.id = VMBUS_EVENT_CONNECTION_ID;
+	newchannel->sig_event->flag_number = 0;
+	newchannel->sig_event->rsvdz = 0;
+
+	if (vmbus_proto_version != VERSION_WS2008) {
+		newchannel->is_dedicated_interrupt =
+				(offer->is_dedicated_interrupt != 0);
+		newchannel->sig_event->connectionid.u.id =
+				offer->connection_id;
+	}
+
+	newchannel->target_vp = get_vp_index(&offer->offer.if_type);
 
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));

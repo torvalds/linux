@@ -174,9 +174,9 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN2,			\
 	.uV_step	= S2MPS11_BUCK_STEP2,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
-	.vsel_reg	= S2MPS11_REG_B9CTRL2,			\
+	.vsel_reg	= S2MPS11_REG_B10CTRL2,			\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
-	.enable_reg	= S2MPS11_REG_B9CTRL1,			\
+	.enable_reg	= S2MPS11_REG_B10CTRL1,			\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
 

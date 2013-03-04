@@ -406,7 +406,11 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 			goto error_free_reg;
 		}
 
-		st->vref = regulator_get_voltage(st->vref_reg);
+		ret = regulator_get_voltage(st->vref_reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		st->vref = ret;
 	} else {
 		st->vref = st->chip_info->int_vref;
 		ctrl |= AD5380_CTRL_INT_VREF_EN;

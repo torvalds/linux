@@ -71,7 +71,7 @@ int __init integrator_init(bool is_cp)
 	 * hard-code them. The Integator/CP and forward have proper cell IDs.
 	 * Else we leave them undefined to the bus driver can autoprobe them.
 	 */
-	if (!is_cp) {
+	if (!is_cp && IS_ENABLED(CONFIG_ARCH_INTEGRATOR_AP)) {
 		rtc_device.periphid	= 0x00041030;
 		uart0_device.periphid	= 0x00041010;
 		uart1_device.periphid	= 0x00041010;

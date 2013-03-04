@@ -369,11 +369,11 @@ static int do_validate_mem(struct pcmcia_socket *s,
 		}
 	}
 
-	free_region(res2);
-	free_region(res1);
-
 	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %p %p %u %u %u",
 		base, base+size-1, res1, res2, ret, info1, info2);
+
+	free_region(res2);
+	free_region(res1);
 
 	if ((ret) || (info1 != info2) || (info1 == 0))
 		return -EINVAL;

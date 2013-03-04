@@ -173,7 +173,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 			} while ((st->r1_mod > ADF4350_MAX_MODULUS) && r_cnt);
 		} while (r_cnt == 0);
 
-		tmp = freq * (u64)st->r1_mod + (st->fpfd > 1);
+		tmp = freq * (u64)st->r1_mod + (st->fpfd >> 1);
 		do_div(tmp, st->fpfd); /* Div round closest (n + d/2)/d */
 		st->r0_fract = do_div(tmp, st->r1_mod);
 		st->r0_int = tmp;

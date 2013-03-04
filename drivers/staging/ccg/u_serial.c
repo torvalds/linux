@@ -491,12 +491,8 @@ static void gs_rx_push(unsigned long _port)
 
 		req = list_first_entry(queue, struct usb_request, list);
 
-		/* discard data if tty was closed */
-		if (!tty)
-			goto recycle;
-
 		/* leave data queued if tty was rx throttled */
-		if (test_bit(TTY_THROTTLED, &tty->flags))
+		if (tty && test_bit(TTY_THROTTLED, &tty->flags))
 			break;
 
 		switch (req->status) {
@@ -529,7 +525,7 @@ static void gs_rx_push(unsigned long _port)
 				size -= n;
 			}
 
-			count = tty_insert_flip_string(tty, packet, size);
+			count = tty_insert_flip_string(&port->port, packet, size);
 			if (count)
 				do_push = true;
 			if (count != size) {
@@ -542,7 +538,6 @@ static void gs_rx_push(unsigned long _port)
 			}
 			port->n_read = 0;
 		}
-recycle:
 		list_move(&req->list, &port->read_pool);
 		port->read_started--;
 	}
@@ -550,8 +545,8 @@ recycle:
 	/* Push from tty to ldisc; without low_latency set this is handled by
 	 * a workqueue, so we won't get callbacks and can hold port_lock
 	 */
-	if (tty && do_push)
-		tty_flip_buffer_push(tty);
+	if (do_push)
+		tty_flip_buffer_push(&port->port);
 
 
 	/* We want our data queue to become empty ASAP, keeping data

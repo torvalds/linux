@@ -393,7 +393,7 @@ static int omap4_clkdm_clear_all_wkup_sleep_deps(struct clockdomain *clkdm)
 			continue; /* only happens if data is erroneous */
 
 		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->wkdep_usecount, 0);
+		cd->wkdep_usecount = 0;
 	}
 
 	omap4_cminst_clear_inst_reg_bits(mask, clkdm->prcm_partition,

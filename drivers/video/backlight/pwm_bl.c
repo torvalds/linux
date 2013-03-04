@@ -37,14 +37,13 @@ struct pwm_bl_data {
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int max = bl->props.max_brightness;
 
-	if (bl->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+	if (bl->props.power != FB_BLANK_UNBLANK ||
+	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
+	    bl->props.state & BL_CORE_FBBLANK)
 		brightness = 0;
 
 	if (pb->notify)
@@ -83,7 +82,7 @@ static int pwm_backlight_get_brightness(struct backlight_device *bl)
 static int pwm_backlight_check_fb(struct backlight_device *bl,
 				  struct fb_info *info)
 {
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	return !pb->check_fb || pb->check_fb(pb->dev, info);
 }
@@ -134,12 +133,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 					   &value);
 		if (ret < 0)
 			return ret;
-
-		if (value >= data->max_brightness) {
-			dev_warn(dev, "invalid default brightness level: %u, using %u\n",
-				 value, data->max_brightness - 1);
-			value = data->max_brightness - 1;
-		}
 
 		data->dft_brightness = value;
 		data->max_brightness--;
@@ -249,6 +242,13 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
+	if (data->dft_brightness > data->max_brightness) {
+		dev_warn(&pdev->dev,
+			 "invalid default brightness level: %u, using %u\n",
+			 data->dft_brightness, data->max_brightness);
+		data->dft_brightness = data->max_brightness;
+	}
+
 	bl->props.brightness = data->dft_brightness;
 	backlight_update_status(bl);
 
@@ -264,7 +264,7 @@ err_alloc:
 static int pwm_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	backlight_device_unregister(bl);
 	pwm_config(pb->pwm, 0, pb->period);
@@ -278,7 +278,7 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 static int pwm_backlight_suspend(struct device *dev)
 {
 	struct backlight_device *bl = dev_get_drvdata(dev);
-	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	if (pb->notify)
 		pb->notify(pb->dev, 0);

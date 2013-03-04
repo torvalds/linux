@@ -678,6 +678,7 @@ struct qeth_card_options {
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
+	enum qeth_ipa_isolation_modes prev_isolation;
 	int sniffer;
 	enum qeth_cq cq;
 	char hsuid[9];
@@ -789,6 +790,7 @@ struct qeth_card {
 	struct qeth_rx rx;
 	struct delayed_work buffer_reclaim_work;
 	int reclaim_index;
+	struct work_struct close_dev_work;
 };
 
 struct qeth_card_list_struct {
@@ -816,7 +818,7 @@ static inline struct qeth_card *CARD_FROM_CDEV(struct ccw_device *cdev)
 
 static inline int qeth_get_micros(void)
 {
-	return (int) (get_clock() >> 12);
+	return (int) (get_tod_clock() >> 12);
 }
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
@@ -909,9 +911,6 @@ struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
 int qeth_mdio_read(struct net_device *, int, int);
 int qeth_snmp_command(struct qeth_card *, char __user *);
 int qeth_query_oat_command(struct qeth_card *, char __user *);
-struct qeth_cmd_buffer *qeth_get_adapter_cmd(struct qeth_card *, __u32, __u32);
-int qeth_default_setadapterparms_cb(struct qeth_card *, struct qeth_reply *,
-					unsigned long);
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
@@ -928,12 +927,13 @@ void qeth_core_get_strings(struct net_device *, u32, u8 *);
 void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
-int qeth_set_access_ctrl_online(struct qeth_card *card);
+int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
 void qeth_trace_features(struct qeth_card *);
+void qeth_close_dev(struct qeth_card *);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

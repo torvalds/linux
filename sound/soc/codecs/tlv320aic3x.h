@@ -238,6 +238,10 @@
 /* Default input volume */
 #define DEFAULT_GAIN    0x20
 
+/* MICBIAS Control Register */
+#define MICBIAS_LEVEL_SHIFT	(6)
+#define MICBIAS_LEVEL_MASK	(3 << 6)
+
 /* headset detection / button API */
 
 /* The AIC3x supports detection of stereo headsets (GND + left + right signal)

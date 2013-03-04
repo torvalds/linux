@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1272,22 +1272,29 @@ qla2x00_thermal_temp_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
-	int rval = QLA_FUNCTION_FAILED;
-	uint16_t temp, frac;
+	uint16_t temp = 0;
 
-	if (!vha->hw->flags.thermal_supported)
-		return snprintf(buf, PAGE_SIZE, "\n");
+	if (!vha->hw->thermal_support) {
+		ql_log(ql_log_warn, vha, 0x70db,
+		    "Thermal not supported by this card.\n");
+		goto done;
+	}
 
-	temp = frac = 0;
-	if (qla2x00_reset_active(vha))
-		ql_log(ql_log_warn, vha, 0x707b,
-		    "ISP reset active.\n");
-	else if (!vha->hw->flags.eeh_busy)
-		rval = qla2x00_get_thermal_temp(vha, &temp, &frac);
-	if (rval != QLA_SUCCESS)
-		return snprintf(buf, PAGE_SIZE, "\n");
+	if (qla2x00_reset_active(vha)) {
+		ql_log(ql_log_warn, vha, 0x70dc, "ISP reset active.\n");
+		goto done;
+	}
 
-	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", temp, frac);
+	if (vha->hw->flags.eeh_busy) {
+		ql_log(ql_log_warn, vha, 0x70dd, "PCI EEH busy.\n");
+		goto done;
+	}
+
+	if (qla2x00_get_thermal_temp(vha, &temp) == QLA_SUCCESS)
+		return snprintf(buf, PAGE_SIZE, "%d\n", temp);
+
+done:
+	return snprintf(buf, PAGE_SIZE, "\n");
 }
 
 static ssize_t

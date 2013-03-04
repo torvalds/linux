@@ -553,13 +553,6 @@ static struct at91_twi_pdata at91sam9g10_config = {
 	.has_dma_support = false,
 };
 
-static struct at91_twi_pdata at91sam9x5_config = {
-	.clk_max_div = 7,
-	.clk_offset = 4,
-	.has_unre_flag = false,
-	.has_dma_support = true,
-};
-
 static const struct platform_device_id at91_twi_devtypes[] = {
 	{
 		.name = "i2c-at91rm9200",
@@ -582,8 +575,18 @@ static const struct platform_device_id at91_twi_devtypes[] = {
 };
 
 #if defined(CONFIG_OF)
+static struct at91_twi_pdata at91sam9x5_config = {
+	.clk_max_div = 7,
+	.clk_offset = 4,
+	.has_unre_flag = false,
+	.has_dma_support = true,
+};
+
 static const struct of_device_id atmel_twi_dt_ids[] = {
 	{
+		.compatible = "atmel,at91rm9200-i2c",
+		.data = &at91rm9200_config,
+	} , {
 		.compatible = "atmel,at91sam9260-i2c",
 		.data = &at91sam9260_config,
 	} , {
@@ -723,9 +726,9 @@ static int at91_twi_probe(struct platform_device *pdev)
 	if (!dev->pdata)
 		return -ENODEV;
 
-	dev->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dev->base)
-		return -EBUSY;
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0)

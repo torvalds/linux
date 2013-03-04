@@ -13,6 +13,12 @@
 
 /*-------------------------------------------------------------------------*/
 
+static int override_alt = -1;
+module_param_named(alt, override_alt, int, 0644);
+MODULE_PARM_DESC(alt, ">= 0 to override altsetting selection");
+
+/*-------------------------------------------------------------------------*/
+
 /* FIXME make these public somewhere; usbdevfs.h? */
 struct usbtest_param {
 	/* inputs */
@@ -103,6 +109,10 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 		iso_in = iso_out = NULL;
 		alt = intf->altsetting + tmp;
 
+		if (override_alt >= 0 &&
+				override_alt != alt->desc.bAlternateSetting)
+			continue;
+
 		/* take the first altsetting with in-bulk + out-bulk;
 		 * ignore other endpoints and altsettings.
 		 */
@@ -144,6 +154,7 @@ try_iso:
 
 found:
 	udev = testdev_to_usbdev(dev);
+	dev->info->alt = alt->desc.bAlternateSetting;
 	if (alt->desc.bAlternateSetting != 0) {
 		tmp = usb_set_interface(udev,
 				alt->desc.bInterfaceNumber,
@@ -2179,7 +2190,7 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 		if (dev->out_pipe == 0 || !param->length || param->sglen < 4)
 			break;
 		retval = 0;
-		dev_info(&intf->dev, "TEST 17:  unlink from %d queues of "
+		dev_info(&intf->dev, "TEST 24:  unlink from %d queues of "
 				"%d %d-byte writes\n",
 				param->iterations, param->sglen, param->length);
 		for (i = param->iterations; retval == 0 && i > 0; --i) {
@@ -2280,7 +2291,7 @@ usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			wtest = " intr-out";
 		}
 	} else {
-		if (info->autoconf) {
+		if (override_alt >= 0 || info->autoconf) {
 			int status;
 
 			status = get_endpoints(dev, intf);

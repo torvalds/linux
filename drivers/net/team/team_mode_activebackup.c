@@ -19,6 +19,7 @@
 
 struct ab_priv {
 	struct team_port __rcu *active_port;
+	struct team_option_inst_info *ap_opt_inst_info;
 };
 
 static struct ab_priv *ab_priv(struct team *team)
@@ -54,8 +55,17 @@ drop:
 
 static void ab_port_leave(struct team *team, struct team_port *port)
 {
-	if (ab_priv(team)->active_port == port)
+	if (ab_priv(team)->active_port == port) {
 		RCU_INIT_POINTER(ab_priv(team)->active_port, NULL);
+		team_option_inst_set_change(ab_priv(team)->ap_opt_inst_info);
+	}
+}
+
+static int ab_active_port_init(struct team *team,
+			       struct team_option_inst_info *info)
+{
+	ab_priv(team)->ap_opt_inst_info = info;
+	return 0;
 }
 
 static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
@@ -88,6 +98,7 @@ static const struct team_option ab_options[] = {
 	{
 		.name = "activeport",
 		.type = TEAM_OPTION_TYPE_U32,
+		.init = ab_active_port_init,
 		.getter = ab_active_port_get,
 		.setter = ab_active_port_set,
 	},

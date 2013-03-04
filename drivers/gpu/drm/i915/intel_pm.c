@@ -44,6 +44,14 @@
  * i915.i915_enable_fbc parameter
  */
 
+static bool intel_crtc_active(struct drm_crtc *crtc)
+{
+	/* Be paranoid as we can arrive here with only partial
+	 * state retrieved from the hardware during setup.
+	 */
+	return to_intel_crtc(crtc)->active && crtc->fb && crtc->mode.clock;
+}
+
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -405,9 +413,8 @@ void intel_update_fbc(struct drm_device *dev)
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
-		if (to_intel_crtc(tmp_crtc)->active &&
-		    !to_intel_crtc(tmp_crtc)->primary_disabled &&
-		    tmp_crtc->fb) {
+		if (intel_crtc_active(tmp_crtc) &&
+		    !to_intel_crtc(tmp_crtc)->primary_disabled) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
@@ -438,12 +445,6 @@ void intel_update_fbc(struct drm_device *dev)
 	if (!enable_fbc) {
 		DRM_DEBUG_KMS("fbc disabled per module param\n");
 		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
-		goto out_disable;
-	}
-	if (intel_fb->obj->base.size > dev_priv->cfb_size) {
-		DRM_DEBUG_KMS("framebuffer too large, disabling "
-			      "compression\n");
-		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
 	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
@@ -478,6 +479,14 @@ void intel_update_fbc(struct drm_device *dev)
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master())
 		goto out_disable;
+
+	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
+		DRM_INFO("not enough stolen space for compressed buffer (need %zd bytes), disabling\n", intel_fb->obj->base.size);
+		DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
+		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
+		goto out_disable;
+	}
 
 	/* If the scanout has not changed, don't modify the FBC settings.
 	 * Note that we make the fundamental assumption that the fb->obj
@@ -526,6 +535,7 @@ out_disable:
 		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_disable_fbc(dev);
 	}
+	i915_gem_stolen_cleanup_compression(dev);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -992,7 +1002,7 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	struct drm_crtc *crtc, *enabled = NULL;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (to_intel_crtc(crtc)->active && crtc->fb) {
+		if (intel_crtc_active(crtc)) {
 			if (enabled)
 				return NULL;
 			enabled = crtc;
@@ -1086,7 +1096,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active) {
+	if (!intel_crtc_active(crtc)) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
 		return false;
@@ -1215,7 +1225,7 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	int entries;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active)
+	if (!intel_crtc_active(crtc))
 		return false;
 
 	clock = crtc->mode.clock;	/* VESA DOT Clock */
@@ -1476,7 +1486,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
-	if (to_intel_crtc(crtc)->active && crtc->fb) {
+	if (intel_crtc_active(crtc)) {
 		int cpp = crtc->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
@@ -1490,7 +1500,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 	crtc = intel_get_crtc_for_plane(dev, 1);
-	if (to_intel_crtc(crtc)->active && crtc->fb) {
+	if (intel_crtc_active(crtc)) {
 		int cpp = crtc->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
@@ -2044,7 +2054,7 @@ sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !to_intel_crtc(crtc)->active) {
+	if (!intel_crtc_active(crtc)) {
 		*sprite_wm = display->guard_size;
 		return false;
 	}
@@ -2279,7 +2289,6 @@ err_unpin:
 	i915_gem_object_unpin(ctx);
 err_unref:
 	drm_gem_object_unreference(&ctx->base);
-	mutex_unlock(&dev->struct_mutex);
 	return NULL;
 }
 
@@ -3574,6 +3583,19 @@ static void cpt_init_clock_gating(struct drm_device *dev)
 	}
 }
 
+static void gen6_check_mch_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(MCH_SSKPD);
+	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL) {
+		DRM_INFO("Wrong MCH_SSKPD value: 0x%08x\n", tmp);
+		DRM_INFO("This can cause pipe underruns and display issues.\n");
+		DRM_INFO("Please upgrade your BIOS to fix this.\n");
+	}
+}
+
 static void gen6_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3666,6 +3688,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_ENABLE(GEN6_GT_MODE_HI));
 
 	cpt_init_clock_gating(dev);
+
+	gen6_check_mch_setup(dev);
 }
 
 static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
@@ -3676,6 +3700,10 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_TS_SCHED_HW;
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
+
+	/* WaVSRefCountFullforceMissDisable */
+	if (IS_HASWELL(dev_priv->dev))
+		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
 
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
@@ -3847,6 +3875,8 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
 
 	cpt_init_clock_gating(dev);
+
+	gen6_check_mch_setup(dev);
 }
 
 static void valleyview_init_clock_gating(struct drm_device *dev)
@@ -4040,35 +4070,57 @@ void intel_init_clock_gating(struct drm_device *dev)
 	dev_priv->display.init_clock_gating(dev);
 }
 
-/* Starting with Haswell, we have different power wells for
- * different parts of the GPU. This attempts to enable them all.
- */
-void intel_init_power_wells(struct drm_device *dev)
+void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long power_wells[] = {
-		HSW_PWR_WELL_CTL1,
-		HSW_PWR_WELL_CTL2,
-		HSW_PWR_WELL_CTL4
-	};
-	int i;
+	bool is_enabled, enable_requested;
+	uint32_t tmp;
 
 	if (!IS_HASWELL(dev))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
+	is_enabled = tmp & HSW_PWR_WELL_STATE;
+	enable_requested = tmp & HSW_PWR_WELL_ENABLE;
 
-	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
-		int well = I915_READ(power_wells[i]);
+	if (enable) {
+		if (!enable_requested)
+			I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE);
 
-		if ((well & HSW_PWR_WELL_STATE) == 0) {
-			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
-			if (wait_for((I915_READ(power_wells[i]) & HSW_PWR_WELL_STATE), 20))
-				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+		if (!is_enabled) {
+			DRM_DEBUG_KMS("Enabling power well\n");
+			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
+				      HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Timeout enabling power well\n");
+		}
+	} else {
+		if (enable_requested) {
+			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 		}
 	}
+}
 
-	mutex_unlock(&dev->struct_mutex);
+/*
+ * Starting with Haswell, we have a "Power Down Well" that can be turned off
+ * when not needed anymore. We have 4 registers that can request the power well
+ * to be enabled, and it will only be disabled if none of the registers is
+ * requesting it to be enabled.
+ */
+void intel_init_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	/* For now, we need the power well to be always enabled. */
+	intel_set_power_well(dev, true);
+
+	/* We're taking over the BIOS, so clear any requests made by it since
+	 * the driver is in charge now. */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
+		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
 
 /* Set up chip specific power management-related functions */
@@ -4243,7 +4295,8 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 }
 
 static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
@@ -4260,7 +4313,8 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
@@ -4297,14 +4351,16 @@ void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
 static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
@@ -4344,6 +4400,8 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(0xffff));
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 }
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
@@ -4364,7 +4422,8 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* The below doubles as a POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 

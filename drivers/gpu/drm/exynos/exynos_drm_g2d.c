@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-attrs.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -324,7 +325,7 @@ out:
 	g2d_userptr = NULL;
 }
 
-dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 					unsigned long userptr,
 					unsigned long size,
 					struct drm_file *filp,
@@ -429,7 +430,7 @@ dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	g2d_userptr->pages = pages;
 
-	sgt = kzalloc(sizeof *sgt, GFP_KERNEL);
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
 		DRM_ERROR("failed to allocate sg table.\n");
 		ret = -ENOMEM;
@@ -1136,10 +1137,9 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	g2d->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!g2d->regs) {
-		dev_err(dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
+	g2d->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(g2d->regs)) {
+		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
 	}
 
@@ -1240,6 +1240,14 @@ static int g2d_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos_g2d_match[] = {
+	{ .compatible = "samsung,exynos5250-g2d" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+#endif
+
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
@@ -1247,5 +1255,6 @@ struct platform_driver g2d_driver = {
 		.name	= "s5p-g2d",
 		.owner	= THIS_MODULE,
 		.pm	= &g2d_pm_ops,
+		.of_match_table = of_match_ptr(exynos_g2d_match),
 	},
 };

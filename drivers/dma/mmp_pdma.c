@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -617,10 +618,8 @@ static int mmp_pdma_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 		else if (maxburst == 32)
 			chan->dcmd |= DCMD_BURST32;
 
-		if (cfg) {
-			chan->dir = cfg->direction;
-			chan->drcmr = cfg->slave_id;
-		}
+		chan->dir = cfg->direction;
+		chan->drcmr = cfg->slave_id;
 		chan->dev_addr = addr;
 		break;
 	default:
@@ -782,9 +781,9 @@ static int mmp_pdma_probe(struct platform_device *op)
 	if (!iores)
 		return -EINVAL;
 
-	pdev->base = devm_request_and_ioremap(pdev->dev, iores);
-	if (!pdev->base)
-		return -EADDRNOTAVAIL;
+	pdev->base = devm_ioremap_resource(pdev->dev, iores);
+	if (IS_ERR(pdev->base))
+		return PTR_ERR(pdev->base);
 
 	of_id = of_match_device(mmp_pdma_dt_ids, pdev->dev);
 	if (of_id)

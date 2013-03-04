@@ -89,7 +89,7 @@ do_ftrace_mod_code(unsigned long ip, const void *new_code)
 	 * kernel identity mapping to modify code.
 	 */
 	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
-		ip = (unsigned long)__va(__pa(ip));
+		ip = (unsigned long)__va(__pa_symbol(ip));
 
 	return probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE);
 }
@@ -279,7 +279,7 @@ static int ftrace_write(unsigned long ip, const char *val, int size)
 	 * kernel identity mapping to modify code.
 	 */
 	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
-		ip = (unsigned long)__va(__pa(ip));
+		ip = (unsigned long)__va(__pa_symbol(ip));
 
 	return probe_kernel_write((void *)ip, val, size);
 }

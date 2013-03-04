@@ -273,7 +273,7 @@ static inline int autofs_prepare_pipe(struct file *pipe)
 {
 	if (!pipe->f_op || !pipe->f_op->write)
 		return -EINVAL;
-	if (!S_ISFIFO(pipe->f_dentry->d_inode->i_mode))
+	if (!S_ISFIFO(file_inode(pipe)->i_mode))
 		return -EINVAL;
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;

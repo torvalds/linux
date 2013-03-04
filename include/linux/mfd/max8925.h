@@ -190,6 +190,8 @@ enum {
 	MAX8925_NR_IRQS,
 };
 
+
+
 struct max8925_chip {
 	struct device		*dev;
 	struct i2c_client	*i2c;
@@ -201,7 +203,6 @@ struct max8925_chip {
 	int			irq_base;
 	int			core_irq;
 	int			tsc_irq;
-
 	unsigned int            wakeup_flag;
 };
 

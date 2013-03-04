@@ -259,10 +259,9 @@ drop:
 /* -------- Socket interface ---------- */
 static struct sock *__sco_get_sock_listen_by_addr(bdaddr_t *ba)
 {
-	struct hlist_node *node;
 	struct sock *sk;
 
-	sk_for_each(sk, node, &sco_sk_list.head) {
+	sk_for_each(sk, &sco_sk_list.head) {
 		if (sk->sk_state != BT_LISTEN)
 			continue;
 
@@ -279,11 +278,10 @@ static struct sock *__sco_get_sock_listen_by_addr(bdaddr_t *ba)
 static struct sock *sco_get_sock_listen(bdaddr_t *src)
 {
 	struct sock *sk = NULL, *sk1 = NULL;
-	struct hlist_node *node;
 
 	read_lock(&sco_sk_list.lock);
 
-	sk_for_each(sk, node, &sco_sk_list.head) {
+	sk_for_each(sk, &sco_sk_list.head) {
 		if (sk->sk_state != BT_LISTEN)
 			continue;
 
@@ -298,7 +296,7 @@ static struct sock *sco_get_sock_listen(bdaddr_t *src)
 
 	read_unlock(&sco_sk_list.lock);
 
-	return node ? sk : sk1;
+	return sk ? sk : sk1;
 }
 
 static void sco_sock_destruct(struct sock *sk)
@@ -352,7 +350,7 @@ static void __sco_sock_close(struct sock *sk)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (sco_pi(sk)->conn) {
+		if (sco_pi(sk)->conn->hcon) {
 			sk->sk_state = BT_DISCONN;
 			sco_sock_set_timer(sk, SCO_DISCONN_TIMEOUT);
 			hci_conn_put(sco_pi(sk)->conn->hcon);
@@ -900,8 +898,6 @@ static void sco_conn_ready(struct sco_conn *conn)
 
 	BT_DBG("conn %p", conn);
 
-	sco_conn_lock(conn);
-
 	if (sk) {
 		sco_sock_clear_timer(sk);
 		bh_lock_sock(sk);
@@ -909,9 +905,13 @@ static void sco_conn_ready(struct sco_conn *conn)
 		sk->sk_state_change(sk);
 		bh_unlock_sock(sk);
 	} else {
+		sco_conn_lock(conn);
+
 		parent = sco_get_sock_listen(conn->src);
-		if (!parent)
-			goto done;
+		if (!parent) {
+			sco_conn_unlock(conn);
+			return;
+		}
 
 		bh_lock_sock(parent);
 
@@ -919,7 +919,8 @@ static void sco_conn_ready(struct sco_conn *conn)
 				    BTPROTO_SCO, GFP_ATOMIC);
 		if (!sk) {
 			bh_unlock_sock(parent);
-			goto done;
+			sco_conn_unlock(conn);
+			return;
 		}
 
 		sco_sock_init(sk, parent);
@@ -939,24 +940,22 @@ static void sco_conn_ready(struct sco_conn *conn)
 		parent->sk_data_ready(parent, 1);
 
 		bh_unlock_sock(parent);
-	}
 
-done:
-	sco_conn_unlock(conn);
+		sco_conn_unlock(conn);
+	}
 }
 
 /* ----- SCO interface with lower layer (HCI) ----- */
 int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 	int lm = 0;
 
 	BT_DBG("hdev %s, bdaddr %pMR", hdev->name, bdaddr);
 
 	/* Find listening sockets */
 	read_lock(&sco_sk_list.lock);
-	sk_for_each(sk, node, &sco_sk_list.head) {
+	sk_for_each(sk, &sco_sk_list.head) {
 		if (sk->sk_state != BT_LISTEN)
 			continue;
 
@@ -1016,11 +1015,10 @@ drop:
 static int sco_debugfs_show(struct seq_file *f, void *p)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 	read_lock(&sco_sk_list.lock);
 
-	sk_for_each(sk, node, &sco_sk_list.head) {
+	sk_for_each(sk, &sco_sk_list.head) {
 		seq_printf(f, "%pMR %pMR %d\n", &bt_sk(sk)->src,
 			   &bt_sk(sk)->dst, sk->sk_state);
 	}

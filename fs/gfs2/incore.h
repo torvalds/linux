@@ -52,7 +52,6 @@ struct gfs2_log_header_host {
  */
 
 struct gfs2_log_operations {
-	void (*lo_add) (struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 	void (*lo_before_commit) (struct gfs2_sbd *sdp);
 	void (*lo_after_commit) (struct gfs2_sbd *sdp, struct gfs2_ail *ai);
 	void (*lo_before_scan) (struct gfs2_jdesc *jd,
@@ -341,6 +340,7 @@ enum {
 	GIF_QD_LOCKED		= 1,
 	GIF_ALLOC_FAILED	= 2,
 	GIF_SW_PAGED		= 3,
+	GIF_ORDERED		= 4,
 };
 
 struct gfs2_inode {
@@ -357,6 +357,7 @@ struct gfs2_inode {
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
+	struct list_head i_ordered;
 	struct list_head i_trunc_list;
 	__be64 *i_hash_cache;
 	u32 i_entries;
@@ -391,7 +392,6 @@ struct gfs2_revoke_replay {
 };
 
 enum {
-	QDF_USER		= 0,
 	QDF_CHANGE		= 1,
 	QDF_LOCKED		= 2,
 	QDF_REFRESH		= 3,
@@ -403,7 +403,7 @@ struct gfs2_quota_data {
 
 	atomic_t qd_count;
 
-	u32 qd_id;
+	struct kqid qd_id;
 	unsigned long qd_flags;		/* QDF_... */
 
 	s64 qd_change;
@@ -641,6 +641,7 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
+	struct completion sd_wdack;
 	struct delayed_work sd_control_work;
 
 	/* Inode Stuff */
@@ -723,6 +724,7 @@ struct gfs2_sbd {
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_databuf;
 	struct list_head sd_log_le_ordered;
+	spinlock_t sd_ordered_lock;
 
 	atomic_t sd_log_thresh1;
 	atomic_t sd_log_thresh2;
@@ -758,10 +760,7 @@ struct gfs2_sbd {
 	unsigned int sd_replayed_blocks;
 
 	/* For quiescing the filesystem */
-
 	struct gfs2_holder sd_freeze_gh;
-	struct mutex sd_freeze_lock;
-	unsigned int sd_freeze_count;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
 	char sd_table_name[GFS2_FSNAME_LEN];

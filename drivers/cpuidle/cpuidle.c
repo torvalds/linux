@@ -69,24 +69,15 @@ int cpuidle_play_dead(void)
 {
 	struct cpuidle_device *dev = __this_cpu_read(cpuidle_devices);
 	struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
-	int i, dead_state = -1;
-	int power_usage = INT_MAX;
+	int i;
 
 	if (!drv)
 		return -ENODEV;
 
 	/* Find lowest-power state that supports long-term idle */
-	for (i = CPUIDLE_DRIVER_STATE_START; i < drv->state_count; i++) {
-		struct cpuidle_state *s = &drv->states[i];
-
-		if (s->power_usage < power_usage && s->enter_dead) {
-			power_usage = s->power_usage;
-			dead_state = i;
-		}
-	}
-
-	if (dead_state != -1)
-		return drv->states[dead_state].enter_dead(dev, dead_state);
+	for (i = drv->state_count - 1; i >= CPUIDLE_DRIVER_STATE_START; i--)
+		if (drv->states[i].enter_dead)
+			return drv->states[i].enter_dead(dev, i);
 
 	return -ENODEV;
 }
@@ -153,7 +144,6 @@ int cpuidle_idle_call(void)
 		return 0;
 	}
 
-	trace_power_start_rcuidle(POWER_CSTATE, next_state, dev->cpu);
 	trace_cpu_idle_rcuidle(next_state, dev->cpu);
 
 	if (cpuidle_state_is_coupled(dev, drv, next_state))
@@ -162,7 +152,6 @@ int cpuidle_idle_call(void)
 	else
 		entered_state = cpuidle_enter_state(dev, drv, next_state);
 
-	trace_power_end_rcuidle(dev->cpu);
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
 
 	/* give the governor an opportunity to reflect on the outcome */

@@ -54,9 +54,18 @@
 #define BM_CLPCR_MASK_SCU_IDLE		(0x1 << 26)
 #define BM_CLPCR_MASK_L2CC_IDLE		(0x1 << 27)
 
+#define CGPR				0x64
+#define BM_CGPR_CHICKEN_BIT		(0x1 << 17)
+
 static void __iomem *ccm_base;
 
-void __init imx6q_clock_map_io(void) { }
+void imx6q_set_chicken_bit(void)
+{
+	u32 val = readl_relaxed(ccm_base + CGPR);
+
+	val |= BM_CGPR_CHICKEN_BIT;
+	writel_relaxed(val, ccm_base + CGPR);
+}
 
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 {
@@ -68,6 +77,7 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		break;
 	case WAIT_UNCLOCKED:
 		val |= 0x1 << BP_CLPCR_LPM;
+		val |= BM_CLPCR_ARM_CLK_DIS_ON_LPM;
 		break;
 	case STOP_POWER_ON:
 		val |= 0x2 << BP_CLPCR_LPM;
@@ -154,8 +164,8 @@ enum mx6q_clks {
 	usdhc4, vdo_axi, vpu_axi, cko1, pll1_sys, pll2_bus, pll3_usb_otg,
 	pll4_audio, pll5_video, pll8_mlb, pll7_usb_host, pll6_enet, ssi1_ipg,
 	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2, ldb_di0_div_3_5, ldb_di1_div_3_5,
-	sata_ref, sata_ref_100m, pcie_ref, pcie_ref_125m, enet_ref,
-	clk_max
+	sata_ref, sata_ref_100m, pcie_ref, pcie_ref_125m, enet_ref, usbphy1_gate,
+	usbphy2_gate, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -208,8 +218,21 @@ int __init mx6q_clocks_init(void)
 	clk[pll7_usb_host] = imx_clk_pllv3(IMX_PLLV3_USB,	"pll7_usb_host","osc", base + 0x20, 0x3);
 	clk[pll8_mlb]      = imx_clk_pllv3(IMX_PLLV3_MLB,	"pll8_mlb",	"osc", base + 0xd0, 0x0);
 
-	clk[usbphy1] = imx_clk_gate("usbphy1", "pll3_usb_otg", base + 0x10, 6);
-	clk[usbphy2] = imx_clk_gate("usbphy2", "pll7_usb_host", base + 0x20, 6);
+	/*
+	 * Bit 20 is the reserved and read-only bit, we do this only for:
+	 * - Do nothing for usbphy clk_enable/disable
+	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
+	 * the clk framework may need to enable/disable usbphy's parent
+	 */
+	clk[usbphy1] = imx_clk_gate("usbphy1", "pll3_usb_otg", base + 0x10, 20);
+	clk[usbphy2] = imx_clk_gate("usbphy2", "pll7_usb_host", base + 0x20, 20);
+
+	/*
+	 * usbphy*_gate needs to be on after system boots up, and software
+	 * never needs to control it anymore.
+	 */
+	clk[usbphy1_gate] = imx_clk_gate("usbphy1_gate", "dummy", base + 0x10, 6);
+	clk[usbphy2_gate] = imx_clk_gate("usbphy2_gate", "dummy", base + 0x20, 6);
 
 	clk[sata_ref] = imx_clk_fixed_factor("sata_ref", "pll6_enet", 1, 5);
 	clk[pcie_ref] = imx_clk_fixed_factor("pcie_ref", "pll6_enet", 1, 4);
@@ -435,6 +458,14 @@ int __init mx6q_clocks_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clk[clks_init_on[i]]);
+
+	if (IS_ENABLED(CONFIG_USB_MXS_PHY)) {
+		clk_prepare_enable(clk[usbphy1_gate]);
+		clk_prepare_enable(clk[usbphy2_gate]);
+	}
+
+	/* Set initial power mode */
+	imx6q_set_lpm(WAIT_CLOCKED);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);

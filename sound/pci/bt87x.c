@@ -836,6 +836,8 @@ static struct {
 	{0x7063, 0x2000}, /* pcHDTV HD-2000 TV */
 };
 
+static struct pci_driver driver;
+
 /* return the id of the card, or a negative value if it's blacklisted */
 static int snd_bt87x_detect_card(struct pci_dev *pci)
 {
@@ -962,11 +964,24 @@ static DEFINE_PCI_DEVICE_TABLE(snd_bt87x_default_ids) = {
 	{ }
 };
 
-static struct pci_driver bt87x_driver = {
+static struct pci_driver driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_bt87x_ids,
 	.probe = snd_bt87x_probe,
 	.remove = snd_bt87x_remove,
 };
 
-module_pci_driver(bt87x_driver);
+static int __init alsa_card_bt87x_init(void)
+{
+	if (load_all)
+		driver.id_table = snd_bt87x_default_ids;
+	return pci_register_driver(&driver);
+}
+
+static void __exit alsa_card_bt87x_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
+module_init(alsa_card_bt87x_init)
+module_exit(alsa_card_bt87x_exit)

@@ -2,7 +2,7 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
  * Copyright (C) 2001 Ralf Baechle
- * Portions copyright (C) 2009  Cisco Systems, Inc.
+ * Portions copyright (C) 2009	Cisco Systems, Inc.
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -64,7 +64,7 @@ static void asic_irqdispatch(void)
 
 	irq = get_int();
 	if (irq < 0)
-		return;  /* interrupt has already been cleared */
+		return;	 /* interrupt has already been cleared */
 
 	do_IRQ(irq);
 }

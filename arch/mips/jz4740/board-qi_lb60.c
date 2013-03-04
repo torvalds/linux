@@ -52,7 +52,7 @@ static bool is_avt2;
 static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
 	.eccbytes = 36,
 	.eccpos = {
-		6,  7,  8,  9,  10, 11, 12, 13,
+		6,  7,	8,  9,	10, 11, 12, 13,
 		14, 15, 16, 17, 18, 19, 20, 21,
 		22, 23, 24, 25, 26, 27, 28, 29,
 		30, 31, 32, 33, 34, 35, 36, 37,
@@ -210,7 +210,7 @@ static const uint32_t qi_lb60_keymap[] = {
 	KEY(6, 7, KEY_RIGHT),	/* S57 */
 
 	KEY(7, 0, KEY_LEFTSHIFT),	/* S58 */
-	KEY(7, 1, KEY_LEFTALT),	/* S59 */
+	KEY(7, 1, KEY_LEFTALT), /* S59 */
 	KEY(7, 2, KEY_QI_FN),	/* S60 */
 };
 
@@ -317,7 +317,7 @@ static struct spi_board_info qi_lb60_spi_board_info[] = {
 
 /* Battery */
 static struct jz_battery_platform_data qi_lb60_battery_pdata = {
-	.gpio_charge =  JZ_GPIO_PORTC(27),
+	.gpio_charge =	JZ_GPIO_PORTC(27),
 	.gpio_charge_active_low = 1,
 	.info = {
 		.name = "battery",
@@ -344,7 +344,7 @@ static struct gpio_keys_platform_data qi_lb60_gpio_keys_data = {
 };
 
 static struct platform_device qi_lb60_gpio_keys = {
-	.name =	"gpio-keys",
+	.name = "gpio-keys",
 	.id =	-1,
 	.dev = {
 		.platform_data = &qi_lb60_gpio_keys_data,

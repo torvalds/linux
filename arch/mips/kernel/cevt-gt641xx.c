@@ -1,7 +1,7 @@
 /*
  *  GT641xx clockevent routines.
  *
- *  Copyright (C) 2007  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2007	Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ static struct clock_event_device gt641xx_timer0_clockevent = {
 	.name		= "gt641xx-timer0",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.irq		= GT641XX_TIMER0_IRQ,
-	.set_next_event	= gt641xx_timer0_set_next_event,
+	.set_next_event = gt641xx_timer0_set_next_event,
 	.set_mode	= gt641xx_timer0_set_mode,
 	.event_handler	= gt641xx_timer0_event_handler,
 };

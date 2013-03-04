@@ -34,7 +34,8 @@ struct fcoe_sysfs_function_template {
 	void (*get_fcoe_ctlr_symb_err)(struct fcoe_ctlr_device *);
 	void (*get_fcoe_ctlr_err_block)(struct fcoe_ctlr_device *);
 	void (*get_fcoe_ctlr_fcs_error)(struct fcoe_ctlr_device *);
-	void (*get_fcoe_ctlr_mode)(struct fcoe_ctlr_device *);
+	void (*set_fcoe_ctlr_mode)(struct fcoe_ctlr_device *);
+	int  (*set_fcoe_ctlr_enabled)(struct fcoe_ctlr_device *);
 	void (*get_fcoe_fcf_selected)(struct fcoe_fcf_device *);
 	void (*get_fcoe_fcf_vlan_id)(struct fcoe_fcf_device *);
 };
@@ -46,6 +47,12 @@ enum fip_conn_type {
 	FIP_CONN_TYPE_UNKNOWN,
 	FIP_CONN_TYPE_FABRIC,
 	FIP_CONN_TYPE_VN2VN,
+};
+
+enum ctlr_enabled_state {
+	FCOE_CTLR_ENABLED,
+	FCOE_CTLR_DISABLED,
+	FCOE_CTLR_UNUSED,
 };
 
 struct fcoe_ctlr_device {
@@ -63,6 +70,8 @@ struct fcoe_ctlr_device {
 
 	int                             fcf_dev_loss_tmo;
 	enum fip_conn_type              mode;
+
+	enum ctlr_enabled_state         enabled;
 
 	/* expected in host order for displaying */
 	struct fcoe_fc_els_lesb         lesb;

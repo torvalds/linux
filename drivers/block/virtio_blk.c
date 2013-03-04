@@ -889,6 +889,7 @@ static void virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	int index = vblk->index;
+	int refc;
 
 	/* Prevent config work handler from accessing the device. */
 	mutex_lock(&vblk->config_lock);
@@ -903,11 +904,15 @@ static void virtblk_remove(struct virtio_device *vdev)
 
 	flush_work(&vblk->config_work);
 
+	refc = atomic_read(&disk_to_dev(vblk->disk)->kobj.kref.refcount);
 	put_disk(vblk->disk);
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vqs(vdev);
 	kfree(vblk);
-	ida_simple_remove(&vd_index_ida, index);
+
+	/* Only free device id if we don't have any users */
+	if (refc == 1)
+		ida_simple_remove(&vd_index_ida, index);
 }
 
 #ifdef CONFIG_PM

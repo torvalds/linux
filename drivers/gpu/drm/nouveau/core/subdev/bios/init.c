@@ -231,6 +231,11 @@ init_i2c(struct nvbios_init *init, int index)
 			return NULL;
 		}
 
+		if (index == -2 && init->outp->location) {
+			index = NV_I2C_TYPE_EXTAUX(init->outp->extdev);
+			return i2c->find_type(i2c, index);
+		}
+
 		index = init->outp->i2c_index;
 	}
 
@@ -258,7 +263,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 static int
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	u8 data;
 
 	if (port && init_exec(init)) {
@@ -274,7 +279,7 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	if (port && init_exec(init))
 		return nv_wraux(port, addr, &data, 1);
 	return -ENODEV;
@@ -1534,7 +1539,6 @@ init_io(struct nvbios_init *init)
 		mdelay(10);
 		init_wr32(init, 0x614100, 0x10000018);
 		init_wr32(init, 0x614900, 0x10000018);
-		return;
 	}
 
 	value = init_rdport(init, port) & mask;
@@ -1817,7 +1821,7 @@ init_ram_restrict_zm_reg_group(struct nvbios_init *init)
 	u8 i, j;
 
 	trace("RAM_RESTRICT_ZM_REG_GROUP\t"
-	      "R[%08x] 0x%02x 0x%02x\n", addr, incr, num);
+	      "R[0x%08x] 0x%02x 0x%02x\n", addr, incr, num);
 	init->offset += 7;
 
 	for (i = 0; i < num; i++) {
@@ -1850,7 +1854,7 @@ init_copy_zm_reg(struct nvbios_init *init)
 	u32 sreg = nv_ro32(bios, init->offset + 1);
 	u32 dreg = nv_ro32(bios, init->offset + 5);
 
-	trace("COPY_ZM_REG\tR[0x%06x] = R[0x%06x]\n", sreg, dreg);
+	trace("COPY_ZM_REG\tR[0x%06x] = R[0x%06x]\n", dreg, sreg);
 	init->offset += 9;
 
 	init_wr32(init, dreg, init_rd32(init, sreg));
@@ -1867,7 +1871,7 @@ init_zm_reg_group(struct nvbios_init *init)
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
-	trace("ZM_REG_GROUP\tR[0x%06x] =\n");
+	trace("ZM_REG_GROUP\tR[0x%06x] =\n", addr);
 	init->offset += 6;
 
 	while (count--) {

@@ -224,7 +224,7 @@ config KEYBOARD_TCA6416
 
 config KEYBOARD_TCA8418
 	tristate "TCA8418 Keypad Support"
-	depends on I2C
+	depends on I2C && GENERIC_HARDIRQS
 	select INPUT_MATRIXKMAP
 	help
 	  This driver implements basic keypad functionality
@@ -303,7 +303,7 @@ config KEYBOARD_HP7XX
 
 config KEYBOARD_LM8323
 	tristate "LM8323 keypad chip"
-	depends on I2C
+	depends on I2C && GENERIC_HARDIRQS
 	depends on LEDS_CLASS
 	help
 	  If you say yes here you get support for the National Semiconductor
@@ -420,7 +420,7 @@ config KEYBOARD_NOMADIK
 
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA && OF
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a matrix keyboard connected directly
@@ -478,6 +478,16 @@ config KEYBOARD_SAMSUNG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.
+
+config KEYBOARD_GOLDFISH_EVENTS
+	depends on GOLDFISH
+	tristate "Generic Input Event device for Goldfish"
+	help
+	  Say Y here to get an input event device for the Goldfish virtual
+	  device emulator.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goldfish-events.
 
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"

@@ -169,7 +169,6 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 {
 	struct ft_tport *tport;
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	rcu_read_lock();
@@ -178,7 +177,7 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 		goto out;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash) {
+	hlist_for_each_entry_rcu(sess, head, hash) {
 		if (sess->port_id == port_id) {
 			kref_get(&sess->kref);
 			rcu_read_unlock();
@@ -201,10 +200,9 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 {
 	struct ft_sess *sess;
 	struct hlist_head *head;
-	struct hlist_node *pos;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash)
+	hlist_for_each_entry_rcu(sess, head, hash)
 		if (sess->port_id == port_id)
 			return sess;
 
@@ -253,11 +251,10 @@ static void ft_sess_unhash(struct ft_sess *sess)
 static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash) {
+	hlist_for_each_entry_rcu(sess, head, hash) {
 		if (sess->port_id == port_id) {
 			ft_sess_unhash(sess);
 			return sess;
@@ -273,12 +270,11 @@ static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 static void ft_sess_delete_all(struct ft_tport *tport)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	for (head = tport->hash;
 	     head < &tport->hash[FT_SESS_HASH_SIZE]; head++) {
-		hlist_for_each_entry_rcu(sess, pos, head, hash) {
+		hlist_for_each_entry_rcu(sess, head, hash) {
 			ft_sess_unhash(sess);
 			transport_deregister_session_configfs(sess->se_sess);
 			ft_sess_put(sess);	/* release from table */
@@ -355,11 +351,11 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 
 	tport = ft_tport_create(rdata->local_port);
 	if (!tport)
-		return 0;	/* not a target for this local port */
+		goto not_target;	/* not a target for this local port */
 
 	acl = ft_acl_get(tport->tpg, rdata);
 	if (!acl)
-		return 0;
+		goto not_target;	/* no target for this remote */
 
 	if (!rspp)
 		goto fill;
@@ -396,12 +392,18 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 
 	/*
 	 * OR in our service parameters with other provider (initiator), if any.
-	 * TBD XXX - indicate RETRY capability?
 	 */
 fill:
 	fcp_parm = ntohl(spp->spp_params);
+	fcp_parm &= ~FCP_SPPF_RETRY;
 	spp->spp_params = htonl(fcp_parm | FCP_SPPF_TARG_FCN);
 	return FC_SPP_RESP_ACK;
+
+not_target:
+	fcp_parm = ntohl(spp->spp_params);
+	fcp_parm &= ~FCP_SPPF_TARG_FCN;
+	spp->spp_params = htonl(fcp_parm);
+	return 0;
 }
 
 /**

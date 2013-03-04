@@ -261,7 +261,7 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 	u32 old_flags = vlan->flags;
 
 	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
-		     VLAN_FLAG_LOOSE_BINDING))
+		     VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP))
 		return -EINVAL;
 
 	vlan->flags = (old_flags & ~mask) | (flags & mask);
@@ -271,6 +271,13 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 			vlan_gvrp_request_join(dev);
 		else
 			vlan_gvrp_request_leave(dev);
+	}
+
+	if (netif_running(dev) && (vlan->flags ^ old_flags) & VLAN_FLAG_MVRP) {
+		if (vlan->flags & VLAN_FLAG_MVRP)
+			vlan_mvrp_request_join(dev);
+		else
+			vlan_mvrp_request_leave(dev);
 	}
 	return 0;
 }
@@ -311,6 +318,9 @@ static int vlan_dev_open(struct net_device *dev)
 
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
+
+	if (vlan->flags & VLAN_FLAG_MVRP)
+		vlan_mvrp_request_join(dev);
 
 	if (netif_carrier_ok(real_dev))
 		netif_carrier_on(dev);
@@ -640,9 +650,9 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 				     struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, vlan_fullname);
-	strcpy(info->version, vlan_version);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, vlan_fullname, sizeof(info->driver));
+	strlcpy(info->version, vlan_version, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
@@ -723,7 +733,7 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 
 	vlan->netpoll = NULL;
 
-	__netpoll_free_rcu(netpoll);
+	__netpoll_free_async(netpoll);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 

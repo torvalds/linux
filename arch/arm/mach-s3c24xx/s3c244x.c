@@ -36,7 +36,6 @@
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-dsc.h>
 
 #include <plat/s3c2410.h>
 #include <plat/s3c244x.h>
@@ -47,6 +46,8 @@
 #include <plat/pll.h>
 #include <plat/nand-core.h>
 #include <plat/watchdog-reset.h>
+
+#include "regs-dsc.h"
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),

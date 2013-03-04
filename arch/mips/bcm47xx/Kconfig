@@ -8,8 +8,10 @@ config BCM47XX_SSB
 	select SSB_DRIVER_EXTIF
 	select SSB_EMBEDDED
 	select SSB_B43_PCI_BRIDGE if PCI
+	select SSB_DRIVER_PCICORE if PCI
 	select SSB_PCICORE_HOSTMODE if PCI
 	select SSB_DRIVER_GPIO
+	select GPIOLIB
 	default y
 	help
 	 Add support for old Broadcom BCM47xx boards with Sonics Silicon Backplane support.
@@ -25,6 +27,7 @@ config BCM47XX_BCMA
 	select BCMA_HOST_PCI if PCI
 	select BCMA_DRIVER_PCI_HOSTMODE if PCI
 	select BCMA_DRIVER_GPIO
+	select GPIOLIB
 	default y
 	help
 	 Add support for new Broadcom BCM47xx boards with Broadcom specific Advanced Microcontroller Bus.

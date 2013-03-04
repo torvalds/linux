@@ -109,7 +109,7 @@ struct mxs_dma_chan {
 	struct dma_chan			chan;
 	struct dma_async_tx_descriptor	desc;
 	struct tasklet_struct		tasklet;
-	int				chan_irq;
+	unsigned int			chan_irq;
 	struct mxs_dma_ccw		*ccw;
 	dma_addr_t			ccw_phys;
 	int				desc_count;
@@ -441,7 +441,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	struct mxs_dma_ccw *ccw;
 	struct scatterlist *sg;
-	int i, j;
+	u32 i, j;
 	u32 *pio;
 	bool append = flags & DMA_PREP_INTERRUPT;
 	int idx = append ? mxs_chan->desc_count : 0;
@@ -537,8 +537,8 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-	int num_periods = buf_len / period_len;
-	int i = 0, buf = 0;
+	u32 num_periods = buf_len / period_len;
+	u32 i = 0, buf = 0;
 
 	if (mxs_chan->status == DMA_IN_PROGRESS)
 		return NULL;

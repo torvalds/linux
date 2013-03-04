@@ -89,7 +89,7 @@ source drivers/i2c/busses/Kconfig
 
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
-	depends on EXPERIMENTAL && m
+	depends on m
 	default 'n'
 	help
 	  This module may be useful to developers of SMBus client drivers,

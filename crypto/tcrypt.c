@@ -1591,6 +1591,10 @@ static int do_test(int m)
 				   speed_template_16_24_32);
 		test_acipher_speed("ofb(aes)", DECRYPT, sec, NULL, 0,
 				   speed_template_16_24_32);
+		test_acipher_speed("rfc3686(ctr(aes))", ENCRYPT, sec, NULL, 0,
+				   speed_template_20_28_36);
+		test_acipher_speed("rfc3686(ctr(aes))", DECRYPT, sec, NULL, 0,
+				   speed_template_20_28_36);
 		break;
 
 	case 501:

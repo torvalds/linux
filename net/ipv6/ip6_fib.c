@@ -224,7 +224,6 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 {
 	struct fib6_table *tb;
 	struct hlist_head *head;
-	struct hlist_node *node;
 	unsigned int h;
 
 	if (id == 0)
@@ -232,7 +231,7 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 	h = id & (FIB6_TABLE_HASHSZ - 1);
 	rcu_read_lock();
 	head = &net->ipv6.fib_table_hash[h];
-	hlist_for_each_entry_rcu(tb, node, head, tb6_hlist) {
+	hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
 		if (tb->tb6_id == id) {
 			rcu_read_unlock();
 			return tb;
@@ -363,7 +362,6 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct rt6_rtnl_dump_arg arg;
 	struct fib6_walker_t *w;
 	struct fib6_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	int res = 0;
 
@@ -398,7 +396,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	for (h = s_h; h < FIB6_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv6.fib_table_hash[h];
-		hlist_for_each_entry_rcu(tb, node, head, tb6_hlist) {
+		hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
 			if (e < s_e)
 				goto next;
 			res = fib6_dump_table(tb, skb, cb);
@@ -1520,14 +1518,13 @@ void fib6_clean_all_ro(struct net *net, int (*func)(struct rt6_info *, void *arg
 		    int prune, void *arg)
 {
 	struct fib6_table *table;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
 	rcu_read_lock();
 	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
 		head = &net->ipv6.fib_table_hash[h];
-		hlist_for_each_entry_rcu(table, node, head, tb6_hlist) {
+		hlist_for_each_entry_rcu(table, head, tb6_hlist) {
 			read_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(net, &table->tb6_root,
 					func, prune, arg);
@@ -1540,14 +1537,13 @@ void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    int prune, void *arg)
 {
 	struct fib6_table *table;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
 	rcu_read_lock();
 	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
 		head = &net->ipv6.fib_table_hash[h];
-		hlist_for_each_entry_rcu(table, node, head, tb6_hlist) {
+		hlist_for_each_entry_rcu(table, head, tb6_hlist) {
 			write_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(net, &table->tb6_root,
 					func, prune, arg);

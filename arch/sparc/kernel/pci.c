@@ -378,7 +378,8 @@ static void apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
-static void apb_fake_ranges(struct pci_dev *dev, struct pci_bus *bus,
+static void apb_fake_ranges(struct pci_dev *dev,
+			    struct pci_bus *bus,
 			    struct pci_pbm_info *pbm)
 {
 	struct pci_bus_region region;
@@ -403,13 +404,15 @@ static void apb_fake_ranges(struct pci_dev *dev, struct pci_bus *bus,
 	pcibios_bus_to_resource(dev, res, &region);
 }
 
-static void pci_of_scan_bus(struct pci_pbm_info *pbm, struct device_node *node,
+static void pci_of_scan_bus(struct pci_pbm_info *pbm,
+			    struct device_node *node,
 			    struct pci_bus *bus);
 
 #define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
 
 static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
-			       struct device_node *node, struct pci_dev *dev)
+			       struct device_node *node,
+			       struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
@@ -500,7 +503,8 @@ after_ranges:
 	pci_of_scan_bus(pbm, node, bus);
 }
 
-static void pci_of_scan_bus(struct pci_pbm_info *pbm, struct device_node *node,
+static void pci_of_scan_bus(struct pci_pbm_info *pbm,
+			    struct device_node *node,
 			    struct pci_bus *bus)
 {
 	struct device_node *child;

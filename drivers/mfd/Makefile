@@ -9,7 +9,7 @@ obj-$(CONFIG_MFD_88PM805)	+= 88pm805.o 88pm80x.o
 obj-$(CONFIG_MFD_SM501)		+= sm501.o
 obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 
-rtsx_pci-objs			:= rtsx_pcr.o rts5209.o rts5229.o rtl8411.o
+rtsx_pci-objs			:= rtsx_pcr.o rts5209.o rts5229.o rtl8411.o rts5227.o
 obj-$(CONFIG_MFD_RTSX_PCI)	+= rtsx_pci.o
 
 obj-$(CONFIG_HTC_EGPIO)		+= htc-egpio.o

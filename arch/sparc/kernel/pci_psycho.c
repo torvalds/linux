@@ -366,7 +366,8 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void psycho_scan_bus(struct pci_pbm_info *pbm, struct device *parent)
+static void psycho_scan_bus(struct pci_pbm_info *pbm,
+			    struct device *parent)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable = 0;

@@ -322,12 +322,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		return -EIO;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-			"read",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6]);
+	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
 
 	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
 	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
@@ -398,9 +393,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		break;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-		"write", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6]);
+	dev_dbg(dev, "%s: %7ph\n", "write", buf);
 
 	result = ds1307->write_block_data(ds1307->client,
 		ds1307->offset, 7, buf);

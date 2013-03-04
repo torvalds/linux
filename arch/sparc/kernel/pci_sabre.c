@@ -442,7 +442,8 @@ static void sabre_scan_bus(struct pci_pbm_info *pbm, struct device *parent)
 	sabre_register_error_handlers(pbm);
 }
 
-static void sabre_pbm_init(struct pci_pbm_info *pbm, struct platform_device *op)
+static void sabre_pbm_init(struct pci_pbm_info *pbm,
+			   struct platform_device *op)
 {
 	psycho_pbm_init_common(pbm, op, "SABRE", PBM_CHIP_TYPE_SABRE);
 	pbm->pci_afsr = pbm->controller_regs + SABRE_PIOAFSR;

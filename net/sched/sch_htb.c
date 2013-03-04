@@ -38,6 +38,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <net/netlink.h>
+#include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 
 /* HTB algorithm.
@@ -69,12 +70,6 @@ enum htb_cmode {
 	HTB_CANT_SEND,		/* class can't send and can't borrow */
 	HTB_MAY_BORROW,		/* class can't send but may borrow */
 	HTB_CAN_SEND		/* class can send */
-};
-
-struct htb_rate_cfg {
-	u64 rate_bps;
-	u32 mult;
-	u32 shift;
 };
 
 /* interior & leaf nodes; props specific to leaves are marked L: */
@@ -124,8 +119,8 @@ struct htb_class {
 	int filter_cnt;
 
 	/* token bucket parameters */
-	struct htb_rate_cfg rate;
-	struct htb_rate_cfg ceil;
+	struct psched_ratecfg rate;
+	struct psched_ratecfg ceil;
 	s64 buffer, cbuffer;	/* token bucket depth/rate */
 	psched_tdiff_t mbuffer;	/* max wait time */
 	s64 tokens, ctokens;	/* current number of tokens */
@@ -167,45 +162,6 @@ struct htb_sched {
 	unsigned int warned;	/* only one warning */
 	struct work_struct work;
 };
-
-static u64 l2t_ns(struct htb_rate_cfg *r, unsigned int len)
-{
-	return ((u64)len * r->mult) >> r->shift;
-}
-
-static void htb_precompute_ratedata(struct htb_rate_cfg *r)
-{
-	u64 factor;
-	u64 mult;
-	int shift;
-
-	r->shift = 0;
-	r->mult = 1;
-	/*
-	 * Calibrate mult, shift so that token counting is accurate
-	 * for smallest packet size (64 bytes).  Token (time in ns) is
-	 * computed as (bytes * 8) * NSEC_PER_SEC / rate_bps.  It will
-	 * work as long as the smallest packet transfer time can be
-	 * accurately represented in nanosec.
-	 */
-	if (r->rate_bps > 0) {
-		/*
-		 * Higher shift gives better accuracy.  Find the largest
-		 * shift such that mult fits in 32 bits.
-		 */
-		for (shift = 0; shift < 16; shift++) {
-			r->shift = shift;
-			factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
-			mult = div64_u64(factor, r->rate_bps);
-			if (mult > UINT_MAX)
-				break;
-		}
-
-		r->shift = shift - 1;
-		factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
-		r->mult = div64_u64(factor, r->rate_bps);
-	}
-}
 
 /* find class in global hash table using given handle */
 static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
@@ -632,7 +588,7 @@ static inline void htb_accnt_tokens(struct htb_class *cl, int bytes, s64 diff)
 
 	if (toks > cl->buffer)
 		toks = cl->buffer;
-	toks -= (s64) l2t_ns(&cl->rate, bytes);
+	toks -= (s64) psched_l2t_ns(&cl->rate, bytes);
 	if (toks <= -cl->mbuffer)
 		toks = 1 - cl->mbuffer;
 
@@ -645,7 +601,7 @@ static inline void htb_accnt_ctokens(struct htb_class *cl, int bytes, s64 diff)
 
 	if (toks > cl->cbuffer)
 		toks = cl->cbuffer;
-	toks -= (s64) l2t_ns(&cl->ceil, bytes);
+	toks -= (s64) psched_l2t_ns(&cl->ceil, bytes);
 	if (toks <= -cl->mbuffer)
 		toks = 1 - cl->mbuffer;
 
@@ -993,11 +949,10 @@ static void htb_reset(struct Qdisc *sch)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl;
-	struct hlist_node *n;
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
 			if (cl->level)
 				memset(&cl->un.inner, 0, sizeof(cl->un.inner));
 			else {
@@ -1134,10 +1089,10 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 
 	memset(&opt, 0, sizeof(opt));
 
-	opt.rate.rate = cl->rate.rate_bps >> 3;
-	opt.buffer = cl->buffer;
-	opt.ceil.rate = cl->ceil.rate_bps >> 3;
-	opt.cbuffer = cl->cbuffer;
+	opt.rate.rate = psched_ratecfg_getrate(&cl->rate);
+	opt.buffer = PSCHED_NS2TICKS(cl->buffer);
+	opt.ceil.rate = psched_ratecfg_getrate(&cl->ceil);
+	opt.cbuffer = PSCHED_NS2TICKS(cl->cbuffer);
 	opt.quantum = cl->quantum;
 	opt.prio = cl->prio;
 	opt.level = cl->level;
@@ -1262,7 +1217,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 static void htb_destroy(struct Qdisc *sch)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	struct htb_class *cl;
 	unsigned int i;
 
@@ -1276,11 +1231,11 @@ static void htb_destroy(struct Qdisc *sch)
 	tcf_destroy_chain(&q->filter_list);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[i], common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode)
 			tcf_destroy_chain(&cl->filter_list);
 	}
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry_safe(cl, n, next, &q->clhash.hash[i],
+		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
 					  common.hnode)
 			htb_destroy_class(sch, cl);
 	}
@@ -1459,8 +1414,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		cl->parent = parent;
 
 		/* set class to be in HTB_CAN_SEND state */
-		cl->tokens = hopt->buffer;
-		cl->ctokens = hopt->cbuffer;
+		cl->tokens = PSCHED_TICKS2NS(hopt->buffer);
+		cl->ctokens = PSCHED_TICKS2NS(hopt->cbuffer);
 		cl->mbuffer = 60 * PSCHED_TICKS_PER_SEC;	/* 1min */
 		cl->t_c = psched_get_time();
 		cl->cmode = HTB_CAN_SEND;
@@ -1503,17 +1458,11 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			cl->prio = TC_HTB_NUMPRIO - 1;
 	}
 
-	cl->buffer = hopt->buffer;
-	cl->cbuffer = hopt->cbuffer;
+	psched_ratecfg_precompute(&cl->rate, hopt->rate.rate);
+	psched_ratecfg_precompute(&cl->ceil, hopt->ceil.rate);
 
-	cl->rate.rate_bps = (u64)hopt->rate.rate << 3;
-	cl->ceil.rate_bps = (u64)hopt->ceil.rate << 3;
-
-	htb_precompute_ratedata(&cl->rate);
-	htb_precompute_ratedata(&cl->ceil);
-
-	cl->buffer = hopt->buffer << PSCHED_SHIFT;
-	cl->cbuffer = hopt->buffer << PSCHED_SHIFT;
+	cl->buffer = PSCHED_TICKS2NS(hopt->buffer);
+	cl->cbuffer = PSCHED_TICKS2NS(hopt->buffer);
 
 	sch_tree_unlock(sch);
 
@@ -1566,14 +1515,13 @@ static void htb_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl;
-	struct hlist_node *n;
 	unsigned int i;
 
 	if (arg->stop)
 		return;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
 			if (arg->count < arg->skip) {
 				arg->count++;
 				continue;

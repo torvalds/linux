@@ -14,7 +14,7 @@
 /*
  * Possible status responses for a board_be_handler backend.
  */
-#define MIPS_BE_DISCARD	0		/* return with no action */
+#define MIPS_BE_DISCARD 0		/* return with no action */
 #define MIPS_BE_FIXUP	1		/* return to the fixup code */
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 

@@ -200,8 +200,8 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 	}
 
 	if (*min_uV > *max_uV) {
-		dev_err(regulator->dev, "Restricting voltage, %u-%uuV\n",
-			regulator->min_uV, regulator->max_uV);
+		rdev_err(rdev, "Restricting voltage, %u-%uuV\n",
+			*min_uV, *max_uV);
 		return -EINVAL;
 	}
 
@@ -1885,9 +1885,15 @@ int regulator_can_change_voltage(struct regulator *regulator)
 	struct regulator_dev	*rdev = regulator->rdev;
 
 	if (rdev->constraints &&
-	    rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE &&
-	    (rdev->desc->n_voltages - rdev->desc->linear_min_sel) > 1)
-		return 1;
+	    (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
+		if (rdev->desc->n_voltages - rdev->desc->linear_min_sel > 1)
+			return 1;
+
+		if (rdev->desc->continuous_voltage_range &&
+		    rdev->constraints->min_uV && rdev->constraints->max_uV &&
+		    rdev->constraints->min_uV != rdev->constraints->max_uV)
+			return 1;
+	}
 
 	return 0;
 }
@@ -2074,10 +2080,20 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_regmap);
  */
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 {
+	int ret;
+
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
-	return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+	ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
 				  rdev->desc->vsel_mask, sel);
+	if (ret)
+		return ret;
+
+	if (rdev->desc->apply_bit)
+		ret = regmap_update_bits(rdev->regmap, rdev->desc->apply_reg,
+					 rdev->desc->apply_bit,
+					 rdev->desc->apply_bit);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_regmap);
 
@@ -2223,8 +2239,11 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 			best_val = rdev->desc->ops->list_voltage(rdev, ret);
 			if (min_uV <= best_val && max_uV >= best_val) {
 				selector = ret;
-				ret = rdev->desc->ops->set_voltage_sel(rdev,
-								       ret);
+				if (old_selector == selector)
+					ret = 0;
+				else
+					ret = rdev->desc->ops->set_voltage_sel(
+								rdev, ret);
 			} else {
 				ret = -EINVAL;
 			}
@@ -2235,7 +2254,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
 	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
-	    rdev->desc->ops->set_voltage_time_sel) {
+	    old_selector != selector && rdev->desc->ops->set_voltage_time_sel) {
 
 		delay = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
@@ -2288,6 +2307,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
+	int old_min_uV, old_max_uV;
 
 	mutex_lock(&rdev->mutex);
 
@@ -2309,16 +2329,27 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = regulator_check_voltage(rdev, &min_uV, &max_uV);
 	if (ret < 0)
 		goto out;
+	
+	/* restore original values in case of error */
+	old_min_uV = regulator->min_uV;
+	old_max_uV = regulator->max_uV;
 	regulator->min_uV = min_uV;
 	regulator->max_uV = max_uV;
 
 	ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
-
+	if (ret < 0)
+		goto out2;
+	
 out:
+	mutex_unlock(&rdev->mutex);
+	return ret;
+out2:
+	regulator->min_uV = old_min_uV;
+	regulator->max_uV = old_max_uV;
 	mutex_unlock(&rdev->mutex);
 	return ret;
 }
@@ -3202,7 +3233,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 		if (status < 0)
 			return status;
 	}
-	if (ops->is_enabled) {
+	if (rdev->ena_gpio || ops->is_enabled) {
 		status = device_create_file(dev, &dev_attr_state);
 		if (status < 0)
 			return status;
@@ -3315,7 +3346,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  * @config: runtime configuration for regulator
  *
  * Called by regulator drivers to register a regulator.
- * Returns 0 on success.
+ * Returns a valid pointer to struct regulator_dev on success
+ * or an ERR_PTR() on error.
  */
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,

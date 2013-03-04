@@ -270,21 +270,19 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	int ret;
 
 	/*
-	 * Get the user-visible handle using idr.
+	 * Get the user-visible handle using idr.  Preload and perform
+	 * allocation under our spinlock.
 	 */
-again:
-	/* ensure there is space available to allocate a handle */
-	if (idr_pre_get(&file_priv->object_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
-
-	/* do the allocation under our spinlock */
+	idr_preload(GFP_KERNEL);
 	spin_lock(&file_priv->table_lock);
-	ret = idr_get_new_above(&file_priv->object_idr, obj, 1, (int *)handlep);
+
+	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
+
 	spin_unlock(&file_priv->table_lock);
-	if (ret == -EAGAIN)
-		goto again;
-	else if (ret)
+	idr_preload_end();
+	if (ret < 0)
 		return ret;
+	*handlep = ret;
 
 	drm_gem_object_handle_reference(obj);
 
@@ -451,29 +449,25 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL)
 		return -ENOENT;
 
-again:
-	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
+	idr_preload(GFP_KERNEL);
 	spin_lock(&dev->object_name_lock);
 	if (!obj->name) {
-		ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
-					&obj->name);
+		ret = idr_alloc(&dev->object_name_idr, obj, 1, 0, GFP_NOWAIT);
+		obj->name = ret;
 		args->name = (uint64_t) obj->name;
 		spin_unlock(&dev->object_name_lock);
+		idr_preload_end();
 
-		if (ret == -EAGAIN)
-			goto again;
-		else if (ret)
+		if (ret < 0)
 			goto err;
+		ret = 0;
 
 		/* Allocate a reference for the name table.  */
 		drm_gem_object_reference(obj);
 	} else {
 		args->name = (uint64_t) obj->name;
 		spin_unlock(&dev->object_name_lock);
+		idr_preload_end();
 		ret = 0;
 	}
 
@@ -561,8 +555,6 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 {
 	idr_for_each(&file_private->object_idr,
 		     &drm_gem_object_release_handle, file_private);
-
-	idr_remove_all(&file_private->object_idr);
 	idr_destroy(&file_private->object_idr);
 }
 

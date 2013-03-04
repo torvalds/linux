@@ -26,6 +26,7 @@ brcmfmac-objs += \
 		wl_cfg80211.o \
 		fwil.o \
 		fweh.o \
+		p2p.o \
 		dhd_cdc.o \
 		dhd_common.o \
 		dhd_linux.o

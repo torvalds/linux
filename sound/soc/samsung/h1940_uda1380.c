@@ -21,7 +21,6 @@
 #include <sound/jack.h>
 
 #include <plat/regs-iis.h>
-#include <mach/h1940-latch.h>
 #include <asm/mach-types.h>
 
 #include "s3c24xx-i2s.h"
@@ -147,9 +146,9 @@ static int h1940_spk_power(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(H1940_LATCH_AUDIO_POWER, 1);
+		gpio_set_value(S3C_GPIO_END + 9, 1);
 	else
-		gpio_set_value(H1940_LATCH_AUDIO_POWER, 0);
+		gpio_set_value(S3C_GPIO_END + 9, 0);
 
 	return 0;
 }
@@ -233,11 +232,11 @@ static int __init h1940_init(void)
 		return -ENODEV;
 
 	/* configure some gpios */
-	ret = gpio_request(H1940_LATCH_AUDIO_POWER, "speaker-power");
+	ret = gpio_request(S3C_GPIO_END + 9, "speaker-power");
 	if (ret)
 		goto err_out;
 
-	ret = gpio_direction_output(H1940_LATCH_AUDIO_POWER, 0);
+	ret = gpio_direction_output(S3C_GPIO_END + 9, 0);
 	if (ret)
 		goto err_gpio;
 
@@ -258,7 +257,7 @@ static int __init h1940_init(void)
 err_plat:
 	platform_device_put(s3c24xx_snd_device);
 err_gpio:
-	gpio_free(H1940_LATCH_AUDIO_POWER);
+	gpio_free(S3C_GPIO_END + 9);
 
 err_out:
 	return ret;
@@ -269,7 +268,7 @@ static void __exit h1940_exit(void)
 	platform_device_unregister(s3c24xx_snd_device);
 	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);
-	gpio_free(H1940_LATCH_AUDIO_POWER);
+	gpio_free(S3C_GPIO_END + 9);
 }
 
 module_init(h1940_init);

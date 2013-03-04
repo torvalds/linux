@@ -66,7 +66,6 @@ obj-$(CONFIG_MACH_AT91SAM9G10EK) += board-sam9261ek.o
 # AT91SAM9263 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9263EK) += board-sam9263ek.o
 obj-$(CONFIG_MACH_USB_A9263)	+= board-usb-a926x.o
-obj-$(CONFIG_MACH_NEOCORE926)	+= board-neocore926.o
 
 # AT91SAM9RL board-specific support
 obj-$(CONFIG_MACH_AT91SAM9RLEK)	+= board-sam9rlek.o

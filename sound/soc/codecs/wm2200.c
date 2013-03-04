@@ -1019,8 +1019,6 @@ static const char *wm2200_mixer_texts[] = {
 	"EQR",
 	"LHPF1",
 	"LHPF2",
-	"LHPF3",
-	"LHPF4",
 	"DSP1.1",
 	"DSP1.2",
 	"DSP1.3",
@@ -1053,7 +1051,6 @@ static int wm2200_mixer_values[] = {
 	0x25,
 	0x50,   /* EQ */
 	0x51,
-	0x52,
 	0x60,   /* LHPF1 */
 	0x61,   /* LHPF2 */
 	0x68,   /* DSP1 */
@@ -1112,6 +1109,16 @@ static int wm2200_mixer_values[] = {
 	static WM2200_MUX_CTL_DECL(name##_aux5); \
 	static WM2200_MUX_CTL_DECL(name##_aux6);
 
+static const char *wm2200_rxanc_input_sel_texts[] = {
+	"None", "IN1", "IN2", "IN3",
+};
+
+static const struct soc_enum wm2200_rxanc_input_sel =
+	SOC_ENUM_SINGLE(WM2200_RXANC_SRC,
+			WM2200_IN_RXANC_SEL_SHIFT,
+			ARRAY_SIZE(wm2200_rxanc_input_sel_texts),
+			wm2200_rxanc_input_sel_texts);
+
 static const struct snd_kcontrol_new wm2200_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM2200_IN1L_CONTROL,
 	   WM2200_IN1_OSR_SHIFT, 1, 0),
@@ -1129,9 +1136,9 @@ SOC_DOUBLE_R_TLV("IN3 Volume", WM2200_IN3L_CONTROL, WM2200_IN3R_CONTROL,
 
 SOC_DOUBLE_R("IN1 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
 	     WM2200_ADC_DIGITAL_VOLUME_1R, WM2200_IN1L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("IN2 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R("IN2 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_2L,
 	     WM2200_ADC_DIGITAL_VOLUME_2R, WM2200_IN2L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("IN3 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R("IN3 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_3L,
 	     WM2200_ADC_DIGITAL_VOLUME_3R, WM2200_IN3L_MUTE_SHIFT, 1, 1),
 
 SOC_DOUBLE_R_TLV("IN1 Digital Volume", WM2200_ADC_DIGITAL_VOLUME_1L,
@@ -1143,6 +1150,12 @@ SOC_DOUBLE_R_TLV("IN2 Digital Volume", WM2200_ADC_DIGITAL_VOLUME_2L,
 SOC_DOUBLE_R_TLV("IN3 Digital Volume", WM2200_ADC_DIGITAL_VOLUME_3L,
 		 WM2200_ADC_DIGITAL_VOLUME_3R, WM2200_IN3L_DIG_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
+
+SND_SOC_BYTES_MASK("EQL Coefficients", WM2200_EQL_1, 20, WM2200_EQL_ENA),
+SND_SOC_BYTES_MASK("EQR Coefficients", WM2200_EQR_1, 20, WM2200_EQR_ENA),
+
+SND_SOC_BYTES("LHPF1 Coefficeints", WM2200_HPLPF1_2, 1),
+SND_SOC_BYTES("LHPF2 Coefficeints", WM2200_HPLPF2_2, 1),
 
 SOC_SINGLE("OUT1 High Performance Switch", WM2200_DAC_DIGITAL_VOLUME_1L,
 	   WM2200_OUT1_OSR_SHIFT, 1, 0),
@@ -1165,6 +1178,7 @@ SOC_DOUBLE_R_TLV("OUT2 Digital Volume", WM2200_DAC_DIGITAL_VOLUME_2L,
 		 digital_tlv),
 SOC_DOUBLE("OUT2 Switch", WM2200_PDM_1, WM2200_SPK1L_MUTE_SHIFT,
 	   WM2200_SPK1R_MUTE_SHIFT, 1, 1),
+SOC_ENUM("RxANC Src", wm2200_rxanc_input_sel),
 };
 
 WM2200_MIXER_ENUMS(OUT1L, WM2200_OUT1LMIX_INPUT_1_SOURCE);
@@ -1551,6 +1565,10 @@ static int wm2200_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
+	if (ret != 0)
+		return ret;
+
 	return ret;
 }
 
@@ -1566,14 +1584,8 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		fmt_val = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		fmt_val = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		fmt_val = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		fmt_val = 3;
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported DAI format %d\n",
@@ -1626,7 +1638,7 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			    WM2200_AIF1TX_LRCLK_MSTR | WM2200_AIF1TX_LRCLK_INV,
 			    lrclk);
 	snd_soc_update_bits(codec, WM2200_AUDIO_IF_1_5,
-			    WM2200_AIF1_FMT_MASK << 1, fmt_val << 1);
+			    WM2200_AIF1_FMT_MASK, fmt_val);
 
 	return 0;
 }
@@ -2191,6 +2203,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	struct wm2200_priv *wm2200;
 	unsigned int reg;
 	int ret, i;
+	int val;
 
 	wm2200 = devm_kzalloc(&i2c->dev, sizeof(struct wm2200_priv),
 			      GFP_KERNEL);
@@ -2214,6 +2227,9 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 		wm2200->dsp[i].num = i + 1;
 		wm2200->dsp[i].dev = &i2c->dev;
 		wm2200->dsp[i].regmap = wm2200->regmap;
+		wm2200->dsp[i].sysclk_reg = WM2200_CLOCKING_3;
+		wm2200->dsp[i].sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
+		wm2200->dsp[i].sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
 	}
 
 	wm2200->dsp[0].base = WM2200_DSP1_CONTROL_1;
@@ -2223,6 +2239,9 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	wm2200->dsp[1].base = WM2200_DSP2_CONTROL_1;
 	wm2200->dsp[1].mem = wm2200_dsp2_regions;
 	wm2200->dsp[1].num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
+
+	for (i = 0; i < ARRAY_SIZE(wm2200->dsp); i++)
+		wm_adsp1_init(&wm2200->dsp[i]);
 
 	if (pdata)
 		wm2200->pdata = *pdata;
@@ -2333,6 +2352,36 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < 6; i++) {
 		regmap_write(wm2200->regmap, WM2200_AUDIO_IF_1_10 + i, i);
 		regmap_write(wm2200->regmap, WM2200_AUDIO_IF_1_16 + i, i);
+	}
+
+	for (i = 0; i < WM2200_MAX_MICBIAS; i++) {
+		if (!wm2200->pdata.micbias[i].mb_lvl &&
+		    !wm2200->pdata.micbias[i].bypass)
+			continue;
+
+		/* Apply default for bypass mode */
+		if (!wm2200->pdata.micbias[i].mb_lvl)
+			wm2200->pdata.micbias[i].mb_lvl
+					= WM2200_MBIAS_LVL_1V5;
+
+		val = (wm2200->pdata.micbias[i].mb_lvl -1)
+					<< WM2200_MICB1_LVL_SHIFT;
+
+		if (wm2200->pdata.micbias[i].discharge)
+			val |= WM2200_MICB1_DISCH;
+
+		if (wm2200->pdata.micbias[i].fast_start)
+			val |= WM2200_MICB1_RATE;
+
+		if (wm2200->pdata.micbias[i].bypass)
+			val |= WM2200_MICB1_MODE;
+
+		regmap_update_bits(wm2200->regmap,
+				   WM2200_MIC_BIAS_CTRL_1 + i,
+				   WM2200_MICB1_LVL_MASK |
+				   WM2200_MICB1_DISCH |
+				   WM2200_MICB1_MODE |
+				   WM2200_MICB1_RATE, val);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm2200->pdata.in_mode); i++) {

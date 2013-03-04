@@ -3,7 +3,7 @@
  *  JZ7420/JZ4740 DMA definitions
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -40,9 +40,9 @@ enum jz4740_dma_width {
 };
 
 enum jz4740_dma_transfer_size {
-	JZ4740_DMA_TRANSFER_SIZE_4BYTE  = 0,
-	JZ4740_DMA_TRANSFER_SIZE_1BYTE  = 1,
-	JZ4740_DMA_TRANSFER_SIZE_2BYTE  = 2,
+	JZ4740_DMA_TRANSFER_SIZE_4BYTE	= 0,
+	JZ4740_DMA_TRANSFER_SIZE_1BYTE	= 1,
+	JZ4740_DMA_TRANSFER_SIZE_2BYTE	= 2,
 	JZ4740_DMA_TRANSFER_SIZE_16BYTE = 3,
 	JZ4740_DMA_TRANSFER_SIZE_32BYTE = 4,
 };
@@ -87,4 +87,4 @@ uint32_t jz4740_dma_get_residue(const struct jz4740_dma_chan *dma);
 void jz4740_dma_set_complete_cb(struct jz4740_dma_chan *dma,
 	jz4740_dma_complete_callback_t cb);
 
-#endif  /* __ASM_JZ4740_DMA_H__ */
+#endif	/* __ASM_JZ4740_DMA_H__ */

@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/configfs.h>
 #include <linux/export.h>
+#include <linux/file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <asm/unaligned.h>
@@ -212,7 +213,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem, *l_tg_pt_gp_mem;
 	unsigned char *buf;
 	unsigned char *ptr;
-	sense_reason_t rc;
+	sense_reason_t rc = TCM_NO_SENSE;
 	u32 len = 4; /* Skip over RESERVED area in header */
 	int alua_access_state, primary = 0;
 	u16 tg_pt_id, rtpi;
@@ -715,36 +716,18 @@ static int core_alua_write_tpg_metadata(
 	unsigned char *md_buf,
 	u32 md_buf_len)
 {
-	mm_segment_t old_fs;
-	struct file *file;
-	struct iovec iov[1];
-	int flags = O_RDWR | O_CREAT | O_TRUNC, ret;
+	struct file *file = filp_open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	int ret;
 
-	memset(iov, 0, sizeof(struct iovec));
-
-	file = filp_open(path, flags, 0600);
-	if (IS_ERR(file) || !file || !file->f_dentry) {
-		pr_err("filp_open(%s) for ALUA metadata failed\n",
-			path);
+	if (IS_ERR(file)) {
+		pr_err("filp_open(%s) for ALUA metadata failed\n", path);
 		return -ENODEV;
 	}
-
-	iov[0].iov_base = &md_buf[0];
-	iov[0].iov_len = md_buf_len;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	ret = vfs_writev(file, &iov[0], 1, &file->f_pos);
-	set_fs(old_fs);
-
-	if (ret < 0) {
+	ret = kernel_write(file, md_buf, md_buf_len, 0);
+	if (ret < 0)
 		pr_err("Error writing ALUA metadata file: %s\n", path);
-		filp_close(file, NULL);
-		return -EIO;
-	}
-	filp_close(file, NULL);
-
-	return 0;
+	fput(file);
+	return ret ? -EIO : 0;
 }
 
 /*

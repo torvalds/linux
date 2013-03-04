@@ -31,7 +31,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -50,9 +49,9 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 
 #include "common.h"
+#include "regs-modem.h"
 
 /* DM9000 */
 #define ANW6410_PA_DM9000	(0x18000000)
@@ -230,10 +229,9 @@ MACHINE_START(ANW6410, "A&W6410")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -26,9 +26,9 @@
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/bestcomm_priv.h>
-#include <sysdev/bestcomm/ata.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include <linux/fsl/bestcomm/ata.h>
 
 #define DRV_NAME	"mpc52xx_ata"
 

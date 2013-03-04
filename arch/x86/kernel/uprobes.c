@@ -680,8 +680,10 @@ static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		if (auprobe->insn[i] == 0x66)
 			continue;
 
-		if (auprobe->insn[i] == 0x90)
+		if (auprobe->insn[i] == 0x90) {
+			regs->ip += i + 1;
 			return true;
+		}
 
 		break;
 	}

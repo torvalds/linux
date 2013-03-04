@@ -57,9 +57,6 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 {
 	struct cfg80211_registered_device *result = NULL, *rdev;
 
-	if (!wiphy_idx_valid(wiphy_idx))
-		return NULL;
-
 	assert_cfg80211_lock();
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
@@ -74,10 +71,8 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 
 int get_wiphy_idx(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev;
-	if (!wiphy)
-		return WIPHY_IDX_STALE;
-	rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
 	return rdev->wiphy_idx;
 }
 
@@ -85,9 +80,6 @@ int get_wiphy_idx(struct wiphy *wiphy)
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 {
 	struct cfg80211_registered_device *rdev;
-
-	if (!wiphy_idx_valid(wiphy_idx))
-		return NULL;
 
 	assert_cfg80211_lock();
 
@@ -309,7 +301,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	rdev->wiphy_idx = wiphy_counter++;
 
-	if (unlikely(!wiphy_idx_valid(rdev->wiphy_idx))) {
+	if (unlikely(rdev->wiphy_idx < 0)) {
 		wiphy_counter--;
 		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */
@@ -332,6 +324,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
+	INIT_DELAYED_WORK(&rdev->dfs_update_channels_wk,
+			  cfg80211_dfs_channels_update_work);
 #ifdef CONFIG_CFG80211_WEXT
 	rdev->wiphy.wext = &cfg80211_wext_handler;
 #endif
@@ -373,7 +367,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
 
-	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH;
+	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH |
+			       NL80211_FEATURE_ADVERTISE_CHAN_LIMITS;
 
 	return &rdev->wiphy;
 }
@@ -390,8 +385,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 
 		c = &wiphy->iface_combinations[i];
 
-		/* Combinations with just one interface aren't real */
-		if (WARN_ON(c->max_interfaces < 2))
+		/*
+		 * Combinations with just one interface aren't real,
+		 * however we make an exception for DFS.
+		 */
+		if (WARN_ON((c->max_interfaces < 2) && !c->radar_detect_widths))
 			return -EINVAL;
 
 		/* Need at least one channel */
@@ -404,6 +402,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 		 */
 		if (WARN_ON(c->num_different_channels >
 				CFG80211_MAX_NUM_DIFFERENT_CHANNELS))
+			return -EINVAL;
+
+		/* DFS only works on one channel. */
+		if (WARN_ON(c->radar_detect_widths &&
+			    (c->num_different_channels > 1)))
 			return -EINVAL;
 
 		if (WARN_ON(!c->n_limits))
@@ -476,6 +479,11 @@ int wiphy_register(struct wiphy *wiphy)
 		    !is_zero_ether_addr(wiphy->perm_addr) &&
 		    memcmp(wiphy->perm_addr, wiphy->addresses[0].addr,
 			   ETH_ALEN)))
+		return -EINVAL;
+
+	if (WARN_ON(wiphy->max_acl_mac_addrs &&
+		    (!(wiphy->flags & WIPHY_FLAG_HAVE_AP_SME) ||
+		     !rdev->ops->set_mac_acl)))
 		return -EINVAL;
 
 	if (wiphy->addresses)
@@ -690,6 +698,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
+	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
 
 	if (rdev->wowlan && rdev->ops->set_wakeup)
 		rdev_set_wakeup(rdev, false);
@@ -710,7 +719,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 		kfree(reg);
 	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
-		cfg80211_put_bss(&scan->pub);
+		cfg80211_put_bss(&rdev->wiphy, &scan->pub);
 	kfree(rdev);
 }
 
@@ -866,8 +875,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		/* allow mac80211 to determine the timeout */
 		wdev->ps_timeout = -1;
 
-		if (!dev->ethtool_ops)
-			dev->ethtool_ops = &cfg80211_ethtool_ops;
+		netdev_set_default_ethtool_ops(dev, &cfg80211_ethtool_ops);
 
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||

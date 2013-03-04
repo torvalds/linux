@@ -172,8 +172,4 @@ static inline void arch_decomp_setup(void)
 	uart[UART_LCR << DEBUG_UART_SHIFT] = 3;
 }
 
-static inline void arch_decomp_wdog(void)
-{
-}
-
 #endif

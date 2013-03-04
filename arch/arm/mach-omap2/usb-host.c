@@ -37,19 +37,6 @@
 #define	USBHS_UHH_HWMODNAME	"usb_host_hs"
 #define USBHS_TLL_HWMODNAME	"usb_tll_hs"
 
-static struct usbhs_omap_platform_data		usbhs_data;
-static struct usbtll_omap_platform_data		usbtll_data;
-static struct ehci_hcd_omap_platform_data	ehci_data;
-static struct ohci_hcd_omap_platform_data	ohci_data;
-
-static struct omap_device_pm_latency omap_uhhtll_latency[] = {
-	  {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func	 = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	  },
-};
-
 /* MUX settings for EHCI pins */
 /*
  * setup_ehci_io_mux - initialize IO pad mux for USBHOST
@@ -485,32 +472,18 @@ void __init setup_4430ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 	}
 }
 
-void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
+void __init usbhs_init(struct usbhs_omap_platform_data *pdata)
 {
 	struct omap_hwmod	*uhh_hwm, *tll_hwm;
 	struct platform_device	*pdev;
 	int			bus_id = -1;
-	int			i;
-
-	for (i = 0; i < OMAP3_HS_USB_PORTS; i++) {
-		usbhs_data.port_mode[i] = pdata->port_mode[i];
-		usbtll_data.port_mode[i] = pdata->port_mode[i];
-		ohci_data.port_mode[i] = pdata->port_mode[i];
-		ehci_data.port_mode[i] = pdata->port_mode[i];
-		ehci_data.reset_gpio_port[i] = pdata->reset_gpio_port[i];
-		ehci_data.regulator[i] = pdata->regulator[i];
-	}
-	ehci_data.phy_reset = pdata->phy_reset;
-	ohci_data.es2_compatibility = pdata->es2_compatibility;
-	usbhs_data.ehci_data = &ehci_data;
-	usbhs_data.ohci_data = &ohci_data;
 
 	if (cpu_is_omap34xx()) {
 		setup_ehci_io_mux(pdata->port_mode);
 		setup_ohci_io_mux(pdata->port_mode);
 
 		if (omap_rev() <= OMAP3430_REV_ES2_1)
-			usbhs_data.single_ulpi_bypass = true;
+			pdata->single_ulpi_bypass = true;
 
 	} else if (cpu_is_omap44xx()) {
 		setup_4430ehci_io_mux(pdata->port_mode);
@@ -530,9 +503,7 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 	}
 
 	pdev = omap_device_build(OMAP_USBTLL_DEVICE, bus_id, tll_hwm,
-				&usbtll_data, sizeof(usbtll_data),
-				omap_uhhtll_latency,
-				ARRAY_SIZE(omap_uhhtll_latency), false);
+				pdata, sizeof(*pdata));
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod device %s\n",
 		       USBHS_TLL_HWMODNAME);
@@ -540,9 +511,7 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 	}
 
 	pdev = omap_device_build(OMAP_USBHS_DEVICE, bus_id, uhh_hwm,
-				&usbhs_data, sizeof(usbhs_data),
-				omap_uhhtll_latency,
-				ARRAY_SIZE(omap_uhhtll_latency), false);
+				pdata, sizeof(*pdata));
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod devices %s\n",
 		       USBHS_UHH_HWMODNAME);
@@ -552,7 +521,7 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 
 #else
 
-void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
+void __init usbhs_init(struct usbhs_omap_platform_data *pdata)
 {
 }
 

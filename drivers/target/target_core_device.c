@@ -713,6 +713,44 @@ int se_dev_set_max_write_same_len(
 	return 0;
 }
 
+static void dev_set_t10_wwn_model_alias(struct se_device *dev)
+{
+	const char *configname;
+
+	configname = config_item_name(&dev->dev_group.cg_item);
+	if (strlen(configname) >= 16) {
+		pr_warn("dev[%p]: Backstore name '%s' is too long for "
+			"INQUIRY_MODEL, truncating to 16 bytes\n", dev,
+			configname);
+	}
+	snprintf(&dev->t10_wwn.model[0], 16, "%s", configname);
+}
+
+int se_dev_set_emulate_model_alias(struct se_device *dev, int flag)
+{
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change model alias"
+			" while export_count is %d\n",
+			dev, dev->export_count);
+			return -EINVAL;
+	}
+
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	if (flag) {
+		dev_set_t10_wwn_model_alias(dev);
+	} else {
+		strncpy(&dev->t10_wwn.model[0],
+			dev->transport->inquiry_prod, 16);
+	}
+	dev->dev_attrib.emulate_model_alias = flag;
+
+	return 0;
+}
+
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
 	if (flag != 0 && flag != 1) {
@@ -772,6 +810,12 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("emulate_write_cache not supported for pSCSI\n");
 		return -EINVAL;
 	}
+	if (dev->transport->get_write_cache) {
+		pr_warn("emulate_write_cache cannot be changed when underlying"
+			" HW reports WriteCacheEnabled, ignoring request\n");
+		return 0;
+	}
+
 	dev->dev_attrib.emulate_write_cache = flag;
 	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
 			dev, dev->dev_attrib.emulate_write_cache);
@@ -941,6 +985,8 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 
 int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
 {
+	int block_size = dev->dev_attrib.block_size;
+
 	if (dev->export_count) {
 		pr_err("dev[%p]: Unable to change SE Device"
 			" fabric_max_sectors while export_count is %d\n",
@@ -978,8 +1024,12 @@ int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
 	/*
 	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
 	 */
+	if (!block_size) {
+		block_size = 512;
+		pr_warn("Defaulting to 512 for zero block_size\n");
+	}
 	fabric_max_sectors = se_dev_align_max_sectors(fabric_max_sectors,
-						      dev->dev_attrib.block_size);
+						      block_size);
 
 	dev->dev_attrib.fabric_max_sectors = fabric_max_sectors;
 	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
@@ -1176,22 +1226,16 @@ static struct se_lun *core_dev_get_lun(struct se_portal_group *tpg, u32 unpacked
 
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	struct se_portal_group *tpg,
+	struct se_node_acl *nacl,
 	u32 mapped_lun,
-	char *initiatorname,
 	int *ret)
 {
 	struct se_lun_acl *lacl;
-	struct se_node_acl *nacl;
 
-	if (strlen(initiatorname) >= TRANSPORT_IQN_LEN) {
+	if (strlen(nacl->initiatorname) >= TRANSPORT_IQN_LEN) {
 		pr_err("%s InitiatorName exceeds maximum size.\n",
 			tpg->se_tpg_tfo->get_fabric_name());
 		*ret = -EOVERFLOW;
-		return NULL;
-	}
-	nacl = core_tpg_get_initiator_node_acl(tpg, initiatorname);
-	if (!nacl) {
-		*ret = -EINVAL;
 		return NULL;
 	}
 	lacl = kzalloc(sizeof(struct se_lun_acl), GFP_KERNEL);
@@ -1204,7 +1248,8 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	INIT_LIST_HEAD(&lacl->lacl_list);
 	lacl->mapped_lun = mapped_lun;
 	lacl->se_lun_nacl = nacl;
-	snprintf(lacl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
+	snprintf(lacl->initiatorname, TRANSPORT_IQN_LEN, "%s",
+		 nacl->initiatorname);
 
 	return lacl;
 }
@@ -1384,6 +1429,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->t10_alua.t10_dev = dev;
 
 	dev->dev_attrib.da_dev = dev;
+	dev->dev_attrib.emulate_model_alias = DA_EMULATE_MODEL_ALIAS;
 	dev->dev_attrib.emulate_dpo = DA_EMULATE_DPO;
 	dev->dev_attrib.emulate_fua_write = DA_EMULATE_FUA_WRITE;
 	dev->dev_attrib.emulate_fua_read = DA_EMULATE_FUA_READ;

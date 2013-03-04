@@ -505,6 +505,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 
 	/* Valid dotclock? */
 	if (dotclock > 0) {
+		int frame_size;
 		/* Convert scanline length in pixels and video dot clock to
 		 * line duration, frame duration and pixel duration in
 		 * nanoseconds:
@@ -512,7 +513,10 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 		pixeldur_ns = (s64) div64_u64(1000000000, dotclock);
 		linedur_ns  = (s64) div64_u64(((u64) crtc->hwmode.crtc_htotal *
 					      1000000000), dotclock);
-		framedur_ns = (s64) crtc->hwmode.crtc_vtotal * linedur_ns;
+		frame_size = crtc->hwmode.crtc_htotal *
+				crtc->hwmode.crtc_vtotal;
+		framedur_ns = (s64) div64_u64((u64) frame_size * 1000000000,
+					      dotclock);
 	} else
 		DRM_ERROR("crtc %d: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
@@ -863,6 +867,7 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 
 		now = get_drm_timestamp();
 	}
+	e->pipe = crtc;
 	send_vblank_event(dev, e, seq, &now);
 }
 EXPORT_SYMBOL(drm_send_vblank_event);
@@ -1218,8 +1223,9 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	int ret;
 	unsigned int flags, seq, crtc, high_crtc;
 
-	if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
-		return -EINVAL;
+	if (drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
+		if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
+			return -EINVAL;
 
 	if (vblwait->request.type & _DRM_VBLANK_SIGNAL)
 		return -EINVAL;

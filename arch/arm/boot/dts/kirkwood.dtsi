@@ -36,6 +36,7 @@
 			reg = <0x10100 0x40>;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <35>, <36>, <37>, <38>;
 		};
 
@@ -46,6 +47,7 @@
 			reg = <0x10140 0x40>;
 			ngpios = <18>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <39>, <40>, <41>;
 		};
 
@@ -190,6 +192,14 @@
 			interrupts = <22>;
 			clocks = <&gate_clk 17>;
 			status = "okay";
+		};
+
+		mvsdio@90000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0x90000 0x200>;
+			interrupts = <28>;
+			clocks = <&gate_clk 4>;
+			status = "disabled";
 		};
 	};
 };

@@ -2,6 +2,19 @@
 # x86 CPU Frequency scaling drivers
 #
 
+config X86_INTEL_PSTATE
+       bool "Intel P state control"
+       depends on X86
+       help
+          This driver provides a P state for Intel core processors.
+	  The driver implements an internal governor and will become
+          the scaling driver and governor for Sandy bridge processors.
+
+	  When this driver is enabled it will become the perferred
+          scaling driver for Sandy bridge processors.
+
+	  If in doubt, say N.
+
 config X86_PCC_CPUFREQ
 	tristate "Processor Clocking Control interface driver"
 	depends on ACPI && ACPI_PROCESSOR
@@ -106,7 +119,7 @@ config X86_POWERNOW_K7_ACPI
 config X86_POWERNOW_K8
 	tristate "AMD Opteron/Athlon64 PowerNow!"
 	select CPU_FREQ_TABLE
-	depends on ACPI && ACPI_PROCESSOR
+	depends on ACPI && ACPI_PROCESSOR && X86_ACPI_CPUFREQ
 	help
 	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
 	  Support for K10 and newer processors is now in acpi-cpufreq.
@@ -174,7 +187,7 @@ config X86_SPEEDSTEP_ICH
 config X86_SPEEDSTEP_SMI
 	tristate "Intel SpeedStep on 440BX/ZX/MX chipsets (SMI interface)"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
 	  (Coppermine), all mobile Intel Pentium III-M (Tualatin)
@@ -206,7 +219,7 @@ config X86_P4_CLOCKMOD
 
 config X86_CPUFREQ_NFORCE2
 	tristate "nVidia nForce2 FSB changing"
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32
 	help
 	  This adds the CPUFreq driver for FSB changing on nVidia nForce2
 	  platforms.
@@ -242,7 +255,7 @@ config X86_LONGHAUL
 config X86_E_POWERSAVER
 	tristate "VIA C7 Enhanced PowerSaver (DANGEROUS)"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
 	  does not have any safeguards to prevent operating the CPU out of spec

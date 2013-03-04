@@ -68,9 +68,6 @@ static int of_flash_remove(struct platform_device *dev)
 			kfree(info->list[i].res);
 		}
 	}
-
-	kfree(info);
-
 	return 0;
 }
 
@@ -170,7 +167,7 @@ static int of_flash_probe(struct platform_device *dev)
 	resource_size_t res_size;
 	struct mtd_part_parser_data ppdata;
 	bool map_indirect;
-	const char *mtd_name;
+	const char *mtd_name = NULL;
 
 	match = of_match_device(of_flash_match, &dev->dev);
 	if (!match)
@@ -199,8 +196,9 @@ static int of_flash_probe(struct platform_device *dev)
 	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
 
 	err = -ENOMEM;
-	info = kzalloc(sizeof(struct of_flash) +
-		       sizeof(struct of_flash_list) * count, GFP_KERNEL);
+	info = devm_kzalloc(&dev->dev,
+			    sizeof(struct of_flash) +
+			    sizeof(struct of_flash_list) * count, GFP_KERNEL);
 	if (!info)
 		goto err_flash_remove;
 
@@ -241,6 +239,7 @@ static int of_flash_probe(struct platform_device *dev)
 		info->list[i].map.phys = res.start;
 		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = be32_to_cpup(width);
+		info->list[i].map.device_node = dp;
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,

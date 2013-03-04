@@ -492,6 +492,7 @@ struct m66592 {
 	int isochronous;
 	int num_dma;
 };
+#define to_m66592(g)	(container_of((g), struct m66592, gadget))
 
 #define gadget_to_m66592(_gadget) container_of(_gadget, struct m66592, gadget)
 #define m66592_to_gadget(m66592) (&m66592->gadget)

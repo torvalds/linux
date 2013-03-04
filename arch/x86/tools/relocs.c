@@ -814,12 +814,14 @@ int main(int argc, char **argv)
 	read_relocs(fp);
 	if (show_absolute_syms) {
 		print_absolute_symbols();
-		return 0;
+		goto out;
 	}
 	if (show_absolute_relocs) {
 		print_absolute_relocs();
-		return 0;
+		goto out;
 	}
 	emit_relocs(as_text, use_real_mode);
+out:
+	fclose(fp);
 	return 0;
 }

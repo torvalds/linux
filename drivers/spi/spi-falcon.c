@@ -398,7 +398,7 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 	}
 
 	m->status = ret;
-	m->complete(m->context);
+	spi_finalize_current_message(master);
 
 	return 0;
 }
@@ -423,6 +423,7 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 
 	master->mode_bits = SPI_MODE_3;
 	master->num_chipselect = 1;
+	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->bus_num = -1;
 	master->setup = falcon_sflash_setup;
 	master->prepare_transfer_hardware = falcon_sflash_prepare_xfer;

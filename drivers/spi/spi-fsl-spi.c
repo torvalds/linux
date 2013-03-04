@@ -947,12 +947,12 @@ static int of_fsl_spi_get_chipselects(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct fsl_spi_platform_data *pdata = dev->platform_data;
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
-	unsigned int ngpios;
+	int ngpios;
 	int i = 0;
 	int ret;
 
 	ngpios = of_gpio_count(np);
-	if (!ngpios) {
+	if (ngpios <= 0) {
 		/*
 		 * SPI w/o chip-select line. One SPI device is still permitted
 		 * though.

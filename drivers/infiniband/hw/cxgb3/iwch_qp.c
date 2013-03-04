@@ -567,18 +567,19 @@ int iwch_bind_mw(struct ib_qp *qp,
 	if (mw_bind->send_flags & IB_SEND_SIGNALED)
 		t3_wr_flags = T3_COMPLETION_FLAG;
 
-	sgl.addr = mw_bind->addr;
-	sgl.lkey = mw_bind->mr->lkey;
-	sgl.length = mw_bind->length;
+	sgl.addr = mw_bind->bind_info.addr;
+	sgl.lkey = mw_bind->bind_info.mr->lkey;
+	sgl.length = mw_bind->bind_info.length;
 	wqe->bind.reserved = 0;
 	wqe->bind.type = TPT_VATO;
 
 	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_tpt_bind_access(mw_bind->mw_access_flags);
-	wqe->bind.mr_stag = cpu_to_be32(mw_bind->mr->lkey);
+	wqe->bind.perms = iwch_ib_to_tpt_bind_access(
+		mw_bind->bind_info.mw_access_flags);
+	wqe->bind.mr_stag = cpu_to_be32(mw_bind->bind_info.mr->lkey);
 	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
-	wqe->bind.mw_len = cpu_to_be32(mw_bind->length);
-	wqe->bind.mw_va = cpu_to_be64(mw_bind->addr);
+	wqe->bind.mw_len = cpu_to_be32(mw_bind->bind_info.length);
+	wqe->bind.mw_va = cpu_to_be64(mw_bind->bind_info.addr);
 	err = iwch_sgl2pbl_map(rhp, &sgl, 1, &pbl_addr, &page_size);
 	if (err) {
 		spin_unlock_irqrestore(&qhp->lock, flag);

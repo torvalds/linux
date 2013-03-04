@@ -78,7 +78,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
-	.int_class   = IOINT_DAS,
+	.int_class   = IRQIO_DAS,
 };
 
 static void
@@ -370,7 +370,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->block = block;
 	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->retries = 32;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }

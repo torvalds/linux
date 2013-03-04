@@ -38,6 +38,7 @@
 #include <drm/radeon_drm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/swiotlb.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 

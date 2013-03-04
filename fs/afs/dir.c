@@ -393,12 +393,12 @@ static int afs_readdir(struct file *file, void *cookie, filldir_t filldir)
 	int ret;
 
 	_enter("{%Ld,{%lu}}",
-	       file->f_pos, file->f_path.dentry->d_inode->i_ino);
+	       file->f_pos, file_inode(file)->i_ino);
 
 	ASSERT(file->private_data != NULL);
 
 	fpos = file->f_pos;
-	ret = afs_dir_iterate(file->f_path.dentry->d_inode, &fpos,
+	ret = afs_dir_iterate(file_inode(file), &fpos,
 			      cookie, filldir, file->private_data);
 	file->f_pos = fpos;
 

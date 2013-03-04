@@ -1326,9 +1326,10 @@ static void set_rx_mode(struct net_device *dev)
 static void yellowfin_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct yellowfin_private *np = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(np->pci_dev));
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops ethtool_ops = {

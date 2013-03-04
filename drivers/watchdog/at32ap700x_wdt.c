@@ -436,17 +436,7 @@ static struct platform_driver at32_wdt_driver = {
 	.shutdown	= at32_wdt_shutdown,
 };
 
-static int __init at32_wdt_init(void)
-{
-	return platform_driver_probe(&at32_wdt_driver, at32_wdt_probe);
-}
-module_init(at32_wdt_init);
-
-static void __exit at32_wdt_exit(void)
-{
-	platform_driver_unregister(&at32_wdt_driver);
-}
-module_exit(at32_wdt_exit);
+module_platform_driver_probe(at32_wdt_driver, at32_wdt_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Watchdog driver for Atmel AT32AP700X");

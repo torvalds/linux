@@ -761,7 +761,6 @@ out_clkget:
 out_drvdata:
 	kfree(alg_data);
 err_kzalloc:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -776,7 +775,6 @@ static int i2c_pnx_remove(struct platform_device *pdev)
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 	clk_put(alg_data->clk);
 	kfree(alg_data);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
