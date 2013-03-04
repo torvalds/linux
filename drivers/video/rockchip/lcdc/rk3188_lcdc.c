@@ -567,7 +567,7 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
 	u8 fmt_cfg =0 ; //data format register config value
-	
+	char fmt[9] = "NULL";
 	xact = par->xact;			    //active (origin) picture window width/height		
 	yact = par->yact;
 	xvir = par->xvir;			   // virtual resolution		
@@ -611,8 +611,8 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 		break;
 	}
 
-	DBG(1,"lcdc%d>>%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
-		lcdc_dev->id,__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
+	DBG(1,"lcdc%d>>%s>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		lcdc_dev->id,__func__,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -666,7 +666,7 @@ static int win1_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
 	u8 fmt_cfg;
-
+	char fmt[9] = "NULL";
 	xact = par->xact;			
 	yact = par->yact;
 	xvir = par->xvir;		
@@ -675,8 +675,8 @@ static int win1_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
 
 	
-	DBG(1,"lcdc%d>>%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
-		lcdc_dev->id,__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
+	DBG(1,"lcdc%d>>%s>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		lcdc_dev->id,__func__,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
 	
 	spin_lock(&lcdc_dev->reg_lock);
@@ -1027,6 +1027,8 @@ static ssize_t rk3188_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,c
         u16 xvir_w0,x_act_w0,y_act_w0,x_dsp_w0,y_dsp_w0,x_st_w0,y_st_w0,x_factor,y_factor;
 	u16 xvir_w1,x_dsp_w1,y_dsp_w1,x_st_w1,y_st_w1;
         u16 x_scale,y_scale;
+	int ovl = lcdc_read_bit(lcdc_dev,DSP_CTRL0,m_WIN0_TOP);
+	
         switch((fmt_id&m_WIN0_FORMAT)>>3)
         {
                 case 0:
@@ -1132,14 +1134,18 @@ static ssize_t rk3188_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,c
 		"y_st:%d\n"
 		"x_scale:%d.%d\n"
 		"y_scale:%d.%d\n"
-		"format:%s\n\n"
+		"format:%s\n"
+		"YRGB buffer addr:0x%08x\n"
+		"CBR buffer addr:0x%08x\n\n"
 		"win1:%s\n"
 		"xvir:%d\n"
 		"xdsp:%d\n"
 		"ydsp:%d\n"
 		"x_st:%d\n"
 		"y_st:%d\n"
-		"format:%s\n",
+		"format:%s\n"
+		"YRGB buffer addr:0x%08x\n"
+		"overlay:%s\n",
 		status_w0,
                 xvir_w0,
                 x_act_w0,
@@ -1153,13 +1159,17 @@ static ssize_t rk3188_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,c
                 y_scale/100,
                 y_scale%100,
                 format_w0,
+                lcdc_readl(lcdc_dev,WIN0_YRGB_MST0),
+		lcdc_readl(lcdc_dev,WIN0_CBR_MST0),
                 status_w1,
                 xvir_w1,
                 x_dsp_w1,
                 y_dsp_w1,
                 x_st_w1,
                 y_st_w1,
-                format_w1);
+                format_w1,
+                lcdc_readl(lcdc_dev,WIN1_MST),
+                ovl ? "win0 on the top of win1\n":"win1 on the top of win0\n");
 
 }
 
