@@ -454,7 +454,8 @@ static int dmatest_func(void *data)
 		}
 		dma_async_issue_pending(chan);
 
-		wait_event_freezable_timeout(done_wait, done.done,
+		wait_event_freezable_timeout(done_wait,
+					     done.done || kthread_should_stop(),
 					     msecs_to_jiffies(timeout));
 
 		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
