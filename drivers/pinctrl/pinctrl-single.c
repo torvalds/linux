@@ -734,6 +734,7 @@ static const struct pinconf_ops pcs_pinconf_ops = {
 	.pin_config_dbg_show = pcs_pinconf_dbg_show,
 	.pin_config_group_dbg_show = pcs_pinconf_group_dbg_show,
 	.pin_config_config_dbg_show = pcs_pinconf_config_dbg_show,
+	.is_generic = true,
 };
 
 /**
@@ -1435,10 +1436,9 @@ static int pcs_probe(struct platform_device *pdev)
 	pcs->desc.name = DRIVER_NAME;
 	pcs->desc.pctlops = &pcs_pinctrl_ops;
 	pcs->desc.pmxops = &pcs_pinmux_ops;
-	pcs->desc.confops = &pcs_pinconf_ops;
+	if (pcs->is_pinconf)
+		pcs->desc.confops = &pcs_pinconf_ops;
 	pcs->desc.owner = THIS_MODULE;
-	if (match->data)
-		pcs_pinconf_ops.is_generic = true;
 
 	ret = pcs_allocate_pin_table(pcs);
 	if (ret < 0)
