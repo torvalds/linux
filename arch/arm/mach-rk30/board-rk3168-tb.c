@@ -568,6 +568,24 @@ static struct platform_device device_fb = {
 	.resource	= resource_fb,
 };
 #endif
+#if defined(CONFIG_ARCH_RK3188)
+static struct resource resource_mali[] = {
+	[0] = {
+	.name  = "ump buf",
+	.start = 0,
+	.end   = 0,
+	.flags = IORESOURCE_MEM,
+	},
+
+};
+
+static struct platform_device device_mali= {
+	.name		= "mali400_ump",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_mali),
+	.resource	= resource_mali,
+};
+#endif
 
 #if defined(CONFIG_LCDC0_RK3066B) || defined(CONFIG_LCDC0_RK3188)
 static struct resource resource_lcdc0[] = {
@@ -1285,7 +1303,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_GPS_RK
 	&rk_device_gps,
 #endif
-
+#if defined(CONFIG_ARCH_RK3188)
+	&device_mali,
+#endif
 };
 
 static int rk_platform_add_display_devices(void)
@@ -1999,9 +2019,18 @@ static void __init machine_rk30_board_init(void)
     clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 48*1000000);
 #endif
 }
-
+#define HD_SCREEN_SIZE 1920UL*1200UL*4*3
 static void __init rk30_reserve(void)
 {
+#if defined(CONFIG_ARCH_RK3188)
+	/*if lcd resolution great than or equal to 1920*1200,reserve the ump memory */
+	if(!(get_fb_size() < ALIGN(HD_SCREEN_SIZE,SZ_1M)))
+	{
+		int ump_mem_phy_size=512UL*1024UL*1024UL; 
+		resource_mali[0].start = board_mem_reserve_add("ump buf", ump_mem_phy_size); 
+		resource_mali[0].end = resource_mali[0].start + ump_mem_phy_size -1;
+	}
+#endif
 #ifdef CONFIG_ION
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
 #endif
