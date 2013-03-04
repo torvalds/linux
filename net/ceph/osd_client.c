@@ -249,7 +249,7 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 		dst->watch.flag = src->watch.flag;
 		break;
 	default:
-		pr_err("unrecognized osd opcode %d\n", dst->op);
+		pr_err("unrecognized osd opcode %d\n", src->op);
 		WARN_ON(1);
 		break;
 	case CEPH_OSD_OP_MAPEXT:
@@ -307,7 +307,7 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 	case CEPH_OSD_OP_PGLS:
 	case CEPH_OSD_OP_PGLS_FILTER:
 		pr_err("unsupported osd opcode %s\n",
-			ceph_osd_op_name(dst->op));
+			ceph_osd_op_name(src->op));
 		WARN_ON(1);
 		break;
 	}
