@@ -222,7 +222,7 @@ static void rproc_virtio_finalize_features(struct virtio_device *vdev)
 	rvdev->gfeatures = vdev->features[0];
 }
 
-static struct virtio_config_ops rproc_virtio_config_ops = {
+static const struct virtio_config_ops rproc_virtio_config_ops = {
 	.get_features	= rproc_virtio_get_features,
 	.finalize_features = rproc_virtio_finalize_features,
 	.find_vqs	= rproc_virtio_find_vqs,

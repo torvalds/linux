@@ -74,9 +74,18 @@ enum acpi_address_range_id {
 
 /* Table Handlers */
 
-typedef int (*acpi_table_handler) (struct acpi_table_header *table);
+typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 
-typedef int (*acpi_table_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
+typedef int (*acpi_tbl_entry_handler)(struct acpi_subtable_header *header,
+				      const unsigned long end);
+
+#ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
+void acpi_initrd_override(void *data, size_t size);
+#else
+static inline void acpi_initrd_override(void *data, size_t size)
+{
+}
+#endif
 
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 void __acpi_unmap_table(char *map, unsigned long size);
@@ -87,10 +96,14 @@ int acpi_mps_check (void);
 int acpi_numa_init (void);
 
 int acpi_table_init (void);
-int acpi_table_parse (char *id, acpi_table_handler handler);
+int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-	int entry_id, acpi_table_entry_handler handler, unsigned int max_entries);
-int acpi_table_parse_madt (enum acpi_madt_type id, acpi_table_entry_handler handler, unsigned int max_entries);
+				    int entry_id,
+				    acpi_tbl_entry_handler handler,
+				    unsigned int max_entries);
+int acpi_table_parse_madt(enum acpi_madt_type id,
+			  acpi_tbl_entry_handler handler,
+			  unsigned int max_entries);
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
@@ -350,8 +363,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 #if defined(CONFIG_ACPI_HOTPLUG_CPU) &&			\
 	(defined(CONFIG_ACPI_HOTPLUG_MEMORY) ||		\
 	 defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) &&	\
-	(defined(CONFIG_ACPI_CONTAINER) ||		\
-	 defined(CONFIG_ACPI_CONTAINER_MODULE))
+	defined(CONFIG_ACPI_CONTAINER)
 #define ACPI_HOTPLUG_OST
 #endif
 
@@ -479,6 +491,14 @@ void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
 
 acpi_status acpi_os_prepare_sleep(u8 sleep_state,
 				  u32 pm1a_control, u32 pm1b_control);
+#ifdef CONFIG_X86
+void arch_reserve_mem_area(acpi_physical_address addr, size_t size);
+#else
+static inline void arch_reserve_mem_area(acpi_physical_address addr,
+					  size_t size)
+{
+}
+#endif /* CONFIG_X86 */
 #else
 #define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
 #endif
@@ -495,7 +515,7 @@ static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 #endif
 
-#ifdef CONFIG_ACPI_SLEEP
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM_SLEEP)
 int acpi_dev_suspend_late(struct device *dev);
 int acpi_dev_resume_early(struct device *dev);
 int acpi_subsys_prepare(struct device *dev);
@@ -510,9 +530,14 @@ static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM)
+struct acpi_device *acpi_dev_pm_get_node(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 void acpi_dev_pm_detach(struct device *dev, bool power_off);
 #else
+static inline struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
+{
+	return NULL;
+}
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
 	return -ENODEV;

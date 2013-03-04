@@ -288,6 +288,26 @@ lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 }
 
 /**
+ * lpfc_change_queue_type() - Change a device's scsi tag queuing type
+ * @sdev: Pointer the scsi device whose queue depth is to change
+ * @tag_type: Identifier for queue tag type
+ */
+static int
+lpfc_change_queue_type(struct scsi_device *sdev, int tag_type)
+{
+	if (sdev->tagged_supported) {
+		scsi_set_tag_type(sdev, tag_type);
+		if (tag_type)
+			scsi_activate_tcq(sdev, sdev->queue_depth);
+		else
+			scsi_deactivate_tcq(sdev, sdev->queue_depth);
+	} else
+		tag_type = 0;
+
+	return tag_type;
+}
+
+/**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
@@ -3227,6 +3247,21 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 		}
 	}
 
+	switch (scsi_get_prot_op(scsi_cmnd)) {
+	case SCSI_PROT_WRITE_STRIP:
+	case SCSI_PROT_READ_STRIP:
+		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_DIF_STRIP;
+		break;
+	case SCSI_PROT_WRITE_INSERT:
+	case SCSI_PROT_READ_INSERT:
+		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_DIF_INSERT;
+		break;
+	case SCSI_PROT_WRITE_PASS:
+	case SCSI_PROT_READ_PASS:
+		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_DIF_PASS;
+		break;
+	}
+
 	fcpdl = lpfc_bg_scsi_adjust_dl(phba, lpfc_cmd);
 
 	fcp_cmnd->fcpDl = be32_to_cpu(fcpdl);
@@ -3236,7 +3271,6 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = fcpdl;
-	lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_DIF;
 
 	return 0;
 err:
@@ -3958,7 +3992,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 			break;
 		}
 	} else
-		fcp_cmnd->fcpCntl1 = 0;
+		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 
@@ -4914,6 +4948,9 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 			if (!NLP_CHK_NODE_ACT(ndlp))
 				continue;
+			if (vport->phba->cfg_fcp2_no_tgt_reset &&
+			    (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE))
+				continue;
 			if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 			    ndlp->nlp_sid == i &&
 			    ndlp->rport) {
@@ -5133,6 +5170,7 @@ struct scsi_host_template lpfc_template = {
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_type	= lpfc_change_queue_type,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -5155,4 +5193,5 @@ struct scsi_host_template lpfc_vport_template = {
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_type	= lpfc_change_queue_type,
 };

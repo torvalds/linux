@@ -305,7 +305,7 @@ int fm_rx_set_volume(struct fmdev *fmdev, u16 vol_to_set)
 	if (fmdev->curr_fmmode != FM_MODE_RX)
 		return -EPERM;
 
-	if (vol_to_set < FM_RX_VOLUME_MIN || vol_to_set > FM_RX_VOLUME_MAX) {
+	if (vol_to_set > FM_RX_VOLUME_MAX) {
 		fmerr("Volume is not within(%d-%d) range\n",
 			   FM_RX_VOLUME_MIN, FM_RX_VOLUME_MAX);
 		return -EINVAL;

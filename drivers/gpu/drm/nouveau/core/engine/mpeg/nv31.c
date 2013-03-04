@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/engctx.h>
@@ -121,9 +122,9 @@ nv31_mpeg_ofuncs = {
 
 static struct nouveau_omthds
 nv31_mpeg_omthds[] = {
-	{ 0x0190, nv31_mpeg_mthd_dma },
-	{ 0x01a0, nv31_mpeg_mthd_dma },
-	{ 0x01b0, nv31_mpeg_mthd_dma },
+	{ 0x0190, 0x0190, nv31_mpeg_mthd_dma },
+	{ 0x01a0, 0x01a0, nv31_mpeg_mthd_dma },
+	{ 0x01b0, 0x01b0, nv31_mpeg_mthd_dma },
 	{}
 };
 
@@ -231,8 +232,10 @@ nv31_mpeg_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x00b230, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "ch %d [0x%08x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 chid, inst << 4, stat, type, mthd, data);
+		nv_error(priv,
+			 "ch %d [0x%08x %s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 chid, inst << 4, nouveau_client_name(engctx), stat,
+			 type, mthd, data);
 	}
 
 	nouveau_engctx_put(engctx);

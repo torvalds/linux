@@ -24,6 +24,7 @@
  */
 
 #include "cx23885.h"
+#include "cimax2.h"
 #include "dvb_ca_en50221.h"
 /**** Bit definitions for MC417_RWD and MC417_OEN registers  ***
   bits 31-16
@@ -87,7 +88,7 @@ struct netup_ci_state {
 };
 
 
-int netup_read_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
+static int netup_read_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
 {
 	int ret;
@@ -120,7 +121,7 @@ int netup_read_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 	return 0;
 }
 
-int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
+static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
 {
 	int ret;
@@ -147,7 +148,7 @@ int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 	return 0;
 }
 
-int netup_ci_get_mem(struct cx23885_dev *dev)
+static int netup_ci_get_mem(struct cx23885_dev *dev)
 {
 	int mem;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1);
@@ -166,7 +167,7 @@ int netup_ci_get_mem(struct cx23885_dev *dev)
 	return mem & 0xff;
 }
 
-int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
+static int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 				u8 flag, u8 read, int addr, u8 data)
 {
 	struct netup_ci_state *state = en50221->data;
@@ -248,7 +249,8 @@ int netup_ci_write_attribute_mem(struct dvb_ca_en50221 *en50221,
 	return netup_ci_op_cam(en50221, slot, 0, 0, addr, data);
 }
 
-int netup_ci_read_cam_ctl(struct dvb_ca_en50221 *en50221, int slot, u8 addr)
+int netup_ci_read_cam_ctl(struct dvb_ca_en50221 *en50221, int slot,
+				 u8 addr)
 {
 	return netup_ci_op_cam(en50221, slot, NETUP_CI_CTL,
 							NETUP_CI_RD, addr, 0);
@@ -295,7 +297,7 @@ int netup_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 	return 0;
 }
 
-int netup_ci_set_irq(struct dvb_ca_en50221 *en50221, u8 irq_mode)
+static int netup_ci_set_irq(struct dvb_ca_en50221 *en50221, u8 irq_mode)
 {
 	struct netup_ci_state *state = en50221->data;
 	int ret;
@@ -399,7 +401,8 @@ int netup_ci_slot_status(struct cx23885_dev *dev, u32 pci_status)
 	return 1;
 }
 
-int netup_poll_ci_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open)
+int netup_poll_ci_slot_status(struct dvb_ca_en50221 *en50221,
+				     int slot, int open)
 {
 	struct netup_ci_state *state = en50221->data;
 

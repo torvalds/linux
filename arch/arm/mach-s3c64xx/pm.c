@@ -26,12 +26,13 @@
 #include <plat/pm.h>
 #include <plat/wakeup-mask.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-syscon-power.h>
-#include <mach/regs-gpio-memport.h>
-#include <mach/regs-modem.h>
+
+#include "regs-gpio-memport.h"
+#include "regs-modem.h"
+#include "regs-sys.h"
+#include "regs-syscon-power.h"
 
 struct s3c64xx_pm_domain {
 	char *const name;
@@ -296,7 +297,8 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 
 	/* we should never get past here */
 
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 /* mapping of interrupts to parts of the wakeup mask */
@@ -338,8 +340,10 @@ int __init s3c64xx_pm_init(void)
 	for (i = 0; i < ARRAY_SIZE(s3c64xx_pm_domains); i++)
 		pm_genpd_init(&s3c64xx_pm_domains[i]->pd, NULL, false);
 
+#ifdef CONFIG_S3C_DEV_FB
 	if (dev_get_platdata(&s3c_device_fb.dev))
 		pm_genpd_add_device(&s3c64xx_pm_f.pd, &s3c_device_fb.dev);
+#endif
 
 	return 0;
 }

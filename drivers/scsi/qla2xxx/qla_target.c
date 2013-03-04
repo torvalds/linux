@@ -52,7 +52,7 @@ MODULE_PARM_DESC(qlini_mode,
 	"\"disabled\" - initiator mode will never be enabled; "
 	"\"enabled\" (default) - initiator mode will always stay enabled.");
 
-static int ql2x_ini_mode = QLA2XXX_INI_MODE_EXCLUSIVE;
+int ql2x_ini_mode = QLA2XXX_INI_MODE_EXCLUSIVE;
 
 /*
  * From scsi/fc/fc_fcp.h
@@ -1029,7 +1029,7 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 EXPORT_SYMBOL(qlt_stop_phase2);
 
 /* Called from qlt_remove_target() -> qla2x00_remove_one() */
-void qlt_release(struct qla_tgt *tgt)
+static void qlt_release(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
 
@@ -1119,6 +1119,7 @@ static void qlt_send_notify_ack(struct scsi_qla_host *vha,
 	nack->u.isp24.srr_rx_id = ntfy->u.isp24.srr_rx_id;
 	nack->u.isp24.status = ntfy->u.isp24.status;
 	nack->u.isp24.status_subcode = ntfy->u.isp24.status_subcode;
+	nack->u.isp24.fw_handle = ntfy->u.isp24.fw_handle;
 	nack->u.isp24.exchange_address = ntfy->u.isp24.exchange_address;
 	nack->u.isp24.srr_rel_offs = ntfy->u.isp24.srr_rel_offs;
 	nack->u.isp24.srr_ui = ntfy->u.isp24.srr_ui;
@@ -1264,8 +1265,27 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct qla_tgt_sess *sess)
 {
 	struct qla_hw_data *ha = vha->hw;
+	struct se_session *se_sess = sess->se_sess;
 	struct qla_tgt_mgmt_cmd *mcmd;
+	struct se_cmd *se_cmd;
+	u32 lun = 0;
 	int rc;
+	bool found_lun = false;
+
+	spin_lock(&se_sess->sess_cmd_lock);
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
+		struct qla_tgt_cmd *cmd =
+			container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
+		if (cmd->tag == abts->exchange_addr_to_abort) {
+			lun = cmd->unpacked_lun;
+			found_lun = true;
+			break;
+		}
+	}
+	spin_unlock(&se_sess->sess_cmd_lock);
+
+	if (!found_lun)
+		return -ENOENT;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
 	    "qla_target(%d): task abort (tag=%d)\n",
@@ -1283,7 +1303,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, 0, TMR_ABORT_TASK,
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, TMR_ABORT_TASK,
 	    abts->exchange_addr_to_abort);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,
@@ -1551,7 +1571,7 @@ static inline uint32_t qlt_make_handle(struct scsi_qla_host *vha)
 	/* always increment cmd handle */
 	do {
 		++h;
-		if (h > MAX_OUTSTANDING_COMMANDS)
+		if (h > DEFAULT_OUTSTANDING_COMMANDS)
 			h = 1; /* 0 is QLA_TGT_NULL_HANDLE */
 		if (h == ha->tgt.current_handle) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe04e,
@@ -2422,7 +2442,7 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 			return NULL;
 		}
 		/* handle-1 is actually used */
-		if (unlikely(handle > MAX_OUTSTANDING_COMMANDS)) {
+		if (unlikely(handle > DEFAULT_OUTSTANDING_COMMANDS)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe052,
 			    "qla_target(%d): Wrong handle %x received\n",
 			    vha->vp_idx, handle);
@@ -4286,6 +4306,12 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	if (!QLA_TGT_MODE_ENABLED())
 		return 0;
 
+	if (!IS_TGT_MODE_CAPABLE(ha)) {
+		ql_log(ql_log_warn, base_vha, 0xe070,
+		    "This adapter does not support target mode.\n");
+		return 0;
+	}
+
 	ql_dbg(ql_dbg_tgt, base_vha, 0xe03b,
 	    "Registering target for host %ld(%p)", base_vha->host_no, ha);
 
@@ -4647,7 +4673,6 @@ void
 qlt_24xx_process_atio_queue(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	struct atio_from_isp *pkt;
 	int cnt, i;
 
@@ -4675,26 +4700,28 @@ qlt_24xx_process_atio_queue(struct scsi_qla_host *vha)
 	}
 
 	/* Adjust ring index */
-	WRT_REG_DWORD(&reg->atio_q_out, ha->tgt.atio_ring_index);
+	WRT_REG_DWORD(ISP_ATIO_Q_OUT(vha), ha->tgt.atio_ring_index);
 }
 
 void
-qlt_24xx_config_rings(struct scsi_qla_host *vha, device_reg_t __iomem *reg)
+qlt_24xx_config_rings(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
 
-/* FIXME: atio_q in/out for ha->mqenable=1..? */
-	if (ha->mqenable) {
-#if 0
-		WRT_REG_DWORD(&reg->isp25mq.atio_q_in, 0);
-		WRT_REG_DWORD(&reg->isp25mq.atio_q_out, 0);
-		RD_REG_DWORD(&reg->isp25mq.atio_q_out);
-#endif
-	} else {
-		/* Setup APTIO registers for target mode */
-		WRT_REG_DWORD(&reg->isp24.atio_q_in, 0);
-		WRT_REG_DWORD(&reg->isp24.atio_q_out, 0);
-		RD_REG_DWORD(&reg->isp24.atio_q_out);
+	WRT_REG_DWORD(ISP_ATIO_Q_IN(vha), 0);
+	WRT_REG_DWORD(ISP_ATIO_Q_OUT(vha), 0);
+	RD_REG_DWORD(ISP_ATIO_Q_OUT(vha));
+
+	if (IS_ATIO_MSIX_CAPABLE(ha)) {
+		struct qla_msix_entry *msix = &ha->msix_entries[2];
+		struct init_cb_24xx *icb = (struct init_cb_24xx *)ha->init_cb;
+
+		icb->msix_atio = cpu_to_le16(msix->entry);
+		ql_dbg(ql_dbg_init, vha, 0xf072,
+		    "Registering ICB vector 0x%x for atio que.\n",
+		    msix->entry);
 	}
 }
 
@@ -4777,6 +4804,101 @@ qlt_24xx_config_nvram_stage2(struct scsi_qla_host *vha,
 	}
 }
 
+void
+qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
+
+	if (qla_tgt_mode_enabled(vha)) {
+		if (!ha->tgt.saved_set) {
+			/* We save only once */
+			ha->tgt.saved_exchange_count = nv->exchange_count;
+			ha->tgt.saved_firmware_options_1 =
+			    nv->firmware_options_1;
+			ha->tgt.saved_firmware_options_2 =
+			    nv->firmware_options_2;
+			ha->tgt.saved_firmware_options_3 =
+			    nv->firmware_options_3;
+			ha->tgt.saved_set = 1;
+		}
+
+		nv->exchange_count = __constant_cpu_to_le16(0xFFFF);
+
+		/* Enable target mode */
+		nv->firmware_options_1 |= __constant_cpu_to_le32(BIT_4);
+
+		/* Disable ini mode, if requested */
+		if (!qla_ini_mode_enabled(vha))
+			nv->firmware_options_1 |=
+			    __constant_cpu_to_le32(BIT_5);
+
+		/* Disable Full Login after LIP */
+		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_13);
+		/* Enable initial LIP */
+		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_9);
+		/* Enable FC tapes support */
+		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_12);
+		/* Disable Full Login after LIP */
+		nv->host_p &= __constant_cpu_to_le32(~BIT_10);
+		/* Enable target PRLI control */
+		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_14);
+	} else {
+		if (ha->tgt.saved_set) {
+			nv->exchange_count = ha->tgt.saved_exchange_count;
+			nv->firmware_options_1 =
+			    ha->tgt.saved_firmware_options_1;
+			nv->firmware_options_2 =
+			    ha->tgt.saved_firmware_options_2;
+			nv->firmware_options_3 =
+			    ha->tgt.saved_firmware_options_3;
+		}
+		return;
+	}
+
+	/* out-of-order frames reassembly */
+	nv->firmware_options_3 |= BIT_6|BIT_9;
+
+	if (ha->tgt.enable_class_2) {
+		if (vha->flags.init_done)
+			fc_host_supported_classes(vha->host) =
+				FC_COS_CLASS2 | FC_COS_CLASS3;
+
+		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_8);
+	} else {
+		if (vha->flags.init_done)
+			fc_host_supported_classes(vha->host) = FC_COS_CLASS3;
+
+		nv->firmware_options_2 &= ~__constant_cpu_to_le32(BIT_8);
+	}
+}
+
+void
+qlt_81xx_config_nvram_stage2(struct scsi_qla_host *vha,
+	struct init_cb_81xx *icb)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
+
+	if (ha->tgt.node_name_set) {
+		memcpy(icb->node_name, ha->tgt.tgt_node_name, WWN_SIZE);
+		icb->firmware_options_1 |= __constant_cpu_to_le32(BIT_14);
+	}
+}
+
+void
+qlt_83xx_iospace_config(struct qla_hw_data *ha)
+{
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
+
+	ha->msix_count += 1; /* For ATIO Q */
+}
+
 int
 qlt_24xx_process_response_error(struct scsi_qla_host *vha,
 	struct sts_entry_24xx *pkt)
@@ -4809,9 +4931,39 @@ qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 	if (!QLA_TGT_MODE_ENABLED())
 		return;
 
+	if  (ha->mqenable || IS_QLA83XX(ha)) {
+		ISP_ATIO_Q_IN(base_vha) = &ha->mqiobase->isp25mq.atio_q_in;
+		ISP_ATIO_Q_OUT(base_vha) = &ha->mqiobase->isp25mq.atio_q_out;
+	} else {
+		ISP_ATIO_Q_IN(base_vha) = &ha->iobase->isp24.atio_q_in;
+		ISP_ATIO_Q_OUT(base_vha) = &ha->iobase->isp24.atio_q_out;
+	}
+
 	mutex_init(&ha->tgt.tgt_mutex);
 	mutex_init(&ha->tgt.tgt_host_action_mutex);
 	qlt_clear_mode(base_vha);
+}
+
+irqreturn_t
+qla83xx_msix_atio_q(int irq, void *dev_id)
+{
+	struct rsp_que *rsp;
+	scsi_qla_host_t	*vha;
+	struct qla_hw_data *ha;
+	unsigned long flags;
+
+	rsp = (struct rsp_que *) dev_id;
+	ha = rsp->hw;
+	vha = pci_get_drvdata(ha->pdev);
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	qlt_24xx_process_atio_queue(vha);
+	qla24xx_process_response_queue(vha, rsp);
+
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	return IRQ_HANDLED;
 }
 
 int

@@ -107,6 +107,75 @@ dcb_outp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 	return 0x0000;
 }
 
+static inline u16
+dcb_outp_hasht(struct dcb_output *outp)
+{
+	return (outp->extdev << 8) | (outp->location << 4) | outp->type;
+}
+
+static inline u16
+dcb_outp_hashm(struct dcb_output *outp)
+{
+	return (outp->heads << 8) | (outp->link << 6) | outp->or;
+}
+
+u16
+dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
+	       struct dcb_output *outp)
+{
+	u16 dcb = dcb_outp(bios, idx, ver, len);
+	if (dcb) {
+		if (*ver >= 0x20) {
+			u32 conn = nv_ro32(bios, dcb + 0x00);
+			outp->or        = (conn & 0x0f000000) >> 24;
+			outp->location  = (conn & 0x00300000) >> 20;
+			outp->bus       = (conn & 0x000f0000) >> 16;
+			outp->connector = (conn & 0x0000f000) >> 12;
+			outp->heads     = (conn & 0x00000f00) >> 8;
+			outp->i2c_index = (conn & 0x000000f0) >> 4;
+			outp->type      = (conn & 0x0000000f);
+			outp->link      = 0;
+		} else {
+			dcb = 0x0000;
+		}
+
+		if (*ver >= 0x40) {
+			u32 conf = nv_ro32(bios, dcb + 0x04);
+			switch (outp->type) {
+			case DCB_OUTPUT_TMDS:
+			case DCB_OUTPUT_LVDS:
+			case DCB_OUTPUT_DP:
+				outp->link = (conf & 0x00000030) >> 4;
+				outp->sorconf.link = outp->link; /*XXX*/
+				outp->extdev = 0x00;
+				if (outp->location != 0)
+					outp->extdev = (conf & 0x0000ff00) >> 8;
+				break;
+			default:
+				break;
+			}
+		}
+
+		outp->hasht = dcb_outp_hasht(outp);
+		outp->hashm = dcb_outp_hashm(outp);
+	}
+	return dcb;
+}
+
+u16
+dcb_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
+	       u8 *ver, u8 *len, struct dcb_output *outp)
+{
+	u16 dcb, idx = 0;
+	while ((dcb = dcb_outp_parse(bios, idx++, ver, len, outp))) {
+		if ((dcb_outp_hasht(outp) & 0x00ff) == (type & 0x00ff)) {
+			if ((dcb_outp_hashm(outp) & mask) == mask)
+				break;
+		}
+	}
+	return dcb;
+}
+
 int
 dcb_outp_foreach(struct nouveau_bios *bios, void *data,
 		 int (*exec)(struct nouveau_bios *, void *, int, u16))

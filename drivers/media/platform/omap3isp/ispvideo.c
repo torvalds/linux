@@ -35,9 +35,6 @@
 #include <linux/vmalloc.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-#include <plat/iommu.h>
-#include <plat/iovmm.h>
-#include <plat/omap-pm.h>
 
 #include "ispvideo.h"
 #include "isp.h"
@@ -1392,7 +1389,8 @@ int omap3isp_video_register(struct isp_video *video, struct v4l2_device *vdev)
 
 	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
-		printk(KERN_ERR "%s: could not register video device (%d)\n",
+		dev_err(video->isp->dev,
+			"%s: could not register video device (%d)\n",
 			__func__, ret);
 
 	return ret;

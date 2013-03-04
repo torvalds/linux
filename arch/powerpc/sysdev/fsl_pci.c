@@ -36,7 +36,7 @@
 
 static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
-static void __devinit quirk_fsl_pcie_header(struct pci_dev *dev)
+static void quirk_fsl_pcie_header(struct pci_dev *dev)
 {
 	u8 hdr_type;
 
@@ -89,7 +89,7 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 	return 0;
 }
 
-static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
+static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 	unsigned int index, const struct resource *res,
 	resource_size_t offset)
 {
@@ -126,7 +126,7 @@ static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 }
 
 /* atmu setup for fsl pci/pcie controller */
-static void __init setup_pci_atmu(struct pci_controller *hose,
+static void setup_pci_atmu(struct pci_controller *hose,
 				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
@@ -421,13 +421,16 @@ void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int __init fsl_add_bridge(struct device_node *dev, int is_primary)
+int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 {
 	int len;
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
 	u8 hdr_type, progif;
+	struct device_node *dev;
+
+	dev = pdev->dev.of_node;
 
 	if (!of_device_is_available(dev)) {
 		pr_warning("%s: disabled\n", dev->full_name);
@@ -453,6 +456,8 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	if (!hose)
 		return -ENOMEM;
 
+	/* set platform device as the parent */
+	hose->parent = &pdev->dev;
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
@@ -827,13 +832,18 @@ static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,mpc8548-pcie", },
 	{ .compatible = "fsl,mpc8610-pci", },
 	{ .compatible = "fsl,mpc8641-pcie", },
-	{ .compatible = "fsl,p1022-pcie", },
-	{ .compatible = "fsl,p1010-pcie", },
-	{ .compatible = "fsl,p1023-pcie", },
-	{ .compatible = "fsl,p4080-pcie", },
-	{ .compatible = "fsl,qoriq-pcie-v2.4", },
-	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.1", },
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
+	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.4", },
+
+	/*
+	 * The following entries are for compatibility with older device
+	 * trees.
+	 */
+	{ .compatible = "fsl,p1022-pcie", },
+	{ .compatible = "fsl,p4080-pcie", },
+
 	{},
 };
 
@@ -871,7 +881,7 @@ void fsl_pci_assign_primary(void)
 	}
 }
 
-static int __devinit fsl_pci_probe(struct platform_device *pdev)
+static int fsl_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *node;
@@ -880,7 +890,7 @@ static int __devinit fsl_pci_probe(struct platform_device *pdev)
 #endif
 
 	node = pdev->dev.of_node;
-	ret = fsl_add_bridge(node, fsl_pci_primary == node);
+	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
 
 #ifdef CONFIG_SWIOTLB
 	if (ret == 0) {
@@ -902,9 +912,42 @@ static int __devinit fsl_pci_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int fsl_pci_resume(struct device *dev)
+{
+	struct pci_controller *hose;
+	struct resource pci_rsrc;
+
+	hose = pci_find_hose_for_OF_device(dev->of_node);
+	if (!hose)
+		return -ENODEV;
+
+	if (of_address_to_resource(dev->of_node, 0, &pci_rsrc)) {
+		dev_err(dev, "Get pci register base failed.");
+		return -ENODEV;
+	}
+
+	setup_pci_atmu(hose, &pci_rsrc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops pci_pm_ops = {
+	.resume = fsl_pci_resume,
+};
+
+#define PCI_PM_OPS (&pci_pm_ops)
+
+#else
+
+#define PCI_PM_OPS NULL
+
+#endif
+
 static struct platform_driver fsl_pci_driver = {
 	.driver = {
 		.name = "fsl-pci",
+		.pm = PCI_PM_OPS,
 		.of_match_table = pci_ids,
 	},
 	.probe = fsl_pci_probe,

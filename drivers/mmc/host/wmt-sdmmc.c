@@ -766,7 +766,7 @@ static struct of_device_id wmt_mci_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __devinit wmt_mci_probe(struct platform_device *pdev)
+static int wmt_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
@@ -892,7 +892,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit wmt_mci_remove(struct platform_device *pdev)
+static int wmt_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
@@ -1012,7 +1012,7 @@ static const struct dev_pm_ops wmt_mci_pm = {
 
 static struct platform_driver wmt_mci_driver = {
 	.probe = wmt_mci_probe,
-	.remove = __exit_p(wmt_mci_remove),
+	.remove = wmt_mci_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

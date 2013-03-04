@@ -2,6 +2,26 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config LD_NO_RELAX
+	bool "Disable linker relaxation"
+	default n
+	help
+	  Enable this function to disable link-time optimizations.
+	  The default linker behavior is to combine identical literal
+	  values to reduce code size and remove unnecessary overhead from
+	  assembler-generated 'longcall' sequences.
+	  Enabling this option improves the link time but increases the
+	  code size, and possibly execution time.
+
+config S32C1I_SELFTEST
+	bool "Perform S32C1I instruction self-test at boot"
+	default y
+	help
+	  Enable this option to test S32C1I instruction behavior at boot.
+	  Correct operation of this instruction requires some cooperation from hardware
+	  external to the processor (such as bus bridge, bus fabric, or memory controller).
+	  It is easy to make wrong hardware configuration, this test should catch it early.
+
+	  Say 'N' on stable hardware.
+
 endmenu
-
-

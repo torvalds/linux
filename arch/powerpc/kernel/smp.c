@@ -82,7 +82,7 @@ int smt_enabled_at_boot = 1;
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
 #ifdef CONFIG_PPC64
-int __devinit smp_generic_kick_cpu(int nr)
+int smp_generic_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
@@ -311,7 +311,7 @@ void smp_send_stop(void)
 
 struct thread_info *current_set[NR_CPUS];
 
-static void __devinit smp_store_cpu_info(int id)
+static void smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -355,7 +355,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = 1;
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
@@ -610,7 +610,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 }
 
 /* Activate a secondary processor. */
-void __devinit start_secondary(void *unused)
+__cpuinit void start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
 	struct device_node *l2_cache;

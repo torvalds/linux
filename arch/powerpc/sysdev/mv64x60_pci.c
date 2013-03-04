@@ -104,7 +104,7 @@ subsys_initcall(mv64x60_sysfs_init);
 
 #endif /* CONFIG_SYSFS */
 
-static void __devinit mv64x60_pci_fixup_early(struct pci_dev *dev)
+static void mv64x60_pci_fixup_early(struct pci_dev *dev)
 {
 	/*
 	 * Set the host bridge hdr_type to an invalid value so that

@@ -49,8 +49,8 @@ enum asic_type {
 #define UART1_INTEN	uart1_inten
 #define UART1_CONFIG1	uart1_config1
 #define UART1_CONFIG2	uart1_config2
-#define UART1_DIVISORHI	uart1_divisorhi
-#define UART1_DIVISORLO	uart1_divisorlo
+#define UART1_DIVISORHI uart1_divisorhi
+#define UART1_DIVISORLO uart1_divisorlo
 #define UART1_DATA	uart1_data
 #define UART1_STATUS	uart1_status
 

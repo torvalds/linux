@@ -13,11 +13,11 @@
 #include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <linux/memblock.h>
-#include <linux/of_fdt.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <mach/map.h>
+#include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
 #include <plat/regs-serial.h>
@@ -103,6 +103,42 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("samsung,mfc-v6", 0x11000000, "s5p-mfc-v6", NULL),
 	OF_DEV_AUXDATA("samsung,exynos5250-tmu", 0x10060000,
 				"exynos-tmu", NULL),
+	OF_DEV_AUXDATA("samsung,i2s-v5", 0x03830000,
+				"samsung-i2s.0", NULL),
+	OF_DEV_AUXDATA("samsung,i2s-v5", 0x12D60000,
+				"samsung-i2s.1", NULL),
+	OF_DEV_AUXDATA("samsung,i2s-v5", 0x12D70000,
+				"samsung-i2s.2", NULL),
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11210000,
+			"exynos-sysmmu.0", "mfc"), /* MFC_L */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11200000,
+			"exynos-sysmmu.1", "mfc"), /* MFC_R */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x14650000,
+			"exynos-sysmmu.2", NULL), /* TV */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11F20000,
+			"exynos-sysmmu.3", "jpeg"), /* JPEG */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11D40000,
+			"exynos-sysmmu.4", NULL), /* ROTATOR */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13E80000,
+			"exynos-sysmmu.5", "gscl"), /* GSCL0 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13E90000,
+			"exynos-sysmmu.6", "gscl"), /* GSCL1 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13EA0000,
+			"exynos-sysmmu.7", "gscl"), /* GSCL2 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13EB0000,
+			"exynos-sysmmu.8", "gscl"), /* GSCL3 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13260000,
+			"exynos-sysmmu.9", NULL), /* FIMC-IS0 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x132C0000,
+			"exynos-sysmmu.10", NULL), /* FIMC-IS1 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x14640000,
+			"exynos-sysmmu.11", NULL), /* FIMD1 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13C40000,
+			"exynos-sysmmu.12", NULL), /* FIMC-LITE0 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13C50000,
+			"exynos-sysmmu.13", NULL), /* FIMC-LITE1 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x10A60000,
+			"exynos-sysmmu.14", NULL), /* G2D */
 	{},
 };
 
@@ -124,6 +160,28 @@ static void __init exynos5_dt_map_io(void)
 
 static void __init exynos5_dt_machine_init(void)
 {
+	struct device_node *i2c_np;
+	const char *i2c_compat = "samsung,s3c2440-i2c";
+	unsigned int tmp;
+
+	/*
+	 * Exynos5's legacy i2c controller and new high speed i2c
+	 * controller have muxed interrupt sources. By default the
+	 * interrupts for 4-channel HS-I2C controller are enabled.
+	 * If node for first four channels of legacy i2c controller
+	 * are available then re-configure the interrupts via the
+	 * system register.
+	 */
+	for_each_compatible_node(i2c_np, NULL, i2c_compat) {
+		if (of_device_is_available(i2c_np)) {
+			if (of_alias_get_id(i2c_np, "i2c") < 4) {
+				tmp = readl(EXYNOS5_SYS_I2C_CFG);
+				writel(tmp & ~(0x1 << of_alias_get_id(i2c_np, "i2c")),
+						EXYNOS5_SYS_I2C_CFG);
+			}
+		}
+	}
+
 	if (of_machine_is_compatible("samsung,exynos5250"))
 		of_platform_populate(NULL, of_default_bus_match_table,
 				     exynos5250_auxdata_lookup, NULL);
@@ -140,6 +198,7 @@ static char const *exynos5_dt_compat[] __initdata = {
 
 static void __init exynos5_reserve(void)
 {
+#ifdef CONFIG_S5P_DEV_MFC
 	struct s5p_mfc_dt_meminfo mfc_mem;
 
 	/* Reserve memory for MFC only if it's available */
@@ -147,6 +206,7 @@ static void __init exynos5_reserve(void)
 	if (of_scan_flat_dt(s5p_fdt_find_mfc_mem, &mfc_mem))
 		s5p_mfc_reserve_mem(mfc_mem.roff, mfc_mem.rsize, mfc_mem.loff,
 				mfc_mem.lsize);
+#endif
 }
 
 DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
@@ -154,10 +214,9 @@ DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	.init_irq	= exynos5_init_irq,
 	.smp		= smp_ops(exynos_smp_ops),
 	.map_io		= exynos5_dt_map_io,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= exynos5_dt_machine_init,
 	.init_late	= exynos_init_late,
-	.timer		= &exynos4_timer,
+	.init_time	= exynos4_timer_init,
 	.dt_compat	= exynos5_dt_compat,
 	.restart        = exynos5_restart,
 	.reserve	= exynos5_reserve,

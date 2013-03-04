@@ -332,8 +332,8 @@ static const struct agp_bridge_driver nvidia_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int __devinit agp_nvidia_probe(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int agp_nvidia_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;

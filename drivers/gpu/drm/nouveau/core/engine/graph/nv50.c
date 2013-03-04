@@ -24,6 +24,7 @@
 
 #include <core/os.h>
 #include <core/class.h>
+#include <core/client.h>
 #include <core/handle.h>
 #include <core/engctx.h>
 #include <core/enum.h>
@@ -184,6 +185,65 @@ nv50_graph_tlb_flush(struct nouveau_engine *engine)
 	return 0;
 }
 
+static const struct nouveau_bitfield nv50_pgraph_status[] = {
+	{ 0x00000001, "BUSY" }, /* set when any bit is set */
+	{ 0x00000002, "DISPATCH" },
+	{ 0x00000004, "UNK2" },
+	{ 0x00000008, "UNK3" },
+	{ 0x00000010, "UNK4" },
+	{ 0x00000020, "UNK5" },
+	{ 0x00000040, "M2MF" },
+	{ 0x00000080, "UNK7" },
+	{ 0x00000100, "CTXPROG" },
+	{ 0x00000200, "VFETCH" },
+	{ 0x00000400, "CCACHE_UNK4" },
+	{ 0x00000800, "STRMOUT_GSCHED_UNK5" },
+	{ 0x00001000, "UNK14XX" },
+	{ 0x00002000, "UNK24XX_CSCHED" },
+	{ 0x00004000, "UNK1CXX" },
+	{ 0x00008000, "CLIPID" },
+	{ 0x00010000, "ZCULL" },
+	{ 0x00020000, "ENG2D" },
+	{ 0x00040000, "UNK34XX" },
+	{ 0x00080000, "TPRAST" },
+	{ 0x00100000, "TPROP" },
+	{ 0x00200000, "TEX" },
+	{ 0x00400000, "TPVP" },
+	{ 0x00800000, "MP" },
+	{ 0x01000000, "ROP" },
+	{}
+};
+
+static const char *const nv50_pgraph_vstatus_0[] = {
+	"VFETCH", "CCACHE", "UNK4", "UNK5", "GSCHED", "STRMOUT", "UNK14XX", NULL
+};
+
+static const char *const nv50_pgraph_vstatus_1[] = {
+	"TPRAST", "TPROP", "TEXTURE", "TPVP", "MP", NULL
+};
+
+static const char *const nv50_pgraph_vstatus_2[] = {
+	"UNK24XX", "CSCHED", "UNK1CXX", "CLIPID", "ZCULL", "ENG2D", "UNK34XX",
+	"ROP", NULL
+};
+
+static void nouveau_pgraph_vstatus_print(struct nv50_graph_priv *priv, int r,
+		const char *const units[], u32 status)
+{
+	int i;
+
+	nv_error(priv, "PGRAPH_VSTATUS%d: 0x%08x", r, status);
+
+	for (i = 0; units[i] && status; i++) {
+		if ((status & 7) == 1)
+			pr_cont(" %s", units[i]);
+		status >>= 3;
+	}
+	if (status)
+		pr_cont(" (invalid: 0x%x)", status);
+	pr_cont("\n");
+}
+
 static int
 nv84_graph_tlb_flush(struct nouveau_engine *engine)
 {
@@ -219,10 +279,19 @@ nv84_graph_tlb_flush(struct nouveau_engine *engine)
 		 !(timeout = ptimer->read(ptimer) - start > 2000000000));
 
 	if (timeout) {
-		nv_error(priv, "PGRAPH TLB flush idle timeout fail: "
-			      "0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 nv_rd32(priv, 0x400700), nv_rd32(priv, 0x400380),
-			 nv_rd32(priv, 0x400384), nv_rd32(priv, 0x400388));
+		nv_error(priv, "PGRAPH TLB flush idle timeout fail\n");
+
+		tmp = nv_rd32(priv, 0x400700);
+		nv_error(priv, "PGRAPH_STATUS  : 0x%08x", tmp);
+		nouveau_bitfield_print(nv50_pgraph_status, tmp);
+		pr_cont("\n");
+
+		nouveau_pgraph_vstatus_print(priv, 0, nv50_pgraph_vstatus_0,
+				nv_rd32(priv, 0x400380));
+		nouveau_pgraph_vstatus_print(priv, 1, nv50_pgraph_vstatus_1,
+				nv_rd32(priv, 0x400384));
+		nouveau_pgraph_vstatus_print(priv, 2, nv50_pgraph_vstatus_2,
+				nv_rd32(priv, 0x400388));
 	}
 
 	nv50_vm_flush_engine(&engine->base, 0x00);
@@ -350,7 +419,7 @@ nv50_priv_mp_trap(struct nv50_graph_priv *priv, int tpid, int display)
 			nv_error(priv, "TRAP_MP_EXEC - "
 					"TP %d MP %d: ", tpid, i);
 			nouveau_enum_print(nv50_mp_exec_error_names, status);
-			printk(" at %06x warp %d, opcode %08x %08x\n",
+			pr_cont(" at %06x warp %d, opcode %08x %08x\n",
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
 		}
@@ -453,18 +522,18 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 		}
 		if (ustatus) {
 			if (display)
-				nv_info(priv, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
+				nv_error(priv, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
 		}
 		nv_wr32(priv, ustatus_addr, 0xc0000000);
 	}
 
 	if (!tps && display)
-		nv_info(priv, "%s - No TPs claiming errors?\n", name);
+		nv_warn(priv, "%s - No TPs claiming errors?\n", name);
 }
 
 static int
 nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
-			int chid, u64 inst)
+			int chid, u64 inst, struct nouveau_object *engctx)
 {
 	u32 status = nv_rd32(priv, 0x400108);
 	u32 ustatus;
@@ -497,12 +566,11 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 
 			nv_error(priv, "TRAP DISPATCH_FAULT\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch %d [0x%010llx] "
-					     "subc %d class 0x%04x mthd 0x%04x "
-					     "data 0x%08x%08x "
-					     "400808 0x%08x 400848 0x%08x\n",
-					chid, inst, subc, class, mthd, datah,
-					datal, addr, r848);
+				nv_error(priv,
+					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x%08x 400808 0x%08x 400848 0x%08x\n",
+					 chid, inst,
+					 nouveau_client_name(engctx), subc,
+					 class, mthd, datah, datal, addr, r848);
 			} else
 			if (display) {
 				nv_error(priv, "no stuck command?\n");
@@ -523,11 +591,11 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 
 			nv_error(priv, "TRAP DISPATCH_QUERY\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch %d [0x%010llx] "
-					     "subc %d class 0x%04x mthd 0x%04x "
-					     "data 0x%08x 40084c 0x%08x\n",
-					chid, inst, subc, class, mthd,
-					data, addr);
+				nv_error(priv,
+					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x 40084c 0x%08x\n",
+					 chid, inst,
+					 nouveau_client_name(engctx), subc,
+					 class, mthd, data, addr);
 			} else
 			if (display) {
 				nv_error(priv, "no stuck command?\n");
@@ -555,7 +623,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_M2MF");
 			nouveau_bitfield_print(nv50_graph_trap_m2mf, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_M2MF %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x406804), nv_rd32(priv, 0x406808),
 				nv_rd32(priv, 0x40680c), nv_rd32(priv, 0x406810));
@@ -576,7 +644,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_VFETCH");
 			nouveau_bitfield_print(nv50_graph_trap_vfetch, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_VFETCH %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x400c00), nv_rd32(priv, 0x400c08),
 				nv_rd32(priv, 0x400c0c), nv_rd32(priv, 0x400c10));
@@ -593,7 +661,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_STRMOUT");
 			nouveau_bitfield_print(nv50_graph_trap_strmout, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_STRMOUT %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x401804), nv_rd32(priv, 0x401808),
 				nv_rd32(priv, 0x40180c), nv_rd32(priv, 0x401810));
@@ -614,7 +682,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_CCACHE");
 			nouveau_bitfield_print(nv50_graph_trap_ccache, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
 				nv_rd32(priv, 0x405000), nv_rd32(priv, 0x405004),
@@ -706,11 +774,12 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 		u32 ecode = nv_rd32(priv, 0x400110);
 		nv_error(priv, "DATA_ERROR ");
 		nouveau_enum_print(nv50_data_error_names, ecode);
-		printk("\n");
+		pr_cont("\n");
 	}
 
 	if (stat & 0x00200000) {
-		if (!nv50_graph_trap_handler(priv, show, chid, (u64)inst << 12))
+		if (!nv50_graph_trap_handler(priv, show, chid, (u64)inst << 12,
+				engctx))
 			show &= ~0x00200000;
 	}
 
@@ -718,13 +787,13 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x400500, 0x00010001);
 
 	if (show) {
-		nv_info(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
-		printk("\n");
-		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, (u64)inst << 12, subc, class, mthd, data);
-		nv50_fb_trap(nouveau_fb(priv), 1);
+		pr_cont("\n");
+		nv_error(priv,
+			 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, (u64)inst << 12, nouveau_client_name(engctx),
+			 subc, class, mthd, data);
 	}
 
 	if (nv_rd32(priv, 0x400824) & (1 << 31))
@@ -840,9 +909,8 @@ nv50_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400828, 0x00000000);
 	nv_wr32(priv, 0x40082c, 0x00000000);
 	nv_wr32(priv, 0x400830, 0x00000000);
-	nv_wr32(priv, 0x400724, 0x00000000);
 	nv_wr32(priv, 0x40032c, 0x00000000);
-	nv_wr32(priv, 0x400320, 4);	/* CTXCTL_CMD = NEWCTXDMA */
+	nv_wr32(priv, 0x400330, 0x00000000);
 
 	/* some unknown zcull magic */
 	switch (nv_device(priv)->chipset & 0xf0) {

@@ -49,9 +49,24 @@ static int lpc32xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		c = 0; /* 0 set division by 256 */
 	period_cycles = c;
 
+	/* The duty-cycle value is as follows:
+	 *
+	 *  DUTY-CYCLE     HIGH LEVEL
+	 *      1            99.9%
+	 *      25           90.0%
+	 *      128          50.0%
+	 *      220          10.0%
+	 *      255           0.1%
+	 *      0             0.0%
+	 *
+	 * In other words, the register value is duty-cycle % 256 with
+	 * duty-cycle in the range 1-256.
+	 */
 	c = 256 * duty_ns;
 	do_div(c, period_ns);
-	duty_cycles = c;
+	if (c > 255)
+		c = 255;
+	duty_cycles = 256 - c;
 
 	writel(PWM_ENABLE | PWM_RELOADV(period_cycles) | PWM_DUTY(duty_cycles),
 		lpc32xx->base + (pwm->hwpwm << 2));
@@ -95,9 +110,9 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	lpc32xx->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!lpc32xx->base)
-		return -EADDRNOTAVAIL;
+	lpc32xx->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(lpc32xx->base))
+		return PTR_ERR(lpc32xx->base);
 
 	lpc32xx->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(lpc32xx->clk))
@@ -106,6 +121,7 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	lpc32xx->chip.dev = &pdev->dev;
 	lpc32xx->chip.ops = &lpc32xx_pwm_ops;
 	lpc32xx->chip.npwm = 2;
+	lpc32xx->chip.base = -1;
 
 	ret = pwmchip_add(&lpc32xx->chip);
 	if (ret < 0) {
@@ -121,8 +137,11 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 static int lpc32xx_pwm_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_pwm_chip *lpc32xx = platform_get_drvdata(pdev);
+	unsigned int i;
 
-	clk_disable(lpc32xx->clk);
+	for (i = 0; i < lpc32xx->chip.npwm; i++)
+		pwm_disable(&lpc32xx->chip.pwms[i]);
+
 	return pwmchip_remove(&lpc32xx->chip);
 }
 

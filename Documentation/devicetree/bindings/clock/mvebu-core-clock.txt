@@ -1,0 +1,47 @@
+* Core Clock bindings for Marvell MVEBU SoCs
+
+Marvell MVEBU SoCs usually allow to determine core clock frequencies by
+reading the Sample-At-Reset (SAR) register. The core clock consumer should
+specify the desired clock by having the clock ID in its "clocks" phandle cell.
+
+The following is a list of provided IDs and clock names on Armada 370/XP:
+ 0 = tclk    (Internal Bus clock)
+ 1 = cpuclk  (CPU clock)
+ 2 = nbclk   (L2 Cache clock)
+ 3 = hclk    (DRAM control clock)
+ 4 = dramclk (DDR clock)
+
+The following is a list of provided IDs and clock names on Kirkwood and Dove:
+ 0 = tclk   (Internal Bus clock)
+ 1 = cpuclk (CPU0 clock)
+ 2 = l2clk  (L2 Cache clock derived from CPU0 clock)
+ 3 = ddrclk (DDR controller clock derived from CPU0 clock)
+
+Required properties:
+- compatible : shall be one of the following:
+	"marvell,armada-370-core-clock" - For Armada 370 SoC core clocks
+	"marvell,armada-xp-core-clock" - For Armada XP SoC core clocks
+	"marvell,dove-core-clock" - for Dove SoC core clocks
+	"marvell,kirkwood-core-clock" - for Kirkwood SoC (except mv88f6180)
+	"marvell,mv88f6180-core-clock" - for Kirkwood MV88f6180 SoC
+- reg : shall be the register address of the Sample-At-Reset (SAR) register
+- #clock-cells : from common clock binding; shall be set to 1
+
+Optional properties:
+- clock-output-names : from common clock binding; allows overwrite default clock
+	output names ("tclk", "cpuclk", "l2clk", "ddrclk")
+
+Example:
+
+core_clk: core-clocks@d0214 {
+	compatible = "marvell,dove-core-clock";
+	reg = <0xd0214 0x4>;
+	#clock-cells = <1>;
+};
+
+spi0: spi@10600 {
+	compatible = "marvell,orion-spi";
+	/* ... */
+	/* get tclk from core clock provider */
+	clocks = <&core_clk 0>;
+};

@@ -44,8 +44,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
-#include <plat/cpu.h>
-#include <linux/omap-dma.h>
 #include <video/omapvrfb.h>
 #include <video/omapdss.h>
 
@@ -207,19 +205,21 @@ static u32 omap_vout_uservirt_to_phys(u32 virtp)
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 
-	vma = find_vma(mm, virtp);
 	/* For kernel direct-mapped memory, take the easy way */
-	if (virtp >= PAGE_OFFSET) {
-		physp = virt_to_phys((void *) virtp);
-	} else if (vma && (vma->vm_flags & VM_IO) && vma->vm_pgoff) {
+	if (virtp >= PAGE_OFFSET)
+		return virt_to_phys((void *) virtp);
+
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(mm, virtp);
+	if (vma && (vma->vm_flags & VM_IO) && vma->vm_pgoff) {
 		/* this will catch, kernel-allocated, mmaped-to-usermode
 		   addresses */
 		physp = (vma->vm_pgoff << PAGE_SHIFT) + (virtp - vma->vm_start);
+		up_read(&current->mm->mmap_sem);
 	} else {
 		/* otherwise, use get_user_pages() for general userland pages */
 		int res, nr_pages = 1;
 		struct page *pages;
-		down_read(&current->mm->mmap_sem);
 
 		res = get_user_pages(current, current->mm, virtp, nr_pages, 1,
 				0, &pages, NULL);
@@ -597,7 +597,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 		return;
 
 	spin_lock(&vout->vbq_lock);
-	do_gettimeofday(&timevalue);
+	v4l2_get_timestamp(&timevalue);
 
 	switch (cur_display->type) {
 	case OMAP_DISPLAY_TYPE_DSI:
@@ -1174,13 +1174,6 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *fh,
 	/* set default crop and win */
 	omap_vout_new_format(&vout->pix, &vout->fbuf, &vout->crop, &vout->win);
 
-	/* Save the changes in the overlay strcuture */
-	ret = omapvid_init(vout, 0);
-	if (ret) {
-		v4l2_err(&vout->vid_dev->v4l2_dev, "failed to change mode\n");
-		goto s_fmt_vid_out_exit;
-	}
-
 	ret = 0;
 
 s_fmt_vid_out_exit:
@@ -1237,21 +1230,6 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *fh,
 	}
 	mutex_unlock(&vout->lock);
 	return ret;
-}
-
-static int vidioc_enum_fmt_vid_overlay(struct file *file, void *fh,
-			struct v4l2_fmtdesc *fmt)
-{
-	int index = fmt->index;
-
-	if (index >= NUM_OUTPUT_FORMATS)
-		return -EINVAL;
-
-	fmt->flags = omap_formats[index].flags;
-	strlcpy(fmt->description, omap_formats[index].description,
-			sizeof(fmt->description));
-	fmt->pixelformat = omap_formats[index].pixelformat;
-	return 0;
 }
 
 static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh,
@@ -1684,20 +1662,6 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 
 	omap_dispc_register_isr(omap_vout_isr, vout, mask);
 
-	for (j = 0; j < ovid->num_overlays; j++) {
-		struct omap_overlay *ovl = ovid->overlays[j];
-
-		if (ovl->get_device(ovl)) {
-			struct omap_overlay_info info;
-			ovl->get_overlay_info(ovl, &info);
-			info.paddr = addr;
-			if (ovl->set_overlay_info(ovl, &info)) {
-				ret = -EINVAL;
-				goto streamon_err1;
-			}
-		}
-	}
-
 	/* First save the configuration in ovelray structure */
 	ret = omapvid_init(vout, addr);
 	if (ret)
@@ -1881,10 +1845,9 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_s_fbuf				= vidioc_s_fbuf,
 	.vidioc_g_fbuf				= vidioc_g_fbuf,
 	.vidioc_s_ctrl       			= vidioc_s_ctrl,
-	.vidioc_try_fmt_vid_overlay 		= vidioc_try_fmt_vid_overlay,
-	.vidioc_s_fmt_vid_overlay		= vidioc_s_fmt_vid_overlay,
-	.vidioc_enum_fmt_vid_overlay		= vidioc_enum_fmt_vid_overlay,
-	.vidioc_g_fmt_vid_overlay		= vidioc_g_fmt_vid_overlay,
+	.vidioc_try_fmt_vid_out_overlay		= vidioc_try_fmt_vid_overlay,
+	.vidioc_s_fmt_vid_out_overlay		= vidioc_s_fmt_vid_overlay,
+	.vidioc_g_fmt_vid_out_overlay		= vidioc_g_fmt_vid_overlay,
 	.vidioc_cropcap				= vidioc_cropcap,
 	.vidioc_g_crop				= vidioc_g_crop,
 	.vidioc_s_crop				= vidioc_s_crop,
@@ -2064,7 +2027,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		vout->vid_info.id = k + 1;
 
 		/* Set VRFB as rotation_type for omap2 and omap3 */
-		if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		if (omap_vout_dss_omap24xx() || omap_vout_dss_omap34xx())
 			vout->vid_info.rotation_type = VOUT_ROT_VRFB;
 
 		/* Setup the default configuration for the video devices
@@ -2094,11 +2057,12 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		}
 		video_set_drvdata(vfd, vout);
 
-		/* Configure the overlay structure */
-		ret = omapvid_init(vid_dev->vouts[k], 0);
-		if (!ret)
-			goto success;
+		dev_info(&pdev->dev, ": registered and initialized"
+				" video device %d\n", vfd->minor);
+		if (k == (pdev->num_resources - 1))
+			return 0;
 
+		continue;
 error2:
 		if (vout->vid_info.rotation_type == VOUT_ROT_VRFB)
 			omap_vout_release_vrfb(vout);
@@ -2108,12 +2072,6 @@ error1:
 error:
 		kfree(vout);
 		return ret;
-
-success:
-		dev_info(&pdev->dev, ": registered and initialized"
-				" video device %d\n", vfd->minor);
-		if (k == (pdev->num_resources - 1))
-			return 0;
 	}
 
 	return -ENODEV;
@@ -2186,14 +2144,23 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	struct omap_dss_device *def_display;
 	struct omap2video_device *vid_dev = NULL;
 
+	ret = omapdss_compat_init();
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init dss\n");
+		return ret;
+	}
+
 	if (pdev->num_resources == 0) {
 		dev_err(&pdev->dev, "probed for an unknown device\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_dss_init;
 	}
 
 	vid_dev = kzalloc(sizeof(struct omap2video_device), GFP_KERNEL);
-	if (vid_dev == NULL)
-		return -ENOMEM;
+	if (vid_dev == NULL) {
+		ret = -ENOMEM;
+		goto err_dss_init;
+	}
 
 	vid_dev->num_displays = 0;
 	for_each_dss_dev(dssdev) {
@@ -2288,6 +2255,8 @@ probe_err1:
 	}
 probe_err0:
 	kfree(vid_dev);
+err_dss_init:
+	omapdss_compat_uninit();
 	return ret;
 }
 

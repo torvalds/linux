@@ -743,6 +743,10 @@ char *date;</synopsis>
           These two operations are mandatory for GEM drivers that support DRM
           PRIME.
         </para>
+        <sect4>
+          <title>DRM PRIME Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+        </sect4>
       </sect3>
       <sect3 id="drm-gem-objects-mapping">
         <title>GEM Objects Mapping</title>
@@ -978,10 +982,25 @@ int max_width, max_height;</synopsis>
         If the parameters are deemed valid, drivers then create, initialize and
         return an instance of struct <structname>drm_framebuffer</structname>.
         If desired the instance can be embedded in a larger driver-specific
-        structure. The new instance is initialized with a call to
-        <function>drm_framebuffer_init</function> which takes a pointer to DRM
-        frame buffer operations (struct
-        <structname>drm_framebuffer_funcs</structname>). Frame buffer operations are
+	structure. Drivers must fill its <structfield>width</structfield>,
+	<structfield>height</structfield>, <structfield>pitches</structfield>,
+        <structfield>offsets</structfield>, <structfield>depth</structfield>,
+        <structfield>bits_per_pixel</structfield> and
+        <structfield>pixel_format</structfield> fields from the values passed
+        through the <parameter>drm_mode_fb_cmd2</parameter> argument. They
+        should call the <function>drm_helper_mode_fill_fb_struct</function>
+        helper function to do so.
+      </para>
+
+      <para>
+	The initailization of the new framebuffer instance is finalized with a
+	call to <function>drm_framebuffer_init</function> which takes a pointer
+	to DRM frame buffer operations (struct
+	<structname>drm_framebuffer_funcs</structname>). Note that this function
+	publishes the framebuffer and so from this point on it can be accessed
+	concurrently from other threads. Hence it must be the last step in the
+	driver's framebuffer initialization sequence. Frame buffer operations
+	are
         <itemizedlist>
           <listitem>
             <synopsis>int (*create_handle)(struct drm_framebuffer *fb,
@@ -1022,16 +1041,16 @@ int max_width, max_height;</synopsis>
         </itemizedlist>
       </para>
       <para>
-        After initializing the <structname>drm_framebuffer</structname>
-        instance drivers must fill its <structfield>width</structfield>,
-        <structfield>height</structfield>, <structfield>pitches</structfield>,
-        <structfield>offsets</structfield>, <structfield>depth</structfield>,
-        <structfield>bits_per_pixel</structfield> and
-        <structfield>pixel_format</structfield> fields from the values passed
-        through the <parameter>drm_mode_fb_cmd2</parameter> argument. They
-        should call the <function>drm_helper_mode_fill_fb_struct</function>
-        helper function to do so.
-      </para>
+	The lifetime of a drm framebuffer is controlled with a reference count,
+	drivers can grab additional references with
+	<function>drm_framebuffer_reference</function> </para> and drop them
+	again with <function>drm_framebuffer_unreference</function>. For
+	driver-private framebuffers for which the last reference is never
+	dropped (e.g. for the fbdev framebuffer when the struct
+	<structname>drm_framebuffer</structname> is embedded into the fbdev
+	helper struct) drivers can manually clean up a framebuffer at module
+	unload time with
+	<function>drm_framebuffer_unregister_private</function>.
     </sect2>
     <sect2>
       <title>Output Polling</title>
@@ -1041,6 +1060,22 @@ int max_width, max_height;</synopsis>
         connectors has changed. Drivers that use the fb helper can just call the
         <function>drm_fb_helper_hotplug_event</function> function to handle this
         operation.
+      </para>
+    </sect2>
+    <sect2>
+      <title>Locking</title>
+      <para>
+        Beside some lookup structures with their own locking (which is hidden
+	behind the interface functions) most of the modeset state is protected
+	by the <code>dev-&lt;mode_config.lock</code> mutex and additionally
+	per-crtc locks to allow cursor updates, pageflips and similar operations
+	to occur concurrently with background tasks like output detection.
+	Operations which cross domains like a full modeset always grab all
+	locks. Drivers there need to protect resources shared between crtcs with
+	additional locking. They also need to be careful to always grab the
+	relevant crtc locks if a modset functions touches crtc state, e.g. for
+	load detection (which does only grab the <code>mode_config.lock</code>
+	to allow concurrent screen updates on live crtcs).
       </para>
     </sect2>
   </sect1>
@@ -1126,6 +1161,12 @@ int max_width, max_height;</synopsis>
             any new rendering to the frame buffer until the page flip completes.
           </para>
           <para>
+            If a page flip can be successfully scheduled the driver must set the
+            <code>drm_crtc-&lt;fb</code> field to the new framebuffer pointed to
+            by <code>fb</code>. This is important so that the reference counting
+            on framebuffers stays balanced.
+          </para>
+          <para>
             If a page flip is already pending, the
             <methodname>page_flip</methodname> operation must return
             -<errorname>EBUSY</errorname>.
@@ -1141,23 +1182,13 @@ int max_width, max_height;</synopsis>
             the <methodname>page_flip</methodname> operation will be called with a
             non-NULL <parameter>event</parameter> argument pointing to a
             <structname>drm_pending_vblank_event</structname> instance. Upon page
-            flip completion the driver must fill the
-            <parameter>event</parameter>::<structfield>event</structfield>
-            <structfield>sequence</structfield>, <structfield>tv_sec</structfield>
-            and <structfield>tv_usec</structfield> fields with the associated
-            vertical blanking count and timestamp, add the event to the
-            <parameter>drm_file</parameter> list of events to be signaled, and wake
-            up any waiting process. This can be performed with
+            flip completion the driver must call <methodname>drm_send_vblank_event</methodname>
+            to fill in the event and send to wake up any waiting processes.
+            This can be performed with
             <programlisting><![CDATA[
-            struct timeval now;
-
-            event->event.sequence = drm_vblank_count_and_time(..., &now);
-            event->event.tv_sec = now.tv_sec;
-            event->event.tv_usec = now.tv_usec;
-
             spin_lock_irqsave(&dev->event_lock, flags);
-            list_add_tail(&event->base.link, &event->base.file_priv->event_list);
-            wake_up_interruptible(&event->base.file_priv->event_wait);
+            ...
+            drm_send_vblank_event(dev, pipe, event);
             spin_unlock_irqrestore(&dev->event_lock, flags);
             ]]></programlisting>
           </para>
@@ -1619,12 +1650,16 @@ void intel_crt_init(struct drm_device *dev)
         make its properties available to applications.
       </para>
     </sect2>
+    <sect2>
+      <title>KMS API Functions</title>
+!Edrivers/gpu/drm/drm_crtc.c
+    </sect2>
   </sect1>
 
-  <!-- Internals: mid-layer helper functions -->
+  <!-- Internals: kms helper functions -->
 
   <sect1>
-    <title>Mid-layer Helper Functions</title>
+    <title>Mode Setting Helper Functions</title>
     <para>
       The CRTC, encoder and connector functions provided by the drivers
       implement the DRM API. They're called by the DRM core and ioctl handlers
@@ -2105,6 +2140,26 @@ void intel_crt_init(struct drm_device *dev)
           </para></note>
         </listitem>
       </itemizedlist>
+    </sect2>
+    <sect2>
+      <title>Modeset Helper Functions Reference</title>
+!Edrivers/gpu/drm/drm_crtc_helper.c
+    </sect2>
+    <sect2>
+      <title>fbdev Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_fb_helper.c fbdev helpers
+!Edrivers/gpu/drm/drm_fb_helper.c
+!Iinclude/drm/drm_fb_helper.h
+    </sect2>
+    <sect2>
+      <title>Display Port Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_dp_helper.c dp helpers
+!Iinclude/drm/drm_dp_helper.h
+!Edrivers/gpu/drm/drm_dp_helper.c
+    </sect2>
+    <sect2>
+      <title>EDID Helper Functions Reference</title>
+!Edrivers/gpu/drm/drm_edid.c
     </sect2>
   </sect1>
 

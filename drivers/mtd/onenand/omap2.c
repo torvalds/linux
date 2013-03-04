@@ -630,13 +630,14 @@ static int omap2_onenand_disable(struct mtd_info *mtd)
 	return ret;
 }
 
-static int __devinit omap2_onenand_probe(struct platform_device *pdev)
+static int omap2_onenand_probe(struct platform_device *pdev)
 {
 	struct omap_onenand_platform_data *pdata;
 	struct omap2_onenand *c;
 	struct onenand_chip *this;
 	int r;
 	struct resource *res;
+	struct mtd_part_parser_data ppdata = {};
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
@@ -767,7 +768,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
 
-	r = mtd_device_parse_register(&c->mtd, NULL, NULL,
+	ppdata.of_node = pdata->of_node;
+	r = mtd_device_parse_register(&c->mtd, NULL, &ppdata,
 				      pdata ? pdata->parts : NULL,
 				      pdata ? pdata->nr_parts : 0);
 	if (r)
@@ -799,7 +801,7 @@ err_kfree:
 	return r;
 }
 
-static int __devexit omap2_onenand_remove(struct platform_device *pdev)
+static int omap2_onenand_remove(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
 
@@ -822,7 +824,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 
 static struct platform_driver omap2_onenand_driver = {
 	.probe		= omap2_onenand_probe,
-	.remove		= __devexit_p(omap2_onenand_remove),
+	.remove		= omap2_onenand_remove,
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

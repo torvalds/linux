@@ -235,7 +235,7 @@ static int imx_pwm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(imx_pwm_dt_ids, &pdev->dev);
-	struct imx_pwm_data *data;
+	const struct imx_pwm_data *data;
 	struct imx_chip *imx;
 	struct resource *r;
 	int ret = 0;
@@ -274,9 +274,9 @@ static int imx_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	imx->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (imx->mmio_base == NULL)
-		return -EADDRNOTAVAIL;
+	imx->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(imx->mmio_base))
+		return PTR_ERR(imx->mmio_base);
 
 	data = of_id->data;
 	imx->config = data->config;

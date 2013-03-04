@@ -139,10 +139,9 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
 		struct page *page = balloon_page_enqueue(vb_dev_info);
 
 		if (!page) {
-			if (printk_ratelimit())
-				dev_printk(KERN_INFO, &vb->vdev->dev,
-					   "Out of puff! Can't get %u pages\n",
-					   VIRTIO_BALLOON_PAGES_PER_PAGE);
+			dev_info_ratelimited(&vb->vdev->dev,
+					     "Out of puff! Can't get %u pages\n",
+					     VIRTIO_BALLOON_PAGES_PER_PAGE);
 			/* Sleep for at least 1/5 of a second before retry. */
 			msleep(200);
 			break;
@@ -501,7 +500,7 @@ static void remove_common(struct virtio_balloon *vb)
 	vb->vdev->config->del_vqs(vb->vdev);
 }
 
-static void __devexit virtballoon_remove(struct virtio_device *vdev)
+static void virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
@@ -553,7 +552,7 @@ static struct virtio_driver virtio_balloon_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtballoon_probe,
-	.remove =	__devexit_p(virtballoon_remove),
+	.remove =	virtballoon_remove,
 	.config_changed = virtballoon_changed,
 #ifdef CONFIG_PM
 	.freeze	=	virtballoon_freeze,
@@ -561,18 +560,7 @@ static struct virtio_driver virtio_balloon_driver = {
 #endif
 };
 
-static int __init init(void)
-{
-	return register_virtio_driver(&virtio_balloon_driver);
-}
-
-static void __exit fini(void)
-{
-	unregister_virtio_driver(&virtio_balloon_driver);
-}
-module_init(init);
-module_exit(fini);
-
+module_virtio_driver(virtio_balloon_driver);
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio balloon driver");
 MODULE_LICENSE("GPL");

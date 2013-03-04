@@ -78,14 +78,14 @@ xfs_swapext(
 		goto out_put_tmp_file;
 	}
 
-	if (IS_SWAPFILE(f.file->f_path.dentry->d_inode) ||
-	    IS_SWAPFILE(tmp.file->f_path.dentry->d_inode)) {
+	if (IS_SWAPFILE(file_inode(f.file)) ||
+	    IS_SWAPFILE(file_inode(tmp.file))) {
 		error = XFS_ERROR(EINVAL);
 		goto out_put_tmp_file;
 	}
 
-	ip = XFS_I(f.file->f_path.dentry->d_inode);
-	tip = XFS_I(tmp.file->f_path.dentry->d_inode);
+	ip = XFS_I(file_inode(f.file));
+	tip = XFS_I(file_inode(tmp.file));
 
 	if (ip->i_mount != tip->i_mount) {
 		error = XFS_ERROR(EINVAL);
@@ -246,10 +246,10 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
-	error = -filemap_write_and_wait(VFS_I(ip)->i_mapping);
+	error = -filemap_write_and_wait(VFS_I(tip)->i_mapping);
 	if (error)
 		goto out_unlock;
-	truncate_pagecache_range(VFS_I(ip), 0, -1);
+	truncate_pagecache_range(VFS_I(tip), 0, -1);
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(VFS_I(tip)) != 0) {

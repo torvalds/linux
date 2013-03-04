@@ -19,25 +19,25 @@
  * Call Logical Processor
  * Retry logic is handled by the caller.
  */
-static inline u8 clp_instr(void *req)
+static inline u8 clp_instr(void *data)
 {
-	u64 ilpm;
+	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
+	u64 ignored;
 	u8 cc;
 
 	asm volatile (
-		"	.insn	rrf,0xb9a00000,%[ilpm],%[req],0x0,0x2\n"
+		"	.insn	rrf,0xb9a00000,%[ign],%[req],0x0,0x2\n"
 		"	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [ilpm] "=d" (ilpm)
+		: [cc] "=d" (cc), [ign] "=d" (ignored), "+m" (*req)
 		: [req] "a" (req)
-		: "cc", "memory");
+		: "cc");
 	return cc;
 }
 
 static void *clp_alloc_block(void)
 {
-	struct page *page = alloc_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
-	return (page) ? page_address(page) : NULL;
+	return (void *) __get_free_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
 }
 
 static void clp_free_block(void *ptr)
@@ -51,6 +51,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->tlb_refresh = response->refresh;
 	zdev->dma_mask = response->dasm;
 	zdev->msi_addr = response->msia;
+	zdev->fmb_update = response->mui;
 
 	pr_debug("Supported number of MSI vectors: %u\n", response->noi);
 	switch (response->version) {

@@ -18,6 +18,7 @@
 #include <linux/netpoll.h>
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
+#include <linux/if_vlan.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -26,6 +27,7 @@
 
 #define BR_PORT_BITS	10
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
+#define BR_VLAN_BITMAP_LEN	BITS_TO_LONGS(VLAN_N_VID)
 
 #define BR_VERSION	"2.3"
 
@@ -61,6 +63,20 @@ struct br_ip
 #endif
 	} u;
 	__be16		proto;
+	__u16		vid;
+};
+
+struct net_port_vlans {
+	u16				port_idx;
+	u16				pvid;
+	union {
+		struct net_bridge_port		*port;
+		struct net_bridge		*br;
+	}				parent;
+	struct rcu_head			rcu;
+	unsigned long			vlan_bitmap[BR_VLAN_BITMAP_LEN];
+	unsigned long			untagged_bitmap[BR_VLAN_BITMAP_LEN];
+	u16				num_vlans;
 };
 
 struct net_bridge_fdb_entry
@@ -74,6 +90,7 @@ struct net_bridge_fdb_entry
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;
+	__u16				vlan_id;
 };
 
 struct net_bridge_port_group {
@@ -83,6 +100,7 @@ struct net_bridge_port_group {
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct br_ip			addr;
+	unsigned char			state;
 };
 
 struct net_bridge_mdb_entry
@@ -155,6 +173,9 @@ struct net_bridge_port
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll			*np;
 #endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	struct net_port_vlans __rcu	*vlan_info;
+#endif
 };
 
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
@@ -196,9 +217,6 @@ struct net_bridge
 	bool				nf_call_ip6tables;
 	bool				nf_call_arptables;
 #endif
-	unsigned long			flags;
-#define BR_SET_MAC_ADDR		0x00000001
-
 	u16				group_fwd_mask;
 
 	/* STP */
@@ -259,6 +277,10 @@ struct net_bridge
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	u8				vlan_enabled;
+	struct net_port_vlans __rcu	*vlan_info;
+#endif
 };
 
 struct br_input_skb_cb {
@@ -354,18 +376,22 @@ extern void br_fdb_cleanup(unsigned long arg);
 extern void br_fdb_delete_by_port(struct net_bridge *br,
 				  const struct net_bridge_port *p, int do_all);
 extern struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
-						 const unsigned char *addr);
+						 const unsigned char *addr,
+						 __u16 vid);
 extern int br_fdb_test_addr(struct net_device *dev, unsigned char *addr);
 extern int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 			  unsigned long count, unsigned long off);
 extern int br_fdb_insert(struct net_bridge *br,
 			 struct net_bridge_port *source,
-			 const unsigned char *addr);
+			 const unsigned char *addr,
+			 u16 vid);
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
-			  const unsigned char *addr);
+			  const unsigned char *addr,
+			  u16 vid);
+extern int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vid);
 
-extern int br_fdb_delete(struct ndmsg *ndm,
+extern int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			 struct net_device *dev,
 			 const unsigned char *addr);
 extern int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[],
@@ -443,8 +469,10 @@ extern void br_multicast_free_pg(struct rcu_head *head);
 extern struct net_bridge_port_group *br_multicast_new_port_group(
 				struct net_bridge_port *port,
 				struct br_ip *group,
-				struct net_bridge_port_group *next);
+				struct net_bridge_port_group *next,
+				unsigned char state);
 extern void br_mdb_init(void);
+extern void br_mdb_uninit(void);
 extern void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 			  struct br_ip *group, int type);
 
@@ -523,6 +551,148 @@ static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return 0;
 }
+static inline void br_mdb_init(void)
+{
+}
+static inline void br_mdb_uninit(void)
+{
+}
+#endif
+
+/* br_vlan.c */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+extern bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
+			       struct sk_buff *skb, u16 *vid);
+extern bool br_allowed_egress(struct net_bridge *br,
+			      const struct net_port_vlans *v,
+			      const struct sk_buff *skb);
+extern struct sk_buff *br_handle_vlan(struct net_bridge *br,
+				      const struct net_port_vlans *v,
+				      struct sk_buff *skb);
+extern int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
+extern int br_vlan_delete(struct net_bridge *br, u16 vid);
+extern void br_vlan_flush(struct net_bridge *br);
+extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
+extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
+extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
+extern void nbp_vlan_flush(struct net_bridge_port *port);
+extern bool nbp_vlan_find(struct net_bridge_port *port, u16 vid);
+
+static inline struct net_port_vlans *br_get_vlan_info(
+						const struct net_bridge *br)
+{
+	return rcu_dereference_rtnl(br->vlan_info);
+}
+
+static inline struct net_port_vlans *nbp_get_vlan_info(
+						const struct net_bridge_port *p)
+{
+	return rcu_dereference_rtnl(p->vlan_info);
+}
+
+/* Since bridge now depends on 8021Q module, but the time bridge sees the
+ * skb, the vlan tag will always be present if the frame was tagged.
+ */
+static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
+{
+	int err = 0;
+
+	if (vlan_tx_tag_present(skb))
+		*vid = vlan_tx_tag_get(skb) & VLAN_VID_MASK;
+	else {
+		*vid = 0;
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
+static inline u16 br_get_pvid(const struct net_port_vlans *v)
+{
+	/* Return just the VID if it is set, or VLAN_N_VID (invalid vid) if
+	 * vid wasn't set
+	 */
+	smp_rmb();
+	return (v->pvid & VLAN_TAG_PRESENT) ?
+			(v->pvid & ~VLAN_TAG_PRESENT) :
+			VLAN_N_VID;
+}
+
+#else
+static inline bool br_allowed_ingress(struct net_bridge *br,
+				      struct net_port_vlans *v,
+				      struct sk_buff *skb,
+				      u16 *vid)
+{
+	return true;
+}
+
+static inline bool br_allowed_egress(struct net_bridge *br,
+				     const struct net_port_vlans *v,
+				     const struct sk_buff *skb)
+{
+	return true;
+}
+
+static inline struct sk_buff *br_handle_vlan(struct net_bridge *br,
+					     const struct net_port_vlans *v,
+					     struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_vlan_delete(struct net_bridge *br, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void br_vlan_flush(struct net_bridge *br)
+{
+}
+
+static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void nbp_vlan_flush(struct net_bridge_port *port)
+{
+}
+
+static inline struct net_port_vlans *br_get_vlan_info(
+						const struct net_bridge *br)
+{
+	return NULL;
+}
+static inline struct net_port_vlans *nbp_get_vlan_info(
+						const struct net_bridge_port *p)
+{
+	return NULL;
+}
+
+static inline bool nbp_vlan_find(struct net_bridge_port *port, u16 vid)
+{
+	return false;
+}
+
+static inline u16 br_vlan_get_tag(const struct sk_buff *skb, u16 *tag)
+{
+	return 0;
+}
+static inline u16 br_get_pvid(const struct net_port_vlans *v)
+{
+	return VLAN_N_VID;	/* Returns invalid vid */
+}
 #endif
 
 /* br_netfilter.c */
@@ -585,8 +755,9 @@ extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 extern int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
+extern int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
 extern int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-		      struct net_device *dev);
+		      struct net_device *dev, u32 filter_mask);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */

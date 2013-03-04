@@ -32,6 +32,7 @@
 
 		cpu@0 {
 			compatible = "arm,cortex-a15";
+			device_type = "cpu";
 			reg = <0>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
@@ -39,6 +40,7 @@
 
 		cpu@1 {
 			compatible = "arm,cortex-a15";
+			device_type = "cpu";
 			reg = <1>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
@@ -46,6 +48,7 @@
 
 		cpu@2 {
 			compatible = "arm,cortex-a15";
+			device_type = "cpu";
 			reg = <2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
@@ -53,6 +56,7 @@
 
 		cpu@3 {
 			compatible = "arm,cortex-a15";
+			device_type = "cpu";
 			reg = <3>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";

@@ -19,7 +19,11 @@
 	ALIGN_FUNCTION();						\
 	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
 	*(.idmap.text)							\
-	VMLINUX_SYMBOL(__idmap_text_end) = .;
+	VMLINUX_SYMBOL(__idmap_text_end) = .;				\
+	ALIGN_FUNCTION();						\
+	VMLINUX_SYMBOL(__hyp_idmap_text_start) = .;			\
+	*(.hyp.idmap.text)						\
+	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define ARM_CPU_DISCARD(x)
@@ -139,6 +143,8 @@ SECTIONS
 		__stop_unwind_tab = .;
 	}
 #endif
+
+	NOTES
 
 	_etext = .;			/* End of text and rodata section */
 
@@ -294,8 +300,6 @@ SECTIONS
 		__tcm_end = .;
 	}
 #endif
-
-	NOTES
 
 	BSS_SECTION(0, 0, 0)
 	_end = .;

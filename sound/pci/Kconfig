@@ -678,6 +678,7 @@ config SND_LOLA
 
 config SND_LX6464ES
 	tristate "Digigram LX6464ES"
+	depends on HAS_IOPORT
 	select SND_PCM
 	help
 	  Say Y here to include support for Digigram LX6464ES boards.

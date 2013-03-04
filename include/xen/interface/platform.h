@@ -324,10 +324,21 @@ struct xenpf_cpu_ol {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_cpu_ol);
 
-/*
- * CMD 58 and 59 are reserved for cpu hotadd and memory hotadd,
- * which are already occupied at Xen hypervisor side.
- */
+#define XENPF_cpu_hotadd	58
+struct xenpf_cpu_hotadd {
+	uint32_t apic_id;
+	uint32_t acpi_id;
+	uint32_t pxm;
+};
+
+#define XENPF_mem_hotadd	59
+struct xenpf_mem_hotadd {
+	uint64_t spfn;
+	uint64_t epfn;
+	uint32_t pxm;
+	uint32_t flags;
+};
+
 #define XENPF_core_parking     60
 struct xenpf_core_parking {
 	/* IN variables */
@@ -357,6 +368,8 @@ struct xen_platform_op {
 		struct xenpf_set_processor_pminfo set_pminfo;
 		struct xenpf_pcpuinfo          pcpu_info;
 		struct xenpf_cpu_ol            cpu_ol;
+		struct xenpf_cpu_hotadd        cpu_add;
+		struct xenpf_mem_hotadd        mem_add;
 		struct xenpf_core_parking      core_parking;
 		uint8_t                        pad[128];
 	} u;

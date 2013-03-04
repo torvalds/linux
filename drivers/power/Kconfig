@@ -245,6 +245,13 @@ config BATTERY_INTEL_MID
 	  Say Y here to enable the battery driver on Intel MID
 	  platforms.
 
+config BATTERY_RX51
+	tristate "Nokia RX-51 (N900) battery driver"
+	depends on TWL4030_MADC
+	help
+	  Say Y here to enable support for battery information on Nokia
+	  RX-51, also known as N900 tablet.
+
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_OTG_UTILS
@@ -315,6 +322,16 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config CHARGER_BQ2415X
+	tristate "TI BQ2415x battery charger driver"
+	depends on I2C
+	help
+	  Say Y to enable support for the TI BQ2415x battery charger
+	  PMICs.
+
+	  You'll need this driver to charge batteries on e.g. Nokia
+	  RX-51/N900.
+
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"
 	depends on I2C
@@ -329,12 +346,19 @@ config AB8500_BM
 	help
 	  Say Y to include support for AB8500 battery management.
 
-config AB8500_BATTERY_THERM_ON_BATCTRL
-	bool "Thermistor connected on BATCTRL ADC"
+config BATTERY_GOLDFISH
+	tristate "Goldfish battery driver"
+	depends on GENERIC_HARDIRQS
+	help
+	  Say Y to enable support for the battery and AC power in the
+	  Goldfish emulator.
+
+config CHARGER_PM2301
+	bool "PM2301 Battery Charger Driver"
 	depends on AB8500_BM
 	help
-	  Say Y to enable battery temperature measurements using
-	  thermistor connected on BATCTRL ADC.
+	  Say Y to include support for PM2301 charger driver.
+	  Depends on AB8500 battery management core.
 
 source "drivers/power/reset/Kconfig"
 

@@ -102,6 +102,7 @@ static int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_RC_CORE)
 static void dvb_usb_read_remote_control(struct work_struct *work)
 {
 	struct dvb_usb_device *d = container_of(work,
@@ -112,13 +113,16 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	 * When the parameter has been set to 1 via sysfs while the
 	 * driver was running, or when bulk mode is enabled after IR init.
 	 */
-	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode)
+	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode) {
+		d->rc_polling_active = false;
 		return;
+	}
 
 	ret = d->rc.query(d);
 	if (ret < 0) {
 		dev_err(&d->udev->dev, "%s: rc.query() failed=%d\n",
 				KBUILD_MODNAME, ret);
+		d->rc_polling_active = false;
 		return; /* stop polling */
 	}
 
@@ -182,6 +186,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 				d->rc.interval);
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
+		d->rc_polling_active = true;
 	}
 
 	return 0;
@@ -202,6 +207,10 @@ static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 
 	return 0;
 }
+#else
+	#define dvb_usbv2_remote_init(args...) 0
+	#define dvb_usbv2_remote_exit(args...)
+#endif
 
 static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buf,
 		size_t len)
@@ -224,7 +233,7 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream, u8 *buf,
 	dvb_dmx_swfilter_raw(&adap->demux, buf, len);
 }
 
-int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -236,7 +245,7 @@ int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 	return usb_urb_initv2(&adap->stream, &adap->props->stream);
 }
 
-int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -368,7 +377,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed, -1);
 }
 
-int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	struct dvb_usb_device *d = adap_to_d(adap);
@@ -440,7 +449,7 @@ err_dvb_register_adapter:
 	return ret;
 }
 
-int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -456,7 +465,7 @@ int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	int ret;
 
@@ -553,7 +562,7 @@ err:
 	return ret;
 }
 
-int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i, count_registered = 0;
 	struct dvb_usb_device *d = adap_to_d(adap);
@@ -622,7 +631,7 @@ err:
 	return ret;
 }
 
-int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
 	int i;
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
@@ -959,7 +968,7 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/* stop remote controller poll */
-	if (d->rc.query && !d->rc.bulk_mode)
+	if (d->rc_polling_active)
 		cancel_delayed_work_sync(&d->rc_query_work);
 
 	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
@@ -1006,7 +1015,7 @@ static int dvb_usbv2_resume_common(struct dvb_usb_device *d)
 	}
 
 	/* start remote controller poll */
-	if (d->rc.query && !d->rc.bulk_mode)
+	if (d->rc_polling_active)
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
 

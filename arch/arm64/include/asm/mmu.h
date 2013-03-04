@@ -26,5 +26,6 @@ typedef struct {
 
 extern void paging_init(void);
 extern void setup_mm_for_reboot(void);
+extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);
 
 #endif

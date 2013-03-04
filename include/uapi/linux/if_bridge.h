@@ -108,14 +108,25 @@ struct __fdb_entry {
  * [IFLA_AF_SPEC] = {
  *     [IFLA_BRIDGE_FLAGS]
  *     [IFLA_BRIDGE_MODE]
+ *     [IFLA_BRIDGE_VLAN_INFO]
  * }
  */
 enum {
 	IFLA_BRIDGE_FLAGS,
 	IFLA_BRIDGE_MODE,
+	IFLA_BRIDGE_VLAN_INFO,
 	__IFLA_BRIDGE_MAX,
 };
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
+
+#define BRIDGE_VLAN_INFO_MASTER	(1<<0)	/* Operate on Bridge device as well */
+#define BRIDGE_VLAN_INFO_PVID	(1<<1)	/* VLAN is PVID, ingress untagged */
+#define BRIDGE_VLAN_INFO_UNTAGGED	(1<<2)	/* VLAN egresses untagged */
+
+struct bridge_vlan_info {
+	__u16 flags;
+	__u16 vid;
+};
 
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {
@@ -163,6 +174,9 @@ struct br_port_msg {
 
 struct br_mdb_entry {
 	__u32 ifindex;
+#define MDB_TEMPORARY 0
+#define MDB_PERMANENT 1
+	__u8 state;
 	struct {
 		union {
 			__be32	ip4;

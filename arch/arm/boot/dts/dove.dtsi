@@ -37,12 +37,25 @@
 			reg = <0x20204 0x04>, <0x20214 0x04>;
 		};
 
+		core_clk: core-clocks@d0214 {
+			compatible = "marvell,dove-core-clock";
+			reg = <0xd0214 0x4>;
+			#clock-cells = <1>;
+		};
+
+		gate_clk: clock-gating-control@d0038 {
+			compatible = "marvell,dove-gating-clock";
+			reg = <0xd0038 0x4>;
+			clocks = <&core_clk 0>;
+			#clock-cells = <1>;
+		};
+
 		uart0: serial@12000 {
 			compatible = "ns16550a";
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <7>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -51,7 +64,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <8>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -60,7 +73,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <9>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -69,7 +82,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <10>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -80,6 +93,7 @@
 			reg = <0xd0400 0x20>;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <12>, <13>, <14>, <60>;
 		};
 
@@ -90,6 +104,7 @@
 			reg = <0xd0420 0x20>;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <61>;
 		};
 
@@ -104,6 +119,7 @@
 		pinctrl: pinctrl@d0200 {
 			compatible = "marvell,dove-pinctrl";
 			reg = <0xd0200 0x10>;
+			clocks = <&gate_clk 22>;
 		};
 
 		spi0: spi@10600 {
@@ -113,6 +129,7 @@
 			cell-index = <0>;
 			interrupts = <6>;
 			reg = <0x10600 0x28>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -123,6 +140,7 @@
 			cell-index = <1>;
 			interrupts = <5>;
 			reg = <0x14600 0x28>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -134,13 +152,31 @@
 			interrupts = <11>;
 			clock-frequency = <400000>;
 			timeout-ms = <1000>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
+		};
+
+		ehci0: usb-host@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <24>;
+			clocks = <&gate_clk 0>;
+			status = "okay";
+		};
+
+		ehci1: usb-host@51000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x51000 0x1000>;
+			interrupts = <25>;
+			clocks = <&gate_clk 1>;
+			status = "okay";
 		};
 
 		sdio0: sdio@92000 {
 			compatible = "marvell,dove-sdhci";
 			reg = <0x92000 0x100>;
 			interrupts = <35>, <37>;
+			clocks = <&gate_clk 8>;
 			status = "disabled";
 		};
 
@@ -148,6 +184,7 @@
 			compatible = "marvell,dove-sdhci";
 			reg = <0x90000 0x100>;
 			interrupts = <36>, <38>;
+			clocks = <&gate_clk 9>;
 			status = "disabled";
 		};
 
@@ -155,6 +192,7 @@
 			compatible = "marvell,orion-sata";
 			reg = <0xa0000 0x2400>;
 			interrupts = <62>;
+			clocks = <&gate_clk 3>;
 			nr-ports = <1>;
 			status = "disabled";
 		};
@@ -165,7 +203,50 @@
 			      <0xc8000000 0x800>;
 			reg-names = "regs", "sram";
 			interrupts = <31>;
+			clocks = <&gate_clk 15>;
 			status = "okay";
+		};
+
+		xor0: dma-engine@60800 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60800 0x100
+			       0x60a00 0x100>;
+			clocks = <&gate_clk 23>;
+			status = "okay";
+
+			channel0 {
+				interrupts = <39>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+
+			channel1 {
+				interrupts = <40>;
+				dmacap,memset;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+		};
+
+		xor1: dma-engine@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0x60b00 0x100>;
+			clocks = <&gate_clk 24>;
+			status = "okay";
+
+			channel0 {
+				interrupts = <42>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+
+			channel1 {
+				interrupts = <43>;
+				dmacap,memset;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
 		};
 	};
 };

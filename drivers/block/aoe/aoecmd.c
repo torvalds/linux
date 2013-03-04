@@ -22,6 +22,7 @@
 #define MAXIOC (8192)	/* default meant to avoid most soft lockups */
 
 static void ktcomplete(struct frame *, struct sk_buff *);
+static int count_targets(struct aoedev *d, int *untainted);
 
 static struct buf *nextbuf(struct aoedev *);
 
@@ -29,7 +30,7 @@ static int aoe_deadsecs = 60 * 3;
 module_param(aoe_deadsecs, int, 0644);
 MODULE_PARM_DESC(aoe_deadsecs, "After aoe_deadsecs seconds, give up and fail dev.");
 
-static int aoe_maxout = 16;
+static int aoe_maxout = 64;
 module_param(aoe_maxout, int, 0644);
 MODULE_PARM_DESC(aoe_maxout,
 	"Only aoe_maxout outstanding packets for every MAC on eX.Y.");
@@ -42,6 +43,8 @@ static struct {
 	struct list_head head;
 	spinlock_t lock;
 } iocq;
+
+static struct page *empty_page;
 
 static struct sk_buff *
 new_skb(ulong len)
@@ -56,6 +59,23 @@ new_skb(ulong len)
 		skb_checksum_none_assert(skb);
 	}
 	return skb;
+}
+
+static struct frame *
+getframe_deferred(struct aoedev *d, u32 tag)
+{
+	struct list_head *head, *pos, *nx;
+	struct frame *f;
+
+	head = &d->rexmitq;
+	list_for_each_safe(pos, nx, head) {
+		f = list_entry(pos, struct frame, head);
+		if (f->tag == tag) {
+			list_del(pos);
+			return f;
+		}
+	}
+	return NULL;
 }
 
 static struct frame *
@@ -162,8 +182,10 @@ aoe_freetframe(struct frame *f)
 
 	t = f->t;
 	f->buf = NULL;
+	f->lba = 0;
 	f->bv = NULL;
 	f->r_skb = NULL;
+	f->flags = 0;
 	list_add(&f->head, &t->ffree);
 }
 
@@ -217,20 +239,25 @@ newframe(struct aoedev *d)
 	struct frame *f;
 	struct aoetgt *t, **tt;
 	int totout = 0;
+	int use_tainted;
+	int has_untainted;
 
-	if (d->targets[0] == NULL) {	/* shouldn't happen, but I'm paranoid */
+	if (!d->targets || !d->targets[0]) {
 		printk(KERN_ERR "aoe: NULL TARGETS!\n");
 		return NULL;
 	}
 	tt = d->tgt;	/* last used target */
-	for (;;) {
+	for (use_tainted = 0, has_untainted = 0;;) {
 		tt++;
-		if (tt >= &d->targets[NTARGETS] || !*tt)
+		if (tt >= &d->targets[d->ntargets] || !*tt)
 			tt = d->targets;
 		t = *tt;
-		totout += t->nout;
+		if (!t->taint) {
+			has_untainted = 1;
+			totout += t->nout;
+		}
 		if (t->nout < t->maxout
-		&& t != d->htgt
+		&& (use_tainted || !t->taint)
 		&& t->ifp->nd) {
 			f = newtframe(d, t);
 			if (f) {
@@ -239,8 +266,12 @@ newframe(struct aoedev *d)
 				return f;
 			}
 		}
-		if (tt == d->tgt)	/* we've looped and found nada */
-			break;
+		if (tt == d->tgt) {	/* we've looped and found nada */
+			if (!use_tainted && !has_untainted)
+				use_tainted = 1;
+			else
+				break;
+		}
 	}
 	if (totout == 0) {
 		d->kicked++;
@@ -277,21 +308,68 @@ fhash(struct frame *f)
 	list_add_tail(&f->head, &d->factive[n]);
 }
 
+static void
+ata_rw_frameinit(struct frame *f)
+{
+	struct aoetgt *t;
+	struct aoe_hdr *h;
+	struct aoe_atahdr *ah;
+	struct sk_buff *skb;
+	char writebit, extbit;
+
+	skb = f->skb;
+	h = (struct aoe_hdr *) skb_mac_header(skb);
+	ah = (struct aoe_atahdr *) (h + 1);
+	skb_put(skb, sizeof(*h) + sizeof(*ah));
+	memset(h, 0, skb->len);
+
+	writebit = 0x10;
+	extbit = 0x4;
+
+	t = f->t;
+	f->tag = aoehdr_atainit(t->d, t, h);
+	fhash(f);
+	t->nout++;
+	f->waited = 0;
+	f->waited_total = 0;
+	if (f->buf)
+		f->lba = f->buf->sector;
+
+	/* set up ata header */
+	ah->scnt = f->bcnt >> 9;
+	put_lba(ah, f->lba);
+	if (t->d->flags & DEVFL_EXT) {
+		ah->aflags |= AOEAFL_EXT;
+	} else {
+		extbit = 0;
+		ah->lba3 &= 0x0f;
+		ah->lba3 |= 0xe0;	/* LBA bit + obsolete 0xa0 */
+	}
+	if (f->buf && bio_data_dir(f->buf->bio) == WRITE) {
+		skb_fillup(skb, f->bv, f->bv_off, f->bcnt);
+		ah->aflags |= AOEAFL_WRITE;
+		skb->len += f->bcnt;
+		skb->data_len = f->bcnt;
+		skb->truesize += f->bcnt;
+		t->wpkts++;
+	} else {
+		t->rpkts++;
+		writebit = 0;
+	}
+
+	ah->cmdstat = ATA_CMD_PIO_READ | writebit | extbit;
+	skb->dev = t->ifp->nd;
+}
+
 static int
 aoecmd_ata_rw(struct aoedev *d)
 {
 	struct frame *f;
-	struct aoe_hdr *h;
-	struct aoe_atahdr *ah;
 	struct buf *buf;
 	struct aoetgt *t;
 	struct sk_buff *skb;
 	struct sk_buff_head queue;
 	ulong bcnt, fbcnt;
-	char writebit, extbit;
-
-	writebit = 0x10;
-	extbit = 0x4;
 
 	buf = nextbuf(d);
 	if (buf == NULL)
@@ -326,50 +404,18 @@ aoecmd_ata_rw(struct aoedev *d)
 	} while (fbcnt);
 
 	/* initialize the headers & frame */
-	skb = f->skb;
-	h = (struct aoe_hdr *) skb_mac_header(skb);
-	ah = (struct aoe_atahdr *) (h+1);
-	skb_put(skb, sizeof *h + sizeof *ah);
-	memset(h, 0, skb->len);
-	f->tag = aoehdr_atainit(d, t, h);
-	fhash(f);
-	t->nout++;
-	f->waited = 0;
 	f->buf = buf;
 	f->bcnt = bcnt;
-	f->lba = buf->sector;
-
-	/* set up ata header */
-	ah->scnt = bcnt >> 9;
-	put_lba(ah, buf->sector);
-	if (d->flags & DEVFL_EXT) {
-		ah->aflags |= AOEAFL_EXT;
-	} else {
-		extbit = 0;
-		ah->lba3 &= 0x0f;
-		ah->lba3 |= 0xe0;	/* LBA bit + obsolete 0xa0 */
-	}
-	if (bio_data_dir(buf->bio) == WRITE) {
-		skb_fillup(skb, f->bv, f->bv_off, bcnt);
-		ah->aflags |= AOEAFL_WRITE;
-		skb->len += bcnt;
-		skb->data_len = bcnt;
-		skb->truesize += bcnt;
-		t->wpkts++;
-	} else {
-		t->rpkts++;
-		writebit = 0;
-	}
-
-	ah->cmdstat = ATA_CMD_PIO_READ | writebit | extbit;
+	ata_rw_frameinit(f);
 
 	/* mark all tracking fields and load out */
 	buf->nframesout += 1;
 	buf->sector += bcnt >> 9;
 
-	skb->dev = t->ifp->nd;
-	skb = skb_clone(skb, GFP_ATOMIC);
+	skb = skb_clone(f->skb, GFP_ATOMIC);
 	if (skb) {
+		do_gettimeofday(&f->sent);
+		f->sent_jiffs = (u32) jiffies;
 		__skb_queue_head_init(&queue);
 		__skb_queue_tail(&queue, skb);
 		aoenet_xmit(&queue);
@@ -442,11 +488,14 @@ resend(struct aoedev *d, struct frame *f)
 	h = (struct aoe_hdr *) skb_mac_header(skb);
 	ah = (struct aoe_atahdr *) (h+1);
 
-	snprintf(buf, sizeof buf,
-		"%15s e%ld.%d oldtag=%08x@%08lx newtag=%08x s=%pm d=%pm nout=%d\n",
-		"retransmit", d->aoemajor, d->aoeminor, f->tag, jiffies, n,
-		h->src, h->dst, t->nout);
-	aoechr_error(buf);
+	if (!(f->flags & FFL_PROBE)) {
+		snprintf(buf, sizeof(buf),
+			"%15s e%ld.%d oldtag=%08x@%08lx newtag=%08x s=%pm d=%pm nout=%d\n",
+			"retransmit", d->aoemajor, d->aoeminor,
+			f->tag, jiffies, n,
+			h->src, h->dst, t->nout);
+		aoechr_error(buf);
+	}
 
 	f->tag = n;
 	fhash(f);
@@ -458,9 +507,43 @@ resend(struct aoedev *d, struct frame *f)
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return;
+	do_gettimeofday(&f->sent);
+	f->sent_jiffs = (u32) jiffies;
 	__skb_queue_head_init(&queue);
 	__skb_queue_tail(&queue, skb);
 	aoenet_xmit(&queue);
+}
+
+static int
+tsince_hr(struct frame *f)
+{
+	struct timeval now;
+	int n;
+
+	do_gettimeofday(&now);
+	n = now.tv_usec - f->sent.tv_usec;
+	n += (now.tv_sec - f->sent.tv_sec) * USEC_PER_SEC;
+
+	if (n < 0)
+		n = -n;
+
+	/* For relatively long periods, use jiffies to avoid
+	 * discrepancies caused by updates to the system time.
+	 *
+	 * On system with HZ of 1000, 32-bits is over 49 days
+	 * worth of jiffies, or over 71 minutes worth of usecs.
+	 *
+	 * Jiffies overflow is handled by subtraction of unsigned ints:
+	 * (gdb) print (unsigned) 2 - (unsigned) 0xfffffffe
+	 * $3 = 4
+	 * (gdb)
+	 */
+	if (n > USEC_PER_SEC / 4) {
+		n = ((u32) jiffies) - f->sent_jiffs;
+		n *= USEC_PER_SEC / HZ;
+	}
+
+	return n;
 }
 
 static int
@@ -472,7 +555,7 @@ tsince(u32 tag)
 	n -= tag & 0xffff;
 	if (n < 0)
 		n += 1<<16;
-	return n;
+	return jiffies_to_usecs(n + 1);
 }
 
 static struct aoeif *
@@ -503,70 +586,189 @@ ejectif(struct aoetgt *t, struct aoeif *ifp)
 	dev_put(nd);
 }
 
-static int
-sthtith(struct aoedev *d)
+static struct frame *
+reassign_frame(struct frame *f)
 {
-	struct frame *f, *nf;
-	struct list_head *nx, *pos, *head;
+	struct frame *nf;
 	struct sk_buff *skb;
-	struct aoetgt *ht = d->htgt;
-	int i;
 
-	for (i = 0; i < NFACTIVE; i++) {
-		head = &d->factive[i];
-		list_for_each_safe(pos, nx, head) {
-			f = list_entry(pos, struct frame, head);
-			if (f->t != ht)
-				continue;
-
-			nf = newframe(d);
-			if (!nf)
-				return 0;
-
-			/* remove frame from active list */
-			list_del(pos);
-
-			/* reassign all pertinent bits to new outbound frame */
-			skb = nf->skb;
-			nf->skb = f->skb;
-			nf->buf = f->buf;
-			nf->bcnt = f->bcnt;
-			nf->lba = f->lba;
-			nf->bv = f->bv;
-			nf->bv_off = f->bv_off;
-			nf->waited = 0;
-			f->skb = skb;
-			aoe_freetframe(f);
-			ht->nout--;
-			nf->t->nout++;
-			resend(d, nf);
-		}
+	nf = newframe(f->t->d);
+	if (!nf)
+		return NULL;
+	if (nf->t == f->t) {
+		aoe_freetframe(nf);
+		return NULL;
 	}
-	/* We've cleaned up the outstanding so take away his
-	 * interfaces so he won't be used.  We should remove him from
-	 * the target array here, but cleaning up a target is
-	 * involved.  PUNT!
-	 */
-	memset(ht->ifs, 0, sizeof ht->ifs);
-	d->htgt = NULL;
-	return 1;
+
+	skb = nf->skb;
+	nf->skb = f->skb;
+	nf->buf = f->buf;
+	nf->bcnt = f->bcnt;
+	nf->lba = f->lba;
+	nf->bv = f->bv;
+	nf->bv_off = f->bv_off;
+	nf->waited = 0;
+	nf->waited_total = f->waited_total;
+	nf->sent = f->sent;
+	nf->sent_jiffs = f->sent_jiffs;
+	f->skb = skb;
+
+	return nf;
 }
 
-static inline unsigned char
-ata_scnt(unsigned char *packet) {
-	struct aoe_hdr *h;
-	struct aoe_atahdr *ah;
+static void
+probe(struct aoetgt *t)
+{
+	struct aoedev *d;
+	struct frame *f;
+	struct sk_buff *skb;
+	struct sk_buff_head queue;
+	size_t n, m;
+	int frag;
 
-	h = (struct aoe_hdr *) packet;
-	ah = (struct aoe_atahdr *) (h+1);
-	return ah->scnt;
+	d = t->d;
+	f = newtframe(d, t);
+	if (!f) {
+		pr_err("%s %pm for e%ld.%d: %s\n",
+			"aoe: cannot probe remote address",
+			t->addr,
+			(long) d->aoemajor, d->aoeminor,
+			"no frame available");
+		return;
+	}
+	f->flags |= FFL_PROBE;
+	ifrotate(t);
+	f->bcnt = t->d->maxbcnt ? t->d->maxbcnt : DEFAULTBCNT;
+	ata_rw_frameinit(f);
+	skb = f->skb;
+	for (frag = 0, n = f->bcnt; n > 0; ++frag, n -= m) {
+		if (n < PAGE_SIZE)
+			m = n;
+		else
+			m = PAGE_SIZE;
+		skb_fill_page_desc(skb, frag, empty_page, 0, m);
+	}
+	skb->len += f->bcnt;
+	skb->data_len = f->bcnt;
+	skb->truesize += f->bcnt;
+
+	skb = skb_clone(f->skb, GFP_ATOMIC);
+	if (skb) {
+		do_gettimeofday(&f->sent);
+		f->sent_jiffs = (u32) jiffies;
+		__skb_queue_head_init(&queue);
+		__skb_queue_tail(&queue, skb);
+		aoenet_xmit(&queue);
+	}
+}
+
+static long
+rto(struct aoedev *d)
+{
+	long t;
+
+	t = 2 * d->rttavg >> RTTSCALE;
+	t += 8 * d->rttdev >> RTTDSCALE;
+	if (t == 0)
+		t = 1;
+
+	return t;
+}
+
+static void
+rexmit_deferred(struct aoedev *d)
+{
+	struct aoetgt *t;
+	struct frame *f;
+	struct frame *nf;
+	struct list_head *pos, *nx, *head;
+	int since;
+	int untainted;
+
+	count_targets(d, &untainted);
+
+	head = &d->rexmitq;
+	list_for_each_safe(pos, nx, head) {
+		f = list_entry(pos, struct frame, head);
+		t = f->t;
+		if (t->taint) {
+			if (!(f->flags & FFL_PROBE)) {
+				nf = reassign_frame(f);
+				if (nf) {
+					if (t->nout_probes == 0
+					&& untainted > 0) {
+						probe(t);
+						t->nout_probes++;
+					}
+					list_replace(&f->head, &nf->head);
+					pos = &nf->head;
+					aoe_freetframe(f);
+					f = nf;
+					t = f->t;
+				}
+			} else if (untainted < 1) {
+				/* don't probe w/o other untainted aoetgts */
+				goto stop_probe;
+			} else if (tsince_hr(f) < t->taint * rto(d)) {
+				/* reprobe slowly when taint is high */
+				continue;
+			}
+		} else if (f->flags & FFL_PROBE) {
+stop_probe:		/* don't probe untainted aoetgts */
+			list_del(pos);
+			aoe_freetframe(f);
+			/* leaving d->kicked, because this is routine */
+			f->t->d->flags |= DEVFL_KICKME;
+			continue;
+		}
+		if (t->nout >= t->maxout)
+			continue;
+		list_del(pos);
+		t->nout++;
+		if (f->flags & FFL_PROBE)
+			t->nout_probes++;
+		since = tsince_hr(f);
+		f->waited += since;
+		f->waited_total += since;
+		resend(d, f);
+	}
+}
+
+/* An aoetgt accumulates demerits quickly, and successful
+ * probing redeems the aoetgt slowly.
+ */
+static void
+scorn(struct aoetgt *t)
+{
+	int n;
+
+	n = t->taint++;
+	t->taint += t->taint * 2;
+	if (n > t->taint)
+		t->taint = n;
+	if (t->taint > MAX_TAINT)
+		t->taint = MAX_TAINT;
+}
+
+static int
+count_targets(struct aoedev *d, int *untainted)
+{
+	int i, good;
+
+	for (i = good = 0; i < d->ntargets && d->targets[i]; ++i)
+		if (d->targets[i]->taint == 0)
+			good++;
+
+	if (untainted)
+		*untainted = good;
+	return i;
 }
 
 static void
 rexmit_timer(ulong vp)
 {
 	struct aoedev *d;
-	struct aoetgt *t, **tt, **te;
+	struct aoetgt *t;
 	struct aoeif *ifp;
 	struct frame *f;
 	struct list_head *head, *pos, *nx;
@@ -574,14 +776,17 @@ rexmit_timer(ulong vp)
 	register long timeout;
 	ulong flags, n;
 	int i;
+	int utgts;	/* number of aoetgt descriptors (not slots) */
+	int since;
 
 	d = (struct aoedev *) vp;
 
-	/* timeout is always ~150% of the moving average */
-	timeout = d->rttavg;
-	timeout += timeout >> 1;
-
 	spin_lock_irqsave(&d->lock, flags);
+
+	/* timeout based on observed timings and variations */
+	timeout = rto(d);
+
+	utgts = count_targets(d, NULL);
 
 	if (d->flags & DEVFL_TKILL) {
 		spin_unlock_irqrestore(&d->lock, flags);
@@ -593,67 +798,61 @@ rexmit_timer(ulong vp)
 		head = &d->factive[i];
 		list_for_each_safe(pos, nx, head) {
 			f = list_entry(pos, struct frame, head);
-			if (tsince(f->tag) < timeout)
+			if (tsince_hr(f) < timeout)
 				break;	/* end of expired frames */
 			/* move to flist for later processing */
 			list_move_tail(pos, &flist);
 		}
-	}
-	/* window check */
-	tt = d->targets;
-	te = tt + d->ntargets;
-	for (; tt < te && (t = *tt); tt++) {
-		if (t->nout == t->maxout
-		&& t->maxout < t->nframes
-		&& (jiffies - t->lastwadj)/HZ > 10) {
-			t->maxout++;
-			t->lastwadj = jiffies;
-		}
-	}
-
-	if (!list_empty(&flist)) {	/* retransmissions necessary */
-		n = d->rttavg <<= 1;
-		if (n > MAXTIMER)
-			d->rttavg = MAXTIMER;
 	}
 
 	/* process expired frames */
 	while (!list_empty(&flist)) {
 		pos = flist.next;
 		f = list_entry(pos, struct frame, head);
-		n = f->waited += timeout;
-		n /= HZ;
-		if (n > aoe_deadsecs) {
+		since = tsince_hr(f);
+		n = f->waited_total + since;
+		n /= USEC_PER_SEC;
+		if (aoe_deadsecs
+		&& n > aoe_deadsecs
+		&& !(f->flags & FFL_PROBE)) {
 			/* Waited too long.  Device failure.
 			 * Hang all frames on first hash bucket for downdev
 			 * to clean up.
 			 */
 			list_splice(&flist, &d->factive[0]);
 			aoedev_downdev(d);
-			break;
+			goto out;
 		}
-		list_del(pos);
 
 		t = f->t;
-		if (n > aoe_deadsecs/2)
-			d->htgt = t; /* see if another target can help */
+		n = f->waited + since;
+		n /= USEC_PER_SEC;
+		if (aoe_deadsecs && utgts > 0
+		&& (n > aoe_deadsecs / utgts || n > HARD_SCORN_SECS))
+			scorn(t); /* avoid this target */
 
-		if (t->nout == t->maxout) {
-			if (t->maxout > 1)
-				t->maxout--;
-			t->lastwadj = jiffies;
+		if (t->maxout != 1) {
+			t->ssthresh = t->maxout / 2;
+			t->maxout = 1;
 		}
 
-		ifp = getif(t, f->skb->dev);
-		if (ifp && ++ifp->lost > (t->nframes << 1)
-		&& (ifp != t->ifs || t->ifs[1].nd)) {
-			ejectif(t, ifp);
-			ifp = NULL;
+		if (f->flags & FFL_PROBE) {
+			t->nout_probes--;
+		} else {
+			ifp = getif(t, f->skb->dev);
+			if (ifp && ++ifp->lost > (t->nframes << 1)
+			&& (ifp != t->ifs || t->ifs[1].nd)) {
+				ejectif(t, ifp);
+				ifp = NULL;
+			}
 		}
-		resend(d, f);
+		list_move_tail(pos, &d->rexmitq);
+		t->nout--;
 	}
+	rexmit_deferred(d);
 
-	if ((d->flags & DEVFL_KICKME || d->htgt) && d->blkq) {
+out:
+	if ((d->flags & DEVFL_KICKME) && d->blkq) {
 		d->flags &= ~DEVFL_KICKME;
 		d->blkq->request_fn(d->blkq);
 	}
@@ -774,8 +973,7 @@ nextbuf(struct aoedev *d)
 void
 aoecmd_work(struct aoedev *d)
 {
-	if (d->htgt && !sthtith(d))
-		return;
+	rexmit_deferred(d);
 	while (aoecmd_ata_rw(d))
 		;
 }
@@ -805,6 +1003,17 @@ aoecmd_sleepwork(struct work_struct *work)
 		d->flags |= DEVFL_UP;
 		d->flags &= ~DEVFL_NEWSIZE;
 		spin_unlock_irq(&d->lock);
+	}
+}
+
+static void
+ata_ident_fixstring(u16 *id, int ns)
+{
+	u16 s;
+
+	while (ns-- > 0) {
+		s = *id;
+		*id++ = s >> 8 | s << 8;
 	}
 }
 
@@ -843,6 +1052,11 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 		d->geo.sectors = get_unaligned_le16(&id[56 << 1]);
 	}
 
+	ata_ident_fixstring((u16 *) &id[10<<1], 10);	/* serial */
+	ata_ident_fixstring((u16 *) &id[23<<1], 4);	/* firmware */
+	ata_ident_fixstring((u16 *) &id[27<<1], 20);	/* model */
+	memcpy(d->ident, id, sizeof(d->ident));
+
 	if (d->ssize != ssize)
 		printk(KERN_INFO
 			"aoe: %pm e%ld.%d v%04x has %llu sectors\n",
@@ -862,26 +1076,28 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 }
 
 static void
-calc_rttavg(struct aoedev *d, int rtt)
+calc_rttavg(struct aoedev *d, struct aoetgt *t, int rtt)
 {
 	register long n;
 
 	n = rtt;
-	if (n < 0) {
-		n = -rtt;
-		if (n < MINTIMER)
-			n = MINTIMER;
-		else if (n > MAXTIMER)
-			n = MAXTIMER;
-		d->mintimer += (n - d->mintimer) >> 1;
-	} else if (n < d->mintimer)
-		n = d->mintimer;
-	else if (n > MAXTIMER)
-		n = MAXTIMER;
 
-	/* g == .25; cf. Congestion Avoidance and Control, Jacobson & Karels; 1988 */
-	n -= d->rttavg;
-	d->rttavg += n >> 2;
+	/* cf. Congestion Avoidance and Control, Jacobson & Karels, 1988 */
+	n -= d->rttavg >> RTTSCALE;
+	d->rttavg += n;
+	if (n < 0)
+		n = -n;
+	n -= d->rttdev >> RTTDSCALE;
+	d->rttdev += n;
+
+	if (!t || t->maxout >= t->nframes)
+		return;
+	if (t->maxout < t->ssthresh)
+		t->maxout += 1;
+	else if (t->nout == t->maxout && t->next_cwnd-- == 0) {
+		t->maxout += 1;
+		t->next_cwnd = t->maxout;
+	}
 }
 
 static struct aoetgt *
@@ -890,7 +1106,7 @@ gettgt(struct aoedev *d, char *addr)
 	struct aoetgt **t, **e;
 
 	t = d->targets;
-	e = t + NTARGETS;
+	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		if (memcmp((*t)->addr, addr, sizeof((*t)->addr)) == 0)
 			return *t;
@@ -966,19 +1182,22 @@ ktiocomplete(struct frame *f)
 	struct aoeif *ifp;
 	struct aoedev *d;
 	long n;
+	int untainted;
 
 	if (f == NULL)
 		return;
 
 	t = f->t;
 	d = t->d;
+	skb = f->r_skb;
+	buf = f->buf;
+	if (f->flags & FFL_PROBE)
+		goto out;
+	if (!skb)		/* just fail the buf. */
+		goto noskb;
 
 	hout = (struct aoe_hdr *) skb_mac_header(f->skb);
 	ahout = (struct aoe_atahdr *) (hout+1);
-	buf = f->buf;
-	skb = f->r_skb;
-	if (skb == NULL)
-		goto noskb;	/* just fail the buf. */
 
 	hin = (struct aoe_hdr *) skb->data;
 	skb_pull(skb, sizeof(*hin));
@@ -988,9 +1207,9 @@ ktiocomplete(struct frame *f)
 		pr_err("aoe: ata error cmd=%2.2Xh stat=%2.2Xh from e%ld.%d\n",
 			ahout->cmdstat, ahin->cmdstat,
 			d->aoemajor, d->aoeminor);
-noskb:	if (buf)
+noskb:		if (buf)
 			clear_bit(BIO_UPTODATE, &buf->bio->bi_flags);
-		goto badrsp;
+		goto out;
 	}
 
 	n = ahout->scnt << 9;
@@ -998,8 +1217,10 @@ noskb:	if (buf)
 	case ATA_CMD_PIO_READ:
 	case ATA_CMD_PIO_READ_EXT:
 		if (skb->len < n) {
-			pr_err("aoe: runt data size in read.  skb->len=%d need=%ld\n",
-				skb->len, n);
+			pr_err("%s e%ld.%d.  skb->len=%d need=%ld\n",
+				"aoe: runt data size in read from",
+				(long) d->aoemajor, d->aoeminor,
+			       skb->len, n);
 			clear_bit(BIO_UPTODATE, &buf->bio->bi_flags);
 			break;
 		}
@@ -1010,13 +1231,13 @@ noskb:	if (buf)
 		ifp = getif(t, skb->dev);
 		if (ifp)
 			ifp->lost = 0;
-		if (d->htgt == t) /* I'll help myself, thank you. */
-			d->htgt = NULL;
 		spin_unlock_irq(&d->lock);
 		break;
 	case ATA_CMD_ID_ATA:
 		if (skb->len < 512) {
-			pr_info("aoe: runt data size in ataid.  skb->len=%d\n",
+			pr_info("%s e%ld.%d.  skb->len=%d need=512\n",
+				"aoe: runt data size in ataid from",
+				(long) d->aoemajor, d->aoeminor,
 				skb->len);
 			break;
 		}
@@ -1032,15 +1253,22 @@ noskb:	if (buf)
 			be16_to_cpu(get_unaligned(&hin->major)),
 			hin->minor);
 	}
-badrsp:
+out:
 	spin_lock_irq(&d->lock);
+	if (t->taint > 0
+	&& --t->taint > 0
+	&& t->nout_probes == 0) {
+		count_targets(d, &untainted);
+		if (untainted > 0) {
+			probe(t);
+			t->nout_probes++;
+		}
+	}
 
 	aoe_freetframe(f);
 
 	if (buf && --buf->nframesout == 0 && buf->resid == 0)
 		aoe_end_buf(d, buf);
-
-	aoecmd_work(d);
 
 	spin_unlock_irq(&d->lock);
 	aoedev_put(d);
@@ -1141,7 +1369,6 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	struct aoedev *d;
 	struct aoe_hdr *h;
 	struct frame *f;
-	struct aoetgt *t;
 	u32 n;
 	ulong flags;
 	char ebuf[128];
@@ -1162,23 +1389,32 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	n = be32_to_cpu(get_unaligned(&h->tag));
 	f = getframe(d, n);
-	if (f == NULL) {
-		calc_rttavg(d, -tsince(n));
-		spin_unlock_irqrestore(&d->lock, flags);
-		aoedev_put(d);
-		snprintf(ebuf, sizeof ebuf,
-			"%15s e%d.%d    tag=%08x@%08lx\n",
-			"unexpected rsp",
-			get_unaligned_be16(&h->major),
-			h->minor,
-			get_unaligned_be32(&h->tag),
-			jiffies);
-		aoechr_error(ebuf);
-		return skb;
+	if (f) {
+		calc_rttavg(d, f->t, tsince_hr(f));
+		f->t->nout--;
+		if (f->flags & FFL_PROBE)
+			f->t->nout_probes--;
+	} else {
+		f = getframe_deferred(d, n);
+		if (f) {
+			calc_rttavg(d, NULL, tsince_hr(f));
+		} else {
+			calc_rttavg(d, NULL, tsince(n));
+			spin_unlock_irqrestore(&d->lock, flags);
+			aoedev_put(d);
+			snprintf(ebuf, sizeof(ebuf),
+				 "%15s e%d.%d    tag=%08x@%08lx s=%pm d=%pm\n",
+				 "unexpected rsp",
+				 get_unaligned_be16(&h->major),
+				 h->minor,
+				 get_unaligned_be32(&h->tag),
+				 jiffies,
+				 h->src,
+				 h->dst);
+			aoechr_error(ebuf);
+			return skb;
+		}
 	}
-	t = f->t;
-	calc_rttavg(d, tsince(f->tag));
-	t->nout--;
 	aoecmd_work(d);
 
 	spin_unlock_irqrestore(&d->lock, flags);
@@ -1201,7 +1437,7 @@ aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
 	aoecmd_cfg_pkts(aoemajor, aoeminor, &queue);
 	aoenet_xmit(&queue);
 }
- 
+
 struct sk_buff *
 aoecmd_ata_id(struct aoedev *d)
 {
@@ -1227,6 +1463,7 @@ aoecmd_ata_id(struct aoedev *d)
 	fhash(f);
 	t->nout++;
 	f->waited = 0;
+	f->waited_total = 0;
 
 	/* set up ata header */
 	ah->scnt = 1;
@@ -1235,41 +1472,69 @@ aoecmd_ata_id(struct aoedev *d)
 
 	skb->dev = t->ifp->nd;
 
-	d->rttavg = MAXTIMER;
+	d->rttavg = RTTAVG_INIT;
+	d->rttdev = RTTDEV_INIT;
 	d->timer.function = rexmit_timer;
 
-	return skb_clone(skb, GFP_ATOMIC);
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (skb) {
+		do_gettimeofday(&f->sent);
+		f->sent_jiffs = (u32) jiffies;
+	}
+
+	return skb;
 }
- 
+
+static struct aoetgt **
+grow_targets(struct aoedev *d)
+{
+	ulong oldn, newn;
+	struct aoetgt **tt;
+
+	oldn = d->ntargets;
+	newn = oldn * 2;
+	tt = kcalloc(newn, sizeof(*d->targets), GFP_ATOMIC);
+	if (!tt)
+		return NULL;
+	memmove(tt, d->targets, sizeof(*d->targets) * oldn);
+	d->tgt = tt + (d->tgt - d->targets);
+	kfree(d->targets);
+	d->targets = tt;
+	d->ntargets = newn;
+
+	return &d->targets[oldn];
+}
+
 static struct aoetgt *
 addtgt(struct aoedev *d, char *addr, ulong nframes)
 {
 	struct aoetgt *t, **tt, **te;
 
 	tt = d->targets;
-	te = tt + NTARGETS;
+	te = tt + d->ntargets;
 	for (; tt < te && *tt; tt++)
 		;
 
 	if (tt == te) {
-		printk(KERN_INFO
-			"aoe: device addtgt failure; too many targets\n");
-		return NULL;
+		tt = grow_targets(d);
+		if (!tt)
+			goto nomem;
 	}
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
-	if (!t) {
-		printk(KERN_INFO "aoe: cannot allocate memory to add target\n");
-		return NULL;
-	}
-
-	d->ntargets++;
+	if (!t)
+		goto nomem;
 	t->nframes = nframes;
 	t->d = d;
 	memcpy(t->addr, addr, sizeof t->addr);
 	t->ifp = t->ifs;
-	t->maxout = t->nframes;
+	aoecmd_wreset(t);
+	t->maxout = t->nframes / 2;
 	INIT_LIST_HEAD(&t->ffree);
 	return *tt = t;
+
+ nomem:
+	pr_info("aoe: cannot allocate memory to add target\n");
+	return NULL;
 }
 
 static void
@@ -1279,7 +1544,7 @@ setdbcnt(struct aoedev *d)
 	int bcnt = 0;
 
 	t = d->targets;
-	e = t + NTARGETS;
+	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		if (bcnt == 0 || bcnt > (*t)->minbcnt)
 			bcnt = (*t)->minbcnt;
@@ -1373,7 +1638,11 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	spin_lock_irqsave(&d->lock, flags);
 
 	t = gettgt(d, h->src);
-	if (!t) {
+	if (t) {
+		t->nframes = n;
+		if (n < t->maxout)
+			aoecmd_wreset(t);
+	} else {
 		t = addtgt(d, h->src, n);
 		if (!t)
 			goto bail;
@@ -1402,17 +1671,26 @@ bail:
 }
 
 void
+aoecmd_wreset(struct aoetgt *t)
+{
+	t->maxout = 1;
+	t->ssthresh = t->nframes / 2;
+	t->next_cwnd = t->nframes;
+}
+
+void
 aoecmd_cleanslate(struct aoedev *d)
 {
 	struct aoetgt **t, **te;
 
-	d->mintimer = MINTIMER;
+	d->rttavg = RTTAVG_INIT;
+	d->rttdev = RTTDEV_INIT;
 	d->maxbcnt = 0;
 
 	t = d->targets;
-	te = t + NTARGETS;
+	te = t + d->ntargets;
 	for (; t < te && *t; t++)
-		(*t)->maxout = (*t)->nframes;
+		aoecmd_wreset(*t);
 }
 
 void
@@ -1460,6 +1738,14 @@ aoe_flush_iocq(void)
 int __init
 aoecmd_init(void)
 {
+	void *p;
+
+	/* get_zeroed_page returns page with ref count 1 */
+	p = (void *) get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
+	if (!p)
+		return -ENOMEM;
+	empty_page = virt_to_page(p);
+
 	INIT_LIST_HEAD(&iocq.head);
 	spin_lock_init(&iocq.lock);
 	init_waitqueue_head(&ktiowq);
@@ -1475,4 +1761,7 @@ aoecmd_exit(void)
 {
 	aoe_ktstop(&kts);
 	aoe_flush_iocq();
+
+	free_page((unsigned long) page_address(empty_page));
+	empty_page = NULL;
 }

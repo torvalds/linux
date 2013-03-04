@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -429,8 +430,6 @@ static const struct dss_param_range omap2_dss_param_range[] = {
 	 * scaler cannot scale a image with width more than 768.
 	 */
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 768 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap3_dss_param_range[] = {
@@ -445,8 +444,6 @@ static const struct dss_param_range omap3_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 173000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 1024 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap4_dss_param_range[] = {
@@ -461,8 +458,6 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap5_dss_param_range[] = {
@@ -477,8 +472,6 @@ static const struct dss_param_range omap5_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const enum dss_feat_id omap2_dss_feat_list[] = {
@@ -545,6 +538,7 @@ static const enum dss_feat_id omap3630_dss_feat_list[] = {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
 	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_DPI_USES_VDDS_DSI,
 };
 
 static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
@@ -820,6 +814,7 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.audio_start		=       ti_hdmi_4xxx_audio_start,
 	.audio_stop		=       ti_hdmi_4xxx_audio_stop,
 	.audio_config		=	ti_hdmi_4xxx_audio_config,
+	.audio_get_dma_port	=	ti_hdmi_4xxx_audio_get_dma_port,
 #endif
 
 };
@@ -846,11 +841,13 @@ int dss_feat_get_num_mgrs(void)
 {
 	return omap_current_dss_features->num_mgrs;
 }
+EXPORT_SYMBOL(dss_feat_get_num_mgrs);
 
 int dss_feat_get_num_ovls(void)
 {
 	return omap_current_dss_features->num_ovls;
 }
+EXPORT_SYMBOL(dss_feat_get_num_ovls);
 
 int dss_feat_get_num_wbs(void)
 {
@@ -871,16 +868,19 @@ enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel
 {
 	return omap_current_dss_features->supported_displays[channel];
 }
+EXPORT_SYMBOL(dss_feat_get_supported_displays);
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel)
 {
 	return omap_current_dss_features->supported_outputs[channel];
 }
+EXPORT_SYMBOL(dss_feat_get_supported_outputs);
 
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane)
 {
 	return omap_current_dss_features->supported_color_modes[plane];
 }
+EXPORT_SYMBOL(dss_feat_get_supported_color_modes);
 
 enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane plane)
 {

@@ -10,7 +10,7 @@
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
  *
- * Copyright (C) 2005 Tensilica, Inc.
+ * Copyright (C) 2005 - 2008 Tensilica, Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -79,6 +79,8 @@ ENTRY(_UserExceptionVector)
 	l32i	a0, a0, EXC_TABLE_FAST_USER	# load handler
 	jx	a0
 
+ENDPROC(_UserExceptionVector)
+
 /*
  * Kernel exception vector. (Exceptions with PS.UM == 0, PS.EXCM == 0)
  *
@@ -103,6 +105,7 @@ ENTRY(_KernelExceptionVector)
 	l32i	a0, a0, EXC_TABLE_FAST_KERNEL	# load handler address
 	jx	a0
 
+ENDPROC(_KernelExceptionVector)
 
 /*
  * Double exception vector (Exceptions with PS.EXCM == 1)
@@ -225,7 +228,13 @@ ENTRY(_DoubleExceptionVector)
 	/* Window overflow/underflow exception. Get stack pointer. */
 
 	mov	a3, a2
-	movi	a2, exc_table
+	/* This explicit literal and the following references to it are made
+	 * in order to fit DoubleExceptionVector.literals into the available
+	 * 16-byte gap before DoubleExceptionVector.text in the absence of
+	 * link time relaxation. See kernel/vmlinux.lds.S
+	 */
+	.literal .Lexc_table, exc_table
+	l32r	a2, .Lexc_table
 	l32i	a2, a2, EXC_TABLE_KSTK
 
 	/* Check for overflow/underflow exception, jump if overflow. */
@@ -255,7 +264,7 @@ ENTRY(_DoubleExceptionVector)
 	s32i	a0, a2, PT_AREG0
 
 	wsr	a3, excsave1		# save a3
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 
 	rsr	a0, exccause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
@@ -267,7 +276,7 @@ ENTRY(_DoubleExceptionVector)
 
 	/* a0: depc, a1: a1, a2: a2, a3: trashed, depc: a0, excsave1: a3 */
 
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE	# temporary variable
 
 	/* Enter critical section. */
@@ -296,7 +305,7 @@ ENTRY(_DoubleExceptionVector)
 
 	/* a0: avail, a1: a1, a2: kstk, a3: avail, depc: a2, excsave: a3 */
 
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 	rsr	a0, exccause
 	addx4	a0, a0, a3
 	l32i	a0, a0, EXC_TABLE_FAST_USER
@@ -338,6 +347,7 @@ ENTRY(_DoubleExceptionVector)
 
 	.end literal_prefix
 
+ENDPROC(_DoubleExceptionVector)
 
 /*
  * Debug interrupt vector
@@ -349,9 +359,46 @@ ENTRY(_DoubleExceptionVector)
 	.section .DebugInterruptVector.text, "ax"
 
 ENTRY(_DebugInterruptVector)
+
 	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	jx	a0
 
+ENDPROC(_DebugInterruptVector)
+
+
+
+/*
+ * Medium priority level interrupt vectors
+ *
+ * Each takes less than 16 (0x10) bytes, no literals, by placing
+ * the extra 8 bytes that would otherwise be required in the window
+ * vectors area where there is space.  With relocatable vectors,
+ * all vectors are within ~ 4 kB range of each other, so we can
+ * simply jump (J) to another vector without having to use JX.
+ *
+ * common_exception code gets current IRQ level in PS.INTLEVEL
+ * and preserves it for the IRQ handling time.
+ */
+
+	.macro	irq_entry_level level
+
+	.if	XCHAL_EXCM_LEVEL >= \level
+	.section .Level\level\()InterruptVector.text, "ax"
+ENTRY(_Level\level\()InterruptVector)
+	wsr	a0, epc1
+	rsr	a0, epc\level
+	xsr	a0, epc1
+					# branch to user or kernel vector
+	j	_SimulateUserKernelVectorException
+	.endif
+
+	.endm
+
+	irq_entry_level 2
+	irq_entry_level 3
+	irq_entry_level 4
+	irq_entry_level 5
+	irq_entry_level 6
 
 
 /* Window overflow and underflow handlers.
@@ -363,38 +410,63 @@ ENTRY(_DebugInterruptVector)
  *	 we try to access any page that would cause a page fault early.
  */
 
+#define ENTRY_ALIGN64(name)	\
+	.globl name;		\
+	.align 64;		\
+	name:
+
 	.section		.WindowVectors.text, "ax"
 
 
 /* 4-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow4
-_WindowOverflow4:
+ENTRY_ALIGN64(_WindowOverflow4)
+
 	s32e	a0, a5, -16
 	s32e	a1, a5, -12
 	s32e	a2, a5,  -8
 	s32e	a3, a5,  -4
 	rfwo
 
+ENDPROC(_WindowOverflow4)
+
+
+#if XCHAL_EXCM_LEVEL >= 2
+	/*  Not a window vector - but a convenient location
+	 *  (where we know there's space) for continuation of
+	 *  medium priority interrupt dispatch code.
+	 *  On entry here, a0 contains PS, and EPC2 contains saved a0:
+	 */
+	.align 4
+_SimulateUserKernelVectorException:
+	wsr	a0, excsave2
+	movi	a0, 4			# LEVEL1_INTERRUPT cause
+	wsr	a0, exccause
+	rsr	a0, ps
+	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
+	rsr	a0, excsave2		# restore a0
+	j	_KernelExceptionVector	# simulate kernel vector exception
+1:	rsr	a0, excsave2		# restore a0
+	j	_UserExceptionVector	# simulate user vector exception
+#endif
+
 
 /* 4-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow4
-_WindowUnderflow4:
+ENTRY_ALIGN64(_WindowUnderflow4)
+
 	l32e	a0, a5, -16
 	l32e	a1, a5, -12
 	l32e	a2, a5,  -8
 	l32e	a3, a5,  -4
 	rfwu
 
+ENDPROC(_WindowUnderflow4)
 
 /* 8-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow8
-_WindowOverflow8:
+ENTRY_ALIGN64(_WindowOverflow8)
+
 	s32e	a0, a9, -16
 	l32e	a0, a1, -12
 	s32e	a2, a9,  -8
@@ -406,11 +478,12 @@ _WindowOverflow8:
 	s32e	a7, a0, -20
 	rfwo
 
+ENDPROC(_WindowOverflow8)
+
 /* 8-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow8
-_WindowUnderflow8:
+ENTRY_ALIGN64(_WindowUnderflow8)
+
 	l32e	a1, a9, -12
 	l32e	a0, a9, -16
 	l32e	a7, a1, -12
@@ -422,12 +495,12 @@ _WindowUnderflow8:
 	l32e	a7, a7, -20
 	rfwu
 
+ENDPROC(_WindowUnderflow8)
 
 /* 12-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow12
-_WindowOverflow12:
+ENTRY_ALIGN64(_WindowOverflow12)
+
 	s32e	a0,  a13, -16
 	l32e	a0,  a1,  -12
 	s32e	a1,  a13, -12
@@ -443,11 +516,12 @@ _WindowOverflow12:
 	s32e	a11, a0,  -20
 	rfwo
 
+ENDPROC(_WindowOverflow12)
+
 /* 12-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow12
-_WindowUnderflow12:
+ENTRY_ALIGN64(_WindowUnderflow12)
+
 	l32e	a1,  a13, -12
 	l32e	a0,  a13, -16
 	l32e	a11, a1,  -12
@@ -463,6 +537,6 @@ _WindowUnderflow12:
 	l32e	a11, a11, -20
 	rfwu
 
+ENDPROC(_WindowUnderflow12)
+
 	.text
-
-

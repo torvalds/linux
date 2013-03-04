@@ -24,6 +24,8 @@
 #include <linux/parser.h>
 #include <linux/statfs.h>
 #include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <net/net_namespace.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
@@ -362,6 +364,10 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	_enter(",,%s,%p", dev_name, options);
 
 	memset(&params, 0, sizeof(params));
+
+	ret = -EINVAL;
+	if (current->nsproxy->net_ns != &init_net)
+		goto error;
 
 	/* parse the options and device name */
 	if (options) {

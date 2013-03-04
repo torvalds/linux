@@ -289,7 +289,7 @@ void for_every_cpu(void (func)(int))
 			"cpu%u %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n",
 			&cpu);
 		if (retval != 1)
-			return;
+			break;
 
 		func(cpu);
 	}

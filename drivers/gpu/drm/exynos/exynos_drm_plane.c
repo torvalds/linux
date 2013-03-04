@@ -40,7 +40,7 @@ static const uint32_t formats[] = {
  * CRTC ----------------
  *      ^ start        ^ end
  *
- * There are six cases from a to b.
+ * There are six cases from a to f.
  *
  *             <----- SCREEN ----->
  *             0                 last
@@ -93,11 +93,9 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		}
 
 		overlay->dma_addr[i] = buffer->dma_addr;
-		overlay->vaddr[i] = buffer->kvaddr;
 
-		DRM_DEBUG_KMS("buffer: %d, vaddr = 0x%lx, dma_addr = 0x%lx\n",
-				i, (unsigned long)overlay->vaddr[i],
-				(unsigned long)overlay->dma_addr[i]);
+		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
+				i, (unsigned long)overlay->dma_addr[i]);
 	}
 
 	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
@@ -106,16 +104,12 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (crtc_x < 0) {
 		if (actual_w)
 			src_x -= crtc_x;
-		else
-			src_x += crtc_w;
 		crtc_x = 0;
 	}
 
 	if (crtc_y < 0) {
 		if (actual_h)
 			src_y -= crtc_y;
-		else
-			src_y += crtc_h;
 		crtc_y = 0;
 	}
 

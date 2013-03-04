@@ -51,10 +51,19 @@ config ARCH_KIRKWOOD_DT
 	select POWER_RESET_GPIO
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE
+	select MVEBU_CLK_CORE
+	select MVEBU_CLK_GATING
 	select USE_OF
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Kirkwood using flattened device tree.
+
+config MACH_GURUPLUG_DT
+	bool "Marvell GuruPlug Reference Board (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell GuruPlug Reference Board (Flattened Device Tree).
 
 config MACH_DREAMPLUG_DT
 	bool "Marvell DreamPlug (Flattened Device Tree)"

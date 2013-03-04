@@ -286,8 +286,8 @@ static const struct iio_info adjd_s311_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit adjd_s311_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int adjd_s311_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct adjd_s311_data *data;
 	struct iio_dev *indio_dev;
@@ -330,7 +330,7 @@ exit:
 	return err;
 }
 
-static int __devexit adjd_s311_remove(struct i2c_client *client)
+static int adjd_s311_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct adjd_s311_data *data = iio_priv(indio_dev);
@@ -354,7 +354,7 @@ static struct i2c_driver adjd_s311_driver = {
 		.name	= ADJD_S311_DRV_NAME,
 	},
 	.probe		= adjd_s311_probe,
-	.remove		= __devexit_p(adjd_s311_remove),
+	.remove		= adjd_s311_remove,
 	.id_table	= adjd_s311_id,
 };
 module_i2c_driver(adjd_s311_driver);

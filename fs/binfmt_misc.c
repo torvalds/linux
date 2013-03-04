@@ -117,10 +117,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (!enabled)
 		goto _ret;
 
-	retval = -ENOEXEC;
-	if (bprm->recursion_depth > BINPRM_MAX_RECURSION)
-		goto _ret;
-
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
 	fmt = check_file(bprm);
@@ -176,7 +172,10 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		goto _error;
 	bprm->argc ++;
 
-	bprm->interp = iname;	/* for binfmt_script */
+	/* Update interp in case binfmt_script needs it. */
+	retval = bprm_change_interp(iname, bprm);
+	if (retval < 0)
+		goto _error;
 
 	interp_file = open_exec (iname);
 	retval = PTR_ERR (interp_file);
@@ -196,8 +195,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	if (retval < 0)
 		goto _error;
-
-	bprm->recursion_depth++;
 
 	retval = search_binary_handler(bprm);
 	if (retval < 0)
@@ -534,7 +531,7 @@ static void kill_node(Node *e)
 static ssize_t
 bm_entry_read(struct file * file, char __user * buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	ssize_t res;
 	char *page;
 
@@ -553,7 +550,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct dentry *root;
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {

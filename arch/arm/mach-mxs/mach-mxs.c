@@ -119,6 +119,23 @@ static struct fb_videomode apf28dev_video_modes[] = {
 	},
 };
 
+static struct fb_videomode cfa10049_video_modes[] = {
+	{
+		.name		= "Himax HX8357-B",
+		.refresh	= 60,
+		.xres		= 320,
+		.yres		= 480,
+		.pixclock	= 108506, /* picosecond (9.216 MHz) */
+		.left_margin	= 2,
+		.right_margin	= 2,
+		.upper_margin	= 2,
+		.lower_margin	= 2,
+		.hsync_len	= 15,
+		.vsync_len	= 15,
+		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 /*
@@ -163,18 +180,10 @@ static void __init imx23_timer_init(void)
 	mx23_clocks_init();
 }
 
-static struct sys_timer imx23_timer = {
-	.init = imx23_timer_init,
-};
-
 static void __init imx28_timer_init(void)
 {
 	mx28_clocks_init();
 }
-
-static struct sys_timer imx28_timer = {
-	.init = imx28_timer_init,
-};
 
 enum mac_oui {
 	OUI_FSL,
@@ -240,7 +249,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 		macaddr[4] = (val >> 8) & 0xff;
 		macaddr[5] = (val >> 0) & 0xff;
 
-		prom_update_property(np, newmac);
+		of_update_property(np, newmac);
 	}
 }
 
@@ -395,6 +404,17 @@ static void __init cfa10049_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init cfa10037_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+
+	mxsfb_pdata.mode_list = cfa10049_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+}
+
 static void __init apf28_init(void)
 {
 	enable_clk_enet_out();
@@ -415,6 +435,8 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
+		cfa10037_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
@@ -446,7 +468,7 @@ DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 	.map_io		= mx23_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx23_timer,
+	.init_time	= imx23_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx23_dt_compat,
 	.restart	= mxs_restart,
@@ -456,7 +478,7 @@ DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx28_timer,
+	.init_time	= imx28_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx28_dt_compat,
 	.restart	= mxs_restart,

@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/xprtsock.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
@@ -153,8 +154,6 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 		.rpc_argp	= &args,
 		.rpc_resp	= res,
 	};
-
-	BUG_ON(clnt == NULL);
 
 	memset(res, 0, sizeof(*res));
 
@@ -466,7 +465,6 @@ static void encode_nsm_string(struct xdr_stream *xdr, const char *string)
 	const u32 len = strlen(string);
 	__be32 *p;
 
-	BUG_ON(len > SM_MAXSTRLEN);
 	p = xdr_reserve_space(xdr, 4 + len);
 	xdr_encode_opaque(p, string, len);
 }

@@ -36,12 +36,11 @@
 static void fsnotify_recalc_inode_mask_locked(struct inode *inode)
 {
 	struct fsnotify_mark *mark;
-	struct hlist_node *pos;
 	__u32 new_mask = 0;
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(mark, pos, &inode->i_fsnotify_marks, i.i_list)
+	hlist_for_each_entry(mark, &inode->i_fsnotify_marks, i.i_list)
 		new_mask |= mark->mask;
 	inode->i_fsnotify_mask = new_mask;
 }
@@ -63,8 +62,8 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = mark->i.inode;
 
+	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&mark->group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 
@@ -87,11 +86,11 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
 	struct fsnotify_mark *mark, *lmark;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 	LIST_HEAD(free_list);
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry_safe(mark, pos, n, &inode->i_fsnotify_marks, i.i_list) {
+	hlist_for_each_entry_safe(mark, n, &inode->i_fsnotify_marks, i.i_list) {
 		list_add(&mark->i.free_i_list, &free_list);
 		hlist_del_init_rcu(&mark->i.i_list);
 		fsnotify_get_mark(mark);
@@ -99,8 +98,16 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 
 	list_for_each_entry_safe(mark, lmark, &free_list, i.free_i_list) {
-		fsnotify_destroy_mark(mark);
+		struct fsnotify_group *group;
+
+		spin_lock(&mark->lock);
+		fsnotify_get_group(mark->group);
+		group = mark->group;
+		spin_unlock(&mark->lock);
+
+		fsnotify_destroy_mark(mark, group);
 		fsnotify_put_mark(mark);
+		fsnotify_put_group(group);
 	}
 }
 
@@ -116,15 +123,15 @@ void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-struct fsnotify_mark *fsnotify_find_inode_mark_locked(struct fsnotify_group *group,
-						      struct inode *inode)
+static struct fsnotify_mark *fsnotify_find_inode_mark_locked(
+		struct fsnotify_group *group,
+		struct inode *inode)
 {
 	struct fsnotify_mark *mark;
-	struct hlist_node *pos;
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(mark, pos, &inode->i_fsnotify_marks, i.i_list) {
+	hlist_for_each_entry(mark, &inode->i_fsnotify_marks, i.i_list) {
 		if (mark->group == group) {
 			fsnotify_get_mark(mark);
 			return mark;
@@ -185,14 +192,13 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			    struct fsnotify_group *group, struct inode *inode,
 			    int allow_dups)
 {
-	struct fsnotify_mark *lmark;
-	struct hlist_node *node, *last = NULL;
+	struct fsnotify_mark *lmark, *last = NULL;
 	int ret = 0;
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 
@@ -205,8 +211,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 	}
 
 	/* should mark be in the middle of the current list? */
-	hlist_for_each_entry(lmark, node, &inode->i_fsnotify_marks, i.i_list) {
-		last = node;
+	hlist_for_each_entry(lmark, &inode->i_fsnotify_marks, i.i_list) {
+		last = lmark;
 
 		if ((lmark->group == group) && !allow_dups) {
 			ret = -EEXIST;
@@ -226,7 +232,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_after_rcu(last, &mark->i.i_list);
+	hlist_add_after_rcu(&last->i.i_list, &mark->i.i_list);
 out:
 	fsnotify_recalc_inode_mask_locked(inode);
 	spin_unlock(&inode->i_lock);

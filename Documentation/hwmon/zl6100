@@ -121,12 +121,26 @@ in1_max_alarm		Input voltage high alarm.
 in1_lcrit_alarm		Input voltage critical low alarm.
 in1_crit_alarm		Input voltage critical high alarm.
 
-in2_label		"vout1"
-in2_input		Measured output voltage.
-in2_lcrit		Critical minimum output Voltage.
-in2_crit		Critical maximum output voltage.
-in2_lcrit_alarm		Critical output voltage critical low alarm.
-in2_crit_alarm		Critical output voltage critical high alarm.
+in2_label		"vmon"
+in2_input		Measured voltage on VMON (ZL2004) or VDRV (ZL9101M,
+			ZL9117M) pin. Reported voltage is 16x the voltage on the
+			pin (adjusted internally by the chip).
+in2_lcrit		Critical minumum VMON/VDRV Voltage.
+in2_crit		Critical maximum VMON/VDRV voltage.
+in2_lcrit_alarm		VMON/VDRV voltage critical low alarm.
+in2_crit_alarm		VMON/VDRV voltage critical high alarm.
+
+			vmon attributes are supported on ZL2004, ZL9101M,
+			and ZL9117M only.
+
+inX_label		"vout1"
+inX_input		Measured output voltage.
+inX_lcrit		Critical minimum output Voltage.
+inX_crit		Critical maximum output voltage.
+inX_lcrit_alarm		Critical output voltage critical low alarm.
+inX_crit_alarm		Critical output voltage critical high alarm.
+
+			X is 3 for ZL2004, ZL9101M, and ZL9117M, 2 otherwise.
 
 curr1_label		"iout1"
 curr1_input		Measured output current.

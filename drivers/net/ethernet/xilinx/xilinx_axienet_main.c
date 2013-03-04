@@ -1124,9 +1124,8 @@ static int axienet_ethtools_set_settings(struct net_device *ndev,
 static void axienet_ethtools_get_drvinfo(struct net_device *ndev,
 					 struct ethtool_drvinfo *ed)
 {
-	memset(ed, 0, sizeof(struct ethtool_drvinfo));
-	strcpy(ed->driver, DRIVER_NAME);
-	strcpy(ed->version, DRIVER_VERSION);
+	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strlcpy(ed->version, DRIVER_VERSION, sizeof(ed->version));
 	ed->regdump_len = sizeof(u32) * AXIENET_REGS_N;
 }
 
@@ -1590,7 +1589,7 @@ static int axienet_of_probe(struct platform_device *op)
 	lp->rx_irq = irq_of_parse_and_map(np, 1);
 	lp->tx_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
+	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		ret = -ENOMEM;
 		goto err_iounmap_2;

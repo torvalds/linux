@@ -45,6 +45,8 @@
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x43f90000 0x4000>;
 				interrupts = <45>;
+				clocks = <&clks 10>, <&clks 30>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -52,12 +54,16 @@
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x43f94000 0x4000>;
 				interrupts = <32>;
+				clocks = <&clks 10>, <&clks 31>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
 			uart4: serial@43fb0000 {
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x43fb0000 0x4000>;
+				clocks = <&clks 10>, <&clks 49>;
+				clock-names = "ipg", "per";
 				interrupts = <46>;
 				status = "disabled";
 			};
@@ -66,6 +72,8 @@
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x43fb4000 0x4000>;
 				interrupts = <47>;
+				clocks = <&clks 10>, <&clks 50>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 		};
@@ -81,7 +89,16 @@
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x5000c000 0x4000>;
 				interrupts = <18>;
+				clocks = <&clks 10>, <&clks 48>;
+				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			clks: ccm@53f80000{
+				compatible = "fsl,imx31-ccm";
+				reg = <0x53f80000 0x4000>;
+				interrupts = <0 31 0x04 0 53 0x04>;
+				#clock-cells = <1>;
 			};
 		};
 	};

@@ -23,6 +23,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial_core.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
@@ -202,7 +203,6 @@ bool kgdb_nmi_poll_knock(void)
 static void kgdb_nmi_tty_receiver(unsigned long data)
 {
 	struct kgdb_nmi_tty_priv *priv = (void *)data;
-	struct tty_struct *tty;
 	char ch;
 
 	tasklet_schedule(&priv->tlet);
@@ -210,16 +210,9 @@ static void kgdb_nmi_tty_receiver(unsigned long data)
 	if (likely(!kgdb_nmi_tty_enabled || !kfifo_len(&priv->fifo)))
 		return;
 
-	/* Port is there, but tty might be hung up, check. */
-	tty = tty_port_tty_get(kgdb_nmi_port);
-	if (!tty)
-		return;
-
 	while (kfifo_out(&priv->fifo, &ch, 1))
-		tty_insert_flip_char(priv->port.tty, ch, TTY_NORMAL);
-	tty_flip_buffer_push(priv->port.tty);
-
-	tty_kref_put(tty);
+		tty_insert_flip_char(&priv->port, ch, TTY_NORMAL);
+	tty_flip_buffer_push(&priv->port);
 }
 
 static int kgdb_nmi_tty_activate(struct tty_port *port, struct tty_struct *tty)

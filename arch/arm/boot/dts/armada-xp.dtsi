@@ -22,24 +22,39 @@
 	model = "Marvell Armada XP family SoC";
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
+	L2: l2-cache {
+		compatible = "marvell,aurora-system-cache";
+		reg = <0xd0008000 0x1000>;
+		cache-id-part = <0x100>;
+		wt-override;
+	};
+
 	mpic: interrupt-controller@d0020000 {
-	      reg = <0xd0020a00 0x1d0>,
-		    <0xd0021870 0x58>;
+	      reg = <0xd0020a00 0x2d0>,
+		    <0xd0021070 0x58>;
+	};
+
+	armada-370-xp-pmsu@d0022000 {
+		compatible = "marvell,armada-370-xp-pmsu";
+		reg = <0xd0022100 0x430>,
+		      <0xd0020800 0x20>;
 	};
 
 	soc {
 		serial@d0012200 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012200 0x100>;
 				reg-shift = <2>;
 				interrupts = <43>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 		serial@d0012300 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012300 0x100>;
 				reg-shift = <2>;
 				interrupts = <44>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 
@@ -47,9 +62,94 @@
 				marvell,timer-25Mhz;
 		};
 
+		coreclk: mvebu-sar@d0018230 {
+			compatible = "marvell,armada-xp-core-clock";
+			reg = <0xd0018230 0x08>;
+			#clock-cells = <1>;
+		};
+
+		cpuclk: clock-complex@d0018700 {
+			#clock-cells = <1>;
+			compatible = "marvell,armada-xp-cpu-clock";
+			reg = <0xd0018700 0xA0>;
+			clocks = <&coreclk 1>;
+		};
+
+		gateclk: clock-gating-control@d0018220 {
+			compatible = "marvell,armada-xp-gating-clock";
+			reg = <0xd0018220 0x4>;
+			clocks = <&coreclk 0>;
+			#clock-cells = <1>;
+		};
+
 		system-controller@d0018200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0xd0018200 0x500>;
 		};
+
+		ethernet@d0030000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0030000 0x2500>;
+				interrupts = <12>;
+				clocks = <&gateclk 2>;
+				status = "disabled";
+		};
+
+		xor@d0060900 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd0060900 0x100
+			       0xd0060b00 0x100>;
+			clocks = <&gateclk 22>;
+			status = "okay";
+
+			xor10 {
+				interrupts = <51>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor11 {
+				interrupts = <52>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
+
+		xor@d00f0900 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd00F0900 0x100
+			       0xd00F0B00 0x100>;
+			clocks = <&gateclk 28>;
+			status = "okay";
+
+			xor00 {
+				interrupts = <94>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor01 {
+				interrupts = <95>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
+
+		usb@d0050000 {
+			clocks = <&gateclk 18>;
+		};
+
+		usb@d0051000 {
+			clocks = <&gateclk 19>;
+		};
+
+		usb@d0052000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0052000 0x500>;
+			interrupts = <47>;
+			clocks = <&gateclk 20>;
+			status = "disabled";
+		};
+
 	};
 };

@@ -653,7 +653,7 @@ static struct of_device_id spear300_pinctrl_of_match[] = {
 	{},
 };
 
-static int __devinit spear300_pinctrl_probe(struct platform_device *pdev)
+static int spear300_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 

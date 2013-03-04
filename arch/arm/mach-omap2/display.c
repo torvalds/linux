@@ -102,17 +102,20 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initconst = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
-static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
+static void __init omap4_tpd12s015_mux_pads(void)
 {
-	u32 reg;
-	u16 control_i2c_1;
-
 	omap_mux_init_signal("hdmi_cec",
 			OMAP_PIN_INPUT_PULLUP);
 	omap_mux_init_signal("hdmi_ddc_scl",
 			OMAP_PIN_INPUT_PULLUP);
 	omap_mux_init_signal("hdmi_ddc_sda",
 			OMAP_PIN_INPUT_PULLUP);
+}
+
+static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
+{
+	u32 reg;
+	u16 control_i2c_1;
 
 	/*
 	 * CONTROL_I2C_1: HDMI_DDC_SDA_PULLUPRESX (bit 28) and
@@ -163,8 +166,10 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 
 int __init omap_hdmi_init(enum omap_hdmi_flags flags)
 {
-	if (cpu_is_omap44xx())
+	if (cpu_is_omap44xx()) {
 		omap4_hdmi_mux_pads(flags);
+		omap4_tpd12s015_mux_pads();
+	}
 
 	return 0;
 }
@@ -221,7 +226,7 @@ static struct platform_device *create_dss_pdev(const char *pdev_name,
 		dev_set_name(&pdev->dev, "%s", pdev->name);
 
 	ohs[0] = oh;
-	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
+	od = omap_device_alloc(pdev, ohs, 1);
 	if (IS_ERR(od)) {
 		pr_err("Could not alloc omap_device for %s\n", pdev_name);
 		r = -ENOMEM;

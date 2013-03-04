@@ -74,11 +74,14 @@ static void hist_reset_mem(struct ispstat *hist)
 
 static void hist_dma_config(struct ispstat *hist)
 {
+	struct isp_device *isp = hist->isp;
+
 	hist->dma_config.data_type = OMAP_DMA_DATA_TYPE_S32;
 	hist->dma_config.sync_mode = OMAP_DMA_SYNC_ELEMENT;
 	hist->dma_config.frame_count = 1;
 	hist->dma_config.src_amode = OMAP_DMA_AMODE_CONSTANT;
-	hist->dma_config.src_start = OMAP3ISP_HIST_REG_BASE + ISPHIST_DATA;
+	hist->dma_config.src_start = isp->mmio_base_phys[OMAP3_ISP_IOMEM_HIST]
+				   + ISPHIST_DATA;
 	hist->dma_config.dst_amode = OMAP_DMA_AMODE_POST_INC;
 	hist->dma_config.src_or_dst_synch = OMAP_DMA_SRC_SYNC;
 }
@@ -111,14 +114,14 @@ static void hist_setup_regs(struct ispstat *hist, void *priv)
 	/* Regions size and position */
 	for (c = 0; c < OMAP3ISP_HIST_MAX_REGIONS; c++) {
 		if (c < conf->num_regions) {
-			reg_hor[c] = conf->region[c].h_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_hor[c] = conf->region[c].h_end <<
-				     ISPHIST_REG_END_SHIFT;
-			reg_ver[c] = conf->region[c].v_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_ver[c] = conf->region[c].v_end <<
-				     ISPHIST_REG_END_SHIFT;
+			reg_hor[c] = (conf->region[c].h_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].h_end <<
+				     ISPHIST_REG_END_SHIFT);
+			reg_ver[c] = (conf->region[c].v_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].v_end <<
+				     ISPHIST_REG_END_SHIFT);
 		} else {
 			reg_hor[c] = 0;
 			reg_ver[c] = 0;
@@ -474,11 +477,12 @@ int omap3isp_hist_init(struct isp_device *isp)
 	struct omap3isp_hist_config *hist_cfg;
 	int ret = -1;
 
-	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
+	hist_cfg = devm_kzalloc(isp->dev, sizeof(*hist_cfg), GFP_KERNEL);
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 
-	memset(hist, 0, sizeof(*hist));
+	hist->isp = isp;
+
 	if (HIST_CONFIG_DMA)
 		ret = omap_request_dma(OMAP24XX_DMA_NO_DEVICE, "DMA_ISP_HIST",
 				       hist_dma_cb, hist, &hist->dma_ch);
@@ -496,11 +500,9 @@ int omap3isp_hist_init(struct isp_device *isp)
 	hist->ops = &hist_ops;
 	hist->priv = hist_cfg;
 	hist->event_type = V4L2_EVENT_OMAP3ISP_HIST;
-	hist->isp = isp;
 
 	ret = omap3isp_stat_init(hist, "histogram", &hist_subdev_ops);
 	if (ret) {
-		kfree(hist_cfg);
 		if (HIST_USING_DMA(hist))
 			omap_free_dma(hist->dma_ch);
 	}
@@ -515,6 +517,5 @@ void omap3isp_hist_cleanup(struct isp_device *isp)
 {
 	if (HIST_USING_DMA(&isp->isp_hist))
 		omap_free_dma(isp->isp_hist.dma_ch);
-	kfree(isp->isp_hist.priv);
 	omap3isp_stat_cleanup(&isp->isp_hist);
 }

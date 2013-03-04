@@ -150,7 +150,7 @@ static const struct acpi_device_id toshiba_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, toshiba_device_ids);
 
-static const struct key_entry toshiba_acpi_keymap[] __devinitconst = {
+static const struct key_entry toshiba_acpi_keymap[] = {
 	{ KE_KEY, 0x101, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
@@ -583,7 +583,7 @@ static int set_lcd_status(struct backlight_device *bd)
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -650,7 +650,7 @@ static int video_proc_open(struct inode *inode, struct file *file)
 static ssize_t video_proc_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char *cmd, *buffer;
 	int ret;
 	int value;
@@ -750,7 +750,7 @@ static int fan_proc_open(struct inode *inode, struct file *file)
 static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -822,7 +822,7 @@ static int keys_proc_open(struct inode *inode, struct file *file)
 static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -875,8 +875,7 @@ static const struct file_operations version_proc_fops = {
 
 #define PROC_TOSHIBA		"toshiba"
 
-static void __devinit
-create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
+static void create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
 	if (dev->backlight_dev)
 		proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
@@ -979,7 +978,7 @@ static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
 		pr_info("Unknown key %x\n", scancode);
 }
 
-static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
+static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
 	acpi_handle ec_handle, handle;
@@ -1069,7 +1068,7 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	return error;
 }
 
-static int __devinit toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
+static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 {
 	struct backlight_properties props;
 	int brightness;
@@ -1119,7 +1118,7 @@ static int __devinit toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	return 0;
 }
 
-static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
+static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
@@ -1154,7 +1153,7 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 	return 0;
 }
 
-static const char * __devinit find_hci_method(acpi_handle handle)
+static const char *find_hci_method(acpi_handle handle)
 {
 	acpi_status status;
 	acpi_handle hci_handle;
@@ -1170,7 +1169,7 @@ static const char * __devinit find_hci_method(acpi_handle handle)
 	return NULL;
 }
 
-static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
+static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
@@ -1251,7 +1250,7 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 	return 0;
 
 error:
-	toshiba_acpi_remove(acpi_dev, 0);
+	toshiba_acpi_remove(acpi_dev);
 	return ret;
 }
 

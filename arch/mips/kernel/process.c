@@ -72,9 +72,7 @@ void __noreturn cpu_idle(void)
 			}
 		}
 #ifdef CONFIG_HOTPLUG_CPU
-		if (!cpu_online(cpu) && !cpu_isset(cpu, cpu_callin_map) &&
-		    (system_state == SYSTEM_RUNNING ||
-		     system_state == SYSTEM_BOOTING))
+		if (!cpu_online(cpu) && !cpu_isset(cpu, cpu_callin_map))
 			play_dead();
 #endif
 		rcu_idle_exit();
@@ -156,9 +154,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		return 0;
 	}
 	*childregs = *regs;
-	childregs->regs[7] = 0;	/* Clear error flag */
-	childregs->regs[2] = 0;	/* Child gets zero as return value */
-	childregs->regs[29] = usp;
+	childregs->regs[7] = 0; /* Clear error flag */
+	childregs->regs[2] = 0; /* Child gets zero as return value */
+	if (usp)
+		childregs->regs[29] = usp;
 	ti->addr_limit = USER_DS;
 
 	p->thread.reg29 = (unsigned long) childregs;

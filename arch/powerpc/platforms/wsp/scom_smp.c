@@ -337,8 +337,7 @@ scom_fail:
 	return rc;
 }
 
-int __devinit a2_scom_startup_cpu(unsigned int lcpu, int thr_idx,
-				  struct device_node *np)
+int a2_scom_startup_cpu(unsigned int lcpu, int thr_idx, struct device_node *np)
 {
 	u64 init_iar, init_msr, init_ccr2;
 	unsigned long start_here;

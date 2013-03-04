@@ -642,8 +642,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Bits per word setup */
-	bits_per_word = transfer->bits_per_word ? :
-		message->spi->bits_per_word ? : 8;
+	bits_per_word = transfer->bits_per_word;
 	if (bits_per_word % 16 == 0) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = (transfer->len) >> 1;
@@ -1274,7 +1273,7 @@ static int bfin_spi_destroy_queue(struct bfin_spi_master_data *drv_data)
 	return 0;
 }
 
-static int __init bfin_spi_probe(struct platform_device *pdev)
+static int bfin_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
@@ -1387,7 +1386,7 @@ out_error_get_res:
 }
 
 /* stop hardware and remove the driver */
-static int __devexit bfin_spi_remove(struct platform_device *pdev)
+static int bfin_spi_remove(struct platform_device *pdev)
 {
 	struct bfin_spi_master_data *drv_data = platform_get_drvdata(pdev);
 	int status = 0;
@@ -1477,7 +1476,7 @@ static struct platform_driver bfin_spi_driver = {
 	},
 	.suspend	= bfin_spi_suspend,
 	.resume		= bfin_spi_resume,
-	.remove		= __devexit_p(bfin_spi_remove),
+	.remove		= bfin_spi_remove,
 };
 
 static int __init bfin_spi_init(void)

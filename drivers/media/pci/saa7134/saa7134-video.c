@@ -2248,6 +2248,17 @@ static int saa7134_streamon(struct file *file, void *priv,
 	if (!res_get(dev, fh, res))
 		return -EBUSY;
 
+	/* The SAA7134 has a 1K FIFO; the datasheet suggests that when
+	 * configured conservatively, there's 22 usec of buffering for video.
+	 * We therefore request a DMA latency of 20 usec, giving us 2 usec of
+	 * margin in case the FIFO is configured differently to the datasheet.
+	 * Unfortunately, I lack register-level documentation to check the
+	 * Linux FIFO setup and confirm the perfect value.
+	 */
+	pm_qos_add_request(&fh->qos_request,
+			   PM_QOS_CPU_DMA_LATENCY,
+			   20);
+
 	return videobuf_streamon(saa7134_queue(fh));
 }
 
@@ -2258,6 +2269,8 @@ static int saa7134_streamoff(struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 	int res = saa7134_resource(fh);
+
+	pm_qos_remove_request(&fh->qos_request);
 
 	err = videobuf_streamoff(saa7134_queue(fh));
 	if (err < 0)
@@ -2511,7 +2524,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	/* sanitycheck insmod options */
 	if (gbuffers < 2 || gbuffers > VIDEO_MAX_FRAME)
 		gbuffers = 2;
-	if (gbufsize < 0 || gbufsize > gbufsize_max)
+	if (gbufsize > gbufsize_max)
 		gbufsize = gbufsize_max;
 	gbufsize = (gbufsize + PAGE_SIZE - 1) & PAGE_MASK;
 

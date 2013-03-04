@@ -56,14 +56,14 @@
 #define arizona_fll_warn(_fll, fmt, ...) \
 	dev_warn(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define arizona_fll_dbg(_fll, fmt, ...) \
-	dev_err(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
+	dev_dbg(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 
 #define arizona_aif_err(_dai, fmt, ...) \
 	dev_err(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define arizona_aif_warn(_dai, fmt, ...) \
 	dev_warn(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define arizona_aif_dbg(_dai, fmt, ...) \
-	dev_err(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
+	dev_dbg(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 
 const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
@@ -141,6 +141,30 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"ASRC1R",
 	"ASRC2L",
 	"ASRC2R",
+	"ISRC1INT1",
+	"ISRC1INT2",
+	"ISRC1INT3",
+	"ISRC1INT4",
+	"ISRC1DEC1",
+	"ISRC1DEC2",
+	"ISRC1DEC3",
+	"ISRC1DEC4",
+	"ISRC2INT1",
+	"ISRC2INT2",
+	"ISRC2INT3",
+	"ISRC2INT4",
+	"ISRC2DEC1",
+	"ISRC2DEC2",
+	"ISRC2DEC3",
+	"ISRC2DEC4",
+	"ISRC3INT1",
+	"ISRC3INT2",
+	"ISRC3INT3",
+	"ISRC3INT4",
+	"ISRC3DEC1",
+	"ISRC3DEC2",
+	"ISRC3DEC3",
+	"ISRC3DEC4",
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_texts);
 
@@ -220,6 +244,30 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x91,
 	0x92,
 	0x93,
+	0xa0,  /* ISRC1INT1 */
+	0xa1,
+	0xa2,
+	0xa3,
+	0xa4,  /* ISRC1DEC1 */
+	0xa5,
+	0xa6,
+	0xa7,
+	0xa8,  /* ISRC2DEC1 */
+	0xa9,
+	0xaa,
+	0xab,
+	0xac,  /* ISRC2INT1 */
+	0xad,
+	0xae,
+	0xaf,
+	0xb0,  /* ISRC3DEC1 */
+	0xb1,
+	0xb2,
+	0xb3,
+	0xb4,  /* ISRC3INT1 */
+	0xb5,
+	0xb6,
+	0xb7,
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_values);
 
@@ -275,9 +323,35 @@ const struct soc_enum arizona_lhpf4_mode =
 			arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf4_mode);
 
+static const char *arizona_ng_hold_text[] = {
+	"30ms", "120ms", "250ms", "500ms",
+};
+
+const struct soc_enum arizona_ng_hold =
+	SOC_ENUM_SINGLE(ARIZONA_NOISE_GATE_CONTROL, ARIZONA_NGATE_HOLD_SHIFT,
+			4, arizona_ng_hold_text);
+EXPORT_SYMBOL_GPL(arizona_ng_hold);
+
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
+	unsigned int reg;
+
+	if (w->shift % 2)
+		reg = ARIZONA_ADC_DIGITAL_VOLUME_1L + ((w->shift / 2) * 8);
+	else
+		reg = ARIZONA_ADC_DIGITAL_VOLUME_1R + ((w->shift / 2) * 8);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(w->codec, reg, ARIZONA_IN1L_MUTE,
+				    ARIZONA_IN1L_MUTE);
+		break;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_in_ev);
@@ -417,6 +491,10 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	case 147456000:
 		val |= 6 << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
+	case 0:
+		dev_dbg(arizona->dev, "%s cleared\n", name);
+		*clk = freq;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -446,14 +524,8 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mode = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mode = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mode = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mode = 3;
 		break;
 	default:
 		arizona_aif_err(dai, "Unsupported DAI format %d\n",
@@ -641,6 +713,9 @@ static int arizona_startup(struct snd_pcm_substream *substream,
 		return 0;
 	}
 
+	if (base_rate == 0)
+		return 0;
+
 	if (base_rate % 8000)
 		constraint = &arizona_44k1_constraint;
 	else
@@ -651,25 +726,81 @@ static int arizona_startup(struct snd_pcm_substream *substream,
 					  constraint);
 }
 
+static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	int base = dai->driver->base;
+	int i, sr_val;
+
+	/*
+	 * We will need to be more flexible than this in future,
+	 * currently we use a single sample rate for SYSCLK.
+	 */
+	for (i = 0; i < ARRAY_SIZE(arizona_sr_vals); i++)
+		if (arizona_sr_vals[i] == params_rate(params))
+			break;
+	if (i == ARRAY_SIZE(arizona_sr_vals)) {
+		arizona_aif_err(dai, "Unsupported sample rate %dHz\n",
+				params_rate(params));
+		return -EINVAL;
+	}
+	sr_val = i;
+
+	switch (dai_priv->clk) {
+	case ARIZONA_CLK_SYSCLK:
+		snd_soc_update_bits(codec, ARIZONA_SAMPLE_RATE_1,
+				    ARIZONA_SAMPLE_RATE_1_MASK, sr_val);
+		if (base)
+			snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+					    ARIZONA_AIF1_RATE_MASK, 0);
+		break;
+	case ARIZONA_CLK_ASYNCCLK:
+		snd_soc_update_bits(codec, ARIZONA_ASYNC_SAMPLE_RATE_1,
+				    ARIZONA_ASYNC_SAMPLE_RATE_MASK, sr_val);
+		if (base)
+			snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+					    ARIZONA_AIF1_RATE_MASK,
+					    8 << ARIZONA_AIF1_RATE_SHIFT);
+		break;
+	default:
+		arizona_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int arizona_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	struct arizona *arizona = priv->arizona;
 	int base = dai->driver->base;
 	const int *rates;
-	int i;
-	int bclk, lrclk, wl, frame, sr_val;
+	int i, ret;
+	int chan_limit = arizona->pdata.max_channels_clocked[dai->id - 1];
+	int bclk, lrclk, wl, frame, bclk_target;
 
 	if (params_rate(params) % 8000)
 		rates = &arizona_44k1_bclk_rates[0];
 	else
 		rates = &arizona_48k_bclk_rates[0];
 
+	bclk_target = snd_soc_params_to_bclk(params);
+	if (chan_limit && chan_limit < params_channels(params)) {
+		arizona_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
+		bclk_target /= params_channels(params);
+		bclk_target *= chan_limit;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(arizona_44k1_bclk_rates); i++) {
-		if (rates[i] >= snd_soc_params_to_bclk(params) &&
+		if (rates[i] >= bclk_target &&
 		    rates[i] % params_rate(params) == 0) {
 			bclk = i;
 			break;
@@ -681,17 +812,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(arizona_sr_vals); i++)
-		if (arizona_sr_vals[i] == params_rate(params))
-			break;
-	if (i == ARRAY_SIZE(arizona_sr_vals)) {
-		arizona_aif_err(dai, "Unsupported sample rate %dHz\n",
-				params_rate(params));
-		return -EINVAL;
-	}
-	sr_val = i;
-
-	lrclk = snd_soc_params_to_bclk(params) / params_rate(params);
+	lrclk = rates[bclk] / params_rate(params);
 
 	arizona_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
@@ -699,27 +820,9 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	wl = snd_pcm_format_width(params_format(params));
 	frame = wl << ARIZONA_AIF1TX_WL_SHIFT | wl;
 
-	/*
-	 * We will need to be more flexible than this in future,
-	 * currently we use a single sample rate for SYSCLK.
-	 */
-	switch (dai_priv->clk) {
-	case ARIZONA_CLK_SYSCLK:
-		snd_soc_update_bits(codec, ARIZONA_SAMPLE_RATE_1,
-				    ARIZONA_SAMPLE_RATE_1_MASK, sr_val);
-		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
-				    ARIZONA_AIF1_RATE_MASK, 0);
-		break;
-	case ARIZONA_CLK_ASYNCCLK:
-		snd_soc_update_bits(codec, ARIZONA_ASYNC_SAMPLE_RATE_1,
-				    ARIZONA_ASYNC_SAMPLE_RATE_MASK, sr_val);
-		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
-				    ARIZONA_AIF1_RATE_MASK, 8);
-		break;
-	default:
-		arizona_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
-		return -EINVAL;
-	}
+	ret = arizona_hw_params_rate(substream, params, dai);
+	if (ret != 0)
+		return ret;
 
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_BCLK_CTRL,
 			    ARIZONA_AIF1_BCLK_FREQ_MASK, bclk);
@@ -794,11 +897,27 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 	return snd_soc_dapm_sync(&codec->dapm);
 }
 
+static int arizona_set_tristate(struct snd_soc_dai *dai, int tristate)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	int base = dai->driver->base;
+	unsigned int reg;
+
+	if (tristate)
+		reg = ARIZONA_AIF1_TRI;
+	else
+		reg = 0;
+
+	return snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+				   ARIZONA_AIF1_TRI, reg);
+}
+
 const struct snd_soc_dai_ops arizona_dai_ops = {
 	.startup = arizona_startup,
 	.set_fmt = arizona_set_fmt,
 	.hw_params = arizona_hw_params,
 	.set_sysclk = arizona_dai_set_sysclk,
+	.set_tristate = arizona_set_tristate,
 };
 EXPORT_SYMBOL_GPL(arizona_dai_ops);
 
@@ -811,17 +930,6 @@ int arizona_init_dai(struct arizona_priv *priv, int id)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_dai);
-
-static irqreturn_t arizona_fll_lock(int irq, void *data)
-{
-	struct arizona_fll *fll = data;
-
-	arizona_fll_dbg(fll, "Lock status changed\n");
-
-	complete(&fll->lock);
-
-	return IRQ_HANDLED;
-}
 
 static irqreturn_t arizona_fll_clock_ok(int irq, void *data)
 {
@@ -915,7 +1023,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	cfg->n = target / (ratio * Fref);
 
-	if (target % Fref) {
+	if (target % (ratio * Fref)) {
 		gcd_fll = gcd(target, ratio * Fref);
 		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
 
@@ -925,6 +1033,15 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	} else {
 		cfg->theta = 0;
 		cfg->lambda = 0;
+	}
+
+	/* Round down to 16bit range with cost of accuracy lost.
+	 * Denominator must be bigger than numerator so we only
+	 * take care of it.
+	 */
+	while (cfg->lambda >= (1 << 16)) {
+		cfg->theta >>= 1;
+		cfg->lambda >>= 1;
 	}
 
 	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
@@ -1062,7 +1179,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 {
 	int ret;
 
-	init_completion(&fll->lock);
 	init_completion(&fll->ok);
 
 	fll->id = id;
@@ -1073,13 +1189,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 	snprintf(fll->clock_ok_name, sizeof(fll->clock_ok_name),
 		 "FLL%d clock OK", id);
 
-	ret = arizona_request_irq(arizona, lock_irq, fll->lock_name,
-				  arizona_fll_lock, fll);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to get FLL%d lock IRQ: %d\n",
-			id, ret);
-	}
-
 	ret = arizona_request_irq(arizona, ok_irq, fll->clock_ok_name,
 				  arizona_fll_clock_ok, fll);
 	if (ret != 0) {
@@ -1087,9 +1196,46 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 			id, ret);
 	}
 
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   ARIZONA_FLL1_FREERUN, 0);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_fll);
+
+/**
+ * arizona_set_output_mode - Set the mode of the specified output
+ *
+ * @codec: Device to configure
+ * @output: Output number
+ * @diff: True to set the output to differential mode
+ *
+ * Some systems use external analogue switches to connect more
+ * analogue devices to the CODEC than are supported by the device.  In
+ * some systems this requires changing the switched output from single
+ * ended to differential mode dynamically at runtime, an operation
+ * supported using this function.
+ *
+ * Most systems have a single static configuration and should use
+ * platform data instead.
+ */
+int arizona_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
+{
+	unsigned int reg, val;
+
+	if (output < 1 || output > 6)
+		return -EINVAL;
+
+	reg = ARIZONA_OUTPUT_PATH_CONFIG_1L + (output - 1) * 8;
+
+	if (diff)
+		val = ARIZONA_OUT1_MONO;
+	else
+		val = 0;
+
+	return snd_soc_update_bits(codec, reg, ARIZONA_OUT1_MONO, val);
+}
+EXPORT_SYMBOL_GPL(arizona_set_output_mode);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

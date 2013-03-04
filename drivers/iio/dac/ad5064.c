@@ -424,8 +424,8 @@ static const char * const ad5064_vref_name(struct ad5064_state *st,
 	return st->chip_info->shared_vref ? "vref" : ad5064_vref_names[vref];
 }
 
-static int __devinit ad5064_probe(struct device *dev, enum ad5064_type type,
-	const char *name, ad5064_write_func write)
+static int ad5064_probe(struct device *dev, enum ad5064_type type,
+			const char *name, ad5064_write_func write)
 {
 	struct iio_dev *indio_dev;
 	struct ad5064_state *st;
@@ -495,7 +495,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad5064_remove(struct device *dev)
+static int ad5064_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad5064_state *st = iio_priv(indio_dev);
@@ -523,7 +523,7 @@ static int ad5064_spi_write(struct ad5064_state *st, unsigned int cmd,
 	return spi_write(spi, &st->data.spi, sizeof(st->data.spi));
 }
 
-static int __devinit ad5064_spi_probe(struct spi_device *spi)
+static int ad5064_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
@@ -531,7 +531,7 @@ static int __devinit ad5064_spi_probe(struct spi_device *spi)
 				ad5064_spi_write);
 }
 
-static int __devexit ad5064_spi_remove(struct spi_device *spi)
+static int ad5064_spi_remove(struct spi_device *spi)
 {
 	return ad5064_remove(&spi->dev);
 }
@@ -563,7 +563,7 @@ static struct spi_driver ad5064_spi_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5064_spi_probe,
-	.remove = __devexit_p(ad5064_spi_remove),
+	.remove = ad5064_spi_remove,
 	.id_table = ad5064_spi_ids,
 };
 
@@ -596,14 +596,14 @@ static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
 	return i2c_master_send(i2c, st->data.i2c, 3);
 }
 
-static int __devinit ad5064_i2c_probe(struct i2c_client *i2c,
+static int ad5064_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
 	return ad5064_probe(&i2c->dev, id->driver_data, id->name,
 						ad5064_i2c_write);
 }
 
-static int __devexit ad5064_i2c_remove(struct i2c_client *i2c)
+static int ad5064_i2c_remove(struct i2c_client *i2c)
 {
 	return ad5064_remove(&i2c->dev);
 }
@@ -625,7 +625,7 @@ static struct i2c_driver ad5064_i2c_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5064_i2c_probe,
-	.remove = __devexit_p(ad5064_i2c_remove),
+	.remove = ad5064_i2c_remove,
 	.id_table = ad5064_i2c_ids,
 };
 

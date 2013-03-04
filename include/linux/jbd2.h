@@ -20,7 +20,6 @@
 #ifndef __KERNEL__
 #include "jfs_compat.h"
 #define JBD2_DEBUG
-#define jfs_debug jbd_debug
 #else
 
 #include <linux/types.h>
@@ -57,7 +56,7 @@
  * CONFIG_JBD2_DEBUG is on.
  */
 #define JBD2_EXPENSIVE_CHECKING
-extern u8 jbd2_journal_enable_debug;
+extern ushort jbd2_journal_enable_debug;
 
 #define jbd_debug(n, f, a...)						\
 	do {								\
@@ -397,34 +396,17 @@ struct jbd2_journal_handle
 	int			h_err;
 
 	/* Flags [no locking] */
-	unsigned int	h_sync:1;	/* sync-on-close */
-	unsigned int	h_jdata:1;	/* force data journaling */
-	unsigned int	h_aborted:1;	/* fatal error on handle */
-	unsigned int	h_cowing:1;	/* COWing block to snapshot */
+	unsigned int	h_sync:		1;	/* sync-on-close */
+	unsigned int	h_jdata:	1;	/* force data journaling */
+	unsigned int	h_aborted:	1;	/* fatal error on handle */
+	unsigned int	h_type:		8;	/* for handle statistics */
+	unsigned int	h_line_no:	16;	/* for handle statistics */
 
-	/* Number of buffers requested by user:
-	 * (before adding the COW credits factor) */
-	unsigned int	h_base_credits:14;
-
-	/* Number of buffers the user is allowed to dirty:
-	 * (counts only buffers dirtied when !h_cowing) */
-	unsigned int	h_user_credits:14;
-
+	unsigned long		h_start_jiffies;
+	unsigned int		h_requested_credits;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	h_lockdep_map;
-#endif
-
-#ifdef CONFIG_JBD2_DEBUG
-	/* COW debugging counters: */
-	unsigned int h_cow_moved; /* blocks moved to snapshot */
-	unsigned int h_cow_copied; /* blocks copied to snapshot */
-	unsigned int h_cow_ok_jh; /* blocks already COWed during current
-				     transaction */
-	unsigned int h_cow_ok_bitmap; /* blocks not set in COW bitmap */
-	unsigned int h_cow_ok_mapped;/* blocks already mapped in snapshot */
-	unsigned int h_cow_bitmaps; /* COW bitmaps created */
-	unsigned int h_cow_excluded; /* blocks set in exclude bitmap */
 #endif
 };
 
@@ -581,6 +563,11 @@ struct transaction_s
 	unsigned long		t_start;
 
 	/*
+	 * When commit was requested
+	 */
+	unsigned long		t_requested;
+
+	/*
 	 * Checkpointing stats [j_checkpoint_sem]
 	 */
 	struct transaction_chp_stats_s t_chp_stats;
@@ -637,6 +624,7 @@ struct transaction_s
 
 struct transaction_run_stats_s {
 	unsigned long		rs_wait;
+	unsigned long		rs_request_delay;
 	unsigned long		rs_running;
 	unsigned long		rs_locked;
 	unsigned long		rs_flushing;
@@ -649,6 +637,7 @@ struct transaction_run_stats_s {
 
 struct transaction_stats_s {
 	unsigned long		ts_tid;
+	unsigned long		ts_requested;
 	struct transaction_run_stats_s run;
 };
 
@@ -1086,7 +1075,8 @@ static inline handle_t *journal_current_handle(void)
  */
 
 extern handle_t *jbd2_journal_start(journal_t *, int nblocks);
-extern handle_t *jbd2__journal_start(journal_t *, int nblocks, gfp_t gfp_mask);
+extern handle_t *jbd2__journal_start(journal_t *, int nblocks, gfp_t gfp_mask,
+				     unsigned int type, unsigned int line_no);
 extern int	 jbd2_journal_restart(handle_t *, int nblocks);
 extern int	 jbd2__journal_restart(handle_t *, int nblocks, gfp_t gfp_mask);
 extern int	 jbd2_journal_extend (handle_t *, int nblocks);
@@ -1096,10 +1086,9 @@ extern int	 jbd2_journal_get_undo_access(handle_t *, struct buffer_head *);
 void		 jbd2_journal_set_triggers(struct buffer_head *,
 					   struct jbd2_buffer_trigger_type *type);
 extern int	 jbd2_journal_dirty_metadata (handle_t *, struct buffer_head *);
-extern void	 jbd2_journal_release_buffer (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
 extern void	 journal_sync_buffer (struct buffer_head *);
-extern void	 jbd2_journal_invalidatepage(journal_t *,
+extern int	 jbd2_journal_invalidatepage(journal_t *,
 				struct page *, unsigned long);
 extern int	 jbd2_journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
 extern int	 jbd2_journal_stop(handle_t *);
@@ -1303,14 +1292,20 @@ static inline int jbd_space_needed(journal_t *journal)
 
 extern int jbd_blocks_per_page(struct inode *inode);
 
+/* JBD uses a CRC32 checksum */
+#define JBD_MAX_CHECKSUM_SIZE 4
+
 static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 			      const void *address, unsigned int length)
 {
 	struct {
 		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(journal->j_chksum_driver)];
+		char ctx[JBD_MAX_CHECKSUM_SIZE];
 	} desc;
 	int err;
+
+	BUG_ON(crypto_shash_descsize(journal->j_chksum_driver) >
+		JBD_MAX_CHECKSUM_SIZE);
 
 	desc.shash.tfm = journal->j_chksum_driver;
 	desc.shash.flags = 0;

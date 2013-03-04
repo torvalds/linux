@@ -953,23 +953,7 @@ static struct hid_driver wacom_driver = {
 	.raw_event = wacom_raw_event,
 	.input_mapped = wacom_input_mapped,
 };
+module_hid_driver(wacom_driver);
 
-static int __init wacom_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&wacom_driver);
-	if (ret)
-		pr_err("can't register wacom driver\n");
-	return ret;
-}
-
-static void __exit wacom_exit(void)
-{
-	hid_unregister_driver(&wacom_driver);
-}
-
-module_init(wacom_init);
-module_exit(wacom_exit);
 MODULE_DESCRIPTION("Driver for Wacom Graphire Bluetooth and Wacom Intuos4 WL");
 MODULE_LICENSE("GPL");

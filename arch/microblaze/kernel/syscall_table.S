@@ -379,3 +379,5 @@ ENTRY(sys_call_table)
 	.long sys_sendmmsg
 	.long sys_process_vm_readv
 	.long sys_process_vm_writev
+	.long sys_kcmp
+	.long sys_finit_module

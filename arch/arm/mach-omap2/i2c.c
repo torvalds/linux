@@ -22,6 +22,7 @@
 #include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
+#include "omap-pm.h"
 
 #include "prm.h"
 #include "common.h"
@@ -120,6 +121,16 @@ static int __init omap_i2c_nr_ports(void)
 	return ports;
 }
 
+/*
+ * XXX This function is a temporary compatibility wrapper - only
+ * needed until the I2C driver can be converted to call
+ * omap_pm_set_max_dev_wakeup_lat() and handle a return code.
+ */
+static void omap_pm_set_max_mpu_wakeup_lat_compat(struct device *dev, long t)
+{
+	omap_pm_set_max_mpu_wakeup_lat(dev, t);
+}
+
 static const char name[] = "omap_i2c";
 
 int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
@@ -157,11 +168,24 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
 	dev_attr = (struct omap_i2c_dev_attr *)oh->dev_attr;
 	pdata->flags = dev_attr->flags;
 
+	/*
+	 * When waiting for completion of a i2c transfer, we need to
+	 * set a wake up latency constraint for the MPU. This is to
+	 * ensure quick enough wakeup from idle, when transfer
+	 * completes.
+	 * Only omap3 has support for constraints
+	 */
+	if (cpu_is_omap34xx())
+		pdata->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat_compat;
 	pdev = omap_device_build(name, bus_id, oh, pdata,
-			sizeof(struct omap_i2c_bus_platform_data),
-			NULL, 0, 0);
+				 sizeof(struct omap_i2c_bus_platform_data));
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
 	return PTR_RET(pdev);
 }
 
+static  int __init omap_i2c_cmdline(void)
+{
+	return omap_register_i2c_bus_cmdline();
+}
+omap_subsys_initcall(omap_i2c_cmdline);

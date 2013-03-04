@@ -100,10 +100,8 @@ config LP8788_ADC
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
-	select IIO_TRIGGER
-	select MAX1363_RING_BUFFER
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for many Maxim i2c analog to digital
 	  converters (ADC). (max1361, max1362, max1363, max1364, max1036,
@@ -124,5 +122,19 @@ config TI_ADC081C
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc081c.
+
+config TI_AM335X_ADC
+	tristate "TI's ADC driver"
+	depends on MFD_TI_AM335X_TSCADC
+	help
+	  Say yes here to build support for Texas Instruments ADC
+	  driver which is also a MFD client.
+
+config VIPERBOARD_ADC
+	tristate "Viperboard ADC support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the ADC part of the Nano River
+	  Technologies Viperboard.
 
 endmenu

@@ -131,8 +131,9 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_vmw_rect __user *clips_ptr;
 	struct drm_vmw_rect *clips = NULL;
-	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb;
 	struct vmw_framebuffer *vfb;
+	struct vmw_resource *res;
 	uint32_t num_clips;
 	int ret;
 
@@ -162,29 +163,27 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		goto out_no_copy;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (unlikely(ret != 0)) {
-		ret = -ERESTARTSYS;
-		goto out_no_mode_mutex;
-	}
+	drm_modeset_lock_all(dev);
 
-	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
-	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	vfb = vmw_framebuffer_to_vfb(fb);
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
 		goto out_no_ttm_lock;
 
-	ret = vmw_user_surface_lookup_handle(dev_priv, tfile, arg->sid,
-					     &surface);
+	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg->sid,
+					      user_surface_converter,
+					      &res);
 	if (ret)
 		goto out_no_surface;
 
+	surface = vmw_res_to_srf(res);
 	ret = vmw_kms_present(dev_priv, file_priv,
 			      vfb, surface, arg->sid,
 			      arg->dest_x, arg->dest_y,
@@ -196,9 +195,9 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 out_no_surface:
 	ttm_read_unlock(&vmaster->lock);
 out_no_ttm_lock:
+	drm_framebuffer_unreference(fb);
 out_no_fb:
-	mutex_unlock(&dev->mode_config.mutex);
-out_no_mode_mutex:
+	drm_modeset_unlock_all(dev);
 out_no_copy:
 	kfree(clips);
 out_clips:
@@ -217,7 +216,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_vmw_rect __user *clips_ptr;
 	struct drm_vmw_rect *clips = NULL;
-	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb;
 	struct vmw_framebuffer *vfb;
 	uint32_t num_clips;
 	int ret;
@@ -248,24 +247,20 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		goto out_no_copy;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (unlikely(ret != 0)) {
-		ret = -ERESTARTSYS;
-		goto out_no_mode_mutex;
-	}
+	drm_modeset_lock_all(dev);
 
-	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
 
-	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	vfb = vmw_framebuffer_to_vfb(fb);
 	if (!vfb->dmabuf) {
 		DRM_ERROR("Framebuffer not dmabuf backed.\n");
 		ret = -EINVAL;
-		goto out_no_fb;
+		goto out_no_ttm_lock;
 	}
 
 	ret = ttm_read_lock(&vmaster->lock, true);
@@ -278,9 +273,9 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	ttm_read_unlock(&vmaster->lock);
 out_no_ttm_lock:
+	drm_framebuffer_unreference(fb);
 out_no_fb:
-	mutex_unlock(&dev->mode_config.mutex);
-out_no_mode_mutex:
+	drm_modeset_unlock_all(dev);
 out_no_copy:
 	kfree(clips);
 out_clips:

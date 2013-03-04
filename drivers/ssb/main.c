@@ -443,6 +443,15 @@ static void ssb_devices_unregister(struct ssb_bus *bus)
 
 void ssb_bus_unregister(struct ssb_bus *bus)
 {
+	int err;
+
+	err = ssb_gpio_unregister(bus);
+	if (err == -EBUSY)
+		ssb_dprintk(KERN_ERR PFX "Some GPIOs are still in use.\n");
+	else if (err)
+		ssb_dprintk(KERN_ERR PFX
+			    "Can not unregister GPIO driver: %i\n", err);
+
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
 	list_del(&bus->list);
@@ -540,6 +549,14 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		dev_idx++;
 	}
 
+#ifdef CONFIG_SSB_DRIVER_MIPS
+	if (bus->mipscore.pflash.present) {
+		err = platform_device_register(&ssb_pflash_dev);
+		if (err)
+			pr_err("Error registering parallel flash\n");
+	}
+#endif
+
 	return 0;
 error:
 	/* Unwind the already registered devices. */
@@ -548,7 +565,7 @@ error:
 }
 
 /* Needs ssb_buses_lock() */
-static int __devinit ssb_attach_queued_buses(void)
+static int ssb_attach_queued_buses(void)
 {
 	struct ssb_bus *bus, *n;
 	int err = 0;
@@ -761,9 +778,9 @@ out:
 	return err;
 }
 
-static int __devinit ssb_bus_register(struct ssb_bus *bus,
-				      ssb_invariants_func_t get_invariants,
-				      unsigned long baseaddr)
+static int ssb_bus_register(struct ssb_bus *bus,
+			    ssb_invariants_func_t get_invariants,
+			    unsigned long baseaddr)
 {
 	int err;
 
@@ -804,7 +821,14 @@ static int __devinit ssb_bus_register(struct ssb_bus *bus,
 	if (err)
 		goto err_pcmcia_exit;
 	ssb_chipcommon_init(&bus->chipco);
+	ssb_extif_init(&bus->extif);
 	ssb_mipscore_init(&bus->mipscore);
+	err = ssb_gpio_init(bus);
+	if (err == -ENOTSUPP)
+		ssb_dprintk(KERN_DEBUG PFX "GPIO driver not activated\n");
+	else if (err)
+		ssb_dprintk(KERN_ERR PFX
+			   "Error registering GPIO driver: %i\n", err);
 	err = ssb_fetch_invariants(bus, get_invariants);
 	if (err) {
 		ssb_bus_may_powerdown(bus);
@@ -844,8 +868,7 @@ err_disable_xtal:
 }
 
 #ifdef CONFIG_SSB_PCIHOST
-int __devinit ssb_bus_pcibus_register(struct ssb_bus *bus,
-				      struct pci_dev *host_pci)
+int ssb_bus_pcibus_register(struct ssb_bus *bus, struct pci_dev *host_pci)
 {
 	int err;
 
@@ -868,9 +891,9 @@ EXPORT_SYMBOL(ssb_bus_pcibus_register);
 #endif /* CONFIG_SSB_PCIHOST */
 
 #ifdef CONFIG_SSB_PCMCIAHOST
-int __devinit ssb_bus_pcmciabus_register(struct ssb_bus *bus,
-					 struct pcmcia_device *pcmcia_dev,
-					 unsigned long baseaddr)
+int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
+			       struct pcmcia_device *pcmcia_dev,
+			       unsigned long baseaddr)
 {
 	int err;
 
@@ -890,9 +913,8 @@ EXPORT_SYMBOL(ssb_bus_pcmciabus_register);
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
 #ifdef CONFIG_SSB_SDIOHOST
-int __devinit ssb_bus_sdiobus_register(struct ssb_bus *bus,
-				       struct sdio_func *func,
-				       unsigned int quirks)
+int ssb_bus_sdiobus_register(struct ssb_bus *bus, struct sdio_func *func,
+			     unsigned int quirks)
 {
 	int err;
 
@@ -912,9 +934,8 @@ int __devinit ssb_bus_sdiobus_register(struct ssb_bus *bus,
 EXPORT_SYMBOL(ssb_bus_sdiobus_register);
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
-int __devinit ssb_bus_ssbbus_register(struct ssb_bus *bus,
-				      unsigned long baseaddr,
-				      ssb_invariants_func_t get_invariants)
+int ssb_bus_ssbbus_register(struct ssb_bus *bus, unsigned long baseaddr,
+			    ssb_invariants_func_t get_invariants)
 {
 	int err;
 

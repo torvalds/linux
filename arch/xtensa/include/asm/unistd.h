@@ -1,7 +1,6 @@
 #ifndef _XTENSA_UNISTD_H
 #define _XTENSA_UNISTD_H
 
-#define __ARCH_WANT_SYS_EXECVE
 #define __ARCH_WANT_SYS_CLONE
 #include <uapi/asm/unistd.h>
 
@@ -16,8 +15,6 @@
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_RT_SIGACTION
-#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_GETPGRP
 
 /* 

@@ -171,7 +171,8 @@
 		};
 
 		pinctrl {
-			compatible = "stericsson,nmk_pinctrl";
+			compatible = "stericsson,nmk-pinctrl";
+			prcm = <&prcmu>;
 		};
 
 		usb@a03e0000 {
@@ -188,9 +189,10 @@
 			interrupts = <0 25 0x4>;
 		};
 
-		prcmu@80157000 {
+		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
 			reg = <0x80157000 0x1000>;
+			reg-names = "prcmu";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -340,7 +342,33 @@
 					vddadc-supply = <&ab8500_ldo_tvout_reg>;
 				};
 
-				ab8500-usb {
+				ab8500_battery: ab8500_battery {
+					stericsson,battery-type = "LIPO";
+					thermistor-on-batctrl;
+				};
+
+				ab8500_fg {
+					compatible = "stericsson,ab8500-fg";
+					battery	   = <&ab8500_battery>;
+				};
+
+				ab8500_btemp {
+					compatible = "stericsson,ab8500-btemp";
+					battery	   = <&ab8500_battery>;
+				};
+
+				ab8500_charger {
+					compatible	= "stericsson,ab8500-charger";
+					battery		= <&ab8500_battery>;
+					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
+				};
+
+				ab8500_chargalg {
+					compatible	= "stericsson,ab8500-chargalg";
+					battery		= <&ab8500_battery>;
+				};
+
+				ab8500_usb {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = < 90 0x4
 						       96 0x4

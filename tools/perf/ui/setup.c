@@ -8,7 +8,7 @@ pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 
 void setup_browser(bool fallback_to_pager)
 {
-	if (!isatty(1) || dump_trace)
+	if (use_browser < 2 && (!isatty(1) || dump_trace))
 		use_browser = 0;
 
 	/* default to TUI */
@@ -30,6 +30,7 @@ void setup_browser(bool fallback_to_pager)
 		if (fallback_to_pager)
 			setup_pager();
 
+		perf_hpp__column_enable(PERF_HPP__OVERHEAD);
 		perf_hpp__init();
 		break;
 	}

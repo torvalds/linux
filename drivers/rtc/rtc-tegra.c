@@ -303,7 +303,13 @@ static struct rtc_class_ops tegra_rtc_ops = {
 	.alarm_irq_enable = tegra_rtc_alarm_irq_enable,
 };
 
-static int __devinit tegra_rtc_probe(struct platform_device *pdev)
+static const struct of_device_id tegra_rtc_dt_match[] = {
+	{ .compatible = "nvidia,tegra20-rtc", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, tegra_rtc_dt_match);
+
+static int tegra_rtc_probe(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info;
 	struct resource *res;
@@ -321,11 +327,9 @@ static int __devinit tegra_rtc_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	info->rtc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->rtc_base) {
-		dev_err(&pdev->dev, "Unable to request mem region and grab IOs for device.\n");
-		return -EBUSY;
-	}
+	info->rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->rtc_base))
+		return PTR_ERR(info->rtc_base);
 
 	info->tegra_rtc_irq = platform_get_irq(pdev, 0);
 	if (info->tegra_rtc_irq <= 0)
@@ -375,7 +379,7 @@ err_dev_unreg:
 	return ret;
 }
 
-static int __devexit tegra_rtc_remove(struct platform_device *pdev)
+static int tegra_rtc_remove(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info = platform_get_drvdata(pdev);
 
@@ -435,11 +439,12 @@ static void tegra_rtc_shutdown(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:tegra_rtc");
 static struct platform_driver tegra_rtc_driver = {
-	.remove		= __devexit_p(tegra_rtc_remove),
+	.remove		= tegra_rtc_remove,
 	.shutdown	= tegra_rtc_shutdown,
 	.driver		= {
 		.name	= "tegra_rtc",
 		.owner	= THIS_MODULE,
+		.of_match_table = tegra_rtc_dt_match,
 	},
 #ifdef CONFIG_PM
 	.suspend	= tegra_rtc_suspend,

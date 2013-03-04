@@ -207,10 +207,12 @@ struct twl6040_platform_data {
 };
 
 struct regmap;
+struct regmap_irq_chips_data;
 
 struct twl6040 {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regmap_irq_chip_data *irq_data;
 	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
 	struct mutex mutex;
 	struct mutex irq_mutex;
@@ -228,9 +230,8 @@ struct twl6040 {
 	unsigned int mclk;
 
 	unsigned int irq;
-	unsigned int irq_base;
-	u8 irq_masks_cur;
-	u8 irq_masks_cache;
+	unsigned int irq_ready;
+	unsigned int irq_th;
 };
 
 int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg);
@@ -245,8 +246,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		    unsigned int freq_in, unsigned int freq_out);
 int twl6040_get_pll(struct twl6040 *twl6040);
 unsigned int twl6040_get_sysclk(struct twl6040 *twl6040);
-int twl6040_irq_init(struct twl6040 *twl6040);
-void twl6040_irq_exit(struct twl6040 *twl6040);
+
 /* Get the combined status of the vibra control register */
 int twl6040_get_vibralr_status(struct twl6040 *twl6040);
 

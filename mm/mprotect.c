@@ -35,12 +35,16 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 }
 #endif
 
-static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
+static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable)
+		int dirty_accountable, int prot_numa, bool *ret_all_same_node)
 {
+	struct mm_struct *mm = vma->vm_mm;
 	pte_t *pte, oldpte;
 	spinlock_t *ptl;
+	unsigned long pages = 0;
+	bool all_same_node = true;
+	int last_nid = -1;
 
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	arch_enter_lazy_mmu_mode();
@@ -48,17 +52,43 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		oldpte = *pte;
 		if (pte_present(oldpte)) {
 			pte_t ptent;
+			bool updated = false;
 
 			ptent = ptep_modify_prot_start(mm, addr, pte);
-			ptent = pte_modify(ptent, newprot);
+			if (!prot_numa) {
+				ptent = pte_modify(ptent, newprot);
+				updated = true;
+			} else {
+				struct page *page;
+
+				page = vm_normal_page(vma, addr, oldpte);
+				if (page) {
+					int this_nid = page_to_nid(page);
+					if (last_nid == -1)
+						last_nid = this_nid;
+					if (last_nid != this_nid)
+						all_same_node = false;
+
+					/* only check non-shared pages */
+					if (!pte_numa(oldpte) &&
+					    page_mapcount(page) == 1) {
+						ptent = pte_mknuma(ptent);
+						updated = true;
+					}
+				}
+			}
 
 			/*
 			 * Avoid taking write faults for pages we know to be
 			 * dirty.
 			 */
-			if (dirty_accountable && pte_dirty(ptent))
+			if (dirty_accountable && pte_dirty(ptent)) {
 				ptent = pte_mkwrite(ptent);
+				updated = true;
+			}
 
+			if (updated)
+				pages++;
 			ptep_modify_prot_commit(mm, addr, pte, ptent);
 		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);
@@ -72,18 +102,40 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 				set_pte_at(mm, addr, pte,
 					swp_entry_to_pte(entry));
 			}
+			pages++;
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
+
+	*ret_all_same_node = all_same_node;
+	return pages;
 }
 
-static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable)
+#ifdef CONFIG_NUMA_BALANCING
+static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
+				       pmd_t *pmd)
+{
+	spin_lock(&mm->page_table_lock);
+	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
+	spin_unlock(&mm->page_table_lock);
+}
+#else
+static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
+				       pmd_t *pmd)
+{
+	BUG();
+}
+#endif /* CONFIG_NUMA_BALANCING */
+
+static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+		pud_t *pud, unsigned long addr, unsigned long end,
+		pgprot_t newprot, int dirty_accountable, int prot_numa)
 {
 	pmd_t *pmd;
 	unsigned long next;
+	unsigned long pages = 0;
+	bool all_same_node;
 
 	pmd = pmd_offset(pud, addr);
 	do {
@@ -91,42 +143,60 @@ static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 		if (pmd_trans_huge(*pmd)) {
 			if (next - addr != HPAGE_PMD_SIZE)
 				split_huge_page_pmd(vma, addr, pmd);
-			else if (change_huge_pmd(vma, pmd, addr, newprot))
+			else if (change_huge_pmd(vma, pmd, addr, newprot,
+						 prot_numa)) {
+				pages += HPAGE_PMD_NR;
 				continue;
+			}
 			/* fall through */
 		}
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		change_pte_range(vma->vm_mm, pmd, addr, next, newprot,
-				 dirty_accountable);
+		pages += change_pte_range(vma, pmd, addr, next, newprot,
+				 dirty_accountable, prot_numa, &all_same_node);
+
+		/*
+		 * If we are changing protections for NUMA hinting faults then
+		 * set pmd_numa if the examined pages were all on the same
+		 * node. This allows a regular PMD to be handled as one fault
+		 * and effectively batches the taking of the PTL
+		 */
+		if (prot_numa && all_same_node)
+			change_pmd_protnuma(vma->vm_mm, addr, pmd);
 	} while (pmd++, addr = next, addr != end);
+
+	return pages;
 }
 
-static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable)
+static inline unsigned long change_pud_range(struct vm_area_struct *vma,
+		pgd_t *pgd, unsigned long addr, unsigned long end,
+		pgprot_t newprot, int dirty_accountable, int prot_numa)
 {
 	pud_t *pud;
 	unsigned long next;
+	unsigned long pages = 0;
 
 	pud = pud_offset(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		change_pmd_range(vma, pud, addr, next, newprot,
-				 dirty_accountable);
+		pages += change_pmd_range(vma, pud, addr, next, newprot,
+				 dirty_accountable, prot_numa);
 	} while (pud++, addr = next, addr != end);
+
+	return pages;
 }
 
-static void change_protection(struct vm_area_struct *vma,
+static unsigned long change_protection_range(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable)
+		int dirty_accountable, int prot_numa)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgd;
 	unsigned long next;
 	unsigned long start = addr;
+	unsigned long pages = 0;
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset(mm, addr);
@@ -135,10 +205,32 @@ static void change_protection(struct vm_area_struct *vma,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		change_pud_range(vma, pgd, addr, next, newprot,
-				 dirty_accountable);
+		pages += change_pud_range(vma, pgd, addr, next, newprot,
+				 dirty_accountable, prot_numa);
 	} while (pgd++, addr = next, addr != end);
-	flush_tlb_range(vma, start, end);
+
+	/* Only flush the TLB if we actually modified any entries: */
+	if (pages)
+		flush_tlb_range(vma, start, end);
+
+	return pages;
+}
+
+unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
+		       unsigned long end, pgprot_t newprot,
+		       int dirty_accountable, int prot_numa)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long pages;
+
+	mmu_notifier_invalidate_range_start(mm, start, end);
+	if (is_vm_hugetlb_page(vma))
+		pages = hugetlb_change_protection(vma, start, end, newprot);
+	else
+		pages = change_protection_range(vma, start, end, newprot, dirty_accountable, prot_numa);
+	mmu_notifier_invalidate_range_end(mm, start, end);
+
+	return pages;
 }
 
 int
@@ -213,12 +305,9 @@ success:
 		dirty_accountable = 1;
 	}
 
-	mmu_notifier_invalidate_range_start(mm, start, end);
-	if (is_vm_hugetlb_page(vma))
-		hugetlb_change_protection(vma, start, end, vma->vm_page_prot);
-	else
-		change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
-	mmu_notifier_invalidate_range_end(mm, start, end);
+	change_protection(vma, start, end, vma->vm_page_prot,
+			  dirty_accountable, 0);
+
 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
 	perf_event_mmap(vma);
@@ -274,8 +363,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 		error = -EINVAL;
 		if (!(vma->vm_flags & VM_GROWSDOWN))
 			goto out;
-	}
-	else {
+	} else {
 		if (vma->vm_start > start)
 			goto out;
 		if (unlikely(grows & PROT_GROWSUP)) {
@@ -291,9 +379,10 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 	for (nstart = start ; ; ) {
 		unsigned long newflags;
 
-		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
+		/* Here we know that vma->vm_start <= nstart < vma->vm_end. */
 
-		newflags = vm_flags | (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
+		newflags = vm_flags;
+		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
 
 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
 		if ((newflags & ~(newflags >> 4)) & (VM_READ | VM_WRITE | VM_EXEC)) {

@@ -33,12 +33,12 @@ static void sead3_fled_set(struct led_classdev *led_cdev,
 
 static struct led_classdev sead3_pled = {
 	.name		= "sead3::pled",
-	.brightness_set	= sead3_pled_set,
+	.brightness_set = sead3_pled_set,
 };
 
 static struct led_classdev sead3_fled = {
 	.name		= "sead3::fled",
-	.brightness_set	= sead3_fled_set,
+	.brightness_set = sead3_fled_set,
 };
 
 #ifdef CONFIG_PM
@@ -125,4 +125,3 @@ module_exit(sead3_led_exit);
 MODULE_AUTHOR("Kristian Kielhofner <kris@krisk.org>");
 MODULE_DESCRIPTION("SEAD3 LED driver");
 MODULE_LICENSE("GPL");
-

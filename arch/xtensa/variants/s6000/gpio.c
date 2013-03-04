@@ -164,7 +164,7 @@ static void demux_irqs(unsigned int irq, struct irq_desc *desc)
 	int cirq;
 
 	chip->irq_mask(&desc->irq_data);
-	chip->irq_ack(&desc->irq_data));
+	chip->irq_ack(&desc->irq_data);
 	pending = readb(S6_REG_GPIO + S6_GPIO_BANK(0) + S6_GPIO_MIS) & *mask;
 	cirq = IRQ_BASE - 1;
 	while (pending) {
@@ -173,7 +173,7 @@ static void demux_irqs(unsigned int irq, struct irq_desc *desc)
 		pending >>= n;
 		generic_handle_irq(cirq);
 	}
-	chip->irq_unmask(&desc->irq_data));
+	chip->irq_unmask(&desc->irq_data);
 }
 
 extern const signed char *platform_irq_mappings[XTENSA_NR_IRQS];

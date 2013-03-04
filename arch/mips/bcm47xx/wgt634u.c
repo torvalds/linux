@@ -11,6 +11,7 @@
 #include <linux/leds.h>
 #include <linux/mtd/physmap.h>
 #include <linux/ssb/ssb.h>
+#include <linux/ssb/ssb_embedded.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/gpio.h>
@@ -35,13 +36,13 @@ static struct gpio_led wgt634u_leds[] = {
 };
 
 static struct gpio_led_platform_data wgt634u_led_data = {
-	.num_leds =     ARRAY_SIZE(wgt634u_leds),
-	.leds =         wgt634u_leds,
+	.num_leds =	ARRAY_SIZE(wgt634u_leds),
+	.leds =		wgt634u_leds,
 };
 
 static struct platform_device wgt634u_gpio_leds = {
-	.name =         "leds-gpio",
-	.id =           -1,
+	.name =		"leds-gpio",
+	.id =		-1,
 	.dev = {
 		.platform_data = &wgt634u_led_data,
 	}
@@ -52,35 +53,35 @@ static struct platform_device wgt634u_gpio_leds = {
    firmware. */
 static struct mtd_partition wgt634u_partitions[] = {
 	{
-		.name       = "cfe",
-		.offset     = 0,
-		.size       = 0x60000,		/* 384k */
-		.mask_flags = MTD_WRITEABLE 	/* force read-only */
+		.name	    = "cfe",
+		.offset	    = 0,
+		.size	    = 0x60000,		/* 384k */
+		.mask_flags = MTD_WRITEABLE	/* force read-only */
 	},
 	{
-		.name   = "config",
+		.name	= "config",
 		.offset = 0x60000,
-		.size   = 0x20000		/* 128k */
+		.size	= 0x20000		/* 128k */
 	},
 	{
-		.name   = "linux",
+		.name	= "linux",
 		.offset = 0x80000,
-		.size   = 0x140000 		/* 1280k */
+		.size	= 0x140000		/* 1280k */
 	},
 	{
-		.name   = "jffs",
+		.name	= "jffs",
 		.offset = 0x1c0000,
-		.size   = 0x620000 		/* 6272k */
+		.size	= 0x620000		/* 6272k */
 	},
 	{
-		.name   = "nvram",
+		.name	= "nvram",
 		.offset = 0x7e0000,
-		.size   = 0x20000		/* 128k */
+		.size	= 0x20000		/* 128k */
 	},
 };
 
 static struct physmap_flash_data wgt634u_flash_data = {
-	.parts    = wgt634u_partitions,
+	.parts	  = wgt634u_partitions,
 	.nr_parts = ARRAY_SIZE(wgt634u_partitions)
 };
 
@@ -89,9 +90,9 @@ static struct resource wgt634u_flash_resource = {
 };
 
 static struct platform_device wgt634u_flash = {
-	.name          = "physmap-flash",
-	.id            = 0,
-	.dev           = { .platform_data = &wgt634u_flash_data, },
+	.name	       = "physmap-flash",
+	.id	       = 0,
+	.dev	       = { .platform_data = &wgt634u_flash_data, },
 	.resource      = &wgt634u_flash_resource,
 	.num_resources = 1,
 };
@@ -116,7 +117,8 @@ static irqreturn_t gpio_interrupt(int irq, void *ignored)
 
 	/* Interrupt are level triggered, revert the interrupt polarity
 	   to clear the interrupt. */
-	gpio_polarity(WGT634U_GPIO_RESET, state);
+	ssb_gpio_polarity(&bcm47xx_bus.ssb, 1 << WGT634U_GPIO_RESET,
+			  state ? 1 << WGT634U_GPIO_RESET : 0);
 
 	if (!state) {
 		printk(KERN_INFO "Reset button pressed");
@@ -150,7 +152,9 @@ static int __init wgt634u_init(void)
 				 gpio_interrupt, IRQF_SHARED,
 				 "WGT634U GPIO", &bcm47xx_bus.ssb.chipco)) {
 			gpio_direction_input(WGT634U_GPIO_RESET);
-			gpio_intmask(WGT634U_GPIO_RESET, 1);
+			ssb_gpio_intmask(&bcm47xx_bus.ssb,
+					 1 << WGT634U_GPIO_RESET,
+					 1 << WGT634U_GPIO_RESET);
 			ssb_chipco_irq_mask(&bcm47xx_bus.ssb.chipco,
 					    SSB_CHIPCO_IRQ_GPIO,
 					    SSB_CHIPCO_IRQ_GPIO);

@@ -252,8 +252,8 @@ int cpci_led_off(struct slot* slot)
 
 int __ref cpci_configure_slot(struct slot *slot)
 {
+	struct pci_dev *dev;
 	struct pci_bus *parent;
-	int fn;
 
 	dbg("%s - enter", __func__);
 
@@ -282,18 +282,13 @@ int __ref cpci_configure_slot(struct slot *slot)
 	}
 	parent = slot->dev->bus;
 
-	for (fn = 0; fn < 8; fn++) {
-		struct pci_dev *dev;
-
-		dev = pci_get_slot(parent,
-				   PCI_DEVFN(PCI_SLOT(slot->devfn), fn));
-		if (!dev)
+	list_for_each_entry(dev, &parent->devices, bus_list)
+		if (PCI_SLOT(dev->devfn) != PCI_SLOT(slot->devfn))
 			continue;
 		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
 		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
 			pci_hp_add_bridge(dev);
-		pci_dev_put(dev);
-	}
+
 
 	pci_assign_unassigned_bridge_resources(parent->self);
 
@@ -305,8 +300,7 @@ int __ref cpci_configure_slot(struct slot *slot)
 
 int cpci_unconfigure_slot(struct slot* slot)
 {
-	int i;
-	struct pci_dev *dev;
+	struct pci_dev *dev, *temp;
 
 	dbg("%s - enter", __func__);
 	if (!slot->dev) {
@@ -314,13 +308,12 @@ int cpci_unconfigure_slot(struct slot* slot)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < 8; i++) {
-		dev = pci_get_slot(slot->bus,
-				    PCI_DEVFN(PCI_SLOT(slot->devfn), i));
-		if (dev) {
-			pci_stop_and_remove_bus_device(dev);
-			pci_dev_put(dev);
-		}
+	list_for_each_entry_safe(dev, temp, &slot->bus->devices, bus_list) {
+		if (PCI_SLOT(dev->devfn) != PCI_SLOT(slot->devfn))
+			continue;
+		pci_dev_get(dev);
+		pci_stop_and_remove_bus_device(dev);
+		pci_dev_put(dev);
 	}
 	pci_dev_put(slot->dev);
 	slot->dev = NULL;

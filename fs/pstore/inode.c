@@ -151,13 +151,13 @@ static int pstore_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static loff_t pstore_file_llseek(struct file *file, loff_t off, int origin)
+static loff_t pstore_file_llseek(struct file *file, loff_t off, int whence)
 {
 	struct seq_file *sf = file->private_data;
 
 	if (sf->op)
-		return seq_lseek(file, off, origin);
-	return default_llseek(file, off, origin);
+		return seq_lseek(file, off, whence);
+	return default_llseek(file, off, whence);
 }
 
 static const struct file_operations pstore_file_operations = {
@@ -418,9 +418,25 @@ static struct file_system_type pstore_fs_type = {
 	.kill_sb	= pstore_kill_sb,
 };
 
+static struct kobject *pstore_kobj;
+
 static int __init init_pstore_fs(void)
 {
-	return register_filesystem(&pstore_fs_type);
+	int err = 0;
+
+	/* Create a convenient mount point for people to access pstore */
+	pstore_kobj = kobject_create_and_add("pstore", fs_kobj);
+	if (!pstore_kobj) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = register_filesystem(&pstore_fs_type);
+	if (err < 0)
+		kobject_put(pstore_kobj);
+
+out:
+	return err;
 }
 module_init(init_pstore_fs)
 

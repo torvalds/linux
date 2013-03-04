@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_ATOMIC_H
@@ -24,11 +24,11 @@
 
 /*
  * This Xtensa implementation assumes that the right mechanism
- * for exclusion is for locking interrupts to level 1.
+ * for exclusion is for locking interrupts to level EXCM_LEVEL.
  *
  * Locking interrupts looks like this:
  *
- *    rsil a15, 1
+ *    rsil a15, LOCKLEVEL
  *    <code>
  *    wsr  a15, PS
  *    rsync
@@ -66,19 +66,35 @@
  */
 static inline void atomic_add(int i, atomic_t * v)
 {
-    unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0              \n\t"
-	"add     %0, %0, %1             \n\t"
-	"s32i    %0, %2, 0              \n\t"
-	"wsr     a15, ps                \n\t"
-	"rsync                          \n"
-	: "=&a" (vval)
-	: "a" (i), "a" (v)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       add     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (i), "a" (v)
+			: "memory"
+			);
+#else
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       add     %0, %0, %1\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval)
+			: "a" (i), "a" (v)
+			: "a15", "memory"
+			);
+#endif
 }
 
 /**
@@ -90,19 +106,35 @@ static inline void atomic_add(int i, atomic_t * v)
  */
 static inline void atomic_sub(int i, atomic_t *v)
 {
-    unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0              \n\t"
-	"sub     %0, %0, %1             \n\t"
-	"s32i    %0, %2, 0              \n\t"
-	"wsr     a15, ps                \n\t"
-	"rsync                          \n"
-	: "=&a" (vval)
-	: "a" (i), "a" (v)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       sub     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (i), "a" (v)
+			: "memory"
+			);
+#else
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       sub     %0, %0, %1\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval)
+			: "a" (i), "a" (v)
+			: "a15", "memory"
+			);
+#endif
 }
 
 /*
@@ -111,40 +143,78 @@ static inline void atomic_sub(int i, atomic_t *v)
 
 static inline int atomic_add_return(int i, atomic_t * v)
 {
-     unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15,"__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0             \n\t"
-	"add     %0, %0, %1            \n\t"
-	"s32i    %0, %2, 0             \n\t"
-	"wsr     a15, ps               \n\t"
-	"rsync                         \n"
-	: "=&a" (vval)
-	: "a" (i), "a" (v)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       add     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			"       add     %0, %0, %2\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (i), "a" (v)
+			: "memory"
+			);
 
-    return vval;
+	return result;
+#else
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       add     %0, %0, %1\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval)
+			: "a" (i), "a" (v)
+			: "a15", "memory"
+			);
+
+	return vval;
+#endif
 }
 
 static inline int atomic_sub_return(int i, atomic_t * v)
 {
-    unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15,"__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0             \n\t"
-	"sub     %0, %0, %1            \n\t"
-	"s32i    %0, %2, 0             \n\t"
-	"wsr     a15, ps               \n\t"
-	"rsync                         \n"
-	: "=&a" (vval)
-	: "a" (i), "a" (v)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       sub     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			"       sub     %0, %0, %2\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (i), "a" (v)
+			: "memory"
+			);
 
-    return vval;
+	return result;
+#else
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       sub     %0, %0, %1\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval)
+			: "a" (i), "a" (v)
+			: "a15", "memory"
+			);
+
+	return vval;
+#endif
 }
 
 /**
@@ -251,38 +321,70 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 
 static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
-    unsigned int all_f = -1;
-    unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15,"__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0             \n\t"
-	"xor     %1, %4, %3            \n\t"
-	"and     %0, %0, %4            \n\t"
-	"s32i    %0, %2, 0             \n\t"
-	"wsr     a15, ps               \n\t"
-	"rsync                         \n"
-	: "=&a" (vval), "=a" (mask)
-	: "a" (v), "a" (all_f), "1" (mask)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       and     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (~mask), "a" (v)
+			: "memory"
+			);
+#else
+	unsigned int all_f = -1;
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       xor     %1, %4, %3\n"
+			"       and     %0, %0, %4\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval), "=a" (mask)
+			: "a" (v), "a" (all_f), "1" (mask)
+			: "a15", "memory"
+			);
+#endif
 }
 
 static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
-    unsigned int vval;
+#if XCHAL_HAVE_S32C1I
+	unsigned long tmp;
+	int result;
 
-    __asm__ __volatile__(
-	"rsil    a15,"__stringify(LOCKLEVEL)"\n\t"
-	"l32i    %0, %2, 0             \n\t"
-	"or      %0, %0, %1            \n\t"
-	"s32i    %0, %2, 0             \n\t"
-	"wsr     a15, ps               \n\t"
-	"rsync                         \n"
-	: "=&a" (vval)
-	: "a" (mask), "a" (v)
-	: "a15", "memory"
-	);
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       or      %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (mask), "a" (v)
+			: "memory"
+			);
+#else
+	unsigned int vval;
+
+	__asm__ __volatile__(
+			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       l32i    %0, %2, 0\n"
+			"       or      %0, %0, %1\n"
+			"       s32i    %0, %2, 0\n"
+			"       wsr     a15, ps\n"
+			"       rsync\n"
+			: "=&a" (vval)
+			: "a" (mask), "a" (v)
+			: "a15", "memory"
+			);
+#endif
 }
 
 /* Atomic operations are already serializing */
@@ -294,4 +396,3 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 #endif /* __KERNEL__ */
 
 #endif /* _XTENSA_ATOMIC_H */
-

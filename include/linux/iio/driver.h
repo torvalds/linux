@@ -22,13 +22,10 @@ int iio_map_array_register(struct iio_dev *indio_dev,
 			   struct iio_map *map);
 
 /**
- * iio_map_array_unregister() - tell the core to remove consumer mappings
+ * iio_map_array_unregister() - tell the core to remove consumer mappings for
+ *				the given provider device
  * @indio_dev:	provider device
- * @map:	array of mappings to remove. Note these must have same memory
- *		addresses as those originally added not just equal parameter
- *		values.
  */
-int iio_map_array_unregister(struct iio_dev *indio_dev,
-			     struct iio_map *map);
+int iio_map_array_unregister(struct iio_dev *indio_dev);
 
 #endif

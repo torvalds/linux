@@ -766,6 +766,6 @@ MACHINE_START(NETWINDER, "Rebel-NetWinder")
 	.fixup		= fixup_netwinder,
 	.map_io		= footbridge_map_io,
 	.init_irq	= footbridge_init_irq,
-	.timer		= &isa_timer,
+	.init_time	= isa_timer_init,
 	.restart	= netwinder_restart,
 MACHINE_END

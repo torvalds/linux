@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2005 Thiemo Seufer
- * Copyright (C) 2005  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2005  MIPS Technologies, Inc.	All rights reserved.
  *	Author: Maciej W. Rozycki <macro@mips.com>
  */
 

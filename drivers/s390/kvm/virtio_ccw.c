@@ -818,7 +818,7 @@ static struct ccw_driver virtio_ccw_driver = {
 	.set_offline = virtio_ccw_offline,
 	.set_online = virtio_ccw_online,
 	.notify = virtio_ccw_cio_notify,
-	.int_class = IOINT_VIR,
+	.int_class = IRQIO_VIR,
 };
 
 static int __init pure_hex(char **cp, unsigned int *val, int min_digit,

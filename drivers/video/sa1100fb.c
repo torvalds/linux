@@ -1090,7 +1090,7 @@ static int sa1100fb_resume(struct platform_device *dev)
  *      cache.  Once this area is remapped, all virtual memory
  *      access to the video memory should occur at the new region.
  */
-static int __devinit sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
+static int sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 {
 	/*
 	 * We reserve one page for the palette, plus the size
@@ -1116,7 +1116,7 @@ static int __devinit sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 }
 
 /* Fake monspecs to fill in fbinfo structure */
-static struct fb_monspecs monspecs __devinitdata = {
+static struct fb_monspecs monspecs = {
 	.hfmin	= 30000,
 	.hfmax	= 70000,
 	.vfmin	= 50,
@@ -1124,7 +1124,7 @@ static struct fb_monspecs monspecs __devinitdata = {
 };
 
 
-static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
+static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 {
 	struct sa1100fb_mach_info *inf = dev->platform_data;
 	struct sa1100fb_info *fbi;
@@ -1205,7 +1205,7 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	return fbi;
 }
 
-static int __devinit sa1100fb_probe(struct platform_device *pdev)
+static int sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
 	struct resource *res;

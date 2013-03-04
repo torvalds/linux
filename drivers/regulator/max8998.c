@@ -51,39 +51,39 @@ struct voltage_map_desc {
 	int step;
 };
 
-/* Voltage maps */
+/* Voltage maps in uV*/
 static const struct voltage_map_desc ldo23_voltage_map_desc = {
-	.min = 800,	.step = 50,	.max = 1300,
+	.min = 800000,	.step = 50000,	.max = 1300000,
 };
 static const struct voltage_map_desc ldo456711_voltage_map_desc = {
-	.min = 1600,	.step = 100,	.max = 3600,
+	.min = 1600000,	.step = 100000,	.max = 3600000,
 };
 static const struct voltage_map_desc ldo8_voltage_map_desc = {
-	.min = 3000,	.step = 100,	.max = 3600,
+	.min = 3000000,	.step = 100000,	.max = 3600000,
 };
 static const struct voltage_map_desc ldo9_voltage_map_desc = {
-	.min = 2800,	.step = 100,	.max = 3100,
+	.min = 2800000,	.step = 100000,	.max = 3100000,
 };
 static const struct voltage_map_desc ldo10_voltage_map_desc = {
-	.min = 950,	.step = 50,	.max = 1300,
+	.min = 950000,	.step = 50000,	.max = 1300000,
 };
 static const struct voltage_map_desc ldo1213_voltage_map_desc = {
-	.min = 800,	.step = 100,	.max = 3300,
+	.min = 800000,	.step = 100000,	.max = 3300000,
 };
 static const struct voltage_map_desc ldo1415_voltage_map_desc = {
-	.min = 1200,	.step = 100,	.max = 3300,
+	.min = 1200000,	.step = 100000,	.max = 3300000,
 };
 static const struct voltage_map_desc ldo1617_voltage_map_desc = {
-	.min = 1600,	.step = 100,	.max = 3600,
+	.min = 1600000,	.step = 100000,	.max = 3600000,
 };
 static const struct voltage_map_desc buck12_voltage_map_desc = {
-	.min = 750,	.step = 25,	.max = 1525,
+	.min = 750000,	.step = 25000,	.max = 1525000,
 };
 static const struct voltage_map_desc buck3_voltage_map_desc = {
-	.min = 1600,	.step = 100,	.max = 3600,
+	.min = 1600000,	.step = 100000,	.max = 3600000,
 };
 static const struct voltage_map_desc buck4_voltage_map_desc = {
-	.min = 800,	.step = 100,	.max = 2300,
+	.min = 800000,	.step = 100000,	.max = 2300000,
 };
 
 static const struct voltage_map_desc *ldo_voltage_map[] = {
@@ -311,24 +311,12 @@ static int max8998_set_voltage_buck_sel(struct regulator_dev *rdev,
 		dev_get_platdata(max8998->iodev->dev);
 	struct i2c_client *i2c = max8998->iodev->i2c;
 	int buck = rdev_get_id(rdev);
-	int reg, shift = 0, mask, ret;
-	int j, previous_sel;
+	int reg, shift = 0, mask, ret, j;
 	static u8 buck1_last_val;
 
 	ret = max8998_get_voltage_register(rdev, &reg, &shift, &mask);
 	if (ret)
 		return ret;
-
-	previous_sel = max8998_get_voltage_sel(rdev);
-
-	/* Check if voltage needs to be changed */
-	/* if previous_voltage equal new voltage, return */
-	if (previous_sel == selector) {
-		dev_dbg(max8998->dev, "No voltage change, old:%d, new:%d\n",
-			regulator_list_voltage_linear(rdev, previous_sel),
-			regulator_list_voltage_linear(rdev, selector));
-		return ret;
-	}
 
 	switch (buck) {
 	case MAX8998_BUCK1:
@@ -445,9 +433,9 @@ static int max8998_set_voltage_buck_time_sel(struct regulator_dev *rdev,
 	if (max8998->iodev->type == TYPE_MAX8998 && !(val & MAX8998_ENRAMP))
 		return 0;
 
-	difference = (new_selector - old_selector) * desc->step;
+	difference = (new_selector - old_selector) * desc->step / 1000;
 	if (difference > 0)
-		return difference / ((val & 0x0f) + 1);
+		return DIV_ROUND_UP(difference, (val & 0x0f) + 1);
 
 	return 0;
 }
@@ -702,7 +690,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck1_voltage1 / 1000))
+		       < pdata->buck1_voltage1)
 			i++;
 		max8998->buck1_vol[0] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE1, i);
@@ -713,7 +701,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck1_voltage2 / 1000))
+		       < pdata->buck1_voltage2)
 			i++;
 
 		max8998->buck1_vol[1] = i;
@@ -725,7 +713,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck1_voltage3 / 1000))
+		       < pdata->buck1_voltage3)
 			i++;
 
 		max8998->buck1_vol[2] = i;
@@ -737,7 +725,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck1_voltage4 / 1000))
+		       < pdata->buck1_voltage4)
 			i++;
 
 		max8998->buck1_vol[3] = i;
@@ -763,7 +751,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck2_voltage1 / 1000))
+		       < pdata->buck2_voltage1)
 			i++;
 		max8998->buck2_vol[0] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE1, i);
@@ -774,7 +762,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		i = 0;
 		while (buck12_voltage_map_desc.min +
 		       buck12_voltage_map_desc.step*i
-		       < (pdata->buck2_voltage2 / 1000))
+		       < pdata->buck2_voltage2)
 			i++;
 		max8998->buck2_vol[1] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE2, i);
@@ -792,8 +780,8 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			int count = (desc->max - desc->min) / desc->step + 1;
 
 			regulators[index].n_voltages = count;
-			regulators[index].min_uV = desc->min * 1000;
-			regulators[index].uV_step = desc->step * 1000;
+			regulators[index].min_uV = desc->min;
+			regulators[index].uV_step = desc->step;
 		}
 
 		config.dev = max8998->dev;

@@ -102,7 +102,7 @@ static int get_dir_index_using_offset(struct super_block *sb,
 
 static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
 	u64 block = squashfs_i(inode)->start + msblk->directory_table;
 	int offset = squashfs_i(inode)->offset, length, dir_count, size,

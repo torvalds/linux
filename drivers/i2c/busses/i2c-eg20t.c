@@ -758,7 +758,7 @@ static void pch_i2c_disbl_int(struct i2c_algo_pch_data *adap)
 	iowrite32(BUFFER_MODE_INTR_DISBL, p + PCH_I2CBUFMSK);
 }
 
-static int __devinit pch_i2c_probe(struct pci_dev *pdev,
+static int pch_i2c_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	void __iomem *base_addr;
@@ -851,7 +851,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit pch_i2c_remove(struct pci_dev *pdev)
+static void pch_i2c_remove(struct pci_dev *pdev)
 {
 	int i;
 	struct adapter_info *adap_info = pci_get_drvdata(pdev);
@@ -868,8 +868,6 @@ static void __devexit pch_i2c_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < adap_info->ch_num; i++)
 		adap_info->pch_data[i].pch_base_address = NULL;
-
-	pci_set_drvdata(pdev, NULL);
 
 	pci_release_regions(pdev);
 
@@ -948,7 +946,7 @@ static struct pci_driver pch_pcidriver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_pcidev_id,
 	.probe = pch_i2c_probe,
-	.remove = __devexit_p(pch_i2c_remove),
+	.remove = pch_i2c_remove,
 	.suspend = pch_i2c_suspend,
 	.resume = pch_i2c_resume
 };

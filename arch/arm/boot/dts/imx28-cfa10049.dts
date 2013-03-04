@@ -23,73 +23,161 @@
 		apbh@80000000 {
 			pinctrl@80018000 {
 				pinctrl-names = "default", "default";
-				pinctrl-1 = <&hog_pins_cfa10049>;
+				pinctrl-1 = <&hog_pins_cfa10049
+					&hog_pins_cfa10049_pullup>;
 
 				hog_pins_cfa10049: hog-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x0073 /* MX28_PAD_GPMI_D7__GPIO_0_7 */
+						0x1153 /* MX28_PAD_LCD_D22__GPIO_1_21 */
 						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
 						0x1173 /* MX28_PAD_LCD_D22__GPIO_1_23 */
 						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
+						0x3173 /* MX28_PAD_LCD_RESET__GPIO_3_23 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
 
-				spi3_pins_cfa10049: spi3-cfa10049@0 {
+				hog_pins_cfa10049_pullup: hog-10049-pullup@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0181 /* MX28_PAD_GPMI_RDN__SSP3_SCK */
-						0x01c1 /* MX28_PAD_GPMI_RESETN__SSP3_CMD */
-						0x0111 /* MX28_PAD_GPMI_CE1N__SSP3_D3 */
-						0x01a2 /* MX28_PAD_GPMI_ALE__SSP3_D4 */
-						0x01b2 /* MX28_PAD_GPMI_CLE__SSP3_D5 */
+						0x2133 /* MX28_PAD_SSP2_D3__GPIO_2_19 */
+						0x3183 /* MX28_PAD_I2C0_SCL__GPIO_3_24 */
+						0x3193 /* MX28_PAD_I2C0_SDA__GPIO_3_25 */
+						0x31a3 /* MX28_PAD_SAIF_SDATA0__GPIO_3_26 */
+						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				spi2_pins_cfa10049: spi2-cfa10049@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2103 /* MX28_PAD_SSP2_SCK__GPIO_2_16 */
+						0x2113 /* MX28_PAD_SSP2_CMD__GPIO_2_17 */
+						0x2123 /* MX28_PAD_SSP2_D0__GPIO_2_18 */
 					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
+
+				spi3_pins_cfa10049: spi3-cfa10049@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0183 /* MX28_PAD_GPMI_RDN__GPIO_0_24 */
+						0x01c3 /* MX28_PAD_GPMI_RESETN__GPIO_0_28 */
+						0x0113 /* MX28_PAD_GPMI_CE1N__GPIO_0_17 */
+						0x01a3 /* MX28_PAD_GPMI_ALE__GPIO_0_26 */
+						0x01b3 /* MX28_PAD_GPMI_CLE__GPIO_0_27 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				lcdif_18bit_pins_cfa10049: lcdif-18bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1000 /* MX28_PAD_LCD_D00__LCD_D0 */
+						0x1010 /* MX28_PAD_LCD_D01__LCD_D1 */
+						0x1020 /* MX28_PAD_LCD_D02__LCD_D2 */
+						0x1030 /* MX28_PAD_LCD_D03__LCD_D3 */
+						0x1040 /* MX28_PAD_LCD_D04__LCD_D4 */
+						0x1050 /* MX28_PAD_LCD_D05__LCD_D5 */
+						0x1060 /* MX28_PAD_LCD_D06__LCD_D6 */
+						0x1070 /* MX28_PAD_LCD_D07__LCD_D7 */
+						0x1080 /* MX28_PAD_LCD_D08__LCD_D8 */
+						0x1090 /* MX28_PAD_LCD_D09__LCD_D9 */
+						0x10a0 /* MX28_PAD_LCD_D10__LCD_D10 */
+						0x10b0 /* MX28_PAD_LCD_D11__LCD_D11 */
+						0x10c0 /* MX28_PAD_LCD_D12__LCD_D12 */
+						0x10d0 /* MX28_PAD_LCD_D13__LCD_D13 */
+						0x10e0 /* MX28_PAD_LCD_D14__LCD_D14 */
+						0x10f0 /* MX28_PAD_LCD_D15__LCD_D15 */
+						0x1100 /* MX28_PAD_LCD_D16__LCD_D16 */
+						0x1110 /* MX28_PAD_LCD_D17__LCD_D17 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				lcdif_pins_cfa10049: lcdif-evk@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
+						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
+						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
+						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
-			ssp3: ssp@80016000 {
-				compatible = "fsl,imx28-spi";
+			lcdif@80030000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&spi3_pins_cfa10049>;
+				pinctrl-0 = <&lcdif_18bit_pins_cfa10049
+					     &lcdif_pins_cfa10049>;
 				status = "okay";
-
-				gpio5: gpio5@0 {
-					compatible = "fairchild,74hc595";
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <0>;
-					registers-number = <2>;
-					spi-max-frequency = <100000>;
-				};
-
-				gpio6: gpio6@1 {
-					compatible = "fairchild,74hc595";
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <1>;
-					registers-number = <4>;
-					spi-max-frequency = <100000>;
-				};
-
-				dac0: dh2228@2 {
-					compatible = "rohm,dh2228fv";
-					reg = <2>;
-					spi-max-frequency = <100000>;
-				};
 			};
 		};
 
 		apbx@80040000 {
+			pwm: pwm@80064000 {
+				pinctrl-names = "default", "default";
+				pinctrl-1 = <&pwm3_pins_b>;
+				status = "okay";
+			};
+
 			i2c1: i2c@8005a000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c1_pins_a>;
 				status = "okay";
+			};
+
+			i2cmux {
+				compatible = "i2c-mux-gpio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				mux-gpios = <&gpio1 22 0 &gpio1 23 0>;
+				i2c-parent = <&i2c1>;
+
+				i2c@0 {
+					reg = <0>;
+				};
+
+				i2c@1 {
+					reg = <1>;
+				};
+
+				i2c@2 {
+					reg = <2>;
+				};
+
+				i2c@3 {
+					reg = <3>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pca9555: pca9555@20 {
+						compatible = "nxp,pca9555";
+						interrupt-parent = <&gpio2>;
+						interrupts = <19 0x2>;
+						gpio-controller;
+						#gpio-cells = <2>;
+						interrupt-controller;
+						#interrupt-cells = <2>;
+						reg = <0x20>;
+					};
+				};
 			};
 
 			usbphy1: usbphy@8007e000 {
@@ -128,5 +216,93 @@
 			phy-reset-duration = <100>;
 			status = "okay";
 		};
+	};
+
+	spi2 {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi2_pins_cfa10049>;
+		status = "okay";
+		gpio-sck = <&gpio2 16 0>;
+		gpio-mosi = <&gpio2 17 0>;
+		gpio-miso = <&gpio2 18 0>;
+		cs-gpios = <&gpio3 23 0>;
+		num-chipselects = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hx8357: hx8357@0 {
+			compatible = "himax,hx8357b", "himax,hx8357";
+			reg = <0>;
+			spi-max-frequency = <100000>;
+			spi-cpol;
+			spi-cpha;
+			gpios-reset = <&gpio3 30 0>;
+			im-gpios = <&gpio5 4 0 &gpio5 5 0 &gpio5 6 0>;
+		};
+	};
+
+	spi3 {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi3_pins_cfa10049>;
+		status = "okay";
+		gpio-sck = <&gpio0 24 0>;
+		gpio-mosi = <&gpio0 28 0>;
+		cs-gpios = <&gpio0 17 0 &gpio0 26 0 &gpio0 27 0>;
+		num-chipselects = <3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio5: gpio5@0 {
+			compatible = "fairchild,74hc595";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0>;
+			registers-number = <2>;
+			spi-max-frequency = <100000>;
+		};
+
+		gpio6: gpio6@1 {
+			compatible = "fairchild,74hc595";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <1>;
+			registers-number = <4>;
+			spi-max-frequency = <100000>;
+		};
+
+		dac0: dh2228@2 {
+			compatible = "rohm,dh2228fv";
+			reg = <2>;
+			spi-max-frequency = <100000>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rotary_button {
+			label = "rotary_button";
+			gpios = <&gpio3 26 1>;
+			debounce-interval = <10>;
+			linux,code = <28>;
+		};
+	};
+
+	rotary {
+		compatible = "rotary-encoder";
+		gpios = <&gpio3 24 1>, <&gpio3 25 1>;
+		linux,axis = <1>; /* REL_Y */
+		rotary-encoder,relative-axis;
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 3 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
 	};
 };

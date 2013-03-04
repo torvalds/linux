@@ -122,11 +122,12 @@ static const struct file_operations sctpprobe_fops = {
 	.llseek = noop_llseek,
 };
 
-sctp_disposition_t jsctp_sf_eat_sack(const struct sctp_endpoint *ep,
-				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
-				     void *arg,
-				     sctp_cmd_seq_t *commands)
+static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
+					    const struct sctp_endpoint *ep,
+					    const struct sctp_association *asoc,
+					    const sctp_subtype_t type,
+					    void *arg,
+					    sctp_cmd_seq_t *commands)
 {
 	struct sctp_transport *sp;
 	static __u32 lcwnd = 0;
@@ -182,13 +183,20 @@ static __init int sctpprobe_init(void)
 {
 	int ret = -ENOMEM;
 
+	/* Warning: if the function signature of sctp_sf_eat_sack_6_2,
+	 * has been changed, you also have to change the signature of
+	 * jsctp_sf_eat_sack, otherwise you end up right here!
+	 */
+	BUILD_BUG_ON(__same_type(sctp_sf_eat_sack_6_2,
+				 jsctp_sf_eat_sack) == 0);
+
 	init_waitqueue_head(&sctpw.wait);
 	spin_lock_init(&sctpw.lock);
 	if (kfifo_alloc(&sctpw.fifo, bufsize, GFP_KERNEL))
 		return ret;
 
-	if (!proc_net_fops_create(&init_net, procname, S_IRUSR,
-				  &sctpprobe_fops))
+	if (!proc_create(procname, S_IRUSR, init_net.proc_net,
+			 &sctpprobe_fops))
 		goto free_kfifo;
 
 	ret = register_jprobe(&sctp_recv_probe);
@@ -200,7 +208,7 @@ static __init int sctpprobe_init(void)
 	return 0;
 
 remove_proc:
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 free_kfifo:
 	kfifo_free(&sctpw.fifo);
 	return ret;
@@ -209,7 +217,7 @@ free_kfifo:
 static __exit void sctpprobe_exit(void)
 {
 	kfifo_free(&sctpw.fifo);
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 	unregister_jprobe(&sctp_recv_probe);
 }
 

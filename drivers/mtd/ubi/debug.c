@@ -217,32 +217,6 @@ void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req)
 	pr_err("\t1st 16 characters of name: %s\n", nm);
 }
 
-/**
- * ubi_debugging_init_dev - initialize debugging for an UBI device.
- * @ubi: UBI device description object
- *
- * This function initializes debugging-related data for UBI device @ubi.
- * Returns zero in case of success and a negative error code in case of
- * failure.
- */
-int ubi_debugging_init_dev(struct ubi_device *ubi)
-{
-	ubi->dbg = kzalloc(sizeof(struct ubi_debug_info), GFP_KERNEL);
-	if (!ubi->dbg)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/**
- * ubi_debugging_exit_dev - free debugging data for an UBI device.
- * @ubi: UBI device description object
- */
-void ubi_debugging_exit_dev(struct ubi_device *ubi)
-{
-	kfree(ubi->dbg);
-}
-
 /*
  * Root directory for UBI stuff in debugfs. Contains sub-directories which
  * contain the stuff specific to particular UBI devices.
@@ -295,7 +269,7 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return -ENODEV;
-	d = ubi->dbg;
+	d = &ubi->dbg;
 
 	if (dent == d->dfs_chk_gen)
 		val = d->chk_gen;
@@ -341,7 +315,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return -ENODEV;
-	d = ubi->dbg;
+	d = &ubi->dbg;
 
 	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, user_buf, buf_size)) {
@@ -398,7 +372,7 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	unsigned long ubi_num = ubi->ubi_num;
 	const char *fname;
 	struct dentry *dent;
-	struct ubi_debug_info *d = ubi->dbg;
+	struct ubi_debug_info *d = &ubi->dbg;
 
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
@@ -471,5 +445,5 @@ out:
 void ubi_debugfs_exit_dev(struct ubi_device *ubi)
 {
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove_recursive(ubi->dbg->dfs_dir);
+		debugfs_remove_recursive(ubi->dbg.dfs_dir);
 }

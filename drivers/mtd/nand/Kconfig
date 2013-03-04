@@ -50,16 +50,30 @@ config MTD_NAND_MUSEUM_IDS
 	  of these chips were reused by later, larger chips.
 
 config MTD_NAND_DENALI
-       depends on PCI
+        tristate "Support Denali NAND controller"
+        help
+	  Enable support for the Denali NAND controller.  This should be
+	  combined with either the PCI or platform drivers to provide device
+	  registration.
+
+config MTD_NAND_DENALI_PCI
         tristate "Support Denali NAND controller on Intel Moorestown"
+	depends on PCI && MTD_NAND_DENALI
         help
           Enable the driver for NAND flash on Intel Moorestown, using the
           Denali NAND controller core.
- 
+
+config MTD_NAND_DENALI_DT
+	tristate "Support Denali NAND controller as a DT device"
+	depends on HAVE_CLK && MTD_NAND_DENALI
+	help
+	  Enable the driver for NAND flash on platforms using a Denali NAND
+	  controller as a DT device.
+
 config MTD_NAND_DENALI_SCRATCH_REG_ADDR
         hex "Denali NAND size scratch register address"
         default "0xFF108018"
-        depends on MTD_NAND_DENALI
+        depends on MTD_NAND_DENALI_PCI
         help
           Some platforms place the NAND chip size in a scratch register
           because (some versions of) the driver aren't able to automatically
@@ -246,8 +260,7 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  approximately 5mA of power when there is nothing happening.
 
 config MTD_NAND_DISKONCHIP
-	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation)"
 	depends on HAS_IOMEM
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC16
@@ -317,8 +330,8 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  parameter "inftl_bbt_write=1".
 
 config MTD_NAND_DOCG4
-	tristate "Support for DiskOnChip G4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && HAS_IOMEM
+	tristate "Support for DiskOnChip G4"
+	depends on HAS_IOMEM
 	select BCH
 	select BITREVERSE
 	help
@@ -433,6 +446,14 @@ config MTD_NAND_GPMI_NAND
 	 block, such as SD card. So pay attention to it when you enable
 	 the GPMI.
 
+config MTD_NAND_BCM47XXNFLASH
+	tristate "Support for NAND flash on BCM4706 BCMA bus"
+	depends on BCMA_NFLASH
+	help
+	  BCMA bus can have various flash memories attached, they are
+	  registered by bcma as platform devices. This enables driver for
+	  NAND flash memories. For now only BCM4706 is supported.
+
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"
 	depends on HAS_IOMEM
@@ -498,12 +519,6 @@ config MTD_NAND_MXC
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
-
-config MTD_NAND_NOMADIK
-	tristate "ST Nomadik 8815 NAND support"
-	depends on ARCH_NOMADIK
-	help
-	  Driver for the NAND flash controller on the Nomadik, with ECC.
 
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"

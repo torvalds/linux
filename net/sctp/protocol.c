@@ -595,7 +595,7 @@ static void sctp_v4_ecn_capable(struct sock *sk)
 	INET_ECN_xmit(sk);
 }
 
-void sctp_addr_wq_timeout_handler(unsigned long arg)
+static void sctp_addr_wq_timeout_handler(unsigned long arg)
 {
 	struct net *net = (struct net *)arg;
 	struct sctp_sockaddr_entry *addrw, *temp;
@@ -1191,9 +1191,9 @@ static int __net_init sctp_net_init(struct net *net)
 	net->sctp.cookie_preserve_enable 	= 1;
 
 	/* Default sctp sockets to use md5 as their hmac alg */
-#if defined (CONFIG_CRYPTO_MD5)
+#if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
 	net->sctp.sctp_hmac_alg			= "md5";
-#elif defined (CONFIG_CRYPTO_SHA1)
+#elif defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_SHA1)
 	net->sctp.sctp_hmac_alg			= "sha1";
 #else
 	net->sctp.sctp_hmac_alg			= NULL;

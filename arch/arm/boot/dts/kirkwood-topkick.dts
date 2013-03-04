@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6282.dtsi"
 
 / {
 	model = "Univeral Scientific Industrial Co. Topkick-1281P2";
@@ -16,6 +17,96 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			/*
+			 * GPIO LED layout
+			 *
+			 *       /-SYS_LED(2)
+			 *       |
+			 *       |   /-DISK_LED
+			 *       |   |
+			 *       |   |   /-WLAN_LED(2)
+			 *       |   |   |
+			 * [SW] [*] [*] [*]
+			 */
+
+			/*
+			 * Switch positions
+			 *
+			 *     /-SW_LEFT(2)
+			 *     |
+			 *     |   /-SW_IDLE
+			 *     |   |
+			 *     |   |   /-SW_RIGHT
+			 *     |   |   |
+			 * PS [L] [I] [R] LEDS
+			 */
+			pinctrl-0 = < &pmx_led_disk_yellow
+				      &pmx_sata0_pwr_enable
+				      &pmx_led_sys_red
+				      &pmx_led_sys_blue
+				      &pmx_led_wifi_green
+				      &pmx_sw_left
+				      &pmx_sw_right
+				      &pmx_sw_idle
+				      &pmx_sw_left2
+				      &pmx_led_wifi_yellow
+				      &pmx_uart0
+				      &pmx_nand
+				      &pmx_twsi0 >;
+			pinctrl-names = "default";
+
+			pmx_led_disk_yellow: pmx-led-disk-yellow {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+
+			pmx_sata0_pwr_enable: pmx-sata0-pwr-enable {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_red: pmx-led-sys-red {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_blue: pmx-led-sys-blue {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_wifi_green: pmx-led-wifi-green {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_sw_left: pmx-sw-left {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+
+			pmx_sw_right: pmx-sw-right {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_sw_idle: pmx-sw-idle {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_sw_left2: pmx-sw-left2 {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_wifi_yellow: pmx-led-wifi-yellow {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+		};
+
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "ok";
@@ -54,6 +145,17 @@
 			status = "okay";
 			nr-ports = <1>;
 		};
+
+		i2c@11000 {
+			status = "ok";
+		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio>;
+			pinctrl-names = "default";
+			status = "okay";
+			/* No CD or WP GPIOs */
+		};
 	};
 
 	gpio-leds {
@@ -80,6 +182,23 @@
 		wifi2 {
 			label = "topkick:yellow:wifi";
 			gpios = <&gpio1 16 1>;
+		};
+	};
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sata0_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA0 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 4 0>;
 		};
 	};
 };

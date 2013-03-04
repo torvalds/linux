@@ -443,7 +443,7 @@ static int lirc_rx51_resume(struct platform_device *dev)
 
 #endif /* CONFIG_PM */
 
-static int __devinit lirc_rx51_probe(struct platform_device *dev)
+static int lirc_rx51_probe(struct platform_device *dev)
 {
 	lirc_rx51_driver.features = LIRC_RX51_DRIVER_FEATURES;
 	lirc_rx51.pdata = dev->dev.platform_data;
@@ -479,18 +479,7 @@ struct platform_driver lirc_rx51_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init lirc_rx51_init(void)
-{
-	return platform_driver_register(&lirc_rx51_platform_driver);
-}
-module_init(lirc_rx51_init);
-
-static void __exit lirc_rx51_exit(void)
-{
-	platform_driver_unregister(&lirc_rx51_platform_driver);
-}
-module_exit(lirc_rx51_exit);
+module_platform_driver(lirc_rx51_platform_driver);
 
 MODULE_DESCRIPTION("LIRC TX driver for Nokia RX51");
 MODULE_AUTHOR("Nokia Corporation");

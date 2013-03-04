@@ -10,6 +10,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -46,9 +47,9 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->dev = &pdev->dev;
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
-	host->regs = devm_request_and_ioremap(&pdev->dev, regs);
-	if (!host->regs)
-		return -ENOMEM;
+	host->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(host->regs))
+		return PTR_ERR(host->regs);
 
 	if (drv_data && drv_data->init) {
 		ret = drv_data->init(host);
@@ -120,7 +121,7 @@ MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
 
 static struct platform_driver dw_mci_pltfm_driver = {
 	.probe		= dw_mci_pltfm_probe,
-	.remove		= __devexit_p(dw_mci_pltfm_remove),
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dw_mmc",
 		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),

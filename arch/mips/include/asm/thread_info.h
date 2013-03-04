@@ -29,10 +29,11 @@ struct thread_info {
 	__u32			cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 
-	mm_segment_t		addr_limit;	/* thread address space:
-						   0-0xBFFFFFFF for user-thead
-						   0-0xFFFFFFFF for kernel-thread
-						*/
+	mm_segment_t		addr_limit;	/*
+						 * thread address space limit:
+						 * 0x7fffffff for user-thead
+						 * 0xffffffff for kernel-thread
+						 */
 	struct restart_block	restart_block;
 	struct pt_regs		*regs;
 };
@@ -43,7 +44,7 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
+	.exec_domain	= &default_exec_domain, \
 	.flags		= _TIF_FIXADE,		\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\

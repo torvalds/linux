@@ -134,10 +134,28 @@ static int pcie_port_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int pci_dev_pme_poll(struct pci_dev *pdev, void *data)
+{
+	bool *pme_poll = data;
+
+	if (pdev->pme_poll)
+		*pme_poll = true;
+	return 0;
+}
+
 static int pcie_port_runtime_idle(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool pme_poll = false;
+
+	/*
+	 * If any subordinate device needs pme poll, we should keep
+	 * the port in D0, because we need port in D0 to poll it.
+	 */
+	pci_walk_bus(pdev->subordinate, pci_dev_pme_poll, &pme_poll);
 	/* Delay for a short while to prevent too frequent suspend/resume */
-	pm_schedule_suspend(dev, 10);
+	if (!pme_poll)
+		pm_schedule_suspend(dev, 10);
 	return -EBUSY;
 }
 #else

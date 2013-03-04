@@ -21,6 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/export.h>
 #include <linux/jiffies.h>
+#include <linux/pm_runtime.h>
 
 #include "net-sysfs.h"
 
@@ -124,6 +125,19 @@ static ssize_t show_broadcast(struct device *dev,
 	if (dev_isalive(net))
 		return sysfs_format_mac(buf, net->broadcast, net->addr_len);
 	return -EINVAL;
+}
+
+static int change_carrier(struct net_device *net, unsigned long new_carrier)
+{
+	if (!netif_running(net))
+		return -EINVAL;
+	return dev_change_carrier(net, (bool) new_carrier);
+}
+
+static ssize_t store_carrier(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t len)
+{
+	return netdev_store(dev, attr, buf, len, change_carrier);
 }
 
 static ssize_t show_carrier(struct device *dev,
@@ -331,7 +345,7 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(link_mode, S_IRUGO, show_link_mode, NULL),
 	__ATTR(address, S_IRUGO, show_address, NULL),
 	__ATTR(broadcast, S_IRUGO, show_broadcast, NULL),
-	__ATTR(carrier, S_IRUGO, show_carrier, NULL),
+	__ATTR(carrier, S_IRUGO | S_IWUSR, show_carrier, store_carrier),
 	__ATTR(speed, S_IRUGO, show_speed, NULL),
 	__ATTR(duplex, S_IRUGO, show_duplex, NULL),
 	__ATTR(dormant, S_IRUGO, show_dormant, NULL),
@@ -989,68 +1003,14 @@ static ssize_t show_xps_map(struct netdev_queue *queue,
 	return len;
 }
 
-static DEFINE_MUTEX(xps_map_mutex);
-#define xmap_dereference(P)		\
-	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
-
-static void xps_queue_release(struct netdev_queue *queue)
-{
-	struct net_device *dev = queue->dev;
-	struct xps_dev_maps *dev_maps;
-	struct xps_map *map;
-	unsigned long index;
-	int i, pos, nonempty = 0;
-
-	index = get_netdev_queue_index(queue);
-
-	mutex_lock(&xps_map_mutex);
-	dev_maps = xmap_dereference(dev->xps_maps);
-
-	if (dev_maps) {
-		for_each_possible_cpu(i) {
-			map = xmap_dereference(dev_maps->cpu_map[i]);
-			if (!map)
-				continue;
-
-			for (pos = 0; pos < map->len; pos++)
-				if (map->queues[pos] == index)
-					break;
-
-			if (pos < map->len) {
-				if (map->len > 1)
-					map->queues[pos] =
-					    map->queues[--map->len];
-				else {
-					RCU_INIT_POINTER(dev_maps->cpu_map[i],
-					    NULL);
-					kfree_rcu(map, rcu);
-					map = NULL;
-				}
-			}
-			if (map)
-				nonempty = 1;
-		}
-
-		if (!nonempty) {
-			RCU_INIT_POINTER(dev->xps_maps, NULL);
-			kfree_rcu(dev_maps, rcu);
-		}
-	}
-	mutex_unlock(&xps_map_mutex);
-}
-
 static ssize_t store_xps_map(struct netdev_queue *queue,
 		      struct netdev_queue_attribute *attribute,
 		      const char *buf, size_t len)
 {
 	struct net_device *dev = queue->dev;
-	cpumask_var_t mask;
-	int err, i, cpu, pos, map_len, alloc_len, need_set;
 	unsigned long index;
-	struct xps_map *map, *new_map;
-	struct xps_dev_maps *dev_maps, *new_dev_maps;
-	int nonempty = 0;
-	int numa_node_id = -2;
+	cpumask_var_t mask;
+	int err;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -1066,105 +1026,11 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 		return err;
 	}
 
-	new_dev_maps = kzalloc(max_t(unsigned int,
-	    XPS_DEV_MAPS_SIZE, L1_CACHE_BYTES), GFP_KERNEL);
-	if (!new_dev_maps) {
-		free_cpumask_var(mask);
-		return -ENOMEM;
-	}
-
-	mutex_lock(&xps_map_mutex);
-
-	dev_maps = xmap_dereference(dev->xps_maps);
-
-	for_each_possible_cpu(cpu) {
-		map = dev_maps ?
-			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
-		new_map = map;
-		if (map) {
-			for (pos = 0; pos < map->len; pos++)
-				if (map->queues[pos] == index)
-					break;
-			map_len = map->len;
-			alloc_len = map->alloc_len;
-		} else
-			pos = map_len = alloc_len = 0;
-
-		need_set = cpumask_test_cpu(cpu, mask) && cpu_online(cpu);
-#ifdef CONFIG_NUMA
-		if (need_set) {
-			if (numa_node_id == -2)
-				numa_node_id = cpu_to_node(cpu);
-			else if (numa_node_id != cpu_to_node(cpu))
-				numa_node_id = -1;
-		}
-#endif
-		if (need_set && pos >= map_len) {
-			/* Need to add queue to this CPU's map */
-			if (map_len >= alloc_len) {
-				alloc_len = alloc_len ?
-				    2 * alloc_len : XPS_MIN_MAP_ALLOC;
-				new_map = kzalloc_node(XPS_MAP_SIZE(alloc_len),
-						       GFP_KERNEL,
-						       cpu_to_node(cpu));
-				if (!new_map)
-					goto error;
-				new_map->alloc_len = alloc_len;
-				for (i = 0; i < map_len; i++)
-					new_map->queues[i] = map->queues[i];
-				new_map->len = map_len;
-			}
-			new_map->queues[new_map->len++] = index;
-		} else if (!need_set && pos < map_len) {
-			/* Need to remove queue from this CPU's map */
-			if (map_len > 1)
-				new_map->queues[pos] =
-				    new_map->queues[--new_map->len];
-			else
-				new_map = NULL;
-		}
-		RCU_INIT_POINTER(new_dev_maps->cpu_map[cpu], new_map);
-	}
-
-	/* Cleanup old maps */
-	for_each_possible_cpu(cpu) {
-		map = dev_maps ?
-			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
-		if (map && xmap_dereference(new_dev_maps->cpu_map[cpu]) != map)
-			kfree_rcu(map, rcu);
-		if (new_dev_maps->cpu_map[cpu])
-			nonempty = 1;
-	}
-
-	if (nonempty) {
-		rcu_assign_pointer(dev->xps_maps, new_dev_maps);
-	} else {
-		kfree(new_dev_maps);
-		RCU_INIT_POINTER(dev->xps_maps, NULL);
-	}
-
-	if (dev_maps)
-		kfree_rcu(dev_maps, rcu);
-
-	netdev_queue_numa_node_write(queue, (numa_node_id >= 0) ? numa_node_id :
-					    NUMA_NO_NODE);
-
-	mutex_unlock(&xps_map_mutex);
+	err = netif_set_xps_queue(dev, mask, index);
 
 	free_cpumask_var(mask);
-	return len;
 
-error:
-	mutex_unlock(&xps_map_mutex);
-
-	if (new_dev_maps)
-		for_each_possible_cpu(i)
-			kfree(rcu_dereference_protected(
-				new_dev_maps->cpu_map[i],
-				1));
-	kfree(new_dev_maps);
-	free_cpumask_var(mask);
-	return -ENOMEM;
+	return err ? : len;
 }
 
 static struct netdev_queue_attribute xps_cpus_attribute =
@@ -1182,10 +1048,6 @@ static struct attribute *netdev_queue_default_attrs[] = {
 static void netdev_queue_release(struct kobject *kobj)
 {
 	struct netdev_queue *queue = to_netdev_queue(kobj);
-
-#ifdef CONFIG_XPS
-	xps_queue_release(queue);
-#endif
 
 	memset(kobj, 0, sizeof(*kobj));
 	dev_put(queue->dev);
@@ -1334,7 +1196,6 @@ struct kobj_ns_type_operations net_ns_type_operations = {
 };
 EXPORT_SYMBOL_GPL(net_ns_type_operations);
 
-#ifdef CONFIG_HOTPLUG
 static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
 {
 	struct net_device *dev = to_net_dev(d);
@@ -1353,7 +1214,6 @@ static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
 exit:
 	return retval;
 }
-#endif
 
 /*
  *	netdev_release -- destroy and free a dead device.
@@ -1382,9 +1242,7 @@ static struct class net_class = {
 #ifdef CONFIG_SYSFS
 	.dev_attrs = net_class_attributes,
 #endif /* CONFIG_SYSFS */
-#ifdef CONFIG_HOTPLUG
 	.dev_uevent = netdev_uevent,
-#endif
 	.ns_type = &net_ns_type_operations,
 	.namespace = net_namespace,
 };
@@ -1399,6 +1257,8 @@ void netdev_unregister_kobject(struct net_device * net)
 	kobject_get(&dev->kobj);
 
 	remove_queue_kobjects(net);
+
+	pm_runtime_set_memalloc_noio(dev, false);
 
 	device_del(dev);
 }
@@ -1443,6 +1303,8 @@ int netdev_register_kobject(struct net_device *net)
 		device_del(dev);
 		return error;
 	}
+
+	pm_runtime_set_memalloc_noio(dev, true);
 
 	return error;
 }

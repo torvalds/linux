@@ -34,8 +34,6 @@
 
 #define RX51_GPIO_SLEEP_IND 162
 
-extern void rx51_video_mem_init(void);
-
 static struct gpio_led gpio_leds[] = {
 	{
 		.name	= "sleep_ind",
@@ -112,7 +110,6 @@ static void __init rx51_init(void)
 
 static void __init rx51_reserve(void)
 {
-	rx51_video_mem_init();
 	omap_reserve();
 }
 
@@ -126,6 +123,6 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rx51_init,
 	.init_late	= omap3430_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

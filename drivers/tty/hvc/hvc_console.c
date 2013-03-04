@@ -629,7 +629,7 @@ int hvc_poll(struct hvc_struct *hp)
 
 	/* Read data if any */
 	for (;;) {
-		int count = tty_buffer_request_room(tty, N_INBUF);
+		int count = tty_buffer_request_room(&hp->port, N_INBUF);
 
 		/* If flip is full, just reschedule a later read */
 		if (count == 0) {
@@ -672,7 +672,7 @@ int hvc_poll(struct hvc_struct *hp)
 				}
 			}
 #endif /* CONFIG_MAGIC_SYSRQ */
-			tty_insert_flip_char(tty, buf[i], 0);
+			tty_insert_flip_char(&hp->port, buf[i], 0);
 		}
 
 		read_total += n;
@@ -691,7 +691,7 @@ int hvc_poll(struct hvc_struct *hp)
 		   a minimum for performance. */
 		timeout = MIN_TIMEOUT;
 
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&hp->port);
 	}
 	tty_kref_put(tty);
 

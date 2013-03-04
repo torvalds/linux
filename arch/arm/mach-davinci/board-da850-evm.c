@@ -41,6 +41,7 @@
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/mux.h>
+#include <mach/sram.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -348,13 +349,13 @@ static inline void da850_evm_setup_nor_nand(void)
 	if (!HAS_MMC) {
 		ret = davinci_cfg_reg_list(da850_evm_nand_pins);
 		if (ret)
-			pr_warning("da850_evm_init: nand mux setup failed: "
-					"%d\n", ret);
+			pr_warn("%s: NAND mux setup failed: %d\n",
+				__func__, ret);
 
 		ret = davinci_cfg_reg_list(da850_evm_nor_pins);
 		if (ret)
-			pr_warning("da850_evm_init: nor mux setup failed: %d\n",
-				ret);
+			pr_warn("%s: NOR mux setup failed: %d\n",
+				__func__, ret);
 
 		da850_evm_init_nor();
 
@@ -476,19 +477,19 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 
 	ret = gpio_request(sel_a, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_A]);
 	if (ret) {
-		pr_warning("Cannot open UI expander pin %d\n", sel_a);
+		pr_warn("Cannot open UI expander pin %d\n", sel_a);
 		goto exp_setup_sela_fail;
 	}
 
 	ret = gpio_request(sel_b, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_B]);
 	if (ret) {
-		pr_warning("Cannot open UI expander pin %d\n", sel_b);
+		pr_warn("Cannot open UI expander pin %d\n", sel_b);
 		goto exp_setup_selb_fail;
 	}
 
 	ret = gpio_request(sel_c, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_C]);
 	if (ret) {
-		pr_warning("Cannot open UI expander pin %d\n", sel_c);
+		pr_warn("Cannot open UI expander pin %d\n", sel_c);
 		goto exp_setup_selc_fail;
 	}
 
@@ -500,7 +501,7 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 	da850_evm_ui_keys_init(gpio);
 	ret = platform_device_register(&da850_evm_ui_keys_device);
 	if (ret) {
-		pr_warning("Could not register UI GPIO expander push-buttons");
+		pr_warn("Could not register UI GPIO expander push-buttons");
 		goto exp_setup_keys_fail;
 	}
 
@@ -689,14 +690,14 @@ static int da850_evm_bb_expander_setup(struct i2c_client *client,
 	da850_evm_bb_keys_init(gpio);
 	ret = platform_device_register(&da850_evm_bb_keys_device);
 	if (ret) {
-		pr_warning("Could not register baseboard GPIO expander keys");
+		pr_warn("Could not register baseboard GPIO expander keys");
 		goto io_exp_setup_sw_fail;
 	}
 
 	da850_evm_bb_leds_init(gpio);
 	ret = platform_device_register(&da850_evm_bb_leds_device);
 	if (ret) {
-		pr_warning("Could not register baseboard GPIO expander LEDS");
+		pr_warn("Could not register baseboard GPIO expander LEDs");
 		goto io_exp_setup_leds_fail;
 	}
 
@@ -1064,21 +1065,19 @@ static int __init da850_evm_config_emac(void)
 	}
 
 	if (ret)
-		pr_warning("da850_evm_init: cpgmac/rmii mux setup failed: %d\n",
-				ret);
+		pr_warn("%s: CPGMAC/RMII mux setup failed: %d\n",
+			__func__, ret);
 
 	/* configure the CFGCHIP3 register for RMII or MII */
 	__raw_writel(val, cfg_chip3_base);
 
 	ret = davinci_cfg_reg(DA850_GPIO2_6);
 	if (ret)
-		pr_warning("da850_evm_init:GPIO(2,6) mux setup "
-							"failed\n");
+		pr_warn("%s:GPIO(2,6) mux setup failed\n", __func__);
 
 	ret = gpio_request(DA850_MII_MDIO_CLKEN_PIN, "mdio_clk_en");
 	if (ret) {
-		pr_warning("Cannot open GPIO %d\n",
-					DA850_MII_MDIO_CLKEN_PIN);
+		pr_warn("Cannot open GPIO %d\n", DA850_MII_MDIO_CLKEN_PIN);
 		return ret;
 	}
 
@@ -1089,8 +1088,7 @@ static int __init da850_evm_config_emac(void)
 
 	ret = da8xx_register_emac();
 	if (ret)
-		pr_warning("da850_evm_init: emac registration failed: %d\n",
-				ret);
+		pr_warn("%s: EMAC registration failed: %d\n", __func__, ret);
 
 	return 0;
 }
@@ -1255,11 +1253,24 @@ static struct vpif_capture_config da850_vpif_capture_config = {
 };
 
 /* VPIF display configuration */
+
+static struct adv7343_platform_data adv7343_pdata = {
+	.mode_config = {
+		.dac_3 = 1,
+		.dac_2 = 1,
+		.dac_1 = 1,
+	},
+	.sd_config = {
+		.sd_dac_out1 = 1,
+	},
+};
+
 static struct vpif_subdev_info da850_vpif_subdev[] = {
 	{
 		.name = "adv7343",
 		.board_info = {
 			I2C_BOARD_INFO("adv7343", 0x2a),
+			.platform_data = &adv7343_pdata,
 		},
 	},
 };
@@ -1442,57 +1453,53 @@ static __init void da850_evm_init(void)
 
 	ret = pmic_tps65070_init();
 	if (ret)
-		pr_warning("da850_evm_init: TPS65070 PMIC init failed: %d\n",
-				ret);
+		pr_warn("%s: TPS65070 PMIC init failed: %d\n", __func__, ret);
 
 	ret = da850_register_edma(da850_edma_rsv);
 	if (ret)
-		pr_warning("da850_evm_init: edma registration failed: %d\n",
-				ret);
+		pr_warn("%s: EDMA registration failed: %d\n", __func__, ret);
 
 	ret = davinci_cfg_reg_list(da850_i2c0_pins);
 	if (ret)
-		pr_warning("da850_evm_init: i2c0 mux setup failed: %d\n",
-				ret);
+		pr_warn("%s: I2C0 mux setup failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_i2c(0, &da850_evm_i2c_0_pdata);
 	if (ret)
-		pr_warning("da850_evm_init: i2c0 registration failed: %d\n",
-				ret);
+		pr_warn("%s: I2C0 registration failed: %d\n", __func__, ret);
 
 
 	ret = da8xx_register_watchdog();
 	if (ret)
-		pr_warning("da830_evm_init: watchdog registration failed: %d\n",
-				ret);
+		pr_warn("%s: watchdog registration failed: %d\n",
+			__func__, ret);
 
 	if (HAS_MMC) {
 		ret = davinci_cfg_reg_list(da850_evm_mmcsd0_pins);
 		if (ret)
-			pr_warning("da850_evm_init: mmcsd0 mux setup failed:"
-					" %d\n", ret);
+			pr_warn("%s: MMCSD0 mux setup failed: %d\n",
+				__func__, ret);
 
 		ret = gpio_request(DA850_MMCSD_CD_PIN, "MMC CD\n");
 		if (ret)
-			pr_warning("da850_evm_init: can not open GPIO %d\n",
-					DA850_MMCSD_CD_PIN);
+			pr_warn("%s: can not open GPIO %d\n",
+				__func__, DA850_MMCSD_CD_PIN);
 		gpio_direction_input(DA850_MMCSD_CD_PIN);
 
 		ret = gpio_request(DA850_MMCSD_WP_PIN, "MMC WP\n");
 		if (ret)
-			pr_warning("da850_evm_init: can not open GPIO %d\n",
-					DA850_MMCSD_WP_PIN);
+			pr_warn("%s: can not open GPIO %d\n",
+				__func__, DA850_MMCSD_WP_PIN);
 		gpio_direction_input(DA850_MMCSD_WP_PIN);
 
 		ret = da8xx_register_mmcsd0(&da850_mmc_config);
 		if (ret)
-			pr_warning("da850_evm_init: mmcsd0 registration failed:"
-					" %d\n", ret);
+			pr_warn("%s: MMCSD0 registration failed: %d\n",
+				__func__, ret);
 
 		ret = da850_wl12xx_init();
 		if (ret)
-			pr_warning("da850_evm_init: wl12xx initialization"
-				   " failed: %d\n", ret);
+			pr_warn("%s: WL12xx initialization failed: %d\n",
+				__func__, ret);
 	}
 
 	davinci_serial_init(&da850_evm_uart_config);
@@ -1510,16 +1517,14 @@ static __init void da850_evm_init(void)
 
 	ret = davinci_cfg_reg_list(da850_evm_mcasp_pins);
 	if (ret)
-		pr_warning("da850_evm_init: mcasp mux setup failed: %d\n",
-				ret);
+		pr_warn("%s: McASP mux setup failed: %d\n", __func__, ret);
 
 	da850_evm_snd_data.sram_pool = sram_get_gen_pool();
 	da8xx_register_mcasp(0, &da850_evm_snd_data);
 
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
 	if (ret)
-		pr_warning("da850_evm_init: lcdcntl mux setup failed: %d\n",
-				ret);
+		pr_warn("%s: LCDC mux setup failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_uio_pruss();
 	if (ret)
@@ -1529,51 +1534,49 @@ static __init void da850_evm_init(void)
 	/* Handle board specific muxing for LCD here */
 	ret = davinci_cfg_reg_list(da850_evm_lcdc_pins);
 	if (ret)
-		pr_warning("da850_evm_init: evm specific lcd mux setup "
-				"failed: %d\n",	ret);
+		pr_warn("%s: EVM specific LCD mux setup failed: %d\n",
+			__func__, ret);
 
 	ret = da850_lcd_hw_init();
 	if (ret)
-		pr_warning("da850_evm_init: lcd initialization failed: %d\n",
-				ret);
+		pr_warn("%s: LCD initialization failed: %d\n", __func__, ret);
 
 	sharp_lk043t1dg01_pdata.panel_power_ctrl = da850_panel_power_ctrl,
 	ret = da8xx_register_lcdc(&sharp_lk043t1dg01_pdata);
 	if (ret)
-		pr_warning("da850_evm_init: lcdc registration failed: %d\n",
-				ret);
+		pr_warn("%s: LCDC registration failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_rtc();
 	if (ret)
-		pr_warning("da850_evm_init: rtc setup failed: %d\n", ret);
+		pr_warn("%s: RTC setup failed: %d\n", __func__, ret);
 
 	ret = da850_evm_init_cpufreq();
 	if (ret)
-		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
-				ret);
+		pr_warn("%s: cpufreq registration failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_cpuidle();
 	if (ret)
-		pr_warning("da850_evm_init: cpuidle registration failed: %d\n",
-				ret);
+		pr_warn("%s: cpuidle registration failed: %d\n", __func__, ret);
 
 	ret = da850_register_pm(&da850_pm_device);
 	if (ret)
-		pr_warning("da850_evm_init: suspend registration failed: %d\n",
-				ret);
+		pr_warn("%s: suspend registration failed: %d\n", __func__, ret);
 
 	da850_vpif_init();
 
-	ret = da8xx_register_spi(1, da850evm_spi_info,
-				 ARRAY_SIZE(da850evm_spi_info));
+	ret = spi_register_board_info(da850evm_spi_info,
+				      ARRAY_SIZE(da850evm_spi_info));
 	if (ret)
-		pr_warning("da850_evm_init: spi 1 registration failed: %d\n",
-				ret);
+		pr_warn("%s: spi info registration failed: %d\n", __func__,
+			ret);
+
+	ret = da8xx_register_spi_bus(1, ARRAY_SIZE(da850evm_spi_info));
+	if (ret)
+		pr_warn("%s: SPI 1 registration failed: %d\n", __func__, ret);
 
 	ret = da850_register_sata(DA850EVM_SATA_REFCLKPN_RATE);
 	if (ret)
-		pr_warning("da850_evm_init: sata registration failed: %d\n",
-				ret);
+		pr_warn("%s: SATA registration failed: %d\n", __func__, ret);
 
 	da850_evm_setup_mac_addr();
 }
@@ -1598,7 +1601,7 @@ MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138/AM18x EVM")
 	.atag_offset	= 0x100,
 	.map_io		= da850_evm_map_io,
 	.init_irq	= cp_intc_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine	= da850_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

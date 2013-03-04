@@ -25,7 +25,7 @@
 static void tmds_register_write(int index, u8 data);
 static int tmds_register_read(int index);
 static int tmds_register_read_bytes(int index, u8 *buff, int buff_len);
-static void __devinit dvi_get_panel_size_from_DDCv1(
+static void dvi_get_panel_size_from_DDCv1(
 	struct tmds_chip_information *tmds_chip,
 	struct tmds_setting_information *tmds_setting);
 static int viafb_dvi_query_EDID(void);
@@ -35,8 +35,8 @@ static inline bool check_tmds_chip(int device_id_subaddr, int device_id)
 	return tmds_register_read(device_id_subaddr) == device_id;
 }
 
-void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
-	struct tmds_setting_information *tmds_setting)
+void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
+			 struct tmds_setting_information *tmds_setting)
 {
 	DEBUG_MSG(KERN_INFO "viafb_init_dvi_size()\n");
 
@@ -47,7 +47,7 @@ void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
 	return;
 }
 
-bool __devinit viafb_tmds_trasmitter_identify(void)
+bool viafb_tmds_trasmitter_identify(void)
 {
 	unsigned char sr2a = 0, sr1e = 0, sr3e = 0;
 
@@ -285,7 +285,7 @@ static int viafb_dvi_query_EDID(void)
 }
 
 /* Get Panel Size Using EDID1 Table */
-static void __devinit dvi_get_panel_size_from_DDCv1(
+static void dvi_get_panel_size_from_DDCv1(
 	struct tmds_chip_information *tmds_chip,
 	struct tmds_setting_information *tmds_setting)
 {

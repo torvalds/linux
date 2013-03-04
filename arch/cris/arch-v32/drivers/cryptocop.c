@@ -3135,11 +3135,10 @@ static long cryptocop_ioctl_unlocked(struct inode *inode,
 static long
 cryptocop_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-       struct inode *inode = file->f_path.dentry->d_inode;
        long ret;
 
        mutex_lock(&cryptocop_mutex);
-       ret = cryptocop_ioctl_unlocked(inode, filp, cmd, arg);
+       ret = cryptocop_ioctl_unlocked(file_inode(filp), filp, cmd, arg);
        mutex_unlock(&cryptocop_mutex);
 
        return ret;

@@ -410,14 +410,16 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr_type(
 	struct iscsi_tiqn *tiqn = container_of(igrps,
 			struct iscsi_tiqn, tiqn_stat_grps);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[8];
+	int ret;
 
 	spin_lock(&lstat->lock);
-	snprintf(buf, 8, "%s", (lstat->last_intr_fail_ip_addr != NULL) ?
-				"ipv6" : "ipv4");
+	if (lstat->last_intr_fail_ip_family == AF_INET6)
+		ret = snprintf(page, PAGE_SIZE, "ipv6\n");
+	else
+		ret = snprintf(page, PAGE_SIZE, "ipv4\n");
 	spin_unlock(&lstat->lock);
 
-	return snprintf(page, PAGE_SIZE, "%s\n", buf);
+	return ret;
 }
 ISCSI_STAT_TGT_ATTR_RO(fail_intr_addr_type);
 
@@ -427,16 +429,19 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr(
 	struct iscsi_tiqn *tiqn = container_of(igrps,
 			struct iscsi_tiqn, tiqn_stat_grps);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[32];
+	int ret;
 
 	spin_lock(&lstat->lock);
-	if (lstat->last_intr_fail_ip_family == AF_INET6)
-		snprintf(buf, 32, "[%s]", lstat->last_intr_fail_ip_addr);
-	else
-		snprintf(buf, 32, "%s", lstat->last_intr_fail_ip_addr);
+	if (lstat->last_intr_fail_ip_family == AF_INET6) {
+		ret = snprintf(page, PAGE_SIZE, "[%s]\n",
+			       lstat->last_intr_fail_ip_addr);
+	} else {
+		ret = snprintf(page, PAGE_SIZE, "%s\n",
+			       lstat->last_intr_fail_ip_addr);
+	}
 	spin_unlock(&lstat->lock);
 
-	return snprintf(page, PAGE_SIZE, "%s\n", buf);
+	return ret;
 }
 ISCSI_STAT_TGT_ATTR_RO(fail_intr_addr);
 

@@ -56,6 +56,12 @@ PROPERTIES
       Value type: <string>
       Definition: Must include "fsl,sec-v4.0"
 
+   - fsl,sec-era
+      Usage: optional
+      Value type: <u32>
+      Definition: A standard property. Define the 'ERA' of the SEC
+          device.
+
    - #address-cells
        Usage: required
        Value type: <u32>
@@ -107,6 +113,7 @@ PROPERTIES
 EXAMPLE
 	crypto@300000 {
 		compatible = "fsl,sec-v4.0";
+		fsl,sec-era = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x300000 0x10000>;

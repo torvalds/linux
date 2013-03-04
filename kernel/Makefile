@@ -7,7 +7,7 @@ obj-y     = fork.o exec_domain.o panic.o printk.o \
 	    sysctl.o sysctl_binary.o capability.o ptrace.o timer.o user.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o task_work.o \
 	    rcupdate.o extable.o params.o posix-timers.o \
-	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
+	    kthread.o wait.o sys_ni.o posix-cpu-timers.o mutex.o \
 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
 	    notifier.o ksysfs.o cred.o \
 	    async.o range.o groups.o lglock.o smpboot.o
@@ -25,9 +25,7 @@ endif
 obj-y += sched/
 obj-y += power/
 
-ifeq ($(CONFIG_CHECKPOINT_RESTORE),y)
-obj-$(CONFIG_X86) += kcmp.o
-endif
+obj-$(CONFIG_CHECKPOINT_RESTORE) += kcmp.o
 obj-$(CONFIG_FREEZER) += freezer.o
 obj-$(CONFIG_PROFILING) += profile.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
@@ -54,7 +52,7 @@ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
 obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
 obj-$(CONFIG_UID16) += uid16.o
 obj-$(CONFIG_MODULES) += module.o
-obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o
+obj-$(CONFIG_MODULE_SIG) += module_signing.o modsign_pubkey.o modsign_certificate.o
 obj-$(CONFIG_KALLSYMS) += kallsyms.o
 obj-$(CONFIG_BSD_PROCESS_ACCT) += acct.o
 obj-$(CONFIG_KEXEC) += kexec.o
@@ -127,20 +125,32 @@ $(obj)/config_data.h: $(obj)/config_data.gz FORCE
 
 $(obj)/time.o: $(obj)/timeconst.h
 
-quiet_cmd_timeconst  = TIMEC   $@
-      cmd_timeconst  = $(PERL) $< $(CONFIG_HZ) > $@
+quiet_cmd_hzfile = HZFILE  $@
+      cmd_hzfile = echo "hz=$(CONFIG_HZ)" > $@
+
+targets += hz.bc
+$(obj)/hz.bc: $(objtree)/include/config/hz.h FORCE
+	$(call if_changed,hzfile)
+
+quiet_cmd_bc  = BC      $@
+      cmd_bc  = bc -q $(filter-out FORCE,$^) > $@
+
 targets += timeconst.h
-$(obj)/timeconst.h: $(src)/timeconst.pl FORCE
-	$(call if_changed,timeconst)
+$(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
+	$(call if_changed,bc)
 
 ifeq ($(CONFIG_MODULE_SIG),y)
 #
 # Pull the signing certificate and any extra certificates into the kernel
 #
-extra_certificates:
-	touch $@
 
-kernel/modsign_pubkey.o: signing_key.x509 extra_certificates
+quiet_cmd_touch = TOUCH   $@
+      cmd_touch = touch   $@
+
+extra_certificates:
+	$(call cmd,touch)
+
+kernel/modsign_certificate.o: signing_key.x509 extra_certificates
 
 ###############################################################################
 #
@@ -149,23 +159,7 @@ kernel/modsign_pubkey.o: signing_key.x509 extra_certificates
 # fail and that the kernel may be used afterwards.
 #
 ###############################################################################
-sign_key_with_hash :=
-ifeq ($(CONFIG_MODULE_SIG_SHA1),y)
-sign_key_with_hash := -sha1
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA224),y)
-sign_key_with_hash := -sha224
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA256),y)
-sign_key_with_hash := -sha256
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA384),y)
-sign_key_with_hash := -sha384
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA512),y)
-sign_key_with_hash := -sha512
-endif
-ifeq ($(sign_key_with_hash),)
+ifndef CONFIG_MODULE_SIG_HASH
 $(error Could not determine digest type to use from kernel config)
 endif
 
@@ -178,8 +172,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "### needs to be run as root, and uses a hardware random"
 	@echo "### number generator if one is available."
 	@echo "###"
-	openssl req -new -nodes -utf8 $(sign_key_with_hash) -days 36500 -batch \
-		-x509 -config x509.genkey \
+	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+		-batch -x509 -config x509.genkey \
 		-outform DER -out signing_key.x509 \
 		-keyout signing_key.priv
 	@echo "###"

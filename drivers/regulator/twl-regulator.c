@@ -1064,7 +1064,7 @@ static u8 twl_get_smps_mult(void)
 #define TWLFIXED_OF_MATCH(comp, label) TWL_OF_MATCH(comp, TWLFIXED, label)
 #define TWLSMPS_OF_MATCH(comp, label) TWL_OF_MATCH(comp, TWLSMPS, label)
 
-static const struct of_device_id twl_of_match[] __devinitconst = {
+static const struct of_device_id twl_of_match[] = {
 	TWL4030_OF_MATCH("ti,twl4030-vaux1", VAUX1),
 	TWL4030_OF_MATCH("ti,twl4030-vaux2", VAUX2_4030),
 	TWL4030_OF_MATCH("ti,twl5030-vaux2", VAUX2),

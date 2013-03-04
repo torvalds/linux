@@ -435,7 +435,7 @@ static void s3c_hsudc_epin_intr(struct s3c_hsudc *hsudc, u32 ep_idx)
 	struct s3c_hsudc_req *hsreq;
 	u32 csr;
 
-	csr = readl((u32)hsudc->regs + S3C_ESR);
+	csr = readl(hsudc->regs + S3C_ESR);
 	if (csr & S3C_ESR_STALL) {
 		writel(S3C_ESR_STALL, hsudc->regs + S3C_ESR);
 		return;
@@ -468,7 +468,7 @@ static void s3c_hsudc_epout_intr(struct s3c_hsudc *hsudc, u32 ep_idx)
 	struct s3c_hsudc_req *hsreq;
 	u32 csr;
 
-	csr = readl((u32)hsudc->regs + S3C_ESR);
+	csr = readl(hsudc->regs + S3C_ESR);
 	if (csr & S3C_ESR_STALL) {
 		writel(S3C_ESR_STALL, hsudc->regs + S3C_ESR);
 		return;
@@ -901,12 +901,12 @@ static int s3c_hsudc_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (list_empty(&hsep->queue) && !hsep->stopped) {
 		offset = (ep_index(hsep)) ? S3C_ESR : S3C_EP0SR;
 		if (ep_is_in(hsep)) {
-			csr = readl((u32)hsudc->regs + offset);
+			csr = readl(hsudc->regs + offset);
 			if (!(csr & S3C_ESR_TX_SUCCESS) &&
 				(s3c_hsudc_write_fifo(hsep, hsreq) == 1))
 				hsreq = NULL;
 		} else {
-			csr = readl((u32)hsudc->regs + offset);
+			csr = readl(hsudc->regs + offset);
 			if ((csr & S3C_ESR_RX_SUCCESS)
 				   && (s3c_hsudc_read_fifo(hsep, hsreq) == 1))
 				hsreq = NULL;
@@ -1254,7 +1254,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
-static struct usb_gadget_ops s3c_hsudc_gadget_ops = {
+static const struct usb_gadget_ops s3c_hsudc_gadget_ops = {
 	.get_frame	= s3c_hsudc_gadget_getframe,
 	.udc_start	= s3c_hsudc_start,
 	.udc_stop	= s3c_hsudc_stop,
@@ -1286,7 +1286,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsudc->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsudc->supplies),
 				 hsudc->supplies);
 	if (ret != 0) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
@@ -1295,10 +1295,9 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	hsudc->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hsudc->regs) {
-		dev_err(dev, "error mapping device register area\n");
-		ret = -EBUSY;
+	hsudc->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsudc->regs)) {
+		ret = PTR_ERR(hsudc->regs);
 		goto err_res;
 	}
 
@@ -1367,7 +1366,6 @@ err_res:
 	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		usb_put_phy(hsudc->transceiver);
 
-	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:
 	return ret;
 }

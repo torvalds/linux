@@ -426,6 +426,7 @@ static struct clk dpll4_m5x2_ck_3630 = {
 	.parent_names	= dpll4_m5x2_ck_parent_names,
 	.num_parents	= ARRAY_SIZE(dpll4_m5x2_ck_parent_names),
 	.ops		= &dpll4_m5x2_ck_3630_ops,
+	.flags		= CLK_SET_RATE_PARENT,
 };
 
 static struct clk cam_mclk;
@@ -443,7 +444,14 @@ static struct clk_hw_omap cam_mclk_hw = {
 	.clkdm_name	= "cam_clkdm",
 };
 
-DEFINE_STRUCT_CLK(cam_mclk, cam_mclk_parent_names, aes2_ick_ops);
+static struct clk cam_mclk = {
+	.name		= "cam_mclk",
+	.hw		= &cam_mclk_hw.hw,
+	.parent_names	= cam_mclk_parent_names,
+	.num_parents	= ARRAY_SIZE(cam_mclk_parent_names),
+	.ops		= &aes2_ick_ops,
+	.flags		= CLK_SET_RATE_PARENT,
+};
 
 static const struct clksel_rate clkout2_src_core_rates[] = {
 	{ .div = 1, .val = 0, .flags = RATE_IN_3XXX },
@@ -1167,6 +1175,8 @@ static const struct clk_ops emu_src_ck_ops = {
 	.recalc_rate	= &omap2_clksel_recalc,
 	.get_parent	= &omap2_clksel_find_parent_index,
 	.set_parent	= &omap2_clksel_set_parent,
+	.enable		= &omap2_clkops_enable_clkdm,
+	.disable	= &omap2_clkops_disable_clkdm,
 };
 
 static struct clk emu_src_ck;

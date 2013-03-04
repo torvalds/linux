@@ -22,22 +22,22 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/gpio.h>
+#include "priv.h"
 
 struct nvd0_gpio_priv {
 	struct nouveau_gpio base;
 };
 
-static void
-nvd0_gpio_reset(struct nouveau_gpio *gpio)
+void
+nvd0_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
 	struct nvd0_gpio_priv *priv = (void *)gpio;
+	u8 ver, len;
 	u16 entry;
-	u8 ver;
 	int ent = -1;
 
-	while ((entry = dcb_gpio_entry(bios, 0, ++ent, &ver))) {
+	while ((entry = dcb_gpio_entry(bios, 0, ++ent, &ver, &len))) {
 		u32 data = nv_ro32(bios, entry);
 		u8  line =   (data & 0x0000003f);
 		u8  defs = !!(data & 0x00000080);
@@ -45,7 +45,8 @@ nvd0_gpio_reset(struct nouveau_gpio *gpio)
 		u8  unk0 =   (data & 0x00ff0000) >> 16;
 		u8  unk1 =   (data & 0x1f000000) >> 24;
 
-		if (func == 0xff)
+		if ( func  == DCB_GPIO_UNUSED ||
+		    (match != DCB_GPIO_UNUSED && match != func))
 			continue;
 
 		gpio->set(gpio, 0, func, line, defs);
@@ -56,7 +57,7 @@ nvd0_gpio_reset(struct nouveau_gpio *gpio)
 	}
 }
 
-static int
+int
 nvd0_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 {
 	u32 data = ((dir ^ 1) << 13) | (out << 12);
@@ -65,7 +66,7 @@ nvd0_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 	return 0;
 }
 
-static int
+int
 nvd0_gpio_sense(struct nouveau_gpio *gpio, int line)
 {
 	return !!(nv_rd32(gpio, 0x00d610 + (line * 4)) & 0x00004000);
@@ -79,7 +80,7 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvd0_gpio_priv *priv;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
+	ret = nouveau_gpio_create(parent, engine, oclass, 32, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -87,7 +88,9 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.reset = nvd0_gpio_reset;
 	priv->base.drive = nvd0_gpio_drive;
 	priv->base.sense = nvd0_gpio_sense;
-	priv->base.irq_enable = nv50_gpio_irq_enable;
+	priv->base.events->priv = priv;
+	priv->base.events->enable = nv50_gpio_intr_enable;
+	priv->base.events->disable = nv50_gpio_intr_disable;
 	nv_subdev(priv)->intr = nv50_gpio_intr;
 	return 0;
 }

@@ -333,7 +333,7 @@ static char *mem_fmt(char *buf, int size, unsigned long hsize)
 	return buf;
 }
 
-int __init hugetlb_cgroup_file_init(int idx)
+static void __init __hugetlb_cgroup_file_init(int idx)
 {
 	char buf[32];
 	struct cftype *cft;
@@ -375,7 +375,22 @@ int __init hugetlb_cgroup_file_init(int idx)
 
 	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
 
-	return 0;
+	return;
+}
+
+void __init hugetlb_cgroup_file_init(void)
+{
+	struct hstate *h;
+
+	for_each_hstate(h) {
+		/*
+		 * Add cgroup control files only if the huge page consists
+		 * of more than two normal pages. This is because we use
+		 * page[2].lru.next for storing cgroup details.
+		 */
+		if (huge_page_order(h) >= HUGETLB_CGROUP_MIN_ORDER)
+			__hugetlb_cgroup_file_init(hstate_index(h));
+	}
 }
 
 /*

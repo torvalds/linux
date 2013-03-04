@@ -91,9 +91,9 @@ struct virtio_pci_vq_info
 };
 
 /* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
-static struct pci_device_id virtio_pci_id_table[] = {
-	{ 0x1af4, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 },
+static DEFINE_PCI_DEVICE_TABLE(virtio_pci_id_table) = {
+	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
@@ -203,8 +203,7 @@ static void vp_notify(struct virtqueue *vq)
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
-	iowrite16(virtqueue_get_queue_index(vq),
-		  vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */
@@ -479,8 +478,7 @@ static void vp_del_vq(struct virtqueue *vq)
 	list_del(&info->node);
 	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
-	iowrite16(virtqueue_get_queue_index(vq),
-		vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
+	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
 	if (vp_dev->msix_enabled) {
 		iowrite16(VIRTIO_MSI_NO_VECTOR,
@@ -654,7 +652,7 @@ static int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
-static struct virtio_config_ops virtio_pci_config_ops = {
+static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
 	.get_status	= vp_get_status,
@@ -678,8 +676,8 @@ static void virtio_pci_release_dev(struct device *_d)
 }
 
 /* the PCI probing function */
-static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
-				      const struct pci_device_id *id)
+static int virtio_pci_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
 {
 	struct virtio_pci_device *vp_dev;
 	int err;
@@ -753,7 +751,7 @@ out:
 	return err;
 }
 
-static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
+static void virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
@@ -824,22 +822,10 @@ static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
-	.remove		= __devexit_p(virtio_pci_remove),
+	.remove		= virtio_pci_remove,
 #ifdef CONFIG_PM
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 };
 
-static int __init virtio_pci_init(void)
-{
-	return pci_register_driver(&virtio_pci_driver);
-}
-
-module_init(virtio_pci_init);
-
-static void __exit virtio_pci_exit(void)
-{
-	pci_unregister_driver(&virtio_pci_driver);
-}
-
-module_exit(virtio_pci_exit);
+module_pci_driver(virtio_pci_driver);

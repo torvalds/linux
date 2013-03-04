@@ -271,7 +271,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	const char *name = NULL;
 
 	if (file) {
-		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(vma->vm_file);
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
@@ -526,6 +526,57 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return 0;
 }
 
+static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+{
+	/*
+	 * Don't forget to update Documentation/ on changes.
+	 */
+	static const char mnemonics[BITS_PER_LONG][2] = {
+		/*
+		 * In case if we meet a flag we don't know about.
+		 */
+		[0 ... (BITS_PER_LONG-1)] = "??",
+
+		[ilog2(VM_READ)]	= "rd",
+		[ilog2(VM_WRITE)]	= "wr",
+		[ilog2(VM_EXEC)]	= "ex",
+		[ilog2(VM_SHARED)]	= "sh",
+		[ilog2(VM_MAYREAD)]	= "mr",
+		[ilog2(VM_MAYWRITE)]	= "mw",
+		[ilog2(VM_MAYEXEC)]	= "me",
+		[ilog2(VM_MAYSHARE)]	= "ms",
+		[ilog2(VM_GROWSDOWN)]	= "gd",
+		[ilog2(VM_PFNMAP)]	= "pf",
+		[ilog2(VM_DENYWRITE)]	= "dw",
+		[ilog2(VM_LOCKED)]	= "lo",
+		[ilog2(VM_IO)]		= "io",
+		[ilog2(VM_SEQ_READ)]	= "sr",
+		[ilog2(VM_RAND_READ)]	= "rr",
+		[ilog2(VM_DONTCOPY)]	= "dc",
+		[ilog2(VM_DONTEXPAND)]	= "de",
+		[ilog2(VM_ACCOUNT)]	= "ac",
+		[ilog2(VM_NORESERVE)]	= "nr",
+		[ilog2(VM_HUGETLB)]	= "ht",
+		[ilog2(VM_NONLINEAR)]	= "nl",
+		[ilog2(VM_ARCH_1)]	= "ar",
+		[ilog2(VM_DONTDUMP)]	= "dd",
+		[ilog2(VM_MIXEDMAP)]	= "mm",
+		[ilog2(VM_HUGEPAGE)]	= "hg",
+		[ilog2(VM_NOHUGEPAGE)]	= "nh",
+		[ilog2(VM_MERGEABLE)]	= "mg",
+	};
+	size_t i;
+
+	seq_puts(m, "VmFlags: ");
+	for (i = 0; i < BITS_PER_LONG; i++) {
+		if (vma->vm_flags & (1UL << i)) {
+			seq_printf(m, "%c%c ",
+				   mnemonics[i][0], mnemonics[i][1]);
+		}
+	}
+	seq_putc(m, '\n');
+}
+
 static int show_smap(struct seq_file *m, void *v, int is_pid)
 {
 	struct proc_maps_private *priv = m->private;
@@ -580,6 +631,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
 	if (vma->vm_flags & VM_NONLINEAR)
 		seq_printf(m, "Nonlinear:      %8lu kB\n",
 				mss.nonlinear >> 10);
+
+	show_smap_vma_flags(m, vma);
 
 	if (m->count < m->size)  /* vma is copied successfully */
 		m->version = (vma != get_gate_vma(task->mm))
@@ -690,7 +743,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		return rv;
 	if (type < CLEAR_REFS_ALL || type > CLEAR_REFS_MAPPED)
 		return -EINVAL;
-	task = get_proc_task(file->f_path.dentry->d_inode);
+	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
 	mm = get_task_mm(task);
@@ -962,7 +1015,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
 static ssize_t pagemap_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
+	struct task_struct *task = get_proc_task(file_inode(file));
 	struct mm_struct *mm;
 	struct pagemapread pm;
 	int ret = -ESRCH;
@@ -1225,7 +1278,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	walk.mm = mm;
 
 	pol = get_vma_policy(task, vma, vma->vm_start);
-	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+	mpol_to_str(buffer, sizeof(buffer), pol);
 	mpol_cond_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);

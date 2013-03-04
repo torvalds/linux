@@ -150,7 +150,7 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 	unsigned long enable;
 	enum ns2_led_modes mode;
 
-	ret = strict_strtoul(buff, 10, &enable);
+	ret = kstrtoul(buff, 10, &enable);
 	if (ret < 0)
 		return ret;
 
@@ -192,29 +192,22 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	int ret;
 	enum ns2_led_modes mode;
 
-	ret = gpio_request(template->cmd, template->name);
-	if (ret == 0) {
-		ret = gpio_direction_output(template->cmd,
-					    gpio_get_value(template->cmd));
-		if (ret)
-			gpio_free(template->cmd);
-	}
+	ret = devm_gpio_request_one(&pdev->dev, template->cmd,
+			GPIOF_DIR_OUT | gpio_get_value(template->cmd),
+			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup command GPIO\n",
 			template->name);
+		return ret;
 	}
 
-	ret = gpio_request(template->slow, template->name);
-	if (ret == 0) {
-		ret = gpio_direction_output(template->slow,
-					    gpio_get_value(template->slow));
-		if (ret)
-			gpio_free(template->slow);
-	}
+	ret = devm_gpio_request_one(&pdev->dev, template->slow,
+			GPIOF_DIR_OUT | gpio_get_value(template->slow),
+			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup slow GPIO\n",
 			template->name);
-		goto err_free_cmd;
+		return ret;
 	}
 
 	rwlock_init(&led_dat->rw_lock);
@@ -229,7 +222,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 	ret = ns2_led_get_mode(led_dat, &mode);
 	if (ret < 0)
-		goto err_free_slow;
+		return ret;
 
 	/* Set LED initial state. */
 	led_dat->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
@@ -238,7 +231,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 	ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 	if (ret < 0)
-		goto err_free_slow;
+		return ret;
 
 	ret = device_create_file(led_dat->cdev.dev, &dev_attr_sata);
 	if (ret < 0)
@@ -248,11 +241,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 err_free_cdev:
 	led_classdev_unregister(&led_dat->cdev);
-err_free_slow:
-	gpio_free(led_dat->slow);
-err_free_cmd:
-	gpio_free(led_dat->cmd);
-
 	return ret;
 }
 
@@ -260,8 +248,6 @@ static void delete_ns2_led(struct ns2_led_data *led_dat)
 {
 	device_remove_file(led_dat->cdev.dev, &dev_attr_sata);
 	led_classdev_unregister(&led_dat->cdev);
-	gpio_free(led_dat->cmd);
-	gpio_free(led_dat->slow);
 }
 
 #ifdef CONFIG_OF_GPIO

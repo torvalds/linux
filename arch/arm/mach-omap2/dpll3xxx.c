@@ -291,16 +291,13 @@ static void _lookup_sddiv(struct clk_hw_omap *clk, u8 *sd_div, u16 m, u8 n)
 
 /*
  * _omap3_noncore_dpll_program - set non-core DPLL M,N values directly
- * @clk: struct clk * of DPLL to set
- * @m: DPLL multiplier to set
- * @n: DPLL divider to set
- * @freqsel: FREQSEL value to set
+ * @clk:	struct clk * of DPLL to set
+ * @freqsel:	FREQSEL value to set
  *
- * Program the DPLL with the supplied M, N values, and wait for the DPLL to
- * lock..  Returns -EINVAL upon error, or 0 upon success.
+ * Program the DPLL with the last M, N values calculated, and wait for
+ * the DPLL to lock. Returns -EINVAL upon error, or 0 upon success.
  */
-static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 m, u8 n,
-				      u16 freqsel)
+static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 {
 	struct dpll_data *dd = clk->dpll_data;
 	u8 dco, sd_div;
@@ -323,22 +320,44 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 m, u8 n,
 	/* Set DPLL multiplier, divider */
 	v = __raw_readl(dd->mult_div1_reg);
 	v &= ~(dd->mult_mask | dd->div1_mask);
-	v |= m << __ffs(dd->mult_mask);
-	v |= (n - 1) << __ffs(dd->div1_mask);
+	v |= dd->last_rounded_m << __ffs(dd->mult_mask);
+	v |= (dd->last_rounded_n - 1) << __ffs(dd->div1_mask);
 
 	/* Configure dco and sd_div for dplls that have these fields */
 	if (dd->dco_mask) {
-		_lookup_dco(clk, &dco, m, n);
+		_lookup_dco(clk, &dco, dd->last_rounded_m, dd->last_rounded_n);
 		v &= ~(dd->dco_mask);
 		v |= dco << __ffs(dd->dco_mask);
 	}
 	if (dd->sddiv_mask) {
-		_lookup_sddiv(clk, &sd_div, m, n);
+		_lookup_sddiv(clk, &sd_div, dd->last_rounded_m,
+			      dd->last_rounded_n);
 		v &= ~(dd->sddiv_mask);
 		v |= sd_div << __ffs(dd->sddiv_mask);
 	}
 
 	__raw_writel(v, dd->mult_div1_reg);
+
+	/* Set 4X multiplier and low-power mode */
+	if (dd->m4xen_mask || dd->lpmode_mask) {
+		v = __raw_readl(dd->control_reg);
+
+		if (dd->m4xen_mask) {
+			if (dd->last_rounded_m4xen)
+				v |= dd->m4xen_mask;
+			else
+				v &= ~dd->m4xen_mask;
+		}
+
+		if (dd->lpmode_mask) {
+			if (dd->last_rounded_lpmode)
+				v |= dd->lpmode_mask;
+			else
+				v &= ~dd->lpmode_mask;
+		}
+
+		__raw_writel(v, dd->control_reg);
+	}
 
 	/* We let the clock framework set the other output dividers later */
 
@@ -481,19 +500,18 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (dd->last_rounded_rate == 0)
 			return -EINVAL;
 
-		/* No freqsel on OMAP4 and OMAP3630 */
-		if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
+		/* No freqsel on AM335x, OMAP4 and OMAP3630 */
+		if (!soc_is_am33xx() && !cpu_is_omap44xx() &&
+		    !cpu_is_omap3630()) {
 			freqsel = _omap3_dpll_compute_freqsel(clk,
 						dd->last_rounded_n);
-			if (!freqsel)
-				WARN_ON(1);
+			WARN_ON(!freqsel);
 		}
 
 		pr_debug("%s: %s: set rate: locking rate to %lu.\n",
 			 __func__, __clk_get_name(hw->clk), rate);
 
-		ret = omap3_noncore_dpll_program(clk, dd->last_rounded_m,
-						dd->last_rounded_n, freqsel);
+		ret = omap3_noncore_dpll_program(clk, freqsel);
 		if (!ret)
 			new_parent = dd->clk_ref;
 	}

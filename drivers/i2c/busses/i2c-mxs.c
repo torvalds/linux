@@ -39,6 +39,7 @@
 #define MXS_I2C_CTRL0_SET	(0x04)
 
 #define MXS_I2C_CTRL0_SFTRST			0x80000000
+#define MXS_I2C_CTRL0_RUN			0x20000000
 #define MXS_I2C_CTRL0_SEND_NAK_ON_LAST		0x02000000
 #define MXS_I2C_CTRL0_RETAIN_CLOCK		0x00200000
 #define MXS_I2C_CTRL0_POST_SEND_STOP		0x00100000
@@ -64,6 +65,13 @@
 #define MXS_I2C_CTRL1_SLAVE_STOP_IRQ		0x02
 #define MXS_I2C_CTRL1_SLAVE_IRQ			0x01
 
+#define MXS_I2C_DATA		(0xa0)
+
+#define MXS_I2C_DEBUG0		(0xb0)
+#define MXS_I2C_DEBUG0_CLR	(0xb8)
+
+#define MXS_I2C_DEBUG0_DMAREQ	0x80000000
+
 #define MXS_I2C_IRQ_MASK	(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ | \
 				 MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ | \
 				 MXS_I2C_CTRL1_EARLY_TERM_IRQ | \
@@ -85,35 +93,6 @@
 #define MXS_CMD_I2C_READ	(MXS_I2C_CTRL0_SEND_NAK_ON_LAST | \
 				 MXS_I2C_CTRL0_MASTER_MODE)
 
-struct mxs_i2c_speed_config {
-	uint32_t	timing0;
-	uint32_t	timing1;
-	uint32_t	timing2;
-};
-
-/*
- * Timing values for the default 24MHz clock supplied into the i2c block.
- *
- * The bus can operate at 95kHz or at 400kHz with the following timing
- * register configurations. The 100kHz mode isn't present because it's
- * values are not stated in the i.MX233/i.MX28 datasheet. The 95kHz mode
- * shall be close enough replacement. Therefore when the bus is configured
- * for 100kHz operation, 95kHz timing settings are actually loaded.
- *
- * For details, see i.MX233 [25.4.2 - 25.4.4] and i.MX28 [27.5.2 - 27.5.4].
- */
-static const struct mxs_i2c_speed_config mxs_i2c_95kHz_config = {
-	.timing0	= 0x00780030,
-	.timing1	= 0x00800030,
-	.timing2	= 0x00300030,
-};
-
-static const struct mxs_i2c_speed_config mxs_i2c_400kHz_config = {
-	.timing0	= 0x000f0007,
-	.timing1	= 0x001f000f,
-	.timing2	= 0x00300030,
-};
-
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
@@ -127,9 +106,11 @@ struct mxs_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct completion cmd_complete;
-	u32 cmd_err;
+	int cmd_err;
 	struct i2c_adapter adapter;
-	const struct mxs_i2c_speed_config *speed;
+
+	uint32_t timing0;
+	uint32_t timing1;
 
 	/* DMA support components */
 	int				dma_channel;
@@ -145,9 +126,16 @@ static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 {
 	stmp_reset_block(i2c->regs);
 
-	writel(i2c->speed->timing0, i2c->regs + MXS_I2C_TIMING0);
-	writel(i2c->speed->timing1, i2c->regs + MXS_I2C_TIMING1);
-	writel(i2c->speed->timing2, i2c->regs + MXS_I2C_TIMING2);
+	/*
+	 * Configure timing for the I2C block. The I2C TIMING2 register has to
+	 * be programmed with this particular magic number. The rest is derived
+	 * from the XTAL speed and requested I2C speed.
+	 *
+	 * For details, see i.MX233 [25.4.2 - 25.4.4] and i.MX28 [27.5.2 - 27.5.4].
+	 */
+	writel(i2c->timing0, i2c->regs + MXS_I2C_TIMING0);
+	writel(i2c->timing1, i2c->regs + MXS_I2C_TIMING1);
+	writel(0x00300030, i2c->regs + MXS_I2C_TIMING2);
 
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
 }
@@ -298,6 +286,135 @@ write_init_pio_fail:
 	return -EINVAL;
 }
 
+static int mxs_i2c_pio_wait_dmareq(struct mxs_i2c_dev *i2c)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+
+	while (!(readl(i2c->regs + MXS_I2C_DEBUG0) &
+		MXS_I2C_DEBUG0_DMAREQ)) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
+	}
+
+	writel(MXS_I2C_DEBUG0_DMAREQ, i2c->regs + MXS_I2C_DEBUG0_CLR);
+
+	return 0;
+}
+
+static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+
+	/*
+	 * We do not use interrupts in the PIO mode. Due to the
+	 * maximum transfer length being 8 bytes in PIO mode, the
+	 * overhead of interrupt would be too large and this would
+	 * neglect the gain from using the PIO mode.
+	 */
+
+	while (!(readl(i2c->regs + MXS_I2C_CTRL1) &
+		MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ)) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
+	}
+
+	writel(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ,
+		i2c->regs + MXS_I2C_CTRL1_CLR);
+
+	return 0;
+}
+
+static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
+			struct i2c_msg *msg, uint32_t flags)
+{
+	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
+	uint32_t addr_data = msg->addr << 1;
+	uint32_t data = 0;
+	int i, shifts_left, ret;
+
+	/* Mute IRQs coming from this block. */
+	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_CLR);
+
+	if (msg->flags & I2C_M_RD) {
+		addr_data |= I2C_SMBUS_READ;
+
+		/* SELECT command. */
+		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_SELECT,
+			i2c->regs + MXS_I2C_CTRL0);
+
+		ret = mxs_i2c_pio_wait_dmareq(i2c);
+		if (ret)
+			return ret;
+
+		writel(addr_data, i2c->regs + MXS_I2C_DATA);
+
+		ret = mxs_i2c_pio_wait_cplt(i2c);
+		if (ret)
+			return ret;
+
+		/* READ command. */
+		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_READ | flags |
+			MXS_I2C_CTRL0_XFER_COUNT(msg->len),
+			i2c->regs + MXS_I2C_CTRL0);
+
+		for (i = 0; i < msg->len; i++) {
+			if ((i & 3) == 0) {
+				ret = mxs_i2c_pio_wait_dmareq(i2c);
+				if (ret)
+					return ret;
+				data = readl(i2c->regs + MXS_I2C_DATA);
+			}
+			msg->buf[i] = data & 0xff;
+			data >>= 8;
+		}
+	} else {
+		addr_data |= I2C_SMBUS_WRITE;
+
+		/* WRITE command. */
+		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_WRITE | flags |
+			MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1),
+			i2c->regs + MXS_I2C_CTRL0);
+
+		/*
+		 * The LSB of data buffer is the first byte blasted across
+		 * the bus. Higher order bytes follow. Thus the following
+		 * filling schematic.
+		 */
+		data = addr_data << 24;
+		for (i = 0; i < msg->len; i++) {
+			data >>= 8;
+			data |= (msg->buf[i] << 24);
+			if ((i & 3) == 2) {
+				ret = mxs_i2c_pio_wait_dmareq(i2c);
+				if (ret)
+					return ret;
+				writel(data, i2c->regs + MXS_I2C_DATA);
+			}
+		}
+
+		shifts_left = 24 - (i & 3) * 8;
+		if (shifts_left) {
+			data >>= shifts_left;
+			ret = mxs_i2c_pio_wait_dmareq(i2c);
+			if (ret)
+				return ret;
+			writel(data, i2c->regs + MXS_I2C_DATA);
+		}
+	}
+
+	ret = mxs_i2c_pio_wait_cplt(i2c);
+	if (ret)
+		return ret;
+
+	/* Clear any dangling IRQs and re-enable interrupts. */
+	writel(MXS_I2C_IRQ_MASK, i2c->regs + MXS_I2C_CTRL1_CLR);
+	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
+
+	return 0;
+}
+
 /*
  * Low level master read/write transaction.
  */
@@ -316,24 +433,37 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	if (msg->len == 0)
 		return -EINVAL;
 
-	init_completion(&i2c->cmd_complete);
-	i2c->cmd_err = 0;
+	/*
+	 * The current boundary to select between PIO/DMA transfer method
+	 * is set to 8 bytes, transfers shorter than 8 bytes are transfered
+	 * using PIO mode while longer transfers use DMA. The 8 byte border is
+	 * based on this empirical measurement and a lot of previous frobbing.
+	 */
+	if (msg->len < 8) {
+		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
+		if (ret)
+			mxs_i2c_reset(i2c);
+	} else {
+		i2c->cmd_err = 0;
+		INIT_COMPLETION(i2c->cmd_complete);
+		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
+		if (ret)
+			return ret;
 
-	ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
-	if (ret)
-		return ret;
-
-	ret = wait_for_completion_timeout(&i2c->cmd_complete,
+		ret = wait_for_completion_timeout(&i2c->cmd_complete,
 						msecs_to_jiffies(1000));
-	if (ret == 0)
-		goto timeout;
+		if (ret == 0)
+			goto timeout;
 
-	if (i2c->cmd_err == -ENXIO)
-		mxs_i2c_reset(i2c);
+		if (i2c->cmd_err == -ENXIO)
+			mxs_i2c_reset(i2c);
 
-	dev_dbg(i2c->dev, "Done with err=%d\n", i2c->cmd_err);
+		ret = i2c->cmd_err;
+	}
 
-	return i2c->cmd_err;
+	dev_dbg(i2c->dev, "Done with err=%d\n", ret);
+
+	return ret;
 
 timeout:
 	dev_dbg(i2c->dev, "Timeout!\n");
@@ -359,7 +489,7 @@ static int mxs_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 mxs_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
@@ -403,6 +533,43 @@ static bool mxs_i2c_dma_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
+static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, int speed)
+{
+	/* The I2C block clock run at 24MHz */
+	const uint32_t clk = 24000000;
+	uint32_t base;
+	uint16_t high_count, low_count, rcv_count, xmit_count;
+	struct device *dev = i2c->dev;
+
+	if (speed > 540000) {
+		dev_warn(dev, "Speed too high (%d Hz), using 540 kHz\n", speed);
+		speed = 540000;
+	} else if (speed < 12000) {
+		dev_warn(dev, "Speed too low (%d Hz), using 12 kHz\n", speed);
+		speed = 12000;
+	}
+
+	/*
+	 * The timing derivation algorithm. There is no documentation for this
+	 * algorithm available, it was derived by using the scope and fiddling
+	 * with constants until the result observed on the scope was good enough
+	 * for 20kHz, 50kHz, 100kHz, 200kHz, 300kHz and 400kHz. It should be
+	 * possible to assume the algorithm works for other frequencies as well.
+	 *
+	 * Note it was necessary to cap the frequency on both ends as it's not
+	 * possible to configure completely arbitrary frequency for the I2C bus
+	 * clock.
+	 */
+	base = ((clk / speed) - 38) / 2;
+	high_count = base + 3;
+	low_count = base - 3;
+	rcv_count = (high_count * 3) / 4;
+	xmit_count = low_count / 4;
+
+	i2c->timing0 = (high_count << 16) | rcv_count;
+	i2c->timing1 = (low_count << 16) | xmit_count;
+}
+
 static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 {
 	uint32_t speed;
@@ -422,17 +589,17 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	}
 
 	ret = of_property_read_u32(node, "clock-frequency", &speed);
-	if (ret)
+	if (ret) {
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
-	else if (speed == 400000)
-		i2c->speed = &mxs_i2c_400kHz_config;
-	else if (speed != 100000)
-		dev_warn(dev, "Unsupported I2C speed selected, using 100kHz\n");
+		speed = 100000;
+	}
+
+	mxs_i2c_derive_timing(i2c, speed);
 
 	return 0;
 }
 
-static int __devinit mxs_i2c_probe(struct platform_device *pdev)
+static int mxs_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxs_i2c_dev *i2c;
@@ -471,7 +638,8 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 		return err;
 
 	i2c->dev = dev;
-	i2c->speed = &mxs_i2c_95kHz_config;
+
+	init_completion(&i2c->cmd_complete);
 
 	if (dev->of_node) {
 		err = mxs_i2c_get_ofdata(i2c);
@@ -515,7 +683,7 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mxs_i2c_remove(struct platform_device *pdev)
+static int mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
 	int ret;
@@ -528,8 +696,6 @@ static int __devexit mxs_i2c_remove(struct platform_device *pdev)
 		dma_release_channel(i2c->dmach);
 
 	writel(MXS_I2C_CTRL0_SFTRST, i2c->regs + MXS_I2C_CTRL0_SET);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -546,7 +712,7 @@ static struct platform_driver mxs_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
-	.remove = __devexit_p(mxs_i2c_remove),
+	.remove = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)

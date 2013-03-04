@@ -36,19 +36,12 @@
 
 struct nouveau_i2c_port;
 
-struct dp_train_func {
-	void (*link_set)(struct drm_device *, struct dcb_output *, int crtc,
-			 int nr, u32 bw, bool enhframe);
-	void (*train_set)(struct drm_device *, struct dcb_output *, u8 pattern);
-	void (*train_adj)(struct drm_device *, struct dcb_output *,
-			  u8 lane, u8 swing, u8 preem);
-};
-
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
 	int or;
+	struct nouveau_i2c_port *i2c;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
@@ -93,14 +86,9 @@ get_slave_funcs(struct drm_encoder *enc)
 /* nouveau_dp.c */
 bool nouveau_dp_detect(struct drm_encoder *);
 void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
-		     struct dp_train_func *);
-u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_output *, u8 **);
+		     struct nouveau_object *);
 
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
-int nv50_sor_create(struct drm_connector *, struct dcb_output *);
-void nv50_sor_dp_calc_tu(struct drm_device *, int, int, u32, u32);
-int nv50_dac_create(struct drm_connector *, struct dcb_output *);
-
 
 #endif /* __NOUVEAU_ENCODER_H__ */

@@ -13,32 +13,11 @@
 #include <asm/sigcontext32.h>
 
 /* signal.h */
-struct sigaction32 {
-	unsigned int  sa_handler;	/* Really a pointer, but need to deal
-					   with 32 bits */
-	unsigned int sa_flags;
-	unsigned int sa_restorer;	/* Another 32 bit pointer */
-	compat_sigset_t sa_mask;	/* A 32 bit mask */
-};
-
-struct old_sigaction32 {
-	unsigned int  sa_handler;	/* Really a pointer, but need to deal
-					   with 32 bits */
-	compat_old_sigset_t sa_mask;	/* A 32 bit mask */
-	unsigned int sa_flags;
-	unsigned int sa_restorer;	/* Another 32 bit pointer */
-};
-
-typedef struct sigaltstack_ia32 {
-	unsigned int	ss_sp;
-	int		ss_flags;
-	unsigned int	ss_size;
-} stack_ia32_t;
 
 struct ucontext_ia32 {
 	unsigned int	  uc_flags;
 	unsigned int 	  uc_link;
-	stack_ia32_t	  uc_stack;
+	compat_stack_t	  uc_stack;
 	struct sigcontext_ia32 uc_mcontext;
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
@@ -46,7 +25,7 @@ struct ucontext_ia32 {
 struct ucontext_x32 {
 	unsigned int	  uc_flags;
 	unsigned int 	  uc_link;
-	stack_ia32_t	  uc_stack;
+	compat_stack_t	  uc_stack;
 	unsigned int	  uc__pad0;     /* needed for alignment */
 	struct sigcontext uc_mcontext;  /* the 64-bit sigcontext type */
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */

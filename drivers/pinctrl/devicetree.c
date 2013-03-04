@@ -141,6 +141,11 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 		pctldev = find_pinctrl_by_of_node(np_pctldev);
 		if (pctldev)
 			break;
+		/* Do not defer probing of hogs (circular loop) */
+		if (np_pctldev == p->dev->of_node) {
+			of_node_put(np_pctldev);
+			return -ENODEV;
+		}
 	}
 	of_node_put(np_pctldev);
 

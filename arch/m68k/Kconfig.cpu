@@ -35,7 +35,8 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool
+	bool "MC68000"
+	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
 	select CPU_HAS_NO_UNALIGNED

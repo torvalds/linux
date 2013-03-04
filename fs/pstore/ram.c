@@ -167,12 +167,16 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 {
 	char *hdr;
-	struct timeval timestamp;
+	struct timespec timestamp;
 	size_t len;
 
-	do_gettimeofday(&timestamp);
+	/* Report zeroed timestamp if called before timekeeping has resumed. */
+	if (__getnstimeofday(&timestamp)) {
+		timestamp.tv_sec = 0;
+		timestamp.tv_nsec = 0;
+	}
 	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lu.%lu\n",
-		(long)timestamp.tv_sec, (long)timestamp.tv_usec);
+		(long)timestamp.tv_sec, (long)(timestamp.tv_nsec / 1000));
 	WARN_ON_ONCE(!hdr);
 	len = hdr ? strlen(hdr) : 0;
 	persistent_ram_write(prz, hdr, len);
@@ -188,7 +192,7 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 					    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
-	struct persistent_ram_zone *prz = cxt->przs[cxt->dump_write_cnt];
+	struct persistent_ram_zone *prz;
 	size_t hlen;
 
 	if (type == PSTORE_TYPE_CONSOLE) {
@@ -224,6 +228,11 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 	 */
 	if (part != 1)
 		return -ENOSPC;
+
+	if (!cxt->przs)
+		return -ENOSPC;
+
+	prz = cxt->przs[cxt->dump_write_cnt];
 
 	hlen = ramoops_write_kmsg_hdr(prz);
 	if (size + hlen > prz->buffer_size)
@@ -287,13 +296,18 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 }
 
 static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
-			      phys_addr_t *paddr, size_t dump_mem_sz)
+			     phys_addr_t *paddr, size_t dump_mem_sz)
 {
 	int err = -ENOMEM;
 	int i;
 
 	if (!cxt->record_size)
 		return 0;
+
+	if (*paddr + dump_mem_sz - cxt->phys_addr > cxt->size) {
+		dev_err(dev, "no room for dumps\n");
+		return -ENOMEM;
+	}
 
 	cxt->max_dump_cnt = dump_mem_sz / cxt->record_size;
 	if (!cxt->max_dump_cnt)
@@ -332,8 +346,12 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 	if (!sz)
 		return 0;
 
-	if (*paddr + sz > *paddr + cxt->size)
+	if (*paddr + sz - cxt->phys_addr > cxt->size) {
+		dev_err(dev, "no room for mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+			sz, (unsigned long long)*paddr,
+			cxt->size, (unsigned long long)cxt->phys_addr);
 		return -ENOMEM;
+	}
 
 	*prz = persistent_ram_new(*paddr, sz, sig, cxt->ecc_size);
 	if (IS_ERR(*prz)) {
@@ -351,7 +369,7 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 	return 0;
 }
 
-static int __devinit ramoops_probe(struct platform_device *pdev)
+static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
@@ -373,10 +391,14 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 		goto fail_out;
 	}
 
-	pdata->mem_size = rounddown_pow_of_two(pdata->mem_size);
-	pdata->record_size = rounddown_pow_of_two(pdata->record_size);
-	pdata->console_size = rounddown_pow_of_two(pdata->console_size);
-	pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
+	if (!is_power_of_2(pdata->mem_size))
+		pdata->mem_size = rounddown_pow_of_two(pdata->mem_size);
+	if (!is_power_of_2(pdata->record_size))
+		pdata->record_size = rounddown_pow_of_two(pdata->record_size);
+	if (!is_power_of_2(pdata->console_size))
+		pdata->console_size = rounddown_pow_of_two(pdata->console_size);
+	if (!is_power_of_2(pdata->ftrace_size))
+		pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
 
 	cxt->dump_read_cnt = 0;
 	cxt->size = pdata->mem_size;

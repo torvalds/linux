@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/handle.h>
@@ -216,10 +217,10 @@ nv40_graph_tile_prog(struct nouveau_engine *engine, int i)
 
 	switch (nv_device(priv)->chipset) {
 	case 0x40:
-	case 0x41: /* guess */
+	case 0x41:
 	case 0x42:
 	case 0x43:
-	case 0x45: /* guess */
+	case 0x45:
 	case 0x4e:
 		nv_wr32(priv, NV20_PGRAPH_TSIZE(i), tile->pitch);
 		nv_wr32(priv, NV20_PGRAPH_TLIMIT(i), tile->limit);
@@ -227,6 +228,21 @@ nv40_graph_tile_prog(struct nouveau_engine *engine, int i)
 		nv_wr32(priv, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nv_wr32(priv, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nv_wr32(priv, NV40_PGRAPH_TILE1(i), tile->addr);
+		switch (nv_device(priv)->chipset) {
+		case 0x40:
+		case 0x45:
+			nv_wr32(priv, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
+			nv_wr32(priv, NV40_PGRAPH_ZCOMP1(i), tile->zcomp);
+			break;
+		case 0x41:
+		case 0x42:
+		case 0x43:
+			nv_wr32(priv, NV41_PGRAPH_ZCOMP0(i), tile->zcomp);
+			nv_wr32(priv, NV41_PGRAPH_ZCOMP1(i), tile->zcomp);
+			break;
+		default:
+			break;
+		}
 		break;
 	case 0x44:
 	case 0x4a:
@@ -235,18 +251,31 @@ nv40_graph_tile_prog(struct nouveau_engine *engine, int i)
 		nv_wr32(priv, NV20_PGRAPH_TILE(i), tile->addr);
 		break;
 	case 0x46:
+	case 0x4c:
 	case 0x47:
 	case 0x49:
 	case 0x4b:
-	case 0x4c:
+	case 0x63:
 	case 0x67:
-	default:
+	case 0x68:
 		nv_wr32(priv, NV47_PGRAPH_TSIZE(i), tile->pitch);
 		nv_wr32(priv, NV47_PGRAPH_TLIMIT(i), tile->limit);
 		nv_wr32(priv, NV47_PGRAPH_TILE(i), tile->addr);
 		nv_wr32(priv, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nv_wr32(priv, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nv_wr32(priv, NV40_PGRAPH_TILE1(i), tile->addr);
+		switch (nv_device(priv)->chipset) {
+		case 0x47:
+		case 0x49:
+		case 0x4b:
+			nv_wr32(priv, NV47_PGRAPH_ZCOMP0(i), tile->zcomp);
+			nv_wr32(priv, NV47_PGRAPH_ZCOMP1(i), tile->zcomp);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
 		break;
 	}
 
@@ -293,16 +322,17 @@ nv40_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_info(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
-		printk(" nsource:");
+		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
-		printk(" nstatus:");
+		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
-		printk("\n");
-		nv_error(priv, "ch %d [0x%08x] subc %d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 4, subc, class, mthd, data);
+		pr_cont("\n");
+		nv_error(priv,
+			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, inst << 4, nouveau_client_name(engctx), subc,
+			 class, mthd, data);
 	}
 
 	nouveau_engctx_put(engctx);

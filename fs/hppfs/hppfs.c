@@ -180,7 +180,7 @@ static ssize_t read_proc(struct file *file, char __user *buf, ssize_t count,
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t n;
 
-	read = file->f_path.dentry->d_inode->i_fop->read;
+	read = file_inode(file)->i_fop->read;
 
 	if (!is_user)
 		set_fs(KERNEL_DS);
@@ -288,7 +288,7 @@ static ssize_t hppfs_write(struct file *file, const char __user *buf,
 	struct file *proc_file = data->proc_file;
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 
-	write = proc_file->f_path.dentry->d_inode->i_fop->write;
+	write = file_inode(proc_file)->i_fop->write;
 	return (*write)(proc_file, buf, len, ppos);
 }
 
@@ -513,7 +513,7 @@ static loff_t hppfs_llseek(struct file *file, loff_t off, int where)
 	loff_t (*llseek)(struct file *, loff_t, int);
 	loff_t ret;
 
-	llseek = proc_file->f_path.dentry->d_inode->i_fop->llseek;
+	llseek = file_inode(proc_file)->i_fop->llseek;
 	if (llseek != NULL) {
 		ret = (*llseek)(proc_file, off, where);
 		if (ret < 0)
@@ -561,7 +561,7 @@ static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 				      });
 	int err;
 
-	readdir = proc_file->f_path.dentry->d_inode->i_fop->readdir;
+	readdir = file_inode(proc_file)->i_fop->readdir;
 
 	proc_file->f_pos = file->f_pos;
 	err = (*readdir)(proc_file, &dirent, hppfs_filldir);
@@ -710,7 +710,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	struct vfsmount *proc_mnt;
 	int err = -ENOENT;
 
-	proc_mnt = mntget(current->nsproxy->pid_ns->proc_mnt);
+	proc_mnt = mntget(task_active_pid_ns(current)->proc_mnt);
 	if (IS_ERR(proc_mnt))
 		goto out;
 

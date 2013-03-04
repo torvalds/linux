@@ -672,8 +672,10 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	mutex_lock(&aes_lock);
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	ctx->dd = dd;
 	dd->ctx = ctx;
@@ -757,8 +759,10 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	aes_set_key(dd);
 
@@ -1029,7 +1033,7 @@ out:
 	if (dd->buf_out)
 		dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			dd->buf_out, dd->dma_buf_out);
-	if (IS_ERR(dd->aes_clk))
+	if (!IS_ERR(dd->aes_clk))
 		clk_put(dd->aes_clk);
 	if (aes_wq)
 		destroy_workqueue(aes_wq);
@@ -1043,7 +1047,7 @@ out:
 	return err;
 }
 
-static int __devexit tegra_aes_remove(struct platform_device *pdev)
+static int tegra_aes_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra_aes_dev *dd = platform_get_drvdata(pdev);
@@ -1070,7 +1074,7 @@ static int __devexit tegra_aes_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tegra_aes_of_match[] __devinitdata = {
+static struct of_device_id tegra_aes_of_match[] = {
 	{ .compatible = "nvidia,tegra20-aes", },
 	{ .compatible = "nvidia,tegra30-aes", },
 	{ },
@@ -1078,7 +1082,7 @@ static struct of_device_id tegra_aes_of_match[] __devinitdata = {
 
 static struct platform_driver tegra_aes_driver = {
 	.probe  = tegra_aes_probe,
-	.remove = __devexit_p(tegra_aes_remove),
+	.remove = tegra_aes_remove,
 	.driver = {
 		.name   = "tegra-aes",
 		.owner  = THIS_MODULE,

@@ -5,7 +5,6 @@
 
 struct scatterlist;
 
-#ifndef CONFIG_MMU_SUN3
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	return 1;
@@ -20,6 +19,22 @@ extern void *dma_alloc_coherent(struct device *, size_t,
 				dma_addr_t *, gfp_t);
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
+
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t flag,
+				    struct dma_attrs *attrs)
+{
+	/* attrs is not supported and ignored */
+	return dma_alloc_coherent(dev, size, dma_handle, flag);
+}
+
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *cpu_addr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
+{
+	/* attrs is not supported and ignored */
+	dma_free_coherent(dev, size, cpu_addr, dma_handle);
+}
 
 static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
 					  dma_addr_t *handle, gfp_t flag)
@@ -95,8 +110,14 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t handle)
 	return 0;
 }
 
-#else
-#include <asm-generic/dma-mapping-broken.h>
-#endif
+/* drivers/base/dma-mapping.c */
+extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
+extern int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
+				  void *cpu_addr, dma_addr_t dma_addr,
+				  size_t size);
+
+#define dma_mmap_coherent(d, v, c, h, s) dma_common_mmap(d, v, c, h, s)
+#define dma_get_sgtable(d, t, v, h, s) dma_common_get_sgtable(d, t, v, h, s)
 
 #endif  /* _M68K_DMA_MAPPING_H */

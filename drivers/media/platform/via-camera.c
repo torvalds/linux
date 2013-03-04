@@ -18,6 +18,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 #include <media/ov7670.h>
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
@@ -63,6 +64,7 @@ enum viacam_opstate { S_IDLE = 0, S_RUNNING = 1 };
 
 struct via_camera {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 	struct video_device vdev;
 	struct v4l2_subdev *sensor;
 	struct platform_device *platdev;
@@ -818,47 +820,6 @@ static int viacam_g_chip_ident(struct file *file, void *priv,
 }
 
 /*
- * Control ops are passed through to the sensor.
- */
-static int viacam_queryctrl(struct file *filp, void *priv,
-		struct v4l2_queryctrl *qc)
-{
-	struct via_camera *cam = priv;
-	int ret;
-
-	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, core, queryctrl, qc);
-	mutex_unlock(&cam->lock);
-	return ret;
-}
-
-
-static int viacam_g_ctrl(struct file *filp, void *priv,
-		struct v4l2_control *ctrl)
-{
-	struct via_camera *cam = priv;
-	int ret;
-
-	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, core, g_ctrl, ctrl);
-	mutex_unlock(&cam->lock);
-	return ret;
-}
-
-
-static int viacam_s_ctrl(struct file *filp, void *priv,
-		struct v4l2_control *ctrl)
-{
-	struct via_camera *cam = priv;
-	int ret;
-
-	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, core, s_ctrl, ctrl);
-	mutex_unlock(&cam->lock);
-	return ret;
-}
-
-/*
  * Only one input.
  */
 static int viacam_enum_input(struct file *filp, void *priv,
@@ -1214,9 +1175,6 @@ static int viacam_enum_frameintervals(struct file *filp, void *priv,
 
 static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
 	.vidioc_g_chip_ident	= viacam_g_chip_ident,
-	.vidioc_queryctrl	= viacam_queryctrl,
-	.vidioc_g_ctrl		= viacam_g_ctrl,
-	.vidioc_s_ctrl		= viacam_s_ctrl,
 	.vidioc_enum_input	= viacam_enum_input,
 	.vidioc_g_input		= viacam_g_input,
 	.vidioc_s_input		= viacam_s_input,
@@ -1324,7 +1282,7 @@ static struct video_device viacam_v4l_template = {
 #define VIACAM_SERIAL_CREG 0x46
 #define VIACAM_SERIAL_BIT 0x40
 
-static __devinit bool viacam_serial_is_enabled(void)
+static bool viacam_serial_is_enabled(void)
 {
 	struct pci_bus *pbus = pci_find_bus(0, 0);
 	u8 cbyte;
@@ -1353,7 +1311,7 @@ static struct ov7670_config sensor_cfg = {
 	.clock_speed = 90,
 };
 
-static __devinit int viacam_probe(struct platform_device *pdev)
+static int viacam_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct i2c_adapter *sensor_adapter;
@@ -1418,8 +1376,12 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(&pdev->dev, &cam->v4l2_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to register v4l2 device\n");
-		return ret;
+		goto out_free;
 	}
+	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
+	if (ret)
+		goto out_unregister;
+	cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
 	/*
 	 * Convince the system that we can do DMA.
 	 */
@@ -1436,7 +1398,7 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 	 */
 	ret = via_sensor_power_setup(cam);
 	if (ret)
-		goto out_unregister;
+		goto out_ctrl_hdl_free;
 	via_sensor_power_up(cam);
 
 	/*
@@ -1485,12 +1447,16 @@ out_irq:
 	free_irq(viadev->pdev->irq, cam);
 out_power_down:
 	via_sensor_power_release(cam);
+out_ctrl_hdl_free:
+	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 out_unregister:
 	v4l2_device_unregister(&cam->v4l2_dev);
+out_free:
+	kfree(cam);
 	return ret;
 }
 
-static __devexit int viacam_remove(struct platform_device *pdev)
+static int viacam_remove(struct platform_device *pdev)
 {
 	struct via_camera *cam = via_cam_info;
 	struct viafb_dev *viadev = pdev->dev.platform_data;
@@ -1499,6 +1465,8 @@ static __devexit int viacam_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&cam->v4l2_dev);
 	free_irq(viadev->pdev->irq, cam);
 	via_sensor_power_release(cam);
+	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+	kfree(cam);
 	via_cam_info = NULL;
 	return 0;
 }

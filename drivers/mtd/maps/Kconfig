@@ -358,13 +358,6 @@ config MTD_IXP2000
 	  IXP2000 based board and would like to use the flash chips on it,
 	  say 'Y'.
 
-config MTD_FORTUNET
-	tristate "CFI Flash device mapped on the FortuNet board"
-	depends on MTD_CFI && SA1100_FORTUNET
-	help
-	  This enables access to the Flash on the FortuNet board.  If you
-	  have such a board, say 'Y'.
-
 config MTD_AUTCPU12
 	bool "NV-RAM mapping AUTCPU12 board"
 	depends on ARCH_AUTCPU12
@@ -436,7 +429,7 @@ config MTD_GPIO_ADDR
 
 config MTD_UCLINUX
 	bool "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_RAM=y && (!MMU || COLDFIRE)
+	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
 	help
 	  Map driver to support image based filesystems for uClinux.
 

@@ -127,8 +127,8 @@ struct igbvf_buffer {
 		/* Tx */
 		struct {
 			unsigned long time_stamp;
+			union e1000_adv_tx_desc *next_to_watch;
 			u16 length;
-			u16 next_to_watch;
 			u16 mapped_as_page;
 		};
 		/* Rx */

@@ -76,18 +76,10 @@
 					st,function = "mii2";
 				};
 				pwm0_1 {
-					st,pins = "pwm0_1_pin_14_15_grp";
+					st,pins = "pwm0_1_pin_37_38_grp";
 					st,function = "pwm0_1";
 				};
-				pwm2 {
-					st,pins = "pwm2_pin_13_grp";
-					st,function = "pwm2";
-				};
 			};
-		};
-
-		clcd@90000000 {
-			status = "okay";
 		};
 
 		dma@fc400000 {
@@ -103,6 +95,7 @@
 		};
 
 		sdhci@70000000 {
+			power-gpio = <&gpiopinctrl 61 1>;
 			status = "okay";
 		};
 
@@ -122,15 +115,23 @@
 				};
 				partition@10000 {
 					label = "u-boot";
-					reg = <0x10000 0x40000>;
+					reg = <0x10000 0x50000>;
 				};
-				partition@50000 {
+				partition@60000 {
+					label = "environment";
+					reg = <0x60000 0x10000>;
+				};
+				partition@70000 {
+					label = "dtb";
+					reg = <0x70000 0x10000>;
+				};
+				partition@80000 {
 					label = "linux";
-					reg = <0x50000 0x2c0000>;
+					reg = <0x80000 0x310000>;
 				};
-				partition@310000 {
+				partition@390000 {
 					label = "rootfs";
-					reg = <0x310000 0x4f0000>;
+					reg = <0x390000 0x0>;
 				};
 			};
 		};
@@ -182,14 +183,20 @@
 
 			serial@d0000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@a3000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@a4000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			wdt@fc880000 {

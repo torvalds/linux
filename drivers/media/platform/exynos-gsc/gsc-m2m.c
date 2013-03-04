@@ -99,22 +99,28 @@ static void gsc_m2m_job_abort(void *priv)
 		gsc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
 }
 
-static int gsc_fill_addr(struct gsc_ctx *ctx)
+static int gsc_get_bufs(struct gsc_ctx *ctx)
 {
 	struct gsc_frame *s_frame, *d_frame;
-	struct vb2_buffer *vb = NULL;
+	struct vb2_buffer *src_vb, *dst_vb;
 	int ret;
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
 
-	vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-	ret = gsc_prepare_addr(ctx, vb, s_frame, &s_frame->addr);
+	src_vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	ret = gsc_prepare_addr(ctx, src_vb, s_frame, &s_frame->addr);
 	if (ret)
 		return ret;
 
-	vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
-	return gsc_prepare_addr(ctx, vb, d_frame, &d_frame->addr);
+	dst_vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+	ret = gsc_prepare_addr(ctx, dst_vb, d_frame, &d_frame->addr);
+	if (ret)
+		return ret;
+
+	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+
+	return 0;
 }
 
 static void gsc_m2m_device_run(void *priv)
@@ -122,7 +128,7 @@ static void gsc_m2m_device_run(void *priv)
 	struct gsc_ctx *ctx = priv;
 	struct gsc_dev *gsc;
 	unsigned long flags;
-	u32 ret;
+	int ret;
 	bool is_set = false;
 
 	if (WARN(!ctx, "null hardware context\n"))
@@ -148,7 +154,7 @@ static void gsc_m2m_device_run(void *priv)
 		goto put_device;
 	}
 
-	ret = gsc_fill_addr(ctx);
+	ret = gsc_get_bufs(ctx);
 	if (ret) {
 		pr_err("Wrong address");
 		goto put_device;
@@ -367,6 +373,13 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
 
+static int gsc_m2m_expbuf(struct file *file, void *fh,
+				struct v4l2_exportbuffer *eb)
+{
+	struct gsc_ctx *ctx = fh_to_ctx(fh);
+	return v4l2_m2m_expbuf(file, ctx->m2m_ctx, eb);
+}
+
 static int gsc_m2m_querybuf(struct file *file, void *fh,
 					struct v4l2_buffer *buf)
 {
@@ -548,6 +561,7 @@ static const struct v4l2_ioctl_ops gsc_m2m_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap_mplane	= gsc_m2m_s_fmt_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= gsc_m2m_s_fmt_mplane,
 	.vidioc_reqbufs			= gsc_m2m_reqbufs,
+	.vidioc_expbuf                  = gsc_m2m_expbuf,
 	.vidioc_querybuf		= gsc_m2m_querybuf,
 	.vidioc_qbuf			= gsc_m2m_qbuf,
 	.vidioc_dqbuf			= gsc_m2m_dqbuf,
@@ -565,7 +579,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 
 	memset(src_vq, 0, sizeof(*src_vq));
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	src_vq->io_modes = VB2_MMAP | VB2_USERPTR;
+	src_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	src_vq->drv_priv = ctx;
 	src_vq->ops = &gsc_m2m_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
@@ -577,7 +591,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 
 	memset(dst_vq, 0, sizeof(*dst_vq));
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR;
+	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->ops = &gsc_m2m_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
@@ -597,7 +611,7 @@ static int gsc_m2m_open(struct file *file)
 	if (mutex_lock_interruptible(&gsc->lock))
 		return -ERESTARTSYS;
 
-	ctx = kzalloc(sizeof (*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto unlock;

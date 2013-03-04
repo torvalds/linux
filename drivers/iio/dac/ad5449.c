@@ -266,7 +266,7 @@ static const char *ad5449_vref_name(struct ad5449 *st, int n)
 		return "VREFB";
 }
 
-static int __devinit ad5449_spi_probe(struct spi_device *spi)
+static int ad5449_spi_probe(struct spi_device *spi)
 {
 	struct ad5449_platform_data *pdata = spi->dev.platform_data;
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -333,7 +333,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad5449_spi_remove(struct spi_device *spi)
+static int ad5449_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5449 *st = iio_priv(indio_dev);
@@ -366,7 +366,7 @@ static struct spi_driver ad5449_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad5449_spi_probe,
-	.remove = __devexit_p(ad5449_spi_remove),
+	.remove = ad5449_spi_remove,
 	.id_table = ad5449_spi_ids,
 };
 module_spi_driver(ad5449_spi_driver);

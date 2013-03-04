@@ -117,8 +117,8 @@ void __cpuinit hub_rt_clock_event_init(void)
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, CYCLES_PER_SEC);
-	cd->max_delta_ns        = clockevent_delta2ns(0xfffffffffffff, cd);
-	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
+	cd->max_delta_ns	= clockevent_delta2ns(0xfffffffffffff, cd);
+	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
 	cd->rating		= 200;
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of(cpu);
@@ -153,7 +153,7 @@ static cycle_t hub_rt_read(struct clocksource *cs)
 
 struct clocksource hub_rt_clocksource = {
 	.name	= "HUB-RT",
-	.rating	= 200,
+	.rating = 200,
 	.read	= hub_rt_read,
 	.mask	= CLOCKSOURCE_MASK(52),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,

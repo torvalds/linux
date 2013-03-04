@@ -25,6 +25,8 @@ extern void s3c2443_init_clocks(int xtal);
 extern  int s3c2443_baseclk_add(void);
 
 extern void s3c2443_restart(char mode, const char *cmd);
+
+extern void s3c2443_init_irq(void);
 #else
 #define s3c2443_init_clocks NULL
 #define s3c2443_init_uarts NULL

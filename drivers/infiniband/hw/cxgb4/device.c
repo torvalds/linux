@@ -279,6 +279,11 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, " DB State: %s Transitions %llu\n",
 		   db_state_str[dev->db_state],
 		   dev->rdev.stats.db_state_transitions);
+	seq_printf(seq, "TCAM_FULL: %10llu\n", dev->rdev.stats.tcam_full);
+	seq_printf(seq, "ACT_OFLD_CONN_FAILS: %10llu\n",
+		   dev->rdev.stats.act_ofld_conn_fails);
+	seq_printf(seq, "PAS_OFLD_CONN_FAILS: %10llu\n",
+		   dev->rdev.stats.pas_ofld_conn_fails);
 	return 0;
 }
 
@@ -309,6 +314,9 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	dev->rdev.stats.db_empty = 0;
 	dev->rdev.stats.db_drop = 0;
 	dev->rdev.stats.db_state_transitions = 0;
+	dev->rdev.stats.tcam_full = 0;
+	dev->rdev.stats.act_ofld_conn_fails = 0;
+	dev->rdev.stats.pas_ofld_conn_fails = 0;
 	mutex_unlock(&dev->rdev.stats.lock);
 	return count;
 }
@@ -320,6 +328,113 @@ static const struct file_operations stats_debugfs_fops = {
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.write   = stats_clear,
+};
+
+static int dump_ep(int id, void *p, void *data)
+{
+	struct c4iw_ep *ep = p;
+	struct c4iw_debugfs_data *epd = data;
+	int space;
+	int cc;
+
+	space = epd->bufsize - epd->pos - 1;
+	if (space == 0)
+		return 1;
+
+	cc = snprintf(epd->buf + epd->pos, space,
+			"ep %p cm_id %p qp %p state %d flags 0x%lx history 0x%lx "
+			"hwtid %d atid %d %pI4:%d <-> %pI4:%d\n",
+			ep, ep->com.cm_id, ep->com.qp, (int)ep->com.state,
+			ep->com.flags, ep->com.history, ep->hwtid, ep->atid,
+			&ep->com.local_addr.sin_addr.s_addr,
+			ntohs(ep->com.local_addr.sin_port),
+			&ep->com.remote_addr.sin_addr.s_addr,
+			ntohs(ep->com.remote_addr.sin_port));
+	if (cc < space)
+		epd->pos += cc;
+	return 0;
+}
+
+static int dump_listen_ep(int id, void *p, void *data)
+{
+	struct c4iw_listen_ep *ep = p;
+	struct c4iw_debugfs_data *epd = data;
+	int space;
+	int cc;
+
+	space = epd->bufsize - epd->pos - 1;
+	if (space == 0)
+		return 1;
+
+	cc = snprintf(epd->buf + epd->pos, space,
+			"ep %p cm_id %p state %d flags 0x%lx stid %d backlog %d "
+			"%pI4:%d\n", ep, ep->com.cm_id, (int)ep->com.state,
+			ep->com.flags, ep->stid, ep->backlog,
+			&ep->com.local_addr.sin_addr.s_addr,
+			ntohs(ep->com.local_addr.sin_port));
+	if (cc < space)
+		epd->pos += cc;
+	return 0;
+}
+
+static int ep_release(struct inode *inode, struct file *file)
+{
+	struct c4iw_debugfs_data *epd = file->private_data;
+	if (!epd) {
+		pr_info("%s null qpd?\n", __func__);
+		return 0;
+	}
+	vfree(epd->buf);
+	kfree(epd);
+	return 0;
+}
+
+static int ep_open(struct inode *inode, struct file *file)
+{
+	struct c4iw_debugfs_data *epd;
+	int ret = 0;
+	int count = 1;
+
+	epd = kmalloc(sizeof(*epd), GFP_KERNEL);
+	if (!epd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	epd->devp = inode->i_private;
+	epd->pos = 0;
+
+	spin_lock_irq(&epd->devp->lock);
+	idr_for_each(&epd->devp->hwtid_idr, count_idrs, &count);
+	idr_for_each(&epd->devp->atid_idr, count_idrs, &count);
+	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
+	spin_unlock_irq(&epd->devp->lock);
+
+	epd->bufsize = count * 160;
+	epd->buf = vmalloc(epd->bufsize);
+	if (!epd->buf) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	spin_lock_irq(&epd->devp->lock);
+	idr_for_each(&epd->devp->hwtid_idr, dump_ep, epd);
+	idr_for_each(&epd->devp->atid_idr, dump_ep, epd);
+	idr_for_each(&epd->devp->stid_idr, dump_listen_ep, epd);
+	spin_unlock_irq(&epd->devp->lock);
+
+	file->private_data = epd;
+	goto out;
+err1:
+	kfree(epd);
+out:
+	return ret;
+}
+
+static const struct file_operations ep_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = ep_open,
+	.release = ep_release,
+	.read    = debugfs_read,
 };
 
 static int setup_debugfs(struct c4iw_dev *devp)
@@ -341,6 +456,11 @@ static int setup_debugfs(struct c4iw_dev *devp)
 
 	de = debugfs_create_file("stats", S_IWUSR, devp->debugfs_root,
 			(void *)devp, &stats_debugfs_fops);
+	if (de && de->d_inode)
+		de->d_inode->i_size = 4096;
+
+	de = debugfs_create_file("eps", S_IWUSR, devp->debugfs_root,
+			(void *)devp, &ep_debugfs_fops);
 	if (de && de->d_inode)
 		de->d_inode->i_size = 4096;
 
@@ -413,7 +533,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p qpshift %lu "
 	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+	     (void *)(unsigned long)pci_resource_start(rdev->lldi.pdev, 2),
 	     rdev->lldi.db_reg,
 	     rdev->lldi.gts_reg,
 	     rdev->qpshift, rdev->qpmask,
@@ -475,6 +595,9 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 	idr_destroy(&ctx->dev->cqidr);
 	idr_destroy(&ctx->dev->qpidr);
 	idr_destroy(&ctx->dev->mmidr);
+	idr_destroy(&ctx->dev->hwtid_idr);
+	idr_destroy(&ctx->dev->stid_idr);
+	idr_destroy(&ctx->dev->atid_idr);
 	iounmap(ctx->dev->rdev.oc_mw_kva);
 	ib_dealloc_device(&ctx->dev->ibdev);
 	ctx->dev = NULL;
@@ -532,6 +655,9 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	idr_init(&devp->cqidr);
 	idr_init(&devp->qpidr);
 	idr_init(&devp->mmidr);
+	idr_init(&devp->hwtid_idr);
+	idr_init(&devp->stid_idr);
+	idr_init(&devp->atid_idr);
 	spin_lock_init(&devp->lock);
 	mutex_init(&devp->rdev.stats.lock);
 	mutex_init(&devp->db_mutex);
@@ -577,14 +703,76 @@ out:
 	return ctx;
 }
 
+static inline struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
+						 const __be64 *rsp,
+						 u32 pktshift)
+{
+	struct sk_buff *skb;
+
+	/*
+	 * Allocate space for cpl_pass_accept_req which will be synthesized by
+	 * driver. Once the driver synthesizes the request the skb will go
+	 * through the regular cpl_pass_accept_req processing.
+	 * The math here assumes sizeof cpl_pass_accept_req >= sizeof
+	 * cpl_rx_pkt.
+	 */
+	skb = alloc_skb(gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+			sizeof(struct rss_header) - pktshift, GFP_ATOMIC);
+	if (unlikely(!skb))
+		return NULL;
+
+	 __skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+		   sizeof(struct rss_header) - pktshift);
+
+	/*
+	 * This skb will contain:
+	 *   rss_header from the rspq descriptor (1 flit)
+	 *   cpl_rx_pkt struct from the rspq descriptor (2 flits)
+	 *   space for the difference between the size of an
+	 *      rx_pkt and pass_accept_req cpl (1 flit)
+	 *   the packet data from the gl
+	 */
+	skb_copy_to_linear_data(skb, rsp, sizeof(struct cpl_pass_accept_req) +
+				sizeof(struct rss_header));
+	skb_copy_to_linear_data_offset(skb, sizeof(struct rss_header) +
+				       sizeof(struct cpl_pass_accept_req),
+				       gl->va + pktshift,
+				       gl->tot_len - pktshift);
+	return skb;
+}
+
+static inline int recv_rx_pkt(struct c4iw_dev *dev, const struct pkt_gl *gl,
+			   const __be64 *rsp)
+{
+	unsigned int opcode = *(u8 *)rsp;
+	struct sk_buff *skb;
+
+	if (opcode != CPL_RX_PKT)
+		goto out;
+
+	skb = copy_gl_to_skb_pkt(gl , rsp, dev->rdev.lldi.sge_pktshift);
+	if (skb == NULL)
+		goto out;
+
+	if (c4iw_handlers[opcode] == NULL) {
+		pr_info("%s no handler opcode 0x%x...\n", __func__,
+		       opcode);
+		kfree_skb(skb);
+		goto out;
+	}
+	c4iw_handlers[opcode](dev, skb);
+	return 1;
+out:
+	return 0;
+}
+
 static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *gl)
 {
 	struct uld_ctx *ctx = handle;
 	struct c4iw_dev *dev = ctx->dev;
 	struct sk_buff *skb;
-	const struct cpl_act_establish *rpl;
-	unsigned int opcode;
+	u8 opcode;
 
 	if (gl == NULL) {
 		/* omit RSS and rsp_ctrl at end of descriptor */
@@ -601,19 +789,30 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		u32 qid = be32_to_cpu(rc->pldbuflen_qid);
 		c4iw_ev_handler(dev, qid);
 		return 0;
+	} else if (unlikely(*(u8 *)rsp != *(u8 *)gl->va)) {
+		if (recv_rx_pkt(dev, gl, rsp))
+			return 0;
+
+		pr_info("%s: unexpected FL contents at %p, " \
+		       "RSS %#llx, FL %#llx, len %u\n",
+		       pci_name(ctx->lldi.pdev), gl->va,
+		       (unsigned long long)be64_to_cpu(*rsp),
+		       (unsigned long long)be64_to_cpu(
+		       *(__force __be64 *)gl->va),
+		       gl->tot_len);
+
+		return 0;
 	} else {
 		skb = cxgb4_pktgl_to_skb(gl, 128, 128);
 		if (unlikely(!skb))
 			goto nomem;
 	}
 
-	rpl = cplhdr(skb);
-	opcode = rpl->ot.opcode;
-
+	opcode = *(u8 *)rsp;
 	if (c4iw_handlers[opcode])
 		c4iw_handlers[opcode](dev, skb);
 	else
-		printk(KERN_INFO "%s no handler opcode 0x%x...\n", __func__,
+		pr_info("%s no handler opcode 0x%x...\n", __func__,
 		       opcode);
 
 	return 0;

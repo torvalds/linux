@@ -118,6 +118,13 @@ static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool noway
 		set_bit(WDOG_NO_WAY_OUT, &wdd->status);
 }
 
+/* Use the following function to check if a timeout value is invalid */
+static inline bool watchdog_timeout_invalid(struct watchdog_device *wdd, unsigned int t)
+{
+	return ((wdd->max_timeout != 0) &&
+		(t < wdd->min_timeout || t > wdd->max_timeout));
+}
+
 /* Use the following functions to manipulate watchdog driver specific data */
 static inline void watchdog_set_drvdata(struct watchdog_device *wdd, void *data)
 {
@@ -129,7 +136,9 @@ static inline void *watchdog_get_drvdata(struct watchdog_device *wdd)
 	return wdd->driver_data;
 }
 
-/* drivers/watchdog/core/watchdog_core.c */
+/* drivers/watchdog/watchdog_core.c */
+extern int watchdog_init_timeout(struct watchdog_device *wdd,
+				  unsigned int timeout_parm, struct device *dev);
 extern int watchdog_register_device(struct watchdog_device *);
 extern void watchdog_unregister_device(struct watchdog_device *);
 

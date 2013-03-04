@@ -54,7 +54,7 @@ static void tosa_bl_set_backlight(struct tosa_bl_data *data, int brightness)
 static int tosa_bl_update_status(struct backlight_device *dev)
 {
 	struct backlight_properties *props = &dev->props;
-	struct tosa_bl_data *data = dev_get_drvdata(&dev->dev);
+	struct tosa_bl_data *data = bl_get_data(dev);
 	int power = max(props->power, props->fb_blank);
 	int brightness = props->brightness;
 
@@ -92,14 +92,12 @@ static int tosa_bl_probe(struct i2c_client *client,
 
 	data->comadj = sharpsl_param.comadj == -1 ? COMADJ_DEFAULT : sharpsl_param.comadj;
 
-	ret = devm_gpio_request(&client->dev, TOSA_GPIO_BL_C20MA, "backlight");
+	ret = devm_gpio_request_one(&client->dev, TOSA_GPIO_BL_C20MA,
+				GPIOF_OUT_INIT_LOW, "backlight");
 	if (ret) {
 		dev_dbg(&data->bl->dev, "Unable to request gpio!\n");
 		return ret;
 	}
-	ret = gpio_direction_output(TOSA_GPIO_BL_C20MA, 0);
-	if (ret)
-		return ret;
 
 	i2c_set_clientdata(client, data);
 	data->i2c = client;
@@ -162,7 +160,6 @@ static const struct i2c_device_id tosa_bl_id[] = {
 	{ "tosa-bl", 0 },
 	{ },
 };
-
 
 static struct i2c_driver tosa_bl_driver = {
 	.driver = {

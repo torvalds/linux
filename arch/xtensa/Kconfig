@@ -9,21 +9,23 @@ config XTENSA
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
-	select GENERIC_KERNEL_THREAD
-	select GENERIC_KERNEL_EXECVE
+	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select CLONE_BACKWARDS
+	select IRQ_DOMAIN
+	select HAVE_OPROFILE
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
 	  configurable and extensible.  The Linux port to the Xtensa
 	  architecture supports all processor configurations and extensions,
 	  with reasonable minimum requirements.  The Xtensa Linux project has
-	  a home page at <http://xtensa.sourceforge.net/>.
+	  a home page at <http://www.linux-xtensa.org/>.
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
@@ -32,7 +34,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n
@@ -71,6 +73,12 @@ config XTENSA_VARIANT_DC232B
 	select MMU
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
+
+config XTENSA_VARIANT_DC233C
+	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
+	select MMU
+	help
+	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 
 config XTENSA_VARIANT_S6000
 	bool "s6000 - Stretch software configurable processor"
@@ -133,6 +141,7 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
+	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
 	select XTENSA_ISS_NETWORK
@@ -149,6 +158,15 @@ config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
 	select NO_IOPORT
+
+config XTENSA_PLATFORM_XTFPGA
+	bool "XTFPGA"
+	select SERIAL_CONSOLE
+	select ETHOC
+	select XTENSA_CALIBRATE_CCOUNT
+	help
+	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
+	  This hardware is capable of running a full Linux distribution.
 
 endchoice
 
@@ -176,6 +194,53 @@ config CMDLINE
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
+
+config BUILTIN_DTB
+	string "DTB to build into the kernel image"
+	depends on OF
+
+config BLK_DEV_SIMDISK
+	tristate "Host file-based simulated block device support"
+	default n
+	depends on XTENSA_PLATFORM_ISS
+	help
+	  Create block devices that map to files in the host file system.
+	  Device binding to host file may be changed at runtime via proc
+	  interface provided the device is not in use.
+
+config BLK_DEV_SIMDISK_COUNT
+	int "Number of host file-based simulated block devices"
+	range 1 10
+	depends on BLK_DEV_SIMDISK
+	default 2
+	help
+	  This is the default minimal number of created block devices.
+	  Kernel/module parameter 'simdisk_count' may be used to change this
+	  value at runtime. More file names (but no more than 10) may be
+	  specified as parameters, simdisk_count grows accordingly.
+
+config SIMDISK0_FILENAME
+	string "Host filename for the first simulated device"
+	depends on BLK_DEV_SIMDISK = y
+	default ""
+	help
+	  Attach a first simdisk to a host file. Conventionally, this file
+	  contains a root file system.
+
+config SIMDISK1_FILENAME
+	string "Host filename for the second simulated device"
+	depends on BLK_DEV_SIMDISK = y && BLK_DEV_SIMDISK_COUNT != 1
+	default ""
+	help
+	  Another simulated disk in a host file for a buildroot-independent
+	  storage.
 
 source "mm/Kconfig"
 

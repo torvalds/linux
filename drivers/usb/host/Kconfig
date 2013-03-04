@@ -148,7 +148,7 @@ config USB_EHCI_FSL
 	  Variation of ARC USB block used in some Freescale chips.
 
 config USB_EHCI_MXC
-	bool "Support for Freescale i.MX on-chip EHCI USB controller"
+	tristate "Support for Freescale i.MX on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MXC
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
@@ -246,7 +246,7 @@ config USB_EHCI_ATH79
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
-	depends on USB
+	depends on USB && GENERIC_HARDIRQS
 	---help---
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.

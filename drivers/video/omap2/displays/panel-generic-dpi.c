@@ -291,30 +291,6 @@ static struct panel_config generic_dpi_panels[] = {
 		.name			= "h4",
 	},
 
-	/* Unknown panel used in Samsung OMAP2 Apollon */
-	{
-		{
-			.x_res		= 480,
-			.y_res		= 272,
-
-			.pixel_clock	= 6250,
-
-			.hsw		= 41,
-			.hfp		= 2,
-			.hbp		= 2,
-
-			.vsw		= 10,
-			.vfp		= 2,
-			.vbp		= 2,
-
-			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
-		},
-		.name			= "apollon",
-	},
 	/* FocalTech ETM070003DH6 */
 	{
 		{
@@ -688,40 +664,6 @@ static void generic_dpi_panel_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&drv_data->lock);
 }
 
-static int generic_dpi_panel_suspend(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
-
-	mutex_lock(&drv_data->lock);
-
-	generic_dpi_panel_power_off(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	mutex_unlock(&drv_data->lock);
-
-	return 0;
-}
-
-static int generic_dpi_panel_resume(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	mutex_lock(&drv_data->lock);
-
-	r = generic_dpi_panel_power_on(dssdev);
-	if (r)
-		goto err;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-err:
-	mutex_unlock(&drv_data->lock);
-
-	return r;
-}
-
 static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -769,8 +711,6 @@ static struct omap_dss_driver dpi_driver = {
 
 	.enable		= generic_dpi_panel_enable,
 	.disable	= generic_dpi_panel_disable,
-	.suspend	= generic_dpi_panel_suspend,
-	.resume		= generic_dpi_panel_resume,
 
 	.set_timings	= generic_dpi_panel_set_timings,
 	.get_timings	= generic_dpi_panel_get_timings,

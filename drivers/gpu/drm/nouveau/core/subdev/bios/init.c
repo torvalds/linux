@@ -2,11 +2,12 @@
 #include <core/device.h>
 
 #include <subdev/bios.h>
-#include <subdev/bios/conn.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/conn.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/dp.h>
+#include <subdev/bios/gpio.h>
 #include <subdev/bios/init.h>
 #include <subdev/devinit.h>
 #include <subdev/clock.h>
@@ -230,6 +231,11 @@ init_i2c(struct nvbios_init *init, int index)
 			return NULL;
 		}
 
+		if (index == -2 && init->outp->location) {
+			index = NV_I2C_TYPE_EXTAUX(init->outp->extdev);
+			return i2c->find_type(i2c, index);
+		}
+
 		index = init->outp->i2c_index;
 	}
 
@@ -257,7 +263,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 static int
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	u8 data;
 
 	if (port && init_exec(init)) {
@@ -273,7 +279,7 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -1);
+	struct nouveau_i2c_port *port = init_i2c(init, -2);
 	if (port && init_exec(init))
 		return nv_wraux(port, addr, &data, 1);
 	return -ENODEV;
@@ -410,9 +416,25 @@ init_ram_restrict_group_count(struct nvbios_init *init)
 }
 
 static u8
+init_ram_restrict_strap(struct nvbios_init *init)
+{
+	/* This appears to be the behaviour of the VBIOS parser, and *is*
+	 * important to cache the NV_PEXTDEV_BOOT0 on later chipsets to
+	 * avoid fucking up the memory controller (somehow) by reading it
+	 * on every INIT_RAM_RESTRICT_ZM_GROUP opcode.
+	 *
+	 * Preserving the non-caching behaviour on earlier chipsets just
+	 * in case *not* re-reading the strap causes similar breakage.
+	 */
+	if (!init->ramcfg || init->bios->version.major < 0x70)
+		init->ramcfg = init_rd32(init, 0x101000);
+	return (init->ramcfg & 0x00000003c) >> 2;
+}
+
+static u8
 init_ram_restrict(struct nvbios_init *init)
 {
-	u32 strap = (init_rd32(init, 0x101000) & 0x0000003c) >> 2;
+	u8  strap = init_ram_restrict_strap(init);
 	u16 table = init_ram_restrict_table(init);
 	if (table)
 		return nv_ro08(init->bios, table + strap);
@@ -743,9 +765,10 @@ static void
 init_dp_condition(struct nvbios_init *init)
 {
 	struct nouveau_bios *bios = init->bios;
+	struct nvbios_dpout info;
 	u8  cond = nv_ro08(bios, init->offset + 1);
 	u8  unkn = nv_ro08(bios, init->offset + 2);
-	u8  ver, len;
+	u8  ver, hdr, cnt, len;
 	u16 data;
 
 	trace("DP_CONDITION\t0x%02x 0x%02x\n", cond, unkn);
@@ -759,10 +782,12 @@ init_dp_condition(struct nvbios_init *init)
 	case 1:
 	case 2:
 		if ( init->outp &&
-		    (data = dp_outp_match(bios, init->outp, &ver, &len))) {
-			if (ver <= 0x40 && !(nv_ro08(bios, data + 5) & cond))
-				init_exec_set(init, false);
-			if (ver == 0x40 && !(nv_ro08(bios, data + 4) & cond))
+		    (data = nvbios_dpout_match(bios, DCB_OUTPUT_DP,
+					       (init->outp->or << 0) |
+					       (init->outp->sorconf.link << 6),
+					       &ver, &hdr, &cnt, &len, &info)))
+		{
+			if (!(info.flags & cond))
 				init_exec_set(init, false);
 			break;
 		}
@@ -1514,7 +1539,6 @@ init_io(struct nvbios_init *init)
 		mdelay(10);
 		init_wr32(init, 0x614100, 0x10000018);
 		init_wr32(init, 0x614900, 0x10000018);
-		return;
 	}
 
 	value = init_rdport(init, port) & mask;
@@ -1778,7 +1802,7 @@ init_gpio(struct nvbios_init *init)
 	init->offset += 1;
 
 	if (init_exec(init) && gpio && gpio->reset)
-		gpio->reset(gpio);
+		gpio->reset(gpio, DCB_GPIO_UNUSED);
 }
 
 /**
@@ -1797,7 +1821,7 @@ init_ram_restrict_zm_reg_group(struct nvbios_init *init)
 	u8 i, j;
 
 	trace("RAM_RESTRICT_ZM_REG_GROUP\t"
-	      "R[%08x] 0x%02x 0x%02x\n", addr, incr, num);
+	      "R[0x%08x] 0x%02x 0x%02x\n", addr, incr, num);
 	init->offset += 7;
 
 	for (i = 0; i < num; i++) {
@@ -1830,7 +1854,7 @@ init_copy_zm_reg(struct nvbios_init *init)
 	u32 sreg = nv_ro32(bios, init->offset + 1);
 	u32 dreg = nv_ro32(bios, init->offset + 5);
 
-	trace("COPY_ZM_REG\tR[0x%06x] = R[0x%06x]\n", sreg, dreg);
+	trace("COPY_ZM_REG\tR[0x%06x] = R[0x%06x]\n", dreg, sreg);
 	init->offset += 9;
 
 	init_wr32(init, dreg, init_rd32(init, sreg));
@@ -1847,7 +1871,7 @@ init_zm_reg_group(struct nvbios_init *init)
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
-	trace("ZM_REG_GROUP\tR[0x%06x] =\n");
+	trace("ZM_REG_GROUP\tR[0x%06x] =\n", addr);
 	init->offset += 6;
 
 	while (count--) {
@@ -1992,6 +2016,47 @@ init_i2c_long_if(struct nvbios_init *init)
 	init_exec_set(init, false);
 }
 
+/**
+ * INIT_GPIO_NE - opcode 0xa9
+ *
+ */
+static void
+init_gpio_ne(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	struct nouveau_gpio *gpio = nouveau_gpio(bios);
+	struct dcb_gpio_func func;
+	u8 count = nv_ro08(bios, init->offset + 1);
+	u8 idx = 0, ver, len;
+	u16 data, i;
+
+	trace("GPIO_NE\t");
+	init->offset += 2;
+
+	for (i = init->offset; i < init->offset + count; i++)
+		cont("0x%02x ", nv_ro08(bios, i));
+	cont("\n");
+
+	while ((data = dcb_gpio_parse(bios, 0, idx++, &ver, &len, &func))) {
+		if (func.func != DCB_GPIO_UNUSED) {
+			for (i = init->offset; i < init->offset + count; i++) {
+				if (func.func == nv_ro08(bios, i))
+					break;
+			}
+
+			trace("\tFUNC[0x%02x]", func.func);
+			if (i == (init->offset + count)) {
+				cont(" *");
+				if (init_exec(init) && gpio && gpio->reset)
+					gpio->reset(gpio, func.func);
+			}
+			cont("\n");
+		}
+	}
+
+	init->offset += count;
+}
+
 static struct nvbios_init_opcode {
 	void (*exec)(struct nvbios_init *);
 } init_opcode[] = {
@@ -2056,6 +2121,7 @@ static struct nvbios_init_opcode {
 	[0x98] = { init_auxch },
 	[0x99] = { init_zm_auxch },
 	[0x9a] = { init_i2c_long_if },
+	[0xa9] = { init_gpio_ne },
 };
 
 #define init_opcode_nr (sizeof(init_opcode) / sizeof(init_opcode[0]))

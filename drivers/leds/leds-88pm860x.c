@@ -128,8 +128,10 @@ static void pm860x_led_set(struct led_classdev *cdev,
 static int pm860x_led_dt_init(struct platform_device *pdev,
 			      struct pm860x_led *data)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_node *nproot, *np;
 	int iset = 0;
+
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	nproot = of_find_node_by_name(nproot, "leds");
@@ -145,6 +147,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 			break;
 		}
 	}
+	of_node_put(nproot);
 	return 0;
 }
 #else
@@ -165,15 +168,13 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "control");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for control\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_control = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "blink");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for blink\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_blink = res->start;
 	memset(data->name, 0, MFD_NAME_SIZE);
@@ -224,9 +225,6 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	}
 	pm860x_led_set(&data->cdev, 0);
 	return 0;
-out:
-	devm_kfree(&pdev->dev, data);
-	return ret;
 }
 
 static int pm860x_led_remove(struct platform_device *pdev)

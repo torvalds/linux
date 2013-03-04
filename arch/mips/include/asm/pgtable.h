@@ -8,6 +8,7 @@
 #ifndef _ASM_PGTABLE_H
 #define _ASM_PGTABLE_H
 
+#include <linux/mmzone.h>
 #ifdef CONFIG_32BIT
 #include <asm/pgtable-32.h>
 #endif
@@ -85,7 +86,12 @@ extern void paging_init(void);
  * and a page entry and page directory to the page they refer to.
  */
 #define pmd_phys(pmd)		virt_to_phys((void *)pmd_val(pmd))
-#define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
+
+#define __pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+#define pmd_page(pmd)		__pmd_page(pmd)
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
+
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
@@ -98,7 +104,6 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
-	//printk("pte_high %x pte_low %x\n", ptep->pte_high, ptep->pte_low);
 
 	if (pte.pte_low & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
@@ -107,7 +112,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		 * it better already be global)
 		 */
 		if (pte_none(*buddy)) {
-			buddy->pte_low  |= _PAGE_GLOBAL;
+			buddy->pte_low	|= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
 		}
 	}
@@ -314,7 +319,7 @@ static inline int pte_special(pte_t pte)	{ return 0; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
- * Macro to make mark a page protection value as "uncacheable".  Note
+ * Macro to make mark a page protection value as "uncacheable".	 Note
  * that "protection" is really a misnomer here as the protection value
  * contains the memory attribute bits, dirty bits, and various other
  * bits as well.
@@ -366,6 +371,14 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	__update_cache(vma, address, pte);
 }
 
+static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
+	unsigned long address, pmd_t *pmdp)
+{
+	pte_t pte = *(pte_t *)pmdp;
+
+	__update_tlb(vma, address, pte);
+}
+
 #define kern_addr_valid(addr)	(1)
 
 #ifdef CONFIG_64BIT_PHYS_ADDR
@@ -384,6 +397,157 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 #endif
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+extern int has_transparent_hugepage(void);
+
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_HUGE);
+}
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_HUGE;
+
+	return pmd;
+}
+
+static inline int pmd_trans_splitting(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
+}
+
+static inline pmd_t pmd_mksplitting(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_SPLITTING;
+
+	return pmd;
+}
+
+extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+		       pmd_t *pmdp, pmd_t pmd);
+
+#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+/* Extern to avoid header file madness */
+extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+					unsigned long address,
+					pmd_t *pmdp);
+
+#define __HAVE_ARCH_PMD_WRITE
+static inline int pmd_write(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_WRITE);
+}
+
+static inline pmd_t pmd_wrprotect(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
+	return pmd;
+}
+
+static inline pmd_t pmd_mkwrite(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_WRITE;
+	if (pmd_val(pmd) & _PAGE_MODIFIED)
+		pmd_val(pmd) |= _PAGE_SILENT_WRITE;
+
+	return pmd;
+}
+
+static inline int pmd_dirty(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_MODIFIED);
+}
+
+static inline pmd_t pmd_mkclean(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~(_PAGE_MODIFIED | _PAGE_SILENT_WRITE);
+	return pmd;
+}
+
+static inline pmd_t pmd_mkdirty(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_MODIFIED;
+	if (pmd_val(pmd) & _PAGE_WRITE)
+		pmd_val(pmd) |= _PAGE_SILENT_WRITE;
+
+	return pmd;
+}
+
+static inline int pmd_young(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_ACCESSED);
+}
+
+static inline pmd_t pmd_mkold(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~(_PAGE_ACCESSED|_PAGE_SILENT_READ);
+
+	return pmd;
+}
+
+static inline pmd_t pmd_mkyoung(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_ACCESSED;
+
+	if (cpu_has_rixi) {
+		if (!(pmd_val(pmd) & _PAGE_NO_READ))
+			pmd_val(pmd) |= _PAGE_SILENT_READ;
+	} else {
+		if (pmd_val(pmd) & _PAGE_READ)
+			pmd_val(pmd) |= _PAGE_SILENT_READ;
+	}
+
+	return pmd;
+}
+
+/* Extern to avoid header file madness */
+extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return pmd_val(pmd) >> _PFN_SHIFT;
+}
+
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	if (pmd_trans_huge(pmd))
+		return pfn_to_page(pmd_pfn(pmd));
+
+	return pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT);
+}
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	pmd_val(pmd) = (pmd_val(pmd) & _PAGE_CHG_MASK) | pgprot_val(newprot);
+	return pmd;
+}
+
+static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~(_PAGE_PRESENT | _PAGE_VALID | _PAGE_DIRTY);
+
+	return pmd;
+}
+
+/*
+ * The generic version pmdp_get_and_clear uses a version of pmd_clear() with a
+ * different prototype.
+ */
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+				       unsigned long address, pmd_t *pmdp)
+{
+	pmd_t old = *pmdp;
+
+	pmd_clear(pmdp);
+
+	return old;
+}
+
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #include <asm-generic/pgtable.h>
 

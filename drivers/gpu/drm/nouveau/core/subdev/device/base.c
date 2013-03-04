@@ -25,7 +25,6 @@
 #include <core/object.h>
 #include <core/device.h>
 #include <core/client.h>
-#include <core/device.h>
 #include <core/option.h>
 
 #include <core/class.h>
@@ -61,19 +60,25 @@ struct nouveau_devobj {
 
 static const u64 disable_map[] = {
 	[NVDEV_SUBDEV_VBIOS]	= NV_DEVICE_DISABLE_VBIOS,
+	[NVDEV_SUBDEV_DEVINIT]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_GPIO]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_I2C]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_DEVINIT]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_CLOCK]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_MXM]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_MC]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_BUS]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_TIMER]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_FB]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_VM]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_LTCG]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_IBUS]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_INSTMEM]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_VM]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_BAR]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_VOLT]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_CLOCK]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_DISABLE_FIFO,
+	[NVDEV_ENGINE_SW]	= NV_DEVICE_DISABLE_FIFO,
 	[NVDEV_ENGINE_GR]	= NV_DEVICE_DISABLE_GRAPH,
 	[NVDEV_ENGINE_MPEG]	= NV_DEVICE_DISABLE_MPEG,
 	[NVDEV_ENGINE_ME]	= NV_DEVICE_DISABLE_ME,
@@ -84,7 +89,7 @@ static const u64 disable_map[] = {
 	[NVDEV_ENGINE_COPY0]	= NV_DEVICE_DISABLE_COPY0,
 	[NVDEV_ENGINE_COPY1]	= NV_DEVICE_DISABLE_COPY1,
 	[NVDEV_ENGINE_UNK1C1]	= NV_DEVICE_DISABLE_UNK1C1,
-	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_DISABLE_FIFO,
+	[NVDEV_ENGINE_VENC]	= NV_DEVICE_DISABLE_VENC,
 	[NVDEV_ENGINE_DISP]	= NV_DEVICE_DISABLE_DISP,
 	[NVDEV_SUBDEV_NR]	= 0,
 };
@@ -99,8 +104,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	struct nouveau_device *device;
 	struct nouveau_devobj *devobj;
 	struct nv_device_class *args = data;
-	u64 disable, boot0, strap;
-	u64 mmio_base, mmio_size;
+	u32 boot0, strap;
+	u64 disable, mmio_base, mmio_size;
 	void __iomem *map;
 	int ret, i, c;
 
@@ -208,7 +213,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 
 		/* determine frequency of timing crystal */
 		if ( device->chipset < 0x17 ||
-		    (device->chipset >= 0x20 && device->chipset <= 0x25))
+		    (device->chipset >= 0x20 && device->chipset < 0x25))
 			strap &= 0x00000040;
 		else
 			strap &= 0x00400040;
@@ -356,37 +361,37 @@ fail:
 }
 
 static u8
-nouveau_devobj_rd08(struct nouveau_object *object, u32 addr)
+nouveau_devobj_rd08(struct nouveau_object *object, u64 addr)
 {
 	return nv_rd08(object->engine, addr);
 }
 
 static u16
-nouveau_devobj_rd16(struct nouveau_object *object, u32 addr)
+nouveau_devobj_rd16(struct nouveau_object *object, u64 addr)
 {
 	return nv_rd16(object->engine, addr);
 }
 
 static u32
-nouveau_devobj_rd32(struct nouveau_object *object, u32 addr)
+nouveau_devobj_rd32(struct nouveau_object *object, u64 addr)
 {
 	return nv_rd32(object->engine, addr);
 }
 
 static void
-nouveau_devobj_wr08(struct nouveau_object *object, u32 addr, u8 data)
+nouveau_devobj_wr08(struct nouveau_object *object, u64 addr, u8 data)
 {
 	nv_wr08(object->engine, addr, data);
 }
 
 static void
-nouveau_devobj_wr16(struct nouveau_object *object, u32 addr, u16 data)
+nouveau_devobj_wr16(struct nouveau_object *object, u64 addr, u16 data)
 {
 	nv_wr16(object->engine, addr, data);
 }
 
 static void
-nouveau_devobj_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nouveau_devobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	nv_wr32(object->engine, addr, data);
 }

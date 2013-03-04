@@ -40,6 +40,7 @@
 #include "xdr4.h"
 #include "vfs.h"
 #include "current_stateid.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -194,6 +195,7 @@ static __be32
 do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
 {
 	struct svc_fh *resfh;
+	int accmode;
 	__be32 status;
 
 	resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
@@ -253,9 +255,10 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	/* set reply cache */
 	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
 			&resfh->fh_handle);
-	if (!open->op_created)
-		status = do_open_permission(rqstp, resfh, open,
-					    NFSD_MAY_NOP);
+	accmode = NFSD_MAY_NOP;
+	if (open->op_created)
+		accmode |= NFSD_MAY_OWNER_OVERRIDE;
+	status = do_open_permission(rqstp, resfh, open, accmode);
 	set_change_info(&open->op_cinfo, current_fh);
 	fh_dup2(current_fh, resfh);
 out:
@@ -304,6 +307,8 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 	struct nfsd4_compoundres *resp;
+	struct net *net = SVC_NET(rqstp);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	dprintk("NFSD: nfsd4_open filename %.*s op_openowner %p\n",
 		(int)open->op_fname.len, open->op_fname.data,
@@ -331,7 +336,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	/* check seqid for replay. set nfs4_owner */
 	resp = rqstp->rq_resp;
-	status = nfsd4_process_open1(&resp->cstate, open);
+	status = nfsd4_process_open1(&resp->cstate, open, nn);
 	if (status == nfserr_replay_me) {
 		struct nfs4_replay *rp = &open->op_openowner->oo_owner.so_replay;
 		fh_put(&cstate->current_fh);
@@ -354,10 +359,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* Openowner is now set, so sequence id will get bumped.  Now we need
 	 * these checks before we do any creates: */
 	status = nfserr_grace;
-	if (locks_in_grace(SVC_NET(rqstp)) && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+	if (locks_in_grace(net) && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
 	status = nfserr_no_grace;
-	if (!locks_in_grace(SVC_NET(rqstp)) && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+	if (!locks_in_grace(net) && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
 
 	switch (open->op_claim_type) {
@@ -370,7 +375,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
-			status = nfs4_check_open_reclaim(&open->op_clientid, cstate->minorversion);
+			status = nfs4_check_open_reclaim(&open->op_clientid,
+							 cstate->minorversion,
+							 nn);
 			if (status)
 				goto out;
 		case NFS4_OPEN_CLAIM_FH:
@@ -490,12 +497,13 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			   &access->ac_supported);
 }
 
-static void gen_boot_verifier(nfs4_verifier *verifier)
+static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
 {
 	__be32 verf[2];
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	verf[0] = (__be32)nfssvc_boot.tv_sec;
-	verf[1] = (__be32)nfssvc_boot.tv_usec;
+	verf[0] = (__be32)nn->nfssvc_boot.tv_sec;
+	verf[1] = (__be32)nn->nfssvc_boot.tv_usec;
 	memcpy(verifier->data, verf, sizeof(verifier->data));
 }
 
@@ -503,7 +511,7 @@ static __be32
 nfsd4_commit(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     struct nfsd4_commit *commit)
 {
-	gen_boot_verifier(&commit->co_verf);
+	gen_boot_verifier(&commit->co_verf, SVC_NET(rqstp));
 	return nfsd_commit(rqstp, &cstate->current_fh, commit->co_offset,
 			     commit->co_count);
 }
@@ -683,6 +691,17 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	read->rd_filp = NULL;
 	if (read->rd_offset >= OFFSET_MAX)
 		return nfserr_inval;
+
+	/*
+	 * If we do a zero copy read, then a client will see read data
+	 * that reflects the state of the file *after* performing the
+	 * following compound.
+	 *
+	 * To ensure proper ordering, we therefore turn off zero copy if
+	 * the client wants us to do more in this compound:
+	 */
+	if (!nfsd4_last_compound_op(rqstp))
+		rqstp->rq_splice_ok = false;
 
 	nfs4_lock_state();
 	/* check stateid */
@@ -876,6 +895,24 @@ out:
 	return status;
 }
 
+static int fill_in_write_vector(struct kvec *vec, struct nfsd4_write *write)
+{
+        int i = 1;
+        int buflen = write->wr_buflen;
+
+        vec[0].iov_base = write->wr_head.iov_base;
+        vec[0].iov_len = min_t(int, buflen, write->wr_head.iov_len);
+        buflen -= vec[0].iov_len;
+
+        while (buflen) {
+                vec[i].iov_base = page_address(write->wr_pagelist[i - 1]);
+                vec[i].iov_len = min_t(int, PAGE_SIZE, buflen);
+                buflen -= vec[i].iov_len;
+                i++;
+        }
+        return i;
+}
+
 static __be32
 nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    struct nfsd4_write *write)
@@ -884,6 +921,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file *filp = NULL;
 	__be32 status = nfs_ok;
 	unsigned long cnt;
+	int nvecs;
 
 	/* no need to check permission - this will be done in nfsd_write() */
 
@@ -904,10 +942,13 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
-	gen_boot_verifier(&write->wr_verifier);
+	gen_boot_verifier(&write->wr_verifier, SVC_NET(rqstp));
+
+	nvecs = fill_in_write_vector(rqstp->rq_vec, write);
+	WARN_ON_ONCE(nvecs > ARRAY_SIZE(rqstp->rq_vec));
 
 	status =  nfsd_write(rqstp, &cstate->current_fh, filp,
-			     write->wr_offset, rqstp->rq_vec, write->wr_vlen,
+			     write->wr_offset, rqstp->rq_vec, nvecs,
 			     &cnt, &write->wr_how_written);
 	if (filp)
 		fput(filp);
@@ -952,14 +993,15 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (!buf)
 		return nfserr_jukebox;
 
+	p = buf;
 	status = nfsd4_encode_fattr(&cstate->current_fh,
 				    cstate->current_fh.fh_export,
-				    cstate->current_fh.fh_dentry, buf,
-				    &count, verify->ve_bmval,
+				    cstate->current_fh.fh_dentry, &p,
+				    count, verify->ve_bmval,
 				    rqstp, 0);
 
 	/* this means that nfsd4_encode_fattr() ran out of space */
-	if (status == nfserr_resource && count == 0)
+	if (status == nfserr_resource)
 		status = nfserr_not_same;
 	if (status)
 		goto out_kfree;
@@ -1666,6 +1708,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_EXCHANGE_ID",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_exchange_id_rsize,
 	},
+	[OP_BACKCHANNEL_CTL] = {
+		.op_func = (nfsd4op_func)nfsd4_backchannel_ctl,
+		.op_flags = ALLOWED_WITHOUT_FH | OP_MODIFIES_SOMETHING,
+		.op_name = "OP_BACKCHANNEL_CTL",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
+	},
 	[OP_BIND_CONN_TO_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP
@@ -1719,6 +1767,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_free_stateid,
 		.op_flags = ALLOWED_WITHOUT_FH | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_FREE_STATEID",
+		.op_get_currentstateid = (stateid_getter)nfsd4_get_freestateid,
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 };

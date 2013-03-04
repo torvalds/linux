@@ -114,6 +114,8 @@ void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 	if (cc->early_setup_done)
 		return;
 
+	spin_lock_init(&cc->gpio_lock);
+
 	if (cc->core->id.rev >= 11)
 		cc->status = bcma_cc_read32(cc, BCMA_CC_CHIPSTAT);
 	cc->capabilities = bcma_cc_read32(cc, BCMA_CC_CAP);
@@ -202,28 +204,97 @@ u32 bcma_chipco_gpio_in(struct bcma_drv_cc *cc, u32 mask)
 
 u32 bcma_chipco_gpio_out(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
-	return bcma_cc_write32_masked(cc, BCMA_CC_GPIOOUT, mask, value);
+	unsigned long flags;
+	u32 res;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOOUT, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
 }
 
 u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
-	return bcma_cc_write32_masked(cc, BCMA_CC_GPIOOUTEN, mask, value);
+	unsigned long flags;
+	u32 res;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOOUTEN, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
 }
 
+/*
+ * If the bit is set to 0, chipcommon controlls this GPIO,
+ * if the bit is set to 1, it is used by some part of the chip and not our code.
+ */
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
-	return bcma_cc_write32_masked(cc, BCMA_CC_GPIOCTL, mask, value);
+	unsigned long flags;
+	u32 res;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOCTL, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_gpio_control);
 
 u32 bcma_chipco_gpio_intmask(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
-	return bcma_cc_write32_masked(cc, BCMA_CC_GPIOIRQ, mask, value);
+	unsigned long flags;
+	u32 res;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOIRQ, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
 }
 
 u32 bcma_chipco_gpio_polarity(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
-	return bcma_cc_write32_masked(cc, BCMA_CC_GPIOPOL, mask, value);
+	unsigned long flags;
+	u32 res;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOPOL, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
+}
+
+u32 bcma_chipco_gpio_pullup(struct bcma_drv_cc *cc, u32 mask, u32 value)
+{
+	unsigned long flags;
+	u32 res;
+
+	if (cc->core->id.rev < 20)
+		return 0;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOPULLUP, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
+}
+
+u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value)
+{
+	unsigned long flags;
+	u32 res;
+
+	if (cc->core->id.rev < 20)
+		return 0;
+
+	spin_lock_irqsave(&cc->gpio_lock, flags);
+	res = bcma_cc_write32_masked(cc, BCMA_CC_GPIOPULLDOWN, mask, value);
+	spin_unlock_irqrestore(&cc->gpio_lock, flags);
+
+	return res;
 }
 
 #ifdef CONFIG_BCMA_DRIVER_MIPS
@@ -258,7 +329,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		return;
 	}
 
-	irq = bcma_core_mips_irq(cc->core);
+	irq = bcma_core_irq(cc->core);
 
 	/* Determine the registers of the UARTs */
 	cc->nr_serial_ports = (cc->capabilities & BCMA_CC_CAP_NRUART);

@@ -81,7 +81,7 @@ comment "Some wireless drivers require a rate control algorithm"
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
-	depends on MAC80211 && EXPERIMENTAL
+	depends on MAC80211
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
 	 The implementation is based on Draft 2.08 of the Mesh Networking
@@ -254,6 +254,17 @@ config MAC80211_MESH_SYNC_DEBUG
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  synchronization debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_PS_DEBUG
+	bool "Verbose mesh powersave debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  powersave debugging messages (when mac80211 is taking part in a
 	  mesh network).
 
 	  Do not select this option.

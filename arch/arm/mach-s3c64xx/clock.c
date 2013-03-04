@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
@@ -32,6 +31,8 @@
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/pll.h>
+
+#include "regs-sys.h"
 
 /* fin_apll, fin_mpll and fin_epll are all the same clock, which we call
  * ext_xtal_mux for want of an actual name from the manual.
@@ -149,25 +150,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C6410_CLKCON_PCLK_I2C1,
 	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.0",
-		.parent		= &clk_p,
-		.enable		= s3c64xx_pclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_PCLK_IIS0,
-	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.1",
-		.parent		= &clk_p,
-		.enable		= s3c64xx_pclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_PCLK_IIS1,
-	}, {
-#ifdef CONFIG_CPU_S3C6410
-		.name		= "iis",
-		.parent		= &clk_p,
-		.enable		= s3c64xx_pclk_ctrl,
-		.ctrlbit	= S3C6410_CLKCON_PCLK_IIS2,
-	}, {
-#endif
 		.name		= "keypad",
 		.parent		= &clk_p,
 		.enable		= s3c64xx_pclk_ctrl,
@@ -336,6 +318,32 @@ static struct clk clk_48m_spi1 = {
 	.enable		= s3c64xx_sclk_ctrl,
 	.ctrlbit	= S3C_CLKCON_SCLK_SPI1_48,
 };
+
+static struct clk clk_i2s0 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.0",
+	.parent		= &clk_p,
+	.enable		= s3c64xx_pclk_ctrl,
+	.ctrlbit	= S3C_CLKCON_PCLK_IIS0,
+};
+
+static struct clk clk_i2s1 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.1",
+	.parent		= &clk_p,
+	.enable		= s3c64xx_pclk_ctrl,
+	.ctrlbit	= S3C_CLKCON_PCLK_IIS1,
+};
+
+#ifdef CONFIG_CPU_S3C6410
+static struct clk clk_i2s2 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.2",
+	.parent		= &clk_p,
+	.enable		= s3c64xx_pclk_ctrl,
+	.ctrlbit	= S3C6410_CLKCON_PCLK_IIS2,
+};
+#endif
 
 static struct clk init_clocks[] = {
 	{
@@ -660,6 +668,7 @@ static struct clksrc_sources clkset_audio1 = {
 	.nr_sources	= ARRAY_SIZE(clkset_audio1_list),
 };
 
+#ifdef CONFIG_CPU_S3C6410
 static struct clk *clkset_audio2_list[] = {
 	[0] = &clk_mout_epll.clk,
 	[1] = &clk_dout_mpll,
@@ -672,6 +681,7 @@ static struct clksrc_sources clkset_audio2 = {
 	.sources	= clkset_audio2_list,
 	.nr_sources	= ARRAY_SIZE(clkset_audio2_list),
 };
+#endif
 
 static struct clksrc_clk clksrcs[] = {
 	{
@@ -683,36 +693,6 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_src 	= { .reg = S3C_CLK_SRC, .shift = 5, .size = 2  },
 		.reg_div	= { .reg = S3C_CLK_DIV1, .shift = 20, .size = 4  },
 		.sources	= &clkset_uhost,
-	}, {
-		.clk	= {
-			.name		= "audio-bus",
-			.devname	= "samsung-i2s.0",
-			.ctrlbit        = S3C_CLKCON_SCLK_AUDIO0,
-			.enable		= s3c64xx_sclk_ctrl,
-		},
-		.reg_src	= { .reg = S3C_CLK_SRC, .shift = 7, .size = 3  },
-		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 8, .size = 4  },
-		.sources	= &clkset_audio0,
-	}, {
-		.clk	= {
-			.name		= "audio-bus",
-			.devname	= "samsung-i2s.1",
-			.ctrlbit        = S3C_CLKCON_SCLK_AUDIO1,
-			.enable		= s3c64xx_sclk_ctrl,
-		},
-		.reg_src	= { .reg = S3C_CLK_SRC, .shift = 10, .size = 3  },
-		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 12, .size = 4  },
-		.sources	= &clkset_audio1,
-	}, {
-		.clk	= {
-			.name		= "audio-bus",
-			.devname	= "samsung-i2s.2",
-			.ctrlbit        = S3C6410_CLKCON_SCLK_AUDIO2,
-			.enable		= s3c64xx_sclk_ctrl,
-		},
-		.reg_src	= { .reg = S3C6410_CLK_SRC2, .shift = 0, .size = 3  },
-		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 24, .size = 4  },
-		.sources	= &clkset_audio2,
 	}, {
 		.clk	= {
 			.name		= "irda-bus",
@@ -805,6 +785,43 @@ static struct clksrc_clk clk_sclk_spi1 = {
 	.sources = &clkset_spi_mmc,
 };
 
+static struct clksrc_clk clk_audio_bus0 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.devname	= "samsung-i2s.0",
+		.ctrlbit	= S3C_CLKCON_SCLK_AUDIO0,
+		.enable		= s3c64xx_sclk_ctrl,
+	},
+	.reg_src	= { .reg = S3C_CLK_SRC, .shift = 7, .size = 3  },
+	.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 8, .size = 4  },
+	.sources	= &clkset_audio0,
+};
+
+static struct clksrc_clk clk_audio_bus1 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.devname	= "samsung-i2s.1",
+		.ctrlbit	= S3C_CLKCON_SCLK_AUDIO1,
+		.enable		= s3c64xx_sclk_ctrl,
+	},
+	.reg_src	= { .reg = S3C_CLK_SRC, .shift = 10, .size = 3  },
+	.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 12, .size = 4  },
+	.sources	= &clkset_audio1,
+};
+
+#ifdef CONFIG_CPU_S3C6410
+static struct clksrc_clk clk_audio_bus2 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.devname	= "samsung-i2s.2",
+		.ctrlbit	= S3C6410_CLKCON_SCLK_AUDIO2,
+		.enable		= s3c64xx_sclk_ctrl,
+	},
+	.reg_src	= { .reg = S3C6410_CLK_SRC2, .shift = 0, .size = 3  },
+	.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 24, .size = 4  },
+	.sources	= &clkset_audio2,
+};
+#endif
 /* Clock initialisation code */
 
 static struct clksrc_clk *init_parents[] = {
@@ -820,6 +837,8 @@ static struct clksrc_clk *clksrc_cdev[] = {
 	&clk_sclk_mmc2,
 	&clk_sclk_spi0,
 	&clk_sclk_spi1,
+	&clk_audio_bus0,
+	&clk_audio_bus1,
 };
 
 static struct clk *clk_cdev[] = {
@@ -828,6 +847,8 @@ static struct clk *clk_cdev[] = {
 	&clk_hsmmc2,
 	&clk_48m_spi0,
 	&clk_48m_spi1,
+	&clk_i2s0,
+	&clk_i2s1,
 };
 
 static struct clk_lookup s3c64xx_clk_lookup[] = {
@@ -844,6 +865,14 @@ static struct clk_lookup s3c64xx_clk_lookup[] = {
 	CLKDEV_INIT("s3c6410-spi.0", "spi_busclk2", &clk_48m_spi0),
 	CLKDEV_INIT("s3c6410-spi.1", "spi_busclk1", &clk_sclk_spi1.clk),
 	CLKDEV_INIT("s3c6410-spi.1", "spi_busclk2", &clk_48m_spi1),
+	CLKDEV_INIT("samsung-i2s.0", "i2s_opclk0", &clk_i2s0),
+	CLKDEV_INIT("samsung-i2s.0", "i2s_opclk1", &clk_audio_bus0.clk),
+	CLKDEV_INIT("samsung-i2s.1", "i2s_opclk0", &clk_i2s1),
+	CLKDEV_INIT("samsung-i2s.1", "i2s_opclk1", &clk_audio_bus1.clk),
+#ifdef CONFIG_CPU_S3C6410
+	CLKDEV_INIT("samsung-i2s.2", "i2s_opclk0", &clk_i2s2),
+	CLKDEV_INIT("samsung-i2s.2", "i2s_opclk1", &clk_audio_bus2.clk),
+#endif
 };
 
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)

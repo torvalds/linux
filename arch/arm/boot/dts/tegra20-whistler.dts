@@ -3,7 +3,7 @@
 /include/ "tegra20.dtsi"
 
 / {
-	model = "NVIDIA Tegra2 Whistler evaluation board";
+	model = "NVIDIA Tegra20 Whistler evaluation board";
 	compatible = "nvidia,whistler", "nvidia,tegra20";
 
 	memory {
@@ -255,7 +255,6 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	hdmi_ddc: i2c@7000c400 {
@@ -518,6 +517,18 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
+	};
+
+	kbc {
+		status = "okay";
+		nvidia,debounce-delay-ms = <20>;
+		nvidia,repeat-delay-ms = <160>;
+		nvidia,kbc-row-pins = <0 1 2>;
+		nvidia,kbc-col-pins = <16 17>;
+		linux,keymap = <0x00000074	/* KEY_POWER */
+				0x01000066	/* KEY_HOME */
+				0x0101009E	/* KEY_BACK */
+				0x0201008B>;	/* KEY_MENU */
 	};
 
 	regulators {

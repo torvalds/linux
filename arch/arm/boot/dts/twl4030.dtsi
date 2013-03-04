@@ -19,6 +19,10 @@
 		interrupts = <11>;
 	};
 
+	watchdog {
+		compatible = "ti,twl4030-wdt";
+	};
+
 	vdac: regulator-vdac {
 		compatible = "ti,twl4030-vdac";
 		regulator-min-microvolt = <1800000>;

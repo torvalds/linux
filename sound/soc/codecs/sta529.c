@@ -74,9 +74,10 @@
 				SNDRV_PCM_FMTBIT_S32_LE)
 #define	S2PC_VALUE		0x98
 #define CLOCK_OUT		0x60
-#define LEFT_J_DATA_FORMAT	0x10
-#define I2S_DATA_FORMAT		0x12
-#define RIGHT_J_DATA_FORMAT	0x14
+#define DATA_FORMAT_MSK		0x0E
+#define LEFT_J_DATA_FORMAT	0x00
+#define I2S_DATA_FORMAT		0x02
+#define RIGHT_J_DATA_FORMAT	0x04
 #define CODEC_MUTE_VAL		0x80
 
 #define POWER_CNTLMSAK		0x40
@@ -289,7 +290,7 @@ static int sta529_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, STA529_S2PCFG0, 0x0D, mode);
+	snd_soc_update_bits(codec, STA529_S2PCFG0, DATA_FORMAT_MSK, mode);
 
 	return 0;
 }

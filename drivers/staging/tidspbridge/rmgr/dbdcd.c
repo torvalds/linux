@@ -852,8 +852,7 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 				goto func_end;
 			}
 
-			dcd_key->path = kmalloc(strlen(sz_reg_key) + 1,
-								GFP_KERNEL);
+			dcd_key->path = kmalloc(dw_path_size, GFP_KERNEL);
 
 			if (!dcd_key->path) {
 				kfree(dcd_key);

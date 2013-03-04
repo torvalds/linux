@@ -63,8 +63,7 @@ MODULE_LICENSE("GPL");
 /*
  * PCI ID of the Intel ICH7 LPC Device within which the GPIO block lives.
  */
-static const struct pci_device_id ich7_lpc_pci_id[] =
-{
+static DEFINE_PCI_DEVICE_TABLE(ich7_lpc_pci_id) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_30) },
@@ -459,7 +458,7 @@ static ssize_t nas_led_blink_store(struct device *dev,
 	struct led_classdev *led = dev_get_drvdata(dev);
 	unsigned long blink_state;
 
-	ret = strict_strtoul(buf, 10, &blink_state);
+	ret = kstrtoul(buf, 10, &blink_state);
 	if (ret)
 		return ret;
 

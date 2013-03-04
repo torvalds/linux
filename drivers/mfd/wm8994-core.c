@@ -467,7 +467,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err;
 	}
 		
-	ret = regulator_bulk_get(wm8994->dev, wm8994->num_supplies,
+	ret = devm_regulator_bulk_get(wm8994->dev, wm8994->num_supplies,
 				 wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to get supplies: %d\n", ret);
@@ -478,7 +478,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 				    wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		goto err;
 	}
 
 	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
@@ -535,10 +535,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			break;
 		case 2:
 		case 3:
+		default:
 			regmap_patch = wm8994_revc_patch;
 			patch_regs = ARRAY_SIZE(wm8994_revc_patch);
-			break;
-		default:
 			break;
 		}
 		break;
@@ -558,17 +557,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		/* Revision C did not change the relevant layer */
 		if (wm8994->revision > 1)
 			wm8994->revision++;
-		switch (wm8994->revision) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-			regmap_patch = wm1811_reva_patch;
-			patch_regs = ARRAY_SIZE(wm1811_reva_patch);
-			break;
-		default:
-			break;
-		}
+
+		regmap_patch = wm1811_reva_patch;
+		patch_regs = ARRAY_SIZE(wm1811_reva_patch);
 		break;
 
 	default:
@@ -667,8 +658,6 @@ err_irq:
 err_enable:
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
-err_get:
-	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
 err:
 	mfd_remove_devices(wm8994->dev);
 	return ret;
@@ -681,7 +670,6 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 	wm8994_irq_exit(wm8994);
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
-	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
 }
 
 static const struct of_device_id wm8994_of_match[] = {

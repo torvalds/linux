@@ -22,6 +22,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/spinlock.h>
 #include <linux/topology.h>
+#include <linux/notifier.h>
 
 #include <asm/byteorder.h>
 #include <asm/errno.h>
@@ -91,7 +92,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
-extern rwlock_t devtree_lock;
+extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
 {
@@ -159,7 +160,7 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 
 #define OF_BAD_ADDR	((u64)-1)
 
-static inline const char* of_node_full_name(struct device_node *np)
+static inline const char *of_node_full_name(const struct device_node *np)
 {
 	return np ? np->full_name : "<no-node>";
 }
@@ -273,25 +274,39 @@ extern int of_modalias_node(struct device_node *node, char *modalias, int len);
 extern struct device_node *of_parse_phandle(const struct device_node *np,
 					    const char *phandle_name,
 					    int index);
-extern int of_parse_phandle_with_args(struct device_node *np,
+extern int of_parse_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name, int index,
 	struct of_phandle_args *out_args);
+extern int of_count_phandle_with_args(const struct device_node *np,
+	const char *list_name, const char *cells_name);
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
 
 extern int of_machine_is_compatible(const char *compat);
 
-extern int prom_add_property(struct device_node* np, struct property* prop);
-extern int prom_remove_property(struct device_node *np, struct property *prop);
-extern int prom_update_property(struct device_node *np,
-				struct property *newprop);
+extern int of_add_property(struct device_node *np, struct property *prop);
+extern int of_remove_property(struct device_node *np, struct property *prop);
+extern int of_update_property(struct device_node *np, struct property *newprop);
 
-#if defined(CONFIG_OF_DYNAMIC)
 /* For updating the device tree at runtime */
-extern void of_attach_node(struct device_node *);
-extern void of_detach_node(struct device_node *);
-#endif
+#define OF_RECONFIG_ATTACH_NODE		0x0001
+#define OF_RECONFIG_DETACH_NODE		0x0002
+#define OF_RECONFIG_ADD_PROPERTY	0x0003
+#define OF_RECONFIG_REMOVE_PROPERTY	0x0004
+#define OF_RECONFIG_UPDATE_PROPERTY	0x0005
+
+struct of_prop_reconfig {
+	struct device_node	*dn;
+	struct property		*prop;
+};
+
+extern int of_reconfig_notifier_register(struct notifier_block *);
+extern int of_reconfig_notifier_unregister(struct notifier_block *);
+extern int of_reconfig_notify(unsigned long, void *);
+
+extern int of_attach_node(struct device_node *);
+extern int of_detach_node(struct device_node *);
 
 #define of_match_ptr(_ptr)	(_ptr)
 
@@ -450,6 +465,13 @@ static inline int of_parse_phandle_with_args(struct device_node *np,
 					     const char *cells_name,
 					     int index,
 					     struct of_phandle_args *out_args)
+{
+	return -ENOSYS;
+}
+
+static inline int of_count_phandle_with_args(struct device_node *np,
+					     const char *list_name,
+					     const char *cells_name)
 {
 	return -ENOSYS;
 }

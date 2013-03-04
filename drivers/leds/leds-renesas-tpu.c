@@ -133,24 +133,24 @@ static int r_tpu_enable(struct r_tpu_priv *p, enum led_brightness brightness)
 	rate = clk_get_rate(p->clk);
 
 	/* pick the lowest acceptable rate */
-	for (k = 0; k < ARRAY_SIZE(prescaler); k++)
-		if ((rate / prescaler[k]) < p->min_rate)
+	for (k = ARRAY_SIZE(prescaler) - 1; k >= 0; k--)
+		if ((rate / prescaler[k]) >= p->min_rate)
 			break;
 
-	if (!k) {
+	if (k < 0) {
 		dev_err(&p->pdev->dev, "clock rate mismatch\n");
 		goto err0;
 	}
 	dev_dbg(&p->pdev->dev, "rate = %lu, prescaler %u\n",
-		rate, prescaler[k - 1]);
+		rate, prescaler[k]);
 
 	/* clear TCNT on TGRB match, count on rising edge, set prescaler */
-	r_tpu_write(p, TCR, 0x0040 | (k - 1));
+	r_tpu_write(p, TCR, 0x0040 | k);
 
 	/* output 0 until TGRA, output 1 until TGRB */
 	r_tpu_write(p, TIOR, 0x0002);
 
-	rate /= prescaler[k - 1] * p->refresh_rate;
+	rate /= prescaler[k] * p->refresh_rate;
 	r_tpu_write(p, TGRB, rate);
 	dev_dbg(&p->pdev->dev, "TRGB = 0x%04lx\n", rate);
 
@@ -204,10 +204,10 @@ static void r_tpu_set_pin(struct r_tpu_priv *p, enum r_tpu_pin new_state,
 	if (p->pin_state == R_TPU_PIN_GPIO_FN)
 		gpio_free(cfg->pin_gpio_fn);
 
-	if (new_state == R_TPU_PIN_GPIO) {
-		gpio_request(cfg->pin_gpio, cfg->name);
-		gpio_direction_output(cfg->pin_gpio, !!brightness);
-	}
+	if (new_state == R_TPU_PIN_GPIO)
+		gpio_request_one(cfg->pin_gpio, GPIOF_DIR_OUT | !!brightness,
+				cfg->name);
+
 	if (new_state == R_TPU_PIN_GPIO_FN)
 		gpio_request(cfg->pin_gpio_fn, cfg->name);
 
@@ -263,18 +263,18 @@ static int r_tpu_probe(struct platform_device *pdev)
 	}
 
 	/* map memory, let mapbase point to our channel */
-	p->mapbase = ioremap_nocache(res->start, resource_size(res));
+	p->mapbase = devm_ioremap_nocache(&pdev->dev, res->start,
+					resource_size(res));
 	if (p->mapbase == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		return -ENXIO;
 	}
 
 	/* get hold of clock */
-	p->clk = clk_get(&pdev->dev, NULL);
+	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(p->clk);
-		goto err0;
+		return PTR_ERR(p->clk);
 	}
 
 	p->pdev = pdev;
@@ -293,7 +293,7 @@ static int r_tpu_probe(struct platform_device *pdev)
 	p->ldev.flags |= LED_CORE_SUSPENDRESUME;
 	ret = led_classdev_register(&pdev->dev, &p->ldev);
 	if (ret < 0)
-		goto err1;
+		goto err0;
 
 	/* max_brightness may be updated by the LED core code */
 	p->min_rate = p->ldev.max_brightness * p->refresh_rate;
@@ -301,11 +301,8 @@ static int r_tpu_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	return 0;
 
- err1:
-	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
-	clk_put(p->clk);
  err0:
-	iounmap(p->mapbase);
+	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
 	return ret;
 }
 
@@ -320,9 +317,7 @@ static int r_tpu_remove(struct platform_device *pdev)
 	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
 
 	pm_runtime_disable(&pdev->dev);
-	clk_put(p->clk);
 
-	iounmap(p->mapbase);
 	return 0;
 }
 

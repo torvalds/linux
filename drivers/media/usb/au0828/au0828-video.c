@@ -158,7 +158,7 @@ static void au0828_irq_callback(struct urb *urb)
 /*
  * Stop and Deallocate URBs
  */
-void au0828_uninit_isoc(struct au0828_dev *dev)
+static void au0828_uninit_isoc(struct au0828_dev *dev)
 {
 	struct urb *urb;
 	int i;
@@ -197,9 +197,9 @@ void au0828_uninit_isoc(struct au0828_dev *dev)
 /*
  * Allocate URBs and start IRQ
  */
-int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
-		     int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct au0828_dev *dev, struct urb *urb))
+static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
+			    int num_bufs, int max_pkt_size,
+			    int (*isoc_copy) (struct au0828_dev *dev, struct urb *urb))
 {
 	struct au0828_dmaqueue *dma_q = &dev->vidq;
 	int i;
@@ -304,7 +304,7 @@ static inline void buffer_filled(struct au0828_dev *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.buf = NULL;
 
@@ -321,7 +321,7 @@ static inline void vbi_buffer_filled(struct au0828_dev *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.vbi_buf = NULL;
 
@@ -783,7 +783,7 @@ static int au0828_i2s_init(struct au0828_dev *dev)
  * Auvitek au0828 analog stream enable
  * Please set interface0 to AS5 before enable the stream
  */
-int au0828_analog_stream_enable(struct au0828_dev *d)
+static int au0828_analog_stream_enable(struct au0828_dev *d)
 {
 	dprintk(1, "au0828_analog_stream_enable called\n");
 	au0828_writereg(d, AU0828_SENSORCTRL_VBI_103, 0x00);
@@ -810,7 +810,7 @@ int au0828_analog_stream_disable(struct au0828_dev *d)
 	return 0;
 }
 
-void au0828_analog_stream_reset(struct au0828_dev *dev)
+static void au0828_analog_stream_reset(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_stream_reset called\n");
 	au0828_writereg(dev, AU0828_SENSORCTRL_100, 0x0);
@@ -913,7 +913,7 @@ static int get_ressource(struct au0828_fh *fh)
 /* This function ensures that video frames continue to be delivered even if
    the ITU-656 input isn't receiving any data (thereby preventing applications
    such as tvtime from hanging) */
-void au0828_vid_buffer_timeout(unsigned long data)
+static void au0828_vid_buffer_timeout(unsigned long data)
 {
 	struct au0828_dev *dev = (struct au0828_dev *) data;
 	struct au0828_dmaqueue *dma_q = &dev->vidq;
@@ -937,7 +937,7 @@ void au0828_vid_buffer_timeout(unsigned long data)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-void au0828_vbi_buffer_timeout(unsigned long data)
+static void au0828_vbi_buffer_timeout(unsigned long data)
 {
 	struct au0828_dev *dev = (struct au0828_dev *) data;
 	struct au0828_dmaqueue *dma_q = &dev->vbiq;

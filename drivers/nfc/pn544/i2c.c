@@ -361,8 +361,8 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = pn544_hci_i2c_disable,
 };
 
-static int __devinit pn544_hci_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int pn544_hci_i2c_probe(struct i2c_client *client,
+			       const struct i2c_device_id *id)
 {
 	struct pn544_i2c_phy *phy;
 	struct pn544_nfc_platform_data *pdata;
@@ -376,12 +376,12 @@ static int __devinit pn544_hci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	phy = kzalloc(sizeof(struct pn544_i2c_phy), GFP_KERNEL);
+	phy = devm_kzalloc(&client->dev, sizeof(struct pn544_i2c_phy),
+			   GFP_KERNEL);
 	if (!phy) {
 		dev_err(&client->dev,
 			"Cannot allocate memory for pn544 i2c phy.\n");
-		r = -ENOMEM;
-		goto err_phy_alloc;
+		return -ENOMEM;
 	}
 
 	phy->i2c_dev = client;
@@ -390,20 +390,18 @@ static int __devinit pn544_hci_i2c_probe(struct i2c_client *client,
 	pdata = client->dev.platform_data;
 	if (pdata == NULL) {
 		dev_err(&client->dev, "No platform data\n");
-		r = -EINVAL;
-		goto err_pdata;
+		return -EINVAL;
 	}
 
 	if (pdata->request_resources == NULL) {
 		dev_err(&client->dev, "request_resources() missing\n");
-		r = -EINVAL;
-		goto err_pdata;
+		return -EINVAL;
 	}
 
 	r = pdata->request_resources(client);
 	if (r) {
 		dev_err(&client->dev, "Cannot get platform resources\n");
-		goto err_pdata;
+		return r;
 	}
 
 	phy->gpio_en = pdata->get_gpio(NFC_GPIO_ENABLE);
@@ -435,14 +433,10 @@ err_rti:
 	if (pdata->free_resources != NULL)
 		pdata->free_resources();
 
-err_pdata:
-	kfree(phy);
-
-err_phy_alloc:
 	return r;
 }
 
-static __devexit int pn544_hci_i2c_remove(struct i2c_client *client)
+static int pn544_hci_i2c_remove(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
 	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
@@ -458,8 +452,6 @@ static __devexit int pn544_hci_i2c_remove(struct i2c_client *client)
 	if (pdata->free_resources)
 		pdata->free_resources();
 
-	kfree(phy);
-
 	return 0;
 }
 
@@ -469,32 +461,10 @@ static struct i2c_driver pn544_hci_i2c_driver = {
 		  },
 	.probe = pn544_hci_i2c_probe,
 	.id_table = pn544_hci_i2c_id_table,
-	.remove = __devexit_p(pn544_hci_i2c_remove),
+	.remove = pn544_hci_i2c_remove,
 };
 
-static int __init pn544_hci_i2c_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = i2c_add_driver(&pn544_hci_i2c_driver);
-	if (r) {
-		pr_err(PN544_HCI_I2C_DRIVER_NAME
-		       ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void __exit pn544_hci_i2c_exit(void)
-{
-	i2c_del_driver(&pn544_hci_i2c_driver);
-}
-
-module_init(pn544_hci_i2c_init);
-module_exit(pn544_hci_i2c_exit);
+module_i2c_driver(pn544_hci_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -33,11 +33,19 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x44000000 0x1000	/* FSMC Register */
-			       0x40000000 0x0010>;	/* NAND Base */
-			reg-names = "fsmc_regs", "nand_data";
-			st,ale-off = <0x10000>;
-			st,cle-off = <0x20000>;
+			       0x40000000 0x0010	/* NAND Base DATA */
+			       0x40020000 0x0010	/* NAND Base ADDR */
+			       0x40010000 0x0010>;	/* NAND Base CMD */
+			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 			status = "disabled";
+		};
+
+		shirq: interrupt-controller@0xb4000000 {
+			compatible = "st,spear310-shirq";
+			reg = <0xb4000000 0x1000>;
+			interrupts = <28 29 30 1>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
 		};
 
 		apb {
@@ -50,30 +58,40 @@
 			serial@b2000000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2000000 0x1000>;
+				interrupts = <8>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@b2080000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2080000 0x1000>;
+				interrupts = <9>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@b2100000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2100000 0x1000>;
+				interrupts = <10>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@b2180000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2180000 0x1000>;
+				interrupts = <11>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@b2200000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2200000 0x1000>;
+				interrupts = <12>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 

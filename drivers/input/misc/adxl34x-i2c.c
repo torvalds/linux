@@ -73,7 +73,7 @@ static const struct adxl34x_bus_ops adxl34x_i2c_bops = {
 	.read_block	= adxl34x_i2c_read_block,
 };
 
-static int __devinit adxl34x_i2c_probe(struct i2c_client *client,
+static int adxl34x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct adxl34x *ac;
@@ -98,7 +98,7 @@ static int __devinit adxl34x_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit adxl34x_i2c_remove(struct i2c_client *client)
+static int adxl34x_i2c_remove(struct i2c_client *client)
 {
 	struct adxl34x *ac = i2c_get_clientdata(client);
 
@@ -144,7 +144,7 @@ static struct i2c_driver adxl34x_driver = {
 		.pm = &adxl34x_i2c_pm,
 	},
 	.probe    = adxl34x_i2c_probe,
-	.remove   = __devexit_p(adxl34x_i2c_remove),
+	.remove   = adxl34x_i2c_remove,
 	.id_table = adxl34x_id,
 };
 

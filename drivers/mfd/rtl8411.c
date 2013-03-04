@@ -112,6 +112,31 @@ static int rtl8411_card_power_off(struct rtsx_pcr *pcr, int card)
 			BPP_LDO_POWB, BPP_LDO_SUSPEND);
 }
 
+static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	u8 mask, val;
+	int err;
+
+	mask = (BPP_REG_TUNED18 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_MASK;
+	if (voltage == OUTPUT_3V3) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_D);
+		if (err < 0)
+			return err;
+		val = (BPP_ASIC_3V3 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_3V3;
+	} else if (voltage == OUTPUT_1V8) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_B);
+		if (err < 0)
+			return err;
+		val = (BPP_ASIC_1V8 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_1V8;
+	} else {
+		return -EINVAL;
+	}
+
+	return rtsx_pci_write_register(pcr, LDO_CTL, mask, val);
+}
+
 static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
 {
 	unsigned int card_exist;
@@ -163,6 +188,18 @@ static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
 	return card_exist;
 }
 
+static int rtl8411_conv_clk_and_div_n(int input, int dir)
+{
+	int output;
+
+	if (dir == CLK_TO_DIV_N)
+		output = input * 4 / 5 - 2;
+	else
+		output = (input + 2) * 5 / 4;
+
+	return output;
+}
+
 static const struct pcr_ops rtl8411_pcr_ops = {
 	.extra_init_hw = rtl8411_extra_init_hw,
 	.optimize_phy = NULL,
@@ -172,7 +209,9 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.disable_auto_blink = rtl8411_disable_auto_blink,
 	.card_power_on = rtl8411_card_power_on,
 	.card_power_off = rtl8411_card_power_off,
+	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
+	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
 };
 
 /* SD Pull Control Enable:

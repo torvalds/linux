@@ -203,6 +203,8 @@ clocks and IDs.
 	pcie_ref		188
 	pcie_ref_125m		189
 	enet_ref		190
+	usbphy1_gate		191
+	usbphy2_gate		192
 
 Examples:
 
@@ -211,10 +213,6 @@ clks: ccm@020c4000 {
 	reg = <0x020c4000 0x4000>;
 	interrupts = <0 87 0x04 0 88 0x04>;
 	#clock-cells = <1>;
-	clock-output-names = ...
-			     "uart_ipg",
-			     "uart_serial",
-			     ...;
 };
 
 uart1: serial@02020000 {

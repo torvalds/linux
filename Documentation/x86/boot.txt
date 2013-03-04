@@ -57,6 +57,10 @@ Protocol 2.10:	(Kernel 2.6.31) Added a protocol for relaxed alignment
 Protocol 2.11:	(Kernel 3.6) Added a field for offset of EFI handover
 		protocol entry point.
 
+Protocol 2.12:	(Kernel 3.8) Added the xloadflags field and extension fields
+	 	to struct boot_params for for loading bzImage and ramdisk
+		above 4G in 64bit.
+
 **** MEMORY LAYOUT
 
 The traditional memory map for the kernel loader, used for Image or
@@ -182,7 +186,7 @@ Offset	Proto	Name		Meaning
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
 0235/1	2.10+	min_alignment	Minimum alignment, as a power of two
-0236/2	N/A	pad3		Unused
+0236/2	2.12+	xloadflags	Boot protocol option flags
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 023C/4	2.07+	hardware_subarch Hardware subarchitecture
 0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data
@@ -373,7 +377,7 @@ Protocol:	2.00+
 	1  Loadlin
 	2  bootsect-loader	(0x20, all other values reserved)
 	3  Syslinux
-	4  Etherboot/gPXE
+	4  Etherboot/gPXE/iPXE
 	5  ELILO
 	7  GRUB
 	8  U-Boot
@@ -381,10 +385,12 @@ Protocol:	2.00+
 	A  Gujin
 	B  Qemu
 	C  Arcturus Networks uCbootloader
+	D  kexec-tools
 	E  Extended		(see ext_loader_type)
 	F  Special		(0xFF = undefined)
        10  Reserved
        11  Minimal Linux Bootloader <http://sebastian-plotz.blogspot.de>
+       12  OVMF UEFI virtualization stack
 
   Please contact <hpa@zytor.com> if you need a bootloader ID
   value assigned.
@@ -580,6 +586,27 @@ Protocol:	2.10+
   There may be a considerable performance cost with an excessively
   misaligned kernel.  Therefore, a loader should typically try each
   power-of-two alignment from kernel_alignment down to this alignment.
+
+Field name:     xloadflags
+Type:           read
+Offset/size:    0x236/2
+Protocol:       2.12+
+
+  This field is a bitmask.
+
+  Bit 0 (read):	XLF_KERNEL_64
+	- If 1, this kernel has the legacy 64-bit entry point at 0x200.
+
+  Bit 1 (read): XLF_CAN_BE_LOADED_ABOVE_4G
+        - If 1, kernel/boot_params/cmdline/ramdisk can be above 4G.
+
+  Bit 2 (read):	XLF_EFI_HANDOVER_32
+	- If 1, the kernel supports the 32-bit EFI handoff entry point
+          given at handover_offset.
+
+  Bit 3 (read): XLF_EFI_HANDOVER_64
+	- If 1, the kernel supports the 64-bit EFI handoff entry point
+          given at handover_offset + 0x200.
 
 Field name:	cmdline_size
 Type:		read
@@ -1027,6 +1054,44 @@ segment; __BOOT_CS must have execute/read permission, and __BOOT_DS
 must have read/write permission; CS must be __BOOT_CS and DS, ES, SS
 must be __BOOT_DS; interrupt must be disabled; %esi must hold the base
 address of the struct boot_params; %ebp, %edi and %ebx must be zero.
+
+**** 64-bit BOOT PROTOCOL
+
+For machine with 64bit cpus and 64bit kernel, we could use 64bit bootloader
+and we need a 64-bit boot protocol.
+
+In 64-bit boot protocol, the first step in loading a Linux kernel
+should be to setup the boot parameters (struct boot_params,
+traditionally known as "zero page"). The memory for struct boot_params
+could be allocated anywhere (even above 4G) and initialized to all zero.
+Then, the setup header at offset 0x01f1 of kernel image on should be
+loaded into struct boot_params and examined. The end of setup header
+can be calculated as follows:
+
+	0x0202 + byte value at offset 0x0201
+
+In addition to read/modify/write the setup header of the struct
+boot_params as that of 16-bit boot protocol, the boot loader should
+also fill the additional fields of the struct boot_params as described
+in zero-page.txt.
+
+After setting up the struct boot_params, the boot loader can load
+64-bit kernel in the same way as that of 16-bit boot protocol, but
+kernel could be loaded above 4G.
+
+In 64-bit boot protocol, the kernel is started by jumping to the
+64-bit kernel entry point, which is the start address of loaded
+64-bit kernel plus 0x200.
+
+At entry, the CPU must be in 64-bit mode with paging enabled.
+The range with setup_header.init_size from start address of loaded
+kernel and zero page and command line buffer get ident mapping;
+a GDT must be loaded with the descriptors for selectors
+__BOOT_CS(0x10) and __BOOT_DS(0x18); both descriptors must be 4G flat
+segment; __BOOT_CS must have execute/read permission, and __BOOT_DS
+must have read/write permission; CS must be __BOOT_CS and DS, ES, SS
+must be __BOOT_DS; interrupt must be disabled; %rsi must hold the base
+address of the struct boot_params.
 
 **** EFI HANDOVER PROTOCOL
 

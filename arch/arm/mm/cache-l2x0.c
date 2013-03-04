@@ -352,7 +352,8 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		/* Unmapped register. */
 		sync_reg_offset = L2X0_DUMMY_REG;
 #endif
-		outer_cache.set_debug = pl310_set_debug;
+		if ((cache_id & L2X0_CACHE_ID_RTL_MASK) <= L2X0_CACHE_ID_RTL_R3P0)
+			outer_cache.set_debug = pl310_set_debug;
 		break;
 	case L2X0_CACHE_ID_PART_L210:
 		ways = (aux >> 13) & 0xf;
@@ -459,8 +460,8 @@ static void aurora_pa_range(unsigned long start, unsigned long end,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
-	writel(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
-	writel(end, l2x0_base + offset);
+	writel_relaxed(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
+	writel_relaxed(end, l2x0_base + offset);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 
 	cache_sync();
@@ -505,15 +506,21 @@ static void aurora_clean_range(unsigned long start, unsigned long end)
 
 static void aurora_flush_range(unsigned long start, unsigned long end)
 {
-	if (!l2_wt_override) {
-		start &= ~(CACHE_LINE_SIZE - 1);
-		end = ALIGN(end, CACHE_LINE_SIZE);
-		while (start != end) {
-			unsigned long range_end = calc_range_end(start, end);
+	start &= ~(CACHE_LINE_SIZE - 1);
+	end = ALIGN(end, CACHE_LINE_SIZE);
+	while (start != end) {
+		unsigned long range_end = calc_range_end(start, end);
+		/*
+		 * If L2 is forced to WT, the L2 will always be clean and we
+		 * just need to invalidate.
+		 */
+		if (l2_wt_override)
 			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
-					AURORA_FLUSH_RANGE_REG);
-			start = range_end;
-		}
+							AURORA_INVAL_RANGE_REG);
+		else
+			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
+							AURORA_FLUSH_RANGE_REG);
+		start = range_end;
 	}
 }
 
@@ -668,8 +675,9 @@ static void pl310_resume(void)
 static void aurora_resume(void)
 {
 	if (!(readl(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
-		writel(l2x0_saved_regs.aux_ctrl, l2x0_base + L2X0_AUX_CTRL);
-		writel(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
+		writel_relaxed(l2x0_saved_regs.aux_ctrl,
+				l2x0_base + L2X0_AUX_CTRL);
+		writel_relaxed(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
 	}
 }
 

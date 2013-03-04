@@ -891,18 +891,16 @@ static int sh_eth_ring_init(struct net_device *ndev)
 		mdp->rx_buf_sz += NET_IP_ALIGN;
 
 	/* Allocate RX and TX skb rings */
-	mdp->rx_skbuff = kmalloc(sizeof(*mdp->rx_skbuff) * mdp->num_rx_ring,
-				GFP_KERNEL);
+	mdp->rx_skbuff = kmalloc_array(mdp->num_rx_ring,
+				       sizeof(*mdp->rx_skbuff), GFP_KERNEL);
 	if (!mdp->rx_skbuff) {
-		dev_err(&ndev->dev, "Cannot allocate Rx skb\n");
 		ret = -ENOMEM;
 		return ret;
 	}
 
-	mdp->tx_skbuff = kmalloc(sizeof(*mdp->tx_skbuff) * mdp->num_tx_ring,
-				GFP_KERNEL);
+	mdp->tx_skbuff = kmalloc_array(mdp->num_tx_ring,
+				       sizeof(*mdp->tx_skbuff), GFP_KERNEL);
 	if (!mdp->tx_skbuff) {
-		dev_err(&ndev->dev, "Cannot allocate Tx skb\n");
 		ret = -ENOMEM;
 		goto skb_ring_free;
 	}
@@ -1422,7 +1420,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 
 	/* Try connect to PHY */
 	phydev = phy_connect(ndev, phy_id, sh_eth_adjust_link,
-				0, mdp->phy_interface);
+			     mdp->phy_interface);
 	if (IS_ERR(phydev)) {
 		dev_err(&ndev->dev, "phy_connect failed\n");
 		return PTR_ERR(phydev);

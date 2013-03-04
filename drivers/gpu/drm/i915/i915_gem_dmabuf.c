@@ -226,7 +226,7 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 
-	return dma_buf_export(obj, &i915_dmabuf_ops, obj->base.size, 0600);
+	return dma_buf_export(obj, &i915_dmabuf_ops, obj->base.size, flags);
 }
 
 static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
@@ -266,7 +266,12 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		obj = dma_buf->priv;
 		/* is it from our device? */
 		if (obj->base.dev == dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
 			drm_gem_object_reference(&obj->base);
+			dma_buf_put(dma_buf);
 			return &obj->base;
 		}
 	}
@@ -276,8 +281,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	if (IS_ERR(attach))
 		return ERR_CAST(attach);
 
-
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL) {
 		ret = -ENOMEM;
 		goto fail_detach;
@@ -285,7 +289,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	ret = drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	if (ret) {
-		kfree(obj);
+		i915_gem_object_free(obj);
 		goto fail_detach;
 	}
 

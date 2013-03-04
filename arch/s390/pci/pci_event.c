@@ -45,6 +45,8 @@ static void zpci_event_log_err(struct zpci_ccdf_err *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 
+	zpci_err("SEI error CCD:\n");
+	zpci_err_hex(ccdf, sizeof(*ccdf));
 	dev_err(&zdev->pdev->dev, "event code: 0x%x\n", ccdf->pec);
 }
 

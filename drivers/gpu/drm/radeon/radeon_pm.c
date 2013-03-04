@@ -169,7 +169,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 
 		/* starting with BTC, there is one state that is used for both
 		 * MH and SH.  Difference is that we always use the high clock index for
-		 * mclk.
+		 * mclk and vddci.
 		 */
 		if ((rdev->pm.pm_method == PM_METHOD_PROFILE) &&
 		    (rdev->family >= CHIP_BARTS) &&
@@ -234,7 +234,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 
 static void radeon_pm_set_clocks(struct radeon_device *rdev)
 {
-	int i;
+	int i, r;
 
 	/* no need to take locks, etc. if nothing's going to change */
 	if ((rdev->pm.requested_clock_mode_index == rdev->pm.current_clock_mode_index) &&
@@ -248,8 +248,17 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	/* wait for the rings to drain */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		struct radeon_ring *ring = &rdev->ring[i];
-		if (ring->ready)
-			radeon_fence_wait_empty_locked(rdev, i);
+		if (!ring->ready) {
+			continue;
+		}
+		r = radeon_fence_wait_empty_locked(rdev, i);
+		if (r) {
+			/* needs a GPU reset dont reset here */
+			mutex_unlock(&rdev->ring_lock);
+			up_write(&rdev->pm.mclk_lock);
+			mutex_unlock(&rdev->ddev->struct_mutex);
+			return;
+		}
 	}
 
 	radeon_unmap_vram_bos(rdev);

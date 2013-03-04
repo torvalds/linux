@@ -1,6 +1,5 @@
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include "ctree.h"
@@ -49,7 +48,7 @@ void extent_map_tree_init(struct extent_map_tree *tree)
 struct extent_map *alloc_extent_map(void)
 {
 	struct extent_map *em;
-	em = kmem_cache_alloc(extent_map_cache, GFP_NOFS);
+	em = kmem_cache_zalloc(extent_map_cache, GFP_NOFS);
 	if (!em)
 		return NULL;
 	em->in_tree = 0;
@@ -171,6 +170,10 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (test_bit(EXTENT_FLAG_COMPRESSED, &prev->flags))
 		return 0;
 
+	if (test_bit(EXTENT_FLAG_LOGGING, &prev->flags) ||
+	    test_bit(EXTENT_FLAG_LOGGING, &next->flags))
+		return 0;
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -198,16 +201,15 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			merge = rb_entry(rb, struct extent_map, rb_node);
 		if (rb && mergable_maps(merge, em)) {
 			em->start = merge->start;
+			em->orig_start = merge->orig_start;
 			em->len += merge->len;
 			em->block_len += merge->block_len;
 			em->block_start = merge->block_start;
 			merge->in_tree = 0;
-			if (merge->generation > em->generation) {
-				em->mod_start = em->start;
-				em->mod_len = em->len;
-				em->generation = merge->generation;
-				list_move(&em->list, &tree->modified_extents);
-			}
+			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
+			em->mod_start = merge->mod_start;
+			em->generation = max(em->generation, merge->generation);
+			list_move(&em->list, &tree->modified_extents);
 
 			list_del_init(&merge->list);
 			rb_erase(&merge->rb_node, &tree->map);
@@ -223,11 +225,8 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		em->block_len += merge->len;
 		rb_erase(&merge->rb_node, &tree->map);
 		merge->in_tree = 0;
-		if (merge->generation > em->generation) {
-			em->mod_len = em->len;
-			em->generation = merge->generation;
-			list_move(&em->list, &tree->modified_extents);
-		}
+		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
+		em->generation = max(em->generation, merge->generation);
 		list_del_init(&merge->list);
 		free_extent_map(merge);
 	}
@@ -259,15 +258,16 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
 	if (!em)
 		goto out;
 
-	list_move(&em->list, &tree->modified_extents);
+	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+		list_move(&em->list, &tree->modified_extents);
 	em->generation = gen;
 	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
-	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
+	if (test_bit(EXTENT_FLAG_FILLING, &em->flags)) {
 		prealloc = true;
-		clear_bit(EXTENT_FLAG_PREALLOC, &em->flags);
+		clear_bit(EXTENT_FLAG_FILLING, &em->flags);
 	}
 
 	try_merge_map(tree, em);
@@ -282,6 +282,13 @@ out:
 	write_unlock(&tree->lock);
 	return ret;
 
+}
+
+void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
+{
+	clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
+	if (em->in_tree)
+		try_merge_map(tree, em);
 }
 
 /**

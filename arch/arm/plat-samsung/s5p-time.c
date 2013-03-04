@@ -274,15 +274,8 @@ static void __init s5p_clockevent_init(void)
 	clock_rate = clk_get_rate(tin_event);
 	clock_count_per_tick = clock_rate / HZ;
 
-	clockevents_calc_mult_shift(&time_event_device,
-				    clock_rate, S5PTIMER_MIN_RANGE);
-	time_event_device.max_delta_ns =
-		clockevent_delta2ns(-1, &time_event_device);
-	time_event_device.min_delta_ns =
-		clockevent_delta2ns(1, &time_event_device);
-
 	time_event_device.cpumask = cpumask_of(0);
-	clockevents_register_device(&time_event_device);
+	clockevents_config_and_register(&time_event_device, clock_rate, 1, -1);
 
 	irq_number = timer_source.event_id + IRQ_TIMER0;
 	setup_irq(irq_number, &s5p_clock_event_irq);
@@ -393,13 +386,9 @@ static void __init s5p_timer_resources(void)
 	clk_enable(tin_source);
 }
 
-static void __init s5p_timer_init(void)
+void __init s5p_timer_init(void)
 {
 	s5p_timer_resources();
 	s5p_clockevent_init();
 	s5p_clocksource_init();
 }
-
-struct sys_timer s5p_timer = {
-	.init		= s5p_timer_init,
-};

@@ -672,7 +672,7 @@ static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
 		dev_err(adapter->dev, "usb_bulk_msg for tx failed: %d\n", ret);
-		ret = -1;
+		return ret;
 	}
 
 	*len = actual_length;
@@ -691,7 +691,7 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
 		dev_err(adapter->dev, "usb_bulk_msg for rx failed: %d\n", ret);
-		ret = -1;
+		return ret;
 	}
 
 	*len = actual_length;
@@ -786,21 +786,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
-/* This function reads one block of firmware data. */
-static int mwifiex_get_fw_data(struct mwifiex_adapter *adapter,
-			       u32 offset, u32 len, u8 *buf)
-{
-	if (!buf || !len)
-		return -1;
-
-	if (offset + len > adapter->firmware->size)
-		return -1;
-
-	memcpy(buf, adapter->firmware->data + offset, len);
-
-	return 0;
-}
-
 static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				    struct mwifiex_fw_image *fw)
 {
@@ -836,23 +821,14 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			dlen = 0;
 		} else {
 			/* copy the header of the fw_data to get the length */
-			if (firmware)
-				memcpy(&fwdata->fw_hdr, &firmware[tlen],
-				       sizeof(struct fw_header));
-			else
-				mwifiex_get_fw_data(adapter, tlen,
-						    sizeof(struct fw_header),
-						    (u8 *)&fwdata->fw_hdr);
+			memcpy(&fwdata->fw_hdr, &firmware[tlen],
+			       sizeof(struct fw_header));
 
 			dlen = le32_to_cpu(fwdata->fw_hdr.data_len);
 			dnld_cmd = le32_to_cpu(fwdata->fw_hdr.dnld_cmd);
 			tlen += sizeof(struct fw_header);
 
-			if (firmware)
-				memcpy(fwdata->data, &firmware[tlen], dlen);
-			else
-				mwifiex_get_fw_data(adapter, tlen, dlen,
-						    (u8 *)fwdata->data);
+			memcpy(fwdata->data, &firmware[tlen], dlen);
 
 			fwdata->seq_num = cpu_to_le32(fw_seqnum);
 			tlen += dlen;

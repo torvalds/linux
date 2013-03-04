@@ -81,10 +81,6 @@ struct r100_cs_track {
 
 int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track);
 void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track);
-int r100_cs_packet_next_reloc(struct radeon_cs_parser *p,
-			      struct radeon_cs_reloc **cs_reloc);
-void r100_cs_dump_packet(struct radeon_cs_parser *p,
-			 struct radeon_cs_packet *pkt);
 
 int r100_cs_packet_parse_vline(struct radeon_cs_parser *p);
 

@@ -222,7 +222,7 @@ static struct class video_class = {
 
 struct video_device *video_devdata(struct file *file)
 {
-	return video_device[iminor(file->f_path.dentry->d_inode)];
+	return video_device[iminor(file_inode(file))];
 }
 EXPORT_SYMBOL(video_devdata);
 
@@ -568,10 +568,6 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	if (ops->vidioc_s_priority ||
 			test_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags))
 		set_bit(_IOC_NR(VIDIOC_S_PRIORITY), valid_ioctls);
-	SET_VALID_IOCTL(ops, VIDIOC_REQBUFS, vidioc_reqbufs);
-	SET_VALID_IOCTL(ops, VIDIOC_QUERYBUF, vidioc_querybuf);
-	SET_VALID_IOCTL(ops, VIDIOC_QBUF, vidioc_qbuf);
-	SET_VALID_IOCTL(ops, VIDIOC_DQBUF, vidioc_dqbuf);
 	SET_VALID_IOCTL(ops, VIDIOC_STREAMON, vidioc_streamon);
 	SET_VALID_IOCTL(ops, VIDIOC_STREAMOFF, vidioc_streamoff);
 	/* Note: the control handler can also be passed through the filehandle,
@@ -604,8 +600,6 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_DQEVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_SUBSCRIBE_EVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_UNSUBSCRIBE_EVENT, vidioc_unsubscribe_event);
-	SET_VALID_IOCTL(ops, VIDIOC_CREATE_BUFS, vidioc_create_bufs);
-	SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
 	if (ops->vidioc_enum_freq_bands || ops->vidioc_g_tuner || ops->vidioc_g_modulator)
 		set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
 
@@ -671,6 +665,13 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	}
 	if (!is_radio) {
 		/* ioctls valid for video or vbi */
+		SET_VALID_IOCTL(ops, VIDIOC_REQBUFS, vidioc_reqbufs);
+		SET_VALID_IOCTL(ops, VIDIOC_QUERYBUF, vidioc_querybuf);
+		SET_VALID_IOCTL(ops, VIDIOC_QBUF, vidioc_qbuf);
+		SET_VALID_IOCTL(ops, VIDIOC_EXPBUF, vidioc_expbuf);
+		SET_VALID_IOCTL(ops, VIDIOC_DQBUF, vidioc_dqbuf);
+		SET_VALID_IOCTL(ops, VIDIOC_CREATE_BUFS, vidioc_create_bufs);
+		SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
 		if (ops->vidioc_s_std)
 			set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
 		if (ops->vidioc_g_std || vdev->current_norm)

@@ -157,8 +157,8 @@ static const unsigned armv7_a8_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
 		},
 		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= ARMV7_A8_PERFCTR_L1_ICACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
@@ -282,7 +282,7 @@ static const unsigned armv7_a9_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 		},
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
@@ -399,8 +399,8 @@ static const unsigned armv7_a5_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
 		},
 		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		/*
 		 * The prefetch counters don't differentiate between the I
@@ -527,8 +527,8 @@ static const unsigned armv7_a15_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
 		},
 		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
@@ -651,8 +651,8 @@ static const unsigned armv7_a7_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
 		},
 		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
@@ -1226,7 +1226,7 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
-static u32 __devinit armv7_read_num_pmnc_events(void)
+static u32 armv7_read_num_pmnc_events(void)
 {
 	u32 nb_cnt;
 
@@ -1237,7 +1237,7 @@ static u32 __devinit armv7_read_num_pmnc_events(void)
 	return nb_cnt + 1;
 }
 
-static int __devinit armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A8";
@@ -1246,7 +1246,7 @@ static int __devinit armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A9";
@@ -1255,7 +1255,7 @@ static int __devinit armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A5";
@@ -1264,7 +1264,7 @@ static int __devinit armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A15";
@@ -1274,7 +1274,7 @@ static int __devinit armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A7";

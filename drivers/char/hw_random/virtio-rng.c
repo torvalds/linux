@@ -147,25 +147,14 @@ static struct virtio_driver virtio_rng_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtrng_probe,
-	.remove =	__devexit_p(virtrng_remove),
+	.remove =	virtrng_remove,
 #ifdef CONFIG_PM
 	.freeze =	virtrng_freeze,
 	.restore =	virtrng_restore,
 #endif
 };
 
-static int __init init(void)
-{
-	return register_virtio_driver(&virtio_rng_driver);
-}
-
-static void __exit fini(void)
-{
-	unregister_virtio_driver(&virtio_rng_driver);
-}
-module_init(init);
-module_exit(fini);
-
+module_virtio_driver(virtio_rng_driver);
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio random number driver");
 MODULE_LICENSE("GPL");

@@ -222,7 +222,7 @@ static ssize_t dummy_looptest(struct device *dev,
 
 static DEVICE_ATTR(looptest, S_IRUGO, dummy_looptest, NULL);
 
-static int __devinit pl022_dummy_probe(struct spi_device *spi)
+static int pl022_dummy_probe(struct spi_device *spi)
 {
 	struct dummy *p_dummy;
 	int status;
@@ -251,7 +251,7 @@ out_dev_create_looptest_failed:
 	return status;
 }
 
-static int __devexit pl022_dummy_remove(struct spi_device *spi)
+static int pl022_dummy_remove(struct spi_device *spi)
 {
 	struct dummy *p_dummy = dev_get_drvdata(&spi->dev);
 
@@ -269,7 +269,7 @@ static struct spi_driver pl022_dummy_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pl022_dummy_probe,
-	.remove	= __devexit_p(pl022_dummy_remove),
+	.remove	= pl022_dummy_remove,
 };
 
 static int __init pl022_init_dummy(void)

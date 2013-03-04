@@ -177,7 +177,7 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
  * The functions for inserting/removing us as a module.
  */
 
-static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
+static int atmel_tsadcc_probe(struct platform_device *pdev)
 {
 	struct atmel_tsadcc	*ts_dev;
 	struct input_dev	*input_dev;
@@ -323,7 +323,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
+static int atmel_tsadcc_remove(struct platform_device *pdev)
 {
 	struct atmel_tsadcc *ts_dev = dev_get_drvdata(&pdev->dev);
 	struct resource *res;
@@ -346,7 +346,7 @@ static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tsadcc_driver = {
 	.probe		= atmel_tsadcc_probe,
-	.remove		= __devexit_p(atmel_tsadcc_remove),
+	.remove		= atmel_tsadcc_remove,
 	.driver		= {
 		.name	= "atmel_tsadcc",
 	},

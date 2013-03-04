@@ -50,6 +50,7 @@ static void __init mpc5200_simple_setup_arch(void)
 
 /* list of the supported boards */
 static const char *board[] __initdata = {
+	"anonymous,a3m071",
 	"anonymous,a4m072",
 	"anon,charon",
 	"ifm,o2d",

@@ -106,8 +106,6 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		 * disconnect with AP for 60 seconds.
 		 */
 
-		memset(&backupPMKIDList[0], 0x00, sizeof(
-			struct RT_PMKID_LIST) *	NUM_PMKID_CACHE);
 		memcpy(&backupPMKIDList[0], &adapter->securitypriv.
 			PMKIDList[0], sizeof(struct RT_PMKID_LIST) *
 			NUM_PMKID_CACHE);

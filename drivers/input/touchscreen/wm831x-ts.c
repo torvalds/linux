@@ -233,7 +233,7 @@ static void wm831x_ts_input_close(struct input_dev *idev)
 	}
 }
 
-static __devinit int wm831x_ts_probe(struct platform_device *pdev)
+static int wm831x_ts_probe(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts;
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
@@ -245,8 +245,9 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	if (core_pdata)
 		pdata = core_pdata->touch;
 
-	wm831x_ts = kzalloc(sizeof(struct wm831x_ts), GFP_KERNEL);
-	input_dev = input_allocate_device();
+	wm831x_ts = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ts),
+				 GFP_KERNEL);
+	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_ts || !input_dev) {
 		error = -ENOMEM;
 		goto err_alloc;
@@ -375,22 +376,17 @@ err_pd_irq:
 err_data_irq:
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
 err_alloc:
-	input_free_device(input_dev);
-	kfree(wm831x_ts);
 
 	return error;
 }
 
-static __devexit int wm831x_ts_remove(struct platform_device *pdev)
+static int wm831x_ts_remove(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts = platform_get_drvdata(pdev);
 
 	free_irq(wm831x_ts->pd_irq, wm831x_ts);
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
-	input_unregister_device(wm831x_ts->input_dev);
-	kfree(wm831x_ts);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -400,7 +396,7 @@ static struct platform_driver wm831x_ts_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm831x_ts_probe,
-	.remove = __devexit_p(wm831x_ts_remove),
+	.remove = wm831x_ts_remove,
 };
 module_platform_driver(wm831x_ts_driver);
 

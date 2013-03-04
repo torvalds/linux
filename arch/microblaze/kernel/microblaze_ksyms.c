@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/string.h>
 #include <linux/cryptohash.h>
 #include <linux/delay.h>

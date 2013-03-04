@@ -21,7 +21,6 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
-#include <linux/module.h>
 #include <linux/kobject.h>
 
 #include "ctree.h"

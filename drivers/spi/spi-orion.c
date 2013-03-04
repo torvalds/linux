@@ -32,8 +32,12 @@
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
 
+#define ORION_SPI_MODE_CPOL		(1 << 11)
+#define ORION_SPI_MODE_CPHA		(1 << 12)
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
+#define ORION_SPI_MODE_MASK		(ORION_SPI_MODE_CPOL | \
+					 ORION_SPI_MODE_CPHA)
 
 struct orion_spi {
 	struct spi_master	*master;
@@ -123,6 +127,23 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	return 0;
 }
 
+static void
+orion_spi_mode_set(struct spi_device *spi)
+{
+	u32 reg;
+	struct orion_spi *orion_spi;
+
+	orion_spi = spi_master_get_devdata(spi->master);
+
+	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
+	reg &= ~ORION_SPI_MODE_MASK;
+	if (spi->mode & SPI_CPOL)
+		reg |= ORION_SPI_MODE_CPOL;
+	if (spi->mode & SPI_CPHA)
+		reg |= ORION_SPI_MODE_CPHA;
+	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
+}
+
 /*
  * called only when no transfer is active on the bus
  */
@@ -141,6 +162,8 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	if ((t != NULL) && t->bits_per_word)
 		bits_per_word = t->bits_per_word;
+
+	orion_spi_mode_set(spi);
 
 	rc = orion_spi_baudrate_set(spi, speed);
 	if (rc)
@@ -343,7 +366,7 @@ msg_done:
 	return 0;
 }
 
-static int __init orion_spi_reset(struct orion_spi *orion_spi)
+static int orion_spi_reset(struct orion_spi *orion_spi)
 {
 	/* Verify that the CS is deasserted */
 	orion_spi_set_cs(orion_spi, 0);
@@ -373,7 +396,7 @@ static int orion_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int __init orion_spi_probe(struct platform_device *pdev)
+static int orion_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct orion_spi *spi;
@@ -399,7 +422,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	}
 
 	/* we support only mode 0, and no options */
-	master->mode_bits = 0;
+	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
 	master->setup = orion_spi_setup;
 	master->transfer_one_message = orion_spi_transfer_one_message;
@@ -456,7 +479,7 @@ out:
 }
 
 
-static int __exit orion_spi_remove(struct platform_device *pdev)
+static int orion_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct resource *r;
@@ -478,7 +501,7 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
-static const struct of_device_id orion_spi_of_match_table[] __devinitdata = {
+static const struct of_device_id orion_spi_of_match_table[] = {
 	{ .compatible = "marvell,orion-spi", },
 	{}
 };
@@ -490,20 +513,11 @@ static struct platform_driver orion_spi_driver = {
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
-	.remove		= __exit_p(orion_spi_remove),
+	.probe		= orion_spi_probe,
+	.remove		= orion_spi_remove,
 };
 
-static int __init orion_spi_init(void)
-{
-	return platform_driver_probe(&orion_spi_driver, orion_spi_probe);
-}
-module_init(orion_spi_init);
-
-static void __exit orion_spi_exit(void)
-{
-	platform_driver_unregister(&orion_spi_driver);
-}
-module_exit(orion_spi_exit);
+module_platform_driver(orion_spi_driver);
 
 MODULE_DESCRIPTION("Orion SPI driver");
 MODULE_AUTHOR("Shadi Ammouri <shadi@marvell.com>");

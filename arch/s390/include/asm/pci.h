@@ -9,6 +9,7 @@
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
+#include <asm/pci_debug.h>
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
@@ -32,6 +33,25 @@ int pci_proc_domain(struct pci_bus *);
 #define ZPCI_FC_ERROR			0x40
 #define ZPCI_FC_BLOCKED			0x20
 #define ZPCI_FC_DMA_ENABLED		0x10
+
+struct zpci_fmb {
+	u32 format	:  8;
+	u32 dma_valid	:  1;
+	u32		: 23;
+	u32 samples;
+	u64 last_update;
+	/* hardware counters */
+	u64 ld_ops;
+	u64 st_ops;
+	u64 stb_ops;
+	u64 rpcit_ops;
+	u64 dma_rbytes;
+	u64 dma_wbytes;
+	/* software counters */
+	atomic64_t allocated_pages;
+	atomic64_t mapped_pages;
+	atomic64_t unmapped_pages;
+} __packed __aligned(16);
 
 struct msi_map {
 	unsigned long irq;
@@ -92,7 +112,15 @@ struct zpci_dev {
 	u64		end_dma;	/* End of available DMA addresses */
 	u64		dma_mask;	/* DMA address space mask */
 
+	/* Function measurement block */
+	struct zpci_fmb *fmb;
+	u16		fmb_update;	/* update interval */
+
 	enum pci_bus_speed max_bus_speed;
+
+	struct dentry	*debugfs_dev;
+	struct dentry	*debugfs_perf;
+	struct dentry	*debugfs_debug;
 };
 
 struct pci_hp_callback_ops {
@@ -132,9 +160,14 @@ void zpci_teardown_msi_irq(struct zpci_dev *, struct msi_desc *);
 int zpci_msihash_init(void);
 void zpci_msihash_exit(void);
 
+#ifdef CONFIG_PCI
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
+#else /* CONFIG_PCI */
+static inline void zpci_event_error(void *e) {}
+static inline void zpci_event_availability(void *e) {}
+#endif /* CONFIG_PCI */
 
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
@@ -152,7 +185,20 @@ void zpci_dma_exit(void);
 /* Hotplug */
 extern struct mutex zpci_list_lock;
 extern struct list_head zpci_list;
-extern struct pci_hp_callback_ops hotplug_ops;
-extern unsigned int pci_probe;
+extern unsigned int s390_pci_probe;
+
+void zpci_register_hp_ops(struct pci_hp_callback_ops *);
+void zpci_deregister_hp_ops(void);
+
+/* FMB */
+int zpci_fmb_enable_device(struct zpci_dev *);
+int zpci_fmb_disable_device(struct zpci_dev *);
+
+/* Debug */
+int zpci_debug_init(void);
+void zpci_debug_exit(void);
+void zpci_debug_init_device(struct zpci_dev *);
+void zpci_debug_exit_device(struct zpci_dev *);
+void zpci_debug_info(struct zpci_dev *, struct seq_file *);
 
 #endif

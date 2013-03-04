@@ -221,6 +221,14 @@
 				#interrupt-cells = <2>;
 			};
 
+			kpp: kpp@73f94000 {
+				compatible = "fsl,imx51-kpp", "fsl,imx21-kpp";
+				reg = <0x73f94000 0x4000>;
+				interrupts = <60>;
+				clocks = <&clks 0>;
+				status = "disabled";
+			};
+
 			wdog1: wdog@73f98000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
@@ -271,6 +279,29 @@
 							250 0x80000000	/* MX51_PAD_NANDF_CS6__FEC_TDATA3 */
 							255 0x80000000	/* MX51_PAD_NANDF_CS7__FEC_TX_EN */
 							260 0x80000000	/* MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK */
+						>;
+					};
+
+					pinctrl_fec_2: fecgrp-2 {
+						fsl,pins = <
+							589 0x80000000 /* MX51_PAD_DI_GP3__FEC_TX_ER */
+							592 0x80000000 /* MX51_PAD_DI2_PIN4__FEC_CRS */
+							594 0x80000000 /* MX51_PAD_DI2_PIN2__FEC_MDC */
+							596 0x80000000 /* MX51_PAD_DI2_PIN3__FEC_MDIO */
+							598 0x80000000 /* MX51_PAD_DI2_DISP_CLK__FEC_RDATA1 */
+							602 0x80000000 /* MX51_PAD_DI_GP4__FEC_RDATA2 */
+							604 0x80000000 /* MX51_PAD_DISP2_DAT0__FEC_RDATA3 */
+							609 0x80000000 /* MX51_PAD_DISP2_DAT1__FEC_RX_ER */
+							618 0x80000000 /* MX51_PAD_DISP2_DAT6__FEC_TDATA1 */
+							623 0x80000000 /* MX51_PAD_DISP2_DAT7__FEC_TDATA2 */
+							628 0x80000000 /* MX51_PAD_DISP2_DAT8__FEC_TDATA3 */
+							634 0x80000000 /* MX51_PAD_DISP2_DAT9__FEC_TX_EN */
+							639 0x80000000 /* MX51_PAD_DISP2_DAT10__FEC_COL */
+							644 0x80000000 /* MX51_PAD_DISP2_DAT11__FEC_RX_CLK */
+							649 0x80000000 /* MX51_PAD_DISP2_DAT12__FEC_RX_DV */
+							653 0x80000000 /* MX51_PAD_DISP2_DAT13__FEC_TX_CLK */
+							657 0x80000000 /* MX51_PAD_DISP2_DAT14__FEC_RDATA0 */
+							662 0x80000000 /* MX51_PAD_DISP2_DAT15__FEC_TDATA0 */
 						>;
 					};
 				};
@@ -407,6 +438,28 @@
 							59 0x1c5	/* MX51_PAD_EIM_D26__UART3_TXD */
 							65 0x1c5	/* MX51_PAD_EIM_D27__UART3_RTS */
 							49 0x1c5	/* MX51_PAD_EIM_D24__UART3_CTS */
+						>;
+					};
+
+					pinctrl_uart3_2: uart3grp-2 {
+						fsl,pins = <
+							434 0x1c5	/* MX51_PAD_UART3_RXD__UART3_RXD */
+							430 0x1c5	/* MX51_PAD_UART3_TXD__UART3_TXD */
+						>;
+					};
+				};
+
+				kpp {
+					pinctrl_kpp_1: kppgrp-1 {
+						fsl,pins = <
+							438 0xe0	/* MX51_PAD_KEY_ROW0__KEY_ROW0 */
+							439 0xe0	/* MX51_PAD_KEY_ROW1__KEY_ROW1 */
+							440 0xe0	/* MX51_PAD_KEY_ROW2__KEY_ROW2 */
+							441 0xe0	/* MX51_PAD_KEY_ROW3__KEY_ROW3 */
+							442 0xe8	/* MX51_PAD_KEY_COL0__KEY_COL0 */
+							444 0xe8	/* MX51_PAD_KEY_COL1__KEY_COL1 */
+							446 0xe8	/* MX51_PAD_KEY_COL2__KEY_COL2 */
+							448 0xe8	/* MX51_PAD_KEY_COL3__KEY_COL3 */
 						>;
 					};
 				};

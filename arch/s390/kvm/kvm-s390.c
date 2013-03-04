@@ -149,7 +149,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_MAX_VCPUS;
 		break;
 	case KVM_CAP_S390_COW:
-		r = sclp_get_fac85() & 0x2;
+		r = MACHINE_HAS_ESOP;
 		break;
 	default:
 		r = 0;
@@ -618,7 +618,9 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		kvm_s390_deliver_pending_interrupts(vcpu);
 
 	vcpu->arch.sie_block->icptcode = 0;
+	preempt_disable();
 	kvm_guest_enter();
+	preempt_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	trace_kvm_s390_sie_enter(vcpu,

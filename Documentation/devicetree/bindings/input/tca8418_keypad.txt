@@ -1,0 +1,10 @@
+This binding is based on the matrix-keymap binding with the following
+changes:
+
+keypad,num-rows and keypad,num-columns are required.
+
+Required properties:
+- compatible: "ti,tca8418"
+- reg: the I2C address
+- interrupts: IRQ line number, should trigger on falling edge
+- linux,keymap: Keys definitions, see keypad-matrix.

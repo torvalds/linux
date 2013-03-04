@@ -42,7 +42,6 @@
 
 #include <sound/wm1250-ev1.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
@@ -50,12 +49,7 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
-#include <mach/crag6410.h>
-
-#include <mach/regs-gpio-memport.h>
 
 #include <plat/regs-serial.h>
 #include <plat/fb.h>
@@ -72,6 +66,10 @@
 #include <plat/pm.h>
 
 #include "common.h"
+#include "crag6410.h"
+#include "regs-gpio-memport.h"
+#include "regs-modem.h"
+#include "regs-sys.h"
 
 /* serial port setup */
 
@@ -171,7 +169,7 @@ static struct fb_videomode crag6410_lcd_timing = {
 };
 
 /* 405566 clocks per frame => 60Hz refresh requires 24333960Hz clock */
-static struct s3c_fb_platdata crag6410_lcd_pdata __devinitdata = {
+static struct s3c_fb_platdata crag6410_lcd_pdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
 	.vtiming	= &crag6410_lcd_timing,
 	.win[0]		= &crag6410_fb_win0,
@@ -181,7 +179,7 @@ static struct s3c_fb_platdata crag6410_lcd_pdata __devinitdata = {
 
 /* 2x6 keypad */
 
-static uint32_t crag6410_keymap[] __devinitdata = {
+static uint32_t crag6410_keymap[] = {
 	/* KEY(row, col, keycode) */
 	KEY(0, 0, KEY_VOLUMEUP),
 	KEY(0, 1, KEY_HOME),
@@ -197,12 +195,12 @@ static uint32_t crag6410_keymap[] __devinitdata = {
 	KEY(1, 5, KEY_CAMERA),
 };
 
-static struct matrix_keymap_data crag6410_keymap_data __devinitdata = {
+static struct matrix_keymap_data crag6410_keymap_data = {
 	.keymap		= crag6410_keymap,
 	.keymap_size	= ARRAY_SIZE(crag6410_keymap),
 };
 
-static struct samsung_keypad_platdata crag6410_keypad_data __devinitdata = {
+static struct samsung_keypad_platdata crag6410_keypad_data = {
 	.keymap_data	= &crag6410_keymap_data,
 	.rows		= 2,
 	.cols		= 6,
@@ -407,11 +405,11 @@ static struct wm831x_buckv_pdata vddarm_pdata = {
 	.dvs_gpio = S3C64XX_GPK(0),
 };
 
-static struct regulator_consumer_supply vddarm_consumers[] __devinitdata = {
+static struct regulator_consumer_supply vddarm_consumers[] = {
 	REGULATOR_SUPPLY("vddarm", NULL),
 };
 
-static struct regulator_init_data vddarm __devinitdata = {
+static struct regulator_init_data vddarm = {
 	.constraints = {
 		.name = "VDDARM",
 		.min_uV = 1000000,
@@ -425,11 +423,11 @@ static struct regulator_init_data vddarm __devinitdata = {
 	.driver_data = &vddarm_pdata,
 };
 
-static struct regulator_consumer_supply vddint_consumers[] __devinitdata = {
+static struct regulator_consumer_supply vddint_consumers[] = {
 	REGULATOR_SUPPLY("vddint", NULL),
 };
 
-static struct regulator_init_data vddint __devinitdata = {
+static struct regulator_init_data vddint = {
 	.constraints = {
 		.name = "VDDINT",
 		.min_uV = 1000000,
@@ -442,27 +440,27 @@ static struct regulator_init_data vddint __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddmem __devinitdata = {
+static struct regulator_init_data vddmem = {
 	.constraints = {
 		.name = "VDDMEM",
 		.always_on = 1,
 	},
 };
 
-static struct regulator_init_data vddsys __devinitdata = {
+static struct regulator_init_data vddsys = {
 	.constraints = {
 		.name = "VDDSYS,VDDEXT,VDDPCM,VDDSS",
 		.always_on = 1,
 	},
 };
 
-static struct regulator_consumer_supply vddmmc_consumers[] __devinitdata = {
+static struct regulator_consumer_supply vddmmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
 	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.1"),
 	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.2"),
 };
 
-static struct regulator_init_data vddmmc __devinitdata = {
+static struct regulator_init_data vddmmc = {
 	.constraints = {
 		.name = "VDDMMC,UH",
 		.always_on = 1,
@@ -472,7 +470,7 @@ static struct regulator_init_data vddmmc __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddotgi __devinitdata = {
+static struct regulator_init_data vddotgi = {
 	.constraints = {
 		.name = "VDDOTGi",
 		.always_on = 1,
@@ -480,7 +478,7 @@ static struct regulator_init_data vddotgi __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddotg __devinitdata = {
+static struct regulator_init_data vddotg = {
 	.constraints = {
 		.name = "VDDOTG",
 		.always_on = 1,
@@ -488,7 +486,7 @@ static struct regulator_init_data vddotg __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddhi __devinitdata = {
+static struct regulator_init_data vddhi = {
 	.constraints = {
 		.name = "VDDHI",
 		.always_on = 1,
@@ -496,7 +494,7 @@ static struct regulator_init_data vddhi __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddadc __devinitdata = {
+static struct regulator_init_data vddadc = {
 	.constraints = {
 		.name = "VDDADC,VDDDAC",
 		.always_on = 1,
@@ -504,7 +502,7 @@ static struct regulator_init_data vddadc __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddmem0 __devinitdata = {
+static struct regulator_init_data vddmem0 = {
 	.constraints = {
 		.name = "VDDMEM0",
 		.always_on = 1,
@@ -512,7 +510,7 @@ static struct regulator_init_data vddmem0 __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddpll __devinitdata = {
+static struct regulator_init_data vddpll = {
 	.constraints = {
 		.name = "VDDPLL",
 		.always_on = 1,
@@ -520,7 +518,7 @@ static struct regulator_init_data vddpll __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddlcd __devinitdata = {
+static struct regulator_init_data vddlcd = {
 	.constraints = {
 		.name = "VDDLCD",
 		.always_on = 1,
@@ -528,7 +526,7 @@ static struct regulator_init_data vddlcd __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct regulator_init_data vddalive __devinitdata = {
+static struct regulator_init_data vddalive = {
 	.constraints = {
 		.name = "VDDALIVE",
 		.always_on = 1,
@@ -536,28 +534,28 @@ static struct regulator_init_data vddalive __devinitdata = {
 	.supply_regulator = "WALLVDD",
 };
 
-static struct wm831x_backup_pdata banff_backup_pdata __devinitdata = {
+static struct wm831x_backup_pdata banff_backup_pdata = {
 	.charger_enable = 1,
 	.vlim = 2500,  /* mV */
 	.ilim = 200,   /* uA */
 };
 
-static struct wm831x_status_pdata banff_red_led __devinitdata = {
+static struct wm831x_status_pdata banff_red_led = {
 	.name = "banff:red:",
 	.default_src = WM831X_STATUS_MANUAL,
 };
 
-static struct wm831x_status_pdata banff_green_led __devinitdata = {
+static struct wm831x_status_pdata banff_green_led = {
 	.name = "banff:green:",
 	.default_src = WM831X_STATUS_MANUAL,
 };
 
-static struct wm831x_touch_pdata touch_pdata __devinitdata = {
+static struct wm831x_touch_pdata touch_pdata = {
 	.data_irq = S3C_EINT(26),
 	.pd_irq = S3C_EINT(27),
 };
 
-static struct wm831x_pdata crag_pmic_pdata __devinitdata = {
+static struct wm831x_pdata crag_pmic_pdata = {
 	.wm831x_num = 1,
 	.gpio_base = BANFF_PMIC_GPIO_BASE,
 	.soft_shutdown = true,
@@ -601,7 +599,7 @@ static struct wm831x_pdata crag_pmic_pdata __devinitdata = {
 	.touch = &touch_pdata,
 };
 
-static struct i2c_board_info i2c_devs0[] __devinitdata = {
+static struct i2c_board_info i2c_devs0[] = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },
 	{ I2C_BOARD_INFO("tca6408", 0x20),
 	  .platform_data = &crag6410_pca_data,
@@ -616,13 +614,13 @@ static struct s3c2410_platform_i2c i2c0_pdata = {
 	.frequency = 400000,
 };
 
-static struct regulator_consumer_supply pvdd_1v2_consumers[] __devinitdata = {
+static struct regulator_consumer_supply pvdd_1v2_consumers[] = {
 	REGULATOR_SUPPLY("DCVDD", "spi0.0"),
 	REGULATOR_SUPPLY("AVDD", "spi0.0"),
 	REGULATOR_SUPPLY("AVDD", "spi0.1"),
 };
 
-static struct regulator_init_data pvdd_1v2 __devinitdata = {
+static struct regulator_init_data pvdd_1v2 = {
 	.constraints = {
 		.name = "PVDD_1V2",
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -632,7 +630,7 @@ static struct regulator_init_data pvdd_1v2 __devinitdata = {
 	.num_consumer_supplies = ARRAY_SIZE(pvdd_1v2_consumers),
 };
 
-static struct regulator_consumer_supply pvdd_1v8_consumers[] __devinitdata = {
+static struct regulator_consumer_supply pvdd_1v8_consumers[] = {
 	REGULATOR_SUPPLY("LDOVDD", "1-001a"),
 	REGULATOR_SUPPLY("PLLVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "1-001a"),
@@ -664,7 +662,7 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] __devinitdata = {
 	REGULATOR_SUPPLY("CPVDD", "wm5110-codec"),
 };
 
-static struct regulator_init_data pvdd_1v8 __devinitdata = {
+static struct regulator_init_data pvdd_1v8 = {
 	.constraints = {
 		.name = "PVDD_1V8",
 		.always_on = 1,
@@ -674,12 +672,12 @@ static struct regulator_init_data pvdd_1v8 __devinitdata = {
 	.num_consumer_supplies = ARRAY_SIZE(pvdd_1v8_consumers),
 };
 
-static struct regulator_consumer_supply pvdd_3v3_consumers[] __devinitdata = {
+static struct regulator_consumer_supply pvdd_3v3_consumers[] = {
 	REGULATOR_SUPPLY("MICVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD1", "1-001a"),
 };
 
-static struct regulator_init_data pvdd_3v3 __devinitdata = {
+static struct regulator_init_data pvdd_3v3 = {
 	.constraints = {
 		.name = "PVDD_3V3",
 		.always_on = 1,
@@ -689,7 +687,7 @@ static struct regulator_init_data pvdd_3v3 __devinitdata = {
 	.num_consumer_supplies = ARRAY_SIZE(pvdd_3v3_consumers),
 };
 
-static struct wm831x_pdata glenfarclas_pmic_pdata __devinitdata = {
+static struct wm831x_pdata glenfarclas_pmic_pdata = {
 	.wm831x_num = 2,
 	.irq_base = GLENFARCLAS_PMIC_IRQ_BASE,
 	.gpio_base = GLENFARCLAS_PMIC_GPIO_BASE,
@@ -721,7 +719,7 @@ static struct wm1250_ev1_pdata wm1250_ev1_pdata = {
 	},
 };
 
-static struct i2c_board_info i2c_devs1[] __devinitdata = {
+static struct i2c_board_info i2c_devs1[] = {
 	{ I2C_BOARD_INFO("wm8311", 0x34),
 	  .irq = S3C_EINT(0),
 	  .platform_data = &glenfarclas_pmic_pdata },
@@ -867,10 +865,9 @@ MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

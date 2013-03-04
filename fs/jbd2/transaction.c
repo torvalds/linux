@@ -30,6 +30,8 @@
 #include <linux/bug.h>
 #include <linux/module.h>
 
+#include <trace/events/jbd2.h>
+
 static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
 static void __jbd2_journal_unfile_buffer(struct journal_head *jh);
 
@@ -100,6 +102,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	journal->j_running_transaction = transaction;
 	transaction->t_max_wait = 0;
 	transaction->t_start = jiffies;
+	transaction->t_requested = 0;
 
 	return transaction;
 }
@@ -209,7 +212,8 @@ repeat:
 		if (!new_transaction)
 			goto alloc_transaction;
 		write_lock(&journal->j_state_lock);
-		if (!journal->j_running_transaction) {
+		if (!journal->j_running_transaction &&
+		    !journal->j_barrier_count) {
 			jbd2_get_transaction(journal, new_transaction);
 			new_transaction = NULL;
 		}
@@ -305,6 +309,8 @@ repeat:
 	 */
 	update_t_max_wait(transaction, ts);
 	handle->h_transaction = transaction;
+	handle->h_requested_credits = nblocks;
+	handle->h_start_jiffies = jiffies;
 	atomic_inc(&transaction->t_updates);
 	atomic_inc(&transaction->t_handle_count);
 	jbd_debug(4, "Handle %p given %d credits (total %d, free %d)\n",
@@ -351,7 +357,8 @@ static handle_t *new_handle(int nblocks)
  * Return a pointer to a newly allocated handle, or an ERR_PTR() value
  * on failure.
  */
-handle_t *jbd2__journal_start(journal_t *journal, int nblocks, gfp_t gfp_mask)
+handle_t *jbd2__journal_start(journal_t *journal, int nblocks, gfp_t gfp_mask,
+			      unsigned int type, unsigned int line_no)
 {
 	handle_t *handle = journal_current_handle();
 	int err;
@@ -375,8 +382,13 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, gfp_t gfp_mask)
 	if (err < 0) {
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
-		handle = ERR_PTR(err);
+		return ERR_PTR(err);
 	}
+	handle->h_type = type;
+	handle->h_line_no = line_no;
+	trace_jbd2_handle_start(journal->j_fs_dev->bd_dev,
+				handle->h_transaction->t_tid, type,
+				line_no, nblocks);
 	return handle;
 }
 EXPORT_SYMBOL(jbd2__journal_start);
@@ -384,7 +396,7 @@ EXPORT_SYMBOL(jbd2__journal_start);
 
 handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 {
-	return jbd2__journal_start(journal, nblocks, GFP_NOFS);
+	return jbd2__journal_start(journal, nblocks, GFP_NOFS, 0, 0);
 }
 EXPORT_SYMBOL(jbd2_journal_start);
 
@@ -446,7 +458,14 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 		goto unlock;
 	}
 
+	trace_jbd2_handle_extend(journal->j_fs_dev->bd_dev,
+				 handle->h_transaction->t_tid,
+				 handle->h_type, handle->h_line_no,
+				 handle->h_buffer_credits,
+				 nblocks);
+
 	handle->h_buffer_credits += nblocks;
+	handle->h_requested_credits += nblocks;
 	atomic_add(nblocks, &transaction->t_outstanding_credits);
 	result = 0;
 
@@ -1207,17 +1226,6 @@ out:
 	return ret;
 }
 
-/*
- * jbd2_journal_release_buffer: undo a get_write_access without any buffer
- * updates, if the update decided in the end that it didn't need access.
- *
- */
-void
-jbd2_journal_release_buffer(handle_t *handle, struct buffer_head *bh)
-{
-	BUFFER_TRACE(bh, "entry");
-}
-
 /**
  * void jbd2_journal_forget() - bforget() for potentially-journaled buffers.
  * @handle: transaction handle
@@ -1386,6 +1394,13 @@ int jbd2_journal_stop(handle_t *handle)
 	}
 
 	jbd_debug(4, "Handle %p going down\n", handle);
+	trace_jbd2_handle_stats(journal->j_fs_dev->bd_dev,
+				handle->h_transaction->t_tid,
+				handle->h_type, handle->h_line_no,
+				jiffies - handle->h_start_jiffies,
+				handle->h_sync, handle->h_requested_credits,
+				(handle->h_requested_credits -
+				 handle->h_buffer_credits));
 
 	/*
 	 * Implement synchronous transaction batching.  If the handle
@@ -1850,7 +1865,6 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 
 	BUFFER_TRACE(bh, "entry");
 
-retry:
 	/*
 	 * It is safe to proceed here without the j_list_lock because the
 	 * buffers cannot be stolen by try_to_free_buffers as long as we are
@@ -1945,14 +1959,11 @@ retry:
 		 * for commit and try again.
 		 */
 		if (partial_page) {
-			tid_t tid = journal->j_committing_transaction->t_tid;
-
 			jbd2_journal_put_journal_head(jh);
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			write_unlock(&journal->j_state_lock);
-			jbd2_log_wait_commit(journal, tid);
-			goto retry;
+			return -EBUSY;
 		}
 		/*
 		 * OK, buffer won't be reachable after truncate. We just set
@@ -2013,21 +2024,23 @@ zap_buffer_unlocked:
  * @page:    page to flush
  * @offset:  length of page to invalidate.
  *
- * Reap page buffers containing data after offset in page.
- *
+ * Reap page buffers containing data after offset in page. Can return -EBUSY
+ * if buffers are part of the committing transaction and the page is straddling
+ * i_size. Caller then has to wait for current commit and try again.
  */
-void jbd2_journal_invalidatepage(journal_t *journal,
-		      struct page *page,
-		      unsigned long offset)
+int jbd2_journal_invalidatepage(journal_t *journal,
+				struct page *page,
+				unsigned long offset)
 {
 	struct buffer_head *head, *bh, *next;
 	unsigned int curr_off = 0;
 	int may_free = 1;
+	int ret = 0;
 
 	if (!PageLocked(page))
 		BUG();
 	if (!page_has_buffers(page))
-		return;
+		return 0;
 
 	/* We will potentially be playing with lists other than just the
 	 * data lists (especially for journaled data mode), so be
@@ -2041,9 +2054,11 @@ void jbd2_journal_invalidatepage(journal_t *journal,
 		if (offset <= curr_off) {
 			/* This block is wholly outside the truncation point */
 			lock_buffer(bh);
-			may_free &= journal_unmap_buffer(journal, bh,
-							 offset > 0);
+			ret = journal_unmap_buffer(journal, bh, offset > 0);
 			unlock_buffer(bh);
+			if (ret < 0)
+				return ret;
+			may_free &= ret;
 		}
 		curr_off = next_off;
 		bh = next;
@@ -2054,6 +2069,7 @@ void jbd2_journal_invalidatepage(journal_t *journal,
 		if (may_free && try_to_free_buffers(page))
 			J_ASSERT(!page_has_buffers(page));
 	}
+	return 0;
 }
 
 /*

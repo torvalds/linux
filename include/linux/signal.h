@@ -241,9 +241,6 @@ extern int do_send_sig_info(int sig, struct siginfo *info,
 				struct task_struct *p, bool group);
 extern int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
 extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
-extern long do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig,
-				 siginfo_t *info);
-extern long do_sigpending(void __user *, unsigned long);
 extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
 				const struct timespec *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
@@ -252,9 +249,58 @@ extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 extern int sigsuspend(sigset_t *);
 
+struct sigaction {
+#ifndef __ARCH_HAS_ODD_SIGACTION
+	__sighandler_t	sa_handler;
+	unsigned long	sa_flags;
+#else
+	unsigned long	sa_flags;
+	__sighandler_t	sa_handler;
+#endif
+#ifdef __ARCH_HAS_SA_RESTORER
+	__sigrestore_t sa_restorer;
+#endif
+	sigset_t	sa_mask;	/* mask last for extensibility */
+};
+
+struct k_sigaction {
+	struct sigaction sa;
+#ifdef __ARCH_HAS_KA_RESTORER
+	__sigrestore_t ka_restorer;
+#endif
+};
+ 
+#ifdef CONFIG_OLD_SIGACTION
+struct old_sigaction {
+	__sighandler_t sa_handler;
+	old_sigset_t sa_mask;
+	unsigned long sa_flags;
+	__sigrestore_t sa_restorer;
+};
+#endif
+
+struct ksignal {
+	struct k_sigaction ka;
+	siginfo_t info;
+	int sig;
+};
+
 extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
+extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);
 extern void signal_delivered(int sig, siginfo_t *info, struct k_sigaction *ka, struct pt_regs *regs, int stepping);
 extern void exit_signals(struct task_struct *tsk);
+
+/*
+ * Eventually that'll replace get_signal_to_deliver(); macro for now,
+ * to avoid nastiness with include order.
+ */
+#define get_signal(ksig)					\
+({								\
+	struct ksignal *p = (ksig);				\
+	p->sig = get_signal_to_deliver(&p->info, &p->ka,	\
+					signal_pt_regs(), NULL);\
+	p->sig > 0;						\
+})
 
 extern struct kmem_cache *sighand_cachep;
 
@@ -384,5 +430,8 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 	 (t)->sighand->action[(signr)-1].sa.sa_handler == SIG_DFL)
 
 void signals_init(void);
+
+int restore_altstack(const stack_t __user *);
+int __save_altstack(stack_t __user *, unsigned long);
 
 #endif /* _LINUX_SIGNAL_H */

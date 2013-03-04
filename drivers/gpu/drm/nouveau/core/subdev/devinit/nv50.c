@@ -22,6 +22,10 @@
  * Authors: Ben Skeggs
  */
 
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+#include <subdev/bios/disp.h>
+#include <subdev/bios/init.h>
 #include <subdev/devinit.h>
 #include <subdev/vga.h>
 
@@ -55,7 +59,12 @@ nv50_devinit_dtor(struct nouveau_object *object)
 static int
 nv50_devinit_init(struct nouveau_object *object)
 {
+	struct nouveau_bios *bios = nouveau_bios(object);
 	struct nv50_devinit_priv *priv = (void *)object;
+	struct nvbios_outp info;
+	struct dcb_output outp;
+	u8  ver = 0xff, hdr, cnt, len;
+	int ret, i = 0;
 
 	if (!priv->base.post) {
 		if (!nv_rdvgac(priv, 0, 0x00) &&
@@ -65,7 +74,32 @@ nv50_devinit_init(struct nouveau_object *object)
 		}
 	}
 
-	return nouveau_devinit_init(&priv->base);
+	ret = nouveau_devinit_init(&priv->base);
+	if (ret)
+		return ret;
+
+	/* if we ran the init tables, we have to execute the first script
+	 * pointer of each dcb entry's display encoder table in order
+	 * to properly initialise each encoder.
+	 */
+	while (priv->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
+		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
+				     &ver, &hdr, &cnt, &len, &info)) {
+			struct nvbios_init init = {
+				.subdev = nv_subdev(priv),
+				.bios = bios,
+				.offset = info.script[0],
+				.outp = &outp,
+				.crtc = -1,
+				.execute = 1,
+			};
+
+			nvbios_exec(&init);
+		}
+		i++;
+	}
+
+	return 0;
 }
 
 static int

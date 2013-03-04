@@ -37,10 +37,21 @@ device:
 		pwm-names = "backlight";
 	};
 
+Note that in the example above, specifying the "pwm-names" is redundant
+because the name "backlight" would be used as fallback anyway.
+
 pwm-specifier typically encodes the chip-relative PWM number and the PWM
-period in nanoseconds. Note that in the example above, specifying the
-"pwm-names" is redundant because the name "backlight" would be used as
-fallback anyway.
+period in nanoseconds.
+
+Optionally, the pwm-specifier can encode a number of flags in a third cell:
+- bit 0: PWM signal polarity (0: normal polarity, 1: inverse polarity)
+
+Example with optional PWM specifier for inverse polarity
+
+	bl: backlight {
+		pwms = <&pwm 0 5000000 1>;
+		pwm-names = "backlight";
+	};
 
 2) PWM controller nodes
 -----------------------

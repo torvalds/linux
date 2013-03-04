@@ -46,7 +46,7 @@
 static char *fb_mode = "640x480-16@60";
 static unsigned long default_bpp = 16;
 
-static struct fb_videomode __devinitdata sm501_default_mode = {
+static struct fb_videomode sm501_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -1664,8 +1664,7 @@ static void sm501fb_stop(struct sm501fb_info *info)
 			   resource_size(info->regs_res));
 }
 
-static int __devinit sm501fb_init_fb(struct fb_info *fb,
-			   enum sm501_controller head,
+static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 			   const char *fbname)
 {
 	struct sm501_platdata_fbsub *pd;
@@ -1850,8 +1849,8 @@ static struct sm501_platdata_fb sm501fb_def_pdata = {
 static char driver_name_crt[] = "sm501fb-crt";
 static char driver_name_pnl[] = "sm501fb-panel";
 
-static int __devinit sm501fb_probe_one(struct sm501fb_info *info,
-				       enum sm501_controller head)
+static int sm501fb_probe_one(struct sm501fb_info *info,
+			     enum sm501_controller head)
 {
 	unsigned char *name = (head == HEAD_CRT) ? "crt" : "panel";
 	struct sm501_platdata_fbsub *pd;
@@ -1892,9 +1891,8 @@ static void sm501_free_init_fb(struct sm501fb_info *info,
 	fb_dealloc_cmap(&fbi->cmap);
 }
 
-static int __devinit sm501fb_start_one(struct sm501fb_info *info,
-				       enum sm501_controller head,
-				       const char *drvname)
+static int sm501fb_start_one(struct sm501fb_info *info,
+			     enum sm501_controller head, const char *drvname)
 {
 	struct fb_info *fbi = info->fb[head];
 	int ret;
@@ -1922,7 +1920,7 @@ static int __devinit sm501fb_start_one(struct sm501fb_info *info,
 	return 0;
 }
 
-static int __devinit sm501fb_probe(struct platform_device *pdev)
+static int sm501fb_probe(struct platform_device *pdev)
 {
 	struct sm501fb_info *info;
 	struct device *dev = &pdev->dev;

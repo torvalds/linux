@@ -65,6 +65,17 @@ struct clockdomain;
 		.ops = &_clkops_name,				\
 	};
 
+#define DEFINE_STRUCT_CLK_FLAGS(_name, _parent_array_name,	\
+				_clkops_name, _flags)		\
+	static struct clk _name = {				\
+		.name = #_name,					\
+		.hw = &_name##_hw.hw,				\
+		.parent_names = _parent_array_name,		\
+		.num_parents = ARRAY_SIZE(_parent_array_name),	\
+		.ops = &_clkops_name,				\
+		.flags = _flags,				\
+	};
+
 #define DEFINE_STRUCT_CLK_HW_OMAP(_name, _clkdm_name)		\
 	static struct clk_hw_omap _name##_hw = {		\
 		.hw = {						\
@@ -195,6 +206,10 @@ struct clksel {
  * @enable_mask: mask of the DPLL mode bitfield in @control_reg
  * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
  * @last_rounded_m: cache of the last M result of omap2_dpll_round_rate()
+ * @last_rounded_m4xen: cache of the last M4X result of
+ *			omap4_dpll_regm4xen_round_rate()
+ * @last_rounded_lpmode: cache of the last lpmode result of
+ *			 omap4_dpll_lpmode_recalc()
  * @max_multiplier: maximum valid non-bypass multiplier value (actual)
  * @last_rounded_n: cache of the last N result of omap2_dpll_round_rate()
  * @min_divider: minimum valid non-bypass divider value (actual)
@@ -205,6 +220,8 @@ struct clksel {
  * @autoidle_mask: mask of the DPLL autoidle mode bitfield in @autoidle_reg
  * @freqsel_mask: mask of the DPLL jitter correction bitfield in @control_reg
  * @idlest_mask: mask of the DPLL idle status bitfield in @idlest_reg
+ * @lpmode_mask: mask of the DPLL low-power mode bitfield in @control_reg
+ * @m4xen_mask: mask of the DPLL M4X multiplier bitfield in @control_reg
  * @auto_recal_bit: bitshift of the driftguard enable bit in @control_reg
  * @recal_en_bit: bitshift of the PRM_IRQENABLE_* bit for recalibration IRQs
  * @recal_st_bit: bitshift of the PRM_IRQSTATUS_* bit for recalibration IRQs
@@ -233,6 +250,8 @@ struct dpll_data {
 	u32			enable_mask;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
+	u8			last_rounded_m4xen;
+	u8			last_rounded_lpmode;
 	u16			max_multiplier;
 	u8			last_rounded_n;
 	u8			min_divider;
@@ -245,6 +264,8 @@ struct dpll_data {
 	u32			idlest_mask;
 	u32			dco_mask;
 	u32			sddiv_mask;
+	u32			lpmode_mask;
+	u32			m4xen_mask;
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;

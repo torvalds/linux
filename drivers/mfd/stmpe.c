@@ -7,11 +7,15 @@
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
@@ -312,20 +316,17 @@ static struct mfd_cell stmpe_gpio_cell_noirq = {
 static struct resource stmpe_keypad_resources[] = {
 	{
 		.name	= "KEYPAD",
-		.start	= 0,
-		.end	= 0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "KEYPAD_OVER",
-		.start	= 1,
-		.end	= 1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
+	.of_compatible  = "st,stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_keypad_resources),
 };
@@ -399,20 +400,17 @@ static struct stmpe_variant_info stmpe801_noirq = {
 static struct resource stmpe_ts_resources[] = {
 	{
 		.name	= "TOUCH_DET",
-		.start	= 0,
-		.end	= 0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "FIFO_TH",
-		.start	= 1,
-		.end	= 1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct mfd_cell stmpe_ts_cell = {
 	.name		= "stmpe-ts",
+	.of_compatible	= "st,stmpe-ts",
 	.resources	= stmpe_ts_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_ts_resources),
 };
@@ -528,12 +526,12 @@ static const u8 stmpe1601_regs[] = {
 static struct stmpe_variant_block stmpe1601_blocks[] = {
 	{
 		.cell	= &stmpe_gpio_cell,
-		.irq	= STMPE24XX_IRQ_GPIOC,
+		.irq	= STMPE1601_IRQ_GPIOC,
 		.block	= STMPE_BLOCK_GPIO,
 	},
 	{
 		.cell	= &stmpe_keypad_cell,
-		.irq	= STMPE24XX_IRQ_KEYPAD,
+		.irq	= STMPE1601_IRQ_KEYPAD,
 		.block	= STMPE_BLOCK_KEYPAD,
 	},
 };
@@ -767,7 +765,9 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	int i;
 
 	if (variant->id_val == STMPE801_ID) {
-		handle_nested_irq(stmpe->irq_base);
+		int base = irq_create_mapping(stmpe->domain, 0);
+
+		handle_nested_irq(base);
 		return IRQ_HANDLED;
 	}
 
@@ -788,8 +788,9 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 		while (status) {
 			int bit = __ffs(status);
 			int line = bank * 8 + bit;
+			int nestedirq = irq_create_mapping(stmpe->domain, line);
 
-			handle_nested_irq(stmpe->irq_base + line);
+			handle_nested_irq(nestedirq);
 			status &= ~(1 << bit);
 		}
 
@@ -830,7 +831,7 @@ static void stmpe_irq_sync_unlock(struct irq_data *data)
 static void stmpe_irq_mask(struct irq_data *data)
 {
 	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
-	int offset = data->irq - stmpe->irq_base;
+	int offset = data->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -840,7 +841,7 @@ static void stmpe_irq_mask(struct irq_data *data)
 static void stmpe_irq_unmask(struct irq_data *data)
 {
 	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
-	int offset = data->irq - stmpe->irq_base;
+	int offset = data->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -855,46 +856,61 @@ static struct irq_chip stmpe_irq_chip = {
 	.irq_unmask		= stmpe_irq_unmask,
 };
 
-static int __devinit stmpe_irq_init(struct stmpe *stmpe)
+static int stmpe_irq_map(struct irq_domain *d, unsigned int virq,
+                                irq_hw_number_t hwirq)
 {
+	struct stmpe *stmpe = d->host_data;
 	struct irq_chip *chip = NULL;
-	int num_irqs = stmpe->variant->num_irqs;
-	int base = stmpe->irq_base;
-	int irq;
 
 	if (stmpe->variant->id_val != STMPE801_ID)
 		chip = &stmpe_irq_chip;
 
-	for (irq = base; irq < base + num_irqs; irq++) {
-		irq_set_chip_data(irq, stmpe);
-		irq_set_chip_and_handler(irq, chip, handle_edge_irq);
-		irq_set_nested_thread(irq, 1);
+	irq_set_chip_data(virq, stmpe);
+	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
+	irq_set_nested_thread(virq, 1);
 #ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
+	set_irq_flags(virq, IRQF_VALID);
 #else
-		irq_set_noprobe(irq);
+	irq_set_noprobe(virq);
 #endif
+
+	return 0;
+}
+
+static void stmpe_irq_unmap(struct irq_domain *d, unsigned int virq)
+{
+#ifdef CONFIG_ARM
+		set_irq_flags(virq, 0);
+#endif
+		irq_set_chip_and_handler(virq, NULL, NULL);
+		irq_set_chip_data(virq, NULL);
+}
+
+static struct irq_domain_ops stmpe_irq_ops = {
+        .map    = stmpe_irq_map,
+        .unmap  = stmpe_irq_unmap,
+        .xlate  = irq_domain_xlate_twocell,
+};
+
+static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
+{
+	int base = 0;
+	int num_irqs = stmpe->variant->num_irqs;
+
+	if (!np)
+		base = stmpe->irq_base;
+
+	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
+					      &stmpe_irq_ops, stmpe);
+	if (!stmpe->domain) {
+		dev_err(stmpe->dev, "Failed to create irqdomain\n");
+		return -ENOSYS;
 	}
 
 	return 0;
 }
 
-static void stmpe_irq_remove(struct stmpe *stmpe)
-{
-	int num_irqs = stmpe->variant->num_irqs;
-	int base = stmpe->irq_base;
-	int irq;
-
-	for (irq = base; irq < base + num_irqs; irq++) {
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, 0);
-#endif
-		irq_set_chip_and_handler(irq, NULL, NULL);
-		irq_set_chip_data(irq, NULL);
-	}
-}
-
-static int __devinit stmpe_chip_init(struct stmpe *stmpe)
+static int stmpe_chip_init(struct stmpe *stmpe)
 {
 	unsigned int irq_trigger = stmpe->pdata->irq_trigger;
 	int autosleep_timeout = stmpe->pdata->autosleep_timeout;
@@ -942,13 +958,6 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 			else
 				icr |= STMPE_ICR_LSB_HIGH;
 		}
-
-		if (stmpe->pdata->irq_invert_polarity) {
-			if (id == STMPE801_ID)
-				icr ^= STMPE801_REG_SYS_CTRL_INT_HI;
-			else
-				icr ^= STMPE_ICR_LSB_HIGH;
-		}
 	}
 
 	if (stmpe->pdata->autosleep) {
@@ -960,19 +969,18 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	return stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_ICR_LSB], icr);
 }
 
-static int __devinit stmpe_add_device(struct stmpe *stmpe,
-				      struct mfd_cell *cell, int irq)
+static int stmpe_add_device(struct stmpe *stmpe, struct mfd_cell *cell)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
-			       NULL, stmpe->irq_base + irq, NULL);
+			       NULL, stmpe->irq_base, stmpe->domain);
 }
 
-static int __devinit stmpe_devices_init(struct stmpe *stmpe)
+static int stmpe_devices_init(struct stmpe *stmpe)
 {
 	struct stmpe_variant_info *variant = stmpe->variant;
 	unsigned int platform_blocks = stmpe->pdata->blocks;
 	int ret = -EINVAL;
-	int i;
+	int i, j;
 
 	for (i = 0; i < variant->num_blocks; i++) {
 		struct stmpe_variant_block *block = &variant->blocks[i];
@@ -980,8 +988,17 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 		if (!(platform_blocks & block->block))
 			continue;
 
+		for (j = 0; j < block->cell->num_resources; j++) {
+			struct resource *res =
+				(struct resource *) &block->cell->resources[j];
+
+			/* Dynamically fill in a variant's IRQ. */
+			if (res->flags & IORESOURCE_IRQ)
+				res->start = res->end = block->irq + j;
+		}
+
 		platform_blocks &= ~block->block;
-		ret = stmpe_add_device(stmpe, block->cell, block->irq);
+		ret = stmpe_add_device(stmpe, block->cell);
 		if (ret)
 			return ret;
 	}
@@ -994,17 +1011,55 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
+void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
+{
+	struct device_node *child;
+
+	pdata->id = -1;
+	pdata->irq_trigger = IRQF_TRIGGER_NONE;
+
+	of_property_read_u32(np, "st,autosleep-timeout",
+			&pdata->autosleep_timeout);
+
+	pdata->autosleep = (pdata->autosleep_timeout) ? true : false;
+
+	for_each_child_of_node(np, child) {
+		if (!strcmp(child->name, "stmpe_gpio")) {
+			pdata->blocks |= STMPE_BLOCK_GPIO;
+		} else if (!strcmp(child->name, "stmpe_keypad")) {
+			pdata->blocks |= STMPE_BLOCK_KEYPAD;
+		} else if (!strcmp(child->name, "stmpe_touchscreen")) {
+			pdata->blocks |= STMPE_BLOCK_TOUCHSCREEN;
+		} else if (!strcmp(child->name, "stmpe_adc")) {
+			pdata->blocks |= STMPE_BLOCK_ADC;
+		} else if (!strcmp(child->name, "stmpe_pwm")) {
+			pdata->blocks |= STMPE_BLOCK_PWM;
+		} else if (!strcmp(child->name, "stmpe_rotator")) {
+			pdata->blocks |= STMPE_BLOCK_ROTATOR;
+		}
+	}
+}
+
 /* Called from client specific probe routines */
-int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
+int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
+	struct device_node *np = ci->dev->of_node;
 	struct stmpe *stmpe;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
+	if (!pdata) {
+		if (!np)
+			return -EINVAL;
 
-	stmpe = kzalloc(sizeof(struct stmpe), GFP_KERNEL);
+		pdata = devm_kzalloc(ci->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		stmpe_of_probe(pdata, np);
+	}
+
+	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
 	if (!stmpe)
 		return -ENOMEM;
 
@@ -1026,11 +1081,12 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 		ci->init(stmpe);
 
 	if (pdata->irq_over_gpio) {
-		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "stmpe");
+		ret = devm_gpio_request_one(ci->dev, pdata->irq_gpio,
+				GPIOF_DIR_IN, "stmpe");
 		if (ret) {
 			dev_err(stmpe->dev, "failed to request IRQ GPIO: %d\n",
 					ret);
-			goto out_free;
+			return ret;
 		}
 
 		stmpe->irq = gpio_to_irq(pdata->irq_gpio);
@@ -1047,67 +1103,46 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 			dev_err(stmpe->dev,
 				"%s does not support no-irq mode!\n",
 				stmpe->variant->name);
-			ret = -ENODEV;
-			goto free_gpio;
+			return -ENODEV;
 		}
 		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
+	} else if (pdata->irq_trigger == IRQF_TRIGGER_NONE) {
+		pdata->irq_trigger =
+			irqd_get_trigger_type(irq_get_irq_data(stmpe->irq));
 	}
 
 	ret = stmpe_chip_init(stmpe);
 	if (ret)
-		goto free_gpio;
+		return ret;
 
 	if (stmpe->irq >= 0) {
-		ret = stmpe_irq_init(stmpe);
+		ret = stmpe_irq_init(stmpe, np);
 		if (ret)
-			goto free_gpio;
+			return ret;
 
-		ret = request_threaded_irq(stmpe->irq, NULL, stmpe_irq,
-				pdata->irq_trigger | IRQF_ONESHOT,
+		ret = devm_request_threaded_irq(ci->dev, stmpe->irq, NULL,
+				stmpe_irq, pdata->irq_trigger | IRQF_ONESHOT,
 				"stmpe", stmpe);
 		if (ret) {
 			dev_err(stmpe->dev, "failed to request IRQ: %d\n",
 					ret);
-			goto out_removeirq;
+			return ret;
 		}
 	}
 
 	ret = stmpe_devices_init(stmpe);
-	if (ret) {
-		dev_err(stmpe->dev, "failed to add children\n");
-		goto out_removedevs;
-	}
+	if (!ret)
+		return 0;
 
-	return 0;
-
-out_removedevs:
+	dev_err(stmpe->dev, "failed to add children\n");
 	mfd_remove_devices(stmpe->dev);
-	if (stmpe->irq >= 0)
-		free_irq(stmpe->irq, stmpe);
-out_removeirq:
-	if (stmpe->irq >= 0)
-		stmpe_irq_remove(stmpe);
-free_gpio:
-	if (pdata->irq_over_gpio)
-		gpio_free(pdata->irq_gpio);
-out_free:
-	kfree(stmpe);
+
 	return ret;
 }
 
 int stmpe_remove(struct stmpe *stmpe)
 {
 	mfd_remove_devices(stmpe->dev);
-
-	if (stmpe->irq >= 0) {
-		free_irq(stmpe->irq, stmpe);
-		stmpe_irq_remove(stmpe);
-	}
-
-	if (stmpe->pdata->irq_over_gpio)
-		gpio_free(stmpe->pdata->irq_gpio);
-
-	kfree(stmpe);
 
 	return 0;
 }

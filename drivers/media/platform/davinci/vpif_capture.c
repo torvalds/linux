@@ -201,13 +201,16 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 	struct vpif_cap_buffer *buf = container_of(vb,
 				struct vpif_cap_buffer, vb);
 	struct common_obj *common;
+	unsigned long flags;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
 	vpif_dbg(2, debug, "vpif_buffer_queue\n");
 
+	spin_lock_irqsave(&common->irqlock, flags);
 	/* add the buffer to the DMA queue */
 	list_add_tail(&buf->list, &common->dma_queue);
+	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
 /**
@@ -278,10 +281,13 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct vpif_params *vpif = &ch->vpifparams;
 	unsigned long addr = 0;
+	unsigned long flags;
 	int ret;
 
-		/* If buffer queue is empty, return error */
+	/* If buffer queue is empty, return error */
+	spin_lock_irqsave(&common->irqlock, flags);
 	if (list_empty(&common->dma_queue)) {
+		spin_unlock_irqrestore(&common->irqlock, flags);
 		vpif_dbg(1, debug, "buffer queue is empty\n");
 		return -EIO;
 	}
@@ -291,6 +297,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 				    struct vpif_cap_buffer, list);
 	/* Remove buffer from the buffer queue */
 	list_del(&common->cur_frm->list);
+	spin_unlock_irqrestore(&common->irqlock, flags);
 	/* Mark state of the current frame to active */
 	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 	/* Initialize field_id and started member */
@@ -362,6 +369,7 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 	struct vpif_fh *fh = vb2_get_drv_priv(vq);
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common;
+	unsigned long flags;
 
 	if (!vb2_is_streaming(vq))
 		return 0;
@@ -369,12 +377,14 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
 	/* release all active buffers */
+	spin_lock_irqsave(&common->irqlock, flags);
 	while (!list_empty(&common->dma_queue)) {
 		common->next_frm = list_entry(common->dma_queue.next,
 						struct vpif_cap_buffer, list);
 		list_del(&common->next_frm->list);
 		vb2_buffer_done(&common->next_frm->vb, VB2_BUF_STATE_ERROR);
 	}
+	spin_unlock_irqrestore(&common->irqlock, flags);
 
 	return 0;
 }
@@ -401,7 +411,7 @@ static struct vb2_ops video_qops = {
  */
 static void vpif_process_buffer_complete(struct common_obj *common)
 {
-	do_gettimeofday(&common->cur_frm->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&common->cur_frm->vb.v4l2_buf.timestamp);
 	vb2_buffer_done(&common->cur_frm->vb,
 					    VB2_BUF_STATE_DONE);
 	/* Make curFrm pointing to nextFrm */
@@ -420,10 +430,12 @@ static void vpif_schedule_next_buffer(struct common_obj *common)
 {
 	unsigned long addr = 0;
 
+	spin_lock(&common->irqlock);
 	common->next_frm = list_entry(common->dma_queue.next,
 				     struct vpif_cap_buffer, list);
 	/* Remove that buffer from the buffer queue */
 	list_del(&common->next_frm->list);
+	spin_unlock(&common->irqlock);
 	common->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb, 0);
 
@@ -468,8 +480,12 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 		/* Check the field format */
 		if (1 == ch->vpifparams.std_info.frm_fmt) {
 			/* Progressive mode */
-			if (list_empty(&common->dma_queue))
+			spin_lock(&common->irqlock);
+			if (list_empty(&common->dma_queue)) {
+				spin_unlock(&common->irqlock);
 				continue;
+			}
+			spin_unlock(&common->irqlock);
 
 			if (!channel_first_int[i][channel_id])
 				vpif_process_buffer_complete(common);
@@ -513,9 +529,13 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 				vpif_process_buffer_complete(common);
 			} else if (1 == fid) {
 				/* odd field */
+				spin_lock(&common->irqlock);
 				if (list_empty(&common->dma_queue) ||
-				    (common->cur_frm != common->next_frm))
+				    (common->cur_frm != common->next_frm)) {
+					spin_unlock(&common->irqlock);
 					continue;
+				}
+				spin_unlock(&common->irqlock);
 
 				vpif_schedule_next_buffer(common);
 			}
@@ -1004,9 +1024,9 @@ static int vpif_reqbufs(struct file *file, void *priv,
 
 	/* Initialize videobuf2 queue as per the buffer type */
 	common->alloc_ctx = vb2_dma_contig_init_ctx(vpif_dev);
-	if (!common->alloc_ctx) {
+	if (IS_ERR(common->alloc_ctx)) {
 		vpif_err("Failed to get the context\n");
-		return -EINVAL;
+		return PTR_ERR(common->alloc_ctx);
 	}
 	q = &common->buffer_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1715,7 +1735,7 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 	int ret;
 
 	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
-	if (ret == -ENOIOCTLCMD && ret == -ENODEV)
+	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -EINVAL;
 	return ret;
 }
@@ -1735,7 +1755,7 @@ vpif_query_dv_timings(struct file *file, void *priv,
 	int ret;
 
 	ret = v4l2_subdev_call(ch->sd, video, query_dv_timings, timings);
-	if (ret == -ENOIOCTLCMD && ret == -ENODEV)
+	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -ENODATA;
 	return ret;
 }

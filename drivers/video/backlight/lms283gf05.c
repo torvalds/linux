@@ -31,7 +31,7 @@ struct lms283gf05_seq {
 };
 
 /* Magic sequences supplied by manufacturer, for details refer to datasheet */
-static struct lms283gf05_seq disp_initseq[] = {
+static const struct lms283gf05_seq disp_initseq[] = {
 	/* REG, VALUE, DELAY */
 	{ 0x07, 0x0000, 0 },
 	{ 0x13, 0x0000, 10 },
@@ -78,7 +78,7 @@ static struct lms283gf05_seq disp_initseq[] = {
 	{ 0x22, 0x0000, 0 }
 };
 
-static struct lms283gf05_seq disp_pdwnseq[] = {
+static const struct lms283gf05_seq disp_pdwnseq[] = {
 	{ 0x07, 0x0016, 30 },
 
 	{ 0x07, 0x0004, 0 },
@@ -104,7 +104,7 @@ static void lms283gf05_reset(unsigned long gpio, bool inverted)
 }
 
 static void lms283gf05_toggle(struct spi_device *spi,
-			struct lms283gf05_seq *seq, int sz)
+				const struct lms283gf05_seq *seq, int sz)
 {
 	char buf[3];
 	int i;
@@ -158,13 +158,10 @@ static int lms283gf05_probe(struct spi_device *spi)
 	int ret = 0;
 
 	if (pdata != NULL) {
-		ret = devm_gpio_request(&spi->dev, pdata->reset_gpio,
-					"LMS285GF05 RESET");
-		if (ret)
-			return ret;
-
-		ret = gpio_direction_output(pdata->reset_gpio,
-						!pdata->reset_inverted);
+		ret = devm_gpio_request_one(&spi->dev, pdata->reset_gpio,
+				GPIOF_DIR_OUT | (!pdata->reset_inverted ?
+				GPIOF_INIT_HIGH : GPIOF_INIT_LOW),
+				"LMS285GF05 RESET");
 		if (ret)
 			return ret;
 	}
@@ -183,7 +180,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->ld = ld;
 
-	dev_set_drvdata(&spi->dev, st);
+	spi_set_drvdata(spi, st);
 
 	/* kick in the LCD */
 	if (pdata)
@@ -195,7 +192,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 
 static int lms283gf05_remove(struct spi_device *spi)
 {
-	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
+	struct lms283gf05_state *st = spi_get_drvdata(spi);
 
 	lcd_device_unregister(st->ld);
 

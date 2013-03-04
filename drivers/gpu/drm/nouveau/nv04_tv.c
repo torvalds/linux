@@ -184,14 +184,23 @@ static const struct drm_encoder_funcs nv04_tv_funcs = {
 	.destroy = nv04_tv_destroy,
 };
 
+static const struct drm_encoder_helper_funcs nv04_tv_helper_funcs = {
+	.dpms = nv04_tv_dpms,
+	.save = drm_i2c_encoder_save,
+	.restore = drm_i2c_encoder_restore,
+	.mode_fixup = drm_i2c_encoder_mode_fixup,
+	.prepare = nv04_tv_prepare,
+	.commit = nv04_tv_commit,
+	.mode_set = nv04_tv_mode_set,
+	.detect = drm_i2c_encoder_detect,
+};
+
 int
 nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	struct drm_device *dev = connector->dev;
-	struct drm_encoder_helper_funcs *hfuncs;
-	struct drm_encoder_slave_funcs *sfuncs;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct nouveau_i2c_port *port = i2c->find(i2c, entry->i2c_index);
@@ -207,17 +216,11 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	if (!nv_encoder)
 		return -ENOMEM;
 
-	hfuncs = kzalloc(sizeof(*hfuncs), GFP_KERNEL);
-	if (!hfuncs) {
-		ret = -ENOMEM;
-		goto fail_free;
-	}
-
 	/* Initialize the common members */
 	encoder = to_drm_encoder(nv_encoder);
 
 	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC);
-	drm_encoder_helper_add(encoder, hfuncs);
+	drm_encoder_helper_add(encoder, &nv04_tv_helper_funcs);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
@@ -230,30 +233,14 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	if (ret < 0)
 		goto fail_cleanup;
 
-	/* Fill the function pointers */
-	sfuncs = get_slave_funcs(encoder);
-
-	*hfuncs = (struct drm_encoder_helper_funcs) {
-		.dpms = nv04_tv_dpms,
-		.save = sfuncs->save,
-		.restore = sfuncs->restore,
-		.mode_fixup = sfuncs->mode_fixup,
-		.prepare = nv04_tv_prepare,
-		.commit = nv04_tv_commit,
-		.mode_set = nv04_tv_mode_set,
-		.detect = sfuncs->detect,
-	};
-
 	/* Attach it to the specified connector. */
-	sfuncs->create_resources(encoder, connector);
+	get_slave_funcs(encoder)->create_resources(encoder, connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
 
 fail_cleanup:
 	drm_encoder_cleanup(encoder);
-	kfree(hfuncs);
-fail_free:
 	kfree(nv_encoder);
 	return ret;
 }
