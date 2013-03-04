@@ -31,6 +31,10 @@ extern struct nouveau_oclass nv50_ram_oclass;
 extern struct nouveau_oclass nva3_ram_oclass;
 extern struct nouveau_oclass nvaa_ram_oclass;
 extern struct nouveau_oclass nvc0_ram_oclass;
+extern struct nouveau_oclass nve0_ram_oclass;
+
+int nouveau_sddr3_calc(struct nouveau_ram *ram);
+int nouveau_gddr5_calc(struct nouveau_ram *ram);
 
 #define nouveau_fb_create(p,e,c,d)                                             \
 	nouveau_fb_create_((p), (e), (c), sizeof(**d), (void **)d)

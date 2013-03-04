@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,44 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include "nv40.h"
+#include "nvc0.h"
 
-static int
-nv44_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
-{
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nv40_ram *ram;
-	u32 pfb474 = nv_rd32(pfb, 0x100474);
-	int ret;
-
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
-	if (ret)
-		return ret;
-
-	if (pfb474 & 0x00000004)
-		ram->base.type = NV_MEM_TYPE_GDDR3;
-	if (pfb474 & 0x00000002)
-		ram->base.type = NV_MEM_TYPE_DDR2;
-	if (pfb474 & 0x00000001)
-		ram->base.type = NV_MEM_TYPE_DDR1;
-
-	ram->base.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	ram->base.calc = nv40_ram_calc;
-	ram->base.prog = nv40_ram_prog;
-	ram->base.tidy = nv40_ram_tidy;
-	return 0;
-}
-
-struct nouveau_oclass
-nv44_ram_oclass = {
-	.handle = 0,
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv44_ram_create,
-		.dtor = _nouveau_ram_dtor,
-		.init = _nouveau_ram_init,
-		.fini = _nouveau_ram_fini,
-	}
-};
+struct nouveau_oclass *
+nve0_fb_oclass = &(struct nouveau_fb_impl) {
+	.base.handle = NV_SUBDEV(FB, 0xe0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nvc0_fb_ctor,
+		.dtor = nvc0_fb_dtor,
+		.init = nvc0_fb_init,
+		.fini = _nouveau_fb_fini,
+	},
+	.memtype = nvc0_fb_memtype_valid,
+	.ram = &nve0_ram_oclass,
+}.base;
