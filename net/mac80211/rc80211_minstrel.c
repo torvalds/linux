@@ -92,7 +92,6 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 			mr->probability = minstrel_ewma(mr->probability,
 							mr->cur_prob,
 							EWMA_LEVEL);
-			mr->cur_tp = mr->probability * (1000000 / usecs);
 		} else
 			mr->sample_skipped++;
 
@@ -100,6 +99,12 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		mr->last_attempts = mr->attempts;
 		mr->success = 0;
 		mr->attempts = 0;
+
+		/* Update throughput per rate, reset thr. below 10% success */
+		if (mr->probability < MINSTREL_FRAC(10, 100))
+			mr->cur_tp = 0;
+		else
+			mr->cur_tp = mr->probability * (1000000 / usecs);
 
 		/* Sample less often below the 10% chance of success.
 		 * Sample less often above the 95% chance of success. */
