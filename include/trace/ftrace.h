@@ -572,7 +572,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
 static const char print_fmt_##call[] = print;				\
-static struct ftrace_event_class __used event_class_##call = {		\
+static struct ftrace_event_class __used __refdata event_class_##call = { \
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
