@@ -68,13 +68,13 @@ static inline int m920x_write_seq(struct usb_device *udev, u8 request,
 				  struct m920x_inits *seq)
 {
 	int ret;
-	while (seq->address) {
+	do {
 		ret = m920x_write(udev, request, seq->data, seq->address);
 		if (ret != 0)
 			return ret;
 
 		seq++;
-	}
+	} while (seq->address);
 
 	return ret;
 }
