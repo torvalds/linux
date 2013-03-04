@@ -1584,10 +1584,12 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	unsigned short ext1_ee_len, ext2_ee_len, max_len;
 
 	/*
-	 * Make sure that either both extents are uninitialized, or
-	 * both are _not_.
+	 * Make sure that both extents are initialized. We don't merge
+	 * uninitialized extents so that we can be sure that end_io code has
+	 * the extent that was written properly split out and conversion to
+	 * initialized is trivial.
 	 */
-	if (ext4_ext_is_uninitialized(ex1) ^ ext4_ext_is_uninitialized(ex2))
+	if (ext4_ext_is_uninitialized(ex1) || ext4_ext_is_uninitialized(ex2))
 		return 0;
 
 	if (ext4_ext_is_uninitialized(ex1))
