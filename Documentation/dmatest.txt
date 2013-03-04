@@ -75,5 +75,7 @@ The message format is unified across the different types of errors. A number in
 the parens represents additional information, e.g. error code, error counter,
 or status.
 
-Note that the buffer comparison is done in the old way, i.e. data is not
-collected and just printed out.
+Comparison between buffers is stored to the dedicated structure.
+
+Note that the verify result is now accessible only via file 'results' in the
+debugfs.
