@@ -1436,9 +1436,9 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MESH_POINT:
 		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
-			statype = CFG80211_STA_MESH_PEER_SECURE;
+			statype = CFG80211_STA_MESH_PEER_USER;
 		else
-			statype = CFG80211_STA_MESH_PEER_NONSEC;
+			statype = CFG80211_STA_MESH_PEER_KERNEL;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		statype = CFG80211_STA_IBSS;

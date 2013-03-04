@@ -690,8 +690,8 @@ struct station_parameters {
  *	supported/used)
  * @CFG80211_STA_TDLS_PEER_ACTIVE: TDLS peer on managed interface (active
  *	entry that is operating, has been marked authorized by userspace)
- * @CFG80211_STA_MESH_PEER_NONSEC: peer on mesh interface (non-secured)
- * @CFG80211_STA_MESH_PEER_SECURE: peer on mesh interface (secured)
+ * @CFG80211_STA_MESH_PEER_KERNEL: peer on mesh interface (kernel managed)
+ * @CFG80211_STA_MESH_PEER_USER: peer on mesh interface (user managed)
  */
 enum cfg80211_station_type {
 	CFG80211_STA_AP_CLIENT,
@@ -700,8 +700,8 @@ enum cfg80211_station_type {
 	CFG80211_STA_IBSS,
 	CFG80211_STA_TDLS_PEER_SETUP,
 	CFG80211_STA_TDLS_PEER_ACTIVE,
-	CFG80211_STA_MESH_PEER_NONSEC,
-	CFG80211_STA_MESH_PEER_SECURE,
+	CFG80211_STA_MESH_PEER_KERNEL,
+	CFG80211_STA_MESH_PEER_USER,
 };
 
 /**

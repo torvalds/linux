@@ -3617,8 +3617,8 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 	BUILD_BUG_ON(NL80211_STA_FLAG_MAX != 7);
 
 	switch (statype) {
-	case CFG80211_STA_MESH_PEER_NONSEC:
-	case CFG80211_STA_MESH_PEER_SECURE:
+	case CFG80211_STA_MESH_PEER_KERNEL:
+	case CFG80211_STA_MESH_PEER_USER:
 		/*
 		 * No ignoring the TDLS flag here -- the userspace mesh
 		 * code doesn't have the bug of including TDLS in the
@@ -3720,11 +3720,11 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 	case CFG80211_STA_TDLS_PEER_ACTIVE:
 		/* reject any changes */
 		return -EINVAL;
-	case CFG80211_STA_MESH_PEER_NONSEC:
+	case CFG80211_STA_MESH_PEER_KERNEL:
 		if (params->sta_modify_mask & STATION_PARAM_APPLY_PLINK_STATE)
 			return -EINVAL;
 		break;
-	case CFG80211_STA_MESH_PEER_SECURE:
+	case CFG80211_STA_MESH_PEER_USER:
 		if (params->plink_action != NL80211_PLINK_ACTION_NO_ACTION)
 			return -EINVAL;
 		break;
