@@ -93,6 +93,7 @@ struct dmatest_thread {
 	u8			**srcs;
 	u8			**dsts;
 	enum dma_transaction_type type;
+	bool			done;
 };
 
 struct dmatest_chan {
@@ -603,6 +604,8 @@ err_thread_type:
 	if (ret)
 		dmaengine_terminate_all(chan);
 
+	thread->done = true;
+
 	if (params->iterations > 0)
 		while (!kthread_should_stop()) {
 			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait_dmatest_exit);
@@ -884,12 +887,28 @@ static ssize_t dtf_read_run(struct file *file, char __user *user_buf,
 {
 	struct dmatest_info *info = file->private_data;
 	char buf[3];
+	struct dmatest_chan *dtc;
+	bool alive = false;
 
 	mutex_lock(&info->lock);
-	if (info->nr_channels)
+	list_for_each_entry(dtc, &info->channels, node) {
+		struct dmatest_thread *thread;
+
+		list_for_each_entry(thread, &dtc->threads, node) {
+			if (!thread->done) {
+				alive = true;
+				break;
+			}
+		}
+	}
+
+	if (alive) {
 		buf[0] = 'Y';
-	else
+	} else {
+		__stop_threaded_test(info);
 		buf[0] = 'N';
+	}
+
 	mutex_unlock(&info->lock);
 	buf[1] = '\n';
 	buf[2] = 0x00;

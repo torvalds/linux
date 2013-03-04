@@ -36,6 +36,18 @@ in the original code.
 
 Note that running a new test will stop any in progress test.
 
+The following command should return actual state of the test.
+	% cat /sys/kernel/debug/dmatest/run
+
+To wait for test done the user may perform a busy loop that checks the state.
+
+	% while [ $(cat /sys/kernel/debug/dmatest/run) = "Y" ]
+	> do
+	> 	echo -n "."
+	> 	sleep 1
+	> done
+	> echo
+
 	Part 3 - When built-in in the kernel...
 
 The module parameters that is supplied to the kernel command line will be used
