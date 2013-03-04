@@ -2240,13 +2240,28 @@ again:
 }
 
 static noinline_for_stack
+void free_reloc_roots(struct list_head *list)
+{
+	struct btrfs_root *reloc_root;
+
+	while (!list_empty(list)) {
+		reloc_root = list_entry(list->next, struct btrfs_root,
+					root_list);
+		__update_reloc_root(reloc_root, 1);
+		free_extent_buffer(reloc_root->node);
+		free_extent_buffer(reloc_root->commit_root);
+		kfree(reloc_root);
+	}
+}
+
+static noinline_for_stack
 int merge_reloc_roots(struct reloc_control *rc)
 {
 	struct btrfs_root *root;
 	struct btrfs_root *reloc_root;
 	LIST_HEAD(reloc_roots);
 	int found = 0;
-	int ret;
+	int ret = 0;
 again:
 	root = rc->extent_root;
 
@@ -2272,20 +2287,33 @@ again:
 			BUG_ON(root->reloc_root != reloc_root);
 
 			ret = merge_reloc_root(rc, root);
-			BUG_ON(ret);
+			if (ret)
+				goto out;
 		} else {
 			list_del_init(&reloc_root->root_list);
 		}
 		ret = btrfs_drop_snapshot(reloc_root, rc->block_rsv, 0, 1);
-		BUG_ON(ret < 0);
+		if (ret < 0) {
+			if (list_empty(&reloc_root->root_list))
+				list_add_tail(&reloc_root->root_list,
+					      &reloc_roots);
+			goto out;
+		}
 	}
 
 	if (found) {
 		found = 0;
 		goto again;
 	}
+out:
+	if (ret) {
+		btrfs_std_error(root->fs_info, ret);
+		if (!list_empty(&reloc_roots))
+			free_reloc_roots(&reloc_roots);
+	}
+
 	BUG_ON(!RB_EMPTY_ROOT(&rc->reloc_root_tree.rb_root));
-	return 0;
+	return ret;
 }
 
 static void free_block_list(struct rb_root *blocks)
@@ -4266,14 +4294,9 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 out_free:
 	kfree(rc);
 out:
-	while (!list_empty(&reloc_roots)) {
-		reloc_root = list_entry(reloc_roots.next,
-					struct btrfs_root, root_list);
-		list_del(&reloc_root->root_list);
-		free_extent_buffer(reloc_root->node);
-		free_extent_buffer(reloc_root->commit_root);
-		kfree(reloc_root);
-	}
+	if (!list_empty(&reloc_roots))
+		free_reloc_roots(&reloc_roots);
+
 	btrfs_free_path(path);
 
 	if (err == 0) {
