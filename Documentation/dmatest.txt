@@ -1,0 +1,48 @@
+				DMA Test Guide
+				==============
+
+		Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+
+This small document introduces how to test DMA drivers using dmatest module.
+
+	Part 1 - How to build the test module
+
+The menuconfig contains an option that could be found by following path:
+	Device Drivers -> DMA Engine support -> DMA Test client
+
+In the configuration file the option called CONFIG_DMATEST. The dmatest could
+be built as module or inside kernel. Let's consider those cases.
+
+	Part 2 - When dmatest is built as a module...
+
+After mounting debugfs and loading the module, the /sys/kernel/debug/dmatest
+folder with nodes will be created. They are the same as module parameters with
+addition of the 'run' node that controls run and stop phases of the test.
+
+Note that in this case test will not run on load automatically.
+
+Example of usage:
+	% echo dma0chan0 > /sys/kernel/debug/dmatest/channel
+	% echo 2000 > /sys/kernel/debug/dmatest/timeout
+	% echo 1 > /sys/kernel/debug/dmatest/iterations
+	% echo 1 > /sys/kernel/debug/dmatest/run
+
+Hint: available channel list could be extracted by running the following
+command:
+	% ls -1 /sys/class/dma/
+
+After a while you will start to get messages about current status or error like
+in the original code.
+
+Note that running a new test will stop any in progress test.
+
+	Part 3 - When built-in in the kernel...
+
+The module parameters that is supplied to the kernel command line will be used
+for the first performed test. After user gets a control, the test could be
+interrupted or re-run with same or different parameters. For the details see
+the above section "Part 2 - When dmatest is built as a module..."
+
+In both cases the module parameters are used as initial values for the test case.
+You always could check them at run-time by running
+	% grep -H . /sys/module/dmatest/parameters/*
