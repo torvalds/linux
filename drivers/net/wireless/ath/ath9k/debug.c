@@ -1912,6 +1912,7 @@ static const char ath9k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	AMKSTR(d_tx_desc_cfg_err),
 	AMKSTR(d_tx_data_underrun),
 	AMKSTR(d_tx_delim_underrun),
+	"d_rx_crc_err",
 	"d_rx_decrypt_crc_err",
 	"d_rx_phy_err",
 	"d_rx_mic_err",
@@ -1992,6 +1993,7 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	AWDATA(data_underrun);
 	AWDATA(delim_underrun);
 
+	AWDATA_RX(crc_err);
 	AWDATA_RX(decrypt_crc_err);
 	AWDATA_RX(phy_err);
 	AWDATA_RX(mic_err);
