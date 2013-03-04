@@ -1005,12 +1005,12 @@ config ARCH_MULTI_V4_V5
 	bool
 
 config ARCH_MULTI_V6
-	bool "ARMv6 based platforms (ARM11, Scorpion, ...)"
+	bool "ARMv6 based platforms (ARM11)"
 	select ARCH_MULTI_V6_V7
 	select CPU_V6
 
 config ARCH_MULTI_V7
-	bool "ARMv7 based platforms (Cortex-A, PJ4, Krait)"
+	bool "ARMv7 based platforms (Cortex-A, PJ4, Scorpion, Krait)"
 	default y
 	select ARCH_MULTI_V6_V7
 	select ARCH_VEXPRESS
