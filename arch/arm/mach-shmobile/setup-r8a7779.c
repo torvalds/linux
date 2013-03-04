@@ -414,7 +414,7 @@ static const char *r8a7779_compat_dt[] __initdata = {
 	NULL,
 };
 
-DT_MACHINE_START(SH73A0_DT, "Generic R8A7779 (Flattened Device Tree)")
+DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
 	.init_early	= r8a7779_init_delay,
 	.nr_irqs	= NR_IRQS_LEGACY,
