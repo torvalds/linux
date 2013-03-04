@@ -666,6 +666,14 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	int replaced_count = 0;
 	int dext_alen;
 
+	*err = ext4_es_remove_extent(orig_inode, from, count);
+	if (*err)
+		goto out;
+
+	*err = ext4_es_remove_extent(donor_inode, from, count);
+	if (*err)
+		goto out;
+
 	/* Get the original extent for the block "orig_off" */
 	*err = get_ext_path(orig_inode, orig_off, &orig_path);
 	if (*err)
