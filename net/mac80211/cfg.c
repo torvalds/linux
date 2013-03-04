@@ -1435,7 +1435,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MESH_POINT:
-		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
+		if (sdata->u.mesh.user_mpm)
 			statype = CFG80211_STA_MESH_PEER_USER;
 		else
 			statype = CFG80211_STA_MESH_PEER_KERNEL;
@@ -1729,6 +1729,7 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	ifmsh->mesh_sp_id = setup->sync_method;
 	ifmsh->mesh_pp_id = setup->path_sel_proto;
 	ifmsh->mesh_pm_id = setup->path_metric;
+	ifmsh->user_mpm = setup->user_mpm;
 	ifmsh->security = IEEE80211_MESH_SEC_NONE;
 	if (setup->is_authenticated)
 		ifmsh->security |= IEEE80211_MESH_SEC_AUTHED;

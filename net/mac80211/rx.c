@@ -2543,7 +2543,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		case WLAN_SP_MESH_PEERING_CONFIRM:
 			if (!ieee80211_vif_is_mesh(&sdata->vif))
 				goto invalid;
-			if (sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
+			if (sdata->u.mesh.user_mpm)
 				/* userspace handles this frame */
 				break;
 			goto queue;

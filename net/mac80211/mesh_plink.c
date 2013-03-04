@@ -437,8 +437,9 @@ mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *addr,
 {
 	struct sta_info *sta = NULL;
 
-	/* Userspace handles peer allocation when security is enabled */
-	if (sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
+	/* Userspace handles station allocation */
+	if (sdata->u.mesh.user_mpm ||
+	    sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
 		cfg80211_notify_new_peer_candidate(sdata->dev, addr,
 						   elems->ie_start,
 						   elems->total_len,
@@ -668,6 +669,10 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 	/* need action_code, aux */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
+		return;
+
+	if (sdata->u.mesh.user_mpm)
+		/* userspace must register for these */
 		return;
 
 	if (is_multicast_ether_addr(mgmt->da)) {
