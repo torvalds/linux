@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
+#include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -56,6 +57,11 @@ struct ad7923_state {
 	struct spi_transfer		scan_single_xfer[2];
 	struct spi_message		ring_msg;
 	struct spi_message		scan_single_msg;
+
+	struct regulator		*reg;
+
+	unsigned int			settings;
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -100,10 +106,9 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 
 	len = 0;
 	for_each_set_bit(i, active_scan_mask, AD7923_MAX_CHAN) {
-		cmd = AD7923_WRITE_CR | AD7923_CODING | AD7923_RANGE |
-			AD7923_PM_MODE_WRITE(AD7923_PM_MODE_OPS) |
+		cmd = AD7923_WRITE_CR | AD7923_CHANNEL_WRITE(i) |
 			AD7923_SEQUENCE_WRITE(AD7923_SEQUENCE_OFF) |
-			AD7923_CHANNEL_WRITE(i);
+			st->settings;
 		cmd <<= AD7923_SHIFT_REGISTER;
 		st->tx_buf[len++] = cpu_to_be16(cmd);
 	}
@@ -163,9 +168,9 @@ static int ad7923_scan_direct(struct ad7923_state *st, unsigned ch)
 {
 	int ret, cmd;
 
-	cmd = AD7923_WRITE_CR | AD7923_PM_MODE_WRITE(AD7923_PM_MODE_OPS) |
-		AD7923_SEQUENCE_WRITE(AD7923_SEQUENCE_OFF) | AD7923_CODING |
-		AD7923_CHANNEL_WRITE(ch) | AD7923_RANGE;
+	cmd = AD7923_WRITE_CR | AD7923_CHANNEL_WRITE(ch) |
+		AD7923_SEQUENCE_WRITE(AD7923_SEQUENCE_OFF) |
+		st->settings;
 	cmd <<= AD7923_SHIFT_REGISTER;
 	st->tx_buf[0] = cpu_to_be16(cmd);
 
@@ -174,6 +179,22 @@ static int ad7923_scan_direct(struct ad7923_state *st, unsigned ch)
 		return ret;
 
 	return be16_to_cpu(st->rx_buf[0]);
+}
+
+static int ad7923_get_range(struct ad7923_state *st)
+{
+	int vref;
+
+	vref = regulator_get_voltage(st->reg);
+	if (vref < 0)
+		return vref;
+
+	vref /= 1000;
+
+	if (!(st->settings & AD7923_RANGE))
+		vref *= 2;
+
+	return vref;
 }
 
 static int ad7923_read_raw(struct iio_dev *indio_dev,
@@ -203,6 +224,13 @@ static int ad7923_read_raw(struct iio_dev *indio_dev,
 			return -EIO;
 
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		ret = ad7923_get_range(st);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -227,6 +255,8 @@ static int ad7923_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
+	st->settings = AD7923_CODING | AD7923_RANGE |
+			AD7923_PM_MODE_WRITE(AD7923_PM_MODE_OPS);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
@@ -247,10 +277,19 @@ static int ad7923_probe(struct spi_device *spi)
 	spi_message_add_tail(&st->scan_single_xfer[0], &st->scan_single_msg);
 	spi_message_add_tail(&st->scan_single_xfer[1], &st->scan_single_msg);
 
+	st->reg = regulator_get(&spi->dev, "refin");
+	if (IS_ERR(st->reg)) {
+		ret = PTR_ERR(st->reg);
+		goto error_free;
+	}
+	ret = regulator_enable(st->reg);
+	if (ret)
+		goto error_put_reg;
+
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 			&ad7923_trigger_handler, NULL);
 	if (ret)
-		goto error_free;
+		goto error_disable_reg;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -260,6 +299,10 @@ static int ad7923_probe(struct spi_device *spi)
 
 error_cleanup_ring:
 	iio_triggered_buffer_cleanup(indio_dev);
+error_disable_reg:
+	regulator_disable(st->reg);
+error_put_reg:
+	regulator_put(st->reg);
 error_free:
 	iio_device_free(indio_dev);
 
@@ -269,9 +312,12 @@ error_free:
 static int ad7923_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad7923_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
+	regulator_disable(st->reg);
+	regulator_put(st->reg);
 	iio_device_free(indio_dev);
 
 	return 0;
