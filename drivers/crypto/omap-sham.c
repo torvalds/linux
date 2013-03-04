@@ -1813,18 +1813,7 @@ static struct platform_driver omap_sham_driver = {
 	},
 };
 
-static int __init omap_sham_mod_init(void)
-{
-	return platform_driver_register(&omap_sham_driver);
-}
-
-static void __exit omap_sham_mod_exit(void)
-{
-	platform_driver_unregister(&omap_sham_driver);
-}
-
-module_init(omap_sham_mod_init);
-module_exit(omap_sham_mod_exit);
+module_platform_driver(omap_sham_driver);
 
 MODULE_DESCRIPTION("OMAP SHA1/MD5 hw acceleration support.");
 MODULE_LICENSE("GPL v2");
