@@ -38,7 +38,8 @@ struct regmap_format {
 			     unsigned int reg, unsigned int val);
 	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);
 	void (*format_val)(void *buf, unsigned int val, unsigned int shift);
-	unsigned int (*parse_val)(void *buf);
+	unsigned int (*parse_val)(const void *buf);
+	void (*parse_inplace)(void *buf);
 };
 
 struct regmap_async {

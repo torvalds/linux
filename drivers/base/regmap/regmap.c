@@ -228,30 +228,39 @@ static void regmap_format_32_native(void *buf, unsigned int val,
 	*(u32 *)buf = val << shift;
 }
 
-static unsigned int regmap_parse_8(void *buf)
+static void regmap_parse_inplace_noop(void *buf)
 {
-	u8 *b = buf;
+}
+
+static unsigned int regmap_parse_8(const void *buf)
+{
+	const u8 *b = buf;
 
 	return b[0];
 }
 
-static unsigned int regmap_parse_16_be(void *buf)
+static unsigned int regmap_parse_16_be(const void *buf)
+{
+	const __be16 *b = buf;
+
+	return be16_to_cpu(b[0]);
+}
+
+static void regmap_parse_16_be_inplace(void *buf)
 {
 	__be16 *b = buf;
 
 	b[0] = be16_to_cpu(b[0]);
-
-	return b[0];
 }
 
-static unsigned int regmap_parse_16_native(void *buf)
+static unsigned int regmap_parse_16_native(const void *buf)
 {
 	return *(u16 *)buf;
 }
 
-static unsigned int regmap_parse_24(void *buf)
+static unsigned int regmap_parse_24(const void *buf)
 {
-	u8 *b = buf;
+	const u8 *b = buf;
 	unsigned int ret = b[2];
 	ret |= ((unsigned int)b[1]) << 8;
 	ret |= ((unsigned int)b[0]) << 16;
@@ -259,16 +268,21 @@ static unsigned int regmap_parse_24(void *buf)
 	return ret;
 }
 
-static unsigned int regmap_parse_32_be(void *buf)
+static unsigned int regmap_parse_32_be(const void *buf)
+{
+	const __be32 *b = buf;
+
+	return be32_to_cpu(b[0]);
+}
+
+static void regmap_parse_32_be_inplace(void *buf)
 {
 	__be32 *b = buf;
 
 	b[0] = be32_to_cpu(b[0]);
-
-	return b[0];
 }
 
-static unsigned int regmap_parse_32_native(void *buf)
+static unsigned int regmap_parse_32_native(const void *buf)
 {
 	return *(u32 *)buf;
 }
@@ -555,16 +569,21 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_map;
 	}
 
+	if (val_endian == REGMAP_ENDIAN_NATIVE)
+		map->format.parse_inplace = regmap_parse_inplace_noop;
+
 	switch (config->val_bits) {
 	case 8:
 		map->format.format_val = regmap_format_8;
 		map->format.parse_val = regmap_parse_8;
+		map->format.parse_inplace = regmap_parse_inplace_noop;
 		break;
 	case 16:
 		switch (val_endian) {
 		case REGMAP_ENDIAN_BIG:
 			map->format.format_val = regmap_format_16_be;
 			map->format.parse_val = regmap_parse_16_be;
+			map->format.parse_inplace = regmap_parse_16_be_inplace;
 			break;
 		case REGMAP_ENDIAN_NATIVE:
 			map->format.format_val = regmap_format_16_native;
@@ -585,6 +604,7 @@ struct regmap *regmap_init(struct device *dev,
 		case REGMAP_ENDIAN_BIG:
 			map->format.format_val = regmap_format_32_be;
 			map->format.parse_val = regmap_parse_32_be;
+			map->format.parse_inplace = regmap_parse_32_be_inplace;
 			break;
 		case REGMAP_ENDIAN_NATIVE:
 			map->format.format_val = regmap_format_32_native;
@@ -1240,7 +1260,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 
 	if (!map->bus)
 		return -EINVAL;
-	if (!map->format.parse_val)
+	if (!map->format.parse_inplace)
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
@@ -1258,7 +1278,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			goto out;
 		}
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
-			map->format.parse_val(wval + i);
+			map->format.parse_inplace(wval + i);
 	}
 	/*
 	 * Some devices does not support bulk write, for
@@ -1519,7 +1539,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 
 	if (!map->bus)
 		return -EINVAL;
-	if (!map->format.parse_val)
+	if (!map->format.parse_inplace)
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
@@ -1546,7 +1566,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		}
 
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
-			map->format.parse_val(val + i);
+			map->format.parse_inplace(val + i);
 	} else {
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
