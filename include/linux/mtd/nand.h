@@ -551,9 +551,9 @@ struct nand_chip {
  * defined the chip, including the geometry (chip size, eraseblock size, page
  * size).
  */
-#define LEGACY_ID_NAND(nm, devid, pagesz, chipsz, erasesz, opts) \
-	{ .name = (nm), .dev_id = (devid), .pagesize = (pagesz), \
-	  .chipsize = (chipsz), .erasesize = (erasesz),          \
+#define LEGACY_ID_NAND(nm, devid, pagesz, chipsz, erasesz, opts)       \
+	{ .name = (nm), {{ .dev_id = (devid) }}, .pagesize = (pagesz), \
+	  .chipsize = (chipsz), .erasesize = (erasesz),                \
 	  .options = (opts) }
 
 /*
@@ -566,14 +566,19 @@ struct nand_chip {
  * buswidth), and the page size, eraseblock size, and OOB size could vary while
  * using the same device ID.
  */
-#define EXTENDED_ID_NAND(nm, devid, chipsz, opts)                \
-	{ .name = (nm), .dev_id = (devid), .chipsize = (chipsz), \
+#define EXTENDED_ID_NAND(nm, devid, chipsz, opts)                      \
+	{ .name = (nm), {{ .dev_id = (devid) }}, .chipsize = (chipsz), \
 	  .options = (opts) }
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
  * @name: a human-readable name of the NAND chip
  * @dev_id: the device ID (the second byte of the full chip ID array)
+ * @mfr_id: manufecturer ID part of the full chip ID array (refers the same
+ *          memory address as @id[0])
+ * @dev_id: device ID part of the full chip ID array (refers the same memory
+ *          address as @id[1])
+ * @id: full device ID array
  * @pagesize: size of the NAND page in bytes; if 0, then the real page size (as
  *            well as the eraseblock size) is determined from the extended NAND
  *            chip ID array)
@@ -583,7 +588,13 @@ struct nand_chip {
  */
 struct nand_flash_dev {
 	char *name;
-	int dev_id;
+	union {
+		struct {
+			uint8_t mfr_id;
+			uint8_t dev_id;
+		};
+		uint8_t id[8];
+	};
 	unsigned long pagesize;
 	unsigned long chipsize;
 	unsigned long erasesize;
