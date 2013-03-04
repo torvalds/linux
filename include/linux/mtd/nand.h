@@ -548,19 +548,18 @@ struct nand_chip {
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
- * @name:	Identify the device type
- * @id:		device ID code
- * @pagesize:	Pagesize in bytes. Either 256 or 512 or 0
- *		If the pagesize is 0, then the real pagesize
- *		and the eraseize are determined from the
- *		extended id bytes in the chip
- * @erasesize:	Size of an erase block in the flash device.
- * @chipsize:	Total chipsize in Mega Bytes
- * @options:	Bitfield to store chip relevant options
+ * @name: a human-readable name of the NAND chip
+ * @dev_id: the device ID (the second byte of the full chip ID array)
+ * @pagesize: size of the NAND page in bytes; if 0, then the real page size (as
+ *            well as the eraseblock size) is determined from the extended NAND
+ *            chip ID array)
+ * @erasesize: eraseblock size in bytes (determined from the extended ID if 0)
+ * @chipsize: total chip size in MiB
+ * @options: stores various chip bit options
  */
 struct nand_flash_dev {
 	char *name;
-	int id;
+	int dev_id;
 	unsigned long pagesize;
 	unsigned long chipsize;
 	unsigned long erasesize;

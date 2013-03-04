@@ -314,7 +314,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 		return 0;
 
 	for (i = 0; nand_flash_ids[i].name != NULL; i++) {
-		if (id == nand_flash_ids[i].id) {
+		if (id == nand_flash_ids[i].dev_id) {
 			/* Try to identify manufacturer */
 			for (j = 0; nand_manuf_ids[j].id != 0x0; j++) {
 				if (nand_manuf_ids[j].id == mfr)

@@ -3142,7 +3142,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		type = nand_flash_ids;
 
 	for (; type->name != NULL; type++)
-		if (*dev_id == type->id)
+		if (*dev_id == type->dev_id)
 			break;
 
 	chip->onfi_version = 0;
