@@ -253,6 +253,7 @@ struct kvm_vcpu {
 		bool dy_eligible;
 	} spin_loop;
 #endif
+	bool preempted;
 	struct kvm_vcpu_arch arch;
 };
 
