@@ -172,22 +172,6 @@ typedef enum {
 /* Chip has copy back function */
 #define NAND_COPYBACK		0x00000010
 /*
- * AND Chip which has 4 banks and a confusing page / block
- * assignment. See Renesas datasheet for further information.
- */
-#define NAND_IS_AND		0x00000020
-/*
- * Chip has a array of 4 pages which can be read without
- * additional ready /busy waits.
- */
-#define NAND_4PAGE_ARRAY	0x00000040
-/*
- * Chip requires that BBT is periodically rewritten to prevent
- * bits from adjacent blocks from 'leaking' in altering data.
- * This happens with the Renesas AG-AND chips, possibly others.
- */
-#define BBT_AUTO_REFRESH	0x00000080
-/*
  * Chip requires ready check on read (for auto-incremented sequential read).
  * True only for small page devices; large page devices do not support
  * autoincrement.
