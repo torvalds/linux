@@ -55,7 +55,6 @@
 #include "rate.h"
 #include "rc80211_minstrel.h"
 
-#define SAMPLE_COLUMNS	10
 #define SAMPLE_TBL(_mi, _idx, _col) \
 		_mi->sample_table[(_idx * SAMPLE_COLUMNS) + _col]
 
@@ -210,7 +209,7 @@ minstrel_get_next_sample(struct minstrel_sta_info *mi)
 	unsigned int sample_ndx;
 	sample_ndx = SAMPLE_TBL(mi, mi->sample_row, mi->sample_column);
 	mi->sample_row++;
-	if ((int) mi->sample_row > (mi->n_rates - 2)) {
+	if ((int) mi->sample_row >= mi->n_rates) {
 		mi->sample_row = 0;
 		mi->sample_column++;
 		if (mi->sample_column >= SAMPLE_COLUMNS)
@@ -370,26 +369,21 @@ static void
 init_sample_table(struct minstrel_sta_info *mi)
 {
 	unsigned int i, col, new_idx;
-	unsigned int n_srates = mi->n_rates - 1;
 	u8 rnd[8];
 
 	mi->sample_column = 0;
 	mi->sample_row = 0;
-	memset(mi->sample_table, 0, SAMPLE_COLUMNS * mi->n_rates);
+	memset(mi->sample_table, 0xff, SAMPLE_COLUMNS * mi->n_rates);
 
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
-		for (i = 0; i < n_srates; i++) {
+		for (i = 0; i < mi->n_rates; i++) {
 			get_random_bytes(rnd, sizeof(rnd));
-			new_idx = (i + rnd[i & 7]) % n_srates;
+			new_idx = (i + rnd[i & 7]) % mi->n_rates;
 
-			while (SAMPLE_TBL(mi, new_idx, col) != 0)
-				new_idx = (new_idx + 1) % n_srates;
+			while (SAMPLE_TBL(mi, new_idx, col) != 0xff)
+				new_idx = (new_idx + 1) % mi->n_rates;
 
-			/* Don't sample the slowest rate (i.e. slowest base
-			 * rate). We must presume that the slowest rate works
-			 * fine, or else other management frames will also be
-			 * failing and the link will break */
-			SAMPLE_TBL(mi, new_idx, col) = i + 1;
+			SAMPLE_TBL(mi, new_idx, col) = i;
 		}
 	}
 }

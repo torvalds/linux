@@ -17,7 +17,6 @@
 #include "rc80211_minstrel_ht.h"
 
 #define AVG_PKT_SIZE	1200
-#define SAMPLE_COLUMNS	10
 
 /* Number of bits for an average sized packet */
 #define MCS_NBITS (AVG_PKT_SIZE << 3)

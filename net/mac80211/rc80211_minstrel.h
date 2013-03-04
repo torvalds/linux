@@ -9,7 +9,9 @@
 #ifndef __RC_MINSTREL_H
 #define __RC_MINSTREL_H
 
-#define EWMA_LEVEL 75	/* ewma weighting factor [%] */
+#define EWMA_LEVEL	75	/* ewma weighting factor [%] */
+#define SAMPLE_COLUMNS	10	/* number of columns in sample table */
+
 
 /* scaled fraction values */
 #define MINSTREL_SCALE  16
