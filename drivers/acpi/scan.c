@@ -1703,24 +1703,47 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 	return false;
 }
 
+static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
+					const struct acpi_device_id **matchid)
+{
+	struct acpi_scan_handler *handler;
+
+	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node)
+		if (acpi_scan_handler_matching(handler, idstr, matchid))
+			return handler;
+
+	return NULL;
+}
+
 static acpi_status acpi_scan_hotplug_modify(acpi_handle handle,
 					    u32 lvl_not_used, void *data,
 					    void **ret_not_used)
 {
-	struct acpi_scan_handler *handler = data;
-	struct acpi_device_info *info;
+	struct acpi_device_pnp pnp = {};
+	struct acpi_scan_handler *tgt_handler = data, *handler;
+	struct acpi_hardware_id *hwid;
+	unsigned long long sta_not_used;
+	int type;
 	bool match = false;
 
-	if (ACPI_FAILURE(acpi_get_object_info(handle, &info)))
+	if (acpi_bus_type_and_status(handle, &type, &sta_not_used))
 		return AE_OK;
 
-	if (info->valid & ACPI_VALID_HID) {
-		char *idstr = info->hardware_id.string;
-		match = acpi_scan_handler_matching(handler, idstr, NULL);
-	}
-	kfree(info);
-	if (!match)
+	INIT_LIST_HEAD(&pnp.ids);
+	acpi_set_pnp_ids(handle, &pnp, type);
+
+	if (!pnp.type.hardware_id)
 		return AE_OK;
+
+	list_for_each_entry(hwid, &pnp.ids, list) {
+		handler = acpi_scan_match_handler(hwid->id, NULL);
+		if (handler && handler == tgt_handler) {
+			match = true;
+			break;
+		}
+	}
+	if (!match)
+		goto out;
 
 	if (handler->hotplug.enabled)
 		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
@@ -1729,6 +1752,8 @@ static acpi_status acpi_scan_hotplug_modify(acpi_handle handle,
 		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					   acpi_hotplug_notify_cb);
 
+out:
+	acpi_free_pnp_ids(&pnp);
 	return AE_OK;
 }
 
@@ -1749,40 +1774,34 @@ void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val)
 	mutex_unlock(&acpi_scan_lock);
 }
 
-static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
-					const struct acpi_device_id **matchid)
+static void acpi_scan_init_hotplug(acpi_handle handle, int type)
 {
+	struct acpi_device_pnp pnp = {};
+	struct acpi_hardware_id *hwid;
 	struct acpi_scan_handler *handler;
 
-	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node)
-		if (acpi_scan_handler_matching(handler, idstr, matchid))
-			return handler;
+	INIT_LIST_HEAD(&pnp.ids);
+	acpi_set_pnp_ids(handle, &pnp, type);
 
-	return NULL;
-}
-
-static void acpi_scan_init_hotplug(acpi_handle handle)
-{
-	struct acpi_device_info *info;
-	struct acpi_scan_handler *handler;
-
-	if (ACPI_FAILURE(acpi_get_object_info(handle, &info)))
+	if (!pnp.type.hardware_id)
 		return;
-
-	if (!(info->valid & ACPI_VALID_HID)) {
-		kfree(info);
-		return;
-	}
 
 	/*
 	 * This relies on the fact that acpi_install_notify_handler() will not
 	 * install the same notify handler routine twice for the same handle.
 	 */
-	handler = acpi_scan_match_handler(info->hardware_id.string, NULL);
-	kfree(info);
-	if (handler && handler->hotplug.enabled)
-		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					    acpi_hotplug_notify_cb, NULL);
+	list_for_each_entry(hwid, &pnp.ids, list) {
+		handler = acpi_scan_match_handler(hwid->id, NULL);
+		if (handler) {
+			if (handler->hotplug.enabled)
+				acpi_install_notify_handler(handle,
+					ACPI_SYSTEM_NOTIFY,
+					acpi_hotplug_notify_cb, NULL);
+			break;
+		}
+	}
+
+	acpi_free_pnp_ids(&pnp);
 }
 
 static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
@@ -1807,7 +1826,7 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_OK;
 	}
 
-	acpi_scan_init_hotplug(handle);
+	acpi_scan_init_hotplug(handle, type);
 
 	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
 	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
