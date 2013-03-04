@@ -1185,6 +1185,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int nr_pages, int cpu)
 	INIT_WORK(&cpu_buffer->update_pages_work, update_pages_handler);
 	init_completion(&cpu_buffer->update_done);
 	init_irq_work(&cpu_buffer->irq_work.work, rb_wake_up_waiters);
+	init_waitqueue_head(&cpu_buffer->irq_work.waiters);
 
 	bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 			    GFP_KERNEL, cpu_to_node(cpu));
@@ -1281,6 +1282,7 @@ struct ring_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
 	buffer->reader_lock_key = key;
 
 	init_irq_work(&buffer->irq_work.work, rb_wake_up_waiters);
+	init_waitqueue_head(&buffer->irq_work.waiters);
 
 	/* need at least two pages */
 	if (nr_pages < 2)
