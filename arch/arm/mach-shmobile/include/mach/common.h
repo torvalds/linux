@@ -50,6 +50,7 @@ extern struct clk sh73a0_extal2_clk;
 extern struct clk sh73a0_extcki_clk;
 extern struct clk sh73a0_extalr_clk;
 
+extern void r8a7740_meram_workaround(void);
 extern void r8a7740_init_irq(void);
 extern void r8a7740_map_io(void);
 extern void r8a7740_add_early_devices(void);
@@ -69,8 +70,6 @@ extern void r8a7779_add_standard_devices_dt(void);
 extern void r8a7779_clock_init(void);
 extern void r8a7779_pinmux_init(void);
 extern void r8a7779_pm_init(void);
-extern void r8a7740_meram_workaround(void);
-
 extern void r8a7779_register_twd(void);
 
 #ifdef CONFIG_SUSPEND
