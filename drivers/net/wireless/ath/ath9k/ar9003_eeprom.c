@@ -3606,6 +3606,12 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	value = ar9003_hw_ant_ctrl_common_2_get(ah, is2ghz);
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
+	if ((AR_SREV_9462(ah)) && (ah->rxchainmask == 0x2)) {
+		value = ar9003_hw_ant_ctrl_chain_get(ah, 1, is2ghz);
+		REG_RMW_FIELD(ah, switch_chain_reg[0],
+			      AR_SWITCH_TABLE_ALL, value);
+	}
+
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if ((ah->rxchainmask & BIT(chain)) ||
 		    (ah->txchainmask & BIT(chain))) {
@@ -3771,6 +3777,17 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 					  AR_PHY_EXT_ATTEN_CTL_1,
 					  AR_PHY_EXT_ATTEN_CTL_2,
 					 };
+
+	if ((AR_SREV_9462(ah)) && (ah->rxchainmask == 0x2)) {
+		value = ar9003_hw_atten_chain_get(ah, 1, chan);
+		REG_RMW_FIELD(ah, ext_atten_reg[0],
+			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
+
+		value = ar9003_hw_atten_chain_get_margin(ah, 1, chan);
+		REG_RMW_FIELD(ah, ext_atten_reg[0],
+			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+			      value);
+	}
 
 	/* Test value. if 0 then attenuation is unused. Don't load anything. */
 	for (i = 0; i < 3; i++) {
