@@ -503,8 +503,8 @@ static void snd_usb_caiaq_maschine_dispatch(struct snd_usb_caiaqdev *cdev,
 static void snd_usb_caiaq_ep4_reply_dispatch(struct urb *urb)
 {
 	struct snd_usb_caiaqdev *cdev = urb->context;
-	struct device *dev = caiaqdev_to_dev(cdev);
 	unsigned char *buf = urb->transfer_buffer;
+	struct device *dev = &urb->dev->dev;
 	int ret;
 
 	if (urb->status || !cdev || urb != cdev->ep4_in_urb)

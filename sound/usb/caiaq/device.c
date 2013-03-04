@@ -159,8 +159,8 @@ static struct usb_device_id snd_usb_id_table[] = {
 static void usb_ep1_command_reply_dispatch (struct urb* urb)
 {
 	int ret;
+	struct device *dev = &urb->dev->dev;
 	struct snd_usb_caiaqdev *cdev = urb->context;
-	struct device *dev = caiaqdev_to_dev(cdev);
 	unsigned char *buf = urb->transfer_buffer;
 
 	if (urb->status || !cdev) {
@@ -511,13 +511,13 @@ static int snd_probe(struct usb_interface *intf,
 static void snd_disconnect(struct usb_interface *intf)
 {
 	struct snd_card *card = usb_get_intfdata(intf);
-	struct snd_usb_caiaqdev *cdev = caiaqdev(card);
-	struct device *dev;
+	struct device *dev = intf->usb_dev;
+	struct snd_usb_caiaqdev *cdev;
 
 	if (!card)
 		return;
 
-	dev = caiaqdev_to_dev(cdev);
+	cdev = caiaqdev(card);
 	dev_dbg(dev, "%s(%p)\n", __func__, intf);
 
 	snd_card_disconnect(card);
