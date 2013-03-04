@@ -109,7 +109,7 @@ struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
-	int restart_fw;
+	bool restart_fw;
 	bool plcp_check;
 	int  wd_disable;
 	bool bt_coex_active;
