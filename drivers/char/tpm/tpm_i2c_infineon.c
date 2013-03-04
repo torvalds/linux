@@ -162,6 +162,10 @@ out:
 	/* take care of 'guard time' */
 	usleep_range(SLEEP_DURATION_LOW, SLEEP_DURATION_HI);
 
+	/* __i2c_transfer returns the number of successfully transferred
+	 * messages.
+	 * So rc should be greater than 0 here otherwise we have an error.
+	 */
 	if (rc <= 0)
 		return -EIO;
 
@@ -208,6 +212,11 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 	i2c_unlock_adapter(tpm_dev.client->adapter);
 	/* take care of 'guard time' */
 	usleep_range(SLEEP_DURATION_LOW, SLEEP_DURATION_HI);
+
+	/* __i2c_transfer returns the number of successfully transferred
+	 * messages.
+	 * So rc should be greater than 0 here otherwise we have an error.
+	 */
 	if (rc <= 0)
 		return -EIO;
 
