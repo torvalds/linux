@@ -193,16 +193,6 @@ config MTD_NAND_BF5XX_BOOTROM_ECC
 
 	  If unsure, say N.
 
-config MTD_NAND_RTC_FROM4
-	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
-	depends on SH_SOLUTION_ENGINE
-	select REED_SOLOMON
-	select REED_SOLOMON_DEC8
-	select BITREVERSE
-	help
-	  This enables the driver for the Renesas Technology AG-AND
-	  flash interface board (FROM_BOARD4)
-
 config MTD_NAND_PPCHAMELEONEVB
 	tristate "NAND Flash device on PPChameleonEVB board"
 	depends on PPCHAMELEONEVB && BROKEN
