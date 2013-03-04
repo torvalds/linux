@@ -605,7 +605,7 @@ dump_pq_desc_dbg(struct ioat2_dma_chan *ioat, struct ioat_ring_ent *desc, struct
 	int i;
 
 	dev_dbg(dev, "desc[%d]: (%#llx->%#llx) flags: %#x"
-		" sz: %#x ctl: %#x (op: %d int: %d compl: %d pq: '%s%s' src_cnt: %d)\n",
+		" sz: %#10.8x ctl: %#x (op: %#x int: %d compl: %d pq: '%s%s' src_cnt: %d)\n",
 		desc_id(desc), (unsigned long long) desc->txd.phys,
 		(unsigned long long) (pq_ex ? pq_ex->next : pq->next),
 		desc->txd.flags, pq->size, pq->ctl, pq->ctl_f.op, pq->ctl_f.int_en,
@@ -617,6 +617,7 @@ dump_pq_desc_dbg(struct ioat2_dma_chan *ioat, struct ioat_ring_ent *desc, struct
 			(unsigned long long) pq_get_src(descs, i), pq->coef[i]);
 	dev_dbg(dev, "\tP: %#llx\n", pq->p_addr);
 	dev_dbg(dev, "\tQ: %#llx\n", pq->q_addr);
+	dev_dbg(dev, "\tNEXT: %#llx\n", pq->next);
 }
 
 static struct dma_async_tx_descriptor *

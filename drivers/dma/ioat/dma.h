@@ -179,7 +179,7 @@ __dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
 	struct device *dev = to_dev(chan);
 
 	dev_dbg(dev, "desc[%d]: (%#llx->%#llx) cookie: %d flags: %#x"
-		" ctl: %#x (op: %d int_en: %d compl: %d)\n", id,
+		" ctl: %#10.8x (op: %#x int_en: %d compl: %d)\n", id,
 		(unsigned long long) tx->phys,
 		(unsigned long long) hw->next, tx->cookie, tx->flags,
 		hw->ctl, hw->ctl_f.op, hw->ctl_f.int_en, hw->ctl_f.compl_write);
