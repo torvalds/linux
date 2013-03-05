@@ -163,9 +163,68 @@ static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
 							     }
 };
 
+enum ni_pcimio_boardid {
+	BOARD_PCIMIO_16XE_50,
+	BOARD_PCIMIO_16XE_10,
+	BOARD_PCI6014,
+	BOARD_PXI6030E,
+	BOARD_PCIMIO_16E_1,
+	BOARD_PCIMIO_16E_4,
+	BOARD_PXI6040E,
+	BOARD_PCI6031E,
+	BOARD_PCI6032E,
+	BOARD_PCI6033E,
+	BOARD_PCI6071E,
+	BOARD_PCI6023E,
+	BOARD_PCI6024E,
+	BOARD_PCI6025E,
+	BOARD_PXI6025E,
+	BOARD_PCI6034E,
+	BOARD_PCI6035E,
+	BOARD_PCI6052E,
+	BOARD_PCI6110,
+	BOARD_PCI6111,
+	/* BOARD_PCI6115, */
+	/* BOARD_PXI6115, */
+	BOARD_PCI6711,
+	BOARD_PXI6711,
+	BOARD_PCI6713,
+	BOARD_PXI6713,
+	BOARD_PCI6731,
+	/* BOARD_PXI6731, */
+	BOARD_PCI6733,
+	BOARD_PXI6733,
+	BOARD_PXI6071E,
+	BOARD_PXI6070E,
+	BOARD_PXI6052E,
+	BOARD_PXI6031E,
+	BOARD_PCI6036E,
+	BOARD_PCI6220,
+	BOARD_PCI6221,
+	BOARD_PCI6221_37PIN,
+	BOARD_PCI6224,
+	BOARD_PXI6224,
+	BOARD_PCI6225,
+	BOARD_PXI6225,
+	BOARD_PCI6229,
+	BOARD_PCI6250,
+	BOARD_PCI6251,
+	BOARD_PCIE6251,
+	BOARD_PXIE6251,
+	BOARD_PCI6254,
+	BOARD_PCI6259,
+	BOARD_PCIE6259,
+	BOARD_PCI6280,
+	BOARD_PCI6281,
+	BOARD_PXI6281,
+	BOARD_PCI6284,
+	BOARD_PCI6289,
+	BOARD_PCI6143,
+	BOARD_PXI6143,
+};
+
 static const struct ni_board_struct ni_boards[] = {
-	{
-	 .device_id = 0x0162,	/*  NI also says 0x1620.  typo? */
+	[BOARD_PCIMIO_16XE_50] = {
 	 .name = "pci-mio-16xe-50",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -183,8 +242,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1170,
+	[BOARD_PCIMIO_16XE_10] = {
 	 .name = "pci-mio-16xe-10",	/*  aka pci-6030E */
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -202,8 +260,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043, ad8522},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x28c0,
+	[BOARD_PCI6014] = {
 	 .name = "pci-6014",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -221,8 +278,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x11d0,
+	[BOARD_PXI6030E] = {
 	 .name = "pxi-6030e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -240,8 +296,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043, ad8522},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1180,
+	[BOARD_PCIMIO_16E_1] = {
 	 .name = "pci-mio-16e-1",	/* aka pci-6070e */
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -259,8 +314,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {mb88341},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1190,
+	[BOARD_PCIMIO_16E_4] = {
 	 .name = "pci-mio-16e-4",	/* aka pci-6040e */
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -280,8 +334,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},	/*  doc says mb88341 */
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x11c0,
+	[BOARD_PXI6040E] = {
 	 .name = "pxi-6040e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -299,9 +352,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {mb88341},
 	 .has_8255 = 0,
 	 },
-
-	{
-	 .device_id = 0x1330,
+	[BOARD_PCI6031E] = {
 	 .name = "pci-6031e",
 	 .n_adchan = 64,
 	 .adbits = 16,
@@ -319,8 +370,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043, ad8522},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1270,
+	[BOARD_PCI6032E] = {
 	 .name = "pci-6032e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -336,8 +386,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043, ad8522},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1340,
+	[BOARD_PCI6033E] = {
 	 .name = "pci-6033e",
 	 .n_adchan = 64,
 	 .adbits = 16,
@@ -353,8 +402,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {dac8800, dac8043, ad8522},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x1350,
+	[BOARD_PCI6071E] = {
 	 .name = "pci-6071e",
 	 .n_adchan = 64,
 	 .adbits = 12,
@@ -372,8 +420,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x2a60,
+	[BOARD_PCI6023E] = {
 	 .name = "pci-6023e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -388,8 +435,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},	/* manual is wrong */
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x2a70,
+	[BOARD_PCI6024E] = {
 	 .name = "pci-6024e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -407,8 +453,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},	/* manual is wrong */
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x2a80,
+	[BOARD_PCI6025E] = {
 	 .name = "pci-6025e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -426,8 +471,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},	/* manual is wrong */
 	 .has_8255 = 1,
 	 },
-	{
-	 .device_id = 0x2ab0,
+	[BOARD_PXI6025E] = {
 	 .name = "pxi-6025e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -445,9 +489,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},	/* manual is wrong */
 	 .has_8255 = 1,
 	 },
-
-	{
-	 .device_id = 0x2ca0,
+	[BOARD_PCI6034E] = {
 	 .name = "pci-6034e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -463,8 +505,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x2c80,
+	[BOARD_PCI6035E] = {
 	 .name = "pci-6035e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -482,8 +523,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x18b0,
+	[BOARD_PCI6052E] = {
 	 .name = "pci-6052e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -500,7 +540,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .caldac = {ad8804_debug, ad8804_debug, ad8522},	/* manual is wrong */
 	 },
-	{.device_id = 0x14e0,
+	[BOARD_PCI6110] = {
 	 .name = "pci-6110",
 	 .n_adchan = 4,
 	 .adbits = 12,
@@ -518,8 +558,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .caldac = {ad8804, ad8804},
 	 },
-	{
-	 .device_id = 0x14f0,
+	[BOARD_PCI6111] = {
 	 .name = "pci-6111",
 	 .n_adchan = 2,
 	 .adbits = 12,
@@ -539,8 +578,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 },
 #if 0
 	/* The 6115 boards probably need their own driver */
-	{
-	 .device_id = 0x2ed0,
+	[BOARD_PCI6115] = {	/* .device_id = 0x2ed0, */
 	 .name = "pci-6115",
 	 .n_adchan = 4,
 	 .adbits = 12,
@@ -560,8 +598,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 },
 #endif
 #if 0
-	{
-	 .device_id = 0x0000,
+	[BOARD_PXI6115] = {	/* .device_id = ????, */
 	 .name = "pxi-6115",
 	 .n_adchan = 4,
 	 .adbits = 12,
@@ -580,8 +617,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 caldac = {ad8804_debug, ad8804_debug, ad8804_debug},	/* XXX */
 	 },
 #endif
-	{
-	 .device_id = 0x1880,
+	[BOARD_PCI6711] = {
 	 .name = "pci-6711",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 4,
@@ -595,8 +631,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6711,
 	 .caldac = {ad8804_debug},
 	 },
-	{
-	 .device_id = 0x2b90,
+	[BOARD_PXI6711] = {
 	 .name = "pxi-6711",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 4,
@@ -609,8 +644,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6711,
 	 .caldac = {ad8804_debug},
 	 },
-	{
-	 .device_id = 0x1870,
+	[BOARD_PCI6713] = {
 	 .name = "pci-6713",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 8,
@@ -623,8 +657,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6713,
 	 .caldac = {ad8804_debug, ad8804_debug},
 	 },
-	{
-	 .device_id = 0x2b80,
+	[BOARD_PXI6713] = {
 	 .name = "pxi-6713",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 8,
@@ -637,8 +670,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6713,
 	 .caldac = {ad8804_debug, ad8804_debug},
 	 },
-	{
-	 .device_id = 0x2430,
+	[BOARD_PCI6731] = {
 	 .name = "pci-6731",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 4,
@@ -651,9 +683,8 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6711,
 	 .caldac = {ad8804_debug},
 	 },
-#if 0				/* need device ids */
-	{
-	 .device_id = 0x0,
+#if 0
+	[BOARD_PXI6731] = {	/* .device_id = ????, */
 	 .name = "pxi-6731",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 4,
@@ -666,8 +697,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 },
 #endif
-	{
-	 .device_id = 0x2410,
+	[BOARD_PCI6733] = {
 	 .name = "pci-6733",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 8,
@@ -680,8 +710,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6713,
 	 .caldac = {ad8804_debug, ad8804_debug},
 	 },
-	{
-	 .device_id = 0x2420,
+	[BOARD_PXI6733] = {
 	 .name = "pxi-6733",
 	 .n_adchan = 0,		/* no analog input */
 	 .n_aochan = 8,
@@ -694,8 +723,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .reg_type = ni_reg_6713,
 	 .caldac = {ad8804_debug, ad8804_debug},
 	 },
-	{
-	 .device_id = 0x15b0,
+	[BOARD_PXI6071E] = {
 	 .name = "pxi-6071e",
 	 .n_adchan = 64,
 	 .adbits = 12,
@@ -713,8 +741,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x11b0,
+	[BOARD_PXI6070E] = {
 	 .name = "pxi-6070e",
 	 .n_adchan = 16,
 	 .adbits = 12,
@@ -732,8 +759,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x18c0,
+	[BOARD_PXI6052E] = {
 	 .name = "pxi-6052e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -750,8 +776,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .caldac = {mb88341, mb88341, ad8522},
 	 },
-	{
-	 .device_id = 0x1580,
+	[BOARD_PXI6031E] = {
 	 .name = "pxi-6031e",
 	 .n_adchan = 64,
 	 .adbits = 16,
@@ -768,8 +793,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .caldac = {dac8800, dac8043, ad8522},
 	 },
-	{
-	 .device_id = 0x2890,
+	[BOARD_PCI6036E] = {
 	 .name = "pci-6036e",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -787,8 +811,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {ad8804_debug},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70b0,
+	[BOARD_PCI6220] = {
 	 .name = "pci-6220",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -805,8 +828,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70af,
+	[BOARD_PCI6221] = {
 	 .name = "pci-6221",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -824,8 +846,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x71bc,
+	[BOARD_PCI6221_37PIN] = {
 	 .name = "pci-6221_37pin",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -843,8 +864,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70f2,
+	[BOARD_PCI6224] = {
 	 .name = "pci-6224",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -860,8 +880,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70f3,
+	[BOARD_PXI6224] = {
 	 .name = "pxi-6224",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -877,8 +896,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x716c,
+	[BOARD_PCI6225] = {
 	 .name = "pci-6225",
 	 .n_adchan = 80,
 	 .adbits = 16,
@@ -896,8 +914,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x716d,
+	[BOARD_PXI6225] = {
 	 .name = "pxi-6225",
 	 .n_adchan = 80,
 	 .adbits = 16,
@@ -915,8 +932,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	},
-	{
-	 .device_id = 0x70aa,
+	[BOARD_PCI6229] = {
 	 .name = "pci-6229",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -934,8 +950,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70b4,
+	[BOARD_PCI6250] = {
 	 .name = "pci-6250",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -951,8 +966,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70b8,
+	[BOARD_PCI6251] = {
 	 .name = "pci-6251",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -970,8 +984,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x717d,
+	[BOARD_PCIE6251] = {
 	 .name = "pcie-6251",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -989,8 +1002,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x72e8,
+	[BOARD_PXIE6251] = {
 	 .name = "pxie-6251",
 	 .n_adchan = 16,
 	 .adbits = 16,
@@ -1008,8 +1020,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70b7,
+	[BOARD_PCI6254] = {
 	 .name = "pci-6254",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -1025,8 +1036,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70ab,
+	[BOARD_PCI6259] = {
 	 .name = "pci-6259",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -1044,8 +1054,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x717f,
+	[BOARD_PCIE6259] = {
 	 .name = "pcie-6259",
 	 .n_adchan = 32,
 	 .adbits = 16,
@@ -1063,8 +1072,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70b6,
+	[BOARD_PCI6280] = {
 	 .name = "pci-6280",
 	 .n_adchan = 16,
 	 .adbits = 18,
@@ -1080,8 +1088,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70bd,
+	[BOARD_PCI6281] = {
 	 .name = "pci-6281",
 	 .n_adchan = 16,
 	 .adbits = 18,
@@ -1099,8 +1106,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70bf,
+	[BOARD_PXI6281] = {
 	 .name = "pxi-6281",
 	 .n_adchan = 16,
 	 .adbits = 18,
@@ -1118,8 +1124,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70bc,
+	[BOARD_PCI6284] = {
 	 .name = "pci-6284",
 	 .n_adchan = 32,
 	 .adbits = 18,
@@ -1135,8 +1140,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70ac,
+	[BOARD_PCI6289] = {
 	 .name = "pci-6289",
 	 .n_adchan = 32,
 	 .adbits = 18,
@@ -1154,8 +1158,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
-	{
-	 .device_id = 0x70C0,
+	[BOARD_PCI6143] = {
 	 .name = "pci-6143",
 	 .n_adchan = 8,
 	 .adbits = 16,
@@ -1171,8 +1174,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .caldac = {ad8804_debug, ad8804_debug},
 	 },
-	{
-	 .device_id = 0x710D,
+	[BOARD_PXI6143] = {
 	 .name = "pxi-6143",
 	 .n_adchan = 8,
 	 .adbits = 16,
@@ -1608,46 +1610,31 @@ static void pcimio_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct ni_board_struct *
-pcimio_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int device_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni_boards); n++) {
-		const struct ni_board_struct *board = &ni_boards[n];
-		if (board->device_id == device_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int pcimio_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct ni_board_struct *board = NULL;
 	struct ni_private *devpriv;
 	int ret;
 
-	dev_info(dev->class_dev, "ni_pcimio: attach %s\n", pci_name(pcidev));
+	if (context < ARRAY_SIZE(ni_boards))
+		board = &ni_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	ret = ni_alloc_private(dev);
 	if (ret)
 		return ret;
 	devpriv = dev->private;
 
-	dev->board_ptr = pcimio_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
-
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
 
-	dev_dbg(dev->class_dev, "%s\n", boardtype.name);
-	dev->board_name = boardtype.name;
-
-	if (boardtype.reg_type & ni_reg_m_series_mask) {
+	if (board->reg_type & ni_reg_m_series_mask) {
 		devpriv->stc_writew = &m_series_stc_writew;
 		devpriv->stc_readw = &m_series_stc_readw;
 		devpriv->stc_writel = &m_series_stc_writel;
@@ -1681,9 +1668,9 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (devpriv->gpct_mite_ring[1] == NULL)
 		return -ENOMEM;
 
-	if (boardtype.reg_type & ni_reg_m_series_mask)
+	if (board->reg_type & ni_reg_m_series_mask)
 		m_series_init_eeprom_buffer(dev);
-	if (boardtype.reg_type == ni_reg_6143)
+	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
 
 	dev->irq = mite_irq(devpriv->mite);
@@ -1794,59 +1781,60 @@ static int ni_pcimio_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1180) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1190) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11d0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1270) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1330) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1340) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1350) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14e0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14f0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1580) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x15b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1880) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1870) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2410) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2420) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2430) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2890) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x28c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a60) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a70) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ab0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b90) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ca0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70aa) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ab) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ac) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70af) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b4) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b6) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b7) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b8) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bc) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bd) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bf) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70f2) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x710d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716c) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71bc) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x72e8) },
+	{ PCI_VDEVICE(NI, 0x0162), BOARD_PCIMIO_16XE_50 },	/* 0x1620? */
+	{ PCI_VDEVICE(NI, 0x1170), BOARD_PCIMIO_16XE_10 },
+	{ PCI_VDEVICE(NI, 0x1180), BOARD_PCIMIO_16E_1 },
+	{ PCI_VDEVICE(NI, 0x1190), BOARD_PCIMIO_16E_4 },
+	{ PCI_VDEVICE(NI, 0x11b0), BOARD_PXI6070E },
+	{ PCI_VDEVICE(NI, 0x11c0), BOARD_PXI6040E },
+	{ PCI_VDEVICE(NI, 0x11d0), BOARD_PXI6030E },
+	{ PCI_VDEVICE(NI, 0x1270), BOARD_PCI6032E },
+	{ PCI_VDEVICE(NI, 0x1330), BOARD_PCI6031E },
+	{ PCI_VDEVICE(NI, 0x1340), BOARD_PCI6033E },
+	{ PCI_VDEVICE(NI, 0x1350), BOARD_PCI6071E },
+	{ PCI_VDEVICE(NI, 0x14e0), BOARD_PCI6110 },
+	{ PCI_VDEVICE(NI, 0x14f0), BOARD_PCI6111 },
+	{ PCI_VDEVICE(NI, 0x1580), BOARD_PXI6031E },
+	{ PCI_VDEVICE(NI, 0x15b0), BOARD_PXI6071E },
+	{ PCI_VDEVICE(NI, 0x1880), BOARD_PCI6711 },
+	{ PCI_VDEVICE(NI, 0x1870), BOARD_PCI6713 },
+	{ PCI_VDEVICE(NI, 0x18b0), BOARD_PCI6052E },
+	{ PCI_VDEVICE(NI, 0x18c0), BOARD_PXI6052E },
+	{ PCI_VDEVICE(NI, 0x2410), BOARD_PCI6733 },
+	{ PCI_VDEVICE(NI, 0x2420), BOARD_PXI6733 },
+	{ PCI_VDEVICE(NI, 0x2430), BOARD_PCI6731 },
+	{ PCI_VDEVICE(NI, 0x2890), BOARD_PCI6036E },
+	{ PCI_VDEVICE(NI, 0x28c0), BOARD_PCI6014 },
+	{ PCI_VDEVICE(NI, 0x2a60), BOARD_PCI6023E },
+	{ PCI_VDEVICE(NI, 0x2a70), BOARD_PCI6024E },
+	{ PCI_VDEVICE(NI, 0x2a80), BOARD_PCI6025E },
+	{ PCI_VDEVICE(NI, 0x2ab0), BOARD_PXI6025E },
+	{ PCI_VDEVICE(NI, 0x2b80), BOARD_PXI6713 },
+	{ PCI_VDEVICE(NI, 0x2b90), BOARD_PXI6711 },
+	{ PCI_VDEVICE(NI, 0x2c80), BOARD_PCI6035E },
+	{ PCI_VDEVICE(NI, 0x2ca0), BOARD_PCI6034E },
+	{ PCI_VDEVICE(NI, 0x70aa), BOARD_PCI6229 },
+	{ PCI_VDEVICE(NI, 0x70ab), BOARD_PCI6259 },
+	{ PCI_VDEVICE(NI, 0x70ac), BOARD_PCI6289 },
+	{ PCI_VDEVICE(NI, 0x70af), BOARD_PCI6221 },
+	{ PCI_VDEVICE(NI, 0x70b0), BOARD_PCI6220 },
+	{ PCI_VDEVICE(NI, 0x70b4), BOARD_PCI6250 },
+	{ PCI_VDEVICE(NI, 0x70b6), BOARD_PCI6280 },
+	{ PCI_VDEVICE(NI, 0x70b7), BOARD_PCI6254 },
+	{ PCI_VDEVICE(NI, 0x70b8), BOARD_PCI6251 },
+	{ PCI_VDEVICE(NI, 0x70bc), BOARD_PCI6284 },
+	{ PCI_VDEVICE(NI, 0x70bd), BOARD_PCI6281 },
+	{ PCI_VDEVICE(NI, 0x70bf), BOARD_PXI6281 },
+	{ PCI_VDEVICE(NI, 0x70c0), BOARD_PCI6143 },
+	{ PCI_VDEVICE(NI, 0x70f2), BOARD_PCI6224 },
+	{ PCI_VDEVICE(NI, 0x70f3), BOARD_PXI6224 },
+	{ PCI_VDEVICE(NI, 0x710d), BOARD_PXI6143 },
+	{ PCI_VDEVICE(NI, 0x716c), BOARD_PCI6225 },
+	{ PCI_VDEVICE(NI, 0x716d), BOARD_PXI6225 },
+	{ PCI_VDEVICE(NI, 0x717f), BOARD_PCIE6259 },
+	{ PCI_VDEVICE(NI, 0x71bc), BOARD_PCI6221_37PIN },
+	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
+	{ PCI_VDEVICE(NI, 0x72e8), BOARD_PXIE6251 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);
