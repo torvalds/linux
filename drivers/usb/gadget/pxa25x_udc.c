@@ -1266,13 +1266,6 @@ static int pxa25x_udc_start(struct usb_gadget *g,
 	dev->gadget.dev.driver = &driver->driver;
 	dev->pullup = 1;
 
-	retval = device_add (&dev->gadget.dev);
-	if (retval) {
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
-
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
@@ -1331,7 +1324,6 @@ static int pxa25x_udc_stop(struct usb_gadget*g,
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
-	device_del (&dev->gadget.dev);
 	dump_state(dev);
 
 	return 0;
@@ -2146,6 +2138,13 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->gadget.dev.parent = &pdev->dev;
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
+	retval = device_add(&dev->gadget.dev);
+	if (retval) {
+		dev->driver = NULL;
+		dev->gadget.dev.driver = NULL;
+		goto err_device_add;
+	}
+
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
 
@@ -2196,6 +2195,8 @@ lubbock_fail0:
 	free_irq(irq, dev);
 #endif
  err_irq1:
+	device_unregister(&dev->gadget.dev);
+ err_device_add:
 	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
@@ -2217,10 +2218,11 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dev->gadget);
 	if (dev->driver)
 		return -EBUSY;
 
+	usb_del_gadget_udc(&dev->gadget);
+	device_unregister(&dev->gadget.dev);
 	dev->pullup = 0;
 	pullup(dev);
 

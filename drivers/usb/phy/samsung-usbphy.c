@@ -787,11 +787,9 @@ static int samsung_usbphy_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	phy_base = devm_request_and_ioremap(dev, phy_mem);
-	if (!phy_base) {
-		dev_err(dev, "%s: register mapping failed\n", __func__);
-		return -ENXIO;
-	}
+	phy_base = devm_ioremap_resource(dev, phy_mem);
+	if (IS_ERR(phy_base))
+		return PTR_ERR(phy_base);
 
 	sphy = devm_kzalloc(dev, sizeof(*sphy), GFP_KERNEL);
 	if (!sphy)
