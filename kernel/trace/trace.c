@@ -667,7 +667,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	if (!tr->current_trace->allocated_snapshot) {
+	if (!tr->allocated_snapshot) {
 		/* Only the nop tracer should hit this when disabling */
 		WARN_ON_ONCE(tr->current_trace != &nop_trace);
 		return;
@@ -700,7 +700,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (WARN_ON_ONCE(!tr->current_trace->allocated_snapshot))
+	if (WARN_ON_ONCE(!tr->allocated_snapshot))
 		return;
 
 	arch_spin_lock(&ftrace_max_lock);
@@ -802,7 +802,7 @@ int register_tracer(struct tracer *type)
 			if (ring_buffer_expanded)
 				ring_buffer_resize(tr->max_buffer.buffer, trace_buf_size,
 						   RING_BUFFER_ALL_CPUS);
-			type->allocated_snapshot = true;
+			tr->allocated_snapshot = true;
 		}
 #endif
 
@@ -822,7 +822,7 @@ int register_tracer(struct tracer *type)
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 		if (type->use_max_tr) {
-			type->allocated_snapshot = false;
+			tr->allocated_snapshot = false;
 
 			/* Shrink the max buffer again */
 			if (ring_buffer_expanded)
@@ -2463,7 +2463,7 @@ static void show_snapshot_percpu_help(struct seq_file *m)
 
 static void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter)
 {
-	if (iter->trace->allocated_snapshot)
+	if (iter->tr->allocated_snapshot)
 		seq_printf(m, "#\n# * Snapshot is allocated *\n#\n");
 	else
 		seq_printf(m, "#\n# * Snapshot is freed *\n#\n");
@@ -3364,11 +3364,11 @@ static int tracing_set_tracer(const char *buf)
 	if (tr->current_trace->reset)
 		tr->current_trace->reset(tr);
 
-#ifdef CONFIG_TRACER_MAX_TRACE
-	had_max_tr = tr->current_trace->allocated_snapshot;
-
 	/* Current trace needs to be nop_trace before synchronize_sched */
 	tr->current_trace = &nop_trace;
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+	had_max_tr = tr->allocated_snapshot;
 
 	if (had_max_tr && !t->use_max_tr) {
 		/*
@@ -3387,10 +3387,8 @@ static int tracing_set_tracer(const char *buf)
 		ring_buffer_resize(tr->max_buffer.buffer, 1, RING_BUFFER_ALL_CPUS);
 		set_buffer_entries(&tr->max_buffer, 1);
 		tracing_reset_online_cpus(&tr->max_buffer);
-		tr->current_trace->allocated_snapshot = false;
+		tr->allocated_snapshot = false;
 	}
-#else
-	tr->current_trace = &nop_trace;
 #endif
 	destroy_trace_option_files(topts);
 
@@ -3403,7 +3401,7 @@ static int tracing_set_tracer(const char *buf)
 						   RING_BUFFER_ALL_CPUS);
 		if (ret < 0)
 			goto out;
-		t->allocated_snapshot = true;
+		tr->allocated_snapshot = true;
 	}
 #endif
 
@@ -4275,13 +4273,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 			ret = -EINVAL;
 			break;
 		}
-		if (tr->current_trace->allocated_snapshot) {
+		if (tr->allocated_snapshot) {
 			/* free spare buffer */
 			ring_buffer_resize(tr->max_buffer.buffer, 1,
 					   RING_BUFFER_ALL_CPUS);
 			set_buffer_entries(&tr->max_buffer, 1);
 			tracing_reset_online_cpus(&tr->max_buffer);
-			tr->current_trace->allocated_snapshot = false;
+			tr->allocated_snapshot = false;
 		}
 		break;
 	case 1:
@@ -4292,13 +4290,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 			break;
 		}
 #endif
-		if (!tr->current_trace->allocated_snapshot) {
+		if (!tr->allocated_snapshot) {
 			/* allocate spare buffer */
 			ret = resize_buffer_duplicate_size(&tr->max_buffer,
 					&tr->trace_buffer, RING_BUFFER_ALL_CPUS);
 			if (ret < 0)
 				break;
-			tr->current_trace->allocated_snapshot = true;
+			tr->allocated_snapshot = true;
 		}
 		local_irq_disable();
 		/* Now, we're going to swap */
@@ -4309,7 +4307,7 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		local_irq_enable();
 		break;
 	default:
-		if (tr->current_trace->allocated_snapshot) {
+		if (tr->allocated_snapshot) {
 			if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
 				tracing_reset_online_cpus(&tr->max_buffer);
 			else

@@ -197,6 +197,7 @@ struct trace_array {
 	 * the trace_buffer so the tracing can continue.
 	 */
 	struct trace_buffer	max_buffer;
+	bool			allocated_snapshot;
 #endif
 	int			buffer_disabled;
 	struct trace_cpu	trace_cpu;	/* place holder */
@@ -367,7 +368,6 @@ struct tracer {
 	bool			enabled;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
-	bool			allocated_snapshot;
 #endif
 };
 
