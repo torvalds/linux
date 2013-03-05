@@ -50,6 +50,17 @@ Configuration options:
 #include "8253.h"
 #include "amcc_s5933.h"
 
+/*
+ * The pci1710 and pci1710hg boards have the same device id!
+ *
+ * The only difference between these boards is in the
+ * supported analog input ranges.
+ *
+ * #define this if your card is a pci1710hg and you need the
+ * correct ranges reported to user space.
+ */
+#undef USE_PCI1710HG_RANGE
+
 #define PCI171x_PARANOIDCHECK	/* if defined, then is used code which control
 				 * correct channel number on every 12 bit
 				 * sample */
@@ -133,6 +144,7 @@ static const struct comedi_lrange range_pci1710_3 = { 9, {
 static const char range_codes_pci1710_3[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x10, 0x11, 0x12, 0x13 };
 
+#ifdef USE_PCI1710HG_RANGE
 static const struct comedi_lrange range_pci1710hg = { 12, {
 							   BIP_RANGE(5),
 							   BIP_RANGE(0.5),
@@ -152,6 +164,7 @@ static const struct comedi_lrange range_pci1710hg = { 12, {
 static const char range_codes_pci1710hg[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x05, 0x06, 0x07, 0x10, 0x11,
 					      0x12, 0x13 };
+#endif /* USE_PCI1710HG_RANGE */
 
 static const struct comedi_lrange range_pci17x1 = { 5, {
 							BIP_RANGE(10),
@@ -178,9 +191,16 @@ static const struct comedi_lrange range_pci171x_da = { 2, {
 							   }
 };
 
+enum pci1710_boardid {
+	BOARD_PCI1710,
+	BOARD_PCI1711,
+	BOARD_PCI1713,
+	BOARD_PCI1720,
+	BOARD_PCI1731,
+};
+
 struct boardtype {
 	const char *name;	/*  board name */
-	int device_id;
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
@@ -200,9 +220,8 @@ struct boardtype {
 };
 
 static const struct boardtype boardtypes[] = {
-	{
+	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.device_id	= 0x1710,
 		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
@@ -214,33 +233,19 @@ static const struct boardtype boardtypes[] = {
 		.n_counter	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
+#ifndef USE_PCI1710HG_RANGE
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-		.rangelist_ao	= &range_pci171x_da,
-		.ai_ns_min	= 10000,
-		.fifo_half_size	= 2048,
-	}, {
-		.name		= "pci1710hg",
-		.device_id	= 0x1710,
-		.iorange	= IORANGE_171x,
-		.have_irq	= 1,
-		.cardtype	= TYPE_PCI171X,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
-		.n_counter	= 1,
-		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
+#else
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
+#endif
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
-	}, {
+	},
+	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.device_id	= 0x1711,
 		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
@@ -256,9 +261,9 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
-	}, {
+	},
+	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.device_id	= 0x1713,
 		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI1713,
@@ -269,17 +274,17 @@ static const struct boardtype boardtypes[] = {
 		.rangecode_ai	= range_codes_pci1710_3,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
-	}, {
+	},
+	[BOARD_PCI1720] = {
 		.name		= "pci1720",
-		.device_id	= 0x1720,
 		.iorange	= IORANGE_1720,
 		.cardtype	= TYPE_PCI1720,
 		.n_aochan	= 4,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ao	= &range_pci1720,
-	}, {
+	},
+	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.device_id	= 0x1731,
 		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
@@ -1220,30 +1225,17 @@ static int pci1710_reset(struct comedi_device *dev)
 	}
 }
 
-static const void *pci1710_find_boardinfo(struct comedi_device *dev,
-					  struct pci_dev *pcidev)
-{
-	const struct boardtype *this_board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-		this_board = &boardtypes[i];
-		if (pcidev->device == this_board->device_id)
-			return this_board;
-	}
-	return NULL;
-}
-
 static int pci1710_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct boardtype *this_board;
+	const struct boardtype *this_board = NULL;
 	struct pci1710_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
-	this_board = pci1710_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(boardtypes))
+		this_board = &boardtypes[context];
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -1405,11 +1397,11 @@ static int adv_pci1710_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1710) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1711) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1713) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1720) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1731) },
+	{ PCI_VDEVICE(ADVANTECH, 0x1710), BOARD_PCI1710 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1711), BOARD_PCI1711 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1713), BOARD_PCI1713 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1720), BOARD_PCI1720 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1731), BOARD_PCI1731 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adv_pci1710_pci_table);
