@@ -2517,6 +2517,28 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 	return 0;
 }
 
+/* Queue a command to an asynchronous HCI request */
+int hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct sk_buff *skb;
+
+	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
+
+	skb = hci_prepare_cmd(hdev, opcode, plen, param);
+	if (!skb) {
+		BT_ERR("%s no memory for command", hdev->name);
+		return -ENOMEM;
+	}
+
+	if (skb_queue_empty(&req->cmd_q))
+		bt_cb(skb)->req.start = true;
+
+	skb_queue_tail(&req->cmd_q, skb);
+
+	return 0;
+}
+
 /* Get data from the previously sent command */
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)
 {
