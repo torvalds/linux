@@ -1006,7 +1006,7 @@ bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
  * the receive timestamp from the MC - this will probably occur after the
  * packet arrival because of the processing in the MC.
  */
-static void efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
+static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
@@ -1019,18 +1019,15 @@ static void efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 	/* Correct version? */
 	if (ptp->mode == MC_CMD_PTP_MODE_V1) {
 		if (skb->len < PTP_V1_MIN_LENGTH) {
-			netif_receive_skb(skb);
-			return;
+			return false;
 		}
 		version = ntohs(*(__be16 *)&skb->data[PTP_V1_VERSION_OFFSET]);
 		if (version != PTP_VERSION_V1) {
-			netif_receive_skb(skb);
-			return;
+			return false;
 		}
 	} else {
 		if (skb->len < PTP_V2_MIN_LENGTH) {
-			netif_receive_skb(skb);
-			return;
+			return false;
 		}
 		version = skb->data[PTP_V2_VERSION_OFFSET];
 
@@ -1041,8 +1038,7 @@ static void efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		BUILD_BUG_ON(PTP_V1_SEQUENCE_LENGTH != PTP_V2_SEQUENCE_LENGTH);
 
 		if ((version & PTP_VERSION_V2_MASK) != PTP_VERSION_V2) {
-			netif_receive_skb(skb);
-			return;
+			return false;
 		}
 	}
 
@@ -1073,6 +1069,8 @@ static void efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 
 	skb_queue_tail(&ptp->rxq, skb);
 	queue_work(ptp->workwq, &ptp->work);
+
+	return true;
 }
 
 /* Transmit a PTP packet.  This has to be transmitted by the MC

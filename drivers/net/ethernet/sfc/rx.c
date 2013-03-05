@@ -575,12 +575,14 @@ static void efx_rx_deliver(struct efx_channel *channel,
 	/* Record the rx_queue */
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
-	/* Pass the packet up */
 	if (channel->type->receive_skb)
-		channel->type->receive_skb(channel, skb);
-	else
-		netif_receive_skb(skb);
+		if (channel->type->receive_skb(channel, skb))
+			goto handled;
 
+	/* Pass the packet up */
+	netif_receive_skb(skb);
+
+handled:
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
 }
