@@ -199,6 +199,8 @@ enum regulator_type {
  *                output when using regulator_set_voltage_sel_regmap
  * @enable_reg: Register for control when using regmap enable/disable ops
  * @enable_mask: Mask for control when using regmap enable/disable ops
+ * @enable_is_inverted: A flag to indicate set enable_mask bits to disable
+ *                      when using regulator_enable_regmap and friends APIs.
  * @bypass_reg: Register for control when using regmap set_bypass
  * @bypass_mask: Mask for control when using regmap set_bypass
  *
@@ -228,6 +230,7 @@ struct regulator_desc {
 	unsigned int apply_bit;
 	unsigned int enable_reg;
 	unsigned int enable_mask;
+	bool enable_is_inverted;
 	unsigned int bypass_reg;
 	unsigned int bypass_mask;
 
