@@ -79,7 +79,20 @@ complete. Pseudo-code using rcu_barrier() is as follows:
    2. Execute rcu_barrier().
    3. Allow the module to be unloaded.
 
-The rcutorture module makes use of rcu_barrier in its exit function
+There are also rcu_barrier_bh(), rcu_barrier_sched(), and srcu_barrier()
+functions for the other flavors of RCU, and you of course must match
+the flavor of rcu_barrier() with that of call_rcu().  If your module
+uses multiple flavors of call_rcu(), then it must also use multiple
+flavors of rcu_barrier() when unloading that module.  For example, if
+it uses call_rcu_bh(), call_srcu() on srcu_struct_1, and call_srcu() on
+srcu_struct_2(), then the following three lines of code will be required
+when unloading:
+
+ 1 rcu_barrier_bh();
+ 2 srcu_barrier(&srcu_struct_1);
+ 3 srcu_barrier(&srcu_struct_2);
+
+The rcutorture module makes use of rcu_barrier() in its exit function
 as follows:
 
  1 static void
