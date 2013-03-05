@@ -3311,54 +3311,6 @@ static void dispc_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-/* with fck as input clock rate, find dispc dividers that produce req_pck */
-void dispc_find_clk_divs(unsigned long req_pck, unsigned long fck,
-		struct dispc_clock_info *cinfo)
-{
-	u16 pcd_min, pcd_max;
-	unsigned long best_pck;
-	u16 best_ld, cur_ld;
-	u16 best_pd, cur_pd;
-
-	pcd_min = dss_feat_get_param_min(FEAT_PARAM_DSS_PCD);
-	pcd_max = dss_feat_get_param_max(FEAT_PARAM_DSS_PCD);
-
-	best_pck = 0;
-	best_ld = 0;
-	best_pd = 0;
-
-	for (cur_ld = 1; cur_ld <= 255; ++cur_ld) {
-		unsigned long lck = fck / cur_ld;
-
-		for (cur_pd = pcd_min; cur_pd <= pcd_max; ++cur_pd) {
-			unsigned long pck = lck / cur_pd;
-			long old_delta = abs(best_pck - req_pck);
-			long new_delta = abs(pck - req_pck);
-
-			if (best_pck == 0 || new_delta < old_delta) {
-				best_pck = pck;
-				best_ld = cur_ld;
-				best_pd = cur_pd;
-
-				if (pck == req_pck)
-					goto found;
-			}
-
-			if (pck < req_pck)
-				break;
-		}
-
-		if (lck / pcd_min < req_pck)
-			break;
-	}
-
-found:
-	cinfo->lck_div = best_ld;
-	cinfo->pck_div = best_pd;
-	cinfo->lck = fck / cinfo->lck_div;
-	cinfo->pck = cinfo->lck / cinfo->pck_div;
-}
-
 /* calculate clock rates using dividers in cinfo */
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo)
