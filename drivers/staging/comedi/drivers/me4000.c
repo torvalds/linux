@@ -61,20 +61,6 @@ broken.
 #include "me4000_fw.h"
 #endif
 
-#define PCI_DEVICE_ID_MEILHAUS_ME4650	0x4650
-#define PCI_DEVICE_ID_MEILHAUS_ME4660	0x4660
-#define PCI_DEVICE_ID_MEILHAUS_ME4660I	0x4661
-#define PCI_DEVICE_ID_MEILHAUS_ME4660S	0x4662
-#define PCI_DEVICE_ID_MEILHAUS_ME4660IS	0x4663
-#define PCI_DEVICE_ID_MEILHAUS_ME4670	0x4670
-#define PCI_DEVICE_ID_MEILHAUS_ME4670I	0x4671
-#define PCI_DEVICE_ID_MEILHAUS_ME4670S	0x4672
-#define PCI_DEVICE_ID_MEILHAUS_ME4670IS	0x4673
-#define PCI_DEVICE_ID_MEILHAUS_ME4680	0x4680
-#define PCI_DEVICE_ID_MEILHAUS_ME4680I	0x4681
-#define PCI_DEVICE_ID_MEILHAUS_ME4680S	0x4682
-#define PCI_DEVICE_ID_MEILHAUS_ME4680IS	0x4683
-
 /*
  * ME4000 Register map and bit defines
  */
@@ -220,9 +206,24 @@ struct me4000_info {
 	unsigned int ao_readback[4];
 };
 
+enum me4000_boardid {
+	BOARD_ME4650,
+	BOARD_ME4660,
+	BOARD_ME4660I,
+	BOARD_ME4660S,
+	BOARD_ME4660IS,
+	BOARD_ME4670,
+	BOARD_ME4670I,
+	BOARD_ME4670S,
+	BOARD_ME4670IS,
+	BOARD_ME4680,
+	BOARD_ME4680I,
+	BOARD_ME4680S,
+	BOARD_ME4680IS,
+};
+
 struct me4000_board {
 	const char *name;
-	unsigned short device_id;
 	int ao_nchan;
 	int ao_fifo;
 	int ai_nchan;
@@ -234,62 +235,61 @@ struct me4000_board {
 };
 
 static const struct me4000_board me4000_boards[] = {
-	{
+	[BOARD_ME4650] = {
 		.name		= "ME-4650",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4650,
 		.ai_nchan	= 16,
 		.dio_nchan	= 32,
-	}, {
+	},
+	[BOARD_ME4660] = {
 		.name		= "ME-4660",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4660,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4660I] = {
 		.name		= "ME-4660i",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4660I,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4660S] = {
 		.name		= "ME-4660s",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4660S,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4660IS] = {
 		.name		= "ME-4660is",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4660IS,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4670] = {
 		.name		= "ME-4670",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4670,
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4670I] = {
 		.name		= "ME-4670i",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4670I,
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4670S] = {
 		.name		= "ME-4670s",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4670S,
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
@@ -297,9 +297,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4670IS] = {
 		.name		= "ME-4670is",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4670IS,
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
@@ -307,9 +307,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4680] = {
 		.name		= "ME-4680",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4680,
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
@@ -317,9 +317,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4680I] = {
 		.name		= "ME-4680i",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4680I,
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
@@ -327,9 +327,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4680S] = {
 		.name		= "ME-4680s",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4680S,
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
@@ -338,9 +338,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
-	}, {
+	},
+	[BOARD_ME4680IS] = {
 		.name		= "ME-4680is",
-		.device_id	= PCI_DEVICE_ID_MEILHAUS_ME4680IS,
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
@@ -1550,30 +1550,17 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static const void *me4000_find_boardinfo(struct comedi_device *dev,
-					 struct pci_dev *pcidev)
-{
-	const struct me4000_board *thisboard;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
-		thisboard = &me4000_boards[i];
-		if (thisboard->device_id == pcidev->device)
-			return thisboard;
-	}
-	return NULL;
-}
-
 static int me4000_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct me4000_board *thisboard;
+	const struct me4000_board *thisboard = NULL;
 	struct me4000_info *info;
 	struct comedi_subdevice *s;
 	int result;
 
-	thisboard = me4000_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(me4000_boards))
+		thisboard = &me4000_boards[context];
 	if (!thisboard)
 		return -ENODEV;
 	dev->board_ptr = thisboard;
@@ -1736,20 +1723,20 @@ static int me4000_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4650)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4660)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4660I)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4660S)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4660IS)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4670)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4670I)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4670S)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4670IS)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4680)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4680I)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4680S)},
-	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4680IS)},
-	{0}
+	{ PCI_VDEVICE(MEILHAUS, 0x4650), BOARD_ME4650 },
+	{ PCI_VDEVICE(MEILHAUS, 0x4660), BOARD_ME4660 },
+	{ PCI_VDEVICE(MEILHAUS, 0x4661), BOARD_ME4660I },
+	{ PCI_VDEVICE(MEILHAUS, 0x4662), BOARD_ME4660S },
+	{ PCI_VDEVICE(MEILHAUS, 0x4663), BOARD_ME4660IS },
+	{ PCI_VDEVICE(MEILHAUS, 0x4670), BOARD_ME4670 },
+	{ PCI_VDEVICE(MEILHAUS, 0x4671), BOARD_ME4670I },
+	{ PCI_VDEVICE(MEILHAUS, 0x4672), BOARD_ME4670S },
+	{ PCI_VDEVICE(MEILHAUS, 0x4673), BOARD_ME4670IS },
+	{ PCI_VDEVICE(MEILHAUS, 0x4680), BOARD_ME4680 },
+	{ PCI_VDEVICE(MEILHAUS, 0x4681), BOARD_ME4680I },
+	{ PCI_VDEVICE(MEILHAUS, 0x4682), BOARD_ME4680S },
+	{ PCI_VDEVICE(MEILHAUS, 0x4683), BOARD_ME4680IS },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, me4000_pci_table);
 
