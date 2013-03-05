@@ -990,6 +990,16 @@ static struct {
 	{ 1000000, 13500000, 0,  1 },
 };
 
+static struct {
+	unsigned int min;
+	unsigned int max;
+	u16 gain;
+} fll_gains[] = {
+	{       0,   256000, 0 },
+	{  256000,  1000000, 2 },
+	{ 1000000, 13500000, 4 },
+};
+
 struct arizona_fll_cfg {
 	int n;
 	int theta;
@@ -997,6 +1007,7 @@ struct arizona_fll_cfg {
 	int refdiv;
 	int outdiv;
 	int fratio;
+	int gain;
 };
 
 static int arizona_calc_fll(struct arizona_fll *fll,
@@ -1056,6 +1067,18 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 		return -EINVAL;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
+		if (fll_gains[i].min <= Fref && Fref <= fll_gains[i].max) {
+			cfg->gain = fll_gains[i].gain;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(fll_gains)) {
+		arizona_fll_err(fll, "Unable to find gain for Fref=%uHz\n",
+				Fref);
+		return -EINVAL;
+	}
+
 	cfg->n = target / (ratio * Fref);
 
 	if (target % (ratio * Fref)) {
@@ -1083,13 +1106,15 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 			cfg->n, cfg->theta, cfg->lambda);
 	arizona_fll_dbg(fll, "FRATIO=%x(%d) OUTDIV=%x REFCLK_DIV=%x\n",
 			cfg->fratio, cfg->fratio, cfg->outdiv, cfg->refdiv);
+	arizona_fll_dbg(fll, "GAIN=%d\n", cfg->gain);
 
 	return 0;
 
 }
 
 static void arizona_apply_fll(struct arizona *arizona, unsigned int base,
-			      struct arizona_fll_cfg *cfg, int source)
+			      struct arizona_fll_cfg *cfg, int source,
+			      bool sync)
 {
 	regmap_update_bits(arizona->regmap, base + 3,
 			   ARIZONA_FLL1_THETA_MASK, cfg->theta);
@@ -1103,6 +1128,15 @@ static void arizona_apply_fll(struct arizona *arizona, unsigned int base,
 			   ARIZONA_FLL1_CLK_REF_SRC_MASK,
 			   cfg->refdiv << ARIZONA_FLL1_CLK_REF_DIV_SHIFT |
 			   source << ARIZONA_FLL1_CLK_REF_SRC_SHIFT);
+
+	if (sync)
+		regmap_update_bits(arizona->regmap, base + 0x7,
+				   ARIZONA_FLL1_GAIN_MASK,
+				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
+	else
+		regmap_update_bits(arizona->regmap, base + 0x9,
+				   ARIZONA_FLL1_GAIN_MASK,
+				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
 
 	regmap_update_bits(arizona->regmap, base + 2,
 			   ARIZONA_FLL1_CTRL_UPD | ARIZONA_FLL1_N_MASK,
@@ -1141,17 +1175,18 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 				   ARIZONA_FLL1_OUTDIV_MASK,
 				   ref->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
 
-		arizona_apply_fll(arizona, fll->base, ref, fll->ref_src);
+		arizona_apply_fll(arizona, fll->base, ref, fll->ref_src,
+				  false);
 		if (fll->sync_src >= 0)
 			arizona_apply_fll(arizona, fll->base + 0x10, sync,
-					  fll->sync_src);
+					  fll->sync_src, true);
 	} else if (fll->sync_src >= 0) {
 		regmap_update_bits(arizona->regmap, fll->base + 5,
 				   ARIZONA_FLL1_OUTDIV_MASK,
 				   sync->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
 
 		arizona_apply_fll(arizona, fll->base, sync,
-				  fll->sync_src);
+				  fll->sync_src, false);
 	} else {
 		arizona_fll_err(fll, "No clocks provided\n");
 		return;
