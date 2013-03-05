@@ -603,8 +603,8 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 	return NULL;
 }
 
-static double disasm__calc_percent(struct annotation *notes, int evidx,
-				   s64 offset, s64 end, const char **path)
+double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
+			    s64 end, const char **path)
 {
 	struct source_line *src_line = notes->src->lines;
 	double percent = 0.0;
