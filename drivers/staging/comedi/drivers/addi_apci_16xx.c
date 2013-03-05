@@ -199,9 +199,6 @@ static struct comedi_driver apci16xx_driver = {
 	.module		= THIS_MODULE,
 	.auto_attach	= apci16xx_auto_attach,
 	.detach		= apci16xx_detach,
-	.num_names	= ARRAY_SIZE(apci16xx_boardtypes),
-	.board_name	= &apci16xx_boardtypes[0].name,
-	.offset		= sizeof(struct apci16xx_boardinfo),
 };
 
 static int apci16xx_pci_probe(struct pci_dev *dev,
