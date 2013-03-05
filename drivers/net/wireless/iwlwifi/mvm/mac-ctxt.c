@@ -1013,3 +1013,22 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	mvmvif->uploaded = false;
 	return 0;
 }
+
+int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
+			    struct iwl_rx_cmd_buffer *rxb,
+			    struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_beacon_notif *beacon = (void *)pkt->data;
+	u16 status __maybe_unused =
+		le16_to_cpu(beacon->beacon_notify_hdr.status.status);
+	u32 rate __maybe_unused =
+		le32_to_cpu(beacon->beacon_notify_hdr.initial_rate);
+
+	IWL_DEBUG_RX(mvm, "beacon status %#x retries:%d tsf:0x%16llX rate:%d\n",
+		     status & TX_STATUS_MSK,
+		     beacon->beacon_notify_hdr.failure_frame,
+		     le64_to_cpu(beacon->tsf),
+		     rate);
+	return 0;
+}
