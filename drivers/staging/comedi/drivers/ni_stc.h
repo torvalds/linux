@@ -1421,8 +1421,6 @@ struct ni_board_struct {
 	enum caldac_enum caldac[3];
 };
 
-#define n_ni_boards  (sizeof(ni_boards)/sizeof(struct ni_board_struct))
-
 #define MAX_N_AO_CHAN 8
 #define NUM_GPCT 2
 
