@@ -1235,18 +1235,7 @@ static struct platform_driver fsmc_nand_driver = {
 	},
 };
 
-static int __init fsmc_nand_init(void)
-{
-	return platform_driver_probe(&fsmc_nand_driver,
-				     fsmc_nand_probe);
-}
-module_init(fsmc_nand_init);
-
-static void __exit fsmc_nand_exit(void)
-{
-	platform_driver_unregister(&fsmc_nand_driver);
-}
-module_exit(fsmc_nand_exit);
+module_platform_driver_probe(fsmc_nand_driver, fsmc_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vipin Kumar <vipin.kumar@st.com>, Ashish Priyadarshi");
