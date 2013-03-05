@@ -159,7 +159,7 @@ Also you can view all branches by
 Make sure you have git-checkout'ed the correct branch.
 
 For aufs3-linux tree,
-- enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS.
+- enable CONFIG_AUFS_FS.
 - set other aufs configurations if necessary.
 
 For aufs3-standalone tree,
@@ -175,7 +175,7 @@ There are several ways to build.
   CONFIG_AUFS_FS=m. otherwise you don't need ./aufs3-standalone.patch.
 - copy ./{Documentation,fs,include/uapi/linux/aufs_type.h} files to your
   kernel source tree. Never copy $PWD/include/uapi/linux/Kbuild.
-- enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS, you can select either
+- enable CONFIG_AUFS_FS, you can select either
   =m or =y.
 - and build your kernel as usual.
 - install the built kernel.

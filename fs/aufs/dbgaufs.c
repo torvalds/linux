@@ -63,7 +63,7 @@ static int dbgaufs_xi_open(struct file *xf, struct file *file, int do_fcnt)
 	if (!xf)
 		goto out;
 
-	err = vfs_getattr(xf->f_vfsmnt, xf->f_dentry, &st);
+	err = vfs_getattr(&xf->f_path, &st);
 	if (!err) {
 		if (do_fcnt)
 			p->n = snprintf

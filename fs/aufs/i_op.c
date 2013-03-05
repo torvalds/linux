@@ -796,8 +796,7 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 	unsigned char udba_none, positive;
 	struct super_block *sb, *h_sb;
 	struct inode *inode;
-	struct vfsmount *h_mnt;
-	struct dentry *h_dentry;
+	struct path h_path;
 
 	sb = dentry->d_sb;
 	inode = dentry->d_inode;
@@ -830,30 +829,31 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 		di_read_lock_child(dentry, AuLock_IR);
 
 	bindex = au_ibstart(inode);
-	h_mnt = au_sbr_mnt(sb, bindex);
-	h_sb = h_mnt->mnt_sb;
+	h_path.mnt = au_sbr_mnt(sb, bindex);
+	h_sb = h_path.mnt->mnt_sb;
 	if (!au_test_fs_bad_iattr(h_sb) && udba_none)
 		goto out_fill; /* success */
 
-	h_dentry = NULL;
+	h_path.dentry = NULL;
 	if (au_dbstart(dentry) == bindex)
-		h_dentry = dget(au_h_dptr(dentry, bindex));
+		h_path.dentry = dget(au_h_dptr(dentry, bindex));
 	else if (au_opt_test(mnt_flags, PLINK) && au_plink_test(inode)) {
-		h_dentry = au_plink_lkup(inode, bindex);
-		if (IS_ERR(h_dentry))
+		h_path.dentry = au_plink_lkup(inode, bindex);
+		if (IS_ERR(h_path.dentry))
 			goto out_fill; /* pretending success */
 	}
 	/* illegally overlapped or something */
-	if (unlikely(!h_dentry))
+	if (unlikely(!h_path.dentry))
 		goto out_fill; /* pretending success */
 
-	positive = !!h_dentry->d_inode;
+	positive = !!h_path.dentry->d_inode;
 	if (positive)
-		err = vfs_getattr(h_mnt, h_dentry, st);
-	dput(h_dentry);
+		err = vfs_getattr(&h_path, st);
+	dput(h_path.dentry);
 	if (!err) {
 		if (positive)
-			au_refresh_iattr(inode, st, h_dentry->d_inode->i_nlink);
+			au_refresh_iattr(inode, st,
+					 h_path.dentry->d_inode->i_nlink);
 		goto out_fill; /* success */
 	}
 	AuTraceErr(err);

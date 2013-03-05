@@ -60,19 +60,16 @@ loff_t au_dir_size(struct file *file, struct dentry *dentry)
 
 	sz = 0;
 	if (file) {
-		AuDebugOn(!file->f_dentry);
-		AuDebugOn(!file->f_dentry->d_inode);
-		AuDebugOn(!S_ISDIR(file->f_dentry->d_inode->i_mode));
+		AuDebugOn(!file_inode(file));
+		AuDebugOn(!S_ISDIR(file_inode(file)->i_mode));
 
 		bend = au_fbend_dir(file);
 		for (bindex = au_fbstart(file);
 		     bindex <= bend && sz < KMALLOC_MAX_SIZE;
 		     bindex++) {
 			h_file = au_hf_dir(file, bindex);
-			if (h_file
-			    && h_file->f_dentry
-			    && h_file->f_dentry->d_inode)
-				sz += i_size_read(h_file->f_dentry->d_inode);
+			if (h_file && file_inode(h_file))
+				sz += vfsub_f_size_read(h_file);
 		}
 	} else {
 		AuDebugOn(!dentry);
@@ -310,7 +307,7 @@ static int au_do_fsync_dir(struct file *file, int datasync)
 		goto out;
 
 	sb = file->f_dentry->d_sb;
-	inode = file->f_dentry->d_inode;
+	inode = file_inode(file);
 	bend = au_fbend_dir(file);
 	for (bindex = au_fbstart(file); !err && bindex <= bend; bindex++) {
 		h_file = au_hf_dir(file, bindex);
@@ -483,7 +480,7 @@ static int do_test_empty(struct dentry *dentry, struct test_empty_arg *arg)
 
 	err = 0;
 	if (!au_opt_test(au_mntflags(dentry->d_sb), UDBA_NONE)
-	    && !h_file->f_dentry->d_inode->i_nlink)
+	    && !file_inode(h_file)->i_nlink)
 		goto out_put;
 
 	do {
