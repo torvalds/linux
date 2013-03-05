@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
