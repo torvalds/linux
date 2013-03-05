@@ -974,8 +974,8 @@ static bool efivarfs_valid_name(const char *str, int len)
 	if (len < GUID_LEN + 2)
 		return false;
 
-	/* GUID should be right after the first '-' */
-	if (s - 1 != strchr(str, '-'))
+	/* GUID must be preceded by a '-' */
+	if (*(s - 1) != '-')
 		return false;
 
 	/*
