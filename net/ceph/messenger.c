@@ -2819,18 +2819,21 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 			ceph_msg_put(msg);
 		return -EAGAIN;
 	}
-	con->in_msg = msg;
-	if (con->in_msg) {
+	if (msg) {
+		BUG_ON(*skip);
+		con->in_msg = msg;
 		con->in_msg->con = con->ops->get(con);
 		BUG_ON(con->in_msg->con == NULL);
-	}
-	if (*skip) {
-		con->in_msg = NULL;
-		return 0;
-	}
-	if (!con->in_msg) {
-		con->error_msg =
-			"error allocating memory for incoming message";
+	} else {
+		/*
+		 * Null message pointer means either we should skip
+		 * this message or we couldn't allocate memory.  The
+		 * former is not an error.
+		 */
+		if (*skip)
+			return 0;
+		con->error_msg = "error allocating memory for incoming message";
+
 		return -ENOMEM;
 	}
 	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
