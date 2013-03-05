@@ -493,4 +493,64 @@ struct nvme_admin_cmd {
 #define NVME_IOCTL_ADMIN_CMD	_IOWR('N', 0x41, struct nvme_admin_cmd)
 #define NVME_IOCTL_SUBMIT_IO	_IOW('N', 0x42, struct nvme_user_io)
 
+#ifdef __KERNEL__
+#include <linux/pci.h>
+
+#define NVME_IO_TIMEOUT	(5 * HZ)
+
+/*
+ * Represents an NVM Express device.  Each nvme_dev is a PCI function.
+ */
+struct nvme_dev {
+	struct list_head node;
+	struct nvme_queue **queues;
+	u32 __iomem *dbs;
+	struct pci_dev *pci_dev;
+	struct dma_pool *prp_page_pool;
+	struct dma_pool *prp_small_pool;
+	int instance;
+	int queue_count;
+	int db_stride;
+	u32 ctrl_config;
+	struct msix_entry *entry;
+	struct nvme_bar __iomem *bar;
+	struct list_head namespaces;
+	char serial[20];
+	char model[40];
+	char firmware_rev[8];
+	u32 max_hw_sectors;
+	u16 oncs;
+};
+
+/*
+ * An NVM Express namespace is equivalent to a SCSI LUN
+ */
+struct nvme_ns {
+	struct list_head list;
+
+	struct nvme_dev *dev;
+	struct request_queue *queue;
+	struct gendisk *disk;
+
+	int ns_id;
+	int lba_shift;
+};
+
+/*
+ * The nvme_iod describes the data in an I/O, including the list of PRP
+ * entries.  You can't see it in this data structure because C doesn't let
+ * me express that.  Use nvme_alloc_iod to ensure there's enough space
+ * allocated to store the PRP list.
+ */
+struct nvme_iod {
+	void *private;		/* For the use of the submitter of the I/O */
+	int npages;		/* In the PRP list. 0 means small pool in use */
+	int offset;		/* Of PRP list */
+	int nents;		/* Used in scatterlist */
+	int length;		/* Of data, in bytes */
+	dma_addr_t first_dma;
+	struct scatterlist sg[0];
+};
+#endif
+
 #endif /* _LINUX_NVME_H */

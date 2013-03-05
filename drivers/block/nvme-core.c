@@ -46,7 +46,6 @@
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define NVME_MINORS 64
-#define NVME_IO_TIMEOUT	(5 * HZ)
 #define ADMIN_TIMEOUT	(60 * HZ)
 
 static int nvme_major;
@@ -58,44 +57,6 @@ module_param(use_threaded_interrupts, int, 0);
 static DEFINE_SPINLOCK(dev_list_lock);
 static LIST_HEAD(dev_list);
 static struct task_struct *nvme_thread;
-
-/*
- * Represents an NVM Express device.  Each nvme_dev is a PCI function.
- */
-struct nvme_dev {
-	struct list_head node;
-	struct nvme_queue **queues;
-	u32 __iomem *dbs;
-	struct pci_dev *pci_dev;
-	struct dma_pool *prp_page_pool;
-	struct dma_pool *prp_small_pool;
-	int instance;
-	int queue_count;
-	int db_stride;
-	u32 ctrl_config;
-	struct msix_entry *entry;
-	struct nvme_bar __iomem *bar;
-	struct list_head namespaces;
-	char serial[20];
-	char model[40];
-	char firmware_rev[8];
-	u32 max_hw_sectors;
-	u16 oncs;
-};
-
-/*
- * An NVM Express namespace is equivalent to a SCSI LUN
- */
-struct nvme_ns {
-	struct list_head list;
-
-	struct nvme_dev *dev;
-	struct request_queue *queue;
-	struct gendisk *disk;
-
-	int ns_id;
-	int lba_shift;
-};
 
 /*
  * An NVM Express queue.  Each device has at least two (one for admin
@@ -294,22 +255,6 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 
 	return 0;
 }
-
-/*
- * The nvme_iod describes the data in an I/O, including the list of PRP
- * entries.  You can't see it in this data structure because C doesn't let
- * me express that.  Use nvme_alloc_iod to ensure there's enough space
- * allocated to store the PRP list.
- */
-struct nvme_iod {
-	void *private;		/* For the use of the submitter of the I/O */
-	int npages;		/* In the PRP list. 0 means small pool in use */
-	int offset;		/* Of PRP list */
-	int nents;		/* Used in scatterlist */
-	int length;		/* Of data, in bytes */
-	dma_addr_t first_dma;
-	struct scatterlist sg[0];
-};
 
 static __le64 **iod_list(struct nvme_iod *iod)
 {
