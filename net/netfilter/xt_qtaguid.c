@@ -1108,13 +1108,18 @@ static void iface_stat_create(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
+		bool activate = !ipv4_is_loopback(ipaddr);
 		IF_DEBUG("qtaguid: iface_stat: create(%s): entry=%p\n",
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		_iface_stat_set_active(entry, net_dev, true);
+		_iface_stat_set_active(entry, net_dev, activate);
 		IF_DEBUG("qtaguid: %s(%s): "
 			 "tracking now %d on ip=%pI4\n", __func__,
-			 entry->ifname, true, &ipaddr);
+			 entry->ifname, activate, &ipaddr);
+		goto done_unlock_put;
+	} else if (ipv4_is_loopback(ipaddr)) {
+		IF_DEBUG("qtaguid: iface_stat: create(%s): "
+			 "ignore loopback dev. ip=%pI4\n", ifname, &ipaddr);
 		goto done_unlock_put;
 	}
 
@@ -1165,13 +1170,19 @@ static void iface_stat_create_ipv6(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
+		bool activate = !(addr_type & IPV6_ADDR_LOOPBACK);
 		IF_DEBUG("qtaguid: %s(%s): entry=%p\n", __func__,
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		_iface_stat_set_active(entry, net_dev, true);
+		_iface_stat_set_active(entry, net_dev, activate);
 		IF_DEBUG("qtaguid: %s(%s): "
 			 "tracking now %d on ip=%pI6c\n", __func__,
-			 entry->ifname, true, &ifa->addr);
+			 entry->ifname, activate, &ifa->addr);
+		goto done_unlock_put;
+	} else if (addr_type & IPV6_ADDR_LOOPBACK) {
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "ignore loopback dev. ip=%pI6c\n", __func__,
+			 ifname, &ifa->addr);
 		goto done_unlock_put;
 	}
 
