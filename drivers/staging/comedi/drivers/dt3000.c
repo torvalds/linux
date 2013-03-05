@@ -63,17 +63,6 @@ AO commands are not supported.
 
 #include "comedi_fc.h"
 
-/*
- * PCI device id's supported by this driver
- */
-#define PCI_DEVICE_ID_DT3001		0x0022
-#define PCI_DEVICE_ID_DT3002		0x0023
-#define PCI_DEVICE_ID_DT3003		0x0024
-#define PCI_DEVICE_ID_DT3004		0x0025
-#define PCI_DEVICE_ID_DT3005		0x0026
-#define PCI_DEVICE_ID_DT3001_PGL	0x0027
-#define PCI_DEVICE_ID_DT3003_PGL	0x0028
-
 static const struct comedi_lrange range_dt3000_ai = {
 	4, {
 		BIP_RANGE(10),
@@ -92,9 +81,18 @@ static const struct comedi_lrange range_dt3000_ai_pgl = {
 	}
 };
 
+enum dt3k_boardid {
+	BOARD_DT3001,
+	BOARD_DT3001_PGL,
+	BOARD_DT3002,
+	BOARD_DT3003,
+	BOARD_DT3003_PGL,
+	BOARD_DT3004,
+	BOARD_DT3005,
+};
+
 struct dt3k_boardtype {
 	const char *name;
-	unsigned int device_id;
 	int adchan;
 	int adbits;
 	int ai_speed;
@@ -104,61 +102,60 @@ struct dt3k_boardtype {
 };
 
 static const struct dt3k_boardtype dt3k_boardtypes[] = {
-	{
+	[BOARD_DT3001] = {
 		.name		= "dt3001",
-		.device_id	= PCI_DEVICE_ID_DT3001,
 		.adchan		= 16,
 		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
 		.dachan		= 2,
 		.dabits		= 12,
-	}, {
+	},
+	[BOARD_DT3001_PGL] = {
 		.name		= "dt3001-pgl",
-		.device_id	= PCI_DEVICE_ID_DT3001_PGL,
 		.adchan		= 16,
 		.adbits		= 12,
 		.adrange	= &range_dt3000_ai_pgl,
 		.ai_speed	= 3000,
 		.dachan		= 2,
 		.dabits		= 12,
-	}, {
+	},
+	[BOARD_DT3002] = {
 		.name		= "dt3002",
-		.device_id	= PCI_DEVICE_ID_DT3002,
 		.adchan		= 32,
 		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
-	}, {
+	},
+	[BOARD_DT3003] = {
 		.name		= "dt3003",
-		.device_id	= PCI_DEVICE_ID_DT3003,
 		.adchan		= 64,
 		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
 		.dachan		= 2,
 		.dabits		= 12,
-	}, {
+	},
+	[BOARD_DT3003_PGL] = {
 		.name		= "dt3003-pgl",
-		.device_id	= PCI_DEVICE_ID_DT3003_PGL,
 		.adchan		= 64,
 		.adbits		= 12,
 		.adrange	= &range_dt3000_ai_pgl,
 		.ai_speed	= 3000,
 		.dachan		= 2,
 		.dabits		= 12,
-	}, {
+	},
+	[BOARD_DT3004] = {
 		.name		= "dt3004",
-		.device_id	= PCI_DEVICE_ID_DT3004,
 		.adchan		= 16,
 		.adbits		= 16,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 10000,
 		.dachan		= 2,
 		.dabits		= 12,
-	}, {
+	},
+	[BOARD_DT3005] = {
 		.name		= "dt3005",	/* a.k.a. 3004-200 */
-		.device_id 	= PCI_DEVICE_ID_DT3005,
 		.adchan		= 16,
 		.adbits		= 16,
 		.adrange	= &range_dt3000_ai,
@@ -716,31 +713,18 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static const void *dt3000_find_boardinfo(struct comedi_device *dev,
-					 struct pci_dev *pcidev)
-{
-	const struct dt3k_boardtype *this_board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dt3k_boardtypes); i++) {
-		this_board = &dt3k_boardtypes[i];
-		if (this_board->device_id == pcidev->device)
-			return this_board;
-	}
-	return NULL;
-}
-
 static int dt3000_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct dt3k_boardtype *this_board;
+	const struct dt3k_boardtype *this_board = NULL;
 	struct dt3k_private *devpriv;
 	struct comedi_subdevice *s;
 	resource_size_t pci_base;
 	int ret = 0;
 
-	this_board = dt3000_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(dt3k_boardtypes))
+		this_board = &dt3k_boardtypes[context];
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -859,13 +843,13 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001_PGL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3002) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3003) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3003_PGL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3004) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3005) },
+	{ PCI_VDEVICE(DT, 0x0022), BOARD_DT3001 },
+	{ PCI_VDEVICE(DT, 0x0023), BOARD_DT3002 },
+	{ PCI_VDEVICE(DT, 0x0024), BOARD_DT3003 },
+	{ PCI_VDEVICE(DT, 0x0025), BOARD_DT3004 },
+	{ PCI_VDEVICE(DT, 0x0026), BOARD_DT3005 },
+	{ PCI_VDEVICE(DT, 0x0027), BOARD_DT3001_PGL },
+	{ PCI_VDEVICE(DT, 0x0028), BOARD_DT3003_PGL },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, dt3000_pci_table);
