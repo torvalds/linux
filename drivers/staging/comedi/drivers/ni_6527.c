@@ -100,14 +100,6 @@ static const struct ni6527_board ni6527_boards[] = {
 
 #define this_board ((const struct ni6527_board *)dev->board_ptr)
 
-static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b10)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b20)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
-
 struct ni6527_private {
 	struct mite_struct *mite;
 	unsigned int filter_interval;
@@ -454,10 +446,17 @@ static int ni6527_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni6527_driver, id->driver_data);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b10) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b20) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
+
 static struct pci_driver ni6527_pci_driver = {
-	.name = DRIVER_NAME,
-	.id_table = ni6527_pci_table,
-	.probe = ni6527_pci_probe,
+	.name		= DRIVER_NAME,
+	.id_table	= ni6527_pci_table,
+	.probe		= ni6527_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni6527_driver, ni6527_pci_driver);
