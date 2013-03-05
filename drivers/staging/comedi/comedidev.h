@@ -387,7 +387,8 @@ struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
 int comedi_pci_enable(struct pci_dev *, const char *);
 void comedi_pci_disable(struct pci_dev *);
 
-int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *);
+int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
+			   unsigned long context);
 void comedi_pci_auto_unconfig(struct pci_dev *);
 
 int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);

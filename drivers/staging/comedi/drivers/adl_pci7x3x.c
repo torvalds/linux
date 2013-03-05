@@ -293,9 +293,10 @@ static struct comedi_driver adl_pci7x3x_driver = {
 };
 
 static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver);
+	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7x3x_pci_table) = {

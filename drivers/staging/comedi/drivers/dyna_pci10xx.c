@@ -273,9 +273,10 @@ static struct comedi_driver dyna_pci10xx_driver = {
 };
 
 static int dyna_pci10xx_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+				  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &dyna_pci10xx_driver);
+	return comedi_pci_auto_config(dev, &dyna_pci10xx_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {

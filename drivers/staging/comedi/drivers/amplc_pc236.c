@@ -610,9 +610,10 @@ static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 
 static int amplc_pc236_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &amplc_pc236_driver);
+	return comedi_pci_auto_config(dev, &amplc_pc236_driver,
+				      id->driver_data);
 }
 
 static struct pci_driver amplc_pc236_pci_driver = {

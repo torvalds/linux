@@ -1629,9 +1629,10 @@ static struct comedi_driver cb_pcidas_driver = {
 };
 
 static int cb_pcidas_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcidas_driver);
+	return comedi_pci_auto_config(dev, &cb_pcidas_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {

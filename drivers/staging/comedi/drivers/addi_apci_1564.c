@@ -47,9 +47,9 @@ static struct comedi_driver apci1564_driver = {
 };
 
 static int apci1564_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci1564_driver);
+	return comedi_pci_auto_config(dev, &apci1564_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1564_pci_table) = {

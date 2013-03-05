@@ -1416,9 +1416,9 @@ static struct comedi_driver rtd520_driver = {
 };
 
 static int rtd520_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &rtd520_driver);
+	return comedi_pci_auto_config(dev, &rtd520_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {

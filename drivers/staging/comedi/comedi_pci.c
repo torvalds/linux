@@ -72,13 +72,15 @@ EXPORT_SYMBOL_GPL(comedi_pci_disable);
  * comedi_pci_auto_config() - Configure/probe a comedi PCI driver.
  * @pcidev: pci_dev struct
  * @driver: comedi_driver struct
+ * @context: driver specific data, passed to comedi_auto_config()
  *
  * Typically called from the pci_driver (*probe) function.
  */
 int comedi_pci_auto_config(struct pci_dev *pcidev,
-			   struct comedi_driver *driver)
+			   struct comedi_driver *driver,
+			   unsigned long context)
 {
-	return comedi_auto_config(&pcidev->dev, driver, 0);
+	return comedi_auto_config(&pcidev->dev, driver, context);
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 

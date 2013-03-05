@@ -702,9 +702,9 @@ static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
 static int skel_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+			  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &skel_driver);
+	return comedi_pci_auto_config(dev, &skel_driver, id->driver_data);
 }
 
 static struct pci_driver skel_pci_driver = {

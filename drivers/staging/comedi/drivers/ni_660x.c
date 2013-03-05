@@ -1325,9 +1325,9 @@ static struct comedi_driver ni_660x_driver = {
 };
 
 static int ni_660x_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni_660x_driver);
+	return comedi_pci_auto_config(dev, &ni_660x_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {

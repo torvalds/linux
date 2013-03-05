@@ -959,9 +959,10 @@ static struct comedi_driver adl_pci9111_driver = {
 };
 
 static int pci9111_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
+	return comedi_pci_auto_config(dev, &adl_pci9111_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {

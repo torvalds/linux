@@ -795,9 +795,10 @@ static struct comedi_driver daqboard2000_driver = {
 };
 
 static int daqboard2000_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+				  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &daqboard2000_driver);
+	return comedi_pci_auto_config(dev, &daqboard2000_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {

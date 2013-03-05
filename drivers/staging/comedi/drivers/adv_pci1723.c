@@ -324,9 +324,10 @@ static struct comedi_driver adv_pci1723_driver = {
 };
 
 static int adv_pci1723_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adv_pci1723_driver);
+	return comedi_pci_auto_config(dev, &adv_pci1723_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1723_pci_table) = {

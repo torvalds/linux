@@ -449,9 +449,9 @@ static struct comedi_driver ni6527_driver = {
 };
 
 static int ni6527_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni6527_driver);
+	return comedi_pci_auto_config(dev, &ni6527_driver, id->driver_data);
 }
 
 static struct pci_driver ni6527_pci_driver = {

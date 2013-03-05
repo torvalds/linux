@@ -150,9 +150,9 @@ static struct comedi_driver apci2200_driver = {
 };
 
 static int apci2200_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci2200_driver);
+	return comedi_pci_auto_config(dev, &apci2200_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci2200_pci_table) = {

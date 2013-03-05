@@ -616,9 +616,9 @@ static struct comedi_driver me_daq_driver = {
 };
 
 static int me_daq_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &me_daq_driver);
+	return comedi_pci_auto_config(dev, &me_daq_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {

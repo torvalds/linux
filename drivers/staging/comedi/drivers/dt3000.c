@@ -853,9 +853,9 @@ static struct comedi_driver dt3000_driver = {
 };
 
 static int dt3000_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &dt3000_driver);
+	return comedi_pci_auto_config(dev, &dt3000_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {

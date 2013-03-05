@@ -2832,9 +2832,9 @@ static struct comedi_driver s626_driver = {
 };
 
 static int s626_pci_probe(struct pci_dev *dev,
-				    const struct pci_device_id *ent)
+			  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &s626_driver);
+	return comedi_pci_auto_config(dev, &s626_driver, id->driver_data);
 }
 
 /*
