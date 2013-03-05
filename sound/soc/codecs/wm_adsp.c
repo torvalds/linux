@@ -549,8 +549,9 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		buf_size = sizeof(adsp1_id);
 
 		algs = be32_to_cpu(adsp1_id.algs);
+		dsp->fw_id = be32_to_cpu(adsp1_id.fw.id);
 		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-			  be32_to_cpu(adsp1_id.fw.id),
+			  dsp->fw_id,
 			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff0000) >> 16,
 			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff00) >> 8,
 			  be32_to_cpu(adsp1_id.fw.ver) & 0xff,
@@ -573,8 +574,9 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		buf_size = sizeof(adsp2_id);
 
 		algs = be32_to_cpu(adsp2_id.algs);
+		dsp->fw_id = be32_to_cpu(adsp2_id.fw.id);
 		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-			  be32_to_cpu(adsp2_id.fw.id),
+			  dsp->fw_id,
 			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff0000) >> 16,
 			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff00) >> 8,
 			  be32_to_cpu(adsp2_id.fw.ver) & 0xff,
@@ -781,8 +783,24 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		case (WMFW_INFO_TEXT << 8):
 			break;
 		case (WMFW_ABSOLUTE << 8):
-			region_name = "register";
-			reg = offset;
+			/*
+			 * Old files may use this for global
+			 * coefficients.
+			 */
+			if (le32_to_cpu(blk->id) == dsp->fw_id &&
+			    offset == 0) {
+				region_name = "global coefficients";
+				mem = wm_adsp_find_region(dsp, type);
+				if (!mem) {
+					adsp_err(dsp, "No ZM\n");
+					break;
+				}
+				reg = wm_adsp_region_to_reg(mem, 0);
+
+			} else {
+				region_name = "register";
+				reg = offset;
+			}
 			break;
 
 		case WMFW_ADSP1_DM:
