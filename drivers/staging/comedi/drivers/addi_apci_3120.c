@@ -8,11 +8,14 @@
 
 #include "addi-data/hwdrv_apci3120.c"
 
+enum apci3120_boardid {
+	BOARD_APCI3120,
+	BOARD_APCI3001,
+};
+
 static const struct addi_board apci3120_boardtypes[] = {
-	{
+	[BOARD_APCI3120] = {
 		.pc_DriverName		= "apci3120",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
-		.i_DeviceId		= 0x818D,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -23,10 +26,9 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
 		.interrupt		= v_APCI3120_Interrupt,
-	}, {
+	},
+	[BOARD_APCI3001] = {
 		.pc_DriverName		= "apci3001",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
-		.i_DeviceId		= 0x828D,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -47,31 +49,17 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static const void *apci3120_find_boardinfo(struct comedi_device *dev,
-					   struct pci_dev *pcidev)
-{
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(apci3120_boardtypes); i++) {
-		this_board = &apci3120_boardtypes[i];
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-	}
-	return NULL;
-}
-
 static int apci3120_auto_attach(struct comedi_device *dev,
-					  unsigned long context_unused)
+				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
+	const struct addi_board *this_board = NULL;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i;
 
-	this_board = apci3120_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(apci3120_boardtypes))
+		this_board = &apci3120_boardtypes[context];
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -254,8 +242,8 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x818d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x828d) },
+	{ PCI_VDEVICE(ADDIDATA_OLD, 0x818d), BOARD_APCI3120 },
+	{ PCI_VDEVICE(ADDIDATA_OLD, 0x828d), BOARD_APCI3001 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci3120_pci_table);
