@@ -1059,6 +1059,80 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int
+mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
+				  struct mwifiex_mef_entry *mef_entry,
+				  u8 **buffer)
+{
+	struct mwifiex_mef_filter *filter = mef_entry->filter;
+	int i, byte_len;
+	u8 *stack_ptr = *buffer;
+
+	for (i = 0; i < MWIFIEX_MAX_FILTERS; i++) {
+		filter = &mef_entry->filter[i];
+		if (!filter->filt_type)
+			break;
+		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->repeat);
+		stack_ptr += 4;
+		*stack_ptr = TYPE_DNUM;
+		stack_ptr += 1;
+
+		byte_len = filter->byte_seq[MAX_BYTESEQ];
+		memcpy(stack_ptr, filter->byte_seq, byte_len);
+		stack_ptr += byte_len;
+		*stack_ptr = byte_len;
+		stack_ptr += 1;
+		*stack_ptr = TYPE_BYTESEQ;
+		stack_ptr += 1;
+
+		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->offset);
+		stack_ptr += 4;
+		*stack_ptr = TYPE_DNUM;
+		stack_ptr += 1;
+
+		*stack_ptr = filter->filt_type;
+		stack_ptr += 1;
+
+		if (filter->filt_action) {
+			*stack_ptr = filter->filt_action;
+			stack_ptr += 1;
+		}
+
+		if (stack_ptr - *buffer > STACK_NBYTES)
+			return -1;
+	}
+
+	*buffer = stack_ptr;
+	return 0;
+}
+
+static int
+mwifiex_cmd_mef_cfg(struct mwifiex_private *priv,
+		    struct host_cmd_ds_command *cmd,
+		    struct mwifiex_ds_mef_cfg *mef)
+{
+	struct host_cmd_ds_mef_cfg *mef_cfg = &cmd->params.mef_cfg;
+	u8 *pos = (u8 *)mef_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_MEF_CFG);
+
+	mef_cfg->criteria = cpu_to_le32(mef->criteria);
+	mef_cfg->num_entries = cpu_to_le16(mef->num_entries);
+	pos += sizeof(*mef_cfg);
+	mef_cfg->mef_entry->mode = mef->mef_entry->mode;
+	mef_cfg->mef_entry->action = mef->mef_entry->action;
+	pos += sizeof(*(mef_cfg->mef_entry));
+
+	if (mwifiex_cmd_append_rpn_expression(priv, mef->mef_entry, &pos))
+		return -1;
+
+	mef_cfg->mef_entry->exprsize =
+			cpu_to_le16(pos - mef_cfg->mef_entry->expr);
+	cmd->size = cpu_to_le16((u16) (pos - (u8 *)mef_cfg) + S_DS_GEN);
+
+	return 0;
+}
+
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1272,6 +1346,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
 		ret = mwifiex_cmd_802_11_subsc_evt(priv, cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_MEF_CFG:
+		ret = mwifiex_cmd_mef_cfg(priv, cmd_ptr, data_buf);
 		break;
 	default:
 		dev_err(priv->adapter->dev,

@@ -2294,6 +2294,149 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 }
 EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
 
+#ifdef CONFIG_PM
+static bool
+mwifiex_is_pattern_supported(struct cfg80211_wowlan_trig_pkt_pattern *pat,
+			     s8 *byte_seq)
+{
+	int j, k, valid_byte_cnt = 0;
+	bool dont_care_byte = false;
+
+	for (j = 0; j < DIV_ROUND_UP(pat->pattern_len, 8); j++) {
+		for (k = 0; k < 8; k++) {
+			if (pat->mask[j] & 1 << k) {
+				memcpy(byte_seq + valid_byte_cnt,
+				       &pat->pattern[j * 8 + k], 1);
+				valid_byte_cnt++;
+				if (dont_care_byte)
+					return false;
+			} else {
+				if (valid_byte_cnt)
+					dont_care_byte = true;
+			}
+
+			if (valid_byte_cnt > MAX_BYTESEQ)
+				return false;
+		}
+	}
+
+	byte_seq[MAX_BYTESEQ] = valid_byte_cnt;
+
+	return true;
+}
+
+static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
+				    struct cfg80211_wowlan *wowlan)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_ds_mef_cfg mef_cfg;
+	struct mwifiex_mef_entry *mef_entry;
+	int i, filt_num = 0, ret;
+	bool first_pat = true;
+	u8 byte_seq[MAX_BYTESEQ + 1];
+	const u8 ipv4_mc_mac[] = {0x33, 0x33};
+	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
+	struct mwifiex_private *priv =
+			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	if (!wowlan) {
+		dev_warn(adapter->dev, "None of the WOWLAN triggers enabled\n");
+		return 0;
+	}
+
+	if (!priv->media_connected) {
+		dev_warn(adapter->dev,
+			 "Can not configure WOWLAN in disconnected state\n");
+		return 0;
+	}
+
+	memset(&mef_cfg, 0, sizeof(mef_cfg));
+	mef_cfg.num_entries = 1;
+	mef_entry = kzalloc(sizeof(*mef_entry), GFP_KERNEL);
+	mef_cfg.mef_entry = mef_entry;
+	mef_entry->mode = MEF_MODE_HOST_SLEEP;
+	mef_entry->action = MEF_ACTION_ALLOW_AND_WAKEUP_HOST;
+
+	for (i = 0; i < wowlan->n_patterns; i++) {
+		memset(byte_seq, 0, sizeof(byte_seq));
+		if (!mwifiex_is_pattern_supported(&wowlan->patterns[i],
+						  byte_seq)) {
+			wiphy_err(wiphy, "Pattern not supported\n");
+			kfree(mef_entry);
+			return -EOPNOTSUPP;
+		}
+
+		if (!wowlan->patterns[i].pkt_offset) {
+			if (!(byte_seq[0] & 0x01) &&
+			    (byte_seq[MAX_BYTESEQ] == 1)) {
+				mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
+				continue;
+			} else if (is_broadcast_ether_addr(byte_seq)) {
+				mef_cfg.criteria |= MWIFIEX_CRITERIA_BROADCAST;
+				continue;
+			} else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
+				    (byte_seq[MAX_BYTESEQ] == 2)) ||
+				   (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
+				    (byte_seq[MAX_BYTESEQ] == 3))) {
+				mef_cfg.criteria |= MWIFIEX_CRITERIA_MULTICAST;
+				continue;
+			}
+		}
+
+		mef_entry->filter[filt_num].repeat = 1;
+		mef_entry->filter[filt_num].offset =
+						wowlan->patterns[i].pkt_offset;
+		memcpy(mef_entry->filter[filt_num].byte_seq, byte_seq,
+		       sizeof(byte_seq));
+		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
+
+		if (first_pat)
+			first_pat = false;
+		else
+			mef_entry->filter[filt_num].filt_action = TYPE_AND;
+
+		filt_num++;
+	}
+
+	if (wowlan->magic_pkt) {
+		mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
+		mef_entry->filter[filt_num].repeat = 16;
+		memcpy(mef_entry->filter[filt_num].byte_seq, priv->curr_addr,
+		       ETH_ALEN);
+		mef_entry->filter[filt_num].byte_seq[MAX_BYTESEQ] = ETH_ALEN;
+		mef_entry->filter[filt_num].offset = 14;
+		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
+		if (filt_num)
+			mef_entry->filter[filt_num].filt_action = TYPE_OR;
+	}
+
+	if (!mef_cfg.criteria)
+		mef_cfg.criteria = MWIFIEX_CRITERIA_BROADCAST |
+				   MWIFIEX_CRITERIA_UNICAST |
+				   MWIFIEX_CRITERIA_MULTICAST;
+
+	ret =  mwifiex_send_cmd_sync(priv, HostCmd_CMD_MEF_CFG,
+				     HostCmd_ACT_GEN_SET, 0,
+				     &mef_cfg);
+
+	kfree(mef_entry);
+	return ret;
+}
+
+static int mwifiex_cfg80211_resume(struct wiphy *wiphy)
+{
+	return 0;
+}
+
+static void mwifiex_cfg80211_set_wakeup(struct wiphy *wiphy,
+				       bool enabled)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+
+	device_set_wakeup_enable(adapter->dev, enabled);
+}
+#endif
+
 /* station cfg80211 operations */
 static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_virtual_intf = mwifiex_add_virtual_intf,
@@ -2322,6 +2465,11 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.change_beacon = mwifiex_cfg80211_change_beacon,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
+#ifdef CONFIG_PM
+	.suspend = mwifiex_cfg80211_suspend,
+	.resume = mwifiex_cfg80211_resume,
+	.set_wakeup = mwifiex_cfg80211_set_wakeup,
+#endif
 };
 
 /*
@@ -2379,6 +2527,14 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
+
+#ifdef CONFIG_PM
+	wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT;
+	wiphy->wowlan.n_patterns = MWIFIEX_MAX_FILTERS;
+	wiphy->wowlan.pattern_min_len = 1;
+	wiphy->wowlan.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN;
+	wiphy->wowlan.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN;
+#endif
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |

@@ -300,6 +300,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_802_11_TX_RATE_QUERY              0x007f
 #define HostCmd_CMD_802_11_IBSS_COALESCING_STATUS     0x0083
 #define HostCmd_CMD_VERSION_EXT                       0x0097
+#define HostCmd_CMD_MEF_CFG                           0x009a
 #define HostCmd_CMD_RSSI_INFO                         0x00a4
 #define HostCmd_CMD_FUNC_INIT                         0x00a9
 #define HostCmd_CMD_FUNC_SHUTDOWN                     0x00aa
@@ -472,6 +473,23 @@ enum P2P_MODES {
 
 #define EVENT_GET_BSS_TYPE(event_cause)         \
 	(((event_cause) >> 24) & 0x00ff)
+
+#define MWIFIEX_MAX_PATTERN_LEN		20
+#define MWIFIEX_MAX_OFFSET_LEN		50
+#define STACK_NBYTES			100
+#define TYPE_DNUM			1
+#define TYPE_BYTESEQ			2
+#define MAX_OPERAND			0x40
+#define TYPE_EQ				(MAX_OPERAND+1)
+#define TYPE_EQ_DNUM			(MAX_OPERAND+2)
+#define TYPE_EQ_BIT			(MAX_OPERAND+3)
+#define TYPE_AND			(MAX_OPERAND+4)
+#define TYPE_OR				(MAX_OPERAND+5)
+#define MEF_MODE_HOST_SLEEP			1
+#define MEF_ACTION_ALLOW_AND_WAKEUP_HOST	3
+#define MWIFIEX_CRITERIA_BROADCAST	BIT(0)
+#define MWIFIEX_CRITERIA_UNICAST	BIT(1)
+#define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -1503,6 +1521,19 @@ struct host_cmd_ds_802_11_ibss_status {
 	__le16 use_g_rate_protect;
 } __packed;
 
+struct mwifiex_fw_mef_entry {
+	u8 mode;
+	u8 action;
+	__le16 exprsize;
+	u8 expr[0];
+} __packed;
+
+struct host_cmd_ds_mef_cfg {
+	__le32 criteria;
+	__le16 num_entries;
+	struct mwifiex_fw_mef_entry mef_entry[0];
+} __packed;
+
 #define CONNECTION_TYPE_INFRA   0
 #define CONNECTION_TYPE_ADHOC   1
 #define CONNECTION_TYPE_AP      2
@@ -1607,6 +1638,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_remain_on_chan roc_cfg;
 		struct host_cmd_ds_p2p_mode_cfg mode_cfg;
 		struct host_cmd_ds_802_11_ibss_status ibss_coalescing;
+		struct host_cmd_ds_mef_cfg mef_cfg;
 		struct host_cmd_ds_mac_reg_access mac_reg;
 		struct host_cmd_ds_bbp_reg_access bbp_reg;
 		struct host_cmd_ds_rf_reg_access rf_reg;
