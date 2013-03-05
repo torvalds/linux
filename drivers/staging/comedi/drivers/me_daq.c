@@ -43,9 +43,6 @@
 
 #define ME2600_FIRMWARE		"me2600_firmware.bin"
 
-#define ME2000_DEVICE_ID	0x2000
-#define ME2600_DEVICE_ID	0x2600
-
 #define PLX_INTCSR		0x4C	/* PLX interrupt status register */
 #define XILINX_DOWNLOAD_RESET	0x42	/* Xilinx registers */
 
@@ -149,21 +146,26 @@ static const struct comedi_lrange me_ao_range = {
 	}
 };
 
+enum me_boardid {
+	BOARD_ME2600,
+	BOARD_ME2000,
+};
+
 struct me_board {
 	const char *name;
-	int device_id;
+	int needs_firmware;
 	int has_ao;
 };
 
 static const struct me_board me_boards[] = {
-	{
+	[BOARD_ME2600] = {
 		.name		= "me-2600i",
-		.device_id	= ME2600_DEVICE_ID,
+		.needs_firmware	= 1,
 		.has_ao		= 1,
-	}, {
+	},
+	[BOARD_ME2000] = {
 		.name		= "me-2000i",
-		.device_id	= ME2000_DEVICE_ID,
-	}
+	},
 };
 
 struct me_private_data {
@@ -488,30 +490,17 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *me_find_boardinfo(struct comedi_device *dev,
-				     struct pci_dev *pcidev)
-{
-	const struct me_board *board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
-		board = &me_boards[i];
-		if (board->device_id == pcidev->device)
-			return board;
-	}
-	return NULL;
-}
-
 static int me_auto_attach(struct comedi_device *dev,
-				    unsigned long context_unused)
+			  unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct me_board *board;
+	const struct me_board *board = NULL;
 	struct me_private_data *dev_private;
 	struct comedi_subdevice *s;
 	int ret;
 
-	board = me_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(me_boards))
+		board = &me_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
@@ -538,7 +527,7 @@ static int me_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	/* Download firmware and reset card */
-	if (board->device_id == ME2600_DEVICE_ID) {
+	if (board->needs_firmware) {
 		ret = me2600_upload_firmware(dev);
 		if (ret < 0)
 			return ret;
@@ -622,8 +611,8 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
+	{ PCI_VDEVICE(MEILHAUS, 0x2600), BOARD_ME2600 },
+	{ PCI_VDEVICE(MEILHAUS, 0x2000), BOARD_ME2000 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, me_daq_pci_table);
