@@ -162,7 +162,7 @@ int au_xigen_new(struct inode *inode)
 	file = sbinfo->si_xigen;
 	BUG_ON(!file);
 
-	if (i_size_read(file->f_dentry->d_inode)
+	if (vfsub_f_size_read(file)
 	    < pos + sizeof(inode->i_generation)) {
 		inode->i_generation = atomic_inc_return(&sbinfo->si_xigen_next);
 		sz = xino_fwrite(sbinfo->si_xwrite, file, &inode->i_generation,

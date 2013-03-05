@@ -68,10 +68,8 @@ loff_t au_dir_size(struct file *file, struct dentry *dentry)
 		     bindex <= bend && sz < KMALLOC_MAX_SIZE;
 		     bindex++) {
 			h_file = au_hf_dir(file, bindex);
-			if (h_file
-			    && h_file->f_dentry
-			    && h_file->f_dentry->d_inode)
-				sz += i_size_read(h_file->f_dentry->d_inode);
+			if (h_file && file_inode(h_file))
+				sz += vfsub_f_size_read(h_file);
 		}
 	} else {
 		AuDebugOn(!dentry);
