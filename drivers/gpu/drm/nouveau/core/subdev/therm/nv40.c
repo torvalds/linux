@@ -66,10 +66,11 @@ nv40_sensor_setup(struct nouveau_therm *therm)
 	if (style == NEW_STYLE) {
 		nv_mask(therm, 0x15b8, 0x80000000, 0);
 		nv_wr32(therm, 0x15b0, 0x80003fff);
-		mdelay(10); /* wait for the temperature to stabilize */
+		mdelay(20); /* wait for the temperature to stabilize */
 		return nv_rd32(therm, 0x15b4) & 0x3fff;
 	} else if (style == OLD_STYLE) {
 		nv_wr32(therm, 0x15b0, 0xff);
+		mdelay(20); /* wait for the temperature to stabilize */
 		return nv_rd32(therm, 0x15b4) & 0xff;
 	} else
 		return -ENODEV;
