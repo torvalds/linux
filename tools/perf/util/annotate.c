@@ -638,7 +638,9 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 	if (dl->offset != -1) {
 		const char *path = NULL;
-		double percent;
+		double percent, max_percent = 0.0;
+		double *ppercents = &percent;
+		int i, nr_percent = 1;
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
 		s64 offset = dl->offset;
@@ -647,10 +649,27 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
-		percent = disasm__calc_percent(notes, evsel->idx, offset,
-					       next ? next->offset : (s64) len,
-					       &path);
-		if (percent < min_pcnt)
+		if (symbol_conf.event_group &&
+		    perf_evsel__is_group_leader(evsel) &&
+		    evsel->nr_members > 1) {
+			nr_percent = evsel->nr_members;
+			ppercents = calloc(nr_percent, sizeof(double));
+			if (ppercents == NULL)
+				return -1;
+		}
+
+		for (i = 0; i < nr_percent; i++) {
+			percent = disasm__calc_percent(notes,
+						evsel->idx + i, offset,
+						next ? next->offset : (s64) len,
+						&path);
+
+			ppercents[i] = percent;
+			if (percent > max_percent)
+				max_percent = percent;
+		}
+
+		if (max_percent < min_pcnt)
 			return -1;
 
 		if (max_lines && printed >= max_lines)
@@ -665,7 +684,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			}
 		}
 
-		color = get_percent_color(percent);
+		color = get_percent_color(max_percent);
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -681,20 +700,35 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			}
 		}
 
-		color_fprintf(stdout, color, " %7.2f", percent);
+		for (i = 0; i < nr_percent; i++) {
+			percent = ppercents[i];
+			color = get_percent_color(percent);
+			color_fprintf(stdout, color, " %7.2f", percent);
+		}
+
 		printf(" :	");
 		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
 		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", dl->line);
+
+		if (ppercents != &percent)
+			free(ppercents);
+
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
+		int width = 8;
+
 		if (queue)
 			return -1;
 
+		if (symbol_conf.event_group &&
+		    perf_evsel__is_group_leader(evsel))
+			width *= evsel->nr_members;
+
 		if (!*dl->line)
-			printf("         :\n");
+			printf(" %*s:\n", width, " ");
 		else
-			printf("         :	%s\n", dl->line);
+			printf(" %*s:	%s\n", width, " ", dl->line);
 	}
 
 	return 0;
@@ -1077,6 +1111,8 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
+	int width = 8;
+	int namelen;
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1088,9 +1124,15 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 		d_filename = basename(filename);
 
 	len = symbol__size(sym);
+	namelen = strlen(d_filename);
 
-	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
-	printf("------------------------------------------------\n");
+	if (symbol_conf.event_group && perf_evsel__is_group_leader(evsel))
+		width *= evsel->nr_members;
+
+	printf(" %-*.*s|	Source code & Disassembly of %s\n",
+	       width, width, "Percent", d_filename);
+	printf("-%-*.*s-------------------------------------\n",
+	       width+namelen, width+namelen, graph_dotted_line);
 
 	if (verbose)
 		symbol__annotate_hits(sym, evsel);
