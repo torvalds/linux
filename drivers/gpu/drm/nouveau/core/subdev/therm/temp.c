@@ -123,7 +123,7 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 	case NOUVEAU_THERM_THRS_FANBOOST:
 		if (active) {
 			nouveau_therm_fan_set(therm, true, 100);
-			nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
+			nouveau_therm_fan_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
 		}
 		break;
 	case NOUVEAU_THERM_THRS_DOWNCLOCK:

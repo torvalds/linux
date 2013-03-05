@@ -134,7 +134,7 @@ nouveau_therm_alarm(struct nouveau_alarm *alarm)
 }
 
 int
-nouveau_therm_mode(struct nouveau_therm *therm, int mode)
+nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nouveau_device *device = nv_device(therm);
@@ -152,7 +152,7 @@ nouveau_therm_mode(struct nouveau_therm *therm, int mode)
 	if (priv->mode == mode)
 		return 0;
 
-	nv_info(therm, "Thermal management: %s\n", name[mode]);
+	nv_info(therm, "fan management: %s\n", name[mode]);
 	nouveau_therm_update(therm, mode);
 	return 0;
 }
@@ -213,7 +213,7 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 		priv->fan->bios.max_duty = value;
 		return 0;
 	case NOUVEAU_THERM_ATTR_FAN_MODE:
-		return nouveau_therm_mode(therm, value);
+		return nouveau_therm_fan_mode(therm, value);
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		priv->bios_sensor.thrs_fan_boost.temp = value;
 		priv->sensor.program_alarms(therm);
@@ -263,7 +263,7 @@ _nouveau_therm_init(struct nouveau_object *object)
 		return ret;
 
 	if (priv->suspend >= 0)
-		nouveau_therm_mode(therm, priv->mode);
+		nouveau_therm_fan_mode(therm, priv->mode);
 	priv->sensor.program_alarms(therm);
 	return 0;
 }
@@ -317,7 +317,7 @@ nouveau_therm_preinit(struct nouveau_therm *therm)
 	nouveau_therm_sensor_ctor(therm);
 	nouveau_therm_fan_ctor(therm);
 
-	nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_NONE);
+	nouveau_therm_fan_mode(therm, NOUVEAU_THERM_CTRL_NONE);
 	return 0;
 }
 
