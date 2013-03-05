@@ -259,10 +259,42 @@ static void acpi_scan_device_check(void *context)
 				   ACPI_NOTIFY_DEVICE_CHECK);
 }
 
-static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *not_used)
+static void acpi_hotplug_unsupported(acpi_handle handle, u32 type)
+{
+	u32 ost_status;
+
+	switch (type) {
+	case ACPI_NOTIFY_BUS_CHECK:
+		acpi_handle_debug(handle,
+			"ACPI_NOTIFY_BUS_CHECK event: unsupported\n");
+		ost_status = ACPI_OST_SC_INSERT_NOT_SUPPORTED;
+		break;
+	case ACPI_NOTIFY_DEVICE_CHECK:
+		acpi_handle_debug(handle,
+			"ACPI_NOTIFY_DEVICE_CHECK event: unsupported\n");
+		ost_status = ACPI_OST_SC_INSERT_NOT_SUPPORTED;
+		break;
+	case ACPI_NOTIFY_EJECT_REQUEST:
+		acpi_handle_debug(handle,
+			"ACPI_NOTIFY_EJECT_REQUEST event: unsupported\n");
+		ost_status = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+		break;
+	default:
+		/* non-hotplug event; possibly handled by other handler */
+		return;
+	}
+
+	acpi_evaluate_hotplug_ost(handle, type, ost_status, NULL);
+}
+
+static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 {
 	acpi_osd_exec_callback callback;
+	struct acpi_scan_handler *handler = data;
 	acpi_status status;
+
+	if (!handler->hotplug.enabled)
+		return acpi_hotplug_unsupported(handle, type);
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -1715,61 +1747,14 @@ static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
 	return NULL;
 }
 
-static acpi_status acpi_scan_hotplug_modify(acpi_handle handle,
-					    u32 lvl_not_used, void *data,
-					    void **ret_not_used)
-{
-	struct acpi_device_pnp pnp = {};
-	struct acpi_scan_handler *tgt_handler = data, *handler;
-	struct acpi_hardware_id *hwid;
-	unsigned long long sta_not_used;
-	int type;
-	bool match = false;
-
-	if (acpi_bus_type_and_status(handle, &type, &sta_not_used))
-		return AE_OK;
-
-	INIT_LIST_HEAD(&pnp.ids);
-	acpi_set_pnp_ids(handle, &pnp, type);
-
-	if (!pnp.type.hardware_id)
-		return AE_OK;
-
-	list_for_each_entry(hwid, &pnp.ids, list) {
-		handler = acpi_scan_match_handler(hwid->id, NULL);
-		if (handler && handler == tgt_handler) {
-			match = true;
-			break;
-		}
-	}
-	if (!match)
-		goto out;
-
-	if (handler->hotplug.enabled)
-		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					    acpi_hotplug_notify_cb, NULL);
-	else
-		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					   acpi_hotplug_notify_cb);
-
-out:
-	acpi_free_pnp_ids(&pnp);
-	return AE_OK;
-}
-
 void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val)
 {
-	struct acpi_scan_handler *handler;
-
 	if (!!hotplug->enabled == !!val)
 		return;
 
 	mutex_lock(&acpi_scan_lock);
 
 	hotplug->enabled = val;
-	handler = container_of(hotplug, struct acpi_scan_handler, hotplug);
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			    acpi_scan_hotplug_modify, NULL, handler, NULL);
 
 	mutex_unlock(&acpi_scan_lock);
 }
@@ -1793,10 +1778,8 @@ static void acpi_scan_init_hotplug(acpi_handle handle, int type)
 	list_for_each_entry(hwid, &pnp.ids, list) {
 		handler = acpi_scan_match_handler(hwid->id, NULL);
 		if (handler) {
-			if (handler->hotplug.enabled)
-				acpi_install_notify_handler(handle,
-					ACPI_SYSTEM_NOTIFY,
-					acpi_hotplug_notify_cb, NULL);
+			acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					acpi_hotplug_notify_cb, handler);
 			break;
 		}
 	}
