@@ -73,6 +73,8 @@ config LCD_A050VL01
 	bool "RGB A050VL01"
 config LCD_B101EW05
 	bool "RGB lcd  panel B101EW05"
+config LCD_RK3168M_B101EW05
+        bool "RGB lcd  panel LCD_RK3168M_B101EW05"
 config LCD_HJ050NA_06A
 	bool "RGB lcd  panel HJ050NA-06A"
 

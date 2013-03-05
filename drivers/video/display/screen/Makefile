@@ -38,6 +38,7 @@ obj-$(CONFIG_LCD_TX23D88VM) += lcd_tx23d88vm.o
 obj-$(CONFIG_LCD_AT070TN93)    += lcd_at070tn93.o
 obj-$(CONFIG_LCD_A050VL01)    += lcd_A050VL01.o
 obj-$(CONFIG_LCD_B101EW05)    += lcd_b101ew05.o
+obj-$(CONFIG_LCD_RK3168M_B101EW05) += lcd_hdmi_rk3168m_b101ew05.o
 obj-$(CONFIG_LCD_HJ050NA_06A)    += lcd_hj050na_06a.o
 obj-$(CONFIG_LCD_HSD100PXN_FOR_TDW851) += lcd_hsd100pxn_for_tdw851.o
 obj-$(CONFIG_LCD_HV070WSA100)    += lcd_hv070wsa.o
