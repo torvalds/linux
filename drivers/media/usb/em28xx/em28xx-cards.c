@@ -2249,7 +2249,7 @@ static int em28xx_initialize_mt9m111(struct em28xx *dev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
-		i2c_master_send(&dev->i2c_client, &regs[i][0], 3);
+		i2c_master_send(&dev->i2c_client[dev->def_i2c_bus], &regs[i][0], 3);
 
 	return 0;
 }
@@ -2276,7 +2276,7 @@ static int em28xx_initialize_mt9m001(struct em28xx *dev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
-		i2c_master_send(&dev->i2c_client, &regs[i][0], 3);
+		i2c_master_send(&dev->i2c_client[dev->def_i2c_bus], &regs[i][0], 3);
 
 	return 0;
 }
@@ -2294,10 +2294,10 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	u16 version;
 
 	/* Micron sensor detection */
-	dev->i2c_client.addr = 0xba >> 1;
+	dev->i2c_client[dev->def_i2c_bus].addr = 0xba >> 1;
 	cmd = 0;
-	i2c_master_send(&dev->i2c_client, &cmd, 1);
-	rc = i2c_master_recv(&dev->i2c_client, (char *)&version_be, 2);
+	i2c_master_send(&dev->i2c_client[dev->def_i2c_bus], &cmd, 1);
+	rc = i2c_master_recv(&dev->i2c_client[dev->def_i2c_bus], (char *)&version_be, 2);
 	if (rc != 2)
 		return -EINVAL;
 
@@ -2748,8 +2748,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 #endif
 		/* Call first TVeeprom */
 
-		dev->i2c_client.addr = 0xa0 >> 1;
-		tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
+		dev->i2c_client[dev->def_i2c_bus].addr = 0xa0 >> 1;
+		tveeprom_hauppauge_analog(&dev->i2c_client[dev->def_i2c_bus], &tv, dev->eedata);
 
 		dev->tuner_type = tv.tuner_type;
 
@@ -2841,15 +2841,15 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 	/* request some modules */
 	if (dev->board.has_msp34xx)
-		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"msp3400", 0, msp3400_addrs);
 
 	if (dev->board.decoder == EM28XX_SAA711X)
-		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"saa7115_auto", 0, saa711x_addrs);
 
 	if (dev->board.decoder == EM28XX_TVP5150)
-		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"tvp5150", 0, tvp5150_addrs);
 
 	if (dev->em28xx_sensor == EM28XX_MT9V011) {
@@ -2861,25 +2861,25 @@ static void em28xx_card_setup(struct em28xx *dev)
 		};
 
 		pdata.xtal = dev->sensor_xtal;
-		v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 				&mt9v011_info, NULL);
 	}
 
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
-		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"tvaudio", dev->board.tvaudio_addr, NULL);
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
-			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 				"tuner", dev->board.radio_addr, NULL);
 
 		if (has_demod)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner",
+				&dev->i2c_adap[dev->def_i2c_bus], "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
@@ -2887,13 +2887,13 @@ static void em28xx_card_setup(struct em28xx *dev)
 			struct v4l2_subdev *sd;
 
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner",
+				&dev->i2c_adap[dev->def_i2c_bus], "tuner",
 				0, v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
 				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
-			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 				"tuner", dev->tuner_addr, NULL);
 		}
 	}

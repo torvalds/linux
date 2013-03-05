@@ -157,6 +157,9 @@
 #define EM28XX_NUM_BUFS 5
 #define EM28XX_DVB_NUM_BUFS 5
 
+/* max number of I2C buses on em28xx devices */
+#define NUM_I2C_BUSES	2
+
 /* isoc transfers: number of packets for each buffer
    windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
@@ -507,10 +510,13 @@ struct em28xx {
 	int tuner_type;		/* type of the tuner */
 	int tuner_addr;		/* tuner address */
 	int tda9887_conf;
+
 	/* i2c i/o */
-	struct i2c_adapter i2c_adap;
-	struct i2c_client i2c_client;
+	struct i2c_adapter i2c_adap[NUM_I2C_BUSES];
+	struct i2c_client i2c_client[NUM_I2C_BUSES];
 	unsigned char eeprom_addrwidth_16bit:1;
+	int def_i2c_bus;	/* Default I2C bus */
+
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	int streaming_users;    /* Number of actively streaming users */

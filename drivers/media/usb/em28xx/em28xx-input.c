@@ -280,11 +280,12 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 
 static int em28xx_i2c_ir_handle_key(struct em28xx_IR *ir)
 {
+	struct em28xx *dev = ir->dev;
 	static u32 ir_key;
 	int rc;
 	struct i2c_client client;
 
-	client.adapter = &ir->dev->i2c_adap;
+	client.adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
 	client.addr = ir->i2c_dev_addr;
 
 	rc = ir->get_key_i2c(&client, &ir_key);
@@ -461,7 +462,7 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 	};
 
 	while (addr_list[i] != I2C_CLIENT_END) {
-		if (i2c_probe_func_quick_read(&dev->i2c_adap, addr_list[i]) == 1)
+		if (i2c_probe_func_quick_read(&dev->i2c_adap[dev->def_i2c_bus], addr_list[i]) == 1)
 			return addr_list[i];
 		i++;
 	}
