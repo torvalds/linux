@@ -2830,7 +2830,7 @@ EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
  * regulator_allow_bypass - allow the regulator to go into bypass mode
  *
  * @regulator: Regulator to configure
- * @allow: enable or disable bypass mode
+ * @enable: enable or disable bypass mode
  *
  * Allow the regulator to go into bypass mode if all other consumers
  * for the regulator also enable bypass mode and the machine
