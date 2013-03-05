@@ -165,7 +165,7 @@ struct file *au_xino_create2(struct file *base_file, struct file *copy_src)
 		goto out_dput;
 	}
 
-	path.mnt = base_file->f_vfsmnt;
+	path.mnt = base_file->f_path.mnt;
 	file = vfsub_dentry_open(&path,
 				 O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE
 				 /* | __FMODE_NONOTIFY */);
