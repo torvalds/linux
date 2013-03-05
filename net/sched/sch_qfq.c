@@ -298,6 +298,10 @@ static void qfq_update_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 	    new_num_classes == q->max_agg_classes - 1) /* agg no more full */
 		hlist_add_head(&agg->nonfull_next, &q->nonfull_aggs);
 
+	/* The next assignment may let
+	 * agg->initial_budget > agg->budgetmax
+	 * hold, we will take it into account in charge_actual_service().
+	 */
 	agg->budgetmax = new_num_classes * agg->lmax;
 	new_agg_weight = agg->class_weight * new_num_classes;
 	agg->inv_w = ONE_FP/new_agg_weight;
@@ -988,8 +992,13 @@ static inline struct sk_buff *qfq_peek_skb(struct qfq_aggregate *agg,
 /* Update F according to the actual service received by the aggregate. */
 static inline void charge_actual_service(struct qfq_aggregate *agg)
 {
-	/* compute the service received by the aggregate */
-	u32 service_received = agg->initial_budget - agg->budget;
+	/* Compute the service received by the aggregate, taking into
+	 * account that, after decreasing the number of classes in
+	 * agg, it may happen that
+	 * agg->initial_budget - agg->budget > agg->bugdetmax
+	 */
+	u32 service_received = min(agg->budgetmax,
+				   agg->initial_budget - agg->budget);
 
 	agg->F = agg->S + (u64)service_received * agg->inv_w;
 }
