@@ -66,8 +66,8 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_PRIMA2
 static const char *prima2_dt_match[] __initdata = {
-       "sirf,prima2",
-       NULL
+	"sirf,prima2",
+	NULL
 };
 
 DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
