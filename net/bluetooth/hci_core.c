@@ -2439,6 +2439,36 @@ static int hci_send_frame(struct sk_buff *skb)
 	return hdev->send(skb);
 }
 
+void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
+{
+	skb_queue_head_init(&req->cmd_q);
+	req->hdev = hdev;
+}
+
+int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	BT_DBG("length %u", skb_queue_len(&req->cmd_q));
+
+	/* Do not allow empty requests */
+	if (skb_queue_empty(&req->cmd_q))
+		return -EINVAL;
+
+	skb = skb_peek_tail(&req->cmd_q);
+	bt_cb(skb)->req.complete = complete;
+
+	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
+	skb_queue_splice_tail(&req->cmd_q, &hdev->cmd_q);
+	spin_unlock_irqrestore(&hdev->cmd_q.lock, flags);
+
+	queue_work(hdev->workqueue, &hdev->cmd_work);
+
+	return 0;
+}
+
 /* Send HCI command */
 int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 {
