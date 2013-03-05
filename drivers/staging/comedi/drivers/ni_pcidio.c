@@ -304,7 +304,6 @@ static const struct nidio_board nidio_boards[] = {
 	},
 };
 
-#define n_nidio_boards ARRAY_SIZE(nidio_boards)
 #define this_board ((const struct nidio_board *)dev->board_ptr)
 
 struct nidio96_private {
