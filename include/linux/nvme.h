@@ -546,6 +546,8 @@ struct nvme_ns {
 
 	int ns_id;
 	int lba_shift;
+	u64 mode_select_num_blocks;
+	u32 mode_select_block_len;
 };
 
 /*
@@ -563,6 +565,39 @@ struct nvme_iod {
 	dma_addr_t first_dma;
 	struct scatterlist sg[0];
 };
+
+/**
+ * nvme_free_iod - frees an nvme_iod
+ * @dev: The device that the I/O was submitted to
+ * @iod: The memory to free
+ */
+void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
+
+int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
+			struct nvme_iod *iod, int total_len, gfp_t gfp);
+struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
+				unsigned long addr, unsigned length);
+void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
+			struct nvme_iod *iod);
+struct nvme_queue *get_nvmeq(struct nvme_dev *dev);
+void put_nvmeq(struct nvme_queue *nvmeq);
+int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
+						u32 *result, unsigned timeout);
+int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
+int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
+							u32 *result);
+int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
+							dma_addr_t dma_addr);
+int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
+			dma_addr_t dma_addr, u32 *result);
+int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
+			dma_addr_t dma_addr, u32 *result);
+
+struct sg_io_hdr;
+
+int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
+int nvme_sg_get_version_num(int __user *ip);
+
 #endif
 
 #endif /* _LINUX_NVME_H */

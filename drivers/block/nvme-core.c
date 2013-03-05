@@ -39,7 +39,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-
+#include <scsi/sg.h>
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 
 #define NVME_Q_DEPTH 1024
@@ -224,12 +224,12 @@ static void *cancel_cmdid(struct nvme_queue *nvmeq, int cmdid,
 	return ctx;
 }
 
-static struct nvme_queue *get_nvmeq(struct nvme_dev *dev)
+struct nvme_queue *get_nvmeq(struct nvme_dev *dev)
 {
 	return dev->queues[get_cpu() + 1];
 }
 
-static void put_nvmeq(struct nvme_queue *nvmeq)
+void put_nvmeq(struct nvme_queue *nvmeq)
 {
 	put_cpu();
 }
@@ -290,7 +290,7 @@ nvme_alloc_iod(unsigned nseg, unsigned nbytes, gfp_t gfp)
 	return iod;
 }
 
-static void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod)
+void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod)
 {
 	const int last_prp = PAGE_SIZE / 8 - 1;
 	int i;
@@ -339,9 +339,8 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
-static int nvme_setup_prps(struct nvme_dev *dev,
-			struct nvme_common_command *cmd, struct nvme_iod *iod,
-			int total_len, gfp_t gfp)
+int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
+			struct nvme_iod *iod, int total_len, gfp_t gfp)
 {
 	struct dma_pool *pool;
 	int length = total_len;
@@ -512,7 +511,7 @@ static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return 0;
 }
 
-static int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
+int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
 {
 	int cmdid = alloc_cmdid(nvmeq, (void *)CMD_CTX_FLUSH,
 					special_completion, NVME_IO_TIMEOUT);
@@ -715,8 +714,8 @@ static void sync_completion(struct nvme_dev *dev, void *ctx,
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
  * if the result is positive, it's an NVM Express status code
  */
-static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
-			struct nvme_command *cmd, u32 *result, unsigned timeout)
+int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
+						u32 *result, unsigned timeout)
 {
 	int cmdid;
 	struct sync_cmd_info cmdinfo;
@@ -745,7 +744,7 @@ static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
 	return cmdinfo.status;
 }
 
-static int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
+int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 								u32 *result)
 {
 	return nvme_submit_sync_cmd(dev->queues[0], cmd, result, ADMIN_TIMEOUT);
@@ -818,7 +817,7 @@ static int adapter_delete_sq(struct nvme_dev *dev, u16 sqid)
 	return adapter_delete_queue(dev, nvme_admin_delete_sq, sqid);
 }
 
-static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
+int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
 							dma_addr_t dma_addr)
 {
 	struct nvme_command c;
@@ -832,7 +831,7 @@ static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
 	return nvme_submit_admin_cmd(dev, &c, NULL);
 }
 
-static int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
+int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
 					dma_addr_t dma_addr, u32 *result)
 {
 	struct nvme_command c;
@@ -846,8 +845,8 @@ static int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
 	return nvme_submit_admin_cmd(dev, &c, result);
 }
 
-static int nvme_set_features(struct nvme_dev *dev, unsigned fid,
-			unsigned dword11, dma_addr_t dma_addr, u32 *result)
+int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
+					dma_addr_t dma_addr, u32 *result)
 {
 	struct nvme_command c;
 
@@ -1065,7 +1064,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
+struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 				unsigned long addr, unsigned length)
 {
 	int i, err, count, nents, offset;
@@ -1121,7 +1120,7 @@ static struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 	return ERR_PTR(err);
 }
 
-static void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
+void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 			struct nvme_iod *iod)
 {
 	int i;
@@ -1257,6 +1256,10 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		return nvme_user_admin_cmd(ns->dev, (void __user *)arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
+	case SG_GET_VERSION_NUM:
+		return nvme_sg_get_version_num((void __user *)arg);
+	case SG_IO:
+		return nvme_sg_io(ns, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
