@@ -294,6 +294,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			       btrfs_dev_extent_chunk_offset(l, dev_extent),
 			       (unsigned long long)
 			       btrfs_dev_extent_length(l, dev_extent));
+			break;
 		case BTRFS_DEV_STATS_KEY:
 			printk(KERN_INFO "\t\tdevice stats\n");
 			break;

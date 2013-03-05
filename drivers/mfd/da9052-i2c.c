@@ -60,7 +60,7 @@ static inline bool i2c_safe_reg(unsigned char reg)
  * This fix is to follow any read or write with a dummy read to a safe
  * register.
  */
-int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
+static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 {
 	int val;
 
@@ -85,7 +85,6 @@ int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 
 	return 0;
 }
-EXPORT_SYMBOL(da9052_i2c_fix);
 
 static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 {

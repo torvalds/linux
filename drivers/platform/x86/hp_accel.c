@@ -337,7 +337,7 @@ static int lis3lv02d_add(struct acpi_device *device)
 	return ret;
 }
 
-static int lis3lv02d_remove(struct acpi_device *device, int type)
+static int lis3lv02d_remove(struct acpi_device *device)
 {
 	if (!device)
 		return -EINVAL;

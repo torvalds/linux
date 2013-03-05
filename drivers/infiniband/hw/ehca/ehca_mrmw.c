@@ -688,7 +688,7 @@ dereg_mr_exit0:
 
 /*----------------------------------------------------------------------*/
 
-struct ib_mw *ehca_alloc_mw(struct ib_pd *pd)
+struct ib_mw *ehca_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct ib_mw *ib_mw;
 	u64 h_ret;
@@ -697,6 +697,9 @@ struct ib_mw *ehca_alloc_mw(struct ib_pd *pd)
 	struct ehca_shca *shca =
 		container_of(pd->device, struct ehca_shca, ib_device);
 	struct ehca_mw_hipzout_parms hipzout;
+
+	if (type != IB_MW_TYPE_1)
+		return ERR_PTR(-EINVAL);
 
 	e_mw = ehca_mw_new();
 	if (!e_mw) {

@@ -78,15 +78,16 @@ nve0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 }
 
 static void
-nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst)
+nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst,
+		struct nouveau_object *engctx)
 {
 	u32 trap = nv_rd32(priv, 0x400108);
 	int rop;
 
 	if (trap & 0x00000001) {
 		u32 stat = nv_rd32(priv, 0x404000);
-		nv_error(priv, "DISPATCH ch %d [0x%010llx] 0x%08x\n",
-			 chid, inst, stat);
+		nv_error(priv, "DISPATCH ch %d [0x%010llx %s] 0x%08x\n",
+			 chid, inst, nouveau_client_name(engctx), stat);
 		nv_wr32(priv, 0x404000, 0xc0000000);
 		nv_wr32(priv, 0x400108, 0x00000001);
 		trap &= ~0x00000001;
@@ -94,8 +95,8 @@ nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst)
 
 	if (trap & 0x00000010) {
 		u32 stat = nv_rd32(priv, 0x405840);
-		nv_error(priv, "SHADER ch %d [0x%010llx] 0x%08x\n",
-			 chid, inst, stat);
+		nv_error(priv, "SHADER ch %d [0x%010llx %s] 0x%08x\n",
+			 chid, inst, nouveau_client_name(engctx), stat);
 		nv_wr32(priv, 0x405840, 0xc0000000);
 		nv_wr32(priv, 0x400108, 0x00000010);
 		trap &= ~0x00000010;
@@ -105,8 +106,10 @@ nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst)
 		for (rop = 0; rop < priv->rop_nr; rop++) {
 			u32 statz = nv_rd32(priv, ROP_UNIT(rop, 0x070));
 			u32 statc = nv_rd32(priv, ROP_UNIT(rop, 0x144));
-			nv_error(priv, "ROP%d ch %d [0x%010llx] 0x%08x 0x%08x\n",
-				 rop, chid, inst, statz, statc);
+			nv_error(priv,
+				 "ROP%d ch %d [0x%010llx %s] 0x%08x 0x%08x\n",
+				 rop, chid, inst, nouveau_client_name(engctx),
+				 statz, statc);
 			nv_wr32(priv, ROP_UNIT(rop, 0x070), 0xc0000000);
 			nv_wr32(priv, ROP_UNIT(rop, 0x144), 0xc0000000);
 		}
@@ -115,8 +118,8 @@ nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst)
 	}
 
 	if (trap) {
-		nv_error(priv, "TRAP ch %d [0x%010llx] 0x%08x\n",
-			 chid, inst, trap);
+		nv_error(priv, "TRAP ch %d [0x%010llx %s] 0x%08x\n",
+			 chid, inst, nouveau_client_name(engctx), trap);
 		nv_wr32(priv, 0x400108, trap);
 	}
 }
@@ -145,10 +148,10 @@ nve0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00000010) {
 		handle = nouveau_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
-			nv_error(priv, "ILLEGAL_MTHD ch %d [0x%010llx] "
-				     "subc %d class 0x%04x mthd 0x%04x "
-				     "data 0x%08x\n",
-				 chid, inst, subc, class, mthd, data);
+			nv_error(priv,
+				 "ILLEGAL_MTHD ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+				 chid, inst, nouveau_client_name(engctx), subc,
+				 class, mthd, data);
 		}
 		nouveau_handle_put(handle);
 		nv_wr32(priv, 0x400100, 0x00000010);
@@ -156,9 +159,10 @@ nve0_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00000020) {
-		nv_error(priv, "ILLEGAL_CLASS ch %d [0x%010llx] subc %d "
-			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, inst, subc, class, mthd, data);
+		nv_error(priv,
+			 "ILLEGAL_CLASS ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, inst, nouveau_client_name(engctx), subc, class,
+			 mthd, data);
 		nv_wr32(priv, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
@@ -166,15 +170,15 @@ nve0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00100000) {
 		nv_error(priv, "DATA_ERROR [");
 		nouveau_enum_print(nv50_data_error_names, code);
-		printk("] ch %d [0x%010llx] subc %d class 0x%04x "
-		       "mthd 0x%04x data 0x%08x\n",
-		       chid, inst, subc, class, mthd, data);
+		pr_cont("] ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			chid, inst, nouveau_client_name(engctx), subc, class,
+			mthd, data);
 		nv_wr32(priv, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
-		nve0_graph_trap_isr(priv, chid, inst);
+		nve0_graph_trap_isr(priv, chid, inst, engctx);
 		nv_wr32(priv, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
 	}

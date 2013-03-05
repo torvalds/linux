@@ -354,7 +354,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	struct dma_async_tx_descriptor *desc;
 	struct scatterlist *sgl = data->sg, *sg;
 	unsigned int sg_len = data->sg_len;
-	int i;
+	unsigned int i;
 
 	unsigned short dma_data_dir, timeout;
 	enum dma_transfer_direction slave_dirn;
@@ -614,9 +614,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
-	ssp->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!ssp->base) {
-		ret = -EADDRNOTAVAIL;
+	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(ssp->base)) {
+		ret = PTR_ERR(ssp->base);
 		goto out_mmc_free;
 	}
 
@@ -804,3 +804,4 @@ module_platform_driver(mxs_mmc_driver);
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

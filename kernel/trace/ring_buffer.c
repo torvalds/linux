@@ -3,8 +3,10 @@
  *
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
+#include <linux/ftrace_event.h>
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
+#include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -21,7 +23,6 @@
 #include <linux/fs.h>
 
 #include <asm/local.h>
-#include "trace.h"
 
 static void update_pages_handler(struct work_struct *work);
 
@@ -177,13 +178,15 @@ void tracing_off_permanent(void)
 #define RB_MAX_SMALL_DATA	(RB_ALIGNMENT * RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 #define RB_EVNT_MIN_SIZE	8U	/* two 32bit words */
 
-#if !defined(CONFIG_64BIT) || defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+#ifndef CONFIG_HAVE_64BIT_ALIGNED_ACCESS
 # define RB_FORCE_8BYTE_ALIGNMENT	0
 # define RB_ARCH_ALIGNMENT		RB_ALIGNMENT
 #else
 # define RB_FORCE_8BYTE_ALIGNMENT	1
 # define RB_ARCH_ALIGNMENT		8U
 #endif
+
+#define RB_ALIGN_DATA		__aligned(RB_ARCH_ALIGNMENT)
 
 /* define RINGBUF_TYPE_DATA for 'case RINGBUF_TYPE_DATA:' */
 #define RINGBUF_TYPE_DATA 0 ... RINGBUF_TYPE_DATA_TYPE_LEN_MAX
@@ -333,7 +336,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
 	local_t		 commit;	/* write committed index */
-	unsigned char	 data[];	/* data of buffer page */
+	unsigned char	 data[] RB_ALIGN_DATA;	/* data of buffer page */
 };
 
 /*
@@ -2432,41 +2435,76 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 #ifdef CONFIG_TRACING
 
-#define TRACE_RECURSIVE_DEPTH 16
+/*
+ * The lock and unlock are done within a preempt disable section.
+ * The current_context per_cpu variable can only be modified
+ * by the current task between lock and unlock. But it can
+ * be modified more than once via an interrupt. To pass this
+ * information from the lock to the unlock without having to
+ * access the 'in_interrupt()' functions again (which do show
+ * a bit of overhead in something as critical as function tracing,
+ * we use a bitmask trick.
+ *
+ *  bit 0 =  NMI context
+ *  bit 1 =  IRQ context
+ *  bit 2 =  SoftIRQ context
+ *  bit 3 =  normal context.
+ *
+ * This works because this is the order of contexts that can
+ * preempt other contexts. A SoftIRQ never preempts an IRQ
+ * context.
+ *
+ * When the context is determined, the corresponding bit is
+ * checked and set (if it was set, then a recursion of that context
+ * happened).
+ *
+ * On unlock, we need to clear this bit. To do so, just subtract
+ * 1 from the current_context and AND it to itself.
+ *
+ * (binary)
+ *  101 - 1 = 100
+ *  101 & 100 = 100 (clearing bit zero)
+ *
+ *  1010 - 1 = 1001
+ *  1010 & 1001 = 1000 (clearing bit 1)
+ *
+ * The least significant bit can be cleared this way, and it
+ * just so happens that it is the same bit corresponding to
+ * the current context.
+ */
+static DEFINE_PER_CPU(unsigned int, current_context);
 
-/* Keep this code out of the fast path cache */
-static noinline void trace_recursive_fail(void)
+static __always_inline int trace_recursive_lock(void)
 {
-	/* Disable all tracing before we do anything else */
-	tracing_off_permanent();
+	unsigned int val = this_cpu_read(current_context);
+	int bit;
 
-	printk_once(KERN_WARNING "Tracing recursion: depth[%ld]:"
-		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
-		    trace_recursion_buffer(),
-		    hardirq_count() >> HARDIRQ_SHIFT,
-		    softirq_count() >> SOFTIRQ_SHIFT,
-		    in_nmi());
+	if (in_interrupt()) {
+		if (in_nmi())
+			bit = 0;
+		else if (in_irq())
+			bit = 1;
+		else
+			bit = 2;
+	} else
+		bit = 3;
 
-	WARN_ON_ONCE(1);
+	if (unlikely(val & (1 << bit)))
+		return 1;
+
+	val |= (1 << bit);
+	this_cpu_write(current_context, val);
+
+	return 0;
 }
 
-static inline int trace_recursive_lock(void)
+static __always_inline void trace_recursive_unlock(void)
 {
-	trace_recursion_inc();
+	unsigned int val = this_cpu_read(current_context);
 
-	if (likely(trace_recursion_buffer() < TRACE_RECURSIVE_DEPTH))
-		return 0;
-
-	trace_recursive_fail();
-
-	return -1;
-}
-
-static inline void trace_recursive_unlock(void)
-{
-	WARN_ON_ONCE(!trace_recursion_buffer());
-
-	trace_recursion_dec();
+	val--;
+	val &= this_cpu_read(current_context);
+	this_cpu_write(current_context, val);
 }
 
 #else
@@ -3067,6 +3105,24 @@ ring_buffer_dropped_events_cpu(struct ring_buffer *buffer, int cpu)
 EXPORT_SYMBOL_GPL(ring_buffer_dropped_events_cpu);
 
 /**
+ * ring_buffer_read_events_cpu - get the number of events successfully read
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of events read
+ */
+unsigned long
+ring_buffer_read_events_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	return cpu_buffer->read;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_read_events_cpu);
+
+/**
  * ring_buffer_entries - get the number of entries in a buffer
  * @buffer: The ring buffer
  *
@@ -3425,7 +3481,7 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 	/* check for end of page padding */
 	if ((iter->head >= rb_page_size(iter->head_page)) &&
 	    (iter->head_page != cpu_buffer->commit_page))
-		rb_advance_iter(iter);
+		rb_inc_iter(iter);
 }
 
 static int rb_lost_events(struct ring_buffer_per_cpu *cpu_buffer)

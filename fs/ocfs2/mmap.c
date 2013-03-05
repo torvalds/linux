@@ -62,7 +62,7 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
 				struct page *page)
 {
 	int ret = VM_FAULT_NOPAGE;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	loff_t pos = page_offset(page);
 	unsigned int len = PAGE_CACHE_SIZE;
@@ -131,7 +131,7 @@ out:
 static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	struct buffer_head *di_bh = NULL;
 	sigset_t oldset;
 	int ret;
@@ -180,13 +180,13 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret = 0, lock_level = 0;
 
-	ret = ocfs2_inode_lock_atime(file->f_dentry->d_inode,
-				    file->f_vfsmnt, &lock_level);
+	ret = ocfs2_inode_lock_atime(file_inode(file),
+				    file->f_path.mnt, &lock_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
 	}
-	ocfs2_inode_unlock(file->f_dentry->d_inode, lock_level);
+	ocfs2_inode_unlock(file_inode(file), lock_level);
 out:
 	vma->vm_ops = &ocfs2_file_vm_ops;
 	return 0;

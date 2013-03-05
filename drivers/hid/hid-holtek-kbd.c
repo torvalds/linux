@@ -167,17 +167,6 @@ static struct hid_driver holtek_kbd_driver = {
 	.report_fixup = holtek_kbd_report_fixup,
 	.probe = holtek_kbd_probe
 };
+module_hid_driver(holtek_kbd_driver);
 
-static int __init holtek_kbd_init(void)
-{
-	return hid_register_driver(&holtek_kbd_driver);
-}
-
-static void __exit holtek_kbd_exit(void)
-{
-	hid_unregister_driver(&holtek_kbd_driver);
-}
-
-module_exit(holtek_kbd_exit);
-module_init(holtek_kbd_init);
 MODULE_LICENSE("GPL");

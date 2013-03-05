@@ -491,6 +491,9 @@ static int __init kvmppc_e500_init(void)
 {
 	int r, i;
 	unsigned long ivor[3];
+	/* Process remaining handlers above the generic first 16 */
+	unsigned long *handler = &kvmppc_booke_handler_addr[16];
+	unsigned long handler_len;
 	unsigned long max_ivor = 0;
 
 	r = kvmppc_core_check_processor_compat();
@@ -506,15 +509,16 @@ static int __init kvmppc_e500_init(void)
 	ivor[1] = mfspr(SPRN_IVOR33);
 	ivor[2] = mfspr(SPRN_IVOR34);
 	for (i = 0; i < 3; i++) {
-		if (ivor[i] > max_ivor)
-			max_ivor = ivor[i];
+		if (ivor[i] > ivor[max_ivor])
+			max_ivor = i;
 
+		handler_len = handler[i + 1] - handler[i];
 		memcpy((void *)kvmppc_booke_handlers + ivor[i],
-		       kvmppc_handlers_start + (i + 16) * kvmppc_handler_len,
-		       kvmppc_handler_len);
+		       (void *)handler[i], handler_len);
 	}
-	flush_icache_range(kvmppc_booke_handlers,
-			kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
+	handler_len = handler[max_ivor + 1] - handler[max_ivor];
+	flush_icache_range(kvmppc_booke_handlers, kvmppc_booke_handlers +
+			   ivor[max_ivor] + handler_len);
 
 	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 }

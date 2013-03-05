@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2013 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -34,13 +34,14 @@
 static const uint8_t batadv_announce_mac[4] = {0x43, 0x05, 0x43, 0x05};
 
 static void batadv_bla_periodic_work(struct work_struct *work);
-static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
-				     struct batadv_backbone_gw *backbone_gw);
+static void
+batadv_bla_send_announce(struct batadv_priv *bat_priv,
+			 struct batadv_bla_backbone_gw *backbone_gw);
 
 /* return the index of the claim */
 static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 {
-	struct batadv_claim *claim = (struct batadv_claim *)data;
+	struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
 	uint32_t hash = 0;
 
 	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
@@ -57,7 +58,7 @@ static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 static inline uint32_t batadv_choose_backbone_gw(const void *data,
 						 uint32_t size)
 {
-	struct batadv_claim *claim = (struct batadv_claim *)data;
+	const struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
 	uint32_t hash = 0;
 
 	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
@@ -75,9 +76,9 @@ static inline uint32_t batadv_choose_backbone_gw(const void *data,
 static int batadv_compare_backbone_gw(const struct hlist_node *node,
 				      const void *data2)
 {
-	const void *data1 = container_of(node, struct batadv_backbone_gw,
+	const void *data1 = container_of(node, struct batadv_bla_backbone_gw,
 					 hash_entry);
-	const struct batadv_backbone_gw *gw1 = data1, *gw2 = data2;
+	const struct batadv_bla_backbone_gw *gw1 = data1, *gw2 = data2;
 
 	if (!batadv_compare_eth(gw1->orig, gw2->orig))
 		return 0;
@@ -92,9 +93,9 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 static int batadv_compare_claim(const struct hlist_node *node,
 				const void *data2)
 {
-	const void *data1 = container_of(node, struct batadv_claim,
+	const void *data1 = container_of(node, struct batadv_bla_claim,
 					 hash_entry);
-	const struct batadv_claim *cl1 = data1, *cl2 = data2;
+	const struct batadv_bla_claim *cl1 = data1, *cl2 = data2;
 
 	if (!batadv_compare_eth(cl1->addr, cl2->addr))
 		return 0;
@@ -106,7 +107,8 @@ static int batadv_compare_claim(const struct hlist_node *node,
 }
 
 /* free a backbone gw */
-static void batadv_backbone_gw_free_ref(struct batadv_backbone_gw *backbone_gw)
+static void
+batadv_backbone_gw_free_ref(struct batadv_bla_backbone_gw *backbone_gw)
 {
 	if (atomic_dec_and_test(&backbone_gw->refcount))
 		kfree_rcu(backbone_gw, rcu);
@@ -115,16 +117,16 @@ static void batadv_backbone_gw_free_ref(struct batadv_backbone_gw *backbone_gw)
 /* finally deinitialize the claim */
 static void batadv_claim_free_rcu(struct rcu_head *rcu)
 {
-	struct batadv_claim *claim;
+	struct batadv_bla_claim *claim;
 
-	claim = container_of(rcu, struct batadv_claim, rcu);
+	claim = container_of(rcu, struct batadv_bla_claim, rcu);
 
 	batadv_backbone_gw_free_ref(claim->backbone_gw);
 	kfree(claim);
 }
 
 /* free a claim, call claim_free_rcu if its the last reference */
-static void batadv_claim_free_ref(struct batadv_claim *claim)
+static void batadv_claim_free_ref(struct batadv_bla_claim *claim)
 {
 	if (atomic_dec_and_test(&claim->refcount))
 		call_rcu(&claim->rcu, batadv_claim_free_rcu);
@@ -136,14 +138,14 @@ static void batadv_claim_free_ref(struct batadv_claim *claim)
  * looks for a claim in the hash, and returns it if found
  * or NULL otherwise.
  */
-static struct batadv_claim *batadv_claim_hash_find(struct batadv_priv *bat_priv,
-						   struct batadv_claim *data)
+static struct batadv_bla_claim
+*batadv_claim_hash_find(struct batadv_priv *bat_priv,
+			struct batadv_bla_claim *data)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.claim_hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
-	struct batadv_claim *claim;
-	struct batadv_claim *claim_tmp = NULL;
+	struct batadv_bla_claim *claim;
+	struct batadv_bla_claim *claim_tmp = NULL;
 	int index;
 
 	if (!hash)
@@ -153,7 +155,7 @@ static struct batadv_claim *batadv_claim_hash_find(struct batadv_priv *bat_priv,
 	head = &hash->table[index];
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
+	hlist_for_each_entry_rcu(claim, head, hash_entry) {
 		if (!batadv_compare_claim(&claim->hash_entry, data))
 			continue;
 
@@ -176,15 +178,14 @@ static struct batadv_claim *batadv_claim_hash_find(struct batadv_priv *bat_priv,
  *
  * Returns claim if found or NULL otherwise.
  */
-static struct batadv_backbone_gw *
+static struct batadv_bla_backbone_gw *
 batadv_backbone_hash_find(struct batadv_priv *bat_priv,
 			  uint8_t *addr, short vid)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
-	struct batadv_backbone_gw search_entry, *backbone_gw;
-	struct batadv_backbone_gw *backbone_gw_tmp = NULL;
+	struct batadv_bla_backbone_gw search_entry, *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw_tmp = NULL;
 	int index;
 
 	if (!hash)
@@ -197,7 +198,7 @@ batadv_backbone_hash_find(struct batadv_priv *bat_priv,
 	head = &hash->table[index];
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+	hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 		if (!batadv_compare_backbone_gw(&backbone_gw->hash_entry,
 						&search_entry))
 			continue;
@@ -215,12 +216,12 @@ batadv_backbone_hash_find(struct batadv_priv *bat_priv,
 
 /* delete all claims for a backbone */
 static void
-batadv_bla_del_backbone_claims(struct batadv_backbone_gw *backbone_gw)
+batadv_bla_del_backbone_claims(struct batadv_bla_backbone_gw *backbone_gw)
 {
 	struct batadv_hashtable *hash;
-	struct hlist_node *node, *node_tmp;
+	struct hlist_node *node_tmp;
 	struct hlist_head *head;
-	struct batadv_claim *claim;
+	struct batadv_bla_claim *claim;
 	int i;
 	spinlock_t *list_lock;	/* protects write access to the hash lists */
 
@@ -233,14 +234,13 @@ batadv_bla_del_backbone_claims(struct batadv_backbone_gw *backbone_gw)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(claim, node, node_tmp,
+		hlist_for_each_entry_safe(claim, node_tmp,
 					  head, hash_entry) {
-
 			if (claim->backbone_gw != backbone_gw)
 				continue;
 
 			batadv_claim_free_ref(claim);
-			hlist_del_rcu(node);
+			hlist_del_rcu(&claim->hash_entry);
 		}
 		spin_unlock_bh(list_lock);
 	}
@@ -338,7 +338,6 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 			   "bla_send_claim(): REQUEST of %pM to %pMon vid %d\n",
 			   ethhdr->h_source, ethhdr->h_dest, vid);
 		break;
-
 	}
 
 	if (vid != -1)
@@ -366,11 +365,11 @@ out:
  * searches for the backbone gw or creates a new one if it could not
  * be found.
  */
-static struct batadv_backbone_gw *
+static struct batadv_bla_backbone_gw *
 batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 			   short vid, bool own_backbone)
 {
-	struct batadv_backbone_gw *entry;
+	struct batadv_bla_backbone_gw *entry;
 	struct batadv_orig_node *orig_node;
 	int hash_added;
 
@@ -437,7 +436,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 				  struct batadv_hard_iface *primary_if,
 				  short vid)
 {
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 
 	backbone_gw = batadv_bla_get_backbone_gw(bat_priv,
 						 primary_if->net_dev->dev_addr,
@@ -459,11 +458,10 @@ static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
 				      struct batadv_hard_iface *primary_if,
 				      short vid)
 {
-	struct hlist_node *node;
 	struct hlist_head *head;
 	struct batadv_hashtable *hash;
-	struct batadv_claim *claim;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_claim *claim;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	int i;
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
@@ -480,7 +478,7 @@ static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(claim, head, hash_entry) {
 			/* only own claims are interesting */
 			if (claim->backbone_gw != backbone_gw)
 				continue;
@@ -502,7 +500,7 @@ static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
  * After the request, it will repeat all of his own claims and finally
  * send an announcement claim with which we can check again.
  */
-static void batadv_bla_send_request(struct batadv_backbone_gw *backbone_gw)
+static void batadv_bla_send_request(struct batadv_bla_backbone_gw *backbone_gw)
 {
 	/* first, remove all old entries */
 	batadv_bla_del_backbone_claims(backbone_gw);
@@ -528,7 +526,7 @@ static void batadv_bla_send_request(struct batadv_backbone_gw *backbone_gw)
  * places.
  */
 static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
-				     struct batadv_backbone_gw *backbone_gw)
+				     struct batadv_bla_backbone_gw *backbone_gw)
 {
 	uint8_t mac[ETH_ALEN];
 	__be16 crc;
@@ -539,7 +537,6 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 
 	batadv_bla_send_claim(bat_priv, mac, backbone_gw->vid,
 			      BATADV_CLAIM_TYPE_ANNOUNCE);
-
 }
 
 /**
@@ -551,10 +548,10 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
  */
 static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 				 const uint8_t *mac, const short vid,
-				 struct batadv_backbone_gw *backbone_gw)
+				 struct batadv_bla_backbone_gw *backbone_gw)
 {
-	struct batadv_claim *claim;
-	struct batadv_claim search_claim;
+	struct batadv_bla_claim *claim;
+	struct batadv_bla_claim search_claim;
 	int hash_added;
 
 	memcpy(search_claim.addr, mac, ETH_ALEN);
@@ -598,7 +595,6 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 
 		claim->backbone_gw->crc ^= crc16(0, claim->addr, ETH_ALEN);
 		batadv_backbone_gw_free_ref(claim->backbone_gw);
-
 	}
 	/* set (new) backbone gw */
 	atomic_inc(&backbone_gw->refcount);
@@ -617,7 +613,7 @@ claim_free_ref:
 static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
 				 const uint8_t *mac, const short vid)
 {
-	struct batadv_claim search_claim, *claim;
+	struct batadv_bla_claim search_claim, *claim;
 
 	memcpy(search_claim.addr, mac, ETH_ALEN);
 	search_claim.vid = vid;
@@ -643,7 +639,7 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 				  uint8_t *an_addr, uint8_t *backbone_addr,
 				  short vid)
 {
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	uint16_t crc;
 
 	if (memcmp(an_addr, batadv_announce_mac, 4) != 0)
@@ -661,12 +657,12 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	crc = ntohs(*((__be16 *)(&an_addr[4])));
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
-		   "handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %04x\n",
+		   "handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %#.4x\n",
 		   vid, backbone_gw->orig, crc);
 
 	if (backbone_gw->crc != crc) {
 		batadv_dbg(BATADV_DBG_BLA, backbone_gw->bat_priv,
-			   "handle_announce(): CRC FAILED for %pM/%d (my = %04x, sent = %04x)\n",
+			   "handle_announce(): CRC FAILED for %pM/%d (my = %#.4x, sent = %#.4x)\n",
 			   backbone_gw->orig, backbone_gw->vid,
 			   backbone_gw->crc, crc);
 
@@ -715,7 +711,7 @@ static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 				 uint8_t *backbone_addr,
 				 uint8_t *claim_addr, short vid)
 {
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 
 	/* unclaim in any case if it is our own */
 	if (primary_if && batadv_compare_eth(backbone_addr,
@@ -744,7 +740,7 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 			       uint8_t *backbone_addr, uint8_t *claim_addr,
 			       short vid)
 {
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 
 	/* register the gateway if not yet available, and add the claim. */
 
@@ -835,7 +831,7 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 	/* if our mesh friends mac is bigger, use it for ourselves. */
 	if (ntohs(bla_dst->group) > ntohs(bla_dst_own->group)) {
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
-			   "taking other backbones claim group: %04x\n",
+			   "taking other backbones claim group: %#.4x\n",
 			   ntohs(bla_dst->group));
 		bla_dst_own->group = bla_dst->group;
 	}
@@ -958,8 +954,8 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
  */
 static void batadv_bla_purge_backbone_gw(struct batadv_priv *bat_priv, int now)
 {
-	struct batadv_backbone_gw *backbone_gw;
-	struct hlist_node *node, *node_tmp;
+	struct batadv_bla_backbone_gw *backbone_gw;
+	struct hlist_node *node_tmp;
 	struct hlist_head *head;
 	struct batadv_hashtable *hash;
 	spinlock_t *list_lock;	/* protects write access to the hash lists */
@@ -974,7 +970,7 @@ static void batadv_bla_purge_backbone_gw(struct batadv_priv *bat_priv, int now)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(backbone_gw, node, node_tmp,
+		hlist_for_each_entry_safe(backbone_gw, node_tmp,
 					  head, hash_entry) {
 			if (now)
 				goto purge_now;
@@ -993,7 +989,7 @@ purge_now:
 
 			batadv_bla_del_backbone_claims(backbone_gw);
 
-			hlist_del_rcu(node);
+			hlist_del_rcu(&backbone_gw->hash_entry);
 			batadv_backbone_gw_free_ref(backbone_gw);
 		}
 		spin_unlock_bh(list_lock);
@@ -1013,8 +1009,7 @@ static void batadv_bla_purge_claims(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
 				    int now)
 {
-	struct batadv_claim *claim;
-	struct hlist_node *node;
+	struct batadv_bla_claim *claim;
 	struct hlist_head *head;
 	struct batadv_hashtable *hash;
 	int i;
@@ -1027,7 +1022,7 @@ static void batadv_bla_purge_claims(struct batadv_priv *bat_priv,
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(claim, head, hash_entry) {
 			if (now)
 				goto purge_now;
 			if (!batadv_compare_eth(claim->backbone_gw->orig,
@@ -1062,8 +1057,7 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
 				    struct batadv_hard_iface *oldif)
 {
-	struct batadv_backbone_gw *backbone_gw;
-	struct hlist_node *node;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	struct hlist_head *head;
 	struct batadv_hashtable *hash;
 	__be16 group;
@@ -1087,7 +1081,7 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 			/* own orig still holds the old value. */
 			if (!batadv_compare_eth(backbone_gw->orig,
 						oldif->net_dev->dev_addr))
@@ -1104,16 +1098,6 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 	}
 }
 
-
-
-/* (re)start the timer */
-static void batadv_bla_start_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->bla.work, batadv_bla_periodic_work);
-	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
-			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
-}
-
 /* periodic work to do:
  *  * purge structures when they are too old
  *  * send announcements
@@ -1123,9 +1107,8 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 	struct delayed_work *delayed_work;
 	struct batadv_priv *bat_priv;
 	struct batadv_priv_bla *priv_bla;
-	struct hlist_node *node;
 	struct hlist_head *head;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	struct batadv_hashtable *hash;
 	struct batadv_hard_iface *primary_if;
 	int i;
@@ -1151,7 +1134,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 			if (!batadv_compare_eth(backbone_gw->orig,
 						primary_if->net_dev->dev_addr))
 				continue;
@@ -1184,7 +1167,8 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 
-	batadv_bla_start_timer(bat_priv);
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
+			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
 }
 
 /* The hash for claim and backbone hash receive the same key because they
@@ -1242,7 +1226,10 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla hashes initialized\n");
 
-	batadv_bla_start_timer(bat_priv);
+	INIT_DELAYED_WORK(&bat_priv->bla.work, batadv_bla_periodic_work);
+
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
+			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
 	return 0;
 }
 
@@ -1329,8 +1316,7 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	int i;
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
@@ -1343,7 +1329,7 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 			if (batadv_compare_eth(backbone_gw->orig, orig)) {
 				rcu_read_unlock();
 				return 1;
@@ -1371,7 +1357,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 {
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	short vid = -1;
 
 	if (!atomic_read(&orig_node->bat_priv->bridge_loop_avoidance))
@@ -1442,7 +1428,7 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
 		  bool is_bcast)
 {
 	struct ethhdr *ethhdr;
-	struct batadv_claim search_claim, *claim = NULL;
+	struct batadv_bla_claim search_claim, *claim = NULL;
 	struct batadv_hard_iface *primary_if;
 	int ret;
 
@@ -1536,7 +1522,7 @@ out:
 int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
 {
 	struct ethhdr *ethhdr;
-	struct batadv_claim search_claim, *claim = NULL;
+	struct batadv_bla_claim search_claim, *claim = NULL;
 	struct batadv_hard_iface *primary_if;
 	int ret = 0;
 
@@ -1612,9 +1598,8 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	struct batadv_hashtable *hash = bat_priv->bla.claim_hash;
-	struct batadv_claim *claim;
+	struct batadv_bla_claim *claim;
 	struct batadv_hard_iface *primary_if;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	uint32_t i;
 	bool is_own;
@@ -1626,19 +1611,19 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_addr = primary_if->net_dev->dev_addr;
 	seq_printf(seq,
-		   "Claims announced for the mesh %s (orig %pM, group id %04x)\n",
+		   "Claims announced for the mesh %s (orig %pM, group id %#.4x)\n",
 		   net_dev->name, primary_addr,
 		   ntohs(bat_priv->bla.claim_dest.group));
-	seq_printf(seq, "   %-17s    %-5s    %-17s [o] (%-4s)\n",
+	seq_printf(seq, "   %-17s    %-5s    %-17s [o] (%-6s)\n",
 		   "Client", "VID", "Originator", "CRC");
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(claim, head, hash_entry) {
 			is_own = batadv_compare_eth(claim->backbone_gw->orig,
 						    primary_addr);
-			seq_printf(seq,	" * %pM on % 5d by %pM [%c] (%04x)\n",
+			seq_printf(seq,	" * %pM on % 5d by %pM [%c] (%#.4x)\n",
 				   claim->addr, claim->vid,
 				   claim->backbone_gw->orig,
 				   (is_own ? 'x' : ' '),
@@ -1657,9 +1642,8 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	struct batadv_hard_iface *primary_if;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	int secs, msecs;
 	uint32_t i;
@@ -1672,16 +1656,16 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_addr = primary_if->net_dev->dev_addr;
 	seq_printf(seq,
-		   "Backbones announced for the mesh %s (orig %pM, group id %04x)\n",
+		   "Backbones announced for the mesh %s (orig %pM, group id %#.4x)\n",
 		   net_dev->name, primary_addr,
 		   ntohs(bat_priv->bla.claim_dest.group));
-	seq_printf(seq, "   %-17s    %-5s %-9s (%-4s)\n",
+	seq_printf(seq, "   %-17s    %-5s %-9s (%-6s)\n",
 		   "Originator", "VID", "last seen", "CRC");
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 			msecs = jiffies_to_msecs(jiffies -
 						 backbone_gw->lasttime);
 			secs = msecs / 1000;
@@ -1693,7 +1677,7 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 				continue;
 
 			seq_printf(seq,
-				   " * %pM on % 5d % 4i.%03is (%04x)\n",
+				   " * %pM on % 5d % 4i.%03is (%#.4x)\n",
 				   backbone_gw->orig, backbone_gw->vid,
 				   secs, msecs, backbone_gw->crc);
 		}

@@ -130,7 +130,7 @@ struct acpi_sbs {
 
 #define to_acpi_sbs(x) container_of(x, struct acpi_sbs, charger)
 
-static int acpi_sbs_remove(struct acpi_device *device, int type);
+static int acpi_sbs_remove(struct acpi_device *device);
 static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static inline int battery_scale(int log)
@@ -949,11 +949,11 @@ static int acpi_sbs_add(struct acpi_device *device)
 	acpi_smbus_register_callback(sbs->hc, acpi_sbs_callback, sbs);
       end:
 	if (result)
-		acpi_sbs_remove(device, 0);
+		acpi_sbs_remove(device);
 	return result;
 }
 
-static int acpi_sbs_remove(struct acpi_device *device, int type)
+static int acpi_sbs_remove(struct acpi_device *device)
 {
 	struct acpi_sbs *sbs;
 	int id;

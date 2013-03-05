@@ -1894,7 +1894,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 
 /* defined in usb_gadget.h */
-static struct usb_gadget_ops qe_gadget_ops = {
+static const struct usb_gadget_ops qe_gadget_ops = {
 	.get_frame = qe_get_frame,
 	.udc_start = fsl_qe_start,
 	.udc_stop = fsl_qe_stop,

@@ -171,7 +171,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	data->set_cnt = PWM_TO_CNT(SENSORS_LIMIT(val, 0, 255));
+	data->set_cnt = PWM_TO_CNT(clamp_val(val, 0, 255));
 	g760a_write_value(client, G760A_REG_SET_CNT, data->set_cnt);
 	mutex_unlock(&data->update_lock);
 

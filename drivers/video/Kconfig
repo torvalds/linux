@@ -21,8 +21,6 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/drm/Kconfig"
 
-source "drivers/gpu/stub/Kconfig"
-
 config VGASTATE
        tristate
        default n
@@ -32,6 +30,30 @@ config VIDEO_OUTPUT_CONTROL
 	help
 	  This framework adds support for low-level control of the video 
 	  output switch.
+
+config DISPLAY_TIMING
+       bool
+
+config VIDEOMODE
+       bool
+
+config OF_DISPLAY_TIMING
+	bool "Enable device tree display timing support"
+	depends on OF
+	select DISPLAY_TIMING
+	help
+	  helper to parse display timings from the devicetree
+
+config OF_VIDEOMODE
+	bool "Enable device tree videomode support"
+	depends on OF
+	select VIDEOMODE
+	select OF_DISPLAY_TIMING
+	help
+	  helper to get videomodes from the devicetree
+
+config HDMI
+	bool
 
 menuconfig FB
 	tristate "Support for frame buffer devices"
@@ -364,7 +386,7 @@ config FB_SA1100
 	  Y here.
 
 config FB_IMX
-	tristate "Freescale i.MX LCD support"
+	tristate "Freescale i.MX1/21/25/27 LCD support"
 	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1112,8 +1134,8 @@ config FB_RIVA_BACKLIGHT
 	  Say Y here if you want to control the backlight of your display.
 
 config FB_I740
-	tristate "Intel740 support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI
+	tristate "Intel740 support"
+	depends on FB && PCI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1124,8 +1146,8 @@ config FB_I740
 	  This driver supports graphics cards based on Intel740 chip.
 
 config FB_I810
-	tristate "Intel 810/815 support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI && X86_32 && AGP_INTEL
+	tristate "Intel 810/815 support"
+	depends on FB && PCI && X86_32 && AGP_INTEL
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1187,8 +1209,8 @@ config FB_CARILLO_RANCH
 	  This driver supports the LE80578 (Carillo Ranch) board
 
 config FB_INTEL
-	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI && X86 && AGP_INTEL && EXPERT
+	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support"
+	depends on FB && PCI && X86 && AGP_INTEL && EXPERT
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1432,7 +1454,7 @@ config FB_ATY_CT
 	  is at <http://support.ati.com/products/pc/mach64/mach64.html>.
 
 config FB_ATY_GENERIC_LCD
-	bool "Mach64 generic LCD support (EXPERIMENTAL)"
+	bool "Mach64 generic LCD support"
 	depends on FB_ATY_CT
 	help
 	  Say Y if you have a laptop with an ATI Rage LT PRO, Rage Mobility,
@@ -1479,7 +1501,7 @@ config FB_S3_DDC
 
 config FB_SAVAGE
 	tristate "S3 Savage support"
-	depends on FB && PCI && EXPERIMENTAL
+	depends on FB && PCI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1633,15 +1655,15 @@ config FB_3DFX
 	  module will be called tdfxfb.
 
 config FB_3DFX_ACCEL
-	bool "3Dfx Acceleration functions (EXPERIMENTAL)"
-	depends on FB_3DFX && EXPERIMENTAL
+	bool "3Dfx Acceleration functions"
+	depends on FB_3DFX
 	---help---
 	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
 	device driver with acceleration functions.
 
 config FB_3DFX_I2C
 	bool "Enable DDC/I2C support"
-	depends on FB_3DFX && EXPERIMENTAL
+	depends on FB_3DFX
 	select FB_DDC
 	default y
 	help
@@ -1714,8 +1736,8 @@ config FB_ARK
 	  and ICS 5342 RAMDAC.
 
 config FB_PM3
-	tristate "Permedia3 support (EXPERIMENTAL)"
-	depends on FB && PCI && EXPERIMENTAL
+	tristate "Permedia3 support"
+	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2025,7 +2047,8 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (S3C_DEV_FB || S5P_DEV_FIMD0)
+	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX || ARCH_S5P64X0 || \
+		ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2182,6 +2205,15 @@ config FB_XILINX
 	  Include support for the Xilinx ML300/ML403 reference design
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
+
+config FB_GOLDFISH
+	tristate "Goldfish Framebuffer"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Framebuffer driver for Goldfish Virtual Platform
 
 config FB_COBALT
 	tristate "Cobalt server LCD frame buffer support"
@@ -2422,6 +2454,7 @@ config FB_PUV3_UNIGFX
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
 source "drivers/video/exynos/Kconfig"
+source "drivers/video/mmp/Kconfig"
 source "drivers/video/backlight/Kconfig"
 
 if VT

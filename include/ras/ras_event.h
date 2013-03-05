@@ -78,9 +78,7 @@ TRACE_EVENT(mc_event,
 
 	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
 		  __entry->error_count,
-		  (__entry->error_type == HW_EVENT_ERR_CORRECTED) ? "Corrected" :
-			((__entry->error_type == HW_EVENT_ERR_FATAL) ?
-			"Fatal" : "Uncorrected"),
+		  mc_event_error_type(__entry->error_type),
 		  __entry->error_count > 1 ? "s" : "",
 		  ((char *)__get_str(msg))[0] ? " " : "",
 		  __get_str(msg),

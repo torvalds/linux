@@ -70,17 +70,6 @@ static struct hid_driver ch_driver = {
 	.id_table = ch_devices,
 	.input_mapping = ch_input_mapping,
 };
+module_hid_driver(ch_driver);
 
-static int __init ch_init(void)
-{
-	return hid_register_driver(&ch_driver);
-}
-
-static void __exit ch_exit(void)
-{
-	hid_unregister_driver(&ch_driver);
-}
-
-module_init(ch_init);
-module_exit(ch_exit);
 MODULE_LICENSE("GPL");

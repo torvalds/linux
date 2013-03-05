@@ -28,14 +28,47 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x01c00000 0x400000>;
+		interrupt-parent = <&intc>;
 
+		pmx_core: pinmux@1c14120 {
+			compatible = "pinctrl-single";
+			reg = <0x14120 0x50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,bit-per-mux;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0xffffffff>;
+			status = "disabled";
+
+			nand_cs3_pins: pinmux_nand_pins {
+				pinctrl-single,bits = <
+					/* EMA_OE, EMA_WE */
+					0x1c 0x00110000  0x00ff0000
+					/* EMA_CS[4],EMA_CS[3]*/
+					0x1c 0x00000110  0x00000ff0
+					/*
+					 * EMA_D[0], EMA_D[1], EMA_D[2],
+					 * EMA_D[3], EMA_D[4], EMA_D[5],
+					 * EMA_D[6], EMA_D[7]
+					 */
+					0x24 0x11111111  0xffffffff
+					/* EMA_A[1], EMA_A[2] */
+					0x30 0x01100000  0x0ff00000
+				>;
+			};
+			i2c0_pins: pinmux_i2c0_pins {
+				pinctrl-single,bits = <
+					/* I2C0_SDA,I2C0_SCL */
+					0x10 0x00002200 0x0000ff00
+				>;
+			};
+		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
 			reg = <0x42000 0x100>;
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <25>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 		serial1: serial@1d0c000 {
@@ -44,7 +77,6 @@
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <53>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 		serial2: serial@1d0d000 {
@@ -53,8 +85,40 @@
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <61>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
+		rtc0: rtc@1c23000 {
+			compatible = "ti,da830-rtc";
+			reg = <0x23000 0x1000>;
+			interrupts = <19
+				      19>;
+			status = "disabled";
+		};
+		i2c0: i2c@1c22000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x22000 0x1000>;
+			interrupts = <15>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+		wdt: wdt@1c21000 {
+			compatible = "ti,davinci-wdt";
+			reg = <0x21000 0x1000>;
+			status = "disabled";
+		};
+	};
+	nand_cs3@62000000 {
+		compatible = "ti,davinci-nand";
+		reg = <0x62000000 0x807ff
+		       0x68000000 0x8000>;
+		ti,davinci-chipselect = <1>;
+		ti,davinci-mask-ale = <0>;
+		ti,davinci-mask-cle = <0>;
+		ti,davinci-mask-chipsel = <0>;
+		ti,davinci-ecc-mode = "hw";
+		ti,davinci-ecc-bits = <4>;
+		ti,davinci-nand-use-bbt;
+		status = "disabled";
 	};
 };

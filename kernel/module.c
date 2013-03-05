@@ -197,9 +197,10 @@ static inline int strong_try_module_get(struct module *mod)
 		return -ENOENT;
 }
 
-static inline void add_taint_module(struct module *mod, unsigned flag)
+static inline void add_taint_module(struct module *mod, unsigned flag,
+				    enum lockdep_ok lockdep_ok)
 {
-	add_taint(flag);
+	add_taint(flag, lockdep_ok);
 	mod->taints |= (1U << flag);
 }
 
@@ -727,7 +728,7 @@ static inline int try_force_unload(unsigned int flags)
 {
 	int ret = (flags & O_TRUNC);
 	if (ret)
-		add_taint(TAINT_FORCED_RMMOD);
+		add_taint(TAINT_FORCED_RMMOD, LOCKDEP_NOW_UNRELIABLE);
 	return ret;
 }
 #else
@@ -1138,7 +1139,7 @@ static int try_to_force_load(struct module *mod, const char *reason)
 	if (!test_taint(TAINT_FORCED_MODULE))
 		printk(KERN_WARNING "%s: %s: kernel tainted.\n",
 		       mod->name, reason);
-	add_taint_module(mod, TAINT_FORCED_MODULE);
+	add_taint_module(mod, TAINT_FORCED_MODULE, LOCKDEP_NOW_UNRELIABLE);
 	return 0;
 #else
 	return -ENOEXEC;
@@ -2147,7 +2148,8 @@ static void set_license(struct module *mod, const char *license)
 		if (!test_taint(TAINT_PROPRIETARY_MODULE))
 			printk(KERN_WARNING "%s: module license '%s' taints "
 				"kernel.\n", mod->name, license);
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+				 LOCKDEP_NOW_UNRELIABLE);
 	}
 }
 
@@ -2539,7 +2541,7 @@ static int copy_module_from_fd(int fd, struct load_info *info)
 	if (err)
 		goto out;
 
-	err = vfs_getattr(file->f_vfsmnt, file->f_dentry, &stat);
+	err = vfs_getattr(&file->f_path, &stat);
 	if (err)
 		goto out;
 
@@ -2700,10 +2702,10 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	}
 
 	if (!get_modinfo(info, "intree"))
-		add_taint_module(mod, TAINT_OOT_MODULE);
+		add_taint_module(mod, TAINT_OOT_MODULE, LOCKDEP_STILL_OK);
 
 	if (get_modinfo(info, "staging")) {
-		add_taint_module(mod, TAINT_CRAP);
+		add_taint_module(mod, TAINT_CRAP, LOCKDEP_STILL_OK);
 		printk(KERN_WARNING "%s: module is from the staging directory,"
 		       " the quality is unknown, you have been warned.\n",
 		       mod->name);
@@ -2869,15 +2871,17 @@ static int check_module_license_and_versions(struct module *mod)
 	 * using GPL-only symbols it needs.
 	 */
 	if (strcmp(mod->name, "ndiswrapper") == 0)
-		add_taint(TAINT_PROPRIETARY_MODULE);
+		add_taint(TAINT_PROPRIETARY_MODULE, LOCKDEP_NOW_UNRELIABLE);
 
 	/* driverloader was caught wrongly pretending to be under GPL */
 	if (strcmp(mod->name, "driverloader") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+				 LOCKDEP_NOW_UNRELIABLE);
 
 	/* lve claims to be GPL but upstream won't provide source */
 	if (strcmp(mod->name, "lve") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+				 LOCKDEP_NOW_UNRELIABLE);
 
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
@@ -3141,12 +3145,72 @@ static int may_init_module(void)
 	return 0;
 }
 
+/*
+ * We try to place it in the list now to make sure it's unique before
+ * we dedicate too many resources.  In particular, temporary percpu
+ * memory exhaustion.
+ */
+static int add_unformed_module(struct module *mod)
+{
+	int err;
+	struct module *old;
+
+	mod->state = MODULE_STATE_UNFORMED;
+
+again:
+	mutex_lock(&module_mutex);
+	if ((old = find_module_all(mod->name, true)) != NULL) {
+		if (old->state == MODULE_STATE_COMING
+		    || old->state == MODULE_STATE_UNFORMED) {
+			/* Wait in case it fails to load. */
+			mutex_unlock(&module_mutex);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
+			if (err)
+				goto out_unlocked;
+			goto again;
+		}
+		err = -EEXIST;
+		goto out;
+	}
+	list_add_rcu(&mod->list, &modules);
+	err = 0;
+
+out:
+	mutex_unlock(&module_mutex);
+out_unlocked:
+	return err;
+}
+
+static int complete_formation(struct module *mod, struct load_info *info)
+{
+	int err;
+
+	mutex_lock(&module_mutex);
+
+	/* Find duplicate symbols (must be called under lock). */
+	err = verify_export_symbols(mod);
+	if (err < 0)
+		goto out;
+
+	/* This relies on module_mutex for list integrity. */
+	module_bug_finalize(info->hdr, info->sechdrs, mod);
+
+	/* Mark state as coming so strong_try_module_get() ignores us,
+	 * but kallsyms etc. can see us. */
+	mod->state = MODULE_STATE_COMING;
+
+out:
+	mutex_unlock(&module_mutex);
+	return err;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static int load_module(struct load_info *info, const char __user *uargs,
 		       int flags)
 {
-	struct module *mod, *old;
+	struct module *mod;
 	long err;
 
 	err = module_sig_check(info);
@@ -3164,36 +3228,20 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_copy;
 	}
 
-	/*
-	 * We try to place it in the list now to make sure it's unique
-	 * before we dedicate too many resources.  In particular,
-	 * temporary percpu memory exhaustion.
-	 */
-	mod->state = MODULE_STATE_UNFORMED;
-again:
-	mutex_lock(&module_mutex);
-	if ((old = find_module_all(mod->name, true)) != NULL) {
-		if (old->state == MODULE_STATE_COMING
-		    || old->state == MODULE_STATE_UNFORMED) {
-			/* Wait in case it fails to load. */
-			mutex_unlock(&module_mutex);
-			err = wait_event_interruptible(module_wq,
-					       finished_loading(mod->name));
-			if (err)
-				goto free_module;
-			goto again;
-		}
-		err = -EEXIST;
-		mutex_unlock(&module_mutex);
+	/* Reserve our place in the list. */
+	err = add_unformed_module(mod);
+	if (err)
 		goto free_module;
-	}
-	list_add_rcu(&mod->list, &modules);
-	mutex_unlock(&module_mutex);
 
 #ifdef CONFIG_MODULE_SIG
 	mod->sig_ok = info->sig_ok;
-	if (!mod->sig_ok)
-		add_taint_module(mod, TAINT_FORCED_MODULE);
+	if (!mod->sig_ok) {
+		printk_once(KERN_NOTICE
+			    "%s: module verification failed: signature and/or"
+			    " required key missing - tainting kernel\n",
+			    mod->name);
+		add_taint_module(mod, TAINT_FORCED_MODULE, LOCKDEP_STILL_OK);
+	}
 #endif
 
 	/* Now module is in final location, initialize linked lists, etc. */
@@ -3236,20 +3284,10 @@ again:
 
 	dynamic_debug_setup(info->debug, info->num_debug);
 
-	mutex_lock(&module_mutex);
-	/* Find duplicate symbols (must be called under lock). */
-	err = verify_export_symbols(mod);
-	if (err < 0)
+	/* Finally it's fully formed, ready to start executing. */
+	err = complete_formation(mod, info);
+	if (err)
 		goto ddebug_cleanup;
-
-	/* This relies on module_mutex for list integrity. */
-	module_bug_finalize(info->hdr, info->sechdrs, mod);
-
-	/* Mark state as coming so strong_try_module_get() ignores us,
-	 * but kallsyms etc. can see us. */
-	mod->state = MODULE_STATE_COMING;
-
-	mutex_unlock(&module_mutex);
 
 	/* Module is ready to execute: parsing args may do that. */
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
@@ -3274,8 +3312,8 @@ again:
 	/* module_bug_cleanup needs module_mutex protection */
 	mutex_lock(&module_mutex);
 	module_bug_cleanup(mod);
- ddebug_cleanup:
 	mutex_unlock(&module_mutex);
+ ddebug_cleanup:
 	dynamic_debug_remove(info->debug);
 	synchronize_sched();
 	kfree(mod->args);

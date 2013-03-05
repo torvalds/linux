@@ -179,8 +179,7 @@ static void max3100_work(struct work_struct *w);
 
 static void max3100_dowork(struct max3100_port *s)
 {
-	if (!s->force_end_work && !work_pending(&s->work) &&
-	    !freezing(current) && !s->suspending)
+	if (!s->force_end_work && !freezing(current) && !s->suspending)
 		queue_work(s->workqueue, &s->work);
 }
 
@@ -311,8 +310,8 @@ static void max3100_work(struct work_struct *w)
 			}
 		}
 
-		if (rxchars > 16 && s->port.state->port.tty != NULL) {
-			tty_flip_buffer_push(s->port.state->port.tty);
+		if (rxchars > 16) {
+			tty_flip_buffer_push(&s->port.state->port);
 			rxchars = 0;
 		}
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -324,8 +323,8 @@ static void max3100_work(struct work_struct *w)
 		  (!uart_circ_empty(xmit) &&
 		   !uart_tx_stopped(&s->port))));
 
-	if (rxchars > 0 && s->port.state->port.tty != NULL)
-		tty_flip_buffer_push(s->port.state->port.tty);
+	if (rxchars > 0)
+		tty_flip_buffer_push(&s->port.state->port);
 }
 
 static irqreturn_t max3100_irq(int irqno, void *dev_id)
@@ -530,7 +529,7 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 			MAX3100_STATUS_OE;
 
 	/* we are sending char from a workqueue so enable */
-	s->port.state->port.tty->low_latency = 1;
+	s->port.state->port.low_latency = 1;
 
 	if (s->poll_time > 0)
 		del_timer_sync(&s->timer);

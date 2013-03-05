@@ -411,7 +411,7 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int index = iminor(inode) - WD0_MINOR;
 	struct cpwd *p = cpwd_device;
 	int setopt = 0;
@@ -499,7 +499,7 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct cpwd *p = cpwd_device;
 	int index = iminor(inode);
 

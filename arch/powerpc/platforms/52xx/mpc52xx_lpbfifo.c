@@ -20,9 +20,9 @@
 #include <asm/mpc52xx.h>
 #include <asm/time.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/bestcomm_priv.h>
-#include <sysdev/bestcomm/gen_bd.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include <linux/fsl/bestcomm/gen_bd.h>
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_DESCRIPTION("MPC5200 LocalPlus FIFO device driver");

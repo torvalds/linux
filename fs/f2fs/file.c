@@ -15,6 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/falloc.h>
 #include <linux/types.h>
+#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/mount.h>
 
@@ -28,7 +29,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 						struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	block_t old_blk_addr;
 	struct dnode_of_data dn;
@@ -157,11 +158,11 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEED_CP))
+	else if (is_inode_flag_set(F2FS_I(inode), FI_NEED_CP))
 		need_cp = true;
-	if (!space_for_roll_forward(sbi))
+	else if (!space_for_roll_forward(sbi))
 		need_cp = true;
-	if (need_to_sync_dir(sbi, inode))
+	else if (need_to_sync_dir(sbi, inode))
 		need_cp = true;
 
 	if (need_cp) {
@@ -298,8 +299,6 @@ void f2fs_truncate(struct inode *inode)
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
 	}
-
-	f2fs_balance_fs(F2FS_SB(inode->i_sb));
 }
 
 static int f2fs_getattr(struct vfsmount *mnt,
@@ -356,6 +355,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 			attr->ia_size != i_size_read(inode)) {
 		truncate_setsize(inode, attr->ia_size);
 		f2fs_truncate(inode);
+		f2fs_balance_fs(F2FS_SB(inode->i_sb));
 	}
 
 	__setattr_copy(inode, attr);
@@ -387,12 +387,17 @@ const struct inode_operations f2fs_file_inode_operations = {
 static void fill_zero(struct inode *inode, pgoff_t index,
 					loff_t start, loff_t len)
 {
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 
 	if (!len)
 		return;
 
+	f2fs_balance_fs(sbi);
+
+	mutex_lock_op(sbi, DATA_NEW);
 	page = get_new_data_page(inode, index, false);
+	mutex_unlock_op(sbi, DATA_NEW);
 
 	if (!IS_ERR(page)) {
 		wait_on_page_writeback(page);
@@ -539,7 +544,7 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 static long f2fs_fallocate(struct file *file, int mode,
 				loff_t offset, loff_t len)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	long ret;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
@@ -572,7 +577,7 @@ static inline __u32 f2fs_mask_flags(umode_t mode, __u32 flags)
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned int flags;
 	int ret;
@@ -630,6 +635,23 @@ out:
 	}
 }
 
+#ifdef CONFIG_COMPAT
+long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case F2FS_IOC32_GETFLAGS:
+		cmd = F2FS_IOC_GETFLAGS;
+		break;
+	case F2FS_IOC32_SETFLAGS:
+		cmd = F2FS_IOC_SETFLAGS;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return f2fs_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
+}
+#endif
+
 const struct file_operations f2fs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -641,6 +663,9 @@ const struct file_operations f2fs_file_operations = {
 	.fsync		= f2fs_sync_file,
 	.fallocate	= f2fs_fallocate,
 	.unlocked_ioctl	= f2fs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= f2fs_compat_ioctl,
+#endif
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 };

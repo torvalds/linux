@@ -38,12 +38,15 @@ extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
 	csum_partial_copy((src), (dst), (len), (sum))
 #endif
 
+#ifndef ip_fast_csum
 /*
  * This is a version of ip_compute_csum() optimized for IP headers,
  * which always checksum on 4 octet boundaries.
  */
 extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
+#endif
 
+#ifndef csum_fold
 /*
  * Fold a partial checksum
  */
@@ -54,6 +57,7 @@ static inline __sum16 csum_fold(__wsum csum)
 	sum = (sum & 0xffff) + (sum >> 16);
 	return (__force __sum16)~sum;
 }
+#endif
 
 #ifndef csum_tcpudp_nofold
 /*

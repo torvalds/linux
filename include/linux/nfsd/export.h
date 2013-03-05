@@ -49,8 +49,8 @@ struct svc_export {
 	struct auth_domain *	ex_client;
 	int			ex_flags;
 	struct path		ex_path;
-	uid_t			ex_anon_uid;
-	gid_t			ex_anon_gid;
+	kuid_t			ex_anon_uid;
+	kgid_t			ex_anon_gid;
 	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;

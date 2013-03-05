@@ -89,41 +89,6 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
 EXPORT_SYMBOL(of_get_named_gpio_flags);
 
 /**
- * of_gpio_named_count - Count GPIOs for a device
- * @np:		device node to count GPIOs for
- * @propname:	property name containing gpio specifier(s)
- *
- * The function returns the count of GPIOs specified for a node.
- *
- * Note that the empty GPIO specifiers counts too. For example,
- *
- * gpios = <0
- *          &pio1 1 2
- *          0
- *          &pio2 3 4>;
- *
- * defines four GPIOs (so this function will return 4), two of which
- * are not specified.
- */
-unsigned int of_gpio_named_count(struct device_node *np, const char* propname)
-{
-	unsigned int cnt = 0;
-
-	do {
-		int ret;
-
-		ret = of_parse_phandle_with_args(np, propname, "#gpio-cells",
-						 cnt, NULL);
-		/* A hole in the gpios = <> counts anyway. */
-		if (ret < 0 && ret != -EEXIST)
-			break;
-	} while (++cnt);
-
-	return cnt;
-}
-EXPORT_SYMBOL(of_gpio_named_count);
-
-/**
  * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
  * @gc:		pointer to the gpio_chip structure
  * @np:		device node of the GPIO chip
@@ -250,7 +215,7 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		 * on the same GPIO chip.
 		 */
 		ret = gpiochip_add_pin_range(chip,
-					     pinctrl_dev_get_name(pctldev),
+					     pinctrl_dev_get_devname(pctldev),
 					     0, /* offset in gpiochip */
 					     pinspec.args[0],
 					     pinspec.args[1]);

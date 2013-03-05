@@ -4,6 +4,7 @@
  * Builtin regression testing command: ever growing number of sanity tests
  */
 #include "builtin.h"
+#include "intlist.h"
 #include "tests.h"
 #include "debug.h"
 #include "color.h"
@@ -69,6 +70,14 @@ static struct test {
 		.func = test__attr,
 	},
 	{
+		.desc = "Test matching and linking mutliple hists",
+		.func = test__hists_link,
+	},
+	{
+		.desc = "Try 'use perf' in python, checking link problems",
+		.func = test__python_use,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -97,7 +106,7 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 	return false;
 }
 
-static int __cmd_test(int argc, const char *argv[])
+static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
 	int i = 0;
 	int width = 0;
@@ -118,13 +127,28 @@ static int __cmd_test(int argc, const char *argv[])
 			continue;
 
 		pr_info("%2d: %-*s:", i, width, tests[curr].desc);
+
+		if (intlist__find(skiplist, i)) {
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
+			continue;
+		}
+
 		pr_debug("\n--- start ---\n");
 		err = tests[curr].func();
 		pr_debug("---- end ----\n%s:", tests[curr].desc);
-		if (err)
-			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
-		else
+
+		switch (err) {
+		case TEST_OK:
 			pr_info(" Ok\n");
+			break;
+		case TEST_SKIP:
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
+			break;
+		case TEST_FAIL:
+		default:
+			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
+			break;
+		}
 	}
 
 	return 0;
@@ -152,11 +176,14 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
 	NULL,
 	};
+	const char *skip = NULL;
 	const struct option test_options[] = {
+	OPT_STRING('s', "skip", &skip, "tests", "tests to skip"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 	};
+	struct intlist *skiplist = NULL;
 
 	argc = parse_options(argc, argv, test_options, test_usage, 0);
 	if (argc >= 1 && !strcmp(argv[0], "list"))
@@ -169,5 +196,8 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol__init() < 0)
 		return -1;
 
-	return __cmd_test(argc, argv);
+	if (skip != NULL)
+		skiplist = intlist__new(skip);
+
+	return __cmd_test(argc, argv, skiplist);
 }

@@ -1783,7 +1783,8 @@ static __net_init int pppol2tp_init_net(struct net *net)
 	struct proc_dir_entry *pde;
 	int err = 0;
 
-	pde = proc_net_fops_create(net, "pppol2tp", S_IRUGO, &pppol2tp_proc_fops);
+	pde = proc_create("pppol2tp", S_IRUGO, net->proc_net,
+			  &pppol2tp_proc_fops);
 	if (!pde) {
 		err = -ENOMEM;
 		goto out;
@@ -1795,7 +1796,7 @@ out:
 
 static __net_exit void pppol2tp_exit_net(struct net *net)
 {
-	proc_net_remove(net, "pppol2tp");
+	remove_proc_entry("pppol2tp", net->proc_net);
 }
 
 static struct pernet_operations pppol2tp_net_ops = {

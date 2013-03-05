@@ -149,11 +149,9 @@ static int get_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
 	DECLARE_WAITQUEUE(wait, current);
 
 	buffer = kmalloc(size, GFP_KERNEL);
-	if (!buffer) {
-		netif_warn(pegasus, drv, pegasus->net,
-			   "out of memory in %s\n", __func__);
+	if (!buffer)
 		return -ENOMEM;
-	}
+
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (pegasus->flags & ETH_REGS_CHANGED)
@@ -1074,8 +1072,9 @@ static void pegasus_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
 	pegasus_t *pegasus = netdev_priv(dev);
-	strncpy(info->driver, driver_name, sizeof(info->driver) - 1);
-	strncpy(info->version, DRIVER_VERSION, sizeof(info->version) - 1);
+
+	strlcpy(info->driver, driver_name, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
 	usb_make_path(pegasus->usb, info->bus_info, sizeof(info->bus_info));
 }
 
@@ -1096,6 +1095,7 @@ pegasus_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	pegasus_t	*pegasus = netdev_priv(dev);
 	u8		reg78 = 0x04;
+	int		ret;
 
 	if (wol->wolopts & ~WOL_SUPPORTED)
 		return -EINVAL;
@@ -1110,7 +1110,12 @@ pegasus_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	else
 		pegasus->eth_regs[0] &= ~0x10;
 	pegasus->wolopts = wol->wolopts;
-	return set_register(pegasus, WakeupControl, reg78);
+
+	ret = set_register(pegasus, WakeupControl, reg78);
+	if (!ret)
+		ret = device_set_wakeup_enable(&pegasus->usb->dev,
+						wol->wolopts);
+	return ret;
 }
 
 static inline void pegasus_reset_wol(struct net_device *dev)

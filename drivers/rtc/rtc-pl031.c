@@ -384,6 +384,8 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_irq;
 	}
 
+	device_init_wakeup(&adev->dev, 1);
+
 	return 0;
 
 out_no_irq:

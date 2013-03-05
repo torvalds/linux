@@ -749,9 +749,9 @@ bool get_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
 		unsigned char *pbyChannelNumber, unsigned char *pbyMap)
 {
 
-	if (uChannelIndex > CB_MAX_CHANNEL) {
+	if (uChannelIndex > CB_MAX_CHANNEL)
 		return false;
-	}
+
 	*pbyChannelNumber = sChannelTbl[uChannelIndex].byChannelNumber;
 	*pbyMap = sChannelTbl[uChannelIndex].byMAP;
 	return sChannelTbl[uChannelIndex].bValid;
@@ -761,9 +761,9 @@ void set_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
 		unsigned char byMap)
 {
 
-	if (uChannelIndex > CB_MAX_CHANNEL) {
+	if (uChannelIndex > CB_MAX_CHANNEL)
 		return;
-	}
+
 	sChannelTbl[uChannelIndex].byMAP |= byMap;
 }
 
@@ -771,9 +771,8 @@ void clear_channel_map_info(void *pDeviceHandler)
 {
 	unsigned int ii = 0;
 
-	for (ii = 1; ii <=  CB_MAX_CHANNEL; ii++) {
+	for (ii = 1; ii <=  CB_MAX_CHANNEL; ii++)
 		sChannelTbl[ii].byMAP = 0;
-	}
 }
 
 unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)

@@ -240,9 +240,10 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 	rtc->da9052 = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, rtc);
 	rtc->irq = platform_get_irq_byname(pdev, "ALM");
-	ret = request_threaded_irq(rtc->irq, NULL, da9052_rtc_irq,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "ALM", rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+				da9052_rtc_irq,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				"ALM", rtc);
 	if (ret != 0) {
 		rtc_err(rtc->da9052, "irq registration failed: %d\n", ret);
 		return ret;
@@ -250,16 +251,10 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				       &da9052_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc)) {
-		ret = PTR_ERR(rtc->rtc);
-		goto err_free_irq;
-	}
+	if (IS_ERR(rtc->rtc))
+		return PTR_ERR(rtc->rtc);
 
 	return 0;
-
-err_free_irq:
-	free_irq(rtc->irq, rtc);
-	return ret;
 }
 
 static int da9052_rtc_remove(struct platform_device *pdev)
@@ -267,7 +262,6 @@ static int da9052_rtc_remove(struct platform_device *pdev)
 	struct da9052_rtc *rtc = pdev->dev.platform_data;
 
 	rtc_device_unregister(rtc->rtc);
-	free_irq(rtc->irq, rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

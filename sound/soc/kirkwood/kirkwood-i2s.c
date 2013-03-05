@@ -472,11 +472,9 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	priv->io = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!priv->io) {
-		dev_err(&pdev->dev, "devm_request_and_ioremap failed\n");
-		return -ENOMEM;
-	}
+	priv->io = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(priv->io))
+		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq <= 0) {

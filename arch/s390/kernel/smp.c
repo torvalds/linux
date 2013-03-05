@@ -365,16 +365,16 @@ void smp_emergency_stop(cpumask_t *cpumask)
 	u64 end;
 	int cpu;
 
-	end = get_clock() + (1000000UL << 12);
+	end = get_tod_clock() + (1000000UL << 12);
 	for_each_cpu(cpu, cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
 		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
 				   0, NULL) == SIGP_CC_BUSY &&
-		       get_clock() < end)
+		       get_tod_clock() < end)
 			cpu_relax();
 	}
-	while (get_clock() < end) {
+	while (get_tod_clock() < end) {
 		for_each_cpu(cpu, cpumask)
 			if (pcpu_stopped(pcpu_devices + cpu))
 				cpumask_clear_cpu(cpu, cpumask);
@@ -694,7 +694,7 @@ static void __init smp_detect_cpus(void)
  */
 static void __cpuinit smp_start_secondary(void *cpuvoid)
 {
-	S390_lowcore.last_update_clock = get_clock();
+	S390_lowcore.last_update_clock = get_tod_clock();
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
 	S390_lowcore.restart_data = 0;
@@ -947,7 +947,7 @@ static ssize_t show_idle_time(struct device *dev,
 	unsigned int sequence;
 
 	do {
-		now = get_clock();
+		now = get_tod_clock();
 		sequence = ACCESS_ONCE(idle->sequence);
 		idle_time = ACCESS_ONCE(idle->idle_time);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);

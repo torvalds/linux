@@ -29,6 +29,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -153,7 +156,7 @@ struct workqueue_struct *cxgb3_wq;
 static void link_report(struct net_device *dev)
 {
 	if (!netif_carrier_ok(dev))
-		printk(KERN_INFO "%s: link down\n", dev->name);
+		netdev_info(dev, "link down\n");
 	else {
 		const char *s = "10Mbps";
 		const struct port_info *p = netdev_priv(dev);
@@ -170,8 +173,9 @@ static void link_report(struct net_device *dev)
 			break;
 		}
 
-		printk(KERN_INFO "%s: link up, %s, %s-duplex\n", dev->name, s,
-		       p->link_config.duplex == DUPLEX_FULL ? "full" : "half");
+		netdev_info(dev, "link up, %s, %s-duplex\n",
+			    s, p->link_config.duplex == DUPLEX_FULL
+			    ? "full" : "half");
 	}
 }
 
@@ -318,10 +322,10 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 	const struct port_info *pi = netdev_priv(dev);
 
 	if (pi->phy.modtype == phy_modtype_none)
-		printk(KERN_INFO "%s: PHY module unplugged\n", dev->name);
+		netdev_info(dev, "PHY module unplugged\n");
 	else
-		printk(KERN_INFO "%s: %s PHY module inserted\n", dev->name,
-		       mod_str[pi->phy.modtype]);
+		netdev_info(dev, "%s PHY module inserted\n",
+			    mod_str[pi->phy.modtype]);
 }
 
 static void cxgb_set_rxmode(struct net_device *dev)
@@ -1422,8 +1426,7 @@ static int cxgb_open(struct net_device *dev)
 	if (is_offload(adapter) && !ofld_disable) {
 		err = offload_open(dev);
 		if (err)
-			printk(KERN_WARNING
-			       "Could not initialize offload capabilities\n");
+			pr_warn("Could not initialize offload capabilities\n");
 	}
 
 	netif_set_real_num_tx_queues(dev, pi->nqsets);
@@ -3132,14 +3135,13 @@ static void print_port_info(struct adapter *adap, const struct adapter_info *ai)
 
 		if (!test_bit(i, &adap->registered_device_map))
 			continue;
-		printk(KERN_INFO "%s: %s %s %sNIC (rev %d) %s%s\n",
-		       dev->name, ai->desc, pi->phy.desc,
-		       is_offload(adap) ? "R" : "", adap->params.rev, buf,
-		       (adap->flags & USING_MSIX) ? " MSI-X" :
-		       (adap->flags & USING_MSI) ? " MSI" : "");
+		netdev_info(dev, "%s %s %sNIC (rev %d) %s%s\n",
+			    ai->desc, pi->phy.desc,
+			    is_offload(adap) ? "R" : "", adap->params.rev, buf,
+			    (adap->flags & USING_MSIX) ? " MSI-X" :
+			    (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name && adap->params.vpd.mclk)
-			printk(KERN_INFO
-			       "%s: %uMB CM, %uMB PMTX, %uMB PMRX, S/N: %s\n",
+			pr_info("%s: %uMB CM, %uMB PMTX, %uMB PMRX, S/N: %s\n",
 			       adap->name, t3_mc7_size(&adap->cm) >> 20,
 			       t3_mc7_size(&adap->pmtx) >> 20,
 			       t3_mc7_size(&adap->pmrx) >> 20,
@@ -3177,24 +3179,18 @@ static void cxgb3_init_iscsi_mac(struct net_device *dev)
 			NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int version_printed;
-
 	int i, err, pci_using_dac = 0;
 	resource_size_t mmio_start, mmio_len;
 	const struct adapter_info *ai;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
 
-	if (!version_printed) {
-		printk(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
-		++version_printed;
-	}
+	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
 
 	if (!cxgb3_wq) {
 		cxgb3_wq = create_singlethread_workqueue(DRV_NAME);
 		if (!cxgb3_wq) {
-			printk(KERN_ERR DRV_NAME
-			       ": cannot initialize work queue\n");
+			pr_err("cannot initialize work queue\n");
 			return -ENOMEM;
 		}
 	}

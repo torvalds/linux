@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/linkage.h>
 #include "glue_helper-asm-avx.S"
 
 .file "serpent-avx-x86_64-asm_64.S"
@@ -566,8 +567,6 @@
 	transpose_4x4(x0, x1, x2, x3, t0, t1, t2)
 
 .align 8
-.type   __serpent_enc_blk8_avx,@function;
-
 __serpent_enc_blk8_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -619,10 +618,9 @@ __serpent_enc_blk8_avx:
 	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 	ret;
+ENDPROC(__serpent_enc_blk8_avx)
 
 .align 8
-.type   __serpent_dec_blk8_avx,@function;
-
 __serpent_dec_blk8_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -674,12 +672,9 @@ __serpent_dec_blk8_avx:
 	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
 	ret;
+ENDPROC(__serpent_dec_blk8_avx)
 
-.align 8
-.global serpent_ecb_enc_8way_avx
-.type   serpent_ecb_enc_8way_avx,@function;
-
-serpent_ecb_enc_8way_avx:
+ENTRY(serpent_ecb_enc_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -693,12 +688,9 @@ serpent_ecb_enc_8way_avx:
 	store_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	ret;
+ENDPROC(serpent_ecb_enc_8way_avx)
 
-.align 8
-.global serpent_ecb_dec_8way_avx
-.type   serpent_ecb_dec_8way_avx,@function;
-
-serpent_ecb_dec_8way_avx:
+ENTRY(serpent_ecb_dec_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -712,12 +704,9 @@ serpent_ecb_dec_8way_avx:
 	store_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
 	ret;
+ENDPROC(serpent_ecb_dec_8way_avx)
 
-.align 8
-.global serpent_cbc_dec_8way_avx
-.type   serpent_cbc_dec_8way_avx,@function;
-
-serpent_cbc_dec_8way_avx:
+ENTRY(serpent_cbc_dec_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -731,12 +720,9 @@ serpent_cbc_dec_8way_avx:
 	store_cbc_8way(%rdx, %rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
 	ret;
+ENDPROC(serpent_cbc_dec_8way_avx)
 
-.align 8
-.global serpent_ctr_8way_avx
-.type   serpent_ctr_8way_avx,@function;
-
-serpent_ctr_8way_avx:
+ENTRY(serpent_ctr_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -752,3 +738,4 @@ serpent_ctr_8way_avx:
 	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	ret;
+ENDPROC(serpent_ctr_8way_avx)

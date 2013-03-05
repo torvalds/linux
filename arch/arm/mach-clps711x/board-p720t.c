@@ -224,7 +224,7 @@ MACHINE_START(P720T, "ARM-Prospector720T")
 	.map_io		= p720t_map_io,
 	.init_early	= p720t_init_early,
 	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
+	.init_time	= clps711x_timer_init,
 	.init_machine	= p720t_init,
 	.init_late	= p720t_init_late,
 	.handle_irq	= clps711x_handle_irq,

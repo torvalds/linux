@@ -70,8 +70,8 @@ config XFS_RT
 	  If unsure, say N.
 
 config XFS_DEBUG
-	bool "XFS Debugging support (EXPERIMENTAL)"
-	depends on XFS_FS && EXPERIMENTAL
+	bool "XFS Debugging support"
+	depends on XFS_FS
 	help
 	  Say Y here to get an XFS build with many debugging features,
 	  including ASSERT checks, function wrappers around macros,

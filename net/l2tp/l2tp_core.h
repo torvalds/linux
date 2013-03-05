@@ -191,6 +191,8 @@ struct l2tp_tunnel {
 	int			fd;		/* Parent fd, if tunnel socket
 						 * was created by userspace */
 
+	struct work_struct	del_work;
+
 	uint8_t			priv[0];	/* private data */
 };
 

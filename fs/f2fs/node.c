@@ -104,7 +104,7 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 			f2fs_put_page(page, 1);
 			continue;
 		}
-		page_cache_release(page);
+		f2fs_put_page(page, 0);
 	}
 }
 
@@ -660,7 +660,7 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	int err = 0, cont = 1;
 	int level, offset[4], noffset[4];
-	unsigned int nofs;
+	unsigned int nofs = 0;
 	struct f2fs_node *rn;
 	struct dnode_of_data dn;
 	struct page *page;
@@ -780,7 +780,7 @@ int remove_inode_page(struct inode *inode)
 	return 0;
 }
 
-int new_inode_page(struct inode *inode, struct dentry *dentry)
+int new_inode_page(struct inode *inode, const struct qstr *name)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
@@ -790,7 +790,7 @@ int new_inode_page(struct inode *inode, struct dentry *dentry)
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
 	mutex_lock_op(sbi, NODE_NEW);
 	page = new_node_page(&dn, 0);
-	init_dent_inode(dentry, page);
+	init_dent_inode(name, page);
 	mutex_unlock_op(sbi, NODE_NEW);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
@@ -874,15 +874,11 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 		return;
 
 	if (read_node_page(apage, READA))
-		goto unlock_out;
+		unlock_page(apage);
 
-	page_cache_release(apage);
-	return;
-
-unlock_out:
-	unlock_page(apage);
 release_out:
-	page_cache_release(apage);
+	f2fs_put_page(apage, 0);
+	return;
 }
 
 struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
@@ -1139,7 +1135,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	/* First check balancing cached NAT entries */
 	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK)) {
-		write_checkpoint(sbi, false, false);
+		write_checkpoint(sbi, false);
 		return 0;
 	}
 

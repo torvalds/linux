@@ -1109,6 +1109,9 @@ static int dvb_video_ioctl(struct file *file,
 		}
 	}
 
+	if (mutex_lock_interruptible(&av7110->ioctl_mutex))
+		return -ERESTARTSYS;
+
 	switch (cmd) {
 	case VIDEO_STOP:
 		av7110->videostate.play_state = VIDEO_STOPPED;
@@ -1297,6 +1300,7 @@ static int dvb_video_ioctl(struct file *file,
 		break;
 	}
 
+	mutex_unlock(&av7110->ioctl_mutex);
 	return ret;
 }
 
@@ -1313,6 +1317,9 @@ static int dvb_audio_ioctl(struct file *file,
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
 	    (cmd != AUDIO_GET_STATUS))
 		return -EPERM;
+
+	if (mutex_lock_interruptible(&av7110->ioctl_mutex))
+		return -ERESTARTSYS;
 
 	switch (cmd) {
 	case AUDIO_STOP:
@@ -1442,6 +1449,7 @@ static int dvb_audio_ioctl(struct file *file,
 		ret = -ENOIOCTLCMD;
 	}
 
+	mutex_unlock(&av7110->ioctl_mutex);
 	return ret;
 }
 

@@ -44,6 +44,11 @@
 				status = "okay";
 			};
 
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
 			usb1: gadget@fffb0000 {
 				atmel,vbus-gpio = <&pioD 4 0>;
 				status = "okay";

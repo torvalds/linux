@@ -427,7 +427,7 @@ static int __init omap3xxx_prm_late_init(void)
 
 	return ret;
 }
-subsys_initcall(omap3xxx_prm_late_init);
+omap_subsys_initcall(omap3xxx_prm_late_init);
 
 static void __exit omap3xxx_prm_exit(void)
 {

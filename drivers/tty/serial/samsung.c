@@ -47,7 +47,6 @@
 #include <asm/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/map.h>
 
 #include <plat/regs-serial.h>
 #include <plat/clock.h>
@@ -221,7 +220,6 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
 	int max_count = 64;
@@ -299,7 +297,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
  ignore_char:
 		continue;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
  out:
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -1143,8 +1141,13 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
+	port->membase = devm_ioremap(port->dev, res->start, resource_size(res));
+	if (!port->membase) {
+		dev_err(port->dev, "failed to remap controller address\n");
+		return -EBUSY;
+	}
+
 	port->mapbase = res->start;
-	port->membase = S3C_VA_UART + (res->start & 0xfffff);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;
@@ -1724,8 +1727,6 @@ static const struct of_device_id s3c24xx_uart_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
-#else
-#define s3c24xx_uart_dt_match NULL
 #endif
 
 static struct platform_driver samsung_serial_driver = {
@@ -1736,7 +1737,7 @@ static struct platform_driver samsung_serial_driver = {
 		.name	= "samsung-uart",
 		.owner	= THIS_MODULE,
 		.pm	= SERIAL_SAMSUNG_PM_OPS,
-		.of_match_table	= s3c24xx_uart_dt_match,
+		.of_match_table	= of_match_ptr(s3c24xx_uart_dt_match),
 	},
 };
 

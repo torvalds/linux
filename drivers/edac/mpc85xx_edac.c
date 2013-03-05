@@ -301,7 +301,7 @@ int mpc85xx_pci_err_probe(struct platform_device *op)
 				       "[EDAC] PCI err", pci);
 		if (res < 0) {
 			printk(KERN_ERR
-			       "%s: Unable to requiest irq %d for "
+			       "%s: Unable to request irq %d for "
 			       "MPC85xx PCI err\n", __func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
 			res = -ENODEV;
@@ -583,7 +583,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 				       "[EDAC] L2 err", edac_dev);
 		if (res < 0) {
 			printk(KERN_ERR
-			       "%s: Unable to requiest irq %d for "
+			       "%s: Unable to request irq %d for "
 			       "MPC85xx L2 err\n", __func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
 			res = -ENODEV;

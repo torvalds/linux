@@ -87,7 +87,6 @@ struct rpc_task {
 				tk_cred_retry : 2,
 				tk_rebind_retry : 2;
 };
-#define tk_xprt			tk_client->cl_xprt
 
 /* support walking a list of tasks on a wait queue */
 #define	task_for_each(task, pos, head) \

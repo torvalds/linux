@@ -1,6 +1,5 @@
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include "ctree.h"

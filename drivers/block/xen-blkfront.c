@@ -791,7 +791,7 @@ static void blkif_restart_queue(struct work_struct *work)
 static void blkif_free(struct blkfront_info *info, int suspend)
 {
 	struct llist_node *all_gnts;
-	struct grant *persistent_gnt;
+	struct grant *persistent_gnt, *tmp;
 	struct llist_node *n;
 
 	/* Prevent new requests being issued until we fix things up. */
@@ -805,10 +805,17 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	/* Remove all persistent grants */
 	if (info->persistent_gnts_c) {
 		all_gnts = llist_del_all(&info->persistent_gnts);
-		llist_for_each_entry_safe(persistent_gnt, n, all_gnts, node) {
+		persistent_gnt = llist_entry(all_gnts, typeof(*(persistent_gnt)), node);
+		while (persistent_gnt) {
 			gnttab_end_foreign_access(persistent_gnt->gref, 0, 0UL);
 			__free_page(pfn_to_page(persistent_gnt->pfn));
-			kfree(persistent_gnt);
+			tmp = persistent_gnt;
+			n = persistent_gnt->node.next;
+			if (n)
+				persistent_gnt = llist_entry(n, typeof(*(persistent_gnt)), node);
+			else
+				persistent_gnt = NULL;
+			kfree(tmp);
 		}
 		info->persistent_gnts_c = 0;
 	}

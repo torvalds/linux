@@ -5,11 +5,6 @@
 config NET_VENDOR_INTEL
 	bool "Intel devices"
 	default y
-	depends on PCI || PCI_MSI || ISA || ISA_DMA_API || ARM || \
-		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
-		   GSC || BVME6000 || MVME16x || \
-		   (ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR) || \
-		   EXPERIMENTAL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -74,6 +69,7 @@ config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
 	depends on PCI && (!SPARC32 || BROKEN)
 	select CRC32
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
@@ -94,6 +90,8 @@ config IGB
 	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
 	depends on PCI
 	select PTP_1588_CLOCK
+	select I2C
+	select I2C_ALGOBIT
 	---help---
 	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -111,6 +109,17 @@ config IGB
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igb.
+
+config IGB_HWMON
+	bool "Intel(R) PCI-Express Gigabit adapters HWMON support"
+	default y
+	depends on IGB && HWMON && !(IGB=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose thermal sensor data on Intel devices.
+
+	  Some of our devices contain thermal sensors, both external and internal.
+	  This data is available via the hwmon sysfs interface and exposes
+	  the onboard sensors.
 
 config IGB_DCA
 	bool "Direct Cache Access (DCA) Support"

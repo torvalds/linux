@@ -94,19 +94,19 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 	if (dev == 0) {
 		/* we support only two functions on device 0 */
 		if (func > 1)
-			return -EINVAL;
+			goto out;
 
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
 		if (off >= PCI_CONFIG_SPACE_SIZE) {
 			addr = (func << 12);
-			addr |= (off & 0x0FFF);
+			addr |= (off & 0x0FFC);
 			val = bcma_pcie_read_config(pc, addr);
 		} else {
 			addr = BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
-			addr |= (off & 0xfc);
+			addr |= (off & 0xFC);
 			val = pcicore_read32(pc, addr);
 		}
 	} else {
@@ -119,11 +119,9 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 			goto out;
 
 		if (mips_busprobe32(val, mmio)) {
-			val = 0xffffffff;
+			val = 0xFFFFFFFF;
 			goto unmap;
 		}
-
-		val = readl(mmio);
 	}
 	val >>= (8 * (off & 3));
 
@@ -151,7 +149,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 				   const void *buf, int len)
 {
 	int err = -EINVAL;
-	u32 addr = 0, val = 0;
+	u32 addr, val;
 	void __iomem *mmio = 0;
 	u16 chipid = pc->core->bus->chipinfo.id;
 
@@ -159,16 +157,22 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	if (dev == 0) {
+		/* we support only two functions on device 0 */
+		if (func > 1)
+			goto out;
+
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
-		if (off < PCI_CONFIG_SPACE_SIZE) {
-			addr = pc->core->addr + BCMA_CORE_PCI_PCICFG0;
+		if (off >= PCI_CONFIG_SPACE_SIZE) {
+			addr = (func << 12);
+			addr |= (off & 0x0FFC);
+			val = bcma_pcie_read_config(pc, addr);
+		} else {
+			addr = BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
-			addr |= (off & 0xfc);
-			mmio = ioremap_nocache(addr, sizeof(val));
-			if (!mmio)
-				goto out;
+			addr |= (off & 0xFC);
+			val = pcicore_read32(pc, addr);
 		}
 	} else {
 		addr = bcma_get_cfgspace_addr(pc, dev, func, off);
@@ -180,19 +184,17 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 			goto out;
 
 		if (mips_busprobe32(val, mmio)) {
-			val = 0xffffffff;
+			val = 0xFFFFFFFF;
 			goto unmap;
 		}
 	}
 
 	switch (len) {
 	case 1:
-		val = readl(mmio);
 		val &= ~(0xFF << (8 * (off & 3)));
 		val |= *((const u8 *)buf) << (8 * (off & 3));
 		break;
 	case 2:
-		val = readl(mmio);
 		val &= ~(0xFFFF << (8 * (off & 3)));
 		val |= *((const u16 *)buf) << (8 * (off & 3));
 		break;
@@ -200,13 +202,14 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		val = *((const u32 *)buf);
 		break;
 	}
-	if (dev == 0 && !addr) {
+	if (dev == 0) {
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
-		addr = (func << 12);
-		addr |= (off & 0x0FFF);
-		bcma_pcie_write_config(pc, addr, val);
+		if (off >= PCI_CONFIG_SPACE_SIZE)
+			bcma_pcie_write_config(pc, addr, val);
+		else
+			pcicore_write32(pc, addr, val);
 	} else {
 		writel(val, mmio);
 
@@ -276,7 +279,7 @@ static u8 bcma_find_pci_capability(struct bcma_drv_pci *pc, unsigned int dev,
 	/* check for Header type 0 */
 	bcma_extpci_read_config(pc, dev, func, PCI_HEADER_TYPE, &byte_val,
 				sizeof(u8));
-	if ((byte_val & 0x7f) != PCI_HEADER_TYPE_NORMAL)
+	if ((byte_val & 0x7F) != PCI_HEADER_TYPE_NORMAL)
 		return cap_ptr;
 
 	/* check if the capability pointer field exists */
@@ -426,7 +429,7 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	/* Reset RC */
 	usleep_range(3000, 5000);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST_OE);
-	usleep_range(1000, 2000);
+	msleep(50);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST |
 			BCMA_CORE_PCI_CTL_RST_OE);
 
@@ -487,6 +490,17 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	msleep(100);
 
 	bcma_core_pci_enable_crs(pc);
+
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4716) {
+		u16 val16;
+		bcma_extpci_read_config(pc, 0, 0, BCMA_CORE_PCI_CFG_DEVCTRL,
+					&val16, sizeof(val16));
+		val16 |= (2 << 5);	/* Max payload size of 512 */
+		val16 |= (2 << 12);	/* MRRS 512 */
+		bcma_extpci_write_config(pc, 0, 0, BCMA_CORE_PCI_CFG_DEVCTRL,
+					 &val16, sizeof(val16));
+	}
 
 	/* Enable PCI bridge BAR0 memory & master access */
 	tmp = PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
@@ -576,7 +590,7 @@ int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 	pr_info("PCI: Fixing up device %s\n", pci_name(dev));
 
 	/* Fix up interrupt lines */
-	dev->irq = bcma_core_mips_irq(pc_host->pdev->core) + 2;
+	dev->irq = bcma_core_irq(pc_host->pdev->core);
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 
 	return 0;
@@ -595,6 +609,6 @@ int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
 
 	pc_host = container_of(dev->bus->ops, struct bcma_drv_pci_host,
 			       pci_ops);
-	return bcma_core_mips_irq(pc_host->pdev->core) + 2;
+	return bcma_core_irq(pc_host->pdev->core);
 }
 EXPORT_SYMBOL(bcma_core_pci_pcibios_map_irq);

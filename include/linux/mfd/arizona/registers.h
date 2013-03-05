@@ -119,6 +119,8 @@
 #define ARIZONA_ACCESSORY_DETECT_MODE_1          0x293
 #define ARIZONA_HEADPHONE_DETECT_1               0x29B
 #define ARIZONA_HEADPHONE_DETECT_2               0x29C
+#define ARIZONA_HP_DACVAL			 0x29F
+#define ARIZONA_MICD_CLAMP_CONTROL               0x2A2
 #define ARIZONA_MIC_DETECT_1                     0x2A3
 #define ARIZONA_MIC_DETECT_2                     0x2A4
 #define ARIZONA_MIC_DETECT_3                     0x2A5
@@ -982,18 +984,34 @@
 #define ARIZONA_DSP1_STATUS_1                    0x1104
 #define ARIZONA_DSP1_STATUS_2                    0x1105
 #define ARIZONA_DSP1_STATUS_3                    0x1106
+#define ARIZONA_DSP1_SCRATCH_0                   0x1140
+#define ARIZONA_DSP1_SCRATCH_1                   0x1141
+#define ARIZONA_DSP1_SCRATCH_2                   0x1142
+#define ARIZONA_DSP1_SCRATCH_3                   0x1143
 #define ARIZONA_DSP2_CONTROL_1                   0x1200
 #define ARIZONA_DSP2_CLOCKING_1                  0x1201
 #define ARIZONA_DSP2_STATUS_1                    0x1204
 #define ARIZONA_DSP2_STATUS_2                    0x1205
+#define ARIZONA_DSP2_SCRATCH_0                   0x1240
+#define ARIZONA_DSP2_SCRATCH_1                   0x1241
+#define ARIZONA_DSP2_SCRATCH_2                   0x1242
+#define ARIZONA_DSP2_SCRATCH_3                   0x1243
 #define ARIZONA_DSP3_CONTROL_1                   0x1300
 #define ARIZONA_DSP3_CLOCKING_1                  0x1301
 #define ARIZONA_DSP3_STATUS_1                    0x1304
 #define ARIZONA_DSP3_STATUS_2                    0x1305
+#define ARIZONA_DSP3_SCRATCH_0                   0x1340
+#define ARIZONA_DSP3_SCRATCH_1                   0x1341
+#define ARIZONA_DSP3_SCRATCH_2                   0x1342
+#define ARIZONA_DSP3_SCRATCH_3                   0x1343
 #define ARIZONA_DSP4_CONTROL_1                   0x1400
 #define ARIZONA_DSP4_CLOCKING_1                  0x1401
 #define ARIZONA_DSP4_STATUS_1                    0x1404
 #define ARIZONA_DSP4_STATUS_2                    0x1405
+#define ARIZONA_DSP4_SCRATCH_0                   0x1440
+#define ARIZONA_DSP4_SCRATCH_1                   0x1441
+#define ARIZONA_DSP4_SCRATCH_2                   0x1442
+#define ARIZONA_DSP4_SCRATCH_3                   0x1443
 
 /*
  * Field Definitions.
@@ -1194,6 +1212,14 @@
 /*
  * R64 (0x40) - Wake control
  */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL             0x0080  /* WKUP_MICD_CLAMP_FALL */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_MASK        0x0080  /* WKUP_MICD_CLAMP_FALL */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_SHIFT            7  /* WKUP_MICD_CLAMP_FALL */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_WIDTH            1  /* WKUP_MICD_CLAMP_FALL */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE             0x0040  /* WKUP_MICD_CLAMP_RISE */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_MASK        0x0040  /* WKUP_MICD_CLAMP_RISE */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_SHIFT            6  /* WKUP_MICD_CLAMP_RISE */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_WIDTH            1  /* WKUP_MICD_CLAMP_RISE */
 #define ARIZONA_WKUP_GP5_FALL                    0x0020  /* WKUP_GP5_FALL */
 #define ARIZONA_WKUP_GP5_FALL_MASK               0x0020  /* WKUP_GP5_FALL */
 #define ARIZONA_WKUP_GP5_FALL_SHIFT                   5  /* WKUP_GP5_FALL */
@@ -2035,6 +2061,9 @@
 /*
  * R667 (0x29B) - Headphone Detect 1
  */
+#define ARIZONA_HP_IMPEDANCE_RANGE_MASK          0x0600  /* HP_IMPEDANCE_RANGE - [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_SHIFT              9  /* HP_IMPEDANCE_RANGE - [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_WIDTH              2  /* HP_IMPEDANCE_RANGE - [10:9] */
 #define ARIZONA_HP_STEP_SIZE                     0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_MASK                0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_SHIFT                    8  /* HP_STEP_SIZE */
@@ -2068,6 +2097,21 @@
 #define ARIZONA_HP_LVL_MASK                      0x007F  /* HP_LVL - [6:0] */
 #define ARIZONA_HP_LVL_SHIFT                          0  /* HP_LVL - [6:0] */
 #define ARIZONA_HP_LVL_WIDTH                          7  /* HP_LVL - [6:0] */
+
+#define ARIZONA_HP_DONE_B                        0x8000  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_MASK                   0x8000  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_SHIFT                      15  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_WIDTH                       1  /* HP_DONE */
+#define ARIZONA_HP_LVL_B_MASK                    0x7FFF  /* HP_LVL - [14:0] */
+#define ARIZONA_HP_LVL_B_SHIFT                        0  /* HP_LVL - [14:0] */
+#define ARIZONA_HP_LVL_B_WIDTH                       15  /* HP_LVL - [14:0] */
+
+/*
+ * R674 (0x2A2) - MICD clamp control
+ */
+#define ARIZONA_MICD_CLAMP_MODE_MASK             0x000F  /* MICD_CLAMP_MODE - [3:0] */
+#define ARIZONA_MICD_CLAMP_MODE_SHIFT                 0  /* MICD_CLAMP_MODE - [3:0] */
+#define ARIZONA_MICD_CLAMP_MODE_WIDTH                 4  /* MICD_CLAMP_MODE - [3:0] */
 
 /*
  * R675 (0x2A3) - Mic Detect 1
@@ -5239,6 +5283,14 @@
 /*
  * R3408 (0xD50) - AOD wkup and trig
  */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS         0x0080  /* MICD_CLAMP_FALL_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_MASK    0x0080  /* MICD_CLAMP_FALL_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_SHIFT        7  /* MICD_CLAMP_FALL_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_WIDTH        1  /* MICD_CLAMP_FALL_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS         0x0040  /* MICD_CLAMP_RISE_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_MASK    0x0040  /* MICD_CLAMP_RISE_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_SHIFT        6  /* MICD_CLAMP_RISE_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_WIDTH        1  /* MICD_CLAMP_RISE_TRIG_STS */
 #define ARIZONA_GP5_FALL_TRIG_STS                0x0020  /* GP5_FALL_TRIG_STS */
 #define ARIZONA_GP5_FALL_TRIG_STS_MASK           0x0020  /* GP5_FALL_TRIG_STS */
 #define ARIZONA_GP5_FALL_TRIG_STS_SHIFT               5  /* GP5_FALL_TRIG_STS */
@@ -5267,6 +5319,12 @@
 /*
  * R3409 (0xD51) - AOD IRQ1
  */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1            0x0080  /* MICD_CLAMP_FALL_EINT1 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1_MASK       0x0080  /* MICD_CLAMP_FALL_EINT1 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1_SHIFT           7  /* MICD_CLAMP_FALL_EINT1 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1            0x0040  /* MICD_CLAMP_RISE_EINT1 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1_MASK       0x0040  /* MICD_CLAMP_RISE_EINT1 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1_SHIFT           6  /* MICD_CLAMP_RISE_EINT1 */
 #define ARIZONA_GP5_FALL_EINT1                   0x0020  /* GP5_FALL_EINT1 */
 #define ARIZONA_GP5_FALL_EINT1_MASK              0x0020  /* GP5_FALL_EINT1 */
 #define ARIZONA_GP5_FALL_EINT1_SHIFT                  5  /* GP5_FALL_EINT1 */
@@ -5295,6 +5353,12 @@
 /*
  * R3410 (0xD52) - AOD IRQ2
  */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2            0x0080  /* MICD_CLAMP_FALL_EINT2 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2_MASK       0x0080  /* MICD_CLAMP_FALL_EINT2 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2_SHIFT           7  /* MICD_CLAMP_FALL_EINT2 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2            0x0040  /* MICD_CLAMP_RISE_EINT2 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2_MASK       0x0040  /* MICD_CLAMP_RISE_EINT2 */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2_SHIFT           6  /* MICD_CLAMP_RISE_EINT2 */
 #define ARIZONA_GP5_FALL_EINT2                   0x0020  /* GP5_FALL_EINT2 */
 #define ARIZONA_GP5_FALL_EINT2_MASK              0x0020  /* GP5_FALL_EINT2 */
 #define ARIZONA_GP5_FALL_EINT2_SHIFT                  5  /* GP5_FALL_EINT2 */
@@ -5379,6 +5443,10 @@
 /*
  * R3413 (0xD55) - AOD IRQ Raw Status
  */
+#define ARIZONA_MICD_CLAMP_STS                   0x0008  /* MICD_CLAMP_STS */
+#define ARIZONA_MICD_CLAMP_STS_MASK              0x0008  /* MICD_CLAMP_STS */
+#define ARIZONA_MICD_CLAMP_STS_SHIFT                  3  /* MICD_CLAMP_STS */
+#define ARIZONA_MICD_CLAMP_STS_WIDTH                  1  /* MICD_CLAMP_STS */
 #define ARIZONA_GP5_STS                          0x0004  /* GP5_STS */
 #define ARIZONA_GP5_STS_MASK                     0x0004  /* GP5_STS */
 #define ARIZONA_GP5_STS_SHIFT                         2  /* GP5_STS */
@@ -5395,6 +5463,10 @@
 /*
  * R3414 (0xD56) - Jack detect debounce
  */
+#define ARIZONA_MICD_CLAMP_DB                    0x0008  /* MICD_CLAMP_DB */
+#define ARIZONA_MICD_CLAMP_DB_MASK               0x0008  /* MICD_CLAMP_DB */
+#define ARIZONA_MICD_CLAMP_DB_SHIFT                   3  /* MICD_CLAMP_DB */
+#define ARIZONA_MICD_CLAMP_DB_WIDTH                   1  /* MICD_CLAMP_DB */
 #define ARIZONA_JD2_DB                           0x0002  /* JD2_DB */
 #define ARIZONA_JD2_DB_MASK                      0x0002  /* JD2_DB */
 #define ARIZONA_JD2_DB_SHIFT                          1  /* JD2_DB */

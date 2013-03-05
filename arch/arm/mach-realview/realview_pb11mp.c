@@ -27,13 +27,13 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/smp_twd.h>
 
@@ -316,10 +316,6 @@ static void __init realview_pb11mp_timer_init(void)
 	realview_pb11mp_twd_init();
 }
 
-static struct sys_timer realview_pb11mp_timer = {
-	.init		= realview_pb11mp_timer_init,
-};
-
 static void realview_pb11mp_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
@@ -367,8 +363,7 @@ MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	.map_io		= realview_pb11mp_map_io,
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_pb11mp_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= realview_pb11mp_timer_init,
 	.init_machine	= realview_pb11mp_init,
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,

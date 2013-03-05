@@ -531,7 +531,7 @@ EXPORT_SYMBOL(lirc_dev_fop_close);
 
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 {
-	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
+	struct irctl *ir = irctls[iminor(file_inode(file))];
 	unsigned int ret;
 
 	if (!ir) {
@@ -565,7 +565,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	__u32 mode;
 	int result = 0;
-	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
+	struct irctl *ir = irctls[iminor(file_inode(file))];
 
 	if (!ir) {
 		printk(KERN_ERR "lirc_dev: %s: no irctl found!\n", __func__);
@@ -650,7 +650,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			  size_t length,
 			  loff_t *ppos)
 {
-	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
+	struct irctl *ir = irctls[iminor(file_inode(file))];
 	unsigned char *buf;
 	int ret = 0, written = 0;
 	DECLARE_WAITQUEUE(wait, current);
@@ -752,16 +752,7 @@ EXPORT_SYMBOL(lirc_dev_fop_read);
 
 void *lirc_get_pdata(struct file *file)
 {
-	void *data = NULL;
-
-	if (file && file->f_dentry && file->f_dentry->d_inode &&
-	    file->f_dentry->d_inode->i_rdev) {
-		struct irctl *ir;
-		ir = irctls[iminor(file->f_dentry->d_inode)];
-		data = ir->d.data;
-	}
-
-	return data;
+	return irctls[iminor(file_inode(file))]->d.data;
 }
 EXPORT_SYMBOL(lirc_get_pdata);
 
@@ -769,7 +760,7 @@ EXPORT_SYMBOL(lirc_get_pdata);
 ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
 			   size_t length, loff_t *ppos)
 {
-	struct irctl *ir = irctls[iminor(file->f_dentry->d_inode)];
+	struct irctl *ir = irctls[iminor(file_inode(file))];
 
 	if (!ir) {
 		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);

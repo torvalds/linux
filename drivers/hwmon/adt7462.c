@@ -836,7 +836,7 @@ static ssize_t set_temp_min(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_min[attr->index] = temp;
@@ -874,7 +874,7 @@ static ssize_t set_temp_max(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_max[attr->index] = temp;
@@ -939,7 +939,7 @@ static ssize_t set_volt_max(struct device *dev,
 
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_max[attr->index] = temp;
@@ -981,7 +981,7 @@ static ssize_t set_volt_min(struct device *dev,
 
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_min[attr->index] = temp;
@@ -1071,7 +1071,7 @@ static ssize_t set_fan_min(struct device *dev,
 
 	temp = FAN_RPM_TO_PERIOD(temp);
 	temp >>= 8;
-	temp = SENSORS_LIMIT(temp, 1, 255);
+	temp = clamp_val(temp, 1, 255);
 
 	mutex_lock(&data->lock);
 	data->fan_min[attr->index] = temp;
@@ -1149,7 +1149,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm[attr->index] = temp;
@@ -1179,7 +1179,7 @@ static ssize_t set_pwm_max(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_max = temp;
@@ -1211,7 +1211,7 @@ static ssize_t set_pwm_min(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_min[attr->index] = temp;
@@ -1246,7 +1246,7 @@ static ssize_t set_pwm_hyst(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = SENSORS_LIMIT(temp, 0, 15);
+	temp = clamp_val(temp, 0, 15);
 
 	/* package things up */
 	temp &= ADT7462_PWM_HYST_MASK;
@@ -1333,7 +1333,7 @@ static ssize_t set_pwm_tmin(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_tmin[attr->index] = temp;

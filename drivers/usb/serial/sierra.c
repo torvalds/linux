@@ -569,7 +569,6 @@ static void sierra_indat_callback(struct urb *urb)
 	int err;
 	int endpoint;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -581,16 +580,12 @@ static void sierra_indat_callback(struct urb *urb)
 			" endpoint %02x\n", __func__, status, endpoint);
 	} else {
 		if (urb->actual_length) {
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_insert_flip_string(tty, data,
-					urb->actual_length);
-				tty_flip_buffer_push(tty);
+			tty_insert_flip_string(&port->port, data,
+				urb->actual_length);
+			tty_flip_buffer_push(&port->port);
 
-				tty_kref_put(tty);
-				usb_serial_debug_data(&port->dev, __func__,
-						      urb->actual_length, data);
-			}
+			usb_serial_debug_data(&port->dev, __func__,
+					      urb->actual_length, data);
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
 				" received\n", __func__);
@@ -861,19 +856,13 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void sierra_dtr_rts(struct usb_serial_port *port, int on)
 {
-	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
 	portdata->rts_state = on;
 	portdata->dtr_state = on;
 
-	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			sierra_send_setup(port);
-		mutex_unlock(&serial->disc_mutex);
-	}
+	sierra_send_setup(port);
 }
 
 static int sierra_startup(struct usb_serial *serial)

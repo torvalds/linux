@@ -24,23 +24,21 @@
 				   SIGPIPE when they die.  */
 #define SO_DONTROUTE	0x0010	/* Don't do local routing.  */
 #define SO_BROADCAST	0x0020	/* Allow transmission of
-				   broadcast messages.  */
+				   broadcast messages.	*/
 #define SO_LINGER	0x0080	/* Block on close of a reliable
 				   socket to transmit pending data.  */
 #define SO_OOBINLINE 0x0100	/* Receive out-of-band data in-band.  */
-#if 0
-To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
-#endif
+#define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 
 #define SO_TYPE		0x1008	/* Compatible name for SO_STYLE.  */
-#define SO_STYLE	SO_TYPE	/* Synonym */
+#define SO_STYLE	SO_TYPE /* Synonym */
 #define SO_ERROR	0x1007	/* get error status and clear */
 #define SO_SNDBUF	0x1001	/* Send buffer size. */
 #define SO_RCVBUF	0x1002	/* Receive buffer. */
 #define SO_SNDLOWAT	0x1003	/* send low-water mark */
 #define SO_RCVLOWAT	0x1004	/* receive low-water mark */
 #define SO_SNDTIMEO	0x1005	/* send timeout */
-#define SO_RCVTIMEO 	0x1006	/* receive timeout */
+#define SO_RCVTIMEO	0x1006	/* receive timeout */
 #define SO_ACCEPTCONN	0x1009
 #define SO_PROTOCOL	0x1028	/* protocol type */
 #define SO_DOMAIN	0x1029	/* domain/socket family */
@@ -61,11 +59,11 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #define SO_BINDTODEVICE		25
 
 /* Socket filtering */
-#define SO_ATTACH_FILTER        26
-#define SO_DETACH_FILTER        27
+#define SO_ATTACH_FILTER	26
+#define SO_DETACH_FILTER	27
 #define SO_GET_FILTER		SO_ATTACH_FILTER
 
-#define SO_PEERNAME             28
+#define SO_PEERNAME		28
 #define SO_TIMESTAMP		29
 #define SCM_TIMESTAMP		SO_TIMESTAMP
 
@@ -81,7 +79,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #define SO_TIMESTAMPING		37
 #define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
-#define SO_RXQ_OVFL             40
+#define SO_RXQ_OVFL		40
 
 #define SO_WIFI_STATUS		41
 #define SCM_WIFI_STATUS		SO_WIFI_STATUS
@@ -90,5 +88,6 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		43
 
+#define SO_LOCK_FILTER		44
 
 #endif /* _UAPI_ASM_SOCKET_H */

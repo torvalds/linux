@@ -2617,3 +2617,17 @@ void scsi_kunmap_atomic_sg(void *virt)
 	kunmap_atomic(virt);
 }
 EXPORT_SYMBOL(scsi_kunmap_atomic_sg);
+
+void sdev_disable_disk_events(struct scsi_device *sdev)
+{
+	atomic_inc(&sdev->disk_events_disable_depth);
+}
+EXPORT_SYMBOL(sdev_disable_disk_events);
+
+void sdev_enable_disk_events(struct scsi_device *sdev)
+{
+	if (WARN_ON_ONCE(atomic_read(&sdev->disk_events_disable_depth) <= 0))
+		return;
+	atomic_dec(&sdev->disk_events_disable_depth);
+}
+EXPORT_SYMBOL(sdev_enable_disk_events);

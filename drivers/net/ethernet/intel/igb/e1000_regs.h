@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -75,6 +75,14 @@
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
+#define E1000_I2CPARAMS        0x0102C /* SFPI2C Parameters Register - RW */
+#define E1000_I2CBB_EN      0x00000100  /* I2C - Bit Bang Enable */
+#define E1000_I2C_CLK_OUT   0x00000200  /* I2C- Clock */
+#define E1000_I2C_DATA_OUT  0x00000400  /* I2C- Data Out */
+#define E1000_I2C_DATA_OE_N 0x00000800  /* I2C- Data Output Enable */
+#define E1000_I2C_DATA_IN   0x00001000  /* I2C- Data In */
+#define E1000_I2C_CLK_OE_N  0x00002000  /* I2C- Clock Output Enable */
+#define E1000_I2C_CLK_IN    0x00004000  /* I2C- Clock In */
 
 /* IEEE 1588 TIMESYNCH */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
@@ -124,6 +132,14 @@
 
 /* Split and Replication RX Control - RW */
 #define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
+
+/* Thermal sensor configuration and status registers */
+#define E1000_THMJT	0x08100 /* Junction Temperature */
+#define E1000_THLOWTC	0x08104 /* Low Threshold Control */
+#define E1000_THMIDTC	0x08108 /* Mid Threshold Control */
+#define E1000_THHIGHTC	0x0810C /* High Threshold Control */
+#define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
+
 /*
  * Convenience macros
  *

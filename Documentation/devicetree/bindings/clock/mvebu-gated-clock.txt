@@ -89,7 +89,7 @@ ID	Clock	Peripheral
 16	xor1	XOR DMA 1
 17	crypto	CESA engine
 18	pex1	PCIe Cntrl 1
-19	ge1	Gigabit Ethernet 0
+19	ge1	Gigabit Ethernet 1
 20	tdm	Time Division Mplx
 
 Required properties:

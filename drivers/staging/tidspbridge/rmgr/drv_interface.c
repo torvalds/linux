@@ -65,7 +65,6 @@ static struct class *bridge_class;
 static u32 driver_context;
 static s32 driver_major;
 static char *base_img;
-char *iva_img;
 static s32 shm_size = 0x500000;	/* 5 MB */
 static int tc_wordswapon;	/* Default value is always false */
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY

@@ -225,4 +225,6 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
 
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
 
+void v4l2_get_timestamp(struct timeval *tv);
+
 #endif /* V4L2_COMMON_H_ */

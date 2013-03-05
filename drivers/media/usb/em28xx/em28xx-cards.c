@@ -6,6 +6,7 @@
 		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,9 +57,15 @@ module_param(disable_usb_speed_check, int, 0444);
 MODULE_PARM_DESC(disable_usb_speed_check,
 		 "override min bandwidth requirement of 480M bps");
 
-static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
+static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = -1U };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
+
+static int usb_xfer_mode = -1;
+module_param(usb_xfer_mode, int, 0444);
+MODULE_PARM_DESC(usb_xfer_mode,
+		 "USB transfer mode for frame data (-1 = auto, 0 = prefer isoc, 1 = prefer bulk)");
+
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
 static unsigned long em28xx_devused;
@@ -486,7 +493,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = EM28XX_AMUX_LINE_IN,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
@@ -2073,6 +2080,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x10ad),	/* H5 Rev. 2 */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10b6),	/* H5 Rev. 3 */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x0084),
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
@@ -2905,7 +2914,7 @@ static void request_module_async(struct work_struct *work)
 
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
-	if (dev->board.ir_codes && !disable_ir)
+	if ((dev->board.ir_codes || dev->board.has_ir_i2c) && !disable_ir)
 		request_module("em28xx-rc");
 #endif /* CONFIG_MODULES */
 }
@@ -2934,6 +2943,8 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	em28xx_i2c_unregister(dev);
 
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+
 	v4l2_device_unregister(&dev->v4l2_dev);
 
 	usb_put_dev(dev->udev);
@@ -2950,9 +2961,14 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   struct usb_interface *interface,
 			   int minor)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 	int retval;
+	static const char *default_chip_name = "em28xx";
+	const char *chip_name = default_chip_name;
 
 	dev->udev = udev;
+	mutex_init(&dev->vb_queue_lock);
+	mutex_init(&dev->vb_vbi_queue_lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 
@@ -2978,50 +2994,61 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2800:
-			em28xx_info("chip ID is em2800\n");
+			chip_name = "em2800";
 			break;
 		case CHIP_ID_EM2710:
-			em28xx_info("chip ID is em2710\n");
+			chip_name = "em2710";
 			break;
 		case CHIP_ID_EM2750:
-			em28xx_info("chip ID is em2750\n");
+			chip_name = "em2750";
 			break;
 		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2820 (or em2710)\n");
+			chip_name = "em2710/2820";
 			break;
 		case CHIP_ID_EM2840:
-			em28xx_info("chip ID is em2840\n");
+			chip_name = "em2840";
 			break;
 		case CHIP_ID_EM2860:
-			em28xx_info("chip ID is em2860\n");
+			chip_name = "em2860";
 			break;
 		case CHIP_ID_EM2870:
-			em28xx_info("chip ID is em2870\n");
+			chip_name = "em2870";
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2874:
-			em28xx_info("chip ID is em2874\n");
+			chip_name = "em2874";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM28174:
-			em28xx_info("chip ID is em28174\n");
+			chip_name = "em28174";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2883:
-			em28xx_info("chip ID is em2882/em2883\n");
+			chip_name = "em2882/3";
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2884:
-			em28xx_info("chip ID is em2884\n");
+			chip_name = "em2884";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		default:
-			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
+			printk(KERN_INFO DRIVER_NAME
+			       ": unknown em28xx chip ID (%d)\n", dev->chip_id);
 		}
 	}
+
+	if (chip_name != default_chip_name)
+		printk(KERN_INFO DRIVER_NAME
+		       ": chip ID is %s\n", chip_name);
+
+	/*
+	 * For em2820/em2710, the name may change latter, after checking
+	 * if the device has a sensor (so, it is em2710) or not.
+	 */
+	snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
 
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
@@ -3039,6 +3066,14 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 	em28xx_pre_card_setup(dev);
 
+	if (dev->chip_id == CHIP_ID_EM2820) {
+		if (dev->board.is_webcam)
+			chip_name = "em2710";
+		else
+			chip_name = "em2820";
+		snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
+	}
+
 	if (!dev->board.is_em2800) {
 		/* Resets I2C speed */
 		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
@@ -3055,6 +3090,9 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		em28xx_errdev("Call to v4l2_device_register() failed!\n");
 		return retval;
 	}
+
+	v4l2_ctrl_handler_init(hdl, 4);
+	dev->v4l2_dev.ctrl_handler = hdl;
 
 	/* register i2c bus */
 	retval = em28xx_i2c_register(dev);
@@ -3080,6 +3118,18 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		em28xx_errdev("%s: Error while setting audio - error [%d]!\n",
 			__func__, retval);
 		goto fail;
+	}
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_VOLUME, 0, 0x1f, 1, 0x1f);
+	} else {
+		/* install the em28xx notify callback */
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_MUTE),
+				em28xx_ctrl_notify, dev);
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_VOLUME),
+				em28xx_ctrl_notify, dev);
 	}
 
 	/* wake i2c devices */
@@ -3110,6 +3160,11 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		msleep(3);
 	}
 
+	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
+	retval = dev->ctrl_handler.error;
+	if (retval)
+		goto fail;
+
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {
 		goto fail;
@@ -3122,6 +3177,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 fail:
 	em28xx_i2c_unregister(dev);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
 unregister_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
@@ -3143,7 +3199,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct em28xx *dev = NULL;
 	int retval;
 	bool has_audio = false, has_video = false, has_dvb = false;
-	int i, nr;
+	int i, nr, try_bulk;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
 
@@ -3183,9 +3239,10 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes */
-	dev->alt_max_pkt_size = kmalloc(sizeof(dev->alt_max_pkt_size[0]) *
+	dev->alt_max_pkt_size_isoc =
+				kmalloc(sizeof(dev->alt_max_pkt_size_isoc[0]) *
 					interface->num_altsetting, GFP_KERNEL);
-	if (dev->alt_max_pkt_size == NULL) {
+	if (dev->alt_max_pkt_size_isoc == NULL) {
 		em28xx_errdev("out of memory!\n");
 		kfree(dev);
 		retval = -ENOMEM;
@@ -3208,25 +3265,67 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			if (udev->speed == USB_SPEED_HIGH)
 				size = size * hb_mult(sizedescr);
 
-			if (usb_endpoint_xfer_isoc(e) &&
-			    usb_endpoint_dir_in(e)) {
+			if (usb_endpoint_dir_in(e)) {
 				switch (e->bEndpointAddress) {
-				case EM28XX_EP_AUDIO:
-					has_audio = true;
-					break;
-				case EM28XX_EP_ANALOG:
+				case 0x82:
 					has_video = true;
-					dev->alt_max_pkt_size[i] = size;
+					if (usb_endpoint_xfer_isoc(e)) {
+						dev->analog_ep_isoc =
+							    e->bEndpointAddress;
+						dev->alt_max_pkt_size_isoc[i] = size;
+					} else if (usb_endpoint_xfer_bulk(e)) {
+						dev->analog_ep_bulk =
+							    e->bEndpointAddress;
+					}
 					break;
-				case EM28XX_EP_DIGITAL:
-					has_dvb = true;
-					if (size > dev->dvb_max_pkt_size) {
-						dev->dvb_max_pkt_size = size;
-						dev->dvb_alt = i;
+				case 0x83:
+					if (usb_endpoint_xfer_isoc(e)) {
+						has_audio = true;
+					} else {
+						printk(KERN_INFO DRIVER_NAME
+						": error: skipping audio endpoint 0x83, because it uses bulk transfers !\n");
+					}
+					break;
+				case 0x84:
+					if (has_video &&
+					    (usb_endpoint_xfer_bulk(e))) {
+						dev->analog_ep_bulk =
+							    e->bEndpointAddress;
+					} else {
+						has_dvb = true;
+						if (usb_endpoint_xfer_isoc(e)) {
+							dev->dvb_ep_isoc = e->bEndpointAddress;
+							if (size > dev->dvb_max_pkt_size_isoc) {
+								dev->dvb_max_pkt_size_isoc = size;
+								dev->dvb_alt_isoc = i;
+							}
+						} else {
+							dev->dvb_ep_bulk = e->bEndpointAddress;
+						}
 					}
 					break;
 				}
 			}
+			/* NOTE:
+			 * Old logic with support for isoc transfers only was:
+			 *  0x82	isoc		=> analog
+			 *  0x83	isoc		=> audio
+			 *  0x84	isoc		=> digital
+			 *
+			 * New logic with support for bulk transfers
+			 *  0x82	isoc		=> analog
+			 *  0x82	bulk		=> analog
+			 *  0x83	isoc*		=> audio
+			 *  0x84	isoc		=> digital
+			 *  0x84	bulk		=> analog or digital**
+			 * (*: audio should always be isoc)
+			 * (**: analog, if ep 0x82 is isoc, otherwise digital)
+			 *
+			 * The new logic preserves backwards compatibility and
+			 * reflects the endpoint configurations we have seen
+			 * so far. But there might be devices for which this
+			 * logic is not sufficient...
+			 */
 		}
 	}
 
@@ -3261,19 +3360,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		ifnum,
 		interface->altsetting->desc.bInterfaceNumber);
 
-	if (has_audio)
-		printk(KERN_INFO DRIVER_NAME
-		       ": Audio Vendor Class interface %i found\n",
-		       ifnum);
-	if (has_video)
-		printk(KERN_INFO DRIVER_NAME
-		       ": Video interface %i found\n",
-		       ifnum);
-	if (has_dvb)
-		printk(KERN_INFO DRIVER_NAME
-		       ": DVB interface %i found\n",
-		       ifnum);
-
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
@@ -3287,7 +3373,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto err_free;
 	}
 
-	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
@@ -3304,6 +3389,24 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		}
 	}
 
+	if (has_audio)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Audio interface %i found %s\n",
+		       ifnum,
+		       dev->has_audio_class ? "(USB Audio Class)" : "(Vendor Class)");
+	if (has_video)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Video interface %i found:%s%s\n",
+		       ifnum,
+		       dev->analog_ep_bulk ? " bulk" : "",
+		       dev->analog_ep_isoc ? " isoc" : "");
+	if (has_dvb)
+		printk(KERN_INFO DRIVER_NAME
+		       ": DVB interface %i found:%s%s\n",
+		       ifnum,
+		       dev->dvb_ep_bulk ? " bulk" : "",
+		       dev->dvb_ep_isoc ? " isoc" : "");
+
 	dev->num_alt = interface->num_altsetting;
 
 	if ((unsigned)card[nr] < em28xx_bcount)
@@ -3311,6 +3414,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+
+	/* initialize videobuf2 stuff */
+	em28xx_vb2_setup(dev);
 
 	/* allocate device struct */
 	mutex_init(&dev->lock);
@@ -3320,13 +3426,46 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto unlock_and_free;
 	}
 
+	if (usb_xfer_mode < 0) {
+		if (dev->board.is_webcam)
+			try_bulk = 1;
+		else
+			try_bulk = 0;
+	} else {
+		try_bulk = usb_xfer_mode > 0;
+	}
+
+	/* Select USB transfer types to use */
+	if (has_video) {
+	    if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
+		dev->analog_xfer_bulk = 1;
+		em28xx_info("analog set to %s mode.\n",
+			    dev->analog_xfer_bulk ? "bulk" : "isoc");
+	}
 	if (has_dvb) {
-		/* pre-allocate DVB isoc transfer buffers */
-		retval = em28xx_alloc_isoc(dev, EM28XX_DIGITAL_MODE,
-					   EM28XX_DVB_MAX_PACKETS,
-					   EM28XX_DVB_NUM_BUFS,
-					   dev->dvb_max_pkt_size);
+	    if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
+		dev->dvb_xfer_bulk = 1;
+
+		em28xx_info("dvb set to %s mode.\n",
+			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
+
+		/* pre-allocate DVB usb transfer buffers */
+		if (dev->dvb_xfer_bulk) {
+			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					    dev->dvb_xfer_bulk,
+					    EM28XX_DVB_NUM_BUFS,
+					    512,
+					    EM28XX_DVB_BULK_PACKET_MULTIPLIER);
+		} else {
+			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					    dev->dvb_xfer_bulk,
+					    EM28XX_DVB_NUM_BUFS,
+					    dev->dvb_max_pkt_size_isoc,
+					    EM28XX_DVB_NUM_ISOC_PACKETS);
+		}
 		if (retval) {
+			printk(DRIVER_NAME
+			       ": Failed to pre-allocate USB transfer buffers for DVB.\n");
 			goto unlock_and_free;
 		}
 	}
@@ -3344,7 +3483,7 @@ unlock_and_free:
 	mutex_unlock(&dev->lock);
 
 err_free:
-	kfree(dev->alt_max_pkt_size);
+	kfree(dev->alt_max_pkt_size_isoc);
 	kfree(dev);
 
 err:
@@ -3370,6 +3509,8 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	if (!dev)
 		return;
 
+	dev->disconnected = 1;
+
 	if (dev->is_audio_only) {
 		mutex_lock(&dev->lock);
 		em28xx_close_extension(dev);
@@ -3381,35 +3522,28 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	flush_request_modules(dev);
 
-	/* wait until all current v4l2 io is finished then deallocate
-	   resources */
 	mutex_lock(&dev->lock);
 
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	if (dev->users) {
-		em28xx_warn
-		    ("device %s is open! Deregistration and memory "
-		     "deallocation are deferred on close.\n",
-		     video_device_node_name(dev->vdev));
+		em28xx_warn("device %s is open! Deregistration and memory deallocation are deferred on close.\n",
+			    video_device_node_name(dev->vdev));
 
-		dev->state |= DEV_MISCONFIGURED;
-		em28xx_uninit_isoc(dev, dev->mode);
-		dev->state |= DEV_DISCONNECTED;
-	} else {
-		dev->state |= DEV_DISCONNECTED;
-		em28xx_release_resources(dev);
+		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
+		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 	}
 
-	/* free DVB isoc buffers */
-	em28xx_uninit_isoc(dev, EM28XX_DIGITAL_MODE);
+	em28xx_close_extension(dev);
+	/* NOTE: must be called BEFORE the resources are released */
+
+	if (!dev->users)
+		em28xx_release_resources(dev);
 
 	mutex_unlock(&dev->lock);
 
-	em28xx_close_extension(dev);
-
 	if (!dev->users) {
-		kfree(dev->alt_max_pkt_size);
+		kfree(dev->alt_max_pkt_size_isoc);
 		kfree(dev);
 	}
 }

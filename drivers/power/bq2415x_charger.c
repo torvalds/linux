@@ -28,7 +28,6 @@
  * http://www.ti.com/product/bq24155
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/param.h>
@@ -734,12 +733,10 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 	int charger = 0;
 	int boost = 0;
 
-	if (mode == BQ2415X_MODE_HOST_CHARGER ||
-		mode == BQ2415X_MODE_DEDICATED_CHARGER)
-			charger = 1;
-
 	if (mode == BQ2415X_MODE_BOOST)
 		boost = 1;
+	else if (mode != BQ2415X_MODE_OFF)
+		charger = 1;
 
 	if (!charger)
 		ret = bq2415x_exec_command(bq, BQ2415X_CHARGER_DISABLE);
@@ -751,6 +748,10 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 		return ret;
 
 	switch (mode) {
+	case BQ2415X_MODE_OFF:
+		dev_dbg(bq->dev, "changing mode to: Offline\n");
+		ret = bq2415x_set_current_limit(bq, 100);
+		break;
 	case BQ2415X_MODE_NONE:
 		dev_dbg(bq->dev, "changing mode to: N/A\n");
 		ret = bq2415x_set_current_limit(bq, 100);
@@ -843,7 +844,7 @@ static void bq2415x_timer_error(struct bq2415x_device *bq, const char *msg)
 	dev_err(bq->dev, "%s\n", msg);
 	if (bq->automode > 0)
 		bq->automode = 0;
-	bq2415x_set_mode(bq, BQ2415X_MODE_NONE);
+	bq2415x_set_mode(bq, BQ2415X_MODE_OFF);
 	bq2415x_set_autotimer(bq, 0);
 }
 
@@ -1136,6 +1137,10 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 			return -ENOSYS;
 		bq->automode = 1;
 		mode = bq->reported_mode;
+	} else if (strncmp(buf, "off", 3) == 0) {
+		if (bq->automode > 0)
+			bq->automode = 0;
+		mode = BQ2415X_MODE_OFF;
 	} else if (strncmp(buf, "none", 4) == 0) {
 		if (bq->automode > 0)
 			bq->automode = 0;
@@ -1183,6 +1188,9 @@ static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 		ret += sprintf(buf+ret, "auto (");
 
 	switch (bq->mode) {
+	case BQ2415X_MODE_OFF:
+		ret += sprintf(buf+ret, "off");
+		break;
 	case BQ2415X_MODE_NONE:
 		ret += sprintf(buf+ret, "none");
 		break;
@@ -1217,6 +1225,8 @@ static ssize_t bq2415x_sysfs_show_reported_mode(struct device *dev,
 		return -EINVAL;
 
 	switch (bq->reported_mode) {
+	case BQ2415X_MODE_OFF:
+		return sprintf(buf, "off\n");
 	case BQ2415X_MODE_NONE:
 		return sprintf(buf, "none\n");
 	case BQ2415X_MODE_HOST_CHARGER:
@@ -1505,16 +1515,11 @@ static int bq2415x_probe(struct i2c_client *client,
 	}
 
 	/* Get new ID for the new device */
-	ret = idr_pre_get(&bq2415x_id, GFP_KERNEL);
-	if (ret == 0)
-		return -ENOMEM;
-
 	mutex_lock(&bq2415x_id_mutex);
-	ret = idr_get_new(&bq2415x_id, client, &num);
+	num = idr_alloc(&bq2415x_id, client, 0, 0, GFP_KERNEL);
 	mutex_unlock(&bq2415x_id_mutex);
-
-	if (ret < 0)
-		return ret;
+	if (num < 0)
+		return num;
 
 	name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
 	if (!name) {
@@ -1523,7 +1528,7 @@ static int bq2415x_probe(struct i2c_client *client,
 		goto error_1;
 	}
 
-	bq = kzalloc(sizeof(*bq), GFP_KERNEL);
+	bq = devm_kzalloc(&client->dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq) {
 		dev_err(&client->dev, "failed to allocate device data\n");
 		ret = -ENOMEM;
@@ -1536,8 +1541,8 @@ static int bq2415x_probe(struct i2c_client *client,
 	bq->dev = &client->dev;
 	bq->chip = id->driver_data;
 	bq->name = name;
-	bq->mode = BQ2415X_MODE_NONE;
-	bq->reported_mode = BQ2415X_MODE_NONE;
+	bq->mode = BQ2415X_MODE_OFF;
+	bq->reported_mode = BQ2415X_MODE_OFF;
 	bq->autotimer = 0;
 	bq->automode = 0;
 
@@ -1549,19 +1554,19 @@ static int bq2415x_probe(struct i2c_client *client,
 	ret = bq2415x_power_supply_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to register power supply: %d\n", ret);
-		goto error_3;
+		goto error_2;
 	}
 
 	ret = bq2415x_sysfs_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to create sysfs entries: %d\n", ret);
-		goto error_4;
+		goto error_3;
 	}
 
 	ret = bq2415x_set_defaults(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to set default values: %d\n", ret);
-		goto error_5;
+		goto error_4;
 	}
 
 	if (bq->init_data.set_mode_hook) {
@@ -1585,12 +1590,10 @@ static int bq2415x_probe(struct i2c_client *client,
 	dev_info(bq->dev, "driver registered\n");
 	return 0;
 
-error_5:
-	bq2415x_sysfs_exit(bq);
 error_4:
-	bq2415x_power_supply_exit(bq);
+	bq2415x_sysfs_exit(bq);
 error_3:
-	kfree(bq);
+	bq2415x_power_supply_exit(bq);
 error_2:
 	kfree(name);
 error_1:
@@ -1622,7 +1625,6 @@ static int bq2415x_remove(struct i2c_client *client)
 	dev_info(bq->dev, "driver unregistered\n");
 
 	kfree(bq->name);
-	kfree(bq);
 
 	return 0;
 }
@@ -1652,18 +1654,7 @@ static struct i2c_driver bq2415x_driver = {
 	.remove = bq2415x_remove,
 	.id_table = bq2415x_i2c_id_table,
 };
-
-static int __init bq2415x_init(void)
-{
-	return i2c_add_driver(&bq2415x_driver);
-}
-module_init(bq2415x_init);
-
-static void __exit bq2415x_exit(void)
-{
-	i2c_del_driver(&bq2415x_driver);
-}
-module_exit(bq2415x_exit);
+module_i2c_driver(bq2415x_driver);
 
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("bq2415x charger driver");

@@ -541,23 +541,21 @@ int rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 {
 	struct rfcomm_dev *dev = dlc->owner;
-	struct tty_struct *tty;
 
 	if (!dev) {
 		kfree_skb(skb);
 		return;
 	}
 
-	tty = dev->port.tty;
-	if (!tty || !skb_queue_empty(&dev->pending)) {
+	if (!skb_queue_empty(&dev->pending)) {
 		skb_queue_tail(&dev->pending, skb);
 		return;
 	}
 
-	BT_DBG("dlc %p tty %p len %d", dlc, tty, skb->len);
+	BT_DBG("dlc %p len %d", dlc, skb->len);
 
-	tty_insert_flip_string(tty, skb->data, skb->len);
-	tty_flip_buffer_push(tty);
+	tty_insert_flip_string(&dev->port, skb->data, skb->len);
+	tty_flip_buffer_push(&dev->port);
 
 	kfree_skb(skb);
 }
@@ -621,26 +619,23 @@ static void rfcomm_dev_modem_status(struct rfcomm_dlc *dlc, u8 v24_sig)
 /* ---- TTY functions ---- */
 static void rfcomm_tty_copy_pending(struct rfcomm_dev *dev)
 {
-	struct tty_struct *tty = dev->port.tty;
 	struct sk_buff *skb;
 	int inserted = 0;
 
-	if (!tty)
-		return;
-
-	BT_DBG("dev %p tty %p", dev, tty);
+	BT_DBG("dev %p", dev);
 
 	rfcomm_dlc_lock(dev->dlc);
 
 	while ((skb = skb_dequeue(&dev->pending))) {
-		inserted += tty_insert_flip_string(tty, skb->data, skb->len);
+		inserted += tty_insert_flip_string(&dev->port, skb->data,
+				skb->len);
 		kfree_skb(skb);
 	}
 
 	rfcomm_dlc_unlock(dev->dlc);
 
 	if (inserted > 0)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&dev->port);
 }
 
 static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)

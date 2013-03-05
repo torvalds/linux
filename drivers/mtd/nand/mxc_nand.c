@@ -530,12 +530,23 @@ static void send_page_v1(struct mtd_info *mtd, unsigned int ops)
 
 static void send_read_id_v3(struct mxc_nand_host *host)
 {
+	struct nand_chip *this = &host->nand;
+
 	/* Read ID into main buffer */
 	writel(NFC_ID, NFC_V3_LAUNCH);
 
 	wait_op_done(host, true);
 
 	memcpy32_fromio(host->data_buf, host->main_area0, 16);
+
+	if (this->options & NAND_BUSWIDTH_16) {
+		/* compress the ID info */
+		host->data_buf[1] = host->data_buf[2];
+		host->data_buf[2] = host->data_buf[4];
+		host->data_buf[3] = host->data_buf[6];
+		host->data_buf[4] = host->data_buf[8];
+		host->data_buf[5] = host->data_buf[10];
+	}
 }
 
 /* Request the NANDFC to perform a read of the NAND device ID. */
@@ -1437,9 +1448,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res)
 			return -ENODEV;
-		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
-		if (!host->regs_ip)
-			return -ENOMEM;
+		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(host->regs_ip))
+			return PTR_ERR(host->regs_ip);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	} else {
@@ -1449,9 +1460,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	host->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->base)
-		return -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	host->main_area0 = host->base;
 

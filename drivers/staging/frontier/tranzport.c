@@ -803,10 +803,9 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 	/* allocate memory for our device state and initialize it */
 
 	 dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&intf->dev, "Out of memory\n");
+	if (dev == NULL)
 		goto exit;
-	}
+
 	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
@@ -848,18 +847,14 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 
 	dev->ring_buffer =
 	    kmalloc((true_size * sizeof(struct tranzport_cmd)) + 8, GFP_KERNEL);
-
-	if (!dev->ring_buffer) {
-		dev_err(&intf->dev,
-			"Couldn't allocate ring_buffer size %d\n", true_size);
+	if (!dev->ring_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_buffer =
 	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_in_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
@@ -875,12 +870,11 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 			 "Interrupt out endpoint size is not 8!)\n");
 
 	dev->interrupt_out_buffer =
-	    kmalloc(write_buffer_size * dev->interrupt_out_endpoint_size,
-		    GFP_KERNEL);
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
+		kmalloc_array(write_buffer_size,
+			      dev->interrupt_out_endpoint_size, GFP_KERNEL);
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
+
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_urb\n");

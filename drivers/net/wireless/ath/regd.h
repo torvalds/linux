@@ -252,12 +252,12 @@ enum CountryCode {
 bool ath_is_world_regd(struct ath_regulatory *reg);
 bool ath_is_49ghz_allowed(u16 redomain);
 int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
-		  int (*reg_notifier)(struct wiphy *wiphy,
-		  struct regulatory_request *request));
+		  void (*reg_notifier)(struct wiphy *wiphy,
+				       struct regulatory_request *request));
 u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 			  enum ieee80211_band band);
-int ath_reg_notifier_apply(struct wiphy *wiphy,
-			   struct regulatory_request *request,
-			   struct ath_regulatory *reg);
+void ath_reg_notifier_apply(struct wiphy *wiphy,
+			    struct regulatory_request *request,
+			    struct ath_regulatory *reg);
 
 #endif

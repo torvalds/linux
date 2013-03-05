@@ -39,7 +39,7 @@
  * Note: This define must be a long, not a long long in order to
  * compile without warnings for both 32bit and 64bit.
  */
-#define CVMX_SCRATCH_BASE       (-32768l)	/* 0xffffffffffff8000 */
+#define CVMX_SCRATCH_BASE	(-32768l)	/* 0xffffffffffff8000 */
 
 /**
  * Reads an 8 bit value from the processor local scratchpad memory.

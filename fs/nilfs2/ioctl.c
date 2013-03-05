@@ -796,7 +796,7 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
 
 long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {

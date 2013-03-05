@@ -498,7 +498,7 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
-	static short watchdog = 0;
+	static short watchdog;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	if(!ieee->ieee_up)
@@ -1948,166 +1948,166 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
 
-		case IEEE80211_STYPE_ASSOC_RESP:
-		case IEEE80211_STYPE_REASSOC_RESP:
+	case IEEE80211_STYPE_ASSOC_RESP:
+	case IEEE80211_STYPE_REASSOC_RESP:
 
-			IEEE80211_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
-					WLAN_FC_GET_STYPE(header->frame_ctl));
-			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-				ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
-				ieee->iw_mode == IW_MODE_INFRA){
-				struct ieee80211_network network_resp;
-				struct ieee80211_network *network = &network_resp;
+		IEEE80211_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
+				WLAN_FC_GET_STYPE(header->frame_ctl));
+		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
+			ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
+			ieee->iw_mode == IW_MODE_INFRA){
+			struct ieee80211_network network_resp;
+			struct ieee80211_network *network = &network_resp;
 
-				if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
-					ieee->state=IEEE80211_LINKED;
-					ieee->assoc_id = aid;
-					ieee->softmac_stats.rx_ass_ok++;
-					/* station support qos */
-					/* Let the register setting defaultly with Legacy station */
-					if(ieee->qos_support) {
-						assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
-						memset(network, 0, sizeof(*network));
-						if (ieee80211_parse_info_param(ieee,assoc_resp->info_element,\
-									rx_stats->len - sizeof(*assoc_resp),\
-									network,rx_stats)){
-							return 1;
-						}
-						else
-						{	//filling the PeerHTCap. //maybe not necessary as we can get its info from current_network.
-							memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
-							memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
-						}
-						if (ieee->handle_assoc_response != NULL)
-							ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame*)header, network);
+			if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
+				ieee->state=IEEE80211_LINKED;
+				ieee->assoc_id = aid;
+				ieee->softmac_stats.rx_ass_ok++;
+				/* station support qos */
+				/* Let the register setting defaultly with Legacy station */
+				if(ieee->qos_support) {
+					assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
+					memset(network, 0, sizeof(*network));
+					if (ieee80211_parse_info_param(ieee,assoc_resp->info_element,\
+								rx_stats->len - sizeof(*assoc_resp),\
+								network,rx_stats)){
+						return 1;
 					}
-					ieee80211_associate_complete(ieee);
+					else
+					{	//filling the PeerHTCap. //maybe not necessary as we can get its info from current_network.
+						memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
+						memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
+					}
+					if (ieee->handle_assoc_response != NULL)
+						ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame*)header, network);
+				}
+				ieee80211_associate_complete(ieee);
+			} else {
+				/* aid could not been allocated */
+				ieee->softmac_stats.rx_ass_err++;
+				printk(
+					"Association response status code 0x%x\n",
+					errcode);
+				IEEE80211_DEBUG_MGMT(
+					"Association response status code 0x%x\n",
+					errcode);
+				if(ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT) {
+					queue_work(ieee->wq, &ieee->associate_procedure_wq);
 				} else {
-					/* aid could not been allocated */
-					ieee->softmac_stats.rx_ass_err++;
-					printk(
-						"Association response status code 0x%x\n",
-						errcode);
-					IEEE80211_DEBUG_MGMT(
-						"Association response status code 0x%x\n",
-						errcode);
-					if(ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT) {
-						queue_work(ieee->wq, &ieee->associate_procedure_wq);
-					} else {
+					ieee80211_associate_abort(ieee);
+				}
+			}
+		}
+		break;
+
+	case IEEE80211_STYPE_ASSOC_REQ:
+	case IEEE80211_STYPE_REASSOC_REQ:
+
+		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
+			ieee->iw_mode == IW_MODE_MASTER)
+
+			ieee80211_rx_assoc_rq(ieee, skb);
+		break;
+
+	case IEEE80211_STYPE_AUTH:
+
+		if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE){
+			if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING &&
+			ieee->iw_mode == IW_MODE_INFRA){
+
+					IEEE80211_DEBUG_MGMT("Received authentication response");
+
+					if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
+						if(ieee->open_wep || !challenge){
+							ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
+							ieee->softmac_stats.rx_auth_rs_ok++;
+							if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
+							{
+								if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+								{
+											// WEP or TKIP encryption
+									if(IsHTHalfNmodeAPs(ieee))
+									{
+										bSupportNmode = true;
+										bHalfSupportNmode = true;
+									}
+									else
+									{
+										bSupportNmode = false;
+										bHalfSupportNmode = false;
+									}
+								printk("==========>to link with AP using SEC(%d, %d)", bSupportNmode, bHalfSupportNmode);
+								}
+							}
+							/* Dummy wirless mode setting to avoid encryption issue */
+							if(bSupportNmode) {
+								//N mode setting
+								ieee->SetWirelessMode(ieee->dev, \
+										ieee->current_network.mode);
+							}else{
+								//b/g mode setting
+								/*TODO*/
+								ieee->SetWirelessMode(ieee->dev, IEEE_G);
+							}
+
+							if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
+							{
+								printk("===============>entern half N mode\n");
+								ieee->bHalfWirelessN24GMode = true;
+							}
+							else
+								ieee->bHalfWirelessN24GMode = false;
+
+							ieee80211_associate_step2(ieee);
+						}else{
+							ieee80211_auth_challenge(ieee, challenge, chlen);
+						}
+					}else{
+						ieee->softmac_stats.rx_auth_rs_err++;
+						IEEE80211_DEBUG_MGMT("Authentication response status code 0x%x",errcode);
 						ieee80211_associate_abort(ieee);
 					}
+
+				}else if (ieee->iw_mode == IW_MODE_MASTER){
+					ieee80211_rx_auth_rq(ieee, skb);
 				}
 			}
-			break;
+		break;
 
-		case IEEE80211_STYPE_ASSOC_REQ:
-		case IEEE80211_STYPE_REASSOC_REQ:
+	case IEEE80211_STYPE_PROBE_REQ:
 
-			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-				ieee->iw_mode == IW_MODE_MASTER)
+		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
+			((ieee->iw_mode == IW_MODE_ADHOC ||
+			ieee->iw_mode == IW_MODE_MASTER) &&
+			ieee->state == IEEE80211_LINKED)){
+			ieee80211_rx_probe_rq(ieee, skb);
+		}
+		break;
 
-				ieee80211_rx_assoc_rq(ieee, skb);
-			break;
+	case IEEE80211_STYPE_DISASSOC:
+	case IEEE80211_STYPE_DEAUTH:
+		/* FIXME for now repeat all the association procedure
+		* both for disassociation and deauthentication
+		*/
+		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
+			ieee->state == IEEE80211_LINKED &&
+			ieee->iw_mode == IW_MODE_INFRA){
 
-		case IEEE80211_STYPE_AUTH:
+			ieee->state = IEEE80211_ASSOCIATING;
+			ieee->softmac_stats.reassoc++;
 
-			if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE){
-				if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING &&
-				ieee->iw_mode == IW_MODE_INFRA){
-
-						IEEE80211_DEBUG_MGMT("Received authentication response");
-
-						if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
-							if(ieee->open_wep || !challenge){
-								ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
-								ieee->softmac_stats.rx_auth_rs_ok++;
-								if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
-								{
-									if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
-									{
-												// WEP or TKIP encryption
-										if(IsHTHalfNmodeAPs(ieee))
-										{
-											bSupportNmode = true;
-											bHalfSupportNmode = true;
-										}
-										else
-										{
-											bSupportNmode = false;
-											bHalfSupportNmode = false;
-										}
-									printk("==========>to link with AP using SEC(%d, %d)", bSupportNmode, bHalfSupportNmode);
-									}
-								}
-								/* Dummy wirless mode setting to avoid encryption issue */
-								if(bSupportNmode) {
-									//N mode setting
-									ieee->SetWirelessMode(ieee->dev, \
-											ieee->current_network.mode);
-								}else{
-									//b/g mode setting
-									/*TODO*/
-									ieee->SetWirelessMode(ieee->dev, IEEE_G);
-								}
-
-								if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
-								{
-									printk("===============>entern half N mode\n");
-									ieee->bHalfWirelessN24GMode = true;
-								}
-								else
-									ieee->bHalfWirelessN24GMode = false;
-
-								ieee80211_associate_step2(ieee);
-							}else{
-								ieee80211_auth_challenge(ieee, challenge, chlen);
-							}
-						}else{
-							ieee->softmac_stats.rx_auth_rs_err++;
-							IEEE80211_DEBUG_MGMT("Authentication response status code 0x%x",errcode);
-							ieee80211_associate_abort(ieee);
-						}
-
-					}else if (ieee->iw_mode == IW_MODE_MASTER){
-						ieee80211_rx_auth_rq(ieee, skb);
-					}
-				}
-			break;
-
-		case IEEE80211_STYPE_PROBE_REQ:
-
-			if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
-				((ieee->iw_mode == IW_MODE_ADHOC ||
-				ieee->iw_mode == IW_MODE_MASTER) &&
-				ieee->state == IEEE80211_LINKED)){
-				ieee80211_rx_probe_rq(ieee, skb);
-			}
-			break;
-
-		case IEEE80211_STYPE_DISASSOC:
-		case IEEE80211_STYPE_DEAUTH:
-			/* FIXME for now repeat all the association procedure
-			* both for disassociation and deauthentication
-			*/
-			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-				ieee->state == IEEE80211_LINKED &&
-				ieee->iw_mode == IW_MODE_INFRA){
-
-				ieee->state = IEEE80211_ASSOCIATING;
-				ieee->softmac_stats.reassoc++;
-
-				notify_wx_assoc_event(ieee);
-				//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-				RemovePeerTS(ieee, header->addr2);
-				queue_work(ieee->wq, &ieee->associate_procedure_wq);
-			}
-			break;
-		case IEEE80211_STYPE_MANAGE_ACT:
-			ieee80211_process_action(ieee,skb);
-			break;
-		default:
-			return -1;
-			break;
+			notify_wx_assoc_event(ieee);
+			//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+			RemovePeerTS(ieee, header->addr2);
+			queue_work(ieee->wq, &ieee->associate_procedure_wq);
+		}
+		break;
+	case IEEE80211_STYPE_MANAGE_ACT:
+		ieee80211_process_action(ieee,skb);
+		break;
+	default:
+		return -1;
+		break;
 	}
 
 	//dev_kfree_skb_any(skb);
@@ -2503,8 +2503,8 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 }
 void ieee80211_associate_retry_wq(struct work_struct *work)
 {
-        struct delayed_work *dwork = container_of(work, struct delayed_work, work);
-        struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
+	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
 	unsigned long flags;
 
 	down(&ieee->wx_sem);
@@ -3124,7 +3124,7 @@ inline struct sk_buff *ieee80211_disassociate_skb(
 void
 SendDisassociation(
 		struct ieee80211_device *ieee,
-		u8* 					asSta,
+		u8*					asSta,
 		u8						asRsn
 )
 {

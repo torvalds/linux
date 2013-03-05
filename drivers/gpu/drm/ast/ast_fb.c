@@ -40,6 +40,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 #include "ast_drv.h"
 
 static void ast_dirty_update(struct ast_fbdev *afbdev,
@@ -145,9 +146,10 @@ static int astfb_create_object(struct ast_fbdev *afbdev,
 	return ret;
 }
 
-static int astfb_create(struct ast_fbdev *afbdev,
+static int astfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
+	struct ast_fbdev *afbdev = (struct ast_fbdev *)helper;
 	struct drm_device *dev = afbdev->helper.dev;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
@@ -248,26 +250,10 @@ static void ast_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = ast_crtc->lut_b[regno] << 8;
 }
 
-static int ast_find_or_create_single(struct drm_fb_helper *helper,
-					  struct drm_fb_helper_surface_size *sizes)
-{
-	struct ast_fbdev *afbdev = (struct ast_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = astfb_create(afbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
 static struct drm_fb_helper_funcs ast_fb_helper_funcs = {
 	.gamma_set = ast_fb_gamma_set,
 	.gamma_get = ast_fb_gamma_get,
-	.fb_probe = ast_find_or_create_single,
+	.fb_probe = astfb_create,
 };
 
 static void ast_fbdev_destroy(struct drm_device *dev,
@@ -290,6 +276,7 @@ static void ast_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&afbdev->helper);
 
 	vfree(afbdev->sysram);
+	drm_framebuffer_unregister_private(&afb->base);
 	drm_framebuffer_cleanup(&afb->base);
 }
 
@@ -313,6 +300,10 @@ int ast_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&afbdev->helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(&afbdev->helper, 32);
 	return 0;
 }

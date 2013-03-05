@@ -244,7 +244,7 @@ static int pnpbios_proc_open(struct inode *inode, struct file *file)
 static ssize_t pnpbios_proc_write(struct file *file, const char __user *buf,
 				  size_t count, loff_t *pos)
 {
-	void *data = PDE(file->f_path.dentry->d_inode)->data;
+	void *data = PDE(file_inode(file))->data;
 	struct pnp_bios_node *node;
 	int boot = (long)data >> 8;
 	u8 nodenum = (long)data;

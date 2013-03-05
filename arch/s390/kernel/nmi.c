@@ -293,7 +293,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * retry this instruction.
 			 */
 			spin_lock(&ipd_lock);
-			tmp = get_clock();
+			tmp = get_tod_clock();
 			if (((tmp - last_ipd) >> 12) < MAX_IPD_TIME)
 				ipd_count++;
 			else

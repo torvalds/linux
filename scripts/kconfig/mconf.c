@@ -280,6 +280,7 @@ static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
 static int show_all_options;
+static int save_and_exit;
 
 static void conf(struct menu *menu, struct menu *active_menu);
 static void conf_choice(struct menu *menu);
@@ -348,15 +349,19 @@ static void search_conf(void)
 {
 	struct symbol **sym_arr;
 	struct gstr res;
+	struct gstr title;
 	char *dialog_input;
 	int dres, vscroll = 0, hscroll = 0;
 	bool again;
 
+	title = str_new();
+	str_printf( &title, _("Enter %s (sub)string to search for "
+			      "(with or without \"%s\")"), CONFIG_, CONFIG_);
+
 again:
 	dialog_clear();
 	dres = dialog_inputbox(_("Search Configuration Parameter"),
-			      _("Enter " CONFIG_ " (sub)string to search for "
-				"(with or without \"" CONFIG_ "\")"),
+			      str_get(&title),
 			      10, 75, "");
 	switch (dres) {
 	case 0:
@@ -365,6 +370,7 @@ again:
 		show_helptext(_("Search Configuration"), search_help);
 		goto again;
 	default:
+		str_free(&title);
 		return;
 	}
 
@@ -398,6 +404,7 @@ again:
 		str_free(&res);
 	} while (again);
 	free(sym_arr);
+	str_free(&title);
 }
 
 static void build_conf(struct menu *menu)
@@ -592,14 +599,6 @@ static void conf(struct menu *menu, struct menu *active_menu)
 		build_conf(menu);
 		if (!child_count)
 			break;
-		if (menu == &rootmenu) {
-			item_make("--- ");
-			item_set_tag(':');
-			item_make(_("    Load an Alternate Configuration File"));
-			item_set_tag('L');
-			item_make(_("    Save an Alternate Configuration File"));
-			item_set_tag('S');
-		}
 		dialog_clear();
 		res = dialog_menu(prompt ? _(prompt) : _("Main Menu"),
 				  _(menu_instructions),
@@ -636,12 +635,6 @@ static void conf(struct menu *menu, struct menu *active_menu)
 			case 's':
 				conf_string(submenu);
 				break;
-			case 'L':
-				conf_load();
-				break;
-			case 'S':
-				conf_save();
-				break;
 			}
 			break;
 		case 2:
@@ -651,6 +644,12 @@ static void conf(struct menu *menu, struct menu *active_menu)
 				show_helptext(_("README"), _(mconf_readme));
 			break;
 		case 3:
+			conf_save();
+			break;
+		case 4:
+			conf_load();
+			break;
+		case 5:
 			if (item_is_tag('t')) {
 				if (sym_set_tristate_value(sym, yes))
 					break;
@@ -658,24 +657,24 @@ static void conf(struct menu *menu, struct menu *active_menu)
 					show_textbox(NULL, setmod_text, 6, 74);
 			}
 			break;
-		case 4:
+		case 6:
 			if (item_is_tag('t'))
 				sym_set_tristate_value(sym, no);
 			break;
-		case 5:
+		case 7:
 			if (item_is_tag('t'))
 				sym_set_tristate_value(sym, mod);
 			break;
-		case 6:
+		case 8:
 			if (item_is_tag('t'))
 				sym_toggle_tristate_value(sym);
 			else if (item_is_tag('m'))
 				conf(submenu, NULL);
 			break;
-		case 7:
+		case 9:
 			search_conf();
 			break;
-		case 8:
+		case 10:
 			show_all_options = !show_all_options;
 			break;
 		}
@@ -700,6 +699,17 @@ static void show_textbox(const char *title, const char *text, int r, int c)
 static void show_helptext(const char *title, const char *text)
 {
 	show_textbox(title, text, 0, 0);
+}
+
+static void conf_message_callback(const char *fmt, va_list ap)
+{
+	char buf[PATH_MAX+1];
+
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	if (save_and_exit)
+		printf("%s", buf);
+	else
+		show_textbox(NULL, buf, 6, 60);
 }
 
 static void show_help(struct menu *menu)
@@ -870,6 +880,7 @@ static int handle_exit(void)
 {
 	int res;
 
+	save_and_exit = 1;
 	dialog_clear();
 	if (conf_get_changed())
 		res = dialog_yesno(NULL,
@@ -941,6 +952,7 @@ int main(int ac, char **av)
 	}
 
 	set_config_filename(conf_get_configname());
+	conf_set_message_callback(conf_message_callback);
 	do {
 		conf(&rootmenu, NULL);
 		res = handle_exit();

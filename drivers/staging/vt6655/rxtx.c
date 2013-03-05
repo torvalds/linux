@@ -2421,7 +2421,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     pTxBufHead->wFragCtl |= cpu_to_le16((unsigned short)(cbMacHdLen << 10));
 
     // Notes:
-    // Although spec says MMPDU can be fragmented; In most case,
+    // Although spec says MMPDU can be fragmented; In most cases,
     // no one will send a MMPDU under fragmentation. With RTS may occur.
     pDevice->bAES = false;  //Set FRAGCTL_WEPTYP
 
@@ -2510,7 +2510,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         pbyPayloadHead = (unsigned char *)(pbyTxBufferAddr + cbHeaderSize + cbMacHdLen + uPadding + cbIVlen);
 
         //Fill TXKEY
-        //Kyle: Need fix: TKIP and AES did't encryt Mnt Packet.
+        //Kyle: Need fix: TKIP and AES did't encrypt Mnt Packet.
         //s_vFillTxKey(pDevice, (unsigned char *)pTxBufHead->adwTxKey, NULL);
 
         //Fill IV(ExtIV,RSNHDR)
@@ -2957,7 +2957,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     pTxBufHead->wFragCtl |= cpu_to_le16((unsigned short)cbMacHdLen << 10);
 
     // Notes:
-    // Although spec says MMPDU can be fragmented; In most casses,
+    // Although spec says MMPDU can be fragmented; In most cases,
     // no one will send a MMPDU under fragmentation. With RTS may occur.
     pDevice->bAES = false;  //Set FRAGCTL_WEPTYP
 

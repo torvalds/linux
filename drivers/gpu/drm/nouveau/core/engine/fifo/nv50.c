@@ -129,7 +129,8 @@ nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	/* do the kickoff... */
 	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	if (!nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff)) {
-		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
+		nv_error(priv, "channel %d [%s] unload timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
 		if (suspend)
 			ret = -EBUSY;
 	}
@@ -480,7 +481,7 @@ nv50_fifo_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x002044, 0x01003fff);
 
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xffffffff);
+	nv_wr32(priv, 0x002140, 0xbfffffff);
 
 	for (i = 0; i < 128; i++)
 		nv_wr32(priv, 0x002600 + (i * 4), 0x00000000);

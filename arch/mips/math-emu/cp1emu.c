@@ -169,7 +169,7 @@ static int isBranchInstr(mips_instruction * i)
 
 /*
  * In the Linux kernel, we support selection of FPR format on the
- * basis of the Status.FR bit.  If an FPU is not present, the FR bit
+ * basis of the Status.FR bit.	If an FPU is not present, the FR bit
  * is hardwired to zero, which would imply a 32-bit FPU even for
  * 64-bit CPUs so we rather look at TIF_32BIT_REGS.
  * FPU emu is slow and bulky and optimizing this function offers fairly
@@ -234,7 +234,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	if (xcp->cp0_cause & CAUSEF_BD) {
 		/*
 		 * The instruction to be emulated is in a branch delay slot
-		 * which means that we have to  emulate the branch instruction
+		 * which means that we have to	emulate the branch instruction
 		 * BEFORE we do the cop1 instruction.
 		 *
 		 * This branch could be a COP1 branch, but in that case we
@@ -1335,8 +1335,8 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		else {
 			/*
 			 * The 'ieee754_csr' is an alias of
-			 * ctx->fcr31.  No need to copy ctx->fcr31 to
-			 * ieee754_csr.  But ieee754_csr.rm is ieee
+			 * ctx->fcr31.	No need to copy ctx->fcr31 to
+			 * ieee754_csr.	 But ieee754_csr.rm is ieee
 			 * library modes. (not mips rounding mode)
 			 */
 			/* convert to ieee library modes */

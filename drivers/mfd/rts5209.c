@@ -149,10 +149,18 @@ static int rts5209_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 	int err;
 
 	if (voltage == OUTPUT_3V3) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_D);
+		if (err < 0)
+			return err;
 		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x4FC0 | 0x24);
 		if (err < 0)
 			return err;
 	} else if (voltage == OUTPUT_1V8) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_B);
+		if (err < 0)
+			return err;
 		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x4C40 | 0x24);
 		if (err < 0)
 			return err;

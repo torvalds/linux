@@ -1255,19 +1255,20 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int fsl_stop(struct usb_gadget_driver *driver);
+static int fsl_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int fsl_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 /* defined in gadget.h */
-static struct usb_gadget_ops fsl_gadget_ops = {
+static const struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
 /*	.set_selfpowered = fsl_set_selfpowered,	*/ /* Always selfpowered */
 	.vbus_session = fsl_vbus_session,
 	.vbus_draw = fsl_vbus_draw,
 	.pullup = fsl_pullup,
-	.start = fsl_start,
-	.stop = fsl_stop,
+	.udc_start = fsl_udc_start,
+	.udc_stop = fsl_udc_stop,
 };
 
 /* Set protocol stall on ep0, protocol stall will automatically be cleared
@@ -1951,21 +1952,11 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
  * Hook to gadget drivers
  * Called by initialization code of gadget drivers
 *----------------------------------------------------------------*/
-static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int fsl_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	int retval = -ENODEV;
+	int retval = 0;
 	unsigned long flags = 0;
-
-	if (!udc_controller)
-		return -ENODEV;
-
-	if (!driver || driver->max_speed < USB_SPEED_FULL
-			|| !bind || !driver->disconnect || !driver->setup)
-		return -EINVAL;
-
-	if (udc_controller->driver)
-		return -EBUSY;
 
 	/* lock is needed but whether should use this lock or another */
 	spin_lock_irqsave(&udc_controller->lock, flags);
@@ -1975,15 +1966,6 @@ static int fsl_start(struct usb_gadget_driver *driver,
 	udc_controller->driver = driver;
 	udc_controller->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
-
-	/* bind udc driver to gadget driver */
-	retval = bind(&udc_controller->gadget, driver);
-	if (retval) {
-		VDBG("bind to %s --> %d", driver->driver.name, retval);
-		udc_controller->gadget.dev.driver = NULL;
-		udc_controller->driver = NULL;
-		goto out;
-	}
 
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver)) {
 		/* Suspend the controller until OTG enable it */
@@ -2010,27 +1992,16 @@ static int fsl_start(struct usb_gadget_driver *driver,
 		udc_controller->ep0_state = WAIT_FOR_SETUP;
 		udc_controller->ep0_dir = 0;
 	}
-	printk(KERN_INFO "%s: bind to driver %s\n",
-			udc_controller->gadget.name, driver->driver.name);
 
-out:
-	if (retval)
-		printk(KERN_WARNING "gadget driver register failed %d\n",
-		       retval);
 	return retval;
 }
 
 /* Disconnect from gadget driver */
-static int fsl_stop(struct usb_gadget_driver *driver)
+static int fsl_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
 	struct fsl_ep *loop_ep;
 	unsigned long flags;
-
-	if (!udc_controller)
-		return -ENODEV;
-
-	if (!driver || driver != udc_controller->driver || !driver->unbind)
-		return -EINVAL;
 
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver))
 		otg_set_peripheral(udc_controller->transceiver->otg, NULL);
@@ -2052,16 +2023,9 @@ static int fsl_stop(struct usb_gadget_driver *driver)
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
-	/* report disconnect; the controller is already quiesced */
-	driver->disconnect(&udc_controller->gadget);
-
-	/* unbind gadget and unhook driver. */
-	driver->unbind(&udc_controller->gadget);
 	udc_controller->gadget.dev.driver = NULL;
 	udc_controller->driver = NULL;
 
-	printk(KERN_WARNING "unregistered gadget driver '%s'\n",
-	       driver->driver.name);
 	return 0;
 }
 

@@ -87,9 +87,11 @@ TODO:
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "8255.h"
@@ -3299,7 +3301,6 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	num_bytes = load_ao_dma_buffer(dev, cmd);
 	if (num_bytes == 0)
 		return -1;
-	if (num_bytes >= DMA_BUFFER_SIZE) ;
 	load_ao_dma(dev, cmd);
 
 	dma_start_sync(dev, 0);
@@ -4220,11 +4221,6 @@ static int cb_pcidas64_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &cb_pcidas64_driver);
 }
 
-static void cb_pcidas64_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas64_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001d) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001e) },
@@ -4253,7 +4249,7 @@ static struct pci_driver cb_pcidas64_pci_driver = {
 	.name		= "cb_pcidas64",
 	.id_table	= cb_pcidas64_pci_table,
 	.probe		= cb_pcidas64_pci_probe,
-	.remove		= cb_pcidas64_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(cb_pcidas64_driver, cb_pcidas64_pci_driver);
 

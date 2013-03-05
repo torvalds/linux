@@ -18,6 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/threads.h>
@@ -72,20 +74,19 @@ static struct pci_dev *do_pci_probe(void)
 	my_dev = pci_get_device(PCI_VENDOR_ID_ATI,
 				PCI_DEVICE_ID_ATI_264VT, NULL);
 	if (my_dev) {
-		printk(KERN_ERR DRIVER_NAME ": Using device: %s\n",
-		       pci_name(my_dev));
+		pr_err("Using device: %s\n", pci_name(my_dev));
 		pci_addr_phys = 0;
 		if (my_dev->resource[0].flags & IORESOURCE_MEM) {
 			pci_addr_phys = my_dev->resource[0].start;
-			printk(KERN_INFO DRIVER_NAME ": memory at 0x%08X\n",
+			pr_info("memory at 0x%08X\n",
 			       (unsigned int)pci_addr_phys);
 		}
 		if (pci_addr_phys == 0) {
-			printk(KERN_ERR DRIVER_NAME ": no memory resource ?\n");
+			pr_err("no memory resource ?\n");
 			return NULL;
 		}
 	} else {
-		printk(KERN_ERR DRIVER_NAME ": pci_probe failed\n");
+		pr_err("pci_probe failed\n");
 		return NULL;
 	}
 	return my_dev;
@@ -140,7 +141,7 @@ int init_module(void)
 
 	atir_minor = lirc_register_driver(&atir_driver);
 	if (atir_minor < 0) {
-		printk(KERN_ERR DRIVER_NAME ": failed to register driver!\n");
+		pr_err("failed to register driver!\n");
 		return atir_minor;
 	}
 	dprintk("driver is registered on minor %d\n", atir_minor);
@@ -159,7 +160,7 @@ static int atir_init_start(void)
 {
 	pci_addr_lin = ioremap(pci_addr_phys + DATA_PCI_OFF, 0x400);
 	if (pci_addr_lin == 0) {
-		printk(KERN_INFO DRIVER_NAME ": pci mem must be mapped\n");
+		pr_info("pci mem must be mapped\n");
 		return 0;
 	}
 	return 1;

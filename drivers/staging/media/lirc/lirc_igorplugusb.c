@@ -223,8 +223,8 @@ static int unregister_from_lirc(struct igorplug *ir)
 	int devnum;
 
 	if (!ir) {
-		printk(KERN_ERR "%s: called with NULL device struct!\n",
-		       __func__);
+		dev_err(&ir->usbdev->dev,
+			"%s: called with NULL device struct!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -232,8 +232,8 @@ static int unregister_from_lirc(struct igorplug *ir)
 	d = ir->d;
 
 	if (!d) {
-		printk(KERN_ERR "%s: called with NULL lirc driver struct!\n",
-		       __func__);
+		dev_err(&ir->usbdev->dev,
+			"%s: called with NULL lirc driver struct!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -347,8 +347,8 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 		if (ir->buf_in[2] == 0)
 			send_fragment(ir, buf, DEVICE_HEADERLEN, ret);
 		else {
-			printk(KERN_WARNING DRIVER_NAME
-			       "[%d]: Device buffer overrun.\n", ir->devnum);
+			dev_warn(&ir->usbdev->dev,
+				 "[%d]: Device buffer overrun.\n", ir->devnum);
 			/* HHHNNNNNNNNNNNOOOOOOOO H = header
 			      <---[2]--->         N = newer
 			   <---------ret--------> O = older */

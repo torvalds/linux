@@ -96,9 +96,10 @@ vMgrEncodeBeacon(
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
-    /* Fixed Fields */
-    pFrame->pqwTimestamp = (PQWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
-                                    + WLAN_BEACON_OFF_TS);
+	/* Fixed Fields */
+	pFrame->pqwTimestamp =
+		(u64 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
+			WLAN_BEACON_OFF_TS);
     pFrame->pwBeaconInterval = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                        + WLAN_BEACON_OFF_BCN_INT);
     pFrame->pwCapInfo = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
@@ -130,9 +131,10 @@ vMgrDecodeBeacon(
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
-    /* Fixed Fields */
-    pFrame->pqwTimestamp = (PQWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
-                                    + WLAN_BEACON_OFF_TS);
+	/* Fixed Fields */
+	pFrame->pqwTimestamp =
+		(u64 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
+			WLAN_BEACON_OFF_TS);
     pFrame->pwBeaconInterval = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                        + WLAN_BEACON_OFF_BCN_INT);
     pFrame->pwCapInfo = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
@@ -178,7 +180,7 @@ vMgrDecodeBeacon(
             break;
         case WLAN_EID_RSN_WPA:
             if (pFrame->pRSNWPA == NULL) {
-                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == TRUE)
+                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
                     pFrame->pRSNWPA = (PWLAN_IE_RSN_EXT)pItem;
             }
             break;
@@ -391,7 +393,7 @@ vMgrDecodeAssocRequest(
             break;
         case WLAN_EID_RSN_WPA:
             if (pFrame->pRSNWPA == NULL) {
-                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == TRUE)
+                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
                     pFrame->pRSNWPA = (PWLAN_IE_RSN_EXT)pItem;
             }
             break;
@@ -561,7 +563,7 @@ vMgrDecodeReassocRequest(
             break;
         case WLAN_EID_RSN_WPA:
 		if (pFrame->pRSNWPA == NULL)
-                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == TRUE)
+                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
                     pFrame->pRSNWPA = (PWLAN_IE_RSN_EXT)pItem;
             break;
 
@@ -671,9 +673,10 @@ vMgrEncodeProbeResponse(
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
-    /* Fixed Fields */
-    pFrame->pqwTimestamp = (PQWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
-                                    + WLAN_PROBERESP_OFF_TS);
+	/* Fixed Fields */
+	pFrame->pqwTimestamp =
+		(u64 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
+			WLAN_PROBERESP_OFF_TS);
     pFrame->pwBeaconInterval = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                        + WLAN_PROBERESP_OFF_BCN_INT);
     pFrame->pwCapInfo = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
@@ -706,9 +709,10 @@ vMgrDecodeProbeResponse(
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
-    /* Fixed Fields */
-    pFrame->pqwTimestamp = (PQWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
-                                    + WLAN_PROBERESP_OFF_TS);
+	/* Fixed Fields */
+	pFrame->pqwTimestamp =
+		(u64 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
+			WLAN_PROBERESP_OFF_TS);
     pFrame->pwBeaconInterval = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                        + WLAN_PROBERESP_OFF_BCN_INT);
     pFrame->pwCapInfo = (PWORD)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
@@ -749,7 +753,7 @@ vMgrDecodeProbeResponse(
             break;
         case WLAN_EID_RSN_WPA:
             if (pFrame->pRSNWPA == NULL) {
-                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == TRUE)
+                if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
                     pFrame->pRSNWPA = (PWLAN_IE_RSN_EXT)pItem;
             }
             break;

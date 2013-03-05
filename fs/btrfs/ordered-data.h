@@ -79,6 +79,8 @@ struct btrfs_ordered_sum {
 #define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates whether this ordered extent
 				       * has done its due diligence in updating
 				       * the isize. */
+#define BTRFS_ORDERED_LOGGED_CSUM 8 /* We've logged the csums on this ordered
+				       ordered extent */
 
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
@@ -95,6 +97,9 @@ struct btrfs_ordered_extent {
 
 	/* number of bytes that still need writing */
 	u64 bytes_left;
+
+	/* number of bytes that still need csumming */
+	u64 csum_bytes_left;
 
 	/*
 	 * the end of the ordered extent which is behind it but
@@ -117,6 +122,9 @@ struct btrfs_ordered_extent {
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
+
+	/* If we need to wait on this to be done */
+	struct list_head log_list;
 
 	/* used to wait for the BTRFS_ORDERED_COMPLETE bit */
 	wait_queue_head_t wait;
@@ -189,11 +197,15 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(struct inode *inode,
 int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr, u32 *sum);
-int btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
+int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root, int wait);
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);
 void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput);
+void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode);
+void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid);
+void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);
 int __init ordered_data_init(void);
 void ordered_data_exit(void);
 #endif

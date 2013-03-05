@@ -25,10 +25,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/vic.h>
 #include <asm/system_misc.h>
 
 #include <mach/map.h>

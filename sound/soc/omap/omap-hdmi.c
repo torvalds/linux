@@ -110,6 +110,8 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * fill the IEC-60958 channel status word
 	 */
+	/* initialize the word bytes */
+	memset(iec->status, 0, sizeof(iec->status));
 
 	/* specify IEC-60958-3 (commercial use) */
 	iec->status[0] &= ~IEC958_AES0_PROFESSIONAL;

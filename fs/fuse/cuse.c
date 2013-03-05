@@ -91,19 +91,22 @@ static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
 			 loff_t *ppos)
 {
 	loff_t pos = 0;
+	struct iovec iov = { .iov_base = buf, .iov_len = count };
 
-	return fuse_direct_io(file, buf, count, &pos, 0);
+	return fuse_direct_io(file, &iov, 1, count, &pos, 0);
 }
 
 static ssize_t cuse_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	loff_t pos = 0;
+	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
+
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(file, buf, count, &pos, 1);
+	return fuse_direct_io(file, &iov, 1, count, &pos, 1);
 }
 
 static int cuse_open(struct inode *inode, struct file *file)
@@ -419,7 +422,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req(fc, 1);
 	if (IS_ERR(req)) {
 		rc = PTR_ERR(req);
 		goto err;
@@ -449,6 +452,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	req->out.argvar = 1;
 	req->out.argpages = 1;
 	req->pages[0] = page;
+	req->page_descs[0].length = req->out.args[1].size;
 	req->num_pages = 1;
 	req->end = cuse_process_init_reply;
 	fuse_request_send_background(fc, req);

@@ -125,7 +125,7 @@ static void orinoco_add_hostscan_result(struct orinoco_private *priv,
 	cbss = cfg80211_inform_bss(wiphy, channel, bss->a.bssid, timestamp,
 				   capability, beacon_interval, ie_buf, ie_len,
 				   signal, GFP_KERNEL);
-	cfg80211_put_bss(cbss);
+	cfg80211_put_bss(wiphy, cbss);
 }
 
 void orinoco_add_extscan_result(struct orinoco_private *priv,
@@ -158,7 +158,7 @@ void orinoco_add_extscan_result(struct orinoco_private *priv,
 	cbss = cfg80211_inform_bss(wiphy, channel, bss->bssid, timestamp,
 				   capability, beacon_interval, ie, ie_len,
 				   signal, GFP_KERNEL);
-	cfg80211_put_bss(cbss);
+	cfg80211_put_bss(wiphy, cbss);
 }
 
 void orinoco_add_hostscan_results(struct orinoco_private *priv,

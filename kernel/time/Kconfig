@@ -12,6 +12,11 @@ config CLOCKSOURCE_WATCHDOG
 config ARCH_CLOCKSOURCE_DATA
 	bool
 
+# Platforms has a persistent clock
+config ALWAYS_USE_PERSISTENT_CLOCK
+	bool
+	default n
+
 # Timekeeping vsyscall support
 config GENERIC_TIME_VSYSCALL
 	bool
@@ -37,6 +42,10 @@ config GENERIC_CLOCKEVENTS_BUILD
 	bool
 	default y
 	depends on GENERIC_CLOCKEVENTS
+
+# Architecture can handle broadcast in a driver-agnostic way
+config ARCH_HAS_TICK_BROADCAST
+	bool
 
 # Clockevents broadcasting infrastructure
 config GENERIC_CLOCKEVENTS_BROADCAST

@@ -271,10 +271,10 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	const char *name = NULL;
 
 	if (file) {
-		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(vma->vm_file);
 		if (vma->vm_prfile) {
 			file = vma->vm_prfile;
-			inode = file->f_path.dentry->d_inode;
+			inode = file_inode(file);
 		}
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
@@ -747,7 +747,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		return rv;
 	if (type < CLEAR_REFS_ALL || type > CLEAR_REFS_MAPPED)
 		return -EINVAL;
-	task = get_proc_task(file->f_path.dentry->d_inode);
+	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
 	mm = get_task_mm(task);
@@ -1019,7 +1019,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
 static ssize_t pagemap_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
+	struct task_struct *task = get_proc_task(file_inode(file));
 	struct mm_struct *mm;
 	struct pagemapread pm;
 	int ret = -ESRCH;

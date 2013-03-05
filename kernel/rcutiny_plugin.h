@@ -33,6 +33,9 @@ struct rcu_ctrlblk {
 	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
 	struct rcu_head **curtail;	/* ->next pointer of last CB. */
 	RCU_TRACE(long qlen);		/* Number of pending CBs. */
+	RCU_TRACE(unsigned long gp_start); /* Start time for stalls. */
+	RCU_TRACE(unsigned long ticks_this_gp); /* Statistic for stalls. */
+	RCU_TRACE(unsigned long jiffies_stall); /* Jiffies at next stall. */
 	RCU_TRACE(char *name);		/* Name of RCU type. */
 };
 
@@ -53,6 +56,51 @@ static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 int rcu_scheduler_active __read_mostly;
 EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+#ifdef CONFIG_RCU_TRACE
+
+static void check_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	unsigned long j;
+	unsigned long js;
+
+	if (rcu_cpu_stall_suppress)
+		return;
+	rcp->ticks_this_gp++;
+	j = jiffies;
+	js = rcp->jiffies_stall;
+	if (*rcp->curtail && ULONG_CMP_GE(j, js)) {
+		pr_err("INFO: %s stall on CPU (%lu ticks this GP) idle=%llx (t=%lu jiffies q=%ld)\n",
+		       rcp->name, rcp->ticks_this_gp, rcu_dynticks_nesting,
+		       jiffies - rcp->gp_start, rcp->qlen);
+		dump_stack();
+	}
+	if (*rcp->curtail && ULONG_CMP_GE(j, js))
+		rcp->jiffies_stall = jiffies +
+			3 * rcu_jiffies_till_stall_check() + 3;
+	else if (ULONG_CMP_GE(j, js))
+		rcp->jiffies_stall = jiffies + rcu_jiffies_till_stall_check();
+}
+
+static void check_cpu_stall_preempt(void);
+
+#endif /* #ifdef CONFIG_RCU_TRACE */
+
+static void reset_cpu_stall_ticks(struct rcu_ctrlblk *rcp)
+{
+#ifdef CONFIG_RCU_TRACE
+	rcp->ticks_this_gp = 0;
+	rcp->gp_start = jiffies;
+	rcp->jiffies_stall = jiffies + rcu_jiffies_till_stall_check();
+#endif /* #ifdef CONFIG_RCU_TRACE */
+}
+
+static void check_cpu_stalls(void)
+{
+	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk));
+	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk));
+	RCU_TRACE(check_cpu_stall_preempt());
+}
 
 #ifdef CONFIG_TINY_PREEMPT_RCU
 
@@ -448,6 +496,7 @@ static void rcu_preempt_start_gp(void)
 		/* Official start of GP. */
 		rcu_preempt_ctrlblk.gpnum++;
 		RCU_TRACE(rcu_preempt_ctrlblk.n_grace_periods++);
+		reset_cpu_stall_ticks(&rcu_preempt_ctrlblk.rcb);
 
 		/* Any blocked RCU readers block new GP. */
 		if (rcu_preempt_blocked_readers_any())
@@ -1053,5 +1102,12 @@ module_exit(rcutiny_trace_cleanup);
 MODULE_AUTHOR("Paul E. McKenney");
 MODULE_DESCRIPTION("Read-Copy Update tracing for tiny implementation");
 MODULE_LICENSE("GPL");
+
+static void check_cpu_stall_preempt(void)
+{
+#ifdef CONFIG_TINY_PREEMPT_RCU
+	check_cpu_stall(&rcu_preempt_ctrlblk.rcb);
+#endif /* #ifdef CONFIG_TINY_PREEMPT_RCU */
+}
 
 #endif /* #ifdef CONFIG_RCU_TRACE */

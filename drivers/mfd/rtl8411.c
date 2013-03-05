@@ -115,14 +115,24 @@ static int rtl8411_card_power_off(struct rtsx_pcr *pcr, int card)
 static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 {
 	u8 mask, val;
+	int err;
 
 	mask = (BPP_REG_TUNED18 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_MASK;
-	if (voltage == OUTPUT_3V3)
+	if (voltage == OUTPUT_3V3) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_D);
+		if (err < 0)
+			return err;
 		val = (BPP_ASIC_3V3 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_3V3;
-	else if (voltage == OUTPUT_1V8)
+	} else if (voltage == OUTPUT_1V8) {
+		err = rtsx_pci_write_register(pcr,
+				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_B);
+		if (err < 0)
+			return err;
 		val = (BPP_ASIC_1V8 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_1V8;
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	return rtsx_pci_write_register(pcr, LDO_CTL, mask, val);
 }
