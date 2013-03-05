@@ -556,6 +556,15 @@ static inline void __bss_tim_clear(u8 *tim, u16 id)
 	tim[id / 8] &= ~(1 << (id % 8));
 }
 
+static inline bool __bss_tim_get(u8 *tim, u16 id)
+{
+	/*
+	 * This format has been mandated by the IEEE specifications,
+	 * so this line may not be changed to use the test_bit() format.
+	 */
+	return tim[id / 8] & (1 << (id % 8));
+}
+
 static unsigned long ieee80211_tids_for_ac(int ac)
 {
 	/* If we ever support TIDs > 7, this obviously needs to be adjusted */
@@ -636,6 +645,9 @@ void sta_info_recalc_tim(struct sta_info *sta)
  done:
 	spin_lock_bh(&local->tim_lock);
 
+	if (indicate_tim == __bss_tim_get(ps->tim, id))
+		goto out_unlock;
+
 	if (indicate_tim)
 		__bss_tim_set(ps->tim, id);
 	else
@@ -647,6 +659,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 		local->tim_in_locked_section = false;
 	}
 
+out_unlock:
 	spin_unlock_bh(&local->tim_lock);
 }
 
