@@ -90,7 +90,7 @@ MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
 /*
  * ACPI Helpers
  */
-#define IDEAPAD_EC_TIMEOUT (100) /* in ms */
+#define IDEAPAD_EC_TIMEOUT (1) /* in ms */
 
 static int read_method_int(acpi_handle handle, const char *method, int *val)
 {
@@ -157,7 +157,7 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 	if (method_vpcw(handle, 1, cmd))
 		return -1;
 
-	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/1000+1;
+	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/10000+1;
 	     time_before(jiffies, end_jiffies);) {
 		schedule();
 		if (method_vpcr(handle, 1, &val))
@@ -183,7 +183,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 	if (method_vpcw(handle, 1, cmd))
 		return -1;
 
-	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/1000+1;
+	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/10000+1;
 	     time_before(jiffies, end_jiffies);) {
 		schedule();
 		if (method_vpcr(handle, 1, &val))
