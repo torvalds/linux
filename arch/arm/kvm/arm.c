@@ -920,7 +920,10 @@ static int init_hyp_mode(void)
 	if (err)
 		goto out_free_mappings;
 
+	kvm_perf_init();
+
 	kvm_info("Hyp mode initialized successfully\n");
+
 	return 0;
 out_free_vfp:
 	free_percpu(kvm_host_vfp_state);
@@ -964,6 +967,7 @@ out_err:
 /* NOP: Compiling as a module not supported */
 void kvm_arch_exit(void)
 {
+	kvm_perf_teardown();
 }
 
 static int arm_init(void)

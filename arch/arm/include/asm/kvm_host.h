@@ -207,4 +207,7 @@ static inline void __cpu_init_hyp_mode(unsigned long long pgd_ptr,
 	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
 }
 
+int kvm_perf_init(void);
+int kvm_perf_teardown(void);
+
 #endif /* __ARM_KVM_HOST_H__ */
