@@ -818,7 +818,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	struct arizona *arizona = priv->arizona;
 	int base = dai->driver->base;
 	const int *rates;
-	int i, ret;
+	int i, ret, val;
 	int chan_limit = arizona->pdata.max_channels_clocked[dai->id - 1];
 	int bclk, lrclk, wl, frame, bclk_target;
 
@@ -832,6 +832,13 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		arizona_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
 		bclk_target /= params_channels(params);
 		bclk_target *= chan_limit;
+	}
+
+	/* Force stereo for I2S mode */
+	val = snd_soc_read(codec, base + ARIZONA_AIF_FORMAT);
+	if (params_channels(params) == 1 && (val & ARIZONA_AIF1_FMT_MASK)) {
+		arizona_aif_dbg(dai, "Forcing stereo mode\n");
+		bclk_target *= 2;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(arizona_44k1_bclk_rates); i++) {
