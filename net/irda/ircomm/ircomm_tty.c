@@ -324,7 +324,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 
-		current->state = TASK_INTERRUPTIBLE;
+		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (tty_hung_up_p(filp) ||
 		    !test_bit(ASYNCB_INITIALIZED, &port->flags)) {
