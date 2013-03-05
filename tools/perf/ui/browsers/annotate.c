@@ -14,10 +14,10 @@
 
 struct browser_disasm_line {
 	struct rb_node	rb_node;
-	double		percent;
 	u32		idx;
 	int		idx_asm;
 	int		jump_sources;
+	double		percent[1];
 };
 
 static struct annotate_browser_opt {
@@ -97,9 +97,9 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	int width = browser->width, printed;
 	char bf[256];
 
-	if (dl->offset != -1 && bdl->percent != 0.0) {
-		ui_browser__set_percent_color(browser, bdl->percent, current_entry);
-		slsmg_printf("%6.2f ", bdl->percent);
+	if (dl->offset != -1 && bdl->percent[0] != 0.0) {
+		ui_browser__set_percent_color(browser, bdl->percent[0], current_entry);
+		slsmg_printf("%6.2f ", bdl->percent[0]);
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
 		slsmg_write_nstring(" ", 7);
@@ -283,7 +283,7 @@ static void disasm_rb_tree__insert(struct rb_root *root, struct browser_disasm_l
 	while (*p != NULL) {
 		parent = *p;
 		l = rb_entry(parent, struct browser_disasm_line, rb_node);
-		if (bdl->percent < l->percent)
+		if (bdl->percent[0] < l->percent[0])
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -345,8 +345,8 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		struct browser_disasm_line *bpos = disasm_line__browser(pos);
-		bpos->percent = disasm_line__calc_percent(pos, sym, evsel->idx);
-		if (bpos->percent < 0.01) {
+		bpos->percent[0] = disasm_line__calc_percent(pos, sym, evsel->idx);
+		if (bpos->percent[0] < 0.01) {
 			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
 		}
