@@ -416,4 +416,5 @@ static struct notifier_block tick_notifier = {
 void __init tick_init(void)
 {
 	clockevents_register_notifier(&tick_notifier);
+	tick_broadcast_init();
 }
