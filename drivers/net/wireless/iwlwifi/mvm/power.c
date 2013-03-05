@@ -86,12 +86,16 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	int keep_alive;
 	bool radar_detect = false;
 
-	if ((!vif->bss_conf.ps) ||
-	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM))
+	if ((iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) ||
+	    !iwlwifi_mod_params.power_save)
 		return;
 
-	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK |
-				  POWER_FLAGS_POWER_SAVE_ENA_MSK);
+	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
+
+	if (!vif->bss_conf.ps)
+		return;
+
+	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
 
 	dtimper = hw->conf.ps_dtim_period ?: 1;
 
@@ -132,11 +136,6 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_powertable_cmd cmd = {};
 
-	if (!iwlwifi_mod_params.power_save) {
-		IWL_DEBUG_POWER(mvm, "Power management is not allowed\n");
-		return 0;
-	}
-
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
@@ -165,13 +164,12 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_powertable_cmd cmd = {};
 
-	if (!iwlwifi_mod_params.power_save) {
-		IWL_DEBUG_POWER(mvm, "Power management is not allowed\n");
-		return 0;
-	}
-
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
+
+	if ((iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM) &&
+	    iwlwifi_mod_params.power_save)
+		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 	IWL_DEBUG_POWER(mvm,
 			"Sending power table command power level %d, flags = 0x%X\n",
