@@ -8,6 +8,7 @@
 #include "../../util/hist.h"
 #include "../../util/sort.h"
 #include "../../util/symbol.h"
+#include "../../util/evsel.h"
 #include <pthread.h>
 #include <newt.h>
 
@@ -331,7 +332,7 @@ static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 }
 
 static void annotate_browser__calc_percent(struct annotate_browser *browser,
-					   int evidx)
+					   struct perf_evsel *evsel)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
@@ -344,7 +345,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		struct browser_disasm_line *bpos = disasm_line__browser(pos);
-		bpos->percent = disasm_line__calc_percent(pos, sym, evidx);
+		bpos->percent = disasm_line__calc_percent(pos, sym, evsel->idx);
 		if (bpos->percent < 0.01) {
 			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
@@ -401,7 +402,8 @@ static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
 	browser->b.nr_entries = browser->nr_asm_entries;
 }
 
-static bool annotate_browser__callq(struct annotate_browser *browser, int evidx,
+static bool annotate_browser__callq(struct annotate_browser *browser,
+				    struct perf_evsel *evsel,
 				    struct hist_browser_timer *hbt)
 {
 	struct map_symbol *ms = browser->b.priv;
@@ -432,7 +434,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser, int evidx,
 	}
 
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(target, ms->map, evidx, hbt);
+	symbol__tui_annotate(target, ms->map, evsel, hbt);
 	ui_browser__show_title(&browser->b, sym->name);
 	return true;
 }
@@ -615,7 +617,8 @@ static void annotate_browser__update_addr_width(struct annotate_browser *browser
 		browser->addr_width += browser->jumps_width + 1;
 }
 
-static int annotate_browser__run(struct annotate_browser *browser, int evidx,
+static int annotate_browser__run(struct annotate_browser *browser,
+				 struct perf_evsel *evsel,
 				 struct hist_browser_timer *hbt)
 {
 	struct rb_node *nd = NULL;
@@ -628,7 +631,7 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 	if (ui_browser__show(&browser->b, sym->name, help) < 0)
 		return -1;
 
-	annotate_browser__calc_percent(browser, evidx);
+	annotate_browser__calc_percent(browser, evsel);
 
 	if (browser->curr_hot) {
 		annotate_browser__set_rb_top(browser, browser->curr_hot);
@@ -641,7 +644,7 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 		key = ui_browser__run(&browser->b, delay_secs);
 
 		if (delay_secs != 0) {
-			annotate_browser__calc_percent(browser, evidx);
+			annotate_browser__calc_percent(browser, evsel);
 			/*
 			 * Current line focus got out of the list of most active
 			 * lines, NULL it so that if TAB|UNTAB is pressed, we
@@ -657,7 +660,7 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0)
-				symbol__annotate_decay_histogram(sym, evidx);
+				symbol__annotate_decay_histogram(sym, evsel->idx);
 			continue;
 		case K_TAB:
 			if (nd != NULL) {
@@ -754,7 +757,7 @@ show_help:
 					goto show_sup_ins;
 				goto out;
 			} else if (!(annotate_browser__jump(browser) ||
-				     annotate_browser__callq(browser, evidx, hbt))) {
+				     annotate_browser__callq(browser, evsel, hbt))) {
 show_sup_ins:
 				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
 			}
@@ -776,10 +779,10 @@ out:
 	return key;
 }
 
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
+int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
-	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx, hbt);
+	return symbol__tui_annotate(he->ms.sym, he->ms.map, evsel, hbt);
 }
 
 static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
@@ -826,7 +829,8 @@ static inline int width_jumps(int n)
 	return 1;
 }
 
-int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
+int symbol__tui_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt)
 {
 	struct disasm_line *pos, *n;
@@ -909,7 +913,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	annotate_browser__update_addr_width(&browser);
 
-	ret = annotate_browser__run(&browser, evidx, hbt);
+	ret = annotate_browser__run(&browser, evsel, hbt);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		disasm_line__free(pos);

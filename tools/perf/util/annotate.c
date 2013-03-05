@@ -14,6 +14,7 @@
 #include "symbol.h"
 #include "debug.h"
 #include "annotate.h"
+#include "evsel.h"
 #include <pthread.h>
 #include <linux/bitops.h>
 
@@ -603,7 +604,7 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 }
 
 static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 start,
-		      int evidx, u64 len, int min_pcnt, int printed,
+		      struct perf_evsel *evsel, u64 len, int min_pcnt, int printed,
 		      int max_lines, struct disasm_line *queue)
 {
 	static const char *prev_line;
@@ -616,7 +617,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
 		struct source_line *src_line = notes->src->lines;
-		struct sym_hist *h = annotation__histogram(notes, evidx);
+		struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 		s64 offset = dl->offset;
 		const u64 addr = start + offset;
 		struct disasm_line *next;
@@ -648,7 +649,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == dl)
 					break;
-				disasm_line__print(queue, sym, start, evidx, len,
+				disasm_line__print(queue, sym, start, evsel, len,
 						    0, 0, 1, NULL);
 			}
 		}
@@ -935,7 +936,8 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static int symbol__get_source_line(struct symbol *sym, struct map *map,
-				   int evidx, struct rb_root *root, int len,
+				   struct perf_evsel *evsel,
+				   struct rb_root *root, int len,
 				   const char *filename)
 {
 	u64 start;
@@ -943,7 +945,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	char cmd[PATH_MAX * 2];
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct rb_root tmp_root = RB_ROOT;
 
 	if (!h->sum)
@@ -1018,10 +1020,10 @@ static void print_summary(struct rb_root *root, const char *filename)
 	}
 }
 
-static void symbol__annotate_hits(struct symbol *sym, int evidx)
+static void symbol__annotate_hits(struct symbol *sym, struct perf_evsel *evsel)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset)
@@ -1031,9 +1033,9 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
-			    bool full_paths, int min_pcnt, int max_lines,
-			    int context)
+int symbol__annotate_printf(struct symbol *sym, struct map *map,
+			    struct perf_evsel *evsel, bool full_paths,
+			    int min_pcnt, int max_lines, int context)
 {
 	struct dso *dso = map->dso;
 	char *filename;
@@ -1060,7 +1062,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 	printf("------------------------------------------------\n");
 
 	if (verbose)
-		symbol__annotate_hits(sym, evidx);
+		symbol__annotate_hits(sym, evsel);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		if (context && queue == NULL) {
@@ -1068,7 +1070,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			queue_len = 0;
 		}
 
-		switch (disasm_line__print(pos, sym, start, evidx, len,
+		switch (disasm_line__print(pos, sym, start, evsel, len,
 					    min_pcnt, printed, max_lines,
 					    queue)) {
 		case 0:
@@ -1163,9 +1165,9 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	return printed;
 }
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths, int min_pcnt,
-			 int max_lines)
+int symbol__tty_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel, bool print_lines,
+			 bool full_paths, int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name;
@@ -1178,12 +1180,12 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 	len = symbol__size(sym);
 
 	if (print_lines) {
-		symbol__get_source_line(sym, map, evidx, &source_line,
+		symbol__get_source_line(sym, map, evsel, &source_line,
 					len, filename);
 		print_summary(&source_line, filename);
 	}
 
-	symbol__annotate_printf(sym, map, evidx, full_paths,
+	symbol__annotate_printf(sym, map, evsel, full_paths,
 				min_pcnt, max_lines, 0);
 	if (print_lines)
 		symbol__free_source_line(sym, len);
