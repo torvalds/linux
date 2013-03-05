@@ -188,6 +188,11 @@ ssize_t vfsub_write_k(struct file *file, void *kbuf, size_t count,
 int vfsub_flush(struct file *file, fl_owner_t id);
 int vfsub_readdir(struct file *file, filldir_t filldir, void *arg);
 
+static inline loff_t vfsub_f_size_read(struct file *file)
+{
+	return i_size_read(file_inode(file));
+}
+
 static inline unsigned int vfsub_file_flags(struct file *file)
 {
 	unsigned int flags;

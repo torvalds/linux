@@ -274,7 +274,7 @@ static int au_do_copy_file(struct file *dst, struct file *src, loff_t len,
 			ia->ia_size = dst->f_pos;
 			ia->ia_valid = ATTR_SIZE | ATTR_FILE;
 			ia->ia_file = dst;
-			h_mtx = &dst->f_dentry->d_inode->i_mutex;
+			h_mtx = &file_inode(dst)->i_mutex;
 			mutex_lock_nested(h_mtx, AuLsc_I_CHILD2);
 			err = vfsub_notify_change(&dst->f_path, ia);
 			mutex_unlock(h_mtx);

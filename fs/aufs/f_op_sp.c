@@ -229,12 +229,12 @@ static int au_do_open_sp(struct file *file, int flags)
 
 	sb = dentry->d_sb;
 	h_file = au_hf_top(file);
-	h_inode = h_file->f_dentry->d_inode;
+	h_inode = file_inode(h_file);
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
 	si_read_unlock(sb);
 	/* open this fifo in aufs */
-	err = h_inode->i_fop->open(file->f_dentry->d_inode, file);
+	err = h_inode->i_fop->open(file_inode(file), file);
 	si_noflush_read_lock(sb);
 	fi_write_lock(file);
 	di_read_lock_child(dentry, AuLock_IR);
