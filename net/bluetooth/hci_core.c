@@ -1015,10 +1015,7 @@ int hci_dev_open(__u16 dev)
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		set_bit(HCI_INIT, &hdev->flags);
-		hdev->init_last_cmd = 0;
-
 		ret = __hci_init(hdev);
-
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -2508,9 +2505,6 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 		BT_ERR("%s no memory for command", hdev->name);
 		return -ENOMEM;
 	}
-
-	if (test_bit(HCI_INIT, &hdev->flags))
-		hdev->init_last_cmd = opcode;
 
 	/* Stand-alone HCI commands must be flaged as
 	 * single-command requests.
