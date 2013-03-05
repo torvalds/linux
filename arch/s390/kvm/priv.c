@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 #include <linux/gfp.h>
 #include <linux/errno.h>
+#include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
@@ -129,39 +130,44 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 
 static int handle_tpi(struct kvm_vcpu *vcpu)
 {
-	u64 addr;
 	struct kvm_s390_interrupt_info *inti;
+	u64 addr;
 	int cc;
 
 	addr = kvm_s390_get_base_disp_s(vcpu);
-
+	if (addr & 3) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+	cc = 0;
 	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
-	if (inti) {
-		if (addr) {
-			/*
-			 * Store the two-word I/O interruption code into the
-			 * provided area.
-			 */
-			put_guest(vcpu, inti->io.subchannel_id, (u16 *) addr);
-			put_guest(vcpu, inti->io.subchannel_nr, (u16 *) (addr + 2));
-			put_guest(vcpu, inti->io.io_int_parm, (u32 *) (addr + 4));
-		} else {
-			/*
-			 * Store the three-word I/O interruption code into
-			 * the appropriate lowcore area.
-			 */
-			put_guest(vcpu, inti->io.subchannel_id, (u16 *) 184);
-			put_guest(vcpu, inti->io.subchannel_nr, (u16 *) 186);
-			put_guest(vcpu, inti->io.io_int_parm, (u32 *) 188);
-			put_guest(vcpu, inti->io.io_int_word, (u32 *) 192);
-		}
-		cc = 1;
-	} else
-		cc = 0;
+	if (!inti)
+		goto no_interrupt;
+	cc = 1;
+	if (addr) {
+		/*
+		 * Store the two-word I/O interruption code into the
+		 * provided area.
+		 */
+		put_guest(vcpu, inti->io.subchannel_id, (u16 *) addr);
+		put_guest(vcpu, inti->io.subchannel_nr, (u16 *) (addr + 2));
+		put_guest(vcpu, inti->io.io_int_parm, (u32 *) (addr + 4));
+	} else {
+		/*
+		 * Store the three-word I/O interruption code into
+		 * the appropriate lowcore area.
+		 */
+		put_guest(vcpu, inti->io.subchannel_id, (u16 *) __LC_SUBCHANNEL_ID);
+		put_guest(vcpu, inti->io.subchannel_nr, (u16 *) __LC_SUBCHANNEL_NR);
+		put_guest(vcpu, inti->io.io_int_parm, (u32 *) __LC_IO_INT_PARM);
+		put_guest(vcpu, inti->io.io_int_word, (u32 *) __LC_IO_INT_WORD);
+	}
 	kfree(inti);
+no_interrupt:
 	/* Set condition code and we're done. */
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 	vcpu->arch.sie_block->gpsw.mask |= (cc & 3ul) << 44;
+out:
 	return 0;
 }
 
