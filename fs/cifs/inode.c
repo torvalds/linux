@@ -1023,7 +1023,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 					current->tgid);
 		/* although we would like to mark the file hidden
  		   if that fails we will still try to rename it */
-		if (rc != 0)
+		if (!rc)
 			cifsInode->cifsAttrs = dosattr;
 		else
 			dosattr = origattr; /* since not able to change them */
