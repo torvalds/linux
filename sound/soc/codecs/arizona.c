@@ -1157,6 +1157,17 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 		return;
 	}
 
+	/*
+	 * Increase the bandwidth if we're not using a low frequency
+	 * sync source.
+	 */
+	if (fll->sync_src >= 0 && fll->sync_freq > 100000)
+		regmap_update_bits(arizona->regmap, fll->base + 0x17,
+				   ARIZONA_FLL1_SYNC_BW, 0);
+	else
+		regmap_update_bits(arizona->regmap, fll->base + 0x17,
+				   ARIZONA_FLL1_SYNC_BW, ARIZONA_FLL1_SYNC_BW);
+
 	if (!arizona_is_enabled_fll(fll))
 		pm_runtime_get(arizona->dev);
 
