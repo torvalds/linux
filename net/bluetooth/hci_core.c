@@ -3208,6 +3208,91 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+static bool hci_req_is_complete(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
+	skb = skb_peek(&hdev->cmd_q);
+	if (!skb)
+		return true;
+
+	return bt_cb(skb)->req.start;
+}
+
+void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
+{
+	hci_req_complete_t req_complete = NULL;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	BT_DBG("opcode 0x%04x status 0x%02x", opcode, status);
+
+	/* Check that the completed command really matches the last one
+	 * that was sent.
+	 */
+	if (!hci_sent_cmd_data(hdev, opcode))
+		return;
+
+	/* If the command succeeded and there's still more commands in
+	 * this request the request is not yet complete.
+	 */
+	if (!status && !hci_req_is_complete(hdev))
+		return;
+
+	/* If this was the last command in a request the complete
+	 * callback would be found in hdev->sent_cmd instead of the
+	 * command queue (hdev->cmd_q).
+	 */
+	if (hdev->sent_cmd) {
+		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
+		if (req_complete)
+			goto call_complete;
+	}
+
+	/* Remove all pending commands belonging to this request */
+	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
+	while ((skb = __skb_dequeue(&hdev->cmd_q))) {
+		if (bt_cb(skb)->req.start) {
+			__skb_queue_head(&hdev->cmd_q, skb);
+			break;
+		}
+
+		req_complete = bt_cb(skb)->req.complete;
+		kfree_skb(skb);
+	}
+	spin_unlock_irqrestore(&hdev->cmd_q.lock, flags);
+
+call_complete:
+	if (req_complete)
+		req_complete(hdev, status);
+}
+
+void hci_req_cmd_status(struct hci_dev *hdev, u16 opcode, u8 status)
+{
+	hci_req_complete_t req_complete = NULL;
+
+	BT_DBG("opcode 0x%04x status 0x%02x", opcode, status);
+
+	if (status) {
+		hci_req_cmd_complete(hdev, opcode, status);
+		return;
+	}
+
+	/* No need to handle success status if there are more commands */
+	if (!hci_req_is_complete(hdev))
+		return;
+
+	if (hdev->sent_cmd)
+		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
+
+	/* If the request doesn't have a complete callback or there
+	 * are other commands/requests in the hdev queue we consider
+	 * this request as completed.
+	 */
+	if (!req_complete || !skb_queue_empty(&hdev->cmd_q))
+		hci_req_cmd_complete(hdev, opcode, status);
+}
+
 static void hci_rx_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, rx_work);
