@@ -295,6 +295,18 @@ void dsi_dump_clocks(struct seq_file *s);
 void dsi_irq_handler(void);
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
+unsigned long dsi_get_pll_clkin(struct platform_device *dsidev);
+
+typedef bool (*dsi_pll_calc_func)(int regn, int regm, unsigned long fint,
+		unsigned long pll, void *data);
+typedef bool (*dsi_hsdiv_calc_func)(int regm_dispc, unsigned long dispc,
+		void *data);
+bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
+		unsigned long out_min, dsi_hsdiv_calc_func func, void *data);
+bool dsi_pll_calc(struct platform_device *dsidev, unsigned long clkin,
+		unsigned long pll_min, unsigned long pll_max,
+		dsi_pll_calc_func func, void *data);
+
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
