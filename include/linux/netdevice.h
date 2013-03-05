@@ -1475,6 +1475,11 @@ static inline void *netdev_priv(const struct net_device *dev)
  */
 #define SET_NETDEV_DEVTYPE(net, devtype)	((net)->dev.type = (devtype))
 
+/* Default NAPI poll() weight
+ * Device drivers are strongly advised to not use bigger value
+ */
+#define NAPI_POLL_WEIGHT 64
+
 /**
  *	netif_napi_add - initialize a napi context
  *	@dev:  network device
