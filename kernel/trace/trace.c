@@ -912,9 +912,15 @@ void tracing_reset_current(int cpu)
 	tracing_reset(&global_trace, cpu);
 }
 
-void tracing_reset_current_online_cpus(void)
+void tracing_reset_all_online_cpus(void)
 {
-	tracing_reset_online_cpus(&global_trace);
+	struct trace_array *tr;
+
+	mutex_lock(&trace_types_lock);
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		tracing_reset_online_cpus(tr);
+	}
+	mutex_unlock(&trace_types_lock);
 }
 
 #define SAVED_CMDLINES 128

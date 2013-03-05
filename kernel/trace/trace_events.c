@@ -1649,14 +1649,18 @@ static void trace_module_remove_events(struct module *mod)
 		list_del(&file_ops->list);
 		kfree(file_ops);
 	}
+	up_write(&trace_event_mutex);
 
 	/*
 	 * It is safest to reset the ring buffer if the module being unloaded
-	 * registered any events that were used.
+	 * registered any events that were used. The only worry is if
+	 * a new module gets loaded, and takes on the same id as the events
+	 * of this module. When printing out the buffer, traced events left
+	 * over from this module may be passed to the new module events and
+	 * unexpected results may occur.
 	 */
 	if (clear_trace)
-		tracing_reset_current_online_cpus();
-	up_write(&trace_event_mutex);
+		tracing_reset_all_online_cpus();
 }
 
 static int trace_module_notify(struct notifier_block *self,
