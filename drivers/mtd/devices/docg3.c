@@ -2144,18 +2144,7 @@ static struct platform_driver g3_driver = {
 	.remove		= __exit_p(docg3_release),
 };
 
-static int __init docg3_init(void)
-{
-	return platform_driver_probe(&g3_driver, docg3_probe);
-}
-module_init(docg3_init);
-
-
-static void __exit docg3_exit(void)
-{
-	platform_driver_unregister(&g3_driver);
-}
-module_exit(docg3_exit);
+module_platform_driver_probe(g3_driver, docg3_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");
