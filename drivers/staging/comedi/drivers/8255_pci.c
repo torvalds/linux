@@ -60,124 +60,104 @@ Configuration Options: not applicable, uses PCI auto config
 
 #include "8255.h"
 
-/*
- * PCI Device ID's supported by this driver
- */
-#define PCI_DEVICE_ID_ADLINK_PCI7224	0x7224
-#define PCI_DEVICE_ID_ADLINK_PCI7248	0x7248
-#define PCI_DEVICE_ID_ADLINK_PCI7296	0x7296
-
-#define PCI_DEVICE_ID_CB_PCIDIO48H	0x000b
-#define PCI_DEVICE_ID_CB_PCIDIO24H	0x0014
-#define PCI_DEVICE_ID_CB_PCIDIO96H	0x0017
-#define PCI_DEVICE_ID_CB_PCIDIO24	0x0028
-
-#define PCI_DEVICE_ID_NI_PCIDIO96	0x0160
-#define PCI_DEVICE_ID_NI_PCI6503	0x0400
-#define PCI_DEVICE_ID_NI_PCI6503B	0x1250
-#define PCI_DEVICE_ID_NI_PXI6508	0x13c0
-#define PCI_DEVICE_ID_NI_PCIDIO96B	0x1630
-#define PCI_DEVICE_ID_NI_PCI6503X	0x17d0
-#define PCI_DEVICE_ID_NI_PXI_6503	0x1800
+enum pci_8255_boardid {
+	BOARD_ADLINK_PCI7224,
+	BOARD_ADLINK_PCI7248,
+	BOARD_ADLINK_PCI7296,
+	BOARD_CB_PCIDIO24,
+	BOARD_CB_PCIDIO24H,
+	BOARD_CB_PCIDIO48H,
+	BOARD_CB_PCIDIO96H,
+	BOARD_NI_PCIDIO96,
+	BOARD_NI_PCIDIO96B,
+	BOARD_NI_PXI6508,
+	BOARD_NI_PCI6503,
+	BOARD_NI_PCI6503B,
+	BOARD_NI_PCI6503X,
+	BOARD_NI_PXI_6503,
+};
 
 struct pci_8255_boardinfo {
 	const char *name;
-	unsigned short vendor;
-	unsigned short device;
 	int dio_badr;
 	int is_mmio;
 	int n_8255;
 };
 
 static const struct pci_8255_boardinfo pci_8255_boards[] = {
-	{
+	[BOARD_ADLINK_PCI7224] = {
 		.name		= "adl_pci-7224",
-		.vendor		= PCI_VENDOR_ID_ADLINK,
-		.device		= PCI_DEVICE_ID_ADLINK_PCI7224,
 		.dio_badr	= 2,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_ADLINK_PCI7248] = {
 		.name		= "adl_pci-7248",
-		.vendor		= PCI_VENDOR_ID_ADLINK,
-		.device		= PCI_DEVICE_ID_ADLINK_PCI7248,
 		.dio_badr	= 2,
 		.n_8255		= 2,
-	}, {
+	},
+	[BOARD_ADLINK_PCI7296] = {
 		.name		= "adl_pci-7296",
-		.vendor		= PCI_VENDOR_ID_ADLINK,
-		.device		= PCI_DEVICE_ID_ADLINK_PCI7296,
 		.dio_badr	= 2,
 		.n_8255		= 4,
-	}, {
+	},
+	[BOARD_CB_PCIDIO24] = {
 		.name		= "cb_pci-dio24",
-		.vendor		= PCI_VENDOR_ID_CB,
-		.device		= PCI_DEVICE_ID_CB_PCIDIO24,
 		.dio_badr	= 2,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_CB_PCIDIO24H] = {
 		.name		= "cb_pci-dio24h",
-		.vendor		= PCI_VENDOR_ID_CB,
-		.device		= PCI_DEVICE_ID_CB_PCIDIO24H,
 		.dio_badr	= 2,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_CB_PCIDIO48H] = {
 		.name		= "cb_pci-dio48h",
-		.vendor		= PCI_VENDOR_ID_CB,
-		.device		= PCI_DEVICE_ID_CB_PCIDIO48H,
 		.dio_badr	= 1,
 		.n_8255		= 2,
-	}, {
+	},
+	[BOARD_CB_PCIDIO96H] = {
 		.name		= "cb_pci-dio96h",
-		.vendor		= PCI_VENDOR_ID_CB,
-		.device		= PCI_DEVICE_ID_CB_PCIDIO96H,
 		.dio_badr	= 2,
 		.n_8255		= 4,
-	}, {
+	},
+	[BOARD_NI_PCIDIO96] = {
 		.name		= "ni_pci-dio-96",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PCIDIO96,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 4,
-	}, {
+	},
+	[BOARD_NI_PCIDIO96B] = {
 		.name		= "ni_pci-dio-96b",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PCIDIO96B,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 4,
-	}, {
+	},
+	[BOARD_NI_PXI6508] = {
 		.name		= "ni_pxi-6508",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PXI6508,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 4,
-	}, {
+	},
+	[BOARD_NI_PCI6503] = {
 		.name		= "ni_pci-6503",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PCI6503,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_NI_PCI6503B] = {
 		.name		= "ni_pci-6503b",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PCI6503B,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_NI_PCI6503X] = {
 		.name		= "ni_pci-6503x",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PCI6503X,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 1,
-	}, {
+	},
+	[BOARD_NI_PXI_6503] = {
 		.name		= "ni_pxi-6503",
-		.vendor		= PCI_VENDOR_ID_NI,
-		.device		= PCI_DEVICE_ID_NI_PXI_6503,
 		.dio_badr	= 1,
 		.is_mmio	= 1,
 		.n_8255		= 1,
@@ -200,26 +180,11 @@ static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
 	}
 }
 
-static const void *pci_8255_find_boardinfo(struct comedi_device *dev,
-					      struct pci_dev *pcidev)
-{
-	const struct pci_8255_boardinfo *board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pci_8255_boards); i++) {
-		board = &pci_8255_boards[i];
-		if (pcidev->vendor == board->vendor &&
-		    pcidev->device == board->device)
-			return board;
-	}
-	return NULL;
-}
-
 static int pci_8255_auto_attach(struct comedi_device *dev,
-					  unsigned long context_unused)
+				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct pci_8255_boardinfo *board;
+	const struct pci_8255_boardinfo *board = NULL;
 	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
 	resource_size_t iobase;
@@ -227,7 +192,8 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	board = pci_8255_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(pci_8255_boards))
+		board = &pci_8255_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
@@ -317,20 +283,20 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7224) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7248) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7296) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24H) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO48H) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO96H) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCIDIO96) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCIDIO96B) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI6508) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503B) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503X) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI_6503) },
+	{ PCI_VDEVICE(ADLINK, 0x7224), BOARD_ADLINK_PCI7224 },
+	{ PCI_VDEVICE(ADLINK, 0x7248), BOARD_ADLINK_PCI7248 },
+	{ PCI_VDEVICE(ADLINK, 0x7296), BOARD_ADLINK_PCI7296 },
+	{ PCI_VDEVICE(CB, 0x0028), BOARD_CB_PCIDIO24 },
+	{ PCI_VDEVICE(CB, 0x0014), BOARD_CB_PCIDIO24H },
+	{ PCI_VDEVICE(CB, 0x000b), BOARD_CB_PCIDIO48H },
+	{ PCI_VDEVICE(CB, 0x0017), BOARD_CB_PCIDIO96H },
+	{ PCI_VDEVICE(NI, 0x0160), BOARD_NI_PCIDIO96 },
+	{ PCI_VDEVICE(NI, 0x1630), BOARD_NI_PCIDIO96B },
+	{ PCI_VDEVICE(NI, 0x13c0), BOARD_NI_PXI6508 },
+	{ PCI_VDEVICE(NI, 0x0400), BOARD_NI_PCI6503 },
+	{ PCI_VDEVICE(NI, 0x1250), BOARD_NI_PCI6503B },
+	{ PCI_VDEVICE(NI, 0x17d0), BOARD_NI_PCI6503X },
+	{ PCI_VDEVICE(NI, 0x1800), BOARD_NI_PXI_6503 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pci_8255_pci_table);
