@@ -403,21 +403,21 @@ struct ni_660x_board {
 
 static const struct ni_660x_board ni_660x_boards[] = {
 	[BOARD_PCI6601] = {
-	 .name = "PCI-6601",
-	 .n_chips = 1,
-	 },
+		.name		= "PCI-6601",
+		.n_chips	= 1,
+	},
 	[BOARD_PCI6602] = {
-	 .name = "PCI-6602",
-	 .n_chips = 2,
-	 },
+		.name		= "PCI-6602",
+		.n_chips	= 2,
+	},
 	[BOARD_PXI6602] = {
-	 .name = "PXI-6602",
-	 .n_chips = 2,
-	 },
+		.name		= "PXI-6602",
+		.n_chips	= 2,
+	},
 	[BOARD_PXI6608] = {
-	 .name = "PXI-6608",
-	 .n_chips = 2,
-	 },
+		.name		= "PXI-6608",
+		.n_chips	= 2,
+	},
 };
 
 #define NI_660X_MAX_NUM_CHIPS 2
