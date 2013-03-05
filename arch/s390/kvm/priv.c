@@ -108,7 +108,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	}
 
 	rc = put_guest_u16(vcpu, useraddr, vcpu->vcpu_id);
-	if (rc == -EFAULT) {
+	if (rc) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
 	}
@@ -230,7 +230,7 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			   &facility_list, sizeof(facility_list));
-	if (rc == -EFAULT)
+	if (rc)
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	else {
 		VCPU_EVENT(vcpu, 5, "store facility list value %x",
@@ -348,7 +348,7 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 	}
 
 	rc = put_guest_u64(vcpu, operand2, vcpu->arch.stidp_data);
-	if (rc == -EFAULT) {
+	if (rc) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
 	}
