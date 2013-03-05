@@ -74,7 +74,7 @@ obj-y                     += dma.o
 
 obj-$(CONFIG_PCIC_PCI)    += pcic.o
 obj-$(CONFIG_LEON_PCI)    += leon_pci.o
-obj-$(CONFIG_GRPCI2)      += leon_pci_grpci2.o
+obj-$(CONFIG_SPARC_GRPCI2)+= leon_pci_grpci2.o
 obj-$(CONFIG_SPARC_GRPCI1)+= leon_pci_grpci1.o
 
 obj-$(CONFIG_SMP)         += trampoline_$(BITS).o smp_$(BITS).o

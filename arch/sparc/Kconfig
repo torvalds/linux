@@ -505,7 +505,7 @@ config SPARC_GRPCI1
 	  from the bootloader that makes the GRPCI to generate interrupts
 	  on detected PCI Parity and System errors.
 
-config GRPCI2
+config SPARC_GRPCI2
 	bool "GRPCI2 Host Bridge Support"
 	depends on LEON_PCI
 	default y
