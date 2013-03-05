@@ -93,7 +93,9 @@ enum iwl_power_flags {
  *
  * @flags:		Power table command flags from POWER_FLAGS_*
  * @keep_alive_seconds: Keep alive period in seconds. Default - 25 sec.
- *			Minimum allowed:- 3 * DTIM
+ *			Minimum allowed:- 3 * DTIM. Keep alive period must be
+ *			set regardless of power scheme or current power state.
+ *			FW use this value also when PM is disabled.
  * @rx_data_timeout:    Minimum time (usec) from last Rx packet for AM to
  *			PSM transition - legacy PM
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to

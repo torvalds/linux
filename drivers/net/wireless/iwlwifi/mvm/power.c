@@ -86,6 +86,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	int keep_alive;
 	bool radar_detect = false;
 
+	/*
+	 * Regardless of power management state the driver must set
+	 * keep alive period. FW will use it for sending keep alive NDPs
+	 * immediately after association.
+	 */
+	cmd->keep_alive_seconds = POWER_KEEP_ALIVE_PERIOD_SEC;
+
 	if ((iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) ||
 	    !iwlwifi_mod_params.power_save)
 		return;
@@ -117,9 +124,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	/* Check that keep alive period is at least 3 * DTIM */
 	dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 	keep_alive = max_t(int, 3 * dtimper_msec,
-			   MSEC_PER_SEC * POWER_KEEP_ALIVE_PERIOD_SEC);
+			   MSEC_PER_SEC * cmd->keep_alive_seconds);
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
-
 	cmd->keep_alive_seconds = keep_alive;
 
 	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP) {
