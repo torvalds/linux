@@ -492,7 +492,6 @@ enum bnx2x_tpa_mode_t {
 struct bnx2x_fastpath {
 	struct bnx2x		*bp; /* parent */
 
-#define BNX2X_NAPI_WEIGHT       128
 	struct napi_struct	napi;
 	union host_hc_status_block	status_blk;
 	/* chip independed shortcuts into sb structure */
