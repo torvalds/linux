@@ -262,14 +262,13 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 #define NS_OPER_STATES   6  /* Maximum number of states in operation */
 
 #define OPT_ANY          0xFFFFFFFF /* any chip supports this operation */
-#define OPT_PAGE256      0x00000001 /* 256-byte  page chips */
 #define OPT_PAGE512      0x00000002 /* 512-byte  page chips */
 #define OPT_PAGE2048     0x00000008 /* 2048-byte page chips */
 #define OPT_SMARTMEDIA   0x00000010 /* SmartMedia technology chips */
 #define OPT_PAGE512_8BIT 0x00000040 /* 512-byte page chips with 8-bit bus width */
 #define OPT_PAGE4096     0x00000080 /* 4096-byte page chips */
 #define OPT_LARGEPAGE    (OPT_PAGE2048 | OPT_PAGE4096) /* 2048 & 4096-byte page chips */
-#define OPT_SMALLPAGE    (OPT_PAGE256  | OPT_PAGE512)  /* 256 and 512-byte page chips */
+#define OPT_SMALLPAGE    (OPT_PAGE512) /* 512-byte page chips */
 
 /* Remove action bits from state */
 #define NS_STATE(x) ((x) & ~ACTION_MASK)
@@ -696,10 +695,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.secszoob = ns->geom.secsz + ns->geom.oobsz * ns->geom.pgsec;
 	ns->options = 0;
 
-	if (ns->geom.pgsz == 256) {
-		ns->options |= OPT_PAGE256;
-	}
-	else if (ns->geom.pgsz == 512) {
+	if (ns->geom.pgsz == 512) {
 		ns->options |= OPT_PAGE512;
 		if (ns->busw == 8)
 			ns->options |= OPT_PAGE512_8BIT;
@@ -2298,7 +2294,7 @@ static int __init ns_init_module(void)
 		nand->geom.idbytes = 2;
 	nand->regs.status = NS_STATUS_OK(nand);
 	nand->nxstate = STATE_UNKNOWN;
-	nand->options |= OPT_PAGE256; /* temporary value */
+	nand->options |= OPT_PAGE512; /* temporary value */
 	nand->ids[0] = first_id_byte;
 	nand->ids[1] = second_id_byte;
 	nand->ids[2] = third_id_byte;
