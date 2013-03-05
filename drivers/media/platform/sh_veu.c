@@ -1249,18 +1249,7 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	},
 };
 
-static int __init sh_veu_init(void)
-{
-	return platform_driver_probe(&sh_veu_pdrv, sh_veu_probe);
-}
-
-static void __exit sh_veu_exit(void)
-{
-	platform_driver_unregister(&sh_veu_pdrv);
-}
-
-module_init(sh_veu_init);
-module_exit(sh_veu_exit);
+module_platform_driver_probe(sh_veu_pdrv, sh_veu_probe);
 
 MODULE_DESCRIPTION("sh-mobile VEU mem2mem driver");
 MODULE_AUTHOR("Guennadi Liakhovetski, <g.liakhovetski@gmx.de>");
