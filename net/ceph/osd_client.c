@@ -1759,8 +1759,10 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	osd_data = &req->r_data_out;
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
 		BUG_ON(osd_data->length > (u64) SIZE_MAX);
-		ceph_msg_data_set_pages(req->r_request, osd_data->pages,
-			osd_data->length, osd_data->alignment);
+		if (osd_data->length)
+			ceph_msg_data_set_pages(req->r_request,
+				osd_data->pages, osd_data->length,
+				osd_data->alignment);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
 		ceph_msg_data_set_bio(req->r_request, osd_data->bio);
@@ -1768,7 +1770,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
 	}
-	ceph_msg_data_set_trail(req->r_request, &req->r_trail);
+	if (req->r_trail.length)
+		ceph_msg_data_set_trail(req->r_request, &req->r_trail);
 
 	register_request(osdc, req);
 

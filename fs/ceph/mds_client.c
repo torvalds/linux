@@ -1721,7 +1721,11 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
-	ceph_msg_data_set_pages(msg, req->r_pages, req->r_data_len, 0);
+	if (req->r_data_len) {
+		/* outbound data set only by ceph_sync_setxattr() */
+		BUG_ON(!req->r_pages);
+		ceph_msg_data_set_pages(msg, req->r_pages, req->r_data_len, 0);
+	}
 
 	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
 	msg->hdr.data_off = cpu_to_le16(0);
@@ -2603,10 +2607,13 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 			goto fail;
 	}
 
-	ceph_msg_data_set_pagelist(reply, pagelist);
 	if (recon_state.flock)
 		reply->hdr.version = cpu_to_le16(2);
-	reply->hdr.data_len = cpu_to_le32(pagelist->length);
+	if (pagelist->length) {
+		/* set up outbound data if we have any */
+		reply->hdr.data_len = cpu_to_le32(pagelist->length);
+		ceph_msg_data_set_pagelist(reply, pagelist);
+	}
 	ceph_con_send(&session->s_con, reply);
 
 	mutex_unlock(&session->s_mutex);
