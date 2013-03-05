@@ -4167,8 +4167,6 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	default:
 		if (current_trace->allocated_snapshot)
 			tracing_reset_online_cpus(&max_tr);
-		else
-			ret = -EINVAL;
 		break;
 	}
 
