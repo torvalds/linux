@@ -613,6 +613,10 @@ int gpmc_cs_configure(int cs, int cmd, int wval)
 
 	case GPMC_CONFIG_DEV_TYPE:
 		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+		/* clear 4 target bits */
+		regval &= ~(GPMC_CONFIG1_DEVICETYPE(3) |
+			    GPMC_CONFIG1_MUXTYPE(3));
+		/* set the proper value */
 		regval |= GPMC_CONFIG1_DEVICETYPE(wval);
 		if (wval == GPMC_DEVICETYPE_NOR)
 			regval |= GPMC_CONFIG1_MUXADDDATA;
