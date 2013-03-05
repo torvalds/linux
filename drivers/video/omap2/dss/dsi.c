@@ -3813,18 +3813,22 @@ static void dsi_config_vp_num_line_buffers(struct platform_device *dsidev)
 static void dsi_config_vp_sync_events(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	bool vsync_end = dsi->vm_timings.vp_vsync_end;
-	bool hsync_end = dsi->vm_timings.vp_hsync_end;
+	bool sync_end;
 	u32 r;
+
+	if (dsi->vm_timings.trans_mode == OMAP_DSS_DSI_PULSE_MODE)
+		sync_end = true;
+	else
+		sync_end = false;
 
 	r = dsi_read_reg(dsidev, DSI_CTRL);
 	r = FLD_MOD(r, 1, 9, 9);		/* VP_DE_POL */
 	r = FLD_MOD(r, 1, 10, 10);		/* VP_HSYNC_POL */
 	r = FLD_MOD(r, 1, 11, 11);		/* VP_VSYNC_POL */
 	r = FLD_MOD(r, 1, 15, 15);		/* VP_VSYNC_START */
-	r = FLD_MOD(r, vsync_end, 16, 16);	/* VP_VSYNC_END */
+	r = FLD_MOD(r, sync_end, 16, 16);	/* VP_VSYNC_END */
 	r = FLD_MOD(r, 1, 17, 17);		/* VP_HSYNC_START */
-	r = FLD_MOD(r, hsync_end, 18, 18);	/* VP_HSYNC_END */
+	r = FLD_MOD(r, sync_end, 18, 18);	/* VP_HSYNC_END */
 	dsi_write_reg(dsidev, DSI_CTRL, r);
 }
 
@@ -4171,11 +4175,12 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		int vfp = dsi->vm_timings.vfp;
 		int vbp = dsi->vm_timings.vbp;
 		int window_sync = dsi->vm_timings.window_sync;
-		bool hsync_end = dsi->vm_timings.vp_hsync_end;
+		bool hsync_end;
 		struct omap_video_timings *timings = &dsi->timings;
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;
 
+		hsync_end = dsi->vm_timings.trans_mode == OMAP_DSS_DSI_PULSE_MODE;
 		t_he = hsync_end ?
 			((hsa == 0 && ndl == 3) ? 1 : DIV_ROUND_UP(4, ndl)) : 0;
 

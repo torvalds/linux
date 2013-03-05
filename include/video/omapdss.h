@@ -257,6 +257,15 @@ void rfbi_bus_unlock(void);
 
 /* DSI */
 
+enum omap_dss_dsi_trans_mode {
+	/* Sync Pulses: both sync start and end packets sent */
+	OMAP_DSS_DSI_PULSE_MODE,
+	/* Sync Events: only sync start packets sent */
+	OMAP_DSS_DSI_EVENT_MODE,
+	/* Burst: only sync start packets sent, pixels are time compressed */
+	OMAP_DSS_DSI_BURST_MODE,
+};
+
 struct omap_dss_dsi_videomode_timings {
 	/* DSI video mode blanking data */
 	/* Unit: byte clock cycles */
@@ -274,9 +283,7 @@ struct omap_dss_dsi_videomode_timings {
 	int hbp_blanking_mode;
 	int hfp_blanking_mode;
 
-	/* Video port sync events */
-	bool vp_vsync_end;
-	bool vp_hsync_end;
+	enum omap_dss_dsi_trans_mode trans_mode;
 
 	bool ddr_clk_always_on;
 	int window_sync;
