@@ -39,10 +39,10 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	if (!run->mmio.is_write) {
 		dest = vcpu_reg(vcpu, vcpu->arch.mmio_decode.rt);
-		memset(dest, 0, sizeof(int));
+		*dest = 0;
 
 		len = run->mmio.len;
-		if (len > 4)
+		if (len > sizeof(unsigned long))
 			return -EINVAL;
 
 		memcpy(dest, run->mmio.data, len);
@@ -50,7 +50,8 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, len, run->mmio.phys_addr,
 				*((u64 *)run->mmio.data));
 
-		if (vcpu->arch.mmio_decode.sign_extend && len < 4) {
+		if (vcpu->arch.mmio_decode.sign_extend &&
+		    len < sizeof(unsigned long)) {
 			mask = 1U << ((len * 8) - 1);
 			*dest = (*dest ^ mask) - mask;
 		}
