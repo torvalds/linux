@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
-#include <linux/cgroup.h>
 #include <linux/mm.h>
 
 #ifdef CONFIG_CPUSETS
