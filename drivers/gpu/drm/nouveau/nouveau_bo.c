@@ -28,6 +28,7 @@
  */
 
 #include <core/engine.h>
+#include <linux/swiotlb.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm.h>

@@ -1027,7 +1027,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 static bool
 brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 {
-	bool morepending = false;
 	struct bcma_device *core;
 	struct tx_status txstatus, *txs;
 	u32 s1, s2;
@@ -1041,23 +1040,20 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	txs = &txstatus;
 	core = wlc_hw->d11core;
 	*fatal = false;
-	s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
-	while (!(*fatal)
-	       && (s1 & TXS_V)) {
-		/* !give others some time to run! */
-		if (n >= max_tx_num) {
-			morepending = true;
-			break;
-		}
 
+	while (n < max_tx_num) {
+		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
 		if (s1 == 0xffffffff) {
 			brcms_err(core, "wl%d: %s: dead chip\n", wlc_hw->unit,
 				  __func__);
 			*fatal = true;
 			return false;
 		}
-		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
+		/* only process when valid */
+		if (!(s1 & TXS_V))
+			break;
 
+		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
 		txs->status = s1 & TXS_STATUS_MASK;
 		txs->frameid = (s1 & TXS_FID_MASK) >> TXS_FID_SHIFT;
 		txs->sequence = s2 & TXS_SEQ_MASK;
@@ -1065,15 +1061,12 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 		txs->lasttxtime = 0;
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
-
-		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
+		if (*fatal == true)
+			return false;
 		n++;
 	}
 
-	if (*fatal)
-		return false;
-
-	return morepending;
+	return n >= max_tx_num;
 }
 
 static void brcms_c_tbtt(struct brcms_c_info *wlc)
@@ -7518,25 +7511,16 @@ int brcms_c_get_curband(struct brcms_c_info *wlc)
 	return wlc->band->bandunit;
 }
 
-void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
+bool brcms_c_tx_flush_completed(struct brcms_c_info *wlc)
 {
-	int timeout = 20;
 	int i;
 
 	/* Kick DMA to send any pending AMPDU */
 	for (i = 0; i < ARRAY_SIZE(wlc->hw->di); i++)
 		if (wlc->hw->di[i])
-			dma_txflush(wlc->hw->di[i]);
+			dma_kick_tx(wlc->hw->di[i]);
 
-	/* wait for queue and DMA fifos to run dry */
-	while (brcms_txpktpendtot(wlc) > 0) {
-		brcms_msleep(wlc->wl, 1);
-
-		if (--timeout == 0)
-			break;
-	}
-
-	WARN_ON_ONCE(timeout == 0);
+	return !brcms_txpktpendtot(wlc);
 }
 
 void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval)

@@ -693,6 +693,11 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		 * get notified when new packets arrive.
 		 */
 		macb_writel(bp, IER, MACB_RX_INT_FLAGS);
+
+		/* Packets received while interrupts were disabled */
+		status = macb_readl(bp, RSR);
+		if (unlikely(status))
+			napi_reschedule(napi);
 	}
 
 	/* TODO: Handle errors */

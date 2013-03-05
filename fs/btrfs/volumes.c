@@ -1556,7 +1556,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	ret = 0;
 
 	/* Notify udev that device has changed */
-	btrfs_kobject_uevent(bdev, KOBJ_CHANGE);
+	if (bdev)
+		btrfs_kobject_uevent(bdev, KOBJ_CHANGE);
 
 error_brelse:
 	brelse(bh);

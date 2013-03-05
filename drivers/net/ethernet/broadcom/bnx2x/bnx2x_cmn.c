@@ -504,13 +504,11 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		skb_shinfo(skb)->gso_size = bnx2x_set_lro_mss(bp,
 					tpa_info->parsing_flags, len_on_bd);
 
-		/* set for GRO */
-		if (fp->mode == TPA_MODE_GRO)
-			skb_shinfo(skb)->gso_type =
-			    (GET_FLAG(tpa_info->parsing_flags,
-				      PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) ==
-						PRS_FLAG_OVERETH_IPV6) ?
-				SKB_GSO_TCPV6 : SKB_GSO_TCPV4;
+		skb_shinfo(skb)->gso_type =
+			(GET_FLAG(tpa_info->parsing_flags,
+				  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) ==
+			 PRS_FLAG_OVERETH_IPV6) ?
+			SKB_GSO_TCPV6 : SKB_GSO_TCPV4;
 	}
 
 
