@@ -4206,6 +4206,12 @@ static int tracing_clock_open(struct inode *inode, struct file *file)
 	return single_open(file, tracing_clock_show, inode->i_private);
 }
 
+struct ftrace_buffer_info {
+	struct trace_iterator	iter;
+	void			*spare;
+	unsigned int		read;
+};
+
 #ifdef CONFIG_TRACER_SNAPSHOT
 static int tracing_snapshot_open(struct inode *inode, struct file *file)
 {
@@ -4336,6 +4342,35 @@ static int tracing_snapshot_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int tracing_buffers_open(struct inode *inode, struct file *filp);
+static ssize_t tracing_buffers_read(struct file *filp, char __user *ubuf,
+				    size_t count, loff_t *ppos);
+static int tracing_buffers_release(struct inode *inode, struct file *file);
+static ssize_t tracing_buffers_splice_read(struct file *file, loff_t *ppos,
+		   struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+
+static int snapshot_raw_open(struct inode *inode, struct file *filp)
+{
+	struct ftrace_buffer_info *info;
+	int ret;
+
+	ret = tracing_buffers_open(inode, filp);
+	if (ret < 0)
+		return ret;
+
+	info = filp->private_data;
+
+	if (info->iter.trace->use_max_tr) {
+		tracing_buffers_release(inode, filp);
+		return -EBUSY;
+	}
+
+	info->iter.snapshot = true;
+	info->iter.trace_buffer = &info->iter.tr->max_buffer;
+
+	return ret;
+}
+
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
 
@@ -4402,13 +4437,16 @@ static const struct file_operations snapshot_fops = {
 	.llseek		= tracing_seek,
 	.release	= tracing_snapshot_release,
 };
-#endif /* CONFIG_TRACER_SNAPSHOT */
 
-struct ftrace_buffer_info {
-	struct trace_iterator	iter;
-	void			*spare;
-	unsigned int		read;
+static const struct file_operations snapshot_raw_fops = {
+	.open		= snapshot_raw_open,
+	.read		= tracing_buffers_read,
+	.release	= tracing_buffers_release,
+	.splice_read	= tracing_buffers_splice_read,
+	.llseek		= no_llseek,
 };
+
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 static int tracing_buffers_open(struct inode *inode, struct file *filp)
 {
@@ -4452,16 +4490,26 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	struct ftrace_buffer_info *info = filp->private_data;
 	struct trace_iterator *iter = &info->iter;
 	ssize_t ret;
-	size_t size;
+	ssize_t size;
 
 	if (!count)
 		return 0;
 
+	mutex_lock(&trace_types_lock);
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+	if (iter->snapshot && iter->tr->current_trace->use_max_tr) {
+		size = -EBUSY;
+		goto out_unlock;
+	}
+#endif
+
 	if (!info->spare)
 		info->spare = ring_buffer_alloc_read_page(iter->trace_buffer->buffer,
 							  iter->cpu_file);
+	size = -ENOMEM;
 	if (!info->spare)
-		return -ENOMEM;
+		goto out_unlock;
 
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
@@ -4477,30 +4525,41 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 
 	if (ret < 0) {
 		if (trace_empty(iter)) {
-			if ((filp->f_flags & O_NONBLOCK))
-				return -EAGAIN;
+			if ((filp->f_flags & O_NONBLOCK)) {
+				size = -EAGAIN;
+				goto out_unlock;
+			}
+			mutex_unlock(&trace_types_lock);
 			iter->trace->wait_pipe(iter);
-			if (signal_pending(current))
-				return -EINTR;
+			mutex_lock(&trace_types_lock);
+			if (signal_pending(current)) {
+				size = -EINTR;
+				goto out_unlock;
+			}
 			goto again;
 		}
-		return 0;
+		size = 0;
+		goto out_unlock;
 	}
 
 	info->read = 0;
-
  read:
 	size = PAGE_SIZE - info->read;
 	if (size > count)
 		size = count;
 
 	ret = copy_to_user(ubuf, info->spare + info->read, size);
-	if (ret == size)
-		return -EFAULT;
+	if (ret == size) {
+		size = -EFAULT;
+		goto out_unlock;
+	}
 	size -= ret;
 
 	*ppos += size;
 	info->read += size;
+
+ out_unlock:
+	mutex_unlock(&trace_types_lock);
 
 	return size;
 }
@@ -4591,10 +4650,21 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	};
 	struct buffer_ref *ref;
 	int entries, size, i;
-	size_t ret;
+	ssize_t ret;
 
-	if (splice_grow_spd(pipe, &spd))
-		return -ENOMEM;
+	mutex_lock(&trace_types_lock);
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+	if (iter->snapshot && iter->tr->current_trace->use_max_tr) {
+		ret = -EBUSY;
+		goto out;
+	}
+#endif
+
+	if (splice_grow_spd(pipe, &spd)) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	if (*ppos & (PAGE_SIZE - 1)) {
 		ret = -EINVAL;
@@ -4666,7 +4736,9 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			ret = -EAGAIN;
 			goto out;
 		}
+		mutex_unlock(&trace_types_lock);
 		iter->trace->wait_pipe(iter);
+		mutex_lock(&trace_types_lock);
 		if (signal_pending(current)) {
 			ret = -EINTR;
 			goto out;
@@ -4677,6 +4749,8 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	ret = splice_to_pipe(pipe, &spd);
 	splice_shrink_spd(&spd);
 out:
+	mutex_unlock(&trace_types_lock);
+
 	return ret;
 }
 
@@ -4880,6 +4954,9 @@ tracing_init_debugfs_percpu(struct trace_array *tr, long cpu)
 #ifdef CONFIG_TRACER_SNAPSHOT
 	trace_create_file("snapshot", 0644, d_cpu,
 			  (void *)&data->trace_cpu, &snapshot_fops);
+
+	trace_create_file("snapshot_raw", 0444, d_cpu,
+			(void *)&data->trace_cpu, &snapshot_raw_fops);
 #endif
 }
 
