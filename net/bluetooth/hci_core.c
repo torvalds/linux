@@ -2511,6 +2511,11 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 	if (test_bit(HCI_INIT, &hdev->flags))
 		hdev->init_last_cmd = opcode;
 
+	/* Stand-alone HCI commands must be flaged as
+	 * single-command requests.
+	 */
+	bt_cb(skb)->req.start = true;
+
 	skb_queue_tail(&hdev->cmd_q, skb);
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 
