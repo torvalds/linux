@@ -29,23 +29,26 @@
 #include <subdev/bios/init.h>
 
 int
-nouveau_devinit_init(struct nouveau_devinit *devinit)
+_nouveau_devinit_fini(struct nouveau_object *object, bool suspend)
 {
-	int ret = nouveau_subdev_init(&devinit->base);
-	if (ret)
-		return ret;
+	struct nouveau_devinit *devinit = (void *)object;
 
-	return nvbios_init(&devinit->base, devinit->post);
-}
-
-int
-nouveau_devinit_fini(struct nouveau_devinit *devinit, bool suspend)
-{
 	/* force full reinit on resume */
 	if (suspend)
 		devinit->post = true;
 
 	return nouveau_subdev_fini(&devinit->base, suspend);
+}
+
+int
+_nouveau_devinit_init(struct nouveau_object *object)
+{
+	struct nouveau_devinit *devinit = (void *)object;
+	int ret = nouveau_subdev_init(&devinit->base);
+	if (ret)
+		return ret;
+
+	return nvbios_init(&devinit->base, devinit->post);
 }
 
 int

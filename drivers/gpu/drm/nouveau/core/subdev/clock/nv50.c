@@ -33,50 +33,6 @@ struct nv50_clock_priv {
 };
 
 static int
-nv50_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
-{
-	struct nv50_clock_priv *priv = (void *)clk;
-	struct nouveau_bios *bios = nouveau_bios(priv);
-	struct nvbios_pll info;
-	int N1, M1, N2, M2, P;
-	int ret;
-
-	ret = nvbios_pll_parse(bios, type, &info);
-	if (ret) {
-		nv_error(clk, "failed to retrieve pll data, %d\n", ret);
-		return ret;
-	}
-
-	ret = nv04_pll_calc(nv_subdev(clk), &info, freq, &N1, &M1, &N2, &M2, &P);
-	if (!ret) {
-		nv_error(clk, "failed pll calculation\n");
-		return ret;
-	}
-
-	switch (info.type) {
-	case PLL_VPLL0:
-	case PLL_VPLL1:
-		nv_wr32(priv, info.reg + 0, 0x10000611);
-		nv_mask(priv, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
-		nv_mask(priv, info.reg + 8, 0x7fff00ff, (P  << 28) |
-							(M2 << 16) | N2);
-		break;
-	case PLL_MEMORY:
-		nv_mask(priv, info.reg + 0, 0x01ff0000, (P << 22) |
-						        (info.bias_p << 19) |
-							(P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
-		break;
-	default:
-		nv_mask(priv, info.reg + 0, 0x00070000, (P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
-		break;
-	}
-
-	return 0;
-}
-
-static int
 nv50_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
@@ -89,7 +45,6 @@ nv50_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.pll_set = nv50_clock_pll_set;
 	priv->base.pll_calc = nv04_clock_pll_calc;
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,17 +24,47 @@
 
 #include "priv.h"
 
-struct nv1a_devinit_priv {
-	struct nouveau_devinit base;
-	u8 owner;
-};
+static int
+nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
+{
+	struct nvc0_devinit_priv *priv = (void *)devinit;
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_pll info;
+	int N, fN, M, P;
+	int ret;
+
+	ret = nvbios_pll_parse(bios, type, &info);
+	if (ret)
+		return ret;
+
+	ret = nva3_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
+	if (ret < 0)
+		return ret;
+
+	switch (info.type) {
+	case PLL_VPLL0:
+	case PLL_VPLL1:
+	case PLL_VPLL2:
+	case PLL_VPLL3:
+		nv_mask(priv, info.reg + 0x0c, 0x00000000, 0x00000100);
+		nv_wr32(priv, info.reg + 0x04, (P << 16) | (N << 8) | M);
+		nv_wr32(priv, info.reg + 0x10, fN << 16);
+		break;
+	default:
+		nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
 
 static int
-nv1a_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
 {
-	struct nv1a_devinit_priv *priv;
+	struct nv50_devinit_priv *priv;
 	int ret;
 
 	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
@@ -42,17 +72,17 @@ nv1a_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.pll_set = nv04_devinit_pll_set;
+	priv->base.pll_set = nvc0_devinit_pll_set;
 	return 0;
 }
 
 struct nouveau_oclass
-nv1a_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0x1a),
+nvc0_devinit_oclass = {
+	.handle = NV_SUBDEV(DEVINIT, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv1a_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
+		.ctor = nvc0_devinit_ctor,
+		.dtor = _nouveau_devinit_dtor,
+		.init = nv50_devinit_init,
+		.fini = _nouveau_devinit_fini,
 	},
 };

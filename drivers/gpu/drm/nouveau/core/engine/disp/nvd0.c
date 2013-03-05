@@ -29,15 +29,14 @@
 
 #include <engine/disp.h>
 
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/clock.h>
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
+#include <subdev/devinit.h>
+#include <subdev/fb.h>
+#include <subdev/timer.h>
 
 #include "nv50.h"
 
@@ -738,10 +737,10 @@ nvd0_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
 static void
 nvd0_disp_intr_unk2_1(struct nv50_disp_priv *priv, int head)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_devinit *devinit = nouveau_devinit(priv);
 	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
 	if (pclk)
-		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
 	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
 }
 
