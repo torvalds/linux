@@ -1163,15 +1163,22 @@ static struct dentry_operations efivarfs_d_ops = {
 
 static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 {
+	struct dentry *d;
 	struct qstr q;
+	int err;
 
 	q.name = name;
 	q.len = strlen(name);
 
-	if (efivarfs_d_hash(NULL, NULL, &q))
-		return NULL;
+	err = efivarfs_d_hash(NULL, NULL, &q);
+	if (err)
+		return ERR_PTR(err);
 
-	return d_alloc(parent, &q);
+	d = d_alloc(parent, &q);
+	if (d)
+		return d;
+
+	return ERR_PTR(-ENOMEM);
 }
 
 static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -1181,6 +1188,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct efivar_entry *entry, *n;
 	struct efivars *efivars = &__efivars;
 	char *name;
+	int err = -ENOMEM;
 
 	efivarfs_sb = sb;
 
@@ -1231,8 +1239,10 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 			goto fail_name;
 
 		dentry = efivarfs_alloc_dentry(root, name);
-		if (!dentry)
+		if (IS_ERR(dentry)) {
+			err = PTR_ERR(dentry);
 			goto fail_inode;
+		}
 
 		/* copied by the above to local storage in the dentry. */
 		kfree(name);
@@ -1259,7 +1269,7 @@ fail_inode:
 fail_name:
 	kfree(name);
 fail:
-	return -ENOMEM;
+	return err;
 }
 
 static struct dentry *efivarfs_mount(struct file_system_type *fs_type,
