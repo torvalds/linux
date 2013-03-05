@@ -325,6 +325,18 @@ static u32 clk_get_freediv(unsigned long rate_out, unsigned long rate , u32 div_
 	}
 	return div_max ? div_max : 1;
 }
+static u32 clk_get_evendiv(unsigned long rate_out, unsigned long rate , u32 div_max)
+{
+	u32 div;
+	unsigned long new_rate;
+	for (div = 1; div < div_max; div += 2) {
+		new_rate = rate / (div + 1);
+		if (new_rate <= rate_out) {
+			return div + 1;
+		}
+	}
+	return div_max ? div_max : 1;
+}
 struct clk *get_freediv_parents_div(struct clk *clk, unsigned long rate, u32 *div_out) {
 	u32 div[2] = {0, 0};
 	unsigned long new_rate[2] = {0, 0};
@@ -347,6 +359,28 @@ struct clk *get_freediv_parents_div(struct clk *clk, unsigned long rate, u32 *di
 	*div_out = div[i];
 	return clk->parents[i];
 }
+struct clk *get_evendiv_parents_div(struct clk *clk, unsigned long rate, u32 *div_out) {
+	u32 div[2] = {0, 0};
+	unsigned long new_rate[2] = {0, 0};
+	u32 i;
+
+	if(clk->rate == rate)
+		return clk->parent;
+	for(i = 0; i < 2; i++) {
+		div[i] = clk_get_evendiv(rate, clk->parents[i]->rate, clk->div_max);
+		new_rate[i] = clk->parents[i]->rate / div[i];
+		if(new_rate[i] == rate) {
+			*div_out = div[i];
+			return clk->parents[i];
+		}
+	}
+	if(new_rate[0] < new_rate[1])
+		i = 1;
+	else
+		i = 0;
+	*div_out = div[i];
+	return clk->parents[i];
+}
 
 static int clkset_rate_freediv_autosel_parents(struct clk *clk, unsigned long rate)
 {
@@ -356,6 +390,35 @@ static int clkset_rate_freediv_autosel_parents(struct clk *clk, unsigned long ra
 	if(clk->rate == rate)
 		return 0;
 	p_clk = get_freediv_parents_div(clk, rate, &div);
+
+	if(!p_clk)
+		return -ENOENT;
+
+	CLKDATA_DBG("%s %lu,form %s\n", clk->name, rate, p_clk->name);
+	if (clk->parent != p_clk) {
+		old_div = CRU_GET_REG_BITS_VAL(cru_readl(clk->clksel_con), clk->div_shift, clk->div_mask) + 1;
+
+		if(div > old_div) {
+			set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+		}
+		ret = clk_set_parent_nolock(clk, p_clk);
+		if(ret) {
+			CLKDATA_ERR("%s can't set %lu,reparent err\n", clk->name, rate);
+			return -ENOENT;
+		}
+	}
+	//set div
+	set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+	return 0;
+}
+static int clkset_rate_evendiv_autosel_parents(struct clk *clk, unsigned long rate)
+{
+	struct clk *p_clk;
+	u32 div, old_div;
+	int ret = 0;
+	if(clk->rate == rate)
+		return 0;
+	p_clk = get_evendiv_parents_div(clk, rate, &div);
 
 	if(!p_clk)
 		return -ENOENT;
@@ -1519,7 +1582,7 @@ static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clkset_rate_evendiv_autosel_parents,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
@@ -1532,7 +1595,7 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clkset_rate_evendiv_autosel_parents,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
