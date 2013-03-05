@@ -502,11 +502,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * TODO: remove this temporary code.
 	 * Currently MVM FW supports power management only on single MAC.
-	 * Iterate and disable PM on all active interfaces.
+	 * If new interface added, disable PM on existing interface.
+	 * P2P device is a special case, since it is handled by FW similary to
+	 * scan. If P2P deviced is added, PM remains enabled on existing
+	 * interface.
 	 * Note: the method below does not count the new interface being added
 	 * at this moment.
 	 */
-	mvm->vif_count++;
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		mvm->vif_count++;
 	if (mvm->vif_count > 1) {
 		IWL_DEBUG_MAC80211(mvm,
 				   "Disable power on existing interfaces\n");
@@ -576,10 +580,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * TODO: remove this temporary code.
 	 * Currently MVM FW supports power management only on single MAC.
-	 * Check if only one additional interface remains after rereasing
+	 * Check if only one additional interface remains after releasing
 	 * current one. Update power mode on the remaining interface.
 	 */
-	mvm->vif_count--;
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		mvm->vif_count--;
 	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
 			   mvm->vif_count);
 	if (mvm->vif_count == 1) {
@@ -666,7 +671,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	 * Check if only one additional interface remains after removing
 	 * current one. Update power mode on the remaining interface.
 	 */
-	if (mvm->vif_count)
+	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
 	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
 			   mvm->vif_count);

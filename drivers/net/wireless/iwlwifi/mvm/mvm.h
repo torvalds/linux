@@ -322,6 +322,13 @@ struct iwl_mvm {
 	 * can hold 16 keys at most. Reflect this fact.
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
+
+	/*
+	 * This counter of created interfaces is referenced only in conjunction
+	 * with FW limitation related to power management. Currently PM is
+	 * supported only on a single interface.
+	 * IMPORTANT: this variable counts all interfaces except P2P device.
+	 */
 	u8 vif_count;
 
 	struct led_classdev led;
