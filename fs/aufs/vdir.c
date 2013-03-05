@@ -105,24 +105,20 @@ static void nhash_count(struct hlist_head *head)
 
 static void au_nhash_wh_do_free(struct hlist_head *head)
 {
-	struct au_vdir_wh *tpos;
-	struct hlist_node *pos, *node;
+	struct au_vdir_wh *pos;
+	struct hlist_node *node;
 
-	hlist_for_each_entry_safe(tpos, pos, node, head, wh_hash) {
-		/* hlist_del(pos); */
-		kfree(tpos);
-	}
+	hlist_for_each_entry_safe(pos, node, head, wh_hash)
+		kfree(pos);
 }
 
 static void au_nhash_de_do_free(struct hlist_head *head)
 {
-	struct au_vdir_dehstr *tpos;
-	struct hlist_node *pos, *node;
+	struct au_vdir_dehstr *pos;
+	struct hlist_node *node;
 
-	hlist_for_each_entry_safe(tpos, pos, node, head, hash) {
-		/* hlist_del(pos); */
-		au_cache_free_vdir_dehstr(tpos);
-	}
+	hlist_for_each_entry_safe(pos, node, head, hash)
+		au_cache_free_vdir_dehstr(pos);
 }
 
 static void au_nhash_do_free(struct au_nhash *nhash,
@@ -161,15 +157,14 @@ int au_nhash_test_longer_wh(struct au_nhash *whlist, aufs_bindex_t btgt,
 	int num;
 	unsigned int u, n;
 	struct hlist_head *head;
-	struct au_vdir_wh *tpos;
-	struct hlist_node *pos;
+	struct au_vdir_wh *pos;
 
 	num = 0;
 	n = whlist->nh_num;
 	head = whlist->nh_head;
 	for (u = 0; u < n; u++, head++)
-		hlist_for_each_entry(tpos, pos, head, wh_hash)
-			if (tpos->wh_bindex == btgt && ++num > limit)
+		hlist_for_each_entry(pos, head, wh_hash)
+			if (pos->wh_bindex == btgt && ++num > limit)
 				return 1;
 	return 0;
 }
@@ -201,13 +196,12 @@ static int au_nhash_test_name(struct au_vdir_destr *str, const char *name,
 int au_nhash_test_known_wh(struct au_nhash *whlist, char *name, int nlen)
 {
 	struct hlist_head *head;
-	struct au_vdir_wh *tpos;
-	struct hlist_node *pos;
+	struct au_vdir_wh *pos;
 	struct au_vdir_destr *str;
 
 	head = au_name_hash(whlist, name, nlen);
-	hlist_for_each_entry(tpos, pos, head, wh_hash) {
-		str = &tpos->wh_str;
+	hlist_for_each_entry(pos, head, wh_hash) {
+		str = &pos->wh_str;
 		AuDbg("%.*s\n", str->len, str->name);
 		if (au_nhash_test_name(str, name, nlen))
 			return 1;
@@ -219,13 +213,12 @@ int au_nhash_test_known_wh(struct au_nhash *whlist, char *name, int nlen)
 static int test_known(struct au_nhash *delist, char *name, int nlen)
 {
 	struct hlist_head *head;
-	struct au_vdir_dehstr *tpos;
-	struct hlist_node *pos;
+	struct au_vdir_dehstr *pos;
 	struct au_vdir_destr *str;
 
 	head = au_name_hash(delist, name, nlen);
-	hlist_for_each_entry(tpos, pos, head, hash) {
-		str = tpos->str;
+	hlist_for_each_entry(pos, head, hash) {
+		str = pos->str;
 		AuDbg("%.*s\n", str->len, str->name);
 		if (au_nhash_test_name(str, name, nlen))
 			return 1;
@@ -514,8 +507,8 @@ static int au_handle_shwh(struct super_block *sb, struct au_vdir *vdir,
 	int err;
 	unsigned int nh, u;
 	struct hlist_head *head;
-	struct au_vdir_wh *tpos;
-	struct hlist_node *pos, *n;
+	struct au_vdir_wh *pos;
+	struct hlist_node *n;
 	char *p, *o;
 	struct au_vdir_destr *destr;
 
@@ -532,11 +525,11 @@ static int au_handle_shwh(struct super_block *sb, struct au_vdir *vdir,
 	p += AUFS_WH_PFX_LEN;
 	for (u = 0; u < nh; u++) {
 		head = whlist->nh_head + u;
-		hlist_for_each_entry_safe(tpos, pos, n, head, wh_hash) {
-			destr = &tpos->wh_str;
+		hlist_for_each_entry_safe(pos, n, head, wh_hash) {
+			destr = &pos->wh_str;
 			memcpy(p, destr->name, destr->len);
 			err = append_de(vdir, o, destr->len + AUFS_WH_PFX_LEN,
-					tpos->wh_ino, tpos->wh_type, delist);
+					pos->wh_ino, pos->wh_type, delist);
 			if (unlikely(err))
 				break;
 		}

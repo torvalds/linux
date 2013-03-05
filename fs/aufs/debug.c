@@ -41,17 +41,16 @@ void au_dpri_whlist(struct au_nhash *whlist)
 {
 	unsigned long ul, n;
 	struct hlist_head *head;
-	struct au_vdir_wh *tpos;
-	struct hlist_node *pos;
+	struct au_vdir_wh *pos;
 
 	n = whlist->nh_num;
 	head = whlist->nh_head;
 	for (ul = 0; ul < n; ul++) {
-		hlist_for_each_entry(tpos, pos, head, wh_hash)
+		hlist_for_each_entry(pos, head, wh_hash)
 			dpri("b%d, %.*s, %d\n",
-			     tpos->wh_bindex,
-			     tpos->wh_str.len, tpos->wh_str.name,
-			     tpos->wh_str.len);
+			     pos->wh_bindex,
+			     pos->wh_str.len, pos->wh_str.name,
+			     pos->wh_str.len);
 		head++;
 	}
 }
@@ -138,10 +137,9 @@ void au_dpri_inode(struct inode *inode)
 void au_dpri_dalias(struct inode *inode)
 {
 	struct dentry *d;
-	struct hlist_node *p;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(d, p, &inode->i_dentry, d_alias)
+	hlist_for_each_entry(d, &inode->i_dentry, d_alias)
 		au_dpri_dentry(d);
 	spin_unlock(&inode->i_lock);
 }

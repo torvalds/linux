@@ -226,7 +226,6 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 	struct dentry *dentry, *d;
 	struct inode *inode;
 	unsigned int sigen;
-	struct hlist_node *p;
 
 	dentry = NULL;
 	inode = ilookup(sb, ino);
@@ -245,7 +244,7 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 		dentry = d_find_alias(inode);
 	else {
 		spin_lock(&inode->i_lock);
-		hlist_for_each_entry(d, p, &inode->i_dentry, d_alias) {
+		hlist_for_each_entry(d, &inode->i_dentry, d_alias) {
 			spin_lock(&d->d_lock);
 			if (!au_test_anon(d)
 			    && d->d_parent->d_inode->i_ino == dir_ino) {
