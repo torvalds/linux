@@ -18,122 +18,47 @@
 #include <asm/uaccess.h>
 #include "kvm-s390.h"
 
-static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
-					       unsigned long guestaddr)
+static inline void *__gptr_to_uptr(struct kvm_vcpu *vcpu, void *gptr)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long uaddress;
+	unsigned long gaddr = (unsigned long) gptr;
+	unsigned long uaddr;
 
-	if (guestaddr < 2 * PAGE_SIZE)
-		guestaddr += prefix;
-	else if ((guestaddr >= prefix) && (guestaddr < prefix + 2 * PAGE_SIZE))
-		guestaddr -= prefix;
-	uaddress = gmap_fault(guestaddr, vcpu->arch.gmap);
-	if (IS_ERR_VALUE(uaddress))
-		uaddress = -EFAULT;
-	return (void __user *)uaddress;
+	if (gaddr < 2 * PAGE_SIZE)
+		gaddr += prefix;
+	else if ((gaddr >= prefix) && (gaddr < prefix + 2 * PAGE_SIZE))
+		gaddr -= prefix;
+	uaddr = gmap_fault(gaddr, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(uaddr))
+		uaddr = -EFAULT;
+	return (void *)uaddr;
 }
 
-static inline int get_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u64 *result)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
+#define get_guest(vcpu, x, gptr)				\
+({								\
+	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr);	\
+	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
+	int __ret = PTR_RET(__uptr);				\
+								\
+	if (!__ret) {						\
+		BUG_ON((unsigned long)__uptr & __mask);		\
+		__ret = get_user(x, __uptr);			\
+	}							\
+	__ret;							\
+})
 
-	BUG_ON(guestaddr & 7);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return get_user(*result, (unsigned long __user *) uptr);
-}
-
-static inline int get_guest_u32(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u32 *result)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	BUG_ON(guestaddr & 3);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return get_user(*result, (u32 __user *) uptr);
-}
-
-static inline int get_guest_u16(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u16 *result)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	BUG_ON(guestaddr & 1);
-
-	if (IS_ERR(uptr))
-		return PTR_ERR(uptr);
-
-	return get_user(*result, (u16 __user *) uptr);
-}
-
-static inline int get_guest_u8(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-			       u8 *result)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return get_user(*result, (u8 __user *) uptr);
-}
-
-static inline int put_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u64 value)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	BUG_ON(guestaddr & 7);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return put_user(value, (u64 __user *) uptr);
-}
-
-static inline int put_guest_u32(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u32 value)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	BUG_ON(guestaddr & 3);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return put_user(value, (u32 __user *) uptr);
-}
-
-static inline int put_guest_u16(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-				u16 value)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	BUG_ON(guestaddr & 1);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return put_user(value, (u16 __user *) uptr);
-}
-
-static inline int put_guest_u8(struct kvm_vcpu *vcpu, unsigned long guestaddr,
-			       u8 value)
-{
-	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
-
-	if (IS_ERR((void __force *) uptr))
-		return PTR_ERR((void __force *) uptr);
-
-	return put_user(value, (u8 __user *) uptr);
-}
-
+#define put_guest(vcpu, x, gptr)				\
+({								\
+	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr);	\
+	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
+	int __ret = PTR_RET(__uptr);				\
+								\
+	if (!__ret) {						\
+		BUG_ON((unsigned long)__uptr & __mask);		\
+		__ret = put_user(x, __uptr);			\
+	}							\
+	__ret;							\
+})
 
 static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu,
 				       unsigned long guestdest,
@@ -144,7 +69,7 @@ static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu,
 	u8 *data = from;
 
 	for (i = 0; i < n; i++) {
-		rc = put_guest_u8(vcpu, guestdest++, *(data++));
+		rc = put_guest(vcpu, *(data++), (u8 *)guestdest++);
 		if (rc < 0)
 			return rc;
 	}
@@ -270,7 +195,7 @@ static inline int __copy_from_guest_slow(struct kvm_vcpu *vcpu, void *to,
 	u8 *data = to;
 
 	for (i = 0; i < n; i++) {
-		rc = get_guest_u8(vcpu, guestsrc++, data++);
+		rc = get_guest(vcpu, *(data++), (u8 *)guestsrc++);
 		if (rc < 0)
 			return rc;
 	}
