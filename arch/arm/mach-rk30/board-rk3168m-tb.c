@@ -83,7 +83,7 @@
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN0_PB6
-#define TOUCH_PWR_PIN    RK30_PIN0_PC5   // need to fly line by hardware engineer
+#define TOUCH_PWR_PIN    INVALID_GPIO//RK30_PIN0_PC5   // need to fly line by hardware engineer
 static int goodix_init_platform_hw(void)
 {
 	int ret;
@@ -700,7 +700,7 @@ static int rk610_codec_io_init(void)
 }
 
 static struct rk610_codec_platform_data rk610_codec_pdata = {
-	.spk_ctl_io = RK30_PIN4_PC6,
+	.spk_ctl_io = RK30_PIN2_PD7,
 	.io_init = rk610_codec_io_init,
 };
 #endif
@@ -2029,7 +2029,7 @@ static void __init machine_rk30_board_init(void)
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 	rk29sdk_wifi_bt_gpio_control_init();
 #elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
-    //rk29sdk_wifi_combo_module_gpio_init();
+    rk29sdk_wifi_combo_module_gpio_init();
 #endif
 
 #if defined(CONFIG_MT6620)
