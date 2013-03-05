@@ -47,7 +47,7 @@ nv50_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
 		return ret;
 	}
 
-	ret = nv04_pll_calc(clk, &info, freq, &N1, &M1, &N2, &M2, &P);
+	ret = nv04_pll_calc(nv_subdev(clk), &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
 		nv_error(clk, "failed pll calculation\n");
 		return ret;

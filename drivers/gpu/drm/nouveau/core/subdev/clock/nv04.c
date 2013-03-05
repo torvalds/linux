@@ -297,7 +297,7 @@ nv04_clock_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 		    int clk, struct nouveau_pll_vals *pv)
 {
 	int N1, M1, N2, M2, P;
-	int ret = nv04_pll_calc(clock, info, clk, &N1, &M1, &N2, &M2, &P);
+	int ret = nv04_pll_calc(nv_subdev(clock), info, clk, &N1, &M1, &N2, &M2, &P);
 	if (ret) {
 		pv->refclk = info->refclk;
 		pv->N1 = N1;

@@ -29,7 +29,7 @@
 #include "pll.h"
 
 int
-nva3_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
+nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
 	      u32 freq, int *pN, int *pfN, int *pM, int *P)
 {
 	u32 best_err = ~0, err;
@@ -72,7 +72,7 @@ nva3_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 	}
 
 	if (unlikely(best_err == ~0)) {
-		nv_error(clock, "unable to find matching pll values\n");
+		nv_error(subdev, "unable to find matching pll values\n");
 		return -EINVAL;
 	}
 

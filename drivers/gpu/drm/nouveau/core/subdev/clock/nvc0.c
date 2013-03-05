@@ -45,7 +45,7 @@ nvc0_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
 	if (ret)
 		return ret;
 
-	ret = nva3_pll_calc(clk, &info, freq, &N, &fN, &M, &P);
+	ret = nva3_pll_calc(nv_subdev(clk), &info, freq, &N, &fN, &M, &P);
 	if (ret < 0)
 		return ret;
 
