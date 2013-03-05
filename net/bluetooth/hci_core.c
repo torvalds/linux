@@ -122,6 +122,14 @@ static int __hci_req_sync(struct hci_dev *hdev,
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	req(hdev, opt);
+
+	/* If the request didn't send any commands return immediately */
+	if (skb_queue_empty(&hdev->cmd_q) && atomic_read(&hdev->cmd_cnt)) {
+		hdev->req_status = 0;
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		return err;
+	}
+
 	schedule_timeout(timeout);
 
 	remove_wait_queue(&hdev->req_wait_q, &wait);
