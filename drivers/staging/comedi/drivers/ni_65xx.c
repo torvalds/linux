@@ -243,10 +243,6 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 };
 
 #define n_ni_65xx_boards ARRAY_SIZE(ni_65xx_boards)
-static inline const struct ni_65xx_board *board(struct comedi_device *dev)
-{
-	return dev->board_ptr;
-}
 
 static inline unsigned ni_65xx_port_by_channel(unsigned channel)
 {
@@ -372,6 +368,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	const struct ni_65xx_board *board = comedi_board(dev);
 	struct ni_65xx_private *devpriv = dev->private;
 	unsigned base_bitfield_channel;
 	const unsigned max_ports_per_bitfield = 5;
@@ -387,7 +384,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		unsigned base_port_channel;
 		unsigned port_mask, port_data, port_read_bits;
 		int bitshift;
-		if (port >= ni_65xx_total_num_ports(board(dev)))
+		if (port >= ni_65xx_total_num_ports(board))
 			break;
 		base_port_channel = port_offset * ni_65xx_channels_per_port;
 		port_mask = data[0];
@@ -410,7 +407,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			devpriv->output_bits[port] |=
 			    port_data & port_mask;
 			bits = devpriv->output_bits[port];
-			if (board(dev)->invert_outputs)
+			if (board->invert_outputs)
 				bits = ~bits;
 			writeb(bits,
 			       devpriv->mite->daq_io_addr +
@@ -418,7 +415,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		}
 		port_read_bits =
 		    readb(devpriv->mite->daq_io_addr + Port_Data(port));
-		if (s->type == COMEDI_SUBD_DO && board(dev)->invert_outputs) {
+		if (s->type == COMEDI_SUBD_DO && board->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
 			 * subdevice.) */
