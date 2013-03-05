@@ -133,9 +133,10 @@ VPU_HW_INFO_E vpu_hw_set[] = {
 #define PP_INTERRUPT_REGISTER	   		60
 #define ENC_INTERRUPT_REGISTER	   		1
 
-#define DEC_INTERRUPT_BIT			 0x100
-#define PP_INTERRUPT_BIT			 0x100
-#define ENC_INTERRUPT_BIT			 0x1
+#define DEC_INTERRUPT_BIT			0x100
+#define DEC_BUFFER_EMPTY_BIT			0x4000
+#define PP_INTERRUPT_BIT			0x100
+#define ENC_INTERRUPT_BIT			0x1
 
 #define VPU_REG_EN_ENC				14
 #define VPU_REG_ENC_GATE			2
@@ -1222,7 +1223,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 			} while ((irq_status & 0x40001) == 0x40001);
 		}
 		/* clear dec IRQ */
-		writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
+		writel(irq_status & (~DEC_INTERRUPT_BIT|DEC_BUFFER_EMPTY_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
 		atomic_add(1, &dev->irq_count_codec);
 	}
 
