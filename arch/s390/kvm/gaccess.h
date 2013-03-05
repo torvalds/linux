@@ -22,13 +22,16 @@ static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
 					       unsigned long guestaddr)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long uaddress;
 
 	if (guestaddr < 2 * PAGE_SIZE)
 		guestaddr += prefix;
 	else if ((guestaddr >= prefix) && (guestaddr < prefix + 2 * PAGE_SIZE))
 		guestaddr -= prefix;
-
-	return (void __user *) gmap_fault(guestaddr, vcpu->arch.gmap);
+	uaddress = gmap_fault(guestaddr, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(uaddress))
+		uaddress = -EFAULT;
+	return (void __user *)uaddress;
 }
 
 static inline int get_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
