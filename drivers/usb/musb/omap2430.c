@@ -237,9 +237,13 @@ void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
 
-	if (glue && glue_to_musb(glue)) {
-		glue->status = status;
-	} else {
+	if (!glue) {
+		pr_err("%s: musb core is not yet initialized\n", __func__);
+		return;
+	}
+	glue->status = status;
+
+	if (!glue_to_musb(glue)) {
 		pr_err("%s: musb core is not yet ready\n", __func__);
 		return;
 	}
