@@ -46,7 +46,6 @@
 static const struct das08_board_struct das08_pci_boards[] = {
 	{
 		.name		= "pci-das08",
-		.id		= PCI_DEVICE_ID_PCIDAS08,
 		.ai_nbits	= 12,
 		.ai_pg		= das08_bipolar5,
 		.ai_encoding	= das08_encode12,
