@@ -366,6 +366,7 @@ static int rk610_codec_set_bias_level(struct snd_soc_codec *codec,
 #endif
 		printk("rk610 standby\n");
 		spk_ctrl_fun(GPIO_LOW);
+		 rk610_codec_write(codec,ACCELCODEC_R0A, ASC_CLK_DISABLE);
 		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFE);
 		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
 		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
@@ -397,7 +398,7 @@ static int rk610_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-#ifdef RK610_CTL_PLL
+#if RK610_CTL_PLL
 	if(rk610_codec_pll_set(freq))
 		return -EINVAL;
 #endif
