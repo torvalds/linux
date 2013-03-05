@@ -85,34 +85,42 @@ static void free_ptes(pmd_t *pmd, unsigned long addr)
 	}
 }
 
-/**
- * free_hyp_pmds - free a Hyp-mode level-2 tables and child level-3 tables
- *
- * Assumes this is a page table used strictly in Hyp-mode and therefore contains
- * only mappings in the kernel memory area, which is above PAGE_OFFSET.
- */
-void free_hyp_pmds(void)
+static void free_hyp_pgd_entry(unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	unsigned long hyp_addr = KERN_TO_HYP(addr);
+
+	pgd = hyp_pgd + pgd_index(hyp_addr);
+	pud = pud_offset(pgd, hyp_addr);
+
+	if (pud_none(*pud))
+		return;
+	BUG_ON(pud_bad(*pud));
+
+	pmd = pmd_offset(pud, hyp_addr);
+	free_ptes(pmd, addr);
+	pmd_free(NULL, pmd);
+	pud_clear(pud);
+}
+
+/**
+ * free_hyp_pmds - free a Hyp-mode level-2 tables and child level-3 tables
+ *
+ * Assumes this is a page table used strictly in Hyp-mode and therefore contains
+ * either mappings in the kernel memory area (above PAGE_OFFSET), or
+ * device mappings in the vmalloc range (from VMALLOC_START to VMALLOC_END).
+ */
+void free_hyp_pmds(void)
+{
 	unsigned long addr;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
-	for (addr = PAGE_OFFSET; addr != 0; addr += PGDIR_SIZE) {
-		unsigned long hyp_addr = KERN_TO_HYP(addr);
-		pgd = hyp_pgd + pgd_index(hyp_addr);
-		pud = pud_offset(pgd, hyp_addr);
-
-		if (pud_none(*pud))
-			continue;
-		BUG_ON(pud_bad(*pud));
-
-		pmd = pmd_offset(pud, hyp_addr);
-		free_ptes(pmd, addr);
-		pmd_free(NULL, pmd);
-		pud_clear(pud);
-	}
+	for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
+		free_hyp_pgd_entry(addr);
+	for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
+		free_hyp_pgd_entry(addr);
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
 
