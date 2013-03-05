@@ -249,24 +249,27 @@ static const struct comedi_lrange rtd_ao_range = {
 	}
 };
 
+enum rtd_boardid {
+	BOARD_DM7520,
+	BOARD_PCI4520,
+};
+
 struct rtdBoard {
 	const char *name;
-	int device_id;
 	int range10Start;	/* start of +-10V range */
 	int rangeUniStart;	/* start of +10V range */
 	const struct comedi_lrange *ai_range;
 };
 
 static const struct rtdBoard rtd520Boards[] = {
-	{
+	[BOARD_DM7520] = {
 		.name		= "DM7520",
-		.device_id	= 0x7520,
 		.range10Start	= 6,
 		.rangeUniStart	= 12,
 		.ai_range	= &rtd_ai_7520_range,
-	}, {
+	},
+	[BOARD_PCI4520] = {
 		.name		= "PCI4520",
-		.device_id	= 0x4520,
 		.range10Start	= 8,
 		.rangeUniStart	= 16,
 		.ai_range	= &rtd_ai_4520_range,
@@ -1259,30 +1262,17 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 	}
 }
 
-static const void *rtd_find_boardinfo(struct comedi_device *dev,
-				      struct pci_dev *pcidev)
-{
-	const struct rtdBoard *thisboard;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(rtd520Boards); i++) {
-		thisboard = &rtd520Boards[i];
-		if (pcidev->device == thisboard->device_id)
-			return thisboard;
-	}
-	return NULL;
-}
-
 static int rtd_auto_attach(struct comedi_device *dev,
-				     unsigned long context_unused)
+			   unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct rtdBoard *thisboard;
+	const struct rtdBoard *thisboard = NULL;
 	struct rtdPrivate *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	thisboard = rtd_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(rtd520Boards))
+		thisboard = &rtd520Boards[context];
 	if (!thisboard)
 		return -ENODEV;
 	dev->board_ptr = thisboard;
@@ -1422,8 +1412,8 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x7520) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x4520) },
+	{ PCI_VDEVICE(RTD, 0x7520), BOARD_DM7520 },
+	{ PCI_VDEVICE(RTD, 0x4520), BOARD_PCI4520 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
