@@ -129,7 +129,7 @@
 	compatible = "fsl,dcsr", "simple-bus";
 
 	dcsr-epu@0 {
-		compatible = "fsl,dcsr-epu";
+		compatible = "fsl,p5040-dcsr-epu", "fsl,dcsr-epu";
 		interrupts = <52 2 0 0
 			      84 2 0 0
 			      85 2 0 0>;
