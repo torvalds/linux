@@ -51,7 +51,7 @@ struct omap2430_glue {
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
-struct omap2430_glue		*_glue;
+static struct omap2430_glue	*_glue;
 
 static struct timer_list musb_idle_timer;
 
