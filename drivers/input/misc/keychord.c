@@ -126,8 +126,12 @@ static void keychord_event(struct input_handle *handle, unsigned int type,
 done:
 	spin_unlock_irqrestore(&kdev->lock, flags);
 
-	if (got_chord)
+	if (got_chord) {
+		pr_info("keychord: got keychord id %d. Any tasks: %d\n",
+			keychord->id,
+			!list_empty_careful(&kdev->waitq.task_list));
 		wake_up_interruptible(&kdev->waitq);
+	}
 }
 
 static int keychord_connect(struct input_handler *handler,
