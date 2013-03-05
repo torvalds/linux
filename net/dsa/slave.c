@@ -41,8 +41,8 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->name = "dsa slave smi";
 	ds->slave_mii_bus->read = dsa_slave_phy_read;
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
-	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "%s:%.2x",
-			ds->master_mii_bus->id, ds->pd->sw_addr);
+	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
+			ds->index, ds->pd->sw_addr);
 	ds->slave_mii_bus->parent = &ds->master_mii_bus->dev;
 }
 
@@ -203,10 +203,10 @@ dsa_slave_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void dsa_slave_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, "dsa", 32);
-	strncpy(drvinfo->version, dsa_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "platform", 32);
+	strlcpy(drvinfo->driver, "dsa", sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, dsa_driver_version, sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }
 
 static int dsa_slave_nway_reset(struct net_device *dev)
@@ -391,7 +391,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	if (p->phy != NULL) {
 		phy_attach(slave_dev, dev_name(&p->phy->dev),
-			   0, PHY_INTERFACE_MODE_GMII);
+			   PHY_INTERFACE_MODE_GMII);
 
 		p->phy->autoneg = AUTONEG_ENABLE;
 		p->phy->speed = 0;

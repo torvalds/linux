@@ -23,7 +23,7 @@
 /*
  * mt9m001 i2c address 0x5d
  * The platform has to define struct i2c_board_info objects and link to them
- * from struct soc_camera_link
+ * from struct soc_camera_host_desc
  */
 
 /* mt9m001 selected register addresses */
@@ -380,9 +380,9 @@ static int mt9m001_s_register(struct v4l2_subdev *sd,
 static int mt9m001_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	return soc_camera_set_power(&client->dev, icl, on);
+	return soc_camera_set_power(&client->dev, ssdd, on);
 }
 
 static int mt9m001_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
@@ -482,7 +482,7 @@ static int mt9m001_s_ctrl(struct v4l2_ctrl *ctrl)
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
  */
-static int mt9m001_video_probe(struct soc_camera_link *icl,
+static int mt9m001_video_probe(struct soc_camera_subdev_desc *ssdd,
 			       struct i2c_client *client)
 {
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
@@ -526,8 +526,8 @@ static int mt9m001_video_probe(struct soc_camera_link *icl,
 	 * The platform may support different bus widths due to
 	 * different routing of the data lines.
 	 */
-	if (icl->query_bus_param)
-		flags = icl->query_bus_param(icl);
+	if (ssdd->query_bus_param)
+		flags = ssdd->query_bus_param(ssdd);
 	else
 		flags = SOCAM_DATAWIDTH_10;
 
@@ -558,10 +558,10 @@ done:
 	return ret;
 }
 
-static void mt9m001_video_remove(struct soc_camera_link *icl)
+static void mt9m001_video_remove(struct soc_camera_subdev_desc *ssdd)
 {
-	if (icl->free_bus)
-		icl->free_bus(icl);
+	if (ssdd->free_bus)
+		ssdd->free_bus(ssdd);
 }
 
 static int mt9m001_g_skip_top_lines(struct v4l2_subdev *sd, u32 *lines)
@@ -605,14 +605,14 @@ static int mt9m001_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	/* MT9M001 has all capture_format parameters fixed */
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_FALLING |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_DATA_ACTIVE_HIGH | V4L2_MBUS_MASTER;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -621,12 +621,12 @@ static int mt9m001_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	const struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	unsigned int bps = soc_mbus_get_fmtdesc(mt9m001->fmt->code)->bits_per_sample;
 
-	if (icl->set_bus_param)
-		return icl->set_bus_param(icl, 1 << (bps - 1));
+	if (ssdd->set_bus_param)
+		return ssdd->set_bus_param(ssdd, 1 << (bps - 1));
 
 	/*
 	 * Without board specific bus width settings we only support the
@@ -663,10 +663,10 @@ static int mt9m001_probe(struct i2c_client *client,
 {
 	struct mt9m001 *mt9m001;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
 
-	if (!icl) {
+	if (!ssdd) {
 		dev_err(&client->dev, "MT9M001 driver needs platform data\n");
 		return -EINVAL;
 	}
@@ -677,7 +677,7 @@ static int mt9m001_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9m001 = kzalloc(sizeof(struct mt9m001), GFP_KERNEL);
+	mt9m001 = devm_kzalloc(&client->dev, sizeof(struct mt9m001), GFP_KERNEL);
 	if (!mt9m001)
 		return -ENOMEM;
 
@@ -697,12 +697,9 @@ static int mt9m001_probe(struct i2c_client *client,
 			&mt9m001_ctrl_ops, V4L2_CID_EXPOSURE_AUTO, 1, 0,
 			V4L2_EXPOSURE_AUTO);
 	mt9m001->subdev.ctrl_handler = &mt9m001->hdl;
-	if (mt9m001->hdl.error) {
-		int err = mt9m001->hdl.error;
+	if (mt9m001->hdl.error)
+		return mt9m001->hdl.error;
 
-		kfree(mt9m001);
-		return err;
-	}
 	v4l2_ctrl_auto_cluster(2, &mt9m001->autoexposure,
 					V4L2_EXPOSURE_MANUAL, true);
 
@@ -713,11 +710,9 @@ static int mt9m001_probe(struct i2c_client *client,
 	mt9m001->rect.width	= MT9M001_MAX_WIDTH;
 	mt9m001->rect.height	= MT9M001_MAX_HEIGHT;
 
-	ret = mt9m001_video_probe(icl, client);
-	if (ret) {
+	ret = mt9m001_video_probe(ssdd, client);
+	if (ret)
 		v4l2_ctrl_handler_free(&mt9m001->hdl);
-		kfree(mt9m001);
-	}
 
 	return ret;
 }
@@ -725,12 +720,11 @@ static int mt9m001_probe(struct i2c_client *client,
 static int mt9m001_remove(struct i2c_client *client)
 {
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	v4l2_device_unregister_subdev(&mt9m001->subdev);
 	v4l2_ctrl_handler_free(&mt9m001->hdl);
-	mt9m001_video_remove(icl);
-	kfree(mt9m001);
+	mt9m001_video_remove(ssdd);
 
 	return 0;
 }

@@ -1041,7 +1041,7 @@ static int hpet_acpi_add(struct acpi_device *device)
 	return hpet_alloc(&data);
 }
 
-static int hpet_acpi_remove(struct acpi_device *device, int type)
+static int hpet_acpi_remove(struct acpi_device *device)
 {
 	/* XXX need to unregister clocksource, dealloc mem, etc */
 	return -EINVAL;

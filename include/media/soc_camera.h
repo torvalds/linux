@@ -23,11 +23,11 @@
 #include <media/v4l2-device.h>
 
 struct file;
-struct soc_camera_link;
+struct soc_camera_desc;
 
 struct soc_camera_device {
 	struct list_head list;		/* list of all registered devices */
-	struct soc_camera_link *link;
+	struct soc_camera_desc *sdesc;
 	struct device *pdev;		/* Platform device */
 	struct device *parent;		/* Camera host device */
 	struct device *control;		/* E.g., the i2c client */
@@ -46,9 +46,8 @@ struct soc_camera_device {
 	int num_user_formats;
 	enum v4l2_field field;		/* Preserve field over close() */
 	void *host_priv;		/* Per-device host private data */
-	/* soc_camera.c private count. Only accessed with .video_lock held */
+	/* soc_camera.c private count. Only accessed with .host_lock held */
 	int use_count;
-	struct mutex video_lock;	/* Protects device data */
 	struct file *streamer;		/* stream owner */
 	union {
 		struct videobuf_queue vb_vidq;
@@ -62,7 +61,7 @@ struct soc_camera_device {
 struct soc_camera_host {
 	struct v4l2_device v4l2_dev;
 	struct list_head list;
-	struct mutex host_lock;		/* Protect during probing */
+	struct mutex host_lock;		/* Protect pipeline modifications */
 	unsigned char nr;		/* Host number */
 	u32 capabilities;
 	void *priv;
@@ -117,19 +116,37 @@ struct soc_camera_host_ops {
 struct i2c_board_info;
 struct regulator_bulk_data;
 
-struct soc_camera_link {
-	/* Camera bus id, used to match a camera and a bus */
-	int bus_id;
+struct soc_camera_subdev_desc {
 	/* Per camera SOCAM_SENSOR_* bus flags */
 	unsigned long flags;
-	int i2c_adapter_id;
-	struct i2c_board_info *board_info;
-	const char *module_name;
-	void *priv;
+
+	/* sensor driver private platform data */
+	void *drv_priv;
 
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
+
+	/* Optional callbacks to power on or off and reset the sensor */
+	int (*power)(struct device *, int);
+	int (*reset)(struct device *);
+
+	/*
+	 * some platforms may support different data widths than the sensors
+	 * native ones due to different data line routing. Let the board code
+	 * overwrite the width flags.
+	 */
+	int (*set_bus_param)(struct soc_camera_subdev_desc *, unsigned long flags);
+	unsigned long (*query_bus_param)(struct soc_camera_subdev_desc *);
+	void (*free_bus)(struct soc_camera_subdev_desc *);
+};
+
+struct soc_camera_host_desc {
+	/* Camera bus id, used to match a camera and a bus */
+	int bus_id;
+	int i2c_adapter_id;
+	struct i2c_board_info *board_info;
+	const char *module_name;
 
 	/*
 	 * For non-I2C devices platform has to provide methods to add a device
@@ -137,6 +154,34 @@ struct soc_camera_link {
 	 */
 	int (*add_device)(struct soc_camera_device *);
 	void (*del_device)(struct soc_camera_device *);
+};
+
+/*
+ * This MUST be kept binary-identical to struct soc_camera_link below, until
+ * it is completely replaced by this one, after which we can split it into its
+ * two components.
+ */
+struct soc_camera_desc {
+	struct soc_camera_subdev_desc subdev_desc;
+	struct soc_camera_host_desc host_desc;
+};
+
+/* Prepare to replace this struct: don't change its layout any more! */
+struct soc_camera_link {
+	/*
+	 * Subdevice part - keep at top and compatible to
+	 * struct soc_camera_subdev_desc
+	 */
+
+	/* Per camera SOCAM_SENSOR_* bus flags */
+	unsigned long flags;
+
+	void *priv;
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
+
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -148,6 +193,24 @@ struct soc_camera_link {
 	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
 	unsigned long (*query_bus_param)(struct soc_camera_link *);
 	void (*free_bus)(struct soc_camera_link *);
+
+	/*
+	 * Host part - keep at bottom and compatible to
+	 * struct soc_camera_host_desc
+	 */
+
+	/* Camera bus id, used to match a camera and a bus */
+	int bus_id;
+	int i2c_adapter_id;
+	struct i2c_board_info *board_info;
+	const char *module_name;
+
+	/*
+	 * For non-I2C devices platform has to provide methods to add a device
+	 * to the system and to remove it
+	 */
+	int (*add_device)(struct soc_camera_device *);
+	void (*del_device)(struct soc_camera_device *);
 };
 
 static inline struct soc_camera_host *to_soc_camera_host(
@@ -158,10 +221,10 @@ static inline struct soc_camera_host *to_soc_camera_host(
 	return container_of(v4l2_dev, struct soc_camera_host, v4l2_dev);
 }
 
-static inline struct soc_camera_link *to_soc_camera_link(
+static inline struct soc_camera_desc *to_soc_camera_desc(
 	const struct soc_camera_device *icd)
 {
-	return icd->link;
+	return icd->sdesc;
 }
 
 static inline struct device *to_soc_camera_control(
@@ -251,19 +314,17 @@ static inline void soc_camera_limit_side(int *start, int *length,
 		*start = start_min + length_max - *length;
 }
 
-unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
-					    unsigned long flags);
-unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
+unsigned long soc_camera_apply_board_flags(struct soc_camera_subdev_desc *ssdd,
 					   const struct v4l2_mbus_config *cfg);
 
-int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl);
-int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl);
+int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd);
+int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd);
 
 static inline int soc_camera_set_power(struct device *dev,
-				       struct soc_camera_link *icl, bool on)
+				struct soc_camera_subdev_desc *ssdd, bool on)
 {
-	return on ? soc_camera_power_on(dev, icl)
-		  : soc_camera_power_off(dev, icl);
+	return on ? soc_camera_power_on(dev, ssdd)
+		  : soc_camera_power_off(dev, ssdd);
 }
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
@@ -275,7 +336,7 @@ static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_clien
 	return icd ? icd->vdev : NULL;
 }
 
-static inline struct soc_camera_link *soc_camera_i2c_to_link(const struct i2c_client *client)
+static inline struct soc_camera_subdev_desc *soc_camera_i2c_to_desc(const struct i2c_client *client)
 {
 	return client->dev.platform_data;
 }

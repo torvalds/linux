@@ -46,7 +46,7 @@ static irqreturn_t hp300_tick(int irq, void *dev_id)
 	return vector(irq, NULL);
 }
 
-unsigned long hp300_gettimeoffset(void)
+u32 hp300_gettimeoffset(void)
 {
   /* Read current timer 1 value */
   unsigned char lsb, msb1, msb2;
@@ -59,7 +59,7 @@ unsigned long hp300_gettimeoffset(void)
     /* A carry happened while we were reading.  Read it again */
     lsb = in_8(CLOCKBASE + 7);
   ticks = INTVAL - ((msb2 << 8) | lsb);
-  return (USECS_PER_JIFFY * ticks) / INTVAL;
+  return ((USECS_PER_JIFFY * ticks) / INTVAL) * 1000;
 }
 
 void __init hp300_sched_init(irq_handler_t vector)

@@ -55,6 +55,5 @@ static inline void flush(void)
 
 /* NULL functions; we don't presently need them */
 #define arch_decomp_setup()
-#define arch_decomp_wdog()
 
 #endif

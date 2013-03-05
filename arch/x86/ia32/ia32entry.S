@@ -207,7 +207,7 @@ sysexit_from_sys_call:
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	jnz ia32_ret_from_sys_call
 	TRACE_IRQS_ON
-	sti
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	movl %eax,%esi		/* second arg, syscall return value */
 	cmpl $-MAX_ERRNO,%eax	/* is it an error ? */
 	jbe 1f
@@ -217,7 +217,7 @@ sysexit_from_sys_call:
 	call __audit_syscall_exit
 	movq RAX-ARGOFFSET(%rsp),%rax	/* reload syscall return value */
 	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
-	cli
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl %edi,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	jz \exit
@@ -456,18 +456,16 @@ ia32_badsys:
 	ALIGN
 GLOBAL(\label)
 	leaq \func(%rip),%rax
-	leaq -ARGOFFSET+8(%rsp),\arg	/* 8 for return address */
 	jmp  ia32_ptregs_common	
 	.endm
 
 	CFI_STARTPROC32
 
-	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
-	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
-	PTREGSCALL stub32_execve, compat_sys_execve, %rcx
-	PTREGSCALL stub32_fork, sys_fork, %rdi
-	PTREGSCALL stub32_vfork, sys_vfork, %rdi
-	PTREGSCALL stub32_iopl, sys_iopl, %rsi
+	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn
+	PTREGSCALL stub32_sigreturn, sys32_sigreturn
+	PTREGSCALL stub32_execve, compat_sys_execve
+	PTREGSCALL stub32_fork, sys_fork
+	PTREGSCALL stub32_vfork, sys_vfork
 
 	ALIGN
 GLOBAL(stub32_clone)

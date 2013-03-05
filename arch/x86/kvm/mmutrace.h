@@ -195,12 +195,6 @@ DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
 	TP_ARGS(sp)
 );
 
-DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_delay_free_pages,
-	TP_PROTO(struct kvm_mmu_page *sp),
-
-	TP_ARGS(sp)
-);
-
 TRACE_EVENT(
 	mark_mmio_spte,
 	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access),

@@ -367,6 +367,8 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 
 		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
+			if (ret)
+				break;
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;

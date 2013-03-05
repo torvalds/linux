@@ -48,3 +48,8 @@ max_ratio (read-write)
 	most of the write-back cache.  For example in case of an NFS
 	mount that is prone to get stuck, or a FUSE mount which cannot
 	be trusted to play fair.
+
+stable_pages_required (read-only)
+
+	If set, the backing device requires that all pages comprising a write
+	request must not be changed until writeout is complete.

@@ -39,6 +39,14 @@ enum palmas_ids {
 	PALMAS_USB_ID,
 };
 
+static struct resource palmas_rtc_resources[] = {
+	{
+		.start  = PALMAS_RTC_ALARM_IRQ,
+		.end    = PALMAS_RTC_ALARM_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 static const struct mfd_cell palmas_children[] = {
 	{
 		.name = "palmas-pmic",
@@ -59,6 +67,8 @@ static const struct mfd_cell palmas_children[] = {
 	{
 		.name = "palmas-rtc",
 		.id = PALMAS_RTC_ID,
+		.resources = &palmas_rtc_resources[0],
+		.num_resources = ARRAY_SIZE(palmas_rtc_resources),
 	},
 	{
 		.name = "palmas-pwrbutton",
@@ -456,8 +466,8 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 
 	ret = mfd_add_devices(palmas->dev, -1,
 			      children, ARRAY_SIZE(palmas_children),
-			      NULL, regmap_irq_chip_get_base(palmas->irq_data),
-			      NULL);
+			      NULL, 0,
+			      regmap_irq_get_domain(palmas->irq_data));
 	kfree(children);
 
 	if (ret < 0)

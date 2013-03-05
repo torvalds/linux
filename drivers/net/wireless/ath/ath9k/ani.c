@@ -152,7 +152,8 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 	ath_dbg(common, ANI, "**** ofdmlevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->ofdmNoiseImmunityLevel,
 		immunityLevel, BEACON_RSSI(ah),
-		aniState->rssiThrLow, aniState->rssiThrHigh);
+		ATH9K_ANI_RSSI_THR_LOW,
+		ATH9K_ANI_RSSI_THR_HIGH);
 
 	if (!scan)
 		aniState->ofdmNoiseImmunityLevel = immunityLevel;
@@ -173,7 +174,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 
 	weak_sig = entry_ofdm->ofdm_weak_signal_on;
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
-	    BEACON_RSSI(ah) <= aniState->rssiThrHigh)
+	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_HIGH)
 		weak_sig = true;
 
 	if (aniState->ofdmWeakSigDetect != weak_sig)
@@ -216,11 +217,11 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel,
 
 	ath_dbg(common, ANI, "**** ccklevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->cckNoiseImmunityLevel, immunityLevel,
-		BEACON_RSSI(ah), aniState->rssiThrLow,
-		aniState->rssiThrHigh);
+		BEACON_RSSI(ah), ATH9K_ANI_RSSI_THR_LOW,
+		ATH9K_ANI_RSSI_THR_HIGH);
 
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
-	    BEACON_RSSI(ah) <= aniState->rssiThrLow &&
+	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_LOW &&
 	    immunityLevel > ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI)
 		immunityLevel = ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI;
 
@@ -418,9 +419,6 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 		return;
 
 	aniState = &ah->curchan->ani;
-	if (WARN_ON(!aniState))
-		return;
-
 	if (!ath9k_hw_ani_read_counters(ah))
 		return;
 
@@ -489,23 +487,6 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
 
-void ath9k_hw_ani_setup(struct ath_hw *ah)
-{
-	int i;
-
-	static const int totalSizeDesired[] = { -55, -55, -55, -55, -62 };
-	static const int coarseHigh[] = { -14, -14, -14, -14, -12 };
-	static const int coarseLow[] = { -64, -64, -64, -64, -70 };
-	static const int firpwr[] = { -78, -78, -78, -78, -80 };
-
-	for (i = 0; i < 5; i++) {
-		ah->totalSizeDesired[i] = totalSizeDesired[i];
-		ah->coarse_high[i] = coarseHigh[i];
-		ah->coarse_low[i] = coarseLow[i];
-		ah->firpwr[i] = firpwr[i];
-	}
-}
-
 void ath9k_hw_ani_init(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -531,8 +512,6 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 		ani->ofdmsTurn = true;
 
-		ani->rssiThrHigh = ATH9K_ANI_RSSI_THR_HIGH;
-		ani->rssiThrLow = ATH9K_ANI_RSSI_THR_LOW;
 		ani->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
 		ani->cckNoiseImmunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 		ani->ofdmNoiseImmunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;

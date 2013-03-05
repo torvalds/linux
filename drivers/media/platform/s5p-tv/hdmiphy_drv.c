@@ -284,7 +284,7 @@ static int hdmiphy_probe(struct i2c_client *client,
 {
 	struct hdmiphy_ctx *ctx;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

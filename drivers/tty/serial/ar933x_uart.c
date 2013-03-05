@@ -297,10 +297,9 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 
 static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 {
-	struct tty_struct *tty;
+	struct tty_port *port = &up->port.state->port;
 	int max_count = 256;
 
-	tty = tty_port_tty_get(&up->port.state->port);
 	do {
 		unsigned int rdata;
 		unsigned char ch;
@@ -313,11 +312,6 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 		ar933x_uart_write(up, AR933X_UART_DATA_REG,
 				  AR933X_UART_DATA_RX_CSR);
 
-		if (!tty) {
-			/* discard the data if no tty available */
-			continue;
-		}
-
 		up->port.icount.rx++;
 		ch = rdata & AR933X_UART_DATA_TX_RX_MASK;
 
@@ -325,13 +319,10 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 			continue;
 
 		if ((up->port.ignore_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
-			tty_insert_flip_char(tty, ch, TTY_NORMAL);
+			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	} while (max_count-- > 0);
 
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
+	tty_flip_buffer_push(port);
 }
 
 static void ar933x_uart_tx_chars(struct ar933x_uart_port *up)

@@ -93,6 +93,9 @@ struct kvmppc_host_state {
 	u64 host_dscr;
 	u64 dec_expires;
 #endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	u64 cfar;
+#endif
 };
 
 struct kvmppc_book3s_shadow_vcpu {

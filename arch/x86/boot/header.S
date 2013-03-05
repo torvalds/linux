@@ -374,6 +374,14 @@ xloadflags:
 #else
 # define XLF0 0
 #endif
+
+#if defined(CONFIG_RELOCATABLE) && defined(CONFIG_X86_64)
+   /* kernel/boot_param/ramdisk could be loaded above 4g */
+# define XLF1 XLF_CAN_BE_LOADED_ABOVE_4G
+#else
+# define XLF1 0
+#endif
+
 #ifdef CONFIG_EFI_STUB
 # ifdef CONFIG_X86_64
 #  define XLF23 XLF_EFI_HANDOVER_64		/* 64-bit EFI handover ok */
@@ -383,7 +391,7 @@ xloadflags:
 #else
 # define XLF23 0
 #endif
-			.word XLF0 | XLF23
+			.word XLF0 | XLF1 | XLF23
 
 cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
                                                 #added with boot protocol

@@ -530,7 +530,6 @@ static int sundance_probe1(struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((__le16 *)dev->dev_addr)[i] =
 			cpu_to_le16(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	np = netdev_priv(dev);
 	np->base = ioaddr;

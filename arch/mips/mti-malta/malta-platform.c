@@ -93,7 +93,7 @@ static struct mtd_partition malta_mtd_partitions[] = {
 		.mask_flags =	MTD_WRITEABLE
 	}, {
 		.name =		"User FS",
-		.offset = 	0x100000,
+		.offset =	0x100000,
 		.size =		0x2e0000
 	}, {
 		.name =		"Board Config",

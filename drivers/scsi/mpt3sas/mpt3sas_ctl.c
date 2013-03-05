@@ -42,7 +42,6 @@
  * USA.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -3136,7 +3135,7 @@ _ctl_diag_trigger_mpi_store(struct device *cdev,
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
 	sz = min(sizeof(struct SL_WH_MPI_TRIGGERS_T), count);
 	memset(&ioc->diag_trigger_mpi, 0,
-	    sizeof(struct SL_WH_EVENT_TRIGGERS_T));
+	    sizeof(ioc->diag_trigger_mpi));
 	memcpy(&ioc->diag_trigger_mpi, buf, sz);
 	if (ioc->diag_trigger_mpi.ValidEntries > NUM_VALID_ENTRIES)
 		ioc->diag_trigger_mpi.ValidEntries = NUM_VALID_ENTRIES;

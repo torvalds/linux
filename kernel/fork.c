@@ -413,7 +413,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		tmp->vm_next = tmp->vm_prev = NULL;
 		file = tmp->vm_file;
 		if (file) {
-			struct inode *inode = file->f_path.dentry->d_inode;
+			struct inode *inode = file_inode(file);
 			struct address_space *mapping = file->f_mapping;
 
 			get_file(file);
@@ -1233,6 +1233,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	p->prev_cputime.utime = p->prev_cputime.stime = 0;
 #endif
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+	seqlock_init(&p->vtime_seqlock);
+	p->vtime_snap = 0;
+	p->vtime_snap_whence = VTIME_SLEEPING;
+#endif
+
 #if defined(SPLIT_RSS_COUNTING)
 	memset(&p->rss_stat, 0, sizeof(p->rss_stat));
 #endif
@@ -1855,10 +1861,8 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 			exit_sem(current);
 		}
 
-		if (new_nsproxy) {
+		if (new_nsproxy)
 			switch_task_namespaces(current, new_nsproxy);
-			new_nsproxy = NULL;
-		}
 
 		task_lock(current);
 
@@ -1887,9 +1891,6 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 			new_cred = NULL;
 		}
 	}
-
-	if (new_nsproxy)
-		put_nsproxy(new_nsproxy);
 
 bad_unshare_cleanup_cred:
 	if (new_cred)

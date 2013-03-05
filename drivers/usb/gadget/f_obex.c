@@ -406,10 +406,6 @@ static inline bool can_support_obex(struct usb_configuration *c)
  * Context: single threaded during gadget setup
  *
  * Returns zero on success, else negative errno.
- *
- * Caller must have called @gserial_setup() with enough ports to
- * handle all the ones it binds.  Caller is also responsible
- * for calling @gserial_cleanup() before module unload.
  */
 int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
 {

@@ -132,7 +132,7 @@ struct pnfs_layoutdriver_type {
 struct pnfs_layout_hdr {
 	atomic_t		plh_refcount;
 	struct list_head	plh_layouts;   /* other client layouts */
-	struct list_head	plh_bulk_recall; /* clnt list of bulk recalls */
+	struct list_head	plh_bulk_destroy;
 	struct list_head	plh_segs;      /* layout segments list */
 	nfs4_stateid		plh_stateid;
 	atomic_t		plh_outstanding; /* number of RPCs out */
@@ -196,6 +196,11 @@ struct pnfs_layout_segment *pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
 void pnfs_destroy_all_layouts(struct nfs_client *);
+int pnfs_destroy_layouts_byfsid(struct nfs_client *clp,
+		struct nfs_fsid *fsid,
+		bool is_recall);
+int pnfs_destroy_layouts_byclid(struct nfs_client *clp,
+		bool is_recall);
 void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
@@ -225,9 +230,11 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */

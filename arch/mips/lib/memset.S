@@ -21,8 +21,8 @@
 
 #define EX(insn,reg,addr,handler)			\
 9:	insn	reg, addr;				\
-	.section __ex_table,"a"; 			\
-	PTR	9b, handler; 				\
+	.section __ex_table,"a";			\
+	PTR	9b, handler;				\
 	.previous
 
 	.macro	f_fill64 dst, offset, val, fixup

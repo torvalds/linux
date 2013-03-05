@@ -69,7 +69,6 @@ static int internal_dev_mac_addr(struct net_device *dev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	return 0;
 }
@@ -98,7 +97,7 @@ static int internal_dev_stop(struct net_device *netdev)
 static void internal_dev_getinfo(struct net_device *netdev,
 				 struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "openvswitch");
+	strlcpy(info->driver, "openvswitch", sizeof(info->driver));
 }
 
 static const struct ethtool_ops internal_dev_ethtool_ops = {

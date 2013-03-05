@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -494,11 +494,9 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
  *  ixgbe_setup_phy_link_speed_generic - Sets the auto advertised capabilities
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  **/
 s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
                                        ixgbe_link_speed speed,
-                                       bool autoneg,
                                        bool autoneg_wait_to_complete)
 {
 
@@ -854,11 +852,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_IDENTIFIER,
-	                                     &identifier);
+					     &identifier);
 
-	if (status == IXGBE_ERR_SWFW_SYNC ||
-	    status == IXGBE_ERR_I2C ||
-	    status == IXGBE_ERR_SFP_NOT_PRESENT)
+	if (status != 0)
 		goto err_read_i2c_eeprom;
 
 	/* LAN ID is needed for sfp_type determination */
@@ -872,26 +868,20 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 						     IXGBE_SFF_1GBE_COMP_CODES,
 						     &comp_codes_1g);
 
-		if (status == IXGBE_ERR_SWFW_SYNC ||
-		    status == IXGBE_ERR_I2C ||
-		    status == IXGBE_ERR_SFP_NOT_PRESENT)
+		if (status != 0)
 			goto err_read_i2c_eeprom;
 
 		status = hw->phy.ops.read_i2c_eeprom(hw,
 						     IXGBE_SFF_10GBE_COMP_CODES,
 						     &comp_codes_10g);
 
-		if (status == IXGBE_ERR_SWFW_SYNC ||
-		    status == IXGBE_ERR_I2C ||
-		    status == IXGBE_ERR_SFP_NOT_PRESENT)
+		if (status != 0)
 			goto err_read_i2c_eeprom;
 		status = hw->phy.ops.read_i2c_eeprom(hw,
 						     IXGBE_SFF_CABLE_TECHNOLOGY,
 						     &cable_tech);
 
-		if (status == IXGBE_ERR_SWFW_SYNC ||
-		    status == IXGBE_ERR_I2C ||
-		    status == IXGBE_ERR_SFP_NOT_PRESENT)
+		if (status != 0)
 			goto err_read_i2c_eeprom;
 
 		 /* ID Module
@@ -986,30 +976,24 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		if (hw->phy.type != ixgbe_phy_nl) {
 			hw->phy.id = identifier;
 			status = hw->phy.ops.read_i2c_eeprom(hw,
-			                            IXGBE_SFF_VENDOR_OUI_BYTE0,
-			                            &oui_bytes[0]);
+						    IXGBE_SFF_VENDOR_OUI_BYTE0,
+						    &oui_bytes[0]);
 
-			if (status == IXGBE_ERR_SWFW_SYNC ||
-			    status == IXGBE_ERR_I2C ||
-			    status == IXGBE_ERR_SFP_NOT_PRESENT)
+			if (status != 0)
 				goto err_read_i2c_eeprom;
 
 			status = hw->phy.ops.read_i2c_eeprom(hw,
 			                            IXGBE_SFF_VENDOR_OUI_BYTE1,
 			                            &oui_bytes[1]);
 
-			if (status == IXGBE_ERR_SWFW_SYNC ||
-			    status == IXGBE_ERR_I2C ||
-			    status == IXGBE_ERR_SFP_NOT_PRESENT)
+			if (status != 0)
 				goto err_read_i2c_eeprom;
 
 			status = hw->phy.ops.read_i2c_eeprom(hw,
 			                            IXGBE_SFF_VENDOR_OUI_BYTE2,
 			                            &oui_bytes[2]);
 
-			if (status == IXGBE_ERR_SWFW_SYNC ||
-			    status == IXGBE_ERR_I2C ||
-			    status == IXGBE_ERR_SFP_NOT_PRESENT)
+			if (status != 0)
 				goto err_read_i2c_eeprom;
 
 			vendor_oui =
@@ -1206,6 +1190,22 @@ s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
+ *  ixgbe_read_i2c_sff8472_generic - Reads 8 bit word over I2C interface
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset at address 0xA2
+ *  @eeprom_data: value read
+ *
+ *  Performs byte read operation to SFP module's SFF-8472 data over I2C
+ **/
+s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
+				   u8 *sff8472_data)
+{
+	return hw->phy.ops.read_i2c_byte(hw, byte_offset,
+					 IXGBE_I2C_EEPROM_DEV_ADDR2,
+					 sff8472_data);
+}
+
+/**
  *  ixgbe_write_i2c_eeprom_generic - Writes 8 bit EEPROM word over I2C interface
  *  @hw: pointer to hardware structure
  *  @byte_offset: EEPROM byte offset to write
@@ -1293,9 +1293,9 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 		break;
 
 fail:
+		ixgbe_i2c_bus_clear(hw);
 		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 		msleep(100);
-		ixgbe_i2c_bus_clear(hw);
 		retry++;
 		if (retry < max_retry)
 			hw_dbg(hw, "I2C byte read error - Retrying.\n");

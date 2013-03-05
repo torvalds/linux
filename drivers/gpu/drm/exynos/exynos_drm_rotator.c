@@ -656,11 +656,9 @@ static int rotator_probe(struct platform_device *pdev)
 				platform_get_device_id(pdev)->driver_data;
 
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rot->regs = devm_request_and_ioremap(dev, rot->regs_res);
-	if (!rot->regs) {
-		dev_err(dev, "failed to map register\n");
-		return -ENXIO;
-	}
+	rot->regs = devm_ioremap_resource(dev, rot->regs_res);
+	if (IS_ERR(rot->regs))
+		return PTR_ERR(rot->regs);
 
 	rot->irq = platform_get_irq(pdev, 0);
 	if (rot->irq < 0) {

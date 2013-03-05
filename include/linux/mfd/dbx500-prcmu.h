@@ -12,6 +12,10 @@
 #include <linux/notifier.h>
 #include <linux/err.h>
 
+/* Offset for the firmware version within the TCPM */
+#define DB8500_PRCMU_FW_VERSION_OFFSET 0xA4
+#define DBX540_PRCMU_FW_VERSION_OFFSET 0xA8
+
 /* PRCMU Wakeup defines */
 enum prcmu_wakeup_index {
 	PRCMU_WAKEUP_INDEX_RTC,
@@ -147,6 +151,18 @@ enum prcmu_clock {
 };
 
 /**
+ * enum prcmu_wdog_id - PRCMU watchdog IDs
+ * @PRCMU_WDOG_ALL: use all timers
+ * @PRCMU_WDOG_CPU1: use first CPU timer only
+ * @PRCMU_WDOG_CPU2: use second CPU timer conly
+ */
+enum prcmu_wdog_id {
+	PRCMU_WDOG_ALL = 0x00,
+	PRCMU_WDOG_CPU1 = 0x01,
+	PRCMU_WDOG_CPU2 = 0x02,
+};
+
+/**
  * enum ape_opp - APE OPP states definition
  * @APE_OPP_INIT:
  * @APE_NO_CHANGE: The APE operating point is unchanged
@@ -214,11 +230,51 @@ enum ddr_pwrst {
 	DDR_PWR_STATE_OFFHIGHLAT    = 0x03
 };
 
+#define DB8500_PRCMU_LEGACY_OFFSET		0xDD4
+
+struct prcmu_pdata
+{
+	bool enable_set_ddr_opp;
+	bool enable_ape_opp_100_voltage;
+	struct ab8500_platform_data *ab_platdata;
+	u32 version_offset;
+	u32 legacy_offset;
+	u32 adt_offset;
+};
+
+#define PRCMU_FW_PROJECT_U8500		2
+#define PRCMU_FW_PROJECT_U8400		3
+#define PRCMU_FW_PROJECT_U9500		4 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_MBB	5
+#define PRCMU_FW_PROJECT_U8500_C1	6
+#define PRCMU_FW_PROJECT_U8500_C2	7
+#define PRCMU_FW_PROJECT_U8500_C3	8
+#define PRCMU_FW_PROJECT_U8500_C4	9
+#define PRCMU_FW_PROJECT_U9500_MBL	10
+#define PRCMU_FW_PROJECT_U8500_MBL	11 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_MBL2	12 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8520		13
+#define PRCMU_FW_PROJECT_U8420		14
+#define PRCMU_FW_PROJECT_A9420		20
+/* [32..63] 9540 and derivatives */
+#define PRCMU_FW_PROJECT_U9540		32
+/* [64..95] 8540 and derivatives */
+#define PRCMU_FW_PROJECT_L8540		64
+/* [96..126] 8580 and derivatives */
+#define PRCMU_FW_PROJECT_L8580		96
+
+#define PRCMU_FW_PROJECT_NAME_LEN	20
+struct prcmu_fw_version {
+	u32 project; /* Notice, project shifted with 8 on ux540 */
+	u8 api_version;
+	u8 func_version;
+	u8 errata;
+	char project_name[PRCMU_FW_PROJECT_NAME_LEN];
+};
+
 #include <linux/mfd/db8500-prcmu.h>
 
 #if defined(CONFIG_UX500_SOC_DB8500)
-
-#include <mach/id.h>
 
 static inline void __init prcmu_early_init(void)
 {
@@ -625,85 +681,6 @@ static inline void prcmu_clear(unsigned int reg, u32 bits)
 {
 	prcmu_write_masked(reg, bits, 0);
 }
-
-#if defined(CONFIG_UX500_SOC_DB8500)
-
-/**
- * prcmu_enable_spi2 - Enables pin muxing for SPI2 on OtherAlternateC1.
- */
-static inline void prcmu_enable_spi2(void)
-{
-	if (cpu_is_u8500())
-		prcmu_set(DB8500_PRCM_GPIOCR, DB8500_PRCM_GPIOCR_SPI2_SELECT);
-}
-
-/**
- * prcmu_disable_spi2 - Disables pin muxing for SPI2 on OtherAlternateC1.
- */
-static inline void prcmu_disable_spi2(void)
-{
-	if (cpu_is_u8500())
-		prcmu_clear(DB8500_PRCM_GPIOCR, DB8500_PRCM_GPIOCR_SPI2_SELECT);
-}
-
-/**
- * prcmu_enable_stm_mod_uart - Enables pin muxing for STMMOD
- * and UARTMOD on OtherAlternateC3.
- */
-static inline void prcmu_enable_stm_mod_uart(void)
-{
-	if (cpu_is_u8500()) {
-		prcmu_set(DB8500_PRCM_GPIOCR,
-			(DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1 |
-			 DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0));
-	}
-}
-
-/**
- * prcmu_disable_stm_mod_uart - Disables pin muxing for STMMOD
- * and UARTMOD on OtherAlternateC3.
- */
-static inline void prcmu_disable_stm_mod_uart(void)
-{
-	if (cpu_is_u8500()) {
-		prcmu_clear(DB8500_PRCM_GPIOCR,
-			(DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1 |
-			 DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0));
-	}
-}
-
-/**
- * prcmu_enable_stm_ape - Enables pin muxing for STM APE on OtherAlternateC1.
- */
-static inline void prcmu_enable_stm_ape(void)
-{
-	if (cpu_is_u8500()) {
-		prcmu_set(DB8500_PRCM_GPIOCR,
-			DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD);
-	}
-}
-
-/**
- * prcmu_disable_stm_ape - Disables pin muxing for STM APE on OtherAlternateC1.
- */
-static inline void prcmu_disable_stm_ape(void)
-{
-	if (cpu_is_u8500()) {
-		prcmu_clear(DB8500_PRCM_GPIOCR,
-			DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD);
-	}
-}
-
-#else
-
-static inline void prcmu_enable_spi2(void) {}
-static inline void prcmu_disable_spi2(void) {}
-static inline void prcmu_enable_stm_mod_uart(void) {}
-static inline void prcmu_disable_stm_mod_uart(void) {}
-static inline void prcmu_enable_stm_ape(void) {}
-static inline void prcmu_disable_stm_ape(void) {}
-
-#endif
 
 /* PRCMU QoS APE OPP class */
 #define PRCMU_QOS_APE_OPP 1

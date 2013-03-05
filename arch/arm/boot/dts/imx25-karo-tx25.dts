@@ -19,26 +19,18 @@
 	memory {
 		reg = <0x80000000 0x02000000 0x90000000 0x02000000>;
 	};
+};
 
-	soc {
-		aips@43f00000 {
-			uart1: serial@43f90000 {
-				status = "okay";
-			};
-		};
+&uart1 {
+	status = "okay";
+};
 
-		spba@50000000 {
-			fec: ethernet@50038000 {
-				status = "okay";
-				phy-mode = "rmii";
-			};
-		};
+&fec {
+	phy-mode = "rmii";
+	status = "okay";
+};
 
-		emi@80000000 {
-			nand@bb000000 {
-				nand-on-flash-bbt;
-				status = "okay";
-			};
-		};
-	};
+&nfc {
+	nand-on-flash-bbt;
+	status = "okay";
 };

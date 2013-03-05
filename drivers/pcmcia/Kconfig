@@ -36,8 +36,8 @@ config PCMCIA
 	   If unsure, say Y.
 
 config PCMCIA_LOAD_CIS
-	bool "Load CIS updates from userspace (EXPERIMENTAL)"
-	depends on PCMCIA && EXPERIMENTAL
+	bool "Load CIS updates from userspace"
+	depends on PCMCIA
 	select FW_LOADER
 	default y
 	help

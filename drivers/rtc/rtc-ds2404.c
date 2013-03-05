@@ -70,7 +70,7 @@ static int ds2404_gpio_map(struct ds2404 *chip, struct platform_device *pdev,
 	for (i = 0; i < ARRAY_SIZE(ds2404_gpio); i++) {
 		err = gpio_request(ds2404_gpio[i].gpio, ds2404_gpio[i].name);
 		if (err) {
-			printk(KERN_ERR "error mapping gpio %s: %d\n",
+			dev_err(&pdev->dev, "error mapping gpio %s: %d\n",
 				ds2404_gpio[i].name, err);
 			goto err_request;
 		}
@@ -177,7 +177,7 @@ static void ds2404_write_memory(struct device *dev, u16 offset,
 
 	for (i = 0; i < length; i++) {
 		if (out[i] != ds2404_read_byte(dev)) {
-			printk(KERN_ERR "read invalid data\n");
+			dev_err(dev, "read invalid data\n");
 			return;
 		}
 	}
@@ -283,19 +283,7 @@ static struct platform_driver rtc_device_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static __init int ds2404_init(void)
-{
-	return platform_driver_register(&rtc_device_driver);
-}
-
-static __exit void ds2404_exit(void)
-{
-	platform_driver_unregister(&rtc_device_driver);
-}
-
-module_init(ds2404_init);
-module_exit(ds2404_exit);
+module_platform_driver(rtc_device_driver);
 
 MODULE_DESCRIPTION("DS2404 RTC");
 MODULE_AUTHOR("Sven Schnelle");

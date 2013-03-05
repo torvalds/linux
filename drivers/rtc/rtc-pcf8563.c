@@ -181,7 +181,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 				__func__, err, data[0], data[1]);
 			return -EIO;
 		}
-	};
+	}
 
 	return 0;
 }

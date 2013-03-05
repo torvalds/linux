@@ -18,4 +18,5 @@ util/cgroup.c
 util/debugfs.c
 util/rblist.c
 util/strlist.c
+util/sysfs.c
 ../../lib/rbtree.c

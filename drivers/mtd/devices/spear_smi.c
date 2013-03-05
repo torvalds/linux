@@ -949,10 +949,9 @@ static int spear_smi_probe(struct platform_device *pdev)
 
 	smi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev->io_base = devm_request_and_ioremap(&pdev->dev, smi_base);
-	if (!dev->io_base) {
-		ret = -EIO;
-		dev_err(&pdev->dev, "devm_request_and_ioremap fail\n");
+	dev->io_base = devm_ioremap_resource(&pdev->dev, smi_base);
+	if (IS_ERR(dev->io_base)) {
+		ret = PTR_ERR(dev->io_base);
 		goto err;
 	}
 

@@ -62,8 +62,9 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
 };
 
-static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
-			   struct tc_action *a, int ovr, int bind)
+static int tcf_mirred_init(struct net *net, struct nlattr *nla,
+			   struct nlattr *est, struct tc_action *a, int ovr,
+			   int bind)
 {
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tc_mirred *parm;
@@ -88,7 +89,7 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
-		dev = __dev_get_by_index(&init_net, parm->ifindex);
+		dev = __dev_get_by_index(net, parm->ifindex);
 		if (dev == NULL)
 			return -ENODEV;
 		switch (dev->type) {

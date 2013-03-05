@@ -56,10 +56,6 @@ void __init armada_370_xp_init_early(void)
 	init_dma_coherent_pool_size(SZ_1M);
 }
 
-struct sys_timer armada_370_xp_timer = {
-	.init		= armada_370_xp_timer_and_clk_init,
-};
-
 static void __init armada_370_xp_dt_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
@@ -78,7 +74,7 @@ DT_MACHINE_START(ARMADA_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.init_early	= armada_370_xp_init_early,
 	.init_irq	= armada_370_xp_init_irq,
 	.handle_irq     = armada_370_xp_handle_irq,
-	.timer		= &armada_370_xp_timer,
+	.init_time	= armada_370_xp_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END

@@ -25,6 +25,10 @@
 
 #include "priv.h"
 
+struct nv40_therm_priv {
+	struct nouveau_therm_priv base;
+};
+
 static int
 nv40_sensor_setup(struct nouveau_therm *therm)
 {
@@ -34,6 +38,7 @@ nv40_sensor_setup(struct nouveau_therm *therm)
 	if (device->chipset >= 0x46) {
 		nv_mask(therm, 0x15b8, 0x80000000, 0);
 		nv_wr32(therm, 0x15b0, 0x80003fff);
+		mdelay(10); /* wait for the temperature to stabilize */
 		return nv_rd32(therm, 0x15b4) & 0x3fff;
 	} else {
 		nv_wr32(therm, 0x15b0, 0xff);
@@ -75,7 +80,20 @@ nv40_temp_get(struct nouveau_therm *therm)
 	return core_temp;
 }
 
-int
+static int
+nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+{
+	u32 mask = enable ? 0x80000000 : 0x0000000;
+	if      (line == 2) nv_mask(therm, 0x0010f0, 0x80000000, mask);
+	else if (line == 9) nv_mask(therm, 0x0015f4, 0x80000000, mask);
+	else {
+		nv_error(therm, "unknown pwm ctrl for gpio %d\n", line);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int
 nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	if (line == 2) {
@@ -101,15 +119,15 @@ nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 	return -EINVAL;
 }
 
-int
+static int
 nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 {
 	if (line == 2) {
-		nv_wr32(therm, 0x0010f0, 0x80000000 | (duty << 16) | divs);
+		nv_mask(therm, 0x0010f0, 0x7fff7fff, (duty << 16) | divs);
 	} else
 	if (line == 9) {
 		nv_wr32(therm, 0x0015f8, divs);
-		nv_wr32(therm, 0x0015f4, duty | 0x80000000);
+		nv_mask(therm, 0x0015f4, 0x7fffffff, duty);
 	} else {
 		nv_error(therm, "unknown pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
@@ -118,37 +136,51 @@ nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 	return 0;
 }
 
+static void
+nv40_therm_intr(struct nouveau_subdev *subdev)
+{
+	struct nouveau_therm *therm = nouveau_therm(subdev);
+	uint32_t stat = nv_rd32(therm, 0x1100);
+
+	/* traitement */
+
+	/* ack all IRQs */
+	nv_wr32(therm, 0x1100, 0x70000);
+
+	nv_error(therm, "THERM received an IRQ: stat = %x\n", stat);
+}
+
 static int
 nv40_therm_ctor(struct nouveau_object *parent,
-		   struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
+		struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
 {
-	struct nouveau_therm_priv *priv;
-	struct nouveau_therm *therm;
+	struct nv40_therm_priv *priv;
 	int ret;
 
 	ret = nouveau_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
-	therm = (void *) priv;
 	if (ret)
 		return ret;
 
-	nouveau_therm_ic_ctor(therm);
-	nouveau_therm_sensor_ctor(therm);
-	nouveau_therm_fan_ctor(therm);
+	priv->base.base.pwm_ctrl = nv40_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nv40_fan_pwm_get;
+	priv->base.base.pwm_set = nv40_fan_pwm_set;
+	priv->base.base.temp_get = nv40_temp_get;
+	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
+	nv_subdev(priv)->intr = nv40_therm_intr;
+	return nouveau_therm_preinit(&priv->base.base);
+}
 
-	priv->fan.pwm_get = nv40_fan_pwm_get;
-	priv->fan.pwm_set = nv40_fan_pwm_set;
+static int
+nv40_therm_init(struct nouveau_object *object)
+{
+	struct nouveau_therm *therm = (void *)object;
 
-	therm->temp_get = nv40_temp_get;
-	therm->fan_get = nouveau_therm_fan_user_get;
-	therm->fan_set = nouveau_therm_fan_user_set;
-	therm->fan_sense = nouveau_therm_fan_sense;
-	therm->attr_get = nouveau_therm_attr_get;
-	therm->attr_set = nouveau_therm_attr_set;
+	nv40_sensor_setup(therm);
 
-	return 0;
+	return _nouveau_therm_init(object);
 }
 
 struct nouveau_oclass
@@ -157,7 +189,7 @@ nv40_therm_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv40_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
-		.init = nouveau_therm_init,
-		.fini = nouveau_therm_fini,
+		.init = nv40_therm_init,
+		.fini = _nouveau_therm_fini,
 	},
 };

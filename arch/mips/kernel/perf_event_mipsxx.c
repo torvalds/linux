@@ -103,13 +103,13 @@ static struct mips_pmu mipspmu;
 
 #define M_CONFIG1_PC	(1 << 4)
 
-#define M_PERFCTL_EXL			(1      <<  0)
-#define M_PERFCTL_KERNEL		(1      <<  1)
-#define M_PERFCTL_SUPERVISOR		(1      <<  2)
-#define M_PERFCTL_USER			(1      <<  3)
-#define M_PERFCTL_INTERRUPT_ENABLE	(1      <<  4)
+#define M_PERFCTL_EXL			(1	<<  0)
+#define M_PERFCTL_KERNEL		(1	<<  1)
+#define M_PERFCTL_SUPERVISOR		(1	<<  2)
+#define M_PERFCTL_USER			(1	<<  3)
+#define M_PERFCTL_INTERRUPT_ENABLE	(1	<<  4)
 #define M_PERFCTL_EVENT(event)		(((event) & 0x3ff)  << 5)
-#define M_PERFCTL_VPEID(vpe)		((vpe)    << 16)
+#define M_PERFCTL_VPEID(vpe)		((vpe)	  << 16)
 
 #ifdef CONFIG_CPU_BMIPS5000
 #define M_PERFCTL_MT_EN(filter)		0
@@ -117,13 +117,13 @@ static struct mips_pmu mipspmu;
 #define M_PERFCTL_MT_EN(filter)		((filter) << 20)
 #endif /* CONFIG_CPU_BMIPS5000 */
 
-#define    M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
-#define    M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
-#define    M_TC_EN_TC			M_PERFCTL_MT_EN(2)
-#define M_PERFCTL_TCID(tcid)		((tcid)   << 22)
-#define M_PERFCTL_WIDE			(1      << 30)
-#define M_PERFCTL_MORE			(1      << 31)
-#define M_PERFCTL_TC			(1      << 30)
+#define	   M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
+#define	   M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
+#define	   M_TC_EN_TC			M_PERFCTL_MT_EN(2)
+#define M_PERFCTL_TCID(tcid)		((tcid)	  << 22)
+#define M_PERFCTL_WIDE			(1	<< 30)
+#define M_PERFCTL_MORE			(1	<< 31)
+#define M_PERFCTL_TC			(1	<< 30)
 
 #define M_PERFCTL_COUNT_EVENT_WHENEVER	(M_PERFCTL_EXL |		\
 					M_PERFCTL_KERNEL |		\
@@ -827,7 +827,7 @@ static const struct mips_perf_event octeon_event_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x01, CNTR_ALL },
 	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x03, CNTR_ALL },
 	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0x2b, CNTR_ALL },
-	[PERF_COUNT_HW_CACHE_MISSES] = { 0x2e, CNTR_ALL  },
+	[PERF_COUNT_HW_CACHE_MISSES] = { 0x2e, CNTR_ALL	 },
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = { 0x08, CNTR_ALL },
 	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x09, CNTR_ALL },
 	[PERF_COUNT_HW_BUS_CYCLES] = { 0x25, CNTR_ALL },
@@ -1371,7 +1371,7 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 	 (b) == 25 || (b) == 39 || (r) == 44 || (r) == 174 ||		\
 	 (r) == 176 || ((b) >= 50 && (b) <= 55) ||			\
 	 ((b) >= 64 && (b) <= 67))
-#define IS_RANGE_V_34K_EVENT(r)	((r) == 47)
+#define IS_RANGE_V_34K_EVENT(r) ((r) == 47)
 #endif
 
 /* 74K */

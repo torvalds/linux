@@ -173,7 +173,7 @@ MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	.reserve	= edb7211_reserve,
 	.map_io		= edb7211_map_io,
 	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
+	.init_time	= clps711x_timer_init,
 	.init_machine	= edb7211_init,
 	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,

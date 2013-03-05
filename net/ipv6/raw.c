@@ -71,10 +71,9 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		unsigned short num, const struct in6_addr *loc_addr,
 		const struct in6_addr *rmt_addr, int dif)
 {
-	struct hlist_node *node;
 	bool is_multicast = ipv6_addr_is_multicast(loc_addr);
 
-	sk_for_each_from(sk, node)
+	sk_for_each_from(sk)
 		if (inet_sk(sk)->inet_num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -507,7 +506,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (np->rxopt.all)
-		datagram_recv_ctl(sk, msg, skb);
+		ip6_datagram_recv_ctl(sk, msg, skb);
 
 	err = copied;
 	if (flags & MSG_TRUNC)
@@ -822,8 +821,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					&hlimit, &tclass, &dontfrag);
+		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+					    &hlimit, &tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -1292,7 +1291,7 @@ static const struct file_operations raw6_seq_fops = {
 
 static int __net_init raw6_init_net(struct net *net)
 {
-	if (!proc_net_fops_create(net, "raw6", S_IRUGO, &raw6_seq_fops))
+	if (!proc_create("raw6", S_IRUGO, net->proc_net, &raw6_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -1300,7 +1299,7 @@ static int __net_init raw6_init_net(struct net *net)
 
 static void __net_exit raw6_exit_net(struct net *net)
 {
-	proc_net_remove(net, "raw6");
+	remove_proc_entry("raw6", net->proc_net);
 }
 
 static struct pernet_operations raw6_net_ops = {

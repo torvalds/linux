@@ -1,3 +1,14 @@
+config TTY
+	bool "Enable TTY" if EXPERT
+	default y
+	---help---
+	  Allows you to remove TTY support which can save space, and
+	  blocks features that require TTY from inclusion in the kernel.
+	  TTY is required for any text terminals or serial port
+	  communication. Most users should leave this enabled.
+
+if TTY
+
 config VT
 	bool "Virtual terminal" if EXPERT
 	depends on !S390 && !UML
@@ -388,3 +399,24 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 	  If the number you specify is not a valid byte channel handle, then
 	  there simply will be no early console output.  This is true also
 	  if you don't boot under a hypervisor at all.
+
+config GOLDFISH_TTY
+	tristate "Goldfish TTY Driver"
+	depends on GOLDFISH
+	help
+	  Console and system TTY driver for the Goldfish virtual platform.
+
+config DA_TTY
+	bool "DA TTY"
+	depends on METAG_DA
+	select SERIAL_NONSTANDARD
+	help
+	  This enables a TTY on a Dash channel.
+
+config DA_CONSOLE
+	bool "DA Console"
+	depends on DA_TTY
+	help
+	  This enables a console on a Dash channel.
+
+endif # TTY

@@ -63,8 +63,8 @@ from ACPI tables.
 Currently the kernel is not able to automatically determine from which ACPI
 device it should make the corresponding platform device so we need to add
 the ACPI device explicitly to acpi_platform_device_ids list defined in
-drivers/acpi/scan.c. This limitation is only for the platform devices, SPI
-and I2C devices are created automatically as described below.
+drivers/acpi/acpi_platform.c. This limitation is only for the platform
+devices, SPI and I2C devices are created automatically as described below.
 
 SPI serial bus support
 ~~~~~~~~~~~~~~~~~~~~~~

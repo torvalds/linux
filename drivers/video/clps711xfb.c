@@ -26,6 +26,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>

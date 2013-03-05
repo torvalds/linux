@@ -29,7 +29,7 @@
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
-#include <mach/crag6410.h>
+#include "crag6410.h"
 
 static struct s3c64xx_spi_csinfo wm0010_spi_csinfo = {
 	.line = S3C64XX_GPC(3),

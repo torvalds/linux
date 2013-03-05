@@ -115,21 +115,24 @@ static u8 OFDM_CONFIG[]	= {
 	 *---------------------------------------------------------------
 	 */
 
-void PlatformIOWrite1Byte(struct net_device *dev, u32 offset, u8 data)
+static u8 PlatformIORead1Byte(struct net_device *dev, u32 offset)
+{
+	return read_nic_byte(dev, offset);
+}
+
+static void PlatformIOWrite1Byte(struct net_device *dev, u32 offset, u8 data)
 {
 	write_nic_byte(dev, offset, data);
 	read_nic_byte(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 }
 
-void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
+static void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
 {
 	write_nic_word(dev, offset, data);
 	read_nic_word(dev, offset); /* To make sure write operation is completed, 2005.11.09, by rcnjko. */
 }
 
-u8 PlatformIORead1Byte(struct net_device *dev, u32 offset);
-
-void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
+static void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 {
 	if (offset == PhyAddr) {
 	/* For Base Band configuration. */
@@ -172,37 +175,7 @@ void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 	}
 }
 
-u8 PlatformIORead1Byte(struct net_device *dev, u32 offset)
-{
-	u8	data = 0;
-
-	data = read_nic_byte(dev, offset);
-
-
-	return data;
-}
-
-u16 PlatformIORead2Byte(struct net_device *dev, u32 offset)
-{
-	u16	data = 0;
-
-	data = read_nic_word(dev, offset);
-
-
-	return data;
-}
-
-u32 PlatformIORead4Byte(struct net_device *dev, u32 offset)
-{
-	u32	data = 0;
-
-	data = read_nic_dword(dev, offset);
-
-
-	return data;
-}
-
-void SetOutputEnableOfRfPins(struct net_device *dev)
+static void SetOutputEnableOfRfPins(struct net_device *dev)
 {
 	write_nic_word(dev, RFPinsEnable, 0x1bff);
 }
@@ -287,35 +260,19 @@ u16 RF_ReadReg(struct net_device *dev, u8 offset)
 	return reg;
 }
 
+static u8 ReadBBPortUchar(struct net_device *dev, u32 addr)
+{
+	PlatformIOWrite4Byte(dev, PhyAddr, addr & 0xffffff7f);
+	return PlatformIORead1Byte(dev, PhyDataR);
+}
 
 /* by Owen on 04/07/14 for writing BB register successfully */
-void WriteBBPortUchar(struct net_device *dev, u32 Data)
+static void WriteBBPortUchar(struct net_device *dev, u32 Data)
 {
-	/* u8	TimeoutCounter; */
-	u8	RegisterContent;
-	u8	UCharData;
-
-	UCharData = (u8)((Data & 0x0000ff00) >> 8);
 	PlatformIOWrite4Byte(dev, PhyAddr, Data);
-	/* for(TimeoutCounter = 10; TimeoutCounter > 0; TimeoutCounter--) */
-	{
-		PlatformIOWrite4Byte(dev, PhyAddr, Data & 0xffffff7f);
-		RegisterContent = PlatformIORead1Byte(dev, PhyDataR);
-		/*if(UCharData == RegisterContent)	*/
-		/*	break;	*/
-	}
+	ReadBBPortUchar(dev, Data);
 }
 
-u8 ReadBBPortUchar(struct net_device *dev, u32 addr)
-{
-	/*u8	TimeoutCounter; */
-	u8	RegisterContent;
-
-	PlatformIOWrite4Byte(dev, PhyAddr, addr & 0xffffff7f);
-	RegisterContent = PlatformIORead1Byte(dev, PhyDataR);
-
-	return RegisterContent;
-}
 /*
  *	Description:
  *	Perform Antenna settings with antenna diversity on 87SE.
@@ -327,62 +284,38 @@ bool SetAntennaConfig87SE(struct net_device *dev,
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool   bAntennaSwitched = true;
+	u8	ant_diversity_offset = 0x00; /* 0x00 = disabled, 0x80 = enabled */
 
 	/* printk("SetAntennaConfig87SE(): DefaultAnt(%d), bAntDiversity(%d)\n", DefaultAnt, bAntDiversity); */
 
 	/* Threshold for antenna diversity. */
 	write_phy_cck(dev, 0x0c, 0x09); /* Reg0c : 09 */
 
-	if (bAntDiversity) {	/*	Enable Antenna Diversity. */
-		if (DefaultAnt == 1) {	/* aux antenna */
+	if (bAntDiversity)	/*	Enable Antenna Diversity. */
+		ant_diversity_offset = 0x80;
 
-			/* Mac register, aux antenna */
-			write_nic_byte(dev, ANTSEL, 0x00);
+	if (DefaultAnt == 1) { /* aux Antenna */
+		/* Mac register, aux antenna */
+		write_nic_byte(dev, ANTSEL, 0x00);
 
-			/* Config CCK RX antenna. */
-			write_phy_cck(dev, 0x11, 0xbb); /* Reg11 : bb */
-			write_phy_cck(dev, 0x01, 0xc7); /* Reg01 : c7 */
+		/* Config CCK RX antenna. */
+		write_phy_cck(dev, 0x11, 0xbb); /* Reg11 : bb */
+		write_phy_cck(dev, 0x01, 0x47|ant_diversity_offset); /* Reg01 : 47 | ant_diversity_offset */
 
-			/* Config OFDM RX antenna. */
-			write_phy_ofdm(dev, 0x0D, 0x54);	/* Reg0d : 54 */
-			write_phy_ofdm(dev, 0x18, 0xb2);	/* Reg18 : b2 */
-		} else { /*  use main antenna */
-			/* Mac register, main antenna */
-			write_nic_byte(dev, ANTSEL, 0x03);
-			/* base band */
-			/*  Config CCK RX antenna. */
-			write_phy_cck(dev, 0x11, 0x9b); /* Reg11 : 9b */
-			write_phy_cck(dev, 0x01, 0xc7); /* Reg01 : c7 */
+		/* Config OFDM RX antenna. */
+		write_phy_ofdm(dev, 0x0D, 0x54);	/* Reg0d : 54 */
+		write_phy_ofdm(dev, 0x18, 0x32|ant_diversity_offset);	/* Reg18 : 32 */
+	} else { /* main Antenna */
+		/* Mac register, main antenna */
+		write_nic_byte(dev, ANTSEL, 0x03);
 
-			/* Config OFDM RX antenna. */
-			write_phy_ofdm(dev, 0x0d, 0x5c);  /* Reg0d : 5c	*/
-			write_phy_ofdm(dev, 0x18, 0xb2);  /* Reg18 : b2	*/
-		}
-	} else {
-		/* Disable Antenna Diversity. */
-		if (DefaultAnt == 1) { /* aux Antenna */
-			/* Mac register, aux antenna */
-			write_nic_byte(dev, ANTSEL, 0x00);
+		/* Config CCK RX antenna.	*/
+		write_phy_cck(dev, 0x11, 0x9b); /* Reg11 : 9b */
+		write_phy_cck(dev, 0x01, 0x47|ant_diversity_offset); /* Reg01 : 47 */
 
-			/* Config CCK RX antenna. */
-			write_phy_cck(dev, 0x11, 0xbb); /* Reg11 : bb */
-			write_phy_cck(dev, 0x01, 0x47); /* Reg01 : 47 */
-
-			/* Config OFDM RX antenna. */
-			write_phy_ofdm(dev, 0x0D, 0x54);	/* Reg0d : 54 */
-			write_phy_ofdm(dev, 0x18, 0x32);	/* Reg18 : 32 */
-		} else { /* main Antenna */
-			/* Mac register, main antenna */
-			write_nic_byte(dev, ANTSEL, 0x03);
-
-			/* Config CCK RX antenna.	*/
-			write_phy_cck(dev, 0x11, 0x9b); /* Reg11 : 9b */
-			write_phy_cck(dev, 0x01, 0x47); /* Reg01 : 47 */
-
-			/* Config OFDM RX antenna. */
-			write_phy_ofdm(dev, 0x0D, 0x5c); /* Reg0d : 5c */
-			write_phy_ofdm(dev, 0x18, 0x32); /*Reg18 : 32 */
-		}
+		/* Config OFDM RX antenna. */
+		write_phy_ofdm(dev, 0x0D, 0x5c); /* Reg0d : 5c */
+		write_phy_ofdm(dev, 0x18, 0x32|ant_diversity_offset); /*Reg18 : 32 */
 	}
 	priv->CurrAntennaIndex = DefaultAnt; /* Update default settings. */
 	return	bAntennaSwitched;
@@ -394,7 +327,7 @@ bool SetAntennaConfig87SE(struct net_device *dev,
  *--------------------------------------------------------------
  */
 
-void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
+static void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 {
 
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
@@ -695,7 +628,7 @@ void UpdateInitialGain(struct net_device *dev)
  *		Tx Power tracking mechanism routine on 87SE.
  *	Created by Roger, 2007.12.11.
  */
-void InitTxPwrTracking87SE(struct net_device *dev)
+static void InitTxPwrTracking87SE(struct net_device *dev)
 {
 	u32	u4bRfReg;
 
@@ -705,7 +638,7 @@ void InitTxPwrTracking87SE(struct net_device *dev)
 	RF_WriteReg(dev, 0x02, u4bRfReg|PWR_METER_EN);			mdelay(1);
 }
 
-void PhyConfig8185(struct net_device *dev)
+static void PhyConfig8185(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 		write_nic_dword(dev, RCR, priv->ReceiveConfig);
@@ -732,7 +665,7 @@ void PhyConfig8185(struct net_device *dev)
 	return;
 }
 
-void HwConfigureRTL8185(struct net_device *dev)
+static void HwConfigureRTL8185(struct net_device *dev)
 {
 	/* RTL8185_TODO: Determine Retrylimit, TxAGC, AutoRateFallback control. */
 	u8 bUNIVERSAL_CONTROL_RL = 0;
@@ -857,21 +790,16 @@ static void MacConfig_85BASIC(struct net_device *dev)
 	write_nic_byte(dev, 0x24E, 0x01);
 }
 
-u8 GetSupportedWirelessMode8185(struct net_device *dev)
+static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 {
 	return WIRELESS_MODE_B | WIRELESS_MODE_G;
 }
 
-void ActUpdateChannelAccessSetting(struct net_device *dev,
+static void ActUpdateChannelAccessSetting(struct net_device *dev,
 				   WIRELESS_MODE WirelessMode,
 				   PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
 {
-	struct		r8180_priv *priv = ieee80211_priv(dev);
-	struct		ieee80211_device *ieee = priv->ieee80211;
 	AC_CODING	eACI;
-	AC_PARAM	AcParam;
-	u8		bFollowLegacySetting = 0;
-	u8		u1bAIFS;
 
 	/*
 	 *	<RJ_TODO_8185B>
@@ -893,131 +821,16 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 	write_nic_byte(dev, SIFS, ChnlAccessSetting->SIFS_Timer);
 	write_nic_byte(dev, SLOT, ChnlAccessSetting->SlotTimeTimer); /* Rewrited from directly use PlatformEFIOWrite1Byte(), by Annie, 2006-03-29. */
 
-	u1bAIFS = aSifsTime + (2 * ChnlAccessSetting->SlotTimeTimer);
-
 	write_nic_byte(dev, EIFS, ChnlAccessSetting->EIFS_Timer);
 
 	write_nic_byte(dev, AckTimeOutReg, 0x5B); /* <RJ_EXPR_QOS> Suggested by wcchu, it is the default value of EIFS register, 2005.12.08. */
 
-	{ /* Legacy 802.11. */
-		bFollowLegacySetting = 1;
-
-	}
-
-	/* this setting is copied from rtl8187B.  xiong-2006-11-13 */
-	if (bFollowLegacySetting) {
-
-		/*
-		 *	Follow 802.11 seeting to AC parameter, all AC shall use the same parameter.
-		 *	2005.12.01, by rcnjko.
-		 */
-		AcParam.longData = 0;
-		AcParam.f.AciAifsn.f.AIFSN = 2; /* Follow 802.11 DIFS.	*/
-		AcParam.f.AciAifsn.f.ACM = 0;
-		AcParam.f.Ecw.f.ECWmin = ChnlAccessSetting->CWminIndex; /* Follow 802.11 CWmin. */
-		AcParam.f.Ecw.f.ECWmax = ChnlAccessSetting->CWmaxIndex; /* Follow 802.11 CWmax. */
-		AcParam.f.TXOPLimit = 0;
-
-		/* lzm reserved 080826 */
-		/* For turbo mode setting. port from 87B by Isaiah 2008-08-01 */
-		if (ieee->current_network.Turbo_Enable == 1)
-			AcParam.f.TXOPLimit = 0x01FF;
-		/* For 87SE with Intel 4965  Ad-Hoc mode have poor throughput (19MB) */
-		if (ieee->iw_mode == IW_MODE_ADHOC)
-			AcParam.f.TXOPLimit = 0x0020;
-
-		for (eACI = 0; eACI < AC_MAX; eACI++) {
-			AcParam.f.AciAifsn.f.ACI = (u8)eACI;
-			{
-				PAC_PARAM	pAcParam = (PAC_PARAM)(&AcParam);
-				AC_CODING	eACI;
-				u8		u1bAIFS;
-				u32		u4bAcParam;
-
-				/*  Retrieve parameters to update. */
-				eACI = pAcParam->f.AciAifsn.f.ACI;
-				u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * ChnlAccessSetting->SlotTimeTimer + aSifsTime;
-				u4bAcParam = ((((u32)(pAcParam->f.TXOPLimit)) << AC_PARAM_TXOP_LIMIT_OFFSET)	|
-						(((u32)(pAcParam->f.Ecw.f.ECWmax)) << AC_PARAM_ECW_MAX_OFFSET)	|
-						(((u32)(pAcParam->f.Ecw.f.ECWmin)) << AC_PARAM_ECW_MIN_OFFSET)	|
-						(((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
-
-				switch (eACI) {
-				case AC1_BK:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC0_BE:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC2_VI:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				case AC3_VO:
-					/* write_nic_dword(dev, AC_BK_PARAM, u4bAcParam); */
-					break;
-
-				default:
-					DMESGW("SetHwReg8185(): invalid ACI: %d !\n", eACI);
-					break;
-				}
-
-				/* Cehck ACM bit. */
-				/* If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.	*/
-				{
-					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)(&pAcParam->f.AciAifsn);
-					AC_CODING	eACI = pAciAifsn->f.ACI;
-
-					/*for 8187B AsynIORead issue */
-					u8	AcmCtrl = 0;
-					if (pAciAifsn->f.ACM) {
-						/* ACM bit is 1. */
-						switch (eACI) {
-						case AC0_BE:
-							AcmCtrl |= (BEQ_ACM_EN|BEQ_ACM_CTL|ACM_HW_EN); /* or 0x21 */
-							break;
-
-						case AC2_VI:
-							AcmCtrl |= (VIQ_ACM_EN|VIQ_ACM_CTL|ACM_HW_EN); /* or 0x42 */
-							break;
-
-						case AC3_VO:
-							AcmCtrl |= (VOQ_ACM_EN|VOQ_ACM_CTL|ACM_HW_EN); /* or 0x84 */
-							break;
-
-						default:
-							DMESGW("SetHwReg8185(): [HW_VAR_ACM_CTRL] ACM set failed: eACI is %d\n", eACI);
-							break;
-						}
-					} else {
-						/* ACM bit is 0. */
-						switch (eACI) {
-						case AC0_BE:
-							AcmCtrl &= ((~BEQ_ACM_EN) & (~BEQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0xDE */
-							break;
-
-						case AC2_VI:
-							AcmCtrl &= ((~VIQ_ACM_EN) & (~VIQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0xBD */
-							break;
-
-						case AC3_VO:
-							AcmCtrl &= ((~VOQ_ACM_EN) & (~VOQ_ACM_CTL) & (~ACM_HW_EN)); /* and 0x7B */
-							break;
-
-						default:
-							break;
-						}
-					}
-					write_nic_byte(dev, ACM_CONTROL, 0);
-				}
-			}
-		}
+	for (eACI = 0; eACI < AC_MAX; eACI++) {
+		write_nic_byte(dev, ACM_CONTROL, 0);
 	}
 }
 
-void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
+static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 {
 	struct  r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	struct  ieee80211_device *ieee = priv->ieee80211;
@@ -1074,7 +887,7 @@ void rtl8185b_irq_enable(struct net_device *dev)
 	write_nic_dword(dev, IMR, priv->IntrMask);
 }
 
-void MgntDisconnectIBSS(struct net_device *dev)
+static void MgntDisconnectIBSS(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u8 i;
@@ -1100,7 +913,7 @@ void MgntDisconnectIBSS(struct net_device *dev)
 	notify_wx_assoc_event(priv->ieee80211);
 }
 
-void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
+static void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u8 i;
@@ -1117,7 +930,7 @@ void MlmeDisassociateRequest(struct net_device *dev, u8 *asSta, u8 asRsn)
 	}
 }
 
-void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
+static void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
@@ -1135,7 +948,7 @@ void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 	priv->ieee80211->state = IEEE80211_NOLINK;
 }
 
-bool MgntDisconnect(struct net_device *dev, u8 asRsn)
+static bool MgntDisconnect(struct net_device *dev, u8 asRsn)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	/*
@@ -1171,7 +984,7 @@ bool MgntDisconnect(struct net_device *dev, u8 asRsn)
  *	Assumption:
  *		PASSIVE LEVEL.
  */
-bool SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
+static bool SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bResult = false;
@@ -1275,7 +1088,7 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u
 	return bActionAllowed;
 }
 
-void InactivePowerSave(struct net_device *dev)
+static void InactivePowerSave(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	/*

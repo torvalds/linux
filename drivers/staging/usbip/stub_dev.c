@@ -67,9 +67,9 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 		return -ENODEV;
 	}
 
-	spin_lock(&sdev->ud.lock);
+	spin_lock_irq(&sdev->ud.lock);
 	status = sdev->ud.status;
-	spin_unlock(&sdev->ud.lock);
+	spin_unlock_irq(&sdev->ud.lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
@@ -97,39 +97,39 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 	if (sockfd != -1) {
 		dev_info(dev, "stub up\n");
 
-		spin_lock(&sdev->ud.lock);
+		spin_lock_irq(&sdev->ud.lock);
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
 			dev_err(dev, "not ready\n");
-			spin_unlock(&sdev->ud.lock);
+			spin_unlock_irq(&sdev->ud.lock);
 			return -EINVAL;
 		}
 
 		socket = sockfd_to_socket(sockfd);
 		if (!socket) {
-			spin_unlock(&sdev->ud.lock);
+			spin_unlock_irq(&sdev->ud.lock);
 			return -EINVAL;
 		}
 		sdev->ud.tcp_socket = socket;
 
-		spin_unlock(&sdev->ud.lock);
+		spin_unlock_irq(&sdev->ud.lock);
 
 		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
 		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
 
-		spin_lock(&sdev->ud.lock);
+		spin_lock_irq(&sdev->ud.lock);
 		sdev->ud.status = SDEV_ST_USED;
-		spin_unlock(&sdev->ud.lock);
+		spin_unlock_irq(&sdev->ud.lock);
 
 	} else {
 		dev_info(dev, "stub down\n");
 
-		spin_lock(&sdev->ud.lock);
+		spin_lock_irq(&sdev->ud.lock);
 		if (sdev->ud.status != SDEV_ST_USED) {
-			spin_unlock(&sdev->ud.lock);
+			spin_unlock_irq(&sdev->ud.lock);
 			return -EINVAL;
 		}
-		spin_unlock(&sdev->ud.lock);
+		spin_unlock_irq(&sdev->ud.lock);
 
 		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
 	}
@@ -241,9 +241,9 @@ static void stub_device_reset(struct usbip_device *ud)
 	ret = usb_lock_device_for_reset(udev, sdev->interface);
 	if (ret < 0) {
 		dev_err(&udev->dev, "lock for reset\n");
-		spin_lock(&ud->lock);
+		spin_lock_irq(&ud->lock);
 		ud->status = SDEV_ST_ERROR;
-		spin_unlock(&ud->lock);
+		spin_unlock_irq(&ud->lock);
 		return;
 	}
 
@@ -251,7 +251,7 @@ static void stub_device_reset(struct usbip_device *ud)
 	ret = usb_reset_device(udev);
 	usb_unlock_device(udev);
 
-	spin_lock(&ud->lock);
+	spin_lock_irq(&ud->lock);
 	if (ret) {
 		dev_err(&udev->dev, "device reset\n");
 		ud->status = SDEV_ST_ERROR;
@@ -259,14 +259,14 @@ static void stub_device_reset(struct usbip_device *ud)
 		dev_info(&udev->dev, "device reset\n");
 		ud->status = SDEV_ST_AVAILABLE;
 	}
-	spin_unlock(&ud->lock);
+	spin_unlock_irq(&ud->lock);
 }
 
 static void stub_device_unusable(struct usbip_device *ud)
 {
-	spin_lock(&ud->lock);
+	spin_lock_irq(&ud->lock);
 	ud->status = SDEV_ST_ERROR;
-	spin_unlock(&ud->lock);
+	spin_unlock_irq(&ud->lock);
 }
 
 /**
@@ -286,10 +286,8 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 
 	/* yes, it's a new device */
 	sdev = kzalloc(sizeof(struct stub_device), GFP_KERNEL);
-	if (!sdev) {
-		dev_err(&interface->dev, "no memory for stub_device\n");
+	if (!sdev)
 		return NULL;
-	}
 
 	sdev->interface = usb_get_intf(interface);
 	sdev->udev = usb_get_dev(udev);
@@ -528,13 +526,13 @@ static void stub_disconnect(struct usb_interface *interface)
  * when the device is being reset
  */
 
-int stub_pre_reset(struct usb_interface *interface)
+static int stub_pre_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "pre_reset\n");
 	return 0;
 }
 
-int stub_post_reset(struct usb_interface *interface)
+static int stub_post_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "post_reset\n");
 	return 0;

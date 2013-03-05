@@ -911,7 +911,7 @@ exit:
 	return res;
 }
 
-static int acpi_power_meter_remove(struct acpi_device *device, int type)
+static int acpi_power_meter_remove(struct acpi_device *device)
 {
 	struct acpi_power_meter_resource *resource;
 

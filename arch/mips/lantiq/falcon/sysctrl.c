@@ -241,9 +241,9 @@ void __init ltq_soc_init(void)
 
 	/* get our 3 static rates for cpu, fpi and io clocks */
 	if (ltq_sys1_r32(SYS1_CPU0CC) & CPU0CC_CPUDIV)
-		clkdev_add_static(CLOCK_200M, CLOCK_100M, CLOCK_200M);
+		clkdev_add_static(CLOCK_200M, CLOCK_100M, CLOCK_200M, 0);
 	else
-		clkdev_add_static(CLOCK_400M, CLOCK_100M, CLOCK_200M);
+		clkdev_add_static(CLOCK_400M, CLOCK_100M, CLOCK_200M, 0);
 
 	/* add our clock domains */
 	clkdev_add_sys("1d810000.gpio", SYSCTL_SYSETH, ACTS_P0);

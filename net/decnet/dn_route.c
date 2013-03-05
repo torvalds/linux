@@ -1282,7 +1282,7 @@ static int dn_route_output_key(struct dst_entry **pprt, struct flowidn *flp, int
 	return err;
 }
 
-int dn_route_output_sock(struct dst_entry **pprt, struct flowidn *fl, struct sock *sk, int flags)
+int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *fl, struct sock *sk, int flags)
 {
 	int err;
 
@@ -1901,7 +1901,8 @@ void __init dn_route_init(void)
 
 	dn_dst_ops.gc_thresh = (dn_rt_hash_mask + 1);
 
-	proc_net_fops_create(&init_net, "decnet_cache", S_IRUGO, &dn_rt_cache_seq_fops);
+	proc_create("decnet_cache", S_IRUGO, init_net.proc_net,
+		    &dn_rt_cache_seq_fops);
 
 #ifdef CONFIG_DECNET_ROUTER
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
@@ -1917,7 +1918,7 @@ void __exit dn_route_cleanup(void)
 	del_timer(&dn_route_timer);
 	dn_run_flush(0);
 
-	proc_net_remove(&init_net, "decnet_cache");
+	remove_proc_entry("decnet_cache", init_net.proc_net);
 	dst_entries_destroy(&dn_dst_ops);
 }
 

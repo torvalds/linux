@@ -2,7 +2,7 @@
  * linux/arch/mips/txx9/pci.c
  *
  * Based on linux/arch/mips/txx9/rbtx4927/setup.c,
- *          linux/arch/mips/txx9/rbtx4938/setup.c,
+ *	    linux/arch/mips/txx9/rbtx4938/setup.c,
  *	    and RBTX49xx patch from CELF patch archive.
  *
  * Copyright 2001-2005 MontaVista Software Inc.
@@ -107,7 +107,7 @@ int txx9_pci_mem_high __initdata;
 
 /*
  * allocate pci_controller and resources.
- * mem_base, io_base: physical address.  0 for auto assignment.
+ * mem_base, io_base: physical address.	 0 for auto assignment.
  * mem_size and io_size means max size on auto assignment.
  * pcic must be &txx9_primary_pcic or NULL.
  */

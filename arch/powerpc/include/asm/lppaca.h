@@ -145,7 +145,7 @@ struct dtl_entry {
 extern struct kmem_cache *dtl_cache;
 
 /*
- * When CONFIG_VIRT_CPU_ACCOUNTING = y, the cpu accounting code controls
+ * When CONFIG_VIRT_CPU_ACCOUNTING_NATIVE = y, the cpu accounting code controls
  * reading from the dispatch trace log.  If other code wants to consume
  * DTL entries, it can set this pointer to a function that will get
  * called once for each DTL entry that gets processed.

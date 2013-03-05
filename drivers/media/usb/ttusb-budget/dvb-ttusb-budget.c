@@ -561,6 +561,13 @@ static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 {
 	u16 csum = 0, cc;
 	int i;
+
+	if (len < 4 || len & 0x1) {
+		pr_warn("%s: muxpack has invalid len %d\n", __func__, len);
+		numinvalid++;
+		return;
+	}
+
 	for (i = 0; i < len; i += 2)
 		csum ^= le16_to_cpup((__le16 *) (muxpack + i));
 	if (csum) {

@@ -379,7 +379,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 	if (err)
 		return err;
 
-	v = SENSORS_LIMIT(v / 1000, -128, 127) + 128;
+	v = clamp_val(v / 1000, -128, 127) + 128;
 
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(to_i2c_client(dev),
@@ -540,7 +540,7 @@ static ssize_t store_pwm_auto_point1_pwm(struct device *dev,
 
 	/* reg: 0 = allow turning off (except on the syl), 1-255 = 50-100% */
 	if (v || data->kind == fscsyl) {
-		v = SENSORS_LIMIT(v, 128, 255);
+		v = clamp_val(v, 128, 255);
 		v = (v - 128) * 2 + 1;
 	}
 

@@ -20,8 +20,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#include <mach/hardware.h>
-
 #define IRQ_VIC_START		32	/* first VIC interrupt is 1 */
 
 /*

@@ -12,6 +12,7 @@
  * kind, whether express or implied.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -331,7 +332,7 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 				&i2c->reg_io_width);
 
 	match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
-	if (match && (int)match->data == TYPE_GRLIB) {
+	if (match && (long)match->data == TYPE_GRLIB) {
 		dev_dbg(&pdev->dev, "GRLIB variant of i2c-ocores\n");
 		i2c->setreg = oc_setreg_grlib;
 		i2c->getreg = oc_getreg_grlib;
@@ -364,9 +365,9 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!i2c->base)
-		return -EADDRNOTAVAIL;
+	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c->base))
+		return PTR_ERR(i2c->base);
 
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
@@ -451,7 +452,6 @@ static int ocores_i2c_remove(struct platform_device *pdev)
 
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

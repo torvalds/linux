@@ -265,10 +265,14 @@ bool is_power_of_2(unsigned long n)
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
+char *ltrim(char *s);
 char *rtrim(char *s);
 
 void dump_stack(void);
 
 extern unsigned int page_size;
+
+struct winsize;
+void get_term_dimensions(struct winsize *ws);
 
 #endif

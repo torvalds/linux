@@ -751,6 +751,23 @@ int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid)
 				   NO_SYNC_WMIFLAG);
 }
 
+int ath6kl_wmi_ap_set_beacon_intvl_cmd(struct wmi *wmi, u8 if_idx,
+				       u32 beacon_intvl)
+{
+	struct sk_buff *skb;
+	struct set_beacon_int_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct set_beacon_int_cmd *) skb->data;
+
+	cmd->beacon_intvl = cpu_to_le32(beacon_intvl);
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb,
+				   WMI_SET_BEACON_INT_CMDID, NO_SYNC_WMIFLAG);
+}
+
 int ath6kl_wmi_ap_set_dtim_cmd(struct wmi *wmi, u8 if_idx, u32 dtim_period)
 {
 	struct sk_buff *skb;
@@ -1108,7 +1125,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 	kfree(mgmt);
 	if (bss == NULL)
 		return -ENOMEM;
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(ar->wiphy, bss);
 
 	/*
 	 * Firmware doesn't return any event when scheduled scan has
@@ -2480,16 +2497,11 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 
 free_cmd_skb:
 	/* free up any resources left over (possibly due to an error) */
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 
 free_data_skb:
-	for (index = 0; index < num_pri_streams; index++) {
-		if (data_sync_bufs[index].skb != NULL) {
-			dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].
-				      skb);
-		}
-	}
+	for (index = 0; index < num_pri_streams; index++)
+		dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].skb);
 
 	return ret;
 }

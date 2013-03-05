@@ -350,14 +350,13 @@ static int lm3639_probe(struct i2c_client *client,
 				      &lm3639_bled_ops, &props);
 	if (IS_ERR(pchip->bled)) {
 		dev_err(&client->dev, "fail : backlight register\n");
-		ret = -EIO;
+		ret = PTR_ERR(pchip->bled);
 		goto err_out;
 	}
 
 	ret = device_create_file(&(pchip->bled->dev), &dev_attr_bled_mode);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed : add sysfs entries\n");
-		ret = -EIO;
 		goto err_bled_mode;
 	}
 
@@ -369,7 +368,6 @@ static int lm3639_probe(struct i2c_client *client,
 				    &client->dev, &pchip->cdev_flash);
 	if (ret < 0) {
 		dev_err(&client->dev, "fail : flash register\n");
-		ret = -EIO;
 		goto err_flash;
 	}
 
@@ -381,7 +379,6 @@ static int lm3639_probe(struct i2c_client *client,
 				    &client->dev, &pchip->cdev_torch);
 	if (ret < 0) {
 		dev_err(&client->dev, "fail : torch register\n");
-		ret = -EIO;
 		goto err_torch;
 	}
 

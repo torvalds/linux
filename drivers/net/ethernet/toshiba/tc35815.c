@@ -633,9 +633,8 @@ static int tc_mii_probe(struct net_device *dev)
 
 	/* attach the mac to the phy */
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
-			     &tc_handle_link_change, 0,
-			     lp->chiptype == TC35815_TX4939 ?
-			     PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII);
+			     &tc_handle_link_change,
+			     lp->chiptype == TC35815_TX4939 ? PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
@@ -856,7 +855,6 @@ static int tc35815_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out;
 
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	printk(KERN_INFO "%s: %s at 0x%lx, %pM, IRQ %d\n",
 		dev->name,
 		chip_info[ent->driver_data].name,
@@ -1976,9 +1974,10 @@ tc35815_set_multicast_list(struct net_device *dev)
 static void tc35815_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	strcpy(info->driver, MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(lp->pci_dev));
+
+	strlcpy(info->driver, MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(lp->pci_dev), sizeof(info->bus_info));
 }
 
 static int tc35815_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

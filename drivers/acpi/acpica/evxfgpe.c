@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@
 ACPI_MODULE_NAME("evxfgpe")
 
 #if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_update_all_gpes
  *
@@ -172,6 +172,7 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
 
@@ -225,7 +226,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 		    ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
 	}
 
-	/* Validate WakeDevice is of type Device */
+	/* Validate wake_device is of type Device */
 
 	if (device_node->type != ACPI_TYPE_DEVICE) {
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -432,8 +433,8 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number      - GPE level within the GPE block
- *              event_status    - Where the current status of the event will
- *                                be returned
+ *              event_status        - Where the current status of the event
+ *                                    will be returned
  *
  * RETURN:      Status
  *

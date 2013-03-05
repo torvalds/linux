@@ -86,8 +86,8 @@ nouveau_fb_preinit(struct nouveau_fb *pfb)
 			return ret;
 	}
 
-	if (!nouveau_mm_initialised(&pfb->tags) && tags) {
-		ret = nouveau_mm_init(&pfb->tags, 0, ++tags, 1);
+	if (!nouveau_mm_initialised(&pfb->tags)) {
+		ret = nouveau_mm_init(&pfb->tags, 0, tags ? ++tags : 0, 1);
 		if (ret)
 			return ret;
 	}

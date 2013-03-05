@@ -122,7 +122,7 @@ enum _RTL8192Usb_HW {
 	SIFS			= 0x03E, // SIFS register
 	TCR			= 0x040, // Transmit Configuration Register
 
-#define TCR_MXDMA_2048 		7
+#define TCR_MXDMA_2048		7
 #define TCR_LRL_OFFSET		0
 #define TCR_SRL_OFFSET		8
 #define TCR_MXDMA_OFFSET	21
@@ -379,7 +379,7 @@ enum _RTL8192Usb_HW {
 //	IMR_POLL		= 0x360,
 	MacBlkCtrl		= 0x403, // Mac block on/off control register
 
-	EPROM_CMD 		= 0xfe58,
+	EPROM_CMD		= 0xfe58,
 #define Cmd9346CR_9356SEL	(1<<4)
 #define EPROM_CMD_RESERVED_MASK (1<<5)
 #define EPROM_CMD_OPERATING_MODE_SHIFT 6
@@ -392,12 +392,12 @@ enum _RTL8192Usb_HW {
 #define EPROM_CK_SHIFT 2
 #define EPROM_W_SHIFT 1
 #define EPROM_R_SHIFT 0
-	MAC0 			= 0x000,
-	MAC1 			= 0x001,
-	MAC2 			= 0x002,
-	MAC3 			= 0x003,
-	MAC4 			= 0x004,
-	MAC5 			= 0x005,
+	MAC0			= 0x000,
+	MAC1			= 0x001,
+	MAC2			= 0x002,
+	MAC3			= 0x003,
+	MAC4			= 0x004,
+	MAC5			= 0x005,
 
 };
 //----------------------------------------------------------------------------

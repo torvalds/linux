@@ -108,14 +108,13 @@ static int go7007_load_encoder(struct go7007 *go)
 		return -1;
 	}
 	fw_len = fw_entry->size - 16;
-	bounce = kmalloc(fw_len, GFP_KERNEL);
+	bounce = kmemdup(fw_entry->data + 16, fw_len, GFP_KERNEL);
 	if (bounce == NULL) {
 		v4l2_err(go, "unable to allocate %d bytes for "
 				"firmware transfer\n", fw_len);
 		release_firmware(fw_entry);
 		return -1;
 	}
-	memcpy(bounce, fw_entry->data + 16, fw_len);
 	release_firmware(fw_entry);
 	if (go7007_interface_reset(go) < 0 ||
 			go7007_send_firmware(go, bounce, fw_len) < 0 ||
@@ -173,6 +172,11 @@ static int go7007_init_encoder(struct go7007 *go)
 		go7007_write_addr(go, 0x3c82, 0x0001);
 		go7007_write_addr(go, 0x3c80, 0x00fe);
 	}
+	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
+		/* set GPIO5 to be an output, currently low */
+		go7007_write_addr(go, 0x3c82, 0x0000);
+		go7007_write_addr(go, 0x3c80, 0x00df);
+	}
 	return 0;
 }
 
@@ -201,7 +205,8 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
 		return 0;
 
-	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", type);
+	dev_info(&adapter->dev,
+		 "go7007: probing for module i2c:%s failed\n", type);
 	return -1;
 }
 
@@ -217,7 +222,7 @@ int go7007_register_encoder(struct go7007 *go)
 {
 	int i, ret;
 
-	printk(KERN_INFO "go7007: registering new %s\n", go->name);
+	dev_info(go->dev, "go7007: registering new %s\n", go->name);
 
 	mutex_lock(&go->hw_lock);
 	ret = go7007_init_encoder(go);
@@ -571,7 +576,7 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	struct go7007 *go;
 	int i;
 
-	go = kmalloc(sizeof(struct go7007), GFP_KERNEL);
+	go = kzalloc(sizeof(struct go7007), GFP_KERNEL);
 	if (go == NULL)
 		return NULL;
 	go->dev = dev;

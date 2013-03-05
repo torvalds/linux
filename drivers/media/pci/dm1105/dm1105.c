@@ -45,6 +45,7 @@
 #include "si21xx.h"
 #include "cx24116.h"
 #include "z0194a.h"
+#include "ts2020.h"
 #include "ds3000.h"
 
 #define MODULE_NAME "dm1105"
@@ -849,6 +850,11 @@ static struct ds3000_config dvbworld_ds3000_config = {
 	.demod_address = 0x68,
 };
 
+static struct ts2020_config dvbworld_ts2020_config  = {
+	.tuner_address = 0x60,
+	.clk_out_div = 1,
+};
+
 static int frontend_init(struct dm1105_dev *dev)
 {
 	int ret;
@@ -898,8 +904,11 @@ static int frontend_init(struct dm1105_dev *dev)
 		dev->fe = dvb_attach(
 			ds3000_attach, &dvbworld_ds3000_config,
 			&dev->i2c_adap);
-		if (dev->fe)
+		if (dev->fe) {
+			dvb_attach(ts2020_attach, dev->fe,
+				&dvbworld_ts2020_config, &dev->i2c_adap);
 			dev->fe->ops.set_voltage = dm1105_set_voltage;
+		}
 
 		break;
 	case DM1105_BOARD_DVBWORLD_2002:

@@ -145,8 +145,8 @@ static void bcm_get_drvinfo(struct net_device *dev,
 	struct bcm_interface_adapter *psIntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_device *udev = interface_to_usbdev(psIntfAdapter->interface);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u",
 		 Adapter->uiFlashLayoutMajorVersion,
 		 Adapter->uiFlashLayoutMinorVersion);

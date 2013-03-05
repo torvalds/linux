@@ -116,6 +116,11 @@ struct mlx4_ib_mr {
 	struct ib_umem	       *umem;
 };
 
+struct mlx4_ib_mw {
+	struct ib_mw		ibmw;
+	struct mlx4_mw		mmw;
+};
+
 struct mlx4_ib_fast_reg_page_list {
 	struct ib_fast_reg_page_list	ibfrpl;
 	__be64			       *mapped_page_list;
@@ -533,6 +538,11 @@ static inline struct mlx4_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx4_ib_mr, ibmr);
 }
 
+static inline struct mlx4_ib_mw *to_mmw(struct ib_mw *ibmw)
+{
+	return container_of(ibmw, struct mlx4_ib_mw, ibmw);
+}
+
 static inline struct mlx4_ib_fast_reg_page_list *to_mfrpl(struct ib_fast_reg_page_list *ibfrpl)
 {
 	return container_of(ibfrpl, struct mlx4_ib_fast_reg_page_list, ibfrpl);
@@ -581,6 +591,10 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
+int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
+		    struct ib_mw_bind *mw_bind);
+int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 					int max_page_list_len);
 struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
@@ -652,12 +666,12 @@ int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port);
 
-static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
+static inline bool mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
 	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
 
 	if (rdma_port_get_link_layer(ah->ibah.device, port) == IB_LINK_LAYER_ETHERNET)
-		return 1;
+		return true;
 
 	return !!(ah->av.ib.g_slid & 0x80);
 }

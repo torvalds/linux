@@ -26,6 +26,7 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
+#include <net/mac80211.h>
 
 
 #define MWIFIEX_MAX_BSS_NUM         (3)
@@ -58,6 +59,8 @@
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
 #define MWIFIEX_FRAG_MAX_VALUE             (2346)
+#define MWIFIEX_WMM_VERSION                0x01
+#define MWIFIEX_WMM_SUBTYPE                0x01
 
 #define MWIFIEX_RETRY_LIMIT                14
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
@@ -125,5 +128,20 @@ enum mwifiex_wmm_ac_e {
 	WMM_AC_BE,
 	WMM_AC_VI,
 	WMM_AC_VO
+} __packed;
+
+struct ieee_types_wmm_ac_parameters {
+	u8 aci_aifsn_bitmap;
+	u8 ecw_bitmap;
+	__le16 tx_op_limit;
+} __packed;
+
+struct mwifiex_types_wmm_info {
+	u8 oui[4];
+	u8 subtype;
+	u8 version;
+	u8 qos_info;
+	u8 reserved;
+	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_NUM_ACS];
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */
