@@ -473,14 +473,17 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 	return 0;
 }
 
-static void be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
+static u16 be_POST_stage_get(struct be_adapter *adapter)
 {
 	u32 sem;
-	u32 reg = skyhawk_chip(adapter) ? SLIPORT_SEMAPHORE_OFFSET_SH :
-					  SLIPORT_SEMAPHORE_OFFSET_BE;
 
-	pci_read_config_dword(adapter->pdev, reg, &sem);
-	*stage = sem & POST_STAGE_MASK;
+	if (BEx_chip(adapter))
+		sem  = ioread32(adapter->csr + SLIPORT_SEMAPHORE_OFFSET_BEx);
+	else
+		pci_read_config_dword(adapter->pdev,
+				      SLIPORT_SEMAPHORE_OFFSET_SH, &sem);
+
+	return sem & POST_STAGE_MASK;
 }
 
 int lancer_wait_ready(struct be_adapter *adapter)
@@ -574,7 +577,7 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 	}
 
 	do {
-		be_POST_stage_get(adapter, &stage);
+		stage = be_POST_stage_get(adapter);
 		if (stage == POST_STAGE_ARMFW_RDY)
 			return 0;
 
