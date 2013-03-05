@@ -242,8 +242,6 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 	 },
 };
 
-#define n_ni_65xx_boards ARRAY_SIZE(ni_65xx_boards)
-
 static inline unsigned ni_65xx_port_by_channel(unsigned channel)
 {
 	return channel / ni_65xx_channels_per_port;
