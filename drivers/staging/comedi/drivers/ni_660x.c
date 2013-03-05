@@ -389,31 +389,32 @@ enum global_interrupt_config_register_bits {
 /* First chip is at base-address + 0x00, etc. */
 static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
 
-/* Board description*/
+enum ni_660x_boardid {
+	BOARD_PCI6601,
+	BOARD_PCI6602,
+	BOARD_PXI6602,
+	BOARD_PXI6608,
+};
+
 struct ni_660x_board {
-	unsigned short dev_id;	/* `lspci` will show you this */
 	const char *name;
 	unsigned n_chips;	/* total number of TIO chips */
 };
 
 static const struct ni_660x_board ni_660x_boards[] = {
-	{
-	 .dev_id = 0x2c60,
+	[BOARD_PCI6601] = {
 	 .name = "PCI-6601",
 	 .n_chips = 1,
 	 },
-	{
-	 .dev_id = 0x1310,
+	[BOARD_PCI6602] = {
 	 .name = "PCI-6602",
 	 .n_chips = 2,
 	 },
-	{
-	 .dev_id = 0x1360,
+	[BOARD_PXI6602] = {
 	 .name = "PXI-6602",
 	 .n_chips = 2,
 	 },
-	{
-	 .dev_id = 0x2cc0,
+	[BOARD_PXI6608] = {
 	 .name = "PXI-6608",
 	 .n_chips = 2,
 	 },
@@ -974,20 +975,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static const struct ni_660x_board *
-ni_660x_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni_660x_boards); n++) {
-		const struct ni_660x_board *board = &ni_660x_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int
 ni_660x_GPCT_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		   struct comedi_insn *insn, unsigned int *data)
@@ -1170,31 +1157,31 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 }
 
 static int ni_660x_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct ni_660x_board *board;
+	const struct ni_660x_board *board = NULL;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned i;
 	unsigned global_interrupt_config_bits;
 
+	if (context < ARRAY_SIZE(ni_660x_boards))
+		board = &ni_660x_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
 
-	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
-	board = comedi_board(dev);
-
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
-
-	dev->board_name = board->name;
 
 	ret = mite_setup2(devpriv->mite, 1);
 	if (ret < 0) {
@@ -1331,11 +1318,11 @@ static int ni_660x_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c60)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1310)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1360)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2cc0)},
-	{0}
+	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
+	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
+	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },
+	{ PCI_VDEVICE(NI, 0x2cc0), BOARD_PXI6608 },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
