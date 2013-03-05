@@ -243,7 +243,7 @@ struct drm_i915_error_state {
 			int page_count;
 			u32 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer;
+		} *ringbuffer, *batchbuffer, *ctx;
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;

@@ -772,6 +772,23 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				}
 			}
 		}
+
+		obj = error->ring[i].ctx;
+		if (obj) {
+			seq_printf(m, "%s --- HW Context = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
+			offset = 0;
+			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
+				seq_printf(m, "[%04x] %08x %08x %08x %08x\n",
+					   offset,
+					   obj->pages[0][elt],
+					   obj->pages[0][elt+1],
+					   obj->pages[0][elt+2],
+					   obj->pages[0][elt+3]);
+					offset += 16;
+			}
+		}
 	}
 
 	if (error->overlay)

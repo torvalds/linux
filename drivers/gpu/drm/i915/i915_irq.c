@@ -1242,6 +1242,26 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->cpu_ring_tail[ring->id] = ring->tail;
 }
 
+
+static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
+					   struct drm_i915_error_state *error,
+					   struct drm_i915_error_ring *ering)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_gem_object *obj;
+
+	/* Currently render ring is the only HW context user */
+	if (ring->id != RCS || !error->ccid)
+		return;
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+		if ((error->ccid & PAGE_MASK) == obj->gtt_offset) {
+			ering->ctx = i915_error_object_create_sized(dev_priv,
+								    obj, 1);
+		}
+	}
+}
+
 static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
@@ -1258,6 +1278,9 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].ringbuffer =
 			i915_error_object_create(dev_priv, ring->obj);
+
+
+		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
 		count = 0;
 		list_for_each_entry(request, &ring->request_list, list)
