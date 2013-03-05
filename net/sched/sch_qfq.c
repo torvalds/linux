@@ -1068,7 +1068,15 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	qdisc_bstats_update(sch, skb);
 
 	agg_dequeue(in_serv_agg, cl, len);
-	in_serv_agg->budget -= len;
+	/* If lmax is lowered, through qfq_change_class, for a class
+	 * owning pending packets with larger size than the new value
+	 * of lmax, then the following condition may hold.
+	 */
+	if (unlikely(in_serv_agg->budget < len))
+		in_serv_agg->budget = 0;
+	else
+		in_serv_agg->budget -= len;
+
 	q->V += (u64)len * IWSUM;
 	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
