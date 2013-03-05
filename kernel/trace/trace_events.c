@@ -245,6 +245,9 @@ static int ftrace_event_enable_disable(struct ftrace_event_file *file,
 				break;
 			}
 			file->flags |= FTRACE_EVENT_FL_ENABLED;
+
+			/* WAS_ENABLED gets set but never cleared. */
+			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
 		}
 		break;
 	}
@@ -1626,12 +1629,13 @@ static void trace_module_remove_events(struct module *mod)
 {
 	struct ftrace_module_file_ops *file_ops;
 	struct ftrace_event_call *call, *p;
-	bool found = false;
+	bool clear_trace = false;
 
 	down_write(&trace_event_mutex);
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
 		if (call->mod == mod) {
-			found = true;
+			if (call->flags & TRACE_EVENT_FL_WAS_ENABLED)
+				clear_trace = true;
 			__trace_remove_event_call(call);
 		}
 	}
@@ -1648,9 +1652,9 @@ static void trace_module_remove_events(struct module *mod)
 
 	/*
 	 * It is safest to reset the ring buffer if the module being unloaded
-	 * registered any events.
+	 * registered any events that were used.
 	 */
-	if (found)
+	if (clear_trace)
 		tracing_reset_current_online_cpus();
 	up_write(&trace_event_mutex);
 }
