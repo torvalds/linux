@@ -33,7 +33,7 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 		return 0;
 
 	symhist = annotation__histogram(symbol__annotation(sym), evidx);
-	if (!symhist->addr[dl->offset])
+	if (!symbol_conf.event_group && !symhist->addr[dl->offset])
 		return 0;
 
 	percent = 100.0 * symhist->addr[dl->offset] / symhist->sum;
@@ -119,10 +119,24 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		GtkTreeIter iter;
+		int ret = 0;
 
 		gtk_list_store_append(store, &iter);
 
-		if (perf_gtk__get_percent(s, sizeof(s), sym, pos, evsel->idx))
+		if (perf_evsel__is_group_event(evsel)) {
+			for (i = 0; i < evsel->nr_members; i++) {
+				ret += perf_gtk__get_percent(s + ret,
+							     sizeof(s) - ret,
+							     sym, pos,
+							     evsel->idx + i);
+				ret += scnprintf(s + ret, sizeof(s) - ret, " ");
+			}
+		} else {
+			ret = perf_gtk__get_percent(s, sizeof(s), sym, pos,
+						    evsel->idx);
+		}
+
+		if (ret)
 			gtk_list_store_set(store, &iter, ANN_COL__PERCENT, s, -1);
 		if (perf_gtk__get_offset(s, sizeof(s), sym, map, pos))
 			gtk_list_store_set(store, &iter, ANN_COL__OFFSET, s, -1);
