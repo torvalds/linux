@@ -257,7 +257,7 @@ static double disasm_line__calc_percent(struct disasm_line *dl, struct symbol *s
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
 			if (src_line) {
-				percent += src_line[offset].percent;
+				percent += src_line[offset].p[0].percent;
 			} else
 				hits += h->addr[offset];
 

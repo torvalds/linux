@@ -616,7 +616,7 @@ static double disasm__calc_percent(struct annotation *notes, int evidx,
 			if (*path == NULL)
 				*path = src_line[offset].path;
 
-			percent += src_line[offset++].percent;
+			percent += src_line[offset++].p[0].percent;
 		}
 	} else {
 		while (offset < end)
@@ -929,7 +929,7 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 
 		ret = strcmp(iter->path, src_line->path);
 		if (ret == 0) {
-			iter->percent_sum += src_line->percent;
+			iter->p[0].percent_sum += src_line->p[0].percent;
 			return;
 		}
 
@@ -939,7 +939,7 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 			p = &(*p)->rb_right;
 	}
 
-	src_line->percent_sum = src_line->percent;
+	src_line->p[0].percent_sum = src_line->p[0].percent;
 
 	rb_link_node(&src_line->node, parent, p);
 	rb_insert_color(&src_line->node, root);
@@ -955,7 +955,7 @@ static void __resort_source_line(struct rb_root *root, struct source_line *src_l
 		parent = *p;
 		iter = rb_entry(parent, struct source_line, node);
 
-		if (src_line->percent_sum > iter->percent_sum)
+		if (src_line->p[0].percent_sum > iter->p[0].percent_sum)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -1025,8 +1025,8 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 		u64 offset;
 		FILE *fp;
 
-		src_line[i].percent = 100.0 * h->addr[i] / h->sum;
-		if (src_line[i].percent <= 0.5)
+		src_line[i].p[0].percent = 100.0 * h->addr[i] / h->sum;
+		if (src_line[i].p[0].percent <= 0.5)
 			continue;
 
 		offset = start + i;
@@ -1073,7 +1073,7 @@ static void print_summary(struct rb_root *root, const char *filename)
 		char *path;
 
 		src_line = rb_entry(node, struct source_line, node);
-		percent = src_line->percent_sum;
+		percent = src_line->p[0].percent_sum;
 		color = get_percent_color(percent);
 		path = src_line->path;
 
