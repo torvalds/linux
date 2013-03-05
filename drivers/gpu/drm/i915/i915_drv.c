@@ -495,6 +495,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 		intel_modeset_disable(dev);
 
 		drm_irq_uninstall(dev);
+		dev_priv->enable_hotplug_processing = false;
 	}
 
 	i915_save_state(dev);
@@ -568,10 +569,20 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		/* We need working interrupts for modeset enabling ... */
+		drm_irq_install(dev);
+
 		intel_modeset_init_hw(dev);
 		intel_modeset_setup_hw_state(dev, false);
-		drm_irq_install(dev);
+
+		/*
+		 * ... but also need to make sure that hotplug processing
+		 * doesn't cause havoc. Like in the driver load code we don't
+		 * bother with the tiny race here where we might loose hotplug
+		 * notifications.
+		 * */
 		intel_hpd_init(dev);
+		dev_priv->enable_hotplug_processing = true;
 	}
 
 	intel_opregion_init(dev);
