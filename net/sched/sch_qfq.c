@@ -1003,6 +1003,12 @@ static inline void charge_actual_service(struct qfq_aggregate *agg)
 	agg->F = agg->S + (u64)service_received * agg->inv_w;
 }
 
+static inline void qfq_update_agg_ts(struct qfq_sched *q,
+				     struct qfq_aggregate *agg,
+				     enum update_reason reason);
+
+static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg);
+
 static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
@@ -1030,7 +1036,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		in_serv_agg->initial_budget = in_serv_agg->budget =
 			in_serv_agg->budgetmax;
 
-		if (!list_empty(&in_serv_agg->active))
+		if (!list_empty(&in_serv_agg->active)) {
 			/*
 			 * Still active: reschedule for
 			 * service. Possible optimization: if no other
@@ -1041,8 +1047,9 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 			 * handle it, we would need to maintain an
 			 * extra num_active_aggs field.
 			*/
-			qfq_activate_agg(q, in_serv_agg, requeue);
-		else if (sch->q.qlen == 0) { /* no aggregate to serve */
+			qfq_update_agg_ts(q, in_serv_agg, requeue);
+			qfq_schedule_agg(q, in_serv_agg);
+		} else if (sch->q.qlen == 0) { /* no aggregate to serve */
 			q->in_serv_agg = NULL;
 			return NULL;
 		}
@@ -1226,17 +1233,11 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	cl->deficit = agg->lmax;
 	list_add_tail(&cl->alist, &agg->active);
 
-	if (list_first_entry(&agg->active, struct qfq_class, alist) != cl)
-		return err; /* aggregate was not empty, nothing else to do */
+	if (list_first_entry(&agg->active, struct qfq_class, alist) != cl ||
+	    q->in_serv_agg == agg)
+		return err; /* non-empty or in service, nothing else to do */
 
-	/* recharge budget */
-	agg->initial_budget = agg->budget = agg->budgetmax;
-
-	qfq_update_agg_ts(q, agg, enqueue);
-	if (q->in_serv_agg == NULL)
-		q->in_serv_agg = agg;
-	else if (agg != q->in_serv_agg)
-		qfq_schedule_agg(q, agg);
+	qfq_activate_agg(q, agg, enqueue);
 
 	return err;
 }
@@ -1293,8 +1294,15 @@ skip_update:
 static void qfq_activate_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 			     enum update_reason reason)
 {
+	agg->initial_budget = agg->budget = agg->budgetmax; /* recharge budg. */
+
 	qfq_update_agg_ts(q, agg, reason);
-	qfq_schedule_agg(q, agg);
+	if (q->in_serv_agg == NULL) { /* no aggr. in service or scheduled */
+		q->in_serv_agg = agg; /* start serving this aggregate */
+		 /* update V: to be in service, agg must be eligible */
+		q->oldV = q->V = agg->S;
+	} else if (agg != q->in_serv_agg)
+		qfq_schedule_agg(q, agg);
 }
 
 static void qfq_slot_remove(struct qfq_sched *q, struct qfq_group *grp,
