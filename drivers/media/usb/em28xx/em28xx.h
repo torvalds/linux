@@ -375,6 +375,7 @@ struct em28xx_board {
 	int vchannels;
 	int tuner_type;
 	int tuner_addr;
+	int def_i2c_bus;	/* Default I2C bus */
 
 	/* i2c flags */
 	unsigned int tda9887_conf;
