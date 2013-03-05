@@ -280,7 +280,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	struct tty_port *port = &self->port;
 	DECLARE_WAITQUEUE(wait, current);
 	int		retval;
-	int		do_clocal = 0, extra_count = 0;
+	int		do_clocal = 0;
 	unsigned long	flags;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
@@ -315,10 +315,8 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	      __FILE__, __LINE__, tty->driver->name, port->count);
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (!tty_hung_up_p(filp)) {
-		extra_count = 1;
+	if (!tty_hung_up_p(filp))
 		port->count--;
-	}
 	spin_unlock_irqrestore(&port->lock, flags);
 	port->blocked_open++;
 
@@ -361,12 +359,10 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
 
-	if (extra_count) {
-		/* ++ is not atomic, so this should be protected - Jean II */
-		spin_lock_irqsave(&port->lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
+	if (!tty_hung_up_p(filp))
 		port->count++;
-		spin_unlock_irqrestore(&port->lock, flags);
-	}
+	spin_unlock_irqrestore(&port->lock, flags);
 	port->blocked_open--;
 
 	IRDA_DEBUG(1, "%s(%d):block_til_ready after blocking on %s open_count=%d\n",
