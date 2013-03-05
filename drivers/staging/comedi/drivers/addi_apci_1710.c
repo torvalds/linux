@@ -21,49 +21,21 @@ static void fpu_end(void)
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_APCI1710.c"
 
-static const struct addi_board apci1710_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci1710",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
-		.i_DeviceId		= APCI1710_BOARD_DEVICE_ID,
-	},
-};
-
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	v_APCI1710_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
-static const void *apci1710_find_boardinfo(struct comedi_device *dev,
-					   struct pci_dev *pcidev)
-{
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(apci1710_boardtypes); i++) {
-		this_board = &apci1710_boardtypes[i];
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-	}
-	return NULL;
-}
-
 static int apci1710_auto_attach(struct comedi_device *dev,
 					  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	this_board = apci1710_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
