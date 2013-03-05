@@ -89,7 +89,7 @@ static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		ret = regulator_enable(omap3pandora_dac_reg);
 		if (ret) {
-			dev_err(w->dapm.dev, "Failed to power DAC: %d\n", ret);
+			dev_err(w->dapm->dev, "Failed to power DAC: %d\n", ret);
 			return ret;
 		}
 		mdelay(1);
