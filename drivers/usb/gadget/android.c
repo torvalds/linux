@@ -1473,7 +1473,7 @@ err_dev:
 	class_destroy(android_class);
 	return err;
 }
-module_init(init);
+late_initcall(init);
 
 static void __exit cleanup(void)
 {
