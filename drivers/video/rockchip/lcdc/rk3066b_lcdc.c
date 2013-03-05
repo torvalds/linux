@@ -526,7 +526,7 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	
 	
 	DBG(1,"%s for lcdc%d>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
-		__func__,lcdc_dev->id,get_format(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
+		__func__,lcdc_dev->id,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
 	
 	spin_lock(&lcdc_dev->reg_lock);
