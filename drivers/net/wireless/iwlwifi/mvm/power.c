@@ -75,6 +75,25 @@
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
+static void iwl_mvm_power_log(struct iwl_mvm *mvm,
+			      struct iwl_powertable_cmd *cmd)
+{
+	IWL_DEBUG_POWER(mvm,
+			"Sending power table command for power level %d, flags = 0x%X\n",
+			iwlmvm_mod_params.power_scheme,
+			le16_to_cpu(cmd->flags));
+	IWL_DEBUG_POWER(mvm, "Keep alive = %u sec\n", cmd->keep_alive_seconds);
+
+	if (cmd->flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)) {
+		IWL_DEBUG_POWER(mvm, "Rx timeout = %u usec\n",
+				le32_to_cpu(cmd->rx_data_timeout));
+		IWL_DEBUG_POWER(mvm, "Tx timeout = %u usec\n",
+				le32_to_cpu(cmd->tx_data_timeout));
+		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
+				cmd->lprx_rssi_threshold);
+	}
+}
+
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_powertable_cmd *cmd)
@@ -146,21 +165,7 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return 0;
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
-
-	IWL_DEBUG_POWER(mvm,
-			"Sending power table command for power level %d, flags = 0x%X\n",
-			iwlmvm_mod_params.power_scheme, le16_to_cpu(cmd.flags));
-
-	if (cmd.flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)) {
-		IWL_DEBUG_POWER(mvm, "Keep alive = %u sec\n",
-				cmd.keep_alive_seconds);
-		IWL_DEBUG_POWER(mvm, "Rx timeout = %u usec\n",
-				le32_to_cpu(cmd.rx_data_timeout));
-		IWL_DEBUG_POWER(mvm, "Tx timeout = %u usec\n",
-				le32_to_cpu(cmd.tx_data_timeout));
-		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
-				cmd.lprx_rssi_threshold);
-	}
+	iwl_mvm_power_log(mvm, &cmd);
 
 	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
 				    sizeof(cmd), &cmd);
@@ -177,9 +182,7 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	    iwlwifi_mod_params.power_save)
 		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	IWL_DEBUG_POWER(mvm,
-			"Sending power table command power level %d, flags = 0x%X\n",
-			iwlmvm_mod_params.power_scheme, le16_to_cpu(cmd.flags));
+	iwl_mvm_power_log(mvm, &cmd);
 
 	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_ASYNC,
 				    sizeof(cmd), &cmd);
