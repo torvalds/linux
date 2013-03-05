@@ -26,16 +26,12 @@ static const struct addi_board apci1710_boardtypes[] = {
 		.pc_DriverName		= "apci1710",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= APCI1710_BOARD_DEVICE_ID,
-		.interrupt		= v_APCI1710_Interrupt,
 	},
 };
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
+	v_APCI1710_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
