@@ -353,7 +353,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		case SEMCTL: {
 			err = sys_semctl(first, second,
 					 (int)third | IPC_64,
-					 (union semun) ptr);
+					 (unsigned long) ptr);
 			goto out;
 		}
 		default:

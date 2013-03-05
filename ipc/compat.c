@@ -240,7 +240,7 @@ static inline int put_compat_semid_ds(struct semid64_ds *s,
 
 static long do_compat_semctl(int first, int second, int third, u32 pad)
 {
-	union semun fourth;
+	unsigned long fourth;
 	int err, err2;
 	struct semid64_ds s64;
 	struct semid64_ds __user *up64;
@@ -249,9 +249,13 @@ static long do_compat_semctl(int first, int second, int third, u32 pad)
 	memset(&s64, 0, sizeof(s64));
 
 	if ((third & (~IPC_64)) == SETVAL)
-		fourth.val = (int) pad;
+#ifdef __BIG_ENDIAN
+		fourth = (unsigned long)pad << 32;
+#else
+		fourth = pad;
+#endif
 	else
-		fourth.__pad = compat_ptr(pad);
+		fourth = (unsigned long)compat_ptr(pad);
 	switch (third & (~IPC_64)) {
 	case IPC_INFO:
 	case IPC_RMID:
@@ -269,7 +273,7 @@ static long do_compat_semctl(int first, int second, int third, u32 pad)
 	case IPC_STAT:
 	case SEM_STAT:
 		up64 = compat_alloc_user_space(sizeof(s64));
-		fourth.__pad = up64;
+		fourth = (unsigned long)up64;
 		err = sys_semctl(first, second, third, fourth);
 		if (err < 0)
 			break;
@@ -295,7 +299,7 @@ static long do_compat_semctl(int first, int second, int third, u32 pad)
 		if (err)
 			break;
 
-		fourth.__pad = up64;
+		fourth = (unsigned long)up64;
 		err = sys_semctl(first, second, third, fourth);
 		break;
 

@@ -60,21 +60,6 @@ asmlinkage long sys32_unimplemented(int r26, int r25, int r24, int r23,
     return -ENOSYS;
 }
 
-asmlinkage long sys32_semctl(int semid, int semnum, int cmd, union semun arg)
-{
-        union semun u;
-	
-        if (cmd == SETVAL) {
-                /* Ugh.  arg is a union of int,ptr,ptr,ptr, so is 8 bytes.
-                 * The int should be in the first 4, but our argument
-                 * frobbing has left it in the last 4.
-                 */
-                u.val = *((int *)&arg + 1);
-                return sys_semctl (semid, semnum, cmd, u);
-	}
-	return sys_semctl (semid, semnum, cmd, arg);
-}
-
 asmlinkage long compat_sys_fanotify_mark(int fan_fd, int flags, u32 mask_hi,
 					 u32 mask_lo, int fd,
 					 const char __user *pathname)

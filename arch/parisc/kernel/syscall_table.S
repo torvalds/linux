@@ -282,7 +282,7 @@
 	ENTRY_COMP(recvmsg)
 	ENTRY_SAME(semop)		/* 185 */
 	ENTRY_SAME(semget)
-	ENTRY_DIFF(semctl)
+	ENTRY_COMP(semctl)
 	ENTRY_COMP(msgsnd)
 	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
