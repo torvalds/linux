@@ -1030,8 +1030,8 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	u32 wrindx, num_tx_buffs, rx_val;
 	int ret;
 	dma_addr_t buf_pa;
-	struct mwifiex_pcie_buf_desc *desc;
-	struct mwifiex_pfu_buf_desc *desc2;
+	struct mwifiex_pcie_buf_desc *desc = NULL;
+	struct mwifiex_pfu_buf_desc *desc2 = NULL;
 	__le16 *tmp;
 
 	if (!(skb->data && skb->len)) {
