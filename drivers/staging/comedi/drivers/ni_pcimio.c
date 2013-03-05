@@ -1571,6 +1571,7 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 
 static void init_6143(struct comedi_device *dev)
 {
+	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
 	/*  Disable interrupts */
@@ -1581,7 +1582,8 @@ static void init_6143(struct comedi_device *dev)
 	ni_writeb(0x80, PipelineDelay_6143);	/*  Set EOCMode, ADCMode and pipelinedelay */
 	ni_writeb(0x00, EOC_Set_6143);	/*  Set EOC Delay */
 
-	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	/*  Set the FIFO half full level */
+	/* Set the FIFO half full level */
+	ni_writel(board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
 
 	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
