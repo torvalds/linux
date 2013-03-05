@@ -105,16 +105,19 @@ static int addi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 	unsigned int dw_Dummy;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
+	if (!this_board) {
+		/* The driver did not set the board_ptr, try finding it. */
+		this_board = addi_find_boardinfo(dev, pcidev);
+		if (!this_board)
+			return -ENODEV;
+		dev->board_ptr = this_board;
+	}
 	dev->board_name = this_board->pc_DriverName;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
