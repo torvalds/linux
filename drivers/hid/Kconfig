@@ -738,7 +738,7 @@ config HID_SENSOR_HUB
 	depends on USB_HID && GENERIC_HARDIRQS
 	select MFD_CORE
 	default n
-	-- help---
+	---help---
 	  Support for HID Sensor framework. This creates a MFD instance
 	  for a sensor hub and identifies all the sensors connected to it.
 	  Each sensor is registered as a MFD cell, so that sensor specific
