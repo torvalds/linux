@@ -15,8 +15,6 @@
 static const struct addi_board apci035_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci035",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x0300,
 		.i_IorangeBase0		= 127,
 		.i_IorangeBase1		= APCI035_ADDRESS_RANGE,
 		.i_PCIEeprom		= 1,

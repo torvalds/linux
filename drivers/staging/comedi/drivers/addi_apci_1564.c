@@ -13,8 +13,6 @@
 static const struct addi_board apci1564_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci1564",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1006,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1564_ADDRESS_RANGE,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,

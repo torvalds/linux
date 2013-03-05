@@ -45,8 +45,6 @@
 /* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
-	int i_VendorId;		/* PCI vendor a device ID of card */
-	int i_DeviceId;
 	int i_IorangeBase0;
 	int i_IorangeBase1;
 	int i_IorangeBase2;	/*   base 2 range */

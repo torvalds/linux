@@ -41,8 +41,6 @@ enum apci3xxx_boardid {
 static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
 		.pc_DriverName		= "apci3000-16",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3010,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -68,8 +66,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_8] = {
 		.pc_DriverName		= "apci3000-8",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x300F,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -95,8 +91,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_4] = {
 		.pc_DriverName		= "apci3000-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x300E,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -122,8 +116,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_16] = {
 		.pc_DriverName		= "apci3006-16",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3013,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -149,8 +141,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_8] = {
 		.pc_DriverName		= "apci3006-8",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3014,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -176,8 +166,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_4] = {
 		.pc_DriverName		= "apci3006-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3015,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -203,8 +191,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_16] = {
 		.pc_DriverName		= "apci3010-16",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3016,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -235,8 +221,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_8] = {
 		.pc_DriverName		= "apci3010-8",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3017,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -267,8 +251,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_4] = {
 		.pc_DriverName		= "apci3010-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3018,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -299,8 +281,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_16] = {
 		.pc_DriverName		= "apci3016-16",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3019,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -331,8 +311,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_8] = {
 		.pc_DriverName		= "apci3016-8",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301A,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -363,8 +341,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_4] = {
 		.pc_DriverName		= "apci3016-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301B,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -395,8 +371,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_16_4] = {
 		.pc_DriverName		= "apci3100-16-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301C,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -426,8 +400,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_8_4] = {
 		.pc_DriverName		= "apci3100-8-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301D,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -457,8 +429,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_16_4] = {
 		.pc_DriverName		= "apci3106-16-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301E,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -488,8 +458,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_8_4] = {
 		.pc_DriverName		= "apci3106-8-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x301F,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -519,8 +487,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_16_4] = {
 		.pc_DriverName		= "apci3110-16-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3020,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -555,8 +521,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_8_4] = {
 		.pc_DriverName		= "apci3110-8-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3021,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -591,8 +555,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_16_4] = {
 		.pc_DriverName		= "apci3116-16-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3022,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -627,8 +589,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_8_4] = {
 		.pc_DriverName		= "apci3116-8-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3023,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -663,8 +623,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3003] = {
 		.pc_DriverName		= "apci3003",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x300B,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -689,8 +647,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_16] = {
 		.pc_DriverName		= "apci3002-16",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3002,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -715,8 +671,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_8] = {
 		.pc_DriverName		= "apci3002-8",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3003,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -741,8 +695,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_4] = {
 		.pc_DriverName		= "apci3002-4",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3004,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,
@@ -767,8 +719,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3024,
 		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 256,

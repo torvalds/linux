@@ -30,8 +30,6 @@ enum apci3200_boardid {
 static const struct addi_board apci3200_boardtypes[] = {
 	[BOARD_APCI3200] = {
 		.pc_DriverName		= "apci3200",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3000,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 4,
@@ -61,8 +59,6 @@ static const struct addi_board apci3200_boardtypes[] = {
 	},
 	[BOARD_APCI3300] = {
 		.pc_DriverName		= "apci3300",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3007,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
 		.i_IorangeBase2		= 4,
