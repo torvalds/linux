@@ -1383,8 +1383,6 @@ static void qfq_deactivate_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 			__set_bit(grp->index, &q->bitmaps[s]);
 		}
 	}
-
-	qfq_update_eligible(q);
 }
 
 static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
