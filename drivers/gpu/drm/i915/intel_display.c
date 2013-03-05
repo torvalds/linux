@@ -1950,6 +1950,15 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
+static bool need_vtd_wa(struct drm_device *dev)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	if (INTEL_INFO(dev)->gen >= 6 && intel_iommu_gfx_mapped)
+		return true;
+#endif
+	return false;
+}
+
 int
 intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj,
@@ -1979,6 +1988,14 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	default:
 		BUG();
 	}
+
+	/* Note that the w/a also requires 64 PTE of padding following the
+	 * bo. We currently fill all unused PTE with the shadow page and so
+	 * we should always have valid PTE following the scanout preventing
+	 * the VT-d warning.
+	 */
+	if (need_vtd_wa(dev) && alignment < 256 * 1024)
+		alignment = 256 * 1024;
 
 	dev_priv->mm.interruptible = false;
 	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined);
@@ -6371,13 +6388,24 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
 	if (!dev_priv->info->cursor_needs_physical) {
+		unsigned alignment;
+
 		if (obj->tiling_mode) {
 			DRM_ERROR("cursor cannot be tiled\n");
 			ret = -EINVAL;
 			goto fail_locked;
 		}
 
-		ret = i915_gem_object_pin_to_display_plane(obj, 0, NULL);
+		/* Note that the w/a also requires 2 PTE of padding following
+		 * the bo. We currently fill all unused PTE with the shadow
+		 * page and so we should always have valid PTE following the
+		 * cursor preventing the VT-d warning.
+		 */
+		alignment = 0;
+		if (need_vtd_wa(dev))
+			alignment = 64*1024;
+
+		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
 		if (ret) {
 			DRM_ERROR("failed to move cursor bo into the GTT\n");
 			goto fail_locked;

@@ -522,6 +522,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	mutex_lock(&dev->struct_mutex);
 
+	/* Note that this will apply the VT-d workaround for scanouts,
+	 * which is more restrictive than required for sprites. (The
+	 * primary plane requires 256KiB alignment with 64 PTE padding,
+	 * the sprite planes only require 128KiB alignment and 32 PTE padding.
+	 */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret)
 		goto out_unlock;
