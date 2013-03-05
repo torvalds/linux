@@ -76,6 +76,7 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 	return false;
 }
 
+#ifdef CONFIG_PM
 /*
  * Kernel needs to suspend all functions separately. Therefore all
  * registered functions must have drivers with suspend and resume
@@ -149,6 +150,7 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 /*
  * This function probes an mwifiex device and registers it. It allocates
