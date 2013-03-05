@@ -1187,6 +1187,9 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 
 		arizona_apply_fll(arizona, fll->base, sync,
 				  fll->sync_src, false);
+
+		regmap_update_bits(arizona->regmap, fll->base + 0x11,
+				   ARIZONA_FLL1_SYNC_ENA, 0);
 	} else {
 		arizona_fll_err(fll, "No clocks provided\n");
 		return;
