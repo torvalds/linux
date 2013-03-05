@@ -104,17 +104,16 @@ struct skel_board {
 
 static const struct skel_board skel_boards[] = {
 	[BOARD_SKEL100] = {
-	 .name = "skel-100",
-	 .ai_chans = 16,
-	 .ai_bits = 12,
-	 .have_dio = 1,
-	 },
+		.name		= "skel-100",
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.have_dio	= 1,
+	},
 	[BOARD_SKEL200] = {
-	 .name = "skel-200",
-	 .ai_chans = 8,
-	 .ai_bits = 16,
-	 .have_dio = 0,
-	 },
+		.name		= "skel-200",
+		.ai_chans	= 8,
+		.ai_bits	= 16,
+	},
 };
 
 /* this structure is for data unique to this hardware driver.  If
