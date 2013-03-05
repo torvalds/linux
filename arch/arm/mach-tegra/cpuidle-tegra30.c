@@ -102,11 +102,7 @@ static bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
 
 	smp_wmb();
 
-	save_cpu_arch_register();
-
 	cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
-
-	restore_cpu_arch_register();
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
 

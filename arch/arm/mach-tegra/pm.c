@@ -46,25 +46,10 @@
 #define PMC_CPUPWROFF_TIMER	0xcc
 
 #ifdef CONFIG_PM_SLEEP
-static unsigned int g_diag_reg;
 static DEFINE_SPINLOCK(tegra_lp2_lock);
 static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
 static struct clk *tegra_pclk;
 void (*tegra_tear_down_cpu)(void);
-
-void save_cpu_arch_register(void)
-{
-	/* read diagnostic register */
-	asm("mrc p15, 0, %0, c15, c0, 1" : "=r"(g_diag_reg) : : "cc");
-	return;
-}
-
-void restore_cpu_arch_register(void)
-{
-	/* write diagnostic register */
-	asm("mcr p15, 0, %0, c15, c0, 1" : : "r"(g_diag_reg) : "cc");
-	return;
-}
 
 static void set_power_timers(unsigned long us_on, unsigned long us_off)
 {
@@ -119,8 +104,6 @@ static void restore_cpu_complex(void)
 	tegra_cpu_clock_resume();
 
 	flowctrl_cpu_suspend_exit(cpu);
-
-	restore_cpu_arch_register();
 }
 
 /*
@@ -145,8 +128,6 @@ static void suspend_cpu_complex(void)
 	tegra_cpu_clock_suspend();
 
 	flowctrl_cpu_suspend_enter(cpu);
-
-	save_cpu_arch_register();
 }
 
 void tegra_clear_cpu_in_lp2(int phy_cpu_id)
