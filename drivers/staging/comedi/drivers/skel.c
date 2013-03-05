@@ -689,11 +689,22 @@ static struct comedi_driver skel_driver = {
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
- * upstream. */
-#define PCI_VENDOR_ID_SKEL 0xdafe
+static int skel_pci_probe(struct pci_dev *dev,
+			  const struct pci_device_id *id)
+{
+	return comedi_pci_auto_config(dev, &skel_driver, id->driver_data);
+}
+
+/*
+ * Please add your PCI vendor ID to comedidev.h, and it will
+ * be forwarded upstream.
+ */
+#define PCI_VENDOR_ID_SKEL	0xdafe
+
+/*
+ * This is used by modprobe to translate PCI IDs to drivers.
+ * Should only be used for PCI and ISA-PnP devices
+ */
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
@@ -701,16 +712,10 @@ static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
-static int skel_pci_probe(struct pci_dev *dev,
-			  const struct pci_device_id *id)
-{
-	return comedi_pci_auto_config(dev, &skel_driver, id->driver_data);
-}
-
 static struct pci_driver skel_pci_driver = {
-	.name = "dummy",
-	.id_table = skel_pci_table,
-	.probe = &skel_pci_probe,
+	.name		= "dummy",
+	.id_table	= skel_pci_table,
+	.probe		= skel_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(skel_driver, skel_pci_driver);
