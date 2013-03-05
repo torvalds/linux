@@ -1139,7 +1139,7 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			phs_cfg->params.hs_config.gpio,
 			phs_cfg->params.hs_config.gap);
 	}
-	if (conditions != HOST_SLEEP_CFG_CANCEL) {
+	if (conditions != HS_CFG_CANCEL) {
 		adapter->is_hs_configured = true;
 		if (adapter->iface_type == MWIFIEX_USB ||
 		    adapter->iface_type == MWIFIEX_PCIE)

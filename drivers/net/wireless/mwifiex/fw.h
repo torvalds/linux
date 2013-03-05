@@ -376,10 +376,10 @@ enum P2P_MODES {
 #define HostCmd_SCAN_RADIO_TYPE_BG          0
 #define HostCmd_SCAN_RADIO_TYPE_A           1
 
-#define HOST_SLEEP_CFG_CANCEL		0xffffffff
-#define HOST_SLEEP_CFG_COND_DEF		0x00000000
-#define HOST_SLEEP_CFG_GPIO_DEF		0xff
-#define HOST_SLEEP_CFG_GAP_DEF		0
+#define HS_CFG_CANCEL			0xffffffff
+#define HS_CFG_COND_DEF			0x00000000
+#define HS_CFG_GPIO_DEF			0xff
+#define HS_CFG_GAP_DEF			0
 
 #define MWIFIEX_TIMEOUT_FOR_AP_RESP		0xfffc
 #define MWIFIEX_STATUS_CODE_AUTH_TIMEOUT	2
