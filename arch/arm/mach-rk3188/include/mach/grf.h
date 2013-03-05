@@ -1,6 +1,8 @@
 #ifndef __MACH_GRF_H
 #define __MACH_GRF_H
 
+#include <asm/io.h>
+
 #define GRF_GPIO0L_DIR          0x0000
 #define GRF_GPIO0H_DIR          0x0004
 #define GRF_GPIO1L_DIR          0x0008
@@ -107,5 +109,32 @@
 #define GRF_GPIO3D_PULL         0x019c
 #define GRF_FLASH_DATA_PULL     0x01a0
 #define GRF_FLASH_CMD_PULL      0x01a4
+
+enum grf_io_power_domain_voltage {
+	IO_PD_VOLTAGE_3_3V = 0,
+	IO_PD_VOLTAGE_1_8V = 1,
+};
+
+enum grf_io_power_domain {
+	IO_PD_AP0 = 8,
+	IO_PD_AP1,
+	IO_PD_CIF,
+	IO_PD_FLASH,
+	IO_PD_VCCIO0,
+	IO_PD_VCCIO1,
+	IO_PD_LCDC0,
+	IO_PD_LCDC1,
+};
+
+static inline void grf_set_io_power_domain_voltage(enum grf_io_power_domain pd, enum grf_io_power_domain_voltage volt)
+{
+	writel_relaxed((0x10000 + volt) << pd, RK30_GRF_BASE + GRF_IO_CON4);
+	dsb();
+}
+
+static inline enum grf_io_power_domain_voltage grf_get_io_power_domain_voltage(enum grf_io_power_domain pd)
+{
+	return (readl_relaxed(RK30_GRF_BASE + GRF_IO_CON4) >> pd) & 1;
+}
 
 #endif
