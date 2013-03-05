@@ -881,18 +881,7 @@ static struct platform_driver mvsd_driver = {
 	},
 };
 
-static int __init mvsd_init(void)
-{
-	return platform_driver_probe(&mvsd_driver, mvsd_probe);
-}
-
-static void __exit mvsd_exit(void)
-{
-	platform_driver_unregister(&mvsd_driver);
-}
-
-module_init(mvsd_init);
-module_exit(mvsd_exit);
+module_platform_driver_probe(mvsd_driver, mvsd_probe);
 
 /* maximum card clock frequency (default 50MHz) */
 module_param(maxfreq, int, 0);
