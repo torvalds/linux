@@ -361,6 +361,8 @@ struct mmc_host {
 
 	unsigned int		actual_clock;	/* Actual HC clock rate */
 
+	unsigned int		slotno;	/* used for sdio acpi binding */
+
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

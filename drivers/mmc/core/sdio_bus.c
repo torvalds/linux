@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -299,6 +300,19 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 	return func;
 }
 
+#ifdef CONFIG_ACPI
+static void sdio_acpi_set_handle(struct sdio_func *func)
+{
+	struct mmc_host *host = func->card->host;
+	u64 addr = (host->slotno << 16) | func->num;
+
+	ACPI_HANDLE_SET(&func->dev,
+			acpi_get_child(ACPI_HANDLE(host->parent), addr));
+}
+#else
+static inline void sdio_acpi_set_handle(struct sdio_func *func) {}
+#endif
+
 /*
  * Register a new SDIO function with the driver model.
  */
@@ -308,9 +322,12 @@ int sdio_add_func(struct sdio_func *func)
 
 	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
+	sdio_acpi_set_handle(func);
 	ret = device_add(&func->dev);
-	if (ret == 0)
+	if (ret == 0) {
 		sdio_func_set_present(func);
+		acpi_dev_pm_attach(&func->dev, false);
+	}
 
 	return ret;
 }
@@ -326,6 +343,7 @@ void sdio_remove_func(struct sdio_func *func)
 	if (!sdio_func_present(func))
 		return;
 
+	acpi_dev_pm_detach(&func->dev, false);
 	device_del(&func->dev);
 	put_device(&func->dev);
 }
