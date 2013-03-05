@@ -6,41 +6,39 @@ config XZ_DEC
 	  the .xz file format as the container. For integrity checking,
 	  CRC32 is supported. See Documentation/xz.txt for more information.
 
+if XZ_DEC
+
 config XZ_DEC_X86
-	bool "x86 BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "x86 BCJ filter decoder"
+	default y if X86
 	select XZ_DEC_BCJ
 
 config XZ_DEC_POWERPC
-	bool "PowerPC BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "PowerPC BCJ filter decoder"
+	default y if POWERPC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_IA64
-	bool "IA-64 BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "IA-64 BCJ filter decoder"
+	default y if IA64
 	select XZ_DEC_BCJ
 
 config XZ_DEC_ARM
-	bool "ARM BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "ARM BCJ filter decoder"
+	default y if ARM
 	select XZ_DEC_BCJ
 
 config XZ_DEC_ARMTHUMB
-	bool "ARM-Thumb BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "ARM-Thumb BCJ filter decoder"
+	default y if (ARM && ARM_THUMB)
 	select XZ_DEC_BCJ
 
 config XZ_DEC_SPARC
-	bool "SPARC BCJ filter decoder" if EXPERT
-	default y
-	depends on XZ_DEC
+	bool "SPARC BCJ filter decoder"
+	default y if SPARC
 	select XZ_DEC_BCJ
+
+endif
 
 config XZ_DEC_BCJ
 	bool

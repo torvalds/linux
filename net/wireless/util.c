@@ -1184,7 +1184,8 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 enum nl80211_iftype iftype,
 				 struct ieee80211_channel *chan,
-				 enum cfg80211_chan_mode chanmode)
+				 enum cfg80211_chan_mode chanmode,
+				 u8 radar_detect)
 {
 	struct wireless_dev *wdev_iter;
 	u32 used_iftypes = BIT(iftype);
@@ -1195,14 +1196,46 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	enum cfg80211_chan_mode chmode;
 	int num_different_channels = 0;
 	int total = 1;
+	bool radar_required;
 	int i, j;
 
 	ASSERT_RTNL();
 	lockdep_assert_held(&rdev->devlist_mtx);
 
+	if (WARN_ON(hweight32(radar_detect) > 1))
+		return -EINVAL;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_WDS:
+		radar_required = !!(chan &&
+				    (chan->flags & IEEE80211_CHAN_RADAR));
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_MONITOR:
+		radar_required = false;
+		break;
+	case NUM_NL80211_IFTYPES:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	default:
+		return -EINVAL;
+	}
+
+	if (radar_required && !radar_detect)
+		return -EINVAL;
+
 	/* Always allow software iftypes */
-	if (rdev->wiphy.software_iftypes & BIT(iftype))
+	if (rdev->wiphy.software_iftypes & BIT(iftype)) {
+		if (radar_detect)
+			return -EINVAL;
 		return 0;
+	}
 
 	memset(num, 0, sizeof(num));
 	memset(used_channels, 0, sizeof(used_channels));
@@ -1275,7 +1308,7 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 		used_iftypes |= BIT(wdev_iter->iftype);
 	}
 
-	if (total == 1)
+	if (total == 1 && !radar_detect)
 		return 0;
 
 	for (i = 0; i < rdev->wiphy.n_iface_combinations; i++) {
@@ -1307,6 +1340,9 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				limits[j].max -= num[iftype];
 			}
 		}
+
+		if (radar_detect && !(c->radar_detect_widths & radar_detect))
+			goto cont;
 
 		/*
 		 * Finally check that all iftypes that we're currently

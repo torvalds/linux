@@ -17,7 +17,8 @@ obj-y += dma-octeon.o flash_setup.o
 obj-y += octeon-memcpy.o
 obj-y += executive/
 
-obj-$(CONFIG_SMP)                     += smp.o
+obj-$(CONFIG_SMP)		      += smp.o
+obj-$(CONFIG_OCTEON_ILM)	      += oct_ilm.o
 
 DTS_FILES = octeon_3xxx.dts octeon_68xx.dts
 DTB_FILES = $(patsubst %.dts, %.dtb, $(DTS_FILES))

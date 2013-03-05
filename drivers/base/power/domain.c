@@ -433,8 +433,7 @@ static bool genpd_abort_poweroff(struct generic_pm_domain *genpd)
  */
 void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 {
-	if (!work_pending(&genpd->power_off_work))
-		queue_work(pm_wq, &genpd->power_off_work);
+	queue_work(pm_wq, &genpd->power_off_work);
 }
 
 /**

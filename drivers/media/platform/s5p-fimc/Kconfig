@@ -2,7 +2,6 @@
 config VIDEO_SAMSUNG_S5P_FIMC
 	bool "Samsung S5P/EXYNOS SoC camera interface driver (experimental)"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && PLAT_S5P && PM_RUNTIME
-	depends on EXPERIMENTAL
 	help
 	  Say Y here to enable camera host interface devices for
 	  Samsung S5P and EXYNOS SoC series.

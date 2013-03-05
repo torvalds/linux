@@ -210,15 +210,19 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (config->chan_nr) {
 	case EIGHT_CHANNEL_SUPPORT:
 		ch_reg = 3;
+		break;
 	case SIX_CHANNEL_SUPPORT:
 		ch_reg = 2;
+		break;
 	case FOUR_CHANNEL_SUPPORT:
 		ch_reg = 1;
+		break;
 	case TWO_CHANNEL_SUPPORT:
 		ch_reg = 0;
 		break;
 	default:
 		dev_err(dev->dev, "channel not supported\n");
+		return -EINVAL;
 	}
 
 	i2s_disable_channels(dev, substream->stream);

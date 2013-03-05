@@ -725,7 +725,7 @@ xfs_create(
 	int			error;
 	xfs_bmap_free_t		free_list;
 	xfs_fsblock_t		first_block;
-	boolean_t		unlock_dp_on_error = B_FALSE;
+	bool                    unlock_dp_on_error = false;
 	uint			cancel_flags;
 	int			committed;
 	prid_t			prid;
@@ -794,7 +794,7 @@ xfs_create(
 	}
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
-	unlock_dp_on_error = B_TRUE;
+	unlock_dp_on_error = true;
 
 	xfs_bmap_init(&free_list, &first_block);
 
@@ -830,7 +830,7 @@ xfs_create(
 	 * error path.
 	 */
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	unlock_dp_on_error = B_FALSE;
+	unlock_dp_on_error = false;
 
 	error = xfs_dir_createname(tp, dp, name, ip->i_ino,
 					&first_block, &free_list, resblks ?
@@ -1367,7 +1367,7 @@ xfs_symlink(
 	int			pathlen;
 	xfs_bmap_free_t		free_list;
 	xfs_fsblock_t		first_block;
-	boolean_t		unlock_dp_on_error = B_FALSE;
+	bool                    unlock_dp_on_error = false;
 	uint			cancel_flags;
 	int			committed;
 	xfs_fileoff_t		first_fsb;
@@ -1438,7 +1438,7 @@ xfs_symlink(
 	}
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
-	unlock_dp_on_error = B_TRUE;
+	unlock_dp_on_error = true;
 
 	/*
 	 * Check whether the directory allows new symlinks or not.
@@ -1484,7 +1484,7 @@ xfs_symlink(
 	 * error path.
 	 */
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	unlock_dp_on_error = B_FALSE;
+	unlock_dp_on_error = false;
 
 	/*
 	 * Also attach the dquot(s) to it, if applicable.

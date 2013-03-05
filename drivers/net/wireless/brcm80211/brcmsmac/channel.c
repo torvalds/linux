@@ -183,8 +183,7 @@ static bool brcms_c_country_valid(const char *ccode)
 	 * chars.
 	 */
 	if (!((0x80 & ccode[0]) == 0 && ccode[0] >= 0x41 && ccode[0] <= 0x5A &&
-	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A &&
-	      ccode[2] == '\0'))
+	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A))
 		return false;
 
 	/*
@@ -670,7 +669,7 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *rule;
-	int band, i, ret;
+	int band, i;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		sband = wiphy->bands[band];
@@ -685,9 +684,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				ret = freq_reg_info(wiphy, ch->center_freq,
-						    0, &rule);
-				if (ret)
+				rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(rule))
 					continue;
 
 				if (!(rule->flags & NL80211_RRF_NO_IBSS))
@@ -703,8 +701,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	}
 }
 
-static int brcms_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void brcms_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct brcms_info *wl = hw->priv;
@@ -745,8 +743,6 @@ static int brcms_reg_notifier(struct wiphy *wiphy,
 	if (wlc->pub->_nbands > 1 || wlc->band->bandtype == BRCM_BAND_2G)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 					brcms_c_japan_ccode(request->alpha2));
-
-	return 0;
 }
 
 void brcms_c_regd_init(struct brcms_c_info *wlc)

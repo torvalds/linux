@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -486,18 +486,18 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_table_region_operands, op);
 
 	/*
-	 * This is where we evaluate the signature_string and oem_iDString
-	 * and oem_table_iDString of the data_table_region declaration
+	 * This is where we evaluate the Signature string, oem_id string,
+	 * and oem_table_id string of the Data Table Region declaration
 	 */
 	node = op->common.node;
 
-	/* next_op points to signature_string op */
+	/* next_op points to Signature string op */
 
 	next_op = op->common.value.arg;
 
 	/*
-	 * Evaluate/create the signature_string and oem_iDString
-	 * and oem_table_iDString operands
+	 * Evaluate/create the Signature string, oem_id string,
+	 * and oem_table_id string operands
 	 */
 	status = acpi_ds_create_operands(walk_state, next_op);
 	if (ACPI_FAILURE(status)) {
@@ -505,8 +505,8 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Resolve the signature_string and oem_iDString
-	 * and oem_table_iDString operands
+	 * Resolve the Signature string, oem_id string,
+	 * and oem_table_id string operands
 	 */
 	status = acpi_ex_resolve_operands(op->common.aml_opcode,
 					  ACPI_WALK_OPERANDS, walk_state);

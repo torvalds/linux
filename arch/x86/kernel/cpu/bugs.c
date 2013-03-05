@@ -17,15 +17,6 @@
 #include <asm/paravirt.h>
 #include <asm/alternative.h>
 
-static int __init no_halt(char *s)
-{
-	WARN_ONCE(1, "\"no-hlt\" is deprecated, please use \"idle=poll\"\n");
-	boot_cpu_data.hlt_works_ok = 0;
-	return 1;
-}
-
-__setup("no-hlt", no_halt);
-
 static int __init no_387(char *s)
 {
 	boot_cpu_data.hard_math = 0;
@@ -89,23 +80,6 @@ static void __init check_fpu(void)
 		pr_warn("Hmm, FPU with FDIV bug\n");
 }
 
-static void __init check_hlt(void)
-{
-	if (boot_cpu_data.x86 >= 5 || paravirt_enabled())
-		return;
-
-	pr_info("Checking 'hlt' instruction... ");
-	if (!boot_cpu_data.hlt_works_ok) {
-		pr_cont("disabled\n");
-		return;
-	}
-	halt();
-	halt();
-	halt();
-	halt();
-	pr_cont("OK\n");
-}
-
 /*
  * Check whether we are able to run this kernel safely on SMP.
  *
@@ -129,7 +103,6 @@ void __init check_bugs(void)
 	print_cpu_info(&boot_cpu_data);
 #endif
 	check_config();
-	check_hlt();
 	init_utsname()->machine[1] =
 		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();

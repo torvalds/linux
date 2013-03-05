@@ -42,7 +42,7 @@ Main node required properties:
 
 Optional
 - interrupts	: Interrupt source of the parent interrupt controller on
-  secondary GICs, or VGIC maintainance interrupt on primary GIC (see
+  secondary GICs, or VGIC maintenance interrupt on primary GIC (see
   below).
 
 - cpu-offset	: per-cpu offset within the distributor and cpu interface
@@ -74,7 +74,7 @@ Required properties:
   virtual interface control register base and size. The 2nd additional
   region is the GIC virtual cpu interface register base and size.
 
-- interrupts : VGIC maintainance interrupt.
+- interrupts : VGIC maintenance interrupt.
 
 Example:
 

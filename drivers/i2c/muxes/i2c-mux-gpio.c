@@ -250,7 +250,6 @@ static int i2c_mux_gpio_remove(struct platform_device *pdev)
 	for (i = 0; i < mux->data.n_gpios; i++)
 		gpio_free(mux->gpio_base + mux->data.gpios[i]);
 
-	platform_set_drvdata(pdev, NULL);
 	i2c_put_adapter(mux->parent);
 
 	return 0;

@@ -633,7 +633,7 @@ static int apci3200_do_insn_bits(struct comedi_device *dev,
 	s->state = inl(devpriv->i_IobaseAddon) & 0xf;
 	if (mask) {
 		s->state &= ~mask;
-		s->state |= (bits & mask)
+		s->state |= (bits & mask);
 
 		outl(s->state, devpriv->i_IobaseAddon);
 	}

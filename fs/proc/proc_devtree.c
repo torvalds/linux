@@ -8,6 +8,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/printk.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/of.h>
@@ -110,8 +111,8 @@ void proc_device_tree_update_prop(struct proc_dir_entry *pde,
 		if (ent->data == oldprop)
 			break;
 	if (ent == NULL) {
-		printk(KERN_WARNING "device-tree: property \"%s\" "
-		       " does not exist\n", oldprop->name);
+		pr_warn("device-tree: property \"%s\" does not exist\n",
+			oldprop->name);
 	} else {
 		ent->data = newprop;
 		ent->size = newprop->length;
@@ -153,8 +154,8 @@ static const char *fixup_name(struct device_node *np, struct proc_dir_entry *de,
 realloc:
 	fixed_name = kmalloc(fixup_len, GFP_KERNEL);
 	if (fixed_name == NULL) {
-		printk(KERN_ERR "device-tree: Out of memory trying to fixup "
-				"name \"%s\"\n", name);
+		pr_err("device-tree: Out of memory trying to fixup "
+		       "name \"%s\"\n", name);
 		return name;
 	}
 
@@ -175,8 +176,8 @@ retry:
 		goto retry;
 	}
 
-	printk(KERN_WARNING "device-tree: Duplicate name in %s, "
-			"renamed to \"%s\"\n", np->full_name, fixed_name);
+	pr_warn("device-tree: Duplicate name in %s, renamed to \"%s\"\n",
+		np->full_name, fixed_name);
 
 	return fixed_name;
 }

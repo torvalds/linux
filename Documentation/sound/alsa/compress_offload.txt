@@ -145,6 +145,52 @@ Modifications include:
 - Addition of encoding options when required (derived from OpenMAX IL)
 - Addition of rateControlSupported (missing in OpenMAX AL)
 
+Gapless Playback
+================
+When playing thru an album, the decoders have the ability to skip the encoder
+delay and padding and directly move from one track content to another. The end
+user can perceive this as gapless playback as we dont have silence while
+switching from one track to another
+
+Also, there might be low-intensity noises due to encoding. Perfect gapless is
+difficult to reach with all types of compressed data, but works fine with most
+music content. The decoder needs to know the encoder delay and encoder padding.
+So we need to pass this to DSP. This metadata is extracted from ID3/MP4 headers
+and are not present by default in the bitstream, hence the need for a new
+interface to pass this information to the DSP. Also DSP and userspace needs to
+switch from one track to another and start using data for second track.
+
+The main additions are:
+
+- set_metadata
+This routine sets the encoder delay and encoder padding. This can be used by
+decoder to strip the silence. This needs to be set before the data in the track
+is written.
+
+- set_next_track
+This routine tells DSP that metadata and write operation sent after this would
+correspond to subsequent track
+
+- partial drain
+This is called when end of file is reached. The userspace can inform DSP that
+EOF is reached and now DSP can start skipping padding delay. Also next write
+data would belong to next track
+
+Sequence flow for gapless would be:
+- Open
+- Get caps / codec caps
+- Set params
+- Set metadata of the first track
+- Fill data of the first track
+- Trigger start
+- User-space finished sending all,
+- Indicaite next track data by sending set_next_track
+- Set metadata of the next track
+- then call partial_drain to flush most of buffer in DSP
+- Fill data of the next track
+- DSP switches to second track
+(note: order for partial_drain and write for next track can be reversed as well)
+
 Not supported:
 
 - Support for VoIP/circuit-switched calls is not the target of this

@@ -99,7 +99,8 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 
 		task->tk_status = pnfs_write_done_resend_to_mds(hdr->inode,
 							&hdr->pages,
-							hdr->completion_ops);
+							hdr->completion_ops,
+							hdr->dreq);
 	}
 }
 
@@ -119,7 +120,8 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 
 		task->tk_status = pnfs_read_done_resend_to_mds(hdr->inode,
 							&hdr->pages,
-							hdr->completion_ops);
+							hdr->completion_ops,
+							hdr->dreq);
 	}
 }
 

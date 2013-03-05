@@ -9,12 +9,12 @@
 #define __ASM_MACH_GENERIC_IRQ_H
 
 #ifndef NR_IRQS
-#define NR_IRQS	128
+#define NR_IRQS 128
 #endif
 
 #ifdef CONFIG_I8259
 #ifndef I8259A_IRQ_BASE
-#define I8259A_IRQ_BASE	0
+#define I8259A_IRQ_BASE 0
 #endif
 #endif
 

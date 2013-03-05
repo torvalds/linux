@@ -95,9 +95,6 @@ config MACH_MX27
 config ARCH_MX5
 	bool
 
-config ARCH_MX50
-	bool
-
 config ARCH_MX51
 	bool
 
@@ -163,11 +160,6 @@ config SOC_IMX5
 	select COMMON_CLK
 	select CPU_V7
 	select MXC_TZIC
-
-config SOC_IMX50
-	bool
-	select ARCH_MX50
-	select SOC_IMX5
 
 config	SOC_IMX51
 	bool
@@ -488,7 +480,7 @@ config MACH_MX31ADS_WM1133_EV1
 	bool "Support Wolfson Microelectronics 1133-EV1 module"
 	depends on MACH_MX31ADS
 	depends on MFD_WM8350_I2C
-	depends on REGULATOR_WM8350
+	depends on REGULATOR_WM8350 = y
 	select MFD_WM8350_CONFIG_MODE_0
 	select MFD_WM8352_CONFIG_MODE_0
 	help
@@ -738,25 +730,10 @@ endif
 
 if ARCH_MULTI_V7
 
-comment "i.MX5 platforms:"
-
-config MACH_MX50_RDP
-	bool "Support MX50 reference design platform"
-	depends on BROKEN
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select SOC_IMX50
-	help
-	  Include support for MX50 reference design platform (RDP) board. This
-	  includes specific configurations for the board and its peripherals.
-
 comment "i.MX51 machines:"
 
 config MACH_IMX51_DT
 	bool "Support i.MX51 platforms from device tree"
-	select MACH_MX51_BABBAGE
 	select SOC_IMX51
 	help
 	  Include support for Freescale i.MX51 based platforms
@@ -776,19 +753,6 @@ config MACH_MX51_BABBAGE
 	  Include support for MX51 Babbage platform, also known as MX51EVK in
 	  u-boot. This includes specific configurations for the board and its
 	  peripherals.
-
-config MACH_MX51_3DS
-	bool "Support MX51PDK (3DS)"
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_KEYPAD
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_DEBUG_BOARD
-	select SOC_IMX51
-	help
-	  Include support for MX51PDK (3DS) platform. This includes specific
-	  configurations for the board and its peripherals.
 
 config MACH_EUKREA_CPUIMX51SD
 	bool "Support Eukrea CPUIMX51SD module"

@@ -165,9 +165,9 @@ static int pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pwm->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (pwm->mmio_base == NULL)
-		return -EADDRNOTAVAIL;
+	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pwm->mmio_base))
+		return PTR_ERR(pwm->mmio_base);
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {

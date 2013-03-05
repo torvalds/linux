@@ -6,7 +6,7 @@
  *
  * Heavily inspired by the 32-bit Sparc compat code which is
  * Copyright (C) 1995, 1996, 1997, 1998 David S. Miller (davem@redhat.com)
- * Copyright (C) 1995, 1996, 1997, 1998 Jakub Jelinek   (jj@ultra.linux.cz)
+ * Copyright (C) 1995, 1996, 1997, 1998 Jakub Jelinek	(jj@ultra.linux.cz)
  */
 
 #define ELF_ARCH		EM_MIPS
@@ -50,7 +50,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define TASK32_SIZE		0x7fff8000UL
 #undef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE         (TASK32_SIZE / 3 * 2)
+#define ELF_ET_DYN_BASE		(TASK32_SIZE / 3 * 2)
 
 #include <asm/processor.h>
 
@@ -86,8 +86,8 @@ struct elf_prstatus32
 	pid_t	pr_ppid;
 	pid_t	pr_pgrp;
 	pid_t	pr_sid;
-	struct compat_timeval pr_utime;	/* User time */
-	struct compat_timeval pr_stime;	/* System time */
+	struct compat_timeval pr_utime; /* User time */
+	struct compat_timeval pr_stime; /* System time */
 	struct compat_timeval pr_cutime;/* Cumulative user time */
 	struct compat_timeval pr_cstime;/* Cumulative system time */
 	elf_gregset_t pr_reg;	/* GP registers */
@@ -107,7 +107,7 @@ struct elf_prpsinfo32
 	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	/* Lots missing */
 	char	pr_fname[16];	/* filename of executable */
-	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
+	char	pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
 };
 
 #define elf_caddr_t	u32

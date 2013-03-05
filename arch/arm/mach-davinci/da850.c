@@ -76,6 +76,13 @@ static struct clk pll0_aux_clk = {
 	.flags		= CLK_PLL | PRE_PLL,
 };
 
+static struct clk pll0_sysclk1 = {
+	.name		= "pll0_sysclk1",
+	.parent		= &pll0_clk,
+	.flags		= CLK_PLL,
+	.div_reg	= PLLDIV1,
+};
+
 static struct clk pll0_sysclk2 = {
 	.name		= "pll0_sysclk2",
 	.parent		= &pll0_clk,
@@ -368,10 +375,19 @@ static struct clk sata_clk = {
 	.flags		= PSC_FORCE,
 };
 
+static struct clk dsp_clk = {
+	.name		= "dsp",
+	.parent		= &pll0_sysclk1,
+	.domain		= DAVINCI_GPSC_DSPDOMAIN,
+	.lpsc		= DA8XX_LPSC0_GEM,
+	.flags		= PSC_LRST | PSC_FORCE,
+};
+
 static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
 	CLK(NULL,		"pll0_aux",	&pll0_aux_clk),
+	CLK(NULL,		"pll0_sysclk1",	&pll0_sysclk1),
 	CLK(NULL,		"pll0_sysclk2",	&pll0_sysclk2),
 	CLK(NULL,		"pll0_sysclk3",	&pll0_sysclk3),
 	CLK(NULL,		"pll0_sysclk4",	&pll0_sysclk4),
@@ -413,6 +429,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("vpif",		NULL,		&vpif_clk),
 	CLK("ahci",		NULL,		&sata_clk),
+	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 

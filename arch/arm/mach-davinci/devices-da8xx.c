@@ -359,7 +359,7 @@ static struct resource da8xx_watchdog_resources[] = {
 	},
 };
 
-struct platform_device da8xx_wdt_device = {
+static struct platform_device da8xx_wdt_device = {
 	.name		= "watchdog",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(da8xx_watchdog_resources),
@@ -368,7 +368,15 @@ struct platform_device da8xx_wdt_device = {
 
 void da8xx_restart(char mode, const char *cmd)
 {
-	davinci_watchdog_reset(&da8xx_wdt_device);
+	struct device *dev;
+
+	dev = bus_find_device_by_name(&platform_bus_type, NULL, "watchdog");
+	if (!dev) {
+		pr_err("%s: failed to find watchdog device\n", __func__);
+		return;
+	}
+
+	davinci_watchdog_reset(to_platform_device(dev));
 }
 
 int __init da8xx_register_watchdog(void)
@@ -751,7 +759,7 @@ void __iomem * __init da8xx_get_mem_ctlr(void)
 
 	da8xx_ddr2_ctlr_base = ioremap(DA8XX_DDR2_CTL_BASE, SZ_32K);
 	if (!da8xx_ddr2_ctlr_base)
-		pr_warning("%s: Unable to map DDR2 controller",	__func__);
+		pr_warn("%s: Unable to map DDR2 controller", __func__);
 
 	return da8xx_ddr2_ctlr_base;
 }
@@ -832,7 +840,7 @@ static struct resource da8xx_spi1_resources[] = {
 	},
 };
 
-struct davinci_spi_platform_data da8xx_spi_pdata[] = {
+static struct davinci_spi_platform_data da8xx_spi_pdata[] = {
 	[0] = {
 		.version	= SPI_VERSION_2,
 		.intr_line	= 1,
@@ -866,20 +874,12 @@ static struct platform_device da8xx_spi_device[] = {
 	},
 };
 
-int __init da8xx_register_spi(int instance, const struct spi_board_info *info,
-			      unsigned len)
+int __init da8xx_register_spi_bus(int instance, unsigned num_chipselect)
 {
-	int ret;
-
 	if (instance < 0 || instance > 1)
 		return -EINVAL;
 
-	ret = spi_register_board_info(info, len);
-	if (ret)
-		pr_warning("%s: failed to register board info for spi %d :"
-			   " %d\n", __func__, instance, ret);
-
-	da8xx_spi_pdata[instance].num_chipselect = len;
+	da8xx_spi_pdata[instance].num_chipselect = num_chipselect;
 
 	if (instance == 1 && cpu_is_davinci_da850()) {
 		da8xx_spi1_resources[0].start = DA850_SPI1_BASE;

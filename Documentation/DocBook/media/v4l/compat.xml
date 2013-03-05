@@ -2477,6 +2477,22 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.9</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added timestamp types to
+	  <structfield>flags</structfield> field in
+	  <structname>v4l2_buffer</structname>. See <xref
+	  linkend="buffer-flags" />.</para>
+        </listitem>
+        <listitem>
+	  <para>Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control event
+	  changes flag. See <xref linkend="changes-flags"/>.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 

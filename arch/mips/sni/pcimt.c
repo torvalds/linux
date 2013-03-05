@@ -60,7 +60,7 @@ static inline void sni_pcimt_detect(void)
 	p += sprintf(p, "%s PCI", (csmsr & 0x80) ? "RM200" : "RM300");
 	if ((csmsr & 0x80) == 0)
 		p += sprintf(p, ", board revision %s",
-		             (csmsr & 0x20) ? "D" : "C");
+			     (csmsr & 0x20) ? "D" : "C");
 	asic = csmsr & 0x80;
 	asic = (csmsr & 0x08) ? asic : !asic;
 	p += sprintf(p, ", ASIC PCI Rev %s", asic ? "1.0" : "1.1");
@@ -91,22 +91,22 @@ static struct platform_device pcimt_serial8250_device = {
 };
 
 static struct resource pcimt_cmos_rsrc[] = {
-        {
-                .start = 0x70,
-                .end   = 0x71,
-                .flags = IORESOURCE_IO
-        },
-        {
-                .start = 8,
-                .end   = 8,
-                .flags = IORESOURCE_IRQ
-        }
+	{
+		.start = 0x70,
+		.end   = 0x71,
+		.flags = IORESOURCE_IO
+	},
+	{
+		.start = 8,
+		.end   = 8,
+		.flags = IORESOURCE_IRQ
+	}
 };
 
 static struct platform_device pcimt_cmos_device = {
-        .name           = "rtc_cmos",
-        .num_resources  = ARRAY_SIZE(pcimt_cmos_rsrc),
-        .resource       = pcimt_cmos_rsrc
+	.name		= "rtc_cmos",
+	.num_resources	= ARRAY_SIZE(pcimt_cmos_rsrc),
+	.resource	= pcimt_cmos_rsrc
 };
 
 
@@ -191,7 +191,7 @@ static struct pci_controller sni_controller = {
 	.mem_offset	= 0x00000000UL,
 	.io_resource	= &sni_io_resource,
 	.io_offset	= 0x00000000UL,
-	.io_map_base    = SNI_PORT_BASE
+	.io_map_base	= SNI_PORT_BASE
 };
 
 static void enable_pcimt_irq(struct irq_data *d)
@@ -319,9 +319,9 @@ static int __init snirm_pcimt_setup_devinit(void)
 	case SNI_BRD_PCI_MTOWER:
 	case SNI_BRD_PCI_DESKTOP:
 	case SNI_BRD_PCI_MTOWER_CPLUS:
-	        platform_device_register(&pcimt_serial8250_device);
-	        platform_device_register(&pcimt_cmos_device);
-	        break;
+		platform_device_register(&pcimt_serial8250_device);
+		platform_device_register(&pcimt_cmos_device);
+		break;
 	}
 
 	return 0;

@@ -46,7 +46,8 @@ extern void _free_xid(unsigned int);
 ({								\
 	unsigned int __xid = _get_xid();				\
 	cFYI(1, "CIFS VFS: in %s as Xid: %u with uid: %d",	\
-	     __func__, __xid, current_fsuid());			\
+	     __func__, __xid,					\
+	     from_kuid(&init_user_ns, current_fsuid()));	\
 	__xid;							\
 })
 
@@ -161,7 +162,7 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
-					uid_t, gid_t);
+					kuid_t, kgid_t);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
@@ -304,8 +305,8 @@ struct cifs_unix_set_info_args {
 	__u64	atime;
 	__u64	mtime;
 	__u64	mode;
-	__u64	uid;
-	__u64	gid;
+	kuid_t	uid;
+	kgid_t	gid;
 	dev_t	device;
 };
 

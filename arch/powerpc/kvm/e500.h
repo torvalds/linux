@@ -28,6 +28,7 @@
 
 #define E500_TLB_VALID 1
 #define E500_TLB_BITMAP 2
+#define E500_TLB_TLB0		(1 << 2)
 
 struct tlbe_ref {
 	pfn_t pfn;

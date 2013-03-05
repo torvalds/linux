@@ -22,7 +22,7 @@ static struct platform_device eisa_root_dev = {
 };
 
 static struct eisa_root_device eisa_bus_root = {
-	.dev           = &eisa_root_dev.dev,
+	.dev	       = &eisa_root_dev.dev,
 	.bus_base_addr = 0,
 	.res	       = &ioport_resource,
 	.slots	       = EISA_MAX_SLOTS,

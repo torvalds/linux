@@ -170,10 +170,9 @@
 			gpio-bank = <8>;
 		};
 
-		pinctrl@80157000 {
-			// This is actually the PRCMU base address
-			reg = <0x80157000 0x2000>;
-			compatible = "stericsson,nmk_pinctrl";
+		pinctrl {
+			compatible = "stericsson,nmk-pinctrl";
+			prcm = <&prcmu>;
 		};
 
 		usb@a03e0000 {
@@ -190,9 +189,10 @@
 			interrupts = <0 25 0x4>;
 		};
 
-		prcmu@80157000 {
+		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
 			reg = <0x80157000 0x1000>;
+			reg-names = "prcmu";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;

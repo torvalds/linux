@@ -32,7 +32,7 @@
 static loff_t page_map_seek( struct file *file, loff_t off, int whence)
 {
 	loff_t new;
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 
 	switch(whence) {
 	case 0:
@@ -55,13 +55,13 @@ static loff_t page_map_seek( struct file *file, loff_t off, int whence)
 static ssize_t page_map_read( struct file *file, char __user *buf, size_t nbytes,
 			      loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	return simple_read_from_buffer(buf, nbytes, ppos, dp->data, dp->size);
 }
 
 static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 
 	if ((vma->vm_end - vma->vm_start) > dp->size)
 		return -EINVAL;

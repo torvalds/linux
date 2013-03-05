@@ -108,7 +108,7 @@ static void appldata_get_mem_data(void *data)
 	mem_data->totalswap = P2K(val.totalswap);
 	mem_data->freeswap  = P2K(val.freeswap);
 
-	mem_data->timestamp = get_clock();
+	mem_data->timestamp = get_tod_clock();
 	mem_data->sync_count_2++;
 }
 

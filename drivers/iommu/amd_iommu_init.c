@@ -1876,11 +1876,6 @@ static int amd_iommu_init_dma(void)
 	struct amd_iommu *iommu;
 	int ret;
 
-	init_device_table_dma();
-
-	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
-
 	if (iommu_pass_through)
 		ret = amd_iommu_init_passthrough();
 	else
@@ -1888,6 +1883,11 @@ static int amd_iommu_init_dma(void)
 
 	if (ret)
 		return ret;
+
+	init_device_table_dma();
+
+	for_each_iommu(iommu)
+		iommu_flush_all_caches(iommu);
 
 	amd_iommu_init_api();
 

@@ -23,6 +23,7 @@
  *
  * Authors: Christian König
  */
+#include <linux/hdmi.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
@@ -121,79 +122,18 @@ static void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock)
 }
 
 /*
- * calculate the crc for a given info frame
- */
-static void r600_hdmi_infoframe_checksum(uint8_t packetType,
-					 uint8_t versionNumber,
-					 uint8_t length,
-					 uint8_t *frame)
-{
-	int i;
-	frame[0] = packetType + versionNumber + length;
-	for (i = 1; i <= length; i++)
-		frame[0] += frame[i];
-	frame[0] = 0x100 - frame[0];
-}
-
-/*
  * build a HDMI Video Info Frame
  */
-static void r600_hdmi_videoinfoframe(
-	struct drm_encoder *encoder,
-	enum r600_hdmi_color_format color_format,
-	int active_information_present,
-	uint8_t active_format_aspect_ratio,
-	uint8_t scan_information,
-	uint8_t colorimetry,
-	uint8_t ex_colorimetry,
-	uint8_t quantization,
-	int ITC,
-	uint8_t picture_aspect_ratio,
-	uint8_t video_format_identification,
-	uint8_t pixel_repetition,
-	uint8_t non_uniform_picture_scaling,
-	uint8_t bar_info_data_valid,
-	uint16_t top_bar,
-	uint16_t bottom_bar,
-	uint16_t left_bar,
-	uint16_t right_bar
-)
+static void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
+					   void *buffer, size_t size)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset = dig->afmt->offset;
+	uint8_t *frame = buffer + 3;
 
-	uint8_t frame[14];
-
-	frame[0x0] = 0;
-	frame[0x1] =
-		(scan_information & 0x3) |
-		((bar_info_data_valid & 0x3) << 2) |
-		((active_information_present & 0x1) << 4) |
-		((color_format & 0x3) << 5);
-	frame[0x2] =
-		(active_format_aspect_ratio & 0xF) |
-		((picture_aspect_ratio & 0x3) << 4) |
-		((colorimetry & 0x3) << 6);
-	frame[0x3] =
-		(non_uniform_picture_scaling & 0x3) |
-		((quantization & 0x3) << 2) |
-		((ex_colorimetry & 0x7) << 4) |
-		((ITC & 0x1) << 7);
-	frame[0x4] = (video_format_identification & 0x7F);
-	frame[0x5] = (pixel_repetition & 0xF);
-	frame[0x6] = (top_bar & 0xFF);
-	frame[0x7] = (top_bar >> 8);
-	frame[0x8] = (bottom_bar & 0xFF);
-	frame[0x9] = (bottom_bar >> 8);
-	frame[0xA] = (left_bar & 0xFF);
-	frame[0xB] = (left_bar >> 8);
-	frame[0xC] = (right_bar & 0xFF);
-	frame[0xD] = (right_bar >> 8);
-
-	r600_hdmi_infoframe_checksum(0x82, 0x02, 0x0D, frame);
 	/* Our header values (type, version, length) should be alright, Intel
 	 * is using the same. Checksum function also seems to be OK, it works
 	 * fine for audio infoframe. However calculated value is always lower
@@ -215,39 +155,15 @@ static void r600_hdmi_videoinfoframe(
 /*
  * build a Audio Info Frame
  */
-static void r600_hdmi_audioinfoframe(
-	struct drm_encoder *encoder,
-	uint8_t channel_count,
-	uint8_t coding_type,
-	uint8_t sample_size,
-	uint8_t sample_frequency,
-	uint8_t format,
-	uint8_t channel_allocation,
-	uint8_t level_shift,
-	int downmix_inhibit
-)
+static void r600_hdmi_update_audio_infoframe(struct drm_encoder *encoder,
+					     const void *buffer, size_t size)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset = dig->afmt->offset;
-
-	uint8_t frame[11];
-
-	frame[0x0] = 0;
-	frame[0x1] = (channel_count & 0x7) | ((coding_type & 0xF) << 4);
-	frame[0x2] = (sample_size & 0x3) | ((sample_frequency & 0x7) << 2);
-	frame[0x3] = format;
-	frame[0x4] = channel_allocation;
-	frame[0x5] = ((level_shift & 0xF) << 3) | ((downmix_inhibit & 0x1) << 7);
-	frame[0x6] = 0;
-	frame[0x7] = 0;
-	frame[0x8] = 0;
-	frame[0x9] = 0;
-	frame[0xA] = 0;
-
-	r600_hdmi_infoframe_checksum(0x84, 0x01, 0x0A, frame);
+	const u8 *frame = buffer + 3;
 
 	WREG32(HDMI0_AUDIO_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
@@ -320,7 +236,10 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
+	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
+	ssize_t err;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
@@ -371,9 +290,19 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	WREG32(HDMI0_GC + offset, 0); /* unset HDMI0_GC_AVMUTE */
 
-	r600_hdmi_videoinfoframe(encoder, RGB, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	if (err < 0) {
+		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
+		return;
+	}
 
+	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		DRM_ERROR("failed to pack AVI infoframe: %zd\n", err);
+		return;
+	}
+
+	r600_hdmi_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 	r600_hdmi_update_ACR(encoder, mode->clock);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
@@ -395,8 +324,11 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	struct r600_audio audio = r600_audio_status(rdev);
+	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
+	struct hdmi_audio_infoframe frame;
 	uint32_t offset;
 	uint32_t iec;
+	ssize_t err;
 
 	if (!dig->afmt || !dig->afmt->enabled)
 		return;
@@ -462,9 +394,21 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 		iec |= 0x5 << 16;
 	WREG32_P(HDMI0_60958_1 + offset, iec, ~0x5000f);
 
-	r600_hdmi_audioinfoframe(encoder, audio.channels - 1, 0, 0, 0, 0, 0, 0,
-				 0);
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		DRM_ERROR("failed to setup audio infoframe\n");
+		return;
+	}
 
+	frame.channels = audio.channels;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		DRM_ERROR("failed to pack audio infoframe\n");
+		return;
+	}
+
+	r600_hdmi_update_audio_infoframe(encoder, buffer, sizeof(buffer));
 	r600_hdmi_audio_workaround(encoder);
 }
 
@@ -544,7 +488,6 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 
 	/* Called for ATOM_ENCODER_MODE_HDMI only */
 	if (!dig || !dig->afmt) {
-		WARN_ON(1);
 		return;
 	}
 	if (!dig->afmt->enabled)

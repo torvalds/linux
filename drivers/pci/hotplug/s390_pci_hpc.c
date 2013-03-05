@@ -172,25 +172,6 @@ error:
 	return -ENOMEM;
 }
 
-static int __init init_pci_slots(void)
-{
-	struct zpci_dev *zdev;
-	int device = 0;
-
-	/*
-	 * Create a structure for each slot, and register that slot
-	 * with the pci_hotplug subsystem.
-	 */
-	mutex_lock(&zpci_list_lock);
-	list_for_each_entry(zdev, &zpci_list, entry) {
-		init_pci_slot(zdev);
-		device++;
-	}
-
-	mutex_unlock(&zpci_list_lock);
-	return (device) ? 0 : -ENODEV;
-}
-
 static void exit_pci_slot(struct zpci_dev *zdev)
 {
 	struct list_head *tmp, *n;
@@ -203,6 +184,26 @@ static void exit_pci_slot(struct zpci_dev *zdev)
 		list_del(&slot->slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
 	}
+}
+
+static struct pci_hp_callback_ops hp_ops = {
+	.create_slot = init_pci_slot,
+	.remove_slot = exit_pci_slot,
+};
+
+static void __init init_pci_slots(void)
+{
+	struct zpci_dev *zdev;
+
+	/*
+	 * Create a structure for each slot, and register that slot
+	 * with the pci_hotplug subsystem.
+	 */
+	mutex_lock(&zpci_list_lock);
+	list_for_each_entry(zdev, &zpci_list, entry) {
+		init_pci_slot(zdev);
+	}
+	mutex_unlock(&zpci_list_lock);
 }
 
 static void __exit exit_pci_slots(void)
@@ -224,28 +225,19 @@ static void __exit exit_pci_slots(void)
 
 static int __init pci_hotplug_s390_init(void)
 {
-	/*
-	 * Do specific initialization stuff for your driver here
-	 * like initializing your controller hardware (if any) and
-	 * determining the number of slots you have in the system
-	 * right now.
-	 */
-
-	if (!pci_probe)
+	if (!s390_pci_probe)
 		return -EOPNOTSUPP;
 
-	/* register callbacks for slot handling from arch code */
-	mutex_lock(&zpci_list_lock);
-	hotplug_ops.create_slot = init_pci_slot;
-	hotplug_ops.remove_slot = exit_pci_slot;
-	mutex_unlock(&zpci_list_lock);
-	pr_info("registered hotplug slot callbacks\n");
-	return init_pci_slots();
+	zpci_register_hp_ops(&hp_ops);
+	init_pci_slots();
+
+	return 0;
 }
 
 static void __exit pci_hotplug_s390_exit(void)
 {
 	exit_pci_slots();
+	zpci_deregister_hp_ops();
 }
 
 module_init(pci_hotplug_s390_init);

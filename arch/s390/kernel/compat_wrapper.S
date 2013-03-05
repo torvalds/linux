@@ -24,12 +24,6 @@ ENTRY(sys32_write_wrapper)
 	llgfr	%r4,%r4			# size_t
 	jg	sys32_write		# branch to system call
 
-ENTRY(sys32_open_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	jg	compat_sys_open		# branch to system call
-
 ENTRY(sys32_close_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_close		# branch to system call
@@ -72,12 +66,6 @@ ENTRY(sys32_lchown16_wrapper)
 	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
 	llgfr	%r4,%r4			# __kernel_old_uid_emu31_t
 	jg	sys32_lchown16		# branch to system call
-
-ENTRY(sys32_lseek_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	lgfr	%r3,%r3			# off_t
-	llgfr	%r4,%r4			# unsigned int
-	jg	sys_lseek		# branch to system call
 
 #sys32_getpid_wrapper				# void
 
@@ -226,12 +214,6 @@ ENTRY(sys32_dup2_wrapper)
 
 #sys32_setsid_wrapper			# void
 
-ENTRY(sys32_sigaction_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const struct old_sigaction *
-	llgtr	%r4,%r4			# struct old_sigaction32 *
-	jg	sys32_sigaction		# branch to system call
-
 ENTRY(sys32_setreuid16_wrapper)
 	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
 	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
@@ -343,16 +325,6 @@ ENTRY(sys32_munmap_wrapper)
 	llgfr	%r3,%r3			# size_t
 	jg	sys_munmap		# branch to system call
 
-ENTRY(sys32_truncate_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# long
-	jg	sys_truncate		# branch to system call
-
-ENTRY(sys32_ftruncate_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	jg	sys_ftruncate		# branch to system call
-
 ENTRY(sys32_fchmod_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# mode_t
@@ -396,17 +368,6 @@ ENTRY(sys32_syslog_wrapper)
 	lgfr	%r4,%r4			# int
 	jg	sys_syslog		# branch to system call
 
-ENTRY(compat_sys_setitimer_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct itimerval_emu31 *
-	llgtr	%r4,%r4			# struct itimerval_emu31 *
-	jg	compat_sys_setitimer	# branch to system call
-
-ENTRY(compat_sys_getitimer_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct itimerval_emu31 *
-	jg	compat_sys_getitimer	# branch to system call
-
 ENTRY(compat_sys_newstat_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct stat_emu31 *
@@ -423,13 +384,6 @@ ENTRY(compat_sys_newfstat_wrapper)
 	jg	compat_sys_newfstat	# branch to system call
 
 #sys32_vhangup_wrapper			# void
-
-ENTRY(compat_sys_wait4_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# unsigned int *
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# struct rusage *
-	jg	compat_sys_wait4	# branch to system call
 
 ENTRY(sys32_swapoff_wrapper)
 	llgtr	%r2,%r2			# const char *
@@ -473,12 +427,6 @@ ENTRY(sys32_mprotect_wrapper)
 	llgfr	%r3,%r3			# size_t
 	llgfr	%r4,%r4			# unsigned long
 	jg	sys_mprotect		# branch to system call
-
-ENTRY(compat_sys_sigprocmask_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_old_sigset_t *
-	llgtr	%r4,%r4			# compat_old_sigset_t *
-	jg	compat_sys_sigprocmask		# branch to system call
 
 ENTRY(sys_init_module_wrapper)
 	llgtr	%r2,%r2			# void *
@@ -628,11 +576,6 @@ ENTRY(sys32_sched_get_priority_min_wrapper)
 	lgfr	%r2,%r2			# int
 	jg	sys_sched_get_priority_min	# branch to system call
 
-ENTRY(sys32_sched_rr_get_interval_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# struct compat_timespec *
-	jg	sys32_sched_rr_get_interval	# branch to system call
-
 ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r2,%r2			# struct compat_timespec *
 	llgtr	%r3,%r3			# struct compat_timespec *
@@ -686,43 +629,6 @@ ENTRY(sys32_prctl_wrapper)
 
 #sys32_rt_sigreturn_wrapper		# done in rt_sigreturn_glue
 
-ENTRY(sys32_rt_sigaction_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const struct sigaction_emu31 *
-	llgtr	%r4,%r4			# const struct sigaction_emu31 *
-	llgfr	%r5,%r5			# size_t
-	jg	sys32_rt_sigaction	# branch to system call
-
-ENTRY(sys32_rt_sigprocmask_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# old_sigset_emu31 *
-	llgtr	%r4,%r4			# old_sigset_emu31 *
-	llgfr	%r5,%r5			# size_t
-	jg	sys32_rt_sigprocmask	# branch to system call
-
-ENTRY(sys32_rt_sigpending_wrapper)
-	llgtr	%r2,%r2			# sigset_emu31 *
-	llgfr	%r3,%r3			# size_t
-	jg	sys32_rt_sigpending	# branch to system call
-
-ENTRY(compat_sys_rt_sigtimedwait_wrapper)
-	llgtr	%r2,%r2			# const sigset_emu31_t *
-	llgtr	%r3,%r3			# siginfo_emu31_t *
-	llgtr	%r4,%r4			# const struct compat_timespec *
-	llgfr	%r5,%r5			# size_t
-	jg	compat_sys_rt_sigtimedwait	# branch to system call
-
-ENTRY(sys32_rt_sigqueueinfo_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# siginfo_emu31_t *
-	jg	sys32_rt_sigqueueinfo	# branch to system call
-
-ENTRY(compat_sys_rt_sigsuspend_wrapper)
-	llgtr	%r2,%r2			# compat_sigset_t *
-	llgfr	%r3,%r3			# compat_size_t
-	jg	compat_sys_rt_sigsuspend
-
 ENTRY(sys32_pread64_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# char *
@@ -759,11 +665,6 @@ ENTRY(sys32_capset_wrapper)
 	llgtr	%r2,%r2			# cap_user_header_t
 	llgtr	%r3,%r3			# const cap_user_data_t
 	jg	sys_capset		# branch to system call
-
-ENTRY(sys32_sigaltstack_wrapper)
-	llgtr	%r2,%r2			# const stack_emu31_t *
-	llgtr	%r3,%r3			# stack_emu31_t *
-	jg	sys32_sigaltstack
 
 ENTRY(sys32_sendfile_wrapper)
 	lgfr	%r2,%r2			# int
@@ -920,16 +821,6 @@ ENTRY(sys32_fstat64_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgtr	%r3,%r3			# struct stat64 *
 	jg	sys32_fstat64		# branch to system call
-
-ENTRY(compat_sys_futex_wrapper)
-	llgtr	%r2,%r2			# u32 *
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# struct compat_timespec *
-	llgtr	%r6,%r6			# u32 *
-	lgf	%r0,164(%r15)		# int
-	stg	%r0,160(%r15)
-	jg	compat_sys_futex	# branch to system call
 
 ENTRY(sys32_setxattr_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -1216,14 +1107,6 @@ ENTRY(sys32_remap_file_pages_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	jg	sys_remap_file_pages
 
-ENTRY(compat_sys_waitid_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# pid_t
-	llgtr	%r4,%r4			# siginfo_emu31_t *
-	lgfr	%r5,%r5			# int
-	llgtr	%r6,%r6			# struct rusage_emu31 *
-	jg	compat_sys_waitid
-
 ENTRY(compat_sys_kexec_load_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgfr	%r3,%r3			# unsigned long
@@ -1252,13 +1135,6 @@ ENTRY(sys_inotify_rm_watch_wrapper)
 	lgfr	%r2,%r2			# int
 	llgfr	%r3,%r3			# u32
 	jg	sys_inotify_rm_watch
-
-ENTRY(compat_sys_openat_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# const char *
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	jg	compat_sys_openat
 
 ENTRY(sys_mkdirat_wrapper)
 	lgfr	%r2,%r2			# int
@@ -1362,17 +1238,6 @@ ENTRY(sys_unshare_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	jg	sys_unshare
 
-ENTRY(compat_sys_set_robust_list_wrapper)
-	llgtr	%r2,%r2			# struct compat_robust_list_head *
-	llgfr	%r3,%r3			# size_t
-	jg	compat_sys_set_robust_list
-
-ENTRY(compat_sys_get_robust_list_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_uptr_t_t *
-	llgtr	%r4,%r4			# compat_size_t *
-	jg	compat_sys_get_robust_list
-
 ENTRY(sys_splice_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# loff_t *
@@ -1458,18 +1323,6 @@ ENTRY(sys_timerfd_create_wrapper)
 	lgfr	%r3,%r3			# int
 	jg	sys_timerfd_create
 
-ENTRY(compat_sys_timerfd_settime_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# struct compat_itimerspec *
-	llgtr	%r5,%r5			# struct compat_itimerspec *
-	jg	compat_sys_timerfd_settime
-
-ENTRY(compat_sys_timerfd_gettime_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct compat_itimerspec *
-	jg	compat_sys_timerfd_gettime
-
 ENTRY(compat_sys_signalfd4_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# compat_sigset_t *
@@ -1550,13 +1403,6 @@ ENTRY(compat_sys_pwritev_wrapper)
 	llgfr	%r6,%r6			# u32
 	jg	compat_sys_pwritev	# branch to system call
 
-ENTRY(compat_sys_rt_tgsigqueueinfo_wrapper)
-	lgfr	%r2,%r2			# compat_pid_t
-	lgfr	%r3,%r3			# compat_pid_t
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# struct compat_siginfo *
-	jg	compat_sys_rt_tgsigqueueinfo_wrapper # branch to system call
-
 ENTRY(sys_perf_event_open_wrapper)
 	llgtr	%r2,%r2			# const struct perf_event_attr *
 	lgfr	%r3,%r3			# pid_t
@@ -1606,12 +1452,6 @@ ENTRY(sys_name_to_handle_at_wrapper)
 	llgtr	%r5,%r5			# int __user *
 	lgfr	%r6,%r6			# int
 	jg	sys_name_to_handle_at
-
-ENTRY(compat_sys_open_by_handle_at_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct file_handle __user *
-	lgfr	%r4,%r4			# int
-	jg	compat_sys_open_by_handle_at
 
 ENTRY(compat_sys_clock_adjtime_wrapper)
 	lgfr	%r2,%r2			# clockid_t (int)

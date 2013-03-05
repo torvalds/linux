@@ -20,6 +20,7 @@
  * MA  02110-1301, USA.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -65,6 +66,7 @@ struct mxs_gpio_port {
 	struct irq_domain *domain;
 	struct bgpio_chip bgc;
 	enum mxs_gpio_id devid;
+	u32 both_edges;
 };
 
 static inline int is_imx23_gpio(struct mxs_gpio_port *port)
@@ -81,13 +83,23 @@ static inline int is_imx28_gpio(struct mxs_gpio_port *port)
 
 static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 {
+	u32 val;
 	u32 pin_mask = 1 << d->hwirq;
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct mxs_gpio_port *port = gc->private;
 	void __iomem *pin_addr;
 	int edge;
 
+	port->both_edges &= ~pin_mask;
 	switch (type) {
+	case IRQ_TYPE_EDGE_BOTH:
+		val = gpio_get_value(port->bgc.gc.base + d->hwirq);
+		if (val)
+			edge = GPIO_INT_FALL_EDGE;
+		else
+			edge = GPIO_INT_RISE_EDGE;
+		port->both_edges |= pin_mask;
+		break;
 	case IRQ_TYPE_EDGE_RISING:
 		edge = GPIO_INT_RISE_EDGE;
 		break;
@@ -124,6 +136,23 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static void mxs_flip_edge(struct mxs_gpio_port *port, u32 gpio)
+{
+	u32 bit, val, edge;
+	void __iomem *pin_addr;
+
+	bit = 1 << gpio;
+
+	pin_addr = port->base + PINCTRL_IRQPOL(port);
+	val = readl(pin_addr);
+	edge = val & bit;
+
+	if (edge)
+		writel(bit, pin_addr + MXS_CLR);
+	else
+		writel(bit, pin_addr + MXS_SET);
+}
+
 /* MXS has one interrupt *per* gpio port */
 static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
@@ -137,6 +166,9 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	while (irq_stat != 0) {
 		int irqoffset = fls(irq_stat) - 1;
+		if (port->both_edges & (1 << irqoffset))
+			mxs_flip_edge(port, irqoffset);
+
 		generic_handle_irq(irq_find_mapping(port->domain, irqoffset));
 		irq_stat &= ~(1 << irqoffset);
 	}
@@ -253,12 +285,14 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 			parent = of_get_parent(np);
 			base = of_iomap(parent, 0);
 			of_node_put(parent);
+			if (!base)
+				return -EADDRNOTAVAIL;
 		} else {
 			iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-			base = devm_request_and_ioremap(&pdev->dev, iores);
+			base = devm_ioremap_resource(&pdev->dev, iores);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
 		}
-		if (!base)
-			return -EADDRNOTAVAIL;
 	}
 	port->base = base;
 

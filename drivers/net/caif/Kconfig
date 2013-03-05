@@ -6,7 +6,7 @@ comment "CAIF transport drivers"
 
 config CAIF_TTY
 	tristate "CAIF TTY transport driver"
-	depends on CAIF
+	depends on CAIF && TTY
 	default n
 	---help---
 	The CAIF TTY transport driver is a Line Discipline (ldisc)

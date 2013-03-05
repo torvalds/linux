@@ -18,7 +18,6 @@
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_serial.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
@@ -45,8 +44,10 @@ void tegra_serial_handle_break(struct uart_port *p)
 		udelay(1);
 	} while (1);
 }
-/* FIXME remove this export when tegra finishes conversion to open firmware */
-EXPORT_SYMBOL_GPL(tegra_serial_handle_break);
+#else
+static inline void tegra_serial_handle_break(struct uart_port *port)
+{
+}
 #endif
 
 /*

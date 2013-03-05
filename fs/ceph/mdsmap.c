@@ -59,6 +59,10 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		return ERR_PTR(-ENOMEM);
 
 	ceph_decode_16_safe(p, end, version, bad);
+	if (version > 3) {
+		pr_warning("got mdsmap version %d > 3, failing", version);
+		goto bad;
+	}
 
 	ceph_decode_need(p, end, 8*sizeof(u32) + sizeof(u64), bad);
 	m->m_epoch = ceph_decode_32(p);
@@ -144,13 +148,13 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	/* pg_pools */
 	ceph_decode_32_safe(p, end, n, bad);
 	m->m_num_data_pg_pools = n;
-	m->m_data_pg_pools = kcalloc(n, sizeof(u32), GFP_NOFS);
+	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
 	if (!m->m_data_pg_pools)
 		goto badmem;
-	ceph_decode_need(p, end, sizeof(u32)*(n+1), bad);
+	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);
 	for (i = 0; i < n; i++)
-		m->m_data_pg_pools[i] = ceph_decode_32(p);
-	m->m_cas_pg_pool = ceph_decode_32(p);
+		m->m_data_pg_pools[i] = ceph_decode_64(p);
+	m->m_cas_pg_pool = ceph_decode_64(p);
 
 	/* ok, we don't care about the rest. */
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);

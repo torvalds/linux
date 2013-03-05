@@ -13,7 +13,7 @@
 #ifndef __ASM_ARCH_REGS_IRQ_H
 #define __ASM_ARCH_REGS_IRQ_H __FILE__
 
-#include <asm/hardware/gic.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/map.h>
 
 #endif /* __ASM_ARCH_REGS_IRQ_H */

@@ -49,7 +49,7 @@
  */
 #define write_c0_eimr(val)						\
 do {									\
-	if (sizeof(unsigned long) == 4)	{				\
+	if (sizeof(unsigned long) == 4) {				\
 		unsigned long __flags;					\
 									\
 		local_irq_save(__flags);				\
@@ -67,6 +67,85 @@ do {									\
 	} else								\
 		__write_64bit_c0_register($9, 7, (val));		\
 } while (0)
+
+/*
+ * Handling the 64 bit EIMR and EIRR registers in 32-bit mode with
+ * standard functions will be very inefficient. This provides
+ * optimized functions for the normal operations on the registers.
+ *
+ * Call with interrupts disabled.
+ */
+static inline void ack_c0_eirr(int irq)
+{
+	__asm__ __volatile__(
+		".set	push\n\t"
+		".set	mips64\n\t"
+		".set	noat\n\t"
+		"li	$1, 1\n\t"
+		"dsllv	$1, $1, %0\n\t"
+		"dmtc0	$1, $9, 6\n\t"
+		".set	pop"
+		: : "r" (irq));
+}
+
+static inline void set_c0_eimr(int irq)
+{
+	__asm__ __volatile__(
+		".set	push\n\t"
+		".set	mips64\n\t"
+		".set	noat\n\t"
+		"li	$1, 1\n\t"
+		"dsllv	%0, $1, %0\n\t"
+		"dmfc0	$1, $9, 7\n\t"
+		"or	$1, %0\n\t"
+		"dmtc0	$1, $9, 7\n\t"
+		".set	pop"
+		: "+r" (irq));
+}
+
+static inline void clear_c0_eimr(int irq)
+{
+	__asm__ __volatile__(
+		".set	push\n\t"
+		".set	mips64\n\t"
+		".set	noat\n\t"
+		"li	$1, 1\n\t"
+		"dsllv	%0, $1, %0\n\t"
+		"dmfc0	$1, $9, 7\n\t"
+		"or	$1, %0\n\t"
+		"xor	$1, %0\n\t"
+		"dmtc0	$1, $9, 7\n\t"
+		".set	pop"
+		: "+r" (irq));
+}
+
+/*
+ * Read c0 eimr and c0 eirr, do AND of the two values, the result is
+ * the interrupts which are raised and are not masked.
+ */
+static inline uint64_t read_c0_eirr_and_eimr(void)
+{
+	uint64_t val;
+
+#ifdef CONFIG_64BIT
+	val = read_c0_eimr() & read_c0_eirr();
+#else
+	__asm__ __volatile__(
+		".set	push\n\t"
+		".set	mips64\n\t"
+		".set	noat\n\t"
+		"dmfc0	%M0, $9, 6\n\t"
+		"dmfc0	%L0, $9, 7\n\t"
+		"and	%M0, %L0\n\t"
+		"dsll	%L0, %M0, 32\n\t"
+		"dsra	%M0, %M0, 32\n\t"
+		"dsra	%L0, %L0, 32\n\t"
+		".set	pop"
+		: "=r" (val));
+#endif
+
+	return val;
+}
 
 static inline int hard_smp_processor_id(void)
 {
@@ -208,7 +287,7 @@ do {									\
 			".set\tmips0\n\t"				\
 			: : "Jr" (value));				\
 	else								\
-		__asm__ __volatile__(                                   \
+		__asm__ __volatile__(					\
 			".set\tmips32\n\t"				\
 			"mtc2\t%z0, " #reg ", " #sel "\n\t"		\
 			".set\tmips0\n\t"				\

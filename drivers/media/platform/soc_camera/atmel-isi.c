@@ -166,7 +166,7 @@ static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
 		struct frame_buffer *buf = isi->active;
 
 		list_del_init(&buf->list);
-		do_gettimeofday(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb->v4l2_buf.sequence = isi->sequence++;
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	}
@@ -745,7 +745,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	return formats;
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -770,7 +770,7 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		 icd->devnum);
 	return 0;
 }
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static void isi_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

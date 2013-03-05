@@ -33,9 +33,9 @@
  * Malta I/O ports base address for the Galileo GT64120 and Algorithmics
  * Bonito system controllers.
  */
-#define MALTA_GT_PORT_BASE      get_gt_port_base(GT_PCI0IOLD_OFS)
-#define MALTA_BONITO_PORT_BASE  ((unsigned long)ioremap (0x1fd00000, 0x10000))
-#define MALTA_MSC_PORT_BASE     get_msc_port_base(MSC01_PCI_SC2PIOBASL)
+#define MALTA_GT_PORT_BASE	get_gt_port_base(GT_PCI0IOLD_OFS)
+#define MALTA_BONITO_PORT_BASE	((unsigned long)ioremap (0x1fd00000, 0x10000))
+#define MALTA_MSC_PORT_BASE	get_msc_port_base(MSC01_PCI_SC2PIOBASL)
 
 static inline unsigned long get_gt_port_base(unsigned long reg)
 {
@@ -77,8 +77,8 @@ static inline unsigned long get_msc_port_base(unsigned long reg)
 /*
  * Malta RTC-device indirect register access.
  */
-#define MALTA_RTC_ADR_REG       0x70
-#define MALTA_RTC_DAT_REG       0x71
+#define MALTA_RTC_ADR_REG	0x70
+#define MALTA_RTC_DAT_REG	0x71
 
 /*
  * Malta SMSC FDC37M817 Super I/O Controller register.

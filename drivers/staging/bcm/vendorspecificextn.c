@@ -11,7 +11,7 @@
 //		STATUS_SUCCESS/STATUS_FAILURE
 //
 //-----------------------------------------------------------------------------
-INT vendorextnGetSectionInfo(PVOID  pContext,PFLASH2X_VENDORSPECIFIC_INFO pVendorInfo)
+INT vendorextnGetSectionInfo(PVOID  pContext, struct bcm_flash2x_vendor_info *pVendorInfo)
 {
 	return STATUS_FAILURE;
 }

@@ -31,6 +31,7 @@ int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 			runtime->dma_bytes);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_imx_pcm_mmap);
 
 static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
@@ -79,6 +80,7 @@ int imx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_pcm_new);
 
 void imx_pcm_free(struct snd_pcm *pcm)
 {
@@ -100,6 +102,39 @@ void imx_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(imx_pcm_free);
+
+static int imx_pcm_probe(struct platform_device *pdev)
+{
+	if (strcmp(pdev->id_entry->name, "imx-fiq-pcm-audio") == 0)
+		return imx_pcm_fiq_init(pdev);
+
+	return imx_pcm_dma_init(pdev);
+}
+
+static int imx_pcm_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
+}
+
+static struct platform_device_id imx_pcm_devtype[] = {
+	{ .name = "imx-pcm-audio", },
+	{ .name = "imx-fiq-pcm-audio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, imx_pcm_devtype);
+
+static struct platform_driver imx_pcm_driver = {
+	.driver = {
+			.name = "imx-pcm",
+			.owner = THIS_MODULE,
+	},
+	.id_table = imx_pcm_devtype,
+	.probe = imx_pcm_probe,
+	.remove = imx_pcm_remove,
+};
+module_platform_driver(imx_pcm_driver);
 
 MODULE_DESCRIPTION("Freescale i.MX PCM driver");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");

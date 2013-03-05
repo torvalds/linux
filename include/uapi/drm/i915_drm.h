@@ -308,6 +308,8 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_RSVD_FOR_FUTURE_USE	 22
 #define I915_PARAM_HAS_SECURE_BATCHES	 23
 #define I915_PARAM_HAS_PINNED_BATCHES	 24
+#define I915_PARAM_HAS_EXEC_NO_RELOC	 25
+#define I915_PARAM_HAS_EXEC_HANDLE_LUT   26
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -628,7 +630,11 @@ struct drm_i915_gem_exec_object2 {
 	__u64 offset;
 
 #define EXEC_OBJECT_NEEDS_FENCE (1<<0)
+#define EXEC_OBJECT_NEEDS_GTT	(1<<1)
+#define EXEC_OBJECT_WRITE	(1<<2)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_WRITE<<1)
 	__u64 flags;
+
 	__u64 rsvd1;
 	__u64 rsvd2;
 };
@@ -686,6 +692,20 @@ struct drm_i915_gem_execbuffer2 {
  * userspace assumes the responsibility for ensuring the same.
  */
 #define I915_EXEC_IS_PINNED		(1<<10)
+
+/** Provide a hint to the kernel that the command stream and auxilliary
+ * state buffers already holds the correct presumed addresses and so the
+ * relocation process may be skipped if no buffers need to be moved in
+ * preparation for the execbuffer.
+ */
+#define I915_EXEC_NO_RELOC		(1<<11)
+
+/** Use the reloc.handle as an index into the exec object array rather
+ * than as the per-file handle.
+ */
+#define I915_EXEC_HANDLE_LUT		(1<<12)
+
+#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_HANDLE_LUT<<1)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \

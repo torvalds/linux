@@ -121,7 +121,6 @@ info
 	wmm_ac_vi = <number of packets sent to device from WMM AcVi queue>
 	wmm_ac_be = <number of packets sent to device from WMM AcBE queue>
 	wmm_ac_bk = <number of packets sent to device from WMM AcBK queue>
-	max_tx_buf_size = <maximum Tx buffer size>
 	tx_buf_size = <current Tx buffer size>
 	curr_tx_buf_size = <current Tx buffer size>
 	ps_mode = <0/1, CAM mode/PS mode>

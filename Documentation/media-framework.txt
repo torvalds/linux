@@ -336,7 +336,7 @@ Calls to media_entity_pipeline_start() can be nested. The pipeline pointer must
 be identical for all nested calls to the function.
 
 media_entity_pipeline_start() may return an error. In that case, it will
-clean up any the changes it did by itself.
+clean up any of the changes it did by itself.
 
 When stopping the stream, drivers must notify the entities with
 

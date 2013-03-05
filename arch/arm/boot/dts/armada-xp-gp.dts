@@ -1,0 +1,113 @@
+/*
+ * Device Tree file for Marvell Armada XP development board
+ * (DB-MV784MP-GP)
+ *
+ * Copyright (C) 2013 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "armada-xp-mv78460.dtsi"
+
+/ {
+	model = "Marvell Armada XP Development Board DB-MV784MP-GP";
+	compatible = "marvell,axp-gp", "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+
+		/*
+		 * 4 GB of plug-in RAM modules by default but only 3GB
+		 * are visible, the amount of memory available can be
+		 * changed by the bootloader according the size of the
+		 * module actually plugged
+		 */
+		reg = <0x00000000 0xC0000000>;
+	};
+
+	soc {
+		serial@d0012000 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012100 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012200 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012300 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+
+		sata@d00a0000 {
+			nr-ports = <2>;
+			status = "okay";
+		};
+
+		mdio {
+			phy0: ethernet-phy@0 {
+				reg = <16>;
+			};
+
+			phy1: ethernet-phy@1 {
+				reg = <17>;
+			};
+
+			phy2: ethernet-phy@2 {
+				reg = <18>;
+			};
+
+			phy3: ethernet-phy@3 {
+				reg = <19>;
+			};
+		};
+
+		ethernet@d0070000 {
+			status = "okay";
+			phy = <&phy0>;
+			phy-mode = "rgmii-id";
+		};
+		ethernet@d0074000 {
+			status = "okay";
+			phy = <&phy1>;
+			phy-mode = "rgmii-id";
+		};
+		ethernet@d0030000 {
+			status = "okay";
+			phy = <&phy2>;
+			phy-mode = "rgmii-id";
+		};
+		ethernet@d0034000 {
+			status = "okay";
+			phy = <&phy3>;
+			phy-mode = "rgmii-id";
+		};
+
+		spi0: spi@d0010600 {
+			status = "okay";
+
+			spi-flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "n25q128a13";
+				reg = <0>; /* Chip select 0 */
+				spi-max-frequency = <108000000>;
+			};
+		};
+	};
+};

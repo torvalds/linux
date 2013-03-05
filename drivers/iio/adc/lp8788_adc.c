@@ -179,18 +179,12 @@ static int lp8788_iio_map_register(struct iio_dev *indio_dev,
 
 	ret = iio_map_array_register(indio_dev, map);
 	if (ret) {
-		dev_err(adc->lp->dev, "iio map err: %d\n", ret);
+		dev_err(&indio_dev->dev, "iio map err: %d\n", ret);
 		return ret;
 	}
 
 	adc->map = map;
 	return 0;
-}
-
-static inline void lp8788_iio_map_unregister(struct iio_dev *indio_dev,
-				struct lp8788_adc *adc)
-{
-	iio_map_array_unregister(indio_dev, adc->map);
 }
 
 static int lp8788_adc_probe(struct platform_device *pdev)
@@ -208,13 +202,14 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 	adc->lp = lp;
 	platform_set_drvdata(pdev, indio_dev);
 
+	indio_dev->dev.of_node = pdev->dev.of_node;
 	ret = lp8788_iio_map_register(indio_dev, lp->pdata, adc);
 	if (ret)
 		goto err_iio_map;
 
 	mutex_init(&adc->lock);
 
-	indio_dev->dev.parent = lp->dev;
+	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &lp8788_adc_info;
@@ -223,14 +218,14 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
-		dev_err(lp->dev, "iio dev register err: %d\n", ret);
+		dev_err(&pdev->dev, "iio dev register err: %d\n", ret);
 		goto err_iio_device;
 	}
 
 	return 0;
 
 err_iio_device:
-	lp8788_iio_map_unregister(indio_dev, adc);
+	iio_map_array_unregister(indio_dev);
 err_iio_map:
 	iio_device_free(indio_dev);
 	return ret;
@@ -239,10 +234,9 @@ err_iio_map:
 static int lp8788_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct lp8788_adc *adc = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	lp8788_iio_map_unregister(indio_dev, adc);
+	iio_map_array_unregister(indio_dev);
 	iio_device_free(indio_dev);
 
 	return 0;

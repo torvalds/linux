@@ -139,7 +139,7 @@ static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 		uart_insert_char(port, 0, 0, ch, flag);
 	}
 
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
@@ -493,11 +493,9 @@ static int __init altera_jtaguart_init(void)
 	if (rc)
 		return rc;
 	rc = platform_driver_register(&altera_jtaguart_platform_driver);
-	if (rc) {
+	if (rc)
 		uart_unregister_driver(&altera_jtaguart_driver);
-		return rc;
-	}
-	return 0;
+	return rc;
 }
 
 static void __exit altera_jtaguart_exit(void)

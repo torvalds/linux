@@ -41,7 +41,9 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define DEBUG 1
 #define DEBUG_FLAGS
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
@@ -452,16 +454,11 @@ static int ni6527_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni6527_driver);
 }
 
-static void ni6527_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver ni6527_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = ni6527_pci_table,
 	.probe = ni6527_pci_probe,
-	.remove = ni6527_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni6527_driver, ni6527_pci_driver);
 

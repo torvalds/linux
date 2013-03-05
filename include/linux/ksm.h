@@ -16,9 +16,6 @@
 struct stable_node;
 struct mem_cgroup;
 
-struct page *ksm_does_need_to_copy(struct page *page,
-			struct vm_area_struct *vma, unsigned long address);
-
 #ifdef CONFIG_KSM
 int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		unsigned long end, int advice, unsigned long *vm_flags);
@@ -73,15 +70,8 @@ static inline void set_page_stable_node(struct page *page,
  * We'd like to make this conditional on vma->vm_flags & VM_MERGEABLE,
  * but what if the vma was unmerged while the page was swapped out?
  */
-static inline int ksm_might_need_to_copy(struct page *page,
-			struct vm_area_struct *vma, unsigned long address)
-{
-	struct anon_vma *anon_vma = page_anon_vma(page);
-
-	return anon_vma &&
-		(anon_vma->root != vma->anon_vma->root ||
-		 page->index != linear_page_index(vma, address));
-}
+struct page *ksm_might_need_to_copy(struct page *page,
+			struct vm_area_struct *vma, unsigned long address);
 
 int page_referenced_ksm(struct page *page,
 			struct mem_cgroup *memcg, unsigned long *vm_flags);
@@ -113,10 +103,10 @@ static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 	return 0;
 }
 
-static inline int ksm_might_need_to_copy(struct page *page,
+static inline struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
-	return 0;
+	return page;
 }
 
 static inline int page_referenced_ksm(struct page *page,

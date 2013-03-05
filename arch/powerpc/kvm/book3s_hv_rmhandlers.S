@@ -539,6 +539,11 @@ fast_guest_return:
 
 	/* Enter guest */
 
+BEGIN_FTR_SECTION
+	ld	r5, VCPU_CFAR(r4)
+	mtspr	SPRN_CFAR, r5
+END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
+
 	ld	r5, VCPU_LR(r4)
 	lwz	r6, VCPU_CR(r4)
 	mtlr	r5
@@ -604,6 +609,10 @@ kvmppc_interrupt:
 	lwz	r4, HSTATE_SCRATCH1(r13)
 	std	r3, VCPU_GPR(R12)(r9)
 	stw	r4, VCPU_CR(r9)
+BEGIN_FTR_SECTION
+	ld	r3, HSTATE_CFAR(r13)
+	std	r3, VCPU_CFAR(r9)
+END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 
 	/* Restore R1/R2 so we can handle faults */
 	ld	r1, HSTATE_HOST_R1(r13)

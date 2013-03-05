@@ -219,6 +219,7 @@ void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
 	config->rts_threshold = 0x7FFF;
 	config->frag_threshold = 0x7FFF;
 	config->retry_limit = 0x7F;
+	config->qos_info = 0xFF;
 }
 
 /* This function parses BSS related parameters from structure
@@ -297,6 +298,38 @@ mwifiex_uap_bss_wpa(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
 	return;
 }
 
+/* This function parses WMM related parameters from cfg80211_ap_settings
+ * structure and updates bss_config structure.
+ */
+void
+mwifiex_set_wmm_params(struct mwifiex_private *priv,
+		       struct mwifiex_uap_bss_param *bss_cfg,
+		       struct cfg80211_ap_settings *params)
+{
+	const u8 *vendor_ie;
+	struct ieee_types_header *wmm_ie;
+	u8 wmm_oui[] = {0x00, 0x50, 0xf2, 0x02};
+
+	vendor_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WMM,
+					    params->beacon.tail,
+					    params->beacon.tail_len);
+	if (vendor_ie) {
+		wmm_ie = (struct ieee_types_header *)vendor_ie;
+		memcpy(&bss_cfg->wmm_info, wmm_ie + 1,
+		       sizeof(bss_cfg->wmm_info));
+		priv->wmm_enabled = 1;
+	} else {
+		memset(&bss_cfg->wmm_info, 0, sizeof(bss_cfg->wmm_info));
+		memcpy(&bss_cfg->wmm_info.oui, wmm_oui, sizeof(wmm_oui));
+		bss_cfg->wmm_info.subtype = MWIFIEX_WMM_SUBTYPE;
+		bss_cfg->wmm_info.version = MWIFIEX_WMM_VERSION;
+		priv->wmm_enabled = 0;
+	}
+
+	bss_cfg->qos_info = 0x00;
+	return;
+}
 /* This function parses BSS related parameters from structure
  * and prepares TLVs specific to WEP encryption.
  * These TLVs are appended to command buffer.
@@ -354,6 +387,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_rates *tlv_rates;
 	struct host_cmd_tlv_ageout_timer *ao_timer, *ps_ao_timer;
 	struct mwifiex_ie_types_htcap *htcap;
+	struct mwifiex_ie_types_wmmcap *wmm_cap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
 	int i;
 	u16 cmd_size = *param_size;
@@ -505,6 +539,16 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 					bss_cfg->ht_cap.antenna_selection_info;
 		cmd_size += sizeof(struct mwifiex_ie_types_htcap);
 		tlv += sizeof(struct mwifiex_ie_types_htcap);
+	}
+
+	if (bss_cfg->wmm_info.qos_info != 0xFF) {
+		wmm_cap = (struct mwifiex_ie_types_wmmcap *)tlv;
+		wmm_cap->header.type = cpu_to_le16(WLAN_EID_VENDOR_SPECIFIC);
+		wmm_cap->header.len = cpu_to_le16(sizeof(wmm_cap->wmm_info));
+		memcpy(&wmm_cap->wmm_info, &bss_cfg->wmm_info,
+		       sizeof(wmm_cap->wmm_info));
+		cmd_size += sizeof(struct mwifiex_ie_types_wmmcap);
+		tlv += sizeof(struct mwifiex_ie_types_wmmcap);
 	}
 
 	if (bss_cfg->sta_ao_timer) {

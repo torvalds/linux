@@ -103,7 +103,6 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 		u8 reg_address,
 		u64 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);
 	int ret;
@@ -120,9 +119,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 	st->tx[0] = ADE7759_READ_REG(reg_address);
 	memset(&st->tx[1], 0 , 5);
 
-	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 40 bit register 0x%02X",
 				reg_address);

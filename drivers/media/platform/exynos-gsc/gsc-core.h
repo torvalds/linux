@@ -427,6 +427,11 @@ static inline void gsc_ctx_state_lock_clear(u32 state, struct gsc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->gsc_dev->slock, flags);
 }
 
+static inline int is_tiled(const struct gsc_fmt *fmt)
+{
+	return fmt->pixelformat == V4L2_PIX_FMT_NV12MT_16X16;
+}
+
 static inline void gsc_hw_enable_control(struct gsc_dev *dev, bool on)
 {
 	u32 cfg = readl(dev->regs + GSC_ENABLE);

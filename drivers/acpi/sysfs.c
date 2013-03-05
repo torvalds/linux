@@ -498,7 +498,7 @@ static int get_status(u32 index, acpi_event_status *status,
 		result = acpi_get_gpe_device(index, handle);
 		if (result) {
 			ACPI_EXCEPTION((AE_INFO, AE_NOT_FOUND,
-					"Invalid GPE 0x%x\n", index));
+					"Invalid GPE 0x%x", index));
 			goto end;
 		}
 		result = acpi_get_gpe_status(*handle, index, status);

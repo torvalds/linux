@@ -91,7 +91,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
-		info->max_tx_buf_size = (u32) adapter->max_tx_buf_size;
+		info->curr_tx_buf_size = (u32) adapter->curr_tx_buf_size;
 		info->tx_buf_size = (u32) adapter->tx_buf_size;
 		info->rx_tbl_num = mwifiex_get_rx_reorder_tbl(priv,
 							      info->rx_tbl);

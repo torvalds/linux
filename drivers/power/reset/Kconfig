@@ -13,3 +13,20 @@ config POWER_RESET_GPIO
 	  This driver supports turning off your board via a GPIO line.
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
+
+config POWER_RESET_QNAP
+	bool "QNAP power-off driver"
+	depends on OF_GPIO && POWER_RESET && PLAT_ORION
+	help
+	  This driver supports turning off QNAP NAS devices by sending
+	  commands to the microcontroller which controls the main power.
+
+	  Say Y if you have a QNAP NAS.
+
+config POWER_RESET_RESTART
+	bool "Restart power-off driver"
+	depends on ARM
+	help
+	  Some boards don't actually have the ability to power off.
+	  Instead they restart, and u-boot holds the SoC until the
+	  user presses a key. u-boot then boots into Linux.
