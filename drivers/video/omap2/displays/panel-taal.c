@@ -787,6 +787,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.timings.x_res = 864;
 	dssdev->panel.timings.y_res = 480;
+	dssdev->panel.timings.pixel_clock = DIV_ROUND_UP(864 * 480 * 60, 1000);
 	dssdev->panel.dsi_pix_fmt = OMAP_DSS_DSI_FMT_RGB888;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
@@ -923,8 +924,10 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 		.mode = OMAP_DSS_DSI_CMD_MODE,
 		.pixel_format = OMAP_DSS_DSI_FMT_RGB888,
 		.timings = &dssdev->panel.timings,
-		.hs_clk = 216000000,
-		.lp_clk = 10000000,
+		.hs_clk_min = 150000000,
+		.hs_clk_max = 300000000,
+		.lp_clk_min = 7000000,
+		.lp_clk_max = 10000000,
 	};
 
 	r = omapdss_dsi_configure_pins(dssdev, &td->pin_config);

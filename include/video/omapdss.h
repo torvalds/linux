@@ -267,9 +267,21 @@ enum omap_dss_dsi_trans_mode {
 };
 
 struct omap_dss_dsi_videomode_timings {
+	unsigned long hsclk;
+
+	unsigned ndl;
+	unsigned bitspp;
+
+	/* pixels */
+	u16 hact;
+	/* lines */
+	u16 vact;
+
 	/* DSI video mode blanking data */
 	/* Unit: byte clock cycles */
+	u16 hss;
 	u16 hsa;
+	u16 hse;
 	u16 hfp;
 	u16 hbp;
 	/* Unit: line clocks */
@@ -293,10 +305,12 @@ struct omap_dss_dsi_config {
 	enum omap_dss_dsi_mode mode;
 	enum omap_dss_dsi_pixel_format pixel_format;
 	const struct omap_video_timings *timings;
-	const struct omap_dss_dsi_videomode_timings *vm_timings;
 
-	unsigned long hs_clk;
-	unsigned long lp_clk;
+	unsigned long hs_clk_min, hs_clk_max;
+	unsigned long lp_clk_min, lp_clk_max;
+
+	bool ddr_clk_always_on;
+	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
 void dsi_bus_lock(struct omap_dss_device *dssdev);
