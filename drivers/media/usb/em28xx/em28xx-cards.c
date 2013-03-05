@@ -2235,8 +2235,8 @@ static inline void em28xx_set_model(struct em28xx *dev)
 		dev->board.i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
 				       EM28XX_I2C_FREQ_100_KHZ;
 
-	if (dev->board.def_i2c_bus == 1)
-		dev->board.i2c_speed |= EM2874_I2C_SECONDARY_BUS_SELECT;
+	/* Should be initialized early, for I2C to work */
+	dev->def_i2c_bus = dev->board.def_i2c_bus;
 }
 
 
@@ -2642,7 +2642,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 
 	/* user did not request i2c scanning => do it now */
 	if (!dev->i2c_hash)
-		em28xx_do_i2c_scan(dev);
+		em28xx_do_i2c_scan(dev, dev->def_i2c_bus);
 
 	for (i = 0; i < ARRAY_SIZE(em28xx_i2c_hash); i++) {
 		if (dev->i2c_hash == em28xx_i2c_hash[i].hash) {
@@ -2953,7 +2953,9 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	em28xx_release_analog_resources(dev);
 
-	em28xx_i2c_unregister(dev);
+	if (dev->def_i2c_bus)
+		em28xx_i2c_unregister(dev, 1);
+	em28xx_i2c_unregister(dev, 0);
 
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
@@ -3109,12 +3111,23 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	v4l2_ctrl_handler_init(hdl, 8);
 	dev->v4l2_dev.ctrl_handler = hdl;
 
-	/* register i2c bus */
-	retval = em28xx_i2c_register(dev);
+	rt_mutex_init(&dev->i2c_bus_lock);
+
+	/* register i2c bus 0 */
+	retval = em28xx_i2c_register(dev, 0);
 	if (retval < 0) {
-		em28xx_errdev("%s: em28xx_i2c_register - error [%d]!\n",
+		em28xx_errdev("%s: em28xx_i2c_register bus 0 - error [%d]!\n",
 			__func__, retval);
 		goto unregister_dev;
+	}
+
+	if (dev->def_i2c_bus) {
+		retval = em28xx_i2c_register(dev, 1);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
+				__func__, retval);
+			goto unregister_dev;
+		}
 	}
 
 	/*
@@ -3186,7 +3199,9 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	return 0;
 
 fail:
-	em28xx_i2c_unregister(dev);
+	if (dev->def_i2c_bus)
+		em28xx_i2c_unregister(dev, 1);
+	em28xx_i2c_unregister(dev, 0);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
 unregister_dev:

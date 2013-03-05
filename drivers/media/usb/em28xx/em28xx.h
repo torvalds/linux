@@ -375,7 +375,7 @@ struct em28xx_board {
 	int vchannels;
 	int tuner_type;
 	int tuner_addr;
-	int def_i2c_bus;	/* Default I2C bus */
+	unsigned def_i2c_bus;	/* Default I2C bus */
 
 	/* i2c flags */
 	unsigned int tda9887_conf;
@@ -460,6 +460,13 @@ struct em28xx_fh {
 	enum v4l2_buf_type           type;
 };
 
+struct em28xx_i2c_bus {
+	struct em28xx *dev;
+
+	unsigned bus;
+};
+
+
 /* main device struct */
 struct em28xx {
 	/* generic device properties */
@@ -515,8 +522,12 @@ struct em28xx {
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap[NUM_I2C_BUSES];
 	struct i2c_client i2c_client[NUM_I2C_BUSES];
+	struct em28xx_i2c_bus i2c_bus[NUM_I2C_BUSES];
+
 	unsigned char eeprom_addrwidth_16bit:1;
-	int def_i2c_bus;	/* Default I2C bus */
+	unsigned def_i2c_bus;	/* Default I2C bus */
+	unsigned cur_i2c_bus;	/* Current I2C bus */
+	struct rt_mutex i2c_bus_lock;
 
 	/* video for linux */
 	int users;		/* user count for exclusive use */
@@ -638,9 +649,9 @@ struct em28xx_ops {
 };
 
 /* Provided by em28xx-i2c.c */
-void em28xx_do_i2c_scan(struct em28xx *dev);
-int  em28xx_i2c_register(struct em28xx *dev);
-int  em28xx_i2c_unregister(struct em28xx *dev);
+void em28xx_do_i2c_scan(struct em28xx *dev, unsigned bus);
+int  em28xx_i2c_register(struct em28xx *dev, unsigned bus);
+int  em28xx_i2c_unregister(struct em28xx *dev, unsigned bus);
 
 /* Provided by em28xx-core.c */
 int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
