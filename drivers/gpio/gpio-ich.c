@@ -214,7 +214,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	 * If it can't be trusted, assume that the pin can be used as a GPIO.
 	 */
 	if (ichx_priv.desc->use_sel_ignore[nr / 32] & (1 << (nr & 0x1f)))
-		return 1;
+		return 0;
 
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
 }
