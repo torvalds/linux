@@ -336,6 +336,7 @@ struct dsi_data {
 	unsigned long lpdiv_max;
 
 	unsigned num_lanes_supported;
+	unsigned line_buffer_size;
 
 	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
 	unsigned num_lanes_used;
@@ -3791,13 +3792,12 @@ static void dsi_config_vp_num_line_buffers(struct platform_device *dsidev)
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-		unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
 		struct omap_video_timings *timings = &dsi->timings;
 		/*
 		 * Don't use line buffers if width is greater than the video
 		 * port's line buffer size
 		 */
-		if (line_buf_size <= timings->x_res * bpp / 8)
+		if (dsi->line_buffer_size <= timings->x_res * bpp / 8)
 			num_line_buffers = 0;
 		else
 			num_line_buffers = 2;
@@ -4447,7 +4447,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 	u32 l;
 	int r;
 	const unsigned channel = dsi->update_channel;
-	const unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
+	const unsigned line_buf_size = dsi->line_buffer_size;
 	u16 w = dsi->timings.x_res;
 	u16 h = dsi->timings.y_res;
 
@@ -5292,6 +5292,8 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 		dsi->num_lanes_supported = 1 + REG_GET(dsidev, DSI_GNQ, 11, 9);
 	else
 		dsi->num_lanes_supported = 3;
+
+	dsi->line_buffer_size = dsi_get_line_buf_size(dsidev);
 
 	dsi_init_output(dsidev);
 
