@@ -379,45 +379,108 @@ out_unmap:
 }
 EXPORT_SYMBOL_GPL(gmap_map_segment);
 
+static unsigned long *gmap_table_walk(unsigned long address, struct gmap *gmap)
+{
+	unsigned long *table;
+
+	table = gmap->table + ((address >> 53) & 0x7ff);
+	if (unlikely(*table & _REGION_ENTRY_INV))
+		return ERR_PTR(-EFAULT);
+	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	table = table + ((address >> 42) & 0x7ff);
+	if (unlikely(*table & _REGION_ENTRY_INV))
+		return ERR_PTR(-EFAULT);
+	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	table = table + ((address >> 31) & 0x7ff);
+	if (unlikely(*table & _REGION_ENTRY_INV))
+		return ERR_PTR(-EFAULT);
+	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	table = table + ((address >> 20) & 0x7ff);
+	return table;
+}
+
+/**
+ * __gmap_translate - translate a guest address to a user space address
+ * @address: guest address
+ * @gmap: pointer to guest mapping meta data structure
+ *
+ * Returns user space address which corresponds to the guest address or
+ * -EFAULT if no such mapping exists.
+ * This function does not establish potentially missing page table entries.
+ * The mmap_sem of the mm that belongs to the address space must be held
+ * when this function gets called.
+ */
+unsigned long __gmap_translate(unsigned long address, struct gmap *gmap)
+{
+	unsigned long *segment_ptr, vmaddr, segment;
+	struct gmap_pgtable *mp;
+	struct page *page;
+
+	current->thread.gmap_addr = address;
+	segment_ptr = gmap_table_walk(address, gmap);
+	if (IS_ERR(segment_ptr))
+		return PTR_ERR(segment_ptr);
+	/* Convert the gmap address to an mm address. */
+	segment = *segment_ptr;
+	if (!(segment & _SEGMENT_ENTRY_INV)) {
+		page = pfn_to_page(segment >> PAGE_SHIFT);
+		mp = (struct gmap_pgtable *) page->index;
+		return mp->vmaddr | (address & ~PMD_MASK);
+	} else if (segment & _SEGMENT_ENTRY_RO) {
+		vmaddr = segment & _SEGMENT_ENTRY_ORIGIN;
+		return vmaddr | (address & ~PMD_MASK);
+	}
+	return -EFAULT;
+}
+EXPORT_SYMBOL_GPL(__gmap_translate);
+
+/**
+ * gmap_translate - translate a guest address to a user space address
+ * @address: guest address
+ * @gmap: pointer to guest mapping meta data structure
+ *
+ * Returns user space address which corresponds to the guest address or
+ * -EFAULT if no such mapping exists.
+ * This function does not establish potentially missing page table entries.
+ */
+unsigned long gmap_translate(unsigned long address, struct gmap *gmap)
+{
+	unsigned long rc;
+
+	down_read(&gmap->mm->mmap_sem);
+	rc = __gmap_translate(address, gmap);
+	up_read(&gmap->mm->mmap_sem);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(gmap_translate);
+
 /*
  * this function is assumed to be called with mmap_sem held
  */
 unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
 {
-	unsigned long *table, vmaddr, segment;
-	struct mm_struct *mm;
+	unsigned long *segment_ptr, vmaddr, segment;
+	struct vm_area_struct *vma;
 	struct gmap_pgtable *mp;
 	struct gmap_rmap *rmap;
-	struct vm_area_struct *vma;
+	struct mm_struct *mm;
 	struct page *page;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 
 	current->thread.gmap_addr = address;
-	mm = gmap->mm;
-	/* Walk the gmap address space page table */
-	table = gmap->table + ((address >> 53) & 0x7ff);
-	if (unlikely(*table & _REGION_ENTRY_INV))
+	segment_ptr = gmap_table_walk(address, gmap);
+	if (IS_ERR(segment_ptr))
 		return -EFAULT;
-	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-	table = table + ((address >> 42) & 0x7ff);
-	if (unlikely(*table & _REGION_ENTRY_INV))
-		return -EFAULT;
-	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-	table = table + ((address >> 31) & 0x7ff);
-	if (unlikely(*table & _REGION_ENTRY_INV))
-		return -EFAULT;
-	table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-	table = table + ((address >> 20) & 0x7ff);
-
 	/* Convert the gmap address to an mm address. */
-	segment = *table;
-	if (likely(!(segment & _SEGMENT_ENTRY_INV))) {
+	segment = *segment_ptr;
+	if (!(segment & _SEGMENT_ENTRY_INV)) {
 		page = pfn_to_page(segment >> PAGE_SHIFT);
 		mp = (struct gmap_pgtable *) page->index;
 		return mp->vmaddr | (address & ~PMD_MASK);
 	} else if (segment & _SEGMENT_ENTRY_RO) {
+		mm = gmap->mm;
 		vmaddr = segment & _SEGMENT_ENTRY_ORIGIN;
 		vma = find_vma(mm, vmaddr);
 		if (!vma || vma->vm_start > vmaddr)
@@ -441,12 +504,12 @@ unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
 		/* Link gmap segment table entry location to page table. */
 		page = pmd_page(*pmd);
 		mp = (struct gmap_pgtable *) page->index;
-		rmap->entry = table;
+		rmap->entry = segment_ptr;
 		spin_lock(&mm->page_table_lock);
 		list_add(&rmap->list, &mp->mapper);
 		spin_unlock(&mm->page_table_lock);
 		/* Set gmap segment table entry to page table. */
-		*table = pmd_val(*pmd) & PAGE_MASK;
+		*segment_ptr = pmd_val(*pmd) & PAGE_MASK;
 		return vmaddr | (address & ~PMD_MASK);
 	}
 	return -EFAULT;
