@@ -473,6 +473,45 @@ int dss_calc_clock_rates(struct dss_clock_info *cinfo)
 	return 0;
 }
 
+bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
+{
+	int fckd, fckd_start, fckd_stop;
+	unsigned long fck;
+	unsigned long fck_hw_max;
+	unsigned long fckd_hw_max;
+	unsigned long prate;
+
+	if (dss.dpll4_m4_ck == NULL) {
+		/*
+		 * TODO: dss1_fclk can be changed on OMAP2, but the available
+		 * dividers are not continuous. We just use the pre-set rate for
+		 * now.
+		 */
+		fck = clk_get_rate(dss.dss_clk);
+		fckd = 1;
+		return func(fckd, fck, data);
+	}
+
+	fck_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+	fckd_hw_max = dss.feat->fck_div_max;
+
+	prate = dss_get_dpll4_rate() * dss.feat->dss_fck_multiplier;
+
+	fck_min = fck_min ? fck_min : 1;
+
+	fckd_start = min(prate / fck_min, fckd_hw_max);
+	fckd_stop = max(DIV_ROUND_UP(prate, fck_hw_max), 1ul);
+
+	for (fckd = fckd_start; fckd >= fckd_stop; --fckd) {
+		fck = prate / fckd;
+
+		if (func(fckd, fck, data))
+			return true;
+	}
+
+	return false;
+}
+
 int dss_set_clock_div(struct dss_clock_info *cinfo)
 {
 	if (dss.dpll4_m4_ck) {

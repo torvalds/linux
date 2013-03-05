@@ -271,6 +271,9 @@ int dss_set_clock_div(struct dss_clock_info *cinfo);
 int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
 		struct dispc_clock_info *dispc_cinfo);
 
+typedef bool (*dss_div_calc_func)(int fckd, unsigned long fck, void *data);
+bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data);
+
 /* SDI */
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
