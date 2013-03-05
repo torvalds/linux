@@ -26,6 +26,7 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
+#include <asm/msi_bitmap.h>
 #include <asm/ppc-pci.h>
 #include <asm/opal.h>
 #include <asm/iommu.h>
@@ -647,7 +648,7 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 
 static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 {
-	unsigned int bmap_size;
+	unsigned int count;
 	const __be32 *prop = of_get_property(phb->hose->dn,
 					     "ibm,opal-msi-ranges", NULL);
 	if (!prop) {
@@ -658,18 +659,17 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 		return;
 
 	phb->msi_base = be32_to_cpup(prop);
-	phb->msi_count = be32_to_cpup(prop + 1);
-	bmap_size = BITS_TO_LONGS(phb->msi_count) * sizeof(unsigned long);
-	phb->msi_map = zalloc_maybe_bootmem(bmap_size, GFP_KERNEL);
-	if (!phb->msi_map) {
+	count = be32_to_cpup(prop + 1);
+	if (msi_bitmap_alloc(&phb->msi_bmp, count, phb->hose->dn)) {
 		pr_err("PCI %d: Failed to allocate MSI bitmap !\n",
 		       phb->hose->global_number);
 		return;
 	}
+
 	phb->msi_setup = pnv_pci_ioda_msi_setup;
 	phb->msi32_support = 1;
 	pr_info("  Allocated bitmap for %d MSIs (base IRQ 0x%x)\n",
-		phb->msi_count, phb->msi_base);
+		count, phb->msi_base);
 }
 #else
 static void pnv_pci_init_ioda_msis(struct pnv_phb *phb) { }

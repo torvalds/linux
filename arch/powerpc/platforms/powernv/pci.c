@@ -26,6 +26,7 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
+#include <asm/msi_bitmap.h>
 #include <asm/ppc-pci.h>
 #include <asm/opal.h>
 #include <asm/iommu.h>
@@ -47,43 +48,7 @@ static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
 
-	return (phb && phb->msi_map) ? 0 : -ENODEV;
-}
-
-static unsigned int pnv_get_one_msi(struct pnv_phb *phb)
-{
-	unsigned long flags;
-	unsigned int id, rc;
-
-	spin_lock_irqsave(&phb->lock, flags);
-
-	id = find_next_zero_bit(phb->msi_map, phb->msi_count, phb->msi_next);
-	if (id >= phb->msi_count && phb->msi_next)
-		id = find_next_zero_bit(phb->msi_map, phb->msi_count, 0);
-	if (id >= phb->msi_count) {
-		rc = 0;
-		goto out;
-	}
-	__set_bit(id, phb->msi_map);
-	rc = id + phb->msi_base;
-out:
-	spin_unlock_irqrestore(&phb->lock, flags);
-	return rc;
-}
-
-static void pnv_put_msi(struct pnv_phb *phb, unsigned int hwirq)
-{
-	unsigned long flags;
-	unsigned int id;
-
-	if (WARN_ON(hwirq < phb->msi_base ||
-		    hwirq >= (phb->msi_base + phb->msi_count)))
-		return;
-	id = hwirq - phb->msi_base;
-
-	spin_lock_irqsave(&phb->lock, flags);
-	__clear_bit(id, phb->msi_map);
-	spin_unlock_irqrestore(&phb->lock, flags);
+	return (phb && phb->msi_bmp.bitmap) ? 0 : -ENODEV;
 }
 
 static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
@@ -92,7 +57,8 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct pnv_phb *phb = hose->private_data;
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	unsigned int hwirq, virq;
+	int hwirq;
+	unsigned int virq;
 	int rc;
 
 	if (WARN_ON(!phb))
@@ -104,25 +70,25 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 				pci_name(pdev));
 			return -ENXIO;
 		}
-		hwirq = pnv_get_one_msi(phb);
-		if (!hwirq) {
+		hwirq = msi_bitmap_alloc_hwirqs(&phb->msi_bmp, 1);
+		if (hwirq < 0) {
 			pr_warn("%s: Failed to find a free MSI\n",
 				pci_name(pdev));
 			return -ENOSPC;
 		}
-		virq = irq_create_mapping(NULL, hwirq);
+		virq = irq_create_mapping(NULL, phb->msi_base + hwirq);
 		if (virq == NO_IRQ) {
 			pr_warn("%s: Failed to map MSI to linux irq\n",
 				pci_name(pdev));
-			pnv_put_msi(phb, hwirq);
+			msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, 1);
 			return -ENOMEM;
 		}
-		rc = phb->msi_setup(phb, pdev, hwirq, entry->msi_attrib.is_64,
-				    &msg);
+		rc = phb->msi_setup(phb, pdev, phb->msi_base + hwirq,
+				    entry->msi_attrib.is_64, &msg);
 		if (rc) {
 			pr_warn("%s: Failed to setup MSI\n", pci_name(pdev));
 			irq_dispose_mapping(virq);
-			pnv_put_msi(phb, hwirq);
+			msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, 1);
 			return rc;
 		}
 		irq_set_msi_desc(virq, entry);
@@ -144,7 +110,8 @@ static void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 		if (entry->irq == NO_IRQ)
 			continue;
 		irq_set_msi_desc(entry->irq, NULL);
-		pnv_put_msi(phb, virq_to_hw(entry->irq));
+		msi_bitmap_free_hwirqs(&phb->msi_bmp,
+			virq_to_hw(entry->irq) - phb->msi_base, 1);
 		irq_dispose_mapping(entry->irq);
 	}
 }
