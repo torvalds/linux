@@ -75,8 +75,9 @@
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
-static void iwl_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct iwl_powertable_cmd *cmd)
+static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct iwl_powertable_cmd *cmd)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -107,7 +108,7 @@ static void iwl_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* Check skip over DTIM conditions */
 	if (!radar_detect && (dtimper <= 10) &&
 	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP))
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_SLEEP_OVER_DTIM_MSK);
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 
 	/* Check that keep alive period is at least 3 * DTIM */
 	dtimper_msec = dtimper * vif->bss_conf.beacon_int;
@@ -139,7 +140,7 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	iwl_power_build_cmd(mvm, vif, &cmd);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 
 	IWL_DEBUG_POWER(mvm,
 			"Sending power table command for power level %d, flags = 0x%X\n",
@@ -184,6 +185,6 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 void iwl_power_get_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  struct iwl_powertable_cmd *cmd)
 {
-	iwl_power_build_cmd(mvm, vif, cmd);
+	iwl_mvm_power_build_cmd(mvm, vif, cmd);
 }
 #endif /* CONFIG_IWLWIFI_DEBUGFS */

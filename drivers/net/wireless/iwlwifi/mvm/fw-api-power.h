@@ -72,7 +72,7 @@
  *		receiver and transmitter. '0' - does not allow.
  * @POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK: '0' Driver disables power management,
  *		'1' Driver enables PM (use rest of parameters)
- * @POWER_FLAGS_SLEEP_OVER_DTIM_MSK: '0' PM have to walk up every DTIM,
+ * @POWER_FLAGS_SKIP_OVER_DTIM_MSK: '0' PM have to walk up every DTIM,
  *		'1' PM could sleep over DTIM till listen Interval.
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
@@ -80,7 +80,7 @@
 enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
 	POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK	= BIT(1),
-	POWER_FLAGS_SLEEP_OVER_DTIM_MSK		= BIT(2),
+	POWER_FLAGS_SKIP_OVER_DTIM_MSK		= BIT(2),
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
 };
