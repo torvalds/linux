@@ -1412,18 +1412,7 @@ static struct platform_driver davinci_mmcsd_driver = {
 	.remove		= __exit_p(davinci_mmcsd_remove),
 };
 
-static int __init davinci_mmcsd_init(void)
-{
-	return platform_driver_probe(&davinci_mmcsd_driver,
-				     davinci_mmcsd_probe);
-}
-module_init(davinci_mmcsd_init);
-
-static void __exit davinci_mmcsd_exit(void)
-{
-	platform_driver_unregister(&davinci_mmcsd_driver);
-}
-module_exit(davinci_mmcsd_exit);
+module_platform_driver_probe(davinci_mmcsd_driver, davinci_mmcsd_probe);
 
 MODULE_AUTHOR("Texas Instruments India");
 MODULE_LICENSE("GPL");
