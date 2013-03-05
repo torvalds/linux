@@ -2469,20 +2469,16 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	return 0;
 }
 
-/* Send HCI command */
-int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
+static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
+				       u32 plen, void *param)
 {
 	int len = HCI_COMMAND_HDR_SIZE + plen;
 	struct hci_command_hdr *hdr;
 	struct sk_buff *skb;
 
-	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
-
 	skb = bt_skb_alloc(len, GFP_ATOMIC);
-	if (!skb) {
-		BT_ERR("%s no memory for command", hdev->name);
-		return -ENOMEM;
-	}
+	if (!skb)
+		return NULL;
 
 	hdr = (struct hci_command_hdr *) skb_put(skb, HCI_COMMAND_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(opcode);
@@ -2495,6 +2491,22 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 	skb->dev = (void *) hdev;
+
+	return skb;
+}
+
+/* Send HCI command */
+int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
+{
+	struct sk_buff *skb;
+
+	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
+
+	skb = hci_prepare_cmd(hdev, opcode, plen, param);
+	if (!skb) {
+		BT_ERR("%s no memory for command", hdev->name);
+		return -ENOMEM;
+	}
 
 	if (test_bit(HCI_INIT, &hdev->flags))
 		hdev->init_last_cmd = opcode;
