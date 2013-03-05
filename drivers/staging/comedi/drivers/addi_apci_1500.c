@@ -39,14 +39,19 @@ static const struct addi_board apci1500_boardtypes[] = {
 	},
 };
 
+static int apci1500_auto_attach(struct comedi_device *dev,
+				unsigned long context)
+{
+	dev->board_ptr = &apci1500_boardtypes[0];
+
+	return addi_auto_attach(dev, context);
+}
+
 static struct comedi_driver apci1500_driver = {
 	.driver_name	= "addi_apci_1500",
 	.module		= THIS_MODULE,
-	.auto_attach	= addi_auto_attach,
+	.auto_attach	= apci1500_auto_attach,
 	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(apci1500_boardtypes),
-	.board_name	= &apci1500_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci1500_pci_probe(struct pci_dev *dev,
