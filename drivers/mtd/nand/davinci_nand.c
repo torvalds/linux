@@ -883,17 +883,7 @@ static struct platform_driver nand_davinci_driver = {
 };
 MODULE_ALIAS("platform:davinci_nand");
 
-static int __init nand_davinci_init(void)
-{
-	return platform_driver_probe(&nand_davinci_driver, nand_davinci_probe);
-}
-module_init(nand_davinci_init);
-
-static void __exit nand_davinci_exit(void)
-{
-	platform_driver_unregister(&nand_davinci_driver);
-}
-module_exit(nand_davinci_exit);
+module_platform_driver_probe(nand_davinci_driver, nand_davinci_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Texas Instruments");
