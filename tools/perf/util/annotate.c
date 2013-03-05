@@ -649,9 +649,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
-		if (symbol_conf.event_group &&
-		    perf_evsel__is_group_leader(evsel) &&
-		    evsel->nr_members > 1) {
+		if (perf_evsel__is_group_event(evsel)) {
 			nr_percent = evsel->nr_members;
 			ppercents = calloc(nr_percent, sizeof(double));
 			if (ppercents == NULL)
@@ -721,8 +719,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		if (queue)
 			return -1;
 
-		if (symbol_conf.event_group &&
-		    perf_evsel__is_group_leader(evsel))
+		if (perf_evsel__is_group_event(evsel))
 			width *= evsel->nr_members;
 
 		if (!*dl->line)
@@ -1126,7 +1123,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 	namelen = strlen(d_filename);
 
-	if (symbol_conf.event_group && perf_evsel__is_group_leader(evsel))
+	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
 	printf(" %-*.*s|	Source code & Disassembly of %s\n",

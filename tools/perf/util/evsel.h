@@ -9,6 +9,7 @@
 #include "xyarray.h"
 #include "cgroup.h"
 #include "hist.h"
+#include "symbol.h"
  
 struct perf_counts_values {
 	union {
@@ -246,9 +247,32 @@ static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 	return list_entry(evsel->node.next, struct perf_evsel, node);
 }
 
+/**
+ * perf_evsel__is_group_leader - Return whether given evsel is a leader event
+ *
+ * @evsel - evsel selector to be tested
+ *
+ * Return %true if @evsel is a group leader or a stand-alone event
+ */
 static inline bool perf_evsel__is_group_leader(const struct perf_evsel *evsel)
 {
 	return evsel->leader == evsel;
+}
+
+/**
+ * perf_evsel__is_group_event - Return whether given evsel is a group event
+ *
+ * @evsel - evsel selector to be tested
+ *
+ * Return %true iff event group view is enabled and @evsel is a actual group
+ * leader which has other members in the group
+ */
+static inline bool perf_evsel__is_group_event(struct perf_evsel *evsel)
+{
+	if (!symbol_conf.event_group)
+		return false;
+
+	return perf_evsel__is_group_leader(evsel) && evsel->nr_members > 1;
 }
 
 struct perf_attr_details {
