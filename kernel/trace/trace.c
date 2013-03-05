@@ -2436,6 +2436,31 @@ static void test_ftrace_alive(struct seq_file *m)
 }
 
 #ifdef CONFIG_TRACER_MAX_TRACE
+static void show_snapshot_main_help(struct seq_file *m)
+{
+	seq_printf(m, "# echo 0 > snapshot : Clears and frees snapshot buffer\n");
+	seq_printf(m, "# echo 1 > snapshot : Allocates snapshot buffer, if not already allocated.\n");
+	seq_printf(m, "#                      Takes a snapshot of the main buffer.\n");
+	seq_printf(m, "# echo 2 > snapshot : Clears snapshot buffer (but does not allocate)\n");
+	seq_printf(m, "#                      (Doesn't have to be '2' works with any number that\n");
+	seq_printf(m, "#                       is not a '0' or '1')\n");
+}
+
+static void show_snapshot_percpu_help(struct seq_file *m)
+{
+	seq_printf(m, "# echo 0 > snapshot : Invalid for per_cpu snapshot file.\n");
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
+	seq_printf(m, "# echo 1 > snapshot : Allocates snapshot buffer, if not already allocated.\n");
+	seq_printf(m, "#                      Takes a snapshot of the main buffer for this cpu.\n");
+#else
+	seq_printf(m, "# echo 1 > snapshot : Not supported with this kernel.\n");
+	seq_printf(m, "#                     Must use main snapshot file to allocate.\n");
+#endif
+	seq_printf(m, "# echo 2 > snapshot : Clears this cpu's snapshot buffer (but does not allocate)\n");
+	seq_printf(m, "#                      (Doesn't have to be '2' works with any number that\n");
+	seq_printf(m, "#                       is not a '0' or '1')\n");
+}
+
 static void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter)
 {
 	if (iter->trace->allocated_snapshot)
@@ -2444,12 +2469,10 @@ static void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter)
 		seq_printf(m, "#\n# * Snapshot is freed *\n#\n");
 
 	seq_printf(m, "# Snapshot commands:\n");
-	seq_printf(m, "# echo 0 > snapshot : Clears and frees snapshot buffer\n");
-	seq_printf(m, "# echo 1 > snapshot : Allocates snapshot buffer, if not already allocated.\n");
-	seq_printf(m, "#                      Takes a snapshot of the main buffer.\n");
-	seq_printf(m, "# echo 2 > snapshot : Clears snapshot buffer (but does not allocate)\n");
-	seq_printf(m, "#                      (Doesn't have to be '2' works with any number that\n");
-	seq_printf(m, "#                       is not a '0' or '1')\n");
+	if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
+		show_snapshot_main_help(m);
+	else
+		show_snapshot_percpu_help(m);
 }
 #else
 /* Should never be called */
@@ -4207,6 +4230,7 @@ static int tracing_snapshot_open(struct inode *inode, struct file *file)
 		}
 		iter->tr = tc->tr;
 		iter->trace_buffer = &tc->tr->max_buffer;
+		iter->cpu_file = tc->cpu;
 		m->private = iter;
 		file->private_data = m;
 	}
@@ -4241,6 +4265,10 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	switch (val) {
 	case 0:
+		if (iter->cpu_file != RING_BUFFER_ALL_CPUS) {
+			ret = -EINVAL;
+			break;
+		}
 		if (tr->current_trace->allocated_snapshot) {
 			/* free spare buffer */
 			ring_buffer_resize(tr->max_buffer.buffer, 1,
@@ -4251,6 +4279,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		}
 		break;
 	case 1:
+/* Only allow per-cpu swap if the ring buffer supports it */
+#ifndef CONFIG_RING_BUFFER_ALLOW_SWAP
+		if (iter->cpu_file != RING_BUFFER_ALL_CPUS) {
+			ret = -EINVAL;
+			break;
+		}
+#endif
 		if (!tr->current_trace->allocated_snapshot) {
 			/* allocate spare buffer */
 			ret = resize_buffer_duplicate_size(&tr->max_buffer,
@@ -4259,15 +4294,21 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 				break;
 			tr->current_trace->allocated_snapshot = true;
 		}
-
 		local_irq_disable();
 		/* Now, we're going to swap */
-		update_max_tr(&global_trace, current, smp_processor_id());
+		if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
+			update_max_tr(&global_trace, current, smp_processor_id());
+		else
+			update_max_tr_single(&global_trace, current, iter->cpu_file);
 		local_irq_enable();
 		break;
 	default:
-		if (tr->current_trace->allocated_snapshot)
-			tracing_reset_online_cpus(&tr->max_buffer);
+		if (tr->current_trace->allocated_snapshot) {
+			if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
+				tracing_reset_online_cpus(&tr->max_buffer);
+			else
+				tracing_reset(&tr->max_buffer, iter->cpu_file);
+		}
 		break;
 	}
 
@@ -4835,6 +4876,11 @@ tracing_init_debugfs_percpu(struct trace_array *tr, long cpu)
 
 	trace_create_file("buffer_size_kb", 0444, d_cpu,
 			(void *)&data->trace_cpu, &tracing_entries_fops);
+
+#ifdef CONFIG_TRACER_SNAPSHOT
+	trace_create_file("snapshot", 0644, d_cpu,
+			  (void *)&data->trace_cpu, &snapshot_fops);
+#endif
 }
 
 #ifdef CONFIG_FTRACE_SELFTEST
