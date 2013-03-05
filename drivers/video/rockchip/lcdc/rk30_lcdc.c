@@ -1336,7 +1336,7 @@ int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		return 0;
 	}
 	
-		
+	mdelay(30);	
 	rk30_lcdc_clk_disable(lcdc_dev);
 
 	return 0;
