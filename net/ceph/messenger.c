@@ -2690,10 +2690,10 @@ EXPORT_SYMBOL(ceph_con_keepalive);
 void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 		size_t length, size_t alignment)
 {
-	/* BUG_ON(!pages); */
-	/* BUG_ON(!length); */
-	/* BUG_ON(msg->pages); */
-	/* BUG_ON(msg->length); */
+	BUG_ON(!pages);
+	BUG_ON(!length);
+	BUG_ON(msg->pages);
+	BUG_ON(msg->length);
 
 	msg->pages = pages;
 	msg->length = length;
@@ -2704,9 +2704,9 @@ EXPORT_SYMBOL(ceph_msg_data_set_pages);
 void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist)
 {
-	/* BUG_ON(!pagelist); */
-	/* BUG_ON(!pagelist->length); */
-	/* BUG_ON(msg->pagelist); */
+	BUG_ON(!pagelist);
+	BUG_ON(!pagelist->length);
+	BUG_ON(msg->pagelist);
 
 	msg->pagelist = pagelist;
 }
@@ -2714,8 +2714,8 @@ EXPORT_SYMBOL(ceph_msg_data_set_pagelist);
 
 void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio)
 {
-	/* BUG_ON(!bio); */
-	/* BUG_ON(msg->bio); */
+	BUG_ON(!bio);
+	BUG_ON(msg->bio);
 
 	msg->bio = bio;
 }
@@ -2723,9 +2723,9 @@ EXPORT_SYMBOL(ceph_msg_data_set_bio);
 
 void ceph_msg_data_set_trail(struct ceph_msg *msg, struct ceph_pagelist *trail)
 {
-	/* BUG_ON(!trail); */
-	/* BUG_ON(!trail->length); */
-	/* BUG_ON(msg->trail); */
+	BUG_ON(!trail);
+	BUG_ON(!trail->length);
+	BUG_ON(msg->trail);
 
 	msg->trail = trail;
 }
