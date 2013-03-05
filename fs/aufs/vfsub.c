@@ -41,7 +41,7 @@ int vfsub_update_h_iattr(struct path *h_path, int *did)
 	h_sb = h_path->dentry->d_sb;
 	*did = (!au_test_fs_remote(h_sb) && au_test_fs_refresh_iattr(h_sb));
 	if (*did)
-		err = vfs_getattr(h_path->mnt, h_path->dentry, &st);
+		err = vfs_getattr(h_path, &st);
 
 	return err;
 }
