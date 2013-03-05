@@ -972,7 +972,7 @@ static unsigned long long au_farray_cb(void *a,
 	do_file_list_for_each_entry(sb, f) {
 		if (au_fi(f)
 		    && file_count(f)
-		    && !special_file(f->f_dentry->d_inode->i_mode)) {
+		    && !special_file(file_inode(f)->i_mode)) {
 			get_file(f);
 			*p++ = f;
 			n++;
@@ -1037,7 +1037,7 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 			goto out_array;
 		}
 
-		inode = file->f_dentry->d_inode;
+		inode = file_inode(file);
 		hfile = &au_fi(file)->fi_htop;
 		hf = hfile->hf_file;
 		if (!S_ISREG(inode->i_mode)

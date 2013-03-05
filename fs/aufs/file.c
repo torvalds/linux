@@ -338,13 +338,11 @@ int au_do_flush(struct file *file, fl_owner_t id,
 		int (*flush)(struct file *file, fl_owner_t id))
 {
 	int err;
-	struct dentry *dentry;
 	struct super_block *sb;
 	struct inode *inode;
 
-	dentry = file->f_dentry;
-	sb = dentry->d_sb;
-	inode = dentry->d_inode;
+	inode = file_inode(file);
+	sb = inode->i_sb;
 	si_noflush_read_lock(sb);
 	fi_read_lock(file);
 	ii_read_lock_child(inode);
@@ -469,8 +467,7 @@ static void au_do_refresh_dir(struct file *file)
 		for (finfo->fi_btop = 0; finfo->fi_btop <= bend;
 		     finfo->fi_btop++, p++)
 			if (p->hf_file) {
-				if (p->hf_file->f_dentry
-				    && p->hf_file->f_dentry->d_inode)
+				if (file_inode(p->hf_file))
 					break;
 				else
 					au_hfput(p, file);
@@ -488,8 +485,7 @@ static void au_do_refresh_dir(struct file *file)
 	for (fidir->fd_bbot = bend; fidir->fd_bbot >= finfo->fi_btop;
 	     fidir->fd_bbot--, p--)
 		if (p->hf_file) {
-			if (p->hf_file->f_dentry
-			    && p->hf_file->f_dentry->d_inode)
+			if (file_inode(p->hf_file))
 				break;
 			else
 				au_hfput(p, file);

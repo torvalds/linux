@@ -143,7 +143,7 @@ static ssize_t aufs_read(struct file *file, char __user *buf, size_t count,
 	/* todo: necessary? */
 	/* file->f_ra = h_file->f_ra; */
 	/* update without lock, I don't think it a problem */
-	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
+	fsstack_copy_attr_atime(dentry->d_inode, file_inode(h_file));
 	fput(h_file);
 
 out:
@@ -210,7 +210,7 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 	err = vfsub_write_u(h_file, buf, count, ppos);
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	inode->i_mode = file_inode(h_file)->i_mode;
 	ii_write_unlock(inode);
 	fput(h_file);
 
@@ -278,7 +278,7 @@ static ssize_t aufs_aio_read(struct kiocb *kio, const struct iovec *iov,
 	/* todo: necessary? */
 	/* file->f_ra = h_file->f_ra; */
 	/* update without lock, I don't think it a problem */
-	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
+	fsstack_copy_attr_atime(dentry->d_inode, file_inode(h_file));
 	fput(h_file);
 
 out:
@@ -323,7 +323,7 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 	err = au_do_aio(h_file, MAY_WRITE, kio, iov, nv, pos);
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	inode->i_mode = file_inode(h_file)->i_mode;
 	ii_write_unlock(inode);
 	fput(h_file);
 
@@ -366,7 +366,7 @@ static ssize_t aufs_splice_read(struct file *file, loff_t *ppos,
 	/* todo: necessasry? */
 	/* file->f_ra = h_file->f_ra; */
 	/* update without lock, I don't think it a problem */
-	fsstack_copy_attr_atime(dentry->d_inode, h_file->f_dentry->d_inode);
+	fsstack_copy_attr_atime(dentry->d_inode, file_inode(h_file));
 	fput(h_file);
 
 out:
@@ -411,7 +411,7 @@ aufs_splice_write(struct pipe_inode_info *pipe, struct file *file, loff_t *ppos,
 	err = vfsub_splice_from(pipe, h_file, ppos, len, flags);
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
-	inode->i_mode = h_file->f_dentry->d_inode->i_mode;
+	inode->i_mode = file_inode(h_file)->i_mode;
 	ii_write_unlock(inode);
 	fput(h_file);
 
@@ -527,8 +527,7 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 
 	au_vm_prfile_set(vma, file);
 	/* update without lock, I don't think it a problem */
-	fsstack_copy_attr_atime(file->f_dentry->d_inode,
-				h_file->f_dentry->d_inode);
+	fsstack_copy_attr_atime(file_inode(file), file_inode(h_file));
 	goto out_fput; /* success */
 
 out_reset:
@@ -623,11 +622,9 @@ static int aufs_aio_fsync_nondir(struct kiocb *kio, int datasync)
 	err = -ENOSYS;
 	h_file = au_hf_top(file);
 	if (h_file->f_op && h_file->f_op->aio_fsync) {
-		struct dentry *h_d;
 		struct mutex *h_mtx;
 
-		h_d = h_file->f_dentry;
-		h_mtx = &h_d->d_inode->i_mutex;
+		h_mtx = &file_inode(h_file)->i_mutex;
 		if (!is_sync_kiocb(kio)) {
 			get_file(h_file);
 			fput(file);

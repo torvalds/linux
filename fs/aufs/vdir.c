@@ -625,7 +625,7 @@ static int read_vdir(struct file *file, int may_read)
 	struct au_vdir *vdir, *allocated;
 
 	err = 0;
-	inode = file->f_dentry->d_inode;
+	inode = file_inode(file);
 	IMustLock(inode);
 	SiMustAnyLock(inode->i_sb);
 
@@ -749,7 +749,7 @@ int au_vdir_init(struct file *file)
 	} else
 		return 0; /* success */
 
-	inode = file->f_dentry->d_inode;
+	inode = file_inode(file);
 	err = copy_vdir(vdir_cache, au_ivdir(inode));
 	if (!err) {
 		file->f_version = inode->i_version;

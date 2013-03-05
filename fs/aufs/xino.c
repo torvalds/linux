@@ -310,7 +310,7 @@ static void xino_do_trunc(void *_args)
 	bindex = au_br_index(sb, br->br_id);
 	err = au_xino_trunc(sb, bindex);
 	if (!err
-	    && br->br_xino.xi_file->f_dentry->d_inode->i_blocks
+	    && file_inode(br->br_xino.xi_file)->i_blocks
 	    >= br->br_xino_upper)
 		br->br_xino_upper += AUFS_XINO_TRUNC_STEP;
 
@@ -330,7 +330,7 @@ static void xino_try_trunc(struct super_block *sb, struct au_branch *br)
 	struct xino_do_trunc_args *args;
 	int wkq_err;
 
-	if (br->br_xino.xi_file->f_dentry->d_inode->i_blocks
+	if (file_inode(br->br_xino.xi_file)->i_blocks
 	    < br->br_xino_upper)
 		return;
 
