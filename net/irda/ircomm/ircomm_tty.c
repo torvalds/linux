@@ -317,8 +317,8 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count--;
-	spin_unlock_irqrestore(&port->lock, flags);
 	port->blocked_open++;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	while (1) {
 		if (tty->termios.c_cflag & CBAUD)
@@ -362,8 +362,8 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count++;
-	spin_unlock_irqrestore(&port->lock, flags);
 	port->blocked_open--;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	IRDA_DEBUG(1, "%s(%d):block_til_ready after blocking on %s open_count=%d\n",
 	      __FILE__, __LINE__, tty->driver->name, port->count);
