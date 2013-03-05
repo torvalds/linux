@@ -204,6 +204,7 @@ enum {
  *  FILTERED	  - The event has a filter attached
  *  CAP_ANY	  - Any user can enable for perf
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
+ *  IGNORE_ENABLE - For ftrace internal events, do not enable with debugfs file
  */
 enum {
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
