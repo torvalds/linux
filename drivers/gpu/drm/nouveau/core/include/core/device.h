@@ -17,8 +17,7 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_DEVINIT,
 	NVDEV_SUBDEV_GPIO,
 	NVDEV_SUBDEV_I2C,
-	NVDEV_SUBDEV_CLOCK,
-	NVDEV_SUBDEV_DEVINIT_LAST = NVDEV_SUBDEV_CLOCK,
+	NVDEV_SUBDEV_DEVINIT_LAST = NVDEV_SUBDEV_I2C,
 
 	/* This grouping of subdevs are initialised right after they've
 	 * been created, and are allowed to assume any subdevs in the
@@ -35,6 +34,7 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_VM,
 	NVDEV_SUBDEV_BAR,
 	NVDEV_SUBDEV_VOLT,
+	NVDEV_SUBDEV_CLOCK,
 	NVDEV_SUBDEV_THERM,
 
 	NVDEV_ENGINE_DMAOBJ,
