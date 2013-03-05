@@ -120,11 +120,11 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP) {
 		/* TODO: Also for D3 (device sleep / WoWLAN) */
-		cmd->rx_data_timeout = cpu_to_le32(10);
-		cmd->tx_data_timeout = cpu_to_le32(10);
+		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
 	} else {
-		cmd->rx_data_timeout = cpu_to_le32(50);
-		cmd->tx_data_timeout = cpu_to_le32(50);
+		cmd->rx_data_timeout = cpu_to_le32(50 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(50 * USEC_PER_MSEC);
 	}
 }
 
