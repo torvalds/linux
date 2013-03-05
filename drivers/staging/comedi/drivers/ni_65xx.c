@@ -257,34 +257,6 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1710)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7085)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7086)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7087)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7088)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70a9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c8)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70cc)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70CD)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7124)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7125)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7126)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7127)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7128)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718b)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718c)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71c5)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
-
 struct ni_65xx_private {
 	struct mite_struct *mite;
 	unsigned int filter_interval;
@@ -790,10 +762,37 @@ static int ni_65xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_65xx_driver, id->driver_data);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1710) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7085) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7086) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7087) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7088) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70a9) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c3) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c8) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c9) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70cc) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70CD) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d3) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7124) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7125) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7126) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7127) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7128) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718b) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71c5) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
+
 static struct pci_driver ni_65xx_pci_driver = {
-	.name = "ni_65xx",
-	.id_table = ni_65xx_pci_table,
-	.probe = ni_65xx_pci_probe,
+	.name		= "ni_65xx",
+	.id_table	= ni_65xx_pci_table,
+	.probe		= ni_65xx_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_65xx_driver, ni_65xx_pci_driver);
