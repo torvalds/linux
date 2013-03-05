@@ -60,26 +60,28 @@ Commands are not supported.
 #define	MISC_STATUS_OFFSET		0x14
 #define	MISC_CONTROL_OFFSET		0x14
 
-/* Board description*/
+enum ni_670x_boardid {
+	BOARD_PCI6703,
+	BOARD_PXI6704,
+	BOARD_PCI6704,
+};
 
 struct ni_670x_board {
 	const char *name;
-	unsigned short dev_id;
 	unsigned short ao_chans;
 };
 
 static const struct ni_670x_board ni_670x_boards[] = {
-	{
+	[BOARD_PCI6703] = {
 		.name		= "PCI-6703",
-		.dev_id		= 0x2c90,
 		.ao_chans	= 16,
-	}, {
+	},
+	[BOARD_PXI6704] = {
 		.name		= "PXI-6704",
-		.dev_id		= 0x1920,
 		.ao_chans	= 32,
-	}, {
+	},
+	[BOARD_PCI6704] = {
 		.name		= "PCI-6704",
-		.dev_id		= 0x1290,
 		.ao_chans	= 32,
 	},
 };
@@ -189,49 +191,37 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct ni_670x_board *
-ni_670x_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni_670x_boards); n++) {
-		const struct ni_670x_board *board = &ni_670x_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int ni_670x_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct ni_670x_board *thisboard;
+	const struct ni_670x_board *thisboard = NULL;
 	struct ni_670x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
+
+	if (context < ARRAY_SIZE(ni_670x_boards))
+		thisboard = &ni_670x_boards[context];
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
-	thisboard = comedi_board(dev);
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -312,8 +302,9 @@ static int ni_670x_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920) },
+	{ PCI_VDEVICE(NI, 0x1290), BOARD_PCI6704 },
+	{ PCI_VDEVICE(NI, 0x1920), BOARD_PXI6704 },
+	{ PCI_VDEVICE(NI, 0x2c90), BOARD_PCI6703 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
