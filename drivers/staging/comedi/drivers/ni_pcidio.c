@@ -304,8 +304,6 @@ static const struct nidio_board nidio_boards[] = {
 	},
 };
 
-#define this_board ((const struct nidio_board *)dev->board_ptr)
-
 struct nidio96_private {
 	struct mite_struct *mite;
 	int boardtype;
@@ -1112,7 +1110,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1136,7 +1134,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	irq = mite_irq(devpriv->mite);
-	if (this_board->uses_firmware) {
+	if (board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev);
 		if (ret < 0)
 			return ret;
