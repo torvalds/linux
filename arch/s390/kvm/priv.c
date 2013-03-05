@@ -575,20 +575,13 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_DAT)
 		return -EOPNOTSUPP;
 
-
-	/* we must resolve the address without holding the mmap semaphore.
-	 * This is ok since the userspace hypervisor is not supposed to change
-	 * the mapping while the guest queries the memory. Otherwise the guest
-	 * might crash or get wrong info anyway. */
-	user_address = (unsigned long) __guestaddr_to_user(vcpu, address1);
-
 	down_read(&current->mm->mmap_sem);
+	user_address = __gmap_translate(address1, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(user_address))
+		goto out_inject;
 	vma = find_vma(current->mm, user_address);
-	if (!vma) {
-		up_read(&current->mm->mmap_sem);
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	}
-
+	if (!vma)
+		goto out_inject;
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 	if (!(vma->vm_flags & VM_WRITE) && (vma->vm_flags & VM_READ))
 		vcpu->arch.sie_block->gpsw.mask |= (1ul << 44);
@@ -597,6 +590,10 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 
 	up_read(&current->mm->mmap_sem);
 	return 0;
+
+out_inject:
+	up_read(&current->mm->mmap_sem);
+	return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 }
 
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu)
