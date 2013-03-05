@@ -22,7 +22,7 @@ static int ce4100_spi_probe(struct pci_dev *dev,
 		return ret;
 
 	ret = pcim_iomap_regions(dev, 1 << 0, "PXA2xx SPI");
-	if (!ret)
+	if (ret)
 		return ret;
 
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
