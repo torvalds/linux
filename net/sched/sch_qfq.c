@@ -1279,7 +1279,8 @@ static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 		/* group was surely ineligible, remove */
 		__clear_bit(grp->index, &q->bitmaps[IR]);
 		__clear_bit(grp->index, &q->bitmaps[IB]);
-	} else if (!q->bitmaps[ER] && qfq_gt(roundedS, q->V))
+	} else if (!q->bitmaps[ER] && qfq_gt(roundedS, q->V) &&
+		   q->in_serv_agg == NULL)
 		q->V = roundedS;
 
 	grp->S = roundedS;
