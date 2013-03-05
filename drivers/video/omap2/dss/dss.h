@@ -376,6 +376,12 @@ void dispc_enable_fifomerge(bool enable);
 void dispc_enable_gamma_table(bool enable);
 void dispc_set_loadmode(enum omap_dss_load_mode mode);
 
+typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
+		unsigned long pck, void *data);
+bool dispc_div_calc(unsigned long dispc,
+		unsigned long pck_min, unsigned long pck_max,
+		dispc_div_calc_func func, void *data);
+
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings);
 unsigned long dispc_fclk_rate(void);

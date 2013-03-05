@@ -3374,6 +3374,66 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 	return 0;
 }
 
+bool dispc_div_calc(unsigned long dispc,
+		unsigned long pck_min, unsigned long pck_max,
+		dispc_div_calc_func func, void *data)
+{
+	int lckd, lckd_start, lckd_stop;
+	int pckd, pckd_start, pckd_stop;
+	unsigned long pck, lck;
+	unsigned long lck_max;
+	unsigned long pckd_hw_min, pckd_hw_max;
+	unsigned min_fck_per_pck;
+	unsigned long fck;
+
+#ifdef CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK
+	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
+#else
+	min_fck_per_pck = 0;
+#endif
+
+	pckd_hw_min = dss_feat_get_param_min(FEAT_PARAM_DSS_PCD);
+	pckd_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_PCD);
+
+	lck_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	pck_min = pck_min ? pck_min : 1;
+	pck_max = pck_max ? pck_max : ULONG_MAX;
+
+	lckd_start = max(DIV_ROUND_UP(dispc, lck_max), 1ul);
+	lckd_stop = min(dispc / pck_min, 255ul);
+
+	for (lckd = lckd_start; lckd <= lckd_stop; ++lckd) {
+		lck = dispc / lckd;
+
+		pckd_start = max(DIV_ROUND_UP(lck, pck_max), pckd_hw_min);
+		pckd_stop = min(lck / pck_min, pckd_hw_max);
+
+		for (pckd = pckd_start; pckd <= pckd_stop; ++pckd) {
+			pck = lck / pckd;
+
+			/*
+			 * For OMAP2/3 the DISPC fclk is the same as LCD's logic
+			 * clock, which means we're configuring DISPC fclk here
+			 * also. Thus we need to use the calculated lck. For
+			 * OMAP4+ the DISPC fclk is a separate clock.
+			 */
+			if (dss_has_feature(FEAT_CORE_CLK_DIV))
+				fck = dispc_core_clk_rate();
+			else
+				fck = lck;
+
+			if (fck < pck * min_fck_per_pck)
+				continue;
+
+			if (func(lckd, pckd, lck, pck, data))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 void dispc_mgr_set_clock_div(enum omap_channel channel,
 		const struct dispc_clock_info *cinfo)
 {
