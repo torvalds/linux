@@ -90,25 +90,27 @@ Configuration Options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
+enum skel_boardid {
+	BOARD_SKEL100,
+	BOARD_SKEL200,
+};
+
 struct skel_board {
 	const char *name;
-	unsigned int devid;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
 };
 
 static const struct skel_board skel_boards[] = {
-	{
+	[BOARD_SKEL100] = {
 	 .name = "skel-100",
-	 .devid = 0x100,
 	 .ai_chans = 16,
 	 .ai_bits = 12,
 	 .have_dio = 1,
 	 },
-	{
+	[BOARD_SKEL200] = {
 	 .name = "skel-200",
-	 .devid = 0x200,
 	 .ai_chans = 8,
 	 .ai_bits = 16,
 	 .have_dio = 0,
@@ -394,22 +396,6 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct skel_board *skel_find_pci_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-/*
- * This example code assumes all the entries in skel_boards[] are PCI boards
- * and all use the same PCI vendor ID.  If skel_boards[] contains a mixture
- * of PCI and non-PCI boards, this loop should skip over the non-PCI boards.
- */
-	for (i = 0; i < ARRAY_SIZE(skel_boards); i++)
-		if (/* skel_boards[i].bustype == pci_bustype && */
-		    pcidev->device == skel_boards[i].devid)
-			return &skel_boards[i];
-	return NULL;
-}
-
 /*
  * Handle common part of skel_attach() and skel_auto_attach().
  */
@@ -541,16 +527,13 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * comedi_usb_auto_config(), etc.) to handle devices that can be attached
  * to the Comedi core automatically without the COMEDI_DEVCONFIG ioctl.
  *
- * The context parameter is usually unused, but if the driver called
- * comedi_auto_config() directly instead of the comedi_pci_auto_config()
- * wrapper function, this will be a copy of the context passed to
- * comedi_auto_config().
+ * The context parameter is driver dependent.
  */
 static int skel_auto_attach(struct comedi_device *dev,
-				      unsigned long context)
+			    unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct skel_board *thisboard;
+	const struct skel_board *thisboard = NULL;
 	struct skel_private *devpriv;
 	int ret;
 
@@ -558,12 +541,18 @@ static int skel_auto_attach(struct comedi_device *dev,
 	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
 		return -EINVAL;
 
-	/* Find a matching board in skel_boards[]. */
-	thisboard = skel_find_pci_board(pcidev);
-	if (!thisboard) {
-		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
+	/*
+	 * In this example, the _auto_attach is for a PCI device.
+	 *
+	 * The 'context' passed to this function is the id->driver_data
+	 * associated with the PCI device found in the id_table during
+	 * the modprobe. This 'context' is the index of the entry in
+	 * skel_boards[i] that contains the boardinfo for the PCI device.
+	 */
+	if (context < ARRAY_SIZE(skel_boards))
+		thisboard = &skel_boards[context];
+	if (!thisboard)
+		return -ENODEV;
 
 	/*
 	 * Point the struct comedi_device to the matching board info
@@ -706,8 +695,8 @@ static int skel_pci_probe(struct pci_dev *dev,
  * Should only be used for PCI and ISA-PnP devices
  */
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
+	{ PCI_VDEVICE(SKEL, 0x0100), BOARD_SKEL100 },
+	{ PCI_VDEVICE(SKEL, 0x0200), BOARD_SKEL200 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
