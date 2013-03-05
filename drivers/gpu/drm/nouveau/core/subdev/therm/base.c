@@ -313,8 +313,8 @@ nouveau_therm_create_(struct nouveau_object *parent,
 int
 nouveau_therm_preinit(struct nouveau_therm *therm)
 {
-	nouveau_therm_ic_ctor(therm);
 	nouveau_therm_sensor_ctor(therm);
+	nouveau_therm_ic_ctor(therm);
 	nouveau_therm_fan_ctor(therm);
 
 	nouveau_therm_fan_mode(therm, NOUVEAU_THERM_CTRL_NONE);
