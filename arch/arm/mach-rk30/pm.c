@@ -457,6 +457,7 @@ static void __sramfunc rk30_sram_suspend(void)
 	u32 cru_clksel0_con, cru_clksel10_con;
 	u32 clkgt_regs[CRU_CLKGATES_CON_CNT];
 	u32 cru_mode_con;
+	u32 grf_uoc0_con0_status;
 	int i;
 	
 	sram_printch('5');
@@ -468,6 +469,13 @@ static void __sramfunc rk30_sram_suspend(void)
 	#ifdef CONFIG_ACT8846_SUPPORT_RESET
 	board_act8846_set_suspend_vol();
 	#endif
+
+#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
+#ifdef CONFIG_RK_USB_UART
+	grf_uoc0_con0_status = grf_readl(GRF_UOC0_CON0);
+	grf_writel(0x03000000, GRF_UOC0_CON0);
+#endif
+#endif
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
@@ -555,6 +563,13 @@ static void __sramfunc rk30_sram_suspend(void)
 	#ifdef CONFIG_ACT8846_SUPPORT_RESET
 	board_act8846_set_resume_vol();
 	#endif
+
+#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
+#ifdef CONFIG_RK_USB_UART
+	grf_writel(0x03000000 | grf_uoc0_con0_status, GRF_UOC0_CON0);
+#endif
+#endif
+
 	sram_printch('7');
 	rk30_pwm_logic_resume_voltage();
 	rk30_suspend_voltage_resume(1100000);
