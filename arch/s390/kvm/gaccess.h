@@ -18,8 +18,9 @@
 #include <asm/uaccess.h>
 #include "kvm-s390.h"
 
-static inline void *__gptr_to_uptr(struct kvm_vcpu *vcpu, void *gptr,
-				   int prefixing)
+static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
+					  void __user *gptr,
+					  int prefixing)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
 	unsigned long gaddr = (unsigned long) gptr;
@@ -34,14 +35,14 @@ static inline void *__gptr_to_uptr(struct kvm_vcpu *vcpu, void *gptr,
 	uaddr = gmap_fault(gaddr, vcpu->arch.gmap);
 	if (IS_ERR_VALUE(uaddr))
 		uaddr = -EFAULT;
-	return (void *)uaddr;
+	return (void __user *)uaddr;
 }
 
 #define get_guest(vcpu, x, gptr)				\
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET(__uptr);				\
+	int __ret = PTR_RET((void __force *)__uptr);		\
 								\
 	if (!__ret) {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
@@ -54,7 +55,7 @@ static inline void *__gptr_to_uptr(struct kvm_vcpu *vcpu, void *gptr,
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET(__uptr);				\
+	int __ret = PTR_RET((void __force *)__uptr);		\
 								\
 	if (!__ret) {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
@@ -68,19 +69,19 @@ static inline int __copy_guest(struct kvm_vcpu *vcpu, unsigned long to,
 			       int to_guest, int prefixing)
 {
 	unsigned long _len, rc;
-	void *uptr;
+	void __user *uptr;
 
 	while (len) {
-		uptr = to_guest ? (void *)to : (void *)from;
+		uptr = to_guest ? (void __user *)to : (void __user *)from;
 		uptr = __gptr_to_uptr(vcpu, uptr, prefixing);
-		if (IS_ERR(uptr))
+		if (IS_ERR((void __force *)uptr))
 			return -EFAULT;
 		_len = PAGE_SIZE - ((unsigned long)uptr & (PAGE_SIZE - 1));
 		_len = min(_len, len);
 		if (to_guest)
-			rc = copy_to_user(uptr, (void *)from, _len);
+			rc = copy_to_user((void __user *) uptr, (void *)from, _len);
 		else
-			rc = copy_from_user((void *)to, uptr, _len);
+			rc = copy_from_user((void *)to, (void __user *)uptr, _len);
 		if (rc)
 			return -EFAULT;
 		len -= _len;

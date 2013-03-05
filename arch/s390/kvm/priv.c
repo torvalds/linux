@@ -42,7 +42,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 	}
 
 	/* get the value */
-	if (get_guest(vcpu, address, (u32 *) operand2)) {
+	if (get_guest(vcpu, address, (u32 __user *) operand2)) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
 	}
@@ -83,7 +83,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	address = address & 0x7fffe000u;
 
 	/* get the value */
-	if (put_guest(vcpu, address, (u32 *)operand2)) {
+	if (put_guest(vcpu, address, (u32 __user *)operand2)) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
 	}
@@ -108,7 +108,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	rc = put_guest(vcpu, vcpu->vcpu_id, (u16 *)useraddr);
+	rc = put_guest(vcpu, vcpu->vcpu_id, (u16 __user *)useraddr);
 	if (rc) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
@@ -149,18 +149,18 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 		 * Store the two-word I/O interruption code into the
 		 * provided area.
 		 */
-		put_guest(vcpu, inti->io.subchannel_id, (u16 *) addr);
-		put_guest(vcpu, inti->io.subchannel_nr, (u16 *) (addr + 2));
-		put_guest(vcpu, inti->io.io_int_parm, (u32 *) (addr + 4));
+		put_guest(vcpu, inti->io.subchannel_id, (u16 __user *) addr);
+		put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *) (addr + 2));
+		put_guest(vcpu, inti->io.io_int_parm, (u32 __user *) (addr + 4));
 	} else {
 		/*
 		 * Store the three-word I/O interruption code into
 		 * the appropriate lowcore area.
 		 */
-		put_guest(vcpu, inti->io.subchannel_id, (u16 *) __LC_SUBCHANNEL_ID);
-		put_guest(vcpu, inti->io.subchannel_nr, (u16 *) __LC_SUBCHANNEL_NR);
-		put_guest(vcpu, inti->io.io_int_parm, (u32 *) __LC_IO_INT_PARM);
-		put_guest(vcpu, inti->io.io_int_word, (u32 *) __LC_IO_INT_WORD);
+		put_guest(vcpu, inti->io.subchannel_id, (u16 __user *) __LC_SUBCHANNEL_ID);
+		put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *) __LC_SUBCHANNEL_NR);
+		put_guest(vcpu, inti->io.io_int_parm, (u32 __user *) __LC_IO_INT_PARM);
+		put_guest(vcpu, inti->io.io_int_word, (u32 __user *) __LC_IO_INT_WORD);
 	}
 	kfree(inti);
 no_interrupt:
@@ -353,7 +353,7 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	rc = put_guest(vcpu, vcpu->arch.stidp_data, (u64 *)operand2);
+	rc = put_guest(vcpu, vcpu->arch.stidp_data, (u64 __user *)operand2);
 	if (rc) {
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out;
