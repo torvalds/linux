@@ -106,16 +106,16 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 	const char *thresolds[] = {
 		"fanboost", "downclock", "critical", "shutdown"
 	};
-	uint8_t temperature = therm->temp_get(therm);
+	int temperature = therm->temp_get(therm);
 
 	if (thrs < 0 || thrs > 3)
 		return;
 
 	if (dir == NOUVEAU_THERM_THRS_FALLING)
-		nv_info(therm, "temperature (%u C) went below the '%s' threshold\n",
+		nv_info(therm, "temperature (%i C) went below the '%s' threshold\n",
 			temperature, thresolds[thrs]);
 	else
-		nv_info(therm, "temperature (%u C) hit the '%s' threshold\n",
+		nv_info(therm, "temperature (%i C) hit the '%s' threshold\n",
 			temperature, thresolds[thrs]);
 
 	active = (dir == NOUVEAU_THERM_THRS_RISING);
