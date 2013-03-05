@@ -366,7 +366,7 @@ static int rk610_codec_set_bias_level(struct snd_soc_codec *codec,
 #endif
 		printk("rk610 standby\n");
 		spk_ctrl_fun(GPIO_LOW);
-		 rk610_codec_write(codec,ACCELCODEC_R0A, ASC_CLK_DISABLE);
+		rk610_codec_write(codec,ACCELCODEC_R0A, ASC_CLK_DISABLE);
 		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFE);
 		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
 		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
@@ -375,6 +375,7 @@ static int rk610_codec_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		printk("rk610 power off\n");
 		spk_ctrl_fun(GPIO_LOW);
+		rk610_codec_write(codec,ACCELCODEC_R0A, ASC_CLK_DISABLE);		
 		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFF);
 		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
 		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
