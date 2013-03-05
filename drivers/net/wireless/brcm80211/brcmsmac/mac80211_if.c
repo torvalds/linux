@@ -36,6 +36,7 @@
 #include "debug.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
+#define BRCMS_FLUSH_TIMEOUT	500 /* msec */
 
 /* Flags we support */
 #define MAC_FILTERS (FIF_PROMISC_IN_BSS | \
@@ -708,16 +709,29 @@ static void brcms_ops_rfkill_poll(struct ieee80211_hw *hw)
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 }
 
+static bool brcms_tx_flush_completed(struct brcms_info *wl)
+{
+	bool result;
+
+	spin_lock_bh(&wl->lock);
+	result = brcms_c_tx_flush_completed(wl->wlc);
+	spin_unlock_bh(&wl->lock);
+	return result;
+}
+
 static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct brcms_info *wl = hw->priv;
+	int ret;
 
 	no_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
 
-	/* wait for packet queue and dma fifos to run empty */
-	spin_lock_bh(&wl->lock);
-	brcms_c_wait_for_tx_completion(wl->wlc, drop);
-	spin_unlock_bh(&wl->lock);
+	ret = wait_event_timeout(wl->tx_flush_wq,
+				 brcms_tx_flush_completed(wl),
+				 msecs_to_jiffies(BRCMS_FLUSH_TIMEOUT));
+
+	brcms_dbg_mac80211(wl->wlc->hw->d11core,
+			   "ret=%d\n", jiffies_to_msecs(ret));
 }
 
 static const struct ieee80211_ops brcms_ops = {
@@ -772,6 +786,7 @@ void brcms_dpc(unsigned long data)
 
  done:
 	spin_unlock_bh(&wl->lock);
+	wake_up(&wl->tx_flush_wq);
 }
 
 /*
@@ -1019,6 +1034,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	wl->wiphy = hw->wiphy;
 
 	atomic_set(&wl->callbacks, 0);
+
+	init_waitqueue_head(&wl->tx_flush_wq);
 
 	/* setup the bottom half handler */
 	tasklet_init(&wl->tasklet, brcms_dpc, (unsigned long) wl);
@@ -1608,14 +1625,4 @@ bool brcms_rfkill_set_hw_state(struct brcms_info *wl)
 		wiphy_rfkill_start_polling(wl->pub->ieee_hw->wiphy);
 	spin_lock_bh(&wl->lock);
 	return blocked;
-}
-
-/*
- * precondition: perimeter lock has been acquired
- */
-void brcms_msleep(struct brcms_info *wl, uint ms)
-{
-	spin_unlock_bh(&wl->lock);
-	msleep(ms);
-	spin_lock_bh(&wl->lock);
 }

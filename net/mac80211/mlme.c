@@ -3400,6 +3400,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 
 	ret = 0;
 
+out:
 	while (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
 					IEEE80211_CHAN_DISABLED)) {
 		if (WARN_ON(chandef->width == NL80211_CHAN_WIDTH_20_NOHT)) {
@@ -3408,14 +3409,13 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			goto out;
 		}
 
-		ret = chandef_downgrade(chandef);
+		ret |= chandef_downgrade(chandef);
 	}
 
 	if (chandef->width != vht_chandef.width)
 		sdata_info(sdata,
-			   "local regulatory prevented using AP HT/VHT configuration, downgraded\n");
+			   "capabilities/regulatory prevented using AP HT/VHT configuration, downgraded\n");
 
-out:
 	WARN_ON_ONCE(!cfg80211_chandef_valid(chandef));
 	return ret;
 }
@@ -3529,8 +3529,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 */
 	ret = ieee80211_vif_use_channel(sdata, &chandef,
 					IEEE80211_CHANCTX_SHARED);
-	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
+	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
 		ifmgd->flags |= chandef_downgrade(&chandef);
+		ret = ieee80211_vif_use_channel(sdata, &chandef,
+						IEEE80211_CHANCTX_SHARED);
+	}
 	return ret;
 }
 

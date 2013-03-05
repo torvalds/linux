@@ -515,7 +515,6 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	BUG_ON(ret);
 
-	d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
 fail:
 	if (async_transid) {
 		*async_transid = trans->transid;
@@ -525,6 +524,10 @@ fail:
 	}
 	if (err && !ret)
 		ret = err;
+
+	if (!ret)
+		d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
+
 	return ret;
 }
 
