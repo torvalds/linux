@@ -1485,18 +1485,7 @@ static struct platform_driver __refdata sh_vou = {
 	},
 };
 
-static int __init sh_vou_init(void)
-{
-	return platform_driver_probe(&sh_vou, sh_vou_probe);
-}
-
-static void __exit sh_vou_exit(void)
-{
-	platform_driver_unregister(&sh_vou);
-}
-
-module_init(sh_vou_init);
-module_exit(sh_vou_exit);
+module_platform_driver_probe(sh_vou, sh_vou_probe);
 
 MODULE_DESCRIPTION("SuperH VOU driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
