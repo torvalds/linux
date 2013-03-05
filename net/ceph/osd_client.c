@@ -1744,6 +1744,23 @@ bad:
 	return;
 }
 
+static void ceph_osdc_msg_data_set(struct ceph_msg *msg,
+				struct ceph_osd_data *osd_data)
+{
+	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
+		BUG_ON(osd_data->length > (u64) SIZE_MAX);
+		if (osd_data->length)
+			ceph_msg_data_set_pages(msg, osd_data->pages,
+				osd_data->length, osd_data->alignment);
+#ifdef CONFIG_BLOCK
+	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
+		ceph_msg_data_set_bio(msg, osd_data->bio);
+#endif
+	} else {
+		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
+	}
+}
+
 /*
  * Register request, send initial attempt.
  */
@@ -1752,24 +1769,11 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			    bool nofail)
 {
 	int rc = 0;
-	struct ceph_osd_data *osd_data;
 
-	/* Set up outgoing data */
+	/* Set up response incoming data and request outgoing data fields */
 
-	osd_data = &req->r_data_out;
-	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
-		BUG_ON(osd_data->length > (u64) SIZE_MAX);
-		if (osd_data->length)
-			ceph_msg_data_set_pages(req->r_request,
-				osd_data->pages, osd_data->length,
-				osd_data->alignment);
-#ifdef CONFIG_BLOCK
-	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		ceph_msg_data_set_bio(req->r_request, osd_data->bio);
-#endif
-	} else {
-		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
-	}
+	ceph_osdc_msg_data_set(req->r_reply, &req->r_data_in);
+	ceph_osdc_msg_data_set(req->r_request, &req->r_data_out);
 	if (req->r_trail.length)
 		ceph_msg_data_set_trail(req->r_request, &req->r_trail);
 
@@ -2130,13 +2134,6 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 				m = NULL;
 				goto out;
 			}
-			BUG_ON(osd_data->length > (u64) SIZE_MAX);
-			ceph_msg_data_set_pages(m, osd_data->pages,
-				osd_data->length, osd_data->alignment);
-#ifdef CONFIG_BLOCK
-		} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-			ceph_msg_data_set_bio(m, osd_data->bio);
-#endif
 		}
 	}
 	*skip = 0;
