@@ -440,20 +440,22 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		if (!dvb_demux_feed_err_pkts)
 			return;
 	} else /* if TEI bit is set, pid may be wrong- skip pkt counter */
-	if (demux->cnt_storage && dvb_demux_tscheck) {
-		/* check pkt counter */
-		if (pid < MAX_PID) {
-			if ((buf[3] & 0xf) != demux->cnt_storage[pid])
-				dprintk_tscheck("TS packet counter mismatch. "
-						"PID=0x%x expected 0x%x "
-						"got 0x%x\n",
+		if (demux->cnt_storage && dvb_demux_tscheck) {
+			/* check pkt counter */
+			if (pid < MAX_PID) {
+				if (buf[3] & 0x10)
+					demux->cnt_storage[pid] =
+						(demux->cnt_storage[pid] + 1) & 0xf;
+
+				if ((buf[3] & 0xf) != demux->cnt_storage[pid]) {
+					dprintk_tscheck("TS packet counter mismatch. PID=0x%x expected 0x%x got 0x%x\n",
 						pid, demux->cnt_storage[pid],
 						buf[3] & 0xf);
-
-			demux->cnt_storage[pid] = ((buf[3] & 0xf) + 1)&0xf;
+					demux->cnt_storage[pid] = buf[3] & 0xf;
+				}
+			}
+			/* end check */
 		}
-		/* end check */
-	}
 
 	list_for_each_entry(feed, &demux->feed_list, list_head) {
 		if ((feed->pid != pid) && (feed->pid != 0x2000))
