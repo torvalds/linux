@@ -167,16 +167,37 @@ struct trace_array_cpu {
 
 struct tracer;
 
+struct trace_buffer {
+	struct trace_array		*tr;
+	struct ring_buffer		*buffer;
+	struct trace_array_cpu __percpu	*data;
+	cycle_t				time_start;
+	int				cpu;
+};
+
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
  * They have on/off state as well:
  */
 struct trace_array {
-	struct ring_buffer	*buffer;
 	struct list_head	list;
 	char			*name;
-	int			cpu;
+	struct trace_buffer	trace_buffer;
+#ifdef CONFIG_TRACER_MAX_TRACE
+	/*
+	 * The max_buffer is used to snapshot the trace when a maximum
+	 * latency is reached, or when the user initiates a snapshot.
+	 * Some tracers will use this to store a maximum trace while
+	 * it continues examining live traces.
+	 *
+	 * The buffers for the max_buffer are set up the same as the trace_buffer
+	 * When a snapshot is taken, the buffer of the max_buffer is swapped
+	 * with the buffer of the trace_buffer and the buffers are reset for
+	 * the trace_buffer so the tracing can continue.
+	 */
+	struct trace_buffer	max_buffer;
+#endif
 	int			buffer_disabled;
 	struct trace_cpu	trace_cpu;	/* place holder */
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -189,7 +210,6 @@ struct trace_array {
 	int			clock_id;
 	struct tracer		*current_trace;
 	unsigned int		flags;
-	cycle_t			time_start;
 	raw_spinlock_t		start_lock;
 	struct dentry		*dir;
 	struct dentry		*options;
@@ -198,7 +218,6 @@ struct trace_array {
 	struct list_head	systems;
 	struct list_head	events;
 	struct task_struct	*waiter;
-	struct trace_array_cpu __percpu	*data;
 };
 
 enum {
@@ -345,9 +364,11 @@ struct tracer {
 	struct tracer		*next;
 	struct tracer_flags	*flags;
 	bool			print_max;
+	bool			enabled;
+#ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
 	bool			allocated_snapshot;
-	bool			enabled;
+#endif
 };
 
 
@@ -493,8 +514,8 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
-void tracing_reset(struct trace_array *tr, int cpu);
-void tracing_reset_online_cpus(struct trace_array *tr);
+void tracing_reset(struct trace_buffer *buf, int cpu);
+void tracing_reset_online_cpus(struct trace_buffer *buf);
 void tracing_reset_current(int cpu);
 void tracing_reset_all_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
@@ -674,6 +695,8 @@ trace_array_vprintk(struct trace_array *tr,
 		    unsigned long ip, const char *fmt, va_list args);
 int trace_array_printk(struct trace_array *tr,
 		       unsigned long ip, const char *fmt, ...);
+int trace_array_printk_buf(struct ring_buffer *buffer,
+			   unsigned long ip, const char *fmt, ...);
 void trace_printk_seq(struct trace_seq *s);
 enum print_line_t print_trace_line(struct trace_iterator *iter);
 
