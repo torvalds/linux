@@ -494,6 +494,17 @@ config LEON_PCI
 	depends on PCI && SPARC_LEON
 	default y
 
+config SPARC_GRPCI1
+	bool "GRPCI Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI Host Bridge Driver. The GRPCI
+	  PCI host controller is typically found in GRLIB SPARC32/LEON
+	  systems. The driver has one property (all_pci_errors) controlled
+	  from the bootloader that makes the GRPCI to generate interrupts
+	  on detected PCI Parity and System errors.
+
 config GRPCI2
 	bool "GRPCI2 Host Bridge Support"
 	depends on LEON_PCI
