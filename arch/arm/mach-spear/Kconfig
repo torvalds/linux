@@ -18,7 +18,7 @@ if PLAT_SPEAR
 config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx"
 	depends on ARCH_MULTI_V7 || PLAT_SPEAR_SINGLE
-	select ARCH_HAVE_CPUFREQ
+	select ARCH_HAS_CPUFREQ
 	select ARM_GIC
 	select CPU_V7
 	select GPIO_SPEAR_SPICS
