@@ -603,29 +603,28 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 	return NULL;
 }
 
-static double disasm__calc_percent(struct disasm_line *next,
-				   struct annotation *notes, int evidx,
-				   s64 offset, u64 len, const char **path)
+static double disasm__calc_percent(struct annotation *notes, int evidx,
+				   s64 offset, s64 end, const char **path)
 {
 	struct source_line *src_line = notes->src->lines;
 	struct sym_hist *h = annotation__histogram(notes, evidx);
 	unsigned int hits = 0;
 	double percent = 0.0;
 
-	while (offset < (s64)len &&
-	       (next == NULL || offset < next->offset)) {
-		if (src_line) {
+	if (src_line) {
+		while (offset < end) {
 			if (*path == NULL)
 				*path = src_line[offset].path;
-			percent += src_line[offset].percent;
-		} else
-			hits += h->addr[offset];
 
-		++offset;
+			percent += src_line[offset++].percent;
+		}
+	} else {
+		while (offset < end)
+			hits += h->addr[offset++];
+
+		if (h->sum)
+			percent = 100.0 * hits / h->sum;
 	}
-
-	if (src_line == NULL && h->sum)
-		percent = 100.0 * hits / h->sum;
 
 	return percent;
 }
@@ -648,8 +647,9 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
-		percent = disasm__calc_percent(next, notes, evsel->idx,
-					       offset, len, &path);
+		percent = disasm__calc_percent(notes, evsel->idx, offset,
+					       next ? next->offset : (s64) len,
+					       &path);
 		if (percent < min_pcnt)
 			return -1;
 
