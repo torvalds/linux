@@ -1017,23 +1017,19 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	isig		-	handle the ISIG optio
  *	@sig: signal
  *	@tty: terminal
- *	@flush: force flush
  *
- *	Called when a signal is being sent due to terminal input. This
- *	may caus terminal flushing to take place according to the termios
- *	settings and character used. Called from the driver receive_buf
- *	path so serialized.
+ *	Called when a signal is being sent due to terminal input.
+ *	Called from the driver receive_buf path so serialized.
  *
- *	Locking: ctrl_lock, read_lock (both via flush buffer)
+ *	Locking: ctrl_lock
  */
 
-static inline void isig(int sig, struct tty_struct *tty, int flush)
+static inline void isig(int sig, struct tty_struct *tty)
 {
-	if (tty->pgrp)
-		kill_pgrp(tty->pgrp, sig, 1);
-	if (flush || !L_NOFLSH(tty)) {
-		n_tty_flush_buffer(tty);
-		tty_driver_flush_buffer(tty);
+	struct pid *tty_pgrp = tty_get_pgrp(tty);
+	if (tty_pgrp) {
+		kill_pgrp(tty_pgrp, sig, 1);
+		put_pid(tty_pgrp);
 	}
 }
 
@@ -1054,7 +1050,11 @@ static inline void n_tty_receive_break(struct tty_struct *tty)
 	if (I_IGNBRK(tty))
 		return;
 	if (I_BRKINT(tty)) {
-		isig(SIGINT, tty, 1);
+		isig(SIGINT, tty);
+		if (!L_NOFLSH(tty)) {
+			n_tty_flush_buffer(tty);
+			tty_driver_flush_buffer(tty);
+		}
 		return;
 	}
 	if (I_PARMRK(tty)) {
@@ -1221,11 +1221,6 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		signal = SIGTSTP;
 		if (c == SUSP_CHAR(tty)) {
 send_signal:
-			/*
-			 * Note that we do not use isig() here because we want
-			 * the order to be:
-			 * 1) flush, 2) echo, 3) signal
-			 */
 			if (!L_NOFLSH(tty)) {
 				n_tty_flush_buffer(tty);
 				tty_driver_flush_buffer(tty);
@@ -1236,8 +1231,7 @@ send_signal:
 				echo_char(c, tty);
 				process_echoes(tty);
 			}
-			if (tty->pgrp)
-				kill_pgrp(tty->pgrp, signal, 1);
+			isig(signal, tty);
 			return;
 		}
 	}
