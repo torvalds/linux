@@ -4076,7 +4076,7 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	bool is_enabled, enable_requested;
 	uint32_t tmp;
 
-	if (!IS_HASWELL(dev))
+	if (!HAS_POWER_WELL(dev))
 		return;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
@@ -4111,7 +4111,7 @@ void intel_init_power_well(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_HASWELL(dev))
+	if (!HAS_POWER_WELL(dev))
 		return;
 
 	/* For now, we need the power well to be always enabled. */

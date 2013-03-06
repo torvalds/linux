@@ -1339,6 +1339,7 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
 #define HAS_DDI(dev)		(IS_HASWELL(dev))
+#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
