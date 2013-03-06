@@ -73,11 +73,24 @@ static int team_port_set_orig_dev_addr(struct team_port *port)
 	return __set_port_dev_addr(port->dev, port->orig.dev_addr);
 }
 
-int team_port_set_team_dev_addr(struct team_port *port)
+static int team_port_set_team_dev_addr(struct team *team,
+				       struct team_port *port)
 {
-	return __set_port_dev_addr(port->dev, port->team->dev->dev_addr);
+	return __set_port_dev_addr(port->dev, team->dev->dev_addr);
 }
-EXPORT_SYMBOL(team_port_set_team_dev_addr);
+
+int team_modeop_port_enter(struct team *team, struct team_port *port)
+{
+	return team_port_set_team_dev_addr(team, port);
+}
+EXPORT_SYMBOL(team_modeop_port_enter);
+
+void team_modeop_port_change_dev_addr(struct team *team,
+				      struct team_port *port)
+{
+	team_port_set_team_dev_addr(team, port);
+}
+EXPORT_SYMBOL(team_modeop_port_change_dev_addr);
 
 static void team_refresh_port_linkup(struct team_port *port)
 {

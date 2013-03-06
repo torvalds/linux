@@ -64,20 +64,10 @@ drop:
 	return false;
 }
 
-static int rr_port_enter(struct team *team, struct team_port *port)
-{
-	return team_port_set_team_dev_addr(port);
-}
-
-static void rr_port_change_dev_addr(struct team *team, struct team_port *port)
-{
-	team_port_set_team_dev_addr(port);
-}
-
 static const struct team_mode_ops rr_mode_ops = {
 	.transmit		= rr_transmit,
-	.port_enter		= rr_port_enter,
-	.port_change_dev_addr	= rr_port_change_dev_addr,
+	.port_enter		= team_modeop_port_enter,
+	.port_change_dev_addr	= team_modeop_port_change_dev_addr,
 };
 
 static const struct team_mode rr_mode = {
