@@ -39,117 +39,41 @@ Configuration Options: not applicable, uses PCI auto config
 #include "8253.h"
 
 #define PCI8164_AXIS(x)		((x) * 0x08)
-
-#define PCI8164_MSTS	0x00
-#define PCI8164_SSTS    0x02
-#define PCI8164_BUF0    0x04
-#define PCI8164_BUF1    0x06
-
-#define PCI8164_CMD     0x00
-#define PCI8164_OTP     0x02
+#define PCI8164_CMD_MSTS_REG	0x00
+#define PCI8164_OTP_SSTS_REG	0x02
+#define PCI8164_BUF0_REG	0x04
+#define PCI8164_BUF1_REG	0x06
 
 #define PCI_DEVICE_ID_PCI8164 0x8164
 
-/*
- all the read commands are the same except for the addition a constant
- * const to the data for inw()
- */
-static void adl_pci8164_insn_read(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned int *data,
-				  char *action, unsigned short offset)
-{
-	unsigned int chan = CR_CHAN(insn->chanspec);
-
-	data[0] = inw(dev->iobase + PCI8164_AXIS(chan) + offset);
-}
-
-static int adl_pci8164_insn_read_msts(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	adl_pci8164_insn_read(dev, s, insn, data, "MSTS", PCI8164_MSTS);
-	return 2;
-}
-
-static int adl_pci8164_insn_read_ssts(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	adl_pci8164_insn_read(dev, s, insn, data, "SSTS", PCI8164_SSTS);
-	return 2;
-}
-
-static int adl_pci8164_insn_read_buf0(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	adl_pci8164_insn_read(dev, s, insn, data, "BUF0", PCI8164_BUF0);
-	return 2;
-}
-
-static int adl_pci8164_insn_read_buf1(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	adl_pci8164_insn_read(dev, s, insn, data, "BUF1", PCI8164_BUF1);
-	return 2;
-}
-
-/*
- all the write commands are the same except for the addition a constant
- * const to the data for outw()
- */
-static void adl_pci8164_insn_out(struct comedi_device *dev,
+static int adl_pci8164_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
-				 unsigned int *data,
-				 char *action, unsigned short offset)
+				 unsigned int *data)
 {
+	unsigned long offset = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	outw(data[0], dev->iobase + PCI8164_AXIS(chan) + offset);
+	for (i = 0; i < insn->n; i++)
+		data[i] = inw(dev->iobase + PCI8164_AXIS(chan) + offset);
+
+	return insn->n;
 }
 
-static int adl_pci8164_insn_write_cmd(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
+static int adl_pci8164_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	adl_pci8164_insn_out(dev, s, insn, data, "CMD", PCI8164_CMD);
-	return 2;
-}
+	unsigned long offset = (unsigned long)s->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-static int adl_pci8164_insn_write_otp(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	adl_pci8164_insn_out(dev, s, insn, data, "OTP", PCI8164_OTP);
-	return 2;
-}
+	for (i = 0; i < insn->n; i++)
+		outw(data[i], dev->iobase + PCI8164_AXIS(chan) + offset);
 
-static int adl_pci8164_insn_write_buf0(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
-{
-	adl_pci8164_insn_out(dev, s, insn, data, "BUF0", PCI8164_BUF0);
-	return 2;
-}
-
-static int adl_pci8164_insn_write_buf1(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
-{
-	adl_pci8164_insn_out(dev, s, insn, data, "BUF1", PCI8164_BUF1);
-	return 2;
+	return insn->n;
 }
 
 static int adl_pci8164_auto_attach(struct comedi_device *dev,
@@ -170,47 +94,49 @@ static int adl_pci8164_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* read MSTS register / write CMD register for each axis (channel) */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_PROC;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->len_chanlist = 4;
-	/* s->range_table = &range_axis; */
-	s->insn_read = adl_pci8164_insn_read_msts;
-	s->insn_write = adl_pci8164_insn_write_cmd;
+	s->type		= COMEDI_SUBD_PROC;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 4;
+	s->insn_read	= adl_pci8164_insn_read;
+	s->insn_write	= adl_pci8164_insn_write;
+	s->private	= (void *)PCI8164_CMD_MSTS_REG;
 
+	/* read SSTS register / write OTP register for each axis (channel) */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_PROC;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->len_chanlist = 4;
-	/* s->range_table = &range_axis; */
-	s->insn_read = adl_pci8164_insn_read_ssts;
-	s->insn_write = adl_pci8164_insn_write_otp;
+	s->type		= COMEDI_SUBD_PROC;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 4;
+	s->insn_read	= adl_pci8164_insn_read;
+	s->insn_write	= adl_pci8164_insn_write;
+	s->private	= (void *)PCI8164_OTP_SSTS_REG;
 
+	/* read/write BUF0 register for each axis (channel) */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_PROC;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->len_chanlist = 4;
-	/* s->range_table = &range_axis; */
-	s->insn_read = adl_pci8164_insn_read_buf0;
-	s->insn_write = adl_pci8164_insn_write_buf0;
+	s->type		= COMEDI_SUBD_PROC;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 4;
+	s->insn_read	= adl_pci8164_insn_read;
+	s->insn_write	= adl_pci8164_insn_write;
+	s->private	= (void *)PCI8164_BUF0_REG;
 
+	/* read/write BUF1 register for each axis (channel) */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_PROC;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->len_chanlist = 4;
-	/* s->range_table = &range_axis; */
-	s->insn_read = adl_pci8164_insn_read_buf1;
-	s->insn_write = adl_pci8164_insn_write_buf1;
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+	s->type		= COMEDI_SUBD_PROC;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 4;
+	s->insn_read	= adl_pci8164_insn_read;
+	s->insn_write	= adl_pci8164_insn_write;
+	s->private	= (void *)PCI8164_BUF1_REG;
 
 	return 0;
 }
