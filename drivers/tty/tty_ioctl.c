@@ -106,6 +106,7 @@ void tty_throttle(struct tty_struct *tty)
 	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->throttle)
 		tty->ops->throttle(tty);
+	tty->flow_change = 0;
 	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_throttle);
@@ -129,9 +130,72 @@ void tty_unthrottle(struct tty_struct *tty)
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
+	tty->flow_change = 0;
 	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_unthrottle);
+
+/**
+ *	tty_throttle_safe	-	flow control
+ *	@tty: terminal
+ *
+ *	Similar to tty_throttle() but will only attempt throttle
+ *	if tty->flow_change is TTY_THROTTLE_SAFE. Prevents an accidental
+ *	throttle due to race conditions when throttling is conditional
+ *	on factors evaluated prior to throttling.
+ *
+ *	Returns 0 if tty is throttled (or was already throttled)
+ */
+
+int tty_throttle_safe(struct tty_struct *tty)
+{
+	int ret = 0;
+
+	mutex_lock(&tty->termios_mutex);
+	if (!test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (tty->flow_change != TTY_THROTTLE_SAFE)
+			ret = 1;
+		else {
+			__set_bit(TTY_THROTTLED, &tty->flags);
+			if (tty->ops->throttle)
+				tty->ops->throttle(tty);
+		}
+	}
+	mutex_unlock(&tty->termios_mutex);
+
+	return ret;
+}
+
+/**
+ *	tty_unthrottle_safe	-	flow control
+ *	@tty: terminal
+ *
+ *	Similar to tty_unthrottle() but will only attempt unthrottle
+ *	if tty->flow_change is TTY_UNTHROTTLE_SAFE. Prevents an accidental
+ *	unthrottle due to race conditions when unthrottling is conditional
+ *	on factors evaluated prior to unthrottling.
+ *
+ *	Returns 0 if tty is unthrottled (or was already unthrottled)
+ */
+
+int tty_unthrottle_safe(struct tty_struct *tty)
+{
+	int ret = 0;
+
+	mutex_lock(&tty->termios_mutex);
+	if (test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
+			ret = 1;
+		else {
+			__clear_bit(TTY_THROTTLED, &tty->flags);
+			if (tty->ops->unthrottle)
+				tty->ops->unthrottle(tty);
+		}
+	}
+	mutex_unlock(&tty->termios_mutex);
+
+	return ret;
+}
 
 /**
  *	tty_wait_until_sent	-	wait for I/O to finish
