@@ -32,11 +32,8 @@ Configuration Options: not applicable, uses PCI auto config
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 
 #include "../comedidev.h"
-#include "comedi_fc.h"
-#include "8253.h"
 
 #define PCI8164_AXIS(x)		((x) * 0x08)
 #define PCI8164_CMD_MSTS_REG	0x00
