@@ -1252,8 +1252,7 @@ static void mos7840_close(struct usb_serial_port *port)
 
 	if (mos7840_port->write_urb) {
 		/* if this urb had a transfer buffer already (old tx) free it */
-		if (mos7840_port->write_urb->transfer_buffer != NULL)
-			kfree(mos7840_port->write_urb->transfer_buffer);
+		kfree(mos7840_port->write_urb->transfer_buffer);
 		usb_free_urb(mos7840_port->write_urb);
 	}
 
