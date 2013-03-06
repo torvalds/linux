@@ -698,11 +698,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	found = rb_find_bss(dev, tmp, BSS_CMP_REGULAR);
 
 	if (found) {
-		found->pub.beacon_interval = tmp->pub.beacon_interval;
-		found->pub.signal = tmp->pub.signal;
-		found->pub.capability = tmp->pub.capability;
-		found->ts = tmp->ts;
-
 		/* Update IEs */
 		if (rcu_access_pointer(tmp->pub.proberesp_ies)) {
 			const struct cfg80211_bss_ies *old;
@@ -723,6 +718,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 
 			if (found->pub.hidden_beacon_bss &&
 			    !list_empty(&found->hidden_list)) {
+				const struct cfg80211_bss_ies *f;
+
 				/*
 				 * The found BSS struct is one of the probe
 				 * response members of a group, but we're
@@ -732,6 +729,10 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				 * SSID to showing it, which is confusing so
 				 * drop this information.
 				 */
+
+				f = rcu_access_pointer(tmp->pub.beacon_ies);
+				kfree_rcu((struct cfg80211_bss_ies *)f,
+					  rcu_head);
 				goto drop;
 			}
 
@@ -761,6 +762,11 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				kfree_rcu((struct cfg80211_bss_ies *)old,
 					  rcu_head);
 		}
+
+		found->pub.beacon_interval = tmp->pub.beacon_interval;
+		found->pub.signal = tmp->pub.signal;
+		found->pub.capability = tmp->pub.capability;
+		found->ts = tmp->ts;
 	} else {
 		struct cfg80211_internal_bss *new;
 		struct cfg80211_internal_bss *hidden;
