@@ -25,26 +25,6 @@ static struct rr_priv *rr_priv(struct team *team)
 	return (struct rr_priv *) &team->mode_priv;
 }
 
-static struct team_port *__get_first_port_up(struct team *team,
-					     struct team_port *port)
-{
-	struct team_port *cur;
-
-	if (team_port_txable(port))
-		return port;
-	cur = port;
-	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
-		if (team_port_txable(port))
-			return cur;
-	list_for_each_entry_rcu(cur, &team->port_list, list) {
-		if (cur == port)
-			break;
-		if (team_port_txable(port))
-			return cur;
-	}
-	return NULL;
-}
-
 static bool rr_transmit(struct team *team, struct sk_buff *skb)
 {
 	struct team_port *port;
@@ -52,7 +32,7 @@ static bool rr_transmit(struct team *team, struct sk_buff *skb)
 
 	port_index = rr_priv(team)->sent_packets++ % team->en_port_count;
 	port = team_get_port_by_index_rcu(team, port_index);
-	port = __get_first_port_up(team, port);
+	port = team_get_first_port_txable_rcu(team, port);
 	if (unlikely(!port))
 		goto drop;
 	if (team_dev_queue_xmit(team, port, skb))

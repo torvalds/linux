@@ -37,6 +37,18 @@ config NET_TEAM_MODE_ROUNDROBIN
 	  To compile this team mode as a module, choose M here: the module
 	  will be called team_mode_roundrobin.
 
+config NET_TEAM_MODE_RANDOM
+	tristate "Random mode support"
+	depends on NET_TEAM
+	---help---
+	  Basic mode where port used for transmitting packets is selected
+	  randomly.
+
+	  All added ports are setup to have team's device address.
+
+	  To compile this team mode as a module, choose M here: the module
+	  will be called team_mode_random.
+
 config NET_TEAM_MODE_ACTIVEBACKUP
 	tristate "Active-backup mode support"
 	depends on NET_TEAM
