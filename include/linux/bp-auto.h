@@ -4,33 +4,38 @@
 #include <linux/wakelock.h>
 
 struct bp_private_data;
-
+#define BP_DEV_NAME	"voice_modem"
 #define BP_UNKNOW_DATA	-1
 #define BP_OFF		0
 #define BP_ON		1
 #define BP_SUSPEND	2
 #define BP_WAKE		3
 
-#define BP_IOCTL_BASE 'm'
+#define BP_IOCTL_BASE 0x1a
 
-#define BP_IOCTL_RESET 		_IOW(BP_IOCTL_BASE, 0x00, int)
-#define BP_IOCTL_POWON 		_IOW(BP_IOCTL_BASE, 0x01, int)
+#define BP_IOCTL_RESET 		_IOW(BP_IOCTL_BASE, 0x01, int)
 #define BP_IOCTL_POWOFF 	_IOW(BP_IOCTL_BASE, 0x02, int)
-#define BP_IOCTL_WRITE_STATUS 	_IOW(BP_IOCTL_BASE, 0x03, int)
-#define BP_IOCTL_GET_STATUS 	_IOR(BP_IOCTL_BASE, 0x04, int)
-#define BP_IOCTL_SET_PVID 	_IOW(BP_IOCTL_BASE, 0x05, int)
-#define BP_IOCTL_GET_BPID 	_IOR(BP_IOCTL_BASE, 0x06, int)
+#define BP_IOCTL_POWON 		_IOW(BP_IOCTL_BASE, 0x03, int)
+
+#define BP_IOCTL_WRITE_STATUS 	_IOW(BP_IOCTL_BASE, 0x04, int)
+#define BP_IOCTL_GET_STATUS 	_IOR(BP_IOCTL_BASE, 0x05, int)
+#define BP_IOCTL_SET_PVID 	_IOW(BP_IOCTL_BASE, 0x06, int)
+#define BP_IOCTL_GET_BPID 	_IOR(BP_IOCTL_BASE, 0x07, int)
+#define BP_IOCTL_GET_IMEI 	_IOR(BP_IOCTL_BASE, 0x08, int)
 
 enum bp_id{
-	BP_ID_INVALID = 0,
+	BP_ID_INVALID = 0,//no bp
 		
-	BP_ID_MT6229,
-	BP_ID_MU509,
-	BP_ID_MI700,
-	BP_ID_MW100,
-	BP_ID_TD8801,
-	
-	BP_ID_NUM,
+	BP_ID_MT6229,	//USI MT6229 WCDMA
+	BP_ID_MU509,	//huawei MU509 WCDMA
+	BP_ID_MI700,	//thinkwill MI700 WCDMA
+	BP_ID_MW100,	//thinkwill MW100 WCDMA
+	BP_ID_TD8801,	//spreadtrum SC8803 TD-SCDMA
+	BP_ID_SC6610,	//spreadtrum SC6610 GSM
+	BP_ID_M50,		//spreadtrum RDA GSM
+	BP_ID_MT6250,  //ZINN M50  EDGE
+	BP_ID_C66A,    //zhongben
+	BP_ID_NUM,  
 };
 
 
@@ -54,14 +59,15 @@ struct bp_platform_data {
 	int bp_id;
 	int (*init_platform_hw)(void);		
 	int (*exit_platform_hw)(void);	
-
+	int (*get_bp_id)(void);
 	int bp_power;
 	int bp_en;
 	int bp_reset;
 	int ap_ready;
 	int bp_ready;
 	int ap_wakeup_bp;
-	int bp_wakeup_ap;	
+	int bp_wakeup_ap;
+	int bp_assert;
 	int bp_usb_en;
 	int bp_uart_en;
 	
@@ -70,23 +76,25 @@ struct bp_platform_data {
 
 
 struct bp_operate {
-	char *name;
-	int bp_id;
-	int bp_bus;
+	char *name;	//bp name can be null
+	int bp_id;	//bp id the value must be one of enum bp_id
+	int bp_bus;	// bp bus the value must be one of enum bp_bus_type
 	
-	int bp_pid;	
-	int bp_vid;
-	int bp_power;
-	int bp_en;
-	int bp_reset;
-	int ap_ready;
-	int bp_ready;
-	int ap_wakeup_bp;
-	int bp_wakeup_ap;	
-	int bp_usb_en;
-	int bp_uart_en;
-	int trig;
-	
+	int bp_pid;	// the pid of usb device if used usb else the value is BP_UNKNOW_DATA
+	int bp_vid;	// the vid of usb device if used usb else the value is BP_UNKNOW_DATA
+	int bp_power;//bp power if used GPIO value else the  is BP_UNKNOW_DATA
+	int bp_en;//bp power key if used GPIO value else the  is BP_UNKNOW_DATA
+	int bp_reset;//bo reset if used GPIO value else the  is BP_UNKNOW_DATA
+	int ap_ready;//bp ready  if used GPIO value else the  is BP_UNKNOW_DATA
+	int bp_ready;// bp ready  if used GPIO value else the  is BP_UNKNOW_DATA
+	int ap_wakeup_bp; //ap wakeup bp  if used GPIO value else the  is BP_UNKNOW_DATA
+	int bp_wakeup_ap;// bp wakeup ap  if used GPIO value else the  is BP_UNKNOW_DATA
+	int bp_assert;
+	int bp_usb_en;//not used
+	int bp_uart_en;//not used
+	int trig;//if 1:used board gpio define else used bp driver
+	int irq;
+
 	int (*active)(struct bp_private_data *bp, int enable);
 	int (*init)(struct bp_private_data *bp);
 	int (*reset)(struct bp_private_data *bp);
@@ -96,8 +104,7 @@ struct bp_operate {
 	int (*read_status)(struct bp_private_data *bp);
 	int (*write_status)(struct bp_private_data *bp);
 	int (*suspend)(struct bp_private_data *bp);
-	int (*resume)(struct bp_private_data *bp);	
-	
+	int (*resume)(struct bp_private_data *bp);		
 	char *misc_name;
 	struct miscdevice *private_miscdev;
 	
@@ -116,9 +123,7 @@ struct bp_private_data {
 	struct miscdevice miscdev;
 	struct file_operations id_fops;
 	struct miscdevice id_miscdev;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct 	early_suspend early_suspend;
-#endif
+
 };
 
 extern int bp_register_slave(struct bp_private_data *bp,

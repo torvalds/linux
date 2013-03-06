@@ -23,6 +23,7 @@
 #include <linux/earlysuspend.h>
 
 #include <linux/bp-auto.h>
+#include "../../mtd/rknand/api_flash.h"
 
 #if 0
 #define DBG(x...)  printk(x)
@@ -34,7 +35,9 @@ struct bp_private_data *g_bp;
 static struct class *g_bp_class;
 static struct bp_operate *g_bp_ops[BP_ID_NUM]; 
 struct class *bp_class = NULL; 
-
+int get_current_bp_id(){
+	return g_bp->ops->bp_id;
+}
 static void ap_wakeup_bp(struct bp_private_data *bp, int wake)
 {
 	if(bp->ops->ap_wake_bp)
@@ -91,7 +94,7 @@ static int bp_request_gpio(struct bp_private_data *bp)
 		if(bp->pdata->bp_uart_en > 0)
 		{
 			bp->ops->bp_uart_en = bp->pdata->bp_uart_en;
-		}
+		}		
 
 	}
 	
@@ -197,9 +200,10 @@ static irqreturn_t bp_wake_up_irq(int irq, void *dev_id)
 {
 	
 	struct bp_private_data *bp = dev_id;
-	if(bp->ops->bp_wake_ap)
+	printk("<---%s:bp_id=%d--->\n",__FUNCTION__,bp->ops->bp_id);	
+	if(bp->ops->bp_wake_ap){
 		bp->ops->bp_wake_ap(bp);
-	
+	}	
 	return IRQ_HANDLED;
 }
 
@@ -212,7 +216,7 @@ static int bp_id_open(struct inode *inode, struct file *file)
 
 static int bp_id_release(struct inode *inode, struct file *file)
 {
-
+	
 	return 0;
 }
 
@@ -248,7 +252,8 @@ static long bp_id_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int bp_dev_open(struct inode *inode, struct file *file)
 {
 	struct bp_private_data *bp = g_bp;
-	device_init_wakeup(bp->dev, 1);
+	printk("<---%s:bp_id=%d--->\n",__FUNCTION__,bp->ops->bp_id);	
+	device_init_wakeup(bp->dev, 1);	
 	return 0;
 }
 static ssize_t bp_dev_write(struct file *file, const char __user *buf,size_t len, loff_t *off)
@@ -305,6 +310,9 @@ static ssize_t bp_dev_write(struct file *file, const char __user *buf,size_t len
 }
 static int bp_dev_release(struct inode *inode, struct file *file)
 {
+	struct bp_private_data *bp = g_bp;
+	printk("<---%s:bp_id=%d--->\n",__FUNCTION__,bp->ops->bp_id);	
+	
 	return 0;
 }
 
@@ -312,8 +320,9 @@ static long bp_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct bp_private_data *bp = g_bp;
 	void __user *argp = (void __user *)arg;
+	char SectorBuffer[512];
 	int result = 0;
-
+	printk("<---%s:bp_id=%d,cmd=%d--->\n",__FUNCTION__,bp->ops->bp_id,cmd);
 	switch(cmd)
 	{
 		case BP_IOCTL_RESET:	
@@ -321,22 +330,18 @@ static long bp_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			{
 				bp->ops->reset(bp);
 			}
-			else if(bp->ops->active)
-			{
-				bp->ops->active(bp, 0);
-				msleep(100);
-				bp->ops->active(bp, 1);
-			}
 			break;
 			
 		case BP_IOCTL_POWON:
 			if(bp->ops->active)
 			bp->ops->active(bp, 1);
+			bp->status = BP_ON;
 			break;
 			
 		case BP_IOCTL_POWOFF:
 			if(bp->ops->active)
 			bp->ops->active(bp, 0);
+			bp->status = BP_OFF;
 			break;
 	
 		case BP_IOCTL_WRITE_STATUS:
@@ -358,6 +363,15 @@ static long bp_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 			}
 			
+			break;
+		case BP_IOCTL_GET_IMEI:
+			printk("BP_IMEI_READ\n");
+			GetSNSectorInfo(SectorBuffer); 
+			if(copy_to_user(argp, &(SectorBuffer[451]), 16))  // IMEIo¨®¡ä¨®451??¨°??a¨º?¦Ì?16bytes¡ê?¦Ì¨²¨°???byte?a3¡è?¨¨1¨¬?¡§?a15
+			{
+				printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
+				return -EFAULT;
+			}
 			break;
 			
 		default:
@@ -382,23 +396,39 @@ static ssize_t bp_status_write(struct class *cls, struct class_attribute *attr, 
 	int status = 0;
 	
 	status = simple_strtoul(_buf, NULL, 16);
+	printk("<<<<<<<<--%s:buf:%s,status=%d\n",__func__,_buf,status);
+	
 	if(status == bp->status) 
 		return _count;
 	
 	bp->status = status;
-	
-	if(bp->ops->write_status)
+	if(bp->ops->write_status){
 		result = bp->ops->write_status(bp);	
-	   
+	}else{
+		switch(status)
+		{		
+		case 1://modem power on
+			if(bp->ops->active)
+			bp->ops->active(bp, 1);
+			break;
+			
+		case 0: // modem power off
+			if(bp->ops->active)
+			bp->ops->active(bp, 0);
+			break;		
+			
+		default:
+			break;
+		}
+	}	   
 	return result; 
 }
-static CLASS_ATTR(bp_status, 0777, bp_status_read, bp_status_write);
+//static CLASS_ATTR(bp_status, 0777, bp_status_read, bp_status_write);
 static int bp_probe(struct platform_device *pdev)
 {
 	struct bp_platform_data *pdata = pdev->dev.platform_data;
 	struct bp_private_data *bp = NULL;
-	int i = 0, result;	
-
+	int i = 0, result,irq = 0;
 	if(!pdata)
 		return -1;
 	
@@ -406,7 +436,8 @@ static int bp_probe(struct platform_device *pdev)
 	
 	if(pdata->init_platform_hw)
 		pdata->init_platform_hw();
-	
+	if(pdata->get_bp_id())
+		pdata->bp_id = pdata->get_bp_id();
 	bp = kzalloc(sizeof(struct bp_private_data), GFP_KERNEL);
 	if(bp == NULL)
 	{
@@ -434,25 +465,26 @@ static int bp_probe(struct platform_device *pdev)
 	else
 	{
 		printk("%s:bp_id=%d is out of range\n",__func__, pdata->bp_id);
+		return -1;
 	}
 	
 	bp_request_gpio(bp);
-	
+        if(bp->ops->init)
+                bp->ops->init(bp);
+	bp->ops->irq = 0;
+	wake_lock_init(&bp->bp_wakelock, WAKE_LOCK_SUSPEND, "bp_wakelock");
 	if((bp->ops->bp_wakeup_ap) && (bp->ops->trig != BP_UNKNOW_DATA))
 	{
-		result = request_irq(bp->ops->bp_wakeup_ap, bp_wake_up_irq, bp->ops->trig, "bp_wakeup_ap", bp);
+		irq = gpio_to_irq(bp->ops->bp_wakeup_ap);
+		result = request_irq(irq, bp_wake_up_irq, bp->ops->trig, "bp_wakeup_ap", bp);
 		if (result < 0) {
 			printk("%s: request_irq(%d) failed\n", __func__, bp->ops->bp_wakeup_ap);
 			gpio_free(pdata->bp_wakeup_ap);
 			return result;
 		}
+		bp->ops->irq = irq;
 	}
-
-	if(bp->ops->init)
-		bp->ops->init(bp);
 	
-	enable_irq_wake(bp->ops->bp_wakeup_ap);
-	wake_lock_init(&bp->bp_wakelock, WAKE_LOCK_SUSPEND, "bp_wakelock");
 	
 	bp->status = BP_OFF;
 
@@ -468,7 +500,7 @@ static int bp_probe(struct platform_device *pdev)
 		if(bp->ops->misc_name)
 		bp->miscdev.name = bp->ops->misc_name;
 		else	
-		bp->miscdev.name = "bp-auto";
+		bp->miscdev.name = BP_DEV_NAME;
 		bp->miscdev.fops = &bp->fops;
 	}
 	else
@@ -512,14 +544,15 @@ int bp_suspend(struct platform_device *pdev, pm_message_t state)
 	
 	if(bp->ops->suspend)
 		bp->ops->suspend(bp);
-	
+	enable_irq_wake(bp->ops->irq);
 	return 0;
 }
 
 int bp_resume(struct platform_device *pdev)
 {
 	struct bp_private_data *bp = platform_get_drvdata(pdev);
-	
+
+	disable_irq_wake(bp->ops->irq);
 	if(bp->ops->resume)
 		bp->ops->resume(bp);
 
@@ -532,7 +565,9 @@ void bp_shutdown(struct platform_device *pdev)
 
 	if(bp->ops->shutdown)
 		bp->ops->shutdown(bp);
-	
+	if(bp->ops->irq){
+		free_irq(bp->ops->irq,bp);
+	}
 }
 
 
@@ -584,19 +619,19 @@ static struct platform_driver bp_driver = {
 static int __init bp_init(void)
 {
 	int ret ;
-	bp_class = class_create(THIS_MODULE, "bp-auto");
-	ret =  class_create_file(bp_class, &class_attr_bp_status);
-	if (ret)
-	{
-		printk("Fail to create class bp-auto\n");
-	}
+	//bp_class = class_create(THIS_MODULE, "bp-auto");
+	//ret =  class_create_file(bp_class, &class_attr_bp_status);
+	//if (ret)
+	//{
+	//	printk("Fail to create class bp-auto\n");
+	//}
 	return platform_driver_register(&bp_driver);
 }
 
 static void __exit bp_exit(void)
 {
 	platform_driver_unregister(&bp_driver);
-	class_remove_file(bp_class, &class_attr_bp_status);
+	//class_remove_file(bp_class, &class_attr_bp_status);
 }
 
 module_init(bp_init);

@@ -5,3 +5,14 @@ bool "modem mt6229"
 config BP_AUTO_MU509
 bool "modem mu509"
 	default n
+
+config BP_AUTO_MW100
+bool "modem mw100"
+	default n
+config BP_AUTO_MI700
+bool "modem mi700"
+	default n
+config BP_AUTO_C66A
+bool "modem c66a"
+        default n
+

@@ -54,7 +54,6 @@ obj-$(CONFIG_SENSORS_AK8963)	+= akm8963.o
 obj-$(CONFIG_MTK23D)		+= mtk23d.o
 obj-$(CONFIG_FM580X)		+= fm580x.o
 obj-$(CONFIG_RK29_SUPPORT_MODEM)	+= rk29_modem/
-obj-$(CONFIG_3G_MODULE)		+= 3g_module/
 obj-$(CONFIG_BP_AUTO)		+= bp/
 obj-$(CONFIG_GPS_DEVICES)	+= gps/
 obj-y += inv_mpu/

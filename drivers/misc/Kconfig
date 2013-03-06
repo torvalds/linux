@@ -564,7 +564,6 @@ source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
-source "drivers/misc/3g_module/Kconfig"
 source "drivers/misc/bp/Kconfig"
 source "drivers/misc/rk2928_callpad_misc/Kconfig"
 

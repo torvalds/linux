@@ -365,4 +365,12 @@ config TWL60xx_VBAT_LOW_DETECTION
 	tristate "Support for twl60xx low battery detection."
 	default n
 
+config CHARGER_SMB347
+	tristate "Summit Microelectronics SMB347 Battery Charger"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for Summit Microelectronics SMB347
+	  Battery Charger.
+
 endif # POWER_SUPPLY

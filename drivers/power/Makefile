@@ -41,9 +41,11 @@ obj-$(CONFIG_CHARGER_ISP1704)	+= isp1704_charger.o
 obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
 obj-$(CONFIG_CHARGER_TWL4030)	+= twl4030_charger.o
 obj-$(CONFIG_CHARGER_GPIO)	+= gpio-charger.o
+obj-$(CONFIG_CHARGER_SMB347)	+= smb347-charger.o
 obj-$(CONFIG_TWL6030_BCI_BATTERY)	+= twl6030_bci_battery.o
 obj-$(CONFIG_BATTERY_RK29_ADC)	+= rk29_adc_battery.o
 obj-$(CONFIG_BATTERY_RK30_ADC)  += rk30_adc_battery.o
 obj-$(CONFIG_PLAT_RK)		+= rk29_charger_display.o
 obj-$(CONFIG_BATTERY_RK30_ADC_FAC)  += rk30_factory_adc_battery.o
 obj-$(CONFIG_CW2015_BATTERY)  += cw2015_battery.o
+

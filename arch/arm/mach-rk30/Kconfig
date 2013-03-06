@@ -73,7 +73,10 @@ config MACH_RK30_PHONE_A22
 	
 config MACH_RK30_PHONE_PAD
         bool "RK30 phone pad board"
-	
+
+config MACH_RK30_Z600T
+        bool "RK30 Z600T smart phone pad board"
+		
 endchoice
 
 choice

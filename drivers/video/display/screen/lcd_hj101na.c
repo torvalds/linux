@@ -85,7 +85,16 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     screen->standby = standby;
 }
 
-
+size_t get_fb_size(void)
+{
+	size_t size = 0;
+	#if defined(CONFIG_THREE_FB_BUFFER)
+		size = ((H_VD)*(V_VD)<<2)* 3; //three buffer
+	#else
+		size = ((H_VD)*(V_VD)<<2)<<1; //two buffer
+	#endif
+	return ALIGN(size,SZ_1M);
+}
 static int standby(u8 enable)
 {
 	printk(KERN_INFO "byd1024x600 lcd standby, enable=%d\n", enable);

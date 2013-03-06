@@ -217,6 +217,13 @@ struct board_id_platform_data {
 	int (*init_parameter)(int id);  
 };
 
+struct ft5506_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
 struct cm3217_platform_data {
 	int irq_pin;
 	int power_pin;

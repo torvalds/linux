@@ -85,6 +85,7 @@ obj-$(CONFIG_TOUCHSCREEN_ILI2102_IIC)	+= ili2102_ts.o
 obj-$(CONFIG_D70_L3188A)		+= goodix_touch.o
 obj-$(CONFIG_TOUCHSCREEN_GT8XX)                += rk29_i2c_goodix.o
 obj-$(CONFIG_TOUCHSCREEN_FT5406)	+= ft5406_ts.o
+obj-$(CONFIG_TOUCHSCREEN_FT5506)	+= ft5506_wgj.o
 obj-$(CONFIG_TOUCHSCREEN_FT5306)	+= ft5306_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SITRONIX_A720)	+= sitronix_ts_a720.o
 obj-$(CONFIG_TOUCHSCREEN_FT5306_WPX2)        += ft5306_ts_wpx2.o
@@ -99,4 +100,6 @@ obj-$(CONFIG_TOUCHSCREEN_I30)	+= i30_ts.o
 obj-$(CONFIG_TOUCHSCREEN_BYD693X)	+= byd693x_ts.o
 obj-$(CONFIG_TOUCHSCREEN_FT5X0X)	+= ft5x0x.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680)	+= rockchip_gslX680.o
+# Make VTL TouchScreen Driver
+obj-$(CONFIG_TOUCHSCREEN_CT36X)		+= ct36x_ts/
 
