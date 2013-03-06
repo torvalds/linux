@@ -61,6 +61,8 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	}
 	sflash->priv = b47s;
 
+	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
+
 	b47s->window = sflash->window;
 	b47s->blocksize = sflash->blocksize;
 	b47s->numblocks = sflash->numblocks;

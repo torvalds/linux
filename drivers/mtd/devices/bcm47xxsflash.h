@@ -3,7 +3,11 @@
 
 #include <linux/mtd/mtd.h>
 
+struct bcma_drv_cc;
+
 struct bcm47xxsflash {
+	struct bcma_drv_cc *bcma_cc;
+
 	u32 window;
 	u32 blocksize;
 	u16 numblocks;
