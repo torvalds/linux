@@ -2613,6 +2613,8 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 		tracing_iter_reset(iter, cpu);
 	}
 
+	tr->ref++;
+
 	mutex_unlock(&trace_types_lock);
 
 	return iter;
@@ -2649,6 +2651,10 @@ static int tracing_release(struct inode *inode, struct file *file)
 	tr = iter->tr;
 
 	mutex_lock(&trace_types_lock);
+
+	WARN_ON(!tr->ref);
+	tr->ref--;
+
 	for_each_tracing_cpu(cpu) {
 		if (iter->buffer_iter[cpu])
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
@@ -4460,6 +4466,10 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	if (!info)
 		return -ENOMEM;
 
+	mutex_lock(&trace_types_lock);
+
+	tr->ref++;
+
 	info->iter.tr		= tr;
 	info->iter.cpu_file	= tc->cpu;
 	info->iter.trace	= tr->current_trace;
@@ -4469,6 +4479,8 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	info->read		= (unsigned int)-1;
 
 	filp->private_data = info;
+
+	mutex_unlock(&trace_types_lock);
 
 	return nonseekable_open(inode, filp);
 }
@@ -4568,9 +4580,16 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 	struct ftrace_buffer_info *info = file->private_data;
 	struct trace_iterator *iter = &info->iter;
 
+	mutex_lock(&trace_types_lock);
+
+	WARN_ON(!iter->tr->ref);
+	iter->tr->ref--;
+
 	if (info->spare)
 		ring_buffer_free_read_page(iter->trace_buffer->buffer, info->spare);
 	kfree(info);
+
+	mutex_unlock(&trace_types_lock);
 
 	return 0;
 }
@@ -5409,6 +5428,10 @@ static int instance_delete(const char *name)
 		}
 	}
 	if (!found)
+		goto out_unlock;
+
+	ret = -EBUSY;
+	if (tr->ref)
 		goto out_unlock;
 
 	list_del(&tr->list);
