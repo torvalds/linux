@@ -226,7 +226,7 @@ void dwc_otg_enable_common_interrupts(struct core_if *core_if)
 void dwc_otg_core_init(struct core_if *core_if)
 {
 	u32 i;
-	ulong global_reg = core_if->core_global_regs;
+	u32 global_reg = core_if->core_global_regs;
 	struct device_if *dev_if = core_if->dev_if;
 	u32 ahbcfg = 0;
 	u32 gusbcfg;

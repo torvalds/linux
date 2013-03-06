@@ -143,6 +143,14 @@
 				};
 		};
 
+		usb0: usb@ffb00000 {
+			status = "disabled";
+		};
+
+		usb1: usb@ffb40000 {
+			ulpi-ddr = <0>;
+		};
+
 		i2c0: i2c@ffc04000 {
 			speed-mode = <0>;
 		};

@@ -115,6 +115,23 @@ static void dwc_otg_core_host_init(struct core_if *core_if)
 	/* Restart the Phy Clock */
 	dwc_reg_write(core_if->pcgcctl, 0, 0);
 
+	/* Power the PHY*/
+	hprt0 = dwc_otg_read_hprt0(core_if);
+	hprt0 = DWC_HPRT0_PRT_PWR_RW(hprt0, 1);
+	dwc_reg_write(core_if->host_if->hprt0, 0, hprt0);
+
+	/* Reset the PHY */
+	hprt0 = dwc_otg_read_hprt0(core_if);
+	hprt0 = DWC_HPRT0_PRT_RST_RW(hprt0, 1);
+	dwc_reg_write(core_if->host_if->hprt0, 0, hprt0);
+
+	msleep(1);
+
+	/* Release PHY from reset */
+	hprt0 = dwc_otg_read_hprt0(core_if);
+	hprt0 = DWC_HPRT0_PRT_RST_RW(hprt0, 0);
+	dwc_reg_write(core_if->host_if->hprt0, 0, hprt0);
+
 	/* Initialize Host Configuration Register */
 	init_fslspclksel(core_if);
 
@@ -155,37 +172,39 @@ static void dwc_otg_core_host_init(struct core_if *core_if)
 	dwc_otg_flush_tx_fifo(core_if, DWC_GRSTCTL_TXFNUM_ALL);
 	dwc_otg_flush_rx_fifo(core_if);
 
-	/* Flush out any leftover queued requests. */
-	num_channels = core_if->core_params->host_channels;
-	for (i = 0; i < num_channels; i++) {
-		hc_regs = core_if->host_if->hc_regs[i];
-		hcchar = dwc_reg_read(hc_regs, DWC_HCCHAR);
-		hcchar = DWC_HCCHAR_ENA_RW(hcchar, 0);
-		hcchar = DWC_HCCHAR_DIS_RW(hcchar, 1);
-		hcchar = DWC_HCCHAR_EPDIR_RW(hcchar, 0);
-		dwc_reg_write(hc_regs, DWC_HCCHAR, hcchar);
-	}
-
-	/* Halt all channels to put them into a known state. */
-	for (i = 0; i < num_channels; i++) {
-		int count = 0;
-
-		hc_regs = core_if->host_if->hc_regs[i];
-		hcchar = dwc_reg_read(hc_regs, DWC_HCCHAR);
-		hcchar = DWC_HCCHAR_ENA_RW(hcchar, 1);
-		hcchar = DWC_HCCHAR_DIS_RW(hcchar, 1);
-		hcchar = DWC_HCCHAR_EPDIR_RW(hcchar, 0);
-		dwc_reg_write(hc_regs, DWC_HCCHAR, hcchar);
-
-		do {
+	if (params->dma_enable) {
+		/* Flush out any leftover queued requests. */
+		num_channels = core_if->core_params->host_channels;
+		for (i = 0; i < num_channels; i++) {
+			hc_regs = core_if->host_if->hc_regs[i];
 			hcchar = dwc_reg_read(hc_regs, DWC_HCCHAR);
-			if (++count > 200) {
-				pr_err("%s: Unable to clear halt on "
+			hcchar = DWC_HCCHAR_ENA_RW(hcchar, 0);
+			hcchar = DWC_HCCHAR_DIS_RW(hcchar, 1);
+			hcchar = DWC_HCCHAR_EPDIR_RW(hcchar, 0);
+			dwc_reg_write(hc_regs, DWC_HCCHAR, hcchar);
+		}
+
+		/* Halt all channels to put them into a known state. */
+		for (i = 0; i < num_channels; i++) {
+			int count = 0;
+
+			hc_regs = core_if->host_if->hc_regs[i];
+			hcchar = dwc_reg_read(hc_regs, DWC_HCCHAR);
+			hcchar = DWC_HCCHAR_ENA_RW(hcchar, 1);
+			hcchar = DWC_HCCHAR_DIS_RW(hcchar, 1);
+			hcchar = DWC_HCCHAR_EPDIR_RW(hcchar, 0);
+			dwc_reg_write(hc_regs, DWC_HCCHAR, hcchar);
+
+			do {
+				hcchar = dwc_reg_read(hc_regs, DWC_HCCHAR);
+				if (++count > 200) {
+					pr_err("%s: Unable to clear halt on "
 				       "channel %d\n", __func__, i);
-				break;
-			}
-			udelay(100);
-		} while (DWC_HCCHAR_ENA_RD(hcchar));
+					break;
+				}
+				udelay(100);
+			} while (DWC_HCCHAR_ENA_RD(hcchar));
+		}
 	}
 
 	/* Turn on the vbus power. */

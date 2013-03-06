@@ -114,6 +114,14 @@
 			clock-frequency = <19290>;
 		};
 
+		usb0: usb@ffb00000 {
+                       ulpi-ddr = <0>;
+                };
+
+                usb1: usb@ffb40000 {
+                       ulpi-ddr = <0>;
+                };
+
 		serial0@ffc02000 {
 			clock-frequency = <77161>;
 		};

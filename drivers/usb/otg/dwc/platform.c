@@ -358,10 +358,6 @@ static int dwc_otg_driver_probe(struct platform_device *ofdev)
 	 */
 	dwc_otg_enable_global_interrupts(dwc_dev->core_if);
 
-	usbcfg = dwc_reg_read(gusbcfg_addr, 0);
-	usbcfg &= ~DWC_USBCFG_FRC_HST_MODE;
-	dwc_reg_write(gusbcfg_addr, 0, usbcfg);
-
 	return 0;
 fail_hcd:
 	free_irq(dwc_dev->irq, dwc_dev);

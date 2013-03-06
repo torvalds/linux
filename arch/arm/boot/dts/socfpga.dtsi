@@ -309,7 +309,6 @@
 				reg = <0xffb40000 0xffff>;
 				interrupts = <0 128 4>;
 				dma-mask = <0xffffffff>;
-				ulpi-ddr = <1>;
 				host-rx-fifo-size = <512>;
 				dev-rx-fifo-size = <512>;
 				dev-nperio-tx-fifo-size = <4096>;
