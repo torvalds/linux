@@ -251,9 +251,6 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match
 		if (c->driver == NULL || c->driver->driver.name == NULL)
 			return 0;
 		len = strlen(c->driver->driver.name);
-		/* legacy drivers have a ' suffix, don't try to match that */
-		if (len && c->driver->driver.name[len - 1] == '\'')
-			len--;
 		return len && !strncmp(c->driver->driver.name, match->name, len);
 	case V4L2_CHIP_MATCH_I2C_ADDR:
 		return c->addr == match->addr;
