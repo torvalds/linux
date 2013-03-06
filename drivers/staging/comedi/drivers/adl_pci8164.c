@@ -44,8 +44,6 @@ Configuration Options: not applicable, uses PCI auto config
 #define PCI8164_BUF0_REG	0x04
 #define PCI8164_BUF1_REG	0x06
 
-#define PCI_DEVICE_ID_PCI8164 0x8164
-
 static int adl_pci8164_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -166,8 +164,8 @@ static int adl_pci8164_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164) },
-	{0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x8164) },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci8164_pci_table);
 
