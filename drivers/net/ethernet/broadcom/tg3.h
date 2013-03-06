@@ -3065,6 +3065,13 @@ enum TG3_FLAGS {
 	TG3_FLAG_NUMBER_OF_FLAGS,	/* Last entry in enum TG3_FLAGS */
 };
 
+struct tg3_firmware_hdr {
+	__be32 version; /* unused for fragments */
+	__be32 base_addr;
+	__be32 len;
+};
+#define TG3_FW_HDR_LEN         (sizeof(struct tg3_firmware_hdr))
+
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
