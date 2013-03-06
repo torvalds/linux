@@ -1,0 +1,44 @@
+What:		/sys/devices/.../lpss_ltr/
+Date:		March 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../lpss_ltr/ directory is only present for
+		devices included into the Intel Lynxpoint Low Power Subsystem
+		(LPSS).  If present, it contains attributes containing the LTR
+		mode and the values of LTR registers of the device.
+
+What:		/sys/devices/.../lpss_ltr/ltr_mode
+Date:		March 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../lpss_ltr/ltr_mode attribute contains an
+		integer number (0 or 1) indicating whether or not the devices'
+		LTR functionality is working in the software mode (1).
+
+		This attribute is read-only.  If the device's runtime PM status
+		is not "active", attempts to read from this attribute cause
+		-EAGAIN to be returned.
+
+What:		/sys/devices/.../lpss_ltr/auto_ltr
+Date:		March 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../lpss_ltr/auto_ltr attribute contains the
+		current value of the device's AUTO_LTR register (raw)
+		represented as an 8-digit hexadecimal number.
+
+		This attribute is read-only.  If the device's runtime PM status
+		is not "active", attempts to read from this attribute cause
+		-EAGAIN to be returned.
+
+What:		/sys/devices/.../lpss_ltr/sw_ltr
+Date:		March 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../lpss_ltr/auto_ltr attribute contains the
+		current value of the device's SW_LTR register (raw) represented
+		as an 8-digit hexadecimal number.
+
+		This attribute is read-only.  If the device's runtime PM status
+		is not "active", attempts to read from this attribute cause
+		-EAGAIN to be returned.

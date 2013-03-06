@@ -18,17 +18,26 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/clk-lpss.h>
+#include <linux/pm_runtime.h>
 
 #include "internal.h"
 
 ACPI_MODULE_NAME("acpi_lpss");
 
-#define LPSS_CLK_OFFSET 0x800
 #define LPSS_CLK_SIZE	0x04
+#define LPSS_LTR_SIZE	0x18
+
+/* Offsets relative to LPSS_PRIVATE_OFFSET */
+#define LPSS_GENERAL			0x08
+#define LPSS_GENERAL_LTR_MODE_SW	BIT(2)
+#define LPSS_SW_LTR			0x10
+#define LPSS_AUTO_LTR			0x14
 
 struct lpss_device_desc {
 	bool clk_required;
 	const char *clk_parent;
+	bool ltr_required;
+	unsigned int prv_offset;
 };
 
 struct lpss_private_data {
@@ -41,6 +50,13 @@ struct lpss_private_data {
 static struct lpss_device_desc lpt_dev_desc = {
 	.clk_required = true,
 	.clk_parent = "lpss_clk",
+	.prv_offset = 0x800,
+	.ltr_required = true,
+};
+
+static struct lpss_device_desc lpt_sdio_dev_desc = {
+	.prv_offset = 0x1000,
+	.ltr_required = true,
 };
 
 static const struct acpi_device_id acpi_lpss_device_ids[] = {
@@ -51,7 +67,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33C3", (unsigned long)&lpt_dev_desc },
 	{ "INT33C4", (unsigned long)&lpt_dev_desc },
 	{ "INT33C5", (unsigned long)&lpt_dev_desc },
-	{ "INT33C6", },
+	{ "INT33C6", (unsigned long)&lpt_sdio_dev_desc },
 	{ "INT33C7", },
 
 	{ }
@@ -80,12 +96,12 @@ static int register_device_clock(struct acpi_device *adev,
 		lpt_register_clock_device();
 
 	if (!dev_desc->clk_parent || !pdata->mmio_base
-	    || pdata->mmio_size < LPSS_CLK_OFFSET + LPSS_CLK_SIZE)
+	    || pdata->mmio_size < dev_desc->prv_offset + LPSS_CLK_SIZE)
 		return -ENODATA;
 
 	pdata->clk = clk_register_gate(NULL, dev_name(&adev->dev),
 				       dev_desc->clk_parent, 0,
-				       pdata->mmio_base + LPSS_CLK_OFFSET,
+				       pdata->mmio_base + dev_desc->prv_offset,
 				       0, 0, NULL);
 	if (IS_ERR(pdata->clk))
 		return PTR_ERR(pdata->clk);
@@ -151,6 +167,117 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	return ret;
 }
 
+static int lpss_reg_read(struct device *dev, unsigned int reg, u32 *val)
+{
+	struct acpi_device *adev;
+	struct lpss_private_data *pdata;
+	unsigned long flags;
+	int ret;
+
+	ret = acpi_bus_get_device(ACPI_HANDLE(dev), &adev);
+	if (WARN_ON(ret))
+		return ret;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
+	if (pm_runtime_suspended(dev)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+	pdata = acpi_driver_data(adev);
+	if (WARN_ON(!pdata || !pdata->mmio_base)) {
+		ret = -ENODEV;
+		goto out;
+	}
+	*val = readl(pdata->mmio_base + pdata->dev_desc->prv_offset + reg);
+
+ out:
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+	return ret;
+}
+
+static ssize_t lpss_ltr_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	u32 ltr_value = 0;
+	unsigned int reg;
+	int ret;
+
+	reg = strcmp(attr->attr.name, "auto_ltr") ? LPSS_SW_LTR : LPSS_AUTO_LTR;
+	ret = lpss_reg_read(dev, reg, &ltr_value);
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE, "%08x\n", ltr_value);
+}
+
+static ssize_t lpss_ltr_mode_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	u32 ltr_mode = 0;
+	char *outstr;
+	int ret;
+
+	ret = lpss_reg_read(dev, LPSS_GENERAL, &ltr_mode);
+	if (ret)
+		return ret;
+
+	outstr = (ltr_mode & LPSS_GENERAL_LTR_MODE_SW) ? "sw" : "auto";
+	return sprintf(buf, "%s\n", outstr);
+}
+
+static DEVICE_ATTR(auto_ltr, S_IRUSR, lpss_ltr_show, NULL);
+static DEVICE_ATTR(sw_ltr, S_IRUSR, lpss_ltr_show, NULL);
+static DEVICE_ATTR(ltr_mode, S_IRUSR, lpss_ltr_mode_show, NULL);
+
+static struct attribute *lpss_attrs[] = {
+	&dev_attr_auto_ltr.attr,
+	&dev_attr_sw_ltr.attr,
+	&dev_attr_ltr_mode.attr,
+	NULL,
+};
+
+static struct attribute_group lpss_attr_group = {
+	.attrs = lpss_attrs,
+	.name = "lpss_ltr",
+};
+
+static int acpi_lpss_platform_notify(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct platform_device *pdev = to_platform_device(data);
+	struct lpss_private_data *pdata;
+	struct acpi_device *adev;
+	const struct acpi_device_id *id;
+	int ret = 0;
+
+	id = acpi_match_device(acpi_lpss_device_ids, &pdev->dev);
+	if (!id || !id->driver_data)
+		return 0;
+
+	if (acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev))
+		return 0;
+
+	pdata = acpi_driver_data(adev);
+	if (!pdata || !pdata->mmio_base || !pdata->dev_desc->ltr_required)
+		return 0;
+
+	if (pdata->mmio_size < pdata->dev_desc->prv_offset + LPSS_LTR_SIZE) {
+		dev_err(&pdev->dev, "MMIO size insufficient to access LTR\n");
+		return 0;
+	}
+
+	if (action == BUS_NOTIFY_ADD_DEVICE)
+		ret = sysfs_create_group(&pdev->dev.kobj, &lpss_attr_group);
+	else if (action == BUS_NOTIFY_DEL_DEVICE)
+		sysfs_remove_group(&pdev->dev.kobj, &lpss_attr_group);
+
+	return ret;
+}
+
+static struct notifier_block acpi_lpss_nb = {
+	.notifier_call = acpi_lpss_platform_notify,
+};
+
 static struct acpi_scan_handler lpss_handler = {
 	.ids = acpi_lpss_device_ids,
 	.attach = acpi_lpss_create_device,
@@ -158,6 +285,8 @@ static struct acpi_scan_handler lpss_handler = {
 
 void __init acpi_lpss_init(void)
 {
-	if (!lpt_clk_init())
+	if (!lpt_clk_init()) {
+		bus_register_notifier(&platform_bus_type, &acpi_lpss_nb);
 		acpi_scan_add_handler(&lpss_handler);
+	}
 }
