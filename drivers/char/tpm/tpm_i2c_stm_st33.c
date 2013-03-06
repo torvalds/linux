@@ -36,7 +36,6 @@
 #include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -50,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 
 #include "tpm.h"
 #include "tpm_i2c_stm_st33.h"
