@@ -3235,6 +3235,11 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		update_ioctl_balance_args(fs_info, 0, bargs);
 	}
 
+	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
+	    balance_need_close(fs_info)) {
+		__cancel_balance(fs_info);
+	}
+
 	wake_up(&fs_info->balance_wait_q);
 
 	return ret;
