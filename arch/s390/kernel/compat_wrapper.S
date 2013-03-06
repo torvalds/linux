@@ -1349,15 +1349,6 @@ ENTRY(sys_fanotify_init_wrapper)
 	llgfr	%r3,%r3			# unsigned int
 	jg	sys_fanotify_init	# branch to system call
 
-ENTRY(sys_fanotify_mark_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# unsigned int
-	sllg	%r4,%r4,32		# get high word of 64bit mask
-	lr	%r4,%r5			# get low word of 64bit mask
-	llgfr	%r5,%r6			# unsigned int
-	llgt	%r6,164(%r15)		# char *
-	jg	sys_fanotify_mark	# branch to system call
-
 ENTRY(sys_prlimit64_wrapper)
 	lgfr	%r2,%r2			# pid_t
 	llgfr	%r3,%r3			# unsigned int

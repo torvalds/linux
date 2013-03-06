@@ -341,7 +341,7 @@ SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo) /* 330 */
 SYSCALL(sys_perf_event_open,sys_perf_event_open,sys_perf_event_open_wrapper)
 SYSCALL(sys_fanotify_init,sys_fanotify_init,sys_fanotify_init_wrapper)
-SYSCALL(sys_fanotify_mark,sys_fanotify_mark,sys_fanotify_mark_wrapper)
+SYSCALL(sys_fanotify_mark,sys_fanotify_mark,compat_sys_fanotify_mark)
 SYSCALL(sys_prlimit64,sys_prlimit64,sys_prlimit64_wrapper)
 SYSCALL(sys_name_to_handle_at,sys_name_to_handle_at,sys_name_to_handle_at_wrapper) /* 335 */
 SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at)
