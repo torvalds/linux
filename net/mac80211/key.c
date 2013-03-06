@@ -397,6 +397,15 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 	return key;
 }
 
+static void ieee80211_key_free_common(struct ieee80211_key *key)
+{
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
+		ieee80211_aes_key_free(key->u.ccmp.tfm);
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
+	kfree(key);
+}
+
 static void __ieee80211_key_destroy(struct ieee80211_key *key,
 				    bool delay_tailroom)
 {
@@ -412,10 +421,6 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key,
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
-		ieee80211_aes_key_free(key->u.ccmp.tfm);
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
-		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
 	if (key->local) {
 		struct ieee80211_sub_if_data *sdata = key->sdata;
 
@@ -431,7 +436,13 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key,
 		}
 	}
 
-	kfree(key);
+	ieee80211_key_free_common(key);
+}
+
+void ieee80211_key_free_unused(struct ieee80211_key *key)
+{
+	WARN_ON(key->sdata || key->local);
+	ieee80211_key_free_common(key);
 }
 
 int ieee80211_key_link(struct ieee80211_key *key,
@@ -469,6 +480,9 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	ret = ieee80211_key_enable_hw_accel(key);
 
+	if (ret)
+		__ieee80211_key_free(key, true);
+
 	mutex_unlock(&sdata->local->key_mtx);
 
 	return ret;
@@ -487,14 +501,6 @@ void __ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
 	__ieee80211_key_destroy(key, delay_tailroom);
-}
-
-void ieee80211_key_free(struct ieee80211_local *local,
-			struct ieee80211_key *key)
-{
-	mutex_lock(&local->key_mtx);
-	__ieee80211_key_free(key, true);
-	mutex_unlock(&local->key_mtx);
 }
 
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
