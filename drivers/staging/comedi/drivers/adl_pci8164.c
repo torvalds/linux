@@ -1,34 +1,34 @@
 /*
-    comedi/drivers/adl_pci8164.c
+ * comedi/drivers/adl_pci8164.c
+ *
+ * Hardware comedi driver for PCI-8164 Adlink card
+ * Copyright (C) 2004 Michel Lachine <mike@mikelachaine.ca>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-    Hardware comedi driver fot PCI-8164 Adlink card
-    Copyright (C) 2004 Michel Lachine <mike@mikelachaine.ca>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-*/
 /*
-Driver: adl_pci8164
-Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
-Devices: [ADLink] PCI-8164 (adl_pci8164)
-Author: Michel Lachaine <mike@mikelachaine.ca>
-Status: experimental
-Updated: Mon, 14 Apr 2008 15:10:32 +0100
-
-Configuration Options: not applicable, uses PCI auto config
-*/
+ * Driver: adl_pci8164
+ * Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
+ * Devices: (ADLink) PCI-8164 [adl_pci8164]
+ * Author: Michel Lachaine <mike@mikelachaine.ca>
+ * Status: experimental
+ * Updated: Mon, 14 Apr 2008 15:10:32 +0100
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ */
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
