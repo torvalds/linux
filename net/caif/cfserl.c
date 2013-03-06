@@ -29,7 +29,7 @@ struct cfserl {
 static int cfserl_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfserl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid);
+			   int phyid);
 
 struct cflayer *cfserl_create(int instance, bool use_stx)
 {
@@ -182,7 +182,7 @@ static int cfserl_transmit(struct cflayer *layer, struct cfpkt *newpkt)
 }
 
 static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid)
+			   int phyid)
 {
 	layr->up->ctrlcmd(layr->up, ctrl, phyid);
 }

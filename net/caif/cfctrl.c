@@ -20,12 +20,12 @@
 
 #ifdef CAIF_NO_LOOP
 static int handle_loop(struct cfctrl *ctrl,
-			      int cmd, struct cfpkt *pkt){
+		       int cmd, struct cfpkt *pkt){
 	return -1;
 }
 #else
 static int handle_loop(struct cfctrl *ctrl,
-		int cmd, struct cfpkt *pkt);
+		       int cmd, struct cfpkt *pkt);
 #endif
 static int cfctrl_recv(struct cflayer *layr, struct cfpkt *pkt);
 static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
@@ -72,7 +72,7 @@ void cfctrl_remove(struct cflayer *layer)
 }
 
 static bool param_eq(const struct cfctrl_link_param *p1,
-			const struct cfctrl_link_param *p2)
+		     const struct cfctrl_link_param *p2)
 {
 	bool eq =
 	    p1->linktype == p2->linktype &&
@@ -197,8 +197,8 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 }
 
 int cfctrl_linkup_request(struct cflayer *layer,
-			   struct cfctrl_link_param *param,
-			   struct cflayer *user_layer)
+			  struct cfctrl_link_param *param,
+			  struct cflayer *user_layer)
 {
 	struct cfctrl *cfctrl = container_obj(layer);
 	u32 tmp32;
@@ -301,7 +301,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 }
 
 int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
-				struct cflayer *client)
+			struct cflayer *client)
 {
 	int ret;
 	struct cfpkt *pkt;
@@ -555,7 +555,7 @@ error:
 }
 
 static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-			int phyid)
+			   int phyid)
 {
 	struct cfctrl *this = container_obj(layr);
 	switch (ctrl) {

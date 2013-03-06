@@ -266,8 +266,8 @@ inline u16 cfpkt_getlen(struct cfpkt *pkt)
 }
 
 inline u16 cfpkt_iterate(struct cfpkt *pkt,
-			    u16 (*iter_func)(u16, void *, u16),
-			    u16 data)
+			 u16 (*iter_func)(u16, void *, u16),
+			 u16 data)
 {
 	/*
 	 * Don't care about the performance hit of linearizing,
@@ -307,8 +307,8 @@ int cfpkt_setlen(struct cfpkt *pkt, u16 len)
 }
 
 struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
-			     struct cfpkt *addpkt,
-			     u16 expectlen)
+			   struct cfpkt *addpkt,
+			   u16 expectlen)
 {
 	struct sk_buff *dst = pkt_to_skb(dstpkt);
 	struct sk_buff *add = pkt_to_skb(addpkt);

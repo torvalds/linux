@@ -301,10 +301,11 @@ static void dev_flowctrl(struct net_device *dev, int on)
 }
 
 void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
-			struct cflayer *link_support, int head_room,
-			struct cflayer **layer, int (**rcv_func)(
-				struct sk_buff *, struct net_device *,
-				struct packet_type *, struct net_device *))
+		     struct cflayer *link_support, int head_room,
+		     struct cflayer **layer,
+		     int (**rcv_func)(struct sk_buff *, struct net_device *,
+				      struct packet_type *,
+				      struct net_device *))
 {
 	struct caif_device_entry *caifd;
 	enum cfcnfg_phy_preference pref;

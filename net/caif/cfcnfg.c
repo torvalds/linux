@@ -61,11 +61,11 @@ struct cfcnfg {
 };
 
 static void cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id,
-			     enum cfctrl_srv serv, u8 phyid,
-			     struct cflayer *adapt_layer);
+			      enum cfctrl_srv serv, u8 phyid,
+			      struct cflayer *adapt_layer);
 static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id);
 static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
-			     struct cflayer *adapt_layer);
+			      struct cflayer *adapt_layer);
 static void cfctrl_resp_func(void);
 static void cfctrl_enum_resp(void);
 
@@ -131,7 +131,7 @@ static void cfctrl_resp_func(void)
 }
 
 static struct cfcnfg_phyinfo *cfcnfg_get_phyinfo_rcu(struct cfcnfg *cnfg,
-							u8 phyid)
+						     u8 phyid)
 {
 	struct cfcnfg_phyinfo *phy;
 
@@ -216,8 +216,8 @@ static const int protohead[CFCTRL_SRV_MASK] = {
 
 
 static int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
-				   struct caif_connect_request *s,
-				   struct cfctrl_link_param *l)
+					  struct caif_connect_request *s,
+					  struct cfctrl_link_param *l)
 {
 	struct dev_info *dev_info;
 	enum cfcnfg_phy_preference pref;
@@ -301,8 +301,7 @@ static int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
 
 int caif_connect_client(struct net *net, struct caif_connect_request *conn_req,
 			struct cflayer *adap_layer, int *ifindex,
-				int *proto_head,
-				int *proto_tail)
+			int *proto_head, int *proto_tail)
 {
 	struct cflayer *frml;
 	struct cfcnfg_phyinfo *phy;
@@ -364,7 +363,7 @@ unlock:
 EXPORT_SYMBOL(caif_connect_client);
 
 static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
-			     struct cflayer *adapt_layer)
+			      struct cflayer *adapt_layer)
 {
 	if (adapt_layer != NULL && adapt_layer->ctrlcmd != NULL)
 		adapt_layer->ctrlcmd(adapt_layer,
@@ -526,7 +525,7 @@ out_err:
 EXPORT_SYMBOL(cfcnfg_add_phy_layer);
 
 int cfcnfg_set_phy_state(struct cfcnfg *cnfg, struct cflayer *phy_layer,
-		bool up)
+			 bool up)
 {
 	struct cfcnfg_phyinfo *phyinfo;
 

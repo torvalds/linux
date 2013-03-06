@@ -43,7 +43,7 @@ static void cfrfml_release(struct cflayer *layer)
 }
 
 struct cflayer *cfrfml_create(u8 channel_id, struct dev_info *dev_info,
-					int mtu_size)
+			      int mtu_size)
 {
 	int tmp;
 	struct cfrfml *this = kzalloc(sizeof(struct cfrfml), GFP_ATOMIC);
@@ -69,7 +69,7 @@ struct cflayer *cfrfml_create(u8 channel_id, struct dev_info *dev_info,
 }
 
 static struct cfpkt *rfm_append(struct cfrfml *rfml, char *seghead,
-			struct cfpkt *pkt, int *err)
+				struct cfpkt *pkt, int *err)
 {
 	struct cfpkt *tmppkt;
 	*err = -EPROTO;
