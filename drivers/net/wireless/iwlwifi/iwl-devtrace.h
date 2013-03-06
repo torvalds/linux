@@ -363,7 +363,7 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 		__entry->flags = cmd->flags;
 		memcpy(__get_dynamic_array(hcmd), hdr, sizeof(*hdr));
 
-		for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+		for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 			if (!cmd->len[i])
 				continue;
 			memcpy((u8 *)__get_dynamic_array(hcmd) + offset,
