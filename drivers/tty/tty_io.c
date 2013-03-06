@@ -534,18 +534,21 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
 
 /**
  *	tty_signal_session_leader	- sends SIGHUP to session leader
+ *	@tty		controlling tty
+ *	@exit_session	if non-zero, signal all foreground group processes
  *
- *	Send SIGHUP and SIGCONT to the session leader and its
- *	process group.
+ *	Send SIGHUP and SIGCONT to the session leader and its process group.
+ *	Optionally, signal all processes in the foreground process group.
  *
  *	Returns the number of processes in the session with this tty
  *	as their controlling terminal. This value is used to drop
  *	tty references for those processes.
  */
-static int tty_signal_session_leader(struct tty_struct *tty)
+static int tty_signal_session_leader(struct tty_struct *tty, int exit_session)
 {
 	struct task_struct *p;
 	int refs = 0;
+	struct pid *tty_pgrp = NULL;
 
 	read_lock(&tasklist_lock);
 	if (tty->session) {
@@ -565,6 +568,7 @@ static int tty_signal_session_leader(struct tty_struct *tty)
 			__group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
 			put_pid(p->signal->tty_old_pgrp);  /* A noop */
 			spin_lock(&tty->ctrl_lock);
+			tty_pgrp = get_pid(tty->pgrp);
 			if (tty->pgrp)
 				p->signal->tty_old_pgrp = get_pid(tty->pgrp);
 			spin_unlock(&tty->ctrl_lock);
@@ -572,6 +576,12 @@ static int tty_signal_session_leader(struct tty_struct *tty)
 		} while_each_pid_task(tty->session, PIDTYPE_SID, p);
 	}
 	read_unlock(&tasklist_lock);
+
+	if (tty_pgrp) {
+		if (exit_session)
+			kill_pgrp(tty_pgrp, SIGHUP, exit_session);
+		put_pid(tty_pgrp);
+	}
 
 	return refs;
 }
@@ -598,7 +608,7 @@ static int tty_signal_session_leader(struct tty_struct *tty)
  *		  tasklist_lock to walk task list for hangup event
  *		    ->siglock to protect ->signal/->sighand
  */
-static void __tty_hangup(struct tty_struct *tty)
+static void __tty_hangup(struct tty_struct *tty, int exit_session)
 {
 	struct file *cons_filp = NULL;
 	struct file *filp, *f = NULL;
@@ -647,7 +657,7 @@ static void __tty_hangup(struct tty_struct *tty)
 	 */
 	tty_ldisc_hangup(tty);
 
-	refs = tty_signal_session_leader(tty);
+	refs = tty_signal_session_leader(tty, exit_session);
 	/* Account for the p->signal references we killed */
 	while (refs--)
 		tty_kref_put(tty);
@@ -696,7 +706,7 @@ static void do_tty_hangup(struct work_struct *work)
 	struct tty_struct *tty =
 		container_of(work, struct tty_struct, hangup_work);
 
-	__tty_hangup(tty);
+	__tty_hangup(tty, 0);
 }
 
 /**
@@ -734,7 +744,7 @@ void tty_vhangup(struct tty_struct *tty)
 
 	printk(KERN_DEBUG "%s vhangup...\n", tty_name(tty, buf));
 #endif
-	__tty_hangup(tty);
+	__tty_hangup(tty, 0);
 }
 
 EXPORT_SYMBOL(tty_vhangup);
@@ -755,6 +765,27 @@ void tty_vhangup_self(void)
 		tty_vhangup(tty);
 		tty_kref_put(tty);
 	}
+}
+
+/**
+ *	tty_vhangup_session		-	hangup session leader exit
+ *	@tty: tty to hangup
+ *
+ *	The session leader is exiting and hanging up its controlling terminal.
+ *	Every process in the foreground process group is signalled SIGHUP.
+ *
+ *	We do this synchronously so that when the syscall returns the process
+ *	is complete. That guarantee is necessary for security reasons.
+ */
+
+void tty_vhangup_session(struct tty_struct *tty)
+{
+#ifdef TTY_DEBUG_HANGUP
+	char	buf[64];
+
+	printk(KERN_DEBUG "%s vhangup session...\n", tty_name(tty, buf));
+#endif
+	__tty_hangup(tty, 1);
 }
 
 /**
@@ -814,18 +845,18 @@ void disassociate_ctty(int on_exit)
 
 	tty = get_current_tty();
 	if (tty) {
-		struct pid *tty_pgrp = get_pid(tty->pgrp);
-		if (on_exit) {
-			if (tty->driver->type != TTY_DRIVER_TYPE_PTY)
-				tty_vhangup(tty);
+		if (on_exit && tty->driver->type != TTY_DRIVER_TYPE_PTY) {
+			tty_vhangup_session(tty);
+		} else {
+			struct pid *tty_pgrp = tty_get_pgrp(tty);
+			if (tty_pgrp) {
+				kill_pgrp(tty_pgrp, SIGHUP, on_exit);
+				kill_pgrp(tty_pgrp, SIGCONT, on_exit);
+				put_pid(tty_pgrp);
+			}
 		}
 		tty_kref_put(tty);
-		if (tty_pgrp) {
-			kill_pgrp(tty_pgrp, SIGHUP, on_exit);
-			if (!on_exit)
-				kill_pgrp(tty_pgrp, SIGCONT, on_exit);
-			put_pid(tty_pgrp);
-		}
+
 	} else if (on_exit) {
 		struct pid *old_pgrp;
 		spin_lock_irq(&current->sighand->siglock);
