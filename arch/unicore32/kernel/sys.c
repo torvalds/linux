@@ -28,19 +28,11 @@
 #include <asm/syscalls.h>
 #include <asm/cacheflush.h>
 
-/* Note: used by the compat code even in 64-bit Linux. */
-SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags,
-		unsigned long, fd, unsigned long, off_4k)
-{
-	return sys_mmap_pgoff(addr, len, prot, flags, fd,
-			      off_4k);
-}
-
 /* Provide the actual syscall number to call mapping. */
 #undef __SYSCALL
 #define __SYSCALL(nr, call)	[nr] = (call),
 
+#define sys_mmap2 sys_mmap_pgoff
 /* Note that we don't include <linux/unistd.h> but <asm/unistd.h> */
 void *sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls-1] = sys_ni_syscall,
