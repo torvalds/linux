@@ -336,6 +336,18 @@ void cpu_idle(void)
 			local_touch_nmi();
 			local_irq_disable();
 
+			/*
+			 * We detected in the wakeup path that the
+			 * tick broadcast device expired for us, but
+			 * we raced with the other CPU and came back
+			 * here before it was able to fire the IPI.
+			 * No point in going idle.
+			 */
+			if (tick_check_broadcast_expired()) {
+				local_irq_enable();
+				continue;
+			}
+
 			enter_idle();
 
 			/* Don't trace irqs off for idle */
