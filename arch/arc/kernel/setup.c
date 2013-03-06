@@ -14,10 +14,10 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/of_fdt.h>
+#include <linux/cache.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
-#include <asm/cache.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/irq.h>

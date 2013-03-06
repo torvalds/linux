@@ -16,11 +16,11 @@
 #include <linux/sched.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
+#include <linux/kprobes.h>
+#include <linux/kgdb.h>
 #include <asm/setup.h>
-#include <asm/kprobes.h>
 #include <asm/unaligned.h>
-#include <asm/kgdb.h>
 
 void __init trap_init(void)
 {
