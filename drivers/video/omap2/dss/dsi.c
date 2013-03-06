@@ -4278,7 +4278,7 @@ int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_dsi_configure_pins);
 
-int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
+static int dsi_set_clocks(struct omap_dss_device *dssdev,
 		unsigned long ddr_clk, unsigned long lp_clk)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -4292,8 +4292,6 @@ int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
 	int r;
 
 	DSSDBG("Setting DSI clocks: ddr_clk %lu, lp_clk %lu", ddr_clk, lp_clk);
-
-	mutex_lock(&dsi->lock);
 
 	/* Calculate PLL output clock */
 	r = dsi_pll_calc_ddrfreq(dsidev, ddr_clk * 4, &cinfo);
@@ -4336,13 +4334,10 @@ int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
 		OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
 		OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI;
 
-	mutex_unlock(&dsi->lock);
 	return 0;
 err:
-	mutex_unlock(&dsi->lock);
 	return r;
 }
-EXPORT_SYMBOL(omapdss_dsi_set_clocks);
 
 int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
@@ -4884,75 +4879,26 @@ int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 }
 EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
-void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+int omapdss_dsi_set_config(struct omap_dss_device *dssdev,
+		const struct omap_dss_dsi_config *config)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	mutex_lock(&dsi->lock);
 
-	dsi->timings = *timings;
+	dsi->timings = *config->timings;
+	dsi->vm_timings = *config->vm_timings;
+	dsi->pix_fmt = config->pixel_format;
+	dsi->mode = config->mode;
+
+	dsi_set_clocks(dssdev, config->hs_clk, config->lp_clk);
 
 	mutex_unlock(&dsi->lock);
+
+	return 0;
 }
-EXPORT_SYMBOL(omapdss_dsi_set_timings);
-
-void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	mutex_lock(&dsi->lock);
-
-	dsi->timings.x_res = w;
-	dsi->timings.y_res = h;
-
-	mutex_unlock(&dsi->lock);
-}
-EXPORT_SYMBOL(omapdss_dsi_set_size);
-
-void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_pixel_format fmt)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	mutex_lock(&dsi->lock);
-
-	dsi->pix_fmt = fmt;
-
-	mutex_unlock(&dsi->lock);
-}
-EXPORT_SYMBOL(omapdss_dsi_set_pixel_format);
-
-void omapdss_dsi_set_operation_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_mode mode)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	mutex_lock(&dsi->lock);
-
-	dsi->mode = mode;
-
-	mutex_unlock(&dsi->lock);
-}
-EXPORT_SYMBOL(omapdss_dsi_set_operation_mode);
-
-void omapdss_dsi_set_videomode_timings(struct omap_dss_device *dssdev,
-		struct omap_dss_dsi_videomode_timings *timings)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	mutex_lock(&dsi->lock);
-
-	dsi->vm_timings = *timings;
-
-	mutex_unlock(&dsi->lock);
-}
-EXPORT_SYMBOL(omapdss_dsi_set_videomode_timings);
+EXPORT_SYMBOL(omapdss_dsi_set_config);
 
 /*
  * Return a hardcoded channel for the DSI output. This should work for

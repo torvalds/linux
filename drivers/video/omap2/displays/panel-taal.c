@@ -919,6 +919,13 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	u8 id1, id2, id3;
 	int r;
+	struct omap_dss_dsi_config dsi_config = {
+		.mode = OMAP_DSS_DSI_CMD_MODE,
+		.pixel_format = OMAP_DSS_DSI_FMT_RGB888,
+		.timings = &dssdev->panel.timings,
+		.hs_clk = 216000000,
+		.lp_clk = 10000000,
+	};
 
 	r = omapdss_dsi_configure_pins(dssdev, &td->pin_config);
 	if (r) {
@@ -926,14 +933,9 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 	};
 
-	omapdss_dsi_set_size(dssdev, dssdev->panel.timings.x_res,
-		dssdev->panel.timings.y_res);
-	omapdss_dsi_set_pixel_format(dssdev, OMAP_DSS_DSI_FMT_RGB888);
-	omapdss_dsi_set_operation_mode(dssdev, OMAP_DSS_DSI_CMD_MODE);
-
-	r = omapdss_dsi_set_clocks(dssdev, 216000000, 10000000);
+	r = omapdss_dsi_set_config(dssdev, &dsi_config);
 	if (r) {
-		dev_err(&dssdev->dev, "failed to set HS and LP clocks\n");
+		dev_err(&dssdev->dev, "failed to configure DSI\n");
 		goto err0;
 	}
 

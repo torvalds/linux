@@ -282,6 +282,16 @@ struct omap_dss_dsi_videomode_timings {
 	int window_sync;
 };
 
+struct omap_dss_dsi_config {
+	enum omap_dss_dsi_mode mode;
+	enum omap_dss_dsi_pixel_format pixel_format;
+	const struct omap_video_timings *timings;
+	const struct omap_dss_dsi_videomode_timings *vm_timings;
+
+	unsigned long hs_clk;
+	unsigned long lp_clk;
+};
+
 void dsi_bus_lock(struct omap_dss_device *dssdev);
 void dsi_bus_unlock(struct omap_dss_device *dssdev);
 int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
@@ -806,15 +816,8 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
-void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
-void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_pixel_format fmt);
-void omapdss_dsi_set_operation_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_mode mode);
-void omapdss_dsi_set_videomode_timings(struct omap_dss_device *dssdev,
-		struct omap_dss_dsi_videomode_timings *timings);
+int omapdss_dsi_set_config(struct omap_dss_device *dssdev,
+		const struct omap_dss_dsi_config *config);
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
@@ -823,8 +826,6 @@ int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
 void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
 int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
 		const struct omap_dsi_pin_config *pin_cfg);
-int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
-		unsigned long ddr_clk, unsigned long lp_clk);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
