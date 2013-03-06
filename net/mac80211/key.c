@@ -406,18 +406,9 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 	kfree(key);
 }
 
-static void ieee80211_key_destroy(struct ieee80211_key *key,
-				  bool delay_tailroom)
+static void __ieee80211_key_destroy(struct ieee80211_key *key,
+				    bool delay_tailroom)
 {
-	if (!key)
-		return;
-
-	/*
-	 * Synchronize so the TX path can no longer be using
-	 * this key before we free/remove it.
-	 */
-	synchronize_net();
-
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
@@ -437,6 +428,21 @@ static void ieee80211_key_destroy(struct ieee80211_key *key,
 	}
 
 	ieee80211_key_free_common(key);
+}
+
+static void ieee80211_key_destroy(struct ieee80211_key *key,
+				  bool delay_tailroom)
+{
+	if (!key)
+		return;
+
+	/*
+	 * Synchronize so the TX path can no longer be using
+	 * this key before we free/remove it.
+	 */
+	synchronize_net();
+
+	__ieee80211_key_destroy(key, delay_tailroom);
 }
 
 void ieee80211_key_free_unused(struct ieee80211_key *key)
@@ -560,6 +566,7 @@ EXPORT_SYMBOL(ieee80211_iter_keys);
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(keys);
 
 	cancel_delayed_work_sync(&sdata->dec_tailroom_needed_wk);
 
@@ -571,15 +578,63 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
-	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
-		ieee80211_key_free(key, false);
+	list_for_each_entry_safe(key, tmp, &sdata->key_list, list) {
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add_tail(&key->list, &keys);
+	}
 
 	ieee80211_debugfs_key_update_default(sdata);
+
+	if (!list_empty(&keys)) {
+		synchronize_net();
+		list_for_each_entry_safe(key, tmp, &keys, list)
+			__ieee80211_key_destroy(key, false);
+	}
 
 	WARN_ON_ONCE(sdata->crypto_tx_tailroom_needed_cnt ||
 		     sdata->crypto_tx_tailroom_pending_dec);
 
 	mutex_unlock(&sdata->local->key_mtx);
+}
+
+void ieee80211_free_sta_keys(struct ieee80211_local *local,
+			     struct sta_info *sta)
+{
+	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(keys);
+	int i;
+
+	mutex_lock(&local->key_mtx);
+	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+		key = key_mtx_dereference(local, sta->gtk[i]);
+		if (!key)
+			continue;
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add(&key->list, &keys);
+	}
+
+	key = key_mtx_dereference(local, sta->ptk);
+	if (key) {
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add(&key->list, &keys);
+	}
+
+	/*
+	 * NB: the station code relies on this being
+	 * done even if there aren't any keys
+	 */
+	synchronize_net();
+
+	list_for_each_entry_safe(key, tmp, &keys, list)
+		__ieee80211_key_destroy(key, true);
+
+	mutex_unlock(&local->key_mtx);
 }
 
 void ieee80211_delayed_tailroom_dec(struct work_struct *wk)
