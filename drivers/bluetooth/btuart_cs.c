@@ -688,17 +688,4 @@ static struct pcmcia_driver btuart_driver = {
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
 };
-
-static int __init init_btuart_cs(void)
-{
-	return pcmcia_register_driver(&btuart_driver);
-}
-
-
-static void __exit exit_btuart_cs(void)
-{
-	pcmcia_unregister_driver(&btuart_driver);
-}
-
-module_init(init_btuart_cs);
-module_exit(exit_btuart_cs);
+module_pcmcia_driver(btuart_driver);

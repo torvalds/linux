@@ -760,17 +760,4 @@ static struct pcmcia_driver bt3c_driver = {
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,
 };
-
-static int __init init_bt3c_cs(void)
-{
-	return pcmcia_register_driver(&bt3c_driver);
-}
-
-
-static void __exit exit_bt3c_cs(void)
-{
-	pcmcia_unregister_driver(&bt3c_driver);
-}
-
-module_init(init_bt3c_cs);
-module_exit(exit_bt3c_cs);
+module_pcmcia_driver(bt3c_driver);
