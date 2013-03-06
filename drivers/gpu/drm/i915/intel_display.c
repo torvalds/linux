@@ -9349,7 +9349,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen <= 3)
 			error->plane[i].size = I915_READ(DSPSIZE(i));
 		error->plane[i].pos = I915_READ(DSPPOS(i));
-		error->plane[i].addr = I915_READ(DSPADDR(i));
+		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
+			error->plane[i].addr = I915_READ(DSPADDR(i));
 		if (INTEL_INFO(dev)->gen >= 4) {
 			error->plane[i].surface = I915_READ(DSPSURF(i));
 			error->plane[i].tile_offset = I915_READ(DSPTILEOFF(i));
@@ -9394,7 +9395,8 @@ intel_display_print_error_state(struct seq_file *m,
 		if (INTEL_INFO(dev)->gen <= 3)
 			seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
 		seq_printf(m, "  POS: %08x\n", error->plane[i].pos);
-		seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
+		if (!IS_HASWELL(dev))
+			seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
 		if (INTEL_INFO(dev)->gen >= 4) {
 			seq_printf(m, "  SURF: %08x\n", error->plane[i].surface);
 			seq_printf(m, "  TILEOFF: %08x\n", error->plane[i].tile_offset);
