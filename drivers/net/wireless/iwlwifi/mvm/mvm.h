@@ -481,8 +481,6 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir);
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-void iwl_power_get_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  struct iwl_powertable_cmd *cmd);
 #else
 static inline int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm,
 					 struct dentry *dbgfs_dir)
@@ -506,6 +504,8 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
 /* power managment */
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct iwl_powertable_cmd *cmd);
 
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);

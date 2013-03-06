@@ -94,9 +94,8 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    struct iwl_powertable_cmd *cmd)
+void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct iwl_powertable_cmd *cmd)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -187,11 +186,3 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_ASYNC,
 				    sizeof(cmd), &cmd);
 }
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_power_get_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  struct iwl_powertable_cmd *cmd)
-{
-	iwl_mvm_power_build_cmd(mvm, vif, cmd);
-}
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
