@@ -18,10 +18,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/platform_data/edma.h>
 
 #include <mach/common.h>
 #include <mach/irqs.h>
-#include <mach/edma.h>
 #include <mach/tnetv107x.h>
 
 #include "clock.h"

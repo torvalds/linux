@@ -19,9 +19,10 @@
 #include <mach/irqs.h>
 #include <mach/cputype.h>
 #include <mach/mux.h>
-#include <mach/edma.h>
 #include <linux/platform_data/mmc-davinci.h>
 #include <mach/time.h>
+#include <linux/platform_data/edma.h>
+
 
 #include "davinci.h"
 #include "clock.h"
@@ -33,6 +34,9 @@
 #define DM355_MMCSD1_BASE	     0x01E00000
 #define DM365_MMCSD0_BASE	     0x01D11000
 #define DM365_MMCSD1_BASE	     0x01D00000
+
+#define DAVINCI_DMA_MMCRXEVT	26
+#define DAVINCI_DMA_MMCTXEVT	27
 
 void __iomem  *davinci_sysmod_base;
 
