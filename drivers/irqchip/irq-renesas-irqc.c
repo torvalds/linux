@@ -145,6 +145,7 @@ static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 static struct irq_domain_ops irqc_irq_domain_ops = {
 	.map	= irqc_irq_domain_map,
+	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int irqc_probe(struct platform_device *pdev)
@@ -273,11 +274,19 @@ static int irqc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id irqc_dt_ids[] = {
+	{ .compatible = "renesas,irqc", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, irqc_dt_ids);
+
 static struct platform_driver irqc_device_driver = {
 	.probe		= irqc_probe,
 	.remove		= irqc_remove,
 	.driver		= {
 		.name	= "renesas_irqc",
+		.of_match_table	= irqc_dt_ids,
+		.owner	= THIS_MODULE,
 	}
 };
 
