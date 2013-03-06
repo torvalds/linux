@@ -999,7 +999,6 @@ static const struct pcmcia_device_id if_cs_ids[] = {
 };
 MODULE_DEVICE_TABLE(pcmcia, if_cs_ids);
 
-
 static struct pcmcia_driver lbs_driver = {
 	.owner		= THIS_MODULE,
 	.name		= DRV_NAME,
@@ -1007,26 +1006,4 @@ static struct pcmcia_driver lbs_driver = {
 	.remove		= if_cs_detach,
 	.id_table       = if_cs_ids,
 };
-
-
-static int __init if_cs_init(void)
-{
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_CS);
-	ret = pcmcia_register_driver(&lbs_driver);
-	lbs_deb_leave(LBS_DEB_CS);
-	return ret;
-}
-
-
-static void __exit if_cs_exit(void)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	pcmcia_unregister_driver(&lbs_driver);
-	lbs_deb_leave(LBS_DEB_CS);
-}
-
-
-module_init(if_cs_init);
-module_exit(if_cs_exit);
+module_pcmcia_driver(lbs_driver);

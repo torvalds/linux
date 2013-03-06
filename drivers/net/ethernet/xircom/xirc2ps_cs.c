@@ -1775,21 +1775,7 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 	.suspend	= xirc2ps_suspend,
 	.resume		= xirc2ps_resume,
 };
-
-static int __init
-init_xirc2ps_cs(void)
-{
-	return pcmcia_register_driver(&xirc2ps_cs_driver);
-}
-
-static void __exit
-exit_xirc2ps_cs(void)
-{
-	pcmcia_unregister_driver(&xirc2ps_cs_driver);
-}
-
-module_init(init_xirc2ps_cs);
-module_exit(exit_xirc2ps_cs);
+module_pcmcia_driver(xirc2ps_cs_driver);
 
 #ifndef MODULE
 static int __init setup_xirc2ps_cs(char *str)

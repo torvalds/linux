@@ -740,15 +740,4 @@ static struct pcmcia_driver pcan_driver = {
 	.remove = pcan_remove,
 	.id_table = pcan_table,
 };
-
-static int __init pcan_init(void)
-{
-	return pcmcia_register_driver(&pcan_driver);
-}
-module_init(pcan_init);
-
-static void __exit pcan_exit(void)
-{
-	pcmcia_unregister_driver(&pcan_driver);
-}
-module_exit(pcan_exit);
+module_pcmcia_driver(pcan_driver);

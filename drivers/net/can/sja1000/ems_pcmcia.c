@@ -316,15 +316,4 @@ static struct pcmcia_driver ems_pcmcia_driver = {
 	.remove = ems_pcmcia_remove,
 	.id_table = ems_pcmcia_tbl,
 };
-
-static int __init ems_pcmcia_init(void)
-{
-	return pcmcia_register_driver(&ems_pcmcia_driver);
-}
-module_init(ems_pcmcia_init);
-
-static void __exit ems_pcmcia_exit(void)
-{
-	pcmcia_unregister_driver(&ems_pcmcia_driver);
-}
-module_exit(ems_pcmcia_exit);
+module_pcmcia_driver(ems_pcmcia_driver);

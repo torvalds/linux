@@ -705,19 +705,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.suspend	= fmvj18x_suspend,
 	.resume		= fmvj18x_resume,
 };
-
-static int __init init_fmvj18x_cs(void)
-{
-	return pcmcia_register_driver(&fmvj18x_cs_driver);
-}
-
-static void __exit exit_fmvj18x_cs(void)
-{
-	pcmcia_unregister_driver(&fmvj18x_cs_driver);
-}
-
-module_init(init_fmvj18x_cs);
-module_exit(exit_fmvj18x_cs);
+module_pcmcia_driver(fmvj18x_cs_driver);
 
 /*====================================================================*/
 
