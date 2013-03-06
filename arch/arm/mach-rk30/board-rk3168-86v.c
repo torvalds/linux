@@ -425,7 +425,7 @@ static struct sensor_platform_data cm3217_info = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_CS_PIN         INVALID_GPIO
+#define LCD_CS_PIN         RK30_PIN3_PD4//INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
 #define LCD_EN_PIN         RK30_PIN0_PB0
