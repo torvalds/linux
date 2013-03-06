@@ -651,16 +651,16 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	}
 	spin_unlock(&tty_files_lock);
 
+	refs = tty_signal_session_leader(tty, exit_session);
+	/* Account for the p->signal references we killed */
+	while (refs--)
+		tty_kref_put(tty);
+
 	/*
 	 * it drops BTM and thus races with reopen
 	 * we protect the race by TTY_HUPPING
 	 */
 	tty_ldisc_hangup(tty);
-
-	refs = tty_signal_session_leader(tty, exit_session);
-	/* Account for the p->signal references we killed */
-	while (refs--)
-		tty_kref_put(tty);
 
 	spin_lock_irq(&tty->ctrl_lock);
 	clear_bit(TTY_THROTTLED, &tty->flags);
