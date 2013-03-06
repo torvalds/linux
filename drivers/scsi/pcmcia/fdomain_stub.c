@@ -194,16 +194,4 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	.id_table       = fdomain_ids,
 	.resume		= fdomain_resume,
 };
-
-static int __init init_fdomain_cs(void)
-{
-	return pcmcia_register_driver(&fdomain_cs_driver);
-}
-
-static void __exit exit_fdomain_cs(void)
-{
-	pcmcia_unregister_driver(&fdomain_cs_driver);
-}
-
-module_init(init_fdomain_cs);
-module_exit(exit_fdomain_cs);
+module_pcmcia_driver(fdomain_cs_driver);
