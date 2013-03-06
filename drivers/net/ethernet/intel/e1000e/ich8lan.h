@@ -211,6 +211,7 @@
 #define I82579_MSE_THRESHOLD	0x084F	/* 82579 Mean Square Error Threshold */
 #define I82577_MSE_THRESHOLD	0x0887	/* 82577 Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN	0x2411	/* MSE count before dropping link */
+#define I82579_RX_CONFIG		0x3412	/* Receive configuration */
 #define I82579_EEE_PCS_STATUS		0x182D	/* IEEE MMD Register 3.1 >> 8 */
 #define I82579_EEE_CAPABILITY		0x0410	/* IEEE MMD Register 3.20 */
 #define I82579_EEE_ADVERTISEMENT	0x040E	/* IEEE MMD Register 7.60 */

@@ -236,6 +236,7 @@
 #define E1000_STATUS_FUNC_SHIFT 2
 #define E1000_STATUS_FUNC_1     0x00000004      /* Function 1 */
 #define E1000_STATUS_TXOFF      0x00000010      /* transmission paused */
+#define E1000_STATUS_SPEED_MASK 0x000000C0
 #define E1000_STATUS_SPEED_10   0x00000000      /* Speed 10Mb/s */
 #define E1000_STATUS_SPEED_100  0x00000040      /* Speed 100Mb/s */
 #define E1000_STATUS_SPEED_1000 0x00000080      /* Speed 1000Mb/s */

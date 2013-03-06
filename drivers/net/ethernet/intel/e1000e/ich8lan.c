@@ -871,6 +871,34 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 	}
 
+	/* When connected at 10Mbps half-duplex, 82579 parts are excessively
+	 * aggressive resulting in many collisions. To avoid this, increase
+	 * the IPG and reduce Rx latency in the PHY.
+	 */
+	if ((hw->mac.type == e1000_pch2lan) && link) {
+		u32 reg;
+		reg = er32(STATUS);
+		if (!(reg & (E1000_STATUS_FD | E1000_STATUS_SPEED_MASK))) {
+			reg = er32(TIPG);
+			reg &= ~E1000_TIPG_IPGT_MASK;
+			reg |= 0xFF;
+			ew32(TIPG, reg);
+
+			/* Reduce Rx latency in analog PHY */
+			ret_val = hw->phy.ops.acquire(hw);
+			if (ret_val)
+				return ret_val;
+
+			ret_val =
+			    e1000_write_emi_reg_locked(hw, I82579_RX_CONFIG, 0);
+
+			hw->phy.ops.release(hw);
+
+			if (ret_val)
+				return ret_val;
+		}
+	}
+
 	/* Work-around I218 hang issue */
 	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V)) {
