@@ -9346,7 +9346,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 		error->plane[i].control = I915_READ(DSPCNTR(i));
 		error->plane[i].stride = I915_READ(DSPSTRIDE(i));
-		error->plane[i].size = I915_READ(DSPSIZE(i));
+		if (INTEL_INFO(dev)->gen <= 3)
+			error->plane[i].size = I915_READ(DSPSIZE(i));
 		error->plane[i].pos = I915_READ(DSPPOS(i));
 		error->plane[i].addr = I915_READ(DSPADDR(i));
 		if (INTEL_INFO(dev)->gen >= 4) {
@@ -9390,7 +9391,8 @@ intel_display_print_error_state(struct seq_file *m,
 		seq_printf(m, "Plane [%d]:\n", i);
 		seq_printf(m, "  CNTR: %08x\n", error->plane[i].control);
 		seq_printf(m, "  STRIDE: %08x\n", error->plane[i].stride);
-		seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
+		if (INTEL_INFO(dev)->gen <= 3)
+			seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
 		seq_printf(m, "  POS: %08x\n", error->plane[i].pos);
 		seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
 		if (INTEL_INFO(dev)->gen >= 4) {
