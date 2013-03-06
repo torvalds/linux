@@ -162,6 +162,7 @@ struct smscore_device_t {
 
 	/* host <--> device messages */
 	struct completion version_ex_done, data_download_done, trigger_done;
+	struct completion data_validity_done, device_ready_done;
 	struct completion init_device_done, reload_start_done, resume_done;
 	struct completion gpio_configuration_done, gpio_set_level_done;
 	struct completion gpio_get_level_done, ir_init_done;
@@ -594,6 +595,11 @@ struct SmsMsgData_ST2 {
 	u32 msgData[2];
 };
 
+struct SmsMsgData_ST4 {
+	struct SmsMsgHdr_ST xMsgHeader;
+	u32 msgData[4];
+};
+
 struct SmsDataDownload_ST {
 	struct SmsMsgHdr_ST	xMsgHeader;
 	u32			MemAddr;
@@ -998,8 +1004,6 @@ extern void smscore_onresponse(struct smscore_device_t *coredev,
 extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
 extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
 				      struct vm_area_struct *vma);
-extern int smscore_get_fw_filename(struct smscore_device_t *coredev,
-				   int mode, char *filename);
 extern int smscore_send_fw_file(struct smscore_device_t *coredev,
 				u8 *ufwbuf, int size);
 
