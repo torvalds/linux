@@ -38,10 +38,7 @@ Configuration Options: not applicable, uses PCI auto config
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define PCI8164_AXIS_X  0x00
-#define PCI8164_AXIS_Y  0x08
-#define PCI8164_AXIS_Z  0x10
-#define PCI8164_AXIS_U  0x18
+#define PCI8164_AXIS(x)		((x) * 0x08)
 
 #define PCI8164_MSTS	0x00
 #define PCI8164_SSTS    0x02
@@ -63,28 +60,9 @@ static void adl_pci8164_insn_read(struct comedi_device *dev,
 				  unsigned int *data,
 				  char *action, unsigned short offset)
 {
-	int axis, axis_reg;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	axis = CR_CHAN(insn->chanspec);
-
-	switch (axis) {
-	case 0:
-		axis_reg = PCI8164_AXIS_X;
-		break;
-	case 1:
-		axis_reg = PCI8164_AXIS_Y;
-		break;
-	case 2:
-		axis_reg = PCI8164_AXIS_Z;
-		break;
-	case 3:
-		axis_reg = PCI8164_AXIS_U;
-		break;
-	default:
-		axis_reg = PCI8164_AXIS_X;
-	}
-
-	data[0] = inw(dev->iobase + axis_reg + offset);
+	data[0] = inw(dev->iobase + PCI8164_AXIS(chan) + offset);
 }
 
 static int adl_pci8164_insn_read_msts(struct comedi_device *dev,
@@ -133,28 +111,9 @@ static void adl_pci8164_insn_out(struct comedi_device *dev,
 				 unsigned int *data,
 				 char *action, unsigned short offset)
 {
-	unsigned int axis, axis_reg;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	axis = CR_CHAN(insn->chanspec);
-
-	switch (axis) {
-	case 0:
-		axis_reg = PCI8164_AXIS_X;
-		break;
-	case 1:
-		axis_reg = PCI8164_AXIS_Y;
-		break;
-	case 2:
-		axis_reg = PCI8164_AXIS_Z;
-		break;
-	case 3:
-		axis_reg = PCI8164_AXIS_U;
-		break;
-	default:
-		axis_reg = PCI8164_AXIS_X;
-	}
-
-	outw(data[0], dev->iobase + axis_reg + offset);
+	outw(data[0], dev->iobase + PCI8164_AXIS(chan) + offset);
 }
 
 static int adl_pci8164_insn_write_cmd(struct comedi_device *dev,
