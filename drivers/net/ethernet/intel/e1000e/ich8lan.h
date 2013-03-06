@@ -250,13 +250,6 @@
 /* Proprietary Latency Tolerance Reporting PCI Capability */
 #define E1000_PCI_LTR_CAP_LPT		0xA8
 
-/* OBFF Control & Threshold Defines */
-#define E1000_SVCR_OFF_EN		0x00000001
-#define E1000_SVCR_OFF_MASKINT		0x00001000
-#define E1000_SVCR_OFF_TIMER_MASK	0xFFFF0000
-#define E1000_SVCR_OFF_TIMER_SHIFT	16
-#define E1000_SVT_OFF_HWM_MASK		0x0000001F
-
 void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw);
 void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						  bool state);
