@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -327,6 +328,18 @@ void __init marzen_init_late(void)
 			     ARRAY_SIZE(marzen_late_devices));
 }
 
+static const struct pinctrl_map marzen_pinctrl_map[] = {
+	/* SDHI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_cd", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_wp", "sdhi0"),
+};
+
 static void __init marzen_init(void)
 {
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
@@ -334,6 +347,8 @@ static void __init marzen_init(void)
 	regulator_register_fixed(1, dummy_supplies,
 				ARRAY_SIZE(dummy_supplies));
 
+	pinctrl_register_mappings(marzen_pinctrl_map,
+				  ARRAY_SIZE(marzen_pinctrl_map));
 	r8a7779_pinmux_init();
 
 	/* SCIF2 (CN18: DEBUG0) */
@@ -347,16 +362,6 @@ static void __init marzen_init(void)
 	/* LAN89218 */
 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
-
-	/* SD0 (CN20) */
-	gpio_request(GPIO_FN_SD0_CLK, NULL);
-	gpio_request(GPIO_FN_SD0_CMD, NULL);
-	gpio_request(GPIO_FN_SD0_DAT0, NULL);
-	gpio_request(GPIO_FN_SD0_DAT1, NULL);
-	gpio_request(GPIO_FN_SD0_DAT2, NULL);
-	gpio_request(GPIO_FN_SD0_DAT3, NULL);
-	gpio_request(GPIO_FN_SD0_CD, NULL);
-	gpio_request(GPIO_FN_SD0_WP, NULL);
 
 	/* HSPI 0 */
 	gpio_request(GPIO_FN_HSPI_CLK0,	NULL);
