@@ -1719,10 +1719,9 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
  *	and if appropriate send any needed signals and return a negative
  *	error code if action should be taken.
  *
- *	FIXME:
- *	Locking: None - redirected write test is safe, testing
- *	current->signal should possibly lock current->sighand
- *	pgrp locking ?
+ *	Locking: redirected write test is safe
+ *		 current->signal->tty check is safe
+ *		 ctrl_lock to safely reference tty->pgrp
  */
 
 static int job_control(struct tty_struct *tty, struct file *file)
@@ -1732,19 +1731,22 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write != redirected_tty_write &&
-	    current->signal->tty == tty) {
-		if (!tty->pgrp)
-			printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
-		else if (task_pgrp(current) != tty->pgrp) {
-			if (is_ignored(SIGTTIN) ||
-			    is_current_pgrp_orphaned())
-				return -EIO;
-			kill_pgrp(task_pgrp(current), SIGTTIN, 1);
-			set_thread_flag(TIF_SIGPENDING);
-			return -ERESTARTSYS;
-		}
+	if (file->f_op->write == redirected_tty_write ||
+	    current->signal->tty != tty)
+		return 0;
+
+	spin_lock_irq(&tty->ctrl_lock);
+	if (!tty->pgrp)
+		printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
+	else if (task_pgrp(current) != tty->pgrp) {
+		spin_unlock_irq(&tty->ctrl_lock);
+		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned())
+			return -EIO;
+		kill_pgrp(task_pgrp(current), SIGTTIN, 1);
+		set_thread_flag(TIF_SIGPENDING);
+		return -ERESTARTSYS;
 	}
+	spin_unlock_irq(&tty->ctrl_lock);
 	return 0;
 }
 
