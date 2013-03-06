@@ -1302,8 +1302,7 @@ static void lme2510_exit(struct dvb_usb_device *d)
 
 	if (d != NULL) {
 		usb_buffer = lme2510_exit_int(d);
-		if (usb_buffer != NULL)
-			kfree(usb_buffer);
+		kfree(usb_buffer);
 	}
 }
 
