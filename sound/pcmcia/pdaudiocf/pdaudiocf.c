@@ -295,18 +295,5 @@ static struct pcmcia_driver pdacf_cs_driver = {
 	.suspend	= pdacf_suspend,
 	.resume		= pdacf_resume,
 #endif
-
 };
-
-static int __init init_pdacf(void)
-{
-	return pcmcia_register_driver(&pdacf_cs_driver);
-}
-
-static void __exit exit_pdacf(void)
-{
-	pcmcia_unregister_driver(&pdacf_cs_driver);
-}
-
-module_init(init_pdacf);
-module_exit(exit_pdacf);
+module_pcmcia_driver(pdacf_cs_driver);
