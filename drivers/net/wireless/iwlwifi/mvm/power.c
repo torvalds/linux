@@ -152,8 +152,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
 		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
 	} else {
-		cmd->rx_data_timeout = cpu_to_le32(50 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(50 * USEC_PER_MSEC);
+		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
 	}
 }
 
