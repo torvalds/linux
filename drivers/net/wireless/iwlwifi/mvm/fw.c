@@ -330,12 +330,10 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	if (ret)
 		goto error;
 
-	/* WkP doesn't have all calibrations, need to set default values */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		ret = iwl_set_default_calibrations(mvm);
-		if (ret)
-			goto error;
-	}
+	/* need to set default values */
+	ret = iwl_set_default_calibrations(mvm);
+	if (ret)
+		goto error;
 
 	/*
 	 * Send phy configurations command to init uCode

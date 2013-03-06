@@ -281,10 +281,7 @@ struct iwl_mvm {
 	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
 
 	struct iwl_nvm_data *nvm_data;
-	/* eeprom blob for debugfs/testmode */
-	u8 *eeprom_blob;
-	size_t eeprom_blob_size;
-	/* NVM sections for 7000 family */
+	/* NVM sections */
 	struct iwl_nvm_section nvm_sections[NVM_NUM_OF_SECTIONS];
 
 	/* EEPROM MAC addresses */

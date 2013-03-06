@@ -319,16 +319,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	};
 	int err, scan_size;
 
-	switch (cfg->device_family) {
-	case IWL_DEVICE_FAMILY_6030:
-	case IWL_DEVICE_FAMILY_6005:
-	case IWL_DEVICE_FAMILY_7000:
-		break;
-	default:
-		IWL_ERR(trans, "Trying to load mvm on an unsupported device\n");
-		return NULL;
-	}
-
 	/********************************
 	 * 1. Allocating and configuring HW data
 	 ********************************/
@@ -444,7 +434,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	kfree(mvm->eeprom_blob);
 	iwl_trans_stop_hw(trans, true);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
@@ -466,7 +455,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	iwl_phy_db_free(mvm->phy_db);
 	mvm->phy_db = NULL;
 
-	kfree(mvm->eeprom_blob);
 	iwl_free_nvm_data(mvm->nvm_data);
 	for (i = 0; i < NVM_NUM_OF_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
