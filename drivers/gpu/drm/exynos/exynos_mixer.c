@@ -820,7 +820,6 @@ static void mixer_win_disable(void *ctx, int win)
 
 static int mixer_check_timing(void *ctx, struct fb_videomode *timing)
 {
-	struct mixer_context *mixer_ctx = ctx;
 	u32 w, h;
 
 	w = timing->xres;
@@ -830,9 +829,6 @@ static int mixer_check_timing(void *ctx, struct fb_videomode *timing)
 		__func__, timing->xres, timing->yres,
 		timing->refresh, (timing->vmode &
 		FB_VMODE_INTERLACED) ? true : false);
-
-	if (mixer_ctx->mxr_ver == MXR_VER_0_0_0_16)
-		return 0;
 
 	if ((w >= 464 && w <= 720 && h >= 261 && h <= 576) ||
 		(w >= 1024 && w <= 1280 && h >= 576 && h <= 720) ||
