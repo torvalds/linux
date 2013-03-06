@@ -2087,7 +2087,7 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list)
 {
-	struct kvm_mmu_page *sp;
+	struct kvm_mmu_page *sp, *nsp;
 
 	if (list_empty(invalid_list))
 		return;
@@ -2104,11 +2104,10 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	 */
 	kvm_flush_remote_tlbs(kvm);
 
-	do {
-		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
+	list_for_each_entry_safe(sp, nsp, invalid_list, link) {
 		WARN_ON(!sp->role.invalid || sp->root_count);
 		kvm_mmu_free_page(sp);
-	} while (!list_empty(invalid_list));
+	}
 }
 
 /*
