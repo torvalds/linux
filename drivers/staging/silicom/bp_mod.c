@@ -6995,15 +6995,13 @@ static void __exit bypass_cleanup_module(void)
 	/* unmap all devices */
 	for (i = 0; i < device_num; i++) {
 #ifdef BP_SELF_TEST
-		if (bpctl_dev_arr[i].bp_tx_data)
-			kfree(bpctl_dev_arr[i].bp_tx_data);
+		kfree(bpctl_dev_arr[i].bp_tx_data);
 #endif
 		iounmap((void *)(bpctl_dev_arr[i].mem_map));
 	}
 
 	/* free all devices space */
-	if (bpctl_dev_arr)
-		kfree(bpctl_dev_arr);
+	kfree(bpctl_dev_arr);
 
 /*
 * Unregister the device
