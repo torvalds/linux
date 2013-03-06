@@ -29,7 +29,6 @@
 #include "stb6100.h"
 #include "stb6100_proc.h"
 #include "m88rs2000.h"
-#include "ts2020.h"
 
 #ifndef USB_PID_DW2102
 #define USB_PID_DW2102 0x2102
