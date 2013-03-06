@@ -414,8 +414,12 @@ static void efx_filter_reset_rx_def(struct efx_nic *efx, unsigned filter_idx)
 	struct efx_filter_table *table = &state->table[EFX_FILTER_TABLE_RX_DEF];
 	struct efx_filter_spec *spec = &table->spec[filter_idx];
 
+	/* If there's only one channel then disable RSS for non VF
+	 * traffic, thereby allowing VFs to use RSS when the PF can't.
+	 */
 	efx_filter_init_rx(spec, EFX_FILTER_PRI_MANUAL,
-			   EFX_FILTER_FLAG_RX_RSS, 0);
+			   efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0,
+			   0);
 	spec->type = EFX_FILTER_UC_DEF + filter_idx;
 	table->used_bitmap[0] |= 1 << filter_idx;
 }
