@@ -638,8 +638,16 @@ struct smscore_config_gpio {
 #define SMS_GPIO_INPUTCHARACTERISTICS_SCHMITT 1
 	u8 inputcharacteristics;
 
-#define SMS_GPIO_OUTPUTSLEWRATE_FAST 0
-#define SMS_GPIO_OUTPUTSLEWRATE_SLOW 1
+	/* 10xx */
+#define SMS_GPIO_OUTPUT_SLEW_RATE_FAST 0
+#define SMS_GPIO_OUTPUT_SLEW_WRATE_SLOW 1
+
+	/* 11xx */
+#define SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS	0
+#define SMS_GPIO_OUTPUT_SLEW_RATE_0_9_V_NS	1
+#define SMS_GPIO_OUTPUT_SLEW_RATE_1_7_V_NS	2
+#define SMS_GPIO_OUTPUT_SLEW_RATE_3_3_V_NS	3
+
 	u8 outputslewrate;
 
 	/* 10xx */
@@ -659,47 +667,6 @@ struct smscore_config_gpio {
 #define SMS_GPIO_OUTPUTDRIVING_16mA	7
 
 	u8 outputdriving;
-};
-
-struct smscore_gpio_config {
-#define SMS_GPIO_DIRECTION_INPUT  0
-#define SMS_GPIO_DIRECTION_OUTPUT 1
-	u8 Direction;
-
-#define SMS_GPIO_PULL_UP_DOWN_NONE     0
-#define SMS_GPIO_PULL_UP_DOWN_PULLDOWN 1
-#define SMS_GPIO_PULL_UP_DOWN_PULLUP   2
-#define SMS_GPIO_PULL_UP_DOWN_KEEPER   3
-	u8 PullUpDown;
-
-#define SMS_GPIO_INPUT_CHARACTERISTICS_NORMAL  0
-#define SMS_GPIO_INPUT_CHARACTERISTICS_SCHMITT 1
-	u8 InputCharacteristics;
-
-#define SMS_GPIO_OUTPUT_SLEW_RATE_SLOW		1 /* 10xx */
-#define SMS_GPIO_OUTPUT_SLEW_RATE_FAST		0 /* 10xx */
-
-
-#define SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS	0 /* 11xx */
-#define SMS_GPIO_OUTPUT_SLEW_RATE_0_9_V_NS	1 /* 11xx */
-#define SMS_GPIO_OUTPUT_SLEW_RATE_1_7_V_NS	2 /* 11xx */
-#define SMS_GPIO_OUTPUT_SLEW_RATE_3_3_V_NS	3 /* 11xx */
-	u8 OutputSlewRate;
-
-#define SMS_GPIO_OUTPUT_DRIVING_S_4mA		0 /* 10xx */
-#define SMS_GPIO_OUTPUT_DRIVING_S_8mA		1 /* 10xx */
-#define SMS_GPIO_OUTPUT_DRIVING_S_12mA		2 /* 10xx */
-#define SMS_GPIO_OUTPUT_DRIVING_S_16mA		3 /* 10xx */
-
-#define SMS_GPIO_OUTPUT_DRIVING_1_5mA		0 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_2_8mA		1 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_4mA		2 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_7mA		3 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_10mA		4 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_11mA		5 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_14mA		6 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_16mA		7 /* 11xx */
-	u8 OutputDriving;
 };
 
 extern void smscore_registry_setmode(char *devpath, int mode);
@@ -750,7 +717,7 @@ int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level);
 
 /* new GPIO management */
 extern int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
-		struct smscore_gpio_config *pGpioConfig);
+		struct smscore_config_gpio *pGpioConfig);
 extern int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 		u8 NewLevel);
 extern int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,

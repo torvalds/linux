@@ -109,18 +109,18 @@ struct sms_board *sms_get_board(unsigned id)
 }
 EXPORT_SYMBOL_GPL(sms_get_board);
 static inline void sms_gpio_assign_11xx_default_led_config(
-		struct smscore_gpio_config *pGpioConfig) {
-	pGpioConfig->Direction = SMS_GPIO_DIRECTION_OUTPUT;
-	pGpioConfig->InputCharacteristics =
-		SMS_GPIO_INPUT_CHARACTERISTICS_NORMAL;
-	pGpioConfig->OutputDriving = SMS_GPIO_OUTPUT_DRIVING_4mA;
-	pGpioConfig->OutputSlewRate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
-	pGpioConfig->PullUpDown = SMS_GPIO_PULL_UP_DOWN_NONE;
+		struct smscore_config_gpio *pGpioConfig) {
+	pGpioConfig->direction = SMS_GPIO_DIRECTION_OUTPUT;
+	pGpioConfig->inputcharacteristics =
+		SMS_GPIO_INPUTCHARACTERISTICS_NORMAL;
+	pGpioConfig->outputdriving = SMS_GPIO_OUTPUTDRIVING_4mA;
+	pGpioConfig->outputslewrate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
+	pGpioConfig->pullupdown = SMS_GPIO_PULLUPDOWN_NONE;
 }
 
 int sms_board_event(struct smscore_device_t *coredev,
 		enum SMS_BOARD_EVENTS gevent) {
-	struct smscore_gpio_config MyGpioConfig;
+	struct smscore_config_gpio MyGpioConfig;
 
 	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
 
@@ -182,7 +182,7 @@ static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 		.direction            = SMS_GPIO_DIRECTION_OUTPUT,
 		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
 		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_NORMAL,
-		.outputslewrate       = SMS_GPIO_OUTPUTSLEWRATE_FAST,
+		.outputslewrate       = SMS_GPIO_OUTPUT_SLEW_RATE_FAST,
 		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_S_4mA,
 	};
 

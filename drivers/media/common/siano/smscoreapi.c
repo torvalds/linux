@@ -1405,7 +1405,7 @@ static int GetGpioPinParams(u32 PinNum, u32 *pTranslatedPinNum,
 }
 
 int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
-		struct smscore_gpio_config *pGpioConfig) {
+		struct smscore_config_gpio *pGpioConfig) {
 
 	u32 totalLen;
 	u32 TranslatedPinNum = 0;
@@ -1452,19 +1452,19 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 
 		pMsg->msgData[1] = TranslatedPinNum;
 		pMsg->msgData[2] = GroupNum;
-		ElectricChar = (pGpioConfig->PullUpDown)
-				| (pGpioConfig->InputCharacteristics << 2)
-				| (pGpioConfig->OutputSlewRate << 3)
-				| (pGpioConfig->OutputDriving << 4);
+		ElectricChar = (pGpioConfig->pullupdown)
+				| (pGpioConfig->inputcharacteristics << 2)
+				| (pGpioConfig->outputslewrate << 3)
+				| (pGpioConfig->outputdriving << 4);
 		pMsg->msgData[3] = ElectricChar;
-		pMsg->msgData[4] = pGpioConfig->Direction;
+		pMsg->msgData[4] = pGpioConfig->direction;
 		pMsg->msgData[5] = groupCfg;
 	} else {
 		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_EX_REQ;
-		pMsg->msgData[1] = pGpioConfig->PullUpDown;
-		pMsg->msgData[2] = pGpioConfig->OutputSlewRate;
-		pMsg->msgData[3] = pGpioConfig->OutputDriving;
-		pMsg->msgData[4] = pGpioConfig->Direction;
+		pMsg->msgData[1] = pGpioConfig->pullupdown;
+		pMsg->msgData[2] = pGpioConfig->outputslewrate;
+		pMsg->msgData[3] = pGpioConfig->outputdriving;
+		pMsg->msgData[4] = pGpioConfig->direction;
 		pMsg->msgData[5] = 0;
 	}
 
