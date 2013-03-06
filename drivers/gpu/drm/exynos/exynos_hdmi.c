@@ -1430,52 +1430,6 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 	hdmi_regs_dump(hdata, "start");
 }
 
-static void hdmi_mode_fixup(void *ctx, struct drm_connector *connector,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
-{
-	struct drm_display_mode *m;
-	struct hdmi_context *hdata = ctx;
-	int index;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	index = hdmi_find_phy_conf(hdata, adjusted_mode->clock * 1000);
-
-	/* just return if user desired mode exists. */
-	if (index >= 0)
-		return;
-
-	/*
-	 * otherwise, find the most suitable mode among modes and change it
-	 * to adjusted_mode.
-	 */
-	list_for_each_entry(m, &connector->modes, head) {
-		index = hdmi_find_phy_conf(hdata, m->clock * 1000);
-
-		if (index >= 0) {
-			struct drm_mode_object base;
-			struct list_head head;
-
-			DRM_INFO("desired mode doesn't exist so\n");
-			DRM_INFO("use the most suitable mode among modes.\n");
-
-			DRM_DEBUG_KMS("Adjusted Mode: [%d]x[%d] [%d]Hz\n",
-				m->hdisplay, m->vdisplay, m->vrefresh);
-
-			/* preserve display mode header while copying. */
-			head = adjusted_mode->head;
-			base = adjusted_mode->base;
-			memcpy(adjusted_mode, m, sizeof(*m));
-			adjusted_mode->head = head;
-			adjusted_mode->base = base;
-			break;
-		}
-	}
-}
-
 static void hdmi_set_reg(u8 *reg_pair, int num_bytes, u32 value)
 {
 	int i;
@@ -1816,7 +1770,6 @@ static struct exynos_hdmi_ops hdmi_ops = {
 	.check_timing	= hdmi_check_timing,
 
 	/* manager */
-	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.get_max_resol	= hdmi_get_max_resol,
 	.commit		= hdmi_commit,
