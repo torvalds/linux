@@ -2793,8 +2793,10 @@ BTRFS_SETGET_STACK_FUNCS(super_cache_generation, struct btrfs_super_block,
 
 static inline int btrfs_super_csum_size(struct btrfs_super_block *s)
 {
-	int t = btrfs_super_csum_type(s);
-	BUG_ON(t >= ARRAY_SIZE(btrfs_csum_sizes));
+	u16 t = btrfs_super_csum_type(s);
+	/*
+	 * csum type is validated at mount time
+	 */
 	return btrfs_csum_sizes[t];
 }
 
