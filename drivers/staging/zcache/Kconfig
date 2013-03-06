@@ -13,6 +13,7 @@ config ZCACHE
 config ZCACHE_DEBUG
 	bool "Enable debug statistics"
 	depends on DEBUG_FS && ZCACHE
+	depends on BROKEN
 	default n
 	help
 	  This is used to provide an debugfs directory with counters of
