@@ -1337,7 +1337,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	DRM_INFO("capturing error event; look for more information in"
+	DRM_INFO("capturing error event; look for more information in "
 		 "/sys/kernel/debug/dri/%d/i915_error_state\n",
 		 dev->primary->index);
 
