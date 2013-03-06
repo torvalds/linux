@@ -388,7 +388,7 @@ int sas_ex_phy_discover(struct domain_device *dev, int single)
 	if (!disc_req)
 		return -ENOMEM;
 
-	disc_resp = alloc_smp_req(DISCOVER_RESP_SIZE);
+	disc_resp = alloc_smp_resp(DISCOVER_RESP_SIZE);
 	if (!disc_resp) {
 		kfree(disc_req);
 		return -ENOMEM;
