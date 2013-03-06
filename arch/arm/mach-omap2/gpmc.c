@@ -92,9 +92,7 @@
 #define GPMC_CS_SIZE		0x30
 #define	GPMC_BCH_SIZE		0x10
 
-#define GPMC_MEM_START		0x00000000
 #define GPMC_MEM_END		0x3FFFFFFF
-#define BOOT_ROM_SPACE		0x100000	/* 1MB */
 
 #define GPMC_CHUNK_SHIFT	24		/* 16 MB */
 #define GPMC_SECTION_SHIFT	28		/* 128 MB */
@@ -790,13 +788,13 @@ static void gpmc_mem_exit(void)
 static int gpmc_mem_init(void)
 {
 	int cs, rc;
-	unsigned long boot_rom_space = 0;
 
-	/* never allocate the first page, to facilitate bug detection;
-	 * even if we didn't boot from ROM.
+	/*
+	 * The first 1MB of GPMC address space is typically mapped to
+	 * the internal ROM. Never allocate the first page, to
+	 * facilitate bug detection; even if we didn't boot from ROM.
 	 */
-	boot_rom_space = BOOT_ROM_SPACE;
-	gpmc_mem_root.start = GPMC_MEM_START + boot_rom_space;
+	gpmc_mem_root.start = SZ_1M;
 	gpmc_mem_root.end = GPMC_MEM_END;
 
 	/* Reserve all regions that has been set up by bootloader */
