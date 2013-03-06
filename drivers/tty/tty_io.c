@@ -545,7 +545,6 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
 static int tty_signal_session_leader(struct tty_struct *tty)
 {
 	struct task_struct *p;
-	unsigned long flags;
 	int refs = 0;
 
 	read_lock(&tasklist_lock);
@@ -565,10 +564,10 @@ static int tty_signal_session_leader(struct tty_struct *tty)
 			__group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
 			__group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
 			put_pid(p->signal->tty_old_pgrp);  /* A noop */
-			spin_lock_irqsave(&tty->ctrl_lock, flags);
+			spin_lock(&tty->ctrl_lock);
 			if (tty->pgrp)
 				p->signal->tty_old_pgrp = get_pid(tty->pgrp);
-			spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+			spin_unlock(&tty->ctrl_lock);
 			spin_unlock_irq(&p->sighand->siglock);
 		} while_each_pid_task(tty->session, PIDTYPE_SID, p);
 	}
