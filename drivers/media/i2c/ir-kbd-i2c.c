@@ -423,6 +423,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	rc->map_name       = ir->ir_codes;
 	rc->allowed_protos = rc_type;
+	rc->enabled_protocols = rc_type;
 	if (!rc->driver_name)
 		rc->driver_name = MODULE_NAME;
 
