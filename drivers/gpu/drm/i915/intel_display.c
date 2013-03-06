@@ -9334,9 +9334,15 @@ intel_display_capture_error_state(struct drm_device *dev)
 	for_each_pipe(i) {
 		cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv, i);
 
-		error->cursor[i].control = I915_READ(CURCNTR(i));
-		error->cursor[i].position = I915_READ(CURPOS(i));
-		error->cursor[i].base = I915_READ(CURBASE(i));
+		if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev)) {
+			error->cursor[i].control = I915_READ(CURCNTR(i));
+			error->cursor[i].position = I915_READ(CURPOS(i));
+			error->cursor[i].base = I915_READ(CURBASE(i));
+		} else {
+			error->cursor[i].control = I915_READ(CURCNTR_IVB(i));
+			error->cursor[i].position = I915_READ(CURPOS_IVB(i));
+			error->cursor[i].base = I915_READ(CURBASE_IVB(i));
+		}
 
 		error->plane[i].control = I915_READ(DSPCNTR(i));
 		error->plane[i].stride = I915_READ(DSPSTRIDE(i));
