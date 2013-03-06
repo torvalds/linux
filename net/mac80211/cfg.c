@@ -3285,6 +3285,7 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 				     struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int ret = -ENODATA;
 
@@ -3292,6 +3293,16 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
 		*chandef = chanctx_conf->def;
+		ret = 0;
+	} else if (local->open_count > 0 &&
+		   local->open_count == local->monitors &&
+		   sdata->vif.type == NL80211_IFTYPE_MONITOR) {
+		if (local->use_chanctx)
+			*chandef = local->monitor_chandef;
+		else
+			cfg80211_chandef_create(chandef,
+						local->_oper_channel,
+						local->_oper_channel_type);
 		ret = 0;
 	}
 	rcu_read_unlock();
