@@ -5506,6 +5506,7 @@ static __init void create_trace_instances(struct dentry *d_tracer)
 static void
 init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 {
+	int cpu;
 
 	trace_create_file("trace_options", 0644, d_tracer,
 			  tr, &tracing_iter_fops);
@@ -5538,12 +5539,15 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("snapshot", 0644, d_tracer,
 			  (void *)&tr->trace_cpu, &snapshot_fops);
 #endif
+
+	for_each_tracing_cpu(cpu)
+		tracing_init_debugfs_percpu(tr, cpu);
+
 }
 
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	int cpu;
 
 	trace_access_lock_init();
 
@@ -5582,9 +5586,6 @@ static __init int tracer_init_debugfs(void)
 	create_trace_instances(d_tracer);
 
 	create_trace_options_dir(&global_trace);
-
-	for_each_tracing_cpu(cpu)
-		tracing_init_debugfs_percpu(&global_trace, cpu);
 
 	return 0;
 }
