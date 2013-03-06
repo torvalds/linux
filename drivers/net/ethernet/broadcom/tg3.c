@@ -3536,6 +3536,33 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 cpu_base)
 	return 0;
 }
 
+static int tg3_fw_data_len(struct tg3 *tp,
+			   const struct tg3_firmware_hdr *fw_hdr)
+{
+	int fw_len;
+
+	/* Non fragmented firmware have one firmware header followed by a
+	 * contiguous chunk of data to be written. The length field in that
+	 * header is not the length of data to be written but the complete
+	 * length of the bss. The data length is determined based on
+	 * tp->fw->size minus headers.
+	 *
+	 * Fragmented firmware have a main header followed by multiple
+	 * fragments. Each fragment is identical to non fragmented firmware
+	 * with a firmware header followed by a contiguous chunk of data. In
+	 * the main header, the length field is unused and set to 0xffffffff.
+	 * In each fragment header the length is the entire size of that
+	 * fragment i.e. fragment data + header length. Data length is
+	 * therefore length field in the header minus TG3_FW_HDR_LEN.
+	 */
+	if (tp->fw_len == 0xffffffff)
+		fw_len = be32_to_cpu(fw_hdr->len);
+	else
+		fw_len = tp->fw->size;
+
+	return (fw_len - TG3_FW_HDR_LEN) / sizeof(u32);
+}
+
 /* tp->lock is held. */
 static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 				 u32 cpu_scratch_base, int cpu_scratch_size,
@@ -3543,7 +3570,7 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 {
 	int err, lock_err, i;
 	void (*write_op)(struct tg3 *, u32, u32);
-	u32 *fw_data = (u32 *)(fw_hdr + 1);
+	int total_len = tp->fw->size;
 
 	if (cpu_base == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS)) {
 		netdev_err(tp->dev,
@@ -3571,12 +3598,21 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 		write_op(tp, cpu_scratch_base + i, 0);
 	tw32(cpu_base + CPU_STATE, 0xffffffff);
 	tw32(cpu_base + CPU_MODE, tr32(cpu_base+CPU_MODE)|CPU_MODE_HALT);
-	for (i = 0; i < (tp->fw->size - TG3_FW_HDR_LEN) / sizeof(u32); i++)
-		write_op(tp, cpu_scratch_base +
-			     (be32_to_cpu(fw_hdr->base_addr) & 0xffff) +
-			     (i * sizeof(u32)),
-			 be32_to_cpu(fw_data[i]));
 
+	do {
+		u32 *fw_data = (u32 *)(fw_hdr + 1);
+		for (i = 0; i < tg3_fw_data_len(tp, fw_hdr); i++)
+			write_op(tp, cpu_scratch_base +
+				     (be32_to_cpu(fw_hdr->base_addr) & 0xffff) +
+				     (i * sizeof(u32)),
+				 be32_to_cpu(fw_data[i]));
+
+		total_len -= be32_to_cpu(fw_hdr->len);
+
+		/* Advance to next fragment */
+		fw_hdr = (struct tg3_firmware_hdr *)
+			 ((void *)fw_hdr + be32_to_cpu(fw_hdr->len));
+	} while (total_len > 0);
 
 	err = 0;
 
