@@ -278,6 +278,7 @@ static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 static struct irq_domain_ops intc_irqpin_irq_domain_ops = {
 	.map	= intc_irqpin_irq_domain_map,
+	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int intc_irqpin_probe(struct platform_device *pdev)
@@ -437,11 +438,19 @@ static int intc_irqpin_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id intc_irqpin_dt_ids[] = {
+	{ .compatible = "renesas,intc-irqpin", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, intc_irqpin_dt_ids);
+
 static struct platform_driver intc_irqpin_device_driver = {
 	.probe		= intc_irqpin_probe,
 	.remove		= intc_irqpin_remove,
 	.driver		= {
 		.name	= "renesas_intc_irqpin",
+		.of_match_table = intc_irqpin_dt_ids,
+		.owner  = THIS_MODULE,
 	}
 };
 
