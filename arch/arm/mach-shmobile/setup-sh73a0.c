@@ -812,7 +812,7 @@ static struct platform_device ipmmu_device = {
 	.num_resources  = ARRAY_SIZE(ipmmu_resources),
 };
 
-struct renesas_intc_irqpin_config irqpin0_platform_data = {
+static struct renesas_intc_irqpin_config irqpin0_platform_data = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ7 */
 };
 
@@ -842,7 +842,7 @@ static struct platform_device irqpin0_device = {
 	},
 };
 
-struct renesas_intc_irqpin_config irqpin1_platform_data = {
+static struct renesas_intc_irqpin_config irqpin1_platform_data = {
 	.irq_base = irq_pin(8), /* IRQ8 -> IRQ15 */
 	.control_parent = true, /* Disable spurious IRQ10 */
 };
@@ -873,7 +873,7 @@ static struct platform_device irqpin1_device = {
 	},
 };
 
-struct renesas_intc_irqpin_config irqpin2_platform_data = {
+static struct renesas_intc_irqpin_config irqpin2_platform_data = {
 	.irq_base = irq_pin(16), /* IRQ16 -> IRQ23 */
 };
 
@@ -903,7 +903,7 @@ static struct platform_device irqpin2_device = {
 	},
 };
 
-struct renesas_intc_irqpin_config irqpin3_platform_data = {
+static struct renesas_intc_irqpin_config irqpin3_platform_data = {
 	.irq_base = irq_pin(24), /* IRQ24 -> IRQ31 */
 };
 
