@@ -404,6 +404,18 @@ struct cpumask *tick_get_broadcast_oneshot_mask(void)
 }
 
 /*
+ * Called before going idle with interrupts disabled. Checks whether a
+ * broadcast event from the other core is about to happen. We detected
+ * that in tick_broadcast_oneshot_control(). The callsite can use this
+ * to avoid a deep idle transition as we are about to get the
+ * broadcast IPI right away.
+ */
+int tick_check_broadcast_expired(void)
+{
+	return cpumask_test_cpu(smp_processor_id(), tick_broadcast_force_mask);
+}
+
+/*
  * Set broadcast interrupt affinity
  */
 static void tick_broadcast_set_affinity(struct clock_event_device *bc,
