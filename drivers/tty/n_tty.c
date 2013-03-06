@@ -1468,14 +1468,14 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	 * mode.  We don't want to throttle the driver if we're in
 	 * canonical mode and don't have a newline yet!
 	 */
-	if (tty->receive_room < TTY_THRESHOLD_THROTTLE)
-		tty_throttle(tty);
-
-        /* FIXME: there is a tiny race here if the receive room check runs
-           before the other work executes and empties the buffer (upping
-           the receiving room and unthrottling. We then throttle and get
-           stuck. This has been observed and traced down by Vincent Pillet/
-           We need to address this when we sort out out the rx path locking */
+	while (1) {
+		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
+		if (tty->receive_room >= TTY_THRESHOLD_THROTTLE)
+			break;
+		if (!tty_throttle_safe(tty))
+			break;
+	}
+	__tty_set_flow_change(tty, 0);
 }
 
 int is_ignored(int sig)
@@ -1944,11 +1944,17 @@ do_it_again:
 		 * longer than TTY_THRESHOLD_UNTHROTTLE in canonical mode,
 		 * we won't get any more characters.
 		 */
-		if (n_tty_chars_in_buffer(tty) <= TTY_THRESHOLD_UNTHROTTLE) {
+		while (1) {
+			tty_set_flow_change(tty, TTY_UNTHROTTLE_SAFE);
+			if (n_tty_chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
+				break;
+			if (!tty->count)
+				break;
 			n_tty_set_room(tty);
-			if (tty->count)
-				tty_unthrottle(tty);
+			if (!tty_unthrottle_safe(tty))
+				break;
 		}
+		__tty_set_flow_change(tty, 0);
 
 		if (b - buf >= minimum)
 			break;
