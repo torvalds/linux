@@ -839,6 +839,94 @@ release:
 }
 
 /**
+ *  e1000_platform_pm_pch_lpt - Set platform power management values
+ *  @hw: pointer to the HW structure
+ *  @link: bool indicating link status
+ *
+ *  Set the Latency Tolerance Reporting (LTR) values for the "PCIe-like"
+ *  GbE MAC in the Lynx Point PCH based on Rx buffer size and link speed
+ *  when link is up (which must not exceed the maximum latency supported
+ *  by the platform), otherwise specify there is no LTR requirement.
+ *  Unlike true-PCIe devices which set the LTR maximum snoop/no-snoop
+ *  latencies in the LTR Extended Capability Structure in the PCIe Extended
+ *  Capability register set, on this device LTR is set by writing the
+ *  equivalent snoop/no-snoop latencies in the LTRV register in the MAC and
+ *  set the SEND bit to send an Intel On-chip System Fabric sideband (IOSF-SB)
+ *  message to the PMC.
+ **/
+static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
+{
+	u32 reg = link << (E1000_LTRV_REQ_SHIFT + E1000_LTRV_NOSNOOP_SHIFT) |
+	    link << E1000_LTRV_REQ_SHIFT | E1000_LTRV_SEND;
+	u16 lat_enc = 0;	/* latency encoded */
+
+	if (link) {
+		u16 speed, duplex, scale = 0;
+		u16 max_snoop, max_nosnoop;
+		u16 max_ltr_enc;	/* max LTR latency encoded */
+		s64 lat_ns;	/* latency (ns) */
+		s64 value;
+		u32 rxa;
+
+		if (!hw->adapter->max_frame_size) {
+			e_dbg("max_frame_size not set.\n");
+			return -E1000_ERR_CONFIG;
+		}
+
+		hw->mac.ops.get_link_up_info(hw, &speed, &duplex);
+		if (!speed) {
+			e_dbg("Speed not set.\n");
+			return -E1000_ERR_CONFIG;
+		}
+
+		/* Rx Packet Buffer Allocation size (KB) */
+		rxa = er32(PBA) & E1000_PBA_RXA_MASK;
+
+		/* Determine the maximum latency tolerated by the device.
+		 *
+		 * Per the PCIe spec, the tolerated latencies are encoded as
+		 * a 3-bit encoded scale (only 0-5 are valid) multiplied by
+		 * a 10-bit value (0-1023) to provide a range from 1 ns to
+		 * 2^25*(2^10-1) ns.  The scale is encoded as 0=2^0ns,
+		 * 1=2^5ns, 2=2^10ns,...5=2^25ns.
+		 */
+		lat_ns = ((s64)rxa * 1024 -
+			  (2 * (s64)hw->adapter->max_frame_size)) * 8 * 1000;
+		if (lat_ns < 0)
+			lat_ns = 0;
+		else
+			do_div(lat_ns, speed);
+
+		value = lat_ns;
+		while (value > PCI_LTR_VALUE_MASK) {
+			scale++;
+			value = DIV_ROUND_UP(value, (1 << 5));
+		}
+		if (scale > E1000_LTRV_SCALE_MAX) {
+			e_dbg("Invalid LTR latency scale %d\n", scale);
+			return -E1000_ERR_CONFIG;
+		}
+		lat_enc = (u16)((scale << PCI_LTR_SCALE_SHIFT) | value);
+
+		/* Determine the maximum latency tolerated by the platform */
+		pci_read_config_word(hw->adapter->pdev, E1000_PCI_LTR_CAP_LPT,
+				     &max_snoop);
+		pci_read_config_word(hw->adapter->pdev,
+				     E1000_PCI_LTR_CAP_LPT + 2, &max_nosnoop);
+		max_ltr_enc = max_t(u16, max_snoop, max_nosnoop);
+
+		if (lat_enc > max_ltr_enc)
+			lat_enc = max_ltr_enc;
+	}
+
+	/* Set Snoop and No-Snoop latencies the same */
+	reg |= lat_enc | (lat_enc << E1000_LTRV_NOSNOOP_SHIFT);
+	ew32(LTRV, reg);
+
+	return 0;
+}
+
+/**
  *  e1000_check_for_copper_link_ich8lan - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
@@ -907,6 +995,15 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V)) {
 		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
+		if (ret_val)
+			return ret_val;
+	}
+
+	if (hw->mac.type == e1000_pch_lpt) {
+		/* Set platform power management values for
+		 * Latency Tolerance Reporting (LTR)
+		 */
+		ret_val = e1000_platform_pm_pch_lpt(hw, link);
 		if (ret_val)
 			return ret_val;
 	}
