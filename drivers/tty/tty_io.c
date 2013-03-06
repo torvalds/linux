@@ -605,7 +605,6 @@ static void __tty_hangup(struct tty_struct *tty)
 	struct file *filp, *f = NULL;
 	struct tty_file_private *priv;
 	int    closecount = 0, n;
-	unsigned long flags;
 	int refs;
 
 	if (!tty)
@@ -654,7 +653,7 @@ static void __tty_hangup(struct tty_struct *tty)
 	while (refs--)
 		tty_kref_put(tty);
 
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	spin_lock_irq(&tty->ctrl_lock);
 	clear_bit(TTY_THROTTLED, &tty->flags);
 	clear_bit(TTY_PUSH, &tty->flags);
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
@@ -663,7 +662,7 @@ static void __tty_hangup(struct tty_struct *tty)
 	tty->session = NULL;
 	tty->pgrp = NULL;
 	tty->ctrl_status = 0;
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	spin_unlock_irq(&tty->ctrl_lock);
 
 	/*
 	 * If one of the devices matches a console pointer, we
