@@ -232,13 +232,13 @@ static void stpg_endio(struct request *req, int error)
 	struct scsi_sense_hdr sense_hdr;
 	unsigned err = SCSI_DH_OK;
 
-	if (error || host_byte(req->errors) != DID_OK ||
-			msg_byte(req->errors) != COMMAND_COMPLETE) {
+	if (host_byte(req->errors) != DID_OK ||
+	    msg_byte(req->errors) != COMMAND_COMPLETE) {
 		err = SCSI_DH_IO;
 		goto done;
 	}
 
-	if (h->senselen > 0) {
+	if (req->sense_len > 0) {
 		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
 					   &sense_hdr);
 		if (!err) {
@@ -255,7 +255,9 @@ static void stpg_endio(struct request *req, int error)
 			    ALUA_DH_NAME, sense_hdr.sense_key,
 			    sense_hdr.asc, sense_hdr.ascq);
 		err = SCSI_DH_IO;
-	}
+	} else if (error)
+		err = SCSI_DH_IO;
+
 	if (err == SCSI_DH_OK) {
 		h->state = TPGS_STATE_OPTIMIZED;
 		sdev_printk(KERN_INFO, h->sdev,
