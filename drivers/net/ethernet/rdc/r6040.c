@@ -224,11 +224,14 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 			break;
 	}
 
+	if (limit < 0)
+		return -ETIMEDOUT;
+
 	return ioread16(ioaddr + MMRD);
 }
 
 /* Write a word data from PHY Chip */
-static void r6040_phy_write(void __iomem *ioaddr,
+static int r6040_phy_write(void __iomem *ioaddr,
 					int phy_addr, int reg, u16 val)
 {
 	int limit = MAC_DEF_TIMEOUT;
@@ -243,6 +246,8 @@ static void r6040_phy_write(void __iomem *ioaddr,
 		if (!(cmd & MDIO_WRITE))
 			break;
 	}
+
+	return (limit < 0) ? -ETIMEDOUT : 0;
 }
 
 static int r6040_mdiobus_read(struct mii_bus *bus, int phy_addr, int reg)
@@ -261,9 +266,7 @@ static int r6040_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 
-	r6040_phy_write(ioaddr, phy_addr, reg, value);
-
-	return 0;
+	return r6040_phy_write(ioaddr, phy_addr, reg, value);
 }
 
 static int r6040_mdiobus_reset(struct mii_bus *bus)
