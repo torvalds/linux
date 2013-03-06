@@ -41,7 +41,7 @@ static DEFINE_SPINLOCK(periph_ref_lock);
 #define write_rst_clr(val, gate) \
 	writel_relaxed(val, gate->clk_base + (gate->regs->rst_clr_reg))
 
-#define periph_clk_to_bit(periph) (1 << (gate->clk_num % 32))
+#define periph_clk_to_bit(gate) (1 << (gate->clk_num % 32))
 
 /* Peripheral gate clock ops */
 static int clk_periph_is_enabled(struct clk_hw *hw)
