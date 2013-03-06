@@ -367,8 +367,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
 
-	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH |
-			       NL80211_FEATURE_ADVERTISE_CHAN_LIMITS;
+	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH;
 
 	return &rdev->wiphy;
 }
