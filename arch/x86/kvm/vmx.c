@@ -2049,21 +2049,28 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 		PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING |
 		PIN_BASED_VIRTUAL_NMIS;
 
-	/* exit controls */
-	nested_vmx_exit_ctls_low = 0;
+	/*
+	 * Exit controls
+	 * If bit 55 of VMX_BASIC is off, bits 0-8 and 10, 11, 13, 14, 16 and
+	 * 17 must be 1.
+	 */
+	nested_vmx_exit_ctls_low = VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
 	/* Note that guest use of VM_EXIT_ACK_INTR_ON_EXIT is not supported. */
 #ifdef CONFIG_X86_64
 	nested_vmx_exit_ctls_high = VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #else
 	nested_vmx_exit_ctls_high = 0;
 #endif
+	nested_vmx_exit_ctls_high |= VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
 
 	/* entry controls */
 	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
 		nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high);
-	nested_vmx_entry_ctls_low = 0;
+	/* If bit 55 of VMX_BASIC is off, bits 0-8 and 12 must be 1. */
+	nested_vmx_entry_ctls_low = VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_entry_ctls_high &=
 		VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_IA32E_MODE;
+	nested_vmx_entry_ctls_high |= VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 
 	/* cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,
