@@ -723,6 +723,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	sms_info("allocated %d buffers", dev->num_buffers);
 
 	dev->mode = DEVICE_MODE_NONE;
+	dev->board_id = SMS_BOARD_UNKNOWN;
 	dev->context = params->context;
 	dev->device = params->device;
 	dev->setmode_handler = params->setmode_handler;
