@@ -1087,6 +1087,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
+		if (vif->type == NL80211_IFTYPE_AP && !sta) {
+			/* GTK on AP interface is a TX-only key, return 0 */
+			ret = 0;
+			key->hw_key_idx = STA_KEY_IDX_INVALID;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
 		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, false);
 		if (ret) {
@@ -1095,11 +1102,17 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			 * can't add key for RX, but we don't need it
 			 * in the device for TX so still return 0
 			 */
+			key->hw_key_idx = STA_KEY_IDX_INVALID;
 			ret = 0;
 		}
 
 		break;
 	case DISABLE_KEY:
+		if (key->hw_key_idx == STA_KEY_IDX_INVALID) {
+			ret = 0;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "disable hwcrypto key\n");
 		ret = iwl_mvm_remove_sta_key(mvm, vif, sta, key);
 		break;
