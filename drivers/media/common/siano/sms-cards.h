@@ -79,6 +79,12 @@ struct sms_board {
 
 	/* gpios */
 	int led_power, led_hi, led_lo, lna_ctrl, rf_switch;
+
+	char intf_num;
+	int default_mode;
+	unsigned int mtu;
+	unsigned int crystal;
+	struct sms_antenna_config_ST *antenna_config;
 };
 
 struct sms_board *sms_get_board(unsigned id);
