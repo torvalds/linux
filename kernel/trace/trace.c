@@ -3171,6 +3171,7 @@ int tracer_init(struct tracer *t, struct trace_array *tr)
 static void set_buffer_entries(struct trace_buffer *buf, unsigned long val)
 {
 	int cpu;
+
 	for_each_tracing_cpu(cpu)
 		per_cpu_ptr(buf->data, cpu)->entries = val;
 }
@@ -5267,12 +5268,70 @@ struct dentry *trace_instance_dir;
 static void
 init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer);
 
-static int new_instance_create(const char *name)
+static void init_trace_buffers(struct trace_array *tr, struct trace_buffer *buf)
+{
+	int cpu;
+
+	for_each_tracing_cpu(cpu) {
+		memset(per_cpu_ptr(buf->data, cpu), 0, sizeof(struct trace_array_cpu));
+		per_cpu_ptr(buf->data, cpu)->trace_cpu.cpu = cpu;
+		per_cpu_ptr(buf->data, cpu)->trace_cpu.tr = tr;
+	}
+}
+
+static int allocate_trace_buffers(struct trace_array *tr, int size)
 {
 	enum ring_buffer_flags rb_flags;
+
+	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
+
+	tr->trace_buffer.buffer = ring_buffer_alloc(size, rb_flags);
+	if (!tr->trace_buffer.buffer)
+		goto out_free;
+
+	tr->trace_buffer.data = alloc_percpu(struct trace_array_cpu);
+	if (!tr->trace_buffer.data)
+		goto out_free;
+
+	init_trace_buffers(tr, &tr->trace_buffer);
+
+	/* Allocate the first page for all buffers */
+	set_buffer_entries(&tr->trace_buffer,
+			   ring_buffer_size(tr->trace_buffer.buffer, 0));
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+
+	tr->max_buffer.buffer = ring_buffer_alloc(1, rb_flags);
+	if (!tr->max_buffer.buffer)
+		goto out_free;
+
+	tr->max_buffer.data = alloc_percpu(struct trace_array_cpu);
+	if (!tr->max_buffer.data)
+		goto out_free;
+
+	init_trace_buffers(tr, &tr->max_buffer);
+
+	set_buffer_entries(&tr->max_buffer, 1);
+#endif
+	return 0;
+
+ out_free:
+	if (tr->trace_buffer.buffer)
+		ring_buffer_free(tr->trace_buffer.buffer);
+	free_percpu(tr->trace_buffer.data);
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+	if (tr->max_buffer.buffer)
+		ring_buffer_free(tr->max_buffer.buffer);
+	free_percpu(tr->max_buffer.data);
+#endif
+	return -ENOMEM;
+}
+
+static int new_instance_create(const char *name)
+{
 	struct trace_array *tr;
 	int ret;
-	int i;
 
 	mutex_lock(&trace_types_lock);
 
@@ -5298,21 +5357,8 @@ static int new_instance_create(const char *name)
 	INIT_LIST_HEAD(&tr->systems);
 	INIT_LIST_HEAD(&tr->events);
 
-	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
-
-	tr->trace_buffer.buffer = ring_buffer_alloc(trace_buf_size, rb_flags);
-	if (!tr->trace_buffer.buffer)
+	if (allocate_trace_buffers(tr, trace_buf_size) < 0)
 		goto out_free_tr;
-
-	tr->trace_buffer.data = alloc_percpu(struct trace_array_cpu);
-	if (!tr->trace_buffer.data)
-		goto out_free_tr;
-
-	for_each_tracing_cpu(i) {
-		memset(per_cpu_ptr(tr->trace_buffer.data, i), 0, sizeof(struct trace_array_cpu));
-		per_cpu_ptr(tr->trace_buffer.data, i)->trace_cpu.cpu = i;
-		per_cpu_ptr(tr->trace_buffer.data, i)->trace_cpu.tr = tr;
-	}
 
 	/* Holder for file callbacks */
 	tr->trace_cpu.cpu = RING_BUFFER_ALL_CPUS;
@@ -5736,8 +5782,6 @@ EXPORT_SYMBOL_GPL(ftrace_dump);
 __init static int tracer_alloc_buffers(void)
 {
 	int ring_buf_size;
-	enum ring_buffer_flags rb_flags;
-	int i;
 	int ret = -ENOMEM;
 
 
@@ -5758,68 +5802,20 @@ __init static int tracer_alloc_buffers(void)
 	else
 		ring_buf_size = 1;
 
-	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
-
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
 
 	raw_spin_lock_init(&global_trace.start_lock);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
-	global_trace.trace_buffer.buffer = ring_buffer_alloc(ring_buf_size, rb_flags);
-	if (!global_trace.trace_buffer.buffer) {
+	if (allocate_trace_buffers(&global_trace, ring_buf_size) < 0) {
 		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
 		WARN_ON(1);
 		goto out_free_cpumask;
 	}
 
-	global_trace.trace_buffer.data = alloc_percpu(struct trace_array_cpu);
-
-	if (!global_trace.trace_buffer.data) {
-		printk(KERN_ERR "tracer: failed to allocate percpu memory!\n");
-		WARN_ON(1);
-		goto out_free_cpumask;
-	}
-
-	for_each_tracing_cpu(i) {
-		memset(per_cpu_ptr(global_trace.trace_buffer.data, i), 0,
-		       sizeof(struct trace_array_cpu));
-		per_cpu_ptr(global_trace.trace_buffer.data, i)->trace_cpu.cpu = i;
-		per_cpu_ptr(global_trace.trace_buffer.data, i)->trace_cpu.tr = &global_trace;
-	}
-
 	if (global_trace.buffer_disabled)
 		tracing_off();
-
-#ifdef CONFIG_TRACER_MAX_TRACE
-	global_trace.max_buffer.data = alloc_percpu(struct trace_array_cpu);
-	if (!global_trace.max_buffer.data) {
-		printk(KERN_ERR "tracer: failed to allocate percpu memory!\n");
-		WARN_ON(1);
-		goto out_free_cpumask;
-	}
-	global_trace.max_buffer.buffer = ring_buffer_alloc(1, rb_flags);
-	if (!global_trace.max_buffer.buffer) {
-		printk(KERN_ERR "tracer: failed to allocate max ring buffer!\n");
-		WARN_ON(1);
-		ring_buffer_free(global_trace.trace_buffer.buffer);
-		goto out_free_cpumask;
-	}
-
-	for_each_tracing_cpu(i) {
-		memset(per_cpu_ptr(global_trace.max_buffer.data, i), 0,
-		       sizeof(struct trace_array_cpu));
-		per_cpu_ptr(global_trace.max_buffer.data, i)->trace_cpu.cpu = i;
-		per_cpu_ptr(global_trace.max_buffer.data, i)->trace_cpu.tr = &global_trace;
-	}
-#endif
-
-	/* Allocate the first page for all buffers */
-	set_buffer_entries(&global_trace.trace_buffer,
-			   ring_buffer_size(global_trace.trace_buffer.buffer, 0));
-#ifdef CONFIG_TRACER_MAX_TRACE
-	set_buffer_entries(&global_trace.max_buffer, 1);
-#endif
 
 	trace_init_cmdlines();
 
