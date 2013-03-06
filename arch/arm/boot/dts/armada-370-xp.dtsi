@@ -31,7 +31,6 @@
 	mpic: interrupt-controller@d0020000 {
 	      compatible = "marvell,mpic";
 	      #interrupt-cells = <1>;
-	      #address-cells = <1>;
 	      #size-cells = <1>;
 	      interrupt-controller;
 	};
