@@ -85,12 +85,14 @@
 #define ARIZONA_FLL1_CONTROL_6                   0x176
 #define ARIZONA_FLL1_LOOP_FILTER_TEST_1          0x177
 #define ARIZONA_FLL1_NCO_TEST_0                  0x178
+#define ARIZONA_FLL1_CONTROL_7                   0x179
 #define ARIZONA_FLL1_SYNCHRONISER_1              0x181
 #define ARIZONA_FLL1_SYNCHRONISER_2              0x182
 #define ARIZONA_FLL1_SYNCHRONISER_3              0x183
 #define ARIZONA_FLL1_SYNCHRONISER_4              0x184
 #define ARIZONA_FLL1_SYNCHRONISER_5              0x185
 #define ARIZONA_FLL1_SYNCHRONISER_6              0x186
+#define ARIZONA_FLL1_SYNCHRONISER_7              0x187
 #define ARIZONA_FLL1_SPREAD_SPECTRUM             0x189
 #define ARIZONA_FLL1_GPIO_CLOCK                  0x18A
 #define ARIZONA_FLL2_CONTROL_1                   0x191
@@ -101,12 +103,14 @@
 #define ARIZONA_FLL2_CONTROL_6                   0x196
 #define ARIZONA_FLL2_LOOP_FILTER_TEST_1          0x197
 #define ARIZONA_FLL2_NCO_TEST_0                  0x198
+#define ARIZONA_FLL2_CONTROL_7                   0x199
 #define ARIZONA_FLL2_SYNCHRONISER_1              0x1A1
 #define ARIZONA_FLL2_SYNCHRONISER_2              0x1A2
 #define ARIZONA_FLL2_SYNCHRONISER_3              0x1A3
 #define ARIZONA_FLL2_SYNCHRONISER_4              0x1A4
 #define ARIZONA_FLL2_SYNCHRONISER_5              0x1A5
 #define ARIZONA_FLL2_SYNCHRONISER_6              0x1A6
+#define ARIZONA_FLL2_SYNCHRONISER_7              0x1A7
 #define ARIZONA_FLL2_SPREAD_SPECTRUM             0x1A9
 #define ARIZONA_FLL2_GPIO_CLOCK                  0x1AA
 #define ARIZONA_MIC_CHARGE_PUMP_1                0x200
@@ -1678,6 +1682,13 @@
 #define ARIZONA_FLL1_FRC_INTEG_VAL_WIDTH             12  /* FLL1_FRC_INTEG_VAL - [11:0] */
 
 /*
+ * R377 (0x179) - FLL1 Control 7
+ */
+#define ARIZONA_FLL1_GAIN_MASK                   0x003c  /* FLL1_GAIN */
+#define ARIZONA_FLL1_GAIN_SHIFT                       2  /* FLL1_GAIN */
+#define ARIZONA_FLL1_GAIN_WIDTH                       4  /* FLL1_GAIN */
+
+/*
  * R385 (0x181) - FLL1 Synchroniser 1
  */
 #define ARIZONA_FLL1_SYNC_ENA                    0x0001  /* FLL1_SYNC_ENA */
@@ -1722,6 +1733,17 @@
 #define ARIZONA_FLL1_CLK_SYNC_SRC_MASK           0x000F  /* FLL1_CLK_SYNC_SRC - [3:0] */
 #define ARIZONA_FLL1_CLK_SYNC_SRC_SHIFT               0  /* FLL1_CLK_SYNC_SRC - [3:0] */
 #define ARIZONA_FLL1_CLK_SYNC_SRC_WIDTH               4  /* FLL1_CLK_SYNC_SRC - [3:0] */
+
+/*
+ * R391 (0x187) - FLL1 Synchroniser 7
+ */
+#define ARIZONA_FLL1_SYNC_GAIN_MASK              0x003c  /* FLL1_SYNC_GAIN */
+#define ARIZONA_FLL1_SYNC_GAIN_SHIFT                  2  /* FLL1_SYNC_GAIN */
+#define ARIZONA_FLL1_SYNC_GAIN_WIDTH                  4  /* FLL1_SYNC_GAIN */
+#define ARIZONA_FLL1_SYNC_BW                     0x0001  /* FLL1_SYNC_BW */
+#define ARIZONA_FLL1_SYNC_BW_MASK                0x0001  /* FLL1_SYNC_BW */
+#define ARIZONA_FLL1_SYNC_BW_SHIFT                    0  /* FLL1_SYNC_BW */
+#define ARIZONA_FLL1_SYNC_BW_WIDTH                    1  /* FLL1_SYNC_BW */
 
 /*
  * R393 (0x189) - FLL1 Spread Spectrum
@@ -1816,6 +1838,13 @@
 #define ARIZONA_FLL2_FRC_INTEG_VAL_WIDTH             12  /* FLL2_FRC_INTEG_VAL - [11:0] */
 
 /*
+ * R409 (0x199) - FLL2 Control 7
+ */
+#define ARIZONA_FLL2_GAIN_MASK                   0x003c  /* FLL2_GAIN */
+#define ARIZONA_FLL2_GAIN_SHIFT                       2  /* FLL2_GAIN */
+#define ARIZONA_FLL2_GAIN_WIDTH                       4  /* FLL2_GAIN */
+
+/*
  * R417 (0x1A1) - FLL2 Synchroniser 1
  */
 #define ARIZONA_FLL2_SYNC_ENA                    0x0001  /* FLL2_SYNC_ENA */
@@ -1860,6 +1889,17 @@
 #define ARIZONA_FLL2_CLK_SYNC_SRC_MASK           0x000F  /* FLL2_CLK_SYNC_SRC - [3:0] */
 #define ARIZONA_FLL2_CLK_SYNC_SRC_SHIFT               0  /* FLL2_CLK_SYNC_SRC - [3:0] */
 #define ARIZONA_FLL2_CLK_SYNC_SRC_WIDTH               4  /* FLL2_CLK_SYNC_SRC - [3:0] */
+
+/*
+ * R423 (0x1A7) - FLL2 Synchroniser 7
+ */
+#define ARIZONA_FLL2_SYNC_GAIN_MASK              0x003c  /* FLL2_SYNC_GAIN */
+#define ARIZONA_FLL2_SYNC_GAIN_SHIFT                  2  /* FLL2_SYNC_GAIN */
+#define ARIZONA_FLL2_SYNC_GAIN_WIDTH                  4  /* FLL2_SYNC_GAIN */
+#define ARIZONA_FLL2_SYNC_BW_MASK                0x0001  /* FLL2_SYNC_BW */
+#define ARIZONA_FLL2_SYNC_BW_MASK                0x0001  /* FLL2_SYNC_BW */
+#define ARIZONA_FLL2_SYNC_BW_SHIFT                    0  /* FLL2_SYNC_BW */
+#define ARIZONA_FLL2_SYNC_BW_WIDTH                    1  /* FLL2_SYNC_BW */
 
 /*
  * R425 (0x1A9) - FLL2 Spread Spectrum
