@@ -3142,7 +3142,7 @@ static inline __le16 bnx2x_csum_fix(unsigned char *t_header, u16 csum, s8 fix)
 		tsum = ~csum_fold(csum_add((__force __wsum) csum,
 				  csum_partial(t_header, -fix, 0)));
 
-	return bswab16(csum);
+	return bswab16(tsum);
 }
 
 static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)

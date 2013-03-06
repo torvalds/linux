@@ -554,16 +554,9 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 	if ((chan->flags & IEEE80211_CHAN_NO_IBSS) &&
 	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_IBSS))
 		goto nla_put_failure;
-	if (chan->flags & IEEE80211_CHAN_RADAR) {
-		u32 time = elapsed_jiffies_msecs(chan->dfs_state_entered);
-		if (nla_put_flag(msg, NL80211_FREQUENCY_ATTR_RADAR))
-			goto nla_put_failure;
-		if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_DFS_STATE,
-				chan->dfs_state))
-			goto nla_put_failure;
-		if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_DFS_TIME, time))
-			goto nla_put_failure;
-	}
+	if ((chan->flags & IEEE80211_CHAN_RADAR) &&
+	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_RADAR))
+		goto nla_put_failure;
 	if ((chan->flags & IEEE80211_CHAN_NO_HT40MINUS) &&
 	    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_HT40_MINUS))
 		goto nla_put_failure;
@@ -900,9 +893,6 @@ static int nl80211_put_iface_combinations(struct wiphy *wiphy,
 		    nla_put_u32(msg, NL80211_IFACE_COMB_MAXNUM,
 				c->max_interfaces))
 			goto nla_put_failure;
-		if (nla_put_u32(msg, NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS,
-				c->radar_detect_widths))
-			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_combi);
 	}
@@ -913,48 +903,6 @@ static int nl80211_put_iface_combinations(struct wiphy *wiphy,
 nla_put_failure:
 	return -ENOBUFS;
 }
-
-#ifdef CONFIG_PM
-static int nl80211_send_wowlan_tcp_caps(struct cfg80211_registered_device *rdev,
-					struct sk_buff *msg)
-{
-	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan.tcp;
-	struct nlattr *nl_tcp;
-
-	if (!tcp)
-		return 0;
-
-	nl_tcp = nla_nest_start(msg, NL80211_WOWLAN_TRIG_TCP_CONNECTION);
-	if (!nl_tcp)
-		return -ENOBUFS;
-
-	if (nla_put_u32(msg, NL80211_WOWLAN_TCP_DATA_PAYLOAD,
-			tcp->data_payload_max))
-		return -ENOBUFS;
-
-	if (nla_put_u32(msg, NL80211_WOWLAN_TCP_DATA_PAYLOAD,
-			tcp->data_payload_max))
-		return -ENOBUFS;
-
-	if (tcp->seq && nla_put_flag(msg, NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ))
-		return -ENOBUFS;
-
-	if (tcp->tok && nla_put(msg, NL80211_WOWLAN_TCP_DATA_PAYLOAD_TOKEN,
-				sizeof(*tcp->tok), tcp->tok))
-		return -ENOBUFS;
-
-	if (nla_put_u32(msg, NL80211_WOWLAN_TCP_DATA_INTERVAL,
-			tcp->data_interval_max))
-		return -ENOBUFS;
-
-	if (nla_put_u32(msg, NL80211_WOWLAN_TCP_WAKE_PAYLOAD,
-			tcp->wake_payload_max))
-		return -ENOBUFS;
-
-	nla_nest_end(msg, nl_tcp);
-	return 0;
-}
-#endif
 
 static int nl80211_send_wiphy(struct sk_buff *msg, u32 portid, u32 seq, int flags,
 			      struct cfg80211_registered_device *dev)
@@ -1329,9 +1277,6 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 portid, u32 seq, int flag
 				    sizeof(pat), &pat))
 				goto nla_put_failure;
 		}
-
-		if (nl80211_send_wowlan_tcp_caps(dev, msg))
-			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_wowlan);
 	}
