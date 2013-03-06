@@ -125,13 +125,17 @@ static int sch_gpio_resume_direction_in(struct gpio_chip *gc,
 					unsigned gpio_num)
 {
 	u8 curr_dirs;
+	unsigned short offset, bit;
 
 	spin_lock(&gpio_lock);
 
-	curr_dirs = inb(gpio_ba + RGIO);
+	offset = RGIO + gpio_num / 8;
+	bit = gpio_num % 8;
 
-	if (!(curr_dirs & (1 << gpio_num)))
-		outb(curr_dirs | (1 << gpio_num) , gpio_ba + RGIO);
+	curr_dirs = inb(gpio_ba + offset);
+
+	if (!(curr_dirs & (1 << bit)))
+		outb(curr_dirs | (1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
 	return 0;
@@ -139,22 +143,31 @@ static int sch_gpio_resume_direction_in(struct gpio_chip *gc,
 
 static int sch_gpio_resume_get(struct gpio_chip *gc, unsigned gpio_num)
 {
-	return !!(inb(gpio_ba + RGLV) & (1 << gpio_num));
+	unsigned short offset, bit;
+
+	offset = RGLV + gpio_num / 8;
+	bit = gpio_num % 8;
+
+	return !!(inb(gpio_ba + offset) & (1 << bit));
 }
 
 static void sch_gpio_resume_set(struct gpio_chip *gc,
 				unsigned gpio_num, int val)
 {
 	u8 curr_vals;
+	unsigned short offset, bit;
 
 	spin_lock(&gpio_lock);
 
-	curr_vals = inb(gpio_ba + RGLV);
+	offset = RGLV + gpio_num / 8;
+	bit = gpio_num % 8;
+
+	curr_vals = inb(gpio_ba + offset);
 
 	if (val)
-		outb(curr_vals | (1 << gpio_num), gpio_ba + RGLV);
+		outb(curr_vals | (1 << bit), gpio_ba + offset);
 	else
-		outb((curr_vals & ~(1 << gpio_num)), gpio_ba + RGLV);
+		outb((curr_vals & ~(1 << bit)), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
 }
@@ -163,14 +176,18 @@ static int sch_gpio_resume_direction_out(struct gpio_chip *gc,
 					unsigned gpio_num, int val)
 {
 	u8 curr_dirs;
+	unsigned short offset, bit;
 
 	sch_gpio_resume_set(gc, gpio_num, val);
 
+	offset = RGIO + gpio_num / 8;
+	bit = gpio_num % 8;
+
 	spin_lock(&gpio_lock);
 
-	curr_dirs = inb(gpio_ba + RGIO);
-	if (curr_dirs & (1 << gpio_num))
-		outb(curr_dirs & ~(1 << gpio_num), gpio_ba + RGIO);
+	curr_dirs = inb(gpio_ba + offset);
+	if (curr_dirs & (1 << bit))
+		outb(curr_dirs & ~(1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
 	return 0;
