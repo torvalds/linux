@@ -812,11 +812,11 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]),
-				     true);
+		ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]),
+				   true);
 	if (sta->ptk)
-		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk),
-				     true);
+		ieee80211_key_free(key_mtx_dereference(local, sta->ptk),
+				   true);
 	mutex_unlock(&local->key_mtx);
 
 	sta->dead = true;

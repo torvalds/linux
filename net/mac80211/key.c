@@ -248,11 +248,11 @@ void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 }
 
 
-static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
-				    struct sta_info *sta,
-				    bool pairwise,
-				    struct ieee80211_key *old,
-				    struct ieee80211_key *new)
+static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
+				  struct sta_info *sta,
+				  bool pairwise,
+				  struct ieee80211_key *old,
+				  struct ieee80211_key *new)
 {
 	int idx;
 	bool defunikey, defmultikey, defmgmtkey;
@@ -406,8 +406,8 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 	kfree(key);
 }
 
-static void __ieee80211_key_destroy(struct ieee80211_key *key,
-				    bool delay_tailroom)
+static void ieee80211_key_destroy(struct ieee80211_key *key,
+				  bool delay_tailroom)
 {
 	if (!key)
 		return;
@@ -473,22 +473,22 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	increment_tailroom_need_count(sdata);
 
-	__ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
-	__ieee80211_key_destroy(old_key, true);
+	ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
+	ieee80211_key_destroy(old_key, true);
 
 	ieee80211_debugfs_key_add(key);
 
 	ret = ieee80211_key_enable_hw_accel(key);
 
 	if (ret)
-		__ieee80211_key_free(key, true);
+		ieee80211_key_free(key, true);
 
 	mutex_unlock(&sdata->local->key_mtx);
 
 	return ret;
 }
 
-void __ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
+void ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 {
 	if (!key)
 		return;
@@ -497,10 +497,10 @@ void __ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 	 * Replace key with nothingness if it was ever used.
 	 */
 	if (key->sdata)
-		__ieee80211_key_replace(key->sdata, key->sta,
+		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-	__ieee80211_key_destroy(key, delay_tailroom);
+	ieee80211_key_destroy(key, delay_tailroom);
 }
 
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
@@ -572,7 +572,7 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
-		__ieee80211_key_free(key, false);
+		ieee80211_key_free(key, false);
 
 	ieee80211_debugfs_key_update_default(sdata);
 
