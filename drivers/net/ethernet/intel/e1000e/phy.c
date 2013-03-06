@@ -178,6 +178,12 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 		e_dbg("MDI Error\n");
 		return -E1000_ERR_PHY;
 	}
+	if (((mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT) != offset) {
+		e_dbg("MDI Read offset error - requested %d, returned %d\n",
+		      offset,
+		      (mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT);
+		return -E1000_ERR_PHY;
+	}
 	*data = (u16)mdic;
 
 	/* Allow some time after each MDIC transaction to avoid
@@ -234,6 +240,12 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	}
 	if (mdic & E1000_MDIC_ERROR) {
 		e_dbg("MDI Error\n");
+		return -E1000_ERR_PHY;
+	}
+	if (((mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT) != offset) {
+		e_dbg("MDI Write offset error - requested %d, returned %d\n",
+		      offset,
+		      (mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT);
 		return -E1000_ERR_PHY;
 	}
 
