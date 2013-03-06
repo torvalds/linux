@@ -183,7 +183,7 @@ static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
 		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_NORMAL,
 		.outputslewrate       = SMS_GPIO_OUTPUTSLEWRATE_FAST,
-		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_4mA,
+		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_S_4mA,
 	};
 
 	if (pin == 0)

@@ -642,10 +642,10 @@ struct smscore_config_gpio {
 #define SMS_GPIO_OUTPUTSLEWRATE_SLOW 1
 	u8 outputslewrate;
 
-#define SMS_GPIO_OUTPUTDRIVING_4mA  0
-#define SMS_GPIO_OUTPUTDRIVING_8mA  1
-#define SMS_GPIO_OUTPUTDRIVING_12mA 2
-#define SMS_GPIO_OUTPUTDRIVING_16mA 3
+#define SMS_GPIO_OUTPUTDRIVING_S_4mA  0
+#define SMS_GPIO_OUTPUTDRIVING_S_8mA  1
+#define SMS_GPIO_OUTPUTDRIVING_S_12mA 2
+#define SMS_GPIO_OUTPUTDRIVING_S_16mA 3
 	u8 outputdriving;
 };
 

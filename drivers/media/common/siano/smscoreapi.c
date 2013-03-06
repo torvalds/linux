@@ -1305,16 +1305,16 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 		msg.data[2] = pinconfig->outputslewrate == 0 ? 3 : 0;
 
 		switch (pinconfig->outputdriving) {
-		case SMS_GPIO_OUTPUTDRIVING_16mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_16mA:
 			msg.data[3] = 7; /* Nova - 16mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_12mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_12mA:
 			msg.data[3] = 5; /* Nova - 11mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_8mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_8mA:
 			msg.data[3] = 3; /* Nova - 7mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_4mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_4mA:
 		default:
 			msg.data[3] = 2; /* Nova - 4mA */
 			break;
