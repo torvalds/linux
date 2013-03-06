@@ -4302,9 +4302,9 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		local_irq_disable();
 		/* Now, we're going to swap */
 		if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
-			update_max_tr(&global_trace, current, smp_processor_id());
+			update_max_tr(tr, current, smp_processor_id());
 		else
-			update_max_tr_single(&global_trace, current, iter->cpu_file);
+			update_max_tr_single(tr, current, iter->cpu_file);
 		local_irq_enable();
 		break;
 	default:
@@ -5533,6 +5533,11 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 
 	trace_create_file("tracing_on", 0644, d_tracer,
 			    tr, &rb_simple_fops);
+
+#ifdef CONFIG_TRACER_SNAPSHOT
+	trace_create_file("snapshot", 0644, d_tracer,
+			  (void *)&tr->trace_cpu, &snapshot_fops);
+#endif
 }
 
 static __init int tracer_init_debugfs(void)
@@ -5572,11 +5577,6 @@ static __init int tracer_init_debugfs(void)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
 			&ftrace_update_tot_cnt, &tracing_dyn_info_fops);
-#endif
-
-#ifdef CONFIG_TRACER_SNAPSHOT
-	trace_create_file("snapshot", 0644, d_tracer,
-			  (void *)&global_trace.trace_cpu, &snapshot_fops);
 #endif
 
 	create_trace_instances(d_tracer);
