@@ -102,7 +102,7 @@ void __init init_onchip_IRQ(void)
 	struct device_node *intc = NULL;
 
 	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
-	if(!intc)
+	if (!intc)
 		panic("DeviceTree Missing incore intc\n");
 
 	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
