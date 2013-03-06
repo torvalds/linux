@@ -48,6 +48,7 @@ _GLOBAL(__restore_cpu_power7)
 
 _GLOBAL(__setup_cpu_power8)
 	mflr	r11
+	bl	__init_FSCR
 	bl	__init_hvmode_206
 	mtlr	r11
 	beqlr
@@ -56,13 +57,13 @@ _GLOBAL(__setup_cpu_power8)
 	mfspr	r3,SPRN_LPCR
 	oris	r3, r3, LPCR_AIL_3@h
 	bl	__init_LPCR
-	bl	__init_FSCR
 	bl	__init_TLB
 	mtlr	r11
 	blr
 
 _GLOBAL(__restore_cpu_power8)
 	mflr	r11
+	bl	__init_FSCR
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	beqlr
@@ -115,7 +116,7 @@ __init_LPCR:
 
 __init_FSCR:
 	mfspr	r3,SPRN_FSCR
-	ori	r3,r3,FSCR_TAR
+	ori	r3,r3,FSCR_TAR|FSCR_DSCR
 	mtspr	SPRN_FSCR,r3
 	blr
 
