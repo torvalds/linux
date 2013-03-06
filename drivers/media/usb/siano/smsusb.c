@@ -441,6 +441,7 @@ static int smsusb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
+	char devpath[32];
 	int i, rc;
 
 	sms_info("interface number %d",
@@ -483,6 +484,16 @@ static int smsusb_probe(struct usb_interface *intf,
 	    (intf->cur_altsetting->desc.bInterfaceNumber == 0)) {
 		sms_err("rom interface 0 is not used");
 		return -ENODEV;
+	}
+
+	if (id->driver_info == SMS1XXX_BOARD_SIANO_STELLAR_ROM) {
+		sms_info("stellar device was found.");
+		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
+			 udev->bus->busnum, udev->devpath);
+		sms_info("stellar device was found.");
+		return smsusb1_load_firmware(
+				udev, smscore_registry_getmode(devpath),
+				id->driver_info);
 	}
 
 	rc = smsusb_init_device(intf, id->driver_info);
@@ -602,6 +613,26 @@ static const struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ USB_DEVICE(0x2040, 0xf5a0),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x187f, 0x0202),
+		.driver_info = SMS1XXX_BOARD_SIANO_NICE },
+	{ USB_DEVICE(0x187f, 0x0301),
+		.driver_info = SMS1XXX_BOARD_SIANO_VENICE },
+	{ USB_DEVICE(0x187f, 0x0302),
+		.driver_info = SMS1XXX_BOARD_SIANO_VENICE },
+	{ USB_DEVICE(0x187f, 0x0310),
+		.driver_info = SMS1XXX_BOARD_SIANO_MING },
+	{ USB_DEVICE(0x187f, 0x0500),
+		.driver_info = SMS1XXX_BOARD_SIANO_PELE },
+	{ USB_DEVICE(0x187f, 0x0600),
+		.driver_info = SMS1XXX_BOARD_SIANO_RIO },
+	{ USB_DEVICE(0x187f, 0x0700),
+		.driver_info = SMS1XXX_BOARD_SIANO_DENVER_2160 },
+	{ USB_DEVICE(0x187f, 0x0800),
+		.driver_info = SMS1XXX_BOARD_SIANO_DENVER_1530 },
+	{ USB_DEVICE(0x19D2, 0x0086),
+		.driver_info = SMS1XXX_BOARD_ZTE_DVB_DATA_CARD },
+	{ USB_DEVICE(0x19D2, 0x0078),
+		.driver_info = SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD },
 	{ } /* Terminating entry */
 	};
 

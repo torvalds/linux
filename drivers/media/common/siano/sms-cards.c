@@ -28,43 +28,53 @@ MODULE_PARM_DESC(cards_dbg, "set debug level (info=1, adv=2 (or-able))");
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",
+		.type = SMS_UNKNOWN_TYPE,
+		.default_mode = DEVICE_MODE_NONE,
 	},
 	[SMS1XXX_BOARD_SIANO_STELLAR] = {
 		.name	= "Siano Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
 		.name	= "Siano Nova A Digital Receiver",
 		.type	= SMS_NOVA_A0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
 		.name	= "Siano Nova B Digital Receiver",
 		.type	= SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
 		.name	= "Siano Vega Digital Receiver",
 		.type	= SMS_VEGA,
+		.default_mode = DEVICE_MODE_CMMB,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT] = {
 		.name	= "Hauppauge Catamount",
 		.type	= SMS_STELLAR,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-stellar-dvbt-01.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A] = {
 		.name	= "Hauppauge Okemo-A",
 		.type	= SMS_NOVA_A0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-a-dvbt-01.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B] = {
 		.name	= "Hauppauge Okemo-B",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-b-dvbt-01.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
 		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_ISDBT_BDA] = "sms1xxx-hcw-55xxx-isdbt-02.fw",
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.rc_codes = RC_MAP_HAUPPAUGE,
 		.board_cfg.leds_power = 26,
 		.board_cfg.led0 = 27,
@@ -78,6 +88,7 @@ static struct sms_board sms_boards[] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = 29,
 		.board_cfg.foreign_lna0_ctrl = 29,
 		.rf_switch = 17,
@@ -87,17 +98,64 @@ static struct sms_board sms_boards[] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = -1,
 	},
 	[SMS1XXX_BOARD_SIANO_NICE] = {
-	/* 11 */
 		.name = "Siano Nice Digital Receiver",
 		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VENICE] = {
-	/* 12 */
 		.name = "Siano Venice Digital Receiver",
 		.type = SMS_VEGA,
+		.default_mode = DEVICE_MODE_CMMB,
+	},
+	[SMS1XXX_BOARD_SIANO_STELLAR_ROM] = {
+		.name = "Siano Stellar Digital Receiver ROM",
+		.type = SMS_STELLAR,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 1,
+	},
+	[SMS1XXX_BOARD_ZTE_DVB_DATA_CARD] = {
+		.name = "ZTE Data Card Digital Receiver",
+		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 5,
+		.mtu = 15792,
+	},
+	[SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD] = {
+		.name = "ONDA Data Card Digital Receiver",
+		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 6,
+		.mtu = 15792,
+	},
+	[SMS1XXX_BOARD_SIANO_MING] = {
+		.name = "Siano Ming Digital Receiver",
+		.type = SMS_MING,
+		.default_mode = DEVICE_MODE_CMMB,
+	},
+	[SMS1XXX_BOARD_SIANO_PELE] = {
+		.name = "Siano Pele Digital Receiver",
+		.type = SMS_PELE,
+		.default_mode = DEVICE_MODE_ISDBT_BDA,
+	},
+	[SMS1XXX_BOARD_SIANO_RIO] = {
+		.name = "Siano Rio Digital Receiver",
+		.type = SMS_RIO,
+		.default_mode = DEVICE_MODE_ISDBT_BDA,
+	},
+	[SMS1XXX_BOARD_SIANO_DENVER_1530] = {
+		.name = "Siano Denver (ATSC-M/H) Digital Receiver",
+		.type = SMS_DENVER_1530,
+		.default_mode = DEVICE_MODE_ATSC,
+		.crystal = 2400,
+	},
+	[SMS1XXX_BOARD_SIANO_DENVER_2160] = {
+		.name = "Siano Denver (TDMB) Digital Receiver",
+		.type = SMS_DENVER_2160,
+		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
 };
 
@@ -119,7 +177,8 @@ static inline void sms_gpio_assign_11xx_default_led_config(
 }
 
 int sms_board_event(struct smscore_device_t *coredev,
-		enum SMS_BOARD_EVENTS gevent) {
+		    enum SMS_BOARD_EVENTS gevent)
+{
 	struct smscore_config_gpio MyGpioConfig;
 
 	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
