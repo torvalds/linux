@@ -1924,79 +1924,6 @@ static int mlx4_en_set_features(struct net_device *netdev,
 
 }
 
-static int mlx4_en_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
-			   struct net_device *dev,
-			   const unsigned char *addr, u16 flags)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_dev *mdev = priv->mdev->dev;
-	int err;
-
-	if (!mlx4_is_mfunc(mdev))
-		return -EOPNOTSUPP;
-
-	/* Hardware does not support aging addresses, allow only
-	 * permanent addresses if ndm_state is given
-	 */
-	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
-		en_info(priv, "Add FDB only supports static addresses\n");
-		return -EINVAL;
-	}
-
-	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
-		err = dev_uc_add_excl(dev, addr);
-	else if (is_multicast_ether_addr(addr))
-		err = dev_mc_add_excl(dev, addr);
-	else
-		err = -EINVAL;
-
-	/* Only return duplicate errors if NLM_F_EXCL is set */
-	if (err == -EEXIST && !(flags & NLM_F_EXCL))
-		err = 0;
-
-	return err;
-}
-
-static int mlx4_en_fdb_del(struct ndmsg *ndm,
-			   struct nlattr *tb[],
-			   struct net_device *dev,
-			   const unsigned char *addr)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_dev *mdev = priv->mdev->dev;
-	int err;
-
-	if (!mlx4_is_mfunc(mdev))
-		return -EOPNOTSUPP;
-
-	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
-		en_info(priv, "Del FDB only supports static addresses\n");
-		return -EINVAL;
-	}
-
-	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
-		err = dev_uc_del(dev, addr);
-	else if (is_multicast_ether_addr(addr))
-		err = dev_mc_del(dev, addr);
-	else
-		err = -EINVAL;
-
-	return err;
-}
-
-static int mlx4_en_fdb_dump(struct sk_buff *skb,
-			    struct netlink_callback *cb,
-			    struct net_device *dev, int idx)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_dev *mdev = priv->mdev->dev;
-
-	if (mlx4_is_mfunc(mdev))
-		idx = ndo_dflt_fdb_dump(skb, cb, dev, idx);
-
-	return idx;
-}
-
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2018,9 +1945,6 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
-	.ndo_fdb_add		= mlx4_en_fdb_add,
-	.ndo_fdb_del		= mlx4_en_fdb_del,
-	.ndo_fdb_dump		= mlx4_en_fdb_dump,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
