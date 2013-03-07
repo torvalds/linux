@@ -220,12 +220,18 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, void(*setup)(struct sh_pfc_chip *))
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 {
 	struct sh_pfc_chip *chip;
+	int ret;
 
 	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
 	pfc->gpio = chip;
+
+	ret = gpiochip_add_pin_range(&chip->gpio_chip, dev_name(pfc->dev), 0, 0,
+				     chip->gpio_chip.ngpio);
+	if (ret < 0)
+		return ret;
 
 	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup);
 	if (IS_ERR(chip))

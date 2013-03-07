@@ -28,7 +28,6 @@
 struct sh_pfc_pinctrl {
 	struct pinctrl_dev *pctl;
 	struct pinctrl_desc pctl_desc;
-	struct pinctrl_gpio_range range;
 
 	struct sh_pfc *pfc;
 
@@ -376,14 +375,6 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl = pinctrl_register(&pmx->pctl_desc, pfc->dev, pmx);
 	if (IS_ERR(pmx->pctl))
 		return PTR_ERR(pmx->pctl);
-
-	pmx->range.name = DRV_NAME,
-	pmx->range.id = 0;
-	pmx->range.npins = pfc->info->nr_pins;
-	pmx->range.base = 0;
-	pmx->range.pin_base = 0;
-
-	pinctrl_add_gpio_range(pmx->pctl, &pmx->range);
 
 	return 0;
 }
