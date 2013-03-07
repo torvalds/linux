@@ -344,7 +344,7 @@ err:
 	return ret;
 }
 
-static int af9035_download_firmware_af9035(struct dvb_usb_device *d,
+static int af9035_download_firmware_old(struct dvb_usb_device *d,
 		const struct firmware *fw)
 {
 	int ret, i, j, len;
@@ -430,7 +430,7 @@ err:
 	return ret;
 }
 
-static int af9035_download_firmware_it9135(struct dvb_usb_device *d,
+static int af9035_download_firmware_new(struct dvb_usb_device *d,
 		const struct firmware *fw)
 {
 	int ret, i, i_prev;
@@ -540,10 +540,10 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 		}
 	}
 
-	if (state->chip_type == 0x9135)
-		ret = af9035_download_firmware_it9135(d, fw);
+	if (fw->data[0] == 0x01)
+		ret = af9035_download_firmware_old(d, fw);
 	else
-		ret = af9035_download_firmware_af9035(d, fw);
+		ret = af9035_download_firmware_new(d, fw);
 	if (ret < 0)
 		goto err;
 
