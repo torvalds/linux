@@ -14,7 +14,7 @@
 /* Base */
 #define OUT_TYPE		SCREEN_LVDS
 
-#define OUT_FORMAT      LVDS_8BIT_2
+#define LVDS_FORMAT      	LVDS_8BIT_2
 #define OUT_FACE		OUT_D888_P666  
 #define OUT_CLK			65000000
 #define LCDC_ACLK        500000000//312000000           //29 lcdc axi DMA ÆµÂÊ
@@ -248,7 +248,7 @@ void set_lcd_info(struct rk29fb_screen *screen,  struct rk29lcd_info *lcd_info )
 	/* screen type & face */
 	screen->type = OUT_TYPE;
 	screen->face = OUT_FACE;
-	screen->hw_format = OUT_FORMAT;
+	screen->hw_format = LVDS_FORMAT;
 
 	/* Screen size */
 	screen->x_res = H_VD;

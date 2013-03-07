@@ -22,8 +22,7 @@ config LCD_RGB_TFT480800_25_E
     bool "RGB TFT480800_25_E"
 config LCD_HSD100PXN
 	  bool "RGB Hannstar HSD100PXN(1024X768)"
-config LCD_HSD07PFW1
-	  bool "RGB Hannstar HSD07PFW1(1024X600)"
+
 config LCD_BYD8688FTGF
 	bool "RGB BYD 1024X600 8688FTGF"
 config LCD_B101AW06
@@ -94,6 +93,11 @@ config LCD_HDMI_1024x768
 	bool "RGB Hannstar LCD_HDMI_1024X768"
 	---help---
 	if support RK610, this setting can support dual screen output
+
+config LCD_HSD07PFW1
+        depends on MFD_RK610
+        bool "RGB Hannstar LCD_HDMI_1024X600"
+
 config LCD_HDMI_800x480
 	depends on MFD_RK610
 	bool "RGB Hannstar LCD_HDMI_800x480"

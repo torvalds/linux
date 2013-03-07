@@ -17,7 +17,7 @@
 /* Base */
 #ifdef CONFIG_RK610_LVDS
 #define OUT_TYPE	    	SCREEN_LVDS
-#define OUT_FORMAT      	LVDS_8BIT_2
+#define LVDS_FORMAT      	LVDS_8BIT_2
 #else
 #define OUT_TYPE	    SCREEN_RGB
 #endif
@@ -298,7 +298,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->face = OUT_FACE;
 	screen->type = OUT_TYPE;
 #ifdef CONFIG_RK610_LVDS
-	screen->hw_format = OUT_FORMAT;
+	screen->hw_format = LVDS_FORMAT;
 #endif
 	
 	/* Screen size */
