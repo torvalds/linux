@@ -146,14 +146,6 @@ static int it913x_init(struct dvb_frontend *fe)
 	u8 nv[] = {48, 32, 24, 16, 12, 8, 6, 4, 2};
 	u8 b[2];
 
-	/* v1 or v2 tuner script */
-	if (state->chip_ver > 1)
-		ret = it913x_script_loader(state, it9135_v2);
-	else
-		ret = it913x_script_loader(state, it9135_v1);
-	if (ret < 0)
-		return ret;
-
 	/* LNA Scripts */
 	switch (state->tuner_type) {
 	case AF9033_TUNER_IT9135_51:
