@@ -2836,8 +2836,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		name = "DPDDC-D";
 		break;
 	default:
-		WARN(1, "Invalid port %c\n", port_name(port));
-		break;
+		BUG();
 	}
 
 	if (is_edp(intel_dp))
