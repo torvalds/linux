@@ -277,6 +277,8 @@ static void dwc3_omap_disable_irqs(struct dwc3_omap *omap)
 	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, 0x00);
 }
 
+static u64 dwc3_omap_dma_mask = DMA_BIT_MASK(32);
+
 static int dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -330,6 +332,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	omap->dev	= dev;
 	omap->irq	= irq;
 	omap->base	= base;
+	dev->dma_mask	= &dwc3_omap_dma_mask;
 
 	/*
 	 * REVISIT if we ever have two instances of the wrapper, we will be
