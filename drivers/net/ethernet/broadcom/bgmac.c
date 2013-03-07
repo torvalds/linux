@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <bcm47xx_nvram.h>
@@ -1313,6 +1314,73 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
 };
 
 /**************************************************
+ * MII
+ **************************************************/
+
+static int bgmac_mii_read(struct mii_bus *bus, int mii_id, int regnum)
+{
+	return bgmac_phy_read(bus->priv, mii_id, regnum);
+}
+
+static int bgmac_mii_write(struct mii_bus *bus, int mii_id, int regnum,
+			   u16 value)
+{
+	return bgmac_phy_write(bus->priv, mii_id, regnum, value);
+}
+
+static int bgmac_mii_register(struct bgmac *bgmac)
+{
+	struct mii_bus *mii_bus;
+	int i, err = 0;
+
+	mii_bus = mdiobus_alloc();
+	if (!mii_bus)
+		return -ENOMEM;
+
+	mii_bus->name = "bgmac mii bus";
+	sprintf(mii_bus->id, "%s-%d-%d", "bgmac", bgmac->core->bus->num,
+		bgmac->core->core_unit);
+	mii_bus->priv = bgmac;
+	mii_bus->read = bgmac_mii_read;
+	mii_bus->write = bgmac_mii_write;
+	mii_bus->parent = &bgmac->core->dev;
+	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
+
+	mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
+	if (!mii_bus->irq) {
+		err = -ENOMEM;
+		goto err_free_bus;
+	}
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		mii_bus->irq[i] = PHY_POLL;
+
+	err = mdiobus_register(mii_bus);
+	if (err) {
+		bgmac_err(bgmac, "Registration of mii bus failed\n");
+		goto err_free_irq;
+	}
+
+	bgmac->mii_bus = mii_bus;
+
+	return err;
+
+err_free_irq:
+	kfree(mii_bus->irq);
+err_free_bus:
+	mdiobus_free(mii_bus);
+	return err;
+}
+
+static void bgmac_mii_unregister(struct bgmac *bgmac)
+{
+	struct mii_bus *mii_bus = bgmac->mii_bus;
+
+	mdiobus_unregister(mii_bus);
+	kfree(mii_bus->irq);
+	mdiobus_free(mii_bus);
+}
+
+/**************************************************
  * BCMA bus ops
  **************************************************/
 
@@ -1404,11 +1472,18 @@ static int bgmac_probe(struct bcma_device *core)
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
 		bgmac_warn(bgmac, "Support for ADMtek ethernet switch not implemented\n");
 
+	err = bgmac_mii_register(bgmac);
+	if (err) {
+		bgmac_err(bgmac, "Cannot register MDIO\n");
+		err = -ENOTSUPP;
+		goto err_dma_free;
+	}
+
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register net device\n");
 		err = -ENOTSUPP;
-		goto err_dma_free;
+		goto err_mii_unregister;
 	}
 
 	netif_carrier_off(net_dev);
@@ -1417,6 +1492,8 @@ static int bgmac_probe(struct bcma_device *core)
 
 	return 0;
 
+err_mii_unregister:
+	bgmac_mii_unregister(bgmac);
 err_dma_free:
 	bgmac_dma_free(bgmac);
 
@@ -1433,6 +1510,7 @@ static void bgmac_remove(struct bcma_device *core)
 
 	netif_napi_del(&bgmac->napi);
 	unregister_netdev(bgmac->net_dev);
+	bgmac_mii_unregister(bgmac);
 	bgmac_dma_free(bgmac);
 	bcma_set_drvdata(core, NULL);
 	free_netdev(bgmac->net_dev);
