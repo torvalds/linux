@@ -1010,6 +1010,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	const struct firmware *fw;
 
 	char *fw_filename = smscore_get_fw_filename(coredev, mode, lookup);
+	sms_debug("Firmware name: %s\n", fw_filename);
 	if (!strcmp(fw_filename, "none"))
 		return -ENOENT;
 
