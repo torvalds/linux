@@ -143,21 +143,12 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	u8 radio_cfg_type, radio_cfg_step, radio_cfg_dash;
 	u32 reg_val = 0;
 
-	/*
-	 * We can't upload the correct value to the INIT image
-	 * as we don't have nvm_data by that time.
-	 *
-	 * TODO: Figure out what we should do here
-	 */
-	if (mvm->nvm_data) {
-		radio_cfg_type = mvm->nvm_data->radio_cfg_type;
-		radio_cfg_step = mvm->nvm_data->radio_cfg_step;
-		radio_cfg_dash = mvm->nvm_data->radio_cfg_dash;
-	} else {
-		radio_cfg_type = 0;
-		radio_cfg_step = 0;
-		radio_cfg_dash = 0;
-	}
+	radio_cfg_type = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_TYPE) >>
+			  FW_PHY_CFG_RADIO_TYPE_POS;
+	radio_cfg_step = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_STEP) >>
+			  FW_PHY_CFG_RADIO_STEP_POS;
+	radio_cfg_dash = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_DASH) >>
+			  FW_PHY_CFG_RADIO_DASH_POS;
 
 	/* SKU control */
 	reg_val |= CSR_HW_REV_STEP(mvm->trans->hw_rev) <<
@@ -175,7 +166,6 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 
 	/* silicon bits */
 	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
-	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_MAC_SI;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
