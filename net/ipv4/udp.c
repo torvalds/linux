@@ -2272,21 +2272,81 @@ void __init udp_init(void)
 
 int udp4_ufo_send_check(struct sk_buff *skb)
 {
-	const struct iphdr *iph;
-	struct udphdr *uh;
-
-	if (!pskb_may_pull(skb, sizeof(*uh)))
+	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		return -EINVAL;
 
-	iph = ip_hdr(skb);
-	uh = udp_hdr(skb);
+	if (likely(!skb->encapsulation)) {
+		const struct iphdr *iph;
+		struct udphdr *uh;
 
-	uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, skb->len,
-				       IPPROTO_UDP, 0);
-	skb->csum_start = skb_transport_header(skb) - skb->head;
-	skb->csum_offset = offsetof(struct udphdr, check);
-	skb->ip_summed = CHECKSUM_PARTIAL;
+		iph = ip_hdr(skb);
+		uh = udp_hdr(skb);
+
+		uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, skb->len,
+				IPPROTO_UDP, 0);
+		skb->csum_start = skb_transport_header(skb) - skb->head;
+		skb->csum_offset = offsetof(struct udphdr, check);
+		skb->ip_summed = CHECKSUM_PARTIAL;
+	}
 	return 0;
+}
+
+static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
+		netdev_features_t features)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	int mac_len = skb->mac_len;
+	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
+	int outer_hlen;
+	netdev_features_t enc_features;
+
+	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
+		goto out;
+
+	skb->encapsulation = 0;
+	__skb_pull(skb, tnl_hlen);
+	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, skb_inner_network_offset(skb));
+	skb->mac_len = skb_inner_network_offset(skb);
+
+	/* segment inner packet. */
+	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
+	segs = skb_mac_gso_segment(skb, enc_features);
+	if (!segs || IS_ERR(segs))
+		goto out;
+
+	outer_hlen = skb_tnl_header_len(skb);
+	skb = segs;
+	do {
+		struct udphdr *uh;
+		int udp_offset = outer_hlen - tnl_hlen;
+
+		skb->mac_len = mac_len;
+
+		skb_push(skb, outer_hlen);
+		skb_reset_mac_header(skb);
+		skb_set_network_header(skb, mac_len);
+		skb_set_transport_header(skb, udp_offset);
+		uh = udp_hdr(skb);
+		uh->len = htons(skb->len - udp_offset);
+
+		/* csum segment if tunnel sets skb with csum. */
+		if (unlikely(uh->check)) {
+			struct iphdr *iph = ip_hdr(skb);
+
+			uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+						       skb->len - udp_offset,
+						       IPPROTO_UDP, 0);
+			uh->check = csum_fold(skb_checksum(skb, udp_offset,
+							   skb->len - udp_offset, 0));
+			if (uh->check == 0)
+				uh->check = CSUM_MANGLED_0;
+
+		}
+		skb->ip_summed = CHECKSUM_NONE;
+	} while ((skb = skb->next));
+out:
+	return segs;
 }
 
 struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
@@ -2294,9 +2354,6 @@ struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	unsigned int mss;
-	int offset;
-	__wsum csum;
-
 	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
 		goto out;
@@ -2306,6 +2363,7 @@ struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		int type = skb_shinfo(skb)->gso_type;
 
 		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY |
+				      SKB_GSO_UDP_TUNNEL |
 				      SKB_GSO_GRE) ||
 			     !(type & (SKB_GSO_UDP))))
 			goto out;
@@ -2316,20 +2374,27 @@ struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		goto out;
 	}
 
-	/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
-	 * do checksum of UDP packets sent as multiple IP fragments.
-	 */
-	offset = skb_checksum_start_offset(skb);
-	csum = skb_checksum(skb, offset, skb->len - offset, 0);
-	offset += skb->csum_offset;
-	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
-	skb->ip_summed = CHECKSUM_NONE;
-
 	/* Fragment the skb. IP headers of the fragments are updated in
 	 * inet_gso_segment()
 	 */
-	segs = skb_segment(skb, features);
+	if (skb->encapsulation && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL)
+		segs = skb_udp_tunnel_segment(skb, features);
+	else {
+		int offset;
+		__wsum csum;
+
+		/* Do software UFO. Complete and fill in the UDP checksum as
+		 * HW cannot do checksum of UDP packets sent as multiple
+		 * IP fragments.
+		 */
+		offset = skb_checksum_start_offset(skb);
+		csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		offset += skb->csum_offset;
+		*(__sum16 *)(skb->data + offset) = csum_fold(csum);
+		skb->ip_summed = CHECKSUM_NONE;
+
+		segs = skb_segment(skb, features);
+	}
 out:
 	return segs;
 }
-

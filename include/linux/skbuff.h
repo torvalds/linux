@@ -316,6 +316,8 @@ enum {
 	SKB_GSO_FCOE = 1 << 5,
 
 	SKB_GSO_GRE = 1 << 6,
+
+	SKB_GSO_UDP_TUNNEL = 1 << 7,
 };
 
 #if BITS_PER_LONG > 32

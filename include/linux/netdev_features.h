@@ -42,9 +42,9 @@ enum {
 	NETIF_F_TSO6_BIT,		/* ... TCPv6 segmentation */
 	NETIF_F_FSO_BIT,		/* ... FCoE segmentation */
 	NETIF_F_GSO_GRE_BIT,		/* ... GRE with TSO */
-	/**/NETIF_F_GSO_LAST,		/* [can't be last bit, see GSO_MASK] */
-	NETIF_F_GSO_RESERVED2		/* ... free (fill GSO_MASK to 8 bits) */
-		= NETIF_F_GSO_LAST,
+	NETIF_F_GSO_UDP_TUNNEL_BIT,	/* ... UDP TUNNEL with TSO */
+	/**/NETIF_F_GSO_LAST =		/* last bit, see GSO_MASK */
+		NETIF_F_GSO_UDP_TUNNEL_BIT,
 
 	NETIF_F_FCOE_CRC_BIT,		/* FCoE CRC32 */
 	NETIF_F_SCTP_CSUM_BIT,		/* SCTP checksum offload */
@@ -103,6 +103,7 @@ enum {
 #define NETIF_F_RXFCS		__NETIF_F(RXFCS)
 #define NETIF_F_RXALL		__NETIF_F(RXALL)
 #define NETIF_F_GRE_GSO		__NETIF_F(GSO_GRE)
+#define NETIF_F_UDP_TUNNEL	__NETIF_F(UDP_TUNNEL)
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */
