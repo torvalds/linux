@@ -240,7 +240,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
-#ifdef CONFIG_USB_OTG_UTILS
+#if IS_ENABLED(CONFIG_USB_PHY)
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 		if (IS_ERR_OR_NULL(ehci_mv->otg)) {
 			dev_err(&pdev->dev,
@@ -260,7 +260,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		mv_ehci_disable(ehci_mv);
 #else
 		dev_info(&pdev->dev, "MV_USB_MODE_OTG "
-			 "must have CONFIG_USB_OTG_UTILS enabled\n");
+			 "must have CONFIG_USB_PHY enabled\n");
 		goto err_disable_clk;
 #endif
 	} else {
