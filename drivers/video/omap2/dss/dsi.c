@@ -4611,7 +4611,7 @@ static int dsi_configure_dispc_clocks(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dispc_clock_info dispc_cinfo;
 	int r;
-	unsigned long long fck;
+	unsigned long fck;
 
 	fck = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 
