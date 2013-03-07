@@ -3223,7 +3223,9 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		 */
 		if (!nested_vmx_allowed(vcpu))
 			return 1;
-	} else if (to_vmx(vcpu)->nested.vmxon)
+	}
+	if (to_vmx(vcpu)->nested.vmxon &&
+	    ((cr4 & VMXON_CR4_ALWAYSON) != VMXON_CR4_ALWAYSON))
 		return 1;
 
 	vcpu->arch.cr4 = cr4;
@@ -4612,34 +4614,50 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 /* called to set cr0 as appropriate for a mov-to-cr0 exit. */
 static int handle_set_cr0(struct kvm_vcpu *vcpu, unsigned long val)
 {
-	if (to_vmx(vcpu)->nested.vmxon &&
-	    ((val & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON))
-		return 1;
-
 	if (is_guest_mode(vcpu)) {
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		unsigned long orig_val = val;
+
 		/*
 		 * We get here when L2 changed cr0 in a way that did not change
 		 * any of L1's shadowed bits (see nested_vmx_exit_handled_cr),
-		 * but did change L0 shadowed bits. This can currently happen
-		 * with the TS bit: L0 may want to leave TS on (for lazy fpu
-		 * loading) while pretending to allow the guest to change it.
+		 * but did change L0 shadowed bits. So we first calculate the
+		 * effective cr0 value that L1 would like to write into the
+		 * hardware. It consists of the L2-owned bits from the new
+		 * value combined with the L1-owned bits from L1's guest_cr0.
 		 */
-		if (kvm_set_cr0(vcpu, (val & vcpu->arch.cr0_guest_owned_bits) |
-			 (vcpu->arch.cr0 & ~vcpu->arch.cr0_guest_owned_bits)))
+		val = (val & ~vmcs12->cr0_guest_host_mask) |
+			(vmcs12->guest_cr0 & vmcs12->cr0_guest_host_mask);
+
+		/* TODO: will have to take unrestricted guest mode into
+		 * account */
+		if ((val & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON)
 			return 1;
-		vmcs_writel(CR0_READ_SHADOW, val);
+
+		if (kvm_set_cr0(vcpu, val))
+			return 1;
+		vmcs_writel(CR0_READ_SHADOW, orig_val);
 		return 0;
-	} else
+	} else {
+		if (to_vmx(vcpu)->nested.vmxon &&
+		    ((val & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON))
+			return 1;
 		return kvm_set_cr0(vcpu, val);
+	}
 }
 
 static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	if (is_guest_mode(vcpu)) {
-		if (kvm_set_cr4(vcpu, (val & vcpu->arch.cr4_guest_owned_bits) |
-			 (vcpu->arch.cr4 & ~vcpu->arch.cr4_guest_owned_bits)))
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		unsigned long orig_val = val;
+
+		/* analogously to handle_set_cr0 */
+		val = (val & ~vmcs12->cr4_guest_host_mask) |
+			(vmcs12->guest_cr4 & vmcs12->cr4_guest_host_mask);
+		if (kvm_set_cr4(vcpu, val))
 			return 1;
-		vmcs_writel(CR4_READ_SHADOW, val);
+		vmcs_writel(CR4_READ_SHADOW, orig_val);
 		return 0;
 	} else
 		return kvm_set_cr4(vcpu, val);
