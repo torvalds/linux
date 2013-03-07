@@ -1227,7 +1227,7 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	return rc;
 }
 
-int vidioc_g_chip_ident(struct file *file, void *fh,
+int cx231xx_g_chip_ident(struct file *file, void *fh,
 			struct v4l2_dbg_chip_ident *chip)
 {
 	chip->ident = V4L2_IDENT_NONE;
