@@ -19,6 +19,9 @@
 #define B43_PHY_HT_IQLOCAL_CMDGCTL		0x0C2	/* I/Q LO cal command G control */
 #define B43_PHY_HT_SAMP_CMD			0x0C3	/* Sample command */
 #define  B43_PHY_HT_SAMP_CMD_STOP		0x0002	/* Stop */
+#define B43_PHY_HT_SAMP_LOOP_CNT		0x0C4	/* Sample loop count */
+#define B43_PHY_HT_SAMP_WAIT_CNT		0x0C5	/* Sample wait count */
+#define B43_PHY_HT_SAMP_DEP_CNT			0x0C6	/* Sample depth count */
 #define B43_PHY_HT_SAMP_STAT			0x0C7	/* Sample status */
 #define B43_PHY_HT_BW1				0x1CE
 #define B43_PHY_HT_BW2				0x1CF
@@ -39,6 +42,8 @@
 #define B43_PHY_HT_C3_CLIP1THRES		B43_PHY_OFDM(0x08E)
 
 #define B43_PHY_HT_RF_SEQ_MODE			B43_PHY_EXTG(0x000)
+#define  B43_PHY_HT_RF_SEQ_MODE_CA_OVER		0x0001	/* Core active override */
+#define  B43_PHY_HT_RF_SEQ_MODE_TR_OVER		0x0002	/* Trigger override */
 #define B43_PHY_HT_RF_SEQ_TRIG			B43_PHY_EXTG(0x003)
 #define  B43_PHY_HT_RF_SEQ_TRIG_RX2TX		0x0001 /* RX2TX */
 #define  B43_PHY_HT_RF_SEQ_TRIG_TX2RX		0x0002 /* TX2RX */

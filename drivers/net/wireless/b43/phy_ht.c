@@ -321,6 +321,70 @@ static void b43_phy_ht_stop_playback(struct b43_wldev *dev)
 		}
 	}
 }
+
+static u16 b43_phy_ht_load_samples(struct b43_wldev *dev)
+{
+	int i;
+	u16 len = 20 << 3;
+
+	b43_phy_write(dev, B43_PHY_HT_TABLE_ADDR, 0x4400);
+
+	for (i = 0; i < len; i++) {
+		b43_phy_write(dev, B43_PHY_HT_TABLE_DATAHI, 0);
+		b43_phy_write(dev, B43_PHY_HT_TABLE_DATALO, 0);
+	}
+
+	return len;
+}
+
+static void b43_phy_ht_run_samples(struct b43_wldev *dev, u16 samps, u16 loops,
+				   u16 wait)
+{
+	struct b43_phy_ht *phy_ht = dev->phy.ht;
+	u16 save_seq_mode;
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		if (phy_ht->bb_mult_save[i] < 0)
+			phy_ht->bb_mult_save[i] = b43_httab_read(dev, B43_HTTAB16(13, 0x63 + i * 4));
+	}
+
+	b43_phy_write(dev, B43_PHY_HT_SAMP_DEP_CNT, samps - 1);
+	if (loops != 0xFFFF)
+		loops--;
+	b43_phy_write(dev, B43_PHY_HT_SAMP_LOOP_CNT, loops);
+	b43_phy_write(dev, B43_PHY_HT_SAMP_WAIT_CNT, wait);
+
+	save_seq_mode = b43_phy_read(dev, B43_PHY_HT_RF_SEQ_MODE);
+	b43_phy_set(dev, B43_PHY_HT_RF_SEQ_MODE,
+		    B43_PHY_HT_RF_SEQ_MODE_CA_OVER);
+
+	/* TODO: find out mask bits! Do we need more function arguments? */
+	b43_phy_mask(dev, B43_PHY_HT_SAMP_CMD, ~0);
+	b43_phy_mask(dev, B43_PHY_HT_SAMP_CMD, ~0);
+	b43_phy_mask(dev, B43_PHY_HT_IQLOCAL_CMDGCTL, ~0);
+	b43_phy_set(dev, B43_PHY_HT_SAMP_CMD, 0x1);
+
+	for (i = 0; i < 100; i++) {
+		if (!(b43_phy_read(dev, B43_PHY_HT_RF_SEQ_STATUS) & 1)) {
+			i = 0;
+			break;
+		}
+		udelay(10);
+	}
+	if (i)
+		b43err(dev->wl, "run samples timeout\n");
+
+	b43_phy_write(dev, B43_PHY_HT_RF_SEQ_MODE, save_seq_mode);
+}
+
+static void b43_phy_ht_tx_tone(struct b43_wldev *dev)
+{
+	u16 samp;
+
+	samp = b43_phy_ht_load_samples(dev);
+	b43_phy_ht_run_samples(dev, samp, 0xFFFF, 0);
+}
 #endif
 
 /**************************************************
@@ -391,7 +455,12 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 {
 	/* TODO */
+
+	b43_phy_ht_tx_tone(dev);
+	udelay(20);
+	/* TODO: poll RSSI */
 	b43_phy_ht_stop_playback(dev);
+
 	/* TODO */
 }
 #endif
