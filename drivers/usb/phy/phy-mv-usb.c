@@ -27,7 +27,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_data/mv_usb.h>
 
-#include "mv_otg.h"
+#include "phy-mv-usb.h"
 
 #define	DRIVER_DESC	"Marvell USB OTG transceiver driver"
 #define	DRIVER_VERSION	"Jan 20, 2010"

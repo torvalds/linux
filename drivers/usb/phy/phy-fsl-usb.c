@@ -43,7 +43,7 @@
 
 #include <asm/unaligned.h>
 
-#include "fsl_otg.h"
+#include "phy-fsl-usb.h"
 
 #define DRIVER_VERSION "Rev. 1.55"
 #define DRIVER_AUTHOR "Jerry Huang/Li Yang"
