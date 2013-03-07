@@ -132,6 +132,7 @@ static int gpio_wakeup_hdle = 0;
 static int gpio_reset_hdle = 0;
 static int gpio_wakeup_enable = 1;
 static int gpio_reset_enable = 1;
+static int gpio_power_hdle;
 static user_gpio_set_t gpio_int_info[1];
 
 static int screen_max_x = 0;
@@ -319,7 +320,8 @@ static void ctp_free_platform_resource(void)
 	if(gpio_reset_hdle){
 		gpio_release(gpio_reset_hdle, 2);
 	}
-
+	if (gpio_power_hdle)
+		gpio_release(gpio_power_hdle, 2);
 	return;
 }
 
@@ -352,7 +354,18 @@ static int ctp_init_platform_resource(void)
 		pr_warning("%s: tp_reset request gpio fail!\n", __func__);
 		gpio_reset_enable = 0;
 	}
-
+	/* On some tables (for example: Explay informer 801) ts powered over*/
+	/* MOSFET switch, with gate connected to GPIO pin. */
+	gpio_power_hdle = gpio_request_ex("ctp_para", "ctp_power_port");
+	if (!gpio_power_hdle)
+		pr_info("%s: No power port feature present.\n", __func__);
+	else {
+		ret = gpio_write_one_pin_value(gpio_power_hdle, 1, "ctp_power_port");
+		if (ret != EGPIO_SUCCESS)
+			pr_info("%s: ctp_power_port gpio set error.\n", __func__);
+		else
+			pr_info("%s: power port enabled\n", __func__);
+	}
 	return ret;
 
 exit_ioremap_failed:
@@ -1605,17 +1618,26 @@ static void ft5x_ts_suspend(struct early_suspend *handler)
     //suspend
     //gpio_write_one_pin_value(gpio_wakeup_hdle, 0, "ctp_wakeup");
     // ==set mode ==,
-    pr_info("ft5x_ts_suspend: write FT5X0X_REG_PMODE .\n");
-    ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
+/*if device support power port feature simply poweroff ts chip */
+	if (gpio_power_hdle) {
+		pr_info("ft5x_ts_suspend: poweroff ts.\n");
+		gpio_write_one_pin_value(gpio_power_hdle, 0, "ctp_power_port");
+	} else {
+		pr_info("ft5x_ts_suspend: write FT5X0X_REG_PMODE.\n");
+		ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
+	}
 }
 
 static void ft5x_ts_resume(struct early_suspend *handler)
 {
-	pr_info("==ft5x_ts_resume== \n");
-	//reset
-	ctp_ops.ts_reset();
-	//wakeup
-	ctp_ops.ts_wakeup();
+	pr_info("==ft5x_ts_resume==\n");
+	if (gpio_power_hdle) {
+		gpio_write_one_pin_value(gpio_power_hdle, 1, "ctp_power_port");
+		mdelay(48);
+	} else {
+		ctp_ops.ts_reset();
+		ctp_ops.ts_wakeup();
+	}
 }
 #endif  //CONFIG_HAS_EARLYSUSPEND
 
