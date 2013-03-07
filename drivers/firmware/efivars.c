@@ -170,6 +170,7 @@ efivar_create_sysfs_entry(struct efivars *efivars,
 
 static void efivar_update_sysfs_entries(struct work_struct *);
 static DECLARE_WORK(efivar_work, efivar_update_sysfs_entries);
+static bool efivar_wq_enabled = true;
 
 /* Return the number of unicode characters in data */
 static unsigned long
@@ -1444,7 +1445,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 
 	spin_unlock_irqrestore(&efivars->lock, flags);
 
-	if (reason == KMSG_DUMP_OOPS)
+	if (reason == KMSG_DUMP_OOPS && efivar_wq_enabled)
 		schedule_work(&efivar_work);
 
 	*id = part;
@@ -1975,6 +1976,35 @@ void unregister_efivars(struct efivars *efivars)
 }
 EXPORT_SYMBOL_GPL(unregister_efivars);
 
+/*
+ * Print a warning when duplicate EFI variables are encountered and
+ * disable the sysfs workqueue since the firmware is buggy.
+ */
+static void dup_variable_bug(efi_char16_t *s16, efi_guid_t *vendor_guid,
+			     unsigned long len16)
+{
+	size_t i, len8 = len16 / sizeof(efi_char16_t);
+	char *s8;
+
+	/*
+	 * Disable the workqueue since the algorithm it uses for
+	 * detecting new variables won't work with this buggy
+	 * implementation of GetNextVariableName().
+	 */
+	efivar_wq_enabled = false;
+
+	s8 = kzalloc(len8, GFP_KERNEL);
+	if (!s8)
+		return;
+
+	for (i = 0; i < len8; i++)
+		s8[i] = s16[i];
+
+	printk(KERN_WARNING "efivars: duplicate variable: %s-%pUl\n",
+	       s8, vendor_guid);
+	kfree(s8);
+}
+
 int register_efivars(struct efivars *efivars,
 		     const struct efivar_operations *ops,
 		     struct kobject *parent_kobj)
@@ -2025,6 +2055,22 @@ int register_efivars(struct efivars *efivars,
 		case EFI_SUCCESS:
 			variable_name_size = var_name_strnsize(variable_name,
 							       variable_name_size);
+
+			/*
+			 * Some firmware implementations return the
+			 * same variable name on multiple calls to
+			 * get_next_variable(). Terminate the loop
+			 * immediately as there is no guarantee that
+			 * we'll ever see a different variable name,
+			 * and may end up looping here forever.
+			 */
+			if (variable_is_present(variable_name, &vendor_guid)) {
+				dup_variable_bug(variable_name, &vendor_guid,
+						 variable_name_size);
+				status = EFI_NOT_FOUND;
+				break;
+			}
+
 			efivar_create_sysfs_entry(efivars,
 						  variable_name_size,
 						  variable_name,
