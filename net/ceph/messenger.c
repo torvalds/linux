@@ -809,11 +809,10 @@ static void prepare_write_message(struct ceph_connection *con)
 		m->bio_iter = NULL;
 #endif
 
-	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
+	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d (%zd)\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
 	     le32_to_cpu(m->hdr.front_len), le32_to_cpu(m->hdr.middle_len),
-	     le32_to_cpu(m->hdr.data_len),
-	     m->page_count);
+	     le32_to_cpu(m->hdr.data_len), m->length);
 	BUG_ON(le32_to_cpu(m->hdr.front_len) != m->front.iov_len);
 
 	/* tag + hdr + front + middle */
@@ -1091,9 +1090,8 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	const size_t trail_len = (msg->trail ? msg->trail->length : 0);
 	const size_t trail_off = data_len - trail_len;
 
-	dout("write_partial_msg_pages %p msg %p page %d/%d offset %d\n",
-	     con, msg, con->out_msg_pos.page, msg->page_count,
-	     con->out_msg_pos.page_pos);
+	dout("write_partial_msg_pages %p msg %p page %d offset %d\n",
+	     con, msg, con->out_msg_pos.page, con->out_msg_pos.page_pos);
 
 	/*
 	 * Iterate through each page that contains data to be
@@ -2695,10 +2693,10 @@ void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 	/* BUG_ON(!pages); */
 	/* BUG_ON(!length); */
 	/* BUG_ON(msg->pages); */
-	/* BUG_ON(msg->page_count); */
+	/* BUG_ON(msg->length); */
 
 	msg->pages = pages;
-	msg->page_count = calc_pages_for((u64)alignment, (u64)length);
+	msg->length = length;
 	msg->page_alignment = alignment & ~PAGE_MASK;
 }
 EXPORT_SYMBOL(ceph_msg_data_set_pages);
@@ -2906,7 +2904,7 @@ void ceph_msg_last_put(struct kref *kref)
 		ceph_buffer_put(m->middle);
 		m->middle = NULL;
 	}
-	m->page_count = 0;
+	m->length = 0;
 	m->pages = NULL;
 
 	if (m->pagelist) {
@@ -2926,8 +2924,8 @@ EXPORT_SYMBOL(ceph_msg_last_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
-	pr_debug("msg_dump %p (front_max %d page_count %d)\n", msg,
-		 msg->front_max, msg->page_count);
+	pr_debug("msg_dump %p (front_max %d length %zd)\n", msg,
+		 msg->front_max, msg->length);
 	print_hex_dump(KERN_DEBUG, "header: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       &msg->hdr, sizeof(msg->hdr), true);

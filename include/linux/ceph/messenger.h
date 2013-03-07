@@ -77,7 +77,7 @@ struct ceph_msg {
 
 	struct page **pages;		/* data payload.  NOT OWNER. */
 	unsigned int page_alignment;	/* io offset in first page */
-	unsigned int page_count;	/* # pages in array or list */
+	size_t length;			/* # data bytes in array or list */
 	struct ceph_pagelist *pagelist; /* instead of pages */
 #ifdef CONFIG_BLOCK
 	unsigned int bio_seg;		/* current bio segment */
