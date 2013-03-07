@@ -449,7 +449,7 @@ static void rp_do_transmit(struct r_port *info)
 
 	/*  Loop sending data to FIFO until done or FIFO full */
 	while (1) {
-		if (tty->stopped || tty->hw_stopped)
+		if (tty->stopped)
 			break;
 		c = min(info->xmit_fifo_room, info->xmit_cnt);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_tail);
@@ -1106,15 +1106,12 @@ static void rp_set_termios(struct tty_struct *tty,
 
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (tty->termios.c_cflag & CBAUD)) {
-		if (!tty->hw_stopped || !(tty->termios.c_cflag & CRTSCTS))
-			sSetRTS(cp);
+		sSetRTS(cp);
 		sSetDTR(cp);
 	}
 
-	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS))
 		rp_start(tty);
-	}
 }
 
 static int rp_break(struct tty_struct *tty, int break_state)
@@ -1570,10 +1567,10 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 	spin_lock_irqsave(&info->slock, flags);
 	cp = &info->channel;
 
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_fifo_room == 0)
+	if (!tty->stopped && info->xmit_fifo_room == 0)
 		info->xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 
-	if (tty->stopped || tty->hw_stopped || info->xmit_fifo_room == 0 || info->xmit_cnt != 0) {
+	if (tty->stopped || info->xmit_fifo_room == 0 || info->xmit_cnt != 0) {
 		info->xmit_buf[info->xmit_head++] = ch;
 		info->xmit_head &= XMIT_BUF_SIZE - 1;
 		info->xmit_cnt++;
@@ -1614,14 +1611,14 @@ static int rp_write(struct tty_struct *tty,
 #endif
 	cp = &info->channel;
 
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_fifo_room < count)
+	if (!tty->stopped && info->xmit_fifo_room < count)
 		info->xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 
         /*
 	 *  If the write queue for the port is empty, and there is FIFO space, stuff bytes 
 	 *  into FIFO.  Use the write queue for temp storage.
          */
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_cnt == 0 && info->xmit_fifo_room > 0) {
+	if (!tty->stopped && info->xmit_cnt == 0 && info->xmit_fifo_room > 0) {
 		c = min(count, info->xmit_fifo_room);
 		b = buf;
 
@@ -1669,7 +1666,7 @@ static int rp_write(struct tty_struct *tty,
 		retval += c;
 	}
 
-	if ((retval > 0) && !tty->stopped && !tty->hw_stopped)
+	if ((retval > 0) && !tty->stopped)
 		set_bit((info->aiop * 8) + info->chan, (void *) &xmit_flags[info->board]);
 	
 end:

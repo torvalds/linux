@@ -2534,8 +2534,7 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
 	}
 	/* Normal char-by-char interrupt */
 	if (info->xmit.head == info->xmit.tail
-	    || info->port.tty->stopped
-	    || info->port.tty->hw_stopped) {
+	    || info->port.tty->stopped) {
 		DFLOW(DEBUG_LOG(info->line, "tx_int: stopped %i\n",
 				info->port.tty->stopped));
 		e100_disable_serial_tx_ready_irq(info);
@@ -3098,7 +3097,6 @@ rs_flush_chars(struct tty_struct *tty)
 	if (info->tr_running ||
 	    info->xmit.head == info->xmit.tail ||
 	    tty->stopped ||
-	    tty->hw_stopped ||
 	    !info->xmit.buf)
 		return;
 
@@ -3176,7 +3174,6 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	if (info->xmit.head != info->xmit.tail &&
 	    !tty->stopped &&
-	    !tty->hw_stopped &&
 	    !info->tr_running) {
 		start_transmit(info);
 	}
@@ -3733,10 +3730,8 @@ rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	    !(tty->termios.c_cflag & CRTSCTS))
 		rs_start(tty);
-	}
 
 }
 
@@ -4256,9 +4251,6 @@ static void seq_line_info(struct seq_file *m, struct e100_serial *info)
 		if (info->port.tty->stopped)
 			seq_printf(m, " stopped:%i",
 				   (int)info->port.tty->stopped);
-		if (info->port.tty->hw_stopped)
-			seq_printf(m, " hw_stopped:%i",
-				   (int)info->port.tty->hw_stopped);
 	}
 
 	{
