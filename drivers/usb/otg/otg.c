@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/usb/otg.h>
 
-const char *otg_state_string(enum usb_otg_state state)
+const char *usb_otg_state_string(enum usb_otg_state state)
 {
 	switch (state) {
 	case OTG_STATE_A_IDLE:
@@ -44,4 +44,4 @@ const char *otg_state_string(enum usb_otg_state state)
 		return "UNDEFINED";
 	}
 }
-EXPORT_SYMBOL(otg_state_string);
+EXPORT_SYMBOL(usb_otg_state_string);

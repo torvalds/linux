@@ -119,7 +119,7 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 	state_changed = 1;
 	if (fsm->otg->phy->state == new_state)
 		return 0;
-	VDBG("Set state: %s\n", otg_state_string(new_state));
+	VDBG("Set state: %s\n", usb_otg_state_string(new_state));
 	otg_leave_state(fsm, fsm->otg->phy->state);
 	switch (new_state) {
 	case OTG_STATE_B_IDLE:

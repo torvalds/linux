@@ -95,7 +95,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 			break;
 		default:
 			dev_dbg(musb->controller, "bogus rh suspend? %s\n",
-				otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->state));
 		}
 	} else if (power & MUSB_POWER_SUSPENDM) {
 		power &= ~MUSB_POWER_SUSPENDM;
@@ -203,7 +203,7 @@ void musb_root_disconnect(struct musb *musb)
 		break;
 	default:
 		dev_dbg(musb->controller, "host disconnect (%s)\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 	}
 }
 

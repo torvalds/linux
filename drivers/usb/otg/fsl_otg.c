@@ -992,7 +992,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 	/* State */
 	t = scnprintf(next, size,
 		      "OTG state: %s\n\n",
-		      otg_state_string(fsl_otg_dev->phy.state));
+		      usb_otg_state_string(fsl_otg_dev->phy.state));
 	size -= t;
 	next += t;
 
