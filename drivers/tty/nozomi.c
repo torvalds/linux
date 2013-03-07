@@ -1501,12 +1501,9 @@ static void tty_exit(struct nozomi *dc)
 
 	DBG1(" ");
 
-	for (i = 0; i < MAX_PORT; ++i) {
-		struct tty_struct *tty = tty_port_tty_get(&dc->port[i].port);
-		if (tty && list_empty(&tty->hangup_work.entry))
-			tty_hangup(tty);
-		tty_kref_put(tty);
-	}
+	for (i = 0; i < MAX_PORT; ++i)
+		tty_port_tty_hangup(&dc->port[i].port, false);
+
 	/* Racy below - surely should wait for scheduled work to be done or
 	   complete off a hangup method ? */
 	while (dc->open_ttys)

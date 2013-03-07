@@ -292,7 +292,6 @@ static void acm_ctrl_irq(struct urb *urb)
 {
 	struct acm *acm = urb->context;
 	struct usb_cdc_notification *dr = urb->transfer_buffer;
-	struct tty_struct *tty;
 	unsigned char *data;
 	int newctrl;
 	int retval;
@@ -327,17 +326,12 @@ static void acm_ctrl_irq(struct urb *urb)
 		break;
 
 	case USB_CDC_NOTIFY_SERIAL_STATE:
-		tty = tty_port_tty_get(&acm->port);
 		newctrl = get_unaligned_le16(data);
 
-		if (tty) {
-			if (!acm->clocal &&
-				(acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
-				dev_dbg(&acm->control->dev,
-					"%s - calling hangup\n", __func__);
-				tty_hangup(tty);
-			}
-			tty_kref_put(tty);
+		if (!acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
+			dev_dbg(&acm->control->dev, "%s - calling hangup\n",
+					__func__);
+			tty_port_tty_hangup(&acm->port, false);
 		}
 
 		acm->ctrlin = newctrl;
@@ -1498,15 +1492,9 @@ err_out:
 static int acm_reset_resume(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
-	struct tty_struct *tty;
 
-	if (test_bit(ASYNCB_INITIALIZED, &acm->port.flags)) {
-		tty = tty_port_tty_get(&acm->port);
-		if (tty) {
-			tty_hangup(tty);
-			tty_kref_put(tty);
-		}
-	}
+	if (test_bit(ASYNCB_INITIALIZED, &acm->port.flags))
+		tty_port_tty_hangup(&acm->port, false);
 
 	return acm_resume(intf);
 }

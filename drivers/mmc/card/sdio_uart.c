@@ -134,7 +134,6 @@ static void sdio_uart_port_put(struct sdio_uart_port *port)
 static void sdio_uart_port_remove(struct sdio_uart_port *port)
 {
 	struct sdio_func *func;
-	struct tty_struct *tty;
 
 	BUG_ON(sdio_uart_table[port->index] != port);
 
@@ -155,12 +154,8 @@ static void sdio_uart_port_remove(struct sdio_uart_port *port)
 	sdio_claim_host(func);
 	port->func = NULL;
 	mutex_unlock(&port->func_lock);
-	tty = tty_port_tty_get(&port->port);
 	/* tty_hangup is async so is this safe as is ?? */
-	if (tty) {
-		tty_hangup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_hangup(&port->port, false);
 	mutex_unlock(&port->port.mutex);
 	sdio_release_irq(func);
 	sdio_disable_func(func);
@@ -492,11 +487,7 @@ static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 			wake_up_interruptible(&port->port.open_wait);
 		else {
 			/* DCD drop - hang up if tty attached */
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&port->port, false);
 		}
 	}
 	if (status & UART_MSR_DCTS) {

@@ -270,23 +270,6 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
 }
 
 /**
- *	ifx_spi_hangup		-	hang up an IFX device
- *	@ifx_dev: our SPI device
- *
- *	Hang up the tty attached to the IFX device if one is currently
- *	open. If not take no action
- */
-static void ifx_spi_ttyhangup(struct ifx_spi_device *ifx_dev)
-{
-	struct tty_port *pport = &ifx_dev->tty_port;
-	struct tty_struct *tty = tty_port_tty_get(pport);
-	if (tty) {
-		tty_hangup(tty);
-		tty_kref_put(tty);
-	}
-}
-
-/**
  *	ifx_spi_timeout		-	SPI timeout
  *	@arg: our SPI device
  *
@@ -298,7 +281,7 @@ static void ifx_spi_timeout(unsigned long arg)
 	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *)arg;
 
 	dev_warn(&ifx_dev->spi_dev->dev, "*** SPI Timeout ***");
-	ifx_spi_ttyhangup(ifx_dev);
+	tty_port_tty_hangup(&ifx_dev->tty_port, false);
 	mrdy_set_low(ifx_dev);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 }
@@ -933,7 +916,7 @@ static irqreturn_t ifx_spi_reset_interrupt(int irq, void *dev)
 		set_bit(MR_INPROGRESS, &ifx_dev->mdm_reset_state);
 		if (!solreset) {
 			/* unsolicited reset  */
-			ifx_spi_ttyhangup(ifx_dev);
+			tty_port_tty_hangup(&ifx_dev->tty_port, false);
 		}
 	} else {
 		/* exited reset */

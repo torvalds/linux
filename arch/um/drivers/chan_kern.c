@@ -568,11 +568,7 @@ void chan_interrupt(struct line *line, int irq)
 		reactivate_fd(chan->fd, irq);
 	if (err == -EIO) {
 		if (chan->primary) {
-			struct tty_struct *tty = tty_port_tty_get(&line->port);
-			if (tty != NULL) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&line->port, false);
 			if (line->chan_out != chan)
 				close_one_chan(line->chan_out, 1);
 		}

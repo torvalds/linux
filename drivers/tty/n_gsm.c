@@ -1418,11 +1418,7 @@ static void gsm_dlci_close(struct gsm_dlci *dlci)
 		pr_debug("DLCI %d goes closed.\n", dlci->addr);
 	dlci->state = DLCI_CLOSED;
 	if (dlci->addr != 0) {
-		struct tty_struct  *tty = tty_port_tty_get(&dlci->port);
-		if (tty) {
-			tty_hangup(tty);
-			tty_kref_put(tty);
-		}
+		tty_port_tty_hangup(&dlci->port, false);
 		kfifo_reset(dlci->fifo);
 	} else
 		dlci->gsm->dead = 1;
