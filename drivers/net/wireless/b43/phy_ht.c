@@ -256,6 +256,32 @@ static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
 }
 
 /**************************************************
+ * Tx/Rx
+ **************************************************/
+
+static void b43_phy_ht_tx_power_fix(struct b43_wldev *dev)
+{
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		u16 mask;
+		u32 tmp = b43_httab_read(dev, B43_HTTAB32(26, 0xE8));
+
+		if (0) /* FIXME */
+			mask = 0x2 << (i * 4);
+		else
+			mask = 0;
+		b43_phy_mask(dev, B43_PHY_EXTG(0x108), mask);
+
+		b43_httab_write(dev, B43_HTTAB16(7, 0x110 + i), tmp >> 16);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x63 + (i * 4)),
+				tmp & 0xFF);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x73 + (i * 4)),
+				tmp & 0xFF);
+	}
+}
+
+/**************************************************
  * Channel switching ops.
  **************************************************/
 
@@ -264,7 +290,6 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				struct ieee80211_channel *new_channel)
 {
 	bool old_band_5ghz;
-	u8 i;
 
 	old_band_5ghz = b43_phy_read(dev, B43_PHY_HT_BANDCTL) & 0; /* FIXME */
 	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
@@ -290,23 +315,8 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 			b43_phy_mask(dev, B43_PHY_HT_TEST, ~0x840);
 	}
 
-	/* TODO: separated function? */
-	for (i = 0; i < 3; i++) {
-		u16 mask;
-		u32 tmp = b43_httab_read(dev, B43_HTTAB32(26, 0xE8));
-
-		if (0) /* FIXME */
-			mask = 0x2 << (i * 4);
-		else
-			mask = 0;
-		b43_phy_mask(dev, B43_PHY_EXTG(0x108), mask);
-
-		b43_httab_write(dev, B43_HTTAB16(7, 0x110 + i), tmp >> 16);
-		b43_httab_write(dev, B43_HTTAB8(13, 0x63 + (i * 4)),
-				tmp & 0xFF);
-		b43_httab_write(dev, B43_HTTAB8(13, 0x73 + (i * 4)),
-				tmp & 0xFF);
-	}
+	if (1) /* TODO: On N it's for early devices only, what about HT? */
+		b43_phy_ht_tx_power_fix(dev);
 
 	b43_phy_write(dev, 0x017e, 0x3830);
 }
