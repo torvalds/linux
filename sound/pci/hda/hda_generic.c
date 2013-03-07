@@ -1890,6 +1890,17 @@ static int create_speaker_out_ctls(struct hda_codec *codec)
  * independent HP controls
  */
 
+/* update HP auto-mute state too */
+static void update_hp_automute_hook(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->hp_automute_hook)
+		spec->hp_automute_hook(codec, NULL);
+	else
+		snd_hda_gen_hp_automute(codec, NULL);
+}
+
 static int indep_hp_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
@@ -1950,12 +1961,7 @@ static int indep_hp_put(struct snd_kcontrol *kcontrol,
 		else
 			*dacp = spec->alt_dac_nid;
 
-		/* update HP auto-mute state too */
-		if (spec->hp_automute_hook)
-			spec->hp_automute_hook(codec, NULL);
-		else
-			snd_hda_gen_hp_automute(codec, NULL);
-
+		update_hp_automute_hook(codec);
 		ret = 1;
 	}
  unlock:
@@ -2237,17 +2243,14 @@ static void update_hp_mic(struct hda_codec *codec, int adc_mux, bool force)
 						  PIN_IN | (as_mic ? vref_val : 0));
 	}
 
-	if (as_mic)
-		val |= PIN_IN;
-	else
-		val = PIN_HP;
-	set_pin_target(codec, pin, val, true);
-
-	/* update HP auto-mute state too */
-	if (spec->hp_automute_hook)
-		spec->hp_automute_hook(codec, NULL);
-	else
-		snd_hda_gen_hp_automute(codec, NULL);
+	if (!spec->hp_mic_jack_modes) {
+		if (as_mic)
+			val |= PIN_IN;
+		else
+			val = PIN_HP;
+		set_pin_target(codec, pin, val, true);
+		update_hp_automute_hook(codec);
+	}
 }
 
 /* create a shared input with the headphone out */
@@ -2654,6 +2657,8 @@ static int hp_mic_jack_mode_put(struct snd_kcontrol *kcontrol,
 			val = snd_hda_get_default_vref(codec, nid);
 	}
 	snd_hda_set_pin_ctl_cache(codec, nid, val);
+	update_hp_automute_hook(codec);
+
 	return 1;
 }
 
@@ -2677,6 +2682,7 @@ static int create_hp_mic_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 	if (!knew)
 		return -ENOMEM;
 	knew->private_value = pin;
+	spec->hp_mic_jack_modes = 1;
 	return 0;
 }
 
@@ -3800,10 +3806,7 @@ static void update_automute_all(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (spec->hp_automute_hook)
-		spec->hp_automute_hook(codec, NULL);
-	else
-		snd_hda_gen_hp_automute(codec, NULL);
+	update_hp_automute_hook(codec);
 	if (spec->line_automute_hook)
 		spec->line_automute_hook(codec, NULL);
 	else
