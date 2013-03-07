@@ -355,7 +355,7 @@ MACHINE_START(VR1000, "Thorcom-VR1000")
 	.atag_offset	= 0x100,
 	.map_io		= vr1000_map_io,
 	.init_machine	= vr1000_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

@@ -116,7 +116,7 @@ MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switc
 	/* Maintainer: Jonas Dietsche */
 	.atag_offset	= 0x100,
 	.map_io		= smdk2410_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= smdk2410_init,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,

@@ -21,6 +21,7 @@ extern void s3c2410_map_io(void);
 extern void s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 extern void s3c2410_init_clocks(int xtal);
 extern void s3c2410_restart(char mode, const char *cmd);
+extern void s3c2410_init_irq(void);
 #else
 #define s3c2410_init_clocks NULL
 #define s3c2410_init_uarts NULL

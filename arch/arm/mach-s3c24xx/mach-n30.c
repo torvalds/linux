@@ -592,7 +592,7 @@ MACHINE_START(N30, "Acer-N30")
 	.atag_offset	= 0x100,
 	.init_time	= samsung_timer_init,
 	.init_machine	= n30_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
 	.restart	= s3c2410_restart,
 MACHINE_END
@@ -603,7 +603,7 @@ MACHINE_START(N35, "Acer-N35")
 	.atag_offset	= 0x100,
 	.init_time	= samsung_timer_init,
 	.init_machine	= n30_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
 	.restart	= s3c2410_restart,
 MACHINE_END

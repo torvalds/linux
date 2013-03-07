@@ -509,12 +509,35 @@ err:
 	return ERR_PTR(ret);
 }
 
-/* s3c24xx_init_irq
- *
- * Initialise S3C2410 IRQ system
-*/
+static struct s3c_irq_data init_eint[32] = {
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT4 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT5 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT6 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT7 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT8 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT9 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT10 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT11 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT12 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT13 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT14 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT15 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT16 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT17 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT18 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT19 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT20 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT21 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT22 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT23 */
+};
 
-static struct s3c_irq_data init_base[32] = {
+#ifdef CONFIG_CPU_S3C2410
+static struct s3c_irq_data init_s3c2410base[32] = {
 	{ .type = S3C_IRQTYPE_EINT, }, /* EINT0 */
 	{ .type = S3C_IRQTYPE_EINT, }, /* EINT1 */
 	{ .type = S3C_IRQTYPE_EINT, }, /* EINT2 */
@@ -549,34 +572,7 @@ static struct s3c_irq_data init_base[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, }, /* ADCPARENT */
 };
 
-static struct s3c_irq_data init_eint[32] = {
-	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
-	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
-	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
-	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT4 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT5 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT6 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT7 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT8 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT9 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT10 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT11 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT12 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT13 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT14 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT15 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT16 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT17 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT18 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT19 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT20 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT21 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT22 */
-	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT23 */
-};
-
-static struct s3c_irq_data init_subint[32] = {
+static struct s3c_irq_data init_s3c2410subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-RX */
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-TX */
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-ERR */
@@ -590,7 +586,7 @@ static struct s3c_irq_data init_subint[32] = {
 	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
 };
 
-void __init s3c24xx_init_irq(void)
+void __init s3c2410_init_irq(void)
 {
 	struct s3c_irq_intc *main_intc;
 
@@ -598,15 +594,16 @@ void __init s3c24xx_init_irq(void)
 	init_FIQ(FIQ_START);
 #endif
 
-	main_intc = s3c24xx_init_intc(NULL, &init_base[0], NULL, 0x4a000000);
+	main_intc = s3c24xx_init_intc(NULL, &init_s3c2410base[0], NULL, 0x4a000000);
 	if (IS_ERR(main_intc)) {
 		pr_err("irq: could not create main interrupt controller\n");
 		return;
 	}
 
-	s3c24xx_init_intc(NULL, &init_subint[0], main_intc, 0x4a000018);
+	s3c24xx_init_intc(NULL, &init_s3c2410subint[0], main_intc, 0x4a000018);
 	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
 }
+#endif
 
 #ifdef CONFIG_CPU_S3C2412
 static struct s3c_irq_data init_s3c2412base[32] = {
