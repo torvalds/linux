@@ -1117,6 +1117,7 @@ struct efx_nic_type {
 			 size_t *retlen, const u8 *buffer);
 	int (*mtd_sync)(struct mtd_info *mtd);
 #endif
+	void (*ptp_write_host_time)(struct efx_nic *efx, u32 host_time);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

@@ -390,8 +390,7 @@ static void efx_ptp_send_times(struct efx_nic *efx,
 		host_time = (now.ts_real.tv_sec << MC_NANOSECOND_BITS |
 			     now.ts_real.tv_nsec);
 		/* Update host time in NIC memory */
-		_efx_writed(efx, cpu_to_le32(host_time),
-			    FR_CZ_MC_TREG_SMEM + MC_SMEM_P0_PTP_TIME_OFST);
+		efx->type->ptp_write_host_time(efx, host_time);
 	}
 	*last_time = now;
 }

@@ -855,6 +855,19 @@ fail:
 
 /**************************************************************************
  *
+ * PTP
+ *
+ **************************************************************************
+ */
+
+static void siena_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
+{
+	_efx_writed(efx, cpu_to_le32(host_time),
+		    FR_CZ_MC_TREG_SMEM + MC_SMEM_P0_PTP_TIME_OFST);
+}
+
+/**************************************************************************
+ *
  * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
@@ -943,6 +956,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.mtd_write = efx_mcdi_mtd_write,
 	.mtd_sync = efx_mcdi_mtd_sync,
 #endif
+	.ptp_write_host_time = siena_ptp_write_host_time,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
