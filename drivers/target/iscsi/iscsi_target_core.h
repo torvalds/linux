@@ -244,6 +244,11 @@ struct iscsi_conn_ops {
 	u8	IFMarker;			/* [0,1] == [No,Yes] */
 	u32	OFMarkInt;			/* [1..65535] */
 	u32	IFMarkInt;			/* [1..65535] */
+	/*
+	 * iSER specific connection parameters
+	 */
+	u32	InitiatorRecvDataSegmentLength;	/* [512..2**24-1] */
+	u32	TargetRecvDataSegmentLength;	/* [512..2**24-1] */
 };
 
 struct iscsi_sess_ops {
@@ -265,6 +270,10 @@ struct iscsi_sess_ops {
 	u8	DataSequenceInOrder;		/* [0,1] == [No,Yes] */
 	u8	ErrorRecoveryLevel;		/* [0..2] */
 	u8	SessionType;			/* [0,1] == [Normal,Discovery]*/
+	/*
+	 * iSER specific session parameters
+	 */
+	u8	RDMAExtensions;			/* [0,1] == [No,Yes] */
 };
 
 struct iscsi_queue_req {
@@ -284,6 +293,7 @@ struct iscsi_data_count {
 };
 
 struct iscsi_param_list {
+	bool			iser;
 	struct list_head	param_list;
 	struct list_head	extra_response_list;
 };

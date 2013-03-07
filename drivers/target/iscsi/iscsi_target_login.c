@@ -340,6 +340,7 @@ static int iscsi_login_zero_tsih_s2(
 	struct iscsi_node_attrib *na;
 	struct iscsi_session *sess = conn->sess;
 	unsigned char buf[32];
+	bool iser = false;
 
 	sess->tpg = conn->tpg;
 
@@ -361,7 +362,10 @@ static int iscsi_login_zero_tsih_s2(
 		return -1;
 	}
 
-	iscsi_set_keys_to_negotiate(0, conn->param_list);
+	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND)
+		iser = true;
+
+	iscsi_set_keys_to_negotiate(conn->param_list, iser);
 
 	if (sess->sess_ops->SessionType)
 		return iscsi_set_keys_irrelevant_for_discovery(
@@ -399,6 +403,56 @@ static int iscsi_login_zero_tsih_s2(
 
 	if (iscsi_login_disable_FIM_keys(conn->param_list, conn) < 0)
 		return -1;
+	/*
+	 * Set RDMAExtensions=Yes by default for iSER enabled network portals
+	 */
+	if (iser) {
+		struct iscsi_param *param;
+		unsigned long mrdsl, off;
+		int rc;
+
+		sprintf(buf, "RDMAExtensions=Yes");
+		if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+			return -1;
+		}
+		/*
+		 * Make MaxRecvDataSegmentLength PAGE_SIZE aligned for
+		 * Immediate Data + Unsolicitied Data-OUT if necessary..
+		 */
+		param = iscsi_find_param_from_key("MaxRecvDataSegmentLength",
+						  conn->param_list);
+		if (!param) {
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+			return -1;
+		}
+		rc = strict_strtoul(param->value, 0, &mrdsl);
+		if (rc < 0) {
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+			return -1;
+		}
+		off = mrdsl % PAGE_SIZE;
+		if (!off)
+			return 0;
+
+		if (mrdsl < PAGE_SIZE)
+			mrdsl = PAGE_SIZE;
+		else
+			mrdsl -= off;
+
+		pr_warn("Aligning ISER MaxRecvDataSegmentLength: %lu down"
+			" to PAGE_SIZE\n", mrdsl);
+
+		sprintf(buf, "MaxRecvDataSegmentLength=%lu\n", mrdsl);
+		if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+			return -1;
+		}
+	}
 
 	return 0;
 }
@@ -478,6 +532,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 	struct se_session *se_sess, *se_sess_tmp;
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
+	bool iser = false;
 
 	spin_lock_bh(&se_tpg->session_lock);
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &se_tpg->tpg_sess_list,
@@ -527,7 +582,10 @@ static int iscsi_login_non_zero_tsih_s2(
 		return -1;
 	}
 
-	iscsi_set_keys_to_negotiate(0, conn->param_list);
+	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND)
+		iser = true;
+
+	iscsi_set_keys_to_negotiate(conn->param_list, iser);
 	/*
 	 * Need to send TargetPortalGroupTag back in first login response
 	 * on any iSCSI connection where the Initiator provides TargetName.
@@ -615,13 +673,15 @@ int iscsi_login_post_auth_non_zero_tsih(
 
 static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 {
-#warning FIXME: Reenable iscsit_start_nopin_timer
-#if 0
 	struct iscsi_session *sess = conn->sess;
+	/*
+	 * FIXME: Unsolicitied NopIN support for ISER
+	 */
+	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND)
+		return;
 
 	if (!sess->sess_ops->SessionType)
 		iscsit_start_nopin_timer(conn);
-#endif
 }
 
 static int iscsi_post_login_handler(
@@ -678,12 +738,7 @@ static int iscsi_post_login_handler(
 
 		iscsi_post_login_start_timers(conn);
 
-		if (conn->conn_transport == ISCSI_TCP) {
-			iscsi_activate_thread_set(conn, ts);
-		} else {
-			printk("Not calling iscsi_activate_thread_set....\n");
-			dump_stack();
-		}
+		iscsi_activate_thread_set(conn, ts);
 		/*
 		 * Determine CPU mask to ensure connection's RX and TX kthreads
 		 * are scheduled on the same CPU.
