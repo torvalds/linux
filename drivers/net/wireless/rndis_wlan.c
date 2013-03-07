@@ -2,7 +2,7 @@
  * Driver for RNDIS based wireless USB devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
- * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
