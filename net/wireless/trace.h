@@ -1778,7 +1778,7 @@ TRACE_EVENT(rdev_set_mac_acl,
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
-		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
 		__entry->acl_policy = params->acl_policy;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", acl policy: %d",
