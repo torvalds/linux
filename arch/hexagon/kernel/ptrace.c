@@ -32,6 +32,21 @@
 
 #include <asm/user.h>
 
+#if arch_has_single_step()
+/*  Both called from ptrace_resume  */
+void user_enable_single_step(struct task_struct *child)
+{
+	pt_set_singlestep(task_pt_regs(child));
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	pt_clr_singlestep(task_pt_regs(child));
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+#endif
+
 static int genregs_get(struct task_struct *target,
 		   const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,

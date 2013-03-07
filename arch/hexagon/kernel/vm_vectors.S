@@ -41,7 +41,7 @@ _K_VM_event_vector:
 	jump 1b;  /*  Reset  */
 	jump _K_enter_machcheck;
 	jump _K_enter_genex;
-	jump 1b;  /*  3 Rsvd  */
+	jump _K_enter_debug;
 	jump 1b;  /*  4 Rsvd  */
 	jump _K_enter_trap0;
 	jump 1b;  /*  6 Rsvd  */

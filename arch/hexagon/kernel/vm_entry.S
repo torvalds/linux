@@ -367,6 +367,9 @@ _K_enter_trap0:
 _K_enter_machcheck:
 	vm_event_entry(do_machcheck)
 
+	.globl _K_enter_debug
+_K_enter_debug:
+	vm_event_entry(do_debug_exception)
 
 	.globl ret_from_fork
 ret_from_fork:

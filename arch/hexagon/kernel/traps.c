@@ -451,3 +451,14 @@ void do_machcheck(struct pt_regs *regs)
 	/* Halt and catch fire */
 	__vmstop();
 }
+
+/*
+ * Treat this like the old 0xdb trap.
+ */
+
+void do_debug_exception(struct pt_regs *regs)
+{
+	regs->hvmer.vmest &= ~HVM_VMEST_CAUSE_MSK;
+	regs->hvmer.vmest |= (TRAP_DEBUG << HVM_VMEST_CAUSE_SFT);
+	do_trap0(regs);
+}
