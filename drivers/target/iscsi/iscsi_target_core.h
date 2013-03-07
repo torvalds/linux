@@ -485,6 +485,7 @@ struct iscsi_cmd {
 	u32			first_data_sg_off;
 	u32			kmapped_nents;
 	sense_reason_t		sense_reason;
+	void (*release_cmd)(struct iscsi_cmd *);
 }  ____cacheline_aligned;
 
 struct iscsi_tmr_req {

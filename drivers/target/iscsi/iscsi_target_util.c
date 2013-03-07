@@ -149,6 +149,18 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 	spin_unlock_bh(&cmd->r2t_lock);
 }
 
+struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
+{
+	struct iscsi_cmd *cmd;
+
+	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
+	if (!cmd)
+		return NULL;
+
+	cmd->release_cmd = &iscsit_release_cmd;
+	return cmd;
+}
+
 /*
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
@@ -157,13 +169,12 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
 
-	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
+	cmd = conn->conn_transport->iscsit_alloc_cmd(conn, gfp_mask);
 	if (!cmd) {
 		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
 		return NULL;
 	}
-
-	cmd->conn	= conn;
+	cmd->conn = conn;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
@@ -176,6 +187,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 
 	return cmd;
 }
+EXPORT_SYMBOL(iscsit_allocate_cmd);
 
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	struct iscsi_cmd *cmd,
@@ -690,6 +702,11 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
+		if (cmd->data_direction == DMA_TO_DEVICE)
+			iscsit_stop_dataout_timer(cmd);
+		/*
+		 * Fallthrough
+		 */
 	case ISCSI_OP_SCSI_TMFUNC:
 		transport_generic_free_cmd(&cmd->se_cmd, 1);
 		break;
@@ -705,7 +722,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 		}
 		/* Fall-through */
 	default:
-		iscsit_release_cmd(cmd);
+		cmd->release_cmd(cmd);
 		break;
 	}
 }
