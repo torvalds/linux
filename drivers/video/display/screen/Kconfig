@@ -77,6 +77,12 @@ config LCD_RK3168M_B101EW05
         bool "RGB lcd  panel LCD_RK3168M_B101EW05"
 config LCD_HJ050NA_06A
 	bool "RGB lcd  panel HJ050NA-06A"
+	
+config LCD_HDMI_1366x768
+	depends on MFD_RK610
+	bool "RK610 LCD_HDMI_1366X768"
+	---help---
+	if support RK610, this setting can support dual screen output
 
 config LCD_HDMI_1280x800
 	depends on MFD_RK610
