@@ -9,7 +9,6 @@ config PPC_WSP
 	select PCI
 	select PPC_IO_WORKAROUNDS if PCI
 	select PPC_INDIRECT_PIO if PCI
-	select PPC_WSP_COPRO
 	default n
 
 menu "WSP platform selection"
