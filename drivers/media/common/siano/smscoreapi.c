@@ -977,13 +977,16 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	msleep(400);
 
 exit_fw_download:
-	sms_debug("rc=%d, postload=0x%p ", rc, coredev->postload_handler);
-
 	kfree(msg);
 
-	return ((rc >= 0) && coredev->postload_handler) ?
-		coredev->postload_handler(coredev->context) :
-		rc;
+	if (coredev->postload_handler) {
+		sms_debug("rc=%d, postload=0x%p", rc, coredev->postload_handler);
+		if (rc >= 0)
+			return coredev->postload_handler(coredev->context);
+	}
+
+	sms_debug("rc=%d", rc);
+	return rc;
 }
 
 
