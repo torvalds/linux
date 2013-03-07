@@ -87,8 +87,6 @@ struct e100_serial {
 	volatile int		tr_running; /* 1 if output is running */
 
 	int			x_char;	/* xon/xoff character */
-	int			close_delay;
-	unsigned short		closing_wait;
 	unsigned long		event;
 	int			line;
 	int			type;  /* PORT_ETRAX */

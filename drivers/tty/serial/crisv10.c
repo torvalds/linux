@@ -3392,8 +3392,8 @@ get_serial_info(struct e100_serial * info,
 	tmp.irq = info->irq;
 	tmp.flags = info->port.flags;
 	tmp.baud_base = info->baud_base;
-	tmp.close_delay = info->close_delay;
-	tmp.closing_wait = info->closing_wait;
+	tmp.close_delay = info->port.close_delay;
+	tmp.closing_wait = info->port.closing_wait;
 	tmp.custom_divisor = info->custom_divisor;
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -3415,7 +3415,7 @@ set_serial_info(struct e100_serial *info,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((new_serial.type != info->type) ||
-		    (new_serial.close_delay != info->close_delay) ||
+		    (new_serial.close_delay != info->port.close_delay) ||
 		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
 		     (info->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
@@ -3437,8 +3437,8 @@ set_serial_info(struct e100_serial *info,
 		       (new_serial.flags & ASYNC_FLAGS));
 	info->custom_divisor = new_serial.custom_divisor;
 	info->type = new_serial.type;
-	info->close_delay = new_serial.close_delay;
-	info->closing_wait = new_serial.closing_wait;
+	info->port.close_delay = new_serial.close_delay;
+	info->port.closing_wait = new_serial.closing_wait;
 	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
@@ -3794,8 +3794,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->port.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the serial receiver and the DMA receive interrupt.
@@ -3825,8 +3825,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	info->event = 0;
 	info->port.tty = NULL;
 	if (info->blocked_open) {
-		if (info->close_delay)
-			schedule_timeout_interruptible(info->close_delay);
+		if (info->port.close_delay)
+			schedule_timeout_interruptible(info->port.close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
 	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -4440,8 +4440,6 @@ static int __init rs_init(void)
 		info->forced_eop = 0;
 		info->baud_base = DEF_BAUD_BASE;
 		info->custom_divisor = 0;
-		info->close_delay = 5*HZ/10;
-		info->closing_wait = 30*HZ;
 		info->x_char = 0;
 		info->event = 0;
 		info->count = 0;
