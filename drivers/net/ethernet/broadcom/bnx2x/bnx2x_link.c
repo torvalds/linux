@@ -8647,7 +8647,9 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 						MDIO_WC_DEVAD,
 						MDIO_WC_REG_DIGITAL5_MISC6,
 						&rx_tx_in_reset);
-				if (!rx_tx_in_reset) {
+				if ((!rx_tx_in_reset) &&
+				    (params->link_flags &
+				     PHY_INITIALIZED)) {
 					bnx2x_warpcore_reset_lane(bp, phy, 1);
 					bnx2x_warpcore_config_sfi(phy, params);
 					bnx2x_warpcore_reset_lane(bp, phy, 0);
@@ -12528,6 +12530,7 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	vars->mac_type = MAC_TYPE_NONE;
 	vars->phy_flags = 0;
 	vars->check_kr2_recovery_cnt = 0;
+	params->link_flags = PHY_INITIALIZED;
 	/* Driver opens NIG-BRB filters */
 	bnx2x_set_rx_filter(params, 1);
 	/* Check if link flap can be avoided */
@@ -12692,6 +12695,7 @@ int bnx2x_lfa_reset(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	vars->link_up = 0;
 	vars->phy_flags = 0;
+	params->link_flags &= ~PHY_INITIALIZED;
 	if (!params->lfa_base)
 		return bnx2x_link_reset(params, vars, 1);
 	/*

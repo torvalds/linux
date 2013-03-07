@@ -309,6 +309,7 @@ struct link_params {
 				req_flow_ctrl is set to AUTO */
 	u16 link_flags;
 #define LINK_FLAGS_INT_DISABLED		(1<<0)
+#define PHY_INITIALIZED		(1<<1)
 	u32 lfa_base;
 };
 
