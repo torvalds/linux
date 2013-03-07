@@ -339,6 +339,90 @@ void tracing_on(void)
 }
 EXPORT_SYMBOL_GPL(tracing_on);
 
+#ifdef CONFIG_TRACER_SNAPSHOT
+/**
+ * trace_snapshot - take a snapshot of the current buffer.
+ *
+ * This causes a swap between the snapshot buffer and the current live
+ * tracing buffer. You can use this to take snapshots of the live
+ * trace when some condition is triggered, but continue to trace.
+ *
+ * Note, make sure to allocate the snapshot with either
+ * a tracing_snapshot_alloc(), or by doing it manually
+ * with: echo 1 > /sys/kernel/debug/tracing/snapshot
+ *
+ * If the snapshot buffer is not allocated, it will stop tracing.
+ * Basically making a permanent snapshot.
+ */
+void tracing_snapshot(void)
+{
+	struct trace_array *tr = &global_trace;
+	struct tracer *tracer = tr->current_trace;
+	unsigned long flags;
+
+	if (!tr->allocated_snapshot) {
+		trace_printk("*** SNAPSHOT NOT ALLOCATED ***\n");
+		trace_printk("*** stopping trace here!   ***\n");
+		tracing_off();
+		return;
+	}
+
+	/* Note, snapshot can not be used when the tracer uses it */
+	if (tracer->use_max_tr) {
+		trace_printk("*** LATENCY TRACER ACTIVE ***\n");
+		trace_printk("*** Can not use snapshot (sorry) ***\n");
+		return;
+	}
+
+	local_irq_save(flags);
+	update_max_tr(tr, current, smp_processor_id());
+	local_irq_restore(flags);
+}
+
+static int resize_buffer_duplicate_size(struct trace_buffer *trace_buf,
+					struct trace_buffer *size_buf, int cpu_id);
+
+/**
+ * trace_snapshot_alloc - allocate and take a snapshot of the current buffer.
+ *
+ * This is similar to trace_snapshot(), but it will allocate the
+ * snapshot buffer if it isn't already allocated. Use this only
+ * where it is safe to sleep, as the allocation may sleep.
+ *
+ * This causes a swap between the snapshot buffer and the current live
+ * tracing buffer. You can use this to take snapshots of the live
+ * trace when some condition is triggered, but continue to trace.
+ */
+void tracing_snapshot_alloc(void)
+{
+	struct trace_array *tr = &global_trace;
+	int ret;
+
+	if (!tr->allocated_snapshot) {
+
+		/* allocate spare buffer */
+		ret = resize_buffer_duplicate_size(&tr->max_buffer,
+				   &tr->trace_buffer, RING_BUFFER_ALL_CPUS);
+		if (WARN_ON(ret < 0))
+			return;
+
+		tr->allocated_snapshot = true;
+	}
+
+	tracing_snapshot();
+}
+#else
+void tracing_snapshot(void)
+{
+	WARN_ONCE(1, "Snapshot feature not enabled, but internal snapshot used");
+}
+void tracing_snapshot_alloc(void)
+{
+	/* Give warning */
+	tracing_snapshot();
+}
+#endif /* CONFIG_TRACER_SNAPSHOT */
+
 /**
  * tracing_off - turn off tracing buffers
  *
