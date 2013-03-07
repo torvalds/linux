@@ -212,6 +212,7 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 #define TG3_FW_UPDATE_FREQ_SEC		(TG3_FW_UPDATE_TIMEOUT_SEC / 2)
 
 #define FIRMWARE_TG3		"tigon/tg3.bin"
+#define FIRMWARE_TG357766	"tigon/tg357766.bin"
 #define FIRMWARE_TG3TSO		"tigon/tg3_tso.bin"
 #define FIRMWARE_TG3TSO5	"tigon/tg3_tso5.bin"
 
@@ -3452,11 +3453,58 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 #define TX_CPU_SCRATCH_SIZE	0x04000
 
 /* tp->lock is held. */
-static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
+static int tg3_pause_cpu(struct tg3 *tp, u32 cpu_base)
 {
 	int i;
+	const int iters = 10000;
 
-	BUG_ON(offset == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS));
+	for (i = 0; i < iters; i++) {
+		tw32(cpu_base + CPU_STATE, 0xffffffff);
+		tw32(cpu_base + CPU_MODE,  CPU_MODE_HALT);
+		if (tr32(cpu_base + CPU_MODE) & CPU_MODE_HALT)
+			break;
+	}
+
+	return (i == iters) ? -EBUSY : 0;
+}
+
+/* tp->lock is held. */
+static int tg3_rxcpu_pause(struct tg3 *tp)
+{
+	int rc = tg3_pause_cpu(tp, RX_CPU_BASE);
+
+	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
+	tw32_f(RX_CPU_BASE + CPU_MODE,  CPU_MODE_HALT);
+	udelay(10);
+
+	return rc;
+}
+
+/* tp->lock is held. */
+static int tg3_txcpu_pause(struct tg3 *tp)
+{
+	return tg3_pause_cpu(tp, TX_CPU_BASE);
+}
+
+/* tp->lock is held. */
+static void tg3_resume_cpu(struct tg3 *tp, u32 cpu_base)
+{
+	tw32(cpu_base + CPU_STATE, 0xffffffff);
+	tw32_f(cpu_base + CPU_MODE,  0x00000000);
+}
+
+/* tp->lock is held. */
+static void tg3_rxcpu_resume(struct tg3 *tp)
+{
+	tg3_resume_cpu(tp, RX_CPU_BASE);
+}
+
+/* tp->lock is held. */
+static int tg3_halt_cpu(struct tg3 *tp, u32 cpu_base)
+{
+	int rc;
+
+	BUG_ON(cpu_base == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS));
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5906) {
 		u32 val = tr32(GRC_VCPU_EXT_CTRL);
@@ -3464,17 +3512,8 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 		tw32(GRC_VCPU_EXT_CTRL, val | GRC_VCPU_EXT_CTRL_HALT_CPU);
 		return 0;
 	}
-	if (offset == RX_CPU_BASE) {
-		for (i = 0; i < 10000; i++) {
-			tw32(offset + CPU_STATE, 0xffffffff);
-			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
-			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
-				break;
-		}
-
-		tw32(offset + CPU_STATE, 0xffffffff);
-		tw32_f(offset + CPU_MODE,  CPU_MODE_HALT);
-		udelay(10);
+	if (cpu_base == RX_CPU_BASE) {
+		rc = tg3_rxcpu_pause(tp);
 	} else {
 		/*
 		 * There is only an Rx CPU for the 5750 derivative in the
@@ -3483,17 +3522,12 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 		if (tg3_flag(tp, IS_SSB_CORE))
 			return 0;
 
-		for (i = 0; i < 10000; i++) {
-			tw32(offset + CPU_STATE, 0xffffffff);
-			tw32(offset + CPU_MODE,  CPU_MODE_HALT);
-			if (tr32(offset + CPU_MODE) & CPU_MODE_HALT)
-				break;
-		}
+		rc = tg3_txcpu_pause(tp);
 	}
 
-	if (i >= 10000) {
+	if (rc) {
 		netdev_err(tp->dev, "%s timed out, %s CPU\n",
-			   __func__, offset == RX_CPU_BASE ? "RX" : "TX");
+			   __func__, cpu_base == RX_CPU_BASE ? "RX" : "TX");
 		return -ENODEV;
 	}
 
@@ -3503,19 +3537,41 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 	return 0;
 }
 
-struct fw_info {
-	unsigned int fw_base;
-	unsigned int fw_len;
-	const __be32 *fw_data;
-};
+static int tg3_fw_data_len(struct tg3 *tp,
+			   const struct tg3_firmware_hdr *fw_hdr)
+{
+	int fw_len;
+
+	/* Non fragmented firmware have one firmware header followed by a
+	 * contiguous chunk of data to be written. The length field in that
+	 * header is not the length of data to be written but the complete
+	 * length of the bss. The data length is determined based on
+	 * tp->fw->size minus headers.
+	 *
+	 * Fragmented firmware have a main header followed by multiple
+	 * fragments. Each fragment is identical to non fragmented firmware
+	 * with a firmware header followed by a contiguous chunk of data. In
+	 * the main header, the length field is unused and set to 0xffffffff.
+	 * In each fragment header the length is the entire size of that
+	 * fragment i.e. fragment data + header length. Data length is
+	 * therefore length field in the header minus TG3_FW_HDR_LEN.
+	 */
+	if (tp->fw_len == 0xffffffff)
+		fw_len = be32_to_cpu(fw_hdr->len);
+	else
+		fw_len = tp->fw->size;
+
+	return (fw_len - TG3_FW_HDR_LEN) / sizeof(u32);
+}
 
 /* tp->lock is held. */
 static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 				 u32 cpu_scratch_base, int cpu_scratch_size,
-				 struct fw_info *info)
+				 const struct tg3_firmware_hdr *fw_hdr)
 {
-	int err, lock_err, i;
+	int err, i;
 	void (*write_op)(struct tg3 *, u32, u32);
+	int total_len = tp->fw->size;
 
 	if (cpu_base == TX_CPU_BASE && tg3_flag(tp, 5705_PLUS)) {
 		netdev_err(tp->dev,
@@ -3524,30 +3580,49 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 		return -EINVAL;
 	}
 
-	if (tg3_flag(tp, 5705_PLUS))
+	if (tg3_flag(tp, 5705_PLUS) && tg3_asic_rev(tp) != ASIC_REV_57766)
 		write_op = tg3_write_mem;
 	else
 		write_op = tg3_write_indirect_reg32;
 
-	/* It is possible that bootcode is still loading at this point.
-	 * Get the nvram lock first before halting the cpu.
-	 */
-	lock_err = tg3_nvram_lock(tp);
-	err = tg3_halt_cpu(tp, cpu_base);
-	if (!lock_err)
-		tg3_nvram_unlock(tp);
-	if (err)
-		goto out;
+	if (tg3_asic_rev(tp) != ASIC_REV_57766) {
+		/* It is possible that bootcode is still loading at this point.
+		 * Get the nvram lock first before halting the cpu.
+		 */
+		int lock_err = tg3_nvram_lock(tp);
+		err = tg3_halt_cpu(tp, cpu_base);
+		if (!lock_err)
+			tg3_nvram_unlock(tp);
+		if (err)
+			goto out;
 
-	for (i = 0; i < cpu_scratch_size; i += sizeof(u32))
-		write_op(tp, cpu_scratch_base + i, 0);
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32(cpu_base + CPU_MODE, tr32(cpu_base+CPU_MODE)|CPU_MODE_HALT);
-	for (i = 0; i < (info->fw_len / sizeof(u32)); i++)
-		write_op(tp, (cpu_scratch_base +
-			      (info->fw_base & 0xffff) +
-			      (i * sizeof(u32))),
-			      be32_to_cpu(info->fw_data[i]));
+		for (i = 0; i < cpu_scratch_size; i += sizeof(u32))
+			write_op(tp, cpu_scratch_base + i, 0);
+		tw32(cpu_base + CPU_STATE, 0xffffffff);
+		tw32(cpu_base + CPU_MODE,
+		     tr32(cpu_base + CPU_MODE) | CPU_MODE_HALT);
+	} else {
+		/* Subtract additional main header for fragmented firmware and
+		 * advance to the first fragment
+		 */
+		total_len -= TG3_FW_HDR_LEN;
+		fw_hdr++;
+	}
+
+	do {
+		u32 *fw_data = (u32 *)(fw_hdr + 1);
+		for (i = 0; i < tg3_fw_data_len(tp, fw_hdr); i++)
+			write_op(tp, cpu_scratch_base +
+				     (be32_to_cpu(fw_hdr->base_addr) & 0xffff) +
+				     (i * sizeof(u32)),
+				 be32_to_cpu(fw_data[i]));
+
+		total_len -= be32_to_cpu(fw_hdr->len);
+
+		/* Advance to next fragment */
+		fw_hdr = (struct tg3_firmware_hdr *)
+			 ((void *)fw_hdr + be32_to_cpu(fw_hdr->len));
+	} while (total_len > 0);
 
 	err = 0;
 
@@ -3556,13 +3631,33 @@ out:
 }
 
 /* tp->lock is held. */
+static int tg3_pause_cpu_and_set_pc(struct tg3 *tp, u32 cpu_base, u32 pc)
+{
+	int i;
+	const int iters = 5;
+
+	tw32(cpu_base + CPU_STATE, 0xffffffff);
+	tw32_f(cpu_base + CPU_PC, pc);
+
+	for (i = 0; i < iters; i++) {
+		if (tr32(cpu_base + CPU_PC) == pc)
+			break;
+		tw32(cpu_base + CPU_STATE, 0xffffffff);
+		tw32(cpu_base + CPU_MODE,  CPU_MODE_HALT);
+		tw32_f(cpu_base + CPU_PC, pc);
+		udelay(1000);
+	}
+
+	return (i == iters) ? -EBUSY : 0;
+}
+
+/* tp->lock is held. */
 static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
 {
-	struct fw_info info;
-	const __be32 *fw_data;
-	int err, i;
+	const struct tg3_firmware_hdr *fw_hdr;
+	int err;
 
-	fw_data = (void *)tp->fw->data;
+	fw_hdr = (struct tg3_firmware_hdr *)tp->fw->data;
 
 	/* Firmware blob starts with version numbers, followed by
 	   start address and length. We are setting complete length.
@@ -3570,60 +3665,117 @@ static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
 	   Remainder is the blob to be loaded contiguously
 	   from start address. */
 
-	info.fw_base = be32_to_cpu(fw_data[1]);
-	info.fw_len = tp->fw->size - 12;
-	info.fw_data = &fw_data[3];
-
 	err = tg3_load_firmware_cpu(tp, RX_CPU_BASE,
 				    RX_CPU_SCRATCH_BASE, RX_CPU_SCRATCH_SIZE,
-				    &info);
+				    fw_hdr);
 	if (err)
 		return err;
 
 	err = tg3_load_firmware_cpu(tp, TX_CPU_BASE,
 				    TX_CPU_SCRATCH_BASE, TX_CPU_SCRATCH_SIZE,
-				    &info);
+				    fw_hdr);
 	if (err)
 		return err;
 
 	/* Now startup only the RX cpu. */
-	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-	tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
-
-	for (i = 0; i < 5; i++) {
-		if (tr32(RX_CPU_BASE + CPU_PC) == info.fw_base)
-			break;
-		tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-		tw32(RX_CPU_BASE + CPU_MODE,  CPU_MODE_HALT);
-		tw32_f(RX_CPU_BASE + CPU_PC, info.fw_base);
-		udelay(1000);
-	}
-	if (i >= 5) {
+	err = tg3_pause_cpu_and_set_pc(tp, RX_CPU_BASE,
+				       be32_to_cpu(fw_hdr->base_addr));
+	if (err) {
 		netdev_err(tp->dev, "%s fails to set RX CPU PC, is %08x "
 			   "should be %08x\n", __func__,
-			   tr32(RX_CPU_BASE + CPU_PC), info.fw_base);
+			   tr32(RX_CPU_BASE + CPU_PC),
+				be32_to_cpu(fw_hdr->base_addr));
 		return -ENODEV;
 	}
-	tw32(RX_CPU_BASE + CPU_STATE, 0xffffffff);
-	tw32_f(RX_CPU_BASE + CPU_MODE,  0x00000000);
+
+	tg3_rxcpu_resume(tp);
+
+	return 0;
+}
+
+static int tg3_validate_rxcpu_state(struct tg3 *tp)
+{
+	const int iters = 1000;
+	int i;
+	u32 val;
+
+	/* Wait for boot code to complete initialization and enter service
+	 * loop. It is then safe to download service patches
+	 */
+	for (i = 0; i < iters; i++) {
+		if (tr32(RX_CPU_HWBKPT) == TG3_SBROM_IN_SERVICE_LOOP)
+			break;
+
+		udelay(10);
+	}
+
+	if (i == iters) {
+		netdev_err(tp->dev, "Boot code not ready for service patches\n");
+		return -EBUSY;
+	}
+
+	val = tg3_read_indirect_reg32(tp, TG3_57766_FW_HANDSHAKE);
+	if (val & 0xff) {
+		netdev_warn(tp->dev,
+			    "Other patches exist. Not downloading EEE patch\n");
+		return -EEXIST;
+	}
 
 	return 0;
 }
 
 /* tp->lock is held. */
+static void tg3_load_57766_firmware(struct tg3 *tp)
+{
+	struct tg3_firmware_hdr *fw_hdr;
+
+	if (!tg3_flag(tp, NO_NVRAM))
+		return;
+
+	if (tg3_validate_rxcpu_state(tp))
+		return;
+
+	if (!tp->fw)
+		return;
+
+	/* This firmware blob has a different format than older firmware
+	 * releases as given below. The main difference is we have fragmented
+	 * data to be written to non-contiguous locations.
+	 *
+	 * In the beginning we have a firmware header identical to other
+	 * firmware which consists of version, base addr and length. The length
+	 * here is unused and set to 0xffffffff.
+	 *
+	 * This is followed by a series of firmware fragments which are
+	 * individually identical to previous firmware. i.e. they have the
+	 * firmware header and followed by data for that fragment. The version
+	 * field of the individual fragment header is unused.
+	 */
+
+	fw_hdr = (struct tg3_firmware_hdr *)tp->fw->data;
+	if (be32_to_cpu(fw_hdr->base_addr) != TG3_57766_FW_BASE_ADDR)
+		return;
+
+	if (tg3_rxcpu_pause(tp))
+		return;
+
+	/* tg3_load_firmware_cpu() will always succeed for the 57766 */
+	tg3_load_firmware_cpu(tp, 0, TG3_57766_FW_BASE_ADDR, 0, fw_hdr);
+
+	tg3_rxcpu_resume(tp);
+}
+
+/* tp->lock is held. */
 static int tg3_load_tso_firmware(struct tg3 *tp)
 {
-	struct fw_info info;
-	const __be32 *fw_data;
+	const struct tg3_firmware_hdr *fw_hdr;
 	unsigned long cpu_base, cpu_scratch_base, cpu_scratch_size;
-	int err, i;
+	int err;
 
-	if (tg3_flag(tp, HW_TSO_1) ||
-	    tg3_flag(tp, HW_TSO_2) ||
-	    tg3_flag(tp, HW_TSO_3))
+	if (!tg3_flag(tp, FW_TSO))
 		return 0;
 
-	fw_data = (void *)tp->fw->data;
+	fw_hdr = (struct tg3_firmware_hdr *)tp->fw->data;
 
 	/* Firmware blob starts with version numbers, followed by
 	   start address and length. We are setting complete length.
@@ -3631,10 +3783,7 @@ static int tg3_load_tso_firmware(struct tg3 *tp)
 	   Remainder is the blob to be loaded contiguously
 	   from start address. */
 
-	info.fw_base = be32_to_cpu(fw_data[1]);
 	cpu_scratch_size = tp->fw_len;
-	info.fw_len = tp->fw->size - 12;
-	info.fw_data = &fw_data[3];
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5705) {
 		cpu_base = RX_CPU_BASE;
@@ -3647,30 +3796,22 @@ static int tg3_load_tso_firmware(struct tg3 *tp)
 
 	err = tg3_load_firmware_cpu(tp, cpu_base,
 				    cpu_scratch_base, cpu_scratch_size,
-				    &info);
+				    fw_hdr);
 	if (err)
 		return err;
 
 	/* Now startup the cpu. */
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32_f(cpu_base + CPU_PC, info.fw_base);
-
-	for (i = 0; i < 5; i++) {
-		if (tr32(cpu_base + CPU_PC) == info.fw_base)
-			break;
-		tw32(cpu_base + CPU_STATE, 0xffffffff);
-		tw32(cpu_base + CPU_MODE,  CPU_MODE_HALT);
-		tw32_f(cpu_base + CPU_PC, info.fw_base);
-		udelay(1000);
-	}
-	if (i >= 5) {
+	err = tg3_pause_cpu_and_set_pc(tp, cpu_base,
+				       be32_to_cpu(fw_hdr->base_addr));
+	if (err) {
 		netdev_err(tp->dev,
 			   "%s fails to set CPU PC, is %08x should be %08x\n",
-			   __func__, tr32(cpu_base + CPU_PC), info.fw_base);
+			   __func__, tr32(cpu_base + CPU_PC),
+			   be32_to_cpu(fw_hdr->base_addr));
 		return -ENODEV;
 	}
-	tw32(cpu_base + CPU_STATE, 0xffffffff);
-	tw32_f(cpu_base + CPU_MODE,  0x00000000);
+
+	tg3_resume_cpu(tp, cpu_base);
 	return 0;
 }
 
@@ -9777,6 +9918,13 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			return err;
 	}
 
+	if (tg3_asic_rev(tp) == ASIC_REV_57766) {
+		/* Ignore any errors for the firmware download. If download
+		 * fails, the device will operate with EEE disabled
+		 */
+		tg3_load_57766_firmware(tp);
+	}
+
 	if (tg3_flag(tp, TSO_CAPABLE)) {
 		err = tg3_load_tso_firmware(tp);
 		if (err)
@@ -10566,7 +10714,7 @@ static int tg3_test_msi(struct tg3 *tp)
 
 static int tg3_request_firmware(struct tg3 *tp)
 {
-	const __be32 *fw_data;
+	const struct tg3_firmware_hdr *fw_hdr;
 
 	if (request_firmware(&tp->fw, tp->fw_needed, &tp->pdev->dev)) {
 		netdev_err(tp->dev, "Failed to load firmware \"%s\"\n",
@@ -10574,15 +10722,15 @@ static int tg3_request_firmware(struct tg3 *tp)
 		return -ENOENT;
 	}
 
-	fw_data = (void *)tp->fw->data;
+	fw_hdr = (struct tg3_firmware_hdr *)tp->fw->data;
 
 	/* Firmware blob starts with version numbers, followed by
 	 * start address and _full_ length including BSS sections
 	 * (which must be longer than the actual data, of course
 	 */
 
-	tp->fw_len = be32_to_cpu(fw_data[2]);	/* includes bss */
-	if (tp->fw_len < (tp->fw->size - 12)) {
+	tp->fw_len = be32_to_cpu(fw_hdr->len);	/* includes bss */
+	if (tp->fw_len < (tp->fw->size - TG3_FW_HDR_LEN)) {
 		netdev_err(tp->dev, "bogus length %d in \"%s\"\n",
 			   tp->fw_len, tp->fw_needed);
 		release_firmware(tp->fw);
@@ -10881,7 +11029,15 @@ static int tg3_open(struct net_device *dev)
 
 	if (tp->fw_needed) {
 		err = tg3_request_firmware(tp);
-		if (tg3_chip_rev_id(tp) == CHIPREV_ID_5701_A0) {
+		if (tg3_asic_rev(tp) == ASIC_REV_57766) {
+			if (err) {
+				netdev_warn(tp->dev, "EEE capability disabled\n");
+				tp->phy_flags &= ~TG3_PHYFLG_EEE_CAP;
+			} else if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP)) {
+				netdev_warn(tp->dev, "EEE capability restored\n");
+				tp->phy_flags |= TG3_PHYFLG_EEE_CAP;
+			}
+		} else if (tg3_chip_rev_id(tp) == CHIPREV_ID_5701_A0) {
 			if (err)
 				return err;
 		} else if (err) {
@@ -14511,6 +14667,7 @@ static int tg3_phy_probe(struct tg3 *tp)
 	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES) &&
 	    (tg3_asic_rev(tp) == ASIC_REV_5719 ||
 	     tg3_asic_rev(tp) == ASIC_REV_5720 ||
+	     tg3_asic_rev(tp) == ASIC_REV_57766 ||
 	     tg3_asic_rev(tp) == ASIC_REV_5762 ||
 	     (tg3_asic_rev(tp) == ASIC_REV_5717 &&
 	      tg3_chip_rev_id(tp) != CHIPREV_ID_5717_A0) ||
@@ -15293,7 +15450,8 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	} else if (tg3_asic_rev(tp) != ASIC_REV_5700 &&
 		   tg3_asic_rev(tp) != ASIC_REV_5701 &&
 		   tg3_chip_rev_id(tp) != CHIPREV_ID_5705_A0) {
-			tg3_flag_set(tp, TSO_BUG);
+		tg3_flag_set(tp, FW_TSO);
+		tg3_flag_set(tp, TSO_BUG);
 		if (tg3_asic_rev(tp) == ASIC_REV_5705)
 			tp->fw_needed = FIRMWARE_TG3TSO5;
 		else
@@ -15304,7 +15462,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	if (tg3_flag(tp, HW_TSO_1) ||
 	    tg3_flag(tp, HW_TSO_2) ||
 	    tg3_flag(tp, HW_TSO_3) ||
-	    tp->fw_needed) {
+	    tg3_flag(tp, FW_TSO)) {
 		/* For firmware TSO, assume ASF is disabled.
 		 * We'll disable TSO later if we discover ASF
 		 * is enabled in tg3_get_eeprom_hw_cfg().
@@ -15318,6 +15476,9 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5701_A0)
 		tp->fw_needed = FIRMWARE_TG3;
+
+	if (tg3_asic_rev(tp) == ASIC_REV_57766)
+		tp->fw_needed = FIRMWARE_TG357766;
 
 	tp->irq_max = 1;
 
@@ -15591,7 +15752,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	 */
 	tg3_get_eeprom_hw_cfg(tp);
 
-	if (tp->fw_needed && tg3_flag(tp, ENABLE_ASF)) {
+	if (tg3_flag(tp, FW_TSO) && tg3_flag(tp, ENABLE_ASF)) {
 		tg3_flag_clear(tp, TSO_CAPABLE);
 		tg3_flag_clear(tp, TSO_BUG);
 		tp->fw_needed = NULL;
@@ -15778,6 +15939,11 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 	udelay(50);
 	tg3_nvram_init(tp);
+
+	/* If the device has an NVRAM, no need to load patch firmware */
+	if (tg3_asic_rev(tp) == ASIC_REV_57766 &&
+	    !tg3_flag(tp, NO_NVRAM))
+		tp->fw_needed = NULL;
 
 	grc_misc_cfg = tr32(GRC_MISC_CFG);
 	grc_misc_cfg &= GRC_MISC_CFG_BOARD_ID_MASK;
