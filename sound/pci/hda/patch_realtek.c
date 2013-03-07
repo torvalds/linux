@@ -1526,8 +1526,7 @@ static void alc260_fixup_fsc_s7020_jwse(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->gen.add_out_jack_modes = 1;
-		spec->gen.add_in_jack_modes = 1;
+		spec->gen.add_jack_modes = 1;
 		spec->gen.hp_mic = 1;
 	}
 }

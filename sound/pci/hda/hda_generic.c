@@ -150,12 +150,16 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "add_stereo_mix_input");
 	if (val >= 0)
 		spec->add_stereo_mix_input = !!val;
+	/* the following two are just for compatibility */
 	val = snd_hda_get_bool_hint(codec, "add_out_jack_modes");
 	if (val >= 0)
-		spec->add_out_jack_modes = !!val;
+		spec->add_jack_modes = !!val;
 	val = snd_hda_get_bool_hint(codec, "add_in_jack_modes");
 	if (val >= 0)
-		spec->add_in_jack_modes = !!val;
+		spec->add_jack_modes = !!val;
+	val = snd_hda_get_bool_hint(codec, "add_jack_modes");
+	if (val >= 0)
+		spec->add_jack_modes = !!val;
 	val = snd_hda_get_bool_hint(codec, "power_down_unused");
 	if (val >= 0)
 		spec->power_down_unused = !!val;
@@ -2373,7 +2377,7 @@ static void get_jack_mode_name(struct hda_codec *codec, hda_nid_t pin,
 static int get_out_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	if (spec->add_out_jack_modes) {
+	if (spec->add_jack_modes) {
 		unsigned int pincap = snd_hda_query_pin_caps(codec, pin);
 		if ((pincap & AC_PINCAP_OUT) && (pincap & AC_PINCAP_HP_DRV))
 			return 2;
@@ -2520,7 +2524,7 @@ static int get_in_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int nitems = 0;
-	if (spec->add_in_jack_modes)
+	if (spec->add_jack_modes)
 		nitems = hweight32(get_vref_caps(codec, pin));
 	return nitems ? nitems : 1;
 }
@@ -2532,14 +2536,8 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 	char name[44];
 	unsigned int defcfg;
 
-	if (pin == spec->hp_mic_pin) {
-		if (!spec->add_out_jack_modes) {
-			int ret = create_hp_mic_jack_mode(codec, pin);
-			if (ret < 0)
-				return ret;
-		}
-		return 0;
-	}
+	if (pin == spec->hp_mic_pin)
+		return 0; /* already done in create_out_jack_mode() */
 
 	/* no jack mode for fixed pins */
 	defcfg = snd_hda_codec_get_pincfg(codec, pin);
@@ -2981,7 +2979,7 @@ static int create_input_ctls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 
-		if (spec->add_in_jack_modes) {
+		if (spec->add_jack_modes) {
 			err = create_in_jack_mode(codec, pin);
 			if (err < 0)
 				return err;
@@ -4215,7 +4213,7 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 
-	if (spec->add_out_jack_modes) {
+	if (spec->add_jack_modes) {
 		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 			err = create_out_jack_modes(codec, cfg->line_outs,
 						    cfg->line_out_pins);
