@@ -804,10 +804,6 @@ static void prepare_write_message(struct ceph_connection *con)
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
 	}
-#ifdef CONFIG_BLOCK
-	else
-		m->bio_iter = NULL;
-#endif
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d (%zd)\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
