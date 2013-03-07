@@ -2650,8 +2650,8 @@ static int hp_mic_jack_mode_put(struct snd_kcontrol *kcontrol,
 		if (in_jacks > 1) {
 			unsigned int vref_caps = get_vref_caps(codec, nid);
 			val = snd_hda_codec_get_pin_target(codec, nid);
-			val &= ~AC_PINCTL_VREFEN;
-			val |= get_vref_idx(vref_caps, idx);
+			val &= ~(AC_PINCTL_VREFEN | PIN_HP);
+			val |= get_vref_idx(vref_caps, idx) | PIN_IN;
 		} else
 			val = snd_hda_get_default_vref(codec, nid);
 	}
