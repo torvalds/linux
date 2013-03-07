@@ -215,7 +215,7 @@ config HID_EZKEY
 
 config HID_HOLTEK
 	tristate "Holtek HID devices"
-	depends on HID
+	depends on USB_HID
 	---help---
 	Support for Holtek based devices:
 	  - Holtek On Line Grip based game controller
