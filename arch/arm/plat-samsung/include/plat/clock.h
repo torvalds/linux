@@ -145,10 +145,6 @@ extern int s3c2443_clkcon_enable_s(struct clk *clk, int enable);
 
 extern int s3c64xx_sclk_ctrl(struct clk *clk, int enable);
 
-/* Init for pwm clock code */
-
-extern void s3c_pwmclk_init(void);
-
 /* Global watchdog clock used by arch_wtd_reset() callback */
 
 extern struct clk *s3c2410_wdtclk;

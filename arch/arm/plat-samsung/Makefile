@@ -14,7 +14,6 @@ obj-				:=
 obj-y				+= init.o cpu.o
 
 obj-$(CONFIG_SAMSUNG_CLOCK)	+= clock.o
-obj-$(CONFIG_SAMSUNG_CLOCK)	+= pwm-clock.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 obj-$(CONFIG_S5P_CLOCK)		+= s5p-clock.o
