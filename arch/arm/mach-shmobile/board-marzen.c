@@ -347,6 +347,15 @@ static const struct pinctrl_map marzen_pinctrl_map[] = {
 				  "sdhi0_cd", "sdhi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
 				  "sdhi0_wp", "sdhi0"),
+	/* USB0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.0", "pfc-r8a7779",
+				  "usb0", "usb0"),
+	/* USB1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.0", "pfc-r8a7779",
+				  "usb1", "usb1"),
+	/* USB2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.1", "pfc-r8a7779",
+				  "usb2", "usb2"),
 };
 
 static void __init marzen_init(void)
@@ -363,14 +372,6 @@ static void __init marzen_init(void)
 	/* LAN89218 */
 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
-
-	/* USB (CN21) */
-	gpio_request(GPIO_FN_USB_OVC0, NULL);
-	gpio_request(GPIO_FN_USB_OVC1, NULL);
-	gpio_request(GPIO_FN_USB_OVC2, NULL);
-
-	/* USB (CN22) */
-	gpio_request(GPIO_FN_USB_PENC2, NULL);
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
