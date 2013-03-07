@@ -1429,7 +1429,23 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		rc = client->onresponse_handler(client->context, cb);
 
 	if (rc < 0) {
+		smsendian_handle_rx_message((struct SmsMsgData_ST *)phdr);
+
 		switch (phdr->msgType) {
+		case MSG_SMS_ISDBT_TUNE_RES:
+			break;
+		case MSG_SMS_RF_TUNE_RES:
+			break;
+		case MSG_SMS_SIGNAL_DETECTED_IND:
+			break;
+		case MSG_SMS_NO_SIGNAL_IND:
+			break;
+		case MSG_SMS_SPI_INT_LINE_SET_RES:
+			break;
+		case MSG_SMS_INTERFACE_LOCK_IND:
+			break;
+		case MSG_SMS_INTERFACE_UNLOCK_IND:
+			break;
 		case MSG_SMS_GET_VERSION_EX_RES:
 		{
 			struct SmsVersionRes_ST *ver =
