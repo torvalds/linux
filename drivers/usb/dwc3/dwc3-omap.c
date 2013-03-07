@@ -138,10 +138,13 @@ static inline void dwc3_omap_writel(void __iomem *base, u32 offset, u32 value)
 	writel(value, base + offset);
 }
 
-void dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
+int dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
 {
 	u32			val;
 	struct dwc3_omap	*omap = _omap;
+
+	if (!omap)
+		return -EPROBE_DEFER;
 
 	switch (status) {
 	case OMAP_DWC3_ID_GROUND:
@@ -185,7 +188,7 @@ void dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
 		dev_dbg(omap->dev, "ID float\n");
 	}
 
-	return;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dwc3_omap_mailbox);
 

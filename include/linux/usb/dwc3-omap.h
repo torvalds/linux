@@ -19,11 +19,11 @@ enum omap_dwc3_vbus_id_status {
 };
 
 #if (defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_DWC3_MODULE))
-extern void dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status);
+extern int dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status);
 #else
-static inline void dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
+static inline int dwc3_omap_mailbox(enum omap_dwc3_vbus_id_status status)
 {
-	return;
+	return -ENODEV;
 }
 #endif
 
