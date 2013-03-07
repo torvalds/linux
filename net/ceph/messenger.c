@@ -722,11 +722,9 @@ static void iter_bio_next(struct bio **bio_iter, unsigned int *seg)
 }
 #endif
 
-static void prepare_write_message_data(struct ceph_connection *con)
+static void prepare_message_data(struct ceph_msg *msg,
+				struct ceph_msg_pos *msg_pos)
 {
-	struct ceph_msg *msg = con->out_msg;
-	struct ceph_msg_pos *msg_pos = &con->out_msg_pos;
-
 	BUG_ON(!msg);
 	BUG_ON(!msg->hdr.data_len);
 
@@ -742,7 +740,6 @@ static void prepare_write_message_data(struct ceph_connection *con)
 #endif
 	msg_pos->data_pos = 0;
 	msg_pos->did_page_crc = false;
-	con->out_more = 1;  /* data + footer will follow */
 }
 
 /*
@@ -840,11 +837,13 @@ static void prepare_write_message(struct ceph_connection *con)
 
 	/* is there a data payload? */
 	con->out_msg->footer.data_crc = 0;
-	if (m->hdr.data_len)
-		prepare_write_message_data(con);
-	else
+	if (m->hdr.data_len) {
+		prepare_message_data(con->out_msg, &con->out_msg_pos);
+		con->out_more = 1;  /* data + footer will follow */
+	} else {
 		/* no, queue up footer too and be done */
 		prepare_write_message_footer(con);
+	}
 
 	con_flag_set(con, CON_FLAG_WRITE_PENDING);
 }
@@ -1956,17 +1955,10 @@ static int read_partial_message(struct ceph_connection *con)
 		if (m->middle)
 			m->middle->vec.iov_len = 0;
 
-		msg_pos->page = 0;
-		if (m->pages)
-			msg_pos->page_pos = m->page_alignment;
-		else
-			msg_pos->page_pos = 0;
-		msg_pos->data_pos = 0;
+		/* prepare for data payload, if any */
 
-#ifdef CONFIG_BLOCK
-		if (m->bio)
-			init_bio_iter(m->bio, &m->bio_iter, &m->bio_seg);
-#endif
+		if (data_len)
+			prepare_message_data(con->in_msg, &con->in_msg_pos);
 	}
 
 	/* front */
