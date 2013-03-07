@@ -888,6 +888,10 @@ static int __init nf_conntrack_proto_sctp_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&sctp_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
 	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_sctp4);
 	if (ret < 0)
 		goto out_sctp4;
@@ -896,16 +900,12 @@ static int __init nf_conntrack_proto_sctp_init(void)
 	if (ret < 0)
 		goto out_sctp6;
 
-	ret = register_pernet_subsys(&sctp_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
 	return 0;
-out_pernet:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
 out_sctp6:
 	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
 out_sctp4:
+	unregister_pernet_subsys(&sctp_net_ops);
+out_pernet:
 	return ret;
 }
 

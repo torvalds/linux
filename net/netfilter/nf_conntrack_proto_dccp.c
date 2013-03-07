@@ -969,6 +969,10 @@ static int __init nf_conntrack_proto_dccp_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&dccp_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
 	ret = nf_ct_l4proto_register(&dccp_proto4);
 	if (ret < 0)
 		goto out_dccp4;
@@ -977,16 +981,12 @@ static int __init nf_conntrack_proto_dccp_init(void)
 	if (ret < 0)
 		goto out_dccp6;
 
-	ret = register_pernet_subsys(&dccp_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
 	return 0;
-out_pernet:
-	nf_ct_l4proto_unregister(&dccp_proto6);
 out_dccp6:
 	nf_ct_l4proto_unregister(&dccp_proto4);
 out_dccp4:
+	unregister_pernet_subsys(&dccp_net_ops);
+out_pernet:
 	return ret;
 }
 

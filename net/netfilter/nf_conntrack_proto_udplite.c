@@ -371,6 +371,10 @@ static int __init nf_conntrack_proto_udplite_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&udplite_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
 	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_udplite4);
 	if (ret < 0)
 		goto out_udplite4;
@@ -379,16 +383,12 @@ static int __init nf_conntrack_proto_udplite_init(void)
 	if (ret < 0)
 		goto out_udplite6;
 
-	ret = register_pernet_subsys(&udplite_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
 	return 0;
-out_pernet:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udplite6);
 out_udplite6:
 	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udplite4);
 out_udplite4:
+	unregister_pernet_subsys(&udplite_net_ops);
+out_pernet:
 	return ret;
 }
 
