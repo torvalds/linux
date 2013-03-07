@@ -2350,9 +2350,12 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		return 0;
 	}
 
+	mef_entry = kzalloc(sizeof(*mef_entry), GFP_KERNEL);
+	if (!mef_entry)
+		return -ENOMEM;
+
 	memset(&mef_cfg, 0, sizeof(mef_cfg));
 	mef_cfg.num_entries = 1;
-	mef_entry = kzalloc(sizeof(*mef_entry), GFP_KERNEL);
 	mef_cfg.mef_entry = mef_entry;
 	mef_entry->mode = MEF_MODE_HOST_SLEEP;
 	mef_entry->action = MEF_ACTION_ALLOW_AND_WAKEUP_HOST;
