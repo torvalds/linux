@@ -233,6 +233,22 @@ void tty_port_hangup(struct tty_port *port)
 EXPORT_SYMBOL(tty_port_hangup);
 
 /**
+ * tty_port_tty_wakeup - helper to wake up a tty
+ *
+ * @port: tty port
+ */
+void tty_port_tty_wakeup(struct tty_port *port)
+{
+	struct tty_struct *tty = tty_port_tty_get(port);
+
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
+}
+EXPORT_SYMBOL_GPL(tty_port_tty_wakeup);
+
+/**
  *	tty_port_carrier_raised	-	carrier raised check
  *	@port: tty port
  *

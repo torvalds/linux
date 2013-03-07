@@ -487,12 +487,8 @@ static const struct tty_operations if_ops = {
 static void if_wake(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *)data;
-	struct tty_struct *tty = tty_port_tty_get(&cs->port);
 
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_wakeup(&cs->port);
 }
 
 /*** interface to common ***/

@@ -248,7 +248,6 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty;
 	int err;
 
 	/*
@@ -267,12 +266,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	}
 	spin_unlock(&line->lock);
 
-	tty = tty_port_tty_get(&line->port);
-	if (tty == NULL)
-		return IRQ_NONE;
-
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	tty_port_tty_wakeup(&line->port);
 
 	return IRQ_HANDLED;
 }

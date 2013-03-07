@@ -264,7 +264,6 @@ static void ProcessRxChar(struct usb_serial_port *port, unsigned char data)
 
 static void qt_write_bulk_callback(struct urb *urb)
 {
-	struct tty_struct *tty;
 	int status;
 	struct quatech_port *quatech_port;
 
@@ -278,11 +277,7 @@ static void qt_write_bulk_callback(struct urb *urb)
 
 	quatech_port = urb->context;
 
-	tty = tty_port_tty_get(&quatech_port->port->port);
-
-	if (tty)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	tty_port_tty_wakeup(&quatech_port->port->port);
 }
 
 static void qt_interrupt_callback(struct urb *urb)

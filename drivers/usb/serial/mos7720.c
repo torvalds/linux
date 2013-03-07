@@ -932,7 +932,6 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 static void mos7720_bulk_out_data_callback(struct urb *urb)
 {
 	struct moschip_port *mos7720_port;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	if (status) {
@@ -946,11 +945,8 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 		return ;
 	}
 
-	tty = tty_port_tty_get(&mos7720_port->port->port);
-
-	if (tty && mos7720_port->open)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (mos7720_port->open)
+		tty_port_tty_wakeup(&mos7720_port->port->port);
 }
 
 /*

@@ -1925,7 +1925,6 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 {
 	struct hso_serial *serial = urb->context;
 	int status = urb->status;
-	struct tty_struct *tty;
 
 	/* sanity check */
 	if (!serial) {
@@ -1941,11 +1940,7 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 		return;
 	}
 	hso_put_activity(serial->parent);
-	tty = tty_port_tty_get(&serial->port);
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_wakeup(&serial->port);
 	hso_kick_transmit(serial);
 
 	D1(" ");
@@ -2008,12 +2003,8 @@ static void ctrl_callback(struct urb *urb)
 		put_rxbuf_data_and_resubmit_ctrl_urb(serial);
 		spin_unlock(&serial->serial_lock);
 	} else {
-		struct tty_struct *tty = tty_port_tty_get(&serial->port);
 		hso_put_activity(serial->parent);
-		if (tty) {
-			tty_wakeup(tty);
-			tty_kref_put(tty);
-		}
+		tty_port_tty_wakeup(&serial->port);
 		/* response to a write command */
 		hso_kick_transmit(serial);
 	}

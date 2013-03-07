@@ -475,15 +475,10 @@ static void acm_write_bulk(struct urb *urb)
 static void acm_softint(struct work_struct *work)
 {
 	struct acm *acm = container_of(work, struct acm, work);
-	struct tty_struct *tty;
 
 	dev_vdbg(&acm->data->dev, "%s\n", __func__);
 
-	tty = tty_port_tty_get(&acm->port);
-	if (!tty)
-		return;
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	tty_port_tty_wakeup(&acm->port);
 }
 
 /*

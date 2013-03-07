@@ -443,25 +443,6 @@ static void ifx_spi_setup_spi_header(unsigned char *txbuffer, int tx_count,
 }
 
 /**
- *	ifx_spi_wakeup_serial	-	SPI space made
- *	@port_data: our SPI device
- *
- *	We have emptied the FIFO enough that we want to get more data
- *	queued into it. Poke the line discipline via tty_wakeup so that
- *	it will feed us more bits
- */
-static void ifx_spi_wakeup_serial(struct ifx_spi_device *ifx_dev)
-{
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&ifx_dev->tty_port);
-	if (!tty)
-		return;
-	tty_wakeup(tty);
-	tty_kref_put(tty);
-}
-
-/**
  *	ifx_spi_prepare_tx_buffer	-	prepare transmit frame
  *	@ifx_dev: our SPI device
  *
@@ -506,7 +487,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 			tx_count += temp_count;
 			if (temp_count == queue_length)
 				/* poke port to get more data */
-				ifx_spi_wakeup_serial(ifx_dev);
+				tty_port_tty_wakeup(&ifx_dev->tty_port);
 			else /* more data in port, use next SPI message */
 				ifx_dev->spi_more = 1;
 		}
@@ -683,8 +664,6 @@ static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 static void ifx_spi_complete(void *ctx)
 {
 	struct ifx_spi_device *ifx_dev = ctx;
-	struct tty_struct *tty;
-	struct tty_ldisc *ldisc = NULL;
 	int length;
 	int actual_length;
 	unsigned char more;
@@ -762,15 +741,7 @@ complete_exit:
 			 */
 			ifx_spi_power_state_clear(ifx_dev,
 						  IFX_SPI_POWER_DATA_PENDING);
-			tty = tty_port_tty_get(&ifx_dev->tty_port);
-			if (tty) {
-				ldisc = tty_ldisc_ref(tty);
-				if (ldisc) {
-					ldisc->ops->write_wakeup(tty);
-					tty_ldisc_deref(ldisc);
-				}
-				tty_kref_put(tty);
-			}
+			tty_port_tty_wakeup(&ifx_dev->tty_port);
 		}
 	}
 }

@@ -861,7 +861,6 @@ static void hvsi_write_worker(struct work_struct *work)
 {
 	struct hvsi_struct *hp =
 		container_of(work, struct hvsi_struct, writer.work);
-	struct tty_struct *tty;
 	unsigned long flags;
 #ifdef DEBUG
 	static long start_j = 0;
@@ -895,11 +894,7 @@ static void hvsi_write_worker(struct work_struct *work)
 		start_j = 0;
 #endif /* DEBUG */
 		wake_up_all(&hp->emptyq);
-		tty = tty_port_tty_get(&hp->port);
-		if (tty) {
-			tty_wakeup(tty);
-			tty_kref_put(tty);
-		}
+		tty_port_tty_wakeup(&hp->port);
 	}
 
 out:

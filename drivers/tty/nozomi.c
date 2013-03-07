@@ -791,7 +791,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	const u8 toggle = port->toggle_ul;
 	void __iomem *addr = port->ul_addr[toggle];
 	const u32 ul_size = port->ul_size[toggle];
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
 	size = kfifo_out(&port->fifo_ul, dc->send_buf,
@@ -799,7 +798,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 
 	if (size == 0) {
 		DBG4("No more data to send, disable link:");
-		tty_kref_put(tty);
 		return 0;
 	}
 
@@ -809,10 +807,8 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	write_mem32(addr, (u32 *) &size, 4);
 	write_mem32(addr + 4, (u32 *) dc->send_buf, size);
 
-	if (tty)
-		tty_wakeup(tty);
+	tty_port_tty_wakeup(&port->port);
 
-	tty_kref_put(tty);
 	return 1;
 }
 
