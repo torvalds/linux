@@ -347,6 +347,9 @@ static const struct pinctrl_map marzen_pinctrl_map[] = {
 				  "sdhi0_cd", "sdhi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
 				  "sdhi0_wp", "sdhi0"),
+	/* SMSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-r8a7779",
+				  "lbsc_ex_cs0", "lbsc"),
 	/* USB0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.0", "pfc-r8a7779",
 				  "usb0", "usb0"),
@@ -370,7 +373,6 @@ static void __init marzen_init(void)
 	r8a7779_pinmux_init();
 
 	/* LAN89218 */
-	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
 
 	r8a7779_add_standard_devices();
