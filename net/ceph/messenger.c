@@ -2690,13 +2690,13 @@ void ceph_con_keepalive(struct ceph_connection *con)
 EXPORT_SYMBOL(ceph_con_keepalive);
 
 void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
-		unsigned int page_count, size_t alignment)
+		size_t length, size_t alignment)
 {
 	/* BUG_ON(msg->pages); */
 	/* BUG_ON(msg->page_count); */
 
 	msg->pages = pages;
-	msg->page_count = page_count;
+	msg->page_count = calc_pages_for((u64)alignment, (u64)length);
 	msg->page_alignment = alignment & ~PAGE_MASK;
 }
 EXPORT_SYMBOL(ceph_msg_data_set_pages);

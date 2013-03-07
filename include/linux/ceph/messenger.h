@@ -220,7 +220,7 @@ extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
 extern void ceph_con_keepalive(struct ceph_connection *con);
 
 extern void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
-				unsigned int page_count, size_t alignment);
+				size_t length, size_t alignment);
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
