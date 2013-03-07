@@ -493,7 +493,7 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 }
 
 static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
-		     int offset, size_t size, int more)
+		     int offset, size_t size, bool more)
 {
 	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | (more ? MSG_MORE : MSG_EOR);
 	int ret;
@@ -1132,7 +1132,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		}
 		ret = ceph_tcp_sendpage(con->sock, page,
 				      con->out_msg_pos.page_pos + bio_offset,
-				      len, 1);
+				      len, true);
 		if (ret <= 0)
 			goto out;
 
@@ -1161,7 +1161,7 @@ static int write_partial_skip(struct ceph_connection *con)
 	while (con->out_skip > 0) {
 		size_t size = min(con->out_skip, (int) PAGE_CACHE_SIZE);
 
-		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, 1);
+		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, true);
 		if (ret <= 0)
 			goto out;
 		con->out_skip -= ret;
