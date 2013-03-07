@@ -1,3 +1,5 @@
+#include <linux/bug.h>
+
 #ifdef CONFIG_ZCACHE_DEBUG
 
 /* we try to keep these statistics SMP-consistent */
