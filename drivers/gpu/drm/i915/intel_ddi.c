@@ -898,6 +898,9 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
 			plls->spll_refcount++;
 			reg = SPLL_CTL;
 			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
+		} else {
+			DRM_ERROR("SPLL already in use\n");
+			return false;
 		}
 
 		WARN(I915_READ(reg) & SPLL_PLL_ENABLE,
