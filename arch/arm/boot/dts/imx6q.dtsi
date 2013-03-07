@@ -85,6 +85,15 @@
 							MX6Q_PAD_SD2_DAT1__AUD4_TXFS 0x80000000
 						>;
 					};
+
+					pinctrl_audmux_2: audmux-2 {
+						fsl,pins = <
+							MX6Q_PAD_CSI0_DAT7__AUD3_RXD  0x80000000
+							MX6Q_PAD_CSI0_DAT4__AUD3_TXC  0x80000000
+							MX6Q_PAD_CSI0_DAT5__AUD3_TXD  0x80000000
+							MX6Q_PAD_CSI0_DAT6__AUD3_TXFS 0x80000000
+						>;
+					};
 				};
 
 				ecspi1 {
