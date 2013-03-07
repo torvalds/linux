@@ -864,7 +864,7 @@ static void free_session(struct kref *kref)
 	__free_session(ses);
 }
 
-void nfsd4_put_session(struct nfsd4_session *ses)
+static void nfsd4_put_session(struct nfsd4_session *ses)
 {
 	struct nfsd_net *nn = net_generic(ses->se_client->net, nfsd_net_id);
 
@@ -1057,12 +1057,16 @@ release_session_client(struct nfsd4_session *session)
 	struct nfs4_client *clp = session->se_client;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
+	nfsd4_put_session(session);
 	if (!atomic_dec_and_lock(&clp->cl_refcount, &nn->client_lock))
 		return;
-	if (is_client_expired(clp)) {
+	/*
+	 * At this point we also know all sessions have refcnt 1,
+	 * so free_client will delete them all if necessary:
+	 */
+	if (is_client_expired(clp))
 		free_client(clp);
-		session->se_client = NULL;
-	} else
+	else
 		renew_client_locked(clp);
 	spin_unlock(&nn->client_lock);
 }
