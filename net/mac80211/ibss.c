@@ -58,14 +58,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	/* Reset own TSF to allow time synchronization work. */
 	drv_reset_tsf(local, sdata);
 
-	skb = ifibss->skb;
-	RCU_INIT_POINTER(ifibss->presp, NULL);
-	synchronize_rcu();
-	skb->data = skb->head;
-	skb->len = 0;
-	skb_reset_tail_pointer(skb);
-	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
-
 	if (!ether_addr_equal(ifibss->bssid, bssid))
 		sta_info_flush(sdata);
 
@@ -73,9 +65,20 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.bss_conf.ibss_joined) {
 		sdata->vif.bss_conf.ibss_joined = false;
 		sdata->vif.bss_conf.ibss_creator = false;
+		sdata->vif.bss_conf.enable_beacon = false;
 		netif_carrier_off(sdata->dev);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IBSS);
+		ieee80211_bss_info_change_notify(sdata,
+						 BSS_CHANGED_IBSS |
+						 BSS_CHANGED_BEACON_ENABLED);
 	}
+
+	skb = ifibss->skb;
+	RCU_INIT_POINTER(ifibss->presp, NULL);
+	synchronize_rcu();
+	skb->data = skb->head;
+	skb->len = 0;
+	skb_reset_tail_pointer(skb);
+	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
