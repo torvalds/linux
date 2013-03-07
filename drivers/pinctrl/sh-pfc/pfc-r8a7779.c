@@ -1631,6 +1631,63 @@ static const unsigned int hspi2_b_pins[] = {
 static const unsigned int hspi2_b_mux[] = {
 	HSPI_CLK2_B_MARK, HSPI_CS2_B_MARK, HSPI_RX2_B_MARK, HSPI_TX2_B_MARK,
 };
+/* - LSBC ------------------------------------------------------------------- */
+static const unsigned int lbsc_cs0_pins[] = {
+	/* CS */
+	13,
+};
+static const unsigned int lbsc_cs0_mux[] = {
+	CS0_MARK,
+};
+static const unsigned int lbsc_cs1_pins[] = {
+	/* CS */
+	14,
+};
+static const unsigned int lbsc_cs1_mux[] = {
+	CS1_A26_MARK,
+};
+static const unsigned int lbsc_ex_cs0_pins[] = {
+	/* CS */
+	15,
+};
+static const unsigned int lbsc_ex_cs0_mux[] = {
+	EX_CS0_MARK,
+};
+static const unsigned int lbsc_ex_cs1_pins[] = {
+	/* CS */
+	16,
+};
+static const unsigned int lbsc_ex_cs1_mux[] = {
+	EX_CS1_MARK,
+};
+static const unsigned int lbsc_ex_cs2_pins[] = {
+	/* CS */
+	17,
+};
+static const unsigned int lbsc_ex_cs2_mux[] = {
+	EX_CS2_MARK,
+};
+static const unsigned int lbsc_ex_cs3_pins[] = {
+	/* CS */
+	18,
+};
+static const unsigned int lbsc_ex_cs3_mux[] = {
+	EX_CS3_MARK,
+};
+static const unsigned int lbsc_ex_cs4_pins[] = {
+	/* CS */
+	19,
+};
+static const unsigned int lbsc_ex_cs4_mux[] = {
+	EX_CS4_MARK,
+};
+static const unsigned int lbsc_ex_cs5_pins[] = {
+	/* CS */
+	20,
+};
+static const unsigned int lbsc_ex_cs5_mux[] = {
+	EX_CS5_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc0_data1_pins[] = {
 	/* D[0] */
@@ -2246,6 +2303,14 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(hspi1_d),
 	SH_PFC_PIN_GROUP(hspi2),
 	SH_PFC_PIN_GROUP(hspi2_b),
+	SH_PFC_PIN_GROUP(lbsc_cs0),
+	SH_PFC_PIN_GROUP(lbsc_cs1),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs0),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs1),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs2),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs3),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs4),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs5),
 	SH_PFC_PIN_GROUP(mmc0_data1),
 	SH_PFC_PIN_GROUP(mmc0_data4),
 	SH_PFC_PIN_GROUP(mmc0_data8),
@@ -2365,6 +2430,17 @@ static const char * const hspi1_groups[] = {
 static const char * const hspi2_groups[] = {
 	"hspi2",
 	"hspi2_b",
+};
+
+static const char * const lbsc_groups[] = {
+	"lbsc_cs0",
+	"lbsc_cs1",
+	"lbsc_ex_cs0",
+	"lbsc_ex_cs1",
+	"lbsc_ex_cs2",
+	"lbsc_ex_cs3",
+	"lbsc_ex_cs4",
+	"lbsc_ex_cs5",
 };
 
 static const char * const mmc0_groups[] = {
@@ -2500,6 +2576,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(hspi0),
 	SH_PFC_FUNCTION(hspi1),
 	SH_PFC_FUNCTION(hspi2),
+	SH_PFC_FUNCTION(lbsc),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(mmc1),
 	SH_PFC_FUNCTION(sdhi0),
