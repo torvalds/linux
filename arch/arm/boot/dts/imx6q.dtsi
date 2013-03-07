@@ -185,6 +185,24 @@
 					};
 				};
 
+				i2c2 {
+					pinctrl_i2c2_1: i2c2grp-1 {
+						fsl,pins = <
+							MX6Q_PAD_EIM_EB2__I2C2_SCL 0x4001b8b1
+							MX6Q_PAD_EIM_D16__I2C2_SDA 0x4001b8b1
+						>;
+					};
+				};
+
+				i2c3 {
+					pinctrl_i2c3_1: i2c3grp-1 {
+						fsl,pins = <
+							MX6Q_PAD_EIM_D17__I2C3_SCL 0x4001b8b1
+							MX6Q_PAD_EIM_D18__I2C3_SDA 0x4001b8b1
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
