@@ -30,6 +30,12 @@
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
 #define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
 
+/* CG IND registers are accessed via SMC indirect space + SMC_CG_IND_START */
+#define SMC_CG_IND_START                    0xc0030000
+
+#define	CG_CGTT_LOCAL_0				0x400
+#define	CG_CGTT_LOCAL_1				0x401
+
 /* discrete uvd clocks */
 #define	CG_UPLL_FUNC_CNTL				0x634
 #	define UPLL_RESET_MASK				0x00000001
@@ -224,6 +230,10 @@
 #define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
 #define	VM_CONTEXT1_PAGE_TABLE_END_ADDR			0x1580
 
+#define VM_L2_CG           				0x15c0
+#define		MC_CG_ENABLE				(1 << 18)
+#define		MC_LS_ENABLE				(1 << 19)
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
@@ -248,6 +258,17 @@
 #define		ENABLE_ADVANCED_DRIVER_MODEL			(1 << 6)
 
 #define MC_SHARED_BLACKOUT_CNTL           		0x20ac
+
+#define MC_HUB_MISC_HUB_CG           			0x20b8
+#define MC_HUB_MISC_VM_CG           			0x20bc
+
+#define MC_HUB_MISC_SIP_CG           			0x20c0
+
+#define MC_XPB_CLK_GAT           			0x2478
+
+#define MC_CITF_MISC_RD_CG           			0x2648
+#define MC_CITF_MISC_WR_CG           			0x264c
+#define MC_CITF_MISC_VM_CG           			0x2650
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -288,6 +309,8 @@
 #define HDP_ADDR_CONFIG  				0x2F48
 #define HDP_MISC_CNTL					0x2F4C
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
+
+#define ATC_MISC_CG           				0x3350
 
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
@@ -639,6 +662,9 @@
 #define	CGTS_USER_TCC_DISABLE				0x914C
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
+#define	CGTS_SM_CTRL_REG				0x9150
+#define		OVERRIDE				(1 << 21)
+#define		LS_OVERRIDE				(1 << 22)
 
 #define	SPI_LB_CU_MASK					0x9354
 
@@ -730,6 +756,8 @@
 #define	CB_PERFCOUNTER3_SELECT0				0x9a38
 #define	CB_PERFCOUNTER3_SELECT1				0x9a3c
 
+#define	CB_CGTT_SCLK_CTRL				0x9a60
+
 #define	GC_USER_RB_BACKEND_DISABLE			0x9B7C
 #define		BACKEND_DISABLE_MASK			0x00FF0000
 #define		BACKEND_DISABLE_SHIFT			16
@@ -787,6 +815,9 @@
 #       define CP_RINGID1_INT_STAT                      (1 << 30)
 #       define CP_RINGID0_INT_STAT                      (1 << 31)
 
+#define	CP_MEM_SLP_CNTL					0xC1E4
+#       define CP_MEM_LS_EN                             (1 << 0)
+
 #define	CP_DEBUG					0xC1FC
 
 #define RLC_CNTL                                          0xC300
@@ -815,10 +846,48 @@
 #       define GFX_CLOCK_STATUS                           (1 << 2)
 #       define GFX_LS_STATUS                              (1 << 3)
 
+#define	RLC_PG_CNTL					0xC35C
+#	define GFX_PG_ENABLE				(1 << 0)
+#	define GFX_PG_SRC				(1 << 1)
+
+#define	RLC_CGTT_MGCG_OVERRIDE				0xC400
+#define	RLC_CGCG_CGLS_CTRL				0xC404
+#	define CGCG_EN					(1 << 0)
+#	define CGLS_EN					(1 << 1)
+
+#define	RLC_TTOP_D					0xC414
+#	define RLC_PUD(x)				((x) << 0)
+#	define RLC_PUD_MASK				(0xff << 0)
+#	define RLC_PDD(x)				((x) << 8)
+#	define RLC_PDD_MASK				(0xff << 8)
+#	define RLC_TTPD(x)				((x) << 16)
+#	define RLC_TTPD_MASK				(0xff << 16)
+#	define RLC_MSD(x)				((x) << 24)
+#	define RLC_MSD_MASK				(0xff << 24)
+
 #define RLC_LB_INIT_CU_MASK                               0xC41C
+
+#define	RLC_PG_AO_CU_MASK				0xC42C
+#define	RLC_MAX_PG_CU					0xC430
+#	define MAX_PU_CU(x)				((x) << 0)
+#	define MAX_PU_CU_MASK				(0xff << 0)
+#define	RLC_AUTO_PG_CTRL				0xC434
+#	define AUTO_PG_EN				(1 << 0)
+#	define GRBM_REG_SGIT(x)				((x) << 3)
+#	define GRBM_REG_SGIT_MASK			(0xffff << 3)
+#	define PG_AFTER_GRBM_REG_ST(x)			((x) << 19)
+#	define PG_AFTER_GRBM_REG_ST_MASK		(0x1fff << 19)
+
+#define RLC_SERDES_WR_MASTER_MASK_0                       0xC454
+#define RLC_SERDES_WR_MASTER_MASK_1                       0xC458
+#define RLC_SERDES_WR_CTRL                                0xC45C
 
 #define RLC_SERDES_MASTER_BUSY_0                          0xC464
 #define RLC_SERDES_MASTER_BUSY_1                          0xC468
+
+#define RLC_GCPM_GENERAL_3                                0xC478
+
+#define	DB_RENDER_CONTROL				0x28000
 
 #define DB_DEPTH_INFO                                   0x2803c
 
@@ -1015,6 +1084,21 @@
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
 #define UVD_RBC_RB_RPTR					0xF690
 #define UVD_RBC_RB_WPTR					0xF694
+
+#define	UVD_CGC_CTRL					0xF4B0
+#	define DCM					(1 << 0)
+#	define CG_DT(x)					((x) << 2)
+#	define CG_DT_MASK				(0xf << 2)
+#	define CLK_OD(x)				((x) << 6)
+#	define CLK_OD_MASK				(0x1f << 6)
+
+ /* UVD CTX indirect */
+#define	UVD_CGC_MEM_CTRL				0xC0
+#define	UVD_CGC_CTRL2					0xC1
+#	define DYN_OR_EN				(1 << 0)
+#	define DYN_RR_EN				(1 << 1)
+#	define G_DIV_ID(x)				((x) << 2)
+#	define G_DIV_ID_MASK				(0x7 << 2)
 
 /*
  * PM4
@@ -1259,6 +1343,11 @@
 #define DMA_STATUS_REG                                    0xd034
 #       define DMA_IDLE                                   (1 << 0)
 #define DMA_TILING_CONFIG  				  0xd0b8
+
+#define	DMA_PG						0xd0d4
+#	define PG_CNTL_ENABLE				(1 << 0)
+#define	DMA_PGFSM_CONFIG				0xd0d8
+#define	DMA_PGFSM_WRITE					0xd0dc
 
 #define DMA_PACKET(cmd, b, t, s, n)	((((cmd) & 0xF) << 28) |	\
 					 (((b) & 0x1) << 26) |		\

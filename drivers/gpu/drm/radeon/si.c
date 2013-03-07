@@ -4553,6 +4553,450 @@ void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 }
 
 /*
+ *  Power and clock gating
+ */
+static void si_wait_for_rlc_serdes(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(RLC_SERDES_MASTER_BUSY_0) == 0)
+			break;
+		udelay(1);
+	}
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(RLC_SERDES_MASTER_BUSY_1) == 0)
+			break;
+		udelay(1);
+	}
+}
+
+static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
+					 bool enable)
+{
+	u32 tmp = RREG32(CP_INT_CNTL_RING0);
+	u32 mask;
+	int i;
+
+	if (enable)
+		tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	else
+		tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
+
+	if (!enable) {
+		/* read a gfx register */
+		tmp = RREG32(DB_DEPTH_INFO);
+
+		mask = RLC_BUSY_STATUS | GFX_POWER_STATUS | GFX_CLOCK_STATUS | GFX_LS_STATUS;
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if ((RREG32(RLC_STAT) & mask) == (GFX_CLOCK_STATUS | GFX_POWER_STATUS))
+				break;
+			udelay(1);
+		}
+	}
+}
+
+static void si_set_uvd_dcm(struct radeon_device *rdev,
+			   bool sw_mode)
+{
+	u32 tmp, tmp2;
+
+	tmp = RREG32(UVD_CGC_CTRL);
+	tmp &= ~(CLK_OD_MASK | CG_DT_MASK);
+	tmp |= DCM | CG_DT(1) | CLK_OD(4);
+
+	if (sw_mode) {
+		tmp &= ~0x7ffff800;
+		tmp2 = DYN_OR_EN | DYN_RR_EN | G_DIV_ID(7);
+	} else {
+		tmp |= 0x7ffff800;
+		tmp2 = 0;
+	}
+
+	WREG32(UVD_CGC_CTRL, tmp);
+	WREG32_UVD_CTX(UVD_CGC_CTRL2, tmp2);
+}
+
+static void si_init_uvd_internal_cg(struct radeon_device *rdev)
+{
+	bool hw_mode = true;
+
+	if (hw_mode) {
+		si_set_uvd_dcm(rdev, false);
+	} else {
+		u32 tmp = RREG32(UVD_CGC_CTRL);
+		tmp &= ~DCM;
+		WREG32(UVD_CGC_CTRL, tmp);
+	}
+}
+
+static u32 si_halt_rlc(struct radeon_device *rdev)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_CNTL);
+
+	if (data & RLC_ENABLE) {
+		data &= ~RLC_ENABLE;
+		WREG32(RLC_CNTL, data);
+
+		si_wait_for_rlc_serdes(rdev);
+	}
+
+	return orig;
+}
+
+static void si_update_rlc(struct radeon_device *rdev, u32 rlc)
+{
+	u32 tmp;
+
+	tmp = RREG32(RLC_CNTL);
+	if (tmp != rlc)
+		WREG32(RLC_CNTL, rlc);
+}
+
+static void si_enable_dma_pg(struct radeon_device *rdev, bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(DMA_PG);
+	if (enable)
+		data |= PG_CNTL_ENABLE;
+	else
+		data &= ~PG_CNTL_ENABLE;
+	if (orig != data)
+		WREG32(DMA_PG, data);
+}
+
+static void si_init_dma_pg(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	WREG32(DMA_PGFSM_WRITE,  0x00002000);
+	WREG32(DMA_PGFSM_CONFIG, 0x100010ff);
+
+	for (tmp = 0; tmp < 5; tmp++)
+		WREG32(DMA_PGFSM_WRITE, 0);
+}
+
+static void si_enable_gfx_cgpg(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 tmp;
+
+	if (enable) {
+		tmp = RLC_PUD(0x10) | RLC_PDD(0x10) | RLC_TTPD(0x10) | RLC_MSD(0x10);
+		WREG32(RLC_TTOP_D, tmp);
+
+		tmp = RREG32(RLC_PG_CNTL);
+		tmp |= GFX_PG_ENABLE;
+		WREG32(RLC_PG_CNTL, tmp);
+
+		tmp = RREG32(RLC_AUTO_PG_CTRL);
+		tmp |= AUTO_PG_EN;
+		WREG32(RLC_AUTO_PG_CTRL, tmp);
+	} else {
+		tmp = RREG32(RLC_AUTO_PG_CTRL);
+		tmp &= ~AUTO_PG_EN;
+		WREG32(RLC_AUTO_PG_CTRL, tmp);
+
+		tmp = RREG32(DB_RENDER_CONTROL);
+	}
+}
+
+static void si_init_gfx_cgpg(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
+
+	tmp = RREG32(RLC_PG_CNTL);
+	tmp |= GFX_PG_SRC;
+	WREG32(RLC_PG_CNTL, tmp);
+
+	WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
+
+	tmp = RREG32(RLC_AUTO_PG_CTRL);
+
+	tmp &= ~GRBM_REG_SGIT_MASK;
+	tmp |= GRBM_REG_SGIT(0x700);
+	tmp &= ~PG_AFTER_GRBM_REG_ST_MASK;
+	WREG32(RLC_AUTO_PG_CTRL, tmp);
+}
+
+static u32 get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh)
+{
+	u32 mask = 0, tmp, tmp1;
+	int i;
+
+	si_select_se_sh(rdev, se, sh);
+	tmp = RREG32(CC_GC_SHADER_ARRAY_CONFIG);
+	tmp1 = RREG32(GC_USER_SHADER_ARRAY_CONFIG);
+	si_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+
+	tmp &= 0xffff0000;
+
+	tmp |= tmp1;
+	tmp >>= 16;
+
+	for (i = 0; i < rdev->config.si.max_cu_per_sh; i ++) {
+		mask <<= 1;
+		mask |= 1;
+	}
+
+	return (~tmp) & mask;
+}
+
+static void si_init_ao_cu_mask(struct radeon_device *rdev)
+{
+	u32 i, j, k, active_cu_number = 0;
+	u32 mask, counter, cu_bitmap;
+	u32 tmp = 0;
+
+	for (i = 0; i < rdev->config.si.max_shader_engines; i++) {
+		for (j = 0; j < rdev->config.si.max_sh_per_se; j++) {
+			mask = 1;
+			cu_bitmap = 0;
+			counter  = 0;
+			for (k = 0; k < rdev->config.si.max_cu_per_sh; k++) {
+				if (get_cu_active_bitmap(rdev, i, j) & mask) {
+					if (counter < 2)
+						cu_bitmap |= mask;
+					counter++;
+				}
+				mask <<= 1;
+			}
+
+			active_cu_number += counter;
+			tmp |= (cu_bitmap << (i * 16 + j * 8));
+		}
+	}
+
+	WREG32(RLC_PG_AO_CU_MASK, tmp);
+
+	tmp = RREG32(RLC_MAX_PG_CU);
+	tmp &= ~MAX_PU_CU_MASK;
+	tmp |= MAX_PU_CU(active_cu_number);
+	WREG32(RLC_MAX_PG_CU, tmp);
+}
+
+static void si_enable_cgcg(struct radeon_device *rdev,
+			   bool enable)
+{
+	u32 data, orig, tmp;
+
+	orig = data = RREG32(RLC_CGCG_CGLS_CTRL);
+
+	si_enable_gui_idle_interrupt(rdev, enable);
+
+	if (enable) {
+		WREG32(RLC_GCPM_GENERAL_3, 0x00000080);
+
+		tmp = si_halt_rlc(rdev);
+
+		WREG32(RLC_SERDES_WR_MASTER_MASK_0, 0xffffffff);
+		WREG32(RLC_SERDES_WR_MASTER_MASK_1, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CTRL, 0x00b000ff);
+
+		si_wait_for_rlc_serdes(rdev);
+
+		si_update_rlc(rdev, tmp);
+
+		WREG32(RLC_SERDES_WR_CTRL, 0x007000ff);
+
+		data |= CGCG_EN | CGLS_EN;
+	} else {
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+
+		data &= ~(CGCG_EN | CGLS_EN);
+	}
+
+	if (orig != data)
+		WREG32(RLC_CGCG_CGLS_CTRL, data);
+}
+
+static void si_enable_mgcg(struct radeon_device *rdev,
+			   bool enable)
+{
+	u32 data, orig, tmp = 0;
+
+	if (enable) {
+		orig = data = RREG32(CGTS_SM_CTRL_REG);
+		data = 0x96940200;
+		if (orig != data)
+			WREG32(CGTS_SM_CTRL_REG, data);
+
+		orig = data = RREG32(CP_MEM_SLP_CNTL);
+		data |= CP_MEM_LS_EN;
+		if (orig != data)
+			WREG32(CP_MEM_SLP_CNTL, data);
+
+		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
+		data &= 0xffffffc0;
+		if (orig != data)
+			WREG32(RLC_CGTT_MGCG_OVERRIDE, data);
+
+		tmp = si_halt_rlc(rdev);
+
+		WREG32(RLC_SERDES_WR_MASTER_MASK_0, 0xffffffff);
+		WREG32(RLC_SERDES_WR_MASTER_MASK_1, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CTRL, 0x00d000ff);
+
+		si_update_rlc(rdev, tmp);
+	} else {
+		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
+		data |= 0x00000003;
+		if (orig != data)
+			WREG32(RLC_CGTT_MGCG_OVERRIDE, data);
+
+		data = RREG32(CP_MEM_SLP_CNTL);
+		if (data & CP_MEM_LS_EN) {
+			data &= ~CP_MEM_LS_EN;
+			WREG32(CP_MEM_SLP_CNTL, data);
+		}
+		orig = data = RREG32(CGTS_SM_CTRL_REG);
+		data |= LS_OVERRIDE | OVERRIDE;
+		if (orig != data)
+			WREG32(CGTS_SM_CTRL_REG, data);
+
+		tmp = si_halt_rlc(rdev);
+
+		WREG32(RLC_SERDES_WR_MASTER_MASK_0, 0xffffffff);
+		WREG32(RLC_SERDES_WR_MASTER_MASK_1, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CTRL, 0x00e000ff);
+
+		si_update_rlc(rdev, tmp);
+	}
+}
+
+static void si_enable_uvd_mgcg(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 orig, data, tmp;
+
+	if (enable) {
+		tmp = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
+		tmp |= 0x3fff;
+		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, tmp);
+
+		orig = data = RREG32(UVD_CGC_CTRL);
+		data |= DCM;
+		if (orig != data)
+			WREG32(UVD_CGC_CTRL, data);
+
+		WREG32_SMC(SMC_CG_IND_START + CG_CGTT_LOCAL_0, 0);
+		WREG32_SMC(SMC_CG_IND_START + CG_CGTT_LOCAL_1, 0);
+	} else {
+		tmp = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
+		tmp &= ~0x3fff;
+		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, tmp);
+
+		orig = data = RREG32(UVD_CGC_CTRL);
+		data &= ~DCM;
+		if (orig != data)
+			WREG32(UVD_CGC_CTRL, data);
+
+		WREG32_SMC(SMC_CG_IND_START + CG_CGTT_LOCAL_0, 0xffffffff);
+		WREG32_SMC(SMC_CG_IND_START + CG_CGTT_LOCAL_1, 0xffffffff);
+	}
+}
+
+static const u32 mc_cg_registers[] =
+{
+	MC_HUB_MISC_HUB_CG,
+	MC_HUB_MISC_SIP_CG,
+	MC_HUB_MISC_VM_CG,
+	MC_XPB_CLK_GAT,
+	ATC_MISC_CG,
+	MC_CITF_MISC_WR_CG,
+	MC_CITF_MISC_RD_CG,
+	MC_CITF_MISC_VM_CG,
+	VM_L2_CG,
+};
+
+static void si_enable_mc_ls(struct radeon_device *rdev,
+			    bool enable)
+{
+	int i;
+	u32 orig, data;
+
+	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
+		orig = data = RREG32(mc_cg_registers[i]);
+		if (enable)
+			data |= MC_LS_ENABLE;
+		else
+			data &= ~MC_LS_ENABLE;
+		if (data != orig)
+			WREG32(mc_cg_registers[i], data);
+	}
+}
+
+
+static void si_init_cg(struct radeon_device *rdev)
+{
+	bool has_uvd = true;
+
+	si_enable_mgcg(rdev, true);
+	si_enable_cgcg(rdev, true);
+	/* disable MC LS on Tahiti */
+	if (rdev->family == CHIP_TAHITI)
+		si_enable_mc_ls(rdev, false);
+	if (has_uvd) {
+		si_enable_uvd_mgcg(rdev, true);
+		si_init_uvd_internal_cg(rdev);
+	}
+}
+
+static void si_fini_cg(struct radeon_device *rdev)
+{
+	bool has_uvd = true;
+
+	if (has_uvd)
+		si_enable_uvd_mgcg(rdev, false);
+	si_enable_cgcg(rdev, false);
+	si_enable_mgcg(rdev, false);
+}
+
+static void si_init_pg(struct radeon_device *rdev)
+{
+	bool has_pg = false;
+
+	/* only cape verde supports PG */
+	if (rdev->family == CHIP_VERDE)
+		has_pg = true;
+
+	if (has_pg) {
+		si_init_ao_cu_mask(rdev);
+		si_init_dma_pg(rdev);
+		si_enable_dma_pg(rdev, true);
+		si_init_gfx_cgpg(rdev);
+		si_enable_gfx_cgpg(rdev, true);
+	} else {
+		WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
+		WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
+	}
+}
+
+static void si_fini_pg(struct radeon_device *rdev)
+{
+	bool has_pg = false;
+
+	/* only cape verde supports PG */
+	if (rdev->family == CHIP_VERDE)
+		has_pg = true;
+
+	if (has_pg) {
+		si_enable_dma_pg(rdev, false);
+		si_enable_gfx_cgpg(rdev, false);
+	}
+}
+
+/*
  * RLC
  */
 void si_rlc_fini(struct radeon_device *rdev)
@@ -4715,47 +5159,16 @@ int si_rlc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
-					 bool enable)
+static void si_rlc_reset(struct radeon_device *rdev)
 {
-	u32 tmp = RREG32(CP_INT_CNTL_RING0);
-	u32 mask;
-	int i;
+	u32 tmp = RREG32(GRBM_SOFT_RESET);
 
-	if (enable)
-		tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
-	else
-		tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
-	WREG32(CP_INT_CNTL_RING0, tmp);
-
-	if (!enable) {
-		/* read a gfx register */
-		tmp = RREG32(DB_DEPTH_INFO);
-
-		mask = RLC_BUSY_STATUS | GFX_POWER_STATUS | GFX_CLOCK_STATUS | GFX_LS_STATUS;
-		for (i = 0; i < rdev->usec_timeout; i++) {
-			if ((RREG32(RLC_STAT) & mask) == (GFX_CLOCK_STATUS | GFX_POWER_STATUS))
-				break;
-			udelay(1);
-		}
-	}
-}
-
-static void si_wait_for_rlc_serdes(struct radeon_device *rdev)
-{
-	int i;
-
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		if (RREG32(RLC_SERDES_MASTER_BUSY_0) == 0)
-			break;
-		udelay(1);
-	}
-
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		if (RREG32(RLC_SERDES_MASTER_BUSY_1) == 0)
-			break;
-		udelay(1);
-	}
+	tmp |= SOFT_RESET_RLC;
+	WREG32(GRBM_SOFT_RESET, tmp);
+	udelay(50);
+	tmp &= ~SOFT_RESET_RLC;
+	WREG32(GRBM_SOFT_RESET, tmp);
+	udelay(50);
 }
 
 static void si_rlc_stop(struct radeon_device *rdev)
@@ -4814,15 +5227,18 @@ static int si_rlc_resume(struct radeon_device *rdev)
 
 	si_rlc_stop(rdev);
 
+	si_rlc_reset(rdev);
+
+	si_init_pg(rdev);
+
+	si_init_cg(rdev);
+
 	WREG32(RLC_RL_BASE, 0);
 	WREG32(RLC_RL_SIZE, 0);
 	WREG32(RLC_LB_CNTL, 0);
 	WREG32(RLC_LB_CNTR_MAX, 0xffffffff);
 	WREG32(RLC_LB_CNTR_INIT, 0);
 	WREG32(RLC_LB_INIT_CU_MASK, 0xffffffff);
-
-	WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
-	WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
 
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
@@ -6041,6 +6457,8 @@ void si_fini(struct radeon_device *rdev)
 	cayman_dma_fini(rdev);
 	si_irq_fini(rdev);
 	si_rlc_fini(rdev);
+	si_fini_cg(rdev);
+	si_fini_pg(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
