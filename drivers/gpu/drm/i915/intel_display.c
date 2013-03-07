@@ -9125,6 +9125,13 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			case TRANS_DDI_EDP_INPUT_C_ONOFF:
 				pipe = PIPE_C;
 				break;
+			default:
+				/* A bogus value has been programmed, disable
+				 * the transcoder */
+				WARN(1, "Bogus eDP source %08x\n", tmp);
+				intel_ddi_disable_transcoder_func(dev_priv,
+						TRANSCODER_EDP);
+				goto setup_pipes;
 			}
 
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -9135,6 +9142,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		}
 	}
 
+setup_pipes:
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
