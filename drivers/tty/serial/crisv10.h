@@ -53,8 +53,6 @@ struct e100_serial {
 	volatile u8 *icmdadr;		/* adr to R_DMA_CHx_CMD */
 	volatile u32 *idescradr;	/* adr to R_DMA_CHx_DESCR */
 
-	int flags;	/* defined in tty.h */
-
 	u8 rx_ctrl;	/* shadow for R_SERIALx_REC_CTRL */
 	u8 tx_ctrl;	/* shadow for R_SERIALx_TR_CTRL */
 	u8 iseteop;	/* bit number for R_SET_EOP for the input dma */
