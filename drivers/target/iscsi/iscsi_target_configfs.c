@@ -125,8 +125,87 @@ out:
 
 TF_NP_BASE_ATTR(lio_target, sctp, S_IRUGO | S_IWUSR);
 
+static ssize_t lio_target_np_show_iser(
+	struct se_tpg_np *se_tpg_np,
+	char *page)
+{
+	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
+				struct iscsi_tpg_np, se_tpg_np);
+	struct iscsi_tpg_np *tpg_np_iser;
+	ssize_t rb;
+
+	tpg_np_iser = iscsit_tpg_locate_child_np(tpg_np, ISCSI_INFINIBAND);
+	if (tpg_np_iser)
+		rb = sprintf(page, "1\n");
+	else
+		rb = sprintf(page, "0\n");
+
+	return rb;
+}
+
+static ssize_t lio_target_np_store_iser(
+	struct se_tpg_np *se_tpg_np,
+	const char *page,
+	size_t count)
+{
+	struct iscsi_np *np;
+	struct iscsi_portal_group *tpg;
+	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
+				struct iscsi_tpg_np, se_tpg_np);
+	struct iscsi_tpg_np *tpg_np_iser = NULL;
+	char *endptr;
+	u32 op;
+	int rc;
+
+	op = simple_strtoul(page, &endptr, 0);
+	if ((op != 1) && (op != 0)) {
+		pr_err("Illegal value for tpg_enable: %u\n", op);
+		return -EINVAL;
+	}
+	np = tpg_np->tpg_np;
+	if (!np) {
+		pr_err("Unable to locate struct iscsi_np from"
+				" struct iscsi_tpg_np\n");
+		return -EINVAL;
+	}
+
+	tpg = tpg_np->tpg;
+	if (iscsit_get_tpg(tpg) < 0)
+		return -EINVAL;
+
+	if (op) {
+		int rc = request_module("ib_isert");
+		if (rc != 0)
+			pr_warn("Unable to request_module for ib_isert\n");
+
+		tpg_np_iser = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
+				np->np_ip, tpg_np, ISCSI_INFINIBAND);
+		if (!tpg_np_iser || IS_ERR(tpg_np_iser))
+			goto out;
+	} else {
+		tpg_np_iser = iscsit_tpg_locate_child_np(tpg_np, ISCSI_INFINIBAND);
+		if (!tpg_np_iser)
+			goto out;
+
+		rc = iscsit_tpg_del_network_portal(tpg, tpg_np_iser);
+		if (rc < 0)
+			goto out;
+	}
+
+	printk("lio_target_np_store_iser() done, op: %d\n", op);
+
+	iscsit_put_tpg(tpg);
+	return count;
+out:
+	iscsit_put_tpg(tpg);
+	return -EINVAL;
+}
+
+TF_NP_BASE_ATTR(lio_target, iser, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *lio_target_portal_attrs[] = {
 	&lio_target_np_sctp.attr,
+	&lio_target_np_iser.attr,
 	NULL,
 };
 
