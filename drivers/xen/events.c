@@ -1548,13 +1548,12 @@ static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 static int retrigger_evtchn(int evtchn)
 {
 	int masked;
-	struct shared_info *s = HYPERVISOR_shared_info;
 
 	if (!VALID_EVTCHN(evtchn))
 		return 0;
 
 	masked = test_and_set_mask(evtchn);
-	sync_set_bit(evtchn, BM(s->evtchn_pending));
+	set_evtchn(evtchn);
 	if (!masked)
 		unmask_evtchn(evtchn);
 
