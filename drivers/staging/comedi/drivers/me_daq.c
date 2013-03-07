@@ -428,7 +428,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
-	 * Firmware data start at offfset 16
+	 * Firmware data start at offset 16
 	 */
 	for (i = 0; i < file_length; i++)
 		writeb((data[16 + i] & 0xff),

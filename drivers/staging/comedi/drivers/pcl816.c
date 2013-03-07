@@ -837,7 +837,7 @@ start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
 
 /*
 ==============================================================================
- Check if channel list from user is builded correctly
+ Check if channel list from user is built correctly
  If it's ok, then return non-zero length of repeated segment of channel list
 */
 static int

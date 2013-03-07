@@ -704,9 +704,9 @@ static int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev,
 |                                        unsigned char *_   pb_ChannelStatus)          |
 +----------------------------------------------------------------------------+
 | Task              :
-					(0) Set the digital output from selected SSI moule         |
+					(0) Set the digital output from selected SSI module         |
 |                     (b_ModuleNbr) ON
-                    (1) Set the digital output from selected SSI moule         |
+                    (1) Set the digital output from selected SSI module         |
 |                     (b_ModuleNbr) OFF
 					(2)Read the status from selected SSI digital input        |
 |                     (b_InputChannel)

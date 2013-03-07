@@ -56,7 +56,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  *       functions firmware upload is by fxload and no longer by comedi (due to
  *       enumeration)
  * 0.97: USB IDs received, adjusted table
- * 0.98: SMP, locking, memroy alloc: moved all usb memory alloc
+ * 0.98: SMP, locking, memory alloc: moved all usb memory alloc
  *       to the usb subsystem and moved all comedi related memory
  *       alloc to comedi.
  *       | kernel | registration | usbdux-usb | usbdux-comedi | comedi |
