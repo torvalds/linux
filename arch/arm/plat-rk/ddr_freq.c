@@ -332,6 +332,43 @@ static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set
 	return !(clk_get_rate(clk) == rate);
 }
 
+#if defined(CONFIG_ARCH_RK3066B)
+static int ddrfreq_scanfreq_datatraing_3168(void)
+{
+    struct cpufreq_frequency_table *table;
+    uint32_t dqstr_freq,dqstr_value;
+    uint32_t min_freq,max_freq;
+    int i;
+    table = dvfs_get_freq_volt_table(clk_get(NULL, "ddr"));
+    if (!table)
+    {
+        pr_err("failed to get ddr freq volt table\n");
+    }
+    for (i = 0; table && table[i].frequency != CPUFREQ_TABLE_END; i++)
+    {
+        if(i == 0)
+            min_freq = table[i].frequency / 1000;
+
+        max_freq = table[i].frequency / 1000;
+    }
+
+    //get data training value for RK3066B ddr_change_freq
+    for(dqstr_freq=min_freq; dqstr_freq<=max_freq; dqstr_freq=dqstr_freq+50)
+    {
+        if (clk_set_rate(ddr.clk, dqstr_freq*MHZ) != 0)
+        {
+            pr_err("failed to clk_set_rate ddr.clk %dhz\n",dqstr_freq*MHZ);
+        }
+        dqstr_value=(dqstr_freq-min_freq+1)/50;
+
+        ddr_get_datatraing_value_3168(false,dqstr_value,min_freq);
+    }
+    ddr_get_datatraing_value_3168(true,0,min_freq);
+    dprintk(DEBUG_DDR,"get datatraing from %dMhz to %dMhz\n",min_freq,max_freq);
+    return 0;
+}
+#endif
+
 static int ddrfreq_init(void)
 {
 	int i, ret;
@@ -425,6 +462,10 @@ static int ddrfreq_late_init(void)
 	ddr.early_suspend.resume = ddrfreq_late_resume;
 	ddr.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 50;
 	register_early_suspend(&ddr.early_suspend);
+#endif
+
+#if defined(CONFIG_ARCH_RK3066B)
+       ddrfreq_scanfreq_datatraing_3168();
 #endif
 
 	ddr.task = kthread_create(ddrfreq_task, NULL, "ddrfreqd");

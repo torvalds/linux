@@ -151,5 +151,9 @@ uint32_t ddr_get_cap(void);
 int ddr_init(uint32_t dram_type, uint32_t freq);
 void ddr_set_auto_self_refresh(bool en);
 uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set);
+uint32_t __sramlocalfunc ddr_set_pll_rk3066b(uint32_t nMHz, uint32_t set);
+#if defined(CONFIG_ARCH_RK3066B)
+int ddr_get_datatraing_value_3168(bool end_flag,uint32_t dqstr_value,uint32_t min_freq);
+#endif
 
 #endif

@@ -1534,7 +1534,7 @@ NR   NO     NF                      Fout                       freq Step     fin
 1    2      46 - 91          550MHz   - 1100MHz         12MHz         550MHz<= 1100MHz
 1    1      46 - 91          1100MHz  - 2200MHz         24MHz         1100MHz<= 2200MHz
 ******************************************/
-uint32_t __sramlocalfunc ddr_set_pll_rk3600b(uint32_t nMHz, uint32_t set)
+uint32_t __sramlocalfunc ddr_set_pll_rk3066b(uint32_t nMHz, uint32_t set)
 {
     uint32_t ret = 0;
     int delay = 1000;
@@ -3230,6 +3230,94 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
     }
 }
 
+#if defined(CONFIG_ARCH_RK3066B)
+static __sramdata uint32_t data8_dqstr[25][4];
+static __sramdata uint32_t min_ddr_freq,dqstr_flag=false;
+
+int ddr_get_datatraing_value_3168(bool end_flag,uint32_t dqstr_value,uint32_t min_freq)
+{
+    if(end_flag == true)
+    {
+        dqstr_flag = true;    //complete learn data training value flag
+        min_ddr_freq = min_freq;
+        return 0;
+    }
+
+    data8_dqstr[dqstr_value][0]=pPHY_Reg->DATX8[0].DXDQSTR;
+    data8_dqstr[dqstr_value][1]=pPHY_Reg->DATX8[0].DXDQSTR;
+    data8_dqstr[dqstr_value][2]=pPHY_Reg->DATX8[0].DXDQSTR;
+    data8_dqstr[dqstr_value][3]=pPHY_Reg->DATX8[0].DXDQSTR;
+
+    ddr_print("training %luMhz[%d]:0x%x-0x%x-0x%x-0x%x\n",
+        clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000,dqstr_value,data8_dqstr[dqstr_value][0],data8_dqstr[dqstr_value][1],
+        data8_dqstr[dqstr_value][2],data8_dqstr[dqstr_value][3]);
+    return 0;
+}
+EXPORT_SYMBOL(ddr_get_datatraing_value_3168);
+
+void __sramlocalfunc ddr_set_pll_enter_3168(uint32_t freq_slew)
+{
+    uint32_t value_1u,value_100n;
+    ddr_move_to_Config_state();
+
+    if(freq_slew == 1)
+    {
+        value_100n = ddr_reg.pctl.pctl_timing.togcnt100n;
+        value_1u = ddr_reg.pctl.pctl_timing.togcnt1u;
+        ddr_reg.pctl.pctl_timing.togcnt1u = pDDR_Reg->TOGCNT1U;
+        ddr_reg.pctl.pctl_timing.togcnt100n = pDDR_Reg->TOGCNT100N;
+        ddr_update_timing();
+        ddr_update_mr();
+        ddr_reg.pctl.pctl_timing.togcnt100n = value_100n;
+        ddr_reg.pctl.pctl_timing.togcnt1u = value_1u;
+    }
+    else
+    {
+        pDDR_Reg->TOGCNT100N = ddr_reg.pctl.pctl_timing.togcnt100n;
+        pDDR_Reg->TOGCNT1U = ddr_reg.pctl.pctl_timing.togcnt1u;
+    }
+
+    pDDR_Reg->TZQCSI = 0;
+    ddr_move_to_Lowpower_state();
+
+    ddr_set_dll_bypass(0);  //dll bypass
+    pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1<<2)<<16) | (1<<2);  //disable DDR PHY clock
+    dsb();
+}
+
+void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value)
+{
+    pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1<<2)<<16) | (0<<2);  //enable DDR PHY clock
+    dsb();
+    ddr_set_dll_bypass(ddr_freq);
+    ddr_reset_dll();
+
+    if(dqstr_flag==true)
+    {
+        pPHY_Reg->DATX8[0].DXDQSTR=data8_dqstr[dqstr_value][0];
+        pPHY_Reg->DATX8[1].DXDQSTR=data8_dqstr[dqstr_value][1];
+        pPHY_Reg->DATX8[2].DXDQSTR=data8_dqstr[dqstr_value][2];
+        pPHY_Reg->DATX8[3].DXDQSTR=data8_dqstr[dqstr_value][3];
+    }
+
+    ddr_update_odt();
+    ddr_move_to_Config_state();
+    if(freq_slew == 1)
+    {
+        pDDR_Reg->TOGCNT100N = ddr_reg.pctl.pctl_timing.togcnt100n;
+        pDDR_Reg->TOGCNT1U = ddr_reg.pctl.pctl_timing.togcnt1u;
+        pDDR_Reg->TZQCSI = ddr_reg.pctl.pctl_timing.tzqcsi;
+    }
+    else
+    {
+        ddr_update_timing();
+        ddr_update_mr();
+    }
+    ddr_data_training();
+    ddr_move_to_Access_state();
+}
+#endif
+
 uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 {
     uint32_t ret;
@@ -3240,6 +3328,15 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     unsigned long save_sp;
     uint32_t regvalue = pCRU_Reg->CRU_PLL_CON[0][0];
     uint32_t freq;
+
+#if defined(CONFIG_ARCH_RK3066B)
+    uint32_t freq_slew=0,dqstr_value=0;
+    if(dqstr_flag==true)
+    {
+        dqstr_value=(nMHz-min_ddr_freq+1)/50;
+        freq_slew = (nMHz>ddr_freq)? 1 : 0;
+    }
+#endif
 
      // freq = (Fin/NR)*NF/OD
      if((pCRU_Reg->CRU_MODE_CON&3) == 1)             // CPLL Normal mode
@@ -3252,10 +3349,11 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     loops_per_us = LPJ_100MHZ*freq / 1000000;
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-    ret=ddr_set_pll_rk3600b(nMHz,0);
+    ret=ddr_set_pll_rk3066b(nMHz,0);
 #else
     ret=ddr_set_pll(nMHz,0);
 #endif
+
     ddr_get_parameter(ret);
 
     /** 1. Make sure there is no host access */
@@ -3266,11 +3364,29 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     flush_tlb_all();
     isb();
     DDR_SAVE_SP(save_sp);
-    for(i=0;i<16;i++)
+
+#if defined(CONFIG_ARCH_RK3066B)
+    for(i=0;i<4;i++)     //16KB
     {
-    n=temp[1024*i];
-    barrier();
+        n=temp[1024*i];
+        barrier();
     }
+#endif
+#if defined(CONFIG_ARCH_RK3188)
+    for(i=0;i<8;i++)     //32KB
+    {
+        n=temp[1024*i];
+        barrier();
+    }
+#endif
+#if defined(CONFIG_ARCH_RK30XX)
+    for(i=0;i<16;i++)    //64KB
+    {
+        n=temp[1024*i];
+        barrier();
+    }
+#endif
+
     n= pDDR_Reg->SCFG.d32;
     n= pPHY_Reg->RIDR;
     n= pCRU_Reg->CRU_PLL_CON[0][0];
@@ -3285,27 +3401,33 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
     idle_port();
+#if defined(CONFIG_ARCH_RK3066B)
+    ddr_set_pll_enter_3168(freq_slew);
+#else
     ddr_selfrefresh_enter(ret);
+#endif
 
     /** 3. change frequence  */
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-    ddr_set_pll_rk3600b(ret,1);
+    ddr_set_pll_rk3066b(ret,1);
 #else
     ddr_set_pll(ret,1);
 #endif
     ddr_freq = ret;
     
     /** 5. Issues a Mode Exit command   */
+#if defined(CONFIG_ARCH_RK3066B)
+    ddr_set_pll_exit_3168(freq_slew,dqstr_value);
+#else
     ddr_selfrefresh_exit();
+#endif
     deidle_port();
-
     dsb();
     DDR_RESTORE_SP(save_sp);
     local_fiq_enable();
     local_irq_restore(flags);
     return ret;
 }
-
 EXPORT_SYMBOL(ddr_change_freq);
 
 void ddr_set_auto_self_refresh(bool en)
@@ -3480,7 +3602,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130130 \n");
+    ddr_print("version 1.00 20130307 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;

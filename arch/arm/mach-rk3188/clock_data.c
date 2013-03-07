@@ -1138,7 +1138,7 @@ static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
 static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	CLKDATA_DBG("%s do nothing for ddr round rate\n", __func__);
-	return ddr_set_pll(rate / MHZ, 0) * MHZ;
+	return ddr_set_pll_rk3066b(rate / MHZ, 0) * MHZ;
 }
 static unsigned long ddr_clk_recalc_rate(struct clk *clk)
 {
