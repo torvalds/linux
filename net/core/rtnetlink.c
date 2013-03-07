@@ -2048,6 +2048,38 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
 }
 
+/**
+ * ndo_dflt_fdb_add - default netdevice operation to add an FDB entry
+ */
+int ndo_dflt_fdb_add(struct ndmsg *ndm,
+		     struct nlattr *tb[],
+		     struct net_device *dev,
+		     const unsigned char *addr,
+		     u16 flags)
+{
+	int err = -EINVAL;
+
+	/* If aging addresses are supported device will need to
+	 * implement its own handler for this.
+	 */
+	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
+		pr_info("%s: FDB only supports static addresses\n", dev->name);
+		return err;
+	}
+
+	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
+		err = dev_uc_add_excl(dev, addr);
+	else if (is_multicast_ether_addr(addr))
+		err = dev_mc_add_excl(dev, addr);
+
+	/* Only return duplicate errors if NLM_F_EXCL is set */
+	if (err == -EEXIST && !(flags & NLM_F_EXCL))
+		err = 0;
+
+	return err;
+}
+EXPORT_SYMBOL(ndo_dflt_fdb_add);
+
 static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -2100,10 +2132,13 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 	/* Embedded bridge, macvlan, and any other device support */
-	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_add) {
-		err = dev->netdev_ops->ndo_fdb_add(ndm, tb,
-						   dev, addr,
-						   nlh->nlmsg_flags);
+	if ((ndm->ndm_flags & NTF_SELF)) {
+		if (dev->netdev_ops->ndo_fdb_add)
+			err = dev->netdev_ops->ndo_fdb_add(ndm, tb, dev, addr,
+							   nlh->nlmsg_flags);
+		else
+			err = ndo_dflt_fdb_add(ndm, tb, dev, addr,
+					       nlh->nlmsg_flags);
 
 		if (!err) {
 			rtnl_fdb_notify(dev, addr, RTM_NEWNEIGH);
@@ -2113,6 +2148,35 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 out:
 	return err;
 }
+
+/**
+ * ndo_dflt_fdb_del - default netdevice operation to delete an FDB entry
+ */
+int ndo_dflt_fdb_del(struct ndmsg *ndm,
+		     struct nlattr *tb[],
+		     struct net_device *dev,
+		     const unsigned char *addr)
+{
+	int err = -EOPNOTSUPP;
+
+	/* If aging addresses are supported device will need to
+	 * implement its own handler for this.
+	 */
+	if (ndm->ndm_state & NUD_PERMANENT) {
+		pr_info("%s: FDB only supports static addresses\n", dev->name);
+		return -EINVAL;
+	}
+
+	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
+		err = dev_uc_del(dev, addr);
+	else if (is_multicast_ether_addr(addr))
+		err = dev_mc_del(dev, addr);
+	else
+		err = -EINVAL;
+
+	return err;
+}
+EXPORT_SYMBOL(ndo_dflt_fdb_del);
 
 static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
@@ -2171,8 +2235,11 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 	/* Embedded bridge, macvlan, and any other device support */
-	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_del) {
-		err = dev->netdev_ops->ndo_fdb_del(ndm, tb, dev, addr);
+	if (ndm->ndm_flags & NTF_SELF) {
+		if (dev->netdev_ops->ndo_fdb_del)
+			err = dev->netdev_ops->ndo_fdb_del(ndm, tb, dev, addr);
+		else
+			err = ndo_dflt_fdb_del(ndm, tb, dev, addr);
 
 		if (!err) {
 			rtnl_fdb_notify(dev, addr, RTM_DELNEIGH);
@@ -2257,6 +2324,8 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 		if (dev->netdev_ops->ndo_fdb_dump)
 			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, idx);
+		else
+			ndo_dflt_fdb_dump(skb, cb, dev, idx);
 	}
 	rcu_read_unlock();
 
