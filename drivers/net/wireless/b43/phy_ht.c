@@ -154,6 +154,31 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 }
 
 /**************************************************
+ * RF
+ **************************************************/
+
+static void b43_phy_ht_force_rf_sequence(struct b43_wldev *dev, u16 rf_seq)
+{
+	u8 i;
+
+	u16 save_seq_mode = b43_phy_read(dev, B43_PHY_HT_RF_SEQ_MODE);
+	b43_phy_set(dev, B43_PHY_HT_RF_SEQ_MODE, 0x3);
+
+	b43_phy_set(dev, B43_PHY_HT_RF_SEQ_TRIG, rf_seq);
+	for (i = 0; i < 200; i++) {
+		if (!(b43_phy_read(dev, B43_PHY_HT_RF_SEQ_STATUS) & rf_seq)) {
+			i = 0;
+			break;
+		}
+		msleep(1);
+	}
+	if (i)
+		b43err(dev->wl, "Forcing RF sequence timeout\n");
+
+	b43_phy_write(dev, B43_PHY_HT_RF_SEQ_MODE, save_seq_mode);
+}
+
+/**************************************************
  * Various PHY ops
  **************************************************/
 
@@ -171,6 +196,20 @@ static u16 b43_phy_ht_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 	b43_phy_maskset(dev, B43_PHY_HT_CLASS_CTL, ~allowed, tmp);
 
 	return tmp;
+}
+
+static void b43_phy_ht_reset_cca(struct b43_wldev *dev)
+{
+	u16 bbcfg;
+
+	b43_phy_force_clock(dev, true);
+	bbcfg = b43_phy_read(dev, B43_PHY_HT_BBCFG);
+	b43_phy_write(dev, B43_PHY_HT_BBCFG, bbcfg | B43_PHY_HT_BBCFG_RSTCCA);
+	udelay(1);
+	b43_phy_write(dev, B43_PHY_HT_BBCFG, bbcfg & ~B43_PHY_HT_BBCFG_RSTCCA);
+	b43_phy_force_clock(dev, false);
+
+	b43_phy_ht_force_rf_sequence(dev, B43_PHY_HT_RF_SEQ_TRIG_RST2RX);
 }
 
 static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
@@ -207,27 +246,6 @@ static void b43_phy_ht_afe_unk1(struct b43_wldev *dev)
 		b43_httab_write(dev, B43_HTTAB16(8, 5 + (i * 0x10)), 0);
 		b43_phy_mask(dev, ctl_regs[i][0], ~0x4);
 	}
-}
-
-static void b43_phy_ht_force_rf_sequence(struct b43_wldev *dev, u16 rf_seq)
-{
-	u8 i;
-
-	u16 save_seq_mode = b43_phy_read(dev, B43_PHY_HT_RF_SEQ_MODE);
-	b43_phy_set(dev, B43_PHY_HT_RF_SEQ_MODE, 0x3);
-
-	b43_phy_set(dev, B43_PHY_HT_RF_SEQ_TRIG, rf_seq);
-	for (i = 0; i < 200; i++) {
-		if (!(b43_phy_read(dev, B43_PHY_HT_RF_SEQ_STATUS) & rf_seq)) {
-			i = 0;
-			break;
-		}
-		msleep(1);
-	}
-	if (i)
-		b43err(dev->wl, "Forcing RF sequence timeout\n");
-
-	b43_phy_write(dev, B43_PHY_HT_RF_SEQ_MODE, save_seq_mode);
 }
 
 static void b43_phy_ht_read_clip_detection(struct b43_wldev *dev, u16 *clip_st)
@@ -319,6 +337,14 @@ static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
 	b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
 
 	/* TODO: reset PLL */
+
+	if (spuravoid)
+		b43_phy_set(dev, B43_PHY_HT_BBCFG, B43_PHY_HT_BBCFG_RSTRX);
+	else
+		b43_phy_mask(dev, B43_PHY_HT_BBCFG,
+				~B43_PHY_HT_BBCFG_RSTRX & 0xFFFF);
+
+	b43_phy_ht_reset_cca(dev);
 }
 
 static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
