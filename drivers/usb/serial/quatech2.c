@@ -116,7 +116,6 @@ struct qt2_serial_private {
 };
 
 struct qt2_port_private {
-	bool is_open;
 	u8   device_port;
 
 	spinlock_t urb_lock;
@@ -398,7 +397,6 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return status;
 	}
 
-	port_priv->is_open = true;
 	port_priv->device_port = (u8) device_port;
 
 	if (tty)
@@ -417,8 +415,6 @@ static void qt2_close(struct usb_serial_port *port)
 
 	serial = port->serial;
 	port_priv = usb_get_serial_port_data(port);
-
-	port_priv->is_open = false;
 
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
 	usb_kill_urb(port_priv->write_urb);
@@ -904,12 +900,6 @@ static void qt2_break_ctl(struct tty_struct *tty, int break_state)
 	u16 val;
 
 	port_priv = usb_get_serial_port_data(port);
-
-	if (!port_priv->is_open) {
-		dev_err(&port->dev,
-			"%s - port is not open\n", __func__);
-		return;
-	}
 
 	val = (break_state == -1) ? 1 : 0;
 
