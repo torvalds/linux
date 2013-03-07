@@ -342,7 +342,8 @@ struct link_vars {
 	u32 link_status;
 	u32 eee_status;
 	u8 fault_detected;
-	u8 rsrv1;
+	u8 check_kr2_recovery_cnt;
+#define CHECK_KR2_RECOVERY_CNT	5
 	u16 periodic_flags;
 #define PERIODIC_FLAGS_LINK_EVENT	0x0001
 
