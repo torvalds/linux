@@ -95,14 +95,6 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 				DMA_FROM_DEVICE);
 }
 
-/* Return true if this is the last RX buffer using a page. */
-static inline bool efx_rx_is_last_buffer(struct efx_nic *efx,
-					 struct efx_rx_buffer *rx_buf)
-{
-	return (rx_buf->page_offset >= (PAGE_SIZE >> 1) ||
-		efx->rx_dma_len > EFX_RX_HALF_PAGE);
-}
-
 /* Check the RX page recycle ring for a page that can be reused. */
 static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
 {
@@ -199,11 +191,14 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 		if ((~count & 1) && (efx->rx_dma_len <= EFX_RX_HALF_PAGE)) {
 			/* Use the second half of the page */
 			get_page(page);
+			rx_buf->flags = 0;
 			dma_addr += (PAGE_SIZE >> 1);
 			page_offset += (PAGE_SIZE >> 1);
 			++count;
 			goto split;
 		}
+
+		rx_buf->flags = EFX_RX_BUF_LAST_IN_PAGE;
 	}
 
 	return 0;
@@ -247,7 +242,7 @@ static void efx_recycle_rx_page(struct efx_channel *channel,
 	unsigned index;
 
 	/* Only recycle the page after processing the final buffer. */
-	if (!efx_rx_is_last_buffer(efx, rx_buf))
+	if (!(rx_buf->flags & EFX_RX_BUF_LAST_IN_PAGE))
 		return;
 
 	index = rx_queue->page_add & rx_queue->page_ptr_mask;
@@ -278,7 +273,7 @@ static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
 		put_page(rx_buf->page);
 
 	/* If this is the last buffer in a page, unmap and free it. */
-	if (efx_rx_is_last_buffer(rx_queue->efx, rx_buf)) {
+	if (rx_buf->flags & EFX_RX_BUF_LAST_IN_PAGE) {
 		efx_unmap_rx_buffer(rx_queue->efx, rx_buf);
 		efx_free_rx_buffer(rx_buf);
 	}
@@ -507,7 +502,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	struct efx_rx_buffer *rx_buf;
 
 	rx_buf = efx_rx_buffer(rx_queue, index);
-	rx_buf->flags = flags;
+	rx_buf->flags |= flags;
 
 	/* Validate the number of fragments and completed length */
 	if (n_frags == 1) {
