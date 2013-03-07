@@ -6081,6 +6081,7 @@ static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
 	int rval = QLA_SUCCESS;
+	uint32_t idc_ctrl;
 
 	if (ql4xdontresethba) {
 		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Don't Reset HBA\n",
@@ -6111,6 +6112,14 @@ static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type)
 	}
 
 recover_adapter:
+	/* For ISP83XX set graceful reset bit in IDC_DRV_CTRL if
+	 * reset is issued by application */
+	if (is_qla8032(ha) && test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
+		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
+		qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
+				 (idc_ctrl | GRACEFUL_RESET_BIT1));
+	}
+
 	rval = qla4xxx_recover_adapter(ha);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: recover adapter fail\n",
