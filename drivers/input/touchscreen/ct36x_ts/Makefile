@@ -6,7 +6,7 @@
 
 # Core
 ct36x_ts-y      := tscore.o
-obj-$(CONFIG_TOUCHSCREEN_CT36X)	+= ct36x_ts.o
+obj-$(CONFIG_TOUCHSCREEN_CT36XX)	+= ct36x_ts.o
 
 # platform
 # Generic

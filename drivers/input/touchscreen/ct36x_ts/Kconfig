@@ -3,11 +3,11 @@
 #
 
 
-config TOUCHSCREEN_CT36X
+config TOUCHSCREEN_CT36XX
 	tristate "VTL ct36x based touchscreens"
-	default y
+	default n
 
-if TOUCHSCREEN_CT36X
+if TOUCHSCREEN_CT36XX
 #config TOUCHSCREEN_CT36X_I2C
 #	tristate "VTL ct36x based touchscreens"
 #	depends on I2C
