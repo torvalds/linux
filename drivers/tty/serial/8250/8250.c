@@ -301,7 +301,28 @@ static const struct serial8250_config uart_config[] = {
 	},
 	[PORT_8250_CIR] = {
 		.name		= "CIR port"
-	}
+	},
+	[PORT_ALTR_16550_F32] = {
+		.name		= "Altera 16550 FIFO32",
+		.fifo_size	= 32,
+		.tx_loadsz	= 32,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
+	[PORT_ALTR_16550_F64] = {
+		.name		= "Altera 16550 FIFO64",
+		.fifo_size	= 64,
+		.tx_loadsz	= 64,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
+	[PORT_ALTR_16550_F128] = {
+		.name		= "Altera 16550 FIFO128",
+		.fifo_size	= 128,
+		.tx_loadsz	= 128,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
 };
 
 /* Uart divisor latch read */
