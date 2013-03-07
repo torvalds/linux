@@ -157,6 +157,22 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
  * Various PHY ops
  **************************************************/
 
+static u16 b43_phy_ht_classifier(struct b43_wldev *dev, u16 mask, u16 val)
+{
+	u16 tmp;
+	u16 allowed = B43_PHY_HT_CLASS_CTL_CCK_EN |
+		      B43_PHY_HT_CLASS_CTL_OFDM_EN |
+		      B43_PHY_HT_CLASS_CTL_WAITED_EN;
+
+	tmp = b43_phy_read(dev, B43_PHY_HT_CLASS_CTL);
+	tmp &= allowed;
+	tmp &= ~mask;
+	tmp |= (val & mask);
+	b43_phy_maskset(dev, B43_PHY_HT_CLASS_CTL, ~allowed, tmp);
+
+	return tmp;
+}
+
 static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
 {
 	u8 i, j;
@@ -264,7 +280,15 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 	b43_phy_write(dev, B43_PHY_HT_BW5, e->bw5);
 	b43_phy_write(dev, B43_PHY_HT_BW6, e->bw6);
 
-	/* TODO: some ops on PHY regs 0x0B0 and 0xC0A */
+	if (new_channel->hw_value == 14) {
+		b43_phy_ht_classifier(dev, B43_PHY_HT_CLASS_CTL_OFDM_EN, 0);
+		b43_phy_set(dev, B43_PHY_HT_TEST, 0x0800);
+	} else {
+		b43_phy_ht_classifier(dev, B43_PHY_HT_CLASS_CTL_OFDM_EN,
+				      B43_PHY_HT_CLASS_CTL_OFDM_EN);
+		if (new_channel->band == IEEE80211_BAND_2GHZ)
+			b43_phy_mask(dev, B43_PHY_HT_TEST, ~0x840);
+	}
 
 	/* TODO: separated function? */
 	for (i = 0; i < 3; i++) {
@@ -376,8 +400,11 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	if (0) /* TODO: condition */
 		; /* TODO: PHY op on reg 0x217 */
 
-	b43_phy_read(dev, 0xb0); /* TODO: what for? */
-	b43_phy_set(dev, 0xb0, 0x1);
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+		b43_phy_ht_classifier(dev, B43_PHY_HT_CLASS_CTL_CCK_EN, 0);
+	else
+		b43_phy_ht_classifier(dev, B43_PHY_HT_CLASS_CTL_CCK_EN,
+				      B43_PHY_HT_CLASS_CTL_CCK_EN);
 
 	b43_phy_set(dev, 0xb1, 0x91);
 	b43_phy_write(dev, 0x32f, 0x0003);
@@ -456,9 +483,8 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_ht_force_rf_sequence(dev, B43_PHY_HT_RF_SEQ_TRIG_RX2TX);
 	b43_phy_ht_force_rf_sequence(dev, B43_PHY_HT_RF_SEQ_TRIG_RST2RX);
 
-	/* TODO: PHY op on reg 0xb0 */
-
 	/* TODO: Should we restore it? Or store it in global PHY info? */
+	b43_phy_ht_classifier(dev, 0, 0);
 	b43_phy_ht_read_clip_detection(dev, clip_state);
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)

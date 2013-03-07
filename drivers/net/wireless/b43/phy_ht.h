@@ -12,6 +12,10 @@
 #define B43_PHY_HT_TABLE_ADDR			0x072 /* Table address */
 #define B43_PHY_HT_TABLE_DATALO			0x073 /* Table data low */
 #define B43_PHY_HT_TABLE_DATAHI			0x074 /* Table data high */
+#define B43_PHY_HT_CLASS_CTL			0x0B0 /* Classifier control */
+#define  B43_PHY_HT_CLASS_CTL_CCK_EN		0x0001 /* CCK enable */
+#define  B43_PHY_HT_CLASS_CTL_OFDM_EN		0x0002 /* OFDM enable */
+#define  B43_PHY_HT_CLASS_CTL_WAITED_EN		0x0004 /* Waited enable */
 #define B43_PHY_HT_BW1				0x1CE
 #define B43_PHY_HT_BW2				0x1CF
 #define B43_PHY_HT_BW3				0x1D0
@@ -42,6 +46,8 @@
 #define B43_PHY_HT_AFE_C2			B43_PHY_EXTG(0x115)
 #define B43_PHY_HT_AFE_C3_OVER			B43_PHY_EXTG(0x118)
 #define B43_PHY_HT_AFE_C3			B43_PHY_EXTG(0x119)
+
+#define B43_PHY_HT_TEST				B43_PHY_N_BMODE(0x00A)
 
 
 /* Values for PHY registers used on channel switching */
