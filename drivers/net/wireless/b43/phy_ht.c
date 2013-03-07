@@ -285,6 +285,24 @@ static void b43_phy_ht_tx_power_fix(struct b43_wldev *dev)
  * Channel switching ops.
  **************************************************/
 
+static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
+				  struct ieee80211_channel *new_channel)
+{
+	struct bcma_device *core = dev->dev->bdev;
+	int spuravoid = 0;
+
+	/* Check for 13 and 14 is just a guess, we don't have enough logs. */
+	if (new_channel->hw_value == 13 || new_channel->hw_value == 14)
+		spuravoid = 1;
+	bcma_core_pll_ctl(core, B43_BCMA_CLKCTLST_PHY_PLL_REQ, 0, false);
+	bcma_pmu_spuravoid_pllupdate(&core->bus->drv_cc, spuravoid);
+	bcma_core_pll_ctl(core,
+			  B43_BCMA_CLKCTLST_80211_PLL_REQ |
+			  B43_BCMA_CLKCTLST_PHY_PLL_REQ,
+			  B43_BCMA_CLKCTLST_80211_PLL_ST |
+			  B43_BCMA_CLKCTLST_PHY_PLL_ST, false);
+}
+
 static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_ht_channeltab_e_phy *e,
 				struct ieee80211_channel *new_channel)
@@ -317,6 +335,8 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 
 	if (1) /* TODO: On N it's for early devices only, what about HT? */
 		b43_phy_ht_tx_power_fix(dev);
+
+	b43_phy_ht_spur_avoid(dev, new_channel);
 
 	b43_phy_write(dev, 0x017e, 0x3830);
 }
