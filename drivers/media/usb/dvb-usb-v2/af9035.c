@@ -1251,10 +1251,6 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	int ret;
 	u8 tmp;
 
-	/* TODO: IT9135 remote control support */
-	if (state->chip_type == 0x9135)
-		return 0;
-
 	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_IR_MODE, &tmp);
 	if (ret < 0)
 		goto err;
