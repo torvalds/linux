@@ -1068,8 +1068,7 @@ int iscsit_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	if (login->first_request) {
 		login_req = (struct iscsi_login_req *)login->req;
 		login->leading_connection = (!login_req->tsih) ? 1 : 0;
-		login->current_stage	=
-			(login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2;
+		login->current_stage	= ISCSI_LOGIN_CURRENT_STAGE(login_req->flags);
 		login->version_min	= login_req->min_version;
 		login->version_max	= login_req->max_version;
 		memcpy(login->isid, login_req->isid, 6);

@@ -1543,9 +1543,10 @@ static int lio_queue_data_in(struct se_cmd *se_cmd)
 static int lio_write_pending(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsi_conn *conn = cmd->conn;
 
 	if (!cmd->immediate_data && !cmd->unsolicited_data)
-		return iscsit_build_r2ts_for_cmd(cmd, cmd->conn, false);
+		return conn->conn_transport->iscsit_get_dataout(conn, cmd, false);
 
 	return 0;
 }
@@ -1696,6 +1697,11 @@ static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
 	iscsit_set_default_node_attribues(acl);
 }
 
+static int lio_check_stop_free(struct se_cmd *se_cmd)
+{
+	return target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+}
+
 static void lio_release_cmd(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
@@ -1741,6 +1747,7 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.tpg_alloc_fabric_acl = &lio_tpg_alloc_fabric_acl;
 	fabric->tf_ops.tpg_release_fabric_acl = &lio_tpg_release_fabric_acl;
 	fabric->tf_ops.tpg_get_inst_index = &lio_tpg_get_inst_index;
+	fabric->tf_ops.check_stop_free = &lio_check_stop_free,
 	fabric->tf_ops.release_cmd = &lio_release_cmd;
 	fabric->tf_ops.shutdown_session = &lio_tpg_shutdown_session;
 	fabric->tf_ops.close_session = &lio_tpg_close_session;

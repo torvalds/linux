@@ -691,21 +691,6 @@ int iscsi_target_locate_portal(
 	login_req = (struct iscsi_login_req *) login->req;
 	payload_length = ntoh24(login_req->dlength);
 
-	login->first_request	= 1;
-	login->leading_connection = (!login_req->tsih) ? 1 : 0;
-	login->current_stage	= ISCSI_LOGIN_CURRENT_STAGE(login_req->flags);
-	login->version_min	= login_req->min_version;
-	login->version_max	= login_req->max_version;
-	memcpy(login->isid, login_req->isid, 6);
-	login->cmd_sn		= be32_to_cpu(login_req->cmdsn);
-	login->init_task_tag	= login_req->itt;
-	login->initial_exp_statsn = be32_to_cpu(login_req->exp_statsn);
-	login->cid		= be16_to_cpu(login_req->cid);
-	login->tsih		= be16_to_cpu(login_req->tsih);
-
-	if (iscsi_target_get_initial_payload(conn, login) < 0)
-		return -1;
-
 	tmpbuf = kzalloc(payload_length + 1, GFP_KERNEL);
 	if (!tmpbuf) {
 		pr_err("Unable to allocate memory for tmpbuf.\n");

@@ -317,6 +317,7 @@ int iscsit_sequence_cmd(
 
 	return ret;
 }
+EXPORT_SYMBOL(iscsit_sequence_cmd);
 
 int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 {
