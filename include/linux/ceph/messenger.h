@@ -105,6 +105,12 @@ struct ceph_msg_data_cursor {
 			unsigned int	vector_offset;	/* bytes from vector */
 		};
 #endif /* CONFIG_BLOCK */
+		struct {				/* pages */
+			size_t		resid;		/* bytes from array */
+			unsigned int	page_offset;	/* offset in page */
+			unsigned short	page_index;	/* index in array */
+			unsigned short	page_count;	/* pages in array */
+		};
 		struct {				/* pagelist */
 			struct page	*page;		/* page from list */
 			size_t		offset;		/* bytes from list */
