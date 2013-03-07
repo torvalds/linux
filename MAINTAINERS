@@ -7696,9 +7696,10 @@ F:	include/linux/swiotlb.h
 
 SYNOPSYS ARC ARCHITECTURE
 M:	Vineet Gupta <vgupta@synopsys.com>
-L:	linux-snps-arc@vger.kernel.org
 S:	Supported
 F:	arch/arc/
+F:	Documentation/devicetree/bindings/arc/
+F:	drivers/tty/serial/arc-uart.c
 
 SYSV FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
