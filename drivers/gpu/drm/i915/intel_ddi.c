@@ -953,7 +953,7 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 	}
 }
 
-void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
+void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
