@@ -2964,6 +2964,10 @@ static void gsmtty_close(struct tty_struct *tty, struct file *filp)
 	if (tty_port_close_start(&dlci->port, tty, filp) == 0)
 		goto out;
 	gsm_dlci_begin_close(dlci);
+	if (test_bit(ASYNCB_INITIALIZED, &dlci->port.flags)) {
+		if (C_HUPCL(tty))
+			tty_port_lower_dtr_rts(&dlci->port);
+	}
 	tty_port_close_end(&dlci->port, tty);
 	tty_port_tty_set(&dlci->port, NULL);
 out:

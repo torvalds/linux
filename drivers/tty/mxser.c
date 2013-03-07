@@ -1084,6 +1084,10 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&port->mutex);
 	mxser_close_port(port);
 	mxser_flush_buffer(tty);
+	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+		if (C_HUPCL(tty))
+			tty_port_lower_dtr_rts(port);
+	}
 	mxser_shutdown_port(port);
 	clear_bit(ASYNCB_INITIALIZED, &port->flags);
 	mutex_unlock(&port->mutex);
