@@ -490,10 +490,10 @@ static enum sms_device_type_st smscore_registry_gettype(char *devpath)
 	else
 		sms_err("No registry found.");
 
-	return -1;
+	return -EINVAL;
 }
 
-void smscore_registry_setmode(char *devpath, int mode)
+static void smscore_registry_setmode(char *devpath, int mode)
 {
 	struct smscore_registry_entry_t *entry;
 
@@ -633,10 +633,11 @@ static struct
 smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 				       dma_addr_t common_buffer_phys)
 {
-	struct smscore_buffer_t *cb =
-		kmalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
+	struct smscore_buffer_t *cb;
+
+	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
 	if (!cb) {
-		sms_info("kmalloc(...) failed");
+		sms_info("kzalloc(...) failed");
 		return NULL;
 	}
 
@@ -710,9 +711,10 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	for (buffer = dev->common_buffer;
 	     dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
-		struct smscore_buffer_t *cb =
-			smscore_createbuffer(buffer, dev->common_buffer,
-					     dev->common_buffer_phys);
+		struct smscore_buffer_t *cb;
+
+		cb = smscore_createbuffer(buffer, dev->common_buffer,
+					  dev->common_buffer_phys);
 		if (!cb) {
 			smscore_unregister_device(dev);
 			return -ENOMEM;
@@ -1192,7 +1194,9 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 {
 	char **fw;
 	int board_id = smscore_get_board_id(coredev);
-	enum sms_device_type_st type = smscore_registry_gettype(coredev->devpath);
+	enum sms_device_type_st type;
+
+	type = smscore_registry_gettype(coredev->devpath);
 
 	if ((board_id == SMS_BOARD_UNKNOWN) || (lookup == 1)) {
 		sms_debug("trying to get fw name from lookup table mode %d type %d",
@@ -1320,6 +1324,9 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 
 	if (rc < 0)
 		sms_err("return error code %d.", rc);
+	else
+		sms_debug("Success setting device mode.");
+
 	return rc;
 }
 
