@@ -4,7 +4,7 @@
 
 ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
 
-obj-$(CONFIG_USB_OTG_UTILS)		+= phy.o
+obj-$(CONFIG_USB_PHY)			+= phy.o
 
 # transceiver drivers, keep the list sorted
 

@@ -1,16 +1,23 @@
 #
 # Physical Layer USB driver configuration
 #
-comment "USB Physical Layer drivers"
-	depends on USB || USB_GADGET
+menuconfig USB_PHY
+	tristate "USB Physical Layer drivers"
+	select USB_OTG_UTILS
+	help
+	  USB controllers (those which are host, device or DRD) need a
+	  device to handle the physical layer signalling, commonly called
+	  a PHY.
+
+	  The following drivers add support for such PHY devices.
+
+if USB_PHY
 
 config USB_OTG_UTILS
 	bool
 	help
 	  Select this to make sure the build includes objects from
 	  the OTG infrastructure directory.
-
-if USB || USB_GADGET
 
 #
 # USB Transceiver Drivers
@@ -206,4 +213,4 @@ config USB_ULPI_VIEWPORT
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
 
-endif # USB || OTG
+endif # USB_PHY
