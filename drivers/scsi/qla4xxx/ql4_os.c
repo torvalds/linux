@@ -4005,7 +4005,7 @@ static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
 		if (val & BIT_7)
 			ddb_index[1] = (val & 0x7f);
 
-	} else if (is_qla8022(ha)) {
+	} else if (is_qla80XX(ha)) {
 		buf = dma_alloc_coherent(&ha->pdev->dev, size,
 					 &buf_dma, GFP_KERNEL);
 		if (!buf) {
