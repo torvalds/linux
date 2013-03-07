@@ -8,10 +8,10 @@ OMAP MUSB GLUE
    and disconnect.
  - multipoint : Should be "1" indicating the musb controller supports
    multipoint. This is a MUSB configuration-specific setting.
- - num_eps : Specifies the number of endpoints. This is also a
+ - num-eps : Specifies the number of endpoints. This is also a
    MUSB configuration-specific setting. Should be set to "16"
- - ram_bits : Specifies the ram address size. Should be set to "12"
- - interface_type : This is a board specific setting to describe the type of
+ - ram-bits : Specifies the ram address size. Should be set to "12"
+ - interface-type : This is a board specific setting to describe the type of
    interface between the controller and the phy. It should be "0" or "1"
    specifying ULPI and UTMI respectively.
  - mode : Should be "3" to represent OTG. "1" signifies HOST and "2"
@@ -29,14 +29,14 @@ usb_otg_hs: usb_otg_hs@4a0ab000 {
 	ti,hwmods = "usb_otg_hs";
 	ti,has-mailbox;
 	multipoint = <1>;
-	num_eps = <16>;
-	ram_bits = <12>;
+	num-eps = <16>;
+	ram-bits = <12>;
 	ctrl-module = <&omap_control_usb>;
 };
 
 Board specific device node entry
 &usb_otg_hs {
-	interface_type = <1>;
+	interface-type = <1>;
 	mode = <3>;
 	power = <50>;
 };

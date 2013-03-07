@@ -526,10 +526,10 @@ static int omap2430_probe(struct platform_device *pdev)
 		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
-		of_property_read_u32(np, "interface_type",
+		of_property_read_u32(np, "interface-type",
 						(u32 *)&data->interface_type);
-		of_property_read_u32(np, "num_eps", (u32 *)&config->num_eps);
-		of_property_read_u32(np, "ram_bits", (u32 *)&config->ram_bits);
+		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
+		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");
 		pdata->has_mailbox = of_property_read_bool(np,
