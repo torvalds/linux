@@ -97,8 +97,12 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 
 struct ceph_msg_data_cursor {
 	bool		last_piece;	/* now at last piece of data item */
-	struct page	*page;		/* current page in pagelist */
-	size_t		offset;		/* pagelist bytes consumed */
+	union {
+		struct {				/* pagelist */
+			struct page	*page;		/* page from list */
+			size_t		offset;		/* bytes from list */
+		};
+	};
 };
 
 struct ceph_msg_data {

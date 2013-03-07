@@ -742,21 +742,16 @@ static void iter_bio_next(struct bio **bio_iter, unsigned int *seg)
 #endif
 
 /*
- * Message data is handled (sent or received) in pieces, where each
- * piece resides on a single page.  The network layer might not
- * consume an entire piece at once.  A data item's cursor keeps
- * track of which piece is next to process and how much remains to
- * be processed in that piece.  It also tracks whether the current
- * piece is the last one in the data item.
+ * For a pagelist, a piece is whatever remains to be consumed in the
+ * first page in the list, or the front of the next page.
  */
-static void ceph_msg_data_cursor_init(struct ceph_msg_data *data)
+static void ceph_msg_data_pagelist_cursor_init(struct ceph_msg_data *data)
 {
 	struct ceph_msg_data_cursor *cursor = &data->cursor;
 	struct ceph_pagelist *pagelist;
 	struct page *page;
 
-	if (data->type != CEPH_MSG_DATA_PAGELIST)
-		return;
+	BUG_ON(data->type != CEPH_MSG_DATA_PAGELIST);
 
 	pagelist = data->pagelist;
 	BUG_ON(!pagelist);
@@ -771,15 +766,9 @@ static void ceph_msg_data_cursor_init(struct ceph_msg_data *data)
 	cursor->last_piece = pagelist->length <= PAGE_SIZE;
 }
 
-/*
- * Return the page containing the next piece to process for a given
- * data item, and supply the page offset and length of that piece.
- * Indicate whether this is the last piece in this data item.
- */
-static struct page *ceph_msg_data_next(struct ceph_msg_data *data,
+static struct page *ceph_msg_data_pagelist_next(struct ceph_msg_data *data,
 						size_t *page_offset,
-						size_t *length,
-						bool *last_piece)
+						size_t *length)
 {
 	struct ceph_msg_data_cursor *cursor = &data->cursor;
 	struct ceph_pagelist *pagelist;
@@ -793,8 +782,7 @@ static struct page *ceph_msg_data_next(struct ceph_msg_data *data,
 	BUG_ON(!cursor->page);
 	BUG_ON(cursor->offset >= pagelist->length);
 
-	*last_piece = cursor->last_piece;
-	if (*last_piece) {
+	if (cursor->last_piece) {
 		/* pagelist offset is always 0 */
 		piece_end = pagelist->length & ~PAGE_MASK;
 		if (!piece_end)
@@ -808,11 +796,8 @@ static struct page *ceph_msg_data_next(struct ceph_msg_data *data,
 	return data->cursor.page;
 }
 
-/*
- * Returns true if the result moves the cursor on to the next piece
- * (the next page) of the pagelist.
- */
-static bool ceph_msg_data_advance(struct ceph_msg_data *data, size_t bytes)
+static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data *data,
+						size_t bytes)
 {
 	struct ceph_msg_data_cursor *cursor = &data->cursor;
 	struct ceph_pagelist *pagelist;
@@ -842,6 +827,90 @@ static bool ceph_msg_data_advance(struct ceph_msg_data *data, size_t bytes)
 		cursor->last_piece = true;
 
 	return true;
+}
+
+/*
+ * Message data is handled (sent or received) in pieces, where each
+ * piece resides on a single page.  The network layer might not
+ * consume an entire piece at once.  A data item's cursor keeps
+ * track of which piece is next to process and how much remains to
+ * be processed in that piece.  It also tracks whether the current
+ * piece is the last one in the data item.
+ */
+static void ceph_msg_data_cursor_init(struct ceph_msg_data *data)
+{
+	switch (data->type) {
+	case CEPH_MSG_DATA_PAGELIST:
+		ceph_msg_data_pagelist_cursor_init(data);
+		break;
+	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_PAGES:
+#ifdef CONFIG_BLOCK
+	case CEPH_MSG_DATA_BIO:
+#endif /* CONFIG_BLOCK */
+	default:
+		/* BUG(); */
+		break;
+	}
+}
+
+/*
+ * Return the page containing the next piece to process for a given
+ * data item, and supply the page offset and length of that piece.
+ * Indicate whether this is the last piece in this data item.
+ */
+static struct page *ceph_msg_data_next(struct ceph_msg_data *data,
+					size_t *page_offset,
+					size_t *length,
+					bool *last_piece)
+{
+	struct page *page;
+
+	switch (data->type) {
+	case CEPH_MSG_DATA_PAGELIST:
+		page = ceph_msg_data_pagelist_next(data, page_offset, length);
+		break;
+	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_PAGES:
+#ifdef CONFIG_BLOCK
+	case CEPH_MSG_DATA_BIO:
+#endif /* CONFIG_BLOCK */
+	default:
+		page = NULL;
+		break;
+	}
+	BUG_ON(!page);
+	BUG_ON(*page_offset + *length > PAGE_SIZE);
+	BUG_ON(!*length);
+	if (last_piece)
+		*last_piece = data->cursor.last_piece;
+
+	return page;
+}
+
+/*
+ * Returns true if the result moves the cursor on to the next piece
+ * of the data item.
+ */
+static bool ceph_msg_data_advance(struct ceph_msg_data *data, size_t bytes)
+{
+	bool new_piece;
+
+	switch (data->type) {
+	case CEPH_MSG_DATA_PAGELIST:
+		new_piece = ceph_msg_data_pagelist_advance(data, bytes);
+		break;
+	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_PAGES:
+#ifdef CONFIG_BLOCK
+	case CEPH_MSG_DATA_BIO:
+#endif /* CONFIG_BLOCK */
+	default:
+		BUG();
+		break;
+	}
+
+	return new_piece;
 }
 
 static void prepare_message_data(struct ceph_msg *msg,
