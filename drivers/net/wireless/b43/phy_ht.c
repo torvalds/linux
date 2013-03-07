@@ -557,6 +557,114 @@ static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 
 	/* TODO */
 }
+
+static void b43_phy_ht_tx_power_ctl_setup(struct b43_wldev *dev)
+{
+	struct b43_phy_ht *phy_ht = dev->phy.ht;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+
+	u8 *idle = phy_ht->idle_tssi;
+	u8 target[3];
+	s16 a1[3], b0[3], b1[3];
+
+	u16 freq = dev->phy.channel_freq;
+	int i, c;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		for (c = 0; c < 3; c++) {
+			target[c] = sprom->core_pwr_info[c].maxpwr_2g;
+			a1[c] = sprom->core_pwr_info[c].pa_2g[0];
+			b0[c] = sprom->core_pwr_info[c].pa_2g[1];
+			b1[c] = sprom->core_pwr_info[c].pa_2g[2];
+		}
+	} else if (freq >= 4900 && freq < 5100) {
+		for (c = 0; c < 3; c++) {
+			target[c] = sprom->core_pwr_info[c].maxpwr_5gl;
+			a1[c] = sprom->core_pwr_info[c].pa_5gl[0];
+			b0[c] = sprom->core_pwr_info[c].pa_5gl[1];
+			b1[c] = sprom->core_pwr_info[c].pa_5gl[2];
+		}
+	} else if (freq >= 5100 && freq < 5500) {
+		for (c = 0; c < 3; c++) {
+			target[c] = sprom->core_pwr_info[c].maxpwr_5g;
+			a1[c] = sprom->core_pwr_info[c].pa_5g[0];
+			b0[c] = sprom->core_pwr_info[c].pa_5g[1];
+			b1[c] = sprom->core_pwr_info[c].pa_5g[2];
+		}
+	} else if (freq >= 5500) {
+		for (c = 0; c < 3; c++) {
+			target[c] = sprom->core_pwr_info[c].maxpwr_5gh;
+			a1[c] = sprom->core_pwr_info[c].pa_5gh[0];
+			b0[c] = sprom->core_pwr_info[c].pa_5gh[1];
+			b1[c] = sprom->core_pwr_info[c].pa_5gh[2];
+		}
+	} else {
+		target[0] = target[1] = target[2] = 52;
+		a1[0] = a1[1] = a1[2] = -424;
+		b0[0] = b0[1] = b0[2] = 5612;
+		b1[0] = b1[1] = b1[2] = -1393;
+	}
+
+	b43_phy_set(dev, B43_PHY_HT_TSSIMODE, B43_PHY_HT_TSSIMODE_EN);
+	b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1,
+		     ~B43_PHY_HT_TXPCTL_CMD_C1_PCTLEN & 0xFFFF);
+
+	/* TODO: Does it depend on sprom->fem.ghz2.tssipos? */
+	b43_phy_set(dev, B43_PHY_HT_TXPCTL_IDLE_TSSI, 0x4000);
+
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_CMD_C1,
+			~B43_PHY_HT_TXPCTL_CMD_C1_INIT, 0x19);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_CMD_C2,
+			~B43_PHY_HT_TXPCTL_CMD_C2_INIT, 0x19);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_CMD_C3,
+			~B43_PHY_HT_TXPCTL_CMD_C3_INIT, 0x19);
+
+	b43_phy_set(dev, B43_PHY_HT_TXPCTL_IDLE_TSSI,
+		    B43_PHY_HT_TXPCTL_IDLE_TSSI_BINF);
+
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_IDLE_TSSI,
+			~B43_PHY_HT_TXPCTL_IDLE_TSSI_C1,
+			idle[0] << B43_PHY_HT_TXPCTL_IDLE_TSSI_C1_SHIFT);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_IDLE_TSSI,
+			~B43_PHY_HT_TXPCTL_IDLE_TSSI_C2,
+			idle[1] << B43_PHY_HT_TXPCTL_IDLE_TSSI_C2_SHIFT);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_IDLE_TSSI2,
+			~B43_PHY_HT_TXPCTL_IDLE_TSSI2_C3,
+			idle[2] << B43_PHY_HT_TXPCTL_IDLE_TSSI2_C3_SHIFT);
+
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_N, ~B43_PHY_HT_TXPCTL_N_TSSID,
+			0xf0);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_N, ~B43_PHY_HT_TXPCTL_N_NPTIL2,
+			0x3 << B43_PHY_HT_TXPCTL_N_NPTIL2_SHIFT);
+#if 0
+	/* TODO: what to mask/set? */
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_CMD_C1, 0x800, 0)
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_CMD_C1, 0x400, 0)
+#endif
+
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_TARG_PWR,
+			~B43_PHY_HT_TXPCTL_TARG_PWR_C1,
+			target[0] << B43_PHY_HT_TXPCTL_TARG_PWR_C1_SHIFT);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_TARG_PWR,
+			~B43_PHY_HT_TXPCTL_TARG_PWR_C2 & 0xFFFF,
+			target[1] << B43_PHY_HT_TXPCTL_TARG_PWR_C2_SHIFT);
+	b43_phy_maskset(dev, B43_PHY_HT_TXPCTL_TARG_PWR2,
+			~B43_PHY_HT_TXPCTL_TARG_PWR2_C3,
+			target[2] << B43_PHY_HT_TXPCTL_TARG_PWR2_C3_SHIFT);
+
+	for (c = 0; c < 3; c++) {
+		s32 num, den, pwr;
+		u32 regval[64];
+
+		for (i = 0; i < 64; i++) {
+			num = 8 * (16 * b0[c] + b1[c] * i);
+			den = 32768 + a1[c] * i;
+			pwr = max((4 * num + den / 2) / den, -8);
+			regval[i] = pwr;
+		}
+		b43_httab_write_bulk(dev, B43_HTTAB16(26 + c, 0), 64, regval);
+	}
+}
 #endif
 
 /**************************************************
@@ -844,6 +952,7 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 #if 0
 	b43_phy_ht_tx_power_ctl(dev, false);
 	b43_phy_ht_tx_power_ctl_idle_tssi(dev);
+	b43_phy_ht_tx_power_ctl_setup(dev);
 	/* TODO */
 	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
 #endif

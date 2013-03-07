@@ -23,6 +23,9 @@
 #define B43_PHY_HT_SAMP_WAIT_CNT		0x0C5	/* Sample wait count */
 #define B43_PHY_HT_SAMP_DEP_CNT			0x0C6	/* Sample depth count */
 #define B43_PHY_HT_SAMP_STAT			0x0C7	/* Sample status */
+#define B43_PHY_HT_TSSIMODE			0x122	/* TSSI mode */
+#define  B43_PHY_HT_TSSIMODE_EN			0x0001	/* TSSI enable */
+#define  B43_PHY_HT_TSSIMODE_PDEN		0x0002	/* Power det enable */
 #define B43_PHY_HT_BW1				0x1CE
 #define B43_PHY_HT_BW2				0x1CF
 #define B43_PHY_HT_BW3				0x1D0
@@ -34,6 +37,22 @@
 #define  B43_PHY_HT_TXPCTL_CMD_C1_COEFF		0x2000	/* Power control coefficients */
 #define  B43_PHY_HT_TXPCTL_CMD_C1_HWPCTLEN	0x4000	/* Hardware TX power control enable */
 #define  B43_PHY_HT_TXPCTL_CMD_C1_PCTLEN	0x8000	/* TX power control enable */
+#define B43_PHY_HT_TXPCTL_N			0x1E8	/* TX power control N num */
+#define  B43_PHY_HT_TXPCTL_N_TSSID		0x00FF	/* N TSSI delay */
+#define  B43_PHY_HT_TXPCTL_N_TSSID_SHIFT	0
+#define  B43_PHY_HT_TXPCTL_N_NPTIL2		0x0700	/* N PT integer log2 */
+#define  B43_PHY_HT_TXPCTL_N_NPTIL2_SHIFT	8
+#define B43_PHY_HT_TXPCTL_IDLE_TSSI		0x1E9	/* TX power control idle TSSI */
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI_C1		0x003F
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI_C1_SHIFT	0
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI_C2		0x3F00
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI_C2_SHIFT	8
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI_BINF	0x8000	/* Raw TSSI offset bin format */
+#define B43_PHY_HT_TXPCTL_TARG_PWR		0x1EA	/* TX power control target power */
+#define  B43_PHY_HT_TXPCTL_TARG_PWR_C1		0x00FF	/* Power 0 */
+#define  B43_PHY_HT_TXPCTL_TARG_PWR_C1_SHIFT	0
+#define  B43_PHY_HT_TXPCTL_TARG_PWR_C2		0xFF00	/* Power 1 */
+#define  B43_PHY_HT_TXPCTL_TARG_PWR_C2_SHIFT	8
 #define B43_PHY_HT_TXPCTL_CMD_C2		0x222
 #define  B43_PHY_HT_TXPCTL_CMD_C2_INIT		0x007F
 #define B43_PHY_HT_RSSI_C1			0x219
@@ -72,6 +91,12 @@
 
 #define B43_PHY_HT_TXPCTL_CMD_C3		B43_PHY_EXTG(0x164)
 #define  B43_PHY_HT_TXPCTL_CMD_C3_INIT		0x007F
+#define B43_PHY_HT_TXPCTL_IDLE_TSSI2		B43_PHY_EXTG(0x165)	/* TX power control idle TSSI */
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI2_C3	0x003F
+#define  B43_PHY_HT_TXPCTL_IDLE_TSSI2_C3_SHIFT	0
+#define B43_PHY_HT_TXPCTL_TARG_PWR2		B43_PHY_EXTG(0x166)	/* TX power control target power */
+#define  B43_PHY_HT_TXPCTL_TARG_PWR2_C3		0x00FF
+#define  B43_PHY_HT_TXPCTL_TARG_PWR2_C3_SHIFT	0
 
 #define B43_PHY_HT_TEST				B43_PHY_N_BMODE(0x00A)
 
