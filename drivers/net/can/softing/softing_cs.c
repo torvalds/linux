@@ -27,7 +27,7 @@
 #include "softing_platform.h"
 
 static int softingcs_index;
-static spinlock_t softingcs_index_lock;
+static DEFINE_SPINLOCK(softingcs_index_lock);
 
 static int softingcs_reset(struct platform_device *pdev, int v);
 static int softingcs_enable_irq(struct platform_device *pdev, int v);
@@ -342,7 +342,6 @@ static struct pcmcia_driver softingcs_driver = {
 
 static int __init softingcs_start(void)
 {
-	spin_lock_init(&softingcs_index_lock);
 	return pcmcia_register_driver(&softingcs_driver);
 }
 
