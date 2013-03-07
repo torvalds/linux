@@ -86,15 +86,10 @@ struct e100_serial {
 
 	volatile int		tr_running; /* 1 if output is running */
 
-	struct tty_struct	*tty;
-	int			read_status_mask;
-	int			ignore_status_mask;
 	int			x_char;	/* xon/xoff character */
 	int			close_delay;
 	unsigned short		closing_wait;
-	unsigned short		closing_wait2;
 	unsigned long		event;
-	unsigned long		last_active;
 	int			line;
 	int			type;  /* PORT_ETRAX */
 	int			count;	    /* # of fd on device */
@@ -108,7 +103,6 @@ struct e100_serial {
 	struct work_struct	work;
 	struct async_icount	icount;   /* error-statistics etc.*/
 	struct ktermios		normal_termios;
-	struct ktermios		callout_termios;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 
