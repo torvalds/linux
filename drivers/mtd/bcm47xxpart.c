@@ -19,6 +19,12 @@
 /* 10 parts were found on sflash on Netgear WNDR4500 */
 #define BCM47XXPART_MAX_PARTS		12
 
+/*
+ * Amount of bytes we read when analyzing each block of flash memory.
+ * Set it big enough to allow detecting partition and reading important data.
+ */
+#define BCM47XXPART_BYTES_TO_READ	0x404
+
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
 #define POT_MAGIC1			0x54544f50	/* POTT */
@@ -57,17 +63,14 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	struct trx_header *trx;
 	int trx_part = -1;
 	int last_trx_part = -1;
-	int max_bytes_to_read = 0x8004;
 
 	if (blocksize <= 0x10000)
 		blocksize = 0x10000;
-	if (blocksize == 0x20000)
-		max_bytes_to_read = 0x18004;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
 			GFP_KERNEL);
-	buf = kzalloc(max_bytes_to_read, GFP_KERNEL);
+	buf = kzalloc(BCM47XXPART_BYTES_TO_READ, GFP_KERNEL);
 
 	/* Parse block by block looking for magics */
 	for (offset = 0; offset <= master->size - blocksize;
@@ -82,7 +85,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		}
 
 		/* Read beginning of the block */
-		if (mtd_read(master, offset, max_bytes_to_read,
+		if (mtd_read(master, offset, BCM47XXPART_BYTES_TO_READ,
 			     &bytes_read, (uint8_t *)buf) < 0) {
 			pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
 			       offset);
@@ -97,16 +100,9 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		}
 
 		/* Standard NVRAM */
-		if (buf[0x000 / 4] == NVRAM_HEADER ||
-		    buf[0x1000 / 4] == NVRAM_HEADER ||
-		    buf[0x8000 / 4] == NVRAM_HEADER ||
-		    (blocksize == 0x20000 && (
-		      buf[0x10000 / 4] == NVRAM_HEADER ||
-		      buf[0x11000 / 4] == NVRAM_HEADER ||
-		      buf[0x18000 / 4] == NVRAM_HEADER))) {
+		if (buf[0x000 / 4] == NVRAM_HEADER) {
 			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
 					     offset, 0);
-			offset = rounddown(offset, blocksize);
 			continue;
 		}
 
