@@ -113,6 +113,8 @@
 
 		gpio1: gpio@48310000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x48310000 0x200>;
+			interrupts = <29>;
 			ti,hwmods = "gpio1";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -122,6 +124,8 @@
 
 		gpio2: gpio@49050000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49050000 0x200>;
+			interrupts = <30>;
 			ti,hwmods = "gpio2";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -131,6 +135,8 @@
 
 		gpio3: gpio@49052000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49052000 0x200>;
+			interrupts = <31>;
 			ti,hwmods = "gpio3";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -140,6 +146,8 @@
 
 		gpio4: gpio@49054000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49054000 0x200>;
+			interrupts = <32>;
 			ti,hwmods = "gpio4";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -149,6 +157,8 @@
 
 		gpio5: gpio@49056000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49056000 0x200>;
+			interrupts = <33>;
 			ti,hwmods = "gpio5";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -158,6 +168,8 @@
 
 		gpio6: gpio@49058000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49058000 0x200>;
+			interrupts = <34>;
 			ti,hwmods = "gpio6";
 			gpio-controller;
 			#gpio-cells = <2>;
