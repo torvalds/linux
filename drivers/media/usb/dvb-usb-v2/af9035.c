@@ -606,18 +606,14 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if (ret < 0)
 			goto err;
 
-		if (tmp) {
-			addr = EEPROM_BASE_IT9135;
-		} else {
+		if (tmp == 0x00) {
 			dev_dbg(&d->udev->dev, "%s: no eeprom\n", __func__);
 			goto skip_eeprom;
 		}
-	} else {
-		addr = EEPROM_BASE_AF9035;
 	}
 
 	/* check if there is dual tuners */
-	ret = af9035_rd_reg(d, addr + EEPROM_DUAL_MODE, &tmp);
+	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_DUAL_MODE, &tmp);
 	if (ret < 0)
 		goto err;
 
@@ -627,7 +623,9 @@ static int af9035_read_config(struct dvb_usb_device *d)
 
 	if (state->dual_mode) {
 		/* read 2nd demodulator I2C address */
-		ret = af9035_rd_reg(d, addr + EEPROM_2ND_DEMOD_ADDR, &tmp);
+		ret = af9035_rd_reg(d,
+				state->eeprom_addr + EEPROM_2ND_DEMOD_ADDR,
+				&tmp);
 		if (ret < 0)
 			goto err;
 
@@ -635,6 +633,8 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		dev_dbg(&d->udev->dev, "%s: 2nd demod I2C addr=%02x\n",
 				__func__, tmp);
 	}
+
+	addr = state->eeprom_addr;
 
 	for (i = 0; i < state->dual_mode + 1; i++) {
 		/* tuner */
@@ -1258,7 +1258,7 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	if (state->chip_type == 0x9135)
 		return 0;
 
-	ret = af9035_rd_reg(d, EEPROM_BASE_AF9035 + EEPROM_IR_MODE, &tmp);
+	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_IR_MODE, &tmp);
 	if (ret < 0)
 		goto err;
 
@@ -1266,7 +1266,7 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 
 	/* don't activate rc if in HID mode or if not available */
 	if (tmp == 5) {
-		ret = af9035_rd_reg(d, EEPROM_BASE_AF9035 + EEPROM_IR_TYPE,
+		ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_IR_TYPE,
 				&tmp);
 		if (ret < 0)
 			goto err;
