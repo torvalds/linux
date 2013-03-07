@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/irqdomain.h>
 
+#include <asm/exception.h>
 #include <asm/mach/irq.h>
 
 #include <mach/regs-irq.h>
@@ -282,6 +283,56 @@ static void s3c_irq_demux(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static struct s3c_irq_intc *main_intc;
+static struct s3c_irq_intc *main_intc2;
+
+static inline int s3c24xx_handle_intc(struct s3c_irq_intc *intc,
+				      struct pt_regs *regs)
+{
+	int pnd;
+	int offset;
+	int irq;
+
+	pnd = __raw_readl(intc->reg_intpnd);
+	if (!pnd)
+		return false;
+
+	/* We have a problem that the INTOFFSET register does not always
+	 * show one interrupt. Occasionally we get two interrupts through
+	 * the prioritiser, and this causes the INTOFFSET register to show
+	 * what looks like the logical-or of the two interrupt numbers.
+	 *
+	 * Thanks to Klaus, Shannon, et al for helping to debug this problem
+	 */
+	offset = __raw_readl(intc->reg_intpnd + 4);
+
+	/* Find the bit manually, when the offset is wrong.
+	 * The pending register only ever contains the one bit of the next
+	 * interrupt to handle.
+	 */
+	if (!(pnd & (1 << offset)))
+		offset =  __ffs(pnd);
+
+	irq = irq_find_mapping(intc->domain, offset);
+	handle_IRQ(irq, regs);
+	return true;
+}
+
+asmlinkage void __exception_irq_entry s3c24xx_handle_irq(struct pt_regs *regs)
+{
+	do {
+		if (likely(main_intc))
+			if (s3c24xx_handle_intc(main_intc, regs))
+				continue;
+
+		if (main_intc2)
+			if (s3c24xx_handle_intc(main_intc2, regs))
+				continue;
+
+		break;
+	} while (1);
+}
+
 #ifdef CONFIG_FIQ
 /**
  * s3c24xx_set_fiq - set the FIQ routing
@@ -501,6 +552,13 @@ static struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		ret = -EINVAL;
 		goto err;
 	}
+
+	if (address == 0x4a000000)
+		main_intc = intc;
+	else if (address == 0x4a000040)
+		main_intc2 = intc;
+
+	set_handle_irq(s3c24xx_handle_irq);
 
 	return intc;
 
