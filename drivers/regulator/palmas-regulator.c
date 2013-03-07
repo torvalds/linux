@@ -1,7 +1,7 @@
 /*
  * Driver for Regulator part of Palmas PMIC Chips
  *
- * Copyright 2011-2012 Texas Instruments Inc.
+ * Copyright 2011-2013 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
  *
@@ -552,15 +552,13 @@ static void palmas_dt_to_pdata(struct device *dev,
 		pdata->reg_init[idx] = devm_kzalloc(dev,
 				sizeof(struct palmas_reg_init), GFP_KERNEL);
 
-		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,warm-reset", &prop);
-		if (!ret)
-			pdata->reg_init[idx]->warm_reset = prop;
+		pdata->reg_init[idx]->warm_reset =
+			of_property_read_u32(palmas_matches[idx].of_node,
+					     "ti,warm-reset", &prop);
 
-		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,roof-floor", &prop);
-		if (!ret)
-			pdata->reg_init[idx]->roof_floor = prop;
+		pdata->reg_init[idx]->roof_floor =
+			of_property_read_bool(palmas_matches[idx].of_node,
+					      "ti,roof-floor");
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
 				"ti,mode-sleep", &prop);
@@ -572,15 +570,14 @@ static void palmas_dt_to_pdata(struct device *dev,
 		if (!ret)
 			pdata->reg_init[idx]->tstep = prop;
 
-		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,vsel", &prop);
-		if (!ret)
-			pdata->reg_init[idx]->vsel = prop;
+		ret = of_property_read_bool(palmas_matches[idx].of_node,
+					    "ti,smps-range");
+		if (ret)
+			pdata->reg_init[idx]->vsel =
+				PALMAS_SMPS12_VOLTAGE_RANGE;
 	}
 
-	ret = of_property_read_u32(node, "ti,ldo6-vibrator", &prop);
-	if (!ret)
-		pdata->ldo6_vibrator = prop;
+	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
 }
 
 
@@ -805,6 +802,13 @@ static int palmas_remove(struct platform_device *pdev)
 
 static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-pmic", },
+	{ .compatible = "ti,palmas-charger-pmic", },
+	{ .compatible = "ti,twl6035-pmic", },
+	{ .compatible = "ti,twl6036-pmic", },
+	{ .compatible = "ti,twl6037-pmic", },
+	{ .compatible = "ti,tps65913-pmic", },
+	{ .compatible = "ti,tps65914-pmic", },
+	{ .compatible = "ti,tps80036-pmic", },
 	{ /* end */ }
 };
 
