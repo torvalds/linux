@@ -3660,7 +3660,7 @@ static int check_path_shared(struct btrfs_root *root,
 		eb = path->nodes[level];
 		if (!btrfs_block_can_be_shared(root, eb))
 			continue;
-		ret = btrfs_lookup_extent_info(NULL, root, eb->start, eb->len,
+		ret = btrfs_lookup_extent_info(NULL, root, eb->start, level, 1,
 					       &refs, NULL);
 		if (refs > 1)
 			return 1;

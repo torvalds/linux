@@ -2312,8 +2312,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	key_start.type = BTRFS_EXTENT_ITEM_KEY;
 	key_start.offset = (u64)0;
 	key_end.objectid = base + offset + nstripes * increment;
-	key_end.type = BTRFS_EXTENT_ITEM_KEY;
-	key_end.offset = (u64)0;
+	key_end.type = BTRFS_METADATA_ITEM_KEY;
+	key_end.offset = (u64)-1;
 	reada1 = btrfs_reada_add(root, &key_start, &key_end);
 
 	key_start.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
@@ -2401,6 +2401,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
+
 		if (ret > 0) {
 			ret = btrfs_previous_item(root, path, 0,
 						  BTRFS_EXTENT_ITEM_KEY);
@@ -2418,6 +2419,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		}
 
 		while (1) {
+			u64 bytes;
+
 			l = path->nodes[0];
 			slot = path->slots[0];
 			if (slot >= btrfs_header_nritems(l)) {
@@ -2431,14 +2434,21 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			}
 			btrfs_item_key_to_cpu(l, &key, slot);
 
-			if (key.objectid + key.offset <= logical)
+			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+			    key.type != BTRFS_METADATA_ITEM_KEY)
+				goto next;
+
+			if (key.type == BTRFS_METADATA_ITEM_KEY)
+				bytes = root->leafsize;
+			else
+				bytes = key.offset;
+
+			if (key.objectid + bytes <= logical)
 				goto next;
 
 			if (key.objectid >= logical + map->stripe_len)
 				break;
 
-			if (btrfs_key_type(&key) != BTRFS_EXTENT_ITEM_KEY)
-				goto next;
 
 			extent = btrfs_item_ptr(l, slot,
 						struct btrfs_extent_item);
@@ -2459,18 +2469,18 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			 * trim extent to this stripe
 			 */
 			if (key.objectid < logical) {
-				key.offset -= logical - key.objectid;
+				bytes -= logical - key.objectid;
 				key.objectid = logical;
 			}
-			if (key.objectid + key.offset >
+			if (key.objectid + bytes >
 			    logical + map->stripe_len) {
-				key.offset = logical + map->stripe_len -
-					     key.objectid;
+				bytes = logical + map->stripe_len -
+					key.objectid;
 			}
 
 			extent_logical = key.objectid;
 			extent_physical = key.objectid - logical + physical;
-			extent_len = key.offset;
+			extent_len = bytes;
 			extent_dev = scrub_dev;
 			extent_mirror_num = mirror_num;
 			if (is_dev_replace)

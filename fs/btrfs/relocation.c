@@ -619,9 +619,12 @@ static noinline_for_stack
 int find_inline_backref(struct extent_buffer *leaf, int slot,
 			unsigned long *ptr, unsigned long *end)
 {
+	struct btrfs_key key;
 	struct btrfs_extent_item *ei;
 	struct btrfs_tree_block_info *bi;
 	u32 item_size;
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
 
 	item_size = btrfs_item_size_nr(leaf, slot);
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
@@ -634,13 +637,18 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 	WARN_ON(!(btrfs_extent_flags(leaf, ei) &
 		  BTRFS_EXTENT_FLAG_TREE_BLOCK));
 
-	if (item_size <= sizeof(*ei) + sizeof(*bi)) {
+	if (key.type == BTRFS_EXTENT_ITEM_KEY &&
+	    item_size <= sizeof(*ei) + sizeof(*bi)) {
 		WARN_ON(item_size < sizeof(*ei) + sizeof(*bi));
 		return 1;
 	}
 
-	bi = (struct btrfs_tree_block_info *)(ei + 1);
-	*ptr = (unsigned long)(bi + 1);
+	if (key.type == BTRFS_EXTENT_ITEM_KEY) {
+		bi = (struct btrfs_tree_block_info *)(ei + 1);
+		*ptr = (unsigned long)(bi + 1);
+	} else {
+		*ptr = (unsigned long)(ei + 1);
+	}
 	*end = (unsigned long)ei + item_size;
 	return 0;
 }
@@ -708,7 +716,7 @@ again:
 	end = 0;
 	ptr = 0;
 	key.objectid = cur->bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.type = BTRFS_METADATA_ITEM_KEY;
 	key.offset = (u64)-1;
 
 	path1->search_commit_root = 1;
@@ -766,7 +774,8 @@ again:
 				break;
 			}
 
-			if (key.type == BTRFS_EXTENT_ITEM_KEY) {
+			if (key.type == BTRFS_EXTENT_ITEM_KEY ||
+			    key.type == BTRFS_METADATA_ITEM_KEY) {
 				ret = find_inline_backref(eb, path1->slots[0],
 							  &ptr, &end);
 				if (ret)
@@ -2768,8 +2777,13 @@ static int reada_tree_block(struct reloc_control *rc,
 			    struct tree_block *block)
 {
 	BUG_ON(block->key_ready);
-	readahead_tree_block(rc->extent_root, block->bytenr,
-			     block->key.objectid, block->key.offset);
+	if (block->key.type == BTRFS_METADATA_ITEM_KEY)
+		readahead_tree_block(rc->extent_root, block->bytenr,
+				     block->key.objectid,
+				     rc->extent_root->leafsize);
+	else
+		readahead_tree_block(rc->extent_root, block->bytenr,
+				     block->key.objectid, block->key.offset);
 	return 0;
 }
 
@@ -3176,12 +3190,17 @@ static int add_tree_block(struct reloc_control *rc,
 	eb =  path->nodes[0];
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
 
-	if (item_size >= sizeof(*ei) + sizeof(*bi)) {
+	if (extent_key->type == BTRFS_METADATA_ITEM_KEY ||
+	    item_size >= sizeof(*ei) + sizeof(*bi)) {
 		ei = btrfs_item_ptr(eb, path->slots[0],
 				struct btrfs_extent_item);
-		bi = (struct btrfs_tree_block_info *)(ei + 1);
+		if (extent_key->type == BTRFS_EXTENT_ITEM_KEY) {
+			bi = (struct btrfs_tree_block_info *)(ei + 1);
+			level = btrfs_tree_block_level(eb, bi);
+		} else {
+			level = (int)extent_key->offset;
+		}
 		generation = btrfs_extent_generation(eb, ei);
-		level = btrfs_tree_block_level(eb, bi);
 	} else {
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
 		u64 ref_owner;
@@ -3210,7 +3229,7 @@ static int add_tree_block(struct reloc_control *rc,
 		return -ENOMEM;
 
 	block->bytenr = extent_key->objectid;
-	block->key.objectid = extent_key->offset;
+	block->key.objectid = rc->extent_root->leafsize;
 	block->key.offset = generation;
 	block->level = level;
 	block->key_ready = 0;
@@ -3252,9 +3271,15 @@ static int __add_tree_block(struct reloc_control *rc,
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret);
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	if (ret > 0) {
+		if (key.objectid == bytenr &&
+		    key.type == BTRFS_METADATA_ITEM_KEY)
+			ret = 0;
+	}
+	BUG_ON(ret);
+
 	ret = add_tree_block(rc, &key, path, blocks);
 out:
 	btrfs_free_path(path);
@@ -3275,7 +3300,8 @@ static int block_use_full_backref(struct reloc_control *rc,
 		return 1;
 
 	ret = btrfs_lookup_extent_info(NULL, rc->extent_root,
-				       eb->start, eb->len, NULL, &flags);
+				       eb->start, btrfs_header_level(eb), 1,
+				       NULL, &flags);
 	BUG_ON(ret);
 
 	if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)
@@ -3644,8 +3670,21 @@ next:
 			break;
 		}
 
-		if (key.type != BTRFS_EXTENT_ITEM_KEY ||
+		if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+		    key.type != BTRFS_METADATA_ITEM_KEY) {
+			path->slots[0]++;
+			goto next;
+		}
+
+		if (key.type == BTRFS_EXTENT_ITEM_KEY &&
 		    key.objectid + key.offset <= rc->search_start) {
+			path->slots[0]++;
+			goto next;
+		}
+
+		if (key.type == BTRFS_METADATA_ITEM_KEY &&
+		    key.objectid + rc->extent_root->leafsize <=
+		    rc->search_start) {
 			path->slots[0]++;
 			goto next;
 		}
@@ -3658,7 +3697,11 @@ next:
 			btrfs_release_path(path);
 			rc->search_start = end + 1;
 		} else {
-			rc->search_start = key.objectid + key.offset;
+			if (key.type == BTRFS_EXTENT_ITEM_KEY)
+				rc->search_start = key.objectid + key.offset;
+			else
+				rc->search_start = key.objectid +
+					rc->extent_root->leafsize;
 			memcpy(extent_key, &key, sizeof(key));
 			return 0;
 		}

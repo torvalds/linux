@@ -442,11 +442,16 @@ again:
 		    block_group->key.offset)
 			break;
 
-		if (key.type == BTRFS_EXTENT_ITEM_KEY) {
+		if (key.type == BTRFS_EXTENT_ITEM_KEY ||
+		    key.type == BTRFS_METADATA_ITEM_KEY) {
 			total_found += add_new_free_space(block_group,
 							  fs_info, last,
 							  key.objectid);
-			last = key.objectid + key.offset;
+			if (key.type == BTRFS_METADATA_ITEM_KEY)
+				last = key.objectid +
+					fs_info->tree_root->leafsize;
+			else
+				last = key.objectid + key.offset;
 
 			if (total_found > (1024 * 1024 * 2)) {
 				total_found = 0;
@@ -718,15 +723,21 @@ int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
 
 	key.objectid = start;
 	key.offset = len;
-	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
+	key.type = BTRFS_EXTENT_ITEM_KEY;
 	ret = btrfs_search_slot(NULL, root->fs_info->extent_root, &key, path,
 				0, 0);
+	if (ret > 0) {
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		if (key.objectid == start &&
+		    key.type == BTRFS_METADATA_ITEM_KEY)
+			ret = 0;
+	}
 	btrfs_free_path(path);
 	return ret;
 }
 
 /*
- * helper function to lookup reference count and flags of extent.
+ * helper function to lookup reference count and flags of a tree block.
  *
  * the head node for delayed ref is used to store the sum of all the
  * reference count modifications queued up in the rbtree. the head
@@ -736,7 +747,7 @@ int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
  */
 int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 bytenr,
-			     u64 num_bytes, u64 *refs, u64 *flags)
+			     u64 offset, int metadata, u64 *refs, u64 *flags)
 {
 	struct btrfs_delayed_ref_head *head;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -749,13 +760,29 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 	u64 extent_flags;
 	int ret;
 
+	/*
+	 * If we don't have skinny metadata, don't bother doing anything
+	 * different
+	 */
+	if (metadata && !btrfs_fs_incompat(root->fs_info, SKINNY_METADATA)) {
+		offset = root->leafsize;
+		metadata = 0;
+	}
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	key.objectid = bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.offset = num_bytes;
+	if (metadata) {
+		key.objectid = bytenr;
+		key.type = BTRFS_METADATA_ITEM_KEY;
+		key.offset = offset;
+	} else {
+		key.objectid = bytenr;
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = offset;
+	}
+
 	if (!trans) {
 		path->skip_locking = 1;
 		path->search_commit_root = 1;
@@ -765,6 +792,13 @@ again:
 				&key, path, 0, 0);
 	if (ret < 0)
 		goto out_free;
+
+	if (ret > 0 && metadata && key.type == BTRFS_METADATA_ITEM_KEY) {
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = root->leafsize;
+		btrfs_release_path(path);
+		goto again;
+	}
 
 	if (ret == 0) {
 		leaf = path->nodes[0];
@@ -1453,6 +1487,8 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	int want;
 	int ret;
 	int err = 0;
+	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
+						 SKINNY_METADATA);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -1464,11 +1500,46 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 		path->keep_locks = 1;
 	} else
 		extra_size = -1;
+
+	/*
+	 * Owner is our parent level, so we can just add one to get the level
+	 * for the block we are interested in.
+	 */
+	if (skinny_metadata && owner < BTRFS_FIRST_FREE_OBJECTID) {
+		key.type = BTRFS_METADATA_ITEM_KEY;
+		key.offset = owner;
+	}
+
+again:
 	ret = btrfs_search_slot(trans, root, &key, path, extra_size, 1);
 	if (ret < 0) {
 		err = ret;
 		goto out;
 	}
+
+	/*
+	 * We may be a newly converted file system which still has the old fat
+	 * extent entries for metadata, so try and see if we have one of those.
+	 */
+	if (ret > 0 && skinny_metadata) {
+		skinny_metadata = false;
+		if (path->slots[0]) {
+			path->slots[0]--;
+			btrfs_item_key_to_cpu(path->nodes[0], &key,
+					      path->slots[0]);
+			if (key.objectid == bytenr &&
+			    key.type == BTRFS_EXTENT_ITEM_KEY &&
+			    key.offset == num_bytes)
+				ret = 0;
+		}
+		if (ret) {
+			key.type = BTRFS_EXTENT_ITEM_KEY;
+			key.offset = num_bytes;
+			btrfs_release_path(path);
+			goto again;
+		}
+	}
+
 	if (ret && !insert) {
 		err = -ENOENT;
 		goto out;
@@ -1504,11 +1575,9 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	ptr = (unsigned long)(ei + 1);
 	end = (unsigned long)ei + item_size;
 
-	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK && !skinny_metadata) {
 		ptr += sizeof(struct btrfs_tree_block_info);
 		BUG_ON(ptr > end);
-	} else {
-		BUG_ON(!(flags & BTRFS_EXTENT_FLAG_DATA));
 	}
 
 	err = -ENOENT;
@@ -1973,10 +2042,8 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		ref_root = ref->root;
 
 	if (node->action == BTRFS_ADD_DELAYED_REF && insert_reserved) {
-		if (extent_op) {
-			BUG_ON(extent_op->update_key);
+		if (extent_op)
 			flags |= extent_op->flags_to_set;
-		}
 		ret = alloc_reserved_file_extent(trans, root,
 						 parent, ref_root, flags,
 						 ref->objectid, ref->offset,
@@ -2029,18 +2096,33 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	int ret;
 	int err = 0;
+	int metadata = (node->type == BTRFS_TREE_BLOCK_REF_KEY ||
+			node->type == BTRFS_SHARED_BLOCK_REF_KEY);
 
 	if (trans->aborted)
 		return 0;
+
+	if (metadata && !btrfs_fs_incompat(root->fs_info, SKINNY_METADATA))
+		metadata = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
 	key.objectid = node->bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.offset = node->num_bytes;
 
+	if (metadata) {
+		struct btrfs_delayed_tree_ref *tree_ref;
+
+		tree_ref = btrfs_delayed_node_to_tree_ref(node);
+		key.type = BTRFS_METADATA_ITEM_KEY;
+		key.offset = tree_ref->level;
+	} else {
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = node->num_bytes;
+	}
+
+again:
 	path->reada = 1;
 	path->leave_spinning = 1;
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key,
@@ -2050,6 +2132,14 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	if (ret > 0) {
+		if (metadata) {
+			btrfs_release_path(path);
+			metadata = 0;
+
+			key.offset = node->num_bytes;
+			key.type = BTRFS_EXTENT_ITEM_KEY;
+			goto again;
+		}
 		err = -EIO;
 		goto out;
 	}
@@ -2089,10 +2179,8 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_key ins;
 	u64 parent = 0;
 	u64 ref_root = 0;
-
-	ins.objectid = node->bytenr;
-	ins.offset = node->num_bytes;
-	ins.type = BTRFS_EXTENT_ITEM_KEY;
+	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
+						 SKINNY_METADATA);
 
 	ref = btrfs_delayed_node_to_tree_ref(node);
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
@@ -2100,10 +2188,18 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	else
 		ref_root = ref->root;
 
+	ins.objectid = node->bytenr;
+	if (skinny_metadata) {
+		ins.offset = ref->level;
+		ins.type = BTRFS_METADATA_ITEM_KEY;
+	} else {
+		ins.offset = node->num_bytes;
+		ins.type = BTRFS_EXTENT_ITEM_KEY;
+	}
+
 	BUG_ON(node->ref_mod != 1);
 	if (node->action == BTRFS_ADD_DELAYED_REF && insert_reserved) {
-		BUG_ON(!extent_op || !extent_op->update_flags ||
-		       !extent_op->update_key);
+		BUG_ON(!extent_op || !extent_op->update_flags);
 		ret = alloc_reserved_tree_block(trans, root,
 						parent, ref_root,
 						extent_op->flags_to_set,
@@ -5312,6 +5408,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	int num_to_del = 1;
 	u32 item_size;
 	u64 refs;
+	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
+						 SKINNY_METADATA);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5322,6 +5420,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 	is_data = owner_objectid >= BTRFS_FIRST_FREE_OBJECTID;
 	BUG_ON(!is_data && refs_to_drop != 1);
+
+	if (is_data)
+		skinny_metadata = 0;
 
 	ret = lookup_extent_backref(trans, extent_root, path, &iref,
 				    bytenr, num_bytes, parent,
@@ -5336,6 +5437,11 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				break;
 			if (key.type == BTRFS_EXTENT_ITEM_KEY &&
 			    key.offset == num_bytes) {
+				found_extent = 1;
+				break;
+			}
+			if (key.type == BTRFS_METADATA_ITEM_KEY &&
+			    key.offset == owner_objectid) {
 				found_extent = 1;
 				break;
 			}
@@ -5364,8 +5470,36 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			key.type = BTRFS_EXTENT_ITEM_KEY;
 			key.offset = num_bytes;
 
+			if (!is_data && skinny_metadata) {
+				key.type = BTRFS_METADATA_ITEM_KEY;
+				key.offset = owner_objectid;
+			}
+
 			ret = btrfs_search_slot(trans, extent_root,
 						&key, path, -1, 1);
+			if (ret > 0 && skinny_metadata && path->slots[0]) {
+				/*
+				 * Couldn't find our skinny metadata item,
+				 * see if we have ye olde extent item.
+				 */
+				path->slots[0]--;
+				btrfs_item_key_to_cpu(path->nodes[0], &key,
+						      path->slots[0]);
+				if (key.objectid == bytenr &&
+				    key.type == BTRFS_EXTENT_ITEM_KEY &&
+				    key.offset == num_bytes)
+					ret = 0;
+			}
+
+			if (ret > 0 && skinny_metadata) {
+				skinny_metadata = false;
+				key.type = BTRFS_EXTENT_ITEM_KEY;
+				key.offset = num_bytes;
+				btrfs_release_path(path);
+				ret = btrfs_search_slot(trans, extent_root,
+							&key, path, -1, 1);
+			}
+
 			if (ret) {
 				printk(KERN_ERR "umm, got %d back from search"
 				       ", was looking for %llu\n", ret,
@@ -5435,7 +5569,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(item_size < sizeof(*ei));
 	ei = btrfs_item_ptr(leaf, extent_slot,
 			    struct btrfs_extent_item);
-	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
+	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID &&
+	    key.type == BTRFS_EXTENT_ITEM_KEY) {
 		struct btrfs_tree_block_info *bi;
 		BUG_ON(item_size < sizeof(*ei) + sizeof(*bi));
 		bi = (struct btrfs_tree_block_info *)(ei + 1);
@@ -6349,7 +6484,12 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_inline_ref *iref;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	u32 size = sizeof(*extent_item) + sizeof(*block_info) + sizeof(*iref);
+	u32 size = sizeof(*extent_item) + sizeof(*iref);
+	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
+						 SKINNY_METADATA);
+
+	if (!skinny_metadata)
+		size += sizeof(*block_info);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -6370,12 +6510,16 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	btrfs_set_extent_generation(leaf, extent_item, trans->transid);
 	btrfs_set_extent_flags(leaf, extent_item,
 			       flags | BTRFS_EXTENT_FLAG_TREE_BLOCK);
-	block_info = (struct btrfs_tree_block_info *)(extent_item + 1);
 
-	btrfs_set_tree_block_key(leaf, block_info, key);
-	btrfs_set_tree_block_level(leaf, block_info, level);
+	if (skinny_metadata) {
+		iref = (struct btrfs_extent_inline_ref *)(extent_item + 1);
+	} else {
+		block_info = (struct btrfs_tree_block_info *)(extent_item + 1);
+		btrfs_set_tree_block_key(leaf, block_info, key);
+		btrfs_set_tree_block_level(leaf, block_info, level);
+		iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
+	}
 
-	iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
 	if (parent > 0) {
 		BUG_ON(!(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF));
 		btrfs_set_extent_inline_ref_type(leaf, iref,
@@ -6390,7 +6534,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_free_path(path);
 
-	ret = update_block_group(root, ins->objectid, ins->offset, 1);
+	ret = update_block_group(root, ins->objectid, root->leafsize, 1);
 	if (ret) { /* -ENOENT, logic error */
 		printk(KERN_ERR "btrfs update block group failed for %llu "
 		       "%llu\n", (unsigned long long)ins->objectid,
@@ -6594,7 +6738,8 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	struct extent_buffer *buf;
 	u64 flags = 0;
 	int ret;
-
+	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
+						 SKINNY_METADATA);
 
 	block_rsv = use_block_rsv(trans, root, blocksize);
 	if (IS_ERR(block_rsv))
@@ -6627,7 +6772,10 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		else
 			memset(&extent_op->key, 0, sizeof(extent_op->key));
 		extent_op->flags_to_set = flags;
-		extent_op->update_key = 1;
+		if (skinny_metadata)
+			extent_op->update_key = 0;
+		else
+			extent_op->update_key = 1;
 		extent_op->update_flags = 1;
 		extent_op->is_data = 0;
 
@@ -6704,8 +6852,9 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 			continue;
 
 		/* We don't lock the tree block, it's OK to be racy here */
-		ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
-					       &refs, &flags);
+		ret = btrfs_lookup_extent_info(trans, root, bytenr,
+					       wc->level - 1, 1, &refs,
+					       &flags);
 		/* We don't care about errors in readahead. */
 		if (ret < 0)
 			continue;
@@ -6772,7 +6921,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 	     (wc->stage == UPDATE_BACKREF && !(wc->flags[level] & flag)))) {
 		BUG_ON(!path->locks[level]);
 		ret = btrfs_lookup_extent_info(trans, root,
-					       eb->start, eb->len,
+					       eb->start, level, 1,
 					       &wc->refs[level],
 					       &wc->flags[level]);
 		BUG_ON(ret == -ENOMEM);
@@ -6870,7 +7019,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	btrfs_tree_lock(next);
 	btrfs_set_lock_blocking(next);
 
-	ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
+	ret = btrfs_lookup_extent_info(trans, root, bytenr, level - 1, 1,
 				       &wc->refs[level - 1],
 				       &wc->flags[level - 1]);
 	if (ret < 0) {
@@ -7001,7 +7150,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 
 			ret = btrfs_lookup_extent_info(trans, root,
-						       eb->start, eb->len,
+						       eb->start, level, 1,
 						       &wc->refs[level],
 						       &wc->flags[level]);
 			if (ret < 0) {
@@ -7211,8 +7360,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 
 			ret = btrfs_lookup_extent_info(trans, root,
 						path->nodes[level]->start,
-						path->nodes[level]->len,
-						&wc->refs[level],
+						level, 1, &wc->refs[level],
 						&wc->flags[level]);
 			if (ret < 0) {
 				err = ret;

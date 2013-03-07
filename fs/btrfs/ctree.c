@@ -867,7 +867,8 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 
 	if (btrfs_block_can_be_shared(root, buf)) {
 		ret = btrfs_lookup_extent_info(trans, root, buf->start,
-					       buf->len, &refs, &flags);
+					       btrfs_header_level(buf), 1,
+					       &refs, &flags);
 		if (ret)
 			return ret;
 		if (refs == 0) {
