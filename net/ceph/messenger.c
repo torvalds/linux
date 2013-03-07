@@ -1041,11 +1041,9 @@ static void out_msg_pos_next(struct ceph_connection *con, struct page *page,
 	con->out_msg_pos.page++;
 	con->out_msg_pos.did_page_crc = false;
 	if (in_trail)
-		list_move_tail(&page->lru,
-			       &msg->trail->head);
+		list_rotate_left(&msg->trail->head);
 	else if (msg->pagelist)
-		list_move_tail(&page->lru,
-			       &msg->pagelist->head);
+		list_rotate_left(&msg->pagelist->head);
 #ifdef CONFIG_BLOCK
 	else if (msg->bio)
 		iter_bio_next(&msg->bio_iter, &msg->bio_seg);
