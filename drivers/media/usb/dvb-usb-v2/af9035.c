@@ -588,6 +588,8 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	state->af9033_config[0].i2c_addr = 0x38;
 	state->af9033_config[0].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[1].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
+	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
+	state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
 
 	/* eeprom memory mapped location */
 	if (state->chip_type == 0x9135) {
@@ -901,11 +903,6 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 		/* unsupported tuner */
 		ret = -ENODEV;
 		goto err;
-	}
-
-	if (adap->id == 0) {
-		state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
-		state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
 	}
 
 	/* attach demodulator */
