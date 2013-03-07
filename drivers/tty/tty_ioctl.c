@@ -479,34 +479,6 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud, speed_t obaud)
 EXPORT_SYMBOL_GPL(tty_encode_baud_rate);
 
 /**
- *	tty_get_baud_rate	-	get tty bit rates
- *	@tty: tty to query
- *
- *	Returns the baud rate as an integer for this terminal. The
- *	termios lock must be held by the caller and the terminal bit
- *	flags may be updated.
- *
- *	Locking: none
- */
-
-speed_t tty_get_baud_rate(struct tty_struct *tty)
-{
-	speed_t baud = tty_termios_baud_rate(&tty->termios);
-
-	if (baud == 38400 && tty->alt_speed) {
-		if (!tty->warned) {
-			printk(KERN_WARNING "Use of setserial/setrocket to "
-					    "set SPD_* flags is deprecated\n");
-			tty->warned = 1;
-		}
-		baud = tty->alt_speed;
-	}
-
-	return baud;
-}
-EXPORT_SYMBOL(tty_get_baud_rate);
-
-/**
  *	tty_termios_copy_hw	-	copy hardware settings
  *	@new: New termios
  *	@old: Old termios
