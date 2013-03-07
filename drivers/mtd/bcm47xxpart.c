@@ -63,6 +63,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	struct trx_header *trx;
 	int trx_part = -1;
 	int last_trx_part = -1;
+	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
 
 	if (blocksize <= 0x10000)
 		blocksize = 0x10000;
@@ -96,13 +97,6 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (buf[0x400 / 4] == NVRAM_HEADER) {
 			bcm47xxpart_add_part(&parts[curr_part++], "boot",
 					     offset, MTD_WRITEABLE);
-			continue;
-		}
-
-		/* Standard NVRAM */
-		if (buf[0x000 / 4] == NVRAM_HEADER) {
-			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
-					     offset, 0);
 			continue;
 		}
 
@@ -174,6 +168,30 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 	}
+
+	/* Look for NVRAM at the end of the last block. */
+	for (i = 0; i < ARRAY_SIZE(possible_nvram_sizes); i++) {
+		if (curr_part > BCM47XXPART_MAX_PARTS) {
+			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
+			break;
+		}
+
+		offset = master->size - possible_nvram_sizes[i];
+		if (mtd_read(master, offset, 0x4, &bytes_read,
+			     (uint8_t *)buf) < 0) {
+			pr_err("mtd_read error while reading at offset 0x%X!\n",
+			       offset);
+			continue;
+		}
+
+		/* Standard NVRAM */
+		if (buf[0] == NVRAM_HEADER) {
+			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
+					     master->size - blocksize, 0);
+			break;
+		}
+	}
+
 	kfree(buf);
 
 	/*
