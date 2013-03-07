@@ -54,18 +54,20 @@ int dwc_otg_check_dpdm(void)
         }
     }
     mdelay(105);
-    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
-        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
+    //printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
+    //    reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
     otg_dctl = (unsigned int * )(reg_base+0x804);
     otg_gotgctl = (unsigned int * )(reg_base);
     otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
     if(*otg_gotgctl &(1<<19)){
         bus_status = 1;
-        *otg_dctl &= ~(0x01<<1);//@lyz exit soft-disconnect mode
-        mdelay(50);    // delay about 10ms
+        *(unsigned int*)(RK2928_GRF_BASE + GRF_UOC0_CON0) = 0x10000000;//exit usbphy io hi-z state
+        *otg_dctl &= ~(0x01<<1);//exit soft-disconnect mode
+        mdelay(1);    // delay about 1ms
     // check dp,dm
-        if((*otg_hprt0 & 0xc00)==0xc00)//@lyz check hprt[11:10] 
+        if((*otg_hprt0 & 0xc00)==0xc00)//check hprt[11:10] 
             bus_status = 2;
+        *(unsigned int*)(RK2928_GRF_BASE + GRF_UOC0_CON0) = 0x10001000;
     }
 out:
     return bus_status;
