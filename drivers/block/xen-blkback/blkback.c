@@ -422,6 +422,16 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	return err;
 }
 
+static int dispatch_other_io(struct xen_blkif *blkif,
+			     struct blkif_request *req,
+			     struct pending_req *pending_req)
+{
+	free_req(pending_req);
+	make_response(blkif, req->u.other.id, req->operation,
+		      BLKIF_RSP_EOPNOTSUPP);
+	return -EIO;
+}
+
 static void xen_blk_drain_io(struct xen_blkif *blkif)
 {
 	atomic_set(&blkif->drain, 1);
@@ -543,17 +553,30 @@ __do_block_io_op(struct xen_blkif *blkif)
 
 		/* Apply all sanity checks to /private copy/ of request. */
 		barrier();
-		if (unlikely(req.operation == BLKIF_OP_DISCARD)) {
+
+		switch (req.operation) {
+		case BLKIF_OP_READ:
+		case BLKIF_OP_WRITE:
+		case BLKIF_OP_WRITE_BARRIER:
+		case BLKIF_OP_FLUSH_DISKCACHE:
+			if (dispatch_rw_block_io(blkif, &req, pending_req))
+				goto done;
+			break;
+		case BLKIF_OP_DISCARD:
 			free_req(pending_req);
 			if (dispatch_discard_io(blkif, &req))
-				break;
-		} else if (dispatch_rw_block_io(blkif, &req, pending_req))
+				goto done;
 			break;
+		default:
+			if (dispatch_other_io(blkif, &req, pending_req))
+				goto done;
+			break;
+		}
 
 		/* Yield point for this unbounded loop. */
 		cond_resched();
 	}
-
+done:
 	return more_to_do;
 }
 
