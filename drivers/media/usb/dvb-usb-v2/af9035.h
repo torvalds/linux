@@ -59,7 +59,7 @@ struct state {
 	u8 prechip_version;
 	u8 chip_version;
 	u16 chip_type;
-	bool dual_mode;
+	u8 dual_mode:1;
 	u16 eeprom_addr;
 	struct af9033_config af9033_config[2];
 };
@@ -95,6 +95,14 @@ static const u32 clock_lut_it9135[] = {
 #define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"
 #define AF9035_FIRMWARE_IT9135_V1 "dvb-usb-it9135-01.fw"
 #define AF9035_FIRMWARE_IT9135_V2 "dvb-usb-it9135-02.fw"
+
+/*
+ * eeprom is memory mapped as read only. Writing that memory mapped address
+ * will not corrupt eeprom.
+ *
+ * eeprom has value 0x00 single mode and 0x03 for dual mode as far as I have
+ * seen to this day.
+ */
 
 #define EEPROM_BASE_AF9035        0x42fd
 #define EEPROM_BASE_IT9135        0x499c
