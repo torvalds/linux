@@ -1081,7 +1081,6 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_pos *msg_pos = &con->out_msg_pos;
 	unsigned int data_len = le32_to_cpu(msg->hdr.data_len);
-	size_t len;
 	bool do_datacrc = !con->msgr->nocrc;
 	int ret;
 	int total_max_write;
@@ -1102,6 +1101,8 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	 */
 	while (data_len > msg_pos->data_pos) {
 		struct page *page = NULL;
+		size_t page_offset;
+		size_t length;
 		int max_write = PAGE_SIZE;
 		int bio_offset = 0;
 
@@ -1131,9 +1132,10 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		} else {
 			page = zero_page;
 		}
-		len = min_t(int, max_write - msg_pos->page_pos,
+		length = min_t(int, max_write - msg_pos->page_pos,
 			    total_max_write);
 
+		page_offset = msg_pos->page_pos + bio_offset;
 		if (do_datacrc && !msg_pos->did_page_crc) {
 			void *base;
 			u32 crc = le32_to_cpu(msg->footer.data_crc);
@@ -1141,19 +1143,18 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 			kaddr = kmap(page);
 			BUG_ON(kaddr == NULL);
-			base = kaddr + msg_pos->page_pos + bio_offset;
-			crc = crc32c(crc, base, len);
+			base = kaddr + page_offset;
+			crc = crc32c(crc, base, length);
 			kunmap(page);
 			msg->footer.data_crc = cpu_to_le32(crc);
 			msg_pos->did_page_crc = true;
 		}
-		ret = ceph_tcp_sendpage(con->sock, page,
-				      msg_pos->page_pos + bio_offset,
-				      len, true);
+		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
+				      length, true);
 		if (ret <= 0)
 			goto out;
 
-		out_msg_pos_next(con, page, len, (size_t) ret, in_trail);
+		out_msg_pos_next(con, page, length, (size_t) ret, in_trail);
 	}
 
 	dout("write_partial_msg_pages %p msg %p done\n", con, msg);
