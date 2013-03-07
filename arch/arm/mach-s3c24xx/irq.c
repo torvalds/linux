@@ -428,7 +428,7 @@ static void s3c24xx_clear_intc(struct s3c_irq_intc *intc)
 	}
 }
 
-struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
+static struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 				       struct s3c_irq_data *irq_data,
 				       struct s3c_irq_intc *parent,
 				       unsigned long address)
