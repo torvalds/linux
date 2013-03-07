@@ -396,7 +396,6 @@ static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
 
 	task_data = task->dd_data;
 	memcpy(&task_data->sts, sts_entry, sizeof(struct passthru_status));
-	ha->req_q_count += task_data->iocb_req_cnt;
 	ha->iocb_cnt -= task_data->iocb_req_cnt;
 	queue_work(ha->task_wq, &task_data->task_work);
 }
@@ -416,7 +415,6 @@ static struct mrb *qla4xxx_del_mrb_from_active_array(struct scsi_qla_host *ha,
 		return mrb;
 
 	/* update counters */
-	ha->req_q_count += mrb->iocb_cnt;
 	ha->iocb_cnt -= mrb->iocb_cnt;
 
 	return mrb;

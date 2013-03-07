@@ -3751,8 +3751,8 @@ static struct isp_operations qla4_83xx_isp_ops = {
 	.reset_firmware		= qla4_8xxx_stop_firmware,
 	.queue_iocb		= qla4_83xx_queue_iocb,
 	.complete_iocb		= qla4_83xx_complete_iocb,
-	.rd_shdw_req_q_out	= qla4_83xx_rd_shdw_req_q_out,
-	.rd_shdw_rsp_q_in	= qla4_83xx_rd_shdw_rsp_q_in,
+	.rd_shdw_req_q_out	= qla4xxx_rd_shdw_req_q_out,
+	.rd_shdw_rsp_q_in	= qla4xxx_rd_shdw_rsp_q_in,
 	.get_sys_info		= qla4_8xxx_get_sys_info,
 	.rd_reg_direct		= qla4_83xx_rd_reg,
 	.wr_reg_direct		= qla4_83xx_wr_reg,
@@ -3775,11 +3775,6 @@ uint16_t qla4_82xx_rd_shdw_req_q_out(struct scsi_qla_host *ha)
 	return (uint16_t)le32_to_cpu(readl(&ha->qla4_82xx_reg->req_q_out));
 }
 
-uint16_t qla4_83xx_rd_shdw_req_q_out(struct scsi_qla_host *ha)
-{
-	return (uint16_t)le32_to_cpu(readl(&ha->qla4_83xx_reg->req_q_out));
-}
-
 uint16_t qla4xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 {
 	return (uint16_t)le32_to_cpu(ha->shadow_regs->rsp_q_in);
@@ -3788,11 +3783,6 @@ uint16_t qla4xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 uint16_t qla4_82xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 {
 	return (uint16_t)le32_to_cpu(readl(&ha->qla4_82xx_reg->rsp_q_in));
-}
-
-uint16_t qla4_83xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
-{
-	return (uint16_t)le32_to_cpu(readl(&ha->qla4_83xx_reg->rsp_q_in));
 }
 
 static ssize_t qla4xxx_show_boot_eth_info(void *data, int type, char *buf)
@@ -5683,7 +5673,6 @@ struct srb *qla4xxx_del_from_active_array(struct scsi_qla_host *ha,
 
 	/* update counters */
 	if (srb->flags & SRB_DMA_VALID) {
-		ha->req_q_count += srb->iocb_cnt;
 		ha->iocb_cnt -= srb->iocb_cnt;
 		if (srb->cmd)
 			srb->cmd->host_scribble =

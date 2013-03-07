@@ -224,8 +224,6 @@ void qla4_83xx_interrupt_service_routine(struct scsi_qla_host *ha,
 int qla4_83xx_isp_reset(struct scsi_qla_host *ha);
 void qla4_83xx_queue_iocb(struct scsi_qla_host *ha);
 void qla4_83xx_complete_iocb(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
 uint32_t qla4_83xx_rd_reg(struct scsi_qla_host *ha, ulong addr);
 void qla4_83xx_wr_reg(struct scsi_qla_host *ha, ulong addr, uint32_t val);
 int qla4_83xx_rd_reg_indirect(struct scsi_qla_host *ha, uint32_t addr,
