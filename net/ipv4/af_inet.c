@@ -1284,9 +1284,6 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	int id;
 	unsigned int offset = 0;
 
-	if (!(features & NETIF_F_V4_CSUM))
-		features &= ~NETIF_F_SG;
-
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_TCPV4 |
 		       SKB_GSO_UDP |

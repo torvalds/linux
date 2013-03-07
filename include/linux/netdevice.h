@@ -2683,6 +2683,19 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, netdev_features_t features)
 {
 	return __skb_gso_segment(skb, features, true);
 }
+__be16 skb_network_protocol(struct sk_buff *skb);
+
+static inline bool can_checksum_protocol(netdev_features_t features,
+					 __be16 protocol)
+{
+	return ((features & NETIF_F_GEN_CSUM) ||
+		((features & NETIF_F_V4_CSUM) &&
+		 protocol == htons(ETH_P_IP)) ||
+		((features & NETIF_F_V6_CSUM) &&
+		 protocol == htons(ETH_P_IPV6)) ||
+		((features & NETIF_F_FCOE_CRC) &&
+		 protocol == htons(ETH_P_FCOE)));
+}
 
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
