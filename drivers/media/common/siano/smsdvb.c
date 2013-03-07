@@ -655,7 +655,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 	int board_id = smscore_get_board_id(client->coredev);
 	struct sms_board *board = sms_get_board(board_id);
 	enum sms_device_type_st type = board->type;
-
+	int ret;
 	struct {
 		struct SmsMsgHdr_ST	Msg;
 		u32		Data[4];
@@ -695,6 +695,23 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
+	/* Disable LNA, if any. An error is returned if no LNA is present */
+	ret = sms_board_lna_control(client->coredev, 0);
+	if (ret == 0) {
+		fe_status_t status;
+
+		/* tune with LNA off at first */
+		ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+						  &client->tune_done);
+
+		smsdvb_read_status(fe, &status);
+
+		if (status & FE_HAS_LOCK)
+			return ret;
+
+		/* previous tune didn't lock - enable LNA and tune again */
+		sms_board_lna_control(client->coredev, 1);
+	}
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					   &client->tune_done);
 }
