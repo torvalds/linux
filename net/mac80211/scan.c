@@ -153,7 +153,6 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	u8 *elements;
 	struct ieee80211_channel *channel;
 	size_t baselen;
-	bool beacon;
 	struct ieee802_11_elems elems;
 
 	if (skb->len < 24 ||
@@ -175,11 +174,9 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 
 		elements = mgmt->u.probe_resp.variable;
 		baselen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-		beacon = false;
 	} else {
 		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		elements = mgmt->u.beacon.variable;
-		beacon = true;
 	}
 
 	if (baselen > skb->len)

@@ -100,7 +100,6 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 	int power;
 	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
-	bool scanning = false;
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (local->scan_channel) {
@@ -147,9 +146,6 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	scanning = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-		   test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-		   test_bit(SCAN_HW_SCANNING, &local->scanning);
 	power = chan->max_power;
 
 	rcu_read_lock();
