@@ -101,8 +101,6 @@ struct e100_serial {
 	struct work_struct	work;
 	struct async_icount	icount;   /* error-statistics etc.*/
 	struct ktermios		normal_termios;
-	wait_queue_head_t	open_wait;
-	wait_queue_head_t	close_wait;
 
 	unsigned long char_time_usec;       /* The time for 1 char, in usecs */
 	unsigned long flush_time_usec;      /* How often we should flush */

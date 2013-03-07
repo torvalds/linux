@@ -3827,10 +3827,10 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	if (info->blocked_open) {
 		if (info->port.close_delay)
 			schedule_timeout_interruptible(info->port.close_delay);
-		wake_up_interruptible(&info->open_wait);
+		wake_up_interruptible(&info->port.open_wait);
 	}
 	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&info->close_wait);
+	wake_up_interruptible(&info->port.close_wait);
 	local_irq_restore(flags);
 
 	/* port closed */
@@ -3926,7 +3926,7 @@ rs_hangup(struct tty_struct *tty)
 	info->count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
-	wake_up_interruptible(&info->open_wait);
+	wake_up_interruptible(&info->port.open_wait);
 }
 
 /*
@@ -3949,7 +3949,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	if (tty_hung_up_p(filp) ||
 	    (info->port.flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(tty, info->close_wait,
+		wait_event_interruptible_tty(tty, info->port.close_wait,
 			!(info->port.flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
 		if (info->port.flags & ASYNC_HUP_NOTIFY)
@@ -3983,7 +3983,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&info->open_wait, &wait);
+	add_wait_queue(&info->port.open_wait, &wait);
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready before block: ttyS%d, count = %d\n",
 	       info->line, info->count);
@@ -4030,7 +4030,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		tty_lock(tty);
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->open_wait, &wait);
+	remove_wait_queue(&info->port.open_wait, &wait);
 	if (extra_count)
 		info->count++;
 	info->blocked_open--;
@@ -4088,7 +4088,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	 */
 	if (tty_hung_up_p(filp) ||
 	    (info->port.flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(tty, info->close_wait,
+		wait_event_interruptible_tty(tty, info->port.close_wait,
 			!(info->port.flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
 		return ((info->port.flags & ASYNC_HUP_NOTIFY) ?
@@ -4445,8 +4445,6 @@ static int __init rs_init(void)
 		info->count = 0;
 		info->blocked_open = 0;
 		info->normal_termios = driver->init_termios;
-		init_waitqueue_head(&info->open_wait);
-		init_waitqueue_head(&info->close_wait);
 		info->xmit.buf = NULL;
 		info->xmit.tail = info->xmit.head = 0;
 		info->first_recv_buffer = info->last_recv_buffer = NULL;
