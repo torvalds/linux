@@ -2543,6 +2543,7 @@ static void qla4_8xxx_process_fw_error(struct scsi_qla_host *ha)
 void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 {
 	uint32_t dev_state;
+	uint32_t idc_ctrl;
 
 	/* don't poll if reset is going on */
 	if (!(test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
@@ -2561,10 +2562,23 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 			qla4xxx_wake_dpc(ha);
 		} else if (dev_state == QLA8XXX_DEV_NEED_RESET &&
 			   !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
+
+			ql4_printk(KERN_INFO, ha, "%s: HW State: NEED RESET!\n",
+				   __func__);
+
+			if (is_qla8032(ha)) {
+				idc_ctrl = qla4_83xx_rd_reg(ha,
+							QLA83XX_IDC_DRV_CTRL);
+				if (!(idc_ctrl & GRACEFUL_RESET_BIT1)) {
+					ql4_printk(KERN_INFO, ha, "%s: Graceful reset bit is not set\n",
+						   __func__);
+					qla4xxx_mailbox_premature_completion(
+									    ha);
+				}
+			}
+
 			if (is_qla8032(ha) ||
 			    (is_qla8022(ha) && !ql4xdontresethba)) {
-				ql4_printk(KERN_INFO, ha, "%s: HW State: "
-				    "NEED RESET!\n", __func__);
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 				qla4xxx_wake_dpc(ha);
 			}
