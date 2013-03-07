@@ -1631,6 +1631,63 @@ static const unsigned int hspi2_b_pins[] = {
 static const unsigned int hspi2_b_mux[] = {
 	HSPI_CLK2_B_MARK, HSPI_CS2_B_MARK, HSPI_RX2_B_MARK, HSPI_TX2_B_MARK,
 };
+/* - INTC ------------------------------------------------------------------- */
+static const unsigned int intc_irq0_pins[] = {
+	/* IRQ */
+	78,
+};
+static const unsigned int intc_irq0_mux[] = {
+	IRQ0_MARK,
+};
+static const unsigned int intc_irq0_b_pins[] = {
+	/* IRQ */
+	141,
+};
+static const unsigned int intc_irq0_b_mux[] = {
+	IRQ0_B_MARK,
+};
+static const unsigned int intc_irq1_pins[] = {
+	/* IRQ */
+	79,
+};
+static const unsigned int intc_irq1_mux[] = {
+	IRQ1_MARK,
+};
+static const unsigned int intc_irq1_b_pins[] = {
+	/* IRQ */
+	142,
+};
+static const unsigned int intc_irq1_b_mux[] = {
+	IRQ1_B_MARK,
+};
+static const unsigned int intc_irq2_pins[] = {
+	/* IRQ */
+	88,
+};
+static const unsigned int intc_irq2_mux[] = {
+	IRQ2_MARK,
+};
+static const unsigned int intc_irq2_b_pins[] = {
+	/* IRQ */
+	143,
+};
+static const unsigned int intc_irq2_b_mux[] = {
+	IRQ2_B_MARK,
+};
+static const unsigned int intc_irq3_pins[] = {
+	/* IRQ */
+	89,
+};
+static const unsigned int intc_irq3_mux[] = {
+	IRQ3_MARK,
+};
+static const unsigned int intc_irq3_b_pins[] = {
+	/* IRQ */
+	144,
+};
+static const unsigned int intc_irq3_b_mux[] = {
+	IRQ3_B_MARK,
+};
 /* - LSBC ------------------------------------------------------------------- */
 static const unsigned int lbsc_cs0_pins[] = {
 	/* CS */
@@ -2303,6 +2360,14 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(hspi1_d),
 	SH_PFC_PIN_GROUP(hspi2),
 	SH_PFC_PIN_GROUP(hspi2_b),
+	SH_PFC_PIN_GROUP(intc_irq0),
+	SH_PFC_PIN_GROUP(intc_irq0_b),
+	SH_PFC_PIN_GROUP(intc_irq1),
+	SH_PFC_PIN_GROUP(intc_irq1_b),
+	SH_PFC_PIN_GROUP(intc_irq2),
+	SH_PFC_PIN_GROUP(intc_irq2_b),
+	SH_PFC_PIN_GROUP(intc_irq3),
+	SH_PFC_PIN_GROUP(intc_irq3_b),
 	SH_PFC_PIN_GROUP(lbsc_cs0),
 	SH_PFC_PIN_GROUP(lbsc_cs1),
 	SH_PFC_PIN_GROUP(lbsc_ex_cs0),
@@ -2430,6 +2495,17 @@ static const char * const hspi1_groups[] = {
 static const char * const hspi2_groups[] = {
 	"hspi2",
 	"hspi2_b",
+};
+
+static const char * const intc_groups[] = {
+	"intc_irq0",
+	"intc_irq0_b",
+	"intc_irq1",
+	"intc_irq1_b",
+	"intc_irq2",
+	"intc_irq2_b",
+	"intc_irq3",
+	"intc_irq4_b",
 };
 
 static const char * const lbsc_groups[] = {
@@ -2576,6 +2652,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(hspi0),
 	SH_PFC_FUNCTION(hspi1),
 	SH_PFC_FUNCTION(hspi2),
+	SH_PFC_FUNCTION(intc),
 	SH_PFC_FUNCTION(lbsc),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(mmc1),
