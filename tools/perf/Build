@@ -3,6 +3,7 @@ perf-y += builtin-annotate.o
 perf-y += builtin-config.o
 perf-y += builtin-diff.o
 perf-y += builtin-evlist.o
+perf-y += builtin-ftrace.o
 perf-y += builtin-help.o
 perf-y += builtin-sched.o
 perf-y += builtin-buildid-list.o

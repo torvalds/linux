@@ -71,6 +71,7 @@ static struct cmd_struct commands[] = {
 	{ "inject",	cmd_inject,	0 },
 	{ "mem",	cmd_mem,	0 },
 	{ "data",	cmd_data,	0 },
+	{ "ftrace",	cmd_ftrace,	0 },
 };
 
 struct pager_config {

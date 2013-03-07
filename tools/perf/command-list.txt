@@ -11,6 +11,7 @@ perf-data			mainporcelain common
 perf-diff			mainporcelain common
 perf-config			mainporcelain common
 perf-evlist			mainporcelain common
+perf-ftrace			mainporcelain common
 perf-inject			mainporcelain common
 perf-kallsyms			mainporcelain common
 perf-kmem			mainporcelain common
