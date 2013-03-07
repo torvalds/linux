@@ -352,6 +352,12 @@ static inline int test_evtchn(int port)
 	return sync_test_bit(port, BM(&s->evtchn_pending[0]));
 }
 
+static inline int test_and_set_mask(int port)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	return sync_test_and_set_bit(port, BM(&s->evtchn_mask[0]));
+}
+
 
 /**
  * notify_remote_via_irq - send event to remote end of event channel via irq
@@ -1493,7 +1499,6 @@ void rebind_evtchn_irq(int evtchn, int irq)
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
 static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
 	struct evtchn_bind_vcpu bind_vcpu;
 	int evtchn = evtchn_from_irq(irq);
 	int masked;
@@ -1516,7 +1521,7 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	 * Mask the event while changing the VCPU binding to prevent
 	 * it being delivered on an unexpected VCPU.
 	 */
-	masked = sync_test_and_set_bit(evtchn, BM(s->evtchn_mask));
+	masked = test_and_set_mask(evtchn);
 
 	/*
 	 * If this fails, it usually just indicates that we're dealing with a
@@ -1548,7 +1553,7 @@ static int retrigger_evtchn(int evtchn)
 	if (!VALID_EVTCHN(evtchn))
 		return 0;
 
-	masked = sync_test_and_set_bit(evtchn, BM(s->evtchn_mask));
+	masked = test_and_set_mask(evtchn);
 	sync_set_bit(evtchn, BM(s->evtchn_pending));
 	if (!masked)
 		unmask_evtchn(evtchn);
