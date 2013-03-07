@@ -508,8 +508,7 @@ struct ieee80211_if_ibss {
 
 	unsigned long ibss_join_req;
 	/* probe response/beacon for IBSS */
-	struct sk_buff __rcu *presp;
-	struct sk_buff *skb;
+	struct beacon_data __rcu *presp;
 
 	spinlock_t incomplete_lock;
 	struct list_head incomplete_stations;

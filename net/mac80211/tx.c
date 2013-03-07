@@ -2442,14 +2442,17 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
-		struct sk_buff *presp = rcu_dereference(ifibss->presp);
+		struct beacon_data *presp = rcu_dereference(ifibss->presp);
 
 		if (!presp)
 			goto out;
 
-		skb = skb_copy(presp, GFP_ATOMIC);
+		skb = dev_alloc_skb(local->tx_headroom + presp->head_len);
 		if (!skb)
 			goto out;
+		skb_reserve(skb, local->tx_headroom);
+		memcpy(skb_put(skb, presp->head_len), presp->head,
+		       presp->head_len);
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
