@@ -11,6 +11,10 @@ choice
 	depends on ARCH_RK30
 	default SOC_RK3066
 
+config SOC_RK2928B
+	bool "RK2928B"
+	select ARCH_RK3066B
+
 config SOC_RK3000
 	bool "RK3000"
 	select ARCH_RK30XX

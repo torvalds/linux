@@ -1,0 +1,8 @@
+choice
+	prompt "RK2928B Board Type"
+	depends on SOC_RK2928B
+
+config MACH_RK2928B_TB
+	bool "RK2928B Top Board"
+
+endchoice
