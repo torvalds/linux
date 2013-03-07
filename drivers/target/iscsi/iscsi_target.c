@@ -49,6 +49,8 @@
 #include "iscsi_target_device.h"
 #include "iscsi_target_stat.h"
 
+#include <target/iscsi/iscsi_transport.h>
+
 static LIST_HEAD(g_tiqn_list);
 static LIST_HEAD(g_np_list);
 static DEFINE_SPINLOCK(tiqn_lock);
@@ -401,8 +403,7 @@ struct iscsi_np *iscsit_add_np(
 	spin_unlock_bh(&np_lock);
 
 	pr_debug("CORE[0] - Added Network Portal: %s:%hu on %s\n",
-		np->np_ip, np->np_port, (np->np_network_transport == ISCSI_TCP) ?
-		"TCP" : "SCTP");
+		np->np_ip, np->np_port, np->np_transport->name);
 
 	return np;
 }
@@ -441,11 +442,10 @@ int iscsit_reset_np_thread(
 	return 0;
 }
 
-static int iscsit_del_np_comm(struct iscsi_np *np)
+static void iscsit_free_np(struct iscsi_np *np)
 {
 	if (np->np_socket)
 		sock_release(np->np_socket);
-	return 0;
 }
 
 int iscsit_del_np(struct iscsi_np *np)
@@ -467,19 +467,31 @@ int iscsit_del_np(struct iscsi_np *np)
 		send_sig(SIGINT, np->np_thread, 1);
 		kthread_stop(np->np_thread);
 	}
-	iscsit_del_np_comm(np);
+
+	np->np_transport->iscsit_free_np(np);
 
 	spin_lock_bh(&np_lock);
 	list_del(&np->np_list);
 	spin_unlock_bh(&np_lock);
 
 	pr_debug("CORE[0] - Removed Network Portal: %s:%hu on %s\n",
-		np->np_ip, np->np_port, (np->np_network_transport == ISCSI_TCP) ?
-		"TCP" : "SCTP");
+		np->np_ip, np->np_port, np->np_transport->name);
 
+	iscsit_put_transport(np->np_transport);
 	kfree(np);
 	return 0;
 }
+
+static struct iscsit_transport iscsi_target_transport = {
+	.name			= "iSCSI/TCP",
+	.transport_type		= ISCSI_TCP,
+	.owner			= NULL,
+	.iscsit_setup_np	= iscsit_setup_np,
+	.iscsit_accept_np	= iscsit_accept_np,
+	.iscsit_free_np		= iscsit_free_np,
+	.iscsit_get_login_rx	= iscsit_get_login_rx,
+	.iscsit_put_login_tx	= iscsit_put_login_tx,
+};
 
 static int __init iscsi_target_init_module(void)
 {
@@ -557,6 +569,8 @@ static int __init iscsi_target_init_module(void)
 		goto ooo_out;
 	}
 
+	iscsit_register_transport(&iscsi_target_transport);
+
 	if (iscsit_load_discovery_tpg() < 0)
 		goto r2t_out;
 
@@ -587,6 +601,7 @@ static void __exit iscsi_target_cleanup_module(void)
 	iscsi_deallocate_thread_sets();
 	iscsi_thread_set_free();
 	iscsit_release_discovery_tpg();
+	iscsit_unregister_transport(&iscsi_target_transport);
 	kmem_cache_destroy(lio_cmd_cache);
 	kmem_cache_destroy(lio_qr_cache);
 	kmem_cache_destroy(lio_dr_cache);
@@ -4053,6 +4068,12 @@ int iscsit_close_connection(
 
 	if (conn->sock)
 		sock_release(conn->sock);
+
+	if (conn->conn_transport->iscsit_free_conn)
+		conn->conn_transport->iscsit_free_conn(conn);
+
+	iscsit_put_transport(conn->conn_transport);
+
 	conn->thread_set = NULL;
 
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");

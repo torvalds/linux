@@ -60,7 +60,7 @@
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
-enum tpg_np_network_transport_table {
+enum iscsit_transport_type {
 	ISCSI_TCP				= 0,
 	ISCSI_SCTP_TCP				= 1,
 	ISCSI_SCTP_UDP				= 2,
@@ -503,6 +503,7 @@ struct iscsi_conn {
 	u16			login_port;
 	u16			local_port;
 	int			net_size;
+	int			login_family;
 	u32			auth_id;
 	u32			conn_flags;
 	/* Used for iscsi_tx_login_rsp() */
@@ -562,9 +563,12 @@ struct iscsi_conn {
 	struct list_head	immed_queue_list;
 	struct list_head	response_queue_list;
 	struct iscsi_conn_ops	*conn_ops;
+	struct iscsi_login	*conn_login;
+	struct iscsit_transport *conn_transport;
 	struct iscsi_param_list	*param_list;
 	/* Used for per connection auth state machine */
 	void			*auth_protocol;
+	void			*context;
 	struct iscsi_login_thread_s *login_thread;
 	struct iscsi_portal_group *tpg;
 	/* Pointer to parent session */
@@ -663,6 +667,8 @@ struct iscsi_login {
 	u8 first_request;
 	u8 version_min;
 	u8 version_max;
+	u8 login_complete;
+	u8 login_failed;
 	char isid[6];
 	u32 cmd_sn;
 	itt_t init_task_tag;
@@ -670,10 +676,11 @@ struct iscsi_login {
 	u32 rsp_length;
 	u16 cid;
 	u16 tsih;
-	char *req;
-	char *rsp;
+	char req[ISCSI_HDR_LEN];
+	char rsp[ISCSI_HDR_LEN];
 	char *req_buf;
 	char *rsp_buf;
+	struct iscsi_conn *conn;
 } ____cacheline_aligned;
 
 struct iscsi_node_attrib {
@@ -754,6 +761,8 @@ struct iscsi_np {
 	struct task_struct	*np_thread;
 	struct timer_list	np_login_timer;
 	struct iscsi_portal_group *np_login_tpg;
+	void			*np_context;
+	struct iscsit_transport *np_transport;
 	struct list_head	np_list;
 } ____cacheline_aligned;
 
