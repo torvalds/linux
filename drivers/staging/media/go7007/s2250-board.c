@@ -29,6 +29,13 @@
 MODULE_DESCRIPTION("Sensoray 2250/2251 i2c v4l2 subdev driver");
 MODULE_LICENSE("GPL v2");
 
+/*
+ * Note: this board has two i2c devices: a vpx3226f and a tlv320aic23b.
+ * Due to the unusual way these are accessed on this device we do not
+ * reuse the i2c drivers, but instead they are implemented in this
+ * driver. It would be nice to improve on this, though.
+ */
+
 #define TLV320_ADDRESS      0x34
 #define VPX322_ADDR_ANALOGCONTROL1	0x02
 #define VPX322_ADDR_BRIGHTNESS0		0x0127
