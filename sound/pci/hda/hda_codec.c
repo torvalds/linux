@@ -3334,6 +3334,8 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 		return -EBUSY;
 	}
 	spdif = snd_array_new(&codec->spdif_out);
+	if (!spdif)
+		return -ENOMEM;
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
 		if (!kctl)
