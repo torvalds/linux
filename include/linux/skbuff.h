@@ -387,6 +387,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@vlan_tci: vlan tag control information
  *	@inner_transport_header: Inner transport layer header (encapsulation)
  *	@inner_network_header: Network layer header (encapsulation)
+ *	@inner_mac_header: Link layer header (encapsulation)
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
@@ -505,6 +506,7 @@ struct sk_buff {
 
 	sk_buff_data_t		inner_transport_header;
 	sk_buff_data_t		inner_network_header;
+	sk_buff_data_t		inner_mac_header;
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
 	sk_buff_data_t		mac_header;
@@ -1466,6 +1468,7 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 
 static inline void skb_reset_inner_headers(struct sk_buff *skb)
 {
+	skb->inner_mac_header = skb->mac_header;
 	skb->inner_network_header = skb->network_header;
 	skb->inner_transport_header = skb->transport_header;
 }
@@ -1511,6 +1514,22 @@ static inline void skb_set_inner_network_header(struct sk_buff *skb,
 	skb->inner_network_header += offset;
 }
 
+static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)
+{
+	return skb->head + skb->inner_mac_header;
+}
+
+static inline void skb_reset_inner_mac_header(struct sk_buff *skb)
+{
+	skb->inner_mac_header = skb->data - skb->head;
+}
+
+static inline void skb_set_inner_mac_header(struct sk_buff *skb,
+					    const int offset)
+{
+	skb_reset_inner_mac_header(skb);
+	skb->inner_mac_header += offset;
+}
 static inline bool skb_transport_header_was_set(const struct sk_buff *skb)
 {
 	return skb->transport_header != ~0U;
@@ -1604,6 +1623,21 @@ static inline void skb_set_inner_network_header(struct sk_buff *skb,
 	skb->inner_network_header = skb->data + offset;
 }
 
+static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)
+{
+	return skb->inner_mac_header;
+}
+
+static inline void skb_reset_inner_mac_header(struct sk_buff *skb)
+{
+	skb->inner_mac_header = skb->data;
+}
+
+static inline void skb_set_inner_mac_header(struct sk_buff *skb,
+						const int offset)
+{
+	skb->inner_mac_header = skb->data + offset;
+}
 static inline bool skb_transport_header_was_set(const struct sk_buff *skb)
 {
 	return skb->transport_header != NULL;

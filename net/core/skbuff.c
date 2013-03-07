@@ -673,6 +673,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->mac_header		= old->mac_header;
 	new->inner_transport_header = old->inner_transport_header;
 	new->inner_network_header = old->inner_network_header;
+	new->inner_mac_header = old->inner_mac_header;
 	skb_dst_copy(new, old);
 	new->rxhash		= old->rxhash;
 	new->ooo_okay		= old->ooo_okay;
@@ -876,6 +877,7 @@ static void skb_headers_offset_update(struct sk_buff *skb, int off)
 		skb->mac_header += off;
 	skb->inner_transport_header += off;
 	skb->inner_network_header += off;
+	skb->inner_mac_header += off;
 }
 
 static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
