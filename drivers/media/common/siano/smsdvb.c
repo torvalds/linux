@@ -48,6 +48,7 @@ struct smsdvb_client_t {
 	fe_status_t             fe_status;
 
 	struct completion       tune_done;
+	struct completion       stats_done;
 
 	struct SMSHOSTLIB_STATISTICS_DVB_S sms_stat_dvb;
 	int event_fe_state;
@@ -349,7 +350,6 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 			pReceptionData->ErrorTSPackets = 0;
 		}
 
-		complete(&client->tune_done);
 		break;
 	}
 	default:
@@ -376,6 +376,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 				client->fe_status = 0;
 			sms_board_dvb3_event(client, DVB3_EVENT_FE_UNLOCK);
 		}
+		complete(&client->stats_done);
 	}
 
 	return 0;
@@ -471,7 +472,7 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 				    sizeof(struct SmsMsgHdr_ST), 0 };
 
 	rc = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
-					  &client->tune_done);
+					 &client->stats_done);
 
 	return rc;
 }
@@ -1002,6 +1003,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	client->coredev = coredev;
 
 	init_completion(&client->tune_done);
+	init_completion(&client->stats_done);
 
 	kmutex_lock(&g_smsdvb_clientslock);
 
