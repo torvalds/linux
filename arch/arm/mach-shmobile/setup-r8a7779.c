@@ -331,7 +331,7 @@ static struct resource sata_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(100),
+		.start	= gic_iid(0x84),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
