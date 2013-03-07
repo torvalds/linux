@@ -294,6 +294,36 @@ static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
 }
 
 /**************************************************
+ * Samples
+ **************************************************/
+
+#if 0
+static void b43_phy_ht_stop_playback(struct b43_wldev *dev)
+{
+	struct b43_phy_ht *phy_ht = dev->phy.ht;
+	u16 tmp;
+	int i;
+
+	tmp = b43_phy_read(dev, B43_PHY_HT_SAMP_STAT);
+	if (tmp & 0x1)
+		b43_phy_set(dev, B43_PHY_HT_SAMP_CMD, B43_PHY_HT_SAMP_CMD_STOP);
+	else if (tmp & 0x2)
+		b43_phy_mask(dev, B43_PHY_HT_IQLOCAL_CMDGCTL, 0x7FFF);
+
+	b43_phy_mask(dev, B43_PHY_HT_SAMP_CMD, ~0x0004);
+
+	for (i = 0; i < 3; i++) {
+		if (phy_ht->bb_mult_save[i] >= 0) {
+			b43_httab_write(dev, B43_HTTAB16(13, 0x63 + i * 4),
+					phy_ht->bb_mult_save[i]);
+			b43_httab_write(dev, B43_HTTAB16(13, 0x67 + i * 4),
+					phy_ht->bb_mult_save[i]);
+		}
+	}
+}
+#endif
+
+/**************************************************
  * Tx/Rx
  **************************************************/
 
@@ -356,6 +386,13 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 	}
 
 	phy_ht->tx_pwr_ctl = enable;
+}
+
+static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
+{
+	/* TODO */
+	b43_phy_ht_stop_playback(dev);
+	/* TODO */
 }
 #endif
 
@@ -502,6 +539,9 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 	phy_ht->tx_pwr_ctl = true;
 	for (i = 0; i < 3; i++)
 		phy_ht->tx_pwr_idx[i] = B43_PHY_HT_TXPCTL_CMD_C1_INIT + 1;
+
+	for (i = 0; i < 3; i++)
+		phy_ht->bb_mult_save[i] = -1;
 }
 
 static int b43_phy_ht_op_init(struct b43_wldev *dev)
@@ -640,6 +680,7 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_ht_tx_power_fix(dev);
 #if 0
 	b43_phy_ht_tx_power_ctl(dev, false);
+	b43_phy_ht_tx_power_ctl_idle_tssi(dev);
 	/* TODO */
 	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
 #endif

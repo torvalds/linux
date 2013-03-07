@@ -16,6 +16,10 @@
 #define  B43_PHY_HT_CLASS_CTL_CCK_EN		0x0001 /* CCK enable */
 #define  B43_PHY_HT_CLASS_CTL_OFDM_EN		0x0002 /* OFDM enable */
 #define  B43_PHY_HT_CLASS_CTL_WAITED_EN		0x0004 /* Waited enable */
+#define B43_PHY_HT_IQLOCAL_CMDGCTL		0x0C2	/* I/Q LO cal command G control */
+#define B43_PHY_HT_SAMP_CMD			0x0C3	/* Sample command */
+#define  B43_PHY_HT_SAMP_CMD_STOP		0x0002	/* Stop */
+#define B43_PHY_HT_SAMP_STAT			0x0C7	/* Sample status */
 #define B43_PHY_HT_BW1				0x1CE
 #define B43_PHY_HT_BW2				0x1CF
 #define B43_PHY_HT_BW3				0x1D0
@@ -80,6 +84,8 @@ struct b43_phy_ht {
 
 	bool tx_pwr_ctl;
 	u8 tx_pwr_idx[3];
+
+	s32 bb_mult_save[3];
 };
 
 
