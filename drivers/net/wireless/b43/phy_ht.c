@@ -297,7 +297,6 @@ static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
  * Samples
  **************************************************/
 
-#if 0
 static void b43_phy_ht_stop_playback(struct b43_wldev *dev)
 {
 	struct b43_phy_ht *phy_ht = dev->phy.ht;
@@ -385,13 +384,11 @@ static void b43_phy_ht_tx_tone(struct b43_wldev *dev)
 	samp = b43_phy_ht_load_samples(dev);
 	b43_phy_ht_run_samples(dev, samp, 0xFFFF, 0);
 }
-#endif
 
 /**************************************************
  * RSSI
  **************************************************/
 
-#if 0
 static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
 				   u8 rssi_type)
 {
@@ -471,7 +468,6 @@ static void b43_phy_ht_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 	for (i = 0; i < 12; i++)
 		b43_phy_write(dev, phy_regs_to_save[i], phy_regs_values[i]);
 }
-#endif
 
 /**************************************************
  * Tx/Rx
@@ -499,7 +495,6 @@ static void b43_phy_ht_tx_power_fix(struct b43_wldev *dev)
 	}
 }
 
-#if 0
 static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 {
 	struct b43_phy_ht *phy_ht = dev->phy.ht;
@@ -665,7 +660,6 @@ static void b43_phy_ht_tx_power_ctl_setup(struct b43_wldev *dev)
 		b43_httab_write_bulk(dev, B43_HTTAB16(26 + c, 0), 64, regval);
 	}
 }
-#endif
 
 /**************************************************
  * Channel switching ops.
@@ -949,13 +943,10 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	saved_tx_pwr_ctl = phy_ht->tx_pwr_ctl;
 	b43_phy_ht_tx_power_fix(dev);
-#if 0
 	b43_phy_ht_tx_power_ctl(dev, false);
 	b43_phy_ht_tx_power_ctl_idle_tssi(dev);
 	b43_phy_ht_tx_power_ctl_setup(dev);
-	/* TODO */
 	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
-#endif
 
 	return 0;
 }
