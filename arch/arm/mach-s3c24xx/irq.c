@@ -81,7 +81,7 @@ static void s3c_irq_mask(struct irq_data *data)
 	mask |= (1UL << data->hwirq);
 	__raw_writel(mask, intc->reg_mask);
 
-	if (parent_intc && irq_data->parent_irq) {
+	if (parent_intc) {
 		parent_data = &parent_intc->irqs[irq_data->parent_irq];
 
 		/* check to see if we need to mask the parent IRQ */
@@ -105,7 +105,7 @@ static void s3c_irq_unmask(struct irq_data *data)
 	mask &= ~(1UL << data->hwirq);
 	__raw_writel(mask, intc->reg_mask);
 
-	if (parent_intc && irq_data->parent_irq) {
+	if (parent_intc) {
 		irqno = irq_find_mapping(parent_intc->domain,
 					 irq_data->parent_irq);
 		s3c_irq_unmask(irq_get_irq_data(irqno));
@@ -327,6 +327,8 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	/* attach controller pointer to irq_data */
 	irq_data->intc = intc;
 
+	parent_intc = intc->parent;
+
 	/* set handler and flags */
 	switch (irq_data->type) {
 	case S3C_IRQTYPE_NONE:
@@ -335,7 +337,7 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 		/* On the S3C2412, the EINT0to3 have a parent irq
 		 * but need the s3c_irq_eint0t4 chip
 		 */
-		if (irq_data->parent_irq && (!soc_is_s3c2412() || hw >= 4))
+		if (parent_intc && (!soc_is_s3c2412() || hw >= 4))
 			irq_set_chip_and_handler(virq, &s3c_irqext_chip,
 						 handle_edge_irq);
 		else
@@ -343,8 +345,7 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 						 handle_edge_irq);
 		break;
 	case S3C_IRQTYPE_EDGE:
-		if (irq_data->parent_irq ||
-		    intc->reg_pending == S3C2416_SRCPND2)
+		if (parent_intc || intc->reg_pending == S3C2416_SRCPND2)
 			irq_set_chip_and_handler(virq, &s3c_irq_level_chip,
 						 handle_edge_irq);
 		else
@@ -352,7 +353,7 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 						 handle_edge_irq);
 		break;
 	case S3C_IRQTYPE_LEVEL:
-		if (irq_data->parent_irq)
+		if (parent_intc)
 			irq_set_chip_and_handler(virq, &s3c_irq_level_chip,
 						 handle_level_irq);
 		else
@@ -365,14 +366,7 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	}
 	set_irq_flags(virq, IRQF_VALID);
 
-	if (irq_data->parent_irq) {
-		parent_intc = intc->parent;
-		if (!parent_intc) {
-			pr_err("irq-s3c24xx: no parent controller found for hwirq %lu\n",
-			       hw);
-			goto err;
-		}
-
+	if (parent_intc && irq_data->type != S3C_IRQTYPE_NONE) {
 		if (irq_data->parent_irq > 31) {
 			pr_err("irq-s3c24xx: parent irq %lu is out of range\n",
 			       irq_data->parent_irq);
