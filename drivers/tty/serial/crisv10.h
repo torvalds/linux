@@ -90,8 +90,6 @@ struct e100_serial {
 	unsigned long		event;
 	int			line;
 	int			type;  /* PORT_ETRAX */
-	int			count;	    /* # of fd on device */
-	int			blocked_open; /* # of blocked opens */
 	struct circ_buf		xmit;
 	struct etrax_recv_buffer *first_recv_buffer;
 	struct etrax_recv_buffer *last_recv_buffer;
