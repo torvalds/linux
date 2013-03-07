@@ -63,7 +63,7 @@ struct ceph_osd_data {
 	union {
 		struct {
 			struct page	**pages;
-			u32		num_pages;
+			u64		length;
 			u32		alignment;
 			bool		pages_from_pool;
 			bool		own_pages;

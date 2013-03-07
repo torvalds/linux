@@ -1433,7 +1433,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	case OBJ_REQUEST_PAGES:
 		osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
 		osd_data->pages = obj_request->pages;
-		osd_data->num_pages = obj_request->page_count;
+		osd_data->length = obj_request->length;
 		osd_data->alignment = offset & ~PAGE_MASK;
 		osd_data->pages_from_pool = false;
 		osd_data->own_pages = false;

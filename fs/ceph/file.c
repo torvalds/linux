@@ -573,7 +573,7 @@ more:
 	}
 	req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
 	req->r_data_out.pages = pages;
-	req->r_data_out.num_pages = num_pages;
+	req->r_data_out.length = len;
 	req->r_data_out.alignment = page_align;
 	req->r_inode = inode;
 
