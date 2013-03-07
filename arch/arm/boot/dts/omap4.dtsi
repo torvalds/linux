@@ -438,6 +438,11 @@
 			#size-cells = <1>;
 			ranges;
 			ti,hwmods = "ocp2scp_usb_phy";
+			usb2_phy: usb2phy@4a0ad080 {
+				compatible = "ti,omap-usb2";
+				reg = <0x4a0ad080 0x58>;
+				ctrl-module = <&omap_control_usb>;
+			};
 		};
 
 		timer1: timer@4a318000 {
