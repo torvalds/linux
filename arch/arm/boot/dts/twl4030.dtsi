@@ -67,7 +67,7 @@
 		#interrupt-cells = <1>;
 	};
 
-	twl4030-usb {
+	usb2_phy: twl4030-usb {
 		compatible = "ti,twl4030-usb";
 		interrupts = <10>, <4>;
 		usb1v5-supply = <&vusb1v5>;

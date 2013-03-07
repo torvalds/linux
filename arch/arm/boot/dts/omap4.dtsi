@@ -572,5 +572,18 @@
 			reg-names = "control_dev_conf", "otghs_control";
 			ti,type = <1>;
 		};
+
+		usb_otg_hs: usb_otg_hs@4a0ab000 {
+			compatible = "ti,omap4-musb";
+			reg = <0x4a0ab000 0x7ff>;
+			interrupts = <0 92 0x4>, <0 93 0x4>;
+			interrupt-names = "mc", "dma";
+			ti,hwmods = "usb_otg_hs";
+			usb-phy = <&usb2_phy>;
+			multipoint = <1>;
+			num-eps = <16>;
+			ram-bits = <12>;
+			ti,has-mailbox;
+		};
 	};
 };
