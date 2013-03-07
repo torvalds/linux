@@ -674,9 +674,11 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			bi->bi_next = NULL;
 			if (rrdev)
 				set_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags);
-			trace_block_bio_remap(bdev_get_queue(bi->bi_bdev),
-					      bi, disk_devt(conf->mddev->gendisk),
-					      sh->dev[i].sector);
+
+			if (conf->mddev->gendisk)
+				trace_block_bio_remap(bdev_get_queue(bi->bi_bdev),
+						      bi, disk_devt(conf->mddev->gendisk),
+						      sh->dev[i].sector);
 			generic_make_request(bi);
 		}
 		if (rrdev) {
@@ -704,9 +706,10 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			rbi->bi_io_vec[0].bv_offset = 0;
 			rbi->bi_size = STRIPE_SIZE;
 			rbi->bi_next = NULL;
-			trace_block_bio_remap(bdev_get_queue(rbi->bi_bdev),
-					      rbi, disk_devt(conf->mddev->gendisk),
-					      sh->dev[i].sector);
+			if (conf->mddev->gendisk)
+				trace_block_bio_remap(bdev_get_queue(rbi->bi_bdev),
+						      rbi, disk_devt(conf->mddev->gendisk),
+						      sh->dev[i].sector);
 			generic_make_request(rbi);
 		}
 		if (!rdev && !rrdev) {
@@ -2835,8 +2838,10 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 	set_bit(STRIPE_HANDLE, &sh->state);
 	if (rmw < rcw && rmw > 0) {
 		/* prefer read-modify-write, but need to get some data */
-		blk_add_trace_msg(conf->mddev->queue, "raid5 rmw %llu %d",
-				  (unsigned long long)sh->sector, rmw);
+		if (conf->mddev->queue)
+			blk_add_trace_msg(conf->mddev->queue,
+					  "raid5 rmw %llu %d",
+					  (unsigned long long)sh->sector, rmw);
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 			if ((dev->towrite || i == sh->pd_idx) &&
@@ -2886,7 +2891,7 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 				}
 			}
 		}
-		if (rcw)
+		if (rcw && conf->mddev->queue)
 			blk_add_trace_msg(conf->mddev->queue, "raid5 rcw %llu %d %d %d",
 					  (unsigned long long)sh->sector,
 					  rcw, qread, test_bit(STRIPE_DELAYED, &sh->state));
@@ -3993,9 +3998,10 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 		atomic_inc(&conf->active_aligned_reads);
 		spin_unlock_irq(&conf->device_lock);
 
-		trace_block_bio_remap(bdev_get_queue(align_bi->bi_bdev),
-				      align_bi, disk_devt(mddev->gendisk),
-				      raid_bio->bi_sector);
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(align_bi->bi_bdev),
+					      align_bi, disk_devt(mddev->gendisk),
+					      raid_bio->bi_sector);
 		generic_make_request(align_bi);
 		return 1;
 	} else {
@@ -4089,7 +4095,8 @@ static void raid5_unplug(struct blk_plug_cb *blk_cb, bool from_schedule)
 		}
 		spin_unlock_irq(&conf->device_lock);
 	}
-	trace_block_unplug(mddev->queue, cnt, !from_schedule);
+	if (mddev->queue)
+		trace_block_unplug(mddev->queue, cnt, !from_schedule);
 	kfree(cb);
 }
 
