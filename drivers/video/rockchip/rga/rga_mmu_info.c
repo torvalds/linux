@@ -323,6 +323,7 @@ static int rga_MapUserMemory(struct page **pages,
                                 pte = pte_offset_map_lock(current->mm, pmd, (Memory + i) << PAGE_SHIFT, &ptl);
                                 if (!pte)
                                 {
+                                    pte_unmap_unlock(pte, ptl);
                                     break;
                                 }
                             }
