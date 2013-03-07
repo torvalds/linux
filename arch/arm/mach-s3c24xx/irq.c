@@ -324,16 +324,6 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	struct s3c_irq_data *parent_irq_data;
 	unsigned int irqno;
 
-	if (!intc) {
-		pr_err("irq-s3c24xx: no controller found for hwirq %lu\n", hw);
-		return -EINVAL;
-	}
-
-	if (!irq_data) {
-		pr_err("irq-s3c24xx: no irq data found for hwirq %lu\n", hw);
-		return -EINVAL;
-	}
-
 	/* attach controller pointer to irq_data */
 	irq_data->intc = intc;
 
@@ -383,13 +373,13 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 			goto err;
 		}
 
-		parent_irq_data = &parent_intc->irqs[irq_data->parent_irq];
-		if (!irq_data) {
-			pr_err("irq-s3c24xx: no irq data found for hwirq %lu\n",
-			       hw);
+		if (irq_data->parent_irq > 31) {
+			pr_err("irq-s3c24xx: parent irq %lu is out of range\n",
+			       irq_data->parent_irq);
 			goto err;
 		}
 
+		parent_irq_data = &parent_intc->irqs[irq_data->parent_irq];
 		parent_irq_data->sub_intc = intc;
 		parent_irq_data->sub_bits |= (1UL << hw);
 
