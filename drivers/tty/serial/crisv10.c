@@ -2258,8 +2258,7 @@ TODO: The break will be delayed until an F or V character is received.
 
 */
 
-static
-struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
+static void handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
 
@@ -2365,10 +2364,9 @@ more_data:
 	}
 
 	tty_flip_buffer_push(&info->port);
-	return info;
 }
 
-static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
+static void handle_ser_rx_interrupt(struct e100_serial *info)
 {
 	unsigned char rstat;
 
@@ -2377,7 +2375,8 @@ static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 #endif
 /*	DEBUG_LOG(info->line, "ser_interrupt stat %03X\n", rstat | (i << 8)); */
 	if (!info->uses_dma_in) {
-		return handle_ser_rx_interrupt_no_dma(info);
+		handle_ser_rx_interrupt_no_dma(info);
+		return;
 	}
 	/* DMA is used */
 	rstat = info->ioport[REG_STATUS];
@@ -2484,7 +2483,6 @@ static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 	/* Restarting the DMA never hurts */
 	*info->icmdadr = IO_STATE(R_DMA_CH6_CMD, cmd, restart);
 	START_FLUSH_FAST_TIMER(info, "ser_int");
-	return info;
 } /* handle_ser_rx_interrupt */
 
 static void handle_ser_tx_interrupt(struct e100_serial *info)
