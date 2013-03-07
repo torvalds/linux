@@ -297,10 +297,14 @@ static int af9033_init(struct dvb_frontend *fe)
 	case AF9033_TUNER_IT9135_38:
 	case AF9033_TUNER_IT9135_51:
 	case AF9033_TUNER_IT9135_52:
+		len = ARRAY_SIZE(ofsm_init_it9135_v1);
+		init = ofsm_init_it9135_v1;
+		break;
 	case AF9033_TUNER_IT9135_60:
 	case AF9033_TUNER_IT9135_61:
 	case AF9033_TUNER_IT9135_62:
-		len = 0;
+		len = ARRAY_SIZE(ofsm_init_it9135_v2);
+		init = ofsm_init_it9135_v2;
 		break;
 	default:
 		len = ARRAY_SIZE(ofsm_init);
