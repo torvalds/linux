@@ -254,7 +254,7 @@ config BATTERY_RX51
 
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
-	depends on USB_OTG_UTILS
+	depends on USB_PHY
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
