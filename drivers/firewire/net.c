@@ -1154,6 +1154,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	unsigned max_receive;
 	struct fw_iso_packet packet;
 	unsigned long offset;
+	void **ptrptr;
 	unsigned u;
 
 	if (dev->broadcast_state != FWNET_BROADCAST_ERROR)
@@ -1162,42 +1163,36 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	max_receive = 1U << (dev->card->max_receive + 1);
 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
 
-	if (!dev->broadcast_rcv_context) {
-		void **ptrptr;
-
-		context = fw_iso_context_create(dev->card,
-		    FW_ISO_CONTEXT_RECEIVE, IEEE1394_BROADCAST_CHANNEL,
-		    dev->card->link_speed, 8, fwnet_receive_broadcast, dev);
-		if (IS_ERR(context)) {
-			retval = PTR_ERR(context);
-			goto failed_context_create;
-		}
-
-		retval = fw_iso_buffer_init(&dev->broadcast_rcv_buffer,
-		    dev->card, FWNET_ISO_PAGE_COUNT, DMA_FROM_DEVICE);
-		if (retval < 0)
-			goto failed_buffer_init;
-
-		ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
-		if (!ptrptr) {
-			retval = -ENOMEM;
-			goto failed_ptrs_alloc;
-		}
-
-		dev->broadcast_rcv_buffer_ptrs = ptrptr;
-		for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++) {
-			void *ptr;
-			unsigned v;
-
-			ptr = kmap(dev->broadcast_rcv_buffer.pages[u]);
-			for (v = 0; v < num_packets / FWNET_ISO_PAGE_COUNT; v++)
-				*ptrptr++ = (void *)
-						((char *)ptr + v * max_receive);
-		}
-		dev->broadcast_rcv_context = context;
-	} else {
-		context = dev->broadcast_rcv_context;
+	context = fw_iso_context_create(dev->card, FW_ISO_CONTEXT_RECEIVE,
+					IEEE1394_BROADCAST_CHANNEL,
+					dev->card->link_speed, 8,
+					fwnet_receive_broadcast, dev);
+	if (IS_ERR(context)) {
+		retval = PTR_ERR(context);
+		goto failed_context_create;
 	}
+
+	retval = fw_iso_buffer_init(&dev->broadcast_rcv_buffer, dev->card,
+				    FWNET_ISO_PAGE_COUNT, DMA_FROM_DEVICE);
+	if (retval < 0)
+		goto failed_buffer_init;
+
+	ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
+	if (!ptrptr) {
+		retval = -ENOMEM;
+		goto failed_ptrs_alloc;
+	}
+
+	dev->broadcast_rcv_buffer_ptrs = ptrptr;
+	for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++) {
+		void *ptr;
+		unsigned v;
+
+		ptr = kmap(dev->broadcast_rcv_buffer.pages[u]);
+		for (v = 0; v < num_packets / FWNET_ISO_PAGE_COUNT; v++)
+			*ptrptr++ = (void *) ((char *)ptr + v * max_receive);
+	}
+	dev->broadcast_rcv_context = context;
 
 	packet.payload_length = max_receive;
 	packet.interrupt = 1;
