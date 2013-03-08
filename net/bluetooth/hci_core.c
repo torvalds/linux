@@ -95,15 +95,11 @@ static int __hci_req_sync(struct hci_dev *hdev,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	func(&req, opt);
 
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
-		remove_wait_queue(&hdev->req_wait_q, &wait);
 		/* req_run will fail if the request did not add any
 		 * commands to the queue, something that can happen when
 		 * a request with conditionals doesn't trigger any
@@ -112,6 +108,9 @@ static int __hci_req_sync(struct hci_dev *hdev,
 		 */
 		return 0;
 	}
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	schedule_timeout(timeout);
 
