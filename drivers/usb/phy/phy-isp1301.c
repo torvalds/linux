@@ -11,9 +11,18 @@
  */
 
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/i2c.h>
+#include <linux/usb/phy.h>
 
 #define DRV_NAME		"isp1301"
+
+struct isp1301 {
+	struct usb_phy		phy;
+	struct mutex		mutex;
+
+	struct i2c_client	*client;
+};
 
 static const struct i2c_device_id isp1301_id[] = {
 	{ "isp1301", 0 },
@@ -25,12 +34,35 @@ static struct i2c_client *isp1301_i2c_client;
 static int isp1301_probe(struct i2c_client *client,
 			 const struct i2c_device_id *i2c_id)
 {
+	struct isp1301 *isp;
+	struct usb_phy *phy;
+
+	isp = devm_kzalloc(&client->dev, sizeof(*isp), GFP_KERNEL);
+	if (!isp)
+		return -ENOMEM;
+
+	isp->client = client;
+	mutex_init(&isp->mutex);
+
+	phy = &isp->phy;
+	phy->label = DRV_NAME;
+	phy->type = USB_PHY_TYPE_USB2;
+
+	i2c_set_clientdata(client, isp);
+	usb_add_phy_dev(phy);
+
 	isp1301_i2c_client = client;
+
 	return 0;
 }
 
 static int isp1301_remove(struct i2c_client *client)
 {
+	struct isp1301 *isp = i2c_get_clientdata(client);
+
+	usb_remove_phy(&isp->phy);
+	isp1301_i2c_client = NULL;
+
 	return 0;
 }
 
