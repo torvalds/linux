@@ -1462,7 +1462,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 
 	/* osd_req will get its own reference to snapc (if non-null) */
 
-	ceph_osdc_build_request(osd_req, offset, length, 1, op,
+	ceph_osdc_build_request(osd_req, offset, 1, op,
 				snapc, snap_id, mtime);
 
 	return osd_req;

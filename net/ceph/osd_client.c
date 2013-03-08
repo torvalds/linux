@@ -222,10 +222,13 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 }
 EXPORT_SYMBOL(ceph_osdc_alloc_request);
 
-static void osd_req_encode_op(struct ceph_osd_request *req,
+static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_op *dst,
 			      struct ceph_osd_req_op *src)
 {
+	u64 out_data_len = 0;
+	u64 tmp;
+
 	dst->op = cpu_to_le16(src->op);
 
 	switch (src->op) {
@@ -233,10 +236,10 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 		break;
 	case CEPH_OSD_OP_READ:
 	case CEPH_OSD_OP_WRITE:
-		dst->extent.offset =
-			cpu_to_le64(src->extent.offset);
-		dst->extent.length =
-			cpu_to_le64(src->extent.length);
+		if (src->op == CEPH_OSD_OP_WRITE)
+			out_data_len = src->extent.length;
+		dst->extent.offset = cpu_to_le64(src->extent.offset);
+		dst->extent.length = cpu_to_le64(src->extent.length);
 		dst->extent.truncate_size =
 			cpu_to_le64(src->extent.truncate_size);
 		dst->extent.truncate_seq =
@@ -247,12 +250,14 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
 
+		tmp = req->r_trail.length;
 		ceph_pagelist_append(&req->r_trail, src->cls.class_name,
 				     src->cls.class_len);
 		ceph_pagelist_append(&req->r_trail, src->cls.method_name,
 				     src->cls.method_len);
 		ceph_pagelist_append(&req->r_trail, src->cls.indata,
 				     src->cls.indata_len);
+		out_data_len = req->r_trail.length - tmp;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;
@@ -326,6 +331,8 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 		break;
 	}
 	dst->payload_len = cpu_to_le32(src->payload_len);
+
+	return out_data_len;
 }
 
 /*
@@ -333,7 +340,7 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
  *
  */
 void ceph_osdc_build_request(struct ceph_osd_request *req,
-			     u64 off, u64 len, unsigned int num_ops,
+			     u64 off, unsigned int num_ops,
 			     struct ceph_osd_req_op *src_ops,
 			     struct ceph_snap_context *snapc, u64 snap_id,
 			     struct timespec *mtime)
@@ -385,12 +392,13 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	dout("oid '%.*s' len %d\n", req->r_oid_len, req->r_oid, req->r_oid_len);
 	p += req->r_oid_len;
 
-	/* ops */
+	/* ops--can imply data */
 	ceph_encode_16(&p, num_ops);
 	src_op = src_ops;
 	req->r_request_ops = p;
+	data_len = 0;
 	for (i = 0; i < num_ops; i++, src_op++) {
-		osd_req_encode_op(req, p, src_op);
+		data_len += osd_req_encode_op(req, p, src_op);
 		p += sizeof(struct ceph_osd_op);
 	}
 
@@ -407,11 +415,9 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	req->r_request_attempts = p;
 	p += 4;
 
-	data_len = req->r_trail.length;
-	if (flags & CEPH_OSD_FLAG_WRITE) {
+	/* data */
+	if (flags & CEPH_OSD_FLAG_WRITE)
 		req->r_request->hdr.data_off = cpu_to_le16(off);
-		data_len += len;
-	}
 	req->r_request->hdr.data_len = cpu_to_le32(data_len);
 
 	BUG_ON(p > msg->front.iov_base + msg->front.iov_len);
@@ -477,13 +483,12 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		ceph_osdc_put_request(req);
 		return ERR_PTR(r);
 	}
-
 	req->r_file_layout = *layout;  /* keep a copy */
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
 
-	ceph_osdc_build_request(req, off, *plen, num_op, ops,
+	ceph_osdc_build_request(req, off, num_op, ops,
 				snapc, vino.snap, mtime);
 
 	return req;

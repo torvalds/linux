@@ -249,8 +249,7 @@ extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *
 					       bool use_mempool,
 					       gfp_t gfp_flags);
 
-extern void ceph_osdc_build_request(struct ceph_osd_request *req,
-				    u64 off, u64 len,
+extern void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 				    unsigned int num_op,
 				    struct ceph_osd_req_op *src_ops,
 				    struct ceph_snap_context *snapc,
