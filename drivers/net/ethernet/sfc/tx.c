@@ -822,11 +822,17 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 
 
 /* Parse the SKB header and initialise state. */
-static void tso_start(struct tso_state *st, const struct sk_buff *skb)
+static int tso_start(struct tso_state *st, struct efx_nic *efx,
+		     const struct sk_buff *skb)
 {
+	unsigned int header_len, in_len;
+
 	st->ip_off = skb_network_header(skb) - skb->data;
 	st->tcp_off = skb_transport_header(skb) - skb->data;
-	st->header_len = st->tcp_off + (tcp_hdr(skb)->doff << 2u);
+	header_len = st->tcp_off + (tcp_hdr(skb)->doff << 2u);
+	in_len = skb_headlen(skb) - header_len;
+	st->header_len = header_len;
+	st->in_len = in_len;
 	if (st->protocol == htons(ETH_P_IP)) {
 		st->ip_base_len = st->header_len - st->ip_off;
 		st->ipv4_id = ntohs(ip_hdr(skb)->id);
@@ -840,9 +846,24 @@ static void tso_start(struct tso_state *st, const struct sk_buff *skb)
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->syn);
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->rst);
 
-	st->out_len = skb->len - st->header_len;
-	st->unmap_len = 0;
-	st->dma_flags = 0;
+	st->out_len = skb->len - header_len;
+
+	if (likely(in_len == 0)) {
+		st->unmap_len = 0;
+		st->dma_flags = 0;
+		return 0;
+	}
+
+	st->unmap_addr = dma_map_single(&efx->pci_dev->dev,
+					skb->data + header_len, in_len,
+					DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(&efx->pci_dev->dev, st->unmap_addr)))
+		return -ENOMEM;
+
+	st->dma_flags = EFX_TX_BUF_MAP_SINGLE;
+	st->unmap_len = in_len;
+	st->dma_addr = st->unmap_addr;
+	return 0;
 }
 
 static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
@@ -854,24 +875,6 @@ static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
 		st->dma_flags = 0;
 		st->unmap_len = skb_frag_size(frag);
 		st->in_len = skb_frag_size(frag);
-		st->dma_addr = st->unmap_addr;
-		return 0;
-	}
-	return -ENOMEM;
-}
-
-static int tso_get_head_fragment(struct tso_state *st, struct efx_nic *efx,
-				 const struct sk_buff *skb)
-{
-	int hl = st->header_len;
-	int len = skb_headlen(skb) - hl;
-
-	st->unmap_addr = dma_map_single(&efx->pci_dev->dev, skb->data + hl,
-					len, DMA_TO_DEVICE);
-	if (likely(!dma_mapping_error(&efx->pci_dev->dev, st->unmap_addr))) {
-		st->dma_flags = EFX_TX_BUF_MAP_SINGLE;
-		st->unmap_len = len;
-		st->in_len = len;
 		st->dma_addr = st->unmap_addr;
 		return 0;
 	}
@@ -1023,12 +1026,11 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
-	tso_start(&state, skb);
+	rc = tso_start(&state, efx, skb);
+	if (rc)
+		goto mem_err;
 
-	/* Assume that skb header area contains exactly the headers, and
-	 * all payload is in the frag list.
-	 */
-	if (skb_headlen(skb) == state.header_len) {
+	if (likely(state.in_len == 0)) {
 		/* Grab the first payload fragment. */
 		EFX_BUG_ON_PARANOID(skb_shinfo(skb)->nr_frags < 1);
 		frag_i = 0;
@@ -1037,9 +1039,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		if (rc)
 			goto mem_err;
 	} else {
-		rc = tso_get_head_fragment(&state, efx, skb);
-		if (rc)
-			goto mem_err;
+		/* Payload starts in the header area. */
 		frag_i = -1;
 	}
 
