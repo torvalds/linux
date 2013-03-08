@@ -4096,6 +4096,10 @@ int snd_soc_register_codec(struct device *dev,
 	return 0;
 
 fail_codec_name:
+	mutex_lock(&client_mutex);
+	list_del(&codec->list);
+	mutex_unlock(&client_mutex);
+
 	kfree(codec->name);
 fail_codec:
 	kfree(codec);
