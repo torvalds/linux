@@ -57,13 +57,15 @@ repeat:
 		cond_resched();
 		goto repeat;
 	}
-	if (f2fs_readpage(sbi, page, index, READ_SYNC)) {
-		f2fs_put_page(page, 1);
-		goto repeat;
-	}
-	mark_page_accessed(page);
+	if (PageUptodate(page))
+		goto out;
 
-	/* We do not allow returning an errorneous page */
+	if (f2fs_readpage(sbi, page, index, READ_SYNC))
+		goto repeat;
+
+	lock_page(page);
+out:
+	mark_page_accessed(page);
 	return page;
 }
 

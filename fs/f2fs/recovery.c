@@ -112,11 +112,16 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (f2fs_readpage(sbi, page, blkaddr, READ_SYNC))
+		err = f2fs_readpage(sbi, page, blkaddr, READ_SYNC);
+		if (err)
 			goto out;
 
-		if (cp_ver != cpver_of_node(page))
-			goto out;
+		lock_page(page);
+
+		if (cp_ver != cpver_of_node(page)) {
+			err = -EINVAL;
+			goto unlock_out;
+		}
 
 		if (!is_fsync_dnode(page))
 			goto next;
@@ -131,7 +136,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 			if (IS_INODE(page) && is_dent_dnode(page)) {
 				if (recover_inode_page(sbi, page)) {
 					err = -ENOMEM;
-					goto out;
+					goto unlock_out;
 				}
 			}
 
@@ -139,14 +144,14 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 			entry = kmem_cache_alloc(fsync_entry_slab, GFP_NOFS);
 			if (!entry) {
 				err = -ENOMEM;
-				goto out;
+				goto unlock_out;
 			}
 
 			entry->inode = f2fs_iget(sbi->sb, ino_of_node(page));
 			if (IS_ERR(entry->inode)) {
 				err = PTR_ERR(entry->inode);
 				kmem_cache_free(fsync_entry_slab, entry);
-				goto out;
+				goto unlock_out;
 			}
 
 			list_add_tail(&entry->list, head);
@@ -155,15 +160,15 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 		if (IS_INODE(page)) {
 			err = recover_inode(entry->inode, page);
 			if (err)
-				goto out;
+				goto unlock_out;
 		}
 next:
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
-		ClearPageUptodate(page);
 	}
-out:
+unlock_out:
 	unlock_page(page);
+out:
 	__free_pages(page, 0);
 	return err;
 }
@@ -319,8 +324,10 @@ static void recover_data(struct f2fs_sb_info *sbi,
 		if (f2fs_readpage(sbi, page, blkaddr, READ_SYNC))
 			goto out;
 
+		lock_page(page);
+
 		if (cp_ver != cpver_of_node(page))
-			goto out;
+			goto unlock_out;
 
 		entry = get_fsync_inode(head, ino_of_node(page));
 		if (!entry)
@@ -336,10 +343,10 @@ static void recover_data(struct f2fs_sb_info *sbi,
 next:
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
-		ClearPageUptodate(page);
 	}
-out:
+unlock_out:
 	unlock_page(page);
+out:
 	__free_pages(page, 0);
 
 	allocate_new_segments(sbi);

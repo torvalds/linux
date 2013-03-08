@@ -100,10 +100,13 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 		page = grab_cache_page(mapping, index);
 		if (!page)
 			continue;
-		if (f2fs_readpage(sbi, page, index, READ)) {
+		if (PageUptodate(page)) {
 			f2fs_put_page(page, 1);
 			continue;
 		}
+		if (f2fs_readpage(sbi, page, index, READ))
+			continue;
+
 		f2fs_put_page(page, 0);
 	}
 }
@@ -851,8 +854,16 @@ static int read_node_page(struct page *page, int type)
 
 	get_node_info(sbi, page->index, &ni);
 
-	if (ni.blk_addr == NULL_ADDR)
+	if (ni.blk_addr == NULL_ADDR) {
+		f2fs_put_page(page, 1);
 		return -ENOENT;
+	}
+
+	if (PageUptodate(page)) {
+		unlock_page(page);
+		return 0;
+	}
+
 	return f2fs_readpage(sbi, page, ni.blk_addr, type);
 }
 
@@ -865,19 +876,18 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	struct page *apage;
 
 	apage = find_get_page(mapping, nid);
-	if (apage && PageUptodate(apage))
-		goto release_out;
+	if (apage && PageUptodate(apage)) {
+		f2fs_put_page(apage, 0);
+		return;
+	}
 	f2fs_put_page(apage, 0);
 
 	apage = grab_cache_page(mapping, nid);
 	if (!apage)
 		return;
 
-	if (read_node_page(apage, READA))
-		unlock_page(apage);
-
-release_out:
-	f2fs_put_page(apage, 0);
+	if (read_node_page(apage, READA) == 0)
+		f2fs_put_page(apage, 0);
 	return;
 }
 
@@ -892,11 +902,14 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 		return ERR_PTR(-ENOMEM);
 
 	err = read_node_page(page, READ_SYNC);
-	if (err) {
-		f2fs_put_page(page, 1);
+	if (err)
 		return ERR_PTR(err);
-	}
 
+	lock_page(page);
+	if (!PageUptodate(page)) {
+		f2fs_put_page(page, 1);
+		return ERR_PTR(-EIO);
+	}
 	BUG_ON(nid != nid_of_node(page));
 	mark_page_accessed(page);
 	return page;
@@ -928,11 +941,8 @@ repeat:
 		goto page_hit;
 
 	err = read_node_page(page, READ_SYNC);
-	unlock_page(page);
-	if (err) {
-		f2fs_put_page(page, 0);
+	if (err)
 		return ERR_PTR(err);
-	}
 
 	/* Then, try readahead for siblings of the desired node */
 	end = start + MAX_RA_NODE;
@@ -957,6 +967,7 @@ page_hit:
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
+	mark_page_accessed(page);
 	return page;
 }
 
@@ -1473,23 +1484,24 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 	sum_entry = &sum->entries[0];
 
 	for (i = 0; i < last_offset; i++, sum_entry++) {
-		if (f2fs_readpage(sbi, page, addr, READ_SYNC))
-			goto out;
-
-		rn = (struct f2fs_node *)page_address(page);
-		sum_entry->nid = rn->footer.nid;
-		sum_entry->version = 0;
-		sum_entry->ofs_in_node = 0;
-		addr++;
-
 		/*
 		 * In order to read next node page,
 		 * we must clear PageUptodate flag.
 		 */
 		ClearPageUptodate(page);
+
+		if (f2fs_readpage(sbi, page, addr, READ_SYNC))
+			goto out;
+
+		lock_page(page);
+		rn = (struct f2fs_node *)page_address(page);
+		sum_entry->nid = rn->footer.nid;
+		sum_entry->version = 0;
+		sum_entry->ofs_in_node = 0;
+		addr++;
 	}
-out:
 	unlock_page(page);
+out:
 	__free_pages(page, 0);
 	return 0;
 }
