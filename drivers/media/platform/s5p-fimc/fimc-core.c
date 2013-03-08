@@ -1281,7 +1281,6 @@ static const struct platform_device_id fimc_driver_ids[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(platform, fimc_driver_ids);
 
 static const struct of_device_id fimc_of_match[] = {
 	{

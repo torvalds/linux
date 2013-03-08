@@ -94,6 +94,7 @@ enum fimc_subdev_index {
 	IDX_SENSOR,
 	IDX_CSIS,
 	IDX_FLITE,
+	IDX_IS_ISP,
 	IDX_FIMC,
 	IDX_MAX,
 };

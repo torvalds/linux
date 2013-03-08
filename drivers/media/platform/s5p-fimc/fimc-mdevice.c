@@ -17,11 +17,16 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
+#include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-of.h>
 #include <media/media-device.h>
 #include <media/s5p_fimc.h>
 
@@ -264,6 +269,21 @@ static void fimc_md_unregister_sensor(struct v4l2_subdev *sd)
 		i2c_put_adapter(adapter);
 }
 
+#ifdef CONFIG_OF
+static int __of_get_csis_id(struct device_node *np)
+{
+	u32 reg = 0;
+
+	np = of_get_child_by_name(np, "port");
+	if (!np)
+		return -EINVAL;
+	of_property_read_u32(np, "reg", &reg);
+	return reg - FIMC_INPUT_MIPI_CSI2_0;
+}
+#else
+#define __of_get_csis_id(np) (-ENOSYS)
+#endif
+
 static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 {
 	struct s5p_platform_fimc *pdata = fmd->pdev->dev.platform_data;
@@ -368,13 +388,13 @@ static int register_csis_entity(struct fimc_md *fmd,
 	struct device_node *node = pdev->dev.of_node;
 	int id, ret;
 
-	id = node ? of_alias_get_id(node, "csis") : max(0, pdev->id);
+	id = node ? __of_get_csis_id(node) : max(0, pdev->id);
 
-	if (WARN_ON(id >= CSIS_MAX_ENTITIES || fmd->csis[id].sd))
+	if (WARN_ON(id < 0 || id >= CSIS_MAX_ENTITIES))
+		return -ENOENT;
+
+	if (WARN_ON(fmd->csis[id].sd))
 		return -EBUSY;
-
-	if (WARN_ON(id >= CSIS_MAX_ENTITIES))
-		return 0;
 
 	sd->grp_id = GRP_ID_CSIS;
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
@@ -456,6 +476,45 @@ static int fimc_md_pdev_match(struct device *dev, void *data)
 	put_device(dev);
 	return 0;
 }
+
+/* Register FIMC, FIMC-LITE and CSIS media entities */
+#ifdef CONFIG_OF
+static int fimc_md_register_of_platform_entities(struct fimc_md *fmd,
+						 struct device_node *parent)
+{
+	struct device_node *node;
+	int ret = 0;
+
+	for_each_available_child_of_node(parent, node) {
+		struct platform_device *pdev;
+		int plat_entity = -1;
+
+		pdev = of_find_device_by_node(node);
+		if (!pdev)
+			continue;
+
+		/* If driver of any entity isn't ready try all again later. */
+		if (!strcmp(node->name, CSIS_OF_NODE_NAME))
+			plat_entity = IDX_CSIS;
+		else if (!strcmp(node->name, FIMC_LITE_OF_NODE_NAME))
+			plat_entity = IDX_FLITE;
+		else if	(!strcmp(node->name, FIMC_OF_NODE_NAME) &&
+			 !of_property_read_bool(node, "samsung,lcd-wb"))
+			plat_entity = IDX_FIMC;
+
+		if (plat_entity >= 0)
+			ret = fimc_md_register_platform_entity(fmd, pdev,
+							plat_entity);
+		put_device(&pdev->dev);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
+}
+#else
+#define fimc_md_register_of_platform_entities(fmd, node) (-ENOSYS)
+#endif
 
 static void fimc_md_unregister_entities(struct fimc_md *fmd)
 {
@@ -929,11 +988,12 @@ static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
 
 static int fimc_md_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct fimc_md *fmd;
 	int ret;
 
-	fmd = devm_kzalloc(&pdev->dev, sizeof(*fmd), GFP_KERNEL);
+	fmd = devm_kzalloc(dev, sizeof(*fmd), GFP_KERNEL);
 	if (!fmd)
 		return -ENOMEM;
 
@@ -943,15 +1003,14 @@ static int fimc_md_probe(struct platform_device *pdev)
 	strlcpy(fmd->media_dev.model, "SAMSUNG S5P FIMC",
 		sizeof(fmd->media_dev.model));
 	fmd->media_dev.link_notify = fimc_md_link_notify;
-	fmd->media_dev.dev = &pdev->dev;
+	fmd->media_dev.dev = dev;
 
 	v4l2_dev = &fmd->v4l2_dev;
 	v4l2_dev->mdev = &fmd->media_dev;
 	v4l2_dev->notify = fimc_sensor_notify;
-	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s",
-		 dev_name(&pdev->dev));
+	strlcpy(v4l2_dev->name, "s5p-fimc-md", sizeof(v4l2_dev->name));
 
-	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
+	ret = v4l2_device_register(dev, &fmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
 		return ret;
@@ -965,21 +1024,25 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	fmd->user_subdev_api = false;
+	fmd->user_subdev_api = (dev->of_node != NULL);
 
 	/* Protect the media graph while we're registering entities */
 	mutex_lock(&fmd->media_dev.graph_mutex);
 
-	ret = bus_for_each_dev(&platform_bus_type, NULL, fmd,
-					fimc_md_pdev_match);
+	if (dev->of_node)
+		ret = fimc_md_register_of_platform_entities(fmd, dev->of_node);
+	else
+		ret = bus_for_each_dev(&platform_bus_type, NULL, fmd,
+						fimc_md_pdev_match);
 	if (ret)
 		goto err_unlock;
 
-	if (pdev->dev.platform_data) {
+	if (dev->platform_data) {
 		ret = fimc_md_register_sensor_entities(fmd);
 		if (ret)
 			goto err_unlock;
 	}
+
 	ret = fimc_md_create_links(fmd);
 	if (ret)
 		goto err_unlock;
@@ -1019,12 +1082,25 @@ static int fimc_md_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id fimc_driver_ids[] __always_unused = {
+	{ .name = "s5p-fimc-md" },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, fimc_driver_ids);
+
+static const struct of_device_id fimc_md_of_match[] = {
+	{ .compatible = "samsung,fimc" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, fimc_md_of_match);
+
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
 	.remove		= fimc_md_remove,
 	.driver = {
-		.name	= "s5p-fimc-md",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(fimc_md_of_match),
+		.name		= "s5p-fimc-md",
+		.owner		= THIS_MODULE,
 	}
 };
 
