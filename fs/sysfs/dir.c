@@ -165,21 +165,8 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 	if (unlikely(!sd))
 		return NULL;
 
-	while (1) {
-		int v, t;
-
-		v = atomic_read(&sd->s_active);
-		if (unlikely(v < 0))
-			return NULL;
-
-		t = atomic_cmpxchg(&sd->s_active, v, v + 1);
-		if (likely(t == v))
-			break;
-		if (t < 0)
-			return NULL;
-
-		cpu_relax();
-	}
+	if (!atomic_inc_unless_negative(&sd->s_active))
+		return NULL;
 
 	if (likely(!ignore_lockdep(sd)))
 		rwsem_acquire_read(&sd->dep_map, 0, 1, _RET_IP_);
