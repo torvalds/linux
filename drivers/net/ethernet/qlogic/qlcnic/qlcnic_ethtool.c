@@ -1176,7 +1176,8 @@ static int qlcnic_set_led(struct net_device *dev,
 	int err = -EIO, active = 1;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return qlcnic_83xx_set_led(dev, state);
+
 	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		netdev_warn(dev, "LED test not supported for non "
 				"privilege function\n");
