@@ -100,6 +100,10 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 
 	/* check status */
 	if (state->buf[2]) {
+		/* fw returns status 1 when IR code was not received */
+		if (req->cmd == CMD_IR_GET || state->buf[2] == 1)
+			return 1;
+
 		dev_dbg(&d->udev->dev, "%s: command=%02x failed fw error=%d\n",
 				__func__, req->cmd, state->buf[2]);
 		ret = -EIO;
@@ -1223,7 +1227,9 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 	struct usb_req req = { CMD_IR_GET, 0, 0, NULL, 4, b };
 
 	ret = af9035_ctrl_msg(d, &req);
-	if (ret < 0)
+	if (ret == 1)
+		return 0;
+	else if (ret < 0)
 		goto err;
 
 	if ((b[2] + b[3]) == 0xff) {
@@ -1240,9 +1246,12 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 
 	rc_keydown(d->rc_dev, key, 0);
 
-err:
-	/* ignore errors */
 	return 0;
+
+err:
+	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
 }
 
 static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
