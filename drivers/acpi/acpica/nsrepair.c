@@ -98,6 +98,13 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
  * 2nd argument: Unexpected types that can be repaired
  */
 static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
+	/* Unicode conversions */
+
+	{"_MLS", ACPI_RTYPE_STRING, 1,
+	 acpi_ns_convert_to_unicode},
+	{"_STR", ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER,
+	 ACPI_NOT_PACKAGE_ELEMENT,
+	 acpi_ns_convert_to_unicode},
 	{{0, 0, 0, 0}, 0, 0, NULL}	/* Table terminator */
 };
 

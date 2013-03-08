@@ -300,3 +300,67 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 	*return_object = new_object;
 	return (AE_OK);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_unicode
+ *
+ * PARAMETERS:  original_object     - ASCII String Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a String object to a Unicode string Buffer.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	char *ascii_string;
+	u16 *unicode_buffer;
+	u32 unicode_length;
+	u32 i;
+
+	if (!original_object) {
+		return (AE_OK);
+	}
+
+	/* If a Buffer was returned, it must be at least two bytes long */
+
+	if (original_object->common.type == ACPI_TYPE_BUFFER) {
+		if (original_object->buffer.length < 2) {
+			return (AE_AML_OPERAND_VALUE);
+		}
+
+		*return_object = NULL;
+		return (AE_OK);
+	}
+
+	/*
+	 * The original object is an ASCII string. Convert this string to
+	 * a unicode buffer.
+	 */
+	ascii_string = original_object->string.pointer;
+	unicode_length = (original_object->string.length * 2) + 2;
+
+	/* Create a new buffer object for the Unicode data */
+
+	new_object = acpi_ut_create_buffer_object(unicode_length);
+	if (!new_object) {
+		return (AE_NO_MEMORY);
+	}
+
+	unicode_buffer = ACPI_CAST_PTR(u16, new_object->buffer.pointer);
+
+	/* Convert ASCII to Unicode */
+
+	for (i = 0; i < original_object->string.length; i++) {
+		unicode_buffer[i] = (u16)ascii_string[i];
+	}
+
+	*return_object = new_object;
+	return (AE_OK);
+}
