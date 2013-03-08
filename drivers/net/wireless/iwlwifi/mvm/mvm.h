@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -79,8 +79,9 @@
 #include "fw-api.h"
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
-#define IWL_MVM_MAX_ADDRESSES		2
-#define IWL_RSSI_OFFSET 44
+#define IWL_MVM_MAX_ADDRESSES		5
+/* RSSI offset for WkP */
+#define IWL_RSSI_OFFSET 50
 
 enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_BK = 0,
@@ -172,6 +173,8 @@ struct iwl_mvm_vif {
 
 	bool uploaded;
 	bool ap_active;
+
+	u32 ap_beacon_time;
 
 	enum iwl_tsf_id tsf_id;
 
@@ -327,6 +330,14 @@ struct iwl_mvm {
 	struct led_classdev led;
 
 	struct ieee80211_vif *p2p_device_vif;
+
+#ifdef CONFIG_PM_SLEEP
+	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
+#endif
+
+	/* BT-Coex */
+	u8 bt_kill_msk;
+	struct iwl_bt_coex_profile_notif last_bt_notif;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -496,5 +507,12 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 			      struct inet6_dev *idev);
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
+
+/* BT Coex */
+int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);
+int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
+int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb,
+			     struct iwl_device_cmd *cmd);
 
 #endif /* __IWL_MVM_H__ */

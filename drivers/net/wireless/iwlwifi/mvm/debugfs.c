@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -68,12 +68,6 @@ struct iwl_dbgfs_mvm_ctx {
 	struct iwl_mvm *mvm;
 	struct ieee80211_vif *vif;
 };
-
-static int iwl_dbgfs_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t iwl_dbgfs_tx_flush_write(struct file *file,
 					const char __user *user_buf,
@@ -306,10 +300,130 @@ static ssize_t iwl_dbgfs_power_down_d3_allow_write(struct file *file,
 	return count;
 }
 
+#define BT_MBOX_MSG(_notif, _num, _field)				     \
+	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
+	>> BT_MBOX##_num##_##_field##_POS)
+
+
+#define BT_MBOX_PRINT(_num, _field, _end)				    \
+			pos += scnprintf(buf + pos, bufsz - pos,	    \
+					 "\t%s: %d%s",			    \
+					 #_field,			    \
+					 BT_MBOX_MSG(notif, _num, _field),  \
+					 true ? "\n" : ", ");
+
+static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
+	char *buf;
+	int ret, pos = 0, bufsz = sizeof(char) * 1024;
+
+	buf = kmalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&mvm->mutex);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
+
+	BT_MBOX_PRINT(0, LE_SLAVE_LAT, false);
+	BT_MBOX_PRINT(0, LE_PROF1, false);
+	BT_MBOX_PRINT(0, LE_PROF2, false);
+	BT_MBOX_PRINT(0, LE_PROF_OTHER, false);
+	BT_MBOX_PRINT(0, CHL_SEQ_N, false);
+	BT_MBOX_PRINT(0, INBAND_S, false);
+	BT_MBOX_PRINT(0, LE_MIN_RSSI, false);
+	BT_MBOX_PRINT(0, LE_SCAN, false);
+	BT_MBOX_PRINT(0, LE_ADV, false);
+	BT_MBOX_PRINT(0, LE_MAX_TX_POWER, false);
+	BT_MBOX_PRINT(0, OPEN_CON_1, true);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw1:\n");
+
+	BT_MBOX_PRINT(1, BR_MAX_TX_POWER, false);
+	BT_MBOX_PRINT(1, IP_SR, false);
+	BT_MBOX_PRINT(1, LE_MSTR, false);
+	BT_MBOX_PRINT(1, AGGR_TRFC_LD, false);
+	BT_MBOX_PRINT(1, MSG_TYPE, false);
+	BT_MBOX_PRINT(1, SSN, true);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw2:\n");
+
+	BT_MBOX_PRINT(2, SNIFF_ACT, false);
+	BT_MBOX_PRINT(2, PAG, false);
+	BT_MBOX_PRINT(2, INQUIRY, false);
+	BT_MBOX_PRINT(2, CONN, false);
+	BT_MBOX_PRINT(2, SNIFF_INTERVAL, false);
+	BT_MBOX_PRINT(2, DISC, false);
+	BT_MBOX_PRINT(2, SCO_TX_ACT, false);
+	BT_MBOX_PRINT(2, SCO_RX_ACT, false);
+	BT_MBOX_PRINT(2, ESCO_RE_TX, false);
+	BT_MBOX_PRINT(2, SCO_DURATION, true);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw3:\n");
+
+	BT_MBOX_PRINT(3, SCO_STATE, false);
+	BT_MBOX_PRINT(3, SNIFF_STATE, false);
+	BT_MBOX_PRINT(3, A2DP_STATE, false);
+	BT_MBOX_PRINT(3, ACL_STATE, false);
+	BT_MBOX_PRINT(3, MSTR_STATE, false);
+	BT_MBOX_PRINT(3, OBX_STATE, false);
+	BT_MBOX_PRINT(3, OPEN_CON_2, false);
+	BT_MBOX_PRINT(3, TRAFFIC_LOAD, false);
+	BT_MBOX_PRINT(3, CHL_SEQN_LSB, false);
+	BT_MBOX_PRINT(3, INBAND_P, false);
+	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
+	BT_MBOX_PRINT(3, SSN_2, false);
+	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_status = %d\n",
+					 notif->bt_status);
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_open_conn = %d\n",
+					 notif->bt_open_conn);
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_traffic_load = %d\n",
+					 notif->bt_traffic_load);
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_agg_traffic_load = %d\n",
+					 notif->bt_agg_traffic_load);
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_ci_compliance = %d\n",
+					 notif->bt_ci_compliance);
+
+	mutex_unlock(&mvm->mutex);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+
+	return ret;
+}
+#undef BT_MBOX_PRINT
+
+static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	bool restart_fw = iwlwifi_mod_params.restart_fw;
+	int ret;
+
+	iwlwifi_mod_params.restart_fw = true;
+
+	mutex_lock(&mvm->mutex);
+
+	/* take the return value to make compiler happy - it will fail anyway */
+	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
+
+	mutex_unlock(&mvm->mutex);
+
+	iwlwifi_mod_params.restart_fw = restart_fw;
+
+	return count;
+}
+
 #define MVM_DEBUGFS_READ_FILE_OPS(name)					\
 static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 	.read = iwl_dbgfs_##name##_read,				\
-	.open = iwl_dbgfs_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
 
@@ -317,14 +431,14 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 	.write = iwl_dbgfs_##name##_write,				\
 	.read = iwl_dbgfs_##name##_read,				\
-	.open = iwl_dbgfs_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name)				\
 static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 	.write = iwl_dbgfs_##name##_write,				\
-	.open = iwl_dbgfs_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
@@ -345,8 +459,10 @@ MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
+MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 {
@@ -358,8 +474,10 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211

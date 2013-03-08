@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -70,6 +70,7 @@
 #include "fw-api-mac.h"
 #include "fw-api-power.h"
 #include "fw-api-d3.h"
+#include "fw-api-bt-coex.h"
 
 /* queue and FIFO numbers by usage */
 enum {
@@ -152,6 +153,7 @@ enum {
 
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
 
 	/* RF-KILL commands and notifications */
@@ -161,6 +163,11 @@ enum {
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
+
+	/* BT Coex */
+	BT_COEX_PRIO_TABLE = 0xcc,
+	BT_COEX_PROT_ENV = 0xcd,
+	BT_PROFILE_NOTIFICATION = 0xce,
 
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
@@ -762,18 +769,20 @@ struct iwl_phy_context_cmd {
 #define IWL_RX_INFO_PHY_CNT 8
 #define IWL_RX_INFO_AGC_IDX 1
 #define IWL_RX_INFO_RSSI_AB_IDX 2
-#define IWL_RX_INFO_RSSI_C_IDX 3
-#define IWL_OFDM_AGC_DB_MSK 0xfe00
-#define IWL_OFDM_AGC_DB_POS 9
+#define IWL_OFDM_AGC_A_MSK 0x0000007f
+#define IWL_OFDM_AGC_A_POS 0
+#define IWL_OFDM_AGC_B_MSK 0x00003f80
+#define IWL_OFDM_AGC_B_POS 7
+#define IWL_OFDM_AGC_CODE_MSK 0x3fe00000
+#define IWL_OFDM_AGC_CODE_POS 20
 #define IWL_OFDM_RSSI_INBAND_A_MSK 0x00ff
-#define IWL_OFDM_RSSI_ALLBAND_A_MSK 0xff00
 #define IWL_OFDM_RSSI_A_POS 0
+#define IWL_OFDM_RSSI_ALLBAND_A_MSK 0xff00
+#define IWL_OFDM_RSSI_ALLBAND_A_POS 8
 #define IWL_OFDM_RSSI_INBAND_B_MSK 0xff0000
-#define IWL_OFDM_RSSI_ALLBAND_B_MSK 0xff000000
 #define IWL_OFDM_RSSI_B_POS 16
-#define IWL_OFDM_RSSI_INBAND_C_MSK 0x00ff
-#define IWL_OFDM_RSSI_ALLBAND_C_MSK 0xff00
-#define IWL_OFDM_RSSI_C_POS 0
+#define IWL_OFDM_RSSI_ALLBAND_B_MSK 0xff000000
+#define IWL_OFDM_RSSI_ALLBAND_B_POS 24
 
 /**
  * struct iwl_rx_phy_info - phy info
@@ -792,6 +801,7 @@ struct iwl_phy_context_cmd {
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
  *	calculation
+ * @mac_active_msk: what MACs were active when the frame was received
  *
  * Before each Rx, the device sends this data. It contains PHY information
  * about the reception of the packet.
@@ -809,7 +819,7 @@ struct iwl_rx_phy_info {
 	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
-	__le16 reserved2;
+	__le16 mac_active_msk;
 	__le16 frame_time;
 } __packed;
 

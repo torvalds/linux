@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -230,6 +230,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
+
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
 
@@ -293,6 +295,11 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(NET_DETECT_PROFILES_CMD),
 	CMD(NET_DETECT_HOTSPOTS_CMD),
 	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
+	CMD(CARD_STATE_NOTIFICATION),
+	CMD(BT_COEX_PRIO_TABLE),
+	CMD(BT_COEX_PROT_ENV),
+	CMD(BT_PROFILE_NOTIFICATION),
+	CMD(BT_CONFIG),
 };
 #undef CMD
 
@@ -363,8 +370,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
 
-	/* TODO: this should really be a TLV */
-	if (cfg->device_family == IWL_DEVICE_FAMILY_7000)
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
 		trans_cfg.bc_table_dword = true;
 
 	if (!iwlwifi_mod_params.wd_disable)
@@ -624,12 +630,8 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	ieee80211_free_txskb(mvm->hw, skb);
 }
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	iwl_mvm_dump_nic_error_log(mvm);
-
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
 	/*
@@ -663,9 +665,21 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	}
 }
 
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	iwl_mvm_dump_nic_error_log(mvm);
+
+	iwl_mvm_nic_restart(mvm);
+}
+
 static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 {
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
 	WARN_ON(1);
+	iwl_mvm_nic_restart(mvm);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {

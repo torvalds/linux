@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -65,7 +65,9 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ip.h>
 #include <net/mac80211.h>
+#include <net/tcp.h>
 
 #include "iwl-op-mode.h"
 #include "iwl-io.h"
@@ -102,10 +104,33 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 	},
 };
 
+#ifdef CONFIG_PM_SLEEP
+static const struct nl80211_wowlan_tcp_data_token_feature
+iwl_mvm_wowlan_tcp_token_feature = {
+	.min_len = 0,
+	.max_len = 255,
+	.bufsize = IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS,
+};
+
+static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
+	.tok = &iwl_mvm_wowlan_tcp_token_feature,
+	.data_payload_max = IWL_WOWLAN_TCP_MAX_PACKET_LEN -
+			    sizeof(struct ethhdr) -
+			    sizeof(struct iphdr) -
+			    sizeof(struct tcphdr),
+	.data_interval_max = 65535, /* __le16 in API */
+	.wake_payload_max = IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN -
+			    sizeof(struct ethhdr) -
+			    sizeof(struct iphdr) -
+			    sizeof(struct tcphdr),
+	.seq = true,
+};
+#endif
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
-	int num_mac, ret;
+	int num_mac, ret, i;
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
@@ -156,11 +181,15 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
 	hw->wiphy->addresses = mvm->addresses;
 	hw->wiphy->n_addresses = 1;
-	num_mac = mvm->nvm_data->n_hw_addrs;
-	if (num_mac > 1) {
-		memcpy(mvm->addresses[1].addr, mvm->addresses[0].addr,
+
+	/* Extract additional MAC addresses if available */
+	num_mac = (mvm->nvm_data->n_hw_addrs > 1) ?
+		min(IWL_MVM_MAX_ADDRESSES, mvm->nvm_data->n_hw_addrs) : 1;
+
+	for (i = 1; i < num_mac; i++) {
+		memcpy(mvm->addresses[i].addr, mvm->addresses[i-1].addr,
 		       ETH_ALEN);
-		mvm->addresses[1].addr[5]++;
+		mvm->addresses[i].addr[5]++;
 		hw->wiphy->n_addresses++;
 	}
 
@@ -206,6 +235,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->wowlan.n_patterns = IWL_WOWLAN_MAX_PATTERNS;
 		hw->wiphy->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
 		hw->wiphy->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
+		hw->wiphy->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
 	}
 #endif
 
@@ -273,12 +303,18 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG) {
+			ret = -EINVAL;
+			break;
+		}
 		ret = iwl_mvm_sta_tx_agg_start(mvm, vif, sta, tid, ssn);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
+		ret = iwl_mvm_sta_tx_agg_stop(mvm, vif, sta, tid);
+		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-		ret = iwl_mvm_sta_tx_agg_stop(mvm, vif, sta, tid);
+		ret = iwl_mvm_sta_tx_agg_flush(mvm, vif, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ret = iwl_mvm_sta_tx_agg_oper(mvm, vif, sta, tid, buf_size);
@@ -557,11 +593,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif)
+static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 tfd_msk = 0, ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -594,12 +628,21 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		 */
 		flush_work(&mvm->sta_drained_wk);
 	}
+}
+
+static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
 
 	/*
 	 * For AP/GO interface, the tear down of the resources allocated to the
-	 * interface should be handled as part of the bss_info_changed flow.
+	 * interface is be handled as part of the stop_ap flow.
 	 */
 	if (vif->type == NL80211_IFTYPE_AP) {
 		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
@@ -762,6 +805,8 @@ static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
 
