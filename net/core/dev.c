@@ -3444,6 +3444,7 @@ ncls:
 		}
 		switch (rx_handler(&skb)) {
 		case RX_HANDLER_CONSUMED:
+			ret = NET_RX_SUCCESS;
 			goto unlock;
 		case RX_HANDLER_ANOTHER:
 			goto another_round;
