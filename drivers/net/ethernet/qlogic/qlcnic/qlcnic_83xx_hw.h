@@ -94,8 +94,23 @@ struct qlcnic_intrpt_config {
 };
 
 struct qlcnic_macvlan_mbx {
-	u8	mac[ETH_ALEN];
+#if defined(__LITTLE_ENDIAN)
+	u8	mac_addr0;
+	u8	mac_addr1;
+	u8	mac_addr2;
+	u8	mac_addr3;
+	u8	mac_addr4;
+	u8	mac_addr5;
 	u16	vlan;
+#elif defined(__BIG_ENDIAN)
+	u8	mac_addr3;
+	u8	mac_addr2;
+	u8	mac_addr1;
+	u8	mac_addr0;
+	u16	vlan;
+	u8	mac_addr5;
+	u8	mac_addr4;
+#endif
 };
 
 struct qlc_83xx_fw_info {

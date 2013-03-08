@@ -31,6 +31,7 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter);
 
 /* Template header */
 struct qlc_83xx_reset_hdr {
+#if defined(__LITTLE_ENDIAN)
 	u16	version;
 	u16	signature;
 	u16	size;
@@ -39,14 +40,31 @@ struct qlc_83xx_reset_hdr {
 	u16	checksum;
 	u16	init_offset;
 	u16	start_offset;
+#elif defined(__BIG_ENDIAN)
+	u16	signature;
+	u16	version;
+	u16	entries;
+	u16	size;
+	u16	checksum;
+	u16	hdr_size;
+	u16	start_offset;
+	u16	init_offset;
+#endif
 } __packed;
 
 /* Command entry header. */
 struct qlc_83xx_entry_hdr {
-	u16 cmd;
-	u16 size;
-	u16 count;
-	u16 delay;
+#if defined(__LITTLE_ENDIAN)
+	u16	cmd;
+	u16	size;
+	u16	count;
+	u16	delay;
+#elif defined(__BIG_ENDIAN)
+	u16	size;
+	u16	cmd;
+	u16	delay;
+	u16	count;
+#endif
 } __packed;
 
 /* Generic poll command */
@@ -60,10 +78,17 @@ struct qlc_83xx_rmw {
 	u32	mask;
 	u32	xor_value;
 	u32	or_value;
+#if defined(__LITTLE_ENDIAN)
 	u8	shl;
 	u8	shr;
 	u8	index_a;
 	u8	rsvd;
+#elif defined(__BIG_ENDIAN)
+	u8	rsvd;
+	u8	index_a;
+	u8	shr;
+	u8	shl;
+#endif
 } __packed;
 
 /* Generic command with 2 DWORD */
