@@ -156,6 +156,37 @@ static int af9033_rd_reg_mask(struct af9033_state *state, u32 reg, u8 *val,
 	return 0;
 }
 
+/* write reg val table using reg addr auto increment */
+static int af9033_wr_reg_val_tab(struct af9033_state *state,
+		const struct reg_val *tab, int tab_len)
+{
+	int ret, i, j;
+	u8 buf[tab_len];
+
+	dev_dbg(&state->i2c->dev, "%s: tab_len=%d\n", __func__, tab_len);
+
+	for (i = 0, j = 0; i < tab_len; i++) {
+		buf[j] = tab[i].val;
+
+		if (i == tab_len - 1 || tab[i].reg != tab[i + 1].reg - 1) {
+			ret = af9033_wr_regs(state, tab[i].reg - j, buf, j + 1);
+			if (ret < 0)
+				goto err;
+
+			j = 0;
+		} else {
+			j++;
+		}
+	}
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
 static u32 af9033_div(struct af9033_state *state, u32 a, u32 b, u32 x)
 {
 	u32 r = 0, c = 0, i;
@@ -306,11 +337,9 @@ static int af9033_init(struct dvb_frontend *fe)
 		break;
 	}
 
-	for (i = 0; i < len; i++) {
-		ret = af9033_wr_reg(state, init[i].reg, init[i].val);
-		if (ret < 0)
-			goto err;
-	}
+	ret = af9033_wr_reg_val_tab(state, init, len);
+	if (ret < 0)
+		goto err;
 
 	/* load tuner specific settings */
 	dev_dbg(&state->i2c->dev, "%s: load tuner specific settings\n",
@@ -371,11 +400,9 @@ static int af9033_init(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	for (i = 0; i < len; i++) {
-		ret = af9033_wr_reg(state, init[i].reg, init[i].val);
-		if (ret < 0)
-			goto err;
-	}
+	ret = af9033_wr_reg_val_tab(state, init, len);
+	if (ret < 0)
+		goto err;
 
 	if (state->cfg.ts_mode == AF9033_TS_MODE_SERIAL) {
 		ret = af9033_wr_reg_mask(state, 0x00d91c, 0x01, 0x01);
