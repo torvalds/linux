@@ -2452,7 +2452,7 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 
 	/* Do not allow empty requests */
 	if (skb_queue_empty(&req->cmd_q))
-		return -EINVAL;
+		return -ENODATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
 	bt_cb(skb)->req.complete = complete;
