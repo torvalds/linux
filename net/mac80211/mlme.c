@@ -87,9 +87,6 @@ MODULE_PARM_DESC(probe_wait_ms,
  */
 #define IEEE80211_SIGNAL_AVE_MIN_COUNT	4
 
-#define TMR_RUNNING_TIMER	0
-#define TMR_RUNNING_CHANSW	1
-
 /*
  * All cfg80211 functions have to be called outside a locked
  * section so that they can acquire a lock themselves... This
@@ -609,6 +606,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
 	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
+	ieee80211_apply_vhtcap_overrides(sdata, &vht_cap);
 
 	/* determine capability flags */
 	cap = vht_cap.cap;
@@ -646,6 +644,9 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 								mask) >> shift;
 		our_mcs = (le16_to_cpu(vht_cap.vht_mcs.rx_mcs_map) &
 								mask) >> shift;
+
+		if (our_mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+			continue;
 
 		switch (ap_mcs) {
 		default:
@@ -1035,14 +1036,8 @@ static void ieee80211_chswitch_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (sdata->local->quiescing) {
-		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.chswitch_work);
 }
 
 void
@@ -1799,9 +1794,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.p2p_ctwindow = 0;
 	sdata->vif.bss_conf.p2p_oppps = false;
 
-	/* on the next assoc, re-program HT parameters */
+	/* on the next assoc, re-program HT/VHT parameters */
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
+	memset(&ifmgd->vht_capa, 0, sizeof(ifmgd->vht_capa));
+	memset(&ifmgd->vht_capa_mask, 0, sizeof(ifmgd->vht_capa_mask));
 
 	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
 
@@ -1826,8 +1823,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.timer);
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
-
-	sdata->u.mgd.timers_running = 0;
 
 	sdata->vif.bss_conf.dtim_period = 0;
 
@@ -3137,15 +3132,8 @@ static void ieee80211_sta_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_local *local = sdata->local;
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
@@ -3496,68 +3484,6 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 		ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 	}
 }
-
-#ifdef CONFIG_PM
-void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
-	/*
-	 * we need to use atomic bitops for the running bits
-	 * only because both timers might fire at the same
-	 * time -- the code here is properly synchronised.
-	 */
-
-	cancel_work_sync(&ifmgd->request_smps_work);
-
-	cancel_work_sync(&ifmgd->monitor_work);
-	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
-	cancel_work_sync(&ifmgd->csa_connection_drop_work);
-	if (del_timer_sync(&ifmgd->timer))
-		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
-
-	cancel_work_sync(&ifmgd->chswitch_work);
-	if (del_timer_sync(&ifmgd->chswitch_timer))
-		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
-
-	/* these will just be re-established on connection */
-	del_timer_sync(&ifmgd->conn_mon_timer);
-	del_timer_sync(&ifmgd->bcn_mon_timer);
-}
-
-void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
-	mutex_lock(&ifmgd->mtx);
-	if (!ifmgd->associated) {
-		mutex_unlock(&ifmgd->mtx);
-		return;
-	}
-
-	if (sdata->flags & IEEE80211_SDATA_DISCONNECT_RESUME) {
-		sdata->flags &= ~IEEE80211_SDATA_DISCONNECT_RESUME;
-		mlme_dbg(sdata, "driver requested disconnect after resume\n");
-		ieee80211_sta_connection_lost(sdata,
-					      ifmgd->associated->bssid,
-					      WLAN_REASON_UNSPECIFIED,
-					      true);
-		mutex_unlock(&ifmgd->mtx);
-		return;
-	}
-	mutex_unlock(&ifmgd->mtx);
-
-	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
-		add_timer(&ifmgd->timer);
-	if (test_and_clear_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running))
-		add_timer(&ifmgd->chswitch_timer);
-	ieee80211_sta_reset_beacon_monitor(sdata);
-
-	mutex_lock(&sdata->local->mtx);
-	ieee80211_restart_sta_timer(sdata);
-	mutex_unlock(&sdata->local->mtx);
-}
-#endif
 
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
@@ -4064,6 +3990,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 	}
 
+	if (req->flags & ASSOC_REQ_DISABLE_VHT)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
@@ -4086,6 +4015,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
 	memcpy(&ifmgd->ht_capa_mask, &req->ht_capa_mask,
 	       sizeof(ifmgd->ht_capa_mask));
+
+	memcpy(&ifmgd->vht_capa, &req->vht_capa, sizeof(ifmgd->vht_capa));
+	memcpy(&ifmgd->vht_capa_mask, &req->vht_capa_mask,
+	       sizeof(ifmgd->vht_capa_mask));
 
 	if (req->ie && req->ie_len) {
 		memcpy(assoc_data->ie, req->ie, req->ie_len);
@@ -4314,6 +4247,17 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	/*
+	 * Make sure some work items will not run after this,
+	 * they will not do anything but might not have been
+	 * cancelled when disconnecting.
+	 */
+	cancel_work_sync(&ifmgd->monitor_work);
+	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
+	cancel_work_sync(&ifmgd->request_smps_work);
+	cancel_work_sync(&ifmgd->csa_connection_drop_work);
+	cancel_work_sync(&ifmgd->chswitch_work);
 
 	mutex_lock(&ifmgd->mtx);
 	if (ifmgd->assoc_data)

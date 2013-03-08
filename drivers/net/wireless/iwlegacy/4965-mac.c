@@ -2258,7 +2258,7 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	tid_data = &il->stations[sta_id].tid[tid];
-	*ssn = SEQ_TO_SN(tid_data->seq_number);
+	*ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 	il_set_swq_id(&il->txq[txq_id], il4965_get_ac_from_tid(tid), txq_id);
 	spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -2408,7 +2408,7 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 		/* aggregated HW queue */
 		if (txq_id == tid_data->agg.txq_id &&
 		    q->read_ptr == q->write_ptr) {
-			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
+			u16 ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = il4965_get_fifo_from_tid(tid);
 			D_HT("HW queue empty: continue DELBA flow\n");
 			il4965_txq_agg_disable(il, txq_id, ssn, tx_fifo);
@@ -2627,7 +2627,8 @@ il4965_get_ra_sta_id(struct il_priv *il, struct ieee80211_hdr *hdr)
 static inline u32
 il4965_get_scd_ssn(struct il4965_tx_resp *tx_resp)
 {
-	return le32_to_cpup(&tx_resp->u.status + tx_resp->frame_count) & MAX_SN;
+	return le32_to_cpup(&tx_resp->u.status +
+			    tx_resp->frame_count) & IEEE80211_MAX_SN;
 }
 
 static inline u32
@@ -2717,15 +2718,15 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 			hdr = (struct ieee80211_hdr *) skb->data;
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
-			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
+			if (idx != (IEEE80211_SEQ_TO_SN(sc) & 0xff)) {
 				IL_ERR("BUG_ON idx doesn't match seq control"
 				       " idx=%d, seq_idx=%d, seq=%d\n", idx,
-				       SEQ_TO_SN(sc), hdr->seq_ctrl);
+				       IEEE80211_SEQ_TO_SN(sc), hdr->seq_ctrl);
 				return -1;
 			}
 
 			D_TX_REPLY("AGG Frame i=%d idx %d seq=%d\n", i, idx,
-				   SEQ_TO_SN(sc));
+				   IEEE80211_SEQ_TO_SN(sc));
 
 			sh = idx - start;
 			if (sh > 64) {

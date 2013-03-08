@@ -1581,7 +1581,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 * Check here that the packets are in the right place on the ring.
 	 */
 #ifdef CONFIG_IWLWIFI_DEBUG
-	wifi_seq = SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	wifi_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	WARN_ONCE((iwl_read_prph(trans, SCD_AGGR_SEL) & BIT(txq_id)) &&
 		  ((wifi_seq & 0xff) != q->write_ptr),
 		  "Q: %d WiFi Seq %d tfdNum %d",

@@ -107,7 +107,7 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 
 	lockdep_assert_held(&local->mtx);
 
-	active = !list_empty(&local->chanctx_list);
+	active = !list_empty(&local->chanctx_list) || local->monitors;
 
 	if (!local->ops->remain_on_channel) {
 		list_for_each_entry(roc, &local->roc_list, list) {
@@ -485,8 +485,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
-		if (local->ops->napi_poll)
-			napi_enable(&local->napi);
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
@@ -541,6 +539,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 		ieee80211_adjust_monitor_flags(sdata, 1);
 		ieee80211_configure_filter(local);
+		mutex_lock(&local->mtx);
+		ieee80211_recalc_idle(local);
+		mutex_unlock(&local->mtx);
 
 		netif_carrier_on(dev);
 		break;
@@ -812,6 +813,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_adjust_monitor_flags(sdata, -1);
 		ieee80211_configure_filter(local);
+		mutex_lock(&local->mtx);
+		ieee80211_recalc_idle(local);
+		mutex_unlock(&local->mtx);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* relies on synchronize_rcu() below */
@@ -832,13 +836,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		rcu_barrier();
 		sta_info_flush_cleanup(sdata);
 
-		skb_queue_purge(&sdata->skb_queue);
-
 		/*
 		 * Free all remaining keys, there shouldn't be any,
-		 * except maybe group keys in AP more or WDS?
+		 * except maybe in WDS mode?
 		 */
 		ieee80211_free_keys(sdata);
+
+		/* fall through */
+	case NL80211_IFTYPE_AP:
+		skb_queue_purge(&sdata->skb_queue);
 
 		drv_remove_interface_debugfs(local, sdata);
 
@@ -851,8 +857,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 
 	if (local->open_count == 0) {
-		if (local->ops->napi_poll)
-			napi_disable(&local->napi);
 		ieee80211_clear_tx_pending(local);
 		ieee80211_stop_device(local);
 
@@ -1541,6 +1545,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
 	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
 			  ieee80211_dfs_cac_timer_work);
+	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
+			  ieee80211_delayed_tailroom_dec);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;

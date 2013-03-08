@@ -1081,7 +1081,8 @@ static void iwl_mvm_mac_update_tkip_key(struct ieee80211_hw *hw,
 static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel,
-		       int duration)
+		       int duration,
+		       enum ieee80211_roc_type type)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct cfg80211_chan_def chandef;
@@ -1092,8 +1093,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		return -EINVAL;
 	}
 
-	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d)\n", channel->hw_value,
-			   duration);
+	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
+			   duration, type);
 
 	mutex_lock(&mvm->mutex);
 
