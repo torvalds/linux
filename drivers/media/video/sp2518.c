@@ -1,13 +1,17 @@
 
 /*
-o* Driver for MT9M001 CMOS Image Sensor from Micron
+ * Driver for SP2518 CMOS Image Sensor from Superpix
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- */
+*
+*  History                                                Author                Data
+*  First Version                                        yuanjianping       2012-09-20
+*  Set P0:0x14 = 0x40                             zengchaohui       2012-09-20
+*/
 
 #include <linux/videodev2.h>
 #include <linux/slab.h>
@@ -47,13 +51,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_V4L2_IDENT V4L2_IDENT_SP2518
 #define SENSOR_ID 0x53
 #define SENSOR_ID_REG	0x02
-#define SENSOR_MIN_WIDTH    640
-#define SENSOR_MIN_HEIGHT   480
+#define SENSOR_MIN_WIDTH    176//640
+#define SENSOR_MIN_HEIGHT   144//480
 #define SENSOR_MAX_WIDTH    1600
 #define SENSOR_MAX_HEIGHT   1200
 #define SENSOR_INIT_WIDTH	  800			/* Sensor pixel size for sensor_init_data array */
-#define SENSOR_INIT_HEIGHT  600
-#define SENSOR_INIT_WINSEQADR sensor_vga
+#define SENSOR_INIT_HEIGHT    600
+#define SENSOR_INIT_WINSEQADR sensor_svga
 #define SENSOR_INIT_PIXFMT V4L2_MBUS_FMT_YUYV8_2X8
 
 #define CONFIG_SENSOR_WhiteBalance	1
@@ -96,14 +100,19 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_INIT_IS_OK    (0x01<<28)
 
 //AE
-#define  SP2518_P0_0xf7  0x78///0x80//78
-#define  SP2518_P0_0xf8  0x6e///0x74//6e
-#define  SP2518_P0_0xf9  0x74///0x80//74
-#define  SP2518_P0_0xfa  0x6a///0x74//6a
+#define  SP2518_P0_0xf7  0x80//78
+
+#define  SP2518_P0_0xf8  0x74//6e
+
+#define  SP2518_P0_0xf9  0x80//74
+
+#define  SP2518_P0_0xfa  0x74//6a
 
 //HEQ
-#define  SP2518_P0_0xdd  0x7c	//0x80 modify by sp_yjp,20120814
-#define  SP2518_P0_0xde  0x90	//0x95 modify by sp_yjp,20120814
+
+#define  SP2518_P0_0xdd  0x80
+
+#define  SP2518_P0_0xde  0x95
 
 //auto lum
 #define SP2518_NORMAL_Y0ffset  	  0x10	//0x0f	 modify by sp_yjp,20120813
@@ -122,7 +131,6 @@ struct reginfo
 /* init 640X480 VGA */
 static struct reginfo sensor_init_data[] =
 {
-	#if 1
 	{0xfd,0x00},
 	{0x1b,0x1a},//maximum drv ability //0x02 modify by sp_yjp,20120809
 	{0x0e,0x01},
@@ -131,7 +139,7 @@ static struct reginfo sensor_init_data[] =
 	{0x10,0x2e},
 	{0x11,0x00},
 	{0x12,0x4f},
-	{0x14,0x20},
+	{0x14,0x40},// 0x20 zch 20120920
 	{0x16,0x02},
 	{0x17,0x10},
 	{0x1a,0x1f},
@@ -141,7 +149,7 @@ static struct reginfo sensor_init_data[] =
 	{0x25,0x10},
 	{0x26,0x25},
 	{0x27,0x6d},
-	{0x2c,0x31},//Ronlus remove balck dot0x45},
+	{0x2c,0x23},//31 Ronlus remove balck dot0x45},
 	{0x2d,0x75},
 	{0x2e,0x38},//sxga 0x18
 
@@ -192,44 +200,7 @@ static struct reginfo sensor_init_data[] =
 	{0x95,0x38},
 	{0x9c,0x6c},
 	{0x9d,0x38},	
-
-
 	#if 0
-	///SP2518 UXGA 24MEclk 3倍频 1分频 50Hz fix 11fps
-	{0xfd , 0x00},
-	{0x03 , 0x03},
-	{0x04 , 0xa8},
-	{0x05 , 0x00},
-	{0x06 , 0x6d},
-	{0x07 , 0x00},
-	{0x08 , 0x6d},
-	{0x09 , 0x00},
-	{0x0a , 0xe4},
-	{0x2f , 0x00},
-	{0x30 , 0x08},
-	{0xf0 , 0x9c},
-	{0xf1 , 0x00},
-	{0xfd , 0x01},
-	{0x90 , 0x09},
-	{0x92 , 0x01},
-	{0x98 , 0x9c},
-	{0x99 , 0x00},
-	{0x9a , 0x01},
-	{0x9b , 0x00},
-	///Status
-	{0xfd , 0x01},
-	{0xce , 0x7c},
-	{0xcf , 0x05},
-	{0xd0 , 0x7c},
-	{0xd1 , 0x05},
-	{0xd7 , 0x98},
-	{0xd8 , 0x00},
-	{0xd9 , 0x9c},
-	{0xda , 0x00},
-	{0xfd , 0x00},
-	#endif
-
-	#if 1
 	///SP2518 UXGA 24MEclk 3倍频 1分频 50Hz fix 10fps
 	{0xfd , 0x00},
 	{0x03 , 0x03},
@@ -257,83 +228,47 @@ static struct reginfo sensor_init_data[] =
 	{0xcf , 0x05},
 	{0xd0 , 0xaa},
 	{0xd1 , 0x05},
-	{0xd7 , 0x8d},
+	{0xd7 , 0x93},//8d
 	{0xd8 , 0x00},
-	{0xd9 , 0x91},
+	{0xd9 , 0x97},//91
 	{0xda , 0x00},
 	{0xfd , 0x00},
 	#endif
 	
-	
-	#if 0
-	/// UXGA 24MEclk 3倍频 1分频 50Hz fix 9fps
-	{0xfd , 0x00},
-	{0x03 , 0x03},
-	{0x04 , 0x42},
-	{0x05 , 0x00},
-	{0x06 , 0xf0},
-	{0x07 , 0x00},
-	{0x08 , 0xf0},
-	{0x09 , 0x01},
-	{0x0a , 0x71},
-	{0x2f , 0x00},
-	{0x30 , 0x08},
-	{0xf0 , 0x8b},
-	{0xf1 , 0x00},
-	{0xfd , 0x01},
-	{0x90 , 0x0b},
-	{0x92 , 0x01},
-	{0x98 , 0x8b},
-	{0x99 , 0x00},
-	{0x9a , 0x01},
-	{0x9b , 0x00},
-	///Status  
-	{0xfd , 0x01},
-	{0xce , 0xf9},
-	{0xcf , 0x05},
-	{0xd0 , 0xf9},
-	{0xd1 , 0x05},
-	{0xd7 , 0x87},
-	{0xd8 , 0x00},
-	{0xd9 , 0x8b},
-	{0xda , 0x00},
-	{0xfd , 0x00},
-	#endif
-	
-	#if 0
-	/*24*3pll 8~13fps 50hz*/
-	{0xfd , 0x00},
-	{0x03 , 0x03},
-	{0x04 , 0xf6},
-	{0x05 , 0x00},
-	{0x06 , 0x00},
-	{0x07 , 0x00},
-	{0x08 , 0x00},
-	{0x09 , 0x00},
-	{0x0a , 0x8b},
-	///////////////////SP2518_write_cmos_sensor(0x2f , 0x00},	modify by sp_yjp,20120809
-	{0x30 , 0x08},	//0x08 modify by sp_yjp,20120809
-	{0xf0 , 0xa9},
-	{0xf1 , 0x00},
-	{0xfd , 0x01},
-	{0x90 , 0x0c},
-	{0x92 , 0x01},
-	{0x98 , 0xa9},
-	{0x99 , 0x00},
-	{0x9a , 0x01},
-	{0x9b , 0x00},
-	
-	//Status
-	{0xfd , 0x01},
-	{0xce , 0xec},
-	{0xcf , 0x07},
-	{0xd0 , 0xec},
-	{0xd1 , 0x07},
-	{0xd7 , 0xa5},
-	{0xd8 , 0x00},
-	{0xd9 , 0xa9},
-	{0xda , 0x00},
-	{0xfd , 0x00},
+	#if 1
+	/*24*3pll 13-13fps 50hz*/
+		
+	{0xfd,0x00},
+	{0x03,0x03},
+	{0x04,0xf6},
+	{0x05,0x00},
+	{0x06,0x00},
+	{0x07,0x00},
+	{0x08,0x00},
+	{0x09,0x00},
+	{0x0a,0x8b},
+	{0x2f,0x00},
+	{0x30,0x08},
+	{0xf0,0xa9},
+	{0xf1,0x00},
+	{0xfd,0x01},
+	{0x90,0x07},
+	{0x92,0x01},
+	{0x98,0xa9},
+	{0x99,0x00},
+	{0x9a,0x01},
+	{0x9b,0x00},
+	{0xfd,0x01},
+	{0xce,0x9f},
+	{0xcf,0x04},
+	{0xd0,0x9f},
+	{0xd1,0x04},
+	{0xd7,0xa5},
+	{0xd8,0x00},
+	{0xd9,0xa9},
+	{0xda,0x00},
+	{0xfd,0x00},
+
 	#endif
 
 	{0xfd,0x01},
@@ -441,6 +376,11 @@ static struct reginfo sensor_init_data[] =
 	{0x1a,0x80},
 	{0x1b,0x80},
 	{0x43,0x80},
+        //outdoor
+        {0x00,0xd4},
+        {0x01,0xb0},
+        {0x02,0x90},
+        {0x03,0x78},
 	//d65
 	{0x35,0xd6},//d6;b0
 	{0x36,0xf0},//f0;d1;e9
@@ -495,14 +435,14 @@ static struct reginfo sensor_init_data[] =
 	{0xc0,0xb0},
 	{0xc1,0xf0},
 	
-	{0xd3,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xd4,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xd6,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xd7,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xd8,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xd9,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xda,0x68},	//0x77 modify by sp_yjp,20120814
-	{0xdb,0x68},	//0x77 modify by sp_yjp,20120814
+        {0xd3,0x77},
+        {0xd4,0x77},
+        {0xd6,0x77},
+        {0xd7,0x77},
+        {0xd8,0x77},
+        {0xd9,0x77},
+        {0xda,0x77},
+        {0xdb,0x77},
 	//uv_dif
 	{0xfd,0x00},
 	{0xf3,0x03},
@@ -551,6 +491,51 @@ static struct reginfo sensor_init_data[] =
 	{0x88,0xEF},//f1
 	{0x89,0xF7},//f9
 	{0x8a,0xFF},//ff
+ /*//光斑过度好
+ //gamma1
+	{0xfd,0x00},
+	{0x8b,0x00},
+	{0x8c,0x14},
+	{0x8d,0x24},
+	{0x8e,0x3A},
+	{0x8f,0x59},
+	{0x90,0x70},
+	{0x91,0x85},
+	{0x92,0x96},
+	{0x93,0xA6},
+	{0x94,0xB3},
+	{0x95,0xBE},
+	{0x96,0xC9},
+	{0x97,0xD2},
+	{0x98,0xDB},
+	{0x99,0xE3},
+	{0x9a,0xEB},
+	{0x9b,0xF2},
+	{0xfd,0x01},
+	{0x8d,0xF9},
+	{0x8e,0xFF},
+	//gamma2   
+	{0xfd,0x00},
+	{0x78,0x00},
+	{0x79,0x14},
+	{0x7a,0x24},
+	{0x7b,0x3A},
+	{0x7c,0x59},
+	{0x7d,0x70},
+	{0x7e,0x85},
+	{0x7f,0x96},
+	{0x80,0xA6},
+	{0x81,0xB3},
+	{0x82,0xBE},
+	{0x83,0xC9},
+	{0x84,0xD2},
+	{0x85,0xDB},
+	{0x86,0xE3},
+	{0x87,0xEB},
+	{0x88,0xF2},
+	{0x89,0xF9},
+	{0x8a,0xFF},    
+*/
 	//gamma_ae  
 	{0xfd,0x01},
 	{0x96,0x46},
@@ -614,12 +599,13 @@ static struct reginfo sensor_init_data[] =
 	
 	{0x35,0x40},//3        
 	
-	{0x1b,0x02},
+	{0x1b,0x1a},
 	{0xe7,0x03},
 	{0xe7,0x00},
 
 	//SP2518_config_window(WINDOW_SIZE_VGA}
-	#if 1
+	#if 1	//
+	/*
 	{0xfd,0x00},
 	{0x4b,0x00},
 	{0x4c,0x00},
@@ -640,18 +626,36 @@ static struct reginfo sensor_init_data[] =
 	{0x0c,0x02},	//640
 	{0x0d,0x80},
 	{0x0e,0x01},
-	{0xfd,0x00},	
-	#else	
 	{0xfd,0x00},
-	{0x4b,0x00},
-	{0x4c,0x00},
+	*/
+	#else	 //uxga
+	{0xfd,0x00},	
 	{0x47,0x00},
 	{0x48,0x00},
-	{0x4d,0x06},
-	{0x4e,0x40},
 	{0x49,0x04},
 	{0x4a,0xb0},
 	
+	{0x4b,0x00},
+	{0x4c,0x00},	
+	{0x4d,0x06},
+	{0x4e,0x40},	
+
+	{0xfd,0x01},
+	{0x0e,0x00},
+	{0xfd,0x00},
+	#endif
+	//SVGA
+	{0xfd,0x00},	
+
+	{0x47,0x00},
+	{0x48,0x00},
+	{0x49,0x04},
+	{0x4a,0xb0},
+	
+	{0x4b,0x00},
+	{0x4c,0x00},	
+	{0x4d,0x06},
+	{0x4e,0x40},	
 	{0xfd,0x01},
 	{0x06,0x00},
 	{0x07,0x40},
@@ -661,12 +665,11 @@ static struct reginfo sensor_init_data[] =
 	{0x0b,0x58},
 	{0x0c,0x03},	//800
 	{0x0d,0x20},
-	
 	{0x0e,0x01},
-	#endif
-	#endif
+	{0xfd,0x00},
 
-	{0x5d,0x0e},	
+	
+	{0x5d,0x0e},	//vsync delay
 	{0xff,0xff}//The end flag
 };
 
@@ -687,9 +690,7 @@ static struct reginfo sensor_uxga[] =
 
 	{0xfd,0x01},
 	{0x0e,0x00},
-	{0xfd,0x00},
-	{0xfd,0x00},
-	
+	{0xfd,0x00},	
 	{0xff,0xff}//The end flag
 };
 
@@ -697,6 +698,7 @@ static struct reginfo sensor_uxga[] =
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
+#if 0
 	{0xfd,0x00},	
 	{0x47,0x00},
 	{0x48,0x50},
@@ -711,12 +713,13 @@ static struct reginfo sensor_sxga[] =
 	{0xfd,0x01},
 	{0x0e,0x00},
 	{0xfd,0x00},
+#endif	
 	{0xff,0xff}
 };
 
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
-{	
+{
 	{0xfd,0x00},	
 
 	{0x47,0x00},
@@ -739,13 +742,13 @@ static struct reginfo sensor_svga[] =
 	{0x0d,0x20},
 	{0x0e,0x01},
 	{0xfd,0x00},
-	
 	{0xff,0xff}//The end flag
 };
 
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
+#if 0
 	{0xfd,0x00},
 		
 	{0x47,0x00},
@@ -769,7 +772,7 @@ static struct reginfo sensor_vga[] =
 	{0x0d,0x80},
 	{0x0e,0x01},
 	{0xfd,0x00},	
-	
+#endif	
 	{0xff,0xff}//The end flag
 
 
@@ -779,13 +782,13 @@ static struct reginfo sensor_vga[] =
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
 {
-    {0x00, 0x00},
-    //{0xff,0xff}
+       {0xfd, 0x00},{0xff,0xff}
 };
 
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
 {
+#if 0
 	{0xfd,0x00},
 		
 	{0x47,0x00},
@@ -811,24 +814,27 @@ static  struct reginfo sensor_qvga[] =
 	
 	{0x0e,0x01},
 	{0xfd,0x00},	
-
+#endif
 	{0xff,0xff}//The end flag
 };
 
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
 {
-    {0x00, 0x00}//,{0xff,0xff}
+    //{0xfd, 0x00},
+    {0xff,0xff}
 };
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
-    {0xfd, 0x00},{0xff,0xff}
+    //{0xfd, 0x00},
+    {0xff,0xff}
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
-    {0xfd, 0x00},{0xff,0xff}
+    //{0xfd, 0x00},
+    {0xff,0xff}
 };
 
 ///=========SP2518-modify by sp_yjp,20120529=================
@@ -919,7 +925,6 @@ static  struct reginfo sensor_Brightness2[]=
 {
     	{0xfd, 0x00},
 	{0xdc, 0x00},
-	{0xfd, 0x00},
 	{0xff, 0xff}
 };
 
@@ -1277,36 +1282,39 @@ static  struct reginfo sensor_SceneAuto[] =
 	{0xb2,SP2518_NORMAL_Y0ffset},
 	{0xb3,0x1f},
 
-	///SP2518 UXGA 24MEclk 3PLL 50Hz fix 10fps
-	{0xfd , 0x00},
-	{0x03 , 0x03},
-	{0x04 , 0x66},
-	{0x05 , 0x00},
-	{0x06 , 0x8b},
-	{0x07 , 0x00},
-	{0x08 , 0x8b},
-	{0x09 , 0x01},
-	{0x0a , 0x3b},
-	{0xf0 , 0x91},
-	{0xf1 , 0x00},
-	{0xfd , 0x01},
-	{0x90 , 0x0a},
-	{0x92 , 0x01},
-	{0x98 , 0x91},
-	{0x99 , 0x00},
-	{0x9a , 0x01},
-	{0x9b , 0x00},
-	///Status 
-	{0xfd , 0x01},
-	{0xce , 0xaa},
-	{0xcf , 0x05},
-	{0xd0 , 0xaa},
-	{0xd1 , 0x05},
-	{0xd7 , 0x8d},
-	{0xd8 , 0x00},
-	{0xd9 , 0x91},
-	{0xda , 0x00},
-	{0xfd , 0x00},
+	//SP2518 UXGA 24MEclk 3PLL 50Hz fix13fps
+		
+	{0xfd,0x00},
+	{0x03,0x03},
+	{0x04,0xf6},
+	{0x05,0x00},
+	{0x06,0x00},
+	{0x07,0x00},
+	{0x08,0x00},
+	{0x09,0x00},
+	{0x0a,0x8b},
+	{0x2f,0x00},
+	{0x30,0x08},
+	{0xf0,0xa9},
+	{0xf1,0x00},
+	{0xfd,0x01},
+	{0x90,0x07},
+	{0x92,0x01},
+	{0x98,0xa9},
+	{0x99,0x00},
+	{0x9a,0x01},
+	{0x9b,0x00},
+	{0xfd,0x01},
+	{0xce,0x9f},
+	{0xcf,0x04},
+	{0xd0,0x9f},
+	{0xd1,0x04},
+	{0xd7,0xa5},
+	{0xd8,0x00},
+	{0xd9,0xa9},
+	{0xda,0x00},
+	{0xfd,0x00},
+
 	#endif
 	
 	{0xfd, 0x00},
@@ -1345,9 +1353,9 @@ static  struct reginfo sensor_SceneNight[] =
 	{0xcf , 0x05},
 	{0xd0 , 0x50},
 	{0xd1 , 0x05},
-	{0xd7 , 0x51},
+	{0xd7 , 0x57},//51
 	{0xd8 , 0x00},
-	{0xd9 , 0x55},
+	{0xd9 , 0x5b},//55
 	{0xda , 0x00},
 	#endif
 	 
@@ -1783,11 +1791,13 @@ static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 }
 
 /* write a array of registers  */
+#if 1
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
     int err;
     int i = 0;
 
+    //for(i=0; i < sizeof(sensor_init_data) / 2;i++)
 	while((regarray[i].reg != 0xff) || (regarray[i].val != 0xff))
     {
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
@@ -1801,28 +1811,51 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
     
     return 0;
 }
+#else
+static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
+{
+    int err;
+    int i = 0;
+	u8 val_read;
+    while (regarray[i].reg != 0)
+    {
+        err = sensor_write(client, regarray[i].reg, regarray[i].val);
+        if (err != 0)
+        {
+            SENSOR_TR("%s..write failed current i = %d\n", SENSOR_NAME_STRING(),i);
+            return err;
+        }
+		err = sensor_read(client, regarray[i].reg, &val_read);
+		SENSOR_TR("%s..reg[0x%x]=0x%x,0x%x\n", SENSOR_NAME_STRING(),regarray[i].reg, val_read, regarray[i].val);
+        i++;
+    }
+    return 0;
+}
+#endif
+
 #if CONFIG_SENSOR_I2C_RDWRCHK
 static int sensor_check_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int ret;
-    int i = 0;
+  int ret;
+  int i = 0;
+  
+  u8 value;
+  
+  SENSOR_DG("%s >>>>>>>>>>>>>>>>>>>>>>\n",__FUNCTION__);
+  for(i=0;i<sizeof(sensor_init_data) / 2;i++)
+  	{
+     ret = sensor_read(client,regarray[i].reg,&value);
+	 if(ret !=0)
+	 {
+	  SENSOR_TR("read value failed\n");
 
-    u8 value;
-
-    while((regarray[i].reg != 0xff) || (regarray[i].val != 0xff))
-    {
-        ret = sensor_read(client,regarray[i].reg,&value);
-        if(ret !=0)
-        {
-            SENSOR_TR("read value failed\n");
-
-        }
-        if(regarray[i].val != value)
-        {
-            SENSOR_DG("%s reg[0x%x] check err,writte :0x%x  read:0x%x\n",__FUNCTION__,regarray[i].reg,regarray[i].val,value);
-        }
-
-    }
+	 }
+	 if(regarray[i].val != value)
+	 {
+	  SENSOR_DG("%s reg[0x%x] check err,writte :0x%x  read:0x%x\n",__FUNCTION__,regarray[i].reg,regarray[i].val,value);
+	 }
+	 
+  }
   
   	
   return 0;
@@ -1842,9 +1875,10 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 				ret = icl->powerdown(icd->pdev, on);
 				if (ret == RK29_CAM_IO_SUCCESS) {
 					if (on == 0) {
-						mdelay(2);
+						mdelay(20);    // 2 modify by sp_yjp,20120831
 						if (icl->reset)
 							icl->reset(icd->pdev);
+						mdelay(50);    // add by sp_yjp,20120831
 					}
 				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
 					ret = -ENODEV;
@@ -2008,8 +2042,7 @@ static int sensor_deactivate(struct i2c_client *client)
 }
 static  struct reginfo sensor_power_down_sequence[]=
 {
-    {0xfd,0x00},
-    {0xff,0xff}
+    {0xfd,0x00},{0xff,0xff}
 };
 static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg)
 {
@@ -2162,43 +2195,53 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     set_w = mf->width;
     set_h = mf->height;
 
-	if (((set_w <= 176) && (set_h <= 144)) && sensor_qcif[0].reg)
+	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=0xff))
 	{
 		winseqe_set_addr = sensor_qcif;
         set_w = 176;
         set_h = 144;
 	}
-	else if (((set_w <= 320) && (set_h <= 240)) && sensor_qvga[0].reg)
+	else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=0xff))
     {
         winseqe_set_addr = sensor_qvga;
         set_w = 320;
         set_h = 240;
     }
-    else if (((set_w <= 352) && (set_h<= 288)) && sensor_cif[0].reg)
+    else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=0xff))
     {
         winseqe_set_addr = sensor_cif;
         set_w = 352;
         set_h = 288;
     }
-    else if (((set_w <= 640) && (set_h <= 480)) && sensor_vga[0].reg)
+    else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=0xff))
     {
         winseqe_set_addr = sensor_vga;
-        set_w = 640-16;
-        set_h = 480-16;
+        set_w = 640;
+        set_h = 480;
     }
-    else if (((set_w <= 800) && (set_h <= 600)) && sensor_svga[0].reg)
+    else if (((set_w <= 800) && (set_h <= 600)))
     {
-        winseqe_set_addr = sensor_svga;
-        set_w = 800;
-        set_h = 600;
+        if (sensor_svga[0].reg!=0xff) {
+            winseqe_set_addr = sensor_svga;
+            set_w = 800-16;
+            set_h = 600-12;
+        } else if (sensor_vga[0].reg!=0xff) {
+            winseqe_set_addr = sensor_vga;
+            set_w = 640-16;
+            set_h = 480-12;
+        } else if (sensor_uxga[0].reg!=0xff) {
+            winseqe_set_addr = sensor_uxga;
+            set_w = 1600-16;
+            set_h = 1200-12;
+        }
     }
-    else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
+    else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=0xff))
     {
         winseqe_set_addr = sensor_sxga;
         set_w = 1280;
         set_h = 1024;
     }
-    else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
+    else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=0xff))
     {
         winseqe_set_addr = sensor_uxga;
         set_w = 1600;
@@ -2211,7 +2254,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_h = SENSOR_INIT_HEIGHT;		
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,mf->width,mf->height);
     }
+    printk("%s(%d): %dx%d -> %dx%d\n",__FUNCTION__,__LINE__, mf->width,mf->height,set_w,set_h);
 
+    printk("win: %p %p %p %p %p %p\n",winseqe_set_addr,sensor->info_priv.winseqe_cur_addr,
+        sensor_uxga,sensor_svga,sensor_vga,sensor_sxga);
+
+    
     if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) {
         #if CONFIG_SENSOR_Flash
         if (sensor_fmt_capturechk(sd,mf) == true) {      /* ddl@rock-chips.com : Capture */
@@ -2304,40 +2352,54 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     else if (mf->width < SENSOR_MIN_WIDTH)
         mf->width = SENSOR_MIN_WIDTH;
 
+
+    if ((mf->width == 320) && (mf->height == 240)) {
+        printk("%s(%d): qvga ERROR\n",__FUNCTION__,__LINE__);
+        return -1;
+    }
     set_w = mf->width;
     set_h = mf->height;
 
-	if (((set_w <= 176) && (set_h <= 144)) && sensor_qcif[0].reg)
+	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=0xff))
 	{
         set_w = 176;
         set_h = 144;
 	}
-	else if (((set_w <= 320) && (set_h <= 240)) && sensor_qvga[0].reg)
+	else if (((set_w == 320) && (set_h == 240)))// && (sensor_qvga[0].reg!=0xff))
     {
         set_w = 320;
         set_h = 240;
+        ret = -1;
     }
-    else if (((set_w <= 352) && (set_h<= 288)) && sensor_cif[0].reg)
+    else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=0xff))
     {
         set_w = 352;
         set_h = 288;
     }
-    else if (((set_w <= 640) && (set_h <= 480)) && sensor_vga[0].reg)
+    else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=0xff))
     {
         set_w = 640;
         set_h = 480;
     }
-    else if (((set_w <= 800) && (set_h <= 600)) && sensor_svga[0].reg)
+    else if (((set_w <= 800) && (set_h <= 600)))
     {
-        set_w = 800;
-        set_h = 600;
+        if (sensor_svga[0].reg!=0xff) {
+            set_w = 800-16;
+            set_h = 600-12;
+        } else if (sensor_vga[0].reg!=0xff) {
+            set_w = 640-16;
+            set_h = 480-12;
+        } else if (sensor_uxga[0].reg!=0xff) {
+            set_w = 1600-16;
+            set_h = 1200-12;
+        }
     }
-    else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
+    else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=0xff))
     {
         set_w = 1280;
         set_h = 1024;
     }
-    else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
+    else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=0xff))
     {
         set_w = 1600;
         set_h = 1200;
@@ -3068,9 +3130,10 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		ret = -ENODEV;
 		goto sensor_video_probe_err;
 	}
-	msleep(100);
+	msleep(10);
 
     /* check if it is an sensor sensor */
+    ////////ret = sensor_read(client, 0x00, &pid);
 	ret = sensor_read(client, SENSOR_ID_REG, &pid);
     if (ret != 0) {
         SENSOR_TR("%s read chip id high byte failed\n",SENSOR_NAME_STRING());
@@ -3079,7 +3142,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     }
 
     SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
-
+#if 1
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -3087,6 +3150,10 @@ static int sensor_video_probe(struct soc_camera_device *icd,
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
+#else
+	sensor->model = SENSOR_V4L2_IDENT;
+
+#endif
     return 0;
 
 sensor_video_probe_err:
@@ -3275,7 +3342,12 @@ static struct i2c_driver sensor_i2c_driver = {
 
 static int __init sensor_mod_init(void)
 {
+    printk("\n*****************%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
+#ifdef CONFIG_SOC_CAMERA_FCAM
+    return 0;
+#else
     return i2c_add_driver(&sensor_i2c_driver);
+#endif
 }
 
 static void __exit sensor_mod_exit(void)
@@ -3289,5 +3361,29 @@ module_exit(sensor_mod_exit);
 MODULE_DESCRIPTION(SENSOR_NAME_STRING(Camera sensor driver));
 MODULE_AUTHOR("ddl <kernel@rock-chips>");
 MODULE_LICENSE("GPL");
+/*
+struct cam_sensor_info cam_sensor_info_SP2518={
+    "SP2518",
+    1,
+    1,
+    0x30>>1,
+    0,
+    SENSOR_ID_REG, 
+    SENSOR_ID,
+    0xff,
+    0xff,
+
+    &sensor_ops,
+    &sensor_subdev_ops,
+    sensor_deactivate,
+    sensor_read,
+    sensor_write,
+    0,
+    sensor_video_probe,
+};
+
+EXPORT_SYMBOL_GPL(cam_sensor_info_SP2518);
+*/
+
 
 
