@@ -1476,7 +1476,6 @@ static int write_partial_message_data(struct ceph_connection *con)
 	unsigned int data_len = le32_to_cpu(msg->hdr.data_len);
 	bool do_datacrc = !con->msgr->nocrc;
 	int ret;
-	int total_max_write;
 
 	dout("%s %p msg %p page %d offset %d\n", __func__,
 	     con, msg, msg_pos->page, msg_pos->page_pos);
@@ -1490,36 +1489,30 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 * been revoked, so use the zero page.
 	 */
 	while (data_len > msg_pos->data_pos) {
-		struct page *page = NULL;
+		struct page *page;
 		size_t page_offset;
 		size_t length;
-		bool use_cursor = false;
-		bool last_piece = true;	/* preserve existing behavior */
-
-		total_max_write = data_len - msg_pos->data_pos;
+		bool last_piece;
 
 		if (ceph_msg_has_pages(msg)) {
-			use_cursor = true;
 			page = ceph_msg_data_next(&msg->p, &page_offset,
 							&length, &last_piece);
 		} else if (ceph_msg_has_pagelist(msg)) {
-			use_cursor = true;
 			page = ceph_msg_data_next(&msg->l, &page_offset,
 							&length, &last_piece);
 #ifdef CONFIG_BLOCK
 		} else if (ceph_msg_has_bio(msg)) {
-			use_cursor = true;
 			page = ceph_msg_data_next(&msg->b, &page_offset,
 							&length, &last_piece);
 #endif
 		} else {
-			page = zero_page;
-		}
-		if (!use_cursor) {
-			length = min_t(int, PAGE_SIZE - msg_pos->page_pos,
-					    total_max_write);
+			size_t resid = data_len - msg_pos->data_pos;
 
+			page = zero_page;
 			page_offset = msg_pos->page_pos;
+			length = PAGE_SIZE - page_offset;
+			length = min(resid, length);
+			last_piece = length == resid;
 		}
 		if (do_datacrc && !msg_pos->did_page_crc) {
 			u32 crc = le32_to_cpu(msg->footer.data_crc);
