@@ -67,7 +67,7 @@ static unsigned int get_thread_cache_size(unsigned int cache, int thread_id)
 		return 0;
 #if PAGE_OFFSET >= LINGLOBAL_BASE
 	/* Checking for global cache */
-	cache_size = (cache == DCACHE ? get_global_dache_size() :
+	cache_size = (cache == DCACHE ? get_global_dcache_size() :
 		get_global_icache_size());
 	offset = 8;
 #else
