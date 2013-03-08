@@ -68,6 +68,8 @@
 
 #define PFX			"bnx2fc: "
 
+#define BCM_CHIP_LEN		16
+
 #define BNX2X_DOORBELL_PCI_BAR		2
 
 #define BNX2FC_MAX_BD_LEN		0xffff
@@ -241,6 +243,8 @@ struct bnx2fc_hba {
 	int wait_for_link_down;
 	int num_ofld_sess;
 	struct list_head vports;
+
+	char chip_num[BCM_CHIP_LEN];
 };
 
 struct bnx2fc_interface {
