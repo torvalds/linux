@@ -145,12 +145,6 @@ static int it913x_init(struct dvb_frontend *fe)
 	u8 nv[] = {48, 32, 24, 16, 12, 8, 6, 4, 2};
 	u8 b[2];
 
-	if (state->chip_ver == 2) {
-		ret = it913x_wr_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);
-		if (ret < 0)
-			return -ENODEV;
-	}
-
 	reg = it913x_rd_reg(state, 0xec86);
 	switch (reg) {
 	case 0:

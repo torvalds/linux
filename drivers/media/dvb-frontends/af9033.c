@@ -391,6 +391,15 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		ret = af9033_wr_reg(state, 0x800000, 0x01);
+		if (ret < 0)
+			goto err;
+	}
+
 	state->bandwidth_hz = 0; /* force to program all parameters */
 
 	return 0;
