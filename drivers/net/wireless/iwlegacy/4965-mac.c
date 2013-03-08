@@ -612,7 +612,7 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 
 /* Called for N_RX (legacy ABG frames), or
  * N_RX_MPDU (HT high-throughput N frames). */
-void
+static void
 il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
@@ -744,7 +744,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 /* Cache phy data (Rx signal strength, etc) for HT frame (N_RX_PHY).
  * This will be used later in il_hdl_rx() for N_RX_MPDU. */
-void
+static void
 il4965_hdl_rx_phy(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1250,7 +1250,7 @@ il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 	return 0;
 }
 
-void
+static void
 il4965_hdl_missed_beacon(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1357,7 +1357,7 @@ il4965_accumulative_stats(struct il_priv *il, __le32 * stats)
 }
 #endif
 
-void
+static void
 il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	const int recalib_seconds = 60;
@@ -1399,7 +1399,7 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 		il4965_temperature_calib(il);
 }
 
-void
+static void
 il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -2050,7 +2050,7 @@ il4965_txq_ctx_reset(struct il_priv *il)
 		il_tx_queue_reset(il, txq_id);
 }
 
-void
+static void
 il4965_txq_ctx_unmap(struct il_priv *il)
 {
 	int txq_id;
@@ -2896,7 +2896,7 @@ il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-void
+static void
 il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -6317,7 +6317,7 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 	       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
-const struct ieee80211_ops il4965_mac_ops = {
+static const struct ieee80211_ops il4965_mac_ops = {
 	.tx = il4965_mac_tx,
 	.start = il4965_mac_start,
 	.stop = il4965_mac_stop,
