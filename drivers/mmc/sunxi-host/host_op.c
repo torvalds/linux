@@ -579,15 +579,19 @@ static void sunximmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 void sunximmc_rescan_card(unsigned id, unsigned insert)
 {
-    struct sunxi_mmc_host *smc_host = NULL;
-
-    BUG_ON(id > 3);
-    BUG_ON(sw_host[id] == NULL);
-    smc_host = sw_host[id];
-
-    smc_host->present = insert ? 1 : 0;
-    mmc_detect_change(smc_host->mmc, 0);
-    return;
+	struct sunxi_mmc_host *smc_host = NULL;
+	if (id > 3) {
+		pr_err("%s: card id more than 3.\n", __func__);
+		return;
+	}
+	if (!(sw_host[id])) {
+		pr_err("%s error: sw_host[id] == NULL\n", __func__);
+		return;
+	}
+	smc_host = sw_host[id];
+	smc_host->present = insert ? 1 : 0;
+	mmc_detect_change(smc_host->mmc, 0);
+	return;
 }
 EXPORT_SYMBOL_GPL(sunximmc_rescan_card);
 
