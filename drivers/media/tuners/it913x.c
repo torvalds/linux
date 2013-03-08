@@ -141,39 +141,9 @@ static int it913x_init(struct dvb_frontend *fe)
 {
 	struct it913x_state *state = fe->tuner_priv;
 	int ret, i, reg;
-	struct it913xset *set_lna;
 	u8 val, nv_val;
 	u8 nv[] = {48, 32, 24, 16, 12, 8, 6, 4, 2};
 	u8 b[2];
-
-	/* LNA Scripts */
-	switch (state->tuner_type) {
-	case AF9033_TUNER_IT9135_51:
-		set_lna = it9135_51;
-		break;
-	case AF9033_TUNER_IT9135_52:
-		set_lna = it9135_52;
-		break;
-	case AF9033_TUNER_IT9135_60:
-		set_lna = it9135_60;
-		break;
-	case AF9033_TUNER_IT9135_61:
-		set_lna = it9135_61;
-		break;
-	case AF9033_TUNER_IT9135_62:
-		set_lna = it9135_62;
-		break;
-	case AF9033_TUNER_IT9135_38:
-	default:
-		set_lna = it9135_38;
-	}
-
-	dev_dbg(&state->i2c_adap->dev, "%s: Tuner LNA type :%02x\n",
-			KBUILD_MODNAME, state->tuner_type);
-
-	ret = it913x_script_loader(state, set_lna);
-	if (ret < 0)
-		return ret;
 
 	if (state->chip_ver == 2) {
 		ret = it913x_wr_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);

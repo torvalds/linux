@@ -285,12 +285,6 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	/*
-	 * FIXME: These inits are logically property of demodulator driver
-	 * (that driver), but currently in case of IT9135 those are done by
-	 * tuner driver.
-	 */
-
 	/* load OFSM settings */
 	dev_dbg(&state->i2c->dev, "%s: load ofsm settings\n", __func__);
 	switch (state->cfg.tuner) {
