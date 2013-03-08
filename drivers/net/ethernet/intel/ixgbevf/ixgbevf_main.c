@@ -76,12 +76,9 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id ixgbevf_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
-	board_82599_vf},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
-	board_X540_vf},
-
+static DEFINE_PCI_DEVICE_TABLE(ixgbevf_pci_tbl) = {
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
 	/* required last entry */
 	{0, }
 };
@@ -190,28 +187,37 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	union ixgbe_adv_tx_desc *tx_desc, *eop_desc;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
-	unsigned int i, eop, count = 0;
+	unsigned int i, count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
 
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
 		return true;
 
 	i = tx_ring->next_to_clean;
-	eop = tx_ring->tx_buffer_info[i].next_to_watch;
-	eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
+	tx_buffer_info = &tx_ring->tx_buffer_info[i];
+	eop_desc = tx_buffer_info->next_to_watch;
 
-	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
-	       (count < tx_ring->count)) {
+	do {
 		bool cleaned = false;
-		rmb(); /* read buffer_info after eop_desc */
-		/* eop could change between read and DD-check */
-		if (unlikely(eop != tx_ring->tx_buffer_info[i].next_to_watch))
-			goto cont_loop;
+
+		/* if next_to_watch is not set then there is no work pending */
+		if (!eop_desc)
+			break;
+
+		/* prevent any other reads prior to eop_desc */
+		read_barrier_depends();
+
+		/* if DD is not set pending work has not been completed */
+		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
+			break;
+
+		/* clear next_to_watch to prevent false hangs */
+		tx_buffer_info->next_to_watch = NULL;
+
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
 			tx_desc = IXGBEVF_TX_DESC(tx_ring, i);
-			tx_buffer_info = &tx_ring->tx_buffer_info[i];
-			cleaned = (i == eop);
+			cleaned = (tx_desc == eop_desc);
 			skb = tx_buffer_info->skb;
 
 			if (cleaned && skb) {
@@ -234,12 +240,12 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 			i++;
 			if (i == tx_ring->count)
 				i = 0;
+
+			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		}
 
-cont_loop:
-		eop = tx_ring->tx_buffer_info[i].next_to_watch;
-		eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
-	}
+		eop_desc = tx_buffer_info->next_to_watch;
+	} while (count < tx_ring->count);
 
 	tx_ring->next_to_clean = i;
 
@@ -2806,8 +2812,7 @@ static bool ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 }
 
 static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
-			  struct sk_buff *skb, u32 tx_flags,
-			  unsigned int first)
+			  struct sk_buff *skb, u32 tx_flags)
 {
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int len;
@@ -2832,7 +2837,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 						     size, DMA_TO_DEVICE);
 		if (dma_mapping_error(tx_ring->dev, tx_buffer_info->dma))
 			goto dma_error;
-		tx_buffer_info->next_to_watch = i;
 
 		len -= size;
 		total -= size;
@@ -2862,7 +2866,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 					      tx_buffer_info->dma))
 				goto dma_error;
 			tx_buffer_info->mapped_as_page = true;
-			tx_buffer_info->next_to_watch = i;
 
 			len -= size;
 			total -= size;
@@ -2881,8 +2884,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 	else
 		i = i - 1;
 	tx_ring->tx_buffer_info[i].skb = skb;
-	tx_ring->tx_buffer_info[first].next_to_watch = i;
-	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
 
 	return count;
 
@@ -2891,7 +2892,6 @@ dma_error:
 
 	/* clear timestamp and dma mappings for failed tx_buffer_info map */
 	tx_buffer_info->dma = 0;
-	tx_buffer_info->next_to_watch = 0;
 	count--;
 
 	/* clear timestamp and dma mappings for remaining portion of packet */
@@ -2908,7 +2908,8 @@ dma_error:
 }
 
 static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring, int tx_flags,
-			     int count, u32 paylen, u8 hdr_len)
+			     int count, unsigned int first, u32 paylen,
+			     u8 hdr_len)
 {
 	union ixgbe_adv_tx_desc *tx_desc = NULL;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
@@ -2959,6 +2960,16 @@ static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring, int tx_flags,
 
 	tx_desc->read.cmd_type_len |= cpu_to_le32(txd_cmd);
 
+	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
+
+	/* Force memory writes to complete before letting h/w
+	 * know there are new descriptors to fetch.  (Only
+	 * applicable for weak-ordered memory model archs,
+	 * such as IA-64).
+	 */
+	wmb();
+
+	tx_ring->tx_buffer_info[first].next_to_watch = tx_desc;
 	tx_ring->next_to_use = i;
 }
 
@@ -3050,15 +3061,8 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags |= IXGBE_TX_FLAGS_CSUM;
 
 	ixgbevf_tx_queue(tx_ring, tx_flags,
-			 ixgbevf_tx_map(tx_ring, skb, tx_flags, first),
-			 skb->len, hdr_len);
-	/*
-	 * Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
-	 * applicable for weak-ordered memory model archs,
-	 * such as IA-64).
-	 */
-	wmb();
+			 ixgbevf_tx_map(tx_ring, skb, tx_flags),
+			 first, skb->len, hdr_len);
 
 	writel(tx_ring->next_to_use, adapter->hw.hw_addr + tx_ring->tail);
 

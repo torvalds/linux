@@ -61,7 +61,6 @@ struct e1000_info;
 #define e_notice(format, arg...) \
 	netdev_notice(adapter->netdev, format, ## arg)
 
-
 /* Interrupt modes, as used by the IntMode parameter */
 #define E1000E_INT_MODE_LEGACY		0
 #define E1000E_INT_MODE_MSI		1
@@ -239,9 +238,8 @@ struct e1000_adapter {
 	u16 tx_itr;
 	u16 rx_itr;
 
-	/* Tx */
-	struct e1000_ring *tx_ring /* One per active queue */
-						____cacheline_aligned_in_smp;
+	/* Tx - one ring per active queue */
+	struct e1000_ring *tx_ring ____cacheline_aligned_in_smp;
 	u32 tx_fifo_limit;
 
 	struct napi_struct napi;
@@ -487,8 +485,8 @@ extern int e1000e_setup_tx_resources(struct e1000_ring *ring);
 extern void e1000e_free_rx_resources(struct e1000_ring *ring);
 extern void e1000e_free_tx_resources(struct e1000_ring *ring);
 extern struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
-                                                    struct rtnl_link_stats64
-                                                    *stats);
+						    struct rtnl_link_stats64
+						    *stats);
 extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_get_hw_control(struct e1000_adapter *adapter);
@@ -558,12 +556,14 @@ static inline s32 e1000e_update_nvm_checksum(struct e1000_hw *hw)
 	return hw->nvm.ops.update(hw);
 }
 
-static inline s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+static inline s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words,
+				 u16 *data)
 {
 	return hw->nvm.ops.read(hw, offset, words, data);
 }
 
-static inline s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+static inline s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data)
 {
 	return hw->nvm.ops.write(hw, offset, words, data);
 }
@@ -597,7 +597,7 @@ static inline s32 __ew32_prepare(struct e1000_hw *hw)
 	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
 
 	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
-		udelay(50);
+		usleep_range(50, 100);
 
 	return i;
 }
