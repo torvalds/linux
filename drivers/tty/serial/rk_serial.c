@@ -135,8 +135,13 @@ static struct uart_driver serial_rk_reg;
 #ifdef CONFIG_ARCH_RK29
 #define DBG_PORT 1   //DBG_PORT which uart is used to print log message
 #else
-#define DBG_PORT -1   //DBG_PORT which uart is used to print log message
+#ifndef CONFIG_RK_DEBUG_UART   //DBG_PORT which uart is used to print log message
+#define DBG_PORT 2
+#else
+#define DBG_PORT CONFIG_RK_DEBUG_UART
 #endif
+#endif
+
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
 #else
@@ -158,7 +163,7 @@ static void dbg(const char *fmt, ...)
 }
 
 //enable log output
-#define DEBUG 1
+#define DEBUG 0
 static int log_port = -1;
 module_param(log_port, int, S_IRUGO|S_IWUSR);
 
