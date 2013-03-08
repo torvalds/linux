@@ -303,7 +303,7 @@ config GPIO_GE_FPGA
 
 config GPIO_LYNXPOINT
 	bool "Intel Lynxpoint GPIO support"
-	depends on ACPI
+	depends on ACPI && X86
 	select IRQ_DOMAIN
 	help
 	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
