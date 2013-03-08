@@ -98,6 +98,24 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
  * 2nd argument: Unexpected types that can be repaired
  */
 static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
+	/* Resource descriptor conversions */
+
+	{"_CRS",
+	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
+	 ACPI_RTYPE_NONE,
+	 ACPI_NOT_PACKAGE_ELEMENT,
+	 acpi_ns_convert_to_resource},
+	{"_DMA",
+	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
+	 ACPI_RTYPE_NONE,
+	 ACPI_NOT_PACKAGE_ELEMENT,
+	 acpi_ns_convert_to_resource},
+	{"_PRS",
+	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
+	 ACPI_RTYPE_NONE,
+	 ACPI_NOT_PACKAGE_ELEMENT,
+	 acpi_ns_convert_to_resource},
+
 	/* Unicode conversions */
 
 	{"_MLS", ACPI_RTYPE_STRING, 1,

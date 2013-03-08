@@ -364,3 +364,80 @@ acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
 	*return_object = new_object;
 	return (AE_OK);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_resource
+ *
+ * PARAMETERS:  original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful
+ *
+ * DESCRIPTION: Attempt to convert a Integer object to a resource_template
+ *              Buffer.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
+			    union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	u8 *buffer;
+
+	/*
+	 * We can fix the following cases for an expected resource template:
+	 * 1. No return value (interpreter slack mode is disabled)
+	 * 2. A "Return (Zero)" statement
+	 * 3. A "Return empty buffer" statement
+	 *
+	 * We will return a buffer containing a single end_tag
+	 * resource descriptor.
+	 */
+	if (original_object) {
+		switch (original_object->common.type) {
+		case ACPI_TYPE_INTEGER:
+
+			/* We can only repair an Integer==0 */
+
+			if (original_object->integer.value) {
+				return (AE_AML_OPERAND_TYPE);
+			}
+			break;
+
+		case ACPI_TYPE_BUFFER:
+
+			if (original_object->buffer.length) {
+
+				/* Additional checks can be added in the future */
+
+				*return_object = NULL;
+				return (AE_OK);
+			}
+			break;
+
+		case ACPI_TYPE_STRING:
+		default:
+
+			return (AE_AML_OPERAND_TYPE);
+		}
+	}
+
+	/* Create the new buffer object for the resource descriptor */
+
+	new_object = acpi_ut_create_buffer_object(2);
+	if (!new_object) {
+		return (AE_NO_MEMORY);
+	}
+
+	buffer = ACPI_CAST_PTR(u8, new_object->buffer.pointer);
+
+	/* Initialize the Buffer with a single end_tag descriptor */
+
+	buffer[0] = (ACPI_RESOURCE_NAME_END_TAG | ASL_RDESC_END_TAG_SIZE);
+	buffer[1] = 0x00;
+
+	*return_object = new_object;
+	return (AE_OK);
+}
