@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/string.h>
 #include <linux/atomic.h>
 #include <linux/math64.h>
 #include <linux/crypto.h>
@@ -1688,7 +1689,7 @@ __setup("nocleancacheignorenonactive", no_cleancache_ignore_nonactive);
 
 static int __init enable_zcache_compressor(char *s)
 {
-	strncpy(zcache_comp_name, s, ZCACHE_COMP_NAME_SZ);
+	strlcpy(zcache_comp_name, s, sizeof(zcache_comp_name));
 	zcache_enabled = true;
 	return 1;
 }
