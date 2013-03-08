@@ -1220,8 +1220,8 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	dev->broadcast_rcv_context = NULL;
  failed_context_create:
 	fw_core_remove_address_handler(&dev->handler);
- failed_initial:
 	dev->local_fifo = FWNET_NO_FIFO_ADDR;
+ failed_initial:
 
 	return retval;
 }
