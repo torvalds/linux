@@ -505,26 +505,59 @@ struct acpi_rasf_shared_memory {
 	u32 signature;
 	u16 command;
 	u16 status;
-	u64 requested_address;
-	u64 requested_length;
-	u64 actual_address;
-	u64 actual_length;
+	u16 version;
+	u8 capabilities[16];
+	u8 set_capabilities[16];
+	u16 num_parameter_blocks;
+	u32 set_capabilities_status;
+};
+
+/* RASF Parameter Block Structure Header */
+
+struct acpi_rasf_parameter_block {
+	u16 type;
+	u16 version;
+	u16 length;
+};
+
+/* RASF Parameter Block Structure for PATROL_SCRUB */
+
+struct acpi_rasf_patrol_scrub_parameter {
+	struct acpi_rasf_parameter_block header;
+	u16 patrol_scrub_command;
+	u64 requested_address_range[2];
+	u64 actual_address_range[2];
 	u16 flags;
-	u8 speed;
+	u8 requested_speed;
 };
 
 /* Masks for Flags and Speed fields above */
 
 #define ACPI_RASF_SCRUBBER_RUNNING      1
 #define ACPI_RASF_SPEED                 (7<<1)
+#define ACPI_RASF_SPEED_SLOW            (0<<1)
+#define ACPI_RASF_SPEED_MEDIUM          (4<<1)
+#define ACPI_RASF_SPEED_FAST            (7<<1)
 
 /* Channel Commands */
 
 enum acpi_rasf_commands {
-	ACPI_RASF_GET_RAS_CAPABILITIES = 1,
-	ACPI_RASF_GET_PATROL_PARAMETERS = 2,
-	ACPI_RASF_START_PATROL_SCRUBBER = 3,
-	ACPI_RASF_STOP_PATROL_SCRUBBER = 4
+	ACPI_RASF_EXECUTE_RASF_COMMAND = 1
+};
+
+/* Platform RAS Capabilities */
+
+enum acpi_rasf_capabiliities {
+	ACPI_HW_PATROL_SCRUB_SUPPORTED = 0,
+	ACPI_SW_PATROL_SCRUB_EXPOSED = 1
+};
+
+/* Patrol Scrub Commands */
+
+enum acpi_rasf_patrol_scrub_commands {
+	ACPI_RASF_GET_PATROL_PARAMETERS = 1,
+	ACPI_RASF_START_PATROL_SCRUBBER = 2,
+	ACPI_RASF_STOP_PATROL_SCRUBBER = 3
 };
 
 /* Channel Command flags */
