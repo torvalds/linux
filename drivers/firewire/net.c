@@ -1156,6 +1156,9 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	unsigned long offset;
 	unsigned u;
 
+	if (dev->broadcast_state != FWNET_BROADCAST_ERROR)
+		return 0;
+
 	max_receive = 1U << (dev->card->max_receive + 1);
 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
 
@@ -1258,11 +1261,10 @@ static int fwnet_open(struct net_device *net)
 	if (ret)
 		return ret;
 
-	if (dev->broadcast_state == FWNET_BROADCAST_ERROR) {
-		ret = fwnet_broadcast_start(dev);
-		if (ret)
-			goto out;
-	}
+	ret = fwnet_broadcast_start(dev);
+	if (ret)
+		goto out;
+
 	netif_start_queue(net);
 
 	spin_lock_irq(&dev->lock);
