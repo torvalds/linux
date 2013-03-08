@@ -36,6 +36,68 @@ struct ux500_glue {
 };
 #define glue_to_musb(g)	platform_get_drvdata(g->musb)
 
+static void ux500_musb_set_vbus(struct musb *musb, int is_on)
+{
+	u8            devctl;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	/* HDRC controls CPEN, but beware current surges during device
+	 * connect.  They can trigger transient overcurrent conditions
+	 * that must be ignored.
+	 */
+
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+
+	if (is_on) {
+		if (musb->xceiv->state == OTG_STATE_A_IDLE) {
+			/* start the session */
+			devctl |= MUSB_DEVCTL_SESSION;
+			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+			/*
+			 * Wait for the musb to set as A device to enable the
+			 * VBUS
+			 */
+			while (musb_readb(musb->mregs, MUSB_DEVCTL) & 0x80) {
+
+				if (time_after(jiffies, timeout)) {
+					dev_err(musb->controller,
+					"configured as A device timeout");
+					break;
+				}
+			}
+
+		} else {
+			musb->is_active = 1;
+			musb->xceiv->otg->default_a = 1;
+			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			devctl |= MUSB_DEVCTL_SESSION;
+			MUSB_HST_MODE(musb);
+		}
+	} else {
+		musb->is_active = 0;
+
+		/* NOTE: we're skipping A_WAIT_VFALL -> A_IDLE and jumping
+		 * right to B_IDLE...
+		 */
+		musb->xceiv->otg->default_a = 0;
+		devctl &= ~MUSB_DEVCTL_SESSION;
+		MUSB_DEV_MODE(musb);
+	}
+	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+
+	/*
+	 * Devctl values will be updated after vbus goes below
+	 * session_valid. The time taken depends on the capacitance
+	 * on VBUS line. The max discharge time can be upto 1 sec
+	 * as per the spec. Typically on our platform, it is 200ms
+	 */
+	if (!is_on)
+		mdelay(200);
+
+	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
+		usb_otg_state_string(musb->xceiv->state),
+		musb_readb(musb->mregs, MUSB_DEVCTL));
+}
+
 static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long   flags;
@@ -79,6 +141,8 @@ static int ux500_musb_exit(struct musb *musb)
 static const struct musb_platform_ops ux500_ops = {
 	.init		= ux500_musb_init,
 	.exit		= ux500_musb_exit,
+
+	.set_vbus	= ux500_musb_set_vbus,
 };
 
 static int ux500_probe(struct platform_device *pdev)
