@@ -98,13 +98,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 		if (cpu == 1)
 			__raw_writel(0, S5P_ARM_CORE1_CONFIGURATION);
 
-		/*
-		 * here's the WFI
-		 */
-		asm(".word	0xe320f003\n"
-		    :
-		    :
-		    : "memory", "cc");
+		wfi();
 
 		if (pen_release == cpu_logical_map(cpu)) {
 			/*
