@@ -1259,6 +1259,12 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 				(saa711x_read(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK) & 0xfe) |
 				(state->output & 0x01));
 	}
+	if (state->ident > V4L2_IDENT_SAA7111A) {
+		if (config & SAA7115_IDQ_IS_DEFAULT)
+			saa711x_write(sd, R_85_I_PORT_SIGNAL_POLAR, 0x20);
+		else
+			saa711x_write(sd, R_85_I_PORT_SIGNAL_POLAR, 0x21);
+	}
 	return 0;
 }
 
