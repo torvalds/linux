@@ -17,9 +17,10 @@ obj-$(CONFIG_HOTPLUG_CPU) += ../mach-rk30/hotplug.o
 obj-$(CONFIG_CPU_IDLE) += ../mach-rk30/cpuidle.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
+obj-y += board.o
 
-obj-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
-obj-$(CONFIG_MACH_RK3188_TB) += ../mach-rk30/board-rk3168-tb.o
-obj-$(CONFIG_MACH_RK3188_LR097) += ../mach-rk30/board-rk3168-LR097.o
-obj-$(CONFIG_MACH_RK3188_DS1006H) += board-rk3188-ds1006h.o
+board-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
+board-$(CONFIG_MACH_RK3188_TB) += ../mach-rk30/board-rk3168-tb.o
+board-$(CONFIG_MACH_RK3188_LR097) += ../mach-rk30/board-rk3168-LR097.o
+board-$(CONFIG_MACH_RK3188_DS1006H) += board-rk3188-ds1006h.o
 
