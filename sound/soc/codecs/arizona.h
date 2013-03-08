@@ -49,6 +49,14 @@
 #define ARIZONA_MIXER_VOL_SHIFT                 1
 #define ARIZONA_MIXER_VOL_WIDTH                 7
 
+#define ARIZONA_CLK_6MHZ   0
+#define ARIZONA_CLK_12MHZ  1
+#define ARIZONA_CLK_24MHZ  2
+#define ARIZONA_CLK_49MHZ  3
+#define ARIZONA_CLK_73MHZ  4
+#define ARIZONA_CLK_98MHZ  5
+#define ARIZONA_CLK_147MHZ 6
+
 #define ARIZONA_MAX_DAI  4
 #define ARIZONA_MAX_ADSP 4
 

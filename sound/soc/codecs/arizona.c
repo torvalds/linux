@@ -504,27 +504,27 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		break;
 	case 11289600:
 	case 12288000:
-		val |= 1 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_12MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 22579200:
 	case 24576000:
-		val |= 2 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_24MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 45158400:
 	case 49152000:
-		val |= 3 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_49MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 67737600:
 	case 73728000:
-		val |= 4 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_73MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 90316800:
 	case 98304000:
-		val |= 5 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_98MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 135475200:
 	case 147456000:
-		val |= 6 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		val |= ARIZONA_CLK_147MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
 	case 0:
 		dev_dbg(arizona->dev, "%s cleared\n", name);
