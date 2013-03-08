@@ -237,8 +237,6 @@
 #define RXSTATE		BIT(5)
 #define SRMOD_MASK	3
 #define SRMOD_INACTIVE	0
-#define SRMOD_TX	1
-#define SRMOD_RX	2
 
 /*
  * DAVINCI_MCASP_LBCTL_REG - Loop Back Control Register Bits
@@ -687,27 +685,6 @@ static int davinci_hw_common_param(struct davinci_audio_dev *dev, int stream,
 	}
 
 	for (i = 0; i < dev->num_serializer; i++) {
-		if (dev->serial_dir[i] == TX_MODE)
-			tx_ser++;
-		if (dev->serial_dir[i] == RX_MODE)
-			rx_ser++;
-	}
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ser = tx_ser;
-	else
-		ser = rx_ser;
-
-	if (ser < max_active_serializers) {
-		dev_warn(dev->dev, "stream has more channels (%d) than are "
-			"enabled in mcasp (%d)\n", channels, ser * slots);
-		return -EINVAL;
-	}
-
-	tx_ser = 0;
-	rx_ser = 0;
-
-	for (i = 0; i < dev->num_serializer; i++) {
 		mcasp_set_bits(dev->base + DAVINCI_MCASP_XRSRCTL_REG(i),
 					dev->serial_dir[i]);
 		if (dev->serial_dir[i] == TX_MODE &&
@@ -724,6 +701,17 @@ static int davinci_hw_common_param(struct davinci_audio_dev *dev, int stream,
 			mcasp_mod_bits(dev->base + DAVINCI_MCASP_XRSRCTL_REG(i),
 					SRMOD_INACTIVE, SRMOD_MASK);
 		}
+	}
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ser = tx_ser;
+	else
+		ser = rx_ser;
+
+	if (ser < max_active_serializers) {
+		dev_warn(dev->dev, "stream has more channels (%d) than are "
+			"enabled in mcasp (%d)\n", channels, ser * slots);
+		return -EINVAL;
 	}
 
 	if (dev->txnumevt && stream == SNDRV_PCM_STREAM_PLAYBACK) {
