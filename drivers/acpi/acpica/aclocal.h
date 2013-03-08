@@ -363,6 +363,7 @@ struct acpi_predefined_data {
 	union acpi_operand_object *parent_package;
 	struct acpi_namespace_node *node;
 	u32 flags;
+	u32 return_btype;
 	u8 node_flags;
 };
 
@@ -370,6 +371,20 @@ struct acpi_predefined_data {
 
 #define ACPI_OBJECT_REPAIRED    1
 #define ACPI_OBJECT_WRAPPED     2
+
+/* Return object auto-repair info */
+
+typedef acpi_status(*acpi_object_converter) (union acpi_operand_object
+					     *original_object,
+					     union acpi_operand_object
+					     **converted_object);
+
+struct acpi_simple_repair_info {
+	char name[ACPI_NAME_SIZE];
+	u32 unexpected_btypes;
+	u32 package_index;
+	acpi_object_converter object_converter;
+};
 
 /*
  * Bitmapped return value types

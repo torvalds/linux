@@ -66,9 +66,9 @@ typedef struct acpi_repair_info {
 
 /* Local prototypes */
 
-static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
-								    acpi_namespace_node
-								    *node);
+static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
+								   acpi_namespace_node
+								   *node);
 
 static acpi_status
 acpi_ns_repair_ALR(struct acpi_predefined_data *data,
@@ -175,7 +175,7 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 
 	/* Check if this name is in the list of repairable names */
 
-	predefined = acpi_ns_match_repairable_name(node);
+	predefined = acpi_ns_match_complex_repair(node);
 	if (!predefined) {
 		return (validate_status);
 	}
@@ -186,7 +186,7 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_ns_match_repairable_name
+ * FUNCTION:    acpi_ns_match_complex_repair
  *
  * PARAMETERS:  node                - Namespace node for the method/object
  *
@@ -196,9 +196,9 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
  *
  *****************************************************************************/
 
-static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
-								    acpi_namespace_node
-								    *node)
+static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
+								   acpi_namespace_node
+								   *node)
 {
 	const struct acpi_repair_info *this_name;
 

@@ -78,6 +78,8 @@ acpi_ns_check_reference(struct acpi_predefined_data *data,
 
 static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes);
 
+static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
+
 /*
  * Names for the types that can be returned by the predefined objects.
  * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
@@ -112,7 +114,6 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 			       acpi_status return_status,
 			       union acpi_operand_object **return_object_ptr)
 {
-	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status = AE_OK;
 	const union acpi_predefined_info *predefined;
 	char *pathname;
@@ -148,25 +149,6 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * validate the return object
 	 */
 	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
-		goto cleanup;
-	}
-
-	/*
-	 * If there is no return value, check if we require a return value for
-	 * this predefined name. Either one return value is expected, or none,
-	 * for both methods and other objects.
-	 *
-	 * Exit now if there is no return object. Warning if one was expected.
-	 */
-	if (!return_object) {
-		if ((predefined->info.expected_btypes) &&
-		    (!(predefined->info.expected_btypes & ACPI_RTYPE_NONE))) {
-			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Missing expected return value"));
-
-			status = AE_AML_NO_RETURN_VALUE;
-		}
 		goto cleanup;
 	}
 
@@ -410,28 +392,12 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status = AE_OK;
-	u32 return_btype;
 	char type_buffer[48];	/* Room for 5 types */
-
-	/*
-	 * If we get a NULL return_object here, it is a NULL package element.
-	 * Since all extraneous NULL package elements were removed earlier by a
-	 * call to acpi_ns_remove_null_elements, this is an unexpected NULL element.
-	 * We will attempt to repair it.
-	 */
-	if (!return_object) {
-		status = acpi_ns_repair_null_element(data, expected_btypes,
-						     package_index,
-						     return_object_ptr);
-		if (ACPI_SUCCESS(status)) {
-			return (AE_OK);	/* Repair was successful */
-		}
-		goto type_error_exit;
-	}
 
 	/* A Namespace node should not get here, but make sure */
 
-	if (ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
+	if (return_object &&
+	    ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
 		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
 				      "Invalid return type - Found a Namespace node [%4.4s] type %s",
 				      return_object->node.name.ascii,
@@ -448,53 +414,25 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 	 * from all of the predefined names (including elements of returned
 	 * packages)
 	 */
-	switch (return_object->common.type) {
-	case ACPI_TYPE_INTEGER:
-		return_btype = ACPI_RTYPE_INTEGER;
-		break;
+	data->return_btype = acpi_ns_get_bitmapped_type(return_object);
+	if (data->return_btype == ACPI_RTYPE_ANY) {
 
-	case ACPI_TYPE_BUFFER:
-		return_btype = ACPI_RTYPE_BUFFER;
-		break;
-
-	case ACPI_TYPE_STRING:
-		return_btype = ACPI_RTYPE_STRING;
-		break;
-
-	case ACPI_TYPE_PACKAGE:
-		return_btype = ACPI_RTYPE_PACKAGE;
-		break;
-
-	case ACPI_TYPE_LOCAL_REFERENCE:
-		return_btype = ACPI_RTYPE_REFERENCE;
-		break;
-
-	default:
 		/* Not one of the supported objects, must be incorrect */
-
 		goto type_error_exit;
 	}
 
-	/* Is the object one of the expected types? */
+	/* For reference objects, check that the reference type is correct */
 
-	if (return_btype & expected_btypes) {
-
-		/* For reference objects, check that the reference type is correct */
-
-		if (return_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
-			status = acpi_ns_check_reference(data, return_object);
-		}
-
+	if ((data->return_btype & expected_btypes) == ACPI_RTYPE_REFERENCE) {
+		status = acpi_ns_check_reference(data, return_object);
 		return (status);
 	}
 
-	/* Type mismatch -- attempt repair of the returned object */
+	/* Attempt simple repair of the returned object if necessary */
 
-	status = acpi_ns_repair_object(data, expected_btypes,
+	status = acpi_ns_simple_repair(data, expected_btypes,
 				       package_index, return_object_ptr);
-	if (ACPI_SUCCESS(status)) {
-		return (AE_OK);	/* Repair was successful */
-	}
+	return (status);
 
       type_error_exit:
 
@@ -554,6 +492,61 @@ acpi_ns_check_reference(struct acpi_predefined_data *data,
 			      return_object->reference.class));
 
 	return (AE_AML_OPERAND_TYPE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_get_bitmapped_type
+ *
+ * PARAMETERS:  return_object   - Object returned from method/obj evaluation
+ *
+ * RETURN:      Object return type. ACPI_RTYPE_ANY indicates that the object
+ *              type is not supported. ACPI_RTYPE_NONE indicates that no
+ *              object was returned (return_object is NULL).
+ *
+ * DESCRIPTION: Convert object type into a bitmapped object return type.
+ *
+ ******************************************************************************/
+
+static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object)
+{
+	u32 return_btype;
+
+	if (!return_object) {
+		return (ACPI_RTYPE_NONE);
+	}
+
+	/* Map acpi_object_type to internal bitmapped type */
+
+	switch (return_object->common.type) {
+	case ACPI_TYPE_INTEGER:
+		return_btype = ACPI_RTYPE_INTEGER;
+		break;
+
+	case ACPI_TYPE_BUFFER:
+		return_btype = ACPI_RTYPE_BUFFER;
+		break;
+
+	case ACPI_TYPE_STRING:
+		return_btype = ACPI_RTYPE_STRING;
+		break;
+
+	case ACPI_TYPE_PACKAGE:
+		return_btype = ACPI_RTYPE_PACKAGE;
+		break;
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+		return_btype = ACPI_RTYPE_REFERENCE;
+		break;
+
+	default:
+		/* Not one of the supported objects, must be incorrect */
+
+		return_btype = ACPI_RTYPE_ANY;
+		break;
+	}
+
+	return (return_btype);
 }
 
 /*******************************************************************************

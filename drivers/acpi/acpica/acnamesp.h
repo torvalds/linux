@@ -289,7 +289,7 @@ acpi_ns_get_attached_data(struct acpi_namespace_node *node,
  * predefined methods/objects
  */
 acpi_status
-acpi_ns_repair_object(struct acpi_predefined_data *data,
+acpi_ns_simple_repair(struct acpi_predefined_data *data,
 		      u32 expected_btypes,
 		      u32 package_index,
 		      union acpi_operand_object **return_object_ptr);
