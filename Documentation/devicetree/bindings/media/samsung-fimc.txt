@@ -21,6 +21,15 @@ Required properties:
 - clock-names	: must contain "fimc", "sclk_fimc" entries, matching entries
 		  in the clocks property.
 
+The pinctrl bindings defined in ../pinctrl/pinctrl-bindings.txt must be used
+to define a required pinctrl state named "default" and optional pinctrl states:
+"idle", "active-a", active-b". These optional states can be used to switch the
+camera port pinmux at runtime. The "idle" state should configure both the camera
+ports A and B into high impedance state, especially the CAMCLK clock output
+should be inactive. For the "active-a" state the camera port A must be activated
+and the port B deactivated and for the state "active-b" it should be the other
+way around.
+
 The 'camera' node must include at least one 'fimc' child node.
 
 
@@ -145,6 +154,9 @@ Example:
 		#address-cells = <1>;
 		#size-cells = <1>;
 		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_port_a_clk_active>;
 
 		/* parallel camera ports */
 		parallel-ports {

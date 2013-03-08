@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/pinctrl/consumer.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
@@ -25,6 +26,8 @@
 #define FIMC_LITE_OF_NODE_NAME	"fimc-lite"
 #define FIMC_IS_OF_NODE_NAME	"fimc-is"
 #define CSIS_OF_NODE_NAME	"csis"
+
+#define PINCTRL_STATE_IDLE	"idle"
 
 /* Group IDs of sensor, MIPI-CSIS, FIMC-LITE and the writeback subdevs. */
 #define GRP_ID_SENSOR		(1 << 8)
@@ -73,6 +76,9 @@ struct fimc_sensor_info {
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
+ * @pinctrl: camera port pinctrl handle
+ * @state_default: pinctrl default state handle
+ * @state_idle: pinctrl idle state handle
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
  */
@@ -86,6 +92,11 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
+	struct fimc_pinctrl {
+		struct pinctrl *pinctrl;
+		struct pinctrl_state *state_default;
+		struct pinctrl_state *state_idle;
+	} pinctl;
 	bool user_subdev_api;
 	spinlock_t slock;
 };
