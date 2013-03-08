@@ -800,6 +800,66 @@ struct SMSHOSTLIB_STATISTICS_ISDBT_ST {
 	u32 SmsToHostTxErrors; /* Total number of transmission errors. */
 };
 
+struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST {
+	u32 StatisticsType; /* Enumerator identifying the type of the
+				* structure.  Values are the same as
+				* SMSHOSTLIB_DEVICE_MODES_E
+				*
+				* This field MUST always be first in any
+				* statistics structure */
+
+	u32 FullSize; /* Total size of the structure returned by the modem.
+		       * If the size requested by the host is smaller than
+		       * FullSize, the struct will be truncated */
+
+	/* Common parameters */
+	u32 IsRfLocked; /* 0 - not locked, 1 - locked */
+	u32 IsDemodLocked; /* 0 - not locked, 1 - locked */
+	u32 IsExternalLNAOn; /* 0 - external LNA off, 1 - external LNA on */
+
+	/* Reception quality */
+	s32  SNR; /* dB */
+	s32  RSSI; /* dBm */
+	s32  InBandPwr; /* In band power in dBM */
+	s32  CarrierOffset; /* Carrier Offset in Hz */
+
+	/* Transmission parameters */
+	u32 Frequency; /* Frequency in Hz */
+	u32 Bandwidth; /* Bandwidth in MHz */
+	u32 TransmissionMode; /* ISDB-T transmission mode */
+	u32 ModemState; /* 0 - Acquisition, 1 - Locked */
+	u32 GuardInterval; /* Guard Interval, 1 divided by value */
+	u32 SystemType; /* ISDB-T system type (ISDB-T / ISDB-Tsb) */
+	u32 PartialReception; /* TRUE - partial reception, FALSE otherwise */
+	u32 NumOfLayers; /* Number of ISDB-T layers in the network */
+
+	u32 SegmentNumber; /* Segment number for ISDB-Tsb */
+	u32 TuneBW;	   /* Tuned bandwidth - BW_ISDBT_1SEG / BW_ISDBT_3SEG */
+
+	/* Per-layer information */
+	/* Layers A, B and C */
+	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST	LayerInfo[3];
+	/* Per-layer statistics, see SMSHOSTLIB_ISDBT_LAYER_STAT_ST */
+
+	/* Interface information */
+	u32 Reserved1;    /* Was SmsToHostTxErrors - obsolete . */
+ /* Proprietary information */
+	u32 ExtAntenna;    /* Obsolete field. */
+	u32 ReceptionQuality;
+	u32 EwsAlertActive;   /* Signals if EWS alert is currently on */
+	u32 LNAOnOff;	/* Internal LNA state: 0: OFF, 1: ON */
+
+	u32 RfAgcLevel;	 /* RF AGC Level [linear units], full gain = 65535 (20dB) */
+	u32 BbAgcLevel;    /* Baseband AGC level [linear units], full gain = 65535 (71.5dB) */
+	u32 FwErrorsCounter;   /* Application errors - should be always zero */
+	u8 FwErrorsHistoryArr[8]; /* Last FW errors IDs - first is most recent, last is oldest */
+
+	s32  MRC_SNR;     /* dB */
+	u32 SNRFullRes;    /* dB x 65536 */
+	u32 Reserved4[4];
+};
+
+
 struct PID_STATISTICS_DATA_S {
 	struct PID_BURST_S {
 		u32 size;
@@ -880,12 +940,55 @@ struct RECEPTION_STATISTICS_S {
 	s32 MRC_InBandPwr;	/* In band power in dBM */
 };
 
+struct RECEPTION_STATISTICS_EX_S {
+	u32 IsRfLocked;		/* 0 - not locked, 1 - locked */
+	u32 IsDemodLocked;	/* 0 - not locked, 1 - locked */
+	u32 IsExternalLNAOn;	/* 0 - external LNA off, 1 - external LNA on */
+
+	u32 ModemState;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
+	s32 SNR;		/* dB */
+	u32 BER;		/* Post Viterbi BER [1E-5] */
+	u32 BERErrorCount;	/* Number of erronous SYNC bits. */
+	u32 BERBitCount;	/* Total number of SYNC bits. */
+	u32 TS_PER;		/* Transport stream PER,
+	0xFFFFFFFF indicate N/A */
+	u32 MFER;		/* DVB-H frame error rate in percentage,
+	0xFFFFFFFF indicate N/A, valid only for DVB-H */
+	s32 RSSI;		/* dBm */
+	s32 InBandPwr;		/* In band power in dBM */
+	s32 CarrierOffset;	/* Carrier Offset in bin/1024 */
+	u32 ErrorTSPackets;	/* Number of erroneous
+	transport-stream packets */
+	u32 TotalTSPackets;	/* Total number of transport-stream packets */
+
+	s32  RefDevPPM;
+	s32  FreqDevHz;
+
+	s32 MRC_SNR;		/* dB */
+	s32 MRC_RSSI;		/* dBm */
+	s32 MRC_InBandPwr;	/* In band power in dBM */
+};
+
 
 /* Statistics information returned as response for
  * SmsHostApiGetStatisticsEx_Req for DVB applications, SMS1100 and up */
 struct SMSHOSTLIB_STATISTICS_DVB_S {
 	/* Reception */
 	struct RECEPTION_STATISTICS_S ReceptionData;
+
+	/* Transmission parameters */
+	struct TRANSMISSION_STATISTICS_S TransmissionData;
+
+	/* Burst parameters, valid only for DVB-H */
+#define	SRVM_MAX_PID_FILTERS 8
+	struct PID_DATA_S PidData[SRVM_MAX_PID_FILTERS];
+};
+
+/* Statistics information returned as response for
+ * SmsHostApiGetStatisticsEx_Req for DVB applications, SMS1100 and up */
+struct SMSHOSTLIB_STATISTICS_DVB_EX_S {
+	/* Reception */
+	struct RECEPTION_STATISTICS_EX_S ReceptionData;
 
 	/* Transmission parameters */
 	struct TRANSMISSION_STATISTICS_S TransmissionData;

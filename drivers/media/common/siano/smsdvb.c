@@ -50,7 +50,7 @@ struct smsdvb_client_t {
 	struct completion       tune_done;
 	struct completion       stats_done;
 
-	struct SMSHOSTLIB_STATISTICS_DVB_S sms_stat_dvb;
+	struct SMSHOSTLIB_STATISTICS_DVB_EX_S sms_stat_dvb;
 	int event_fe_state;
 	int event_unc_state;
 };
@@ -115,12 +115,10 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 	}
 }
 
-
-static void smsdvb_update_dvb_stats(struct RECEPTION_STATISTICS_S *pReceptionData,
+static void smsdvb_update_dvb_stats(struct RECEPTION_STATISTICS_EX_S *pReceptionData,
 				   struct SMSHOSTLIB_STATISTICS_ST *p)
 {
 	if (sms_dbg & 2) {
-		printk(KERN_DEBUG "Reserved = %d", p->Reserved);
 		printk(KERN_DEBUG "IsRfLocked = %d", p->IsRfLocked);
 		printk(KERN_DEBUG "IsDemodLocked = %d", p->IsDemodLocked);
 		printk(KERN_DEBUG "IsExternalLNAOn = %d", p->IsExternalLNAOn);
@@ -132,6 +130,7 @@ static void smsdvb_update_dvb_stats(struct RECEPTION_STATISTICS_S *pReceptionDat
 		printk(KERN_DEBUG "RSSI = %d", p->RSSI);
 		printk(KERN_DEBUG "InBandPwr = %d", p->InBandPwr);
 		printk(KERN_DEBUG "CarrierOffset = %d", p->CarrierOffset);
+		printk(KERN_DEBUG "ModemState = %d", p->ModemState);
 		printk(KERN_DEBUG "Frequency = %d", p->Frequency);
 		printk(KERN_DEBUG "Bandwidth = %d", p->Bandwidth);
 		printk(KERN_DEBUG "TransmissionMode = %d", p->TransmissionMode);
@@ -163,17 +162,24 @@ static void smsdvb_update_dvb_stats(struct RECEPTION_STATISTICS_S *pReceptionDat
 		printk(KERN_DEBUG "NumMPEReceived = %d", p->NumMPEReceived);
 	}
 
+	/* update reception data */
+	pReceptionData->IsRfLocked = p->IsRfLocked;
 	pReceptionData->IsDemodLocked = p->IsDemodLocked;
-
+	pReceptionData->IsExternalLNAOn = p->IsExternalLNAOn;
+	pReceptionData->ModemState = p->ModemState;
 	pReceptionData->SNR = p->SNR;
 	pReceptionData->BER = p->BER;
 	pReceptionData->BERErrorCount = p->BERErrorCount;
+	pReceptionData->BERBitCount = p->BERBitCount;
+	pReceptionData->RSSI = p->RSSI;
+	CORRECT_STAT_RSSI(*pReceptionData);
 	pReceptionData->InBandPwr = p->InBandPwr;
+	pReceptionData->CarrierOffset = p->CarrierOffset;
 	pReceptionData->ErrorTSPackets = p->ErrorTSPackets;
+	pReceptionData->TotalTSPackets = p->TotalTSPackets;
 };
 
-
-static void smsdvb_update_isdbt_stats(struct RECEPTION_STATISTICS_S *pReceptionData,
+static void smsdvb_update_isdbt_stats(struct RECEPTION_STATISTICS_EX_S *pReceptionData,
 				    struct SMSHOSTLIB_STATISTICS_ISDBT_ST *p)
 {
 	int i;
@@ -212,18 +218,100 @@ static void smsdvb_update_isdbt_stats(struct RECEPTION_STATISTICS_S *pReceptionD
 		}
 	}
 
+	/* update reception data */
+	pReceptionData->IsRfLocked = p->IsRfLocked;
 	pReceptionData->IsDemodLocked = p->IsDemodLocked;
-
+	pReceptionData->IsExternalLNAOn = p->IsExternalLNAOn;
+	pReceptionData->ModemState = p->ModemState;
 	pReceptionData->SNR = p->SNR;
+	pReceptionData->BER = p->LayerInfo[0].BER;
+	pReceptionData->BERErrorCount = p->LayerInfo[0].BERErrorCount;
+	pReceptionData->BERBitCount = p->LayerInfo[0].BERBitCount;
+	pReceptionData->RSSI = p->RSSI;
+	CORRECT_STAT_RSSI(*pReceptionData);
 	pReceptionData->InBandPwr = p->InBandPwr;
 
-	pReceptionData->ErrorTSPackets = 0;
-	pReceptionData->BER = 0;
-	pReceptionData->BERErrorCount = 0;
-	for (i = 0; i < 3; i++) {
-		pReceptionData->BER += p->LayerInfo[i].BER;
-		pReceptionData->BERErrorCount += p->LayerInfo[i].BERErrorCount;
-		pReceptionData->ErrorTSPackets += p->LayerInfo[i].ErrorTSPackets;
+	pReceptionData->CarrierOffset = p->CarrierOffset;
+	pReceptionData->ErrorTSPackets = p->LayerInfo[0].ErrorTSPackets;
+	pReceptionData->TotalTSPackets = p->LayerInfo[0].TotalTSPackets;
+	pReceptionData->MFER = 0;
+
+	/* TS PER */
+	if ((p->LayerInfo[0].TotalTSPackets +
+		 p->LayerInfo[0].ErrorTSPackets) > 0) {
+		pReceptionData->TS_PER = (p->LayerInfo[0].ErrorTSPackets
+				* 100) / (p->LayerInfo[0].TotalTSPackets
+				+ p->LayerInfo[0].ErrorTSPackets);
+	} else {
+		pReceptionData->TS_PER = 0;
+	}
+}
+
+static void smsdvb_update_isdbt_stats_ex(struct RECEPTION_STATISTICS_EX_S *pReceptionData,
+				    struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST *p)
+{
+	int i;
+
+	if (sms_dbg & 2) {
+		printk(KERN_DEBUG "IsRfLocked = %d", p->IsRfLocked);
+		printk(KERN_DEBUG "IsDemodLocked = %d", p->IsDemodLocked);
+		printk(KERN_DEBUG "IsExternalLNAOn = %d", p->IsExternalLNAOn);
+		printk(KERN_DEBUG "SNR = %d", p->SNR);
+		printk(KERN_DEBUG "RSSI = %d", p->RSSI);
+		printk(KERN_DEBUG "InBandPwr = %d", p->InBandPwr);
+		printk(KERN_DEBUG "CarrierOffset = %d", p->CarrierOffset);
+		printk(KERN_DEBUG "Frequency = %d", p->Frequency);
+		printk(KERN_DEBUG "Bandwidth = %d", p->Bandwidth);
+		printk(KERN_DEBUG "TransmissionMode = %d", p->TransmissionMode);
+		printk(KERN_DEBUG "ModemState = %d", p->ModemState);
+		printk(KERN_DEBUG "GuardInterval = %d", p->GuardInterval);
+		printk(KERN_DEBUG "SystemType = %d", p->SystemType);
+		printk(KERN_DEBUG "PartialReception = %d", p->PartialReception);
+		printk(KERN_DEBUG "NumOfLayers = %d", p->NumOfLayers);
+		printk(KERN_DEBUG "SegmentNumber = %d", p->SegmentNumber);
+		printk(KERN_DEBUG "TuneBW = %d", p->TuneBW);
+		for (i = 0; i < 3; i++) {
+			printk(KERN_DEBUG "%d: CodeRate = %d", i, p->LayerInfo[i].CodeRate);
+			printk(KERN_DEBUG "%d: Constellation = %d", i, p->LayerInfo[i].Constellation);
+			printk(KERN_DEBUG "%d: BER = %d", i, p->LayerInfo[i].BER);
+			printk(KERN_DEBUG "%d: BERErrorCount = %d", i, p->LayerInfo[i].BERErrorCount);
+			printk(KERN_DEBUG "%d: BERBitCount = %d", i, p->LayerInfo[i].BERBitCount);
+			printk(KERN_DEBUG "%d: PreBER = %d", i, p->LayerInfo[i].PreBER);
+			printk(KERN_DEBUG "%d: TS_PER = %d", i, p->LayerInfo[i].TS_PER);
+			printk(KERN_DEBUG "%d: ErrorTSPackets = %d", i, p->LayerInfo[i].ErrorTSPackets);
+			printk(KERN_DEBUG "%d: TotalTSPackets = %d", i, p->LayerInfo[i].TotalTSPackets);
+			printk(KERN_DEBUG "%d: TILdepthI = %d", i, p->LayerInfo[i].TILdepthI);
+			printk(KERN_DEBUG "%d: NumberOfSegments = %d", i, p->LayerInfo[i].NumberOfSegments);
+			printk(KERN_DEBUG "%d: TMCCErrors = %d", i, p->LayerInfo[i].TMCCErrors);
+		}
+	}
+
+	/* update reception data */
+	pReceptionData->IsRfLocked = p->IsRfLocked;
+	pReceptionData->IsDemodLocked = p->IsDemodLocked;
+	pReceptionData->IsExternalLNAOn = p->IsExternalLNAOn;
+	pReceptionData->ModemState = p->ModemState;
+	pReceptionData->SNR = p->SNR;
+	pReceptionData->BER = p->LayerInfo[0].BER;
+	pReceptionData->BERErrorCount = p->LayerInfo[0].BERErrorCount;
+	pReceptionData->BERBitCount = p->LayerInfo[0].BERBitCount;
+	pReceptionData->RSSI = p->RSSI;
+	CORRECT_STAT_RSSI(*pReceptionData);
+	pReceptionData->InBandPwr = p->InBandPwr;
+
+	pReceptionData->CarrierOffset = p->CarrierOffset;
+	pReceptionData->ErrorTSPackets = p->LayerInfo[0].ErrorTSPackets;
+	pReceptionData->TotalTSPackets = p->LayerInfo[0].TotalTSPackets;
+	pReceptionData->MFER = 0;
+
+	/* TS PER */
+	if ((p->LayerInfo[0].TotalTSPackets +
+		 p->LayerInfo[0].ErrorTSPackets) > 0) {
+		pReceptionData->TS_PER = (p->LayerInfo[0].ErrorTSPackets
+				* 100) / (p->LayerInfo[0].TotalTSPackets
+				+ p->LayerInfo[0].ErrorTSPackets);
+	} else {
+		pReceptionData->TS_PER = 0;
 	}
 }
 
@@ -260,9 +348,16 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		break;
 
 	case MSG_SMS_TRANSMISSION_IND: {
+
 		pMsgData++;
 		memcpy(&client->sms_stat_dvb.TransmissionData, pMsgData,
 				sizeof(struct TRANSMISSION_STATISTICS_S));
+
+#if 1
+		/*
+		 * FIXME: newer driver doesn't have those fixes
+		 * Are those firmware-specific stuff?
+		 */
 
 		/* Mo need to correct guard interval
 		 * (as opposed to old statistics message).
@@ -270,11 +365,12 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		CORRECT_STAT_BANDWIDTH(client->sms_stat_dvb.TransmissionData);
 		CORRECT_STAT_TRANSMISSON_MODE(
 				client->sms_stat_dvb.TransmissionData);
+#endif
 		is_status_update = true;
 		break;
 	}
 	case MSG_SMS_HO_PER_SLICES_IND: {
-		struct RECEPTION_STATISTICS_S *pReceptionData =
+		struct RECEPTION_STATISTICS_EX_S *pReceptionData =
 				&client->sms_stat_dvb.ReceptionData;
 		struct SRVM_SIGNAL_STATUS_S SignalStatusData;
 
@@ -329,7 +425,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 			struct SMSHOSTLIB_STATISTICS_ISDBT_ST  isdbt;
 			struct SmsMsgStatisticsInfo_ST         dvb;
 		} *p = (void *) (phdr + 1);
-		struct RECEPTION_STATISTICS_S *pReceptionData =
+		struct RECEPTION_STATISTICS_EX_S *pReceptionData =
 				&client->sms_stat_dvb.ReceptionData;
 
 		is_status_update = true;
@@ -341,6 +437,34 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 			break;
 		default:
 			smsdvb_update_dvb_stats(pReceptionData, &p->dvb.Stat);
+		}
+		if (!pReceptionData->IsDemodLocked) {
+			pReceptionData->SNR = 0;
+			pReceptionData->BER = 0;
+			pReceptionData->BERErrorCount = 0;
+			pReceptionData->InBandPwr = 0;
+			pReceptionData->ErrorTSPackets = 0;
+		}
+
+		break;
+	}
+	case MSG_SMS_GET_STATISTICS_EX_RES: {
+		union {
+			struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST isdbt;
+			struct SMSHOSTLIB_STATISTICS_ST          dvb;
+		} *p = (void *) (phdr + 1);
+		struct RECEPTION_STATISTICS_EX_S *pReceptionData =
+				&client->sms_stat_dvb.ReceptionData;
+
+		is_status_update = true;
+
+		switch (smscore_get_device_mode(client->coredev)) {
+		case DEVICE_MODE_ISDBT:
+		case DEVICE_MODE_ISDBT_BDA:
+			smsdvb_update_isdbt_stats_ex(pReceptionData, &p->isdbt);
+			break;
+		default:
+			smsdvb_update_dvb_stats(pReceptionData, &p->dvb);
 		}
 		if (!pReceptionData->IsDemodLocked) {
 			pReceptionData->SNR = 0;
@@ -466,10 +590,23 @@ static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
 static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 {
 	int rc;
-	struct SmsMsgHdr_ST Msg = { MSG_SMS_GET_STATISTICS_REQ,
-				    DVBT_BDA_CONTROL_MSG_ID,
-				    HIF_TASK,
-				    sizeof(struct SmsMsgHdr_ST), 0 };
+	struct SmsMsgHdr_ST Msg;
+
+
+	Msg.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
+	Msg.msgDstId = HIF_TASK;
+	Msg.msgFlags = 0;
+	Msg.msgLength = sizeof(Msg);
+
+	/*
+	 * Check for firmware version, to avoid breaking for old cards
+	 */
+	if (client->coredev->fw_version >= 0x800)
+		Msg.msgType = MSG_SMS_GET_STATISTICS_EX_REQ;
+	else
+		Msg.msgType = MSG_SMS_GET_STATISTICS_REQ;
+
+	smsendian_handle_tx_message((struct SmsMsgHdr_S *)&Msg);
 
 	rc = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					 &client->stats_done);
