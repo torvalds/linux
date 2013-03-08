@@ -130,6 +130,9 @@ enum {
 #define MWIFIEX_USB_TYPE_DATA			0xBEADC0DE
 #define MWIFIEX_USB_TYPE_EVENT			0xBEEFFACE
 
+/* Threshold for tx_timeout_cnt before we trigger a card reset */
+#define TX_TIMEOUT_THRESHOLD	6
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -394,6 +397,8 @@ struct mwifiex_private {
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
 	u32 num_tx_timeout;
+	/* track consecutive timeout */
+	u8 tx_timeout_cnt;
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	u16 curr_pkt_filter;
