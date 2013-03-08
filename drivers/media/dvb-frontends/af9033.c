@@ -363,6 +363,9 @@ static int af9033_init(struct dvb_frontend *fe)
 		init = tuner_init_it9135_60;
 		break;
 	case AF9033_TUNER_IT9135_61:
+		len = ARRAY_SIZE(tuner_init_it9135_61);
+		init = tuner_init_it9135_61;
+		break;
 	case AF9033_TUNER_IT9135_62:
 		len = 0;
 		break;
