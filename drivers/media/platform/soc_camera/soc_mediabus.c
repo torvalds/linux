@@ -73,7 +73,7 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.name			= "RGB555X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
-		.order			= SOC_MBUS_ORDER_LE,
+		.order			= SOC_MBUS_ORDER_BE,
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
@@ -93,7 +93,7 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.name			= "RGB565X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
-		.order			= SOC_MBUS_ORDER_LE,
+		.order			= SOC_MBUS_ORDER_BE,
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
