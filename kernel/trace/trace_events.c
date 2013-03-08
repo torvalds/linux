@@ -1844,8 +1844,8 @@ static char bootup_event_buf[COMMAND_LINE_SIZE] __initdata;
 static __init int setup_trace_event(char *str)
 {
 	strlcpy(bootup_event_buf, str, COMMAND_LINE_SIZE);
-	ring_buffer_expanded = 1;
-	tracing_selftest_disabled = 1;
+	ring_buffer_expanded = true;
+	tracing_selftest_disabled = true;
 
 	return 1;
 }

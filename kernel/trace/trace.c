@@ -47,7 +47,7 @@
  * On boot up, the ring buffer is set to the minimum size, so that
  * we do not waste memory on systems that are not using tracing.
  */
-int ring_buffer_expanded;
+bool ring_buffer_expanded;
 
 /*
  * We need to change this state when a selftest is running.
@@ -121,12 +121,14 @@ static int tracing_set_tracer(const char *buf);
 static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
+static bool allocate_snapshot;
+
 static int __init set_cmdline_ftrace(char *str)
 {
 	strncpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
 	/* We are using ftrace early, expand it */
-	ring_buffer_expanded = 1;
+	ring_buffer_expanded = true;
 	return 1;
 }
 __setup("ftrace=", set_cmdline_ftrace);
@@ -146,6 +148,15 @@ static int __init set_ftrace_dump_on_oops(char *str)
         return 0;
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
+
+static int __init alloc_snapshot(char *str)
+{
+	allocate_snapshot = true;
+	/* We also need the main ring buffer expanded */
+	ring_buffer_expanded = true;
+	return 1;
+}
+__setup("alloc_snapshot", alloc_snapshot);
 
 
 static char trace_boot_options_buf[MAX_TRACER_SIZE] __initdata;
@@ -951,7 +962,7 @@ int register_tracer(struct tracer *type)
 	tracing_set_tracer(type->name);
 	default_bootup_tracer = NULL;
 	/* disable other selftests, since this will break it. */
-	tracing_selftest_disabled = 1;
+	tracing_selftest_disabled = true;
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	printk(KERN_INFO "Disabling FTRACE selftests due to running tracer '%s'\n",
 	       type->name);
@@ -3318,7 +3329,7 @@ static int __tracing_resize_ring_buffer(struct trace_array *tr,
 	 * we use the size that was given, and we can forget about
 	 * expanding it later.
 	 */
-	ring_buffer_expanded = 1;
+	ring_buffer_expanded = true;
 
 	/* May be called before buffers are initialized */
 	if (!tr->trace_buffer.buffer)
@@ -5396,53 +5407,57 @@ static void init_trace_buffers(struct trace_array *tr, struct trace_buffer *buf)
 	}
 }
 
-static int allocate_trace_buffers(struct trace_array *tr, int size)
+static int
+allocate_trace_buffer(struct trace_array *tr, struct trace_buffer *buf, int size)
 {
 	enum ring_buffer_flags rb_flags;
 
 	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
 
-	tr->trace_buffer.buffer = ring_buffer_alloc(size, rb_flags);
-	if (!tr->trace_buffer.buffer)
-		goto out_free;
+	buf->buffer = ring_buffer_alloc(size, rb_flags);
+	if (!buf->buffer)
+		return -ENOMEM;
 
-	tr->trace_buffer.data = alloc_percpu(struct trace_array_cpu);
-	if (!tr->trace_buffer.data)
-		goto out_free;
+	buf->data = alloc_percpu(struct trace_array_cpu);
+	if (!buf->data) {
+		ring_buffer_free(buf->buffer);
+		return -ENOMEM;
+	}
 
-	init_trace_buffers(tr, &tr->trace_buffer);
+	init_trace_buffers(tr, buf);
 
 	/* Allocate the first page for all buffers */
 	set_buffer_entries(&tr->trace_buffer,
 			   ring_buffer_size(tr->trace_buffer.buffer, 0));
 
+	return 0;
+}
+
+static int allocate_trace_buffers(struct trace_array *tr, int size)
+{
+	int ret;
+
+	ret = allocate_trace_buffer(tr, &tr->trace_buffer, size);
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_TRACER_MAX_TRACE
+	ret = allocate_trace_buffer(tr, &tr->max_buffer,
+				    allocate_snapshot ? size : 1);
+	if (WARN_ON(ret)) {
+		ring_buffer_free(tr->trace_buffer.buffer);
+		free_percpu(tr->trace_buffer.data);
+		return -ENOMEM;
+	}
+	tr->allocated_snapshot = allocate_snapshot;
 
-	tr->max_buffer.buffer = ring_buffer_alloc(1, rb_flags);
-	if (!tr->max_buffer.buffer)
-		goto out_free;
-
-	tr->max_buffer.data = alloc_percpu(struct trace_array_cpu);
-	if (!tr->max_buffer.data)
-		goto out_free;
-
-	init_trace_buffers(tr, &tr->max_buffer);
-
-	set_buffer_entries(&tr->max_buffer, 1);
+	/*
+	 * Only the top level trace array gets its snapshot allocated
+	 * from the kernel command line.
+	 */
+	allocate_snapshot = false;
 #endif
 	return 0;
-
- out_free:
-	if (tr->trace_buffer.buffer)
-		ring_buffer_free(tr->trace_buffer.buffer);
-	free_percpu(tr->trace_buffer.data);
-
-#ifdef CONFIG_TRACER_MAX_TRACE
-	if (tr->max_buffer.buffer)
-		ring_buffer_free(tr->max_buffer.buffer);
-	free_percpu(tr->max_buffer.data);
-#endif
-	return -ENOMEM;
 }
 
 static int new_instance_create(const char *name)
