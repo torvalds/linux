@@ -26,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/usb/musb-ux500.h>
 
 #include "musb_core.h"
 
@@ -107,15 +108,15 @@ static int musb_otg_notifications(struct notifier_block *nb,
 			event, usb_otg_state_string(musb->xceiv->state));
 
 	switch (event) {
-	case USB_EVENT_ID:
+	case UX500_MUSB_ID:
 		dev_dbg(musb->controller, "ID GND\n");
 		ux500_musb_set_vbus(musb, 1);
 		break;
-	case USB_EVENT_VBUS:
+	case UX500_MUSB_VBUS:
 		dev_dbg(musb->controller, "VBUS Connect\n");
 		ux500_musb_set_vbus(musb, 0);
 		break;
-	case USB_EVENT_NONE:
+	case UX500_MUSB_NONE:
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 		if (is_host_active(musb))
 			ux500_musb_set_vbus(musb, 0);
