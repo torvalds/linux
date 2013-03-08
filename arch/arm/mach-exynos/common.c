@@ -31,6 +31,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/cacheflush.h>
+#include <asm/firmware.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
@@ -767,24 +768,33 @@ static int __init exynos4_l2x0_cache_init(void)
 		else
 			l2x0_saved_regs.data_latency = 0x110;
 
-		l2x0_saved_regs.prefetch_ctrl = 0x30000007;
+		if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_1_0)
+			l2x0_saved_regs.prefetch_ctrl = 0x71000007;
+		else
+			l2x0_saved_regs.prefetch_ctrl = 0x30000007;
+
 		l2x0_saved_regs.pwr_ctrl =
 			(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN);
 
 		l2x0_regs_phys = virt_to_phys(&l2x0_saved_regs);
 
-		__raw_writel(l2x0_saved_regs.tag_latency,
-				S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
-		__raw_writel(l2x0_saved_regs.data_latency,
-				S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+		/*
+		 * Try using firmware operation first
+		 */
+		if (call_firmware_op(l2x0_init)) {
+			__raw_writel(l2x0_saved_regs.tag_latency,
+					S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
+			__raw_writel(l2x0_saved_regs.data_latency,
+					S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
 
-		/* L2X0 Prefetch Control */
-		__raw_writel(l2x0_saved_regs.prefetch_ctrl,
-				S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
+			/* L2X0 Prefetch Control */
+			__raw_writel(l2x0_saved_regs.prefetch_ctrl,
+					S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
 
-		/* L2X0 Power Control */
-		__raw_writel(l2x0_saved_regs.pwr_ctrl,
-				S5P_VA_L2CC + L2X0_POWER_CTRL);
+			/* L2X0 Power Control */
+			__raw_writel(l2x0_saved_regs.pwr_ctrl,
+					S5P_VA_L2CC + L2X0_POWER_CTRL);
+		}
 
 		clean_dcache_area(&l2x0_regs_phys, sizeof(unsigned long));
 		clean_dcache_area(&l2x0_saved_regs, sizeof(struct l2x0_regs));
