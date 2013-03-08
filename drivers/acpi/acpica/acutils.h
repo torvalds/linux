@@ -483,7 +483,8 @@ acpi_ut_short_divide(u64 in_dividend,
 /*
  * utmisc
  */
-const char *acpi_ut_validate_exception(acpi_status status);
+const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status
+							     status);
 
 u8 acpi_ut_is_pci_root_bridge(char *id);
 
