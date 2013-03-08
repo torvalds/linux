@@ -95,7 +95,6 @@ int acpi_pci_link_free_irq(acpi_handle handle);
 struct pci_bus;
 
 struct pci_dev *acpi_get_pci_dev(acpi_handle);
-int acpi_pci_bind_root(struct acpi_device *device);
 
 /* Arch-defined function to add a bus to the system */
 
