@@ -98,6 +98,37 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
+static int musb_otg_notifications(struct notifier_block *nb,
+		unsigned long event, void *unused)
+{
+	struct musb *musb = container_of(nb, struct musb, nb);
+
+	dev_dbg(musb->controller, "musb_otg_notifications %ld %s\n",
+			event, usb_otg_state_string(musb->xceiv->state));
+
+	switch (event) {
+	case USB_EVENT_ID:
+		dev_dbg(musb->controller, "ID GND\n");
+		ux500_musb_set_vbus(musb, 1);
+		break;
+	case USB_EVENT_VBUS:
+		dev_dbg(musb->controller, "VBUS Connect\n");
+		ux500_musb_set_vbus(musb, 0);
+		break;
+	case USB_EVENT_NONE:
+		dev_dbg(musb->controller, "VBUS Disconnect\n");
+		if (is_host_active(musb))
+			ux500_musb_set_vbus(musb, 0);
+		else
+			musb->xceiv->state = OTG_STATE_B_IDLE;
+		break;
+	default:
+		dev_dbg(musb->controller, "ID float\n");
+		return NOTIFY_DONE;
+	}
+	return NOTIFY_OK;
+}
+
 static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long   flags;
@@ -120,10 +151,19 @@ static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
 
 static int ux500_musb_init(struct musb *musb)
 {
+	int status;
+
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -EPROBE_DEFER;
+	}
+
+	musb->nb.notifier_call = musb_otg_notifications;
+	status = usb_register_notifier(musb->xceiv, &musb->nb);
+	if (status < 0) {
+		dev_dbg(musb->controller, "notification register failed\n");
+		return status;
 	}
 
 	musb->isr = ux500_musb_interrupt;
@@ -133,6 +173,8 @@ static int ux500_musb_init(struct musb *musb)
 
 static int ux500_musb_exit(struct musb *musb)
 {
+	usb_unregister_notifier(musb->xceiv, &musb->nb);
+
 	usb_put_phy(musb->xceiv);
 
 	return 0;
