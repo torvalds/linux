@@ -478,6 +478,8 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	__be32 dst = tiph->daddr;
 	struct flowi4 fl4;
 	int    mtu;
+	int err;
+	int pkt_len;
 
 	if (skb->protocol != htons(ETH_P_IP))
 		goto tx_error;
@@ -591,11 +593,28 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->tos		=	INET_ECN_encapsulate(tos, old_iph->tos);
 	iph->daddr		=	fl4.daddr;
 	iph->saddr		=	fl4.saddr;
+	tunnel_ip_select_ident(skb, old_iph, &rt->dst);
 
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	old_iph->ttl;
 
-	iptunnel_xmit(skb, dev);
+	nf_reset(skb);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	pkt_len = skb->len - skb_transport_offset(skb);
+	err = ip_local_out(skb);
+	if (likely(net_xmit_eval(err) == 0)) {
+		struct pcpu_tstats *tstats = this_cpu_ptr(dev->tstats);
+
+		u64_stats_update_begin(&tstats->syncp);
+		tstats->tx_bytes += pkt_len;
+		tstats->tx_packets++;
+		u64_stats_update_end(&tstats->syncp);
+	} else {
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
+	}
+
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
