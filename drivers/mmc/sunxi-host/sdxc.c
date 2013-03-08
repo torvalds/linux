@@ -847,7 +847,8 @@ static int sdxc_prepare_pio(struct sunxi_mmc_host* smc_host, struct mmc_data* da
 {
 	int rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
 
-	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
+	if ((data->flags & BOTH_DIR) == BOTH_DIR)
+		return -EINVAL;
 
 	smc_host->pio_sgptr = 0;
 	smc_host->pio_bytes = 0;
