@@ -193,7 +193,8 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	enum ns2_led_modes mode;
 
 	ret = devm_gpio_request_one(&pdev->dev, template->cmd,
-			GPIOF_DIR_OUT | gpio_get_value(template->cmd),
+			gpio_get_value(template->cmd) ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup command GPIO\n",
@@ -202,7 +203,8 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	}
 
 	ret = devm_gpio_request_one(&pdev->dev, template->slow,
-			GPIOF_DIR_OUT | gpio_get_value(template->slow),
+			gpio_get_value(template->slow) ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup slow GPIO\n",
