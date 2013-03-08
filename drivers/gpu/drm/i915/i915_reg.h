@@ -4150,6 +4150,8 @@
 #define  FORCEWAKE_ACK_VLV			0x1300b4
 #define  FORCEWAKE_ACK_HSW			0x130044
 #define  FORCEWAKE_ACK				0x130090
+#define  VLV_GTLC_WAKE_CTRL			0x130090
+#define  VLV_GTLC_PW_STATUS			0x130094
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2

@@ -4010,7 +4010,16 @@ int i915_gem_init(struct drm_device *dev)
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
+
+	if (IS_VALLEYVIEW(dev)) {
+		/* VLVA0 (potential hack), BIOS isn't actually waking us */
+		I915_WRITE(VLV_GTLC_WAKE_CTRL, 1);
+		if (wait_for((I915_READ(VLV_GTLC_PW_STATUS) & 1) == 1, 10))
+			DRM_DEBUG_DRIVER("allow wake ack timed out\n");
+	}
+
 	i915_gem_init_global_gtt(dev);
+
 	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
