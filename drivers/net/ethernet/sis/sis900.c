@@ -1841,15 +1841,12 @@ refill_rx_ring:
 		entry = sis_priv->dirty_rx % NUM_RX_DESC;
 
 		if (sis_priv->rx_skbuff[entry] == NULL) {
-			if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
+			skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE);
+			if (skb == NULL) {
 				/* not enough memory for skbuff, this makes a
 				 * "hole" on the buffer ring, it is not clear
 				 * how the hardware will react to this kind
 				 * of degenerated buffer */
-				if (netif_msg_rx_err(sis_priv))
-					printk(KERN_INFO "%s: Memory squeeze, "
-						"deferring packet.\n",
-						net_dev->name);
 				net_dev->stats.rx_dropped++;
 				break;
 			}

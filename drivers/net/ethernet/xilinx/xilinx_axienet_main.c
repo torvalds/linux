@@ -235,10 +235,8 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 				      ((i + 1) % RX_BD_NUM);
 
 		skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!skb) {
-			dev_err(&ndev->dev, "alloc_skb error %d\n", i);
+		if (!skb)
 			goto out;
-		}
 
 		lp->rx_bd_v[i].sw_id_offset = (u32) skb;
 		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
@@ -777,10 +775,9 @@ static void axienet_recv(struct net_device *ndev)
 		packets++;
 
 		new_skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!new_skb) {
-			dev_err(&ndev->dev, "no memory for new sk_buff\n");
+		if (!new_skb)
 			return;
-		}
+
 		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
 					     lp->max_frm_size,
 					     DMA_FROM_DEVICE);

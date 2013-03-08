@@ -715,14 +715,12 @@ static inline int i596_rx(struct net_device *dev)
 				rbd->v_data = newskb->data;
 				rbd->b_data = SWAP32(dma_addr);
 				DMA_WBACK_INV(dev, rbd, sizeof(struct i596_rbd));
-			} else
+			} else {
 				skb = netdev_alloc_skb_ip_align(dev, pkt_len);
+			}
 memory_squeeze:
 			if (skb == NULL) {
 				/* XXX tulip.c can defer packets here!! */
-				printk(KERN_ERR
-				       "%s: i596_rx Memory squeeze, dropping packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 			} else {
 				if (!rx_in_place) {

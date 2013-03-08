@@ -1003,8 +1003,6 @@ static void fjn_rx(struct net_device *dev)
 	    }
 	    skb = netdev_alloc_skb(dev, pkt_len + 2);
 	    if (skb == NULL) {
-		netdev_notice(dev, "Memory squeeze, dropping packet (len %d)\n",
-			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_dropped++;
 		break;

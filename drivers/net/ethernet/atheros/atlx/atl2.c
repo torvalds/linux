@@ -437,9 +437,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 			/* alloc new buffer */
 			skb = netdev_alloc_skb_ip_align(netdev, rx_size);
 			if (NULL == skb) {
-				printk(KERN_WARNING
-					"%s: Mem squeeze, deferring packet.\n",
-					netdev->name);
 				/*
 				 * Check that some rx space is free. If not,
 				 * free one and mark stats->rx_dropped++.

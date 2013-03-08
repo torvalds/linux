@@ -1211,8 +1211,6 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				    netdev_alloc_skb(qdev->ndev,
 						     SMALL_BUFFER_SIZE);
 				if (sbq_desc->p.skb == NULL) {
-					netif_err(qdev, probe, qdev->ndev,
-						  "Couldn't get an skb.\n");
 					rx_ring->sbq_clean_idx = clean_idx;
 					return;
 				}
@@ -1519,8 +1517,6 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 
 	skb = netdev_alloc_skb(ndev, length);
 	if (!skb) {
-		netif_err(qdev, drv, qdev->ndev,
-			  "Couldn't get an skb, need to unwind!.\n");
 		rx_ring->rx_dropped++;
 		put_page(lbq_desc->p.pg_chunk.page);
 		return;
@@ -1605,8 +1601,6 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	/* Allocate new_skb and copy */
 	new_skb = netdev_alloc_skb(qdev->ndev, length + NET_IP_ALIGN);
 	if (new_skb == NULL) {
-		netif_err(qdev, probe, qdev->ndev,
-			  "No skb available, drop the packet.\n");
 		rx_ring->rx_dropped++;
 		return;
 	}

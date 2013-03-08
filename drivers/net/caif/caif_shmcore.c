@@ -338,11 +338,8 @@ static void shm_rx_work_func(struct work_struct *rx_work)
 			/* Get a suitable CAIF packet and copy in data. */
 			skb = netdev_alloc_skb(pshm_drv->pshm_dev->pshm_netdev,
 							frm_pck_len + 1);
-
-			if (skb == NULL) {
-				pr_info("OOM: Try next frame in descriptor\n");
+			if (skb == NULL)
 				break;
-			}
 
 			p = skb_put(skb, frm_pck_len);
 			memcpy(p, pbuf->desc_vptr + frm_pck_ofs, frm_pck_len);

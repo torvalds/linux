@@ -1102,10 +1102,9 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
 		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
-		if (!skb) {
-			pr_err("NO MEM: netdev_alloc_skb failed\n");
+		if (!skb)
 			break;
-		}
+
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		idx = bdx_rxdb_alloc_elem(db);

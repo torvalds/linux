@@ -1420,11 +1420,9 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 			packet_size = ((prrs->word1 >> RRS_PKT_SIZE_SHIFT) &
 					RRS_PKT_SIZE_MASK) - 4; /* CRC */
 			skb = netdev_alloc_skb_ip_align(netdev, packet_size);
-			if (skb == NULL) {
-				netdev_warn(netdev,
-					    "Memory squeeze, deferring packet\n");
+			if (skb == NULL)
 				goto skip_pkt;
-			}
+
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);
 			skb->protocol = eth_type_trans(skb, netdev);

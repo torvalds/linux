@@ -350,7 +350,6 @@ static int r6040_alloc_rxbufs(struct net_device *dev)
 	do {
 		skb = netdev_alloc_skb(dev, MAX_BUF_SIZE);
 		if (!skb) {
-			netdev_err(dev, "failed to alloc skb for rx\n");
 			rc = -ENOMEM;
 			goto err_exit;
 		}

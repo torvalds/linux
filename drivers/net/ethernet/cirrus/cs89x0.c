@@ -478,9 +478,6 @@ dma_rx(struct net_device *dev)
 	/* Malloc up new buffer. */
 	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
-		/* I don't think we want to do this to a stressed system */
-		cs89_dbg(0, err, "%s: Memory squeeze, dropping packet\n",
-			 dev->name);
 		dev->stats.rx_dropped++;
 
 		/* AKPM: advance bp to the next frame */
@@ -731,9 +728,6 @@ net_rx(struct net_device *dev)
 	/* Malloc up new buffer. */
 	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
-#if 0		/* Again, this seems a cruel thing to do */
-		pr_warn("%s: Memory squeeze, dropping packet\n", dev->name);
-#endif
 		dev->stats.rx_dropped++;
 		return;
 	}

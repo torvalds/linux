@@ -245,10 +245,8 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 
 	/* Alloc skb */
 	slot->skb = netdev_alloc_skb(bgmac->net_dev, BGMAC_RX_BUF_SIZE);
-	if (!slot->skb) {
-		bgmac_err(bgmac, "Allocation of skb failed!\n");
+	if (!slot->skb)
 		return -ENOMEM;
-	}
 
 	/* Poison - if everything goes fine, hardware will overwrite it */
 	rx = (struct bgmac_rx_header *)slot->skb->data;

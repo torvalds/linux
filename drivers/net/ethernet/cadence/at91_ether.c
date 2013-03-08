@@ -209,7 +209,6 @@ static void at91ether_rx(struct net_device *dev)
 			netif_rx(skb);
 		} else {
 			lp->stats.rx_dropped++;
-			netdev_notice(dev, "Memory squeeze, dropping packet.\n");
 		}
 
 		if (lp->rx_ring[lp->rx_tail].ctrl & MACB_BIT(RX_MHASH_MATCH))

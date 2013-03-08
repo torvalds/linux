@@ -996,8 +996,6 @@ static int lance_rx( struct net_device *dev )
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
-					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
-								  dev->name ));
 					for( i = 0; i < RX_RING_SIZE; i++ )
 						if (MEM->rx_head[(entry+i) & RX_RING_MOD_MASK].flag &
 							RMD1_OWN_CHIP)

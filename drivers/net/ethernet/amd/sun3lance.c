@@ -812,9 +812,6 @@ static int lance_rx( struct net_device *dev )
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
-					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
-						      dev->name ));
-
 					dev->stats.rx_dropped++;
 					head->msg_length = 0;
 					head->flag |= RMD1_OWN_CHIP;

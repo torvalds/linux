@@ -273,11 +273,9 @@ static int temac_dma_bd_init(struct net_device *ndev)
 
 		skb = netdev_alloc_skb_ip_align(ndev,
 						XTE_MAX_JUMBO_FRAME_SIZE);
-
-		if (skb == 0) {
-			dev_err(&ndev->dev, "alloc_skb error %d\n", i);
+		if (!skb)
 			goto out;
-		}
+
 		lp->rx_skb[i] = skb;
 		/* returns physical address of skb->data */
 		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
@@ -789,9 +787,7 @@ static void ll_temac_recv(struct net_device *ndev)
 
 		new_skb = netdev_alloc_skb_ip_align(ndev,
 						XTE_MAX_JUMBO_FRAME_SIZE);
-
-		if (new_skb == 0) {
-			dev_err(&ndev->dev, "no memory for new sk_buff\n");
+		if (!new_skb) {
 			spin_unlock_irqrestore(&lp->rx_lock, flags);
 			return;
 		}

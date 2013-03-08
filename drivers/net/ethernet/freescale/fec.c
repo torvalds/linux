@@ -743,8 +743,6 @@ fec_enet_rx(struct net_device *ndev, int budget)
 		skb = netdev_alloc_skb(ndev, pkt_len - 4 + NET_IP_ALIGN);
 
 		if (unlikely(!skb)) {
-			printk("%s: Memory squeeze, dropping packet.\n",
-					ndev->name);
 			ndev->stats.rx_dropped++;
 		} else {
 			skb_reserve(skb, NET_IP_ALIGN);

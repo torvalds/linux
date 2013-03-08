@@ -152,8 +152,6 @@ static void netx_eth_receive(struct net_device *ndev)
 
 	skb = netdev_alloc_skb(ndev, len);
 	if (unlikely(skb == NULL)) {
-		printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
-			ndev->name);
 		ndev->stats.rx_dropped++;
 		return;
 	}

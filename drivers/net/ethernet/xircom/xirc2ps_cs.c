@@ -1041,7 +1041,6 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    /* 1 extra so we can use insw */
 	    skb = netdev_alloc_skb(dev, pktlen + 3);
 	    if (!skb) {
-		pr_notice("low memory, packet dropped (size=%u)\n", pktlen);
 		dev->stats.rx_dropped++;
 	    } else { /* okay get the packet */
 		skb_reserve(skb, 2);
