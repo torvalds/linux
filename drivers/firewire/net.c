@@ -1295,9 +1295,12 @@ out:
 /* ifdown */
 static int fwnet_stop(struct net_device *net)
 {
+	struct fwnet_device *dev = netdev_priv(net);
+
 	netif_stop_queue(net);
 
-	/* Deallocate iso context for use by other applications? */
+	fwnet_broadcast_stop(dev);
+	fwnet_fifo_stop(dev);
 
 	return 0;
 }
@@ -1637,9 +1640,6 @@ static int fwnet_remove(struct device *_dev)
 
 	if (list_empty(&dev->peer_list)) {
 		unregister_netdev(net);
-
-		fwnet_fifo_stop(dev);
-		fwnet_broadcast_stop(dev);
 
 		for (i = 0; dev->queued_datagrams && i < 5; i++)
 			ssleep(1);
