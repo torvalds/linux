@@ -69,7 +69,6 @@ struct ceph_messenger {
 #ifdef CONFIG_BLOCK
 #define ceph_msg_has_bio(m)		((m)->b.type == CEPH_MSG_DATA_BIO)
 #endif /* CONFIG_BLOCK */
-#define ceph_msg_has_trail(m)		((m)->t.type == CEPH_MSG_DATA_PAGELIST)
 
 enum ceph_msg_data_type {
 	CEPH_MSG_DATA_NONE,	/* message contains no data payload */
@@ -155,7 +154,6 @@ struct ceph_msg {
 #ifdef CONFIG_BLOCK
 	struct ceph_msg_data	b;	/* bio */
 #endif /* CONFIG_BLOCK */
-	struct ceph_msg_data	t;	/* trail */
 
 	struct ceph_connection *con;
 	struct list_head list_head;	/* links for connection lists */
@@ -295,8 +293,6 @@ extern void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 extern void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
 extern void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio);
-extern void ceph_msg_data_set_trail(struct ceph_msg *msg,
-				struct ceph_pagelist *trail);
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
