@@ -1626,11 +1626,14 @@ static int fwnet_remove(struct device *_dev)
 		fwnet_fifo_stop(dev);
 		if (dev->broadcast_rcv_context) {
 			fw_iso_context_stop(dev->broadcast_rcv_context);
+
 			kfree(dev->broadcast_rcv_buffer_ptrs);
 			dev->broadcast_rcv_buffer_ptrs = NULL;
 			fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer,
 					      dev->card);
 			fw_iso_context_destroy(dev->broadcast_rcv_context);
+			dev->broadcast_rcv_context = NULL;
+			dev->broadcast_state = FWNET_BROADCAST_ERROR;
 		}
 		for (i = 0; dev->queued_datagrams && i < 5; i++)
 			ssleep(1);
