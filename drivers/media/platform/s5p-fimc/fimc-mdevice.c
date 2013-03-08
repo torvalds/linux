@@ -40,14 +40,13 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 				bool on);
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
- * @fimc: fimc device terminating the pipeline
+ * @me: media entity terminating the pipeline
  *
  * Caller holds the graph mutex.
  */
 static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 				  struct media_entity *me)
 {
-	struct media_pad *pad = &me->pads[0];
 	struct v4l2_subdev *sd;
 	int i;
 
@@ -55,15 +54,21 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 		p->subdevs[i] = NULL;
 
 	while (1) {
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
+		struct media_pad *pad = NULL;
 
-		/* source pad */
-		pad = media_entity_remote_source(pad);
+		/* Find remote source pad */
+		for (i = 0; i < me->num_pads; i++) {
+			struct media_pad *spad = &me->pads[i];
+			if (!(spad->flags & MEDIA_PAD_FL_SINK))
+				continue;
+			pad = media_entity_remote_source(spad);
+			if (pad)
+				break;
+		}
+
 		if (pad == NULL ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
-
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 
 		switch (sd->grp_id) {
@@ -84,8 +89,9 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 			pr_warn("%s: Unknown subdev grp_id: %#x\n",
 				__func__, sd->grp_id);
 		}
-		/* sink pad */
-		pad = &sd->entity.pads[0];
+		me = &sd->entity;
+		if (me->num_pads == 1)
+			break;
 	}
 }
 
