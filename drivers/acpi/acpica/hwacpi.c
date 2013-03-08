@@ -66,6 +66,12 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 	ACPI_FUNCTION_TRACE(hw_set_mode);
 
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
@@ -145,6 +151,12 @@ u32 acpi_hw_get_mode(void)
 	u32 value;
 
 	ACPI_FUNCTION_TRACE(hw_get_mode);
+
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_VALUE(ACPI_SYS_MODE_ACPI);
+	}
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
