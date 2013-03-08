@@ -134,7 +134,6 @@ struct ceph_osd_request {
 
 	struct ceph_osd_data r_data_in;
 	struct ceph_osd_data r_data_out;
-	struct ceph_pagelist r_trail;	      /* trailing part of data out */
 };
 
 struct ceph_osd_event {

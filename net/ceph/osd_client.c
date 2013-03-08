@@ -138,7 +138,6 @@ void ceph_osdc_release_request(struct kref *kref)
 	}
 
 	ceph_put_snap_context(req->r_snapc);
-	ceph_pagelist_release(&req->r_trail);
 	if (req->r_mempool)
 		mempool_free(req, req->r_osdc->req_mempool);
 	else
@@ -202,7 +201,6 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 
 	req->r_data_in.type = CEPH_OSD_DATA_TYPE_NONE;
 	req->r_data_out.type = CEPH_OSD_DATA_TYPE_NONE;
-	ceph_pagelist_init(&req->r_trail);
 
 	/* create request message; allow space for oid */
 	if (use_mempool)
@@ -227,7 +225,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_req_op *src)
 {
 	u64 out_data_len = 0;
-	u64 tmp;
+	struct ceph_pagelist *pagelist;
 
 	dst->op = cpu_to_le16(src->op);
 
@@ -246,18 +244,23 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			cpu_to_le32(src->extent.truncate_seq);
 		break;
 	case CEPH_OSD_OP_CALL:
+		pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
+		BUG_ON(!pagelist);
+		ceph_pagelist_init(pagelist);
+
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
-
-		tmp = req->r_trail.length;
-		ceph_pagelist_append(&req->r_trail, src->cls.class_name,
+		ceph_pagelist_append(pagelist, src->cls.class_name,
 				     src->cls.class_len);
-		ceph_pagelist_append(&req->r_trail, src->cls.method_name,
+		ceph_pagelist_append(pagelist, src->cls.method_name,
 				     src->cls.method_len);
-		ceph_pagelist_append(&req->r_trail, src->cls.indata,
+		ceph_pagelist_append(pagelist, src->cls.indata,
 				     src->cls.indata_len);
-		out_data_len = req->r_trail.length - tmp;
+
+		req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGELIST;
+		req->r_data_out.pagelist = pagelist;
+		out_data_len = pagelist->length;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;
@@ -1782,8 +1785,6 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 
 	ceph_osdc_msg_data_set(req->r_reply, &req->r_data_in);
 	ceph_osdc_msg_data_set(req->r_request, &req->r_data_out);
-	if (req->r_trail.length)
-		ceph_msg_data_set_trail(req->r_request, &req->r_trail);
 
 	register_request(osdc, req);
 
