@@ -127,9 +127,7 @@ acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
 
 		/* Delete and unlink one cached state object */
 
-		next =
-		    ((struct acpi_object_common *)cache->list_head)->
-		    next_object;
+		next = ACPI_GET_DESCRIPTOR_PTR(cache->list_head);
 		ACPI_FREE(cache->list_head);
 
 		cache->list_head = next;
@@ -219,8 +217,7 @@ acpi_os_release_object(struct acpi_memory_list * cache, void *object)
 
 		/* Put the object at the head of the cache list */
 
-		((struct acpi_object_common *)object)->next_object =
-		    cache->list_head;
+		ACPI_SET_DESCRIPTOR_PTR(object, cache->list_head);
 		cache->list_head = object;
 		cache->current_depth++;
 
@@ -268,8 +265,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		/* There is an object available, use it */
 
 		object = cache->list_head;
-		cache->list_head =
-		    ((struct acpi_object_common *)object)->next_object;
+		cache->list_head = ACPI_GET_DESCRIPTOR_PTR(object);
 
 		cache->current_depth--;
 
