@@ -1156,10 +1156,6 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	unsigned long offset;
 	unsigned u;
 
-	retval = fwnet_fifo_start(dev);
-	if (retval < 0)
-		goto failed_initial;
-
 	max_receive = 1U << (dev->card->max_receive + 1);
 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
 
@@ -1240,8 +1236,6 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	fw_iso_context_destroy(context);
 	dev->broadcast_rcv_context = NULL;
  failed_context_create:
-	fwnet_fifo_stop(dev);
- failed_initial:
 
 	return retval;
 }
@@ -1260,10 +1254,14 @@ static int fwnet_open(struct net_device *net)
 	struct fwnet_device *dev = netdev_priv(net);
 	int ret;
 
+	ret = fwnet_fifo_start(dev);
+	if (ret)
+		return ret;
+
 	if (dev->broadcast_state == FWNET_BROADCAST_ERROR) {
 		ret = fwnet_broadcast_start(dev);
 		if (ret)
-			return ret;
+			goto out;
 	}
 	netif_start_queue(net);
 
@@ -1272,6 +1270,9 @@ static int fwnet_open(struct net_device *net)
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
+out:
+	fwnet_fifo_stop(dev);
+	return ret;
 }
 
 /* ifdown */
