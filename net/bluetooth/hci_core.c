@@ -2536,6 +2536,12 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
 
 	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
+	/* If an error occured during request building, there is no point in
+	 * queueing the HCI command. We can simply return.
+	 */
+	if (req->err)
+		return;
+
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
 		BT_ERR("%s no memory for command (opcode 0x%4.4x)",
