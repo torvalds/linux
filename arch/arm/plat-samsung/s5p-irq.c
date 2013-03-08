@@ -17,7 +17,6 @@
 
 #include <mach/irqs.h>
 #include <mach/map.h>
-#include <plat/regs-timer.h>
 #include <plat/cpu.h>
 
 void __init s5p_init_irq(u32 *vic, u32 num_vic)
