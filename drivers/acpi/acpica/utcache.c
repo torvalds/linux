@@ -85,7 +85,6 @@ acpi_os_create_cache(char *cache_name,
 	/* Populate the cache object and return it */
 
 	ACPI_MEMSET(cache, 0, sizeof(struct acpi_memory_list));
-	cache->link_offset = 8;
 	cache->list_name = cache_name;
 	cache->object_size = object_size;
 	cache->max_depth = max_depth;
@@ -108,7 +107,7 @@ acpi_os_create_cache(char *cache_name,
 
 acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
 {
-	char *next;
+	void *next;
 	acpi_status status;
 
 	ACPI_FUNCTION_ENTRY();
@@ -128,10 +127,9 @@ acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
 
 		/* Delete and unlink one cached state object */
 
-		next = *(ACPI_CAST_INDIRECT_PTR(char,
-						&(((char *)cache->
-						   list_head)[cache->
-							      link_offset])));
+		next =
+		    ((struct acpi_object_common *)cache->list_head)->
+		    next_object;
 		ACPI_FREE(cache->list_head);
 
 		cache->list_head = next;
@@ -221,9 +219,7 @@ acpi_os_release_object(struct acpi_memory_list * cache, void *object)
 
 		/* Put the object at the head of the cache list */
 
-		*(ACPI_CAST_INDIRECT_PTR(char,
-					 &(((char *)object)[cache->
-							    link_offset]))) =
+		((struct acpi_object_common *)object)->next_object =
 		    cache->list_head;
 		cache->list_head = object;
 		cache->current_depth++;
@@ -272,10 +268,8 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		/* There is an object available, use it */
 
 		object = cache->list_head;
-		cache->list_head = *(ACPI_CAST_INDIRECT_PTR(char,
-							    &(((char *)
-							       object)[cache->
-								       link_offset])));
+		cache->list_head =
+		    ((struct acpi_object_common *)object)->next_object;
 
 		cache->current_depth--;
 
