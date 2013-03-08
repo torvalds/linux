@@ -560,7 +560,7 @@ void drv_add_interface_debugfs(struct ieee80211_local *local,
 		return;
 
 	local->ops->add_interface_debugfs(&local->hw, &sdata->vif,
-					  sdata->debugfs.dir);
+					  sdata->vif.debugfs_dir);
 }
 
 static inline
@@ -575,7 +575,7 @@ void drv_remove_interface_debugfs(struct ieee80211_local *local,
 		return;
 
 	local->ops->remove_interface_debugfs(&local->hw, &sdata->vif,
-					     sdata->debugfs.dir);
+					     sdata->vif.debugfs_dir);
 }
 #else
 static inline

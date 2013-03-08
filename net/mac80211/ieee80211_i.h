@@ -758,7 +758,6 @@ struct ieee80211_sub_if_data {
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
-		struct dentry *dir;
 		struct dentry *subdir_stations;
 		struct dentry *default_unicast_key;
 		struct dentry *default_multicast_key;
