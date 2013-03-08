@@ -31,14 +31,8 @@ enum {
 	PINMUX_FLAG_TYPE,	/* must be last */
 };
 
-#define PINMUX_FLAG_DBIT_SHIFT      5
-#define PINMUX_FLAG_DBIT            (0x1f << PINMUX_FLAG_DBIT_SHIFT)
-#define PINMUX_FLAG_DREG_SHIFT      10
-#define PINMUX_FLAG_DREG            (0x3f << PINMUX_FLAG_DREG_SHIFT)
-
 struct sh_pfc_pin {
 	const pinmux_enum_t enum_id;
-	unsigned short flags;
 	const char *name;
 };
 
@@ -79,7 +73,6 @@ struct pinmux_func {
 	[gpio] = {					\
 		.name = __stringify(gpio),		\
 		.enum_id = data_or_mark,		\
-		.flags = PINMUX_TYPE_GPIO		\
 	}
 #define PINMUX_GPIO_FN(gpio, base, data_or_mark)	\
 	[gpio - (base)] = {				\

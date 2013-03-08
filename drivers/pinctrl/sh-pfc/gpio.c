@@ -26,12 +26,18 @@ struct sh_pfc_gpio_data_reg {
 	unsigned long shadow;
 };
 
-struct sh_pfc_chip {
-	struct sh_pfc		*pfc;
-	struct gpio_chip	gpio_chip;
+struct sh_pfc_gpio_pin {
+	u8 dbit;
+	u8 dreg;
+};
 
-	struct sh_pfc_window	*mem;
+struct sh_pfc_chip {
+	struct sh_pfc			*pfc;
+	struct gpio_chip		gpio_chip;
+
+	struct sh_pfc_window		*mem;
 	struct sh_pfc_gpio_data_reg	*regs;
+	struct sh_pfc_gpio_pin		*pins;
 };
 
 static struct sh_pfc_chip *gpio_to_pfc_chip(struct gpio_chip *gc)
@@ -48,13 +54,11 @@ static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int gpio,
 			      struct sh_pfc_gpio_data_reg **reg,
 			      unsigned int *bit)
 {
-	struct sh_pfc_pin *gpiop = sh_pfc_get_pin(chip->pfc, gpio);
-	unsigned int reg_idx;
+	int idx = sh_pfc_get_pin_index(chip->pfc, gpio);
+	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[idx];
 
-	reg_idx = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
-
-	*reg = &chip->regs[reg_idx];
-	*bit = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
+	*reg = &chip->regs[gpio_pin->dreg];
+	*bit = gpio_pin->dbit;
 }
 
 static unsigned long gpio_read_data_reg(struct sh_pfc_chip *chip,
@@ -74,20 +78,20 @@ static void gpio_write_data_reg(struct sh_pfc_chip *chip,
 	sh_pfc_write_raw_reg(mem, dreg->reg_width, value);
 }
 
-static void gpio_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
+static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned gpio)
 {
-	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
+	struct sh_pfc *pfc = chip->pfc;
+	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[gpio];
+	struct sh_pfc_pin *pin = &pfc->info->pins[gpio];
 	const struct pinmux_data_reg *dreg;
 	unsigned int bit;
 	unsigned int i;
 
 	for (i = 0, dreg = pfc->info->data_regs; dreg->reg; ++i, ++dreg) {
 		for (bit = 0; bit < dreg->reg_width; bit++) {
-			if (dreg->enum_ids[bit] == gpiop->enum_id) {
-				gpiop->flags &= ~PINMUX_FLAG_DREG;
-				gpiop->flags |= i << PINMUX_FLAG_DREG_SHIFT;
-				gpiop->flags &= ~PINMUX_FLAG_DBIT;
-				gpiop->flags |= bit << PINMUX_FLAG_DBIT_SHIFT;
+			if (dreg->enum_ids[bit] == pin->enum_id) {
+				gpio_pin->dreg = i;
+				gpio_pin->dbit = bit;
 				return;
 			}
 		}
@@ -137,7 +141,7 @@ static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
 		if (pfc->info->pins[i].enum_id == 0)
 			continue;
 
-		gpio_setup_data_reg(pfc, i);
+		gpio_setup_data_reg(chip, i);
 	}
 
 	return 0;
@@ -150,9 +154,9 @@ static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
 static int gpio_pin_request(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	struct sh_pfc_pin *pin = sh_pfc_get_pin(pfc, offset);
+	int idx = sh_pfc_get_pin_index(pfc, offset);
 
-	if (pin == NULL || pin->enum_id == 0)
+	if (idx < 0 || pfc->info->pins[idx].enum_id == 0)
 		return -EINVAL;
 
 	return pinctrl_request_gpio(offset);
@@ -236,6 +240,11 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	struct sh_pfc *pfc = chip->pfc;
 	struct gpio_chip *gc = &chip->gpio_chip;
 	int ret;
+
+	chip->pins = devm_kzalloc(pfc->dev, pfc->nr_pins * sizeof(*chip->pins),
+				  GFP_KERNEL);
+	if (chip->pins == NULL)
+		return -ENOMEM;
 
 	ret = gpio_setup_data_regs(chip);
 	if (ret < 0)

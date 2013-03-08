@@ -75,26 +75,25 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 	BUG();
 }
 
-struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin)
+int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 {
 	unsigned int offset;
 	unsigned int i;
 
 	if (pfc->info->ranges == NULL)
-		return &pfc->info->pins[pin];
+		return pin;
 
 	for (i = 0, offset = 0; i < pfc->info->nr_ranges; ++i) {
 		const struct pinmux_range *range = &pfc->info->ranges[i];
 
 		if (pin <= range->end)
 			return pin >= range->begin
-			     ? &pfc->info->pins[offset + pin - range->begin]
-			     : NULL;
+			     ? offset + pin - range->begin : -1;
 
 		offset += range->end - range->begin + 1;
 	}
 
-	return NULL;
+	return -1;
 }
 
 static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
@@ -392,11 +391,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
-
-	/*
-	 * Ensure that the type encoding fits
-	 */
-	BUILD_BUG_ON(PINMUX_FLAG_TYPE > ((1 << PINMUX_FLAG_DBIT_SHIFT) - 1));
 
 	info = pdev->id_entry->driver_data
 	      ? (void *)pdev->id_entry->driver_data : pdev->dev.platform_data;

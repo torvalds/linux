@@ -51,7 +51,7 @@ unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
 			  unsigned long data);
 
-struct sh_pfc_pin *sh_pfc_get_pin(struct sh_pfc *pfc, unsigned int pin);
+int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 		      int cfg_mode);
 
