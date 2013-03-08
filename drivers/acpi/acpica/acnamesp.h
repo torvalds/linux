@@ -167,6 +167,21 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent);
 int acpi_ns_compare_names(char *name1, char *name2);
 
 /*
+ * nsconvert - Dynamic object conversion routines
+ */
+acpi_status
+acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_string(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+/*
  * nsdump - Namespace dump/print utilities
  */
 #ifdef	ACPI_FUTURE_USAGE

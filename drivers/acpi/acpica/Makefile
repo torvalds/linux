@@ -83,6 +83,7 @@ acpi-$(ACPI_FUTURE_USAGE) += hwtimer.o
 acpi-y +=		\
 	nsaccess.o	\
 	nsalloc.o	\
+	nsconvert.o	\
 	nsdump.o	\
 	nseval.o	\
 	nsinit.o	\
