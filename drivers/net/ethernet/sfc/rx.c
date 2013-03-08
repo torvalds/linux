@@ -529,8 +529,8 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		if (!(flags & EFX_RX_PKT_PREFIX_LEN))
 			efx_rx_packet__check_len(rx_queue, rx_buf, len);
 	} else if (unlikely(n_frags > EFX_RX_MAX_FRAGS) ||
-		   unlikely(len <= (n_frags - 1) * EFX_RX_USR_BUF_SIZE) ||
-		   unlikely(len > n_frags * EFX_RX_USR_BUF_SIZE) ||
+		   unlikely(len <= (n_frags - 1) * efx->rx_dma_len) ||
+		   unlikely(len > n_frags * efx->rx_dma_len) ||
 		   unlikely(!efx->rx_scatter)) {
 		/* If this isn't an explicit discard request, either
 		 * the hardware or the driver is broken.
@@ -581,9 +581,9 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
 			if (--tail_frags == 0)
 				break;
-			efx_sync_rx_buffer(efx, rx_buf, EFX_RX_USR_BUF_SIZE);
+			efx_sync_rx_buffer(efx, rx_buf, efx->rx_dma_len);
 		}
-		rx_buf->len = len - (n_frags - 1) * EFX_RX_USR_BUF_SIZE;
+		rx_buf->len = len - (n_frags - 1) * efx->rx_dma_len;
 		efx_sync_rx_buffer(efx, rx_buf, rx_buf->len);
 	}
 

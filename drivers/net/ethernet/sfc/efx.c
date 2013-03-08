@@ -587,7 +587,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	rx_buf_len = (sizeof(struct efx_rx_page_state) +
 		      NET_IP_ALIGN + efx->rx_dma_len);
 	if (rx_buf_len <= PAGE_SIZE) {
-		efx->rx_scatter = false;
+		efx->rx_scatter = efx->type->always_rx_scatter;
 		efx->rx_buffer_order = 0;
 	} else if (efx->type->can_rx_scatter) {
 		BUILD_BUG_ON(EFX_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
@@ -615,7 +615,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 			  efx->rx_dma_len, efx->rx_page_buf_step,
 			  efx->rx_bufs_per_page, efx->rx_pages_per_batch);
 
-	/* RX filters also have scatter-enabled flags */
+	/* RX filters may also have scatter-enabled flags */
 	if (efx->rx_scatter != old_rx_scatter)
 		efx->type->filter_update_rx_scatter(efx);
 

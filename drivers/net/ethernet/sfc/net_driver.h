@@ -297,7 +297,8 @@ struct efx_rx_page_state {
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
- * @scatter_n: Number of buffers used by current packet
+ * @scatter_n: Used by NIC specific receive code.
+ * @scatter_len: Used by NIC specific receive code.
  * @page_ring: The ring to store DMA mapped pages for reuse.
  * @page_add: Counter to calculate the write pointer for the recycle ring.
  * @page_remove: Counter to calculate the read pointer for the recycle ring.
@@ -329,6 +330,7 @@ struct efx_rx_queue {
 	unsigned int notified_count;
 	unsigned int removed_count;
 	unsigned int scatter_n;
+	unsigned int scatter_len;
 	struct page **page_ring;
 	unsigned int page_add;
 	unsigned int page_remove;
@@ -1023,7 +1025,8 @@ struct efx_mtd_partition {
  * @rx_prefix_size: Size of RX prefix before packet data
  * @rx_hash_offset: Offset of RX flow hash within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
- * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
+ * @can_rx_scatter: NIC is able to scatter packets to multiple buffers
+ * @always_rx_scatter: NIC will always scatter packets to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
@@ -1142,6 +1145,7 @@ struct efx_nic_type {
 	unsigned int rx_hash_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
+	bool always_rx_scatter;
 	unsigned int max_interrupt_mode;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
