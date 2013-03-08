@@ -69,6 +69,17 @@
 
 #include <plat/key.h>
 
+/* Android Parameter */
+static int ap_mdm = 0;
+module_param(ap_mdm, int, 0644);
+static int ap_has_alsa = 0;
+module_param(ap_has_alsa, int, 0644);
+static int ap_data_only = 2;
+module_param(ap_data_only, int, 0644);
+static int ap_has_earphone = 0;
+module_param(ap_has_earphone, int, 0644);
+
+
 static struct rk29_keys_button key_button[] = {
 	#if 0
 	{
