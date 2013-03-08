@@ -1221,10 +1221,10 @@ err:
 #if IS_ENABLED(CONFIG_RC_CORE)
 static int af9035_rc_query(struct dvb_usb_device *d)
 {
-	unsigned int key;
-	unsigned char b[4];
 	int ret;
-	struct usb_req req = { CMD_IR_GET, 0, 0, NULL, 4, b };
+	u32 key;
+	u8 buf[4];
+	struct usb_req req = { CMD_IR_GET, 0, 0, NULL, 4, buf };
 
 	ret = af9035_ctrl_msg(d, &req);
 	if (ret == 1)
@@ -1232,17 +1232,20 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 	else if (ret < 0)
 		goto err;
 
-	if ((b[2] + b[3]) == 0xff) {
-		if ((b[0] + b[1]) == 0xff) {
-			/* NEC */
-			key = b[0] << 8 | b[2];
+	if ((buf[2] + buf[3]) == 0xff) {
+		if ((buf[0] + buf[1]) == 0xff) {
+			/* NEC standard 16bit */
+			key = buf[0] << 8 | buf[2];
 		} else {
-			/* ext. NEC */
-			key = b[0] << 16 | b[1] << 8 | b[2];
+			/* NEC extended 24bit */
+			key = buf[0] << 16 | buf[1] << 8 | buf[2];
 		}
 	} else {
-		key = b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3];
+		/* NEC full code 32bit */
+		key = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
 	}
+
+	dev_dbg(&d->udev->dev, "%s: %*ph\n", __func__, 4, buf);
 
 	rc_keydown(d->rc_dev, key, 0);
 
