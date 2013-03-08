@@ -31,6 +31,16 @@
 #define PHY0_ANALOG_POWERDOWN		(1 << 3)
 #define PHY0_FORCE_SUSPEND		(1 << 0)
 
+/* EXYNOS4X12 HSIC PHYPWR */
+#define EXYNOS4X12_HSIC1_NORMAL_MASK            (0x7 << 12)
+#define EXYNOS4X12_HSIC1_SLEEP                  (1 << 14)
+#define EXYNOS4X12_HSIC1_ANALOG_POWERDOWN       (1 << 13)
+#define EXYNOS4X12_HSIC1_FORCE_SUSPEND          (1 << 12)
+#define EXYNOS4X12_HSIC0_NORMAL_MASK            (0x7 << 9)
+#define EXYNOS4X12_HSIC0_SLEEP                  (1 << 11)
+#define EXYNOS4X12_HSIC0_ANALOG_POWERDOWN       (1 << 10)
+#define EXYNOS4X12_HSIC0_FORCE_SUSPEND          (1 << 9)
+
 #define EXYNOS4_PHYCLK			EXYNOS4_HSOTG_PHYREG(0x04)
 #define PHY1_COMMON_ON_N		(1 << 7)
 #define PHY0_COMMON_ON_N		(1 << 4)
@@ -68,6 +78,17 @@
 #define PHY0_HLINK_SWRST		(1 << 1)
 #define PHY0_SWRST			(1 << 0)
 
+/* EXYNOS4X12 RSTCON */
+#define EXYNOS4X12_HOST_LINK_PORT_SWRST_MASK    (0xf << 7)
+#define EXYNOS4X12_HOST_LINK_PORT2_SWRST        (1 << 10)
+#define EXYNOS4X12_HOST_LINK_PORT1_SWRST        (1 << 9)
+#define EXYNOS4X12_HOST_LINK_PORT0_SWRST        (1 << 8)
+#define EXYNOS4X12_HOST_LINK_ALL_SWRST          (1 << 7)
+#define EXYNOS4X12_PHY1_SWRST_MASK              (0xf << 3)
+#define EXYNOS4X12_PHY1_HSIC1_SWRST             (1 << 6)
+#define EXYNOS4X12_PHY1_HSIC0_SWRST             (1 << 5)
+#define EXYNOS4X12_PHY1_SWRST                   (1 << 4)
+#define EXYNOS4X12_HOST_PHY_SWRST               (1 << 3)
 #define EXYNOS4_PHY1CON			EXYNOS4_HSOTG_PHYREG(0x34)
 #define FPENABLEN			(1 << 0)
 

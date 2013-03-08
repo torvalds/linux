@@ -204,6 +204,20 @@ config USB_EHCI_S5P
        help
 	 Enable support for the S5P SOC's on-chip EHCI controller.
 
+config USB_S5P_HSIC0
+	boolean "S5P HSIC0 support"
+	depends on USB_EHCI_HCD && PLAT_S5P && USB_EHCI_S5P
+	default y
+	help
+	 Enable support for the S5P SOC's on-chip HSIC PHY.
+
+config USB_S5P_HSIC1
+	boolean "S5P HSIC1 support"
+	depends on USB_EHCI_HCD && PLAT_S5P && USB_EHCI_S5P
+	default y
+	help
+	 Enable support for the S5P SOC's on-chip HSIC PHY.
+
 config USB_EHCI_MV
 	bool "EHCI support for Marvell on-chip controller"
 	depends on USB_EHCI_HCD && (ARCH_PXA || ARCH_MMP)
