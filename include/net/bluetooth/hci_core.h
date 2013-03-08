@@ -1051,7 +1051,7 @@ struct hci_request {
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
 int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
-int hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param);
+void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param);
 void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
 void hci_req_cmd_status(struct hci_dev *hdev, u16 opcode, u8 status);
 
