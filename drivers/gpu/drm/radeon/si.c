@@ -4286,14 +4286,6 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	si_gpu_init(rdev);
 
-#if 0
-	r = evergreen_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
-#endif
 	/* allocate rlc buffers */
 	r = si_rlc_init(rdev);
 	if (r) {
@@ -4589,9 +4581,6 @@ int si_init(struct radeon_device *rdev)
 
 void si_fini(struct radeon_device *rdev)
 {
-#if 0
-	r600_blit_fini(rdev);
-#endif
 	si_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	si_irq_fini(rdev);
