@@ -1228,6 +1228,8 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
  failed_rcv_queue:
 	kfree(dev->broadcast_rcv_buffer_ptrs);
 	dev->broadcast_rcv_buffer_ptrs = NULL;
+	for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++)
+		kunmap(dev->broadcast_rcv_buffer.pages[u]);
  failed_ptrs_alloc:
 	fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer, dev->card);
  failed_buffer_init:
@@ -1620,10 +1622,15 @@ static int fwnet_remove(struct device *_dev)
 
 		fwnet_fifo_stop(dev);
 		if (dev->broadcast_rcv_context) {
+			unsigned u;
+
 			fw_iso_context_stop(dev->broadcast_rcv_context);
 
 			kfree(dev->broadcast_rcv_buffer_ptrs);
 			dev->broadcast_rcv_buffer_ptrs = NULL;
+			for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++)
+				kunmap(dev->broadcast_rcv_buffer.pages[u]);
+
 			fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer,
 					      dev->card);
 			fw_iso_context_destroy(dev->broadcast_rcv_context);
