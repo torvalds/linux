@@ -221,6 +221,9 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
 int ipack_device_register(struct ipack_device *dev);
 void ipack_device_unregister(struct ipack_device *dev);
 
+void ipack_get_device(struct ipack_device *dev);
+void ipack_put_device(struct ipack_device *dev);
+
 /**
  * DEFINE_IPACK_DEVICE_TABLE - macro used to describe a IndustryPack table
  * @_table: device table name

@@ -461,6 +461,18 @@ void ipack_device_unregister(struct ipack_device *dev)
 }
 EXPORT_SYMBOL_GPL(ipack_device_unregister);
 
+void ipack_get_device(struct ipack_device *dev)
+{
+	get_device(&dev->dev);
+}
+EXPORT_SYMBOL_GPL(ipack_get_device);
+
+void ipack_put_device(struct ipack_device *dev)
+{
+	put_device(&dev->dev);
+}
+EXPORT_SYMBOL_GPL(ipack_put_device);
+
 static int __init ipack_init(void)
 {
 	ida_init(&ipack_ida);
