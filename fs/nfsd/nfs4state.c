@@ -761,8 +761,8 @@ static void nfsd4_conn_lost(struct svc_xpt_user *u)
 		list_del(&c->cn_persession);
 		free_conn(c);
 	}
-	spin_unlock(&clp->cl_lock);
 	nfsd4_probe_callback(clp);
+	spin_unlock(&clp->cl_lock);
 }
 
 static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp, u32 flags)
