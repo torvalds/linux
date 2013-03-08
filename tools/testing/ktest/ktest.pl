@@ -108,6 +108,7 @@ my $scp_to_target;
 my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
+my $last_grub_menu;
 my $grub_file;
 my $grub_number;
 my $grub_reboot;
@@ -1538,7 +1539,8 @@ sub run_scp_mod {
 
 sub get_grub2_index {
 
-    return if (defined($grub_number));
+    return if (defined($grub_number) && defined($last_grub_menu) &&
+	       $last_grub_menu eq $grub_menu);
 
     doprint "Find grub2 menu ... ";
     $grub_number = -1;
@@ -1565,6 +1567,7 @@ sub get_grub2_index {
     die "Could not find '$grub_menu' in $grub_file on $machine"
 	if (!$found);
     doprint "$grub_number\n";
+    $last_grub_menu = $grub_menu;
 }
 
 sub get_grub_index {
@@ -1577,7 +1580,8 @@ sub get_grub_index {
     if ($reboot_type ne "grub") {
 	return;
     }
-    return if (defined($grub_number));
+    return if (defined($grub_number) && defined($last_grub_menu) &&
+	       $last_grub_menu eq $grub_menu);
 
     doprint "Find grub menu ... ";
     $grub_number = -1;
@@ -1604,6 +1608,7 @@ sub get_grub_index {
     die "Could not find '$grub_menu' in /boot/grub/menu on $machine"
 	if (!$found);
     doprint "$grub_number\n";
+    $last_grub_menu = $grub_menu;
 }
 
 sub wait_for_input
