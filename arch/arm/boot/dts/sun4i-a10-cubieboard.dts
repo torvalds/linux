@@ -37,10 +37,8 @@
 		};
 
 		uart0: serial@01c28000 {
-			status = "okay";
-		};
-
-		uart1: serial@01c28400 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
 	};
