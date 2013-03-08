@@ -417,6 +417,8 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_ignore_noop_operator, FALSE);
 
 ACPI_EXTERN u8 acpi_gbl_db_opt_disasm;
 ACPI_EXTERN u8 acpi_gbl_db_opt_verbose;
+ACPI_EXTERN u8 acpi_gbl_num_external_methods;
+ACPI_EXTERN u32 acpi_gbl_resolved_external_methods;
 ACPI_EXTERN struct acpi_external_list *acpi_gbl_external_list;
 ACPI_EXTERN struct acpi_external_file *acpi_gbl_external_file_list;
 #endif

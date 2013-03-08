@@ -1052,6 +1052,7 @@ struct acpi_external_list {
 	u16 length;
 	u8 type;
 	u8 flags;
+	u8 resolved;
 };
 
 /* Values for Flags field above */
