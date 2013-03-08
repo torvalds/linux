@@ -434,7 +434,7 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	 *	Source addr check
 	 */
 
-	if (addr_type & IPV6_ADDR_LINKLOCAL)
+	if (__ipv6_addr_needs_scope_id(addr_type))
 		iif = skb->dev->ifindex;
 
 	/*

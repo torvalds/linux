@@ -450,15 +450,16 @@ try_again:
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = udp_hdr(skb)->source;
 		sin6->sin6_flowinfo = 0;
-		sin6->sin6_scope_id = 0;
 
-		if (is_udp4)
+		if (is_udp4) {
 			ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr,
 					       &sin6->sin6_addr);
-		else {
+			sin6->sin6_scope_id = 0;
+		} else {
 			sin6->sin6_addr = ipv6_hdr(skb)->saddr;
-			if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-				sin6->sin6_scope_id = IP6CB(skb)->iif;
+			sin6->sin6_scope_id =
+				ipv6_iface_scope_id(&sin6->sin6_addr,
+						    IP6CB(skb)->iif);
 		}
 
 	}
@@ -1118,7 +1119,7 @@ do_udp_sendmsg:
 
 		if (addr_len >= sizeof(struct sockaddr_in6) &&
 		    sin6->sin6_scope_id &&
-		    ipv6_addr_type(daddr)&IPV6_ADDR_LINKLOCAL)
+		    __ipv6_addr_needs_scope_id(__ipv6_addr_type(daddr)))
 			fl6.flowi6_oif = sin6->sin6_scope_id;
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
