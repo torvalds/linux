@@ -1267,7 +1267,7 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	int cur_pipe;
 
 	/* Planes are fixed to pipes on ILK+ */
-	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+	if (HAS_PCH_SPLIT(dev_priv->dev) || IS_VALLEYVIEW(dev_priv->dev)) {
 		reg = DSPCNTR(pipe);
 		val = I915_READ(reg);
 		WARN((val & DISPLAY_PLANE_ENABLE),
@@ -4743,10 +4743,12 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
-	if (pipe == 0)
-		dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
-	else
-		dspcntr |= DISPPLANE_SEL_PIPE_B;
+	if (!IS_VALLEYVIEW(dev)) {
+		if (pipe == 0)
+			dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
+		else
+			dspcntr |= DISPPLANE_SEL_PIPE_B;
+	}
 
 	if (pipe == 0 && INTEL_INFO(dev)->gen < 4) {
 		/* Enable pixel doubling when the dot clock is > 90% of the (display)
