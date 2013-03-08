@@ -503,9 +503,9 @@ static bool team_dummy_transmit(struct team *team, struct sk_buff *skb)
 	return false;
 }
 
-rx_handler_result_t team_dummy_receive(struct team *team,
-				       struct team_port *port,
-				       struct sk_buff *skb)
+static rx_handler_result_t team_dummy_receive(struct team *team,
+					      struct team_port *port,
+					      struct sk_buff *skb)
 {
 	return RX_HANDLER_ANOTHER;
 }
