@@ -1270,8 +1270,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	spin_lock_bh(&tgt->tgt_lock);
 	io_req->wait_for_comp = 0;
-	if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
-				    &io_req->req_flags))) {
+	if (test_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags)) {
+		BNX2FC_IO_DBG(io_req, "IO completed in a different context\n");
+		rc = SUCCESS;
+	} else if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
+				      &io_req->req_flags))) {
 		/* Let the scsi-ml try to recover this command */
 		printk(KERN_ERR PFX "abort failed, xid = 0x%x\n",
 		       io_req->xid);
