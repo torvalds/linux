@@ -2443,6 +2443,7 @@ void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 {
 	skb_queue_head_init(&req->cmd_q);
 	req->hdev = hdev;
+	req->err = 0;
 }
 
 int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
@@ -2452,6 +2453,14 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	unsigned long flags;
 
 	BT_DBG("length %u", skb_queue_len(&req->cmd_q));
+
+	/* If an error occured during request building, remove all HCI
+	 * commands queued on the HCI request queue.
+	 */
+	if (req->err) {
+		skb_queue_purge(&req->cmd_q);
+		return req->err;
+	}
 
 	/* Do not allow empty requests */
 	if (skb_queue_empty(&req->cmd_q))
@@ -2529,7 +2538,9 @@ int hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		BT_ERR("%s no memory for command", hdev->name);
+		BT_ERR("%s no memory for command (opcode 0x%4.4x)",
+		       hdev->name, opcode);
+		req->err = -ENOMEM;
 		return -ENOMEM;
 	}
 
