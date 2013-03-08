@@ -193,17 +193,25 @@ static void wm_adsp_buf_free(struct list_head *list)
 
 #define WM_ADSP_NUM_FW 4
 
+#define WM_ADSP_FW_MBC_VSS 0
+#define WM_ADSP_FW_TX      1
+#define WM_ADSP_FW_TX_SPK  2
+#define WM_ADSP_FW_RX_ANC  3
+
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
-	"MBC/VSS", "Tx", "Tx Speaker", "Rx ANC"
+	[WM_ADSP_FW_MBC_VSS] = "MBC/VSS",
+	[WM_ADSP_FW_TX] =      "Tx",
+	[WM_ADSP_FW_TX_SPK] =  "Tx Speaker",
+	[WM_ADSP_FW_RX_ANC] =  "Rx ANC",
 };
 
 static struct {
 	const char *file;
 } wm_adsp_fw[WM_ADSP_NUM_FW] = {
-	{ .file = "mbc-vss" },
-	{ .file = "tx" },
-	{ .file = "tx-spk" },
-	{ .file = "rx-anc" },
+	[WM_ADSP_FW_MBC_VSS] = { .file = "mbc-vss" },
+	[WM_ADSP_FW_TX] =      { .file = "tx" },
+	[WM_ADSP_FW_TX_SPK] =  { .file = "tx-spk" },
+	[WM_ADSP_FW_RX_ANC] =  { .file = "rx-anc" },
 };
 
 static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
