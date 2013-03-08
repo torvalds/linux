@@ -34,8 +34,10 @@ static DEFINE_MUTEX(rk_dvfs_mutex);
 
 static int dump_dbg_map(char *buf);
 
+static struct workqueue_struct *dvfs_wq;
 #define PD_ON	1
 #define PD_OFF	0
+#define DVFS_STR_DISABLE(on) ((on)?"enable":"disable")
 
 #define get_volt_up_delay(new_volt, old_volt)	\
 	((new_volt) > (old_volt) ? (((new_volt) - (old_volt)) >> 9) : 0)
@@ -280,30 +282,158 @@ int dvfs_clk_disable_limit(struct clk *clk)
 	return 0;
 }
 
-int is_support_dvfs(struct clk_node *dvfs_info)
+int dvfs_vd_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return (dvfs_info->vd && dvfs_info->vd->vd_dvfs_target && dvfs_info->enable_dvfs);
-}
+	int ret = -1;
+	struct clk_node *dvfs_info=clk_get_dvfs_info(clk);
+	
+	DVFS_DBG("%s(%s(%lu))\n", __func__, dvfs_info->name, rate);
 
-int dvfs_set_rate(struct clk *clk, unsigned long rate)
-{
-	int ret = 0;
-	struct vd_node *vd;
-	DVFS_DBG("%s(%s(%lu))\n", __func__, clk->name, rate);
-	if (!clk->dvfs_info) {
-		DVFS_ERR("%s :This clk do not support dvfs!\n", __func__);
-		ret = -1;
-	} else {
-		vd = clk->dvfs_info->vd;
+	#if 0 // judge by reference func in rk
+	if (dvfs_support_clk_set_rate(dvfs_info)==false) {
+		DVFS_ERR("dvfs func:%s is not support!\n", __func__);
+		return ret;
+	}
+	#endif
+	
+	if(dvfs_info->vd&&dvfs_info->vd->vd_dvfs_target){
 		// mutex_lock(&vd->dvfs_mutex);
 		mutex_lock(&rk_dvfs_mutex);
-		ret = vd->vd_dvfs_target(clk, rate);
+		ret = dvfs_info->vd->vd_dvfs_target(clk, rate);
 		mutex_unlock(&rk_dvfs_mutex);
 		// mutex_unlock(&vd->dvfs_mutex);
 	}
 	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, clk->name, rate);
 	return ret;
 }
+EXPORT_SYMBOL(dvfs_vd_clk_set_rate);
+
+int dvfs_vd_clk_disable(struct clk *clk, int on)
+{
+	int ret = -1;
+	struct clk_node *dvfs_info=clk_get_dvfs_info(clk);	
+	DVFS_DBG("%s(%s(%s,%lu))\n", __func__, dvfs_info->name, DVFS_STR_DISABLE(on),clk_get_rate(clk));
+
+
+	#if 0 // judge by reference func in rk
+	if (dvfs_support_clk_disable(dvfs_info)==false) {
+		DVFS_ERR("dvfs func:%s is not support!\n", __func__);
+		return ret;
+	}
+	#endif
+	
+	if(dvfs_info->vd&&dvfs_info->vd->vd_clk_disable_target){
+		// mutex_lock(&vd->dvfs_mutex);
+		mutex_lock(&rk_dvfs_mutex);
+		ret = dvfs_info->vd->vd_clk_disable_target(clk, on);
+		mutex_unlock(&rk_dvfs_mutex);
+		// mutex_unlock(&vd->dvfs_mutex);
+	}
+	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, dvfs_info->name, DVFS_STR_ON(on));
+
+	return ret;
+}
+
+EXPORT_SYMBOL(dvfs_vd_clk_disable);
+
+
+int dvfs_vd_clk_disable_target(struct clk *clk, int on)
+{
+	struct clk_node *dvfs_clk;
+	struct clk_disable_ctr *disable_ctr;
+	int ret = 0;
+	int i;
+	if (!clk) {
+		DVFS_ERR("%s is not a clk\n", __func__);
+		return -1;
+	}
+	dvfs_clk = clk_get_dvfs_info(clk);
+	if(!dvfs_clk)
+	{
+		DVFS_ERR("%s is not a dvfs\n", __func__);
+		return -1;
+	}
+
+	DVFS_DBG("%s:clk=%s(%s),count=%d\n",__FUNCTION__,dvfs_clk->name,
+	DVFS_STR_DISABLE,clk_used_count(clk));
+	if(on)
+	{
+		// enable ,is usecount =0,this time will set volt
+		if(clk_used_count(clk)!= 0)
+			return clk_set_enable_locked(clk, on);
+	}
+	else
+	{
+		//disabe, is usecount =1,this time will set volt
+		if(clk_used_count(clk)!= 1)
+			return clk_set_enable_locked(clk, on);
+	}
+	if(!dvfs_clk->disable_ctr)
+		return clk_set_enable_locked(clk, on);
+	else
+		disable_ctr=dvfs_clk->disable_ctr;
+	if(on)
+	{	
+		if(disable_ctr->delay&&disable_ctr->disable_work_fn)
+			cancel_delayed_work(&disable_ctr->disable_work);
+		if(disable_ctr->clk_disable_target)
+		{
+			for(i=0;i<2;i++)
+			{
+				ret = disable_ctr->clk_disable_target(clk, on);
+				if(ret>=0)
+					break;
+				mdelay(1000);
+			}
+		}
+		else
+			ret=0;
+		
+		// volt resume fail, Muse set rate is mini
+		if(ret<0)
+		{
+			clk_set_rate_locked(clk,dvfs_clk->min_rate);
+			DVFS_WARNING("%s:clk=%s enable set volt fail,set min rate\n",__FUNCTION__,dvfs_clk->name);
+		}
+	}
+
+	ret = clk_set_enable_locked(clk, on);
+	if(ret < 0)
+	  return ret;
+	if(!on)
+	{
+		if(disable_ctr->delay&&disable_ctr->disable_work_fn)
+		{
+			DVFS_DBG("%s:clk=%s disable delay=%d\n",__FUNCTION__,dvfs_clk->name,disable_ctr->delay);
+			queue_delayed_work_on(0,dvfs_wq, &disable_ctr->disable_work, 
+											msecs_to_jiffies(disable_ctr->delay));
+		}
+		else
+		{
+			DVFS_DBG("%s:clk=%s disable now\n",__FUNCTION__,dvfs_clk->name);
+			if(disable_ctr->clk_disable_target)
+				ret=disable_ctr->clk_disable_target(clk, on);
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(dvfs_vd_clk_disable_target);
+
+void dvfs_clk_disable_delay_work(struct work_struct *work)
+{
+	struct clk_disable_ctr *disable_ctr=container_of(work, struct clk_disable_ctr, disable_work.work);
+	struct clk_node *dvfs_clk;
+	if(!disable_ctr->dvfs_clk)
+		return;
+	dvfs_clk=disable_ctr->dvfs_clk;
+	mutex_lock(&rk_dvfs_mutex);
+	DVFS_DBG("%s:clk=%s disable delay work\n",__FUNCTION__,dvfs_clk->name);
+	if(disable_ctr->clk_disable_target&&(!clk_used_count(dvfs_clk->clk)))
+		disable_ctr->clk_disable_target(dvfs_clk->clk,0);
+	mutex_unlock(&rk_dvfs_mutex);
+}
+EXPORT_SYMBOL(dvfs_clk_disable_delay_work);
 
 static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
 {
@@ -728,6 +858,7 @@ int rk_regist_clk(struct clk_node *dvfs_clk)
 	struct pd_node	*pd;
 	struct clk_list	*child;
 	struct clk	*clk;
+	struct clk_disable_ctr *disable_ctr;
 	int i = 0;
 
 	if (!dvfs_clk)
@@ -746,6 +877,20 @@ int rk_regist_clk(struct clk_node *dvfs_clk)
 	}
 	clk = dvfs_clk_get(NULL, dvfs_clk->name);
 	dvfs_clk->clk = clk;
+	disable_ctr=dvfs_clk->disable_ctr;
+	if(disable_ctr)
+	{
+		if(disable_ctr->clk_disable_target)
+		{
+			disable_ctr->dvfs_clk=dvfs_clk;
+
+			if(disable_ctr->delay&&disable_ctr->disable_work_fn)
+			{
+				INIT_DELAYED_WORK(&disable_ctr->disable_work,disable_ctr->disable_work_fn);	
+			}
+		}else
+			dvfs_clk->disable_ctr=NULL;
+	}
 	clk_register_dvfs(dvfs_clk, clk);
 	INIT_LIST_HEAD(&dvfs_clk->depend_list);
 	mutex_unlock(&mutex);
@@ -1485,6 +1630,7 @@ static int __init dvfs_init(void)
 			return ret;
 		}
 	}
+	dvfs_wq = create_singlethread_workqueue("rk dvfs wq");
 
 	return ret;
 }

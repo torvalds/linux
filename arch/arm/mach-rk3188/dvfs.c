@@ -27,6 +27,82 @@
 #include <linux/io.h>
 #include <linux/hrtimer.h>
 
+static int clk_disable_target(struct clk *clk, int on)
+{
+	struct clk_node *dvfs_clk;
+	int volt_new = 0, clk_volt_store = 0;
+	struct cpufreq_frequency_table clk_fv;
+	unsigned long rate_hz;
+	int ret = 0;
+
+	if (!clk) {
+		DVFS_ERR("%s is not a clk\n", __func__);
+		return -1;
+	}
+	dvfs_clk = clk_get_dvfs_info(clk);
+
+	if (!dvfs_clk || dvfs_clk->vd == NULL || IS_ERR_OR_NULL(dvfs_clk->vd->regulator)) {
+		DVFS_ERR("dvfs(%s) is not register regulator\n", dvfs_clk->name);
+		return -1;
+	}
+
+	if (dvfs_clk->vd->volt_set_flag == DVFS_SET_VOLT_FAILURE) {
+		/* It means the last time set voltage error */
+		ret = dvfs_reset_volt(dvfs_clk->vd);
+		if (ret < 0) {
+			return -1;
+		}
+	}
+
+	clk_volt_store = dvfs_clk->set_volt;	
+	// firsh up volt in this,next on clk out off this fun
+	if(on||clk_used_count(clk))
+	{
+		rate_hz = clk_get_rate(clk);
+		/* find the clk corresponding voltage */
+		if (0 != dvfs_clk_get_ref_volt(dvfs_clk, rate_hz / 1000, &clk_fv)) {
+			DVFS_ERR("dvfs(%s) rate %luhz is larger,not support\n", dvfs_clk->name, rate_hz);
+			return -1;
+		}	
+		dvfs_clk->set_volt = clk_fv.index;
+
+	}
+	else// in this clk is real disable
+	{
+		dvfs_clk->set_volt =0;	
+	}	
+	
+
+	volt_new = dvfs_vd_get_newvolt_byclk(dvfs_clk);
+
+	DVFS_DBG("**%s:clk=%s(%s),rate=%lu,clk volt=%d,vd volt=%d\n",__FUNCTION__,dvfs_clk->name,
+				on?"enable":"disable",clk_get_rate(clk)/1000,dvfs_clk->set_volt,volt_new);
+
+
+	if (volt_new == dvfs_clk->vd->cur_volt)
+		return 0;
+
+	ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+	if (ret < 0)
+	{
+		printk("%s:clk=%s set volt error\n",__FUNCTION__,dvfs_clk->name);
+
+		if(!clk_used_count(clk))	
+			dvfs_clk->set_volt = 0;
+		else
+		{
+			rate_hz = clk_get_rate(clk);
+			/* find the clk corresponding voltage */
+			if (0 != dvfs_clk_get_ref_volt(dvfs_clk, rate_hz / 1000, &clk_fv)) {
+				DVFS_ERR("dvfs(%s) rate %luhz is larger,not support\n", dvfs_clk->name, rate_hz);
+				return -1;
+			}	
+			dvfs_clk->set_volt = clk_fv.index;
+		}
+	}
+
+	return ret;
+}
 static int rk_dvfs_clk_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
@@ -557,7 +633,7 @@ static struct vd_node vd_core = {
 #else
 	.vd_dvfs_target	= dvfs_target_core,
 #endif
-
+	.vd_clk_disable_target= dvfs_vd_clk_disable_target,
 };
 
 static struct vd_node vd_rtc = {
@@ -670,19 +746,25 @@ static struct pds_list aclk_periph_pds[] = {
 	CLK_PDS(NULL),
 };
 
-#define RK_CLKS(_clk_name, _ppds, _dvfs_table, _dvfs_nb) \
+#define RK_CLKS(_clk_name, _ppds, _dvfs_table, _dvfs_nb, _disable) \
 { \
 	.name	= _clk_name, \
 	.pds = _ppds,\
 	.dvfs_table = _dvfs_table,	\
 	.dvfs_nb	= _dvfs_nb,	\
+	.disable_ctr = _disable,	\
 }
 
+static struct clk_disable_ctr gpu_disable= {
+	.disable_work_fn=dvfs_clk_disable_delay_work,
+	.clk_disable_target=clk_disable_target,
+	.delay=40,//ms
+};
 static struct clk_node rk30_clks[] = {
-	RK_CLKS("cpu", cpu_pds, cpu_dvfs_table, &rk_dvfs_clk_notifier),
-	RK_CLKS("ddr", ddr_pds, ddr_dvfs_table, &rk_dvfs_clk_notifier),
-	RK_CLKS("gpu", gpu_pds, gpu_dvfs_table, &rk_dvfs_clk_notifier),
-	RK_CLKS("aclk_periph", aclk_periph_pds, peri_aclk_dvfs_table, &rk_dvfs_clk_notifier),
+	RK_CLKS("cpu", cpu_pds, cpu_dvfs_table, &rk_dvfs_clk_notifier, NULL),
+	RK_CLKS("ddr", ddr_pds, ddr_dvfs_table, &rk_dvfs_clk_notifier, NULL),
+	RK_CLKS("gpu", gpu_pds, gpu_dvfs_table, &rk_dvfs_clk_notifier,&gpu_disable),
+	RK_CLKS("aclk_periph", aclk_periph_pds, peri_aclk_dvfs_table, &rk_dvfs_clk_notifier, NULL),
 };
 
 #if 0

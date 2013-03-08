@@ -70,8 +70,17 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate);
 int clk_set_parent_nolock(struct clk *clk, struct clk *parent);
 int clk_set_rate_locked(struct clk * clk,unsigned long rate);
 void clk_register_dvfs(struct clk_node *dvfs_clk, struct clk *clk);
-struct clk_node *clk_get_dvfs_info(struct clk *clk);
 int is_suport_round_rate(struct clk *clk);
+int clk_set_enable_locked(struct clk * clk,int on);
+/************************inline fun*****************************/
+static inline struct clk_node *clk_get_dvfs_info(struct clk *clk)
+{
+    return clk->dvfs_info;
+}
+static inline s16 clk_used_count(struct clk * clk)
+{
+	return (clk->usecount);
+}
 
 #ifdef RK30_CLK_OFFBOARD_TEST
 #include <linux/device.h>

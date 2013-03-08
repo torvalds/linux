@@ -322,12 +322,6 @@ int clk_set_parent_nolock(struct clk *clk, struct clk *parent)
 	return ret;
 }
 /**********************************dvfs****************************************************/
-
-struct clk_node *clk_get_dvfs_info(struct clk *clk)
-{
-    return clk->dvfs_info;
-}
-
 int clk_set_rate_locked(struct clk * clk,unsigned long rate)
 {
 	int ret;
@@ -342,8 +336,18 @@ void clk_register_dvfs(struct clk_node *dvfs_clk, struct clk *clk)
 {
     clk->dvfs_info = dvfs_clk;
 }
-
-
+int clk_set_enable_locked(struct clk * clk,int on)
+{
+	int ret=0;
+	LOCK();
+	if(on)
+		ret=clk_enable_nolock(clk);
+	else	
+		clk_disable_nolock(clk);
+	UNLOCK();
+	return ret;
+}
+EXPORT_SYMBOL(clk_set_enable_locked);
 /*-------------------------------------------------------------------------
  * Optional clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
@@ -402,8 +406,8 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	}
 	if (rate == clk->rate)
 		return 0;
-	if (clk->dvfs_info!=NULL&&is_support_dvfs(clk->dvfs_info))
-		return dvfs_set_rate(clk, rate);
+	if (dvfs_support_clk_set_rate(clk->dvfs_info)==true)
+		return dvfs_vd_clk_set_rate(clk, rate);
 
 	LOCK();
 	ret = clk_set_rate_nolock(clk, rate);
@@ -488,6 +492,8 @@ void clk_disable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return;
+	if (dvfs_support_clk_disable(clk->dvfs_info)==true)
+		return dvfs_vd_clk_disable(clk, 0);
 
 	LOCK();
 	clk_disable_nolock(clk);
@@ -509,6 +515,8 @@ int  clk_enable(struct clk *clk)
 
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
+	if (dvfs_support_clk_disable(clk->dvfs_info)==true)
+		return dvfs_vd_clk_disable(clk, 1);
 
 	LOCK();
 	ret = clk_enable_nolock(clk);
