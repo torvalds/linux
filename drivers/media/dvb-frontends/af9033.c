@@ -985,10 +985,17 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 			"OFDM=%d.%d.%d.%d\n", KBUILD_MODNAME, buf[0], buf[1],
 			buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
-
-	/* FIXME: Do not abuse adc_multiplier for detecting IT9135 */
-	if (state->cfg.adc_multiplier != AF9033_ADC_MULTIPLIER_2X) {
-		/* sleep */
+	/* sleep */
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		/* IT9135 did not like to sleep at that early */
+		break;
+	default:
 		ret = af9033_wr_reg(state, 0x80004c, 1);
 		if (ret < 0)
 			goto err;
