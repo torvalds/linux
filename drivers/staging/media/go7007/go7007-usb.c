@@ -876,10 +876,10 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 	struct go7007_usb *usb = go->hpi_context;
 	u8 buf[16];
 	int buf_len, i;
-	int ret = -1;
+	int ret = -EIO;
 
 	if (go->status == STATUS_SHUTDOWN)
-		return -1;
+		return -ENODEV;
 
 	mutex_lock(&usb->i2c_lock);
 
@@ -936,7 +936,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 			memcpy(msgs[i].buf, buf + 1, msgs[i].len);
 		}
 	}
-	ret = 0;
+	ret = num;
 
 i2c_done:
 	mutex_unlock(&usb->i2c_lock);
